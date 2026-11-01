@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-NetHack TypeScript port that plays like the original but is not an exact clone. It has a headless, deterministic core (`@nh/core`), swappable renderers, and two mod layers (game mods in the core, client mods in the UI). Mobile portrait and large scrollable maps are first-class targets. For contracts see `docs/ARCHITECTURE.md`; for the current milestone brief see `docs/kickoff-m1.md`.
+NetHack TypeScript port that plays like the original but is not an exact clone. It has a headless, deterministic core (`@nh/core`), swappable renderers, and two mod layers (game mods in the core, client mods in the UI). Mobile portrait and large scrollable maps are first-class targets. For contracts see `docs/ARCHITECTURE.md`; for the current milestone brief see `docs/kickoff-m5a.md`; for longer-term goals (the mod platform) see `docs/ROADMAP.md`.
 
 ## Rules
 
