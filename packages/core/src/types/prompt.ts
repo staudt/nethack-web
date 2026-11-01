@@ -15,6 +15,11 @@ export interface Prompt {
   multi?: boolean;
   /** Text prompts: the longest answer accepted. */
   maxLength?: number;
+  /**
+   * Single-select menus and yn prompts: the player may dismiss it (NetHack's ESC), which answers
+   * `null`. Multi menus, direction and text prompts can always be cancelled.
+   */
+  cancellable?: boolean;
 }
 
 export interface PromptOption {

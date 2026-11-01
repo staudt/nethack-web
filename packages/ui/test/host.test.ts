@@ -329,6 +329,35 @@ describe('host', () => {
     expect(btns(m.root)).toHaveLength(0);
   });
 
+  test('a cancellable prompt has Cancel and Escape, which answer null', () => {
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', { q: 'Really?' });
+    m.ui.update(view(), [], { id: 'p1', kind: 'yn', key: 'q', cancellable: true });
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Yes', 'No', 'Cancel']);
+    btns(m.root)[2]!.click();
+    expect(m.acts).toEqual([{ type: 'answer', promptId: 'p1', value: null }]);
+    m.ui.update(view(), [], {
+      id: 'p2',
+      kind: 'menu',
+      key: 'q',
+      options: [{ value: 1, key: 'q' }],
+      cancellable: true,
+    });
+    key('Escape', 'Escape');
+    expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'p2', value: null });
+  });
+
+  test('a prompt that is not cancellable has no Cancel button', () => {
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', { q: 'Really?' });
+    m.ui.update(view(), [], { id: 'p1', kind: 'yn', key: 'q' });
+    key('Escape', 'Escape');
+    expect(m.acts).toEqual([]);
+    expect(btns(m.root)).toHaveLength(2);
+  });
+
   test('menu prompt lists options', () => {
     const m = mk();
     ui = m.ui;

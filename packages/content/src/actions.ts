@@ -250,7 +250,7 @@ const up: ActionDef = {
       return NORMAL_SPEED;
     }
     // ref: doup(): ledger_no == 1 -> y_n("Beware, there will be no return!  Still climb?")
-    ctx.ask({ id: 'leave-dungeon', kind: 'yn', key: 'stairs.leave_confirm' }, 'nh:up', null);
+    ctx.ask({ id: 'leave-dungeon', kind: 'yn', key: 'stairs.leave_confirm', cancellable: true }, 'nh:up', null);
     return 0;
   },
   answer(ctx, value) {

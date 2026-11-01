@@ -310,6 +310,7 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
           id: 'pickup-confirm',
           kind: 'yn',
           key: 'pickup.confirm',
+          cancellable: true,
           params: { load: load ?? '', item: nameQty(ctx, obj, qq) },
         },
         'nh:pickup',

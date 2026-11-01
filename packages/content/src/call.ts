@@ -78,6 +78,7 @@ export const callAction: ActionDef = {
         id: 'call-pick',
         kind: 'menu',
         key: 'call.pick',
+        cancellable: true,
         options: list.map((e) => invOption(ctx, e)),
       },
       'nh:call',

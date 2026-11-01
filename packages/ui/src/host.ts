@@ -273,6 +273,7 @@ export function createUi(opts: UiOptions): Ui {
     entries: MenuEntry[],
     dismissable: boolean | string,
     sel?: number,
+    onCancel?: () => void,
   ): OpenMenu =>
     showSheet((onClose) =>
       openMenu(root, {
@@ -282,6 +283,7 @@ export function createUi(opts: UiOptions): Ui {
           ? { cancelLabel: typeof dismissable === 'string' ? dismissable : t('ui.cancel') }
           : {}),
         ...(sel !== undefined ? { sel } : {}),
+        ...(onCancel ? { onCancel } : {}),
         onClose,
       }),
     );
@@ -743,7 +745,9 @@ export function createUi(opts: UiOptions): Ui {
               ...(o.letter ? { key: o.letter } : {}),
             };
           });
-    showModal(t(p.key, p.params), entries, false);
+    // A cancellable prompt (NetHack's ESC) gets a Cancel button and Escape, which answer null.
+    if (p.cancellable) showModal(t(p.key, p.params), entries, true, undefined, answer(null));
+    else showModal(t(p.key, p.params), entries, false);
     promptId = p.id;
   };
 

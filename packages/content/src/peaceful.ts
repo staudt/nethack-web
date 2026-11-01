@@ -33,6 +33,7 @@ export function askReallyAttack(ctx: Ctx, id: EntityId, handler: DefId, data: Js
       id: 'attack-peaceful',
       kind: 'yn',
       key: 'attack.confirm',
+      cancellable: true,
       params: { mon: `@${mon?.def ?? ''}` },
     },
     handler,

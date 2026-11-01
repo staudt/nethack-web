@@ -294,6 +294,7 @@ export const enhanceAction: ActionDef = {
           id: 'enhance-menu',
           kind: 'menu',
           key: 'enhance.pick',
+          cancellable: true,
           options: adv.map((s) => ({
             value: s,
             key: 'enhance.entry',

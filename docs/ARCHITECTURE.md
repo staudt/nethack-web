@@ -167,6 +167,7 @@ interface Prompt {
   options?: { value: Json; key: string; params?: Params; glyph?: DefId; max?: number }[]; // max: a count 1..max may be chosen (a stack size)
   multi?: boolean; // menus only: the answer is the array of chosen values ([] = none); an option with max may be answered as { value, count }
   maxLength?: number; // text prompts: the longest accepted answer
+  cancellable?: boolean; // single-select menus and yn: Cancel and Escape answer null (NetHack's ESC)
 }
 ```
 

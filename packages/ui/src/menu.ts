@@ -48,6 +48,8 @@ export interface MenuSpec {
   cancelLabel?: string;
   /** Initially highlighted button (among the selectable ones). */
   sel?: number;
+  /** Runs after the Cancel button or Escape closes the menu. */
+  onCancel?: () => void;
   onClose?: () => void;
 }
 
@@ -141,7 +143,11 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
     );
     row++;
   }
-  if (spec.cancelLabel !== undefined) addBtn(spec.cancelLabel, close, 'nh-cancel');
+  const cancel = (): void => {
+    close();
+    spec.onCancel?.();
+  };
+  if (spec.cancelLabel !== undefined) addBtn(spec.cancelLabel, cancel, 'nh-cancel');
 
   let sel = Math.min(Math.max(0, spec.sel ?? 0), Math.max(0, buttons.length - 1));
   const mark = (): void => {
@@ -159,7 +165,7 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
     else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft')
       sel = (sel - 1 + buttons.length) % Math.max(1, buttons.length);
     else if (e.key === 'Enter') buttons[sel]?.click();
-    else if (e.key === 'Escape' && spec.cancelLabel !== undefined) close();
+    else if (e.key === 'Escape' && spec.cancelLabel !== undefined) cancel();
     else if (keyOf.has(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
       buttons[keyOf.get(e.key) as number]?.click();
       return true;
