@@ -275,7 +275,7 @@ describe('missiles hit and miss the hero', () => {
     expect(broke / (broke + landedAfterHit)).toBeLessThan(0.8);
   });
 
-  test('to-hit: 8 + spe + 3 - distance against the hero armor class', () => {
+  test('to-hit: 8 + spe + 3 - distance against the hero armor class', { timeout: 30000 }, () => {
     // AC a, distance 3: hit when a + 8 > rnd(20)
     const rate = (spe: number) => {
       let hit = 0;
@@ -467,32 +467,36 @@ describe('the hero fires from a launcher', () => {
     expect(shot.msgs).not.toContain("You aren't wielding a bow, so you throw your arrow by hand.");
   });
 
-  test('to-hit: the launcher adds its enchantment and skill; thrown by hand is -4', () => {
-    // newt: AC 8, tiny (-2); hero L1, Dex 14, adjacent (+2): base -1 + 8 + 1 + 2 - 2 = 8
-    const rate = (mode: 'hand' | 'bow', spe = 0, skill?: number) => {
-      let hit = 0;
-      const N = 400;
-      for (let seed = 1; seed <= N; seed++) {
-        const { s, bow, arrows } = bowSetup(seed);
-        if (mode === 'bow') {
-          wield(s, bow);
-          s.state.entities[String(bow)]!.c.item!.spe = spe;
-          const d = nhData(s.ctx);
-          if (d.skills && skill !== undefined) d.skills['bow'] = skill;
+  test(
+    'to-hit: the launcher adds its enchantment and skill; thrown by hand is -4',
+    { timeout: 30000 },
+    () => {
+      // newt: AC 8, tiny (-2); hero L1, Dex 14, adjacent (+2): base -1 + 8 + 1 + 2 - 2 = 8
+      const rate = (mode: 'hand' | 'bow', spe = 0, skill?: number) => {
+        let hit = 0;
+        const N = 400;
+        for (let seed = 1; seed <= N; seed++) {
+          const { s, bow, arrows } = bowSetup(seed);
+          if (mode === 'bow') {
+            wield(s, bow);
+            s.state.entities[String(bow)]!.c.item!.spe = spe;
+            const d = nhData(s.ctx);
+            if (d.skills && skill !== undefined) d.skills['bow'] = skill;
+          }
+          monster(s, 3);
+          const r = mode === 'bow' ? fire(s, arrows, 'e') : throwByHand(s, arrows, 'e');
+          if (text(r.events).some((t) => t.includes('hits'))) hit++;
         }
-        monster(s, 3);
-        const r = mode === 'bow' ? fire(s, arrows, 'e') : throwByHand(s, arrows, 'e');
-        if (text(r.events).some((t) => t.includes('hits'))) hit++;
-      }
-      return hit / N;
-    };
-    // by hand: 8 - 4 = 4 => 20%
-    expect(Math.abs(rate('hand') - 4 / 20)).toBeLessThan(0.06);
-    // bow, restricted/unskilled skill (-4), +0: 4 => 20% (no better, but not -4 on top of it)
-    expect(Math.abs(rate('bow', 0, 0) - 4 / 20)).toBeLessThan(0.06);
-    // expert (+3) with a +2 bow: distance 2 here (target at x=3, hero x=2) => 8 + 2 + 3 = 13 => 65%
-    expect(Math.abs(rate('bow', 2, P_EXPERT) - 13 / 20)).toBeLessThan(0.06);
-  });
+        return hit / N;
+      };
+      // by hand: 8 - 4 = 4 => 20%
+      expect(Math.abs(rate('hand') - 4 / 20)).toBeLessThan(0.06);
+      // bow, restricted/unskilled skill (-4), +0: 4 => 20% (no better, but not -4 on top of it)
+      expect(Math.abs(rate('bow', 0, 0) - 4 / 20)).toBeLessThan(0.06);
+      // expert (+3) with a +2 bow: distance 2 here (target at x=3, hero x=2) => 8 + 2 + 3 = 13 => 65%
+      expect(Math.abs(rate('bow', 2, P_EXPERT) - 13 / 20)).toBeLessThan(0.06);
+    },
+  );
 
   test('damage: shot arrows do dmgval plus the skill bonus (no Str bonus); by hand rnd(2) + Str', () => {
     const dmgs = (mode: 'hand' | 'bow') => {

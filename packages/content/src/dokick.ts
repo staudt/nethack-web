@@ -288,7 +288,8 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
     range = 1;
 
   // "You kick a dagger." (one of the stack)
-  const one = it.quantity > 1 && !isgold ? { ...pile, c: { ...pile.c, item: { ...it, quantity: 1 } } } : pile;
+  const one =
+    it.quantity > 1 && !isgold ? { ...pile, c: { ...pile.c, item: { ...it, quantity: 1 } } } : pile;
   say(ctx, 'kick.you_kick_obj', { item: ctx.defs.itemName(ctx.state, one) });
 
   // ref: hero_breaks(): fragile objects should not be kicked
@@ -602,7 +603,12 @@ const kick: ActionDef = {
     const dir = dirArg(action);
     if (dir) return getdirKick(ctx, dir);
     ctx.ask(
-      { id: 'kick-direction', kind: 'direction', key: 'kick.direction', options: DIRECTION_OPTIONS },
+      {
+        id: 'kick-direction',
+        kind: 'direction',
+        key: 'kick.direction',
+        options: DIRECTION_OPTIONS,
+      },
       KICK_ID,
       { step: 'dir' },
     );
