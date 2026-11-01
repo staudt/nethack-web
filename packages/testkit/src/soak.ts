@@ -63,6 +63,14 @@ export interface SoakResult {
   quaffed: number;
   read: number;
   thrown: number;
+  /** Kicks (door offers and the plain #kick), `nh:fire` volleys, #enhance menus answered, weapon swaps. */
+  kicks: number;
+  fired: number;
+  enhanced: number;
+  swapped: number;
+  /** Text prompts answered with a string, and count-menu entries answered with a partial count. */
+  textAnswers: number;
+  countAnswers: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -108,6 +116,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let quaffed = 0;
   let read = 0;
   let thrown = 0;
+  let kicks = 0;
+  let fired = 0;
+  let enhanced = 0;
+  let swapped = 0;
+  let textAnswers = 0;
+  let countAnswers = 0;
   let aim: Dir | null = null;
   const depthNow = (): number => state.levels[state.currentLevel]?.depth ?? 1;
   const carriedCount = (): number => {
@@ -162,8 +176,16 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   const answer = (pending: Prompt): Json => {
     const opts_ = pending.options ?? [];
     if (pending.kind === 'yn') {
-      // Never leave the dungeon, so runs keep going.
-      return pending.id === 'leave-dungeon' ? false : rng.rn2(2) === 0;
+      // Never leave the dungeon, so runs keep going; mostly leave peacefuls alone.
+      if (pending.id === 'leave-dungeon') return false;
+      if (pending.id === 'attack-peaceful') return rng.rn2(10) === 0;
+      return rng.rn2(2) === 0;
+    }
+    if (pending.kind === 'text') {
+      // a short deterministic name, or a cancel
+      if (rng.rn2(3) === 0) return null;
+      textAnswers++;
+      return `n${rng.rn2(100)}`;
     }
     if (pending.kind === 'direction') {
       const dirs = opts_.map((o) => o.value);
@@ -179,12 +201,19 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       return DIR_LIST[rng.rn2(8)] as Json;
     }
     // menu
+    if (pending.id === 'enhance-menu') enhanced++;
     if (opts_.length === 0) return pending.multi ? [] : null;
     if (pending.multi) {
-      const chosen = opts_.filter(() => rng.rn2(2) === 0).map((o) => o.value);
-      if (chosen.length === 0)
-        chosen.push((opts_[rng.rn2(opts_.length)] as (typeof opts_)[0]).value);
-      return chosen;
+      let chosen = opts_.filter(() => rng.rn2(2) === 0);
+      if (chosen.length === 0) chosen = [opts_[rng.rn2(opts_.length)] as (typeof opts_)[0]];
+      // a count menu lets the player pick part of a stack
+      return chosen.map((o): Json => {
+        if (o.max !== undefined && o.max > 1 && rng.rn2(3) === 0) {
+          countAnswers++;
+          return { value: o.value, count: 1 + rng.rn2(o.max) };
+        }
+        return o.value;
+      });
     }
     return (opts_[rng.rn2(opts_.length)] as (typeof opts_)[0]).value;
   };
@@ -253,6 +282,38 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     const attacks = cellOffers.filter((o) => o.labelKey === 'action.attack');
     if (attacks.length > 0 && rng.rn2(10) !== 0) action = pickRandom(attacks);
 
+    // 1b. kick a door we stand next to: the offer cannot tell locked from merely closed
+    if (!action && rng.rn2(4) === 0) {
+      action = pickRandom(cellOffers.filter((o) => o.labelKey === 'action.nh:kick_door'));
+    }
+
+    // 1c. a hostile in line a few squares away: fire (a launcher with ammo, or darts), throw a
+    // dagger or dart, or wield a launcher first
+    if (!action && rng.rn2(3) === 0) {
+      const target = visibleMonsters().find(
+        (m) =>
+          !m.peaceful &&
+          lineDir(pos, m.pos) !== null &&
+          Math.max(Math.abs(m.pos.x - pos.x), Math.abs(m.pos.y - pos.y)) > 1,
+      );
+      if (target) {
+        const fires = itemOffers((id) => id === 'nh:fire');
+        const missiles = inv
+          .filter((e) => e.def === 'nh:dagger' || e.def === 'nh:dart')
+          .flatMap((e) => q.actionsFor({ kind: 'item', id: e.id }))
+          .filter((o) => isMod(o.action, 'nh:throw'));
+        action = pickRandom(fires.length > 0 && rng.rn2(4) !== 0 ? fires : missiles);
+        if (action) aim = lineDir(pos, target.pos);
+        else {
+          const launchers = inv
+            .filter((e) => /bow|sling/.test(e.def))
+            .flatMap((e) => q.actionsFor({ kind: 'item', id: e.id }))
+            .filter((o) => isMod(o.action, 'nh:wield'));
+          action = pickRandom(launchers);
+        }
+      }
+    }
+
     // 2. eat when hungry: inventory food first, else food on the floor
     if (!action && (hunger === 'hungry' || hunger === 'weak' || hunger === 'fainting')) {
       const food = itemOffers((id) => id === 'nh:eat');
@@ -281,19 +342,10 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       else if (roll < 21) action = pickRandom(itemOffers((id) => id === 'nh:quaff'));
       else if (roll < 23)
         action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:drop_many')));
-      else if (roll < 33) {
-        // throw a dagger at a visible monster that stands in line
-        const targets = visibleMonsters().filter((m) => !m.peaceful && lineDir(pos, m.pos));
-        const target = targets[0];
-        if (target) {
-          const daggers = inv
-            .filter((e) => e.def === 'nh:dagger')
-            .flatMap((e) => q.actionsFor({ kind: 'item', id: e.id }))
-            .filter((o) => isMod(o.action, 'nh:throw'));
-          action = pickRandom(daggers);
-          if (action) aim = lineDir(pos, target.pos);
-        }
-      }
+      else if (roll < 26)
+        action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:enhance')));
+      else if (roll < 27)
+        action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:swap_weapon')));
     }
 
     // 6. descend 1 time in 4 when standing on a down staircase, so runs visit several levels
@@ -322,7 +374,11 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     // 7. anything else: a random offer, except the book-keeping ones that take no time
     if (!action) {
       const rest = offers.filter(
-        (o) => !isMod(o.action, 'nh:discoveries') && !isMod(o.action, 'nh:drop_many'),
+        (o) =>
+          !isMod(o.action, 'nh:discoveries') &&
+          !isMod(o.action, 'nh:drop_many') &&
+          !isMod(o.action, 'nh:swap_weapon') &&
+          !isMod(o.action, 'nh:enhance'),
       );
       const list = rest.length > 0 ? rest : offers;
       action = (list[rng.rn2(list.length)] as ActionOffer).action;
@@ -332,7 +388,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     else if (isMod(action, 'nh:quaff')) quaffed++;
     else if (isMod(action, 'nh:read')) read++;
     else if (isMod(action, 'nh:throw')) thrown++;
-    else aim = null;
+    else if (isMod(action, 'nh:fire')) fired++;
+    else {
+      aim = null;
+      if (isMod(action, 'nh:kick')) kicks++;
+      else if (isMod(action, 'nh:swap_weapon')) swapped++;
+    }
     log.push(action);
     stepAndTrack(action);
     if (log.length % every === 0) check(action);
@@ -355,6 +416,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     quaffed,
     read,
     thrown,
+    kicks,
+    fired,
+    enhanced,
+    swapped,
+    textAnswers,
+    countAnswers,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

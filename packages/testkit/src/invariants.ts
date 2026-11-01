@@ -115,6 +115,10 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   }
 
   checkEquipment(state, registry, errs);
+  checkProps(state, errs);
+  checkDoors(state, registry, errs);
+  checkMonsterMemory(state, registry, errs);
+  checkFleeing(state, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);
@@ -230,5 +234,115 @@ function checkEquipment(state: GameState, registry: Registry, errs: string[]): v
         );
       }
     }
+  }
+}
+
+/**
+ * Entity props are `{ intrinsic: boolean, timeout: integer >= 0 }` (timeout is the turn a timed
+ * effect ends, 0 = none). Content's props module prunes an entry that holds nothing, so a
+ * non-intrinsic entry with timeout 0 must not linger.
+ */
+function checkProps(state: GameState, errs: string[]): void {
+  for (const id of sortedIds(state)) {
+    const props = state.entities[String(id)]?.c.props;
+    if (props === undefined) continue;
+    for (const name of Object.keys(props).sort()) {
+      const p = props[name];
+      if (
+        !p ||
+        typeof p !== 'object' ||
+        typeof p.intrinsic !== 'boolean' ||
+        !Number.isInteger(p.timeout) ||
+        p.timeout < 0
+      ) {
+        errs.push(`entity ${id}: prop '${name}' is malformed: ${JSON.stringify(p)}`);
+      } else if (!p.intrinsic && p.timeout === 0) {
+        errs.push(`entity ${id}: prop '${name}' holds nothing but was not pruned`);
+      }
+    }
+  }
+}
+
+/**
+ * Doors sit in walls: every door terrain (closed, locked, open, doorway, broken) has solid cells
+ * on both sides along one axis, whatever the generator did. Only generated levels are checked in
+ * full; the rule holds for scenario levels with a door in a wall too.
+ */
+function checkDoors(state: GameState, registry: Registry, errs: string[]): void {
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) continue;
+    const door: boolean[] = lv.palette.map(
+      (t) => registry.hasTerrain(t) && !!registry.terrain(t).door,
+    );
+    if (!door.some(Boolean)) continue;
+    const solid = (x: number, y: number): boolean => {
+      if (!inBounds(lv, x, y)) return true;
+      const t = lv.palette[lv.cells[cellIndex(lv, x, y)] ?? -1];
+      return t === undefined || !registry.hasTerrain(t) || !registry.terrain(t).passable;
+    };
+    for (let y = 0; y < lv.height; y++) {
+      for (let x = 0; x < lv.width; x++) {
+        if (!door[lv.cells[cellIndex(lv, x, y)] ?? -1]) continue;
+        if (!((solid(x, y - 1) && solid(x, y + 1)) || (solid(x - 1, y) && solid(x + 1, y)))) {
+          errs.push(
+            `level ${lid}: door '${lv.palette[lv.cells[cellIndex(lv, x, y)] ?? 0]}' at ${x},${y} has no walls on opposite sides`,
+          );
+          return;
+        }
+      }
+    }
+  }
+}
+
+/** Remembered monsters: keys are in-bounds cell indices of a known level, values registered monsters. */
+function checkMonsterMemory(state: GameState, registry: Registry, errs: string[]): void {
+  for (const lid of Object.keys(state.monsterMemory).sort()) {
+    const lv = state.levels[lid];
+    const mem = state.monsterMemory[lid];
+    if (!lv) {
+      errs.push(`monsterMemory: unknown level '${lid}'`);
+      continue;
+    }
+    if (!mem) continue;
+    const n = lv.width * lv.height;
+    for (const k of Object.keys(mem).sort()) {
+      const i = Number(k);
+      if (!Number.isInteger(i) || String(i) !== k || i < 0 || i >= n) {
+        errs.push(`monsterMemory ${lid}: key '${k}' is not a cell index below ${n}`);
+        break;
+      }
+      const def = mem[k];
+      if (def === undefined || !registry.isMonster(def)) {
+        errs.push(`monsterMemory ${lid}: '${String(def)}' at ${k} is not a registered monster`);
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Content keeps the fleeing monsters in `modData.nh.mflee` as `{ [monsterId]: fleetim }` and
+ * prunes entries of the dead at the end of every turn, so each key names a living monster and
+ * each value is a non-negative integer. A pending prompt or a hero action that takes no time
+ * does not reach endOfTurn, but nothing kills a monster without taking time.
+ */
+function checkFleeing(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['mflee']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.mflee is not an object');
+    return;
+  }
+  const table = t as Record<string, unknown>;
+  for (const k of Object.keys(table).sort()) {
+    const v = table[k];
+    if (!state.entities[k]?.c.monster) errs.push(`mflee: '${k}' is not a monster`);
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0)
+      errs.push(`mflee: monster ${k} has flee time ${String(v)}`);
   }
 }

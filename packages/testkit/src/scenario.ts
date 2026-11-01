@@ -103,7 +103,15 @@ export interface ScenarioBuilder {
   monster(
     def: DefId,
     pos: Pos,
-    opts?: { hp?: number; level?: number; asleep?: boolean; peaceful?: boolean; speed?: number },
+    opts?: {
+      hp?: number;
+      level?: number;
+      asleep?: boolean;
+      peaceful?: boolean;
+      speed?: number;
+      /** Objects the monster carries; a bare def id is one item. A `wielded` one is its weapon. */
+      carries?: readonly (DefId | { def: DefId; quantity?: number; wielded?: boolean })[];
+    },
   ): void;
   /** Remove every non-hero entity. `level()` already does this for the level it replaces. */
   clearMonsters(): void;
@@ -121,6 +129,21 @@ export interface ScenarioBuilder {
   expectMonsterAt(pos: Pos, def?: DefId): void;
   expectNoMonsterAt(pos: Pos): void;
   expectGameOver(kind?: GameOver['kind']): void;
+
+  /**
+   * Give the hero (or the monster at a position) a property. `intrinsic` sets the permanent
+   * flag, `turns` a timed effect that ends that many turns from now. Silent: no messages.
+   */
+  setProp(name: string, opts?: { intrinsic?: boolean; turns?: number }, target?: Pos): void;
+  /** The hero has (true) or lacks (false) the property, permanently or on a timer. */
+  expectProp(name: string, has: boolean): void;
+  /** The hero is stunned (the 'stunned' property). */
+  expectStunned(has?: boolean): void;
+  /**
+   * Put a door of this kind at `pos`: the terrain ids come from the level palette (added when
+   * missing). An open door is vertical or horizontal after the walls beside it.
+   */
+  door(pos: Pos, kind: 'locked' | 'closed' | 'open' | 'broken'): void;
 
   /**
    * Create an object with exactly the given fields and put it on the floor at `pos` or into the
@@ -322,6 +345,8 @@ export function runScenario(
     };
     state.levels[level.id] = level;
     delete state.memory[level.id];
+    delete state.objectMemory[level.id];
+    delete state.monsterMemory[level.id];
     clearMonsters(level.id);
     const pos = getPlayer(state).c.pos;
     const at = start ?? up ?? down;
@@ -372,6 +397,29 @@ export function runScenario(
           },
         },
       };
+      for (const c of o?.carries ?? []) {
+        const spec = typeof c === 'string' ? { def: c } : c;
+        if (!engine.registry.isObject(spec.def))
+          fail(`monster(): '${spec.def}' is not a registered object`);
+        const iid = state.nextEntityId++;
+        state.entities[String(iid)] = {
+          id: iid,
+          def: spec.def,
+          c: {
+            item: {
+              quantity: 'quantity' in spec ? (spec.quantity ?? 1) : 1,
+              buc: 'uncursed',
+              spe: 0,
+              known: { buc: false, spe: false },
+              carriedBy: id,
+              letter: null,
+              equipped: 'wielded' in spec && spec.wielded ? 'weapon' : null,
+              placed: state.seq++,
+              age: Math.max(state.turn, 1),
+            },
+          },
+        };
+      }
       refresh();
     },
     clearMonsters() {
@@ -575,6 +623,57 @@ export function runScenario(
         fail(
           `expected hunger '${want}', found '${h?.state ?? 'none'}' (nutrition ${h?.nutrition ?? '-'})`,
         );
+    },
+    setProp(name, o, target) {
+      const mon =
+        target === undefined
+          ? undefined
+          : monstersOnLevel().find((m) => m.pos.x === target.x && m.pos.y === target.y);
+      if (target !== undefined && !mon)
+        return fail(`setProp(): no monster at ${JSON.stringify(target)}`);
+      const e = mon ? state.entities[String(mon.id)] : getPlayer(state);
+      if (!e) return fail('setProp(): no such entity');
+      const props = (e.c.props ??= {});
+      const timeout = o?.turns !== undefined && o.turns > 0 ? state.turn + o.turns : 0;
+      const intrinsic = o?.intrinsic ?? false;
+      if (!intrinsic && timeout === 0) delete props[name];
+      else props[name] = { intrinsic, timeout };
+    },
+    expectProp(name, has) {
+      const props = getPlayer(state).c.props;
+      const p = props?.[name];
+      const got = p !== undefined && (p.intrinsic || p.timeout > 0);
+      if (got !== has)
+        fail(
+          `expected the hero ${has ? 'to have' : 'not to have'} '${name}', props: ${JSON.stringify(props ?? {})}`,
+        );
+    },
+    expectStunned(has = true) {
+      s.expectProp('stunned', has);
+    },
+    door(p, kind) {
+      const level = getLevel(state);
+      if (p.x < 0 || p.y < 0 || p.x >= level.width || p.y >= level.height)
+        return fail(`door(): ${JSON.stringify(p)} is out of bounds`);
+      const solid = (x: number, y: number): boolean => {
+        const t = level.palette[level.cells[y * level.width + x] ?? -1];
+        return t === undefined || !engine.registry.terrain(t).passable;
+      };
+      const vertical = solid(p.x, p.y - 1) && solid(p.x, p.y + 1);
+      const id: DefId =
+        kind === 'locked'
+          ? VANILLA_TERRAIN.door_locked
+          : kind === 'closed'
+            ? VANILLA_TERRAIN.door_closed
+            : kind === 'broken'
+              ? VANILLA_TERRAIN.doorway
+              : vertical
+                ? VANILLA_TERRAIN.door_open_v
+                : VANILLA_TERRAIN.door_open_h;
+      let pi = level.palette.indexOf(id);
+      if (pi === -1) pi = level.palette.push(id) - 1;
+      level.cells[p.y * level.width + p.x] = pi;
+      refresh();
     },
     level(ascii, o) {
       buildLevel(ascii, o?.lit ?? true);

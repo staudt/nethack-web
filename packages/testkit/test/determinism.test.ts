@@ -1,6 +1,7 @@
 import { vanillaMod } from '@nh/content';
 import { createEngine, createHost, stateHash, type FromCore, type ToCore } from '@nh/core';
 import { describe, expect, test } from 'vitest';
+import { recordGame, runReplay, soak, soakKitMod } from '../src/index';
 import { randomActions } from './helpers/actions';
 
 const SEED = 20240607;
@@ -75,5 +76,39 @@ describe('determinism', () => {
       expect(fresh.send({ t: 'act', action }).some((m) => m.t === 'error')).toBe(false);
     }
     expect(hashOf(fresh)).toBe(expected);
+  });
+});
+
+describe('determinism of a soak with kicks, fires and text answers', () => {
+  const MODS = [vanillaMod, soakKitMod];
+  const SOAK_SEED = 20261030;
+  const run = soak(MODS, { seed: SOAK_SEED, turns: 400, botSeed: 7, width: W, height: H });
+
+  test('the run exercised kicks, fires and count answers', () => {
+    expect(run.violations).toBeNull();
+    expect(run.kicks).toBeGreaterThan(0);
+    expect(run.fired).toBeGreaterThan(0);
+    expect(run.countAnswers).toBeGreaterThan(0);
+    expect(run.log.some((a) => a.type === 'answer' && typeof a.value === 'string')).toBe(true);
+  });
+
+  test('replays to the same hash, direct and through the worker host', () => {
+    const rec = recordGame(MODS, { seed: SOAK_SEED, width: W, height: H }, run.log);
+    expect(rec.hash).toBe(run.finalHash);
+    expect(runReplay(MODS, rec).hash).toBe(run.finalHash);
+
+    let out: FromCore[] = [];
+    const host = createHost(MODS, (m) => out.push(structuredClone(m)));
+    const send = (m: ToCore): FromCore[] => {
+      out = [];
+      host.handle(structuredClone(m));
+      return out;
+    };
+    send({ t: 'new', seed: SOAK_SEED, width: W, height: H });
+    for (const action of run.log) {
+      expect(send({ t: 'act', action }).some((m) => m.t === 'error')).toBe(false);
+    }
+    const h = send({ t: 'hash' })[0];
+    expect(h?.t === 'hash' ? h.hash : null).toBe(run.finalHash);
   });
 });
