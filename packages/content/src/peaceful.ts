@@ -5,6 +5,8 @@ import { monflee } from './monflee';
 import { heroSees } from './mongear';
 import { P, hasProp } from './props';
 import { canSpotMon, monNam } from './perception';
+import { adjalign } from './luck';
+import { growl } from './dog';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -63,7 +65,13 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
     if (!mon || !m || id === victim || !mon.c.pos) continue;
     const def = ctx.defs.monster(mon.def);
     // couldsee() && m_canseeu(): approximated by the hero seeing its square
-    if (def.flags.includes('mindless') || !m.peaceful || m.asleep || !heroSees(ctx, mon.c.pos))
+    if (
+      def.flags.includes('mindless') ||
+      !m.peaceful ||
+      m.tame ||
+      m.asleep ||
+      !heroSees(ctx, mon.c.pos)
+    )
       continue;
     if (!humanoid(ctx, id)) continue;
     // the monster is scared when its level is below a d10 roll
@@ -74,18 +82,21 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
 }
 
 /**
- * The monster turns hostile, with a message when the hero sees a humanoid do so; alignment
- * penalties are not tracked. ref: src/mon.c setmangry(mtmp, TRUE). Not ported: Elbereth
- * hypocrisy, priests, shopkeepers, guards, growling for non-humanoids.
+ * The monster turns hostile (costing a point of alignment), with "gets angry!" when the hero sees
+ * a humanoid do so, or a growl. ref: src/mon.c setmangry(mtmp, TRUE). Not ported: Elbereth
+ * hypocrisy, priests, shopkeepers, guards.
  */
 export function setmangry(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   if (!mon || !m || !m.peaceful) return;
   if (m.tame) return; // pets stay peaceful (abuse_dog has lowered tameness)
-  m.peaceful = false; // adjalign(-1) is not tracked
-  if (humanoid(ctx, id) && mon.c.pos && heroSees(ctx, mon.c.pos))
-    say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
+  m.peaceful = false;
+  adjalign(ctx, -1); // attacking peaceful monsters is bad
+  if (mon.c.pos && heroSees(ctx, mon.c.pos)) {
+    if (humanoid(ctx, id)) say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
+    else growl(ctx, mon);
+  }
   peacefulsRespond(ctx, id);
 }
 

@@ -58,6 +58,7 @@ import { thitmonst } from './dothrow';
 import { monNam } from './perception';
 import { abuseDog } from './dog';
 import { monflee, stopFleeing } from './monflee';
+import { luckOf } from './luck';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -155,7 +156,7 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
     kickDumb(ctx);
     return; // uses a turn
   }
-  if (rnl(ctx.rng, 35) < avrg) {
+  if (rnl(ctx.rng, 35, luckOf(ctx.state)) < avrg) {
     const level = getLevel(ctx.state);
     if (attr(ctx).str > 18 && ctx.rng.rn2(5) === 0) say(ctx, 'kick.door_shatters');
     else say(ctx, 'kick.door_crashes');

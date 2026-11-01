@@ -24,7 +24,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { getdirImpaired } from './hackmove';
-import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
+import { ACCFOOD, dogfood, hurtPet, isDomestic, isTame, tamedog } from './dog';
+import { wakeup } from './peaceful';
 import { dogEat } from './dogmove';
 import { dbon, dmgval, monsterIdAt } from './combat';
 import { monsterDied } from './mondeath';
@@ -51,6 +52,7 @@ import {
 } from './skills';
 import { acurrstr, findMac } from './stats';
 import { monNam } from './perception';
+import { luckOf } from './luck';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -85,12 +87,6 @@ function heroWielded(ctx: Ctx): Entity | null {
 const distmin = (ax: number, ay: number, bx: number, by: number): number =>
   Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 
-/** ref: src/mon.c wakeup(mtmp, TRUE) */
-function wakeup(mon: { asleep: boolean; peaceful: boolean }): void {
-  mon.asleep = false;
-  mon.peaceful = false;
-}
-
 /** ref: src/zap.c exclam() */
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
 
@@ -118,7 +114,7 @@ const missileMsg = (
 /** ref: src/dothrow.c tmiss(): "The dagger misses the newt." and a 1 in 3 chance to wake it. */
 function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
   missileMsg(ctx, 'throw.miss', shot, missile, { mon: monNam(ctx, mon) });
-  if (mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(mon.c.monster);
+  if (mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(ctx, mon.id); // wakeup(mon, TRUE)
 }
 
 /** ref: src/include/mondata.h nonliving(): undead and manes (our data has no other cases) */
@@ -148,7 +144,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   const dex = hero.c.attributes?.dex ?? 10;
   const ulevel = hero.c.experience?.level ?? 1;
 
-  let tmp = -1 + findMac(ctx.state, ctx.defs, monId) + ulevel;
+  let tmp = -1 + luckOf(ctx.state) + findMac(ctx.state, ctx.defs, monId) + ulevel;
   if (dex < 4) tmp -= 3;
   else if (dex < 6) tmp -= 2;
   else if (dex < 8) tmp -= 1;
@@ -226,6 +222,11 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   if (dmg < 1) dmg = 1;
 
   const hp = mon.c.hp;
+  // ref: src/uhitm.c hmon_hitmon_pet(): a pet hit by the hero's missile is abused and flees
+  if (m.tame && dmg > 0) {
+    const destroyed = !hp || hp.cur - dmg < 1;
+    hurtPet(ctx, monId, destroyed ? 0 : 10 * ctx.rng.rnd(dmg), destroyed);
+  }
   if (hp) hp.cur -= dmg;
   if (!hp || hp.cur < 1) {
     // ref: src/mon.c xkilled(): "You kill/destroy <mon>!" then experience()
@@ -237,7 +238,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     missileMsg(ctx, exclam(dmg) === '!' ? 'throw.hit_hard' : 'throw.hit', shot, missile, {
       mon: name,
     });
-    wakeup(m);
+    wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {

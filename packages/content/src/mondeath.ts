@@ -6,6 +6,7 @@ import { placeOnFloor, weight } from './items';
 import { mkobj } from './mkobj';
 import { forgetMonster, relobj } from './mongear';
 import { forgetMState } from './mstate';
+import { xkilledPenalties } from './luck';
 
 /**
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
@@ -21,6 +22,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
   if (!e?.c.monster) return;
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
+  if (byHero) xkilledPenalties(ctx, e); // ref: xkilled(): punish bad behavior, alignment
   relobj(ctx, monId, at);
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);

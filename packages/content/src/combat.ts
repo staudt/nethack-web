@@ -35,6 +35,8 @@ import {
 } from './skills';
 import { monNam } from './perception';
 import { hurtPet } from './dog';
+import { luckOf } from './luck';
+import { isFrozen, isMStunned } from './mstate';
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -112,23 +114,34 @@ export interface HeroCombatStats {
   encumbrance?: number;
   /** Level in bare-handed combat; defaults to Unskilled. */
   bareSkill?: number;
+  /** Luck (u.uluck + u.moreluck); defaults to 0. */
+  luck?: number;
 }
 
 /**
  * The hero's to-hit number: a hit needs `tmp > rnd(20)`.
- * ref: src/uhitm.c find_roll_to_hit(). Luck is 0, no rings (u.uhitinc), not trapped, not
- * stunned/frozen/fleeing. `def.ac` should be the defender's find_mac(); pass `mac` to override
+ * ref: src/uhitm.c find_roll_to_hit(): Luck adds `sgn(Luck) * ((|Luck| + 2) / 3)`; +2 against a
+ * stunned or sleeping target, +4 against one that can't move. No rings (u.uhitinc), no traps;
+ * the caller adds the +2 against a fleeing one. `def.ac` should be the defender's find_mac(); pass `mac` to override
  * (monsters wearing armor). Encumbrance subtracts (2 * level - 1).
  */
 export function heroToHit(
   hero: HeroCombatStats,
   def: MonsterDef,
-  target: { asleep: boolean },
+  target: { asleep: boolean; stunned?: boolean; frozen?: boolean },
   weapon: HeroWeapon | null,
   mac: number = def.ac,
 ): number {
-  let tmp = 1 + abon(hero.str, hero.dex, hero.level) + mac + hero.level;
+  const luck = hero.luck ?? 0;
+  let tmp =
+    1 +
+    abon(hero.str, hero.dex, hero.level) +
+    mac +
+    Math.sign(luck) * Math.trunc((Math.abs(luck) + 2) / 3) +
+    hero.level;
+  if (target.stunned) tmp += 2; // mstun
   if (target.asleep) tmp += 2; // msleeping
+  if (target.frozen) tmp += 4; // !mcanmove
   const enc = hero.encumbrance ?? 0;
   if (enc !== 0) tmp -= enc * 2 - 1;
   if (weapon) {
@@ -235,13 +248,19 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     level: hero.c.experience?.level ?? 1,
     encumbrance: nearCapacity(ctx.state, ctx.defs, hero.id),
     bareSkill: skillLevel(ctx, BARE_HANDED),
+    luck: luckOf(ctx.state),
   };
 
   // ref: src/uhitm.c hitum()
   // ref: src/uhitm.c find_roll_to_hit(): +2 against a fleeing monster
   const tmp =
-    heroToHit(stats, def, mon, weapon, findMac(ctx.state, ctx.defs, targetId)) +
-    (isFleeing(ctx, targetId) ? 2 : 0);
+    heroToHit(
+      stats,
+      def,
+      { asleep: mon.asleep, stunned: isMStunned(ctx, targetId), frozen: isFrozen(ctx, targetId) },
+      weapon,
+      findMac(ctx.state, ctx.defs, targetId),
+    ) + (isFleeing(ctx, targetId) ? 2 : 0);
   const dieroll = ctx.rng.rnd(20);
   if (!(tmp > dieroll)) {
     // ref: src/uhitm.c missum(): "You miss <mon>." then wakeup(mdef, TRUE)

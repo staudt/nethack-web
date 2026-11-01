@@ -16,14 +16,13 @@ import {
   type Pos,
 } from '@nh/core';
 import { givePossessions } from './mongear';
+import { uState } from './luck';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
  * initial alignment record is 0 (it never changes in this port).
  * ref: src/role.c roles[] Valkyrie initrecord 0; include/align.h A_NEUTRAL
  */
-export const HERO_ALIGN_TYPE = 0;
-export const HERO_ALIGN_RECORD = 0;
 /** ref: src/allmain.c maybe_generate_rnd_mon(): 1 in 70 per turn above the Castle's depth */
 export const SPAWN_ODDS = 70;
 
@@ -112,9 +111,11 @@ export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   if (def.flags.includes('hostile')) return false;
   if (def.flags.includes('gnome') || def.flags.includes('orc')) return false;
   const mal = def.alignment;
-  if (Math.sign(mal) !== Math.sign(HERO_ALIGN_TYPE)) return false;
+  const u = uState(ctx.state);
+  if (Math.sign(mal) !== Math.sign(u.alignType)) return false;
+  // a co-aligned monster may still be hostile, more so when the hero has strayed
   return (
-    ctx.rng.rn2(16 + (HERO_ALIGN_RECORD < -15 ? -15 : HERO_ALIGN_RECORD)) !== 0 &&
+    ctx.rng.rn2(16 + (u.alignRecord < -15 ? -15 : u.alignRecord)) !== 0 &&
     ctx.rng.rn2(2 + Math.abs(mal)) !== 0
   );
 }

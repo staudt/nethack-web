@@ -33,4 +33,8 @@ export const dogMessagesEn: Record<string, string> = {
   'fight.harmless': 'You harmlessly attack {what|the}.',
   'action.nh:fight': 'Fight {target|the}',
   'action.swap': 'Swap places with {target|the}',
+  // ref: src/mon.c xkilled()
+  'luck.murderer': 'You murderer!',
+  'luck.thunder': 'You hear the rumble of distant thunder...',
+  'luck.applause': 'You hear the studio audience applaud!',
 };

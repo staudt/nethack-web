@@ -29,6 +29,7 @@ import { isFrozen } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { T } from './terrain';
+import { luckOf } from './luck';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -347,7 +348,7 @@ const search: ActionDef = {
     target.kind === 'self' ? [{ action: { type: 'search' }, labelKey: 'action.search' }] : [],
   perform(ctx) {
     // ref: src/detect.c dosearch0(): x outer, y inner over the 3x3 around the hero. Hidden monsters
-    // and traps are not implemented; there is no Luck or lenses/artifact bonus (fund = 0, Luck = 0).
+    // and traps are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
     const here = playerAt(ctx);
     const level = getLevel(ctx.state);
     ctx.emit({ type: 'searched' });
@@ -357,12 +358,12 @@ const search: ActionDef = {
         const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
         const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
         if (id === T.sdoor_v || id === T.sdoor_h || locked) {
-          if (rnl(ctx.rng, 7) !== 0) continue;
+          if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
           // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked)
           setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
           ctx.emit({ type: 'msg', key: 'search.found_door' });
         } else if (id === T.scorr) {
-          if (rnl(ctx.rng, 7) !== 0) continue;
+          if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
           setTerrain(level, x, y, T.corr);
           ctx.emit({ type: 'msg', key: 'search.found_passage' });
         }

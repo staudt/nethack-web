@@ -9,6 +9,7 @@ import { registerProps } from './props';
 import { registerPerception } from './perception';
 import { registerMState } from './mstate';
 import { registerDog } from './dog';
+import { registerLuck } from './luck';
 import { registerStats } from './stats';
 import { ITEM_ACTIONS } from './itemactions';
 import { registerNomul } from './nomul';
@@ -58,6 +59,7 @@ export const vanillaMod: Mod = {
     registerPerception(api);
     registerMState(api);
     registerDog(api);
+    registerLuck(api);
     registerKick(api);
     registerMonflee(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
@@ -146,6 +148,20 @@ export {
 } from './dog';
 export type { Edog } from './dog';
 export { dogMove, dogEat } from './dogmove';
+export {
+  uState,
+  setU,
+  luckOf,
+  changeLuck,
+  adjalign,
+  alignLim,
+  malign,
+  xkilledPenalties,
+  HERO_ALIGN_TYPE,
+  LUCKMIN,
+  LUCKMAX,
+} from './luck';
+export type { UState } from './luck';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
 export { giveStartingKit, VALKYRIE_KIT } from './kit';
 export {

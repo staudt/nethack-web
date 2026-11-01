@@ -10,7 +10,7 @@ import {
   type Offer,
   type PlayerAction,
 } from '@nh/core';
-import { HERO_ALIGN_TYPE } from './generation';
+import { uState } from './luck';
 import { newuhs, makeSick } from './hunger';
 import { encumberMsg } from './itemactions';
 import { bcsign } from './items';
@@ -222,7 +222,7 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
   if (buc === 'blessed') {
     msg(ctx, 'potion.water_holy');
     cureSick(ctx);
-  } else if ((HERO_ALIGN_TYPE as number) === 1) {
+  } else if (uState(ctx.state).alignType === 1) {
     // lawful heroes are burned; unreachable while the hero is neutral
     msg(ctx, 'potion.water_burns');
     const hp = heroEntity(ctx).c.hp;

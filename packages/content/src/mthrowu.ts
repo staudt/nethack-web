@@ -16,6 +16,7 @@ import {
   type ObjectDef,
   type Pos,
   type PosComponent,
+  rnl,
 } from '@nh/core';
 import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
 import { stopOccupation } from './eat';
@@ -26,6 +27,7 @@ import { mondied } from './mhitm';
 import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
 import { monNam } from './perception';
+import { luckOf } from './luck';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -82,7 +84,7 @@ export function omonAdj(mon: Entity, mdef: MonsterDef, obj: Entity, odef: Object
  * Whether a missile that hit (or was fired) breaks. Only ammo and missiles break.
  * ref: src/dothrow.c should_mulch_missile(): `chance = 3 - spe` (we have no erosion);
  * `chance > 1 ? rn2(chance) : !rn2(4)`; a blessed one survives 1 in 3 (monsters) or `!rnl(4)`
- * (the hero: rnl() is rn2() while Luck is 0); flint survives half of the time.
+ * (the hero, so Luck helps); flint survives half of the time.
  */
 export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): boolean {
   const it = obj.c.item;
@@ -90,7 +92,10 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
   if (!it || !(isAmmo(def) || isMissile(def)) || def.magic) return false;
   const chance = 3 - it.spe;
   let broken = chance > 1 ? ctx.rng.rn2(chance) !== 0 : ctx.rng.rn2(4) === 0;
-  if (it.buc === 'blessed' && (monMoving ? ctx.rng.rn2(3) === 0 : ctx.rng.rn2(4) === 0))
+  if (
+    it.buc === 'blessed' &&
+    (monMoving ? ctx.rng.rn2(3) === 0 : rnl(ctx.rng, 4, luckOf(ctx.state)) === 0)
+  )
     broken = false;
   // flint and hard gems do not break easily (ref: `oc_tough || FLINT`; only flint is in the table)
   if (obj.def === 'nh:flint_stone' && ctx.rng.rn2(2) === 0) broken = false;

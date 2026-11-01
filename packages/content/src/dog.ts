@@ -260,7 +260,7 @@ function yelp(ctx: Ctx, mon: Entity): void {
 }
 
 /** "The kitten hisses!" ref: src/sounds.c growl(), growl_sound() */
-function growl(ctx: Ctx, mon: Entity): void {
+export function growl(ctx: Ctx, mon: Entity): void {
   if (isFrozen(ctx, mon.id) || mon.c.monster?.asleep || !canSpotMon(ctx, mon)) return;
   const ch = ctx.defs.monster(mon.def).glyph.ch;
   if (ch !== 'f' && ch !== 'd') return;

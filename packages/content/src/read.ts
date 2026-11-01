@@ -28,6 +28,7 @@ import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
+import { luckOf } from './luck';
 
 export const READ_ID: DefId = 'nh:read';
 
@@ -165,7 +166,9 @@ function seffectIdentify(ctx: Ctx, scroll: Entity, wasKnown: boolean): void {
   }
   let cval = 1;
   if (buc === 'blessed' || (buc === 'uncursed' && ctx.rng.rn2(5) === 0)) {
-    cval = ctx.rng.rn2(5); // 0 identifies everything; Luck is 0
+    cval = ctx.rng.rn2(5); // 0 identifies everything
+    // a lucky reader of a blessed scroll identifies one more
+    if (cval === 1 && buc === 'blessed' && luckOf(ctx.state) > 0) cval++;
   }
   identifyPack(ctx, cval, !wasKnown);
 }
