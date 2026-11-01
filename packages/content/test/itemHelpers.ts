@@ -9,6 +9,7 @@ import {
   type GameState,
   type Msg,
   type Params,
+  type Rng,
 } from '@nh/core';
 import { messagesEn, mksobj, vanillaMod, type ItemCtx } from '../src/index';
 
@@ -21,6 +22,8 @@ export interface TestCtx extends ItemCtx {
   /** Timers asked for (not run). */
   scheduled: { delay: number; kind: string }[];
   schedule(delay: number, kind: string, data: unknown): void;
+  /** Draws from (and advances) the state's cosmetic stream. */
+  cosmetic: Rng;
 }
 
 /** A minimal Ctx for the item functions; its rng draws from (and advances) the state's. */
@@ -32,6 +35,7 @@ export function ctxFor(state: GameState): TestCtx {
     scheduled,
     state,
     rng: createRng(state.rng.core),
+    cosmetic: createRng(state.rng.cosmetic),
     defs,
     events,
     emit: (e) => events.push(e),
@@ -64,7 +68,7 @@ export function bareState(seed = 1): GameState {
   return s;
 }
 
-/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit. */
+/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit; `{x|the}`, `{x|The}`, `{x|the_s}`, `{x|The_s}` as in the UI. */
 export function render(msg: Msg | string, cat: Record<string, string> = messagesEn): string {
   if (typeof msg === 'string')
     return msg.startsWith('@') ? render({ key: msg.slice(1) }, cat) : msg;
@@ -74,6 +78,12 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
   return tpl.replace(/\{(\w+)(?:\|(\w+))?\}/g, (_m, name: string, mod?: string) => {
     const v = params[name];
     const text = v === undefined ? '' : typeof v === 'number' ? String(v) : render(v, cat);
+    if (mod !== undefined && mod !== 'an') {
+      const pronoun = typeof v === 'string' && v.startsWith('@pronoun.');
+      const poss = mod.endsWith('_s');
+      const out = pronoun ? text + (poss ? 's' : '') : `the ${text}${poss ? "'s" : ''}`;
+      return mod.startsWith('T') ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+    }
     if (mod !== 'an') return text;
     if (/^[0-9]/.test(text)) return text;
     return `${/^[aeiou]/i.test(text) ? 'an' : 'a'} ${text}`;

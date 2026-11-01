@@ -939,6 +939,63 @@ export const OBJECTS: readonly ObjectDef[] = [
   },
 
   // ---- potions (glass, weight 20, merge; known-name potions have no descKey) ----
+  // in objects.h order, so the probability walk matches mkobj()
+  // ref: objects.h POTION("confusion", "orange", 1, ..., 40, 100, CLR_ORANGE, POT_CONFUSION)
+  {
+    id: 'nh:potion_of_confusion',
+    nameKey: 'nh:potion_of_confusion',
+    class: 'potion',
+    glyph: { ch: '!', fg: ORANGE },
+    prob: 40,
+    weight: 20,
+    cost: 100,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h POTION("blindness", "yellow", 1, ..., 30, 150, CLR_YELLOW, POT_BLINDNESS)
+  {
+    id: 'nh:potion_of_blindness',
+    nameKey: 'nh:potion_of_blindness',
+    class: 'potion',
+    glyph: { ch: '!', fg: YELLOW },
+    prob: 30,
+    weight: 20,
+    cost: 150,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h POTION("hallucination", "sky blue", 1, ..., 30, 100, CLR_CYAN, POT_HALLUCINATION)
+  {
+    id: 'nh:potion_of_hallucination',
+    nameKey: 'nh:potion_of_hallucination',
+    class: 'potion',
+    glyph: { ch: '!', fg: CYAN },
+    prob: 30,
+    weight: 20,
+    cost: 100,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h POTION("see invisible", "magenta", 1, SEE_INVIS, 40, 50, CLR_MAGENTA, POT_SEE_INVISIBLE)
+  {
+    id: 'nh:potion_of_see_invisible',
+    nameKey: 'nh:potion_of_see_invisible',
+    class: 'potion',
+    glyph: { ch: '!', fg: MAGENTA },
+    prob: 40,
+    weight: 20,
+    cost: 50,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
   // ref: objects.h POTION("healing", "purple-red", 1, 0, 115, 20, CLR_MAGENTA, POT_HEALING)
   {
     id: 'nh:potion_of_healing',
@@ -967,6 +1024,20 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
   },
+  // ref: objects.h POTION("sleeping", "effervescent", 1, ..., 40, 100, CLR_GRAY, POT_SLEEPING)
+  {
+    id: 'nh:potion_of_sleeping',
+    nameKey: 'nh:potion_of_sleeping',
+    class: 'potion',
+    glyph: { ch: '!', fg: GRAY },
+    prob: 40,
+    weight: 20,
+    cost: 100,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
   // ref: objects.h POTION("full healing", "black", 1, 0, 10, 200, CLR_BLACK, POT_FULL_HEALING)
   {
     id: 'nh:potion_of_full_healing',
@@ -981,18 +1052,18 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
   },
-  // ref: objects.h POTION("see invisible", "magenta", 1, SEE_INVIS, 40, 50, CLR_MAGENTA, POT_SEE_INVISIBLE)
+  // ref: objects.h POTION("booze", "brown", 0, ..., 40, 50, CLR_BROWN, POT_BOOZE)
   {
-    id: 'nh:potion_of_see_invisible',
-    nameKey: 'nh:potion_of_see_invisible',
+    id: 'nh:potion_of_booze',
+    nameKey: 'nh:potion_of_booze',
     class: 'potion',
-    glyph: { ch: '!', fg: MAGENTA },
+    glyph: { ch: '!', fg: BROWN },
     prob: 40,
     weight: 20,
     cost: 50,
     material: 'glass',
     merge: true,
-    magic: true,
+    magic: false,
     delay: 0,
   },
   // ref: objects.h POTION("water", "clear", 0, 0, 80, 100, CLR_CYAN, POT_WATER)

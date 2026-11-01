@@ -140,8 +140,10 @@ describe('props', () => {
     const hero = heroOf(t.state);
     setItimeout(t.state, hero, P.ACID_RES, 2);
     setItimeout(t.state, hero, P.FAST, 2);
-    expect(keys(t.wait().events)).toEqual([]);
-    const k = keys(t.wait().events);
+    // waits until both have run out (being fast, the hero may get extra moves in a turn)
+    const end = t.state.turn + 2;
+    const k: string[] = [];
+    while (t.state.turn < end) k.push(...keys(t.wait().events));
     expect(k).toContain('timeout.acid_unsafe');
     expect(k).toContain('timeout.slow_down');
     expect(hero.c.props?.['acid_res']).toBeUndefined();
@@ -492,10 +494,20 @@ describe('poison', () => {
   });
 
   test('poison can be deadly to a hero with few hit points', () => {
-    const r = run(400, 'str', { hp: 8 });
-    expect(r.dead).toBeGreaterThan(0);
-    expect(r.t.state.gameOver?.kind).toBe('died');
-    expect(r.t.state.gameOver?.killer).toBe('@nh:centipede');
+    // the deadly roll is 1 in 30 (and kills only when the loss would): try games until one
+    // ends that way rather than by plain HP loss
+    let deadly = false;
+    for (let seed = 1; seed <= 300 && !deadly; seed++) {
+      const t = setup(open(4, 2), seed);
+      const ctx = fullCtx(t.state);
+      heroOf(t.state).c.hp = { cur: 8, max: 8 };
+      poisoned(ctx, null, 'str', '@nh:centipede', 30);
+      if (!keys(ctx.events).includes('poison.deadly')) continue;
+      deadly = true;
+      expect(t.state.gameOver?.kind).toBe('died');
+      expect(t.state.gameOver?.killer).toBe('@nh:centipede');
+    }
+    expect(deadly).toBe(true);
   });
 
   test('poison resistance: "The poison doesn\'t seem to affect you."', () => {
@@ -577,9 +589,18 @@ describe('passive attacks', () => {
     const t = fight(4);
     const m = addMon(t.state, 'nh:brown_mold', 2, 1);
     t.state.entities[String(m)]!.c.monster!.level = 1;
-    for (let i = 0; i < 15; i++)
-      expect(keys(t.wait().events).some((k) => k.startsWith('combat.mon_'))).toBe(false);
-    expect(t.hero.c.hp!.cur).toBe(5000);
+    // (a wandering monster may still arrive and attack: only the mold's own attacks count)
+    for (let i = 0; i < 15; i++) {
+      const molds = t
+        .wait()
+        .events.filter(
+          (e) =>
+            e.type === 'msg' &&
+            e.key.startsWith('combat.mon_') &&
+            e.params?.['mon'] === '@nh:brown_mold',
+        );
+      expect(molds).toEqual([]);
+    }
   });
 
   test('yellow mold stuns for d(2,4) turns, only if not already stunned', () => {

@@ -14,6 +14,7 @@ import {
 } from '@nh/core';
 import { nhData } from './items';
 import { P, hasProp } from './props';
+import { monNam } from './perception';
 
 /** ref: src/decl.c dirs_ord[]: the order in which confdir() picks a random direction. */
 const DIRS_ORD: readonly Dir[] = ['w', 'n', 'e', 's', 'nw', 'ne', 'se', 'sw'];
@@ -23,10 +24,18 @@ export function confdir(ctx: Pick<Ctx, 'rng'>): Dir {
   return DIRS_ORD[ctx.rng.rn2(DIRS_ORD.length)] ?? 'n';
 }
 
-/** ref: src/hack.c u_maybe_impaired(): stunned (confusion does not exist yet) */
+/** ref: src/hack.c u_maybe_impaired(): `Stunned || (Confusion && !rn2(5))` */
 export function uMaybeImpaired(ctx: Ctx): boolean {
-  return hasProp(getPlayer(ctx.state), P.STUNNED);
+  const hero = getPlayer(ctx.state);
+  return hasProp(hero, P.STUNNED) || (hasProp(hero, P.CONFUSION) && ctx.rng.rn2(5) === 0);
 }
+
+/**
+ * The direction a getdir() answer ends up as: random when the hero is impaired.
+ * ref: src/cmd.c getdir() -> confdir(FALSE)
+ */
+export const getdirImpaired = (ctx: Ctx, dir: Dir): Dir =>
+  uMaybeImpaired(ctx) ? confdir(ctx) : dir;
 
 /**
  * The monster the hero is stuck to (u.ustuck), or null. A sticker that is gone, on another level
@@ -100,10 +109,10 @@ export function escapeFromStickyMon(ctx: Ctx, to: { x: number; y: number }): boo
   if (!m || !mp || (to.x === mp.x && to.y === mp.y)) return false; // moving onto it is an attack
   if (ctx.rng.rn2(40) < 3) {
     setUstuck(ctx, null);
-    ctx.emit({ type: 'msg', key: 'stuck.pull_free', params: { mon: `@${m.def}` } });
+    ctx.emit({ type: 'msg', key: 'stuck.pull_free', params: { mon: monNam(ctx, m) } });
     return false;
   }
-  ctx.emit({ type: 'msg', key: 'stuck.cannot_escape', params: { mon: `@${m.def}` } });
+  ctx.emit({ type: 'msg', key: 'stuck.cannot_escape', params: { mon: monNam(ctx, m) } });
   ctx.interrupt(); // nomul(0)
   return true;
 }

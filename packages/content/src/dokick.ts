@@ -40,7 +40,7 @@ import {
 } from '@nh/core';
 import { setTerrain } from './actions';
 import { monsterIdAt } from './combat';
-import { confdir } from './hackmove';
+import { getdirImpaired } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { losehp } from './hp';
@@ -55,6 +55,7 @@ import { P, hasProp, setItimeout, timeoutLeft } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T } from './terrain';
 import { thitmonst } from './dothrow';
+import { monNam } from './perception';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -86,7 +87,7 @@ function wakeNearto(ctx: Ctx, x: number, y: number, distance: number): void {
     const p = e?.c.pos;
     if (!e || !m || !p || p.level !== ctx.state.currentLevel) continue;
     if ((p.x - x) ** 2 + (p.y - y) ** 2 >= distance) continue;
-    if (m.asleep && heroSees(ctx, p)) say(ctx, 'mon.wakes_up_calm', { mon: `@${e.def}` });
+    if (m.asleep && heroSees(ctx, p)) say(ctx, 'mon.wakes_up_calm', { mon: monNam(ctx, e) });
     m.asleep = false;
   }
 }
@@ -425,7 +426,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
   if (dead) {
     // ref: src/mon.c killed() -> xkilled(): "You kill/destroy it!"
     const nonliving = def.flags.includes('undead') || def.id === 'nh:manes';
-    say(ctx, nonliving ? 'combat.you_destroy' : 'combat.you_kill', { mon: `@${target.def}` });
+    say(ctx, nonliving ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, target) });
     monsterDied(ctx, monId, true);
     gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
   }
@@ -441,7 +442,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   const mon = target?.c.monster;
   if (!target || !mon) return;
   const def = ctx.defs.monster(target.def);
-  const name = `@${target.def}`;
+  const name = monNam(ctx, target);
   const snap: PassiveTarget | null = target.c.pos
     ? { id: monId, def, level: mon.level, pos: { ...target.c.pos } }
     : null;
@@ -564,9 +565,8 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   return NORMAL_SPEED;
 }
 
-/** getdir(): a stunned hero kicks in a random direction. ref: src/cmd.c getdir() -> confdir() */
-const getdirKick = (ctx: Ctx, dir: Dir): number =>
-  kickDir(ctx, hasProp(hero(ctx), P.STUNNED) ? confdir(ctx) : dir, false);
+/** getdir(): an impaired hero kicks in a random direction. ref: src/cmd.c getdir() -> confdir() */
+const getdirKick = (ctx: Ctx, dir: Dir): number => kickDir(ctx, getdirImpaired(ctx, dir), false);
 
 const dirArg = (action: PlayerAction): Dir | null => {
   if (action.type !== 'mod') return null;

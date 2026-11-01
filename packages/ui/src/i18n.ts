@@ -107,7 +107,9 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
 /**
  * Translate `key`. `{name}` placeholders take params; a string param starting with '@'
  * is itself translated as a key first, and a `{ key, params }` param is translated recursively. `{name|an}` prefixes the
- * English indefinite article (none before a number or "the ..."). Missing keys render as `[key]` (warned once).
+ * English indefinite article (none before a number or "the ..."); `{name|the}` / `{name|The}`
+ * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
+ * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). Missing keys render as `[key]` (warned once).
  */
 export function translate(
   catalogs: Catalogs,
@@ -125,19 +127,35 @@ export function translate(
     return `[${key}]`;
   }
   if (!params) return template;
-  return template.replace(/\{(\w+)(\|an)?\}/g, (whole, name: string, mod?: string) => {
-    const v = params[name];
-    if (v === undefined) return whole;
-    let text: string;
-    if (typeof v === 'string' && v.startsWith('@') && depth < 4) {
-      text = translate(catalogs, locale, v.slice(1), undefined, depth + 1);
-    } else if (typeof v === 'object') {
-      text = depth < 4 ? translate(catalogs, locale, v.key, v.params, depth + 1) : `[${v.key}]`;
-    } else {
-      text = String(v);
-    }
-    return mod === '|an' ? justAn(text) + text : text;
-  });
+  return template.replace(
+    /\{(\w+)(\|an|\|the_s|\|The_s|\|the|\|The)?\}/g,
+    (whole, name: string, mod?: string) => {
+      const v = params[name];
+      if (v === undefined) return whole;
+      let text: string;
+      if (typeof v === 'string' && v.startsWith('@') && depth < 4) {
+        text = translate(catalogs, locale, v.slice(1), undefined, depth + 1);
+      } else if (typeof v === 'object') {
+        text = depth < 4 ? translate(catalogs, locale, v.key, v.params, depth + 1) : `[${v.key}]`;
+      } else {
+        text = String(v);
+      }
+      if (mod === '|an') return justAn(text) + text;
+      if (mod !== undefined && mod !== '|an') {
+        // "the newt", but a pronoun param ('@pronoun.it') takes no article: "It hits!";
+        // the _s forms are possessive: "the newt's", "its"
+        const pronoun = typeof v === 'string' && v.startsWith('@pronoun.');
+        const possessive = mod.endsWith('_s');
+        const out = pronoun
+          ? possessive
+            ? `${text}s`
+            : text
+          : `the ${text}${possessive ? "'s" : ''}`;
+        return mod.startsWith('|T') ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+      }
+      return text;
+    },
+  );
 }
 
 /**

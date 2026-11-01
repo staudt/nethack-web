@@ -31,7 +31,7 @@ import {
 import { cpostfxOf } from './givit';
 import { die, losehp, losestr } from './hp';
 import { gainExperience } from './hero';
-import { P, hasProp } from './props';
+import { P, hasProp, makeBlinded, makeConfused, timeoutLeft } from './props';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { xnameOf } from './objnam';
@@ -313,14 +313,13 @@ function rottenfood(ctx: Ctx, e: Entity): boolean {
   say(ctx, rottable ? 'eat.rotten' : 'eat.awful');
   const roll = (n: number): boolean => ctx.rng.rn2(n) === 0;
   const rollAgain = roll; // a second, separate 1 in 4 roll
+  const hero = getPlayer(ctx.state);
   if (roll(4)) {
-    // Confusion does not exist yet: the duration is rolled (d(2, 4)) but has no effect.
-    say(ctx, 'eat.light_headed');
-    ctx.rng.d(2, 4);
-  } else if (rollAgain(4)) {
-    // Blindness does not exist yet either (d(2, 10)).
+    say(ctx, hasProp(hero, P.HALLUC) ? 'eat.rather_trippy' : 'eat.light_headed');
+    makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + ctx.rng.d(2, 4), false);
+  } else if (rollAgain(4) && !hasProp(hero, P.BLINDED)) {
     say(ctx, 'eat.goes_dark');
-    ctx.rng.d(2, 10);
+    makeBlinded(ctx, timeoutLeft(ctx.state, hero, P.BLINDED) + ctx.rng.d(2, 10), false);
   } else if (roll(3)) {
     const duration = ctx.rng.rnd(10);
     say(ctx, 'eat.world_spins');
@@ -474,7 +473,8 @@ function fpostfx(ctx: Ctx, e: Entity): void {
     say(ctx, 'eat.sinister_laughter');
     nomulNow(ctx, 20 + ctx.rng.rn2(11), 'helpless.asleep', { key: 'eat.wake_up' }); // rn1(11, 20)
   }
-  // The carrot cures blindness; the other foods here have no after effects.
+  // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (never creamed: cures it)
+  if (e.def === 'nh:carrot') makeBlinded(ctx, 0, true);
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -93,3 +93,30 @@ describe('{param|an}', () => {
     ['uncursed dagger', 'an '],
   ])('%s', (s, want) => expect(justAn(s)).toBe(want));
 });
+
+describe('{param|the}, {param|The} and the possessives', () => {
+  const cat = {
+    en: {
+      bite: '{mon|The} bites {who|the}!',
+      acid: 'You are splashed by {mon|the_s} acid! {mon|The_s} acid burns.',
+      'nh:newt': 'newt',
+      'pronoun.it': 'it',
+    },
+  };
+  test('names take "the"; a pronoun does not, and is capitalized at the start', () => {
+    expect(translate(cat, 'en', 'bite', { mon: '@nh:newt', who: '@nh:newt' })).toBe(
+      'The newt bites the newt!',
+    );
+    expect(translate(cat, 'en', 'bite', { mon: '@pronoun.it', who: '@nh:newt' })).toBe(
+      'It bites the newt!',
+    );
+  });
+  test('possessives: "the newt\'s", "its"', () => {
+    expect(translate(cat, 'en', 'acid', { mon: '@nh:newt' })).toBe(
+      "You are splashed by the newt's acid! The newt's acid burns.",
+    );
+    expect(translate(cat, 'en', 'acid', { mon: '@pronoun.it' })).toBe(
+      'You are splashed by its acid! Its acid burns.',
+    );
+  });
+});

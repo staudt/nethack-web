@@ -32,6 +32,7 @@ import { mattackRanged } from './mthrowu';
 import { P, heroHas } from './props';
 import { isFleeing, regainCourage } from './monflee';
 import { acurrstr } from './stats';
+import { monNam } from './perception';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -155,7 +156,7 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
       ctx.emit({
         type: 'msg',
         key: m.peaceful ? 'mon.wakes_up_calm' : 'mon.wakes_up',
-        params: { mon: `@${e?.def ?? ''}` },
+        params: { mon: e ? monNam(ctx, e) : '@pronoun.it' },
       });
     }
     m.asleep = false;

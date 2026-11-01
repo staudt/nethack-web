@@ -33,6 +33,7 @@ import {
   weaponDamBonus,
   weaponHitBonus,
 } from './skills';
+import { monNam } from './perception';
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -207,7 +208,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   const mon = target?.c.monster;
   if (!target || !mon) throw new Error(`Entity ${targetId} is not a monster`);
   const def = ctx.defs.monster(target.def);
-  const name = `@${target.def}`;
+  const name = monNam(ctx, target);
   const snap: PassiveTarget | null = target.c.pos
     ? { id: targetId, def, level: mon.level, pos: { ...target.c.pos } }
     : null;
@@ -351,7 +352,7 @@ function mswings(ctx: Ctx, mon: Entity, weapon: Entity): void {
   ctx.emit({
     type: 'msg',
     key: `mon.${wdef.weapon?.kind === 'pierce' ? 'thrusts' : 'swings'}${one}`,
-    params: { mon: `@${mon.def}`, weapon: xnameOf(ctx.state, ctx.defs, weapon) },
+    params: { mon: monNam(ctx, mon), weapon: xnameOf(ctx.state, ctx.defs, weapon) },
   });
 }
 
@@ -396,7 +397,8 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const hp = hero.c.hp;
   if (!mon || !m || !hp) throw new Error(`Entity ${monId} cannot attack`);
   const def = ctx.defs.monster(mon.def);
-  const name = `@${mon.def}`;
+  const name = monNam(ctx, mon);
+  const killer = `@${mon.def}`;
   const ac = findAc(ctx.state, ctx.defs, hero.id);
   const tmp = monsterToHit(ctx.rng, ac, m.level, hero.c.helpless !== undefined);
 
@@ -452,7 +454,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
       dmg -= ctx.rng.rnd(-ac);
       if (dmg < 1) dmg = 1;
     }
-    if (dmg > 0) mdamageu(ctx, dmg, name); // ref: src/mhitu.c mdamageu() -> done_in_by()
+    if (dmg > 0) mdamageu(ctx, dmg, killer); // ref: src/mhitu.c mdamageu() -> done_in_by()
     stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
     if (ctx.state.gameOver) return;
   }

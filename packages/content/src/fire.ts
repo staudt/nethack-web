@@ -10,6 +10,7 @@ import {
   type Offer,
 } from '@nh/core';
 import { DIRECTION_OPTIONS, heroItem, itemArg, throwObj } from './dothrow';
+import { getdirImpaired } from './hackmove';
 import { checkCapacity } from './magic';
 import { ammoAndLauncher, isMissile } from './mthrowu';
 
@@ -68,7 +69,7 @@ const fireAction: ActionDef = {
     const e = heroItem(ctx, (raw as { item?: unknown } | null)?.item);
     const dir = DIR_LIST.find((d) => d === value);
     if (!e || !dir) return 0; // cancelled
-    return throwObj(ctx, e, dir);
+    return throwObj(ctx, e, getdirImpaired(ctx, dir));
   },
 };
 

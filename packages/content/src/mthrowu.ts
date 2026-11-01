@@ -25,6 +25,7 @@ import { heroSees, minvent, monFlag, monWep, monWield } from './mongear';
 import { monsterDied } from './mondeath';
 import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
+import { monNam } from './perception';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -182,7 +183,7 @@ function ohitmon(
   if (tmp < ctx.rng.rnd(20)) {
     if (vis) {
       flush();
-      say(ctx, 'throw.miss', { missile, mon: `@${mon.def}` });
+      say(ctx, 'throw.miss', { missile, mon: monNam(ctx, mon) });
     }
     if (!range) {
       dropThrow(ctx, objId, false, at.level, mon.c.pos?.x ?? at.x, mon.c.pos?.y ?? at.y);
@@ -194,14 +195,14 @@ function ohitmon(
   m.asleep = false;
   if (vis) {
     flush();
-    say(ctx, damage <= 4 ? 'throw.hit' : 'throw.hit_hard', { missile, mon: `@${mon.def}` });
+    say(ctx, damage <= 4 ? 'throw.hit' : 'throw.hit_hard', { missile, mon: monNam(ctx, mon) });
   }
   const hp = mon.c.hp;
   if (hp) hp.cur -= damage;
   if (!hp || hp.cur < 1) {
     if (vis) {
       const nonliving = mdef.flags.includes('undead') || mon.def === 'nh:manes';
-      say(ctx, nonliving ? 'mthrow.mon_destroyed' : 'mthrow.mon_killed', { mon: `@${mon.def}` });
+      say(ctx, nonliving ? 'mthrow.mon_destroyed' : 'mthrow.mon_killed', { mon: monNam(ctx, mon) });
     }
     monsterDied(ctx, monId, false);
   }
@@ -261,8 +262,8 @@ function mThrow(
 
   if (obj.c.item.buc === 'cursed' && ctx.rng.rn2(7) === 0) {
     if (shot.seen) {
-      if (isAmmo(odef)) say(ctx, 'mthrow.misfires', { mon: `@${mon.def}` });
-      else say(ctx, 'mthrow.slips', { mon: `@${mon.def}`, obj: name });
+      if (isAmmo(odef)) say(ctx, 'mthrow.misfires', { mon: monNam(ctx, mon) });
+      else say(ctx, 'mthrow.slips', { mon: monNam(ctx, mon), obj: name });
     }
     dx = ctx.rng.rn2(3) - 1;
     dy = ctx.rng.rn2(3) - 1;
@@ -509,14 +510,14 @@ function monshoot(ctx: Ctx, monId: EntityId, otmp: Entity, mwep: Entity | null, 
     const shoots = ammoAndLauncher(odef, wdef);
     if (multishot > 1) {
       say(ctx, shoots ? 'mthrow.shoots_n' : 'mthrow.throws_n', {
-        mon: `@${mon.def}`,
+        mon: monNam(ctx, mon),
         n: multishot,
         item: xnameOf(ctx.state, ctx.defs, otmp),
       });
     } else {
       const one = { ...otmp, c: { ...otmp.c, item: { ...it, quantity: 1 } } };
       say(ctx, shoots ? 'mthrow.shoots' : 'mthrow.throws', {
-        mon: `@${mon.def}`,
+        mon: monNam(ctx, mon),
         item: xnameOf(ctx.state, ctx.defs, one),
       });
     }

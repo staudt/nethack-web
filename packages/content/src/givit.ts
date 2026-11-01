@@ -7,6 +7,7 @@ import {
   hasIntrinsic,
   hasProp,
   incrItimeout,
+  makeHallucinated,
   makeStunned,
   setIntrinsic,
   timeoutLeft,
@@ -94,14 +95,25 @@ const GIVIT_MESSAGES: Record<string, string> = {
   [P.TELEPAT]: 'givit.telepat',
 };
 
-/**
- * Tries to give the hero a property. ref: src/eat.c givit(). Not ported: Hallucination wording;
- * telepathy has no effect yet (blindness does not exist), but is recorded.
- */
+/** The messages that have their own wording while hallucinating (`<key>.halluc`). */
+const HALLU_WORDING = new Set([
+  'givit.fire',
+  'givit.disint',
+  'givit.shock',
+  'givit.telepat',
+  'givit.acid',
+  'givit.stone',
+]);
+
+/** Tries to give the hero a property. ref: src/eat.c givit() */
 export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
   if (!shouldGivit(ctx, prop, def) && !tempGivit(ctx, prop, def)) return;
   const hero = getPlayer(ctx.state);
-  const say = (key: string): void => ctx.emit({ type: 'msg', key });
+  const say = (key: string): void =>
+    ctx.emit({
+      type: 'msg',
+      key: hasProp(hero, P.HALLUC) && HALLU_WORDING.has(key) ? `${key}.halluc` : key,
+    });
   switch (prop) {
     case P.ACID_RES:
     case P.STONE_RES:
@@ -130,8 +142,7 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
  * stun, then a chance at an intrinsic. Not ported (no systems for them): the wraith's level,
  * lycanthropy, mimicking, the quantum mechanic, shapeshifters, displacer beast, disenchanter,
- * the nurse, the stalker's invisibility, "a mild buzz" (the hero has no magic energy), and
- * hallucination from stunning corpses ("Oh wow! Great stuff!").
+ * the nurse, the stalker's invisibility and "a mild buzz" (the hero has no magic energy).
  */
 export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   const hero = getPlayer(ctx.state);
@@ -155,7 +166,14 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
       makeStunned(ctx, timeoutLeft(ctx.state, hero, P.STUNNED) + 30, false);
     return; // these cases `break` without checking for an intrinsic
   }
-  // possibly convey an intrinsic
+  // possibly convey an intrinsic; stunning and hallucinogenic monsters first make her trip
+  if (
+    def.id === 'nh:violet_fungus' ||
+    def.attacks.some((a) => a.ad === 'stun' || a.ad === 'halu')
+  ) {
+    ctx.emit({ type: 'msg', key: 'givit.great_stuff' });
+    makeHallucinated(ctx, timeoutLeft(ctx.state, hero, P.HALLUC) + 200, false);
+  }
   const prop = corpseIntrinsic(ctx, def);
   if (prop === 'str') gainstr(ctx, 0);
   else if (prop !== null) givit(ctx, prop, def);

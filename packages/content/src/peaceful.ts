@@ -4,6 +4,7 @@ import { getPlayer, sortedIds, type Ctx, type DefId, type EntityId, type Json } 
 import { monflee } from './monflee';
 import { heroSees } from './mongear';
 import { P, hasProp } from './props';
+import { monNam } from './perception';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -34,7 +35,7 @@ export function askReallyAttack(ctx: Ctx, id: EntityId, handler: DefId, data: Js
       kind: 'yn',
       key: 'attack.confirm',
       cancellable: true,
-      params: { mon: `@${mon?.def ?? ''}` },
+      params: { mon: mon ? monNam(ctx, mon) : '@pronoun.it' },
     },
     handler,
     data,
@@ -66,7 +67,7 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
     // the monster is scared when its level is below a d10 roll
     if (def.level < ctx.rng.rn2(10)) monflee(ctx, id, ctx.rng.rn2(50) + 25, true, true);
     m.peaceful = false;
-    say(ctx, 'mon.gets_angry', { mon: `@${mon.def}` });
+    say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
   }
 }
 
@@ -81,7 +82,7 @@ export function setmangry(ctx: Ctx, id: EntityId): void {
   if (!mon || !m || !m.peaceful) return;
   m.peaceful = false; // adjalign(-1) is not tracked
   if (humanoid(ctx, id) && mon.c.pos && heroSees(ctx, mon.c.pos))
-    say(ctx, 'mon.gets_angry', { mon: `@${mon.def}` });
+    say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
   peacefulsRespond(ctx, id);
 }
 
@@ -94,7 +95,7 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
   const m = mon?.c.monster;
   if (!mon || !m) return;
   if (m.asleep && mon.c.pos && heroSees(ctx, mon.c.pos))
-    say(ctx, 'mon.wakes_up', { mon: `@${mon.def}` });
+    say(ctx, 'mon.wakes_up', { mon: monNam(ctx, mon) });
   m.asleep = false;
   setmangry(ctx, id);
 }

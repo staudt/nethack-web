@@ -7,6 +7,7 @@
 import { sortedIds, type Ctx, type EntityId, type Json, type ModApi } from '@nh/core';
 import { ustuck, setUstuck } from './hackmove';
 import { heroSees } from './mongear';
+import { monNam } from './perception';
 
 type Table = { [k: string]: Json };
 
@@ -85,7 +86,7 @@ export function monflee(
       tim = Math.min(fleetime, 127);
     }
     if (!flee && fleemsg && mon.c.pos && heroSees(ctx, mon.c.pos)) {
-      ctx.emit({ type: 'msg', key: 'mon.turns_to_flee', params: { mon: `@${mon.def}` } });
+      ctx.emit({ type: 'msg', key: 'mon.turns_to_flee', params: { mon: monNam(ctx, mon) } });
     }
     t[key] = tim; // mflee = 1
   }

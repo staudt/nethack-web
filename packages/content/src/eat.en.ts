@@ -50,6 +50,7 @@ export const eatMessagesEn: Record<string, string> = {
   'eat.core_dumped': 'Core dumped.',
   'eat.sinister_laughter': 'You hear sinister laughter as you fall asleep...',
   'eat.wake_up': 'You wake up.',
+  'eat.rather_trippy': 'You feel rather trippy.',
   'eat.hard_time': "You're having a hard time getting all of it down.",
   'eat.finally_finished': "You're finally finished.",
   'eat.stuff': 'You stuff yourself and then vomit voluminously.',

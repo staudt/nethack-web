@@ -28,11 +28,13 @@ describe('vanilla content', () => {
     expect(new Set(roleIds).size).toBe(roleIds.length);
   });
 
-  test('every {param} placeholder is a simple identifier, optionally with the |an modifier', () => {
+  test('every {param} placeholder is a simple identifier, optionally with an |an, |the, |The, |the_s or |The_s modifier', () => {
     const placeholder = /\{([^{}]*)\}/g;
     for (const [key, text] of Object.entries(messagesEn)) {
       for (const match of text.matchAll(placeholder)) {
-        expect(match[1], `${key}: ${text}`).toMatch(/^[A-Za-z_][A-Za-z0-9_]*(\|an)?$/);
+        expect(match[1], `${key}: ${text}`).toMatch(
+          /^[A-Za-z_][A-Za-z0-9_]*(\|an|\|the|\|The|\|the_s|\|The_s)?$/,
+        );
       }
     }
   });

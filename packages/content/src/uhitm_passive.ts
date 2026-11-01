@@ -5,6 +5,7 @@ import { mdamageu } from './mhitu';
 import { heroSees } from './mongear';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeStunned } from './props';
+import { monNam } from './perception';
 
 /** The attacked monster as it was before the blow (it may be dead and removed afterwards). */
 export interface PassiveTarget {
@@ -32,6 +33,8 @@ export function passive(ctx: Ctx, mon: PassiveTarget, mhit: boolean, malive: boo
   if (!atk) return; // no passive attacks
   const hero = getPlayer(ctx.state);
   const killer = `@${mon.def.id}`;
+  // the monster may have just died: name it from where it stood
+  const shown = monNam(ctx, { id: mon.id, def: mon.def.id, c: { pos: mon.pos } });
   let tmp: number;
   if (atk.n) tmp = ctx.rng.d(atk.n, atk.d);
   else if (atk.d) tmp = ctx.rng.d(mon.level + 1, atk.d);
@@ -40,7 +43,7 @@ export function passive(ctx: Ctx, mon: PassiveTarget, mhit: boolean, malive: boo
   // These affect you even if they just died.
   if (atk.ad === 'acid') {
     if (mhit && ctx.rng.rn2(2) !== 0) {
-      say(ctx, 'passive.splashed', { mon: `@${mon.def.id}` });
+      say(ctx, 'passive.splashed', { mon: shown });
       if (!hasProp(hero, P.ACID_RES)) mdamageu(ctx, tmp, killer);
       ctx.rng.rn2(30); // `!rn2(30)` erode_armor(): not ported
     }
@@ -55,13 +58,13 @@ export function passive(ctx: Ctx, mon: PassiveTarget, mhit: boolean, malive: boo
     case 'plys':
       if (mon.def.id === 'nh:floating_eye') {
         if (!heroSees(ctx, mon.pos)) break; // !canseemon(mon)
-        say(ctx, 'passive.frozen_gaze', { mon: `@${mon.def.id}` });
+        say(ctx, 'passive.frozen_gaze', { mon: shown });
         // Wis > 12 || rn2(4): otherwise it paralyzes for 127 turns
         const turns = (hero.c.attributes?.wis ?? 10) > 12 || ctx.rng.rn2(4) !== 0 ? tmp : 127;
         nomulNow(ctx, turns, 'helpless.frozen_gaze', { key: 'eat.can_move_again' });
       } else {
         // gelatinous cube
-        say(ctx, 'passive.frozen', { mon: `@${mon.def.id}` });
+        say(ctx, 'passive.frozen', { mon: shown });
         nomulNow(ctx, tmp, 'helpless.frozen', { key: 'eat.can_move_again' });
       }
       break;

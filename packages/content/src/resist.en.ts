@@ -13,9 +13,9 @@ export const resistMessagesEn: Record<string, string> = {
   'mhitu.frost_not_cold': "The frost doesn't seem cold!",
   'mhitu.acid_harmless': "You're covered in acid, but it seems harmless.",
   'mhitu.acid_burns': "You're covered in acid!  It burns!",
-  'mhitu.put_to_sleep': 'You are put to sleep by the {mon}!',
-  'mhitu.frozen_by': 'You are frozen by the {mon}!',
-  'mhitu.was_poisoned': "The {mon}'s {subj} was poisoned!",
+  'mhitu.put_to_sleep': 'You are put to sleep by {mon|the}!',
+  'mhitu.frozen_by': 'You are frozen by {mon|the}!',
+  'mhitu.was_poisoned': '{mon|The_s} {subj} was poisoned!',
   'poison.subj.attack': 'attack',
   'poison.subj.contact': 'contact',
   'poison.subj.gaze': 'gaze',
@@ -47,9 +47,9 @@ export const resistMessagesEn: Record<string, string> = {
   'attr.minus.cha': 'You feel {very}repulsive!',
 
   // passive(). ref: src/uhitm.c passive()
-  'passive.splashed': "You are splashed by the {mon}'s acid!",
-  'passive.frozen_gaze': "You are frozen by the {mon}'s gaze!",
-  'passive.frozen': 'You are frozen by the {mon}!',
+  'passive.splashed': 'You are splashed by {mon|the_s} acid!',
+  'passive.frozen_gaze': 'You are frozen by {mon|the_s} gaze!',
+  'passive.frozen': 'You are frozen by {mon|the}!',
   'passive.mild_chill': 'You feel a mild chill.',
   'passive.very_cold': 'You are suddenly very cold!',
   'passive.mildly_warm': 'You feel mildly warm.',
@@ -60,6 +60,16 @@ export const resistMessagesEn: Record<string, string> = {
   // stun and timed properties. ref: src/potion.c make_stunned(), src/timeout.c nh_timeout()
   'stun.stagger': 'You stagger...',
   'stun.steady': 'You feel a bit steadier now.',
+  'conf.less_confused': 'You feel less confused now.',
+  'conf.less_trippy': 'You feel less trippy now.',
+  'blind.see_again': 'You can see again.',
+  'blind.far_out': 'Far out!  Everything is all cosmic again!',
+  'blind.darkness': 'A cloud of darkness falls upon you.',
+  'blind.bummer': 'Oh, bummer!  Everything is dark!  Help!',
+  'halluc.cosmic_looks': 'Oh wow!  Everything looks so cosmic!',
+  'halluc.cosmic_feels': 'Oh wow!  Everything feels so cosmic!',
+  'halluc.boring_looks': 'Everything looks SO boring now.',
+  'halluc.boring_feels': 'Everything feels SO boring now.',
   'timeout.slow_down': 'You feel yourself slow down.',
   'timeout.slow_down_bit': 'You feel yourself slow down a bit.',
   'timeout.acid_unsafe': 'You no longer feel safe from acid.',
@@ -70,8 +80,8 @@ export const resistMessagesEn: Record<string, string> = {
   'abil.quick': 'You feel quick!',
 
   // being stuck. ref: src/hack.c escape_from_sticky_mon()
-  'stuck.cannot_escape': 'You cannot escape from the {mon}!',
-  'stuck.pull_free': 'You pull free from the {mon}.',
+  'stuck.cannot_escape': 'You cannot escape from {mon|the}!',
+  'stuck.pull_free': 'You pull free from {mon|the}.',
 
   // corpse intrinsics. ref: src/eat.c givit()
   'givit.fire': 'You feel a momentary chill.',
@@ -84,6 +94,13 @@ export const resistMessagesEn: Record<string, string> = {
   'givit.telepat': 'You feel a strange mental acuity.',
   'givit.acid': 'You feel less concerned about being harmed by acid.',
   'givit.stone': 'You feel less concerned about becoming petrified.',
+  'givit.fire.halluc': "You be chillin'.",
+  'givit.disint.halluc': 'You feel totally together, man.',
+  'givit.shock.halluc': 'You feel grounded in reality.',
+  'givit.telepat.halluc': 'You feel in touch with the cosmos.',
+  'givit.acid.halluc': 'You feel secure from flashbacks.',
+  'givit.stone.halluc': 'You feel unusually limber.',
+  'givit.great_stuff': 'Oh wow!  Great stuff!',
   'eat.poison_unaffected': 'You seem unaffected by the poison.',
 
   // why the hero cannot act (multi_reason)

@@ -31,6 +31,9 @@ export const P = {
   STEALTH: 'stealth',
   TELEPAT: 'telepat',
   WOUNDED_LEGS: 'wounded_legs',
+  BLINDED: 'blinded',
+  CONFUSION: 'confusion',
+  HALLUC: 'hallucination',
 } as const;
 
 /** True while the entity has the property, permanently or on a timer. ref: youprop.h (e.g. Stunned) */
@@ -114,6 +117,54 @@ export function makeStunned(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, tal
   setItimeout(ctx.state, hero, P.STUNNED, xtime);
 }
 
+/**
+ * Sets the hero's confusion timer to `xtime` turns (0 ends it). ref: src/potion.c make_confused()
+ */
+export function makeConfused(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, talk: boolean): void {
+  const hero = getPlayer(ctx.state);
+  if (!xtime && hasProp(hero, P.CONFUSION) && talk)
+    ctx.emit({
+      type: 'msg',
+      key: hasProp(hero, P.HALLUC) ? 'conf.less_trippy' : 'conf.less_confused',
+    });
+  setItimeout(ctx.state, hero, P.CONFUSION, xtime);
+}
+
+/**
+ * Sets the hero's blindness timer to `xtime` turns (0 ends it), with the messages for losing and
+ * regaining sight. Vision is recomputed by the engine after the action. ref: src/potion.c
+ * make_blinded(). Not ported: blindfolds, the Eyes of the Overworld, eyeless forms.
+ */
+export function makeBlinded(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, talk: boolean): void {
+  const hero = getPlayer(ctx.state);
+  const couldSee = !hasProp(hero, P.BLINDED);
+  const halluc = hasProp(hero, P.HALLUC);
+  if (talk && !couldSee && !xtime)
+    ctx.emit({ type: 'msg', key: halluc ? 'blind.far_out' : 'blind.see_again' });
+  if (talk && couldSee && xtime)
+    ctx.emit({ type: 'msg', key: halluc ? 'blind.bummer' : 'blind.darkness' });
+  setItimeout(ctx.state, hero, P.BLINDED, xtime);
+}
+
+/**
+ * Sets the hero's hallucination timer to `xtime` turns (0 ends it). Returns true when the state
+ * changed. ref: src/potion.c make_hallucinated() (no resistance mask: no Grayswandir).
+ */
+export function makeHallucinated(
+  ctx: Pick<Ctx, 'state' | 'emit'>,
+  xtime: number,
+  talk: boolean,
+): boolean {
+  const hero = getPlayer(ctx.state);
+  const changed = hasProp(hero, P.HALLUC) !== xtime > 0;
+  setItimeout(ctx.state, hero, P.HALLUC, xtime);
+  if (changed && talk) {
+    const verb = hasProp(hero, P.BLINDED) ? 'feels' : 'looks';
+    ctx.emit({ type: 'msg', key: xtime ? `halluc.cosmic_${verb}` : `halluc.boring_${verb}` });
+  }
+  return changed;
+}
+
 /** ref: src/timeout.c nh_timeout(): what happens when a timed property runs out. */
 function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
   switch (name) {
@@ -121,6 +172,25 @@ function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
       // (the timer is already cleared, so make_stunned(0, TRUE)'s message is given directly)
       ctx.emit({ type: 'msg', key: 'stun.steady' });
       ctx.interrupt(); // stop_occupation()
+      break;
+    case P.CONFUSION:
+      // ref: nh_timeout(): set_itimeout(&HConfusion, 1L); make_confused(0L, TRUE)
+      ctx.emit({
+        type: 'msg',
+        key: hasProp(hero, P.HALLUC) ? 'conf.less_trippy' : 'conf.less_confused',
+      });
+      ctx.interrupt();
+      break;
+    case P.BLINDED:
+      ctx.emit({ type: 'msg', key: hasProp(hero, P.HALLUC) ? 'blind.far_out' : 'blind.see_again' });
+      ctx.interrupt();
+      break;
+    case P.HALLUC:
+      ctx.emit({
+        type: 'msg',
+        key: hasProp(hero, P.BLINDED) ? 'halluc.boring_feels' : 'halluc.boring_looks',
+      });
+      ctx.interrupt();
       break;
     case P.FAST:
       // "a bit" when an intrinsic remains; Very_fast is only the timed part, so it is over now
@@ -196,4 +266,15 @@ export function registerProps(api: ModApi): void {
     field: 'stun',
     value: (state) => (heroHas(state, P.STUNNED) ? 1 : null),
   });
+  // ref: src/botl.c: the Conf, Blind and Hallu conditions
+  for (const [field, prop] of [
+    ['conf', P.CONFUSION],
+    ['blind', P.BLINDED],
+    ['hallu', P.HALLUC],
+  ] as const)
+    api.defineStatus({
+      id: `nh:${prop}`,
+      field,
+      value: (state) => (heroHas(state, prop) ? 1 : null),
+    });
 }

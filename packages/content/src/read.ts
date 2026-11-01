@@ -26,7 +26,8 @@ import { prinv } from './itemactions';
 import { NOINVSYM } from './items';
 import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
-import { checkCapacity, color, heroEntity, strangeFeeling, useup, useupall } from './magic';
+import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
+import { P, hasProp } from './props';
 
 export const READ_ID: DefId = 'nh:read';
 
@@ -150,11 +151,14 @@ function identifyAnswer(ctx: Ctx, value: Json, data: IdentifyData): boolean {
 function seffectIdentify(ctx: Ctx, scroll: Entity, wasKnown: boolean): void {
   const def = ctx.defs.object(scroll.def);
   const buc = scroll.c.item?.buc ?? 'uncursed';
+  const confused = hasProp(heroEntity(ctx), P.CONFUSION);
   useup(ctx, scroll.id);
-  if (buc === 'cursed' && !wasKnown) msg(ctx, 'identify.identify_this_as');
+  // a confused reader, or a cursed scroll of an unknown type, only identifies itself
+  const self = confused || (buc === 'cursed' && !wasKnown);
+  if (self) msg(ctx, 'identify.identify_this_as');
   else if (!wasKnown) msg(ctx, 'identify.this_is');
   if (!wasKnown) discover(ctx, def); // learnscrolltyp()
-  if (buc === 'cursed' && !wasKnown) return;
+  if (self) return;
   if (inventoryOf(ctx.state, ctx.state.playerId).length === 0) {
     msg(ctx, 'identify.nothing_else');
     return;
@@ -208,12 +212,31 @@ function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
   return true;
 }
 
-/** ref: src/read.c seffect_enchant_weapon(). Not ported: the confused (erodeproofing) case. */
+/**
+ * The confused enchant scrolls' erodeproofing message. Erosion does not exist, so nothing else
+ * changes. ref: src/read.c seffect_enchant_weapon() / seffect_enchant_armor() confused branches
+ */
+function erodeproofMsg(ctx: Ctx, obj: Entity, scursed: boolean, what: 'shield' | 'layer'): void {
+  const def = ctx.defs.object(obj.def);
+  msg(ctx, `enchant.erodeproof${isPlural(def, obj) ? '_pl' : ''}`, {
+    item: xnameOf(ctx.state, ctx.defs, obj),
+    how: { key: scursed ? 'enchant.erodeproof.mottled' : 'enchant.erodeproof.shimmering' },
+    color: hcolor(ctx, scursed ? (what === 'shield' ? 'purple' : 'black') : 'golden'),
+    what: { key: `enchant.erodeproof.${scursed ? 'glow' : what}` },
+  });
+}
+
+/** ref: src/read.c seffect_enchant_weapon(). The confused case only gives its message. */
 function seffectEnchantWeapon(ctx: Ctx, scroll: Entity): boolean {
   const buc = scroll.c.item?.buc ?? 'uncursed';
   const uwep = inventoryOf(ctx.state, ctx.state.playerId).find(
     (o) => o.c.item?.equipped === 'weapon',
   );
+  if (hasProp(heroEntity(ctx), P.CONFUSION) && uwep) {
+    if (hasProp(heroEntity(ctx), P.BLINDED)) msg(ctx, 'enchant.weapon_warm');
+    else erodeproofMsg(ctx, uwep, buc === 'cursed', 'shield');
+    return false;
+  }
   const spe = uwep?.c.item?.spe ?? 0;
   const s =
     buc === 'cursed'
@@ -248,7 +271,8 @@ function someArmor(ctx: Ctx): Entity | null {
 
 /**
  * ref: src/read.c seffect_enchant_armor(). Returns true when the scroll was already used up.
- * Not ported: the confused case, dragon scales, artifacts, Dex/Int armor bonuses (adj_abon).
+ * The confused case only gives its message (no erosion). Not ported: dragon scales, artifacts,
+ * Dex/Int armor bonuses (adj_abon).
  */
 function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boolean {
   const sbuc = scroll.c.item?.buc ?? 'uncursed';
@@ -259,6 +283,15 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
   if (!otmp?.c.item) {
     strangeFeeling(ctx, scroll.id, 'enchant.skin');
     return true;
+  }
+  if (hasProp(heroEntity(ctx), P.CONFUSION)) {
+    const odef = ctx.defs.object(otmp.def);
+    if (hasProp(heroEntity(ctx), P.BLINDED))
+      msg(ctx, `enchant.armor_warm${isPlural(odef, otmp) ? '_pl' : ''}`, {
+        item: xnameOf(ctx.state, ctx.defs, otmp),
+      });
+    else erodeproofMsg(ctx, otmp, scursed, odef.armor?.slot === 'shield' ? 'layer' : 'shield');
+    return false;
   }
   const it = otmp.c.item;
   const def = ctx.defs.object(otmp.def);
@@ -312,12 +345,24 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
 // remove curse
 
 /**
- * ref: src/read.c seffect_remove_curse(). Not ported: the confused case, loadstones, leashes,
- * punishment, the steed's saddle. Returns whether the scroll type becomes known.
+ * ref: src/read.c seffect_remove_curse(). A confused reader randomly blesses or curses
+ * (blessorcurse(obj, 2)) instead and forgets those items' states. Not ported: loadstones,
+ * leashes, punishment, the steed's saddle. Returns whether the scroll type becomes known.
  */
 function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
   const buc = scroll.c.item?.buc ?? 'uncursed';
-  msg(ctx, 'remove_curse.helping');
+  const hero = heroEntity(ctx);
+  const confused = hasProp(hero, P.CONFUSION);
+  msg(
+    ctx,
+    hasProp(hero, P.HALLUC)
+      ? confused
+        ? 'remove_curse.force'
+        : 'remove_curse.oneness'
+      : confused
+        ? 'remove_curse.need_help'
+        : 'remove_curse.helping',
+  );
   if (buc === 'cursed') {
     msg(ctx, 'remove_curse.disintegrates');
     return false;
@@ -329,7 +374,12 @@ function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
     // hide the scroll being read from itself
     if (obj.id === scroll.id && it.quantity === 1) continue;
     if (buc === 'blessed' || it.equipped !== null) {
-      if (it.buc === 'cursed') {
+      if (confused) {
+        // ref: src/mkobj.c blessorcurse(obj, 2)
+        if (it.buc === 'uncursed' && ctx.rng.rn2(2) === 0)
+          it.buc = ctx.rng.rn2(2) === 0 ? 'cursed' : 'blessed';
+        it.known.buc = false;
+      } else if (it.buc === 'cursed') {
         it.buc = 'uncursed';
         // if the object was known to be cursed and is now known not to be, learn the scroll
         if (it.known.buc) learned = true;
@@ -399,7 +449,12 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
   const def = ctx.defs.object(scroll.def);
   const wasKnown = isKnown(ctx.state, ctx.defs, def);
   const nodisappear = def.id === 'nh:scroll_of_remove_curse' && it.buc === 'cursed';
-  msg(ctx, nodisappear ? 'read.you_read' : 'read.disappears');
+  const hero = heroEntity(ctx);
+  const blind = hasProp(hero, P.BLINDED);
+  const confused = hasProp(hero, P.CONFUSION);
+  if (blind) msg(ctx, nodisappear ? 'read.blind_you_read' : 'read.blind_disappears');
+  else msg(ctx, nodisappear ? 'read.you_read' : 'read.disappears');
+  if (confused) msg(ctx, hasProp(hero, P.HALLUC) ? 'read.trippy' : 'read.confused');
 
   let known = false; // gk.known
   let used = false; // the scroll has already been used up
@@ -418,8 +473,12 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       known = seffectRemoveCurse(ctx, scroll);
       break;
     case 'nh:scroll_of_light':
-      litroom(ctx, it.buc !== 'cursed', it.buc === 'blessed');
-      known = true; // the hero is never blind
+      // ref: seffect_light(). Confused, it would make tame lights; until pets exist they fizzle.
+      if (confused) msg(ctx, 'light.sparkle');
+      else {
+        litroom(ctx, it.buc !== 'cursed', it.buc === 'blessed');
+        known = !blind;
+      }
       break;
     default:
       break;

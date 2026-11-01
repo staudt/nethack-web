@@ -7,6 +7,7 @@ import { poisoned } from './attrib';
 import { setUstuck, ustuck } from './hackmove';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeStunned, timeoutLeft } from './props';
+import { monNam } from './perception';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -92,7 +93,7 @@ const onFire = (at: AttackDef['at']): string => (at === 'hug' ? '@mhitu.roasted'
  */
 export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): number {
   const hero = getPlayer(ctx.state);
-  const name = `@${mon.def}`;
+  const name = monNam(ctx, mon);
   let dmg = damage;
   switch (atk.ad) {
     case 'elec': // mhitm_ad_elec

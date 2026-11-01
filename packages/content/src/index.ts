@@ -6,6 +6,7 @@ import { OBJECTS, APPEARANCES } from './objects';
 import { registerShuffle } from './o_init';
 import { nameItem } from './objnam';
 import { registerProps } from './props';
+import { registerPerception } from './perception';
 import { registerStats } from './stats';
 import { ITEM_ACTIONS } from './itemactions';
 import { registerNomul } from './nomul';
@@ -52,6 +53,7 @@ export const vanillaMod: Mod = {
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
+    registerPerception(api);
     registerKick(api);
     registerMonflee(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
@@ -106,12 +108,16 @@ export {
   setItimeout,
   incrItimeout,
   makeStunned,
+  makeConfused,
+  makeBlinded,
+  makeHallucinated,
   adjabil,
 } from './props';
 export { poisoned, adjattrib } from './attrib';
 export { mdamageu, hitmuAd, magicNegation } from './mhitu';
 export { passive } from './uhitm_passive';
 export { ustuck, setUstuck } from './hackmove';
+export { monNam, canSpotMon, telepathSenses, registerPerception } from './perception';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
 export { giveStartingKit, VALKYRIE_KIT } from './kit';
 export {

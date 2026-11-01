@@ -366,7 +366,7 @@ describe('monster attacks', () => {
       }
     }
     expect(hit).toBe(true);
-    expect(messagesEn['combat.mon_bites']).toBe('The {mon} bites!');
+    expect(messagesEn['combat.mon_bites']).toBe('{mon|The} bites!');
   });
 
   test('a hit interrupts multi-turn actions', () => {

@@ -23,6 +23,7 @@ import {
   type Pos,
   type PromptOption,
 } from '@nh/core';
+import { getdirImpaired } from './hackmove';
 import { dbon, dmgval, monsterIdAt } from './combat';
 import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
@@ -47,6 +48,7 @@ import {
   weaponHitBonus,
 } from './skills';
 import { acurrstr, findMac } from './stats';
+import { monNam } from './perception';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -113,7 +115,7 @@ const missileMsg = (
 
 /** ref: src/dothrow.c tmiss(): "The dagger misses the newt." and a 1 in 3 chance to wake it. */
 function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
-  missileMsg(ctx, 'throw.miss', shot, missile, { mon: `@${mon.def}` });
+  missileMsg(ctx, 'throw.miss', shot, missile, { mon: monNam(ctx, mon) });
   if (mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(mon.c.monster);
 }
 
@@ -157,7 +159,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
 
   const dieroll = ctx.rng.rnd(20);
   const missile = xnameOf(ctx.state, ctx.defs, obj);
-  const name = `@${mon.def}`;
+  const name = monNam(ctx, mon);
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
     tmiss(ctx, mon, missile, shot);
@@ -473,7 +475,7 @@ const throwAction: ActionDef = {
     const e = heroItem(ctx, id);
     const dir = DIR_LIST.find((d) => d === value);
     if (!e || !dir) return 0; // cancelled
-    return throwObj(ctx, e, dir);
+    return throwObj(ctx, e, getdirImpaired(ctx, dir));
   },
 };
 

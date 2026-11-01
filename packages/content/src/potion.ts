@@ -16,17 +16,19 @@ import { encumberMsg } from './itemactions';
 import { bcsign } from './items';
 import { discover, isKnown } from './o_init';
 import { heroEntity, useup } from './magic';
+import { nomulNow } from './hunger';
+import { P, hasProp, makeBlinded, makeConfused, makeHallucinated, timeoutLeft } from './props';
 
 /**
  * ref: src/potion.c healup(): heals `nhp` and, if that goes past the maximum, raises the maximum
- * by `nxtra` and sets HP to it. Blindness cannot happen yet; sickness is handled by `cureSick`.
+ * by `nxtra` and sets HP to it, and cures blindness and sickness when asked.
  */
 export function healup(
   ctx: Ctx,
   nhp: number,
   nxtra: number,
   curesick: boolean,
-  _cureblind: boolean,
+  cureblind: boolean,
 ): void {
   const hp = heroEntity(ctx).c.hp;
   if (!hp) return;
@@ -37,6 +39,7 @@ export function healup(
       hp.cur = hp.max;
     }
   }
+  if (cureblind) makeBlinded(ctx, 0, true); // ref: healup(): make_blinded(0L, TRUE)
   if (curesick) cureSick(ctx);
 }
 
@@ -58,9 +61,97 @@ function addNutrition(ctx: Ctx, n: number): void {
 
 const msg = (ctx: Ctx, key: string): void => ctx.emit({ type: 'msg', key });
 
-/** Result flags of a potion effect: `unknown` = potion_unkn > 0 (the type is not revealed). */
+/**
+ * Result flags of a potion effect: `unknown` = potion_unkn > 0 (the type is not revealed);
+ * `nothing` = potion_nothing > 0 ("You have a peculiar feeling for a moment, then it passes.").
+ */
 interface Effect {
   unknown: boolean;
+  nothing?: boolean;
+}
+
+const HUNGER_INDEX: Readonly<Record<string, number>> = {
+  satiated: 0,
+  not_hungry: 1,
+  hungry: 2,
+  weak: 3,
+  fainting: 4,
+  fainted: 5,
+  starved: 6,
+};
+
+/** ref: src/potion.c peffect_confusion() */
+function peffectConfusion(ctx: Ctx, p: Entity): Effect {
+  const hero = heroEntity(ctx);
+  const buc = p.c.item?.buc ?? 'uncursed';
+  let unknown = false;
+  let nothing = false;
+  if (!hasProp(hero, P.CONFUSION)) {
+    if (hasProp(hero, P.HALLUC)) {
+      msg(ctx, 'potion.trippy');
+      unknown = true;
+    } else msg(ctx, 'potion.huh_what');
+  } else nothing = true;
+  const incr = ctx.rng.rn2(7) + 16 - 8 * bcsign(buc); // rn1(7, 16 - 8 * bcsign(otmp))
+  makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + incr, false);
+  return { unknown, nothing };
+}
+
+/** ref: src/potion.c peffect_blindness() (no blindfolds: BBlinded never applies) */
+function peffectBlindness(ctx: Ctx, p: Entity): Effect {
+  const hero = heroEntity(ctx);
+  const buc = p.c.item?.buc ?? 'uncursed';
+  const blind = hasProp(hero, P.BLINDED);
+  const incr = ctx.rng.rn2(200) + 250 - 125 * bcsign(buc); // rn1(200, 250 - 125 * bcsign)
+  makeBlinded(ctx, timeoutLeft(ctx.state, hero, P.BLINDED) + incr, !blind);
+  return { unknown: false, nothing: blind };
+}
+
+/**
+ * ref: src/potion.c peffect_hallucination(). Not ported: Halluc_resistance (no Grayswandir) and
+ * the enlightenment ("You perceive yourself..."), whose 1 in 3 / 1 in 6 roll is still made.
+ */
+function peffectHallucination(ctx: Ctx, p: Entity): Effect {
+  const hero = heroEntity(ctx);
+  const buc = p.c.item?.buc ?? 'uncursed';
+  const nothing = hasProp(hero, P.HALLUC);
+  const incr = ctx.rng.rn2(200) + 600 - 300 * bcsign(buc); // rn1(200, 600 - 300 * bcsign)
+  makeHallucinated(ctx, timeoutLeft(ctx.state, hero, P.HALLUC) + incr, true);
+  if (buc === 'blessed') ctx.rng.rn2(3);
+  else if (buc !== 'cursed') ctx.rng.rn2(6);
+  return { unknown: false, nothing };
+}
+
+/** ref: src/potion.c peffect_booze() (potions are never diluted; no exercise) */
+function peffectBooze(ctx: Ctx, p: Entity): Effect {
+  const hero = heroEntity(ctx);
+  const buc = p.c.item?.buc ?? 'uncursed';
+  msg(ctx, hasProp(hero, P.HALLUC) ? 'potion.booze_dandelion' : 'potion.booze_fire');
+  if (buc !== 'blessed') {
+    // booze hits harder if drinking on an empty stomach
+    const uhs = HUNGER_INDEX[hero.c.hunger?.state ?? 'not_hungry'] ?? 1;
+    makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + ctx.rng.d(2 + uhs, 8), false);
+  }
+  healup(ctx, 1, 0, false, false); // the whiskey makes us feel better
+  addNutrition(ctx, 10 * (2 + bcsign(buc)));
+  if (buc === 'cursed') {
+    msg(ctx, 'potion.pass_out');
+    nomulNow(ctx, ctx.rng.rnd(15), 'helpless.passed_out', { key: 'potion.awake_headache' });
+  }
+  return { unknown: true };
+}
+
+/** ref: src/potion.c peffect_sleeping() with fall_asleep() (no Free_action) */
+function peffectSleeping(ctx: Ctx, p: Entity): Effect {
+  const hero = heroEntity(ctx);
+  const buc = p.c.item?.buc ?? 'uncursed';
+  if (hasProp(hero, P.SLEEP_RES)) msg(ctx, 'potion.yawn');
+  else {
+    msg(ctx, 'potion.fall_asleep');
+    const turns = ctx.rng.rn2(10) + 25 - 12 * bcsign(buc); // rn1(10, 25 - 12 * bcsign(otmp))
+    nomulNow(ctx, turns, 'helpless.asleep', { key: 'eat.wake_up' });
+  }
+  return { unknown: false };
 }
 
 /** ref: src/potion.c peffect_healing() */
@@ -143,6 +234,16 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
 /** ref: src/potion.c peffects() for the potions in our subset. */
 function peffects(ctx: Ctx, p: Entity): Effect {
   switch (p.def) {
+    case 'nh:potion_of_confusion':
+      return peffectConfusion(ctx, p);
+    case 'nh:potion_of_blindness':
+      return peffectBlindness(ctx, p);
+    case 'nh:potion_of_hallucination':
+      return peffectHallucination(ctx, p);
+    case 'nh:potion_of_booze':
+      return peffectBooze(ctx, p);
+    case 'nh:potion_of_sleeping':
+      return peffectSleeping(ctx, p);
     case 'nh:potion_of_healing':
       return peffectHealing(ctx, p);
     case 'nh:potion_of_extra_healing':
@@ -170,7 +271,12 @@ function dopotion(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
   const def = ctx.defs.object(p.def);
   const wasKnown = isKnown(ctx.state, ctx.defs, def);
   const eff = peffects(ctx, p);
-  if (!wasKnown && !eff.unknown) discover(ctx, def);
+  let unknown = eff.unknown;
+  if (eff.nothing) {
+    unknown = true;
+    msg(ctx, hasProp(heroEntity(ctx), P.HALLUC) ? 'potion.normal_feeling' : 'potion.peculiar');
+  }
+  if (!wasKnown && !unknown) discover(ctx, def);
   useup(ctx, itemId);
 }
 
@@ -178,6 +284,11 @@ function dopotion(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
 export const POTION_USES: Readonly<
   Record<string, (ctx: Ctx, user: EntityId, item: EntityId) => void>
 > = {
+  'nh:potion_of_confusion': dopotion,
+  'nh:potion_of_blindness': dopotion,
+  'nh:potion_of_hallucination': dopotion,
+  'nh:potion_of_booze': dopotion,
+  'nh:potion_of_sleeping': dopotion,
   'nh:potion_of_healing': dopotion,
   'nh:potion_of_extra_healing': dopotion,
   'nh:potion_of_full_healing': dopotion,
