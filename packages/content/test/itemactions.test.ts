@@ -65,7 +65,7 @@ describe('the Valkyrie kit', () => {
     plainKit(s);
     expect(inventoryOf(s, s.playerId).map((e) => invLine(s, e))).toEqual([
       'a - an uncursed +1 spear (weapon in hand)',
-      'b - an uncursed +0 dagger',
+      'b - an uncursed +0 dagger (alternate weapon; not wielded)',
       'c - an uncursed +3 small shield (being worn)',
       'd - an uncursed food ration',
     ]);
@@ -106,16 +106,20 @@ describe('looking at the floor', () => {
     expect(s2.text(next(s2))).toEqual(['You see here 3 daggers.']);
   });
 
-  test('two to four objects: a list; five or more: several / many', () => {
+  test('two to four objects: one line listing them; five or more: several / many', () => {
     const s = levelSetup(['.@...']);
     const at = { level: 'dlvl1', x: 2, y: 0 };
     s.floor('nh:apple', { at });
     s.floor('nh:carrot', { at });
     const r = next(s);
-    const ev = r.events.find((e): e is Extract<GameEvent, { type: 'list' }> => e.type === 'list');
-    expect(ev?.titleKey).toBe('look.things');
-    expect(ev?.items.map((m) => render(m)).sort()).toEqual(['an apple', 'a carrot'].sort());
-    expect(ev?.items).toHaveLength(2);
+    expect(r.events.some((e) => e.type === 'list')).toBe(false);
+    expect(s.msgKeys(r)).toEqual(['look.list2']);
+    expect(s.text(r)[0]).toMatch(
+      /^There are (an apple and a carrot|a carrot and an apple) here\.$/,
+    );
+    const four = levelSetup(['.@...']);
+    for (const id of ['nh:apple', 'nh:carrot', 'nh:knife', 'nh:club']) four.floor(id, { at });
+    expect(four.msgKeys(next(four))).toEqual(['look.list4']);
     const five = levelSetup(['.@...']);
     for (const id of ['nh:apple', 'nh:carrot', 'nh:knife', 'nh:club', 'nh:axe'])
       five.floor(id, { at });
@@ -424,7 +428,11 @@ describe('wield', () => {
     plainKit(s.state);
     const t0 = s.state.turn;
     const r = s.mod('nh:wield', { item: s.byLetter('b') });
-    expect(s.text(r)).toEqual(['b - an uncursed +0 dagger (weapon in hand).']);
+    // the dagger is the alternate weapon, so wielding it swaps (wield.c dowield -> doswapweapon)
+    expect(s.text(r)).toEqual([
+      'b - an uncursed +0 dagger (weapon in hand).',
+      'a - an uncursed +1 spear (alternate weapon; not wielded).',
+    ]);
     expect(itemOf(s.state, s.byLetter('a')).equipped).toBeNull();
     expect(itemOf(s.state, s.byLetter('b')).equipped).toBe('weapon');
     expect(s.state.turn).toBe(t0 + 1);

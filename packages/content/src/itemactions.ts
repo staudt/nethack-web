@@ -31,6 +31,7 @@ import {
   weight,
 } from './items';
 import { nomul } from './nomul';
+import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 
@@ -132,7 +133,7 @@ const weaponKind = (def: ObjectDef): Msg => ({
 
 /**
  * What is here after moving onto a cell with objects, as pickup() -> check_here() -> look_here()
- * with autopickup off: "You see here X.", a list of up to 4, or "There are several objects here.".
+ * with autopickup off: "You see here X.", one line listing up to 4, or "There are several objects here.".
  * Stops multi-turn movement (travel). ref: src/pickup.c check_here(), src/invent.c look_here()
  * with pile_limit 5. Not ported: dungeon features, engravings, traps, blindness.
  */
@@ -149,10 +150,12 @@ export function lookHere(ctx: Ctx): void {
     const only = here[0];
     if (only) ctx.emit({ type: 'msg', key: 'look.one', params: { item: nameQty(ctx, only) } });
   } else {
+    // ref: src/invent.c look_here(): 2..4 objects are a "Things that are here:" popup; the player
+    // chose one message-log line instead (DEVIATIONS.md): "There are a dagger and a scroll here."
     ctx.emit({
-      type: 'list',
-      titleKey: 'look.things',
-      items: here.map((e) => ({ key: 'look.item', params: { item: nameQty(ctx, e) } })),
+      type: 'msg',
+      key: `look.list${ct}`,
+      params: Object.fromEntries(here.map((e, i) => ['abcd'[i] ?? 'd', nameQty(ctx, e)])),
     });
   }
 }
@@ -172,6 +175,28 @@ interface PickData {
   qq?: number;
   /** The answer to the confirmation, once given. */
   ok?: boolean;
+  /** Counts chosen in the menu, by object id (absent = the whole stack). */
+  counts?: Record<string, number>;
+}
+
+/**
+ * A multi-select answer: whole stacks as plain ids, partial ones as `{ value, count }`.
+ * Returns the chosen ids in answer order and the counts given.
+ */
+function parseChosen(value: unknown): { ids: number[]; counts: Record<string, number> } {
+  const ids: number[] = [];
+  const counts: Record<string, number> = {};
+  if (!Array.isArray(value)) return { ids, counts };
+  for (const v of value) {
+    if (typeof v === 'number') ids.push(v);
+    else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      const { value: id, count } = v as { value?: unknown; count?: unknown };
+      if (typeof id !== 'number') continue;
+      ids.push(id);
+      if (typeof count === 'number' && count >= 1) counts[String(id)] = Math.trunc(count);
+    }
+  }
+  return { ids, counts };
 }
 
 const GOLD_WT = (n: number): number => Math.trunc((n + 50) / 100);
@@ -238,6 +263,10 @@ function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; xtra: n
   return { qq: 0, xtra: 0 };
 }
 
+/** A multi menu's count limit for a stack (src/pickup.c menu counts); none for a single item. */
+const stackMax = (e: Entity): { max?: number } =>
+  (e.c.item?.quantity ?? 1) > 1 ? { max: e.c.item?.quantity ?? 1 } : {};
+
 type PickResult = 'picked' | 'none' | 'abort' | 'ask';
 
 /** ref: src/pickup.c pickup_object() / lift_object() for a floor object. */
@@ -250,7 +279,9 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
 
   let qq = data.qq;
   if (qq === undefined) {
-    const cc = carryCount(ctx, obj, it.quantity);
+    // ref: pickup.c pickup_object(obj, count): a count from the menu caps what is lifted
+    const want = Math.min(data.counts?.[String(obj.id)] ?? it.quantity, it.quantity);
+    const cc = carryCount(ctx, obj, want);
     if (cc.qq < 1) return 'abort';
     qq = cc.qq;
     // the knapsack holds 52 letters; gold needs none
@@ -356,6 +387,7 @@ const pickup: ActionDef = {
         key: 'pickup.item',
         params: { item: ctx.defs.itemName(ctx.state, e) },
         glyph: shownId(ctx.state, e.def),
+        ...stackMax(e),
       };
     });
     ctx.ask(
@@ -371,8 +403,9 @@ const pickup: ActionDef = {
       data.ok = value === true;
       return pickupLoop(ctx, data);
     }
-    const chosen = Array.isArray(value) ? value : [];
-    data.ids = data.ids.filter((id) => chosen.includes(id));
+    const { ids, counts } = parseChosen(value);
+    data.ids = data.ids.filter((id) => ids.includes(id));
+    data.counts = counts;
     return pickupLoop(ctx, data);
   },
 };
@@ -415,6 +448,7 @@ function dropItem(ctx: Ctx, e: Entity): boolean {
     return false;
   }
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)
+  if (swapWep(ctx)?.id === e.id) setSwapWep(ctx, null); // setuswapwep(NULL), before the message
   ctx.emit({
     type: 'msg',
     key: 'drop.you_drop',
@@ -441,13 +475,14 @@ const drop: ActionDef = {
 };
 
 /** The menu entry for an inventory item: "a - a +1 spear (weapon in hand)". */
-function invOption(ctx: Ctx, e: Entity): PromptOption {
+export function invOption(ctx: Ctx, e: Entity): PromptOption {
   return {
     value: e.id,
     key: 'inv.menu_item',
     ...(e.c.item?.letter ? { letter: e.c.item.letter } : {}),
     params: { letter: e.c.item?.letter ?? NOINVSYM, item: ctx.defs.itemName(ctx.state, e) },
     glyph: shownId(ctx.state, e.def),
+    ...stackMax(e),
   };
 }
 
@@ -480,11 +515,27 @@ const dropMany: ActionDef = {
     return 0;
   },
   answer(ctx, value) {
-    const chosen = Array.isArray(value) ? value : [];
+    const { ids, counts } = parseChosen(value);
     let n = 0;
-    for (const id of chosen) {
+    for (const id of ids) {
       const e = heroItem(ctx, id);
-      if (e && dropItem(ctx, e)) n++;
+      if (!e) continue;
+      // ref: src/do.c menu_drop(): a count smaller than the stack splits it (splitobj) and drops
+      // the new part, which is not worn; the rest stays
+      const count = counts[String(id)];
+      const q = e.c.item?.quantity ?? 1;
+      if (count !== undefined && count < q) {
+        const part = ctx.state.entities[String(splitStack(ctx, id, count))];
+        if (!part) continue;
+        if (!dropItem(ctx, part)) {
+          // could not drop it: put the part back
+          addToInventory(ctx, ctx.state.playerId, part.id);
+          continue;
+        }
+        n++;
+        continue;
+      }
+      if (dropItem(ctx, e)) n++;
     }
     encumberMsg(ctx);
     return n > 0 ? NORMAL_SPEED : 0;
@@ -543,30 +594,91 @@ const wield: ActionDef = {
       weldMsg(ctx, cur);
       return 0;
     }
+    // ref: dowield(): `else if (wep == uswapwep) return doswapweapon();`
+    if (swapWep(ctx)?.id === wep.id) return swapWeapons(ctx);
     if (wit.equipped !== null) {
       ctx.emit({ type: 'msg', key: 'wield.cannot' });
       return 0;
     }
-    const def = defOf(ctx, wep);
-    if (wornIn(ctx, 'shield') && def.weapon?.bimanual) {
-      ctx.emit({ type: 'msg', key: 'wield.two_handed_shield', params: { kind: weaponKind(def) } });
-      return 0;
-    }
-    // a weapon is wielded from here on
-    if (cur?.c.item) cur.c.item.equipped = null;
-    wit.equipped = 'weapon';
-    if (wit.buc === 'cursed') {
-      const bi = def.weapon?.bimanual === true;
-      const pl = wit.quantity !== 1;
+    return readyWeapon(ctx, wep);
+  },
+};
+
+/**
+ * Makes `wep` the wielded weapon (null = empty hands); returns the energy used. The part of
+ * dowield() after its checks. ref: src/wield.c ready_weapon()
+ */
+function readyWeapon(ctx: Ctx, wep: Entity | null): number {
+  const cur = wielded(ctx);
+  if (wep === null) {
+    if (!cur) {
       ctx.emit({
         type: 'msg',
-        key: `wield.weld${pl ? '_pl' : ''}${bi ? '_hands' : ''}`,
-        params: { item: xnameOf(ctx.state, ctx.defs, wep) },
+        key: 'wield.already_nothing',
+        params: { how: { key: handsKey(ctx) } },
       });
-      wit.known.buc = true;
-    } else prinv(ctx, wep);
-    return NORMAL_SPEED;
-  },
+      return 0;
+    }
+    return unwield(ctx, cur);
+  }
+  const wit = wep.c.item;
+  if (!wit) return 0;
+  const def = defOf(ctx, wep);
+  if (wornIn(ctx, 'shield') && def.weapon?.bimanual) {
+    ctx.emit({ type: 'msg', key: 'wield.two_handed_shield', params: { kind: weaponKind(def) } });
+    return 0;
+  }
+  // a weapon is wielded from here on
+  if (cur?.c.item) cur.c.item.equipped = null;
+  wit.equipped = 'weapon';
+  if (wit.buc === 'cursed') {
+    const bi = def.weapon?.bimanual === true;
+    const pl = wit.quantity !== 1;
+    ctx.emit({
+      type: 'msg',
+      key: `wield.weld${pl ? '_pl' : ''}${bi ? '_hands' : ''}`,
+      params: { item: xnameOf(ctx.state, ctx.defs, wep) },
+    });
+    wit.known.buc = true;
+  } else prinv(ctx, wep);
+  return NORMAL_SPEED;
+}
+
+/**
+ * Swaps the wielded and alternate weapons. ref: src/wield.c doswapweapon(): the alternate slot
+ * is emptied, the old alternate is readied, and if that worked the old weapon becomes the
+ * alternate and is shown ("You have no secondary weapon readied." when there was none).
+ * A welded weapon blocks it. Not ported: two-weapon combat.
+ */
+function swapWeapons(ctx: Ctx): number {
+  const oldwep = wielded(ctx);
+  if (oldwep && welded(ctx, oldwep)) {
+    weldMsg(ctx, oldwep);
+    return 0;
+  }
+  const oldswap = swapWep(ctx);
+  setSwapWep(ctx, null);
+  const result = readyWeapon(ctx, oldswap);
+  if (wielded(ctx)?.id === oldwep?.id) {
+    setSwapWep(ctx, oldswap?.id ?? null); // the wield failed for some reason
+  } else {
+    setSwapWep(ctx, oldwep?.id ?? null);
+    if (oldwep) prinv(ctx, oldwep);
+    else ctx.emit({ type: 'msg', key: 'wield.no_secondary' });
+  }
+  return result;
+}
+
+const swapWeapon: ActionDef = {
+  id: 'nh:swap_weapon',
+  labelKey: 'action.nh:swap_weapon',
+  handles: 'mod',
+  // `x` always does something in NetHack; here it is offered when a weapon is wielded or alternate
+  offer: (ctx, target) =>
+    target.kind === 'self' && (wielded(ctx) !== null || swapWep(ctx) !== null)
+      ? selfOffer('nh:swap_weapon', 'action.nh:swap_weapon')
+      : [],
+  perform: (ctx) => swapWeapons(ctx),
 };
 
 function unwield(ctx: Ctx, cur: Entity): number {
@@ -844,6 +956,7 @@ export const ITEM_ACTIONS: readonly ActionDef[] = [
   dropMany,
   wield,
   unwieldAction,
+  swapWeapon,
   wear,
   takeoff,
   discoveries,

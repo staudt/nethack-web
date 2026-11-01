@@ -25,6 +25,8 @@ import { THROW_ACTIONS } from './dothrow';
 import { KICK_ACTIONS, registerKick } from './dokick';
 import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
+import { CALL_ACTIONS } from './call';
+import { enhanceAction } from './skills';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -46,6 +48,8 @@ export const vanillaMod: Mod = {
     for (const a of THROW_ACTIONS) api.defineAction(a);
     for (const a of KICK_ACTIONS) api.defineAction(a);
     for (const a of FIRE_ACTIONS) api.defineAction(a);
+    for (const a of CALL_ACTIONS) api.defineAction(a);
+    api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
     registerKick(api);
@@ -122,7 +126,19 @@ export {
   P_SKILLED,
   P_EXPERT,
   BARE_HANDED,
+  useSkill,
+  addWeaponSkill,
+  canAdvance,
+  couldAdvance,
+  slotsRequired,
+  weaponSlots,
+  practiceNeededToAdvance,
+  P_SKILL_LIMIT,
+  SKILL_GROUPS,
+  enhanceAction,
 } from './skills';
+export { swapWep, setSwapWep, isSwapWep } from './wield';
+export { CALL_ACTIONS } from './call';
 export { xnameOf } from './objnam';
 export { hitval } from './combat';
 export { nhData } from './items';

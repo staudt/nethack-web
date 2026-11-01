@@ -1,6 +1,6 @@
-// Weapon skills. ref: src/weapon.c skill_init(), weapon_hit_bonus(), weapon_dam_bonus();
+// Weapon skills. ref: src/weapon.c skill_init(), use_skill(), enhance_weapon_skill(), weapon_hit_bonus(), weapon_dam_bonus();
 // src/u_init.c Skill_V
-import { type Ctx, type ObjectDef, inventoryOf } from '@nh/core';
+import { type ActionDef, type Ctx, type Msg, type ObjectDef, inventoryOf } from '@nh/core';
 import { nhData } from './items';
 
 /** ref: include/skills.h P_ISRESTRICTED..P_GRAND_MASTER */
@@ -40,11 +40,81 @@ export const SKILL_V: Readonly<Record<string, number>> = {
   [BARE_HANDED]: P_EXPERT,
 };
 
+/** ref: include/global.h MAXULEV (hero.ts has the same constant; importing it would make a cycle) */
+const MAXULEV = 30;
+
+/** ref: include/skills.h P_SKILL_LIMIT: the most advancements ever made */
+export const P_SKILL_LIMIT = 60;
+
+/** ref: include/skills.h practice_needed_to_advance(level) */
+export const practiceNeededToAdvance = (level: number): number => level * level * 20;
+
+/**
+ * Every skill in NetHack's menu order: fighting skills, weapons, spells. ref: include/skills.h
+ * P_FIRST_H_TO_H.., P_FIRST_WEAPON..P_LAST_WEAPON, P_FIRST_SPELL..P_LAST_SPELL and
+ * src/weapon.c skill_ranges[]. Skills no role entry mentions simply stay restricted.
+ */
+export const SKILL_GROUPS: readonly { id: string; skills: readonly string[] }[] = [
+  { id: 'fighting', skills: [BARE_HANDED, 'two_weapon', 'riding'] },
+  {
+    id: 'weapon',
+    skills: [
+      'dagger',
+      'knife',
+      'axe',
+      'pick_axe',
+      'short_sword',
+      'broad_sword',
+      'long_sword',
+      'two_handed_sword',
+      'saber',
+      'club',
+      'mace',
+      'morning_star',
+      'flail',
+      'hammer',
+      'quarterstaff',
+      'polearms',
+      'spear',
+      'trident',
+      'lance',
+      'bow',
+      'sling',
+      'crossbow',
+      'dart',
+      'shuriken',
+      'boomerang',
+      'whip',
+      'unicorn_horn',
+    ],
+  },
+  {
+    id: 'spell',
+    skills: [
+      'attack_spell',
+      'healing_spell',
+      'divination_spell',
+      'enchantment_spell',
+      'cleric_spell',
+      'escape_spell',
+      'matter_spell',
+    ],
+  },
+];
+
+type SkillCtx = Pick<Ctx, 'state'>;
+
+/** The skill's group id: 'fighting', 'weapon' or 'spell'. */
+const groupOf = (skill: string): string =>
+  SKILL_GROUPS.find((g) => g.skills.includes(skill))?.id ?? 'weapon';
+
 /**
  * Sets the hero's starting skills: every skill is restricted, weapons in the inventory are
- * Basic, then the role's skills not already set become Unskilled. ref: src/weapon.c skill_init().
- * Skipped: the ammo exception (no ammo yet), magic skills, riding, advancement counters,
- * training and #enhance (skills never improve).
+ * Basic, then the role's skills not already set become Unskilled; each skill's maximum and
+ * practice counter are set, and the hero starts with 2 unused slots.
+ * ref: src/weapon.c skill_init(), src/u_init.c u_init() (u.weapon_slots = 2).
+ * Skipped: the ammo exception (ammo is skipped only for launchers we lack), magic skills,
+ * riding a steed, unrestrict_weapon_skill() for the role's special spell.
  */
 export function skillInit(ctx: Pick<Ctx, 'state' | 'defs'>, heroId: number): void {
   const skills: Record<string, number> = {};
@@ -52,17 +122,228 @@ export function skillInit(ctx: Pick<Ctx, 'state' | 'defs'>, heroId: number): voi
     const w = ctx.defs.object(o.def).weapon;
     if (w) skills[w.skill] = P_BASIC;
   }
+  const maxima: Record<string, number> = {};
   for (const name of Object.keys(SKILL_V).sort()) {
+    maxima[name] = SKILL_V[name] ?? P_RESTRICTED;
     if (skills[name] === undefined) skills[name] = P_UNSKILLED;
   }
   // "High potential fighters already know how to use their hands": only when max > Expert.
-  nhData(ctx).skills = skills;
+  const advance: Record<string, number> = {};
+  for (const name of Object.keys(skills).sort()) {
+    advance[name] = practiceNeededToAdvance((skills[name] ?? P_UNSKILLED) - 1);
+  }
+  const data = nhData(ctx);
+  data.skills = skills;
+  data.skillMax = maxima;
+  data.skillAdvance = advance;
+  data.weaponSlots = 2;
+  data.skillsAdvanced = 0;
 }
 
 /** The hero's current level in a skill (restricted = 0 when absent). */
-export function skillLevel(ctx: Pick<Ctx, 'state'>, skill: string): number {
+export function skillLevel(ctx: SkillCtx, skill: string): number {
   return nhData(ctx).skills?.[skill] ?? P_RESTRICTED;
 }
+
+const skillMax = (ctx: SkillCtx, skill: string): number =>
+  nhData(ctx).skillMax?.[skill] ?? SKILL_V[skill] ?? P_RESTRICTED;
+
+const skillAdvance = (ctx: SkillCtx, skill: string): number =>
+  nhData(ctx).skillAdvance?.[skill] ?? 0;
+
+/** Unused skill slots. ref: u.weapon_slots */
+export const weaponSlots = (ctx: SkillCtx): number => nhData(ctx).weaponSlots ?? 0;
+
+/**
+ * Slots needed to advance the skill one level. ref: src/weapon.c slots_required():
+ * weapons and two-weapon combat cost the current level, the rest (fighting, riding, spells)
+ * cost (level + 1) / 2.
+ */
+export function slotsRequired(ctx: SkillCtx, skill: string): number {
+  const tmp = skillLevel(ctx, skill);
+  if (groupOf(skill) === 'weapon' || skill === 'two_weapon') return tmp;
+  return Math.trunc((tmp + 1) / 2);
+}
+
+/** Whether the skill has the practice for its next level (the shared part of can/could). */
+function practiced(ctx: SkillCtx, skill: string): boolean {
+  const lvl = skillLevel(ctx, skill);
+  if (lvl === P_RESTRICTED || lvl >= skillMax(ctx, skill)) return false;
+  if ((nhData(ctx).skillsAdvanced ?? 0) >= P_SKILL_LIMIT) return false;
+  return skillAdvance(ctx, skill) >= practiceNeededToAdvance(lvl);
+}
+
+/** ref: src/weapon.c can_advance(): practiced enough and the slots are there. */
+export function canAdvance(ctx: SkillCtx, skill: string): boolean {
+  return practiced(ctx, skill) && weaponSlots(ctx) >= slotsRequired(ctx, skill);
+}
+
+/** ref: src/weapon.c could_advance(): practiced enough, but too few slots. */
+export function couldAdvance(ctx: SkillCtx, skill: string): boolean {
+  return practiced(ctx, skill);
+}
+
+/** ref: src/weapon.c peaked_skill(): at its maximum with enough practice for more. */
+export function peakedSkill(ctx: SkillCtx, skill: string): boolean {
+  const lvl = skillLevel(ctx, skill);
+  if (lvl === P_RESTRICTED) return false;
+  return lvl >= skillMax(ctx, skill) && skillAdvance(ctx, skill) >= practiceNeededToAdvance(lvl);
+}
+
+/** "You feel more confident in your weapon skills." ref: src/weapon.c give_may_advance_msg() */
+function giveMayAdvanceMsg(ctx: Pick<Ctx, 'emit'>, skill: string | null): void {
+  ctx.emit({
+    type: 'msg',
+    key:
+      skill === null
+        ? 'skill.confident'
+        : groupOf(skill) === 'weapon'
+          ? 'skill.confident.weapon'
+          : groupOf(skill) === 'spell'
+            ? 'skill.confident.spell'
+            : 'skill.confident.fighting',
+  });
+}
+
+/**
+ * The skill was used: `degree` practice points, and the "more confident" message when this
+ * made it advanceable. ref: src/weapon.c use_skill()
+ */
+export function useSkill(ctx: Pick<Ctx, 'state' | 'emit'>, skill: string, degree: number): void {
+  if (skillLevel(ctx, skill) === P_RESTRICTED) return;
+  const before = canAdvance(ctx, skill);
+  const data = nhData(ctx);
+  const adv = (data.skillAdvance ??= {});
+  adv[skill] = (adv[skill] ?? 0) + degree;
+  if (!before && canAdvance(ctx, skill)) giveMayAdvanceMsg(ctx, skill);
+}
+
+/** All unrestricted skills, in menu order. */
+function knownSkills(ctx: SkillCtx): string[] {
+  return SKILL_GROUPS.flatMap((g) => g.skills).filter((s) => skillLevel(ctx, s) !== P_RESTRICTED);
+}
+
+/**
+ * Gains `n` skill slots (a level was gained); says so when that made more skills advanceable.
+ * ref: src/weapon.c add_weapon_skill(). (Losing levels does not exist yet: lose_weapon_skill()
+ * is not ported.)
+ */
+export function addWeaponSkill(ctx: Pick<Ctx, 'state' | 'emit'>, n: number): void {
+  const all = knownSkills(ctx);
+  const before = all.filter((s) => canAdvance(ctx, s)).length;
+  const data = nhData(ctx);
+  data.weaponSlots = (data.weaponSlots ?? 0) + n;
+  const after = all.filter((s) => canAdvance(ctx, s)).length;
+  if (before < after) giveMayAdvanceMsg(ctx, null);
+}
+
+/** ref: src/weapon.c skill_advance(): spends the slots and raises the level. */
+function skillAdvanceNow(ctx: Pick<Ctx, 'state' | 'emit'>, skill: string): void {
+  const data = nhData(ctx);
+  data.weaponSlots = weaponSlots(ctx) - slotsRequired(ctx, skill);
+  const skills = (data.skills ??= {});
+  skills[skill] = (skills[skill] ?? P_UNSKILLED) + 1;
+  data.skillsAdvanced = (data.skillsAdvanced ?? 0) + 1;
+  ctx.emit({
+    type: 'msg',
+    key: (skills[skill] ?? 0) >= skillMax(ctx, skill) ? 'skill.advanced.most' : 'skill.advanced',
+    params: { skill: { key: `skill.${skill}` } },
+  });
+}
+
+const LEVEL_NAMES = ['', 'unskilled', 'basic', 'skilled', 'expert', 'master', 'grand_master'];
+
+/** One menu line: "dagger [Basic]" with NetHack's "*" / "#" flags. ref: add_skills_to_menu() */
+function skillLine(ctx: SkillCtx, skill: string, flags: boolean): Msg {
+  let mark = '';
+  if (flags && !canAdvance(ctx, skill)) {
+    mark = couldAdvance(ctx, skill) ? '* ' : peakedSkill(ctx, skill) ? '# ' : '  ';
+  }
+  return {
+    key: 'enhance.entry',
+    params: {
+      mark,
+      skill: { key: `skill.${skill}` },
+      level: { key: `skill.level.${LEVEL_NAMES[skillLevel(ctx, skill)] ?? 'unskilled'}` },
+    },
+  };
+}
+
+/**
+ * `#enhance`. ref: src/weapon.c enhance_weapon_skill(): when any skill can be advanced a
+ * single-choice menu "Pick a skill to advance:" is shown, and choosing one spends the slots
+ * (the command is free); otherwise the current skills are listed. After an advance, "You feel
+ * you could be more dangerous!" says another skill can still be advanced. The menu lists only
+ * the advanceable skills (a prompt option cannot be a non-selectable line), and the skills
+ * that cannot be advanced yet are listed by the no-choice form.
+ */
+export const enhanceAction: ActionDef = {
+  id: 'nh:enhance',
+  labelKey: 'action.nh:enhance',
+  handles: 'mod',
+  offer: (_ctx, target) =>
+    target.kind === 'self'
+      ? [{ action: { type: 'mod', action: 'nh:enhance' }, labelKey: 'action.nh:enhance' }]
+      : [],
+  perform(ctx) {
+    const skills = knownSkills(ctx);
+    const adv = skills.filter((s) => canAdvance(ctx, s));
+    if (adv.length > 0) {
+      ctx.ask(
+        {
+          id: 'enhance-menu',
+          kind: 'menu',
+          key: 'enhance.pick',
+          options: adv.map((s) => ({
+            value: s,
+            key: 'enhance.entry',
+            params: skillLine(ctx, s, false).params ?? {},
+          })),
+        },
+        'nh:enhance',
+        null,
+      );
+      return 0;
+    }
+    const eventually = skills.filter((s) => couldAdvance(ctx, s)).length;
+    const maxxed = skills.filter((s) => peakedSkill(ctx, s)).length;
+    const items: Msg[] = [];
+    if (eventually > 0) {
+      items.push({
+        key: `enhance.legend.star${eventually === 1 ? '' : '_pl'}`,
+        params: {
+          when: {
+            key:
+              (ctx.state.entities[String(ctx.state.playerId)]?.c.experience?.level ?? 1) < MAXULEV
+                ? 'enhance.when_experienced'
+                : 'enhance.when_slots',
+          },
+        },
+      });
+    }
+    if (maxxed > 0) items.push({ key: `enhance.legend.hash${maxxed === 1 ? '' : '_pl'}` });
+    if (items.length > 0) items.push({ key: 'enhance.blank' });
+    for (const g of SKILL_GROUPS) {
+      items.push({ key: `enhance.group.${g.id}` });
+      for (const s of g.skills) {
+        if (skillLevel(ctx, s) !== P_RESTRICTED) {
+          items.push(skillLine(ctx, s, eventually + maxxed > 0));
+        }
+      }
+    }
+    ctx.emit({ type: 'list', titleKey: 'enhance.current', items });
+    return 0;
+  },
+  answer(ctx, value) {
+    if (typeof value !== 'string' || !canAdvance(ctx, value)) return 0;
+    skillAdvanceNow(ctx, value);
+    // "check for more skills able to advance"
+    if (knownSkills(ctx).some((s) => canAdvance(ctx, s))) {
+      ctx.emit({ type: 'msg', key: 'enhance.more' });
+    }
+    return 0;
+  },
+};
 
 /**
  * To-hit modifier for fighting with `weapon` (null = bare hands). ref: src/weapon.c

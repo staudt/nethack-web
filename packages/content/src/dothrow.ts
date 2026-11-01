@@ -38,7 +38,14 @@ import {
   omonAdj,
   shouldMulchMissile,
 } from './mthrowu';
-import { P_EXPERT, P_SKILLED, skillLevel, weaponDamBonus, weaponHitBonus } from './skills';
+import {
+  P_EXPERT,
+  P_SKILLED,
+  skillLevel,
+  useSkill,
+  weaponDamBonus,
+  weaponHitBonus,
+} from './skills';
 import { acurrstr, findMac } from './stats';
 
 export const THROW_ID: DefId = 'nh:throw';
@@ -182,11 +189,14 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
     dmg = dmgval(ctx.rng, obj, odef, mdef);
+    // ref: hmon_hitmon_weapon_ranged(): train_weapon_skill = (dmg > 0), the launcher's skill
+    useSkill(ctx, uwdef.weapon?.skill ?? '', 1);
     dmg += weaponDamBonus(skillLevel(ctx, uwdef.weapon?.skill ?? ''), uwdef);
   } else {
     // ref: src/uhitm.c hmon_hitmon_weapon_melee(): dmgval, then the Str bonus and the
     // weapon-skill bonus; at least 1.
     dmg = dmgval(ctx.rng, obj, odef, mdef);
+    if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
     dmg += dbon(hero.c.attributes?.str ?? 10);
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }

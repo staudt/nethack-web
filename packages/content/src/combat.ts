@@ -25,7 +25,14 @@ import { gethungry } from './hunger';
 import { weight } from './items';
 import { heroSees, monWep, monWieldItem } from './mongear';
 import { findAc, findMac, nearCapacity } from './stats';
-import { P_UNSKILLED, BARE_HANDED, skillLevel, weaponDamBonus, weaponHitBonus } from './skills';
+import {
+  P_UNSKILLED,
+  BARE_HANDED,
+  skillLevel,
+  useSkill as useSkillPoints,
+  weaponDamBonus,
+  weaponHitBonus,
+} from './skills';
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -191,7 +198,7 @@ function nonliving(def: MonsterDef): boolean {
  * The hero attacks the monster entity `targetId`; returns the energy cost.
  * ref: src/hack.c domove() -> src/uhitm.c do_attack() -> hitum() -> known_hitum() -> hmon().
  * The monster's passive attack answers each blow (ref: hitum() -> passive()). Not ported:
- * knockback, two-weapon, skill training. (The peaceful confirmation is asked by the callers, see
+ * knockback, two-weapon. (The peaceful confirmation is asked by the callers, see
  * peaceful.ts.)
  */
 export function heroAttack(ctx: Ctx, targetId: EntityId): number {
@@ -245,14 +252,17 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   // it for a two-handed melee weapon) and the weapon-skill bonus, and a minimum of 1.
   let dmg: number;
   let useSkill = false;
+  let train = false;
   let strBonus = true;
   if (!weapon) {
     // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack)
     dmg = ctx.rng.rnd(2);
     useSkill = true;
+    train = dmg > 1; // ref: hmon_hitmon_barehands(): train_weapon_skill = (dmg > 1)
   } else if (weapon.def.weapon) {
     dmg = dmgval(ctx.rng, weapon.item, weapon.def, def);
     useSkill = true;
+    train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
   } else if (weapon.def.material === 'veggy' || weapon.def.material === 'paper') {
     // hmon_hitmon_misc_obj default: vegetables and paper do no damage
     dmg = 0;
@@ -273,6 +283,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
       dmg += sb;
     }
     if (useSkill) {
+      // ref: hmon_hitmon_dmg_recalc(): a real hit trains the skill (use_skill(wtype, 1))
+      if (train) useSkillPoints(ctx, weapon?.def.weapon?.skill ?? BARE_HANDED, 1);
       dmg += weaponDamBonus(
         weapon ? weapon.skill : (stats.bareSkill ?? P_UNSKILLED),
         weapon?.def ?? null,

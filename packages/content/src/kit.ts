@@ -1,6 +1,7 @@
 // The Valkyrie's starting inventory. ref: src/u_init.c u_init(), ini_inv(), Valkyrie[]
 import type { Buc, Ctx, EntityId } from '@nh/core';
 import { addToInventory, mksobj } from './items';
+import { setSwapWep } from './wield';
 import { discover } from './o_init';
 import { skillInit } from './skills';
 import type { DefId } from '@nh/core';
@@ -13,7 +14,7 @@ interface TrObj {
   /** Fixed blessedness, or null to keep the randomly initialized one (UNDEF_BLESS). */
   blessed: boolean | null;
   /** Wielded / worn once added (ref: ini_inv()'s setuwep / setworn for the first weapon and shield). */
-  equip: 'weapon' | 'shield' | null;
+  equip: 'weapon' | 'swap' | 'shield' | null;
 }
 
 /**
@@ -21,7 +22,7 @@ interface TrObj {
  */
 export const VALKYRIE_KIT: readonly TrObj[] = [
   { id: 'nh:spear', spe: 1, quantity: 1, blessed: null, equip: 'weapon' },
-  { id: 'nh:dagger', spe: 0, quantity: 1, blessed: null, equip: null },
+  { id: 'nh:dagger', spe: 0, quantity: 1, blessed: null, equip: 'swap' },
   { id: 'nh:small_shield', spe: 3, quantity: 1, blessed: null, equip: 'shield' },
   { id: 'nh:food_ration', spe: 0, quantity: 1, blessed: false, equip: null },
 ];
@@ -31,8 +32,8 @@ export const VALKYRIE_KIT: readonly TrObj[] = [
  * the types that have a description, then sets the starting skills.
  * ref: src/u_init.c ini_inv() and ini_inv_adjust_obj(): each object is made with mksobj(init),
  * its curse removed (a random blessing is kept for UNDEF_BLESS entries), enchantment and
- * quantity fixed, and BUC and enchantment identified. Simplified: the dagger is not made the
- * alternate weapon (no secondary-weapon slot), and the food ration's quantity is fixed at 1
+ * quantity fixed, and BUC and enchantment identified. The dagger becomes the alternate weapon
+ * (content state, see wield.ts). Simplified: the food ration's quantity is fixed at 1
  * (mksobj's 1-in-6 chance of two is not rolled into the starting kit).
  */
 export function giveStartingKit(ctx: Ctx, heroId: EntityId): void {
@@ -49,7 +50,9 @@ export function giveStartingKit(ctx: Ctx, heroId: EntityId): void {
     const id = addToInventory(ctx, heroId, made);
     if (t.equip) {
       const item = ctx.state.entities[String(id)]?.c.item;
-      if (item) item.equipped = t.equip;
+      // ref: ini_inv(): the first weapon is wielded, the next becomes the alternate (setuswapwep)
+      if (item && t.equip === 'swap') setSwapWep(ctx, id);
+      else if (item && t.equip !== 'swap') item.equipped = t.equip;
     }
     // ref: ini_inv(): objects with a description are discovered when their enchantment is known
     if (def.descKey !== undefined) discover(ctx, def);

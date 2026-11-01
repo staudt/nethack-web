@@ -6,6 +6,9 @@ export const itemMessagesEn: Record<string, string> = {
   'action.nh:drop_many': 'Drop several things',
   'action.nh:wield': 'Wield',
   'action.nh:wield_nothing': 'Wield nothing',
+  'action.nh:swap_weapon': 'Swap weapons',
+  'action.nh:enhance': 'Enhance skills',
+  'action.nh:call': 'Name an object type',
   'action.nh:wear': 'Wear',
   'action.nh:takeoff': 'Take off',
   'action.nh:discoveries': 'Discoveries',
@@ -33,7 +36,9 @@ export const itemMessagesEn: Record<string, string> = {
   // looking
   'look.item': '{item|an}',
   'look.one': 'You see here {item|an}.',
-  'look.things': 'Things that are here:',
+  'look.list2': 'There are {a|an} and {b|an} here.',
+  'look.list3': 'There are {a|an}, {b|an} and {c|an} here.',
+  'look.list4': 'There are {a|an}, {b|an}, {c|an} and {d|an} here.',
   'look.several': 'There are several objects here.',
   'look.many': 'There are many objects here.',
 
@@ -63,6 +68,7 @@ export const itemMessagesEn: Record<string, string> = {
   'wield.bare_handed': 'bare handed',
   'wield.you_are': 'You are {how}.',
   'wield.already_nothing': 'You are already {how}.',
+  'wield.no_secondary': 'You have no secondary weapon readied.',
   'wield.already': 'You are already wielding that!',
   'wield.cannot': 'You cannot wield that!',
   'wield.two_handed_shield': 'You cannot wield a two-handed {kind} while wearing a shield.',
@@ -120,6 +126,11 @@ export const itemMessagesEn: Record<string, string> = {
   'takeoff.cursed_pl': "You can't.  They are cursed.",
   'takeoff.were_wearing': 'You were wearing {item|an}.',
   'takeoff.finish': 'You finish taking off your {what}.',
+
+  // naming object types (do_name.c)
+  'call.nothing': "You don't have anything to call.",
+  'call.pick': 'What do you want to call?',
+  'call.prompt': 'Call {item|an}:',
 
   // discoveries
   'disco.title': 'Discoveries, by object order',

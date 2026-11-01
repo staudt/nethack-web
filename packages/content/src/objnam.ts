@@ -1,6 +1,16 @@
 // Naming objects for the player. ref: src/objnam.c xname(), doname()
-import type { Entity, GameState, ItemNamer, Msg, ObjectDef, Params, Registry } from '@nh/core';
+import type {
+  ArmorSlot,
+  Entity,
+  GameState,
+  ItemNamer,
+  Msg,
+  ObjectDef,
+  Params,
+  Registry,
+} from '@nh/core';
 import { isKnown } from './o_init';
+import { isSwapWep } from './wield';
 
 /**
  * The message for the item's name without quantity, BUC or suffixes (xname()): the real name
@@ -21,9 +31,42 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
     }
     return { key: `${def.nameKey}${plural}` };
   }
+  const un = calledName(state, def);
+  if (un !== null) {
+    // ref: xname() "xcalled(buf, size, prefix, un)": "<description> called <name>"; potions and
+    // scrolls give just their class ("potion called healing?"), armor its simple name
+    const pre: Msg =
+      def.class === 'potion' || def.class === 'scroll'
+        ? { key: `obj.generic.${def.class}${plural}` }
+        : def.class === 'armor' && def.armor
+          ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
+          : { key: `${def.descKey ?? def.nameKey}${plural}` };
+    return { key: 'obj.called', params: { pre, name: un } };
+  }
   const app = state.appearances[def.id];
   const base = app !== undefined && defs.isAppearance(app) ? defs.appearance(app).nameKey : null;
   return { key: `${base ?? def.descKey ?? def.nameKey}${plural}` };
+}
+
+/** ref: src/objnam.c armor_simple_name(): the `kind.*` word for an armor slot */
+const ARMOR_SIMPLE: Record<ArmorSlot, string> = {
+  body: 'suit',
+  cloak: 'cloak',
+  shirt: 'shirt',
+  helm: 'helm',
+  gloves: 'gloves',
+  boots: 'boots',
+  shield: 'shield',
+};
+
+/**
+ * The name the hero gave this unidentified type (oc_uname), or null. Only classes the call
+ * command accepts (see call.ts) show it. Read-only: never creates the mod data.
+ */
+function calledName(state: Readonly<GameState>, def: ObjectDef): string | null {
+  const md = state.modData['nh'] as unknown as { called?: Record<string, string> } | undefined;
+  const un = md?.called?.[def.id];
+  return un !== undefined && un !== '' ? un : null;
 }
 
 /** The item's name without article, quantity, BUC or suffixes. ref: src/objnam.c xname() */
@@ -73,6 +116,9 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     }
   } else if (it.equipped !== null) {
     params.worn = { key: 'obj.worn' }; // "(being worn)"; no donning/doffing state yet
+  } else if (isSwapWep(state, item)) {
+    // ref: doname_base() W_SWAPWEP: "(alternate weapon; not wielded)" (no two-weapon combat)
+    params.worn = { key: `obj.alternate${it.quantity !== 1 ? '.plural' : ''}` };
   }
   return { key: 'obj.doname', params };
 }

@@ -14,6 +14,7 @@ import {
   type ModApi,
   type PropState,
 } from '@nh/core';
+import { addWeaponSkill } from './skills';
 
 /** Property names used by the vanilla mod (ref: include/prop.h enum prop_types). */
 export const P = {
@@ -168,6 +169,8 @@ export function adjabil(ctx: Ctx, heroId: EntityId, oldLevel: number, newLevel: 
     setIntrinsic(hero, a.prop, true);
     if (!had && a.gain) ctx.emit({ type: 'msg', key: a.gain });
   }
+  // ref: src/attrib.c adjabil(): `if (oldlevel > 0 && newlevel > oldlevel) add_weapon_skill(...)`
+  if (oldLevel > 0 && newLevel > oldLevel) addWeaponSkill(ctx, newLevel - oldLevel);
 }
 
 /** Registers the props hooks and the Stun status. ref: src/timeout.c, src/botl.c */

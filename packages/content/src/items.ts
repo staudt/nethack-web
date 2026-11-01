@@ -278,6 +278,18 @@ interface NhData {
   lastinvnr: number;
   /** Hero skill levels by skill name (ref: u.weapon_skills); absent = restricted. */
   skills?: Record<string, number>;
+  /** The most each skill can reach (P_MAX_SKILL); absent = the role's list (SKILL_V). */
+  skillMax?: Record<string, number>;
+  /** Practice points per skill (P_ADVANCE). */
+  skillAdvance?: Record<string, number>;
+  /** Unused skill slots (u.weapon_slots). */
+  weaponSlots?: number;
+  /** How many skill advancements were made (u.skills_advanced, limit P_SKILL_LIMIT). */
+  skillsAdvanced?: number;
+  /** The alternate weapon's item id (uswapwep); it must still be carried to count. */
+  uswapwep?: number | null;
+  /** Names the hero gave object types ("called"), by object def id (oc_uname). */
+  called?: Record<string, string>;
   /** The hero's last encumbrance level, for encumber_msg(). */
   oldcap?: number;
   /** Message shown when the current helplessness ends (ref: nomovemsg). */
@@ -387,6 +399,9 @@ export function removeFromInventory(ctx: ItemCtx, itemId: EntityId): void {
   if (!it) return;
   it.carriedBy = null;
   it.equipped = null;
+  // ref: src/do.c dropx()/dropz(): leaving the inventory clears the alternate-weapon slot
+  const data = ctx.state.modData['nh'] as unknown as NhData | undefined;
+  if (data && data.uswapwep === itemId) data.uswapwep = null;
 }
 
 /**
