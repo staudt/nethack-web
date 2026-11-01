@@ -15,6 +15,38 @@ describe('findPath', () => {
     const l = asciiLevel(['.....']);
     expect(findPath(l, RULES, full(l), P(0, 0), P(3, 0))).toEqual([P(1, 0), P(2, 0), P(3, 0)]);
   });
+  const turnsOf = (from: { x: number; y: number }, path: { x: number; y: number }[]): number => {
+    let prev = from;
+    let last = '';
+    let n = 0;
+    for (const p of path) {
+      const d = `${p.x - prev.x},${p.y - prev.y}`;
+      if (last !== '' && d !== last) n++;
+      last = d;
+      prev = p;
+    }
+    return n;
+  };
+  test('across an open room the shortest path bends at most once', () => {
+    const l = asciiLevel(['..........', '..........', '..........', '..........', '..........']);
+    for (const [tx, ty] of [
+      [9, 2],
+      [6, 4],
+      [3, 1],
+      [9, 4],
+    ] as const) {
+      const p = findPath(l, RULES, full(l), P(0, 0), P(tx, ty)) ?? [];
+      expect(p).toHaveLength(Math.max(tx, ty));
+      expect(turnsOf(P(0, 0), p)).toBeLessThanOrEqual(1);
+    }
+  });
+  test('corridor, room, corridor: straight through the room', () => {
+    const l = asciiLevel(['..........', '. ...... .', '..........']);
+    // from the left corridor end to the right one: the straight row is as short as any other
+    const p = findPath(l, RULES, full(l), P(0, 0), P(9, 0)) ?? [];
+    expect(p).toHaveLength(9);
+    expect(turnsOf(P(0, 0), p)).toBe(0);
+  });
   test('from === to', () => {
     const l = asciiLevel(['..']);
     expect(findPath(l, RULES, full(l), P(1, 0), P(1, 0))).toEqual([]);
