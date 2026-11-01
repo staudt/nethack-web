@@ -56,6 +56,8 @@ import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T } from './terrain';
 import { thitmonst } from './dothrow';
 import { monNam } from './perception';
+import { abuseDog } from './dog';
+import { monflee, stopFleeing } from './monflee';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -406,6 +408,12 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
   let dmg = Math.trunc((acurrstr(a.str) + a.dex + a.con) / 15);
   if (clumsy) dmg = Math.trunc(dmg / 2); // excessive weight affects Dex, so it affects damage
   if (thickSkinned(def)) dmg = 0; // kicking a dragon or an elephant will not harm it
+  // "squeeze some guilt feelings...": a kicked pet is abused and runs off
+  if (mon.tame) {
+    abuseDog(ctx, monId);
+    if (mon.tame) monflee(ctx, monId, dmg ? ctx.rng.rnd(dmg) : 1, false, false);
+    else stopFleeing(ctx, monId);
+  }
   if (dmg > 0) dmg = ctx.rng.rnd(dmg); // martial arts would add rn2(Dex / 2 + 1)
   // boots: `dmg += uarmf->spe`
   const boots = inventoryOf(ctx.state, ctx.state.playerId).find(

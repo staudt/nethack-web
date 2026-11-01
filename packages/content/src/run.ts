@@ -1,3 +1,4 @@
+import { isSafemon } from './actions';
 import {
   DIRS,
   DIR_LIST,
@@ -84,8 +85,15 @@ function lookaround(ctx: Ctx, s: Session, run: number): boolean {
       const infront = x === ux + s.dx && y === uy + s.dy;
       if (!inBounds(level, x, y) || (x === ux && y === uy)) continue;
       const mtmp = monsterIdAt(ctx, { x, y }, level.id);
-      // There are no pets, so no monster is a "safe" one.
-      if (mtmp !== null && visibleMonsterAt(ctx, { x, y }) && (run !== 1 || infront)) return true;
+      // ref: lookaround(): `(context.run != 1 && !is_safemon(mtmp)) || infront`: pets and other
+      // safe monsters don't stop a run unless they are right in front
+      const mon = mtmp === null ? undefined : ctx.state.entities[String(mtmp)];
+      if (
+        mon &&
+        visibleMonsterAt(ctx, { x, y }) &&
+        ((run !== 1 && !isSafemon(ctx, mon)) || infront)
+      )
+        return true;
 
       const t = terrainAt(ctx, x, y);
       if (t.id === 'nh:stone') continue; // stone is never interesting
@@ -174,9 +182,12 @@ function runStep(ctx: Ctx, args: RunArgs): StepResult {
   const to: Pos = { x: here.x + s.dx, y: here.y + s.dy };
   const dir = DIR_LIST.find((d) => DIRS[d].x === s.dx && DIRS[d].y === s.dy);
   if (!dir) return none;
-  // ref: src/hack.c domove_core(): a running hero does not attack a monster she can see.
-  if (visibleMonsterAt(ctx, to)) return none;
-  const attacking = monsterIdAt(ctx, to, level.id) !== null;
+  // ref: src/hack.c domove_core(): a running hero does not attack a monster she can see (she
+  // may still swap places with a pet)
+  const there = monsterIdAt(ctx, to, level.id);
+  const thereMon = there === null ? undefined : ctx.state.entities[String(there)];
+  if (visibleMonsterAt(ctx, to) && !(thereMon && isSafemon(ctx, thereMon))) return none;
+  const attacking = there !== null && !(thereMon && isSafemon(ctx, thereMon));
   const check = checkStep(level, cellRules(level, ctx.defs), here, dir);
   if (!attacking && !check.ok) {
     // ref: src/hack.c test_move(): no auto-open while running; orthogonally it says so.

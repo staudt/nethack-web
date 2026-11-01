@@ -4,14 +4,14 @@ import { getPlayer, sortedIds, type Ctx, type DefId, type EntityId, type Json } 
 import { monflee } from './monflee';
 import { heroSees } from './mongear';
 import { P, hasProp } from './props';
-import { monNam } from './perception';
+import { canSpotMon, monNam } from './perception';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
  * Whether the hero must confirm before attacking monster `id` ("Really attack the dwarf?"): it is
- * peaceful, she can see it, and she is not stunned (confusion and hallucination do not exist).
+ * peaceful, she can see it, and she is not confused, hallucinating or stunned.
  * ref: src/uhitm.c attack_checks() `flags.confirm && mtmp->mpeaceful && !Confusion &&
  * !Hallucination && !Stunned` and `canspotmon(mtmp)`. Not ported: Stormbringer, hidden and
  * invisible monsters, mimics.
@@ -19,8 +19,10 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
 export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
   const mon = ctx.state.entities[String(id)];
   if (!mon?.c.monster?.peaceful || !mon.c.pos) return false;
-  if (hasProp(getPlayer(ctx.state), P.STUNNED)) return false;
-  return heroSees(ctx, mon.c.pos);
+  const hero = getPlayer(ctx.state);
+  if (hasProp(hero, P.STUNNED) || hasProp(hero, P.CONFUSION) || hasProp(hero, P.HALLUC))
+    return false;
+  return canSpotMon(ctx, mon);
 }
 
 /**
@@ -80,6 +82,7 @@ export function setmangry(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   if (!mon || !m || !m.peaceful) return;
+  if (m.tame) return; // pets stay peaceful (abuse_dog has lowered tameness)
   m.peaceful = false; // adjalign(-1) is not tracked
   if (humanoid(ctx, id) && mon.c.pos && heroSees(ctx, mon.c.pos))
     say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });

@@ -9,6 +9,7 @@ import { kickMessagesEn } from './kick.en';
 import { mthrowuMessagesEn } from './mthrowu.en';
 import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
+import { dogMessagesEn } from './dog.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -21,6 +22,7 @@ export const messagesEn: Record<string, string> = {
   ...mthrowuMessagesEn,
   ...skillMessagesEn,
   ...mhitmMessagesEn,
+  ...dogMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',
@@ -118,6 +120,9 @@ export const messagesEn: Record<string, string> = {
   'nh:jackal': 'jackal',
   'nh:fox': 'fox',
   'nh:coyote': 'coyote',
+  'nh:little_dog': 'little dog',
+  'nh:dog': 'dog',
+  'nh:large_dog': 'large dog',
   'nh:sewer_rat': 'sewer rat',
   'nh:giant_rat': 'giant rat',
   'nh:kobold': 'kobold',
@@ -141,6 +146,9 @@ export const messagesEn: Record<string, string> = {
   'nh:red_mold': 'red mold',
   'nh:acid_blob': 'acid blob',
   'nh:floating_eye': 'floating eye',
+  'nh:kitten': 'kitten',
+  'nh:housecat': 'housecat',
+  'nh:large_cat': 'large cat',
   'nh:homunculus': 'homunculus',
   'nh:centipede': 'centipede',
   'nh:rabid_rat': 'rabid rat',

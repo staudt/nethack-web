@@ -711,8 +711,8 @@ describe('combat with real objects', () => {
       mon.c.monster.asleep = true;
       mon.c.monster.peaceful = true;
       const before = mon.c.hp.cur;
-      s.step({ type: 'move', dir: 'e' });
-      // the monsters are peaceful (so that they stay quiet): confirm "Really attack?"
+      s.step({ type: 'mod', action: 'nh:fight' as DefId, args: { dir: 'e' } });
+      // the monsters are peaceful (so that they stay quiet): fight, confirm "Really attack?"
       const asked = s.state.pendingPrompt;
       if (asked) s.step({ type: 'answer', promptId: asked.prompt.id, value: true });
       const d = before - mon.c.hp.cur;

@@ -13,6 +13,7 @@ import {
   type Ctx,
   type DefId,
   type Dir,
+  type Entity,
   type Level,
   type PlayerAction,
   type Pos,
@@ -23,6 +24,10 @@ import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir } from './hackmove';
 import { lookHere } from './itemactions';
 import { askReallyAttack, needsAttackConfirm } from './peaceful';
+import { monflee } from './monflee';
+import { isFrozen } from './mstate';
+import { canSpotMon, monNam } from './perception';
+import { P, hasProp } from './props';
 import { T } from './terrain';
 
 function playerAt(ctx: Ctx): Pos {
@@ -54,6 +59,130 @@ export function openDoorAt(ctx: Ctx, level: Level, at: Pos): void {
   setTerrain(level, at.x, at.y, vertical ? T.door_open_v : T.door_open_h);
 }
 
+/**
+ * A monster the hero won't attack by walking into it: peaceful (pets are too), seen, and she is
+ * not confused, hallucinating or stunned. ref: include/display.h is_safemon() (safe_dog on)
+ */
+export function isSafemon(ctx: Ctx, mon: Entity): boolean {
+  const hero = getPlayer(ctx.state);
+  return (
+    mon.c.monster?.peaceful === true &&
+    canSpotMon(ctx, mon) &&
+    !hasProp(hero, P.CONFUSION) &&
+    !hasProp(hero, P.HALLUC) &&
+    !hasProp(hero, P.STUNNED)
+  );
+}
+
+/**
+ * The hero and the pet (or peaceful monster) trade squares, unless it can't fit.
+ * ref: src/hack.c domove_swap_with_pet() (no boulders, pits or traps yet)
+ */
+function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): number {
+  const tame = (mon.c.monster?.tame ?? 0) > 0;
+  const def = ctx.defs.monster(mon.def);
+  const hero = getPlayer(ctx.state);
+  const level = getLevel(ctx.state);
+  const rules = cellRules(level, ctx.defs);
+  const diagonal = DIRS[dir].x !== 0 && DIRS[dir].y !== 0;
+  const badRock = (x: number, y: number): boolean => {
+    if (!inBounds(level, x, y)) return true;
+    const t = level.cells[cellIndex(level, x, y)] ?? 0;
+    return !rules.passable[t] && !rules.closedDoor[t];
+  };
+  const stop = (key: string): number => {
+    ctx.emit({ type: 'msg', key, params: { mon: `@${mon.def}` } });
+    ctx.interrupt(); // nomul(0)
+    return 0; // didn't move after all
+  };
+  if (diagonal && def.id === 'nh:grid_bug') return stop('dog.cant_diagonal');
+  if (
+    diagonal &&
+    badRock(to.x, from.y) &&
+    badRock(from.x, to.y) &&
+    (def.size === 'large' || def.size === 'huge' || def.size === 'gigantic')
+  )
+    return stop('dog.wont_fit');
+  const mp = mon.c.pos;
+  const hp = hero.c.pos;
+  if (!mp || !hp) return 0;
+  mp.x = from.x;
+  mp.y = from.y;
+  hp.x = to.x;
+  hp.y = to.y;
+  ctx.emit({ type: 'moved', id: hero.id, from, to });
+  ctx.emit({ type: 'moved', id: mon.id, from: to, to: from });
+  ctx.emit({
+    type: 'msg',
+    key: tame ? 'dog.swap' : 'dog.swap_peaceful',
+    params: { mon: `@${mon.def}` },
+  });
+  lookHere(ctx);
+  return NORMAL_SPEED;
+}
+
+/**
+ * Fight: attack whatever is in that direction, even a pet or a peaceful monster (still asking
+ * "Really attack?" for a peaceful one). ref: src/cmd.c the F prefix (context.forcefight),
+ * src/hack.c domove_fight_empty()
+ */
+const fight: ActionDef = {
+  id: 'nh:fight',
+  labelKey: 'action.nh:fight',
+  handles: 'mod',
+  offer(ctx, target) {
+    if (target.kind !== 'cell') return [];
+    const dir = dirTo(playerAt(ctx), target.pos);
+    if (!dir) return [];
+    const seen = ctx.query.describe(target.pos).entities.find((e) => ctx.defs.isMonster(e.def));
+    if (!seen) return [];
+    const mon = ctx.state.entities[String(seen.id)];
+    // only worth a separate entry where walking would not attack
+    if (!mon || !isSafemon(ctx, mon)) return [];
+    return [
+      {
+        action: { type: 'mod', action: 'nh:fight', args: { dir } },
+        labelKey: 'action.nh:fight',
+        params: { target: `@${seen.def}` },
+      },
+    ];
+  },
+  perform(ctx, action) {
+    const raw = action.type === 'mod' ? (action.args as { dir?: unknown } | undefined)?.dir : null;
+    const want = DIR_LIST.find((d) => d === raw);
+    if (!want) return 0;
+    const dir = impairedDir(ctx, want);
+    if (dir === null) return NORMAL_SPEED;
+    const from = playerAt(ctx);
+    const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
+    const level = getLevel(ctx.state);
+    const victim = monsterIdAt(ctx, to, level.id);
+    if (victim === null) {
+      // ref: domove_fight_empty(): "You attack thin air." / "You harmlessly attack the wall."
+      const solid =
+        !inBounds(level, to.x, to.y) ||
+        !cellRules(level, ctx.defs).passable[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
+      if (solid) {
+        const id = inBounds(level, to.x, to.y)
+          ? level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0]
+          : undefined;
+        ctx.emit({
+          type: 'msg',
+          key: 'fight.harmless',
+          params: { what: `@${id ? ctx.defs.terrain(id).nameKey : 'nh:stone'}` },
+        });
+      } else ctx.emit({ type: 'msg', key: 'fight.thin_air' });
+      ctx.interrupt();
+      return NORMAL_SPEED;
+    }
+    if (needsAttackConfirm(ctx, victim)) {
+      askReallyAttack(ctx, victim, 'nh:move', { victim });
+      return 0;
+    }
+    return heroAttack(ctx, victim);
+  },
+};
+
 const move: ActionDef = {
   id: 'nh:move',
   labelKey: 'action.move',
@@ -64,16 +193,20 @@ const move: ActionDef = {
     const dir = dirTo(from, target.pos);
     if (!dir) return [];
     const level = getLevel(ctx.state);
-    // A visible monster there turns the move into an attack (allowed diagonally through doors).
+    // A visible monster there turns the move into an attack (allowed diagonally through doors),
+    // or a swap of places with a pet or peaceful monster (is_safemon); `nh:fight` offers the
+    // attack on those.
     const seen = ctx.query.describe(target.pos).entities.find((e) => ctx.defs.isMonster(e.def));
-    if (seen)
+    if (seen) {
+      const mon = ctx.state.entities[String(seen.id)];
       return [
         {
           action: { type: 'move', dir },
-          labelKey: 'action.attack',
+          labelKey: mon && isSafemon(ctx, mon) ? 'action.swap' : 'action.attack',
           params: { target: `@${seen.def}` },
         },
       ];
+    }
     const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
     if (!check.ok && check.reason !== 'closedDoor') return [];
     const offer: Offer = {
@@ -101,7 +234,36 @@ const move: ActionDef = {
     // consulted, so attacks work diagonally through doorways. (domove_core's "don't attack if
     // running" check belongs to travel/run, which is a different action.)
     const victim = monsterIdAt(ctx, to, pos.level);
-    if (victim !== null) {
+    const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
+    if (vmon && isSafemon(ctx, vmon)) {
+      // ref: src/uhitm.c do_attack(): walking into a pet or peaceful monster you can see does
+      // not attack it; 1 time in 7 it is in the way, and one that can't move doesn't
+      const tame = (vmon.c.monster?.tame ?? 0) > 0;
+      const named = { mon: `@${vmon.def}` };
+      if (ctx.rng.rn2(7) === 0) {
+        if (tame) monflee(ctx, vmon.id, ctx.rng.rnd(6), false, false);
+        ctx.emit({
+          type: 'msg',
+          key: tame ? 'dog.in_the_way' : 'dog.in_the_way_peaceful',
+          params: named,
+        });
+        ctx.interrupt(); // end_running()
+        return NORMAL_SPEED;
+      }
+      const vdef = ctx.defs.monster(vmon.def);
+      if (
+        vmon.c.monster?.asleep ||
+        isFrozen(ctx, vmon.id) ||
+        (vdef.speed === 0 && ctx.rng.rn2(6) !== 0)
+      ) {
+        ctx.emit({ type: 'msg', key: 'dog.doesnt_move', params: { mon: monNam(ctx, vmon) } });
+        ctx.interrupt();
+        return NORMAL_SPEED;
+      }
+      // test_move() still applies: no swapping diagonally through a doorway
+      const step = checkStep(level, cellRules(level, ctx.defs), from, dir);
+      if (step.ok) return swapWithPet(ctx, vmon, from, to, dir);
+    } else if (victim !== null) {
       // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
       if (needsAttackConfirm(ctx, victim)) {
         askReallyAttack(ctx, victim, 'nh:move', { victim });
@@ -272,4 +434,4 @@ const up: ActionDef = {
   },
 };
 
-export const ACTIONS: readonly ActionDef[] = [move, wait, search, down, up];
+export const ACTIONS: readonly ActionDef[] = [move, fight, wait, search, down, up];

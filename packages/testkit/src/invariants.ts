@@ -60,6 +60,13 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
     }
     if (e.c.monster && !registry.isMonster(e.def))
       errs.push(`entity ${id}: def '${e.def}' is not a registered monster`);
+    // pets: tameness (mtame) is 1..20, and a tame monster is peaceful (ref: include/monst.h)
+    const tame = e.c.monster?.tame;
+    if (tame !== undefined) {
+      if (!Number.isInteger(tame) || tame < 1 || tame > 20)
+        errs.push(`entity ${id}: tameness ${tame} out of range 1..20`);
+      if (!e.c.monster?.peaceful) errs.push(`entity ${id}: tame but not peaceful`);
+    }
     if (e.c.actor && !Number.isFinite(e.c.actor.energy))
       errs.push(`entity ${id}: energy ${e.c.actor.energy} is not finite`);
     else if (e.c.actor && !Number.isInteger(e.c.actor.energy))

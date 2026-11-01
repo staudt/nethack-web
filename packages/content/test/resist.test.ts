@@ -635,7 +635,8 @@ describe('passive attacks', () => {
       if (keys(r.events).includes('passive.splashed')) {
         splashes++;
         lost += r.hpLost;
-        expect(r.hpLost).toBeGreaterThanOrEqual(2);
+        // d(2,4), less a point of regeneration
+        expect(r.hpLost).toBeGreaterThanOrEqual(1);
         expect(r.hpLost).toBeLessThanOrEqual(8);
       }
     }

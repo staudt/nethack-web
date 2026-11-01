@@ -34,6 +34,7 @@ import { isFleeing, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
 import { isFrozen, isMStunned, setMStunned } from './mstate';
+import { meating, setMeating } from './dog';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -166,11 +167,13 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
   return false;
 }
 
-interface Candidate {
+export interface Candidate {
   x: number;
   y: number;
   /** The square holds the hero (ALLOW_U). */
   hero: boolean;
+  /** The monster on the square (only with `allowM`: ALLOW_M). */
+  mon?: EntityId;
 }
 
 /**
@@ -187,15 +190,16 @@ export function mfndpos(
   rules: CellRules,
   id: EntityId,
   heroPos: Pos,
+  opts: { allowM?: boolean } = {},
 ): Candidate[] {
   const { m, pos, def } = monCount(ctx, id);
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
-  const taken = new Set<number>();
+  const taken = new Map<number, EntityId>();
   for (const [key, ent] of Object.entries(ctx.state.entities)) {
     const p = ent.c.pos;
     // objects do not block (only creatures: monsters and the hero)
     if (p && p.level === level.id && Number(key) !== id && ent.c.item === undefined)
-      taken.add(cellIndex(level, p.x, p.y));
+      taken.set(cellIndex(level, p.x, p.y), Number(key));
   }
   const rock = (x: number, y: number): boolean => {
     if (!inBounds(level, x, y)) return true;
@@ -218,21 +222,27 @@ export function mfndpos(
       // or out of an intact door
       if (diagonal && (noDiag(def) || rules.intactDoor[here] || rules.intactDoor[to])) continue;
       const isHero = nx === heroPos.x && ny === heroPos.y;
+      const occupant = isHero ? undefined : taken.get(cellIndex(level, nx, ny));
       if (isHero) {
         if (m.peaceful) continue; // no ALLOW_U
-      } else if (taken.has(cellIndex(level, nx, ny))) {
+      } else if (occupant !== undefined && !opts.allowM) {
         continue; // no ALLOW_M / ALLOW_MDISP
       }
       // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big)
       if (diagonal && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
-      out.push({ x: nx, y: ny, hero: isHero });
+      out.push({
+        x: nx,
+        y: ny,
+        hero: isHero,
+        ...(occupant !== undefined ? { mon: occupant } : {}),
+      });
     }
   }
   return out;
 }
 
 /** The monster's recent positions, newest first, flat [x0,y0,x1,y1,...]. ref: mtmp->mtrack */
-function getTrack(ctx: Ctx, id: EntityId): number[] {
+export function getTrack(ctx: Ctx, id: EntityId): number[] {
   const nh = ctx.state.modData['nh'];
   if (nh === null || typeof nh !== 'object' || Array.isArray(nh)) return [];
   const all = nh['mtrack'];
@@ -242,7 +252,7 @@ function getTrack(ctx: Ctx, id: EntityId): number[] {
 }
 
 /** ref: src/monmove.c mon_track_add() */
-function trackAdd(ctx: Ctx, id: EntityId, x: number, y: number): void {
+export function trackAdd(ctx: Ctx, id: EntityId, x: number, y: number): void {
   const t = [x, y, ...getTrack(ctx, id)].slice(0, MTSZ * 2);
   const md = ctx.state.modData;
   const nh = md['nh'];
@@ -447,9 +457,13 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
  * m_move(); one that moved does not attack in the same action. Phase four: a hostile adjacent
  * monster attacks. A fleeing monster always tries to move (away from the hero) and attacks only
  * when it could not (cornered). Not ported: scared (Elbereth), confusion, invisibility, spellcasting,
- * defensive/misc item use, special per-monster behavior.
+ * defensive/misc item use, special per-monster behavior. A pet's move is `petMove` (dog_move).
  */
-export function dochug(ctx: Ctx, id: EntityId): void {
+export function dochug(
+  ctx: Ctx,
+  id: EntityId,
+  petMove: (ctx: Ctx, id: EntityId) => void = () => undefined,
+): void {
   const { m, pos } = monCount(ctx, id);
   const hero = getPlayer(ctx.state);
   const hp = hero.c.pos;
@@ -495,6 +509,18 @@ export function dochug(ctx: Ctx, id: EntityId): void {
 
   let status: MoveStatus = 'nothing';
   if (!nearby || fleeing || (isWanderer(def) && ctx.rng.rn2(4) === 0) || m.peaceful) {
+    // ref: m_move(): a monster in the middle of a meal keeps eating (MMOVE_DONE)
+    const meal = meating(ctx, id);
+    if (meal) {
+      setMeating(ctx, id, meal - 1);
+      return;
+    }
+    // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
+    // pets are peaceful, so they never go on to attack the hero
+    if ((m.tame ?? 0) > 0) {
+      petMove(ctx, id);
+      return;
+    }
     status = mMove(ctx, id, heroPos);
     if (status === 'moved') {
       // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that

@@ -292,8 +292,10 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       state.levels[level.id] = level;
       state.memory[level.id] = newMemory(level);
       for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
-      // ref: src/allmain.c newgame() u_on_upstairs()
+      // ref: src/allmain.c newgame() u_on_upstairs(), then makedog() and the like
       placeHero(state, level, level.up);
+      for (const h of registry.hooks('levelChange'))
+        h.fn(ctx, { from: null, fromPos: null, to: level.id });
       refreshVision(state);
       events.unshift({ type: 'msg', key: 'welcome', params: { role: `@${roleDef.nameKey}` } });
       return result(state, events);

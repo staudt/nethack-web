@@ -173,13 +173,16 @@ describe('tame monsters', () => {
 });
 
 describe('levelChange hook', () => {
-  test('runs after goToLevel with where the hero came from', () => {
+  test('runs at new game (from null) and after goToLevel with where the hero came from', () => {
     const changes: LevelChange[] = [];
     const e = mk(changes);
     const s = fresh(e);
     const from = heroPos(s);
     e.step(s, { type: 'mod', action: 'pc:down' });
-    expect(changes).toEqual([{ from: 'dlvl1', fromPos: from, to: 'dlvl2' }]);
+    expect(changes).toEqual([
+      { from: null, fromPos: null, to: 'dlvl1' },
+      { from: 'dlvl1', fromPos: from, to: 'dlvl2' },
+    ]);
     expect(s.currentLevel).toBe('dlvl2');
   });
 });

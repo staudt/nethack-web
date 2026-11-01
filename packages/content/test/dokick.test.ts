@@ -236,10 +236,21 @@ describe('peaceful confirmation', () => {
     return { s, id: id as EntityId };
   };
 
-  test('moving into a peaceful asks, no costs nothing', () => {
+  const fight = (s: ReturnType<typeof mk>['s']) =>
+    engine.step(s.state, { type: 'mod', action: 'nh:fight' as DefId, args: { dir: 'e' } });
+
+  test('moving into a peaceful does not attack it (is_safemon): a swap, or "in the way"', () => {
+    const { s, id } = mk();
+    engine.step(s.state, { type: 'move', dir: 'e' });
+    expect(s.state.pendingPrompt).toBeNull();
+    expect(s.state.entities[String(id)]?.c.monster?.peaceful).toBe(true);
+    expect(s.state.entities[String(id)]?.c.hp?.cur).toBe(50);
+  });
+
+  test('fighting a peaceful asks, no costs nothing', () => {
     const { s, id } = mk();
     const turn = s.state.turn;
-    engine.step(s.state, { type: 'move', dir: 'e' });
+    fight(s);
     const p = s.state.pendingPrompt?.prompt;
     expect(p?.kind).toBe('yn');
     expect(p?.key).toBe('attack.confirm');
@@ -253,7 +264,7 @@ describe('peaceful confirmation', () => {
     const { s, id } = mk();
     let angry = false;
     for (let i = 0; i < 30 && !angry; i++) {
-      engine.step(s.state, { type: 'move', dir: 'e' });
+      fight(s);
       const p = s.state.pendingPrompt?.prompt;
       if (p) engine.step(s.state, { type: 'answer', promptId: p.id, value: true });
       const m = s.state.entities[String(id)]?.c.monster;

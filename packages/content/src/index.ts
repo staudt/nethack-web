@@ -8,6 +8,7 @@ import { nameItem } from './objnam';
 import { registerProps } from './props';
 import { registerPerception } from './perception';
 import { registerMState } from './mstate';
+import { registerDog } from './dog';
 import { registerStats } from './stats';
 import { ITEM_ACTIONS } from './itemactions';
 import { registerNomul } from './nomul';
@@ -56,6 +57,7 @@ export const vanillaMod: Mod = {
     registerProps(api);
     registerPerception(api);
     registerMState(api);
+    registerDog(api);
     registerKick(api);
     registerMonflee(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
@@ -122,6 +124,28 @@ export { ustuck, setUstuck } from './hackmove';
 export { monNam, canSpotMon, telepathSenses, registerPerception } from './perception';
 export { mattackm, monkilled, mondied, growUp, GROWS_INTO, M_ATTK } from './mhitm';
 export { isFrozen, frozenTime, paralyzeMonst, isMStunned, setMStunned } from './mstate';
+export {
+  makedog,
+  initedog,
+  tamedog,
+  abuseDog,
+  dogfood,
+  edogOf,
+  meating,
+  isTame,
+  tameness,
+  isDomestic,
+  DOGFOOD,
+  CADAVER,
+  ACCFOOD,
+  MANFOOD,
+  APPORT,
+  POISON,
+  UNDEF,
+  TABU,
+} from './dog';
+export type { Edog } from './dog';
+export { dogMove, dogEat } from './dogmove';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
 export { giveStartingKit, VALKYRIE_KIT } from './kit';
 export {

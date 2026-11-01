@@ -165,6 +165,7 @@ describe('nh:run in a room', () => {
   test('stops next to a monster and never attacks it', () => {
     const m = mapSetup(['|@......|', '|.......|']);
     const id = newtAt(m.state, 5, 1);
+    m.state.entities[String(id)]!.c.actor!.speed = 0; // it may wake, but never moves
     m.step({ type: 'wait' });
     m.step(runDir('e', 'rush'));
     expect(heroAt(m.state)).toEqual({ x: 4, y: 0 });

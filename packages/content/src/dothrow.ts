@@ -24,6 +24,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { getdirImpaired } from './hackmove';
+import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
+import { dogEat } from './dogmove';
 import { dbon, dmgval, monsterIdAt } from './combat';
 import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
@@ -162,6 +164,25 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   const name = monNam(ctx, mon);
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
+    // ref: thitmonst(): food thrown to a domestic animal (or to a pet that wants it) may tame it
+    // or be caught and eaten (befriend_with_obj(); no monkeys or unicorns here)
+    if (
+      odef.class === 'food' &&
+      (isDomestic(mdef) || (isTame(mon) && dogfood(ctx, mon, obj) <= ACCFOOD))
+    ) {
+      if (
+        tamedog(ctx, monId, obj, true, (c, id, o, devour) => {
+          const p = mon.c.pos;
+          if (!p) return;
+          placeOnFloor(c, o.id, p.level, p.x, p.y); // dog_eat expects a floor object
+          dogEat(c, id, o, { x: p.x, y: p.y }, devour);
+        })
+      )
+        return true; // the food is gone (or the monster was just tamed)
+      tmiss(ctx, mon, missile, shot);
+      m.asleep = false;
+      return false;
+    }
     tmiss(ctx, mon, missile, shot);
     return false;
   }

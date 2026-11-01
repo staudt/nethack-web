@@ -309,7 +309,7 @@ interface Hooks {
   endOfTurn(ctx: Ctx): void;
   newGame(ctx: Ctx, hero: EntityId): void; // once, before the first level exists
   newLevel(ctx: Ctx, level: Level): void; // when a level is first generated
-  levelChange(ctx: Ctx, c: { from: LevelId; fromPos: Pos; to: LevelId }): void; // after goToLevel placed the hero (pets follow here)
+  levelChange(ctx: Ctx, c: { from: LevelId | null; fromPos: Pos | null; to: LevelId }): void; // the hero arrived: at new game (from null, after placement) and after goToLevel (pets follow here)
 }
 
 interface TimerDef {

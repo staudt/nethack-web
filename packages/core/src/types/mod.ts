@@ -239,10 +239,13 @@ export interface Ctx {
   endGame(over: GameOver): void;
 }
 
-/** Passed to the `levelChange` hook: where the hero was just before `ctx.goToLevel`. */
+/**
+ * Passed to the `levelChange` hook: where the hero was just before `ctx.goToLevel`, or null
+ * when she has just arrived on the first level of a new game.
+ */
 export interface LevelChange {
-  from: LevelId;
-  fromPos: Pos;
+  from: LevelId | null;
+  fromPos: Pos | null;
   to: LevelId;
 }
 
@@ -254,8 +257,10 @@ export interface Hooks {
   newGame(ctx: Ctx, hero: EntityId): void;
   newLevel(ctx: Ctx, level: Level): void;
   /**
-   * After `ctx.goToLevel` has put the hero on the new level (after `newLevel` on a first visit).
-   * Companions that follow (ref: src/dog.c keepdogs(), losedogs()) move here.
+   * After the hero arrives on a level: once at the start of a new game (`from` null, after she
+   * is placed on the up stairs; ref: src/allmain.c newgame() makedog()), and after each
+   * `ctx.goToLevel` (after `newLevel` on a first visit). Companions that follow
+   * (ref: src/dog.c keepdogs(), losedogs()) move here.
    */
   levelChange(ctx: Ctx, change: LevelChange): void;
 }

@@ -581,7 +581,8 @@ export function monWouldTakeItem(
 
 /**
  * How many of the stack the monster could carry (0 = none). ref: src/mon.c can_carry():
- * handless monsters take one, peacefuls take nothing, and the load must stay under the maximum.
+ * handless monsters take one, peacefuls (not pets) take nothing, and the load must stay under
+ * the maximum.
  */
 export function canCarry(
   ctx: Pick<GearCtx, 'state' | 'defs'>,
@@ -591,7 +592,7 @@ export function canCarry(
   const { e, def } = monOf(ctx, monId);
   const iquan = item.c.item?.quantity ?? 1;
   if (iquan > 1 && hasFlag(def, 'nohands')) return 1;
-  if (e.c.monster?.peaceful) return 0;
+  if (e.c.monster?.peaceful && !e.c.monster.tame) return 0; // mpeaceful && !mtame
   if (currMonLoad(ctx, monId) + weight(ctx.defs, item) > maxMonLoad(def)) return 0;
   return iquan;
 }

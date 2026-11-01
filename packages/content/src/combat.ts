@@ -34,6 +34,7 @@ import {
   weaponHitBonus,
 } from './skills';
 import { monNam } from './perception';
+import { hurtPet } from './dog';
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -296,6 +297,11 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   else dmg = 0;
 
   const hp = target.c.hp;
+  // ref: src/uhitm.c hmon_hitmon_pet(): hitting a pet abuses it, and if it lives on it flees
+  if (mon.tame && dmg > 0) {
+    const destroyed = !hp || hp.cur - dmg < 1;
+    hurtPet(ctx, targetId, destroyed ? 0 : 10 * ctx.rng.rnd(dmg), destroyed);
+  }
   if (hp) hp.cur -= dmg;
   if (!hp || hp.cur < 1) {
     // ref: src/mon.c xkilled(): "You kill/destroy <mon>!" then experience()

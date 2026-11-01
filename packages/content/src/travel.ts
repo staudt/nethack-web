@@ -1,3 +1,4 @@
+import { isSafemon } from './actions';
 import {
   DIRS,
   DIR_LIST,
@@ -356,8 +357,15 @@ const travel: ActionDef = {
     );
     if (!dir) return 0;
     // ref: src/hack.c domove_core(): while running/traveling the hero never attacks a monster
-    // she can see; the move is cancelled with no time passing.
-    if (visibleMonsterAt(ctx, next)) return 0;
+    // she can see (pets and peacefuls she swaps with); the move is cancelled with no time passing.
+    const there = Object.values(ctx.state.entities).find(
+      (e) =>
+        e.c.monster &&
+        e.c.pos?.level === ctx.state.currentLevel &&
+        e.c.pos.x === next.x &&
+        e.c.pos.y === next.y,
+    );
+    if (visibleMonsterAt(ctx, next) && !(there && isSafemon(ctx, there))) return 0;
     const move = ctx.defs.actions.find((a) => a.handles === 'move');
     if (!move) return 0;
     // ref: src/hack.c findtravelpath(): stepping onto a cell already left during this travel

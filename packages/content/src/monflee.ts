@@ -42,6 +42,13 @@ export function fleeTime(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
   return typeof v === 'number' ? v : 0;
 }
 
+/** `mtmp->mfleetim /= 2` for a timed flight. ref: src/dogmove.c dog_eat() */
+export function halveFleeTime(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, false);
+  const v = t?.[String(id)];
+  if (t && typeof v === 'number' && v > 1) t[String(id)] = Math.trunc(v / 2);
+}
+
 /** `mtmp->mflee = 0` (and mfleetim = 0) */
 export function stopFleeing(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   const t = table(ctx, false);

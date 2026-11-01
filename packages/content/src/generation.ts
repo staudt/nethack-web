@@ -171,6 +171,17 @@ function enexto(
 }
 
 /**
+ * The nearest free square to `from` on `level` for monster `id` (which does not block itself).
+ * ref: src/mon.c mnexto() / src/teleport.c enexto()
+ */
+export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos): Pos | null {
+  const taken = occupiedSet(ctx, level);
+  const self = id === null ? undefined : ctx.state.entities[String(id)]?.c.pos;
+  if (self && self.level === level.id) taken.delete(cellIndex(level, self.x, self.y));
+  return enexto(ctx, level, cellRules(level, ctx.defs), taken, from);
+}
+
+/**
  * A random square for a new monster, out of the hero's sight.
  * ref: src/makemon.c makemon_rnd_goodpos(): 50 random tries, then a scan of the whole map
  * (first skipping visible squares, then not). Coordinates exclude the outermost columns/rows

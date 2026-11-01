@@ -142,7 +142,8 @@ describe('population', () => {
       const { state } = engine.newGame({ seed });
       const level = state.levels['dlvl1'];
       rooms += level?.rooms.length ?? 0;
-      mons += Object.values(state.entities).filter((e) => e.c.monster).length;
+      // (not counting the starting pet)
+      mons += Object.values(state.entities).filter((e) => e.c.monster && !e.c.monster.tame).length;
     }
     expect(Math.abs(mons / rooms - 1 / 3)).toBeLessThan(0.07);
   });
