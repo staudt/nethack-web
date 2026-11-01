@@ -26,4 +26,5 @@ export { getPlayer, getLevel, playerPos, isVisible } from './state';
 export { buildSnapshot, diffSnapshot, applyUpdate } from './view';
 export { createHost } from './host';
 export type { Host } from './host';
-export { shownId, isItem, itemsAt, topObjects, inventoryOf } from './objects';
+export { shownId, isItem, itemsAt, topObjects, topObjectEntities, inventoryOf } from './objects';
+export { heroBlind, senses, shownAs } from './perception';

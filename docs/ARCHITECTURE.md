@@ -74,7 +74,7 @@ interface Components {
   hp?: { cur: number; max: number };
   attributes?: { str; int; wis; dex; con; cha }; // NetHack encoding; Str 18/xx stored as 19..118
   experience?: { level: number; points: number };
-  monster?: { level: number; peaceful: boolean; asleep: boolean; lastHero: Pos | null };
+  monster?: { level: number; peaceful: boolean; asleep: boolean; lastHero: Pos | null; tame?: number }; // tame = mtame 1..20, absent when not tame
   item?: ItemComponent;
   hunger?: { nutrition: number; state: HungerState }; // u.uhunger, u.uhs
   helpless?: { until: number; reasonKey: string }; // nomul() with negative multi
@@ -121,6 +121,8 @@ The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a
 **Terrain rules.** `cellRules(level, registry)` flattens the palette into per-cell flag arrays: `passable`, `opaque`, `closedDoor` (closed *or* locked, so travel paths go through doors as `test_move` does for `TEST_TRAV`), `lockedDoor` (locked only) and `intactDoor` (doors that block diagonal moves). `checkStep` returns `ok` or a reason: `bounds`, `blocked`, `closedDoor`, `lockedDoor` or `diagonalDoor`. `lockedDoor` is checked before `closedDoor`; content turns it into "This door is locked." with no time passing. Levelgen draws NetHack's exact `dodoor`/`dosdoor` rolls and so makes locked doors (about 1/3 * 4/5 * 1/6 of doors) and locked secret doors (1 in 5 below depth 2); trapped doors are not made, though their rolls are still drawn.
 
 **Vision.** A cell is seen when it is in line of sight and either adjacent to the hero or lit. A lit cell that blocks sight (a wall or closed door) is seen from afar only if its neighbor one step toward the hero is also lit, which hides lit room walls at the end of dark corridors (ref: src/vision.c vision_recalc()).
+
+**Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id.
 
 **Monster memory.** `refreshVision` updates `monsterMemory` for the cells now visible: a live monster there is recorded, an empty cell is cleared. Cells out of view keep their entry, so a monster glyph stays where it was last seen until that cell is seen again. The snapshot exposes it as `ViewCell.m` on cells that are not visible, and live monsters stay in `entities` only, never duplicated as `m`. Deltas include `m` changes.
 
@@ -278,6 +280,13 @@ interface BrainDef {
   act(ctx: Ctx, self: EntityId): void; // the engine has already deducted 12 energy
   movement?(ctx: Ctx, self: EntityId): number; // per-turn movement (ref: src/mon.c mcalcmove)
 }
+interface PerceptionDef {
+  // how the hero perceives the map beyond plain sight; read-only and deterministic (no RNG)
+  id: DefId;
+  blind?(state: Readonly<GameState>, defs: Registry): boolean; // any true: no cell is visible
+  senses?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean; // shown though unseen (telepathy)
+  shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null; // disguise (hallucination); first answer wins
+}
 
 interface ModApi {
   defineTerrain(d: TerrainDef): void;
@@ -289,6 +298,7 @@ interface ModApi {
   defineObject(d: ObjectDef): void;
   defineAppearance(d: AppearanceDef): void;
   defineStatus(d: StatusDef): void;
+  definePerception(d: PerceptionDef): void;
   setItemNamer(fn: ItemNamer): void; // the last mod to set it wins; core has a plain default
   on<K extends keyof Hooks>(hook: K, fn: Hooks[K], opts?: { priority?: number }): void;
 }
@@ -299,6 +309,7 @@ interface Hooks {
   endOfTurn(ctx: Ctx): void;
   newGame(ctx: Ctx, hero: EntityId): void; // once, before the first level exists
   newLevel(ctx: Ctx, level: Level): void; // when a level is first generated
+  levelChange(ctx: Ctx, c: { from: LevelId; fromPos: Pos; to: LevelId }): void; // after goToLevel placed the hero (pets follow here)
 }
 
 interface TimerDef {
@@ -378,9 +389,10 @@ interface ViewCell {
 interface ViewItem { id: EntityId; letter: string | null; g: DefId; cls: ObjectClass; name: Msg; equipped: EquipSlot | null }
 interface ViewEntity {
   id: EntityId;
-  g: DefId;
+  g: DefId; // perception may disguise it (hallucination)
   x: number;
   y: number;
+  tame?: true; // the hero's pet (hilite_pet)
 }
 interface ViewSnapshot {
   kind: 'full';

@@ -27,6 +27,8 @@ export interface AsciiRendererOptions {
   /** Minimum cell width in CSS px (default 6). */
   minCellCssPx?: number;
   background?: string;
+  /** Cell background behind the hero's pets (hilite_pet). Default a dark green. */
+  petBackground?: string;
 }
 
 export type AsciiRenderer = Renderer & {
@@ -80,6 +82,7 @@ export function monsterLayer(c: ViewCell): DefId | null {
 export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRenderer {
   const fontFamily = opts.fontFamily ?? DEFAULT_FONT;
   const background = opts.background ?? '#000';
+  const petBackground = opts.petBackground ?? '#1d3b24';
   const minCell = opts.minCellCssPx ?? 6;
 
   let host: HTMLElement | null = null;
@@ -222,7 +225,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
       if (e.x < r.x0 || e.x >= r.x1 || e.y < r.y0 || e.y >= r.y1) continue;
       const dx = e.x * cellW - ox;
       const dy = e.y * cellH - oy;
-      ctx.fillStyle = background;
+      ctx.fillStyle = e.tame ? petBackground : background;
       ctx.fillRect(dx, dy, cellW, cellH);
       atlas.draw(ctx, glyphFor(e.g), false, dx, dy, cellW, cellH);
     }

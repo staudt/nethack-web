@@ -19,6 +19,7 @@ import type {
   ObjectClass,
   AppearanceDef,
   StatusDef,
+  PerceptionDef,
   ItemNamer,
 } from './types/mod';
 import type { ArmorSlot } from './types/entity';
@@ -51,6 +52,7 @@ const HOOK_NAMES: readonly HookName[] = [
   'endOfTurn',
   'newGame',
   'newLevel',
+  'levelChange',
 ];
 const ACTION_TYPES: readonly ActionType[] = ['move', 'wait', 'search', 'answer', 'mod'];
 const ATTACK_TYPES: readonly AttackType[] = [
@@ -104,7 +106,11 @@ const defaultItemNamer: ItemNamer = (state, defs, item) => {
   const def = defs.object(item.def);
   const app = state.appearances[def.id];
   const known = !app && def.descKey === undefined ? true : state.discovered.includes(def.id);
-  const key = known ? def.nameKey : app ? defs.appearance(app).nameKey : (def.descKey ?? def.nameKey);
+  const key = known
+    ? def.nameKey
+    : app
+      ? defs.appearance(app).nameKey
+      : (def.descKey ?? def.nameKey);
   return { key, params: { count: item.c.item?.quantity ?? 1 } };
 };
 
@@ -127,6 +133,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const objects = new Map<string, ObjectDef & { mod: string }>();
   const appearances = new Map<string, AppearanceDef>();
   const statuses: (StatusDef & { mod: string })[] = [];
+  const perceptions: PerceptionDef[] = [];
   let itemNamer: ItemNamer = defaultItemNamer;
   const actions: (ActionDef & { mod: string })[] = [];
   const builtinHandlers = new Map<ActionType, string>();
@@ -319,7 +326,10 @@ export function loadMods(mods: readonly Mod[]): Registry {
           bool(d.weapon.bimanual, 'weapon.bimanual', d.id);
           if (!['pierce', 'slash', 'whack'].includes(d.weapon.kind))
             issue('weapon.kind', "must be 'pierce', 'slash' or 'whack'", d.id);
-          if (d.weapon.role !== undefined && !['launcher', 'ammo', 'missile'].includes(d.weapon.role))
+          if (
+            d.weapon.role !== undefined &&
+            !['launcher', 'ammo', 'missile'].includes(d.weapon.role)
+          )
             issue('weapon.role', "must be 'launcher', 'ammo' or 'missile'", d.id);
         }
         if (d.armor !== undefined) {
@@ -347,6 +357,14 @@ export function loadMods(mods: readonly Mod[]): Registry {
         str(d.field, 'field', d.id);
         fn(d.value, 'value', d.id);
         statuses.push({ ...d, mod: modId });
+      },
+      definePerception(d) {
+        if (!guard('definePerception') || !checkId(d.id, 'perception')) return;
+        const parts = ['blind', 'senses', 'shownAs'] as const;
+        if (!parts.some((k) => d[k] !== undefined))
+          issue('definePerception', `needs at least one of ${parts.join(', ')}`, d.id);
+        for (const k of parts) if (d[k] !== undefined) fn(d[k], k, d.id);
+        perceptions.push(d);
       },
       setItemNamer(namer) {
         if (!guard('setItemNamer')) return;
@@ -460,6 +478,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
     objects: [...objects.values()],
     appearances: [...appearances.values()],
     statuses,
+    perceptions,
     brain(id) {
       const b = brains.get(id);
       if (!b) throw new Error(`Unknown brain '${id}'`);

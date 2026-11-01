@@ -1,6 +1,7 @@
 import type { DefId } from './types/common';
 import { cellRules } from './movement';
 import { isItem, itemsAt, shownId } from './objects';
+import { senses, shownAs } from './perception';
 import { findPath } from './path';
 import { getLevel, isVisible, playerPos } from './state';
 import type { Pos } from './types/common';
@@ -39,24 +40,20 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
       const i = cellIndex(level, pos.x, pos.y);
       const mem = state.memory[level.id]?.[i] ?? -1;
       const visible = isVisible(state, i);
-      const entities = visible
-        ? sortedIds(state).flatMap((id) => {
-            const e = state.entities[String(id)];
-            const p = e?.c.pos;
-            return e &&
-              p &&
-              p.level === level.id &&
-              p.x === pos.x &&
-              p.y === pos.y &&
-              !isItem(registry, e)
-              ? [{ id: e.id, def: e.def }]
-              : [];
-          })
-        : [];
+      // Creatures are listed when seen or sensed (telepathy); perception may disguise them.
+      const entities = sortedIds(state).flatMap((id) => {
+        const e = state.entities[String(id)];
+        const p = e?.c.pos;
+        if (!e || !p || p.level !== level.id || p.x !== pos.x || p.y !== pos.y) return [];
+        if (isItem(registry, e)) return [];
+        if (id === state.playerId) return [{ id: e.id, def: e.def }];
+        if (!visible && !senses(registry, state, e)) return [];
+        return [{ id: e.id, def: shownAs(registry, state, e, e.def) }];
+      });
       const objects = visible
         ? itemsAt(registry, state, level.id, pos.x, pos.y).map((e) => ({
             id: e.id,
-            def: shownId(state, e.def),
+            def: shownAs(registry, state, e, shownId(state, e.def)),
             name: registry.itemName(state, e),
           }))
         : [];

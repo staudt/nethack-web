@@ -30,6 +30,8 @@ export interface ViewEntity {
   g: DefId;
   x: number;
   y: number;
+  /** The hero's pet, for highlighting (ref: hilite_pet). */
+  tame?: true;
 }
 
 export interface ViewPlayer {

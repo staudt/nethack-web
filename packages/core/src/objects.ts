@@ -32,25 +32,33 @@ export function itemsAt(
   return out.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
 }
 
+/** Cell index -> the top object entity, for every floor object on `level`. */
+export function topObjectEntities(
+  registry: Registry,
+  state: Readonly<GameState>,
+  level: Level,
+): Map<number, Entity> {
+  const best = new Map<number, Entity>();
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (!e || !p || p.level !== level.id || !isItem(registry, e)) continue;
+    const i = p.y * level.width + p.x;
+    const cur = best.get(i);
+    // Ties go to the lower id (ids are visited in order), matching itemsAt.
+    if (!cur || (e.c.item?.placed ?? 0) > (cur.c.item?.placed ?? 0)) best.set(i, e);
+  }
+  return best;
+}
+
 /** Cell index -> the top object's shown id, for every floor object on `level`. */
 export function topObjects(
   registry: Registry,
   state: Readonly<GameState>,
   level: Level,
 ): Map<number, DefId> {
-  const best = new Map<number, { placed: number; id: EntityId; shown: DefId }>();
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    const p = e?.c.pos;
-    if (!e || !p || p.level !== level.id || !isItem(registry, e)) continue;
-    const i = p.y * level.width + p.x;
-    const placed = e.c.item?.placed ?? 0;
-    const cur = best.get(i);
-    // Ties go to the lower id, matching itemsAt.
-    if (!cur || placed > cur.placed) best.set(i, { placed, id, shown: shownId(state, e.def) });
-  }
   const out = new Map<number, DefId>();
-  for (const [i, v] of best) out.set(i, v.shown);
+  for (const [i, e] of topObjectEntities(registry, state, level)) out.set(i, shownId(state, e.def));
   return out;
 }
 

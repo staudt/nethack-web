@@ -18,6 +18,7 @@ import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
 import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
+import { heroBlind } from './perception';
 
 export const DEFAULT_WIDTH = 80;
 export const DEFAULT_HEIGHT = 21;
@@ -130,6 +131,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           throw new RangeError(`Bad dungeon depth ${depth}`);
         const id = levelId(depth);
         const current = getLevel(state);
+        const fromPos = playerPos(state);
         let level = state.levels[id];
         if (!level) {
           level = generateLevel(ctx.rng, {
@@ -144,6 +146,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
         }
         placeHero(state, level, at === 'up' ? level.up : level.down);
+        const change = { from: current.id, fromPos: { x: fromPos.x, y: fromPos.y }, to: level.id };
+        for (const h of registry.hooks('levelChange')) h.fn(ctx, change);
       },
       ask(prompt, handler, data) {
         const def = registry.actions.find((a) => a.id === handler);
@@ -182,7 +186,10 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
 
   const refreshVision = (state: GameState): void => {
     const level = getLevel(state);
-    const visible = computeVisible(level, cellRules(level, registry), playerPos(state));
+    // ref: src/vision.c vision_recalc(): a blind hero sees no cell (content "feels" cells itself)
+    const visible = heroBlind(registry, state)
+      ? []
+      : computeVisible(level, cellRules(level, registry), playerPos(state));
     const memory = (state.memory[level.id] ??= newMemory(level));
     updateMemory(memory, level, visible);
     // ref: src/display.c map_object(): seen cells remember their top object (or its absence)

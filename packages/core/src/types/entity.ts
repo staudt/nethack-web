@@ -47,6 +47,11 @@ export interface MonsterComponent {
   asleep: boolean;
   /** Where the monster last saw the hero, for tracking. */
   lastHero: Pos | null;
+  /**
+   * Tameness 1..20 (mtame); absent when not tame. A tame monster is also `peaceful`.
+   * ref: include/monst.h mtame
+   */
+  tame?: number;
 }
 
 /** ref: include/objclass.h enum obj_armor_types */

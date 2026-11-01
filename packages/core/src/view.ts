@@ -1,4 +1,5 @@
-import { inventoryOf, isItem, shownId, topObjects } from './objects';
+import { inventoryOf, isItem, shownId, topObjectEntities } from './objects';
+import { senses, shownAs } from './perception';
 import { getLevel, getPlayer } from './state';
 import type { DefId, Glyph } from './types/common';
 import type { Registry } from './types/mod';
@@ -62,7 +63,7 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
   const memory = state.memory[level.id];
   const visible = state.visible;
   const n = level.width * level.height;
-  const liveObjects = topObjects(registry, state, level);
+  const liveObjects = topObjectEntities(registry, state, level);
   const objMemory = state.objectMemory[level.id];
   const monMemory = state.monsterMemory[level.id];
   const cells: ViewCell[] = new Array<ViewCell>(n);
@@ -72,7 +73,12 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     const v = vp < visible.length && visible[vp] === i;
     const m = memory?.[i] ?? -1;
     const cell: ViewCell = { g: m >= 0 ? (shown[m] ?? null) : null, v };
-    const o = v ? liveObjects.get(i) : objMemory?.[String(i)];
+    const live = v ? liveObjects.get(i) : undefined;
+    const o = live
+      ? shownAs(registry, state, live, shownId(state, live.def))
+      : v
+        ? undefined
+        : objMemory?.[String(i)];
     if (o !== undefined) cell.o = o;
     const mm = v ? undefined : monMemory?.[String(i)];
     if (mm !== undefined) cell.m = mm;
@@ -85,8 +91,14 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     const e = state.entities[String(id)];
     const p = e?.c.pos;
     if (!e || !p || p.level !== level.id || isItem(registry, e)) continue;
-    if (e.id !== state.playerId && !isVis.has(p.y * level.width + p.x)) continue;
-    entities.push({ id: e.id, g: e.def, x: p.x, y: p.y });
+    if (e.id === state.playerId) {
+      entities.push({ id: e.id, g: e.def, x: p.x, y: p.y });
+      continue;
+    }
+    if (!isVis.has(p.y * level.width + p.x) && !senses(registry, state, e)) continue;
+    const ve: ViewEntity = { id: e.id, g: shownAs(registry, state, e, e.def), x: p.x, y: p.y };
+    if ((e.c.monster?.tame ?? 0) > 0) ve.tame = true;
+    entities.push(ve);
   }
 
   return {

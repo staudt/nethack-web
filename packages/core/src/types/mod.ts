@@ -1,5 +1,5 @@
 import type { ActionType, PlayerAction } from './action';
-import type { DefId, EntityId, Glyph, Json, Msg } from './common';
+import type { DefId, EntityId, Glyph, Json, LevelId, Msg, Pos } from './common';
 import type { ArmorSlot, Dice, Entity } from './entity';
 import type { GameEvent } from './event';
 import type { Level } from './level';
@@ -92,6 +92,25 @@ export interface StatusDef {
   /** Key in `ViewSnapshot.status`; a def may replace a built-in field. */
   field: string;
   value(state: Readonly<GameState>, defs: Registry): string | number | null;
+}
+
+/**
+ * How the hero perceives the map, beyond plain sight: blindness, extra senses (telepathy) and
+ * altered appearances (hallucination). Core vision and the view consult every registered def.
+ * All functions read state only and must be deterministic (no RNG): derive any "random" choice
+ * from state, e.g. from `turn` and the entity id. ref: src/display.c, src/vision.c
+ */
+export interface PerceptionDef {
+  id: DefId;
+  /** True when the hero cannot see; if any def says so, no cell is visible. */
+  blind?(state: Readonly<GameState>, defs: Registry): boolean;
+  /** True to show this monster although its cell is not visible (telepathy, warning…). */
+  senses?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean;
+  /**
+   * A legend key (a monster, object or appearance def) to show instead of this creature's or
+   * floor object's own glyph, or null for no change. The first def that answers wins.
+   */
+  shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null;
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */
@@ -220,6 +239,13 @@ export interface Ctx {
   endGame(over: GameOver): void;
 }
 
+/** Passed to the `levelChange` hook: where the hero was just before `ctx.goToLevel`. */
+export interface LevelChange {
+  from: LevelId;
+  fromPos: Pos;
+  to: LevelId;
+}
+
 export interface Hooks {
   beforeAction(ctx: Ctx, a: PlayerAction): 'continue' | 'cancel';
   afterAction(ctx: Ctx, a: PlayerAction): void;
@@ -227,6 +253,11 @@ export interface Hooks {
   /** Once, after the hero entity exists and before the first level is generated. */
   newGame(ctx: Ctx, hero: EntityId): void;
   newLevel(ctx: Ctx, level: Level): void;
+  /**
+   * After `ctx.goToLevel` has put the hero on the new level (after `newLevel` on a first visit).
+   * Companions that follow (ref: src/dog.c keepdogs(), losedogs()) move here.
+   */
+  levelChange(ctx: Ctx, change: LevelChange): void;
 }
 
 export type HookName = keyof Hooks;
@@ -246,6 +277,7 @@ export interface ModApi {
   defineObject(d: ObjectDef): void;
   defineAppearance(d: AppearanceDef): void;
   defineStatus(d: StatusDef): void;
+  definePerception(d: PerceptionDef): void;
   /** Replaces the item namer; the last mod to set it wins. */
   setItemNamer(fn: ItemNamer): void;
   on<K extends HookName>(hook: K, fn: Hooks[K], opts?: HookOptions): void;
@@ -289,6 +321,8 @@ export interface Registry {
   readonly appearances: readonly AppearanceDef[];
   /** In registration order (later defs win for the same field). */
   readonly statuses: readonly StatusDef[];
+  /** In registration order. */
+  readonly perceptions: readonly PerceptionDef[];
   readonly roles: readonly RoleDef[];
   readonly terrains: readonly TerrainDef[];
   /** In registration order. */
