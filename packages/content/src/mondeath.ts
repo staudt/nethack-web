@@ -5,6 +5,7 @@ import { xkilledCorpse } from './corpses';
 import { placeOnFloor, weight } from './items';
 import { mkobj } from './mkobj';
 import { forgetMonster, relobj } from './mongear';
+import { forgetMState } from './mstate';
 
 /**
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
@@ -22,6 +23,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
   const at = e.c.pos ? { ...e.c.pos } : undefined;
   relobj(ctx, monId, at);
   forgetMonster(ctx, monId);
+  forgetMState(ctx, monId);
   ctx.remove(monId);
   if (!byHero || !at) return;
 

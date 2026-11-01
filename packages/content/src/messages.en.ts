@@ -8,6 +8,7 @@ import { resistMessagesEn } from './resist.en';
 import { kickMessagesEn } from './kick.en';
 import { mthrowuMessagesEn } from './mthrowu.en';
 import { skillMessagesEn } from './skills.en';
+import { mhitmMessagesEn } from './mhitm.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -19,6 +20,7 @@ export const messagesEn: Record<string, string> = {
   ...kickMessagesEn,
   ...mthrowuMessagesEn,
   ...skillMessagesEn,
+  ...mhitmMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',

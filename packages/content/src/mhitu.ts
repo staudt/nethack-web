@@ -1,7 +1,15 @@
 // Special damage types of monster attacks on the hero.
 // ref: src/mhitu.c hitmu(), mdamageu(), magic_negation(); src/uhitm.c mhitm_adtyping() and the
 // mhitm_ad_*() handlers (the `mdef == &gy.youmonst` branches)
-import { getPlayer, inventoryOf, type AttackDef, type Ctx, type Entity, type Msg } from '@nh/core';
+import {
+  type EntityId,
+  getPlayer,
+  inventoryOf,
+  type AttackDef,
+  type Ctx,
+  type Entity,
+  type Msg,
+} from '@nh/core';
 import { stopOccupation } from './eat';
 import { poisoned } from './attrib';
 import { setUstuck, ustuck } from './hackmove';
@@ -38,12 +46,13 @@ export function mdamageu(ctx: Ctx, n: number, killer: string): void {
 }
 
 /**
- * The hero's magic cancellation: the best worn armor's MC. ref: src/mhitu.c magic_negation().
+ * The magic cancellation of the hero (or of monster `who`): the best worn armor's MC.
+ * ref: src/mhitu.c magic_negation().
  * Not ported: extrinsic/intrinsic Protection, the amulet of guarding.
  */
-export function magicNegation(ctx: Ctx): number {
+export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): number {
   let mc = 0;
-  for (const o of inventoryOf(ctx.state, ctx.state.playerId)) {
+  for (const o of inventoryOf(ctx.state, who)) {
     const slot = o.c.item?.equipped;
     if (!slot || slot === 'weapon') continue;
     mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);

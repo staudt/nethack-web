@@ -33,6 +33,7 @@ import { P, heroHas } from './props';
 import { isFleeing, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
+import { isFrozen, isMStunned, setMStunned } from './mstate';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -355,6 +356,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, overridden to 0 for peacefuls and erratic bats
   let appr = isFleeing(ctx, id) ? -1 : 1;
   if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
+  if (isMStunned(ctx, id)) appr = 0; // `if (mtmp->mconf || mtmp->mstun ...) appr = 0`
 
   // ref: m_move(): hostile monsters (and peaceful ones 1 time in 10) look for items unless they
   // are closing in on a hero they are lined up with ("monsters in combat won't pick stuff up")
@@ -461,7 +463,10 @@ export function dochug(ctx: Ctx, id: EntityId): void {
     if (mDoWear(ctx, id, false)) return;
   }
 
+  // ref: dochug(): a monster that can't move does nothing; a stunned one may recover
+  if (isFrozen(ctx, id)) return;
   if (m.asleep && !disturb(ctx, id)) return;
+  if (isMStunned(ctx, id) && ctx.rng.rn2(10) === 0) setMStunned(ctx, id, false);
 
   // ref: set_apparxy(): the monster knows where the hero is
   const heroPos = { x: hp.x, y: hp.y };

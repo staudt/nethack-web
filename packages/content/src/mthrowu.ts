@@ -22,7 +22,7 @@ import { stopOccupation } from './eat';
 import { mdamageu } from './mhitu';
 import { addToInventory, placeOnFloor, removeFromInventory, splitStack } from './items';
 import { heroSees, minvent, monFlag, monWep, monWield } from './mongear';
-import { monsterDied } from './mondeath';
+import { mondied } from './mhitm';
 import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
 import { monNam } from './perception';
@@ -204,7 +204,8 @@ function ohitmon(
       const nonliving = mdef.flags.includes('undead') || mon.def === 'nh:manes';
       say(ctx, nonliving ? 'mthrow.mon_destroyed' : 'mthrow.mon_killed', { mon: monNam(ctx, mon) });
     }
-    monsterDied(ctx, monId, false);
+    // ref: src/mthrowu.c ohitmon() -> monkilled(): a corpse may be left
+    mondied(ctx, monId);
   }
   dropThrow(ctx, objId, true, at.level, at.x, at.y);
   return true;

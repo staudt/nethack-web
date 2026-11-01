@@ -191,7 +191,7 @@ const monsterAt = (ctx: Ctx, pos: Pos, level: string): EntityId | null => {
 export const monsterIdAt = monsterAt;
 
 /** ref: include/mondata.h nonliving(): undead and manes (our data has no other cases). */
-function nonliving(def: MonsterDef): boolean {
+export function nonliving(def: MonsterDef): boolean {
   return def.flags.includes('undead') || def.id === 'nh:manes';
 }
 
