@@ -60,6 +60,7 @@ const DIR_KEYS: [string, Dir][] = [
   ['PageDown', 'se'],
 ];
 
+/** Every movement key of both layouts (vi keys and the number pad). */
 export const defaultKeymap: ClientMod = {
   id: 'ui-default-keys',
   version: '1.0.0',
@@ -69,3 +70,37 @@ export const defaultKeymap: ClientMod = {
     api.bindKey('s', search);
   },
 };
+
+/** NetHack's two movement layouts (ref: the `number_pad` option, doc/Guidebook). */
+export type KeyLayout = 'numpad' | 'vi';
+
+const VI = new Set(['h', 'j', 'k', 'l', 'y', 'u', 'b', 'n']);
+/** The digit row moves like the number pad when number_pad is on. */
+const DIGITS: [string, Dir][] = [
+  ['7', 'nw'],
+  ['8', 'n'],
+  ['9', 'ne'],
+  ['4', 'w'],
+  ['6', 'e'],
+  ['1', 'sw'],
+  ['2', 's'],
+  ['3', 'se'],
+];
+
+/**
+ * Movement keys for one layout. Both have arrows and the number pad; `vi` adds hjklyubn,
+ * `numpad` adds the digit row instead, leaving those letters free (k is kick there).
+ */
+export function movementKeys(layout: KeyLayout): ClientMod {
+  return {
+    id: `ui-keys-${layout}`,
+    version: '1.0.0',
+    register(api) {
+      for (const [k, d] of DIR_KEYS) if (layout === 'vi' || !VI.has(k)) api.bindKey(k, move(d));
+      if (layout === 'numpad') for (const [k, d] of DIGITS) api.bindKey(k, move(d));
+      for (const k of ['.', 'Numpad5', 'Clear']) api.bindKey(k, wait);
+      if (layout === 'numpad') api.bindKey('5', wait);
+      api.bindKey('s', search);
+    },
+  };
+}

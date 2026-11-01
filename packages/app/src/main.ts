@@ -1,8 +1,16 @@
 import type { ClientMod, PlayerAction } from '@nh/core';
 import { messagesEn } from '@nh/content';
 import { createAsciiRenderer } from '@nh/render-ascii';
-import { createUi, defaultKeymap } from '@nh/ui';
-import { extendedCommands, runPrefixes, runKeys, vanillaKeys } from './keys';
+import { createUi, movementKeys } from '@nh/ui';
+import {
+  extendedCommands,
+  loadLayout,
+  numpadKeys,
+  runPrefixes,
+  runKeys,
+  saveLayout,
+  vanillaKeys,
+} from './keys';
 import { parseParams } from './params';
 import { createRemote, type Remote } from './remote';
 import { clearSave, loadSave, writeSave } from './storage';
@@ -54,6 +62,16 @@ async function saveNow(): Promise<boolean> {
   }
 }
 
+const storage = ((): Storage | null => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+})();
+/** Number pad by default (k kicks); vi keys (hjkl move) as a remembered setting. */
+const layout = loadLayout(storage);
+
 const appMenuMod: ClientMod = {
   id: 'app',
   version: '0.1.0',
@@ -86,6 +104,15 @@ const appMenuMod: ClientMod = {
         });
       },
     });
+    api.addMenuItem({
+      id: 'app.keys',
+      labelKey: layout === 'numpad' ? 'app.keys.to_vi' : 'app.keys.to_numpad',
+      run: () => {
+        // Keys are bound at start-up: save, remember the choice and reload.
+        saveLayout(storage, layout === 'numpad' ? 'vi' : 'numpad');
+        void saveNow().then(() => location.reload());
+      },
+    });
   },
 };
 
@@ -96,11 +123,22 @@ const ui = createUi({
   root,
   renderer: createAsciiRenderer(),
   game: remote,
-  mods: [defaultKeymap, vanillaKeys, runKeys, appMenuMod, extendedCommands(remote)],
+  mods: [
+    movementKeys(layout),
+    vanillaKeys,
+    ...(layout === 'numpad' ? [numpadKeys] : []),
+    runKeys(layout),
+    appMenuMod,
+    extendedCommands(remote),
+  ],
   ...runPrefixes,
   onNewGame: () => void clearSave().then(startNew),
 });
 ui.api.addMessages('en', messagesEn);
+ui.api.addMessages('en', {
+  'app.keys.to_vi': 'Keys: use vi keys (hjkl move)',
+  'app.keys.to_numpad': 'Keys: use number pad (k kicks)',
+});
 
 remote.onView((m) => {
   if (loading) {

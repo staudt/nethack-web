@@ -33,7 +33,9 @@ test('binds inventory and item verbs to ui commands', () => {
 test('binds run keys: g/G prefixes and Shift+direction', async () => {
   const { runKeys, runAction } = await import('../src/keys');
   const bound: Record<string, UiCommand> = {};
-  runKeys.register({ bindKey: (k: string, c: UiCommand) => void (bound[k] = c) } as ClientApi);
+  runKeys('vi').register({
+    bindKey: (k: string, c: UiCommand) => void (bound[k] = c),
+  } as ClientApi);
   expect(bound['g']).toEqual({ type: 'ui', id: 'prefix:rush' });
   expect(bound['G']).toEqual({ type: 'ui', id: 'prefix:run' });
   expect(bound['H']).toEqual({ type: 'action', action: runAction('w', 'shift') });
@@ -47,6 +49,53 @@ test('binds run keys: g/G prefixes and Shift+direction', async () => {
 });
 
 import { extendedCommands, EXTENDED_COMMANDS } from '../src/keys';
+import { movementKeys } from '@nh/ui';
+import { loadLayout, numpadKeys, runKeys as runKeysFor, saveLayout } from '../src/keys';
+
+const bindings = (mod: { register(api: ClientApi): void }): Record<string, UiCommand> => {
+  const bound: Record<string, UiCommand> = {};
+  mod.register({ bindKey: (k: string, c: UiCommand) => void (bound[k] = c) } as ClientApi);
+  return bound;
+};
+
+test('number pad layout: digits and the number pad move, k kicks, no Shift+HJKL runs', () => {
+  const move = bindings(movementKeys('numpad'));
+  expect(move['8']).toEqual({ type: 'action', action: { type: 'move', dir: 'n' } });
+  expect(move['Numpad7']).toEqual({ type: 'action', action: { type: 'move', dir: 'nw' } });
+  expect(move['ArrowUp']).toEqual({ type: 'action', action: { type: 'move', dir: 'n' } });
+  expect(move['k']).toBeUndefined();
+  expect(bindings(numpadKeys)['k']).toEqual({ type: 'ui', id: 'self:nh:kick' });
+  expect(bindings(runKeysFor('numpad'))['K']).toBeUndefined();
+});
+
+test('vi layout: hjklyubn move and Shift+HJKL run; no digit moves', () => {
+  const move = bindings(movementKeys('vi'));
+  expect(move['k']).toEqual({ type: 'action', action: { type: 'move', dir: 'n' } });
+  expect(move['8']).toBeUndefined();
+  expect(bindings(runKeysFor('vi'))['K']).toBeDefined();
+});
+
+test('the layout is remembered; number pad is the default', () => {
+  const store = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+  };
+  expect(loadLayout(storage)).toBe('numpad');
+  saveLayout(storage, 'vi');
+  expect(loadLayout(storage)).toBe('vi');
+  expect(loadLayout(null)).toBe('numpad');
+  const broken = {
+    getItem: (): string => {
+      throw new Error('blocked');
+    },
+    setItem: (): void => {
+      throw new Error('blocked');
+    },
+  };
+  expect(loadLayout(broken)).toBe('numpad');
+  expect(() => saveLayout(broken, 'vi')).not.toThrow();
+});
 
 test('binds swap, kick and fire', () => {
   const bound: Record<string, UiCommand> = {};

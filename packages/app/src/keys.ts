@@ -1,4 +1,5 @@
 import type { AsyncCoreQuery, ClientMod, Dir, PlayerAction } from '@nh/core';
+import type { KeyLayout } from '@nh/ui';
 
 /** Item verbs: key -> mod action id; each opens an item picker (host command `pick:<id>`). */
 const PICK_KEYS: [string, string][] = [
@@ -60,19 +61,50 @@ const RUN_ARROWS: [string, Dir][] = [
   ['ArrowRight', 'e'],
 ];
 
-/** Running: g and G prefixes, Shift+direction. */
-export const runKeys: ClientMod = {
-  id: 'nh-run-keys',
+/** Running: g and G prefixes, Shift+direction (Shift+hjklyubn only with vi keys). */
+export function runKeys(layout: KeyLayout): ClientMod {
+  return {
+    id: 'nh-run-keys',
+    version: '1.0.0',
+    register(api) {
+      api.bindKey('g', { type: 'ui', id: 'prefix:rush' });
+      api.bindKey('G', { type: 'ui', id: 'prefix:run' });
+      if (layout === 'vi')
+        for (const [k, d] of RUN_KEYS)
+          api.bindKey(k.toUpperCase(), { type: 'action', action: runAction(d, 'shift') });
+      for (const [k, d] of RUN_ARROWS)
+        api.bindKey(`Shift+${k}`, { type: 'action', action: runAction(d, 'shift') });
+    },
+  };
+}
+
+/** With number_pad on, `k` kicks (ref: src/cmd.c, the number_pad command set). */
+export const numpadKeys: ClientMod = {
+  id: 'nh-numpad-keys',
   version: '1.0.0',
   register(api) {
-    api.bindKey('g', { type: 'ui', id: 'prefix:rush' });
-    api.bindKey('G', { type: 'ui', id: 'prefix:run' });
-    for (const [k, d] of RUN_KEYS)
-      api.bindKey(k.toUpperCase(), { type: 'action', action: runAction(d, 'shift') });
-    for (const [k, d] of RUN_ARROWS)
-      api.bindKey(`Shift+${k}`, { type: 'action', action: runAction(d, 'shift') });
+    api.bindKey('k', { type: 'ui', id: 'self:nh:kick' });
   },
 };
+
+const LAYOUT_KEY = 'nh.keys';
+
+/** The remembered key layout; the number pad unless the player chose vi keys. */
+export function loadLayout(storage: Pick<Storage, 'getItem'> | null): KeyLayout {
+  try {
+    return storage?.getItem(LAYOUT_KEY) === 'vi' ? 'vi' : 'numpad';
+  } catch {
+    return 'numpad';
+  }
+}
+
+export function saveLayout(storage: Pick<Storage, 'setItem'> | null, layout: KeyLayout): void {
+  try {
+    storage?.setItem(LAYOUT_KEY, layout);
+  } catch {
+    // storage unavailable: the choice lasts for this page only
+  }
+}
 
 /** UI options for the g/G run prefixes. */
 export const runPrefixes = {
