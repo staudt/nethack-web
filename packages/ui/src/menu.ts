@@ -9,6 +9,36 @@ export interface MenuEntry {
   heading?: boolean;
   /** Non-selectable plain text line. */
   text?: boolean;
+  /** The key that picks it, already shown in the label (an inventory letter). Others get a-z. */
+  key?: string;
+}
+
+const MENU_KEYS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/**
+ * Keys for menu rows, NetHack style: a row's own key (an inventory letter) if it has one, else
+ * the next letter no other row uses. `auto[i]` tells whether row i's key must be shown.
+ */
+export function menuKeys(own: readonly (string | undefined)[]): {
+  keys: string[];
+  auto: boolean[];
+} {
+  const used = new Set(own.filter((k): k is string => k !== undefined));
+  let next = 0;
+  const keys: string[] = [];
+  const auto: boolean[] = [];
+  for (const k of own) {
+    if (k !== undefined) {
+      keys.push(k);
+      auto.push(false);
+      continue;
+    }
+    while (next < MENU_KEYS.length && used.has(MENU_KEYS.charAt(next))) next++;
+    const letter = next < MENU_KEYS.length ? MENU_KEYS.charAt(next++) : '';
+    keys.push(letter);
+    auto.push(letter !== '');
+  }
+  return { keys, auto };
 }
 
 export interface MenuSpec {
@@ -69,16 +99,26 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
     overlay.remove();
     spec.onClose?.();
   };
-  const addBtn = (label: string, fn: () => void, cls = '', glyph?: Glyph): void => {
+  const addBtn = (label: string, fn: () => void, cls = '', glyph?: Glyph, shown?: string): void => {
     const b = doc.createElement('button');
     b.type = 'button';
     b.className = `nh-btn nh-sheet-btn ${cls}`.trim();
+    if (shown) {
+      const k = doc.createElement('span');
+      k.className = 'nh-menu-key';
+      k.textContent = `${shown} - `;
+      b.append(k);
+    }
     if (glyph) b.append(glyphSpan(doc, glyph), ' ');
     b.append(label);
     b.addEventListener('click', fn);
     buttons.push(b);
     sheet.append(b);
   };
+  const selectable = spec.entries.filter((en) => !en.heading && !en.text);
+  const { keys, auto } = menuKeys(selectable.map((en) => en.key));
+  const keyOf = new Map<string, number>(); // key -> button index
+  let row = 0;
   for (const en of spec.entries) {
     if (en.heading || en.text) {
       const d = doc.createElement('div');
@@ -87,6 +127,8 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
       sheet.append(d);
       continue;
     }
+    const k = keys[row] ?? '';
+    if (k !== '' && !keyOf.has(k)) keyOf.set(k, buttons.length);
     addBtn(
       en.label,
       () => {
@@ -95,7 +137,9 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
       },
       '',
       en.glyph,
+      auto[row] ? k : undefined,
     );
+    row++;
   }
   if (spec.cancelLabel !== undefined) addBtn(spec.cancelLabel, close, 'nh-cancel');
 
@@ -116,6 +160,10 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
       sel = (sel - 1 + buttons.length) % Math.max(1, buttons.length);
     else if (e.key === 'Enter') buttons[sel]?.click();
     else if (e.key === 'Escape' && spec.cancelLabel !== undefined) close();
+    else if (keyOf.has(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      buttons[keyOf.get(e.key) as number]?.click();
+      return true;
+    }
     mark();
     return true;
   };
@@ -127,6 +175,8 @@ export interface ChecklistOption {
   glyph?: Glyph;
   /** A count from 1 to `max` may be chosen (a stack size). */
   max?: number;
+  /** The key that toggles it, already shown in the label (an inventory letter). Others get a-z. */
+  key?: string;
 }
 
 export interface ChecklistChoice {
@@ -213,15 +263,16 @@ export function openChecklist(root: HTMLElement, spec: ChecklistSpec): OpenMenu 
     b.addEventListener('click', () => step(i, d));
     return b;
   };
+  const { keys: rowKeys, auto: rowAuto } = menuKeys(spec.options.map((o) => o.key));
   spec.options.forEach((o, i) => {
     const b = doc.createElement('button');
     b.type = 'button';
     b.className = 'nh-btn nh-sheet-btn nh-check';
     b.setAttribute('role', 'checkbox');
-    const letter = i < 26 ? String.fromCharCode(97 + i) : ' ';
     const box = doc.createElement('span');
     box.className = 'nh-checkbox';
-    b.append(`${letter} `, box, ' ');
+    if (rowAuto[i]) b.append(`${rowKeys[i] ?? ''} `);
+    b.append(box, ' ');
     if (o.glyph) b.append(glyphSpan(doc, o.glyph), ' ');
     b.append(o.label);
     b.addEventListener('click', () => toggle(i));
@@ -276,9 +327,9 @@ export function openChecklist(root: HTMLElement, spec: ChecklistSpec): OpenMenu 
     } else if (e.key === 'Escape') {
       finish(false);
       return true;
-    } else if (/^[a-z]$/.test(e.key)) {
+    } else if (e.key.length === 1 && rowKeys.includes(e.key)) {
       typed = digits;
-      toggle(e.key.charCodeAt(0) - 97);
+      toggle(rowKeys.indexOf(e.key));
     }
     mark();
     return true;

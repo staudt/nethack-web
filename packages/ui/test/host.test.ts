@@ -195,7 +195,7 @@ describe('host', () => {
     tap(m.root.querySelector('.nh-map')!);
     await flush();
     const b = btns(m.root);
-    expect(b.map((x) => x.textContent)).toEqual(['Go north', 'Cancel']);
+    expect(b.map((x) => x.textContent)).toEqual(['a - Go north', 'Cancel']);
     b[0]!.click();
     expect(m.acts).toEqual([{ type: 'move', dir: 'n' }]);
     expect(btns(m.root)).toHaveLength(0);
@@ -309,7 +309,7 @@ describe('host', () => {
     const m = mk({ mods: [mod] });
     ui = m.ui;
     (m.root.querySelector('.nh-menu-btn') as HTMLElement).click();
-    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Alpha', 'Beta', 'Cancel']);
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['a - Alpha', 'b - Beta', 'Cancel']);
     btns(m.root)[1]!.click();
     expect(run2).toHaveBeenCalled();
     expect(run1).not.toHaveBeenCalled();
@@ -642,6 +642,47 @@ describe('inventory, pickers, multi-select, list', () => {
     expect(m.acts.at(-1)).toEqual({ type: 'mod', action: 'nh:pickup' });
   });
 
+  test('menus pick by letter: inventory letters for items, a-z for the rest, y/n for yn', async () => {
+    const mod: ClientMod = {
+      id: 'k',
+      version: '1',
+      register: (api) => api.bindKey('r', { type: 'ui', id: 'pick:nh:read' }),
+    };
+    const m = mk({ mods: [defaultKeymap, mod] });
+    ui = m.ui;
+    m.ui.api.addMessages('en', msgs);
+    const read = (item: number): ActionOffer => ({
+      action: { type: 'mod', action: 'nh:read', args: { item } } as PlayerAction,
+      labelKey: 'R',
+      source: 't',
+    });
+    m.game.query.actionsFor = (t) =>
+      Promise.resolve(t.kind === 'item' && 'id' in t && t.id === 5 ? [read(5)] : []);
+    m.ui.update(
+      invView([item(1, 'a', 'weapon', 'dagger'), item(5, 'e', 'food', 'ration')]),
+      [],
+      null,
+    );
+    key('r');
+    await flush();
+    key('e', 'KeyE');
+    expect(m.acts).toEqual([{ type: 'mod', action: 'nh:read', args: { item: 5 } }]);
+    // auto letters in the self menu
+    m.game.query.actionsFor = () =>
+      Promise.resolve([
+        { action: { type: 'wait' }, labelKey: 'W', source: 't' },
+        { action: { type: 'search' }, labelKey: 'S', source: 't' },
+      ]);
+    (m.root.querySelector('.nh-actions-btn') as HTMLElement).click();
+    await flush();
+    key('b', 'KeyB');
+    expect(m.acts.at(-1)).toEqual({ type: 'search' });
+    // yn prompts take y and n
+    m.ui.update(view(), [], { id: 'q', kind: 'yn', key: 'Q' });
+    key('n', 'KeyN');
+    expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'q', value: false });
+  });
+
   test('pick:<action> lists matching floor offers first (eat the corpse here)', async () => {
     const mod: ClientMod = {
       id: 'k',
@@ -679,7 +720,7 @@ describe('inventory, pickers, multi-select, list', () => {
     key('e');
     await flush();
     expect(btns(m.root).map((b) => b.textContent)).toEqual([
-      'Eat the jackal corpse here',
+      'a - Eat the jackal corpse here',
       'b - a food ration',
       'Cancel',
     ]);

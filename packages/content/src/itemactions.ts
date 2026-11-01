@@ -445,6 +445,7 @@ function invOption(ctx: Ctx, e: Entity): PromptOption {
   return {
     value: e.id,
     key: 'inv.menu_item',
+    ...(e.c.item?.letter ? { letter: e.c.item.letter } : {}),
     params: { letter: e.c.item?.letter ?? NOINVSYM, item: ctx.defs.itemName(ctx.state, e) },
     glyph: shownId(ctx.state, e.def),
   };

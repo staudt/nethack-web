@@ -23,6 +23,8 @@ export interface PromptOption {
   params?: Params;
   /** Shown glyph id (an item's appearance), for menus of objects. */
   glyph?: DefId;
+  /** The key that picks this option, e.g. an item's inventory letter (already part of its label). */
+  letter?: string;
   /** Multi menus: a count from 1 to `max` may be chosen for this option (a stack size). */
   max?: number;
 }

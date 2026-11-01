@@ -363,7 +363,12 @@ export function createUi(opts: UiOptions): Ui {
       : t('ui.item', { letter: it.letter, name: it.name });
   const itemEntry = (it: ViewItem, run: () => void): MenuEntry => {
     const glyph = glyphOf(it.g);
-    return { label: itemLabel(it), run, ...(glyph ? { glyph } : {}) };
+    return {
+      label: itemLabel(it),
+      run,
+      ...(glyph ? { glyph } : {}),
+      ...(it.letter ? { key: it.letter } : {}),
+    };
   };
 
   const openItemActions = (it: ViewItem): void => {
@@ -657,6 +662,7 @@ export function createUi(opts: UiOptions): Ui {
               label: t(o.key, o.params),
               ...(glyph ? { glyph } : {}),
               ...(o.max !== undefined && o.max > 1 ? { max: o.max } : {}),
+              ...(o.letter ? { key: o.letter } : {}),
             };
           }),
           confirmLabel: t('ui.confirm'),
@@ -724,12 +730,18 @@ export function createUi(opts: UiOptions): Ui {
     const entries: MenuEntry[] =
       p.kind === 'yn' && !p.options
         ? [
-            { label: t('ui.yes'), run: answer(true) },
-            { label: t('ui.no'), run: answer(false) },
+            // NetHack's yn: y and n answer it
+            { label: t('ui.yes'), run: answer(true), key: 'y' },
+            { label: t('ui.no'), run: answer(false), key: 'n' },
           ]
         : (p.options ?? []).map((o) => {
             const glyph = o.glyph ? glyphOf(o.glyph) : undefined;
-            return { label: t(o.key, o.params), run: answer(o.value), ...(glyph ? { glyph } : {}) };
+            return {
+              label: t(o.key, o.params),
+              run: answer(o.value),
+              ...(glyph ? { glyph } : {}),
+              ...(o.letter ? { key: o.letter } : {}),
+            };
           });
     showModal(t(p.key, p.params), entries, false);
     promptId = p.id;
