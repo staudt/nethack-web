@@ -14,11 +14,13 @@ import type { GameEvent } from './types/event';
 import type { Level } from './types/level';
 import type { ActionDef, Ctx, Mod, Registry } from './types/mod';
 import type { Replay } from './types/protocol';
+import type { Rng } from './types/rng';
 import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
 import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
 import { heroBlind } from './perception';
+import { placeTrapOn, removeTrapOn, trapAt } from './traps';
 
 export const DEFAULT_WIDTH = 80;
 export const DEFAULT_HEIGHT = 21;
@@ -145,9 +147,19 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           state.memory[id] = newMemory(level);
           for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
         }
-        placeHero(state, level, at === 'up' ? level.up : level.down);
+        placeHero(
+          state,
+          level,
+          at === 'up' ? level.up : at === 'down' ? level.down : randomSpot(ctx.rng, level),
+        );
         const change = { from: current.id, fromPos: { x: fromPos.x, y: fromPos.y }, to: level.id };
         for (const h of registry.hooks('levelChange')) h.fn(ctx, change);
+      },
+      placeTrap(id, t) {
+        placeTrapOn(registry, getLevel(state, id), t);
+      },
+      removeTrap(id, pos) {
+        removeTrapOn(getLevel(state, id), pos.x, pos.y);
       },
       ask(prompt, handler, data) {
         const def = registry.actions.find((a) => a.id === handler);
@@ -162,6 +174,24 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       },
     };
     return ctx;
+  };
+
+  /**
+   * A random room floor cell without a trap, or null for none: 200 random tries, then the first
+   * such cell in column order. ref: src/mkmaze.c place_lregion(), bad_location()
+   */
+  const randomSpot = (rng: Rng, level: Level): Pos | null => {
+    const ok = (x: number, y: number): boolean =>
+      level.palette[level.cells[cellIndex(level, x, y)] ?? -1] === terrain.floor &&
+      trapAt(level, x, y) === undefined;
+    for (let tries = 0; tries < 200; tries++) {
+      const x = rng.rn2(level.width);
+      const y = rng.rn2(level.height);
+      if (ok(x, y)) return { x, y };
+    }
+    for (let x = 0; x < level.width; x++)
+      for (let y = 0; y < level.height; y++) if (ok(x, y)) return { x, y };
+    return null;
   };
 
   /**
@@ -250,7 +280,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (!roleDef) throw new Error('No player role registered');
       const s = seed >>> 0;
       const state: GameState = {
-        version: 5,
+        version: 6,
         seed: s,
         turn: 1,
         nextEntityId: 1,

@@ -12,7 +12,7 @@ export interface Host {
   handle(msg: ToCore): void;
 }
 
-const QUERIES = ['describe', 'actionsFor', 'pathTo'] as const;
+const QUERIES = ['describe', 'actionsFor', 'pathTo', 'trapAt'] as const;
 
 /** Worker-side protocol handler. Pure: the caller wires `post` to postMessage. */
 export function createHost(

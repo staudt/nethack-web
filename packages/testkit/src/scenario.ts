@@ -342,6 +342,7 @@ export function runScenario(
       cells,
       lit: cells.map(() => (lit ? 1 : 0)),
       rooms: [],
+      traps: [],
       up,
       down,
     };

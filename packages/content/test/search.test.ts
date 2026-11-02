@@ -28,6 +28,7 @@ function setup(seed: number, target: DefId, at = { x: 4, y: 2 }) {
     cells,
     lit: cells.map(() => 1),
     rooms: [],
+    traps: [],
     up: null,
     down: null,
   };

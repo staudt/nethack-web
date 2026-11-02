@@ -38,7 +38,7 @@ interface ModRef {
 }
 
 interface GameState {
-  version: 5;
+  version: 6;
   seed: number;
   turn: number;
   nextEntityId: number;
@@ -113,7 +113,10 @@ interface Level {
   rooms: Room[];
   up: Pos | null;
   down: Pos | null;
+  traps: Trap[]; // sorted by cell index; plain floor only
 }
+// ref: include/trap.h struct trap
+interface Trap { def: DefId; x: number; y: number; seen: boolean; once?: boolean; data?: Json }
 ```
 
 The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a hash of canonical (key-sorted) JSON. The level size is a parameter, and 80×21 is only the default.
@@ -123,6 +126,8 @@ The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a
 **Vision.** A cell is seen when it is in line of sight and either adjacent to the hero or lit. A lit cell that blocks sight (a wall or closed door) is seen from afar only if its neighbor one step toward the hero is also lit, which hides lit room walls at the end of dark corridors (ref: src/vision.c vision_recalc()).
 
 **Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id.
+
+**Traps.** A `TrapDef` (`{ id, nameKey, glyph, hole? }`) only names and draws a trap; its effects belong to content. Traps live in `Level.traps` and change only through `ctx.placeTrap` (which replaces a trap on the same cell and throws unless the cell is *plain floor*: passable terrain with no `door`, `stairs` or `looksLike`) and `ctx.removeTrap`. Game logic finds traps with core's `trapAt(level, x, y)`, seen or not. Players only learn of a trap when content sets `seen` (it went off, or a search found it): `query.trapAt` and `describe().trap` report seen traps only, and the snapshot shows them as `ViewCell.t`, visible or remembered. Renderers draw monster > object > trap > terrain.
 
 **Monster memory.** `refreshVision` updates `monsterMemory` for the cells now visible: a live monster there is recorded, an empty cell is cleared. Cells out of view keep their entry, so a monster glyph stays where it was last seen until that cell is seen again. The snapshot exposes it as `ViewCell.m` on cells that are not visible, and live monsters stay in `entities` only, never duplicated as `m`. Deltas include `m` changes.
 
@@ -299,6 +304,7 @@ interface ModApi {
   defineAppearance(d: AppearanceDef): void;
   defineStatus(d: StatusDef): void;
   definePerception(d: PerceptionDef): void;
+  defineTrap(d: TrapDef): void; // { id, nameKey, glyph, hole? }
   setItemNamer(fn: ItemNamer): void; // the last mod to set it wins; core has a plain default
   on<K extends keyof Hooks>(hook: K, fn: Hooks[K], opts?: { priority?: number }): void;
 }
@@ -327,7 +333,9 @@ interface Ctx {
   query: CoreQuery;
   spawn(e: Omit<Entity, 'id'>): EntityId;
   remove(id: EntityId): void; // never the hero
-  goToLevel(depth: number, at: 'up' | 'down'): void; // generates dlvl<N> on first visit; arrive on that staircase
+  goToLevel(depth: number, at: 'up' | 'down' | 'random'): void; // generates dlvl<N> on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot)
+  placeTrap(level: LevelId, t: Trap): void; // replaces a trap on the cell; throws unless plain floor
+  removeTrap(level: LevelId, pos: Pos): void;
   ask(prompt: Prompt, handler: DefId, data: Json): void;
   interrupt(): void; // stop a multi-turn action
   endGame(over: GameOver): void;
@@ -369,9 +377,11 @@ interface CoreQuery {
     visible: boolean;
     entities: { id: EntityId; def: DefId }[]; // creatures
     objects: { id: EntityId; def: DefId; name: Msg }[]; // top of the pile first, shown ids
+    trap: DefId | null; // a trap the hero has seen here
   };
   actionsFor(target: Target): ActionOffer[]; // the union of every ActionDef.offer, in registration order
   pathTo(pos: Pos): Pos[] | null; // A*, 8-dir, over remembered passable cells; excludes start
+  trapAt(level: LevelId, pos: Pos): Readonly<Trap> | null; // seen traps only
 }
 ```
 
@@ -385,6 +395,7 @@ interface ViewCell {
   v: boolean; // visible now?
   o?: DefId; // top object's shown id: live when visible, remembered otherwise
   m?: DefId; // monster remembered on a cell not seen now; live monsters are only in `entities`
+  t?: DefId; // a trap the hero has seen; drawn under objects
 }
 interface ViewItem { id: EntityId; letter: string | null; g: DefId; cls: ObjectClass; name: Msg; equipped: EquipSlot | null }
 interface ViewEntity {
@@ -429,7 +440,7 @@ interface Renderer {
 
 Renderers draw only the cells inside the camera. The camera follows the player with a dead zone, so levels of any size scroll.
 
-`status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped'`), `killer`, `endTurn`, `endDepth` and `endLevel`. Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`). The legend covers terrain, roles, monsters, objects and appearances.
+`status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped'`), `killer`, `endTurn`, `endDepth` and `endLevel`. Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`). The legend covers terrain, roles, monsters, objects, appearances and traps.
 
 **Objects never leak identity.** `entities` lists creatures only; objects appear as `ViewCell.o`, in `inventory` and in `describe().objects`, always by *shown id*: `state.appearances[def] ?? def`. Names come from the item namer, which only uses what the hero knows (`discovered`, `known`).
 
@@ -477,7 +488,7 @@ interface Replay {
   mods: ModRef[];
   actions: PlayerAction[];
 }
-// Save text = JSON.stringify({ format: 'nh-ts', version: 5, mods, state, replay }) // v3 and v4 saves migrate by adding occupation: null and monsterMemory: {}
+// Save text = JSON.stringify({ format: 'nh-ts', version: 6, mods, state, replay }) // v3-v5 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level
 ```
 
 After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, actions }` must reproduce `stateHash`.

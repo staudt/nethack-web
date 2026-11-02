@@ -146,5 +146,6 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
     rooms,
     up: { x: up.x - 1, y: up.y },
     down: { x: down.x - 1, y: down.y },
+    traps: [],
   };
 }

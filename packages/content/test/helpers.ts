@@ -53,6 +53,7 @@ export function setup(rows: string[], seed = 1) {
     cells,
     lit: cells.map(() => 1),
     rooms: [],
+    traps: [],
     up: null,
     down: null,
   };

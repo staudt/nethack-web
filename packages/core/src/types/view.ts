@@ -11,6 +11,8 @@ export interface ViewCell {
   o?: DefId;
   /** A monster remembered on a cell not seen now (live monsters are in `entities`). */
   m?: DefId;
+  /** A trap the hero has seen here (a TrapDef id); objects are drawn over it. */
+  t?: DefId;
 }
 
 /** An item in the hero's inventory, as the player knows it. */

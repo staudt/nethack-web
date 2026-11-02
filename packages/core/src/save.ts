@@ -4,7 +4,7 @@ import type { Replay, SaveFile } from './types/protocol';
 import type { GameState } from './types/state';
 
 export const SAVE_FORMAT = 'nh-ts';
-export const SAVE_VERSION = 5 as const;
+export const SAVE_VERSION = 6 as const;
 
 export function serializeSave(state: GameState, replay: Replay): string {
   const file: SaveFile = {
@@ -32,12 +32,19 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
   }
   if (typeof file !== 'object' || file === null || file.format !== SAVE_FORMAT)
     throw new Error(`Not a ${SAVE_FORMAT} save file`);
-  // Older saves only lack fields that start empty: v4 added `occupation`, v5 `monsterMemory`.
+  // Older saves only lack fields that start empty: v4 added `occupation`, v5 `monsterMemory`,
+  // v6 `Level.traps`.
   const old = file.version as number | undefined;
-  if ((old === 3 || old === 4) && file.state) {
-    const st = file.state as { occupation?: unknown; monsterMemory?: unknown; version: number };
+  if ((old === 3 || old === 4 || old === 5) && file.state) {
+    const st = file.state as {
+      occupation?: unknown;
+      monsterMemory?: unknown;
+      levels?: Record<string, { traps?: unknown }>;
+      version: number;
+    };
     st.occupation ??= null;
     st.monsterMemory ??= {};
+    for (const level of Object.values(st.levels ?? {})) level.traps ??= [];
     st.version = SAVE_VERSION;
     file.version = SAVE_VERSION;
   }

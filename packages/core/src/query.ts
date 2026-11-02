@@ -4,6 +4,7 @@ import { isItem, itemsAt, shownId } from './objects';
 import { senses, shownAs } from './perception';
 import { findPath } from './path';
 import { getLevel, isVisible, playerPos } from './state';
+import { trapAt } from './traps';
 import type { Pos } from './types/common';
 import type { Ctx, Registry } from './types/mod';
 import type { CoreQuery, Description, Target } from './types/query';
@@ -35,6 +36,7 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         visible: false,
         entities: [],
         objects: [],
+        trap: null,
       };
       if (!inBounds(level, pos.x, pos.y)) return none;
       const i = cellIndex(level, pos.x, pos.y);
@@ -63,6 +65,7 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         visible,
         entities,
         objects,
+        trap: query.trapAt(level.id, pos)?.def ?? null,
       };
     },
 
@@ -80,6 +83,8 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         spawn: forbidden('spawn entities'),
         remove: forbidden('remove entities'),
         goToLevel: forbidden('change level'),
+        placeTrap: forbidden('place traps'),
+        removeTrap: forbidden('remove traps'),
         ask: forbidden('ask prompts'),
         interrupt: forbidden('interrupt'),
         endGame: forbidden('end the game'),
@@ -97,6 +102,12 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
       const memory = state.memory[level.id];
       if (!memory) return null;
       return findPath(level, cellRules(level, registry), memory, playerPos(state), pos);
+    },
+
+    trapAt(id, pos) {
+      const level = state.levels[id];
+      const t = level ? trapAt(level, pos.x, pos.y) : undefined;
+      return t?.seen ? t : null;
     },
   };
   return query;

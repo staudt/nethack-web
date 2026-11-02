@@ -726,7 +726,7 @@ describe('newGame', () => {
     const r = engine.newGame({ seed: 3, width: 40, height: 15 });
     const s = r.state;
     expect(ctl.newGame).toEqual([{ hero: s.playerId, hadPos: false, levels: 0 }]);
-    expect(s.version).toBe(5);
+    expect(s.version).toBe(6);
     expect(s.gameOver).toBeNull();
     expect(s.pendingPrompt).toBeNull();
     expect(r.prompt).toBeNull();
@@ -784,11 +784,11 @@ describe('view additions', () => {
 describe('save format', () => {
   const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
 
-  test('round trip is version 5', () => {
+  test('round trip is version 6', () => {
     const s = fresh();
     const text = engine.save(s, replay);
     const raw = JSON.parse(text) as { version: number; state: { version: number } };
-    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([5, 5, 5]);
+    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([6, 6, 6]);
     expect(engine.load(text).state).toEqual(s);
   });
 
@@ -802,7 +802,7 @@ describe('save format', () => {
     raw.state.version = 3;
     delete raw.state.occupation;
     const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.occupation).toBeNull();
   });
 

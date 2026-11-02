@@ -58,6 +58,7 @@ function fakeGame() {
     desc: {
       terrain: null,
       remembered: false,
+      trap: null,
       visible: false,
       entities: [],
       objects: [],
@@ -71,6 +72,7 @@ function fakeGame() {
     },
     actionsFor: () => Promise.resolve(state.offers),
     pathTo: () => Promise.resolve(null),
+    trapAt: () => Promise.resolve(null),
   } as AsyncCoreQuery;
   const game: GameClient = { act: (a) => void acts.push(a), query };
   return { game, acts, state };
@@ -223,6 +225,7 @@ describe('host', () => {
     m.state.desc = {
       terrain: 'nh:floor',
       remembered: true,
+      trap: null,
       visible: false,
       entities: [],
       objects: [],
@@ -235,6 +238,7 @@ describe('host', () => {
     m.state.desc = {
       terrain: 'nh:floor',
       remembered: true,
+      trap: null,
       visible: true,
       entities: [{ id: 2, def: 'nh:newt' }],
       objects: [],
@@ -840,6 +844,7 @@ describe('inventory, pickers, multi-select, list', () => {
     m.state.desc = {
       terrain: 'nh:floor',
       remembered: true,
+      trap: null,
       visible: true,
       entities: [],
       objects: [

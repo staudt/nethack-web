@@ -20,6 +20,7 @@ import type {
   AppearanceDef,
   StatusDef,
   PerceptionDef,
+  TrapDef,
   ItemNamer,
 } from './types/mod';
 import type { ArmorSlot } from './types/entity';
@@ -134,6 +135,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const appearances = new Map<string, AppearanceDef>();
   const statuses: (StatusDef & { mod: string })[] = [];
   const perceptions: PerceptionDef[] = [];
+  const traps = new Map<string, TrapDef>();
   let itemNamer: ItemNamer = defaultItemNamer;
   const actions: (ActionDef & { mod: string })[] = [];
   const builtinHandlers = new Map<ActionType, string>();
@@ -366,6 +368,13 @@ export function loadMods(mods: readonly Mod[]): Registry {
         for (const k of parts) if (d[k] !== undefined) fn(d[k], k, d.id);
         perceptions.push(d);
       },
+      defineTrap(d) {
+        if (!guard('defineTrap') || !checkId(d.id, 'trap')) return;
+        str(d.nameKey, 'nameKey', d.id);
+        glyph(d.glyph, d.id);
+        if (d.hole !== undefined) bool(d.hole, 'hole', d.id);
+        traps.set(d.id, d);
+      },
       setItemNamer(namer) {
         if (!guard('setItemNamer')) return;
         if (typeof namer !== 'function') return issue('setItemNamer', 'must be a function');
@@ -474,11 +483,18 @@ export function loadMods(mods: readonly Mod[]): Registry {
       return a;
     },
     isAppearance: (id) => appearances.has(id),
+    trap(id) {
+      const t = traps.get(id);
+      if (!t) throw new Error(`Unknown trap '${id}'`);
+      return t;
+    },
+    isTrap: (id) => traps.has(id),
     itemName: (state, item) => itemNamer(state, registry, item),
     objects: [...objects.values()],
     appearances: [...appearances.values()],
     statuses,
     perceptions,
+    traps: [...traps.values()],
     brain(id) {
       const b = brains.get(id);
       if (!b) throw new Error(`Unknown brain '${id}'`);

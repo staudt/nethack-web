@@ -86,7 +86,7 @@ export function createRemote(worker: WorkerLike): Remote {
     });
 
   const call =
-    (q: 'describe' | 'actionsFor' | 'pathTo') =>
+    (q: 'describe' | 'actionsFor' | 'pathTo' | 'trapAt') =>
     (...args: unknown[]): Promise<never> =>
       new Promise((resolve, reject) => {
         const id = nextId++;
@@ -98,6 +98,7 @@ export function createRemote(worker: WorkerLike): Remote {
     describe: call('describe'),
     actionsFor: call('actionsFor'),
     pathTo: call('pathTo'),
+    trapAt: call('trapAt'),
   } as AsyncCoreQuery;
 
   return {

@@ -16,7 +16,7 @@ export interface Replay {
 
 export interface SaveFile {
   format: 'nh-ts';
-  version: 5;
+  version: 6;
   mods: ModRef[];
   state: GameState;
   replay: Replay;

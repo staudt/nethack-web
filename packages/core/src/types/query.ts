@@ -1,4 +1,5 @@
-import type { DefId, EntityId, Msg, Params, Pos } from './common';
+import type { DefId, EntityId, LevelId, Msg, Params, Pos } from './common';
+import type { Trap } from './level';
 import type { PlayerAction } from './action';
 
 export type Target =
@@ -24,6 +25,8 @@ export interface Description {
   entities: { id: EntityId; def: DefId }[];
   /** Objects on the cell, top of the pile first, as shown ids (appearances); visible cells only. */
   objects: { id: EntityId; def: DefId; name: Msg }[];
+  /** A trap the hero has seen on the cell (TrapDef id), visible or remembered. */
+  trap: DefId | null;
 }
 
 /** Read-only queries, answered from player knowledge only. */
@@ -32,6 +35,8 @@ export interface CoreQuery {
   actionsFor(target: Target): ActionOffer[];
   /** A* over remembered passable cells, 8-dir. Excludes the start; null if unreachable. */
   pathTo(pos: Pos): Pos[] | null;
+  /** The trap at `pos` of `level` if the hero has seen it, else null (game logic uses core `trapAt`). */
+  trapAt(level: LevelId, pos: Pos): Readonly<Trap> | null;
 }
 
 /** CoreQuery as seen across the worker boundary. */

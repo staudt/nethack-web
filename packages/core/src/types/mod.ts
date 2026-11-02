@@ -2,7 +2,7 @@ import type { ActionType, PlayerAction } from './action';
 import type { DefId, EntityId, Glyph, Json, LevelId, Msg, Pos } from './common';
 import type { ArmorSlot, Dice, Entity } from './entity';
 import type { GameEvent } from './event';
-import type { Level } from './level';
+import type { Level, Trap } from './level';
 import type { ActionOffer, CoreQuery, Target } from './query';
 import type { Rng } from './rng';
 import type { GameOver, GameState } from './state';
@@ -111,6 +111,15 @@ export interface PerceptionDef {
    * floor object's own glyph, or null for no change. The first def that answers wins.
    */
   shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null;
+}
+
+/** A kind of trap; its effects belong to content (ref: include/trap.h, src/trap.c dotrap). */
+export interface TrapDef {
+  id: DefId;
+  nameKey: string;
+  glyph: Glyph;
+  /** A trap door or hole: falling through leads to a lower level. */
+  hole?: boolean;
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */
@@ -229,9 +238,17 @@ export interface Ctx {
   remove(id: EntityId): void;
   /**
    * Moves the hero to dungeon level `depth`, generating it on first visit, arriving on its
-   * up or down staircase.
+   * up or down staircase, or on a random room floor cell without a trap ('random', for falling
+   * through a trap door; ref: src/dungeon.c u_on_rndspot()).
    */
-  goToLevel(depth: number, at: 'up' | 'down'): void;
+  goToLevel(depth: number, at: 'up' | 'down' | 'random'): void;
+  /**
+   * Puts a trap on `level`, replacing any trap already on that cell (ref: src/trap.c
+   * maketrap()). Throws unless the cell is plain floor (see `isPlainFloor`) or the def is unknown.
+   */
+  placeTrap(level: LevelId, t: Trap): void;
+  /** Removes the trap at `pos` of `level`, if any. ref: src/trap.c deltrap() */
+  removeTrap(level: LevelId, pos: Pos): void;
   /** Ends this step with `prompt`; the next action must answer it and is routed to `handler`. */
   ask(prompt: Prompt, handler: DefId, data: Json): void;
   /** Stops a multi-turn action after the current step. */
@@ -283,6 +300,7 @@ export interface ModApi {
   defineAppearance(d: AppearanceDef): void;
   defineStatus(d: StatusDef): void;
   definePerception(d: PerceptionDef): void;
+  defineTrap(d: TrapDef): void;
   /** Replaces the item namer; the last mod to set it wins. */
   setItemNamer(fn: ItemNamer): void;
   on<K extends HookName>(hook: K, fn: Hooks[K], opts?: HookOptions): void;
@@ -316,6 +334,8 @@ export interface Registry {
   isObject(id: DefId): boolean;
   appearance(id: DefId): AppearanceDef;
   isAppearance(id: DefId): boolean;
+  trap(id: DefId): TrapDef;
+  isTrap(id: DefId): boolean;
   /** Names an item with the active namer (a default one if no mod set it). */
   itemName(state: Readonly<GameState>, item: Entity): Msg;
   /** In registration order. */
@@ -328,6 +348,8 @@ export interface Registry {
   readonly statuses: readonly StatusDef[];
   /** In registration order. */
   readonly perceptions: readonly PerceptionDef[];
+  /** In registration order. */
+  readonly traps: readonly TrapDef[];
   readonly roles: readonly RoleDef[];
   readonly terrains: readonly TerrainDef[];
   /** In registration order. */

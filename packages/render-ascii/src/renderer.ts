@@ -69,9 +69,12 @@ export function autoFontSize(cssWidth: number): number {
   return Math.min(24, Math.max(14, Math.round(cssWidth / 27 / 0.6)));
 }
 
-/** The object glyph id to draw over a cell's terrain (under creatures), or null. */
+/**
+ * The glyph id to draw over a cell's terrain (under creatures): the top object, else a seen
+ * trap, or null. Priority is monster > object > trap > terrain (ref: src/display.c).
+ */
 export function objectLayer(c: ViewCell): DefId | null {
-  return c.o ?? null;
+  return c.o ?? c.t ?? null;
 }
 
 /** The remembered monster glyph id to draw dimmed on a cell that is not in view now, or null. */
@@ -212,7 +215,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
           ctx.fillRect(px, dy, cellW, cellH);
           atlas.draw(ctx, glyphFor(mon), true, px, dy, cellW, cellH);
         } else if (top !== null) {
-          // Objects replace the terrain glyph; dimmed when only remembered.
+          // Objects and traps replace the terrain glyph; dimmed when only remembered.
           ctx.fillStyle = background;
           ctx.fillRect(px, dy, cellW, cellH);
           atlas.draw(ctx, glyphFor(top), !c.v, px, dy, cellW, cellH);

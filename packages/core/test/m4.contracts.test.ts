@@ -261,10 +261,10 @@ describe('monster memory', () => {
 describe('save v5', () => {
   const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
 
-  test('SAVE_VERSION is 5 and state is JSON-plain with monsterMemory', () => {
+  test('SAVE_VERSION is 6 and state is JSON-plain with monsterMemory', () => {
     const s = fresh();
-    expect(SAVE_VERSION).toBe(5);
-    expect(s.version).toBe(5);
+    expect(SAVE_VERSION).toBe(6);
+    expect(s.version).toBe(6);
     expect(s.monsterMemory[s.currentLevel]).toEqual({});
     expect(isJsonPlain(s)).toBe(true);
   });
@@ -278,7 +278,7 @@ describe('save v5', () => {
     expect(engine.load(engine.save(s, replay)).state).toEqual(s);
   });
 
-  test.each([3, 4])('a v%i save migrates to v5 with occupation and monsterMemory', (old) => {
+  test.each([3, 4])('a v%i save migrates to v6 with occupation and monsterMemory', (old) => {
     const s = fresh();
     const raw = JSON.parse(engine.save(s, replay)) as {
       version: number;
@@ -289,7 +289,7 @@ describe('save v5', () => {
     delete raw.state.occupation;
     delete raw.state.monsterMemory;
     const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.occupation).toBeNull();
     expect(loaded.monsterMemory).toEqual({});
   });

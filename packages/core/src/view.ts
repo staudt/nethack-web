@@ -53,6 +53,7 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     ...registry.monsters.map((m): [DefId, Glyph] => [m.id, m.glyph]),
     ...registry.objects.map((o): [DefId, Glyph] => [o.id, o.glyph]),
     ...registry.appearances.map((a): [DefId, Glyph] => [a.id, a.glyph]),
+    ...registry.traps.map((t): [DefId, Glyph] => [t.id, t.glyph]),
   ];
   glyphs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const legend: Record<DefId, Glyph> = {};
@@ -66,6 +67,9 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
   const liveObjects = topObjectEntities(registry, state, level);
   const objMemory = state.objectMemory[level.id];
   const monMemory = state.monsterMemory[level.id];
+  // ref: src/display.c map_trap(): a seen trap stays on the map, under any object
+  const traps = new Map<number, DefId>();
+  for (const t of level.traps) if (t.seen) traps.set(t.y * level.width + t.x, t.def);
   const cells: ViewCell[] = new Array<ViewCell>(n);
   let vp = 0;
   for (let i = 0; i < n; i++) {
@@ -82,6 +86,8 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     if (o !== undefined) cell.o = o;
     const mm = v ? undefined : monMemory?.[String(i)];
     if (mm !== undefined) cell.m = mm;
+    const t = traps.get(i);
+    if (t !== undefined) cell.t = t;
     cells[i] = cell;
   }
 
@@ -134,7 +140,7 @@ export function diffSnapshot(prev: ViewSnapshot, next: ViewSnapshot): ViewUpdate
   for (let i = 0; i < next.cells.length; i++) {
     const a = prev.cells[i] as ViewCell;
     const b = next.cells[i] as ViewCell;
-    if (a.g !== b.g || a.v !== b.v || a.o !== b.o || a.m !== b.m) cells.push([i, b]);
+    if (a.g !== b.g || a.v !== b.v || a.o !== b.o || a.m !== b.m || a.t !== b.t) cells.push([i, b]);
   }
   const delta: ViewDelta = {
     kind: 'delta',

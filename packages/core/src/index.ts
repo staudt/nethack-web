@@ -28,3 +28,4 @@ export { createHost } from './host';
 export type { Host } from './host';
 export { shownId, isItem, itemsAt, topObjects, topObjectEntities, inventoryOf } from './objects';
 export { heroBlind, senses, shownAs } from './perception';
+export { isPlainFloor, trapAt } from './traps';

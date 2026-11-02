@@ -13,7 +13,14 @@ const game = (e = mk()) => {
 describe('describe', () => {
   test('out of bounds', () => {
     const { q } = game();
-    const none = { terrain: null, remembered: false, visible: false, entities: [], objects: [] };
+    const none = {
+      terrain: null,
+      remembered: false,
+      visible: false,
+      entities: [],
+      objects: [],
+      trap: null,
+    };
     expect(q.describe({ x: -1, y: 0 })).toEqual(none);
     expect(q.describe({ x: 0, y: 99 })).toEqual(none);
   });
@@ -29,6 +36,7 @@ describe('describe', () => {
       visible: false,
       entities: [],
       objects: [],
+      trap: null,
     });
   });
 
@@ -48,6 +56,7 @@ describe('describe', () => {
       visible: false,
       entities: [],
       objects: [],
+      trap: null,
     });
   });
 

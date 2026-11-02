@@ -113,6 +113,7 @@ function setup(seed: number, opts: { str?: number; dex?: number; ac?: number } =
     cells,
     lit: cells.map(() => 1),
     rooms: [],
+    traps: [],
     up: null,
     down: null,
   };
