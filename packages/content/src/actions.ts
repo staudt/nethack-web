@@ -19,6 +19,7 @@ import {
   type Pos,
   type TerrainDef,
   rnl,
+  trapAt,
 } from '@nh/core';
 import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir } from './hackmove';
@@ -30,6 +31,16 @@ import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { T } from './terrain';
 import { luckOf } from './luck';
+import {
+  findTrapAt,
+  intoTrap,
+  plunge,
+  seenHoleHere,
+  spotTrap,
+  trapToConfirm,
+  trapmove,
+} from './trap';
+import { isMtrapped, setMtrapped } from './trapstate';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -76,8 +87,8 @@ export function isSafemon(ctx: Ctx, mon: Entity): boolean {
 }
 
 /**
- * The hero and the pet (or peaceful monster) trade squares, unless it can't fit.
- * ref: src/hack.c domove_swap_with_pet() (no boulders, pits or traps yet)
+ * The hero and the pet (or peaceful monster) trade squares, unless it can't fit or a trap is
+ * in the way. ref: src/hack.c domove_swap_with_pet() (no boulders or pits yet)
  */
 function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): number {
   const tame = (mon.c.monster?.tame ?? 0) > 0;
@@ -104,6 +115,19 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     (def.size === 'large' || def.size === 'huge' || def.size === 'gigantic')
   )
     return stop('dog.wont_fit');
+  // ref: domove_swap_with_pet(): a peaceful monster caught in a trap can't move out of it, and
+  // won't be displaced onto a trapped square
+  const trapped = isMtrapped(ctx, mon.id) ? trapAt(level, to.x, to.y) : undefined;
+  if (!trapped) setMtrapped(ctx, mon.id, false);
+  else {
+    const named = { mon: `@${mon.def}`, trap: `@${trapped.def}` };
+    const key = trapped.seen ? 'dog.cant_move_out' : 'dog.cant_move_out_an';
+    trapped.seen = true; // feeltrap()
+    ctx.emit({ type: 'msg', key, params: named });
+    ctx.interrupt();
+    return 0;
+  }
+  if (trapAt(level, from.x, from.y)) return stop('dog.doesnt_want_swap');
   const mp = mon.c.pos;
   const hp = hero.c.pos;
   if (!mp || !hp) return 0;
@@ -119,6 +143,7 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     params: { mon: `@${mon.def}` },
   });
   lookHere(ctx);
+  spotTrap(ctx);
   return NORMAL_SPEED;
 }
 
@@ -261,9 +286,6 @@ const move: ActionDef = {
         ctx.interrupt();
         return NORMAL_SPEED;
       }
-      // test_move() still applies: no swapping diagonally through a doorway
-      const step = checkStep(level, cellRules(level, ctx.defs), from, dir);
-      if (step.ok) return swapWithPet(ctx, vmon, from, to, dir);
     } else if (victim !== null) {
       // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
       if (needsAttackConfirm(ctx, victim)) {
@@ -272,47 +294,97 @@ const move: ActionDef = {
       }
       return heroAttack(ctx, victim);
     }
-    const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
-    if (check.ok) {
-      // ref: src/hack.c domove()
-      pos.x = to.x;
-      pos.y = to.y;
-      ctx.emit({ type: 'moved', id: player.id, from, to });
-      lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
-      return NORMAL_SPEED;
-    }
-    switch (check.reason) {
-      case 'closedDoor': {
-        // ref: src/hack.c test_move() flags.autoopen -> src/lock.c doopen_indir()
-        openDoorAt(ctx, level, to);
-        ctx.emit({ type: 'doorOpened', pos: to });
-        ctx.emit({ type: 'msg', key: 'door.opens' });
-        return NORMAL_SPEED;
-      }
-      case 'lockedDoor': {
-        // ref: src/hack.c test_move() closed_door(): locked, so no time passes
-        ctx.emit({ type: 'msg', key: 'door.locked' });
-        return 0;
-      }
-      case 'blocked':
-      case 'diagonalDoor': {
-        // ref: src/hack.c domove() context.move = 0; nothing is printed without mention_walls
-        const id = level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
-        if (id !== undefined) ctx.emit({ type: 'blocked', pos: to, terrain: id });
-        return 0;
-      }
-      case 'bounds':
-        return 0;
-    }
+    return walk(ctx, dir, false);
   },
-  // The answer to "Really attack?": yes attacks, anything else costs nothing (context.move = 0).
+  // The answer to "Really attack?" (yes attacks) or "Really step onto that trap?" (yes steps);
+  // anything else costs nothing (context.move = 0).
   answer(ctx, value, raw) {
-    const victim = (raw as { victim?: unknown } | null)?.victim;
-    if (value !== true || typeof victim !== 'number') return 0;
+    const data = raw as { victim?: unknown; trapDir?: unknown } | null;
+    if (value !== true) return 0;
+    const trapDir = DIR_LIST.find((d) => d === data?.trapDir);
+    if (trapDir) return walk(ctx, trapDir, true);
+    const victim = data?.victim;
+    if (typeof victim !== 'number') return 0;
     if (!ctx.state.entities[String(victim)]?.c.monster) return 0;
     return heroAttack(ctx, victim);
   },
 };
+
+/**
+ * The hero steps in direction `dir` (no attack): the confirmation for a seen trap, escaping a
+ * bear trap, swapping with a pet, then test_move(). `confirmed` is set once "Really step onto
+ * that bear trap?" was answered yes. ref: src/hack.c domove_core() avoid_trap_andor_region(),
+ * trapmove(), test_move(), spoteffects()
+ */
+function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
+  const player = getPlayer(ctx.state);
+  const pos = player.c.pos;
+  if (!pos) throw new Error('Player has no position');
+  const level = getLevel(ctx.state, pos.level);
+  const from = { x: pos.x, y: pos.y };
+  const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
+  const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
+  if (!confirmed && check.ok) {
+    // ref: avoid_trap_andor_region(): paranoid_confirm:trap is on by default
+    const t = trapToConfirm(ctx, to);
+    if (t) {
+      ctx.ask(
+        {
+          id: 'trap-confirm',
+          kind: 'yn',
+          key: intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto',
+          params: { trap: `@${t.def}` },
+          cancellable: true,
+        },
+        'nh:move',
+        { trapDir: dir },
+      );
+      ctx.interrupt(); // nomul(0)
+      return 0;
+    }
+  }
+  // ref: domove_core(): `if (u.utrap) { if (!trapmove(x, y, NULL)) return; }` -- the move is spent
+  if (!trapmove(ctx, dir)) {
+    ctx.interrupt();
+    return NORMAL_SPEED;
+  }
+  const victim = monsterIdAt(ctx, to, pos.level);
+  const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
+  // test_move() still applies: no swapping diagonally through a doorway
+  if (vmon && isSafemon(ctx, vmon) && check.ok) return swapWithPet(ctx, vmon, from, to, dir);
+  if (check.ok) {
+    // ref: src/hack.c domove()
+    pos.x = to.x;
+    pos.y = to.y;
+    ctx.emit({ type: 'moved', id: player.id, from, to });
+    lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
+    spotTrap(ctx); // ref: spoteffects() -> dotrap()
+    return NORMAL_SPEED;
+  }
+  switch (check.reason) {
+    case 'closedDoor': {
+      // ref: src/hack.c test_move() flags.autoopen -> src/lock.c doopen_indir()
+      openDoorAt(ctx, level, to);
+      ctx.emit({ type: 'doorOpened', pos: to });
+      ctx.emit({ type: 'msg', key: 'door.opens' });
+      return NORMAL_SPEED;
+    }
+    case 'lockedDoor': {
+      // ref: src/hack.c test_move() closed_door(): locked, so no time passes
+      ctx.emit({ type: 'msg', key: 'door.locked' });
+      return 0;
+    }
+    case 'blocked':
+    case 'diagonalDoor': {
+      // ref: src/hack.c domove() context.move = 0; nothing is printed without mention_walls
+      const id = level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
+      if (id !== undefined) ctx.emit({ type: 'blocked', pos: to, terrain: id });
+      return 0;
+    }
+    case 'bounds':
+      return 0;
+  }
+}
 
 const wait: ActionDef = {
   id: 'nh:wait',
@@ -348,7 +420,7 @@ const search: ActionDef = {
     target.kind === 'self' ? [{ action: { type: 'search' }, labelKey: 'action.search' }] : [],
   perform(ctx) {
     // ref: src/detect.c dosearch0(): x outer, y inner over the 3x3 around the hero. Hidden monsters
-    // and traps are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
+    // are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
     const here = playerAt(ctx);
     const level = getLevel(ctx.state);
     ctx.emit({ type: 'searched' });
@@ -366,6 +438,9 @@ const search: ActionDef = {
           if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
           setTerrain(level, x, y, T.corr);
           ctx.emit({ type: 'msg', key: 'search.found_passage' });
+        } else {
+          // ref: dosearch0(): `(trap = t_at(x, y)) && !trap->tseen && !rnl(8)` -> find_trap()
+          findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state)));
         }
       }
     }
@@ -379,10 +454,13 @@ const down: ActionDef = {
   labelKey: 'action.down',
   handles: 'mod',
   offer: (ctx, target) =>
-    target.kind === 'self' && terrainUnderHero(ctx).stairs === 'down'
+    target.kind === 'self' && (terrainUnderHero(ctx).stairs === 'down' || seenHoleHere(ctx))
       ? [{ action: { type: 'mod', action: 'nh:down' }, labelKey: 'action.down' }]
       : [],
   perform(ctx) {
+    // ref: dodown(): on a seen trap door or hole, `uescaped_shaft()` -> dotrap(TOOKPLUNGE)
+    const hole = terrainUnderHero(ctx).stairs === 'down' ? null : seenHoleHere(ctx);
+    if (hole) return plunge(ctx, hole);
     if (terrainUnderHero(ctx).stairs !== 'down') {
       ctx.emit({ type: 'msg', key: 'stairs.cant_down' });
       return 0;

@@ -9,6 +9,7 @@ import {
   inBounds,
   isVisible,
   itemsAt,
+  trapAt,
   type Ctx,
   type Entity,
   type EntityId,
@@ -34,6 +35,7 @@ import { M_ATTK, mattackm, mondied } from './mhitm';
 import { fleeTime, halveFleeTime, isFleeing } from './monflee';
 import { canCarry, minvent, relobj } from './mongear';
 import { MTSZ, clearPath, dist2, getTrack, mfndpos, trackAdd, type Candidate } from './monmove';
+import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
@@ -469,7 +471,7 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     const appr = dogGoal(ctx, mon, e, udist, whappr, goal);
     if (appr === -2) return 'nothing';
     const rules = cellRules(level, ctx.defs);
-    const cands = mfndpos(ctx, level, rules, id, hp, { allowM: true });
+    const cands = mfndpos(ctx, level, rules, id, hp, { allowM: true, allowTraps: true });
     const cnt = cands.length;
     const cursedAt = (x: number, y: number): boolean =>
       itemsAt(ctx.defs, ctx.state, pos.level, x, y).some((o) => o.c.item?.buc === 'cursed');
@@ -509,6 +511,12 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
           if (back & M_ATTK.DEF_DIED) return 'died';
         }
         return 'done';
+      }
+      // ref: dog_move(): "Dog avoids harmful traps, but perhaps it has to pass one in order to
+      // follow player." It avoids only traps the hero has seen, and 1 time in 40 steps on anyway.
+      if (c.trap) {
+        const trap = trapAt(level, nx, ny);
+        if (trap?.seen && ctx.rng.rn2(40) !== 0) continue;
       }
       // the dog eschews cursed objects, but likes dog food
       let food: Entity | null = null;
@@ -575,6 +583,8 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     }
     trackAdd(ctx, id, omx, omy);
     if (doEat && dogEat(ctx, id, doEat, from, false) === 'died') return 'died';
+    // ref: m_move() postmov: mintrap() for the pet's new square
+    if (trapRemovedMon(mintrap(ctx, id))) return 'died';
   }
   return 'moved';
 }

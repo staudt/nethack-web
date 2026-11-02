@@ -253,7 +253,8 @@ function slotFits(def: ObjectDef, slot: EquipSlot): boolean {
 }
 
 /**
- * Carriers and equipment: a carried item's carrier is the hero or a monster standing on a level,
+ * Carriers and equipment: a carried item's carrier is the hero or a monster standing on a level
+ * (or migrating, with no position),
  * every equipped item is carried, a carrier has at most one wielded weapon and one piece of armor
  * per slot (and the slot matches the item's def), and the hero's items have valid letters.
  * Weight conservation is not checked: weights are derived from the items, never stored, so there
@@ -267,8 +268,9 @@ function checkEquipment(state: GameState, registry: Registry, errs: string[]): v
     if (!e || !item || item.carriedBy === null) continue;
     const carrier = state.entities[String(item.carriedBy)];
     if (carrier && item.carriedBy !== state.playerId) {
+      // a monster without a position is migrating (it fell to a level not visited yet)
       const p = carrier.c.pos;
-      if (!p || !state.levels[p.level])
+      if (p ? !state.levels[p.level] : !carrier.c.monster)
         errs.push(`item ${id}: carrier ${item.carriedBy} is not on a level`);
     }
     if (item.carriedBy === state.playerId) {

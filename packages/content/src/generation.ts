@@ -144,6 +144,27 @@ function goodpos(
 }
 
 /**
+ * A random free square on `level` for a monster arriving there (a migrating monster).
+ * ref: src/teleport.c rloc(): 50 random tries of `rnd(COLNO - 1), rn2(ROWNO)`, then every
+ * candidate square in a shuffled order; null when the level is full.
+ */
+export function rlocPos(ctx: Ctx, level: Level): Pos | null {
+  const rules = cellRules(level, ctx.defs);
+  const taken = occupiedSet(ctx, level);
+  for (let tries = 0; tries < 50; tries++) {
+    const x = ctx.rng.rnd(level.width - 1);
+    const y = ctx.rng.rn2(level.height);
+    if (goodpos(level, rules, taken, x, y)) return { x, y };
+  }
+  const candy: Pos[] = [];
+  for (let x = 0; x < level.width; x++)
+    for (let y = 0; y < level.height; y++)
+      if (goodpos(level, rules, taken, x, y)) candy.push({ x, y });
+  if (candy.length === 0) return null;
+  return candy[ctx.rng.rn2(candy.length)] ?? null;
+}
+
+/**
  * The nearest good square to `from`: rings of increasing Chebyshev radius, each searched in
  * random order. ref: src/teleport.c enexto_core() (collect_coords)
  */

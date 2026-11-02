@@ -16,8 +16,12 @@ import {
   type MonsterDef,
   type Pos,
   type Rng,
+  trapAt,
 } from '@nh/core';
 import { openDoorAt } from './actions';
+import { clearPath } from './clearpath';
+
+export { clearPath };
 import { monsterAttack } from './combat';
 import {
   canCarry,
@@ -35,6 +39,8 @@ import { acurrstr } from './stats';
 import { monNam } from './perception';
 import { isFrozen, isMStunned, setMStunned } from './mstate';
 import { meating, setMeating } from './dog';
+import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
+import { isMtrapped, monKnowsTraps } from './trapstate';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -55,53 +61,6 @@ export function mcalcmove(rng: Rng, speed: number): number {
   mmove -= mmoveAdj;
   if (rng.rn2(NORMAL_SPEED) < mmoveAdj) mmove += NORMAL_SPEED;
   return mmove;
-}
-
-/**
- * Whether the straight (Bresenham) line from (x1,y1) to (x2,y2) is free of opaque cells; the
- * end points themselves are not checked. Out-of-bounds counts as blocked.
- * ref: src/vision.c clear_path() / q1_path..q4_path()
- */
-export function clearPath(
-  level: Level,
-  opaque: readonly boolean[],
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-): boolean {
-  const dx = Math.abs(x2 - x1);
-  const dy = Math.abs(y2 - y1);
-  const sx = Math.sign(x2 - x1);
-  const sy = Math.sign(y2 - y1);
-  let x = x1;
-  let y = y1;
-  const clear = (): boolean =>
-    inBounds(level, x, y) && opaque[level.cells[cellIndex(level, x, y)] ?? 0] !== true;
-  if (dy > dx) {
-    let err = 2 * dx - dy;
-    for (let k = dy - 1; k > 0; k--) {
-      if (err >= 0) {
-        x += sx;
-        err -= 2 * dy;
-      }
-      y += sy;
-      err += 2 * dx;
-      if (!clear()) return false;
-    }
-  } else {
-    let err = 2 * dy - dx;
-    for (let k = dx - 1; k > 0; k--) {
-      if (err >= 0) {
-        y += sy;
-        err -= 2 * dx;
-      }
-      x += sx;
-      err += 2 * dy;
-      if (!clear()) return false;
-    }
-  }
-  return true;
 }
 
 /** ref: include/mondata.h verysmall(): msize < MZ_SMALL */
@@ -174,6 +133,8 @@ export interface Candidate {
   hero: boolean;
   /** The monster on the square (only with `allowM`: ALLOW_M). */
   mon?: EntityId;
+  /** A trap that can hurt the monster is there (ALLOW_TRAPS). */
+  trap?: true;
 }
 
 /**
@@ -181,8 +142,9 @@ export interface Candidate {
  * ref: src/mon.c mfndpos() with mon_allowflags(): hostile monsters may "move" onto the hero
  * (ALLOW_U), monsters that can open doors may enter closed doors (OPENDOOR). Walls, other
  * monsters, intact-door diagonals, any diagonal for a grid bug (NODIAG) and tight squeezes for big
- * monsters are rejected. Not ported: water/lava, traps, boulders, scary squares, long worms,
- * digging, wall-walking.
+ * monsters are rejected. A monster avoids a harmful trap of a kind it knows unless `allowTraps`
+ * (pets, which decide in dog_move()); a harmful trap is marked `trap`. Not ported: water/lava,
+ * boulders, scary squares, long worms, digging, wall-walking.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -190,9 +152,9 @@ export function mfndpos(
   rules: CellRules,
   id: EntityId,
   heroPos: Pos,
-  opts: { allowM?: boolean } = {},
+  opts: { allowM?: boolean; allowTraps?: boolean } = {},
 ): Candidate[] {
-  const { m, pos, def } = monCount(ctx, id);
+  const { e, m, pos, def } = monCount(ctx, id);
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
   const taken = new Map<number, EntityId>();
   for (const [key, ent] of Object.entries(ctx.state.entities)) {
@@ -230,11 +192,20 @@ export function mfndpos(
       }
       // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big)
       if (diagonal && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
+      // ref: mfndpos(): "The monster avoids a particular type of trap if it's familiar with the
+      // trap type"; harmless traps are neither avoided nor marked
+      const ttmp = trapAt(level, nx, ny);
+      let harmful = false;
+      if (ttmp && !mHarmlessTrap(ctx, e, ttmp)) {
+        if (!opts.allowTraps && monKnowsTraps(ctx, id, ttmp.def)) continue;
+        harmful = true;
+      }
       out.push({
         x: nx,
         y: ny,
         hero: isHero,
         ...(occupant !== undefined ? { mon: occupant } : {}),
+        ...(harmful ? { trap: true as const } : {}),
       });
     }
   }
@@ -266,8 +237,11 @@ export function trackAdd(ctx: Ctx, id: EntityId, x: number, y: number): void {
   md['nh'] = root;
 }
 
-/** MMOVE_MOVED, MMOVE_NOTHING (may still attack) and MMOVE_DONE (picked something up) */
-type MoveStatus = 'moved' | 'nothing' | 'done';
+/**
+ * MMOVE_MOVED, MMOVE_NOTHING (may still attack), MMOVE_DONE (picked something up) and
+ * MMOVE_DIED (died or left the level in a trap)
+ */
+type MoveStatus = 'moved' | 'nothing' | 'done' | 'died';
 
 /** ref: include/hacklib.h distmin() */
 const distmin = (x0: number, y0: number, x1: number, y1: number): number =>
@@ -433,6 +407,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
 
+  // ref: postmov(): `trapret = mintrap(mtmp)`; killed or moved off the level is MMOVE_DIED
+  if (trapRemovedMon(mintrap(ctx, id))) return 'died';
+
   // ref: postmov(): open a closed door the monster just stepped onto
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
   if (rules.closedDoor[here]) {
@@ -509,32 +486,39 @@ export function dochug(
 
   let status: MoveStatus = 'nothing';
   if (!nearby || fleeing || (isWanderer(def) && ctx.rng.rn2(4) === 0) || m.peaceful) {
-    // ref: m_move(): a monster in the middle of a meal keeps eating (MMOVE_DONE)
-    const meal = meating(ctx, id);
-    if (meal) {
-      setMeating(ctx, id, meal - 1);
-      return;
-    }
-    // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
-    // pets are peaceful, so they never go on to attack the hero
-    if ((m.tame ?? 0) > 0) {
-      petMove(ctx, id);
-      return;
-    }
-    status = mMove(ctx, id, heroPos);
-    if (status === 'moved') {
-      // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
-      // is still not next to the hero uses its ranged attack
-      const np = ctx.state.entities[String(id)]?.c.pos;
-      if (
-        np &&
-        def.attacks.some((a) => a.at === 'weapon') &&
-        !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
-        dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM &&
-        !m.peaceful
-      )
-        mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
-      return;
+    // ref: m_move(): a trapped monster tries to get free first; still caught, it does not move
+    // (but may attack)
+    const caught = isMtrapped(ctx, id) ? mintrap(ctx, id) : 'finished';
+    if (trapRemovedMon(caught)) return;
+    if (caught !== 'caught') {
+      // ref: m_move(): a monster in the middle of a meal keeps eating (MMOVE_DONE)
+      const meal = meating(ctx, id);
+      if (meal) {
+        setMeating(ctx, id, meal - 1);
+        return;
+      }
+      // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
+      // pets are peaceful, so they never go on to attack the hero
+      if ((m.tame ?? 0) > 0) {
+        petMove(ctx, id);
+        return;
+      }
+      status = mMove(ctx, id, heroPos);
+      if (status === 'died') return;
+      if (status === 'moved') {
+        // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
+        // is still not next to the hero uses its ranged attack
+        const np = ctx.state.entities[String(id)]?.c.pos;
+        if (
+          np &&
+          def.attacks.some((a) => a.at === 'weapon') &&
+          !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
+          dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM &&
+          !m.peaceful
+        )
+          mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
+        return;
+      }
     }
   }
   // MMOVE_DONE (picked something up) means no attack this move

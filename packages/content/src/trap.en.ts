@@ -1,0 +1,112 @@
+// English text for traps. ref: src/trap.c dotrap(), trapeffect_*(), fall_through(), thitm(),
+// src/mthrowu.c thitu(), src/hack.c trapmove(), avoid_trap_andor_region(),
+// domove_swap_with_pet(), src/detect.c find_trap(), src/pager.c doidtrap(),
+// src/teleport.c mlevel_tele_trap(), src/dog.c keepdogs(), src/dokick.c dokick()
+export const trapMessagesEn: Record<string, string> = {
+  // trap names (TrapDef.nameKey = the def id). ref: include/defsym.h
+  'nh:arrow_trap': 'arrow trap',
+  'nh:dart_trap': 'dart trap',
+  'nh:falling_rock_trap': 'falling rock trap',
+  'nh:squeaky_board': 'squeaky board',
+  'nh:bear_trap': 'bear trap',
+  'nh:sleeping_gas_trap': 'sleeping gas trap',
+  'nh:rust_trap': 'rust trap',
+  'nh:trap_door': 'trap door',
+  'nh:hole': 'hole',
+
+  'trap.escape': 'You escape {trap|an}.',
+  'trap.found': 'You find {trap|an}.',
+  'trap.that_is': 'That is {trap|an}.',
+  'trap.cant_see': "I can't see a trap there.",
+  'trap.confirm_onto': 'Really step onto that {trap}?',
+  'trap.confirm_into': 'Really step into that {trap}?',
+  'action.nh:idtrap': 'Identify the {trap}',
+
+  // arrows, darts, rocks
+  'trap.arrow.click': 'You hear a loud click!',
+  'trap.arrow.shoots': 'An arrow shoots out at you!',
+  'trap.dart.click': 'You hear a soft click.',
+  'trap.dart.shoots': 'A little dart shoots out at you!',
+  'trap.dart.poisoned': 'The dart was poisoned!',
+  'trap.missile.arrow': 'arrow',
+  'trap.missile.little_dart': 'little dart',
+  'trap.thitu.miss': '{obj|An} misses you.',
+  'trap.thitu.almost': 'You are almost hit by {obj|an}.',
+  'trap.thitu.hit': 'You are hit by {obj|an}{ex}',
+  'trap.mon_nothing': '{mon|The} triggers a trap but nothing happens.',
+  'trap.thitm.almost': '{mon|The} is almost hit by {obj|an}!',
+  'trap.thitm.hit': '{mon|The} is hit by {obj|an}!',
+  'trap.rock.nothing': 'A trap door in the ceiling opens, but nothing falls out!',
+  'trap.rock.mon_nothing': 'A trap door above {mon|the} opens, but nothing falls out!',
+  'trap.rock.falls': 'A trap door in the ceiling opens and {obj|an} falls on your head!',
+  'trap.rock.hard_helmet': 'Fortunately, you are wearing a hard helmet.',
+  'trap.rock.no_protect': 'Your {obj} does not protect you.',
+
+  // squeaky board. ref: trapnote() with just_an()
+  'trap.squeak.you': 'A board beneath you squeaks {note} loudly.',
+  'trap.squeak.mon': 'A board beneath {mon|the} squeaks {note} loudly.',
+  'trap.squeak.hear_near': 'You hear {note} squeak nearby.',
+  'trap.squeak.hear_far': 'You hear {note} squeak in the distance.',
+  'trap.note.0': 'a C note',
+  'trap.note.1': 'a D flat',
+  'trap.note.2': 'a D note',
+  'trap.note.3': 'an E flat',
+  'trap.note.4': 'an E note',
+  'trap.note.5': 'an F note',
+  'trap.note.6': 'an F sharp',
+  'trap.note.7': 'a G note',
+  'trap.note.8': 'a G sharp',
+  'trap.note.9': 'an A note',
+  'trap.note.10': 'a B flat',
+  'trap.note.11': 'a B note',
+
+  // bear trap
+  'trap.bear.closes': 'A bear trap closes on your foot!',
+  'trap.bear.protects': 'Your {obj} protects your leg.',
+  'trap.bear.mon_caught': '{mon|The} is caught in a bear trap!',
+  'trap.bear.caught': 'You are caught in a bear trap.',
+  'trap.bear.free': 'You finally wriggle free.',
+  'trap.mon_pulls_free': '{mon|The} pulls free of the {trap}.',
+
+  // sleeping gas
+  'trap.gas.enveloped': 'You are enveloped in a cloud of gas!',
+  'trap.gas.sleep': 'A cloud of gas puts you to sleep!',
+  'trap.gas.mon_sleeps': '{mon|The} suddenly falls asleep!',
+
+  // rust trap
+  'trap.rust.head': 'A gush of water hits you on the head!',
+  'trap.rust.left_arm': 'A gush of water hits your left arm!',
+  'trap.rust.right_arm': 'A gush of water hits your right arm!',
+  'trap.rust.body': 'A gush of water hits you!',
+  'trap.rust.mon_head': 'A gush of water hits {mon|the} on the {part}!',
+  'trap.rust.mon_left_arm': 'A gush of water hits {mon|the_s} left {part}!',
+  'trap.rust.mon_right_arm': 'A gush of water hits {mon|the_s} right {part}!',
+  'trap.rust.mon_body': 'A gush of water hits {mon|the}!',
+  'trap.part.head': 'head',
+  'trap.part.arm': 'arm',
+  'trap.part.forelimb': 'forelimb',
+
+  // trap doors and holes
+  'trap.door.opens': 'A trap door opens up under you!',
+  'trap.hole.gaping': "There's a gaping hole under you!",
+  'trap.dont_fall': "You don't fall in.",
+  'trap.shaft': 'You fall down a shaft!',
+  'trap.shaft_deep': 'You fall down a deep shaft!',
+  'trap.shaft_very_deep': 'You fall down a very deep shaft!',
+  'trap.mon_falls_door': 'Suddenly, {mon|the} falls through a trap door.',
+  'trap.mon_falls_hole': 'Suddenly, {mon|the} falls into a hole.',
+
+  // causes of death
+  'killer.trap.arrow': 'an arrow',
+  'killer.trap.little_dart': 'a little dart',
+  'killer.trap.falling_rock': 'a falling rock',
+  'killer.trap.bear_trap': 'a bear trap',
+  'killer.trap.mine_shaft': 'falling down a mine shaft',
+
+  // elsewhere
+  'dog.cant_move_out': "You stop.  Your {mon} can't move out of that {trap}.",
+  'dog.cant_move_out_an': "You stop.  Your {mon} can't move out of {trap|an}.",
+  'dog.doesnt_want_swap': "You stop.  Your {mon} doesn't want to swap places.",
+  'dog.still_trapped': 'The {mon} is still trapped.',
+  'kick.cant_move_leg': "You can't move your leg!",
+};

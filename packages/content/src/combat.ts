@@ -23,7 +23,6 @@ import { stopOccupation } from './eat';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { weight } from './items';
-import { greatestErosion } from './material';
 import { heroSees, monWep, monWieldItem } from './mongear';
 import { findAc, findMac, nearCapacity } from './stats';
 import {
@@ -40,6 +39,11 @@ import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon } from './perception';
 import { isFrozen, isMStunned } from './mstate';
+import { isMtrapped, utrap } from './trapstate';
+import { isBig, nonliving } from './mondata';
+import { dmgval, dmgvalSized } from './dmgval';
+
+export { isBig, nonliving, dmgval, dmgvalSized };
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -77,11 +81,6 @@ export function dbon(str: number): number {
 /** ref: include/hack.h AC_VALUE(): a negative AC is randomized to -rnd(-AC). */
 export function acValue(rng: Rng, ac: number): number {
   return ac >= 0 ? ac : -rng.rnd(-ac);
-}
-
-/** ref: include/mondata.h bigmonst(): MZ_LARGE and bigger. */
-export function isBig(def: MonsterDef): boolean {
-  return def.size === 'large' || def.size === 'huge' || def.size === 'gigantic';
 }
 
 /** ref: src/weapon.c kebabable[]: S_XORN, S_DRAGON, S_JABBERWOCK, S_NAGA, S_GIANT (by glyph letter). */
@@ -124,8 +123,8 @@ export interface HeroCombatStats {
 /**
  * The hero's to-hit number: a hit needs `tmp > rnd(20)`.
  * ref: src/uhitm.c find_roll_to_hit(): Luck adds `sgn(Luck) * ((|Luck| + 2) / 3)`; +2 against a
- * stunned or sleeping target, +4 against one that can't move. No rings (u.uhitinc), no traps;
- * the caller adds the +2 against a fleeing one. `def.ac` should be the defender's find_mac(); pass `mac` to override
+ * stunned or sleeping target, +4 against one that can't move. No rings (u.uhitinc); the caller
+ * adds the +2 against a fleeing one and the -3 for a hero caught in a trap. `def.ac` should be the defender's find_mac(); pass `mac` to override
  * (monsters wearing armor). Encumbrance subtracts (2 * level - 1).
  */
 export function heroToHit(
@@ -154,50 +153,6 @@ export function heroToHit(
   return tmp;
 }
 
-/**
- * Extra damage some weapons do beyond their die: [small, large] dice or constants.
- * ref: src/weapon.c dmgval() switch (otyp), for the weapons in our subset.
- */
-function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
-  switch (id) {
-    case 'nh:mace': // d6+1 vs small
-      return big ? 0 : 1;
-    case 'nh:dwarvish_mattock': // d12 + 2d6 vs large
-      return big ? rng.d(2, 6) : 0;
-    default:
-      return 0;
-  }
-}
-
-/**
- * ref: src/weapon.c dmgval(): the weapon die by target size, the per-type extra, plus
- * enchantment, never below 0, less the greatest erosion (at least 1). Not ported: silver/blessed
- * bonuses, artifacts.
- */
-export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
-  return dmgvalSized(rng, item, def, isBig(mon));
-}
-
-/** dmgval() against a target whose size class is already known (the hero is not big). */
-export function dmgvalSized(rng: Rng, item: Entity, def: ObjectDef, big: boolean): number {
-  const w = def.weapon;
-  let tmp = 0;
-  if (w) {
-    const dice = big ? w.large : w.small;
-    // rnd(oc_wsdam) / rnd(oc_wldam): the data stores them as [1, sides]
-    tmp = rng.d(dice[0], dice[1]);
-    tmp += dmgvalExtra(rng, def.id, big);
-    tmp += item.c.item?.spe ?? 0;
-    if (tmp < 0) tmp = 0;
-  }
-  // "always subtract erosion even for blunt weapons"
-  if (tmp > 0) {
-    tmp -= greatestErosion(item);
-    if (tmp < 1) tmp = 1;
-  }
-  return tmp;
-}
-
 /** ref: src/zap.c exclam() */
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
 
@@ -212,11 +167,6 @@ const monsterAt = (ctx: Ctx, pos: Pos, level: string): EntityId | null => {
 
 /** The monster entity at `pos` on `level`, if any (attacks do not need to see it). */
 export const monsterIdAt = monsterAt;
-
-/** ref: include/mondata.h nonliving(): undead and manes (our data has no other cases). */
-export function nonliving(def: MonsterDef): boolean {
-  return def.flags.includes('undead') || def.id === 'nh:manes';
-}
 
 /**
  * The hero attacks the monster entity `targetId`; returns the energy cost.
@@ -270,7 +220,9 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
       { asleep: mon.asleep, stunned: isMStunned(ctx, targetId), frozen: isFrozen(ctx, targetId) },
       weapon,
       findMac(ctx.state, ctx.defs, targetId),
-    ) + (isFleeing(ctx, targetId) ? 2 : 0);
+    ) +
+    (isFleeing(ctx, targetId) ? 2 : 0) -
+    (utrap(ctx) ? 3 : 0); // ref: find_roll_to_hit(): `if (u.utrap) tmp -= 3`
   const dieroll = ctx.rng.rnd(20);
   if (!(tmp > dieroll)) {
     // ref: src/uhitm.c missum(): "You miss <mon>." then wakeup(mdef, TRUE)
@@ -362,17 +314,19 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
 /**
  * Monster to-hit: `tmp > rnd(20 + i)` for attack index i.
  * ref: src/mhitu.c mattacku(): tmp = AC_VALUE(u.uac) + 10; tmp += m_lev; if (tmp <= 0) tmp = 1.
- * (Hero not helpless, not invisible, monster can see and is not trapped.)
+ * (Hero not invisible, monster can see; a trapped monster has -2.)
  */
 export function monsterToHit(
   rng: Rng,
   heroAc: number,
   monLevel: number,
   heroHelpless = false,
+  monTrapped = false,
 ): number {
   let tmp = acValue(rng, heroAc) + 10;
   tmp += monLevel;
   if (heroHelpless) tmp += 4; // multi < 0
+  if (monTrapped) tmp -= 2; // mtmp->mtrapped
   if (tmp <= 0) tmp = 1;
   return tmp;
 }
@@ -445,7 +399,13 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     return;
   }
   const ac = findAc(ctx.state, ctx.defs, hero.id);
-  const tmp = monsterToHit(ctx.rng, ac, m.level, hero.c.helpless !== undefined);
+  const tmp = monsterToHit(
+    ctx.rng,
+    ac,
+    m.level,
+    hero.c.helpless !== undefined,
+    isMtrapped(ctx, monId),
+  );
 
   let prevHit = -1; // index of the previous attack if it hit (ref: hitmsg_prev)
   for (let i = 0; i < def.attacks.length; i++) {

@@ -14,6 +14,7 @@ import {
   type PromptOption,
   type Pos,
   type TerrainDef,
+  trapAt,
 } from '@nh/core';
 import { monsterIdAt } from './combat';
 import {
@@ -66,8 +67,8 @@ const obstructed = (t: TerrainDef): boolean => !t.passable && t.door === undefin
 /**
  * Stop running if we see something interesting next to us, and turn around a corner if that is the
  * only way to proceed (never turning more than twice the same way). Returns true to stop.
- * Ported: monsters, closed doors, corridors, other features. Not ported: traps, water and lava,
- * Blind, grid bugs, mimics (none exist yet).
+ * Ported: monsters, seen traps, closed doors, corridors, other features. Not ported: water and
+ * lava, Blind, grid bugs, mimics (none exist yet).
  * ref: src/hack.c lookaround()
  */
 function lookaround(ctx: Ctx, s: Session, run: number): boolean {
@@ -99,8 +100,15 @@ function lookaround(ctx: Ctx, s: Session, run: number): boolean {
       if (t.id === 'nh:stone') continue; // stone is never interesting
       if (x === ux - s.dx && y === uy - s.dy) continue; // the square we are moving away from
       let corridor: boolean;
-      if (obstructed(t) || t.id === 'nh:floor') continue; // more uninteresting terrain
-      if (t.door === 'closed' || t.door === 'locked') {
+      // ref: lookaround(): "stop for traps, sometimes" (avoid_moving_on_trap())
+      const trap = trapAt(level, x, y);
+      const knownTrap = trap?.seen === true;
+      if (knownTrap && run !== 1 && infront) return true;
+      if (knownTrap && run === 1) {
+        corridor = true; // goto bcorr: "if you must"
+      } else if (obstructed(t) || t.id === 'nh:floor') {
+        continue; // more uninteresting terrain
+      } else if (t.door === 'closed' || t.door === 'locked') {
         if (x !== ux && y !== uy) continue; // ignore if diagonal
         if (run !== 1) return true; // "You stop in front of the door."
         corridor = true; // orthogonal to a closed door, consider it a corridor

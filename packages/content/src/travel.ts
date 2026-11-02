@@ -17,6 +17,7 @@ import {
   type Level,
   type PlayerAction,
   type Pos,
+  trapAt,
 } from '@nh/core';
 
 export function heroPos(ctx: Ctx): Pos {
@@ -186,9 +187,15 @@ function travelMatrix(
   from: Pos,
   guess: boolean,
   stopAt: Pos,
+  hero: Pos,
 ): { travel: Int32Array; step: Pos | null } {
   const { width } = level;
   const rules = cellRules(known, ctx.defs);
+  // ref: test_move() with context.run == 8: a seen trap is never entered (TEST_TRAV) and, like a
+  // closed door, delays the search (TEST_TRAP); the hero's own square is exempt
+  const traps = seenTraps(level);
+  const trapAhead = (nx: number, ny: number): boolean =>
+    traps.has(ny * width + nx) && !(nx === hero.x && ny === hero.y);
   const memory = ctx.state.memory[level.id];
   const travel = new Int32Array(width * level.height);
   let cur: number[] = [from.y * width + from.x];
@@ -205,14 +212,16 @@ function travelMatrix(
         if (!inBounds(level, nx, ny)) continue;
         const ni = ny * width + nx;
         if (guess && see[ni] !== 1) continue;
-        // closed doors cause a delay, so prefer another path
-        if (rules.closedDoor[known.cells[ci] ?? 0] && (travel[ci] ?? 0) > radius - 3) {
+        // closed doors (and known traps) cause a delay, so prefer another path
+        const trapped = trapAhead(nx, ny);
+        if ((rules.closedDoor[known.cells[ci] ?? 0] || trapped) && (travel[ci] ?? 0) > radius - 3) {
           if (!repeated) {
             next.push(ci);
             repeated = true;
           }
           continue;
         }
+        if (trapped) continue; // "do not move through traps"
         const chk = checkStep(known, rules, { x, y }, d);
         if (!chk.ok && chk.reason !== 'closedDoor') continue;
         if ((memory?.[ni] ?? -1) < 0 && see[ni] !== 1) continue; // levl.seenv || couldsee
@@ -239,7 +248,7 @@ export function guessPoint(ctx: Ctx, here: Pos, target: Pos): Pos {
   const level = getLevel(ctx.state);
   const known = knownLevel(ctx, level);
   const see = couldSee(ctx, level, here);
-  const { travel } = travelMatrix(ctx, level, known, see, here, true, target);
+  const { travel } = travelMatrix(ctx, level, known, see, here, true, target, here);
   let best = { x: here.x, y: here.y };
   let dist = distmin(target, here);
   let d2 = dist2(target, here);
@@ -275,7 +284,28 @@ function stepToward(ctx: Ctx, here: Pos, goal: Pos): Pos | null {
   const level = getLevel(ctx.state);
   const known = knownLevel(ctx, level);
   const see = couldSee(ctx, level, here);
-  return travelMatrix(ctx, level, known, see, goal, false, here).step;
+  return travelMatrix(ctx, level, known, see, goal, false, here, here).step;
+}
+
+/** Cell indices of the traps the hero has seen on `level`. */
+function seenTraps(level: Level): Set<number> {
+  const out = new Set<number>();
+  for (const t of level.traps) if (t.seen) out.add(t.y * level.width + t.x);
+  return out;
+}
+
+/**
+ * The first step of the remembered path to `target`, avoiding seen traps (the target itself
+ * may be one): core's pathTo() when its path is trap-free, else the travel search, which knows
+ * about traps. null when there is no such path. ref: src/hack.c findtravelpath(TRAVP_TRAVEL)
+ */
+function firstStep(ctx: Ctx, here: Pos, target: Pos): Pos | null {
+  const path = ctx.query.pathTo(target);
+  const first = path?.[0];
+  if (!path || !first) return null;
+  const level = getLevel(ctx.state);
+  const crosses = path.slice(0, -1).some((p) => trapAt(level, p.x, p.y)?.seen === true);
+  return crosses ? stepToward(ctx, here, target) : first;
 }
 
 /**
@@ -285,8 +315,7 @@ function stepToward(ctx: Ctx, here: Pos, goal: Pos): Pos | null {
  * ref: src/hack.c domove_core() findtravelpath(TRAVP_TRAVEL) then findtravelpath(TRAVP_GUESS)
  */
 function nextTravelCell(ctx: Ctx, here: Pos, target: Pos): { cell: Pos; revisit: boolean } | null {
-  const path = ctx.query.pathTo(target);
-  const first = path?.[0];
+  const first = firstStep(ctx, here, target);
   if (first) return { cell: first, revisit: true };
   if (here.x === target.x && here.y === target.y) return null;
   const guess = guessPoint(ctx, here, target);
@@ -306,7 +335,7 @@ function nextTravelCell(ctx: Ctx, here: Pos, target: Pos): { cell: Pos; revisit:
 
 /** The next cell toward a destination fixed earlier: no re-guessing, null when it is unreachable. */
 function nextFixedCell(ctx: Ctx, here: Pos, goal: Pos): { cell: Pos; revisit: boolean } | null {
-  const first = ctx.query.pathTo(goal)?.[0];
+  const first = firstStep(ctx, here, goal);
   if (first) return { cell: first, revisit: true };
   const cell = stepToward(ctx, here, goal);
   return cell ? { cell, revisit: true } : null;
@@ -340,7 +369,7 @@ const travel: ActionDef = {
       // known, else the nearest reachable point; if the hero already is that point, one step
       // toward the tap and no more.
       if (here.x === target.x && here.y === target.y) return 0;
-      if (ctx.query.pathTo(target)?.[0]) {
+      if (firstStep(ctx, here, target)) {
         session.goal = target;
       } else {
         const guess = guessPoint(ctx, here, target);

@@ -16,11 +16,13 @@ import {
   type EntityId,
   type Msg,
 } from '@nh/core';
-import { dmgval, hitval, nonliving } from './combat';
-import { xkilledCorpse } from './corpses';
+import { dmgval, hitval } from './combat';
+import { monkilled, mondied } from './mondeath';
+
+export { monkilled, mondied };
 import { magicNegation } from './mhitu';
-import { forgetMonster, monWep, monWieldItem, relobj } from './mongear';
-import { paralyzeMonst, forgetMState, isFrozen, setMStunned, isMStunned } from './mstate';
+import { monWep, monWieldItem } from './mongear';
+import { paralyzeMonst, isFrozen, setMStunned, isMStunned } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
 import { nhData } from './items';
@@ -77,34 +79,6 @@ function noises(ctx: Ctx, magr: Entity): void {
     d.noise = { far, time: ctx.state.turn };
     say(ctx, far ? 'mhitm.noises_far' : 'mhitm.noises');
   }
-}
-
-/**
- * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
- * the hero sees its square, a sad feeling for an unseen pet; its things drop and a corpse may
- * be left (no treasure drop, no experience). ref: src/mon.c monkilled() -> mondied()
- */
-export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean): void {
-  const mon = ent(ctx, id);
-  if (!mon?.c.monster) return;
-  const def = ctx.defs.monster(mon.def);
-  if (fltxt && canSpotMon(ctx, mon))
-    say(ctx, nonliving(def) ? 'mhitm.is_destroyed' : 'mhitm.is_killed', { mon: monNam(ctx, mon) });
-  else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
-  mondied(ctx, id);
-}
-
-/** ref: src/mon.c mondied(): mondead() and maybe a corpse */
-export function mondied(ctx: Ctx, id: EntityId): void {
-  const mon = ent(ctx, id);
-  if (!mon?.c.monster) return;
-  const def = ctx.defs.monster(mon.def);
-  const at = mon.c.pos ? { ...mon.c.pos } : undefined;
-  relobj(ctx, id, at);
-  forgetMonster(ctx, id);
-  forgetMState(ctx, id);
-  ctx.remove(id);
-  if (at) xkilledCorpse(ctx, def, at);
 }
 
 /**

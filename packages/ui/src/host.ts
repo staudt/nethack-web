@@ -450,6 +450,7 @@ export function createUi(opts: UiOptions): Ui {
 
   const describeLine = (d: Description): string => {
     const names = d.entities.map((e) => t(e.def));
+    if (d.trap !== null) names.push(t(d.trap)); // a trap the hero has seen; its def id is its key
     if (d.terrain !== null) names.push(t(d.terrain));
     const [top] = d.objects;
     if (top) {

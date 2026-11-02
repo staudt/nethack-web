@@ -32,6 +32,7 @@ import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
+import { registerTraps } from './trap';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -65,6 +66,7 @@ export const vanillaMod: Mod = {
     registerPray(api);
     registerKick(api);
     registerMonflee(api);
+    registerTraps(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
     registerHunger(api);
@@ -267,3 +269,16 @@ export { xkilledCorpse, corpseChance, startCorpseTimeout, rnz, ROT_AGE } from '.
 export { KICK_ACTIONS, KICK_ID, setWoundedLegs } from './dokick';
 export { monflee, isFleeing, fleeTime, stopFleeing } from './monflee';
 export { needsAttackConfirm, setmangry, wakeup } from './peaceful';
+export {
+  TRAP,
+  TRAPS,
+  TRAP_ACTIONS,
+  maketrap,
+  holeDestination,
+  dotrap,
+  mintrap,
+  mHarmlessTrap,
+  isHole,
+} from './trap';
+export type { TrapResult } from './trap';
+export { utrap, isMtrapped, monKnowsTraps } from './trapstate';

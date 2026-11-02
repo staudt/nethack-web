@@ -23,6 +23,8 @@ import { frozenTime, forgetMState, isFrozen, paralyzeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
 import { ustuck, setUstuck } from './hackmove';
+import { mintrap } from './trap';
+import { isMtrapped } from './trapstate';
 
 /** ref: include/dog.h dogfood() results, best first */
 export const DOGFOOD = 0;
@@ -427,9 +429,15 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     if (Math.max(Math.abs(p.x - fromPos.x), Math.abs(p.y - fromPos.y)) > 1) continue;
     if (!levlFollower(ctx, mon)) continue;
     if (mon.c.monster.asleep || isFrozen(ctx, id)) continue;
-    if (meating(ctx, id)) {
+    // ref: keepdogs(): a trapped follower tries to escape; still eating or trapped, it stays
+    if (isMtrapped(ctx, id)) mintrap(ctx, id);
+    if (meating(ctx, id) || isMtrapped(ctx, id)) {
       if (canSeeOnLevel(ctx, mon, from))
-        ctx.emit({ type: 'msg', key: 'dog.still_eating', params: { mon: `@${mon.def}` } });
+        ctx.emit({
+          type: 'msg',
+          key: meating(ctx, id) ? 'dog.still_eating' : 'dog.still_trapped',
+          params: { mon: `@${mon.def}` },
+        });
       continue;
     }
     followers.push(mon);

@@ -1,6 +1,8 @@
 // What happens to the world when a monster dies by the hero's hand.
 // ref: src/mon.c xkilled(), mondead(), m_detach()
-import { getPlayer, type Ctx, type EntityId } from '@nh/core';
+import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
+import { nonliving } from './mondata';
+import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse } from './corpses';
 import { placeOnFloor, weight } from './items';
 import { mkobj } from './mkobj';
@@ -49,4 +51,37 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
     }
   }
   xkilledCorpse(ctx, def, at);
+}
+
+const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
+  ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[String(id)];
+
+/**
+ * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
+ * the hero sees its square, a sad feeling for an unseen pet; its things drop and a corpse may
+ * be left (no treasure drop, no experience). ref: src/mon.c monkilled() -> mondied()
+ */
+export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean): void {
+  const mon = ent(ctx, id);
+  if (!mon?.c.monster) return;
+  const def = ctx.defs.monster(mon.def);
+  if (fltxt && canSpotMon(ctx, mon))
+    say(ctx, nonliving(def) ? 'mhitm.is_destroyed' : 'mhitm.is_killed', { mon: monNam(ctx, mon) });
+  else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
+  mondied(ctx, id);
+}
+
+/** ref: src/mon.c mondied(): mondead() and maybe a corpse */
+export function mondied(ctx: Ctx, id: EntityId): void {
+  const mon = ent(ctx, id);
+  if (!mon?.c.monster) return;
+  const def = ctx.defs.monster(mon.def);
+  const at = mon.c.pos ? { ...mon.c.pos } : undefined;
+  relobj(ctx, id, at);
+  forgetMonster(ctx, id);
+  forgetMState(ctx, id);
+  ctx.remove(id);
+  if (at) xkilledCorpse(ctx, def, at);
 }

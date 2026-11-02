@@ -20,7 +20,6 @@ import {
   itemsAt,
   rnl,
   shownId,
-  sortedIds,
   isVisible,
   type ActionDef,
   type Ctx,
@@ -44,14 +43,19 @@ import { getdirImpaired } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { losehp } from './hp';
+import { utrap } from './trapstate';
+import { wakeNearto } from './noise';
+import { setWoundedLegs } from './legs';
+
+export { wakeNearto, setWoundedLegs };
 import { nhData, placeOnFloor, splitStack, weight } from './items';
 import { clearPath } from './monmove';
 import { monsterDied } from './mondeath';
-import { heroSees, whichArmor } from './mongear';
+import { whichArmor } from './mongear';
 import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
-import { P, hasProp, setItimeout, timeoutLeft } from './props';
+import { P, hasProp } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T } from './terrain';
 import { thitmonst } from './dothrow';
@@ -82,31 +86,6 @@ const attr = (ctx: Ctx) => {
 
 // ---------------------------------------------------------------------------------------------
 // small effects
-
-/**
- * Wakes the monsters near a place without angering them.
- * ref: src/mon.c wake_nearto_core(): `dist2 < distance` sets msleeping = 0 (wake_msg() says so)
- */
-function wakeNearto(ctx: Ctx, x: number, y: number, distance: number): void {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const m = e?.c.monster;
-    const p = e?.c.pos;
-    if (!e || !m || !p || p.level !== ctx.state.currentLevel) continue;
-    if ((p.x - x) ** 2 + (p.y - y) ** 2 >= distance) continue;
-    if (m.asleep && heroSees(ctx, p)) say(ctx, 'mon.wakes_up_calm', { mon: monNam(ctx, e) });
-    m.asleep = false;
-  }
-}
-
-/** ref: src/do.c set_wounded_legs(): the right leg, `timex` turns (the Dex penalty is not ported) */
-export function setWoundedLegs(ctx: Ctx, timex: number): void {
-  const h = hero(ctx);
-  if (!hasProp(h, P.WOUNDED_LEGS) || timeoutLeft(ctx.state, h, P.WOUNDED_LEGS) < timex)
-    setItimeout(ctx.state, h, P.WOUNDED_LEGS, timex);
-  (nhData(ctx) as unknown as { legsHurt?: boolean }).legsHurt = true;
-  encumberMsg(ctx); // Wounded_legs reduces carrying capacity
-}
 
 /** ref: src/dokick.c kickstr(): the cause of death */
 const killerFor = (what: string): string => `@killer.kick.${what}`;
@@ -520,7 +499,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
 
 /**
  * The checks at the top of dokick(); false means the hero cannot kick (no time passes).
- * ref: src/dokick.c dokick(): wounded legs, `near_capacity() > SLT_ENCUMBER`
+ * ref: src/dokick.c dokick(): wounded legs, `near_capacity() > SLT_ENCUMBER`, a bear trap
  */
 function canKick(ctx: Ctx): boolean {
   if (hasProp(hero(ctx), P.WOUNDED_LEGS)) {
@@ -529,6 +508,11 @@ function canKick(ctx: Ctx): boolean {
   }
   if (nearCapacity(ctx.state, ctx.defs, ctx.state.playerId) > SLT_ENCUMBER) {
     say(ctx, 'kick.too_heavy');
+    return false;
+  }
+  // ref: dokick(): `u.utrap` TT_BEARTRAP -> "You can't move your leg!"
+  if (utrap(ctx)) {
+    say(ctx, 'kick.cant_move_leg');
     return false;
   }
   return true;
