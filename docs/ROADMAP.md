@@ -18,3 +18,17 @@ It should stay simple: a mod is one module that registers defs. The work, planne
 4. Loading a mod bundle at runtime (an ES module URL), with clear `ModLoadError`s.
 
 Until then, every milestone keeps new core contracts small, data-driven and documented in `ARCHITECTURE.md`. Vanilla stays an ordinary mod with no back doors.
+
+## Deferred content
+
+Left out of a milestone on purpose, to be picked up later. Rule differences they cause are also logged in `DEVIATIONS.md`.
+
+From 5b (objects and traps):
+
+- **Rings:** teleportation, teleport control, polymorph, polymorph control, conflict, levitation, see invisible, invisibility, warning, stealth.
+- **Amulets:** change, unchanging, magical breathing.
+- **Wands:** wishing, digging, teleportation, polymorph, cancellation, make invisible, undead turning, death, enlightenment; breaking (applying) wands.
+- **Tools:** pick-axe and digging, magic lamp (djinni), bag of tricks, horns, musical instruments, #force.
+- **Spells:** casting and spell energy (5b only learns spells from books).
+- **Traps:** the other trap types (pits, webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
+- **Item damage:** `passive_obj` on monster gear, fixing erosion.
