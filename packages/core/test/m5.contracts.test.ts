@@ -57,7 +57,7 @@ const pcMod = (changes: LevelChange[] = []): Mod => ({
       handles: 'mod',
       offer: () => [],
       perform(ctx) {
-        ctx.goToLevel(2, 'up');
+        ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'up');
         return 12;
       },
     });

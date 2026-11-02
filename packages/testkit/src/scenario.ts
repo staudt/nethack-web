@@ -342,6 +342,8 @@ export function runScenario(
     const level: Level = {
       id: old.id,
       depth: old.depth,
+      dungeon: old.dungeon,
+      dlevel: old.dlevel,
       width,
       height,
       palette,

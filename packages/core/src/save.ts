@@ -1,10 +1,10 @@
 import type { ModRef } from './types/common';
 import type { Registry } from './types/mod';
 import type { Replay, SaveFile } from './types/protocol';
-import type { GameState } from './types/state';
+import type { DungeonLayout, GameState } from './types/state';
 
 export const SAVE_FORMAT = 'nh-ts';
-export const SAVE_VERSION = 6 as const;
+export const SAVE_VERSION = 7 as const;
 
 export function serializeSave(state: GameState, replay: Replay): string {
   const file: SaveFile = {
@@ -33,18 +33,29 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
   if (typeof file !== 'object' || file === null || file.format !== SAVE_FORMAT)
     throw new Error(`Not a ${SAVE_FORMAT} save file`);
   // Older saves only lack fields that start empty: v4 added `occupation`, v5 `monsterMemory`,
-  // v6 `Level.traps`.
+  // v6 `Level.traps`. v7 added the dungeon layout: an old game has only the root dungeon (no
+  // branches, no rolled bottom) and all its levels are in it.
   const old = file.version as number | undefined;
-  if ((old === 3 || old === 4 || old === 5) && file.state) {
+  if ((old === 3 || old === 4 || old === 5 || old === 6) && file.state) {
     const st = file.state as {
       occupation?: unknown;
       monsterMemory?: unknown;
-      levels?: Record<string, { traps?: unknown }>;
+      dungeons?: DungeonLayout[];
+      levels?: Record<
+        string,
+        { traps?: unknown; depth: number; dungeon?: string; dlevel?: number }
+      >;
       version: number;
     };
+    const root = registry.dungeons[0];
     st.occupation ??= null;
     st.monsterMemory ??= {};
-    for (const level of Object.values(st.levels ?? {})) level.traps ??= [];
+    if (root) st.dungeons ??= [{ id: root.id, depthStart: 1, levels: null, branches: [] }];
+    for (const level of Object.values(st.levels ?? {})) {
+      level.traps ??= [];
+      if (root) level.dungeon ??= root.id;
+      level.dlevel ??= level.depth;
+    }
     st.version = SAVE_VERSION;
     file.version = SAVE_VERSION;
   }

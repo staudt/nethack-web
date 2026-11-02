@@ -82,7 +82,7 @@ export function mktrap(ctx: Ctx, level: Level, room: Room): void {
   let kind: DefId | null;
   do kind = traptypeRnd(ctx, lvl);
   while (kind === null);
-  if (isHole(kind) && !canFallThru(level.depth)) kind = TRAP.rock;
+  if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   const m = somexyspace(ctx, level, room);
   if (!m) return;
   maketrap(ctx, level.id, m.x, m.y, kind);

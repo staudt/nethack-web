@@ -64,6 +64,8 @@ export function asciiLevel(rows: readonly string[], lit?: readonly string[]): Le
   return {
     id: 'test',
     depth: 1,
+    dungeon: 'core:dungeon',
+    dlevel: 1,
     width,
     height,
     palette: [...palette],

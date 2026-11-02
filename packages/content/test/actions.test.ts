@@ -54,6 +54,8 @@ function setup(rows: string[]): {
   const level: Level = {
     id: 'dlvl1',
     depth: 1,
+    dungeon: 'nh:main',
+    dlevel: 1,
     width,
     height,
     palette,

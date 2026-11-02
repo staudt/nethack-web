@@ -107,6 +107,8 @@ function setup(seed: number, opts: { str?: number; dex?: number; ac?: number } =
   const level: Level = {
     id: 'dlvl1',
     depth: 1,
+    dungeon: 'nh:main',
+    dlevel: 1,
     width,
     height,
     palette,

@@ -186,7 +186,7 @@ describe('player knowledge of traps', () => {
 describe("goToLevel 'random'", () => {
   test.each([1, 2, 3, 4, 5, 6])('seed %i: lands on a room floor cell without a trap', (seed) => {
     const s = fresh(seed);
-    run(s, (ctx) => ctx.goToLevel(2, 'random'));
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'random'));
     expect(s.currentLevel).toBe('dlvl2');
     const p = heroPos(s);
     const level = getLevel(s);
@@ -196,8 +196,8 @@ describe("goToLevel 'random'", () => {
 
   test('never lands on a trap, even when every other floor cell is trapped', () => {
     const s = fresh();
-    run(s, (ctx) => ctx.goToLevel(2, 'up'));
-    run(s, (ctx) => ctx.goToLevel(1, 'down'));
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'up'));
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 1 }, 'down'));
     const level2 = s.levels['dlvl2']!;
     s.currentLevel = 'dlvl2';
     const all = floors(s);
@@ -209,12 +209,12 @@ describe("goToLevel 'random'", () => {
           ctx.placeTrap('dlvl2', { def: 'tt:bear', x: c.x, y: c.y, seen: false });
     });
     expect(level2.traps).toHaveLength(all.length - 1);
-    run(s, (ctx) => ctx.goToLevel(2, 'random'));
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'random'));
     expect(heroPos(s)).toEqual(free);
   });
 });
 
-describe('save v6', () => {
+describe('save v7', () => {
   const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
 
   test('traps survive a round trip', () => {
@@ -233,9 +233,9 @@ describe('save v6', () => {
     expect(engine.load(engine.save(s, replay)).state).toEqual(s);
   });
 
-  test.each([3, 4, 5])('a v%i save migrates to v6 with empty trap lists', (old) => {
+  test.each([3, 4, 5])('a v%i save migrates to v7 with empty trap lists', (old) => {
     const s = fresh();
-    run(s, (ctx) => ctx.goToLevel(2, 'up'));
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'up'));
     const raw = JSON.parse(engine.save(s, replay)) as {
       version: number;
       state: { version: number; levels: Record<string, { traps?: unknown }> };
@@ -244,7 +244,7 @@ describe('save v6', () => {
     raw.state.version = old;
     for (const l of Object.values(raw.state.levels)) delete l.traps;
     const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(6);
+    expect(loaded.version).toBe(7);
     expect(Object.keys(loaded.levels).sort()).toEqual(['dlvl1', 'dlvl2']);
     for (const id of ['dlvl1', 'dlvl2']) expect(loaded.levels[id]?.traps).toEqual([]);
   });

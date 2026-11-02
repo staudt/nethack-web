@@ -15,6 +15,7 @@ import {
   BOX_PROBS,
   DUNGEON_BOTTOM,
   TRAP,
+  canFallThru,
   holeDestination,
   mkboxCnts,
   mkobj,
@@ -101,6 +102,7 @@ describe('mktrap', () => {
       withCtx(state, (ctx) => {
         const level = getLevel(ctx.state);
         level.depth = depth;
+        level.dlevel = depth;
         const room = level.rooms[0]!;
         for (let i = 0; i < 300; i++) {
           level.traps = [];
@@ -148,14 +150,35 @@ describe('mktrap', () => {
 
   test('holes and trap doors lead no deeper than the dungeon bottom', () => {
     const ctx = ctxFor(bareState(3));
+    const at = (dlevel: number) => ({ ...getLevel(ctx.state), dlevel });
     for (let i = 0; i < 200; i++) {
-      expect(holeDestination(ctx, DUNGEON_BOTTOM - 1)).toBe(DUNGEON_BOTTOM);
-      const d = holeDestination(ctx, DUNGEON_BOTTOM - 3);
+      expect(holeDestination(ctx, at(DUNGEON_BOTTOM - 1))).toBe(DUNGEON_BOTTOM);
+      const d = holeDestination(ctx, at(DUNGEON_BOTTOM - 3));
       expect(d).toBeGreaterThan(DUNGEON_BOTTOM - 3);
       expect(d).toBeLessThanOrEqual(DUNGEON_BOTTOM);
     }
-    // below the bottom (reached by stairs) a hole leads one level down
-    expect(holeDestination(ctx, DUNGEON_BOTTOM + 4)).toBe(DUNGEON_BOTTOM + 5);
+    // below the bottom of the endless main dungeon (reached by stairs) a hole leads one level down
+    expect(holeDestination(ctx, at(DUNGEON_BOTTOM + 4))).toBe(DUNGEON_BOTTOM + 5);
+  });
+
+  test('in a dungeon with a bottom, holes stay inside it and none lead out of the last level', () => {
+    const ctx = ctxFor(bareState(3));
+    ctx.state.dungeons.push({ id: 'nh:test', depthStart: 5, levels: 4, branches: [] });
+    const at = (dlevel: number) => ({
+      ...getLevel(ctx.state),
+      dungeon: 'nh:test' as const,
+      dlevel,
+    });
+    for (let i = 0; i < 100; i++) {
+      expect(holeDestination(ctx, at(3))).toBe(4);
+      expect(holeDestination(ctx, at(1))).toBeLessThanOrEqual(4);
+    }
+    expect(canFallThru(ctx.state, at(3))).toBe(true);
+    expect(canFallThru(ctx.state, at(4))).toBe(false);
+    expect(canFallThru(ctx.state, { ...getLevel(ctx.state), dlevel: DUNGEON_BOTTOM - 1 })).toBe(
+      true,
+    );
+    expect(canFallThru(ctx.state, { ...getLevel(ctx.state), dlevel: DUNGEON_BOTTOM })).toBe(false);
   });
 });
 

@@ -22,6 +22,8 @@ function setup(seed: number, target: DefId, at = { x: 4, y: 2 }) {
   const level: Level = {
     id: 'dlvl1',
     depth: 1,
+    dungeon: 'nh:main',
+    dlevel: 1,
     width,
     height,
     palette,

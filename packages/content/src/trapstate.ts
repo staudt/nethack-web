@@ -4,7 +4,7 @@
 //
 // The core components have no such fields, so the content mod keeps them in `modData.nh`:
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
-// `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: depth }`
+// `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
 // for monsters that fell to a level the hero is not on. Tables are only created on write.
 import { type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
 

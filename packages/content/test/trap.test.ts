@@ -92,6 +92,8 @@ function setup(rows: string[], seed = 1) {
   const level: Level = {
     id: 'dlvl1',
     depth: 1,
+    dungeon: 'nh:main',
+    dlevel: 1,
     width,
     height,
     palette,
@@ -537,9 +539,9 @@ describe('mintrap: monsters', () => {
     const g = engine.newGame({ seed: 9 }).state.levels['dlvl1'];
     if (!g) throw new Error('no level');
     // a real-size level to arrive on
-    state.levels[`dlvl${dst}`] = { ...g, id: `dlvl${dst}`, depth: dst };
+    state.levels[`dlvl${dst}`] = { ...g, id: `dlvl${dst}`, depth: dst, dlevel: dst };
     state.memory[`dlvl${dst}`] = newMemory(g);
-    withCtx(state, (ctx) => ctx.goToLevel(dst, 'random'));
+    withCtx(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:main', dlevel: dst }, 'random'));
     expect(state.entities[String(m)]?.c.pos?.level).toBe(`dlvl${dst}`);
   });
 

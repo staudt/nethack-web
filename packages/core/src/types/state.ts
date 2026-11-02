@@ -21,6 +21,20 @@ export interface GameOver {
   level: number;
 }
 
+/**
+ * Where a dungeon sits, rolled once at new game from its DungeonDef.
+ * ref: include/dungeon.h struct dungeon (num_dunlevs, depth_start) and struct branch
+ */
+export interface DungeonLayout {
+  id: DefId;
+  /** Absolute depth of its top level. */
+  depthStart: number;
+  /** How many levels it has; null for no bottom. */
+  levels: number | null;
+  /** Where its branches leave it, in DungeonDef order. */
+  branches: { to: DefId; dlevel: number }[];
+}
+
 /** A question awaiting the player's `{ type: 'answer' }`; `handler` is the ActionDef whose `answer` runs. */
 export interface PendingPrompt {
   prompt: Prompt;
@@ -30,7 +44,7 @@ export interface PendingPrompt {
 
 /** The whole game. JSON-plain: no classes, Map, Set, functions or typed arrays. */
 export interface GameState {
-  version: 6;
+  version: 7;
   seed: number;
   turn: number;
   nextEntityId: number;
@@ -41,6 +55,8 @@ export interface GameState {
   mods: ModRef[];
   /** Keyed by id; iterate with `sortedIds()`, never by key order. */
   entities: Record<string, Entity>;
+  /** The dungeon layout: the root dungeon first, then each branch after its parent. */
+  dungeons: DungeonLayout[];
   levels: Record<LevelId, Level>;
   currentLevel: LevelId;
   playerId: EntityId;

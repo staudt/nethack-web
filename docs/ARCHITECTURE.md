@@ -38,7 +38,7 @@ interface ModRef {
 }
 
 interface GameState {
-  version: 6;
+  version: 7;
   seed: number;
   turn: number;
   nextEntityId: number;
@@ -46,6 +46,7 @@ interface GameState {
   rng: { core: RngState; cosmetic: RngState };
   mods: ModRef[]; // load order
   entities: Record<string, Entity>; // iterate via sortedIds(), never key order
+  dungeons: DungeonLayout[]; // rolled at new game: the root dungeon first, then each branch after its parent
   levels: Record<LevelId, Level>;
   currentLevel: LevelId;
   playerId: EntityId;
@@ -106,9 +107,19 @@ interface Room {
   hy: number;
   lit: boolean;
 } // interior bounds, inclusive
+// ref: include/dungeon.h struct dungeon, struct branch
+interface DungeonLayout {
+  id: DefId; // DungeonDef
+  depthStart: number; // absolute depth of its top level
+  levels: number | null; // null = no bottom
+  branches: { to: DefId; dlevel: number }[]; // where its branches leave it
+}
+interface LevelRef { dungeon: DefId; dlevel: number } // ref: d_level
 interface Level {
-  id: LevelId;
-  depth: number;
+  id: LevelId; // root dungeon: dlvl<N>; others: <dungeonId>/<N>
+  depth: number; // absolute, shown as Dlvl (ref: depth())
+  dungeon: DefId;
+  dlevel: number; // 1 = top of its dungeon
   width: number;
   height: number;
   palette: DefId[]; // terrain defs used on this level
@@ -124,6 +135,8 @@ interface Trap { def: DefId; x: number; y: number; seen: boolean; once?: boolean
 ```
 
 The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a hash of canonical (key-sorted) JSON. The level size is a parameter, and 80×21 is only the default.
+
+**Dungeons.** A `DungeonDef` (`{ id, nameKey, levels?: { base, range? }, branches?: { to, base, range? }[] }`) describes a chain of levels; `levels` omitted means no bottom. Exactly one dungeon is the root (no branch leads into it); without any DungeonDef the engine uses `DEFAULT_DUNGEON` (`core:dungeon`, endless). `loadMods` reports unknown branch targets, a dungeon entered twice, two roots and unreachable dungeons; `registry.dungeons` is root first, then breadth-first. At new game, before the `newGame` hooks, `rollDungeons` rolls each size as `base + rn2(range)` and each branch's level in its parent (one of `range` levels from `base`, cut at the bottom, skipping levels that already hold a branch end); a branch dungeon starts one level below its branch level (ref: src/dungeon.c init_dungeons(), parent_dlevel(), init_dungeon_set_depth()). Fixed sizes and no branches draw no random numbers. Helpers: `rootDungeon(state)`, `dungeonLayout(state, id)`, `levelIdFor(state, ref)`, `depthOf(state, ref)`.
 
 **Terrain rules.** `cellRules(level, registry)` flattens the palette into per-cell flag arrays: `passable`, `opaque`, `closedDoor` (closed *or* locked, so travel paths go through doors as `test_move` does for `TEST_TRAV`), `lockedDoor` (locked only) and `intactDoor` (doors that block diagonal moves). `checkStep` returns `ok` or a reason: `bounds`, `blocked`, `closedDoor`, `lockedDoor` or `diagonalDoor`. `lockedDoor` is checked before `closedDoor`; content turns it into "This door is locked." with no time passing. Levelgen draws NetHack's exact `dodoor`/`dosdoor` rolls and so makes locked doors (about 1/3 * 4/5 * 1/6 of doors) and locked secret doors (1 in 5 below depth 2); trapped doors are not made, though their rolls are still drawn.
 
@@ -320,6 +333,7 @@ interface ModApi {
   defineStatus(d: StatusDef): void;
   definePerception(d: PerceptionDef): void;
   defineTrap(d: TrapDef): void; // { id, nameKey, glyph, hole? }
+  defineDungeon(d: DungeonDef): void; // see Dungeons
   setItemNamer(fn: ItemNamer): void; // the last mod to set it wins; core has a plain default
   on<K extends keyof Hooks>(hook: K, fn: Hooks[K], opts?: { priority?: number }): void;
 }
@@ -348,7 +362,7 @@ interface Ctx {
   query: CoreQuery;
   spawn(e: Omit<Entity, 'id'>): EntityId;
   remove(id: EntityId): void; // never the hero; a container takes its contents with it (obfree delete_contents)
-  goToLevel(depth: number, at: 'up' | 'down' | 'random'): void; // generates dlvl<N> on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot)
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'random'): void; // generates the level on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot); throws outside the layout
   placeTrap(level: LevelId, t: Trap): void; // replaces a trap on the cell; throws unless plain floor
   removeTrap(level: LevelId, pos: Pos): void;
   ask(prompt: Prompt, handler: DefId, data: Json): void;
@@ -504,7 +518,7 @@ interface Replay {
   mods: ModRef[];
   actions: PlayerAction[];
 }
-// Save text = JSON.stringify({ format: 'nh-ts', version: 6, mods, state, replay }) // v3-v5 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level
+// Save text = JSON.stringify({ format: 'nh-ts', version: 7, mods, state, replay }) // v3-v6 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level, a root-only layout (no bottom, no branches) and dungeon/dlevel = root/depth on every level
 ```
 
 After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, actions }` must reproduce `stateHash`.

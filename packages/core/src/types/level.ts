@@ -23,9 +23,22 @@ export interface Trap {
   data?: Json;
 }
 
+/** A level by dungeon and position in it (ref: include/dungeon.h d_level). */
+export interface LevelRef {
+  /** DungeonDef id. */
+  dungeon: DefId;
+  /** 1 = the dungeon's top level. */
+  dlevel: number;
+}
+
 export interface Level {
   id: LevelId;
+  /** Absolute depth, shown as Dlvl (ref: src/dungeon.c depth()). */
   depth: number;
+  /** The DungeonDef this level belongs to. */
+  dungeon: DefId;
+  /** Level number inside its dungeon, 1 = top. */
+  dlevel: number;
   width: number;
   height: number;
   /** Terrain defs used on this level; `cells` index into it. */

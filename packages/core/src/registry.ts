@@ -21,8 +21,10 @@ import type {
   StatusDef,
   PerceptionDef,
   TrapDef,
+  DungeonDef,
   ItemNamer,
 } from './types/mod';
+import { DEFAULT_DUNGEON } from './dungeon';
 import type { ArmorSlot } from './types/entity';
 
 export interface ModLoadIssue {
@@ -142,6 +144,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const statuses: (StatusDef & { mod: string })[] = [];
   const perceptions: PerceptionDef[] = [];
   const traps = new Map<string, TrapDef>();
+  const dungeons = new Map<string, DungeonDef & { mod: string }>();
   let itemNamer: ItemNamer = defaultItemNamer;
   const actions: (ActionDef & { mod: string })[] = [];
   const builtinHandlers = new Map<ActionType, string>();
@@ -397,6 +400,32 @@ export function loadMods(mods: readonly Mod[]): Registry {
         if (d.hole !== undefined) bool(d.hole, 'hole', d.id);
         traps.set(d.id, d);
       },
+      defineDungeon(d) {
+        if (!guard('defineDungeon') || !checkId(d.id, 'dungeon')) return;
+        str(d.nameKey, 'nameKey', d.id);
+        const posInt = (v: unknown, path: string): void => {
+          if (!Number.isInteger(v) || (v as number) < 1)
+            issue(path, 'must be an integer >= 1', d.id);
+        };
+        const range = (v: unknown, path: string): void => {
+          if (v !== undefined && (!Number.isInteger(v) || (v as number) < 0))
+            issue(path, 'must be an integer >= 0', d.id);
+        };
+        if (d.levels !== undefined) {
+          posInt(d.levels.base, 'levels.base');
+          range(d.levels.range, 'levels.range');
+        }
+        if (d.branches !== undefined && !Array.isArray(d.branches))
+          issue('branches', 'must be an array', d.id);
+        (Array.isArray(d.branches) ? d.branches : []).forEach((b, i) => {
+          str(b.to, `branches[${i}].to`, d.id);
+          posInt(b.base, `branches[${i}].base`);
+          range(b.range, `branches[${i}].range`);
+          if (d.levels !== undefined && b.base > d.levels.base)
+            issue(`branches[${i}].base`, 'is below the bottom of the dungeon', d.id);
+        });
+        dungeons.set(d.id, { ...d, mod: modId });
+      },
       setItemNamer(namer) {
         if (!guard('setItemNamer')) return;
         if (typeof namer !== 'function') return issue('setItemNamer', 'must be a function');
@@ -450,6 +479,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
         path: 'brain',
         reason: `unknown brain '${m.brain}'`,
       });
+
+  const dungeonList = orderDungeons(dungeons, issues);
 
   if (issues.length > 0) throw new ModLoadError(issues);
 
@@ -511,6 +542,12 @@ export function loadMods(mods: readonly Mod[]): Registry {
       return t;
     },
     isTrap: (id) => traps.has(id),
+    dungeon(id) {
+      const d = dungeonList.find((x) => x.id === id);
+      if (!d) throw new Error(`Unknown dungeon '${id}'`);
+      return d;
+    },
+    dungeons: dungeonList,
     itemName: (state, item) => itemNamer(state, registry, item),
     objects: [...objects.values()],
     appearances: [...appearances.values()],
@@ -529,6 +566,54 @@ export function loadMods(mods: readonly Mod[]): Registry {
     hooks: <K extends HookName>(name: K) => byName.get(name) as RegisteredHook<K>[],
   };
   return Object.freeze(registry);
+}
+
+/**
+ * Root first, then breadth-first along branches in their listed order. Reports a missing or
+ * second root, unknown branch targets, a dungeon entered by two branches, and unreachable ones.
+ */
+function orderDungeons(
+  dungeons: ReadonlyMap<string, DungeonDef & { mod: string }>,
+  issues: ModLoadIssue[],
+): DungeonDef[] {
+  if (dungeons.size === 0) return [DEFAULT_DUNGEON];
+  const all = [...dungeons.values()];
+  const entered = new Set<string>();
+  for (const d of all)
+    for (const [i, b] of (d.branches ?? []).entries()) {
+      const path = `branches[${i}].to`;
+      if (!dungeons.has(b.to))
+        issues.push({ modId: d.mod, defId: d.id, path, reason: `unknown dungeon '${b.to}'` });
+      else if (entered.has(b.to))
+        issues.push({ modId: d.mod, defId: d.id, path, reason: `'${b.to}' already has a branch` });
+      entered.add(b.to);
+    }
+  const roots = all.filter((d) => !entered.has(d.id));
+  if (roots.length !== 1) {
+    const d = roots[1] ?? all[0];
+    issues.push({
+      modId: d?.mod ?? '?',
+      ...(d ? { defId: d.id } : {}),
+      path: 'branches',
+      reason: `exactly one dungeon must have no branch into it (found ${roots.length})`,
+    });
+    return all;
+  }
+  const order: (DungeonDef & { mod: string })[] = [roots[0] as DungeonDef & { mod: string }];
+  for (let q = 0; q < order.length; q++)
+    for (const b of order[q]?.branches ?? []) {
+      const next = dungeons.get(b.to);
+      if (next && !order.includes(next)) order.push(next);
+    }
+  for (const d of all)
+    if (!order.includes(d))
+      issues.push({
+        modId: d.mod,
+        defId: d.id,
+        path: 'branches',
+        reason: 'not reachable from the root dungeon',
+      });
+  return order;
 }
 
 /** Throws a ModLoadError if any of `ids` is not a registered terrain. */

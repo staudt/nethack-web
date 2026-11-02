@@ -545,7 +545,8 @@ const down: ActionDef = {
       return 0;
     }
     // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)).
-    ctx.goToLevel(getLevel(ctx.state).depth + 1, 'up');
+    const level = getLevel(ctx.state);
+    ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel + 1 }, 'up');
     return NORMAL_SPEED;
   },
 };
@@ -564,9 +565,9 @@ const up: ActionDef = {
       ctx.emit({ type: 'msg', key: 'stairs.cant_up' });
       return 0;
     }
-    const depth = getLevel(ctx.state).depth;
-    if (depth > 1) {
-      ctx.goToLevel(depth - 1, 'down');
+    const level = getLevel(ctx.state);
+    if (level.dlevel > 1) {
+      ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel - 1 }, 'down');
       return NORMAL_SPEED;
     }
     // ref: doup(): ledger_no == 1 -> y_n("Beware, there will be no return!  Still climb?")

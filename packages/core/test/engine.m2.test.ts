@@ -132,7 +132,7 @@ const fkExtra = (api: Parameters<Mod['register']>[0]): void => {
     offer: () => [],
     perform(ctx, a) {
       const args = (a.type === 'mod' ? a.args : null) as { depth: number; at: 'up' | 'down' };
-      ctx.goToLevel(args.depth, args.at);
+      ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: args.depth }, args.at);
       return 12;
     },
   });
@@ -710,7 +710,7 @@ describe('game over', () => {
     ['schedule', (c: Ctx) => c.schedule(1, 'x:y', null)],
     ['spawn', (c: Ctx) => c.spawn({ def: 'x:y', c: {} })],
     ['remove', (c: Ctx) => c.remove(99)],
-    ['goToLevel', (c: Ctx) => c.goToLevel(2, 'up')],
+    ['goToLevel', (c: Ctx) => c.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'up')],
     ['ask', (c: Ctx) => c.ask({ id: 'a', kind: 'yn', key: 'k' }, 'x:y', null)],
     ['interrupt', (c: Ctx) => c.interrupt()],
     ['endGame', (c: Ctx) => c.endGame(over('k'))],
@@ -726,7 +726,7 @@ describe('newGame', () => {
     const r = engine.newGame({ seed: 3, width: 40, height: 15 });
     const s = r.state;
     expect(ctl.newGame).toEqual([{ hero: s.playerId, hadPos: false, levels: 0 }]);
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.gameOver).toBeNull();
     expect(s.pendingPrompt).toBeNull();
     expect(r.prompt).toBeNull();
@@ -784,11 +784,11 @@ describe('view additions', () => {
 describe('save format', () => {
   const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
 
-  test('round trip is version 6', () => {
+  test('round trip is version 7', () => {
     const s = fresh();
     const text = engine.save(s, replay);
     const raw = JSON.parse(text) as { version: number; state: { version: number } };
-    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([6, 6, 6]);
+    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([7, 7, 7]);
     expect(engine.load(text).state).toEqual(s);
   });
 
@@ -802,7 +802,7 @@ describe('save format', () => {
     raw.state.version = 3;
     delete raw.state.occupation;
     const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(6);
+    expect(loaded.version).toBe(7);
     expect(loaded.occupation).toBeNull();
   });
 

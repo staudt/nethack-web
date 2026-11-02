@@ -5,7 +5,8 @@ import { ensureConnected, makeCorridors } from './corridors';
 import { D_CLOSED, D_LOCKED, D_HORIZ, D_ISOPEN, Grid, T, type IRoom } from './grid';
 import { maxRooms, makeRooms, sortRooms } from './rooms';
 import { PAL, PALETTE_KEYS, type LevelTerrain } from './terrain';
-import type { LevelId } from '../types/common';
+import type { DefId, LevelId } from '../types/common';
+import { DEFAULT_DUNGEON } from '../dungeon';
 
 /**
  * Smallest supported map. NetHack's room placement (rect.c / create_room) needs a free rectangle
@@ -20,6 +21,9 @@ const MAX_ATTEMPTS = 20;
 export interface GenOptions {
   id: LevelId;
   depth: number;
+  /** Defaults to the default dungeon and `depth`. */
+  dungeon?: DefId;
+  dlevel?: number;
   width: number;
   height: number;
   terrain: LevelTerrain;
@@ -138,6 +142,8 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
   return {
     id: opts.id,
     depth,
+    dungeon: opts.dungeon ?? DEFAULT_DUNGEON.id,
+    dlevel: opts.dlevel ?? depth,
     width,
     height,
     palette: PALETTE_KEYS.map((k) => opts.terrain[k]),

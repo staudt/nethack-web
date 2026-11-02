@@ -178,6 +178,8 @@ describe('immediate wands', () => {
     const level: Level = {
       id: 'dlvl1',
       depth: 1,
+      dungeon: 'nh:main',
+      dlevel: 1,
       width: 5,
       height: 1,
       palette: [T.stone, T.floor],

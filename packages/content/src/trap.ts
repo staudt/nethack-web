@@ -7,6 +7,11 @@ import {
   DIR_LIST,
   NORMAL_SPEED,
   cellIndex,
+  dungeonLayout,
+  levelIdFor,
+  rootDungeon,
+  type GameState,
+  type LevelId,
   cellRules,
   getLevel,
   getPlayer,
@@ -116,25 +121,37 @@ function dataOf(t: Trap): TrapData {
 }
 
 /**
- * The bottom of the dungeon for holes and trap doors. NetHack's Dungeons of Doom has
+ * The bottom of a dungeon without one for holes and trap doors. NetHack's Dungeons of Doom has
  * `rn1(5, 25)` levels (dat/dungeon.lua base 25, range 5) with the Castle at the bottom; this
- * port has a single endless dungeon of ordinary levels and uses the smallest of those, 25 (see
- * DEVIATIONS.md). Stairs still lead deeper.
+ * port's main dungeon is endless and uses the smallest of those, 25 (see DEVIATIONS.md). Stairs
+ * still lead deeper.
  */
 export const DUNGEON_BOTTOM = 25;
 
-/** Whether one can fall through the floor of a level at `depth`. ref: src/dungeon.c Can_fall_thru() */
-export const canFallThru = (depth: number): boolean => depth < DUNGEON_BOTTOM;
+/**
+ * The last level holes lead to in `level`'s dungeon: its last level, or for an endless dungeon
+ * DUNGEON_BOTTOM (one below `level` once past it). ref: src/trap.c dng_bottom()
+ */
+export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>): number {
+  const n = dungeonLayout(state, level.dungeon).levels;
+  return n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
+}
 
 /**
- * Where a hole or trap door leads: the next level, and one more each time 1 in 4 comes up,
- * never past the bottom. Below the bottom (only stairs reach it, and no hole is generated
- * there) a hole leads one level down.
+ * Whether one can fall through the floor of `level`: not on its dungeon's last level (or
+ * DUNGEON_BOTTOM and below for an endless one). ref: src/dungeon.c Can_fall_thru()
+ */
+export const canFallThru = (state: Readonly<GameState>, level: Readonly<Level>): boolean =>
+  level.dlevel < (dungeonLayout(state, level.dungeon).levels ?? DUNGEON_BOTTOM);
+
+/**
+ * The level number in its dungeon that a hole or trap door on `level` leads to: the next level,
+ * and one more each time 1 in 4 comes up, never past the bottom.
  * ref: src/trap.c hole_destination(), dng_bottom()
  */
-export function holeDestination(ctx: Pick<Ctx, 'rng'>, depth: number): number {
-  const bottom = Math.max(DUNGEON_BOTTOM, depth + 1);
-  let d = depth;
+export function holeDestination(ctx: Pick<Ctx, 'rng' | 'state'>, level: Readonly<Level>): number {
+  const bottom = dungeonBottom(ctx.state, level);
+  let d = level.dlevel;
   while (d < bottom) {
     d++;
     if (ctx.rng.rn2(4) !== 0) break;
@@ -169,7 +186,7 @@ export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: D
     setUtrap(ctx, 0, 'beartrap');
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
   if (def === TRAP.squeaky) t.data = { tnote: chooseTrapnote(ctx, level, x, y) };
-  else if (isHole(def)) t.data = { dst: holeDestination(ctx, level.depth) };
+  else if (isHole(def)) t.data = { dst: holeDestination(ctx, level) };
   ctx.placeTrap(levelId, t);
   return trapAt(level, x, y) ?? t;
 }
@@ -422,17 +439,22 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
     say(ctx, 'trap.dont_fall');
     return;
   }
-  const depth = getLevel(ctx.state, levelId).depth;
+  const level = getLevel(ctx.state, levelId);
   let dst = dataOf(trap).dst;
-  if (dst === undefined || dst <= depth) {
+  if (dst === undefined || dst <= level.dlevel) {
     // a trap placed without maketrap(): its destination is rolled now
-    dst = holeDestination(ctx, depth);
+    dst = holeDestination(ctx, level);
     trap.data = { dst };
   }
-  const dist = dst - depth;
+  if (dst <= level.dlevel) {
+    // the bottom level of its dungeon (ref: fall_through(): !Can_fall_thru() -> "don't fall in")
+    say(ctx, 'trap.dont_fall');
+    return;
+  }
+  const dist = dst - level.dlevel;
   if (dist > 1)
     say(ctx, dist > 3 ? 'trap.shaft_very_deep' : dist > 2 ? 'trap.shaft_deep' : 'trap.shaft');
-  ctx.goToLevel(dst, 'random');
+  ctx.goToLevel({ dungeon: level.dungeon, dlevel: dst }, 'random');
   losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
   if (!ctx.state.gameOver) lookHere(ctx);
 }
@@ -792,26 +814,27 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
   if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
   const level = getLevel(ctx.state, levelId);
   let dst = dataOf(trap).dst;
-  if (dst === undefined || dst <= level.depth) {
-    dst = holeDestination(ctx, level.depth);
+  if (dst === undefined || dst <= level.dlevel) {
+    dst = holeDestination(ctx, level);
     trap.data = { dst };
   }
+  if (dst <= level.dlevel) return 'finished'; // the bottom level of its dungeon
   if (canseemon(ctx, mon)) {
     say(ctx, trap.def === TRAP.hole ? 'trap.mon_falls_hole' : 'trap.mon_falls_door', {
       mon: monNam(ctx, mon),
     });
     seetrap(trap);
   }
-  migrateToLevel(ctx, mon, dst);
+  migrateToLevel(ctx, mon, levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: dst }));
   return 'moved';
 }
 
 /** ref: src/dog.c migrate_to_level(): the monster leaves the map until the hero gets there. */
-function migrateToLevel(ctx: Ctx, mon: Entity, depth: number): void {
+function migrateToLevel(ctx: Ctx, mon: Entity, to: LevelId): void {
   setMtrapped(ctx, mon.id, false);
   delete mon.c.pos;
   const t = trapTable(ctx, 'migrating', true);
-  if (t) t[String(mon.id)] = depth;
+  if (t) t[String(mon.id)] = to;
 }
 
 /** Monsters that fell to the level the hero just arrived on come out at random spots. */
@@ -821,7 +844,13 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
   const level = ctx.state.levels[change.to];
   if (!level) return;
   for (const key of Object.keys(t).sort((a, b) => Number(a) - Number(b))) {
-    if (t[key] !== level.depth) continue;
+    const to = t[key];
+    // saves before v7 kept a root-dungeon depth
+    const toId =
+      typeof to === 'number'
+        ? levelIdFor(ctx.state, { dungeon: rootDungeon(ctx.state).id, dlevel: to })
+        : to;
+    if (toId !== level.id) continue;
     const mon = ctx.state.entities[key];
     if (!mon?.c.monster) {
       delete t[key];

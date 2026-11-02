@@ -1,3 +1,4 @@
+import { depthOf, dungeonLayout, levelIdFor, rollDungeons, rootDungeon } from './dungeon';
 import { generateLevel, VANILLA_TERRAIN, type LevelTerrain } from './levelgen/index';
 import { cellRules } from './movement';
 import { allContents, topObjects } from './objects';
@@ -61,8 +62,6 @@ export class UnknownActionError extends Error {
     this.name = 'UnknownActionError';
   }
 }
-
-export const levelId = (depth: number): string => `dlvl${depth}`;
 
 export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): Engine {
   const registry = loadMods(mods);
@@ -130,17 +129,24 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         for (const inner of allContents(state, id)) delete state.entities[String(inner)];
         delete state.entities[String(id)];
       },
-      goToLevel(depth, at) {
-        if (!Number.isInteger(depth) || depth < 1)
-          throw new RangeError(`Bad dungeon depth ${depth}`);
-        const id = levelId(depth);
+      goToLevel(to, at) {
+        const layout = dungeonLayout(state, to.dungeon);
+        if (
+          !Number.isInteger(to.dlevel) ||
+          to.dlevel < 1 ||
+          to.dlevel > (layout.levels ?? Infinity)
+        )
+          throw new RangeError(`No level ${to.dlevel} in dungeon '${to.dungeon}'`);
+        const id = levelIdFor(state, to);
         const current = getLevel(state);
         const fromPos = playerPos(state);
         let level = state.levels[id];
         if (!level) {
           level = generateLevel(ctx.rng, {
             id,
-            depth,
+            depth: depthOf(state, to),
+            dungeon: to.dungeon,
+            dlevel: to.dlevel,
             width: current.width,
             height: current.height,
             terrain,
@@ -287,7 +293,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (!roleDef) throw new Error('No player role registered');
       const s = seed >>> 0;
       const state: GameState = {
-        version: 6,
+        version: 7,
         seed: s,
         turn: 1,
         nextEntityId: 1,
@@ -295,8 +301,9 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         rng: newRngStates(s),
         mods: registry.mods.map((m) => ({ id: m.id, version: m.version })),
         entities: {},
+        dungeons: [],
         levels: {},
-        currentLevel: levelId(1),
+        currentLevel: '',
         playerId: 0,
         memory: {},
         objectMemory: {},
@@ -324,8 +331,19 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           player: { role: roleDef.id },
         },
       };
+      // ref: src/allmain.c newgame(): init_dungeons() before u_init()
+      state.dungeons = rollDungeons(ctx.rng, registry.dungeons);
       for (const h of registry.hooks('newGame')) h.fn(ctx, id);
-      const level = generateLevel(ctx.rng, { id: levelId(1), depth: 1, width, height, terrain });
+      const top = { dungeon: rootDungeon(state).id, dlevel: 1 };
+      const level = generateLevel(ctx.rng, {
+        id: levelIdFor(state, top),
+        depth: 1,
+        ...top,
+        width,
+        height,
+        terrain,
+      });
+      state.currentLevel = level.id;
       state.levels[level.id] = level;
       state.memory[level.id] = newMemory(level);
       for (const h of registry.hooks('newLevel')) h.fn(ctx, level);

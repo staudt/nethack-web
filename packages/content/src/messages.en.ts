@@ -120,6 +120,7 @@ export const messagesEn: Record<string, string> = {
   'nh:trcorn': 'wall',
   'nh:blcorn': 'wall',
   'nh:brcorn': 'wall',
+  'nh:main': 'The Dungeons of Doom',
   'nh:floor': 'floor of a room',
   'nh:corr': 'corridor',
   'nh:doorway': 'doorway',

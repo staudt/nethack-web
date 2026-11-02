@@ -2,7 +2,7 @@ import type { ActionType, Dir, PlayerAction } from './action';
 import type { DefId, EntityId, Glyph, Json, LevelId, Msg, Pos } from './common';
 import type { ArmorSlot, Dice, Entity } from './entity';
 import type { GameEvent } from './event';
-import type { Level, Trap } from './level';
+import type { Level, LevelRef, Trap } from './level';
 import type { ActionOffer, CoreQuery, Target } from './query';
 import type { Rng } from './rng';
 import type { GameOver, GameState } from './state';
@@ -170,6 +170,30 @@ export interface TrapDef {
   hole?: boolean;
 }
 
+/**
+ * A dungeon: a chain of levels, with branches into other dungeons. Exactly one dungeon is the
+ * root (no branch leads into it); its levels have ids `dlvl<N>`. Without any DungeonDef the
+ * engine uses one endless root dungeon, `core:dungeon`.
+ * ref: dat/dungeon.lua, src/dungeon.c init_dungeons()
+ */
+export interface DungeonDef {
+  id: DefId;
+  nameKey: string;
+  /** Number of levels: `base + rn2(range)` (ref: rn1(range, base)); omitted for no bottom. */
+  levels?: { base: number; range?: number };
+  /** Branch stairs down into other dungeons, each from one level of this one. */
+  branches?: DungeonBranchDef[];
+}
+
+/** ref: dat/dungeon.lua branches; src/dungeon.c parent_dlevel(), level_range() */
+export interface DungeonBranchDef {
+  /** The DungeonDef it leads into (its top level). */
+  to: DefId;
+  /** The branch is on level `base`, or one of `base .. base + range - 1`. */
+  base: number;
+  range?: number;
+}
+
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */
 export type ItemNamer = (state: Readonly<GameState>, defs: Registry, item: Entity) => Msg;
 
@@ -285,11 +309,11 @@ export interface Ctx {
   /** Removes an entity (never the hero). */
   remove(id: EntityId): void;
   /**
-   * Moves the hero to dungeon level `depth`, generating it on first visit, arriving on its
-   * up or down staircase, or on a random room floor cell without a trap ('random', for falling
-   * through a trap door; ref: src/dungeon.c u_on_rndspot()).
+   * Moves the hero to level `to`, generating it on first visit, arriving on its up or down
+   * staircase, or on a random room floor cell without a trap ('random', for falling through a
+   * trap door; ref: src/dungeon.c u_on_rndspot()). Throws for a level outside the layout.
    */
-  goToLevel(depth: number, at: 'up' | 'down' | 'random'): void;
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'random'): void;
   /**
    * Puts a trap on `level`, replacing any trap already on that cell (ref: src/trap.c
    * maketrap()). Throws unless the cell is plain floor (see `isPlainFloor`) or the def is unknown.
@@ -349,6 +373,7 @@ export interface ModApi {
   defineStatus(d: StatusDef): void;
   definePerception(d: PerceptionDef): void;
   defineTrap(d: TrapDef): void;
+  defineDungeon(d: DungeonDef): void;
   /** Replaces the item namer; the last mod to set it wins. */
   setItemNamer(fn: ItemNamer): void;
   on<K extends HookName>(hook: K, fn: Hooks[K], opts?: HookOptions): void;
@@ -384,6 +409,12 @@ export interface Registry {
   isAppearance(id: DefId): boolean;
   trap(id: DefId): TrapDef;
   isTrap(id: DefId): boolean;
+  dungeon(id: DefId): DungeonDef;
+  /**
+   * The root dungeon first, then each branch target after its parent (breadth-first);
+   * `[DEFAULT_DUNGEON]` when no mod defines one.
+   */
+  readonly dungeons: readonly DungeonDef[];
   /** Names an item with the active namer (a default one if no mod set it). */
   itemName(state: Readonly<GameState>, item: Entity): Msg;
   /** In registration order. */

@@ -47,6 +47,8 @@ export function setup(rows: string[], seed = 1) {
   const level: Level = {
     id: 'dlvl1',
     depth: 1,
+    dungeon: 'nh:main',
+    dlevel: 1,
     width,
     height,
     palette,
