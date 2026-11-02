@@ -1,11 +1,20 @@
 // Passive attacks: what a monster does to the hero when she hits or misses it in melee.
 // ref: src/uhitm.c passive() (called from hitum() after every melee attack)
-import { getPlayer, type Ctx, type EntityId, type MonsterDef, type Pos } from '@nh/core';
+import {
+  getPlayer,
+  type Ctx,
+  type Entity,
+  type EntityId,
+  type MonsterDef,
+  type Pos,
+} from '@nh/core';
+import { erodeArmor, erodeObj, passiveObj } from './erode';
 import { mdamageu } from './mhitu';
-import { heroSees } from './mongear';
+import { heroSees, whichArmor } from './mongear';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeStunned } from './props';
 import { monNam } from './perception';
+import { xnameOf } from './objnam';
 
 /** The attacked monster as it was before the blow (it may be dead and removed afterwards). */
 export interface PassiveTarget {
@@ -22,13 +31,21 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
 /**
  * The monster's AT_NONE attack answers the hero's blow. `mhit` says whether she hit it and
  * `malive` whether it survived.
- * ref: src/uhitm.c passive(). Effects that need the weapon (passive_obj(): corroding, burning or
- * disenchanting it), armor erosion, golems and `mcan` are not ported; the stoning, rust, corrosion,
- * magic missile and disenchantment cases belong to monsters we do not have. Not ported: brown
+ * `weapon` is what hit it (uwep, or uarmf for a kick, or null bare-handed): fire burns and acid
+ * corrodes it (passive_obj(), or the boots one time in six), and an acid splash may corrode
+ * armor. ref: src/uhitm.c passive(). Golems and `mcan` are not ported; the stoning, rust,
+ * corrosion, magic missile and disenchantment cases belong to monsters we do not have. Not ported: brown
  * mold splitting (split_mon). The floating eye's gaze is never reflected (no reflection) nor
  * resisted (no Free_action, no hallucination, no blindness) and the monster is never blind.
  */
-export function passive(ctx: Ctx, mon: PassiveTarget, mhit: boolean, malive: boolean): void {
+export function passive(
+  ctx: Ctx,
+  mon: PassiveTarget,
+  mhit: boolean,
+  malive: boolean,
+  weapon: Entity | null,
+  aatyp: 'weapon' | 'kick',
+): void {
   const atk = mon.def.attacks.find((a) => a.at === 'passive');
   if (!atk) return; // no passive attacks
   const hero = getPlayer(ctx.state);
@@ -41,16 +58,27 @@ export function passive(ctx: Ctx, mon: PassiveTarget, mhit: boolean, malive: boo
   else tmp = 0;
 
   // These affect you even if they just died.
-  if (atk.ad === 'acid') {
+  /** the boots of a kick (1 in 6), or the weapon via passive_obj() */
+  const hitObj = (type: 'burn' | 'corrode'): void => {
+    if (!weapon) return;
+    if (aatyp === 'kick') {
+      const uarmf = whichArmor(ctx, hero.id, 'boots');
+      if (uarmf && ctx.rng.rn2(6) === 0)
+        erodeObj(ctx, uarmf, xnameOf(ctx.state, ctx.defs, uarmf), type, { verbose: true });
+    } else passiveObj(ctx, mon.def.id, weapon);
+  };
+  if (atk.ad === 'fire') {
+    if (mhit) hitObj('burn'); // `mhitb && !mon->mcan && weapon`
+  } else if (atk.ad === 'acid') {
     if (mhit && ctx.rng.rn2(2) !== 0) {
       say(ctx, 'passive.splashed', { mon: shown });
       if (!hasProp(hero, P.ACID_RES)) mdamageu(ctx, tmp, killer);
-      ctx.rng.rn2(30); // `!rn2(30)` erode_armor(): not ported
+      if (ctx.state.gameOver) return;
+      if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, hero.id, 'corrode');
     }
-    // `if (mhitb && weapon) passive_obj()`: corroding the weapon is not ported
+    if (mhit) hitObj('corrode');
     if (ctx.state.gameOver) return;
   }
-  // AD_FIRE: `mhitb && weapon` -> passive_obj() burns the weapon: not ported
 
   // These only affect you if they still live.
   if (!malive || ctx.rng.rn2(3) === 0) return;

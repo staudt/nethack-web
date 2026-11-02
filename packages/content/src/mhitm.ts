@@ -5,8 +5,9 @@
 // Ported damage types: phys (with the wielded weapon), fire, cold, elec, sleep, poison
 // (drst/drdx/drco), acid, stun and paralysis; any other type does plain damage. Passive
 // responses: acid, paralysis (floating eye), cold, stun, fire and elec. Not ported: engulfing,
-// hugs, gazes, breath, spit and explosions (mattackm skips those attack types), item damage
-// (destroy_items, erosion), shades, silver, cloning puddings, petrification.
+// hugs, gazes, breath, spit and explosions (mattackm skips those attack types), shades, silver,
+// cloning puddings, petrification. Item damage: destroy_items() for fire, cold and elec, acid
+// erosion (erode_armor(), acid_damage()) and rustm() for a weapon hitting a fiery monster.
 import {
   getPlayer,
   type AttackDef,
@@ -24,6 +25,7 @@ import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
+import { acidDamage, destroyItems, erodeArmor, rustm } from './erode';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -195,34 +197,43 @@ function adtyping(
     if (mwep && (atk.at === 'weapon' || atk.at === 'claw')) {
       dmg += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
       if (dmg < 1) dmg = 1;
+      rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
     }
     return dmg;
   };
   switch (atk.ad) {
-    case 'fire':
+    case 'fire': {
       if (negated(ctx, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.on_fire', { mon: mdefName() });
+      let dmg = damage;
       if (resists(ctx, mdef, 'fire')) {
         if (seen) say(ctx, 'mhitm.fire_no_burn', { mon: mdefName() });
-        return 0;
+        dmg = 0;
       }
-      return damage;
-    case 'cold':
+      // the defender's carried items burn, with the attack's original damage; ignite_items():
+      // no light sources yet
+      return dmg + destroyItems(ctx, mdef.id, 'fire', damage);
+    }
+    case 'cold': {
       if (negated(ctx, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.frost', { mon: mdefName() });
+      let dmg = damage;
       if (resists(ctx, mdef, 'cold')) {
         if (seen) say(ctx, 'mhitm.frost_no_chill', { mon: mdefName() });
-        return 0;
+        dmg = 0;
       }
-      return damage;
-    case 'elec':
+      return dmg + destroyItems(ctx, mdef.id, 'cold', damage);
+    }
+    case 'elec': {
       if (negated(ctx, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.zapped', { mon: mdefName() });
+      let dmg = damage;
       if (resists(ctx, mdef, 'elec')) {
         if (seen) say(ctx, 'mhitm.zap_no_shock', { mon: mdefName() });
-        return 0;
+        dmg = 0;
       }
-      return damage;
+      return dmg + destroyItems(ctx, mdef.id, 'elec', damage);
+    }
     case 'slee':
       // ref: mhitm_ad_slee(): `sleep_monst(rnd(10)) && sleep_monst(rnd(10))`. As in NetHack the
       // second call fails (the target can no longer move), so it sleeps without the message.
@@ -262,8 +273,8 @@ function adtyping(
         say(ctx, 'mhitm.acid', { mon: mdefName() });
         say(ctx, 'mhitm.acid_burns', { mon: mdefName() });
       }
-      ctx.rng.rn2(30); // `!rn2(30)` erode_armor(): not ported
-      ctx.rng.rn2(6); // `!rn2(6)` acid_damage(): not ported
+      if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, mdef.id, 'corrode');
+      if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, mdef.id));
       return damage;
     case 'stun':
       if (canSpotMon(ctx, mdef)) say(ctx, 'mhitm.staggers', { mon: mdefName() });
@@ -350,15 +361,15 @@ function passivemm(ctx: Ctx, magr: Entity, mdef: Entity, mhit: boolean, mdead: n
   let assess = false;
   // these affect the attacker even if the defender was killed
   if (atk.ad === 'acid') {
-    if (mhit && ctx.rng.rn2(2) !== 0) {
+    if (mhit && ctx.rng.rn2(2) === 0) {
       if (seenAgr) say(ctx, 'mhitm.splashed', { mon: name(), by: monNam(ctx, mdef) });
       if (resists(ctx, magr, 'acid')) {
         if (seenAgr) say(ctx, 'mhitm.not_affected', { mon: name() });
         tmp = 0;
       }
     } else tmp = 0;
-    ctx.rng.rn2(30); // erode_armor
-    ctx.rng.rn2(6); // acid_damage
+    if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, magr.id, 'corrode');
+    if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, magr.id));
     assess = true;
   }
   if (!assess) {

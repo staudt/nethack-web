@@ -23,6 +23,7 @@ import { stopOccupation } from './eat';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { weight } from './items';
+import { greatestErosion } from './material';
 import { heroSees, monWep, monWieldItem } from './mongear';
 import { findAc, findMac, nearCapacity } from './stats';
 import {
@@ -170,7 +171,8 @@ function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
 
 /**
  * ref: src/weapon.c dmgval(): the weapon die by target size, the per-type extra, plus
- * enchantment, never below 0. Not ported: erosion, silver/blessed bonuses, artifacts.
+ * enchantment, never below 0, less the greatest erosion (at least 1). Not ported: silver/blessed
+ * bonuses, artifacts.
  */
 export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
   return dmgvalSized(rng, item, def, isBig(mon));
@@ -187,6 +189,11 @@ export function dmgvalSized(rng: Rng, item: Entity, def: ObjectDef, big: boolean
     tmp += dmgvalExtra(rng, def.id, big);
     tmp += item.c.item?.spe ?? 0;
     if (tmp < 0) tmp = 0;
+  }
+  // "always subtract erosion even for blunt weapons"
+  if (tmp > 0) {
+    tmp -= greatestErosion(item);
+    if (tmp < 1) tmp = 1;
   }
   return tmp;
 }
@@ -230,7 +237,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     : null;
   /** ref: src/uhitm.c hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...) */
   const answer = (mhit: boolean, malive: boolean): number => {
-    if (snap) passive(ctx, snap, mhit, malive);
+    const uwep = inventoryOf(ctx.state, hero.id).find((o) => o.c.item?.equipped === 'weapon');
+    if (snap) passive(ctx, snap, mhit, malive, uwep ?? null, 'weapon');
     return NORMAL_SPEED;
   };
   const attrs = hero.c.attributes;

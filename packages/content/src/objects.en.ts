@@ -314,7 +314,7 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:scroll_labeled_strc_prst_skrz_krk.plural': 'scrolls labeled STRC PRST SKRZ KRK',
 
   // ---- item names (src/objnam.c doname): the template joins the pieces; each is '' or spaced ----
-  'obj.doname': '{count}{buc}{eaten}{spe}{name}{worn}',
+  'obj.doname': '{count}{buc}{eaten}{erosion}{spe}{name}{worn}',
   'obj.count': '{n} ',
   'obj.buc.cursed': 'cursed ',
   'obj.buc.uncursed': 'uncursed ',

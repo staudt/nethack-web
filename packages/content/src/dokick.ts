@@ -47,7 +47,7 @@ import { losehp } from './hp';
 import { nhData, placeOnFloor, splitStack, weight } from './items';
 import { clearPath } from './monmove';
 import { monsterDied } from './mondeath';
-import { heroSees } from './mongear';
+import { heroSees, whichArmor } from './mongear';
 import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
@@ -57,10 +57,14 @@ import { T } from './terrain';
 import { thitmonst } from './dothrow';
 import { monNam } from './perception';
 import { abuseDog } from './dog';
+
 import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
 
 export const KICK_ID: DefId = 'nh:kick';
+
+/** The hero's worn boots (uarmf), what a kick's passive response damages. */
+const uarmf = (ctx: Ctx): Entity | null => whichArmor(ctx, ctx.state.playerId, 'boots');
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -431,7 +435,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
   if (dmg > 0 && hp) hp.cur -= dmg;
   const dead = !hp || hp.cur < 1;
   // ref: passive(mon, uarmf, TRUE, !DEADMONSTER(mon), AT_KICK, FALSE)
-  passive(ctx, snap, true, !dead);
+  passive(ctx, snap, true, !dead, uarmf(ctx), 'kick');
   if (dead) {
     // ref: src/mon.c killed() -> xkilled(): "You kill/destroy it!"
     const nonliving = def.flags.includes('undead') || def.id === 'nh:manes';
@@ -456,7 +460,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     ? { id: monId, def, level: mon.level, pos: { ...target.c.pos } }
     : null;
   const passiveMiss = (): void => {
-    if (snap) passive(ctx, snap, false, true);
+    if (snap) passive(ctx, snap, false, true, uarmf(ctx), 'kick');
   };
   // anger target even if wild miss will occur
   setmangry(ctx, monId);

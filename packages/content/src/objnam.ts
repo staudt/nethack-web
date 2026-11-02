@@ -9,6 +9,15 @@ import type {
   Params,
   Registry,
 } from '@nh/core';
+import { rknown } from './items';
+import {
+  isCorrodeable,
+  isCrackable,
+  isDamageable,
+  isFlammable,
+  isRottable,
+  isRustprone,
+} from './material';
 import { isKnown } from './o_init';
 import { isSwapWep } from './wield';
 
@@ -76,17 +85,25 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
 
 /**
  * The full item name, nested in the message `obj.doname` whose template joins the pieces:
- * `{count}{buc}{eaten}{spe}{name}{worn}`. Each piece is '' or carries its own spacing
+ * `{count}{buc}{eaten}{erosion}{spe}{name}{worn}`. Each piece is '' or carries its own spacing
  * (count and prefixes end with a space, suffixes start with one). The name has no article; the
  * UI adds it with the `{item|an}` modifier, which must not add one when the text starts with a
  * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
- * not a Cleric, no poison/erosion/grease/containers/prices, and `dknown` always true.
+ * not a Cleric, no poison/grease/containers/prices, and `dknown` always true.
  */
 export function doname(state: Readonly<GameState>, defs: Registry, item: Entity): Msg {
   const it = item.c.item;
   if (!it) return { key: item.def };
   const def = defs.object(item.def);
-  const params: Params = { count: '', buc: '', eaten: '', spe: '', name: '', worn: '' };
+  const params: Params = {
+    count: '',
+    buc: '',
+    eaten: '',
+    erosion: '',
+    spe: '',
+    name: '',
+    worn: '',
+  };
 
   params.name = xname(state, defs, def, item);
   if (it.quantity !== 1) params.count = { key: 'obj.count', params: { n: it.quantity } };
@@ -102,6 +119,10 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
   if (it.known.buc && def.class !== 'coin' && !holyWater) params.buc = { key: `obj.buc.${it.buc}` };
 
   if (def.class === 'food' && it.eaten) params.eaten = { key: 'obj.eaten' };
+
+  // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS: add_erosion_words() before the enchantment
+  if (def.class === 'weapon' || def.class === 'armor')
+    params.erosion = erosionWords(state, defs, item);
 
   if ((def.class === 'weapon' || def.class === 'armor') && it.known.spe) {
     params.spe = `${it.spe >= 0 ? '+' : '-'}${Math.abs(it.spe)} `; // "%+d "
@@ -121,6 +142,49 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     params.worn = { key: `obj.alternate${it.quantity !== 1 ? '.plural' : ''}` };
   }
   return { key: 'obj.doname', params };
+}
+
+/**
+ * The namer's erosion prefix ("very rusty ", "thoroughly corroded ", "rustproof "), or ''.
+ * ref: src/objnam.c add_erosion_words() (no crysknives)
+ */
+function erosionWords(state: Readonly<GameState>, defs: Registry, item: Entity): Msg | '' {
+  const it = item.c.item;
+  if (!it) return '';
+  const def = defs.object(item.def);
+  if (!isDamageable(def)) return '';
+  const params: Msg['params'] = { a1: '', w1: '', a2: '', w2: '', proof: '' };
+  const e = it.erosion;
+  if (e?.e1) {
+    if (e.e1 > 1) params['a1'] = { key: `erode.word.adv${e.e1}` };
+    params['w1'] = {
+      key: isRustprone(def)
+        ? 'erode.word.rusty'
+        : isCrackable(def)
+          ? 'erode.word.cracked'
+          : 'erode.word.burnt',
+    };
+  }
+  if (e?.e2) {
+    if (e.e2 > 1) params['a2'] = { key: `erode.word.adv${e.e2}` };
+    params['w2'] = { key: isCorrodeable(def) ? 'erode.word.corroded' : 'erode.word.rotted' };
+  }
+  if (it.erodeproof && rknown(state, item.id)) {
+    const proof = isRustprone(def)
+      ? 'rustproof'
+      : isCorrodeable(def)
+        ? 'corrodeproof'
+        : isFlammable(def)
+          ? 'fireproof'
+          : isCrackable(def)
+            ? 'tempered'
+            : isRottable(def)
+              ? 'rotproof'
+              : null;
+    if (proof) params['proof'] = { key: `erode.word.${proof}` };
+  }
+  if (!params['w1'] && !params['w2'] && !params['proof']) return '';
+  return { key: 'erode.words', params };
 }
 
 /** The item namer registered with the registry (`api.setItemNamer`). */

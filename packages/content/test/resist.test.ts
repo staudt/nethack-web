@@ -759,7 +759,8 @@ describe('passive attacks', () => {
         const ctx = fullCtx(t.state);
         // call passive() directly: the hero is frozen right here, the clock not yet advanced
         const snap = { id: mon, def: def('nh:floating_eye'), level: 2, pos: { ...m.c.pos! } };
-        for (let i = 0; i < 20 && !t.hero.c.helpless; i++) passive(ctx, snap, true, true);
+        for (let i = 0; i < 20 && !t.hero.c.helpless; i++)
+          passive(ctx, snap, true, true, null, 'weapon');
         if (!t.hero.c.helpless) continue;
         checked = true;
         expect(t.hero.c.helpless.reasonKey).toBe('helpless.frozen_gaze');
@@ -782,7 +783,7 @@ describe('passive attacks', () => {
         level: 2,
         pos: { level: 'elsewhere', x: 2, y: 1 },
       };
-      for (let i = 0; i < 60; i++) passive(ctx, snap, true, true);
+      for (let i = 0; i < 60; i++) passive(ctx, snap, true, true, null, 'weapon');
       expect(t.hero.c.helpless).toBeUndefined();
       expect(keys(ctx.events)).not.toContain('passive.frozen_gaze');
     });

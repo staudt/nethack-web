@@ -23,7 +23,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { prinv } from './itemactions';
-import { NOINVSYM } from './items';
+import { NOINVSYM, setRknown } from './items';
+import { erosionMatters } from './material';
 import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
@@ -45,7 +46,10 @@ const isPlural = (def: ObjectDef, e: Entity): boolean =>
 // ---------------------------------------------------------------------------------------------
 // identify
 
-/** ref: src/objnam.c not_fully_identified(), without rknown (erosion is not tracked) */
+/**
+ * ref: src/objnam.c not_fully_identified(), without its rknown test (see items.ts rknown(): the
+ * flag is only recorded for erodeproof items)
+ */
 function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
   const it = e.c.item;
   if (!it) return false;
@@ -63,6 +67,7 @@ function identify(ctx: Ctx, e: Entity): void {
   discover(ctx, e.def);
   it.known.buc = true;
   it.known.spe = true;
+  if (it.erodeproof) setRknown(ctx, e.id, true);
   prinv(ctx, e);
 }
 
@@ -216,28 +221,58 @@ function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
 }
 
 /**
- * The confused enchant scrolls' erodeproofing message. Erosion does not exist, so nothing else
- * changes. ref: src/read.c seffect_enchant_weapon() / seffect_enchant_armor() confused branches
+ * The confused enchant scrolls: the item becomes erodeproof (uncursed or blessed scroll) or loses
+ * its erodeproofing (cursed), and the hero learns which unless blind; proofing also repairs
+ * erosion. ref: src/read.c seffect_enchant_weapon() / seffect_enchant_armor() confused branches
  */
-function erodeproofMsg(ctx: Ctx, obj: Entity, scursed: boolean, what: 'shield' | 'layer'): void {
+function erodeproof(
+  ctx: Ctx,
+  obj: Entity,
+  scursed: boolean,
+  what: 'shield' | 'layer',
+  warm: () => void,
+): void {
   const def = ctx.defs.object(obj.def);
-  msg(ctx, `enchant.erodeproof${isPlural(def, obj) ? '_pl' : ''}`, {
-    item: xnameOf(ctx.state, ctx.defs, obj),
-    how: { key: scursed ? 'enchant.erodeproof.mottled' : 'enchant.erodeproof.shimmering' },
-    color: hcolor(ctx, scursed ? (what === 'shield' ? 'purple' : 'black') : 'golden'),
-    what: { key: `enchant.erodeproof.${scursed ? 'glow' : what}` },
-  });
+  const it = obj.c.item;
+  if (!it) return;
+  const blind = hasProp(heroEntity(ctx), P.BLINDED);
+  const newProof = !scursed;
+  // rknown: lost when blind, else learned (only recorded for erodeproof items)
+  setRknown(ctx, obj.id, !blind && newProof);
+  if (blind) warm();
+  else {
+    msg(ctx, `enchant.erodeproof${isPlural(def, obj) ? '_pl' : ''}`, {
+      item: xnameOf(ctx.state, ctx.defs, obj),
+      how: { key: scursed ? 'enchant.erodeproof.mottled' : 'enchant.erodeproof.shimmering' },
+      color: hcolor(ctx, scursed ? (what === 'shield' ? 'purple' : 'black') : 'golden'),
+      what: { key: `enchant.erodeproof.${scursed ? 'glow' : what}` },
+    });
+  }
+  if (newProof && it.erosion && (it.erosion.e1 || it.erosion.e2)) {
+    delete it.erosion;
+    msg(ctx, 'erode.good_as_new', {
+      item: xnameOf(ctx.state, ctx.defs, obj),
+      look: { key: `erode.${blind ? 'feel' : 'look'}${isPlural(def, obj) ? '_pl' : ''}` },
+    });
+  }
+  // costly_alteration(): no shops
+  if (newProof) it.erodeproof = true;
+  else delete it.erodeproof;
 }
 
-/** ref: src/read.c seffect_enchant_weapon(). The confused case only gives its message. */
+/** ref: src/read.c seffect_enchant_weapon() */
 function seffectEnchantWeapon(ctx: Ctx, scroll: Entity): boolean {
   const buc = scroll.c.item?.buc ?? 'uncursed';
   const uwep = inventoryOf(ctx.state, ctx.state.playerId).find(
     (o) => o.c.item?.equipped === 'weapon',
   );
-  if (hasProp(heroEntity(ctx), P.CONFUSION) && uwep) {
-    if (hasProp(heroEntity(ctx), P.BLINDED)) msg(ctx, 'enchant.weapon_warm');
-    else erodeproofMsg(ctx, uwep, buc === 'cursed', 'shield');
+  if (
+    hasProp(heroEntity(ctx), P.CONFUSION) &&
+    uwep &&
+    erosionMatters(ctx.defs.object(uwep.def)) &&
+    ctx.defs.object(uwep.def).class !== 'armor'
+  ) {
+    erodeproof(ctx, uwep, buc === 'cursed', 'shield', () => msg(ctx, 'enchant.weapon_warm'));
     return false;
   }
   const spe = uwep?.c.item?.spe ?? 0;
@@ -274,7 +309,7 @@ function someArmor(ctx: Ctx): Entity | null {
 
 /**
  * ref: src/read.c seffect_enchant_armor(). Returns true when the scroll was already used up.
- * The confused case only gives its message (no erosion). Not ported: dragon scales, artifacts,
+ * Not ported: dragon scales, artifacts,
  * Dex/Int armor bonuses (adj_abon).
  */
 function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boolean {
@@ -289,11 +324,11 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
   }
   if (hasProp(heroEntity(ctx), P.CONFUSION)) {
     const odef = ctx.defs.object(otmp.def);
-    if (hasProp(heroEntity(ctx), P.BLINDED))
+    erodeproof(ctx, otmp, scursed, odef.armor?.slot === 'shield' ? 'layer' : 'shield', () =>
       msg(ctx, `enchant.armor_warm${isPlural(odef, otmp) ? '_pl' : ''}`, {
         item: xnameOf(ctx.state, ctx.defs, otmp),
-      });
-    else erodeproofMsg(ctx, otmp, scursed, odef.armor?.slot === 'shield' ? 'layer' : 'shield');
+      }),
+    );
     return false;
   }
   const it = otmp.c.item;

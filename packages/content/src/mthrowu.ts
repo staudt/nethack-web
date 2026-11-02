@@ -28,6 +28,7 @@ import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
 import { monNam } from './perception';
 import { luckOf } from './luck';
+import { greatestErosion } from './material';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -82,7 +83,7 @@ export function omonAdj(mon: Entity, mdef: MonsterDef, obj: Entity, odef: Object
 
 /**
  * Whether a missile that hit (or was fired) breaks. Only ammo and missiles break.
- * ref: src/dothrow.c should_mulch_missile(): `chance = 3 - spe` (we have no erosion);
+ * ref: src/dothrow.c should_mulch_missile(): `chance = 3 + greatest_erosion - spe`;
  * `chance > 1 ? rn2(chance) : !rn2(4)`; a blessed one survives 1 in 3 (monsters) or `!rnl(4)`
  * (the hero, so Luck helps); flint survives half of the time.
  */
@@ -90,7 +91,7 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
   const it = obj.c.item;
   const def = ctx.defs.object(obj.def);
   if (!it || !(isAmmo(def) || isMissile(def)) || def.magic) return false;
-  const chance = 3 - it.spe;
+  const chance = 3 + greatestErosion(obj) - it.spe;
   let broken = chance > 1 ? ctx.rng.rn2(chance) !== 0 : ctx.rng.rn2(4) === 0;
   if (
     it.buc === 'blessed' &&

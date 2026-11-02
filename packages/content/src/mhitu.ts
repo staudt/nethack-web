@@ -16,6 +16,7 @@ import { setUstuck, ustuck } from './hackmove';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeStunned, timeoutLeft } from './props';
 import { monNam } from './perception';
+import { destroyItems } from './erode';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -96,13 +97,13 @@ const onFire = (at: AttackDef['at']): string => (at === 'hug' ? '@mhitu.roasted'
  * die inside (instadeath poison): check `ctx.state.gameOver` afterwards.
  * ref: src/uhitm.c mhitm_adtyping() -> mhitm_ad_elec/fire/cold/slee/drst/acid/stun/plys/stck()
  * with `mdef == &gy.youmonst`.
- * Not ported: destroy_items() (burning scrolls, boiling potions, shattering potions, blowing up
- * wands) -- its trigger roll `m_lev > rn2(20)` is still made so the random stream matches --,
- * armor erosion, `mcan`, Free_action and Antimagic (the hero has neither).
+ * Fire, cold and lightning may destroy carried items (destroy_items() with the incoming damage);
+ * the hero may die of them. Not ported: `mcan`, Free_action and Antimagic (the hero has neither).
  */
 export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): number {
   const hero = getPlayer(ctx.state);
   const name = monNam(ctx, mon);
+  const mlev = mon.c.monster?.level ?? 0;
   let dmg = damage;
   switch (atk.ad) {
     case 'elec': // mhitm_ad_elec
@@ -112,7 +113,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
           say(ctx, 'mhitu.zap_no_shock');
           dmg = 0;
         }
-        ctx.rng.rn2(20); // `m_lev > rn2(20)` gates destroy_items(AD_ELEC): not ported
+        if (mlev > ctx.rng.rn2(20)) destroyItems(ctx, hero.id, 'elec', damage);
       } else dmg = 0;
       break;
     case 'fire': // mhitm_ad_fire
@@ -122,7 +123,8 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
           say(ctx, 'mhitu.fire_not_hot');
           dmg = 0;
         }
-        ctx.rng.rn2(20); // `m_lev > rn2(20)` gates destroy_items(AD_FIRE) / ignite_items(): not ported
+        // ignite_items(invent): no light sources yet; burn_away_slime(): no sliming
+        if (mlev > ctx.rng.rn2(20)) destroyItems(ctx, hero.id, 'fire', damage);
       } else dmg = 0;
       break;
     case 'cold': // mhitm_ad_cold
@@ -132,7 +134,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
           say(ctx, 'mhitu.frost_not_cold');
           dmg = 0;
         }
-        ctx.rng.rn2(20); // `m_lev > rn2(20)` gates destroy_items(AD_COLD): not ported
+        if (mlev > ctx.rng.rn2(20)) destroyItems(ctx, hero.id, 'cold', damage);
       } else dmg = 0;
       break;
     case 'acid': // mhitm_ad_acid: one hit in three splashes you

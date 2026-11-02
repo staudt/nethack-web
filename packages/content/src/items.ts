@@ -7,6 +7,7 @@ import {
   type DefId,
   type Entity,
   type EntityId,
+  type GameState,
   type ItemComponent,
   type LevelId,
   type MonsterDef,
@@ -15,6 +16,7 @@ import {
   type Registry,
   type Rng,
 } from '@nh/core';
+import { erosionMatters } from './material';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<Ctx, 'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove'>;
@@ -221,7 +223,7 @@ export function weight(defs: Registry, item: Entity): number {
  * food, same monster for corpses. Differences in the known flags do not prevent merging (they
  * only would when blind or hallucinating, which is not implemented). Worn status does not
  * matter: a picked-up dagger joins the wielded stack, as in NetHack.
- * Not ported: erosion, grease, light, names, shop state, artifacts, eggs/tins, reviving corpses.
+ * Not ported: grease, light, names, shop state, artifacts, eggs/tins, reviving corpses.
  */
 export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   const a = into.c.item;
@@ -231,6 +233,10 @@ export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   if (!def.merge) return false;
   if (def.class === 'coin') return true;
   if (a.buc !== b.buc || a.spe !== b.spe) return false;
+  // ref: mergable(): oeroded, oeroded2 and (when erosion matters) oerodeproof must match
+  if ((a.erosion?.e1 ?? 0) !== (b.erosion?.e1 ?? 0)) return false;
+  if ((a.erosion?.e2 ?? 0) !== (b.erosion?.e2 ?? 0)) return false;
+  if (erosionMatters(def) && (a.erodeproof ?? false) !== (b.erodeproof ?? false)) return false;
   if (def.class === 'food' && (a.eaten ?? 0) !== (b.eaten ?? 0)) return false;
   if (def.id === 'nh:corpse' && a.corpseOf !== b.corpseOf) return false;
   return true;
@@ -264,7 +270,12 @@ export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
       a.known.buc = true;
       learned = true;
     }
+    if (rknown(ctx.state, obj.id) !== rknown(ctx.state, into.id) && a.erodeproof) {
+      setRknown(ctx, into.id, true);
+      learned = true;
+    }
   }
+  setRknown(ctx, obj.id, false);
   if (b.equipped !== null && a.carriedBy !== null && a.equipped === null) a.equipped = b.equipped;
   ctx.remove(obj.id);
   if (learned && a.carriedBy === ctx.state.playerId) ctx.emit({ type: 'msg', key: 'item.compare' });
@@ -294,6 +305,8 @@ interface NhData {
   oldcap?: number;
   /** Message shown when the current helplessness ends (ref: nomovemsg). */
   nomovemsg?: Msg | null;
+  /** Items whose erodeproofing the hero knows, by item id (obj->rknown); see rknown(). */
+  rknown?: Record<string, true>;
 }
 
 /** The content mod's persistent data (gl.lastinvnr and friends). */
@@ -306,6 +319,28 @@ export function nhData(ctx: Pick<ItemCtx, 'state'>): NhData {
     md['nh'] = d as unknown as (typeof md)[string];
   }
   return d;
+}
+
+// ---------------------------------------------------------------------------------------------
+// rknown: whether the hero knows the item's erodeproofing (obj->rknown). It lives in
+// `modData.nh.rknown` by item id, as the core item component has no such field, and is only
+// recorded for erodeproof items: for the others it would only matter to not_fully_identified()
+// (see DEVIATIONS.md, scroll of identify).
+
+/** ref: obj->rknown */
+export function rknown(state: Readonly<GameState>, id: EntityId): boolean {
+  const md = state.modData['nh'] as unknown as { rknown?: Record<string, true> } | undefined;
+  return md?.rknown?.[String(id)] === true;
+}
+
+/** Sets or clears obj->rknown. */
+export function setRknown(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean): void {
+  const d = nhData(ctx);
+  if (on) (d.rknown ??= {})[String(id)] = true;
+  else if (d.rknown) {
+    delete d.rknown[String(id)];
+    if (Object.keys(d.rknown).length === 0) delete d.rknown;
+  }
 }
 
 const INVLET_BASIC = 52;
@@ -443,6 +478,7 @@ export function splitStack(ctx: ItemCtx, itemId: EntityId, n: number): EntityId 
   const child: ItemComponent = {
     ...it,
     known: { ...it.known },
+    ...(it.erosion ? { erosion: { ...it.erosion } } : {}),
     quantity: n,
     carriedBy: null,
     equipped: null,
@@ -451,7 +487,9 @@ export function splitStack(ctx: ItemCtx, itemId: EntityId, n: number): EntityId 
   it.quantity -= n;
   const def = ctx.state.entities[String(itemId)]?.def;
   if (!def) throw new Error('splitStack: missing def');
-  return ctx.spawn({ def, c: { item: child } });
+  const id = ctx.spawn({ def, c: { item: child } });
+  if (rknown(ctx.state, itemId)) setRknown(ctx, id, true);
+  return id;
 }
 
 /** Buc as a number: blessed +1, cursed -1. ref: src/mkobj.c bcsign() */
