@@ -2,6 +2,7 @@ import {
   cellIndex,
   inBounds,
   isJsonPlain,
+  isPlainFloor,
   sortedIds,
   stateHash,
   type EquipSlot,
@@ -135,6 +136,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkEquipment(state, registry, errs);
   checkProps(state, errs);
   checkDoors(state, registry, errs);
+  checkTraps(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
 
@@ -350,6 +352,33 @@ function checkDoors(state: GameState, registry: Registry, errs: string[]): void 
           return;
         }
       }
+    }
+  }
+}
+
+/**
+ * Traps: a registered def on plain floor (no door, stairs, wall or hidden terrain), at most one
+ * per cell, and `level.traps` sorted by cell index as core's placeTrapOn keeps it.
+ */
+function checkTraps(state: GameState, registry: Registry, errs: string[]): void {
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) continue;
+    let last = -1;
+    for (const t of lv.traps) {
+      if (!registry.isTrap(t.def)) errs.push(`level ${lid}: trap '${t.def}' is not registered`);
+      if (!isPlainFloor(registry, lv, t.x, t.y)) {
+        const id = inBounds(lv, t.x, t.y)
+          ? lv.palette[lv.cells[cellIndex(lv, t.x, t.y)] ?? -1]
+          : '';
+        errs.push(
+          `level ${lid}: trap '${t.def}' at ${t.x},${t.y} is not on plain floor (${id ?? '?'})`,
+        );
+        continue;
+      }
+      const i = cellIndex(lv, t.x, t.y);
+      if (i <= last) errs.push(`level ${lid}: traps not sorted by cell, or two on ${t.x},${t.y}`);
+      last = i;
     }
   }
 }

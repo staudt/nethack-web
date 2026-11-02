@@ -72,6 +72,10 @@ export interface SoakResult {
   fired: number;
   enhanced: number;
   swapped: number;
+  /** Wands zapped (`nh:zap`), floor containers looted (`nh:loot`), rings and amulets put on. */
+  zapped: number;
+  looted: number;
+  putOn: number;
   /** Text prompts answered with a string, and count-menu entries answered with a partial count. */
   textAnswers: number;
   countAnswers: number;
@@ -98,9 +102,11 @@ const isMod = (a: PlayerAction, id: string): boolean => a.type === 'mod' && a.ac
 
 /**
  * A seeded bot that plays like a player would, driven only by `actionsFor()` offers. Priority:
- * (while a multi-turn action is in progress: usually `continue`, sometimes cancel it) attack an adjacent hostile; eat when hungry; quaff when hurt; pick things up; occasionally wield,
- * wear, take off, read, throw daggers at monsters in line, drop; take stairs down; else a random
- * offer. Checks invariants as it goes.
+ * (while a multi-turn action is in progress: usually `continue`, sometimes cancel it) attack an adjacent hostile; zap wands at
+ * monsters in line; eat when hungry; quaff when hurt; pick things up; loot containers; occasionally
+ * wield, wear, take off, put on, read, throw daggers at monsters in line, drop; take stairs down;
+ * else a random offer. Prompts (trap confirmations, ring hands, zap directions, loot menus) are
+ * answered generically by kind. Checks invariants as it goes.
  */
 export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   const engine = createEngine(mods);
@@ -125,6 +131,9 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let fired = 0;
   let enhanced = 0;
   let swapped = 0;
+  let zapped = 0;
+  let looted = 0;
+  let putOn = 0;
   let textAnswers = 0;
   let countAnswers = 0;
   let aim: Dir | null = null;
@@ -342,6 +351,18 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       }
     }
 
+    // 1d. a hostile in line: zap a wand at it now and then. Like every branch below that needs
+    // an offer, this draws from the bot's RNG only when there is one, so runs without wands
+    // play as before.
+    if (!action && inv.some((e) => engine.registry.object(e.def).class === 'wand')) {
+      const target = visibleMonsters().find((m) => !m.peaceful && lineDir(pos, m.pos) !== null);
+      const zaps = target ? itemOffers((id) => id === 'nh:zap') : [];
+      if (target && zaps.length > 0 && rng.rn2(3) === 0) {
+        action = pickRandom(zaps);
+        aim = lineDir(pos, target.pos);
+      }
+    }
+
     // 2. eat when hungry: inventory food first, else food on the floor
     if (!action && (hunger === 'hungry' || hunger === 'weak' || hunger === 'fainting')) {
       const food = itemOffers((id) => id === 'nh:eat');
@@ -370,6 +391,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:pickup')));
     }
 
+    // 4b. open a container lying here (a locked one asks to unlock it when a key is at hand)
+    if (!action) {
+      const loots = selfOffers.filter((o) => isMod(o.action, 'nh:loot'));
+      if (loots.length > 0 && rng.rn2(2) === 0) action = pickRandom(loots);
+    }
+
     // 5. occasional gear, reading, throwing, dropping and eating when not hungry
     if (!action) {
       const roll = rng.rn2(100);
@@ -385,6 +412,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:enhance')));
       else if (roll < 27)
         action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:swap_weapon')));
+      else if (roll < 29) action = pickRandom(itemOffers((id) => id === 'nh:puton'));
+      else if (roll < 30) action = pickRandom(itemOffers((id) => id === 'nh:remove'));
     }
 
     // 6. descend 1 time in 4 when standing on a down staircase, so runs visit several levels
@@ -433,10 +462,13 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     else if (isMod(action, 'nh:throw')) thrown++;
     else if (isMod(action, 'nh:fire')) fired++;
     else if (isMod(action, 'nh:pray')) prayed++;
+    else if (isMod(action, 'nh:zap')) zapped++;
     else {
       aim = null;
       if (isMod(action, 'nh:kick')) kicks++;
       else if (isMod(action, 'nh:swap_weapon')) swapped++;
+      else if (isMod(action, 'nh:loot')) looted++;
+      else if (isMod(action, 'nh:puton')) putOn++;
     }
     log.push(action);
     stepAndTrack(action);
@@ -466,6 +498,9 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     fired,
     enhanced,
     swapped,
+    zapped,
+    looted,
+    putOn,
     textAnswers,
     countAnswers,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,

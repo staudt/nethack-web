@@ -119,6 +119,35 @@ describe('invariants', () => {
     expect(errs(s).join('\n')).toMatch(/timers not sorted/);
   });
 
+  test('traps: plain floor only, registered, one per cell, sorted', () => {
+    const s = fresh();
+    const l = getLevel(s);
+    l.traps = [];
+    const floor = l.palette.indexOf('nh:floor');
+    const cells = l.cells.flatMap((c, i) => (c === floor ? [i] : []));
+    const at = (i: number) => ({ x: i % l.width, y: Math.floor(i / l.width) });
+    const [a, b] = [at(cells[0]!), at(cells[1]!)];
+    l.traps = [
+      { def: 'nh:squeaky_board', ...a, seen: false },
+      { def: 'nh:bear_trap', ...b, seen: true },
+    ];
+    expect(errs(s)).toEqual([]);
+    l.traps = [l.traps[1]!, l.traps[0]!];
+    expect(errs(s).join('\n')).toMatch(/traps not sorted/);
+    l.traps = [
+      { def: 'nh:squeaky_board', ...a, seen: false },
+      { def: 'nh:bear_trap', ...a, seen: false },
+    ];
+    expect(errs(s).join('\n')).toMatch(/two on/);
+    l.traps = [{ def: 'zz:nothing', ...a, seen: false }];
+    expect(errs(s).join('\n')).toMatch(/not registered/);
+    l.traps = [{ def: 'nh:squeaky_board', ...wallCell(s), seen: false }];
+    expect(errs(s).join('\n')).toMatch(/not on plain floor \(nh:vwall\)/);
+    const stairs = l.cells.indexOf(l.palette.indexOf('nh:stairs_up'));
+    l.traps = [{ def: 'nh:squeaky_board', ...at(stairs), seen: false }];
+    expect(errs(s).join('\n')).toMatch(/not on plain floor/);
+  });
+
   test('non-plain state', () => {
     const s = fresh();
     (s.modData as Record<string, unknown>)['x'] = new Map();

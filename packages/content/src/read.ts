@@ -29,6 +29,7 @@ import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
+import { snuffLit } from './light';
 import { luckOf } from './luck';
 import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
 
@@ -468,10 +469,14 @@ export function clearArea(ctx: Ctx, radius: 5 | 8 | 9): number[] {
  * ref: src/read.c litroom(): lights (or darkens) the cells around the hero that she could see
  * from where she stands, within a circle of radius 5 (9 for a blessed scroll). That includes
  * walls and doorways but nothing behind them, so in a room it is the room and its walls (within
- * range), in a corridor a stretch of it. Not ported: lamps, gremlins, the Rogue level, being
- * swallowed or underwater, light-sensitive monsters (lightdamage).
+ * range), in a corridor a stretch of it. Darkening douses the hero's lit lamps first. Not
+ * ported: artifact lights, gremlins, the Rogue level, being swallowed or underwater,
+ * light-sensitive monsters (lightdamage).
  */
 export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
+  if (!on) {
+    for (const obj of inventoryOf(ctx.state, ctx.state.playerId)) snuffLit(ctx, obj);
+  }
   msg(ctx, on ? 'light.lit_field' : 'light.darkness');
   const pos = heroEntity(ctx).c.pos;
   const level: Level | undefined = pos ? ctx.state.levels[pos.level] : undefined;

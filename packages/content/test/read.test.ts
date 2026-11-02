@@ -403,6 +403,22 @@ describe('scroll of light', () => {
     expect(lvl.lit[5 * lvl.width + 11 + 8]).toBe(1);
   });
 
+  test('cursed douses the lamp the hero carries', () => {
+    const s = levelSetup(rows);
+    const lamp = s.carry('nh:oil_lamp');
+    const it = s.state.entities[String(lamp)]!.c.item!;
+    it.age = 60;
+    s.mod('nh:apply', { item: lamp });
+    expect(it.lit).toBe(true);
+    const r = read(s, make(s, 'nh:scroll_of_light', 'cursed'));
+    expect(s.text(r)).toEqual([
+      'As you read the scroll, it disappears.',
+      'Your lamp goes out!',
+      'You are surrounded by darkness!',
+    ]);
+    expect(s.state.entities[String(lamp)]?.c.item?.lit).toBeFalsy();
+  });
+
   test('walls block the light: a closed room stays closed', () => {
     const s = levelSetup(['#######', '#..@..#', '#######'].map((r) => r.replace(/#/g, ' ')));
     const lvl = darken(s);
