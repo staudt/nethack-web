@@ -212,9 +212,27 @@ export interface LevelDef {
 /**
  * How the map starts. `rooms`: the ordinary rooms-and-corridors generator, rooms filled as usual.
  * `solidfill`: every cell is terrain `fg`; `lit` omitted is a coin flip.
- * ref: src/sp_lev.c splev_initlev()
+ * `mines`: a cellular-automaton cave of `fg` in `bg` (default the generator's stone), see
+ * LevelInitMines. ref: src/sp_lev.c splev_initlev()
  */
-export type LevelInit = { style: 'rooms' } | { style: 'solidfill'; fg: DefId; lit?: boolean };
+export type LevelInit =
+  { style: 'rooms' } | { style: 'solidfill'; fg: DefId; lit?: boolean } | LevelInitMines;
+
+/**
+ * A cave map (ref: src/mkmap.c mkmap()). Booleans default to false, as in des.level_init().
+ * `smoothed`: two extra smoothing passes; `joined`: every open region is dug through to the others
+ * and regions of 3 cells or fewer are filled in; `walled`: `bg` cells next to `fg` become walls,
+ * with corners and T-walls; `lit` omitted is a coin flip, and lights the `fg` cells and walls.
+ */
+export interface LevelInitMines {
+  style: 'mines';
+  fg: DefId;
+  bg?: DefId;
+  smoothed?: boolean;
+  joined?: boolean;
+  walled?: boolean;
+  lit?: boolean;
+}
 
 /** A fixed count, or `min..max` inclusive (ref: nhlua math.random(min, max)). */
 export type LevelCount = number | { min: number; max: number };

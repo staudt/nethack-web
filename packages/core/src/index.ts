@@ -17,6 +17,8 @@ export {
   VANILLA_TERRAIN,
   MIN_LEVEL_WIDTH,
   MIN_LEVEL_HEIGHT,
+  MIN_MKMAP_WIDTH,
+  MIN_MKMAP_HEIGHT,
 } from './levelgen/index';
 export type { GenOptions, LevelTerrain } from './levelgen/index';
 export {

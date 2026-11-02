@@ -92,7 +92,7 @@ describe('defineLevel validation', () => {
       ],
     } as unknown as LevelDef;
     expect(issues([bad])).toEqual([
-      "lv:bad init.style: must be 'rooms' or 'solidfill'",
+      "lv:bad init.style: must be 'rooms', 'solidfill' or 'mines'",
       'lv:bad contents[0].kind: must be one of monster, object, trap',
       'lv:bad contents[1].class: give either id or class, not both',
       'lv:bad contents[2].class: traps have no classes',

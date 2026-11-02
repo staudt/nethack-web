@@ -57,6 +57,23 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: true,
     glyph: { ch: '-', fg: GRAY },
   },
+  // ref: defsym.h S_crwall '-', S_tuwall '-', S_tdwall '-', S_tlwall '|', S_trwall '|'
+  // (T-walls of cave maps; ref: src/mkmaze.c fix_wall_spines())
+  ...(
+    [
+      ['nh:crwall', '-'],
+      ['nh:tuwall', '-'],
+      ['nh:tdwall', '-'],
+      ['nh:tlwall', '|'],
+      ['nh:trwall', '|'],
+    ] as const
+  ).map(([id, ch]): TerrainDef => ({
+    id,
+    nameKey: 'terrain.wall',
+    passable: false,
+    opaque: true,
+    glyph: { ch, fg: GRAY },
+  })),
   // ref: defsym.h S_room '.' (CLR_GRAY)
   {
     id: 'nh:floor',
@@ -203,4 +220,9 @@ export const T = {
   door_locked: 'nh:door_locked',
   sdoor_locked_v: 'nh:sdoor_locked_v',
   sdoor_locked_h: 'nh:sdoor_locked_h',
+  tuwall: 'nh:tuwall',
+  tdwall: 'nh:tdwall',
+  tlwall: 'nh:tlwall',
+  trwall: 'nh:trwall',
+  crwall: 'nh:crwall',
 } as const;

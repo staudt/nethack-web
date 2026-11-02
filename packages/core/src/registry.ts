@@ -495,8 +495,12 @@ export function loadMods(mods: readonly Mod[]): Registry {
   for (const l of levels.values()) {
     const ref = (path: string, reason: string): void =>
       void issues.push({ modId: l.mod, defId: l.id, path, reason });
-    if (l.init?.style === 'solidfill' && typeof l.init.fg === 'string' && !terrains.has(l.init.fg))
-      ref('init.fg', `unknown terrain '${l.init.fg}'`);
+    if (l.init?.style === 'solidfill' || l.init?.style === 'mines')
+      for (const key of ['fg', 'bg'] as const) {
+        const id: unknown = (l.init as Record<string, unknown>)[key];
+        if (typeof id === 'string' && !terrains.has(id))
+          ref(`init.${key}`, `unknown terrain '${id}'`);
+      }
     if (!Array.isArray(l.contents)) continue;
     l.contents.forEach((c, i) => {
       const known = c.kind === 'monster' ? monsters : c.kind === 'object' ? objects : traps;
@@ -616,12 +620,18 @@ function levelDefIssues(d: LevelDef): [string, string][] {
   const init: unknown = d.init;
   if (typeof init !== 'object' || init === null) out.push(['init', 'must be an object']);
   else {
-    const { style, fg, lit } = init as Record<string, unknown>;
-    if (style === 'solidfill') {
+    const fields = init as Record<string, unknown>;
+    const { style, fg, bg } = fields;
+    const bools = style === 'mines' ? ['smoothed', 'joined', 'walled', 'lit'] : ['lit'];
+    if (style === 'solidfill' || style === 'mines') {
       if (typeof fg !== 'string' || fg === '') out.push(['init.fg', 'must be a terrain id']);
-      if (lit !== undefined && typeof lit !== 'boolean')
-        out.push(['init.lit', 'must be a boolean']);
-    } else if (style !== 'rooms') out.push(['init.style', "must be 'rooms' or 'solidfill'"]);
+      if (style === 'mines' && bg !== undefined && (typeof bg !== 'string' || bg === ''))
+        out.push(['init.bg', 'must be a terrain id']);
+      for (const b of bools)
+        if (fields[b] !== undefined && typeof fields[b] !== 'boolean')
+          out.push([`init.${b}`, 'must be a boolean']);
+    } else if (style !== 'rooms')
+      out.push(['init.style', "must be 'rooms', 'solidfill' or 'mines'"]);
   }
   const contents: unknown = d.contents;
   if (contents === undefined) return out;

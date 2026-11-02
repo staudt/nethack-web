@@ -30,6 +30,12 @@ export interface LevelTerrain {
   /** Locked secret doors: once found they become locked doors. */
   sdoor_locked_v: DefId;
   sdoor_locked_h: DefId;
+  /** T-walls and cross walls, made by walled cave maps (ref: rm.h TUWALL..TRWALL, CROSSWALL). */
+  tuwall: DefId;
+  tdwall: DefId;
+  tlwall: DefId;
+  trwall: DefId;
+  crwall: DefId;
 }
 
 export const VANILLA_TERRAIN: LevelTerrain = {
@@ -54,9 +60,17 @@ export const VANILLA_TERRAIN: LevelTerrain = {
   door_locked: 'nh:door_locked',
   sdoor_locked_v: 'nh:sdoor_locked_v',
   sdoor_locked_h: 'nh:sdoor_locked_h',
+  tuwall: 'nh:tuwall',
+  tdwall: 'nh:tdwall',
+  tlwall: 'nh:tlwall',
+  trwall: 'nh:trwall',
+  crwall: 'nh:crwall',
 };
 
-/** Palette order (indices into Level.palette). */
+/**
+ * Palette order (indices into Level.palette) of rooms-and-corridors levels. Cave levels (the
+ * `mines` LevelDef style) append CAVE_PALETTE_KEYS, so ordinary levels and saves are unchanged.
+ */
 export const PALETTE_KEYS: readonly (keyof LevelTerrain)[] = [
   'stone',
   'vwall',
@@ -79,6 +93,15 @@ export const PALETTE_KEYS: readonly (keyof LevelTerrain)[] = [
   'door_locked',
   'sdoor_locked_v',
   'sdoor_locked_h',
+];
+
+/** Extra palette entries of cave levels, after PALETTE_KEYS. */
+export const CAVE_PALETTE_KEYS: readonly (keyof LevelTerrain)[] = [
+  'tuwall',
+  'tdwall',
+  'tlwall',
+  'trwall',
+  'crwall',
 ];
 
 /** Palette indices by key, for readers of generated levels. */
@@ -104,4 +127,10 @@ export const PAL = {
   door_locked: 18,
   sdoor_locked_v: 19,
   sdoor_locked_h: 20,
+  // cave levels only (CAVE_PALETTE_KEYS)
+  tuwall: 21,
+  tdwall: 22,
+  tlwall: 23,
+  trwall: 24,
+  crwall: 25,
 } as const;

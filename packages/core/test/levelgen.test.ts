@@ -7,7 +7,7 @@ import {
   MIN_LEVEL_HEIGHT,
   MIN_LEVEL_WIDTH,
 } from '../src/levelgen/index';
-import { PAL } from '../src/levelgen/terrain';
+import { PAL, PALETTE_KEYS } from '../src/levelgen/terrain';
 import { Grid, T } from '../src/levelgen/grid';
 import { RectList, type NhRect } from '../src/levelgen/rect';
 import { addRoom, litstateRnd, makeRooms, sortRooms, maxRooms } from '../src/levelgen/rooms';
@@ -37,7 +37,7 @@ describe('levelgen', () => {
 
   test('palette follows terrain key order', () => {
     const lvl = gen(2);
-    expect(lvl.palette).toEqual(Object.values(VANILLA_TERRAIN));
+    expect(lvl.palette).toEqual(PALETTE_KEYS.map((k) => VANILLA_TERRAIN[k]));
     expect(lvl.palette[PAL.door_open_v]).toBe('nh:door_open_v');
   });
 
