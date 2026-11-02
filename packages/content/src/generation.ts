@@ -9,6 +9,7 @@ import {
   type CellRules,
   type Ctx,
   type EntityId,
+  type GameState,
   type Level,
   type LevelId,
   type ModApi,
@@ -379,11 +380,22 @@ function initgrp(
 }
 
 /**
+ * True when `modData.nh.debugMongen` is set: a debug switch (for tests) that stops random
+ * monster generation; the 1 in 70 roll is still drawn. NetHack's flag stops every makemon();
+ * here only the random spawns stop. ref: include/flag.h iflags.debug_mongen, src/makemon.c makemon()
+ */
+export function noMongen(state: Readonly<GameState>): boolean {
+  const nh = state.modData['nh'] as { debugMongen?: boolean } | undefined;
+  return nh?.debugMongen === true;
+}
+
+/**
  * Registers random spawning. (Level population is in mklev.ts, which fills each room.)
  */
 export function registerGeneration(api: ModApi): void {
   // ref: src/allmain.c maybe_generate_rnd_mon()
   api.on('endOfTurn', (ctx) => {
-    if (ctx.state.gameOver === null && ctx.rng.rn2(SPAWN_ODDS) === 0) makemon(ctx, null, null);
+    if (ctx.state.gameOver === null && ctx.rng.rn2(SPAWN_ODDS) === 0 && !noMongen(ctx.state))
+      makemon(ctx, null, null);
   });
 }

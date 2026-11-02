@@ -98,9 +98,22 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
 import { newMemory, type DefId, type Level, type PlayerAction, type StepResult } from '@nh/core';
 import { T } from '../src/index';
 
-/** Hero (with the real kit) on a lit floor strip; other entities are removed. `@` marks her. */
+/**
+ * Stops random monster generation (`modData.nh.debugMongen`, NetHack's iflags.debug_mongen), so
+ * a test's outcome does not hang on whether the seed spawns a monster nearby.
+ */
+export function quiet(state: GameState): void {
+  const nh = (state.modData['nh'] ??= {}) as Record<string, unknown>;
+  nh['debugMongen'] = true;
+}
+
+/**
+ * Hero (with the real kit) on a lit floor strip; other entities are removed and random monster
+ * generation is off (`quiet`). `@` marks her.
+ */
 export function levelSetup(rows: string[] = ['.....', '..@..', '.....'], seed = 1) {
   const { state } = engine.newGame({ seed });
+  quiet(state);
   for (const k of Object.keys(state.entities)) {
     const e = state.entities[k];
     if (e && !e.c.item && Number(k) !== state.playerId) delete state.entities[k];

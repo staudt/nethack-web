@@ -47,7 +47,10 @@ function rollCount(ctx: Ctx, count: LevelCount | undefined): number {
   return count.min + ctx.rng.rn2(count.max - count.min + 1);
 }
 
-/** ref: src/sp_lev.c create_monster() with no room and random coordinates */
+/**
+ * ref: src/sp_lev.c create_monster() with no room and random coordinates; an occupied spot moves
+ * to a close one (`if (MON_AT(x, y) && enexto(...))`)
+ */
 function createMonster(ctx: Ctx, level: Level, c: LevelContent): void {
   const def =
     c.id !== undefined
@@ -56,7 +59,8 @@ function createMonster(ctx: Ctx, level: Level, c: LevelContent): void {
         ? mkclass(ctx, c.class, level.depth, ['nogen']) // mkclass(class, G_NOGEN)
         : null;
   const pos = getLocation(ctx, level, (p) => dry(ctx, level, p));
-  if (pos) makemon(ctx, def, pos, { level: level.id });
+  // someone already there: a close place instead (makemon's enexto)
+  if (pos) makemon(ctx, def, pos, { level: level.id, adjacentOk: true });
 }
 
 /** ref: src/sp_lev.c create_object() with no room and random coordinates */

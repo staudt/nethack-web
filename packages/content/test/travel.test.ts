@@ -11,7 +11,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { T, messagesEn, vanillaMod } from '../src/index';
 import { heroAt, mapSetup, newtAt, travelTo } from './maps';
-import { engine as sharedEngine } from './itemHelpers';
+import { engine as sharedEngine, quiet } from './itemHelpers';
 
 const engine2 = () => sharedEngine;
 
@@ -23,10 +23,14 @@ const CHARS: Record<string, DefId> = {
   '+': T.door_closed,
 };
 
-/** Builds a lit level from ASCII rows with the hero at '@'; everything is remembered. */
+/**
+ * Builds a lit level from ASCII rows with the hero at '@'; everything is remembered and random
+ * monster generation is off.
+ */
 function setup(rows: string[], opts: { forget?: Pos[] } = {}) {
   const engine = createEngine([vanillaMod]);
   const { state } = engine.newGame({ seed: 1 });
+  quiet(state);
   for (const id of Object.keys(state.entities))
     if (Number(id) !== state.playerId) delete state.entities[id];
   const height = rows.length;
@@ -99,7 +103,7 @@ function addNewt(
     def: 'nh:newt',
     c: {
       pos: { level: 'dlvl1', x, y },
-      actor: { energy: 0, speed: 6 },
+      actor: { energy: 0, speed: 0 }, // pinned: it never moves, so where she stops is fixed
       hp: { cur: 3, max: 3 },
       monster: { level: 0, peaceful: false, asleep: true, lastHero: null },
     },

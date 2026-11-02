@@ -356,8 +356,9 @@ describe('corpses', () => {
     for (let i = 0; i < 50 && s.state.entities[String(mon)]; i++)
       s.step({ type: 'move', dir: 'e' });
     const level = s.state.currentLevel;
-    const here = itemsAt(defs, s.state, level, 4, 1);
-    expect(here.map((e) => e.def)).toEqual(['nh:corpse']);
+    // the rothe may also leave a random death drop (ref: src/mon.c xkilled() rn2(6))
+    const here = itemsAt(defs, s.state, level, 4, 1).filter((e) => e.def === 'nh:corpse');
+    expect(here).toHaveLength(1);
     expect(here[0]!.c.item?.corpseOf).toBe('nh:rothe');
     expect(s.state.timers.some((t) => t.kind === 'nh:rot_corpse')).toBe(true);
 

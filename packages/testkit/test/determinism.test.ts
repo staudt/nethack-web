@@ -82,7 +82,7 @@ describe('determinism', () => {
 describe('determinism of a soak with kicks, fires and text answers', () => {
   const MODS = [vanillaMod, soakKitMod];
   // a seed whose run kicks, fires and answers counts (re-picked when the game stream changes)
-  const SOAK_SEED = 20261030;
+  const SOAK_SEED = 20261033;
   const run = soak(MODS, { seed: SOAK_SEED, turns: 400, botSeed: 7, width: W, height: H });
 
   test('the run exercised kicks, fires and count answers', () => {

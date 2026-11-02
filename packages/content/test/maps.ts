@@ -33,7 +33,8 @@ export interface MapOpts {
 
 /**
  * A level from ASCII rows with the hero at '@'. Corridors ('#') are dark, everything else is lit.
- * Other entities are removed; one turn passes so vision is up to date.
+ * Other entities are removed and random monster generation is off; one turn passes so vision is
+ * up to date.
  */
 export function mapSetup(rows: string[], opts: MapOpts = {}) {
   const base = levelSetup(['.'], opts.seed ?? 1);

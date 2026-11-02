@@ -1,5 +1,5 @@
 import { vanillaMod } from '@nh/content';
-import { inventoryOf, getPlayer } from '@nh/core';
+import { inventoryOf, getPlayer, type GameState } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { createScenario, runScenario } from '../src/index';
 
@@ -57,23 +57,32 @@ describe('item scenarios', () => {
   });
 
   test('eating from the inventory, using the item offers', () => {
-    const r = runScenario([vanillaMod], (s) => {
-      s.level(ROOM);
-      s.clearInventory();
-      s.setHunger(40);
-      s.expectHunger('weak');
-      s.item('nh:food_ration', 'inventory');
-    });
-    const ration = inventoryOf(r.state, r.state.playerId)[0]!;
-    const offer = r.engine
-      .query(r.state)
-      .actionsFor({ kind: 'item', id: ration.id })
-      .find((o) => o.labelKey === 'action.nh:eat');
-    expect(offer).toBeDefined();
-    for (let i = 0; i < 12 && i < 11; i++) {
-      r.engine.stepAll(r.state, i === 0 ? offer!.action : { type: 'wait' });
-    }
-    expect(getPlayer(r.state).c.hunger!.nutrition).toBeGreaterThan(300);
+    // a seed where no randomly spawned monster interrupts the meal (or kills the weak hero)
+    const eat = (seed: number) => {
+      const r = runScenario([vanillaMod], (s) => {
+        s.seed(seed);
+        s.level(ROOM);
+        s.clearInventory();
+        s.setHunger(40);
+        s.expectHunger('weak');
+        s.item('nh:food_ration', 'inventory');
+      });
+      const ration = inventoryOf(r.state, r.state.playerId)[0]!;
+      const offer = r.engine
+        .query(r.state)
+        .actionsFor({ kind: 'item', id: ration.id })
+        .find((o) => o.labelKey === 'action.nh:eat');
+      expect(offer).toBeDefined();
+      for (let i = 0; i < 11 && !r.state.gameOver; i++)
+        r.engine.stepAll(r.state, i === 0 ? offer!.action : { type: 'wait' });
+      return r.state;
+    };
+    const alone = (st: GameState) =>
+      !st.gameOver && Object.values(st.entities).every((e) => !e.c.monster);
+    let state = eat(1);
+    for (let seed = 2; seed <= 20 && !alone(state); seed++) state = eat(seed);
+    expect(alone(state)).toBe(true);
+    expect(getPlayer(state).c.hunger!.nutrition).toBeGreaterThan(300);
   });
 
   scenario('setHunger picks the matching state', (s) => {

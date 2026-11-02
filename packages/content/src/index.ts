@@ -42,7 +42,7 @@ import { LOOT_ACTIONS } from './container';
 import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
-import { DUNGEONS } from './dungeon';
+import { DUNGEONS, LEVELS } from './dungeon';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -54,6 +54,7 @@ export const vanillaMod: Mod = {
   version: '0.1.0',
   register(api) {
     for (const t of TERRAIN) api.defineTerrain(t);
+    for (const l of LEVELS) api.defineLevel(l);
     for (const d of DUNGEONS) api.defineDungeon(d);
     for (const r of ROLES) api.defineRole(r);
     for (const a of ACTIONS) api.defineAction(a);

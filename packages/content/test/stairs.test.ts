@@ -133,7 +133,7 @@ describe('stairs', () => {
 });
 
 describe('branch stairs', () => {
-  // A mod attaching a three-level dungeon to vanilla's main dungeon at DL2.
+  // A mod attaching a three-level dungeon to vanilla's main dungeon at DL5 (below the Mines).
   const branchMod: Mod = {
     id: 'br',
     version: '1',
@@ -142,27 +142,29 @@ describe('branch stairs', () => {
         id: 'br:pit',
         nameKey: 'br:pit',
         levels: { base: 3 },
-        entry: { from: 'nh:main', base: 2 },
+        entry: { from: 'nh:main', base: 5 },
       }),
   };
 
   test('> on the branch stairs enters the branch, < on its top comes back', () => {
     const engine = createEngine([vanillaMod, branchMod]);
     const { state } = engine.newGame({ seed: 4 });
-    expect(state.dungeons[0]?.branches).toEqual([{ to: 'br:pit', dlevel: 2 }]);
+    expect(state.dungeons[0]?.branches).toContainEqual({ to: 'br:pit', dlevel: 5 });
     const here = () => getPlayer(state).c.pos as Pos & { level: string };
     const put = (p: Pos) => Object.assign(getPlayer(state).c.pos as Pos, { x: p.x, y: p.y });
 
-    put(getLevel(state).down as Pos);
-    engine.step(state, DOWN);
-    const dl2 = getLevel(state);
-    expect(dl2.id).toBe('dlvl2');
-    const branch = dl2.branch;
-    if (!branch) throw new Error('DL2 has no branch stairs');
+    for (let i = 0; i < 4; i++) {
+      put(getLevel(state).down as Pos);
+      engine.step(state, DOWN);
+    }
+    const dl5 = getLevel(state);
+    expect(dl5.id).toBe('dlvl5');
+    const branch = dl5.branch;
+    if (!branch) throw new Error('DL5 has no branch stairs');
     put(branch.pos);
     engine.step(state, DOWN);
     const top = getLevel(state);
-    expect(top).toMatchObject({ id: 'br:pit/1', depth: 3, up: null });
+    expect(top).toMatchObject({ id: 'br:pit/1', depth: 6, up: null });
     expect(here()).toMatchObject(top.branch?.pos ?? {});
     expect(
       engine
@@ -172,7 +174,7 @@ describe('branch stairs', () => {
     ).toContain('action.up');
 
     engine.step(state, UP);
-    expect(here()).toEqual({ level: 'dlvl2', ...branch.pos });
+    expect(here()).toEqual({ level: 'dlvl5', ...branch.pos });
     expect(
       engine
         .query(state)
@@ -187,7 +189,7 @@ describe('branch stairs', () => {
     expect(here().level).toBe('br:pit/2');
     put(getLevel(state).down as Pos);
     engine.step(state, DOWN);
-    expect(getLevel(state)).toMatchObject({ id: 'br:pit/3', depth: 5, down: null });
+    expect(getLevel(state)).toMatchObject({ id: 'br:pit/3', depth: 8, down: null });
     engine.step(state, UP);
     expect(here().level).toBe('br:pit/2');
   });

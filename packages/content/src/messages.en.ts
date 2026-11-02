@@ -126,6 +126,7 @@ export const messagesEn: Record<string, string> = {
   'nh:tlwall': 'wall',
   'nh:trwall': 'wall',
   'nh:main': 'The Dungeons of Doom',
+  'nh:mines': 'The Gnomish Mines',
   'nh:floor': 'floor of a room',
   'nh:corr': 'corridor',
   'nh:doorway': 'doorway',

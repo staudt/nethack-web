@@ -104,7 +104,7 @@ describe('M4 scenarios', () => {
       });
       return turnsStuck;
     };
-    build(1, false);
+    findSeed((n) => build(n, false)); // a seed where the lichen sticks within 30 turns
     const seed = findSeed((n) => build(n, true));
     expect(seed).toBeGreaterThan(0);
   });

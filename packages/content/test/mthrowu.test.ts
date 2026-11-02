@@ -266,7 +266,7 @@ describe('missiles hit and miss the hero', () => {
       }
     }
     expect(hits).toBeGreaterThan(80);
-    expect(near + misses).toBeGreaterThan(30);
+    expect(near + misses).toBeGreaterThan(15); // about 1 in 9 throws (30-40 of 300)
     expect(near).toBeGreaterThan(0);
     expect(misses).toBeGreaterThan(0);
     expect(caught).toBeLessThan(10);

@@ -106,14 +106,19 @@ describe('studying a spellbook', () => {
   });
 
   test('a cursed book never teaches its spell', () => {
+    let tested = 0;
     for (let seed = 1; seed <= 15; seed++) {
       const s = levelSetup(undefined, seed);
+      // a dull-looking book may put the hero to sleep first: not this case, skip the seed
+      if (s.state.appearances[FORCE_BOLT] === 'nh:dull_spellbook') continue;
+      tested++;
       const b = book(s, FORCE_BOLT, 'cursed');
       const text = s.text(read(s, b));
       // level 1: rn2(1) is always the "teleport"
       expect(text[0]).toBe('You feel a wrenching sensation.');
       expect(learned(s)).toEqual([]);
     }
+    expect(tested).toBeGreaterThan(10);
   });
 
   test('blank paper is all blank and becomes known', () => {

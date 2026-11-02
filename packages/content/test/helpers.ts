@@ -9,6 +9,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { T, vanillaMod } from '../src/index';
+import { quiet } from './itemHelpers';
 
 const CHARS: Record<string, DefId> = {
   ' ': T.stone,
@@ -20,10 +21,14 @@ const CHARS: Record<string, DefId> = {
   o: T.doorway,
 };
 
-/** Builds a lit level from ASCII rows with the hero at '@'; generated monsters are cleared. */
+/**
+ * Builds a lit level from ASCII rows with the hero at '@'; generated monsters are cleared and
+ * random monster generation is off.
+ */
 export function setup(rows: string[], seed = 1) {
   const engine = createEngine([vanillaMod]);
   const { state } = engine.newGame({ seed });
+  quiet(state);
   for (const id of Object.keys(state.entities))
     if (Number(id) !== state.playerId) delete state.entities[id];
   state.currentLevel = 'dlvl1';

@@ -37,7 +37,7 @@ const ROOMS: LevelDef = {
   ],
 };
 
-// Mod 'tl': two one-level dungeons off DL1 built from the levels above, and a probe action that
+// Mod 'tl': two one-level dungeons off DL5 and DL6 built from the levels above, and a probe action that
 // runs a callback with a real Ctx (no time passes).
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const tlMod: Mod = {
@@ -51,7 +51,7 @@ const tlMod: Mod = {
         id: `${l.id}_d`,
         nameKey: 'tl',
         levels: { base: 1 },
-        entry: { from: 'nh:main', base: l === CAVE ? 2 : 3 },
+        entry: { from: 'nh:main', base: l === CAVE ? 5 : 6 }, // below the Mines entry
         filler: l.id,
       });
     api.defineAction({
