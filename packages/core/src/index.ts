@@ -12,6 +12,7 @@ export { computeVisible, updateMemory, newMemory } from './vision';
 export { findPath } from './path';
 export {
   generateLevel,
+  buildLevel,
   levelToAscii,
   VANILLA_TERRAIN,
   MIN_LEVEL_WIDTH,

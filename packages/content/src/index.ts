@@ -24,6 +24,7 @@ import { TRAVEL_ACTIONS } from './travel';
 import { RUN_ACTIONS } from './run';
 import { registerGeneration } from './generation';
 import { registerMklev } from './mklev';
+import { registerSpLev } from './sp_lev';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -104,6 +105,7 @@ export const vanillaMod: Mod = {
     registerHero(api);
     registerGeneration(api);
     registerMklev(api);
+    registerSpLev(api);
   },
 };
 

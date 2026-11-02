@@ -74,6 +74,49 @@ export function rndmonst(
   return selected;
 }
 
+/**
+ * A random monster of glyph class `cls` for a level of difficulty `depth`, or null. Candidates are
+ * the class in difficulty order (ref: init_mongen_order()); `allow` lifts generation flags
+ * ('nogen' for special levels, as G_NOGEN). Genocide and extinction are not tracked, and no level
+ * is in Gehennom. ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
+ */
+export function mkclass(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  cls: string,
+  depth: number,
+  allow: readonly string[] = [],
+): MonsterDef | null {
+  const list = ctx.defs.monsters
+    .filter((m) => m.glyph.ch === cls)
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => a.m.difficulty - b.m.difficulty || a.i - b.i)
+    .map(({ m }) => m);
+  const maxmlev = depth >> 1;
+  const ulevel = heroLevel(ctx);
+  const zeroFreq = list.every((m) => m.frequency === 0);
+  const nums: number[] = list.map(() => 0);
+  let num = 0;
+  for (let last = 0; last < list.length; last++) {
+    const m = list[last] as MonsterDef;
+    const mask = ['nogen', 'uniq'];
+    if (ctx.rng.rn2(9) || cls === 'L') mask.push('hell');
+    if (m.genFlags.some((f) => mask.includes(f) && !allow.includes(f))) continue;
+    const prev = list[last - 1];
+    if (num && m.difficulty > maxmlev && prev && m.difficulty > prev.difficulty && ctx.rng.rn2(2))
+      break;
+    const k = m.frequency > 0 ? m.frequency : zeroFreq ? 1 : 0;
+    if (k > 0) {
+      nums[last] = k + 1 - (adjLev(m, depth, ulevel) > ulevel * 2 ? 1 : 0);
+      num += nums[last] as number;
+    }
+  }
+  if (!num) return null;
+  let first = 0;
+  for (num = ctx.rng.rnd(num); first < list.length; first++)
+    if ((num -= nums[first] as number) <= 0) break;
+  return nums[first] ? (list[first] ?? null) : null;
+}
+
 /** ref: src/makemon.c adj_lev() */
 export function adjLev(def: MonsterDef, depth: number, ulevel: number): number {
   let tmp = def.level;

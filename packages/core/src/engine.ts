@@ -6,7 +6,13 @@ import {
   rollDungeons,
   rootDungeon,
 } from './dungeon';
-import { generateLevel, VANILLA_TERRAIN, type LevelTerrain } from './levelgen/index';
+import {
+  buildLevel,
+  generateLevel,
+  VANILLA_TERRAIN,
+  type GenOptions,
+  type LevelTerrain,
+} from './levelgen/index';
 import { cellRules } from './movement';
 import { allContents, topObjects } from './objects';
 import { createQuery } from './query';
@@ -19,7 +25,7 @@ import type { PlayerAction } from './types/action';
 import type { DefId, Json, Pos } from './types/common';
 import { NORMAL_SPEED } from './types/entity';
 import type { GameEvent } from './types/event';
-import type { Level } from './types/level';
+import type { Level, LevelRef } from './types/level';
 import type { ActionDef, Ctx, Mod, Registry } from './types/mod';
 import type { Replay } from './types/protocol';
 import type { Rng } from './types/rng';
@@ -74,6 +80,29 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
   const registry = loadMods(mods);
   const terrain = opts.terrain ?? VANILLA_TERRAIN;
   requireTerrains(registry, Object.values(terrain), 'levelgen');
+
+  /** New level `ref`: its dungeon's filler LevelDef, else the rooms-and-corridors generator. */
+  const makeLevel = (
+    state: GameState,
+    rng: Rng,
+    ref: LevelRef,
+    width: number,
+    height: number,
+  ): Level => {
+    const opts: GenOptions = {
+      id: levelIdFor(state, ref),
+      depth: depthOf(state, ref),
+      ...ref,
+      ...levelStairs(state, ref),
+      width,
+      height,
+      terrain,
+    };
+    const filler = registry.dungeon(ref.dungeon).filler;
+    return filler === undefined
+      ? generateLevel(rng, opts)
+      : buildLevel(rng, opts, registry.level(filler));
+  };
 
   const occupied = (
     state: GameState,
@@ -149,16 +178,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         const fromPos = playerPos(state);
         let level = state.levels[id];
         if (!level) {
-          level = generateLevel(ctx.rng, {
-            id,
-            depth: depthOf(state, to),
-            dungeon: to.dungeon,
-            dlevel: to.dlevel,
-            ...levelStairs(state, to),
-            width: current.width,
-            height: current.height,
-            terrain,
-          });
+          level = makeLevel(state, ctx.rng, to, current.width, current.height);
           state.levels[id] = level;
           state.memory[id] = newMemory(level);
           for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
@@ -349,15 +369,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       state.dungeons = rollDungeons(ctx.rng, registry.dungeons);
       for (const h of registry.hooks('newGame')) h.fn(ctx, id);
       const top = { dungeon: rootDungeon(state).id, dlevel: 1 };
-      const level = generateLevel(ctx.rng, {
-        id: levelIdFor(state, top),
-        depth: 1,
-        ...top,
-        ...levelStairs(state, top),
-        width,
-        height,
-        terrain,
-      });
+      const level = makeLevel(state, ctx.rng, top, width, height);
       state.currentLevel = level.id;
       state.levels[level.id] = level;
       state.memory[level.id] = newMemory(level);

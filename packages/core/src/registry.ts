@@ -22,6 +22,7 @@ import type {
   PerceptionDef,
   TrapDef,
   DungeonDef,
+  LevelDef,
   ItemNamer,
 } from './types/mod';
 import { DEFAULT_DUNGEON } from './dungeon';
@@ -145,6 +146,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const perceptions: PerceptionDef[] = [];
   const traps = new Map<string, TrapDef>();
   const dungeons = new Map<string, DungeonDef & { mod: string }>();
+  const levels = new Map<string, LevelDef & { mod: string }>();
   let itemNamer: ItemNamer = defaultItemNamer;
   const actions: (ActionDef & { mod: string })[] = [];
   const builtinHandlers = new Map<ActionType, string>();
@@ -420,7 +422,13 @@ export function loadMods(mods: readonly Mod[]): Registry {
           posInt(d.entry.base, 'entry.base');
           range(d.entry.range, 'entry.range');
         }
+        if (d.filler !== undefined) str(d.filler, 'filler', d.id);
         dungeons.set(d.id, { ...d, mod: modId });
+      },
+      defineLevel(d) {
+        if (!guard('defineLevel') || !checkId(d.id, 'level')) return;
+        for (const [path, reason] of levelDefIssues(d)) issue(path, reason, d.id);
+        levels.set(d.id, { ...d, mod: modId });
       },
       setItemNamer(namer) {
         if (!guard('setItemNamer')) return;
@@ -476,6 +484,33 @@ export function loadMods(mods: readonly Mod[]): Registry {
         reason: `unknown brain '${m.brain}'`,
       });
 
+  for (const d of dungeons.values())
+    if (typeof d.filler === 'string' && !levels.has(d.filler))
+      issues.push({
+        modId: d.mod,
+        defId: d.id,
+        path: 'filler',
+        reason: `unknown level '${d.filler}'`,
+      });
+  for (const l of levels.values()) {
+    const ref = (path: string, reason: string): void =>
+      void issues.push({ modId: l.mod, defId: l.id, path, reason });
+    if (l.init?.style === 'solidfill' && typeof l.init.fg === 'string' && !terrains.has(l.init.fg))
+      ref('init.fg', `unknown terrain '${l.init.fg}'`);
+    if (!Array.isArray(l.contents)) continue;
+    l.contents.forEach((c, i) => {
+      const known = c.kind === 'monster' ? monsters : c.kind === 'object' ? objects : traps;
+      if (typeof c.id === 'string' && !known.has(c.id))
+        ref(`contents[${i}].id`, `unknown ${c.kind} '${c.id}'`);
+      if (
+        c.kind === 'monster' &&
+        typeof c.class === 'string' &&
+        [...c.class].length === 1 &&
+        ![...monsters.values()].some((m) => m.glyph.ch === c.class)
+      )
+        ref(`contents[${i}].class`, `no monster has glyph '${c.class}'`);
+    });
+  }
   const dungeonList = orderDungeons(dungeons, issues);
 
   if (issues.length > 0) throw new ModLoadError(issues);
@@ -544,6 +579,12 @@ export function loadMods(mods: readonly Mod[]): Registry {
       return d;
     },
     dungeons: dungeonList,
+    level(id) {
+      const l = levels.get(id);
+      if (!l) throw new Error(`Unknown level '${id}'`);
+      return l;
+    },
+    levels: [...levels.values()],
     itemName: (state, item) => itemNamer(state, registry, item),
     objects: [...objects.values()],
     appearances: [...appearances.values()],
@@ -562,6 +603,58 @@ export function loadMods(mods: readonly Mod[]): Registry {
     hooks: <K extends HookName>(name: K) => byName.get(name) as RegisteredHook<K>[],
   };
   return Object.freeze(registry);
+}
+
+const CONTENT_KINDS = ['monster', 'object', 'trap'];
+
+/**
+ * Shape problems of a LevelDef as [path, reason]; references to other defs are checked once
+ * every mod has registered. Written for data from anywhere, so nothing is assumed about types.
+ */
+function levelDefIssues(d: LevelDef): [string, string][] {
+  const out: [string, string][] = [];
+  const init: unknown = d.init;
+  if (typeof init !== 'object' || init === null) out.push(['init', 'must be an object']);
+  else {
+    const { style, fg, lit } = init as Record<string, unknown>;
+    if (style === 'solidfill') {
+      if (typeof fg !== 'string' || fg === '') out.push(['init.fg', 'must be a terrain id']);
+      if (lit !== undefined && typeof lit !== 'boolean')
+        out.push(['init.lit', 'must be a boolean']);
+    } else if (style !== 'rooms') out.push(['init.style', "must be 'rooms' or 'solidfill'"]);
+  }
+  const contents: unknown = d.contents;
+  if (contents === undefined) return out;
+  if (!Array.isArray(contents)) return [...out, ['contents', 'must be an array']];
+  contents.forEach((c: unknown, i) => {
+    const at = `contents[${i}]`;
+    if (typeof c !== 'object' || c === null) return void out.push([at, 'must be an object']);
+    const { kind, id, class: cls, count, percent } = c as Record<string, unknown>;
+    if (typeof kind !== 'string' || !CONTENT_KINDS.includes(kind))
+      out.push([`${at}.kind`, `must be one of ${CONTENT_KINDS.join(', ')}`]);
+    if (id !== undefined && (typeof id !== 'string' || id === ''))
+      out.push([`${at}.id`, 'must be a def id']);
+    if (cls !== undefined) {
+      if (id !== undefined) out.push([`${at}.class`, 'give either id or class, not both']);
+      else if (kind === 'trap') out.push([`${at}.class`, 'traps have no classes']);
+      else if (kind === 'object' && !OBJECT_CLASSES.includes(cls as ObjectClass))
+        out.push([`${at}.class`, `must be one of ${OBJECT_CLASSES.join(', ')}`]);
+      else if (kind === 'monster' && (typeof cls !== 'string' || [...cls].length !== 1))
+        out.push([`${at}.class`, 'must be one monster glyph character']);
+    }
+    const nat = (v: unknown): boolean => Number.isInteger(v) && (v as number) >= 0;
+    if (count !== undefined && !nat(count)) {
+      const { min, max } = (typeof count === 'object' && count !== null ? count : {}) as Record<
+        string,
+        unknown
+      >;
+      if (!nat(min) || !nat(max) || (min as number) > (max as number))
+        out.push([`${at}.count`, 'must be an integer >= 0 or { min, max } with 0 <= min <= max']);
+    }
+    if (percent !== undefined && (!nat(percent) || (percent as number) > 100))
+      out.push([`${at}.percent`, 'must be an integer 0..100']);
+  });
+  return out;
 }
 
 /**

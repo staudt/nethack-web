@@ -184,6 +184,8 @@ export interface DungeonDef {
   levels?: { base: number; range?: number };
   /** Where its branch stairs leave from. */
   entry?: DungeonEntryDef;
+  /** LevelDef for its ordinary levels; omitted for the rooms-and-corridors generator. */
+  filler?: DefId;
 }
 
 /** ref: dat/dungeon.lua branches; src/dungeon.c parent_dlevel(), level_range() */
@@ -193,6 +195,41 @@ export interface DungeonEntryDef {
   /** On level `base` of `from`, or one of `base .. base + range - 1`. */
   base: number;
   range?: number;
+}
+
+/**
+ * A level written as plain data (no functions), the counterpart of a NetHack `dat/*.lua` file.
+ * Core lays out the map (`init`) and the stairs the dungeon asks for, at random dry spots; content
+ * then makes `contents` in order. See docs/ARCHITECTURE.md "Level definitions".
+ * ref: src/sp_lev.c lspo_level_init(), lspo_stair(), lspo_monster(), lspo_object(), lspo_trap()
+ */
+export interface LevelDef {
+  id: DefId;
+  init: LevelInit;
+  contents?: LevelContent[];
+}
+
+/**
+ * How the map starts. `rooms`: the ordinary rooms-and-corridors generator, rooms filled as usual.
+ * `solidfill`: every cell is terrain `fg`; `lit` omitted is a coin flip.
+ * ref: src/sp_lev.c splev_initlev()
+ */
+export type LevelInit = { style: 'rooms' } | { style: 'solidfill'; fg: DefId; lit?: boolean };
+
+/** A fixed count, or `min..max` inclusive (ref: nhlua math.random(min, max)). */
+export type LevelCount = number | { min: number; max: number };
+
+/**
+ * Things to make at random dry spots. `id` names a def; a monster `class` is a monster glyph
+ * character ('G'), an object `class` an ObjectClass ('gem'); neither picks at random. `percent`
+ * (0..100) is rolled once for the entry, then `count` (default 1) things are made.
+ */
+export interface LevelContent {
+  kind: 'monster' | 'object' | 'trap';
+  id?: DefId;
+  class?: string;
+  count?: LevelCount;
+  percent?: number;
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */
@@ -376,6 +413,7 @@ export interface ModApi {
   definePerception(d: PerceptionDef): void;
   defineTrap(d: TrapDef): void;
   defineDungeon(d: DungeonDef): void;
+  defineLevel(d: LevelDef): void;
   /** Replaces the item namer; the last mod to set it wins. */
   setItemNamer(fn: ItemNamer): void;
   on<K extends HookName>(hook: K, fn: Hooks[K], opts?: HookOptions): void;
@@ -418,6 +456,9 @@ export interface Registry {
    * `[DEFAULT_DUNGEON]` when no mod defines one.
    */
   readonly dungeons: readonly DungeonDef[];
+  level(id: DefId): LevelDef;
+  /** In registration order. */
+  readonly levels: readonly LevelDef[];
   /** Names an item with the active namer (a default one if no mod set it). */
   itemName(state: Readonly<GameState>, item: Entity): Msg;
   /** In registration order. */

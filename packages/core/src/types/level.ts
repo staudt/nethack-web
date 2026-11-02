@@ -54,6 +54,8 @@ export interface Level {
    * down into a branch from its parent, or up from a branch dungeon's top level to its parent.
    */
   branch: { pos: Pos; to: LevelRef; dir: 'up' | 'down' } | null;
+  /** The LevelDef it was built from; absent for an ordinary level. */
+  def?: DefId;
   /** Sorted by cell index; only on plain floor. Change through `ctx.placeTrap` / `removeTrap`. */
   traps: Trap[];
 }

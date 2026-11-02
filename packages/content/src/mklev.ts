@@ -71,19 +71,17 @@ export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number): DefId | null {
 }
 
 /**
- * Makes a random trap on a free floor square of the room. ref: src/mklev.c mktrap() with
- * num 0, no flags and a room: the kind is rerolled until one is allowed; a hole or trap door
+ * Makes a trap of `kind` (random when null) on a free floor square of the room, or at a given
+ * spot (as sp_lev.c create_trap() passes `tm`). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
  * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
  * (which already avoids occupied squares, so the retry loop never repeats). The dead
  * adventurer (`mktrap_victim()`) is not made, but its `rnd(4)` roll is (see DEVIATIONS.md).
  */
-export function mktrap(ctx: Ctx, level: Level, room: Room): void {
+export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | null = null): void {
   const lvl = level.depth; // level_difficulty()
-  let kind: DefId | null;
-  do kind = traptypeRnd(ctx, lvl);
-  while (kind === null);
+  while (kind === null) kind = traptypeRnd(ctx, lvl);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
-  const m = somexyspace(ctx, level, room);
+  const m = 'lx' in room ? somexyspace(ctx, level, room) : room;
   if (!m) return;
   maketrap(ctx, level.id, m.x, m.y, kind);
   // gi.in_mklev && kind != NO_TRAP && !(mktrapflags & MKTRAP_NOVICTIM) && lvl <= rnd(4) ...
@@ -130,9 +128,10 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   }
 }
 
-/** Registers level population. */
+/** Registers level population: ordinary levels and `rooms` LevelDefs (see sp_lev.ts for the rest). */
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
-    for (const room of level.rooms) fillOrdinaryRoom(ctx, level, room);
+    if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
+      for (const room of level.rooms) fillOrdinaryRoom(ctx, level, room);
   });
 }
