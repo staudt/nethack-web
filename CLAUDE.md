@@ -66,6 +66,9 @@ Enforced by dependency-cruiser (`pnpm boundaries`). Run it after adding any impo
 - Log intentional rule differences in `DEVIATIONS.md`.
 - Packages are source-only (`exports` point at `src/index.ts`); no library build step.
 - Plan first for new milestones: show the file tree, key type signatures and order of work before writing code.
+- Tests assert outcomes, not lucky seeds: search seeds for the case you need, pin monsters (speed 0, asleep) and check end state, so a change to the RNG stream doesn't break unrelated tests.
+- While working, run the targeted tests (`pnpm exec vitest run <path>`); run the full `pnpm check` once, before each commit.
+- Run prettier on the files you changed, never on whole packages, and never `git checkout` a file to undo formatting drift.
 
 ## Gotchas
 
