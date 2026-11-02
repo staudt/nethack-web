@@ -25,6 +25,7 @@ export const vanillaKeys: ClientMod = {
     api.bindKey('i', { type: 'ui', id: 'inventory' });
     api.bindKey(',', { type: 'ui', id: 'self:nh:pickup' });
     api.bindKey('\\', { type: 'ui', id: 'self:nh:discoveries' });
+    api.bindKey('+', { type: 'ui', id: 'self:nh:spells' });
     // Offered by the content once it has them; an unavailable self offer does nothing.
     api.bindKey('x', { type: 'ui', id: 'self:nh:swap_weapon' });
     api.bindKey('Ctrl+d', { type: 'ui', id: 'self:nh:kick' });

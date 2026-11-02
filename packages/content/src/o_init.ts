@@ -27,6 +27,14 @@ export const JEWELRY_CLASSES: readonly ObjectClass[] = ['ring', 'amulet'];
 export const WAND_CLASSES: readonly ObjectClass[] = ['wand'];
 
 /**
+ * Spellbooks are shuffled too, except blank paper, which has a fixed description (ref:
+ * src/o_init.c obj_shuffle_range() SPBOOK_CLASS: magic, non-unique books only). Milestone
+ * 5b step 9 turns it on with their generation; until then they are known by name. Tests use
+ * `shuffleAll(ctx, SPELLBOOK_CLASSES)`.
+ */
+export const SPELLBOOK_CLASSES: readonly ObjectClass[] = ['spellbook'];
+
+/**
  * Assigns each shuffled object (potions except water, scrolls) a distinct random appearance of
  * its class. ref: src/o_init.c shuffle_all(), shuffle(): for each object j in order, swap its
  * description with that of a random object i in j..last. NetHack shuffles the descriptions of

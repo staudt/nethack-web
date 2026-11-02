@@ -25,6 +25,7 @@ const CALLABLE: readonly ObjectDef['class'][] = [
   'ring',
   'amulet',
   'wand',
+  'spellbook',
 ];
 
 /**

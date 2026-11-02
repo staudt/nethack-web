@@ -101,7 +101,7 @@ export interface ObjectDef {
    * none; `box` for large boxes and chests (they can be locked); `holding` for a bag of holding.
    */
   container?: { capacity: number | null; box: boolean; holding?: boolean };
-  /** Spellbooks: the spell level 1..7 (oc_level). */
+  /** Spellbooks: the spell level 1..7 (oc_level), 0 for blank paper. */
   spellbook?: { level: number };
   /** Effect when quaffed or read; called by content's actions. */
   use?(ctx: Ctx, user: EntityId, item: EntityId): void;

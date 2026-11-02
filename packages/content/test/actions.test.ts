@@ -249,6 +249,7 @@ describe('offers', () => {
       { action: { type: 'mod', action: 'nh:kick' }, labelKey: 'action.nh:kick', source: 'nh' },
       { action: { type: 'mod', action: 'nh:call' }, labelKey: 'action.nh:call', source: 'nh' },
       { action: { type: 'mod', action: 'nh:pray' }, labelKey: 'action.nh:pray', source: 'nh' },
+      { action: { type: 'mod', action: 'nh:spells' }, labelKey: 'action.nh:spells', source: 'nh' },
       {
         action: { type: 'mod', action: 'nh:enhance' },
         labelKey: 'action.nh:enhance',

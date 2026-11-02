@@ -47,6 +47,12 @@ export function paralyzeMonst(ctx: Pick<Ctx, 'state'>, id: EntityId, amt: number
   if (t && amt > 0) t[String(id)] = Math.min(amt, 127);
 }
 
+/** `mtmp->mfrozen = 0; mtmp->mcanmove = 1;` */
+export function unfreezeMonst(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mfrozen', false);
+  if (t) delete t[String(id)];
+}
+
 /** `mtmp->mstun` */
 export function isMStunned(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
   return table(ctx, 'mstun', false)?.[String(id)] === true;

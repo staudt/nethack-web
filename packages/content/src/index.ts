@@ -40,6 +40,7 @@ import { APPLY_ACTIONS } from './apply';
 import { LOOT_ACTIONS } from './container';
 import { registerLock } from './lock';
 import { registerLight } from './light';
+import { registerSpells } from './spell';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -69,6 +70,7 @@ export const vanillaMod: Mod = {
     for (const a of LOOT_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
+    registerSpells(api);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -313,7 +315,7 @@ export {
 } from './jewelry';
 export { done } from './end';
 export type { How } from './end';
-export { JEWELRY_CLASSES, WAND_CLASSES } from './o_init';
+export { JEWELRY_CLASSES, SPELLBOOK_CLASSES, WAND_CLASSES } from './o_init';
 export { CHARGED_RINGS } from './objects';
 export { ZAP_ID, WAN, ZAP_ACTIONS, weffects, learnwand } from './zap';
 export { mspeed, setMspeed } from './mstate';

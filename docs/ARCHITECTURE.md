@@ -283,7 +283,7 @@ interface ObjectDef {
   prop?: string; // oc_oprop: property conferred when worn (content-defined key, as in props)
   wand?: { dir: 'nodir' | 'immediate' | 'ray' }; // oc_dir; required for class 'wand'
   container?: { capacity: number | null; box: boolean; holding?: boolean }; // box: large box/chest (lockable); holding: bag of holding
-  spellbook?: { level: number }; // 1..7; required for class 'spellbook'
+  spellbook?: { level: number }; // 1..7 (0 for blank paper); required for class 'spellbook'
   use?(ctx: Ctx, user: EntityId, item: EntityId): void; // quaff/read effect
   zap?(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void; // weffects; null for nodir
 }

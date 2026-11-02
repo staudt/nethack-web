@@ -361,7 +361,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
           if (d.container.holding !== undefined)
             bool(d.container.holding, 'container.holding', d.id);
         }
-        if (d.spellbook !== undefined) int(d.spellbook.level, 'spellbook.level', 1, 7);
+        if (d.spellbook !== undefined) int(d.spellbook.level, 'spellbook.level', 0, 7);
         if (d.class === 'spellbook' && d.spellbook === undefined)
           issue('spellbook', 'spellbook objects need spellbook.level', d.id);
         if (d.use !== undefined) fn(d.use, 'use', d.id);

@@ -125,7 +125,7 @@ describe('defineObject validation', () => {
     ['container.capacity', { container: { capacity: 1.5, box: false } }],
     ['container.box', { container: { capacity: null, box: 'yes' } }],
     ['container.holding', { container: { capacity: null, box: false, holding: 1 } }],
-    ['spellbook.level', { class: 'spellbook', spellbook: { level: 0 } }],
+    ['spellbook.level', { class: 'spellbook', spellbook: { level: -1 } }],
     ['spellbook.level', { class: 'spellbook', spellbook: { level: 8 } }],
     ['spellbook', { class: 'spellbook' }],
     ['zap', { zap: 'bolt' }],

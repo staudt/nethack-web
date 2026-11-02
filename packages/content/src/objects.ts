@@ -53,6 +53,35 @@ const wand = (
 });
 
 /**
+ * A spellbook def. ref: include/objects.h SPELL(): weight 50, cost level * 100, oc_delay is the
+ * study delay, no merging, paper; `desc` is the fixed description of blank paper only (the others
+ * are shuffled, see o_init.ts SPELLBOOK_CLASSES).
+ */
+const spellbook = (
+  slug: string,
+  prob: number,
+  delay: number,
+  level: number,
+  magic: boolean,
+  fg: string,
+  desc: string | null = null,
+): ObjectDef => ({
+  id: `nh:spellbook_of_${slug}`,
+  nameKey: `nh:spellbook_of_${slug}`,
+  ...(desc ? { descKey: `nh:${desc}.desc` } : {}),
+  class: 'spellbook',
+  glyph: { ch: '+', fg },
+  prob,
+  weight: 50,
+  cost: level * 100,
+  material: 'paper',
+  merge: false,
+  magic,
+  delay,
+  spellbook: { level },
+});
+
+/**
  * A tool def. ref: include/objects.h TOOL(), CONTAINER(), EYEWEAR(): no merging (none of the
  * subset is mrg), no delay; `desc` is the fixed description of a tool that starts unidentified.
  */
@@ -1651,6 +1680,27 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
   },
+
+  // ---- spellbooks (weight 50, cost level * 100; appearances are shuffled, so no descKey;
+  // a subset of the level 1-3 books plus blank paper) ----
+  // ref: objects.h SPELL("sleep", "mottled", P_ENCHANTMENT_SPELL, 30, 1, 3, 1, RAY, HI_PAPER, SPE_SLEEP)
+  spellbook('sleep', 30, 1, 3, true, WHITE),
+  // ref: objects.h SPELL("light", "cloth", P_DIVINATION_SPELL, 45, 1, 1, 1, NODIR, HI_CLOTH, SPE_LIGHT)
+  spellbook('light', 45, 1, 1, true, BROWN),
+  // ref: objects.h SPELL("detect monsters", "leathery", P_DIVINATION_SPELL, 43, 1, 1, 1, NODIR, HI_LEATHER, ...)
+  spellbook('detect_monsters', 43, 1, 1, true, BROWN),
+  // ref: objects.h SPELL("healing", "white", P_HEALING_SPELL, 40, 2, 1, 1, IMMEDIATE, CLR_WHITE, SPE_HEALING)
+  spellbook('healing', 40, 2, 1, true, WHITE),
+  // ref: objects.h SPELL("force bolt", "red", P_ATTACK_SPELL, 30, 2, 1, 1, IMMEDIATE, CLR_RED, ...)
+  spellbook('force_bolt', 30, 2, 1, true, RED),
+  // ref: objects.h SPELL("confuse monster", "orange", P_ENCHANTMENT_SPELL, 49, 2, 1, 1, IMMEDIATE, CLR_ORANGE, ...)
+  spellbook('confuse_monster', 49, 2, 1, true, ORANGE),
+  // ref: objects.h SPELL("cure blindness", "yellow", P_HEALING_SPELL, 25, 2, 2, 1, IMMEDIATE, CLR_YELLOW, ...)
+  spellbook('cure_blindness', 25, 2, 2, true, YELLOW),
+  // ref: objects.h SPELL("protection", "dull", P_CLERIC_SPELL, 18, 3, 1, 1, NODIR, HI_PAPER, ...)
+  spellbook('protection', 18, 3, 1, true, WHITE),
+  // ref: objects.h SPELL("blank paper", "plain", P_NONE, 18, 0, 0, 0, 0, HI_PAPER, SPE_BLANK_PAPER)
+  spellbook('blank_paper', 18, 0, 0, false, WHITE, 'plain_spellbook'),
 ];
 
 /** Shuffled potion descriptions, one per potion except water (ref: objects.h POTION() descriptions). */
@@ -1691,6 +1741,14 @@ const wandLook = (slug: string, fg: string): AppearanceDef => ({
   nameKey: `nh:${slug}_wand`,
   class: 'wand',
   glyph: { ch: '/', fg },
+});
+
+/** Shuffled spellbook descriptions with their colors (ref: objects.h SPELL() descriptions). */
+const bookLook = (slug: string, fg: string): AppearanceDef => ({
+  id: `nh:${slug}_spellbook`,
+  nameKey: `nh:${slug}_spellbook`,
+  class: 'spellbook',
+  glyph: { ch: '+', fg },
 });
 
 export const APPEARANCES: readonly AppearanceDef[] = [
@@ -1836,4 +1894,47 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   wandLook('forked', BROWN),
   wandLook('spiked', CYAN),
   wandLook('jeweled', GRAY),
+
+  // ---- spellbook descriptions, in objects.h order (dig .. chain lightning) ----
+  bookLook('parchment', BROWN),
+  bookLook('vellum', BROWN),
+  bookLook('ragged', WHITE),
+  bookLook('dog_eared', WHITE),
+  bookLook('mottled', WHITE),
+  bookLook('stained', WHITE),
+  bookLook('cloth', BROWN),
+  bookLook('leathery', BROWN),
+  bookLook('white', WHITE),
+  bookLook('pink', BRIGHT_MAGENTA),
+  bookLook('red', RED),
+  bookLook('orange', ORANGE),
+  bookLook('yellow', YELLOW),
+  bookLook('velvet', MAGENTA),
+  bookLook('light_green', BRIGHT_GREEN),
+  bookLook('dark_green', GREEN),
+  bookLook('turquoise', BRIGHT_CYAN),
+  bookLook('cyan', CYAN),
+  bookLook('light_blue', BRIGHT_BLUE),
+  bookLook('dark_blue', BLUE),
+  bookLook('indigo', BLUE),
+  bookLook('magenta', MAGENTA),
+  bookLook('purple', MAGENTA),
+  bookLook('violet', MAGENTA),
+  bookLook('tan', BROWN),
+  bookLook('plaid', GREEN),
+  bookLook('light_brown', BROWN),
+  bookLook('dark_brown', BROWN),
+  bookLook('gray', GRAY),
+  bookLook('wrinkled', WHITE),
+  bookLook('dusty', WHITE),
+  bookLook('bronze', YELLOW),
+  bookLook('copper', YELLOW),
+  bookLook('silver', GRAY),
+  bookLook('gold', YELLOW),
+  bookLook('glittering', WHITE),
+  bookLook('shining', WHITE),
+  bookLook('dull', WHITE),
+  bookLook('thin', WHITE),
+  bookLook('thick', WHITE),
+  bookLook('checkered', GRAY),
 ];

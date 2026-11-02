@@ -30,6 +30,7 @@ import { xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
 import { luckOf } from './luck';
+import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
 
 export const READ_ID: DefId = 'nh:read';
 
@@ -561,7 +562,8 @@ const read: ActionDef = {
   offer(ctx, target): Offer[] {
     if (target.kind !== 'item') return [];
     const e = heroScroll(ctx, target.id);
-    if (!e || ctx.defs.object(e.def).class !== 'scroll') return [];
+    const cls = e ? ctx.defs.object(e.def).class : null;
+    if (!e || (cls !== 'scroll' && cls !== 'spellbook')) return [];
     return [
       {
         action: { type: 'mod', action: READ_ID, args: { item: e.id } },
@@ -575,6 +577,8 @@ const read: ActionDef = {
     if (!e) return 0;
     if (checkCapacity(ctx)) return 0;
     const def = ctx.defs.object(e.def);
+    // ref: doread() `if (scroll->oclass == SPBOOK_CLASS) return study_book(scroll)`
+    if (def.class === 'spellbook') return studyBook(ctx, e);
     if (def.class !== 'scroll' || !def.use) {
       msg(ctx, 'magic.silly_thing', { verb: { key: 'verb.read' } });
       return 0;
@@ -584,10 +588,13 @@ const read: ActionDef = {
     return ctx.state.pendingPrompt ? 0 : NORMAL_SPEED;
   },
   answer(ctx, value, raw) {
+    if (isStudyAsk(raw)) return answerStudy(ctx, value, raw);
     const data = raw as unknown as IdentifyData;
     if (data.stage !== 'identify') return 0;
     return identifyAnswer(ctx, value, data) ? 0 : NORMAL_SPEED;
   },
+  // a spellbook starts the study occupation (nh:learn)
+  continues: (ctx) => continuesStudy(ctx, false),
 };
 
 export const READ_ACTIONS: readonly ActionDef[] = [read];

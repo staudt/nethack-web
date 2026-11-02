@@ -49,13 +49,14 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   const un = calledName(state, def);
   if (un !== null) {
     // ref: xname() "xcalled(buf, size, prefix, un)": "<description> called <name>"; potions and
-    // scrolls give just their class ("potion called healing?"), armor its simple name
+    // scrolls (and the other shuffled classes) give just their class ("potion called healing?"), armor its simple name
     const pre: Msg =
       def.class === 'potion' ||
       def.class === 'scroll' ||
       def.class === 'ring' ||
       def.class === 'amulet' ||
-      def.class === 'wand'
+      def.class === 'wand' ||
+      def.class === 'spellbook'
         ? { key: `obj.generic.${def.class}${plural}` }
         : def.class === 'armor' && def.armor
           ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
