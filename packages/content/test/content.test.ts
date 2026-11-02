@@ -33,7 +33,7 @@ describe('vanilla content', () => {
     for (const [key, text] of Object.entries(messagesEn)) {
       for (const match of text.matchAll(placeholder)) {
         expect(match[1], `${key}: ${text}`).toMatch(
-          /^[A-Za-z_][A-Za-z0-9_]*(\|an|\|the|\|The|\|the_s|\|The_s)?$/,
+          /^[A-Za-z_][A-Za-z0-9_]*(\|an|\|An|\|the|\|The|\|the_s|\|The_s)?$/,
         );
       }
     }

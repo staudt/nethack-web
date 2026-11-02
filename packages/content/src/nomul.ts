@@ -22,16 +22,21 @@ export function nomul(
   return turns * NORMAL_SPEED;
 }
 
+/** Ends helplessness now, with the finishing message. ref: src/hack.c unmul() */
+export function unmulNow(ctx: Ctx): void {
+  const hero = getPlayer(ctx.state);
+  delete hero.c.helpless;
+  const data = nhData(ctx);
+  const msg = data.nomovemsg;
+  data.nomovemsg = null;
+  if (msg) ctx.emit({ type: 'msg', key: msg.key, ...(msg.params ? { params: msg.params } : {}) });
+}
+
 /** Ends helplessness when its time is up, with the finishing message. ref: src/hack.c unmul() */
 export function registerNomul(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
-    const hero = getPlayer(ctx.state);
-    const h = hero.c.helpless;
+    const h = getPlayer(ctx.state).c.helpless;
     if (!h || ctx.state.turn < h.until) return;
-    delete hero.c.helpless;
-    const data = nhData(ctx);
-    const msg = data.nomovemsg;
-    data.nomovemsg = null;
-    if (msg) ctx.emit({ type: 'msg', key: msg.key, ...(msg.params ? { params: msg.params } : {}) });
+    unmulNow(ctx);
   });
 }

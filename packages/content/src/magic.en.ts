@@ -69,6 +69,7 @@ export const magicMessagesEn: Record<string, string> = {
   'color.amber': 'amber',
   'color.golden': 'golden',
   'color.purple': 'purple',
+  'color.light_blue': 'light blue',
   'color.ultraviolet': 'ultraviolet',
   'color.infrared': 'infrared',
   'color.bluish_orange': 'bluish-orange',

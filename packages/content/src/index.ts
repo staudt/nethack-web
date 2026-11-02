@@ -10,6 +10,7 @@ import { registerPerception } from './perception';
 import { registerMState } from './mstate';
 import { registerDog } from './dog';
 import { registerLuck } from './luck';
+import { PRAY_ACTIONS, registerPray } from './pray';
 import { registerStats } from './stats';
 import { ITEM_ACTIONS } from './itemactions';
 import { registerNomul } from './nomul';
@@ -53,6 +54,7 @@ export const vanillaMod: Mod = {
     for (const a of KICK_ACTIONS) api.defineAction(a);
     for (const a of FIRE_ACTIONS) api.defineAction(a);
     for (const a of CALL_ACTIONS) api.defineAction(a);
+    for (const a of PRAY_ACTIONS) api.defineAction(a);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -60,6 +62,7 @@ export const vanillaMod: Mod = {
     registerMState(api);
     registerDog(api);
     registerLuck(api);
+    registerPray(api);
     registerKick(api);
     registerMonflee(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
@@ -162,6 +165,7 @@ export {
   LUCKMAX,
 } from './luck';
 export type { UState } from './luck';
+export { PRAY_ACTIONS, PRAY_ID, inTrouble, invulnerable } from './pray';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
 export { giveStartingKit, VALKYRIE_KIT } from './kit';
 export {

@@ -10,6 +10,7 @@ import { mthrowuMessagesEn } from './mthrowu.en';
 import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
 import { dogMessagesEn } from './dog.en';
+import { prayMessagesEn } from './pray.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -23,6 +24,7 @@ export const messagesEn: Record<string, string> = {
   ...skillMessagesEn,
   ...mhitmMessagesEn,
   ...dogMessagesEn,
+  ...prayMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',

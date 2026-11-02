@@ -65,6 +65,8 @@ export interface SoakResult {
   thrown: number;
   /** Kicks (door offers and the plain #kick), `nh:fire` volleys, #enhance menus answered, weapon swaps. */
   kicks: number;
+  /** Prayers the bot started (it prays only when Weak or low on hit points). */
+  prayed: number;
   fired: number;
   enhanced: number;
   swapped: number;
@@ -117,6 +119,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let read = 0;
   let thrown = 0;
   let kicks = 0;
+  let prayed = 0;
   let fired = 0;
   let enhanced = 0;
   let swapped = 0;
@@ -179,6 +182,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       // Never leave the dungeon, so runs keep going; mostly leave peacefuls alone.
       if (pending.id === 'leave-dungeon') return false;
       if (pending.id === 'attack-peaceful') return rng.rn2(10) === 0;
+      if (pending.id === 'pray-confirm') return true; // the bot only prays in trouble
       return rng.rn2(2) === 0;
     }
     if (pending.kind === 'text') {
@@ -326,6 +330,15 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       action = pickRandom(itemOffers((id) => id === 'nh:quaff'));
     }
 
+    // 3b. pray when in trouble: Weak or low on hit points (half the time; it may be too soon)
+    if (
+      !action &&
+      ((hp && (hp.cur <= 5 || hp.cur * 7 <= hp.max)) || hunger === 'weak' || hunger === 'fainting') &&
+      rng.rn2(2) === 0
+    ) {
+      action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:pray')));
+    }
+
     // 4. pick up what lies here
     if (!action && rng.rn2(10) < 4) {
       action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:pickup')));
@@ -378,7 +391,10 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
           !isMod(o.action, 'nh:discoveries') &&
           !isMod(o.action, 'nh:drop_many') &&
           !isMod(o.action, 'nh:swap_weapon') &&
-          !isMod(o.action, 'nh:enhance'),
+          !isMod(o.action, 'nh:enhance') &&
+          // praying at random angers the god; fighting the pet just abuses it
+          !isMod(o.action, 'nh:pray') &&
+          !isMod(o.action, 'nh:fight'),
       );
       const list = rest.length > 0 ? rest : offers;
       action = (list[rng.rn2(list.length)] as ActionOffer).action;
@@ -389,6 +405,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     else if (isMod(action, 'nh:read')) read++;
     else if (isMod(action, 'nh:throw')) thrown++;
     else if (isMod(action, 'nh:fire')) fired++;
+    else if (isMod(action, 'nh:pray')) prayed++;
     else {
       aim = null;
       if (isMod(action, 'nh:kick')) kicks++;
@@ -417,6 +434,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     read,
     thrown,
     kicks,
+    prayed,
     fired,
     enhanced,
     swapped,

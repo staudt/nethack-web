@@ -35,7 +35,9 @@ import {
 } from './skills';
 import { monNam } from './perception';
 import { hurtPet } from './dog';
-import { luckOf } from './luck';
+import { luckOf, uState } from './luck';
+import { ustuck } from './hackmove';
+import { canSpotMon } from './perception';
 import { isFrozen, isMStunned } from './mstate';
 
 /** ref: include/attrib.h STR18 */
@@ -415,6 +417,9 @@ const MELEE_AT = new Set<AttackType>([
  * The monster `monId` makes all its melee attacks at the hero (it is adjacent).
  * ref: src/mhitu.c mattacku(), hitmu(), hitmsg(), missmu(), mdamageu(); src/end.c done_in_by().
  */
+const say0 = (ctx: Ctx, key: string, params?: Record<string, string>): void =>
+  ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
 export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const hero = getPlayer(ctx.state);
   const mon = ctx.state.entities[String(monId)];
@@ -424,6 +429,13 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const def = ctx.defs.monster(mon.def);
   const name = monNam(ctx, mon);
   const killer = `@${mon.def}`;
+  // ref: src/mhitu.c mattacku(): "in the midst of successful prayer" monsters won't attack
+  if (uState(ctx.state).uinvulnerable) {
+    if (ustuck(ctx) === monId) say0(ctx, 'pray.loosens_grip', { mon: name });
+    else if (canSpotMon(ctx, mon)) say0(ctx, 'pray.pulls_back', { mon: name });
+    else say0(ctx, 'pray.something_moves');
+    return;
+  }
   const ac = findAc(ctx.state, ctx.defs, hero.id);
   const tmp = monsterToHit(ctx.rng, ac, m.level, hero.c.helpless !== undefined);
 

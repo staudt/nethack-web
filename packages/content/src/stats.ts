@@ -10,6 +10,7 @@ import {
 } from '@nh/core';
 import { weight } from './items';
 import { P, hasProp } from './props';
+import { uState } from './luck';
 
 /** ref: include/you.h AC_MAX */
 const AC_MAX = 99;
@@ -20,8 +21,9 @@ const clampAc = (ac: number): number => Math.max(-AC_MAX, Math.min(AC_MAX, ac));
 
 /**
  * Armor class of an entity from its worn armor. ref: src/do_wear.c find_ac() (hero) and
- * src/worn.c find_mac() (monsters). ARM_BONUS = armor ac bonus + spe (no erosion). Not ported:
- * rings of protection, amulet of guarding, divine protection, spell protection.
+ * src/worn.c find_mac() (monsters). ARM_BONUS = armor ac bonus + spe (no erosion); the hero's
+ * divine protection (`u.ublessed` with intrinsic Protection) counts. Not ported: rings of
+ * protection, amulet of guarding, spell protection.
  */
 export function findAc(state: Readonly<GameState>, defs: Registry, id: EntityId): number {
   const e = state.entities[String(id)];
@@ -33,6 +35,8 @@ export function findAc(state: Readonly<GameState>, defs: Registry, id: EntityId)
     const armor = defs.object(o.def).armor;
     if (armor) ac -= armor.ac + it.spe;
   }
+  // ref: find_ac(): `if (HProtection & INTRINSIC) uac -= u.ublessed;`
+  if (id === state.playerId && e.c.props?.['protection']?.intrinsic) ac -= uState(state).ublessed;
   return clampAc(ac);
 }
 

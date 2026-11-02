@@ -40,6 +40,8 @@ export interface UState {
   ublesscnt: number;
   /** u.ublessed: divine protection */
   ublessed: number;
+  /** u.uinvulnerable: in the midst of a successful prayer */
+  uinvulnerable?: boolean;
 }
 
 const DEFAULTS: UState = {

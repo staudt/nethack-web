@@ -1,0 +1,592 @@
+// Prayer. ref: src/pray.c dopray(), can_pray(), in_trouble(), worst_cursed_item(),
+// fix_worst_trouble(), fix_curse_trouble(), pleased(), angrygods(), gods_upset(), godvoice(),
+// god_zaps_you(), fry_by_god(), prayer_done(); src/sit.c rndcurse(), attrcurse()
+//
+// The Valkyrie is neutral and prays to Odin. There are no altars, so p_aligntyp is always her
+// own alignment and the altar, water and shrine branches never apply.
+import {
+  NORMAL_SPEED,
+  getPlayer,
+  inventoryOf,
+  type ActionDef,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type Json,
+  type ModApi,
+  type Msg,
+  rnl,
+} from '@nh/core';
+import { rnz } from './corpses';
+import { adjattrib } from './attrib';
+import { hungerData, initUhunger, makeSick } from './hunger';
+import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
+import { hcolor } from './magic';
+import { nomul, unmulNow } from './nomul';
+import { xnameOf } from './objnam';
+import {
+  P,
+  hasIntrinsic,
+  hasProp,
+  makeBlinded,
+  makeConfused,
+  makeHallucinated,
+  makeStunned,
+  setIntrinsic,
+  setItimeout,
+  timeoutLeft,
+} from './props';
+
+export const PRAY_ID: DefId = 'nh:pray';
+const PRAYER_DONE: DefId = 'nh:prayer_done';
+
+/** ref: src/pray.c TROUBLE_* (the ones that can happen here) */
+const TROUBLE_SICK = 10;
+const TROUBLE_STARVING = 9;
+const TROUBLE_HIT = 7;
+const TROUBLE_UNUSEABLE_HANDS = 2;
+const TROUBLE_CURSED_ITEMS = -3;
+const TROUBLE_BLIND = -5;
+const TROUBLE_WOUNDED_LEGS = -7;
+const TROUBLE_HUNGRY = -8;
+const TROUBLE_STUNNED = -9;
+const TROUBLE_CONFUSED = -10;
+const TROUBLE_HALLUCINATION = -11;
+
+/** ref: src/pray.c piety thresholds (PIOUS only matters for crowning, which does not exist) */
+const DEVOUT = 14;
+const STRIDENT = 4;
+
+/** The god of an alignment, for the Valkyrie. ref: src/role.c roles[] "Tyr", "Odin", "Loki" */
+const godOf = (align: number): string =>
+  align > 0 ? '@god.tyr' : align < 0 ? '@god.loki' : '@god.odin';
+
+const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
+  ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+const hero = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
+const halluc = (ctx: Pick<Ctx, 'state'>): boolean => hasProp(hero(ctx), P.HALLUC);
+
+const HUNGER_RANK: Readonly<Record<string, number>> = {
+  satiated: 0,
+  not_hungry: 1,
+  hungry: 2,
+  weak: 3,
+  fainting: 4,
+  fainted: 5,
+  starved: 6,
+};
+const uhs = (ctx: Ctx): number => HUNGER_RANK[hero(ctx).c.hunger?.state ?? 'not_hungry'] ?? 1;
+
+/** The wielded weapon is welded when cursed. ref: src/wield.c welded(), will_weld() */
+function weldedWeapon(ctx: Ctx): Entity | null {
+  const w = inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon');
+  return w && w.c.item?.buc === 'cursed' && ctx.defs.object(w.def).class === 'weapon' ? w : null;
+}
+
+const worn = (ctx: Ctx, slot: string): Entity | null =>
+  inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === slot) ?? null;
+
+/** ref: src/do_wear.c freehand(): a hand is free unless welded to a two-hander or a cursed shield */
+function freehand(ctx: Ctx): boolean {
+  const w = worn(ctx, 'weapon');
+  if (!w || !weldedWeapon(ctx)) return true;
+  const shield = worn(ctx, 'shield');
+  return !ctx.defs.object(w.def).weapon?.bimanual && (!shield || shield.c.item?.buc !== 'cursed');
+}
+
+/** ref: src/pray.c critically_low_hp(FALSE) */
+function criticallyLowHp(ctx: Ctx): boolean {
+  const h = hero(ctx);
+  const hp = h.c.hp;
+  if (!hp) return false;
+  const ulevel = h.c.experience?.level ?? 1;
+  const maxhp = Math.min(hp.max, 15 * ulevel);
+  const rank = ulevel <= 2 ? 0 : ulevel <= 30 ? Math.trunc((ulevel + 2) / 4) : 8;
+  const divisor = rank <= 1 ? 5 : rank <= 3 ? 6 : rank <= 5 ? 7 : rank <= 7 ? 8 : 9;
+  return hp.cur <= 5 || hp.cur * divisor <= maxhp;
+}
+
+/** ref: src/pray.c worst_cursed_item() (no rings, amulets, eyewear, loadstones or two-weapon) */
+function worstCursedItem(ctx: Ctx): Entity | null {
+  const w = weldedWeapon(ctx);
+  const cursed = (slot: string): Entity | null => {
+    const o = worn(ctx, slot);
+    return o && o.c.item?.buc === 'cursed' ? o : null;
+  };
+  if (w && ctx.defs.object(w.def).weapon?.bimanual) return w;
+  return (
+    cursed('gloves') ??
+    cursed('shield') ??
+    cursed('cloak') ??
+    cursed('body') ??
+    cursed('helm') ??
+    cursed('boots') ??
+    cursed('shirt') ??
+    w
+  );
+}
+
+/**
+ * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
+ * Not ported (they cannot happen): stoning, sliming, strangling, lava, clouds, lycanthropy,
+ * collapsing and poisoned attributes (no AMAX), walls, levitation, blindfolds, punishment,
+ * fumbling, saddles, deafness.
+ */
+export function inTrouble(ctx: Ctx): number {
+  const h = hero(ctx);
+  if (hungerData(ctx).sick) return TROUBLE_SICK;
+  if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
+  if (criticallyLowHp(ctx)) return TROUBLE_HIT;
+  if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
+  if (worstCursedItem(ctx)) return TROUBLE_CURSED_ITEMS;
+  if (timeoutLeft(ctx.state, h, P.BLINDED) > 1 && !hasIntrinsic(h, P.BLINDED)) return TROUBLE_BLIND;
+  if (hasProp(h, P.WOUNDED_LEGS)) return TROUBLE_WOUNDED_LEGS;
+  if (uhs(ctx) >= HUNGER_RANK.hungry!) return TROUBLE_HUNGRY;
+  if (timeoutLeft(ctx.state, h, P.STUNNED) > 0) return TROUBLE_STUNNED;
+  if (timeoutLeft(ctx.state, h, P.CONFUSION) > 0) return TROUBLE_CONFUSED;
+  if (timeoutLeft(ctx.state, h, P.HALLUC) > 0) return TROUBLE_HALLUCINATION;
+  return 0;
+}
+
+/** "Your spear softly glows amber." and the curse is gone. ref: src/pray.c fix_curse_trouble() */
+function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
+  const it = otmp.c.item;
+  if (!it) return;
+  if (!hasProp(hero(ctx), P.BLINDED)) {
+    say(ctx, (it.quantity ?? 1) > 1 ? 'pray.glows_pl' : 'pray.glows', {
+      item: xnameOf(ctx.state, ctx.defs, otmp),
+      color: hcolor(ctx, 'amber'),
+    });
+    it.known.buc = !halluc(ctx);
+  }
+  it.buc = 'uncursed';
+}
+
+/** ref: src/pray.c fix_worst_trouble() */
+function fixWorstTrouble(ctx: Ctx, trouble: number): void {
+  const h = hero(ctx);
+  switch (trouble) {
+    case TROUBLE_STARVING:
+    case TROUBLE_HUNGRY:
+      say(ctx, 'pray.stomach');
+      initUhunger(ctx);
+      break;
+    case TROUBLE_SICK:
+      say(ctx, 'pray.feel_better');
+      makeSick(ctx, 0, '', false);
+      break;
+    case TROUBLE_HIT: {
+      // "fix all troubles" keeps trying at 5 or less hit points, so always more than that
+      say(ctx, 'pray.much_better');
+      const hp = h.c.hp;
+      if (!hp) break;
+      let maxhp = hp.max;
+      if (maxhp < (h.c.experience?.level ?? 1) * 5 + 11) maxhp += ctx.rng.rnd(5);
+      hp.max = Math.max(maxhp, 6);
+      hp.cur = hp.max;
+      break;
+    }
+    case TROUBLE_UNUSEABLE_HANDS: {
+      const w = weldedWeapon(ctx);
+      if (w) fixCurseTrouble(ctx, w);
+      break;
+    }
+    case TROUBLE_CURSED_ITEMS: {
+      const o = worstCursedItem(ctx);
+      if (o) fixCurseTrouble(ctx, o);
+      break;
+    }
+    case TROUBLE_BLIND:
+      say(ctx, 'pray.eyes_better');
+      makeBlinded(ctx, 0, false);
+      break;
+    case TROUBLE_WOUNDED_LEGS:
+      // heal_legs(0): "Your leg feels better."
+      setItimeout(ctx.state, h, P.WOUNDED_LEGS, 0);
+      say(ctx, 'timeout.legs_better');
+      break;
+    case TROUBLE_STUNNED:
+      makeStunned(ctx, 0, true);
+      break;
+    case TROUBLE_CONFUSED:
+      makeConfused(ctx, 0, true);
+      break;
+    case TROUBLE_HALLUCINATION:
+      say(ctx, 'pray.kansas');
+      makeHallucinated(ctx, 0, false);
+      break;
+    default:
+      break;
+  }
+}
+
+/** "The voice of Odin booms out: ..." ref: src/pray.c godvoice() */
+function godvoice(ctx: Ctx, align: number, words: string | null): void {
+  const how = ['booms_out', 'thunders', 'rings_out', 'booms'][ctx.rng.rn2(4)] ?? 'booms';
+  say(ctx, words ? 'pray.voice_says' : 'pray.voice', {
+    god: godOf(align),
+    how: `@pray.how.${how}`,
+    ...(words ? { words: `@${words}` } : {}),
+  });
+}
+
+/** ref: src/sit.c attrcurse(): takes away one intrinsic, starting at a random one */
+function attrcurse(ctx: Ctx): boolean {
+  const h = hero(ctx);
+  // [prop, message] in attrcurse()'s order (teleportitis, invisibility, see invisible and
+  // aggravation do not exist: their cases fall through)
+  const order: [number, string, string][] = [
+    [1, P.FIRE_RES, 'attrcurse.warmer'],
+    [3, P.POISON_RES, 'attrcurse.sick'],
+    [4, P.TELEPAT, 'attrcurse.senses_fail'],
+    [5, P.COLD_RES, 'attrcurse.cooler'],
+    [8, P.FAST, 'attrcurse.slower'],
+    [9, P.STEALTH, 'attrcurse.clumsy'],
+    [10, P.PROTECTION, 'attrcurse.vulnerable'],
+  ];
+  const start = ctx.rng.rnd(11);
+  for (const [n, prop, key] of order) {
+    if (n < start) continue;
+    if (!hasIntrinsic(h, prop)) continue;
+    setIntrinsic(h, prop, false);
+    say(ctx, key);
+    return true;
+  }
+  return false;
+}
+
+/** ref: src/sit.c rndcurse(): "You feel a malignant aura surround you." and up to 6 curses */
+function rndcurse(ctx: Ctx): void {
+  say(ctx, 'pray.malignant_aura');
+  const items = inventoryOf(ctx.state, ctx.state.playerId).filter(
+    (o) => ctx.defs.object(o.def).class !== 'coin',
+  );
+  let cnt = ctx.rng.rnd(6);
+  if (items.length === 0) return;
+  for (; cnt > 0; cnt--) {
+    const otmp = items[ctx.rng.rnd(items.length) - 1];
+    const it = otmp?.c.item;
+    if (!it || it.buc === 'cursed') continue;
+    it.buc = it.buc === 'blessed' ? 'uncursed' : 'cursed';
+  }
+}
+
+/** ref: src/pray.c fry_by_god() */
+function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
+  say(ctx, disint ? 'pray.disintegrate' : 'pray.fry');
+  const h = hero(ctx);
+  if (h.c.hp) h.c.hp.cur = 0;
+  ctx.endGame({
+    kind: 'died',
+    killer:
+      align < 0 ? '@killer.wrath_loki' : align > 0 ? '@killer.wrath_tyr' : '@killer.wrath_odin',
+    turn: ctx.state.turn,
+    depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
+    level: h.c.experience?.level ?? 1,
+  });
+}
+
+/** ref: src/pray.c god_zaps_you() (no reflection or disintegration resistance exists) */
+function godZapsYou(ctx: Ctx, align: number): void {
+  say(ctx, 'pray.lightning');
+  if (hasProp(hero(ctx), P.SHOCK_RES)) say(ctx, 'pray.not_affected');
+  else {
+    fryByGod(ctx, align, false);
+    return;
+  }
+  say(ctx, 'pray.not_deterred', { god: godOf(align) });
+  say(ctx, 'pray.disint_beam');
+  fryByGod(ctx, align, true);
+}
+
+/** ref: src/pray.c angrygods() (no level drain, punishment or minions) */
+function angrygods(ctx: Ctx, respGod: number): void {
+  const u = uState(ctx.state);
+  setU(ctx, { ublessed: 0 }); // lose divine protection
+  const luck = luckOf(ctx.state);
+  let maxanger =
+    respGod !== u.alignType
+      ? Math.trunc(u.alignRecord / 2) + (luck > 0 ? -Math.trunc(luck / 3) : -luck)
+      : 3 * u.ugangr + (luck > 0 || u.alignRecord >= STRIDENT ? -Math.trunc(luck / 3) : -luck);
+  maxanger = Math.max(1, Math.min(15, maxanger));
+  switch (ctx.rng.rn2(maxanger)) {
+    case 0:
+    case 1:
+      say(ctx, 'pray.feel_god', {
+        god: godOf(respGod),
+        mood: halluc(ctx) ? '@pray.mood.bummed' : '@pray.mood.displeased',
+      });
+      break;
+    case 2:
+    case 3:
+      godvoice(ctx, respGod, null);
+      say(ctx, u.alignRecord < 0 && respGod === u.alignType ? 'pray.strayed' : 'pray.arrogant');
+      say(ctx, 'pray.relearn');
+      adjattrib(ctx, 'wis', -1, false);
+      break; // losexp(): levels are never lost here
+    case 6: // punish(): no ball and chain, so as 4 and 5
+    case 4:
+    case 5:
+      godvoice(ctx, respGod, 'pray.angered');
+      if (!hasProp(hero(ctx), P.BLINDED))
+        say(ctx, 'pray.black_glow', { color: hcolor(ctx, 'black') });
+      if (ctx.rng.rn2(2) !== 0 || !attrcurse(ctx)) rndcurse(ctx);
+      break;
+    case 7:
+    case 8:
+      godvoice(ctx, respGod, null);
+      say(ctx, 'pray.durst');
+      say(ctx, 'pray.then_die');
+      break; // summon_minion(): no minions exist
+    default:
+      godvoice(ctx, respGod, 'pray.angered');
+      godZapsYou(ctx, respGod);
+      break;
+  }
+  // even though this might not be in response to prayer, set the prayer timer
+  const n = rnz(ctx, 300);
+  if (n > uState(ctx.state).ublesscnt) setU(ctx, { ublesscnt: n });
+}
+
+/** ref: src/pray.c gods_upset() */
+function godsUpset(ctx: Ctx, align: number): void {
+  const u = uState(ctx.state);
+  if (align === u.alignType) setU(ctx, { ugangr: u.ugangr + 1 });
+  else if (u.ugangr) setU(ctx, { ugangr: u.ugangr - 1 });
+  angrygods(ctx, align);
+}
+
+/** The god's favors on a good prayer. ref: src/pray.c pleased() (no altars, castle or spells) */
+function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
+  let trouble = inTrouble(ctx); // the worst trouble may have changed while praying
+  const record0 = uState(ctx.state).alignRecord;
+  const h = halluc(ctx);
+  const mood =
+    record0 >= DEVOUT
+      ? h
+        ? 'pleased_as_punch'
+        : 'well_pleased'
+      : record0 >= STRIDENT
+        ? h
+          ? 'ticklish'
+          : 'pleased'
+        : h
+          ? 'full'
+          : 'satisfied';
+  say(ctx, 'pray.feel_god', { god: godOf(gAlign), mood: `@pray.mood.${mood}` });
+  if (record0 < 2 && trouble <= 0) adjalign(ctx, 1);
+
+  let patOnHead = false;
+  const record = uState(ctx.state).alignRecord;
+  if (!trouble && record >= DEVOUT) {
+    if (pTrouble === 0) patOnHead = true;
+  } else {
+    const prayerLuck = Math.max(luckOf(ctx.state), -1);
+    let action = ctx.rng.rn2(prayerLuck + 2) + 1; // rn1(prayer_luck + 2, 1), not on an altar
+    action = Math.min(action, 3);
+    if (record < STRIDENT)
+      action = record > 0 || rnl(ctx.rng, 2, luckOf(ctx.state)) === 0 ? 1 : 0;
+    // up to 9 major troubles
+    const fixMajor = (): void => {
+      let tryct = 0;
+      while ((trouble = inTrouble(ctx)) > 0 && ++tryct < 10) fixWorstTrouble(ctx, trouble);
+    };
+    switch (Math.min(action, 5)) {
+      case 3:
+        fixWorstTrouble(ctx, trouble); // then, as case 2, the major ones
+        fixMajor();
+        break;
+      case 2:
+        fixMajor();
+        break;
+      case 1:
+        if (trouble > 0) fixWorstTrouble(ctx, trouble);
+        break;
+      default:
+        break; // your god blows you off, too bad
+    }
+  }
+  if (patOnHead) patOnTheHead(ctx, gAlign);
+
+  setU(ctx, { ublesscnt: rnz(ctx, 350) });
+  // the DoS guard for very long games
+  if (ctx.state.turn > 100000) {
+    const u = uState(ctx.state);
+    setU(ctx, { ublesscnt: u.ublesscnt + Math.trunc((ctx.state.turn - 100000) / 100) });
+  }
+}
+
+/** A gratuitous favor. ref: src/pray.c pleased() `if (pat_on_head) switch (rn2((Luck + 6) >> 1))` */
+function patOnTheHead(ctx: Ctx, gAlign: number): void {
+  const her = hero(ctx);
+  const blind = hasProp(her, P.BLINDED);
+  let n = ctx.rng.rn2((luckOf(ctx.state) + 6) >> 1);
+  if (n === 3) n = 2; // no castle tune to hint at: as the golden glow
+  if (n >= 6) n = 5; // no spells or crowning: as the gift of an intrinsic
+  switch (n) {
+    case 1: {
+      const w = worn(ctx, 'weapon');
+      const it = w?.c.item;
+      if (!w || !it || ctx.defs.object(w.def).class !== 'weapon') break;
+      if (it.buc === 'cursed') {
+        if (!blind) fixCurseTrouble(ctx, w);
+        else it.buc = 'uncursed';
+        it.known.buc = true;
+      } else if (it.buc !== 'blessed') {
+        if (!blind)
+          say(ctx, 'pray.blue_aura_item', {
+            item: xnameOf(ctx.state, ctx.defs, w),
+            color: hcolor(ctx, 'light_blue'),
+          });
+        it.buc = 'blessed';
+        it.known.buc = true;
+      }
+      break;
+    }
+    case 2: {
+      if (!blind) say(ctx, 'pray.golden_glow', { color: hcolor(ctx, 'golden') });
+      const hp = her.c.hp;
+      if (hp) {
+        hp.max += 5;
+        hp.cur = hp.max;
+      }
+      const hd = hungerData(ctx);
+      if (hd.strLoss > 0 && her.c.attributes) {
+        her.c.attributes.str += hd.strLoss;
+        hd.strLoss = 0;
+      }
+      if ((her.c.hunger?.nutrition ?? 900) < 900) initUhunger(ctx);
+      if (uState(ctx.state).luck < 0) setU(ctx, { luck: 0 });
+      makeBlinded(ctx, 0, true);
+      break;
+    }
+    case 4: {
+      say(ctx, blind ? 'pray.feel_power' : 'pray.blue_aura', {
+        god: godOf(gAlign),
+        color: hcolor(ctx, 'light_blue'),
+      });
+      for (const o of inventoryOf(ctx.state, ctx.state.playerId))
+        if (o.c.item?.buc === 'cursed') {
+          if (!blind) fixCurseTrouble(ctx, o);
+          else o.c.item.buc = 'uncursed';
+        }
+      break;
+    }
+    case 5: {
+      godvoice(ctx, uState(ctx.state).alignType, 'pray.progress');
+      const gift = !hasIntrinsic(her, P.TELEPAT)
+        ? P.TELEPAT
+        : !hasIntrinsic(her, P.FAST)
+          ? P.FAST
+          : !hasIntrinsic(her, P.STEALTH)
+            ? P.STEALTH
+            : P.PROTECTION;
+      if (gift === P.PROTECTION) {
+        const u = uState(ctx.state);
+        if (!hasIntrinsic(her, P.PROTECTION)) {
+          setIntrinsic(her, P.PROTECTION, true);
+          if (!u.ublessed) setU(ctx, { ublessed: ctx.rng.rn2(3) + 2 }); // rn1(3, 2)
+        } else setU(ctx, { ublessed: u.ublessed + 1 });
+      } else setIntrinsic(her, gift, true);
+      say(ctx, 'pray.gift', { gift: `@pray.gift.${gift}` });
+      say(ctx, 'pray.use_wisely');
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+interface PrayerData {
+  pType: number;
+  pTrouble: number;
+  pAlign: number;
+}
+
+/**
+ * Who can pray and how it will go: p_type 0 too soon, 1 naughty, 3 good (2 is a cross-aligned
+ * altar, -1 undead, -2 Moloch: none apply). ref: src/pray.c can_pray()
+ */
+function canPray(ctx: Ctx): PrayerData {
+  const u = uState(ctx.state);
+  const pAlign = u.alignType;
+  const pTrouble = inTrouble(ctx);
+  const alignment = u.alignRecord;
+  let pType: number;
+  if (pTrouble > 0 ? u.ublesscnt > 200 : pTrouble < 0 ? u.ublesscnt > 100 : u.ublesscnt > 0)
+    pType = 0; // too soon...
+  else if (luckOf(ctx.state) < 0 || u.ugangr || alignment < 0)
+    pType = 1; // too naughty...
+  else pType = 3;
+  return { pType, pTrouble, pAlign };
+}
+
+/** ref: src/pray.c prayer_done(), after the three helpless turns */
+function prayerDone(ctx: Ctx, data: PrayerData): void {
+  setU(ctx, { uinvulnerable: false });
+  if (data.pType === 0) {
+    setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 250) });
+    changeLuck(ctx, -3);
+    godsUpset(ctx, uState(ctx.state).alignType);
+  } else if (data.pType === 1) {
+    angrygods(ctx, uState(ctx.state).alignType); // naughty
+  } else {
+    pleased(ctx, data.pAlign, data.pTrouble); // nice
+  }
+}
+
+/** True while a successful prayer protects the hero (u.uinvulnerable). */
+export const invulnerable = (ctx: Pick<Ctx, 'state'>): boolean =>
+  uState(ctx.state).uinvulnerable === true;
+
+const pray: ActionDef = {
+  id: PRAY_ID,
+  labelKey: 'action.nh:pray',
+  handles: 'mod',
+  offer: (_ctx, target) =>
+    target.kind === 'self'
+      ? [{ action: { type: 'mod', action: PRAY_ID }, labelKey: 'action.nh:pray' }]
+      : [],
+  // ref: src/pray.c dopray(): paranoid_confirmation:pray is on by default
+  perform(ctx) {
+    ctx.ask(
+      { id: 'pray-confirm', kind: 'yn', key: 'pray.confirm', cancellable: true },
+      PRAY_ID,
+      null,
+    );
+    return 0;
+  },
+  answer(ctx, value) {
+    if (value !== true) return 0; // declined: no time passes
+    const data = canPray(ctx);
+    say(ctx, 'pray.begin', { god: godOf(data.pAlign) });
+    // nomul(-3), "praying", "You finish your prayer.", then prayer_done()
+    const extra = nomul(ctx, 3, 'helpless.praying', { key: 'pray.finish' });
+    ctx.schedule(4, PRAYER_DONE, data as unknown as Json);
+    if (data.pType === 3) {
+      // if you've been true to your god you can't die while you pray
+      if (!hasProp(hero(ctx), P.BLINDED)) say(ctx, 'pray.shimmering');
+      setU(ctx, { uinvulnerable: true });
+    }
+    return NORMAL_SPEED + extra;
+  },
+};
+
+export const PRAY_ACTIONS: readonly ActionDef[] = [pray];
+
+export function registerPray(api: ModApi): void {
+  api.defineTimer({
+    id: PRAYER_DONE,
+    fire(ctx, data) {
+      // the helplessness ends this turn: "You finish your prayer." comes first (unmul)
+      unmulNow(ctx);
+      prayerDone(ctx, data as unknown as PrayerData);
+    },
+  });
+  // ref: src/allmain.c moveloop_core(): `if (u.ublesscnt) u.ublesscnt--;` once a turn
+  api.on('endOfTurn', (ctx) => {
+    const u = uState(ctx.state);
+    if (u.ublesscnt > 0) setU(ctx, { ublesscnt: u.ublesscnt - 1 });
+  });
+}

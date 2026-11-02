@@ -2,6 +2,7 @@
 // ref: src/eat.c gethungry(), newuhs(), lesshungry(), morehungry(), src/allmain.c moveloop_core
 import { getPlayer, type Ctx, type HungerState, type ModApi, type Msg } from '@nh/core';
 import { nhData } from './items';
+import { uState } from './luck';
 import { nomul } from './nomul';
 import { nearCapacity } from './stats';
 
@@ -84,11 +85,27 @@ export function nomulNow(ctx: Ctx, turns: number, reasonKey: string, finish: Msg
   if (actor) actor.energy -= extra;
 }
 
+/**
+ * Back to 900 nutrition and Not Hungry, with Weak's lost strength restored (no messages).
+ * ref: src/eat.c init_uhunger()
+ */
+export function initUhunger(ctx: Pick<Ctx, 'state'>): void {
+  const hero = getPlayer(ctx.state);
+  const h = hero.c.hunger;
+  if (!h) return;
+  h.nutrition = 900;
+  h.state = 'not_hungry';
+  const hd = hungerData(ctx);
+  if (hd.strLoss > 0 && hero.c.attributes) hero.c.attributes.str += hd.strLoss;
+  hd.strLoss = 0;
+}
+
 /** ref: src/eat.c gethungry() */
 export function gethungry(ctx: Ctx): void {
   const hero = getPlayer(ctx.state);
   const h = hero.c.hunger;
   if (!h || ctx.state.gameOver) return;
+  if (uState(ctx.state).uinvulnerable) return; // you don't feel hungrier while praying
   // Unaware: fainted or knocked out by rotten food. Sleep and unconsciousness slow the burn.
   const unaware =
     hero.c.helpless !== undefined &&

@@ -71,7 +71,7 @@ export function strangeFeeling(
   if (item !== null) useup(ctx, item);
 }
 
-export type ColorName = 'blue' | 'black' | 'silver' | 'amber' | 'golden' | 'purple';
+export type ColorName = 'blue' | 'black' | 'silver' | 'amber' | 'golden' | 'purple' | 'light_blue';
 
 /** A color name message (not hallucinating). */
 export const color = (name: ColorName): Msg => ({

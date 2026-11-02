@@ -2,6 +2,7 @@
 import type { AttributesComponent, Ctx, EntityId, ModApi, MonsterDef } from '@nh/core';
 import { giveStartingKit } from './kit';
 import { adjabil } from './props';
+import { uState } from './luck';
 
 /**
  * The stub hero is a human, female, neutral Valkyrie. ref: src/role.c roles[] Valkyrie allows
@@ -231,6 +232,7 @@ function regenHp(ctx: Ctx): void {
   const hero = state.entities[String(state.playerId)];
   const hp = hero?.c.hp;
   if (!hero || !hp || hp.cur < 1 || hp.cur >= hp.max) return;
+  if (uState(state).uinvulnerable) return; // "for the moment at least, you're in tiptop shape"
   const level = hero.c.experience?.level ?? 1;
   const con = hero.c.attributes?.con ?? 10;
   const heal = level + con > ctx.rng.rn2(100) ? 1 : 0;

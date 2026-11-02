@@ -35,7 +35,9 @@ const def = (id: string) => defs.monster(id as DefId);
 describe('Luck', () => {
   test('starts at 0, with prayer timeout 300 and a 0 alignment record', () => {
     const s = setup(ROOM);
-    expect(uState(s.state)).toMatchObject({ luck: 0, alignRecord: 0, ublesscnt: 300, ugangr: 0 });
+    expect(uState(s.state)).toMatchObject({ luck: 0, alignRecord: 0, ugangr: 0 });
+    // 300 at the start, counting down a turn at a time
+    expect(uState(s.state).ublesscnt).toBe(300 - (s.state.turn - 1));
   });
 
   test('change_luck clamps to -10..10', () => {

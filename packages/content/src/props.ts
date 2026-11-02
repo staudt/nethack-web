@@ -34,6 +34,7 @@ export const P = {
   BLINDED: 'blinded',
   CONFUSION: 'confusion',
   HALLUC: 'hallucination',
+  PROTECTION: 'protection',
 } as const;
 
 /** True while the entity has the property, permanently or on a timer. ref: youprop.h (e.g. Stunned) */
@@ -252,6 +253,15 @@ export function registerProps(api: ModApi): void {
     const hero = getPlayer(ctx.state);
     const props = hero.c.props;
     if (!props) return;
+    // ref: nh_timeout(): `if (u.uinvulnerable) return; /* things past this point could kill you */`
+    const nh = ctx.state.modData['nh'] as { u?: { uinvulnerable?: boolean } } | undefined;
+    if (nh?.u?.uinvulnerable) {
+      for (const name of Object.keys(props).sort()) {
+        const p = props[name];
+        if (p && p.timeout > 0) p.timeout++; // the timers stand still
+      }
+      return;
+    }
     for (const name of Object.keys(props).sort()) {
       const p = props[name];
       if (!p || p.timeout <= 0 || ctx.state.turn < p.timeout) continue;

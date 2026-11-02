@@ -107,7 +107,7 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
 /**
  * Translate `key`. `{name}` placeholders take params; a string param starting with '@'
  * is itself translated as a key first, and a `{ key, params }` param is translated recursively. `{name|an}` prefixes the
- * English indefinite article (none before a number or "the ..."); `{name|the}` / `{name|The}`
+ * English indefinite article (none before a number or "the ...") and `{name|An}` the capitalized one; `{name|the}` / `{name|The}`
  * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
  * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). Missing keys render as `[key]` (warned once).
  */
@@ -128,7 +128,7 @@ export function translate(
   }
   if (!params) return template;
   return template.replace(
-    /\{(\w+)(\|an|\|the_s|\|The_s|\|the|\|The)?\}/g,
+    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The)?\}/g,
     (whole, name: string, mod?: string) => {
       const v = params[name];
       if (v === undefined) return whole;
@@ -141,7 +141,11 @@ export function translate(
         text = String(v);
       }
       if (mod === '|an') return justAn(text) + text;
-      if (mod !== undefined && mod !== '|an') {
+      if (mod === '|An') {
+        const a = justAn(text);
+        return a ? a.charAt(0).toUpperCase() + a.slice(1) + text : text;
+      }
+      if (mod !== undefined) {
         // "the newt", but a pronoun param ('@pronoun.it') takes no article: "It hits!";
         // the _s forms are possessive: "the newt's", "its"
         const pronoun = typeof v === 'string' && v.startsWith('@pronoun.');
