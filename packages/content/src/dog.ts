@@ -201,6 +201,19 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
 }
 
 /**
+ * The pet's edog record, made fresh if it has none (a monster made tame by another mod or a
+ * test). Tameness is left as it is. ref: src/dog.c newedog() + initedog()'s record part
+ */
+export function ensureEdog(ctx: Pick<Ctx, 'state'>, id: EntityId): Edog {
+  const old = edogOf(ctx, id);
+  if (old) return old;
+  const e = newEdog(ctx, id);
+  e.apport = getPlayer(ctx.state).c.attributes?.cha ?? 10;
+  e.hungrytime = ctx.state.turn + 1000;
+  return e;
+}
+
+/**
  * Makes the monster a pet with at least the minimum tameness (10 domestic, 5 other); with
  * `everything` the edog record starts fresh. ref: src/dog.c initedog()
  */

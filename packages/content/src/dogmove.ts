@@ -24,6 +24,7 @@ import {
   UNDEF,
   dogfood,
   edogOf,
+  ensureEdog,
   meating,
   setMeating,
   type Edog,
@@ -441,11 +442,11 @@ function maxPassiveDmg(ctx: Ctx, mdef: Entity, magr: Entity): number {
  */
 export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
   const mon = ctx.state.entities[String(id)];
-  const e = edogOf(ctx, id);
   const pos = mon?.c.pos;
   const hero = getPlayer(ctx.state);
   const hp = hero.c.pos;
-  if (!mon?.c.monster || !e || !pos || !hp) return 'nothing';
+  if (!mon?.c.monster || !pos || !hp) return 'nothing';
+  const e = ensureEdog(ctx, id);
   const omx = pos.x;
   const omy = pos.y;
   if (dogHunger(ctx, mon, e)) return 'died';

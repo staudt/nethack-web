@@ -67,6 +67,8 @@ export interface SoakResult {
   kicks: number;
   /** Prayers the bot started (it prays only when Weak or low on hit points). */
   prayed: number;
+  /** Times a pet came along to another level. */
+  petsFollowed: number;
   fired: number;
   enhanced: number;
   swapped: number;
@@ -136,9 +138,30 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   };
   /** Whether the last step left a multi-turn action in progress, as the UI would see it. */
   let continuing = false;
+  /** Errors from checks that need the state before a step (pets changing level). */
+  const stepErrors: string[] = [];
+  let petsFollowed = 0;
   const stepAndTrack = (a: PlayerAction): void => {
     const before = isMod(a, 'nh:pickup') ? carriedCount() : 0;
+    // where the hero and her pets are, to check who follows her to another level
+    const fromLevel = state.currentLevel;
+    const fromHero = getPlayer(state).c.pos;
+    const petsBefore = new Map<EntityId, Pos>();
+    for (const id of sortedIds(state)) {
+      const e = state.entities[String(id)];
+      const p = e?.c.pos;
+      if (e?.c.monster?.tame && p?.level === fromLevel) petsBefore.set(id, { x: p.x, y: p.y });
+    }
     const r = engine.step(state, a);
+    if (state.currentLevel !== fromLevel && fromHero) {
+      // ref: keepdogs(): only pets next to the hero come along
+      for (const [id, p] of petsBefore) {
+        if (state.entities[String(id)]?.c.pos?.level !== state.currentLevel) continue;
+        petsFollowed++;
+        if (Math.max(Math.abs(p.x - fromHero.x), Math.abs(p.y - fromHero.y)) > 1)
+          stepErrors.push(`pet ${id} followed the hero to ${state.currentLevel} from afar`);
+      }
+    }
     continuing = r.continuing;
     for (const e of r.events) {
       if (e.type === 'msg' && (e.key === 'combat.you_kill' || e.key === 'combat.you_destroy'))
@@ -150,7 +173,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let violations: SoakViolation | null = null;
 
   const check = (action: PlayerAction | null): void => {
-    const errors = checkInvariants(state, engine.registry);
+    const errors = [...stepErrors, ...checkInvariants(state, engine.registry)];
+    stepErrors.length = 0;
     if (errors.length > 0) violations = { step: log.length, action, errors };
   };
   check(null);
@@ -333,7 +357,9 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     // 3b. pray when in trouble: Weak or low on hit points (half the time; it may be too soon)
     if (
       !action &&
-      ((hp && (hp.cur <= 5 || hp.cur * 7 <= hp.max)) || hunger === 'weak' || hunger === 'fainting') &&
+      ((hp && (hp.cur <= 5 || hp.cur * 7 <= hp.max)) ||
+        hunger === 'weak' ||
+        hunger === 'fainting') &&
       rng.rn2(2) === 0
     ) {
       action = pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:pray')));
@@ -435,6 +461,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     thrown,
     kicks,
     prayed,
+    petsFollowed,
     fired,
     enhanced,
     swapped,

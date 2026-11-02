@@ -108,6 +108,8 @@ export interface ScenarioBuilder {
       level?: number;
       asleep?: boolean;
       peaceful?: boolean;
+      /** Tameness 1..20: a pet (also peaceful). */
+      tame?: number;
       speed?: number;
       /** Objects the monster carries; a bare def id is one item. A `wielded` one is its weapon. */
       carries?: readonly (DefId | { def: DefId; quantity?: number; wielded?: boolean })[];
@@ -391,9 +393,10 @@ export function runScenario(
           hp: { cur: hp, max: hp },
           monster: {
             level: lvl,
-            peaceful: o?.peaceful ?? false,
+            peaceful: (o?.peaceful ?? false) || o?.tame !== undefined,
             asleep: o?.asleep ?? false,
             lastHero: null,
+            ...(o?.tame !== undefined ? { tame: o.tame } : {}),
           },
         },
       };
