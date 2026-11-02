@@ -37,6 +37,7 @@ import {
   type PlayerAction,
   type Pos,
   type PromptOption,
+  type RayStep,
   type TerrainDef,
   type Trap,
 } from '@nh/core';
@@ -102,6 +103,14 @@ const WAND_WREST_CHANCE = 121;
 
 /** Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_LIGHTNING */
 type Ray = 'magic_missile' | 'fire' | 'cold' | 'sleep' | 'lightning';
+/** ref: include/display.h zap_color_*: HI_ZAP, CLR_ORANGE, CLR_WHITE, HI_ZAP, CLR_WHITE */
+const RAY_COLOR: Readonly<Record<Ray, string>> = {
+  magic_missile: '#5555ff',
+  fire: '#ff8800',
+  cold: '#ffffff',
+  sleep: '#5555ff',
+  lightning: '#ffffff',
+};
 const RAY_OF: Readonly<Record<string, Ray>> = {
   [WAN.magicMissile]: 'magic_missile',
   [WAN.fire]: 'fire',
@@ -1023,6 +1032,13 @@ function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
  * ref: src/zap.c dobuzz() for type 0..9 (hero's wand)
  */
 function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir): void {
+  const path: RayStep[] = [];
+  buzzSteps(ctx, ray, nd, dir, path);
+  if (path.length > 0) ctx.emit({ type: 'ray', kind: ray, fg: RAY_COLOR[ray], path });
+}
+
+/** The steps of {@link buzz}; the cells the hero sees the ray cross go to `path` (tmp_at()). */
+function buzzSteps(ctx: Ctx, ray: Ray, nd: number, dir: Dir, path: RayStep[]): void {
   const level = levelOf(ctx);
   const d = { ...DIRS[dir] };
   let { x: sx, y: sy } = heroPos(ctx);
@@ -1034,6 +1050,12 @@ function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir): void {
     sy += d.y;
     let bounceNow = !inBounds(level, sx, sy) || cellId(level, sx, sy) === T.stone;
     if (!bounceNow) {
+      if (
+        cansee(ctx, sx, sy) &&
+        (zapPos(terrainAt(ctx, level, sx, sy)) ||
+          (inBounds(level, lsx, lsy) && cansee(ctx, lsx, lsy)))
+      )
+        path.push({ x: sx, y: sy, dx: d.x, dy: d.y });
       range += zapOverFloor(ctx, ray, sx, sy);
       const mon = monAt(ctx, sx, sy);
       const hp = heroPos(ctx);

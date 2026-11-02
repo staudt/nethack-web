@@ -43,11 +43,18 @@ export type AsciiRenderer = Renderer & {
   getCell(): number;
   readonly fit: boolean;
   /**
-   * Overlays a glyph (a legend id, e.g. a thrown dagger) on one map cell, replacing any previous
-   * overlay; `null` removes it. The ASCII counterpart of NetHack's tmp_at(DISP_FLASH).
+   * Overlays glyphs (a legend id, e.g. a thrown dagger, or a literal glyph, e.g. a ray) on map
+   * cells, drawn in order and replacing any previous overlay; `[]` removes it. The ASCII
+   * counterpart of NetHack's tmp_at(DISP_FLASH) and tmp_at(DISP_BEAM).
    */
-  flash(pos: Pos, g: DefId | string | null): void;
+  flash(cells: readonly FlashCell[]): void;
 };
+
+/** One overlaid cell for {@link AsciiRenderer.flash}. */
+export interface FlashCell {
+  pos: Pos;
+  g: DefId | string | Glyph;
+}
 
 /** Cell width (CSS px) that shows `mapWidth` columns across `cssWidth`, never below `min`. */
 export function fitCell(cssWidth: number, mapWidth: number, min = 3): number {
@@ -113,7 +120,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   let player: ViewPlayer | null = null;
   let baseLegend: Record<string, Glyph> = {};
   const overrides = new Map<string, Glyph>();
-  let flashed: { x: number; y: number; g: string } | null = null;
+  let flashed: readonly FlashCell[] = [];
 
   // Camera
   let cam: CameraState = { x: 0, y: 0 };
@@ -232,13 +239,13 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
       ctx.fillRect(dx, dy, cellW, cellH);
       atlas.draw(ctx, glyphFor(e.g), false, dx, dy, cellW, cellH);
     }
-    const f = flashed;
-    if (f && f.x >= r.x0 && f.x < r.x1 && f.y >= r.y0 && f.y < r.y1) {
+    for (const { pos: f, g } of flashed) {
+      if (f.x < r.x0 || f.x >= r.x1 || f.y < r.y0 || f.y >= r.y1) continue;
       const fx = f.x * cellW - ox;
       const fy = f.y * cellH - oy;
       ctx.fillStyle = background;
       ctx.fillRect(fx, fy, cellW, cellH);
-      atlas.draw(ctx, glyphFor(f.g), false, fx, fy, cellW, cellH);
+      atlas.draw(ctx, typeof g === 'string' ? glyphFor(g) : g, false, fx, fy, cellW, cellH);
     }
   }
 
@@ -349,8 +356,8 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
       fontSize = baseFont;
       layout();
     },
-    flash(pos: Pos, g: DefId | string | null): void {
-      flashed = g === null ? null : { x: pos.x, y: pos.y, g };
+    flash(cells: readonly FlashCell[]): void {
+      flashed = cells;
       schedule();
     },
     getCell(): number {

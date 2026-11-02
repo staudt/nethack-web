@@ -60,12 +60,17 @@ const isZoomable = (r: object): r is ZoomableRenderer =>
   typeof (r as Partial<ZoomableRenderer>).getCell === 'function';
 
 /**
- * What a renderer may offer to draw a thrown object in flight: a glyph (by legend id) over one
- * cell, or none (`null`) to remove it. Feature-detected like {@link ZoomableRenderer}.
+ * What a renderer may offer to draw a thrown object in flight or a ray: glyphs (a legend id or a
+ * literal glyph) over map cells, drawn in order and replacing the previous ones; `[]` removes
+ * them. Feature-detected like {@link ZoomableRenderer}.
  */
 export interface FlashRenderer {
-  flash(pos: Pos, g: string | null): void;
+  flash(cells: readonly { pos: Pos; g: string | Glyph }[]): void;
 }
+
+/** ref: src/display.c zapdir_to_glyph(): S_vbeam, S_hbeam, S_lslant or S_rslant */
+const beamChar = (dx: number, dy: number): string =>
+  dx === 0 ? '|' : dy === 0 ? '-' : dx === dy ? '\\' : '/';
 const isFlashable = (r: object): r is FlashRenderer =>
   typeof (r as Partial<FlashRenderer>).flash === 'function';
 
@@ -220,7 +225,7 @@ export function createUi(opts: UiOptions): Ui {
     if (!a) return;
     anim = null;
     clearTimeout(a.timer);
-    flasher?.flash({ x: 0, y: 0 }, null);
+    flasher?.flash([]);
     a.done();
   }
   const clearStepTimer = (): void => {
@@ -757,10 +762,20 @@ export function createUi(opts: UiOptions): Ui {
     update(view, events, prompt, continuing = false) {
       if (destroyed) return;
       finishAnimation();
-      const frames: { pos: Pos; g: string }[] = [];
+      // Each frame is the whole overlay: a projectile is one cell, a ray keeps its trail.
+      const frames: { pos: Pos; g: string | Glyph }[][] = [];
       if (flasher)
-        for (const ev of events)
-          if (ev.type === 'projectile') for (const pos of ev.path) frames.push({ pos, g: ev.g });
+        for (const ev of events) {
+          if (ev.type === 'projectile') for (const pos of ev.path) frames.push([{ pos, g: ev.g }]);
+          else if (ev.type === 'ray') {
+            let trail: { pos: Pos; g: Glyph }[] = [];
+            for (const s of ev.path) {
+              const g = { ch: beamChar(s.dx, s.dy), fg: ev.fg };
+              trail = [...trail, { pos: { x: s.x, y: s.y }, g }];
+              frames.push(trail);
+            }
+          }
+        }
       if (frames.length === 0) {
         applyUpdate(view, events, prompt, continuing);
         return;
@@ -773,7 +788,7 @@ export function createUi(opts: UiOptions): Ui {
           finishAnimation();
           return;
         }
-        flasher?.flash(f.pos, f.g);
+        flasher?.flash(f);
         anim = { timer: setTimeout(next, stepDelayMs), done };
       };
       const done = (): void => applyUpdate(view, events, prompt, continuing);

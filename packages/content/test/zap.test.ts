@@ -291,6 +291,28 @@ describe('rays', () => {
     expect(hits).toBeGreaterThan(0);
   });
 
+  test('the ray event traces the seen path, and a corner bounce turns it', () => {
+    const s = make(['.....', '.....', '..@..', '.....', '.....']);
+    const w = wand(s, WAN.cold);
+    s.mod('nh:zap', { item: w });
+    const r = answer(s, 'ne');
+    const rays = r.events.flatMap((e) => (e.type === 'ray' ? [e] : []));
+    expect(rays).toHaveLength(1);
+    const ray = rays[0]!;
+    expect(ray.kind).toBe('cold');
+    expect(ray.path[0]).toEqual({ x: 3, y: 1, dx: 1, dy: -1 });
+    expect(ray.path[1]).toEqual({ x: 4, y: 0, dx: 1, dy: -1 });
+    // the next cell is off the map: the ray turns there and comes back in sight
+    expect(ray.path[2]).toBeDefined();
+    expect([ray.path[2]!.dx, ray.path[2]!.dy]).not.toEqual([1, -1]);
+    for (const c of ray.path) {
+      expect(c.x >= 0 && c.x < 5 && c.y >= 0 && c.y < 5).toBe(true);
+      const prev = ray.path[ray.path.indexOf(c) - 1];
+      if (prev)
+        expect(Math.max(Math.abs(c.x - prev.x), Math.abs(c.y - prev.y))).toBeLessThanOrEqual(1);
+    }
+  });
+
   test('with an amulet of reflection the bounced ray reflects and does no harm', () => {
     let hits = 0;
     for (let seed = 1; seed <= 40 && hits < 2; seed++) {

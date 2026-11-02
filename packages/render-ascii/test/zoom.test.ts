@@ -12,7 +12,8 @@ test('the ascii renderer offers flash() and tolerates it before mounting', () =>
   const r = createAsciiRenderer();
   expect(typeof r.flash).toBe('function');
   expect(() => {
-    r.flash({ x: 1, y: 2 }, 'nh:dagger');
-    r.flash({ x: 0, y: 0 }, null);
+    r.flash([{ pos: { x: 1, y: 2 }, g: 'nh:dagger' }]);
+    r.flash([{ pos: { x: 1, y: 3 }, g: { ch: '|', fg: '#ff8800' } }]);
+    r.flash([]);
   }).not.toThrow();
 });

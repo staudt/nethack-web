@@ -28,8 +28,11 @@ class FlashRenderer implements Renderer {
   }
   resize() {}
   destroy() {}
-  flash(pos: Pos, g: string | null) {
-    this.log.push(g === null ? 'off' : `${g}@${pos.x},${pos.y}`);
+  flash(cells: readonly { pos: Pos; g: string | Glyph }[]) {
+    const show = (g: string | Glyph) => (typeof g === 'string' ? g : `${g.ch}${g.fg}`);
+    this.log.push(
+      cells.length === 0 ? 'off' : cells.map((c) => `${show(c.g)}@${c.pos.x},${c.pos.y}`).join(' '),
+    );
   }
 }
 
@@ -123,6 +126,40 @@ describe('projectile flight', () => {
     key('l'); // skips the flight and cancels the continuing action: swallowed
     vi.advanceTimersByTime(10 * D);
     expect(n.acts).toEqual([]);
+  });
+
+  test('a ray grows a trail, and a bounce turns its glyph', () => {
+    const m = mk();
+    const ray: GameEvent = {
+      type: 'ray',
+      kind: 'fire',
+      fg: 'o',
+      path: [
+        { x: 6, y: 4, dx: 1, dy: -1 },
+        { x: 7, y: 3, dx: 1, dy: -1 },
+        { x: 6, y: 4, dx: -1, dy: 1 },
+      ],
+    };
+    m.ui.update(view(), [ray, hit], null);
+    vi.advanceTimersByTime(3 * D);
+    expect(m.r.log).toEqual(['/o@6,4', '/o@6,4 /o@7,3', '/o@6,4 /o@7,3 /o@6,4', 'off', 'apply']);
+    const n = mk();
+    n.ui.update(
+      view(),
+      [
+        {
+          ...ray,
+          path: [
+            { x: 6, y: 5, dx: 1, dy: 0 },
+            { x: 6, y: 6, dx: 0, dy: -1 },
+            { x: 7, y: 7, dx: 1, dy: 1 },
+          ],
+        },
+      ],
+      null,
+    );
+    vi.advanceTimersByTime(3 * D);
+    expect(n.r.log[2]).toBe('-o@6,5 |o@6,6 \\o@7,7');
   });
 
   test('no projectile events, no animation', () => {
