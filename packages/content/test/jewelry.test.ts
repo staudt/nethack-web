@@ -24,9 +24,12 @@ import { ctxFor, defs, engine, itemOf, levelSetup, plainKit, render } from './it
 
 type S = ReturnType<typeof levelSetup>;
 
+/** Rings and amulets are known by name here; identification tests shuffle them again. */
 function make(rows?: string[], seed = 1): S {
   const s = levelSetup(rows, seed);
   plainKit(s.state);
+  for (const d of defs.objects)
+    if (d.class === 'ring' || d.class === 'amulet') delete s.state.appearances[d.id];
   return s;
 }
 const hero = (s: S) => getPlayer(s.state);
@@ -228,7 +231,12 @@ describe('ring effects', () => {
     putOn(s, jewel(s, 'nh:ring_of_regeneration'));
     const hp = hero(s).c.hp!;
     hp.cur = 100;
-    for (let i = 0; i < 10; i++) s.step({ type: 'search' });
+    for (let i = 0; i < 10; i++) {
+      s.step({ type: 'search' });
+      // randomly spawned monsters are removed before they can attack
+      for (const e of Object.values(s.state.entities))
+        if (e.c.monster) delete s.state.entities[String(e.id)];
+    }
     expect(hp.cur).toBeGreaterThanOrEqual(110);
   });
 

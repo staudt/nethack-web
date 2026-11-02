@@ -787,6 +787,9 @@ describe('combat with real objects', () => {
           if (k.startsWith('combat.mon_')) swings++;
           if (k === 'combat.mon_bites') hits++;
         }
+        // only the jackal attacks: randomly spawned monsters are removed before they act
+        for (const e of Object.values(s.state.entities))
+          if (e.c.monster && e.id !== id) delete s.state.entities[String(e.id)];
       }
       return hits / swings;
     };

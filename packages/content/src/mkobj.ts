@@ -1,8 +1,9 @@
 // Random object generation: mkobj() and its helpers.
 // ref: src/mkobj.c mkobj(), mkobj_at(), rndmonnum()
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
+import { putIn } from '@nh/core';
 import { rndmonst } from './generation';
-import { mksobj } from './items';
+import { mksobj, type MksobjOpts } from './items';
 import { startCorpseTimeout } from './corpses';
 
 /** What mkobj() needs from a Ctx (corpses schedule a rot timer). */
@@ -11,32 +12,63 @@ export type MkobjCtx = Pick<
   'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove' | 'schedule'
 >;
 
+type ClassProbs = readonly { prob: number; cls: ObjectClass | null; name: string }[];
+
 /**
  * The class probabilities of mkobj() on ordinary levels, in NetHack's order; they sum to 100.
- * `null` marks the classes this port does not have yet: rolling one generates nothing.
- * ref: src/mkobj.c mkobjprobs[]
+ * `null` marks the classes this port does not have yet (gems: only flint and rocks exist):
+ * rolling one generates nothing. ref: src/mkobj.c mkobjprobs[]
  */
-export const MKOBJ_PROBS: readonly { prob: number; cls: ObjectClass | null; name: string }[] = [
+export const MKOBJ_PROBS: ClassProbs = [
   { prob: 10, cls: 'weapon', name: 'weapon' },
   { prob: 11, cls: 'armor', name: 'armor' },
   { prob: 20, cls: 'food', name: 'food' },
-  { prob: 8, cls: null, name: 'tool' },
+  { prob: 8, cls: 'tool', name: 'tool' },
   { prob: 7, cls: null, name: 'gem' },
   { prob: 16, cls: 'potion', name: 'potion' },
   { prob: 16, cls: 'scroll', name: 'scroll' },
-  { prob: 4, cls: null, name: 'spellbook' },
-  { prob: 4, cls: null, name: 'wand' },
-  { prob: 3, cls: null, name: 'ring' },
-  { prob: 1, cls: null, name: 'amulet' },
+  { prob: 4, cls: 'spellbook', name: 'spellbook' },
+  { prob: 4, cls: 'wand', name: 'wand' },
+  { prob: 3, cls: 'ring', name: 'ring' },
+  { prob: 1, cls: 'amulet', name: 'amulet' },
 ];
+
+/**
+ * The class probabilities of a box's contents; they sum to 100. Gems are not made (as above).
+ * ref: src/mkobj.c boxiprobs[]
+ */
+export const BOX_PROBS: ClassProbs = [
+  { prob: 18, cls: null, name: 'gem' },
+  { prob: 15, cls: 'food', name: 'food' },
+  { prob: 18, cls: 'potion', name: 'potion' },
+  { prob: 18, cls: 'scroll', name: 'scroll' },
+  { prob: 12, cls: 'spellbook', name: 'spellbook' },
+  { prob: 7, cls: 'coin', name: 'coin' },
+  { prob: 6, cls: 'wand', name: 'wand' },
+  { prob: 5, cls: 'ring', name: 'ring' },
+  { prob: 1, cls: 'amulet', name: 'amulet' },
+];
+
+/** `for (tprob = rnd(100); (tprob -= iprobs->iprob) > 0; iprobs++)` */
+function rollClass(ctx: Pick<MkobjCtx, 'rng'>, probs: ClassProbs): ObjectClass | null {
+  let tprob = ctx.rng.rnd(100);
+  let i = 0;
+  while (tprob - (probs[i]?.prob ?? 0) > 0) {
+    tprob -= probs[i]?.prob ?? 0;
+    i++;
+  }
+  return probs[i]?.cls ?? null;
+}
 
 export interface MkobjOpts {
   /** Level whose depth matters (random corpses); default is the hero's current level. */
   level?: LevelId;
   /** Place the object on the floor here (mkobj_at). Otherwise it is returned detached. */
   at?: { level: LevelId; x: number; y: number };
-  /** Called during level creation (gi.in_mklev): corpse timers vary more. */
+  /** Called during level creation (gi.in_mklev): corpse timers vary more, sacks get contents. */
   inMklev?: boolean;
+  /** mkobj's `artif` (default true, as mkobj_at() passes it during level creation). */
+  artif?: boolean;
 }
 
 /** The depth used as level_difficulty() for things made on `level`. */
@@ -86,7 +118,8 @@ export function pickObjectOfClass(
 /**
  * A random object of the given class, or of a random class (`'random'`) according to
  * mkobjprobs[]. Returns the new object's id, or null when the rolled class is not implemented
- * (the class roll is still made). With `opts.at` the object is placed on the floor.
+ * (the class roll is still made). With `opts.at` the object is placed on the floor; a
+ * container gets its contents.
  * ref: src/mkobj.c mkobj(), mkobj_at(), and mksobj() for a corpse (random monster).
  */
 export function mkobj(
@@ -94,21 +127,12 @@ export function mkobj(
   oclass: ObjectClass | 'random',
   opts: MkobjOpts = {},
 ): EntityId | null {
-  let cls: ObjectClass | null;
-  if (oclass === 'random') {
-    // for (tprob = rnd(100); (tprob -= iprobs->iprob) > 0; iprobs++) continue;
-    let tprob = ctx.rng.rnd(100);
-    let i = 0;
-    while (tprob - (MKOBJ_PROBS[i]?.prob ?? 0) > 0) {
-      tprob -= MKOBJ_PROBS[i]?.prob ?? 0;
-      i++;
-    }
-    cls = MKOBJ_PROBS[i]?.cls ?? null;
-  } else cls = oclass;
+  const cls = oclass === 'random' ? rollClass(ctx, MKOBJ_PROBS) : oclass;
   if (cls === null) return null;
   const def = pickObjectOfClass(ctx, cls);
   if (!def) return null;
   const where = opts.at ? { at: opts.at } : {};
+  const artif = opts.artif ?? true;
   if (def.id === 'nh:corpse') {
     // ref: src/mkobj.c mksobj() CORPSE: corpsenm = undead_to_corpse(rndmonnum()), up to 50
     // tries to avoid G_NOCORPSE types; then the rot timer (made with level-creation variance
@@ -116,11 +140,81 @@ export function mkobj(
     let mon = rndmonnum(ctx, depthOf(ctx, opts.level ?? opts.at?.level));
     for (let tries = 50; mon.genFlags.includes('nocorpse') && --tries > 0;)
       mon = rndmonnum(ctx, depthOf(ctx, opts.level ?? opts.at?.level));
-    const id = mksobj(ctx, def, { corpseOf: mon.id as DefId, artif: true, ...where });
+    const id = mksobj(ctx, def, { corpseOf: mon.id as DefId, artif, ...where });
     startCorpseTimeout(ctx, id, opts.inMklev === true);
     return id;
   }
-  return mksobj(ctx, def, { artif: true, ...where });
+  return mksobjFull(ctx, def, { artif, ...where }, opts);
+}
+
+/**
+ * mksobj() with what this port does after the object exists: a container made with `init`
+ * gets its contents (mkbox_cnts(), which NetHack runs inside mksobj_init(); boxes and bags
+ * never erode, so no roll moves). Use this rather than items.ts mksobj() for generated objects.
+ */
+export function mksobjFull(
+  ctx: MkobjCtx,
+  def: ObjectDef,
+  opts: MksobjOpts,
+  gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
+): EntityId {
+  const id = mksobj(ctx, def, opts);
+  if ((opts.init ?? true) && def.container) {
+    mkboxCnts(ctx, id, {
+      level: gen.level ?? opts.at?.level ?? ctx.state.currentLevel,
+      inMklev: gen.inMklev === true,
+    });
+  }
+  return id;
+}
+
+/**
+ * Fills a new container with random objects of the box classes; gold gets 2.5 times the
+ * level's usual amount.
+ * ref: src/mkobj.c mkbox_cnts(): chest 7 if locked else 5, large box 5 or 3, sack and oilskin
+ * sack 1 (0 for the starting inventory), bag of holding 1; then `rn2(n + 1)` objects made with
+ * mkobj(class, FALSE). Ice boxes, rocks turned into gray stones, bags of holding getting a sack
+ * instead of a bag and no wand of cancellation do not arise in the subset; a gem roll makes
+ * nothing (see MKOBJ_PROBS). Boxes are not trapped (see DEVIATIONS.md).
+ */
+export function mkboxCnts(
+  ctx: MkobjCtx,
+  boxId: EntityId,
+  opts: { level: LevelId; inMklev: boolean },
+): void {
+  const box = ctx.state.entities[String(boxId)];
+  if (!box?.c.item) return;
+  let n: number;
+  switch (box.def) {
+    case 'nh:chest':
+      n = box.c.item.locked ? 7 : 5;
+      break;
+    case 'nh:large_box':
+      n = box.c.item.locked ? 5 : 3;
+      break;
+    case 'nh:sack':
+    case 'nh:oilskin_sack':
+      // initial inventory: sack starts out empty
+      n = ctx.state.turn <= 1 && !opts.inMklev ? 0 : 1;
+      break;
+    case 'nh:bag_of_holding':
+      n = 1;
+      break;
+    default:
+      n = 0;
+  }
+  for (n = ctx.rng.rn2(n + 1); n > 0; n--) {
+    const cls = rollClass(ctx, BOX_PROBS);
+    if (cls === null) continue;
+    const obj = mkobj(ctx, cls, { level: opts.level, inMklev: opts.inMklev, artif: false });
+    if (obj === null) continue;
+    const it = ctx.state.entities[String(obj)]?.c.item;
+    if (it && cls === 'coin') {
+      // 2.5 x level's usual amount
+      it.quantity = ctx.rng.rnd(depthOf(ctx, opts.level) + 2) * ctx.rng.rnd(75);
+    }
+    putIn(ctx.defs, ctx.state, boxId, obj);
+  }
 }
 
 /** ref: src/mkobj.c mkobj_at() */

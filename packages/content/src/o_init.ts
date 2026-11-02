@@ -9,33 +9,38 @@ import {
   type Registry,
 } from '@nh/core';
 
-/** Classes whose descriptions are shuffled per game. ref: src/o_init.c shuffle_all() */
-const SHUFFLED: readonly ObjectClass[] = ['potion', 'scroll'];
-
 /**
- * Rings and amulets have shuffled appearances too (ring colors and descriptions move together),
- * but the shuffle is turned on with their generation (milestone 5b step 9), because it changes
- * the RNG stream at game start. Until then the vanilla game never makes them and they are known
- * by name; tests shuffle them with `shuffleAll(ctx, JEWELRY_CLASSES)`.
+ * Rings and amulets have shuffled appearances (ring colors and descriptions move together; a
+ * ring keeps its own material, see DEVIATIONS.md). Amulets exclude the non-magic imitation,
+ * which has a fixed description. Exported for tests that shuffle one class.
  */
 export const JEWELRY_CLASSES: readonly ObjectClass[] = ['ring', 'amulet'];
 
-/**
- * Wands are shuffled too (milestone 5b step 9 turns it on with their generation, for the same
- * reason); until then they are known by name. Tests use `shuffleAll(ctx, WAND_CLASSES)`.
- */
+/** Wands are shuffled as a whole class. */
 export const WAND_CLASSES: readonly ObjectClass[] = ['wand'];
 
 /**
  * Spellbooks are shuffled too, except blank paper, which has a fixed description (ref:
- * src/o_init.c obj_shuffle_range() SPBOOK_CLASS: magic, non-unique books only). Milestone
- * 5b step 9 turns it on with their generation; until then they are known by name. Tests use
- * `shuffleAll(ctx, SPELLBOOK_CLASSES)`.
+ * src/o_init.c obj_shuffle_range() SPBOOK_CLASS: magic, non-unique books only).
  */
 export const SPELLBOOK_CLASSES: readonly ObjectClass[] = ['spellbook'];
 
 /**
- * Assigns each shuffled object (potions except water, scrolls) a distinct random appearance of
+ * Classes whose descriptions are shuffled per game, in NetHack's order (venom does not exist;
+ * the armor sub-ranges, helmets, gloves, cloaks and boots, are not in our subset).
+ * ref: src/o_init.c shuffle_all() shuffle_classes[]
+ */
+const SHUFFLED: readonly ObjectClass[] = [
+  'amulet',
+  'potion',
+  'ring',
+  'scroll',
+  'spellbook',
+  'wand',
+];
+
+/**
+ * Assigns each shuffled object (those without a fixed `descKey`) a distinct random appearance of
  * its class. ref: src/o_init.c shuffle_all(), shuffle(): for each object j in order, swap its
  * description with that of a random object i in j..last. NetHack shuffles the descriptions of
  * its full object list; our object set is a subset, so drawing distinct descriptions from the

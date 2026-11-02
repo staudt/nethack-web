@@ -17,7 +17,16 @@ import {
   type Registry,
   type Rng,
 } from '@nh/core';
-import { erosionMatters } from './material';
+import {
+  erosionMatters,
+  isCorrodeable,
+  isCrackable,
+  isDamageable,
+  isFlammable,
+  isRottable,
+  isRustprone,
+} from './material';
+import { CHARGED_RINGS } from './objects';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<Ctx, 'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove'>;
@@ -42,17 +51,55 @@ function blessorcurse(rng: Rng, it: ItemComponent, chance: number): void {
   if (rng.rn2(chance) === 0) it.buc = rng.rn2(2) === 0 ? 'cursed' : 'blessed';
 }
 
+/** ref: src/mkobj.c curse() (the BUC part) */
+const curse = (it: ItemComponent): void => {
+  it.buc = 'cursed';
+};
+
+/** The object fields mksobj_init() and mkobj_erosions() look at. */
+export type InitDef = Pick<ObjectDef, 'id' | 'class' | 'weapon' | 'wand' | 'material' | 'prop'>;
+
 /**
- * Random initialization of an object's BUC, enchantment and quantity.
- * ref: src/mkobj.c mksobj_init() for weapon, food, potion, scroll, armor, wand and coin classes.
- * Simplified: poisonable weapons roll for poison but are never poisoned, no artifacts, no erosion; food has no corpse/egg/tin/slime-mold special cases (the
- * corpse is made through mkcorpse(), which supplies the monster).
+ * A small fraction of new weapons and armor are made eroded or erodeproof.
+ * ref: src/mkobj.c mkobj_erosions(), may_generate_eroded(). The objects that may not be eroded
+ * are those that cannot erode (erosion_matters(), is_damageable()) and the hero's starting
+ * inventory (`moves <= 1 && !in_mklev`, passed in by the caller); worm teeth, unicorn horns and
+ * artifacts do not exist. Grease is not ported: its 1 in 1000 roll is made.
+ */
+export function mkobjErosions(rng: Rng, def: InitDef, it: ItemComponent): void {
+  const d = def as ObjectDef;
+  if (it.erodeproof || !erosionMatters(d) || !isDamageable(d)) return;
+  if (!rng.rn2(100)) {
+    it.erodeproof = true;
+  } else {
+    let e1 = 0;
+    let e2 = 0;
+    if (!rng.rn2(80) && (isFlammable(d) || isRustprone(d) || isCrackable(d))) {
+      do e1++;
+      while (e1 < 3 && !rng.rn2(9));
+    }
+    if (!rng.rn2(80) && (isRottable(d) || isCorrodeable(d))) {
+      do e2++;
+      while (e2 < 3 && !rng.rn2(9));
+    }
+    if (e1 || e2) it.erosion = { e1: e1 as 0 | 1 | 2 | 3, e2: e2 as 0 | 1 | 2 | 3 };
+  }
+  rng.rn2(1000); // greased: not ported
+}
+
+/**
+ * Random initialization of an object's BUC, enchantment, quantity and erosion.
+ * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
+ * (`erode` false for the hero's starting inventory). Simplified: poisonable weapons roll for
+ * poison but are never poisoned, no artifacts; food has no corpse/egg/tin/slime-mold special
+ * cases (the corpse is made through mkcorpse(), which supplies the monster).
  */
 export function mksobjInit(
   ctx: Pick<ItemCtx, 'state' | 'rng'>,
-  def: Pick<ObjectDef, 'id' | 'class' | 'weapon' | 'wand'>,
+  def: InitDef,
   it: ItemComponent,
   artif = false,
+  erode = true,
 ): void {
   const rng = ctx.rng;
   const lvl = heroLevelOf(ctx);
@@ -117,11 +164,43 @@ export function mksobjInit(
         // rolls are made
         if (!rng.rn2(10)) rng.rn2(100);
       }
-      // the contents (mkbox_cnts()) come with box generation
+      // the contents (mkbox_cnts() in mkobj.ts) are made once the box exists
+      break;
+    case 'amulet':
+      // ref: mksobj_init() AMULET_CLASS (change is not in the subset)
+      if (
+        rng.rn2(10) &&
+        (def.id === 'nh:amulet_of_strangulation' || def.id === 'nh:amulet_of_restful_sleep')
+      )
+        curse(it);
+      else blessorcurse(rng, it, 10);
+      break;
+    case 'spellbook':
+      // ref: mksobj_init() SPBOOK_CLASS: spestudied = 0 (no entry in modData.nh.spestudied)
+      blessorcurse(rng, it, 17);
+      break;
+    case 'ring':
+      // ref: mksobj_init() RING_CLASS (teleportation and polymorph are not in the subset)
+      if (CHARGED_RINGS.has(def.id)) {
+        blessorcurse(rng, it, 3);
+        if (rng.rn2(10)) {
+          if (rng.rn2(10) && bcsign(it.buc)) it.spe = bcsign(it.buc) * rne(rng, 3, lvl);
+          else it.spe = rng.rn2(2) ? rne(rng, 3, lvl) : -rne(rng, 3, lvl);
+        }
+        // make useless +0 rings much less common
+        if (it.spe === 0) it.spe = rng.rn2(4) - rng.rn2(3);
+        // negative rings are usually cursed
+        if (it.spe < 0 && rng.rn2(5)) curse(it);
+      } else if (
+        rng.rn2(10) &&
+        (def.id === 'nh:ring_of_aggravate_monster' || def.id === 'nh:ring_of_hunger' || !rng.rn2(9))
+      )
+        curse(it);
       break;
     case 'coin':
       break;
   }
+  if (erode) mkobjErosions(rng, def, it);
 }
 
 export interface MksobjOpts {
@@ -137,6 +216,8 @@ export interface MksobjOpts {
   corpseOf?: DefId;
   /** mksobj's `artif`: rolls the artifact chance (the roll is made; no artifact results). */
   artif?: boolean;
+  /** The hero's starting inventory (`moves <= 1 && !in_mklev`): never made eroded. */
+  initialInventory?: boolean;
 }
 
 /**
@@ -162,7 +243,7 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
     if (!opts.corpseOf) throw new Error('mksobj: a corpse needs corpseOf (use mkcorpse)');
     it.corpseOf = opts.corpseOf;
   }
-  if (opts.init ?? true) mksobjInit(ctx, def, it, opts.artif === true);
+  if (opts.init ?? true) mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory);
   if (opts.quantity !== undefined) it.quantity = opts.quantity;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
   if (opts.at) return placeOnFloor(ctx, id, opts.at.level, opts.at.x, opts.at.y);

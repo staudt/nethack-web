@@ -32,9 +32,11 @@ import { ctxFor, defs, engine, itemOf, levelSetup, plainKit, render } from './it
 
 type S = ReturnType<typeof levelSetup>;
 
+/** Wands are known by name here; identification tests shuffle them again. */
 function make(rows: string[], seed = 1): S {
   const s = levelSetup(rows, seed);
   plainKit(s.state);
+  for (const d of defs.objects) if (d.class === 'wand') delete s.state.appearances[d.id];
   s.step({ type: 'wait' }); // vision for the new level
   return s;
 }
@@ -104,6 +106,9 @@ describe('z', () => {
     let text: string[] = [];
     let tries = 0;
     while (s.state.entities[String(w)] && tries++ < 3000) {
+      // randomly spawned monsters are removed before they can act
+      for (const e of Object.values(s.state.entities))
+        if (e.c.monster) delete s.state.entities[String(e.id)];
       text = zap(s, w);
       if (s.state.entities[String(w)]) {
         expect(text).toEqual(['Nothing happens.']);

@@ -39,7 +39,7 @@ export const VALKYRIE_KIT: readonly TrObj[] = [
 export function giveStartingKit(ctx: Ctx, heroId: EntityId): void {
   for (const t of VALKYRIE_KIT) {
     const def = ctx.defs.object(t.id);
-    const made = mksobj(ctx, def, { init: true });
+    const made = mksobj(ctx, def, { init: true, initialInventory: true });
     const it = ctx.state.entities[String(made)]?.c.item;
     if (!it) throw new Error('starting kit: no item');
     const buc: Buc = it.buc === 'blessed' ? 'blessed' : 'uncursed'; // obj->cursed = 0

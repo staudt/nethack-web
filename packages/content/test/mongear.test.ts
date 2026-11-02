@@ -1,6 +1,7 @@
 import { getPlayer, inventoryOf, itemsAt, type Ctx, type DefId } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { findMac, makemon, monsterDied, mongets, mDoWear, monWep } from '../src/index';
+import { armBonus } from '../src/material';
 import { addMon, setup } from './helpers';
 import { ctxFor, defs, render } from './itemHelpers';
 
@@ -78,20 +79,26 @@ describe('armor class', () => {
     mongets(ctx, d, 'nh:dwarvish_mithril_coat');
     expect(findMac(t.state, defs, d)).toBe(10);
     mDoWear(ctx, d, true);
-    const bonus = (id: string) => defs.object(id as DefId).armor!.ac;
-    expect(findMac(t.state, defs, d)).toBe(
-      10 - bonus('nh:dwarvish_iron_helm') - bonus('nh:dwarvish_mithril_coat'),
-    );
+    // mongets() inits the armor randomly (enchantment, erosion), so count ARM_BONUS of each
+    // worn piece: a_ac + spe - min(greatest_erosion, a_ac)
+    const worn = (mon: number) =>
+      Object.values(t.state.entities).filter(
+        (e) => e.c.item?.carriedBy === mon && e.c.item.equipped !== null,
+      );
+    const acOf = (mon: number) =>
+      worn(mon).reduce((ac, e) => ac - armBonus(defs.object(e.def), e), 10);
+    expect(
+      worn(d)
+        .map((e) => e.def)
+        .sort(),
+    ).toEqual(['nh:dwarvish_iron_helm', 'nh:dwarvish_mithril_coat']);
+    expect(findMac(t.state, defs, d)).toBe(acOf(d));
     const k = addMon(t.state, 'nh:kobold', 12, 5);
     mongets(ctx, k, 'nh:leather_armor');
     mongets(ctx, k, 'nh:orcish_helm');
     mDoWear(ctx, k, true);
-    // mongets() inits the helm randomly, so count its enchantment (ARM_BONUS = a_ac + spe)
-    const helm = Object.values(t.state.entities).find(
-      (e) => e.c.item?.carriedBy === k && e.def === 'nh:orcish_helm',
-    );
-    expect(helm?.c.item?.equipped).toBe('helm');
-    expect(findMac(t.state, defs, k)).toBe(10 - bonus('nh:orcish_helm') - (helm?.c.item?.spe ?? 0));
+    expect(worn(k).map((e) => e.def)).toEqual(['nh:orcish_helm']);
+    expect(findMac(t.state, defs, k)).toBe(acOf(k));
   });
 });
 

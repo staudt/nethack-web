@@ -27,6 +27,8 @@ export interface MapOpts {
   memory?: 'all' | 'none';
   /** Extra cells to forget when memory is 'all'. */
   forget?: Pos[];
+  /** Game seed (default 1). */
+  seed?: number;
 }
 
 /**
@@ -34,7 +36,7 @@ export interface MapOpts {
  * Other entities are removed; one turn passes so vision is up to date.
  */
 export function mapSetup(rows: string[], opts: MapOpts = {}) {
-  const base = levelSetup(['.']);
+  const base = levelSetup(['.'], opts.seed ?? 1);
   const { state } = base;
   const height = rows.length;
   const width = Math.max(...rows.map((r) => r.length));

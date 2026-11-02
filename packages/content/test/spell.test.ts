@@ -31,7 +31,8 @@ const studying = (s: Setup) =>
 
 describe('studying a spellbook', () => {
   test('a blessed book is always learned after its delay, and identified', () => {
-    for (let seed = 1; seed <= 10; seed++) {
+    let tested = 0;
+    for (let seed = 1; seed <= 12; seed++) {
       const s = levelSetup(undefined, seed);
       shuffleAll(s.ctx, SPELLBOOK_CLASSES);
       const b = book(s, FORCE_BOLT, 'blessed');
@@ -45,6 +46,9 @@ describe('studying a spellbook', () => {
         last = once(s, { type: 'continue' });
         moves++;
       }
+      // a randomly spawned monster coming into view interrupts: not this case, skip the seed
+      if (last[0] === 'You stop studying.') continue;
+      tested++;
       expect(moves).toBe(3);
       expect(last).toEqual(['You learn the "force bolt" spell.']);
       expect(learned(s)).toEqual([FORCE_BOLT]);
@@ -54,6 +58,7 @@ describe('studying a spellbook', () => {
       once(s, { type: 'wait' });
       expect(knownSpells(s.ctx)[0]?.retention).toBe(KEEN - 1); // age_spells()
     }
+    expect(tested).toBeGreaterThanOrEqual(10);
   });
 
   test('a monster interrupts the study, and reading the book again resumes it', () => {
@@ -68,7 +73,7 @@ describe('studying a spellbook', () => {
     delete s.state.entities[String(newt)];
     const r = read(s, b);
     expect(s.text(r)[0]).toBe('You continue your efforts to memorize the spell.');
-    expect(s.text(r)).toContain('You learn "protection".');
+    expect(s.text(r)).toContain('You learn the "protection" spell.');
     expect(learned(s)).toEqual([PROTECTION]);
   });
 

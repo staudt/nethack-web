@@ -273,8 +273,8 @@ export {
   hungerData,
 } from './hunger';
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
-export { mkobj, mkobjAt, rndmonnum, MKOBJ_PROBS } from './mkobj';
-export { fillOrdinaryRoom, somexyspace } from './mklev';
+export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
+export { fillOrdinaryRoom, somexyspace, mktrap, traptypeRnd } from './mklev';
 export { monsterDied } from './mondeath';
 export {
   mongets,
@@ -298,6 +298,8 @@ export {
   TRAP_ACTIONS,
   maketrap,
   holeDestination,
+  canFallThru,
+  DUNGEON_BOTTOM,
   dotrap,
   mintrap,
   mHarmlessTrap,

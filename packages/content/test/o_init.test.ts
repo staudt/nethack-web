@@ -46,8 +46,9 @@ describe('shuffleAll', () => {
     const s = bareState(4);
     s.appearances = {};
     shuffleAll(ctxFor(s));
+    const classes = ['amulet', 'potion', 'ring', 'scroll', 'spellbook', 'wand'];
     expect(Object.keys(s.appearances).length).toBe(
-      shuffledDefs('potion').length + shuffledDefs('scroll').length,
+      classes.reduce((n, c) => n + shuffledDefs(c).length, 0),
     );
     void engine;
   });

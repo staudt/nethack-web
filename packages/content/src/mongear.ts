@@ -152,7 +152,8 @@ export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId |
  * (Only the battle axe, two-handed sword and lucern hammer are still missing.)
  */
 function burnWeapon(ctx: GearCtx): void {
-  const dummy = { id: 'nh:none' as DefId, class: 'weapon' as const };
+  // (all three are iron, which matters for mkobj_erosions())
+  const dummy = { id: 'nh:none' as DefId, class: 'weapon' as const, material: 'iron' };
   const it = { quantity: 1, buc: 'uncursed', spe: 0 } as ItemComponent;
   mksobjInit(ctx, dummy, it);
 }

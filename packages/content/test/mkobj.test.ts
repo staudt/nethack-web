@@ -38,8 +38,24 @@ describe('mkobj: the class table', () => {
       classes.set(cls, (classes.get(cls) ?? 0) + 1);
     }
     const frac = (c: string) => (classes.get(c) ?? 0) / N;
-    expect([...classes.keys()].sort()).toEqual(['armor', 'food', 'potion', 'scroll', 'weapon']);
-    expect(Math.abs(nothing / N - 0.27)).toBeLessThan(0.015); // tools, gems, wands, rings...
+    expect([...classes.keys()].sort()).toEqual([
+      'amulet',
+      'armor',
+      'food',
+      'potion',
+      'ring',
+      'scroll',
+      'spellbook',
+      'tool',
+      'wand',
+      'weapon',
+    ]);
+    expect(Math.abs(nothing / N - 0.07)).toBeLessThan(0.01); // gems
+    expect(Math.abs(frac('tool') - 0.08)).toBeLessThan(0.01);
+    expect(Math.abs(frac('spellbook') - 0.04)).toBeLessThan(0.008);
+    expect(Math.abs(frac('wand') - 0.04)).toBeLessThan(0.008);
+    expect(Math.abs(frac('ring') - 0.03)).toBeLessThan(0.006);
+    expect(Math.abs(frac('amulet') - 0.01)).toBeLessThan(0.004);
     expect(Math.abs(frac('weapon') - 0.1)).toBeLessThan(0.01);
     expect(Math.abs(frac('armor') - 0.11)).toBeLessThan(0.01);
     expect(Math.abs(frac('food') - 0.2)).toBeLessThan(0.012);
@@ -161,11 +177,12 @@ describe('level objects', () => {
       }
     }
     expect(piles).toBeGreaterThan(0);
-    // 1 in 3 rooms get gold; 1/3 * (1 + 1/4) objects attempts per room, 73% implemented
+    // 1 in 3 rooms get gold; 1/3 * (1 + 1/4) objects attempts per room, 93% implemented (no
+    // gems), plus a box in 1 of nroom * 5 / 2 rooms (about 0.4 per level)
     expect(gold / rooms).toBeGreaterThan(0.27);
     expect(gold / rooms).toBeLessThan(0.37);
-    expect(objs / rooms).toBeGreaterThan(0.22);
-    expect(objs / rooms).toBeLessThan(0.38);
+    expect(objs / rooms).toBeGreaterThan(0.35);
+    expect(objs / rooms).toBeLessThan(0.52);
   });
 
   test('a new game generates the same level objects for the same seed', () => {

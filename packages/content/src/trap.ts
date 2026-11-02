@@ -116,12 +116,26 @@ function dataOf(t: Trap): TrapData {
 }
 
 /**
- * Where a hole or trap door leads: the next level, and one more each time 1 in 4 comes up.
- * ref: src/trap.c hole_destination() (there is no dungeon bottom here; see DEVIATIONS.md)
+ * The bottom of the dungeon for holes and trap doors. NetHack's Dungeons of Doom has
+ * `rn1(5, 25)` levels (dat/dungeon.lua base 25, range 5) with the Castle at the bottom; this
+ * port has a single endless dungeon of ordinary levels and uses the smallest of those, 25 (see
+ * DEVIATIONS.md). Stairs still lead deeper.
+ */
+export const DUNGEON_BOTTOM = 25;
+
+/** Whether one can fall through the floor of a level at `depth`. ref: src/dungeon.c Can_fall_thru() */
+export const canFallThru = (depth: number): boolean => depth < DUNGEON_BOTTOM;
+
+/**
+ * Where a hole or trap door leads: the next level, and one more each time 1 in 4 comes up,
+ * never past the bottom. Below the bottom (only stairs reach it, and no hole is generated
+ * there) a hole leads one level down.
+ * ref: src/trap.c hole_destination(), dng_bottom()
  */
 export function holeDestination(ctx: Pick<Ctx, 'rng'>, depth: number): number {
+  const bottom = Math.max(DUNGEON_BOTTOM, depth + 1);
   let d = depth;
-  for (;;) {
+  while (d < bottom) {
     d++;
     if (ctx.rng.rn2(4) !== 0) break;
   }

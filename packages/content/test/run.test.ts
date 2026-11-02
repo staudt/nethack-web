@@ -195,11 +195,20 @@ describe('nh:run in a room', () => {
   });
 
   test('a peaceful monster coming into view does not', () => {
-    const m = mapSetup(['|.........|', '|@........|', '|---.-----|', '    .      ', '    .      ']);
-    newtAt(m.state, 4, 4, true);
-    m.step({ type: 'wait' });
-    m.step(runDir('e', 'rush'));
-    expect(heroAt(m.state)).toEqual({ x: 9, y: 1 });
+    // seeds where a randomly spawned monster shows up (and rightly stops the run) are skipped
+    let checked = false;
+    for (let seed = 1; seed <= 20 && !checked; seed++) {
+      const rows = ['|.........|', '|@........|', '|---.-----|', '    .      ', '    .      '];
+      const m = mapSetup(rows, { seed });
+      const newt = newtAt(m.state, 4, 4, true);
+      m.step({ type: 'wait' });
+      m.step(runDir('e', 'rush'));
+      const others = Object.values(m.state.entities).filter((e) => e.c.monster && e.id !== newt);
+      if (others.length > 0) continue;
+      expect(heroAt(m.state)).toEqual({ x: 9, y: 1 });
+      checked = true;
+    }
+    expect(checked).toBe(true);
   });
 });
 
