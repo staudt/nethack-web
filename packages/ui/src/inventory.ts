@@ -4,7 +4,17 @@ import type { ViewItem } from '@nh/core';
  * Class display order. ref: src/options.c def_inv_order (coins, weapons, armor, food, scrolls,
  * potions, gems; the other classes are not in the game yet).
  */
-export const CLASS_ORDER: string[] = ['coin', 'weapon', 'armor', 'food', 'scroll', 'potion', 'gem'];
+export const CLASS_ORDER: string[] = [
+  'coin',
+  'amulet',
+  'weapon',
+  'armor',
+  'food',
+  'scroll',
+  'potion',
+  'ring',
+  'gem',
+];
 
 export interface InventoryGroup {
   cls: string;

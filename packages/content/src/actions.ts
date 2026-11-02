@@ -11,6 +11,7 @@ import {
   type ActionDef,
   type Offer,
   type Ctx,
+  type ModApi,
   type DefId,
   type Dir,
   type Entity,
@@ -419,34 +420,53 @@ const search: ActionDef = {
   offer: (_ctx, target) =>
     target.kind === 'self' ? [{ action: { type: 'search' }, labelKey: 'action.search' }] : [],
   perform(ctx) {
-    // ref: src/detect.c dosearch0(): x outer, y inner over the 3x3 around the hero. Hidden monsters
-    // are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
-    const here = playerAt(ctx);
-    const level = getLevel(ctx.state);
     ctx.emit({ type: 'searched' });
-    for (let x = here.x - 1; x <= here.x + 1; x++) {
-      for (let y = here.y - 1; y <= here.y + 1; y++) {
-        if (!inBounds(level, x, y) || (x === here.x && y === here.y)) continue;
-        const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
-        const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
-        if (id === T.sdoor_v || id === T.sdoor_h || locked) {
-          if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
-          // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked)
-          setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
-          ctx.emit({ type: 'msg', key: 'search.found_door' });
-        } else if (id === T.scorr) {
-          if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
-          setTerrain(level, x, y, T.corr);
-          ctx.emit({ type: 'msg', key: 'search.found_passage' });
-        } else {
-          // ref: dosearch0(): `(trap = t_at(x, y)) && !trap->tseen && !rnl(8)` -> find_trap()
-          findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state)));
-        }
-      }
-    }
+    dosearch0(ctx);
     return NORMAL_SPEED;
   },
 };
+
+/**
+ * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching).
+ * ref: src/detect.c dosearch0(): x outer, y inner. Hidden monsters are not implemented; there is
+ * no lenses/artifact bonus (fund = 0). Luck counts.
+ */
+function dosearch0(ctx: Ctx): void {
+  const here = playerAt(ctx);
+  const level = getLevel(ctx.state);
+  for (let x = here.x - 1; x <= here.x + 1; x++) {
+    for (let y = here.y - 1; y <= here.y + 1; y++) {
+      if (!inBounds(level, x, y) || (x === here.x && y === here.y)) continue;
+      const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
+      const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
+      if (id === T.sdoor_v || id === T.sdoor_h || locked) {
+        if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
+        // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked)
+        setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
+        ctx.emit({ type: 'msg', key: 'search.found_door' });
+      } else if (id === T.scorr) {
+        if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
+        setTerrain(level, x, y, T.corr);
+        ctx.emit({ type: 'msg', key: 'search.found_passage' });
+      } else {
+        // ref: dosearch0(): `(trap = t_at(x, y)) && !trap->tseen && !rnl(8)` -> find_trap()
+        findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state)));
+      }
+    }
+  }
+}
+
+/**
+ * Searching (a ring of searching) searches every turn while the hero can act.
+ * ref: src/allmain.c moveloop_core(): `if (Searching && multi >= 0) (void) dosearch0(1);`
+ */
+export function registerAutosearch(api: ModApi): void {
+  api.on('endOfTurn', (ctx) => {
+    const hero = getPlayer(ctx.state);
+    if (ctx.state.gameOver || hero.c.helpless || !hasProp(hero, P.SEARCHING)) return;
+    dosearch0(ctx);
+  });
+}
 
 // ref: src/do.c dodown()
 const down: ActionDef = {

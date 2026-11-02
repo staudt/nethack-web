@@ -141,11 +141,11 @@ function peffectBooze(ctx: Ctx, p: Entity): Effect {
   return { unknown: true };
 }
 
-/** ref: src/potion.c peffect_sleeping() with fall_asleep() (no Free_action) */
+/** ref: src/potion.c peffect_sleeping() with fall_asleep() */
 function peffectSleeping(ctx: Ctx, p: Entity): Effect {
   const hero = heroEntity(ctx);
   const buc = p.c.item?.buc ?? 'uncursed';
-  if (hasProp(hero, P.SLEEP_RES)) msg(ctx, 'potion.yawn');
+  if (hasProp(hero, P.SLEEP_RES) || hasProp(hero, P.FREE_ACTION)) msg(ctx, 'potion.yawn');
   else {
     msg(ctx, 'potion.fall_asleep');
     const turns = ctx.rng.rn2(10) + 25 - 12 * bcsign(buc); // rn1(10, 25 - 12 * bcsign(otmp))

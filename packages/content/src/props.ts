@@ -5,14 +5,21 @@
 // A property lives in `Components.props[name]`: `intrinsic` is the permanent flag (NetHack's
 // FROMOUTSIDE / FROMEXPER bits) and `timeout` the turn a timed effect ends (0 = none). Names are
 // NetHack's property names lowercased: 'cold_res', 'stunned', 'fast', 'stealth', ...
+//
+// Worn rings and amulets confer their `ObjectDef.prop` as an extrinsic (NetHack's
+// uprops[].extrinsic, set by setworn()): it is cached on the wearer as the entry
+// `props['<name>:worn']` (present while some worn item gives it), rebuilt by `updateWornProps()`
+// whenever the hero's accessories change and as a safety net after every action and turn.
 import {
   getPlayer,
+  inventoryOf,
   type Ctx,
   type Entity,
   type EntityId,
   type GameState,
   type ModApi,
   type PropState,
+  type Registry,
 } from '@nh/core';
 import { addWeaponSkill } from './skills';
 
@@ -35,13 +42,39 @@ export const P = {
   CONFUSION: 'confusion',
   HALLUC: 'hallucination',
   PROTECTION: 'protection',
+  REGENERATION: 'regeneration',
+  SEARCHING: 'searching',
+  SLOW_DIGESTION: 'slow_digestion',
+  HUNGER: 'hunger',
+  AGGRAVATE_MONSTER: 'aggravate_monster',
+  FREE_ACTION: 'free_action',
+  FIXED_ABIL: 'fixed_abil',
+  LIFESAVED: 'lifesaved',
+  STRANGLED: 'strangled',
+  SLEEPY: 'sleepy',
+  REFLECTING: 'reflecting',
+  ADORNED: 'adorned',
 } as const;
+
+/** The cached extrinsic entry of a property (see the header). */
+const wornKey = (name: string): string => `${name}:worn`;
+
+/** True when a worn item gives the property (EFoo). */
+export const hasExtrinsic = (e: Entity | undefined, name: string): boolean =>
+  e?.c.props?.[wornKey(name)] !== undefined;
 
 /** True while the entity has the property, permanently or on a timer. ref: youprop.h (e.g. Stunned) */
 export function hasProp(e: Entity | undefined, name: string): boolean {
   const p = e?.c.props?.[name];
-  return p !== undefined && (p.intrinsic || p.timeout > 0);
+  return (p !== undefined && (p.intrinsic || p.timeout > 0)) || hasExtrinsic(e, name);
 }
+
+/**
+ * Strangled: only the timed part counts (the amulet's extrinsic bit is never read).
+ * ref: include/youprop.h `#define Strangled u.uprops[STRANGLED].intrinsic`
+ */
+export const isStrangled = (e: Entity | undefined): boolean =>
+  (e?.c.props?.[P.STRANGLED]?.timeout ?? 0) > 0;
 
 /** The hero has the property. */
 export const heroHas = (state: Readonly<GameState>, name: string): boolean =>
@@ -103,6 +136,53 @@ export function incrItimeout(
   incr: number,
 ): void {
   setItimeout(state, e, name, timeoutLeft(state, e, name) + incr);
+}
+
+/** Accessory slots whose items confer their property while worn. ref: include/prop.h W_ACCESSORY */
+const ACCESSORY_SLOTS: ReadonlySet<string> = new Set(['ringL', 'ringR', 'amulet', 'blindfold']);
+
+/** The item the entity wears in `slot` (uleft = 'ringL', uright = 'ringR', uamul = 'amulet'). */
+export function wornIn(state: Readonly<GameState>, id: EntityId, slot: string): Entity | null {
+  return inventoryOf(state, id).find((o) => o.c.item?.equipped === slot) ?? null;
+}
+
+/**
+ * Rebuilds the entity's extrinsic entries from its worn accessories (ref: src/worn.c setworn(),
+ * setnotworn()). Writes only when something changed, so an entity without worn accessories
+ * keeps its props untouched.
+ */
+export function updateWornProps(state: GameState, defs: Registry, id: EntityId): void {
+  const e = state.entities[String(id)];
+  if (!e) return;
+  const want = new Set<string>();
+  for (const o of inventoryOf(state, id)) {
+    const slot = o.c.item?.equipped;
+    if (!slot || !ACCESSORY_SLOTS.has(slot)) continue;
+    const prop = defs.object(o.def).prop;
+    if (prop) want.add(wornKey(prop));
+  }
+  const props = e.c.props;
+  for (const k of Object.keys(props ?? {}).sort()) {
+    if (k.endsWith(':worn') && !want.has(k) && props) delete props[k];
+  }
+  for (const k of [...want].sort()) {
+    const p = (e.c.props ??= {});
+    p[k] ??= { intrinsic: true, timeout: 0 };
+  }
+}
+
+/**
+ * The summed enchantment of the worn rings of type `ring` (u.uhitinc for increase accuracy,
+ * u.udaminc for increase damage; NetHack adds and subtracts them in Ring_on()/Ring_off(), the sum
+ * is the same). ref: src/do_wear.c Ring_on(), find_ac()
+ */
+export function ringBonus(state: Readonly<GameState>, ring: string, id = state.playerId): number {
+  let n = 0;
+  for (const slot of ['ringL', 'ringR']) {
+    const o = wornIn(state, id, slot);
+    if (o?.def === ring) n += o.c.item?.spe ?? 0;
+  }
+  return n;
 }
 
 /**
@@ -248,8 +328,12 @@ export function adjabil(ctx: Ctx, heroId: EntityId, oldLevel: number, newLevel: 
 export function registerProps(api: ModApi): void {
   // ref: src/u_init.c u_init(): adjabil(0, 1) gives the level 1 abilities
   api.on('newGame', (ctx, heroId) => adjabil(ctx, heroId, 0, 1));
+  // the worn-item cache follows the hero's accessories (a safety net for code that unequips
+  // directly, such as removeFromInventory)
+  api.on('afterAction', (ctx) => updateWornProps(ctx.state, ctx.defs, ctx.state.playerId));
   // ref: src/timeout.c nh_timeout(): every turn each timed property counts down; at 0 it ends
   api.on('endOfTurn', (ctx) => {
+    updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
     const hero = getPlayer(ctx.state);
     const props = hero.c.props;
     if (!props) return;

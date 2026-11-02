@@ -1,5 +1,7 @@
 // Hit point loss that can kill the hero. ref: src/hack.c losehp(), src/attrib.c losestr()
 import { getPlayer, type Ctx } from '@nh/core';
+import { done, type How } from './end';
+import { P, hasProp } from './props';
 
 /** Loses hit points, dying if they run out. ref: src/hack.c losehp() */
 export function losehp(ctx: Ctx, n: number, killer: string): void {
@@ -12,16 +14,10 @@ export function losehp(ctx: Ctx, n: number, killer: string): void {
   if (hp.cur < 1) die(ctx, killer);
 }
 
-export function die(ctx: Ctx, killer: string): void {
-  const h = getPlayer(ctx.state);
+/** "You die..." then done(), which a worn amulet of life saving may stop. */
+export function die(ctx: Ctx, killer: string, how: How = 'died'): void {
   ctx.emit({ type: 'msg', key: 'combat.you_die' });
-  ctx.endGame({
-    kind: 'died',
-    killer,
-    turn: ctx.state.turn,
-    depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
-    level: h.c.experience?.level ?? 1,
-  });
+  done(ctx, killer, how);
 }
 
 /** ref: src/attrib.c losestr(): strength points, then HP once it would drop below 3 */
@@ -41,5 +37,6 @@ export function losestr(ctx: Ctx, num: number, killer: string): void {
     const hp = h.c.hp;
     if (hp && hp.max > 1) hp.max = Math.max(hp.max - dmg, 1);
   }
-  if (num > 0) a.str = Math.max(3, a.str - num);
+  // adjattrib(A_STR, -num, 1): sustain ability keeps it
+  if (num > 0 && !hasProp(h, P.FIXED_ABIL)) a.str = Math.max(3, a.str - num);
 }

@@ -33,6 +33,8 @@ import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
 import { registerTraps } from './trap';
+import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
+import { registerAutosearch } from './actions';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -56,6 +58,7 @@ export const vanillaMod: Mod = {
     for (const a of FIRE_ACTIONS) api.defineAction(a);
     for (const a of CALL_ACTIONS) api.defineAction(a);
     for (const a of PRAY_ACTIONS) api.defineAction(a);
+    for (const a of JEWELRY_ACTIONS) api.defineAction(a);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -67,6 +70,8 @@ export const vanillaMod: Mod = {
     registerKick(api);
     registerMonflee(api);
     registerTraps(api);
+    registerJewelry(api);
+    registerAutosearch(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
     registerHunger(api);
@@ -123,6 +128,11 @@ export {
   makeBlinded,
   makeHallucinated,
   adjabil,
+  hasExtrinsic,
+  isStrangled,
+  ringBonus,
+  updateWornProps,
+  wornIn,
 } from './props';
 export { poisoned, adjattrib } from './attrib';
 export { mdamageu, hitmuAd, magicNegation } from './mhitu';
@@ -282,3 +292,15 @@ export {
 } from './trap';
 export type { TrapResult } from './trap';
 export { utrap, isMtrapped, monKnowsTraps } from './trapstate';
+export {
+  JEWELRY_ACTIONS,
+  PUTON_ID,
+  REMOVE_ID,
+  ringGone,
+  useupAmulet,
+  registerJewelry,
+} from './jewelry';
+export { done } from './end';
+export type { How } from './end';
+export { JEWELRY_CLASSES } from './o_init';
+export { CHARGED_RINGS } from './objects';

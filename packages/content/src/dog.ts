@@ -289,13 +289,14 @@ export function growl(ctx: Ctx, mon: Entity): void {
 
 /**
  * The hero mistreats a pet: tameness drops by one (and the abuse is remembered), it yelps or
- * growls. ref: src/dog.c abuse_dog() (no Aggravate_monster, no Conflict, no leashes)
+ * growls (halved with Aggravate monster). ref: src/dog.c abuse_dog() (no Conflict, no leashes)
  */
 export function abuseDog(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   if (!mon || !m || !m.tame) return;
-  m.tame--;
+  if (heroHas(ctx.state, P.AGGRAVATE_MONSTER)) m.tame = Math.trunc(m.tame / 2);
+  else m.tame--;
   if (m.tame) {
     const e = edogOf(ctx, id);
     if (e) e.abuse++;

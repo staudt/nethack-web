@@ -13,6 +13,7 @@ import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { erodeMessagesEn } from './erode.en';
 import { trapMessagesEn } from './trap.en';
+import { jewelryMessagesEn } from './jewelry.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -29,6 +30,7 @@ export const messagesEn: Record<string, string> = {
   ...prayMessagesEn,
   ...erodeMessagesEn,
   ...trapMessagesEn,
+  ...jewelryMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',

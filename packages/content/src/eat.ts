@@ -31,7 +31,7 @@ import {
 import { cpostfxOf } from './givit';
 import { die, losehp, losestr } from './hp';
 import { gainExperience } from './hero';
-import { P, hasProp, makeBlinded, makeConfused, timeoutLeft } from './props';
+import { P, hasProp, isStrangled, makeBlinded, makeConfused, timeoutLeft } from './props';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { xnameOf } from './objnam';
@@ -163,17 +163,19 @@ function adjVictualNutrition(v: Victual): number {
 function choke(ctx: Ctx, food: Entity | null): void {
   const h = hero(ctx);
   if (h.c.hunger?.state !== 'satiated') return;
-  if (ctx.rng.rn2(20) === 0) {
+  // (no Breathless forms)
+  const hunger = hasProp(h, P.HUNGER);
+  if (hunger || (!isStrangled(h) && ctx.rng.rn2(20) === 0)) {
     // You stuff yourself and then vomit voluminously.
     say(ctx, 'eat.stuff');
-    morehungry(ctx, 1000); // just got very sick!
+    morehungry(ctx, hunger ? (h.c.hunger?.nutrition ?? 0) - 60 : 1000); // just got very sick!
     vomit(ctx);
     return;
   }
   const killer = food ? `@killer.choked.${food.def}` : '@killer.choked.snack';
   if (food) say(ctx, 'eat.choke_over', { item: foodName(ctx, food) });
   else say(ctx, 'eat.choke_over_it');
-  die(ctx, killer);
+  die(ctx, killer, 'choking');
 }
 
 /**

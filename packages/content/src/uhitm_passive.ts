@@ -12,7 +12,8 @@ import { erodeArmor, erodeObj, passiveObj } from './erode';
 import { mdamageu } from './mhitu';
 import { heroSees, whichArmor } from './mongear';
 import { nomulNow } from './hunger';
-import { P, hasProp, makeStunned } from './props';
+import { P, hasExtrinsic, hasProp, makeStunned } from './props';
+import { discover } from './o_init';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
 
@@ -86,12 +87,26 @@ export function passive(
     case 'plys':
       if (mon.def.id === 'nh:floating_eye') {
         if (!heroSees(ctx, mon.pos)) break; // !canseemon(mon)
+        // ref: src/do_wear.c ureflects(): only the amulet of reflection reflects here
+        if (hasExtrinsic(hero, P.REFLECTING)) {
+          say(ctx, 'reflect.gaze_medallion', { mon: shown });
+          discover(ctx, 'nh:amulet_of_reflection');
+          break;
+        }
+        if (hasProp(hero, P.FREE_ACTION)) {
+          say(ctx, 'free_action.stiffen_gaze', { mon: shown });
+          break;
+        }
         say(ctx, 'passive.frozen_gaze', { mon: shown });
         // Wis > 12 || rn2(4): otherwise it paralyzes for 127 turns
         const turns = (hero.c.attributes?.wis ?? 10) > 12 || ctx.rng.rn2(4) !== 0 ? tmp : 127;
         nomulNow(ctx, turns, 'helpless.frozen_gaze', { key: 'eat.can_move_again' });
       } else {
         // gelatinous cube
+        if (hasProp(hero, P.FREE_ACTION)) {
+          say(ctx, 'free_action.stiffen');
+          break;
+        }
         say(ctx, 'passive.frozen', { mon: shown });
         nomulNow(ctx, tmp, 'helpless.frozen', { key: 'eat.can_move_again' });
       }

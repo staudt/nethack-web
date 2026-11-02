@@ -1,9 +1,9 @@
 // Attribute changes and poison. ref: src/attrib.c adjattrib(), poisoned(), poisontell(), gainstr()
-import { getPlayer, type AttributesComponent, type Ctx, type Msg } from '@nh/core';
+import { getPlayer, type AttributesComponent, type Ctx, type GameState, type Msg } from '@nh/core';
 import { losehp } from './hp';
 import { P, hasProp } from './props';
 
-type Attr = keyof AttributesComponent;
+export type Attr = keyof AttributesComponent;
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
@@ -18,16 +18,43 @@ const ATTRMAX: Record<Attr, number> = {
   cha: 18,
 };
 
+/** ref: src/attrib.c acurr(): 3..125 for (encoded) Str, 3..25 for the others */
+export const acurrClamp = (which: Attr, n: number): number =>
+  Math.max(ATTRMIN, Math.min(which === 'str' ? 125 : 25, n));
+
+/**
+ * ABON: the attribute bonus of worn rings (u.abon), the raw sum of their enchantments, kept in
+ * `modData.nh.abon`. The stored attribute is ACURR (ABASE + ABON, clamped by acurr()).
+ */
+export function abon(state: Readonly<GameState>, which: Attr): number {
+  const nh = state.modData['nh'] as { abon?: Partial<Record<Attr, number>> } | undefined;
+  return nh?.abon?.[which] ?? 0;
+}
+
+/** Adds `n` to ABON; drops the record when it is back to zero. */
+export function addAbon(ctx: Pick<Ctx, 'state'>, which: Attr, n: number): void {
+  const nh = (ctx.state.modData['nh'] ??= {}) as { abon?: Partial<Record<Attr, number>> };
+  const ab = (nh.abon ??= {});
+  const v = (ab[which] ?? 0) + n;
+  if (v) ab[which] = v;
+  else delete ab[which];
+  if (Object.keys(ab).length === 0) delete nh.abon;
+}
+
 /**
  * Raises or lowers an attribute. Returns whether it changed. `msg` shows "You feel weak!" etc.
  * ref: src/attrib.c adjattrib(). Not ported: the peak value (AMAX) that a drop below the
- * minimum lowers, abuse and exercise, Fixed_abil and the dunce cap.
+ * minimum lowers, abuse and exercise, and the dunce cap.
  */
 export function adjattrib(ctx: Ctx, which: Attr, incr: number, msg: boolean): boolean {
-  const a = getPlayer(ctx.state).c.attributes;
-  if (!a || !incr) return false;
+  const hero = getPlayer(ctx.state);
+  const a = hero.c.attributes;
+  if (hasProp(hero, P.FIXED_ABIL) || !a || !incr) return false;
   const old = a[which];
-  a[which] = Math.max(ATTRMIN, Math.min(ATTRMAX[which], old + incr));
+  // the stored value is ACURR: change ABASE (= ACURR - ABON) within its limits, then add ABON back
+  const bonus = abon(ctx.state, which);
+  const base = Math.max(ATTRMIN, Math.min(ATTRMAX[which], old - bonus + incr));
+  a[which] = acurrClamp(which, base + bonus);
   if (a[which] === old) return false;
   if (msg) {
     ctx.emit({

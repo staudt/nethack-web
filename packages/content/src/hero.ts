@@ -1,7 +1,7 @@
 // Hero stats for the stub Valkyrie: initial attributes/HP/kit, HP regeneration and experience.
 import type { AttributesComponent, Ctx, EntityId, ModApi, MonsterDef } from '@nh/core';
 import { giveStartingKit } from './kit';
-import { adjabil } from './props';
+import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
 
 /**
@@ -222,8 +222,8 @@ export function gainExperience(ctx: Ctx, heroId: EntityId, exp: number): void {
 }
 
 /**
- * Natural HP regeneration for a non-polymorphed, unencumbered hero without Regeneration:
- * each turn heals 1 with probability (level + Con)% (NetHack 5.0 rule).
+ * Natural HP regeneration for a non-polymorphed hero: each turn heals 1 with probability
+ * (level + Con)% (NetHack 5.0 rule), plus 1 with Regeneration and 1 while asleep with Sleepy.
  * ref: src/allmain.c regen_hp() (called from moveloop_core when u.uhp < u.uhpmax)
  */
 function regenHp(ctx: Ctx): void {
@@ -235,7 +235,10 @@ function regenHp(ctx: Ctx): void {
   if (uState(state).uinvulnerable) return; // "for the moment at least, you're in tiptop shape"
   const level = hero.c.experience?.level ?? 1;
   const con = hero.c.attributes?.con ?? 10;
-  const heal = level + con > ctx.rng.rn2(100) ? 1 : 0;
+  let heal = level + con > ctx.rng.rn2(100) ? 1 : 0;
+  // U_CAN_REGEN(): Regeneration, or restful sleep while asleep
+  if (hasProp(hero, P.REGENERATION)) heal += 1;
+  if (hasProp(hero, P.SLEEPY) && hero.c.helpless?.reasonKey === 'helpless.asleep') heal++;
   if (heal) hp.cur = Math.min(hp.max, hp.cur + heal);
 }
 

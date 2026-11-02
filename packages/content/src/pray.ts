@@ -18,6 +18,8 @@ import {
   rnl,
 } from '@nh/core';
 import { rnz } from './corpses';
+import { done } from './end';
+import { fixStrangled } from './jewelry';
 import { adjattrib } from './attrib';
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
@@ -28,6 +30,7 @@ import {
   P,
   hasIntrinsic,
   hasProp,
+  isStrangled,
   makeBlinded,
   makeConfused,
   makeHallucinated,
@@ -41,6 +44,7 @@ export const PRAY_ID: DefId = 'nh:pray';
 const PRAYER_DONE: DefId = 'nh:prayer_done';
 
 /** ref: src/pray.c TROUBLE_* (the ones that can happen here) */
+const TROUBLE_STRANGLED = 12;
 const TROUBLE_SICK = 10;
 const TROUBLE_STARVING = 9;
 const TROUBLE_HIT = 7;
@@ -107,14 +111,15 @@ function criticallyLowHp(ctx: Ctx): boolean {
   return hp.cur <= 5 || hp.cur * divisor <= maxhp;
 }
 
-/** ref: src/pray.c worst_cursed_item() (no rings, amulets, eyewear, loadstones or two-weapon) */
+/** ref: src/pray.c worst_cursed_item() (no eyewear, loadstones or two-weapon) */
 function worstCursedItem(ctx: Ctx): Entity | null {
   const w = weldedWeapon(ctx);
   const cursed = (slot: string): Entity | null => {
     const o = worn(ctx, slot);
     return o && o.c.item?.buc === 'cursed' ? o : null;
   };
-  if (w && ctx.defs.object(w.def).weapon?.bimanual) return w;
+  // weapon takes precedence if it is interfering with taking off a ring or putting on a shield
+  if (w && (worn(ctx, 'ringR') || ctx.defs.object(w.def).weapon?.bimanual)) return w;
   return (
     cursed('gloves') ??
     cursed('shield') ??
@@ -123,18 +128,22 @@ function worstCursedItem(ctx: Ctx): Entity | null {
     cursed('helm') ??
     cursed('boots') ??
     cursed('shirt') ??
+    cursed('amulet') ??
+    cursed('ringL') ??
+    cursed('ringR') ??
     w
   );
 }
 
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
- * Not ported (they cannot happen): stoning, sliming, strangling, lava, clouds, lycanthropy,
+ * Not ported (they cannot happen): stoning, sliming, lava, clouds, lycanthropy,
  * collapsing and poisoned attributes (no AMAX), walls, levitation, blindfolds, punishment,
  * fumbling, saddles, deafness.
  */
 export function inTrouble(ctx: Ctx): number {
   const h = hero(ctx);
+  if (isStrangled(h)) return TROUBLE_STRANGLED;
   if (hungerData(ctx).sick) return TROUBLE_SICK;
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
   if (criticallyLowHp(ctx)) return TROUBLE_HIT;
@@ -167,6 +176,9 @@ function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
 function fixWorstTrouble(ctx: Ctx, trouble: number): void {
   const h = hero(ctx);
   switch (trouble) {
+    case TROUBLE_STRANGLED:
+      fixStrangled(ctx);
+      break;
     case TROUBLE_STARVING:
     case TROUBLE_HUNGRY:
       say(ctx, 'pray.stomach');
@@ -277,14 +289,10 @@ function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
   say(ctx, disint ? 'pray.disintegrate' : 'pray.fry');
   const h = hero(ctx);
   if (h.c.hp) h.c.hp.cur = 0;
-  ctx.endGame({
-    kind: 'died',
-    killer:
-      align < 0 ? '@killer.wrath_loki' : align > 0 ? '@killer.wrath_tyr' : '@killer.wrath_odin',
-    turn: ctx.state.turn,
-    depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
-    level: h.c.experience?.level ?? 1,
-  });
+  done(
+    ctx,
+    align < 0 ? '@killer.wrath_loki' : align > 0 ? '@killer.wrath_tyr' : '@killer.wrath_odin',
+  );
 }
 
 /** ref: src/pray.c god_zaps_you() (no reflection or disintegration resistance exists) */
@@ -385,8 +393,7 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
     const prayerLuck = Math.max(luckOf(ctx.state), -1);
     let action = ctx.rng.rn2(prayerLuck + 2) + 1; // rn1(prayer_luck + 2, 1), not on an altar
     action = Math.min(action, 3);
-    if (record < STRIDENT)
-      action = record > 0 || rnl(ctx.rng, 2, luckOf(ctx.state)) === 0 ? 1 : 0;
+    if (record < STRIDENT) action = record > 0 || rnl(ctx.rng, 2, luckOf(ctx.state)) === 0 ? 1 : 0;
     // up to 9 major troubles
     const fixMajor = (): void => {
       let tryct = 0;

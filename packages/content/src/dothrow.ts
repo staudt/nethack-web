@@ -53,6 +53,7 @@ import {
 import { acurrstr, findMac } from './stats';
 import { monNam } from './perception';
 import { luckOf } from './luck';
+import { ringBonus } from './props';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -129,7 +130,7 @@ const nonliving = (def: MonsterDef): boolean =>
  * meant to be thrown (-2 when not) and the skill bonus; `tmp >= rnd(20)` hits; then
  * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() plus the launcher's skill damage
  * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
- * missile (should_mulch_missile). Not ported: Luck, rings, gloves with bows, racial bows,
+ * missile (should_mulch_missile). Rings of increase accuracy and damage count. Not ported: gloves with bows, racial bows,
  * unicorns, the quest leader, boomerangs and balls, eggs and cream pies, thrown potions (they
  * land without breaking), taming with food, passive responses, poison, silver, knockback.
  */
@@ -144,7 +145,12 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   const dex = hero.c.attributes?.dex ?? 10;
   const ulevel = hero.c.experience?.level ?? 1;
 
-  let tmp = -1 + luckOf(ctx.state) + findMac(ctx.state, ctx.defs, monId) + ulevel;
+  let tmp =
+    -1 +
+    luckOf(ctx.state) +
+    findMac(ctx.state, ctx.defs, monId) +
+    ringBonus(ctx.state, 'nh:ring_of_increase_accuracy') + // u.uhitinc
+    ulevel;
   if (dex < 4) tmp -= 3;
   else if (dex < 6) tmp -= 2;
   else if (dex < 8) tmp -= 1;
@@ -201,21 +207,26 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     return false;
   }
 
+  // ref: src/uhitm.c hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` for every thrown weapon
+  const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
   let dmg: number;
   if (isAmmo(odef) && !launched) {
     // ref: hmon_hitmon_weapon_ranged(): "then do only 1-2 points of damage"; no skill bonus
-    dmg = ctx.rng.rnd(2) + dbon(hero.c.attributes?.str ?? 10);
+    dmg = ctx.rng.rnd(2);
+    dmg += udaminc + dbon(hero.c.attributes?.str ?? 10);
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
     dmg = dmgval(ctx.rng, obj, odef, mdef);
     // ref: hmon_hitmon_weapon_ranged(): train_weapon_skill = (dmg > 0), the launcher's skill
     useSkill(ctx, uwdef.weapon?.skill ?? '', 1);
+    if (dmg > 0) dmg += udaminc; // hmon_hitmon_dmg_recalc(): increase damage, no Str bonus
     dmg += weaponDamBonus(skillLevel(ctx, uwdef.weapon?.skill ?? ''), uwdef);
   } else {
     // ref: src/uhitm.c hmon_hitmon_weapon_melee(): dmgval, then the Str bonus and the
     // weapon-skill bonus; at least 1.
     dmg = dmgval(ctx.rng, obj, odef, mdef);
     if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
+    if (dmg > 0) dmg += udaminc;
     dmg += dbon(hero.c.attributes?.str ?? 10);
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }

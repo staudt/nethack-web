@@ -12,7 +12,7 @@ import {
   type ModApi,
   type Registry,
 } from '@nh/core';
-import { P, hasProp, heroHas } from './props';
+import { P, hasExtrinsic, hasProp, heroHas } from './props';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
 function mix(...ns: number[]): number {
@@ -27,16 +27,27 @@ function mix(...ns: number[]): number {
 }
 
 /**
- * ref: include/youprop.h Blind_telepat with src/display.c tp_sensemon(): a blind telepathic
- * hero senses every monster with a mind on her level.
+ * ref: include/display.h _tp_sensemon(): a monster with a mind is sensed by a blind telepathic
+ * hero anywhere on her level, or (Unblind_telepat: a worn amulet of ESP) within
+ * `u.unblind_telepat_range` = BOLT_LIM^2 per worn telepathy item (src/worn.c
+ * recalc_telepat_range(); only the amulet exists here).
  */
 export function telepathSenses(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean {
-  if (!defs.isMonster(mon.def) || !heroHas(state, P.BLINDED) || !heroHas(state, P.TELEPAT))
-    return false;
-  const hero = getPlayer(state).c.pos;
-  if (mon.c.pos?.level !== hero?.level) return false;
-  return !defs.monster(mon.def).flags.includes('mindless');
+  if (!defs.isMonster(mon.def) || !heroHas(state, P.TELEPAT)) return false;
+  const hero = getPlayer(state);
+  const hp = hero.c.pos;
+  const mp = mon.c.pos;
+  if (!mp || !hp || mp.level !== hp.level) return false;
+  if (defs.monster(mon.def).flags.includes('mindless')) return false;
+  if (heroHas(state, P.BLINDED)) return true;
+  if (!hasExtrinsic(hero, P.TELEPAT)) return false;
+  const dx = mp.x - hp.x;
+  const dy = mp.y - hp.y;
+  return dx * dx + dy * dy <= BOLT_LIM * BOLT_LIM; // one telepathy item
 }
+
+/** ref: include/hack.h BOLT_LIM */
+const BOLT_LIM = 8;
 
 /**
  * The vanilla perception: blindness (no sight), telepathy while blind, and hallucination

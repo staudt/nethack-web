@@ -95,7 +95,7 @@ const monCount = (ctx: Ctx, id: EntityId) => {
  * Possibly awaken a sleeping monster; true if it woke up.
  * ref: src/monmove.c disturb(). The hero's line of sight is `couldsee()` (ignores light).
  * The Stealth test uses the hero's Stealth property. Not applicable to our roster: ettin,
- * nymph, jabberwock, leprechaun, mimics, Aggravate Monster.
+ * nymph, jabberwock, leprechaun, mimics.
  */
 export function disturb(ctx: Ctx, id: EntityId): boolean {
   const { m, pos, def } = monCount(ctx, id);
@@ -108,7 +108,10 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
     dist2(pos.x, pos.y, hp.x, hp.y) <= 100 &&
     !stealth &&
     clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, pos.x, pos.y) &&
-    (def.glyph.ch === 'd' || def.glyph.ch === '@' || ctx.rng.rn2(7) === 0)
+    (heroHas(ctx.state, P.AGGRAVATE_MONSTER) ||
+      def.glyph.ch === 'd' ||
+      def.glyph.ch === '@' ||
+      ctx.rng.rn2(7) === 0)
   ) {
     // ref: src/mon.c wake_msg()
     const idx = cellIndex(level, pos.x, pos.y);

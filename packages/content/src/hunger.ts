@@ -1,55 +1,25 @@
 // Hunger: nutrition burn, hunger states, fainting, starvation and sickness.
 // ref: src/eat.c gethungry(), newuhs(), lesshungry(), morehungry(), src/allmain.c moveloop_core
-import { getPlayer, type Ctx, type HungerState, type ModApi, type Msg } from '@nh/core';
+import {
+  getPlayer,
+  inventoryOf,
+  type Ctx,
+  type Entity,
+  type HungerState,
+  type ModApi,
+  type Msg,
+} from '@nh/core';
 import { nhData } from './items';
+import { hungerData } from './uhunger';
+import { done } from './end';
 import { uState } from './luck';
 import { nomul } from './nomul';
 import { nearCapacity } from './stats';
+import { CHARGED_RINGS } from './objects';
+import { P, hasProp, wornIn } from './props';
 
-/** The meal in progress. ref: include/context.h struct victual_info */
-export interface Victual {
-  /** Entity id of the (single, partly eaten) piece. */
-  piece: number;
-  usedtime: number;
-  reqtime: number;
-  /** Nutrition per bite (negative: that many per bite; positive: 1 on bites not divisible). */
-  nmod: number;
-  canchoke: boolean;
-  fullwarn: boolean;
-  /** The eat occupation is running (ref: occupation == eatfood). */
-  eating: boolean;
-  /** The engine will perform the action again right now (set by `continues`). */
-  pending: boolean;
-}
-
-/** Sickness (food poisoning). ref: Sick, u.usick_type = SICK_VOMITABLE */
-export interface Sick {
-  remaining: number;
-  /** A killer message key. */
-  killer: string;
-}
-
-export interface HungerData {
-  victual: Victual | null;
-  /** u.uhs saved while eating (save_hs); null when not eating. */
-  savedHs: HungerState | null;
-  /** Strength lost to Weak (ATEMP(A_STR)). */
-  strLoss: number;
-  sick: Sick | null;
-  /** Turns until the hero vomits (Vomiting timeout); 0 = not nauseated. */
-  vomiting: number;
-}
-
-/** The hunger-related persistent data, kept in the content mod's modData. */
-export function hungerData(ctx: Pick<Ctx, 'state'>): HungerData {
-  const d = nhData(ctx) as unknown as Partial<HungerData>;
-  if (d.victual === undefined) d.victual = null;
-  if (d.savedHs === undefined) d.savedHs = null;
-  if (d.strLoss === undefined) d.strLoss = 0;
-  if (d.sick === undefined) d.sick = null;
-  if (d.vomiting === undefined) d.vomiting = 0;
-  return d as HungerData;
-}
+export type { HungerData, Sick, Victual } from './uhunger';
+export { hungerData, initUhunger } from './uhunger';
 
 /** Hunger states in u.uhs order. ref: include/you.h */
 const HS_ORDER: readonly HungerState[] = [
@@ -85,21 +55,6 @@ export function nomulNow(ctx: Ctx, turns: number, reasonKey: string, finish: Msg
   if (actor) actor.energy -= extra;
 }
 
-/**
- * Back to 900 nutrition and Not Hungry, with Weak's lost strength restored (no messages).
- * ref: src/eat.c init_uhunger()
- */
-export function initUhunger(ctx: Pick<Ctx, 'state'>): void {
-  const hero = getPlayer(ctx.state);
-  const h = hero.c.hunger;
-  if (!h) return;
-  h.nutrition = 900;
-  h.state = 'not_hungry';
-  const hd = hungerData(ctx);
-  if (hd.strLoss > 0 && hero.c.attributes) hero.c.attributes.str += hd.strLoss;
-  hd.strLoss = 0;
-}
-
 /** ref: src/eat.c gethungry() */
 export function gethungry(ctx: Ctx): void {
   const hero = getPlayer(ctx.state);
@@ -111,15 +66,67 @@ export function gethungry(ctx: Ctx): void {
     hero.c.helpless !== undefined &&
     (hero.c.helpless.reasonKey === 'helpless.fainted' ||
       hero.c.helpless.reasonKey === 'helpless.rotten_food');
-  // The hero is human: carnivorous and herbivorous; no Slow_digestion.
-  if (!unaware || ctx.rng.rn2(10) === 0) h.nutrition--;
+  // The hero is human: carnivorous and herbivorous.
+  if ((!unaware || ctx.rng.rn2(10) === 0) && !hasProp(hero, P.SLOW_DIGESTION)) h.nutrition--;
   // 5.0: the trigger is randomized instead of (moves % 20).
   const accessorytime = ctx.rng.rn2(20);
   if (accessorytime % 2) {
-    // Regeneration (not available to us) uses food; so does being Stressed or worse.
+    // Regeneration uses up food (no artifacts); so does being Stressed or worse.
+    if (hasProp(hero, P.REGENERATION)) h.nutrition--;
     if (nearCapacity(ctx.state, ctx.defs, hero.id) > 1) h.nutrition--;
+  } else {
+    if (hasProp(hero, P.HUNGER)) h.nutrition--;
+    // (no Conflict, no meat rings, no Amulet of Yendor)
+    const uleft = wornIn(ctx.state, hero.id, 'ringL');
+    const uright = wornIn(ctx.state, hero.id, 'ringR');
+    const uamul = wornIn(ctx.state, hero.id, 'amulet');
+    // +0 charged rings don't do anything, so don't affect hunger, except a +0 ring of protection
+    // that is the only source of Protection
+    const otherProtection = (ring: Entity): Entity[] =>
+      inventoryOf(ctx.state, hero.id).filter(
+        (o) =>
+          o.id !== ring.id &&
+          o.c.item?.equipped !== null &&
+          o.c.item?.equipped !== 'weapon' &&
+          ctx.defs.object(o.def).prop === P.PROTECTION,
+      );
+    const burns = (ring: Entity, isLeft: boolean): boolean => {
+      if (ring.c.item?.spe || !CHARGED_RINGS.has(ring.def)) return true;
+      if (ring.def !== 'nh:ring_of_protection') return false;
+      const others = otherProtection(ring);
+      if (others.length === 0) return true;
+      // the left ring also burns when the only other source is a +0 right ring of protection
+      return (
+        isLeft &&
+        others.length === 1 &&
+        others[0]?.id === uright?.id &&
+        uright?.def === 'nh:ring_of_protection' &&
+        !uright.c.item?.spe
+      );
+    };
+    switch (accessorytime) {
+      case 0:
+        // Slow digestion from something other than a ring (worn armor) burns food here
+        if (
+          hasProp(hero, P.SLOW_DIGESTION) &&
+          uright?.def !== 'nh:ring_of_slow_digestion' &&
+          uleft?.def !== 'nh:ring_of_slow_digestion'
+        )
+          h.nutrition--;
+        break;
+      case 4:
+        if (uleft && burns(uleft, true)) h.nutrition--;
+        break;
+      case 8:
+        if (uamul && uamul.def !== 'nh:fake_amulet_of_yendor') h.nutrition--;
+        break;
+      case 12:
+        if (uright && burns(uright, false)) h.nutrition--;
+        break;
+      default:
+        break;
+    }
   }
-  // Even: Hunger, Conflict, rings and amulets burn food; none of those exist yet.
   newuhs(ctx, true, hungerData(ctx).victual?.eating === true);
 }
 
@@ -149,7 +156,11 @@ export function lesshungry(ctx: Ctx, num: number, eating = false, choke?: ChokeF
       choke?.(ctx);
       return;
     }
-  } else if (h.nutrition >= 1500 && (!v?.eating || !v.fullwarn)) {
+  } else if (
+    h.nutrition >= 1500 &&
+    !hasProp(getPlayer(ctx.state), P.HUNGER) &&
+    (!v?.eating || !v.fullwarn)
+  ) {
     // Have lesshungry() report when you're nearly full so all eating warns about choking.
     ctx.emit({ type: 'msg', key: 'eat.hard_time' });
     nhData(ctx).nomovemsg = { key: 'eat.finally_finished' };
@@ -212,13 +223,7 @@ export function newuhs(ctx: Ctx, incr: boolean, eating = false): void {
     } else if (n < -(100 + 10 * (hero.c.attributes?.con ?? 10))) {
       h.state = 'starved';
       ctx.emit({ type: 'msg', key: 'hunger.starve' });
-      ctx.endGame({
-        kind: 'died',
-        killer: '@killer.starvation',
-        turn: ctx.state.turn,
-        depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
-        level: hero.c.experience?.level ?? 1,
-      });
+      done(ctx, '@killer.starvation', 'starving');
       return;
     }
   }
@@ -306,17 +311,13 @@ function sicknessTimeout(ctx: Ctx): void {
   if (ctx.rng.rn2(100) < con) {
     ctx.emit({ type: 'msg', key: 'sick.recovered' });
     hd.sick = null;
-    if (hero.c.attributes) hero.c.attributes.con = Math.max(3, hero.c.attributes.con - 1);
+    // adjattrib(A_CON, -1, 1): sustain ability keeps it
+    if (hero.c.attributes && !hasProp(hero, P.FIXED_ABIL))
+      hero.c.attributes.con = Math.max(3, hero.c.attributes.con - 1);
     return;
   }
   ctx.emit({ type: 'msg', key: 'sick.die' });
-  ctx.endGame({
-    kind: 'died',
-    killer: sick.killer,
-    turn: ctx.state.turn,
-    depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
-    level: hero.c.experience?.level ?? 1,
-  });
+  done(ctx, sick.killer, 'poisoning');
 }
 
 /** ref: src/potion.c make_vomiting() */

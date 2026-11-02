@@ -17,7 +17,14 @@ import { xnameOf } from './objnam';
 const PL_PSIZ = 63;
 
 /** Classes whose unidentified types can be called (the ones our data has with descriptions). */
-const CALLABLE: readonly ObjectDef['class'][] = ['potion', 'scroll', 'weapon', 'armor'];
+const CALLABLE: readonly ObjectDef['class'][] = [
+  'potion',
+  'scroll',
+  'weapon',
+  'armor',
+  'ring',
+  'amulet',
+];
 
 /**
  * Whether the type can be given a name. ref: src/do_name.c objtyp_is_callable(): it has a

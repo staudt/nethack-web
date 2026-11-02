@@ -55,7 +55,7 @@ import { whichArmor } from './mongear';
 import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
-import { P, hasProp } from './props';
+import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T } from './terrain';
 import { thitmonst } from './dothrow';
@@ -404,6 +404,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
     (o) => o.c.item?.equipped === 'boots',
   );
   dmg += boots?.c.item?.spe ?? 0;
+  dmg += ringBonus(ctx.state, 'nh:ring_of_increase_damage'); // add ring(s) of increase damage
   const snap: PassiveTarget = {
     id: monId,
     def,

@@ -13,6 +13,14 @@ import {
 const SHUFFLED: readonly ObjectClass[] = ['potion', 'scroll'];
 
 /**
+ * Rings and amulets have shuffled appearances too (ring colors and descriptions move together),
+ * but the shuffle is turned on with their generation (milestone 5b step 9), because it changes
+ * the RNG stream at game start. Until then the vanilla game never makes them and they are known
+ * by name; tests shuffle them with `shuffleAll(ctx, JEWELRY_CLASSES)`.
+ */
+export const JEWELRY_CLASSES: readonly ObjectClass[] = ['ring', 'amulet'];
+
+/**
  * Assigns each shuffled object (potions except water, scrolls) a distinct random appearance of
  * its class. ref: src/o_init.c shuffle_all(), shuffle(): for each object j in order, swap its
  * description with that of a random object i in j..last. NetHack shuffles the descriptions of
@@ -21,9 +29,12 @@ const SHUFFLED: readonly ObjectClass[] = ['potion', 'scroll'];
  * objects a uniformly random distinct description, equivalent to a full permutation restricted
  * to our objects.
  */
-export function shuffleAll(ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>): void {
+export function shuffleAll(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  classes: readonly ObjectClass[] = SHUFFLED,
+): void {
   const { state, defs, rng } = ctx;
-  for (const cls of SHUFFLED) {
+  for (const cls of classes) {
     const pool = defs.appearances.filter((a) => a.class === cls).map((a) => a.id);
     const objs = defs.objects.filter((o) => o.class === cls && o.descKey === undefined);
     if (objs.length > pool.length) throw new Error(`shuffleAll: too few ${cls} appearances`);

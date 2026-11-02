@@ -19,6 +19,7 @@ import {
   isRustprone,
 } from './material';
 import { isKnown } from './o_init';
+import { CHARGED_RINGS } from './objects';
 import { isSwapWep } from './wield';
 
 /**
@@ -33,6 +34,10 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   if (def.id === 'nh:corpse' && it?.corpseOf) {
     return { key: `${def.nameKey}${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
+  // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
+  if (def.id === FAKE_AMULET) {
+    return { key: `${it?.known.spe ? def.nameKey : (def.descKey ?? def.nameKey)}${plural}` };
+  }
   if (isKnown(state, defs, def)) {
     // ref: objnam.c xname() POTION_CLASS: holy/unholy water when the BUC is known
     if (def.id === 'nh:potion_of_water' && it?.known.buc && it.buc !== 'uncursed') {
@@ -45,7 +50,10 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
     // ref: xname() "xcalled(buf, size, prefix, un)": "<description> called <name>"; potions and
     // scrolls give just their class ("potion called healing?"), armor its simple name
     const pre: Msg =
-      def.class === 'potion' || def.class === 'scroll'
+      def.class === 'potion' ||
+      def.class === 'scroll' ||
+      def.class === 'ring' ||
+      def.class === 'amulet'
         ? { key: `obj.generic.${def.class}${plural}` }
         : def.class === 'armor' && def.armor
           ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
@@ -56,6 +64,8 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   const base = app !== undefined && defs.isAppearance(app) ? defs.appearance(app).nameKey : null;
   return { key: `${base ?? def.descKey ?? def.nameKey}${plural}` };
 }
+
+const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
 
 /** ref: src/objnam.c armor_simple_name(): the `kind.*` word for an armor slot */
 const ARMOR_SIMPLE: Record<ArmorSlot, string> = {
@@ -115,8 +125,12 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     it.known.buc &&
     it.buc !== 'uncursed';
   // With implicit_uncursed, "uncursed" is printed unless the item is charged and fully known;
-  // none of our classes is oc_charged, so it is always printed once the BUC is known.
-  if (it.known.buc && def.class !== 'coin' && !holyWater) params.buc = { key: `obj.buc.${it.buc}` };
+  // only rings are oc_charged here, and rings always print it. The imitation Amulet never says
+  // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()).
+  const fake = def.id === FAKE_AMULET;
+  if (fake && !it.known.spe) params.count = 'the ';
+  if (it.known.buc && def.class !== 'coin' && !holyWater && !(fake && it.buc === 'uncursed'))
+    params.buc = { key: `obj.buc.${it.buc}` };
 
   if (def.class === 'food' && it.eaten) params.eaten = { key: 'obj.eaten' };
 
@@ -124,7 +138,10 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
   if (def.class === 'weapon' || def.class === 'armor')
     params.erosion = erosionWords(state, defs, item);
 
-  if ((def.class === 'weapon' || def.class === 'armor') && it.known.spe) {
+  if (
+    (def.class === 'weapon' || def.class === 'armor' || CHARGED_RINGS.has(def.id)) &&
+    it.known.spe
+  ) {
     params.spe = `${it.spe >= 0 ? '+' : '-'}${Math.abs(it.spe)} `; // "%+d "
   }
 
@@ -135,6 +152,9 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     else {
       params.worn = { key: def.weapon?.bimanual ? 'obj.weapon_in_hands' : 'obj.weapon_in_hand' };
     }
+  } else if (it.equipped === 'ringL' || it.equipped === 'ringR') {
+    // ref: doname_base() RING_CLASS: "(on left hand)"
+    params.worn = { key: it.equipped === 'ringL' ? 'obj.on_left_hand' : 'obj.on_right_hand' };
   } else if (it.equipped !== null) {
     params.worn = { key: 'obj.worn' }; // "(being worn)"; no donning/doffing state yet
   } else if (isSwapWep(state, item)) {

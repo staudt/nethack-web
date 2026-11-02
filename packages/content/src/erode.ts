@@ -35,6 +35,8 @@ import { minvent, whichArmor } from './mongear';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
+import { ringGone } from './jewelry';
+import { CHARGED_RINGS } from './objects';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -318,16 +320,6 @@ export function inventoryResistanceCheck(ctx: Ctx, ad: DestroyType | 'acid'): bo
   return ctx.rng.rn2(100) < prob;
 }
 
-/** Charged rings (oc_charged). ref: include/objects.h RING(... charged ...) */
-const CHARGED_RINGS = new Set([
-  'nh:ring_of_adornment',
-  'nh:ring_of_gain_strength',
-  'nh:ring_of_gain_constitution',
-  'nh:ring_of_increase_accuracy',
-  'nh:ring_of_increase_damage',
-  'nh:ring_of_protection',
-]);
-
 /** ref: src/zap.c destroyable() (no artifacts, nothing is in use) */
 function destroyable(def: ObjectDef, ad: DestroyType): boolean {
   switch (ad) {
@@ -454,7 +446,10 @@ function maybeDestroyItem(ctx: Ctx, carrier: Entity, obj: Entity, ad: DestroyTyp
     });
   }
   // potionbreathe() of a boiled potion: not ported
-  if (uCarry && it.equipped) it.equipped = null; // Ring_gone() / setnotworn()
+  if (uCarry && it.equipped) {
+    if (it.equipped === 'ringL' || it.equipped === 'ringR') ringGone(ctx, obj);
+    else it.equipped = null; // setnotworn()
+  }
   for (let i = 0; i < cnt; i++) useOne(ctx, carrier.id, obj);
   if (dmg) {
     if (!uCarry) return xresist ? 0 : dmg;

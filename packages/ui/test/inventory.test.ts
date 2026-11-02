@@ -13,7 +13,17 @@ const item = (id: number, cls: ViewItem['cls']): ViewItem => ({
 });
 
 test('classes follow NetHack order with gems after potions', () => {
-  expect(CLASS_ORDER).toEqual(['coin', 'weapon', 'armor', 'food', 'scroll', 'potion', 'gem']);
+  expect(CLASS_ORDER).toEqual([
+    'coin',
+    'amulet',
+    'weapon',
+    'armor',
+    'food',
+    'scroll',
+    'potion',
+    'ring',
+    'gem',
+  ]);
   const groups = groupInventory([
     item(1, 'gem'),
     item(2, 'potion'),

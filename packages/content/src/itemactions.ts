@@ -920,7 +920,7 @@ const takeoff: ActionDef = {
 // discoveries
 
 /** The order classes are listed in. ref: src/invent.c def_inv_order */
-const DISCO_ORDER = ['weapon', 'armor', 'food', 'scroll', 'potion'] as const;
+const DISCO_ORDER = ['amulet', 'weapon', 'armor', 'food', 'scroll', 'potion', 'ring'] as const;
 
 const discoveries: ActionDef = {
   id: 'nh:discoveries',

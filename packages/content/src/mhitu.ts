@@ -14,7 +14,8 @@ import { stopOccupation } from './eat';
 import { poisoned } from './attrib';
 import { setUstuck, ustuck } from './hackmove';
 import { nomulNow } from './hunger';
-import { P, hasProp, makeStunned, timeoutLeft } from './props';
+import { done } from './end';
+import { P, hasExtrinsic, hasProp, makeStunned, timeoutLeft } from './props';
 import { monNam } from './perception';
 import { destroyItems } from './erode';
 
@@ -36,20 +37,15 @@ export function mdamageu(ctx: Ctx, n: number, killer: string): void {
   if (hp.cur > hp.max) hp.cur = hp.max;
   if (hp.cur < 1) {
     say(ctx, 'combat.you_die');
-    ctx.endGame({
-      kind: 'died',
-      killer,
-      turn: ctx.state.turn,
-      depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
-      level: hero.c.experience?.level ?? 1,
-    });
+    done(ctx, killer);
   }
 }
 
 /**
  * The magic cancellation of the hero (or of monster `who`): the best worn armor's MC.
- * ref: src/mhitu.c magic_negation().
- * Not ported: extrinsic/intrinsic Protection, the amulet of guarding.
+ * ref: src/mhitu.c magic_negation(): the hero's extrinsic Protection (a ring of protection) adds 1,
+ * at most 3. Not ported: intrinsic Protection's minimum of 1, the amulet of guarding, monsters'
+ * protection (no high priests).
  */
 export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): number {
   let mc = 0;
@@ -58,6 +54,9 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
     if (!slot || slot === 'weapon') continue;
     mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);
   }
+  const gotprot =
+    who === ctx.state.playerId && hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION);
+  if (gotprot) mc = Math.min(mc + 1, 3);
   return mc;
 }
 
@@ -98,7 +97,7 @@ const onFire = (at: AttackDef['at']): string => (at === 'hug' ? '@mhitu.roasted'
  * ref: src/uhitm.c mhitm_adtyping() -> mhitm_ad_elec/fire/cold/slee/drst/acid/stun/plys/stck()
  * with `mdef == &gy.youmonst`.
  * Fire, cold and lightning may destroy carried items (destroy_items() with the incoming damage);
- * the hero may die of them. Not ported: `mcan`, Free_action and Antimagic (the hero has neither).
+ * the hero may die of them. Free action stops paralysis. Not ported: `mcan`, Antimagic.
  */
 export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): number {
   const hero = getPlayer(ctx.state);
@@ -178,9 +177,11 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       break;
     case 'plys': // mhitm_ad_plys
       if (!hero.c.helpless && ctx.rng.rn2(3) === 0 && !mgcAtkNegated(ctx, true)) {
-        // no Free_action
-        say(ctx, 'mhitu.frozen_by', { mon: name });
-        nomulNow(ctx, ctx.rng.rnd(10), 'helpless.paralyzed', { key: 'eat.can_move_again' });
+        if (hasProp(hero, P.FREE_ACTION)) say(ctx, 'free_action.stiffen');
+        else {
+          say(ctx, 'mhitu.frozen_by', { mon: name });
+          nomulNow(ctx, ctx.rng.rnd(10), 'helpless.paralyzed', { key: 'eat.can_move_again' });
+        }
       }
       break;
     case 'stck': {

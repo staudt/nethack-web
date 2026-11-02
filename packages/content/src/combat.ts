@@ -42,6 +42,7 @@ import { isFrozen, isMStunned } from './mstate';
 import { isMtrapped, utrap } from './trapstate';
 import { isBig, nonliving } from './mondata';
 import { dmgval, dmgvalSized } from './dmgval';
+import { ringBonus } from './props';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -118,12 +119,14 @@ export interface HeroCombatStats {
   bareSkill?: number;
   /** Luck (u.uluck + u.moreluck); defaults to 0. */
   luck?: number;
+  /** Rings of increase accuracy (u.uhitinc); defaults to 0. */
+  hitinc?: number;
 }
 
 /**
  * The hero's to-hit number: a hit needs `tmp > rnd(20)`.
  * ref: src/uhitm.c find_roll_to_hit(): Luck adds `sgn(Luck) * ((|Luck| + 2) / 3)`; +2 against a
- * stunned or sleeping target, +4 against one that can't move. No rings (u.uhitinc); the caller
+ * stunned or sleeping target, +4 against one that can't move; rings add u.uhitinc. The caller
  * adds the +2 against a fleeing one and the -3 for a hero caught in a trap. `def.ac` should be the defender's find_mac(); pass `mac` to override
  * (monsters wearing armor). Encumbrance subtracts (2 * level - 1).
  */
@@ -139,6 +142,7 @@ export function heroToHit(
     1 +
     abon(hero.str, hero.dex, hero.level) +
     mac +
+    (hero.hitinc ?? 0) +
     Math.sign(luck) * Math.trunc((Math.abs(luck) + 2) / 3) +
     hero.level;
   if (target.stunned) tmp += 2; // mstun
@@ -209,6 +213,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     encumbrance: nearCapacity(ctx.state, ctx.defs, hero.id),
     bareSkill: skillLevel(ctx, BARE_HANDED),
     luck: luckOf(ctx.state),
+    hitinc: ringBonus(ctx.state, 'nh:ring_of_increase_accuracy'),
   };
 
   // ref: src/uhitm.c hitum()
@@ -259,6 +264,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   }
   if (dmg > 0) {
     if (strBonus) {
+      // ref: hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` (rings of increase damage)
+      dmg += ringBonus(ctx.state, 'nh:ring_of_increase_damage');
       let sb = dbon(stats.str);
       if (weapon?.def.weapon?.bimanual) {
         sb = Math.trunc((3 * Math.abs(sb) + 1) / 2) * Math.sign(sb);

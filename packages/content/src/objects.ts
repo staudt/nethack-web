@@ -15,6 +15,18 @@ const ORANGE = '#ff8800';
 const RED = '#cc3333';
 const WHITE = '#ffffff';
 const YELLOW = '#ffff55';
+const BLUE = '#3355cc';
+const BRIGHT_CYAN = '#55ffff';
+
+/** Charged rings (oc_charged): their enchantment shows and matters. ref: include/objects.h RING() `spec` */
+export const CHARGED_RINGS: ReadonlySet<string> = new Set([
+  'nh:ring_of_adornment',
+  'nh:ring_of_gain_strength',
+  'nh:ring_of_gain_constitution',
+  'nh:ring_of_increase_accuracy',
+  'nh:ring_of_increase_damage',
+  'nh:ring_of_protection',
+]);
 
 export const OBJECTS: readonly ObjectDef[] = [
   // ---- weapons ----
@@ -815,6 +827,367 @@ export const OBJECTS: readonly ObjectDef[] = [
     armor: { slot: 'gloves', ac: 1, mc: 0 },
   },
 
+  // ---- rings (weight 3, prob 1, magic; appearances and colors are shuffled, so no descKey;
+  // the material is that of the ring's own description, see DEVIATIONS) ----
+  // ref: objects.h RING("adornment", "wooden", ADORNED, 100, 1, 1, ...)
+  {
+    id: 'nh:ring_of_adornment',
+    nameKey: 'nh:ring_of_adornment',
+    class: 'ring',
+    glyph: { ch: '=', fg: BROWN },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'wood',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'adorned',
+  },
+  // ref: objects.h RING("gain strength", "granite", 0, 150, 1, 1, ...)
+  {
+    id: 'nh:ring_of_gain_strength',
+    nameKey: 'nh:ring_of_gain_strength',
+    class: 'ring',
+    glyph: { ch: '=', fg: GRAY },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h RING("gain constitution", "opal", 0, 150, 1, 1, ...)
+  {
+    id: 'nh:ring_of_gain_constitution',
+    nameKey: 'nh:ring_of_gain_constitution',
+    class: 'ring',
+    glyph: { ch: '=', fg: GRAY },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h RING("increase accuracy", "clay", 0, 150, 1, 1, ...)
+  {
+    id: 'nh:ring_of_increase_accuracy',
+    nameKey: 'nh:ring_of_increase_accuracy',
+    class: 'ring',
+    glyph: { ch: '=', fg: RED },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h RING("increase damage", "coral", 0, 150, 1, 1, ...)
+  {
+    id: 'nh:ring_of_increase_damage',
+    nameKey: 'nh:ring_of_increase_damage',
+    class: 'ring',
+    glyph: { ch: '=', fg: ORANGE },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h RING("protection", "black onyx", PROTECTION, 100, 1, 1, ...)
+  {
+    id: 'nh:ring_of_protection',
+    nameKey: 'nh:ring_of_protection',
+    class: 'ring',
+    glyph: { ch: '=', fg: BLACK },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'protection',
+  },
+  // ref: objects.h RING("regeneration", "moonstone", REGENERATION, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_regeneration',
+    nameKey: 'nh:ring_of_regeneration',
+    class: 'ring',
+    glyph: { ch: '=', fg: GRAY },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'mineral',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'regeneration',
+  },
+  // ref: objects.h RING("searching", "tiger eye", SEARCHING, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_searching',
+    nameKey: 'nh:ring_of_searching',
+    class: 'ring',
+    glyph: { ch: '=', fg: BROWN },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'searching',
+  },
+  // ref: objects.h RING("sustain ability", "bronze", FIXED_ABIL, 100, 1, 0, ...)
+  {
+    id: 'nh:ring_of_sustain_ability',
+    nameKey: 'nh:ring_of_sustain_ability',
+    class: 'ring',
+    glyph: { ch: '=', fg: YELLOW },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'copper',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'fixed_abil',
+  },
+  // ref: objects.h RING("hunger", "topaz", HUNGER, 100, 1, 0, ...)
+  {
+    id: 'nh:ring_of_hunger',
+    nameKey: 'nh:ring_of_hunger',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'hunger',
+  },
+  // ref: objects.h RING("aggravate monster", "sapphire", AGGRAVATE_MONSTER, 150, 1, 0, ...)
+  {
+    id: 'nh:ring_of_aggravate_monster',
+    nameKey: 'nh:ring_of_aggravate_monster',
+    class: 'ring',
+    glyph: { ch: '=', fg: BLUE },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'aggravate_monster',
+  },
+  // ref: objects.h RING("poison resistance", "pearl", POISON_RES, 150, 1, 0, ...)
+  {
+    id: 'nh:ring_of_poison_resistance',
+    nameKey: 'nh:ring_of_poison_resistance',
+    class: 'ring',
+    glyph: { ch: '=', fg: WHITE },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'bone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'poison_res',
+  },
+  // ref: objects.h RING("fire resistance", "iron", FIRE_RES, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_fire_resistance',
+    nameKey: 'nh:ring_of_fire_resistance',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'fire_res',
+  },
+  // ref: objects.h RING("cold resistance", "brass", COLD_RES, 150, 1, 0, ...)
+  {
+    id: 'nh:ring_of_cold_resistance',
+    nameKey: 'nh:ring_of_cold_resistance',
+    class: 'ring',
+    glyph: { ch: '=', fg: YELLOW },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'copper',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'cold_res',
+  },
+  // ref: objects.h RING("shock resistance", "copper", SHOCK_RES, 150, 1, 0, ...)
+  {
+    id: 'nh:ring_of_shock_resistance',
+    nameKey: 'nh:ring_of_shock_resistance',
+    class: 'ring',
+    glyph: { ch: '=', fg: YELLOW },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'copper',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'shock_res',
+  },
+  // ref: objects.h RING("free action", "twisted", FREE_ACTION, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_free_action',
+    nameKey: 'nh:ring_of_free_action',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'free_action',
+  },
+  // ref: objects.h RING("slow digestion", "steel", SLOW_DIGESTION, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_slow_digestion',
+    nameKey: 'nh:ring_of_slow_digestion',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'slow_digestion',
+  },
+
+  // ---- amulets (iron, weight 20, cost 150, magic; appearances are shuffled) ----
+  // ref: objects.h AMULET("amulet of ESP", "circular", TELEPAT, 120)
+  {
+    id: 'nh:amulet_of_esp',
+    nameKey: 'nh:amulet_of_esp',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 120,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'telepat',
+  },
+  // ref: objects.h AMULET("amulet of life saving", "spherical", LIFESAVED, 75)
+  {
+    id: 'nh:amulet_of_life_saving',
+    nameKey: 'nh:amulet_of_life_saving',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 75,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'lifesaved',
+  },
+  // ref: objects.h AMULET("amulet of strangulation", "oval", STRANGLED, 115)
+  {
+    id: 'nh:amulet_of_strangulation',
+    nameKey: 'nh:amulet_of_strangulation',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 115,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'strangled',
+  },
+  // ref: objects.h AMULET("amulet of restful sleep", "triangular", SLEEPY, 115)
+  {
+    id: 'nh:amulet_of_restful_sleep',
+    nameKey: 'nh:amulet_of_restful_sleep',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 115,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'sleepy',
+  },
+  // ref: objects.h AMULET("amulet versus poison", "pyramidal", POISON_RES, 115)
+  {
+    id: 'nh:amulet_versus_poison',
+    nameKey: 'nh:amulet_versus_poison',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 115,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'poison_res',
+  },
+  // ref: objects.h AMULET("amulet of reflection", "hexagonal", REFLECTING, 75)
+  {
+    id: 'nh:amulet_of_reflection',
+    nameKey: 'nh:amulet_of_reflection',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 75,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'reflecting',
+  },
+  // ref: objects.h OBJECT(OBJ("cheap plastic imitation of the Amulet of Yendor", "Amulet of Yendor"), ... PLASTIC, 0, AMULET_CLASS, 0, 0, 20, 0, ...)
+  {
+    id: 'nh:fake_amulet_of_yendor',
+    nameKey: 'nh:fake_amulet_of_yendor',
+    descKey: 'nh:fake_amulet_of_yendor.desc',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 0,
+    weight: 20,
+    cost: 0,
+    material: 'plastic',
+    merge: false,
+    magic: false,
+    delay: 0,
+  },
+
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {
@@ -1171,6 +1544,22 @@ const scrollLabel = (slug: string): AppearanceDef => ({
   glyph: { ch: '?', fg: WHITE },
 });
 
+/** Shuffled ring descriptions with their colors (ref: objects.h RING() descriptions). */
+const ringLook = (slug: string, fg: string): AppearanceDef => ({
+  id: `nh:${slug}_ring`,
+  nameKey: `nh:${slug}_ring`,
+  class: 'ring',
+  glyph: { ch: '=', fg },
+});
+
+/** Shuffled amulet descriptions (ref: objects.h AMULET() descriptions, all HI_METAL). */
+const amuletLook = (slug: string): AppearanceDef => ({
+  id: `nh:${slug}_amulet`,
+  nameKey: `nh:${slug}_amulet`,
+  class: 'amulet',
+  glyph: { ch: '"', fg: CYAN },
+});
+
 export const APPEARANCES: readonly AppearanceDef[] = [
   // ---- potion descriptions ----
   potionLook('ruby', RED), // gain ability
@@ -1241,4 +1630,47 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   scrollLabel('vas_corp_bet_mani'),
   scrollLabel('xor_ota'),
   scrollLabel('strc_prst_skrz_krk'),
+
+  // ---- ring descriptions, in objects.h order ----
+  ringLook('wooden', BROWN),
+  ringLook('granite', GRAY),
+  ringLook('opal', GRAY),
+  ringLook('clay', RED),
+  ringLook('coral', ORANGE),
+  ringLook('black_onyx', BLACK),
+  ringLook('moonstone', GRAY),
+  ringLook('tiger_eye', BROWN),
+  ringLook('jade', GREEN),
+  ringLook('bronze', YELLOW),
+  ringLook('agate', RED),
+  ringLook('topaz', CYAN),
+  ringLook('sapphire', BLUE),
+  ringLook('ruby', RED),
+  ringLook('diamond', WHITE),
+  ringLook('pearl', WHITE),
+  ringLook('iron', CYAN),
+  ringLook('brass', YELLOW),
+  ringLook('copper', YELLOW),
+  ringLook('twisted', CYAN),
+  ringLook('steel', CYAN),
+  ringLook('silver', GRAY),
+  ringLook('gold', YELLOW),
+  ringLook('ivory', WHITE),
+  ringLook('emerald', BRIGHT_GREEN),
+  ringLook('wire', CYAN),
+  ringLook('engagement', CYAN),
+  ringLook('shiny', BRIGHT_CYAN),
+
+  // ---- amulet descriptions, in objects.h order (ESP .. flying) ----
+  amuletLook('circular'),
+  amuletLook('spherical'),
+  amuletLook('oval'),
+  amuletLook('triangular'),
+  amuletLook('pyramidal'),
+  amuletLook('square'),
+  amuletLook('concave'),
+  amuletLook('hexagonal'),
+  amuletLook('octagonal'),
+  amuletLook('perforated'),
+  amuletLook('cubical'),
 ];
