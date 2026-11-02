@@ -541,7 +541,7 @@ export function maxMonLoad(def: MonsterDef): number {
 /** ref: src/mon.c curr_mon_load() */
 export function currMonLoad(ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId): number {
   let n = 0;
-  for (const o of inventoryOf(ctx.state, id)) n += weight(ctx.defs, o);
+  for (const o of inventoryOf(ctx.state, id)) n += weight(ctx.defs, o, ctx.state);
   return n;
 }
 
@@ -593,7 +593,7 @@ export function canCarry(
   const iquan = item.c.item?.quantity ?? 1;
   if (iquan > 1 && hasFlag(def, 'nohands')) return 1;
   if (e.c.monster?.peaceful && !e.c.monster.tame) return 0; // mpeaceful && !mtame
-  if (currMonLoad(ctx, monId) + weight(ctx.defs, item) > maxMonLoad(def)) return 0;
+  if (currMonLoad(ctx, monId) + weight(ctx.defs, item, ctx.state) > maxMonLoad(def)) return 0;
   return iquan;
 }
 

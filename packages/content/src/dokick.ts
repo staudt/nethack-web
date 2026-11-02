@@ -191,8 +191,8 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
 /** The weight of one object of a stack. ref: src/dokick.c really_kick_object() k_owt */
 function unitWeight(ctx: Ctx, e: Entity): number {
   const it = e.c.item;
-  if (!it || it.quantity <= 1) return weight(ctx.defs, e);
-  return weight(ctx.defs, { ...e, c: { ...e.c, item: { ...it, quantity: 1 } } });
+  if (!it || it.quantity <= 1) return weight(ctx.defs, e, ctx.state);
+  return weight(ctx.defs, { ...e, c: { ...e.c, item: { ...it, quantity: 1 } } }, ctx.state);
 }
 
 /** ref: src/dothrow.c breaktest(): potions and glass (but not gems) break; eggs and such do not exist */

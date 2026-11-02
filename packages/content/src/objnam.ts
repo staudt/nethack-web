@@ -9,7 +9,8 @@ import type {
   Params,
   Registry,
 } from '@nh/core';
-import { rknown } from './items';
+import { contents } from '@nh/core';
+import { objKnown, rknown } from './items';
 import {
   isCorrodeable,
   isCrackable,
@@ -100,7 +101,7 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
  * (count and prefixes end with a space, suffixes start with one). The name has no article; the
  * UI adds it with the `{item|an}` modifier, which must not add one when the text starts with a
  * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
- * not a Cleric, no poison/grease/containers/prices, and `dknown` always true.
+ * not a Cleric, no poison/grease/prices/trapped boxes, and `dknown` always true.
  */
 export function doname(state: Readonly<GameState>, defs: Registry, item: Entity): Msg {
   const it = item.c.item;
@@ -143,6 +144,20 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     params.buc = { key: `obj.buc.${it.buc}` };
 
   if (def.class === 'food' && it.eaten) params.eaten = { key: 'obj.eaten' };
+
+  // ref: doname_base(): "empty " goes before the BUC (containers never stack, so it takes the
+  // count's place), "locked "/"unlocked "/"broken " after it, " containing N items" after the
+  // name; a burning lamp is " (lit)"
+  if (def.container) {
+    const cknown = objKnown(state, 'cknown', item.id);
+    const n = cknown ? contents(state, item.id).length : 0;
+    if (cknown && n === 0 && it.quantity === 1) params.count = { key: 'obj.empty' };
+    if (def.container.box && objKnown(state, 'lknown', item.id))
+      params.eaten = { key: it.broken ? 'obj.broken' : it.locked ? 'obj.locked' : 'obj.unlocked' };
+    if (n > 0)
+      params.charges = { key: n === 1 ? 'obj.containing1' : 'obj.containing', params: { n } };
+  }
+  if (it.lit) params.charges = { key: 'obj.lit' };
 
   // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS: add_erosion_words() before the enchantment
   if (def.class === 'weapon' || def.class === 'armor')

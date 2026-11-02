@@ -9,7 +9,7 @@
 //
 // Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
-// monsters, ignite_items(), the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
+// monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
 // statues, boulders, drawbridges, the ray animation.
 import {
   DIRS,
@@ -42,6 +42,7 @@ import {
 } from '@nh/core';
 import { setTerrain } from './actions';
 import { destroyItems, erodeArmor } from './erode';
+import { igniteItems } from './light';
 import { makemon } from './generation';
 import { confdir, getdirImpaired, setUstuck, uMaybeImpaired, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
@@ -829,7 +830,10 @@ function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number): number {
       const orig = tmp;
       if (res('cold')) tmp += 7;
       if (erodeArmor(ctx, mon.id, 'burn')) {
-        if (!ctx.rng.rn2(3)) tmp += destroyItems(ctx, mon.id, 'fire', orig); // ignite_items(): no lamps
+        if (!ctx.rng.rn2(3)) {
+          tmp += destroyItems(ctx, mon.id, 'fire', orig);
+          igniteItems(ctx, mon.id);
+        }
       }
       break;
     }
@@ -876,7 +880,7 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number): void {
         // "body hit"
         if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'fire', orig);
         if (ctx.state.gameOver) return;
-        ctx.rng.rn2(3); // ignite_items(): no lamps or candles yet
+        if (!ctx.rng.rn2(3)) igniteItems(ctx, h.id);
       }
       break;
     }
@@ -994,7 +998,8 @@ function zapOverFloor(ctx: Ctx, ray: Ray, x: number, y: number): number {
 /** ref: src/zap.c burn_floor_objects() without feedback: each scroll or book burns 1 in 3 */
 function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
   let cnt = 0;
-  for (const o of itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y)) {
+  const level = heroPos(ctx).level;
+  for (const o of itemsAt(ctx.defs, ctx.state, level, x, y)) {
     const od = ctx.defs.object(o.def);
     const it = o.c.item;
     if (!it || (od.class !== 'scroll' && od.class !== 'spellbook')) continue;
@@ -1007,6 +1012,8 @@ function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
     else ctx.remove(o.id);
     cnt += del;
   }
+  // this also ignites floor items, but does not change cnt because they weren't consumed
+  igniteItems(ctx, { level, x, y });
   return cnt;
 }
 
@@ -1128,7 +1135,8 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
         damage = orig;
       }
       erodeArmor(ctx, h.id, 'burn'); // burnarmor()
-      destroyItems(ctx, h.id, 'fire', orig); // ignite_items(): no lamps yet
+      destroyItems(ctx, h.id, 'fire', orig);
+      igniteItems(ctx, h.id);
       break;
     }
     case WAN.cold: {

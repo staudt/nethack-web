@@ -1,5 +1,6 @@
 // Object instances: creation, weight, stacking and inventory handling.
 import {
+  contents,
   inventoryOf,
   itemsAt,
   type Buc,
@@ -104,6 +105,20 @@ export function mksobjInit(
       it.spe = rng.rn2(5) + (def.wand?.dir === 'nodir' ? 11 : 4);
       blessorcurse(rng, it, 17);
       break;
+    case 'tool':
+      // ref: mksobj_init() TOOL_CLASS (the tools of the subset)
+      if (def.id === 'nh:brass_lantern' || def.id === 'nh:oil_lamp') {
+        it.spe = 1;
+        it.age = rng.rn2(500) + 1000; // rn1(500, 1000)
+        blessorcurse(rng, it, 5);
+      } else if (def.id === 'nh:chest' || def.id === 'nh:large_box') {
+        if (rng.rn2(5)) it.locked = true;
+        // otrapped = !rn2(10); tknown = otrapped && !rn2(100): trapped boxes are not ported, the
+        // rolls are made
+        if (!rng.rn2(10)) rng.rn2(100);
+      }
+      // the contents (mkbox_cnts()) come with box generation
+      break;
     case 'coin':
       break;
   }
@@ -199,15 +214,30 @@ function eatenStat(base: number, full: number, left: number): number {
 }
 
 /**
- * ref: src/mkobj.c weight(). Gold weighs (n + 50) / 100, at least 1; a corpse weighs its
+ * ref: src/mkobj.c weight(). A container weighs its contents too (pass `state`; without it only
+ * the empty container is counted). Gold weighs (n + 50) / 100, at least 1; a corpse weighs its
  * monster's corpse weight; partly eaten food is scaled by eaten_stat() (full nutrition is the
  * def's, or the monster's for a corpse; ref: src/eat.c obj_nutrition(), without the lembas/cram
  * race adjustments).
  */
-export function weight(defs: Registry, item: Entity): number {
+export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>): number {
   const it = item.c.item;
   if (!it) return 0;
   const def = defs.object(item.def);
+  if (def.container && state) {
+    // ref: weight(): the container plus its contents; a bag of holding's contents weigh half
+    // (rounded up), a quarter when blessed (rounded up), twice when cursed
+    let cwt = 0;
+    for (const o of contents(state, item.id)) cwt += weight(defs, o, state);
+    if (def.container.holding)
+      cwt =
+        it.buc === 'cursed'
+          ? cwt * 2
+          : it.buc === 'blessed'
+            ? Math.trunc((cwt + 3) / 4)
+            : Math.trunc((cwt + 1) / 2);
+    return def.weight * it.quantity + cwt;
+  }
   if (def.id === 'nh:corpse' && it.corpseOf && defs.isMonster(it.corpseOf)) {
     const mon = defs.monster(it.corpseOf);
     const wt = it.quantity * mon.weight;
@@ -313,6 +343,10 @@ interface NhData {
   nomovemsg?: Msg | null;
   /** Items whose erodeproofing the hero knows, by item id (obj->rknown); see rknown(). */
   rknown?: Record<string, true>;
+  /** Boxes whose lock state the hero knows, by item id (obj->lknown); see objKnown(). */
+  lknown?: Record<string, true>;
+  /** Containers whose contents the hero knows, by item id (obj->cknown); see objKnown(). */
+  cknown?: Record<string, true>;
 }
 
 /** The content mod's persistent data (gl.lastinvnr and friends). */
@@ -348,6 +382,50 @@ export function setRknown(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean): v
     if (Object.keys(d.rknown).length === 0) delete d.rknown;
   }
 }
+
+// lknown and cknown: whether the hero knows a box's lock state (obj->lknown) and a container's
+// contents (obj->cknown). Like rknown they live in `modData.nh` by item id, as the core item
+// component has no such fields.
+
+export type ObjKnownFlag = 'lknown' | 'cknown';
+
+/** ref: obj->lknown, obj->cknown */
+export function objKnown(state: Readonly<GameState>, flag: ObjKnownFlag, id: EntityId): boolean {
+  const md = state.modData['nh'] as unknown as Partial<Record<ObjKnownFlag, Record<string, true>>>;
+  return md?.[flag]?.[String(id)] === true;
+}
+
+/** Sets or clears obj->lknown / obj->cknown. */
+export function setObjKnown(
+  ctx: Pick<Ctx, 'state'>,
+  flag: ObjKnownFlag,
+  id: EntityId,
+  on: boolean,
+): void {
+  const d = nhData(ctx);
+  if (on) (d[flag] ??= {})[String(id)] = true;
+  else if (d[flag]) {
+    delete d[flag][String(id)];
+    if (Object.keys(d[flag]).length === 0) delete d[flag];
+  }
+}
+
+/** Drops the lknown/cknown records of objects that no longer exist. */
+export function pruneObjKnown(ctx: Pick<Ctx, 'state'>): void {
+  const d = ctx.state.modData['nh'] as unknown as NhData | undefined;
+  if (!d) return;
+  for (const flag of ['lknown', 'cknown'] as const) {
+    const t = d[flag];
+    if (!t) continue;
+    for (const k of Object.keys(t).sort()) if (!ctx.state.entities[k]) delete t[k];
+    if (Object.keys(t).length === 0) delete d[flag];
+  }
+}
+
+export const setLknown = (ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean): void =>
+  setObjKnown(ctx, 'lknown', id, on);
+export const setCknown = (ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean): void =>
+  setObjKnown(ctx, 'cknown', id, on);
 
 const INVLET_BASIC = 52;
 const letterIndex = (l: string | null): number => {

@@ -5,7 +5,7 @@
 // inventory_resistance_check(); include/objclass.h, src/mkobj.c is_flammable(), is_rottable()
 //
 // Not ported: grease (nothing can be greased yet, so EF_GREASE never protects), shop costs
-// (EF_PAY), ignite_items() (no light sources burn yet), potionbreathe() for boiled potions,
+// (EF_PAY), potionbreathe() for boiled potions,
 // recharge() for shocked charged rings, the levitation-ring deferral, artifacts.
 import {
   getPlayer,

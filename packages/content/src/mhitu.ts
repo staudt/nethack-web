@@ -18,6 +18,7 @@ import { done } from './end';
 import { P, hasExtrinsic, hasProp, makeStunned, timeoutLeft } from './props';
 import { monNam } from './perception';
 import { destroyItems } from './erode';
+import { igniteItems } from './light';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -122,8 +123,11 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
           say(ctx, 'mhitu.fire_not_hot');
           dmg = 0;
         }
-        // ignite_items(invent): no light sources yet; burn_away_slime(): no sliming
-        if (mlev > ctx.rng.rn2(20)) destroyItems(ctx, hero.id, 'fire', damage);
+        // burn_away_slime(): no sliming
+        if (mlev > ctx.rng.rn2(20)) {
+          destroyItems(ctx, hero.id, 'fire', damage);
+          igniteItems(ctx, hero.id);
+        }
       } else dmg = 0;
       break;
     case 'cold': // mhitm_ad_cold

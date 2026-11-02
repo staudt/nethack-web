@@ -112,7 +112,9 @@ export function invWeight(state: Readonly<GameState>, defs: Registry, id: Entity
     if (!it) continue;
     // gold is (quan + 50) / 100 without weight()'s minimum of 1
     wt +=
-      defs.object(o.def).class === 'coin' ? Math.trunc((it.quantity + 50) / 100) : weight(defs, o);
+      defs.object(o.def).class === 'coin'
+        ? Math.trunc((it.quantity + 50) / 100)
+        : weight(defs, o, state);
   }
   return wt - weightCap(state, id);
 }

@@ -307,7 +307,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   // range = ACURRSTR / 2 - weight / 40, at least 1; a crossbow's range does not depend on Str
   const crossbowing = launched && odef.weapon?.skill === 'crossbow';
   const urange = Math.trunc((crossbowing ? 18 : acurrstr(hero.c.attributes?.str ?? 10)) / 2);
-  let range = urange - Math.trunc(weight(ctx.defs, obj) / 40);
+  let range = urange - Math.trunc(weight(ctx.defs, obj, ctx.state) / 40);
   if (range < 1) range = 1;
   if (isAmmo(odef)) {
     if (launched) {

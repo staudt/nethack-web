@@ -291,7 +291,7 @@ export function registerEat(api: ModApi): void {
 }
 
 /** A visible hostile monster next to the hero. ref: src/hack.c monster_nearby() */
-function monsterNearby(ctx: Ctx): boolean {
+export function monsterNearby(ctx: Ctx): boolean {
   const pos = hero(ctx).c.pos;
   if (!pos) return false;
   for (let dy = -1; dy <= 1; dy++)

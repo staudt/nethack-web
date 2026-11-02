@@ -36,6 +36,10 @@ import { registerTraps } from './trap';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
+import { APPLY_ACTIONS } from './apply';
+import { LOOT_ACTIONS } from './container';
+import { registerLock } from './lock';
+import { registerLight } from './light';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -61,6 +65,10 @@ export const vanillaMod: Mod = {
     for (const a of PRAY_ACTIONS) api.defineAction(a);
     for (const a of JEWELRY_ACTIONS) api.defineAction(a);
     for (const a of ZAP_ACTIONS) api.defineAction(a);
+    for (const a of APPLY_ACTIONS) api.defineAction(a);
+    for (const a of LOOT_ACTIONS) api.defineAction(a);
+    registerLock(api);
+    registerLight(api);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -309,3 +317,8 @@ export { JEWELRY_CLASSES, WAND_CLASSES } from './o_init';
 export { CHARGED_RINGS } from './objects';
 export { ZAP_ID, WAN, ZAP_ACTIONS, weffects, learnwand } from './zap';
 export { mspeed, setMspeed } from './mstate';
+export { APPLY_ID, APPLY_ACTIONS, WHISTLE, applicable } from './apply';
+export { LOOT_ID, LOOT_ACTIONS, BOX, useContainer, floorContainers } from './container';
+export { LOCK_ID, PICKLOCK_ID, KEY, autokey } from './lock';
+export { LAMP, beginBurn, endBurn, igniteItems, lampLights, snuffLit } from './light';
+export { objKnown, setObjKnown, setLknown, setCknown } from './items';

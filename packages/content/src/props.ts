@@ -214,17 +214,31 @@ export function makeConfused(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, ta
 
 /**
  * Sets the hero's blindness timer to `xtime` turns (0 ends it), with the messages for losing and
- * regaining sight. Vision is recomputed by the engine after the action. ref: src/potion.c
- * make_blinded(). Not ported: blindfolds, the Eyes of the Overworld, eyeless forms.
+ * regaining sight; a worn blindfold keeps her blind and only her eyes twitch or itch. Vision is
+ * recomputed by the engine after the action. ref: src/potion.c make_blinded(). Not ported: the
+ * Eyes of the Overworld, eyeless forms, Unaware.
  */
 export function makeBlinded(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, talk: boolean): void {
   const hero = getPlayer(ctx.state);
+  const old = timeoutLeft(ctx.state, hero, P.BLINDED) > 0;
+  const blindfolded = hasExtrinsic(hero, P.BLINDED);
   const couldSee = !hasProp(hero, P.BLINDED);
+  const canSeeNow = !xtime && !blindfolded && !hasIntrinsic(hero, P.BLINDED);
   const halluc = hasProp(hero, P.HALLUC);
-  if (talk && !couldSee && !xtime)
-    ctx.emit({ type: 'msg', key: halluc ? 'blind.far_out' : 'blind.see_again' });
-  if (talk && couldSee && xtime)
-    ctx.emit({ type: 'msg', key: halluc ? 'blind.bummer' : 'blind.darkness' });
+  if (canSeeNow && !couldSee) {
+    // regaining sight
+    if (talk) ctx.emit({ type: 'msg', key: halluc ? 'blind.far_out' : 'blind.see_again' });
+  } else if (old && !xtime) {
+    // clearing temporary blindness without toggling blindness
+    if (talk && blindfolded) ctx.emit({ type: 'msg', key: 'blind.eyes_itch' });
+  }
+  if (couldSee && !canSeeNow) {
+    // losing sight
+    if (talk) ctx.emit({ type: 'msg', key: halluc ? 'blind.bummer' : 'blind.darkness' });
+  } else if (!old && xtime) {
+    // setting temporary blindness without toggling blindness
+    if (talk && blindfolded) ctx.emit({ type: 'msg', key: 'blind.eyes_twitch' });
+  }
   setItimeout(ctx.state, hero, P.BLINDED, xtime);
 }
 
@@ -264,8 +278,16 @@ function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
       ctx.interrupt();
       break;
     case P.BLINDED:
-      ctx.emit({ type: 'msg', key: hasProp(hero, P.HALLUC) ? 'blind.far_out' : 'blind.see_again' });
-      ctx.interrupt();
+      // ref: nh_timeout() BLINDED: make_blinded(0L, TRUE); if (!Blind) stop_occupation()
+      if (hasProp(hero, P.BLINDED)) {
+        if (hasExtrinsic(hero, P.BLINDED)) ctx.emit({ type: 'msg', key: 'blind.eyes_itch' });
+      } else {
+        ctx.emit({
+          type: 'msg',
+          key: hasProp(hero, P.HALLUC) ? 'blind.far_out' : 'blind.see_again',
+        });
+        ctx.interrupt();
+      }
       break;
     case P.HALLUC:
       ctx.emit({

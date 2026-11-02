@@ -28,6 +28,7 @@ import { findMac } from './stats';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { acidDamage, destroyItems, erodeArmor, rustm } from './erode';
+import { igniteItems } from './light';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -184,9 +185,10 @@ function adtyping(
         if (seen) say(ctx, 'mhitm.fire_no_burn', { mon: mdefName() });
         dmg = 0;
       }
-      // the defender's carried items burn, with the attack's original damage; ignite_items():
-      // no light sources yet
-      return dmg + destroyItems(ctx, mdef.id, 'fire', damage);
+      // the defender's carried items burn, with the attack's original damage
+      const burnt = destroyItems(ctx, mdef.id, 'fire', damage);
+      igniteItems(ctx, mdef.id);
+      return dmg + burnt;
     }
     case 'cold': {
       if (negated(ctx, mdef, vis)) return 0;

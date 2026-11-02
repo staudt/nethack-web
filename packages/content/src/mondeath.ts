@@ -45,7 +45,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
       const od = ctx.defs.object(item.def);
       const small = def.size === 'tiny' || def.size === 'small';
       if (od.class === 'food' && !def.flags.includes('collect')) ctx.remove(id);
-      else if (small && (weight(ctx.defs, item) > 30 || od.weapon?.bimanual === true))
+      else if (small && (weight(ctx.defs, item, ctx.state) > 30 || od.weapon?.bimanual === true))
         ctx.remove(id);
       else placeOnFloor(ctx, id, at.level, at.x, at.y);
     }

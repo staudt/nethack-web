@@ -206,7 +206,7 @@ const GOLD_WT = (n: number): number => Math.trunc((n + 50) / 100);
  * How many of `count` objects the hero can lift, printing why not. ref: src/pickup.c carry_count()
  * (floor objects only). Returns the count and the weight it adds.
  */
-function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; xtra: number } {
+export function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; xtra: number } {
   const it = obj.c.item;
   const state = ctx.state;
   const id = state.playerId;
@@ -216,10 +216,11 @@ function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; xtra: n
   const owtOf = (n: number): number =>
     isGold
       ? GOLD_WT(n)
-      : weight(ctx.defs, {
-          ...obj,
-          c: { ...obj.c, item: { ...(it as NonNullable<typeof it>), quantity: n } },
-        });
+      : weight(
+          ctx.defs,
+          { ...obj, c: { ...obj.c, item: { ...(it as NonNullable<typeof it>), quantity: n } } },
+          state,
+        );
   let wt = iw0 + owtOf(count);
   if (isGold) wt -= GOLD_WT(umoney) + GOLD_WT(count) - GOLD_WT(umoney + count);
   const delta = (n: number): number => (isGold ? GOLD_WT(umoney + n) - GOLD_WT(umoney) : owtOf(n));

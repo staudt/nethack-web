@@ -1,10 +1,11 @@
-// Rings and amulets: putting them on (P), removing them (R) and what happens as they go on and
-// off; the strangulation and restful-sleep timers. What a worn item does while worn comes from its
-// `prop` (see props.ts updateWornProps) and is read where NetHack reads the property.
+// Rings, amulets and the blindfold: putting them on (P), removing them (R) and what happens as
+// they go on and off; the strangulation and restful-sleep timers. What a worn item does while
+// worn comes from its `prop` (see props.ts updateWornProps) and is read where NetHack reads the
+// property.
 // ref: src/do_wear.c doputon(), accessory_or_armor_on(), doremring(), armor_or_accessory_off(),
 // select_off(), cursed(), on_msg(), off_msg(), Ring_on(), Ring_off_or_gone(), Amulet_on(),
-// Amulet_off(), learnring(), adjust_attrib(); src/timeout.c nh_timeout(), choke_dialogue(),
-// sleep_dialogue()
+// Amulet_off(), Blindf_on(), Blindf_off(), learnring(), adjust_attrib(); src/timeout.c
+// nh_timeout(), choke_dialogue(), sleep_dialogue()
 //
 // Not ported: slippery fingers (Glib), handedness (the hero is right-handed), polymorphed forms
 // without hands or limbs, retouch_object() (silver), the rings and amulets outside our subset.
@@ -31,6 +32,7 @@ import { uState } from './luck';
 import { hcolor } from './magic';
 import { discover, isKnown } from './o_init';
 import { CHARGED_RINGS } from './objects';
+import { xnameOf } from './objnam';
 import {
   P,
   hasExtrinsic,
@@ -69,9 +71,11 @@ function itemArg(action: PlayerAction): unknown {
 
 const isRingSlot = (slot: EquipSlot | null | undefined): slot is 'ringL' | 'ringR' =>
   slot === 'ringL' || slot === 'ringR';
+/** Eyewear worn in the 'blindfold' slot (ublindf): the blindfold of the subset. */
+export const isEyewear = (def: string): boolean => def === 'nh:blindfold';
 const isAccessory = (ctx: Pick<Ctx, 'defs'>, e: Entity): boolean => {
   const cls = ctx.defs.object(e.def).class;
-  return cls === 'ring' || cls === 'amulet';
+  return cls === 'ring' || cls === 'amulet' || isEyewear(e.def);
 };
 
 /** The wielded weapon when it is welded (cursed), which also reveals the curse. ref: src/wield.c welded() */
@@ -266,6 +270,33 @@ export function fixStrangled(ctx: Ctx): void {
 }
 
 // ---------------------------------------------------------------------------------------------
+// eyewear
+
+/** ref: src/do_wear.c Blindf_on() (no Eyes of the Overworld, no ball and chain) */
+export function blindfOn(ctx: Ctx, obj: Entity): void {
+  const alreadyBlind = hasProp(hero(ctx), P.BLINDED);
+  // blindfold might be wielded; release it for wearing
+  setworn(ctx, obj, 'blindfold');
+  // on_msg() with flags.verbose: "You are now wearing a blindfold."
+  say(ctx, 'puton.now_wearing', { item: xnameOf(ctx.state, ctx.defs, obj) });
+  if (hasProp(hero(ctx), P.BLINDED) && !alreadyBlind) say(ctx, 'blindf.cant_see');
+  // (vision follows the blindness after the action: toggle_blindness())
+}
+
+/** ref: src/do_wear.c Blindf_off() */
+export function blindfOff(ctx: Ctx, obj: Entity): void {
+  const wasBlind = hasProp(hero(ctx), P.BLINDED);
+  const it = obj.c.item;
+  if (!it) return;
+  it.equipped = null; // setworn((struct obj *) 0, otmp->owornmask)
+  updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
+  say(ctx, 'takeoff.were_wearing', { item: ctx.defs.itemName(ctx.state, obj) }); // off_msg()
+  if (hasProp(hero(ctx), P.BLINDED)) {
+    if (wasBlind) say(ctx, 'blindf.still_cant_see');
+  } else if (wasBlind) say(ctx, 'blind.see_again');
+}
+
+// ---------------------------------------------------------------------------------------------
 // P and R
 
 /** Whether the accessory can be put on now (quietly, for the offer). ref: accessory_or_armor_on() */
@@ -274,6 +305,7 @@ function canPutOn(ctx: Ctx, obj: Entity): boolean {
   if (!it || !isAccessory(ctx, obj)) return false;
   if (it.equipped !== null && it.equipped !== 'weapon') return false;
   if (ctx.defs.object(obj.def).class === 'amulet') return worn(ctx, 'amulet') === null;
+  if (isEyewear(obj.def)) return worn(ctx, 'blindfold') === null;
   return worn(ctx, 'ringL') === null || worn(ctx, 'ringR') === null;
 }
 
@@ -338,6 +370,14 @@ const puton: ActionDef = {
       amuletOn(ctx, obj);
       return NORMAL_SPEED;
     }
+    if (isEyewear(obj.def)) {
+      if (worn(ctx, 'blindfold')) {
+        say(ctx, 'puton.already_blindfold');
+        return 0;
+      }
+      blindfOn(ctx, obj);
+      return NORMAL_SPEED;
+    }
     if (cls !== 'ring') {
       say(ctx, 'wear.cant');
       return 0;
@@ -376,7 +416,7 @@ const puton: ActionDef = {
 };
 
 /** "You can't.  It is cursed." ref: src/do_wear.c cursed() */
-function cursedWorn(ctx: Ctx, obj: Entity): boolean {
+export function cursedWorn(ctx: Ctx, obj: Entity): boolean {
   const it = obj.c.item;
   if (!it || it.buc !== 'cursed') return false;
   say(ctx, it.quantity > 1 ? 'takeoff.cursed_pl' : 'takeoff.cursed');
@@ -392,7 +432,7 @@ const remove: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     const slot = e?.c.item?.equipped;
-    return e && (isRingSlot(slot) || slot === 'amulet')
+    return e && (isRingSlot(slot) || slot === 'amulet' || slot === 'blindfold')
       ? [
           {
             action: { type: 'mod', action: REMOVE_ID, args: { item: e.id } },
@@ -405,7 +445,7 @@ const remove: ActionDef = {
   perform(ctx, action) {
     const obj = heroItem(ctx, itemArg(action));
     const slot = obj?.c.item?.equipped;
-    if (!obj || !(isRingSlot(slot) || slot === 'amulet')) {
+    if (!obj || !(isRingSlot(slot) || slot === 'amulet' || slot === 'blindfold')) {
       say(ctx, 'takeoff.not_wearing');
       return 0;
     }
@@ -426,6 +466,7 @@ const remove: ActionDef = {
     }
     if (cursedWorn(ctx, obj)) return 0;
     if (isRingSlot(slot)) ringOff(ctx, obj);
+    else if (slot === 'blindfold') blindfOff(ctx, obj);
     else amuletOff(ctx, obj);
     return NORMAL_SPEED;
   },

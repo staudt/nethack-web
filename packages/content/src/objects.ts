@@ -52,6 +52,36 @@ const wand = (
   wand: { dir },
 });
 
+/**
+ * A tool def. ref: include/objects.h TOOL(), CONTAINER(), EYEWEAR(): no merging (none of the
+ * subset is mrg), no delay; `desc` is the fixed description of a tool that starts unidentified.
+ */
+const tool = (
+  slug: string,
+  prob: number,
+  weight: number,
+  cost: number,
+  material: string,
+  fg: string,
+  magic: boolean,
+  desc: string | null,
+  extra: Partial<ObjectDef> = {},
+): ObjectDef => ({
+  id: `nh:${slug}`,
+  nameKey: `nh:${slug}`,
+  ...(desc ? { descKey: `nh:${desc}.desc` } : {}),
+  class: 'tool',
+  glyph: { ch: '(', fg },
+  prob,
+  weight,
+  cost,
+  material,
+  merge: false,
+  magic,
+  delay: 0,
+  ...extra,
+});
+
 export const OBJECTS: readonly ObjectDef[] = [
   // ---- weapons ----
   // ref: objects.h WEAPON("dagger", NoDes, 1, 1, 0, 30, 10, 4, 4, 3, 2, P, P_DAGGER, IRON, HI_METAL, DAGGER)
@@ -1245,6 +1275,44 @@ export const OBJECTS: readonly ObjectDef[] = [
   // ref: objects.h WAND("lightning", "curved", 40, 175, 1, RAY, IRON, ...)
   wand('lightning', 40, 175, true, 'ray', 'iron', CYAN),
 
+  // ---- tools (TOOL_CLASS '('; never merge here; appearances are not shuffled, so the
+  // described ones carry a fixed descKey: "bag", "key", "lamp", "whistle") ----
+  // ref: objects.h CONTAINER("large box", NoDes, 1, 0, 0, 40, 350, 8, WOOD, HI_WOOD, LARGE_BOX)
+  tool('large_box', 40, 350, 8, 'wood', BROWN, false, null, {
+    container: { capacity: null, box: true },
+  }),
+  // ref: objects.h CONTAINER("chest", NoDes, 1, 0, 0, 35, 600, 16, WOOD, HI_WOOD, CHEST)
+  tool('chest', 35, 600, 16, 'wood', BROWN, false, null, {
+    container: { capacity: null, box: true },
+  }),
+  // ref: objects.h CONTAINER("sack", "bag", 0, 0, 0, 35, 15, 2, CLOTH, HI_CLOTH, SACK)
+  tool('sack', 35, 15, 2, 'cloth', BROWN, false, 'bag', {
+    container: { capacity: null, box: false },
+  }),
+  // ref: objects.h CONTAINER("oilskin sack", "bag", 0, 0, 0, 5, 15, 100, CLOTH, HI_CLOTH, OILSKIN_SACK)
+  tool('oilskin_sack', 5, 15, 100, 'cloth', BROWN, false, 'bag', {
+    container: { capacity: null, box: false },
+  }),
+  // ref: objects.h CONTAINER("bag of holding", "bag", 0, 1, 0, 20, 15, 100, CLOTH, HI_CLOTH, BAG_OF_HOLDING)
+  tool('bag_of_holding', 20, 15, 100, 'cloth', BROWN, true, 'bag', {
+    container: { capacity: null, box: false, holding: true },
+  }),
+  // ref: objects.h TOOL("skeleton key", "key", 0, 0, 0, 0, 80, 3, 10, IRON, HI_METAL, SKELETON_KEY)
+  tool('skeleton_key', 80, 3, 10, 'iron', CYAN, false, 'key'),
+  // ref: objects.h TOOL("lock pick", NoDes, 1, 0, 0, 0, 60, 4, 20, IRON, HI_METAL, LOCK_PICK)
+  tool('lock_pick', 60, 4, 20, 'iron', CYAN, false, null),
+  // ref: objects.h TOOL("credit card", NoDes, 1, 0, 0, 0, 15, 1, 10, PLASTIC, CLR_WHITE, CREDIT_CARD)
+  tool('credit_card', 15, 1, 10, 'plastic', WHITE, false, null),
+  // ref: objects.h TOOL("brass lantern", NoDes, 1, 0, 0, 0, 30, 30, 12, COPPER, CLR_YELLOW, BRASS_LANTERN)
+  tool('brass_lantern', 30, 30, 12, 'copper', YELLOW, false, null),
+  // ref: objects.h TOOL("oil lamp", "lamp", 0, 0, 0, 0, 45, 20, 10, COPPER, CLR_YELLOW, OIL_LAMP)
+  tool('oil_lamp', 45, 20, 10, 'copper', YELLOW, false, 'lamp'),
+  // ref: objects.h EYEWEAR("blindfold", NoDes, 1, BLINDED, 50, 2, 20, CLOTH, CLR_BLACK, BLINDFOLD)
+  tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
+  // ref: objects.h TOOL("tin whistle", "whistle", 0, 0, 0, 0, 100, 3, 10, METAL, HI_METAL, TIN_WHISTLE)
+  tool('tin_whistle', 100, 3, 10, 'metal', CYAN, false, 'whistle'),
+  // ref: objects.h TOOL("magic whistle", "whistle", 0, 0, 1, 0, 30, 3, 10, METAL, HI_METAL, MAGIC_WHISTLE)
+  tool('magic_whistle', 30, 3, 10, 'metal', CYAN, true, 'whistle'),
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {
