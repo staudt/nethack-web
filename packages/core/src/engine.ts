@@ -1,6 +1,6 @@
 import { generateLevel, VANILLA_TERRAIN, type LevelTerrain } from './levelgen/index';
 import { cellRules } from './movement';
-import { topObjects } from './objects';
+import { allContents, topObjects } from './objects';
 import { createQuery } from './query';
 import { loadMods, requireTerrains } from './registry';
 import { createRng, newRngStates } from './rng';
@@ -19,7 +19,7 @@ import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
 import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
-import { heroBlind } from './perception';
+import { heroBlind, heroLights } from './perception';
 import { placeTrapOn, removeTrapOn, trapAt } from './traps';
 
 export const DEFAULT_WIDTH = 80;
@@ -126,6 +126,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       },
       remove(id) {
         if (id === state.playerId) throw new Error('The hero cannot be removed');
+        // ref: src/shk.c obfree(): deleting a container deletes its contents
+        for (const inner of allContents(state, id)) delete state.entities[String(inner)];
         delete state.entities[String(id)];
       },
       goToLevel(depth, at) {
@@ -219,7 +221,12 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     // ref: src/vision.c vision_recalc(): a blind hero sees no cell (content "feels" cells itself)
     const visible = heroBlind(registry, state)
       ? []
-      : computeVisible(level, cellRules(level, registry), playerPos(state));
+      : computeVisible(
+          level,
+          cellRules(level, registry),
+          playerPos(state),
+          heroLights(registry, state),
+        );
     const memory = (state.memory[level.id] ??= newMemory(level));
     updateMemory(memory, level, visible);
     // ref: src/display.c map_object(): seen cells remember their top object (or its absence)

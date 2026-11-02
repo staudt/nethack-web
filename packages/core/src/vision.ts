@@ -3,21 +3,14 @@ import type { Level } from './types/level';
 import type { CellRules } from './movement';
 
 /**
- * Cells the hero at `from` can see: in line of sight AND (adjacent OR lit), where a lit wall or
- * closed door also needs its neighbor toward the hero to be lit.
- * ref: src/vision.c vision_recalc() -- a position is IN_SIGHT if COULD_SEE and
- * (lev->lit || TEMP_LIT), or if it is next to the hero (night vision radius 1,
- * "We see this position because of night- or xray-vision").
- * Line of sight uses symmetric recursive shadowcasting (Albert Ford) rather than
- * vision.c's clear_path tables; see DEVIATIONS.md.
+ * Symmetric recursive shadowcasting (Albert Ford) from (ox, oy), out to `maxDepth` steps along
+ * each quadrant's axis: 1 for cells in line of sight. Opaque cells that bound the view are
+ * included.
  */
-export function computeVisible(level: Level, rules: CellRules, from: Pos): number[] {
+function lineOfSight(level: Level, rules: CellRules, ox: number, oy: number, maxDepth: number) {
   const { width, height, cells } = level;
-  const n = width * height;
-  const los = new Uint8Array(n);
-  const ox = from.x;
-  const oy = from.y;
-  if (ox < 0 || oy < 0 || ox >= width || oy >= height) return [];
+  const los = new Uint8Array(width * height);
+  if (ox < 0 || oy < 0 || ox >= width || oy >= height) return los;
   los[oy * width + ox] = 1;
 
   const opaque = rules.opaque;
@@ -36,6 +29,7 @@ export function computeVisible(level: Level, rules: CellRules, from: Pos): numbe
     en0: number,
     ed0: number,
   ): void => {
+    if (depth > maxDepth) return;
     let sn = sn0;
     let sd = sd0;
     // min_col = round_ties_up(depth * start) ; max_col = round_ties_down(depth * end)
@@ -63,9 +57,87 @@ export function computeVisible(level: Level, rules: CellRules, from: Pos): numbe
     if (prevWall === 0) scan(q, depth + 1, sn, sd, en0, ed0);
   };
   for (let q = 0; q < 4; q++) scan(q, 1, -1, 1, 1, 1);
+  return los;
+}
 
+/** ref: src/vision.c circle_data[] and circle_start[]: half-widths of each row of a circle. */
+const CIRCLE_DATA = [
+  0, 1, 1, 2, 2, 1, 3, 3, 2, 1, 4, 4, 4, 3, 2, 5, 5, 5, 4, 3, 2, 6, 6, 6, 5, 5, 4, 2, 7, 7, 7, 6, 6,
+  5, 4, 2, 8, 8, 8, 7, 7, 6, 6, 4, 2, 9, 9, 9, 9, 8, 8, 7, 6, 5, 3, 10, 10, 10, 10, 9, 9, 8, 7, 6,
+  5, 3, 11, 11, 11, 11, 10, 10, 9, 9, 8, 7, 5, 3, 12, 12, 12, 12, 11, 11, 10, 10, 9, 8, 7, 5, 3, 13,
+  13, 13, 13, 12, 12, 12, 11, 10, 10, 9, 7, 6, 3, 14, 14, 14, 14, 13, 13, 13, 12, 12, 11, 10, 9, 8,
+  6, 3, 15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 6, 3,
+];
+/** ref: include/vision.h MAX_RADIUS */
+export const MAX_LIGHT_RADIUS = 15;
+
+/** A light source for `computeVisible`: a cell and a radius (clamped to 0..MAX_LIGHT_RADIUS). */
+export interface LightAt {
+  x: number;
+  y: number;
+  radius: number;
+}
+
+/**
+ * Cells lit by light sources: those within each source's circle that the source can see.
+ * A source on the hero's cell uses the hero's line of sight. ref: src/light.c do_light_sources()
+ * (clear_path() from the source is replaced by shadowcasting from it, as for the hero).
+ */
+function tempLit(
+  level: Level,
+  rules: CellRules,
+  heroLos: Uint8Array,
+  ox: number,
+  oy: number,
+  lights: readonly LightAt[],
+): Uint8Array | null {
+  if (lights.length === 0) return null;
+  const { width, height } = level;
+  const out = new Uint8Array(width * height);
+  for (const l of lights) {
+    const r = Math.max(0, Math.min(MAX_LIGHT_RADIUS, Math.trunc(l.radius)));
+    if (!Number.isFinite(r) || l.x < 0 || l.y < 0 || l.x >= width || l.y >= height) continue;
+    const los = l.x === ox && l.y === oy ? heroLos : lineOfSight(level, rules, l.x, l.y, r);
+    const base = (r * (r + 1)) / 2; // circle_start[r]
+    for (let dy = -r; dy <= r; dy++) {
+      const y = l.y + dy;
+      if (y < 0 || y >= height) continue;
+      const half = CIRCLE_DATA[base + Math.abs(dy)] ?? 0;
+      for (let x = Math.max(0, l.x - half); x <= Math.min(width - 1, l.x + half); x++) {
+        const i = y * width + x;
+        if (los[i] === 1) out[i] = 1;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Cells the hero at `from` can see: in line of sight AND (adjacent OR lit), where a lit wall or
+ * closed door also needs its neighbor toward the hero to be lit. A cell is lit when `Level.lit`
+ * says so or a light source in `lights` lights it.
+ * ref: src/vision.c vision_recalc() -- a position is IN_SIGHT if COULD_SEE and
+ * (lev->lit || TEMP_LIT), or if it is next to the hero (night vision radius 1,
+ * "We see this position because of night- or xray-vision").
+ * Line of sight uses symmetric recursive shadowcasting (Albert Ford) rather than
+ * vision.c's clear_path tables; see DEVIATIONS.md.
+ */
+export function computeVisible(
+  level: Level,
+  rules: CellRules,
+  from: Pos,
+  lights: readonly LightAt[] = [],
+): number[] {
+  const { width, height, cells } = level;
+  const ox = from.x;
+  const oy = from.y;
+  if (ox < 0 || oy < 0 || ox >= width || oy >= height) return [];
+  const los = lineOfSight(level, rules, ox, oy, Infinity);
+  const temp = tempLit(level, rules, los, ox, oy, lights);
+  const opaque = rules.opaque;
+  const n = width * height;
   const out: number[] = [];
-  const lit = level.lit;
+  const lit = (i: number): boolean => level.lit[i] === 1 || temp?.[i] === 1;
   for (let i = 0; i < n; i++) {
     if (los[i] !== 1) continue;
     const x = i % width;
@@ -75,14 +147,14 @@ export function computeVisible(level: Level, rules: CellRules, from: Pos): numbe
       out.push(i);
       continue;
     }
-    if (lit[i] !== 1) continue;
+    if (!lit(i)) continue;
     // ref: vision_recalc() "Make sure doors, walls, boulders or mimics don't show up at the end
     // of dark hallways": a lit cell that blocks sight is seen only if the cell next to it,
     // one step toward the hero, is lit too.
     if (opaque[cells[i] ?? 0] === true) {
       const nx = x + Math.sign(ox - x);
       const ny = y + Math.sign(oy - y);
-      if (lit[ny * width + nx] !== 1) continue;
+      if (!lit(ny * width + nx)) continue;
     }
     out.push(i);
   }

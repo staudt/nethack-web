@@ -55,6 +55,24 @@ describe('defineObject validation', () => {
       loadMods([
         mod('ob', (api) => {
           api.defineObject(objDef('g', { class: 'gem' }));
+          api.defineObject(objDef('ring', { class: 'ring', prop: 'fire_res' }));
+          api.defineObject(objDef('amulet', { class: 'amulet', prop: 'esp' }));
+          api.defineObject(
+            objDef('wand', { class: 'wand', wand: { dir: 'ray' }, zap: () => undefined }),
+          );
+          api.defineObject(
+            objDef('sack', { class: 'tool', container: { capacity: null, box: false } }),
+          );
+          api.defineObject(
+            objDef('boh', {
+              class: 'tool',
+              container: { capacity: null, box: false, holding: true },
+            }),
+          );
+          api.defineObject(
+            objDef('chest', { class: 'tool', container: { capacity: 350, box: true } }),
+          );
+          api.defineObject(objDef('book', { class: 'spellbook', spellbook: { level: 1 } }));
           for (const role of ['launcher', 'ammo', 'missile'] as const)
             api.defineObject(objDef(role, { weapon: { ...WEAPON, role } } as Partial<ObjectDef>));
         }),
@@ -65,7 +83,7 @@ describe('defineObject validation', () => {
   test.each([
     ['nameKey', { nameKey: '' }],
     ['descKey', { descKey: '' }],
-    ['class', { class: 'wand' }],
+    ['class', { class: 'rock' }],
     ['glyph', { glyph: null }],
     ['glyph.ch', { glyph: { ch: 'ab', fg: '#fff' } }],
     ['prob', { prob: -1 }],
@@ -100,6 +118,17 @@ describe('defineObject validation', () => {
     ['food.nutrition', { food: { nutrition: 10001 } }],
     ['food.nutrition', { food: { nutrition: -1 } }],
     ['use', { use: 'quaff' }],
+    ['prop', { prop: '' }],
+    ['wand.dir', { class: 'wand', wand: { dir: 'up' } }],
+    ['wand', { class: 'wand' }],
+    ['container.capacity', { container: { capacity: -1, box: false } }],
+    ['container.capacity', { container: { capacity: 1.5, box: false } }],
+    ['container.box', { container: { capacity: null, box: 'yes' } }],
+    ['container.holding', { container: { capacity: null, box: false, holding: 1 } }],
+    ['spellbook.level', { class: 'spellbook', spellbook: { level: 0 } }],
+    ['spellbook.level', { class: 'spellbook', spellbook: { level: 8 } }],
+    ['spellbook', { class: 'spellbook' }],
+    ['zap', { zap: 'bolt' }],
   ])('rejects bad %s', (path, extra) => {
     const issues = withObject(extra);
     expect(issues.some((i) => i.path === path && i.defId === 'ob:x')).toBe(true);
@@ -126,7 +155,7 @@ describe('defineAppearance validation', () => {
     issuesOf([mod('ob', (api) => api.defineAppearance({ ...APP, ...extra } as never))]);
 
   test.each([
-    ['class', { class: 'ring' }],
+    ['class', { class: 'rock' }],
     ['glyph', { glyph: 5 }],
     ['glyph.fg', { glyph: { ch: '!', fg: '' } }],
     ['nameKey', { nameKey: '' }],

@@ -82,7 +82,7 @@ interface Components {
 }
 // timeout is the turn the property ends; 0 means none (permanent if intrinsic)
 interface PropState { intrinsic: boolean; timeout: number }
-// ref: include/obj.h struct obj. An item is in exactly one place: the floor (`pos`) or carried.
+// ref: include/obj.h struct obj. An item is in exactly one place: the floor (`pos`), carried, or in a container.
 interface ItemComponent {
   quantity: number;
   buc: 'blessed' | 'uncursed' | 'cursed';
@@ -90,9 +90,13 @@ interface ItemComponent {
   known: { buc: boolean; spe: boolean };
   carriedBy: EntityId | null; // set => no pos
   letter: string | null; // the hero's inventory letter
-  equipped: 'weapon' | ArmorSlot | null;
+  equipped: EquipSlot | null; // 'weapon' | ArmorSlot | 'ringL' | 'ringR' | 'amulet' | 'blindfold'
   placed: number; // from state.seq; highest on a cell is the top of the pile
   corpseOf?: DefId; age?: number; eaten?: number;
+  containedIn?: EntityId; // set => no pos, carriedBy null (obj->ocontainer)
+  locked?: true; broken?: true; lit?: true; // olocked, obroken, lamplit
+  erosion?: { e1: 0 | 1 | 2 | 3; e2: 0 | 1 | 2 | 3 }; erodeproof?: true; // oeroded, oeroded2, oerodeproof
+  recharged?: number;
 }
 
 interface Room {
@@ -126,6 +130,10 @@ The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a
 **Vision.** A cell is seen when it is in line of sight and either adjacent to the hero or lit. A lit cell that blocks sight (a wall or closed door) is seen from afar only if its neighbor one step toward the hero is also lit, which hides lit room walls at the end of dark corridors (ref: src/vision.c vision_recalc()).
 
 **Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id.
+
+**Light sources.** Each `PerceptionDef.lights` returns light sources; those on the current level light, for the hero, every cell within the source's circle (`circle_data`, radius clamped to 0..15) that the source can see, as if `Level.lit` were set there (ref: src/light.c do_light_sources). A source on the hero's cell uses her own line of sight; any other source uses shadowcasting from its cell. The hero still needs line of sight, and the dark-corridor rule for walls and doors applies to light from both kinds. `computeVisible(level, rules, from, lights?)` takes them; core's `heroLights(registry, state)` collects them.
+
+**Containers.** An item inside a container has `containedIn` set, no `pos` and `carriedBy: null`, so floor piles (`itemsAt`, `topObjects`), `inventoryOf`, `describe()` and the view never see it. Core's `objects.ts` helpers keep the one-place rule: `contents(state, box)` lists what is directly inside, newest first; `putIn(registry, state, box, item)` requires a detached item (like `add_to_container()` requires a free object), refuses non-containers and nesting loops, and does not merge stacks (content merges first); `takeOut(state, item)` leaves the item detached for the caller to place. `allContents(state, box)` lists nested contents too. Testkit checks that a contained item's container is an existing container item, with no loop.
 
 **Traps.** A `TrapDef` (`{ id, nameKey, glyph, hole? }`) only names and draws a trap; its effects belong to content. Traps live in `Level.traps` and change only through `ctx.placeTrap` (which replaces a trap on the same cell and throws unless the cell is *plain floor*: passable terrain with no `door`, `stairs` or `looksLike`) and `ctx.removeTrap`. Game logic finds traps with core's `trapAt(level, x, y)`, seen or not. Players only learn of a trap when content sets `seen` (it went off, or a search found it): `query.trapAt` and `describe().trap` report seen traps only, and the snapshot shows them as `ViewCell.t`, visible or remembered. Renderers draw monster > object > trap > terrain.
 
@@ -263,7 +271,8 @@ interface MonsterDef {
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass
-  id: DefId; nameKey: string; class: 'weapon' | 'armor' | 'food' | 'potion' | 'scroll' | 'coin' | 'gem';
+  id: DefId; nameKey: string;
+  class: 'weapon' | 'armor' | 'ring' | 'amulet' | 'tool' | 'food' | 'potion' | 'scroll' | 'spellbook' | 'wand' | 'coin' | 'gem';
   glyph: { ch: string; fg: string };
   descKey?: string; // fixed unidentified description; shuffled classes use appearances instead
   prob: number; weight: number; cost: number; material: string;
@@ -271,7 +280,12 @@ interface ObjectDef {
   weapon?: { small: Dice; large: Dice; hitBonus: number; skill: string; bimanual: boolean; kind: 'pierce' | 'slash' | 'whack'; role?: 'launcher' | 'ammo' | 'missile' }; // launchers fire ammo of the same skill; missiles (darts) are thrown by hand
   armor?: { slot: ArmorSlot; ac: number; mc: number };
   food?: { nutrition: number };
+  prop?: string; // oc_oprop: property conferred when worn (content-defined key, as in props)
+  wand?: { dir: 'nodir' | 'immediate' | 'ray' }; // oc_dir; required for class 'wand'
+  container?: { capacity: number | null; box: boolean; holding?: boolean }; // box: large box/chest (lockable); holding: bag of holding
+  spellbook?: { level: number }; // 1..7; required for class 'spellbook'
   use?(ctx: Ctx, user: EntityId, item: EntityId): void; // quaff/read effect
+  zap?(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void; // weffects; null for nodir
 }
 interface AppearanceDef { id: DefId; nameKey: string; class: ObjectClass; glyph: Glyph } // "ruby potion"
 interface StatusDef {
@@ -291,6 +305,7 @@ interface PerceptionDef {
   blind?(state: Readonly<GameState>, defs: Registry): boolean; // any true: no cell is visible
   senses?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean; // shown though unseen (telepathy)
   shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null; // disguise (hallucination); first answer wins
+  lights?(state: Readonly<GameState>, defs: Registry): { level: LevelId; x: number; y: number; radius: number }[]; // light sources (lit lamps)
 }
 
 interface ModApi {
@@ -332,7 +347,7 @@ interface Ctx {
   emit(e: GameEvent): void;
   query: CoreQuery;
   spawn(e: Omit<Entity, 'id'>): EntityId;
-  remove(id: EntityId): void; // never the hero
+  remove(id: EntityId): void; // never the hero; a container takes its contents with it (obfree delete_contents)
   goToLevel(depth: number, at: 'up' | 'down' | 'random'): void; // generates dlvl<N> on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot)
   placeTrap(level: LevelId, t: Trap): void; // replaces a trap on the cell; throws unless plain floor
   removeTrap(level: LevelId, pos: Pos): void;

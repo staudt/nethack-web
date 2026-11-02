@@ -86,12 +86,18 @@ const SIZES: readonly MonsterDef['size'][] = [
 const OBJECT_CLASSES: readonly ObjectClass[] = [
   'weapon',
   'armor',
+  'ring',
+  'amulet',
+  'tool',
   'food',
   'potion',
   'scroll',
+  'spellbook',
+  'wand',
   'coin',
   'gem',
 ];
+const WAND_DIRS = ['nodir', 'immediate', 'ray'];
 const ARMOR_SLOTS: readonly ArmorSlot[] = [
   'body',
   'cloak',
@@ -343,7 +349,23 @@ export function loadMods(mods: readonly Mod[]): Registry {
         if (d.class === 'armor' && d.armor === undefined)
           issue('armor', 'armor objects need armor stats', d.id);
         if (d.food !== undefined) int(d.food.nutrition, 'food.nutrition', 0, 10000);
+        if (d.prop !== undefined) str(d.prop, 'prop', d.id);
+        if (d.wand !== undefined && !WAND_DIRS.includes(d.wand.dir))
+          issue('wand.dir', `must be one of ${WAND_DIRS.join(', ')}`, d.id);
+        if (d.class === 'wand' && d.wand === undefined)
+          issue('wand', 'wand objects need wand.dir', d.id);
+        if (d.container !== undefined) {
+          if (d.container.capacity !== null)
+            int(d.container.capacity, 'container.capacity', 0, 100000);
+          bool(d.container.box, 'container.box', d.id);
+          if (d.container.holding !== undefined)
+            bool(d.container.holding, 'container.holding', d.id);
+        }
+        if (d.spellbook !== undefined) int(d.spellbook.level, 'spellbook.level', 1, 7);
+        if (d.class === 'spellbook' && d.spellbook === undefined)
+          issue('spellbook', 'spellbook objects need spellbook.level', d.id);
         if (d.use !== undefined) fn(d.use, 'use', d.id);
+        if (d.zap !== undefined) fn(d.zap, 'zap', d.id);
         objects.set(d.id, { ...d, mod: modId });
       },
       defineAppearance(d) {
@@ -362,7 +384,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
       },
       definePerception(d) {
         if (!guard('definePerception') || !checkId(d.id, 'perception')) return;
-        const parts = ['blind', 'senses', 'shownAs'] as const;
+        const parts = ['blind', 'senses', 'shownAs', 'lights'] as const;
         if (!parts.some((k) => d[k] !== undefined))
           issue('definePerception', `needs at least one of ${parts.join(', ')}`, d.id);
         for (const k of parts) if (d[k] !== undefined) fn(d[k], k, d.id);

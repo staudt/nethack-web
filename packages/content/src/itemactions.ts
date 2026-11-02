@@ -8,6 +8,7 @@ import {
   shownId,
   type ActionDef,
   type ArmorSlot,
+  type EquipSlot,
   type Ctx,
   type DefId,
   type Entity,
@@ -724,6 +725,9 @@ const SLOT_NOUN: Record<ArmorSlot, string> = {
   shield: 'shield',
 };
 
+/** True for the armor slots, as opposed to weapon and accessory slots. */
+const isArmorSlot = (slot: EquipSlot): slot is ArmorSlot => Object.hasOwn(SLOT_NOUN, slot);
+
 /**
  * Whether the armor can be put on; says why not when `noisy`. ref: src/do_wear.c canwearobj()
  * (no polymorph, traps or slippery fingers).
@@ -818,7 +822,7 @@ const wear: ActionDef = {
 /** Whether `obj` is worn armor that can be reached (not under another layer). ref: equip_ok() */
 function takeoffOk(ctx: Ctx, obj: Entity): boolean {
   const slot = obj.c.item?.equipped;
-  if (!slot || slot === 'weapon') return false;
+  if (!slot || !isArmorSlot(slot)) return false;
   if (slot === 'body' && wornIn(ctx, 'cloak')) return false;
   if (slot === 'shirt' && (wornIn(ctx, 'cloak') || wornIn(ctx, 'body'))) return false;
   return true;
@@ -850,7 +854,7 @@ const takeoff: ActionDef = {
     const it = obj?.c.item;
     if (!obj || !it) return 0;
     const slot = it.equipped;
-    if (!slot || slot === 'weapon') {
+    if (!slot || !isArmorSlot(slot)) {
       ctx.emit({ type: 'msg', key: 'takeoff.not_wearing' });
       return 0;
     }

@@ -2,6 +2,7 @@ import {
   VANILLA_TERRAIN,
   computeVisible,
   cellRules,
+  heroLights,
   createEngine,
   getLevel,
   getPlayer,
@@ -247,7 +248,12 @@ export function runScenario(
 
   const refresh = (): void => {
     const level = getLevel(state);
-    const visible = computeVisible(level, cellRules(level, engine.registry), playerAt());
+    const visible = computeVisible(
+      level,
+      cellRules(level, engine.registry),
+      playerAt(),
+      heroLights(engine.registry, state),
+    );
     const memory = (state.memory[level.id] ??= newMemory(level));
     updateMemory(memory, level, visible);
     state.visible = visible;

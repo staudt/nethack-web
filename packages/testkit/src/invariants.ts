@@ -4,7 +4,10 @@ import {
   isJsonPlain,
   sortedIds,
   stateHash,
+  type EquipSlot,
   type GameState,
+  type ItemComponent,
+  type ObjectDef,
   type Registry,
 } from '@nh/core';
 
@@ -94,7 +97,8 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
     else seen.set(key, id);
   }
 
-  // Items: exactly one place, a living carrier, unique inventory letters per carrier.
+  // Items: exactly one place (floor, carrier or container), a living carrier, unique inventory
+  // letters per carrier.
   const letters = new Map<string, number>();
   for (const id of sortedIds(state)) {
     const e = state.entities[String(id)];
@@ -104,8 +108,15 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
       errs.push(`item ${id}: def '${e.def}' is not a registered object`);
     if (!Number.isInteger(item.quantity) || item.quantity < 1)
       errs.push(`item ${id}: quantity ${item.quantity} is not a positive integer`);
-    if ((e.c.pos !== undefined) === (item.carriedBy !== null))
-      errs.push(`item ${id}: must be either on the floor or carried, not both or neither`);
+    const places =
+      Number(e.c.pos !== undefined) +
+      Number(item.carriedBy !== null) +
+      Number(item.containedIn !== undefined);
+    if (places !== 1)
+      errs.push(
+        `item ${id}: must be in exactly one place: on the floor, carried or in a container`,
+      );
+    if (item.containedIn !== undefined) checkContained(state, registry, id, item, errs);
     if (item.carriedBy !== null) {
       if (!state.entities[String(item.carriedBy)])
         errs.push(`item ${id}: carried by missing entity ${item.carriedBy}`);
@@ -117,7 +128,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
       }
     } else if (item.equipped !== null) {
       // A floor item may keep its last letter (obj->invlet), so it gets it back when picked up.
-      errs.push(`item ${id}: on the floor but equipped`);
+      errs.push(`item ${id}: not carried but equipped`);
     }
   }
 
@@ -203,6 +214,45 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
 const INVLET = /^[$a-zA-Z#]$/;
 
 /**
+ * A contained item's container is an existing container item, and following containers upward
+ * ends at an item that is not contained (no nesting loop).
+ */
+function checkContained(
+  state: GameState,
+  registry: Registry,
+  id: number,
+  item: ItemComponent,
+  errs: string[],
+): void {
+  const box = state.entities[String(item.containedIn)];
+  if (!box?.c.item || !registry.isObject(box.def) || !registry.object(box.def).container) {
+    errs.push(`item ${id}: contained in ${item.containedIn ?? '?'}, which is not a container item`);
+    return;
+  }
+  const seen = new Set<number>([id]);
+  for (let cur = box; cur.c.item?.containedIn !== undefined;) {
+    if (seen.has(cur.id)) {
+      errs.push(`item ${id}: containers nest in a loop`);
+      return;
+    }
+    seen.add(cur.id);
+    const up = state.entities[String(cur.c.item.containedIn)];
+    if (!up) return; // reported for `cur` itself
+    cur = up;
+  }
+}
+
+/** Whether an item of `def` may occupy `slot`: anything is wielded, armor goes in its own slot. */
+function slotFits(def: ObjectDef, slot: EquipSlot): boolean {
+  if (slot === 'weapon') return true;
+  if (slot === 'ringL' || slot === 'ringR') return def.class === 'ring';
+  if (slot === 'amulet') return def.class === 'amulet';
+  // ref: src/do_wear.c Blindf_on(): blindfolds, towels and lenses are tools
+  if (slot === 'blindfold') return def.class === 'tool';
+  return def.armor?.slot === slot;
+}
+
+/**
  * Carriers and equipment: a carried item's carrier is the hero or a monster standing on a level,
  * every equipped item is carried, a carrier has at most one wielded weapon and one piece of armor
  * per slot (and the slot matches the item's def), and the hero's items have valid letters.
@@ -234,10 +284,10 @@ function checkEquipment(state: GameState, registry: Registry, errs: string[]): v
     else slots.set(k, id);
     if (registry.isObject(e.def)) {
       const def = registry.object(e.def);
-      // anything may be wielded, but only armor of the matching slot can be worn there
-      if (item.equipped !== 'weapon' && def.armor?.slot !== item.equipped) {
+      // anything may be wielded; armor goes in its own slot, rings on a hand, and so on
+      if (!slotFits(def, item.equipped)) {
         errs.push(
-          `item ${id}: '${e.def}' worn in slot ${item.equipped}, its slot is ${def.armor?.slot ?? 'none'}`,
+          `item ${id}: '${e.def}' (${def.class}) worn in slot ${item.equipped}, not its slot`,
         );
       }
     }

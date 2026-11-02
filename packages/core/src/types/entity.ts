@@ -57,13 +57,19 @@ export interface MonsterComponent {
 /** ref: include/objclass.h enum obj_armor_types */
 export type ArmorSlot = 'body' | 'cloak' | 'shirt' | 'helm' | 'gloves' | 'boots' | 'shield';
 
-export type EquipSlot = 'weapon' | ArmorSlot;
+/** Worn or wielded slots; rings go on either hand (ref: include/prop.h W_RINGL, W_RINGR, W_AMUL, W_TOOL). */
+export type EquipSlot = 'weapon' | ArmorSlot | 'ringL' | 'ringR' | 'amulet' | 'blindfold';
+
+/** An erosion level, 0 (none) to 3 (thoroughly). ref: include/obj.h MAX_ERODE */
+export type ErosionLevel = 0 | 1 | 2 | 3;
 
 export type Buc = 'blessed' | 'uncursed' | 'cursed';
 
 /**
  * An object instance (ref: include/obj.h struct obj). An item is in exactly one place: on the
- * floor (`pos` set, `carriedBy` null) or carried (`carriedBy` set, no `pos`).
+ * floor (`pos` set, `carriedBy` null), carried (`carriedBy` set, no `pos`) or inside a container
+ * (`containedIn` set, no `pos`, `carriedBy` null). Core's `putIn`/`takeOut` move items into and
+ * out of containers.
  */
 export interface ItemComponent {
   quantity: number;
@@ -84,6 +90,20 @@ export interface ItemComponent {
   age?: number;
   /** Nutrition left in partly eaten food (obj->oeaten). */
   eaten?: number;
+  /** The container item this one is inside (obj->ocontainer, where == OBJ_CONTAINED). */
+  containedIn?: EntityId;
+  /** A locked box (obj->olocked). */
+  locked?: true;
+  /** A box whose lock is broken (obj->obroken). */
+  broken?: true;
+  /** A lit lamp or other light source (obj->lamplit). */
+  lit?: true;
+  /** Rust/burn/rot (e1, obj->oeroded) and corrosion (e2, obj->oeroded2). */
+  erosion?: { e1: ErosionLevel; e2: ErosionLevel };
+  /** Fixed: rustproof, fireproof... (obj->oerodeproof). */
+  erodeproof?: true;
+  /** Times a wand or tool was recharged (obj->recharged). */
+  recharged?: number;
 }
 
 /** ref: src/eat.c hunger states (u.uhs) */

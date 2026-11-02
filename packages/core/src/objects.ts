@@ -83,3 +83,80 @@ export function inventoryOf(state: Readonly<GameState>, owner: EntityId): Entity
       letterRank(a.c.item?.letter ?? null) - letterRank(b.c.item?.letter ?? null) || a.id - b.id,
   );
 }
+
+/** True for an item whose def is a container (ref: include/obj.h Is_container). */
+export function isContainer(registry: Registry, e: Entity): boolean {
+  return isItem(registry, e) && registry.object(e.def).container !== undefined;
+}
+
+/**
+ * Items directly inside the container `box`, newest first (ref: src/mkobj.c add_to_container()
+ * prepends to obj->cobj). Nested contents are not included.
+ */
+export function contents(state: Readonly<GameState>, box: EntityId): Entity[] {
+  const out: Entity[] = [];
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    if (e?.c.item?.containedIn === box) out.push(e);
+  }
+  return out.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
+}
+
+/**
+ * Puts a detached item (no `pos`, `carriedBy` null, not contained: freshly made, or taken off
+ * the floor, out of an inventory or out of another container) into the container `box`; it
+ * becomes the newest item there. ref: src/mkobj.c add_to_container(), which also requires a
+ * free object. Unlike it, core does not merge stacks (merge rules are content's): merge first.
+ * Throws if `box` is not a container item, or if `item` is `box` or holds it (nesting loop).
+ */
+export function putIn(registry: Registry, state: GameState, box: EntityId, item: EntityId): void {
+  const b = state.entities[String(box)];
+  const e = state.entities[String(item)];
+  const it = e?.c.item;
+  if (!b || !isContainer(registry, b)) throw new Error(`putIn: ${box} is not a container`);
+  if (!e || !it) throw new Error(`putIn: ${item} is not an item`);
+  if (e.c.pos !== undefined || it.carriedBy !== null || it.containedIn !== undefined)
+    throw new Error(`putIn: item ${item} is not detached`);
+  // Walk up from the box: the item must not be the box or any container holding it.
+  for (let cur: Entity | undefined = b; cur;) {
+    if (cur.id === item) throw new Error(`putIn: item ${item} would contain itself`);
+    const up: EntityId | undefined = cur.c.item?.containedIn;
+    cur = up === undefined ? undefined : state.entities[String(up)];
+  }
+  it.equipped = null;
+  it.containedIn = box;
+  it.placed = state.seq++;
+}
+
+/**
+ * Takes an item out of its container and leaves it detached: the caller must place it (on the
+ * floor, in an inventory, in another container) or remove it before the step ends.
+ * ref: src/mkobj.c obj_extract_self() for OBJ_CONTAINED. Throws if it is not in a container.
+ */
+export function takeOut(state: GameState, item: EntityId): void {
+  const it = state.entities[String(item)]?.c.item;
+  if (it?.containedIn === undefined) throw new Error(`takeOut: item ${item} is not in a container`);
+  delete it.containedIn;
+}
+
+/**
+ * The ids of every item inside `box`, nested contents included, in id order. Used to delete a
+ * container with what it holds. ref: src/shk.c obfree() delete_contents()
+ */
+export function allContents(state: Readonly<GameState>, box: EntityId): EntityId[] {
+  const inside = new Set<EntityId>([box]);
+  const out: EntityId[] = [];
+  // Ids only grow, but a container may be newer than what it holds: repeat until stable.
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const id of sortedIds(state)) {
+      const c = state.entities[String(id)]?.c.item?.containedIn;
+      if (c !== undefined && inside.has(c) && !inside.has(id)) {
+        inside.add(id);
+        out.push(id);
+        grew = true;
+      }
+    }
+  }
+  return out.sort((a, b) => a - b);
+}

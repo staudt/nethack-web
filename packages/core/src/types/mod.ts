@@ -1,4 +1,4 @@
-import type { ActionType, PlayerAction } from './action';
+import type { ActionType, Dir, PlayerAction } from './action';
 import type { DefId, EntityId, Glyph, Json, LevelId, Msg, Pos } from './common';
 import type { ArmorSlot, Dice, Entity } from './entity';
 import type { GameEvent } from './event';
@@ -32,7 +32,22 @@ export interface RoleDef {
 }
 
 /** ref: include/objclass.h enum obj_class_types (the classes implemented so far). */
-export type ObjectClass = 'weapon' | 'armor' | 'food' | 'potion' | 'scroll' | 'coin' | 'gem';
+export type ObjectClass =
+  | 'weapon'
+  | 'armor'
+  | 'ring'
+  | 'amulet'
+  | 'tool'
+  | 'food'
+  | 'potion'
+  | 'scroll'
+  | 'spellbook'
+  | 'wand'
+  | 'coin'
+  | 'gem';
+
+/** Where a wand is aimed (ref: include/objclass.h NODIR, IMMEDIATE, RAY). */
+export type WandDir = 'nodir' | 'immediate' | 'ray';
 
 /** An object type, ported from struct objclass (ref: include/objclass.h, include/objects.h). */
 export interface ObjectDef {
@@ -74,8 +89,27 @@ export interface ObjectDef {
   };
   armor?: { slot: ArmorSlot; ac: number; mc: number };
   food?: { nutrition: number };
+  /**
+   * The property this object confers while worn or carried, e.g. 'fire_res' (oc_oprop); keys are
+   * content-defined, as in `Components.props`.
+   */
+  prop?: string;
+  /** Wands: how the wand is aimed (oc_dir). */
+  wand?: { dir: WandDir };
+  /**
+   * Containers (ref: objclass.h Is_container, Is_box). `capacity` is the weight limit, null for
+   * none; `box` for large boxes and chests (they can be locked); `holding` for a bag of holding.
+   */
+  container?: { capacity: number | null; box: boolean; holding?: boolean };
+  /** Spellbooks: the spell level 1..7 (oc_level). */
+  spellbook?: { level: number };
   /** Effect when quaffed or read; called by content's actions. */
   use?(ctx: Ctx, user: EntityId, item: EntityId): void;
+  /**
+   * Effect when zapped; called by content's actions. `dir` is a direction, 'self' (zapped at the
+   * user) or null for a 'nodir' wand. ref: src/zap.c weffects()
+   */
+  zap?(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void;
 }
 
 /** A randomized description ("ruby potion") with its glyph; assigned per game via `state.appearances`. */
@@ -111,6 +145,20 @@ export interface PerceptionDef {
    * floor object's own glyph, or null for no change. The first def that answers wins.
    */
   shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null;
+  /**
+   * Light sources (lit lamps, a lit monster): cells within `radius` that the source can see are
+   * lit for the hero, as if `Level.lit` were set. Radius is clamped to 0..15; sources on other
+   * levels are ignored. ref: src/light.c do_light_sources()
+   */
+  lights?(state: Readonly<GameState>, defs: Registry): LightSource[];
+}
+
+/** A light source at a cell (ref: src/light.c struct ls_t). */
+export interface LightSource {
+  level: LevelId;
+  x: number;
+  y: number;
+  radius: number;
 }
 
 /** A kind of trap; its effects belong to content (ref: include/trap.h, src/trap.c dotrap). */
