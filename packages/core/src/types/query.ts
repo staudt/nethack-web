@@ -13,6 +13,12 @@ export interface ActionOffer {
   action: PlayerAction;
   labelKey: string;
   params?: Params;
+  /**
+   * How fitting the offer is where it is made, higher first; default 0. `actionsFor` sorts by it
+   * (ties keep registration order), so a menu opens with what the place suggests: pick up on a
+   * pile, open next to a door.
+   */
+  priority?: number;
   /** Id of the mod that offered it. */
   source: string;
 }

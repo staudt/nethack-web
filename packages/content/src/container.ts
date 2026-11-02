@@ -53,6 +53,7 @@ import { nearCapacity } from './stats';
 import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { setSwapWep, swapWep } from './wield';
+import { HERE } from './priority';
 
 export const LOOT_ID: DefId = 'nh:loot';
 
@@ -516,6 +517,7 @@ const loot: ActionDef = {
       action: { type: 'mod', action: LOOT_ID, args: { box: b.id } },
       labelKey: 'action.nh:loot',
       params: { box: ctx.defs.itemName(ctx.state, b) },
+      priority: HERE,
     }));
   },
   perform(ctx, action) {

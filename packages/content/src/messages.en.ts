@@ -45,6 +45,10 @@ export const messagesEn: Record<string, string> = {
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',
   'door.locked': 'This door is locked.',
+  'door.none': 'You see no door there.',
+  'door.already_open': 'This door is already open.',
+  'door.no_door': 'This doorway has no door.',
+  'action.open': 'Open the door',
   'door.mon_opens': '{mon|The} opens a door.',
   'door.hear_open': 'You hear a door open.',
   // a monster the hero can't see or sense (Monnam's "it"); see monNam() and {mon|The}

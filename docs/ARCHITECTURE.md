@@ -382,6 +382,7 @@ interface ActionOffer {
   action: PlayerAction;
   labelKey: string;
   params?: Record<string, string | number>;
+  priority?: number; // higher first in actionsFor: what the place suggests (pick up, open a door)
   source: string;
 }
 
@@ -394,7 +395,7 @@ interface CoreQuery {
     objects: { id: EntityId; def: DefId; name: Msg }[]; // top of the pile first, shown ids
     trap: DefId | null; // a trap the hero has seen here
   };
-  actionsFor(target: Target): ActionOffer[]; // the union of every ActionDef.offer, in registration order
+  actionsFor(target: Target): ActionOffer[]; // the union of every ActionDef.offer, by offer priority (higher first), then registration order
   pathTo(pos: Pos): Pos[] | null; // A*, 8-dir, over remembered passable cells; excludes start
   trapAt(level: LevelId, pos: Pos): Readonly<Trap> | null; // seen traps only
 }

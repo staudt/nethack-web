@@ -35,6 +35,7 @@ import { P, hasProp, isStrangled, makeBlinded, makeConfused, timeoutLeft } from 
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { xnameOf } from './objnam';
+import { HERE } from './priority';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -612,7 +613,10 @@ const eat: ActionDef = {
     // "There is a X here; eat it?": one offer per food item on the floor
     return itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)
       .filter((e) => ctx.defs.object(e.def).class === 'food')
-      .map((e) => eatOffer(e.id, 'action.nh:eat_here', { item: ctx.defs.itemName(ctx.state, e) }));
+      .map((e) => ({
+        ...eatOffer(e.id, 'action.nh:eat_here', { item: ctx.defs.itemName(ctx.state, e) }),
+        priority: HERE,
+      }));
   },
   perform(ctx, action) {
     const v = victualOf(ctx);

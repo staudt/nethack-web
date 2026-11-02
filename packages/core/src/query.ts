@@ -92,9 +92,10 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
       if (state.gameOver || state.pendingPrompt) return [];
       if (t.kind === 'item' && state.entities[String(t.id)]?.c.item?.carriedBy !== state.playerId)
         return [];
-      return registry.actions.flatMap((def) =>
-        def.offer(ctx, t).map((o) => ({ ...o, source: def.mod })),
-      );
+      // a stable sort: equal priorities keep registration order
+      return registry.actions
+        .flatMap((def) => def.offer(ctx, t).map((o) => ({ ...o, source: def.mod })))
+        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
     },
 
     pathTo(pos: Pos) {

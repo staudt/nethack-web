@@ -35,6 +35,7 @@ import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
+import { HERE } from './priority';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -373,7 +374,13 @@ const pickup: ActionDef = {
   handles: 'mod',
   offer: (ctx, target) =>
     target.kind === 'self' && floorHere(ctx).length > 0
-      ? selfOffer('nh:pickup', 'action.nh:pickup')
+      ? [
+          {
+            action: { type: 'mod', action: 'nh:pickup' },
+            labelKey: 'action.nh:pickup',
+            priority: HERE,
+          },
+        ]
       : [],
   // ref: src/pickup.c pickup(what = 0): one object is taken directly, several are chosen from a menu
   perform(ctx) {

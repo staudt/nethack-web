@@ -37,6 +37,7 @@ import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
 import { T } from './terrain';
+import { HERE } from './priority';
 
 export const PICKLOCK_ID: DefId = 'nh:picklock';
 export const LOCK_ID: DefId = 'nh:lock';
@@ -514,6 +515,7 @@ const lockAct: ActionDef = {
         action: { type: 'mod', action: LOCK_ID, args: { item: pick.id, box: b.id } },
         labelKey: 'action.nh:lock_box',
         params: { box: ctx.defs.itemName(ctx.state, b), tool },
+        priority: HERE,
       }));
     }
     if (target.kind !== 'cell') return [];

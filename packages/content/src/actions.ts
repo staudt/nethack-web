@@ -42,6 +42,7 @@ import {
   trapmove,
 } from './trap';
 import { isMtrapped, setMtrapped } from './trapstate';
+import { HERE } from './priority';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -234,8 +235,11 @@ const move: ActionDef = {
         },
       ];
     }
+    // a door the hero knows gets `nh:open` (and kick) instead, so a tap never bumps into it
+    // unasked; one she doesn't know (blind) she walks into, which opens it
     const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
-    if (!check.ok && check.reason !== 'closedDoor') return [];
+    const known = ctx.query.describe(target.pos).terrain === T.door_closed;
+    if (!check.ok && (check.reason !== 'closedDoor' || known)) return [];
     const offer: Offer = {
       action: { type: 'move', dir },
       labelKey: 'action.move',
@@ -387,6 +391,61 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   }
 }
 
+/**
+ * Open an adjacent door the hero knows as closed, in any of the eight directions. A locked one
+ * says so and takes no time; opening never sticks (see DEVIATIONS: Doors).
+ * ref: src/lock.c doopen(), doopen_indir()
+ */
+const open: ActionDef = {
+  id: 'nh:open',
+  labelKey: 'action.open',
+  handles: 'mod',
+  offer(ctx, target) {
+    if (target.kind !== 'cell') return [];
+    const dir = dirTo(playerAt(ctx), target.pos);
+    if (!dir) return [];
+    // what the hero knows: a locked door looks closed
+    if (ctx.query.describe(target.pos).terrain !== T.door_closed) return [];
+    return [
+      {
+        action: { type: 'mod', action: 'nh:open', args: { dir } },
+        labelKey: 'action.open',
+        priority: HERE,
+      },
+    ];
+  },
+  perform(ctx, action) {
+    const raw = action.type === 'mod' ? (action.args as { dir?: unknown } | undefined)?.dir : null;
+    const dir = DIR_LIST.find((d) => d === raw);
+    if (!dir) return 0;
+    const from = playerAt(ctx);
+    const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
+    const level = getLevel(ctx.state);
+    const id = inBounds(level, to.x, to.y)
+      ? level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0]
+      : undefined;
+    const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
+    if (door === 'locked') {
+      ctx.emit({ type: 'msg', key: 'door.locked' });
+      return 0;
+    }
+    if (door !== 'closed') {
+      const key =
+        door === undefined
+          ? 'door.none'
+          : door === 'doorway'
+            ? 'door.no_door'
+            : 'door.already_open';
+      ctx.emit({ type: 'msg', key });
+      return 0;
+    }
+    openDoorAt(ctx, level, to);
+    ctx.emit({ type: 'doorOpened', pos: to });
+    ctx.emit({ type: 'msg', key: 'door.opens' });
+    return NORMAL_SPEED;
+  },
+};
+
 const wait: ActionDef = {
   id: 'nh:wait',
   labelKey: 'action.wait',
@@ -475,7 +534,7 @@ const down: ActionDef = {
   handles: 'mod',
   offer: (ctx, target) =>
     target.kind === 'self' && (terrainUnderHero(ctx).stairs === 'down' || seenHoleHere(ctx))
-      ? [{ action: { type: 'mod', action: 'nh:down' }, labelKey: 'action.down' }]
+      ? [{ action: { type: 'mod', action: 'nh:down' }, labelKey: 'action.down', priority: HERE }]
       : [],
   perform(ctx) {
     // ref: dodown(): on a seen trap door or hole, `uescaped_shaft()` -> dotrap(TOOKPLUNGE)
@@ -498,7 +557,7 @@ const up: ActionDef = {
   handles: 'mod',
   offer: (ctx, target) =>
     target.kind === 'self' && terrainUnderHero(ctx).stairs === 'up'
-      ? [{ action: { type: 'mod', action: 'nh:up' }, labelKey: 'action.up' }]
+      ? [{ action: { type: 'mod', action: 'nh:up' }, labelKey: 'action.up', priority: HERE }]
       : [],
   perform(ctx) {
     if (terrainUnderHero(ctx).stairs !== 'up') {
@@ -533,4 +592,4 @@ const up: ActionDef = {
   },
 };
 
-export const ACTIONS: readonly ActionDef[] = [move, fight, wait, search, down, up];
+export const ACTIONS: readonly ActionDef[] = [move, fight, open, wait, search, down, up];

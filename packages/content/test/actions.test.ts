@@ -298,8 +298,17 @@ describe('offers', () => {
   });
 
   test('closed doors are offered; walls, far cells, own cell and entities are not', () => {
-    const { q } = queryFor(['.|.', '@+.', '...']);
-    expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 1 } })).toHaveLength(1);
+    const { state, q } = queryFor(['.|.', '@+.', '...']);
+    // unseen (no vision yet), the door is walked into, which opens it
+    expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 1 } }).map((o) => o.action)).toEqual([
+      { type: 'move', dir: 'e' },
+    ]);
+    engine.step(state, { type: 'search' });
+    // a door is opened (or kicked), never walked into from a tap
+    expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 1 } }).map((o) => o.action)).toEqual([
+      { type: 'mod', action: 'nh:open', args: { dir: 'e' } },
+      { type: 'mod', action: 'nh:kick', args: { dir: 'e' } },
+    ]);
     expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 0 } })).toEqual([]);
     // a far cell offers travel (and running) but never a single move
     expect(
@@ -307,6 +316,73 @@ describe('offers', () => {
     ).toEqual([]);
     expect(q.actionsFor({ kind: 'cell', pos: { x: 0, y: 1 } })).toEqual([]);
     expect(q.actionsFor({ kind: 'entity', id: 999 })).toEqual([]);
+  });
+
+  test('a door is opened from any side, diagonals too; a locked one says so and takes no time', () => {
+    const { state, step } = setup(['X..', '.+.', '..@']);
+    step({ type: 'search' });
+    const q = engine.query(state);
+    const ids = (pos: Pos) =>
+      q
+        .actionsFor({ kind: 'cell', pos })
+        .map((o) => (o.action.type === 'mod' ? o.action.action : o.action.type));
+    expect(ids({ x: 1, y: 1 })).toEqual(['nh:open', 'nh:kick']);
+    const turn = state.turn;
+    const keys = (ev: GameEvent[]) => ev.flatMap((e) => (e.type === 'msg' ? [e.key] : []));
+    expect(keys(step({ type: 'mod', action: 'nh:open', args: { dir: 'nw' } }))).toEqual([
+      'door.opens',
+    ]);
+    expect([T.door_open_v, T.door_open_h]).toContain(
+      getLevel(state).palette[getLevel(state).cells[1 * 3 + 1]!],
+    );
+    expect(state.turn).toBe(turn + 1);
+    // the locked door, seen from next to it: it looks closed, so it is offered the same way
+    getPlayer(state).c.pos = { level: 'dlvl1', x: 1, y: 0 };
+    step({ type: 'search' });
+    expect(ids({ x: 0, y: 0 })).toEqual(['nh:open', 'nh:kick']);
+    const before = state.turn;
+    expect(keys(step({ type: 'mod', action: 'nh:open', args: { dir: 'w' } }))).toEqual([
+      'door.locked',
+    ]);
+    expect(state.turn).toBe(before);
+    expect(getLevel(state).palette[getLevel(state).cells[0]!]).toBe(T.door_locked);
+  });
+
+  test('what the place suggests comes first: stairs, pick up, loot, eat here', () => {
+    const { state, step } = setup(['...', '.@.', '...']);
+    const level = getLevel(state);
+    let si = level.palette.indexOf(T.stairs_down);
+    if (si === -1) si = level.palette.push(T.stairs_down) - 1;
+    level.cells[1 * 3 + 1] = si;
+    const at = getPlayer(state).c.pos!;
+    for (const def of ['nh:apple', 'nh:large_box']) {
+      const id = state.nextEntityId++;
+      state.entities[String(id)] = {
+        id,
+        def: def as DefId,
+        c: {
+          pos: { level: at.level, x: at.x, y: at.y },
+          item: {
+            quantity: 1,
+            buc: 'uncursed',
+            spe: 0,
+            known: { buc: false, spe: false },
+            carriedBy: null,
+            letter: null,
+            equipped: null,
+            placed: state.seq++,
+            age: 1,
+          },
+        },
+      };
+    }
+    step({ type: 'search' });
+    const ids = engine
+      .query(state)
+      .actionsFor({ kind: 'self' })
+      .map((o) => (o.action.type === 'mod' ? o.action.action : o.action.type));
+    expect(ids.slice(0, 4)).toEqual(['nh:down', 'nh:pickup', 'nh:loot', 'nh:eat']);
+    expect(ids[4]).toBe('wait');
   });
 
   test('diagonal into an open door is not offered', () => {
