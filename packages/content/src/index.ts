@@ -35,6 +35,7 @@ import { enhanceAction } from './skills';
 import { registerTraps } from './trap';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
 import { registerAutosearch } from './actions';
+import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -59,6 +60,7 @@ export const vanillaMod: Mod = {
     for (const a of CALL_ACTIONS) api.defineAction(a);
     for (const a of PRAY_ACTIONS) api.defineAction(a);
     for (const a of JEWELRY_ACTIONS) api.defineAction(a);
+    for (const a of ZAP_ACTIONS) api.defineAction(a);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -80,7 +82,8 @@ export const vanillaMod: Mod = {
     for (const m of MONSTERS) api.defineMonster(m);
     for (const o of OBJECTS) {
       const use = USES[o.id];
-      api.defineObject(use ? { ...o, use } : o);
+      const zap = WAND_ZAPS[o.id];
+      api.defineObject({ ...o, ...(use ? { use } : {}), ...(zap ? { zap } : {}) });
     }
     for (const a of APPEARANCES) api.defineAppearance(a);
     api.setItemNamer(nameItem);
@@ -302,5 +305,7 @@ export {
 } from './jewelry';
 export { done } from './end';
 export type { How } from './end';
-export { JEWELRY_CLASSES } from './o_init';
+export { JEWELRY_CLASSES, WAND_CLASSES } from './o_init';
 export { CHARGED_RINGS } from './objects';
+export { ZAP_ID, WAN, ZAP_ACTIONS, weffects, learnwand } from './zap';
+export { mspeed, setMspeed } from './mstate';

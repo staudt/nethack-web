@@ -53,7 +53,8 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
       def.class === 'potion' ||
       def.class === 'scroll' ||
       def.class === 'ring' ||
-      def.class === 'amulet'
+      def.class === 'amulet' ||
+      def.class === 'wand'
         ? { key: `obj.generic.${def.class}${plural}` }
         : def.class === 'armor' && def.armor
           ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
@@ -95,7 +96,7 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
 
 /**
  * The full item name, nested in the message `obj.doname` whose template joins the pieces:
- * `{count}{buc}{eaten}{erosion}{spe}{name}{worn}`. Each piece is '' or carries its own spacing
+ * `{count}{buc}{eaten}{erosion}{spe}{name}{charges}{worn}`. Each piece is '' or carries its own spacing
  * (count and prefixes end with a space, suffixes start with one). The name has no article; the
  * UI adds it with the `{item|an}` modifier, which must not add one when the text starts with a
  * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
@@ -112,6 +113,7 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     erosion: '',
     spe: '',
     name: '',
+    charges: '',
     worn: '',
   };
 
@@ -129,7 +131,15 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
   // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()).
   const fake = def.id === FAKE_AMULET;
   if (fake && !it.known.spe) params.count = 'the ';
-  if (it.known.buc && def.class !== 'coin' && !holyWater && !(fake && it.buc === 'uncursed'))
+  // A wand is oc_charged: once its charges are known, "uncursed" is implied.
+  const impliedUncursed = def.class === 'wand' && it.known.spe && it.buc === 'uncursed';
+  if (
+    it.known.buc &&
+    def.class !== 'coin' &&
+    !holyWater &&
+    !(fake && it.buc === 'uncursed') &&
+    !impliedUncursed
+  )
     params.buc = { key: `obj.buc.${it.buc}` };
 
   if (def.class === 'food' && it.eaten) params.eaten = { key: 'obj.eaten' };
@@ -144,6 +154,10 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
   ) {
     params.spe = `${it.spe >= 0 ? '+' : '-'}${Math.abs(it.spe)} `; // "%+d "
   }
+
+  // ref: doname_base() WAND_CLASS: " (%d:%d)" recharged:spe when known
+  if (def.class === 'wand' && it.known.spe)
+    params.charges = { key: 'obj.charges', params: { recharged: it.recharged ?? 0, spe: it.spe } };
 
   if (it.equipped === 'weapon') {
     // ref: doname_base() W_WEP: stacks and non-weapons are "(wielded)", a single weapon is

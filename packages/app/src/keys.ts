@@ -12,6 +12,7 @@ const PICK_KEYS: [string, string][] = [
   ['r', 'nh:read'],
   ['t', 'nh:throw'],
   ['f', 'nh:fire'],
+  ['z', 'nh:zap'],
 ];
 
 /** Vanilla client keys beyond the UI defaults: stairs, inventory and item verbs. */

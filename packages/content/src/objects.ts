@@ -28,6 +28,30 @@ export const CHARGED_RINGS: ReadonlySet<string> = new Set([
   'nh:ring_of_protection',
 ]);
 
+/** A wand def. ref: include/objects.h WAND(): weight 7, oc_charged, oc_dir */
+const wand = (
+  slug: string,
+  prob: number,
+  cost: number,
+  magic: boolean,
+  dir: 'nodir' | 'immediate' | 'ray',
+  material: string,
+  fg: string,
+): ObjectDef => ({
+  id: `nh:wand_of_${slug}`,
+  nameKey: `nh:wand_of_${slug}`,
+  class: 'wand',
+  glyph: { ch: '/', fg },
+  prob,
+  weight: 7,
+  cost,
+  material,
+  merge: false,
+  magic,
+  delay: 0,
+  wand: { dir },
+});
+
 export const OBJECTS: readonly ObjectDef[] = [
   // ---- weapons ----
   // ref: objects.h WEAPON("dagger", NoDes, 1, 1, 0, 30, 10, 4, 4, 3, 2, P, P_DAGGER, IRON, HI_METAL, DAGGER)
@@ -1188,6 +1212,39 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
   },
 
+  // ---- wands (weight 7, charged; appearances are shuffled, so no descKey; the material is
+  // that of the wand's own description, see DEVIATIONS) ----
+  // ref: objects.h WAND("light", "glass", 95, 100, 1, NODIR, GLASS, ...)
+  wand('light', 95, 100, true, 'nodir', 'glass', BRIGHT_CYAN),
+  // ref: objects.h WAND("secret door detection", "balsa", 50, 150, 1, NODIR, WOOD, ...)
+  wand('secret_door_detection', 50, 150, true, 'nodir', 'wood', BROWN),
+  // ref: objects.h WAND("create monster", "maple", 50, 200, 1, NODIR, WOOD, ...)
+  wand('create_monster', 50, 200, true, 'nodir', 'wood', BROWN),
+  // ref: objects.h WAND("nothing", "oak", 25, 100, 0, IMMEDIATE, WOOD, ...)
+  wand('nothing', 25, 100, false, 'immediate', 'wood', BROWN),
+  // ref: objects.h WAND("striking", "ebony", 30, 150, 1, IMMEDIATE, WOOD, ...)
+  wand('striking', 30, 150, true, 'immediate', 'wood', BROWN),
+  // ref: objects.h WAND("slow monster", "tin", 50, 150, 1, IMMEDIATE, METAL, ...)
+  wand('slow_monster', 50, 150, true, 'immediate', 'metal', CYAN),
+  // ref: objects.h WAND("speed monster", "brass", 50, 150, 1, IMMEDIATE, COPPER, ...)
+  wand('speed_monster', 50, 150, true, 'immediate', 'copper', YELLOW),
+  // ref: objects.h WAND("opening", "zinc", 30, 150, 1, IMMEDIATE, METAL, ...)
+  wand('opening', 30, 150, true, 'immediate', 'metal', CYAN),
+  // ref: objects.h WAND("locking", "aluminum", 30, 150, 1, IMMEDIATE, METAL, ...)
+  wand('locking', 30, 150, true, 'immediate', 'metal', CYAN),
+  // ref: objects.h WAND("probing", "uranium", 30, 150, 1, IMMEDIATE, METAL, ...)
+  wand('probing', 30, 150, true, 'immediate', 'metal', CYAN),
+  // ref: objects.h WAND("magic missile", "steel", 50, 150, 1, RAY, IRON, ...)
+  wand('magic_missile', 50, 150, true, 'ray', 'iron', CYAN),
+  // ref: objects.h WAND("fire", "hexagonal", 40, 175, 1, RAY, IRON, ...)
+  wand('fire', 40, 175, true, 'ray', 'iron', CYAN),
+  // ref: objects.h WAND("cold", "short", 40, 175, 1, RAY, IRON, ...)
+  wand('cold', 40, 175, true, 'ray', 'iron', CYAN),
+  // ref: objects.h WAND("sleep", "runed", 50, 175, 1, RAY, IRON, ...)
+  wand('sleep', 50, 175, true, 'ray', 'iron', CYAN),
+  // ref: objects.h WAND("lightning", "curved", 40, 175, 1, RAY, IRON, ...)
+  wand('lightning', 40, 175, true, 'ray', 'iron', CYAN),
+
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {
@@ -1560,6 +1617,14 @@ const amuletLook = (slug: string): AppearanceDef => ({
   glyph: { ch: '"', fg: CYAN },
 });
 
+/** Shuffled wand descriptions with their colors (ref: objects.h WAND() descriptions). */
+const wandLook = (slug: string, fg: string): AppearanceDef => ({
+  id: `nh:${slug}_wand`,
+  nameKey: `nh:${slug}_wand`,
+  class: 'wand',
+  glyph: { ch: '/', fg },
+});
+
 export const APPEARANCES: readonly AppearanceDef[] = [
   // ---- potion descriptions ----
   potionLook('ruby', RED), // gain ability
@@ -1673,4 +1738,34 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   amuletLook('octagonal'),
   amuletLook('perforated'),
   amuletLook('cubical'),
+
+  // ---- wand descriptions, in objects.h order (light .. lightning, then the extras) ----
+  wandLook('glass', BRIGHT_CYAN),
+  wandLook('balsa', BROWN),
+  wandLook('crystal', BRIGHT_CYAN),
+  wandLook('maple', BROWN),
+  wandLook('pine', BROWN),
+  wandLook('redwood', RED),
+  wandLook('oak', BROWN),
+  wandLook('ebony', BROWN),
+  wandLook('marble', GRAY),
+  wandLook('tin', CYAN),
+  wandLook('brass', YELLOW),
+  wandLook('copper', YELLOW),
+  wandLook('silver', GRAY),
+  wandLook('platinum', WHITE),
+  wandLook('iridium', BRIGHT_CYAN),
+  wandLook('zinc', CYAN),
+  wandLook('aluminum', CYAN),
+  wandLook('uranium', CYAN),
+  wandLook('iron', CYAN),
+  wandLook('steel', CYAN),
+  wandLook('hexagonal', CYAN),
+  wandLook('short', CYAN),
+  wandLook('runed', CYAN),
+  wandLook('long', CYAN),
+  wandLook('curved', CYAN),
+  wandLook('forked', BROWN),
+  wandLook('spiked', CYAN),
+  wandLook('jeweled', GRAY),
 ];

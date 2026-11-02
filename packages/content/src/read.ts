@@ -431,13 +431,37 @@ function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
 // light
 
 /**
- * ref: src/vision.c circle_data[] rows for do_clear_area() radius 5 and 9: the largest |dx| at
- * each |dy|.
+ * ref: src/vision.c circle_data[] rows for do_clear_area() radius 5, 8 (BOLT_LIM) and 9: the
+ * largest |dx| at each |dy|.
  */
 const CIRCLE: Readonly<Record<number, readonly number[]>> = {
   5: [5, 5, 5, 4, 3, 2],
+  8: [8, 8, 8, 7, 7, 6, 6, 4, 2],
   9: [9, 9, 9, 9, 8, 8, 7, 6, 5, 3],
 };
+
+/**
+ * The cells around the hero that she could see from where she stands (couldsee(): line of
+ * sight regardless of the lighting) within a circle of radius 5, 8 or 9, as cell indices.
+ * ref: src/vision.c do_clear_area() centered on the hero
+ */
+export function clearArea(ctx: Ctx, radius: 5 | 8 | 9): number[] {
+  const pos = heroEntity(ctx).c.pos;
+  const level: Level | undefined = pos ? ctx.state.levels[pos.level] : undefined;
+  if (!pos || !level) return [];
+  const rules = cellRules(level, ctx.defs);
+  const dark: Level = { ...level, lit: level.lit.map(() => 1) };
+  const circle = CIRCLE[radius] ?? [];
+  const out: number[] = [];
+  for (const i of computeVisible(dark, rules, pos)) {
+    const x = i % level.width;
+    const y = (i - x) / level.width;
+    const lim = circle[Math.abs(y - pos.y)];
+    if (lim === undefined || Math.abs(x - pos.x) > lim) continue;
+    out.push(i);
+  }
+  return out.sort((a, b) => a - b);
+}
 
 /**
  * ref: src/read.c litroom(): lights (or darkens) the cells around the hero that she could see
@@ -446,23 +470,12 @@ const CIRCLE: Readonly<Record<number, readonly number[]>> = {
  * range), in a corridor a stretch of it. Not ported: lamps, gremlins, the Rogue level, being
  * swallowed or underwater, light-sensitive monsters (lightdamage).
  */
-function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
+export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
   msg(ctx, on ? 'light.lit_field' : 'light.darkness');
-  const hero = heroEntity(ctx);
-  const pos = hero.c.pos;
+  const pos = heroEntity(ctx).c.pos;
   const level: Level | undefined = pos ? ctx.state.levels[pos.level] : undefined;
-  if (!pos || !level) return;
-  const rules = cellRules(level, ctx.defs);
-  // line of sight regardless of the current lighting
-  const dark: Level = { ...level, lit: level.lit.map(() => 1) };
-  const circle = CIRCLE[blessed ? 9 : 5] ?? [];
-  for (const i of computeVisible(dark, rules, pos)) {
-    const x = i % level.width;
-    const y = (i - x) / level.width;
-    const lim = circle[Math.abs(y - pos.y)];
-    if (lim === undefined || Math.abs(x - pos.x) > lim) continue;
-    level.lit[i] = on ? 1 : 0;
-  }
+  if (!level) return;
+  for (const i of clearArea(ctx, blessed ? 9 : 5)) level.lit[i] = on ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------------------------

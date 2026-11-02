@@ -91,6 +91,8 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.pick.none.nh:read': "You don't have anything to read.",
   'ui.pick.nh:throw': 'What do you want to throw?',
   'ui.pick.none.nh:throw': "You don't have anything to throw.",
+  'ui.pick.nh:zap': 'What do you want to zap?',
+  'ui.pick.none.nh:zap': "You don't have anything to zap.",
   'describe.unexplored': 'You have not explored that spot.',
 };
 

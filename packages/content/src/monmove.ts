@@ -51,12 +51,17 @@ export const dist2 = (x0: number, y0: number, x1: number, y1: number): number =>
   (x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1);
 
 /**
- * Movement points a monster gains this turn: its speed randomly rounded to a multiple of
- * NORMAL_SPEED (so a speed-6 monster gets 12 half of the time, 0 otherwise).
- * ref: src/mon.c mcalcmove() with m_moving TRUE; no MSLOW/MFAST, no steed.
+ * Movement points a monster gains this turn: its speed, adjusted when slowed or hasted, randomly
+ * rounded to a multiple of NORMAL_SPEED (so a speed-6 monster gets 12 half of the time, 0
+ * otherwise). ref: src/mon.c mcalcmove() with m_moving TRUE; no steed.
  */
-export function mcalcmove(rng: Rng, speed: number): number {
+export function mcalcmove(rng: Rng, speed: number, mspeed: 'slow' | 'fast' | null = null): number {
   let mmove = speed;
+  // MSLOW: lose 1/3 of the speed below 12 but 2/3 above; MFAST: gain 1/3
+  if (mspeed === 'slow') {
+    if (mmove < NORMAL_SPEED) mmove = Math.trunc((2 * mmove + 1) / 3);
+    else mmove = 4 + Math.trunc(mmove / 3);
+  } else if (mspeed === 'fast') mmove = Math.trunc((4 * mmove + 2) / 3);
   const mmoveAdj = mmove % NORMAL_SPEED;
   mmove -= mmoveAdj;
   if (rng.rn2(NORMAL_SPEED) < mmoveAdj) mmove += NORMAL_SPEED;

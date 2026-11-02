@@ -445,13 +445,18 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
 /**
  * The hero sets off the trap she is standing on. ref: src/trap.c dotrap(): a seen trap is
  * escaped one time in five ("You escape a bear trap."), unless she jumped into a hole on
- * purpose (`plunged`). The hero never flies, levitates or fumbles.
+ * purpose (`plunged`) or the trap is forced on her (`force`: FORCETRAP, e.g. a wand of locking).
+ * The hero never flies, levitates or fumbles.
  */
-export function dotrap(ctx: Ctx, trap: Trap, opts: { plunged?: boolean } = {}): void {
+export function dotrap(
+  ctx: Ctx,
+  trap: Trap,
+  opts: { plunged?: boolean; force?: boolean } = {},
+): void {
   const levelId = heroPos(ctx).level;
   const t = liveTrap(ctx, levelId, trap) ?? trap;
   ctx.interrupt(); // nomul(0)
-  if (t.seen && !opts.plunged && ctx.rng.rn2(5) === 0) {
+  if (t.seen && !opts.plunged && !opts.force && ctx.rng.rn2(5) === 0) {
     say(ctx, 'trap.escape', { trap: trapName(t) });
     return;
   }
@@ -818,9 +823,10 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
 /**
  * A monster on a trap: one already caught tries to get free (1 in 40); otherwise a monster
  * that knows this kind of trap avoids it 3 times in 4, and the trap goes off.
+ * With `force` (FORCETRAP, e.g. a wand of locking or opening) the trap cannot be avoided.
  * ref: src/trap.c mintrap(). Not ported: metallivores eating bear traps, hiders.
  */
-export function mintrap(ctx: Ctx, monId: EntityId): TrapResult {
+export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {}): TrapResult {
   const mon = ctx.state.entities[String(monId)];
   const p = mon?.c.pos;
   if (!mon?.c.monster || !p) return 'finished';
@@ -846,8 +852,10 @@ export function mintrap(ctx: Ctx, monId: EntityId): TrapResult {
     monKnowsTraps(ctx, monId, trap.def) ||
     (trap.def === TRAP.hole && !def.flags.includes('mindless'));
   if (!TRAPS.some((t) => t.id === trap.def)) return 'finished'; // another mod's trap
-  if (inAir(ctx, mon)) return 'finished'; // floor_trigger() && check_in_air()
-  if (alreadySeen && ctx.rng.rn2(4) !== 0) return 'finished';
+  if (!opts.force) {
+    if (inAir(ctx, mon)) return 'finished'; // floor_trigger() && check_in_air()
+    if (alreadySeen && ctx.rng.rn2(4) !== 0) return 'finished';
+  }
   monLearnsTraps(ctx, monId, trap.def);
   monsSeeTrap(ctx, p.level, trap);
   switch (trap.def) {

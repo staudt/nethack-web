@@ -1,6 +1,7 @@
 import type { BrainDef } from '@nh/core';
 import { dogMove } from './dogmove';
 import { dochug, mcalcmove } from './monmove';
+import { mspeed } from './mstate';
 
 // ref: src/monmove.c dochug(), m_move(); src/mon.c mcalcmove()
 export const BRAINS: readonly BrainDef[] = [
@@ -10,7 +11,7 @@ export const BRAINS: readonly BrainDef[] = [
     act: (ctx, self) => dochug(ctx, self, dogMove),
     movement(ctx, self) {
       const a = ctx.state.entities[String(self)]?.c.actor;
-      return mcalcmove(ctx.rng, a?.speed ?? 12);
+      return mcalcmove(ctx.rng, a?.speed ?? 12, mspeed(ctx, self));
     },
   },
 ];

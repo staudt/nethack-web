@@ -43,13 +43,13 @@ function blessorcurse(rng: Rng, it: ItemComponent, chance: number): void {
 
 /**
  * Random initialization of an object's BUC, enchantment and quantity.
- * ref: src/mkobj.c mksobj_init() for weapon, food, potion, scroll, armor and coin classes.
+ * ref: src/mkobj.c mksobj_init() for weapon, food, potion, scroll, armor, wand and coin classes.
  * Simplified: poisonable weapons roll for poison but are never poisoned, no artifacts, no erosion; food has no corpse/egg/tin/slime-mold special cases (the
  * corpse is made through mkcorpse(), which supplies the monster).
  */
 export function mksobjInit(
   ctx: Pick<ItemCtx, 'state' | 'rng'>,
-  def: Pick<ObjectDef, 'id' | 'class' | 'weapon'>,
+  def: Pick<ObjectDef, 'id' | 'class' | 'weapon' | 'wand'>,
   it: ItemComponent,
   artif = false,
 ): void {
@@ -97,6 +97,12 @@ export function mksobjInit(
         it.spe = rne(rng, 3, lvl);
       } else blessorcurse(rng, it, 10);
       if (artif) rng.rn2(40); // ref: `artif && !rn2(40 + 10 * nartifact_exist())`
+      break;
+    case 'wand':
+      // ref: mksobj_init() WAND_CLASS: spe = rn1(5, NODIR ? 11 : 4); blessorcurse(otmp, 17).
+      // (Wishing and stasis are not in the subset.) recharged stays 0 (absent).
+      it.spe = rng.rn2(5) + (def.wand?.dir === 'nodir' ? 11 : 4);
+      blessorcurse(rng, it, 17);
       break;
     case 'coin':
       break;

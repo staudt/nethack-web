@@ -192,10 +192,11 @@ export function erodeObj(
 
 /**
  * Erodes a random piece of the victim's armor; the body (cloak, else suit, else shirt) is
- * always a target, other slots only if worn and erodible, so the loop always ends.
- * ref: src/uhitm.c erode_armor()
+ * always a target, other slots only if worn and erodible, so the loop always ends. Returns true
+ * when the body was the target, which is burnarmor()'s "body hit" result.
+ * ref: src/uhitm.c erode_armor(), src/trap.c burnarmor()
  */
-export function erodeArmor(ctx: Ctx, victimId: EntityId, hurt: ErodeType): void {
+export function erodeArmor(ctx: Ctx, victimId: EntityId, hurt: ErodeType): boolean {
   const worn = (slot: 'helm' | 'cloak' | 'body' | 'shirt' | 'shield' | 'gloves' | 'boots') =>
     whichArmor(ctx, victimId, slot);
   const tryOne = (target: Entity | null): boolean =>
@@ -205,22 +206,22 @@ export function erodeArmor(ctx: Ctx, victimId: EntityId, hurt: ErodeType): void 
     switch (ctx.rng.rn2(5)) {
       case 0:
         if (!tryOne(worn('helm'))) continue;
-        return;
+        return false;
       case 1: {
         const target = worn('cloak') ?? worn('body') ?? worn('shirt');
         if (target)
           erodeObj(ctx, target, xnameOf(ctx.state, ctx.defs, target), hurt, { verbose: true });
-        return;
+        return true;
       }
       case 2:
         if (!tryOne(worn('shield'))) continue;
-        return;
+        return false;
       case 3:
         if (!tryOne(worn('gloves'))) continue;
-        return;
+        return false;
       default:
         if (!tryOne(worn('boots'))) continue;
-        return;
+        return false;
     }
   }
 }

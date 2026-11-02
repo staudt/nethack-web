@@ -3,14 +3,17 @@
 //
 // MonsterComponent is core's, so the content mod keeps them in `modData.nh`:
 // `mfrozen: { [monsterId]: turns }` exists while the monster cannot move (mcanmove = 0), and
-// `mstun: { [monsterId]: true }` while it is stunned.
+// `mstun: { [monsterId]: true }` while it is stunned, `mspeed: { [monsterId]: 'slow' | 'fast' }`
+// while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed).
 import { sortedIds, type Ctx, type EntityId, type Json, type ModApi } from '@nh/core';
 
 type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-function table(ctx: Pick<Ctx, 'state'>, key: 'mfrozen' | 'mstun', create: boolean): Table | null {
+type Key = 'mfrozen' | 'mstun' | 'mspeed';
+
+function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
   let root = md['nh'];
   if (!isObj(root)) {
@@ -59,9 +62,29 @@ export function setMStunned(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean):
   }
 }
 
+/** A monster's speed adjustment (mspeed): MSLOW, MFAST or normal (null). */
+export type MSpeed = 'slow' | 'fast' | null;
+
+export function mspeed(ctx: Pick<Ctx, 'state'>, id: EntityId): MSpeed {
+  const v = table(ctx, 'mspeed', false)?.[String(id)];
+  return v === 'slow' || v === 'fast' ? v : null;
+}
+
+export function setMspeed(ctx: Pick<Ctx, 'state'>, id: EntityId, v: MSpeed): void {
+  if (v) {
+    const t = table(ctx, 'mspeed', true);
+    if (t) t[String(id)] = v;
+  } else {
+    const t = table(ctx, 'mspeed', false);
+    if (t) delete t[String(id)];
+  }
+}
+
+const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mspeed'];
+
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
-  for (const k of ['mfrozen', 'mstun'] as const) {
+  for (const k of KEYS) {
     const t = table(ctx, k, false);
     if (t) delete t[String(id)];
   }
@@ -82,7 +105,7 @@ export function registerMState(api: ModApi): void {
         else t[String(id)] = v - 1;
       }
     }
-    for (const k of ['mfrozen', 'mstun'] as const) {
+    for (const k of KEYS) {
       const tt = table(ctx, k, false);
       if (!tt) continue;
       for (const key of Object.keys(tt).sort())

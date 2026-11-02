@@ -21,6 +21,12 @@ const SHUFFLED: readonly ObjectClass[] = ['potion', 'scroll'];
 export const JEWELRY_CLASSES: readonly ObjectClass[] = ['ring', 'amulet'];
 
 /**
+ * Wands are shuffled too (milestone 5b step 9 turns it on with their generation, for the same
+ * reason); until then they are known by name. Tests use `shuffleAll(ctx, WAND_CLASSES)`.
+ */
+export const WAND_CLASSES: readonly ObjectClass[] = ['wand'];
+
+/**
  * Assigns each shuffled object (potions except water, scrolls) a distinct random appearance of
  * its class. ref: src/o_init.c shuffle_all(), shuffle(): for each object j in order, swap its
  * description with that of a random object i in j..last. NetHack shuffles the descriptions of
