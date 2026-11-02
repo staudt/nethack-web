@@ -9,6 +9,7 @@ import {
   type GameState,
   type ItemComponent,
   type ObjectDef,
+  type Pos,
   type Registry,
 } from '@nh/core';
 
@@ -137,6 +138,8 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkProps(state, errs);
   checkDoors(state, registry, errs);
   checkTraps(state, registry, errs);
+  checkStairsReachable(state, registry, errs);
+  checkBranches(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
 
@@ -432,5 +435,92 @@ function checkFleeing(state: GameState, errs: string[]): void {
     if (!state.entities[k]?.c.monster) errs.push(`mflee: '${k}' is not a monster`);
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 0)
       errs.push(`mflee: monster ${k} has flee time ${String(v)}`);
+  }
+}
+
+/**
+ * A level's stairs (up, down and branch) can be reached from each other: walking over passable
+ * terrain, doors of any kind and hidden terrain (secret doors and corridors a player can find),
+ * never diagonally into or out of a door that is not an empty doorway, or hidden terrain.
+ */
+function checkStairsReachable(state: GameState, registry: Registry, errs: string[]): void {
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) continue;
+    const stairs: Pos[] = [];
+    for (const p of [lv.up, lv.down, lv.branch?.pos]) if (p) stairs.push(p);
+    const first = stairs[0];
+    if (stairs.length < 2 || !first) continue;
+    const walk: boolean[] = [];
+    const square: boolean[] = [];
+    for (const id of lv.palette) {
+      const t = registry.hasTerrain(id) ? registry.terrain(id) : null;
+      const hidden = t?.looksLike !== undefined;
+      walk.push(!!t && (t.passable || t.door !== undefined || hidden));
+      square.push(!!t && ((t.door !== undefined && t.door !== 'doorway') || hidden));
+    }
+    const at = (x: number, y: number): number => lv.cells[cellIndex(lv, x, y)] ?? -1;
+    const seen = new Set([cellIndex(lv, first.x, first.y)]);
+    const queue: Pos[] = [first];
+    for (let p = queue.shift(); p; p = queue.shift()) {
+      const fromSquare = square[at(p.x, p.y)] === true;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = p.x + dx;
+          const y = p.y + dy;
+          if (!inBounds(lv, x, y)) continue;
+          const i = cellIndex(lv, x, y);
+          const c = at(x, y);
+          if (seen.has(i) || !walk[c]) continue;
+          if (dx !== 0 && dy !== 0 && (fromSquare || square[c])) continue;
+          seen.add(i);
+          queue.push({ x, y });
+        }
+    }
+    for (const p of stairs) {
+      if (!seen.has(cellIndex(lv, p.x, p.y)))
+        errs.push(`level ${lid}: stairs at ${p.x},${p.y} unreachable from ${first.x},${first.y}`);
+    }
+  }
+}
+
+/**
+ * Branch stairs match the dungeon layout: a dungeon's branch to another dungeon is on exactly the
+ * level the layout says (on stairs going down) and on no other level of the parent, and the
+ * branch's top level has the stairs back up to it. Only generated levels are checked.
+ */
+function checkBranches(state: GameState, registry: Registry, errs: string[]): void {
+  const lids = Object.keys(state.levels).sort();
+  const parentOf = new Map<string, { dungeon: string; dlevel: number }>();
+  for (const d of state.dungeons) {
+    for (const b of d.branches) parentOf.set(b.to, { dungeon: d.id, dlevel: b.dlevel });
+  }
+  for (const lid of lids) {
+    const lv = state.levels[lid];
+    const b = lv?.branch;
+    if (!lv || !b) continue;
+    const id = lv.palette[lv.cells[cellIndex(lv, b.pos.x, b.pos.y)] ?? -1];
+    const stairs = id !== undefined && registry.hasTerrain(id) ? registry.terrain(id).stairs : null;
+    if (stairs !== b.dir)
+      errs.push(`level ${lid}: branch stairs ${b.dir} at ${b.pos.x},${b.pos.y} are on '${id}'`);
+    const down = parentOf.get(b.to.dungeon);
+    const up = parentOf.get(lv.dungeon);
+    if (b.dir === 'down') {
+      if (down?.dungeon !== lv.dungeon || down.dlevel !== lv.dlevel || b.to.dlevel !== 1)
+        errs.push(`level ${lid}: branch to '${b.to.dungeon}' is not in the layout`);
+    } else if (up?.dungeon !== b.to.dungeon || up.dlevel !== b.to.dlevel || lv.dlevel !== 1) {
+      errs.push(`level ${lid}: branch up to '${b.to.dungeon}' does not match the layout`);
+    }
+  }
+  // every generated level that the layout gives a branch has it
+  for (const lid of lids) {
+    const lv = state.levels[lid];
+    if (!lv) continue;
+    const wanted = [...parentOf].find(
+      ([child, p]) =>
+        (p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
+        (child === lv.dungeon && lv.dlevel === 1),
+    );
+    if (wanted && !lv.branch) errs.push(`level ${lid}: the layout's branch stairs are missing`);
   }
 }

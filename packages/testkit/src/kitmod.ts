@@ -55,3 +55,27 @@ export const soakKitMod: Mod = {
     );
   },
 };
+
+/**
+ * A game mod for soak runs that should play in a branch: at new game it sends the hero to the
+ * main dungeon's first branch staircase (the Mines staircase in vanilla), where the bot takes it
+ * soon. Load it after the vanilla mod. Without a branch it does nothing.
+ */
+export const branchStartMod: Mod = {
+  id: 'testkit-branch-start',
+  version: '1',
+  dependsOn: ['nh'],
+  register(api) {
+    // on the first placement (after the pet is made), not at newGame: no level exists yet
+    api.on(
+      'levelChange',
+      (ctx, change) => {
+        if (change.from !== null) return;
+        const main = ctx.state.dungeons[0];
+        const b = main?.branches[0];
+        if (main && b) ctx.goToLevel({ dungeon: main.id, dlevel: b.dlevel }, 'branch');
+      },
+      { priority: -100 },
+    );
+  },
+};

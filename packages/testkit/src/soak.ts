@@ -50,6 +50,8 @@ export interface SoakResult {
   cellsExplored: number;
   /** Greatest dungeon depth the hero reached. */
   deepestLevel: number;
+  /** Deepest level number (`dlevel`) the hero reached in each dungeon she entered, by dungeon id. */
+  dungeons: Record<string, number>;
   /** Monsters the hero killed or destroyed (counted from 'combat.you_kill'/'combat.you_destroy' messages). */
   kills: number;
   /** The actions taken, so a failure can be replayed. */
@@ -121,6 +123,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   const log: PlayerAction[] = [];
   let kills = 0;
   let deepest = 1;
+  const dungeons: Record<string, number> = {};
+  const noteDungeon = (): void => {
+    const lv = state.levels[state.currentLevel];
+    if (lv) dungeons[lv.dungeon] = Math.max(dungeons[lv.dungeon] ?? 0, lv.dlevel);
+  };
+  noteDungeon();
   let pickedUp = 0;
   let eaten = 0;
   let quaffed = 0;
@@ -178,6 +186,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     }
     if (isMod(a, 'nh:pickup')) pickedUp += Math.max(0, carriedCount() - before);
     deepest = Math.max(deepest, depthNow());
+    noteDungeon();
   };
   let violations: SoakViolation | null = null;
 
@@ -192,6 +201,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     const p = getPlayer(state).c.pos;
     if (!p) throw new Error('player has no pos');
     return { x: p.x, y: p.y };
+  };
+  /** Whether the hero stands on branch stairs down. */
+  const onBranchDown = (): boolean => {
+    const b = state.levels[state.currentLevel]?.branch;
+    const p = getPlayer(state).c.pos;
+    return b?.dir === 'down' && p?.x === b.pos.x && p.y === b.pos.y;
   };
   /** Monsters on this level that the hero can currently see. */
   const visibleMonsters = (): { id: EntityId; pos: Pos; peaceful: boolean }[] => {
@@ -416,18 +431,22 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       else if (roll < 30) action = pickRandom(itemOffers((id) => id === 'nh:remove'));
     }
 
-    // 6. descend 1 time in 4 when standing on a down staircase, so runs visit several levels
+    // 6. descend 1 time in 4 when standing on a down staircase, so runs visit several levels;
+    // 1 time in 2 on branch stairs down, so runs enter other dungeons (the Mines)
     if (!action) {
       const descend = offers.find((o) => isMod(o.action, 'nh:down'));
-      if (descend && rng.rn2(4) === 0) action = descend.action;
+      if (descend && rng.rn2(onBranchDown() ? 2 : 4) === 0) action = descend.action;
     }
 
-    // 6b. head for a remembered down staircase now and then (travel offers come from the cell)
+    // 6b. head for a remembered down staircase now and then (travel offers come from the cell),
+    // branch stairs down first
     if (!action && !capped && rng.rn2(8) === 0) {
       const level = state.levels[state.currentLevel];
       const mem = state.memory[state.currentLevel];
       const pi = level?.palette.indexOf(VANILLA_TERRAIN.stairs_down) ?? -1;
-      const at = pi >= 0 && mem ? mem.indexOf(pi) : -1;
+      const b = level?.branch;
+      const bi = level && b?.dir === 'down' ? b.pos.y * level.width + b.pos.x : -1;
+      const at = pi < 0 || !mem ? -1 : bi >= 0 && mem[bi] === pi ? bi : mem.indexOf(pi);
       if (level && at >= 0) {
         const go = q
           .actionsFor({
@@ -483,6 +502,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     turns: state.turn,
     violations,
     deepestLevel: deepest,
+    dungeons,
     kills,
     cellsExplored: mem.filter((m) => m >= 0).length,
     log,
