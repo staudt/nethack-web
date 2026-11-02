@@ -13,7 +13,8 @@ import {
 } from '@nh/core';
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
-import { checkInvariants, soak } from '../src/index';
+import { checkInvariants } from '../src/index';
+import { itemSoaks } from './helpers/soak';
 
 const engine = createEngine([vanillaMod]);
 
@@ -60,24 +61,7 @@ function play(state: GameState, picks: readonly number[], onStep?: () => void): 
 }
 
 describe('item soak', () => {
-  const totals = { pickedUp: 0, eaten: 0, quaffed: 0, read: 0, thrown: 0, kills: 0 };
-  for (const seed of [101, 102, 103, 104, 105]) {
-    test(`seed ${seed}: 2000 turns with item invariants`, { timeout: 60000 }, () => {
-      const r = soak([vanillaMod], { seed, turns: 2000, checkEvery: 5 });
-      expect(r.violations).toBeNull();
-      totals.pickedUp += r.pickedUp;
-      totals.eaten += r.eaten;
-      totals.quaffed += r.quaffed;
-      totals.read += r.read;
-      totals.thrown += r.thrown;
-      totals.kills += r.kills;
-    });
-  }
-  test('across the seeds the bot picked up, ate and threw things', () => {
-    expect(totals.pickedUp).toBeGreaterThan(0);
-    expect(totals.eaten).toBeGreaterThan(0);
-    expect(totals.thrown).toBeGreaterThan(0);
-  });
+  itemSoaks([101, 104, 105]);
 });
 
 describe('item properties', () => {
