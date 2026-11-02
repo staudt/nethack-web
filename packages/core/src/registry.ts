@@ -415,15 +415,11 @@ export function loadMods(mods: readonly Mod[]): Registry {
           posInt(d.levels.base, 'levels.base');
           range(d.levels.range, 'levels.range');
         }
-        if (d.branches !== undefined && !Array.isArray(d.branches))
-          issue('branches', 'must be an array', d.id);
-        (Array.isArray(d.branches) ? d.branches : []).forEach((b, i) => {
-          str(b.to, `branches[${i}].to`, d.id);
-          posInt(b.base, `branches[${i}].base`);
-          range(b.range, `branches[${i}].range`);
-          if (d.levels !== undefined && b.base > d.levels.base)
-            issue(`branches[${i}].base`, 'is below the bottom of the dungeon', d.id);
-        });
+        if (d.entry !== undefined) {
+          str(d.entry.from, 'entry.from', d.id);
+          posInt(d.entry.base, 'entry.base');
+          range(d.entry.range, 'entry.range');
+        }
         dungeons.set(d.id, { ...d, mod: modId });
       },
       setItemNamer(namer) {
@@ -569,8 +565,9 @@ export function loadMods(mods: readonly Mod[]): Registry {
 }
 
 /**
- * Root first, then breadth-first along branches in their listed order. Reports a missing or
- * second root, unknown branch targets, a dungeon entered by two branches, and unreachable ones.
+ * Root first, then breadth-first, each dungeon's children in registration order. Reports a
+ * missing or second root, unknown `entry.from`, an entry below the bottom of its parent, and
+ * dungeons that cannot be reached from the root (a loop).
  */
 function orderDungeons(
   dungeons: ReadonlyMap<string, DungeonDef & { mod: string }>,
@@ -578,39 +575,44 @@ function orderDungeons(
 ): DungeonDef[] {
   if (dungeons.size === 0) return [DEFAULT_DUNGEON];
   const all = [...dungeons.values()];
-  const entered = new Set<string>();
-  for (const d of all)
-    for (const [i, b] of (d.branches ?? []).entries()) {
-      const path = `branches[${i}].to`;
-      if (!dungeons.has(b.to))
-        issues.push({ modId: d.mod, defId: d.id, path, reason: `unknown dungeon '${b.to}'` });
-      else if (entered.has(b.to))
-        issues.push({ modId: d.mod, defId: d.id, path, reason: `'${b.to}' already has a branch` });
-      entered.add(b.to);
-    }
-  const roots = all.filter((d) => !entered.has(d.id));
+  for (const d of all) {
+    if (!d.entry) continue;
+    const parent = dungeons.get(d.entry.from);
+    if (!parent)
+      issues.push({
+        modId: d.mod,
+        defId: d.id,
+        path: 'entry.from',
+        reason: `unknown dungeon '${d.entry.from}'`,
+      });
+    else if (parent.levels && d.entry.base > parent.levels.base)
+      issues.push({
+        modId: d.mod,
+        defId: d.id,
+        path: 'entry.base',
+        reason: `is below the bottom of '${parent.id}'`,
+      });
+  }
+  const roots = all.filter((d) => !d.entry);
   if (roots.length !== 1) {
     const d = roots[1] ?? all[0];
     issues.push({
       modId: d?.mod ?? '?',
       ...(d ? { defId: d.id } : {}),
-      path: 'branches',
-      reason: `exactly one dungeon must have no branch into it (found ${roots.length})`,
+      path: 'entry',
+      reason: `exactly one dungeon must have no entry (found ${roots.length})`,
     });
     return all;
   }
-  const order: (DungeonDef & { mod: string })[] = [roots[0] as DungeonDef & { mod: string }];
+  const order = [roots[0] as DungeonDef & { mod: string }];
   for (let q = 0; q < order.length; q++)
-    for (const b of order[q]?.branches ?? []) {
-      const next = dungeons.get(b.to);
-      if (next && !order.includes(next)) order.push(next);
-    }
+    for (const d of all) if (d.entry?.from === order[q]?.id && !order.includes(d)) order.push(d);
   for (const d of all)
-    if (!order.includes(d))
+    if (!order.includes(d) && dungeons.has(d.entry?.from ?? ''))
       issues.push({
         modId: d.mod,
         defId: d.id,
-        path: 'branches',
+        path: 'entry.from',
         reason: 'not reachable from the root dungeon',
       });
   return order;

@@ -171,9 +171,10 @@ export interface TrapDef {
 }
 
 /**
- * A dungeon: a chain of levels, with branches into other dungeons. Exactly one dungeon is the
- * root (no branch leads into it); its levels have ids `dlvl<N>`. Without any DungeonDef the
- * engine uses one endless root dungeon, `core:dungeon`.
+ * A dungeon: a chain of levels. Every dungeon but one has an `entry`, a branch staircase down
+ * from a level of another dungeon to its top level; the one without is the root, whose levels
+ * have ids `dlvl<N>`. Without any DungeonDef the engine uses one endless root dungeon,
+ * `core:dungeon`. A mod can attach its own dungeon to another mod's.
  * ref: dat/dungeon.lua, src/dungeon.c init_dungeons()
  */
 export interface DungeonDef {
@@ -181,15 +182,15 @@ export interface DungeonDef {
   nameKey: string;
   /** Number of levels: `base + rn2(range)` (ref: rn1(range, base)); omitted for no bottom. */
   levels?: { base: number; range?: number };
-  /** Branch stairs down into other dungeons, each from one level of this one. */
-  branches?: DungeonBranchDef[];
+  /** Where its branch stairs leave from. */
+  entry?: DungeonEntryDef;
 }
 
 /** ref: dat/dungeon.lua branches; src/dungeon.c parent_dlevel(), level_range() */
-export interface DungeonBranchDef {
-  /** The DungeonDef it leads into (its top level). */
-  to: DefId;
-  /** The branch is on level `base`, or one of `base .. base + range - 1`. */
+export interface DungeonEntryDef {
+  /** The DungeonDef whose level has the branch stairs down. */
+  from: DefId;
+  /** On level `base` of `from`, or one of `base .. base + range - 1`. */
   base: number;
   range?: number;
 }
@@ -309,11 +310,12 @@ export interface Ctx {
   /** Removes an entity (never the hero). */
   remove(id: EntityId): void;
   /**
-   * Moves the hero to level `to`, generating it on first visit, arriving on its up or down
-   * staircase, or on a random room floor cell without a trap ('random', for falling through a
-   * trap door; ref: src/dungeon.c u_on_rndspot()). Throws for a level outside the layout.
+   * Moves the hero to level `to`, generating it on first visit, arriving on its up, down or
+   * branch staircase, or on a random room floor cell without a trap ('random', for falling
+   * through a trap door; ref: src/dungeon.c u_on_rndspot()). Throws for a level outside the
+   * layout.
    */
-  goToLevel(to: LevelRef, at: 'up' | 'down' | 'random'): void;
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random'): void;
   /**
    * Puts a trap on `level`, replacing any trap already on that cell (ref: src/trap.c
    * maketrap()). Throws unless the cell is plain floor (see `isPlainFloor`) or the def is unknown.
@@ -411,7 +413,8 @@ export interface Registry {
   isTrap(id: DefId): boolean;
   dungeon(id: DefId): DungeonDef;
   /**
-   * The root dungeon first, then each branch target after its parent (breadth-first);
+   * The root dungeon first, then breadth-first: each dungeon's children (those entered from it)
+   * in registration order;
    * `[DEFAULT_DUNGEON]` when no mod defines one.
    */
   readonly dungeons: readonly DungeonDef[];

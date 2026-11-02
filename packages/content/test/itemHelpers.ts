@@ -129,6 +129,7 @@ export function levelSetup(rows: string[] = ['.....', '..@..', '.....'], seed = 
     lit: cells.map(() => 1),
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

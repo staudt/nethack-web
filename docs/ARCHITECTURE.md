@@ -128,6 +128,7 @@ interface Level {
   rooms: Room[];
   up: Pos | null;
   down: Pos | null;
+  branch: { pos: Pos; to: LevelRef; dir: 'up' | 'down' } | null; // stairs into another dungeon
   traps: Trap[]; // sorted by cell index; plain floor only
 }
 // ref: include/trap.h struct trap
@@ -136,7 +137,9 @@ interface Trap { def: DefId; x: number; y: number; seen: boolean; once?: boolean
 
 The state is JSON-plain: saving is `JSON.stringify`, and `stateHash(state)` is a hash of canonical (key-sorted) JSON. The level size is a parameter, and 80×21 is only the default.
 
-**Dungeons.** A `DungeonDef` (`{ id, nameKey, levels?: { base, range? }, branches?: { to, base, range? }[] }`) describes a chain of levels; `levels` omitted means no bottom. Exactly one dungeon is the root (no branch leads into it); without any DungeonDef the engine uses `DEFAULT_DUNGEON` (`core:dungeon`, endless). `loadMods` reports unknown branch targets, a dungeon entered twice, two roots and unreachable dungeons; `registry.dungeons` is root first, then breadth-first. At new game, before the `newGame` hooks, `rollDungeons` rolls each size as `base + rn2(range)` and each branch's level in its parent (one of `range` levels from `base`, cut at the bottom, skipping levels that already hold a branch end); a branch dungeon starts one level below its branch level (ref: src/dungeon.c init_dungeons(), parent_dlevel(), init_dungeon_set_depth()). Fixed sizes and no branches draw no random numbers. Helpers: `rootDungeon(state)`, `dungeonLayout(state, id)`, `levelIdFor(state, ref)`, `depthOf(state, ref)`.
+**Dungeons.** A `DungeonDef` (`{ id, nameKey, levels?: { base, range? }, entry?: { from, base, range? } }`) describes a chain of levels; `levels` omitted means no bottom. Every dungeon but the root has an `entry`: branch stairs down from level `base` (or one of `range` levels from it) of dungeon `from` to its top level, so a mod can attach a dungeon to another mod's. Without any DungeonDef the engine uses `DEFAULT_DUNGEON` (`core:dungeon`, endless). `loadMods` reports an unknown `entry.from`, an entry below its parent's bottom, a missing or second root and loops; `registry.dungeons` is root first, then breadth-first with each dungeon's children in registration order. At new game, before the `newGame` hooks, `rollDungeons` rolls each size as `base + rn2(range)` and each entry's level in its parent (cut at the parent's bottom, skipping levels that already hold a branch end); a branch dungeon starts one level below its branch level (ref: src/dungeon.c init_dungeons(), parent_dlevel(), init_dungeon_set_depth()). Fixed sizes and no branches draw no random numbers. Helpers: `rootDungeon(state)`, `dungeonLayout(state, id)`, `levelIdFor(state, ref)`, `depthOf(state, ref)`, `levelStairs(state, ref)`.
+
+**Stairs.** `levelStairs` decides a new level's stairs (ref: src/mklev.c generate_stairs(), place_branch()): up stairs except on a branch dungeon's top level, down stairs except on a dungeon's last level, and `Level.branch` (`{ pos, to: LevelRef, dir }`) on the level a branch leaves from (down) and on the branch's top level (up). The generator puts branch stairs after the corridors, in a random room without stairs when there is one, using the ordinary stair terrain. Content's `>`/`<` on branch stairs call `goToLevel(branch.to, 'branch')`, arriving on the other end's branch stairs. Only one branch per level is supported.
 
 **Terrain rules.** `cellRules(level, registry)` flattens the palette into per-cell flag arrays: `passable`, `opaque`, `closedDoor` (closed *or* locked, so travel paths go through doors as `test_move` does for `TEST_TRAV`), `lockedDoor` (locked only) and `intactDoor` (doors that block diagonal moves). `checkStep` returns `ok` or a reason: `bounds`, `blocked`, `closedDoor`, `lockedDoor` or `diagonalDoor`. `lockedDoor` is checked before `closedDoor`; content turns it into "This door is locked." with no time passing. Levelgen draws NetHack's exact `dodoor`/`dosdoor` rolls and so makes locked doors (about 1/3 * 4/5 * 1/6 of doors) and locked secret doors (1 in 5 below depth 2); trapped doors are not made, though their rolls are still drawn.
 
@@ -362,7 +365,7 @@ interface Ctx {
   query: CoreQuery;
   spawn(e: Omit<Entity, 'id'>): EntityId;
   remove(id: EntityId): void; // never the hero; a container takes its contents with it (obfree delete_contents)
-  goToLevel(to: LevelRef, at: 'up' | 'down' | 'random'): void; // generates the level on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot); throws outside the layout
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random'): void; // generates the level on first visit; arrive on that staircase, or on a random trap-free room floor cell (u_on_rndspot); throws outside the layout
   placeTrap(level: LevelId, t: Trap): void; // replaces a trap on the cell; throws unless plain floor
   removeTrap(level: LevelId, pos: Pos): void;
   ask(prompt: Prompt, handler: DefId, data: Json): void;
@@ -518,7 +521,7 @@ interface Replay {
   mods: ModRef[];
   actions: PlayerAction[];
 }
-// Save text = JSON.stringify({ format: 'nh-ts', version: 7, mods, state, replay }) // v3-v6 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level, a root-only layout (no bottom, no branches) and dungeon/dlevel = root/depth on every level
+// Save text = JSON.stringify({ format: 'nh-ts', version: 7, mods, state, replay }) // v3-v6 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level, a root-only layout (no bottom, no branches) and dungeon/dlevel = root/depth and branch: null on every level
 ```
 
 After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, actions }` must reproduce `stateHash`.

@@ -59,6 +59,7 @@ function setup(rows: string[], opts: { forget?: Pos[] } = {}) {
     lit: cells.map(() => 1),
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

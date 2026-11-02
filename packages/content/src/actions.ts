@@ -465,6 +465,13 @@ function terrainUnderHero(ctx: Ctx): TerrainDef {
   return ctx.defs.terrain(id);
 }
 
+/** The branch stairs the hero stands on, if any. ref: src/stairs.c stairway_at() (tolev in another dungeon) */
+function branchUnderHero(ctx: Ctx): Level['branch'] {
+  const pos = playerAt(ctx);
+  const b = getLevel(ctx.state).branch;
+  return b && b.pos.x === pos.x && b.pos.y === pos.y ? b : null;
+}
+
 /** Sets a cell to terrain `id`, adding it to the level palette when missing. */
 export function setTerrain(level: Level, x: number, y: number, id: DefId): void {
   let pi = level.palette.indexOf(id);
@@ -544,6 +551,12 @@ const down: ActionDef = {
       ctx.emit({ type: 'msg', key: 'stairs.cant_down' });
       return 0;
     }
+    // Branch stairs lead to the branch stairs of the other dungeon (ref: goto_level() u_on_sstairs()).
+    const branch = branchUnderHero(ctx);
+    if (branch) {
+      ctx.goToLevel(branch.to, 'branch');
+      return NORMAL_SPEED;
+    }
     // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)).
     const level = getLevel(ctx.state);
     ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel + 1 }, 'up');
@@ -564,6 +577,11 @@ const up: ActionDef = {
     if (terrainUnderHero(ctx).stairs !== 'up') {
       ctx.emit({ type: 'msg', key: 'stairs.cant_up' });
       return 0;
+    }
+    const branch = branchUnderHero(ctx);
+    if (branch) {
+      ctx.goToLevel(branch.to, 'branch');
+      return NORMAL_SPEED;
     }
     const level = getLevel(ctx.state);
     if (level.dlevel > 1) {

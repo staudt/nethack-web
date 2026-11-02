@@ -187,6 +187,7 @@ describe('immediate wands', () => {
       lit: [1, 1, 1, 1, 1],
       rooms: [],
       traps: [],
+      branch: null,
       up: null,
       down: null,
     };

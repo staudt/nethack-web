@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'vitest';
 import { DEFAULT_DUNGEON, depthOf, levelIdFor, rollDungeons } from '../src/dungeon';
 import { createEngine } from '../src/engine';
+import { VANILLA_TERRAIN } from '../src/levelgen/index';
 import { ModLoadError, loadMods } from '../src/registry';
 import { createRng, seedRng } from '../src/rng';
 import { getLevel, playerPos } from '../src/state';
@@ -17,12 +18,13 @@ const dungeonMod = (defs: DungeonDef[]): Mod => ({
   register: (api) => defs.forEach((d) => api.defineDungeon(d)),
 });
 
-const MAIN: DungeonDef = {
-  id: 'dg:main',
-  nameKey: 'main',
-  branches: [{ to: 'dg:mines', base: 2, range: 3 }],
+const MAIN: DungeonDef = { id: 'dg:main', nameKey: 'main' };
+const MINES: DungeonDef = {
+  id: 'dg:mines',
+  nameKey: 'mines',
+  levels: { base: 8, range: 2 },
+  entry: { from: 'dg:main', base: 2, range: 3 },
 };
-const MINES: DungeonDef = { id: 'dg:mines', nameKey: 'mines', levels: { base: 8, range: 2 } };
 
 /** Mod 'gt': a 'gt:run' action that runs `ctl.fn` with a real Ctx. */
 const ctl: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
@@ -81,48 +83,44 @@ describe('DungeonDef registration', () => {
     expect(r.dungeon('core:dungeon')).toBe(DEFAULT_DUNGEON);
   });
 
-  test('the root comes first, then branches breadth-first', () => {
+  test('the root comes first, then children breadth-first in registration order', () => {
     const r = loadMods([
       dungeonMod([
-        { id: 'dg:c', nameKey: 'c' },
-        { id: 'dg:b', nameKey: 'b', branches: [{ to: 'dg:c', base: 1 }] },
-        { id: 'dg:a', nameKey: 'a', branches: [{ to: 'dg:b', base: 1 }] },
+        { id: 'dg:c', nameKey: 'c', entry: { from: 'dg:b', base: 1 } },
+        { id: 'dg:b', nameKey: 'b', entry: { from: 'dg:a', base: 1 } },
+        { id: 'dg:d', nameKey: 'd', entry: { from: 'dg:a', base: 2 } },
+        { id: 'dg:a', nameKey: 'a' },
       ]),
     ]);
-    expect(r.dungeons.map((d) => d.id)).toEqual(['dg:a', 'dg:b', 'dg:c']);
+    expect(r.dungeons.map((d) => d.id)).toEqual(['dg:a', 'dg:b', 'dg:d', 'dg:c']);
     expect(() => r.dungeon('dg:nope')).toThrow(/Unknown dungeon/);
   });
 
   test('bad dungeon defs are reported', () => {
-    expect(issues([{ ...MINES, levels: { base: 0 } }])).toEqual(['dg:mines levels.base']);
-    expect(issues([{ ...MINES, levels: { base: 3, range: -1 } }])).toEqual([
+    expect(issues([MAIN, { ...MINES, levels: { base: 0 } }])).toEqual(['dg:mines levels.base']);
+    expect(issues([MAIN, { ...MINES, levels: { base: 3, range: -1 } }])).toEqual([
       'dg:mines levels.range',
     ]);
-    expect(issues([{ ...MAIN, branches: [{ to: 'dg:x', base: 1 }] }])).toEqual([
-      'dg:main branches[0].to',
+    expect(issues([MAIN, { ...MINES, entry: { from: 'dg:x', base: 1 } }])).toEqual([
+      'dg:mines entry.from',
     ]);
     // two roots
-    expect(issues([MINES, { id: 'dg:other', nameKey: 'o' }])).toEqual(['dg:other branches']);
-    // a branch below the bottom of its dungeon
+    expect(issues([MAIN, { id: 'dg:mines', nameKey: 'mines' }])).toEqual(['dg:mines entry']);
+    // an entry below the bottom of its parent
     expect(
       issues([
-        { ...MINES, branches: [{ to: 'dg:main', base: 9 }] },
-        { ...MAIN, branches: [] },
+        { ...MAIN, levels: { base: 3 } },
+        { ...MINES, entry: { from: 'dg:main', base: 4 } },
       ]),
-    ).toEqual(['dg:mines branches[0].base']);
-    // a dungeon entered by two branches
+    ).toEqual(['dg:mines entry.base']);
+    // a loop that the root cannot reach
     expect(
       issues([
-        {
-          ...MAIN,
-          branches: [
-            { to: 'dg:mines', base: 2 },
-            { to: 'dg:mines', base: 3 },
-          ],
-        },
-        MINES,
+        MAIN,
+        { id: 'dg:x', nameKey: 'x', entry: { from: 'dg:y', base: 1 } },
+        { id: 'dg:y', nameKey: 'y', entry: { from: 'dg:x', base: 1 } },
       ]),
-    ).toEqual(['dg:main branches[1].to']);
+    ).toEqual(['dg:x entry.from', 'dg:y entry.from']);
   });
 });
 
@@ -152,17 +150,9 @@ describe('rollDungeons', () => {
 
   test('a branch avoids levels that already hold one', () => {
     const defs: DungeonDef[] = [
-      {
-        id: 'dg:main',
-        nameKey: 'm',
-        levels: { base: 10 },
-        branches: [
-          { to: 'dg:a', base: 3, range: 2 },
-          { to: 'dg:b', base: 3, range: 2 },
-        ],
-      },
-      { id: 'dg:a', nameKey: 'a' },
-      { id: 'dg:b', nameKey: 'b' },
+      { id: 'dg:main', nameKey: 'm', levels: { base: 10 } },
+      { id: 'dg:a', nameKey: 'a', entry: { from: 'dg:main', base: 3, range: 2 } },
+      { id: 'dg:b', nameKey: 'b', entry: { from: 'dg:main', base: 3, range: 2 } },
     ];
     for (let seed = 1; seed <= 50; seed++) {
       const [main] = rollDungeons(createRng(seedRng(seed)), defs);
@@ -172,13 +162,8 @@ describe('rollDungeons', () => {
 
   test('a branch range is cut at the bottom of its dungeon', () => {
     const defs: DungeonDef[] = [
-      {
-        id: 'dg:main',
-        nameKey: 'm',
-        levels: { base: 5 },
-        branches: [{ to: 'dg:a', base: 4, range: 9 }],
-      },
-      { id: 'dg:a', nameKey: 'a' },
+      { id: 'dg:main', nameKey: 'm', levels: { base: 5 } },
+      { id: 'dg:a', nameKey: 'a', entry: { from: 'dg:main', base: 4, range: 9 } },
     ];
     for (let seed = 1; seed <= 50; seed++) {
       const dl = rollDungeons(createRng(seedRng(seed)), defs)[0]?.branches[0]?.dlevel;
@@ -236,7 +221,7 @@ describe('save v7', () => {
       state: {
         version: number;
         dungeons?: unknown;
-        levels: Record<string, { dungeon?: unknown; dlevel?: unknown }>;
+        levels: Record<string, { dungeon?: unknown; dlevel?: unknown; branch?: unknown }>;
       };
     };
     raw.version = 6;
@@ -245,11 +230,64 @@ describe('save v7', () => {
     for (const l of Object.values(raw.state.levels)) {
       delete l.dungeon;
       delete l.dlevel;
+      delete l.branch;
     }
     const loaded = engine.load(JSON.stringify(raw)).state;
     expect(loaded.version).toBe(7);
     expect(loaded.dungeons).toEqual([{ id: 'dg:main', depthStart: 1, levels: null, branches: [] }]);
     expect(loaded.levels['dlvl2']).toMatchObject({ dungeon: 'dg:main', dlevel: 2, depth: 2 });
-    expect(loaded.levels).toEqual(s.levels);
+    for (const id of ['dlvl1', 'dlvl2'])
+      expect(loaded.levels[id]).toEqual({ ...s.levels[id], branch: null });
+  });
+});
+
+describe('branch stairs', () => {
+  const terrainAt = (s: GameState, p: { x: number; y: number }): string => {
+    const l = getLevel(s);
+    return l.palette[l.cells[p.y * l.width + p.x] ?? -1] ?? '';
+  };
+  const roomOf = (s: GameState, p: { x: number; y: number }) =>
+    getLevel(s).rooms.findIndex((r) => p.x >= r.lx && p.x <= r.hx && p.y >= r.ly && p.y <= r.hy);
+
+  test('the branch level has stairs down into the branch, in a room without other stairs', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const s = fresh(seed);
+      const b = s.dungeons[0]!.branches[0]!;
+      run(s, (ctx) => ctx.goToLevel({ dungeon: 'dg:main', dlevel: b.dlevel }, 'branch'));
+      const level = getLevel(s);
+      expect(level.branch).toMatchObject({ to: { dungeon: 'dg:mines', dlevel: 1 }, dir: 'down' });
+      const pos = level.branch!.pos;
+      expect(playerPos(s)).toEqual(pos);
+      expect(terrainAt(s, pos)).toBe(VANILLA_TERRAIN.stairs_down);
+      expect(level.up).not.toBeNull();
+      expect(level.down).not.toBeNull();
+      if (level.rooms.length >= 3)
+        for (const p of [level.up!, level.down!]) expect(roomOf(s, p)).not.toBe(roomOf(s, pos));
+      else for (const p of [level.up!, level.down!]) expect(p).not.toEqual(pos);
+    }
+  });
+
+  test("the branch's top level has no up stairs; its branch stairs lead back up", () => {
+    const s = fresh();
+    const b = s.dungeons[0]!.branches[0]!;
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'dg:mines', dlevel: 1 }, 'branch'));
+    const level = getLevel(s);
+    expect(level.up).toBeNull();
+    expect(level.down).not.toBeNull();
+    expect(level.branch).toMatchObject({ to: { dungeon: 'dg:main', dlevel: b.dlevel }, dir: 'up' });
+    expect(terrainAt(s, level.branch!.pos)).toBe(VANILLA_TERRAIN.stairs_up);
+    expect(playerPos(s)).toEqual(level.branch!.pos);
+  });
+
+  test('the last level of a dungeon has no down stairs; other levels have no branch', () => {
+    const s = fresh();
+    const mines = s.dungeons[1]!;
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'dg:mines', dlevel: mines.levels! }, 'up'));
+    expect(getLevel(s)).toMatchObject({ down: null, branch: null });
+    expect(getLevel(s).up).not.toBeNull();
+    const notBranch = mines.depthStart - 1 === 2 ? 3 : 2;
+    run(s, (ctx) => ctx.goToLevel({ dungeon: 'dg:main', dlevel: notBranch }, 'up'));
+    expect(getLevel(s).branch).toBeNull();
+    expect(s.levels['dlvl1']?.branch).toBeNull();
   });
 });

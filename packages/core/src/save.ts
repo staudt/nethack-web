@@ -34,7 +34,7 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
     throw new Error(`Not a ${SAVE_FORMAT} save file`);
   // Older saves only lack fields that start empty: v4 added `occupation`, v5 `monsterMemory`,
   // v6 `Level.traps`. v7 added the dungeon layout: an old game has only the root dungeon (no
-  // branches, no rolled bottom) and all its levels are in it.
+  // branches, no rolled bottom) and all its levels are in it, with no branch stairs.
   const old = file.version as number | undefined;
   if ((old === 3 || old === 4 || old === 5 || old === 6) && file.state) {
     const st = file.state as {
@@ -43,7 +43,7 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
       dungeons?: DungeonLayout[];
       levels?: Record<
         string,
-        { traps?: unknown; depth: number; dungeon?: string; dlevel?: number }
+        { traps?: unknown; depth: number; dungeon?: string; dlevel?: number; branch?: unknown }
       >;
       version: number;
     };
@@ -55,6 +55,7 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
       level.traps ??= [];
       if (root) level.dungeon ??= root.id;
       level.dlevel ??= level.depth;
+      level.branch ??= null;
     }
     st.version = SAVE_VERSION;
     file.version = SAVE_VERSION;

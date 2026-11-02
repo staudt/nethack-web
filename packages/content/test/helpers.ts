@@ -56,6 +56,7 @@ export function setup(rows: string[], seed = 1) {
     lit: cells.map(() => 1),
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

@@ -63,6 +63,7 @@ function setup(rows: string[]): {
     lit: cells.map(() => 1),
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

@@ -69,6 +69,7 @@ export function mapSetup(rows: string[], opts: MapOpts = {}) {
     lit,
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

@@ -1,4 +1,4 @@
-import { createEngine, getLevel, getPlayer, type GameState, type Pos } from '@nh/core';
+import { createEngine, getLevel, getPlayer, type GameState, type Mod, type Pos } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { vanillaMod } from '../src/index';
 
@@ -129,5 +129,66 @@ describe('stairs', () => {
     const res = engine.step(state, UP);
     expect(res.prompt).toBeNull();
     expect(getLevel(state).depth).toBe(1);
+  });
+});
+
+describe('branch stairs', () => {
+  // A mod attaching a three-level dungeon to vanilla's main dungeon at DL2.
+  const branchMod: Mod = {
+    id: 'br',
+    version: '1',
+    register: (api) =>
+      api.defineDungeon({
+        id: 'br:pit',
+        nameKey: 'br:pit',
+        levels: { base: 3 },
+        entry: { from: 'nh:main', base: 2 },
+      }),
+  };
+
+  test('> on the branch stairs enters the branch, < on its top comes back', () => {
+    const engine = createEngine([vanillaMod, branchMod]);
+    const { state } = engine.newGame({ seed: 4 });
+    expect(state.dungeons[0]?.branches).toEqual([{ to: 'br:pit', dlevel: 2 }]);
+    const here = () => getPlayer(state).c.pos as Pos & { level: string };
+    const put = (p: Pos) => Object.assign(getPlayer(state).c.pos as Pos, { x: p.x, y: p.y });
+
+    put(getLevel(state).down as Pos);
+    engine.step(state, DOWN);
+    const dl2 = getLevel(state);
+    expect(dl2.id).toBe('dlvl2');
+    const branch = dl2.branch;
+    if (!branch) throw new Error('DL2 has no branch stairs');
+    put(branch.pos);
+    engine.step(state, DOWN);
+    const top = getLevel(state);
+    expect(top).toMatchObject({ id: 'br:pit/1', depth: 3, up: null });
+    expect(here()).toMatchObject(top.branch?.pos ?? {});
+    expect(
+      engine
+        .query(state)
+        .actionsFor({ kind: 'self' })
+        .map((o) => o.labelKey),
+    ).toContain('action.up');
+
+    engine.step(state, UP);
+    expect(here()).toEqual({ level: 'dlvl2', ...branch.pos });
+    expect(
+      engine
+        .query(state)
+        .actionsFor({ kind: 'self' })
+        .map((o) => o.labelKey),
+    ).toContain('action.down');
+
+    // the ordinary stairs of the branch lead on down inside it; its last level has none
+    engine.step(state, DOWN);
+    put(getLevel(state).down as Pos);
+    engine.step(state, DOWN);
+    expect(here().level).toBe('br:pit/2');
+    put(getLevel(state).down as Pos);
+    engine.step(state, DOWN);
+    expect(getLevel(state)).toMatchObject({ id: 'br:pit/3', depth: 5, down: null });
+    engine.step(state, UP);
+    expect(here().level).toBe('br:pit/2');
   });
 });

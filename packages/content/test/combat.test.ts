@@ -116,6 +116,7 @@ function setup(seed: number, opts: { str?: number; dex?: number; ac?: number } =
     lit: cells.map(() => 1),
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

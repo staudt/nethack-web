@@ -1,4 +1,11 @@
-import { depthOf, dungeonLayout, levelIdFor, rollDungeons, rootDungeon } from './dungeon';
+import {
+  depthOf,
+  dungeonLayout,
+  levelIdFor,
+  levelStairs,
+  rollDungeons,
+  rootDungeon,
+} from './dungeon';
 import { generateLevel, VANILLA_TERRAIN, type LevelTerrain } from './levelgen/index';
 import { cellRules } from './movement';
 import { allContents, topObjects } from './objects';
@@ -147,6 +154,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
             depth: depthOf(state, to),
             dungeon: to.dungeon,
             dlevel: to.dlevel,
+            ...levelStairs(state, to),
             width: current.width,
             height: current.height,
             terrain,
@@ -158,7 +166,13 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         placeHero(
           state,
           level,
-          at === 'up' ? level.up : at === 'down' ? level.down : randomSpot(ctx.rng, level),
+          at === 'up'
+            ? level.up
+            : at === 'down'
+              ? level.down
+              : at === 'branch'
+                ? (level.branch?.pos ?? null)
+                : randomSpot(ctx.rng, level),
         );
         const change = { from: current.id, fromPos: { x: fromPos.x, y: fromPos.y }, to: level.id };
         for (const h of registry.hooks('levelChange')) h.fn(ctx, change);
@@ -207,7 +221,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
    * that spot is moved to the nearest free cell. ref: src/do.c goto_level() u_on_newpos(), mnexto()
    */
   const placeHero = (state: GameState, level: Level, target: Pos | null): void => {
-    const spot = target ?? level.up ?? level.down;
+    const spot = target ?? level.up ?? level.down ?? level.branch?.pos;
     if (!spot) throw new Error(`Level '${level.id}' has no stairs to arrive on`);
     const hero = getPlayer(state);
     for (const id of sortedIds(state)) {
@@ -339,6 +353,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         id: levelIdFor(state, top),
         depth: 1,
         ...top,
+        ...levelStairs(state, top),
         width,
         height,
         terrain,
@@ -348,7 +363,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       state.memory[level.id] = newMemory(level);
       for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
       // ref: src/allmain.c newgame() u_on_upstairs(), then makedog() and the like
-      placeHero(state, level, level.up);
+      placeHero(state, level, level.up ?? level.branch?.pos ?? null);
       for (const h of registry.hooks('levelChange'))
         h.fn(ctx, { from: null, fromPos: null, to: level.id });
       refreshVision(state);

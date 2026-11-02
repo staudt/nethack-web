@@ -31,7 +31,7 @@ export interface DungeonLayout {
   depthStart: number;
   /** How many levels it has; null for no bottom. */
   levels: number | null;
-  /** Where its branches leave it, in DungeonDef order. */
+  /** Where the dungeons entered from it leave it, in `registry.dungeons` order. */
   branches: { to: DefId; dlevel: number }[];
 }
 

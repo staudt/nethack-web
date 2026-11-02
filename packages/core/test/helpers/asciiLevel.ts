@@ -73,6 +73,7 @@ export function asciiLevel(rows: readonly string[], lit?: readonly string[]): Le
     lit: litArr,
     rooms: [],
     traps: [],
+    branch: null,
     up: null,
     down: null,
   };

@@ -49,6 +49,11 @@ export interface Level {
   rooms: Room[];
   up: Pos | null;
   down: Pos | null;
+  /**
+   * Stairs into another dungeon (ref: include/stairs.h stairway with tolev in another dnum):
+   * down into a branch from its parent, or up from a branch dungeon's top level to its parent.
+   */
+  branch: { pos: Pos; to: LevelRef; dir: 'up' | 'down' } | null;
   /** Sorted by cell index; only on plain floor. Change through `ctx.placeTrap` / `removeTrap`. */
   traps: Trap[];
 }

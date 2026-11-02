@@ -22,10 +22,9 @@ export function rollDungeons(rng: Rng, defs: readonly DungeonDef[]): DungeonLayo
         : def.levels.base
       : null;
     const layout: DungeonLayout = { id: def.id, depthStart: 1, levels, branches: [] };
-    const parent = out.find((p) => p.id !== def.id && branchDef(defs, p.id, def.id));
-    if (parent) {
-      const b = branchDef(defs, parent.id, def.id) as NonNullable<ReturnType<typeof branchDef>>;
-      const dlevel = parentDlevel(rng, parent, b.base, b.range ?? 0);
+    const parent = def.entry && out.find((p) => p.id === def.entry?.from);
+    if (def.entry && parent) {
+      const dlevel = parentDlevel(rng, parent, def.entry.base, def.entry.range ?? 0);
       parent.branches.push({ to: def.id, dlevel });
       // a down staircase: one level below the branch level, entered at the top
       layout.depthStart = parent.depthStart + dlevel - 1 + 1;
@@ -34,9 +33,6 @@ export function rollDungeons(rng: Rng, defs: readonly DungeonDef[]): DungeonLayo
   }
   return out;
 }
-
-const branchDef = (defs: readonly DungeonDef[], from: DefId, to: DefId) =>
-  defs.find((d) => d.id === from)?.branches?.find((b) => b.to === to);
 
 /**
  * The level of `parent` a new branch leaves from: one of `range` levels from `base`, trying the
@@ -83,4 +79,31 @@ export function levelIdFor(state: Readonly<GameState>, ref: LevelRef): LevelId {
 /** Absolute depth of a level. ref: src/dungeon.c depth() */
 export function depthOf(state: Readonly<GameState>, ref: LevelRef): number {
   return dungeonLayout(state, ref.dungeon).depthStart + ref.dlevel - 1;
+}
+
+/**
+ * Which stairs a new level gets: up stairs except on a branch dungeon's top level (its branch
+ * stairs lead up), down stairs except on the last level, and the branch stairs that leave from
+ * or arrive on it. ref: src/mklev.c generate_stairs(), place_branch(); src/dungeon.c Is_branchlev()
+ */
+export function levelStairs(
+  state: Readonly<GameState>,
+  ref: LevelRef,
+): { up: boolean; down: boolean; branch?: { to: LevelRef; dir: 'up' | 'down' } } {
+  const layout = dungeonLayout(state, ref.dungeon);
+  const isRoot = layout === rootDungeon(state);
+  const out: ReturnType<typeof levelStairs> = {
+    up: isRoot || ref.dlevel > 1,
+    down: layout.levels === null || ref.dlevel < layout.levels,
+  };
+  const leaving = layout.branches.find((b) => b.dlevel === ref.dlevel);
+  if (leaving) {
+    out.branch = { to: { dungeon: leaving.to, dlevel: 1 }, dir: 'down' };
+  } else if (!isRoot && ref.dlevel === 1) {
+    for (const parent of state.dungeons) {
+      const b = parent.branches.find((x) => x.to === ref.dungeon);
+      if (b) out.branch = { to: { dungeon: parent.id, dlevel: b.dlevel }, dir: 'up' };
+    }
+  }
+  return out;
 }

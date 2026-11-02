@@ -351,6 +351,7 @@ export function runScenario(
       lit: cells.map(() => (lit ? 1 : 0)),
       rooms: [],
       traps: [],
+      branch: null,
       up,
       down,
     };
