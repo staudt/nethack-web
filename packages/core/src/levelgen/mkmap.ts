@@ -327,7 +327,13 @@ function joinMap(m: CaveMap, rng: Rng): void {
   m.roomno.fill(0);
 }
 
-const isWallKind = (t: number): boolean => t >= MK.VWALL;
+/**
+ * A door or secret door, only in wallifyKinds() grids: it joins walls (iswall()) but is not one
+ * (IS_WALL()) and is not solid.
+ */
+export const MK_DOOR = 13;
+
+const isWallKind = (t: number): boolean => t >= MK.VWALL && t <= MK.TRWALL;
 
 /**
  * BG next to FG (8 neighbours) becomes wall: horizontal when the first such neighbour (row by row)
@@ -355,9 +361,9 @@ function wallifyMap(m: CaveMap): void {
   }
 }
 
-/** ref: src/mkmaze.c iswall() (walls only; no doors, bars or water here) */
+/** ref: src/mkmaze.c iswall() (walls and doors; no bars or water here) */
 const iswall = (m: CaveMap, x: number, y: number): boolean =>
-  m.isok(x, y) && isWallKind(m.at(x, y));
+  m.isok(x, y) && (isWallKind(m.at(x, y)) || m.at(x, y) === MK_DOOR);
 /** ref: src/mkmaze.c iswall_or_stone() */
 const iswallOrStone = (m: CaveMap, x: number, y: number): boolean =>
   !m.isok(x, y) || m.at(x, y) === MK.BG || iswall(m, x, y);
@@ -426,6 +432,24 @@ function fixWallSpines(m: CaveMap): void {
         extendSpine(locale, iswall(m, x - 1, y), -1, 0);
       if (bits) m.set(x, y, SPINE_ARRAY[bits] as number);
     }
+}
+
+/**
+ * NetHack's wallification() of a whole map given as row-major `width * height` MK kinds (BG for
+ * stone, FG for any other open or solid non-wall cell, MK_DOOR for doors): walls with only rock
+ * around become BG, then every wall turns into the piece that joins its neighbours. Returns new
+ * kinds; only walls change. ref: src/mkmaze.c wallification(), wall_cleanup(), fix_wall_spines()
+ */
+export function wallifyKinds(width: number, height: number, kinds: readonly number[]): number[] {
+  const m = new CaveMap(width, height);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) m.set(x + 1, y, kinds[y * width + x] as number);
+  wallCleanup(m);
+  fixWallSpines(m);
+  const out = new Array<number>(width * height);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) out[y * width + x] = m.at(x + 1, y);
+  return out;
 }
 
 /**

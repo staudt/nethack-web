@@ -206,7 +206,127 @@ export interface DungeonEntryDef {
 export interface LevelDef {
   id: DefId;
   init: LevelInit;
+  /**
+   * A hand-drawn block laid over the `init` map. Once a LevelDef has one, the coordinates of its
+   * regions, edits, doors, features, stairs and contents are relative to the block's top-left
+   * corner unless the entry says `coords: 'level'` (ref: src/sp_lev.c lspo_map(),
+   * get_location()). At most one block per LevelDef.
+   */
+  map?: LevelMap;
+  /** Lit or unlit areas, and typed rooms over map areas. ref: src/sp_lev.c lspo_region() */
+  regions?: RegionDef[];
+  /** Terrain changes, some at random. ref: src/sp_lev.c lspo_terrain() with nhlib percent() */
+  edits?: TerrainEdit[];
+  /** ref: src/sp_lev.c lspo_door() */
+  doors?: DoorDef[];
+  /** ref: src/sp_lev.c lspo_feature(), lspo_altar() */
+  features?: FeatureDef[];
+  /**
+   * Where the up and down stairs go; the dungeon still decides which exist. Omitted: a random
+   * floor or corridor cell (inside the map block when there is one).
+   * ref: src/sp_lev.c lspo_stair(), lspo_levregion(); src/mkmaze.c place_lregion()
+   */
+  stairs?: { up?: StairPlace; down?: StairPlace };
+  /** `inaccessibles`: join every open area to the stairs. ref: src/sp_lev.c ensure_way_out() */
+  flags?: { inaccessibles?: boolean };
   contents?: LevelContent[];
+}
+
+/**
+ * Which origin an entry's coordinates use. `map` (the default when the LevelDef has a map
+ * block): relative to the block's top-left, inside the block. `level`: Level coordinates, where a
+ * negative value counts from the right or bottom edge (-1 = the last column or row); NetHack's
+ * level x is one more than ours (its column 0 is unused). ref: lua `region_islev`
+ */
+export type LevelCoords = 'map' | 'level';
+
+/** An area `[x1, y1, x2, y2]`, corners inclusive. */
+export type LevelRect = [x1: number, y1: number, x2: number, y2: number];
+
+/**
+ * A hand-drawn map block (ref: src/sp_lev.c lspo_map(); src/nhlua.c splev_chr2typ()). `rows` are
+ * equal-length strings of: ' ' stone, '.' floor, '#' corridor, '-' and '|' walls (corners and
+ * T-walls are worked out), '+' doorway (a `doors` entry gives it a door), 'S' secret door,
+ * 'H' secret corridor, '{' fountain, 'K' sink, 'T' tree, 'x' keep what `init` made there.
+ * Placed by `halign`/`valign` (both default 'center'), or with its top-left at Level `x`,`y`.
+ * `lit` (default false) lights or darkens every cell it sets.
+ */
+export interface LevelMap {
+  rows: string[];
+  halign?: 'left' | 'half-left' | 'center' | 'half-right' | 'right';
+  valign?: 'top' | 'center' | 'bottom';
+  x?: number;
+  y?: number;
+  lit?: boolean;
+}
+
+/**
+ * Lights (`lit: true`, which also lights the cells around it) or darkens `area`; omitted `lit` is
+ * random as for rooms. With `type` the area also becomes a Room of that type (`filled` false by
+ * default). ref: src/sp_lev.c lspo_region(), light_region(); src/mklev.c do_room_or_subroom()
+ */
+export interface RegionDef {
+  area: LevelRect;
+  coords?: LevelCoords;
+  lit?: boolean;
+  type?: DefId;
+  filled?: boolean;
+}
+
+/** `random` picks one of nodoor, broken, open, closed, locked. ref: src/sp_lev.c rnddoor() */
+export type DoorState = 'open' | 'closed' | 'locked' | 'nodoor' | 'broken' | 'random';
+
+/** A door at a spot (made a door if it is not one). ref: src/sp_lev.c lspo_door(), sel_set_door() */
+export interface DoorDef {
+  x: number;
+  y: number;
+  coords?: LevelCoords;
+  state: DoorState;
+}
+
+/**
+ * A dungeon feature at a spot; nothing happens on stairs or another feature. An altar's `align`
+ * defaults to random (lawful, neutral or chaotic); `shrine` is kept for the temple (6b2).
+ * ref: src/sp_lev.c lspo_feature(), sel_set_feature(), lspo_altar(), create_altar()
+ */
+export interface FeatureDef {
+  kind: 'fountain' | 'sink' | 'tree' | 'altar';
+  x: number;
+  y: number;
+  coords?: LevelCoords;
+  align?: 'lawful' | 'neutral' | 'chaotic' | 'noalign' | 'random';
+  shrine?: boolean;
+}
+
+/**
+ * Stairs at a fixed spot, or on a random floor or corridor cell of `region` outside `exclude`
+ * (ref: lua levregion `region`, `exclude`, `region_islev`, `exclude_islev`).
+ */
+export type StairPlace =
+  | { x: number; y: number; coords?: LevelCoords }
+  | { region: LevelRect; exclude?: LevelRect; coords?: LevelCoords; excludeCoords?: LevelCoords };
+
+/**
+ * Terrain changes. With `percent` (0..100) a roll decides: `set` then `then` on success, `else`
+ * otherwise; without it they always apply. ref: nhlib.lua percent(); src/sp_lev.c lspo_terrain()
+ */
+export interface TerrainEdit {
+  percent?: number;
+  set?: TerrainSet[];
+  then?: TerrainEdit;
+  else?: TerrainEdit;
+}
+
+/**
+ * One map character (as in LevelMap, but not 'x') at a spot `at`, along a `line` (from corner
+ * to corner, ref: selvar.c selection_do_line()) or over a filled `area`; give exactly one.
+ */
+export interface TerrainSet {
+  char: string;
+  at?: [x: number, y: number];
+  line?: LevelRect;
+  area?: LevelRect;
+  coords?: LevelCoords;
 }
 
 /**
@@ -249,11 +369,13 @@ export interface LevelContent {
   count?: LevelCount;
   percent?: number;
   /**
-   * A fixed spot instead of a random dry one; give both or neither. Level coordinates, where a
-   * negative value counts from the right or bottom edge (-1 = the last column or row).
+   * A fixed spot instead of a random dry one; give both or neither. Relative to the map block
+   * when there is one, else Level coordinates (see LevelCoords). A random spot is inside the map
+   * block when there is one (ref: src/sp_lev.c get_location()).
    */
   x?: number;
   y?: number;
+  coords?: LevelCoords;
   /** Monsters: forced peaceful (true) or hostile (false); omitted = peace_minded() as usual. */
   peaceful?: boolean;
 }

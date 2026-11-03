@@ -7,6 +7,7 @@ import {
   createEngine,
   getLevel,
   loadMods,
+  mapBlock,
   sortedIds,
   VANILLA_TERRAIN,
   type Ctx,
@@ -187,5 +188,50 @@ describe('LevelDef contents at a spot', () => {
     expect(() => visit(far, 1)).toThrow(
       /LevelDef 'ft:spots': object at 500,1 is outside the 80x21 level/,
     );
+  });
+});
+
+// Milestone 6b1 step 2: contents of a LevelDef with a map block use the block's coordinates.
+describe('LevelDef contents with a map block', () => {
+  const BLOCK: LevelDef = {
+    id: 'ft:spots',
+    init: { style: 'solidfill', fg: 'nh:floor', lit: true },
+    map: { rows: Array<string>(5).fill('.'.repeat(12)), halign: 'center', valign: 'center' },
+    contents: [
+      { kind: 'object', id: 'nh:apple', x: 1, y: 2 },
+      { kind: 'object', id: 'nh:carrot', x: -1, y: -1, coords: 'level' },
+      { kind: 'object', id: 'nh:rock', count: 8 },
+    ],
+  };
+  const visit = (seed: number) => {
+    const engine = createEngine([vanillaMod, spotsMod(BLOCK)]);
+    const { state } = engine.newGame({ seed });
+    probe.fn = (ctx) => ctx.goToLevel({ dungeon: 'ft:d', dlevel: 1 }, 'up');
+    engine.step(state, { type: 'mod', action: 'ft:run' });
+    return { state, level: getLevel(state) };
+  };
+  const posOf = (state: GameState, level: Level, def: DefId) =>
+    sortedIds(state)
+      .map((id) => state.entities[String(id)])
+      .filter((e) => e?.def === def && e.c.pos?.level === level.id)
+      .map((e) => ({ x: e?.c.pos?.x ?? -1, y: e?.c.pos?.y ?? -1 }));
+
+  test('fixed spots are map-relative unless coords is level; random spots stay in the block', () => {
+    const b = mapBlock(BLOCK, 80, 21);
+    expect(b).toEqual({ x: 34, y: 9, w: 12, h: 5 });
+    if (!b) return;
+    for (const seed of [1, 2, 3]) {
+      const { state, level } = visit(seed);
+      expect(posOf(state, level, 'nh:apple')).toEqual([{ x: b.x + 1, y: b.y + 2 }]);
+      expect(posOf(state, level, 'nh:carrot')).toEqual([{ x: 79, y: 20 }]);
+      const rocks = posOf(state, level, 'nh:rock');
+      expect(rocks.length).toBeGreaterThan(0); // some may stack
+      for (const p of rocks) {
+        expect(p.x - b.x).toBeGreaterThanOrEqual(0);
+        expect(p.x - b.x).toBeLessThan(b.w);
+        expect(p.y - b.y).toBeGreaterThanOrEqual(0);
+        expect(p.y - b.y).toBeLessThan(b.h);
+      }
+    }
   });
 });

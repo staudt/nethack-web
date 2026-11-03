@@ -19,8 +19,13 @@ export {
   MIN_LEVEL_HEIGHT,
   MIN_MKMAP_WIDTH,
   MIN_MKMAP_HEIGHT,
+  mapBlock,
+  levelDefArea,
+  levelDefPos,
+  levelDefRect,
+  MAP_LEGEND,
 } from './levelgen/index';
-export type { GenOptions, LevelTerrain } from './levelgen/index';
+export type { GenOptions, LevelTerrain, MapBlock } from './levelgen/index';
 export {
   DEFAULT_DUNGEON,
   rollDungeons,

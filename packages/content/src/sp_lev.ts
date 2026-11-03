@@ -10,22 +10,24 @@ import type {
   ObjectClass,
   Pos,
 } from '@nh/core';
-import { cellIndex, inBounds, isPlainFloor } from '@nh/core';
+import { cellIndex, isPlainFloor, levelDefArea, levelDefPos } from '@nh/core';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mktrap } from './mklev';
 
 /**
- * A random spot that passes `ok`: 100 random picks, then the first in column order; null when
- * there is none (C calls impossible()). ref: src/sp_lev.c get_location() with no room
+ * A random spot that passes `ok`, inside the LevelDef's map block when it has one (else the whole
+ * level): 100 random picks, then the first in column order; null when there is none (C calls
+ * impossible()). ref: src/sp_lev.c get_location() with no room (xstart, xsize of the map)
  */
-function getLocation(ctx: Ctx, level: Level, ok: (p: Pos) => boolean): Pos | null {
+function getLocation(ctx: Ctx, level: Level, def: LevelDef, ok: (p: Pos) => boolean): Pos | null {
+  const a = levelDefArea(def, level.width, level.height);
   for (let cpt = 0; cpt < 100; cpt++) {
-    const p = { x: ctx.rng.rn2(level.width), y: ctx.rng.rn2(level.height) };
+    const p = { x: a.x + ctx.rng.rn2(a.w), y: a.y + ctx.rng.rn2(a.h) };
     if (ok(p)) return p;
   }
-  for (let x = 0; x < level.width; x++)
-    for (let y = 0; y < level.height; y++) if (ok({ x, y })) return { x, y };
+  for (let x = a.x; x < a.x + a.w; x++)
+    for (let y = a.y; y < a.y + a.h; y++) if (ok({ x, y })) return { x, y };
   return null;
 }
 
@@ -48,21 +50,16 @@ function rollCount(ctx: Ctx, count: LevelCount | undefined): number {
 }
 
 /**
- * The entry's fixed spot (a negative coordinate counts from the right or bottom edge), or a
- * random dry one. A fixed spot is used as it is, with no terrain check. ref: src/sp_lev.c
- * get_location() `if (*x >= 0)` (normal locations), get_location_coord()
+ * The entry's fixed spot (relative to the map block when there is one, else Level coordinates
+ * where a negative value counts from the far edge; core's levelDefPos), or a random dry one. A
+ * fixed spot is used as it is, with no terrain check. ref: src/sp_lev.c get_location()
+ * `if (*x >= 0)` (normal locations), get_location_coord()
+ * @throws RangeError for a spot outside the level
  */
 function contentSpot(ctx: Ctx, level: Level, c: LevelContent, def: LevelDef): Pos | null {
   if (c.x === undefined || c.y === undefined)
-    return getLocation(ctx, level, (p) => dry(ctx, level, p));
-  const x = c.x < 0 ? level.width + c.x : c.x;
-  const y = c.y < 0 ? level.height + c.y : c.y;
-  if (!inBounds(level, x, y))
-    throw new RangeError(
-      `LevelDef '${def.id}': ${c.kind} at ${String(c.x)},${String(c.y)} is outside the ` +
-        `${String(level.width)}x${String(level.height)} level`,
-    );
-  return { x, y };
+    return getLocation(ctx, level, def, (p) => dry(ctx, level, p));
+  return levelDefPos(def, level.width, level.height, c.x, c.y, c.coords, c.kind);
 }
 
 /**
@@ -108,7 +105,7 @@ function createTrap(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): vo
   }
   let pos: Pos | null = null;
   for (let trycnt = 0; trycnt <= 100; trycnt++) {
-    pos = getLocation(ctx, level, (p) => dry(ctx, level, p));
+    pos = getLocation(ctx, level, ldef, (p) => dry(ctx, level, p));
     if (!pos || isPlainFloor(ctx.defs, level, pos.x, pos.y)) break;
   }
   if (pos && isPlainFloor(ctx.defs, level, pos.x, pos.y)) mktrap(ctx, level, pos, c.id ?? null);

@@ -25,6 +25,7 @@ import type {
   LevelDef,
   ItemNamer,
 } from './types/mod';
+import { specialLevelIssues } from './levelgen/spdef';
 import { DEFAULT_DUNGEON } from './dungeon';
 import type { ArmorSlot } from './types/entity';
 
@@ -634,6 +635,7 @@ function levelDefIssues(d: LevelDef): [string, string][] {
     } else if (style !== 'rooms')
       out.push(['init.style', "must be 'rooms', 'solidfill' or 'mines'"]);
   }
+  out.push(...specialLevelIssues(d));
   const contents: unknown = d.contents;
   if (contents === undefined) return out;
   if (!Array.isArray(contents)) return [...out, ['contents', 'must be an array']];
