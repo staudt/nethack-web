@@ -62,7 +62,10 @@ function reach(cells: number[], w: number, h: number): number {
 }
 
 describe('mkmap', () => {
-  test.each(SIZES)('%ix%i: joined caves are one connected open area', (w, h) => {
+  // 200x60 timed out at 30s once under a loaded full run: room as for the heavy soaks
+  const HEAVY = { timeout: 120000 };
+
+  test.each(SIZES)('%ix%i: joined caves are one connected open area', HEAVY, (w, h) => {
     for (let seed = 1; seed <= 40; seed++) {
       const cells = mkmap(createRng(seedRng(seed)), { width: w, height: h, ...CAVE });
       const open = cells.filter((k) => k === MK.FG).length;
@@ -73,6 +76,7 @@ describe('mkmap', () => {
 
   test.each(SIZES)(
     '%ix%i: walls only next to open cells, and open cells only touch walls or open',
+    HEAVY,
     (w, h) => {
       for (let seed = 1; seed <= 40; seed++) {
         const cells = mkmap(createRng(seedRng(seed)), { width: w, height: h, ...CAVE });

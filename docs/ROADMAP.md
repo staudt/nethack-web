@@ -49,7 +49,18 @@ From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch
 - **Minetown's missing inhabitants:** College Town's kobold shamans, Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
 - **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
 - **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
-- 6b2 (the temple and priest) and 6b3 (shops) follow, as in `docs/kickoff-m6b.md`.
+- 6b3 (shops) follows, as in `docs/kickoff-m6b.md`.
+
+From 6b2 (the Minetown temple: altars, the priest, #chat, donations and praying on an altar; done, phone check pending):
+
+- **Sacrifice (`#offer`)** (user decision): corpse sacrifice and its gifts, converting altars (and `angry_priest()` turning a priest whose altar is lost into a roaming minion), crowning, the unicorn and same-race penalties, the atheism conduct.
+- **Monster spellcasting** (`castmu.c`, user decision): the priest's `AT_MAGC AD_CLRC` clerical spells, with the other casters (kobold shamans, gnomish wizards).
+- **Priest gear and names:** the 1 in 7 cloak of protection or magic resistance (needs the shuffled cloak appearances), the robe's spellcasting bonus, priestesses (monster genders), the hallucinated "poohbah".
+- **Other temples:** random altars and temples in ordinary rooms, roaming minions and aligned priests outside temples, the Valley and the Sanctum's high altars, ghosts in untended temples ("You are frightened to death").
+- **Prayer extras:** reviving a pet's corpse on an altar (`pray_revive()`: corpses must remember their monster), undead and demon forms, Gehennom, minions, punishment, level drain, spellbook gifts, crowning, the castle tune, the gnostic conduct and wizard mode's "Force the gods to be pleased?".
+- **Clairvoyance:** objects and monsters in each vision, and `seer_turn` rolled in every game (moves every replay); clairvoyance from objects and the Amulet.
+- **#chat:** the remaining `domonnoise()` sounds, statues, mimics, hiders, steeds, the up/down directions, deafness and the full-moon howling; shopkeepers come with 6b3.
+- **Attribute exercise** (Wisdom from prayer, donations and the god's anger) and achievements (entering a temple).
 
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 

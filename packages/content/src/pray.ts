@@ -1,13 +1,14 @@
 // Prayer. ref: src/pray.c dopray(), can_pray(), in_trouble(), worst_cursed_item(),
 // fix_worst_trouble(), fix_curse_trouble(), pleased(), angrygods(), gods_upset(), godvoice(),
-// god_zaps_you(), fry_by_god(), prayer_done(); src/sit.c rndcurse(), attrcurse()
+// god_zaps_you(), fry_by_god(), prayer_done(), water_prayer(); src/sit.c rndcurse(), attrcurse()
 //
-// The Valkyrie is neutral and prays to Odin. There are no altars, so p_aligntyp is always her
-// own alignment and the altar, water and shrine branches never apply.
+// The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
+// prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
 import {
   NORMAL_SPEED,
   getPlayer,
   inventoryOf,
+  itemsAt,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -17,7 +18,7 @@ import {
   type Msg,
   rnl,
 } from '@nh/core';
-import { ALGN_DEVOUT, alignGname, godvoice } from './align';
+import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } from './align';
 import { rnz } from './corpses';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
@@ -25,6 +26,7 @@ import { adjattrib } from './attrib';
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
 import { hcolor } from './magic';
+import { wakeNearto } from './noise';
 import { nomul, unmulNow } from './nomul';
 import { xnameOf } from './objnam';
 import {
@@ -330,7 +332,7 @@ function angrygods(ctx: Ctx, respGod: number): void {
     case 7:
     case 8:
       godvoice(ctx, respGod, null);
-      say(ctx, 'pray.durst');
+      say(ctx, onAltar(ctx) && heroAltar(ctx) !== respGod ? 'pray.durst_scorn' : 'pray.durst');
       say(ctx, 'pray.then_die');
       break; // summon_minion(): no minions exist
     default:
@@ -351,7 +353,7 @@ function godsUpset(ctx: Ctx, align: number): void {
   angrygods(ctx, align);
 }
 
-/** The god's favors on a good prayer. ref: src/pray.c pleased() (no altars, castle or spells) */
+/** The god's favors on a good prayer. ref: src/pray.c pleased() (no castle tune or spells) */
 function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   let trouble = inTrouble(ctx); // the worst trouble may have changed while praying
   const record0 = uState(ctx.state).alignRecord;
@@ -369,7 +371,11 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
           ? 'full'
           : 'satisfied';
   say(ctx, 'pray.feel_god', { god: alignGname(gAlign), mood: `@pray.mood.${mood}` });
-  if (record0 < 2 && trouble <= 0) adjalign(ctx, 1);
+  // not your deity: a point of alignment and nothing else, not even a new prayer timeout
+  if (onAltar(ctx) && gAlign !== uState(ctx.state).alignType) {
+    adjalign(ctx, -1);
+    return;
+  } else if (record0 < 2 && trouble <= 0) adjalign(ctx, 1);
 
   let patOnHead = false;
   const record = uState(ctx.state).alignRecord;
@@ -377,8 +383,10 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
     if (pTrouble === 0) patOnHead = true;
   } else {
     const prayerLuck = Math.max(luckOf(ctx.state), -1);
-    let action = ctx.rng.rn2(prayerLuck + 2) + 1; // rn1(prayer_luck + 2, 1), not on an altar
-    action = Math.min(action, 3);
+    // rn1(prayer_luck + (on_altar() ? 3 + on_shrine() : 2), 1)
+    const altar = onAltar(ctx);
+    let action = ctx.rng.rn2(prayerLuck + (altar ? 3 + (onShrine(ctx) ? 1 : 0) : 2)) + 1;
+    if (!altar) action = Math.min(action, 3);
     if (record < STRIDENT) action = record > 0 || rnl(ctx.rng, 2, luckOf(ctx.state)) === 0 ? 1 : 0;
     // up to 9 major troubles
     const fixMajor = (): void => {
@@ -386,6 +394,15 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
       while ((trouble = inTrouble(ctx)) > 0 && ++tryct < 10) fixWorstTrouble(ctx, trouble);
     };
     switch (Math.min(action, 5)) {
+      case 5:
+      case 4: {
+        if (action >= 5) patOnHead = true;
+        // every trouble, minor ones too (the guard only stops a trouble this port cannot fix)
+        let guard = 0;
+        do fixWorstTrouble(ctx, trouble);
+        while ((trouble = inTrouble(ctx)) !== 0 && ++guard < 100);
+        break;
+      }
       case 3:
         fixWorstTrouble(ctx, trouble); // then, as case 2, the major ones
         fixMajor();
@@ -494,38 +511,104 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
 interface PrayerData {
   pType: number;
   pTrouble: number;
+  /** p_aligntyp: the altar's alignment when praying on one, else the hero's */
   pAlign: number;
 }
 
+/** The alignment of the altar under the hero (callers check onAltar() first). */
+function heroAltar(ctx: Ctx): number | null {
+  const p = hero(ctx).c.pos;
+  return p ? aAlign(ctx, p.x, p.y) : null;
+}
+
 /**
- * Who can pray and how it will go: p_type 0 too soon, 1 naughty, 3 good (2 is a cross-aligned
- * altar, -1 undead, -2 Moloch: none apply). ref: src/pray.c can_pray()
+ * Who can pray and how it will go: p_type -2 Moloch, 0 too soon, 1 naughty, 2 good on a
+ * cross-aligned altar, 3 good (-1 undead cannot happen). On another god's altar the record
+ * counts half, on the opposite god's altar negated. ref: src/pray.c can_pray()
  */
 function canPray(ctx: Ctx): PrayerData {
   const u = uState(ctx.state);
-  const pAlign = u.alignType;
+  const altar = onAltar(ctx);
+  const pAlign = altar ? (heroAltar(ctx) ?? u.alignType) : u.alignType;
   const pTrouble = inTrouble(ctx);
-  const alignment = u.alignRecord;
+  let alignment: number;
+  if (u.alignType && u.alignType === -pAlign)
+    alignment = -u.alignRecord; // opposite alignment altar
+  else if (u.alignType !== pAlign)
+    alignment = Math.trunc(u.alignRecord / 2); // different alignment altar
+  else alignment = u.alignRecord;
   let pType: number;
-  if (pTrouble > 0 ? u.ublesscnt > 200 : pTrouble < 0 ? u.ublesscnt > 100 : u.ublesscnt > 0)
+  if (pAlign === A_NONE)
+    pType = -2; // praying to Moloch
+  else if (pTrouble > 0 ? u.ublesscnt > 200 : pTrouble < 0 ? u.ublesscnt > 100 : u.ublesscnt > 0)
     pType = 0; // too soon...
   else if (luckOf(ctx.state) < 0 || u.ugangr || alignment < 0)
     pType = 1; // too naughty...
-  else pType = 3;
+  else pType = altar && u.alignType !== pAlign ? 2 : 3;
   return { pType, pTrouble, pAlign };
 }
 
-/** ref: src/pray.c prayer_done(), after the three helpless turns */
+/**
+ * Blesses (or curses) the potions of water on the altar under the hero; true if any changed.
+ * "The potions on the altar glow light blue for a moment." ref: src/pray.c water_prayer()
+ */
+function waterPrayer(ctx: Ctx, blessWater: boolean): boolean {
+  const p = hero(ctx).c.pos;
+  if (!p) return false;
+  const blind = hasProp(hero(ctx), P.BLINDED);
+  const bcKnown = !(blind || halluc(ctx));
+  let changed = 0;
+  let other = false;
+  for (const o of itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y)) {
+    const it = o.c.item;
+    if (!it) continue;
+    if (o.def === 'nh:potion_of_water' && it.buc !== (blessWater ? 'blessed' : 'cursed')) {
+      it.buc = blessWater ? 'blessed' : 'cursed';
+      it.known.buc = bcKnown; // ok to bypass set_bknown()
+      changed += it.quantity ?? 1;
+    } else if (ctx.defs.object(o.def).class === 'potion') other = true;
+  }
+  if (!blind && changed) {
+    const which = other ? (changed > 1 ? 'some_of' : 'one_of') : changed > 1 ? 'the_pl' : 'the';
+    say(ctx, `pray.water.${which}`, {
+      color: hcolor(ctx, blessWater ? 'light_blue' : 'black'),
+    });
+  }
+  return changed > 0;
+}
+
+/** ref: src/pray.c prayer_done(), after the three helpless turns (no pray_revive()) */
 function prayerDone(ctx: Ctx, data: PrayerData): void {
   setU(ctx, { uinvulnerable: false });
-  if (data.pType === 0) {
+  const alignment = data.pAlign;
+  const crossAltar = (): boolean => onAltar(ctx) && uState(ctx.state).alignType !== alignment;
+  if (data.pType === -2) {
+    // praying at an unaligned altar
+    say(ctx, 'pray.diabolical');
+    const h = hero(ctx);
+    const p = h.c.pos;
+    if (p) wakeNearto(ctx, p.x, p.y, (h.c.experience?.level ?? 1) * 20); // wake_nearby(FALSE)
+    adjalign(ctx, -2);
+    say(ctx, 'pray.nothing_else'); // not actually true...
+  } else if (data.pType === 0) {
+    if (crossAltar()) waterPrayer(ctx, false);
     setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 250) });
     changeLuck(ctx, -3);
     godsUpset(ctx, uState(ctx.state).alignType);
   } else if (data.pType === 1) {
+    if (crossAltar()) waterPrayer(ctx, false);
     angrygods(ctx, uState(ctx.state).alignType); // naughty
+  } else if (data.pType === 2) {
+    if (waterPrayer(ctx, false)) {
+      // attempted water prayer on a non-coaligned altar
+      setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 250) });
+      changeLuck(ctx, -3);
+      godsUpset(ctx, uState(ctx.state).alignType);
+    } else pleased(ctx, alignment, data.pTrouble);
   } else {
-    pleased(ctx, data.pAlign, data.pTrouble); // nice
+    // coaligned
+    if (onAltar(ctx)) waterPrayer(ctx, true);
+    pleased(ctx, alignment, data.pTrouble); // nice
   }
 }
 
