@@ -435,6 +435,55 @@ describe('inaccessibles', () => {
         expect(r.has((l.down?.y ?? 0) * l.width + (l.down?.x ?? 0))).toBe(true);
       }
   });
+
+  test('a dug way out has doorways only between solid cells', () => {
+    // a walled box in a mines cave: closed-off cave pockets are joined by dug paths, which may
+    // turn inside a wall
+    const cave: LevelDef = {
+      id: 'mb:dig',
+      init: {
+        style: 'mines',
+        fg: 'nh:floor',
+        smoothed: true,
+        joined: true,
+        lit: true,
+        walled: true,
+      },
+      map: { rows: ['x-----x', 'x|...|x', 'x|...+.', 'x-----x'], halign: 'center', valign: 'top' },
+      stairs: { up: { x: 2, y: 1 } },
+      flags: { inaccessibles: true },
+    };
+    const doors = new Set<Key | undefined>([
+      'doorway',
+      'door_closed',
+      'door_open_h',
+      'door_open_v',
+    ]);
+    const solid = (l: Level, x: number, y: number): boolean => {
+      const k = keyAt(l, x, y);
+      return (
+        k === undefined ||
+        k === 'stone' ||
+        k.endsWith('wall') ||
+        k.endsWith('corn') ||
+        k.startsWith('sdoor')
+      );
+    };
+    let bad = 0;
+    for (const size of [opts(), opts(120, 40)])
+      for (let seed = 1; seed <= 30; seed++) {
+        const l = build(cave, seed, size);
+        for (let y = 0; y < l.height; y++)
+          for (let x = 0; x < l.width; x++) {
+            if (!doors.has(keyAt(l, x, y))) continue;
+            const ok =
+              (solid(l, x - 1, y) && solid(l, x + 1, y)) ||
+              (solid(l, x, y - 1) && solid(l, x, y + 1));
+            if (!ok) bad++;
+          }
+      }
+    expect(bad).toBe(0);
+  });
 });
 
 describe('validation', () => {

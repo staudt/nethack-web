@@ -79,3 +79,30 @@ export const branchStartMod: Mod = {
     );
   },
 };
+
+/**
+ * A game mod for soak runs on a special level: at new game it sends the hero to the up stairs of
+ * the first special level in the dungeon layout (Minetown in vanilla), so the bot plays there
+ * from the start. Load it after the vanilla mod. Without a special level it does nothing.
+ */
+export const specialStartMod: Mod = {
+  id: 'testkit-special-start',
+  version: '1',
+  dependsOn: ['nh'],
+  register(api) {
+    // on the first placement (after the pet is made), not at newGame: no level exists yet
+    api.on(
+      'levelChange',
+      (ctx, change) => {
+        if (change.from !== null) return;
+        for (const d of ctx.state.dungeons) {
+          const sp = d.special[0];
+          if (!sp) continue;
+          ctx.goToLevel({ dungeon: d.id, dlevel: sp.dlevel }, 'up');
+          return;
+        }
+      },
+      { priority: -100 },
+    );
+  },
+};

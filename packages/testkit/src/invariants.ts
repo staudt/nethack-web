@@ -140,6 +140,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkTraps(state, registry, errs);
   checkStairsReachable(state, registry, errs);
   checkBranches(state, registry, errs);
+  checkSpecialLevels(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
 
@@ -522,5 +523,58 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
         (child === lv.dungeon && lv.dlevel === 1),
     );
     if (wanted && !lv.branch) errs.push(`level ${lid}: the layout's branch stairs are missing`);
+  }
+}
+
+/**
+ * Special levels match the dungeon layout: each placed special level is one of its dungeon's
+ * `DungeonDef.special` entries, at most once, inside its level range; one that cannot be left
+ * out (chance 100) is placed; and a generated level is built from one of the variants exactly
+ * when the layout puts the special level there, with `Level.town` set for a town.
+ */
+function checkSpecialLevels(state: GameState, registry: Registry, errs: string[]): void {
+  for (const d of state.dungeons) {
+    const def = registry.dungeons.find((x) => x.id === d.id);
+    if (!def) continue;
+    const specials = def.special ?? [];
+    const seen = new Set<string>();
+    for (const s of d.special) {
+      const sd = specials.find((x) => x.id === s.id);
+      if (!sd) {
+        errs.push(`dungeon ${d.id}: special level '${s.id}' is not in its DungeonDef`);
+        continue;
+      }
+      if (seen.has(s.id)) errs.push(`dungeon ${d.id}: special level '${s.id}' placed twice`);
+      seen.add(s.id);
+      if (d.levels !== null) {
+        const lo = sd.base < 0 ? d.levels + sd.base + 1 : sd.base;
+        const hi = lo + (sd.range ?? 1) - 1;
+        if (s.dlevel < Math.max(1, lo) || s.dlevel > Math.min(d.levels, hi))
+          errs.push(
+            `dungeon ${d.id}: special level '${s.id}' on ${s.dlevel}, outside ${lo}..${hi}`,
+          );
+      }
+    }
+    for (const sd of specials)
+      if ((sd.chance ?? 100) >= 100 && !seen.has(sd.id))
+        errs.push(`dungeon ${d.id}: special level '${sd.id}' is missing from the layout`);
+  }
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    const layout = lv && state.dungeons.find((d) => d.id === lv.dungeon);
+    const def = layout && registry.dungeons.find((x) => x.id === layout.id);
+    if (!lv || !layout || !def) continue;
+    const placed = layout.special.find((s) => s.dlevel === lv.dlevel);
+    const sd = placed && def.special?.find((x) => x.id === placed.id);
+    if (sd) {
+      if (lv.def === undefined || !sd.variants.includes(lv.def))
+        errs.push(`level ${lid}: '${String(lv.def)}' is not a variant of '${sd.id}'`);
+      if ((lv.town === true) !== (sd.town === true))
+        errs.push(`level ${lid}: town is ${String(lv.town)} on '${sd.id}'`);
+    } else {
+      const built = lv.def;
+      if (built !== undefined && def.special?.some((x) => x.variants.includes(built)))
+        errs.push(`level ${lid}: built from special variant '${built}' off the layout's place`);
+    }
   }
 }

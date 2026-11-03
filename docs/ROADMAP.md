@@ -36,11 +36,20 @@ From 5b (objects and traps):
 From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-checked 2026-11-02):
 
 - **Boulders:** the boulder object and `moverock()` (pushing, squeezing past, boulders in Mines filler levels and in blocked extra corridors).
-- **Mines monsters:** gnome king, gnomish wizard, dwarf lord, dwarf king, bugbear and mind flayer (the `G` and `h` classes pick only from the monsters that exist).
+- **Mines monsters:** dwarf lord, dwarf king, bugbear and mind flayer (the `G` and `h` classes pick only from the monsters that exist; the gnome king and gnomish wizard came with 6b1).
 - **Branch stairs description:** "staircase down to the Gnomish Mines" once used (`stairs_description()`); up and portal branches.
 - **Either/or content entries** in `LevelDef` (minefill's `percent(50) and "h" or "G"`), and a first solidfill pass before a cave init.
 - **Hero races:** the Mines' inhabitants peaceful to gnome and dwarf heroes.
-- **Minetown** is milestone 6b; Mines' End is not planned yet.
+
+From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch; done, phone check pending):
+
+- **Orcish Town** (`minetn-1`, the seventh variant): orc captains, Uruk-hai, Mordor orcs, orc shamans, `replace_terrain`, `teleport_region` and the booty migrating down the Mines. Until then the variant roll is `rnd(6)`.
+- **Mines' End** (`minend-1..3`): the bottom Mines level stays a filler without down stairs; special-level placement already counts a negative `base` from the bottom.
+- **Fountains:** #quaff, #dip and washing at a fountain, and the Watch's fountain warnings; sinks and trees stay scenery too.
+- **Minetown's missing inhabitants:** College Town's kobold shamans, Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
+- **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
+- **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
+- 6b2 (the temple and priest) and 6b3 (shops) follow, as in `docs/kickoff-m6b.md`.
 
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 

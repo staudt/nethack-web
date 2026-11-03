@@ -15,4 +15,4 @@ export type { ReplayResult } from './replay';
 export { checkInvariants } from './invariants';
 export { soak } from './soak';
 export type { SoakOptions, SoakResult, SoakViolation } from './soak';
-export { branchStartMod, soakKitMod } from './kitmod';
+export { branchStartMod, soakKitMod, specialStartMod } from './kitmod';

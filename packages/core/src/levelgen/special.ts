@@ -497,9 +497,24 @@ function ensureWayOut(b: Builder): void {
         if (n < 0 || from[n] !== -2) continue;
         from[n] = c;
         if (ov[n]) {
-          for (let p = c; !ov2[p]; p = from[p] as number)
-            if (!accessible(p))
-              b.put(p, has(WALL_KEYS, b.key(p)) || has(SDOOR_KEYS, b.key(p)) ? 'doorway' : 'corr');
+          // a wall the path crosses becomes a doorway when it still has solid cells on both
+          // sides along one axis once the whole path is dug, else a corridor like the rest
+          const walls: number[] = [];
+          for (let p = c; !ov2[p]; p = from[p] as number) {
+            if (accessible(p)) continue;
+            if (has(WALL_KEYS, b.key(p)) || has(SDOOR_KEYS, b.key(p))) walls.push(p);
+            b.put(p, 'corr');
+          }
+          const solid = (x: number, y: number): boolean => {
+            const i = at(x, y);
+            return i < 0 || !accessible(i);
+          };
+          for (const p of walls) {
+            const x = p % W;
+            const y = (p - x) / W;
+            if ((solid(x - 1, y) && solid(x + 1, y)) || (solid(x, y - 1) && solid(x, y + 1)))
+              b.put(p, 'doorway');
+          }
           return;
         }
         queue.push(n);

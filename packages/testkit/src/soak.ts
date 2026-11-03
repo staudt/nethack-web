@@ -8,6 +8,7 @@ import {
   inventoryOf,
   seedRng,
   sortedIds,
+  specialLevelAt,
   stateHash,
   type ActionOffer,
   type Dir,
@@ -52,6 +53,8 @@ export interface SoakResult {
   deepestLevel: number;
   /** Deepest level number (`dlevel`) the hero reached in each dungeon she entered, by dungeon id. */
   dungeons: Record<string, number>;
+  /** The special levels (`DungeonLayout.special` ids, such as 'nh:minetown') the hero stood on, sorted. */
+  specialLevels: string[];
   /** Monsters the hero killed or destroyed (counted from 'combat.you_kill'/'combat.you_destroy' messages). */
   kills: number;
   /** The actions taken, so a failure can be replayed. */
@@ -124,9 +127,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let kills = 0;
   let deepest = 1;
   const dungeons: Record<string, number> = {};
+  const specialLevels: string[] = [];
   const noteDungeon = (): void => {
     const lv = state.levels[state.currentLevel];
     if (lv) dungeons[lv.dungeon] = Math.max(dungeons[lv.dungeon] ?? 0, lv.dlevel);
+    const sp = lv && specialLevelAt(state, { dungeon: lv.dungeon, dlevel: lv.dlevel });
+    if (sp && !specialLevels.includes(sp.id)) specialLevels.push(sp.id);
   };
   noteDungeon();
   let pickedUp = 0;
@@ -503,6 +509,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     violations,
     deepestLevel: deepest,
     dungeons,
+    specialLevels: specialLevels.sort(),
     kills,
     cellsExplored: mem.filter((m) => m >= 0).length,
     log,
