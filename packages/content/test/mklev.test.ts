@@ -163,7 +163,7 @@ describe('mktrap', () => {
 
   test('in a dungeon with a bottom, holes stay inside it and none lead out of the last level', () => {
     const ctx = ctxFor(bareState(3));
-    ctx.state.dungeons.push({ id: 'nh:test', depthStart: 5, levels: 4, branches: [] });
+    ctx.state.dungeons.push({ id: 'nh:test', depthStart: 5, levels: 4, branches: [], special: [] });
     const at = (dlevel: number) => ({
       ...getLevel(ctx.state),
       dungeon: 'nh:test' as const,

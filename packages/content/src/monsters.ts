@@ -10,6 +10,7 @@ const MAGENTA = '#bb44bb';
 const YELLOW = '#ffff55';
 const WHITE = '#ffffff'; // HI_DOMESTIC
 const GRAY = '#aaaaaa';
+const BRIGHT_BLUE = '#5555ff'; // HI_ZAP
 
 export const MONSTERS: readonly MonsterDef[] = [
   // ref: monsters.h MON("newt", S_LIZARD, ...)
@@ -389,6 +390,53 @@ export const MONSTERS: readonly MonsterDef[] = [
     conveys: [],
     brain: 'nh:melee',
   },
+  // ref: monsters.h MON(NAM("gnomish wizard"), S_GNOME, ...); HI_ZAP = CLR_BRIGHT_BLUE. Its
+  // AT_MAGC AD_SPEL attack is not ported: it casts no spells (see DEVIATIONS.md).
+  {
+    id: 'nh:gnomish_wizard',
+    nameKey: 'nh:gnomish_wizard',
+    glyph: { ch: 'G', fg: BRIGHT_BLUE },
+    level: 3,
+    speed: 10,
+    ac: 4,
+    mr: 10,
+    alignment: 0,
+    attacks: [{ at: 'magic', ad: 'spel', n: 0, d: 0 }],
+    size: 'small',
+    flags: ['humanoid', 'omnivore', 'gnome', 'magic', 'infravisible', 'infravision'],
+    frequency: 1,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 5,
+    weight: 700,
+    nutrition: 120,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+  },
+  // ref: monsters.h MON(NAMS("gnome king", ...), S_GNOME, ...); HI_LORD = CLR_MAGENTA
+  {
+    id: 'nh:gnome_king',
+    nameKey: 'nh:gnome_king',
+    glyph: { ch: 'G', fg: MAGENTA },
+    level: 5,
+    speed: 10,
+    ac: 10,
+    mr: 20,
+    alignment: 0,
+    attacks: [{ at: 'weapon', ad: 'phys', n: 2, d: 6 }],
+    size: 'small',
+    flags: ['humanoid', 'omnivore', 'gnome', 'prince', 'collect', 'infravisible', 'infravision'],
+    frequency: 1,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 6,
+    weight: 750,
+    nutrition: 150,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+  },
   // ref: monsters.h MON(NAM("hobbit"), S_HUMANOID, ...)
   {
     id: 'nh:hobbit',
@@ -477,6 +525,29 @@ export const MONSTERS: readonly MonsterDef[] = [
     difficulty: 4,
     weight: 10,
     nutrition: 10,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+  },
+  // ref: monsters.h MON(NAM("goblin"), S_ORC, ...); unlike other orcs, no poison resistance
+  {
+    id: 'nh:goblin',
+    nameKey: 'nh:goblin',
+    glyph: { ch: 'o', fg: GRAY },
+    level: 0,
+    speed: 6,
+    ac: 10,
+    mr: 0,
+    alignment: -3,
+    attacks: [{ at: 'weapon', ad: 'phys', n: 1, d: 4 }],
+    size: 'small',
+    flags: ['humanoid', 'omnivore', 'orc', 'collect', 'infravisible', 'infravision'],
+    frequency: 2,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 1,
+    weight: 400,
+    nutrition: 100,
     resists: [],
     conveys: [],
     brain: 'nh:melee',

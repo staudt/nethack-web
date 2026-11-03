@@ -163,6 +163,9 @@ describe('trap doors in the Mines', () => {
       const state = newGame(seed);
       const n = layout(state, 'nh:mines').levels ?? 0;
       for (const from of [1, n - 2, n - 1]) {
+        // the Mines' gnomes must not end the game before the fall is checked
+        const hp = getPlayer(state).c.hp;
+        if (hp) Object.assign(hp, { cur: 1000, max: 1000 });
         goTo(state, { dungeon: 'nh:mines', dlevel: from }, 'up');
         engine.step(state, { type: 'move', dir: trapDoorBeside(state) });
         const level = getLevel(state);

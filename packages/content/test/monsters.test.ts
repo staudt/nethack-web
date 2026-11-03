@@ -39,8 +39,11 @@ describe('vanilla monsters', () => {
       'stck',
       'drco',
     ];
+    // spell attacks (AT_MAGC) are not ported: mattacku() skips them (DEVIATIONS.md)
     for (const m of MONSTERS)
-      for (const a of m.attacks) expect(known, `${m.id} ${a.ad}`).toContain(a.ad);
+      for (const a of m.attacks)
+        if (a.at === 'magic') expect(`${m.id} ${a.ad}`).toBe('nh:gnomish_wizard spel');
+        else expect(known, `${m.id} ${a.ad}`).toContain(a.ad);
   });
 
   test('newt matches include/monsters.h', () => {

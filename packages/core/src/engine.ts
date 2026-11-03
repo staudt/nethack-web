@@ -4,6 +4,7 @@ import {
   levelIdFor,
   levelStairs,
   rollDungeons,
+  specialLevelAt,
   rootDungeon,
 } from './dungeon';
 import {
@@ -98,10 +99,19 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       height,
       terrain,
     };
-    const filler = registry.dungeon(ref.dungeon).filler;
-    return filler === undefined
+    const dungeon = registry.dungeon(ref.dungeon);
+    const at = specialLevelAt(state, ref);
+    const special = at && dungeon.special?.find((s) => s.id === at.id);
+    if (special) {
+      // ref: src/mkmaze.c makemaz(): "%s-%d" with rnd(sp->rndlevs), before anything else
+      const variant = special.variants[rng.rnd(special.variants.length) - 1] as DefId;
+      const level = buildLevel(rng, opts, registry.level(variant));
+      if (special.town === true) level.town = true;
+      return level;
+    }
+    return dungeon.filler === undefined
       ? generateLevel(rng, opts)
-      : buildLevel(rng, opts, registry.level(filler));
+      : buildLevel(rng, opts, registry.level(dungeon.filler));
   };
 
   const occupied = (
@@ -329,7 +339,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (!roleDef) throw new Error('No player role registered');
       const s = seed >>> 0;
       const state: GameState = {
-        version: 7,
+        version: 8,
         seed: s,
         turn: 1,
         nextEntityId: 1,

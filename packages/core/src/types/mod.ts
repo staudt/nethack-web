@@ -186,6 +186,28 @@ export interface DungeonDef {
   entry?: DungeonEntryDef;
   /** LevelDef for its ordinary levels; omitted for the rooms-and-corridors generator. */
   filler?: DefId;
+  /** Its fixed special levels, placed in this order when the layout is rolled. */
+  special?: SpecialLevelDef[];
+}
+
+/**
+ * A special level of a dungeon (ref: dat/dungeon.lua `levels`; src/dungeon.c init_level(),
+ * place_level()). At new game it exists with `chance`% and goes on one of the levels
+ * `base .. base + range - 1` that no earlier special level of the dungeon took; a negative `base`
+ * counts from the bottom (-1 = the last level). When that level is first made one of `variants`
+ * (LevelDef ids) is picked with `rnd(n)` (ref: src/mkmaze.c makemaz()).
+ */
+export interface SpecialLevelDef {
+  id: DefId;
+  nameKey: string;
+  base: number;
+  /** How many levels from `base` it may go on; default 1. */
+  range?: number;
+  /** 0..100, default 100; `rn2(100)` is drawn either way. */
+  chance?: number;
+  variants: DefId[];
+  /** A town level: `Level.town` is set (ref: dungeon.lua flags "town"). */
+  town?: boolean;
 }
 
 /** ref: dat/dungeon.lua branches; src/dungeon.c parent_dlevel(), level_range() */

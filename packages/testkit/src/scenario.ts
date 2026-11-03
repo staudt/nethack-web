@@ -307,7 +307,20 @@ export function runScenario(
     for (const id of sortedIds(state)) {
       if (id === state.playerId) continue;
       const p = state.entities[String(id)]?.c.pos;
-      if (levelId === undefined || p?.level === levelId) delete state.entities[String(id)];
+      if (levelId !== undefined && p?.level !== levelId) continue;
+      delete state.entities[String(id)];
+    }
+    // what the removed monsters carried and the removed boxes held (no pos) goes with them
+    for (let gone = true; gone;) {
+      gone = false;
+      for (const id of sortedIds(state)) {
+        const item = state.entities[String(id)]?.c.item;
+        const owner = item?.carriedBy ?? item?.containedIn ?? null;
+        if (owner !== null && state.entities[String(owner)] === undefined) {
+          delete state.entities[String(id)];
+          gone = true;
+        }
+      }
     }
   };
 

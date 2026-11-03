@@ -1,5 +1,6 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
 import type { DungeonDef, LevelDef } from '@nh/core';
+import { MINETOWN_VARIANTS } from './minetown';
 
 /**
  * The filler level of the Gnomish Mines: a joined, walled cave of gnomes, dwarves and gems.
@@ -27,14 +28,16 @@ export const MINEFILL: LevelDef = {
   ],
 };
 
-export const LEVELS: readonly LevelDef[] = [MINEFILL];
+export const LEVELS: readonly LevelDef[] = [MINEFILL, ...MINETOWN_VARIANTS];
 
 /**
  * The Dungeons of Doom. NetHack gives it `rn1(5, 25)` levels with the Castle at the bottom;
  * without the Castle this port keeps it endless (see DEVIATIONS.md and `DUNGEON_BOTTOM`).
- * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4. Minetown and Mines'
- * End are not made, so every level is filler and the last one has no down stairs.
- * ref: dat/dungeon.lua ("The Gnomish Mines": base 8, range 2; branch base 2, range 3)
+ * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
+ * level 3 or 4 (one of six variants, see minetown.ts). Mines' End is not made, so the other
+ * levels are filler and the last one has no down stairs.
+ * ref: dat/dungeon.lua ("The Gnomish Mines": base 8, range 2; branch base 2, range 3;
+ * minetn: base 3, range 2, nlevels 7, flags "town")
  */
 export const DUNGEONS: readonly DungeonDef[] = [
   { id: 'nh:main', nameKey: 'nh:main' },
@@ -44,5 +47,15 @@ export const DUNGEONS: readonly DungeonDef[] = [
     levels: { base: 8, range: 2 },
     entry: { from: 'nh:main', base: 2, range: 3 },
     filler: 'nh:minefill',
+    special: [
+      {
+        id: 'nh:minetown',
+        nameKey: 'nh:minetown',
+        base: 3,
+        range: 2,
+        variants: MINETOWN_VARIANTS.map((l) => l.id),
+        town: true,
+      },
+    ],
   },
 ];

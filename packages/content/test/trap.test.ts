@@ -35,6 +35,7 @@ import {
   vanillaMod,
 } from '../src/index';
 import { addMon } from './helpers';
+import { quiet } from './itemHelpers';
 import { monLearnsTraps, setMtrapped } from '../src/trapstate';
 
 /** Walks east into the pet until it is not just "in the way" (1 in 7); returns the message keys. */
@@ -73,9 +74,13 @@ function withCtx(state: GameState, fn: (ctx: Ctx) => void): GameEvent[] {
 
 const keys = (ev: GameEvent[]): string[] => ev.flatMap((e) => (e.type === 'msg' ? [e.key] : []));
 
-/** A lit room from ASCII rows ('@' is the hero), other entities cleared, hero with 500 HP. */
+/**
+ * A lit room from ASCII rows ('@' is the hero), other entities cleared, hero with 500 HP, random
+ * monster generation off.
+ */
 function setup(rows: string[], seed = 1) {
   const { state } = engine.newGame({ seed });
+  quiet(state);
   for (const id of Object.keys(state.entities))
     if (Number(id) !== state.playerId) delete state.entities[id];
   const height = rows.length;
@@ -216,6 +221,9 @@ describe('dotrap: the hero', () => {
     expect(floorDefs(state, 2, 1)).toContain('nh:rock');
 
     const s2 = setup(ROOM).state;
+    // 2 below the cap: the 2 damage leaves her at full HP, so no regeneration hides it
+    const hp2 = getPlayer(s2).c.hp;
+    if (hp2) hp2.max = 498;
     wear(s2, 'nh:dwarvish_iron_helm', 'helm');
     place(s2, TRAP.rock, 2, 1);
     const ev2 = engine.step(s2, { type: 'move', dir: 'e' }).events;

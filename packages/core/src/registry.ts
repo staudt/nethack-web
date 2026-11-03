@@ -426,6 +426,39 @@ export function loadMods(mods: readonly Mod[]): Registry {
           range(d.entry.range, 'entry.range');
         }
         if (d.filler !== undefined) str(d.filler, 'filler', d.id);
+        if (d.special !== undefined) {
+          if (!Array.isArray(d.special)) issue('special', 'must be an array', d.id);
+          else
+            d.special.forEach((sp, i) => {
+              const at = `special[${i}]`;
+              if (typeof sp !== 'object' || sp === null)
+                return issue(at, 'must be an object', d.id);
+              str(sp.id, `${at}.id`, d.id);
+              if (d.special?.some((o, j) => j < i && o.id === sp.id))
+                issue(`${at}.id`, `duplicate special level '${sp.id}'`, d.id);
+              str(sp.nameKey, `${at}.nameKey`, d.id);
+              if (!Number.isInteger(sp.base) || sp.base === 0)
+                issue(`${at}.base`, 'must be a non-zero integer', d.id);
+              range(sp.range, `${at}.range`);
+              if (
+                sp.chance !== undefined &&
+                (!Number.isInteger(sp.chance) || sp.chance < 0 || sp.chance > 100)
+              )
+                issue(`${at}.chance`, 'must be an integer 0..100', d.id);
+              if (!Array.isArray(sp.variants) || sp.variants.length === 0)
+                issue(`${at}.variants`, 'must be a non-empty array of LevelDef ids', d.id);
+              if (sp.town !== undefined && typeof sp.town !== 'boolean')
+                issue(`${at}.town`, 'must be a boolean', d.id);
+              // the base must be inside the dungeon however few levels it rolls
+              const fewest = d.levels?.base;
+              if (Number.isInteger(sp.base) && sp.base !== 0) {
+                if (fewest === undefined && sp.base < 0)
+                  issue(`${at}.base`, 'cannot count from the bottom of an endless dungeon', d.id);
+                else if (fewest !== undefined && Math.abs(sp.base) > fewest)
+                  issue(`${at}.base`, `is outside the dungeon (as few as ${fewest} levels)`, d.id);
+              }
+            });
+        }
         dungeons.set(d.id, { ...d, mod: modId });
       },
       defineLevel(d) {
@@ -495,6 +528,19 @@ export function loadMods(mods: readonly Mod[]): Registry {
         path: 'filler',
         reason: `unknown level '${d.filler}'`,
       });
+  for (const d of dungeons.values())
+    (Array.isArray(d.special) ? d.special : []).forEach((sp, i) => {
+      if (!Array.isArray(sp.variants)) return;
+      sp.variants.forEach((v, j) => {
+        if (typeof v !== 'string' || !levels.has(v))
+          issues.push({
+            modId: d.mod,
+            defId: d.id,
+            path: `special[${i}].variants[${j}]`,
+            reason: `unknown level '${String(v)}'`,
+          });
+      });
+    });
   for (const l of levels.values()) {
     const ref = (path: string, reason: string): void =>
       void issues.push({ modId: l.mod, defId: l.id, path, reason });

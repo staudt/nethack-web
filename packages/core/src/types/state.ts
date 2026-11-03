@@ -33,6 +33,8 @@ export interface DungeonLayout {
   levels: number | null;
   /** Where the dungeons entered from it leave it, in `registry.dungeons` order. */
   branches: { to: DefId; dlevel: number }[];
+  /** Where its special levels went, in `DungeonDef.special` order; absent ones are left out. */
+  special: { id: DefId; dlevel: number }[];
 }
 
 /** A question awaiting the player's `{ type: 'answer' }`; `handler` is the ActionDef whose `answer` runs. */
@@ -44,7 +46,7 @@ export interface PendingPrompt {
 
 /** The whole game. JSON-plain: no classes, Map, Set, functions or typed arrays. */
 export interface GameState {
-  version: 7;
+  version: 8;
   seed: number;
   turn: number;
   nextEntityId: number;

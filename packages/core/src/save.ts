@@ -4,7 +4,7 @@ import type { Replay, SaveFile } from './types/protocol';
 import type { DungeonLayout, GameState } from './types/state';
 
 export const SAVE_FORMAT = 'nh-ts';
-export const SAVE_VERSION = 7 as const;
+export const SAVE_VERSION = 8 as const;
 
 export function serializeSave(state: GameState, replay: Replay): string {
   const file: SaveFile = {
@@ -35,12 +35,14 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
   // Older saves only lack fields that start empty: v4 added `occupation`, v5 `monsterMemory`,
   // v6 `Level.traps`. v7 added the dungeon layout: an old game has only the root dungeon (no
   // branches, no rolled bottom) and all its levels are in it, with no branch stairs.
+  // v8 added the special levels to the layout: a v7 game keeps its dungeons without any (its
+  // Mines may already be made, so none of its levels becomes Minetown).
   const old = file.version as number | undefined;
-  if ((old === 3 || old === 4 || old === 5 || old === 6) && file.state) {
+  if ((old === 3 || old === 4 || old === 5 || old === 6 || old === 7) && file.state) {
     const st = file.state as {
       occupation?: unknown;
       monsterMemory?: unknown;
-      dungeons?: DungeonLayout[];
+      dungeons?: (Omit<DungeonLayout, 'special'> & { special?: DungeonLayout['special'] })[];
       levels?: Record<
         string,
         { traps?: unknown; depth: number; dungeon?: string; dlevel?: number; branch?: unknown }
@@ -50,7 +52,9 @@ export function parseSave(text: string, registry: Registry): { state: GameState;
     const root = registry.dungeons[0];
     st.occupation ??= null;
     st.monsterMemory ??= {};
-    if (root) st.dungeons ??= [{ id: root.id, depthStart: 1, levels: null, branches: [] }];
+    if (root)
+      st.dungeons ??= [{ id: root.id, depthStart: 1, levels: null, branches: [], special: [] }];
+    for (const d of st.dungeons ?? []) d.special ??= [];
     for (const level of Object.values(st.levels ?? {})) {
       level.traps ??= [];
       if (root) level.dungeon ??= root.id;

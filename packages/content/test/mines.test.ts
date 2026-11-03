@@ -99,6 +99,12 @@ describe('Mines levels', () => {
       expect(n).toBeGreaterThanOrEqual(8);
       for (let dlevel = 1; dlevel <= n; dlevel++) {
         const level = goTo(state, { dungeon: 'nh:mines', dlevel });
+        if (mines?.special.some((s) => s.dlevel === dlevel)) {
+          // Minetown (see testkit's minetown.test.ts)
+          expect(level.town).toBe(true);
+          expect(level.def).toMatch(/^nh:minetn-[2-7]$/);
+          continue;
+        }
         expect(level).toMatchObject({ id: `nh:mines/${dlevel}`, def: 'nh:minefill', rooms: [] });
         expect(level.depth).toBe((mines?.depthStart ?? 0) + dlevel - 1);
 

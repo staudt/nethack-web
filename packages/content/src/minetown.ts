@@ -1,0 +1,844 @@
+// Minetown: six of NetHack 5.0's seven variants, as LevelDefs. ref: dat/minetn-2.lua .. minetn-7.lua
+//
+// Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) is not shipped, so the variant is
+// a roll among these six. `align[1]` (a shuffled alignment shared by the level) is `random` on the
+// one altar each variant has, which is the same thing. Shops and the temple are typed rooms but
+// stay empty and untended until 6b2/6b3. Monkeys, kobold shamans, nymphs and the gnome king
+// statue are skipped (no such monsters or objects yet). `des.room` levels without a level_init
+// start as dark stone, as makemaz() leaves the level before the lua runs.
+import type { LevelContent, LevelDef, RoomDef } from '@nh/core';
+
+const mon = (id: string, extra: Partial<LevelContent> = {}): LevelContent => ({
+  kind: 'monster',
+  id: `nh:${id}`,
+  ...extra,
+});
+const cls = (c: string, extra: Partial<LevelContent> = {}): LevelContent => ({
+  kind: 'monster',
+  class: c,
+  ...extra,
+});
+const at = (x: number, y: number): Partial<LevelContent> => ({ x, y });
+const peaceful = { peaceful: true } as const;
+const TRAP: LevelContent = { kind: 'trap' };
+
+/** The Town Watch: four watchmen and a captain, all peaceful. */
+const WATCH: LevelContent[] = [
+  mon('watchman', { ...peaceful, count: 4 }),
+  mon('watch_captain', peaceful),
+];
+
+/** The four random rooms of a `des.room` Minetown around the town, joined by corridors. */
+const OUTSKIRTS: RoomDef[] = [
+  { stairs: ['up'] },
+  { stairs: ['down'], contents: [TRAP, mon('gnome', { count: 2 })] },
+  { contents: [mon('dwarf')] },
+  { contents: [TRAP, mon('gnome')] },
+];
+
+const STONE = { style: 'solidfill', fg: 'nh:stone', lit: false } as const;
+const shrine = (x: number, y: number) =>
+  ({ kind: 'altar', x, y, align: 'random', shrine: true }) as const;
+const WIZARDS = [mon('gnomish_wizard', { count: 2 })];
+
+/** "Town Square". ref: dat/minetn-2.lua */
+export const MINETN_2: LevelDef = {
+  id: 'nh:minetn-2',
+  init: STONE,
+  rooms: [
+    {
+      lit: true,
+      x: 3,
+      y: 3,
+      xalign: 'center',
+      yalign: 'center',
+      w: 31,
+      h: 15,
+      features: [
+        { kind: 'fountain', x: 17, y: 5 },
+        { kind: 'fountain', x: 13, y: 8 },
+      ],
+      rooms: [
+        { percent: 75, x: 2, y: 0, w: 2, h: 2, doors: [{ state: 'closed', wall: 'west' }] },
+        {
+          percent: 75,
+          lit: false,
+          x: 5,
+          y: 0,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        { percent: 75, x: 8, y: 0, w: 2, h: 2, doors: [{ state: 'closed', wall: 'east' }] },
+        {
+          percent: 75,
+          lit: true,
+          x: 16,
+          y: 0,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        {
+          percent: 75,
+          lit: false,
+          x: 19,
+          y: 0,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          percent: 75,
+          x: 22,
+          y: 0,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+          contents: [mon('gnome')],
+        },
+        {
+          percent: 75,
+          lit: false,
+          x: 25,
+          y: 0,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'east' }],
+        },
+        {
+          percent: 75,
+          lit: true,
+          x: 2,
+          y: 5,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        {
+          percent: 75,
+          lit: true,
+          x: 5,
+          y: 5,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          percent: 75,
+          x: 8,
+          y: 5,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'north' }],
+          contents: [mon('gnome')],
+        },
+        {
+          type: 'nh:shop',
+          chance: 90,
+          lit: true,
+          x: 2,
+          y: 10,
+          w: 4,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        {
+          type: 'nh:tool_shop',
+          chance: 90,
+          lit: true,
+          x: 23,
+          y: 10,
+          w: 4,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'east' }],
+        },
+        {
+          type: 'nh:food_shop', // monkfoodshop()
+          chance: 90,
+          lit: true,
+          x: 24,
+          y: 5,
+          w: 3,
+          h: 4,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        {
+          type: 'nh:candle_shop',
+          lit: true,
+          x: 11,
+          y: 10,
+          w: 4,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'east' }],
+        },
+        {
+          percent: 75,
+          lit: false,
+          x: 7,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'locked', wall: 'north' }],
+          contents: [mon('gnome')],
+        },
+        {
+          type: 'nh:temple',
+          lit: true,
+          x: 19,
+          y: 5,
+          w: 4,
+          h: 4,
+          doors: [{ state: 'closed', wall: 'north' }],
+          features: [shrine(2, 2)],
+          contents: WIZARDS,
+        },
+        {
+          percent: 75,
+          lit: true,
+          x: 18,
+          y: 10,
+          w: 4,
+          h: 3,
+          doors: [{ state: 'locked', wall: 'west' }],
+          contents: [mon('gnome_lord')],
+        },
+      ],
+      contents: WATCH,
+    },
+    ...OUTSKIRTS,
+  ],
+  corridors: 'random',
+};
+
+/** "Alley Town". minetn-3's stray positional `random` in some rooms has no effect. ref: dat/minetn-3.lua */
+export const MINETN_3: LevelDef = {
+  id: 'nh:minetn-3',
+  init: STONE,
+  rooms: [
+    {
+      lit: true,
+      x: 3,
+      y: 3,
+      xalign: 'center',
+      yalign: 'center',
+      w: 31,
+      h: 15,
+      features: [
+        { kind: 'fountain', x: 1, y: 6 },
+        { kind: 'fountain', x: 29, y: 13 },
+      ],
+      rooms: [
+        { x: 2, y: 2, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        {
+          type: 'nh:tool_shop',
+          chance: 30,
+          lit: true,
+          x: 5,
+          y: 3,
+          w: 2,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          x: 2,
+          y: 10,
+          w: 2,
+          h: 3,
+          doors: [{ state: 'locked', wall: 'north' }],
+          contents: [cls('G')],
+        },
+        { x: 5, y: 9, w: 2, h: 2, doors: [{ state: 'closed', wall: 'north' }] },
+        {
+          type: 'nh:temple',
+          lit: true,
+          x: 10,
+          y: 2,
+          w: 3,
+          h: 4,
+          doors: [{ state: 'closed', wall: 'east' }],
+          features: [shrine(1, 1)],
+          contents: WIZARDS,
+        },
+        { x: 11, y: 7, w: 2, h: 2, doors: [{ state: 'closed', wall: 'west' }] },
+        {
+          type: 'nh:shop',
+          lit: true,
+          x: 10,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        {
+          x: 14,
+          y: 8,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'north' }],
+          contents: [cls('G')],
+        },
+        { x: 14, y: 11, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        {
+          type: 'nh:tool_shop',
+          chance: 40,
+          lit: true,
+          x: 17,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        {
+          x: 21,
+          y: 11,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'east' }],
+          contents: [cls('G')],
+        },
+        {
+          type: 'nh:food_shop', // monkfoodshop()
+          chance: 90,
+          lit: true,
+          x: 26,
+          y: 8,
+          w: 3,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        { x: 16, y: 2, w: 2, h: 2, doors: [{ state: 'closed', wall: 'west' }] },
+        { x: 19, y: 2, w: 2, h: 2, doors: [{ state: 'closed', wall: 'north' }] },
+        {
+          type: 'nh:wand_shop',
+          chance: 30,
+          lit: true,
+          x: 19,
+          y: 5,
+          w: 3,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        {
+          type: 'nh:candle_shop',
+          lit: true,
+          x: 25,
+          y: 2,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+      ],
+      contents: WATCH,
+    },
+    ...OUTSKIRTS,
+  ],
+  corridors: 'random',
+};
+
+/** "College Town". The kobold shamans are skipped. ref: dat/minetn-4.lua */
+export const MINETN_4: LevelDef = {
+  id: 'nh:minetn-4',
+  init: STONE,
+  rooms: [
+    {
+      lit: true,
+      x: 3,
+      y: 3,
+      xalign: 'center',
+      yalign: 'center',
+      w: 30,
+      h: 15,
+      features: [
+        { kind: 'fountain', x: 8, y: 7 },
+        { kind: 'fountain', x: 18, y: 7 },
+      ],
+      rooms: [
+        {
+          type: 'nh:book_shop',
+          lit: true,
+          x: 4,
+          y: 2,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        { x: 8, y: 2, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        {
+          type: 'nh:temple',
+          lit: true,
+          x: 11,
+          y: 3,
+          w: 5,
+          h: 4,
+          doors: [{ state: 'closed', wall: 'south' }],
+          features: [shrine(2, 1)],
+          contents: WIZARDS,
+        },
+        {
+          x: 19,
+          y: 2,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+          contents: [cls('G')],
+        },
+        {
+          type: 'nh:candle_shop',
+          lit: true,
+          x: 22,
+          y: 2,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          x: 26,
+          y: 2,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'east' }],
+          contents: [cls('G')],
+        },
+        {
+          type: 'nh:tool_shop',
+          chance: 90,
+          lit: true,
+          x: 4,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        {
+          x: 8,
+          y: 11,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'south' }],
+          // des.monster("kobold shaman") x2 skipped
+          contents: [mon('kitten'), cls('f')],
+        },
+        {
+          type: 'nh:food_shop', // monkfoodshop()
+          chance: 90,
+          lit: true,
+          x: 11,
+          y: 11,
+          w: 3,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'east' }],
+        },
+        { x: 17, y: 11, w: 2, h: 2, doors: [{ state: 'closed', wall: 'west' }] },
+        {
+          x: 20,
+          y: 10,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'north' }],
+          contents: [cls('G')],
+        },
+        {
+          type: 'nh:shop',
+          chance: 90,
+          lit: true,
+          x: 23,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+      ],
+      contents: WATCH,
+    },
+    ...OUTSKIRTS,
+  ],
+  corridors: 'random',
+};
+
+/**
+ * "Grotto Town": a dark cave town drawn as one map block. The gnome king statue is skipped.
+ * ref: dat/minetn-5.lua
+ */
+export const MINETN_5: LevelDef = {
+  id: 'nh:minetn-5',
+  init: { style: 'solidfill', fg: 'nh:stone' },
+  map: {
+    rows: [
+      '-----         ---------                                                    ',
+      '|...---  ------.......--    -------                       ---------------  ',
+      '|.....----.........--..|    |.....|          -------      |.............|  ',
+      '--..-....-.----------..|    |.....|          |.....|     --+---+--.----+-  ',
+      ' --.--.....----     ----    |.....|  ------  --....----  |..-...--.-.+..|  ',
+      '  ---.........----  -----   ---+---  |..+.|   ---..-..----..---+-..---..|  ',
+      '    ----.-....|..----...--    |.|    |..|.|    ---+-.....-+--........--+-  ',
+      '       -----..|....-.....---- |.|    |..|.------......--................|  ',
+      '    ------ |..|.............---.--   ----.+..|-.......--..--------+--..--  ',
+      '    |....| --......---...........-----  |.|..|-...{....---|.........|..--  ',
+      '    |....|  |........-...-...........----.|..|--.......|  |.........|...|  ',
+      '    ---+--------....-------...---......--.-------....---- -----------...|  ',
+      ' ------.---...--...--..-..--...-..---...|.--..-...-....------- |.......--  ',
+      ' |..|-.........-..---..-..---.....--....|........---...-|....| |.-------   ',
+      ' |..+...............-+---+-----..--..........--....--...+....| |.|...S.    ',
+      '-----.....{....----...............-...........--...-...-|....| |.|...|     ',
+      '|..............-- --+--.---------.........--..-........------- |.--+-------',
+      '-+-----.........| |...|.|....|  --.......------...|....---------.....|....|',
+      '|...| --..------- |...|.+....|   ---...---    --..|...--......-...{..+..-+|',
+      '|...|  ----       ------|....|     -----       -----.....----........|..|.|',
+      '-----                   ------                     -------  ---------------',
+    ],
+  },
+  regions: [
+    { area: [0, 0, 74, 20], lit: false },
+    { area: [9, 13, 11, 17], lit: true },
+    { area: [8, 14, 12, 16], lit: true },
+    { area: [49, 7, 51, 11], lit: true },
+    { area: [48, 8, 52, 10], lit: true },
+    { area: [64, 17, 68, 19], lit: true },
+    { area: [37, 13, 39, 17], lit: true },
+    { area: [36, 14, 40, 17], lit: true },
+    { area: [59, 2, 72, 10], lit: true },
+    // the shops
+    { area: [25, 17, 28, 19], lit: true, type: 'nh:candle_shop', filled: true },
+    { area: [59, 9, 67, 10], lit: true, type: 'nh:shop', filled: true },
+    { area: [57, 13, 60, 15], lit: true, type: 'nh:tool_shop', filled: true },
+    { area: [5, 9, 8, 10], lit: true, type: 'nh:food_shop', filled: true }, // monkfoodshop()
+    // the temple
+    { area: [29, 2, 33, 4], lit: true, type: 'nh:temple', filled: true },
+  ],
+  edits: [
+    {
+      percent: 75,
+      then: {
+        percent: 50,
+        set: [{ char: '|', line: [25, 8, 25, 9] }],
+        else: { set: [{ char: '-', line: [16, 13, 17, 13] }] },
+      },
+    },
+    {
+      percent: 75,
+      then: {
+        percent: 50,
+        set: [{ char: '|', line: [36, 10, 36, 11] }],
+        else: { set: [{ char: '-', line: [32, 15, 33, 15] }] },
+      },
+    },
+    {
+      percent: 50,
+      set: [
+        { char: '.', area: [21, 4, 22, 5] },
+        { char: '|', line: [14, 9, 14, 10] },
+      ],
+    },
+    {
+      percent: 50,
+      set: [
+        { char: '|', at: [46, 13] },
+        { char: '-', line: [43, 5, 47, 5] },
+        { char: '.', line: [42, 6, 46, 6] },
+        { char: '.', line: [46, 7, 47, 7] },
+      ],
+    },
+    { percent: 50, set: [{ char: '-', area: [69, 11, 71, 11] }] },
+  ],
+  doors: [
+    { x: 24, y: 18, state: 'closed' },
+    { x: 66, y: 8, state: 'closed' },
+    { x: 56, y: 14, state: 'closed' },
+    { x: 7, y: 11, state: 'closed' },
+    // gnome homes
+    { x: 4, y: 14, state: 'closed' },
+    { x: 1, y: 17, state: 'locked' },
+    { x: 20, y: 16, state: 'locked' },
+    { x: 21, y: 14, state: 'random' },
+    { x: 25, y: 14, state: 'random' },
+    { x: 42, y: 8, state: 'random' },
+    { x: 40, y: 5, state: 'locked' },
+    { x: 59, y: 3, state: 'random' },
+    { x: 58, y: 6, state: 'random' },
+    { x: 63, y: 3, state: 'random' },
+    { x: 63, y: 5, state: 'random' },
+    { x: 71, y: 3, state: 'locked' },
+    { x: 71, y: 6, state: 'locked' },
+    { x: 69, y: 4, state: 'closed' },
+    { x: 67, y: 16, state: 'closed' },
+    { x: 69, y: 18, state: 'locked' },
+    { x: 73, y: 18, state: 'locked' },
+    { x: 50, y: 6, state: 'locked' },
+    // the temple
+    { x: 31, y: 5, state: 'closed' },
+  ],
+  features: [
+    { kind: 'fountain', x: 50, y: 9 },
+    { kind: 'fountain', x: 10, y: 15 },
+    { kind: 'fountain', x: 66, y: 18 },
+    shrine(31, 3),
+  ],
+  stairs: { up: { x: 1, y: 1 }, down: { x: 46, y: 3 } },
+  contents: [
+    ...WATCH,
+    mon('gnome', { count: 6 }),
+    mon('gnome_lord', { count: 2 }),
+    mon('dwarf', { count: 3 }),
+    mon('gnomish_wizard', at(2, 19)),
+    cls('G', at(20, 18)),
+    cls('G', at(38, 7)),
+    mon('gnomish_wizard', at(67, 14)),
+    { kind: 'object', class: 'ring', x: 70, y: 14 },
+    mon('gnome_lord', at(71, 19)),
+    { kind: 'object', id: 'nh:chest', x: 73, y: 19 },
+    { kind: 'object', class: 'tool', x: 50, y: 3 },
+    // des.object({ id = "statue", x=38, y=15, montype="gnome king", historic=1 }) skipped
+  ],
+};
+
+/**
+ * "Bustling Town": a town block at the top of a lit mines cave, its stairs in the cave on
+ * either side. NetHack's preceding stone solidfill (and its rn2(2)) is not drawn, as for
+ * minefill, and the cave's background is stone instead of wall: after wallification the
+ * walls are the same. ref: dat/minetn-6.lua
+ */
+export const MINETN_6: LevelDef = {
+  id: 'nh:minetn-6',
+  init: { style: 'mines', fg: 'nh:floor', smoothed: true, joined: true, lit: true, walled: true },
+  flags: { inaccessibles: true },
+  map: {
+    halign: 'center',
+    valign: 'top',
+    rows: [
+      'x--------xxxxxxxxxxx-------------------x',
+      'x------xxxxxxxxxxxxxx-----------------xx',
+      '.-----................----------------.x',
+      '.|...|................|...|..|...|...|..',
+      '.|...+..--+--.........|...|..|...|...|..',
+      '.|...|..|...|..-----..|...|..|-+---+--..',
+      '.-----..|...|--|...|..--+---+-.........x',
+      '........|...|..|...+.............-----.x',
+      '........-----..|...|......--+-...|...|..',
+      'x----...|...|+------..{...|..|...+...|..',
+      'x|..+...|...|.............|..|...|...|..',
+      '.|..|...|...|-+-.....---+-------------.x',
+      '.----...--+--..|..-+-|..................',
+      '...|........|..|..|..|----....--------.x',
+      '...|..T.....----..|..|...+....|......|..',
+      '...|-....{........|..|...|....+......|x.',
+      '...--..-....T.....--------....|......|x.',
+      '.......--.....................----------',
+      '.xxxx-----xxxxxxxxxxxxxxxxxx------------',
+      'xxxx-------xxxxxxxxxxxxxxx--------------',
+    ],
+  },
+  regions: [
+    { area: [0, 0, 39, 19], lit: true },
+    { area: [13, 7, 14, 8], lit: false },
+    { area: [9, 9, 11, 11], lit: true, type: 'nh:candle_shop', filled: true },
+    { area: [16, 6, 18, 8], lit: true, type: 'nh:tool_shop', filled: true },
+    { area: [23, 3, 25, 5], lit: true, type: 'nh:shop', filled: true },
+    { area: [22, 14, 24, 15], lit: true, type: 'nh:food_shop', filled: true }, // monkfoodshop()
+    { area: [31, 14, 36, 16], lit: true, type: 'nh:temple', filled: true },
+  ],
+  doors: [
+    { x: 5, y: 4, state: 'closed' },
+    { x: 4, y: 10, state: 'locked' },
+    { x: 10, y: 4, state: 'closed' },
+    { x: 10, y: 12, state: 'closed' },
+    { x: 13, y: 9, state: 'locked' },
+    { x: 14, y: 11, state: 'locked' },
+    { x: 19, y: 7, state: 'closed' },
+    { x: 19, y: 12, state: 'closed' },
+    { x: 24, y: 6, state: 'closed' },
+    { x: 24, y: 11, state: 'closed' },
+    { x: 25, y: 14, state: 'closed' },
+    { x: 28, y: 6, state: 'closed' },
+    { x: 28, y: 8, state: 'locked' },
+    { x: 30, y: 15, state: 'closed' },
+    { x: 31, y: 5, state: 'closed' },
+    { x: 35, y: 5, state: 'closed' },
+    { x: 33, y: 9, state: 'closed' },
+  ],
+  features: [shrine(35, 15)],
+  // lua levregions with region_islev (NetHack x - 1 here; the down region counted from the
+  // right edge and both to the second-last row, so they stay beside the town on bigger maps)
+  // and map-relative excludes
+  stairs: {
+    up: { region: [0, 3, 20, -2], coords: 'level', exclude: [1, 0, 39, 18] },
+    down: { region: [-21, 3, -6, -2], coords: 'level', exclude: [0, 0, 38, 18] },
+  },
+  contents: [
+    mon('gnome', { count: 6 }),
+    mon('gnome', at(14, 8)),
+    mon('gnome_lord', at(14, 7)),
+    mon('gnome', at(27, 10)),
+    mon('gnome_lord', { count: 2 }),
+    mon('dwarf', { count: 3 }),
+    mon('dwarf', { ...peaceful, count: 2 }),
+    mon('gnome', { ...peaceful, count: 2 }),
+    mon('hobbit', peaceful),
+    mon('goblin', peaceful),
+    mon('kobold', peaceful),
+    mon('dog', peaceful),
+    mon('watchman', { ...peaceful, count: 3 }),
+    mon('watch_captain', { ...peaceful, count: 2 }),
+  ],
+};
+
+/** "Bazaar Town". The monkeys and the nymph are skipped. ref: dat/minetn-7.lua */
+export const MINETN_7: LevelDef = {
+  id: 'nh:minetn-7',
+  init: STONE,
+  rooms: [
+    {
+      lit: true,
+      x: 3,
+      y: 3,
+      xalign: 'center',
+      yalign: 'center',
+      w: 30,
+      h: 15,
+      features: [
+        { kind: 'fountain', x: 12, y: 7 },
+        { kind: 'fountain', x: 11, y: 13 },
+      ],
+      rooms: [
+        { percent: 75, x: 2, y: 2, w: 4, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        { percent: 75, x: 7, y: 2, w: 2, h: 2, doors: [{ state: 'closed', wall: 'north' }] },
+        { percent: 75, x: 7, y: 5, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        {
+          percent: 75,
+          lit: true,
+          x: 10,
+          y: 2,
+          w: 3,
+          h: 4,
+          // des.monster("monkey") x3 skipped
+          contents: [mon('gnome')],
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          percent: 75,
+          x: 14,
+          y: 2,
+          w: 4,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south', pos: 0 }],
+          // des.monster("n") skipped
+        },
+        { percent: 75, x: 16, y: 5, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
+        {
+          percent: 75,
+          lit: false,
+          x: 19,
+          y: 2,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'east' }],
+          contents: [mon('gnome_king')],
+        },
+        {
+          type: 'nh:food_shop', // monkfoodshop()
+          chance: 50,
+          lit: true,
+          x: 19,
+          y: 5,
+          w: 2,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        { percent: 75, x: 2, y: 7, w: 2, h: 2, doors: [{ state: 'closed', wall: 'east' }] },
+        {
+          type: 'nh:tool_shop',
+          chance: 50,
+          lit: true,
+          x: 2,
+          y: 10,
+          w: 2,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'south' }],
+        },
+        {
+          type: 'nh:candle_shop',
+          lit: true,
+          x: 5,
+          y: 10,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        {
+          percent: 75,
+          x: 11,
+          y: 10,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'locked', wall: 'west' }],
+          contents: [cls('G')],
+        },
+        {
+          type: 'nh:shop',
+          chance: 60,
+          lit: true,
+          x: 14,
+          y: 10,
+          w: 2,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'north' }],
+        },
+        { percent: 75, x: 17, y: 11, w: 4, h: 2, doors: [{ state: 'closed', wall: 'north' }] },
+        {
+          percent: 75,
+          x: 22,
+          y: 11,
+          w: 2,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'south' }],
+          features: [{ kind: 'sink', x: 0, y: 0 }],
+        },
+        {
+          type: 'nh:food_shop', // monkfoodshop()
+          chance: 50,
+          lit: true,
+          x: 25,
+          y: 11,
+          w: 3,
+          h: 2,
+          doors: [{ state: 'closed', wall: 'east' }],
+        },
+        {
+          type: 'nh:tool_shop',
+          chance: 30,
+          lit: true,
+          x: 25,
+          y: 2,
+          w: 3,
+          h: 3,
+          doors: [{ state: 'closed', wall: 'west' }],
+        },
+        {
+          type: 'nh:temple',
+          lit: true,
+          x: 24,
+          y: 6,
+          w: 4,
+          h: 4,
+          doors: [{ state: 'closed', wall: 'west' }],
+          features: [shrine(2, 1)],
+          contents: WIZARDS,
+        },
+      ],
+      // des.monster("monkey") x2 skipped
+      contents: [...WATCH, mon('gnome', { count: 3 }), mon('gnome_lord')],
+    },
+    ...OUTSKIRTS,
+  ],
+  corridors: 'random',
+};
+
+/** In lua file order (minetn-2 .. minetn-7); the variant is `rnd(6)` into this list. */
+export const MINETOWN_VARIANTS: readonly LevelDef[] = [
+  MINETN_2,
+  MINETN_3,
+  MINETN_4,
+  MINETN_5,
+  MINETN_6,
+  MINETN_7,
+];

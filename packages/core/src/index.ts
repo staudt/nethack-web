@@ -36,6 +36,7 @@ export {
   levelIdFor,
   depthOf,
   levelStairs,
+  specialLevelAt,
 } from './dungeon';
 export { createEngine, UnknownActionError, DEFAULT_WIDTH, DEFAULT_HEIGHT } from './engine';
 export type { Engine, EngineOptions, NewGameOptions } from './engine';

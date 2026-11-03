@@ -129,7 +129,13 @@ describe('rollDungeons', () => {
     const rng = counting(1);
     const layout = rollDungeons(rng, [DEFAULT_DUNGEON, { id: 'dg:x', nameKey: 'x' }]);
     expect(rng.draws).toBe(0);
-    expect(layout[0]).toEqual({ id: 'core:dungeon', depthStart: 1, levels: null, branches: [] });
+    expect(layout[0]).toEqual({
+      id: 'core:dungeon',
+      depthStart: 1,
+      levels: null,
+      branches: [],
+      special: [],
+    });
   });
 
   test('sizes and branch levels stay in their ranges', () => {
@@ -233,8 +239,10 @@ describe('save v7', () => {
       delete l.branch;
     }
     const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(7);
-    expect(loaded.dungeons).toEqual([{ id: 'dg:main', depthStart: 1, levels: null, branches: [] }]);
+    expect(loaded.version).toBe(8);
+    expect(loaded.dungeons).toEqual([
+      { id: 'dg:main', depthStart: 1, levels: null, branches: [], special: [] },
+    ]);
     expect(loaded.levels['dlvl2']).toMatchObject({ dungeon: 'dg:main', dlevel: 2, depth: 2 });
     for (const id of ['dlvl1', 'dlvl2'])
       expect(loaded.levels[id]).toEqual({ ...s.levels[id], branch: null });
