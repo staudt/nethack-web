@@ -57,6 +57,7 @@ const HOOK_NAMES: readonly HookName[] = [
   'newGame',
   'newLevel',
   'levelChange',
+  'beforeGameOver',
 ];
 const ACTION_TYPES: readonly ActionType[] = ['move', 'wait', 'search', 'answer', 'mod'];
 const ATTACK_TYPES: readonly AttackType[] = [

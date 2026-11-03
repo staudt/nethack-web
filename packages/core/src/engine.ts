@@ -212,7 +212,9 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         ctx.interrupted = true;
       },
       endGame(over) {
-        state.gameOver ??= over;
+        if (state.gameOver) return;
+        if (registry.hooks('beforeGameOver').some((h) => h.fn(ctx, over) === 'cancel')) return;
+        state.gameOver = over;
       },
     };
     return ctx;

@@ -120,6 +120,35 @@ describe('step', () => {
     expect(calls).toEqual(['wait']);
   });
 
+  test('beforeGameOver: cancel keeps the game going, otherwise it ends once', () => {
+    let veto = true;
+    const seen: string[] = [];
+    const over = { kind: 'died' as const, killer: 'x', turn: 1, depth: 1, level: 1 };
+    const e = mk((api) => {
+      api.defineAction({
+        id: 'fk:die',
+        labelKey: 'action.fk:die',
+        handles: 'mod',
+        offer: () => [],
+        perform(ctx) {
+          ctx.endGame(over);
+          return 0;
+        },
+      });
+      api.on('beforeGameOver', (_c, o) => {
+        seen.push(o.killer);
+        return veto ? 'cancel' : 'continue';
+      });
+    });
+    const { state } = newGame(e);
+    e.step(state, { type: 'mod', action: 'fk:die' });
+    expect(state.gameOver).toBeNull();
+    veto = false;
+    e.step(state, { type: 'mod', action: 'fk:die' });
+    expect(state.gameOver).toEqual(over);
+    expect(seen).toEqual(['x', 'x']);
+  });
+
   test.each([-1, 1.5, NaN])('invalid cost %s throws', (cost) => {
     const e = mk();
     const { state } = newGame(e);

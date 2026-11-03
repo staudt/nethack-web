@@ -409,6 +409,12 @@ export interface Hooks {
    * (ref: src/dog.c keepdogs(), losedogs()) move here.
    */
   levelChange(ctx: Ctx, change: LevelChange): void;
+  /**
+   * In `ctx.endGame()`, before the game ends: any hook may return 'cancel' to keep it going
+   * (the game is then not over, and the caller of `endGame` must check `state.gameOver`).
+   * Wizard mode's "Die?" uses it. Not called once the game is already over.
+   */
+  beforeGameOver(ctx: Ctx, over: GameOver): 'continue' | 'cancel';
 }
 
 export type HookName = keyof Hooks;
