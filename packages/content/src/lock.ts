@@ -38,47 +38,14 @@ import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
 import { T } from './terrain';
 import { HERE } from './priority';
+import { KEY, PICKLOCK_ID, lockAction, lockData, xlockOf, type Xlock } from './lockstate';
 
-export const PICKLOCK_ID: DefId = 'nh:picklock';
+export { KEY, PICKLOCK_ID };
+
 export const LOCK_ID: DefId = 'nh:lock';
-
-/** The lock tools. ref: include/objects.h SKELETON_KEY, LOCK_PICK, CREDIT_CARD */
-export const KEY = {
-  skeleton: 'nh:skeleton_key',
-  pick: 'nh:lock_pick',
-  card: 'nh:credit_card',
-} as const;
 
 export const isLockTool = (def: string): boolean =>
   def === KEY.skeleton || def === KEY.pick || def === KEY.card;
-
-/** gx.xlock: the lock being worked on, kept between attempts (ref: src/lock.c struct xlock_s). */
-interface Xlock {
-  /** A box on the floor ... */
-  box?: EntityId;
-  /** ... or a door, with the direction it was approached from (u.dx, u.dy). */
-  door?: { level: string; x: number; y: number; dir: Dir };
-  chance: number;
-  picktyp: string;
-  usedtime: number;
-}
-
-interface LockData {
-  xlock?: Xlock;
-}
-
-function lockData(ctx: Pick<Ctx, 'state'>): LockData {
-  const md = ctx.state.modData;
-  let d = md['nh'] as unknown as LockData | undefined;
-  if (typeof d !== 'object' || d === null) {
-    d = {};
-    md['nh'] = d as unknown as (typeof md)[string];
-  }
-  return d;
-}
-
-const xlockOf = (ctx: Pick<Ctx, 'state'>): Xlock | null =>
-  (ctx.state.modData['nh'] as unknown as LockData | undefined)?.xlock ?? null;
 
 /** ref: src/lock.c reset_pick() */
 function resetPick(ctx: Ctx): void {
@@ -133,28 +100,6 @@ export function autokey(ctx: Ctx, opening: boolean): Entity | null {
   }
   if (!opening) card = null;
   return key ?? pick ?? card;
-}
-
-/** "unlocking the box", "picking the lock", "locking the door"... ref: src/lock.c lock_action() */
-function lockAction(ctx: Ctx, x: Xlock): Msg {
-  // if the target is currently unlocked, we're trying to lock it now
-  if (x.door) {
-    const lv = levelOf(ctx, x.door.level);
-    const t = lv ? terrainAt(ctx, lv, x.door.x, x.door.y) : null;
-    if (t?.door !== 'locked') return { key: 'lock.act.lock_door' };
-  } else if (x.box !== undefined) {
-    const box = ctx.state.entities[String(x.box)];
-    if (box && !box.c.item?.locked)
-      return { key: box.def === 'nh:chest' ? 'lock.act.lock_chest' : 'lock.act.lock_box' };
-  }
-  // otherwise we're trying to unlock it
-  if (x.picktyp === KEY.pick || x.picktyp === KEY.card) return { key: 'lock.act.pick' };
-  if (x.door) return { key: 'lock.act.unlock_door' };
-  if (x.box !== undefined) {
-    const box = ctx.state.entities[String(x.box)];
-    return { key: box?.def === 'nh:chest' ? 'lock.act.unlock_chest' : 'lock.act.unlock_box' };
-  }
-  return { key: 'lock.act.pick' };
 }
 
 /**

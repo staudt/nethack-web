@@ -34,6 +34,8 @@ const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 const isArmed = (def: MonsterDef): boolean => def.attacks.some((a) => a.at === 'weapon');
 const isStrong = (def: MonsterDef): boolean => hasFlag(def, 'strong');
 const isLord = (def: MonsterDef): boolean => hasFlag(def, 'lord');
+/** ref: include/mondata.h is_mercenary(): M2_MERC */
+const isMercenary = (def: MonsterDef): boolean => hasFlag(def, 'merc');
 /** ref: include/mondata.h likes_gold() */
 export const likesGold = (def: MonsterDef): boolean => hasFlag(def, 'greedy');
 /** ref: include/mondata.h likes_gems() */
@@ -189,8 +191,8 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 
 /**
  * The starting weapons and armor of an armed monster.
- * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, hill orc and
- * dwarf. Objects missing from the object table (pick-axe, battle axe, two-handed sword, lucern
+ * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, hill orc, dwarf
+ * and the Watch. Objects missing from the object table (pick-axe, battle axe, two-handed sword, lucern
  * hammer) are not given, but the rolls C makes for them are. (Hill orcs get no bows here: in 5.0
  * only Uruk-hai are given orcish bows.)
  */
@@ -198,7 +200,9 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   const { def } = monOf(ctx, monId);
   const rng = ctx.rng;
   const ch = def.glyph.ch;
-  if (ch === 'h' && def.id === 'nh:hobbit') {
+  if (ch === '@' && isMercenary(def)) {
+    mercWeapons(ctx, monId, def);
+  } else if (ch === 'h' && def.id === 'nh:hobbit') {
     switch (rng.rn2(3)) {
       case 0:
         mongets(ctx, monId, 'nh:dagger');
@@ -283,15 +287,85 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
 }
 
 /**
+ * A mercenary's weapons. ref: src/makemon.c m_initweap() S_HUMAN `is_mercenary(ptr)`, for the
+ * Watch (the only mercenaries in the roster). There are no polearms or silver sabers in the object
+ * table yet: a watchman's polearm is a spear and a watch captain's silver saber a long sword
+ * (DEVIATIONS.md); the rolls are C's.
+ */
+function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
+  const rng = ctx.rng;
+  let w1: string | null = null;
+  let w2: string | null = null;
+  if (def.id === 'nh:watchman') {
+    if (rng.rn2(3) === 0) {
+      w1 = 'nh:spear'; // a random polearm (partisan .. bec de corbin) in C
+      w2 = rng.rn2(2) !== 0 ? 'nh:dagger' : 'nh:knife';
+    } else w1 = rng.rn2(2) !== 0 ? 'nh:spear' : 'nh:short_sword';
+  } else if (def.id === 'nh:watch_captain') {
+    rng.rn2(2); // LONG_SWORD : SILVER_SABER
+    w1 = 'nh:long_sword';
+  } else {
+    // default: other mercenaries (none in the roster)
+    if (rng.rn2(4) === 0) w1 = 'nh:dagger';
+    if (rng.rn2(7) === 0) w2 = 'nh:spear';
+  }
+  if (w1) mongets(ctx, monId, w1);
+  if (!w2 && w1 !== 'nh:dagger' && rng.rn2(4) === 0) w2 = 'nh:knife';
+  if (w2) mongets(ctx, monId, w2);
+}
+
+/** The armor class each mercenary's armor approximates. ref: m_initinv() `mac` */
+const MERC_AC: Readonly<Record<string, number>> = { 'nh:watchman': 3, 'nh:watch_captain': -2 };
+
+/**
+ * A mercenary's armor, in five rounds that stop once it is armored enough.
+ * ref: src/makemon.c m_initinv() S_HUMAN `is_mercenary(ptr)`. Armor missing from the object
+ * table (plate mail, crystal plate mail, splint and banded mail, studded leather armor, helmet,
+ * dented pot, large shield, low and high boots, leather cloak) and the watchman's tin whistle
+ * are not given, and their creation rolls are not made (DEVIATIONS.md).
+ */
+function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
+  const rng = ctx.rng;
+  let mac = MERC_AC[def.id] ?? 0;
+  // add_ac(): the armor's bonus counts toward the target
+  const add = (otyp: string): void => {
+    const id = mongets(ctx, monId, otyp);
+    const o = id === null ? undefined : ctx.state.entities[String(id)];
+    if (o) mac += armorBonus(ctx, o);
+  };
+  // round 1: body armor
+  if (mac < -1 && rng.rn2(5) !== 0)
+    add(rng.rn2(5) !== 0 ? 'nh:plate_mail' : 'nh:crystal_plate_mail');
+  else if (mac < 3 && rng.rn2(5) !== 0) add(rng.rn2(3) !== 0 ? 'nh:splint_mail' : 'nh:banded_mail');
+  else if (rng.rn2(5) !== 0) add(rng.rn2(3) !== 0 ? 'nh:ring_mail' : 'nh:studded_leather_armor');
+  else add('nh:leather_armor');
+  // rounds 2 to 5: helmet, shield, boots, gloves or cloak
+  const rounds: [string, string][] = [
+    ['nh:helmet', 'nh:dented_pot'],
+    ['nh:small_shield', 'nh:large_shield'],
+    ['nh:low_boots', 'nh:high_boots'],
+    ['nh:leather_gloves', 'nh:leather_cloak'],
+  ];
+  for (const [first, second] of rounds) {
+    if (mac < 10 && rng.rn2(3) !== 0) add(first);
+    else if (mac < 10 && rng.rn2(2) !== 0) add(second);
+  }
+  // watch captains get a better weapon instead; most watchmen carry a tin whistle (not in the
+  // table: `if (rn2(3)) mongets(mtmp, TIN_WHISTLE)`, only the roll is made)
+  if (def.id === 'nh:watchman') rng.rn2(3);
+}
+
+/**
  * The extra items of a monster, and its pocket money.
- * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). The roster has no
- * mercenaries, nymphs, leprechauns or demons; gnomes roll for a candle (not in the table).
+ * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). The roster has no nymphs,
+ * leprechauns or demons; gnomes roll for a candle (not in the table).
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   const { def } = monOf(ctx, monId);
   const rng = ctx.rng;
   // candle for gnomes (not in the table; not in the Mines), then the defensive and misc item
   // rolls (wands, potions and scrolls this port cannot choose yet): only the rolls are made
+  if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
   if (def.glyph.ch === 'G') rng.rn2(60);
   rng.rn2(50);
   rng.rn2(100);

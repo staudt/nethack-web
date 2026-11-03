@@ -7,6 +7,7 @@ import { P, hasProp } from './props';
 import { canSpotMon, monNam } from './perception';
 import { adjalign } from './luck';
 import { growl } from './dog';
+import { angryGuards, isWatch } from './watch';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -54,8 +55,8 @@ const humanoid = (ctx: Ctx, id: EntityId): boolean => {
 
 /**
  * Other peaceful monsters that see the attack react: humanoids may turn to flee, and always turn
- * hostile. ref: src/mon.c peacefuls_respond(). Not ported: the gasp / exclaim lines (and their
- * random draw), watchmen, shopkeepers, priests, the quest, and the same-letter big-little match for
+ * hostile; a watchman arrests the hero, which angers the whole Watch. ref: src/mon.c
+ * peacefuls_respond(). Not ported: the gasp / exclaim lines (and their random draw), shopkeepers, priests, the quest, and the same-letter big-little match for
  * non-humanoids (growling and fleeing).
  */
 function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
@@ -74,6 +75,12 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
     )
       continue;
     if (!humanoid(ctx, id)) continue;
+    if (isWatch(mon.def)) {
+      // verbalize()
+      say(ctx, 'watch.halt_arrest');
+      angryGuards(ctx, false);
+      continue;
+    }
     // the monster is scared when its level is below a d10 roll
     if (def.level < ctx.rng.rn2(10)) monflee(ctx, id, ctx.rng.rn2(50) + 25, true, true);
     m.peaceful = false;

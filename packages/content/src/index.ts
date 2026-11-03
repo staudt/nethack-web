@@ -319,6 +319,15 @@ export { KICK_ACTIONS, KICK_ID, setWoundedLegs } from './dokick';
 export { monflee, isFleeing, fleeTime, stopFleeing } from './monflee';
 export { needsAttackConfirm, setmangry, wakeup } from './peaceful';
 export {
+  WATCHMAN,
+  WATCH_CAPTAIN,
+  angryGuards,
+  isWatch,
+  pacifyGuards,
+  watchmanDoorDamage,
+  watchmanThiefArrest,
+} from './watch';
+export {
   TRAP,
   TRAPS,
   TRAP_ACTIONS,

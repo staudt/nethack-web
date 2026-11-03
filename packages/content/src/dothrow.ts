@@ -54,6 +54,7 @@ import { acurrstr, findMac } from './stats';
 import { monNam } from './perception';
 import { luckOf } from './luck';
 import { ringBonus } from './props';
+import { angryGuards, isWatch } from './watch';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -232,6 +233,8 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   }
   if (dmg < 1) dmg = 1;
 
+  // ref: src/uhitm.c hmon(): hitting a peaceful watchman angers the whole Watch afterwards
+  const angerGuards = m.peaceful && isWatch(mon.def);
   const hp = mon.c.hp;
   // ref: src/uhitm.c hmon_hitmon_pet(): a pet hit by the hero's missile is abused and flees
   if (m.tame && dmg > 0) {
@@ -251,6 +254,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     });
     wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
+  if (angerGuards) angryGuards(ctx, false);
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {
     ctx.remove(objId);

@@ -43,6 +43,7 @@ import { isMtrapped, utrap } from './trapstate';
 import { isBig, nonliving } from './mondata';
 import { dmgval, dmgvalSized } from './dmgval';
 import { ringBonus } from './props';
+import { angryGuards, isWatch } from './watch';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -236,6 +237,9 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     return answer(false, true);
   }
 
+  // ref: src/uhitm.c hmon(): hitting a peaceful watchman angers the whole Watch afterwards
+  const angerGuards = mon.peaceful && isWatch(target.def);
+
   // ref: src/uhitm.c hmon_hitmon(): the base damage, then (if above 0) the Str bonus (3/2 of
   // it for a two-handed melee weapon) and the weapon-skill bonus, and a minimum of 1.
   let dmg: number;
@@ -300,6 +304,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     });
     monsterDied(ctx, targetId, true);
     gainExperience(ctx, hero.id, experienceFor(def, mon.level));
+    if (angerGuards) angryGuards(ctx, false);
     return answer(true, false);
   }
   // ref: src/uhitm.c hmon_hitmon_msg_hit(): "You hit <mon>" + exclam(dmg)
@@ -311,6 +316,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   // ref: src/uhitm.c known_hitum(): a hit that left it below half its hit points sometimes scares
   // it (`!rn2(25) && mon->mhp < mon->mhpmax / 2`); hmon_hitmon_msg_hit()'s wakeup() comes first
   wakeup(ctx, targetId);
+  if (angerGuards) angryGuards(ctx, false);
   if (ctx.rng.rn2(25) === 0 && hp.cur < Math.trunc(hp.max / 2)) {
     // ref: src/uhitm.c known_hitum() (the hero's sticky hold is released inside monflee())
     monflee(ctx, targetId, ctx.rng.rn2(3) === 0 ? ctx.rng.rnd(100) : 0, false, true);

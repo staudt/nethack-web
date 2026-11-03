@@ -41,6 +41,7 @@ import { isFrozen, isMStunned, setMStunned } from './mstate';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
+import { isWatch, watchOnDuty } from './watch';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -480,6 +481,9 @@ export function dochug(
   // ref: dochug(): "fleeing monsters might regain courage"
   regainCourage(ctx, id);
   const fleeing = isFleeing(ctx, id);
+
+  // ref: dochug(): "the watch will look around and see if you are up to no good :-)"
+  if (isWatch(def.id)) watchOnDuty(ctx, id);
 
   // ref: dochug(): "If monster is nearby you, and has to wield a weapon, do so. This costs the
   // monster a move, of course."

@@ -17,6 +17,7 @@ import { jewelryMessagesEn } from './jewelry.en';
 import { zapMessagesEn } from './zap.en';
 import { applyMessagesEn } from './apply.en';
 import { lockMessagesEn } from './lock.en';
+import { watchMessagesEn } from './watch.en';
 import { pickupMessagesEn } from './pickup.en';
 import { spellMessagesEn } from './spell.en';
 import { wizardMessagesEn } from './wizard/wizard.en';
@@ -41,6 +42,7 @@ export const messagesEn: Record<string, string> = {
   ...applyMessagesEn,
   ...wizardMessagesEn,
   ...lockMessagesEn,
+  ...watchMessagesEn,
   ...pickupMessagesEn,
   ...spellMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
@@ -195,4 +197,6 @@ export const messagesEn: Record<string, string> = {
   'nh:homunculus': 'homunculus',
   'nh:centipede': 'centipede',
   'nh:rabid_rat': 'rabid rat',
+  'nh:watchman': 'watchman',
+  'nh:watch_captain': 'watch captain',
 };

@@ -4,7 +4,7 @@
 //
 // The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not
 // levitating, not riding, not swimming. Those branches are not ported. Also not ported: traps, boxes
-// and chests, boulders, shops and town watchmen, thrones, altars, fountains, graves, trees, sinks,
+// and chests, boulders, shops, thrones, altars, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import {
@@ -61,6 +61,7 @@ import { T } from './terrain';
 import { thitmonst } from './dothrow';
 import { monNam } from './perception';
 import { abuseDog } from './dog';
+import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 
 import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
@@ -130,8 +131,9 @@ const terrainAt = (ctx: Ctx, x: number, y: number): TerrainDef => {
  * ref: src/dokick.c kick_door(). An open door or a doorway is kicked at "empty space". A closed
  * or locked door gives way when `rnl(35) < (Str + Dex + Con) / 3`: with Str over 18 one time in 5
  * it shatters, otherwise it crashes open; both leave a doorway here (D_NODOOR and D_BROKEN are
- * the same square). Otherwise "Thwack!!" (1 in 3) or "Whammm!!". Not ported: trapped doors, shop
- * doors and the Watch, Levitation.
+ * the same square). Otherwise "Thwack!!" (1 in 3) or "Whammm!!". In town a watchman in sight
+ * arrests the hero for a broken door, and warns her (then arrests her) for a damaged one. Not
+ * ported: trapped doors, shop doors, Levitation.
  */
 function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   const t = terrainAt(ctx, x, y);
@@ -145,8 +147,10 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
     else say(ctx, 'kick.door_crashes');
     setTerrain(level, x, y, T.doorway);
     ctx.emit({ type: 'doorOpened', pos: { x, y } });
+    watchmanThiefArrest(ctx, x, y); // in town
   } else {
     say(ctx, ctx.rng.rn2(3) === 0 ? 'kick.door_thwack' : 'kick.door_whammm');
+    watchmanDoorDamage(ctx, x, y); // in town
   }
 }
 

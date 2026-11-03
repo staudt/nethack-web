@@ -9,6 +9,7 @@ const BRIGHT_GREEN = '#55ff55';
 const MAGENTA = '#bb44bb';
 const YELLOW = '#ffff55';
 const WHITE = '#ffffff'; // HI_DOMESTIC
+const GRAY = '#aaaaaa';
 
 export const MONSTERS: readonly MonsterDef[] = [
   // ref: monsters.h MON("newt", S_LIZARD, ...)
@@ -970,6 +971,80 @@ export const MONSTERS: readonly MonsterDef[] = [
     weight: 30,
     nutrition: 5,
     resists: ['poison'],
+    conveys: [],
+    brain: 'nh:melee',
+  },
+  // The Minetown Watch: never randomly generated (G_NOGEN), made by special levels only.
+  // ref: monsters.h MON(NAM("watchman"), S_HUMAN, LVL(6, 10, 10, 0, -2),
+  // (G_SGROUP | G_NOGEN | G_GENO | 1), ...)
+  {
+    id: 'nh:watchman',
+    nameKey: 'nh:watchman',
+    glyph: { ch: '@', fg: GRAY },
+    level: 6,
+    speed: 10,
+    ac: 10,
+    mr: 0,
+    alignment: -2,
+    attacks: [{ at: 'weapon', ad: 'phys', n: 1, d: 8 }],
+    size: 'medium',
+    flags: [
+      'humanoid',
+      'omnivore',
+      'nopoly',
+      'human',
+      'merc',
+      'stalk',
+      'peaceful',
+      'strong',
+      'collect',
+      'infravisible',
+    ],
+    frequency: 1,
+    group: 'small',
+    genFlags: ['nogen', 'geno'],
+    difficulty: 8,
+    weight: 1450,
+    nutrition: 400,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+  },
+  // ref: monsters.h MON(NAM("watch captain"), S_HUMAN, LVL(10, 10, 10, 15, -4),
+  // (G_NOGEN | G_GENO | 1), ...)
+  {
+    id: 'nh:watch_captain',
+    nameKey: 'nh:watch_captain',
+    glyph: { ch: '@', fg: GREEN },
+    level: 10,
+    speed: 10,
+    ac: 10,
+    mr: 15,
+    alignment: -4,
+    attacks: [
+      { at: 'weapon', ad: 'phys', n: 3, d: 4 },
+      { at: 'weapon', ad: 'phys', n: 3, d: 4 },
+    ],
+    size: 'medium',
+    flags: [
+      'humanoid',
+      'omnivore',
+      'nopoly',
+      'human',
+      'merc',
+      'stalk',
+      'peaceful',
+      'strong',
+      'collect',
+      'infravisible',
+    ],
+    frequency: 1,
+    group: null,
+    genFlags: ['nogen', 'geno'],
+    difficulty: 12,
+    weight: 1450,
+    nutrition: 400,
+    resists: [],
     conveys: [],
     brain: 'nh:melee',
   },
