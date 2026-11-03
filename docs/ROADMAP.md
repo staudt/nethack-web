@@ -33,7 +33,7 @@ From 5b (objects and traps):
 - **Traps:** the other trap types (pits, webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
 - **Item damage:** `passive_obj` on monster gear, fixing erosion.
 
-From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, pending the phone check):
+From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-checked 2026-11-02):
 
 - **Boulders:** the boulder object and `moverock()` (pushing, squeezing past, boulders in Mines filler levels and in blocked extra corridors).
 - **Mines monsters:** gnome king, gnomish wizard, dwarf lord, dwarf king, bugbear and mind flayer (the `G` and `h` classes pick only from the monsters that exist).
