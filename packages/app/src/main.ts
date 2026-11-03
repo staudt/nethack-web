@@ -10,6 +10,7 @@ import {
   runKeys,
   saveLayout,
   vanillaKeys,
+  wizardKeys,
 } from './keys';
 import { WIZARD, bootPlan, modsForSave, newGameMods } from './mods';
 import { parseParams } from './params';
@@ -34,10 +35,16 @@ let dead = false;
 let loading = false;
 /** The game mods of the current game include the wizard mod: show the status-line marker. */
 let wizard = false;
+let wizardKeysBound = false;
 
 /** Names the game mods for the next new game or load (from the URL or the save, never state). */
 function useMods(ids: string[]): void {
   wizard = ids.includes(WIZARD);
+  // Wizard keys (^f, ^w, ...) once a wizard game starts; they shadow browser shortcuts.
+  if (wizard && !wizardKeysBound) {
+    wizardKeysBound = true;
+    wizardKeys.register(ui.api);
+  }
   remote.setMods(ids);
 }
 

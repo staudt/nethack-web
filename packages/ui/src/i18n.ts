@@ -93,6 +93,14 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.pick.none.nh:throw': "You don't have anything to throw.",
   'ui.pick.nh:zap': 'What do you want to zap?',
   'ui.pick.none.nh:zap': "You don't have anything to zap.",
+  'ui.pick.nh:apply': 'What do you want to use or apply?',
+  'ui.pick.none.nh:apply': "You don't have anything to use or apply.",
+  'ui.pick.nh:puton': 'What do you want to put on?',
+  'ui.pick.none.nh:puton': "You don't have anything to put on.",
+  'ui.pick.nh:remove': 'What do you want to remove?',
+  'ui.pick.none.nh:remove': 'You are not wearing any accessories.',
+  'ui.pick.nh:loot': 'What do you want to loot?',
+  'ui.pick.none.nh:loot': "You don't find anything here to loot.",
   'describe.unexplored': 'You have not explored that spot.',
 };
 

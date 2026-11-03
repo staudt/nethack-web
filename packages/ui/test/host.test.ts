@@ -12,6 +12,7 @@ import type {
   Pos,
   Prompt,
   Renderer,
+  UiCommand,
   ViewItem,
   ViewUpdate,
 } from '@nh/core';
@@ -149,8 +150,25 @@ describe('host', () => {
     ui = m.ui;
     key('k', 'KeyK');
     key('k', 'KeyK', { ctrlKey: true });
+    key('k', 'KeyK', { altKey: true });
+    key('k', 'KeyK', { metaKey: true });
     key('q', 'KeyQ');
     expect(m.acts).toEqual([{ type: 'move', dir: 'n' }]);
+  });
+
+  test('Alt+<letter> bindings act by physical key (macOS Option types another character)', () => {
+    const pray: UiCommand = { type: 'action', action: { type: 'mod', action: 'nh:pray' } };
+    const m = mk({
+      mods: [
+        defaultKeymap,
+        { id: 't', version: '1', register: (api) => api.bindKey('Alt+p', pray) },
+      ],
+    });
+    ui = m.ui;
+    key('π', 'KeyP', { altKey: true });
+    key('p', 'KeyP', { altKey: true, metaKey: true });
+    key('p', 'KeyP');
+    expect(m.acts).toEqual([{ type: 'mod', action: 'nh:pray' }]);
   });
 
   test('arrow chord via DOM events makes one diagonal; numpad and vi stay instant', () => {

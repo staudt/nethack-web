@@ -52,3 +52,34 @@ describe('keymap', () => {
     expect(mv(km, 'KeyS', 's')).toBe('search');
   });
 });
+
+describe('modifier chords', () => {
+  const km = new Keymap();
+  km.bind('Alt+l', { type: 'ui', id: 'alt-l' });
+  km.bind('Alt+N', { type: 'ui', id: 'alt-N' });
+  km.bind('Ctrl+d', { type: 'ui', id: 'ctrl-d' });
+  km.bind('l', { type: 'ui', id: 'l' });
+  km.bind('@', { type: 'ui', id: 'at' });
+  test('Alt uses the physical letter; Shift picks the capital', () => {
+    expect(km.resolve({ code: 'KeyL', key: '¬', altKey: true })).toEqual({
+      type: 'ui',
+      id: 'alt-l',
+    });
+    expect(km.resolve({ code: 'KeyN', key: 'N', altKey: true, shiftKey: true })).toEqual({
+      type: 'ui',
+      id: 'alt-N',
+    });
+    expect(km.resolve({ code: 'KeyD', key: 'd', altKey: true })).toBeUndefined();
+  });
+  test('Ctrl only matches Ctrl bindings; Ctrl+Alt (AltGr) is the typed character', () => {
+    expect(km.resolve({ code: 'KeyD', key: 'D', ctrlKey: true })).toEqual({
+      type: 'ui',
+      id: 'ctrl-d',
+    });
+    expect(km.resolve({ code: 'KeyL', key: 'l', ctrlKey: true })).toBeUndefined();
+    expect(km.resolve({ code: 'KeyQ', key: '@', ctrlKey: true, altKey: true })).toEqual({
+      type: 'ui',
+      id: 'at',
+    });
+  });
+});

@@ -1,4 +1,4 @@
-import type { AsyncCoreQuery, ClientMod, Dir, PlayerAction } from '@nh/core';
+import type { AsyncCoreQuery, ClientMod, DefId, Dir, PlayerAction } from '@nh/core';
 import type { KeyLayout } from '@nh/ui';
 
 /** Item verbs: key -> mod action id; each opens an item picker (host command `pick:<id>`). */
@@ -13,9 +13,38 @@ const PICK_KEYS: [string, string][] = [
   ['t', 'nh:throw'],
   ['f', 'nh:fire'],
   ['z', 'nh:zap'],
+  ['a', 'nh:apply'],
+  ['P', 'nh:puton'],
+  ['R', 'nh:remove'],
+  // #loot: floor containers come as self offers, so the picker lists each one
+  ['Alt+l', 'nh:loot'],
 ];
 
-/** Vanilla client keys beyond the UI defaults: stairs, inventory and item verbs. */
+/**
+ * Commands without an item: key -> self offer (host command `self:<id>`). Keys follow NetHack's
+ * default table (ref: src/cmd.c extcmdlist[]); `Alt+x` is NetHack's `M-x`.
+ */
+const SELF_KEYS: [string, string][] = [
+  [',', 'nh:pickup'],
+  ['\\', 'nh:discoveries'],
+  ['+', 'nh:spells'],
+  ['x', 'nh:swap_weapon'],
+  ['Ctrl+d', 'nh:kick'],
+  ['D', 'nh:drop_many'],
+  ['C', 'nh:call'],
+  ['Alt+n', 'nh:call'],
+  ['Alt+p', 'nh:pray'],
+  ['Alt+e', 'nh:enhance'],
+];
+
+/** Direction prefixes (see `runPrefixes`): `o` open, `F` fight, `^` identify a trap. */
+const DIR_PREFIX_KEYS: [string, string][] = [
+  ['o', 'open'],
+  ['F', 'fight'],
+  ['^', 'idtrap'],
+];
+
+/** Vanilla client keys beyond the UI defaults: stairs, inventory, item verbs and commands. */
 export const vanillaKeys: ClientMod = {
   id: 'nh-vanilla-keys',
   version: '1.0.0',
@@ -23,13 +52,11 @@ export const vanillaKeys: ClientMod = {
     api.bindKey('>', { type: 'action', action: { type: 'mod', action: 'nh:down' } });
     api.bindKey('<', { type: 'action', action: { type: 'mod', action: 'nh:up' } });
     api.bindKey('i', { type: 'ui', id: 'inventory' });
-    api.bindKey(',', { type: 'ui', id: 'self:nh:pickup' });
-    api.bindKey('\\', { type: 'ui', id: 'self:nh:discoveries' });
-    api.bindKey('+', { type: 'ui', id: 'self:nh:spells' });
-    // Offered by the content once it has them; an unavailable self offer does nothing.
-    api.bindKey('x', { type: 'ui', id: 'self:nh:swap_weapon' });
-    api.bindKey('Ctrl+d', { type: 'ui', id: 'self:nh:kick' });
+    api.bindKey(';', { type: 'ui', id: 'look' });
+    // An unavailable self offer does nothing.
+    for (const [k, id] of SELF_KEYS) api.bindKey(k, { type: 'ui', id: `self:${id}` });
     for (const [k, id] of PICK_KEYS) api.bindKey(k, { type: 'ui', id: `pick:${id}` });
+    for (const [k, p] of DIR_PREFIX_KEYS) api.bindKey(k, { type: 'ui', id: `prefix:${p}` });
   },
 };
 
@@ -80,12 +107,41 @@ export function runKeys(layout: KeyLayout): ClientMod {
   };
 }
 
-/** With number_pad on, `k` kicks (ref: src/cmd.c, the number_pad command set). */
+/**
+ * With number_pad on, letters freed from movement get commands: `k` kick, `l` loot, `N` name,
+ * `-` fight (ref: src/cmd.c commands_init(), the number_pad bindings).
+ */
 export const numpadKeys: ClientMod = {
   id: 'nh-numpad-keys',
   version: '1.0.0',
   register(api) {
     api.bindKey('k', { type: 'ui', id: 'self:nh:kick' });
+    api.bindKey('l', { type: 'ui', id: 'pick:nh:loot' });
+    api.bindKey('N', { type: 'ui', id: 'self:nh:call' });
+    api.bindKey('-', { type: 'ui', id: 'prefix:fight' });
+  },
+};
+
+/** Wizard-mode commands (ref: src/cmd.c extcmdlist[], WIZMODECMD); bound for wizard games only. */
+const WIZARD_KEYS: [string, string][] = [
+  ['Ctrl+f', 'wiz:map'],
+  ['Ctrl+v', 'wiz:levelport'],
+  ['Ctrl+w', 'wiz:wish'],
+  ['Ctrl+i', 'wiz:identify'],
+  ['Ctrl+g', 'wiz:genesis'],
+  // NetHack 3.7 moved #wizwhere off ^O (now #overview, which we lack); 3.6 had it there
+  ['Ctrl+o', 'wiz:where'],
+];
+
+/**
+ * Wizard keys. Bound only in a wizard game, so a normal game leaves the browser's own Ctrl
+ * shortcuts (find, close tab, ...) alone; each is a self offer of the wizard mod.
+ */
+export const wizardKeys: ClientMod = {
+  id: 'nh-wizard-keys',
+  version: '1.0.0',
+  register(api) {
+    for (const [k, id] of WIZARD_KEYS) api.bindKey(k, { type: 'ui', id: `self:${id}` });
   },
 };
 
@@ -108,11 +164,25 @@ export function saveLayout(storage: Pick<Storage, 'setItem'> | null, layout: Key
   }
 }
 
-/** UI options for the g/G run prefixes. */
+const withDir =
+  (action: DefId) =>
+  (dir: Dir): PlayerAction => ({
+    type: 'mod',
+    action,
+    args: { dir },
+  });
+
+/**
+ * UI options for the direction prefixes: g/G runs, and the commands that ask "In what
+ * direction?" in NetHack (open, fight, ^), which here take the next direction key.
+ */
 export const runPrefixes = {
   prefixes: {
     rush: (dir: Dir) => runAction(dir, 'rush'),
     run: (dir: Dir) => runAction(dir, 'run'),
+    open: withDir('nh:open'),
+    fight: withDir('nh:fight'),
+    idtrap: withDir('nh:idtrap'),
   },
 };
 

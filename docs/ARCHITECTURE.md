@@ -628,7 +628,7 @@ interface ClientMod {
   register(api: ClientApi): void;
 }
 interface ClientApi {
-  bindKey(key: string, cmd: UiCommand): void; // key = KeyboardEvent.key or .code
+  bindKey(key: string, cmd: UiCommand): void; // key = KeyboardEvent.key or .code, or 'Ctrl+d' / 'Alt+l'
   addMessages(locale: string, catalog: Record<string, string>): void;
   setGlyph(id: DefId, glyph: { ch: string; fg: string }): void;
   onEvent(fn: (e: GameEvent) => void): void;

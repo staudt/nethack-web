@@ -554,7 +554,7 @@ export function createUi(opts: UiOptions): Ui {
   let swallowUntil = -Infinity;
   const detachKeys = attachKeys(doc, (e) => {
     if (modal) {
-      if (e.ctrlKey) return false;
+      if (e.ctrlKey || e.altKey) return false;
       if (modal.pickDir && ARROW_CODES.has(e.code)) {
         // Arrows wait for the chord window, so Up+Left pick one diagonal.
         const cmd = keymap.resolve(e);
@@ -573,7 +573,7 @@ export function createUi(opts: UiOptions): Ui {
       return true;
     }
     const cmd = keymap.resolve(e);
-    if (e.ctrlKey && !cmd) return false;
+    if ((e.ctrlKey || e.altKey) && !cmd) return false;
     if (prefix !== null) {
       // The key after a prefix: a direction completes it; anything else cancels it.
       if (!cmd && e.key !== 'Escape') return false; // Shift alone, etc.

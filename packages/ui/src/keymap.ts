@@ -5,6 +5,7 @@ export interface KeyLike {
   key: string;
   shiftKey?: boolean;
   ctrlKey?: boolean;
+  altKey?: boolean;
 }
 
 export class Keymap {
@@ -19,8 +20,17 @@ export class Keymap {
    * bindings are tried first, so Shift+arrow can differ from the plain arrow.
    */
   resolve(e: KeyLike): UiCommand | undefined {
+    // Ctrl+Alt is AltGr on many keyboards: `e.key` is the character it typed (`@`, `{`, ...).
+    if (e.ctrlKey && e.altKey) return this.map.get(e.key);
     // Ctrl chords only match explicit `Ctrl+<key>` bindings (bound as e.g. 'Ctrl+d').
     if (e.ctrlKey) return this.map.get(`Ctrl+${e.key.toLowerCase()}`);
+    // Alt (NetHack's Meta) chords only match `Alt+<key>` bindings. The letter comes from the
+    // physical key, since Option+letter types another character on macOS.
+    if (e.altKey) {
+      const letter = /^Key([A-Z])$/.exec(e.code)?.[1];
+      const k = letter ? (e.shiftKey ? letter : letter.toLowerCase()) : e.key;
+      return this.map.get(`Alt+${k}`);
+    }
     if (e.shiftKey) {
       const shifted = this.map.get(`Shift+${e.code}`) ?? this.map.get(`Shift+${e.key}`);
       if (shifted) return shifted;

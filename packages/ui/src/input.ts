@@ -9,13 +9,14 @@ function inEditable(t: EventTarget | null): boolean {
 }
 
 /**
- * Keydown listener on `doc`; ignores alt/meta and focus in inputs. Ctrl keys are passed on too
- * (the handler decides: only `Ctrl+<key>` bindings act, so browser shortcuts stay untouched).
+ * Keydown listener on `doc`; ignores meta and focus in inputs. Ctrl and Alt keys are passed on
+ * too (the handler decides: only `Ctrl+<key>` and `Alt+<key>` bindings act, so browser
+ * shortcuts stay untouched).
  */
 export function attachKeys(doc: Document, handler: (e: KeyboardEvent) => boolean): () => void {
   const fn = (e: Event): void => {
     const ke = e as KeyboardEvent;
-    if (ke.altKey || ke.metaKey) return;
+    if (ke.metaKey) return;
     if (inEditable(ke.target)) return;
     if (handler(ke)) ke.preventDefault();
   };

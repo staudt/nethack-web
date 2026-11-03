@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import type { ClientApi, UiCommand } from '@nh/core';
-import { vanillaKeys } from '../src/keys';
+import { runAction, vanillaKeys } from '../src/keys';
 
 test('binds > and < to stairs', () => {
   const bound: Record<string, UiCommand> = {};
@@ -118,4 +118,83 @@ test('extended commands run the self offer if offered, else nothing', async () =
   items[1]!.run(); // nh:call not offered
   await new Promise((r) => setTimeout(r, 0));
   expect(acts).toEqual([{ type: 'mod', action: 'nh:enhance' }]);
+});
+
+import { Keymap } from '@nh/ui';
+import { runPrefixes, wizardKeys } from '../src/keys';
+import type { KeyLayout } from '@nh/ui';
+
+/** The keymap main.ts builds for a layout (same mods, same order). */
+function keymapFor(layout: KeyLayout): Keymap {
+  const km = new Keymap();
+  const api = { bindKey: (k: string, c: UiCommand) => km.bind(k, c) } as ClientApi;
+  for (const m of [
+    movementKeys(layout),
+    vanillaKeys,
+    ...(layout === 'numpad' ? [numpadKeys] : []),
+    runKeysFor(layout),
+  ])
+    m.register(api);
+  return km;
+}
+const press = (km: Keymap, key: string, mods: { altKey?: boolean; ctrlKey?: boolean } = {}) =>
+  km.resolve({ code: /^[a-z]$/i.test(key) ? `Key${key.toUpperCase()}` : key, key, ...mods });
+const ui = (id: string): UiCommand => ({ type: 'ui', id });
+
+describe.each(['vi', 'numpad'] as const)('NetHack command keys (%s)', (layout) => {
+  const km = keymapFor(layout);
+  test('item verbs, self commands and direction prefixes', () => {
+    expect(press(km, 'a')).toEqual(ui('pick:nh:apply'));
+    expect(press(km, 'P')).toEqual(ui('pick:nh:puton'));
+    expect(press(km, 'R')).toEqual(ui('pick:nh:remove'));
+    expect(press(km, 'l', { altKey: true })).toEqual(ui('pick:nh:loot'));
+    expect(press(km, 'p', { altKey: true })).toEqual(ui('self:nh:pray'));
+    expect(press(km, 'e', { altKey: true })).toEqual(ui('self:nh:enhance'));
+    expect(press(km, 'n', { altKey: true })).toEqual(ui('self:nh:call'));
+    expect(press(km, 'C')).toEqual(ui('self:nh:call'));
+    expect(press(km, 'D')).toEqual(ui('self:nh:drop_many'));
+    expect(press(km, ';')).toEqual(ui('look'));
+    expect(press(km, 'o')).toEqual(ui('prefix:open'));
+    expect(press(km, 'F')).toEqual(ui('prefix:fight'));
+    expect(press(km, '^')).toEqual(ui('prefix:idtrap'));
+    expect(press(km, 'd', { ctrlKey: true })).toEqual(ui('self:nh:kick'));
+    // existing keys keep working
+    expect(press(km, ',')).toEqual(ui('self:nh:pickup'));
+    expect(press(km, 'w')).toEqual(ui('pick:nh:wield'));
+    expect(press(km, 'g')).toEqual(ui('prefix:rush'));
+    // wizard keys only come with the wizard mod's key set
+    expect(press(km, 'f', { ctrlKey: true })).toBeUndefined();
+  });
+  if (layout === 'vi')
+    test('vi letters still move and run: l east, N runs south-east, k north', () => {
+      expect(press(km, 'l')).toEqual({ type: 'action', action: { type: 'move', dir: 'e' } });
+      expect(press(km, 'k')).toEqual({ type: 'action', action: { type: 'move', dir: 'n' } });
+      expect(press(km, 'N')).toEqual({ type: 'action', action: runAction('se', 'shift') });
+      expect(press(km, '-')).toBeUndefined();
+    });
+  else
+    test('number pad frees the letters: l loots, k kicks, N names, - fights', () => {
+      expect(press(km, 'l')).toEqual(ui('pick:nh:loot'));
+      expect(press(km, 'k')).toEqual(ui('self:nh:kick'));
+      expect(press(km, 'N')).toEqual(ui('self:nh:call'));
+      expect(press(km, '-')).toEqual(ui('prefix:fight'));
+      expect(press(km, '6')).toEqual({ type: 'action', action: { type: 'move', dir: 'e' } });
+    });
+});
+
+test('direction prefixes build open, fight and idtrap actions', () => {
+  const p = runPrefixes.prefixes;
+  expect(p.open('w')).toEqual({ type: 'mod', action: 'nh:open', args: { dir: 'w' } });
+  expect(p.fight('ne')).toEqual({ type: 'mod', action: 'nh:fight', args: { dir: 'ne' } });
+  expect(p.idtrap('s')).toEqual({ type: 'mod', action: 'nh:idtrap', args: { dir: 's' } });
+});
+
+test('wizard keys are wizard-mod self offers', () => {
+  const b = bindings(wizardKeys);
+  expect(b['Ctrl+f']).toEqual(ui('self:wiz:map'));
+  expect(b['Ctrl+v']).toEqual(ui('self:wiz:levelport'));
+  expect(b['Ctrl+w']).toEqual(ui('self:wiz:wish'));
+  expect(b['Ctrl+i']).toEqual(ui('self:wiz:identify'));
+  expect(b['Ctrl+g']).toEqual(ui('self:wiz:genesis'));
+  expect(b['Ctrl+o']).toEqual(ui('self:wiz:where'));
 });
