@@ -13,6 +13,7 @@ import {
   type Registry,
 } from '@nh/core';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
+import { epriOf, priestName } from './epri';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
 function mix(...ns: number[]): number {
@@ -92,5 +93,7 @@ function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
 export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entity): string {
   if (!canSpotMon(ctx, mon)) return '@pronoun.it';
   if (hasProp(getPlayer(ctx.state), P.HALLUC)) return `@${rndmonnam(ctx)}`;
+  const epri = epriOf(ctx, mon.id);
+  if (epri) return priestName(epri); // "the priest of Odin"
   return `@${mon.def}`;
 }

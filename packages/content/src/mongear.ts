@@ -28,6 +28,7 @@ import {
 } from './items';
 import { doname, xnameOf } from './objnam';
 import { monFloorEffects } from './align';
+import { ALIGNED_CLERIC } from './epri';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
@@ -98,7 +99,7 @@ export function setMonFlag(
 
 /** Forgets everything stored about a dead monster. */
 export function forgetMonster(ctx: Pick<GearCtx, 'state'>, id: EntityId): void {
-  for (const k of ['gearchk', 'nowep', 'mtrack']) {
+  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri']) {
     const t = flagTable(ctx, k, false);
     if (t) delete t[String(id)];
   }
@@ -204,6 +205,20 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   const ch = def.glyph.ch;
   if (ch === '@' && isMercenary(def)) {
     mercWeapons(ctx, monId, def);
+  } else if (ch === '@') {
+    // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST`: a mace, +1..+3, cursed half the time
+    if (def.id === ALIGNED_CLERIC) {
+      const mace = objDef(ctx, 'nh:mace');
+      if (mace) {
+        const id = mksobj(ctx, mace, { init: false, carriedBy: monId });
+        const it = ctx.state.entities[String(id)]?.c.item;
+        if (it) {
+          it.spe = rng.rnd(3);
+          if (rng.rn2(2) === 0) it.buc = 'cursed';
+        }
+      }
+    }
+    // (no other S_HUMAN monster in the roster is armed: they get nothing here)
   } else if (ch === 'h' && def.id === 'nh:hobbit') {
     switch (rng.rn2(3)) {
       case 0:
@@ -368,6 +383,15 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   // candle for gnomes (not in the table; not in the Mines), then the defensive and misc item
   // rolls (wands, potions and scrolls this port cannot choose yet): only the rolls are made
   if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
+  else if (def.id === ALIGNED_CLERIC) {
+    // ref: m_initinv() S_HUMAN MS_PRIEST: a robe (a cloak of protection or of magic resistance
+    // 1 time in 7, which this port lacks: a robe then too, after C's roll), a small shield and
+    // rn1(10, 20) gold
+    if (rng.rn2(7) === 0) rng.rn2(3);
+    mongets(ctx, monId, 'nh:robe');
+    mongets(ctx, monId, 'nh:small_shield');
+    mkmonmoney(ctx, monId, rng.rn2(10) + 20);
+  }
   if (def.glyph.ch === 'G') rng.rn2(60);
   rng.rn2(50);
   rng.rn2(100);

@@ -14,6 +14,7 @@ import {
   type MonsterDef,
 } from '@nh/core';
 import { P, setIntrinsic, heroHas } from './props';
+import { A_NONE } from './aligntyp';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -110,12 +111,18 @@ export function adjalign(ctx: Pick<Ctx, 'state'>, n: number): void {
 /**
  * How good (negative) or bad (positive) killing this monster is for the hero's alignment.
  * ref: src/makemon.c set_malign(), computed from the monster's present peacefulness (NetHack
- * recomputes it whenever that changes). No priests, minions or quest leaders exist.
+ * recomputes it whenever that changes). `mal` is the monster's own alignment: its def's, or for
+ * a temple priest his shrine's times 5 (A_NONE stays A_NONE). No minions or quest leaders exist.
  */
-export function malign(def: MonsterDef, peaceful: boolean, heroType: number): number {
-  const mal = def.alignment;
+export function malign(
+  def: MonsterDef,
+  peaceful: boolean,
+  heroType: number,
+  mal: number = def.alignment,
+): number {
   const coaligned = Math.sign(mal) === Math.sign(heroType);
   const absmal = Math.abs(mal);
+  if (mal === A_NONE) return peaceful ? 0 : 20; // really hostile
   if (def.flags.includes('peaceful'))
     return peaceful ? -3 * Math.max(5, absmal) : 3 * Math.max(5, absmal);
   if (def.flags.includes('hostile')) return coaligned ? 0 : Math.max(5, absmal);
@@ -125,21 +132,31 @@ export function malign(def: MonsterDef, peaceful: boolean, heroType: number): nu
 
 const say = (ctx: Ctx, key: string): void => ctx.emit({ type: 'msg', key });
 
+/** A temple priest's part in xkilled(): his shrine's alignment and whether it is the hero's. */
+export interface KilledPriest {
+  shralign: number;
+  coaligned: boolean;
+}
+
 /**
  * The hero killed `mon` (called before it is removed): murder, killing peacefuls and pets cost
- * Luck, and the alignment record moves by the monster's malign. ref: src/mon.c xkilled()
- * "Punish bad behavior" and "adjust alignment points" (no unicorns, quest monsters or priests)
+ * Luck, and the alignment record moves by the monster's malign; killing a temple priest
+ * (`priest`) costs 2 points of alignment and divine protection when he was the hero's own, and
+ * earns 2 otherwise. ref: src/mon.c xkilled() "Punish bad behavior" and "adjust alignment
+ * points" (no unicorns or quest monsters)
  */
-export function xkilledPenalties(ctx: Ctx, mon: Entity): void {
+export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | null = null): void {
   const m = mon.c.monster;
   if (!m) return;
   const def = ctx.defs.monster(mon.def);
   const u = uState(ctx.state);
+  // ref: set_malign(): a priest's alignment is his shrine's, times 5 unless A_NONE
+  const mal = priest ? (priest.shralign === A_NONE ? A_NONE : priest.shralign * 5) : def.alignment;
   // murder: an always-peaceful-ish human, unless the hero is chaotic
   if (
     def.flags.includes('human') &&
     !def.flags.includes('hostile') &&
-    malign(def, m.peaceful, u.alignType) <= 0 &&
+    malign(def, m.peaceful, u.alignType, mal) <= 0 &&
     u.alignType !== -1
   ) {
     setIntrinsic(getPlayer(ctx.state), P.TELEPAT, false);
@@ -148,11 +165,16 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity): void {
   }
   const tame = (m.tame ?? 0) > 0;
   if ((m.peaceful && ctx.rng.rn2(2) === 0) || tame) changeLuck(ctx, -1);
-  if (tame) {
+  if (priest) {
+    adjalign(ctx, priest.coaligned ? -2 : 2);
+    // cancel divine protection for killing your priest
+    if (priest.coaligned) setU(ctx, { ublessed: 0 });
+    // (the aligned cleric's own alignment is 0, never A_NONE: no "BIG bonus")
+  } else if (tame) {
     adjalign(ctx, -15); // bad!!
     say(ctx, heroHas(ctx.state, P.HALLUC) ? 'luck.applause' : 'luck.thunder');
   } else if (m.peaceful) adjalign(ctx, -5);
-  adjalign(ctx, malign(def, m.peaceful, u.alignType));
+  adjalign(ctx, malign(def, m.peaceful, u.alignType, mal));
 }
 
 /**

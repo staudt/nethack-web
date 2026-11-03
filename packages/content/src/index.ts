@@ -25,6 +25,7 @@ import { RUN_ACTIONS } from './run';
 import { registerGeneration } from './generation';
 import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
+import { registerPriest } from './priest';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -106,6 +107,7 @@ export const vanillaMod: Mod = {
     registerHero(api);
     registerGeneration(api);
     registerMklev(api);
+    registerPriest(api); // before the LevelDef contents, as create_altar()
     registerSpLev(api);
   },
 };
@@ -267,7 +269,21 @@ export type { WishData, WishOpts } from './wish';
 export { hitval } from './combat';
 export { nhData } from './items';
 export { rndmonst, makemon, registerGeneration } from './generation';
-export { mcalcmove, clearPath, disturb, dochug, mfndpos } from './monmove';
+export { mcalcmove, clearPath, disturb, dochug, mfndpos, moveSpecial, priMove } from './monmove';
+export {
+  ALIGNED_CLERIC,
+  TEMPLE,
+  epriOf,
+  findpriest,
+  hasShrine,
+  histempleAt,
+  inhistemple,
+  pCoaligned,
+  templeOccupied,
+  type Epri,
+} from './epri';
+export { ghodHitsu, priestini, templePriests } from './priest';
+export { buzzFrom, type Ray, type RaySource } from './buzz';
 export { OBJECTS, APPEARANCES } from './objects';
 export {
   rne,

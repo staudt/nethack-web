@@ -12,7 +12,6 @@ import {
   type Offer,
   type Ctx,
   type ModApi,
-  type DefId,
   type Dir,
   type Entity,
   type Level,
@@ -30,7 +29,7 @@ import { monflee } from './monflee';
 import { isFrozen } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
-import { T } from './terrain';
+import { T, setTerrain } from './terrain';
 import { luckOf } from './luck';
 import {
   findTrapAt,
@@ -472,12 +471,7 @@ function branchUnderHero(ctx: Ctx): Level['branch'] {
   return b && b.pos.x === pos.x && b.pos.y === pos.y ? b : null;
 }
 
-/** Sets a cell to terrain `id`, adding it to the level palette when missing. */
-export function setTerrain(level: Level, x: number, y: number, id: DefId): void {
-  let pi = level.palette.indexOf(id);
-  if (pi === -1) pi = level.palette.push(id) - 1;
-  level.cells[cellIndex(level, x, y)] = pi;
-}
+export { setTerrain };
 
 const search: ActionDef = {
   id: 'nh:search',

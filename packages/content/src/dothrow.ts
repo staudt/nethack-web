@@ -56,6 +56,8 @@ import { monNam } from './perception';
 import { luckOf } from './luck';
 import { ringBonus } from './props';
 import { angryGuards, isWatch } from './watch';
+import { epriOf } from './epri';
+import { ghodHitsu } from './priest';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -234,8 +236,10 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   }
   if (dmg < 1) dmg = 1;
 
-  // ref: src/uhitm.c hmon(): hitting a peaceful watchman angers the whole Watch afterwards
-  const angerGuards = m.peaceful && isWatch(mon.def);
+  // ref: src/uhitm.c hmon(): hitting a peaceful watchman or temple priest angers the whole Watch
+  // afterwards, and hitting a priest (even a killing blow) brings his god's lightning 1 time in 2
+  const epri = epriOf(ctx, monId);
+  const angerGuards = m.peaceful && (isWatch(mon.def) || epri !== null);
   const hp = mon.c.hp;
   // ref: src/uhitm.c hmon_hitmon_pet(): a pet hit by the hero's missile is abused and flees
   if (m.tame && dmg > 0) {
@@ -255,6 +259,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     });
     wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
+  if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
   if (angerGuards) angryGuards(ctx, false);
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {

@@ -135,6 +135,12 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.zap.ray.cold': 'a bolt of cold zapped by herself',
   'killer.zap.ray.sleep': 'a sleep ray zapped by herself',
   'killer.zap.ray.lightning': 'a bolt of lightning zapped by herself',
+  // a monster's spell ray (zhitu() with flash_str(), KILLED_BY_AN)
+  'killer.ray.magic_missile': 'a magic missile',
+  'killer.ray.fire': 'a bolt of fire',
+  'killer.ray.cold': 'a bolt of cold',
+  'killer.ray.sleep': 'a sleep ray',
+  'killer.ray.lightning': 'a bolt of lightning',
   'killer.zap.self.striking': 'zapping herself with a wand of striking',
   'killer.zap.self.lightning': 'zapping herself with a wand of lightning',
   'killer.zap.self.fire': 'zapping herself with a wand of fire',

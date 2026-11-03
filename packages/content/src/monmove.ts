@@ -5,6 +5,7 @@ import {
   getLevel,
   getPlayer,
   inBounds,
+  inRooms,
   isVisible,
   NORMAL_SPEED,
   type CellRules,
@@ -42,6 +43,8 @@ import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
+import { epriOf, histempleAt } from './epri';
+import { T } from './terrain';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -332,6 +335,109 @@ function mSearchItems(
   return false;
 }
 
+/** ref: include/rm.h IS_ROOM(typ): floor, stairs, altars and fountains; not doors or corridors */
+function isRoomCell(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
+  if (id === undefined) return false;
+  const t = ctx.defs.terrain(id);
+  return t.passable && t.door === undefined && t.id !== T.corr;
+}
+
+/** ref: src/hacklib.c online2(): on a row, column or diagonal through (x1, y1) */
+const online2 = (x0: number, y0: number, x1: number, y1: number): boolean => {
+  const dx = x0 - x1;
+  const dy = y0 - y1;
+  return !dy || !dx || dy === dx || dy === -dx;
+};
+
+/** Options of {@link moveSpecial}: approach `goal` (or wander), avoiding lines through the hero. */
+export interface MoveSpecialOpts {
+  appr: -1 | 0 | 1;
+  avoid: boolean;
+  goal: Pos;
+}
+
+/**
+ * A step for a priest (and later a shopkeeper) toward `goal`, on room squares only (never doors
+ * or corridors, which keeps him in his room): with `avoid`, not onto a square lined up with the
+ * hero, unless he stands lined up himself and cannot find one. The hero's own square is never
+ * stepped onto (0). Returns 1 moved, 0 did not, -2 died.
+ * ref: src/priest.c move_special() (no shopkeepers yet, no confusion, boulders or ALLOW_M)
+ */
+export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecialOpts): -2 | 0 | 1 {
+  const { pos } = monCount(ctx, id);
+  const omx = pos.x;
+  const omy = pos.y;
+  const ggx = o.goal.x;
+  const ggy = o.goal.y;
+  if (omx === ggx && omy === ggy) return 0;
+  const level = getLevel(ctx.state, pos.level);
+  const cands = mfndpos(ctx, level, cellRules(level, ctx.defs), id, heroPos);
+  let avoid = o.avoid;
+  const gdist = (x: number, y: number): number => dist2(x, y, ggx, ggy);
+  let nix = omx;
+  let niy = omy;
+  let onHero = false;
+  const pickMove = (): void => {
+    let chcnt = 0;
+    for (const c of cands) {
+      if (!isRoomCell(ctx, level, c.x, c.y)) continue;
+      // NOTONL: mfndpos() marks squares lined up with where the monster thinks the hero is
+      if (avoid && online2(c.x, c.y, heroPos.x, heroPos.y)) continue;
+      if ((!o.appr && !ctx.rng.rn2(++chcnt)) || (o.appr && gdist(c.x, c.y) < gdist(nix, niy))) {
+        nix = c.x;
+        niy = c.y;
+        onHero = c.hero;
+      }
+    }
+  };
+  pickMove();
+  if (avoid && nix === omx && niy === omy && online2(omx, omy, heroPos.x, heroPos.y)) {
+    // might as well move closer as long it's going to stay lined up
+    avoid = false;
+    pickMove();
+  }
+  if (nix === omx && niy === omy) return 0;
+  if (onHero) return 0;
+  pos.x = nix;
+  pos.y = niy;
+  ctx.emit({ type: 'moved', id, from: { x: omx, y: omy }, to: { x: nix, y: niy } });
+  return 1;
+}
+
+/**
+ * A temple priest's move: -1 outside his temple (the normal AI moves him). Peaceful, he mills
+ * around his altar keeping out of the hero's lines; angry, he attacks her when next to her and
+ * chases her while she is in his temple and he sees her. Returns as {@link moveSpecial}.
+ * ref: src/priest.c pri_move() (no conflict, displacement or invisibility)
+ */
+export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
+  const { m, pos, def } = monCount(ctx, id);
+  const epri = epriOf(ctx, id);
+  if (!epri || !histempleAt(ctx, epri, pos.x, pos.y)) return -1;
+  const temple = epri.shroom;
+  // mill around the altar
+  let ggx = epri.shrpos.x + ctx.rng.rn2(3) - 1;
+  let ggy = epri.shrpos.y + ctx.rng.rn2(3) - 1;
+  let avoid = true;
+  if (!m.peaceful) {
+    if (monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
+      monsterAttack(ctx, id);
+      return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
+    }
+    const level = getLevel(ctx.state, pos.level);
+    if (inRooms(level, heroPos.x, heroPos.y).includes(temple)) {
+      // chase the hero if inside the temple and he can see her
+      if (clearPath(level, cellRules(level, ctx.defs).opaque, pos.x, pos.y, heroPos.x, heroPos.y)) {
+        ggx = heroPos.x;
+        ggy = heroPos.y;
+      }
+      avoid = false;
+    }
+  }
+  return moveSpecial(ctx, id, heroPos, { appr: 1, avoid, goal: { x: ggx, y: ggy } });
+}
+
 /**
  * Chooses and performs one step. ref: src/monmove.c m_move() and postmov().
  * The goal is where the monster thinks the hero is (set_apparxy: the true position, since we
@@ -344,6 +450,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   const { m, pos, def } = monCount(ctx, id);
   const level = getLevel(ctx.state, pos.level);
   const rules = cellRules(level, ctx.defs);
+
+  // ref: m_move(): "likewise for shopkeeper, guard, or priest"; -1 (a priest outside his
+  // temple) goes on with the normal AI
+  if (epriOf(ctx, id)) {
+    const xm = priMove(ctx, id, heroPos);
+    if (xm === -2) return 'died';
+    if (xm === 1) return postmovMoved(ctx, id, level, rules);
+    if (xm === 0) return 'nothing';
+  }
   const goal: Pos = { x: heroPos.x, y: heroPos.y };
 
   // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, overridden to 0 for peacefuls and erratic bats
@@ -415,7 +530,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   pos.x = chosen.x;
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
+  return postmovMoved(ctx, id, level, rules);
+}
 
+/**
+ * What happens after a monster stepped (MMOVE_MOVED): traps, opening a door it stepped onto,
+ * picking things up. ref: src/monmove.c postmov()
+ */
+function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): MoveStatus {
+  const { pos, def } = monCount(ctx, id);
   // ref: postmov(): `trapret = mintrap(mtmp)`; killed or moved off the level is MMOVE_DIED
   if (trapRemovedMon(mintrap(ctx, id))) return 'died';
 

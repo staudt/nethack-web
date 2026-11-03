@@ -2,7 +2,7 @@
 // gets, that every variant builds a town at 80x21 and on bigger maps (stairs reachable from each
 // other, a temple with a shrine altar, typed shops and a peaceful Watch), and that kicking a town door
 // on a real Minetown warns, then angers the Watch.
-import { vanillaMod } from '@nh/content';
+import { ALIGNED_CLERIC, altarAlign, epriOf, vanillaMod } from '@nh/content';
 import {
   DIRS,
   createEngine,
@@ -10,6 +10,7 @@ import {
   getPlayer,
   inRooms,
   inTown,
+  inventoryOf,
   isPlainFloor,
   mapBlock,
   sortedIds,
@@ -141,6 +142,24 @@ function isTown(state: GameState, level: Level): void {
   if (!shrine || !t) throw new Error('no shrine');
   expect(level.palette[level.cells[shrine.y * level.width + shrine.x] ?? -1]).toMatch(/^nh:altar_/);
   expect(inRooms(level, shrine.x, shrine.y)).toContain(level.rooms.indexOf(t));
+  // its priest (6b2): one, peaceful, in the temple, of the altar's alignment, with his gear
+  const priests = priestsOn(state, level.id);
+  expect(priests).toHaveLength(1);
+  const priest = state.entities[String(priests[0])];
+  const pp = priest?.c.pos;
+  if (!priest || !pp) throw new Error('no priest');
+  expect(priest.c.monster?.peaceful).toBe(true);
+  expect(inRooms(level, pp.x, pp.y)).toContain(level.rooms.indexOf(t));
+  const altarId = level.palette[level.cells[shrine.y * level.width + shrine.x] ?? -1] ?? '';
+  expect(epriOf({ state }, priest.id)).toMatchObject({
+    shroom: level.rooms.indexOf(t),
+    shralign: altarAlign(altarId as DefId),
+    shrpos: shrine,
+    shrlevel: level.id,
+  });
+  const gear = inventoryOf(state, priest.id).map((o) => o.def);
+  for (const d of ['nh:mace', 'nh:robe', 'nh:small_shield', 'nh:gold_piece'])
+    expect(gear).toContain(d);
   // at least the candle shop is always there (no chance roll in any variant)
   expect(level.rooms.some((r) => r.type === 'nh:candle_shop')).toBe(true);
   for (const r of level.rooms) if (r.type) expect([...SHOPS, 'nh:temple']).toContain(r.type);
@@ -151,6 +170,14 @@ function isTown(state: GameState, level: Level): void {
   for (const w of watch) expect(w?.c.monster?.peaceful).toBe(true);
   // the Watch stands in town
   expect(watch.some((w) => w?.c.pos && inTown(level, w.c.pos.x, w.c.pos.y))).toBe(true);
+}
+
+/** The temple priests on a level. */
+function priestsOn(state: GameState, levelId: string): number[] {
+  return sortedIds(state).filter((id) => {
+    const e = state.entities[String(id)];
+    return e?.def === ALIGNED_CLERIC && e.c.pos?.level === levelId;
+  });
 }
 
 describe('Minetown variants on bigger maps', () => {
@@ -257,5 +284,87 @@ describe('kicking a door in a real Minetown', () => {
       return;
     }
     throw new Error('no seed with a town door and two kicks that leave it standing');
+  });
+});
+
+describe('the temple priest of a real Minetown', () => {
+  /** The first seed (from `from`) whose Minetown is `variant`. */
+  function townOf(variant: string, from = 1) {
+    for (let seed = from; seed < from + 200; seed++) {
+      const t = minetown(seed);
+      if (t.level.def === variant) return t;
+    }
+    throw new Error(`no ${variant}`);
+  }
+
+  test.each(VARIANTS)('%s: he stays in his temple while the hero waits', (variant) => {
+    const { state, level } = townOf(variant);
+    const hero = getPlayer(state);
+    if (hero.c.hp) hero.c.hp = { cur: 100000, max: 100000 };
+    const [id] = priestsOn(state, level.id);
+    const ti = level.rooms.findIndex((r) => r.type === 'nh:temple');
+    for (let t = 0; t < 300 && !state.gameOver; t++) {
+      engine.stepAll(state, { type: 'wait' });
+      const p = state.entities[String(id)]?.c.pos;
+      if (!p) throw new Error('the priest is gone');
+      expect(inRooms(level, p.x, p.y)).toContain(ti);
+    }
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+
+  test('soak invariant: a peaceful priest with his shrine stands in his temple', () => {
+    const { state, level } = minetown(3);
+    const [id] = priestsOn(state, level.id);
+    const priest = state.entities[String(id)];
+    const pp = priest?.c.pos;
+    if (!priest?.c.monster || !pp) throw new Error('no priest');
+    expect(checkInvariants(state, defs)).toEqual([]);
+    // moved out onto the up stairs (not in any temple)
+    const up = level.up;
+    if (!up) throw new Error('no up stairs');
+    const hp = getPlayer(state).c.pos;
+    if (hp) Object.assign(hp, { x: pp.x, y: pp.y }); // (swap places with the hero)
+    Object.assign(pp, { x: up.x, y: up.y });
+    expect(checkInvariants(state, defs).join('\n')).toMatch(/priest .* outside his temple/);
+    priest.c.monster.peaceful = false; // an angry one may roam
+    expect(checkInvariants(state, defs)).toEqual([]);
+    priest.c.monster.peaceful = true;
+    delete level.shrines; // no shrine left
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+
+  test('he does not follow the hero off the level, peaceful or angry', () => {
+    for (const angry of [false, true]) {
+      const { state, level } = minetown(angry ? 2 : 1);
+      const [id] = priestsOn(state, level.id);
+      const priest = state.entities[String(id)];
+      const pp = priest?.c.pos;
+      if (!priest?.c.monster || !pp) throw new Error('no priest');
+      priest.c.monster.peaceful = !angry;
+      // the hero next to him, on a free square of the temple
+      const taken = new Set(
+        sortedIds(state).flatMap((k) => {
+          const p = state.entities[String(k)]?.c.pos;
+          return p && p.level === level.id && !state.entities[String(k)]?.c.item
+            ? [`${p.x},${p.y}`]
+            : [];
+        }),
+      );
+      const spot = Object.values(DIRS)
+        .map((d) => ({ x: pp.x + d.x, y: pp.y + d.y }))
+        .find((p) => isPlainFloor(defs, level, p.x, p.y) && !taken.has(`${p.x},${p.y}`));
+      if (!spot) throw new Error('no room next to the priest');
+      const hp = getPlayer(state).c.pos;
+      if (hp) Object.assign(hp, spot);
+      const town = mines(state).special[0]?.dlevel ?? 0;
+      run(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:mines', dlevel: town + 1 }, 'up'));
+      expect(getLevel(state).id).not.toBe(level.id);
+      expect(state.entities[String(id)]?.c.pos).toMatchObject({
+        level: level.id,
+        x: pp.x,
+        y: pp.y,
+      });
+      expect(priestsOn(state, getLevel(state).id)).toEqual([]);
+    }
   });
 });

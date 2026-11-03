@@ -21,6 +21,7 @@ import { lockMessagesEn } from './lock.en';
 import { watchMessagesEn } from './watch.en';
 import { pickupMessagesEn } from './pickup.en';
 import { spellMessagesEn } from './spell.en';
+import { priestMessagesEn } from './priest.en';
 import { wizardMessagesEn } from './wizard/wizard.en';
 
 export const messagesEn: Record<string, string> = {
@@ -47,6 +48,7 @@ export const messagesEn: Record<string, string> = {
   ...watchMessagesEn,
   ...pickupMessagesEn,
   ...spellMessagesEn,
+  ...priestMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',
@@ -205,4 +207,5 @@ export const messagesEn: Record<string, string> = {
   'nh:rabid_rat': 'rabid rat',
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',
+  'nh:aligned_cleric': 'priest',
 };

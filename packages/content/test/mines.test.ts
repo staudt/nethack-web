@@ -139,7 +139,10 @@ describe('Mines levels', () => {
         const items = here.filter((e) => e?.c.item).map((e) => defs.object(e?.def ?? 'nh:none'));
         expect(items.filter((o) => o.class === 'gem').length).toBeGreaterThanOrEqual(2);
         expect(items.some((o) => o.class === 'tool')).toBe(true);
-        expect(level.traps).toHaveLength(6);
+        // six des.trap() calls; one may land on an earlier trap, which maketrap() replaces (as in
+        // C), so 5 or 6 remain
+        expect(level.traps.length).toBeGreaterThanOrEqual(5);
+        expect(level.traps.length).toBeLessThanOrEqual(6);
       }
     }
     expect(seen).toContain('nh:hobbit'); // the 50% "h"

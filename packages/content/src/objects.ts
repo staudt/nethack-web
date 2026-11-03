@@ -829,6 +829,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'cloak', ac: 0, mc: 1 },
   },
+  // ref: objects.h CLOAK("robe", NoDes, 1, 1, 0, 6, 0, 15, 50, 8, 2, CLOTH, CLR_RED, ROBE)
+  {
+    id: 'nh:robe',
+    nameKey: 'nh:robe',
+    class: 'armor',
+    glyph: { ch: '[', fg: RED },
+    prob: 6,
+    weight: 15,
+    cost: 50,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 2, mc: 2 },
+  },
   // ref: objects.h HELM("orcish helm", "iron skull cap", 0, 0, 0, 6, 1, 30, 10, 9, 0, IRON, CLR_BLACK, ORCISH_HELM)
   {
     id: 'nh:orcish_helm',

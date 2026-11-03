@@ -1,5 +1,5 @@
 // ref: include/defsym.h PCHAR2 entries (cmap symbols); default chars and colors match NetHack.
-import type { TerrainDef } from '@nh/core';
+import { cellIndex, type DefId, type Level, type TerrainDef } from '@nh/core';
 
 const GRAY = '#aaaaaa';
 const BROWN = '#aa5500';
@@ -268,3 +268,10 @@ export const T = {
   altar_chaotic: 'nh:altar_chaotic',
   altar_unaligned: 'nh:altar_unaligned',
 } as const;
+
+/** Sets a cell to terrain `id`, adding it to the level palette when missing. */
+export function setTerrain(level: Level, x: number, y: number, id: DefId): void {
+  let pi = level.palette.indexOf(id);
+  if (pi === -1) pi = level.palette.push(id) - 1;
+  level.cells[cellIndex(level, x, y)] = pi;
+}

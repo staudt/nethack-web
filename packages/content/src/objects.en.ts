@@ -70,6 +70,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:ring_mail.plural': 'ring mail',
   'nh:dwarvish_cloak': 'dwarvish cloak',
   'nh:dwarvish_cloak.plural': 'dwarvish cloaks',
+  'nh:robe': 'robe',
+  'nh:robe.plural': 'robes',
   'nh:orcish_helm': 'orcish helm',
   'nh:orcish_helm.plural': 'orcish helms',
   'nh:dwarvish_iron_helm': 'dwarvish iron helm',

@@ -1,6 +1,7 @@
 import {
   cellIndex,
   inBounds,
+  inRooms,
   isJsonPlain,
   isPlainFloor,
   sortedIds,
@@ -143,6 +144,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkSpecialLevels(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
+  checkPriests(state, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);
@@ -436,6 +438,56 @@ function checkFleeing(state: GameState, errs: string[]): void {
     if (!state.entities[k]?.c.monster) errs.push(`mflee: '${k}' is not a monster`);
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 0)
       errs.push(`mflee: monster ${k} has flee time ${String(v)}`);
+  }
+}
+
+/** content's altar terrains by shrine alignment (align.h: lawful 1, neutral 0, chaotic -1, A_NONE) */
+const ALTAR_OF: Readonly<Record<string, string>> = {
+  '1': 'nh:altar_lawful',
+  '0': 'nh:altar_neutral',
+  '-1': 'nh:altar_chaotic',
+  '-128': 'nh:altar_unaligned',
+};
+
+/**
+ * Temple priests (`modData.nh.epri`, keyed by monster id) are living monsters; one that is
+ * peaceful and on his shrine level, with his shrine intact (a shrine altar of his alignment),
+ * stands in his temple room (pri_move() never leaves it).
+ */
+function checkPriests(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['epri']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.epri is not an object');
+    return;
+  }
+  const table = t as Record<string, unknown>;
+  for (const k of Object.keys(table).sort()) {
+    const mon = state.entities[k];
+    const e = table[k] as
+      { shroom?: number; shralign?: number; shrpos?: Pos; shrlevel?: string } | undefined;
+    if (!mon?.c.monster) {
+      errs.push(`epri: '${k}' is not a monster`);
+      continue;
+    }
+    const p = mon.c.pos;
+    const lv = e?.shrlevel === undefined ? undefined : state.levels[e.shrlevel];
+    if (!e || !lv || !e.shrpos || e.shroom === undefined) {
+      errs.push(`epri: priest ${k} has no shrine level, spot or room`);
+      continue;
+    }
+    if (!mon.c.monster.peaceful || !p || p.level !== lv.id) continue;
+    const { x, y } = e.shrpos;
+    const altar = lv.palette[lv.cells[cellIndex(lv, x, y)] ?? -1];
+    const intact =
+      altar === ALTAR_OF[String(e.shralign)] &&
+      lv.shrines?.some((sp) => sp.x === x && sp.y === y) === true;
+    if (intact && !inRooms(lv, p.x, p.y).includes(e.shroom))
+      errs.push(`priest ${k} (peaceful, shrine intact) is outside his temple at ${p.x},${p.y}`);
   }
 }
 
