@@ -35,7 +35,7 @@ import {
 } from './mongear';
 import { mattackRanged } from './mthrowu';
 import { P, heroHas } from './props';
-import { isFleeing, regainCourage } from './monflee';
+import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
 import { isFrozen, isMStunned, setMStunned } from './mstate';
@@ -43,7 +43,7 @@ import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
-import { epriOf, histempleAt } from './epri';
+import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { T } from './terrain';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -155,8 +155,10 @@ export interface Candidate {
  * (ALLOW_U), monsters that can open doors may enter closed doors (OPENDOOR). Walls, other
  * monsters, intact-door diagonals, any diagonal for a grid bug (NODIAG) and tight squeezes for big
  * monsters are rejected. A monster avoids a harmful trap of a kind it knows unless `allowTraps`
- * (pets, which decide in dog_move()); a harmful trap is marked `trap`. Not ported: water/lava,
- * boulders, scary squares, long worms, digging, wall-walking.
+ * (pets, which decide in dog_move()); a harmful trap is marked `trap`. A hostile monster outside
+ * a temple may not step into it while it is the hero's sanctuary (no ALLOW_SANCT: peaceful and
+ * tame monsters and priests have it). Not ported: water/lava, boulders, scary squares, long
+ * worms, digging, wall-walking.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -181,6 +183,14 @@ export function mfndpos(
     return !rules.passable[i] && !rules.closedDoor[i];
   };
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
+  // ref: mfndpos() ALLOW_SANCT: `level.flags.has_temple && *in_rooms(nx, ny, TEMPLE) &&
+  // !*in_rooms(x, y, TEMPLE) && in_your_sanctuary(0, nx, ny)` (it only prevents movement)
+  const sanctCheck =
+    !m.peaceful &&
+    level.id === ctx.state.currentLevel &&
+    epriOf(ctx, id) === null &&
+    level.rooms.some((r) => r.type === TEMPLE) &&
+    templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
   const out: Candidate[] = [];
   for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
     for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {
@@ -202,6 +212,13 @@ export function mfndpos(
       } else if (occupant !== undefined && !opts.allowM) {
         continue; // no ALLOW_M / ALLOW_MDISP
       }
+      if (
+        sanctCheck &&
+        !isHero &&
+        templeOccupied(level, inRooms(level, nx, ny)) !== null &&
+        inYourSanctuary(ctx, null, nx, ny)
+      )
+        continue;
       // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big)
       if (diagonal && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
       // ref: mfndpos(): "The monster avoids a particular type of trap if it's familiar with the
@@ -253,7 +270,8 @@ export function trackAdd(ctx: Ctx, id: EntityId, x: number, y: number): void {
  * MMOVE_MOVED, MMOVE_NOTHING (may still attack), MMOVE_DONE (picked something up) and
  * MMOVE_DIED (died or left the level in a trap)
  */
-type MoveStatus = 'moved' | 'nothing' | 'done' | 'died';
+/** m_move()'s result: MMOVE_MOVED, MMOVE_NOTHING, MMOVE_DONE, MMOVE_DIED, MMOVE_NOMOVES. */
+type MoveStatus = 'moved' | 'nothing' | 'done' | 'died' | 'nomoves';
 
 /** ref: include/hacklib.h distmin() */
 const distmin = (x0: number, y0: number, x1: number, y1: number): number =>
@@ -493,7 +511,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
 
   const cands = mfndpos(ctx, level, rules, id, heroPos);
   const cnt = cands.length;
-  if (cnt === 0) return 'nothing'; // MMOVE_NOMOVES
+  if (cnt === 0) return 'nomoves'; // MMOVE_NOMOVES
   const track = getTrack(ctx, id);
   const jcnt = Math.min(MTSZ, cnt - 1);
   let chcnt = 0;
@@ -565,8 +583,10 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
  * that is not next to the hero, is peaceful, or (wanderers, e.g. bats) rolls 1/4, moves via
  * m_move(); one that moved does not attack in the same action. Phase four: a hostile adjacent
  * monster attacks. A fleeing monster always tries to move (away from the hero) and attacks only
- * when it could not (cornered). Not ported: scared (Elbereth), confusion, invisibility, spellcasting,
- * defensive/misc item use, special per-monster behavior. A pet's move is `petMove` (dog_move).
+ * when it could not (cornered). A hostile monster next to the hero in her sanctuary is scared:
+ * it flees and attacks only when it has nowhere to go (panicattk). Not ported: other scares
+ * (Elbereth), confusion, invisibility, spellcasting, defensive/misc item use, special
+ * per-monster behavior. A pet's move is `petMove` (dog_move).
  */
 export function dochug(
   ctx: Ctx,
@@ -597,12 +617,22 @@ export function dochug(
   m.lastHero = heroPos;
 
   const def = ctx.defs.monster(ctx.state.entities[String(id)]?.def ?? 'nh:none');
-  // ref: src/monmove.c distfleeck(): inrange and nearby; `scared` (Elbereth, scare monster,
-  // flees_light, sanctuary) never happens here -- see DEVIATIONS.md
-  const inrange = dist2(pos.x, pos.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM;
-  const nearby = inrange && monnear(def, pos.x, pos.y, heroPos.x, heroPos.y);
   // ref: dochug(): "fleeing monsters might regain courage"
   regainCourage(ctx, id);
+  // ref: src/monmove.c distfleeck(): inrange, nearby and scared; only the hero's sanctuary
+  // scares (no Elbereth, scare monster or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
+  let inrange = false;
+  let nearby = false;
+  let scared = false;
+  const distfleeck = (): void => {
+    const p = ctx.state.entities[String(id)]?.c.pos ?? pos;
+    inrange = dist2(p.x, p.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM;
+    nearby = inrange && monnear(def, p.x, p.y, heroPos.x, heroPos.y);
+    const e = ctx.state.entities[String(id)];
+    scared = nearby && !m.peaceful && e !== undefined && inYourSanctuary(ctx, e, 0, 0);
+    if (scared) monflee(ctx, id, ctx.rng.rnd(ctx.rng.rn2(7) ? 10 : 100), true, true);
+  };
+  distfleeck();
   const fleeing = isFleeing(ctx, id);
 
   // ref: dochug(): "the watch will look around and see if you are up to no good :-)"
@@ -620,7 +650,8 @@ export function dochug(
     return;
 
   let status: MoveStatus = 'nothing';
-  if (!nearby || fleeing || (isWanderer(def) && ctx.rng.rn2(4) === 0) || m.peaceful) {
+  let panicattk = false;
+  if (!nearby || fleeing || scared || (isWanderer(def) && ctx.rng.rn2(4) === 0) || m.peaceful) {
     // ref: m_move(): a trapped monster tries to get free first; still caught, it does not move
     // (but may attack)
     const caught = isMtrapped(ctx, id) ? mintrap(ctx, id) : 'finished';
@@ -640,6 +671,8 @@ export function dochug(
       }
       status = mMove(ctx, id, heroPos);
       if (status === 'died') return;
+      distfleeck(); // recalc
+      if (status === 'nomoves' && scared) panicattk = true;
       if (status === 'moved') {
         // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
         // is still not next to the hero uses its ranged attack
@@ -657,14 +690,11 @@ export function dochug(
     }
   }
   // MMOVE_DONE (picked something up) means no attack this move
-  if (
-    status !== 'done' &&
-    !m.peaceful &&
-    inrange &&
-    monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)
-  ) {
+  // ref: dochug() `((inrange && !scared) || panicattk)`
+  const mayAttack = status !== 'done' && !m.peaceful && ((inrange && !scared) || panicattk);
+  if (mayAttack && monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
     monsterAttack(ctx, id);
-  } else if (status !== 'done' && !m.peaceful && inrange) {
+  } else if (mayAttack && inrange) {
     // ref: mattacku() with range2: a weapon attack at a distance throws or shoots
     mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero);
   }

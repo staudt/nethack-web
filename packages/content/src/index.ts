@@ -26,6 +26,7 @@ import { registerGeneration } from './generation';
 import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
+import { registerRooms } from './rooms';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -109,6 +110,7 @@ export const vanillaMod: Mod = {
     registerMklev(api);
     registerPriest(api); // before the LevelDef contents, as create_altar()
     registerSpLev(api);
+    registerRooms(api); // after the pets arrive, as goto_level()
   },
 };
 
@@ -277,12 +279,16 @@ export {
   findpriest,
   hasShrine,
   histempleAt,
+  forgetTempleEntry,
+  inYourSanctuary,
   inhistemple,
   pCoaligned,
   templeOccupied,
   type Epri,
 } from './epri';
-export { ghodHitsu, priestini, templePriests } from './priest';
+export { ghodHitsu, intemple, priestini, templePriests } from './priest';
+export { checkSpecialRoom } from './rooms';
+export { specialRoomsAt, uRooms } from './urooms';
 export { buzzFrom, type Ray, type RaySource } from './buzz';
 export { OBJECTS, APPEARANCES } from './objects';
 export {

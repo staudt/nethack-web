@@ -42,6 +42,7 @@ import {
 } from './trap';
 import { isMtrapped, setMtrapped } from './trapstate';
 import { HERE } from './priority';
+import { checkSpecialRoom } from './rooms';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -143,6 +144,7 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     key: tame ? 'dog.swap' : 'dog.swap_peaceful',
     params: { mon: `@${mon.def}` },
   });
+  checkSpecialRoom(ctx, false); // ref: src/hack.c spoteffects()
   lookHere(ctx);
   spotTrap(ctx);
   return NORMAL_SPEED;
@@ -361,6 +363,7 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     pos.x = to.x;
     pos.y = to.y;
     ctx.emit({ type: 'moved', id: player.id, from, to });
+    checkSpecialRoom(ctx, false); // ref: src/hack.c spoteffects() (before the pickup and trap)
     lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
     spotTrap(ctx); // ref: spoteffects() -> dotrap()
     return NORMAL_SPEED;

@@ -2,20 +2,23 @@
 // an ordinary monster with an entry in `modData.nh.epri` (keyed by entity id): `ispriest` is
 // "has an entry", and forgetMonster() drops it when he dies.
 // ref: include/mextra.h struct epri; src/priest.c histemple_at(), inhistemple(), has_shrine(),
-// temple_occupied(), findpriest(), p_coaligned(), mon_aligntyp(), priestname()
+// temple_occupied(), findpriest(), p_coaligned(), mon_aligntyp(), priestname(),
+// forget_temple_entry(), in_your_sanctuary()
 import {
   cellIndex,
   inRooms,
   sortedIds,
   type Ctx,
+  type Entity,
   type EntityId,
   type Json,
   type Level,
   type LevelId,
   type Pos,
 } from '@nh/core';
-import { A_NONE, altarAlign, type Aligntyp } from './aligntyp';
+import { A_NONE, ALGN_SINNED, altarAlign, type Aligntyp } from './aligntyp';
 import { uState } from './luck';
+import { uRooms } from './urooms';
 
 /** The temple priest's monster. ref: include/monsters.h PM_ALIGNED_CLERIC */
 export const ALIGNED_CLERIC = 'nh:aligned_cleric';
@@ -139,4 +142,44 @@ export function priestName(epri: Epri): string {
   const a = monAligntyp(epri);
   if (a === A_NONE) return '@priest.of.unaligned';
   return a > 0 ? '@priest.of.lawful' : a < 0 ? '@priest.of.chaotic' : '@priest.of.neutral';
+}
+
+/**
+ * Resets the timers that limit temple entry feedback: leaving the level and coming back gives a
+ * fresh start. ref: src/priest.c forget_temple_entry() (called when the level is saved)
+ */
+export function forgetTempleEntry(epri: Epri): void {
+  epri.intoneTime = 0;
+  epri.enterTime = 0;
+  epri.peacefulTime = 0;
+  epri.hostileTime = 0;
+}
+
+/**
+ * The hero is in the temple holding x,y (or `mon`'s square), and it is a sanctuary to her: its
+ * peaceful priest is there, coaligned, with his shrine intact, and she has not sinned.
+ * ref: src/priest.c in_your_sanctuary() (no minions or Riders)
+ */
+export function inYourSanctuary(
+  ctx: Pick<Ctx, 'state'>,
+  mon: Entity | null,
+  x: number,
+  y: number,
+): boolean {
+  if (mon) {
+    const p = mon.c.pos;
+    if (!p) return false;
+    x = p.x;
+    y = p.y;
+  }
+  if (uState(ctx.state).alignRecord <= ALGN_SINNED) return false; // sinned or worse
+  const level = ctx.state.levels[ctx.state.currentLevel];
+  if (!level) return false;
+  const roomno = templeOccupied(level, uRooms(ctx));
+  if (roomno === null || roomno !== templeOccupied(level, inRooms(level, x, y))) return false;
+  const priest = findpriest(ctx, roomno);
+  const epri = priest === null ? null : epriOf(ctx, priest);
+  if (priest === null || !epri) return false;
+  const peaceful = ctx.state.entities[String(priest)]?.c.monster?.peaceful === true;
+  return hasShrine(ctx, epri) && pCoaligned(ctx, epri) && peaceful;
 }

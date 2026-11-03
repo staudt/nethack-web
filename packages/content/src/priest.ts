@@ -1,5 +1,6 @@
 // Temple priests: made with their temple, and the god's anger when the hero attacks one.
-// ref: src/priest.c priestini(), ghod_hitsu(); src/sp_lev.c create_altar() (`croom_is_temple`)
+// ref: src/priest.c priestini(), ghod_hitsu(), intemple(); src/sp_lev.c create_altar()
+// (`croom_is_temple`)
 //
 // The priest's table and the questions about it are in epri.ts; his movement (pri_move(),
 // move_special()) is in monmove.ts. Not ported: high priests and the Sanctum, roaming priests
@@ -24,11 +25,26 @@ import {
 import { alignGname, altarAlign } from './align';
 import { buzzFrom } from './buzz';
 import { clearPath } from './clearpath';
-import { ALIGNED_CLERIC, hasShrine, pCoaligned, setEpri, templeOccupied, type Epri } from './epri';
+import {
+  ALIGNED_CLERIC,
+  epriOf,
+  findpriest,
+  hasShrine,
+  pCoaligned,
+  priestName,
+  setEpri,
+  templeOccupied,
+  type Epri,
+} from './epri';
+import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
 import { makemon, rlocPos } from './generation';
 import { addToInventory } from './items';
+import { uState } from './luck';
 import { mkobj } from './mkobj';
 import { whichArmor } from './mongear';
+import { P, hasProp, heroHas } from './props';
+import { isFrozen } from './mstate';
+import { monNam } from './perception';
 import { monLearnsTraps } from './trapstate';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -223,6 +239,87 @@ export function ghodHitsu(ctx: Ctx, epri: Epri): void {
   // bolt of lightning cast by unspecified monster
   const dir = dirOf(Math.sign(hp.x - x), Math.sign(hp.y - y));
   if (dir) buzzFrom(ctx, 'lightning', 6, { x, y }, dir, { by: 'spell' });
+}
+
+/**
+ * The hero can see x,y from where she stands now: not blind, a clear line, and the square lit or
+ * next to her. ref: cansee(); computed here rather than read from the view, which on arrival
+ * from another level still holds the old level's (it is refreshed after the action)
+ */
+function canseeNow(ctx: Ctx, at: Pos): boolean {
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!hp || hp.level !== ctx.state.currentLevel || heroHas(ctx.state, P.BLINDED)) return false;
+  const level = getLevel(ctx.state);
+  if (!clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, at.x, at.y)) return false;
+  const near = Math.max(Math.abs(hp.x - at.x), Math.abs(hp.y - at.y)) <= 1;
+  return near || level.lit[cellIndex(level, at.x, at.y)] === 1;
+}
+
+/**
+ * The hero has just entered temple `roomno` (from `rooms0`, the typed rooms she was in before).
+ * Tended: the priest intones (at most every ~2505 turns), "Pilgrim, you enter a sacred place!"
+ * (~505), and a forbidding feeling or a sense of peace (~55, or at once when it switches). Untended:
+ * an eerie feeling, one time in four nothing. ref: src/priest.c intemple() (no Sanctum, deafness,
+ * achievements or ghost: the rn2(5) roll for the ghost is made, but there is no ghost monster)
+ */
+export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): void {
+  const level = getLevel(ctx.state);
+  // don't do anything if hero is already in the room
+  if (templeOccupied(level, rooms0) !== null) return;
+  const pid = findpriest(ctx, roomno);
+  const priest = pid === null ? undefined : ctx.state.entities[String(pid)];
+  const epri = pid === null ? null : epriOf(ctx, pid);
+  const now = ctx.state.turn;
+  if (pid !== null && priest?.c.monster && priest.c.pos && epri) {
+    // tended
+    const shrined = hasShrine(ctx, epri);
+    const canSpeak = !priest.c.monster.asleep && !isFrozen(ctx, pid); // !helpless()
+    if (canSpeak && now >= epri.intoneTime) {
+      if (canseeNow(ctx, priest.c.pos)) {
+        const mon = hasProp(getPlayer(ctx.state), P.HALLUC)
+          ? monNam(ctx, priest)
+          : priestName(epri);
+        ctx.emit({ type: 'msg', key: 'priest.intones', params: { mon } });
+      } else ctx.emit({ type: 'msg', key: 'priest.voice_intones' });
+      epri.intoneTime = now + ctx.rng.d(10, 500); // ~2505
+      // make sure that we don't suppress entry message when we've just given its "priest
+      // intones" introduction
+      epri.enterTime = 0;
+    }
+    if (now >= epri.enterTime && canSpeak) {
+      ctx.emit({
+        type: 'msg',
+        key: shrined ? 'priest.pilgrim_sacred' : 'priest.pilgrim_desecrated',
+      });
+      epri.enterTime = now + ctx.rng.d(10, 100); // ~505
+    }
+    const record = uState(ctx.state).alignRecord;
+    const forbidding = !shrined || !pCoaligned(ctx, epri) || record <= ALGN_SINNED;
+    const key = forbidding
+      ? !shrined || !pCoaligned(ctx, epri)
+        ? 'priest.forbidding'
+        : 'priest.strange_forbidding'
+      : record >= ALGN_DEVOUT
+        ? 'priest.peace'
+        : 'priest.unusual_peace';
+    const thisTime = forbidding ? 'hostileTime' : 'peacefulTime';
+    const otherTime = forbidding ? 'peacefulTime' : 'hostileTime';
+    // give message if we haven't seen it recently or if alignment update has caused it to switch
+    // from forbidding to sense-of-peace or vice versa
+    if (now >= epri[thisTime] || epri[otherTime] >= epri[thisTime]) {
+      ctx.emit({ type: 'msg', key });
+      epri[thisTime] = now + ctx.rng.d(10, 20); // ~55
+      // avoid being tricked by the RNG: switch might have just happened and previous random
+      // threshold could be larger
+      if (epri[thisTime] <= epri[otherTime]) epri[otherTime] = epri[thisTime] - 1;
+    }
+    return;
+  }
+  // untended
+  const UNTENDED = ['temple.eerie', 'temple.watched', 'temple.shiver'];
+  const feeling = UNTENDED[ctx.rng.rn2(4)];
+  if (feeling) ctx.emit({ type: 'msg', key: feeling });
+  ctx.rng.rn2(5); // the ghost (not ported: no ghost monster)
 }
 
 /** Makes the temple priests of each new level (before its other contents, as create_altar()). */

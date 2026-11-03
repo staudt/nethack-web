@@ -1,4 +1,4 @@
-// English messages for temple priests (ref: src/priest.c priestname(), ghod_hitsu())
+// English messages for temple priests (ref: src/priest.c priestname(), ghod_hitsu(), intemple())
 export const priestMessagesEn: Record<string, string> = {
   'priest.of.lawful': 'priest of Tyr',
   'priest.of.neutral': 'priest of Odin',
@@ -7,4 +7,15 @@ export const priestMessagesEn: Record<string, string> = {
   'priest.ghod.roars_anger': '{god} roars in anger:  "Thou shalt suffer!"',
   'priest.ghod.voice_booms': '{god}\'s voice booms:  "How darest thou harm my servant!"',
   'priest.ghod.roars': '{god} roars:  "Thou dost profane my shrine!"',
+  'priest.intones': '{mon|The} intones:',
+  'priest.voice_intones': 'A nearby voice intones:',
+  'priest.pilgrim_sacred': '"Pilgrim, you enter a sacred place!"',
+  'priest.pilgrim_desecrated': '"Pilgrim, you enter a desecrated place!"',
+  'priest.forbidding': 'You have a forbidding feeling...',
+  'priest.strange_forbidding': 'You have a strange forbidding feeling...',
+  'priest.peace': 'You experience a sense of peace.',
+  'priest.unusual_peace': 'You experience an unusual sense of peace.',
+  'temple.eerie': 'You have an eerie feeling...',
+  'temple.watched': 'You feel like you are being watched.',
+  'temple.shiver': 'A shiver runs down your spine.',
 };
