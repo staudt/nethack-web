@@ -42,7 +42,7 @@ From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-chec
 - **Hero races:** the Mines' inhabitants peaceful to gnome and dwarf heroes.
 - **Minetown** is milestone 6b; Mines' End is not planned yet.
 
-From wizard mode (`docs/kickoff-wiz.md`; done, phone check pending):
+From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 
 - **Score list rule:** a future high-score list must skip every game whose mod list includes `wiz` (ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
 - **Wishing for terrain and traps** (`fountain`, `trap door`), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
