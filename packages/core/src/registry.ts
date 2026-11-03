@@ -22,10 +22,11 @@ import type {
   PerceptionDef,
   TrapDef,
   DungeonDef,
+  LevelContent,
   LevelDef,
   ItemNamer,
 } from './types/mod';
-import { specialLevelIssues } from './levelgen/spdef';
+import { contentLists, specialLevelIssues } from './levelgen/spdef';
 import { DEFAULT_DUNGEON } from './dungeon';
 import type { ArmorSlot } from './types/entity';
 
@@ -503,19 +504,22 @@ export function loadMods(mods: readonly Mod[]): Registry {
         if (typeof id === 'string' && !terrains.has(id))
           ref(`init.${key}`, `unknown terrain '${id}'`);
       }
-    if (!Array.isArray(l.contents)) continue;
-    l.contents.forEach((c, i) => {
-      const known = c.kind === 'monster' ? monsters : c.kind === 'object' ? objects : traps;
-      if (typeof c.id === 'string' && !known.has(c.id))
-        ref(`contents[${i}].id`, `unknown ${c.kind} '${c.id}'`);
-      if (
-        c.kind === 'monster' &&
-        typeof c.class === 'string' &&
-        [...c.class].length === 1 &&
-        ![...monsters.values()].some((m) => m.glyph.ch === c.class)
-      )
-        ref(`contents[${i}].class`, `no monster has glyph '${c.class}'`);
-    });
+    for (const [prefix, list] of contentLists(l)) {
+      if (!Array.isArray(list)) continue;
+      (list as LevelContent[]).forEach((c, i) => {
+        if (typeof c !== 'object' || c === null) return;
+        const known = c.kind === 'monster' ? monsters : c.kind === 'object' ? objects : traps;
+        if (typeof c.id === 'string' && !known.has(c.id))
+          ref(`${prefix}[${i}].id`, `unknown ${c.kind} '${c.id}'`);
+        if (
+          c.kind === 'monster' &&
+          typeof c.class === 'string' &&
+          [...c.class].length === 1 &&
+          ![...monsters.values()].some((m) => m.glyph.ch === c.class)
+        )
+          ref(`${prefix}[${i}].class`, `no monster has glyph '${c.class}'`);
+      });
+    }
   }
   const dungeonList = orderDungeons(dungeons, issues);
 
@@ -636,11 +640,15 @@ function levelDefIssues(d: LevelDef): [string, string][] {
       out.push(['init.style', "must be 'rooms', 'solidfill' or 'mines'"]);
   }
   out.push(...specialLevelIssues(d));
-  const contents: unknown = d.contents;
-  if (contents === undefined) return out;
-  if (!Array.isArray(contents)) return [...out, ['contents', 'must be an array']];
+  for (const [prefix, list] of contentLists(d)) contentIssues(prefix, list, out);
+  return out;
+}
+
+/** Shape problems of one `contents` list at `prefix`. */
+function contentIssues(prefix: string, contents: unknown, out: [string, string][]): void {
+  if (!Array.isArray(contents)) return void out.push([prefix, 'must be an array']);
   contents.forEach((c: unknown, i) => {
-    const at = `contents[${i}]`;
+    const at = `${prefix}[${i}]`;
     if (typeof c !== 'object' || c === null) return void out.push([at, 'must be an object']);
     const { kind, id, class: cls, count, percent, x, y, peaceful } = c as Record<string, unknown>;
     if (typeof kind !== 'string' || !CONTENT_KINDS.includes(kind))
@@ -678,7 +686,6 @@ function levelDefIssues(d: LevelDef): [string, string][] {
       else if (kind !== 'monster') out.push([`${at}.peaceful`, 'only monsters can be peaceful']);
     }
   });
-  return out;
 }
 
 /**

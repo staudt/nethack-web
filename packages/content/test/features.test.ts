@@ -6,8 +6,10 @@ import {
   checkStep,
   createEngine,
   getLevel,
+  insideRoom,
   loadMods,
   mapBlock,
+  roomHas,
   sortedIds,
   VANILLA_TERRAIN,
   type Ctx,
@@ -232,6 +234,74 @@ describe('LevelDef contents with a map block', () => {
         expect(p.y - b.y).toBeGreaterThanOrEqual(0);
         expect(p.y - b.y).toBeLessThan(b.h);
       }
+    }
+  });
+});
+
+// Milestone 6b1 step 3: contents of a room are made in that room, at room-relative spots.
+describe('LevelDef room contents', () => {
+  const ROOMS: LevelDef = {
+    id: 'ft:spots',
+    init: { style: 'solidfill', fg: 'nh:stone', lit: true },
+    rooms: [
+      {
+        x: 3,
+        y: 3,
+        w: 14,
+        h: 8,
+        xalign: 'center',
+        yalign: 'center',
+        lit: true,
+        contents: [
+          { kind: 'object', id: 'nh:apple', x: 1, y: 6 },
+          { kind: 'object', id: 'nh:rock', count: 12 },
+        ],
+        rooms: [
+          {
+            x: 6,
+            y: 2,
+            w: 3,
+            h: 3,
+            doors: [{ state: 'nodoor', wall: 'south' }],
+            contents: [{ kind: 'object', id: 'nh:carrot', count: 3 }],
+          },
+        ],
+      },
+      { stairs: ['up'] },
+      { stairs: ['down'] },
+    ],
+    corridors: 'random',
+  };
+  const visit = (seed: number) => {
+    const engine = createEngine([vanillaMod, spotsMod(ROOMS)]);
+    const { state } = engine.newGame({ seed });
+    probe.fn = (ctx) => ctx.goToLevel({ dungeon: 'ft:d', dlevel: 1 }, 'up');
+    engine.step(state, { type: 'mod', action: 'ft:run' });
+    return { state, level: getLevel(state) };
+  };
+  const posOf = (state: GameState, level: Level, def: DefId) =>
+    sortedIds(state)
+      .map((id) => state.entities[String(id)])
+      .filter((e) => e?.def === def && e.c.pos?.level === level.id)
+      .map((e) => ({ x: e?.c.pos?.x ?? -1, y: e?.c.pos?.y ?? -1 }));
+
+  test('fixed spots are room-relative; random ones stay in the room, outside its subrooms', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const { state, level } = visit(seed);
+      const town = level.rooms[0];
+      const shed = level.rooms[1];
+      if (!town || !shed) throw new Error('rooms missing');
+      expect(shed.parent).toBe(0);
+      expect(posOf(state, level, 'nh:apple')).toEqual([{ x: town.lx + 1, y: town.ly + 6 }]);
+      const rocks = posOf(state, level, 'nh:rock');
+      expect(rocks.length).toBeGreaterThan(0);
+      for (const p of rocks) {
+        expect(roomHas(level, 0, p.x, p.y)).toBe(true);
+        expect(insideRoom(shed, p.x, p.y)).toBe(false);
+      }
+      const carrots = posOf(state, level, 'nh:carrot');
+      expect(carrots.length).toBeGreaterThan(0);
+      for (const p of carrots) expect(roomHas(level, 1, p.x, p.y)).toBe(true);
     }
   });
 });

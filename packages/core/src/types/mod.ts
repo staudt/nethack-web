@@ -213,6 +213,13 @@ export interface LevelDef {
    * get_location()). At most one block per LevelDef.
    */
   map?: LevelMap;
+  /**
+   * Walled rooms, placed on NetHack's 5x5 grid or at random, with subrooms, doors, features,
+   * stairs and contents of their own. ref: src/sp_lev.c lspo_room(), create_room()
+   */
+  rooms?: RoomDef[];
+  /** `random`: join the top-level rooms with corridors. ref: src/sp_lev.c lspo_random_corridors() */
+  corridors?: 'random';
   /** Lit or unlit areas, and typed rooms over map areas. ref: src/sp_lev.c lspo_region() */
   regions?: RegionDef[];
   /** Terrain changes, some at random. ref: src/sp_lev.c lspo_terrain() with nhlib percent() */
@@ -296,6 +303,49 @@ export interface FeatureDef {
   coords?: LevelCoords;
   align?: 'lawful' | 'neutral' | 'chaotic' | 'noalign' | 'random';
   shrine?: boolean;
+}
+
+/**
+ * A door on a wall of its room: `wall` (default any wall) and `pos` (cells from the wall's
+ * top or left end; default random). `random` state rolls create_door()'s table (doorway 2/3,
+ * else open, locked or closed). ref: src/sp_lev.c lspo_door() without x,y, create_door()
+ */
+export interface RoomDoorDef {
+  state: DoorState;
+  wall?: 'north' | 'south' | 'east' | 'west' | 'random';
+  pos?: number;
+}
+
+/**
+ * A walled room (ref: src/sp_lev.c lspo_room(), build_room(), create_room(), create_subroom()).
+ * Top level: `x`,`y` pick a cell 1..5 of a 5x5 grid over the level and `xalign`/`yalign` place the
+ * room in it; omitted they are random, and with no `x`,`y`,`w`,`h` or aligns at all the room is
+ * placed like an ordinary random room. Subroom (in `rooms` of a room): `x`,`y` are the offset of
+ * its floor in the parent's floor. `w`,`h` are the floor size (both or neither; omitted random).
+ * `percent` (0..100) decides whether the room exists at all (lua `if percent(n)`), `chance`
+ * (0..100) whether it gets its `type` (else it is ordinary). `lit` omitted is random. `filled`
+ * (typed rooms; default true) lets the type's owner stock it. `features`, `contents` and the
+ * `x`,`y` of an altar are relative to the room's floor (0,0 = its top-left floor cell); without
+ * `x`,`y` contents go on a random spot of the room outside its subrooms. `stairs` puts the
+ * dungeon's up or down stairs on a random floor spot of the room.
+ */
+export interface RoomDef {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  xalign?: 'left' | 'center' | 'right';
+  yalign?: 'top' | 'center' | 'bottom';
+  type?: DefId;
+  chance?: number;
+  percent?: number;
+  lit?: boolean;
+  filled?: boolean;
+  doors?: RoomDoorDef[];
+  features?: FeatureDef[];
+  stairs?: ('up' | 'down')[];
+  contents?: LevelContent[];
+  rooms?: RoomDef[];
 }
 
 /**

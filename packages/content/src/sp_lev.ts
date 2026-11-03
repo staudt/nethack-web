@@ -10,17 +10,45 @@ import type {
   ObjectClass,
   Pos,
 } from '@nh/core';
-import { cellIndex, isPlainFloor, levelDefArea, levelDefPos } from '@nh/core';
+import {
+  cellIndex,
+  isPlainFloor,
+  levelDefArea,
+  levelDefPos,
+  levelDefRoom,
+  roomDefPos,
+  roomHas,
+  roomSomexy,
+} from '@nh/core';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mktrap } from './mklev';
 
 /**
- * A random spot that passes `ok`, inside the LevelDef's map block when it has one (else the whole
- * level): 100 random picks, then the first in column order; null when there is none (C calls
- * impossible()). ref: src/sp_lev.c get_location() with no room (xstart, xsize of the map)
+ * A random spot that passes `ok`: in room `room` (outside its subrooms) when given, else inside
+ * the LevelDef's map block when it has one, else the whole level. 100 random picks, then the
+ * first in column order; null when there is none (C calls impossible()).
+ * ref: src/sp_lev.c get_location() (with croom: somexy(); without: xstart, xsize of the map)
  */
-function getLocation(ctx: Ctx, level: Level, def: LevelDef, ok: (p: Pos) => boolean): Pos | null {
+function getLocation(
+  ctx: Ctx,
+  level: Level,
+  def: LevelDef,
+  ok: (p: Pos) => boolean,
+  room?: number,
+): Pos | null {
+  if (room !== undefined) {
+    for (let cpt = 0; cpt < 100; cpt++) {
+      const p = roomSomexy(ctx.rng, level, room);
+      if (p && ok(p)) return p;
+    }
+    const r = level.rooms[room];
+    if (!r) return null;
+    for (let x = r.lx; x <= r.hx; x++)
+      for (let y = r.ly; y <= r.hy; y++)
+        if (roomHas(level, room, x, y) && ok({ x, y })) return { x, y };
+    return null;
+  }
   const a = levelDefArea(def, level.width, level.height);
   for (let cpt = 0; cpt < 100; cpt++) {
     const p = { x: a.x + ctx.rng.rn2(a.w), y: a.y + ctx.rng.rn2(a.h) };
@@ -50,31 +78,46 @@ function rollCount(ctx: Ctx, count: LevelCount | undefined): number {
 }
 
 /**
- * The entry's fixed spot (relative to the map block when there is one, else Level coordinates
- * where a negative value counts from the far edge; core's levelDefPos), or a random dry one. A
- * fixed spot is used as it is, with no terrain check. ref: src/sp_lev.c get_location()
- * `if (*x >= 0)` (normal locations), get_location_coord()
+ * The entry's fixed spot (in a room: relative to its top-left floor cell, core's roomDefPos;
+ * else relative to the map block when there is one, else Level coordinates where a negative
+ * value counts from the far edge, core's levelDefPos), or a random dry one. A fixed spot is used
+ * as it is, with no terrain check. ref: src/sp_lev.c get_location() `if (*x >= 0)` (normal
+ * locations), get_location_coord()
  * @throws RangeError for a spot outside the level
  */
-function contentSpot(ctx: Ctx, level: Level, c: LevelContent, def: LevelDef): Pos | null {
+function contentSpot(
+  ctx: Ctx,
+  level: Level,
+  c: LevelContent,
+  def: LevelDef,
+  room?: number,
+): Pos | null {
   if (c.x === undefined || c.y === undefined)
-    return getLocation(ctx, level, def, (p) => dry(ctx, level, p));
+    return getLocation(ctx, level, def, (p) => dry(ctx, level, p), room);
+  const r = room === undefined ? undefined : level.rooms[room];
+  if (r) return roomDefPos(def, level.width, level.height, r, c.x, c.y, c.kind);
   return levelDefPos(def, level.width, level.height, c.x, c.y, c.coords, c.kind);
 }
 
 /**
- * ref: src/sp_lev.c create_monster() with no room; an occupied spot moves to a close one
+ * ref: src/sp_lev.c create_monster(); an occupied spot moves to a close one
  * (`if (MON_AT(x, y) && enexto(...))`); `peaceful` overrides peace_minded()
  * (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`)
  */
-function createMonster(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
+function createMonster(
+  ctx: Ctx,
+  level: Level,
+  c: LevelContent,
+  ldef: LevelDef,
+  room?: number,
+): void {
   const def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
       : c.class !== undefined
         ? mkclass(ctx, c.class, level.depth, ['nogen']) // mkclass(class, G_NOGEN)
         : null;
-  const pos = contentSpot(ctx, level, c, ldef);
+  const pos = contentSpot(ctx, level, c, ldef, room);
   // someone already there: a close place instead (makemon's enexto)
   if (!pos) return;
   const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true });
@@ -82,9 +125,15 @@ function createMonster(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef):
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
 }
 
-/** ref: src/sp_lev.c create_object() with no room */
-function createObject(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
-  const pos = contentSpot(ctx, level, c, ldef);
+/** ref: src/sp_lev.c create_object() */
+function createObject(
+  ctx: Ctx,
+  level: Level,
+  c: LevelContent,
+  ldef: LevelDef,
+  room?: number,
+): void {
+  const pos = contentSpot(ctx, level, c, ldef, room);
   if (!pos) return;
   const at = { level: level.id, x: pos.x, y: pos.y };
   if (c.id !== undefined)
@@ -93,38 +142,54 @@ function createObject(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): 
 }
 
 /**
- * ref: src/sp_lev.c create_trap() with no room: a DRY spot that is not stairs (100 tries), then
+ * ref: src/sp_lev.c create_trap(): a DRY spot that is not stairs (100 tries), then
  * mklev.c mktrap() there. Here the spot must be plain floor, where traps may go; a fixed spot
  * that is not makes no trap.
  */
-function createTrap(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
+function createTrap(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef, room?: number): void {
   if (c.x !== undefined) {
-    const at = contentSpot(ctx, level, c, ldef);
+    const at = contentSpot(ctx, level, c, ldef, room);
     if (at && isPlainFloor(ctx.defs, level, at.x, at.y)) mktrap(ctx, level, at, c.id ?? null);
     return;
   }
   let pos: Pos | null = null;
   for (let trycnt = 0; trycnt <= 100; trycnt++) {
-    pos = getLocation(ctx, level, ldef, (p) => dry(ctx, level, p));
+    pos = getLocation(ctx, level, ldef, (p) => dry(ctx, level, p), room);
     if (!pos || isPlainFloor(ctx.defs, level, pos.x, pos.y)) break;
   }
   if (pos && isPlainFloor(ctx.defs, level, pos.x, pos.y)) mktrap(ctx, level, pos, c.id ?? null);
 }
 
-/**
- * Makes `def.contents` in order: each entry first rolls its `percent` (ref: nhlua percent(),
- * rn2(100) < n), then its count, then makes that many things.
- */
-export function fillSpecialLevel(ctx: Ctx, level: Level, def: LevelDef): void {
-  for (const c of def.contents ?? []) {
+/** Makes one contents list (in room `room` when given). */
+function makeContents(
+  ctx: Ctx,
+  level: Level,
+  def: LevelDef,
+  list: readonly LevelContent[],
+  room?: number,
+): void {
+  for (const c of list) {
     if (c.percent !== undefined && ctx.rng.rn2(100) >= c.percent) continue;
     const n = rollCount(ctx, c.count);
     for (let i = 0; i < n; i++) {
-      if (c.kind === 'monster') createMonster(ctx, level, c, def);
-      else if (c.kind === 'object') createObject(ctx, level, c, def);
-      else createTrap(ctx, level, c, def);
+      if (c.kind === 'monster') createMonster(ctx, level, c, def, room);
+      else if (c.kind === 'object') createObject(ctx, level, c, def, room);
+      else createTrap(ctx, level, c, def, room);
     }
   }
+}
+
+/**
+ * Makes the contents of each room built from a RoomDef (in `Level.rooms` order), then
+ * `def.contents`, each list in order: each entry first rolls its `percent` (ref: nhlua percent(),
+ * rn2(100) < n), then its count, then makes that many things.
+ */
+export function fillSpecialLevel(ctx: Ctx, level: Level, def: LevelDef): void {
+  for (const [i, room] of level.rooms.entries()) {
+    const contents = room.defPath && levelDefRoom(def, room.defPath)?.contents;
+    if (contents) makeContents(ctx, level, def, contents, i);
+  }
+  makeContents(ctx, level, def, def.contents ?? []);
 }
 
 /** Fills levels built from a LevelDef; runs after mklev's own newLevel hook. */

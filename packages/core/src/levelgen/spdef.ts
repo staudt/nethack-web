@@ -2,7 +2,8 @@
 // coordinates, and the shape checks loadMods runs on the special-level fields.
 // ref: src/sp_lev.c lspo_map(), get_location(); src/nhlua.c splev_chr2typ()
 import type { Pos } from '../types/common';
-import type { LevelCoords, LevelDef, LevelMap, LevelRect } from '../types/mod';
+import type { Room } from '../types/level';
+import type { LevelCoords, LevelDef, LevelMap, LevelRect, RoomDef } from '../types/mod';
 import type { LevelTerrain } from './terrain';
 
 /**
@@ -159,6 +160,62 @@ export function levelDefRect(
   if (a.x > b.x || a.y > b.y)
     throw new RangeError(`LevelDef '${def.id}': ${what} [${r.join(', ')}] is upside down`);
   return [a.x, a.y, b.x, b.y];
+}
+
+/** The RoomDef at `path` (a Room's `defPath`), or undefined. */
+export function levelDefRoom(def: LevelDef, path: readonly number[]): RoomDef | undefined {
+  let list: readonly RoomDef[] | undefined = def.rooms;
+  let rd: RoomDef | undefined;
+  for (const i of path) {
+    rd = list?.[i];
+    if (!rd) return undefined;
+    list = rd.rooms;
+  }
+  return rd;
+}
+
+/**
+ * The Level position of a room entry's `x`,`y`, relative to the room's top-left floor cell.
+ * ref: src/sp_lev.c get_location() with croom `*x += croom->lx`
+ * @throws RangeError naming the LevelDef and `what` for a spot outside the level
+ */
+export function roomDefPos(
+  def: LevelDef,
+  width: number,
+  height: number,
+  room: Room,
+  x: number,
+  y: number,
+  what: string,
+): Pos {
+  const p = { x: room.lx + x, y: room.ly + y };
+  if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height)
+    throw new RangeError(
+      `LevelDef '${def.id}': ${what} at ${String(x)},${String(y)} of its room is outside the ` +
+        `${String(width)}x${String(height)} level`,
+    );
+  return p;
+}
+
+/**
+ * Every `contents` list of a LevelDef with its path: the top level's, then each room's
+ * (depth-first). Tolerates malformed data (for loadMods).
+ */
+export function contentLists(def: LevelDef): [path: string, list: unknown][] {
+  const out: [string, unknown][] = [];
+  const d = def as unknown as Obj;
+  if (d.contents !== undefined) out.push(['contents', d.contents]);
+  const walk = (rooms: unknown, prefix: string): void => {
+    if (!Array.isArray(rooms)) return;
+    rooms.forEach((r: unknown, i) => {
+      if (!isObj(r)) return;
+      const path = `${prefix}[${i}]`;
+      if (r.contents !== undefined) out.push([`${path}.contents`, r.contents]);
+      walk(r.rooms, `${path}.rooms`);
+    });
+  };
+  walk(d.rooms, 'rooms');
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -323,9 +380,153 @@ function arrayOf(d: Obj, key: string, out: Issues, each: (v: Obj, path: string) 
   });
 }
 
+const ROOM_XALIGNS = ['left', 'center', 'right'];
+const ROOM_YALIGNS = ['top', 'center', 'bottom'];
+const ROOM_WALLS = ['north', 'south', 'east', 'west', 'random'];
+
+/** Checks a feature's kind, align and shrine at `path`. */
+function featureIssues(f: Obj, path: string, out: Issues): void {
+  if (!FEATURE_KINDS.includes(f.kind as string))
+    out.push([`${path}.kind`, `must be one of ${FEATURE_KINDS.join(', ')}`]);
+  if (f.align !== undefined && !ALIGNS.includes(f.align as string))
+    out.push([`${path}.align`, `must be one of ${ALIGNS.join(', ')}`]);
+  if (f.shrine !== undefined && typeof f.shrine !== 'boolean')
+    out.push([`${path}.shrine`, 'must be a boolean']);
+  if ((f.align !== undefined || f.shrine !== undefined) && f.kind !== 'altar')
+    out.push([path, 'only an altar has align and shrine']);
+}
+
+/** A room-relative spot: integers from 0, inside the room's floor when its size is fixed. */
+function roomPosIssues(
+  path: string,
+  x: unknown,
+  y: unknown,
+  size: { w: number; h: number } | null,
+  out: Issues,
+): void {
+  if (!isInt(x) || !isInt(y) || x < 0 || y < 0)
+    return void out.push([path, 'needs integer x and y >= 0 (relative to the room floor)']);
+  if (size && (x >= size.w || y >= size.h))
+    out.push([
+      path,
+      `${x},${y} is outside the room's ${size.w}x${size.h} floor (room coordinates run from 0,0)`,
+    ]);
+}
+
+/** Checks one RoomDef at `path`; `parent` is the enclosing room's fixed size, if any. */
+function roomIssues(
+  r: Obj,
+  path: string,
+  sub: boolean,
+  parent: { w: number; h: number } | null,
+  stairs: Map<string, string>,
+  out: Issues,
+): void {
+  const { x, y, w, h } = r;
+  if ((x === undefined) !== (y === undefined))
+    out.push([`${path}.${x === undefined ? 'x' : 'y'}`, 'give both x and y, or neither']);
+  if ((w === undefined) !== (h === undefined))
+    out.push([`${path}.${w === undefined ? 'w' : 'h'}`, 'give both w and h, or neither']);
+  for (const [k, v] of [
+    ['x', x],
+    ['y', y],
+  ] as const)
+    if (v !== undefined && (!isInt(v) || (sub ? v < 0 : v < 1 || v > 5)))
+      out.push([
+        `${path}.${k}`,
+        sub
+          ? 'must be an integer >= 0 (the offset in the parent room floor)'
+          : 'must be an integer 1..5 (a cell of the 5x5 level grid)',
+      ]);
+  for (const [k, v] of [
+    ['w', w],
+    ['h', h],
+  ] as const)
+    if (v !== undefined && (!isInt(v) || v < 1))
+      out.push([`${path}.${k}`, 'must be an integer >= 1 (floor size)']);
+  const size = isInt(w) && isInt(h) && w >= 1 && h >= 1 ? { w, h } : null;
+  if (sub) {
+    if (r.xalign !== undefined || r.yalign !== undefined)
+      out.push([path, 'a subroom is placed by x,y; xalign and yalign are for top-level rooms']);
+    if (parent && size && isInt(x) && isInt(y) && (x + size.w > parent.w || y + size.h > parent.h))
+      out.push([path, `does not fit in its parent's ${parent.w}x${parent.h} floor`]);
+  } else {
+    if (r.xalign !== undefined && !ROOM_XALIGNS.includes(r.xalign as string))
+      out.push([`${path}.xalign`, `must be one of ${ROOM_XALIGNS.join(', ')}`]);
+    if (r.yalign !== undefined && !ROOM_YALIGNS.includes(r.yalign as string))
+      out.push([`${path}.yalign`, `must be one of ${ROOM_YALIGNS.join(', ')}`]);
+  }
+  if (r.type !== undefined && (typeof r.type !== 'string' || r.type === ''))
+    out.push([`${path}.type`, 'must be a room type id']);
+  for (const k of ['chance', 'percent'] as const) {
+    const v = r[k];
+    if (v !== undefined && (!isInt(v) || v < 0 || v > 100))
+      out.push([`${path}.${k}`, 'must be an integer 0..100']);
+  }
+  if (r.chance !== undefined && r.type === undefined)
+    out.push([`${path}.chance`, 'is the chance of the room type; give a type']);
+  for (const k of ['lit', 'filled'] as const)
+    if (r[k] !== undefined && typeof r[k] !== 'boolean')
+      out.push([`${path}.${k}`, 'must be a boolean']);
+  if (r.filled !== undefined && r.type === undefined)
+    out.push([`${path}.filled`, 'only a typed room can be filled']);
+  arrayOf(r, 'doors', out, (o, at) => {
+    at = `${path}.${at}`;
+    if (o.x !== undefined || o.y !== undefined)
+      out.push([at, 'a room door goes on a wall (wall, pos); put doors at x,y in LevelDef.doors']);
+    if (!DOOR_STATES.includes(o.state as string))
+      out.push([`${at}.state`, `must be one of ${DOOR_STATES.join(', ')}`]);
+    if (o.wall !== undefined && !ROOM_WALLS.includes(o.wall as string))
+      out.push([`${at}.wall`, `must be one of ${ROOM_WALLS.join(', ')}`]);
+    if (o.pos !== undefined) {
+      const len = o.wall === 'north' || o.wall === 'south' ? size?.w : size?.h;
+      if (!isInt(o.pos) || o.pos < 0) out.push([`${at}.pos`, 'must be an integer >= 0']);
+      else if (o.wall === undefined || o.wall === 'random')
+        out.push([`${at}.pos`, 'needs a wall (north, south, east or west)']);
+      else if (len !== undefined && o.pos >= len)
+        out.push([`${at}.pos`, `must be below ${len}, the length of the ${String(o.wall)} wall`]);
+    }
+  });
+  arrayOf(r, 'features', out, (f, at) => {
+    at = `${path}.${at}`;
+    if (f.coords !== undefined)
+      out.push([`${at}.coords`, 'room features are relative to the room; no coords']);
+    roomPosIssues(at, f.x, f.y, size, out);
+    featureIssues(f, at, out);
+  });
+  if (r.stairs !== undefined) {
+    if (!Array.isArray(r.stairs)) out.push([`${path}.stairs`, "must be an array of 'up', 'down'"]);
+    else
+      r.stairs.forEach((dir: unknown, i) => {
+        const at = `${path}.stairs[${i}]`;
+        if (dir !== 'up' && dir !== 'down') return void out.push([at, "must be 'up' or 'down'"]);
+        const other = stairs.get(dir);
+        if (other !== undefined) out.push([at, `the ${dir} stairs are already placed by ${other}`]);
+        else stairs.set(dir, at);
+      });
+  }
+  if (Array.isArray(r.contents))
+    r.contents.forEach((c: unknown, i) => {
+      if (!isObj(c)) return;
+      const at = `${path}.contents[${i}]`;
+      if (c.coords !== undefined)
+        out.push([`${at}.coords`, 'room contents are relative to the room; no coords']);
+      if (c.x !== undefined && c.y !== undefined) roomPosIssues(at, c.x, c.y, size, out);
+    });
+  if (r.rooms !== undefined) {
+    if (!Array.isArray(r.rooms)) out.push([`${path}.rooms`, 'must be an array']);
+    else
+      r.rooms.forEach((s: unknown, i) => {
+        const at = `${path}.rooms[${i}]`;
+        if (!isObj(s)) out.push([at, 'must be an object']);
+        else roomIssues(s, at, true, size, stairs, out);
+      });
+  }
+}
+
 /**
- * Shape problems of a LevelDef's map block, regions, edits, doors, features, stairs and flags,
- * and of the `coords` of its contents, as [path, reason].
+ * Shape problems of a LevelDef's map block, rooms, corridors, regions, edits, doors, features,
+ * stairs and flags, and of the `coords` of its contents, as [path, reason].
  */
 export function specialLevelIssues(def: LevelDef): Issues {
   const out: Issues = [];
@@ -334,6 +535,13 @@ export function specialLevelIssues(def: LevelDef): Issues {
   if (hasMap) mapIssues(d.map, out);
   const block = blockSize(d.map);
 
+  const stairs = new Map<string, string>();
+  if (isObj(d.stairs))
+    for (const dir of ['up', 'down'] as const)
+      if (d.stairs[dir] !== undefined) stairs.set(dir, `stairs.${dir}`);
+  arrayOf(d, 'rooms', out, (r, path) => roomIssues(r, path, false, null, stairs, out));
+  if (d.corridors !== undefined && d.corridors !== 'random')
+    out.push(['corridors', "must be 'random'"]);
   arrayOf(d, 'regions', out, (r, path) => {
     coordsIssues(path, r.coords, hasMap, out);
     rectIssues(`${path}.area`, r.area, r.coords, block, hasMap, out);
@@ -360,14 +568,7 @@ export function specialLevelIssues(def: LevelDef): Issues {
   arrayOf(d, 'features', out, (f, path) => {
     coordsIssues(path, f.coords, hasMap, out);
     posIssues(path, f.x, f.y, f.coords, block, hasMap, out);
-    if (!FEATURE_KINDS.includes(f.kind as string))
-      out.push([`${path}.kind`, `must be one of ${FEATURE_KINDS.join(', ')}`]);
-    if (f.align !== undefined && !ALIGNS.includes(f.align as string))
-      out.push([`${path}.align`, `must be one of ${ALIGNS.join(', ')}`]);
-    if (f.shrine !== undefined && typeof f.shrine !== 'boolean')
-      out.push([`${path}.shrine`, 'must be a boolean']);
-    if ((f.align !== undefined || f.shrine !== undefined) && f.kind !== 'altar')
-      out.push([path, 'only an altar has align and shrine']);
+    featureIssues(f, path, out);
   });
   if (d.stairs !== undefined) {
     if (!isObj(d.stairs)) out.push(['stairs', 'must be an object']);

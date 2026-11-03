@@ -23,6 +23,8 @@ export {
   levelDefArea,
   levelDefPos,
   levelDefRect,
+  levelDefRoom,
+  roomDefPos,
   MAP_LEGEND,
 } from './levelgen/index';
 export type { GenOptions, LevelTerrain, MapBlock } from './levelgen/index';
@@ -58,4 +60,4 @@ export {
 } from './objects';
 export { heroBlind, heroLights, senses, shownAs } from './perception';
 export { isPlainFloor, trapAt } from './traps';
-export { inTown, insideRoom } from './rooms';
+export { inTown, insideRoom, roomHas, roomSomexy } from './rooms';

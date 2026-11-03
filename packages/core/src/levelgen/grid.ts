@@ -20,6 +20,10 @@ export const T = {
   SDOOR: 10,
   /** Secret corridor (ref: rm.h SCORR). */
   SCORR: 11,
+  /** Special levels only: a tree (obstructed, ref: rm.h TREE). */
+  TREE: 12,
+  /** Special levels only: other open terrain (fountains, altars, stairs ...). */
+  FURN: 13,
 } as const;
 
 /** Door state bits (ref: include/rm.h D_NODOOR D_ISOPEN D_CLOSED). 0 = no door. */
@@ -32,12 +36,30 @@ export const D_LOCKED = 8;
 
 /** ref: include/rm.h IS_WALL() (includes corners, excludes stone) */
 export const isWall = (t: number): boolean => t >= T.VWALL && t <= T.BRCORNER;
-/** ref: include/rm.h IS_OBSTRUCTED() for the types we have: stone and walls */
-export const isObstructed = (t: number): boolean => t <= T.BRCORNER;
+/** ref: include/rm.h IS_OBSTRUCTED() for the types we have: stone, walls and trees */
+export const isObstructed = (t: number): boolean => t <= T.BRCORNER || t === T.TREE;
 
 /** A room in internal coordinates; ref: include/mkroom.h struct mkroom */
 export interface IRoom extends NhRect {
   lit: boolean;
+  /** Subrooms (special levels only); their cells and walls are not part of this room. */
+  sub?: IRoom[];
+}
+
+/** In `r` or on its walls. ref: src/mkroom.c inside_room() */
+export const inRoomBox = (r: NhRect, x: number, y: number): boolean =>
+  x >= r.lx - 1 && x <= r.hx + 1 && y >= r.ly - 1 && y <= r.hy + 1;
+
+/** Whether x,y is in a subroom of `r` (walls included): not `r`'s own (roomno differs). */
+export const inSubroom = (r: IRoom, x: number, y: number): boolean =>
+  r.sub !== undefined && r.sub.some((s) => inRoomBox(s, x, y));
+
+/** A floor cell of `r` outside its subrooms (the first in row order), for flood fills. */
+export function roomCell(r: IRoom): { x: number; y: number } {
+  if (r.sub)
+    for (let y = r.ly; y <= r.hy; y++)
+      for (let x = r.lx; x <= r.hx; x++) if (!inSubroom(r, x, y)) return { x, y };
+  return { x: r.lx, y: r.ly };
 }
 
 export class Grid {

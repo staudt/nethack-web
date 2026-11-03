@@ -13,9 +13,23 @@ import type {
 } from '../types/mod';
 import type { Rng } from '../types/rng';
 import { DEFAULT_DUNGEON } from '../dungeon';
+import {
+  DOOR_KEYS,
+  has,
+  makeBuilder,
+  MK_WALL,
+  OBSTRUCTED_KEYS,
+  SDOOR_KEYS,
+  setFeature,
+  WALL_KEYS,
+  WALL_MK,
+  type Builder,
+  type Key,
+} from './builder';
 import { generateLevel, type GenOptions } from './generate';
 import { MK, MK_DOOR, mkmap, wallifyKinds } from './mkmap';
 import { litstateRnd } from './rooms';
+import { placeRooms, roomStair } from './sprooms';
 import {
   levelDefArea,
   levelDefPos,
@@ -24,105 +38,17 @@ import {
   mapBlock,
   type MapBlock,
 } from './spdef';
-import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS, type LevelTerrain } from './terrain';
-
-type Key = keyof LevelTerrain;
-
-const WALL_KEYS: readonly Key[] = [
-  'vwall',
-  'hwall',
-  'tlcorn',
-  'trcorn',
-  'blcorn',
-  'brcorn',
-  'crwall',
-  'tuwall',
-  'tdwall',
-  'tlwall',
-  'trwall',
-];
-/** IS_DOOR(): doors in any state, doorways included. */
-const DOOR_KEYS: readonly Key[] = [
-  'doorway',
-  'door_open_v',
-  'door_open_h',
-  'door_closed',
-  'door_locked',
-];
-const SDOOR_KEYS: readonly Key[] = ['sdoor_v', 'sdoor_h', 'sdoor_locked_v', 'sdoor_locked_h'];
-/** IS_FURNITURE(): stairs, fountains, sinks, altars. */
-const FURNITURE_KEYS: readonly Key[] = [
-  'stairs_up',
-  'stairs_down',
-  'fountain',
-  'sink',
-  'altar_lawful',
-  'altar_neutral',
-  'altar_chaotic',
-  'altar_unaligned',
-];
-/** IS_OBSTRUCTED() (typ < POOL): stone, walls, trees, secret doors and corridors. */
-const OBSTRUCTED_KEYS: readonly Key[] = ['stone', ...WALL_KEYS, 'tree', ...SDOOR_KEYS, 'scorr'];
-/** MK kind of each wall key, for wallifyKinds(). */
-const WALL_MK: Partial<Record<Key, number>> = {
-  vwall: MK.VWALL,
-  hwall: MK.HWALL,
-  tlcorn: MK.TLCORN,
-  trcorn: MK.TRCORN,
-  blcorn: MK.BLCORN,
-  brcorn: MK.BRCORN,
-  crwall: MK.CRWALL,
-  tuwall: MK.TUWALL,
-  tdwall: MK.TDWALL,
-  tlwall: MK.TLWALL,
-  trwall: MK.TRWALL,
-};
-const MK_WALL: Key[] = [];
-for (const k of WALL_KEYS) MK_WALL[WALL_MK[k] as number] = k;
-
-/** A level under construction, read and written by terrain key. */
-interface Builder {
-  rng: Rng;
-  level: Level;
-  def: LevelDef;
-  opts: GenOptions;
-  /** Terrain key of cell `i`; undefined for a terrain outside LevelTerrain (from `init`). */
-  key(i: number): Key | undefined;
-  /** Sets cell `i` to terrain key `k`, adding it to the palette when needed. */
-  put(i: number, k: Key): void;
-}
-
-function makeBuilder(rng: Rng, level: Level, def: LevelDef, opts: GenOptions): Builder {
-  const keyOfId = new Map<DefId, Key>();
-  for (const k of Object.keys(opts.terrain).sort() as Key[]) keyOfId.set(opts.terrain[k], k);
-  return {
-    rng,
-    level,
-    def,
-    opts,
-    key(i) {
-      const id = level.palette[level.cells[i] ?? -1];
-      return id === undefined ? undefined : keyOfId.get(id);
-    },
-    put(i, k) {
-      const id = opts.terrain[k];
-      let p = level.palette.indexOf(id);
-      if (p === -1) p = level.palette.push(id) - 1;
-      level.cells[i] = p;
-    },
-  };
-}
-
-const has = (keys: readonly Key[], k: Key | undefined): boolean =>
-  k !== undefined && keys.includes(k);
+import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS } from './terrain';
 
 /**
  * Builds a level from `def`. The `rooms` style is the ordinary generator; other styles lay out
- * the `init` map, then the map block, regions, edits, doors and features, then put up stairs,
+ * the `init` map, then the map block, rooms and corridors, regions, edits, doors and features,
+ * then put up stairs,
  * down stairs and branch stairs (as `opts` asks), then join inaccessible areas, set door
  * orientations and fix the walls. Cave (`mines`) levels have CAVE_PALETTE_KEYS after
  * PALETTE_KEYS in their palette; other terrains are appended as they are used.
- * ref: src/sp_lev.c splev_initlev(), lspo_map(), lspo_region(), lspo_terrain(), lspo_door(),
+ * ref: src/sp_lev.c splev_initlev(), lspo_map(), lspo_room(), lspo_random_corridors(),
+ *   lspo_region(), lspo_terrain(), lspo_door(),
  *   lspo_feature(), lspo_stair(), lspo_finalize_level(); src/mkmaze.c fixup_special()
  *   place_lregion()
  * @throws RangeError for an empty map size, a `mines` map below MIN_MKMAP_WIDTH x
@@ -184,6 +110,8 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
 
   const special =
     def.map !== undefined ||
+    def.rooms !== undefined ||
+    def.corridors !== undefined ||
     def.regions !== undefined ||
     def.edits !== undefined ||
     def.doors !== undefined ||
@@ -191,8 +119,10 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     def.stairs !== undefined ||
     def.flags !== undefined;
   const b = makeBuilder(rng, level, def, opts);
+  let stairRooms: { up?: number; down?: number } = {};
   if (special) {
     placeMap(b);
+    stairRooms = placeRooms(b);
     for (const [i, r] of (def.regions ?? []).entries()) placeRegion(b, r, `regions[${i}]`);
     for (const [i, e] of (def.edits ?? []).entries()) applyEdit(b, e, `edits[${i}]`);
     placeDoors(b);
@@ -208,11 +138,17 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
   };
   const area = levelDefArea(def, width, height);
   if (opts.up ?? true) {
-    level.up = placeStair(b, def.stairs?.up, area, good, 'stairs.up');
+    level.up =
+      stairRooms.up !== undefined
+        ? roomStair(b, stairRooms.up, good)
+        : placeStair(b, def.stairs?.up, area, good, 'stairs.up');
     cells[level.up.y * width + level.up.x] = PAL.stairs_up;
   }
   if (opts.down ?? true) {
-    level.down = placeStair(b, def.stairs?.down, area, good, 'stairs.down');
+    level.down =
+      stairRooms.down !== undefined
+        ? roomStair(b, stairRooms.down, good)
+        : placeStair(b, def.stairs?.down, area, good, 'stairs.down');
     cells[level.down.y * width + level.down.x] = PAL.stairs_down;
   }
   if (opts.branch) {
@@ -383,32 +319,11 @@ function placeDoors(b: Builder): void {
   }
 }
 
-const ALTAR_BY_ALIGN: Record<string, Key> = {
-  lawful: 'altar_lawful',
-  neutral: 'altar_neutral',
-  chaotic: 'altar_chaotic',
-  noalign: 'altar_unaligned',
-};
-/** induced_align() without a level or dungeon alignment: rn2(3) - 1 (A_CHAOTIC..A_LAWFUL). */
-const RND_ALTAR: readonly Key[] = ['altar_chaotic', 'altar_neutral', 'altar_lawful'];
-
-/**
- * A fountain, sink or tree does nothing on stairs or another feature (sel_set_feature());
- * an altar only refuses stairs (set_levltyp()). ref: src/sp_lev.c lspo_feature(), create_altar(),
- * sp_amask_to_amask(); src/dungeon.c induced_align()
- */
+/** A `features` entry at its spot. */
 function placeFeature(b: Builder, f: FeatureDef, what: string): void {
-  const { level, def, rng } = b;
+  const { level, def } = b;
   const p = levelDefPos(def, level.width, level.height, f.x, f.y, f.coords, what);
-  const i = p.y * level.width + p.x;
-  const old = b.key(i);
-  if (f.kind !== 'altar') {
-    if (!has(FURNITURE_KEYS, old)) b.put(i, f.kind);
-    return;
-  }
-  if (old === 'stairs_up' || old === 'stairs_down') return;
-  const align = f.align ?? 'random';
-  b.put(i, align === 'random' ? (RND_ALTAR[rng.rn2(3)] as Key) : (ALTAR_BY_ALIGN[align] as Key));
+  setFeature(b, p.y * level.width + p.x, f);
 }
 
 /**

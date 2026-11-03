@@ -20,6 +20,11 @@ export interface Room {
   parent?: number;
   /** false = a typed room left empty (ref: sp_lev.c `filled`, fill_special_room()). */
   filled?: boolean;
+  /**
+   * For a room built from a `RoomDef`: its indexes, `LevelDef.rooms[a].rooms[b]...` = [a, b, ...],
+   * in the LevelDef named by `Level.def` (see `levelDefRoom`).
+   */
+  defPath?: number[];
 }
 
 /** A trap on a level cell. ref: include/trap.h struct trap */

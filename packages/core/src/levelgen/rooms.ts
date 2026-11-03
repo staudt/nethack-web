@@ -1,5 +1,5 @@
 import type { Rng } from '../types/rng';
-import { Grid, T } from './grid';
+import { Grid, T, type IRoom } from './grid';
 import { RectList, XLIM, YLIM, type NhRect } from './rect';
 
 /** ref: include/global.h MAXNROFROOMS (40) scaled by map area vs 80x21. See DEVIATIONS.md. */
@@ -23,7 +23,7 @@ interface RoomBox {
  * Shrink/shift a candidate room until it fits in stone, or give up.
  * ref: src/sp_lev.c check_room() (non-vault, non-themeroom path)
  */
-function checkRoom(g: Grid, rng: Rng, box: RoomBox): RoomBox | null {
+export function checkRoom(g: Grid, rng: Rng, box: RoomBox): RoomBox | null {
   const { colno: COLNO, rowno: ROWNO } = g;
   let { lowx, lowy } = box;
   let hix = lowx + box.ddx;
@@ -88,53 +88,134 @@ export function addRoom(
 }
 
 /**
- * Try to create one random room from the free-rectangle list.
- * ref: src/sp_lev.c create_room() "totally random room" path (vaults and
- * fixed-position rooms are not generated)
+ * create_room() parameters; -1 = random. Aligns: 1 left/top (SPLEV_LEFT, TOP), 3 center, 5
+ * right/bottom.
  */
-function createRoom(g: Grid, rects: RectList, rng: Rng, depth: number): boolean {
+export interface RoomParams {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  xal: number;
+  yal: number;
+}
+const ALL_RANDOM: RoomParams = { x: -1, y: -1, w: -1, h: -1, xal: -1, yal: -1 };
+const SPLEV_CENTER = 3;
+const SPLEV_RIGHT = 5;
+
+/**
+ * Try to create one room: a totally random one from the free-rectangle list, or one on the 5x5
+ * grid (special levels) where `x`,`y` (1..5), `w`,`h` and the aligns may each be random. Returns
+ * the new room (pushed to `g.rooms`), or null. The grid uses COLNO/5 and ROWNO/5, so it scales
+ * with the level. ref: src/sp_lev.c create_room() (no vaults or themed rooms)
+ */
+export function createRoom(
+  g: Grid,
+  rects: RectList,
+  rng: Rng,
+  depth: number,
+  p: RoomParams = ALL_RANDOM,
+  lit?: boolean,
+): IRoom | null {
   const { colno: COLNO, rowno: ROWNO } = g;
-  const rlit = litstateRnd(rng, depth);
+  const div = (a: number, b: number): number => Math.trunc(a / b);
+  const rlit = lit ?? litstateRnd(rng, depth);
+  let r1: NhRect | null;
+  let r2: NhRect = { lx: 0, ly: 0, hx: 0, hy: 0 };
+  let xabs = 0;
+  let yabs = 0;
+  let wtmp: number;
+  let htmp: number;
   let trycnt = 0;
   do {
-    const r1 = rects.rnd(rng);
-    if (!r1) return false; // no more free rectangles
-    const { hx, hy, lx, ly } = r1;
-    const dx = 2 + rng.rn2(hx - lx > 28 ? 12 : 8);
-    let dy = 2 + rng.rn2(4);
-    if (dx * dy > 50) dy = Math.floor(50 / dx);
-    const xborder = lx > 0 && hx < COLNO - 1 ? 2 * XLIM : XLIM + 1;
-    const yborder = ly > 0 && hy < ROWNO - 1 ? 2 * YLIM : YLIM + 1;
-    if (hx - lx < dx + 3 + xborder || hy - ly < dy + 3 + yborder) continue;
-    const xabs = lx + (lx > 0 ? XLIM : 3) + rng.rn2(hx - (lx > 0 ? lx : 3) - dx - xborder + 1);
-    let yabs = ly + (ly > 0 ? YLIM : 2) + rng.rn2(hy - (ly > 0 ? ly : 2) - dy - yborder + 1);
-    let ddy = dy;
-    const nroom = g.rooms.length;
-    if (
-      ly === 0 &&
-      hy >= ROWNO - 1 &&
-      (nroom === 0 || rng.rn2(nroom) === 0) &&
-      yabs + dy > Math.floor(ROWNO / 2)
-    ) {
-      yabs = rng.rn2(3) + 2; // rn1(3, 2)
-      if (nroom < 4 && dy > 1) ddy--;
+    wtmp = p.w;
+    htmp = p.h;
+    let xtmp = p.x;
+    let ytmp = p.y;
+    let xaltmp = p.xal;
+    let yaltmp = p.yal;
+    if (xtmp < 0 && ytmp < 0 && wtmp < 0 && xaltmp < 0 && yaltmp < 0) {
+      // a totally random room
+      r1 = rects.rnd(rng);
+      if (!r1) return null; // no more free rectangles
+      const { hx, hy, lx, ly } = r1;
+      const dx = 2 + rng.rn2(hx - lx > 28 ? 12 : 8);
+      let dy = 2 + rng.rn2(4);
+      if (dx * dy > 50) dy = Math.floor(50 / dx);
+      const xborder = lx > 0 && hx < COLNO - 1 ? 2 * XLIM : XLIM + 1;
+      const yborder = ly > 0 && hy < ROWNO - 1 ? 2 * YLIM : YLIM + 1;
+      if (hx - lx < dx + 3 + xborder || hy - ly < dy + 3 + yborder) {
+        r1 = null;
+        continue;
+      }
+      xabs = lx + (lx > 0 ? XLIM : 3) + rng.rn2(hx - (lx > 0 ? lx : 3) - dx - xborder + 1);
+      yabs = ly + (ly > 0 ? YLIM : 2) + rng.rn2(hy - (ly > 0 ? ly : 2) - dy - yborder + 1);
+      let ddy = dy;
+      const nroom = g.rooms.length;
+      if (
+        ly === 0 &&
+        hy >= ROWNO - 1 &&
+        (nroom === 0 || rng.rn2(nroom) === 0) &&
+        yabs + dy > Math.floor(ROWNO / 2)
+      ) {
+        yabs = rng.rn2(3) + 2; // rn1(3, 2)
+        if (nroom < 4 && dy > 1) ddy--;
+      }
+      const box = checkRoom(g, rng, { lowx: xabs, ddx: dx, lowy: yabs, ddy });
+      if (!box) {
+        r1 = null;
+        continue;
+      }
+      xabs = box.lowx;
+      yabs = box.lowy;
+      wtmp = box.ddx + 1;
+      htmp = box.ddy + 1;
+      r2 = { lx: xabs - 1, ly: yabs - 1, hx: xabs + wtmp, hy: yabs + htmp };
+    } else {
+      // only some parameters are random
+      let rndpos = 0;
+      if (xtmp < 0 && ytmp < 0) {
+        xtmp = rng.rnd(5);
+        ytmp = rng.rnd(5);
+        rndpos = 1;
+      }
+      if (wtmp < 0 || htmp < 0) {
+        wtmp = rng.rn2(15) + 3; // rn1(15, 3)
+        htmp = rng.rn2(8) + 2; // rn1(8, 2)
+      }
+      if (xaltmp === -1) xaltmp = rng.rnd(3); // 2 (half-left) does not move the room
+      if (yaltmp === -1) yaltmp = rng.rnd(3);
+      xabs = div((xtmp - 1) * COLNO, 5) + 1;
+      yabs = div((ytmp - 1) * ROWNO, 5) + 1;
+      if (xaltmp === SPLEV_RIGHT) xabs += div(COLNO, 5) - wtmp;
+      else if (xaltmp === SPLEV_CENTER) xabs += div(div(COLNO, 5) - wtmp, 2);
+      if (yaltmp === SPLEV_RIGHT)
+        yabs += div(ROWNO, 5) - htmp; // BOTTOM
+      else if (yaltmp === SPLEV_CENTER) yabs += div(div(ROWNO, 5) - htmp, 2);
+      if (xabs + wtmp - 1 > COLNO - 2) xabs = COLNO - wtmp - 3;
+      if (xabs < 2) xabs = 2;
+      if (yabs + htmp - 1 > ROWNO - 2) yabs = ROWNO - htmp - 3;
+      if (yabs < 2) yabs = 2;
+      // try to find a rectangle that fits the room
+      r2 = { lx: xabs - 1, ly: yabs - 1, hx: xabs + wtmp + rndpos, hy: yabs + htmp + rndpos };
+      r1 = rects.find(r2);
+      if (r1) {
+        const box = checkRoom(g, rng, { lowx: xabs, ddx: wtmp, lowy: yabs, ddy: htmp });
+        if (!box) r1 = null;
+        else {
+          // C keeps wtmp, htmp: only the corner moves
+          xabs = box.lowx;
+          yabs = box.lowy;
+        }
+      }
     }
-    const box = checkRoom(g, rng, { lowx: xabs, ddx: dx, lowy: yabs, ddy });
-    if (!box) continue;
-    const wtmp = box.ddx + 1;
-    const htmp = box.ddy + 1;
-    const r2: NhRect = {
-      lx: box.lowx - 1,
-      ly: box.lowy - 1,
-      hx: box.lowx + wtmp,
-      hy: box.lowy + htmp,
-    };
-    rects.split({ ...r1 }, r2);
-    g.smeq[nroom] = nroom;
-    addRoom(g, box.lowx, box.lowy, box.lowx + wtmp - 1, box.lowy + htmp - 1, rlit);
-    return true;
-  } while (++trycnt <= 100);
-  return false;
+  } while (++trycnt <= 100 && !r1);
+  if (!r1) return null;
+  rects.split({ ...r1 }, r2);
+  const nroom = g.rooms.length;
+  g.smeq[nroom] = nroom;
+  addRoom(g, xabs, yabs, xabs + wtmp - 1, yabs + htmp - 1, rlit);
+  return g.rooms[nroom] as IRoom;
 }
 
 /**

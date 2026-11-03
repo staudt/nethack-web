@@ -1,5 +1,7 @@
-// Room queries on a level. ref: src/mkroom.c inside_room(), src/hack.c in_town()
+// Room queries on a level. ref: src/mkroom.c inside_room(), somexy(); src/hack.c in_town()
+import type { Pos } from './types/common';
 import type { Level, Room } from './types/level';
+import type { Rng } from './types/rng';
 
 /** In the room or on its walls. ref: src/mkroom.c inside_room() for a regular room */
 export function insideRoom(room: Room, x: number, y: number): boolean {
@@ -20,4 +22,36 @@ export function inTown(level: Level, x: number, y: number): boolean {
     if (insideRoom(room, x, y)) return true;
   }
   return !hasSubrooms;
+}
+
+/**
+ * Whether x,y is on the floor of `level.rooms[index]` and not in one of its subrooms (or their
+ * walls): the room's own cells (ref: levl[x][y].roomno == the room's number).
+ */
+export function roomHas(level: Level, index: number, x: number, y: number): boolean {
+  const room = level.rooms[index];
+  if (!room || x < room.lx || x > room.hx || y < room.ly || y > room.hy) return false;
+  return !level.rooms.some((r) => r.parent === index && insideRoom(r, x, y));
+}
+
+/**
+ * A random floor cell of `level.rooms[index]`; a room with subrooms (an irregular room in
+ * NetHack) tries 100 random cells outside them, then takes the first in column order, or null.
+ * ref: src/mkroom.c somexy()
+ */
+export function roomSomexy(rng: Rng, level: Level, index: number): Pos | null {
+  const room = level.rooms[index];
+  if (!room) return null;
+  const pick = (): Pos => ({
+    x: room.lx + rng.rn2(room.hx - room.lx + 1),
+    y: room.ly + rng.rn2(room.hy - room.ly + 1),
+  });
+  if (!level.rooms.some((r) => r.parent === index)) return pick();
+  for (let tries = 0; tries < 100; tries++) {
+    const p = pick();
+    if (roomHas(level, index, p.x, p.y)) return p;
+  }
+  for (let x = room.lx; x <= room.hx; x++)
+    for (let y = room.ly; y <= room.hy; y++) if (roomHas(level, index, x, y)) return { x, y };
+  return null;
 }

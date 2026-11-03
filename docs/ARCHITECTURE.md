@@ -157,6 +157,7 @@ interface LevelDef {
     | { style: 'mines'; fg: DefId; bg?: DefId; smoothed?: boolean; joined?: boolean;
         walled?: boolean; lit?: boolean }; // a cave of fg in bg (default stone); see below
   map?: LevelMap; // a hand-drawn block; see Map blocks
+  rooms?: RoomDef[]; corridors?: 'random'; // walled rooms; see Rooms
   regions?: RegionDef[]; edits?: TerrainEdit[]; doors?: DoorDef[]; features?: FeatureDef[];
   stairs?: { up?: StairPlace; down?: StairPlace };
   flags?: { inaccessibles?: boolean };
@@ -184,7 +185,7 @@ The dungeon decides which stairs a level gets (see Stairs); `LevelDef.stairs` on
 
 The `mines` style is NetHack's cellular-automaton cave (ref: src/mkmap.c mkmap()); `minefill.lua` uses `{ style: 'mines', fg: 'nh:floor', smoothed: true, joined: true, walled: true }`. About 2/5 of the inner cells start as `fg`, then a birth/death pass and a thinning pass run; `smoothed` adds two passes that drop cells with fewer than 3 open neighbours; `joined` fills in regions of 3 cells or fewer and digs a winding path of `fg` from each region to an earlier one, so all open cells are one 8-connected area; `walled` turns each `bg` cell next to `fg` into a wall and then picks the wall piece that joins its neighbours (corners, T-walls `tuwall tdwall tlwall trwall` and `crwall`, ref: src/sp_lev.c wallify_map(); src/mkmaze.c wall_cleanup(), fix_wall_spines()). `lit` omitted is a coin flip; a lit cave lights its `fg` cells and walls, never `bg`. Open cells never touch the map edge, so the walls fit. Cave levels have the five T-wall terrains (`LevelTerrain` keys `CAVE_PALETTE_KEYS`) after the usual palette, and no rooms. The map must be at least `MIN_MKMAP_WIDTH` x `MIN_MKMAP_HEIGHT` (10x10); a small map that comes out with fewer than 4 open cells is made again from the continuing RNG stream. Stairs go on its `fg` cells when `fg` is the floor terrain.
 
-**Map blocks.** The special-level fields are applied in this order after `init`: `map`, `regions`, `edits`, `doors`, `features`, `stairs`; then `flags.inaccessibles`, door orientation and wall fixing; content makes `contents` last. A LevelDef without any of them builds exactly as before.
+**Map blocks.** The special-level fields are applied in this order after `init`: `map`, `rooms` (with their subrooms, doors and `corridors`, then room features), `regions`, `edits`, `doors`, `features`, `stairs`; then `flags.inaccessibles`, door orientation and wall fixing; content makes `contents` last. A LevelDef without any of them builds exactly as before.
 
 ```ts
 type LevelCoords = 'map' | 'level';
@@ -226,7 +227,52 @@ interface TerrainSet { char: string; at?: [number, number]; line?: LevelRect; ar
 
 `loadMods` reports, with paths: rows that are missing, empty, of unequal width or with a character outside the legend (naming it and its column), a bad `halign`/`valign`, `x` without `y`, both `x`,`y` and aligns, a non-boolean `lit`/`filled`/`shrine`/`inaccessibles`, an unknown door state, feature kind or alignment, `align`/`shrine` on a non-altar, `filled` on an untyped region, a rect that is not four integers or upside down, an edit `set` with not exactly one of `at`/`line`/`area` or with `'x'`, an `else` without `percent`, stairs with both a spot and a region, a `coords` other than `map`/`level`, `coords: 'map'` without a block, and a map coordinate outside the block.
 
-**Features and rooms.** `LevelTerrain` also names the dungeon features of special levels: `fountain`, `sink`, `tree` and one altar per alignment (`altar_lawful`, `altar_neutral`, `altar_chaotic`, `altar_unaligned`), so a 6b2 altar conversion swaps the terrain. They are not in `PALETTE_KEYS`; a level that uses one appends it to its own palette, so ordinary levels and saves are unchanged. Content draws them as NetHack does (`{` bright blue fountain, `{` white sink, `#` green tree that blocks movement and sight, `_` altar named "neutral altar" and so on) and has no behaviour for them yet. `Room.type` marks a special room; core does not check the id, the owning mod gives it meaning. Subrooms (`parent`) come after their parent in `Level.rooms`; code that wants NetHack's top-level `rooms[]` (mklev's room filling, `nroom`) filters `parent === undefined`. `inTown(level, x, y)` ports in_town(): false unless `level.town`; then inside (walls included) a top-level room that has subrooms, or anywhere when no room has any (ref: src/hack.c in_town(), src/mkroom.c inside_room(); `insideRoom` is exported too).
+**Rooms.** `rooms` are walled rooms as in `des.room` (ref: src/sp_lev.c lspo_room(), build_room(), create_room(), create_subroom(), create_door(); src/mklev.c makecorridors()). Every field is optional:
+
+```ts
+interface RoomDef {
+  x?: number; y?: number; // top level: a cell 1..5 of the 5x5 level grid; subroom: offset of its floor in the parent's floor
+  w?: number; h?: number; // floor size (both or neither); omitted = random
+  xalign?: 'left' | 'center' | 'right'; yalign?: 'top' | 'center' | 'bottom'; // top level only; omitted = random
+  type?: DefId; chance?: number; // the room type, kept with chance% (rn2(100) < chance); else ordinary
+  percent?: number; // the room exists with percent% (lua `if percent(n) then des.room(...)`)
+  lit?: boolean; // omitted = random (litstate_rnd())
+  filled?: boolean; // typed rooms: default true (the type's owner stocks it)
+  doors?: RoomDoorDef[]; // on the room's walls
+  features?: FeatureDef[]; // x,y relative to the room's top-left floor cell; no coords
+  stairs?: ('up' | 'down')[]; // the dungeon's stairs go on a random floor cell of this room
+  contents?: LevelContent[]; // in this room: x,y room-relative, else a random spot outside its subrooms
+  rooms?: RoomDef[]; // subrooms
+}
+interface RoomDoorDef { state: DoorState; wall?: 'north' | 'south' | 'east' | 'west' | 'random'; pos?: number }
+```
+
+*Placement.* Rooms are built in order, each followed by its subrooms, then its doors. A top-level room with none of `x`,`y`,`w`,`h`,`xalign`,`yalign` is placed like an ordinary random room (a free rectangle of the level, ref: rect.c rnd_rect(), check_room(), split_rects()). Otherwise `x`,`y` (random: rnd(5) each) pick a cell of a 5x5 grid of `(width + 1) / 5` by `height / 5` cells (NetHack's COLNO/5 and ROWNO/5, C division), so the grid scales with the level; `xalign` puts the room at the cell's left, centre or right (random: rnd(3), which is left two times in three and centre otherwise, as in C), the room is clamped 2 cells from the edges, and it is made only where it fits in a free rectangle and in stone (100 tries); a room that cannot be placed is skipped with its subrooms, doors and contents. Random `w`,`h` are 3..17 by 2..9. A subroom needs a parent floor of at least 4x4; an offset of 1 moves onto the parent's wall (shared wall), as does an offset that leaves one floor cell on the far side; random sizes and offsets follow create_subroom(). Subrooms are not checked against the parent at build time (loadMods checks fixed ones). `percent` is drawn first, then `chance` (only when given), then the light.
+
+*Doors* go on a random allowed wall (`wall` omitted = any) at `pos` cells from its top or left end (default random), only where the cell beyond the wall is open and okdoor() allows (no door next to a door; 100 tries, else no door). So a top-level room in solid stone gets its doors from `corridors` only, as in NetHack. `random` uses create_door()'s table: a doorway 2/3 of the time, else open (1/5), locked (1/6 of the rest) or closed. *`corridors: 'random'`* joins the top-level rooms in the order they were made (ref: makecorridors(); sp_lev does not sort them), never into a subroom, then core makes sure every top-level room is connected, as for ordinary levels (DEVIATIONS.md). *Features* of a room go at their room-relative spot, except on a cell a subroom covers (lua builds the subroom over it); an altar that is not on floor moves to a random floor cell of the room (ref: get_free_room_loc()). *Stairs* named by a room replace the random spot (not with `LevelDef.stairs` for the same direction; at most one room per direction).
+
+Each room goes to `Level.rooms`, a parent before its subrooms, with `defPath`: its indexes in `LevelDef.rooms` and then each `rooms` (`[0, 6]` = `rooms[0].rooms[6]`). Content resolves it with `levelDefRoom(def, path)` and makes each room's `contents` in `Level.rooms` order, then `LevelDef.contents`. Core exports `roomHas(level, i, x, y)` (a floor cell of room `i` outside its subrooms), `roomSomexy(rng, level, i)` (ref: mkroom.c somexy(): 100 tries outside the subrooms, then the first such cell) and `roomDefPos(def, width, height, room, x, y, what)` (a room-relative spot; a RangeError off the level). Example, a town square with a temple and a shop, a stair room and a dwarf's room:
+
+```ts
+{ id: 'mymod:square', init: { style: 'solidfill', fg: 'nh:stone' },
+  rooms: [
+    { x: 3, y: 3, xalign: 'center', yalign: 'center', w: 20, h: 9, lit: true,
+      features: [{ kind: 'fountain', x: 10, y: 4 }],
+      contents: [{ kind: 'monster', id: 'nh:watchman', peaceful: true, count: 2 }],
+      rooms: [
+        { type: 'nh:temple', x: 2, y: 2, w: 4, h: 4, lit: true, doors: [{ state: 'closed', wall: 'east' }],
+          features: [{ kind: 'altar', x: 2, y: 2, align: 'random', shrine: true }] },
+        { type: 'nh:tool_shop', chance: 90, x: 13, y: 2, w: 3, h: 3, doors: [{ state: 'closed', wall: 'west' }] },
+        { percent: 75, x: 13, y: 7, w: 2, h: 2, doors: [{ state: 'locked', wall: 'north' }] } ] },
+    { stairs: ['up'] },
+    { stairs: ['down'], contents: [{ kind: 'trap' }] },
+    { contents: [{ kind: 'monster', id: 'nh:dwarf' }] } ],
+  corridors: 'random' }
+```
+
+`loadMods` reports, with paths: `x` without `y`, `w` without `h`, a top-level `x`,`y` outside 1..5, a negative subroom offset, a size below 1, an unknown align, aligns on a subroom, a fixed subroom that does not fit its fixed parent, `chance`/`percent` outside 0..100, `chance` or `filled` without `type`, a non-boolean `lit`/`filled`, a door with `x`,`y`, an unknown door state or wall, a `pos` without a wall or past the wall's end, room features and contents with `coords` or a spot outside a fixed floor, a stair direction that is not `up`/`down` or already placed (by `LevelDef.stairs` or another room), a `corridors` other than `random`, and room contents as for `LevelDef.contents` (including unknown ids).
+
+**Features and rooms.** `LevelTerrain` also names the dungeon features of special levels: `fountain`, `sink`, `tree` and one altar per alignment (`altar_lawful`, `altar_neutral`, `altar_chaotic`, `altar_unaligned`), so a 6b2 altar conversion swaps the terrain. They are not in `PALETTE_KEYS`; a level that uses one appends it to its own palette, so ordinary levels and saves are unchanged. Content draws them as NetHack does (`{` bright blue fountain, `{` white sink, `#` green tree that blocks movement and sight, `_` altar named "neutral altar" and so on) and has no behaviour for them yet. `Room.type` marks a special room; core does not check the id, the owning mod gives it meaning. Subrooms (`parent`) come after their parent in `Level.rooms` (see Rooms; `defPath` links a room to its `RoomDef`); code that wants NetHack's top-level `rooms[]` (mklev's room filling, `nroom`) filters `parent === undefined`. `inTown(level, x, y)` ports in_town(): false unless `level.town`; then inside (walls included) a top-level room that has subrooms, or anywhere when no room has any (ref: src/hack.c in_town(), src/mkroom.c inside_room(); `insideRoom` is exported too).
 
 Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Level.def`; content's `newLevel` hooks fill it (`mklev.ts` fills the rooms of ordinary and `rooms` levels, then `sp_lev.ts` makes `contents`).
 

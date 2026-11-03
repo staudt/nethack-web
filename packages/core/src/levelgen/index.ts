@@ -6,5 +6,13 @@ export { levelToAscii } from './ascii';
 export { buildLevel } from './special';
 export { mkmap, MK, MIN_MKMAP_WIDTH, MIN_MKMAP_HEIGHT } from './mkmap';
 export type { MkmapOptions } from './mkmap';
-export { mapBlock, levelDefArea, levelDefPos, levelDefRect, MAP_LEGEND } from './spdef';
+export {
+  mapBlock,
+  levelDefArea,
+  levelDefPos,
+  levelDefRect,
+  levelDefRoom,
+  roomDefPos,
+  MAP_LEGEND,
+} from './spdef';
 export type { MapBlock } from './spdef';

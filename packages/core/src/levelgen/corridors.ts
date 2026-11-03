@@ -1,5 +1,17 @@
 import type { Rng } from '../types/rng';
-import { D_CLOSED, D_LOCKED, D_HORIZ, D_ISOPEN, Grid, T, isObstructed, isWall, type IRoom } from './grid';
+import {
+  D_CLOSED,
+  D_LOCKED,
+  D_HORIZ,
+  D_ISOPEN,
+  Grid,
+  T,
+  inSubroom,
+  isObstructed,
+  isWall,
+  roomCell,
+  type IRoom,
+} from './grid';
 
 type Dir = 'N' | 'S' | 'E' | 'W';
 interface Pt {
@@ -39,8 +51,9 @@ const inside = (r: IRoom, x: number, y: number): boolean =>
   x >= r.lx && x <= r.hx && y >= r.ly && y <= r.hy;
 
 /**
- * ref: src/mklev.c good_rm_wall_doorpos() (needjoining is always true; no irregular rooms,
- * so finddpos_shift() reduces to this check)
+ * ref: src/mklev.c good_rm_wall_doorpos() (needjoining is always true). The cell inside must be
+ * the room's own (`roomno`), not a subroom's. finddpos_shift()'s walk into irregular rooms never
+ * applies: rooms here are rectangles, so the wall is always on the room's edge.
  */
 function goodDoorPos(g: Grid, x: number, y: number, dir: Dir, room: IRoom): boolean {
   if (!g.isok(x, y)) return false;
@@ -50,7 +63,7 @@ function goodDoorPos(g: Grid, x: number, y: number, dir: Dir, room: IRoom): bool
   const tx = x + INWARD[dir].x;
   const ty = y + INWARD[dir].y;
   if (!g.isok(tx, ty) || isObstructed(g.get(tx, ty))) return false;
-  return inside(room, tx, ty);
+  return inside(room, tx, ty) && !inSubroom(room, tx, ty);
 }
 
 /**
@@ -303,7 +316,7 @@ const NB: readonly Pt[] = [
 
 /** Secret doors and corridors count: the hero can find them by searching. */
 const walkable = (t: number): boolean =>
-  t === T.DOOR || t === T.CORR || t === T.ROOM || t === T.SDOOR || t === T.SCORR;
+  t === T.DOOR || t === T.CORR || t === T.ROOM || t === T.SDOOR || t === T.SCORR || t === T.FURN;
 
 /**
  * Flood fill over 4-connected walkable cells; returns the component label of every cell (-1 = none).
@@ -317,7 +330,8 @@ function labelComponents(g: Grid): Int32Array {
   const stack: number[] = [];
   let next = 0;
   for (const room of g.rooms) {
-    const start = g.idx(room.lx, room.ly);
+    const c0 = roomCell(room);
+    const start = g.idx(c0.x, c0.y);
     if ((label[start] as number) >= 0) continue;
     label[start] = next;
     stack.push(start);
@@ -339,7 +353,7 @@ function labelComponents(g: Grid): Int32Array {
 /** Wall cells of a room where a door could still go, with the stone/corridor cell outside each. */
 function doorCandidates(g: Grid, room: IRoom, out: Map<number, Pt>): void {
   const edge = (wx: number, wy: number, ox: number, oy: number): void => {
-    if (!okdoor(g, wx, wy)) return;
+    if (!okdoor(g, wx, wy) || inSubroom(room, 2 * wx - ox, 2 * wy - oy)) return;
     if (ox < 1 || oy < 1 || ox > g.colno - 2 || oy > g.rowno - 2) return;
     const t = g.get(ox, oy);
     if ((t === T.STONE || t === T.CORR || t === T.SCORR) && !out.has(g.idx(ox, oy))) {
@@ -369,7 +383,8 @@ function connectOne(g: Grid, room: IRoom, label: Int32Array, main: number): void
   doorCandidates(g, room, sources);
   const targets = new Map<number, Pt>();
   for (const r of g.rooms) {
-    if ((label[g.idx(r.lx, r.ly)] as number) === main) doorCandidates(g, r, targets);
+    const c0 = roomCell(r);
+    if ((label[g.idx(c0.x, c0.y)] as number) === main) doorCandidates(g, r, targets);
   }
   const parent = new Int32Array(g.colno * g.rowno).fill(-1);
   const queue: number[] = [];
@@ -417,8 +432,12 @@ export function ensureConnected(g: Grid): void {
     const label = labelComponents(g);
     const first = g.rooms[0];
     if (!first) return;
-    const main = label[g.idx(first.lx, first.ly)] as number;
-    const stray = g.rooms.find((r) => (label[g.idx(r.lx, r.ly)] as number) !== main);
+    const at = (r: IRoom): number => {
+      const c0 = roomCell(r);
+      return label[g.idx(c0.x, c0.y)] as number;
+    };
+    const main = at(first);
+    const stray = g.rooms.find((r) => at(r) !== main);
     if (!stray) return;
     connectOne(g, stray, label, main);
   }
