@@ -7,6 +7,19 @@ export interface Room {
   hx: number;
   hy: number;
   lit: boolean;
+  /**
+   * Special room kind, a def id such as 'nh:temple' or 'nh:tool_shop' (ref: mkroom.h rtype);
+   * absent = an ordinary room. Core does not check the id; the mod that owns it gives it meaning.
+   */
+  type?: DefId;
+  /**
+   * Index in `Level.rooms` of the enclosing room, for a subroom (ref: mkroom.h sbrooms[]).
+   * Subrooms come after their parent. Code that wants the top-level rooms (NetHack's
+   * `svr.rooms[]`) filters `parent === undefined`.
+   */
+  parent?: number;
+  /** false = a typed room left empty (ref: sp_lev.c `filled`, fill_special_room()). */
+  filled?: boolean;
 }
 
 /** A trap on a level cell. ref: include/trap.h struct trap */
@@ -56,6 +69,8 @@ export interface Level {
   branch: { pos: Pos; to: LevelRef; dir: 'up' | 'down' } | null;
   /** The LevelDef it was built from; absent for an ordinary level. */
   def?: DefId;
+  /** A town level (ref: sp_lev.c level flag "town", level.flags.has_town); see `inTown`. */
+  town?: true;
   /** Sorted by cell index; only on plain floor. Change through `ctx.placeTrap` / `removeTrap`. */
   traps: Trap[];
 }

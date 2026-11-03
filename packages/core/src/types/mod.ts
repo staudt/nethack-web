@@ -238,9 +238,9 @@ export interface LevelInitMines {
 export type LevelCount = number | { min: number; max: number };
 
 /**
- * Things to make at random dry spots. `id` names a def; a monster `class` is a monster glyph
- * character ('G'), an object `class` an ObjectClass ('gem'); neither picks at random. `percent`
- * (0..100) is rolled once for the entry, then `count` (default 1) things are made.
+ * Things to make at random dry spots (or at `x`,`y`). `id` names a def; a monster `class` is a
+ * monster glyph character ('G'), an object `class` an ObjectClass ('gem'); neither picks at
+ * random. `percent` (0..100) is rolled once for the entry, then `count` (default 1) things are made.
  */
 export interface LevelContent {
   kind: 'monster' | 'object' | 'trap';
@@ -248,6 +248,14 @@ export interface LevelContent {
   class?: string;
   count?: LevelCount;
   percent?: number;
+  /**
+   * A fixed spot instead of a random dry one; give both or neither. Level coordinates, where a
+   * negative value counts from the right or bottom edge (-1 = the last column or row).
+   */
+  x?: number;
+  y?: number;
+  /** Monsters: forced peaceful (true) or hostile (false); omitted = peace_minded() as usual. */
+  peaceful?: boolean;
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */

@@ -108,7 +108,7 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
     mkgold(ctx, 0, { level: level.id, x: pos.x, y: pos.y });
   // put box/chest inside
-  const nroom = level.rooms.length;
+  const nroom = level.rooms.filter((r) => r.parent === undefined).length; // svr.rooms[] only
   if (ctx.rng.rn2(Math.trunc((nroom * 5) / 2)) === 0 && (pos = somexyspace(ctx, level, room))) {
     const def = ctx.defs.object(ctx.rng.rn2(3) ? 'nh:large_box' : 'nh:chest');
     mksobjFull(
@@ -132,6 +132,7 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
-      for (const room of level.rooms) fillOrdinaryRoom(ctx, level, room);
+      for (const room of level.rooms)
+        if (room.parent === undefined) fillOrdinaryRoom(ctx, level, room); // not subrooms
   });
 }

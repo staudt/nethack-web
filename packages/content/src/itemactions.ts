@@ -2,6 +2,8 @@
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
 import {
   NORMAL_SPEED,
+  cellIndex,
+  getLevel,
   getPlayer,
   inventoryOf,
   itemsAt,
@@ -31,6 +33,7 @@ import {
   splitStack,
   weight,
 } from './items';
+import { T } from './terrain';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
@@ -133,11 +136,35 @@ const weaponKind = (def: ObjectDef): Msg => ({
 // ---------------------------------------------------------------------------------------------
 // looking at the floor
 
+const FEATURES: ReadonlySet<DefId> = new Set([
+  T.fountain,
+  T.sink,
+  T.tree,
+  T.altar_lawful,
+  T.altar_neutral,
+  T.altar_chaotic,
+  T.altar_unaligned,
+]);
+
+/**
+ * The dungeon feature worth mentioning at x,y as a name key (the terrain id), or null: doors and
+ * doorways, stairs, fountains, sinks, altars and trees. ref: src/invent.c dfeature_at(); an
+ * altar is "neutral altar" rather than "altar to <god> (neutral)" (no gods yet, DEVIATIONS.md)
+ */
+export function dfeatureAt(ctx: Ctx, x: number, y: number): DefId | null {
+  const level = getLevel(ctx.state);
+  const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
+  if (id === undefined) return null;
+  const t = ctx.defs.terrain(id);
+  return t.door !== undefined || t.stairs !== undefined || FEATURES.has(id) ? id : null;
+}
+
 /**
  * What is here after moving onto a cell with objects, as pickup() -> check_here() -> look_here()
- * with autopickup off: "You see here X.", one line listing up to 4, or "There are several objects here.".
- * Stops multi-turn movement (travel). ref: src/pickup.c check_here(), src/invent.c look_here()
- * with pile_limit 5. Not ported: dungeon features, engravings, traps, blindness.
+ * with autopickup off: the dungeon feature ("There is a fountain here."), then "You see here X.",
+ * one line listing up to 4, or "There are several objects here.". Stops multi-turn movement
+ * (travel). ref: src/pickup.c check_here(), src/invent.c look_here() with pile_limit 5.
+ * Not ported: engravings, traps, blindness.
  */
 export function lookHere(ctx: Ctx): void {
   const pos = hero(ctx).c.pos;
@@ -146,6 +173,9 @@ export function lookHere(ctx: Ctx): void {
   const ct = here.length;
   if (ct === 0) return;
   ctx.interrupt();
+  const feature = dfeatureAt(ctx, pos.x, pos.y);
+  if (feature !== null)
+    ctx.emit({ type: 'msg', key: 'look.feature', params: { feature: `@${feature}` } });
   if (ct >= 5) {
     ctx.emit({ type: 'msg', key: ct < 10 ? 'look.several' : 'look.many' });
   } else if (ct === 1) {

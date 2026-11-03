@@ -35,6 +35,8 @@ export const itemMessagesEn: Record<string, string> = {
 
   // looking
   'look.item': '{item|an}',
+  // ref: src/invent.c look_here() "There %s %s here." with dfeature_at()
+  'look.feature': 'There is {feature|an} here.',
   'look.one': 'You see here {item|an}.',
   'look.list2': 'There are {a|an} and {b|an} here.',
   'look.list3': 'There are {a|an}, {b|an} and {c|an} here.',

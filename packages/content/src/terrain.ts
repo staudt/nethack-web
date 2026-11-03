@@ -4,6 +4,9 @@ import type { TerrainDef } from '@nh/core';
 const GRAY = '#aaaaaa';
 const BROWN = '#aa5500';
 const BLACK = '#000000';
+const WHITE = '#ffffff';
+const GREEN = '#33aa33';
+const BRIGHT_BLUE = '#5555ff';
 
 export const TERRAIN: readonly TerrainDef[] = [
   // ref: defsym.h S_stone ' ' (NO_COLOR)
@@ -195,6 +198,38 @@ export const TERRAIN: readonly TerrainDef[] = [
     glyph: { ch: ' ', fg: BLACK },
     looksLike: 'nh:stone',
   },
+  // Dungeon features of special levels. ref: defsym.h S_tree '#' (CLR_GREEN), S_sink '{'
+  // (CLR_WHITE), S_fountain '{' (CLR_BRIGHT_BLUE), S_altar '_' (CLR_GRAY); rm.h IS_OBSTRUCTED()
+  // covers trees (they block movement and sight), the others are walkable ground (SPACE_POS).
+  {
+    id: 'nh:fountain',
+    nameKey: 'terrain.fountain',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '{', fg: BRIGHT_BLUE },
+  },
+  {
+    id: 'nh:sink',
+    nameKey: 'terrain.sink',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '{', fg: WHITE },
+  },
+  {
+    id: 'nh:tree',
+    nameKey: 'terrain.tree',
+    passable: false,
+    opaque: true,
+    glyph: { ch: '#', fg: GREEN },
+  },
+  // One altar per alignment, all drawn alike; the alignment shows in its name.
+  ...(['lawful', 'neutral', 'chaotic', 'unaligned'] as const).map((a): TerrainDef => ({
+    id: `nh:altar_${a}`,
+    nameKey: 'terrain.altar',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '_', fg: GRAY },
+  })),
 ];
 
 /** Short names for terrain ids, for convenient reuse. */
@@ -225,4 +260,11 @@ export const T = {
   tlwall: 'nh:tlwall',
   trwall: 'nh:trwall',
   crwall: 'nh:crwall',
+  fountain: 'nh:fountain',
+  sink: 'nh:sink',
+  tree: 'nh:tree',
+  altar_lawful: 'nh:altar_lawful',
+  altar_neutral: 'nh:altar_neutral',
+  altar_chaotic: 'nh:altar_chaotic',
+  altar_unaligned: 'nh:altar_unaligned',
 } as const;

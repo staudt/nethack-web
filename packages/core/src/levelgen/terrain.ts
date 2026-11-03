@@ -36,6 +36,18 @@ export interface LevelTerrain {
   tlwall: DefId;
   trwall: DefId;
   crwall: DefId;
+  /**
+   * Dungeon features of special levels (ref: rm.h FOUNTAIN, SINK, TREE, ALTAR). One altar per
+   * alignment (ref: rm.h altarmask AM_LAWFUL..AM_NONE), so converting one swaps its terrain.
+   * Not in PALETTE_KEYS: a level that uses one appends it to its own palette.
+   */
+  fountain: DefId;
+  sink: DefId;
+  tree: DefId;
+  altar_lawful: DefId;
+  altar_neutral: DefId;
+  altar_chaotic: DefId;
+  altar_unaligned: DefId;
 }
 
 export const VANILLA_TERRAIN: LevelTerrain = {
@@ -65,6 +77,13 @@ export const VANILLA_TERRAIN: LevelTerrain = {
   tlwall: 'nh:tlwall',
   trwall: 'nh:trwall',
   crwall: 'nh:crwall',
+  fountain: 'nh:fountain',
+  sink: 'nh:sink',
+  tree: 'nh:tree',
+  altar_lawful: 'nh:altar_lawful',
+  altar_neutral: 'nh:altar_neutral',
+  altar_chaotic: 'nh:altar_chaotic',
+  altar_unaligned: 'nh:altar_unaligned',
 };
 
 /**

@@ -640,7 +640,7 @@ function levelDefIssues(d: LevelDef): [string, string][] {
   contents.forEach((c: unknown, i) => {
     const at = `contents[${i}]`;
     if (typeof c !== 'object' || c === null) return void out.push([at, 'must be an object']);
-    const { kind, id, class: cls, count, percent } = c as Record<string, unknown>;
+    const { kind, id, class: cls, count, percent, x, y, peaceful } = c as Record<string, unknown>;
     if (typeof kind !== 'string' || !CONTENT_KINDS.includes(kind))
       out.push([`${at}.kind`, `must be one of ${CONTENT_KINDS.join(', ')}`]);
     if (id !== undefined && (typeof id !== 'string' || id === ''))
@@ -664,6 +664,17 @@ function levelDefIssues(d: LevelDef): [string, string][] {
     }
     if (percent !== undefined && (!nat(percent) || (percent as number) > 100))
       out.push([`${at}.percent`, 'must be an integer 0..100']);
+    if ((x === undefined) !== (y === undefined))
+      out.push([`${at}.${x === undefined ? 'x' : 'y'}`, 'give both x and y, or neither']);
+    for (const [k, v] of [
+      ['x', x],
+      ['y', y],
+    ] as const)
+      if (v !== undefined && !Number.isInteger(v)) out.push([`${at}.${k}`, 'must be an integer']);
+    if (peaceful !== undefined) {
+      if (typeof peaceful !== 'boolean') out.push([`${at}.peaceful`, 'must be a boolean']);
+      else if (kind !== 'monster') out.push([`${at}.peaceful`, 'only monsters can be peaceful']);
+    }
   });
   return out;
 }

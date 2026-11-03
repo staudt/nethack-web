@@ -1,4 +1,4 @@
-// Making the contents of a LevelDef: monsters, objects and traps at random dry spots.
+// Making the contents of a LevelDef: monsters, objects and traps at fixed or random dry spots.
 // ref: src/sp_lev.c create_monster(), create_object(), create_trap(), get_location()
 import type {
   Ctx,
@@ -10,7 +10,7 @@ import type {
   ObjectClass,
   Pos,
 } from '@nh/core';
-import { cellIndex, isPlainFloor } from '@nh/core';
+import { cellIndex, inBounds, isPlainFloor } from '@nh/core';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mktrap } from './mklev';
@@ -48,24 +48,46 @@ function rollCount(ctx: Ctx, count: LevelCount | undefined): number {
 }
 
 /**
- * ref: src/sp_lev.c create_monster() with no room and random coordinates; an occupied spot moves
- * to a close one (`if (MON_AT(x, y) && enexto(...))`)
+ * The entry's fixed spot (a negative coordinate counts from the right or bottom edge), or a
+ * random dry one. A fixed spot is used as it is, with no terrain check. ref: src/sp_lev.c
+ * get_location() `if (*x >= 0)` (normal locations), get_location_coord()
  */
-function createMonster(ctx: Ctx, level: Level, c: LevelContent): void {
+function contentSpot(ctx: Ctx, level: Level, c: LevelContent, def: LevelDef): Pos | null {
+  if (c.x === undefined || c.y === undefined)
+    return getLocation(ctx, level, (p) => dry(ctx, level, p));
+  const x = c.x < 0 ? level.width + c.x : c.x;
+  const y = c.y < 0 ? level.height + c.y : c.y;
+  if (!inBounds(level, x, y))
+    throw new RangeError(
+      `LevelDef '${def.id}': ${c.kind} at ${String(c.x)},${String(c.y)} is outside the ` +
+        `${String(level.width)}x${String(level.height)} level`,
+    );
+  return { x, y };
+}
+
+/**
+ * ref: src/sp_lev.c create_monster() with no room; an occupied spot moves to a close one
+ * (`if (MON_AT(x, y) && enexto(...))`); `peaceful` overrides peace_minded()
+ * (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`)
+ */
+function createMonster(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
   const def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
       : c.class !== undefined
         ? mkclass(ctx, c.class, level.depth, ['nogen']) // mkclass(class, G_NOGEN)
         : null;
-  const pos = getLocation(ctx, level, (p) => dry(ctx, level, p));
+  const pos = contentSpot(ctx, level, c, ldef);
   // someone already there: a close place instead (makemon's enexto)
-  if (pos) makemon(ctx, def, pos, { level: level.id, adjacentOk: true });
+  if (!pos) return;
+  const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true });
+  const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
+  if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
 }
 
-/** ref: src/sp_lev.c create_object() with no room and random coordinates */
-function createObject(ctx: Ctx, level: Level, c: LevelContent): void {
-  const pos = getLocation(ctx, level, (p) => dry(ctx, level, p));
+/** ref: src/sp_lev.c create_object() with no room */
+function createObject(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
+  const pos = contentSpot(ctx, level, c, ldef);
   if (!pos) return;
   const at = { level: level.id, x: pos.x, y: pos.y };
   if (c.id !== undefined)
@@ -75,9 +97,15 @@ function createObject(ctx: Ctx, level: Level, c: LevelContent): void {
 
 /**
  * ref: src/sp_lev.c create_trap() with no room: a DRY spot that is not stairs (100 tries), then
- * mklev.c mktrap() there. Here the spot must be plain floor, where traps may go.
+ * mklev.c mktrap() there. Here the spot must be plain floor, where traps may go; a fixed spot
+ * that is not makes no trap.
  */
-function createTrap(ctx: Ctx, level: Level, c: LevelContent): void {
+function createTrap(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef): void {
+  if (c.x !== undefined) {
+    const at = contentSpot(ctx, level, c, ldef);
+    if (at && isPlainFloor(ctx.defs, level, at.x, at.y)) mktrap(ctx, level, at, c.id ?? null);
+    return;
+  }
   let pos: Pos | null = null;
   for (let trycnt = 0; trycnt <= 100; trycnt++) {
     pos = getLocation(ctx, level, (p) => dry(ctx, level, p));
@@ -95,9 +123,9 @@ export function fillSpecialLevel(ctx: Ctx, level: Level, def: LevelDef): void {
     if (c.percent !== undefined && ctx.rng.rn2(100) >= c.percent) continue;
     const n = rollCount(ctx, c.count);
     for (let i = 0; i < n; i++) {
-      if (c.kind === 'monster') createMonster(ctx, level, c);
-      else if (c.kind === 'object') createObject(ctx, level, c);
-      else createTrap(ctx, level, c);
+      if (c.kind === 'monster') createMonster(ctx, level, c, def);
+      else if (c.kind === 'object') createObject(ctx, level, c, def);
+      else createTrap(ctx, level, c, def);
     }
   }
 }

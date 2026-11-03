@@ -106,6 +106,9 @@ interface Room {
   hx: number;
   hy: number;
   lit: boolean;
+  type?: DefId; // special room kind ('nh:temple', 'nh:tool_shop'...); absent = ordinary
+  parent?: number; // index in Level.rooms of the enclosing room; subrooms follow their parent
+  filled?: boolean; // false = a typed room left empty
 } // interior bounds, inclusive
 // ref: include/dungeon.h struct dungeon, struct branch
 interface DungeonLayout {
@@ -130,6 +133,7 @@ interface Level {
   down: Pos | null;
   branch: { pos: Pos; to: LevelRef; dir: 'up' | 'down' } | null; // stairs into another dungeon
   def?: DefId; // the LevelDef it was built from; absent for an ordinary level
+  town?: true; // a town level (ref: level.flags.has_town), see inTown
   traps: Trap[]; // sorted by cell index; plain floor only
 }
 // ref: include/trap.h struct trap
@@ -160,8 +164,12 @@ interface LevelContent {
   class?: string; // monster: a glyph character ('G'); object: an ObjectClass ('gem'); traps have none
   count?: number | { min: number; max: number }; // default 1; min..max inclusive
   percent?: number; // 0..100, rolled once for the whole entry before its count
+  x?: number; y?: number; // a fixed spot (both or neither); negative counts from the right/bottom
+  peaceful?: boolean; // monsters: forced peaceful or hostile; omitted = peace_minded()
 }
 ```
+
+An entry with `x`,`y` goes on that spot as given, with no terrain check (ref: src/sp_lev.c get_location() for fixed coordinates); -1 is the last column or row, and a spot outside the level throws a RangeError naming the LevelDef. A monster whose spot is taken goes to a close free one; a trap whose spot is not plain floor is not made. `peaceful` sets the monster's peacefulness after it is made (ref: create_monster() `m->peaceful > BOOL_RANDOM`); members of its group are unaffected. `loadMods` reports an `x` without `y` (or the reverse), a non-integer coordinate, a `peaceful` that is not a boolean and `peaceful` on a non-monster.
 
 With neither `id` nor `class` the thing is random: `makemon` with a random type (and its group), `mkobj` of a random class, or a random trap kind for the level's difficulty. A monster class picks with `mkclass()` (ref: src/makemon.c), which may choose `nogen` monsters as special levels do. Every thing goes on a random *dry* spot of the whole map: passable terrain that is not a door, so floor, corridor or stairs (ref: src/sp_lev.c get_location(), is_ok_location() DRY; 100 random tries, then the first in column order); a monster whose spot is taken goes to a close free one (`enexto`); traps need plain floor. Holes become falling rock traps where one cannot fall through (ref: src/mklev.c mktrap()).
 
@@ -170,6 +178,8 @@ Stairs are not part of the LevelDef: the dungeon decides which a level gets (see
 `loadMods` validates every LevelDef and reports each problem with its path: an unknown `init.style`, a missing `fg`, a `bg` that is not a string, a `smoothed`/`joined`/`walled`/`lit` that is not a boolean, an unknown `contents[i].kind`, both `id` and `class`, a class on a trap, an object class that is not an ObjectClass, a monster class longer than one character, a bad `count` (`min > max`, negative, not an integer) or `percent` outside 0..100; and, once every mod has registered, a `fg` or `bg` that is not a terrain, an `id` that is not a def of its kind, a monster class no monster has, and a `filler` that is not a LevelDef. `registry.level(id)` and `registry.levels` list them.
 
 The `mines` style is NetHack's cellular-automaton cave (ref: src/mkmap.c mkmap()); `minefill.lua` uses `{ style: 'mines', fg: 'nh:floor', smoothed: true, joined: true, walled: true }`. About 2/5 of the inner cells start as `fg`, then a birth/death pass and a thinning pass run; `smoothed` adds two passes that drop cells with fewer than 3 open neighbours; `joined` fills in regions of 3 cells or fewer and digs a winding path of `fg` from each region to an earlier one, so all open cells are one 8-connected area; `walled` turns each `bg` cell next to `fg` into a wall and then picks the wall piece that joins its neighbours (corners, T-walls `tuwall tdwall tlwall trwall` and `crwall`, ref: src/sp_lev.c wallify_map(); src/mkmaze.c wall_cleanup(), fix_wall_spines()). `lit` omitted is a coin flip; a lit cave lights its `fg` cells and walls, never `bg`. Open cells never touch the map edge, so the walls fit. Cave levels have the five T-wall terrains (`LevelTerrain` keys `CAVE_PALETTE_KEYS`) after the usual palette, and no rooms. The map must be at least `MIN_MKMAP_WIDTH` x `MIN_MKMAP_HEIGHT` (10x10); a small map that comes out with fewer than 4 open cells is made again from the continuing RNG stream. Stairs go on its `fg` cells when `fg` is the floor terrain.
+
+**Features and rooms.** `LevelTerrain` also names the dungeon features of special levels: `fountain`, `sink`, `tree` and one altar per alignment (`altar_lawful`, `altar_neutral`, `altar_chaotic`, `altar_unaligned`), so a 6b2 altar conversion swaps the terrain. They are not in `PALETTE_KEYS`; a level that uses one appends it to its own palette, so ordinary levels and saves are unchanged. Content draws them as NetHack does (`{` bright blue fountain, `{` white sink, `#` green tree that blocks movement and sight, `_` altar named "neutral altar" and so on) and has no behaviour for them yet. `Room.type` marks a special room; core does not check the id, the owning mod gives it meaning. Subrooms (`parent`) come after their parent in `Level.rooms`; code that wants NetHack's top-level `rooms[]` (mklev's room filling, `nroom`) filters `parent === undefined`. `inTown(level, x, y)` ports in_town(): false unless `level.town`; then inside (walls included) a top-level room that has subrooms, or anywhere when no room has any (ref: src/hack.c in_town(), src/mkroom.c inside_room(); `insideRoom` is exported too).
 
 Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Level.def`; content's `newLevel` hooks fill it (`mklev.ts` fills the rooms of ordinary and `rooms` levels, then `sp_lev.ts` makes `contents`).
 
