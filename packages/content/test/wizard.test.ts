@@ -1,17 +1,31 @@
-// Wizard mode step 1: the wizard mod, wiz:map and wiz:where.
+// Wizard mode: the wizard mod, wiz:map, wiz:where and wiz:levelport.
 import {
   applyUpdate,
   buildSnapshot,
   createEngine,
   diffSnapshot,
   getLevel,
+  getPlayer,
+  isPlainFloor,
   stateHash,
   type DefId,
   type GameEvent,
   type GameState,
+  type Json,
+  type PlayerAction,
+  type Prompt,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { T, WIZ_MAP, WIZ_WHERE, messagesEn, vanillaMod, wizardMod } from '../src/index';
+import {
+  OPEN_DUNGEON_LEVELS,
+  T,
+  WIZ_LEVELPORT,
+  WIZ_MAP,
+  WIZ_WHERE,
+  messagesEn,
+  vanillaMod,
+  wizardMod,
+} from '../src/index';
 
 const normal = createEngine([vanillaMod]);
 const wizard = createEngine([vanillaMod, wizardMod]);
@@ -28,9 +42,13 @@ const msgs = (events: GameEvent[]): Extract<GameEvent, { type: 'msg' }>[] =>
   events.flatMap((e) => (e.type === 'msg' ? [e] : []));
 
 describe('the wizard mod', () => {
-  test('a normal game offers no wiz: actions; a wizard game offers map and where', () => {
+  test('a normal game offers no wiz: actions; a wizard game offers its commands', () => {
     expect(wizOffers(normal, normal.newGame({ seed: 1 }).state)).toEqual([]);
-    expect(wizOffers(wizard, wizard.newGame({ seed: 1 }).state)).toEqual([WIZ_MAP, WIZ_WHERE]);
+    expect(wizOffers(wizard, wizard.newGame({ seed: 1 }).state)).toEqual([
+      WIZ_MAP,
+      WIZ_WHERE,
+      WIZ_LEVELPORT,
+    ]);
   });
 
   test('loading it draws nothing: the same seed builds the same game', () => {
@@ -53,7 +71,18 @@ describe('the wizard mod', () => {
   });
 
   test('every message key it uses has English text', () => {
-    for (const k of ['action.wiz:map', 'action.wiz:where', 'wiz.where.levels', 'wiz.where.branch'])
+    for (const k of [
+      'action.wiz:map',
+      'action.wiz:where',
+      'action.wiz:levelport',
+      'wiz.where.levels',
+      'wiz.where.branch',
+      'wiz.levelport.pickDungeon',
+      'wiz.levelport.pickLevel',
+      'wiz.levelport.level',
+      'wiz.levelport.here',
+      'wiz.levelport.arrive',
+    ])
       expect(messagesEn[k]).toBeDefined();
   });
 });
@@ -148,5 +177,119 @@ describe('wiz:where', () => {
       },
     });
     expect(mines?.depthStart).toBe((branch?.dlevel ?? 0) + 1);
+  });
+});
+
+describe('wiz:levelport', () => {
+  const LEVELPORT: PlayerAction = { type: 'mod', action: WIZ_LEVELPORT as DefId };
+  const prompt = (state: GameState): Prompt => {
+    const p = state.pendingPrompt?.prompt;
+    if (!p) throw new Error('no prompt');
+    return p;
+  };
+  const answer = (state: GameState, value: Json): GameEvent[] =>
+    wizard.step(state, { type: 'answer', promptId: prompt(state).id, value }).events;
+  /** Levelports to `dlevel` of `dungeon` through both menus. */
+  function levelport(state: GameState, dungeon: DefId, dlevel: number): GameEvent[] {
+    wizard.step(state, LEVELPORT);
+    answer(state, dungeon);
+    return answer(state, dlevel);
+  }
+  const onPassable = (state: GameState): boolean => {
+    const p = getPlayer(state).c.pos;
+    return !!p && isPlainFloor(wizard.registry, getLevel(state), p.x, p.y);
+  };
+
+  test('the menus list every dungeon in the layout, then each level with its depth', () => {
+    const { state } = wizard.newGame({ seed: 2 });
+    wizard.step(state, LEVELPORT);
+    const first = prompt(state);
+    expect(first.kind).toBe('menu');
+    expect(first.cancellable).toBe(true);
+    expect(first.options?.map((o) => o.value)).toEqual(state.dungeons.map((d) => d.id));
+    expect(first.options?.map((o) => o.key)).toEqual(
+      state.dungeons.map((d) => wizard.registry.dungeon(d.id).nameKey),
+    );
+
+    const mines = state.dungeons.find((d) => d.id === 'nh:mines');
+    expect(mines?.levels).toBeGreaterThan(1);
+    answer(state, 'nh:mines');
+    const second = prompt(state);
+    expect(second.cancellable).toBe(true);
+    const n = mines?.levels ?? 0;
+    expect(second.options?.map((o) => o.value)).toEqual(Array.from({ length: n }, (_, i) => i + 1));
+    expect(second.options?.map((o) => o.params)).toEqual(
+      Array.from({ length: n }, (_, i) => ({
+        dlevel: i + 1,
+        depth: (mines?.depthStart ?? 0) + i,
+      })),
+    );
+    expect(second.options?.every((o) => o.key === 'wiz.levelport.level')).toBe(true);
+  });
+
+  test('the bottomless main dungeon lists 30 levels, or one past the deepest visited', () => {
+    const { state } = wizard.newGame({ seed: 2 });
+    const main = state.dungeons.find((d) => d.id === 'nh:main');
+    expect(main?.levels).toBeNull();
+    wizard.step(state, LEVELPORT);
+    answer(state, 'nh:main');
+    const opts = prompt(state).options ?? [];
+    expect(opts.length).toBe(OPEN_DUNGEON_LEVELS);
+    // the hero is on DL1: it is marked
+    expect(opts[0]?.key).toBe('wiz.levelport.here');
+    expect(opts.slice(1).every((o) => o.key === 'wiz.levelport.level')).toBe(true);
+
+    answer(state, OPEN_DUNGEON_LEVELS);
+    expect(getLevel(state).dlevel).toBe(OPEN_DUNGEON_LEVELS);
+    wizard.step(state, LEVELPORT);
+    answer(state, 'nh:main');
+    const more = prompt(state).options ?? [];
+    expect(more.length).toBe(OPEN_DUNGEON_LEVELS + 1);
+    expect(more[OPEN_DUNGEON_LEVELS - 1]?.key).toBe('wiz.levelport.here');
+    // a value outside the menu does nothing
+    answer(state, OPEN_DUNGEON_LEVELS + 5);
+    expect(getLevel(state).dlevel).toBe(OPEN_DUNGEON_LEVELS);
+  });
+
+  test('into the Mines bottom and back to DL1, on a floor cell each time, taking no time', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const mines = state.dungeons.find((d) => d.id === 'nh:mines');
+    const bottom = mines?.levels ?? 0;
+    const turn = state.turn;
+
+    const events = levelport(state, 'nh:mines', bottom);
+    const here = getLevel(state);
+    expect([here.dungeon, here.dlevel, here.depth]).toEqual([
+      'nh:mines',
+      bottom,
+      (mines?.depthStart ?? 0) + bottom - 1,
+    ]);
+    expect(onPassable(state)).toBe(true);
+    expect(msgs(events).map((m) => m.key)).toContain('wiz.levelport.arrive');
+
+    levelport(state, 'nh:main', 1);
+    const back = getLevel(state);
+    expect([back.dungeon, back.dlevel]).toEqual(['nh:main', 1]);
+    expect(onPassable(state)).toBe(true);
+    expect(state.turn).toBe(turn);
+    expect(state.pendingPrompt).toBeNull();
+  });
+
+  test('cancelling either menu, or choosing the current level, changes nothing', () => {
+    const { state } = wizard.newGame({ seed: 6 });
+    // a first step fills in some lazily initialized vanilla state; hash after it
+    wizard.step(state, { type: 'mod', action: WIZ_WHERE as DefId });
+    const hash = stateHash(state);
+    wizard.step(state, LEVELPORT);
+    expect(msgs(answer(state, null))).toEqual([]);
+    expect(stateHash(state)).toBe(hash);
+
+    wizard.step(state, LEVELPORT);
+    answer(state, 'nh:mines');
+    expect(msgs(answer(state, null))).toEqual([]);
+    expect(stateHash(state)).toBe(hash);
+
+    expect(msgs(levelport(state, 'nh:main', 1))).toEqual([]);
+    expect(stateHash(state)).toBe(hash);
   });
 });

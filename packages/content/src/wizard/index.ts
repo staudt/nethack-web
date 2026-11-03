@@ -1,4 +1,5 @@
 import type { Mod } from '@nh/core';
+import { wizLevelport } from './levelport';
 import { wizMap } from './map';
 import { wizWhere } from './where';
 
@@ -14,8 +15,10 @@ export const wizardMod: Mod = {
   register(api) {
     api.defineAction(wizMap);
     api.defineAction(wizWhere);
+    api.defineAction(wizLevelport);
   },
 };
 
+export { OPEN_DUNGEON_LEVELS, WIZ_LEVELPORT, levelportLevels, wizLevelport } from './levelport';
 export { WIZ_MAP, doMapping } from './map';
 export { WIZ_WHERE, printDungeon } from './where';
