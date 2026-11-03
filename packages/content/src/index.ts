@@ -31,6 +31,8 @@ import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
 import { KICK_ACTIONS, registerKick } from './dokick';
+import { CHAT_ACTIONS } from './chat';
+import { registerClairvoyance } from './detect';
 import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
@@ -67,6 +69,7 @@ export const vanillaMod: Mod = {
     for (const a of READ_ACTIONS) api.defineAction(a);
     for (const a of THROW_ACTIONS) api.defineAction(a);
     for (const a of KICK_ACTIONS) api.defineAction(a);
+    for (const a of CHAT_ACTIONS) api.defineAction(a);
     for (const a of FIRE_ACTIONS) api.defineAction(a);
     for (const a of CALL_ACTIONS) api.defineAction(a);
     for (const a of PRAY_ACTIONS) api.defineAction(a);
@@ -86,6 +89,7 @@ export const vanillaMod: Mod = {
     registerLuck(api);
     registerPray(api);
     registerKick(api);
+    registerClairvoyance(api);
     registerMonflee(api);
     registerTraps(api);
     registerJewelry(api);
@@ -286,7 +290,17 @@ export {
   templeOccupied,
   type Epri,
 } from './epri';
-export { ghodHitsu, intemple, priestini, templePriests } from './priest';
+export {
+  ghodHitsu,
+  intemple,
+  moneyCnt,
+  priestDonate,
+  priestTalk,
+  priestini,
+  templePriests,
+} from './priest';
+export type { PriestOffer } from './priest';
+export { doVicinityMap, showMapSpot } from './detect';
 export { checkSpecialRoom } from './rooms';
 export { specialRoomsAt, uRooms } from './urooms';
 export { buzzFrom, type Ray, type RaySource } from './buzz';
@@ -357,6 +371,7 @@ export {
 } from './mongear';
 export { xkilledCorpse, corpseChance, startCorpseTimeout, rnz, ROT_AGE } from './corpses';
 export { KICK_ACTIONS, KICK_ID, setWoundedLegs } from './dokick';
+export { CHAT_ACTIONS, CHAT_ID, domonnoise } from './chat';
 export { monflee, isFleeing, fleeTime, stopFleeing } from './monflee';
 export { needsAttackConfirm, setmangry, wakeup } from './peaceful';
 export {

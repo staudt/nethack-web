@@ -428,6 +428,8 @@ interface NhData {
   lknown?: Record<string, true>;
   /** Containers whose contents the hero knows, by item id (obj->cknown); see objKnown(). */
   cknown?: Record<string, true>;
+  /** The turn of the next clairvoyant vision (context.seer_turn); see detect.ts. */
+  seerTurn?: number;
 }
 
 /** The content mod's persistent data (gl.lastinvnr and friends). */

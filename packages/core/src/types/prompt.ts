@@ -16,6 +16,11 @@ export interface Prompt {
   /** Text prompts: the longest answer accepted. */
   maxLength?: number;
   /**
+   * Text prompts: the answer is a whole number (an amount of gold), so the UI offers a number
+   * pad and accepts digits only. The answer is still a string; the handler parses it.
+   */
+  numeric?: boolean;
+  /**
    * Single-select menus and yn prompts: the player may dismiss it (NetHack's ESC), which answers
    * `null`. Multi menus, direction and text prompts can always be cancelled.
    */

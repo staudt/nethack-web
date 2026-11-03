@@ -119,6 +119,8 @@ export interface TextSpec {
   title: string;
   params?: Params;
   maxLength: number;
+  /** A whole number: the phone shows a number pad and only digits are kept. */
+  numeric?: boolean;
   okLabel: string;
   cancelLabel: string;
   /** Receives the trimmed text, capped at maxLength. */
@@ -138,6 +140,16 @@ export function openTextPrompt(root: HTMLElement, spec: TextSpec): OpenMenu {
   input.autocomplete = 'off';
   input.setAttribute('autocapitalize', 'off');
   input.setAttribute('aria-label', spec.title);
+  if (spec.numeric) {
+    // a text input with a number pad (type=number would accept 1e5 and lose leading text)
+    input.inputMode = 'numeric';
+    input.pattern = '[0-9]*';
+    input.classList.add('nh-numeric');
+    input.addEventListener('input', () => {
+      const digits = input.value.replace(/[^0-9]/g, '');
+      if (digits !== input.value) input.value = digits;
+    });
+  }
   let closed = false;
   const close = (): void => {
     if (closed) return;
@@ -147,7 +159,8 @@ export function openTextPrompt(root: HTMLElement, spec: TextSpec): OpenMenu {
   };
   const submit = (): void => {
     if (closed) return;
-    const text = input.value.trim().slice(0, spec.maxLength);
+    let text = input.value.trim().slice(0, spec.maxLength);
+    if (spec.numeric) text = text.replace(/[^0-9]/g, '');
     close();
     spec.onSubmit(text);
   };

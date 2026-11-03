@@ -41,6 +41,8 @@ export interface UState {
   ublesscnt: number;
   /** u.ublessed: divine protection */
   ublessed: number;
+  /** u.ucleansed: the turn a temple donation last cleansed the alignment record (absent = 0) */
+  ucleansed?: number;
   /** u.uinvulnerable: in the midst of a successful prayer */
   uinvulnerable?: boolean;
 }

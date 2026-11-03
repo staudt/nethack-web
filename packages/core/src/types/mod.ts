@@ -537,7 +537,32 @@ export interface MonsterDef {
   nutrition: number;
   /** BrainDef that runs this monster's turns. */
   brain: DefId;
+  /** What #chat gets from it (msound); absent means silent. ref: include/permonst.h msound */
+  sound?: MonsterSound;
 }
+
+/**
+ * The noise a monster makes when the hero chats with it: NetHack's MS_ names lowercased (MS_SQEEK
+ * is 'squeak'). Only the sounds the vanilla content can answer are listed; a mod adds more by
+ * extending this union in core. ref: include/monflag.h ms_sounds
+ */
+export type MonsterSound =
+  | 'silent'
+  | 'bark'
+  | 'mew'
+  | 'growl'
+  | 'roar'
+  | 'squeak'
+  | 'hiss'
+  | 'buzz'
+  | 'grunt'
+  | 'moo'
+  | 'bellow'
+  | 'chirp'
+  | 'orc'
+  | 'humanoid'
+  | 'soldier'
+  | 'priest';
 
 /** Runs a non-hero actor's turn. The engine deducts NORMAL_SPEED before calling `act`. */
 export interface BrainDef {

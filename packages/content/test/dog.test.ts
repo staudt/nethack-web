@@ -221,7 +221,11 @@ describe('the hero and her pet', () => {
     addPet(s.state, 'nh:kitten', 3, 2);
     engine.step(s.state, { type: 'wait' });
     const offers = engine.query(s.state).actionsFor({ kind: 'cell', pos: { x: 3, y: 2 } });
-    expect(offers.map((o) => o.labelKey)).toEqual(['action.swap', 'action.nh:fight']);
+    expect(offers.map((o) => o.labelKey)).toEqual([
+      'action.swap',
+      'action.nh:fight',
+      'action.nh:chat_with',
+    ]);
   });
 });
 

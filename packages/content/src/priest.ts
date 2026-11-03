@@ -14,10 +14,12 @@ import {
   getPlayer,
   inBounds,
   inRooms,
+  inventoryOf,
   sortedIds,
   type Ctx,
   type Dir,
   type EntityId,
+  type Json,
   type Level,
   type ModApi,
   type Pos,
@@ -30,6 +32,7 @@ import {
   epriOf,
   findpriest,
   hasShrine,
+  inhistemple,
   pCoaligned,
   priestName,
   setEpri,
@@ -38,12 +41,13 @@ import {
 } from './epri';
 import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
 import { makemon, rlocPos } from './generation';
-import { addToInventory } from './items';
-import { uState } from './luck';
+import { addToInventory, removeFromInventory, splitStack } from './items';
+import { adjalign, setU, uState } from './luck';
 import { mkobj } from './mkobj';
 import { whichArmor } from './mongear';
-import { P, hasProp, heroHas } from './props';
-import { isFrozen } from './mstate';
+import { P, hasIntrinsic, hasProp, heroHas, incrItimeout, setIntrinsic } from './props';
+import { isFrozen, unfreezeMonst } from './mstate';
+import { isFleeing } from './monflee';
 import { monNam } from './perception';
 import { monLearnsTraps } from './trapstate';
 
@@ -325,4 +329,190 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
 /** Makes the temple priests of each new level (before its other contents, as create_altar()). */
 export function registerPriest(api: ModApi): void {
   api.on('newLevel', (ctx, level) => templePriests(ctx, level));
+}
+
+// ---------------------------------------------------------------------------------------------
+// #chat with a priest: donations. ref: src/priest.c priest_talk(), src/minion.c bribe(),
+// src/shk.c money2mon(), money2u()
+
+/** The gold `id` carries. ref: src/invent.c money_cnt() */
+export function moneyCnt(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): number {
+  let n = 0;
+  for (const o of inventoryOf(ctx.state, id))
+    if (ctx.defs.object(o.def).class === 'coin') n += o.c.item?.quantity ?? 0;
+  return n;
+}
+
+/** Moves `amount` gold (no more than `from` has) to `to`'s inventory. ref: money2mon(), money2u() */
+function moneyTransfer(ctx: Ctx, from: EntityId, to: EntityId, amount: number): void {
+  for (const o of inventoryOf(ctx.state, from)) {
+    if (amount <= 0) return;
+    const q = o.c.item?.quantity ?? 0;
+    if (ctx.defs.object(o.def).class !== 'coin' || q <= 0) continue;
+    const moved = q <= amount ? o.id : splitStack(ctx, o.id, amount);
+    if (moved === o.id) removeFromInventory(ctx, o.id);
+    addToInventory(ctx, to, moved);
+    amount -= Math.min(q, amount);
+  }
+}
+
+const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
+  ctx.emit(params ? { type: 'msg', key, params } : { type: 'msg', key });
+
+/** The suggested donation the priest asks for, kept in the prompt until the hero answers. */
+export interface PriestOffer {
+  suggested: number;
+  quan: number;
+}
+
+const CRANKY = ['priest.cranky.words', 'priest.cranky.talk', 'priest.cranky.no_longer'];
+
+/**
+ * The hero chats with a priest. Returns the donation he asks for when she carries gold (the
+ * caller asks how much and passes the answer to priestDonate()), null when the talk is over.
+ * ref: src/priest.c priest_talk() (no conduct, no exercise of Wisdom, no roaming priests: an
+ * aligned cleric without a temple of his own is cranky)
+ */
+export function priestTalk(ctx: Ctx, id: EntityId): PriestOffer | null {
+  const priest = ctx.state.entities[String(id)];
+  const m = priest?.c.monster;
+  if (!priest || !m) return null;
+  const epri = epriOf(ctx, id);
+  const u = uState(ctx.state);
+  const coaligned = epri
+    ? pCoaligned(ctx, epri)
+    : u.alignType === Math.sign(ctx.defs.monster(priest.def).alignment);
+  const strayed = u.alignRecord < 0;
+  const mon = monNam(ctx, priest);
+
+  if (isFleeing(ctx, id) || (!epri && coaligned && strayed)) {
+    say(ctx, 'priest.nothing_to_do', { mon });
+    m.peaceful = false;
+    return null;
+  }
+  // priests don't chat unless peaceful and in their own temple
+  const helpless = m.asleep || isFrozen(ctx, id);
+  if (!inhistemple(ctx, id) || !m.peaceful || helpless) {
+    if (helpless) {
+      say(ctx, 'priest.reverie', { mon });
+      m.asleep = false;
+      unfreezeMonst(ctx, id);
+    }
+    m.peaceful = false;
+    say(ctx, CRANKY[ctx.rng.rn2(3)] ?? 'priest.cranky.words');
+    return null;
+  }
+  // you desecrated the temple and now you want to chat?
+  const p = priest.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (
+    epri &&
+    p &&
+    level &&
+    templeOccupied(level, inRooms(level, p.x, p.y)) !== null &&
+    !hasShrine(ctx, epri)
+  ) {
+    say(ctx, 'priest.begone');
+    m.peaceful = false;
+    return null;
+  }
+  const hero = ctx.state.playerId;
+  if (moneyCnt(ctx, hero) === 0) {
+    if (coaligned && !strayed) {
+      const pmoney = moneyCnt(ctx, id);
+      if (pmoney > 0) {
+        // Note: two bits is actually 25 cents.  Hmm.
+        say(ctx, pmoney === 1 ? 'priest.ale_one' : 'priest.ale_two', { mon });
+        moneyTransfer(ctx, id, hero, pmoney > 1 ? 2 : 1);
+      } else say(ctx, 'priest.poverty', { mon });
+    } else say(ctx, 'priest.not_interested', { mon });
+    return null;
+  }
+  // some randomization in how much you need to donate; with more gold visible you need to
+  // donate more but get a greater effect; cheapskating raises the amounts next time
+  const ulevelpeak = getPlayer(ctx.state).c.experience?.level ?? 1; // no level loss yet
+  const suggested = (ulevelpeak || 1) * (ctx.rng.rn2(101) + 150 + (epri?.cheapskate ?? 0) * 40);
+  const quan = Math.max(Math.trunc(moneyCnt(ctx, hero) / (suggested * 3)), 1);
+  say(ctx, 'priest.asks_contribution', { mon });
+  return { suggested, quan };
+}
+
+/** The amount a getlin() answer offers, as sscanf("%ld"): 0 when it is not a number. */
+function parseOffer(answer: Json): number {
+  if (typeof answer !== 'string') return 0;
+  const m = /^\s*([+-]?\d+)/.exec(answer);
+  return m?.[1] ? Number.parseInt(m[1], 10) : 0;
+}
+
+/**
+ * The hero answers how much she offers: 0, nothing or a cancel refuses ("Thou shalt regret thine
+ * action!"), less than the suggestion is cheap unless it is most of her gold, the suggestion buys
+ * clairvoyance, twice it protection (one point per twice the base suggestion), three times it
+ * her god's favour or a cleansed record. ref: src/priest.c priest_talk(), src/minion.c bribe()
+ */
+export function priestDonate(ctx: Ctx, id: EntityId, answer: Json, ask: PriestOffer): void {
+  const priest = ctx.state.entities[String(id)];
+  if (!priest?.c.monster) return;
+  const epri = epriOf(ctx, id);
+  const coaligned = epri ? pCoaligned(ctx, epri) : false;
+  const strayed = uState(ctx.state).alignRecord < 0;
+  const hero = ctx.state.playerId;
+  const mon = monNam(ctx, priest);
+  const { suggested, quan } = ask;
+
+  // bribe()
+  let offer = parseOffer(answer);
+  const umoney = moneyCnt(ctx, hero);
+  if (offer < 0) {
+    say(ctx, 'bribe.shortchange', { mon });
+    offer = 0;
+  } else if (offer === 0) say(ctx, 'bribe.refuse');
+  else if (offer >= umoney) {
+    say(ctx, 'bribe.all', { mon });
+    offer = umoney;
+  } else say(ctx, offer === 1 ? 'bribe.give_one' : 'bribe.give', { mon, n: offer });
+  if (offer > 0) moneyTransfer(ctx, hero, id, offer);
+
+  const left = moneyCnt(ctx, hero);
+  if (offer === 0) {
+    say(ctx, 'priest.regret');
+    if (coaligned) adjalign(ctx, -1);
+    if (epri) epri.cheapskate++;
+  } else if (offer < suggested * quan) {
+    if (left > offer * 2) {
+      say(ctx, 'priest.cheapskate');
+      if (epri) epri.cheapskate++;
+    } else say(ctx, 'priest.thank_contribution'); // (exercise(A_WIS) not ported)
+  } else if (offer < suggested * quan * 2) {
+    say(ctx, 'priest.pious');
+    if (left < offer * 2 && coaligned && uState(ctx.state).alignRecord <= ALGN_SINNED)
+      adjalign(ctx, 1);
+    say(ctx, 'priest.bestow_blessing');
+    const t = Math.trunc((500 * offer) / suggested);
+    incrItimeout(ctx.state, getPlayer(ctx.state), P.CLAIRVOYANT, ctx.rng.rn2(t) + t);
+  } else if (offer < suggested * quan * 3) {
+    const her = getPlayer(ctx.state);
+    let origUblessed = uState(ctx.state).ublessed;
+    // u.ublessed only counts while Protection comes from something other than worn gear
+    if (!hasIntrinsic(her, P.PROTECTION)) {
+      setIntrinsic(her, P.PROTECTION, true);
+      origUblessed = -1; // force "rewarded" message
+    }
+    let ublessed = uState(ctx.state).ublessed;
+    for (; offer >= 2 * suggested; offer -= 2 * suggested) {
+      if (!ublessed)
+        ublessed = ctx.rng.rn2(3) + 2; // rn1(3, 2)
+      else if (ublessed < 20 && (ublessed < 9 || !ctx.rng.rn2(ublessed))) ublessed++;
+    }
+    setU(ctx, { ublessed });
+    say(ctx, ublessed > origUblessed ? 'priest.rewarded' : 'priest.appreciated');
+  } else {
+    say(ctx, 'priest.appreciated');
+    if (left < offer * 2 && coaligned) {
+      const ucleansed = uState(ctx.state).ucleansed ?? 0;
+      if (strayed && ctx.state.turn - ucleansed > 5000) {
+        setU(ctx, { alignRecord: 0, ucleansed: ctx.state.turn }); // cleanse thee
+      } else adjalign(ctx, 2);
+    }
+  }
 }

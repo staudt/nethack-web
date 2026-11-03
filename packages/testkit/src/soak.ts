@@ -84,6 +84,8 @@ export interface SoakResult {
   /** Text prompts answered with a string, and count-menu entries answered with a partial count. */
   textAnswers: number;
   countAnswers: number;
+  /** Chats with a temple priest (`nh:chat`). */
+  chatted: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -150,6 +152,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let putOn = 0;
   let textAnswers = 0;
   let countAnswers = 0;
+  let chatted = 0;
   let aim: Dir | null = null;
   const depthNow = (): number => state.levels[state.currentLevel]?.depth ?? 1;
   const carriedCount = (): number => {
@@ -240,8 +243,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       return rng.rn2(2) === 0;
     }
     if (pending.kind === 'text') {
-      // a short deterministic name, or a cancel
+      // a short deterministic name or amount, or a cancel
       if (rng.rn2(3) === 0) return null;
+      if (pending.numeric) {
+        textAnswers++;
+        return String(rng.rn2(1000));
+      }
       textAnswers++;
       return `n${rng.rn2(100)}`;
     }
@@ -464,6 +471,23 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       }
     }
 
+    // 6c. chat with a temple priest next to her now and then (donations); other chats are left
+    // out of the random offers below
+    if (!action) {
+      const priestNear = visibleMonsters().some(
+        (m) =>
+          state.entities[String(m.id)]?.def === 'nh:aligned_cleric' &&
+          Math.max(Math.abs(m.pos.x - pos.x), Math.abs(m.pos.y - pos.y)) === 1,
+      );
+      if (priestNear && rng.rn2(3) === 0) {
+        const talk = cellOffers.find((o) => isMod(o.action, 'nh:chat'));
+        if (talk) {
+          action = talk.action;
+          chatted++;
+        }
+      }
+    }
+
     // 7. anything else: a random offer, except the book-keeping ones that take no time
     if (!action) {
       const rest = offers.filter(
@@ -475,6 +499,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
           !isMod(o.action, 'nh:enhance') &&
           // praying at random angers the god; fighting the pet just abuses it
           !isMod(o.action, 'nh:pray') &&
+          !isMod(o.action, 'nh:chat') &&
           !isMod(o.action, 'nh:fight'),
       );
       const list = rest.length > 0 ? rest : offers;
@@ -530,6 +555,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     putOn,
     textAnswers,
     countAnswers,
+    chatted,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

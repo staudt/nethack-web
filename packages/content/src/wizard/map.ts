@@ -1,6 +1,5 @@
-import { getLevel, newMemory, type ActionDef, type Ctx, type Level } from '@nh/core';
-import { setTerrain } from '../actions';
-import { T } from '../terrain';
+import { getLevel, type ActionDef, type Ctx, type Level } from '@nh/core';
+import { showMapSpot } from '../detect';
 
 export const WIZ_MAP = 'wiz:map';
 
@@ -13,14 +12,8 @@ export const WIZ_MAP = 'wiz:map';
  * ref: src/detect.c do_mapping(), show_map_spot() (cnf false), src/display.c magic_map_background()
  */
 export function doMapping(ctx: Ctx, level: Level): void {
-  const memory = (ctx.state.memory[level.id] ??= newMemory(level));
   for (let x = 0; x < level.width; x++)
-    for (let y = 0; y < level.height; y++) {
-      const i = y * level.width + x;
-      // Secret corridors are found, but not secret doors.
-      if (level.palette[level.cells[i] ?? 0] === T.scorr) setTerrain(level, x, y, T.corr);
-      memory[i] = level.cells[i] ?? 0;
-    }
+    for (let y = 0; y < level.height; y++) showMapSpot(ctx, level, x, y, false);
 }
 
 /**

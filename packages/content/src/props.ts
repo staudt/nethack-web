@@ -55,6 +55,7 @@ export const P = {
   REFLECTING: 'reflecting',
   ADORNED: 'adorned',
   ANTIMAGIC: 'antimagic',
+  CLAIRVOYANT: 'clairvoyant',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */

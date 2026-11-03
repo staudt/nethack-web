@@ -35,6 +35,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("gecko", S_LIZARD, ...)
   {
@@ -58,6 +59,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // ref: monsters.h MON("iguana", S_LIZARD, ...)
   {
@@ -81,6 +83,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("jackal", S_DOG, ...)
   {
@@ -104,6 +107,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON("fox", S_DOG, ...)
   {
@@ -127,6 +131,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON("coyote", S_DOG, ...)
   {
@@ -150,6 +155,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON(NAM("little dog"), S_DOG, LVL(2, 18, 6, 0, 0), (G_GENO | 1), ...)
   {
@@ -173,6 +179,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON(NAM("dog"), S_DOG, LVL(4, 16, 5, 0, 0), (G_GENO | 1), ...)
   {
@@ -196,6 +203,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON(NAM("large dog"), S_DOG, LVL(6, 15, 4, 0, 0), (G_GENO | 1), ...)
   {
@@ -219,6 +227,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'bark',
   },
   // ref: monsters.h MON("sewer rat", S_RODENT, ...)
   {
@@ -242,6 +251,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // ref: monsters.h MON("giant rat", S_RODENT, ...)
   {
@@ -265,6 +275,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // ref: monsters.h MON("kobold", S_KOBOLD, ...)
   {
@@ -288,6 +299,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON("large kobold", S_KOBOLD, ...)
   {
@@ -311,6 +323,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAMS("kobold lord", ...), S_KOBOLD, ...); HI_LORD = CLR_MAGENTA
   {
@@ -343,6 +356,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAM("gnome"), S_GNOME, ...)
   {
@@ -366,6 +380,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAMS("gnome lord", ...), S_GNOME, ...)
   {
@@ -389,6 +404,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAM("gnomish wizard"), S_GNOME, ...); HI_ZAP = CLR_BRIGHT_BLUE. Its
   // AT_MAGC AD_SPEL attack is not ported: it casts no spells (see DEVIATIONS.md).
@@ -413,6 +429,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAMS("gnome king", ...), S_GNOME, ...); HI_LORD = CLR_MAGENTA
   {
@@ -436,6 +453,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAM("hobbit"), S_HUMANOID, ...)
   {
@@ -459,6 +477,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'humanoid',
   },
   // ref: monsters.h MON(NAM("bat"), S_BAT, ...)
   {
@@ -482,6 +501,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // ref: monsters.h MON(NAM("giant bat"), S_BAT, ...)
   {
@@ -505,6 +525,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // ref: monsters.h MON(NAM("giant ant"), S_ANT, ...)
   {
@@ -528,6 +549,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON(NAM("goblin"), S_ORC, ...); unlike other orcs, no poison resistance
   {
@@ -551,6 +573,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAM("hill orc"), S_ORC, ...)
   {
@@ -584,6 +607,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'orc',
   },
   // ref: monsters.h MON(NAM("dwarf"), S_HUMANOID, ...)
   {
@@ -619,6 +643,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'humanoid',
   },
   // ref: monsters.h MON(NAM("manes"), S_IMP, ...)
   {
@@ -646,6 +671,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison', 'sleep'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON(NAM("rothe"), S_QUADRUPED, ...)
   {
@@ -673,6 +699,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'moo',
   },
   // ref: monsters.h MON("grid bug", S_XAN, LVL(0, 12, 9, 0, 0), (G_GENO | G_SGROUP | G_NOCORPSE | 3), ...)
   {
@@ -696,6 +723,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['elec', 'poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'buzz',
   },
   // ref: monsters.h MON("lichen", S_FUNGUS, LVL(0, 1, 9, 0, 0), (G_GENO | 4), ...)
   {
@@ -719,6 +747,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("brown mold", S_FUNGUS, LVL(1, 0, 9, 0, 0), (G_GENO | 1), ...)
   {
@@ -742,6 +771,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['cold', 'poison'],
     conveys: ['cold', 'poison'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("yellow mold", S_FUNGUS, LVL(1, 0, 9, 0, 0), (G_GENO | 2), ...)
   {
@@ -775,6 +805,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: ['poison'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("green mold", S_FUNGUS, LVL(1, 0, 9, 0, 0), (G_GENO | 1), ...)
   {
@@ -808,6 +839,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['acid', 'stone'],
     conveys: ['acid', 'stone'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("red mold", S_FUNGUS, LVL(1, 0, 9, 0, 0), (G_GENO | 1), ...)
   {
@@ -841,6 +873,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['fire', 'poison'],
     conveys: ['fire', 'poison'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("acid blob", S_BLOB, LVL(1, 3, 8, 0, 0), (G_GENO | 2), ...)
   {
@@ -874,6 +907,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['sleep', 'poison', 'acid', 'stone'],
     conveys: ['acid', 'stone'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("floating eye", S_EYE, LVL(2, 1, 9, 10, 0), (G_GENO | 5), ...)
   {
@@ -906,6 +940,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON(NAM("kitten"), S_FELINE, LVL(2, 18, 6, 0, 0), (G_GENO | 1), ...)
   {
@@ -929,6 +964,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'mew',
   },
   // ref: monsters.h MON(NAM("housecat"), S_FELINE, LVL(4, 16, 5, 0, 0), (G_GENO | 1), ...)
   {
@@ -952,6 +988,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'mew',
   },
   // ref: monsters.h MON(NAM("large cat"), S_FELINE, LVL(6, 15, 4, 0, 0), (G_GENO | 1), ...)
   {
@@ -975,6 +1012,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'mew',
   },
   // ref: monsters.h MON("homunculus", S_IMP, LVL(2, 12, 6, 10, -7), (G_GENO | 2), ...)
   {
@@ -998,6 +1036,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['sleep', 'poison'],
     conveys: ['sleep', 'poison'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("centipede", S_SPIDER, LVL(2, 4, 3, 0, 0), (G_GENO | 1), ...)
   {
@@ -1021,6 +1060,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: ['poison'],
     brain: 'nh:melee',
+    sound: 'silent',
   },
   // ref: monsters.h MON("rabid rat", S_RODENT, LVL(2, 12, 6, 0, 0), (G_GENO | 1), ...)
   {
@@ -1044,6 +1084,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['poison'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'squeak',
   },
   // The Minetown Watch: never randomly generated (G_NOGEN), made by special levels only.
   // ref: monsters.h MON(NAM("watchman"), S_HUMAN, LVL(6, 10, 10, 0, -2),
@@ -1080,6 +1121,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'soldier',
   },
   // ref: monsters.h MON(NAM("watch captain"), S_HUMAN, LVL(10, 10, 10, 15, -4),
   // (G_NOGEN | G_GENO | 1), ...)
@@ -1118,6 +1160,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: [],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'soldier',
   },
   // ref: monsters.h MON(NAMS("priest", "priestess", "aligned cleric"), S_HUMAN,
   // LVL(12, 12, 10, 50, 0), G_NOGEN, ...). Always made by priestini() with its temple's
@@ -1155,5 +1198,6 @@ export const MONSTERS: readonly MonsterDef[] = [
     resists: ['elec'],
     conveys: [],
     brain: 'nh:melee',
+    sound: 'priest',
   },
 ];

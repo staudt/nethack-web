@@ -204,6 +204,25 @@ describe('text prompt', () => {
     expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 't3', value: null });
   });
 
+  test('a numeric prompt shows a number pad and answers digits only', () => {
+    const m = mk();
+    m.ui.update(view(), [], { id: 'n1', kind: 'text', key: 'offer', maxLength: 15, numeric: true });
+    const el = input(m.root);
+    expect(el.inputMode).toBe('numeric');
+    expect(el.pattern).toBe('[0-9]*');
+    el.value = '4a0-0';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(el.value).toBe('400');
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(m.acts).toEqual([{ type: 'answer', promptId: 'n1', value: '400' }]);
+  });
+
+  test('a plain text prompt has no number pad', () => {
+    const m = mk();
+    m.ui.update(view(), [], tp);
+    expect(input(m.root).inputMode).toBe('');
+  });
+
   test('game keys do not fire while typing', () => {
     const m = mk();
     m.ui.update(view(), [], tp);

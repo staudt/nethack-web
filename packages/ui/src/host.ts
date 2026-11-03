@@ -725,6 +725,7 @@ export function createUi(opts: UiOptions): Ui {
         openTextPrompt(root, {
           title: t(p.key, p.params),
           maxLength: p.maxLength ?? 80,
+          ...(p.numeric ? { numeric: true } : {}),
           okLabel: t('ui.text.ok'),
           cancelLabel: t('ui.cancel'),
           onSubmit: (text) => answer(text)(),

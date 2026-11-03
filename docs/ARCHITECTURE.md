@@ -336,6 +336,7 @@ interface Prompt {
   options?: { value: Json; key: string; params?: Params; glyph?: DefId; max?: number }[]; // max: a count 1..max may be chosen (a stack size)
   multi?: boolean; // menus only: the answer is the array of chosen values ([] = none); an option with max may be answered as { value, count }
   maxLength?: number; // text prompts: the longest accepted answer
+  numeric?: boolean; // text prompts: a whole number (gold to donate); the UI shows a number pad and takes digits only, the answer stays a string
   cancellable?: boolean; // single-select menus and yn: Cancel and Escape answer null (NetHack's ESC)
 }
 ```
@@ -422,6 +423,7 @@ interface MonsterDef {
   resists: string[]; conveys: string[]; // mresists / mconveys, lowercased MR_ names: 'fire', 'cold', 'sleep', 'disint', 'elec', 'poison', 'acid', 'stone'
   weight: number; nutrition: number; // corpse cwt / cnutrit
   brain: DefId; // must name a registered BrainDef (checked after all mods load)
+  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | ... (MS_ names lowercased); absent = silent
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass

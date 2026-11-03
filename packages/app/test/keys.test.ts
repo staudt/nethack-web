@@ -149,6 +149,7 @@ describe.each(['vi', 'numpad'] as const)('NetHack command keys (%s)', (layout) =
     expect(press(km, 'R')).toEqual(ui('pick:nh:remove'));
     expect(press(km, 'l', { altKey: true })).toEqual(ui('pick:nh:loot'));
     expect(press(km, 'p', { altKey: true })).toEqual(ui('self:nh:pray'));
+    expect(press(km, 'c', { altKey: true })).toEqual(ui('self:nh:chat'));
     expect(press(km, 'e', { altKey: true })).toEqual(ui('self:nh:enhance'));
     expect(press(km, 'n', { altKey: true })).toEqual(ui('self:nh:call'));
     expect(press(km, 'C')).toEqual(ui('self:nh:call'));

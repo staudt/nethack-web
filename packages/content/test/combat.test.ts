@@ -320,7 +320,7 @@ describe('hero attacks', () => {
     spawn(s.state, 'nh:newt', { x: 4, y: 2 });
     s.engine.step(s.state, { type: 'wait' }); // refresh vision
     const offers = s.engine.query(s.state).actionsFor({ kind: 'cell', pos: { x: 4, y: 2 } });
-    expect(offers.map((o) => o.labelKey)).toEqual(['action.attack']);
+    expect(offers.map((o) => o.labelKey)).toEqual(['action.attack', 'action.nh:chat_with']);
     expect(offers[0]?.params).toEqual({ target: '@nh:newt' });
     expect(offers[0]?.action).toEqual({ type: 'move', dir: 'e' });
     const plain = s.engine.query(s.state).actionsFor({ kind: 'cell', pos: { x: 2, y: 2 } });
