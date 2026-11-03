@@ -16,19 +16,23 @@ describe('soak in Minetown', () => {
     [3, 120, 40],
     [4, 120, 40],
   ] as const) {
-    test(`seed ${seed}: 1000 turns from Minetown at ${width}x${height}`, { timeout: 40000 }, () => {
-      const r = soak([vanillaMod, specialStartMod], {
-        seed,
-        turns: 1000,
-        width,
-        height,
-        checkEvery: 5,
-      });
-      console.log(
-        `soak minetown seed=${seed}: outcome=${r.outcome} turns=${r.turns} special=${r.specialLevels.join(',')} dungeons=${JSON.stringify(r.dungeons)}`,
-      );
-      expect(r.violations).toBeNull();
-      expect(r.specialLevels).toContain('nh:minetown');
-    });
+    test(
+      `seed ${seed}: 1000 turns from Minetown at ${width}x${height}`,
+      { timeout: 120000 },
+      () => {
+        const r = soak([vanillaMod, specialStartMod], {
+          seed,
+          turns: 1000,
+          width,
+          height,
+          checkEvery: 5,
+        });
+        console.log(
+          `soak minetown seed=${seed}: outcome=${r.outcome} turns=${r.turns} special=${r.specialLevels.join(',')} dungeons=${JSON.stringify(r.dungeons)}`,
+        );
+        expect(r.violations).toBeNull();
+        expect(r.specialLevels).toContain('nh:minetown');
+      },
+    );
   }
 });

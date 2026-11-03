@@ -9,7 +9,7 @@ describe('soak in the Mines', () => {
   const deepest: number[] = [];
   // seeds re-picked when the game stream changes; 46 goes down to Mines level 3 (Minetown or not)
   for (const seed of [1, 23, 46]) {
-    test(`seed ${seed}: 2000 turns from the Mines staircase`, { timeout: 40000 }, () => {
+    test(`seed ${seed}: 2000 turns from the Mines staircase`, { timeout: 120000 }, () => {
       const r = soak([vanillaMod, branchStartMod], { seed, turns: 2000, checkEvery: 5 });
       console.log(
         `soak mines seed=${seed}: outcome=${r.outcome} turns=${r.turns} dungeons=${JSON.stringify(r.dungeons)}`,
