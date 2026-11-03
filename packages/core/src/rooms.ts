@@ -55,3 +55,22 @@ export function roomSomexy(rng: Rng, level: Level, index: number): Pos | null {
     for (let y = room.ly; y <= room.hy; y++) if (roomHas(level, index, x, y)) return { x, y };
   return null;
 }
+
+/**
+ * The rooms whose cells or walls hold x,y, innermost (highest index) first: a room's own floor
+ * and walls, not the inside of its subrooms, so a subroom's wall or door counts for both the
+ * subroom and its parent (NetHack's SHARED roomno). Empty outside every room.
+ * ref: src/hack.c in_rooms(x, y, 0), with `levl[x][y].roomno` from src/mklev.c topologize()
+ */
+export function inRooms(level: Level, x: number, y: number): number[] {
+  const out: number[] = [];
+  for (let i = level.rooms.length - 1; i >= 0; i--) {
+    const room = level.rooms[i];
+    if (!room || !insideRoom(room, x, y)) continue;
+    const inSub = level.rooms.some(
+      (r) => r.parent === i && x >= r.lx && x <= r.hx && y >= r.ly && y <= r.hy,
+    );
+    if (!inSub) out.push(i);
+  }
+  return out;
+}

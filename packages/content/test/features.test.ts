@@ -82,7 +82,10 @@ describe('feature terrains', () => {
     s.floor('nh:apple', { at: { level: 'dlvl1', x: 3, y: 0 } });
     s.floor('nh:dagger', { at: { level: 'dlvl1', x: 3, y: 0 } });
     const east = () => s.step({ type: 'move', dir: 'e' });
-    expect(s.text(east())).toEqual(['There is a neutral altar here.', 'You see here an apple.']);
+    expect(s.text(east())).toEqual([
+      'There is an altar to Odin (neutral) here.',
+      'You see here an apple.',
+    ]);
     expect(s.text(east())).toEqual([
       'There is a fountain here.',
       expect.stringMatching(/^There are an? .* and an? .* here\.$/),

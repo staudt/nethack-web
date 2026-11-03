@@ -120,7 +120,8 @@ const RND_ALTAR: readonly Key[] = ['altar_chaotic', 'altar_neutral', 'altar_lawf
 
 /**
  * Feature `f` on cell `i`: a fountain, sink or tree does nothing on stairs or another feature
- * (sel_set_feature()); an altar only refuses stairs (set_levltyp()). ref: src/sp_lev.c
+ * (sel_set_feature()); an altar only refuses stairs (set_levltyp()), and a `shrine` one is
+ * added to `Level.shrines`. ref: src/sp_lev.c
  * lspo_feature(), create_altar(), sp_amask_to_amask(); src/dungeon.c induced_align()
  */
 export function setFeature(b: Builder, i: number, f: FeatureDef): void {
@@ -132,4 +133,11 @@ export function setFeature(b: Builder, i: number, f: FeatureDef): void {
   if (old === 'stairs_up' || old === 'stairs_down') return;
   const align = f.align ?? 'random';
   b.put(i, align === 'random' ? (RND_ALTAR[b.rng.rn2(3)] as Key) : (ALTAR_BY_ALIGN[align] as Key));
+  // AM_SHRINE: recorded for every shrine altar; the mod that owns the temple decides what
+  // a shrine outside a temple room means (C gives it no AM_SHRINE)
+  const { level } = b;
+  const x = i % level.width;
+  const y = Math.trunc(i / level.width);
+  if (f.shrine === true && !level.shrines?.some((p) => p.x === x && p.y === y))
+    (level.shrines ??= []).push({ x, y });
 }

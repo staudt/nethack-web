@@ -1,6 +1,6 @@
 // Milestone 6b1: Minetown in the Mines. Where the layout puts it, which variant a new level
 // gets, that every variant builds a town at 80x21 and on bigger maps (stairs reachable from each
-// other, a temple with an altar, typed shops and a peaceful Watch), and that kicking a town door
+// other, a temple with a shrine altar, typed shops and a peaceful Watch), and that kicking a town door
 // on a real Minetown warns, then angers the Watch.
 import { vanillaMod } from '@nh/content';
 import {
@@ -8,6 +8,7 @@ import {
   createEngine,
   getLevel,
   getPlayer,
+  inRooms,
   inTown,
   isPlainFloor,
   mapBlock,
@@ -133,6 +134,13 @@ function isTown(state: GameState, level: Level): void {
   const temples = level.rooms.filter((r) => r.type === 'nh:temple');
   expect(temples).toHaveLength(1);
   expect(temples.every(altar)).toBe(true);
+  // its altar is the level's one shrine (6b2), inside the temple
+  expect(level.shrines).toHaveLength(1);
+  const [shrine] = level.shrines ?? [];
+  const t = temples[0];
+  if (!shrine || !t) throw new Error('no shrine');
+  expect(level.palette[level.cells[shrine.y * level.width + shrine.x] ?? -1]).toMatch(/^nh:altar_/);
+  expect(inRooms(level, shrine.x, shrine.y)).toContain(level.rooms.indexOf(t));
   // at least the candle shop is always there (no chance roll in any variant)
   expect(level.rooms.some((r) => r.type === 'nh:candle_shop')).toBe(true);
   for (const r of level.rooms) if (r.type) expect([...SHOPS, 'nh:temple']).toContain(r.type);

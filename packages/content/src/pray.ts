@@ -17,6 +17,7 @@ import {
   type Msg,
   rnl,
 } from '@nh/core';
+import { ALGN_DEVOUT, alignGname, godvoice } from './align';
 import { rnz } from './corpses';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
@@ -58,12 +59,7 @@ const TROUBLE_CONFUSED = -10;
 const TROUBLE_HALLUCINATION = -11;
 
 /** ref: src/pray.c piety thresholds (PIOUS only matters for crowning, which does not exist) */
-const DEVOUT = 14;
 const STRIDENT = 4;
-
-/** The god of an alignment, for the Valkyrie. ref: src/role.c roles[] "Tyr", "Odin", "Loki" */
-const godOf = (align: number): string =>
-  align > 0 ? '@god.tyr' : align < 0 ? '@god.loki' : '@god.odin';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -233,16 +229,6 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
   }
 }
 
-/** "The voice of Odin booms out: ..." ref: src/pray.c godvoice() */
-function godvoice(ctx: Ctx, align: number, words: string | null): void {
-  const how = ['booms_out', 'thunders', 'rings_out', 'booms'][ctx.rng.rn2(4)] ?? 'booms';
-  say(ctx, words ? 'pray.voice_says' : 'pray.voice', {
-    god: godOf(align),
-    how: `@pray.how.${how}`,
-    ...(words ? { words: `@${words}` } : {}),
-  });
-}
-
 /** ref: src/sit.c attrcurse(): takes away one intrinsic, starting at a random one */
 function attrcurse(ctx: Ctx): boolean {
   const h = hero(ctx);
@@ -303,7 +289,7 @@ function godZapsYou(ctx: Ctx, align: number): void {
     fryByGod(ctx, align, false);
     return;
   }
-  say(ctx, 'pray.not_deterred', { god: godOf(align) });
+  say(ctx, 'pray.not_deterred', { god: alignGname(align) });
   say(ctx, 'pray.disint_beam');
   fryByGod(ctx, align, true);
 }
@@ -322,7 +308,7 @@ function angrygods(ctx: Ctx, respGod: number): void {
     case 0:
     case 1:
       say(ctx, 'pray.feel_god', {
-        god: godOf(respGod),
+        god: alignGname(respGod),
         mood: halluc(ctx) ? '@pray.mood.bummed' : '@pray.mood.displeased',
       });
       break;
@@ -371,7 +357,7 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   const record0 = uState(ctx.state).alignRecord;
   const h = halluc(ctx);
   const mood =
-    record0 >= DEVOUT
+    record0 >= ALGN_DEVOUT
       ? h
         ? 'pleased_as_punch'
         : 'well_pleased'
@@ -382,12 +368,12 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
         : h
           ? 'full'
           : 'satisfied';
-  say(ctx, 'pray.feel_god', { god: godOf(gAlign), mood: `@pray.mood.${mood}` });
+  say(ctx, 'pray.feel_god', { god: alignGname(gAlign), mood: `@pray.mood.${mood}` });
   if (record0 < 2 && trouble <= 0) adjalign(ctx, 1);
 
   let patOnHead = false;
   const record = uState(ctx.state).alignRecord;
-  if (!trouble && record >= DEVOUT) {
+  if (!trouble && record >= ALGN_DEVOUT) {
     if (pTrouble === 0) patOnHead = true;
   } else {
     const prayerLuck = Math.max(luckOf(ctx.state), -1);
@@ -470,7 +456,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
     }
     case 4: {
       say(ctx, blind ? 'pray.feel_power' : 'pray.blue_aura', {
-        god: godOf(gAlign),
+        god: alignGname(gAlign),
         color: hcolor(ctx, 'light_blue'),
       });
       for (const o of inventoryOf(ctx.state, ctx.state.playerId))
@@ -567,7 +553,7 @@ const pray: ActionDef = {
   answer(ctx, value) {
     if (value !== true) return 0; // declined: no time passes
     const data = canPray(ctx);
-    say(ctx, 'pray.begin', { god: godOf(data.pAlign) });
+    say(ctx, 'pray.begin', { god: alignGname(data.pAlign) });
     // nomul(-3), "praying", "You finish your prayer.", then prayer_done()
     const extra = nomul(ctx, 3, 'helpless.praying', { key: 'pray.finish' });
     ctx.schedule(4, PRAYER_DONE, data as unknown as Json);

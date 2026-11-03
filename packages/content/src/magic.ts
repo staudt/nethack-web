@@ -1,11 +1,10 @@
 // Shared helpers for quaffing, reading and throwing: using up objects and the "strange feeling" fallback.
 // ref: src/invent.c useup(), src/potion.c strange_feeling(), src/hack.c check_capacity()
-import type { Ctx, Entity, EntityId, Msg, Params } from '@nh/core';
+import type { Ctx, Entity, EntityId, Params } from '@nh/core';
 import { getPlayer } from '@nh/core';
 import { encumberMsg } from './itemactions';
 import { nhData, removeFromInventory } from './items';
 import { nearCapacity } from './stats';
-import { P, hasProp } from './props';
 
 export const heroEntity = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
 
@@ -71,18 +70,4 @@ export function strangeFeeling(
   if (item !== null) useup(ctx, item);
 }
 
-export type ColorName = 'blue' | 'black' | 'silver' | 'amber' | 'golden' | 'purple' | 'light_blue';
-
-/** A color name message (not hallucinating). */
-export const color = (name: ColorName): Msg => ({
-  key: `color.${name}`,
-});
-
-/** ref: src/hack.c hcolors[]: the colors a hallucinating hero sees (a subset) */
-const HCOLORS = ['ultraviolet', 'infrared', 'bluish_orange', 'reddish_green', 'dark_white'];
-
-/** A color as the hero sees it: a random one while hallucinating. ref: src/hack.c hcolor() */
-export function hcolor(ctx: Pick<Ctx, 'state' | 'cosmetic'>, name: ColorName): Msg {
-  if (!hasProp(getPlayer(ctx.state), P.HALLUC)) return color(name);
-  return { key: `color.${HCOLORS[ctx.cosmetic.rn2(HCOLORS.length)] ?? 'ultraviolet'}` };
-}
+export { color, hcolor, type ColorName } from './hcolor';

@@ -34,6 +34,7 @@ import {
   weight,
 } from './items';
 import { T } from './terrain';
+import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
@@ -136,27 +137,22 @@ const weaponKind = (def: ObjectDef): Msg => ({
 // ---------------------------------------------------------------------------------------------
 // looking at the floor
 
-const FEATURES: ReadonlySet<DefId> = new Set([
-  T.fountain,
-  T.sink,
-  T.tree,
-  T.altar_lawful,
-  T.altar_neutral,
-  T.altar_chaotic,
-  T.altar_unaligned,
-]);
+const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.sink, T.tree]);
 
 /**
- * The dungeon feature worth mentioning at x,y as a name key (the terrain id), or null: doors and
- * doorways, stairs, fountains, sinks, altars and trees. ref: src/invent.c dfeature_at(); an
- * altar is "neutral altar" rather than "altar to <god> (neutral)" (no gods yet, DEVIATIONS.md)
+ * The dungeon feature worth mentioning at x,y as a message param, or null: doors and doorways,
+ * stairs, fountains, sinks and trees by their terrain name, and an altar as "altar to Odin
+ * (neutral)". ref: src/invent.c dfeature_at() (no high altars)
  */
-export function dfeatureAt(ctx: Ctx, x: number, y: number): DefId | null {
+export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null {
   const level = getLevel(ctx.state);
   const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
   if (id === undefined) return null;
+  const align = altarAlign(id);
+  if (align !== null)
+    return { key: 'look.altar', params: { god: alignGname(align), align: alignStr(align) } };
   const t = ctx.defs.terrain(id);
-  return t.door !== undefined || t.stairs !== undefined || FEATURES.has(id) ? id : null;
+  return t.door !== undefined || t.stairs !== undefined || FEATURES.has(id) ? `@${id}` : null;
 }
 
 /**
@@ -174,8 +170,7 @@ export function lookHere(ctx: Ctx): void {
   if (ct === 0) return;
   ctx.interrupt();
   const feature = dfeatureAt(ctx, pos.x, pos.y);
-  if (feature !== null)
-    ctx.emit({ type: 'msg', key: 'look.feature', params: { feature: `@${feature}` } });
+  if (feature !== null) ctx.emit({ type: 'msg', key: 'look.feature', params: { feature } });
   if (ct >= 5) {
     ctx.emit({ type: 'msg', key: ct < 10 ? 'look.several' : 'look.many' });
   } else if (ct === 1) {
@@ -472,7 +467,10 @@ function weldMsg(ctx: Ctx, e: Entity): void {
   });
 }
 
-/** Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(). Returns whether it was dropped. */
+/**
+ * Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(), doaltarobj(). Returns
+ * whether it was dropped.
+ */
 function dropItem(ctx: Ctx, e: Entity): boolean {
   const it = e.c.item;
   const pos = hero(ctx).c.pos;
@@ -489,12 +487,16 @@ function dropItem(ctx: Ctx, e: Entity): boolean {
   }
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)
   if (swapWep(ctx)?.id === e.id) setSwapWep(ctx, null); // setuswapwep(NULL), before the message
-  ctx.emit({
-    type: 'msg',
-    key: 'drop.you_drop',
-    params: { item: ctx.defs.itemName(ctx.state, e) },
-  });
+  // drop(): no "You drop" on an altar; dropx(): doaltarobj() names it instead and sets bknown
+  const altar = aAlign(ctx, pos.x, pos.y) !== null;
+  if (!altar)
+    ctx.emit({
+      type: 'msg',
+      key: 'drop.you_drop',
+      params: { item: ctx.defs.itemName(ctx.state, e) },
+    });
   removeFromInventory(ctx, e.id);
+  if (altar) doaltarobj(ctx, e);
   placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
   return true;
 }

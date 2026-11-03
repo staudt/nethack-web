@@ -168,6 +168,25 @@ export {
   wornIn,
 } from './props';
 export { poisoned, adjattrib } from './attrib';
+export {
+  A_NONE,
+  A_CHAOTIC,
+  A_NEUTRAL,
+  A_LAWFUL,
+  ALGN_SINNED,
+  ALGN_DEVOUT,
+  aAlign,
+  alignGname,
+  alignStr,
+  altarAlign,
+  altarWrath,
+  doaltarobj,
+  godvoice,
+  monFloorEffects,
+  onAltar,
+  onShrine,
+  type Aligntyp,
+} from './align';
 export { mdamageu, hitmuAd, magicNegation } from './mhitu';
 export { passive } from './uhitm_passive';
 export { ustuck, setUstuck } from './hackmove';

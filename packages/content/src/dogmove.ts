@@ -244,7 +244,7 @@ function dogInvent(ctx: Ctx, mon: Entity, e: Edog, udist: number): 0 | 1 | 2 {
   if (droppables(ctx, mon.id).length > 0) {
     if (ctx.rng.rn2(udist + 1) === 0 || ctx.rng.rn2(e.apport) === 0)
       if (ctx.rng.rn2(10) < e.apport) {
-        relobj(ctx, mon.id);
+        relobj(ctx, mon.id, undefined, true);
         if (e.apport > 1) e.apport--;
         e.dropdist = udist;
         e.droptime = ctx.state.turn;

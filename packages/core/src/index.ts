@@ -61,4 +61,4 @@ export {
 } from './objects';
 export { heroBlind, heroLights, senses, shownAs } from './perception';
 export { isPlainFloor, trapAt } from './traps';
-export { inTown, insideRoom, roomHas, roomSomexy } from './rooms';
+export { inRooms, inTown, insideRoom, roomHas, roomSomexy } from './rooms';

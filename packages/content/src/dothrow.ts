@@ -24,6 +24,7 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { getdirImpaired } from './hackmove';
+import { aAlign, doaltarobj } from './align';
 import { ACCFOOD, dogfood, hurtPet, isDomestic, isTame, tamedog } from './dog';
 import { wakeup } from './peaceful';
 import { dogEat } from './dogmove';
@@ -300,10 +301,13 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   }
 
   if (dz) {
-    // ref: src/dothrow.c hitfloor(): "It hits the floor." then it lands at the hero's feet
-    msg(ctx, `throw.floor${it.quantity !== 1 ? '_pl' : ''}`, {
-      item: ctx.defs.itemName(ctx.state, obj),
-    });
+    // ref: src/dothrow.c hitfloor(): "It hits the floor." (on an altar doaltarobj() instead)
+    // then it lands at the hero's feet
+    if (aAlign(ctx, pos.x, pos.y) !== null) doaltarobj(ctx, obj);
+    else
+      msg(ctx, `throw.floor${it.quantity !== 1 ? '_pl' : ''}`, {
+        item: ctx.defs.itemName(ctx.state, obj),
+      });
     placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
     return;
   }

@@ -79,7 +79,7 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   if (!mon?.c.monster) return;
   const def = ctx.defs.monster(mon.def);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
-  relobj(ctx, id, at);
+  relobj(ctx, id, at, true); // called only while monsters move
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);

@@ -11,6 +11,7 @@ import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
+import { alignMessagesEn } from './align.en';
 import { erodeMessagesEn } from './erode.en';
 import { trapMessagesEn } from './trap.en';
 import { jewelryMessagesEn } from './jewelry.en';
@@ -35,6 +36,7 @@ export const messagesEn: Record<string, string> = {
   ...mhitmMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
+  ...alignMessagesEn,
   ...erodeMessagesEn,
   ...trapMessagesEn,
   ...jewelryMessagesEn,

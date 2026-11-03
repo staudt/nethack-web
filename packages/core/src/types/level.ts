@@ -76,6 +76,12 @@ export interface Level {
   def?: DefId;
   /** A town level (ref: sp_lev.c level flag "town", level.flags.has_town); see `inTown`. */
   town?: true;
+  /**
+   * Altars that are shrines, in placement order (ref: rm.h AM_SHRINE in `altarmask`; sp_lev.c
+   * create_altar()). Kept on the level, not on a priest, because a shrine outlives its priest.
+   * Absent when there are none.
+   */
+  shrines?: Pos[];
   /** Sorted by cell index; only on plain floor. Change through `ctx.placeTrap` / `removeTrap`. */
   traps: Trap[];
 }

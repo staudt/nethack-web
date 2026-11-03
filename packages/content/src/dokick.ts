@@ -4,7 +4,7 @@
 //
 // The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not
 // levitating, not riding, not swimming. Those branches are not ported. Also not ported: traps, boxes
-// and chests, boulders, shops, thrones, altars, fountains, graves, trees, sinks,
+// and chests, boulders, shops, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import {
@@ -38,6 +38,7 @@ import {
   type TerrainDef,
 } from '@nh/core';
 import { setTerrain } from './actions';
+import { aAlign, altarWrath } from './align';
 import { monsterIdAt } from './combat';
 import { getdirImpaired } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
@@ -156,7 +157,7 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
 
 /**
  * ref: src/dokick.c kick_nondoor(): secret doors and corridors open up with `rn2(30) < avrg`
- * ("Crash!"), walls and rock hurt, the up stairs hurt and the down stairs are "dumb", and
+ * ("Crash!"), an altar angers its god (altar_wrath()), walls and rock hurt, the up stairs hurt and the down stairs are "dumb", and
  * anything else is empty space.
  */
 function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
@@ -179,6 +180,14 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
       say(ctx, 'kick.kicks_open_passage');
       setTerrain(level, x, y, T.corr);
     } else kickOuch(ctx, x, y, 'rock');
+    return;
+  }
+  if (aAlign(ctx, x, y) !== null) {
+    // ref: kick_nondoor() IS_ALTAR: "You kick the altar.", altar_wrath(), 1 in 3 it hurts
+    // (the Dex exercise otherwise is not ported)
+    say(ctx, hasProp(hero(ctx), P.BLINDED) ? 'kick.something' : 'kick.altar');
+    altarWrath(ctx, x, y);
+    if (ctx.rng.rn2(3) === 0) kickOuch(ctx, x, y, 'altar');
     return;
   }
   const t = terrainAt(ctx, x, y);

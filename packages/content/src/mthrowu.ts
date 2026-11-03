@@ -19,6 +19,7 @@ import {
   rnl,
 } from '@nh/core';
 import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
+import { monFloorEffects } from './align';
 import { stopOccupation } from './eat';
 import { mdamageu } from './mhitu';
 import { addToInventory, placeOnFloor, removeFromInventory, splitStack } from './items';
@@ -160,7 +161,10 @@ function dropThrow(ctx: Ctx, objId: EntityId, ohit: boolean, level: string, x: n
   const obj = ctx.state.entities[String(objId)];
   if (!obj?.c.item) return;
   if (ohit && shouldMulchMissile(ctx, obj, true)) ctx.remove(objId);
-  else placeOnFloor(ctx, objId, level, x, y);
+  else {
+    monFloorEffects(ctx, obj, { level, x, y }); // flooreffects(): an altar in sight
+    placeOnFloor(ctx, objId, level, x, y);
+  }
 }
 
 /**

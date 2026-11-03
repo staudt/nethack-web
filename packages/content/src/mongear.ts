@@ -7,6 +7,7 @@ import {
   inventoryOf,
   isVisible,
   itemsAt,
+  type Ctx,
   type DefId,
   type Entity,
   type EntityId,
@@ -26,6 +27,7 @@ import {
   type ItemCtx,
 } from './items';
 import { doname, xnameOf } from './objnam';
+import { monFloorEffects } from './align';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
@@ -711,15 +713,19 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
 
 /**
  * Drops everything the monster carries onto the floor where it is (or `at`), newest item
- * first, so the oldest ends on top. ref: src/steal.c relobj() / mdrop_obj()
+ * first, so the oldest ends on top. `monMoving` (svc.context.mon_moving: a drop during the
+ * monsters' turn) shows the drops on an altar the hero sees. ref: src/steal.c relobj() /
+ * mdrop_obj() -> src/do.c flooreffects()
  */
 export function relobj(
-  ctx: GearCtx,
+  ctx: Ctx,
   monId: EntityId,
   at?: { level: string; x: number; y: number },
+  monMoving = false,
 ): void {
   const pos = at ?? ctx.state.entities[String(monId)]?.c.pos;
   for (const o of minvent(ctx, monId)) {
+    if (pos && monMoving) monFloorEffects(ctx, o, pos);
     if (pos) placeOnFloor(ctx, o.id, pos.level, pos.x, pos.y);
     else {
       removeFromInventory(ctx, o.id);
