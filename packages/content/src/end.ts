@@ -1,6 +1,7 @@
 // Ending the game, and the amulet of life saving that can stop it. ref: src/end.c done(), savelife()
 //
-// Every death of the hero goes through `done()`, so a worn amulet of life saving can intercept it.
+// Every death of the hero goes through `done()`, so a worn amulet of life saving can intercept
+// it, and so can a mod's `beforeGameOver` hook (wizard mode).
 // Not ported: the high-score "while attempting to cheat Death" reason (no score list), expelling
 // from an engulfer (no engulfing), lava traps, polymorph, Unchanging.
 import { getPlayer, inventoryOf, type Ctx, type Msg } from '@nh/core';
@@ -19,9 +20,11 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
- * The hero dies of `killer` (a death reason key), unless her amulet of life saving saves her;
- * check `ctx.state.gameOver` afterwards. ref: src/end.c done(): `if (Lifesaved && how <=
- * GENOCIDED)` ("But wait..."), else the game ends.
+ * The hero dies of `killer` (a death reason key), unless her amulet of life saving saves her
+ * or a `beforeGameOver` hook (wizard mode's "Die?") keeps the game going; check
+ * `ctx.state.gameOver` afterwards. ref: src/end.c done(): `if (Lifesaved && how <=
+ * GENOCIDED)` ("But wait..."), then `(wizard || discover) && !paranoid_query("Die?")`, both
+ * ending in savelife(how), else the game ends.
  */
 export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
   const hero = getPlayer(ctx.state);
@@ -53,6 +56,8 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
     depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
     level: hero.c.experience?.level ?? 1,
   });
+  // a mod kept the game going: the hero lives on, as after "OK, so you don't die."
+  if (ctx.state.gameOver === null) savelife(ctx, how);
 }
 
 /** ref: src/end.c savelife() */

@@ -1,4 +1,5 @@
-// Wizard mode: the wizard mod, wiz:map, wiz:where, wiz:levelport, wiz:wish and wiz:identify.
+// Wizard mode: the wizard mod, wiz:map, wiz:where, wiz:levelport, wiz:wish, wiz:identify,
+// wiz:genesis and "Die?".
 import {
   applyUpdate,
   buildSnapshot,
@@ -10,6 +11,7 @@ import {
   isPlainFloor,
   itemsAt,
   stateHash,
+  type Ctx,
   type DefId,
   type GameEvent,
   type GameState,
@@ -23,10 +25,13 @@ import {
   T,
   WIZ_LEVELPORT,
   WIZ_MAP,
+  WIZ_DIE,
+  WIZ_GENESIS,
   WIZ_IDENTIFY,
   WIZ_WHERE,
   WIZ_WISH,
   addToInventory,
+  makemon,
   messagesEn,
   mksobj,
   vanillaMod,
@@ -57,6 +62,7 @@ describe('the wizard mod', () => {
       WIZ_LEVELPORT,
       WIZ_WISH,
       WIZ_IDENTIFY,
+      WIZ_GENESIS,
     ]);
   });
 
@@ -98,6 +104,16 @@ describe('the wizard mod', () => {
       'wish.enough_tries',
       'wish.oops',
       'wish.oops.plural',
+      'action.wiz:genesis',
+      'action.wiz:die',
+      'wiz.genesis.prompt',
+      'wiz.genesis.prompt_help',
+      'wiz.genesis.never_heard',
+      'wiz.genesis.try_again',
+      'wiz.genesis.appears',
+      'wiz.die.prompt',
+      'wiz.die.ok',
+      'wiz.die.ok_choke',
     ])
       expect(messagesEn[k]).toBeDefined();
   });
@@ -448,5 +464,187 @@ describe('wiz:wish and wiz:identify', () => {
     wish(state, null);
     expect(items(state)).toBe(n + 1);
     expect(state.pendingPrompt).toBeNull();
+  });
+});
+
+/** A wizard game after one step (a first step lazily adds some vanilla state), no random spawns. */
+const warmGame = (seed: number): GameState => {
+  const { state } = wizard.newGame({ seed });
+  const nh = (state.modData['nh'] ??= {}) as Record<string, unknown>;
+  nh['debugMongen'] = true;
+  wizard.step(state, { type: 'mod', action: WIZ_WHERE as DefId });
+  return state;
+};
+const answerPrompt = (state: GameState, value: Json): GameEvent[] =>
+  wizard.step(state, { type: 'answer', promptId: state.pendingPrompt?.prompt.id ?? '', value })
+    .events;
+const monsters = (state: GameState) =>
+  Object.values(state.entities)
+    .filter((e) => e.c.monster !== undefined && e.c.pos?.level === state.currentLevel)
+    .sort((a, b) => a.id - b.id);
+
+describe('wiz:genesis', () => {
+  const GENESIS: PlayerAction = { type: 'mod', action: WIZ_GENESIS as DefId };
+  const genesis = (state: GameState, text: Json): GameEvent[] => {
+    wizard.step(state, GENESIS);
+    return answerPrompt(state, text);
+  };
+  const created = (state: GameState, before: Set<number>) =>
+    monsters(state).filter((e) => !before.has(e.id));
+  const ids = (state: GameState) => new Set(monsters(state).map((e) => e.id));
+  const adjacent = (state: GameState, id: number): boolean => {
+    const h = getPlayer(state).c.pos!;
+    const p = state.entities[String(id)]?.c.pos;
+    return !!p && Math.max(Math.abs(p.x - h.x), Math.abs(p.y - h.y)) === 1;
+  };
+
+  test('a text prompt; the named monster appears next to the hero, taking no time', () => {
+    const state = warmGame(21);
+    const turn = state.turn;
+    wizard.step(state, GENESIS);
+    const p = state.pendingPrompt?.prompt;
+    expect([p?.kind, p?.key, p?.maxLength]).toEqual(['text', 'wiz.genesis.prompt', 255]);
+    const before = ids(state);
+    const events = answerPrompt(state, 'newt');
+    const got = created(state, before);
+    expect(got.map((e) => e.def)).toEqual(['nh:newt']);
+    expect(adjacent(state, got[0]!.id)).toBe(true);
+    const appears = msgs(events).find((m) => m.key === 'wiz.genesis.appears');
+    expect(appears && render(appears)).toBe('A newt appears.');
+    expect(state.turn).toBe(turn);
+    expect(state.pendingPrompt).toBeNull();
+  });
+
+  test('a count, a disposition and "sleeping"', () => {
+    const state = warmGame(22);
+    let before = ids(state);
+    genesis(state, '3 tame jackals');
+    let got = created(state, before);
+    expect(got.map((e) => e.def)).toEqual(['nh:jackal', 'nh:jackal', 'nh:jackal']);
+    expect(got.every((e) => (e.c.monster?.tame ?? 0) > 0 && e.c.monster?.peaceful)).toBe(true);
+
+    before = ids(state);
+    genesis(state, 'sleeping peaceful newt');
+    got = created(state, before);
+    expect(got.map((e) => [e.def, e.c.monster?.peaceful, e.c.monster?.asleep])).toEqual([
+      ['nh:newt', true, true],
+    ]);
+
+    before = ids(state);
+    genesis(state, 'hostile jackal');
+    got = created(state, before);
+    expect(got.map((e) => [e.def, e.c.monster?.peaceful, e.c.monster?.tame])).toEqual([
+      ['nh:jackal', false, undefined],
+    ]);
+  });
+
+  test('a class symbol makes a monster of that class; * a random one', () => {
+    const state = warmGame(23);
+    let before = ids(state);
+    genesis(state, 'd');
+    let got = created(state, before);
+    expect(got).toHaveLength(1);
+    expect(wizard.registry.monster(got[0]!.def).glyph.ch).toBe('d');
+    expect(adjacent(state, got[0]!.id)).toBe(true);
+    before = ids(state);
+    genesis(state, '*');
+    got = created(state, before);
+    expect(got).toHaveLength(1);
+  });
+
+  test('unknown names ask again (an empty first answer gets a hint); 5 tries, then nothing', () => {
+    const state = warmGame(24);
+    const before = ids(state);
+    wizard.step(state, GENESIS);
+    const keys = (ev: GameEvent[]): string[] => msgs(ev).map((m) => m.key);
+    expect(keys(answerPrompt(state, ''))).toEqual(['wiz.genesis.try_again']);
+    expect(state.pendingPrompt?.prompt.key).toBe('wiz.genesis.prompt_help');
+    expect(keys(answerPrompt(state, ''))).toEqual(['wiz.genesis.never_heard']);
+    for (let i = 0; i < 2; i++)
+      expect(keys(answerPrompt(state, 'xyzzy'))).toEqual(['wiz.genesis.never_heard']);
+    expect(keys(answerPrompt(state, 'xyzzy'))).toEqual([
+      'wiz.genesis.never_heard',
+      'wish.enough_tries',
+    ]);
+    expect(state.pendingPrompt).toBeNull();
+    expect(created(state, before)).toEqual([]);
+  });
+
+  test('Escape creates nothing and changes nothing', () => {
+    const state = warmGame(25);
+    const hash = stateHash(state);
+    expect(msgs(genesis(state, null))).toEqual([]);
+    expect(state.pendingPrompt).toBeNull();
+    expect(stateHash(state)).toBe(hash);
+  });
+});
+
+describe('"Die?"', () => {
+  /** A 1 HP hero next to a hostile jackal: waits until she dies and "Die?" is asked. */
+  const dying = (seed: number): { state: GameState; events: GameEvent[]; jackal: number } => {
+    const state = warmGame(seed);
+    getPlayer(state).c.hp!.cur = 1;
+    // the jackal goes next to her via makemon's enexto(), like genesis
+    wizard.step(state, { type: 'mod', action: WIZ_GENESIS as DefId });
+    answerPrompt(state, 'hostile jackal');
+    const jackal = monsters(state).find((e) => e.def === 'nh:jackal')!;
+    expect(jackal).toBeDefined();
+    const events: GameEvent[] = [];
+    for (let i = 0; i < 200 && !state.pendingPrompt; i++)
+      events.push(...wizard.step(state, { type: 'wait' }).events);
+    expect(state.pendingPrompt?.prompt).toMatchObject({
+      id: 'die',
+      kind: 'yn',
+      key: 'wiz.die.prompt',
+    });
+    expect(state.pendingPrompt?.handler).toBe(WIZ_DIE);
+    // pin the jackal so nothing else happens to her
+    jackal.c.actor!.speed = 0;
+    jackal.c.actor!.energy = 0;
+    jackal.c.monster!.asleep = true;
+    return { state, events, jackal: jackal.id };
+  };
+
+  test('dying asks "Die?"; no: "OK, so you don\'t die." and she lives on with full HP', () => {
+    const { state, events } = dying(31);
+    expect(msgs(events).map((m) => m.key)).toContain('combat.you_die');
+    expect(state.gameOver).toBeNull();
+    const after = answerPrompt(state, false);
+    expect(msgs(after).map((m) => m.key)).toContain('wiz.die.ok');
+    expect(state.gameOver).toBeNull();
+    expect(state.pendingPrompt).toBeNull();
+    const hp = getPlayer(state).c.hp!;
+    expect(hp.cur).toBe(hp.max);
+    // and the game goes on
+    wizard.step(state, { type: 'wait' });
+    expect(state.gameOver).toBeNull();
+  });
+
+  test('yes: the game ends with that death', () => {
+    const { state } = dying(32);
+    answerPrompt(state, true);
+    expect(state.gameOver).toMatchObject({ kind: 'died', killer: '@nh:jackal' });
+  });
+
+  test('a normal game just ends', () => {
+    const { state } = normal.newGame({ seed: 33 });
+    normal.step(state, { type: 'wait' });
+    getPlayer(state).c.hp!.cur = 1;
+    const at = getPlayer(state).c.pos!;
+    const jackal = makemon(
+      ctxFor(state) as unknown as Ctx,
+      normal.registry.monster('nh:jackal'),
+      at,
+      {
+        adjacentOk: true,
+        angry: true,
+      },
+    );
+    expect(jackal).not.toBeNull();
+    for (let i = 0; i < 200 && !state.gameOver; i++) {
+      normal.step(state, { type: 'wait' });
+      expect(state.pendingPrompt).toBeNull();
+    }
+    expect(state.gameOver).toMatchObject({ kind: 'died', killer: '@nh:jackal' });
   });
 });

@@ -381,6 +381,7 @@ interface Hooks {
   newGame(ctx: Ctx, hero: EntityId): void; // once, before the first level exists
   newLevel(ctx: Ctx, level: Level): void; // when a level is first generated
   levelChange(ctx: Ctx, c: { from: LevelId | null; fromPos: Pos | null; to: LevelId }): void; // the hero arrived: at new game (from null, after placement) and after goToLevel (pets follow here)
+  beforeGameOver(ctx: Ctx, over: GameOver): 'continue' | 'cancel'; // in ctx.endGame(), before the game ends; 'cancel' keeps it going (wizard mode's "Die?")
 }
 
 interface TimerDef {
@@ -403,7 +404,7 @@ interface Ctx {
   removeTrap(level: LevelId, pos: Pos): void;
   ask(prompt: Prompt, handler: DefId, data: Json): void;
   interrupt(): void; // stop a multi-turn action
-  endGame(over: GameOver): void;
+  endGame(over: GameOver): void; // runs the beforeGameOver hooks first; the caller checks state.gameOver afterwards
 }
 ```
 
@@ -419,6 +420,8 @@ Inside `offer()` and queries, every mutating `Ctx` member throws, and so do `rng
   - malformed fields
 - **Vanilla gets no special access.** `@nh/content` exports `vanillaMod` (id `nh`), which registers terrain, the stub role, monsters, their brain, actions and its hooks (hero stats, regeneration, generation) through `ModApi`.
 - Game mods are recorded in saves as `ModRef[]`. Loading a save with a different mod list fails with a clear error.
+- **Wizard mode is an ordinary game mod.** `@nh/content` also exports `wizardMod` (id `wiz`, depends on `nh`, def ids `wiz:*`, code in `packages/content/src/wizard/`), NetHack's `-D` debug mode. It is not part of `vanillaMod`: the app loads `[vanillaMod, wizardMod]` for `?wizard=1`, and the save's mod list (`nh@…, wiz@…`) keeps a wizard game a wizard game (see Worker protocol). It registers only through `ModApi`: actions offered on `{ kind: 'self' }` (`wiz:map`, `wiz:where`, `wiz:levelport`, `wiz:wish`, `wiz:identify`, `wiz:genesis`), the `wiz:die` prompt handler and a `beforeGameOver` hook. Loading it draws no random numbers, so a seed builds the same game with or without it. "Die?": content's `done()` calls `ctx.endGame()`; the hook asks a yn prompt and cancels for deaths (not escapes); `done()` then sees the game still going and runs `savelife()`, as after life saving, and the engine's prompt pause stops time until the answer, which either ends the game with the recorded `GameOver` or says "OK, so you don't die." The hook is the one core interface the mod needed: a death happens deep inside a monster's move, and nothing else lets another mod stop the game from ending. A future score list must skip games whose mod list includes `wiz` (ROADMAP).
+- **Typed names go through the message catalog.** The wish parser (`content/src/objnam_read.ts readobjnam()`) and genesis (`nameToMon()`) match what the player types against names built from the English catalog (`wishNames(state, defs, messagesEn)`): object names stripped to NetHack's `objects[]` form ("potion of healing" -> "healing"), this game's appearances, fixed descriptions, called names and monster names. The parser returns a plain `WishSpec`; making the object (`wish.ts mkWished()`, which draws the RNG) is separate, so a later wand of wishing reuses both. A different-language client would need its own catalog passed in.
 
 ## Queries
 

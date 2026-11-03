@@ -41,3 +41,10 @@ From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-chec
 - **Either/or content entries** in `LevelDef` (minefill's `percent(50) and "h" or "G"`), and a first solidfill pass before a cave init.
 - **Hero races:** the Mines' inhabitants peaceful to gnome and dwarf heroes.
 - **Minetown** is milestone 6b; Mines' End is not planned yet.
+
+From wizard mode (`docs/kickoff-wiz.md`; done, phone check pending):
+
+- **Score list rule:** a future high-score list must skip every game whose mod list includes `wiz` (ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
+- **Wishing for terrain and traps** (`fountain`, `trap door`), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
+- **Genesis extras:** a command count, "saddled", "invisible", "hidden", genders, class descriptions ("dragon"), special-monster forcing.
+- **Other `#wiz*` commands:** #wizpolymorph, #wizdetect, #wizlevelchange, #wizintrinsic, #wizsmell, #wizcast, #wizkill and the rest; explore mode (`-X`); debug panels in the UI.

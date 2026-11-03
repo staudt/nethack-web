@@ -1,4 +1,6 @@
 import type { Mod } from '@nh/core';
+import { wizBeforeGameOver, wizDie } from './die';
+import { wizGenesis } from './genesis';
 import { wizIdentify } from './identify';
 import { wizLevelport } from './levelport';
 import { wizMap } from './map';
@@ -20,6 +22,9 @@ export const wizardMod: Mod = {
     api.defineAction(wizLevelport);
     api.defineAction(wizWish);
     api.defineAction(wizIdentify);
+    api.defineAction(wizGenesis);
+    api.defineAction(wizDie);
+    api.on('beforeGameOver', wizBeforeGameOver);
   },
 };
 
@@ -28,3 +33,11 @@ export { WIZ_MAP, doMapping } from './map';
 export { WIZ_WHERE, printDungeon } from './where';
 export { WIZ_IDENTIFY, wizIdentify } from './identify';
 export { WIZ_WISH, wizWish } from './wish';
+export {
+  WIZ_GENESIS,
+  createParticular,
+  parseGenesis,
+  wizGenesis,
+  type GenesisSpec,
+} from './genesis';
+export { WIZ_DIE, wizBeforeGameOver, wizDie } from './die';
