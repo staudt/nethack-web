@@ -1,4 +1,4 @@
-// Wizard mode: the wizard mod, wiz:map, wiz:where and wiz:levelport.
+// Wizard mode: the wizard mod, wiz:map, wiz:where, wiz:levelport, wiz:wish and wiz:identify.
 import {
   applyUpdate,
   buildSnapshot,
@@ -6,7 +6,9 @@ import {
   diffSnapshot,
   getLevel,
   getPlayer,
+  inventoryOf,
   isPlainFloor,
+  itemsAt,
   stateHash,
   type DefId,
   type GameEvent,
@@ -21,11 +23,16 @@ import {
   T,
   WIZ_LEVELPORT,
   WIZ_MAP,
+  WIZ_IDENTIFY,
   WIZ_WHERE,
+  WIZ_WISH,
+  addToInventory,
   messagesEn,
+  mksobj,
   vanillaMod,
   wizardMod,
 } from '../src/index';
+import { ctxFor, itemOf, render } from './itemHelpers';
 
 const normal = createEngine([vanillaMod]);
 const wizard = createEngine([vanillaMod, wizardMod]);
@@ -48,6 +55,8 @@ describe('the wizard mod', () => {
       WIZ_MAP,
       WIZ_WHERE,
       WIZ_LEVELPORT,
+      WIZ_WISH,
+      WIZ_IDENTIFY,
     ]);
   });
 
@@ -82,6 +91,13 @@ describe('the wizard mod', () => {
       'wiz.levelport.level',
       'wiz.levelport.here',
       'wiz.levelport.arrive',
+      'action.wiz:wish',
+      'action.wiz:identify',
+      'wish.prompt',
+      'wish.nothing_fitting',
+      'wish.enough_tries',
+      'wish.oops',
+      'wish.oops.plural',
     ])
       expect(messagesEn[k]).toBeDefined();
   });
@@ -291,5 +307,146 @@ describe('wiz:levelport', () => {
 
     expect(msgs(levelport(state, 'nh:main', 1))).toEqual([]);
     expect(stateHash(state)).toBe(hash);
+  });
+});
+
+describe('wiz:wish and wiz:identify', () => {
+  const WISH: PlayerAction = { type: 'mod', action: WIZ_WISH as DefId };
+  const IDENTIFY: PlayerAction = { type: 'mod', action: WIZ_IDENTIFY as DefId };
+  /** A wizard game after one step (a first step lazily adds some vanilla state). */
+  const game = (seed: number): GameState => {
+    const { state } = wizard.newGame({ seed });
+    const nh = (state.modData['nh'] ??= {}) as Record<string, unknown>;
+    nh['debugMongen'] = true;
+    wizard.step(state, { type: 'mod', action: WIZ_WHERE as DefId });
+    return state;
+  };
+  const answer = (state: GameState, value: Json): GameEvent[] =>
+    wizard.step(state, {
+      type: 'answer',
+      promptId: state.pendingPrompt?.prompt.id ?? '',
+      value,
+    }).events;
+  const wish = (state: GameState, text: Json): GameEvent[] => {
+    wizard.step(state, WISH);
+    return answer(state, text);
+  };
+  const inv = (state: GameState) => inventoryOf(state, state.playerId);
+  const items = (state: GameState) =>
+    Object.values(state.entities).filter((e) => e.c.item !== undefined).length;
+  const named = (state: GameState, id: number): string =>
+    render(wizard.registry.itemName(state, state.entities[String(id)]!));
+  const keys = (events: GameEvent[]): string[] => msgs(events).map((m) => m.key);
+
+  test('a text prompt; the wished-for item is in the inventory as asked, unidentified', () => {
+    const state = game(11);
+    const turn = state.turn;
+    wizard.step(state, WISH);
+    const p = state.pendingPrompt?.prompt;
+    expect(p?.kind).toBe('text');
+    expect(p?.key).toBe('wish.prompt');
+    expect(p?.maxLength).toBe(255);
+    const before = new Set(inv(state).map((e) => e.id));
+    const events = answer(state, '2 blessed +3 daggers');
+    const got = inv(state).filter((e) => !before.has(e.id));
+    expect(got).toHaveLength(1);
+    const it = got[0]?.c.item;
+    expect([got[0]?.def, it?.quantity, it?.buc, it?.spe]).toEqual(['nh:dagger', 2, 'blessed', 3]);
+    expect(it?.known).toEqual({ buc: false, spe: false });
+    expect(keys(events)).toContain('inv.item');
+    expect(state.turn).toBe(turn);
+    expect(state.pendingPrompt).toBeNull();
+
+    // wizard mode lifts the normal limits: any count, enchantment and BUC
+    wish(state, '40 cursed -7 elven arrows');
+    const arrows = inv(state).find((e) => e.def === 'nh:elven_arrow');
+    expect(arrows?.c.item).toMatchObject({ quantity: 40, buc: 'cursed', spe: -7 });
+    wish(state, 'rustproof +5 long sword');
+    const sword = inv(state).find((e) => e.def === 'nh:long_sword' && e.c.item?.spe === 5);
+    expect(sword?.c.item?.erodeproof).toBe(true);
+    wish(state, '9000 gold pieces');
+    expect(
+      inv(state).find((e) => e.def === 'nh:gold_piece')?.c.item?.quantity,
+    ).toBeGreaterThanOrEqual(9000);
+  });
+
+  test('wiz:identify fully identifies the inventory; the names show BUC and enchantment', () => {
+    const state = game(12);
+    wish(state, '2 blessed +3 daggers');
+    wish(state, 'cursed wand of striking (1:6)');
+    const daggers = inv(state).find((e) => e.def === 'nh:dagger' && e.c.item?.spe === 3);
+    const wand = inv(state).find((e) => e.def === 'nh:wand_of_striking');
+    expect(daggers && wand).toBeTruthy();
+    expect(named(state, wand?.id ?? 0)).not.toContain('striking');
+    const turn = state.turn;
+    const events = wizard.step(state, IDENTIFY).events;
+    expect(state.turn).toBe(turn);
+    expect(named(state, daggers?.id ?? 0)).toBe('2 blessed +3 daggers');
+    expect(named(state, wand?.id ?? 0)).toBe('cursed wand of striking (1:6)');
+    expect(state.discovered).toContain('nh:wand_of_striking');
+    for (const e of inv(state)) {
+      const it = e.c.item;
+      if (e.def === 'nh:gold_piece') continue;
+      expect(it?.known.buc).toBe(true);
+    }
+    expect(keys(events).filter((k) => k === 'inv.item').length).toBeGreaterThanOrEqual(2);
+    // nothing left to identify
+    expect(keys(wizard.step(state, IDENTIFY).events)).toEqual(['identify.already_all']);
+  });
+
+  test('too heavy to carry: it drops at her feet with "Oops!"', () => {
+    const state = game(13);
+    const pos = getPlayer(state).c.pos!;
+    const events = wish(state, '300 rocks');
+    expect(inv(state).some((e) => e.def === 'nh:rock')).toBe(false);
+    const floor = itemsAt(wizard.registry, state, pos.level, pos.x, pos.y);
+    expect(floor.find((e) => e.def === 'nh:rock')?.c.item?.quantity).toBe(300);
+    const oops = msgs(events).find((m) => m.key === 'wish.oops.plural');
+    expect(oops && render(oops)).toBe('Oops!  The 300 rocks drop to the floor!');
+  });
+
+  test('a full knapsack: it drops at her feet', () => {
+    const state = game(14);
+    // fill the 52 letters with darts that do not stack (each its own enchantment)
+    const ctx = ctxFor(state);
+    for (let spe = -30; inv(state).filter((e) => e.c.item?.letter !== '$').length < 52; spe++) {
+      const id = mksobj(ctx, wizard.registry.object('nh:dart'), { init: false });
+      itemOf(state, id).spe = spe;
+      addToInventory(ctx, state.playerId, id);
+    }
+    const pos = getPlayer(state).c.pos!;
+    const events = wish(state, 'ring of free action');
+    expect(inv(state).some((e) => e.def === 'nh:ring_of_free_action')).toBe(false);
+    expect(
+      itemsAt(wizard.registry, state, pos.level, pos.x, pos.y).some(
+        (e) => e.def === 'nh:ring_of_free_action',
+      ),
+    ).toBe(true);
+    expect(keys(events)).toContain('wish.oops');
+  });
+
+  test('an unknown name asks again; after 5 tries a random object', () => {
+    const state = game(15);
+    wizard.step(state, WISH);
+    const n = items(state);
+    for (let i = 1; i < 5; i++) {
+      expect(keys(answer(state, 'xyzzy'))).toEqual(['wish.nothing_fitting']);
+      expect(state.pendingPrompt?.prompt.key).toBe('wish.prompt');
+    }
+    const last = keys(answer(state, 'xyzzy'));
+    expect(last.slice(0, 2)).toEqual(['wish.nothing_fitting', 'wish.enough_tries']);
+    expect(state.pendingPrompt).toBeNull();
+    expect(items(state)).toBe(n + 1);
+  });
+
+  test('"nothing" changes nothing; Escape is a random object, as in NetHack', () => {
+    const state = game(16);
+    const hash = stateHash(state);
+    expect(msgs(wish(state, 'nothing'))).toEqual([]);
+    expect(stateHash(state)).toBe(hash);
+    const n = items(state);
+    wish(state, null);
+    expect(items(state)).toBe(n + 1);
+    expect(state.pendingPrompt).toBeNull();
   });
 });

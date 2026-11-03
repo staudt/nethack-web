@@ -133,18 +133,28 @@ export function mkobj(
   if (!def) return null;
   const where = opts.at ? { at: opts.at } : {};
   const artif = opts.artif ?? true;
-  if (def.id === 'nh:corpse') {
-    // ref: src/mkobj.c mksobj() CORPSE: corpsenm = undead_to_corpse(rndmonnum()), up to 50
-    // tries to avoid G_NOCORPSE types; then the rot timer (made with level-creation variance
-    // when the level is not the current one, as in_mklev does).
-    let mon = rndmonnum(ctx, depthOf(ctx, opts.level ?? opts.at?.level));
-    for (let tries = 50; mon.genFlags.includes('nocorpse') && --tries > 0;)
-      mon = rndmonnum(ctx, depthOf(ctx, opts.level ?? opts.at?.level));
-    const id = mksobj(ctx, def, { corpseOf: mon.id as DefId, artif, ...where });
-    startCorpseTimeout(ctx, id, opts.inMklev === true);
-    return id;
-  }
+  if (def.id === 'nh:corpse') return mksobjCorpse(ctx, def, { artif, ...where }, opts);
   return mksobjFull(ctx, def, { artif, ...where }, opts);
+}
+
+/**
+ * A corpse of a random monster, as mksobj(CORPSE, TRUE, artif) makes it.
+ * ref: src/mkobj.c mksobj() CORPSE: corpsenm = undead_to_corpse(rndmonnum()), up to 50
+ * tries to avoid G_NOCORPSE types; then the rot timer (made with level-creation variance
+ * when the level is not the current one, as in_mklev does).
+ */
+export function mksobjCorpse(
+  ctx: MkobjCtx,
+  def: ObjectDef,
+  opts: Pick<MksobjOpts, 'artif' | 'at'>,
+  gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
+): EntityId {
+  let mon = rndmonnum(ctx, depthOf(ctx, gen.level ?? opts.at?.level));
+  for (let tries = 50; mon.genFlags.includes('nocorpse') && --tries > 0;)
+    mon = rndmonnum(ctx, depthOf(ctx, gen.level ?? opts.at?.level));
+  const id = mksobj(ctx, def, { corpseOf: mon.id as DefId, ...opts });
+  startCorpseTimeout(ctx, id, gen.inMklev === true);
+  return id;
 }
 
 /**

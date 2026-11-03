@@ -116,6 +116,8 @@ export {
   WIZ_LEVELPORT,
   WIZ_MAP,
   WIZ_WHERE,
+  WIZ_WISH,
+  WIZ_IDENTIFY,
   OPEN_DUNGEON_LEVELS,
   doMapping,
   levelportLevels,
@@ -234,6 +236,12 @@ export {
 export { swapWep, setSwapWep, isSwapWep } from './wield';
 export { CALL_ACTIONS } from './call';
 export { xnameOf } from './objnam';
+export { readobjnam, wishNames, makesingular, mungspaces, SPE_LIM, WRPSYM } from './objnam_read';
+export type { WishSpec, WishWhat, WishNames, ObjName } from './objnam_read';
+export { nameToMon, nameToMonplus } from './mondata';
+export type { MonName } from './mondata';
+export { mkWished, holdAnotherObject, askWish, answerWish, MAXWISHTRY } from './wish';
+export type { WishData, WishOpts } from './wish';
 export { hitval } from './combat';
 export { nhData } from './items';
 export { rndmonst, makemon, registerGeneration } from './generation';

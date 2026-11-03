@@ -1,7 +1,9 @@
 import type { Mod } from '@nh/core';
+import { wizIdentify } from './identify';
 import { wizLevelport } from './levelport';
 import { wizMap } from './map';
 import { wizWhere } from './where';
+import { wizWish } from './wish';
 
 /**
  * Wizard mode (NetHack's `-D` debug mode) as a separate game mod: the debug commands, offered on
@@ -16,9 +18,13 @@ export const wizardMod: Mod = {
     api.defineAction(wizMap);
     api.defineAction(wizWhere);
     api.defineAction(wizLevelport);
+    api.defineAction(wizWish);
+    api.defineAction(wizIdentify);
   },
 };
 
 export { OPEN_DUNGEON_LEVELS, WIZ_LEVELPORT, levelportLevels, wizLevelport } from './levelport';
 export { WIZ_MAP, doMapping } from './map';
 export { WIZ_WHERE, printDungeon } from './where';
+export { WIZ_IDENTIFY, wizIdentify } from './identify';
+export { WIZ_WISH, wizWish } from './wish';

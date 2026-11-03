@@ -1,6 +1,14 @@
 // English text for wands. ref: src/zap.c, src/lock.c doorlock(), boxlock(), src/detect.c
 // findit(), src/trap.c openholdingtrap(), src/potion.c speed_up(), src/mhitu.c u_slow_down()
 export const zapMessagesEn: Record<string, string> = {
+  // makewish(), hold_another_object() (wish.ts)
+  'wish.prompt': 'For what do you wish?',
+  'wish.nothing_fitting': 'Nothing fitting that description exists in the game.',
+  'wish.enough_tries': "That's enough tries!",
+  'wish.aobjnam': '{count}{name}',
+  'wish.oops': 'Oops!  {item|The} drops to the floor!',
+  'wish.oops.plural': 'Oops!  {item|The} drop to the floor!',
+
   'action.nh:zap': 'Zap',
   'zap.direction': 'In what direction?',
   'zap.dir.self': 'at yourself',

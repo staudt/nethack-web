@@ -23,7 +23,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { prinv } from './itemactions';
-import { NOINVSYM, setRknown } from './items';
+import { NOINVSYM, objKnown, setCknown, setLknown, setRknown } from './items';
+import { CHARGED_RINGS } from './objects';
 import { erosionMatters } from './material';
 import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
@@ -58,9 +59,24 @@ function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
   if (def.class === 'coin') return false;
   if (!it.known.buc) return true;
-  if ((def.class === 'weapon' || def.class === 'armor') && !it.known.spe) return true;
-  return !isKnown(ctx.state, ctx.defs, def);
+  if (usesKnown(def) && !it.known.spe) return true;
+  if (!isKnown(ctx.state, ctx.defs, def)) return true;
+  // ref: (!cknown && Is_container) || (!lknown && Is_box)
+  return (
+    (!!def.container && !objKnown(ctx.state, 'cknown', e.id)) ||
+    (!!def.container?.box && !objKnown(ctx.state, 'lknown', e.id))
+  );
 }
+
+/**
+ * Whether obj->known matters for the type (oc_uses_known; for the others NetHack sets it at
+ * creation): weapons, armor, wands and charged rings.
+ */
+const usesKnown = (def: ObjectDef): boolean =>
+  def.class === 'weapon' ||
+  def.class === 'armor' ||
+  def.class === 'wand' ||
+  CHARGED_RINGS.has(def.id);
 
 /** ref: src/invent.c identify() / fully_identify_obj(): type, BUC and enchantment, then "d - ..." */
 function identify(ctx: Ctx, e: Entity): void {
@@ -70,6 +86,10 @@ function identify(ctx: Ctx, e: Entity): void {
   it.known.buc = true;
   it.known.spe = true;
   if (it.erodeproof) setRknown(ctx, e.id, true);
+  // ref: set_cknown_lknown()
+  const def = ctx.defs.object(e.def);
+  if (def.container) setCknown(ctx, e.id, true);
+  if (def.container?.box) setLknown(ctx, e.id, true);
   prinv(ctx, e);
 }
 
@@ -123,7 +143,7 @@ function askIdentify(ctx: Ctx, data: IdentifyData): boolean {
  * ref: src/invent.c identify_pack(): identifies `limit` items (0 = all). Returns true when it
  * is waiting for the player's choice.
  */
-function identifyPack(ctx: Ctx, limit: number, learning: boolean): boolean {
+export function identifyPack(ctx: Ctx, limit: number, learning: boolean): boolean {
   const list = unidentified(ctx);
   if (list.length === 0) {
     msg(ctx, learning ? 'identify.already_rest' : 'identify.already_all');
