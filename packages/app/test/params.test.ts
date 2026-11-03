@@ -9,8 +9,15 @@ test('defaults', () => {
     width: 80,
     height: 21,
     forceNew: false,
+    wizard: false,
     explicit: false,
   });
+});
+
+test('wizard=1 asks for wizard mode without making the URL explicit', () => {
+  expect(parseParams('?wizard=1', rnd)).toMatchObject({ wizard: true, explicit: false });
+  expect(parseParams('?wizard=0', rnd).wizard).toBe(false);
+  expect(parseParams('?wizard', rnd).wizard).toBe(false);
 });
 
 test('seed and size', () => {

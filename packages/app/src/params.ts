@@ -4,6 +4,8 @@ export interface Params {
   height: number;
   /** `new=1`: ignore any save. */
   forceNew: boolean;
+  /** `wizard=1`: new games load the wizard mod (wizard mode). */
+  wizard: boolean;
   /** URL explicitly names a seed or size, so a new game is wanted. */
   explicit: boolean;
 }
@@ -26,6 +28,7 @@ export function parseParams(search: string, randomSeed: () => number): Params {
     width: clampSize(q.get('w'), DEFAULT_W),
     height: clampSize(q.get('h'), DEFAULT_H),
     forceNew: q.get('new') === '1',
+    wizard: q.get('wizard') === '1',
     explicit: seedOk || q.has('w') || q.has('h'),
   };
 }

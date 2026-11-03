@@ -559,6 +559,8 @@ interface Replay {
 
 After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, actions }` must reproduce `stateHash`.
 
+The app's worker adds one message of its own in front of the host (`packages/app/src/modhost.ts`): `{ t: 'mods'; ids: string[] }` names the game mods (`nh`, `wiz`) and replaces the host, so the app sends it right before `new` or `load`. A stored save is loaded with the mods its file lists, so a wizard game stays a wizard game; new games load `[nh]`, or `[nh, wiz]` with `?wizard=1`. `wizard=1` over a save made without the wizard mod starts a new wizard game, like `new=1` or an explicit seed. The UI's "Wizard" status word comes from that mod list, not from `GameState`.
+
 ## Package boundaries
 
 | Package                                    | May depend on                             |

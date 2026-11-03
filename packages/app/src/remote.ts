@@ -10,8 +10,14 @@ import type {
 } from '@nh/core';
 import type { GameClient } from '@nh/ui';
 
+/**
+ * What the app sends the worker: the core protocol, plus `mods`, the app's own message that names
+ * the game mods (by id) for the next `new` or `load`.
+ */
+export type ToWorker = ToCore | { t: 'mods'; ids: string[] };
+
 export interface WorkerLike {
-  postMessage(m: ToCore): void;
+  postMessage(m: ToWorker): void;
   addEventListener(type: 'message', fn: (e: { data: FromCore }) => void): void;
 }
 
@@ -24,6 +30,8 @@ export interface ViewMessage {
 }
 
 export interface Remote extends GameClient {
+  /** Names the game mods for the next `newGame` or `load` (drops any game in progress). */
+  setMods(ids: string[]): void;
   newGame(seed: number, w: number, h: number): void;
   load(save: string): void;
   save(): Promise<string>;
@@ -106,6 +114,7 @@ export function createRemote(worker: WorkerLike): Remote {
       worker.postMessage({ t: 'act', action });
     },
     query,
+    setMods: (ids) => worker.postMessage({ t: 'mods', ids: [...ids] }),
     newGame: (seed, width, height) => worker.postMessage({ t: 'new', seed, width, height }),
     load: (save) => worker.postMessage({ t: 'load', save }),
     save: () => ask<string>(saveWaiters, { t: 'save' }),

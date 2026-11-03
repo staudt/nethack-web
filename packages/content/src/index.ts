@@ -111,6 +111,7 @@ export const vanillaMod: Mod = {
 };
 
 export { TERRAIN, T } from './terrain';
+export { wizardMod, WIZ_MAP, WIZ_WHERE, doMapping, printDungeon } from './wizard';
 export { ACTIONS } from './actions';
 export { TRAVEL_ACTIONS } from './travel';
 export { RUN_ACTIONS, RUN_MODES } from './run';

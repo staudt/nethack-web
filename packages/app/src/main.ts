@@ -11,6 +11,7 @@ import {
   saveLayout,
   vanillaKeys,
 } from './keys';
+import { WIZARD, bootPlan, modsForSave, newGameMods } from './mods';
 import { parseParams } from './params';
 import { createRemote, type Remote } from './remote';
 import { clearSave, loadSave, writeSave } from './storage';
@@ -31,17 +32,28 @@ let started = false;
 let acts = 0;
 let dead = false;
 let loading = false;
+/** The game mods of the current game include the wizard mod: show the status-line marker. */
+let wizard = false;
+
+/** Names the game mods for the next new game or load (from the URL or the save, never state). */
+function useMods(ids: string[]): void {
+  wizard = ids.includes(WIZARD);
+  remote.setMods(ids);
+}
 
 function startNew(): void {
   dead = false;
   loading = false;
   acts = 0;
   started = true;
+  useMods(newGameMods(params.wizard));
   remote.newGame(randomSeed(), size.w, size.h);
 }
 
-function loadText(text: string): void {
+/** Loads a save with the mods it was made with. */
+function loadText(text: string, mods: string[] = modsForSave(text, params.wizard)): void {
   loading = true;
+  useMods(mods);
   remote.load(text);
 }
 
@@ -138,6 +150,7 @@ ui.api.addMessages('en', messagesEn);
 ui.api.addMessages('en', {
   'app.keys.to_vi': 'Keys: use vi keys (hjkl move)',
   'app.keys.to_numpad': 'Keys: use number pad (k kicks)',
+  'ui.status.wizard': 'Wizard',
 });
 
 remote.onView((m) => {
@@ -151,7 +164,9 @@ remote.onView((m) => {
     void clearSave();
   }
   if (m.view.kind === 'full') size = { w: m.view.width, h: m.view.height };
-  ui.update(m.view, m.events, m.prompt, m.continuing);
+  // The wizard marker is a status word from the app's own mod list, not from the game state.
+  const view = wizard ? { ...m.view, status: { ...m.view.status, wizard: 1 } } : m.view;
+  ui.update(view, m.events, m.prompt, m.continuing);
 });
 remote.onError((e) => {
   if (loading) {
@@ -170,16 +185,15 @@ document.addEventListener('visibilitychange', () => {
 addEventListener('pagehide', flush);
 
 async function boot(): Promise<void> {
-  if (!params.forceNew && !params.explicit) {
-    const text = await loadSave();
-    if (text !== null) {
-      started = true;
-      loadText(text);
-      return;
-    }
-  }
+  const stored = params.forceNew || params.explicit ? null : await loadSave();
+  const plan = bootPlan(params, stored);
   started = true;
+  if (plan.kind === 'load') {
+    loadText(plan.save, plan.mods);
+    return;
+  }
   if (params.forceNew) await clearSave();
+  useMods(plan.mods);
   remote.newGame(params.seed, params.width, params.height);
 }
 
