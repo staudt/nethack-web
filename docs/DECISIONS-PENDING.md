@@ -10,6 +10,17 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m7a spells as a content table** (2026-11-03): `SPELL_INFO` plus a switch in cast.ts, not an `ObjectDef.cast` hook; ROADMAP note for the mod platform.
 - **m7a wizard helpers** (2026-11-03): `#wizcast` and a raise-only `#wizlevelchange` in step 7, so the phone check can reach casting with a Valkyrie (Pw 2 at start).
 - **m7a dismissed direction prompt** (2026-11-03): "The magical energy is released!" and the spell is cast at the hero herself (the port keeps no last direction as C does).
+- **m7c level fixups in content** (2026-11-04): map/object details the LevelDef format can't express go in a before/after-fill fixup table keyed by LevelDef id (like C's `fixup_special()`), not new LevelDef fields.
+- **m7c `wallifyLevel` core export** (2026-11-04): the one core public-API addition: the existing wall-joining logic exported as a function, because content's Catacombs maze and broken walls run after core's final wall pass. Fallback: a ~100-line copy in content.
+- **m7c Mimic of the Mines without mimics** (2026-11-04): the four mimics are left out; the real gems stay.
+- **m7c Catacombs undead subset** (2026-11-04): four zombies, four mummies and the ettin mummy; no vampires (the `V` lines are dropped, else they'd become random monsters), level teleporters or zombification.
+- **m7c Orcish Town iron bars and boulders** (2026-11-04): `nh:iron_bars` as a content terrain; the 10-19 boulders skipped until 7b (parked) exists.
+- **m7c orcs who left** (2026-11-04): only the migrating gang with its gold, gems and rings; no gang names, no booty items.
+- **m7c fountain monsters** (2026-11-04): water moccasin and water demon (with the wish) added; the water nymph uses C's "no nymph" outcome.
+- **m7c water damage** (2026-11-04): scrolls and spellbooks blank, items rust; no potion dilution.
+- **m7c gems in the Mines** (2026-11-04): every gem allowed there, as C's level numbering does.
+- **m7c fountains in ordinary rooms** (2026-11-04): rolled now (golden change); sinks, altars and graves stay unrolled.
+- **m7c fountain and Luck state** (2026-11-04): fountain state in `modData.nh.fountains`, no save bump; the luckstone bonus worked out from inventory, not stored.
 
 ## Parked
 
