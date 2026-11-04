@@ -43,3 +43,34 @@ Wizard commands below are in the self-actions menu (tap yourself).
 - [ ] Create a gnomish wizard next to you: it casts ("casts a spell at you!", psi bolt headache, "looks better" when hurt). A created kobold shaman is usually level 2 and only makes "The air crackles around the kobold shaman.".
 - [ ] Level teleport to Minetown and attack the priest (answer "no" to "Die?" if needed): he casts clerical spells (paralysis, giant ants, lightning...).
 - [ ] College Town (level teleport over a few new games): two kobold shamans.
+
+## 7c Mines' End, fountains, Orcish Town
+
+### Fountains
+
+- [ ] Find a `{` on the first levels and stand on it. The action menu shows "Drink from the fountain" and "Wash your hands"; `q` lists the fountain above the potions; `Alt+d` opens "What do you want to dip into the fountain?" with "Wash your hands" first, then the items.
+- [ ] Each item's action menu shows "Dip into the fountain" only while you stand on a fountain.
+- [ ] Dip a scroll: "Your scroll labeled X fades."; an iron weapon "rusts!"; a potion: nothing happens to it; a sack: "Some water gets into your bag!".
+- [ ] In Minetown, drink or dip at a town fountain until "Hey, stop using that fountain!", then until "The fountain dries up!": the Watch turns hostile.
+- [ ] Optional: with over 10 gold, keep dipping until "You lost some of your gold in the fountain!". At XL 5+ (wizard level change), dipping a long sword sometimes gives "A freezing mist..." and the fountain disappears (the Lady refuses a Valkyrie).
+
+### Gems and the luckstone
+
+- [ ] Wish for `luckstone`: Luck rises while carried; look at gems on the floor: unidentified ones show as "white gem", "gray stone" etc.
+- [ ] Wish for `cursed loadstone`: it cannot be dropped, thrown or put in a bag.
+
+### Mines' End (level teleport to the last Mines level, over several new games)
+
+- [ ] All three variants appear over a few games.
+- [ ] Mimic of the Mines: up stairs in the entry chamber, gem niches behind locked secret doors (search), one niche with a luckstone, no mimics.
+- [ ] Wine Cellar: booze at the cellar spots, the treasure chamber at the far right with diamonds, emeralds, rubies, amethysts and the luckstone, a fountain on the left.
+- [ ] Catacombs: arrive in a lit room closed in by secret doors, then a maze with mummies, zombies and floating eyes and two fountains; the luckstone and flint are in the far right room or the bottom-left pocket.
+- [ ] Try a larger map size: the maze still connects.
+
+### Orcish Town (level teleport to Minetown in new games until a town has cyan `#` iron bars, about 1 game in 7)
+
+- [ ] No watchmen, shopkeepers or priest; hostile orcs everywhere (captains, Uruk-hai, Mordor orcs, shamans near the altar, hill orcs, goblins).
+- [ ] Walking into a bar is blocked, but you can see through it.
+- [ ] The floor has corpses (priest, shopkeepers, Watch), rocks, at least 7 candles, an oil lamp, and wands of striking and magic missile with 0 charges.
+- [ ] The altar is unaligned; two fountains on the main street; holes in some shop walls; both staircases outside the town walls.
+- [ ] Level teleport deeper in the Mines and to the bottom: orcs wait there, the orc-captain leader at the bottom, some carrying gold, gems or a ring.
