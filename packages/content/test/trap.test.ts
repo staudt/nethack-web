@@ -209,7 +209,8 @@ describe('dotrap: the hero', () => {
     const ev = engine.step(state, { type: 'move', dir: 'e' }).events;
     expect(keys(ev)).toContain('trap.dart.shoots');
     const darts = floorDefs(state, 2, 1).filter((d) => d === 'nh:dart').length;
-    expect(500 - heroHp(state) > 0 ? darts === 0 : darts === 1).toBe(true);
+    // judged by the message: a hit with a negative enchantment may do no damage
+    expect(keys(ev).includes('trap.thitu.hit') ? darts === 0 : darts === 1).toBe(true);
   });
 
   test('falling rock: 2d6 bareheaded, 2 with a hard helmet; the rock stays', () => {

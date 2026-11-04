@@ -286,16 +286,23 @@ describe('attacking a peaceful monster in the sight of the Watch', () => {
   });
 
   test('attacking a peaceful watchman angers the whole Watch', () => {
-    const s = town(3);
-    const w1 = watchman(s, 7, 3);
-    const w2 = watchman(s, 3, 4); // unseen
-    const r = engine.step(s.state, {
-      type: 'mod',
-      action: 'nh:fight' as DefId,
-      args: { dir: 'e' },
-    });
-    engine.step(s.state, { type: 'answer', promptId: r.prompt!.id, value: true });
-    expect([peaceful(s, w1), peaceful(s, w2)]).toEqual([false, false]);
+    // the blow must hit (a miss only angers him): search for a town where the first one does
+    let tested = 0;
+    for (let seed = 3; seed < 40 && tested === 0; seed++) {
+      const s = town(seed);
+      const w1 = watchman(s, 7, 3);
+      const w2 = watchman(s, 3, 4); // unseen
+      const r = engine.step(s.state, {
+        type: 'mod',
+        action: 'nh:fight' as DefId,
+        args: { dir: 'e' },
+      });
+      const k = keys(engine.step(s.state, { type: 'answer', promptId: r.prompt!.id, value: true }));
+      if (!k.includes('combat.you_hit') && !k.includes('combat.you_hit_hard')) continue;
+      tested++;
+      expect([peaceful(s, w1), peaceful(s, w2)]).toEqual([false, false]);
+    }
+    expect(tested).toBe(1);
   });
 });
 

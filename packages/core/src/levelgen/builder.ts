@@ -85,25 +85,26 @@ export interface Builder {
   put(i: number, k: Key): void;
 }
 
-export function makeBuilder(rng: Rng, level: Level, def: LevelDef, opts: GenOptions): Builder {
+/** Reads and writes `level`'s cells by LevelTerrain key. */
+export function terrainAccess(level: Level, terrain: LevelTerrain): Pick<Builder, 'key' | 'put'> {
   const keyOfId = new Map<DefId, Key>();
-  for (const k of Object.keys(opts.terrain).sort() as Key[]) keyOfId.set(opts.terrain[k], k);
+  for (const k of Object.keys(terrain).sort() as Key[]) keyOfId.set(terrain[k], k);
   return {
-    rng,
-    level,
-    def,
-    opts,
     key(i) {
       const id = level.palette[level.cells[i] ?? -1];
       return id === undefined ? undefined : keyOfId.get(id);
     },
     put(i, k) {
-      const id = opts.terrain[k];
+      const id = terrain[k];
       let p = level.palette.indexOf(id);
       if (p === -1) p = level.palette.push(id) - 1;
       level.cells[i] = p;
     },
   };
+}
+
+export function makeBuilder(rng: Rng, level: Level, def: LevelDef, opts: GenOptions): Builder {
+  return { rng, level, def, opts, ...terrainAccess(level, opts.terrain) };
 }
 
 export const has = (keys: readonly Key[], k: Key | undefined): boolean =>

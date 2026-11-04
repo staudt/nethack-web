@@ -3,7 +3,7 @@ export type { GenOptions } from './generate';
 export { VANILLA_TERRAIN, PALETTE_KEYS, CAVE_PALETTE_KEYS, PAL } from './terrain';
 export type { LevelTerrain } from './terrain';
 export { levelToAscii } from './ascii';
-export { buildLevel } from './special';
+export { buildLevel, wallifyLevel } from './special';
 export { mkmap, MK, MIN_MKMAP_WIDTH, MIN_MKMAP_HEIGHT } from './mkmap';
 export type { MkmapOptions } from './mkmap';
 export {

@@ -15,12 +15,14 @@ import type { Rng } from '../types/rng';
 import { DEFAULT_DUNGEON } from '../dungeon';
 import {
   DOOR_KEYS,
+  FURNITURE_KEYS,
   has,
   makeBuilder,
   MK_WALL,
   OBSTRUCTED_KEYS,
   SDOOR_KEYS,
   setFeature,
+  terrainAccess,
   WALL_KEYS,
   WALL_MK,
   type Builder,
@@ -38,7 +40,7 @@ import {
   mapBlock,
   type MapBlock,
 } from './spdef';
-import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS } from './terrain';
+import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS, type LevelTerrain } from './terrain';
 
 /**
  * Builds a level from `def`. The `rooms` style is the ordinary generator; other styles lay out
@@ -566,7 +568,7 @@ function orientDoors(b: Builder): void {
 }
 
 /** Walls of the whole level made to join up. ref: src/mkmaze.c wallification() */
-function wallification(b: Builder): void {
+function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
   const { level } = b;
   const kinds = level.cells.map((_, i) => {
     const k = b.key(i);
@@ -580,6 +582,45 @@ function wallification(b: Builder): void {
     if (k === kinds[i]) continue;
     b.put(i, k === MK.BG ? 'stone' : (MK_WALL[k] as Key));
   }
+}
+
+/** IS_ROOM() (ROOM and the furniture after it) or a cross wall: what wallify_map() walls in. */
+const ROOM_KEYS: readonly Key[] = ['floor', ...FURNITURE_KEYS, 'crwall'];
+
+/**
+ * Wall-joining for a finished Level, for content that changes terrain after buildLevel (a maze
+ * walk, broken walls): stone next to open ground (8 neighbours) in `area` (Level coordinates,
+ * corners inclusive, clipped to the level; default the whole level) becomes wall, horizontal
+ * when the first open neighbour found (row by row) is on another row, else vertical; then the
+ * whole level's walls are cleaned up and joined as buildLevel's last pass does. `terrain` names
+ * the level's terrain defs; cells of other terrains count as open non-walls for the joining.
+ * ref: src/sp_lev.c wallify_map() (des.wallify()), src/mkmaze.c wallification()
+ */
+export function wallifyLevel(level: Level, terrain: LevelTerrain, area?: LevelRect): void {
+  const b = terrainAccess(level, terrain);
+  const W = level.width;
+  const H = level.height;
+  const [ax1, ay1, ax2, ay2] = area ?? [0, 0, W - 1, H - 1];
+  const x1 = Math.max(ax1, 0);
+  const y1 = Math.max(ay1, 0);
+  const x2 = Math.min(ax2, W - 1);
+  const y2 = Math.min(ay2, H - 1);
+  for (let y = y1; y <= y2; y++) {
+    const loY = y > 0 ? y - 1 : 0;
+    const hiY = y < y2 ? y + 1 : y2;
+    for (let x = x1; x <= x2; x++) {
+      if (b.key(y * W + x) !== 'stone') continue;
+      const loX = x > 0 ? x - 1 : 0;
+      const hiX = x < x2 ? x + 1 : x2;
+      search: for (let yy = loY; yy <= hiY; yy++)
+        for (let xx = loX; xx <= hiX; xx++)
+          if (has(ROOM_KEYS, b.key(yy * W + xx))) {
+            b.put(y * W + x, yy !== y ? 'hwall' : 'vwall');
+            break search;
+          }
+    }
+  }
+  wallification({ level, ...b });
 }
 
 /** Palette index for each MK cell kind of a cave map, given the bg and fg indices. */

@@ -151,7 +151,7 @@ describe('item names (English)', () => {
     const app = p.s.appearances['nh:potion_of_healing'];
     expect(app).toBeDefined();
     const expectedLook = cat[defs.appearance(app!).nameKey]!;
-    expect(p.name()).toBe(`a ${expectedLook}`);
+    expect(p.name()).toBe(`${/^[aeiou]/.test(expectedLook) ? 'an' : 'a'} ${expectedLook}`);
     discover(ctxFor(p.s), 'nh:potion_of_healing');
     expect(p.name()).toBe('a potion of healing');
     const sc = make('nh:scroll_of_identify');

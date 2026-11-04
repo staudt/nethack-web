@@ -155,6 +155,7 @@ export const messagesEn: Record<string, string> = {
   'nh:main': 'The Dungeons of Doom',
   'nh:mines': 'The Gnomish Mines',
   'nh:minetown': 'Minetown',
+  'nh:minesend': "Mines' End",
   'nh:floor': 'floor of a room',
   'nh:corr': 'corridor',
   'nh:doorway': 'doorway',

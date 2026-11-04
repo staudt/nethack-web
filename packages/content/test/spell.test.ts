@@ -1,4 +1,4 @@
-import { type Buc, type EntityId, type StepResult } from '@nh/core';
+import { type Buc, type DefId, type EntityId, type StepResult } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { SPELLBOOK_CLASSES, isKnown, shuffleAll } from '../src/o_init';
 import { KEEN, knownSpells } from '../src/spell';
@@ -65,6 +65,10 @@ describe('studying a spellbook', () => {
 
   test('a monster interrupts the study, and reading the book again resumes it', () => {
     const s = levelSetup(['.....', '..@..', '.....']);
+    // a dull-looking book may put the hero to sleep first: swap its look with force bolt's
+    const look = s.state.appearances;
+    if (look[PROTECTION] === 'nh:dull_spellbook')
+      [look[PROTECTION], look[FORCE_BOLT]] = [look[FORCE_BOLT], look[PROTECTION]] as [DefId, DefId];
     const b = book(s, PROTECTION, 'blessed');
     expect(readOnce(s, b)).toEqual(['You begin to memorize the runes.']);
     const newt = addMon(s.state, 'nh:newt', 3, 1);

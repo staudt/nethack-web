@@ -371,6 +371,8 @@ describe('buying in a real Minetown shop', () => {
         const p = o?.c.pos;
         if (!p || insideShop(level, p.x, p.y) !== e.shoproom) return false;
         if (p.x === e.shk.x && p.y === e.shk.y) return false;
+        // not a container: its contents would be billed with it
+        if (defs.object(o?.def ?? 'nh:none').container) return false;
         const mons = sortedIds(state).some((i) => {
           const q = state.entities[String(i)]?.c.pos;
           return (

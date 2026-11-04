@@ -514,9 +514,13 @@ describe('entering a shop', () => {
     expect(said(move('w'))).toEqual(['This shop is deserted.']);
     at(3, 2); // she goes inside
     const lines: string[] = [];
-    for (let t = 0; t < 30 && !(shk.c.pos.x === 5 && shk.c.pos.y === 2); t++)
+    // back in his shop, near enough his spot that he stops there (shk_move(): GDIST < 3 and
+    // not in line with her), which may be the spot itself or a cell next to it
+    const home = (): boolean =>
+      shk.c.pos.x <= 5 && (shk.c.pos.x - SHK_SPOT.x) ** 2 + (shk.c.pos.y - SHK_SPOT.y) ** 2 < 3;
+    for (let t = 0; t < 30 && !home(); t++)
       lines.push(...said(s.engine.step(s.state, { type: 'wait' })));
-    expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    expect(home()).toBe(true);
     expect(lines).toEqual(['"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"']);
     expect(uShops(s)).toEqual([0]);
     expect(e.visitct).toBe(1);

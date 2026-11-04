@@ -99,25 +99,33 @@ describe('Mines levels', () => {
       expect(n).toBeGreaterThanOrEqual(8);
       for (let dlevel = 1; dlevel <= n; dlevel++) {
         const level = goTo(state, { dungeon: 'nh:mines', dlevel });
-        if (mines?.special.some((s) => s.dlevel === dlevel)) {
+        const special = mines?.special.find((s) => s.dlevel === dlevel);
+        if (special?.id === 'nh:minetown') {
           // Minetown (see testkit's minetown.test.ts)
           expect(level.town).toBe(true);
           expect(level.def).toMatch(/^nh:minetn-[2-7]$/);
           continue;
         }
+        if (special) {
+          // Mines' End on the last level (see minesend.test.ts)
+          expect(special.id).toBe('nh:minesend');
+          expect(dlevel).toBe(n);
+          expect(level.def).toMatch(/^nh:minend-[1-3]$/);
+          expect(level.down).toBeNull();
+          continue;
+        }
         expect(level).toMatchObject({ id: `nh:mines/${dlevel}`, def: 'nh:minefill', rooms: [] });
         expect(level.depth).toBe((mines?.depthStart ?? 0) + dlevel - 1);
 
-        // stairs: the top level goes up by the branch stairs, the bottom has no down stairs
+        // stairs: the top level goes up by the branch stairs
         const stairs: Pos[] = [];
         if (dlevel === 1) {
           expect(level.up).toBeNull();
           expect(level.branch).toMatchObject({ dir: 'up', to: { dungeon: 'nh:main' } });
         } else expect(level.up).not.toBeNull();
-        if (dlevel === n) expect(level.down).toBeNull();
-        else expect(level.down).not.toBeNull();
+        expect(level.down).not.toBeNull(); // the last level is Mines' End
         for (const p of [level.up, level.down, level.branch?.pos]) if (p) stairs.push(p);
-        expect(stairs).toHaveLength(dlevel === n ? 1 : 2);
+        expect(stairs).toHaveLength(2);
         const first = stairs[0] as Pos;
         const area = reachable(level, first);
         for (const p of stairs) expect(area.has(cellIndex(level, p.x, p.y))).toBe(true);

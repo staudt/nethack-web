@@ -1,6 +1,8 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
-import type { DungeonDef, LevelDef } from '@nh/core';
+import type { DefId, DungeonDef, LevelDef } from '@nh/core';
+import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
 import { MINETOWN_VARIANTS } from './minetown';
+import type { SpLevFixup } from './sp_lev';
 
 /**
  * The filler level of the Gnomish Mines: a joined, walled cave of gnomes, dwarves and gems.
@@ -28,16 +30,19 @@ export const MINEFILL: LevelDef = {
   ],
 };
 
-export const LEVELS: readonly LevelDef[] = [MINEFILL, ...MINETOWN_VARIANTS];
+export const LEVELS: readonly LevelDef[] = [MINEFILL, ...MINETOWN_VARIANTS, ...MINEND_VARIANTS];
+
+/** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
+export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = { ...MINEND_FIXUPS };
 
 /**
  * The Dungeons of Doom. NetHack gives it `rn1(5, 25)` levels with the Castle at the bottom;
  * without the Castle this port keeps it endless (see DEVIATIONS.md and `DUNGEON_BOTTOM`).
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
- * level 3 or 4 (one of six variants, see minetown.ts). Mines' End is not made, so the other
- * levels are filler and the last one has no down stairs.
+ * level 3 or 4 (one of six variants, see minetown.ts) and Mines' End (one of three, see
+ * minesend.ts) on its last level, which has no down stairs; the other levels are filler.
  * ref: dat/dungeon.lua ("The Gnomish Mines": base 8, range 2; branch base 2, range 3;
- * minetn: base 3, range 2, nlevels 7, flags "town")
+ * minetn: base 3, range 2, nlevels 7, flags "town"; minend: base -1, nlevels 3)
  */
 export const DUNGEONS: readonly DungeonDef[] = [
   { id: 'nh:main', nameKey: 'nh:main' },
@@ -55,6 +60,12 @@ export const DUNGEONS: readonly DungeonDef[] = [
         range: 2,
         variants: MINETOWN_VARIANTS.map((l) => l.id),
         town: true,
+      },
+      {
+        id: 'nh:minesend',
+        nameKey: 'nh:minesend',
+        base: -1,
+        variants: MINEND_VARIANTS.map((l) => l.id),
       },
     ],
   },

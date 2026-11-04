@@ -216,7 +216,10 @@ describe('wiz:where', () => {
         else
           expected.push({
             key: 'wiz.where.special',
-            params: { name: '@nh:minetown', depth: start + l.dl - 1 },
+            params: {
+              name: '@' + (l.sp.id === 'nh:minetown' ? 'nh:minetown' : 'nh:minesend'),
+              depth: start + l.dl - 1,
+            },
           });
     }
     const got = msgs(events).map((m) => ({ key: m.key, params: m.params }));
@@ -247,6 +250,13 @@ describe('wiz:where', () => {
       params: { name: '@nh:minetown', depth: (mines?.depthStart ?? 0) + (town?.dlevel ?? 0) - 1 },
     });
     expect(wizard.registry.dungeon('nh:mines' as DefId).special?.[0]?.nameKey).toBe('nh:minetown');
+    // Mines' End on the last Mines level
+    const end = mines?.special[1];
+    expect(end?.dlevel).toBe(mines?.levels);
+    expect(got[4]).toEqual({
+      key: 'wiz.where.special',
+      params: { name: '@nh:minesend', depth: (mines?.depthStart ?? 0) + (end?.dlevel ?? 0) - 1 },
+    });
   });
 });
 
@@ -353,7 +363,7 @@ describe('wiz:levelport', () => {
     expect(here.town).toBe(true);
     expect(here.def).toMatch(/^nh:minetn-/);
     const { events } = wizard.step(state, { type: 'mod', action: WIZ_WHERE as DefId });
-    expect(msgs(events).filter((m) => m.key.startsWith('wiz.where.special'))).toEqual([
+    expect(msgs(events).filter((m) => m.key === 'wiz.where.special_here')).toEqual([
       {
         type: 'msg',
         key: 'wiz.where.special_here',

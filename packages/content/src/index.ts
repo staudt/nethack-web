@@ -50,7 +50,7 @@ import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
 import { registerCast } from './cast';
-import { DUNGEONS, LEVELS } from './dungeon';
+import { DUNGEONS, LEVELS, SPLEV_FIXUPS } from './dungeon';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -121,7 +121,7 @@ export const vanillaMod: Mod = {
     registerGeneration(api);
     registerMklev(api);
     registerPriest(api); // before the LevelDef contents, as create_altar()
-    registerSpLev(api);
+    registerSpLev(api, SPLEV_FIXUPS);
     registerShops(api); // after the LevelDef contents, as fill_special_room()
     registerRooms(api); // after the pets arrive, as goto_level()
   },

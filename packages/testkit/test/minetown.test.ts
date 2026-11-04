@@ -86,7 +86,7 @@ describe('Minetown placement', () => {
     const seen = new Set<number>();
     for (let seed = 1; seed <= 200; seed++) {
       const { state } = engine.newGame({ seed });
-      const special = mines(state).special;
+      const special = mines(state).special.filter((s) => s.id === 'nh:minetown');
       expect(special).toHaveLength(1);
       const dl = special[0]?.dlevel ?? 0;
       expect([3, 4]).toContain(dl);
@@ -393,7 +393,8 @@ describe('the temple priest of a real Minetown', () => {
     for (let t = 0; t < 100 && !state.gameOver && !cast(); t++)
       for (const e of engine.stepAll(state, { type: 'wait' }).events)
         if (e.type === 'msg' && e.key) heard.add(e.key);
-    expect(heard).toContain('mcastu.casts_at_you');
+    // "casts a spell at you!", or "casts a spell!" for an undirected one (summon insects)
+    expect(heard.has('mcastu.casts_at_you') || heard.has('mcastu.casts')).toBe(true);
     expect(cast()).toBe(true);
     // never a mage spell
     for (const k of ['mcastu.psi.slight', 'mcastu.reel', 'mcastu.weaker', 'mcastu.aware'])

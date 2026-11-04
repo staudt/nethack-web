@@ -334,10 +334,11 @@ describe('dipping: the rnd(30) outcomes', () => {
     for (let k = 0; k < 40; k++) {
       const d = dipAt(s.state, k, scroll);
       expect(ent(d.state, scroll).def).toBe('nh:scroll_of_blank_paper');
-      if (fountainGone(d.state)) went++;
+      if (d.text.length > 1)
+        went++; // the fading, then an rnd(30) outcome (and maybe a dry-up)
       else {
-        stopped++;
-        expect(d.text.length).toBe(1); // only the fading
+        stopped++; // only the fading: no outcome, and the fountain stays
+        expect(fountainGone(d.state)).toBe(false);
       }
     }
     expect(stopped).toBeGreaterThan(0);

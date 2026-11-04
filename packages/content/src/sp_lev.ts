@@ -2,6 +2,7 @@
 // ref: src/sp_lev.c create_monster(), create_object(), create_trap(), get_location()
 import type {
   Ctx,
+  DefId,
   Level,
   LevelContent,
   LevelCount,
@@ -19,6 +20,7 @@ import {
   roomDefPos,
   roomHas,
   roomSomexy,
+  VANILLA_TERRAIN,
 } from '@nh/core';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
@@ -59,13 +61,23 @@ function getLocation(
   return null;
 }
 
+/** Furniture other than stairs: not DRY (C's DRY is ROOM, CORR, ICE, AIR or CLOUD). */
+const NOT_DRY: ReadonlySet<DefId> = new Set([
+  VANILLA_TERRAIN.fountain,
+  VANILLA_TERRAIN.sink,
+  VANILLA_TERRAIN.altar_lawful,
+  VANILLA_TERRAIN.altar_neutral,
+  VANILLA_TERRAIN.altar_chaotic,
+  VANILLA_TERRAIN.altar_unaligned,
+]);
+
 /**
- * DRY: walkable ground that is not a door, so floor, corridor and stairs.
- * ref: src/sp_lev.c is_ok_location() DRY, include/rm.h SPACE_POS()
+ * DRY: walkable ground that is not a door or a fountain, sink or altar, so floor, corridor and
+ * stairs. ref: src/sp_lev.c is_ok_location() DRY, include/rm.h SPACE_POS()
  */
 function dry(ctx: Ctx, level: Level, p: Pos): boolean {
   const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
-  if (id === undefined) return false;
+  if (id === undefined || NOT_DRY.has(id)) return false;
   const t = ctx.defs.terrain(id);
   return t.passable && t.door === undefined;
 }
@@ -192,9 +204,39 @@ export function fillSpecialLevel(ctx: Ctx, level: Level, def: LevelDef): void {
   makeContents(ctx, level, def, def.contents ?? []);
 }
 
-/** Fills levels built from a LevelDef; runs after mklev's own newLevel hook. */
-export function registerSpLev(api: ModApi): void {
+/**
+ * Level-specific work the LevelDef format cannot say (shuffled spots, BUC, a maze walk, ...),
+ * keyed by LevelDef id, as NetHack's own fixup_special() is: `before` runs before
+ * fillSpecialLevel (terrain that later random spots must see), `after` once the contents exist.
+ */
+export interface SpLevFixup {
+  before?(ctx: Ctx, level: Level, def: LevelDef): void;
+  after?(ctx: Ctx, level: Level, def: LevelDef): void;
+}
+
+/** Shuffles `list` in place. ref: dat/nhlib.lua shuffle() (j = math.random(i) = 1 + rn2(i)) */
+export function shuffle<T>(ctx: Pick<Ctx, 'rng'>, list: T[]): void {
+  for (let i = list.length - 1; i >= 1; i--) {
+    const j = ctx.rng.rn2(i + 1);
+    const t = list[i] as T;
+    list[i] = list[j] as T;
+    list[j] = t;
+  }
+}
+
+/** The Level position of a LevelDef spot (map-relative when the LevelDef has a map block). */
+export function mapToLevel(def: LevelDef, level: Level, x: number, y: number): Pos {
+  return levelDefPos(def, level.width, level.height, x, y, undefined, `${def.id} fixup`);
+}
+
+/** Fills levels built from a LevelDef, with their fixups; runs after mklev's own newLevel hook. */
+export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevFixup>> = {}): void {
   api.on('newLevel', (ctx, level) => {
-    if (level.def !== undefined) fillSpecialLevel(ctx, level, ctx.defs.level(level.def));
+    if (level.def === undefined) return;
+    const def = ctx.defs.level(level.def);
+    const fixup = Object.hasOwn(fixups, def.id) ? fixups[def.id] : undefined;
+    fixup?.before?.(ctx, level, def);
+    fillSpecialLevel(ctx, level, def);
+    fixup?.after?.(ctx, level, def);
   });
 }

@@ -13,6 +13,7 @@ export { findPath } from './path';
 export {
   generateLevel,
   buildLevel,
+  wallifyLevel,
   levelToAscii,
   VANILLA_TERRAIN,
   MIN_LEVEL_WIDTH,
