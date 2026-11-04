@@ -24,6 +24,9 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.boing': 'Boing!',
   'zap.wand_hit': 'The wand hits {mon|the}{ex}',
   'zap.wand_miss': 'The wand misses {mon|the}.',
+  'zap.spell_hit': 'The spell hits {mon|the}{ex}',
+  'zap.spell_miss': 'The spell misses {mon|the}.',
+  'zap.looks_better': '{mon|The} looks better.',
   'zap.mon_slower': '{mon|The} seems to be moving {much}slower.',
   'zap.mon_faster': '{mon|The} is suddenly moving {much}faster.',
   'zap.much': 'much ',
@@ -124,6 +127,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.self.idiot': "Idiot!  You've shot yourself!",
   'zap.self.not_sleepy': "You don't feel sleepy!",
   'zap.self.sleep_ray': 'The sleep ray hits you!',
+  'zap.self.feel_better': 'You feel better.',
   'zap.speed.much_faster': 'You are suddenly moving much faster.',
   'zap.speed.faster': 'You are suddenly moving faster.',
   'zap.speed.legs': 'Your legs get new energy.',
@@ -146,4 +150,5 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.zap.self.fire': 'zapping herself with a wand of fire',
   'killer.zap.self.cold': 'zapping herself with a wand of cold',
   'killer.zap.self.magic_missile': 'zapping herself with a wand of magic missile',
+  'killer.zap.self.spell': 'zapped herself with a spell',
 };

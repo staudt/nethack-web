@@ -1,12 +1,13 @@
 // Casting spells: the `Z` command, the checks before a cast and the effects of the spells of the
 // subset. ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
 // spell_backfire(), spelleffects(), cast_protection(); src/timeout.c nh_timeout() (spell
-// protection); src/detect.c monster_detect(); src/zap.c zapnodir() (light)
+// protection); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
+// zapyourself() (force bolt, sleep, healing)
 //
-// Force bolt, sleep, healing and confuse monster are listed and can be picked, but their effects
-// come with the next steps of milestone 7a: picking one says "Nothing happens." and costs
-// nothing.
+// Confuse monster is listed and can be picked, but its effect comes with the next step of
+// milestone 7a: picking it says "Nothing happens." and costs nothing.
 import {
+  DIR_LIST,
   NORMAL_SPEED,
   getLevel,
   getPlayer,
@@ -14,10 +15,13 @@ import {
   type ActionDef,
   type Ctx,
   type DefId,
+  type Dir,
   type Entity,
+  type Json,
   type ModApi,
   type Msg,
 } from '@nh/core';
+import { confdir, getdirImpaired, uMaybeImpaired } from './hackmove';
 import { hcolor } from './hcolor';
 import { morehungry } from './hunger';
 import { uState } from './luck';
@@ -26,12 +30,13 @@ import { healup } from './potion';
 import { freehand } from './pray';
 import { P, hasProp, isStrangled, makeConfused, makeStunned, timeoutLeft, wornIn } from './props';
 import { litroom } from './read';
-import { P_EXPERT, skillLevel, useSkill } from './skills';
+import { P_EXPERT, P_SKILLED, skillLevel, useSkill } from './skills';
 import { KEEN, knownSpells, spellEntry, spellet } from './spell';
 import { percentSuccess, spellLevPw, spellSkill } from './spellcalc';
 import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
+import { ZAP_DIRECTIONS, weffectsFrom } from './zap';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -66,15 +71,17 @@ const isCastBook = (book: DefId): book is CastBook =>
   (CAST_BOOKS as readonly string[]).includes(book);
 
 /**
- * The effect of each spell (the switch of spelleffects()); null for the spells whose effect is
- * not ported yet (force bolt, sleep and healing come with the wand refactor, confuse monster
- * with monster confusion).
+ * The effect of each spell (the switch of spelleffects()): a function, 'direction' for the
+ * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object),
+ * or null for a spell whose effect is not ported yet (confuse monster comes with monster
+ * confusion).
  */
-function effectOf(book: CastBook): ((ctx: Ctx) => void) | null {
+function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | null {
   switch (book) {
     case 'nh:spellbook_of_force_bolt':
     case 'nh:spellbook_of_sleep':
     case 'nh:spellbook_of_healing':
+      return 'direction';
     case 'nh:spellbook_of_confuse_monster':
       return null;
     case 'nh:spellbook_of_light':
@@ -217,7 +224,9 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
 
 /**
  * Casts the spell of `book`: the checks (unless `force`, as #wizcast), the energy, the effect and
- * the skill practice. Returns the energy used. ref: src/spell.c spelleffects()
+ * the skill practice. Returns the time used: 0 while a directional spell asks its direction
+ * (the energy is spent already; {@link castAtDirection} finishes the cast).
+ * ref: src/spell.c spelleffects()
  */
 export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
   const effect = isCastBook(book) ? effectOf(book) : null;
@@ -233,9 +242,63 @@ export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
   }
   setPw(ctx, { uen: pwOf(ctx.state).uen - energy });
   // exercise(A_WIS, TRUE) is not ported
+  if (effect === 'direction') {
+    // healing is a potion effect extended to take a direction like wands: the pseudo object is
+    // blessed at Skilled (it cures blindness)
+    const blessed =
+      book === 'nh:spellbook_of_healing' && skillLevel(ctx, spellSkill(book)) >= P_SKILLED;
+    const data: CastDirection = { book, blessed, force };
+    ctx.ask(
+      { id: CAST_DIRECTION, kind: 'direction', key: 'zap.direction', options: [...ZAP_DIRECTIONS] },
+      CAST_ID,
+      data as unknown as Json,
+    );
+    return 0;
+  }
   effect(ctx);
   // gain skill for successful cast
   if (!force) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+  return NORMAL_SPEED;
+}
+
+const CAST_DIRECTION = 'cast-direction';
+
+/** The pending directional cast, kept in the direction prompt's data. */
+interface CastDirection {
+  book: DefId;
+  /** the pseudo object's blessing (healing at Skilled) */
+  blessed: boolean;
+  force: boolean;
+}
+
+const isCastDirection = (data: Json): boolean =>
+  typeof data === 'object' && data !== null && !Array.isArray(data) && 'book' in data;
+
+/**
+ * The direction is answered: the spell goes off as the wand it duplicates; dismissing the
+ * prompt releases the energy at herself (NetHack reuses the last direction, which the port does
+ * not keep). Then the school is practised. ref: src/spell.c spelleffects() getdir() .. weffects()
+ */
+function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
+  const picked: Dir | 'self' | undefined =
+    value === 'self' ? 'self' : DIR_LIST.find((d) => d === value);
+  let dir: Dir | 'self';
+  if (!picked) {
+    say(ctx, 'cast.energy_released');
+    dir = 'self';
+  } else {
+    // getdir() -> confdir(): an impaired hero casts in a random direction
+    dir =
+      picked === 'self'
+        ? uMaybeImpaired(ctx)
+          ? confdir(ctx)
+          : 'self'
+        : getdirImpaired(ctx, picked);
+  }
+  weffectsFrom(ctx, { kind: 'spell', otyp: cd.book, blessed: cd.blessed }, dir);
+  // gain skill for successful cast
+  if (!cd.force && !ctx.state.gameOver)
+    useSkill(ctx, spellSkill(cd.book), spellLevel(ctx, cd.book));
   return NORMAL_SPEED;
 }
 
@@ -369,7 +432,8 @@ const castAction: ActionDef = {
     );
     return 0;
   },
-  answer(ctx, value) {
+  answer(ctx, value, data) {
+    if (isCastDirection(data)) return castAtDirection(ctx, value, data as unknown as CastDirection);
     if (typeof value !== 'number') return 0; // dismissed
     const s = knownSpells(ctx)[value];
     return s ? spelleffects(ctx, s.id, false) : 0;

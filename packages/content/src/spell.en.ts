@@ -88,6 +88,7 @@ export const spellMessagesEn: Record<string, string> = {
   'cast.no_energy_anymore': "You don't have enough energy to cast that spell anymore.",
   'cast.fail': 'You fail to cast the spell correctly.',
   'cast.not_yet': 'Nothing happens.',
+  'cast.energy_released': 'The magical energy is released!',
   'cast.sense_monsters': 'You sense the presence of monsters.',
   'cast.heebie_jeebies': 'You get the heebie jeebies.',
   'cast.haze_denser': 'The {color} haze around you becomes more dense.',

@@ -36,6 +36,7 @@ import { discover } from './o_init';
 import { igniteItems } from './light';
 import { monNam } from './perception';
 import { P, hasExtrinsic, hasProp, makeBlinded } from './props';
+import { spellDamageBonus, spellHitBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 
@@ -120,12 +121,18 @@ export function killedByHero(ctx: Ctx, mon: Entity): void {
 }
 
 /**
- * The monster's saving throw against a wand (attack level 12); `damage` is halved when it
- * resists and then taken, which may kill it. ref: src/zap.c resist() with WAND_CLASS
+ * The monster's saving throw against a wand (attack level 12) or the hero's spell (attack level
+ * = her experience level); `damage` is halved when it resists and then taken, which may kill
+ * it. ref: src/zap.c resist() with WAND_CLASS or a spell
  */
-export function resist(ctx: Ctx, mon: Entity, damage: number): boolean {
+export function resist(
+  ctx: Ctx,
+  mon: Entity,
+  damage: number,
+  oclass: 'wand' | 'spell' = 'wand',
+): boolean {
   const def = ctx.defs.monster(mon.def);
-  const alev = 12;
+  const alev = oclass === 'wand' ? 12 : (getPlayer(ctx.state).c.experience?.level ?? 1);
   let dlev = mon.c.monster?.level ?? 0;
   if (dlev > 50) dlev = 50;
   else if (dlev < 1) dlev = 1;
@@ -156,11 +163,18 @@ export function wakeGently(ctx: Ctx, mon: Entity): void {
 }
 
 /**
- * ref: src/mhitm.c sleep_monst() with a wand's resist() roll: a sleep-resistant monster or one
- * that resists is unaffected; one that can move is frozen for `amt` turns.
+ * ref: src/mhitm.c sleep_monst() with a wand's or the hero's spell's resist() roll: a
+ * sleep-resistant monster or one that resists is unaffected; one that can move is frozen for
+ * `amt` turns.
  */
-export function sleepMonst(ctx: Ctx, mon: Entity, amt: number): boolean {
-  if (ctx.defs.monster(mon.def).resists.includes('sleep') || resist(ctx, mon, 0)) return false;
+export function sleepMonst(
+  ctx: Ctx,
+  mon: Entity,
+  amt: number,
+  oclass: 'wand' | 'spell' = 'wand',
+): boolean {
+  if (ctx.defs.monster(mon.def).resists.includes('sleep') || resist(ctx, mon, 0, oclass))
+    return false;
   if (isFrozen(ctx, mon.id)) return false;
   paralyzeMonst(ctx, mon.id, amt + frozenTime(ctx, mon.id));
   return true;
@@ -192,31 +206,39 @@ export function ureflects(ctx: Ctx, key: string): boolean {
 // ---------------------------------------------------------------------------------------------
 // rays: buzz()
 
-/** ref: src/zap.c zap_hit(): does the zap hit armor class `ac`? */
-function zapHit(ctx: Ctx, ac: number): boolean {
+/**
+ * ref: src/zap.c zap_hit(): does the zap hit armor class `ac`? `spell` is the book of the hero's
+ * spell (spell_hit_bonus()), null for anything else.
+ */
+function zapHit(ctx: Ctx, ac: number, spell: DefId | null): boolean {
   const chance = ctx.rng.rn2(20);
-  if (!chance) return ctx.rng.rnd(10) < ac; // small chance for naked target to avoid being hit
+  const spellBonus = spell ? spellHitBonus(ctx.state, spell) : 0;
+  // small chance for naked target to avoid being hit
+  if (!chance) return ctx.rng.rnd(10) < ac + spellBonus;
   const acv = ac >= 0 ? ac : -ctx.rng.rnd(-ac); // AC_VALUE()
-  return 3 - chance < acv;
+  return 3 - chance < acv + spellBonus;
 }
 
 /**
  * ref: src/zap.c zhitm(): the ray's damage to a monster, halved when it resists; the hit points
  * are taken here. Fire burns armor (and may destroy items), cold and lightning may destroy items.
+ * A hero's spell (`spellcaster`) gets the Intelligence damage bonus and resists at her level.
  */
-function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number): number {
+function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number, spellcaster: boolean): number {
   const def = ctx.defs.monster(mon.def);
   const res = (r: string): boolean => def.resists.includes(r);
+  const bonus = (n: number): number => (spellcaster ? spellDamageBonus(ctx.state, n) : n);
+  const oclass = spellcaster ? 'spell' : 'wand';
   let tmp = 0;
   switch (ray) {
     case 'magic_missile':
       if (resistsMagm(ctx, mon)) break;
-      tmp = ctx.rng.d(nd, 6);
+      tmp = bonus(ctx.rng.d(nd, 6));
       break;
     case 'fire': {
       if (res('fire')) break;
-      tmp = ctx.rng.d(nd, 6);
-      const orig = tmp;
+      tmp = bonus(ctx.rng.d(nd, 6));
+      const orig = tmp; // includes spell bonus but not monster vuln to cold
       if (res('cold')) tmp += 7;
       if (erodeArmor(ctx, mon.id, 'burn')) {
         if (!ctx.rng.rn2(3)) {
@@ -228,24 +250,24 @@ function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number): number {
     }
     case 'cold': {
       if (res('cold')) break;
-      tmp = ctx.rng.d(nd, 6);
+      tmp = bonus(ctx.rng.d(nd, 6));
       const orig = tmp;
       if (res('fire')) tmp += ctx.rng.d(nd, 3);
       if (!ctx.rng.rn2(3)) tmp += destroyItems(ctx, mon.id, 'cold', orig);
       break;
     }
     case 'sleep':
-      sleepMonst(ctx, mon, ctx.rng.d(nd, 25));
+      sleepMonst(ctx, mon, ctx.rng.d(nd, 25), oclass);
       break;
     case 'lightning': {
-      tmp = ctx.rng.d(nd, 6);
+      tmp = bonus(ctx.rng.d(nd, 6));
       const orig = tmp;
       if (res('elec')) tmp = 0; // (monsters are not blinded: no monster blindness yet)
       if (!ctx.rng.rn2(3)) tmp += destroyItems(ctx, mon.id, 'elec', orig);
       break;
     }
   }
-  if (tmp > 0 && resist(ctx, mon, 0)) tmp = Math.trunc(tmp / 2);
+  if (tmp > 0 && resist(ctx, mon, 0, oclass)) tmp = Math.trunc(tmp / 2);
   if (tmp < 0) tmp = 0;
   const hp = mon.c.hp;
   if (hp) hp.cur -= tmp;
@@ -407,17 +429,21 @@ function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
 }
 
 /**
- * Who sends a ray: the hero (her wand; kills are hers, and a monster it hits is angered with
- * `wakeup`, peaceful.ts's, passed in because peaceful.ts sits above this module), or a monster's
+ * Who sends a ray: the hero (her wand, or her spell when `spell` names its book (types 10..19):
+ * the spell to-hit and damage bonuses, resisted at her level; kills are hers, and a monster it
+ * hits is angered with `wakeup`, peaceful.ts's, passed in because peaceful.ts sits above this
+ * module), or a monster's
  * spell (BZ_M_SPELL: a monster it kills is killed by "another monster", one it hits is only
  * woken up, and a hero it kills dies of "a bolt of lightning").
  */
-export type RaySource = { by: 'hero'; wakeup: (ctx: Ctx, id: EntityId) => void } | { by: 'spell' };
+export type RaySource =
+  { by: 'hero'; spell?: DefId; wakeup: (ctx: Ctx, id: EntityId) => void } | { by: 'spell' };
 
 /**
  * A ray of rn1(7, 7) squares starting next to `from` (on the hero's level) and heading `dir`,
  * hitting monsters (zap_hit against their AC) and the hero on the way, bouncing off walls.
- * ref: src/zap.c dobuzz() for the hero's wands (type 0..9) and monster spells (-19..-10)
+ * ref: src/zap.c dobuzz() for the hero's wands (type 0..9) and spells (10..19) and monster
+ * spells (-19..-10)
  */
 export function buzzFrom(
   ctx: Ctx,
@@ -444,6 +470,8 @@ function buzzSteps(
 ): void {
   const level = levelOf(ctx);
   const d = { ...DIRS[dir] };
+  // the hero's spell: its SPE_ type
+  const spell = src.by === 'hero' ? (src.spell ?? null) : null;
   let { x: sx, y: sy } = from;
   let range = ctx.rng.rn2(7) + 7;
   while (range-- > 0) {
@@ -463,10 +491,10 @@ function buzzSteps(
       const mon = monAt(ctx, sx, sy);
       const hp = heroPos(ctx);
       if (mon) {
-        if (zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id))) {
+        if (zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
           // mon_reflects(): no monster can reflect in the subset
           const couldMove = !isFrozen(ctx, mon.id);
-          const tmp = zhitm(ctx, mon, ray, nd);
+          const tmp = zhitm(ctx, mon, ray, nd, spell !== null);
           if ((mon.c.hp?.cur ?? 0) < 1) {
             if (alive(ctx, mon.id)) {
               if (src.by === 'hero') killedByHero(ctx, mon);
@@ -486,7 +514,7 @@ function buzzSteps(
         }
       } else if (hp.x === sx && hp.y === sy && range >= 0) {
         ctx.interrupt(); // nomul(0)
-        if (zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId))) {
+        if (zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId), null)) {
           range -= 2;
           say(ctx, 'zap.ray.hits_you', { ray: rayName(ray) });
           if (hasExtrinsic(hero(ctx), P.REFLECTING)) {

@@ -7,7 +7,7 @@ import type { AttributesComponent, DefId, GameState, Registry, WandDir } from '@
 import { weight } from './items';
 import { isMetallic } from './material';
 import { wornIn } from './props';
-import { P_UNSKILLED, skillLevel } from './skills';
+import { P_BASIC, P_RESTRICTED, P_SKILLED, P_UNSKILLED, skillLevel } from './skills';
 
 /** A book's spell school (oc_skill) and direction (oc_dir). */
 export interface SpellInfo {
@@ -159,4 +159,56 @@ export function percentSuccess(state: Readonly<GameState>, defs: Registry, book:
   if (chance > 100) chance = 100;
   if (chance < 0) chance = 0;
   return chance;
+}
+
+/**
+ * A spell's damage adjusted by the hero's Intelligence (and level): -3 at Int 9 or less (never
+ * below 1), +1 at Int 14-18, +2 at Int 19-24 (or Int 25 below XL 14), +3 at Int 25; no bonus
+ * below XL 5. ref: src/zap.c spell_damage_bonus()
+ */
+export function spellDamageBonus(state: Readonly<GameState>, dmg: number): number {
+  const hero = state.entities[String(state.playerId)];
+  const intell = hero?.c.attributes?.int ?? 10; // ACURR(A_INT)
+  const ulevel = hero?.c.experience?.level ?? 1;
+  // punish low intelligence before low level else low intelligence gets punished only when
+  // high level
+  if (intell <= 9) {
+    // -3 penalty, but never reduce combined amount below 1 (a 0 stays 0)
+    if (dmg > 1) dmg = dmg <= 3 ? 1 : dmg - 3;
+  } else if (intell <= 13 || ulevel < 5) {
+    // no bonus or penalty
+  } else if (intell <= 18) dmg += 1;
+  else if (intell <= 24 || ulevel < 14) dmg += 2;
+  else dmg += 3; // Int 25
+  return dmg;
+}
+
+/**
+ * The to-hit bonus of a spell's ray, by the hero's skill in its school and her Dexterity.
+ * ref: src/zap.c spell_hit_bonus()
+ */
+export function spellHitBonus(state: Readonly<GameState>, book: DefId): number {
+  const hero = state.entities[String(state.playerId)];
+  const dex = hero?.c.attributes?.dex ?? 10; // ACURR(A_DEX)
+  let hitBon: number;
+  switch (skillLevel({ state: state as GameState }, spellSkill(book))) {
+    case P_RESTRICTED:
+    case P_UNSKILLED:
+      hitBon = -4;
+      break;
+    case P_BASIC:
+      hitBon = 0;
+      break;
+    case P_SKILLED:
+      hitBon = 2;
+      break;
+    default: // P_EXPERT
+      hitBon = 3;
+      break;
+  }
+  if (dex < 4) hitBon -= 3;
+  else if (dex < 6) hitBon -= 2;
+  else if (dex < 8) hitBon -= 1;
+  else if (dex >= 14) hitBon += dex - 14; // even increment for dexterous heroes
+  return hitBon;
 }

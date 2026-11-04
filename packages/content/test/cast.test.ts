@@ -1,13 +1,28 @@
-import { getPlayer, type EntityId, type Json, type StepResult } from '@nh/core';
+import {
+  createEngine,
+  getPlayer,
+  newMemory,
+  type DefId,
+  type EntityId,
+  type Json,
+  type Level,
+  type Mod,
+  type StepResult,
+} from '@nh/core';
 import { describe, expect, test } from 'vitest';
+import { setTerrain } from '../src/actions';
+import { T, vanillaMod } from '../src/index';
 import { nhData } from '../src/items';
-import { P, setItimeout } from '../src/props';
-import { P_UNSKILLED } from '../src/skills';
+import { setU, uState } from '../src/luck';
+import { frozenTime, isFrozen } from '../src/mstate';
+import { P, setIntrinsic, setItimeout } from '../src/props';
+import { P_SKILLED, P_UNSKILLED } from '../src/skills';
 import { KEEN } from '../src/spell';
-import { findAc } from '../src/stats';
+import { spellDamageBonus, spellHitBonus } from '../src/spellcalc';
+import { findAc, findMac } from '../src/stats';
 import { pwOf, setPw, uspellOf } from '../src/uenergy';
 import { addMon } from './helpers';
-import { defs, engine, levelSetup } from './itemHelpers';
+import { ctxFor, defs, engine, levelSetup, render } from './itemHelpers';
 
 type Setup = ReturnType<typeof levelSetup>;
 
@@ -50,6 +65,26 @@ function cast(s: Setup, i = 0): StepResult {
   return engine.step(s.state, { type: 'answer', promptId: p.id, value: i });
 }
 const castText = (s: Setup, i = 0): string[] => s.text(cast(s, i));
+/** Answers the pending direction prompt (null dismisses it). */
+function aim(s: Setup, dir: string | null): StepResult {
+  const p = s.state.pendingPrompt?.prompt;
+  expect(p?.id).toBe('cast-direction');
+  return engine.step(s.state, { type: 'answer', promptId: 'cast-direction', value: dir });
+}
+/** `Z`, the spell at menu index `i`, then the direction: all the text. */
+const castAt = (s: Setup, dir: string | null, i = 0): string[] => [
+  ...castText(s, i),
+  ...s.text(aim(s, dir)),
+];
+/** A pinned monster: asleep or not, speed 0, `hp` hit points. */
+function pinned(s: Setup, def: string, x: number, y: number, hp = 100, asleep = true): EntityId {
+  const m = addMon(s.state, def, x, y, { asleep });
+  const e = s.state.entities[String(m)]!;
+  e.c.hp = { cur: hp, max: hp };
+  e.c.actor!.speed = 0;
+  return m;
+}
+const hpOf = (s: Setup, id: EntityId): number => s.state.entities[String(id)]?.c.hp?.cur ?? -1;
 
 describe('the cast command', () => {
   test('offered on the hero only once she knows a spell; the menu lists the known spells', () => {
@@ -84,14 +119,30 @@ describe('the cast command', () => {
     expect(pwOf(s.state).uen).toBe(100);
   });
 
-  test('force bolt, sleep, healing and confuse monster are not castable yet (no cost)', () => {
+  test('confuse monster is not castable yet (no cost)', () => {
     const s = caster();
-    know(s, [FORCE_BOLT, SLEEP, HEALING, CONFUSE]);
-    for (let i = 0; i < 4; i++) {
+    know(s, [CONFUSE]);
+    const t0 = s.state.turn;
+    expect(castText(s)).toEqual(['Nothing happens.']);
+    expect(s.state.turn).toBe(t0);
+    expect(pwOf(s.state).uen).toBe(100);
+  });
+
+  test('a directional spell asks its direction after the energy is spent', () => {
+    const s = caster();
+    know(s, [FORCE_BOLT, SLEEP, HEALING]);
+    for (let i = 0; i < 3; i++) {
       const t0 = s.state.turn;
-      expect(castText(s, i)).toEqual(['Nothing happens.']);
-      expect(s.state.turn).toBe(t0);
-      expect(pwOf(s.state).uen).toBe(100);
+      const uen = pwOf(s.state).uen;
+      cast(s, i);
+      const p = s.state.pendingPrompt?.prompt;
+      expect(p?.id).toBe('cast-direction');
+      expect(p?.kind).toBe('direction');
+      expect(p?.options?.map((o) => o.value)).toContain('self');
+      expect(s.state.turn).toBe(t0); // no time yet
+      expect(pwOf(s.state).uen).toBeLessThan(uen); // the energy is gone
+      aim(s, 'n'); // into the void: nothing there
+      expect(s.state.turn).toBeGreaterThan(t0);
     }
   });
 });
@@ -375,5 +426,293 @@ describe('protection', () => {
       [18, 'The golden haze around you disappears.'],
     ]);
     expect(ac(s)).toBe(8);
+  });
+});
+
+describe('force bolt', () => {
+  test('spell_damage_bonus by Intelligence and level', () => {
+    const s = caster();
+    const at = (int: number, xl: number, dmg: number): number => {
+      hero(s).c.attributes!.int = int;
+      hero(s).c.experience!.level = xl;
+      return spellDamageBonus(s.state, dmg);
+    };
+    // Int 9 or less: -3, never below 1 (0 stays 0)
+    expect([0, 1, 2, 3, 4, 24].map((d) => at(9, 14, d))).toEqual([0, 1, 1, 1, 1, 21]);
+    expect(at(13, 30, 10)).toBe(10);
+    expect(at(14, 4, 10)).toBe(10); // below XL 5: nothing
+    expect(at(14, 5, 10)).toBe(11);
+    expect(at(18, 5, 10)).toBe(11);
+    expect(at(19, 5, 10)).toBe(12);
+    expect(at(25, 13, 10)).toBe(12);
+    expect(at(25, 14, 10)).toBe(13);
+  });
+
+  test('hits a pinned monster for 2d12 plus the bonus, or misses by its AC', () => {
+    // [Int, XL, bonus for a roll of d]
+    const cases: [number, number, (d: number) => number][] = [
+      [9, 1, (d) => (d <= 3 ? 1 : d - 3)],
+      [14, 5, (d) => d + 1],
+      [19, 14, (d) => d + 2],
+    ];
+    for (const [int, xl, expected] of cases) {
+      let hits = 0;
+      let misses = 0;
+      for (let seed = 1; seed <= 60 && (hits < 2 || misses < 1); seed++) {
+        const s = caster(['@.....'], seed);
+        hero(s).c.attributes!.int = int;
+        hero(s).c.experience!.level = xl;
+        know(s, [FORCE_BOLT]);
+        const m = pinned(s, 'nh:jackal', 2, 0);
+        castText(s);
+        // the rolls of the beam: its range, the to-hit roll and the damage
+        const c = ctxFor(structuredClone(s.state));
+        c.rng.rn2(8);
+        const toHit = c.rng.rnd(20);
+        const dmg = c.rng.d(2, 12);
+        const text = s.text(aim(s, 'e'));
+        if (toHit < 10 + findMac(s.state, defs, m)) {
+          hits++;
+          expect(text[0]).toMatch(/^The spell hits the jackal[.!]$/);
+          expect(100 - hpOf(s, m)).toBe(expected(dmg)); // the jackal has no magic resistance
+          expect(s.state.entities[String(m)]!.c.monster!.asleep).toBe(false);
+        } else {
+          misses++;
+          expect(text[0]).toBe('The spell misses the jackal.');
+          expect(hpOf(s, m)).toBe(100);
+        }
+      }
+      expect(hits).toBeGreaterThanOrEqual(2);
+      expect(misses).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test('a magic-resistant monster says "Boing!" (no vanilla monster of the subset has AD_MAGM)', () => {
+    const mrMod: Mod = {
+      id: 't',
+      version: '1.0.0',
+      register(api) {
+        api.defineMonster({
+          ...defs.monster('nh:jackal' as DefId),
+          id: 't:warded_jackal' as DefId,
+          attacks: [{ at: 'bite', ad: 'magm', n: 1, d: 2 }],
+        });
+      },
+    };
+    const eng = createEngine([vanillaMod, mrMod]);
+    const { state } = eng.newGame({ seed: 3 });
+    for (const k of Object.keys(state.entities))
+      if (Number(k) !== state.playerId && !state.entities[k]?.c.item?.carriedBy)
+        delete state.entities[k];
+    const level: Level = {
+      id: 'dlvl1',
+      depth: 1,
+      dungeon: 'nh:main',
+      dlevel: 1,
+      width: 5,
+      height: 1,
+      palette: [T.stone, T.floor],
+      cells: [1, 1, 1, 1, 1],
+      lit: [1, 1, 1, 1, 1],
+      rooms: [],
+      traps: [],
+      branch: null,
+      up: null,
+      down: null,
+    };
+    state.levels['dlvl1'] = level;
+    state.memory['dlvl1'] = newMemory(level);
+    state.currentLevel = 'dlvl1';
+    const h = getPlayer(state);
+    Object.assign(h.c.pos!, { level: 'dlvl1', x: 0, y: 0 });
+    h.c.attributes!.wis = 25;
+    for (const o of Object.values(state.entities))
+      if (o?.c.item?.carriedBy === state.playerId) o.c.item.equipped = null;
+    const ctx = { state };
+    setPw(ctx, { uen: 100, uenmax: 100, uenpeak: 100 });
+    (state.modData['nh'] as Record<string, Json>)['spells'] = [{ id: FORCE_BOLT, retention: KEEN }];
+    const m = addMon(state, 't:warded_jackal', 2, 0, { asleep: true });
+    state.entities[String(m)]!.c.hp = { cur: 50, max: 50 };
+    state.entities[String(m)]!.c.actor!.speed = 0;
+    let boings = 0;
+    for (let i = 0; i < 5; i++) {
+      eng.step(state, { type: 'mod', action: 'nh:cast' as DefId });
+      const menu = eng.step(state, { type: 'answer', promptId: 'cast-menu', value: 0 });
+      if (!state.pendingPrompt) {
+        // a failed cast (no robe here: Wis 25 gives 70%)
+        expect(menu.events.some((e) => e.type === 'msg' && e.key === 'cast.fail')).toBe(true);
+        continue;
+      }
+      const r = eng.step(state, { type: 'answer', promptId: 'cast-direction', value: 'e' });
+      expect(r.events.some((e) => e.type === 'msg' && e.key === 'zap.boing')).toBe(true);
+      boings++;
+    }
+    expect(boings).toBeGreaterThan(0);
+    expect(state.entities[String(m)]!.c.hp!.cur).toBe(50);
+  });
+
+  test('breaks a closed door and fragile things on the floor', () => {
+    const s = caster(['@...']);
+    know(s, [FORCE_BOLT]);
+    setTerrain(s.state.levels['dlvl1']!, 2, 0, T.door_closed);
+    expect(castAt(s, 'e')).toContain('The door crashes open!');
+    expect(s.state.levels['dlvl1']!.palette[s.state.levels['dlvl1']!.cells[2] ?? 0]).toBe(
+      T.doorway,
+    );
+  });
+
+  test('at herself: "You bash yourself!", and the killer is "zapped herself with a spell"', () => {
+    const s = caster();
+    know(s, [FORCE_BOLT]);
+    const before = hero(s).c.hp!.cur;
+    expect(castAt(s, 'self')).toContain('You bash yourself!');
+    expect(hero(s).c.hp!.cur).toBeLessThan(before);
+    const d = caster();
+    know(d, [FORCE_BOLT]);
+    hero(d).c.hp!.cur = 1;
+    castAt(d, 'self');
+    expect(d.state.gameOver?.killer).toBe('@killer.zap.self.spell');
+    expect(render({ key: 'killer.zap.self.spell' })).toBe('zapped herself with a spell');
+  });
+
+  test('dismissing the direction releases the energy at herself', () => {
+    const s = caster();
+    know(s, [FORCE_BOLT]);
+    const text = castAt(s, null);
+    expect(text.slice(0, 2)).toEqual(['The magical energy is released!', 'You bash yourself!']);
+    expect(pwOf(s.state).uen).toBe(95);
+  });
+
+  test('a successful cast trains attack spells', () => {
+    const s = caster(['@.....']);
+    know(s, [FORCE_BOLT]);
+    const d = nhData(s.ctx);
+    const before = d.skillAdvance?.['attack_spell'] ?? 0;
+    castAt(s, 'e');
+    expect(nhData(s.ctx).skillAdvance?.['attack_spell']).toBe(before + 1);
+  });
+});
+
+describe('healing', () => {
+  test('heals a peaceful monster without waking it; +1 alignment for a lawful hero', () => {
+    const s = caster(['@.....']);
+    know(s, [HEALING]);
+    setU(s.ctx, { alignType: 1, alignRecord: 0 });
+    const m = pinned(s, 'nh:jackal', 2, 0);
+    s.state.entities[String(m)]!.c.hp = { cur: 1, max: 50 };
+    s.state.entities[String(m)]!.c.monster!.peaceful = true;
+    castText(s);
+    const c = ctxFor(structuredClone(s.state));
+    c.rng.rn2(8);
+    const amt = c.rng.d(6, 4);
+    expect(s.text(aim(s, 'e'))).toContain('The jackal looks better.');
+    expect(hpOf(s, m)).toBe(1 + amt);
+    expect(s.state.entities[String(m)]!.c.monster!.asleep).toBe(true);
+    expect(uState(s.state).alignRecord).toBe(1);
+    // capped at the maximum
+    s.state.entities[String(m)]!.c.hp = { cur: 49, max: 50 };
+    castAt(s, 'e');
+    expect(hpOf(s, m)).toBe(50);
+  });
+
+  test('a hostile monster is healed too, and stays asleep; the neutral Valkyrie gains nothing', () => {
+    const s = caster(['@.....']);
+    know(s, [HEALING]);
+    const m = pinned(s, 'nh:jackal', 1, 0);
+    s.state.entities[String(m)]!.c.hp = { cur: 1, max: 50 };
+    const rec = uState(s.state).alignRecord;
+    castAt(s, 'e');
+    expect(hpOf(s, m)).toBeGreaterThanOrEqual(7);
+    expect(s.state.entities[String(m)]!.c.monster!.asleep).toBe(true);
+    expect(uState(s.state).alignRecord).toBe(rec);
+  });
+
+  test('heals herself: d(6,4); blessed at Skilled it cures blindness', () => {
+    const s = caster();
+    know(s, [HEALING]);
+    hero(s).c.hp = { cur: 10, max: 500 };
+    castText(s);
+    const amt = ctxFor(structuredClone(s.state)).rng.d(6, 4);
+    expect(s.text(aim(s, 'self'))).toContain('You feel better.');
+    expect(hero(s).c.hp!.cur).toBe(10 + amt);
+    // not Skilled: blindness stays
+    setItimeout(s.state, hero(s), P.BLINDED, 100);
+    castAt(s, 'self');
+    expect(hero(s).c.props?.[P.BLINDED]).toBeDefined();
+    const k = caster();
+    know(k, [HEALING]);
+    nhData(k.ctx).skills!['healing_spell'] = P_SKILLED;
+    setItimeout(k.state, hero(k), P.BLINDED, 100);
+    expect(castAt(k, 'self')).toEqual(['You can see again.', 'You feel better.']);
+    expect(hero(k).c.props?.[P.BLINDED]).toBeUndefined();
+  });
+});
+
+describe('sleep', () => {
+  /**
+   * Basic in enchantment (a level 3 spell is sure at XL 1 then) and Dex 25: the spell to-hit
+   * bonus (0 at Basic, +11 Dex) makes every ray hit a jackal.
+   */
+  function sleeper(rows: string[], seed = 1): Setup {
+    const s = caster(rows, seed);
+    hero(s).c.attributes!.dex = 25;
+    nhData(s.ctx).skills!['enchantment_spell'] = P_UNSKILLED + 1;
+    know(s, [SLEEP]);
+    return s;
+  }
+
+  test('spell_hit_bonus by skill and Dexterity', () => {
+    const s = caster();
+    const at = (skill: number, dex: number): number => {
+      nhData(s.ctx).skills!['enchantment_spell'] = skill;
+      hero(s).c.attributes!.dex = dex;
+      return spellHitBonus(s.state, SLEEP);
+    };
+    expect(at(0, 10)).toBe(-4); // restricted
+    expect(at(P_UNSKILLED, 3)).toBe(-7);
+    expect(at(P_UNSKILLED, 5)).toBe(-6);
+    expect(at(P_UNSKILLED, 7)).toBe(-5);
+    expect(at(P_UNSKILLED, 13)).toBe(-4);
+    expect(at(P_UNSKILLED + 1, 14)).toBe(0); // Basic
+    expect(at(P_SKILLED, 16)).toBe(4);
+    expect(at(P_SKILLED + 1, 18)).toBe(7); // Expert
+  });
+
+  test('the ray puts a line of monsters to sleep (u.ulevel / 2 + 1 dice of 25)', () => {
+    const s = sleeper(['@.......']);
+    const ms = [2, 3, 4].map((x) => pinned(s, 'nh:jackal', x, 0, 100, false));
+    const text = castAt(s, 'e');
+    for (const m of ms) {
+      expect(isFrozen(s.ctx, m)).toBe(true);
+      expect(frozenTime(s.ctx, m)).toBeLessThanOrEqual(25); // XL 1: one die
+      expect(hpOf(s, m)).toBe(100);
+    }
+    expect(text.filter((t) => t === 'The sleep ray hits the jackal.')).toHaveLength(3);
+  });
+
+  test('the ray bounces and puts her to sleep on the rebound, unless she resists', () => {
+    let slept = 0;
+    let resisted = 0;
+    for (let seed = 1; seed <= 30 && (slept < 1 || resisted < 1); seed++) {
+      for (const res of [false, true]) {
+        const s = sleeper(['@..'], seed);
+        if (res) setIntrinsic(hero(s), P.SLEEP_RES, true);
+        const t0 = s.state.turn;
+        const text = castAt(s, 'e');
+        expect(text).toContain('The sleep ray bounces!');
+        if (!text.includes('The sleep ray hits you!')) continue;
+        if (res) {
+          resisted++;
+          expect(text).toContain("You don't feel sleepy.");
+          expect(text).not.toContain('You wake up.');
+        } else {
+          slept++;
+          expect(text.at(-1)).toBe('You wake up.');
+          expect(s.state.turn - t0).toBeGreaterThanOrEqual(2);
+        }
+      }
+    }
+    expect(slept).toBeGreaterThan(0);
+    expect(resisted).toBeGreaterThan(0);
   });
 });

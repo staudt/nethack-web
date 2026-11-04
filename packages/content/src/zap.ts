@@ -1,5 +1,6 @@
-// Wands: zapping (z), immediate beams, rays with bounce and reflection, and zapping yourself.
-// ref: src/zap.c dozap(), zappable(), backfire(), weffects(), zapnodir(), bhit(), bhitm(),
+// Wands: zapping (z), immediate beams, rays with bounce and reflection, and zapping yourself;
+// the directional spells (force bolt, sleep, healing) go through the same code with a spell
+// source (C's pseudo spellbook object). ref: src/zap.c dozap(), zappable(), backfire(), weffects(), zapnodir(), bhit(), bhitm(),
 // bhito(), bhitpile(), zapyourself(), learnwand(), probe_monster(), resist(), dobuzz(),
 // zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
 // flashburn(); src/lock.c doorlock(), boxlock(), obstructed(); src/trap.c openholdingtrap(),
@@ -55,6 +56,8 @@ import { discover, isKnown } from './o_init';
 import { doname, xnameOf } from './objnam';
 import { wakeup } from './peaceful';
 import { buzzFrom, flashburn, resist, resistsMagm, wakeGently, type Ray } from './buzz';
+import { adjalign, uState } from './luck';
+import { healup } from './potion';
 import { canSpotMon, monNam } from './perception';
 import {
   P,
@@ -66,6 +69,7 @@ import {
   timeoutLeft,
 } from './props';
 import { clearArea, litroom } from './read';
+import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T } from './terrain';
 import { TRAP, dotrap, mintrap } from './trap';
@@ -93,6 +97,23 @@ export const WAN = {
   lightning: 'nh:wand_of_lightning',
 } as const;
 
+/** The directional spells that zap like wands. ref: include/objects.h SPELL() */
+export const SPE = {
+  forceBolt: 'nh:spellbook_of_force_bolt',
+  sleep: 'nh:spellbook_of_sleep',
+  healing: 'nh:spellbook_of_healing',
+} as const;
+
+/**
+ * What is zapped: a wand entity, or a spell (C's pseudo spellbook object: `blessed` when the
+ * hero is Skilled in healing, never cursed). The wand code takes it in place of the wand.
+ */
+export type ZapSource =
+  { kind: 'wand'; item: Entity } | { kind: 'spell'; otyp: DefId; blessed: boolean };
+
+/** The object type zapped (otmp->otyp). */
+const otypOf = (src: ZapSource): DefId => (src.kind === 'wand' ? src.item.def : src.otyp);
+
 /** ref: include/hack.h WAND_BACKFIRE_CHANCE, WAND_WREST_CHANCE; BOLT_LIM */
 const WAND_BACKFIRE_CHANCE = 100;
 const WAND_WREST_CHANCE = 121;
@@ -103,6 +124,7 @@ const RAY_OF: Readonly<Record<string, Ray>> = {
   [WAN.cold]: 'cold',
   [WAN.sleep]: 'sleep',
   [WAN.lightning]: 'lightning',
+  [SPE.sleep]: 'sleep',
 };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -173,11 +195,16 @@ export function learnwand(ctx: Ctx, wand: Entity): void {
   if (!isKnown(ctx.state, ctx.defs, wand.def)) discover(ctx, wand.def);
 }
 
+/** learnwand() for a source: spells are suppressed, so casting never discovers a book. */
+function learn(ctx: Ctx, src: ZapSource): void {
+  if (src.kind === 'wand') learnwand(ctx, src.item);
+}
+
 /**
  * ref: src/worn.c mon_adjust_speed() for +1 / -1: MSLOW and MFAST cancel each other; the change
  * is told when seen (which identifies the wand).
  */
-function monAdjustSpeed(ctx: Ctx, mon: Entity, adjust: 1 | -1, wand: Entity): void {
+function monAdjustSpeed(ctx: Ctx, mon: Entity, adjust: 1 | -1, src: ZapSource): void {
   const old = mspeed(ctx, mon.id);
   const now = adjust > 0 ? (old === 'slow' ? null : 'fast') : old === 'fast' ? null : 'slow';
   setMspeed(ctx, mon.id, now);
@@ -195,7 +222,7 @@ function monAdjustSpeed(ctx: Ctx, mon: Entity, adjust: 1 | -1, wand: Entity): vo
       mon: monNam(ctx, mon),
       much,
     });
-    learnwand(ctx, wand);
+    learn(ctx, src);
   }
 }
 
@@ -356,17 +383,17 @@ function ustatusline(ctx: Ctx): void {
 // locks: doors and boxes
 
 /** ref: src/lock.c boxlock(): locking (Klunk!) or opening (Klick!) a box */
-function boxlock(ctx: Ctx, box: Entity, wand: Entity): boolean {
+function boxlock(ctx: Ctx, box: Entity, otyp: DefId): boolean {
   const it = box.c.item;
   if (!it) return false;
-  if (wand.def === WAN.locking) {
+  if (otyp === WAN.locking) {
     if (it.locked) return false; // already closed and locked
     say(ctx, 'zap.klunk');
     it.locked = true; // lock it; fix if broken
     delete it.broken;
     return true;
   }
-  if (wand.def === WAN.opening) {
+  if (otyp === WAN.opening) {
     if (it.locked) {
       say(ctx, 'zap.klick');
       delete it.locked;
@@ -381,9 +408,9 @@ const isBox = (ctx: Ctx, e: Entity): boolean =>
   isContainer(ctx.defs, e) && ctx.defs.object(e.def).container?.box === true;
 
 /** ref: src/zap.c boxlock_invent(): (un)lock carried boxes */
-function boxlockInvent(ctx: Ctx, wand: Entity): void {
+function boxlockInvent(ctx: Ctx, otyp: DefId): void {
   for (const o of inventoryOf(ctx.state, ctx.state.playerId))
-    if (isBox(ctx, o)) boxlock(ctx, o, wand);
+    if (isBox(ctx, o)) boxlock(ctx, o, otyp);
 }
 
 /** ref: src/lock.c obstructed() (not quietly: the wand is always dknown) */
@@ -405,21 +432,22 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
  * ref: src/lock.c doorlock(). A doorway stands for both D_NODOOR and D_BROKEN; doors are never
  * trapped; no shop doors.
  */
-function doorlock(ctx: Ctx, wand: Entity, x: number, y: number): boolean {
+function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
   const level = levelOf(ctx);
   const id = cellId(level, x, y);
+  const striking = otyp === WAN.striking || otyp === SPE.forceBolt;
   if (isSdoor(id)) {
-    if (wand.def !== WAN.opening && wand.def !== WAN.striking) return false;
+    if (otyp !== WAN.opening && !striking) return false;
     // door->doormask = D_CLOSED: the secret door becomes a closed (unlocked) door
     setTerrain(level, x, y, T.door_closed);
     if (cansee(ctx, x, y)) say(ctx, 'zap.door.appears');
-    if (wand.def === WAN.opening) return true;
+    if (otyp === WAN.opening) return true;
     // striking: continue door handling below
   }
   const t = terrainAt(ctx, level, x, y);
   let msg: string | null = null;
   let res = true;
-  if (wand.def === WAN.locking) {
+  if (otyp === WAN.locking) {
     if (obstructed(ctx, x, y)) return false;
     // traps are never in doorways here
     switch (t.door) {
@@ -437,12 +465,12 @@ function doorlock(ctx: Ctx, wand: Entity, x: number, y: number): boolean {
         break;
     }
     setTerrain(level, x, y, T.door_locked);
-  } else if (wand.def === WAN.opening) {
+  } else if (otyp === WAN.opening) {
     if (t.door === 'locked') {
       msg = 'zap.door.unlocks';
       setTerrain(level, x, y, T.door_closed);
     } else res = false;
-  } else if (wand.def === WAN.striking) {
+  } else if (striking) {
     if (t.door === 'locked' || t.door === 'closed') {
       const sawit = cansee(ctx, x, y);
       setTerrain(level, x, y, T.doorway); // D_BROKEN
@@ -458,54 +486,78 @@ function doorlock(ctx: Ctx, wand: Entity, x: number, y: number): boolean {
 // ---------------------------------------------------------------------------------------------
 // immediate wands: bhit(), bhitm(), bhito(), bhitpile()
 
-/** ref: src/zap.c bhitm(): the monster is hit by the wand's effect */
-function bhitm(ctx: Ctx, mon: Entity, wand: Entity, at: Pos): void {
+/**
+ * ref: src/zap.c bhitm(): the monster is hit by the wand's or spell's effect. No Pestilence or
+ * monster blindness exist (healing never hurts and cures no blindness).
+ */
+function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   let wake = true;
   let helpful = false;
-  let learn = false;
-  switch (wand.def) {
+  let learnIt = false;
+  const otyp = otypOf(src);
+  const oclass = src.kind;
+  switch (otyp) {
     case WAN.striking:
-      learn = cansee(ctx, at.x, at.y);
+    case SPE.forceBolt:
+      learnIt = cansee(ctx, at.x, at.y);
       if (resistsMagm(ctx, mon)) {
         say(ctx, 'zap.boing');
       } else if (ctx.rng.rnd(20) < 10 + findMac(ctx.state, ctx.defs, mon.id)) {
-        const dmg = ctx.rng.d(2, 12);
-        say(ctx, 'zap.wand_hit', { mon: monNam(ctx, mon), ex: exclam(dmg) });
-        resist(ctx, mon, dmg);
+        let dmg = ctx.rng.d(2, 12);
+        if (otyp === SPE.forceBolt) dmg = spellDamageBonus(ctx.state, dmg);
+        say(ctx, oclass === 'wand' ? 'zap.wand_hit' : 'zap.spell_hit', {
+          mon: monNam(ctx, mon),
+          ex: exclam(dmg),
+        });
+        resist(ctx, mon, dmg, oclass);
       } else {
-        say(ctx, 'zap.wand_miss', { mon: monNam(ctx, mon) });
-        learn = false;
+        say(ctx, oclass === 'wand' ? 'zap.wand_miss' : 'zap.spell_miss', {
+          mon: monNam(ctx, mon),
+        });
+        learnIt = false;
       }
       break;
+    case SPE.healing: {
+      const healamt = ctx.rng.d(6, 4);
+      wake = false; // wakeup() makes the target angry
+      // healmon(mtmp, healamt, 0)
+      const hp = mon.c.hp;
+      if (hp) hp.cur = hp.cur + healamt > hp.max ? hp.max : hp.cur + healamt;
+      // a blessed (Skilled) spell would cure the monster's blindness: no monster blindness yet
+      if (canseemon(ctx, mon)) say(ctx, 'zap.looks_better', { mon: monNam(ctx, mon) });
+      const m = mon.c.monster;
+      if ((m?.tame ?? 0) > 0 || m?.peaceful) adjalign(ctx, Math.sign(uState(ctx.state).alignType));
+      break;
+    }
     case WAN.slow:
-      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, -1, wand);
+      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, -1, src);
       break;
     case WAN.speed:
-      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, 1, wand);
+      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, 1, src);
       helpful = true; // wake but don't anger a peaceful target
       break;
     case WAN.locking: {
       const r = closeholdingtrap(ctx, mon);
       wake = r.done;
-      learn = r.noticed;
+      learnIt = r.noticed;
       break;
     }
     case WAN.probing:
       wake = false;
       probeMonster(ctx, mon);
-      learn = true;
+      learnIt = true;
       break;
     case WAN.opening: {
       wake = false; // don't want immediate counterattack
       if (ustuck(ctx) === mon.id) {
         releaseHold(ctx);
-        learn = true;
+        learnIt = true;
         break;
       }
       const r = openholdingtrap(ctx, mon);
-      learn ||= r.noticed;
+      learnIt ||= r.noticed;
       if (r.done) break;
-      learn ||= openfallingtrap(ctx, mon).noticed;
+      learnIt ||= openfallingtrap(ctx, mon).noticed;
       break;
     }
     case WAN.nothing:
@@ -517,7 +569,7 @@ function bhitm(ctx: Ctx, mon: Entity, wand: Entity, at: Pos): void {
     if (helpful) wakeGently(ctx, mon);
     else wakeup(ctx, mon.id);
   }
-  if (learn) learnwand(ctx, wand);
+  if (learnIt) learn(ctx, src);
 }
 
 /** ref: src/dothrow.c breaktest(): potions and glass (not gems) break; 1% resist */
@@ -528,10 +580,11 @@ function breaktest(ctx: Ctx, e: Entity): boolean {
 }
 
 /** ref: src/zap.c bhito() for a floor object; returns 1 when it was affected */
-function bhito(ctx: Ctx, obj: Entity, wand: Entity, x: number, y: number): number {
+function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): number {
   let res = 0;
-  let learn = false;
-  switch (wand.def) {
+  let learnIt = false;
+  const otyp = otypOf(src);
+  switch (otyp) {
     case WAN.probing:
       // only containers tell anything new (every object is dknown here)
       if (isContainer(ctx.defs, obj)) {
@@ -545,10 +598,11 @@ function bhito(ctx: Ctx, obj: Entity, wand: Entity, x: number, y: number): numbe
             items: inside.map((o) => doname(ctx.state, ctx.defs, o)),
           });
         res = 1;
-        learn = true;
+        learnIt = true;
       }
       break;
-    case WAN.striking: {
+    case WAN.striking:
+    case SPE.forceBolt: {
       // hero_breaks(): something fragile breaks (heard if not seen)
       if (!breaktest(ctx, obj)) break;
       const it = obj.c.item;
@@ -558,27 +612,27 @@ function bhito(ctx: Ctx, obj: Entity, wand: Entity, x: number, y: number): numbe
         });
       else say(ctx, 'zap.hear_shatter');
       ctx.remove(obj.id);
-      learn = true;
+      learnIt = true;
       break;
     }
     case WAN.opening:
     case WAN.locking:
-      if (isBox(ctx, obj)) res = boxlock(ctx, obj, wand) ? 1 : 0;
-      learn = res !== 0;
+      if (isBox(ctx, obj)) res = boxlock(ctx, obj, otyp) ? 1 : 0;
+      learnIt = res !== 0;
       break;
     default:
       break;
   }
-  if (learn) learnwand(ctx, wand);
+  if (learnIt) learn(ctx, src);
   return res;
 }
 
 /** ref: src/zap.c bhitpile(): every object on the square; the number affected */
-function bhitpile(ctx: Ctx, wand: Entity, x: number, y: number): number {
+function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number {
   let hit = 0;
   for (const o of itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y)) {
     if (!ctx.state.entities[String(o.id)]) continue;
-    hit += bhito(ctx, o, wand, x, y);
+    hit += bhito(ctx, o, src, x, y);
   }
   return hit;
 }
@@ -588,8 +642,9 @@ function bhitpile(ctx: Ctx, wand: Entity, x: number, y: number): number {
  * of the range), then the objects; doors are opened, locked or broken, and the beam stops at a
  * wall or closed door. ref: src/zap.c bhit() with ZAPPED_WAND, zap_map() (probing only)
  */
-function bhit(ctx: Ctx, wand: Entity, dir: Dir): void {
+function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   const level = levelOf(ctx);
+  const otyp = otypOf(src);
   const d = DIRS[dir];
   let range = ctx.rng.rn2(8) + 6;
   let { x, y } = heroPos(ctx);
@@ -598,31 +653,34 @@ function bhit(ctx: Ctx, wand: Entity, dir: Dir): void {
     y += d.y;
     if (!inBounds(level, x, y)) break;
     // zap_map(): probing maps the square and reveals a secret door
-    if (wand.def === WAN.probing && isSdoor(cellId(level, x, y))) {
+    if (otyp === WAN.probing && isSdoor(cellId(level, x, y))) {
       const locked =
         cellId(level, x, y) === T.sdoor_locked_v || cellId(level, x, y) === T.sdoor_locked_h;
       setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
       if (cansee(ctx, x, y)) {
         say(ctx, 'zap.probe.sdoor');
-        learnwand(ctx, wand);
+        learn(ctx, src);
       }
     }
     const typIsSdoor = isSdoor(cellId(level, x, y));
     const before = terrainAt(ctx, level, x, y);
     const mon = monAt(ctx, x, y);
     if (mon) {
-      bhitm(ctx, mon, wand, { x, y });
+      bhitm(ctx, mon, src, { x, y });
       if (ctx.state.gameOver) return;
       range -= 3;
     }
-    if (bhitpile(ctx, wand, x, y)) range--;
+    if (bhitpile(ctx, src, x, y)) range--;
     if (
       (before.door !== undefined || typIsSdoor) &&
-      (wand.def === WAN.opening || wand.def === WAN.locking || wand.def === WAN.striking) &&
-      doorlock(ctx, wand, x, y) &&
-      (cansee(ctx, x, y) || wand.def === WAN.striking)
+      (otyp === WAN.opening ||
+        otyp === WAN.locking ||
+        otyp === WAN.striking ||
+        otyp === SPE.forceBolt) &&
+      doorlock(ctx, otyp, x, y) &&
+      (cansee(ctx, x, y) || otyp === WAN.striking)
     )
-      learnwand(ctx, wand);
+      learn(ctx, src);
     // the terrain read before the door handling decides (a secret door stops the beam)
     if (!zapPos(before) || closedDoor(terrainAt(ctx, level, x, y))) break;
   }
@@ -691,9 +749,9 @@ function createCritters(ctx: Ctx, cnt: number): boolean {
 }
 
 /** ref: src/zap.c zapnodir() */
-function zapnodir(ctx: Ctx, wand: Entity): void {
+function zapnodir(ctx: Ctx, src: ZapSource): void {
   let known = false;
-  switch (wand.def) {
+  switch (otypOf(src)) {
     case WAN.light:
       known = !blind(ctx);
       litroom(ctx, true, false);
@@ -708,12 +766,22 @@ function zapnodir(ctx: Ctx, wand: Entity): void {
     default:
       break;
   }
-  if (known) learnwand(ctx, wand);
+  if (known) learn(ctx, src);
 }
 
-/** The hero's wand ray from her square. ref: src/zap.c buzz() for type 0..9 */
-function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir): void {
-  buzzFrom(ctx, ray, nd, heroPos(ctx), dir, { by: 'hero', wakeup });
+/**
+ * The hero's wand or spell ray from her square. ref: src/zap.c ubuzz() for type 0..9 and
+ * 10..19 (`spell`: the book)
+ */
+function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir, spell: DefId | null): void {
+  buzzFrom(
+    ctx,
+    ray,
+    nd,
+    heroPos(ctx),
+    dir,
+    spell ? { by: 'hero', spell, wakeup } : { by: 'hero', wakeup },
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -729,13 +797,15 @@ const SELF_KILLER: Readonly<Record<string, string>> = {
 };
 
 /** ref: src/zap.c zapyourself() with `ordinary` TRUE; returns the damage to take */
-function zapyourself(ctx: Ctx, wand: Entity): number {
+function zapyourself(ctx: Ctx, src: ZapSource): number {
   const h = hero(ctx);
-  let learn = false;
+  let learnIt = false;
   let damage = 0;
-  switch (wand.def) {
+  const otyp = otypOf(src);
+  switch (otyp) {
     case WAN.striking:
-      learn = true;
+    case SPE.forceBolt:
+      learnIt = true;
       if (antimagic(ctx)) say(ctx, 'zap.boing');
       else {
         say(ctx, 'zap.self.bash');
@@ -743,7 +813,7 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
       }
       break;
     case WAN.lightning: {
-      learn = true;
+      learnIt = true;
       const orig = ctx.rng.d(12, 6);
       if (!hasProp(h, P.SHOCK_RES)) {
         say(ctx, 'zap.self.shock');
@@ -755,7 +825,7 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
       break;
     }
     case WAN.fire: {
-      learn = true;
+      learnIt = true;
       const orig = ctx.rng.d(12, 6);
       if (hasProp(h, P.FIRE_RES)) say(ctx, 'zap.self.warm');
       else {
@@ -768,7 +838,7 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
       break;
     }
     case WAN.cold: {
-      learn = true;
+      learnIt = true;
       const orig = ctx.rng.d(12, 6);
       if (hasProp(h, P.COLD_RES)) say(ctx, 'zap.self.chill');
       else {
@@ -779,7 +849,7 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
       break;
     }
     case WAN.magicMissile:
-      learn = true;
+      learnIt = true;
       if (antimagic(ctx)) say(ctx, 'zap.self.missiles_bounce');
       else {
         damage = ctx.rng.d(4, 6);
@@ -789,53 +859,59 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
     case WAN.speed:
       // no longer gives intrinsic, but gives very fast speed instead
       speedUp(ctx, ctx.rng.rn2(25) + 50);
-      learn = true;
+      learnIt = true;
       break;
     case WAN.sleep:
-      learn = true;
+    case SPE.sleep:
+      learnIt = true;
       if (hasProp(h, P.SLEEP_RES)) say(ctx, 'zap.self.not_sleepy');
       else {
         say(ctx, 'zap.self.sleep_ray');
         nomulNow(ctx, ctx.rng.rnd(50), 'helpless.asleep', { key: 'eat.wake_up' }); // fall_asleep()
       }
       break;
+    case SPE.healing:
+      learnIt = true; // (no effect for spells...)
+      healup(ctx, ctx.rng.d(6, 4), 0, false, src.kind === 'spell' && src.blessed);
+      say(ctx, 'zap.self.feel_better');
+      break;
     case WAN.slow:
       if (hasIntrinsic(h, P.FAST) || timeoutLeft(ctx.state, h, P.FAST) > 0) {
-        learn = true;
+        learnIt = true;
         uSlowDown(ctx);
       }
       break;
     case WAN.opening:
       if (ustuck(ctx) !== null) {
         releaseHold(ctx);
-        learn = true;
+        learnIt = true;
       }
       // invent is hit iff hero doesn't escape from a trap
       {
         const r = utrap(ctx) ? openholdingtrap(ctx, null) : { done: false, noticed: false };
-        learn ||= r.noticed;
+        learnIt ||= r.noticed;
         if (!r.done) {
-          boxlockInvent(ctx, wand);
-          learn ||= openfallingtrap(ctx, null).noticed; // trigger previously escaped trapdoor
+          boxlockInvent(ctx, otyp);
+          learnIt ||= openfallingtrap(ctx, null).noticed; // trigger previously escaped trapdoor
         }
       }
       break;
     case WAN.locking: {
       // similar logic to opening; invent is hit iff no trap triggered
       const r = utrap(ctx) ? { done: false, noticed: false } : closeholdingtrap(ctx, null);
-      learn ||= r.noticed;
-      if (utrap(ctx) || !r.done) boxlockInvent(ctx, wand);
+      learnIt ||= r.noticed;
+      if (utrap(ctx) || !r.done) boxlockInvent(ctx, otyp);
       break;
     }
     case WAN.probing:
-      learn = true;
+      learnIt = true;
       ustatusline(ctx);
       break;
     case WAN.nothing:
     default:
       break;
   }
-  if (learn) learnwand(ctx, wand);
+  if (learnIt) learn(ctx, src);
   return damage;
 }
 
@@ -843,33 +919,52 @@ function zapyourself(ctx: Ctx, wand: Entity): number {
 // weffects() and the z command
 
 /**
- * The effect of zapping a wand of the subset (ObjectDef.zap). `dir` is a direction, 'self' or
- * null for a directionless wand. ref: src/zap.c weffects(); zapyourself() for 'self' (with the
- * losehp() of dozap())
+ * The effect of zapping a wand or casting a directional spell. `dir` is a direction, 'self' or
+ * null for a directionless one. ref: src/zap.c weffects(); zapyourself() for 'self' (with the
+ * losehp() of dozap() and spelleffects(): "zapped herself with a spell"); a spell's ray has
+ * `u.ulevel / 2 + 1` dice
+ */
+export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: Dir | 'self' | null): void {
+  const otyp = otypOf(src);
+  const kind =
+    src.kind === 'wand'
+      ? (ctx.defs.object(otyp).wand?.dir ?? 'nodir')
+      : (SPELL_INFO[otyp]?.dir ?? 'nodir');
+  if (kind === 'nodir' || dir === null) {
+    zapnodir(ctx, src);
+    return;
+  }
+  if (dir === 'self') {
+    const damage = zapyourself(ctx, src);
+    if (damage && !ctx.state.gameOver)
+      losehp(
+        ctx,
+        damage,
+        src.kind === 'spell'
+          ? '@killer.zap.self.spell'
+          : (SELF_KILLER[otyp] ?? '@killer.zap.self.striking'),
+      );
+    return;
+  }
+  if (kind === 'immediate') {
+    bhit(ctx, src, dir);
+    return;
+  }
+  const ray = RAY_OF[otyp];
+  if (!ray) return;
+  learn(ctx, src); // disclose: a ray is always seen
+  if (src.kind === 'spell')
+    buzz(ctx, ray, Math.trunc((hero(ctx).c.experience?.level ?? 1) / 2) + 1, dir, otyp);
+  else buzz(ctx, ray, otyp === WAN.magicMissile ? 2 : 6, dir, null);
+}
+
+/**
+ * The effect of zapping a wand of the subset (ObjectDef.zap): {@link weffectsFrom} with the wand.
  */
 export function weffects(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void {
   const wand = ent(ctx, item);
   if (!wand || user !== ctx.state.playerId) return; // monsters don't zap yet
-  const def = ctx.defs.object(wand.def);
-  const kind = def.wand?.dir ?? 'nodir';
-  if (kind === 'nodir' || dir === null) {
-    zapnodir(ctx, wand);
-    return;
-  }
-  if (dir === 'self') {
-    const damage = zapyourself(ctx, wand);
-    if (damage && !ctx.state.gameOver)
-      losehp(ctx, damage, SELF_KILLER[wand.def] ?? '@killer.zap.self.striking');
-    return;
-  }
-  if (kind === 'immediate') {
-    bhit(ctx, wand, dir);
-    return;
-  }
-  const ray = RAY_OF[wand.def];
-  if (!ray) return;
-  learnwand(ctx, wand); // disclose: a ray is always seen
-  buzz(ctx, ray, wand.def === WAN.magicMissile ? 2 : 6, dir);
+  weffectsFrom(ctx, { kind: 'wand', item: wand }, dir);
 }
 
 /** `zap` for every wand of the subset (attached to the defs in index.ts). */
@@ -916,7 +1011,7 @@ function itemArg(action: PlayerAction): unknown {
 }
 
 /** The direction prompt: the eight directions and yourself ('.'); no up or down. */
-const ZAP_DIRECTIONS: PromptOption[] = [
+export const ZAP_DIRECTIONS: readonly PromptOption[] = [
   ...DIR_LIST.map((d) => ({ value: d, key: `dir.${d}` })),
   { value: 'self', key: 'zap.dir.self' },
 ];
@@ -954,7 +1049,12 @@ const zap: ActionDef = {
     } else if (needDir) {
       // getdir(): the charge is already spent
       ctx.ask(
-        { id: 'zap-direction', kind: 'direction', key: 'zap.direction', options: ZAP_DIRECTIONS },
+        {
+          id: 'zap-direction',
+          kind: 'direction',
+          key: 'zap.direction',
+          options: [...ZAP_DIRECTIONS],
+        },
         ZAP_ID,
         { item: wand.id },
       );
