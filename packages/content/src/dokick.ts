@@ -3,8 +3,9 @@
 // (KICKED_WEAPON); src/do.c set_wounded_legs()
 //
 // The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not
-// levitating, not riding, not swimming. Those branches are not ported. Also not ported: traps, boxes
-// and chests, boulders, shops, thrones, fountains, graves, trees, sinks,
+// levitating, not riding, not swimming. Those branches are not ported. Shop goods kicked out of
+// a shop are owed (stolen_value()); kicked gold (costly_gold(): no loan) and shop damage are not.
+// Also not ported: traps, boxes and chests, boulders, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import {
@@ -16,6 +17,7 @@ import {
   getLevel,
   getPlayer,
   inBounds,
+  inRooms,
   inventoryOf,
   itemsAt,
   rnl,
@@ -60,6 +62,8 @@ import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T } from './terrain';
 import { thitmonst } from './dothrow';
+import { costlySpot, eshkOf, isShopType } from './eshk';
+import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { monNam } from './perception';
 import { abuseDog } from './dog';
 import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
@@ -287,6 +291,11 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
   if (!inBounds(level, nx, ny) || !rules.passable[level.cells[cellIndex(level, nx, ny)] ?? 0])
     range = 1;
 
+  // ref: really_kick_object(): the shop the object lies in cares about it
+  const shk = findObjowner(ctx, pile, x, y);
+  const costly =
+    shk !== null && (costlySpot(ctx, x, y) || (costlyAdjacent(ctx, shk, x, y) && !!it.unpaid));
+
   // "You kick a dagger." (one of the stack)
   const one =
     it.quantity > 1 && !isgold ? { ...pile, c: { ...pile.c, item: { ...it, quantity: 1 } } } : pile;
@@ -336,7 +345,17 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
     }
   }
   // the object lands where it stopped (on the monster's square if one was hit, even a dead one)
-  if (ctx.state.entities[String(id)]) placeOnFloor(ctx, id, level.id, land.x, land.y);
+  if (!ctx.state.entities[String(id)]) return true;
+  const shopAt = (px: number, py: number): number | undefined =>
+    inRooms(level, px, py).find((r) => isShopType(level.rooms[r]?.type));
+  if (costly && shk !== null) {
+    const peaceful = !!ctx.state.entities[String(shk)]?.c.monster?.peaceful;
+    if (!costlySpot(ctx, land.x, land.y) || shopAt(x, y) !== shopAt(land.x, land.y)) {
+      // kicked from inside shop to somewhere outside shop (gold: no loan, never billed)
+      if (!isgold) stolenValue(ctx, obj, x, y, peaceful, false);
+    } else if (obj.c.item?.unpaid && eshkOf(ctx, shk)) subfrombill(ctx, obj, shk);
+  }
+  placeOnFloor(ctx, id, level.id, land.x, land.y);
   return true;
 }
 

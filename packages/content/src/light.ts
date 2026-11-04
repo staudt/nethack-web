@@ -29,6 +29,7 @@ import { heroSees } from './mongear';
 import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { monNam } from './perception';
+import { checkUnpaid } from './shk';
 
 export const LAMP = {
   oil: 'nh:oil_lamp',
@@ -291,6 +292,7 @@ export function useLamp(ctx: Ctx, obj: Entity): void {
     } else say(ctx, 'apply.nothing_seems');
     return;
   }
+  checkUnpaid(ctx, obj); // ref: use_lamp(): check_unpaid(obj), a usage fee in a shop
   say(ctx, `lamp.now_on.${lamp}`);
   beginBurn(ctx, obj, false);
 }

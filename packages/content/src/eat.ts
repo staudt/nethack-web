@@ -40,7 +40,7 @@ import { encumberMsg } from './itemactions';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
 import { costlySpot, isShopType, uShops } from './eshk';
-import { addtobill, billUsedUp, costlyAlteration } from './shk';
+import { addtobill, billUsedUp, costlyAlteration, stolenValue } from './shk';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -104,10 +104,11 @@ function useup(ctx: Ctx, e: Entity): void {
   }
   const p = e.c.pos;
   if (it && it.carriedBy === null && p && costlySpot(ctx, p.x, p.y)) {
-    // useupf(): the hero is in that shop (C: `strchr(u.urooms, ...)`, else stolen_value(): step 4)
+    // useupf(): billed when the hero is in that shop (C: `strchr(u.urooms, ...)`), else stolen
     const level = getLevel(ctx.state);
     const room = inRooms(level, p.x, p.y).find((r) => isShopType(level.rooms[r]?.type));
     if (room !== undefined && uShops(ctx).includes(room)) addtobill(ctx, e, false, false, false);
+    else stolenValue(ctx, e, p.x, p.y, false, false);
   }
   billUsedUp(ctx, e);
   ctx.remove(e.id);

@@ -662,6 +662,40 @@ export function placeOnFloor(
 }
 
 /**
+ * Puts the item on the floor at (x, y) as the top of the pile without merging it, for code that
+ * must deal with it there before stackobj() (selling in a shop). ref: src/mkobj.c place_object()
+ */
+export function placeObject(
+  ctx: ItemCtx,
+  itemId: EntityId,
+  level: LevelId,
+  x: number,
+  y: number,
+): void {
+  const item = ctx.state.entities[String(itemId)];
+  const it = item?.c.item;
+  if (!item || !it) throw new Error(`placeObject: ${itemId} is not an item`);
+  if (it.carriedBy !== null) removeFromInventory(ctx, itemId);
+  it.equipped = null;
+  item.c.pos = { level, x, y };
+  it.placed = ctx.state.seq++;
+}
+
+/**
+ * Merges a floor item into a mergable stack on its square; returns the resulting stack's id.
+ * ref: src/invent.c stackobj()
+ */
+export function stackobj(ctx: ItemCtx, itemId: EntityId): EntityId {
+  const item = ctx.state.entities[String(itemId)];
+  const p = item?.c.pos;
+  if (!item || !p) return itemId;
+  for (const other of itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y)) {
+    if (other.id !== itemId && merged(ctx, other, item)) return other.id;
+  }
+  return itemId;
+}
+
+/**
  * Splits `n` items off a stack and returns the new, detached stack (the caller places it, as
  * with removeFromInventory). The original keeps quantity - n and stays where it was, worn
  * status stays with it. ref: src/invent.c splitobj(); requires 0 < n < quantity.

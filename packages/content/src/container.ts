@@ -4,13 +4,14 @@
 // ref: src/pickup.c doloot_core(), able_to_loot(), do_loot_cont(), use_container(),
 // in_or_out_menu(), menu_loot(), in_container(), out_container(), mbag_explodes(),
 // do_boh_explosion(), boh_loss(), mbag_item_gone(), u_handsy(); src/mkobj.c add_to_container()
+// (selling into a shop's container on its floor: sellobj(), with the y/n/a/q question)
 //
 // Not ported (see DEVIATIONS.md): the ':' (look inside), 'r' (reversed) and 's' (stash one)
 // choices, the object-class filter menu of menustyle:full, looting several containers through one
 // "Loot which containers?" menu (each floor container has its own offer instead), reverse_loot()
-// while confused, trapped boxes, bags of tricks, ice boxes, Schroedinger's cat, selling into a
-// shop's container (6b3 step 4), scatter() of a bag of holding explosion (what survives lands at
-// the hero's feet), the weight check when taking things out of a carried container, the
+// while confused, trapped boxes, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
+// bag of holding that explodes on its floor, scatter() of a bag of holding explosion (what
+// survives lands at the hero's feet), the weight check when taking things out of a carried container, the
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
 import {
   NORMAL_SPEED,
@@ -55,7 +56,17 @@ import { P, heroHas } from './props';
 import { setSwapWep, swapWep } from './wield';
 import { HERE } from './priority';
 import { costlySpot } from './eshk';
-import { addtobill } from './shk';
+import {
+  addtobill,
+  billUsedUp,
+  sellAnswer,
+  sellPrompt,
+  sellReply,
+  sellobj,
+  sellobjState,
+  type SellOffer,
+  type SellState,
+} from './shk';
 
 export const LOOT_ID: DefId = 'nh:loot';
 
@@ -169,8 +180,12 @@ function addToContainer(ctx: Ctx, box: Entity, obj: Entity): void {
   putIn(ctx.defs, ctx.state, box.id, obj.id);
 }
 
-/** 1: put in, 0: not put in, -1: stop (the container is gone). ref: src/pickup.c in_container() */
-function inContainer(ctx: Ctx, box: Entity, obj: Entity): -1 | 0 | 1 {
+/**
+ * 1: put in, 0: not put in, -1: stop (the container is gone), 'ask': a shopkeeper's offer for it
+ * is pending in `data.offer` (it lies in the container until inContainerRest()).
+ * ref: src/pickup.c in_container()
+ */
+function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0 | 1 | 'ask' {
   const it = obj.c.item;
   if (!it) return 0;
   if (obj.id === box.id) {
@@ -206,11 +221,36 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity): -1 | 0 | 1 {
   removeFromInventory(ctx, obj.id); // freeinv()
   snuffLit(ctx, obj); // obj_is_burning(): this used to be part of freeinv()
 
+  let wasUnpaid = false;
+  const hp = hero(ctx).c.pos;
+  if (!held(ctx, box) && hp && costlySpot(ctx, hp.x, hp.y)) {
+    // defer gold until after put-in message (gold is never sold here: no credit for gold)
+    if (ctx.defs.object(obj.def).class !== 'coin') {
+      // sellobj() will take an unpaid item off the shop bill
+      wasUnpaid = !!it.unpaid;
+      // don't sell when putting the item into your own container, but handle billing correctly
+      data.sell ??= sellobjState(box.c.item?.noCharge ? 'dontsell' : 'deliberate');
+      const offer = sellobj(ctx, obj, hp.x, hp.y, data.sell);
+      if (offer) {
+        putIn(ctx.defs, ctx.state, box.id, obj.id);
+        data.offer = { ...offer, wasUnpaid };
+        return 'ask';
+      }
+    }
+  }
+  return inContainerRest(ctx, box, obj, wasUnpaid);
+}
+
+/** The rest of in_container() after selling: the explosion, or into the container. */
+function inContainerRest(ctx: Ctx, box: Entity, obj: Entity, wasUnpaid: boolean): -1 | 1 {
   if (isMbag(ctx, box) && mbagExplodes(ctx, obj, 0)) {
     // explicitly mention what item is triggering the explosion
     say(ctx, 'loot.explosion', { item: ctx.defs.itemName(ctx.state, obj) });
+    // did not actually insert obj yet
+    if (wasUnpaid) addtobill(ctx, obj, false, false, true);
     // one bag of holding into another
     if (isMbag(ctx, obj)) bohExplosion(ctx, obj);
+    billUsedUp(ctx, obj); // obfree()
     ctx.remove(obj.id);
     bohExplosion(ctx, box);
     if (held(ctx, box)) removeFromInventory(ctx, box.id);
@@ -295,6 +335,11 @@ interface LootData {
   stage: 'what' | 'out' | 'in';
   /** After taking out ('b'), put in. */
   thenIn?: boolean;
+  /** Putting into a shop's container: the selling state, and the offer being asked about. */
+  sell?: SellState;
+  offer?: SellOffer & { wasUnpaid: boolean };
+  /** The chosen objects still to put in (after a sell question). */
+  queue?: { id: number; count?: number }[];
 }
 
 /** Whether the hero carries anything other than the container itself. */
@@ -453,27 +498,53 @@ function answerLoot(ctx: Ctx, value: Json, raw: Json): number {
       return afterOut(ctx, box, data, data.thenIn === true);
     }
     case 'in': {
-      for (const { id, count } of chosen(value)) {
-        let o = ctx.state.entities[String(id)];
-        if (!o?.c.item || o.c.item.carriedBy !== ctx.state.playerId) continue;
-        const q = o.c.item.quantity;
-        let split = false;
-        if (count !== undefined && count < q) {
-          o = ctx.state.entities[String(splitStack(ctx, o.id, count))];
-          if (!o) continue;
-          split = true; // the split part is detached; in_container() takes it from there
-        }
-        const res = inContainer(ctx, box, o);
-        if (res > 0) data.used = true;
-        else if (split && res === 0 && ctx.state.entities[String(o.id)]) {
-          // couldn't put selected item into container: merge it back (unsplitobj())
-          addToInventory(ctx, ctx.state.playerId, o.id);
-        }
-        if (res < 0) {
+      if (data.offer) {
+        // the answer to a sell question: settle it, put the object in, go on with the rest
+        const { offer, ...rest } = data;
+        const o = ctx.state.entities[String(offer.obj)];
+        if (data.sell) sellAnswer(ctx, offer, sellReply(value), data.sell);
+        if (o) {
+          takeOut(ctx.state, o.id);
           data.used = true;
-          return finish(ctx, data);
+          if (inContainerRest(ctx, box, o, offer.wasUnpaid) < 0) return finish(ctx, rest);
         }
+        return putInLoop(ctx, box, rest);
       }
+      return putInLoop(ctx, box, { ...data, queue: chosen(value) });
+    }
+  }
+  return finish(ctx, data);
+}
+
+/** Puts the queued objects in one by one; a sell question pauses it. ref: menu_loot(), TRUE */
+function putInLoop(ctx: Ctx, box: Entity, data: LootData): number {
+  const queue = data.queue ?? [];
+  while (queue.length > 0) {
+    const next = queue.shift();
+    if (!next) break;
+    let o = ctx.state.entities[String(next.id)];
+    if (!o?.c.item || o.c.item.carriedBy !== ctx.state.playerId) continue;
+    const q = o.c.item.quantity;
+    let split = false;
+    if (next.count !== undefined && next.count < q) {
+      o = ctx.state.entities[String(splitStack(ctx, o.id, next.count))];
+      if (!o) continue;
+      split = true; // the split part is detached; in_container() takes it from there
+    }
+    const res = inContainer(ctx, box, o, data);
+    if (res === 'ask') {
+      const offer = data.offer;
+      if (!offer) break;
+      ctx.ask(sellPrompt(offer, true), LOOT_ID, { ...data, queue } as unknown as Json);
+      return 0;
+    }
+    if (res > 0) data.used = true;
+    else if (split && res === 0 && ctx.state.entities[String(o.id)]) {
+      // couldn't put selected item into container: merge it back (unsplitobj())
+      addToInventory(ctx, ctx.state.playerId, o.id);
+    }
+    if (res < 0) {
+      data.used = true;
       return finish(ctx, data);
     }
   }

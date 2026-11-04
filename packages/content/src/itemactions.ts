@@ -29,9 +29,11 @@ import {
   invCount,
   mergable,
   nhData,
+  placeObject,
   placeOnFloor,
   removeFromInventory,
   splitStack,
+  stackobj,
   weight,
 } from './items';
 import { T } from './terrain';
@@ -41,8 +43,17 @@ import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 import { HERE } from './priority';
-import { costlySpot, isShopType } from './eshk';
-import { addtobill, sellobj } from './shk';
+import { costlySpot, isShopType, uShops } from './eshk';
+import {
+  addtobill,
+  sellAnswer,
+  sellPrompt,
+  sellReply,
+  sellobj,
+  sellobjState,
+  type SellOffer,
+  type SellState,
+} from './shk';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -481,10 +492,11 @@ function weldMsg(ctx: Ctx, e: Entity): void {
 }
 
 /**
- * Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(), doaltarobj(). Returns
- * whether it was dropped.
+ * Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(), doaltarobj(), dropz().
+ * Returns whether it was dropped, or the shopkeeper's offer to ask about (the object then lies
+ * unmerged until the answer: stackobj() comes after sellobj()).
  */
-function dropItem(ctx: Ctx, e: Entity): boolean {
+function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOffer {
   const it = e.c.item;
   const pos = hero(ctx).c.pos;
   if (!it || !pos) return false;
@@ -510,9 +522,33 @@ function dropItem(ctx: Ctx, e: Entity): boolean {
     });
   removeFromInventory(ctx, e.id);
   if (altar) doaltarobj(ctx, e);
-  sellobj(ctx, e, pos.x, pos.y); // ref: src/do.c dropz(): sellobj() before stackobj()
+  // ref: src/do.c dropz(): place_object(), sellobj(), stackobj()
+  const offer = sell ? sellobj(ctx, e, pos.x, pos.y, sell) : null;
+  if (offer) {
+    placeObject(ctx, e.id, pos.level, pos.x, pos.y);
+    return offer;
+  }
   placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
   return true;
+}
+
+/** A drop command's selling state while the hero is in a shop. ref: dodrop() sellobj_state() */
+const dropSellState = (ctx: Ctx): SellState | null =>
+  uShops(ctx).length > 0 ? sellobjState('deliberate') : null;
+
+/** Her answer to the offer for a dropped object; then it joins the pile. */
+function sellDropped(ctx: Ctx, offer: SellOffer, value: Json, sell: SellState): void {
+  sellAnswer(ctx, offer, sellReply(value), sell);
+  if (ctx.state.entities[String(offer.obj)]) stackobj(ctx, offer.obj);
+}
+
+/** Serializable progress of a drop command through the sell questions. */
+interface DropData {
+  sell: SellState | null;
+  offer?: SellOffer;
+  /** nh:drop_many: the objects still to drop, with the counts asked. */
+  queue?: { id: EntityId; count?: number }[];
+  n?: number;
 }
 
 const drop: ActionDef = {
@@ -524,11 +560,62 @@ const drop: ActionDef = {
   perform(ctx, action) {
     const e = heroItem(ctx, itemArg(action));
     if (!e) return 0;
-    if (!dropItem(ctx, e)) return 0;
+    const sell = dropSellState(ctx);
+    const r = dropItem(ctx, e, sell);
+    if (!r) return 0;
+    if (r !== true && sell) {
+      const data: DropData = { sell, offer: r };
+      ctx.ask(sellPrompt(r, false), 'nh:drop', data as unknown as Json);
+      return 0;
+    }
+    encumberMsg(ctx);
+    return NORMAL_SPEED;
+  },
+  answer(ctx, value, raw) {
+    const data = raw as unknown as DropData;
+    if (data.offer && data.sell) sellDropped(ctx, data.offer, value, data.sell);
     encumberMsg(ctx);
     return NORMAL_SPEED;
   },
 };
+
+/**
+ * Drops the queued objects one by one; a sell question pauses it (the answer resumes it).
+ * Returns the energy used. ref: src/do.c menu_drop()
+ */
+function dropLoop(ctx: Ctx, data: DropData): number {
+  const queue = data.queue ?? [];
+  while (queue.length > 0) {
+    const next = queue.shift();
+    if (!next) break;
+    const e = heroItem(ctx, next.id);
+    if (!e) continue;
+    // ref: src/do.c menu_drop(): a count smaller than the stack splits it (splitobj) and drops
+    // the new part, which is not worn; the rest stays
+    const q = e.c.item?.quantity ?? 1;
+    let obj = e;
+    if (next.count !== undefined && next.count < q) {
+      const part = ctx.state.entities[String(splitStack(ctx, e.id, next.count))];
+      if (!part) continue;
+      obj = part;
+    }
+    const r = dropItem(ctx, obj, data.sell);
+    if (!r) {
+      // could not drop it: put the part back
+      if (obj.id !== e.id) addToInventory(ctx, ctx.state.playerId, obj.id);
+      continue;
+    }
+    data.n = (data.n ?? 0) + 1;
+    if (r !== true) {
+      data.offer = r;
+      data.queue = queue;
+      ctx.ask(sellPrompt(r, true), 'nh:drop_many', data as unknown as Json);
+      return 0;
+    }
+  }
+  encumberMsg(ctx);
+  return (data.n ?? 0) > 0 ? NORMAL_SPEED : 0;
+}
 
 /** The menu entry for an inventory item: "a - a +1 spear (weapon in hand)". */
 export function invOption(ctx: Ctx, e: Entity): PromptOption {
@@ -570,31 +657,20 @@ const dropMany: ActionDef = {
     );
     return 0;
   },
-  answer(ctx, value) {
-    const { ids, counts } = parseChosen(value);
-    let n = 0;
-    for (const id of ids) {
-      const e = heroItem(ctx, id);
-      if (!e) continue;
-      // ref: src/do.c menu_drop(): a count smaller than the stack splits it (splitobj) and drops
-      // the new part, which is not worn; the rest stays
-      const count = counts[String(id)];
-      const q = e.c.item?.quantity ?? 1;
-      if (count !== undefined && count < q) {
-        const part = ctx.state.entities[String(splitStack(ctx, id, count))];
-        if (!part) continue;
-        if (!dropItem(ctx, part)) {
-          // could not drop it: put the part back
-          addToInventory(ctx, ctx.state.playerId, part.id);
-          continue;
-        }
-        n++;
-        continue;
-      }
-      if (dropItem(ctx, e)) n++;
+  answer(ctx, value, raw) {
+    const data = raw as unknown as DropData | null;
+    if (data?.offer && data.sell) {
+      // the answer to a sell question; then the rest of the drops
+      const { offer, ...rest } = data;
+      sellDropped(ctx, offer, value, data.sell);
+      return dropLoop(ctx, rest);
     }
-    encumberMsg(ctx);
-    return n > 0 ? NORMAL_SPEED : 0;
+    const { ids, counts } = parseChosen(value);
+    const queue = ids.map((id) => {
+      const count = counts[String(id)];
+      return count === undefined ? { id } : { id, count };
+    });
+    return dropLoop(ctx, { sell: dropSellState(ctx), queue, n: 0 });
   },
 };
 

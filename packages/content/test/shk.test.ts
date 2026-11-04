@@ -6,6 +6,8 @@
 // mattock left outside) and the keeper going back to his spot.
 // Step 3: prices, the bill (picking up, putting back, using up, biting), names with prices,
 // paying and the warning at the door.
+// Step 4: selling (the offer, a/q over several drops, an uninterested or broke keeper, into a
+// shop's container), goods thrown or kicked out of the shop owed, usage fees.
 import {
   getPlayer,
   inventoryOf,
@@ -728,12 +730,14 @@ describe('prices', () => {
     expect(t.e.bill).toEqual([{ oid: c.id, bquan: 5, price: 13, useup: false }]);
   });
 
-  test('her own things dropped in the shop are no charge and stay hers', () => {
+  test('her own things she will not sell are no charge and stay hers', () => {
     const t = bare(15);
     const own = mksobj(ctxOf(t.s), obj('nh:dagger'), { init: false });
     addToInventory(ctxOf(t.s), t.s.state.playerId, own);
     const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: own } });
     expect(t.lines(d)).toEqual(['You drop a dagger.']);
+    expect(d.prompt?.kind).toBe('yn');
+    t.answer(d, false);
     const e = t.s.state.entities[String(own)] as Entity;
     expect(e.c.item?.noCharge).toBe(true);
     expect(t.name(e)).toBe('dagger (no charge)');
@@ -952,5 +956,211 @@ describe('prices', () => {
     const cell = t.s.engine.query(t.s.state).actionsFor({ kind: 'cell', pos: SHK_SPOT });
     const offer = cell.find((o) => o.action.type === 'mod' && o.action.action === 'nh:pay');
     expect(offer?.labelKey).toBe('action.nh:pay_shk');
+  });
+
+  describe('selling and fees', () => {
+    type T = ReturnType<typeof bare>;
+    const own = (t: T, def: string): Entity => {
+      const id = mksobj(ctxOf(t.s), obj(def), { init: false });
+      addToInventory(ctxOf(t.s), t.s.state.playerId, id);
+      return t.s.state.entities[String(id)] as Entity;
+    };
+    const know = (t: T, ...ids: DefId[]) => {
+      for (const id of ids) if (!t.s.state.discovered.includes(id)) t.s.state.discovered.push(id);
+    };
+    const ask = (r: StepResult) =>
+      render({ key: r.prompt?.key ?? '', params: r.prompt?.params ?? {} });
+    const shkn = (t: T) => render(shkName(t.e));
+    const cash = (t: T, id: number) => moneyCnt(ctxOf(t.s), id);
+    const outOfTheWay = (t: T) => Object.assign(t.shk.c.pos ?? {}, { x: 1, y: 1 });
+
+    test('drop: he offers to buy it, and yes sells it', () => {
+      const t = bare(15);
+      know(t, 'nh:long_sword');
+      const sword = own(t, 'nh:long_sword');
+      const had = cash(t, t.id);
+      const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: sword.id } });
+      // set_cost(): half of 15, rounded
+      expect(ask(d)).toBe(`${shkn(t)} offers 8 gold pieces for your long sword.  Sell it?`);
+      const r = t.answer(d, true);
+      expect(t.lines(r)).toEqual(['You sold a long sword for 8 gold pieces.']);
+      expect(cash(t, t.s.state.playerId)).toBe(8);
+      expect(cash(t, t.id)).toBe(had - 8);
+      // it is his now, for sale
+      expect(sword.c.item?.noCharge).toBeUndefined();
+      expect(t.name(sword)).toBe('long sword (for sale, 15 zorkmids)');
+    });
+
+    test('drop several: "a" sells the rest without asking, "q" keeps the rest', () => {
+      for (const reply of ['a', 'q'] as const) {
+        const t = bare(15);
+        know(t, 'nh:long_sword', 'nh:dagger');
+        const items = [own(t, 'nh:long_sword'), own(t, 'nh:dagger'), own(t, 'nh:apple')];
+        const d = t.step({ type: 'mod', action: 'nh:drop_many' });
+        let r = t.answer(
+          d,
+          items.map((o) => o.id),
+        );
+        expect(r.prompt?.kind).toBe('menu');
+        expect(r.prompt?.options?.map((o) => o.value)).toEqual(['y', 'n', 'a', 'q']);
+        r = t.answer(r, reply);
+        expect(r.prompt ?? null).toBeNull();
+        const sold = t.lines(r).filter((l) => l.startsWith('You sold'));
+        expect(sold).toHaveLength(reply === 'a' ? 3 : 0);
+        for (const o of items) expect(o.c.item?.noCharge).toBe(reply === 'a' ? undefined : true);
+        expect(cash(t, t.s.state.playerId)).toBe(reply === 'a' ? 8 + 2 + 4 : 0);
+      }
+    });
+
+    test("a shop that doesn't deal in it: he seems uninterested, and it stays hers", () => {
+      const t = bare(15, 'nh:food_shop');
+      const wand = own(t, 'nh:wand_of_striking');
+      const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: wand.id } });
+      expect(d.prompt ?? null).toBeNull();
+      expect(t.lines(d)[1]).toBe(`${shkn(t)} seems uninterested.`);
+      expect(wand.c.item?.noCharge).toBe(true);
+      // food he buys
+      const apple = own(t, 'nh:apple');
+      const a = t.step({ type: 'mod', action: 'nh:drop', args: { item: apple.id } });
+      expect(ask(a)).toBe(`${shkn(t)} offers 4 gold pieces for your apple.  Sell it?`);
+    });
+
+    test('a keeper with no gold offers credit, and the credit pays the bill', () => {
+      const t = bare(15);
+      know(t, 'nh:long_sword');
+      for (const o of inventoryOf(t.s.state, t.id))
+        if (o.def === 'nh:gold_piece') delete t.s.state.entities[String(o.id)];
+      const sword = own(t, 'nh:long_sword');
+      const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: sword.id } });
+      expect(t.lines(d)).toContain(`${shkn(t)} cannot pay you at present.`);
+      expect(ask(d)).toBe('Will you accept 7 zorkmids in credit for a long sword?');
+      expect(t.lines(t.answer(d, true))).toEqual([
+        'You traded a long sword for 7 zorkmids in credit.',
+      ]);
+      expect(t.e.credit).toBe(7);
+      t.make('nh:apple', { at: { x: 2, y: 2 } });
+      const hp = getPlayer(t.s.state).c.pos;
+      if (hp) hp.x = 2;
+      t.pickup();
+      const r = t.payNow();
+      expect(t.lines(r).slice(0, 2)).toEqual([
+        'The price is deducted from your credit.',
+        'You bought an apple for 7 gold pieces.',
+      ]);
+      expect(t.e.credit).toBe(0);
+      expect(t.e.bill).toEqual([]);
+    });
+
+    test('an angry keeper takes what she drops: "Thank you, scum!"', () => {
+      const t = bare(15);
+      const m = t.shk.c.monster;
+      if (m) m.peaceful = false;
+      const dagger = own(t, 'nh:dagger');
+      const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: dagger.id } });
+      expect(d.prompt ?? null).toBeNull();
+      expect(t.lines(d)).toContain('"Thank you, scum!"');
+      expect(dagger.c.item?.noCharge).toBeUndefined();
+      expect(cash(t, t.s.state.playerId)).toBe(0);
+    });
+
+    test('an unpaid candle thrown out of the door is owed; the debt is paid first', () => {
+      const t = bare(15, 'nh:candle_shop');
+      know(t, 'nh:tallow_candle');
+      const c = t.make('nh:tallow_candle');
+      if (c.c.item) c.c.item.age = 200;
+      t.pickup();
+      expect(t.e.bill).toHaveLength(1);
+      outOfTheWay(t);
+      const th = t.step({ type: 'mod', action: 'nh:throw', args: { item: c.id } });
+      const r = t.answer(th, 'e');
+      expect(t.lines(r)).toContain(`You owe ${shkn(t)} 10 zorkmids for it!`);
+      expect(c.c.pos?.x).toBeGreaterThan(6); // out of the shop
+      expect(c.c.item?.unpaid).toBeUndefined();
+      expect(t.e.bill).toEqual([]);
+      expect(t.e.debit).toBe(10);
+      t.gold(30);
+      const p = t.payNow();
+      expect(t.lines(p)).toContain(`You owe ${shkn(t)} 10 zorkmids for the use of merchandise.`);
+      expect(t.e.debit).toBe(0);
+      expect(cash(t, t.s.state.playerId)).toBe(20);
+    });
+
+    test('her own dagger thrown onto the shop floor is sold without asking', () => {
+      const t = bare(15);
+      know(t, 'nh:dagger');
+      outOfTheWay(t);
+      const hp = getPlayer(t.s.state).c.pos;
+      if (hp) hp.x = 4;
+      checkSpecialRoom(ctxOf(t.s), false);
+      const dagger = own(t, 'nh:dagger');
+      const th = t.step({ type: 'mod', action: 'nh:throw', args: { item: dagger.id } });
+      const r = t.answer(th, 'w');
+      expect(r.prompt ?? null).toBeNull();
+      expect(t.lines(r)).toContain(
+        'You relinquish a dagger and receive 2 gold pieces in compensation.',
+      );
+      expect(dagger.c.pos?.x).toBe(1);
+      expect(cash(t, t.s.state.playerId)).toBe(2);
+    });
+
+    test('a shop object kicked out of the door is owed', () => {
+      const t = bare(15);
+      const apple = t.make('nh:apple', { at: { x: 4, y: 2 } });
+      outOfTheWay(t);
+      const r = t.step({ type: 'mod', action: 'nh:kick', args: { dir: 'e' } });
+      expect(apple.c.pos?.x).toBeGreaterThan(6);
+      expect(t.lines(r)).toContain(`You owe ${shkn(t)} 7 zorkmids for it!`);
+      expect(t.e.debit).toBe(7);
+    });
+
+    test('zapping an unpaid wand or lighting an unpaid lamp: a usage fee', () => {
+      const t = bare(15);
+      know(t, 'nh:wand_of_striking', 'nh:oil_lamp');
+      const wand = t.make('nh:wand_of_striking');
+      if (wand.c.item) wand.c.item.spe = 5;
+      t.pickup();
+      const z = t.step({ type: 'mod', action: 'nh:zap', args: { item: wand.id } });
+      // cost_per_charge(): a quarter of 150 with more than one charge left
+      expect(t.lines(z)).toHaveLength(1);
+      expect(t.lines(z)[0]).toMatch(/^"(Hey! {2})?(Ahem\. {2})?Usage fee, 37 zorkmids\."$/);
+      t.answer(z, 'w');
+      expect(t.e.debit).toBe(37);
+      const lamp = t.make('nh:oil_lamp', { at: { x: 2, y: 2 } });
+      if (lamp.c.item) lamp.c.item.age = 1500;
+      const hp = getPlayer(t.s.state).c.pos;
+      if (hp) hp.x = 2;
+      t.pickup();
+      const a = t.step({ type: 'mod', action: 'nh:apply', args: { item: lamp.id } });
+      expect(t.lines(a)[0]).toMatch(/^"(Hey! {2})?(Ahem\. {2})?Usage fee, 10 zorkmids\."$/);
+      expect(t.e.debit).toBe(47);
+      // her own wand costs nothing
+      const mine = own(t, 'nh:wand_of_striking');
+      if (mine.c.item) mine.c.item.spe = 5;
+      const z2 = t.step({ type: 'mod', action: 'nh:zap', args: { item: mine.id } });
+      expect(t.lines(z2)).toEqual([]);
+    });
+
+    test("selling into the shop's container on his floor", () => {
+      const t = bare(15);
+      know(t, 'nh:dagger');
+      const sack = t.make('nh:sack');
+      const dagger = own(t, 'nh:dagger');
+      let r = t.step({ type: 'mod', action: 'nh:loot', args: { box: sack.id } });
+      for (let i = 0; i < 4 && r.prompt && r.prompt.id !== 'sell'; i++) {
+        const o = r.prompt;
+        if (o.id === 'loot-in') r = t.answer(r, [dagger.id]);
+        else if (o.options?.some((x) => x.value === 'i')) r = t.answer(r, 'i');
+        else r = t.answer(r, true);
+      }
+      expect(ask(r)).toBe(`${shkn(t)} offers 2 gold pieces for your dagger.  Sell it?`);
+      r = t.answer(r, 'y');
+      expect(t.lines(r)).toEqual([
+        'You sold a dagger for 2 gold pieces.',
+        'You put a dagger into the bag.',
+      ]);
+      expect(dagger.c.item?.containedIn).toBe(sack.id);
+      expect(dagger.c.item?.noCharge).toBeUndefined();
+      expect(cash(t, t.s.state.playerId)).toBe(2);
+    });
   });
 });

@@ -22,12 +22,20 @@ import {
   type Offer,
 } from '@nh/core';
 import { dropBillEntry, eshkOf, inhishop, uShops, type BillEntry, type Eshk } from './eshk';
-import { moneyCnt, money2mon, money2u } from './money';
-import { unfreezeMonst } from './mstate';
+import { moneyCnt, money2mon } from './money';
 import { paydoname, xnameOf, zorkmids } from './objnam';
 import { canSpotMon } from './perception';
 import { P, hasProp } from './props';
-import { bpToObj, helpless, hiddenGold, shkNamesObj, shkname, shopNameParam } from './shk';
+import {
+  bpToObj,
+  helpless,
+  hiddenGold,
+  rouseShk,
+  shkNamesObj,
+  shkPay,
+  shkname,
+  shopNameParam,
+} from './shk';
 
 export const PAY_ID: DefId = 'nh:pay';
 
@@ -83,39 +91,6 @@ function residentOf(ctx: Ctx, shks: readonly Entity[]): EntityId | null {
     if (e && inhishop(ctx, m.id) && room === e.shoproom) return m.id;
   }
   return null;
-}
-
-/** The price is taken from her credit first. ref: src/shk.c check_credit() */
-function checkCredit(ctx: Ctx, tmp: number, e: Eshk): number {
-  const credit = e.credit;
-  if (credit === 0) return tmp;
-  if (credit >= tmp) {
-    say(ctx, 'pay.credit_deducted');
-    e.credit -= tmp;
-    return 0;
-  }
-  say(ctx, 'pay.credit_partial');
-  e.credit = 0;
-  return tmp - credit;
-}
-
-/** ref: src/shk.c pay() */
-function pay(ctx: Ctx, tmp: number, shk: EntityId, e: Eshk): void {
-  const balance = tmp <= 0 ? tmp : checkCredit(ctx, tmp, e);
-  if (balance > 0) money2mon(ctx, shk, balance);
-  else if (balance < 0) money2u(ctx, shk, -balance);
-  if (e.robbed) e.robbed = Math.max(0, e.robbed - tmp);
-}
-
-/** ref: src/shk.c rouse_shk() */
-function rouseShk(ctx: Ctx, shk: Entity, e: Eshk): void {
-  const m = shk.c.monster;
-  if (!m || !helpless(ctx, shk.id)) return;
-  // greed induced recovery...
-  if (canSpotMon(ctx, shk))
-    say(ctx, m.asleep ? 'pay.wakes_up' : 'pay.can_move_again', { shk: shkname(ctx, e) });
-  m.asleep = false;
-  unfreezeMonst(ctx, shk.id);
 }
 
 /**
@@ -264,8 +239,8 @@ function payLines(ctx: Ctx, data: PayData, answer?: boolean): number {
     if (buy === 'buy' && insufficientFunds(ctx, e, obj, ltmp)) buy = data.itemize ? 'skip' : 'cant';
     if (buy === 'cant') return finishPay(ctx, shk, e, false, !!data.paid);
     if (buy === 'skip') continue;
-    pay(ctx, ltmp, shk.id, e);
-    shkNamesObj(ctx, e, obj, consumed, ltmp);
+    shkPay(ctx, ltmp, shk.id, e);
+    shkNamesObj(ctx, e, obj, consumed ? 'paid_for' : 'bought', ltmp);
     // update_bill()
     if (row.used === 'part_used') {
       bp.bquan = live?.c.item?.quantity ?? bp.bquan;

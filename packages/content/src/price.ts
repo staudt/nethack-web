@@ -2,11 +2,12 @@
 // charges for an object (getprice(), get_cost()), what an unpaid object costs on his bill
 // (unpaid_cost()) and what a shop object costs where it lies (get_cost_of_shop_item()).
 // ref: src/shk.c getprice(), corpsenm_price_adj(), oid_price_adjustment(), get_cost(),
-// contained_cost(), contained_gold(), unpaid_cost(), get_cost_of_shop_item(), is_unpaid()
+// contained_cost(), contained_gold(), unpaid_cost(), get_cost_of_shop_item(), is_unpaid(),
+// set_cost()
 //
-// Not ported: artifacts, globs (get_pricing_units() is the quantity), glass gems (none exist),
-// the dunce cap and Hawaiian shirt (neither exists; the checks are made), selling prices
-// (set_cost(): step 4).
+// Not ported: artifacts, globs (get_pricing_units() is the quantity), glass gems and gemstones
+// (none exist: set_cost()'s per-shopkeeper gem prices), the dunce cap and Hawaiian shirt (neither
+// exists; the checks are made).
 import {
   contents,
   getPlayer,
@@ -30,6 +31,7 @@ import {
   type Eshk,
 } from './eshk';
 import { isKnown } from './o_init';
+import { saleable } from './shtypes';
 
 type S = Readonly<GameState>;
 const at = (state: S): { state: S } => ({ state });
@@ -136,19 +138,12 @@ export function getCost(state: S, defs: Registry, obj: Entity, shk: Eshk | null)
     multiplier *= 4;
     divisor *= 3;
   }
-  const hero = getPlayer(state);
-  const worn = (slot: string): Entity | undefined =>
-    inventoryOf(state, hero.id).find((o) => o.c.item?.equipped === slot);
-  if (worn('helm')?.def === 'nh:dunce_cap') {
-    multiplier *= 4;
-    divisor *= 3;
-  } else if (
-    (hero.c.player?.role === 'nh:tourist' && (hero.c.experience?.level ?? 1) < 15) ||
-    (worn('shirt') && !worn('body') && !worn('cloak')) // touristy shirt visible
-  ) {
+  if (sucker(state)) {
+    // dunce cap, or a tourist or a visible shirt
     multiplier *= 4;
     divisor *= 3;
   }
+  const hero = getPlayer(state);
   const cha = hero.c.attributes?.cha ?? 10;
   if (cha > 18) divisor *= 2;
   else if (cha === 18) {
@@ -174,6 +169,52 @@ export function getCost(state: S, defs: Registry, obj: Entity, shk: Eshk | null)
   if (tmp <= 0) tmp = 1;
   // anger surcharge should match rile_shk's
   if (shk?.surcharge) tmp += Math.trunc((tmp + 2) / 3);
+  return tmp;
+}
+
+/** The hero shows she is a sucker: a dunce cap, or a tourist (or a visible shirt). */
+function sucker(state: S): 'dunce' | 'tourist' | null {
+  const hero = getPlayer(state);
+  const worn = (slot: string): Entity | undefined =>
+    inventoryOf(state, hero.id).find((o) => o.c.item?.equipped === slot);
+  if (worn('helm')?.def === 'nh:dunce_cap') return 'dunce';
+  if (
+    (hero.c.player?.role === 'nh:tourist' && (hero.c.experience?.level ?? 1) < 15) ||
+    (worn('shirt') && !worn('body') && !worn('cloak')) // touristy shirt visible
+  )
+    return 'tourist';
+  return null;
+}
+
+/**
+ * What shopkeeper `shkId` pays for all of the object: half its base price (a third for a
+ * sucker), and 3/4 of that for an unidentified type when his id is a multiple of 4.
+ * ref: src/shk.c set_cost()
+ */
+export function setCost(state: S, defs: Registry, obj: Entity, shkId: EntityId): number {
+  const unitPrice = getprice(state, defs, obj, true);
+  let tmp = (obj.c.item?.quantity ?? 1) * unitPrice;
+  let multiplier = 1;
+  let divisor = sucker(state) ? 3 : 2;
+  // shopkeeper may notice if the player isn't very knowledgeable (no gems priced per shopkeeper:
+  // no gemstones or glass exist)
+  if (!isKnown(state, defs, obj.def) && defs.object(obj.def).class !== 'gem') {
+    if (tmp > 1 && shkId % 4 === 0) {
+      multiplier *= 3;
+      divisor *= 4;
+    }
+  }
+  if (tmp >= 1) {
+    // [see get_cost()]
+    tmp *= multiplier;
+    if (divisor > 1) {
+      tmp = Math.trunc((tmp * 10) / divisor);
+      tmp = Math.trunc((tmp + 5) / 10);
+    }
+    // avoid adjusting nonzero to zero
+    if (tmp < 1) tmp = 1;
+  }
+  // (no adjustment for angry shk here)
   return tmp;
 }
 
@@ -221,6 +262,36 @@ export function containedCost(
       price += getCost(state, defs, o, shk) * it.quantity;
     if (contents(state, o.id).length > 0)
       price = containedCost(state, defs, o, shk, price, unpaidOnly, onFloor, freespot);
+  }
+  return price;
+}
+
+/**
+ * What shopkeeper `shkId` pays for the hero's goods inside `obj`, nested too: those his shop
+ * deals in, not unpaid, not partly eaten food or used candles. ref: src/shk.c contained_cost()
+ * (usell)
+ */
+export function containedSellCost(
+  state: S,
+  defs: Registry,
+  obj: Entity,
+  shk: Eshk,
+  shkId: EntityId,
+  price: number,
+): number {
+  for (const o of contents(state, obj.id)) {
+    const it = o.c.item;
+    const def = defs.object(o.def);
+    if (!it || def.class === 'coin') continue;
+    if (
+      saleable({ defs }, shk, o) &&
+      !it.unpaid &&
+      !(def.class === 'food' && it.eaten) &&
+      !(isCandle(o.def) && (it.age ?? 0) < 20 * def.cost)
+    )
+      price += setCost(state, defs, o, shkId);
+    if (contents(state, o.id).length > 0)
+      price = containedSellCost(state, defs, o, shk, shkId, price);
   }
   return price;
 }

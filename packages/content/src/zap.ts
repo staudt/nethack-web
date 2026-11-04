@@ -70,6 +70,7 @@ import { findAc, findMac } from './stats';
 import { T } from './terrain';
 import { TRAP, dotrap, mintrap } from './trap';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
+import { checkUnpaid } from './shk';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -943,6 +944,7 @@ const zap: ActionDef = {
     const wand = heroItem(ctx, itemArg(action));
     if (!wand || ctx.defs.object(wand.def).class !== 'wand') return 0;
     if (checkCapacity(ctx)) return 0;
+    checkUnpaid(ctx, wand); // ref: dozap(): check_unpaid(obj), a usage fee in a shop
     const needDir = ctx.defs.object(wand.def).wand?.dir !== 'nodir';
     if (!zappable(ctx, wand)) {
       say(ctx, 'zap.nothing_happens');

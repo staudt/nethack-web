@@ -1,16 +1,21 @@
 // Shopkeeping: what happens as the hero comes into a shop and leaves it, and the bill: picking up
-// shop goods puts them on it, putting them back takes them off, using them up keeps them there
-// (6b3 steps 2-3; selling, fees and robbery come in the later steps). Never import actions,
-// itemactions, monmove, combat, peaceful, chat, priest or dothrow here: they import this module.
+// shop goods puts them on it, putting them back takes them off, using them up keeps them there;
+// selling what she drops, charging for what she throws or kicks out and for using unpaid goods
+// (6b3 steps 2-4; robbery comes in step 5). Never import actions, itemactions, monmove, combat,
+// peaceful, chat, priest or dothrow here: they import this module.
 // ref: src/shk.c u_entered_shop(), u_left_shop(), deserted_shop(), pacify_shk(), shkname(),
 // addtobill(), add_one_tobill(), bill_box_content(), billable(), picked_container(),
 // dropped_container(), sub_one_frombill(), subfrombill(), obfree(), shk_names_obj(),
-// append_honorific(), sellobj() (its first branch); src/mkobj.c costly_alteration(),
-// bill_dummy_object(); src/role.c Hello()
+// append_honorific(), sellobj_state(), sellobj(), check_credit(), pay(), rouse_shk(),
+// find_objowner(), costly_adjacent(), stolen_container(), stolen_value(), cost_per_charge(),
+// check_unpaid_usage(); src/mkobj.c costly_alteration(), bill_dummy_object(); src/invent.c
+// count_contents(); src/dothrow.c check_shop_obj(); src/role.c Hello()
 //
-// Not ported: invisible heroes and steeds (neither exists), deafness, the pick-axe (no such
-// object: only the dwarvish mattock is checked), the shop achievement, globs, gold picked up in a
-// shop (no loan: costly_gold()), price quotes (record_price_quote()).
+// Not ported: invisible heroes and steeds (neither exists), deafness and mute keepers, the
+// pick-axe (no such object: only the dwarvish mattock is checked), the shop achievement, globs,
+// gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
+// donate_gold(); DEVIATIONS), price quotes (record_price_quote()), special_stock() (no
+// Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers yet).
 import {
   NORMAL_SPEED,
   contents,
@@ -24,8 +29,11 @@ import {
   type Ctx,
   type Entity,
   type EntityId,
+  type Json,
   type Level,
+  type Params,
   type Pos,
+  type Prompt,
 } from '@nh/core';
 import {
   BILLSZ,
@@ -44,16 +52,20 @@ import {
   type BillEntry,
   type Eshk,
 } from './eshk';
-import { isFrozen } from './mstate';
+import { isCandle } from './items';
+import { money2mon, money2u, moneyCnt } from './money';
+import { isFrozen, unfreezeMonst } from './mstate';
 import { discover, isKnown } from './o_init';
-import { paydoname, xnameOf } from './objnam';
+import { paydoname, xnameOf, zorkmids } from './objnam';
 import { canSpotMon } from './perception';
 import {
   containedCost,
   containedGold,
+  containedSellCost,
   countUnpaid,
   getCost,
   isUnpaid,
+  setCost,
   topContainer,
   unpaidCost,
 } from './price';
@@ -328,13 +340,16 @@ function pickedContainer(ctx: Ctx, obj: Entity): void {
   }
 }
 
-/** Marks everything inside `obj` that is not on the bill as no-charge. ref: dropped_container() */
-function droppedContainer(ctx: Ctx, obj: Entity): void {
+/**
+ * Marks everything inside `obj` that is not on the bill (nor just sold to him: `sale`) as
+ * no-charge. ref: src/shk.c dropped_container()
+ */
+function droppedContainer(ctx: Ctx, obj: Entity, e: Eshk, sale: boolean): void {
   for (const o of contents(ctx.state, obj.id)) {
     const it = o.c.item;
     if (!it || ctx.defs.object(o.def).class === 'coin') continue;
-    if (!it.unpaid) it.noCharge = true; // (sale && saleable(): step 4)
-    droppedContainer(ctx, o);
+    if (!it.unpaid && !(sale && saleable(ctx, e, o))) it.noCharge = true;
+    droppedContainer(ctx, o, e, sale);
   }
 }
 
@@ -641,43 +656,382 @@ export function costlyAlteration(ctx: Ctx, obj: Entity, how: 'bite', at: Pos | n
   if (hp && costlySpot(ctx, hp.x, hp.y) && objroom === uShops(ctx)[0]) {
     ctx.emit({ type: 'msg', key: 'shk.alter_floor', params: { verb, those, them } });
     billDummyObject(ctx, obj, true);
+  } else stolenValue(ctx, obj, at.x, at.y, false, false);
+}
+
+// ---------------------------------------------------------------------------------------------
+// paying and being paid
+
+/** The price is taken from her credit first. ref: src/shk.c check_credit() */
+export function checkCredit(ctx: Ctx, tmp: number, e: Eshk): number {
+  const credit = e.credit;
+  if (credit === 0) return tmp;
+  if (credit >= tmp) {
+    ctx.emit({ type: 'msg', key: 'pay.credit_deducted' });
+    e.credit -= tmp;
+    return 0;
   }
-  // else stolen_value(): step 4
+  ctx.emit({ type: 'msg', key: 'pay.credit_partial' });
+  e.credit = 0;
+  return tmp - credit;
+}
+
+/** She pays him `tmp` (he pays her when it is negative). ref: src/shk.c pay() */
+export function shkPay(ctx: Ctx, tmp: number, shk: EntityId, e: Eshk): void {
+  const balance = tmp <= 0 ? tmp : checkCredit(ctx, tmp, e);
+  if (balance > 0) money2mon(ctx, shk, balance);
+  else if (balance < 0) money2u(ctx, shk, -balance);
+  if (e.robbed) e.robbed = Math.max(0, e.robbed - tmp);
+}
+
+/** Wakes an asleep or paralyzed keeper: "Izchak wakes up." ref: src/shk.c rouse_shk() */
+export function rouseShk(ctx: Ctx, shk: Entity, e: Eshk): void {
+  const m = shk.c.monster;
+  if (!m || !helpless(ctx, shk.id)) return;
+  // greed induced recovery...
+  if (canSpotMon(ctx, shk))
+    ctx.emit({
+      type: 'msg',
+      key: m.asleep ? 'pay.wakes_up' : 'pay.can_move_again',
+      params: { shk: shkname(ctx, e) },
+    });
+  m.asleep = false;
+  unfreezeMonst(ctx, shk.id);
+}
+
+// ---------------------------------------------------------------------------------------------
+// selling
+
+/** How a drop sells. ref: SELL_NORMAL, SELL_DELIBERATE, SELL_DONTSELL */
+export type SellHow = 'normal' | 'deliberate' | 'dontsell';
+
+/**
+ * One command's selling state: how it sells, the answer given for all ('y' or 'n' after "a" or
+ * "q"; '' asks), and whether all credit offers are accepted.
+ * ref: gs.sell_how, gs.sell_response, ga.auto_credit
+ */
+export interface SellState {
+  how: SellHow;
+  response: '' | 'y' | 'n';
+  autoCredit: boolean;
 }
 
 /**
- * The hero has just put her object down on x,y: an unpaid one goes back off the bill, her own
- * becomes no-charge (selling is step 4: until then she keeps what she drops). Call before the
- * object is placed (placeOnFloor merges, C's stackobj() comes after sellobj()).
- * ref: src/shk.c sellobj() (its first branch and the "nothing to sell" one)
+ * The state for a command that drops things. A deliberate drop asks; anything else that lands
+ * on a costly spot is sold without asking. ref: src/shk.c sellobj_state()
  */
-export function sellobj(ctx: Ctx, obj: Entity, x: number, y: number): void {
+export function sellobjState(how: SellHow): SellState {
+  return { how, response: how !== 'normal' ? '' : 'y', autoCredit: false };
+}
+
+/** A pending question of sellobj(): the shopkeeper's offer, or credit when he has no gold. */
+export interface SellOffer {
+  shk: EntityId;
+  obj: EntityId;
+  /** "Will you accept N zorkmids in credit for X?" (else "Izchak offers N gold pieces ...") */
+  credit: boolean;
+  /** The gold or credit offered. */
+  offer: number;
+  ltmp: number;
+  cltmp: number;
+  saleitem: boolean;
+  partial: boolean;
+  key: string;
+  params: Params;
+}
+
+/** Her answer to a sell question. */
+export type SellReply = 'y' | 'n' | 'a' | 'q';
+
+/**
+ * The question to ask for a pending offer: a yn prompt for a single drop, else a menu of
+ * y/n/a/q (C's nyaq/ynaq; dismissing it is 'q').
+ */
+export function sellPrompt(o: SellOffer, multi: boolean): Prompt {
+  if (!multi) return { id: 'sell', kind: 'yn', key: o.key, params: o.params, cancellable: true };
+  return {
+    id: 'sell',
+    kind: 'menu',
+    key: o.key,
+    params: o.params,
+    cancellable: true,
+    options: (['y', 'n', 'a', 'q'] as const).map((c) => ({
+      value: c,
+      key: `shk.sell.${c}`,
+      letter: c,
+    })),
+  };
+}
+
+/** The answer to sellPrompt(): yes/no for the yn prompt, the letter for the menu. */
+export function sellReply(value: Json): SellReply {
+  if (value === true) return 'y';
+  if (value === 'y' || value === 'n' || value === 'a') return value;
+  return value === false ? 'n' : 'q';
+}
+
+/**
+ * The objects in `obj`, nested too (`quantity`: counting each one of a stack): all, or only the
+ * shop's: unpaid, and with `newdrop` false, the not no-charge ones when it lies on a costly spot.
+ * ref: src/invent.c count_contents(nested = TRUE)
+ */
+function countContents(
+  ctx: Ctx,
+  obj: Entity,
+  quantity: boolean,
+  everything: boolean,
+  newdrop: boolean,
+): number {
+  let shoppy = false;
+  if (!everything && !newdrop) {
+    const top = topContainer(ctx.state, obj);
+    const p = top.c.item?.carriedBy === null ? top.c.pos : undefined;
+    shoppy = !!p && p.level === ctx.state.currentLevel && costlySpot(ctx, p.x, p.y);
+  }
+  let count = 0;
+  for (const o of contents(ctx.state, obj.id)) {
+    if (contents(ctx.state, o.id).length > 0)
+      count += countContents(ctx, o, quantity, everything, newdrop);
+    const it = o.c.item;
+    if (everything || it?.unpaid || (shoppy && !it?.noCharge))
+      count += quantity ? (it?.quantity ?? 1) : 1;
+  }
+  return count;
+}
+
+/** The shop room at x,y on the hero's level. ref: `*in_rooms(x, y, SHOPBASE)` */
+function shopRoomAt(level: Level, x: number, y: number): number | undefined {
+  return inRooms(level, x, y).find((r) => isShopType(level.rooms[r]?.type));
+}
+
+/**
+ * The hero has just put her object down on x,y in a shop (it is not yet merged with a pile).
+ * An unpaid one goes back off the bill; one of hers he wants he offers to buy: null when that
+ * is settled, else the question to ask (sellAnswer() takes the reply). An angry keeper takes
+ * it ("Thank you, scum!"); one who does not deal in it "seems uninterested" and it stays hers
+ * (no charge); one with no gold offers credit. ref: src/shk.c sellobj()
+ */
+export function sellobj(
+  ctx: Ctx,
+  obj: Entity,
+  x: number,
+  y: number,
+  st: SellState,
+): SellOffer | null {
   const ushop = uShops(ctx)[0];
   const it = obj.c.item;
-  if (ushop === undefined || !it) return; // do cheapest exclusion test first
+  if (ushop === undefined || !it) return null; // do cheapest exclusion test first
   const level = getLevel(ctx.state);
-  const room = inRooms(level, x, y).find((r) => isShopType(level.rooms[r]?.type));
+  const room = shopRoomAt(level, x, y);
   const shk = room === undefined ? null : shopKeeper(ctx, level.id, room);
-  if (shk === null || !inhishop(ctx, shk) || !costlySpot(ctx, x, y)) return;
+  const shkMon = shk === null ? undefined : ctx.state.entities[String(shk)];
+  const e = shk === null ? null : eshkOf(ctx, shk);
+  if (shk === null || !shkMon || !e || !inhishop(ctx, shk) || !costlySpot(ctx, x, y)) return null;
   const container = contents(ctx.state, obj.id).length > 0;
-  const isgold = ctx.defs.object(obj.def).class === 'coin';
+  const def = ctx.defs.object(obj.def);
+  const isgold = def.class === 'coin';
   if (it.unpaid && !container && !isgold) {
     subOneFrombill(ctx, obj, shk);
-    return;
+    return null;
   }
-  if (isgold) return; // gold dropped in a shop: step 4
-  const unpaid = isUnpaid(ctx.state, obj);
-  if (container) droppedContainer(ctx, obj);
-  if (!it.unpaid) it.noCharge = true;
-  if (unpaid) subfrombill(ctx, obj, shk);
+  // the price of content before subfrombill (contained gold buys nothing: no credit for gold)
+  const cltmp = container ? containedSellCost(ctx.state, ctx.defs, obj, e, shk, 0) : 0;
+  const saleitem = saleable(ctx, e, obj);
+  const ltmp = !isgold && !it.unpaid && saleitem ? setCost(ctx.state, ctx.defs, obj, shk) : 0;
+  let offer = ltmp + cltmp;
+
+  // you dropped something of your own - probably want to sell it
+  rouseShk(ctx, shkMon, e); // wake up sleeping or paralyzed shk
+  if (!shkMon.c.monster?.peaceful) {
+    // they become shop-objects, no pay
+    ctx.emit({ type: 'msg', key: 'shk.thank_you_scum' });
+    subfrombill(ctx, obj, shk);
+    return null;
+  }
+  if (isgold) {
+    // gold stays hers: no credit for gold dropped in a shop (DEVIATIONS)
+    it.noCharge = true;
+    return null;
+  }
+  // get one case out of the way: nothing to sell
+  if (offer === 0 || st.how === 'dontsell') {
+    const unpaid = isUnpaid(ctx.state, obj);
+    if (container) {
+      droppedContainer(ctx, obj, e, false);
+      if (!it.unpaid) it.noCharge = true;
+      if (unpaid) subfrombill(ctx, obj, shk);
+    } else it.noCharge = true;
+    if (!unpaid && st.how !== 'dontsell')
+      ctx.emit({ type: 'msg', key: 'shk.uninterested', params: { shk: shkname(ctx, e) } });
+    return null;
+  }
+  if (e.robbed) {
+    // shop robbed by previous customer. C's `(robbed -= offer < 0L)` subtracts nothing and then
+    // clears it: any contribution makes up for the robbery
+    e.robbed = 0;
+    ctx.emit({ type: 'msg', key: 'shk.restock_thanks' });
+    subfrombill(ctx, obj, shk);
+    return null;
+  }
+  if (
+    (!saleitem && !(container && cltmp > 0)) ||
+    e.bill.length >= BILLSZ ||
+    offer === 0 ||
+    (def.class === 'food' && it.eaten) ||
+    (isCandle(obj.def) && (it.age ?? 0) < 20 * def.cost)
+  ) {
+    ctx.emit({ type: 'msg', key: 'shk.uninterested', params: { shk: shkname(ctx, e) } });
+    if (container) droppedContainer(ctx, obj, e, false);
+    it.noCharge = true;
+    return null;
+  }
+  const base = { shk, obj: obj.id, ltmp, cltmp, saleitem };
+  const shkmoney = moneyCnt(ctx, shk);
+  if (!shkmoney) {
+    const tmpcr = Math.trunc((offer * 9) / 10) + (offer <= 1 ? 1 : 0);
+    const o: SellOffer = {
+      ...base,
+      credit: true,
+      offer: tmpcr,
+      partial: false,
+      key: 'shk.credit_prompt',
+      params: { n: tmpcr, zm: zorkmids(tmpcr), item: paydoname(ctx.state, ctx.defs, obj) },
+    };
+    if (st.how === 'normal' || st.autoCredit) {
+      sellAnswer(ctx, o, 'y', st);
+      return null;
+    }
+    if (st.response === 'n') {
+      // previously specified "quit"
+      sellAnswer(ctx, o, 'n', st);
+      return null;
+    }
+    ctx.emit({ type: 'msg', key: 'shk.cannot_pay', params: { shk: shkname(ctx, e) } });
+    return o;
+  }
+  const shortFunds = offer > shkmoney;
+  if (shortFunds) offer = shkmoney;
+  let yourc = 0;
+  let partial = false;
+  if (container) {
+    // number of items owned by shk, and by you
+    const shksc = countContents(ctx, obj, true, false, true);
+    yourc = countContents(ctx, obj, true, true, true) - shksc;
+    partial = shksc > 0 && yourc > 0;
+  }
+  const one = !ltmp ? yourc === 1 : it.quantity === 1 && !cltmp;
+  const o: SellOffer = {
+    ...base,
+    credit: false,
+    offer,
+    partial,
+    key: 'shk.sell_offer',
+    params: {
+      shk: shkname(ctx, e),
+      only: shortFunds ? '@shk.only' : '',
+      n: offer,
+      gp: offer === 1 ? '@shk.gold_piece' : '@shk.gold_pieces',
+      inside: cltmp && !ltmp ? (yourc === 1 ? '@shk.your_item_in' : '@shk.your_items_in') : '',
+      whose: it.unpaid ? '@shk.the' : '@shk.your',
+      item: xnameOf(ctx.state, ctx.defs, obj),
+      suffix:
+        cltmp && ltmp
+          ? partial
+            ? yourc === 1
+              ? '@shk.and_item_inside'
+              : '@shk.and_items_inside'
+            : '@shk.and_its_contents'
+          : '',
+      it: one ? '@pronoun.it' : '@pronoun.them',
+    },
+  };
+  if (st.response) {
+    sellAnswer(ctx, o, st.response, st);
+    return null;
+  }
+  return o;
 }
 
 /**
- * "You bought X for N gold pieces." (`consumed`: "You paid for X at a cost of ..."); ordinary
- * weapons, armor, scrolls and books the shop deals in are named first.
- * ref: src/shk.c shk_names_obj()
+ * Settles a sell question with her reply: sold (he pays her, or credits her), or kept (no
+ * charge). 'a' answers yes and 'q' no for the rest of the command. ref: src/shk.c sellobj()
  */
-export function shkNamesObj(ctx: Ctx, e: Eshk, obj: Entity, consumed: boolean, amt: number): void {
+export function sellAnswer(ctx: Ctx, o: SellOffer, reply: SellReply, st: SellState): void {
+  const obj = ctx.state.entities[String(o.obj)];
+  const it = obj?.c.item;
+  const e = eshkOf(ctx, o.shk);
+  if (!obj || !it || !e) return;
+  const container = contents(ctx.state, obj.id).length > 0;
+  let c = reply;
+  if (o.credit) {
+    if (c === 'a') {
+      c = 'y';
+      st.autoCredit = true;
+    }
+    if (c === 'y') {
+      shkNamesObj(
+        ctx,
+        e,
+        obj,
+        st.how !== 'normal' ? 'traded_credit' : 'relinquish_credit',
+        o.offer,
+        e.credit > 0,
+      );
+      e.credit += o.offer;
+      if (container) droppedContainer(ctx, obj, e, true);
+      subfrombill(ctx, obj, o.shk);
+    } else {
+      if (c === 'q') st.response = 'n';
+      if (container) droppedContainer(ctx, obj, e, false);
+      if (!it.unpaid) it.noCharge = true;
+      subfrombill(ctx, obj, o.shk);
+    }
+    return;
+  }
+  if (c === 'q') st.response = 'n';
+  if (c === 'a') st.response = 'y';
+  if (c === 'n' || c === 'q') {
+    if (container) droppedContainer(ctx, obj, e, false);
+    if (!it.unpaid) it.noCharge = true;
+    subfrombill(ctx, obj, o.shk);
+    return;
+  }
+  if (container) droppedContainer(ctx, obj, e, true);
+  if (!it.unpaid && !o.saleitem) it.noCharge = true;
+  subfrombill(ctx, obj, o.shk);
+  shkPay(ctx, -o.offer, o.shk, e);
+  shkNamesObj(
+    ctx,
+    e,
+    obj,
+    st.how !== 'normal' ? (!o.ltmp && o.cltmp && o.partial ? 'sold_some' : 'sold') : 'relinquish',
+    o.offer,
+  );
+}
+
+/** The wording of shk_names_obj(): "You bought X for N gold pieces." and its kin. */
+export type ShkNamesFmt =
+  | 'bought'
+  | 'paid_for'
+  | 'sold'
+  | 'sold_some'
+  | 'relinquish'
+  | 'traded_credit'
+  | 'relinquish_credit';
+
+/**
+ * "You bought X for N gold pieces." (or paid for, sold, relinquished...); ordinary weapons,
+ * armor, scrolls and books the shop deals in are named first ("X; you bought it ...").
+ * `additional`: "in additional credit". ref: src/shk.c shk_names_obj()
+ */
+export function shkNamesObj(
+  ctx: Ctx,
+  e: Eshk,
+  obj: Entity,
+  fmt: ShkNamesFmt,
+  amt: number,
+  additional = false,
+): void {
   let wasUnknown = false; // (dknown is always set)
   const def = ctx.defs.object(obj.def);
   if (
@@ -695,14 +1049,261 @@ export function shkNamesObj(ctx: Ctx, e: Eshk, obj: Entity, consumed: boolean, a
   const quan = obj.c.item?.quantity ?? 1;
   ctx.emit({
     type: 'msg',
-    key: `shk.${consumed ? 'paid_for' : 'bought'}${wasUnknown ? '_unknown' : ''}`,
+    key: `shk.${fmt}${wasUnknown ? '_unknown' : ''}`,
     params: {
       item: paydoname(ctx.state, ctx.defs, obj),
       it: quan > 1 ? '@pronoun.them' : '@pronoun.it',
       n: amt,
       gp: amt === 1 ? '@shk.gold_piece' : '@shk.gold_pieces',
+      zm: zorkmids(amt),
+      additional: additional ? '@shk.additional' : '',
     },
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// stolen goods
+
+/**
+ * The keeper whose shop at x,y has the object on his bill, else the first keeper there.
+ * ref: src/shk.c find_objowner()
+ */
+export function findObjowner(ctx: Ctx, obj: Entity, x: number, y: number): EntityId | null {
+  const level = getLevel(ctx.state);
+  let deflt: EntityId | null = null;
+  for (const r of inRooms(level, x, y)) {
+    if (!isShopType(level.rooms[r]?.type)) continue;
+    const shk = shopKeeper(ctx, level.id, r);
+    if (shk === null) continue;
+    if (onbill(ctx, obj.id, shk)) return shk;
+    deflt ??= shk;
+  }
+  return deflt;
+}
+
+/**
+ * x,y is a wall or door of his shop, or his own spot, while he is in it.
+ * ref: src/shk.c costly_adjacent()
+ */
+export function costlyAdjacent(ctx: Ctx, shk: EntityId, x: number, y: number): boolean {
+  const e = eshkOf(ctx, shk);
+  if (!e || !inhishop(ctx, shk)) return false;
+  // adjacent if <x,y> is a shop wall spot, including door; also treat "free spot" one step
+  // inside the door as adjacent
+  return isEdge(getLevel(ctx.state), x, y) || (x === e.shk.x && y === e.shk.y);
+}
+
+/** The value of the shop goods inside `obj`, taken off the bill. ref: stolen_container() */
+function stolenContainer(
+  ctx: Ctx,
+  obj: Entity,
+  shk: EntityId,
+  e: Eshk,
+  price: number,
+  ininv: boolean,
+): number {
+  for (const o of contents(ctx.state, obj.id)) {
+    const it = o.c.item;
+    if (!it || ctx.defs.object(o.def).class === 'coin') continue;
+    let billamt = 0;
+    if (billable(ctx, o, undefined, true, shk) === null) {
+      // billable() returns false for objects already on bill
+      const bp = onbill(ctx, o.id, shk);
+      if (!bp) continue;
+      billamt = bp.bquan * bp.price;
+      subOneFrombill(ctx, o, shk); // avoid double billing
+    }
+    if (billamt) price += billamt;
+    else if (ininv ? it.unpaid : !it.noCharge)
+      price += it.quantity * getCost(ctx.state, ctx.defs, o, e);
+    if (contents(ctx.state, o.id).length > 0) price = stolenContainer(ctx, o, shk, e, price, ininv);
+  }
+  return price;
+}
+
+/**
+ * The shop object (or shop goods in it) left the shop or was destroyed by the hero: its price
+ * comes off the bill and is owed: a peaceful keeper adds it to her debt ("You owe Izchak 10
+ * zorkmids for it!"), after her credit; an angry one counts it as robbed. Not peaceful: "you are a
+ * thief!" (hot pursuit and the Watch: step 5). Returns the value. `ininv`: the object is
+ * carried or detached (in flight), else it lies somewhere. ref: src/shk.c stolen_value()
+ */
+export function stolenValue(
+  ctx: Ctx,
+  obj: Entity,
+  x: number,
+  y: number,
+  peaceful: boolean,
+  silent: boolean,
+): number {
+  const it = obj.c.item;
+  if (!it) return 0;
+  const level = getLevel(ctx.state);
+  const owner = findObjowner(ctx, obj, x, y);
+  const roomno = owner !== null ? eshkOf(ctx, owner)?.shoproom : shopRoomAt(level, x, y);
+  // gather information for message(s) prior to manipulating bill
+  const wasUnpaid = !!it.unpaid;
+  const container = contents(ctx.state, obj.id).length > 0;
+  const cCount = container ? countContents(ctx, obj, false, true, false) : 0;
+  const uCount = container ? countContents(ctx, obj, false, false, false) : 0;
+
+  const shk = roomno === undefined ? null : shopKeeper(ctx, level.id, roomno);
+  const e = shk === null ? null : eshkOf(ctx, shk);
+  if (shk === null || !e || !inhishop(ctx, shk)) return 0;
+  let billamt = 0;
+  if (billable(ctx, obj, undefined, true, shk) === null) {
+    // things already on the bill yield a not-billable result, so we need to check bill before
+    // deciding that shk doesn't care
+    const bp = onbill(ctx, obj.id, shk);
+    if (bp) {
+      // shk does care; take obj off bill to avoid double billing
+      billamt = bp.bquan * bp.price;
+      subOneFrombill(ctx, obj, shk);
+    }
+    if (!bp && !uCount) return 0;
+  }
+  let value = 0;
+  // (gold: no loan, so shop gold is never charged here)
+  if (ctx.defs.object(obj.def).class !== 'coin') {
+    if (billamt) value += billamt;
+    else if (!it.noCharge) value += it.quantity * getCost(ctx.state, ctx.defs, obj, e);
+    if (container) {
+      const ininv = it.carriedBy === ctx.state.playerId || (it.carriedBy === null && !obj.c.pos);
+      value += stolenContainer(ctx, obj, shk, e, 0, ininv);
+    }
+  }
+  if (value === 0) return 0;
+
+  const shkMon = ctx.state.entities[String(shk)];
+  if (peaceful) {
+    const creditUse = !!e.credit;
+    value = checkCredit(ctx, value, e);
+    // 'peaceful' affects general treatment, but doesn't affect the fact that other code
+    // expects that all charges after the shopkeeper is angry are included in robbed, not debit
+    if (!shkMon?.c.monster?.peaceful) e.robbed += value;
+    else e.debit += value;
+    if (!silent) {
+      let still = '';
+      if (creditUse) {
+        if (e.credit) {
+          ctx.emit({
+            type: 'msg',
+            key: 'shk.credit_remaining',
+            params: { n: e.credit, zm: zorkmids(e.credit) },
+          });
+          return value;
+        } else if (!value) {
+          ctx.emit({ type: 'msg', key: 'shk.no_credit_remaining' });
+          return 0;
+        }
+        still = '@shk.still';
+      }
+      ctx.emit({
+        type: 'msg',
+        key: 'shk.owe',
+        params: {
+          still,
+          shk: shkname(ctx, e),
+          n: value,
+          zm: zorkmids(value),
+          forwhat: uCount
+            ? {
+                key: 'shk.for_contents',
+                params: {
+                  it: wasUnpaid ? '@shk.it_and' : '',
+                  some: cCount > uCount ? '@shk.some_of' : '',
+                },
+              }
+            : it.quantity > 1
+              ? '@shk.for_them'
+              : '@shk.for_it',
+        },
+      });
+    }
+  } else {
+    e.robbed += value;
+    if (!silent) {
+      if (shkMon && canSpotMon(ctx, shkMon))
+        ctx.emit({
+          type: 'msg',
+          key: 'shk.thief',
+          params: { shk: shkname(ctx, e), name: plname(ctx) },
+        });
+      else ctx.emit({ type: 'msg', key: 'shk.thief_scream' });
+    }
+    // hot_pursuit(shkp) and angry_guards(): step 5
+  }
+  return value;
+}
+
+/**
+ * The hero's thrown object has landed on x,y (or broke: `broken`) while she is in a shop:
+ * thrown out of the shop (or into another), unpaid goods are owed; thrown onto his floor, unpaid
+ * goods go back to him and her own are sold without asking. ref: src/dothrow.c check_shop_obj()
+ * (no levitation recoil: u.ushops0 is not needed)
+ */
+export function checkShopObj(ctx: Ctx, obj: Entity, x: number, y: number, broken: boolean): void {
+  const ushop = uShops(ctx)[0];
+  const level = getLevel(ctx.state);
+  const shk = ushop === undefined ? null : shopKeeper(ctx, level.id, ushop);
+  const it = obj.c.item;
+  if (shk === null || !it) return;
+  const costlyXy = costlySpot(ctx, x, y);
+  const hp = getPlayer(ctx.state).c.pos;
+  const peaceful = !!ctx.state.entities[String(shk)]?.c.monster?.peaceful;
+  if (broken || !costlyXy || shopRoomAt(level, x, y) !== ushop) {
+    // thrown out of a shop or into a different shop
+    if (isUnpaid(ctx.state, obj) && hp) stolenValue(ctx, obj, hp.x, hp.y, peaceful, false);
+    if (broken) it.noCharge = true;
+    return;
+  }
+  if (isUnpaid(ctx.state, obj)) subfrombill(ctx, obj, shk);
+  else {
+    const sp = ctx.state.entities[String(shk)]?.c.pos;
+    if (!sp || x !== sp.x || y !== sp.y) sellobj(ctx, obj, x, y, sellobjState('normal'));
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// usage fees
+
+/**
+ * What one use of an unpaid object costs, making its exhaustive use dearer than buying it.
+ * ref: src/shk.c cost_per_charge() (the objects that exist)
+ */
+function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity): number {
+  if (!inhishop(ctx, shk)) return 0; // insurance
+  let tmp = getCost(ctx.state, ctx.defs, obj, e);
+  const def = ctx.defs.object(obj.def);
+  if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
+    if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
+  } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
+  return tmp;
+}
+
+/**
+ * Charges for one use of an unpaid object (zapping a wand, lighting a lamp): "Usage fee, N
+ * zorkmids." goes on her debt. ref: src/shk.c check_unpaid_usage(), check_unpaid()
+ */
+export function checkUnpaid(ctx: Ctx, obj: Entity): void {
+  const it = obj.c.item;
+  const ushop = uShops(ctx)[0];
+  if (!it?.unpaid || ushop === undefined) return;
+  if (it.spe <= 0 && ctx.defs.object(obj.def).class === 'wand') return; // oc_charged
+  const shk = shopKeeper(ctx, ctx.state.currentLevel, ushop);
+  const e = shk === null ? null : eshkOf(ctx, shk);
+  if (shk === null || !e || !inhishop(ctx, shk)) return;
+  const tmp = costPerCharge(ctx, shk, e, obj);
+  if (tmp === 0) return;
+  const hey = ctx.rng.rn2(3) === 0 ? '@shk.hey' : '';
+  const ahem = ctx.rng.rn2(3) === 0 ? '@shk.ahem' : '';
+  if (!helpless(ctx, shk))
+    ctx.emit({
+      type: 'msg',
+      key: 'shk.usage_fee',
+      params: { hey, ahem, n: tmp, zm: zorkmids(tmp) },
+    });
+  e.debit += tmp;
 }
 
 /** The gold in containers the hero carries. ref: src/vault.c hidden_gold(TRUE) */

@@ -1,5 +1,6 @@
 // Throwing objects. ref: src/dothrow.c dothrow(), throw_obj(), throwit(), thitmonst(), tmiss(),
-// hitfloor(); src/zap.c bhit() (thrown objects only); src/uhitm.c hmon_hitmon()
+// hitfloor(); src/zap.c bhit() (thrown objects only); src/uhitm.c hmon_hitmon(); shop goods
+// thrown (check_shop_obj(), in shk.ts)
 import {
   DIRS,
   DIR_LIST,
@@ -32,7 +33,17 @@ import { dbon, dmgval, monsterIdAt } from './combat';
 import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { encumberMsg } from './itemactions';
-import { placeOnFloor, removeFromInventory, splitStack, weight } from './items';
+import {
+  placeObject,
+  placeOnFloor,
+  removeFromInventory,
+  splitStack,
+  stackobj,
+  weight,
+} from './items';
+import { uShops } from './eshk';
+import { isUnpaid } from './price';
+import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
 import { xnameOf } from './objnam';
 import {
@@ -263,6 +274,8 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   if (angerGuards) angryGuards(ctx, false);
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {
+    if (mon.c.pos && (uShops(ctx).length > 0 || obj.c.item?.unpaid))
+      checkShopObj(ctx, obj, mon.c.pos.x, mon.c.pos.y, true);
     ctx.remove(objId);
     return true;
   }
@@ -313,6 +326,8 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       msg(ctx, `throw.floor${it.quantity !== 1 ? '_pl' : ''}`, {
         item: ctx.defs.itemName(ctx.state, obj),
       });
+    // dropy() -> dropz(): sold without asking on a costly spot (stackobj() comes after)
+    sellobj(ctx, obj, pos.x, pos.y, sellobjState('normal'));
     placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
     return;
   }
@@ -367,6 +382,13 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
 
   if (hitMon !== null) {
     if (thitmonst(ctx, hitMon, objId, shot)) return; // used up
+  }
+  // charge for items thrown out of shop; shk takes possession for items thrown into one
+  if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj)) {
+    placeObject(ctx, objId, pos.level, x, y);
+    checkShopObj(ctx, obj, x, y, false);
+    stackobj(ctx, objId);
+    return;
   }
   placeOnFloor(ctx, objId, pos.level, x, y);
 }

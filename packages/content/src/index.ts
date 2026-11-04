@@ -317,7 +317,15 @@ export {
   type BillEntry,
   type Eshk,
 } from './eshk';
-export { getCost, getprice, isUnpaid, oidPriceAdjustment, shopItemCost, unpaidCost } from './price';
+export {
+  getCost,
+  getprice,
+  isUnpaid,
+  oidPriceAdjustment,
+  setCost,
+  shopItemCost,
+  unpaidCost,
+} from './price';
 export { PAY_ACTIONS, PAY_ID } from './pay';
 export {
   SHTYPES,
@@ -341,12 +349,20 @@ export {
   costlyAlteration,
   hello,
   pacifyShk,
+  checkShopObj,
+  checkUnpaid,
   plname,
+  sellAnswer,
   sellobj,
+  sellobjState,
   shkname,
+  stolenValue,
   subfrombill,
   uEnteredShop,
   uLeftShop,
+  type SellHow,
+  type SellOffer,
+  type SellState,
 } from './shk';
 export { buzzFrom, type Ray, type RaySource } from './buzz';
 export { OBJECTS, APPEARANCES } from './objects';
