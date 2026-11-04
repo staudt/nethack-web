@@ -1,8 +1,10 @@
-// Hero stats for the stub Valkyrie: initial attributes/HP/kit, HP regeneration and experience.
+// Hero stats for the stub Valkyrie: initial attributes/HP/Pw/kit, HP and Pw regeneration and experience.
 import type { AttributesComponent, Ctx, EntityId, ModApi, MonsterDef } from '@nh/core';
 import { giveStartingKit } from './kit';
 import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
+import { nearCapacity } from './stats';
+import { pwOf, setPw } from './uenergy';
 
 /**
  * The stub hero is a human, female, neutral Valkyrie. ref: src/role.c roles[] Valkyrie allows
@@ -34,6 +36,10 @@ interface HpAdvance {
 const VALK_HPADV: HpAdvance = { infix: 14, inrnd: 0, lofix: 0, lornd: 8, hifix: 2, hirnd: 0 };
 /** ref: src/role.c races[] human hpadv `{ 2, 0, 0, 2, 1, 0 }` */
 const HUMAN_HPADV: HpAdvance = { infix: 2, inrnd: 0, lofix: 0, lornd: 2, hifix: 1, hirnd: 0 };
+/** ref: src/role.c roles[] Valkyrie enadv `{ 1, 0, 0, 1, 0, 1 }` (Energy) */
+const VALK_ENADV: HpAdvance = { infix: 1, inrnd: 0, lofix: 0, lornd: 1, hifix: 0, hirnd: 1 };
+/** ref: src/role.c races[] human enadv `{ 1, 0, 2, 0, 2, 0 }` (Energy) */
+const HUMAN_ENADV: HpAdvance = { infix: 1, inrnd: 0, lofix: 2, lornd: 0, hifix: 2, hirnd: 0 };
 /** ref: src/role.c roles[] Valkyrie xlev (cutoff level between lo and hi hp advance) */
 const VALK_XLEV = 10;
 /** ref: include/global.h MAXULEV */
@@ -138,6 +144,44 @@ export function newhp(ctx: Ctx, ulevel: number, con: number, maxHp = 0): number 
   return hp;
 }
 
+/** The role's energy modifier; the Valkyrie's is 3/4. ref: src/exper.c enermod() */
+const enermod = (en: number): number => Math.trunc((3 * en) / 4);
+
+/**
+ * Energy gained: at level 0 (hero creation) the initial value, else the per-level gain.
+ * ref: src/exper.c newpw(). `ulevel` is the level before it is incremented and `wis` is
+ * ACURR(A_WIS). `uenmax` is only used for the post-30 throttle. No u.ueninc[] record (nothing
+ * drains levels).
+ */
+export function newpw(ctx: Ctx, ulevel: number, wis: number, uenmax = 0): number {
+  const role = VALK_ENADV;
+  const race = HUMAN_ENADV;
+  let en: number;
+  if (ulevel === 0) {
+    en = role.infix + race.infix;
+    if (role.inrnd > 0) en += ctx.rng.rnd(role.inrnd);
+    if (race.inrnd > 0) en += ctx.rng.rnd(race.inrnd);
+  } else {
+    let enrnd = Math.trunc(wis / 2);
+    let enfix: number;
+    if (ulevel < VALK_XLEV) {
+      enrnd += role.lornd + race.lornd;
+      enfix = role.lofix + race.lofix;
+    } else {
+      enrnd += role.hirnd + race.hirnd;
+      enfix = role.hifix + race.hifix;
+    }
+    en = enermod(ctx.rng.rn2(enrnd) + enfix); // rn1(enrnd, enfix)
+  }
+  if (en <= 0) en = 1;
+  if (ulevel >= MAXULEV) {
+    // after level 30, throttle energy gains; ref: src/exper.c newpw()
+    const lim = Math.max(4 - Math.trunc(uenmax / 200), 1);
+    if (en > lim) en = lim;
+  }
+  return en;
+}
+
 /** Experience points needed to leave level `lev`. ref: src/exper.c newuexp() */
 export function newuexp(lev: number): number {
   if (lev < 1) return 0;
@@ -196,29 +240,50 @@ export function experienceFor(def: MonsterDef, monLevel: number): number {
 }
 
 /**
- * Adds experience points and, if a threshold is crossed, gains ONE level. NetHack does the same:
- * pluslvl() caps points at newuexp(level+1)-1, so a huge award takes several kills to cash in.
- * ref: src/exper.c more_experienced(), newexplevel(), pluslvl()
+ * Gains one experience level: HP, then Pw, then the level and its intrinsics. `incr` is true for
+ * experience growth and false for a level gained outright ("You feel more experienced.").
+ * ref: src/exper.c pluslvl(). No polymorph, no level drain (no u.ulevelmax "back "), no rank
+ * achievements or livelog.
  */
-export function gainExperience(ctx: Ctx, heroId: EntityId, exp: number): void {
+export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
   const hero = ctx.state.entities[String(heroId)];
   const xp = hero?.c.experience;
   const hp = hero?.c.hp;
   if (!hero || !xp || !hp) return;
-  xp.points += exp; // more_experienced()
-  // newexplevel()
-  if (xp.level < MAXULEV && xp.points >= newuexp(xp.level)) {
-    // pluslvl(TRUE)
-    const inc = newhp(ctx, xp.level, hero.c.attributes?.con ?? 10, hp.max);
-    hp.cur += inc;
-    hp.max += inc;
-    if (hp.cur > hp.max) hp.cur = hp.max; // setuhpmax()
-    const next = newuexp(xp.level + 1);
-    if (xp.points >= next) xp.points = next - 1;
+  if (!incr) ctx.emit({ type: 'msg', key: 'exp.more_experienced' });
+  const inc = newhp(ctx, xp.level, hero.c.attributes?.con ?? 10, hp.max);
+  hp.cur += inc;
+  hp.max += inc;
+  if (hp.cur > hp.max) hp.cur = hp.max; // setuhpmax()
+  // increase spell power/energy points
+  const pw = pwOf(ctx.state);
+  const eninc = newpw(ctx, xp.level, hero.c.attributes?.wis ?? 10, pw.uenmax);
+  const uenmax = pw.uenmax + eninc;
+  setPw(ctx, { uenmax, uenpeak: Math.max(pw.uenpeak, uenmax), uen: pw.uen + eninc });
+  if (xp.level < MAXULEV) {
+    if (incr) {
+      const next = newuexp(xp.level + 1);
+      if (xp.points >= next) xp.points = next - 1;
+    } else {
+      xp.points = newuexp(xp.level);
+    }
     xp.level += 1;
     ctx.emit({ type: 'msg', key: 'exp.welcome', params: { level: xp.level } });
-    adjabil(ctx, heroId, xp.level - 1, xp.level); // ref: src/exper.c pluslvl()
+    adjabil(ctx, heroId, xp.level - 1, xp.level);
   }
+}
+
+/**
+ * Adds experience points and, if a threshold is crossed, gains ONE level. NetHack does the same:
+ * pluslvl() caps points at newuexp(level+1)-1, so a huge award takes several kills to cash in.
+ * ref: src/exper.c more_experienced(), newexplevel()
+ */
+export function gainExperience(ctx: Ctx, heroId: EntityId, exp: number): void {
+  const xp = ctx.state.entities[String(heroId)]?.c.experience;
+  if (!xp) return;
+  xp.points += exp; // more_experienced()
+  // newexplevel()
+  if (xp.level < MAXULEV && xp.points >= newuexp(xp.level)) pluslvl(ctx, heroId, true);
 }
 
 /**
@@ -242,19 +307,55 @@ function regenHp(ctx: Ctx): void {
   if (heal) hp.cur = Math.min(hp.max, hp.cur + heal);
 }
 
+/** ref: include/hack.h MOD_ENCUMBER (Stressed) */
+const MOD_ENCUMBER = 2;
+
+/**
+ * Energy regeneration: on the turns where `moves % ((MAXULEV + 8 - ulevel) * 4 / 6)` is 0 (the
+ * Wizard's `* 3` never applies), unless Stressed or worse, she gains `rn1((Wis + Int) / 15 + 1, 1)`.
+ * ref: src/allmain.c regen_pw(). No Energy_regeneration or magical breathing sources exist.
+ * "You feel full of energy." comes from interrupt_multi(), which only speaks while a repeat count
+ * runs (`multi > 0`, not running or travelling); the port has no repeat counts, so it is silent.
+ */
+export function regenPw(ctx: Ctx): void {
+  const { state } = ctx;
+  if (state.gameOver !== null) return;
+  const hero = state.entities[String(state.playerId)];
+  if (!hero) return;
+  const pw = pwOf(state);
+  if (pw.uen >= pw.uenmax) return;
+  const ulevel = hero.c.experience?.level ?? 1;
+  // mvl_wtcap is UNENCUMBERED while invulnerable (praying)
+  const wtcap = uState(state).uinvulnerable ? 0 : nearCapacity(state, ctx.defs, hero.id);
+  if (wtcap >= MOD_ENCUMBER) return;
+  if (state.turn % Math.trunc(((MAXULEV + 8 - ulevel) * 4) / 6) !== 0) return;
+  const a = hero.c.attributes;
+  const upper = Math.trunc(((a?.wis ?? 10) + (a?.int ?? 10)) / 15) + 1;
+  setPw(ctx, { uen: Math.min(pw.uen + ctx.rng.rn2(upper) + 1, pw.uenmax) }); // rn1(upper, 1)
+}
+
 /** Registers the hero hooks through the public ModApi. */
 export function registerHero(api: ModApi): void {
-  // ref: src/u_init.c u_init() -- attributes first (init_attr), then HP (newhp at ulevel 0)
+  // ref: src/u_init.c u_init() -- attributes first (init_attr), then HP (newhp at ulevel 0), then
+  // Pw (`u.uen = u.uenmax = u.uenpeak = newpw()`)
   api.on('newGame', (ctx, heroId) => {
     const hero = ctx.state.entities[String(heroId)];
     if (!hero) return;
     const attributes = initialAttributes(ctx);
     const max = newhp(ctx, 0, attributes.con);
+    const en = newpw(ctx, 0, attributes.wis);
     hero.c.attributes = attributes;
     hero.c.hp = { cur: max, max };
     hero.c.experience = { level: 1, points: 0 };
     // ref: src/u_init.c u_init(): ini_inv(Valkyrie) and skill_init(Skill_V) after attributes and HP
     giveStartingKit(ctx, heroId);
+    // written after the kit, which creates modData.nh with its inventory-letter counter
+    setPw(ctx, { uen: en, uenmax: en, uenpeak: en });
   });
+  // ref: src/allmain.c moveloop_core(): regen_hp() then regen_pw()
   api.on('endOfTurn', regenHp);
+  api.on('endOfTurn', regenPw);
+  // the bottom line's `Pw:2(2)`; ref: src/botl.c bot2() (BL_ENE, BL_ENEMAX)
+  api.defineStatus({ id: 'nh:pw', field: 'pw', value: (state) => pwOf(state).uen });
+  api.defineStatus({ id: 'nh:pwmax', field: 'pwmax', value: (state) => pwOf(state).uenmax });
 }

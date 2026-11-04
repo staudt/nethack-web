@@ -107,6 +107,7 @@ export const messagesEn: Record<string, string> = {
   'terrain.altar': 'altar',
   'role.valkyrie': 'Valkyrie',
   'exp.welcome': 'Welcome to experience level {level}.',
+  'exp.more_experienced': 'You feel more experienced.',
   'weapon.spear': 'spear',
   // ref: src/uhitm.c, src/mon.c, src/mhitu.c
   'combat.you_hit': 'You hit {mon|the}.',

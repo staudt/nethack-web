@@ -12,6 +12,7 @@ import {
   setIntrinsic,
   timeoutLeft,
 } from './props';
+import { pwOf, setPw } from './uenergy';
 
 /**
  * The conveyable properties in include/prop.h order (corpse_intrinsic() scans them in that
@@ -142,7 +143,7 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
  * stun, then a chance at an intrinsic. Not ported (no systems for them): the wraith's level,
  * lycanthropy, mimicking, the quantum mechanic, shapeshifters, displacer beast, disenchanter,
- * the nurse, the stalker's invisibility and "a mild buzz" (the hero has no magic energy).
+ * the nurse and the stalker's invisibility.
  */
 export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   const hero = getPlayer(ctx.state);
@@ -174,7 +175,30 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
     ctx.emit({ type: 'msg', key: 'givit.great_stuff' });
     makeHallucinated(ctx, timeoutLeft(ctx.state, hero, P.HALLUC) + 200, false);
   }
+  // Eating magical monsters can give you some magical energy.
+  if (def.id === 'nh:newt' || def.attacks.some((a) => a.at === 'magic')) eyeOfNewtBuzz(ctx);
   const prop = corpseIntrinsic(ctx, def);
   if (prop === 'str') gainstr(ctx, 0);
   else if (prop !== null) givit(ctx, prop, def);
+}
+
+/**
+ * "Eye of newt" may give a small magical energy boost: `rnd(3)` Pw, and when that overflows the
+ * maximum, one time in three the maximum goes up by 1. ref: src/eat.c eye_of_newt_buzz()
+ */
+export function eyeOfNewtBuzz(ctx: Ctx): void {
+  const pw = pwOf(ctx.state);
+  if (!(ctx.rng.rn2(3) || 3 * pw.uen <= 2 * pw.uenmax)) return;
+  let { uen, uenmax, uenpeak } = pw;
+  uen += ctx.rng.rnd(3);
+  if (uen > uenmax) {
+    if (!ctx.rng.rn2(3)) {
+      uenmax++;
+      if (uenmax > uenpeak) uenpeak = uenmax;
+    }
+    uen = uenmax;
+  }
+  if (uen === pw.uen) return;
+  setPw(ctx, { uen, uenmax, uenpeak });
+  ctx.emit({ type: 'msg', key: 'givit.mild_buzz' });
 }

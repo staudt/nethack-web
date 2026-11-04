@@ -44,8 +44,16 @@ export const spellMessagesEn: Record<string, string> = {
 
   'spell.none': "You don't know any spells right now.",
   'spell.known_title': 'Currently known spells',
-  'spell.header': 'Name                 Level Retention',
-  'spell.entry': '{letter} - {spell} (level {level}) {retention}',
+  'spell.header': 'Name                 Level Category     Fail Retention',
+  'spell.entry': '{letter} - {spell} (level {level}, {school}) {fail}% fail, {retention}',
+  // ref: src/spell.c spelltypemnemonic()
+  'spell.school.attack': 'attack',
+  'spell.school.healing': 'healing',
+  'spell.school.divination': 'divination',
+  'spell.school.enchantment': 'enchantment',
+  'spell.school.cleric': 'clerical',
+  'spell.school.escape': 'escape',
+  'spell.school.matter': 'matter',
   'spell.gone': '(gone)',
   'spell.percent': '{n}%',
   'spell.range': '{lo}%-{hi}%',

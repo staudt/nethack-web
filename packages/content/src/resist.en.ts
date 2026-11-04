@@ -101,6 +101,7 @@ export const resistMessagesEn: Record<string, string> = {
   'givit.acid.halluc': 'You feel secure from flashbacks.',
   'givit.stone.halluc': 'You feel unusually limber.',
   'givit.great_stuff': 'Oh wow!  Great stuff!',
+  'givit.mild_buzz': 'You feel a mild buzz.',
   'eat.poison_unaffected': 'You seem unaffected by the poison.',
 
   // why the hero cannot act (multi_reason)

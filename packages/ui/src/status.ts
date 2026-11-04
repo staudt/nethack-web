@@ -55,6 +55,8 @@ const HANDLED: ReadonlySet<string> = new Set([
   'gold',
   'hp',
   'hpmax',
+  'pw',
+  'pwmax',
   'ac',
   'xl',
   'xp',
@@ -97,6 +99,9 @@ export function statusLines(
   if (hp !== undefined && hpmax !== undefined) {
     l2.push({ text: `HP:${hp}(${hpmax})`, cls: `nh-hp-${hpLevel(hp, hpmax)}` });
   }
+  const pw = num(s, 'pw');
+  const pwmax = num(s, 'pwmax');
+  if (pw !== undefined && pwmax !== undefined) l2.push({ text: `Pw:${pw}(${pwmax})` });
   const ac = num(s, 'ac');
   if (ac !== undefined) l2.push({ text: `AC:${ac}` });
   const xl = num(s, 'xl');

@@ -151,7 +151,7 @@ describe('studying a spellbook', () => {
 });
 
 describe('the Spells menu', () => {
-  test('is offered on the hero and lists the known spells with level and retention', () => {
+  test('is offered on the hero and lists the known spells with level, school, fail and retention', () => {
     const s = levelSetup();
     const offers = engine.query(s.state).actionsFor({ kind: 'self' });
     expect(offers.some((o) => o.action.type === 'mod' && o.action.action === 'nh:spells')).toBe(
@@ -161,6 +161,7 @@ describe('the Spells menu', () => {
     read(s, book(s, FORCE_BOLT, 'blessed'));
     read(s, book(s, 'nh:spellbook_of_cure_blindness', 'blessed'));
     knownSpells(s.ctx)[1]!.retention = 9000;
+    s.hero.c.attributes!.wis = 12;
     const turn = s.state.turn;
     const r = s.mod('nh:spells');
     expect(s.state.turn).toBe(turn);
@@ -169,8 +170,10 @@ describe('the Spells menu', () => {
     expect(render({ key: list.titleKey })).toBe('Currently known spells');
     const lines = list.items.map((m) => render(m));
     expect(lines.slice(1)).toEqual([
-      'a - force bolt (level 1) 76%-100%', // a few turns later; unskilled: 25% steps
-      'b - cure blindness (level 2) 26%-50%',
+      // Wis 12, XL 1: (66 + 15) * 10 / 15 - 10 = 44% success; a few turns later; unskilled: 25% steps
+      'a - force bolt (level 1, attack) 56% fail, 76%-100%',
+      // level 2: 66 - isqrt(4700) < 0, so 0% success
+      'b - cure blindness (level 2, healing) 100% fail, 26%-50%',
     ]);
   });
 });

@@ -27,6 +27,7 @@ import { nomul } from './nomul';
 import { discover, isKnown } from './o_init';
 import { P, hasProp, makeBlinded, makeConfused, timeoutLeft, wornIn } from './props';
 import { P_BASIC, P_EXPERT, P_SKILLED, P_UNSKILLED, skillLevel } from './skills';
+import { percentSuccess, spellSchoolKey, spellSkill } from './spellcalc';
 
 export const LEARN_ID: DefId = 'nh:learn';
 export const SPELLS_ID: DefId = 'nh:spells';
@@ -36,18 +37,6 @@ export const KEEN = 20000;
 /** How many times a book can be studied. ref: include/spell.h MAX_SPELL_STUDY */
 const MAX_SPELL_STUDY = 3;
 export const BLANK_PAPER: DefId = 'nh:spellbook_of_blank_paper';
-
-/** The spell school of each book in the subset (oc_skill), for the retention display. */
-const SPELL_SKILL: Readonly<Record<string, string>> = {
-  'nh:spellbook_of_sleep': 'enchantment_spell',
-  'nh:spellbook_of_light': 'divination_spell',
-  'nh:spellbook_of_detect_monsters': 'divination_spell',
-  'nh:spellbook_of_healing': 'healing_spell',
-  'nh:spellbook_of_force_bolt': 'attack_spell',
-  'nh:spellbook_of_confuse_monster': 'enchantment_spell',
-  'nh:spellbook_of_cure_blindness': 'healing_spell',
-  'nh:spellbook_of_protection': 'cleric_spell',
-};
 
 /** One entry of spl_book[]: the book type and the turns left before it is forgotten (sp_know). */
 export interface KnownSpell {
@@ -478,7 +467,7 @@ export function spellRetention(ctx: Pick<Ctx, 'state'>, s: KnownSpell): Msg {
   const turnsleft = s.retention;
   if (turnsleft < 1) return { key: 'spell.gone' };
   if (turnsleft >= KEEN) return { key: 'spell.percent', params: { n: 100 } };
-  const skill = Math.max(skillLevel(ctx, SPELL_SKILL[s.id] ?? ''), P_UNSKILLED);
+  const skill = Math.max(skillLevel(ctx, spellSkill(s.id)), P_UNSKILLED);
   let percent = Math.trunc((turnsleft - 1) / (KEEN / 100)) + 1;
   const accuracy = skill === P_EXPERT ? 2 : skill === P_SKILLED ? 5 : skill === P_BASIC ? 10 : 25;
   percent = accuracy * (Math.trunc((percent - 1) / accuracy) + 1);
@@ -486,8 +475,8 @@ export function spellRetention(ctx: Pick<Ctx, 'state'>, s: KnownSpell): Msg {
 }
 
 /**
- * `+`: lists the known spells with their level and retention. Viewing only (no casting, so no
- * failure rates, and no reordering). ref: src/spell.c dovspell(), dospellmenu(SPELLMENU_VIEW)
+ * `+`: lists the known spells with their level, school, failure rate and retention. Viewing only
+ * (no reordering). ref: src/spell.c dovspell(), dospellmenu(SPELLMENU_VIEW)
  */
 const spellsAction: ActionDef = {
   id: SPELLS_ID,
@@ -511,6 +500,8 @@ const spellsAction: ActionDef = {
           letter: spellet(i),
           spell: spellName(s.id),
           level: levelOf(ctx.defs.object(s.id)),
+          school: { key: spellSchoolKey(s.id) },
+          fail: 100 - percentSuccess(ctx.state, ctx.defs, s.id),
           retention: spellRetention(ctx, s),
         },
       });

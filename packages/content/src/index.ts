@@ -156,7 +156,18 @@ export {
   dbon,
   acValue,
 } from './combat';
-export { experienceFor, gainExperience, newuexp, newhp, MAXULEV } from './hero';
+export {
+  experienceFor,
+  gainExperience,
+  newuexp,
+  newhp,
+  newpw,
+  pluslvl,
+  regenPw,
+  MAXULEV,
+} from './hero';
+export { pwOf, setPw, type Pw } from './uenergy';
+export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt } from './spellcalc';
 export { messagesEn } from './messages.en';
 export { ITEM_ACTIONS, lookHere, encumberMsg } from './itemactions';
 export { nomul } from './nomul';
