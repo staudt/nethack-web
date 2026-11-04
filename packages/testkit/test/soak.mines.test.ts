@@ -7,8 +7,8 @@ import { branchStartMod, soak } from '../src/index';
 // invariants checked as it goes.
 describe('soak in the Mines', () => {
   const deepest: number[] = [];
-  // seeds re-picked when the game stream changes; 46 goes down to Mines level 3 (Minetown or not)
-  for (const seed of [1, 23, 46]) {
+  // seeds re-picked when the game stream changes; 41 goes down to Mines level 3 (Minetown or not)
+  for (const seed of [1, 23, 41]) {
     test(`seed ${seed}: 2000 turns from the Mines staircase`, { timeout: 120000 }, () => {
       const r = soak([vanillaMod, branchStartMod], { seed, turns: 2000, checkEvery: 5 });
       console.log(

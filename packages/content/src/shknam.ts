@@ -2,7 +2,7 @@
 // type on every other floor square when its level is made (the shop types are in shtypes.ts).
 // ref: src/shknam.c shkinit(), nameshk(), good_shopdoor(), stock_room(), stock_room_goodpos(),
 // mkshobj_at(), get_shop_item(), shkveg(), mkveggy_at(); src/sp_lev.c fill_special_room() (the
-// shop branch)
+// shop branch); src/mkroom.c mkshop() (random dungeon shops)
 //
 // Not ported: mimics posing as stock (none exist: the rn2(100) < depth roll is made), the tribute
 // novel, the "Closed for inventory" engraving of a locked shop door (no engravings), trapped
@@ -25,6 +25,7 @@ import { mkmonmoney } from './mongear';
 import { T, setTerrain } from './terrain';
 import { monLearnsTraps } from './trapstate';
 import {
+  SHTYPES,
   SHK_GENERAL,
   SHK_LIGHT,
   SHK_RINGS,
@@ -294,4 +295,90 @@ export function stockShops(ctx: Ctx, level: Level): void {
 /** Stocks the shops of each new level (after the LevelDef contents, as fill_special_room()). */
 export function registerShops(api: ModApi): void {
   api.on('newLevel', (ctx, level) => stockShops(ctx, level));
+}
+
+// ---------------------------------------------------------------------------------------------
+// random dungeon shops
+
+/** ref: src/mkroom.c isbig(): more than 20 squares */
+function isbig(r: Level['rooms'][number]): boolean {
+  return (r.hx - r.lx + 1) * (r.hy - r.ly + 1) > 20;
+}
+
+/** Plain room floor (`levl[x][y].typ == ROOM`: not stairs, doors or corridors). */
+function isFloor(level: Level, x: number, y: number): boolean {
+  return level.palette[level.cells[cellIndex(level, x, y)] ?? -1] === T.floor;
+}
+
+/**
+ * A room whose shopkeeper, standing just inside the door, could only step to one other square
+ * is no shop. ref: src/mkroom.c invalid_shop_shape()
+ */
+function invalidShopShape(level: Level, r: Level['rooms'][number], door: Pos): boolean {
+  let insidex = 0;
+  let insidey = 0;
+  let insidect = 0;
+  // first, identify squares inside the room and next to the door
+  for (let x = Math.max(door.x - 1, r.lx); x <= Math.min(door.x + 1, r.hx); x++)
+    for (let y = Math.max(door.y - 1, r.ly); y <= Math.min(door.y + 1, r.hy); y++)
+      if (isFloor(level, x, y)) {
+        insidex = x;
+        insidey = y;
+        insidect++;
+      }
+  if (insidect < 1) return true; // impossible("no squares inside door?")
+  // if more than one, the shopkeeper already has alternate squares to move to
+  if (insidect === 1) {
+    insidect = 0;
+    for (let x = Math.max(insidex - 1, r.lx); x <= Math.min(insidex + 1, r.hx); x++)
+      for (let y = Math.max(insidey - 1, r.ly); y <= Math.min(insidey + 1, r.hy); y++)
+        if ((x !== insidex || y !== insidey) && isFloor(level, x, y)) insidect++;
+    if (insidect === 1) return true;
+  }
+  return false;
+}
+
+/** Whether stairs (up, down or the branch's) lie inside the room. ref: has_upstairs(), has_dnstairs() */
+function hasStairs(level: Level, r: Level['rooms'][number]): boolean {
+  return [level.up, level.down, level.branch?.pos ?? null].some(
+    (p) => p !== null && p.x >= r.lx && p.x <= r.hx && p.y >= r.ly && p.y <= r.hy,
+  );
+}
+
+/**
+ * Makes the first ordinary room with no stairs, exactly one door and a good shape a shop: lit
+ * (walls too), its type rolled `rnd(100)` over the shop probabilities, a big room never a wand or
+ * book shop (a general store instead). It is stocked with the other shops (`stockShops`).
+ * The branch stairs are already placed here (C places them after the shop, outside it), so a
+ * room holding them is passed over. ref: src/mkroom.c mkshop() (no wizard-mode SHOPTYPE)
+ */
+export function mkshop(ctx: Ctx, level: Level): number | null {
+  let room = -1;
+  for (let i = 0; i < level.rooms.length; i++) {
+    const r = level.rooms[i];
+    if (!r || r.parent !== undefined) continue;
+    if (r.type !== undefined) continue; // not an ordinary room
+    if (hasStairs(level, r)) continue;
+    const doors = shopDoors(ctx.defs, level, i);
+    const door = doors[0];
+    if (doors.length === 1 && door && !invalidShopShape(level, r, door)) {
+      room = i;
+      break;
+    }
+  }
+  const sroom = level.rooms[room];
+  if (!sroom) return null;
+  if (!sroom.lit) {
+    for (let x = sroom.lx - 1; x <= sroom.hx + 1; x++)
+      for (let y = sroom.ly - 1; y <= sroom.hy + 1; y++) level.lit[cellIndex(level, x, y)] = 1;
+    sroom.lit = true;
+  }
+  // pick a shop type at random
+  let i = 0;
+  for (let j = ctx.rng.rnd(100); i < SHTYPES.length - 1 && (j -= SHTYPES[i]?.prob ?? 0) > 0; i++);
+  let shp = SHTYPES[i] ?? SHTYPES[0];
+  // big rooms cannot be wand or book shops, so make them general stores
+  if (isbig(sroom) && (shp?.symb === 'wand' || shp?.symb === 'spellbook')) shp = SHTYPES[0];
+  if (shp) sroom.type = shp.id;
+  return room;
 }

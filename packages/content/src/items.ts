@@ -609,6 +609,19 @@ export function addToInventory(ctx: ItemCtx, owner: EntityId, itemId: EntityId):
   if (!item || !it) throw new Error(`addToInventory: ${itemId} is not an item`);
   if (it.carriedBy !== null) removeFromInventory(ctx, itemId);
   delete item.c.pos;
+  if (owner === ctx.state.playerId) {
+    // ref: src/invent.c addinv_core0(): no_charge is never set in the hero's inventory
+    // (addtobill() clears it, but not for gold or in an untended shop); picked_container()
+    delete it.noCharge;
+    const picked = (box: EntityId, depth: number): void => {
+      for (const o of contents(ctx.state, box)) {
+        if (ctx.defs.object(o.def).class === 'coin' || !o.c.item) continue;
+        delete o.c.item.noCharge;
+        if (depth < 100) picked(o.id, depth + 1);
+      }
+    };
+    picked(itemId, 0);
+  }
   for (const other of inventoryOf(ctx.state, owner)) {
     if (merged(ctx, other, item)) return other.id;
   }

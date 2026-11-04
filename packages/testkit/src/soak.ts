@@ -5,6 +5,7 @@ import {
   createEngine,
   createRng,
   getPlayer,
+  inRooms,
   inventoryOf,
   seedRng,
   sortedIds,
@@ -86,6 +87,8 @@ export interface SoakResult {
   countAnswers: number;
   /** Chats with a temple priest (`nh:chat`). */
   chatted: number;
+  /** Times the bot paid (`nh:pay`) while owing in a shop. */
+  paid: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -153,6 +156,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let textAnswers = 0;
   let countAnswers = 0;
   let chatted = 0;
+  let paid = 0;
+  let nextPay = 0;
   let aim: Dir | null = null;
   const depthNow = (): number => state.levels[state.currentLevel]?.depth ?? 1;
   const carriedCount = (): number => {
@@ -231,6 +236,38 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         out.push({ id, pos: { x: p.x, y: p.y }, peaceful: e.c.monster.peaceful });
     }
     return out;
+  };
+
+  /**
+   * The hero carries an unpaid item (or one inside something she carries) and stands in a shop:
+   * a room some shopkeeper (`modData.nh.eshk`) keeps on this level.
+   */
+  const owesInShop = (): boolean => {
+    const level = state.levels[state.currentLevel];
+    const p = getPlayer(state).c.pos;
+    if (!level || !p) return false;
+    const unpaid = (id: EntityId, depth: number): boolean =>
+      depth < 10 &&
+      sortedIds(state).some((k) => {
+        const it = state.entities[String(k)]?.c.item;
+        return it?.containedIn === id && (it.unpaid === true || unpaid(k, depth + 1));
+      });
+    const inv = inventoryOf(state, state.playerId);
+    if (!inv.some((e) => e.c.item?.unpaid === true)) {
+      // contents only matter when she carries a container
+      const boxes = inv.filter((e) => engine.registry.object(e.def).container);
+      if (!boxes.some((b) => unpaid(b.id, 0))) return false;
+    }
+    const nh = state.modData['nh'];
+    const eshk =
+      nh && typeof nh === 'object' && !Array.isArray(nh)
+        ? ((nh as Record<string, unknown>)['eshk'] as
+            Record<string, { shoplevel?: string; shoproom?: number }> | undefined)
+        : undefined;
+    const rooms = inRooms(level, p.x, p.y);
+    return Object.keys(eshk ?? {})
+      .sort()
+      .some((k) => eshk?.[k]?.shoplevel === level.id && rooms.includes(eshk[k]?.shoproom ?? -1));
   };
 
   const answer = (pending: Prompt): Json => {
@@ -346,6 +383,18 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     // 1. attack an adjacent hostile that the offers allow
     const attacks = cellOffers.filter((o) => o.labelKey === 'action.attack');
     if (attacks.length > 0 && rng.rn2(10) !== 0) action = pickRandom(attacks);
+
+    // 1a. pay 1 time in 2 when carrying unpaid goods in a shop, so a run does not rob every shop
+    // it walks into and spend the rest of it chased by an angry shopkeeper; at most once in 20
+    // turns, as paying without enough gold takes no time and would loop
+    if (!action && state.turn >= nextPay && owesInShop()) {
+      const pay = selfOffers.find((o) => isMod(o.action, 'nh:pay'));
+      if (pay && rng.rn2(2) === 0) {
+        action = pay.action;
+        nextPay = state.turn + 20;
+        paid++;
+      }
+    }
 
     // 1b. kick a door we stand next to: the offer cannot tell locked from merely closed
     if (!action && rng.rn2(4) === 0) {
@@ -556,6 +605,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     textAnswers,
     countAnswers,
     chatted,
+    paid,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

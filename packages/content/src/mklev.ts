@@ -1,10 +1,12 @@
 // Filling the rooms of a new level with a monster, traps, gold, a box and objects.
 // ref: src/mklev.c fill_ordinary_room(), makelevel(), mktrap()
+// A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
 import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
+import { mkshop } from './shknam';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
 
 /**
@@ -129,10 +131,26 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
 }
 
 /** Registers level population: ordinary levels and `rooms` LevelDefs (see sp_lev.ts for the rest). */
+/**
+ * Makes up to one special room on an ordinary level: a shop below the first level when there
+ * are at least 3 rooms (4 on a branch level), `rn2(depth) < 3` of the time (no Medusa level
+ * yet, so there is no lower bound). The other special rooms of that chain (throne rooms, zoos,
+ * beehives...) do not exist and draw nothing. ref: src/mklev.c makelevel() (the do_mkroom()
+ * chain; no vault, so the threshold never rises)
+ */
+export function mkSpecialRoom(ctx: Ctx, level: Level): void {
+  const nroom = level.rooms.filter((r) => r.parent === undefined).length;
+  const roomThreshold = level.branch ? 4 : 3; // minimum number of rooms for a special room
+  if (level.depth > 1 && nroom >= roomThreshold && ctx.rng.rn2(level.depth) < 3) mkshop(ctx, level);
+}
+
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
+    if (level.def === undefined) mkSpecialRoom(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
       for (const room of level.rooms)
-        if (room.parent === undefined) fillOrdinaryRoom(ctx, level, room); // not subrooms
+        // not subrooms, nor special rooms (ROOM_IS_FILLABLE)
+        if (room.parent === undefined && room.type === undefined)
+          fillOrdinaryRoom(ctx, level, room);
   });
 }

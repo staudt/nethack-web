@@ -49,7 +49,6 @@ From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch
 - **Minetown's missing inhabitants:** College Town's kobold shamans, Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
 - **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
 - **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
-- 6b3 (shops) follows, as in `docs/kickoff-m6b.md`.
 
 From 6b2 (the Minetown temple: altars, the priest, #chat, donations and praying on an altar; done, phone check pending):
 
@@ -59,8 +58,18 @@ From 6b2 (the Minetown temple: altars, the priest, #chat, donations and praying 
 - **Other temples:** random altars and temples in ordinary rooms, roaming minions and aligned priests outside temples, the Valley and the Sanctum's high altars, ghosts in untended temples ("You are frightened to death").
 - **Prayer extras:** reviving a pet's corpse on an altar (`pray_revive()`: corpses must remember their monster), undead and demon forms, Gehennom, minions, punishment, level drain, spellbook gifts, crowning, the castle tune, the gnostic conduct and wizard mode's "Force the gods to be pleased?".
 - **Clairvoyance:** objects and monsters in each vision, and `seer_turn` rolled in every game (moves every replay); clairvoyance from objects and the Amulet.
-- **#chat:** the remaining `domonnoise()` sounds, statues, mimics, hiders, steeds, the up/down directions, deafness and the full-moon howling; shopkeepers come with 6b3.
+- **#chat:** the remaining `domonnoise()` sounds, statues, mimics, hiders, steeds, the up/down directions, deafness and the full-moon howling.
 - **Attribute exercise** (Wisdom from prayer, donations and the god's anger) and achievements (entering a temple).
+
+From 6b3 (shops: shopkeepers, stock, buying, selling, robbery and random dungeon shops; done, phone check pending):
+
+- **Keystone Kops** (kickoff): `call_kops()` summoning Kops around the hero, by the stairs and by the shop, their AI and their dismissal when the shopkeeper is paid off; until then the alarm only angers the Watch.
+- **Callers of `make_angry_shk()`**: a shopkeeper teleported, falling or dug out of his shop, shop goods broken from outside; the function is ported with no caller.
+- **Shop damage and repair**: `pay_for_damage()` for broken shop doors and dug walls ("Please pay for the door!"), the shopkeeper repairing them over time, `shopdig()` (he grabs her backpack when she falls through his floor).
+- **Candle lighting**: lighting tallow and wax candles, the candelabrum and candle light ranges (light.ts), gnomes' candles in the Mines; candles are sold unlit until then.
+- **Other mklev special rooms**: throne rooms, leprechaun halls, zoos, temples, beehives, morgues, antholes, barracks, swamps and cockatrice nests (`do_mkroom()`), vaults and the threshold they add, Medusa's level as the lower bound for shops; wizard mode's `SHOPTYPE`.
+- **Shop types as defs**: `SHTYPES` (shtypes.ts) becomes a mod-defined def kind with the mod platform, so a mod can add a shop type.
+- **Shop extras**: credit for gold dropped in a shop and loans (`donate_gold()`, `costly_gold()`), shoplifting pets, the remaining iprob objects (fruit juice, ice box, elven cloak, magic lamp, potion of oil, scroll of food detection, royal jelly), mimics posing as stock, the tribute novel, usage fees for studying unpaid spellbooks, invisible customers and steeds, hero names in greetings.
 
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 

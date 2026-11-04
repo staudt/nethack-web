@@ -1018,6 +1018,23 @@ describe('prices', () => {
       }
     });
 
+    test('gold she drops in a shop is marked no charge until she picks it up again', () => {
+      const t = bare(15);
+      const gold = own(t, 'nh:gold_piece');
+      if (gold.c.item) gold.c.item.quantity = 5;
+      const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: gold.id } });
+      expect(d.prompt ?? null).toBeNull();
+      expect(gold.c.item?.noCharge).toBe(true);
+      expect(t.e.credit).toBe(0);
+      // ref: invent.c addinv_core0(): never no_charge in her inventory (addtobill() skips gold)
+      t.pickup();
+      expect(cash(t, t.s.state.playerId)).toBe(5);
+      const carried = inventoryOf(t.s.state, t.s.state.playerId).find(
+        (o) => o.def === 'nh:gold_piece',
+      );
+      expect(carried?.c.item?.noCharge).toBeUndefined();
+    });
+
     test("a shop that doesn't deal in it: he seems uninterested, and it stays hers", () => {
       const t = bare(15, 'nh:food_shop');
       const wand = own(t, 'nh:wand_of_striking');

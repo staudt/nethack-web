@@ -1,11 +1,10 @@
 import {
   cellIndex,
   inBounds,
+  canonicalJson,
   inRooms,
-  isJsonPlain,
   isPlainFloor,
   sortedIds,
-  stateHash,
   type EquipSlot,
   type GameState,
   type ItemComponent,
@@ -17,8 +16,14 @@ import {
 /** Returns a list of violated invariants; empty means the state is healthy. */
 export function checkInvariants(state: GameState, registry: Registry): string[] {
   const errs: string[] = [];
-  const plain = isJsonPlain(state);
-  if (!plain) errs.push('state is not JSON-plain');
+  // one canonical form serves both the plain-data check and the round trip below
+  let canon: string | null = null;
+  try {
+    canon = canonicalJson(state);
+  } catch {
+    errs.push('state is not JSON-plain');
+  }
+  const ids = sortedIds(state);
 
   for (const lid of Object.keys(state.levels).sort()) {
     const lv = state.levels[lid];
@@ -51,7 +56,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   }
 
   const seen = new Map<string, number>();
-  for (const id of sortedIds(state)) {
+  for (const id of ids) {
     const e = state.entities[String(id)];
     if (!e) continue;
     if (e.id !== id) errs.push(`entity key ${id} has id ${e.id}`);
@@ -103,7 +108,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   // Items: exactly one place (floor, carrier or container), a living carrier, unique inventory
   // letters per carrier.
   const letters = new Map<string, number>();
-  for (const id of sortedIds(state)) {
+  for (const id of ids) {
     const e = state.entities[String(id)];
     const item = e?.c.item;
     if (!e || !item) continue;
@@ -135,8 +140,8 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
     }
   }
 
-  checkEquipment(state, registry, errs);
-  checkProps(state, errs);
+  checkEquipment(state, registry, ids, errs);
+  checkProps(state, ids, errs);
   checkDoors(state, registry, errs);
   checkTraps(state, registry, errs);
   checkStairsReachable(state, registry, errs);
@@ -146,6 +151,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkFleeing(state, errs);
   checkPriests(state, errs);
   checkShopkeepers(state, errs);
+  checkShopItems(state, ids, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);
@@ -161,7 +167,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
     errs.push(`hero nutrition ${player.c.hunger.nutrition} is not an integer`);
   // content's nomul() sets until = turn + 1 + n and its endOfTurn hook deletes the component once
   // turn >= until, so after a step a helpless hero must still have time left.
-  for (const id of sortedIds(state)) {
+  for (const id of ids) {
     const h = state.entities[String(id)]?.c.helpless;
     if (h && (!Number.isInteger(h.until) || (h.until <= state.turn && !state.gameOver)))
       errs.push(`entity ${id}: helpless until ${h.until} but the turn is ${state.turn}`);
@@ -213,9 +219,9 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
     }
   }
 
-  if (plain) {
+  if (canon !== null) {
     const back = JSON.parse(JSON.stringify(state)) as GameState;
-    if (stateHash(back) !== stateHash(state)) errs.push('JSON round-trip changes the state hash');
+    if (canonicalJson(back) !== canon) errs.push('JSON round-trip changes the state hash');
   }
   return errs;
 }
@@ -269,9 +275,14 @@ function slotFits(def: ObjectDef, slot: EquipSlot): boolean {
  * Weight conservation is not checked: weights are derived from the items, never stored, so there
  * is no redundant total to keep in sync.
  */
-function checkEquipment(state: GameState, registry: Registry, errs: string[]): void {
+function checkEquipment(
+  state: GameState,
+  registry: Registry,
+  ids: readonly number[],
+  errs: string[],
+): void {
   const slots = new Map<string, number>();
-  for (const id of sortedIds(state)) {
+  for (const id of ids) {
     const e = state.entities[String(id)];
     const item = e?.c.item;
     if (!e || !item || item.carriedBy === null) continue;
@@ -310,8 +321,8 @@ function checkEquipment(state: GameState, registry: Registry, errs: string[]): v
  * effect ends, 0 = none). Content's props module prunes an entry that holds nothing, so a
  * non-intrinsic entry with timeout 0 must not linger.
  */
-function checkProps(state: GameState, errs: string[]): void {
-  for (const id of sortedIds(state)) {
+function checkProps(state: GameState, ids: readonly number[], errs: string[]): void {
+  for (const id of ids) {
     const props = state.entities[String(id)]?.c.props;
     if (props === undefined) continue;
     for (const name of Object.keys(props).sort()) {
@@ -528,6 +539,58 @@ function checkShopkeepers(state: GameState, errs: string[]): void {
     if (!mon.c.monster.peaceful || e.following || !p || p.level !== lv.id) continue;
     if (!inRooms(lv, p.x, p.y).includes(e.shoproom ?? -1))
       errs.push(`shopkeeper ${k} (peaceful, not following) is outside his shop at ${p.x},${p.y}`);
+  }
+}
+
+/**
+ * Shop flags on items (ref: src/mkobj.c shop_obj_sanity()): never both; an unpaid item is
+ * carried by the hero (or inside something she carries) or lies inside a shop's walls (its
+ * door, his spot), and a live line of some shopkeeper's bill (`modData.nh.eshk[..].bill`)
+ * names it; a no-charge item lies (or is inside a container that lies) on a shop's floor or
+ * walls, or is carried by a monster, and is on no bill.
+ */
+function checkShopItems(state: GameState, ids: readonly number[], errs: string[]): void {
+  const nh = state.modData['nh'];
+  const table =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? ((nh as Record<string, unknown>)['eshk'] as Record<string, unknown> | undefined)
+      : undefined;
+  const billed = new Set<number>();
+  const shops: { level: string; room: number }[] = [];
+  for (const k of Object.keys(table ?? {}).sort()) {
+    const e = table?.[k] as
+      | { shoplevel?: string; shoproom?: number; bill?: { oid?: number; useup?: boolean }[] }
+      | undefined;
+    if (e?.shoplevel !== undefined && e.shoproom !== undefined)
+      shops.push({ level: e.shoplevel, room: e.shoproom });
+    for (const b of e?.bill ?? []) if (!b.useup && b.oid !== undefined) billed.add(b.oid);
+  }
+  const inShop = (p: Pos & { level: string }): boolean => {
+    const lv = state.levels[p.level];
+    if (!lv) return false;
+    const rooms = inRooms(lv, p.x, p.y);
+    return shops.some((s) => s.level === p.level && rooms.includes(s.room));
+  };
+  for (const id of ids) {
+    const item = state.entities[String(id)]?.c.item;
+    if (!item || (!item.unpaid && !item.noCharge)) continue;
+    // the outermost container
+    let top = state.entities[String(id)];
+    for (let n = 0; top?.c.item?.containedIn !== undefined && n < 100; n++)
+      top = state.entities[String(top.c.item.containedIn)];
+    const where = top?.c.pos ?? null;
+    const carrier = top?.c.item?.carriedBy ?? null;
+    if (item.unpaid && item.noCharge) errs.push(`item ${id}: both unpaid and no charge`);
+    else if (item.unpaid) {
+      if (carrier !== state.playerId && !(where && inShop(where)))
+        errs.push(`item ${id}: unpaid but neither carried by the hero nor in a shop`);
+      else if (!billed.has(id)) errs.push(`item ${id}: unpaid but on no bill`);
+    } else {
+      if (carrier === state.playerId) errs.push(`item ${id}: no charge but carried by the hero`);
+      else if (carrier === null && !(where && inShop(where)))
+        errs.push(`item ${id}: no charge but not in a shop`);
+      else if (billed.has(id)) errs.push(`item ${id}: no charge but on a bill`);
+    }
   }
 }
 

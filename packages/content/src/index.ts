@@ -331,6 +331,7 @@ export { PAY_ACTIONS, PAY_ID } from './pay';
 export {
   SHTYPES,
   getShopItem,
+  mkshop,
   nameshk,
   saleable,
   shkinit,
@@ -425,7 +426,7 @@ export {
 } from './hunger';
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
-export { fillOrdinaryRoom, somexyspace, mktrap, traptypeRnd } from './mklev';
+export { fillOrdinaryRoom, mkSpecialRoom, somexyspace, mktrap, traptypeRnd } from './mklev';
 export { monsterDied } from './mondeath';
 export {
   mongets,

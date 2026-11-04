@@ -459,8 +459,7 @@ describe('robbing a real Minetown shop', () => {
         const p = o?.c.pos;
         return (
           o?.c.item?.carriedBy === null &&
-          o.def !== 'nh:gold_piece' &&
-          !!p &&
+          p?.level === level.id &&
           insideShop(level, p.x, p.y) === e.shoproom
         );
       });
