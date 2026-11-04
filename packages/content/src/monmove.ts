@@ -45,6 +45,8 @@ import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
+import { afterShkMove } from './rooms';
+import { carriedPicks, fastWithPickHere } from './shk';
 import { T } from './terrain';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -471,12 +473,12 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
 
 /**
  * A shopkeeper's move: -1 when he is not on his shop level, or angry or following the hero
- * (the normal AI moves him until step 2/5 of 6b3 port those branches). Peaceful, he keeps to his
+ * (the normal AI moves him until 6b3 step 5 ports those branches). Peaceful, he keeps to his
  * spot by the door: within two squares of it he rests unless lined up with the hero (on the spot
  * itself he wanders a little instead), and he steps out of her lines when she is in the shop and
  * more than two squares from the spot. Returns as {@link moveSpecial}.
- * ref: src/shk.c shk_move() (no damage repair, invisibility, steeds, holes, pick-axes or bills
- * yet)
+ * ref: src/shk.c shk_move() (no damage repair, invisibility, steeds or holes; bills, the
+ * following and angry branches come in 6b3 steps 3 and 5)
  */
 export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   const { m, pos } = monCount(ctx, id);
@@ -489,7 +491,9 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   let gty = eshk.shk.y;
   const satdoor = gtx === omx && gty === omy;
   const uondoor = heroPos.x === eshk.shd.x && heroPos.y === eshk.shd.y;
-  const badinv = false; // (a pick-axe or mattock: 6b3 step 2)
+  // she is on his door with a mattock: he stands in her way
+  const badinv = uondoor && (carriedPicks(ctx) > 0 || fastWithPickHere(ctx));
+  if (satdoor && badinv) return 0;
   const avoid = uondoor
     ? !badinv
     : uShops(ctx).length > 0 && dist2(gtx, gty, heroPos.x, heroPos.y) > 8;
@@ -502,12 +506,14 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
       gty = 0;
     }
   }
-  return moveSpecial(ctx, id, heroPos, {
+  const z = moveSpecial(ctx, id, heroPos, {
     appr,
     avoid,
     goal: { x: gtx, y: gty },
     shk: { inHisShop: inhishop(ctx, id), following: eshk.following, uondoor },
   });
+  if (z > 0) afterShkMove(ctx, id);
+  return z;
 }
 
 /**
@@ -628,6 +634,8 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
   }
   // ref: postmov(): a monster that moved picks up something it likes on the new square
   if (mpickstuff(ctx, id)) return 'done';
+  // ref: postmov(): `if (mtmp->isshk) after_shk_move(mtmp)`
+  if (eshkOf(ctx, id)) afterShkMove(ctx, id);
   return 'moved';
 }
 

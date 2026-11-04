@@ -19,7 +19,7 @@ import {
   type Pos,
   type Registry,
 } from '@nh/core';
-import { uRooms } from './urooms';
+import { uShopRooms } from './urooms';
 
 /** The shopkeeper's monster. ref: include/monsters.h PM_SHOPKEEPER */
 export const SHOPKEEPER = 'nh:shopkeeper';
@@ -206,11 +206,12 @@ export function costlySpot(ctx: Pick<Ctx, 'state'>, x: number, y: number): boole
   return !(x === e.shk.x && y === e.shk.y);
 }
 
-/** The shops the hero is in on the current level, innermost first. ref: u.ushops */
+/**
+ * The shops the hero is in on the current level, innermost first (none while she is in an
+ * untended one). ref: u.ushops
+ */
 export function uShops(ctx: Pick<Ctx, 'state'>): number[] {
-  const level = ctx.state.levels[ctx.state.currentLevel];
-  if (!level) return [];
-  return uRooms(ctx).filter((r) => isShopType(level.rooms[r]?.type));
+  return uShopRooms(ctx);
 }
 
 /**

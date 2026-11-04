@@ -2,11 +2,17 @@
 // shopkeeper one step inside the door and stock of the shop's type on the other floor squares
 // (not the row by the door); nameshk() names him; the candles are made as mksobj() makes them;
 // shopkeepers and priests cannot be displaced; a shopkeeper in his shop picks nothing up.
+// Step 2: entering a shop (the greeting, an angry or robbed keeper, the untended shop, the
+// mattock left outside) and the keeper going back to his spot.
 import { getPlayer, sortedIds, type Ctx, type DefId, type Level, type StepResult } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import {
   SHOPKEEPER,
   SHOP_TYPES,
+  addToInventory,
+  emptyShops,
+  uRooms,
+  uShops,
   SHTYPES,
   T,
   eshkOf,
@@ -23,7 +29,7 @@ import {
 } from '../src/index';
 import { messagesEn } from '../src/messages.en';
 import { P, setItimeout } from '../src/props';
-import { setup } from './helpers';
+import { addMon, setup } from './helpers';
 import { ctxFor, defs, obj, render } from './itemHelpers';
 
 // A shop (interior 1..5 x 1..3) with a doorway in its east wall at 6,2 onto a floor corridor,
@@ -359,5 +365,185 @@ describe('shopkeepers and priests', () => {
       expect(p && p.x >= 1 && p.x <= 5 && p.y >= 1 && p.y <= 3).toBe(true);
       expect(p && Math.max(Math.abs(p.x - 5), Math.abs(p.y - 2))).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe('entering a shop', () => {
+  const said = (r: StepResult): string[] =>
+    r.events.flatMap((e) => (e.type === 'msg' && e.key?.startsWith('shk.') ? [render(e)] : []));
+  /** Izchak's town lighting store, him pinned (speed 0) on his spot, the hero at 7,2. */
+  function izchak(seed = 1) {
+    const s = shop(seed, 'nh:candle_shop', { town: true });
+    stockShops(ctxOf(s), s.level);
+    const [id] = shkOn(s);
+    const shk = id === undefined ? undefined : s.state.entities[String(id)];
+    const e = id === undefined ? null : eshkOf(s, id);
+    if (id === undefined || !shk?.c.actor || !shk.c.pos || !shk.c.monster || !e)
+      throw new Error('no shopkeeper');
+    shk.c.actor.speed = 0;
+    shk.c.actor.energy = 0;
+    const move = (dir: 'w' | 'e') => s.engine.step(s.state, { type: 'move', dir });
+    const at = (x: number, y: number) => {
+      const hp = getPlayer(s.state).c.pos;
+      if (hp) Object.assign(hp, { x, y });
+    };
+    return { s, id, shk: shk as typeof shk & { c: Required<typeof shk.c> }, e, move, at };
+  }
+
+  test('a new customer is welcomed once, then welcomed again on each return', () => {
+    const { s, e, move, at } = izchak();
+    expect(said(move('w'))).toEqual([
+      '"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"',
+    ]);
+    expect(e).toMatchObject({ customer: true, visitct: 1 });
+    expect(uShops(s)).toEqual([0]);
+    // walking on inside says nothing more
+    at(4, 2);
+    expect(said(move('w'))).toEqual([]);
+    // out of the door and back in
+    at(7, 2);
+    expect(said(move('e'))).toEqual([]);
+    expect(uShops(s)).toEqual([]);
+    expect(said(move('w'))).toEqual([]); // 7,2
+    expect(said(move('w'))).toEqual([
+      '"Velkommen, Valkyrie!  Welcome again to Izchak\'s lighting store!"',
+    ]);
+    expect(e.visitct).toBe(2);
+  });
+
+  test('angry, surcharged and robbed keepers; a new customer pacifies an angry one', () => {
+    const cases: [Partial<typeof base>, string][] = [];
+    const base = { peaceful: true, surcharge: false, robbed: 0 };
+    cases.push([
+      { peaceful: false },
+      '"So, Valkyrie, you dare return to Izchak\'s lighting store?!"',
+    ]);
+    cases.push([{ surcharge: true }, '"Back again, Valkyrie?  I\'ve got my eye on you."']);
+    cases.push([{ robbed: 100 }, 'Izchak mutters imprecations against shoplifters.']);
+    for (const [c, line] of cases) {
+      const { shk, e, move } = izchak();
+      const o = { ...base, ...c };
+      e.customer = true;
+      e.visitct = 3;
+      shk.c.monster.peaceful = o.peaceful;
+      e.surcharge = o.surcharge;
+      e.robbed = o.robbed;
+      expect(said(move('w'))).toEqual([line]);
+      expect(shk.c.monster.peaceful).toBe(o.peaceful);
+      expect(e.visitct).toBe(3);
+    }
+    const { shk, e, move } = izchak();
+    shk.c.monster.peaceful = false;
+    e.surcharge = true;
+    expect(said(move('w'))).toEqual([
+      '"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"',
+    ]);
+    expect(shk.c.monster.peaceful).toBe(true);
+    expect(e.surcharge).toBe(false);
+  });
+
+  test('an asleep keeper says nothing', () => {
+    const { shk, move } = izchak();
+    shk.c.monster.asleep = true;
+    expect(said(move('w'))).toEqual([]);
+  });
+
+  test('a shop without its keeper: deserted or untended, said once', () => {
+    const { s, id, move, at } = izchak();
+    delete s.state.entities[String(id)];
+    expect(said(move('w'))).toEqual(['This shop is deserted.']);
+    // she is in the room but in no shop while it is untended
+    expect(uRooms(s)).toEqual([0]);
+    expect(uShops(s)).toEqual([]);
+    expect(emptyShops(s)).toEqual([0]);
+    expect(said(move('w'))).toEqual([]);
+    at(7, 2);
+    expect(said(move('e'))).toEqual([]);
+    expect(said(move('w'))).toEqual([]);
+    expect(said(move('w'))).toEqual([]); // the door again
+    expect(getPlayer(s.state).c.pos).toMatchObject({ x: 6, y: 2 });
+
+    // someone else is in it: untended
+    const t = izchak();
+    delete t.s.state.entities[String(t.id)];
+    const newt = addMon(t.s.state, 'nh:newt', 2, 2, { asleep: true });
+    const nm = t.s.state.entities[String(newt)];
+    if (nm?.c.actor) nm.c.actor.speed = 0;
+    t.s.wait(); // the hero sees it
+    expect(said(t.move('w'))).toEqual(['This shop is untended.']);
+  });
+
+  test('a keeper teleported away goes back to his spot and greets her on his return', () => {
+    const { s, shk, e, move, at } = izchak();
+    shk.c.actor.speed = 16;
+    Object.assign(shk.c.pos, { x: 10, y: 2 }); // into the other room
+    expect(said(move('w'))).toEqual(['This shop is deserted.']);
+    at(3, 2); // she goes inside
+    const lines: string[] = [];
+    for (let t = 0; t < 30 && !(shk.c.pos.x === 5 && shk.c.pos.y === 2); t++)
+      lines.push(...said(s.engine.step(s.state, { type: 'wait' })));
+    expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    expect(lines).toEqual(['"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"']);
+    expect(uShops(s)).toEqual([0]);
+    expect(e.visitct).toBe(1);
+    // and he stays there
+    for (let t = 0; t < 50; t++) {
+      s.engine.step(s.state, { type: 'wait' });
+      const p = shk.c.pos;
+      expect(p.x >= 1 && p.x <= 5 && p.y >= 1 && p.y <= 3).toBe(true);
+    }
+  });
+
+  test('with a mattock she is asked to leave it outside, and he blocks the way in', () => {
+    const { s, shk, move } = izchak();
+    const m = mksobj(ctxOf(s), obj('nh:dwarvish_mattock'), { init: false });
+    addToInventory(ctxOf(s), s.state.playerId, m);
+    // he is off his spot; the extra move takes him back onto it at once
+    Object.assign(shk.c.pos, { x: 4, y: 1 });
+    expect(s.state.discovered).not.toContain('nh:dwarvish_mattock');
+    expect(said(move('w'))).toEqual([
+      '"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"',
+      '"Will you please leave your mattock outside?"',
+    ]);
+    expect(s.state.discovered).toContain('nh:dwarvish_mattock');
+    expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    // at his normal speed he never leaves the spot while she waits on the door
+    shk.c.actor.speed = 16;
+    for (let t = 0; t < 100; t++) {
+      s.engine.step(s.state, { type: 'wait' });
+      expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    }
+    // two of them, and an upset keeper
+    const t = izchak();
+    for (let i = 0; i < 2; i++)
+      addToInventory(
+        ctxOf(t.s),
+        t.s.state.playerId,
+        mksobj(ctxOf(t.s), obj('nh:dwarvish_mattock'), { init: false }),
+      );
+    t.e.customer = true;
+    t.e.surcharge = true;
+    expect(said(t.move('w'))).toEqual([
+      '"Back again, Valkyrie?  I\'ve got my eye on you."',
+      '"Leave the mattocks outside."',
+    ]);
+  });
+
+  test('without one he steps out of her way, and no extra move', () => {
+    const { s, shk, move } = izchak();
+    Object.assign(shk.c.pos, { x: 4, y: 1 });
+    move('w');
+    expect(shk.c.pos).toMatchObject({ x: 4, y: 1 }); // pinned: no energy, no move
+    Object.assign(shk.c.pos, SHK_SPOT);
+    shk.c.actor.speed = 16;
+    let moved = false;
+    for (let t = 0; t < 20 && !moved; t++) {
+      s.engine.step(s.state, { type: 'wait' });
+      moved = !(shk.c.pos.x === SHK_SPOT.x && shk.c.pos.y === SHK_SPOT.y);
+    }
+    expect(moved).toBe(true);
+    // the way in is free
+    expect(said(move('w'))).toEqual([]);
+    expect(getPlayer(s.state).c.pos).toMatchObject(SHK_SPOT);
   });
 });

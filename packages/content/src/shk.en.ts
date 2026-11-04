@@ -1,5 +1,5 @@
 // English text for shops and shopkeepers. ref: src/shknam.c shtypes[] names; src/hack.c
-// domove_swap_with_pet()
+// domove_swap_with_pet(); src/shk.c u_entered_shop(), deserted_shop(); src/role.c Hello()
 export const shkMessagesEn: Readonly<Record<string, string>> = {
   'shop.name.general': 'general store',
   'shop.name.armor': 'used armor dealership',
@@ -13,5 +13,23 @@ export const shkMessagesEn: Readonly<Record<string, string>> = {
   'shop.name.book': 'rare books',
   'shop.name.health_food': 'health food store',
   'shop.name.lighting': 'lighting store',
+  'shk.hello': 'Hello',
+  'shk.hello.knight': 'Salutations',
+  'shk.hello.samurai': 'Irasshaimase',
+  'shk.hello.tourist': 'Aloha',
+  'shk.hello.valkyrie': 'Velkommen',
+  'shk.customer': 'customer',
+  'shk.welcome': '"{hello}, {name}!  Welcome to {shk|the_s} {shop}!"',
+  'shk.welcome_again': '"{hello}, {name}!  Welcome again to {shk|the_s} {shop}!"',
+  'shk.dare_return': '"So, {name}, you dare return to {shk|the_s} {shop}?!"',
+  'shk.back_again': '"Back again, {name}?  I\'ve got my eye on you."',
+  'shk.mutters': '{shk|The} mutters imprecations against shoplifters.',
+  'shk.deserted': 'This shop is deserted.',
+  'shk.untended': 'This shop is untended.',
+  'shk.seems_untended': 'This shop seems to be untended.',
+  'shk.mattock': 'mattock',
+  'shk.mattocks': 'mattocks',
+  'shk.leave_outside_please': '"Will you please leave your {tool} outside?"',
+  'shk.leave_outside': '"Leave the {tool} outside."',
   'dog.doesnt_want_swap_peaceful': "You stop.  {mon|The} doesn't want to swap places.",
 };

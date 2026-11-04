@@ -1,7 +1,8 @@
 // Milestone 6b3 step 1: shopkeepers and stock. Every shop of a real Minetown gets one
 // shopkeeper on the square inside its door, with his starting gold and a name from his shop
 // type's list (Izchak in the lighting store), and the stock of its type on the other squares;
-// he stays by his door while the hero waits, and the soak invariant checks it.
+// he stays by his door while the hero waits, and the soak invariant checks it. Step 2: Izchak
+// greets the hero at his door in every variant.
 import {
   SHOPKEEPER,
   eshkOf,
@@ -21,6 +22,7 @@ import {
   inventoryOf,
   sortedIds,
   type Ctx,
+  type DefId,
   type DungeonLayout,
   type GameState,
   type Level,
@@ -253,6 +255,72 @@ describe('the shops of a real Minetown', () => {
     expect(checkInvariants(state, defs)).toEqual([]);
     s.e.following = false;
     shk.c.monster.peaceful = false; // and an angry one
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+});
+
+describe('entering a real Minetown shop', () => {
+  const DIRS: Record<string, 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'> = {
+    '0,-1': 'n',
+    '1,-1': 'ne',
+    '1,0': 'e',
+    '1,1': 'se',
+    '0,1': 's',
+    '-1,1': 'sw',
+    '-1,0': 'w',
+    '-1,-1': 'nw',
+  };
+  test.each(VARIANTS)('%s: Izchak welcomes her at his door, once', (v) => {
+    const seed = bySeed.get(v)?.[0] ?? 1;
+    const { state, level } = minetown(seed);
+    const lighting = shopkeepers(state, level.id).find(
+      (s) => level.rooms[s.e.shoproom]?.type === 'nh:candle_shop',
+    );
+    if (!lighting) throw new Error('no lighting store');
+    // pin every monster (the keeper too) so nothing gets in the way
+    for (const id of sortedIds(state)) {
+      const m = state.entities[String(id)];
+      if (m?.c.monster && m.c.actor && id !== state.playerId) {
+        m.c.actor.speed = 0;
+        m.c.actor.energy = 0;
+      }
+    }
+    // the square outside the door, on the line from his spot through the door
+    const { shk, shd } = lighting.e;
+    const out = { x: 2 * shd.x - shk.x, y: 2 * shd.y - shk.y };
+    const blocker = sortedIds(state).find((id) => {
+      const p = state.entities[String(id)]?.c.pos;
+      return id !== state.playerId && p?.level === level.id && p.x === out.x && p.y === out.y;
+    });
+    if (blocker !== undefined) delete state.entities[String(blocker)];
+    // a closed shop door is opened first
+    const open = shd.x !== shk.x ? 'nh:door_open_v' : 'nh:door_open_h';
+    if (!terrainAt(level, shd.x, shd.y).startsWith('nh:door_open')) {
+      let i = level.palette.indexOf(open as DefId);
+      if (i === -1) i = level.palette.push(open as DefId) - 1;
+      level.cells[cellIndex(level, shd.x, shd.y)] = i;
+    }
+    const hp = getPlayer(state).c.pos;
+    if (!hp) throw new Error('no hero');
+    Object.assign(hp, out);
+    const dir = DIRS[`${shd.x - out.x},${shd.y - out.y}`];
+    if (!dir) throw new Error('no direction');
+    const r = engine.step(state, { type: 'move', dir });
+    expect(hp).toMatchObject(shd);
+    const greet = r.events.filter((e) => e.type === 'msg' && e.key?.startsWith('shk.'));
+    expect(greet).toEqual([
+      {
+        type: 'msg',
+        key: 'shk.welcome',
+        params: {
+          hello: '@shk.hello.valkyrie',
+          name: '@role.valkyrie',
+          shk: '=Izchak',
+          shop: '@shop.name.lighting',
+        },
+      },
+    ]);
+    expect(lighting.e).toMatchObject({ customer: true, visitct: 1 });
     expect(checkInvariants(state, defs)).toEqual([]);
   });
 });

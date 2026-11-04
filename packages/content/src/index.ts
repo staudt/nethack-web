@@ -327,8 +327,9 @@ export {
   type ShopType,
 } from './shknam';
 export { doVicinityMap, showMapSpot } from './detect';
-export { checkSpecialRoom } from './rooms';
-export { specialRoomsAt, uRooms } from './urooms';
+export { afterShkMove, checkSpecialRoom } from './rooms';
+export { emptyShops, specialRoomsAt, uRooms, uShopRooms } from './urooms';
+export { hello, pacifyShk, plname, shkname, uEnteredShop } from './shk';
 export { buzzFrom, type Ray, type RaySource } from './buzz';
 export { OBJECTS, APPEARANCES } from './objects';
 export {
