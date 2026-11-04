@@ -20,6 +20,7 @@ import {
   isRustprone,
 } from './material';
 import { isKnown } from './o_init';
+import { isUnpaid, shopItemCost, unpaidCost } from './price';
 import { CHARGED_RINGS } from './objects';
 import { isSwapWep } from './wield';
 
@@ -104,7 +105,12 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
  * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
  * not a Cleric, no poison/grease/prices/trapped boxes, and `dknown` always true.
  */
-export function doname(state: Readonly<GameState>, defs: Registry, item: Entity): Msg {
+export function doname(
+  state: Readonly<GameState>,
+  defs: Registry,
+  item: Entity,
+  opts: { noPrice?: boolean } = {},
+): Msg {
   const it = item.c.item;
   if (!it) return { key: item.def };
   const def = defs.object(item.def);
@@ -117,6 +123,7 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     name: '',
     charges: '',
     worn: '',
+    price: '',
   };
 
   params.name = xname(state, defs, def, item);
@@ -191,7 +198,40 @@ export function doname(state: Readonly<GameState>, defs: Registry, item: Entity)
     // ref: doname_base() W_SWAPWEP: "(alternate weapon; not wielded)" (no two-weapon combat)
     params.worn = { key: `obj.alternate${it.quantity !== 1 ? '.plural' : ''}` };
   }
+  if (!opts.noPrice) params.price = priceSuffix(state, defs, item);
   return { key: 'obj.doname', params };
+}
+
+/**
+ * The shop suffix: " (unpaid, 13 zorkmids)" for the hero's unpaid goods (" (contents, ...)" for
+ * her container holding some), " (for sale, 13 zorkmids)" for a shop object where it lies in the
+ * shop she is in, " (no charge)" for her own there. ref: src/objnam.c doname_base() with
+ * DONAME_WITH_PRICE, which every name gets here (get_cost_of_shop_item() limits it to the shop
+ * the hero is in).
+ */
+function priceSuffix(state: Readonly<GameState>, defs: Registry, item: Entity): Msg | '' {
+  if (isUnpaid(state, item)) {
+    const n = unpaidCost(state, defs, item, 'contents');
+    return {
+      key: item.c.item?.unpaid ? 'obj.price.unpaid' : 'obj.price.contents',
+      params: { n, zm: zorkmids(n) },
+    };
+  }
+  const { cost, noCharge } = shopItemCost(state, defs, item);
+  if (cost > 0)
+    return {
+      key: noCharge ? 'obj.price.contents' : 'obj.price.for_sale',
+      params: { n: cost, zm: zorkmids(cost) },
+    };
+  return noCharge ? { key: 'obj.price.no_charge' } : '';
+}
+
+/** "zorkmid" / "zorkmids" as a param. ref: src/shk.c currency() (no hallucinated currency) */
+export const zorkmids = (n: number): string => (n === 1 ? '@shk.zorkmid' : '@shk.zorkmids');
+
+/** The name without its shop price, for paying. ref: src/objnam.c paydoname() (no containers) */
+export function paydoname(state: Readonly<GameState>, defs: Registry, item: Entity): Msg {
+  return doname(state, defs, item, { noPrice: true });
 }
 
 /**

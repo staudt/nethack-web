@@ -98,6 +98,10 @@ interface ItemComponent {
   locked?: true; broken?: true; lit?: true; // olocked, obroken, lamplit
   erosion?: { e1: 0 | 1 | 2 | 3; e2: 0 | 1 | 2 | 3 }; erodeproof?: true; // oeroded, oeroded2, oerodeproof
   recharged?: number;
+  // shop state (6b3): on a shopkeeper's bill (obj->unpaid); in a shop but not for sale (obj->no_charge).
+  // The bill itself is content data (modData.nh.eshk); content's mergable() keeps flagged and
+  // unflagged stacks apart.
+  unpaid?: true; noCharge?: true;
 }
 
 interface Room {

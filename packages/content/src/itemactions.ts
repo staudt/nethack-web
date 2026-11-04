@@ -5,6 +5,7 @@ import {
   cellIndex,
   getLevel,
   getPlayer,
+  inRooms,
   inventoryOf,
   itemsAt,
   shownId,
@@ -40,6 +41,8 @@ import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 import { HERE } from './priority';
+import { costlySpot, isShopType } from './eshk';
+import { addtobill, sellobj } from './shk';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -313,7 +316,7 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
     if (cc.qq < 1) return 'abort';
     qq = cc.qq;
     // the knapsack holds 52 letters; gold needs none
-    const mergeChoice = inventoryOf(state, id).some((o) => mergable(ctx.defs, o, obj));
+    const mergeChoice = inventoryOf(state, id).some((o) => mergable(ctx.defs, o, obj, state));
     if (def.class !== 'coin' && invCount(ctx, id) >= 52 && !mergeChoice) {
       const gold = itemsAt(
         ctx.defs,
@@ -354,7 +357,17 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
     if (!ok) return 'none';
   }
 
+  // ref: src/pickup.c pick_obj(): shop goods go on the bill of the shop they lay in before
+  // addinv() (so that merging sees the unpaid flag)
+  const op = obj.c.pos;
   const part = qq < it.quantity ? splitStack(ctx, obj.id, qq) : obj.id;
+  const partObj = state.entities[String(part)];
+  if (op && partObj && costlySpot(ctx, op.x, op.y)) {
+    delete partObj.c.pos;
+    const level = getLevel(state);
+    const room = inRooms(level, op.x, op.y).find((r) => isShopType(level.rooms[r]?.type));
+    addtobill(ctx, partObj, true, false, false, room); // sets obj->unpaid if necessary
+  }
   const merged = addToInventory(ctx, id, part);
   const stack = state.entities[String(merged)];
   if (!stack) return 'none';
@@ -497,6 +510,7 @@ function dropItem(ctx: Ctx, e: Entity): boolean {
     });
   removeFromInventory(ctx, e.id);
   if (altar) doaltarobj(ctx, e);
+  sellobj(ctx, e, pos.x, pos.y); // ref: src/do.c dropz(): sellobj() before stackobj()
   placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
   return true;
 }

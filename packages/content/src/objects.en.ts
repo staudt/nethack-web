@@ -684,7 +684,11 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:whistle.desc.plural': 'whistles',
 
   // ---- item names (src/objnam.c doname): the template joins the pieces; each is '' or spaced ----
-  'obj.doname': '{count}{buc}{eaten}{erosion}{spe}{name}{charges}{worn}',
+  'obj.doname': '{count}{buc}{eaten}{erosion}{spe}{name}{charges}{worn}{price}',
+  'obj.price.unpaid': ' (unpaid, {n} {zm})',
+  'obj.price.contents': ' (contents, {n} {zm})',
+  'obj.price.for_sale': ' (for sale, {n} {zm})',
+  'obj.price.no_charge': ' (no charge)',
   'obj.charges': ' ({recharged}:{spe})',
   'obj.count': '{n} ',
   'obj.buc.cursed': 'cursed ',

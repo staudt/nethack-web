@@ -1,9 +1,11 @@
 // Shared helpers for quaffing, reading and throwing: using up objects and the "strange feeling" fallback.
-// ref: src/invent.c useup(), src/potion.c strange_feeling(), src/hack.c check_capacity()
+// ref: src/invent.c useup(), src/shk.c obfree(), src/potion.c strange_feeling(),
+// src/hack.c check_capacity()
 import type { Ctx, Entity, EntityId, Params } from '@nh/core';
 import { getPlayer } from '@nh/core';
 import { encumberMsg } from './itemactions';
 import { nhData, removeFromInventory } from './items';
+import { billUsedUp } from './shk';
 import { nearCapacity } from './stats';
 
 export const heroEntity = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
@@ -29,9 +31,10 @@ export function useup(ctx: Ctx, id: EntityId): void {
   const it = e?.c.item;
   if (!e || !it) return;
   if (it.quantity > 1) {
-    it.quantity--;
+    it.quantity--; // an unpaid stack keeps its billed quantity: the difference is used up
   } else {
     removeFromInventory(ctx, id);
+    billUsedUp(ctx, e); // obfree(): an unpaid object stays on the bill, used up
     ctx.remove(id);
   }
   encumberMsg(ctx);
@@ -40,6 +43,8 @@ export function useup(ctx: Ctx, id: EntityId): void {
 /** Uses up the whole stack. ref: src/invent.c useupall() */
 export function useupall(ctx: Ctx, id: EntityId): void {
   removeFromInventory(ctx, id);
+  const e = ctx.state.entities[String(id)];
+  if (e) billUsedUp(ctx, e);
   ctx.remove(id);
   encumberMsg(ctx);
 }

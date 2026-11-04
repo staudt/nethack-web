@@ -228,3 +228,98 @@ export function shknameIsPname(e: Eshk): boolean {
   const c = e.shknam.charAt(0);
   return c === '-' || c === '+' || c === '=';
 }
+
+// ---------------------------------------------------------------------------------------------
+// bills: the entries of an object, kept apart from shk.ts so that items.ts (splitting, merging)
+// can keep them right. ref: src/shk.c onbill(), next_shkp(), splitbill(), same_price(), obfree()
+
+/** The shopkeepers with a bill entry, in id order (any level). ref: src/shk.c next_shkp() */
+function shopkeepers(ctx: Pick<Ctx, 'state'>): EntityId[] {
+  const t = table(ctx, false);
+  if (!t) return [];
+  return Object.keys(t)
+    .map(Number)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * The unpaid (not used-up) entry of object `oid` on `shk`'s bill, or null. Used-up entries are
+ * found only through the bill: their object is gone. ref: src/shk.c onbill()
+ */
+export function onbill(ctx: Pick<Ctx, 'state'>, oid: EntityId, shk: EntityId): BillEntry | null {
+  return eshkOf(ctx, shk)?.bill.find((bp) => bp.oid === oid && !bp.useup) ?? null;
+}
+
+/** The shopkeeper whose bill has object `oid` and the entry, or null. */
+export function billOf(
+  ctx: Pick<Ctx, 'state'>,
+  oid: EntityId,
+): { shk: EntityId; bp: BillEntry } | null {
+  for (const shk of shopkeepers(ctx)) {
+    const bp = onbill(ctx, oid, shk);
+    if (bp) return { shk, bp };
+  }
+  return null;
+}
+
+/** The used-up entry of object `oid` on any bill, or null. */
+export function usedUpEntry(ctx: Pick<Ctx, 'state'>, oid: EntityId): BillEntry | null {
+  for (const shk of shopkeepers(ctx)) {
+    const bp = eshkOf(ctx, shk)?.bill.find((b) => b.oid === oid && b.useup);
+    if (bp) return bp;
+  }
+  return null;
+}
+
+/** Takes entry `bp` off `shk`'s bill (C moves the last entry into its slot; order is kept here). */
+export function dropBillEntry(ctx: Pick<Ctx, 'state'>, shk: EntityId, bp: BillEntry): void {
+  const e = eshkOf(ctx, shk);
+  if (!e) return;
+  const i = e.bill.indexOf(bp);
+  if (i >= 0) e.bill.splice(i, 1);
+}
+
+/**
+ * `child` (`n` of them) has just been split off the unpaid stack `parent`: it gets its own entry
+ * at the same price, or is free when the bill is full. ref: src/shk.c splitbill()
+ */
+export function splitbill(
+  ctx: Pick<Ctx, 'state'>,
+  parent: EntityId,
+  child: EntityId,
+  n: number,
+): void {
+  const found = billOf(ctx, parent);
+  const e = found ? eshkOf(ctx, found.shk) : null;
+  const it = ctx.state.entities[String(child)]?.c.item;
+  if (!found || !e || !it) {
+    if (it) delete it.unpaid;
+    return;
+  }
+  found.bp.bquan -= n;
+  if (e.bill.length >= BILLSZ) delete it.unpaid;
+  else e.bill.push({ oid: child, bquan: n, price: found.bp.price, useup: false });
+}
+
+/**
+ * Two unpaid stacks are on the same shopkeeper's bill at the same price, so may merge.
+ * ref: src/shk.c same_price()
+ */
+export function samePrice(ctx: Pick<Ctx, 'state'>, a: EntityId, b: EntityId): boolean {
+  const ba = billOf(ctx, a);
+  const bb = billOf(ctx, b);
+  return !!ba && !!bb && ba.shk === bb.shk && ba.bp.price === bb.bp.price;
+}
+
+/**
+ * The unpaid stack `obj` merges into `into`: its billed quantity joins `into`'s entry.
+ * ref: src/shk.c obfree(obj, merge)
+ */
+export function mergeBills(ctx: Pick<Ctx, 'state'>, into: EntityId, obj: EntityId): void {
+  const bo = billOf(ctx, obj);
+  if (!bo) return;
+  const bm = onbill(ctx, into, bo.shk);
+  if (!bm) return;
+  bm.bquan += bo.bp.bquan;
+  dropBillEntry(ctx, bo.shk, bo.bp);
+}

@@ -4,12 +4,29 @@
 // shopkeepers and priests cannot be displaced; a shopkeeper in his shop picks nothing up.
 // Step 2: entering a shop (the greeting, an angry or robbed keeper, the untended shop, the
 // mattock left outside) and the keeper going back to his spot.
-import { getPlayer, sortedIds, type Ctx, type DefId, type Level, type StepResult } from '@nh/core';
+// Step 3: prices, the bill (picking up, putting back, using up, biting), names with prices,
+// paying and the warning at the door.
+import {
+  getPlayer,
+  inventoryOf,
+  putIn,
+  sortedIds,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type Level,
+  type StepResult,
+} from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import {
   SHOPKEEPER,
   SHOP_TYPES,
   addToInventory,
+  billUsedUp,
+  checkSpecialRoom,
+  getCost,
+  getprice,
+  mkgold,
   emptyShops,
   uRooms,
   uShops,
@@ -23,7 +40,9 @@ import {
   monNam,
   mpickstuff,
   priestini,
+  moneyCnt,
   saleable,
+  shkName,
   shopType,
   stockShops,
 } from '../src/index';
@@ -545,5 +564,393 @@ describe('entering a shop', () => {
     // the way in is free
     expect(said(move('w'))).toEqual([]);
     expect(getPlayer(s.state).c.pos).toMatchObject(SHK_SPOT);
+  });
+});
+
+describe('prices', () => {
+  /** A shop with no stock, the hero inside it at 3,2 with Charisma `cha`. */
+  function bare(cha = 15, type = 'nh:shop') {
+    const s = shop(1, type);
+    stockShops(ctxOf(s), s.level);
+    for (const id of sortedIds(s.state)) {
+      const o = s.state.entities[String(id)];
+      if (o?.c.item && o.c.pos) delete s.state.entities[String(id)];
+    }
+    const [id] = shkOn(s);
+    const e = id === undefined ? null : eshkOf(s, id);
+    const shk = id === undefined ? undefined : s.state.entities[String(id)];
+    if (id === undefined || !e || !shk?.c.actor) throw new Error('no shopkeeper');
+    shk.c.actor.speed = 0;
+    shk.c.actor.energy = 0;
+    const hero = getPlayer(s.state);
+    if (hero.c.attributes) hero.c.attributes.cha = cha;
+    if (hero.c.pos) Object.assign(hero.c.pos, { x: 3, y: 2 });
+    checkSpecialRoom(ctxOf(s), false);
+    const make = (def: string, o: { quantity?: number; at?: { x: number; y: number } } = {}) => {
+      const at = o.at ?? { x: 3, y: 2 };
+      const oid = mksobj(ctxOf(s), obj(def), {
+        init: false,
+        ...(o.quantity !== undefined ? { quantity: o.quantity } : {}),
+        at: { level: 'dlvl1', ...at },
+      });
+      const ent = s.state.entities[String(oid)];
+      if (!ent) throw new Error('no object');
+      return ent;
+    };
+    const gold = (n: number) => {
+      const g = mkgold(ctxOf(s), n, { level: 'dlvl1', x: 9, y: 2 });
+      addToInventory(ctxOf(s), s.state.playerId, g);
+    };
+    const name = (o: Entity) => render(defs.itemName(s.state, o));
+    const step = (a: Parameters<typeof s.engine.step>[1]) => s.engine.step(s.state, a);
+    const pickup = () => step({ type: 'mod', action: 'nh:pickup' });
+    const payNow = () => step({ type: 'mod', action: 'nh:pay' });
+    const answer = (r: StepResult, value: unknown) =>
+      step({ type: 'answer', promptId: r.prompt?.id ?? '', value: value as never });
+    const lines = (r: StepResult) =>
+      r.events.flatMap((ev) => (ev.type === 'msg' && ev.key ? [render(ev)] : []));
+    const inv = () => inventoryOf(s.state, s.state.playerId);
+    return { s, id, e, shk, make, gold, name, pickup, payNow, answer, lines, inv, step };
+  }
+
+  test("get_cost(): Charisma, hunger, the anger surcharge (a known type's base price)", () => {
+    // a food ration costs 45
+    const table: [number, number][] = [
+      [5, 90],
+      [6, 68],
+      [7, 68],
+      [8, 60],
+      [10, 60],
+      [11, 45],
+      [15, 45],
+      [16, 34],
+      [17, 34],
+      [18, 30],
+      [19, 23],
+      [25, 23],
+    ];
+    for (const [cha, price] of table) {
+      const t = bare(cha);
+      const ration = t.make('nh:food_ration');
+      expect([cha, getCost(t.s.state, defs, ration, t.e)]).toEqual([cha, price]);
+    }
+    const t = bare(15);
+    const ration = t.make('nh:food_ration');
+    const hunger = getPlayer(t.s.state).c.hunger;
+    if (!hunger) throw new Error('no hunger');
+    for (const [st, price] of [
+      ['satiated', 45],
+      ['not_hungry', 45],
+      ['hungry', 90],
+      ['weak', 135],
+      ['fainting', 180],
+    ] as const) {
+      hunger.state = st;
+      expect(getCost(t.s.state, defs, ration, t.e)).toBe(price);
+      // a shopkeeper buying pays no hunger premium
+      expect(getprice(t.s.state, defs, ration, true)).toBe(45);
+    }
+    hunger.state = 'not_hungry';
+    t.e.surcharge = true;
+    expect(getCost(t.s.state, defs, ration, t.e)).toBe(60); // + (45 + 2) / 3
+    // a partly eaten one is worth nothing, and still costs the minimum 5
+    t.e.surcharge = false;
+    const it = ration.c.item;
+    if (it) it.eaten = 100;
+    expect(getprice(t.s.state, defs, ration, false)).toBe(0);
+    expect(getCost(t.s.state, defs, ration, t.e)).toBe(5);
+  });
+
+  test('an unidentified type costs a third more when its id is a multiple of 4', () => {
+    const t = bare(15, 'nh:candle_shop');
+    const candles: Entity[] = [];
+    for (let i = 0; i < 4; i++)
+      candles.push(t.make('nh:tallow_candle', { at: { x: 1 + i, y: 1 } }));
+    for (const c of candles) {
+      const it = c.c.item;
+      if (it) it.age = 200; // full: no half price
+      expect([c.id % 4, getCost(t.s.state, defs, c, t.e)]).toEqual([
+        c.id % 4,
+        c.id % 4 === 0 ? 13 : 10,
+      ]);
+    }
+    t.s.state.discovered.push('nh:tallow_candle');
+    for (const c of candles) expect(getCost(t.s.state, defs, c, t.e)).toBe(10);
+    // a used candle is half price
+    const it = candles[1]?.c.item;
+    if (it) it.age = 199;
+    expect(getCost(t.s.state, defs, candles[1] as Entity, t.e)).toBe(5);
+  });
+
+  test('names: for sale on the shop floor, no charge on his spot, nothing outside', () => {
+    const t = bare(15);
+    const ration = t.make('nh:food_ration');
+    expect(t.name(ration)).toBe('food ration (for sale, 45 zorkmids)');
+    const two = t.make('nh:apple', { quantity: 2, at: { x: 2, y: 2 } });
+    expect(t.name(two)).toBe('2 apples (for sale, 14 zorkmids)');
+    const onSpot = t.make('nh:apple', { at: SHK_SPOT });
+    expect(t.name(onSpot)).toBe('apple (no charge)');
+    // seen from outside the shop: no prices
+    const hp = getPlayer(t.s.state).c.pos;
+    if (hp) Object.assign(hp, { x: 7, y: 2 });
+    checkSpecialRoom(ctxOf(t.s), false);
+    expect(t.name(ration)).toBe('food ration');
+  });
+
+  test('picking up bills it: the quote, the unpaid name, a partial stack, putting it back', () => {
+    const t = bare(10);
+    t.s.state.discovered.push('nh:tallow_candle');
+    const c = t.make('nh:tallow_candle', { quantity: 5 });
+    const it = c.c.item;
+    if (it) it.age = 200;
+    const r = t.pickup();
+    expect(t.lines(r)[0]).toMatch(
+      /^"For you, (good|honored|most gracious|esteemed) lady; only 13 zorkmids per tallow candle\."$/,
+    );
+    expect(t.e.bill).toEqual([{ oid: c.id, bquan: 5, price: 13, useup: false }]);
+    expect(it?.unpaid).toBe(true);
+    expect(t.name(c)).toBe('5 tallow candles (unpaid, 65 zorkmids)');
+    // drop 2 of them: the bill splits, the dropped part goes back to him
+    const d = t.step({ type: 'mod', action: 'nh:drop_many' });
+    t.answer(d, [{ value: c.id, count: 2 }]);
+    expect(t.e.bill).toEqual([{ oid: c.id, bquan: 3, price: 13, useup: false }]);
+    const floor = sortedIds(t.s.state)
+      .map((id) => t.s.state.entities[String(id)])
+      .filter((o) => o?.c.pos?.x === 3 && o.c.pos.y === 2 && o.c.item);
+    expect(floor).toHaveLength(1);
+    expect(floor[0]?.c.item).toMatchObject({ quantity: 2 });
+    expect(floor[0]?.c.item?.unpaid).toBeUndefined();
+    expect(floor[0]?.c.item?.noCharge).toBeUndefined();
+    expect(t.name(floor[0] as Entity)).toBe('2 tallow candles (for sale, 26 zorkmids)');
+    // picking them up again merges them back into the unpaid stack, one bill line
+    t.pickup();
+    expect(t.inv().map((o) => o.c.item?.quantity)).toEqual([5]);
+    expect(t.e.bill).toEqual([{ oid: c.id, bquan: 5, price: 13, useup: false }]);
+  });
+
+  test('her own things dropped in the shop are no charge and stay hers', () => {
+    const t = bare(15);
+    const own = mksobj(ctxOf(t.s), obj('nh:dagger'), { init: false });
+    addToInventory(ctxOf(t.s), t.s.state.playerId, own);
+    const d = t.step({ type: 'mod', action: 'nh:drop', args: { item: own } });
+    expect(t.lines(d)).toEqual(['You drop a dagger.']);
+    const e = t.s.state.entities[String(own)] as Entity;
+    expect(e.c.item?.noCharge).toBe(true);
+    expect(t.name(e)).toBe('dagger (no charge)');
+    t.pickup();
+    expect(t.e.bill).toEqual([]);
+    expect(e.c.item?.noCharge).toBeUndefined();
+    expect(t.name(e)).toBe('dagger');
+  });
+
+  test('a container picked up is billed with its contents, each on its own line', () => {
+    const t = bare(15);
+    const sack = t.make('nh:sack');
+    const apple = mksobj(ctxOf(t.s), obj('nh:apple'), { init: false });
+    putIn(defs, t.s.state, sack.id, apple);
+    expect(t.name(sack)).toBe('bag (for sale, 9 zorkmids)'); // 2 + 7
+    const r = t.pickup();
+    expect(t.lines(r)[0]).toMatch(/only 9 zorkmids for this bag and its contents\."$/);
+    expect(t.e.bill.map((b) => [b.oid, b.price])).toEqual([
+      [sack.id, 2],
+      [apple, 7],
+    ]);
+    expect(t.name(sack)).toMatch(/ \(unpaid, 9 zorkmids\)$/);
+  });
+
+  test('taking a shop object out of a container on the floor bills it', () => {
+    const t = bare(15);
+    const sack = t.make('nh:sack');
+    const apple = mksobj(ctxOf(t.s), obj('nh:apple'), { init: false });
+    putIn(defs, t.s.state, sack.id, apple);
+    const r = t.step({ type: 'mod', action: 'nh:loot', args: { box: sack.id } });
+    let p = r;
+    // answer the loot menus until the apple is out
+    for (let i = 0; i < 4 && p.prompt; i++) {
+      const o = p.prompt;
+      if (o.id === 'loot-out') p = t.answer(p, [apple]);
+      else if (o.options?.some((x) => x.value === 'o')) p = t.answer(p, 'o');
+      else p = t.answer(p, true);
+    }
+    expect(t.lines(p)).toContain('The apple will cost you 7 zorkmids.');
+    expect(t.e.bill).toEqual([{ oid: apple, bquan: 1, price: 7, useup: false }]);
+    expect(t.s.state.entities[String(apple)]?.c.item?.unpaid).toBe(true);
+  });
+
+  test('pay: one item directly, "Thank you", no time without a bill', () => {
+    const t = bare(15);
+    const ration = t.make('nh:food_ration');
+    t.pickup();
+    t.gold(100);
+    const r = t.payNow();
+    expect(t.lines(r)).toEqual([
+      'You bought a food ration for 45 gold pieces.',
+      `"Thank you for shopping in ${render(shkName(t.e))}'s general store!"`,
+    ]);
+    expect(t.e.bill).toEqual([]);
+    expect(ration.c.item?.unpaid).toBeUndefined();
+    expect(t.name(ration)).toBe('food ration');
+    expect(moneyCnt(ctxOf(t.s), t.s.state.playerId)).toBe(55);
+    expect(moneyCnt(ctxOf(t.s), t.id)).toBeGreaterThanOrEqual(1030 + 45);
+    expect(t.lines(t.payNow())).toEqual([`You do not owe ${render(shkName(t.e))} anything.`]);
+  });
+
+  test('pay: too little gold; itemized billing, item by item', () => {
+    const t = bare(15);
+    const ration = t.make('nh:food_ration');
+    const apple = t.make('nh:apple', { at: { x: 2, y: 2 } });
+    t.pickup();
+    const hp = getPlayer(t.s.state).c.pos;
+    if (hp) hp.x = 2;
+    t.pickup();
+    expect(t.lines(t.payNow())).toEqual(['You have no gold or credit.']);
+    t.gold(5);
+    expect(t.lines(t.payNow())).toEqual([
+      "You don't have enough gold to buy any of the items you've picked.",
+    ]);
+    t.gold(45);
+    // not itemized: the dearest first, then he cannot pay for the apple
+    let r = t.payNow();
+    expect(r.prompt?.key).toBe('pay.itemize');
+    r = t.answer(r, false);
+    expect(t.lines(r)).toEqual([
+      'You bought a food ration for 45 gold pieces.',
+      "You don't have gold enough to pay for an apple.",
+    ]);
+    expect(t.e.bill.map((b) => b.oid)).toEqual([apple.id]);
+    expect(ration.c.item?.unpaid).toBeUndefined();
+    // itemized: say no, then yes
+    t.gold(10);
+    const ration2 = t.make('nh:food_ration', { at: { x: 2, y: 2 } });
+    t.pickup();
+    r = t.answer(t.payNow(), true);
+    expect(r.prompt?.key).toBe('pay.item_prompt1');
+    expect(render({ key: r.prompt?.key ?? '', params: r.prompt?.params ?? {} })).toBe(
+      'A food ration for 45 zorkmids.  Pay?',
+    );
+    r = t.answer(r, false);
+    expect(render({ key: r.prompt?.key ?? '', params: r.prompt?.params ?? {} })).toBe(
+      'An apple for 7 zorkmids.  Pay?',
+    );
+    r = t.answer(r, true);
+    expect(t.lines(r)).toEqual([
+      'You bought an apple for 7 gold pieces.',
+      `"Thank you for shopping in ${render(shkName(t.e))}'s general store!"`,
+    ]);
+    expect(t.e.bill.map((b) => b.oid)).toEqual([ration2.id]);
+    expect(moneyCnt(ctxOf(t.s), t.s.state.playerId)).toBe(8); // 50 - 45 + 10 - 7
+  });
+
+  test('using up an unpaid object keeps it on the bill; partly used stacks pay the used part first', () => {
+    const t = bare(15, 'nh:candle_shop');
+    t.s.state.discovered.push('nh:tallow_candle');
+    const c = t.make('nh:tallow_candle', { quantity: 3 });
+    const it = c.c.item;
+    if (it) it.age = 200;
+    t.pickup();
+    // one of them is used up (as useup() would): the bill keeps 3, the stack has 2
+    if (it) it.quantity = 2;
+    t.gold(100);
+    let r = t.answer(t.payNow(), true);
+    // the used-up candle comes first
+    expect(render({ key: r.prompt?.key ?? '', params: r.prompt?.params ?? {} })).toBe(
+      'A tallow candle for 10 zorkmids.  Pay?',
+    );
+    r = t.answer(r, false);
+    // asked about the rest, he will not sell it before the used-up one is paid for
+    expect(render({ key: r.prompt?.key ?? '', params: r.prompt?.params ?? {} })).toBe(
+      '2 tallow candles for 20 zorkmids.  Pay?',
+    );
+    r = t.answer(r, true);
+    expect(t.lines(r)).toEqual(['"Please pay for the other tallow candle before buying these."']);
+    expect(t.e.bill).toEqual([{ oid: c.id, bquan: 3, price: 10, useup: false }]);
+    // all of it, not itemized
+    r = t.answer(t.payNow(), false);
+    expect(t.lines(r).slice(0, 2)).toEqual([
+      'You paid for a tallow candle at a cost of 10 gold pieces.',
+      'You bought 2 tallow candles for 20 gold pieces.',
+    ]);
+    expect(t.e.bill).toEqual([]);
+  });
+
+  test('a used-up unpaid potion stays billed by name', () => {
+    const t = bare(15);
+    const pot = t.make('nh:potion_of_water');
+    const it = pot.c.item;
+    if (it) it.buc = 'blessed';
+    t.pickup();
+    billUsedUp(ctxOf(t.s), pot);
+    delete t.s.state.entities[String(pot.id)];
+    expect(t.e.bill).toMatchObject([{ oid: pot.id, bquan: 1, price: 100, useup: true }]);
+    t.gold(100);
+    const r = t.payNow();
+    expect(t.lines(r)[0]).toMatch(/^You paid for a .*potion.* at a cost of 100 gold pieces\.$/);
+    expect(t.e.bill).toEqual([]);
+  });
+
+  test('biting unpaid food: you pay for it, the rest is still for sale', () => {
+    const t = bare(15, 'nh:food_shop');
+    const r0 = t.make('nh:food_ration', { quantity: 2 });
+    t.pickup();
+    expect(t.e.bill).toEqual([{ oid: r0.id, bquan: 2, price: 45, useup: false }]);
+    const r = t.step({ type: 'mod', action: 'nh:eat', args: { item: r0.id } });
+    expect(t.lines(r)).toContain('"You bite that food ration, you pay for it!"');
+    // one used-up line for the bitten one, the other still unpaid
+    expect(t.e.bill).toHaveLength(2);
+    expect(t.e.bill.find((b) => b.oid === r0.id)).toEqual({
+      oid: r0.id,
+      bquan: 1,
+      price: 45,
+      useup: false,
+    });
+    expect(t.e.bill.find((b) => b.useup)).toMatchObject({ bquan: 1, price: 45 });
+    expect(r0.c.item).toMatchObject({ quantity: 1, unpaid: true });
+  });
+
+  test('biting food on the shop floor bills it; the rest of it is no charge', () => {
+    const t = bare(15, 'nh:food_shop');
+    const ration = t.make('nh:food_ration');
+    const r = t.step({ type: 'mod', action: 'nh:eat', args: { item: ration.id } });
+    expect(t.lines(r)).toContain('"You bite that, you pay for it!"');
+    expect(t.e.bill).toMatchObject([{ bquan: 1, price: 45, useup: true }]);
+    // interrupted: what is left lies there, no charge
+    expect(ration.c.item?.noCharge).toBe(true);
+    expect(ration.c.item?.unpaid).toBeUndefined();
+  });
+
+  test('stepping onto the door with a bill: "Please pay before leaving."', () => {
+    const t = bare(15);
+    t.make('nh:apple', { at: { x: 4, y: 2 } });
+    Object.assign(t.shk.c.pos ?? {}, { x: 1, y: 1 }); // out of the way
+    const hp = getPlayer(t.s.state).c.pos;
+    if (hp) hp.x = 4;
+    t.pickup();
+    expect(t.e.bill).toHaveLength(1);
+    expect(t.lines(t.step({ type: 'move', dir: 'e' }))).toEqual([]); // onto his spot
+    const r = t.step({ type: 'move', dir: 'e' });
+    expect(t.lines(r)).toContain('"Valkyrie!  Please pay before leaving."');
+    // and not again while she stays on the door
+    expect(t.lines(t.step({ type: 'wait' }))).not.toContain(
+      '"Valkyrie!  Please pay before leaving."',
+    );
+    // nothing owed: nothing said
+    const u = bare(15);
+    Object.assign(u.shk.c.pos ?? {}, { x: 1, y: 1 });
+    const up = getPlayer(u.s.state).c.pos;
+    if (up) up.x = 5;
+    checkSpecialRoom(ctxOf(u.s), false);
+    expect(u.lines(u.step({ type: 'move', dir: 'e' }))).toEqual([]);
+  });
+
+  test('the pay offer: on herself in a shop, on an adjacent shopkeeper', () => {
+    const t = bare(15);
+    t.step({ type: 'wait' }); // she sees him
+    const self = t.s.engine.query(t.s.state).actionsFor({ kind: 'self' });
+    expect(self.some((o) => o.action.type === 'mod' && o.action.action === 'nh:pay')).toBe(true);
+    const hp = getPlayer(t.s.state).c.pos;
+    if (hp) hp.x = 4;
+    const cell = t.s.engine.query(t.s.state).actionsFor({ kind: 'cell', pos: SHK_SPOT });
+    const offer = cell.find((o) => o.action.type === 'mod' && o.action.action === 'nh:pay');
+    expect(offer?.labelKey).toBe('action.nh:pay_shk');
   });
 });

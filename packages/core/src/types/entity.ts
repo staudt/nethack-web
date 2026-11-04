@@ -104,6 +104,10 @@ export interface ItemComponent {
   erodeproof?: true;
   /** Times a wand or tool was recharged (obj->recharged). */
   recharged?: number;
+  /** On a shopkeeper's bill: the hero has it but has not paid for it (obj->unpaid). */
+  unpaid?: true;
+  /** Lies in a shop but is not for sale: the hero's own, or bitten into (obj->no_charge). */
+  noCharge?: true;
 }
 
 /** ref: src/eat.c hunger states (u.uhs) */

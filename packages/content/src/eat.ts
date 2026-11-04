@@ -1,9 +1,12 @@
 // Eating: the eat action, meals that take several turns, choking, rotten food and corpses.
 // ref: src/eat.c doeat(), start_eating(), eatfood(), done_eating(), bite(), choke(),
-// rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx()
+// rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx(); shop food: touchfood()'s
+// costly_alteration(COST_BITE), useupf()
 import {
   NORMAL_SPEED,
+  getLevel,
   getPlayer,
+  inRooms,
   itemsAt,
   type ActionDef,
   type Ctx,
@@ -36,6 +39,8 @@ import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
+import { costlySpot, isShopType, uShops } from './eshk';
+import { addtobill, billUsedUp, costlyAlteration } from './shk';
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -87,11 +92,25 @@ function rounddiv(x: number, y: number): number {
   return 2 * (x % y) >= y ? r + 1 : r;
 }
 
-/** Uses up one of the item (a stack of one is removed). ref: useup() / useupf() */
+/**
+ * Uses up one of the item (a stack of one is removed). Unpaid food stays on the bill, used up;
+ * shop food eaten off a costly floor square is billed first. ref: useup() / useupf(), obfree()
+ */
 function useup(ctx: Ctx, e: Entity): void {
   const it = e.c.item;
-  if (it && it.quantity > 1) it.quantity -= 1;
-  else ctx.remove(e.id);
+  if (it && it.quantity > 1) {
+    it.quantity -= 1;
+    return;
+  }
+  const p = e.c.pos;
+  if (it && it.carriedBy === null && p && costlySpot(ctx, p.x, p.y)) {
+    // useupf(): the hero is in that shop (C: `strchr(u.urooms, ...)`, else stolen_value(): step 4)
+    const level = getLevel(ctx.state);
+    const room = inRooms(level, p.x, p.y).find((r) => isShopType(level.rooms[r]?.type));
+    if (room !== undefined && uShops(ctx).includes(room)) addtobill(ctx, e, false, false, false);
+  }
+  billUsedUp(ctx, e);
+  ctx.remove(e.id);
 }
 
 export { losehp };
@@ -138,6 +157,9 @@ function touchfood(ctx: Ctx, e: Entity): Entity {
     const childId = splitStack(ctx, e.id, 1);
     const child = ctx.state.entities[String(childId)];
     if (child?.c.item) {
+      // You bite that, you pay for it! (the piece lies where the stack does)
+      if (!child.c.item.eaten)
+        costlyAlteration(ctx, child, 'bite', it.carriedBy !== null ? null : (e.c.pos ?? null));
       child.c.item.eaten = child.c.item.eaten || objNutrition(ctx, child);
       const carried = it.carriedBy;
       const placed =
@@ -150,6 +172,7 @@ function touchfood(ctx: Ctx, e: Entity): Entity {
       piece = ctx.state.entities[String(placed)] ?? child;
     }
   } else if (!it.eaten) {
+    costlyAlteration(ctx, e, 'bite', it.carriedBy !== null ? null : (e.c.pos ?? null));
     it.eaten = objNutrition(ctx, e);
   }
   return piece;

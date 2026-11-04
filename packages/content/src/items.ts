@@ -27,6 +27,7 @@ import {
   isRustprone,
 } from './material';
 import { CHARGED_RINGS } from './objects';
+import { mergeBills, samePrice, splitbill } from './eshk';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<Ctx, 'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove'>;
@@ -348,10 +349,17 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * food, same monster for corpses. Differences in the known flags do not prevent merging (they
  * only would when blind or hallucinating, which is not implemented). Worn status does not
  * matter: a picked-up dagger joins the wielded stack, as in NetHack.
- * Candles merge only when their ages are close. Not ported: grease, light, names, shop state,
- * artifacts, eggs/tins, reviving corpses.
+ * Candles merge only when their ages are close. Shop state must match (unpaid, no charge), and
+ * unpaid stacks only merge at the same price on the same bill (`state` is needed for that; without
+ * it unpaid stacks never merge). Not ported: grease, light, names, artifacts, eggs/tins, reviving
+ * corpses.
  */
-export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
+export function mergable(
+  defs: Registry,
+  into: Entity,
+  obj: Entity,
+  state?: Readonly<GameState>,
+): boolean {
   const a = into.c.item;
   const b = obj.c.item;
   if (!a || !b || into.id === obj.id || into.def !== obj.def) return false;
@@ -359,6 +367,8 @@ export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   if (!def.merge) return false;
   if (def.class === 'coin') return true;
   if (a.buc !== b.buc || a.spe !== b.spe) return false;
+  if ((a.unpaid ?? false) !== (b.unpaid ?? false)) return false;
+  if ((a.noCharge ?? false) !== (b.noCharge ?? false)) return false;
   // ref: mergable(): oeroded, oeroded2 and (when erosion matters) oerodeproof must match
   if ((a.erosion?.e1 ?? 0) !== (b.erosion?.e1 ?? 0)) return false;
   if ((a.erosion?.e2 ?? 0) !== (b.erosion?.e2 ?? 0)) return false;
@@ -368,6 +378,8 @@ export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   // allow candle merging only if their ages are close
   if (isCandle(def.id) && Math.trunc((a.age ?? 0) / 25) !== Math.trunc((b.age ?? 0) / 25))
     return false;
+  // don't merge surcharged item with base-cost item
+  if (b.unpaid && (!state || !samePrice({ state }, obj.id, into.id))) return false;
   return true;
 }
 
@@ -382,10 +394,11 @@ export const isCandle = (id: string): boolean =>
  * carries the stack and something was learned), and a worn `obj` passes its slot on.
  */
 export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
-  if (!mergable(ctx.defs, into, obj)) return false;
+  if (!mergable(ctx.defs, into, obj, ctx.state)) return false;
   const a = into.c.item;
   const b = obj.c.item;
   if (!a || !b) return false;
+  if (b.unpaid) mergeBills(ctx, into.id, obj.id); // obfree(obj, otmp): bill->otmp
   a.age = Math.trunc(
     ((a.age ?? 0) * a.quantity + (b.age ?? 0) * b.quantity) / (a.quantity + b.quantity),
   );
@@ -672,6 +685,7 @@ export function splitStack(ctx: ItemCtx, itemId: EntityId, n: number): EntityId 
   if (!def) throw new Error('splitStack: missing def');
   const id = ctx.spawn({ def, c: { item: child } });
   if (rknown(ctx.state, itemId)) setRknown(ctx, id, true);
+  if (it.unpaid) splitbill(ctx, itemId, id, n);
   return id;
 }
 

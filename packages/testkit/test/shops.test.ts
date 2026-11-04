@@ -2,10 +2,14 @@
 // shopkeeper on the square inside its door, with his starting gold and a name from his shop
 // type's list (Izchak in the lighting store), and the stock of its type on the other squares;
 // he stays by his door while the hero waits, and the soak invariant checks it. Step 2: Izchak
-// greets the hero at his door in every variant.
+// greets the hero at his door in every variant. Step 3: she buys from each shop of every
+// variant: the price quote, the unpaid name, paying.
 import {
   SHOPKEEPER,
+  addToInventory,
+  checkSpecialRoom,
   eshkOf,
+  mkgold,
   insideShop,
   saleable,
   shopDoors,
@@ -321,6 +325,81 @@ describe('entering a real Minetown shop', () => {
       },
     ]);
     expect(lighting.e).toMatchObject({ customer: true, visitct: 1 });
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+});
+
+describe('buying in a real Minetown shop', () => {
+  test.each(VARIANTS)('%s: something from every shop, billed, then paid for', (v) => {
+    const seed = bySeed.get(v)?.[0] ?? 1;
+    const { state, level } = minetown(seed);
+    for (const id of sortedIds(state)) {
+      const m = state.entities[String(id)];
+      if (m?.c.monster && m.c.actor && id !== state.playerId) {
+        m.c.actor.speed = 0;
+        m.c.actor.energy = 0;
+      }
+    }
+    const hero = getPlayer(state);
+    const hp = hero.c.pos;
+    if (!hp) throw new Error('no hero');
+    run(state, (ctx) => {
+      addToInventory(
+        ctx,
+        state.playerId,
+        mkgold(ctx, 100000, { level: level.id, x: hp.x, y: hp.y }),
+      );
+    });
+    const shks = shopkeepers(state, level.id);
+    expect(shks.length).toBeGreaterThan(0);
+    for (const { id, e } of shks) {
+      // a stocked square of his shop with one object on it, nobody there
+      const here = sortedIds(state)
+        .map((i) => state.entities[String(i)])
+        .filter((o) => o?.c.item && o.c.pos?.level === level.id);
+      const spot = here.find((o) => {
+        const p = o?.c.pos;
+        if (!p || insideShop(level, p.x, p.y) !== e.shoproom) return false;
+        if (p.x === e.shk.x && p.y === e.shk.y) return false;
+        const mons = sortedIds(state).some((i) => {
+          const q = state.entities[String(i)]?.c.pos;
+          return (
+            i !== state.playerId &&
+            state.entities[String(i)]?.c.monster &&
+            q?.level === level.id &&
+            q.x === p.x &&
+            q.y === p.y
+          );
+        });
+        return !mons && here.filter((x) => x?.c.pos?.x === p.x && x.c.pos.y === p.y).length === 1;
+      });
+      if (!spot?.c.pos) throw new Error(`${v}: nothing to buy in shop ${e.shoproom}`);
+      Object.assign(hp, { x: spot.c.pos.x, y: spot.c.pos.y });
+      run(state, (ctx) => checkSpecialRoom(ctx, false));
+      const r = engine.step(state, { type: 'mod', action: 'nh:pickup' });
+      const quote = r.events.find((ev) => ev.type === 'msg' && ev.key?.startsWith('shk.for_you'));
+      expect(quote).toBeDefined();
+      expect(spot.c.item?.unpaid).toBe(true);
+      expect(e.bill).toHaveLength(1);
+      const price = (e.bill[0]?.price ?? 0) * (e.bill[0]?.bquan ?? 0);
+      const before = inventoryOf(state, id).reduce(
+        (a, o) => a + (o.def === 'nh:gold_piece' ? (o.c.item?.quantity ?? 0) : 0),
+        0,
+      );
+      const p = engine.step(state, { type: 'mod', action: 'nh:pay' });
+      const keys = p.events.flatMap((ev) => (ev.type === 'msg' ? [ev.key] : []));
+      // (an ordinary weapon, armor or scroll the shop deals in is named first: shk.bought_unknown)
+      expect(keys).toHaveLength(2);
+      expect(keys[0]).toMatch(/^shk\.bought/);
+      expect(keys[1]).toBe('pay.thank_you');
+      expect(e.bill).toEqual([]);
+      expect(spot.c.item?.unpaid).toBeUndefined();
+      const after = inventoryOf(state, id).reduce(
+        (a, o) => a + (o.def === 'nh:gold_piece' ? (o.c.item?.quantity ?? 0) : 0),
+        0,
+      );
+      expect(after - before).toBe(price);
+    }
     expect(checkInvariants(state, defs)).toEqual([]);
   });
 });

@@ -5,24 +5,34 @@
 // savemon() -> forget_temple_entry(); src/shk.c after_shk_move()
 //
 // Not ported: the other special rooms (zoos, courts, morgues... are not generated), the Minetown
-// achievement, room_discovered() (no overview). u_left_shop() comes with bills (6b3 step 3).
-import { getPlayer, getLevel, sortedIds, type Ctx, type EntityId, type ModApi } from '@nh/core';
+// achievement, room_discovered() (no overview).
+import {
+  getPlayer,
+  getLevel,
+  sortedIds,
+  type Ctx,
+  type EntityId,
+  type ModApi,
+  type Pos,
+} from '@nh/core';
 import { TEMPLE, epriOf, forgetTempleEntry } from './epri';
 import { eshkOf, inhishop, isShopType, uShops } from './eshk';
 import { intemple } from './priest';
-import { uEnteredShop } from './shk';
+import { uEnteredShop, uLeftShop } from './shk';
 import { setURooms, specialRoomsAt, uRooms } from './urooms';
 
 /**
  * Updates u.urooms and u.ushops from the hero's square (`newlev`: clears them, she is leaving the
- * level) and gives the entry messages of the shop and typed rooms she has just entered.
+ * level), lets the shops she was in see her leave, and gives the entry messages of the shop and
+ * typed rooms she has just entered. `from`: her square before the move (u.ux0/u.uy0), if any.
  * ref: src/hack.c check_special_room(), move_update()
  */
-export function checkSpecialRoom(ctx: Ctx, newlev: boolean): void {
+export function checkSpecialRoom(ctx: Ctx, newlev: boolean, from?: Pos): void {
   const rooms0 = uRooms(ctx);
   const ushops0 = uShops(ctx);
   if (newlev) {
     setURooms(ctx, [], [], true);
+    if (ushops0.length > 0) uLeftShop(ctx, ushops0, ushops0, true);
     return;
   }
   const hp = getPlayer(ctx.state).c.pos;
@@ -31,6 +41,14 @@ export function checkSpecialRoom(ctx: Ctx, newlev: boolean): void {
   const rooms = specialRoomsAt(level, hp.x, hp.y);
   const ushops = rooms.filter((r) => isShopType(level.rooms[r]?.type));
   setURooms(ctx, rooms, ushops);
+  if (ushops0.length > 0)
+    uLeftShop(
+      ctx,
+      ushops0,
+      ushops0.filter((r) => !ushops.includes(r)), // u.ushops_left
+      false,
+      from,
+    );
   const entered = rooms.filter((r) => !rooms0.includes(r)); // u.uentered
   const shopsEntered = ushops.filter((r) => !ushops0.includes(r)); // u.ushops_entered
   if (entered.length === 0 && shopsEntered.length === 0) return; // no entrance messages

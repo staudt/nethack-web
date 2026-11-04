@@ -8,10 +8,10 @@
 // Not ported (see DEVIATIONS.md): the ':' (look inside), 'r' (reversed) and 's' (stash one)
 // choices, the object-class filter menu of menustyle:full, looting several containers through one
 // "Loot which containers?" menu (each floor container has its own offer instead), reverse_loot()
-// while confused, trapped boxes, bags of tricks, ice boxes, Schroedinger's cat, shops,
-// scatter() of a bag of holding explosion (what survives lands at the hero's feet), the weight
-// check when taking things out of a carried container, the "Continue?" confirmation for heavy
-// items, water (an oilskin sack only matters there).
+// while confused, trapped boxes, bags of tricks, ice boxes, Schroedinger's cat, selling into a
+// shop's container (6b3 step 4), scatter() of a bag of holding explosion (what survives lands at
+// the hero's feet), the weight check when taking things out of a carried container, the
+// "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
 import {
   NORMAL_SPEED,
   contents,
@@ -54,6 +54,8 @@ import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { setSwapWep, swapWep } from './wield';
 import { HERE } from './priority';
+import { costlySpot } from './eshk';
+import { addtobill } from './shk';
 
 export const LOOT_ID: DefId = 'nh:loot';
 
@@ -244,13 +246,20 @@ function outContainer(
     qq = cc.qq;
   }
   const isCoin = ctx.defs.object(obj.def).class === 'coin';
-  const merges = inventoryOf(ctx.state, ctx.state.playerId).some((o) => mergable(ctx.defs, o, obj));
+  const merges = inventoryOf(ctx.state, ctx.state.playerId).some((o) =>
+    mergable(ctx.defs, o, obj, ctx.state),
+  );
   if (!isCoin && invCount(ctx, ctx.state.playerId) >= 52 && !merges) {
     say(ctx, 'pickup.full');
     return -1;
   }
   const part = qq < it.quantity ? splitStack(ctx, obj.id, qq) : obj.id;
   takeOut(ctx.state, part);
+  // shop goods taken out of a floor container in a shop go on the bill
+  const partObj = ctx.state.entities[String(part)];
+  const bp = box.c.pos;
+  if (partObj && !partObj.c.item?.unpaid && !held(ctx, box) && bp && costlySpot(ctx, bp.x, bp.y))
+    addtobill(ctx, partObj, false, false, false);
   const stack = ctx.state.entities[String(addToInventory(ctx, ctx.state.playerId, part))];
   if (!stack) return 0;
   // pickup_prinv(otmp, count, "removing"): the load prefix when it changed

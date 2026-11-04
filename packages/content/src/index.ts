@@ -33,6 +33,7 @@ import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
 import { KICK_ACTIONS, registerKick } from './dokick';
 import { CHAT_ACTIONS } from './chat';
+import { PAY_ACTIONS } from './pay';
 import { registerClairvoyance } from './detect';
 import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
@@ -71,6 +72,7 @@ export const vanillaMod: Mod = {
     for (const a of THROW_ACTIONS) api.defineAction(a);
     for (const a of KICK_ACTIONS) api.defineAction(a);
     for (const a of CHAT_ACTIONS) api.defineAction(a);
+    for (const a of PAY_ACTIONS) api.defineAction(a);
     for (const a of FIRE_ACTIONS) api.defineAction(a);
     for (const a of CALL_ACTIONS) api.defineAction(a);
     for (const a of PRAY_ACTIONS) api.defineAction(a);
@@ -309,10 +311,14 @@ export {
   shknameIsPname,
   shopDoors,
   shopKeeper,
+  billOf,
+  onbill,
   uShops,
   type BillEntry,
   type Eshk,
 } from './eshk';
+export { getCost, getprice, isUnpaid, oidPriceAdjustment, shopItemCost, unpaidCost } from './price';
+export { PAY_ACTIONS, PAY_ID } from './pay';
 export {
   SHTYPES,
   getShopItem,
@@ -329,7 +335,19 @@ export {
 export { doVicinityMap, showMapSpot } from './detect';
 export { afterShkMove, checkSpecialRoom } from './rooms';
 export { emptyShops, specialRoomsAt, uRooms, uShopRooms } from './urooms';
-export { hello, pacifyShk, plname, shkname, uEnteredShop } from './shk';
+export {
+  addtobill,
+  billUsedUp,
+  costlyAlteration,
+  hello,
+  pacifyShk,
+  plname,
+  sellobj,
+  shkname,
+  subfrombill,
+  uEnteredShop,
+  uLeftShop,
+} from './shk';
 export { buzzFrom, type Ray, type RaySource } from './buzz';
 export { OBJECTS, APPEARANCES } from './objects';
 export {
