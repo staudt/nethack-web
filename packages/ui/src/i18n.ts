@@ -122,7 +122,9 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
  * is itself translated as a key first, and a `{ key, params }` param is translated recursively. `{name|an}` prefixes the
  * English indefinite article (none before a number or "the ...") and `{name|An}` the capitalized one; `{name|the}` / `{name|The}`
  * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
- * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). Missing keys render as `[key]` (warned once).
+ * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). A string param starting with
+ * '=' is a proper name: the rest, with no article under any modifier ("Izchak", "Izchak's").
+ * Missing keys render as `[key]` (warned once).
  */
 export function translate(
   catalogs: Catalogs,
@@ -146,12 +148,21 @@ export function translate(
       const v = params[name];
       if (v === undefined) return whole;
       let text: string;
-      if (typeof v === 'string' && v.startsWith('@') && depth < 4) {
+      // a proper name ('=Izchak'): itself, with no article ("Izchak", "Izchak's")
+      const proper = typeof v === 'string' && v.startsWith('=');
+      if (proper) text = v.slice(1);
+      else if (typeof v === 'string' && v.startsWith('@') && depth < 4) {
         text = translate(catalogs, locale, v.slice(1), undefined, depth + 1);
       } else if (typeof v === 'object') {
         text = depth < 4 ? translate(catalogs, locale, v.key, v.params, depth + 1) : `[${v.key}]`;
       } else {
         text = String(v);
+      }
+      if (proper && mod !== undefined) {
+        const out = mod.endsWith('_s') ? `${text}'s` : text;
+        return mod.startsWith('|T') || mod === '|An'
+          ? out.charAt(0).toUpperCase() + out.slice(1)
+          : out;
       }
       if (mod === '|an') return justAn(text) + text;
       if (mod === '|An') {

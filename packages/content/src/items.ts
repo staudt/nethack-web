@@ -57,7 +57,10 @@ const curse = (it: ItemComponent): void => {
 };
 
 /** The object fields mksobj_init() and mkobj_erosions() look at. */
-export type InitDef = Pick<ObjectDef, 'id' | 'class' | 'weapon' | 'wand' | 'material' | 'prop'>;
+export type InitDef = Pick<
+  ObjectDef,
+  'id' | 'class' | 'weapon' | 'wand' | 'material' | 'prop' | 'cost'
+>;
 
 /**
  * A small fraction of new weapons and armor are made eroded or erodeproof.
@@ -154,7 +157,12 @@ export function mksobjInit(
       break;
     case 'tool':
       // ref: mksobj_init() TOOL_CLASS (the tools of the subset)
-      if (def.id === 'nh:brass_lantern' || def.id === 'nh:oil_lamp') {
+      if (def.id === 'nh:tallow_candle' || def.id === 'nh:wax_candle') {
+        it.spe = 1;
+        it.age = 20 * def.cost; // 400 or 200 turns of light (lamplit stays off)
+        it.quantity = 1 + (rng.rn2(2) ? rng.rn2(7) : 0);
+        blessorcurse(rng, it, 5);
+      } else if (def.id === 'nh:brass_lantern' || def.id === 'nh:oil_lamp') {
         it.spe = 1;
         it.age = rng.rn2(500) + 1000; // rn1(500, 1000)
         blessorcurse(rng, it, 5);
@@ -340,7 +348,8 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * food, same monster for corpses. Differences in the known flags do not prevent merging (they
  * only would when blind or hallucinating, which is not implemented). Worn status does not
  * matter: a picked-up dagger joins the wielded stack, as in NetHack.
- * Not ported: grease, light, names, shop state, artifacts, eggs/tins, reviving corpses.
+ * Candles merge only when their ages are close. Not ported: grease, light, names, shop state,
+ * artifacts, eggs/tins, reviving corpses.
  */
 export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   const a = into.c.item;
@@ -356,8 +365,15 @@ export function mergable(defs: Registry, into: Entity, obj: Entity): boolean {
   if (erosionMatters(def) && (a.erodeproof ?? false) !== (b.erodeproof ?? false)) return false;
   if (def.class === 'food' && (a.eaten ?? 0) !== (b.eaten ?? 0)) return false;
   if (def.id === 'nh:corpse' && a.corpseOf !== b.corpseOf) return false;
+  // allow candle merging only if their ages are close
+  if (isCandle(def.id) && Math.trunc((a.age ?? 0) / 25) !== Math.trunc((b.age ?? 0) / 25))
+    return false;
   return true;
 }
+
+/** ref: include/obj.h Is_candle() */
+export const isCandle = (id: string): boolean =>
+  id === 'nh:tallow_candle' || id === 'nh:wax_candle';
 
 /**
  * Merges `obj` into `into` if they are mergable, removing `obj`; returns whether it did.

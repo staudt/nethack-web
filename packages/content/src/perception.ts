@@ -14,6 +14,7 @@ import {
 } from '@nh/core';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
 import { epriOf, priestName } from './epri';
+import { eshkOf, shkName } from './eshk';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
 function mix(...ns: number[]): number {
@@ -86,7 +87,8 @@ function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
 
 /**
  * A monster's name as a message param, as the hero perceives it: '@pronoun.it' when she can't see or
- * sense it (Monnam's "it"), a random monster while hallucinating, else '@<def>'. Use it with the
+ * sense it (Monnam's "it"), a random monster while hallucinating, a shopkeeper's proper name
+ * ('=Izchak'), else '@<def>'. Use it with the
  * `{mon|the}` / `{mon|The}` modifiers ("the newt", "It"). ref: src/do_name.c mon_nam(),
  * x_monnam()
  */
@@ -95,5 +97,7 @@ export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entit
   if (hasProp(getPlayer(ctx.state), P.HALLUC)) return `@${rndmonnam(ctx)}`;
   const epri = epriOf(ctx, mon.id);
   if (epri) return priestName(epri); // "the priest of Odin"
+  const eshk = eshkOf(ctx, mon.id);
+  if (eshk) return shkName(eshk); // "Izchak" (ref: x_monnam() isshk)
   return `@${mon.def}`;
 }

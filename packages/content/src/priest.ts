@@ -14,7 +14,6 @@ import {
   getPlayer,
   inBounds,
   inRooms,
-  inventoryOf,
   sortedIds,
   type Ctx,
   type Dir,
@@ -41,7 +40,8 @@ import {
 } from './epri';
 import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
 import { makemon, rlocPos } from './generation';
-import { addToInventory, removeFromInventory, splitStack } from './items';
+import { addToInventory } from './items';
+import { money2mon, money2u, moneyCnt } from './money';
 import { adjalign, setU, uState } from './luck';
 import { mkobj } from './mkobj';
 import { whichArmor } from './mongear';
@@ -332,29 +332,7 @@ export function registerPriest(api: ModApi): void {
 }
 
 // ---------------------------------------------------------------------------------------------
-// #chat with a priest: donations. ref: src/priest.c priest_talk(), src/minion.c bribe(),
-// src/shk.c money2mon(), money2u()
-
-/** The gold `id` carries. ref: src/invent.c money_cnt() */
-export function moneyCnt(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): number {
-  let n = 0;
-  for (const o of inventoryOf(ctx.state, id))
-    if (ctx.defs.object(o.def).class === 'coin') n += o.c.item?.quantity ?? 0;
-  return n;
-}
-
-/** Moves `amount` gold (no more than `from` has) to `to`'s inventory. ref: money2mon(), money2u() */
-function moneyTransfer(ctx: Ctx, from: EntityId, to: EntityId, amount: number): void {
-  for (const o of inventoryOf(ctx.state, from)) {
-    if (amount <= 0) return;
-    const q = o.c.item?.quantity ?? 0;
-    if (ctx.defs.object(o.def).class !== 'coin' || q <= 0) continue;
-    const moved = q <= amount ? o.id : splitStack(ctx, o.id, amount);
-    if (moved === o.id) removeFromInventory(ctx, o.id);
-    addToInventory(ctx, to, moved);
-    amount -= Math.min(q, amount);
-  }
-}
+// #chat with a priest: donations. ref: src/priest.c priest_talk(), src/minion.c bribe()
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit(params ? { type: 'msg', key, params } : { type: 'msg', key });
@@ -423,7 +401,7 @@ export function priestTalk(ctx: Ctx, id: EntityId): PriestOffer | null {
       if (pmoney > 0) {
         // Note: two bits is actually 25 cents.  Hmm.
         say(ctx, pmoney === 1 ? 'priest.ale_one' : 'priest.ale_two', { mon });
-        moneyTransfer(ctx, id, hero, pmoney > 1 ? 2 : 1);
+        money2u(ctx, id, pmoney > 1 ? 2 : 1);
       } else say(ctx, 'priest.poverty', { mon });
     } else say(ctx, 'priest.not_interested', { mon });
     return null;
@@ -471,7 +449,7 @@ export function priestDonate(ctx: Ctx, id: EntityId, answer: Json, ask: PriestOf
     say(ctx, 'bribe.all', { mon });
     offer = umoney;
   } else say(ctx, offer === 1 ? 'bribe.give_one' : 'bribe.give', { mon, n: offer });
-  if (offer > 0) moneyTransfer(ctx, hero, id, offer);
+  if (offer > 0) money2mon(ctx, id, offer);
 
   const left = moneyCnt(ctx, hero);
   if (offer === 0) {

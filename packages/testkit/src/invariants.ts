@@ -145,6 +145,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
   checkPriests(state, errs);
+  checkShopkeepers(state, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);
@@ -488,6 +489,45 @@ function checkPriests(state: GameState, errs: string[]): void {
       lv.shrines?.some((sp) => sp.x === x && sp.y === y) === true;
     if (intact && !inRooms(lv, p.x, p.y).includes(e.shroom))
       errs.push(`priest ${k} (peaceful, shrine intact) is outside his temple at ${p.x},${p.y}`);
+  }
+}
+
+/**
+ * Shopkeepers (`modData.nh.eshk`, keyed by monster id) are living monsters with a shop room on
+ * their shop level; one that is peaceful, not following the hero and on his shop level stands
+ * in his shop, its walls or its door (shk_move() keeps him by the door).
+ */
+function checkShopkeepers(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['eshk']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.eshk is not an object');
+    return;
+  }
+  const table = t as Record<string, unknown>;
+  for (const k of Object.keys(table).sort()) {
+    const mon = state.entities[k];
+    const e = table[k] as
+      | { shoproom?: number; shoplevel?: string; following?: boolean; shk?: Pos; shd?: Pos }
+      | undefined;
+    if (!mon?.c.monster) {
+      errs.push(`eshk: '${k}' is not a monster`);
+      continue;
+    }
+    const lv = e?.shoplevel === undefined ? undefined : state.levels[e.shoplevel];
+    const room = e?.shoproom === undefined ? undefined : lv?.rooms[e.shoproom];
+    if (!e || !lv || !room || !e.shk || !e.shd) {
+      errs.push(`eshk: shopkeeper ${k} has no shop level, room, spot or door`);
+      continue;
+    }
+    const p = mon.c.pos;
+    if (!mon.c.monster.peaceful || e.following || !p || p.level !== lv.id) continue;
+    if (!inRooms(lv, p.x, p.y).includes(e.shoproom ?? -1))
+      errs.push(`shopkeeper ${k} (peaceful, not following) is outside his shop at ${p.x},${p.y}`);
   }
 }
 

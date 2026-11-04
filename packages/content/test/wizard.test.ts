@@ -619,18 +619,31 @@ describe('wiz:genesis', () => {
 });
 
 describe('"Die?"', () => {
-  /** A 1 HP hero next to a hostile jackal: waits until she dies and "Die?" is asked. */
-  const dying = (seed: number): { state: GameState; events: GameEvent[]; jackal: number } => {
-    const state = warmGame(seed);
-    getPlayer(state).c.hp!.cur = 1;
-    // the jackal goes next to her via makemon's enexto(), like genesis
-    wizard.step(state, { type: 'mod', action: WIZ_GENESIS as DefId });
-    answerPrompt(state, 'hostile jackal');
-    const jackal = monsters(state).find((e) => e.def === 'nh:jackal')!;
-    expect(jackal).toBeDefined();
+  /**
+   * A 1 HP hero next to a hostile jackal: waits until she dies and "Die?" is asked, in the first
+   * game from seed `from` on where the jackal gets through within 200 turns (she regenerates).
+   */
+  const dying = (from: number): { state: GameState; events: GameEvent[]; jackal: number } => {
+    let state = warmGame(from);
+    let jackal = monsters(state)[0];
     const events: GameEvent[] = [];
-    for (let i = 0; i < 200 && !state.pendingPrompt; i++)
-      events.push(...wizard.step(state, { type: 'wait' }).events);
+    for (let seed = from; seed < from + 30; seed++) {
+      state = warmGame(seed);
+      getPlayer(state).c.hp!.cur = 1;
+      // the jackal goes next to her via makemon's enexto(), like genesis
+      wizard.step(state, { type: 'mod', action: WIZ_GENESIS as DefId });
+      answerPrompt(state, 'hostile jackal');
+      jackal = monsters(state).find((e) => e.def === 'nh:jackal')!;
+      expect(jackal).toBeDefined();
+      // nothing else moves
+      for (const m of monsters(state))
+        if (m !== jackal && m.c.actor && m.id !== state.playerId) m.c.actor.speed = 0;
+      events.length = 0;
+      for (let i = 0; i < 200 && !state.pendingPrompt; i++)
+        events.push(...wizard.step(state, { type: 'wait' }).events);
+      if (state.pendingPrompt) break;
+    }
+    if (!jackal) throw new Error('no jackal');
     expect(state.pendingPrompt?.prompt).toMatchObject({
       id: 'die',
       kind: 'yn',

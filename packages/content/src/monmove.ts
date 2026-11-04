@@ -44,6 +44,7 @@ import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
+import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
 import { T } from './terrain';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -299,8 +300,8 @@ function linedUp(level: Level, opaque: readonly boolean[], mon: Pos, hero: Pos):
 /**
  * The monster looks for an item it wants within a few squares and makes it its goal.
  * ref: src/monmove.c m_search_items(): closest first (a later one at equal distance wins),
- * only items in view that it would take and can carry; rocks are never worth a trip. Not ported:
- * shops, traps, scary squares, water, the immobile-monster-on-top check, mercenaries.
+ * only items in view that it would take and can carry; rocks are never worth a trip; in a shop
+ * it usually does not look (a shopkeeper never). Not ported: traps, scary squares, water, the immobile-monster-on-top check, mercenaries.
  * Returns whether it is already standing on one (MMOVE_DONE).
  */
 function mSearchItems(
@@ -314,6 +315,9 @@ function mSearchItems(
   const { m, pos } = monCount(ctx, id);
   let minr = SQSRCHRADIUS;
   if (distmin(heroPos.x, heroPos.y, pos.x, pos.y) < SQSRCHRADIUS && !m.peaceful) minr--;
+  // in shop, usually skip
+  if (inAnyShop(level, pos.x, pos.y) && (ctx.rng.rn2(25) !== 0 || eshkOf(ctx, id) !== null))
+    return false;
   // the objects of the level by cell, top of each pile first
   const piles = new Map<number, Entity[]>();
   for (const e of Object.values(ctx.state.entities)) {
@@ -373,14 +377,18 @@ export interface MoveSpecialOpts {
   appr: -1 | 0 | 1;
   avoid: boolean;
   goal: Pos;
+  /** A shopkeeper's move: whether he is in his shop, following the hero, she is on his door. */
+  shk?: { inHisShop: boolean; following: boolean; uondoor: boolean };
 }
 
 /**
- * A step for a priest (and later a shopkeeper) toward `goal`, on room squares only (never doors
- * or corridors, which keeps him in his room): with `avoid`, not onto a square lined up with the
- * hero, unless he stands lined up himself and cannot find one. The hero's own square is never
- * stepped onto (0). Returns 1 moved, 0 did not, -2 died.
- * ref: src/priest.c move_special() (no shopkeepers yet, no confusion, boulders or ALLOW_M)
+ * A step for a priest or a shopkeeper toward `goal`, on room squares only (never doors or
+ * corridors, which keeps him in his room; a shopkeeper out of his shop or following the hero
+ * goes anywhere): with `avoid`, not onto a square lined up with the hero; a priest who stands
+ * lined up himself and cannot find one gives up avoiding, and so does a shopkeeper with the hero
+ * on his door when every square is lined up. The hero's own square is never stepped onto (0).
+ * Returns 1 moved, 0 did not, -2 died.
+ * ref: src/priest.c move_special() (no confusion, boulders or ALLOW_M)
  */
 export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecialOpts): -2 | 0 | 1 {
   const { pos } = monCount(ctx, id);
@@ -396,10 +404,15 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
   let nix = omx;
   let niy = omy;
   let onHero = false;
+  const shk = o.shk;
+  // perhaps we cannot avoid him
+  if (shk && avoid && shk.uondoor && cands.every((c) => online2(c.x, c.y, heroPos.x, heroPos.y)))
+    avoid = false;
+  const anywhere = shk !== undefined && (!shk.inHisShop || shk.following);
   const pickMove = (): void => {
     let chcnt = 0;
     for (const c of cands) {
-      if (!isRoomCell(ctx, level, c.x, c.y)) continue;
+      if (!anywhere && !isRoomCell(ctx, level, c.x, c.y)) continue;
       // NOTONL: mfndpos() marks squares lined up with where the monster thinks the hero is
       if (avoid && online2(c.x, c.y, heroPos.x, heroPos.y)) continue;
       if ((!o.appr && !ctx.rng.rn2(++chcnt)) || (o.appr && gdist(c.x, c.y) < gdist(nix, niy))) {
@@ -410,7 +423,7 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
     }
   };
   pickMove();
-  if (avoid && nix === omx && niy === omy && online2(omx, omy, heroPos.x, heroPos.y)) {
+  if (!shk && avoid && nix === omx && niy === omy && online2(omx, omy, heroPos.x, heroPos.y)) {
     // might as well move closer as long it's going to stay lined up
     avoid = false;
     pickMove();
@@ -457,6 +470,47 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
 }
 
 /**
+ * A shopkeeper's move: -1 when he is not on his shop level, or angry or following the hero
+ * (the normal AI moves him until step 2/5 of 6b3 port those branches). Peaceful, he keeps to his
+ * spot by the door: within two squares of it he rests unless lined up with the hero (on the spot
+ * itself he wanders a little instead), and he steps out of her lines when she is in the shop and
+ * more than two squares from the spot. Returns as {@link moveSpecial}.
+ * ref: src/shk.c shk_move() (no damage repair, invisibility, steeds, holes, pick-axes or bills
+ * yet)
+ */
+export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
+  const { m, pos } = monCount(ctx, id);
+  const eshk = eshkOf(ctx, id);
+  if (!eshk || eshk.shoplevel !== pos.level || !m.peaceful || eshk.following) return -1;
+  const omx = pos.x;
+  const omy = pos.y;
+  let appr: -1 | 0 | 1 = 1;
+  let gtx = eshk.shk.x;
+  let gty = eshk.shk.y;
+  const satdoor = gtx === omx && gty === omy;
+  const uondoor = heroPos.x === eshk.shd.x && heroPos.y === eshk.shd.y;
+  const badinv = false; // (a pick-axe or mattock: 6b3 step 2)
+  const avoid = uondoor
+    ? !badinv
+    : uShops(ctx).length > 0 && dist2(gtx, gty, heroPos.x, heroPos.y) > 8;
+  const owed = eshk.robbed > 0 || eshk.bill.length > 0 || eshk.debit > 0;
+  if ((!owed || avoid) && dist2(omx, omy, gtx, gty) < 3) {
+    if (!badinv && !online2(omx, omy, heroPos.x, heroPos.y)) return 0;
+    if (satdoor) {
+      appr = 0;
+      gtx = 0;
+      gty = 0;
+    }
+  }
+  return moveSpecial(ctx, id, heroPos, {
+    appr,
+    avoid,
+    goal: { x: gtx, y: gty },
+    shk: { inHisShop: inhishop(ctx, id), following: eshk.following, uondoor },
+  });
+}
+
+/**
  * Chooses and performs one step. ref: src/monmove.c m_move() and postmov().
  * The goal is where the monster thinks the hero is (set_apparxy: the true position, since we
  * have no invisibility or displacement). appr is 1 (approach) for hostiles, -1 (flee) for
@@ -470,9 +524,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   const rules = cellRules(level, ctx.defs);
 
   // ref: m_move(): "likewise for shopkeeper, guard, or priest"; -1 (a priest outside his
-  // temple) goes on with the normal AI
-  if (epriOf(ctx, id)) {
-    const xm = priMove(ctx, id, heroPos);
+  // temple, a shopkeeper following the hero) goes on with the normal AI
+  if (epriOf(ctx, id) || eshkOf(ctx, id)) {
+    const xm = epriOf(ctx, id) ? priMove(ctx, id, heroPos) : shkMove(ctx, id, heroPos);
     if (xm === -2) return 'died';
     if (xm === 1) return postmovMoved(ctx, id, level, rules);
     if (xm === 0) return 'nothing';

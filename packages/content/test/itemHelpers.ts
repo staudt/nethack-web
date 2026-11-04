@@ -68,10 +68,14 @@ export function bareState(seed = 1): GameState {
   return s;
 }
 
-/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit; `{x|the}`, `{x|The}`, `{x|the_s}`, `{x|The_s}` as in the UI. */
+/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit; `{x|the}`, `{x|The}`, `{x|the_s}`, `{x|The_s}` as in the UI ('=Name' is a proper name). */
 export function render(msg: Msg | string, cat: Record<string, string> = messagesEn): string {
   if (typeof msg === 'string')
-    return msg.startsWith('@') ? render({ key: msg.slice(1) }, cat) : msg;
+    return msg.startsWith('@')
+      ? render({ key: msg.slice(1) }, cat)
+      : msg.startsWith('=')
+        ? msg.slice(1)
+        : msg;
   const tpl = cat[msg.key];
   if (tpl === undefined) throw new Error(`no message ${msg.key}`);
   const params: Params = msg.params ?? {};
@@ -81,6 +85,10 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
     if (mod === 'An') {
       if (/^[0-9]/.test(text)) return text;
       return `${/^[aeiou]/i.test(text) ? 'An' : 'A'} ${text}`;
+    }
+    if (mod !== undefined && typeof v === 'string' && v.startsWith('=')) {
+      // a proper name: no article
+      return mod.endsWith('_s') ? `${text}'s` : text;
     }
     if (mod !== undefined && mod !== 'an') {
       const pronoun = typeof v === 'string' && v.startsWith('@pronoun.');

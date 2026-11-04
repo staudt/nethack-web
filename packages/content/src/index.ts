@@ -27,6 +27,7 @@ import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
 import { registerRooms } from './rooms';
+import { registerShops } from './shknam';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -114,6 +115,7 @@ export const vanillaMod: Mod = {
     registerMklev(api);
     registerPriest(api); // before the LevelDef contents, as create_altar()
     registerSpLev(api);
+    registerShops(api); // after the LevelDef contents, as fill_special_room()
     registerRooms(api); // after the pets arrive, as goto_level()
   },
 };
@@ -290,16 +292,40 @@ export {
   templeOccupied,
   type Epri,
 } from './epri';
-export {
-  ghodHitsu,
-  intemple,
-  moneyCnt,
-  priestDonate,
-  priestTalk,
-  priestini,
-  templePriests,
-} from './priest';
+export { ghodHitsu, intemple, priestDonate, priestTalk, priestini, templePriests } from './priest';
 export type { PriestOffer } from './priest';
+export { moneyCnt, money2mon, money2u } from './money';
+export {
+  BILLSZ,
+  SHOPKEEPER,
+  SHOP_TYPES,
+  costlySpot,
+  eshkOf,
+  inhishop,
+  insideShop,
+  isShopType,
+  setEshk,
+  shkName,
+  shknameIsPname,
+  shopDoors,
+  shopKeeper,
+  uShops,
+  type BillEntry,
+  type Eshk,
+} from './eshk';
+export {
+  SHTYPES,
+  getShopItem,
+  nameshk,
+  saleable,
+  shkinit,
+  shopType,
+  stockRoom,
+  stockShops,
+  veggyItem,
+  type ShopItem,
+  type ShopType,
+} from './shknam';
 export { doVicinityMap, showMapSpot } from './detect';
 export { checkSpecialRoom } from './rooms';
 export { specialRoomsAt, uRooms } from './urooms';
@@ -368,6 +394,7 @@ export {
   minvent,
   mpickstuff,
   relobj,
+  forgetMonster,
 } from './mongear';
 export { xkilledCorpse, corpseChance, startCorpseTimeout, rnz, ROT_AGE } from './corpses';
 export { KICK_ACTIONS, KICK_ID, setWoundedLegs } from './dokick';

@@ -82,8 +82,8 @@ const spellbook = (
 });
 
 /**
- * A tool def. ref: include/objects.h TOOL(), CONTAINER(), EYEWEAR(): no merging (none of the
- * subset is mrg), no delay; `desc` is the fixed description of a tool that starts unidentified.
+ * A tool def. ref: include/objects.h TOOL(), CONTAINER(), EYEWEAR(): no merging (only the
+ * candles are mrg: `extra`), no delay; `desc` is the fixed description of a tool that starts unidentified.
  */
 const tool = (
   slug: string,
@@ -1319,8 +1319,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   // ref: objects.h WAND("lightning", "curved", 40, 175, 1, RAY, IRON, ...)
   wand('lightning', 40, 175, true, 'ray', 'iron', CYAN),
 
-  // ---- tools (TOOL_CLASS '('; never merge here; appearances are not shuffled, so the
-  // described ones carry a fixed descKey: "bag", "key", "lamp", "whistle") ----
+  // ---- tools (TOOL_CLASS '('; only candles merge; appearances are not shuffled, so the
+  // described ones carry a fixed descKey: "bag", "key", "candle", "lamp", "whistle") ----
   // ref: objects.h CONTAINER("large box", NoDes, 1, 0, 0, 40, 350, 8, WOOD, HI_WOOD, LARGE_BOX)
   tool('large_box', 40, 350, 8, 'wood', BROWN, false, null, {
     container: { capacity: null, box: true },
@@ -1347,6 +1347,11 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('lock_pick', 60, 4, 20, 'iron', CYAN, false, null),
   // ref: objects.h TOOL("credit card", NoDes, 1, 0, 0, 0, 15, 1, 10, PLASTIC, CLR_WHITE, CREDIT_CARD)
   tool('credit_card', 15, 1, 10, 'plastic', WHITE, false, null),
+  // candles merge (mergable(): only when their ages are close); they cannot be lit yet
+  // ref: objects.h TOOL("tallow candle", "candle", 0, 1, 0, 0, 20, 2, 10, WAX, CLR_WHITE, TALLOW_CANDLE)
+  tool('tallow_candle', 20, 2, 10, 'wax', WHITE, false, 'candle', { merge: true }),
+  // ref: objects.h TOOL("wax candle", "candle", 0, 1, 0, 0, 5, 2, 20, WAX, CLR_WHITE, WAX_CANDLE)
+  tool('wax_candle', 5, 2, 20, 'wax', WHITE, false, 'candle', { merge: true }),
   // ref: objects.h TOOL("brass lantern", NoDes, 1, 0, 0, 0, 30, 30, 12, COPPER, CLR_YELLOW, BRASS_LANTERN)
   tool('brass_lantern', 30, 30, 12, 'copper', YELLOW, false, null),
   // ref: objects.h TOOL("oil lamp", "lamp", 0, 0, 0, 0, 45, 20, 10, COPPER, CLR_YELLOW, OIL_LAMP)

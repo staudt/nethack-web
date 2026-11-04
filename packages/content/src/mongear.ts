@@ -29,6 +29,7 @@ import {
 import { doname, xnameOf } from './objnam';
 import { monFloorEffects } from './align';
 import { ALIGNED_CLERIC } from './epri';
+import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
@@ -99,7 +100,7 @@ export function setMonFlag(
 
 /** Forgets everything stored about a dead monster. */
 export function forgetMonster(ctx: Pick<GearCtx, 'state'>, id: EntityId): void {
-  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri']) {
+  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri', 'eshk']) {
     const t = flagTable(ctx, k, false);
     if (t) delete t[String(id)];
   }
@@ -158,7 +159,7 @@ export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId |
  */
 function burnWeapon(ctx: GearCtx): void {
   // (all three are iron, which matters for mkobj_erosions())
-  const dummy = { id: 'nh:none' as DefId, class: 'weapon' as const, material: 'iron' };
+  const dummy = { id: 'nh:none' as DefId, class: 'weapon' as const, material: 'iron', cost: 0 };
   const it = { quantity: 1, buc: 'uncursed', spe: 0 } as ItemComponent;
   mksobjInit(ctx, dummy, it);
 }
@@ -383,7 +384,16 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   // candle for gnomes (not in the table; not in the Mines), then the defensive and misc item
   // rolls (wands, potions and scrolls this port cannot choose yet): only the rolls are made
   if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
-  else if (def.id === ALIGNED_CLERIC) {
+  else if (def.id === SHOPKEEPER) {
+    // ref: m_initinv() S_HUMAN PM_SHOPKEEPER: a skeleton key, then from rn2(4) on (falling
+    // through): a wand of magic missile, a potion of extra healing, of healing, a wand of striking
+    mongets(ctx, monId, 'nh:skeleton_key');
+    const r = rng.rn2(4);
+    if (r <= 0) mongets(ctx, monId, 'nh:wand_of_magic_missile');
+    if (r <= 1) mongets(ctx, monId, 'nh:potion_of_extra_healing');
+    if (r <= 2) mongets(ctx, monId, 'nh:potion_of_healing');
+    mongets(ctx, monId, 'nh:wand_of_striking');
+  } else if (def.id === ALIGNED_CLERIC) {
     // ref: m_initinv() S_HUMAN MS_PRIEST: a robe (a cloak of protection or of magic resistance
     // 1 time in 7, which this port lacks: a robe then too, after C's roll), a small shield and
     // rn1(10, 20) gold
@@ -700,13 +710,20 @@ export function canCarry(
 
 /**
  * The monster picks up one item stack from the cell it stands on.
- * ref: src/mon.c mpickstuff(). Corpses are never picked up (none of the roster is a nymph or
+ * ref: src/mon.c mpickstuff(). A shopkeeper in his shop never picks up, and other monsters but
+ * pets rarely do in a shop. Corpses are never picked up (none of the roster is a nymph or
  * handles cockatrice or acidic corpses). The monster then wants to re-check its gear.
  */
 export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
   const { e, def } = monOf(ctx, monId);
   const pos = e.c.pos;
   if (!pos) return false;
+  // prevent shopkeepers from leaving the door of their shop
+  if (eshkOf(ctx, monId) && inhishop(ctx, monId)) return false;
+  // non-tame monsters normally don't go shopping
+  const level = ctx.state.levels[pos.level];
+  if (!e.c.monster?.tame && level && inAnyShop(level, pos.x, pos.y) && ctx.rng.rn2(25) !== 0)
+    return false;
   for (const o of itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)) {
     if (!monWouldTakeItem(ctx, monId, o)) continue;
     if (o.def === 'nh:corpse') continue;

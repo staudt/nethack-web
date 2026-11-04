@@ -28,6 +28,8 @@ import { askReallyAttack, needsAttackConfirm } from './peaceful';
 import { monflee } from './monflee';
 import { isFrozen } from './mstate';
 import { canSpotMon, monNam } from './perception';
+import { epriOf } from './epri';
+import { eshkOf } from './eshk';
 import { P, hasProp } from './props';
 import { T, setTerrain } from './terrain';
 import { luckOf } from './luck';
@@ -129,7 +131,19 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     ctx.interrupt();
     return 0;
   }
-  if (trapAt(level, from.x, from.y)) return stop('dog.doesnt_want_swap');
+  // ref: domove_swap_with_pet(): a peaceful monster won't be displaced onto a trapped square,
+  // and temple priests and shopkeepers not at all (mundisplaceable())
+  const undisplaceable = epriOf(ctx, mon.id) !== null || eshkOf(ctx, mon.id) !== null;
+  if (trapAt(level, from.x, from.y) || undisplaceable) {
+    if (tame) return stop('dog.doesnt_want_swap');
+    ctx.emit({
+      type: 'msg',
+      key: 'dog.doesnt_want_swap_peaceful',
+      params: { mon: monNam(ctx, mon) },
+    });
+    ctx.interrupt(); // nomul(0)
+    return 0;
+  }
   const mp = mon.c.pos;
   const hp = hero.c.pos;
   if (!mp || !hp) return 0;

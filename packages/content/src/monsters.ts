@@ -1162,6 +1162,47 @@ export const MONSTERS: readonly MonsterDef[] = [
     brain: 'nh:melee',
     sound: 'soldier',
   },
+  // ref: monsters.h MON(NAM("shopkeeper"), S_HUMAN, LVL(12, 16, 0, 50, 0), G_NOGEN,
+  // A(ATTK(AT_WEAP, AD_PHYS, 4, 4), ATTK(AT_WEAP, AD_PHYS, 4, 4)), SIZ(WT_HUMAN, 400, MS_SELL,
+  // MZ_HUMAN), M1_HUMANOID | M1_OMNIVORE, M2_NOPOLY | M2_HUMAN | M2_PEACEFUL | M2_STRONG |
+  // M2_COLLECT | M2_MAGIC, M3_INFRAVISIBLE, 15, HI_DOMESTIC). Always made by shkinit() with
+  // its shop.
+  {
+    id: 'nh:shopkeeper',
+    nameKey: 'nh:shopkeeper',
+    glyph: { ch: '@', fg: WHITE },
+    level: 12,
+    speed: 16,
+    ac: 0,
+    mr: 50,
+    alignment: 0,
+    attacks: [
+      { at: 'weapon', ad: 'phys', n: 4, d: 4 },
+      { at: 'weapon', ad: 'phys', n: 4, d: 4 },
+    ],
+    size: 'medium',
+    flags: [
+      'humanoid',
+      'omnivore',
+      'nopoly',
+      'human',
+      'peaceful',
+      'strong',
+      'collect',
+      'magic',
+      'infravisible',
+    ],
+    frequency: 0,
+    group: null,
+    genFlags: ['nogen'],
+    difficulty: 15,
+    weight: 1450,
+    nutrition: 400,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'sell',
+  },
   // ref: monsters.h MON(NAMS("priest", "priestess", "aligned cleric"), S_HUMAN,
   // LVL(12, 12, 10, 50, 0), G_NOGEN, ...). Always made by priestini() with its temple's
   // alignment; the AT_MAGC AD_CLRC attack is left out (no monster spellcasting yet).

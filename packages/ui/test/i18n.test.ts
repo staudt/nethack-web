@@ -16,6 +16,15 @@ describe('translate', () => {
   test('@ params are translated as keys', () => {
     expect(translate(cats, 'en', 'see', { what: '@nh:newt', n: 1 })).toBe('See newt x1');
   });
+  test('= params are proper names: no article under any modifier', () => {
+    const c: Catalogs = {
+      en: { a: '{m|The} waits.', b: 'You see {m|the}.', c: '{m|The_s} shop', d: '{m|an} {m}' },
+    };
+    expect(translate(c, 'en', 'a', { m: '=Izchak' })).toBe('Izchak waits.');
+    expect(translate(c, 'en', 'b', { m: '=Izchak' })).toBe('You see Izchak.');
+    expect(translate(c, 'en', 'c', { m: '=Izchak' })).toBe("Izchak's shop");
+    expect(translate(c, 'en', 'd', { m: '=Izchak' })).toBe('Izchak Izchak');
+  });
   test('missing keys, incl. nested, show [key] and warn once', () => {
     const w = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(translate(cats, 'en', 'nope.a')).toBe('[nope.a]');

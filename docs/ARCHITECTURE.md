@@ -30,7 +30,7 @@ interface Pos {
 }
 type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 interface Msg { key: string; params?: Params } // a message; item names nest inside sentences
-type Params = { [k: string]: string | number | Msg }; // '@key' strings are keys too
+type Params = { [k: string]: string | number | Msg }; // '@key' strings are keys too, '=Name' proper names
 type RngState = [number, number, number, number]; // sfc32
 interface ModRef {
   id: string;
@@ -374,6 +374,7 @@ The game stops at once (mid-turn, too) when `ctx.endGame` is called or a prompt 
 
 Messages are always keys plus params. English text lives in `content/src/messages.en.ts` and is loaded on the client side.
 A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie' } }` becomes "… You are a Valkyrie.".
+A string param that starts with `=` is a proper name (a shopkeeper's, 6b3): the UI prints the rest as is and the `|the`, `|The` and `|an` modifiers add no article (`{mon|The_s}` with `'=Izchak'` is "Izchak's").
 
 Due timers fire at the end of each turn, before the `endOfTurn` hooks, in `(at, seq)` order.
 
@@ -423,7 +424,7 @@ interface MonsterDef {
   resists: string[]; conveys: string[]; // mresists / mconveys, lowercased MR_ names: 'fire', 'cold', 'sleep', 'disint', 'elec', 'poison', 'acid', 'stone'
   weight: number; nutrition: number; // corpse cwt / cnutrit
   brain: DefId; // must name a registered BrainDef (checked after all mods load)
-  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | ... (MS_ names lowercased); absent = silent
+  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | ... (MS_ names lowercased); absent = silent
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass
