@@ -14,6 +14,7 @@ import {
   type Rng,
 } from '@nh/core';
 import { hitmuAd, mdamageu } from './mhitu';
+import { castmu } from './mcastu';
 import { monsterDied } from './mondeath';
 import { isFleeing, monflee } from './monflee';
 import { wakeup } from './peaceful';
@@ -448,6 +449,14 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   let prevHit = -1; // index of the previous attack if it hit (ref: hitmsg_prev)
   for (let i = 0; i < def.attacks.length; i++) {
     const atk = def.attacks[i];
+    if (atk?.at === 'magic') {
+      // ref: src/mhitu.c mattacku() AT_MAGC: next to the hero (range2 is false), so
+      // castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
+      castmu(ctx, monId, atk, true, true);
+      prevHit = -1;
+      if (ctx.state.gameOver) return;
+      continue;
+    }
     if (!atk || !MELEE_AT.has(atk.at)) continue; // other attack types: M3+
     // ref: src/mhitu.c mattacku() AT_WEAP: wield a weapon first if one is wanted (the move is
     // spent), then add the weapon's to-hit and announce the swing before rolling

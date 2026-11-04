@@ -1,12 +1,11 @@
 // Spellbooks: studying them and the spells the hero knows. Casting is in cast.ts.
 // ref: src/spell.c study_book(), learn(), cursed_book(), confused_book(), age_spells(),
-// dovspell(), spellretention(); src/read.c doread() (the spellbook branch); src/wizard.c
-// aggravate(); src/sit.c take_gold(); src/allmain.c stop_occupation()
+// dovspell(), spellretention(); src/read.c doread() (the spellbook branch) (aggravate() is in
+// mstate.ts); src/sit.c take_gold(); src/allmain.c stop_occupation()
 import {
   NORMAL_SPEED,
   getPlayer,
   inventoryOf,
-  sortedIds,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -22,7 +21,7 @@ import { erodeObj } from './erode';
 import { losehp, losestr } from './hp';
 import { nhData, removeFromInventory } from './items';
 import { useup } from './magic';
-import { unfreezeMonst, isFrozen } from './mstate';
+import { aggravate } from './mstate';
 import { nomul } from './nomul';
 import { discover, isKnown } from './o_init';
 import { P, hasProp, makeBlinded, makeConfused, timeoutLeft, wornIn } from './props';
@@ -98,18 +97,6 @@ const heroBook = (ctx: Pick<Ctx, 'state'>, id: unknown): Entity | null => {
 
 // ---------------------------------------------------------------------------------------------
 // failures
-
-/** ref: src/wizard.c aggravate(): wakes the monsters of the level (no Wizard's Tower here) */
-function aggravate(ctx: Ctx): void {
-  const level = hero(ctx).c.pos?.level;
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const m = e?.c.monster;
-    if (!e || !m || e.c.pos?.level !== level) continue;
-    m.asleep = false;
-    if (isFrozen(ctx, id) && !ctx.rng.rn2(5)) unfreezeMonst(ctx, id);
-  }
-}
 
 /** ref: src/sit.c take_gold() */
 function takeGold(ctx: Ctx): void {

@@ -180,6 +180,23 @@ function priestsOn(state: GameState, levelId: string): number[] {
   });
 }
 
+describe('College Town', () => {
+  test('has its two kobold shamans in every build (ref: dat/minetn-4.lua)', () => {
+    let builds = 0;
+    for (let seed = 1; seed <= 90 && builds < 6; seed++) {
+      const { state, level } = minetown(seed);
+      if (level.def !== 'nh:minetn-4') continue;
+      builds++;
+      const shamans = sortedIds(state).filter((id) => {
+        const e = state.entities[String(id)];
+        return e?.def === 'nh:kobold_shaman' && e.c.pos?.level === level.id;
+      });
+      expect(shamans, `seed ${seed}`).toHaveLength(2);
+    }
+    expect(builds).toBe(6);
+  });
+});
+
 describe('Minetown variants on bigger maps', () => {
   // The maps are 76 or fewer columns wide (Grotto 75) and Bustling's stair regions count from
   // the right edge: every variant must still build, centred, with its stairs where they belong.

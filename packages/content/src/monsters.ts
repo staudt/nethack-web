@@ -358,6 +358,30 @@ export const MONSTERS: readonly MonsterDef[] = [
     brain: 'nh:melee',
     sound: 'orc',
   },
+  // ref: monsters.h MON(NAM("kobold shaman"), S_KOBOLD, ...); HI_ZAP = CLR_BRIGHT_BLUE
+  {
+    id: 'nh:kobold_shaman',
+    nameKey: 'nh:kobold_shaman',
+    glyph: { ch: 'k', fg: BRIGHT_BLUE },
+    level: 2,
+    speed: 6,
+    ac: 6,
+    mr: 10,
+    alignment: -4,
+    attacks: [{ at: 'magic', ad: 'spel', n: 0, d: 0 }],
+    size: 'small',
+    flags: ['humanoid', 'pois', 'omnivore', 'hostile', 'magic', 'infravisible', 'infravision'],
+    frequency: 1,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 4,
+    weight: 450,
+    nutrition: 150,
+    resists: ['poison'],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'orc',
+  },
   // ref: monsters.h MON(NAM("gnome"), S_GNOME, ...)
   {
     id: 'nh:gnome',
@@ -407,7 +431,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     sound: 'orc',
   },
   // ref: monsters.h MON(NAM("gnomish wizard"), S_GNOME, ...); HI_ZAP = CLR_BRIGHT_BLUE. Its
-  // AT_MAGC AD_SPEL attack is not ported: it casts no spells (see DEVIATIONS.md).
+  // AT_MAGC AD_SPEL attack casts mage spells (mcastu.ts).
   {
     id: 'nh:gnomish_wizard',
     nameKey: 'nh:gnomish_wizard',

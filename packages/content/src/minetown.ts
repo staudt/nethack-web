@@ -3,7 +3,7 @@
 // Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) is not shipped, so the variant is
 // a roll among these six. `align[1]` (a shuffled alignment shared by the level) is `random` on the
 // one altar each variant has, which is the same thing. Shops and the temple are typed rooms but
-// stay empty and untended until 6b2/6b3. Monkeys, kobold shamans, nymphs and the gnome king
+// stay empty and untended until 6b2/6b3. Monkeys, nymphs and the gnome king
 // statue are skipped (no such monsters or objects yet). `des.room` levels without a level_init
 // start as dark stone, as makemaz() leaves the level before the lua runs.
 import type { LevelContent, LevelDef, RoomDef } from '@nh/core';
@@ -336,7 +336,7 @@ export const MINETN_3: LevelDef = {
   corridors: 'random',
 };
 
-/** "College Town". The kobold shamans are skipped. ref: dat/minetn-4.lua */
+/** "College Town". ref: dat/minetn-4.lua */
 export const MINETN_4: LevelDef = {
   id: 'nh:minetn-4',
   init: STONE,
@@ -416,8 +416,7 @@ export const MINETN_4: LevelDef = {
           w: 2,
           h: 2,
           doors: [{ state: 'locked', wall: 'south' }],
-          // des.monster("kobold shaman") x2 skipped
-          contents: [mon('kitten'), cls('f')],
+          contents: [mon('kobold_shaman'), mon('kobold_shaman'), mon('kitten'), cls('f')],
         },
         {
           type: 'nh:food_shop', // monkfoodshop()

@@ -24,6 +24,7 @@ import { clearPath } from './clearpath';
 
 export { clearPath };
 import { monsterAttack } from './combat';
+import { castmu } from './mcastu';
 import {
   canCarry,
   mDoWear,
@@ -38,7 +39,7 @@ import { P, heroHas } from './props';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
-import { isFrozen, isMConfused, isMStunned, setMConfused, setMStunned } from './mstate';
+import { isFrozen, isMConfused, isMStunned, mspecUsed, setMConfused, setMStunned } from './mstate';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
@@ -709,8 +710,9 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
  * monster attacks. A fleeing monster always tries to move (away from the hero) and attacks only
  * when it could not (cornered). A hostile monster next to the hero in her sanctuary is scared:
  * it flees and attacks only when it has nowhere to go (panicattk). A confused or stunned monster
- * moves (at random) and attacks only when it did not. Not ported: other scares (Elbereth),
- * invisibility, spellcasting, defensive/misc item use, special
+ * moves (at random) and attacks only when it did not. A spellcaster that is not attacking may
+ * cast an undirected spell instead of moving. Not ported: other scares (Elbereth),
+ * invisibility, defensive/misc item use, special
  * per-monster behavior. A pet's move is `petMove` (dog_move).
  */
 export function dochug(
@@ -786,40 +788,57 @@ export function dochug(
     (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
     m.peaceful
   ) {
-    // ref: m_move(): a trapped monster tries to get free first; still caught, it does not move
-    // (but may attack)
-    const caught = isMtrapped(ctx, id) ? mintrap(ctx, id) : 'finished';
-    if (trapRemovedMon(caught)) return;
-    if (caught !== 'caught') {
-      // ref: m_move(): a monster in the middle of a meal keeps eating (MMOVE_DONE)
-      const meal = meating(ctx, id);
-      if (meal) {
-        setMeating(ctx, id, meal - 1);
-        return;
+    // ref: dochug(): "Possibly cast an undirected spell if not attacking you" -- within 7
+    // squares ("to keep monster far away from you from having cast dozens of sticks-to-snakes");
+    // most of the time castmu() picks a directed spell and does nothing, so the monster moves
+    // normally. A cast bypasses m_move() (MMOVE_DONE), so it comes before the trap check.
+    if (!mspecUsed(ctx, id) && dist2(pos.x, pos.y, heroPos.x, heroPos.y) <= 49) {
+      for (const a of def.attacks) {
+        if (a.at !== 'magic' || (a.ad !== 'spel' && a.ad !== 'clrc')) continue;
+        if (castmu(ctx, id, a, false, false)) {
+          status = 'done';
+          break;
+        }
       }
-      // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
-      // pets are peaceful, so they never go on to attack the hero
-      if ((m.tame ?? 0) > 0) {
-        petMove(ctx, id);
-        return;
-      }
-      status = mMove(ctx, id, heroPos);
-      if (status === 'died') return;
+    }
+    if (status === 'done')
       distfleeck(); // recalc
-      if (status === 'nomoves' && scared) panicattk = true;
-      if (status === 'moved') {
-        // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
-        // is still not next to the hero uses its ranged attack
-        const np = ctx.state.entities[String(id)]?.c.pos;
-        if (
-          np &&
-          def.attacks.some((a) => a.at === 'weapon') &&
-          !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
-          dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM &&
-          !m.peaceful
-        )
-          mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
-        return;
+    else {
+      // ref: m_move(): a trapped monster tries to get free first; still caught, it does not move
+      // (but may attack)
+      const caught = isMtrapped(ctx, id) ? mintrap(ctx, id) : 'finished';
+      if (trapRemovedMon(caught)) return;
+      if (caught !== 'caught') {
+        // ref: m_move(): a monster in the middle of a meal keeps eating (MMOVE_DONE)
+        const meal = meating(ctx, id);
+        if (meal) {
+          setMeating(ctx, id, meal - 1);
+          return;
+        }
+        // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
+        // pets are peaceful, so they never go on to attack the hero
+        if ((m.tame ?? 0) > 0) {
+          petMove(ctx, id);
+          return;
+        }
+        status = mMove(ctx, id, heroPos);
+        if (status === 'died') return;
+        distfleeck(); // recalc
+        if (status === 'nomoves' && scared) panicattk = true;
+        if (status === 'moved') {
+          // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
+          // is still not next to the hero uses its ranged attack
+          const np = ctx.state.entities[String(id)]?.c.pos;
+          if (
+            np &&
+            def.attacks.some((a) => a.at === 'weapon') &&
+            !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
+            dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM &&
+            !m.peaceful
+          )
+            mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
+          return;
+        }
       }
     }
   }

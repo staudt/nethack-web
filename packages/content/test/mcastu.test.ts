@@ -1,0 +1,358 @@
+// m7a step 5: monster spellcasting (castmu) and the mage spells. Outcomes are found by searching
+// RNG offsets (burning draws before the cast, the same as a seed search) with pinned casters.
+import {
+  createEngine,
+  getPlayer,
+  inventoryOf,
+  type AttackDef,
+  type Ctx,
+  type EntityId,
+  type GameState,
+  type Mod,
+} from '@nh/core';
+import { describe, expect, test } from 'vitest';
+import { vanillaMod } from '../src/index';
+import { monsterAttack } from '../src/combat';
+import { MCAST_DATA, castmu, spellWouldBeUseless, type McastSpell } from '../src/mcastu';
+import { dochug } from '../src/monmove';
+import { mspeed, mspecUsed, setMspecUsed } from '../src/mstate';
+import { P, setIntrinsic } from '../src/props';
+import { addMon } from './helpers';
+import { defs, levelSetup, render } from './itemHelpers';
+
+const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
+const probeMod: Mod = {
+  id: 'mc-probe',
+  version: '1',
+  register(api) {
+    api.defineAction({
+      id: 'mc-probe:run',
+      labelKey: 'mc-probe',
+      handles: 'mod',
+      offer: () => [],
+      perform(ctx) {
+        probe.fn(ctx);
+        return 0;
+      },
+    });
+  },
+};
+const engine = createEngine([vanillaMod, probeMod]);
+
+/** Runs `fn` with a real Ctx (no time passes) and returns the message text. */
+function run(state: GameState, fn: (ctx: Ctx) => void): string[] {
+  probe.fn = fn;
+  const r = engine.step(state, { type: 'mod', action: 'mc-probe:run' });
+  return r.events.flatMap((e) =>
+    e.type === 'msg' ? [render({ key: e.key, ...(e.params ? { params: e.params } : {}) })] : [],
+  );
+}
+
+/**
+ * Every outcome of `fn` over the first `tries` RNG offsets: `fn` runs on a copy of `state`
+ * after `k` draws have been burnt.
+ */
+function outcomes(
+  state: GameState,
+  fn: (ctx: Ctx) => void,
+  tries = 300,
+): { k: number; state: GameState; text: string[] }[] {
+  const out = [];
+  for (let k = 0; k < tries; k++) {
+    const st = structuredClone(state);
+    const text = run(st, (ctx) => {
+      for (let i = 0; i < k; i++) ctx.rng.rn2(2);
+      fn(ctx);
+    });
+    out.push({ k, state: st, text });
+  }
+  return out;
+}
+
+const SPEL: AttackDef = { at: 'magic', ad: 'spel', n: 0, d: 0 };
+const SHAMAN = 'nh:kobold_shaman';
+
+/** A lit room with the hero at (3,3) and a pinned caster of level `ml` at (x,y). */
+function setup(ml: number, x = 4, y = 3, hp = 100) {
+  const s = levelSetup(['.........', '.........', '.........', '...@.....', '.........']);
+  const h = getPlayer(s.state);
+  if (h.c.hp) h.c.hp = { cur: 500, max: 500 };
+  const id = addMon(s.state, SHAMAN, x, y);
+  const e = s.state.entities[String(id)]!;
+  e.c.hp = { cur: hp, max: 100 };
+  e.c.actor!.speed = 0;
+  e.c.monster!.level = ml;
+  s.step({ type: 'wait' }); // see the level
+  return { s, id };
+}
+const heroHp = (st: GameState): number => getPlayer(st).c.hp?.cur ?? -1;
+const monHp = (st: GameState, id: EntityId): number => st.entities[String(id)]?.c.hp?.cur ?? -1;
+
+const PSI: [number, string][] = [
+  [5, 'You get a slight headache.'],
+  [10, 'Your brain is on fire!'],
+  [20, 'Your head suddenly aches painfully!'],
+  [Infinity, 'Your head suddenly aches very painfully!'],
+];
+const psiText = (dmg: number): string => PSI.find(([max]) => dmg <= max)?.[1] ?? '';
+
+describe('the kobold shaman', () => {
+  test('matches include/monsters.h', () => {
+    expect(defs.monster('nh:kobold_shaman' as never)).toMatchObject({
+      glyph: { ch: 'k', fg: '#5555ff' },
+      level: 2,
+      speed: 6,
+      ac: 6,
+      mr: 10,
+      alignment: -4,
+      attacks: [{ at: 'magic', ad: 'spel', n: 0, d: 0 }],
+      size: 'small',
+      frequency: 1,
+      difficulty: 4,
+      weight: 450,
+      nutrition: 150,
+      resists: ['poison'],
+    });
+  });
+
+  test('at level 2 every cast fumbles: the air crackles and the delay is set', () => {
+    const { s, id } = setup(2);
+    for (const o of outcomes(s.state, (ctx) => monsterAttack(ctx, id), 40)) {
+      expect(o.text).toEqual(['The air crackles around the kobold shaman.']);
+      expect(heroHp(o.state)).toBe(500);
+      expect(mspecUsed({ state: o.state }, id)).toBe(8); // 10 - m_lev
+    }
+  });
+});
+
+describe('castmu', () => {
+  test('psi bolt: d(ml/2 + 1, 6) damage with the damage-tier message', () => {
+    const { s, id } = setup(5);
+    const seen = new Set<string>();
+    let fumbles = 0;
+    for (const o of outcomes(s.state, (ctx) => monsterAttack(ctx, id))) {
+      if (o.text[0] === 'The air crackles around the kobold shaman.') {
+        fumbles++;
+        expect(heroHp(o.state)).toBe(500);
+        continue;
+      }
+      if (o.text[1] === undefined || (!o.text[1].includes('head') && !o.text[1].includes('brain')))
+        continue; // another spell
+      expect(o.text[0]).toBe('The kobold shaman casts a spell at you!');
+      const dmg = 500 - heroHp(o.state);
+      expect(dmg).toBeGreaterThanOrEqual(3);
+      expect(dmg).toBeLessThanOrEqual(18); // d(3, 6)
+      expect(o.text[1]).toBe(psiText(dmg));
+      expect(mspecUsed({ state: o.state }, id)).toBe(5);
+      seen.add(o.text[1]);
+    }
+    expect(fumbles).toBeGreaterThan(0);
+    expect([...seen].sort()).toEqual(
+      [psiText(5), psiText(10), psiText(20)].sort(), // d(3,6) never reaches 21
+    );
+  });
+
+  test('psi bolt with magic resistance does half (rounded up)', () => {
+    const { s, id } = setup(5);
+    setIntrinsic(getPlayer(s.state), P.ANTIMAGIC, true);
+    let n = 0;
+    for (const o of outcomes(s.state, (ctx) => monsterAttack(ctx, id))) {
+      if (!o.text[1]?.includes('head') && !o.text[1]?.includes('brain')) continue;
+      const dmg = 500 - heroHp(o.state);
+      expect(dmg).toBeGreaterThanOrEqual(2);
+      expect(dmg).toBeLessThanOrEqual(9);
+      expect(o.text[1]).toBe(psiText(dmg));
+      n++;
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  test('while the delay runs it points and curses; the delay counts down each turn', () => {
+    const { s, id } = setup(5);
+    run(s.state, (ctx) => setMspecUsed(ctx, id, 3));
+    expect(run(s.state, (ctx) => monsterAttack(ctx, id))).toEqual([
+      'The kobold shaman points at you, then curses.',
+    ]);
+    expect(heroHp(s.state)).toBe(500);
+    s.step({ type: 'wait' });
+    expect(mspecUsed({ state: s.state }, id)).toBe(2);
+    s.step({ type: 'wait' });
+    s.step({ type: 'wait' });
+    expect(mspecUsed({ state: s.state }, id)).toBe(0);
+    expect(s.state.modData['nh']).not.toHaveProperty(['mspecUsed', String(id)]);
+  });
+
+  test('an unseen caster in its delay mumbles a curse, sometimes', () => {
+    const { s, id } = setup(5);
+    setIntrinsic(getPlayer(s.state), P.BLINDED, true);
+    s.step({ type: 'wait' });
+    run(s.state, (ctx) => setMspecUsed(ctx, id, 5));
+    const texts = outcomes(s.state, (ctx) => monsterAttack(ctx, id), 40).map((o) => o.text);
+    for (const t of texts) expect(['', 'You hear a mumbled curse.']).toContain(t.join());
+    expect(texts.some((t) => t.join() === 'You hear a mumbled curse.')).toBe(true);
+    // `!(moves % 4) || !rn2(4)`: always on every 4th turn, else 1 time in 4
+    expect(texts.some((t) => t.length === 0)).toBe(s.state.turn % 4 !== 0);
+  });
+
+  test('cure self when hurt: undirected, heals d(3,6), no damage to the hero', () => {
+    const { s, id } = setup(3, 4, 3, 50);
+    const cures = outcomes(s.state, (ctx) => monsterAttack(ctx, id)).filter((o) =>
+      o.text.includes('The kobold shaman looks better.'),
+    );
+    expect(cures.length).toBeGreaterThan(0);
+    for (const o of cures) {
+      expect(o.text).toEqual([
+        'The kobold shaman casts a spell!',
+        'The kobold shaman looks better.',
+      ]);
+      const healed = monHp(o.state, id) - 50;
+      expect(healed).toBeGreaterThanOrEqual(3);
+      expect(healed).toBeLessThanOrEqual(18);
+      expect(heroHp(o.state)).toBe(500);
+    }
+  });
+
+  test('a hurt caster 5 squares away casts cure self instead of moving (dochug)', () => {
+    const { s, id } = setup(3, 8, 0, 50);
+    const all = outcomes(s.state, (ctx) => dochug(ctx, id));
+    const cures = all.filter((o) => o.text.includes('The kobold shaman looks better.'));
+    expect(cures.length).toBeGreaterThan(0);
+    for (const o of cures) {
+      expect(o.text[0]).toBe('The kobold shaman casts a spell!');
+      expect(o.state.entities[String(id)]?.c.pos).toMatchObject({ x: 8, y: 0 }); // MMOVE_DONE
+      expect(monHp(o.state, id)).toBeGreaterThan(50);
+    }
+    // never a directed spell from there: nothing but cure self, haste self or a fumble
+    for (const o of all)
+      for (const t of o.text)
+        expect([
+          'The kobold shaman casts a spell!',
+          'The kobold shaman looks better.',
+          'The kobold shaman is suddenly moving faster.',
+          'The air crackles around the kobold shaman.',
+        ]).toContain(t);
+  });
+
+  test('a caster at full health far away never casts cure self', () => {
+    const { s, id } = setup(1, 8, 0);
+    // level 1: rn2(1) is 0, so the choice is psi bolt (directed): nothing is cast
+    for (const o of outcomes(s.state, (ctx) => castmu(ctx, id, SPEL, false, false), 30)) {
+      expect(o.text).toEqual([]);
+      expect(mspecUsed({ state: o.state }, id)).toBe(0);
+    }
+  });
+
+  test('haste self only once', () => {
+    const { s, id } = setup(3);
+    const haste = outcomes(s.state, (ctx) => monsterAttack(ctx, id)).find((o) =>
+      o.text.includes('The kobold shaman is suddenly moving faster.'),
+    );
+    expect(haste?.text[0]).toBe('The kobold shaman casts a spell!');
+    const st = haste!.state;
+    expect(mspeed({ state: st }, id)).toBe('fast');
+    run(st, (ctx) => setMspecUsed(ctx, id, 0));
+    for (const o of outcomes(st, (ctx) => monsterAttack(ctx, id), 200))
+      expect(o.text).not.toContain('The kobold shaman is suddenly moving faster.');
+  });
+});
+
+describe('the higher mage spells (a level-forced caster)', () => {
+  /** The outcome whose text includes `msg`, at caster level `ml`. */
+  function find(ml: number, msg: string, prep: (s: ReturnType<typeof setup>) => void = () => {}) {
+    const st = setup(ml);
+    prep(st);
+    const o = outcomes(st.s.state, (ctx) => monsterAttack(ctx, st.id), 400).find((x) =>
+      x.text.includes(msg),
+    );
+    expect(o, msg).toBeDefined();
+    return { ...st, o: o! };
+  }
+
+  test('stun you: d(4,4) (Dex 12+) turns of stun', () => {
+    const { o } = find(4, 'You reel...');
+    expect(o.text[0]).toBe('The kobold shaman casts a spell at you!');
+    const h = getPlayer(o.state);
+    const left = (h.c.props?.[P.STUNNED]?.timeout ?? 0) - o.state.turn;
+    expect(left).toBeGreaterThanOrEqual(4);
+    expect(left).toBeLessThanOrEqual(16);
+  });
+
+  test('stun you with Free action: momentarily disoriented, 1 turn', () => {
+    const { o } = find(4, 'You feel momentarily disoriented.', ({ s }) =>
+      setIntrinsic(getPlayer(s.state), P.FREE_ACTION, true),
+    );
+    const h = getPlayer(o.state);
+    expect((h.c.props?.[P.STUNNED]?.timeout ?? 0) - o.state.turn).toBe(1);
+  });
+
+  test('weaken you: Str drops by 1..m_lev-6', () => {
+    const { s, o } = find(9, 'You suddenly feel weaker!');
+    const before = getPlayer(s.state).c.attributes?.str ?? 0;
+    const after = getPlayer(o.state).c.attributes?.str ?? 0;
+    expect(before - after).toBeGreaterThanOrEqual(1);
+    expect(before - after).toBeLessThanOrEqual(3);
+  });
+
+  test('curse items: "need some help" and the malignant aura curses carried items', () => {
+    const { s, o } = find(11, 'You feel as if you need some help.', ({ s }) => {
+      for (const e of inventoryOf(s.state, s.state.playerId))
+        if (e.c.item) e.c.item.buc = 'uncursed';
+    });
+    expect(o.text).toContain('You feel a malignant aura surround you.');
+    const cursed = (st: GameState) =>
+      inventoryOf(st, st.playerId).filter((e) => e.c.item?.buc === 'cursed').length;
+    expect(cursed(s.state)).toBe(0);
+    expect(cursed(o.state)).toBeGreaterThan(0);
+  });
+
+  test('aggravation wakes the sleeping monsters', () => {
+    let sleeper = 0;
+    const { o } = find(14, 'You feel that monsters are aware of your presence.', ({ s }) => {
+      sleeper = addMon(s.state, 'nh:jackal', 0, 0, { asleep: true });
+    });
+    expect(o.text[0]).toBe('The kobold shaman casts a spell!'); // undirected
+    expect(o.state.entities[String(sleeper)]?.c.monster?.asleep).toBe(false);
+  });
+
+  test('a level 20 caster never picks disappear, destroy armor, summon or the Wizard spells', () => {
+    const { s, id } = setup(20);
+    run(s.state, () => undefined);
+    const useless: McastSpell[] = [
+      'disappear',
+      'destry_armr',
+      'summon_mons',
+      'clone_wiz',
+      'death_touch',
+    ];
+    run(s.state, (ctx) => {
+      const mon = ctx.state.entities[String(id)]!;
+      for (const sp of useless) expect(spellWouldBeUseless(ctx, mon, sp)).toBe(true);
+    });
+    // every cast has a visible effect after "casts a spell": none of the no-op spells was chosen
+    let casts = 0;
+    for (const o of outcomes(s.state, (ctx) => monsterAttack(ctx, id))) {
+      const i = o.text.findIndex((t) => t.startsWith('The kobold shaman casts a spell'));
+      if (i < 0) continue;
+      casts++;
+      expect(o.text.length, o.text.join(' | ')).toBeGreaterThan(i + 1);
+    }
+    expect(casts).toBeGreaterThan(0);
+  });
+
+  test('the spell table follows include/mcastu.h', () => {
+    expect(MCAST_DATA.psi_bolt).toEqual({ level: 0, indirect: false, sight: true, hostile: true });
+    expect(MCAST_DATA.cure_self).toEqual({
+      level: 1,
+      indirect: true,
+      sight: false,
+      hostile: false,
+    });
+    expect(MCAST_DATA.aggravation).toEqual({
+      level: 13,
+      indirect: true,
+      sight: true,
+      hostile: true,
+    });
+    expect(MCAST_DATA.death_touch.level).toBe(20);
+  });
+});

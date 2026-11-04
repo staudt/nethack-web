@@ -1,19 +1,32 @@
-// Monster paralysis, stun and confusion. ref: include/monst.h mcanmove/mfrozen, mstun, mconf;
-// src/mon.c m_calcdistress() (the mfrozen countdown), src/monmove.c dochug() (un-stunning and
-// unconfusing)
+// Monster paralysis, stun, confusion, speed and the spellcasting delay. ref: include/monst.h
+// mcanmove/mfrozen, mstun, mconf, mspec_used; src/mon.c m_calcdistress() (the mfrozen countdown),
+// src/monmove.c dochug() (un-stunning and unconfusing), mon_regen() (the mspec_used countdown);
+// src/worn.c mon_adjust_speed(); src/wizard.c aggravate()
 //
 // MonsterComponent is core's, so the content mod keeps them in `modData.nh`:
 // `mfrozen: { [monsterId]: turns }` exists while the monster cannot move (mcanmove = 0), and
 // `mstun: { [monsterId]: true }` while it is stunned, `mconf: { [monsterId]: true }` while it is
 // confused, `mspeed: { [monsterId]: 'slow' | 'fast' }`
-// while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed).
-import { sortedIds, type Ctx, type EntityId, type Json, type ModApi } from '@nh/core';
+// while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed),
+// `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability).
+import {
+  cellIndex,
+  getPlayer,
+  isVisible,
+  sortedIds,
+  type Ctx,
+  type Entity,
+  type EntityId,
+  type Json,
+  type ModApi,
+} from '@nh/core';
+import { monNam } from './perception';
 
 type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed';
+type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -103,7 +116,78 @@ export function setMspeed(ctx: Pick<Ctx, 'state'>, id: EntityId, v: MSpeed): voi
   }
 }
 
-const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed'];
+/**
+ * ref: src/worn.c mon_adjust_speed() for +1 / -1: MSLOW and MFAST cancel each other; the change
+ * is told when seen, and `seen` runs then (a wand's learnwand()).
+ */
+export function monAdjustSpeed(
+  ctx: Ctx,
+  mon: Entity,
+  adjust: 1 | -1,
+  seen: () => void = () => undefined,
+): void {
+  const old = mspeed(ctx, mon.id);
+  const now = adjust > 0 ? (old === 'slow' ? null : 'fast') : old === 'fast' ? null : 'slow';
+  setMspeed(ctx, mon.id, now);
+  const def = ctx.defs.monster(mon.def);
+  if (
+    now !== old &&
+    def.speed > 0 &&
+    !isFrozen(ctx, mon.id) &&
+    !mon.c.monster?.asleep &&
+    canseemon(ctx, mon)
+  ) {
+    // fast to slow (skipping the intermediate state) or vice versa
+    const much = old !== null && now !== null ? { key: 'zap.much' } : '';
+    ctx.emit({
+      type: 'msg',
+      key: adjust > 0 || now === 'fast' ? 'zap.mon_faster' : 'zap.mon_slower',
+      params: { mon: monNam(ctx, mon), much },
+    });
+    seen();
+  }
+}
+
+/** ref: canseemon(): the monster's square is in view (there is no invisibility here) */
+function canseemon(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
+  const p = mon.c.pos;
+  if (!p || p.level !== ctx.state.currentLevel) return false;
+  const level = ctx.state.levels[p.level];
+  return level !== undefined && isVisible(ctx.state, cellIndex(level, p.x, p.y));
+}
+
+/** `mtmp->mspec_used`: turns before it can cast a spell again (0 when it can). */
+export function mspecUsed(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
+  const v = table(ctx, 'mspecUsed', false)?.[String(id)];
+  return typeof v === 'number' ? v : 0;
+}
+
+export function setMspecUsed(ctx: Pick<Ctx, 'state'>, id: EntityId, n: number): void {
+  if (n > 0) {
+    const t = table(ctx, 'mspecUsed', true);
+    if (t) t[String(id)] = n;
+  } else {
+    const t = table(ctx, 'mspecUsed', false);
+    if (t) delete t[String(id)];
+  }
+}
+
+/**
+ * Wakes the monsters of the hero's level; a paralysed one moves again 1 time in 5. No Wizard's
+ * Tower and no monster strategies here. ref: src/wizard.c aggravate()
+ */
+export function aggravate(ctx: Ctx): void {
+  const level = getPlayer(ctx.state).c.pos?.level;
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    const m = e?.c.monster;
+    if (!e || !m || e.c.pos?.level !== level) continue;
+    m.asleep = false;
+    if (isFrozen(ctx, id) && !ctx.rng.rn2(5)) unfreezeMonst(ctx, id);
+  }
+}
+
+const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed', 'mspecUsed'];
 
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
@@ -114,11 +198,20 @@ export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 }
 
 /**
- * The paralysis timers count down once a turn (ref: m_calcdistress(): `if (mtmp->mfrozen &&
+ * The spellcasting delays and the paralysis timers count down once a turn (ref: m_calcdistress():
+ * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mfrozen &&
  * !--mtmp->mfrozen) mtmp->mcanmove = 1;`); entries of monsters that no longer exist go.
  */
 export function registerMState(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
+    const su = table(ctx, 'mspecUsed', false);
+    if (su) {
+      for (const key of Object.keys(su).sort()) {
+        const v = su[key];
+        if (typeof v !== 'number' || v - 1 <= 0) delete su[key];
+        else su[key] = v - 1;
+      }
+    }
     const t = table(ctx, 'mfrozen', false);
     if (t) {
       for (const id of sortedIds(ctx.state)) {

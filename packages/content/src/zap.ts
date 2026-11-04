@@ -5,8 +5,8 @@
 // zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
 // flashburn(); src/lock.c doorlock(), boxlock(), obstructed(); src/trap.c openholdingtrap(),
 // closeholdingtrap(), openfallingtrap(); src/detect.c findit(), findone(); src/makemon.c
-// create_critters(); src/worn.c mon_adjust_speed(); src/mhitm.c sleep_monst(), slept_monst();
-// src/potion.c speed_up(); src/mhitu.c u_slow_down()
+// create_critters(); src/mhitm.c sleep_monst(), slept_monst();
+// src/potion.c speed_up(); src/mhitu.c u_slow_down() (mon_adjust_speed() is in mstate.ts)
 //
 // Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
@@ -50,7 +50,7 @@ import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { checkCapacity, useupall } from './magic';
 import { heroSees, minvent } from './mongear';
-import { isFrozen, mspeed, setMspeed } from './mstate';
+import { isFrozen, monAdjustSpeed, mspeed } from './mstate';
 import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { doname, xnameOf } from './objnam';
@@ -198,32 +198,6 @@ export function learnwand(ctx: Ctx, wand: Entity): void {
 /** learnwand() for a source: spells are suppressed, so casting never discovers a book. */
 function learn(ctx: Ctx, src: ZapSource): void {
   if (src.kind === 'wand') learnwand(ctx, src.item);
-}
-
-/**
- * ref: src/worn.c mon_adjust_speed() for +1 / -1: MSLOW and MFAST cancel each other; the change
- * is told when seen (which identifies the wand).
- */
-function monAdjustSpeed(ctx: Ctx, mon: Entity, adjust: 1 | -1, src: ZapSource): void {
-  const old = mspeed(ctx, mon.id);
-  const now = adjust > 0 ? (old === 'slow' ? null : 'fast') : old === 'fast' ? null : 'slow';
-  setMspeed(ctx, mon.id, now);
-  const def = ctx.defs.monster(mon.def);
-  if (
-    now !== old &&
-    def.speed > 0 &&
-    !isFrozen(ctx, mon.id) &&
-    !mon.c.monster?.asleep &&
-    canseemon(ctx, mon)
-  ) {
-    // fast to slow (skipping the intermediate state) or vice versa
-    const much = old !== null && now !== null ? { key: 'zap.much' } : '';
-    say(ctx, adjust > 0 || now === 'fast' ? 'zap.mon_faster' : 'zap.mon_slower', {
-      mon: monNam(ctx, mon),
-      much,
-    });
-    learn(ctx, src);
-  }
 }
 
 /** ref: src/potion.c speed_up() */
@@ -530,10 +504,10 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       break;
     }
     case WAN.slow:
-      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, -1, src);
+      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, -1, () => learn(ctx, src));
       break;
     case WAN.speed:
-      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, 1, src);
+      if (!resist(ctx, mon, 0)) monAdjustSpeed(ctx, mon, 1, () => learn(ctx, src));
       helpful = true; // wake but don't anger a peaceful target
       break;
     case WAN.locking: {

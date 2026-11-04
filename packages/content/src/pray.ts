@@ -1,6 +1,7 @@
 // Prayer. ref: src/pray.c dopray(), can_pray(), in_trouble(), worst_cursed_item(),
 // fix_worst_trouble(), fix_curse_trouble(), pleased(), angrygods(), gods_upset(), godvoice(),
-// god_zaps_you(), fry_by_god(), prayer_done(), water_prayer(); src/sit.c rndcurse(), attrcurse()
+// god_zaps_you(), fry_by_god(), prayer_done(), water_prayer(); src/sit.c attrcurse() (rndcurse()
+// is in sit.ts)
 //
 // The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
 // prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
@@ -28,6 +29,7 @@ import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
 import { hcolor } from './magic';
 import { wakeNearto } from './noise';
 import { nomul, unmulNow } from './nomul';
+import { rndcurse } from './sit';
 import { xnameOf } from './objnam';
 import {
   P,
@@ -254,22 +256,6 @@ function attrcurse(ctx: Ctx): boolean {
     return true;
   }
   return false;
-}
-
-/** ref: src/sit.c rndcurse(): "You feel a malignant aura surround you." and up to 6 curses */
-function rndcurse(ctx: Ctx): void {
-  say(ctx, 'pray.malignant_aura');
-  const items = inventoryOf(ctx.state, ctx.state.playerId).filter(
-    (o) => ctx.defs.object(o.def).class !== 'coin',
-  );
-  let cnt = ctx.rng.rnd(6);
-  if (items.length === 0) return;
-  for (; cnt > 0; cnt--) {
-    const otmp = items[ctx.rng.rnd(items.length) - 1];
-    const it = otmp?.c.item;
-    if (!it || it.buc === 'cursed') continue;
-    it.buc = it.buc === 'blessed' ? 'uncursed' : 'cursed';
-  }
 }
 
 /** ref: src/pray.c fry_by_god() */

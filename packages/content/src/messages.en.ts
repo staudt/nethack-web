@@ -24,6 +24,7 @@ import { spellMessagesEn } from './spell.en';
 import { priestMessagesEn } from './priest.en';
 import { chatMessagesEn } from './chat.en';
 import { shkMessagesEn } from './shk.en';
+import { mcastuMessagesEn } from './mcastu.en';
 import { wizardMessagesEn } from './wizard/wizard.en';
 
 export const messagesEn: Record<string, string> = {
@@ -53,6 +54,7 @@ export const messagesEn: Record<string, string> = {
   ...priestMessagesEn,
   ...chatMessagesEn,
   ...shkMessagesEn,
+  ...mcastuMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',
@@ -189,6 +191,7 @@ export const messagesEn: Record<string, string> = {
   'nh:kobold': 'kobold',
   'nh:large_kobold': 'large kobold',
   'nh:kobold_lord': 'kobold lord',
+  'nh:kobold_shaman': 'kobold shaman',
   'nh:gnome': 'gnome',
   'nh:gnome_lord': 'gnome lord',
   'nh:gnomish_wizard': 'gnomish wizard',
