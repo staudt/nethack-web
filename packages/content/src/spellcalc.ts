@@ -65,6 +65,9 @@ export const ROLE_SPELL: Readonly<Record<DefId, RoleSpell>> = {
   },
 };
 
+/** The energy a spell of that level costs. ref: include/spell.h SPELL_LEV_PW() */
+export const spellLevPw = (level: number): number => level * 5;
+
 /** ref: src/spell.c uarmhbon, uarmgbon, uarmfbon */
 const UARMHBON = 4; // Metal helmets interfere with the mind
 const UARMGBON = 6; // Casting channels through the hands

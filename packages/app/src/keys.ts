@@ -28,6 +28,7 @@ const SELF_KEYS: [string, string][] = [
   [',', 'nh:pickup'],
   ['\\', 'nh:discoveries'],
   ['+', 'nh:spells'],
+  ['Z', 'nh:cast'],
   ['x', 'nh:swap_weapon'],
   ['Ctrl+d', 'nh:kick'],
   ['D', 'nh:drop_many'],

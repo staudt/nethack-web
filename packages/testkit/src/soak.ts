@@ -543,6 +543,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         (o) =>
           !isMod(o.action, 'nh:discoveries') &&
           !isMod(o.action, 'nh:spells') &&
+          // casting comes to the bot with the rest of milestone 7a
+          !isMod(o.action, 'nh:cast') &&
           !isMod(o.action, 'nh:drop_many') &&
           !isMod(o.action, 'nh:swap_weapon') &&
           !isMod(o.action, 'nh:enhance') &&

@@ -13,10 +13,13 @@ export const heroEntity = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.sta
 /** ref: include/hack.h EXT_ENCUMBER (Overtaxed) in near_capacity() terms */
 const EXT_ENCUMBER = 4;
 
-/** ref: src/hack.c check_capacity(): "You can't do that while carrying so much stuff." */
-export function checkCapacity(ctx: Ctx): boolean {
+/**
+ * ref: src/hack.c check_capacity(): "You can't do that while carrying so much stuff.", or the
+ * message `key` given.
+ */
+export function checkCapacity(ctx: Ctx, key = 'magic.cant_do_that'): boolean {
   if (nearCapacity(ctx.state, ctx.defs, ctx.state.playerId) >= EXT_ENCUMBER) {
-    ctx.emit({ type: 'msg', key: 'magic.cant_do_that' });
+    ctx.emit({ type: 'msg', key });
     return true;
   }
   return false;

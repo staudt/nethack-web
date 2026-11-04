@@ -90,7 +90,7 @@ const worn = (ctx: Ctx, slot: string): Entity | null =>
   inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === slot) ?? null;
 
 /** ref: src/do_wear.c freehand(): a hand is free unless welded to a two-hander or a cursed shield */
-function freehand(ctx: Ctx): boolean {
+export function freehand(ctx: Ctx): boolean {
   const w = worn(ctx, 'weapon');
   if (!w || !weldedWeapon(ctx)) return true;
   const shield = worn(ctx, 'shield');

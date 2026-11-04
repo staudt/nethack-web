@@ -1,4 +1,4 @@
-// Spellbooks: studying them and the spells the hero knows. Casting is not ported.
+// Spellbooks: studying them and the spells the hero knows. Casting is in cast.ts.
 // ref: src/spell.c study_book(), learn(), cursed_book(), confused_book(), age_spells(),
 // dovspell(), spellretention(); src/read.c doread() (the spellbook branch); src/wizard.c
 // aggravate(); src/sit.c take_gold(); src/allmain.c stop_occupation()
@@ -74,7 +74,7 @@ const levelOf = (def: ObjectDef): number => def.spellbook?.level ?? 0;
 const spellName = (id: DefId): Msg => ({ key: `spell.name.${id}` });
 
 /** ref: spell.c spellet(): a..z then A..Z */
-const spellet = (i: number): string =>
+export const spellet = (i: number): string =>
   i < 26 ? String.fromCharCode(97 + i) : String.fromCharCode(65 + i - 26);
 
 const studied = (ctx: Pick<Ctx, 'state'>, id: EntityId): number =>
@@ -475,6 +475,24 @@ export function spellRetention(ctx: Pick<Ctx, 'state'>, s: KnownSpell): Msg {
 }
 
 /**
+ * One row of the spell menus: letter, name, level, school, fail rate and retention.
+ * ref: src/spell.c dospellmenu() (SPELLMENU_VIEW and SPELLMENU_CAST rows)
+ */
+export function spellEntry(ctx: Ctx, s: KnownSpell, i: number): Msg {
+  return {
+    key: 'spell.entry',
+    params: {
+      letter: spellet(i),
+      spell: spellName(s.id),
+      level: levelOf(ctx.defs.object(s.id)),
+      school: { key: spellSchoolKey(s.id) },
+      fail: 100 - percentSuccess(ctx.state, ctx.defs, s.id),
+      retention: spellRetention(ctx, s),
+    },
+  };
+}
+
+/**
  * `+`: lists the known spells with their level, school, failure rate and retention. Viewing only
  * (no reordering). ref: src/spell.c dovspell(), dospellmenu(SPELLMENU_VIEW)
  */
@@ -493,19 +511,7 @@ const spellsAction: ActionDef = {
       return 0;
     }
     const items: Msg[] = [{ key: 'spell.header' }];
-    spells.forEach((s, i) => {
-      items.push({
-        key: 'spell.entry',
-        params: {
-          letter: spellet(i),
-          spell: spellName(s.id),
-          level: levelOf(ctx.defs.object(s.id)),
-          school: { key: spellSchoolKey(s.id) },
-          fail: 100 - percentSuccess(ctx.state, ctx.defs, s.id),
-          retention: spellRetention(ctx, s),
-        },
-      });
-    });
+    spells.forEach((s, i) => items.push(spellEntry(ctx, s, i)));
     ctx.emit({ type: 'list', titleKey: 'spell.known_title', items });
     return 0;
   },

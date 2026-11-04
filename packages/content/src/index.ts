@@ -48,6 +48,7 @@ import { LOOT_ACTIONS } from './container';
 import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
+import { registerCast } from './cast';
 import { DUNGEONS, LEVELS } from './dungeon';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
@@ -83,6 +84,7 @@ export const vanillaMod: Mod = {
     registerLock(api);
     registerLight(api);
     registerSpells(api);
+    registerCast(api);
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -166,8 +168,9 @@ export {
   regenPw,
   MAXULEV,
 } from './hero';
-export { pwOf, setPw, type Pw } from './uenergy';
-export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt } from './spellcalc';
+export { pwOf, setPw, uspellOf, setUspell, type Pw, type USpell } from './uenergy';
+export { CAST_ID, CAST_ACTIONS, spelleffects, castProtection } from './cast';
+export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt, spellLevPw } from './spellcalc';
 export { messagesEn } from './messages.en';
 export { ITEM_ACTIONS, lookHere, encumberMsg } from './itemactions';
 export { nomul } from './nomul';
