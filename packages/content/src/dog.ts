@@ -25,6 +25,8 @@ import { P, heroHas } from './props';
 import { ustuck, setUstuck } from './hackmove';
 import { mintrap } from './trap';
 import { isMtrapped } from './trapstate';
+import { eshkOf } from './eshk';
+import { makeHappyShk } from './shk';
 
 /** ref: include/dog.h dogfood() results, best first */
 export const DOGFOOD = 0;
@@ -318,7 +320,8 @@ export function hurtPet(ctx: Ctx, id: EntityId, fleetime: number, destroyed: boo
 /**
  * Food or magic makes the monster peaceful, and tame if it can be; a pet catches and eats thrown
  * food it likes. Returns true when the food was eaten (it is gone) or the monster was just
- * tamed. ref: src/dog.c tamedog() (no full moon, scrolls of taming, shopkeepers or minions)
+ * tamed; a shopkeeper is only made happy. ref: src/dog.c tamedog() (no full moon, scrolls of taming
+ * or minions)
  */
 export function tamedog(
   ctx: Ctx,
@@ -369,6 +372,11 @@ export function tamedog(
     if (m.tame < ctx.rng.rnd(10)) m.tame++;
     return false;
   }
+  // pacify angry shopkeeper but don't tame him
+  if (eshkOf(ctx, id)) {
+    makeHappyShk(ctx, id);
+    return false;
+  }
   if (
     isFrozen(ctx, id) ||
     def.flags.includes('human') ||
@@ -388,10 +396,11 @@ export function tamedog(
 
 /**
  * Whether the monster follows the hero to another level when next to her.
- * ref: src/mon.c levl_follower(): pets always; stalkers unless fleeing
+ * ref: src/mon.c levl_follower(): pets and a shopkeeper following her always; stalkers unless
+ * fleeing
  */
 function levlFollower(ctx: Ctx, mon: Entity): boolean {
-  if (isTame(mon)) return true;
+  if (isTame(mon) || eshkOf(ctx, mon.id)?.following) return true; // is_fshk()
   const def = ctx.defs.monster(mon.def);
   return def.flags.includes('stalk') && !isFleeing(ctx, mon.id);
 }

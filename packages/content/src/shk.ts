@@ -1,21 +1,26 @@
 // Shopkeeping: what happens as the hero comes into a shop and leaves it, and the bill: picking up
 // shop goods puts them on it, putting them back takes them off, using them up keeps them there;
-// selling what she drops, charging for what she throws or kicks out and for using unpaid goods
-// (6b3 steps 2-4; robbery comes in step 5). Never import actions, itemactions, monmove, combat,
-// peaceful, chat, priest or dothrow here: they import this module.
+// selling what she drops, charging for what she throws or kicks out and for using unpaid goods;
+// robbery, his anger and making up, and what he says when she chats with him (6b3 steps 2-5).
+// Never import actions, itemactions, monmove, combat, peaceful, chat, priest, dothrow or rooms
+// here: they import this module.
 // ref: src/shk.c u_entered_shop(), u_left_shop(), deserted_shop(), pacify_shk(), shkname(),
 // addtobill(), add_one_tobill(), bill_box_content(), billable(), picked_container(),
 // dropped_container(), sub_one_frombill(), subfrombill(), obfree(), shk_names_obj(),
 // append_honorific(), sellobj_state(), sellobj(), check_credit(), pay(), rouse_shk(),
 // find_objowner(), costly_adjacent(), stolen_container(), stolen_value(), cost_per_charge(),
-// check_unpaid_usage(); src/mkobj.c costly_alteration(), bill_dummy_object(); src/invent.c
-// count_contents(); src/dothrow.c check_shop_obj(); src/role.c Hello()
+// check_unpaid_usage(), rob_shop(), call_kops(), setpaid(), clear_unpaid(), clear_no_charge(),
+// hot_pursuit(), rile_shk(), make_happy_shk(), make_happy_shoppers(), home_shk(),
+// make_angry_shk(), shkgone(), shk_chat(), shop_object(), price_quote(), shk_embellish();
+// src/mkobj.c costly_alteration(), bill_dummy_object(); src/invent.c count_contents();
+// src/dothrow.c check_shop_obj(); src/role.c Hello(); src/dog.c losedogs() (dismiss_kops)
 //
 // Not ported: invisible heroes and steeds (neither exists), deafness and mute keepers, the
 // pick-axe (no such object: only the dwarvish mattock is checked), the shop achievement, globs,
 // gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
-// donate_gold(); DEVIATIONS), price quotes (record_price_quote()), special_stock() (no
-// Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers yet).
+// donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
+// (no Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
+// yet), Keystone Kops (call_kops() only sounds the alarm; DEVIATIONS), remote_burglary().
 import {
   NORMAL_SPEED,
   contents,
@@ -52,11 +57,13 @@ import {
   type BillEntry,
   type Eshk,
 } from './eshk';
+import { mnextoPos } from './generation';
 import { isCandle } from './items';
+import { adjalign, uState } from './luck';
 import { money2mon, money2u, moneyCnt } from './money';
 import { isFrozen, unfreezeMonst } from './mstate';
 import { discover, isKnown } from './o_init';
-import { paydoname, xnameOf, zorkmids } from './objnam';
+import { doname, paydoname, xnameOf, zorkmids } from './objnam';
 import { canSpotMon } from './perception';
 import {
   containedCost,
@@ -72,6 +79,7 @@ import {
 import { P, hasProp } from './props';
 import { SHTYPES, saleable, shopType } from './shtypes';
 import { emptyShops, setEmptyShops, setURooms, uRooms } from './urooms';
+import { angryGuards, pacifyGuards } from './watch';
 
 const MATTOCK = 'nh:dwarvish_mattock';
 
@@ -260,9 +268,10 @@ function isEdge(level: Level, x: number, y: number): boolean {
 
 /**
  * The hero was in a shop before her last move (u.ushops0) and `left` are the shops she has left.
- * Stepping from the floor onto the door with an unpaid bill or debt gets a warning. Leaving with
- * them (robbery) comes in step 5. `from`: her square before the move (u.ux0/u.uy0), when known.
- * ref: src/shk.c u_left_shop()
+ * Stepping from the floor onto the door with an unpaid bill or debt gets a warning (unless he is
+ * asleep or paralysed); leaving with them is robbery and sounds the alarm. `from`: her square
+ * before the move (u.ux0/u.uy0), when known. `newlev`: she is leaving the level (the caller has
+ * the old level current). ref: src/shk.c u_left_shop()
  */
 export function uLeftShop(
   ctx: Ctx,
@@ -284,17 +293,17 @@ export function uLeftShop(
   const e = shk === null ? null : eshkOf(ctx, shk);
   if (shk === null || !e || !inhishop(ctx, shk)) return; // shk died, teleported, changed levels...
   if (e.bill.length === 0 && e.debit === 0) return; // bill is settled
-  if (left.length === 0) {
-    // C falls through to rob_shop() for a mute keeper here; nothing is robbed until step 5
-    if (helpless(ctx, shk)) return;
+  if (left.length === 0 && !helpless(ctx, shk)) {
     // Player just stepped onto shop-boundary: try to intimidate him into paying his bill
+    // (a mute keeper cannot, and she has robbed him)
     ctx.emit({
       type: 'msg',
       key: e.surcharge ? 'shk.dont_leave' : 'shk.pay_before_leaving',
       params: { name: plname(ctx) },
     });
+    return;
   }
-  // rob_shop() and call_kops(): step 5
+  if (robShop(ctx, shk, e)) callKops(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1231,7 +1240,8 @@ export function stolenValue(
         });
       else ctx.emit({ type: 'msg', key: 'shk.thief_scream' });
     }
-    // hot_pursuit(shkp) and angry_guards(): step 5
+    hotPursuit(ctx, shk);
+    angryGuards(ctx, false);
   }
   return value;
 }
@@ -1312,4 +1322,516 @@ export function hiddenGold(ctx: Pick<Ctx, 'state' | 'defs'>): number {
   for (const o of inventoryOf(ctx.state, ctx.state.playerId))
     n += containedGold(ctx.state, ctx.defs, o);
   return n;
+}
+
+// ---------------------------------------------------------------------------------------------
+// robbery, anger and making up
+
+/** His pronouns as message params. ref: noit_mhis(), noit_mhe(), noit_mhim() */
+export function shkPronouns(e: Eshk): { his: string; he: string; him: string } {
+  return e.female
+    ? { his: '@shk.pron.her', he: '@shk.pron.she', him: '@shk.pron.her' }
+    : { his: '@shk.pron.his', he: '@shk.pron.he', him: '@shk.pron.him' };
+}
+
+/** What the bill comes to. ref: src/shk.c addupbill() */
+export function addupbill(e: Eshk): number {
+  let total = 0;
+  for (const bp of e.bill) total += bp.price * bp.bquan;
+  return total;
+}
+
+/** ref: Role_if(PM_ROGUE): stealing is lawful for a Rogue */
+const isRogue = (ctx: Ctx): boolean => getPlayer(ctx.state).c.player?.role === 'nh:rogue';
+
+/** The sign of the hero's alignment type. ref: sgn(u.ualign.type) */
+const alignSgn = (ctx: Ctx): number => Math.sign(uState(ctx.state).alignType);
+
+/** The item entities, in id order. */
+function allItems(ctx: Ctx): Entity[] {
+  const out: Entity[] = [];
+  for (const id of sortedIds(ctx.state)) {
+    const o = ctx.state.entities[String(id)];
+    if (o?.c.item) out.push(o);
+  }
+  return out;
+}
+
+/**
+ * Clears no_charge on the floor objects of the hero's level (and what they hold): with `shk`,
+ * only those in his shop, outside any shop or in a deserted one; with null, all of them.
+ * ref: src/shk.c clear_no_charge(), clear_no_charge_obj() (no buried objects)
+ */
+function clearNoCharge(ctx: Ctx, shk: EntityId | null): void {
+  const level = getLevel(ctx.state);
+  for (const o of allItems(ctx)) {
+    const it = o.c.item;
+    if (!it?.noCharge) continue;
+    const top = topContainer(ctx.state, o);
+    const p = top.c.item?.carriedBy === null ? top.c.pos : undefined;
+    if (!p || p.level !== level.id) continue; // OBJ_FLOOR or OBJ_CONTAINED on this level only
+    const rno = shopRoomAt(level, p.x, p.y);
+    const resident = rno === undefined ? null : residentOf(ctx, level, rno);
+    if (shk === null || resident === null || resident === shk) delete it.noCharge;
+  }
+}
+
+/** The shopkeeper of room `rno` while he is on its level. ref: rooms[].resident */
+function residentOf(ctx: Ctx, level: Level, rno: number): EntityId | null {
+  const shk = shopKeeper(ctx, level.id, rno);
+  return shk !== null && ctx.state.entities[String(shk)]?.c.pos?.level === level.id ? shk : null;
+}
+
+/** Clears no_charge on what the hero's pets carry. ref: src/shk.c clear_no_charge_pets() */
+function clearNoChargePets(ctx: Ctx): void {
+  for (const o of allItems(ctx)) {
+    const it = o.c.item;
+    if (!it?.noCharge) continue;
+    const top = topContainer(ctx.state, o);
+    const by = top.c.item?.carriedBy;
+    const m = by === null || by === undefined ? undefined : ctx.state.entities[String(by)];
+    if (m?.c.monster?.tame && m.c.pos?.level === ctx.state.currentLevel) delete it.noCharge;
+  }
+}
+
+/**
+ * She paid, left the shop or he died: nothing is unpaid to him any more, the no-charge goods in
+ * his shop are his again, and the bill (used-up goods too), credit and debt are gone.
+ * ref: src/shk.c setpaid(), clear_unpaid()
+ */
+export function setpaid(ctx: Ctx, shk: EntityId): void {
+  for (const o of allItems(ctx))
+    if (o.c.item?.unpaid && onbill(ctx, o.id, shk)) delete o.c.item.unpaid;
+  clearNoCharge(ctx, shk);
+  const e = eshkOf(ctx, shk);
+  if (!e) return;
+  e.bill = [];
+  e.credit = 0;
+  e.debit = 0;
+}
+
+/** Makes him angry and puts the anger surcharge on the bill. ref: src/shk.c rile_shk() */
+export function rileShk(ctx: Ctx, shk: EntityId): void {
+  const m = ctx.state.entities[String(shk)]?.c.monster;
+  const e = eshkOf(ctx, shk);
+  if (m) m.peaceful = false; // make angry
+  if (e && !e.surcharge) {
+    e.surcharge = true;
+    for (const bp of e.bill) bp.price += Math.trunc((bp.price + 2) / 3);
+  }
+}
+
+/**
+ * He goes after the hero: angry, following her (off the level too), and every floor object on
+ * the level is fair game again ("shopkeeper networking"). ref: src/shk.c hot_pursuit()
+ */
+export function hotPursuit(ctx: Ctx, shk: EntityId): void {
+  const e = eshkOf(ctx, shk);
+  if (!e) return;
+  rileShk(ctx, shk);
+  e.customer = true;
+  e.following = true;
+  clearNoCharge(ctx, null);
+  clearNoChargePets(ctx);
+}
+
+/**
+ * She left the shop with goods or a debt: paid from her credit, or robbery: "You escaped the shop
+ * without paying!", "You stole N zorkmids worth of merchandise.", alignment and hot pursuit.
+ * Returns whether he was robbed. ref: src/shk.c rob_shop()
+ */
+function robShop(ctx: Ctx, shk: EntityId, e: Eshk): boolean {
+  const mon = ctx.state.entities[String(shk)];
+  if (mon) rouseShk(ctx, mon, e);
+  let total = addupbill(e) + e.debit;
+  if (e.credit >= total) {
+    ctx.emit({
+      type: 'msg',
+      key: 'shk.credit_covers',
+      params: { n: e.credit, zm: zorkmids(e.credit) },
+    });
+    total = 0; // credit gets cleared by setpaid()
+  } else {
+    ctx.emit({ type: 'msg', key: 'shk.escaped' });
+    total -= e.credit;
+  }
+  setpaid(ctx, shk);
+  if (!total) return false;
+  // by this point, we know an actual robbery has taken place
+  e.robbed += total;
+  ctx.emit({ type: 'msg', key: 'shk.stole', params: { n: total, zm: zorkmids(total) } });
+  if (!isRogue(ctx)) adjalign(ctx, -alignSgn(ctx)); // stealing is unlawful
+  hotPursuit(ctx, shk);
+  return true;
+}
+
+/**
+ * "An alarm sounds!": the Watch turns on her, or "But no one seems to respond to it." No Keystone
+ * Kops (DEVIATIONS). ref: src/shk.c call_kops()
+ */
+function callKops(ctx: Ctx): void {
+  ctx.emit({ type: 'msg', key: 'shk.alarm' });
+  if (!angryGuards(ctx, false)) ctx.emit({ type: 'msg', key: 'shk.no_one_responds' });
+}
+
+/** A shopkeeper on the hero's level is angry. ref: src/shk.c angry_shk_exists() */
+function angryShkExists(ctx: Ctx): boolean {
+  for (const id of sortedIds(ctx.state)) {
+    const m = ctx.state.entities[String(id)];
+    if (m?.c.monster && m.c.pos?.level === ctx.state.currentLevel && eshkOf(ctx, id))
+      if (!m.c.monster.peaceful) return true;
+  }
+  return false;
+}
+
+/** With no angry shopkeeper left, the Watch calms down. ref: src/shk.c make_happy_shoppers() */
+export function makeHappyShoppers(ctx: Ctx): void {
+  if (!angryShkExists(ctx)) pacifyGuards(ctx); // (no Kops to send away)
+}
+
+/** No monster (nor the hero) stands on x,y of the level. */
+function spotFree(ctx: Ctx, levelId: string, x: number, y: number): EntityId | true {
+  for (const id of sortedIds(ctx.state)) {
+    const p = ctx.state.entities[String(id)]?.c.pos;
+    if (p?.level === levelId && p.x === x && p.y === y && !ctx.state.entities[String(id)]?.c.item)
+      return id;
+  }
+  return true;
+}
+
+/**
+ * Puts him on his spot on his shop level: a monster standing there is moved next to it; with the
+ * hero there, he goes next to it. ref: src/mon.c mnearto(move_other = TRUE)
+ */
+function putHome(ctx: Ctx, shk: EntityId, e: Eshk): void {
+  const mon = ctx.state.entities[String(shk)];
+  const level = ctx.state.levels[e.shoplevel];
+  if (!mon?.c.pos || !level) return;
+  const { x, y } = e.shk;
+  if (mon.c.pos.level === level.id && mon.c.pos.x === x && mon.c.pos.y === y) return;
+  const other = spotFree(ctx, level.id, x, y);
+  let to: Pos | null = { x, y };
+  if (other === ctx.state.playerId) to = mnextoPos(ctx, level, shk, e.shk);
+  else if (other !== true) {
+    const o = ctx.state.entities[String(other)];
+    const away = mnextoPos(ctx, level, other, e.shk);
+    if (o?.c.pos && away) o.c.pos = { level: level.id, x: away.x, y: away.y };
+    else to = mnextoPos(ctx, level, shk, e.shk);
+  }
+  if (!to) return;
+  mon.c.pos = { level: level.id, x: to.x, y: to.y };
+}
+
+/**
+ * She is in his shop's rooms but not counted in it (she came in while he was away): with him
+ * back, her shop occupancy is checked again and he greets her.
+ * ref: src/shk.c after_shk_move() -> check_special_room(FALSE) (the shop half; rooms.ts has
+ * the whole, which imports this module)
+ */
+function afterHome(ctx: Ctx, shk: EntityId, e: Eshk): void {
+  if (ctx.state.gameOver || e.shoplevel !== ctx.state.currentLevel) return;
+  const rooms = uRooms(ctx);
+  const ushops0 = uShops(ctx);
+  if (!rooms.includes(e.shoproom) || ushops0.includes(e.shoproom) || !inhishop(ctx, shk)) return;
+  const level = getLevel(ctx.state);
+  const ushops = rooms.filter((r) => isShopType(level.rooms[r]?.type));
+  setURooms(ctx, rooms, ushops);
+  const entered = ushops.find((r) => !ushops0.includes(r));
+  if (entered !== undefined) uEnteredShop(ctx, entered);
+}
+
+/**
+ * He is paid off (or tamed): peaceful, no longer following or robbed, and back to his shop:
+ * "Izchak returns to his shop." on his level, "Satisfied, Izchak suddenly disappears!" from
+ * another one (he is put straight back on his spot: levels persist), or "Izchak calms down." in
+ * his shop. ref: src/shk.c make_happy_shk(), home_shk()
+ */
+export function makeHappyShk(ctx: Ctx, shk: EntityId): void {
+  const mon = ctx.state.entities[String(shk)];
+  const e = eshkOf(ctx, shk);
+  if (!mon?.c.monster || !e) return;
+  const wasmad = !mon.c.monster.peaceful;
+  pacifyShk(ctx, shk, false);
+  e.following = false;
+  e.robbed = 0;
+  if (!isRogue(ctx)) adjalign(ctx, alignSgn(ctx));
+  if (!inhishop(ctx, shk)) {
+    const name = shkname(ctx, e);
+    let vanished = canSpotMon(ctx, mon); // canseemon()
+    if (e.shoplevel === ctx.state.currentLevel) {
+      putHome(ctx, shk, e); // home_shk()
+      afterHome(ctx, shk, e);
+      if (canSpotMon(ctx, mon)) {
+        ctx.emit({
+          type: 'msg',
+          key: 'shk.returns_home',
+          params: { shk: shkname(ctx, e), his: shkPronouns(e).his },
+        });
+        vanished = false; // don't give 'Shk disappears' message
+      }
+    } else {
+      // arrive at his shop (C migrates him near its door); the Watch there calms down when the
+      // hero next arrives
+      putHome(ctx, shk, e);
+      e.dismissKops = true;
+    }
+    if (vanished) ctx.emit({ type: 'msg', key: 'shk.disappears', params: { shk: name } });
+  } else if (wasmad)
+    ctx.emit({ type: 'msg', key: 'shk.calms_down', params: { shk: shkname(ctx, e) } });
+  makeHappyShoppers(ctx);
+}
+
+/**
+ * Her pending transactions are past due: the bill, debt and credit become robbery, "Izchak gets
+ * angry!" (or "is furious!") and he goes after her. For a keeper teleported or fallen out of his
+ * shop, or damage done from outside it (no caller yet: no such teleports or damage).
+ * ref: src/shk.c make_angry_shk()
+ */
+export function makeAngryShk(ctx: Ctx, shk: EntityId): void {
+  const mon = ctx.state.entities[String(shk)];
+  const e = eshkOf(ctx, shk);
+  if (!mon?.c.monster || !e) return;
+  if (e.bill.length || e.debit || e.credit) {
+    e.robbed = Math.max(0, e.robbed + addupbill(e) + e.debit - e.credit);
+    setpaid(ctx, shk);
+  }
+  ctx.emit({
+    type: 'msg',
+    key: mon.c.monster.peaceful ? 'shk.gets_angry' : 'shk.is_furious',
+    params: { shk: shkname(ctx, e) },
+  });
+  hotPursuit(ctx, shk);
+}
+
+/**
+ * The shopkeeper dies (call before his Eshk is dropped): on his level the goods on his shop's
+ * floor are ordinary objects again and, when the hero is in his shop, her bill is void and she
+ * counts as in no shop. ref: src/shk.c shkgone() (no damage list)
+ */
+export function shkgone(ctx: Ctx, shk: EntityId): void {
+  const e = eshkOf(ctx, shk);
+  if (!e || e.shoplevel !== ctx.state.currentLevel) return;
+  const level = getLevel(ctx.state);
+  const r = level.rooms[e.shoproom];
+  if (!r) return;
+  // items on shop floor revert to ordinary objects
+  for (const o of allItems(ctx)) {
+    const p = o.c.pos;
+    if (o.c.item?.carriedBy !== null || !p || p.level !== level.id) continue;
+    if (p.x >= r.lx && p.x <= r.hx && p.y >= r.ly && p.y <= r.hy) delete o.c.item.noCharge;
+  }
+  // make sure bill is set only when the dead shk is the resident shk
+  const ushops = uShops(ctx);
+  if (ushops.includes(e.shoproom)) {
+    setpaid(ctx, shk);
+    setURooms(
+      ctx,
+      uRooms(ctx),
+      ushops.filter((x) => x !== e.shoproom),
+    );
+  }
+}
+
+/**
+ * On arrival on a level: a shopkeeper paid off elsewhere and sent home here takes his Kops away
+ * (none exist), so the Watch calms down if no shopkeeper is angry. ref: src/dog.c losedogs()
+ * (dismiss_kops)
+ */
+export function shkArrivals(ctx: Ctx, levelId: string): void {
+  let dismiss = false;
+  for (const id of sortedIds(ctx.state)) {
+    const e = eshkOf(ctx, id);
+    const m = ctx.state.entities[String(id)];
+    if (!e || !m?.c.monster || m.c.pos?.level !== levelId) continue;
+    if (e.dismissKops) {
+      delete e.dismissKops;
+      dismiss = true;
+    }
+  }
+  if (dismiss) makeHappyShoppers(ctx);
+}
+
+/** The turn of the last "Didn't you forget to pay?". ref: gf.followmsg */
+export function followmsg(ctx: Pick<Ctx, 'state'>): number {
+  const nh = ctx.state.modData['nh'];
+  const v = nh !== null && typeof nh === 'object' && !Array.isArray(nh) ? nh['followmsg'] : 0;
+  return typeof v === 'number' ? v : 0;
+}
+
+export function setFollowmsg(ctx: Pick<Ctx, 'state'>, turn: number): void {
+  const md = ctx.state.modData;
+  let nh = md['nh'];
+  if (nh === null || typeof nh !== 'object' || Array.isArray(nh)) {
+    nh = {};
+    md['nh'] = nh;
+  }
+  nh['followmsg'] = turn;
+}
+
+// ---------------------------------------------------------------------------------------------
+// chatting
+
+const IZCHAK_SPEAKS = 9;
+
+/**
+ * What he says when she chats with him: his anger, "Didn't you forget to pay?" while following
+ * her, the bill, debt or credit, the robbery, the surcharge, business, or small talk (Izchak's
+ * sayings). ref: src/shk.c shk_chat() (no deafness or mute keepers)
+ */
+export function shkChat(ctx: Ctx, shk: EntityId): void {
+  const mon = ctx.state.entities[String(shk)];
+  const e = eshkOf(ctx, shk);
+  if (!mon?.c.monster) return;
+  const say = (key: string, params: Params = {}): void => ctx.emit({ type: 'msg', key, params });
+  if (!e) {
+    // a shopkeeper type that is no shopkeeper (an animated statue)
+    say('shk.chat.untended_shops', { mon: `@${mon.def}` });
+    return;
+  }
+  const shkn = shkname(ctx, e);
+  const pr = shkPronouns(e);
+  if (!mon.c.monster.peaceful) {
+    say('shk.chat.dislikes', {
+      shk: shkn,
+      he: pr.he,
+      which: e.robbed ? '@shk.chat.non_paying' : '@shk.chat.rude',
+    });
+  } else if (e.following) {
+    // (the customer is always this hero: no "I was looking for")
+    say('shk.chat.forget_to_pay', { hello: hello(ctx), name: plname(ctx) });
+  } else if (e.bill.length) {
+    const total = addupbill(e) + e.debit;
+    say('shk.chat.bill', { shk: shkn, n: total, zm: zorkmids(total) });
+  } else if (e.debit) {
+    say('shk.chat.debit', { shk: shkn, him: pr.him, n: e.debit, zm: zorkmids(e.debit) });
+  } else if (e.credit) {
+    say('shk.chat.credit', { shk: shkn, n: e.credit, zm: zorkmids(e.credit) });
+  } else if (e.robbed) {
+    say('shk.chat.robbery', { shk: shkn });
+  } else if (e.surcharge) {
+    say('shk.chat.watching', { shk: shkn, he: pr.he });
+  } else {
+    const shkmoney = moneyCnt(ctx, shk);
+    if (shkmoney < 50) say('shk.chat.business_bad', { shk: shkn });
+    else if (shkmoney > 4000) say('shk.chat.business_good', { shk: shkn });
+    else if (!hasProp(getPlayer(ctx.state), P.HALLUC) && shkName(e) === '=Izchak')
+      say(`shk.chat.izchak.${ctx.rng.rn2(IZCHAK_SPEAKS)}`, { shk: shkn });
+    else say('shk.chat.shoplifters', { shk: shkn });
+  }
+}
+
+/**
+ * Something other than gold lies on x,y, a costly spot of a shop whose keeper is there, peaceful
+ * and awake: he will quote its price. ref: src/shk.c shop_object()
+ */
+export function shopObject(ctx: Ctx, x: number, y: number): Entity | null {
+  const level = getLevel(ctx.state);
+  const rno = shopRoomAt(level, x, y);
+  const shk = rno === undefined ? null : shopKeeper(ctx, level.id, rno);
+  if (shk === null || !inhishop(ctx, shk)) return null;
+  const otmp = itemsAt(ctx.defs, ctx.state, level.id, x, y).find(
+    (o) => ctx.defs.object(o.def).class !== 'coin',
+  );
+  const peaceful = !!ctx.state.entities[String(shk)]?.c.monster?.peaceful;
+  return otmp && costlySpot(ctx, x, y) && peaceful && !helpless(ctx, shk) ? otmp : null;
+}
+
+/** ", a real bargain." and the like after a quoted price. ref: src/shk.c shk_embellish() */
+function shkEmbellish(ctx: Ctx, itm: Entity, cost: number): string {
+  if (!ctx.rng.rn2(3)) {
+    let choice = ctx.rng.rn2(5);
+    if (choice === 0) choice = cost < 100 ? 1 : cost < 500 ? 2 : 3;
+    switch (choice) {
+      case 4: {
+        if (cost < 10) break;
+        const def = ctx.defs.object(itm.def);
+        const o = def.class;
+        if (o === 'food') return '@shk.emb.gourmet';
+        if (
+          isKnown(ctx.state, ctx.defs, def)
+            ? !!def.magic
+            : o === 'amulet' ||
+              o === 'ring' ||
+              o === 'wand' ||
+              o === 'potion' ||
+              o === 'scroll' ||
+              o === 'spellbook'
+        )
+          return '@shk.emb.developed';
+        return '@shk.emb.craftsmanship';
+      }
+      case 3:
+        return '@shk.emb.finest';
+      case 2:
+        return '@shk.emb.excellent';
+      case 1:
+        return '@shk.emb.bargain';
+      default:
+        break;
+    }
+  }
+  return '@shk.emb.plain';
+}
+
+/**
+ * He tells her the price of everything on her square (not gold): one object in a sentence
+ * ("Tallow candle, price 13 zorkmids, a real bargain."), several in a list ("Fine goods for
+ * sale:"). ref: src/shk.c price_quote() (no balls, chains or globs)
+ */
+export function priceQuote(ctx: Ctx, first: Entity): void {
+  const hp = getPlayer(ctx.state).c.pos;
+  const level = getLevel(ctx.state);
+  const room = hp ? insideShop(level, hp.x, hp.y) : null;
+  const shk = room === null ? null : shopKeeper(ctx, level.id, room);
+  const e = shk === null ? null : eshkOf(ctx, shk);
+  if (shk === null || !e || !inhishop(ctx, shk) || !hp) return;
+  const lines: { key: string; params: Params }[] = [];
+  let cost = 0;
+  let contentsonly = false;
+  for (const o of itemsAt(ctx.defs, ctx.state, level.id, hp.x, hp.y)) {
+    if (ctx.defs.object(o.def).class === 'coin') continue;
+    cost = o.c.item?.noCharge ? 0 : getCost(ctx.state, ctx.defs, o, e);
+    contentsonly = !cost;
+    if (contents(ctx.state, o.id).length > 0)
+      cost += containedCost(ctx.state, ctx.defs, o, e, 0, false, true, false);
+    const item = doname(ctx.state, ctx.defs, o, { noPrice: true });
+    if (!cost) {
+      contentsonly = false;
+      lines.push({ key: 'shk.quote.line', params: { item, price: '@shk.quote.no_charge' } });
+    } else {
+      const price = {
+        key: 'shk.quote.price',
+        params: {
+          n: cost,
+          zm: zorkmids(cost),
+          each: (o.c.item?.quantity ?? 1) > 1 ? '@shk.each' : '',
+        },
+      };
+      lines.push({
+        key: contentsonly ? 'shk.quote.line_contents' : 'shk.quote.line',
+        params: { item, price },
+      });
+    }
+  }
+  if (lines.length > 1) {
+    ctx.emit({ type: 'list', titleKey: 'shk.quote.title', items: lines });
+    return;
+  }
+  if (lines.length !== 1) return;
+  const item = doname(ctx.state, ctx.defs, first, { noPrice: true });
+  if (!cost) {
+    ctx.emit({ type: 'msg', key: 'shk.quote.one_free', params: { item } });
+    return;
+  }
+  ctx.emit({
+    type: 'msg',
+    key: contentsonly ? 'shk.quote.one_contents' : 'shk.quote.one',
+    params: {
+      item,
+      n: cost,
+      zm: zorkmids(cost),
+      each: (first.c.item?.quantity ?? 1) > 1 ? '@shk.each' : '',
+      emb: contentsonly ? '@shk.emb.plain' : shkEmbellish(ctx, first, cost),
+    },
+  });
 }

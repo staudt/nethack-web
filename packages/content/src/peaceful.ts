@@ -18,6 +18,8 @@ import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
 import { epriOf, pCoaligned, templeOccupied } from './epri';
 import { ghodHitsu } from './priest';
+import { eshkOf, uShops } from './eshk';
+import { hotPursuit } from './shk';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -127,7 +129,8 @@ export function setmangry(ctx: Ctx, id: EntityId): void {
 
 /**
  * Wakes a monster that the hero attacked, which also angers it; a peaceful temple priest
- * attacked in a temple brings down his god's anger (ghod_hitsu()).
+ * attacked in a temple brings down his god's anger (ghod_hitsu()), and a peaceful shopkeeper
+ * attacked while she is in no shop goes after her (hot_pursuit()).
  * ref: src/mon.c wakeup(mtmp, TRUE): wake_msg(), `msleeping = 0`, setmangry()
  */
 export function wakeup(ctx: Ctx, id: EntityId): void {
@@ -146,4 +149,6 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
     const level = ctx.state.levels[p.level];
     if (level && templeOccupied(level, inRooms(level, p.x, p.y)) !== null) ghodHitsu(ctx, epri);
   }
+  // a peaceful shopkeeper attacked while she is in no shop goes after her
+  if (wasPeaceful && eshkOf(ctx, id) && uShops(ctx).length === 0) hotPursuit(ctx, id);
 }

@@ -8,6 +8,8 @@
 // paying and the warning at the door.
 // Step 4: selling (the offer, a/q over several drops, an uninterested or broke keeper, into a
 // shop's container), goods thrown or kicked out of the shop owed, usage fees.
+// Step 5: robbery (the alarm, the Watch, hot pursuit), paying him off, appeasing, his death,
+// #chat with him and his price quotes.
 import {
   getPlayer,
   inventoryOf,
@@ -37,6 +39,7 @@ import {
   eshkOf,
   forgetMonster,
   getShopItem,
+  monsterDied,
   mergable,
   mksobj,
   monNam,
@@ -50,6 +53,9 @@ import {
 } from '../src/index';
 import { messagesEn } from '../src/messages.en';
 import { P, setItimeout } from '../src/props';
+import { tamedog } from '../src/dog';
+import { wakeup } from '../src/peaceful';
+import { shkArrivals } from '../src/shk';
 import { addMon, setup } from './helpers';
 import { ctxFor, defs, obj, render } from './itemHelpers';
 
@@ -1161,6 +1167,260 @@ describe('prices', () => {
       expect(dagger.c.item?.containedIn).toBe(sack.id);
       expect(dagger.c.item?.noCharge).toBeUndefined();
       expect(cash(t, t.s.state.playerId)).toBe(2);
+    });
+  });
+
+  describe('robbery, anger and making up', () => {
+    type T = ReturnType<typeof bare>;
+    const shkn = (t: T) => render(shkName(t.e));
+    const cash = (t: T, id: number) => moneyCnt(ctxOf(t.s), id);
+    const heroAt = (t: T, x: number, y: number) =>
+      Object.assign(getPlayer(t.s.state).c.pos ?? {}, { x, y });
+    /** A pinned, peaceful watchman in the other room. */
+    const watchman = (t: T): Entity => {
+      const id = addMon(t.s.state, 'nh:watchman', 10, 2, { peaceful: true });
+      const w = t.s.state.entities[String(id)] as Entity;
+      if (w.c.actor) w.c.actor.speed = 0;
+      return w;
+    };
+    /** She picks up an apple at 4,2 with him out of the way at 1,1, and walks onto the door. */
+    const owing = (t: T): Entity => {
+      const apple = t.make('nh:apple', { at: { x: 4, y: 2 } });
+      Object.assign(t.shk.c.pos ?? {}, { x: 1, y: 1 });
+      heroAt(t, 4, 2);
+      t.pickup();
+      t.step({ type: 'move', dir: 'e' });
+      t.step({ type: 'move', dir: 'e' }); // the door: "Please pay before leaving."
+      return apple;
+    };
+
+    test('walking out with an unpaid apple: robbery, the alarm, the Watch, hot pursuit', () => {
+      const t = bare(15);
+      const w = watchman(t);
+      const apple = owing(t);
+      const price = t.e.bill[0]?.price ?? 0;
+      expect(price).toBeGreaterThan(0);
+      const r = t.step({ type: 'move', dir: 'e' });
+      const lines = t.lines(r);
+      expect(lines.slice(0, 3)).toEqual([
+        'You escaped the shop without paying!',
+        `You stole ${price} zorkmids worth of merchandise.`,
+        'An alarm sounds!',
+      ]);
+      expect(lines).not.toContain('But no one seems to respond to it.');
+      expect(w.c.monster?.peaceful).toBe(false);
+      expect(t.shk.c.monster?.peaceful).toBe(false);
+      expect(t.e).toMatchObject({ robbed: price, following: true, surcharge: true, bill: [] });
+      expect(apple.c.item?.unpaid).toBeUndefined();
+      expect(uShops(t.s)).toEqual([]);
+      // no Watch: nobody answers the alarm
+      const u = bare(15);
+      owing(u);
+      expect(u.lines(u.step({ type: 'move', dir: 'e' }))).toContain(
+        'But no one seems to respond to it.',
+      );
+    });
+
+    test("credit covers the bill: no robbery; a sleeping keeper's door is no obstacle", () => {
+      const t = bare(15);
+      t.e.credit = 100;
+      owing(t);
+      const r = t.step({ type: 'move', dir: 'e' });
+      expect(t.lines(r)[0]).toBe(
+        'Your credit of 100 zorkmids is used to cover your shopping bill.',
+      );
+      expect(t.e).toMatchObject({ robbed: 0, following: false, credit: 0, bill: [] });
+      expect(t.shk.c.monster?.peaceful).toBe(true);
+      // he sleeps: stepping onto the door is enough (he wakes up and sees her gone)
+      const u = bare(15);
+      u.make('nh:apple', { at: { x: 4, y: 2 } });
+      Object.assign(u.shk.c.pos ?? {}, { x: 1, y: 1 });
+      if (u.shk.c.monster) u.shk.c.monster.asleep = true;
+      heroAt(u, 4, 2);
+      u.pickup();
+      u.step({ type: 'move', dir: 'e' });
+      const d = u.lines(u.step({ type: 'move', dir: 'e' }));
+      expect(d).not.toContain('"Valkyrie!  Please pay before leaving."');
+      expect(d).toContain('You escaped the shop without paying!');
+      expect(u.shk.c.monster?.asleep).toBe(false);
+      expect(u.e.following).toBe(true);
+    });
+
+    test('paying off a robbed keeper: he calms down, goes home, and so does the Watch', () => {
+      const t = bare(15);
+      const w = watchman(t);
+      owing(t);
+      t.step({ type: 'move', dir: 'e' }); // robbed
+      const robbed = t.e.robbed;
+      // he catches up with her outside his shop
+      Object.assign(t.shk.c.pos ?? {}, { x: 8, y: 2 });
+      // too little gold
+      t.gold(Math.floor((robbed - 1) / 2));
+      let r = t.payNow();
+      expect(t.lines(r)).toEqual([
+        `${shkn(t)} is after blood, not gold!`,
+        expect.stringMatching(/^Besides, you don't have enough to interest (him|her)\.$/),
+      ]);
+      expect(t.shk.c.monster?.peaceful).toBe(false);
+      t.gold(robbed);
+      const had = cash(t, t.s.state.playerId);
+      r = t.payNow();
+      expect(t.lines(r)).toEqual([
+        `${shkn(t)} is after blood, not gold!`,
+        expect.stringMatching(/^But since (his|her) shop has been robbed recently,$/),
+        expect.stringMatching(new RegExp(`^you compensate ${shkn(t)} for (his|her) losses\\.$`)),
+        expect.stringMatching(new RegExp(`^${shkn(t)} returns to (his|her) shop\\.$`)),
+      ]);
+      expect(cash(t, t.s.state.playerId)).toBe(had - robbed);
+      expect(t.shk.c.monster?.peaceful).toBe(true);
+      expect(t.e).toMatchObject({ robbed: 0, following: false });
+      expect(t.shk.c.pos).toMatchObject(SHK_SPOT);
+      expect(w.c.monster?.peaceful).toBe(true);
+    });
+
+    test('an angry keeper who was not robbed takes 1000 gold to appease', () => {
+      const t = bare(15);
+      if (t.shk.c.monster) t.shk.c.monster.peaceful = false;
+      t.e.customer = true;
+      heroAt(t, 4, 2); // next to him
+      t.step({ type: 'wait' }); // she sees him
+      expect(t.lines(t.payNow())).toEqual([
+        `${shkn(t)} is after your hide, not your gold!`,
+        'Moreover, you have no gold.',
+      ]);
+      t.gold(1500);
+      const lines = t.lines(t.payNow());
+      expect(lines[0]).toBe(`${shkn(t)} is after your hide, not your gold!`);
+      expect(lines[1]).toMatch(
+        new RegExp(
+          `^You try to appease the angry ${shkn(t)} by giving (him|her) 1000 gold pieces\\.$`,
+        ),
+      );
+      expect(cash(t, t.s.state.playerId)).toBe(500);
+      // two times in three he calms down (in his shop: "calms down")
+      if (lines[2] === `But ${shkn(t)} is as angry as ever.`)
+        expect(t.shk.c.monster?.peaceful).toBe(false);
+      else {
+        expect(lines[2]).toBe(`${shkn(t)} calms down.`);
+        expect(t.shk.c.monster?.peaceful).toBe(true);
+      }
+    });
+
+    test('attacked by her outside any shop, he goes after her; tamedog() only calms him', () => {
+      const t = bare(15);
+      Object.assign(t.shk.c.pos ?? {}, { x: 8, y: 2 });
+      heroAt(t, 7, 2);
+      checkSpecialRoom(ctxOf(t.s), false);
+      wakeup(ctxOf(t.s), t.id);
+      expect(t.shk.c.monster?.peaceful).toBe(false);
+      expect(t.e).toMatchObject({ following: true, surcharge: true });
+      tamedog(ctxOf(t.s), t.id, null, false, () => undefined);
+      expect(t.shk.c.monster?.peaceful).toBe(true);
+      expect(t.shk.c.monster?.tame).toBeUndefined();
+      expect(t.e.following).toBe(false);
+      expect(t.shk.c.pos).toMatchObject(SHK_SPOT);
+    });
+
+    test('a following keeper next to her: "Didn\'t you forget to pay?"', () => {
+      const t = bare(15);
+      t.e.following = true;
+      t.e.customer = true;
+      heroAt(t, 4, 2);
+      if (t.shk.c.actor) Object.assign(t.shk.c.actor, { speed: 12, energy: 12 });
+      t.s.state.turn = 100;
+      const lines = t.lines(t.step({ type: 'wait' }));
+      expect(lines[0]).toBe('"Velkommen, Valkyrie!  Didn\'t you forget to pay?"');
+    });
+
+    test('a keeper paid off on another level vanishes home', () => {
+      const t = bare(15);
+      const w = watchman(t);
+      if (w.c.monster) w.c.monster.peaceful = false;
+      if (t.shk.c.monster) t.shk.c.monster.peaceful = false;
+      t.e.robbed = 10;
+      t.e.following = true;
+      // he is with her on another level (the level ids differ: his shop level is elsewhere)
+      t.e.shoplevel = 'dlvl9';
+      t.s.state.levels['dlvl9'] = { ...t.s.level, id: 'dlvl9' };
+      heroAt(t, 4, 2);
+      t.step({ type: 'wait' }); // she sees him
+      t.gold(10);
+      const lines = t.lines(t.payNow());
+      expect(lines).toContain(`Satisfied, ${shkn(t)} suddenly disappears!`);
+      expect(t.shk.c.pos).toMatchObject({ level: 'dlvl9', ...SHK_SPOT });
+      expect(t.e.dismissKops).toBe(true);
+      // (make_happy_shoppers() calms the Watch of the level she is on, as in NetHack)
+      expect(w.c.monster?.peaceful).toBe(true);
+      shkArrivals(ctxOf(t.s), 'dlvl9');
+      expect(t.e.dismissKops).toBeUndefined();
+    });
+
+    test('killing him frees the stock and voids her bill', () => {
+      const t = bare(15);
+      const apple = t.make('nh:apple');
+      const pear = t.make('nh:apple', { at: { x: 2, y: 2 } });
+      t.pickup();
+      expect(apple.c.item?.unpaid).toBe(true);
+      expect(t.name(pear)).toMatch(/for sale/);
+      if (pear.c.item) pear.c.item.noCharge = true;
+      monsterDied(ctxOf(t.s), t.id, true);
+      expect(apple.c.item?.unpaid).toBeUndefined();
+      expect(pear.c.item?.noCharge).toBeUndefined();
+      expect(t.name(pear)).toBe('apple');
+      expect(uShops(t.s)).toEqual([]);
+      expect(eshkOf(t.s, t.id)).toBeNull();
+    });
+
+    test('#chat: what he says, and the price quote of what she stands on', () => {
+      const t = bare(15);
+      heroAt(t, 4, 2);
+      t.step({ type: 'wait' });
+      const chat = () => t.lines(t.step({ type: 'mod', action: 'nh:chat', args: { dir: 'e' } }));
+      const s = shkn(t);
+      t.e.bill = [{ oid: 999, bquan: 2, price: 10, useup: true }];
+      t.e.debit = 5;
+      expect(chat()).toEqual([`${s} says that your bill comes to 25 zorkmids.`]);
+      t.e.bill = [];
+      expect(chat()).toEqual([
+        expect.stringMatching(
+          new RegExp(`^${s} reminds you that you owe (him|her) 5 zorkmids\\.$`),
+        ),
+      ]);
+      t.e.debit = 0;
+      t.e.credit = 7;
+      expect(chat()).toEqual([`${s} encourages you to use your 7 zorkmids of credit.`]);
+      t.e.credit = 0;
+      t.e.robbed = 50;
+      expect(chat()).toEqual([`${s} complains about a recent robbery.`]);
+      if (t.shk.c.monster) t.shk.c.monster.peaceful = false;
+      expect(chat()).toEqual([
+        expect.stringMatching(
+          new RegExp(`^${s} mentions how much (he|she) dislikes non-paying customers\\.$`),
+        ),
+      ]);
+      if (t.shk.c.monster) t.shk.c.monster.peaceful = true;
+      t.e.robbed = 0;
+      // business: his gold
+      expect(chat()).toEqual([
+        cash(t, t.id) > 4000
+          ? `${s} says that business is good.`
+          : `${s} talks about the problem of shoplifters.`,
+      ]);
+      // standing on an apple of his: the quote instead (no direction asked)
+      const apple = t.make('nh:apple', { at: { x: 4, y: 2 } });
+      const q = t.step({ type: 'mod', action: 'nh:chat' });
+      expect(q.prompt ?? null).toBeNull();
+      expect(t.lines(q)[0]).toMatch(
+        /^"An apple, price 7 zorkmids(\.|, a real bargain\.|, gourmets' delight!|, an excellent choice\.|, finest quality\.)"$/,
+      );
+      if (apple.c.item) apple.c.item.quantity = 2;
+      t.make('nh:food_ration', { at: { x: 4, y: 2 } });
+      const l = t.step({ type: 'mod', action: 'nh:chat' });
+      const list = l.events.find((e) => e.type === 'list');
+      expect(list && list.type === 'list' ? list.items.map((m) => render(m)) : []).toEqual([
+        'a food ration, 45 zorkmids',
+        '2 apples, 7 zorkmids each',
+      ]);
     });
   });
 });

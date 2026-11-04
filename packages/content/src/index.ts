@@ -26,7 +26,7 @@ import { registerGeneration } from './generation';
 import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
-import { registerRooms } from './rooms';
+import { registerLeaveShops, registerRooms } from './rooms';
 import { registerShops } from './shknam';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
@@ -88,6 +88,7 @@ export const vanillaMod: Mod = {
     registerProps(api);
     registerPerception(api);
     registerMState(api);
+    registerLeaveShops(api); // before the pets follow, as goto_level()'s check_special_room(TRUE)
     registerDog(api);
     registerLuck(api);
     registerPray(api);
@@ -341,7 +342,7 @@ export {
   type ShopType,
 } from './shknam';
 export { doVicinityMap, showMapSpot } from './detect';
-export { afterShkMove, checkSpecialRoom } from './rooms';
+export { afterShkMove, checkSpecialRoom, leaveShops } from './rooms';
 export { emptyShops, specialRoomsAt, uRooms, uShopRooms } from './urooms';
 export {
   addtobill,
@@ -360,6 +361,14 @@ export {
   subfrombill,
   uEnteredShop,
   uLeftShop,
+  addupbill,
+  hotPursuit,
+  makeAngryShk,
+  makeHappyShk,
+  rileShk,
+  setpaid,
+  shkChat,
+  shkgone,
   type SellHow,
   type SellOffer,
   type SellState,

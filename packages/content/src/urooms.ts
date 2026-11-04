@@ -28,6 +28,17 @@ function list(u: Table | null, key: string): number[] {
   return Array.isArray(v) ? v.filter((r): r is number => typeof r === 'number') : [];
 }
 
+/**
+ * The stored u.ushops and the level they are on, whichever level is current (on a level change
+ * they still name the level she has just left).
+ */
+export function storedUShops(ctx: Pick<Ctx, 'state'>): { level: string; ushops: number[] } | null {
+  const nh = ctx.state.modData['nh'];
+  const u = isObj(nh) ? nh['urooms'] : undefined;
+  if (!isObj(u) || typeof u['level'] !== 'string') return null;
+  return { level: u['level'], ushops: list(u, 'ushops') };
+}
+
 /** The typed rooms the hero is in on the current level (u.urooms), innermost first. */
 export function uRooms(ctx: Pick<Ctx, 'state'>): number[] {
   return list(entry(ctx), 'rooms');

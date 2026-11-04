@@ -3,7 +3,9 @@
 // type's list (Izchak in the lighting store), and the stock of its type on the other squares;
 // he stays by his door while the hero waits, and the soak invariant checks it. Step 2: Izchak
 // greets the hero at his door in every variant. Step 3: she buys from each shop of every
-// variant: the price quote, the unpaid name, paying.
+// variant: the price quote, the unpaid name, paying. Step 5: walking out of the lighting store or
+// levelporting away with an unpaid candle is robbery (the alarm, the Watch, Izchak after her);
+// paying him off sends him home and calms the Watch.
 import {
   SHOPKEEPER,
   addToInventory,
@@ -28,8 +30,10 @@ import {
   type Ctx,
   type DefId,
   type DungeonLayout,
+  type GameEvent,
   type GameState,
   type Level,
+  type Pos,
   type Mod,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
@@ -55,9 +59,9 @@ const probeMod: Mod = {
 const engine = createEngine([vanillaMod, probeMod]);
 const defs = engine.registry;
 
-function run(state: GameState, fn: (ctx: Ctx) => void): void {
+function run(state: GameState, fn: (ctx: Ctx) => void): GameEvent[] {
   probe.fn = fn;
-  engine.step(state, { type: 'mod', action: 'sh-probe:run' });
+  return engine.step(state, { type: 'mod', action: 'sh-probe:run' }).events;
 }
 const mines = (state: GameState): DungeonLayout => {
   const d = state.dungeons.find((x) => x.id === 'nh:mines');
@@ -400,6 +404,174 @@ describe('buying in a real Minetown shop', () => {
       );
       expect(after - before).toBe(price);
     }
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+});
+
+describe('robbing a real Minetown shop', () => {
+  const DIRS: Record<string, 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'> = {
+    '0,-1': 'n',
+    '1,-1': 'ne',
+    '1,0': 'e',
+    '1,1': 'se',
+    '0,1': 's',
+    '-1,1': 'sw',
+    '-1,0': 'w',
+    '-1,-1': 'nw',
+  };
+  const msgKeys = (ev: GameEvent[]): string[] =>
+    ev.flatMap((e) => (e.type === 'msg' ? [e.key] : []));
+  const watch = (state: GameState, levelId: string) =>
+    sortedIds(state)
+      .map((id) => state.entities[String(id)])
+      .filter((m) => m?.c.monster && m.c.pos?.level === levelId && m.def.startsWith('nh:watch'));
+  const occupied = (state: GameState, levelId: string, p: Pos): boolean =>
+    sortedIds(state).some((id) => {
+      const q = state.entities[String(id)];
+      return !q?.c.item && q?.c.pos?.level === levelId && q.c.pos.x === p.x && q.c.pos.y === p.y;
+    });
+
+  /** Minetown with every monster pinned, Izchak, the hero holding one of his candles. */
+  function stolenCandle(v: string) {
+    const seed = bySeed.get(v)?.[0] ?? 1;
+    const { state, level } = minetown(seed);
+    for (const id of sortedIds(state)) {
+      const m = state.entities[String(id)];
+      if (m?.c.monster && m.c.actor && id !== state.playerId) {
+        m.c.actor.speed = 0;
+        m.c.actor.energy = 0;
+      }
+    }
+    const lighting = shopkeepers(state, level.id).find(
+      (s) => level.rooms[s.e.shoproom]?.type === 'nh:candle_shop',
+    );
+    if (!lighting) throw new Error('no lighting store');
+    const { e } = lighting;
+    const shkMon = state.entities[String(lighting.id)];
+    const hp = getPlayer(state).c.pos;
+    if (!hp || !shkMon?.c.pos) throw new Error('no hero');
+    const hero = getPlayer(state);
+    if (hero.c.hp) hero.c.hp = { cur: 500, max: 500 };
+    // one of his candles, at her feet on a square of his shop next to his spot
+    const candle = sortedIds(state)
+      .map((i) => state.entities[String(i)])
+      .find((o) => {
+        const p = o?.c.pos;
+        return (
+          o?.c.item?.carriedBy === null &&
+          o.def !== 'nh:gold_piece' &&
+          !!p &&
+          insideShop(level, p.x, p.y) === e.shoproom
+        );
+      });
+    if (!candle?.c.pos) throw new Error('no stock');
+    const inside = [-1, 0, 1]
+      .flatMap((dx) => [-1, 0, 1].map((dy) => ({ x: e.shk.x + dx, y: e.shk.y + dy })))
+      .find(
+        (p) =>
+          insideShop(level, p.x, p.y) === e.shoproom &&
+          !(p.x === e.shk.x && p.y === e.shk.y) &&
+          !occupied(state, level.id, p) &&
+          !sortedIds(state).some((i) => {
+            const q = state.entities[String(i)];
+            return (
+              q?.c.item && q.c.pos?.level === level.id && q.c.pos.x === p.x && q.c.pos.y === p.y
+            );
+          }),
+      );
+    if (!inside) throw new Error('no square by his spot');
+    Object.assign(candle.c.pos, inside);
+    Object.assign(hp, inside);
+    run(state, (ctx) => checkSpecialRoom(ctx, false));
+    engine.step(state, { type: 'mod', action: 'nh:pickup' });
+    expect(candle.c.item?.unpaid).toBe(true);
+    const price = (e.bill[0]?.price ?? 0) * (e.bill[0]?.bquan ?? 0);
+    return { state, level, e, shkMon, hp, candle, price };
+  }
+
+  /** Gives her `n` gold and pays the shopkeeper next to her. */
+  function payOff(state: GameState, n: number): string[] {
+    const hp = getPlayer(state).c.pos;
+    if (!hp) throw new Error('no hero');
+    run(state, (ctx) =>
+      addToInventory(ctx, state.playerId, mkgold(ctx, n, { level: hp.level, x: hp.x, y: hp.y })),
+    );
+    return msgKeys(engine.step(state, { type: 'mod', action: 'nh:pay' }).events);
+  }
+
+  test.each(VARIANTS)('%s: out of the door with a candle, then paying Izchak off', (v) => {
+    const { state, level, e, shkMon, hp, candle, price } = stolenCandle(v);
+    const { shk, shd } = e;
+    const out = { x: 2 * shd.x - shk.x, y: 2 * shd.y - shk.y };
+    const blocker = sortedIds(state).find((id) => {
+      const p = state.entities[String(id)]?.c.pos;
+      return id !== state.playerId && p?.level === level.id && p.x === out.x && p.y === out.y;
+    });
+    if (blocker !== undefined) delete state.entities[String(blocker)];
+    const from = { x: hp.x, y: hp.y };
+    Object.assign(hp, shd);
+    const warn = run(state, (ctx) => checkSpecialRoom(ctx, false, from));
+    expect(msgKeys(warn)).toContain('shk.pay_before_leaving');
+    const dir = DIRS[`${out.x - shd.x},${out.y - shd.y}`];
+    if (!dir) throw new Error('no direction');
+    const r = engine.step(state, { type: 'move', dir });
+    expect(hp).toMatchObject(out);
+    const keys = msgKeys(r.events);
+    expect(keys.slice(0, 3)).toEqual(['shk.escaped', 'shk.stole', 'shk.alarm']);
+    expect(keys).not.toContain('shk.no_one_responds');
+    expect(e).toMatchObject({ robbed: price, following: true, bill: [] });
+    expect(candle.c.item?.unpaid).toBeUndefined();
+    expect(shkMon.c.monster?.peaceful).toBe(false);
+    const guards = watch(state, level.id);
+    expect(guards.length).toBeGreaterThan(0);
+    for (const g of guards) expect(g?.c.monster?.peaceful).toBe(false);
+    // he catches up with her outside: next to her, not in his shop
+    const near = [-1, 0, 1]
+      .flatMap((dx) => [-1, 0, 1].map((dy) => ({ x: out.x + dx, y: out.y + dy })))
+      .find((p) => {
+        if (inRooms(level, p.x, p.y).includes(e.shoproom) || occupied(state, level.id, p))
+          return false;
+        const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
+        return id !== undefined && defs.terrain(id).passable && defs.terrain(id).door === undefined;
+      });
+    if (!near || !shkMon.c.pos) throw new Error('no room next to her');
+    Object.assign(shkMon.c.pos, near);
+    const paid = payOff(state, price);
+    expect(paid.slice(0, 3)).toEqual(['pay.after_blood', 'pay.robbed_recently', 'pay.compensate']);
+    expect(shkMon.c.monster?.peaceful).toBe(true);
+    expect(shkMon.c.pos).toMatchObject({ level: level.id, ...shk });
+    expect(e).toMatchObject({ robbed: 0, following: false });
+    for (const g of guards) expect(g?.c.monster?.peaceful).toBe(true);
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+
+  test.each(VARIANTS)('%s: levelporting away while owing; he follows, is paid off there', (v) => {
+    const { state, level, e, shkMon, price } = stolenCandle(v);
+    const town = mines(state).special.find((s) => s.id === 'nh:minetown');
+    if (!town) throw new Error('no Minetown');
+    const ev = run(state, (ctx) =>
+      ctx.goToLevel({ dungeon: 'nh:mines', dlevel: town.dlevel + 1 }, 'up'),
+    );
+    const keys = msgKeys(ev);
+    expect(keys).toContain('shk.escaped');
+    expect(keys).toContain('shk.alarm');
+    for (const g of watch(state, level.id)) expect(g?.c.monster?.peaceful).toBe(false);
+    // he was next to her: he came along
+    const below = state.currentLevel;
+    expect(below).not.toBe(level.id);
+    expect(shkMon.c.pos?.level).toBe(below);
+    expect(e).toMatchObject({ robbed: price, following: true });
+    expect(shkMon.c.monster?.peaceful).toBe(false);
+    expect(checkInvariants(state, defs)).toEqual([]);
+    const paid = payOff(state, price);
+    expect(paid).toContain('pay.compensate');
+    expect(shkMon.c.pos).toMatchObject({ level: level.id, ...e.shk });
+    expect(e.dismissKops).toBe(true);
+    // back in town the Watch has calmed down
+    run(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:mines', dlevel: town.dlevel }, 'down'));
+    expect(state.currentLevel).toBe(level.id);
+    for (const g of watch(state, level.id)) expect(g?.c.monster?.peaceful).toBe(true);
+    expect(e.dismissKops).toBeUndefined();
     expect(checkInvariants(state, defs)).toEqual([]);
   });
 });

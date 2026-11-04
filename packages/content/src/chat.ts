@@ -1,8 +1,8 @@
 // #chat: talking to a monster next to the hero. ref: src/sounds.c dotalk(), dochat(),
-// domonnoise(); src/priest.c priest_talk() (in priest.ts)
+// domonnoise(); src/priest.c priest_talk() (in priest.ts); src/shk.c shk_chat(), price_quote()
+// (in shk.ts)
 //
-// Not ported: polymorph (silent forms), engulfing, water, deafness, shopkeepers' price quotes
-// (6b3), statues, mimics and hiders, steeds, the up/down directions, full moon and night (no
+// Not ported: polymorph (silent forms), engulfing, water, deafness, statues, mimics and hiders, steeds, the up/down directions, full moon and night (no
 // clock), "remembered, unseen" markers, monster confusion and blindness, quest and Oracle talk,
 // and every sound no monster here makes. A hallucinating hero gets no funny currency or wall
 // lines beyond the wall table.
@@ -25,12 +25,14 @@ import { monsterIdAt } from './combat';
 import { edogOf, meating } from './dog';
 import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
+import { eshkOf } from './eshk';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { isFleeing } from './monflee';
 import { isFrozen, isMStunned } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
 import { P, heroHas, isStrangled } from './props';
+import { priceQuote, shkChat, shopObject } from './shk';
 import { T } from './terrain';
 import { isMtrapped } from './trapstate';
 
@@ -113,6 +115,14 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
   const upset = isFleeing(ctx, id) || isMtrapped(ctx, id) || tame < 5; // (no mconf)
   const hp = mon.c.hp;
   switch (msound) {
+    case 'sell':
+      // pitch, pay, total (a hallucinating hero may hear an insurance ad instead)
+      if (!halluc || (eshkOf(ctx, id) !== null && !ctx.rng.rn2(2))) {
+        shkChat(ctx, id);
+        return NORMAL_SPEED;
+      }
+      say(ctx, 'chat.gecko');
+      return NORMAL_SPEED;
     case 'priest': {
       const offer = priestTalk(ctx, id);
       return offer ? { priest: id, offer } : NORMAL_SPEED;
@@ -297,6 +307,14 @@ const chat: ActionDef = {
     if (isStrangled(getPlayer(ctx.state))) {
       say(ctx, 'chat.choking');
       return 0;
+    }
+    // standing on something in a shop and chatting causes the shopkeeper to describe the
+    // price(s)
+    const hp = getPlayer(ctx.state).c.pos;
+    const otmp = hp && !heroHas(ctx.state, P.BLINDED) ? shopObject(ctx, hp.x, hp.y) : null;
+    if (otmp) {
+      priceQuote(ctx, otmp);
+      return NORMAL_SPEED;
     }
     const dir = action.type === 'mod' ? dirArg((action.args as { dir?: unknown })?.dir) : null;
     if (dir) return finish(ctx, chatDir(ctx, dir));

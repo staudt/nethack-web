@@ -46,7 +46,16 @@ import { isWatch, watchOnDuty } from './watch';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
 import { afterShkMove } from './rooms';
-import { carriedPicks, fastWithPickHere } from './shk';
+import {
+  carriedPicks,
+  fastWithPickHere,
+  followmsg,
+  hello,
+  plname,
+  rileShk,
+  setFollowmsg,
+  shkname,
+} from './shk';
 import { T } from './terrain';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -472,38 +481,77 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
 }
 
 /**
- * A shopkeeper's move: -1 when he is not on his shop level, or angry or following the hero
- * (the normal AI moves him until 6b3 step 5 ports those branches). Peaceful, he keeps to his
- * spot by the door: within two squares of it he rests unless lined up with the hero (on the spot
- * itself he wanders a little instead), and he steps out of her lines when she is in the shop and
- * more than two squares from the spot. Returns as {@link moveSpecial}.
- * ref: src/shk.c shk_move() (no damage repair, invisibility, steeds or holes; bills, the
- * following and angry branches come in 6b3 steps 3 and 5)
+ * A shopkeeper's move. Next to the hero, an angry one attacks her, and one following her asks
+ * "Didn't you forget to pay?" (every few turns; 1 in 9 he gets angry). Following her (or angry
+ * and seeing her) he goes for her, leaving it to the normal AI (-1) when she is far and owes
+ * nothing; -1 too off his shop level when not following her. Peaceful, he keeps to his spot by
+ * the door: within two squares of it he rests unless lined up with the hero (on the spot itself
+ * he wanders a little instead), and he steps out of her lines when she is in the shop and more
+ * than two squares from the spot. Returns as {@link moveSpecial}.
+ * ref: src/shk.c shk_move() (no damage repair, conflict, displacement, invisibility, steeds or
+ * holes)
  */
 export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   const { m, pos } = monCount(ctx, id);
   const eshk = eshkOf(ctx, id);
-  if (!eshk || eshk.shoplevel !== pos.level || !m.peaceful || eshk.following) return -1;
+  if (!eshk) return -1;
+  if (eshk.shoplevel !== pos.level && !eshk.following) return -1;
   const omx = pos.x;
   const omy = pos.y;
+  const udist = dist2(omx, omy, heroPos.x, heroPos.y);
+  if (udist < 3) {
+    if (!m.peaceful) {
+      monsterAttack(ctx, id); // mattacku()
+      return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
+    }
+    if (eshk.following) {
+      // (the customer is always this hero: no "I was looking for")
+      if (ctx.state.turn > followmsg(ctx) + 4) {
+        ctx.emit({
+          type: 'msg',
+          key: 'shk.forget_to_pay',
+          params: { hello: hello(ctx), name: plname(ctx) },
+        });
+        setFollowmsg(ctx, ctx.state.turn);
+        if (!ctx.rng.rn2(9)) {
+          ctx.emit({ type: 'msg', key: 'shk.doesnt_like', params: { shk: shkname(ctx, eshk) } });
+          rileShk(ctx, id);
+        }
+      }
+      if (udist < 2) return 0;
+    }
+  }
   let appr: -1 | 0 | 1 = 1;
   let gtx = eshk.shk.x;
   let gty = eshk.shk.y;
   const satdoor = gtx === omx && gty === omy;
-  const uondoor = heroPos.x === eshk.shd.x && heroPos.y === eshk.shd.y;
-  // she is on his door with a mattock: he stands in her way
-  const badinv = uondoor && (carriedPicks(ctx) > 0 || fastWithPickHere(ctx));
-  if (satdoor && badinv) return 0;
-  const avoid = uondoor
-    ? !badinv
-    : uShops(ctx).length > 0 && dist2(gtx, gty, heroPos.x, heroPos.y) > 8;
-  const owed = eshk.robbed > 0 || eshk.bill.length > 0 || eshk.debit > 0;
-  if ((!owed || avoid) && dist2(omx, omy, gtx, gty) < 3) {
-    if (!badinv && !online2(omx, omy, heroPos.x, heroPos.y)) return 0;
-    if (satdoor) {
-      appr = 0;
-      gtx = 0;
-      gty = 0;
+  let avoid = false;
+  let uondoor = false;
+  if (eshk.following) {
+    if (udist > 4 && eshk.bill.length === 0) return -1; // leave it to m_move
+    gtx = heroPos.x;
+    gty = heroPos.y;
+  } else if (!m.peaceful) {
+    // move towards the hero if the shopkeeper can see him
+    const level = getLevel(ctx.state, pos.level);
+    if (clearPath(level, cellRules(level, ctx.defs).opaque, omx, omy, heroPos.x, heroPos.y)) {
+      gtx = heroPos.x;
+      gty = heroPos.y;
+    }
+  } else {
+    uondoor = heroPos.x === eshk.shd.x && heroPos.y === eshk.shd.y;
+    // she is on his door with a mattock: he stands in her way
+    const badinv = uondoor && (carriedPicks(ctx) > 0 || fastWithPickHere(ctx));
+    if (satdoor && badinv) return 0;
+    avoid = uondoor ? !badinv : uShops(ctx).length > 0 && dist2(gtx, gty, heroPos.x, heroPos.y) > 8;
+    const owed = eshk.robbed > 0 || eshk.bill.length > 0 || eshk.debit > 0;
+    if ((!owed || avoid) && dist2(omx, omy, gtx, gty) < 3) {
+      if (!badinv && !online2(omx, omy, heroPos.x, heroPos.y)) return 0;
+      if (satdoor) {
+        appr = 0;
+        gtx = 0;
+        gty = 0;
+      }
     }
   }
   const z = moveSpecial(ctx, id, heroPos, {

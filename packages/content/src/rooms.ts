@@ -12,14 +12,15 @@ import {
   sortedIds,
   type Ctx,
   type EntityId,
+  type LevelId,
   type ModApi,
   type Pos,
 } from '@nh/core';
 import { TEMPLE, epriOf, forgetTempleEntry } from './epri';
 import { eshkOf, inhishop, isShopType, uShops } from './eshk';
 import { intemple } from './priest';
-import { uEnteredShop, uLeftShop } from './shk';
-import { setURooms, specialRoomsAt, uRooms } from './urooms';
+import { shkArrivals, uEnteredShop, uLeftShop } from './shk';
+import { setURooms, specialRoomsAt, storedUShops, uRooms } from './urooms';
 
 /**
  * Updates u.urooms and u.ushops from the hero's square (`newlev`: clears them, she is leaving the
@@ -31,8 +32,8 @@ export function checkSpecialRoom(ctx: Ctx, newlev: boolean, from?: Pos): void {
   const rooms0 = uRooms(ctx);
   const ushops0 = uShops(ctx);
   if (newlev) {
+    // (the shops she left with the level are seen to by leaveShops(), before her pets follow)
     setURooms(ctx, [], [], true);
-    if (ushops0.length > 0) uLeftShop(ctx, ushops0, ushops0, true);
     return;
   }
   const hp = getPlayer(ctx.state).c.pos;
@@ -74,6 +75,40 @@ export function afterShkMove(ctx: Ctx, id: EntityId): void {
 }
 
 /**
+ * She has just left level `from` (at `fromPos`) while in a shop there: u_left_shop() as C runs it
+ * from goto_level()'s check_special_room(TRUE), on the old level (made current again for the
+ * call), so a robbery is seen there and a shopkeeper who starts following her can come along.
+ * ref: src/do.c goto_level() (check_special_room(TRUE) before keepdogs()); src/shk.c
+ * u_left_shop(newlev = TRUE)
+ */
+export function leaveShops(ctx: Ctx, from: LevelId, fromPos: Pos): void {
+  const stored = storedUShops(ctx);
+  if (!stored || stored.level !== from || stored.ushops.length === 0) return;
+  const hero = getPlayer(ctx.state);
+  const level = ctx.state.currentLevel;
+  const pos = hero.c.pos;
+  ctx.state.currentLevel = from;
+  hero.c.pos = { level: from, x: fromPos.x, y: fromPos.y };
+  try {
+    uLeftShop(ctx, stored.ushops, stored.ushops, true);
+  } finally {
+    ctx.state.currentLevel = level;
+    if (pos) hero.c.pos = pos;
+    else delete hero.c.pos;
+  }
+}
+
+/**
+ * Registered before the pets (registerDog): leaving a level runs the shops' u_left_shop() first.
+ */
+export function registerLeaveShops(api: ModApi): void {
+  api.on('levelChange', (ctx, change) => {
+    if (change.from !== null && change.fromPos !== null)
+      leaveShops(ctx, change.from, change.fromPos);
+  });
+}
+
+/**
  * On arrival on a level: the priests there forget the hero's last visit (C does it when the
  * level is saved on leaving), then u.urooms starts afresh and she may have arrived in a temple.
  */
@@ -84,6 +119,7 @@ export function registerRooms(api: ModApi): void {
       if (epri && epri.shrlevel === change.to) forgetTempleEntry(epri);
     }
     checkSpecialRoom(ctx, true);
+    shkArrivals(ctx, change.to);
     checkSpecialRoom(ctx, false);
   });
 }

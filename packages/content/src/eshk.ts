@@ -58,7 +58,7 @@ export interface BillEntry {
   gone?: { def: DefId; item: ItemComponent };
 }
 
-/** ref: include/mextra.h struct eshk (no loan, no dismiss_kops, no billct: `bill.length`) */
+/** ref: include/mextra.h struct eshk (no loan, no billct: `bill.length`) */
 export interface Eshk {
   /** The shop's index in `Level.rooms`. */
   shoproom: number;
@@ -80,6 +80,8 @@ export interface Eshk {
   /** With its prefix: '-' / '_' female, '+' / '|' male, '=' unspecified; '-+=' personal. */
   shknam: string;
   female: boolean;
+  /** Paid off on another level and sent home: the Watch here calms down on her next arrival. */
+  dismissKops?: true;
 }
 
 type Table = { [k: string]: Json };

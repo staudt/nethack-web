@@ -1,5 +1,5 @@
 // What happens to the world when a monster dies by the hero's hand.
-// ref: src/mon.c xkilled(), mondead(), m_detach()
+// ref: src/mon.c xkilled(), mondead(), m_detach() (shkgone())
 import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { nonliving } from './mondata';
 import { canSpotMon, monNam } from './perception';
@@ -10,6 +10,7 @@ import { forgetMonster, relobj } from './mongear';
 import { forgetMState } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
+import { shkgone } from './shk';
 
 /**
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
@@ -35,6 +36,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
     );
   }
   relobj(ctx, monId, at);
+  shkgone(ctx, monId); // ref: m_detach()
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);
   ctx.remove(monId);
@@ -89,6 +91,7 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   const def = ctx.defs.monster(mon.def);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
+  shkgone(ctx, id); // ref: m_detach()
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);

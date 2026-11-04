@@ -6,8 +6,7 @@
 //
 // Not ported: the menu of bill items (other menustyles, the 'm' answer), containers on the bill
 // as one line (each billed object is its own line here: buy_container()), getpos() for "Pay
-// whom?" (a menu of the shopkeepers in view instead), the angry and robbed branches (step 5),
-// deafness and mute keepers.
+// whom?" (a menu of the shopkeepers in view instead), deafness and mute keepers.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -30,9 +29,12 @@ import {
   bpToObj,
   helpless,
   hiddenGold,
+  makeHappyShk,
   rouseShk,
+  setpaid,
   shkNamesObj,
   shkPay,
+  shkPronouns,
   shkname,
   shopNameParam,
 } from './shk';
@@ -269,21 +271,79 @@ function proceed(ctx: Ctx, shk: Entity, resident: EntityId | null): number {
     say(ctx, ctx.rng.rn2(2) ? 'pay.napping' : 'pay.no_respond', { shk: name });
     return 0;
   }
+  const pr = shkPronouns(e);
   if (shk.id !== resident && !angry(shk)) {
-    // (the robbed shopkeeper's compensation: step 5)
+    const umoney = moneyCnt(ctx, ctx.state.playerId);
     if (!ltmp) say(ctx, 'pay.not_owe', { shk: name });
+    else if (!umoney) {
+      say(ctx, 'pay.no_gold', { seem: stashed ? '@pay.seem_to_' : '' });
+      if (stashed) say(ctx, 'pay.stashed_away');
+    } else {
+      if (umoney > ltmp) {
+        say(ctx, 'pay.give_asked', {
+          shk: name,
+          n: ltmp,
+          gp: ltmp === 1 ? '@shk.gold_piece' : '@shk.gold_pieces',
+          he: pr.he,
+        });
+        shkPay(ctx, ltmp, shk.id, e);
+      } else {
+        say(ctx, 'pay.give_all', { shk: name, openly: stashed ? '@pay.openly_kept' : '' });
+        shkPay(ctx, umoney, shk.id, e);
+        if (stashed) say(ctx, 'pay.hidden_gold');
+      }
+      if (umoney < ltmp / 2 || (umoney < ltmp && stashed))
+        say(ctx, 'pay.not_satisfied', { he: pr.he });
+      else makeHappyShk(ctx, shk.id);
+    }
     return NORMAL_SPEED;
   }
+  // ltmp is still eshkp->robbed here
   if (!e.bill.length && !e.debit) {
+    const umoney = moneyCnt(ctx, ctx.state.playerId);
+    const tooPoor = (): void => {
+      if (!umoney) say(ctx, 'pay.no_money', { seem: stashed ? '@pay.seem_to' : '' });
+      else say(ctx, 'pay.not_enough_interest', { him: pr.him });
+    };
     if (!ltmp && !angry(shk)) {
       say(ctx, 'pay.not_owe', { shk: name });
-      if (!moneyCnt(ctx, ctx.state.playerId))
-        say(ctx, 'pay.no_money', { seem: stashed ? '@pay.seem_to' : '' });
-      return NORMAL_SPEED;
+      if (!umoney) say(ctx, 'pay.no_money', { seem: stashed ? '@pay.seem_to' : '' });
+    } else if (ltmp) {
+      say(ctx, 'pay.after_blood', { shk: name });
+      if (umoney < ltmp / 2 || (umoney < ltmp && stashed)) {
+        tooPoor();
+        return NORMAL_SPEED;
+      }
+      say(ctx, 'pay.robbed_recently', { his: pr.his });
+      say(ctx, 'pay.compensate', {
+        partially: umoney < ltmp ? '@pay.partially' : '',
+        shk: name,
+        his: pr.his,
+      });
+      shkPay(ctx, umoney < ltmp ? umoney : ltmp, shk.id, e);
+      makeHappyShk(ctx, shk.id);
+    } else {
+      // shopkeeper is angry, but has not been robbed -- door broken, attacked, etc.
+      say(ctx, 'pay.after_hide', { shk: name });
+      if (umoney < 1000) {
+        tooPoor();
+        return NORMAL_SPEED;
+      }
+      say(ctx, canSpotMon(ctx, shk) ? 'pay.appease_angry' : 'pay.appease', {
+        shk: name,
+        him: pr.him,
+      });
+      shkPay(ctx, 1000, shk.id, e);
+      if (!e.customer || ctx.rng.rn2(3)) makeHappyShk(ctx, shk.id);
+      else say(ctx, 'pay.as_angry', { shk: name });
     }
-    return 0; // "is after blood, not gold!" and the appeasement: step 5
+    return NORMAL_SPEED;
   }
-  if (shk.id !== resident) return 0; // dopay: not to shopkeeper?
+  if (shk.id !== resident) {
+    // dopay: not to shopkeeper?
+    if (resident !== null) setpaid(ctx, resident);
+    return 0;
+  }
   const data: PayData = { step: 'item', shk: shk.id, paid: false };
   // pay debt, if any, first
   if (e.debit) {
