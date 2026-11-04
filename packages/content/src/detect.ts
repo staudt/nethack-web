@@ -5,7 +5,16 @@
 // Only terrain is mapped: the hero's memory holds no objects or monsters apart from what the
 // view already shows, so clairvoyance reveals no objects and no "remembered, unseen" monsters,
 // and never says "You sense your surroundings." (DEVIATIONS).
-import { getLevel, getPlayer, newMemory, type Ctx, type Level, type ModApi } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  newMemory,
+  sortedIds,
+  type Ctx,
+  type Entity,
+  type Level,
+  type ModApi,
+} from '@nh/core';
 import { nhData } from './items';
 import { P, hasProp, heroHas } from './props';
 import { T, setTerrain } from './terrain';
@@ -56,4 +65,29 @@ export function registerClairvoyance(api: ModApi): void {
     doVicinityMap(ctx);
     d.seerTurn = ctx.state.turn + ctx.rng.rn2(31) + 15;
   });
+}
+
+/**
+ * Detect monsters with no object: every monster of the level goes into the hero's monster
+ * memory at its cell (it stays shown until the cell is seen again, where NetHack redraws the
+ * map after browse_map()) and "You sense the presence of monsters." Returns true, saying
+ * nothing, when the level has no monster (the caller gives its own feeling).
+ * ref: src/detect.c monster_detect() with no class
+ */
+export function monsterDetect(ctx: Ctx): boolean {
+  const level = getLevel(ctx.state);
+  const mons: Entity[] = [];
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    if (!e?.c.monster || id === ctx.state.playerId || e.c.pos?.level !== level.id) continue;
+    mons.push(e);
+  }
+  if (mons.length === 0) return true;
+  const memory = (ctx.state.monsterMemory[level.id] ??= {});
+  for (const e of mons) {
+    const p = e.c.pos;
+    if (p) memory[String(p.y * level.width + p.x)] = e.def;
+  }
+  ctx.emit({ type: 'msg', key: 'cast.sense_monsters' });
+  return false;
 }

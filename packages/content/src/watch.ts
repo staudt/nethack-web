@@ -4,7 +4,9 @@
 // src/monmove.c watch_on_duty(), mon_yells(); src/dokick.c watchman_thief_arrest(),
 // watchman_door_damage(); src/uhitm.c hmon() `anger_guards`
 //
-// Not ported: digging in town (watch_dig()), fountains (deferred), shops (6b3), the Deaf branches
+// src/fountain.c watchman_warn_fountain()
+//
+// Not ported: digging in town (watch_dig()), shops (6b3), the Deaf branches
 // (the hero is never deaf) and the shrill-whistle sound effect.
 import {
   cellIndex,
@@ -145,6 +147,19 @@ function watchmanInSight(ctx: Ctx): Entity | null {
   for (const mon of levelMonsters(ctx))
     if (isWatch(mon.def) && mon.c.monster?.peaceful && couldSee(ctx, mon)) return mon;
   return null;
+}
+
+/**
+ * The hero used a town fountain: a peaceful watchman she could see yells "Hey, stop using that
+ * fountain!". Returns whether one did. ref: src/fountain.c watchman_warn_fountain() through
+ * get_iter_mons() (the hero is never deaf)
+ */
+export function watchmanWarnFountain(ctx: Ctx): boolean {
+  const mon = watchmanInSight(ctx);
+  if (!mon) return false;
+  say(ctx, 'watch.yells', { mon: monNam(ctx, mon) });
+  say(ctx, 'watch.stop_fountain');
+  return true;
 }
 
 /**

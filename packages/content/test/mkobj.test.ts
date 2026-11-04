@@ -169,7 +169,10 @@ describe('level objects', () => {
         );
         expect(inRoom).toBe(true);
         const t = level.palette[level.cells[p.y * level.width + p.x]!];
-        expect(t).toBe('nh:floor');
+        // gold is rolled before the fountain, which may then be put on it (find_okay_roompos()
+        // ignores objects, as in C); everything else comes after and needs plain floor
+        if (t === 'nh:fountain') expect(e.def).toBe('nh:gold_piece');
+        else expect(t).toBe('nh:floor');
         piles++;
         if (e.def === 'nh:gold_piece') {
           gold++;

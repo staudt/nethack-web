@@ -1,9 +1,10 @@
 // English text for the Watch. ref: src/mon.c angry_guards(), peacefuls_respond();
 // src/monmove.c watch_on_duty(), mon_yells(); src/dokick.c watchman_thief_arrest(),
-// watchman_door_damage()
+// watchman_door_damage(); src/fountain.c watchman_warn_fountain()
 export const watchMessagesEn: Record<string, string> = {
   'watch.yells': '{mon|An} yells:',
   'watch.someone_yells': 'You hear someone yell:',
+  'watch.stop_fountain': '"Hey, stop using that fountain!"',
   'watch.stop_damaging_door': '"Hey, stop damaging that door!"',
   'watch.halt_vandal': '"Halt, vandal!  You\'re under arrest!"',
   'watch.halt_thief': '"Halt, thief!  You\'re under arrest!"',

@@ -3,10 +3,12 @@
 // A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
+import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkshop } from './shknam';
+import { T, setTerrain } from './terrain';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
 
 /**
@@ -93,8 +95,8 @@ export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | n
 /**
  * One ordinary room's contents, in mklev's order: a monster (1 in 3), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
- * then random objects (1 in 3 for the first, then 1 in 5 for each further one).
- * ref: src/mklev.c fill_ordinary_room(). Mimics, fountains, sinks, altars, graves, statues,
+ * a fountain (1 in 10), then random objects (1 in 3 for the first, then 1 in 5 for each
+ * further one). ref: src/mklev.c fill_ordinary_room(). Mimics, sinks, altars, graves, statues,
  * engravings and the bonus items do not exist, and so do not roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
@@ -109,6 +111,7 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   while (ctx.rng.rn2(x) === 0 && ++trycnt < 1000) mktrap(ctx, level, room);
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
     mkgold(ctx, 0, { level: level.id, x: pos.x, y: pos.y });
+  if (ctx.rng.rn2(10) === 0) mkfount(ctx, level, room);
   // put box/chest inside
   const nroom = level.rooms.filter((r) => r.parent === undefined).length; // svr.rooms[] only
   if (ctx.rng.rn2(Math.trunc((nroom * 5) / 2)) === 0 && (pos = somexyspace(ctx, level, room))) {
@@ -128,6 +131,47 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
         mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
     }
   }
+}
+
+const SDOORS: readonly DefId[] = [T.sdoor_v, T.sdoor_h, T.sdoor_locked_v, T.sdoor_locked_h];
+
+/** A door or secret door orthogonally next to x,y. ref: src/mklev.c bydoor() */
+function bydoor(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  for (const [dx, dy] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= level.width || ny >= level.height) continue;
+    const tid = level.palette[level.cells[cellIndex(level, nx, ny)] ?? 0];
+    if (tid !== undefined && (ctx.defs.terrain(tid).door !== undefined || SDOORS.includes(tid)))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * A free floor square of the room not next to a door, or null (somexyspace() failing, or 200
+ * tries). somexyspace() already leaves out occupied squares. ref: src/mklev.c find_okay_roompos()
+ */
+function findOkayRoompos(ctx: Ctx, level: Level, room: Room): Pos | null {
+  for (let tryct = 1; tryct <= 200; tryct++) {
+    const pos = somexyspace(ctx, level, room);
+    if (!pos) return null;
+    if (!bydoor(ctx, level, pos.x, pos.y)) return pos;
+  }
+  return null;
+}
+
+/** A fountain in the room, magic ("blessed") 1 time in 7. ref: src/mklev.c mkfount() */
+export function mkfount(ctx: Ctx, level: Level, room: Room): void {
+  const m = findOkayRoompos(ctx, level, room);
+  if (!m) return;
+  setTerrain(level, m.x, m.y, T.fountain);
+  if (ctx.rng.rn2(7) === 0) setFountainBits(ctx, level.id, m.x, m.y, FTN_MAGIC);
 }
 
 /** Registers level population: ordinary levels and `rooms` LevelDefs (see sp_lev.ts for the rest). */

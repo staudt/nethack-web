@@ -453,21 +453,22 @@ function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
 // light
 
 /**
- * ref: src/vision.c circle_data[] rows for do_clear_area() radius 5, 8 (BOLT_LIM) and 9: the
+ * ref: src/vision.c circle_data[] rows for do_clear_area() radius 5, 7, 8 (BOLT_LIM) and 9: the
  * largest |dx| at each |dy|.
  */
 const CIRCLE: Readonly<Record<number, readonly number[]>> = {
   5: [5, 5, 5, 4, 3, 2],
+  7: [7, 7, 7, 6, 6, 5, 4, 2],
   8: [8, 8, 8, 7, 7, 6, 6, 4, 2],
   9: [9, 9, 9, 9, 8, 8, 7, 6, 5, 3],
 };
 
 /**
  * The cells around the hero that she could see from where she stands (couldsee(): line of
- * sight regardless of the lighting) within a circle of radius 5, 8 or 9, as cell indices.
+ * sight regardless of the lighting) within a circle of radius 5, 7, 8 or 9, as cell indices.
  * ref: src/vision.c do_clear_area() centered on the hero
  */
-export function clearArea(ctx: Ctx, radius: 5 | 8 | 9): number[] {
+export function clearArea(ctx: Ctx, radius: 5 | 7 | 8 | 9): number[] {
   const pos = heroEntity(ctx).c.pos;
   const level: Level | undefined = pos ? ctx.state.levels[pos.level] : undefined;
   if (!pos || !level) return [];

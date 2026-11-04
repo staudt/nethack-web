@@ -87,6 +87,12 @@ function shopkeepers(state: GameState, levelId: string): { id: number; e: Eshk }
   });
 }
 
+/** Takes a monster out of the game with what it carries. */
+function removeMon(state: GameState, id: number): void {
+  for (const o of inventoryOf(state, id)) delete state.entities[String(o.id)];
+  delete state.entities[String(id)];
+}
+
 const terrainAt = (level: Level, x: number, y: number): string =>
   level.palette[level.cells[cellIndex(level, x, y)] ?? -1] ?? '';
 const isRoomFloor = (level: Level, x: number, y: number): boolean => {
@@ -300,7 +306,7 @@ describe('entering a real Minetown shop', () => {
       const p = state.entities[String(id)]?.c.pos;
       return id !== state.playerId && p?.level === level.id && p.x === out.x && p.y === out.y;
     });
-    if (blocker !== undefined) delete state.entities[String(blocker)];
+    if (blocker !== undefined) removeMon(state, blocker);
     // a closed shop door is opened first
     const open = shd.x !== shk.x ? 'nh:door_open_v' : 'nh:door_open_h';
     if (!terrainAt(level, shd.x, shd.y).startsWith('nh:door_open')) {
@@ -506,7 +512,7 @@ describe('robbing a real Minetown shop', () => {
       const p = state.entities[String(id)]?.c.pos;
       return id !== state.playerId && p?.level === level.id && p.x === out.x && p.y === out.y;
     });
-    if (blocker !== undefined) delete state.entities[String(blocker)];
+    if (blocker !== undefined) removeMon(state, blocker);
     const from = { x: hp.x, y: hp.y };
     Object.assign(hp, shd);
     const warn = run(state, (ctx) => checkSpecialRoom(ctx, false, from));

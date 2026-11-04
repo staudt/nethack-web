@@ -26,6 +26,7 @@ import { chatMessagesEn } from './chat.en';
 import { shkMessagesEn } from './shk.en';
 import { mcastuMessagesEn } from './mcastu.en';
 import { wizardMessagesEn } from './wizard/wizard.en';
+import { fountainMessagesEn } from './fountain.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -55,6 +56,7 @@ export const messagesEn: Record<string, string> = {
   ...chatMessagesEn,
   ...shkMessagesEn,
   ...mcastuMessagesEn,
+  ...fountainMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',

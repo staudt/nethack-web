@@ -8,7 +8,6 @@ import {
   NORMAL_SPEED,
   getLevel,
   getPlayer,
-  sortedIds,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -19,6 +18,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { confdir, getdirImpaired, uMaybeImpaired } from './hackmove';
+import { monsterDetect } from './detect';
 import { hcolor } from './hcolor';
 import { morehungry } from './hunger';
 import { uState } from './luck';
@@ -89,7 +89,7 @@ function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' {
     case 'nh:spellbook_of_detect_monsters':
       // ref: spelleffects() -> peffects() -> peffect_monster_detection(): the blessed (Skilled)
       // timed branch is not ported, no role here reaches Skilled in divination
-      return monsterDetect;
+      return castMonsterDetect;
     case 'nh:spellbook_of_cure_blindness':
       return (ctx) => healup(ctx, 0, 0, false, true);
     case 'nh:spellbook_of_protection':
@@ -344,30 +344,13 @@ export function confuseMonsterSpell(ctx: Ctx, blessed: boolean): void {
 }
 
 /**
- * Detect monsters: every monster of the level goes into the hero's monster memory at its cell
- * (it stays shown until the cell is seen again, where NetHack redraws the map after
- * browse_map()); on a level without monsters, "You feel threatened." (a beginner's strange
- * feeling). ref: src/detect.c monster_detect() with an uncursed object and no class
+ * Detect monsters, as the spell's object would: on a level without monsters, "You feel
+ * threatened." (a beginner's strange feeling). ref: src/detect.c monster_detect()
  */
-function monsterDetect(ctx: Ctx): void {
-  const level = getLevel(ctx.state);
-  const mons: Entity[] = [];
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    if (!e?.c.monster || id === ctx.state.playerId || e.c.pos?.level !== level.id) continue;
-    mons.push(e);
-  }
-  if (mons.length === 0) {
-    const halluc = hasProp(hero(ctx), P.HALLUC);
-    strangeFeeling(ctx, null, halluc ? 'cast.heebie_jeebies' : 'spell.threatened');
-    return;
-  }
-  const memory = (ctx.state.monsterMemory[level.id] ??= {});
-  for (const e of mons) {
-    const p = e.c.pos;
-    if (p) memory[String(p.y * level.width + p.x)] = e.def;
-  }
-  say(ctx, 'cast.sense_monsters');
+function castMonsterDetect(ctx: Ctx): void {
+  if (!monsterDetect(ctx)) return;
+  const halluc = hasProp(hero(ctx), P.HALLUC);
+  strangeFeeling(ctx, null, halluc ? 'cast.heebie_jeebies' : 'spell.threatened');
 }
 
 /** The wall and stone terrain around which the haze shimmers in "stone". ref: rm.h IS_STWALL() */

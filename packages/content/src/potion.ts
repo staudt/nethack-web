@@ -10,6 +10,7 @@ import {
   type Offer,
   type PlayerAction,
 } from '@nh/core';
+import { answerFountainWish, drinkfountain, heroOnFountain } from './fountain';
 import { uState } from './luck';
 import { newuhs, makeSick } from './hunger';
 import { encumberMsg } from './itemactions';
@@ -313,6 +314,16 @@ const quaff: ActionDef = {
   labelKey: 'action.nh:quaff',
   handles: 'mod',
   offer(ctx, target): Offer[] {
+    // "Drink from the fountain?" comes before the inventory (ref: dodrink())
+    if (target.kind === 'self')
+      return heroOnFountain(ctx)
+        ? [
+            {
+              action: { type: 'mod', action: QUAFF_ID, args: { fountain: true } },
+              labelKey: 'action.nh:quaff.fountain',
+            },
+          ]
+        : [];
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     if (!e || ctx.defs.object(e.def).class !== 'potion') return [];
@@ -323,8 +334,10 @@ const quaff: ActionDef = {
       },
     ];
   },
-  // ref: src/potion.c dodrink() (no fountains or sinks yet)
+  // ref: src/potion.c dodrink() (no sinks; drinking from a fountain: fountain.ts)
   perform(ctx, action) {
+    if (action.type === 'mod' && (action.args as { fountain?: unknown } | undefined)?.fountain)
+      return drinkfountain(ctx, QUAFF_ID);
     const e = heroItem(ctx, itemArg(action));
     if (!e) return 0;
     const def = ctx.defs.object(e.def);
@@ -336,6 +349,8 @@ const quaff: ActionDef = {
     encumberMsg(ctx);
     return NORMAL_SPEED;
   },
+  // a water demon's wish (the only prompt a drink asks)
+  answer: (ctx, value, data) => answerFountainWish(ctx, QUAFF_ID, value, data),
 };
 
 export const POTION_ACTIONS: readonly ActionDef[] = [quaff];

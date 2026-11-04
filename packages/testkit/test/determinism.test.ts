@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { recordGame, runReplay, soak, soakKitMod } from '../src/index';
 import { randomActions } from './helpers/actions';
 
-const SEED = 20240607;
+const SEED = 20240609;
 const W = 80;
 const H = 21;
 const allActions = randomActions(400, 99);

@@ -376,6 +376,9 @@ describe('monster attacks', () => {
   test('a hit interrupts multi-turn actions', () => {
     const s = setup(5, { ac: 10 });
     if (s.hero.c.hp) s.hero.c.hp.cur = s.hero.c.hp.max = 1000;
+    // no natural regeneration, so the end-of-turn heal can't hide the bite's damage
+    if (s.hero.c.attributes) s.hero.c.attributes.con = 0;
+    if (s.hero.c.experience) s.hero.c.experience.level = 0;
     target.id = spawn(s.state, 'nh:jackal', { x: 4, y: 2 });
     const r = s.engine.step(s.state, { type: 'mod', action: 'test:repeat' });
     const m = msgs(r.events);

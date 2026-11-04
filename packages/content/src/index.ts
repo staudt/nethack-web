@@ -450,7 +450,25 @@ export {
 } from './hunger';
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
-export { fillOrdinaryRoom, mkSpecialRoom, somexyspace, mktrap, traptypeRnd } from './mklev';
+export {
+  fillOrdinaryRoom,
+  mkSpecialRoom,
+  somexyspace,
+  mktrap,
+  traptypeRnd,
+  mkfount,
+} from './mklev';
+export {
+  FTN_MAGIC,
+  FTN_LOOTED,
+  FTN_WARNED,
+  fountainBits,
+  setFountainBits,
+  heroOnFountain,
+  drinkfountain,
+  dryup,
+  dogushforth,
+} from './fountain';
 export { monsterDied } from './mondeath';
 export {
   mongets,
