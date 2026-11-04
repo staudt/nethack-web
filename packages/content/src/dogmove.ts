@@ -39,7 +39,7 @@ import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
-import { isFrozen, isMStunned } from './mstate';
+import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
 import { stopOccupation } from './eat';
 
 const DOG_WEAK = 500;
@@ -121,6 +121,7 @@ export function dogEat(
     if (nutrit > 1) nutrit = Math.trunc((nutrit * 3) / 4);
   }
   e.hungrytime += nutrit;
+  setMConfused(ctx, id, false);
   if (e.mhpmaxPenalty) {
     // no longer starving
     const hp = mon.c.hp;
@@ -174,7 +175,8 @@ function dogStarve(ctx: Ctx, mon: Entity): void {
 
 /**
  * Hunger: past DOG_WEAK a pet loses two thirds of its maximum HP; past DOG_STARVE it starves.
- * Returns true if it starved. ref: src/dogmove.c dog_hunger() (pets are never confused here)
+ * Returns true if it starved; a pet weak from hunger is confused (until it eats).
+ * ref: src/dogmove.c dog_hunger()
  */
 function dogHunger(ctx: Ctx, mon: Entity, e: Edog): boolean {
   const now = ctx.state.turn;
@@ -185,6 +187,7 @@ function dogHunger(ctx: Ctx, mon: Entity, e: Edog): boolean {
     e.hungrytime = now + DOG_WEAK;
   } else if (!e.mhpmaxPenalty && hp) {
     const newmax = Math.trunc(hp.max / 3);
+    setMConfused(ctx, mon.id, true);
     e.mhpmaxPenalty = hp.max - newmax;
     hp.max = newmax;
     if (hp.cur > hp.max) hp.cur = hp.max;
@@ -381,7 +384,8 @@ function dogGoal(
       }
     }
   } else appr = 1;
-  if (isMStunned(ctx, mon.id)) appr = 0;
+  // ref: dog_goal(): `if (mtmp->mconf) appr = 0;`
+  if (isMConfused(ctx, mon.id) || isMStunned(ctx, mon.id)) appr = 0;
 
   if (gx === hp.x && gy === hp.y && !inMastersSight) {
     // no trail to follow: reuse the previous goal once, else head for the hero

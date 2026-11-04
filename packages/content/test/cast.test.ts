@@ -2,6 +2,7 @@ import {
   createEngine,
   getPlayer,
   newMemory,
+  type Ctx,
   type DefId,
   type EntityId,
   type Json,
@@ -14,13 +15,14 @@ import { setTerrain } from '../src/actions';
 import { T, vanillaMod } from '../src/index';
 import { nhData } from '../src/items';
 import { setU, uState } from '../src/luck';
-import { frozenTime, isFrozen } from '../src/mstate';
+import { confuseMonsterSpell } from '../src/cast';
+import { frozenTime, isFrozen, isMConfused, setMConfused } from '../src/mstate';
 import { P, setIntrinsic, setItimeout } from '../src/props';
 import { P_SKILLED, P_UNSKILLED } from '../src/skills';
 import { KEEN } from '../src/spell';
 import { spellDamageBonus, spellHitBonus } from '../src/spellcalc';
 import { findAc, findMac } from '../src/stats';
-import { pwOf, setPw, uspellOf } from '../src/uenergy';
+import { pwOf, setPw, setUspell, uspellOf } from '../src/uenergy';
 import { addMon } from './helpers';
 import { ctxFor, defs, engine, levelSetup, render } from './itemHelpers';
 
@@ -115,15 +117,6 @@ describe('the cast command', () => {
     s.mod('nh:cast');
     const r = engine.step(s.state, { type: 'answer', promptId: 'cast-menu', value: null });
     expect(s.text(r)).toEqual([]);
-    expect(s.state.turn).toBe(t0);
-    expect(pwOf(s.state).uen).toBe(100);
-  });
-
-  test('confuse monster is not castable yet (no cost)', () => {
-    const s = caster();
-    know(s, [CONFUSE]);
-    const t0 = s.state.turn;
-    expect(castText(s)).toEqual(['Nothing happens.']);
     expect(s.state.turn).toBe(t0);
     expect(pwOf(s.state).uen).toBe(100);
   });
@@ -714,5 +707,226 @@ describe('sleep', () => {
     }
     expect(slept).toBeGreaterThan(0);
     expect(resisted).toBeGreaterThan(0);
+  });
+});
+
+describe('confuse monster', () => {
+  /** A caster at Basic enchantment (the Valkyrie's school is restricted). */
+  function confuser(rows?: string[], seed = 1, skill = P_UNSKILLED + 1): Setup {
+    const s = caster(rows, seed);
+    nhData(s.ctx).skills!['enchantment_spell'] = skill;
+    know(s, [CONFUSE]);
+    return s;
+  }
+  const umconf = (s: Setup): number => uspellOf(s.state).umconf;
+
+  test('the hands glow red, then the glow intensifies: 1 or 2 charges a cast, for 5 Pw', () => {
+    const s = confuser();
+    const t0 = s.state.turn;
+    expect(castText(s)).toEqual(['Your hands begin to glow red.']);
+    expect(s.state.turn).toBeGreaterThan(t0);
+    expect(pwOf(s.state).uen).toBe(95); // a level 1 spell
+    const first = umconf(s);
+    expect([1, 2]).toContain(first);
+    expect(castText(s)).toEqual(['The red glow of your hands intensifies.']);
+    expect([1, 2]).toContain(umconf(s) - first);
+  });
+
+  test('at Skilled (the blessed scroll) 2 to 9 charges with a brilliant glow', () => {
+    const s = confuser(undefined, 1, P_SKILLED);
+    expect(castText(s)).toEqual(['Your hands glow a brilliant red.']);
+    const first = umconf(s);
+    expect(first).toBeGreaterThanOrEqual(2);
+    expect(first).toBeLessThanOrEqual(9);
+    expect(castText(s)).toEqual(['Your hands glow an even more brilliant red.']);
+    expect(umconf(s) - first).toBeGreaterThanOrEqual(2);
+  });
+
+  test('blind, the hands tingle', () => {
+    const s = confuser();
+    setItimeout(s.state, hero(s), P.BLINDED, 50);
+    expect(castText(s)).toEqual(['Your hands tingle.']);
+    expect(castText(s)).toEqual(['Your hands tingle even more.']);
+    confuseMonsterSpell(s.ctx as unknown as Ctx, true);
+    expect(umconf(s)).toBeGreaterThan(2);
+  });
+
+  test('from 40 charges on, a cast adds just one', () => {
+    const s = confuser(undefined, 1, P_SKILLED);
+    setUspell(s.ctx, { umconf: 40 });
+    castText(s);
+    expect(umconf(s)).toBe(41);
+    castText(s);
+    expect(umconf(s)).toBe(42);
+  });
+
+  test('cast while confused (forced): purple hands and more confusion; blessed cures it', () => {
+    const s = confuser();
+    setItimeout(s.state, hero(s), P.CONFUSION, 10);
+    const before = hero(s).c.props?.[P.CONFUSION]?.timeout ?? 0;
+    const events: string[] = [];
+    const ctx = {
+      ...s.ctx,
+      emit: (e: { type: string; key?: string }) => events.push(e.key ?? ''),
+    } as unknown as Ctx;
+    confuseMonsterSpell(ctx, false);
+    expect(events).toEqual(['cast.hands_begin_glow']);
+    expect(hero(s).c.props?.[P.CONFUSION]?.timeout ?? 0).toBeGreaterThan(before);
+    expect(umconf(s)).toBe(0);
+    events.length = 0;
+    confuseMonsterSpell(ctx, true);
+    expect(events).toEqual(['cast.head_glow', 'conf.less_confused']);
+    expect(hero(s).c.props?.[P.CONFUSION]?.timeout ?? 0).toBe(0);
+  });
+
+  /** A hero who always hits (experience level 30) with `n` charges, next to a pinned monster. */
+  function puncher(def: string, n: number, seed = 1): { s: Setup; m: EntityId } {
+    const s = confuser(['@.'], seed);
+    hero(s).c.experience!.level = 30;
+    setUspell(s.ctx, { umconf: n });
+    const m = pinned(s, def, 1, 0, 1000, false);
+    s.step({ type: 'wait' }); // see it
+    return { s, m };
+  }
+
+  test('a hand-to-hand hit confuses the monster and uses a charge; the glow stops after the last', () => {
+    const { s, m } = puncher('nh:jackal', 2); // MR 0: never resists
+    const text = s.text(s.step({ type: 'move', dir: 'e' }));
+    expect(text).toContain('Your hands no longer glow so brightly red.');
+    expect(text).toContain('The jackal appears confused.');
+    expect(text.indexOf('The jackal appears confused.')).toBeGreaterThan(
+      text.findIndex((t) => t.startsWith('You hit the jackal')),
+    );
+    expect(isMConfused(s.ctx, m)).toBe(true);
+    expect(umconf(s)).toBe(1);
+    // already confused: no charge is used
+    s.step({ type: 'move', dir: 'e' });
+    expect(umconf(s)).toBe(1);
+    setMConfused(s.ctx, m, false);
+    const last = s.text(s.step({ type: 'move', dir: 'e' }));
+    expect(last).toContain('Your hands stop glowing red.');
+    expect(last).toContain('The jackal appears confused.');
+    expect(umconf(s)).toBe(0);
+    setMConfused(s.ctx, m, false);
+    const none = s.text(s.step({ type: 'move', dir: 'e' }));
+    expect(none.some((t) => t.includes('confused') || t.includes('glow'))).toBe(false);
+    expect(isMConfused(s.ctx, m)).toBe(false);
+  });
+
+  test('a monster may resist (magic resistance), and the charge is used all the same', () => {
+    let resisted = 0;
+    let confused = 0;
+    for (let seed = 1; seed <= 60 && (resisted < 1 || confused < 1); seed++) {
+      const { s, m } = puncher('nh:gnome_king', 1, seed); // MR 20
+      const text = s.text(s.step({ type: 'move', dir: 'e' }));
+      expect(text).toContain('Your hands stop glowing red.');
+      expect(umconf(s)).toBe(0);
+      if (isMConfused(s.ctx, m)) {
+        confused++;
+        expect(text).toContain('The gnome king appears confused.');
+      } else {
+        resisted++;
+        expect(text.some((t) => t.includes('appears confused'))).toBe(false);
+      }
+    }
+    expect(resisted).toBeGreaterThan(0);
+    expect(confused).toBeGreaterThan(0);
+  });
+
+  test('a sleeping monster is confused without the message', () => {
+    const s = confuser(['@.']);
+    hero(s).c.experience!.level = 30;
+    setUspell(s.ctx, { umconf: 1 });
+    const m = pinned(s, 'nh:jackal', 1, 0, 1000, true);
+    s.step({ type: 'wait' }); // see it
+    const text = s.text(s.step({ type: 'move', dir: 'e' }));
+    expect(isMConfused(s.ctx, m)).toBe(true);
+    expect(text.some((t) => t.includes('appears confused'))).toBe(false);
+  });
+
+  test('a thrown object does not use the glow', () => {
+    const s = confuser(['@..']);
+    setUspell(s.ctx, { umconf: 3 });
+    hero(s).c.experience!.level = 30; // sure to hit
+    const m = pinned(s, 'nh:jackal', 2, 0, 1000, false);
+    s.mod('nh:throw', { item: s.byLetter('b') }); // the dagger
+    const p = s.state.pendingPrompt?.prompt;
+    engine.step(s.state, { type: 'answer', promptId: p!.id, value: 'e' });
+    expect(hpOf(s, m)).toBeLessThan(1000);
+    expect(umconf(s)).toBe(3);
+    expect(isMConfused(s.ctx, m)).toBe(false);
+  });
+});
+
+describe('monster confusion', () => {
+  const bites = (t: string): boolean => /^(The jackal|It) (bites|misses)/.test(t);
+
+  test('a confused monster recovers 1 time in 50 at its move', () => {
+    // walled off from the hero: it only wanders
+    const s = levelSetup(['@ ......']);
+    const m = addMon(s.state, 'nh:jackal', 5, 0);
+    setMConfused(s.ctx, m, true);
+    let turns = 0;
+    while (isMConfused(s.ctx, m) && turns < 2000) {
+      engine.step(s.state, { type: 'wait' });
+      turns++;
+    }
+    expect(isMConfused(s.ctx, m)).toBe(false);
+    expect(s.state.entities[String(m)]).toBeDefined();
+  });
+
+  test('a confused monster wanders (appr 0) instead of closing in', () => {
+    const away = (seed: number, conf: boolean): boolean => {
+      const s = levelSetup(['@...........'], seed);
+      const m = addMon(s.state, 'nh:jackal', 8, 0);
+      let x = 8;
+      for (let i = 0; i < 6; i++) {
+        if (conf) setMConfused(s.ctx, m, true); // no recovery in the middle of the test
+        engine.step(s.state, { type: 'wait' });
+        const nx = s.state.entities[String(m)]?.c.pos?.x ?? x;
+        if (nx > x) return true;
+        x = nx;
+      }
+      return false;
+    };
+    for (let seed = 1; seed <= 5; seed++) expect(away(seed, false)).toBe(false);
+    let found = false;
+    for (let seed = 1; seed <= 20 && !found; seed++) found = away(seed, true);
+    expect(found).toBe(true);
+  });
+
+  test('a confused monster next to the hero moves instead of attacking', () => {
+    const turn = (seed: number, conf: boolean): { moved: boolean; bit: boolean } => {
+      const s = levelSetup(['.....', '..@..', '.....'], seed);
+      const m = addMon(s.state, 'nh:jackal', 3, 1, { energy: 12 });
+      if (conf) setMConfused(s.ctx, m, true);
+      const text = s.text(engine.step(s.state, { type: 'wait' }));
+      const p = s.state.entities[String(m)]?.c.pos;
+      return { moved: p?.x !== 3 || p?.y !== 1, bit: text.some(bites) };
+    };
+    for (let seed = 1; seed <= 5; seed++) {
+      const t = turn(seed, false);
+      expect(t.moved).toBe(false);
+      expect(t.bit).toBe(true);
+    }
+    let moved = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const t = turn(seed, true);
+      if (t.moved) {
+        moved++;
+        expect(t.bit).toBe(false);
+      }
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
+
+  test('the state goes with the monster', () => {
+    const s = levelSetup(['@ ...']);
+    const m = addMon(s.state, 'nh:jackal', 3, 0);
+    setMConfused(s.ctx, m, true);
+    delete s.state.entities[String(m)];
+    engine.step(s.state, { type: 'wait' });
+    const nh = s.state.modData['nh'] as Record<string, Json>;
+    expect(nh['mconf']).toEqual({});
   });
 });

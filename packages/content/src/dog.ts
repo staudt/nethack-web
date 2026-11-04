@@ -19,7 +19,7 @@ import { makemon, mnextoPos } from './generation';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
 import { forgetMonster } from './mongear';
-import { frozenTime, forgetMState, isFrozen, paralyzeMonst } from './mstate';
+import { frozenTime, forgetMState, isFrozen, isMConfused, paralyzeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
 import { ustuck, setUstuck } from './hackmove';
@@ -358,6 +358,7 @@ export function tamedog(
     const e = edogOf(ctx, id);
     if (
       !isFrozen(ctx, id) &&
+      !isMConfused(ctx, id) &&
       !meating(ctx, id) &&
       (tasty === DOGFOOD || (tasty <= ACCFOOD && (e?.hungrytime ?? 0) <= ctx.state.turn))
     ) {

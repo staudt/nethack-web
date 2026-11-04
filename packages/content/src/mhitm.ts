@@ -22,7 +22,7 @@ import { monkilled, mondied } from './mondeath';
 export { monkilled, mondied };
 import { magicNegation } from './mhitu';
 import { monWep, monWieldItem } from './mongear';
-import { paralyzeMonst, isFrozen, setMStunned, isMStunned } from './mstate';
+import { paralyzeMonst, isFrozen, setMStunned, isMStunned, isMConfused } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
 import { nhData } from './items';
@@ -438,7 +438,7 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
 
   // the armour class differential
   let tmp = findMac(ctx.state, ctx.defs, mdefId) + magr.c.monster.level;
-  if (helpless(ctx, mdefId)) {
+  if (isMConfused(ctx, mdefId) || helpless(ctx, mdefId)) {
     tmp += 4;
     mdef.c.monster.asleep = false;
   }

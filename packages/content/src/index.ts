@@ -219,7 +219,15 @@ export { passive } from './uhitm_passive';
 export { ustuck, setUstuck } from './hackmove';
 export { monNam, canSpotMon, telepathSenses, registerPerception } from './perception';
 export { mattackm, monkilled, mondied, growUp, GROWS_INTO, M_ATTK } from './mhitm';
-export { isFrozen, frozenTime, paralyzeMonst, isMStunned, setMStunned } from './mstate';
+export {
+  isFrozen,
+  frozenTime,
+  paralyzeMonst,
+  isMStunned,
+  setMStunned,
+  isMConfused,
+  setMConfused,
+} from './mstate';
 export {
   makedog,
   initedog,

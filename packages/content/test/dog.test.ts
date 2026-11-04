@@ -26,6 +26,7 @@ import {
   vanillaMod,
 } from '../src/index';
 import { dogEat } from '../src/dogmove';
+import { isMConfused, setMConfused } from '../src/mstate';
 import { addMon, setup } from './helpers';
 import { ctxFor, defs, render } from './itemHelpers';
 
@@ -265,7 +266,9 @@ describe('pets fight and eat', () => {
       at: { level: 'dlvl1', x: 3, y: 2 },
       corpseOf: 'nh:newt' as DefId,
     });
+    setMConfused(ctx, k, true);
     dogEat(ctx, k, s.state.entities[String(corpse)]!, { x: 3, y: 2 }, false);
+    expect(isMConfused(ctx, k)).toBe(false); // eating cures the hunger confusion
     expect(e.hungrytime).toBe(before + defs.monster('nh:newt' as DefId).nutrition * 6);
     expect(s.state.entities[String(k)]!.c.monster!.tame).toBe(11);
     expect(s.state.entities[String(corpse)]).toBeUndefined();
@@ -283,6 +286,7 @@ describe('pets fight and eat', () => {
     expect(hp.max).toBe(4);
     expect(e.mhpmaxPenalty).toBe(8);
     expect(keys).toContain('dog.confused_hunger');
+    expect(isMConfused(ctxOf(s.state), k)).toBe(true);
     e.hungrytime = s.state.turn - 751;
     const later: string[] = [];
     for (let i = 0; i < 3; i++) later.push(...msgs(engine.step(s.state, { type: 'wait' }).events));

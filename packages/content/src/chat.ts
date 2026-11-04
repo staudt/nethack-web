@@ -28,7 +28,7 @@ import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { isFleeing } from './monflee';
-import { isFrozen, isMStunned } from './mstate';
+import { isFrozen, isMConfused, isMStunned } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
 import { P, heroHas, isStrangled } from './props';
@@ -112,7 +112,7 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
   };
   const turn = ctx.state.turn;
   const hungrytime = edogOf(ctx, id)?.hungrytime ?? turn;
-  const upset = isFleeing(ctx, id) || isMtrapped(ctx, id) || tame < 5; // (no mconf)
+  const upset = isMConfused(ctx, id) || isFleeing(ctx, id) || isMtrapped(ctx, id) || tame < 5;
   const hp = mon.c.hp;
   switch (msound) {
     case 'sell':
@@ -173,7 +173,7 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       const max = hp?.max ?? 1;
       if (isFleeing(ctx, id)) return pline('chat.nothing_to_do');
       if (cur < max / 4) return pline('chat.moans');
-      if (isMStunned(ctx, id)) {
+      if (isMConfused(ctx, id) || isMStunned(ctx, id)) {
         say(ctx, !ctx.rng.rn2(3) ? 'chat.huh' : ctx.rng.rn2(2) ? 'chat.what' : 'chat.eh');
         return NORMAL_SPEED;
       }

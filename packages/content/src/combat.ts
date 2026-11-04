@@ -38,11 +38,14 @@ import { hurtPet } from './dog';
 import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon } from './perception';
-import { isFrozen, isMStunned } from './mstate';
+import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
+import { resist } from './buzz';
+import { hcolor } from './hcolor';
+import { setUspell, uspellOf } from './uenergy';
+import { P, hasProp, ringBonus } from './props';
 import { isMtrapped, utrap } from './trapstate';
 import { isBig, nonliving } from './mondata';
 import { dmgval, dmgvalSized } from './dmgval';
-import { ringBonus } from './props';
 import { angryGuards, isWatch } from './watch';
 import { epriOf } from './epri';
 import { ghodHitsu } from './priest';
@@ -318,6 +321,22 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     key: exclam(dmg) === '!' ? 'combat.you_hit_hard' : 'combat.you_hit',
     params: { mon: name },
   });
+  // ref: src/uhitm.c hmon_hitmon(): `else if (u.umconf && hmd.hand_to_hand)` (every blow here
+  // is hand-to-hand: thrown and fired objects hit through dothrow.ts)
+  if (uspellOf(ctx.state).umconf) {
+    nohandglow(ctx, target);
+    if (!isMConfused(ctx, targetId) && !resist(ctx, target, 0, 'spell')) {
+      setMConfused(ctx, targetId, true);
+      if (
+        !isMStunned(ctx, targetId) &&
+        !mon.asleep &&
+        !isFrozen(ctx, targetId) &&
+        target.c.pos &&
+        heroSees(ctx, target.c.pos)
+      )
+        ctx.emit({ type: 'msg', key: 'combat.appears_confused', params: { mon: name } });
+    }
+  }
   // ref: src/uhitm.c known_hitum(): a hit that left it below half its hit points sometimes scares
   // it (`!rn2(25) && mon->mhp < mon->mhpmax / 2`); hmon_hitmon_msg_hit()'s wakeup() comes first
   wakeup(ctx, targetId);
@@ -482,4 +501,30 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
     if (ctx.state.gameOver) return;
   }
+}
+
+/**
+ * A charge of the confuse monster glow is used on a monster that is not confused yet: "Your
+ * hands stop glowing red." with the last one. ref: src/uhitm.c nohandglow()
+ */
+function nohandglow(ctx: Ctx, mon: Entity): void {
+  const { umconf } = uspellOf(ctx.state);
+  if (!umconf || isMConfused(ctx, mon.id)) return;
+  const altfeedback = hasProp(getPlayer(ctx.state), P.BLINDED); // Blind || Invisible
+  if (umconf === 1) {
+    if (altfeedback) ctx.emit({ type: 'msg', key: 'combat.hands_stop_tingling' });
+    else
+      ctx.emit({
+        type: 'msg',
+        key: 'combat.hands_stop_glowing',
+        params: { color: hcolor(ctx, 'red') },
+      });
+  } else if (altfeedback) ctx.emit({ type: 'msg', key: 'combat.tingling_lessens' });
+  else
+    ctx.emit({
+      type: 'msg',
+      key: 'combat.glow_less_bright',
+      params: { color: hcolor(ctx, 'red') },
+    });
+  setUspell(ctx, { umconf: umconf - 1 });
 }

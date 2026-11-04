@@ -38,7 +38,7 @@ import { P, heroHas } from './props';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
-import { isFrozen, isMStunned, setMStunned } from './mstate';
+import { isFrozen, isMConfused, isMStunned, setMConfused, setMStunned } from './mstate';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
@@ -195,9 +195,15 @@ export function mfndpos(
     return !rules.passable[i] && !rules.closedDoor[i];
   };
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
+  // ref: mfndpos(): `if (mon->mconf) { flag |= ALLOW_ALL; flag &= ~NOTONL; }`: a confused
+  // monster walks into known traps and sanctuaries (ALLOW_TRAPS, ALLOW_SANCT); ALLOW_U for a
+  // peaceful one and ALLOW_M are not ported (see DEVIATIONS.md)
+  const conf = isMConfused(ctx, id);
+  const allowTraps = opts.allowTraps === true || conf;
   // ref: mfndpos() ALLOW_SANCT: `level.flags.has_temple && *in_rooms(nx, ny, TEMPLE) &&
   // !*in_rooms(x, y, TEMPLE) && in_your_sanctuary(0, nx, ny)` (it only prevents movement)
   const sanctCheck =
+    !conf &&
     !m.peaceful &&
     level.id === ctx.state.currentLevel &&
     epriOf(ctx, id) === null &&
@@ -238,7 +244,7 @@ export function mfndpos(
       const ttmp = trapAt(level, nx, ny);
       let harmful = false;
       if (ttmp && !mHarmlessTrap(ctx, e, ttmp)) {
-        if (!opts.allowTraps && monKnowsTraps(ctx, id, ttmp.def)) continue;
+        if (!allowTraps && monKnowsTraps(ctx, id, ttmp.def)) continue;
         harmful = true;
       }
       out.push({
@@ -399,7 +405,8 @@ export interface MoveSpecialOpts {
  * lined up himself and cannot find one gives up avoiding, and so does a shopkeeper with the hero
  * on his door when every square is lined up. The hero's own square is never stepped onto (0).
  * Returns 1 moved, 0 did not, -2 died.
- * ref: src/priest.c move_special() (no confusion, boulders or ALLOW_M)
+ * A confused one neither avoids nor approaches. ref: src/priest.c move_special() (no boulders
+ * or ALLOW_M)
  */
 export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecialOpts): -2 | 0 | 1 {
   const { pos } = monCount(ctx, id);
@@ -408,9 +415,14 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
   const ggx = o.goal.x;
   const ggy = o.goal.y;
   if (omx === ggx && omy === ggy) return 0;
+  let avoid = o.avoid;
+  let appr = o.appr;
+  if (isMConfused(ctx, id)) {
+    avoid = false;
+    appr = 0;
+  }
   const level = getLevel(ctx.state, pos.level);
   const cands = mfndpos(ctx, level, cellRules(level, ctx.defs), id, heroPos);
-  let avoid = o.avoid;
   const gdist = (x: number, y: number): number => dist2(x, y, ggx, ggy);
   let nix = omx;
   let niy = omy;
@@ -426,7 +438,7 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
       if (!anywhere && !isRoomCell(ctx, level, c.x, c.y)) continue;
       // NOTONL: mfndpos() marks squares lined up with where the monster thinks the hero is
       if (avoid && online2(c.x, c.y, heroPos.x, heroPos.y)) continue;
-      if ((!o.appr && !ctx.rng.rn2(++chcnt)) || (o.appr && gdist(c.x, c.y) < gdist(nix, niy))) {
+      if ((!appr && !ctx.rng.rn2(++chcnt)) || (appr && gdist(c.x, c.y) < gdist(nix, niy))) {
         nix = c.x;
         niy = c.y;
         onHero = c.hero;
@@ -587,10 +599,12 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   }
   const goal: Pos = { x: heroPos.x, y: heroPos.y };
 
-  // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, overridden to 0 for peacefuls and erratic bats
+  // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, 0 for a confused monster, else overridden to
+  // 0 for peacefuls and erratic bats
   let appr = isFleeing(ctx, id) ? -1 : 1;
-  if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
-  if (isMStunned(ctx, id)) appr = 0; // `if (mtmp->mconf || mtmp->mstun ...) appr = 0`
+  if (isMConfused(ctx, id)) appr = 0;
+  else if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
+  if (isMStunned(ctx, id)) appr = 0;
 
   // ref: m_move(): hostile monsters (and peaceful ones 1 time in 10) look for items unless they
   // are closing in on a hero they are lined up with ("monsters in combat won't pick stuff up")
@@ -694,8 +708,9 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
  * m_move(); one that moved does not attack in the same action. Phase four: a hostile adjacent
  * monster attacks. A fleeing monster always tries to move (away from the hero) and attacks only
  * when it could not (cornered). A hostile monster next to the hero in her sanctuary is scared:
- * it flees and attacks only when it has nowhere to go (panicattk). Not ported: other scares
- * (Elbereth), confusion, invisibility, spellcasting, defensive/misc item use, special
+ * it flees and attacks only when it has nowhere to go (panicattk). A confused or stunned monster
+ * moves (at random) and attacks only when it did not. Not ported: other scares (Elbereth),
+ * invisibility, spellcasting, defensive/misc item use, special
  * per-monster behavior. A pet's move is `petMove` (dog_move).
  */
 export function dochug(
@@ -716,9 +731,10 @@ export function dochug(
     if (mDoWear(ctx, id, false)) return;
   }
 
-  // ref: dochug(): a monster that can't move does nothing; a stunned one may recover
+  // ref: dochug(): a monster that can't move does nothing; a confused or stunned one may recover
   if (isFrozen(ctx, id)) return;
   if (m.asleep && !disturb(ctx, id)) return;
+  if (isMConfused(ctx, id) && ctx.rng.rn2(50) === 0) setMConfused(ctx, id, false);
   if (isMStunned(ctx, id) && ctx.rng.rn2(10) === 0) setMStunned(ctx, id, false);
 
   // ref: set_apparxy(): the monster knows where the hero is
@@ -761,7 +777,15 @@ export function dochug(
 
   let status: MoveStatus = 'nothing';
   let panicattk = false;
-  if (!nearby || fleeing || scared || (isWanderer(def) && ctx.rng.rn2(4) === 0) || m.peaceful) {
+  if (
+    !nearby ||
+    fleeing ||
+    scared ||
+    isMConfused(ctx, id) ||
+    isMStunned(ctx, id) ||
+    (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
+    m.peaceful
+  ) {
     // ref: m_move(): a trapped monster tries to get free first; still caught, it does not move
     // (but may attack)
     const caught = isMtrapped(ctx, id) ? mintrap(ctx, id) : 'finished';

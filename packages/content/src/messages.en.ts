@@ -111,6 +111,11 @@ export const messagesEn: Record<string, string> = {
   'weapon.spear': 'spear',
   // ref: src/uhitm.c, src/mon.c, src/mhitu.c
   'combat.you_hit': 'You hit {mon|the}.',
+  'combat.appears_confused': '{mon|The} appears confused.',
+  'combat.hands_stop_glowing': 'Your hands stop glowing {color}.',
+  'combat.hands_stop_tingling': 'Your hands stop tingling.',
+  'combat.glow_less_bright': 'Your hands no longer glow so brightly {color}.',
+  'combat.tingling_lessens': 'The tingling in your hands lessens.',
   'combat.you_hit_hard': 'You hit {mon|the}!',
   'combat.you_miss': 'You miss {mon|the}.',
   'combat.you_kill': 'You kill {mon|the}!',

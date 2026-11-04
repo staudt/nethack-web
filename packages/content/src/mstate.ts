@@ -1,9 +1,11 @@
-// Monster paralysis and stun. ref: include/monst.h mcanmove/mfrozen, mstun; src/mon.c
-// m_calcdistress() (the mfrozen countdown), src/monmove.c dochug() (un-stunning)
+// Monster paralysis, stun and confusion. ref: include/monst.h mcanmove/mfrozen, mstun, mconf;
+// src/mon.c m_calcdistress() (the mfrozen countdown), src/monmove.c dochug() (un-stunning and
+// unconfusing)
 //
 // MonsterComponent is core's, so the content mod keeps them in `modData.nh`:
 // `mfrozen: { [monsterId]: turns }` exists while the monster cannot move (mcanmove = 0), and
-// `mstun: { [monsterId]: true }` while it is stunned, `mspeed: { [monsterId]: 'slow' | 'fast' }`
+// `mstun: { [monsterId]: true }` while it is stunned, `mconf: { [monsterId]: true }` while it is
+// confused, `mspeed: { [monsterId]: 'slow' | 'fast' }`
 // while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed).
 import { sortedIds, type Ctx, type EntityId, type Json, type ModApi } from '@nh/core';
 
@@ -11,7 +13,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mspeed';
+type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -68,6 +70,21 @@ export function setMStunned(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean):
   }
 }
 
+/** `mtmp->mconf` */
+export function isMConfused(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  return table(ctx, 'mconf', false)?.[String(id)] === true;
+}
+
+export function setMConfused(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean): void {
+  if (on) {
+    const t = table(ctx, 'mconf', true);
+    if (t) t[String(id)] = true;
+  } else {
+    const t = table(ctx, 'mconf', false);
+    if (t) delete t[String(id)];
+  }
+}
+
 /** A monster's speed adjustment (mspeed): MSLOW, MFAST or normal (null). */
 export type MSpeed = 'slow' | 'fast' | null;
 
@@ -86,7 +103,7 @@ export function setMspeed(ctx: Pick<Ctx, 'state'>, id: EntityId, v: MSpeed): voi
   }
 }
 
-const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mspeed'];
+const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed'];
 
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {

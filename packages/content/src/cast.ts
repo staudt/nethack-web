@@ -2,10 +2,7 @@
 // subset. ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
 // spell_backfire(), spelleffects(), cast_protection(); src/timeout.c nh_timeout() (spell
 // protection); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
-// zapyourself() (force bolt, sleep, healing)
-//
-// Confuse monster is listed and can be picked, but its effect comes with the next step of
-// milestone 7a: picking it says "Nothing happens." and costs nothing.
+// zapyourself() (force bolt, sleep, healing); src/read.c seffect_confuse_monster()
 import {
   DIR_LIST,
   NORMAL_SPEED,
@@ -71,19 +68,19 @@ const isCastBook = (book: DefId): book is CastBook =>
   (CAST_BOOKS as readonly string[]).includes(book);
 
 /**
- * The effect of each spell (the switch of spelleffects()): a function, 'direction' for the
- * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object),
- * or null for a spell whose effect is not ported yet (confuse monster comes with monster
- * confusion).
+ * The effect of each spell (the switch of spelleffects()): a function, or 'direction' for the
+ * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object).
  */
-function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | null {
+function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' {
   switch (book) {
     case 'nh:spellbook_of_force_bolt':
     case 'nh:spellbook_of_sleep':
     case 'nh:spellbook_of_healing':
       return 'direction';
     case 'nh:spellbook_of_confuse_monster':
-      return null;
+      // ref: spelleffects(): a duplicate of the scroll's effect, the pseudo object blessed at
+      // Skilled (the skill is read before this cast practises it)
+      return (ctx) => confuseMonsterSpell(ctx, skillLevel(ctx, spellSkill(book)) >= P_SKILLED);
     case 'nh:spellbook_of_light':
       // ref: spelleffects() -> weffects() -> zapnodir(): litroom(TRUE, obj) (the pseudo object
       // is never blessed for light); lightdamage() is not ported
@@ -229,11 +226,8 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
  * ref: src/spell.c spelleffects()
  */
 export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
-  const effect = isCastBook(book) ? effectOf(book) : null;
-  if (!effect) {
-    say(ctx, 'cast.not_yet');
-    return 0;
-  }
+  if (!isCastBook(book)) return 0; // knownSpells() only holds books of the subset
+  const effect = effectOf(book);
   let energy = 0;
   if (!force) {
     const res = spelleffectsCheck(ctx, book);
@@ -304,6 +298,49 @@ function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
 
 // ---------------------------------------------------------------------------------------------
 // the effects
+
+/**
+ * Confuse monster: the hero's hands glow red (umconf charges, 1-2 more, 2-9 blessed; one more
+ * once she has 40), and her next hand-to-hand hits confuse monsters (combat.ts). Confused (only
+ * reachable by a forced cast: a confused cast fails), the glow is purple and confuses her more;
+ * blessed, it cures her confusion. Blind, she feels a tingle. The hero is always human and the
+ * spell's pseudo object is never cursed, so the "You feel confused." branch is not ported.
+ * ref: src/read.c seffect_confuse_monster()
+ */
+export function confuseMonsterSpell(ctx: Ctx, blessed: boolean): void {
+  const h = hero(ctx);
+  const altfeedback = hasProp(h, P.BLINDED); // Blind || Invisible (no hero invisibility)
+  if (hasProp(h, P.CONFUSION)) {
+    if (!blessed) {
+      if (altfeedback) say(ctx, 'cast.hands_begin_tingle');
+      else say(ctx, 'cast.hands_begin_glow', { color: hcolor(ctx, 'purple') });
+      makeConfused(ctx, timeoutLeft(ctx.state, h, P.CONFUSION) + ctx.rng.rnd(100), false);
+    } else {
+      if (altfeedback) say(ctx, 'cast.head_buzz');
+      else say(ctx, 'cast.head_glow', { color: hcolor(ctx, 'red') });
+      makeConfused(ctx, 0, true);
+    }
+    return;
+  }
+  const { umconf } = uspellOf(ctx.state);
+  let incr = 0; // scroll vs spell: a scroll adds 3
+  if (!blessed) {
+    if (altfeedback) say(ctx, umconf ? 'cast.hands_tingle_more' : 'cast.hands_tingle');
+    else if (!umconf) say(ctx, 'cast.hands_begin_glow', { color: hcolor(ctx, 'red') });
+    else say(ctx, 'cast.glow_intensifies', { color: hcolor(ctx, 'red') });
+    incr += ctx.rng.rnd(2);
+  } else {
+    if (altfeedback) say(ctx, umconf ? 'cast.hands_sharply_more' : 'cast.hands_sharply');
+    else
+      say(ctx, umconf ? 'cast.hands_brilliant_more' : 'cast.hands_brilliant', {
+        color: hcolor(ctx, 'red'),
+      });
+    incr += ctx.rng.rn2(8) + 2; // rn1(8, 2)
+  }
+  // after a while, repeated uses become less effective
+  if (umconf >= 40) incr = 1;
+  setUspell(ctx, { umconf: umconf + incr });
+}
 
 /**
  * Detect monsters: every monster of the level goes into the hero's monster memory at its cell
