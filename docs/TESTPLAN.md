@@ -29,3 +29,17 @@ Level teleport to Minetown (Mines 3 or 4, `Ctrl+o` marks it) and map the level. 
 - [ ] Pick up an item and walk out: "You escaped the shop without paying!", "An alarm sounds!", the Watch turns hostile, the shopkeeper follows and fights. Paying him off calms him, sends him home and calms the Watch.
 - [ ] Optional: while owing, level teleport away. He follows; paying there sends him home.
 - [ ] New games, level teleport to DL2-4 a few times: random shops of other types (armor, weapons, potions, scrolls, rings), lit, one door, shopkeeper inside the door, never in a room with stairs; a big room is never a wand or book shop.
+
+## 7a spellcasting
+
+Wizard commands below are in the self-actions menu (tap yourself).
+
+- [ ] New game: the bottom line shows `Pw:2(2)` next to HP.
+- [ ] Wish for `blessed spellbook of force bolt` and read it: "You add the force bolt spell to your repertoire". `+` shows force bolt with its level, school (attack) and fail %.
+- [ ] Cast (`Z` or the Cast offer on yourself), choose force bolt: "You don't have enough energy to cast that spell yet."
+- [ ] "Wizard: change experience level", enter 8: "Welcome to experience level N." for each level ("You feel stealthy!" at 3, "You feel quick!" at 7), Pw rises. Then 5 is refused (cannot lower), 8 says "already that experienced", letters say "Never mind.".
+- [ ] Cast force bolt at a monster: it hits or misses, or "You fail to cast the spell correctly." costs half the Pw. Wait a while: Pw comes back.
+- [ ] "Wizard: cast any spell" with each of the eight (no Pw cost): light lights the room; detect monsters shows monsters; healing on yourself after damage says "You feel better."; cure blindness; protection gives a golden haze and better AC, then "less dense" / "disappears"; sleep puts a monster to sleep; confuse monster makes your hands glow red and the next monster you hit "appears confused".
+- [ ] Create a gnomish wizard next to you: it casts ("casts a spell at you!", psi bolt headache, "looks better" when hurt). A created kobold shaman is usually level 2 and only makes "The air crackles around the kobold shaman.".
+- [ ] Level teleport to Minetown and attack the priest (answer "no" to "Die?" if needed): he casts clerical spells (paralysis, giant ants, lightning...).
+- [ ] College Town (level teleport over a few new games): two kobold shamans.
