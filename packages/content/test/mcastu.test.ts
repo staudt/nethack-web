@@ -16,9 +16,10 @@ import { monsterAttack } from '../src/combat';
 import { MCAST_DATA, castmu, spellWouldBeUseless, type McastSpell } from '../src/mcastu';
 import { dochug } from '../src/monmove';
 import { mspeed, mspecUsed, setMspecUsed } from '../src/mstate';
-import { P, setIntrinsic } from '../src/props';
+import { P, hasProp, makeConfused, setIntrinsic, timeoutLeft } from '../src/props';
+import { updateWornProps } from '../src/index';
 import { addMon } from './helpers';
-import { defs, levelSetup, render } from './itemHelpers';
+import { defs, itemOf, levelSetup, render } from './itemHelpers';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -70,14 +71,16 @@ function outcomes(
 }
 
 const SPEL: AttackDef = { at: 'magic', ad: 'spel', n: 0, d: 0 };
+const CLRC: AttackDef = { at: 'magic', ad: 'clrc', n: 0, d: 0 };
 const SHAMAN = 'nh:kobold_shaman';
+const CLERIC = 'nh:aligned_cleric';
 
-/** A lit room with the hero at (3,3) and a pinned caster of level `ml` at (x,y). */
-function setup(ml: number, x = 4, y = 3, hp = 100) {
+/** A lit room with the hero at (3,3) and a pinned caster (`def`) of level `ml` at (x,y). */
+function setup(ml: number, x = 4, y = 3, hp = 100, def = SHAMAN) {
   const s = levelSetup(['.........', '.........', '.........', '...@.....', '.........']);
   const h = getPlayer(s.state);
   if (h.c.hp) h.c.hp = { cur: 500, max: 500 };
-  const id = addMon(s.state, SHAMAN, x, y);
+  const id = addMon(s.state, def, x, y);
   const e = s.state.entities[String(id)]!;
   e.c.hp = { cur: hp, max: 100 };
   e.c.actor!.speed = 0;
@@ -354,5 +357,193 @@ describe('the higher mage spells (a level-forced caster)', () => {
       hostile: true,
     });
     expect(MCAST_DATA.death_touch.level).toBe(20);
+  });
+});
+
+describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', () => {
+  /** The first outcome of the cleric's cast whose text includes `msg`, at caster level `ml`. */
+  function find(ml: number, msg: string, prep: (s: ReturnType<typeof setup>) => void = () => {}) {
+    const st = setup(ml, 4, 3, 100, CLERIC);
+    prep(st);
+    const o = outcomes(st.s.state, (ctx) => castmu(ctx, st.id, CLRC, true, true), 400).find((x) =>
+      x.text.includes(msg),
+    );
+    expect(o, msg).toBeDefined();
+    return { ...st, o: o! };
+  }
+  const lost = (o: { state: GameState }): number => 500 - heroHp(o.state);
+  const left = (st: GameState, p: string): number => timeoutLeft(st, getPlayer(st), p);
+
+  test('the priest has his AT_MAGC AD_CLRC attack (include/monsters.h)', () => {
+    expect(defs.monster(CLERIC as never).attacks).toEqual([
+      { at: 'weapon', ad: 'phys', n: 4, d: 10 },
+      { at: 'kick', ad: 'phys', n: 1, d: 4 },
+      { at: 'magic', ad: 'clrc', n: 0, d: 0 },
+    ]);
+  });
+
+  const WOUNDS: [number, string][] = [
+    [5, 'Your skin itches badly for a moment.'],
+    [10, 'Wounds appear on your body!'],
+    [20, 'Severe wounds appear on your body!'],
+    [Infinity, 'Your body is covered with painful wounds!'],
+  ];
+  const woundsText = (dmg: number): string => WOUNDS.find(([max]) => dmg <= max)?.[1] ?? '';
+
+  test('open wounds: d(ml/2 + 1, 6) with the damage-tier message, halved by magic resistance', () => {
+    for (const mr of [false, true]) {
+      const { s, id } = setup(9, 4, 3, 100, CLERIC);
+      setIntrinsic(getPlayer(s.state), P.ANTIMAGIC, mr);
+      const seen = new Set<string>();
+      for (const o of outcomes(s.state, (ctx) => castmu(ctx, id, CLRC, true, true))) {
+        const msg = o.text[1];
+        if (!msg || !WOUNDS.some(([, t]) => t === msg)) continue;
+        expect(o.text[0]).toBe('The priest casts a spell at you!');
+        const dmg = lost(o);
+        expect(dmg).toBeGreaterThanOrEqual(mr ? 3 : 5);
+        expect(dmg).toBeLessThanOrEqual(mr ? 15 : 30); // d(5, 6)
+        expect(msg).toBe(woundsText(dmg));
+        seen.add(msg);
+      }
+      expect(seen.size).toBeGreaterThan(1);
+    }
+  });
+
+  test('confuse you: m_lev more turns of confusion; magic resistance stops it', () => {
+    const { o } = find(3, 'You feel confused!');
+    expect(o.text[0]).toBe('The priest casts a spell at you!');
+    expect(left(o.state, P.CONFUSION)).toBe(3);
+    expect(lost(o)).toBe(0);
+    const more = find(3, 'You feel more confused!', ({ s }) =>
+      run(s.state, (ctx) => makeConfused(ctx, 4, false)),
+    );
+    expect(left(more.o.state, P.CONFUSION)).toBe(7);
+    const mr = find(3, 'You feel momentarily dizzy.', ({ s }) =>
+      setIntrinsic(getPlayer(s.state), P.ANTIMAGIC, true),
+    );
+    expect(hasProp(getPlayer(mr.o.state), P.CONFUSION)).toBe(false);
+  });
+
+  test('paralyze: frozen for 4 + m_lev turns, which is also the damage', () => {
+    const { s, o } = find(5, 'You are frozen in place!');
+    expect(o.text[0]).toBe('The priest casts a spell at you!');
+    const h = getPlayer(o.state);
+    expect(h.c.helpless?.reasonKey).toBe('helpless.paralyzed_monster');
+    // the step runs on through her helpless turns: `until` counts from the cast's turn
+    expect((h.c.helpless?.until ?? 0) - s.state.turn).toBe(1 + 9);
+    expect(o.state.turn).toBeGreaterThan(s.state.turn);
+    expect(lost(o)).toBe(9);
+  });
+
+  test('paralyze with Free action: you stiffen briefly, 1 turn and 1 point', () => {
+    const { s, o } = find(5, 'You stiffen briefly.', ({ s }) =>
+      setIntrinsic(getPlayer(s.state), P.FREE_ACTION, true),
+    );
+    const h = getPlayer(o.state);
+    expect((h.c.helpless?.until ?? 0) - s.state.turn).toBe(1 + 1);
+    expect(lost(o)).toBe(1);
+  });
+
+  test('paralyze while already helpless: no message, a longer freeze is kept', () => {
+    const { s, id } = setup(5, 4, 3, 100, CLERIC);
+    run(s.state, (ctx) => {
+      getPlayer(ctx.state).c.helpless = {
+        until: ctx.state.turn + 30,
+        reasonKey: 'helpless.asleep',
+      };
+    });
+    const o = outcomes(s.state, (ctx) => castmu(ctx, id, CLRC, true, true)).find(
+      (x) => lost(x) === 9,
+    );
+    expect(o).toBeDefined();
+    expect(o!.text).toEqual(['The priest casts a spell at you!']);
+    const h = getPlayer(o!.state);
+    expect((h.c.helpless?.until ?? 0) - o!.state.turn).toBe(30);
+    expect(h.c.helpless?.reasonKey).toBe('helpless.paralyzed_monster'); // multi_reason
+  });
+
+  test('blind you: scales cover her eyes for 200 turns', () => {
+    const { s, id, o } = find(7, 'Scales cover your eyes!');
+    expect(o.text[0]).toBe('The priest casts a spell at you!');
+    expect(left(o.state, P.BLINDED)).toBe(200);
+    expect(lost(o)).toBe(0);
+    // never cast at a blinded hero
+    setIntrinsic(getPlayer(s.state), P.BLINDED, true);
+    run(s.state, (ctx) => {
+      const mon = ctx.state.entities[String(id)]!;
+      expect(spellWouldBeUseless(ctx, mon, 'blind_you')).toBe(true);
+    });
+  });
+
+  const ants = (st: GameState) =>
+    Object.values(st.entities).filter((e) => e.def === 'nh:giant_ant');
+
+  test('insects: quan + 1 awake hostile giant ants around her (quan >= 3)', () => {
+    const { o } = find(9, 'The priest summons insects!');
+    expect(o.text[0]).toBe('The priest casts a spell!'); // undirected
+    const made = ants(o.state);
+    expect(made.length).toBeGreaterThanOrEqual(4);
+    expect(made.length).toBeLessThanOrEqual(5); // rnd(9 / 2) + 1 at most
+    for (const a of made) {
+      expect(a.c.monster).toMatchObject({ peaceful: false, asleep: false });
+      expect(a.c.monster?.tame).toBeUndefined();
+    }
+  });
+
+  test('insects from an unseen caster: she only hears the summoning', () => {
+    const { o } = find(9, 'You hear someone summoning insects.', ({ s }) => {
+      setIntrinsic(getPlayer(s.state), P.BLINDED, true);
+      s.step({ type: 'wait' });
+    });
+    expect(o.text).toEqual(['You hear someone summoning insects.']); // undirected: no "casts"
+    expect(ants(o.state).length).toBeGreaterThanOrEqual(4);
+  });
+
+  test('lightning: d(8,6) and the flash blinds her', () => {
+    const { o } = find(12, 'A bolt of lightning strikes down at you from above!');
+    expect(o.text).toContain('You are blinded by the flash!');
+    expect(lost(o)).toBeGreaterThanOrEqual(8);
+    expect(lost(o)).toBeLessThanOrEqual(48);
+    const b = left(o.state, P.BLINDED);
+    expect(b).toBeGreaterThanOrEqual(1);
+    expect(b).toBeLessThanOrEqual(100);
+  });
+
+  test('lightning with shock resistance: no damage, but the flash', () => {
+    const { o } = find(12, 'A bolt of lightning strikes down at you from above!', ({ s }) =>
+      setIntrinsic(getPlayer(s.state), P.SHOCK_RES, true),
+    );
+    expect(lost(o)).toBe(0);
+    expect(o.text).toContain('You are blinded by the flash!');
+  });
+
+  test('lightning with reflection: it bounces off, no damage and no flash', () => {
+    const { o } = find(12, 'It bounces off your medallion.', ({ s }) => {
+      const am = s.carry('nh:amulet_of_reflection');
+      itemOf(s.state, am).equipped = 'amulet';
+      updateWornProps(s.state, defs, s.state.playerId);
+    });
+    expect(lost(o)).toBe(0);
+    expect(o.text).not.toContain('You are blinded by the flash!');
+    expect(left(o.state, P.BLINDED)).toBe(0);
+  });
+
+  test('fire pillar: d(8,6), none with fire resistance', () => {
+    const { o } = find(13, 'A pillar of fire strikes all around you!');
+    expect(lost(o)).toBeGreaterThanOrEqual(8);
+    expect(lost(o)).toBeLessThanOrEqual(48);
+    const res = find(13, 'A pillar of fire strikes all around you!', ({ s }) =>
+      setIntrinsic(getPlayer(s.state), P.FIRE_RES, true),
+    );
+    expect(lost(res.o)).toBe(0);
+  });
+
+  test('geyser: d(8,6) physical damage, whatever she resists', () => {
+    const { o } = find(14, 'A sudden geyser slams into you from nowhere!', ({ s }) => {
+      for (const p of [P.FIRE_RES, P.SHOCK_RES, P.ANTIMAGIC])
+        setIntrinsic(getPlayer(s.state), p, true);
+    });
+    expect(lost(o)).toBeGreaterThanOrEqual(8);
+    expect(lost(o)).toBeLessThanOrEqual(48);
   });
 });

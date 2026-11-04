@@ -1229,7 +1229,7 @@ export const MONSTERS: readonly MonsterDef[] = [
   },
   // ref: monsters.h MON(NAMS("priest", "priestess", "aligned cleric"), S_HUMAN,
   // LVL(12, 12, 10, 50, 0), G_NOGEN, ...). Always made by priestini() with its temple's
-  // alignment; the AT_MAGC AD_CLRC attack is left out (no monster spellcasting yet).
+  // alignment. The AT_MAGC AD_CLRC attack casts clerical spells (mcastu.ts).
   {
     id: 'nh:aligned_cleric',
     nameKey: 'nh:aligned_cleric',
@@ -1242,6 +1242,7 @@ export const MONSTERS: readonly MonsterDef[] = [
     attacks: [
       { at: 'weapon', ad: 'phys', n: 4, d: 10 },
       { at: 'kick', ad: 'phys', n: 1, d: 4 },
+      { at: 'magic', ad: 'clrc', n: 0, d: 0 },
     ],
     size: 'medium',
     flags: [

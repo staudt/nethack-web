@@ -198,21 +198,26 @@ describe('pri_move', () => {
   });
 
   test('an angry priest chases the hero inside his temple and stays when she leaves', () => {
-    const s = temple(4, T.altar_neutral, { x: 1, y: 1 });
-    const p = mon(s, s.priest);
-    if (!p?.c.monster || !p.c.hp) throw new Error('no priest');
-    p.c.monster.peaceful = false;
-    p.c.hp = { cur: 300, max: 300 };
-    const hero = s.state.entities[String(s.state.playerId)];
-    if (hero?.c.hp) hero.c.hp = { cur: 5000, max: 5000 };
-    // he comes for her in the corner
-    let met = false;
-    for (let t = 0; t < 20 && !met; t++) {
-      s.wait();
-      const pp = mon(s, s.priest)?.c.pos;
-      met = !!pp && Math.max(Math.abs(pp.x - 1), Math.abs(pp.y - 1)) <= 1;
-    }
-    expect(met).toBe(true);
+    // he comes for her in the corner (the seed search skips games where his summoned insects
+    // block his way: since m7a he casts clerical spells, and they may)
+    const angry = (seed: number) => {
+      const s = temple(seed, T.altar_neutral, { x: 1, y: 1 });
+      const p = mon(s, s.priest);
+      if (!p?.c.monster || !p.c.hp) throw new Error('no priest');
+      p.c.monster.peaceful = false;
+      p.c.hp = { cur: 300, max: 300 };
+      const hero = s.state.entities[String(s.state.playerId)];
+      if (hero?.c.hp) hero.c.hp = { cur: 5000, max: 5000 };
+      for (let t = 0; t < 20; t++) {
+        s.wait();
+        const pp = mon(s, s.priest)?.c.pos;
+        if (pp && Math.max(Math.abs(pp.x - 1), Math.abs(pp.y - 1)) <= 1) return s;
+      }
+      return null;
+    };
+    let s: ReturnType<typeof angry> = null;
+    for (let seed = 1; seed <= 30 && !s; seed++) s = angry(seed);
+    if (!s) throw new Error('he never came for her');
     // out of the temple, he does not follow through the doorway (no room squares there)
     heroAt(s, 14, 3);
     for (let t = 0; t < 100; t++) {
@@ -220,6 +225,35 @@ describe('pri_move', () => {
       const pp = mon(s, s.priest)?.c.pos;
       expect(pp && inside(pp)).toBe(true);
     }
+  });
+});
+
+describe('his clerical spells', () => {
+  test('a peaceful hurt priest casts cure self, and nothing else', () => {
+    let cured = 0;
+    for (let seed = 1; seed <= 4; seed++) {
+      const s = temple(seed, T.altar_neutral, { x: 1, y: 1 });
+      const p = mon(s, s.priest);
+      const hero = s.state.entities[String(s.state.playerId)];
+      if (!p?.c.monster || !hero?.c.hp) throw new Error('no priest');
+      p.c.hp = { cur: 20, max: 300 };
+      const heroHp = hero.c.hp.cur;
+      const heard: string[] = [];
+      for (let t = 0; t < 60; t++)
+        heard.push(
+          ...keys(s.wait()).filter((k) => k.startsWith('mcastu.') || k === 'zap.looks_better'),
+        );
+      // undirected only, and never a hostile spell; a fumble makes the air crackle
+      for (const k of heard)
+        expect(['mcastu.casts', 'zap.looks_better', 'mcastu.air_crackles']).toContain(k);
+      expect(mon(s, s.priest)?.c.monster?.peaceful).toBe(true);
+      expect(hero.c.hp.cur).toBe(heroHp);
+      if (heard.includes('zap.looks_better')) {
+        cured++;
+        expect(mon(s, s.priest)?.c.hp?.cur).toBeGreaterThan(20);
+      }
+    }
+    expect(cured).toBeGreaterThan(0);
   });
 });
 

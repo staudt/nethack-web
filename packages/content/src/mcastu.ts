@@ -1,8 +1,10 @@
 // Monster spellcasting at the hero: the spell choice, the casting delay, fumbling, cursing when
 // it cannot cast, and the mage spells. ref: src/mcastu.c castmu(), choose_monster_spell(),
 // spell_would_be_useless(), is_undirected_spell(), cursetxt(), mcast_spell(), m_cure_self(),
-// mcast_psi_bolt(), mcast_stun_you(), mcast_weaken_you(); include/mcastu.h; src/wizard.c
-// has_aggravatables()
+// mcast_psi_bolt(), mcast_stun_you(), mcast_weaken_you(), the clerical mcast_open_wounds(),
+// mcast_confuse_you(), mcast_paralyze(), mcast_blind_you(), mcast_insects(), mcast_lightning(),
+// mcast_fire_pillar(), mcast_geyser(); include/mcastu.h; src/wizard.c has_aggravatables();
+// src/minion.c monster_census()
 //
 // Callers: monsterAttack (combat.ts, an adjacent AT_MAGC attack: castmu(TRUE, TRUE)) and dochug
 // (monmove.ts, an undirected spell while not attacking: castmu(FALSE, FALSE)). This module must
@@ -14,8 +16,10 @@
 // and invisibility (`foundyou` is always `thinks_it_foundyou`), the AD_FIRE/AD_COLD/AD_MAGM
 // AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
 // Disappear, destroy armor, summon nasties, clone wizard and touch of death are always
-// useless, so they are never chosen. The clerical spells' effects come with m7a step 6.
+// useless, so they are never chosen. Insects are always "insects" (no hallucinated names, no
+// snakes in the roster); no Half_physical_damage, burn_away_slime() or melting ice.
 import {
+  NORMAL_SPEED,
   cellRules,
   getPlayer,
   sortedIds,
@@ -25,8 +29,14 @@ import {
   type EntityId,
   type Msg,
 } from '@nh/core';
+import { flashburn, monSpellHitsSpot, ureflects } from './buzz';
 import { clearPath } from './clearpath';
+import { destroyItems, erodeArmor } from './erode';
+import { makemon, mkclass, mnextoPos } from './generation';
 import { losestr } from './hp';
+import { nomulNow } from './hunger';
+import { nhData } from './items';
+import { igniteItems } from './light';
 import { mdamageu } from './mhitu';
 import { heroSees } from './mongear';
 import {
@@ -38,8 +48,16 @@ import {
   mspecUsed,
   setMspecUsed,
 } from './mstate';
-import { canSpotMon, monNam } from './perception';
-import { P, hasIntrinsic, hasProp, makeStunned, timeoutLeft } from './props';
+import { canSpotMon, monNam, telepathSenses } from './perception';
+import {
+  P,
+  hasIntrinsic,
+  hasProp,
+  makeBlinded,
+  makeConfused,
+  makeStunned,
+  timeoutLeft,
+} from './props';
 import { rndcurse } from './sit';
 
 /** ref: include/mcastu.h MONSPELL() names, in their enum order */
@@ -370,6 +388,194 @@ function mcastWeakenYou(ctx: Ctx, mon: Entity): void {
   losestr(ctx, ctx.rng.rnd(dmg), '@killer.strength_loss');
 }
 
+/**
+ * Physical damage (force, not heat): d(8,6), whatever the hero resists. ref: src/mcastu.c
+ * mcast_geyser() (no Half_physical_damage source exists)
+ */
+function mcastGeyser(ctx: Ctx): number {
+  say(ctx, 'mcastu.geyser');
+  return ctx.rng.d(8, 6);
+}
+
+/**
+ * d(8,6) fire damage (none with fire resistance); armor may burn, carried items may burn or
+ * catch light, and scrolls and books on her square may burn. ref: src/mcastu.c
+ * mcast_fire_pillar(); src/trap.c burnarmor()
+ */
+function mcastFirePillar(ctx: Ctx): number {
+  const hero = getPlayer(ctx.state);
+  say(ctx, 'mcastu.fire_pillar');
+  const origDmg = ctx.rng.d(8, 6);
+  const dmg = hasProp(hero, P.FIRE_RES) ? 0 : origDmg;
+  erodeArmor(ctx, hero.id, 'burn'); // burnarmor()
+  // item destruction dmg
+  destroyItems(ctx, hero.id, 'fire', origDmg);
+  if (ctx.state.gameOver) return 0;
+  igniteItems(ctx, hero.id);
+  // burn up flammable items on the floor
+  const p = hero.c.pos;
+  if (p) monSpellHitsSpot(ctx, 'fire', p.x, p.y);
+  return dmg;
+}
+
+/**
+ * d(8,6) shock damage: reflection stops it all, shock resistance stops the damage but not the
+ * item destruction or the flash. ref: src/mcastu.c mcast_lightning()
+ */
+function mcastLightning(ctx: Ctx): number {
+  const hero = getPlayer(ctx.state);
+  say(ctx, 'mcastu.lightning');
+  const reflects = ureflects(ctx, 'mcastu.bounces');
+  const origDmg = ctx.rng.d(8, 6);
+  if (reflects) return 0;
+  const dmg = hasProp(hero, P.SHOCK_RES) ? 0 : origDmg;
+  destroyItems(ctx, hero.id, 'elec', origDmg);
+  if (ctx.state.gameOver) return 0;
+  const p = hero.c.pos;
+  if (p) monSpellHitsSpot(ctx, 'lightning', p.x, p.y); // no iron bars: nothing happens
+  // blind hero; no effect if already blind
+  flashburn(ctx, ctx.rng.rnd(100));
+  return dmg;
+}
+
+/** Monsters on the hero's level that she can see or sense. ref: src/minion.c monster_census(TRUE) */
+function monsterCensus(ctx: Ctx): number {
+  const level = getPlayer(ctx.state).c.pos?.level;
+  let count = 0;
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    if (e?.c.monster && e.c.pos?.level === level && canSpotMon(ctx, e)) count++;
+  }
+  return count;
+}
+
+/**
+ * At least four hostile giant ants appear around the hero (snakes when no ant can be made:
+ * the roster has none, so nothing appears then). ref: src/mcastu.c mcast_insects()
+ */
+function mcastInsects(ctx: Ctx, mon: Entity): void {
+  const p = getPlayer(ctx.state).c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!p || !level) return;
+  // Try for insects, and if there are none left, go for (sticks to) snakes.
+  const pm = mkclass(ctx, 'a', level.depth);
+  const cls = pm ? 'a' : 'S';
+  let success = false;
+  const oldseen = monsterCensus(ctx);
+  const ml = mon.c.monster?.level ?? 0;
+  let quan = ml < 2 ? 1 : ctx.rng.rnd(Math.trunc(ml / 2));
+  if (quan < 3) quan = 3;
+  for (let i = 0; i <= quan; i++) {
+    // enexto(&bypos, mtmp->mux, mtmp->muy, mtmp->data): mux/muy is the hero's square
+    const bypos = mnextoPos(ctx, level, null, p);
+    if (!bypos) return;
+    const def = mkclass(ctx, cls, level.depth);
+    const id = def ? makemon(ctx, def, bypos, { angry: true }) : null; // MM_ANGRY | MM_NOMSG
+    const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
+    if (m) {
+      success = true;
+      m.asleep = false;
+      m.peaceful = false;
+      delete m.tame;
+    }
+  }
+  const newseen = monsterCensus(ctx);
+
+  // not canspotmon() which includes unseen things sensed via warning
+  const seecaster = canseemon(ctx, mon) || telepathSenses(ctx.state, ctx.defs, mon);
+  const what = cls === 'S' ? '@mcastu.snakes' : '@mcastu.insects';
+  if (!seecaster) {
+    // unseen caster fails or summons unseen critters, or unconscious hero
+    if (newseen <= oldseen || unconscious(ctx)) say(ctx, 'mcastu.hear_summoning', { what });
+    else
+      say(
+        ctx,
+        newseen === oldseen + 1 ? 'mcastu.hear_summoning_one' : 'mcastu.hear_summoning_many',
+        {
+          what: cls === 'S' ? '@mcastu.snake' : '@mcastu.insect',
+        },
+      );
+  } else if (!success) say(ctx, 'mcastu.sticks', { mon: monNam(ctx, mon) });
+  else if (cls === 'S') say(ctx, 'mcastu.transforms', { mon: monNam(ctx, mon), what });
+  else say(ctx, 'mcastu.summons', { mon: monNam(ctx, mon), what });
+}
+
+/** Asleep, fainted or knocked out. ref: src/hack.c unconscious() (Unaware) */
+function unconscious(ctx: Ctx): boolean {
+  const r = getPlayer(ctx.state).c.helpless?.reasonKey;
+  return r === 'helpless.asleep' || r === 'helpless.fainted' || r === 'helpless.rotten_food';
+}
+
+/**
+ * Blinds the hero for 200 turns (blindness resistance does not apply). Her vision never clears
+ * at once: there are no Eyes of the Overworld. ref: src/mcastu.c mcast_blind_you()
+ */
+function mcastBlindYou(ctx: Ctx): void {
+  // never chosen while Blinded (spellWouldBeUseless)
+  if (timeoutLeft(ctx.state, getPlayer(ctx.state), P.BLINDED) > 0) return;
+  say(ctx, 'mcastu.scales');
+  makeBlinded(ctx, 200, false);
+}
+
+/**
+ * Freezes the hero for 4 + m_lev turns (1 with magic resistance or Free action); the returned
+ * count is also the damage done. C's nomul() keeps a longer helplessness, but the reason and
+ * the "You can move again." are always replaced. ref: src/mcastu.c mcast_paralyze(),
+ * src/hack.c nomul()
+ */
+function mcastParalyze(ctx: Ctx, mon: Entity): number {
+  const hero = getPlayer(ctx.state);
+  const helpless = hero.c.helpless;
+  let dmg: number;
+  if (hasProp(hero, P.ANTIMAGIC) || hasProp(hero, P.FREE_ACTION)) {
+    if (!helpless) say(ctx, 'mcastu.stiffen');
+    dmg = 1; // to produce nomul(-1), not actual damage
+  } else {
+    if (!helpless) say(ctx, 'mcastu.frozen');
+    dmg = 4 + (mon.c.monster?.level ?? 0);
+  }
+  const finish = { key: 'eat.can_move_again' };
+  if (!helpless) nomulNow(ctx, dmg, 'helpless.paralyzed_monster', finish);
+  else {
+    const until = ctx.state.turn + 1 + dmg;
+    if (until > helpless.until) {
+      const actor = hero.c.actor;
+      if (actor) actor.energy -= (until - helpless.until) * NORMAL_SPEED;
+      helpless.until = until;
+    }
+    helpless.reasonKey = 'helpless.paralyzed_monster'; // multi_reason
+    nhData(ctx).nomovemsg = finish; // nomovemsg = 0: "You can move again."
+  }
+  return dmg;
+}
+
+/**
+ * Confuses the hero for m_lev more turns; magic resistance stops it. ref: src/mcastu.c
+ * mcast_confuse_you()
+ */
+function mcastConfuseYou(ctx: Ctx, mon: Entity): void {
+  const hero = getPlayer(ctx.state);
+  if (hasProp(hero, P.ANTIMAGIC)) {
+    say(ctx, 'mcastu.dizzy');
+    return;
+  }
+  const oldprop = hasProp(hero, P.CONFUSION);
+  const dmg = mon.c.monster?.level ?? 0;
+  makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + dmg, true);
+  if (hasProp(hero, P.HALLUC)) say(ctx, oldprop ? 'mcastu.trippier' : 'mcastu.trippy');
+  else say(ctx, oldprop ? 'mcastu.more_confused' : 'mcastu.confused');
+}
+
+/** ref: src/mcastu.c mcast_open_wounds(): magic resistance halves it */
+function mcastOpenWounds(ctx: Ctx, dmg: number): number {
+  if (hasProp(getPlayer(ctx.state), P.ANTIMAGIC)) dmg = Math.trunc((dmg + 1) / 2);
+  if (dmg <= 5) say(ctx, 'mcastu.wounds.itches');
+  else if (dmg <= 10) say(ctx, 'mcastu.wounds.appear');
+  else if (dmg <= 20) say(ctx, 'mcastu.wounds.severe');
+  else say(ctx, 'mcastu.wounds.covered');
+  return dmg;
+}
+
 /** The spell's effect on the hero (or the caster). ref: src/mcastu.c mcast_spell() */
 function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell): void {
   // dmg 0 with a directed spell is impossible() in C; it cannot happen here (foundyou)
@@ -411,17 +617,34 @@ function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell): void {
     case 'disappear':
       dmg = 0;
       break;
-    // the clerical spells: m7a step 6
-    case 'open_wounds':
-    case 'confuse_you':
-    case 'paralyze':
-    case 'blind_you':
-    case 'insects':
-    case 'lightning':
-    case 'fire_pillar':
     case 'geyser':
+      dmg = mcastGeyser(ctx);
+      break;
+    case 'fire_pillar':
+      dmg = mcastFirePillar(ctx);
+      break;
+    case 'lightning':
+      dmg = mcastLightning(ctx);
+      break;
+    case 'insects':
+      mcastInsects(ctx, mon);
       dmg = 0;
       break;
+    case 'blind_you':
+      mcastBlindYou(ctx);
+      dmg = 0;
+      break;
+    case 'paralyze':
+      dmg = mcastParalyze(ctx, mon);
+      break;
+    case 'confuse_you':
+      mcastConfuseYou(ctx, mon);
+      dmg = 0;
+      break;
+    case 'open_wounds':
+      dmg = mcastOpenWounds(ctx, dmg);
+      break;
   }
+  if (ctx.state.gameOver) return; // destroyed items killed her
   if (dmg) mdamageu(ctx, dmg, `@${mon.def}`);
 }

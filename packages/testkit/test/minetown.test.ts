@@ -350,6 +350,57 @@ describe('the temple priest of a real Minetown', () => {
     expect(checkInvariants(state, defs)).toEqual([]);
   });
 
+  test('angered, he casts clerical spells at the hero next to him (m7a)', () => {
+    const CLERICAL = [
+      'mcastu.wounds.itches',
+      'mcastu.wounds.appear',
+      'mcastu.wounds.severe',
+      'mcastu.wounds.covered',
+      'mcastu.confused',
+      'mcastu.more_confused',
+      'mcastu.frozen',
+      'mcastu.scales',
+      'mcastu.summons',
+      'mcastu.need_help',
+      'mcastu.lightning',
+      'mcastu.fire_pillar',
+      'mcastu.geyser',
+    ];
+    const { state, level } = minetown(1);
+    const [id] = priestsOn(state, level.id);
+    const priest = state.entities[String(id)];
+    const pp = priest?.c.pos;
+    if (!priest?.c.monster || !pp) throw new Error('no priest');
+    priest.c.monster.peaceful = false;
+    const hero = getPlayer(state);
+    if (hero.c.hp) hero.c.hp = { cur: 100000, max: 100000 };
+    const taken = new Set(
+      sortedIds(state).flatMap((k) => {
+        const p = state.entities[String(k)]?.c.pos;
+        return p && p.level === level.id && !state.entities[String(k)]?.c.item
+          ? [`${p.x},${p.y}`]
+          : [];
+      }),
+    );
+    const spot = Object.values(DIRS)
+      .map((d) => ({ x: pp.x + d.x, y: pp.y + d.y }))
+      .find((p) => isPlainFloor(defs, level, p.x, p.y) && !taken.has(`${p.x},${p.y}`));
+    if (!spot) throw new Error('no room next to the priest');
+    if (hero.c.pos) Object.assign(hero.c.pos, spot);
+    const heard = new Set<string>();
+    // until his first clerical spell (a paralysis chain can run hundreds of turns in one wait)
+    const cast = (): boolean => CLERICAL.some((k) => heard.has(k));
+    for (let t = 0; t < 100 && !state.gameOver && !cast(); t++)
+      for (const e of engine.stepAll(state, { type: 'wait' }).events)
+        if (e.type === 'msg' && e.key) heard.add(e.key);
+    expect(heard).toContain('mcastu.casts_at_you');
+    expect(cast()).toBe(true);
+    // never a mage spell
+    for (const k of ['mcastu.psi.slight', 'mcastu.reel', 'mcastu.weaker', 'mcastu.aware'])
+      expect(heard).not.toContain(k);
+    expect(checkInvariants(state, defs)).toEqual([]);
+  });
+
   test('he does not follow the hero off the level, peaceful or angry', () => {
     for (const angry of [false, true]) {
       const { state, level } = minetown(angry ? 2 : 1);

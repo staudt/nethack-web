@@ -406,6 +406,14 @@ function zapOverFloor(ctx: Ctx, ray: Ray, x: number, y: number): number {
   return rangemod;
 }
 
+/**
+ * A monster's fire pillar or lightning bolt hits the floor at (x,y) (the hero's square): fire burns
+ * scrolls and spellbooks there. ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
+ */
+export function monSpellHitsSpot(ctx: Ctx, ray: 'fire' | 'lightning', x: number, y: number): void {
+  zapOverFloor(ctx, ray, x, y);
+}
+
 /** ref: src/zap.c burn_floor_objects() without feedback: each scroll or book burns 1 in 3 */
 function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
   let cnt = 0;

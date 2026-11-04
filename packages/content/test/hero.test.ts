@@ -207,6 +207,12 @@ describe('experienceFor', () => {
     // damage 25>23: +9 ->119; nasty 7*9=63 ->182; level>8: +50 ->232
     expect(experienceFor(m, 9)).toBe(232);
   });
+  test('the priest, with his AT_MAGC AD_CLRC attack (m7a)', () => {
+    const priest = createEngine([vanillaMod]).registry.monster('nh:aligned_cleric' as never);
+    // 1+144 = 145; weapon +5, magic +10 -> 160; AD_CLRC is not phys: +12 -> 172;
+    // weapon 4d10 = 40 > 23: +12 -> 184; level > 8: +50 -> 234 (212 without the spell attack)
+    expect(experienceFor(priest, 12)).toBe(234);
+  });
 });
 
 describe('HP regeneration', () => {
