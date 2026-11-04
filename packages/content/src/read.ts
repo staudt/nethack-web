@@ -1,6 +1,6 @@
 // Scrolls: reading and the effects of the scrolls in our subset.
 // ref: src/read.c doread(), seffects(), seffect_identify(), seffect_enchant_weapon(),
-// seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), litroom();
+// seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_blank_paper(), litroom();
 // src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
 import {
   NORMAL_SPEED,
@@ -406,8 +406,8 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
 
 /**
  * ref: src/read.c seffect_remove_curse(). A confused reader randomly blesses or curses
- * (blessorcurse(obj, 2)) instead and forgets those items' states. Not ported: loadstones,
- * leashes, punishment, the steed's saddle. Returns whether the scroll type becomes known.
+ * (blessorcurse(obj, 2)) instead and forgets those items' states. Loadstones count as worn.
+ * Not ported: leashes, punishment, the steed's saddle. Returns whether the scroll type becomes known.
  */
 function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
   const buc = scroll.c.item?.buc ?? 'uncursed';
@@ -433,7 +433,7 @@ function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
     if (!it || ctx.defs.object(obj.def).class === 'coin') continue; // gold isn't subject to cursing
     // hide the scroll being read from itself
     if (obj.id === scroll.id && it.quantity === 1) continue;
-    if (buc === 'blessed' || it.equipped !== null) {
+    if (buc === 'blessed' || it.equipped !== null || obj.def === 'nh:loadstone') {
       if (confused) {
         // ref: src/mkobj.c blessorcurse(obj, 2)
         if (it.buc === 'uncursed' && ctx.rng.rn2(2) === 0)
@@ -529,9 +529,12 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
   const hero = heroEntity(ctx);
   const blind = hasProp(hero, P.BLINDED);
   const confused = hasProp(hero, P.CONFUSION);
-  if (blind) msg(ctx, nodisappear ? 'read.blind_you_read' : 'read.blind_disappears');
-  else msg(ctx, nodisappear ? 'read.you_read' : 'read.disappears');
-  if (confused) msg(ctx, hasProp(hero, P.HALLUC) ? 'read.trippy' : 'read.confused');
+  const blank = def.id === 'nh:scroll_of_blank_paper';
+  if (!blank) {
+    if (blind) msg(ctx, nodisappear ? 'read.blind_you_read' : 'read.blind_disappears');
+    else msg(ctx, nodisappear ? 'read.you_read' : 'read.disappears');
+    if (confused) msg(ctx, hasProp(hero, P.HALLUC) ? 'read.trippy' : 'read.confused');
+  }
 
   let known = false; // gk.known
   let used = false; // the scroll has already been used up
@@ -557,12 +560,17 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
         known = !blind;
       }
       break;
+    case 'nh:scroll_of_blank_paper':
+      // ref: seffect_blank_paper(); the scroll is not used up
+      msg(ctx, blind ? 'read.blank_blind' : 'read.blank');
+      known = true;
+      break;
     default:
       break;
   }
   if (used) return;
   if (!wasKnown && known) discover(ctx, def); // learnscroll()
-  useup(ctx, itemId);
+  if (!blank) useup(ctx, itemId);
 }
 
 /** `use` for every scroll in the subset (attached to the defs in index.ts). */
@@ -574,6 +582,7 @@ export const SCROLL_USES: Readonly<
   'nh:scroll_of_enchant_armor': readScroll,
   'nh:scroll_of_remove_curse': readScroll,
   'nh:scroll_of_light': readScroll,
+  'nh:scroll_of_blank_paper': readScroll,
 };
 
 function itemArg(action: PlayerAction): unknown {

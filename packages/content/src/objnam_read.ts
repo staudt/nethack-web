@@ -9,6 +9,7 @@
 // objects[]: the parser reads English, like the original.
 import type { DefId, GameState, ObjectClass, Registry } from '@nh/core';
 import { nameToMonplus, type MonName } from './mondata';
+import { GLASS_GEMS, REAL_GEMS } from './gem';
 
 /** What to make. */
 export type WishWhat =
@@ -108,6 +109,9 @@ const CLASS_SYMS: Readonly<Record<string, ObjectClass>> = {
   '*': 'gem',
 };
 
+/** ref: src/objnam.c o_ranges[] "gray stone": LUCKSTONE..FLINT */
+const GRAY_STONES: DefId[] = ['nh:luckstone', 'nh:loadstone', 'nh:touchstone', 'nh:flint_stone'];
+
 /** Classes whose actual names are "<class> of <name>" in our catalog but just "<name>" in objects[]. */
 const OF_CLASSES: readonly ObjectClass[] = ['potion', 'scroll', 'ring', 'wand', 'spellbook'];
 /** Classes whose descriptions end with the class word ("ruby potion"); objects[] has "ruby". */
@@ -117,7 +121,6 @@ const DESC_SUFFIX: Partial<Record<ObjectClass, string>> = {
   wand: ' wand',
   spellbook: ' spellbook',
   amulet: ' amulet',
-  gem: ' stone',
 };
 
 const lc = (s: string | undefined): string => (s ?? '').toLowerCase();
@@ -129,6 +132,7 @@ const dropSuffix = (s: string, p: string): string =>
 function bareName(cls: ObjectClass, text: string): string {
   let s = text.replace(/\{\w+\}\s*/g, ''); // "{mon} corpse" -> "corpse"
   if (OF_CLASSES.includes(cls)) s = dropPrefix(s, `${cls} of `);
+  if (cls === 'gem') s = dropSuffix(s, ' stone'); // GemStone(): "jade stone" is "jade"
   return dropPrefix(s, 'pair of ');
 }
 
@@ -136,6 +140,7 @@ function bareName(cls: ObjectClass, text: string): string {
 function bareDescr(cls: ObjectClass, text: string): string {
   let s = dropPrefix(text, 'pair of ');
   if (cls === 'scroll') s = dropPrefix(s, 'scroll labeled ');
+  if (cls === 'gem') return dropSuffix(dropSuffix(s, ' gem'), ' stone'); // "white gem", "gray stone"
   const suffix = DESC_SUFFIX[cls];
   return suffix ? dropSuffix(s, suffix) : s;
 }
@@ -449,7 +454,7 @@ const NOT_MONSTER = ['samurai sword', 'wizard lock', 'death wand', 'master key',
  * random object, as in NetHack.
  * ref: src/objnam.c readobjnam(), readobjnam_preparse(), readobjnam_parse_charges(),
  * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, tins, globs, statues and
- * figurines, eggs, glass gems, o_ranges ("helmet called x"), the alternate spellings table,
+ * figurines, eggs, o_ranges other than gray stones ("helmet called x"), the alternate spellings table,
  * Japanese names, wizard-mode terrain and traps; see DEVIATIONS.md.
  */
 export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing' | null {
@@ -741,6 +746,20 @@ export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing
   // ---- readobjnam_postparse2() and postparse3(), with the "armor" + " mail" retry ----
   for (let retry = 0; ; retry++) {
     if (!srch) {
+      // ref: postparse2(): the o_ranges[] "gray stone" range, LUCKSTONE..FLINT by probability
+      // (rnd_class(), which draws as the 'types' pick does without `xtra`)
+      if (bp === 'gray stone' || bp === 'grey stone')
+        return typfnd({ kind: 'types', types: GRAY_STONES, xtra: 0 });
+      // ref: postparse2(): "red glass", "worthless piece of red glass", "glass" (any colour)
+      if ((bp.endsWith(' glass') || bp === 'glass') && bp !== 'looking glass') {
+        if (spec.broken || bp.includes('broken')) return null; // "broken glass" is nothing
+        let g = dropPrefix(bp, 'worthless ');
+        g = dropPrefix(g, 'piece of ');
+        g = g.startsWith('colored ') ? g.slice(8) : dropPrefix(g, 'coloured ');
+        // 9 different kinds, chosen by probability (C: rn2(NUM_GLASS_GEMS); DEVIATIONS "Gems")
+        if (g === 'glass') return typfnd({ kind: 'types', types: [...GLASS_GEMS], xtra: 0 });
+        bp = `worthless piece of ${g}`; // try to construct canonical form
+      }
       if (bp.endsWith(' stone') || bp.endsWith(' gem')) {
         bp = bp.slice(0, bp.endsWith(' gem') ? -4 : -6);
         oclass = 'gem';
@@ -751,6 +770,12 @@ export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing
       }
     }
     srch = false;
+    // ref: postparse3(): check real names of gems first ("ruby" is the gem, not a ruby potion)
+    if (oclass === null && actualn !== null) {
+      const a = actualn;
+      const g = names.objects.find((o) => REAL_GEMS.includes(o.id) && o.name === a);
+      if (g) return typfnd({ kind: 'type', type: g.id });
+    }
     const found =
       namedesc(names, actualn, oclass, 1) ??
       (dn !== actualn ? namedesc(names, dn, oclass, 1) : null) ??

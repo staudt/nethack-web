@@ -31,6 +31,8 @@ export const pickupMessagesEn: Record<string, string> = {
   'loot.nothing_else_in': "You don't have anything else to put in.",
   'loot.topological': 'That would be an interesting topological exercise.',
   'loot.wearing': 'You cannot stash something you are wearing.',
+  'loot.loadstone': "The stone won't leave your person.",
+  'loot.loadstone.plural': "The stones won't leave your person.",
   'loot.cant_fit': 'You cannot fit {item|the} into {box|the}.',
   'loot.put_in': 'You put {item|an} into {box|the}.',
   'loot.removing': '{load} removing',

@@ -2,6 +2,7 @@
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
 import { getPlayer, type Ctx, type DefId, type EntityId, type Json, type Msg } from '@nh/core';
+import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';
 import { addToInventory, invCount, placeOnFloor, splitStack } from './items';
 import { luckOf, setU, uState } from './luck';
@@ -65,8 +66,10 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
   let oclass = what.kind === 'class' ? what.cls : null;
   if (what.kind === 'type') typ = what.type;
   else if (what.kind === 'types') {
-    // ref: rnd_otyp_by_namedesc(): prob = rn2(maxprob), then walk the candidates
-    const w = (id: DefId): number => ctx.defs.object(id).prob + what.xtra;
+    // ref: rnd_otyp_by_namedesc(): prob = rn2(maxprob), then walk the candidates; oc_prob of
+    // the real gems is setgemprobs()'s for the hero's level
+    const ledger = gemLedger(ctx.state, ctx.state.currentLevel);
+    const w = (id: DefId): number => gemProb(ctx.defs.object(id), ledger) + what.xtra;
     const maxprob = what.types.reduce((a, id) => a + w(id), 0);
     let prob = ctx.rng.rn2(maxprob);
     let k = 0;
@@ -93,7 +96,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
 
   // the count: unrestricted in wizard mode for mergeable objects
   if (spec.cnt > 0 && def.merge) {
-    const missileOrAmmo = def.weapon?.role === 'missile' || def.weapon?.role === 'ammo';
+    // the WEAPON_CLASS test excludes gems and gray stones (sling ammo too)
+    const missileOrAmmo =
+      def.weapon?.role === 'missile' || (def.class === 'weapon' && def.weapon?.role === 'ammo');
     if (
       wizard ||
       spec.cnt < ctx.rng.rnd(6) ||

@@ -6,8 +6,8 @@
 //
 // Not ported: mimics posing as stock (none exist: the rn2(100) < depth roll is made), the tribute
 // novel, the "Closed for inventory" engraving of a locked shop door (no engravings), trapped
-// doors, irregular shops (no Minetown shop is one), Orcus's ghost town, the touchstone and the
-// scroll of charging shopkeepers carry (not in the object table: the rolls are made).
+// doors, irregular shops (no Minetown shop is one), Orcus's ghost town, the scroll of charging
+// shopkeepers carry (not in the object table: the roll is made).
 import {
   cellIndex,
   sortedIds,
@@ -21,7 +21,7 @@ import {
 import { SHOPKEEPER, eshkOf, setEshk, shopDoors, type Eshk } from './eshk';
 import { makemon, rlocPos } from './generation';
 import { mkobj, mksobjFull } from './mkobj';
-import { mkmonmoney } from './mongear';
+import { mkmonmoney, mongets } from './mongear';
 import { T, setTerrain } from './terrain';
 import { monLearnsTraps } from './trapstate';
 import {
@@ -223,10 +223,12 @@ export function shkinit(ctx: Ctx, level: Level, room: number, shp: ShopType): En
   };
   setEshk(ctx, id, eshk);
   mkmonmoney(ctx, id, 1000 + 30 * ctx.rng.rnd(100)); // initial capital
-  // a touchstone for a ring shop's keeper and a scroll of charging for the tool, wand, some ring
-  // and general shops' (neither object exists: only the rolls are made)
-  if (shp.names === SHK_RINGS) ctx.rng.rn2(2);
-  else if (shp.names === SHK_GENERAL) ctx.rng.rn2(5);
+  // a touchstone for a ring shop's keeper; a scroll of charging for the tool, wand, some ring
+  // and general shops' (it does not exist: only the rolls are made)
+  if (shp.names === SHK_RINGS) {
+    mongets(ctx, id, 'nh:touchstone');
+    ctx.rng.rn2(2);
+  } else if (shp.names === SHK_GENERAL) ctx.rng.rn2(5);
   Object.assign(eshk, nameshk(ctx, level, id, shp.names));
   return id;
 }

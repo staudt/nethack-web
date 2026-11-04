@@ -1,9 +1,10 @@
 // Luck and the alignment record. ref: src/attrib.c change_luck(), adjalign(); src/timeout.c
 // nh_timeout() (Luck times out); src/makemon.c set_malign(); src/mon.c xkilled() (the penalties)
 //
-// The hero's `u.uluck`, `u.moreluck`, `u.ualign` and the prayer counters live in `modData.nh.u`.
-// The hero is a neutral Valkyrie (u.ualign.type 0); there are no luckstones yet, so `moreluck`
-// stays 0 and Luck always times out toward 0 (no full moon or Friday 13th: no clock).
+// The hero's `u.uluck`, `u.ualign` and the prayer counters live in `modData.nh.u`. `u.moreluck`
+// (the luckstone bonus) is worked out from the inventory on every read (gem.ts moreluck()); the
+// stored field stays 0. The hero is a neutral Valkyrie (u.ualign.type 0); Luck times out toward
+// 0 unless a luckstone holds it (no full moon or Friday 13th: no clock).
 import {
   getPlayer,
   type Ctx,
@@ -15,6 +16,7 @@ import {
 } from '@nh/core';
 import { P, setIntrinsic, heroHas } from './props';
 import { A_NONE } from './aligntyp';
+import { luckTimeout, moreluck } from './gem';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -27,7 +29,7 @@ export const HERO_ALIGN_TYPE = 0;
 export interface UState {
   /** u.uluck */
   luck: number;
-  /** u.moreluck (luckstones; always 0 for now) */
+  /** Unused, always 0: u.moreluck is derived from the inventory (gem.ts moreluck()). */
   moreluck: number;
   /** u.ualign.type: -1 chaotic, 0 neutral, 1 lawful */
   alignType: number;
@@ -79,11 +81,8 @@ export function setU(ctx: Pick<Ctx, 'state'>, patch: Partial<UState>): void {
   nh['u'] = { ...uState(ctx.state), ...patch } as unknown as Json;
 }
 
-/** ref: include/you.h `#define Luck (u.uluck + u.moreluck)` */
-export const luckOf = (state: Readonly<GameState>): number => {
-  const u = uState(state);
-  return u.luck + u.moreluck;
-};
+/** ref: include/you.h `#define Luck (u.uluck + u.moreluck)`, with u.moreluck from set_moreluck() */
+export const luckOf = (state: Readonly<GameState>): number => uState(state).luck + moreluck(state);
 
 /** ref: src/attrib.c change_luck() */
 export function changeLuck(ctx: Pick<Ctx, 'state'>, n: number): void {
@@ -180,14 +179,18 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
 }
 
 /**
- * Luck times out toward 0 every 600 turns (300 while the god is angry).
- * ref: src/timeout.c nh_timeout() (no luckstones: `nostone` is always true)
+ * Luck times out toward 0 every 600 turns (300 while the god is angry). Cursed luckstones stop
+ * bad Luck from timing out, blessed ones good Luck, uncursed ones both.
+ * ref: src/timeout.c nh_timeout() (no Amulet, full moon or Friday 13th)
  */
 export function registerLuck(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
     const u = uState(ctx.state);
     const baseluck = 0;
-    if (u.luck !== baseluck && ctx.state.turn % (u.ugangr ? 300 : 600) === 0)
-      setU(ctx, { luck: u.luck > baseluck ? u.luck - 1 : u.luck + 1 });
+    if (u.luck !== baseluck && ctx.state.turn % (u.ugangr ? 300 : 600) === 0) {
+      const { nostone, timeLuck } = luckTimeout(ctx.state);
+      if (u.luck > baseluck && (nostone || timeLuck < 0)) setU(ctx, { luck: u.luck - 1 });
+      else if (u.luck < baseluck && (nostone || timeLuck > 0)) setU(ctx, { luck: u.luck + 1 });
+    }
   });
 }

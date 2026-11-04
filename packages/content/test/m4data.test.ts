@@ -185,9 +185,7 @@ describe('m4 objects', () => {
       expect(objectMessagesEn[`${o.nameKey}.plural`], `${o.nameKey}.plural`).toBeTypeOf('string');
       if (o.descKey) {
         expect(objectMessagesEn[o.descKey], o.descKey).toBeTypeOf('string');
-        expect(objectMessagesEn[`${o.descKey}.plural`], `${o.descKey}.plural`).toBeTypeOf(
-          'string',
-        );
+        expect(objectMessagesEn[`${o.descKey}.plural`], `${o.descKey}.plural`).toBeTypeOf('string');
       }
     }
   });
@@ -279,13 +277,13 @@ describe('m4 objects', () => {
   test('flint stone is unidentified as a gray stone', () => {
     const f = object('nh:flint_stone');
     expect(f.class).toBe('gem');
-    expect(f.prob).toBe(0);
+    expect(f.prob).toBe(10); // objects.h ROCK("flint", ..., 10, ...)
     expect(f.cost).toBe(1);
     expect(f.weapon).toMatchObject({ role: 'ammo', skill: 'sling', small: [1, 6], large: [1, 6] });
-    expect(f.descKey).toBe('nh:flint_stone.desc');
+    expect(f.descKey).toBe('nh:gray_stone');
     expect(objectMessagesEn['nh:flint_stone']).toBe('flint stone');
     expect(objectMessagesEn['nh:flint_stone.plural']).toBe('flint stones');
-    expect(objectMessagesEn['nh:flint_stone.desc']).toBe('gray stone');
+    expect(objectMessagesEn['nh:gray_stone']).toBe('gray stone');
   });
 
   test('new object plurals read correctly', () => {

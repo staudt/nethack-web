@@ -456,6 +456,12 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
     });
     return NORMAL_SPEED;
   }
+  // canletgo(): a cursed loadstone cannot be thrown (no time passes)
+  if (obj.def === 'nh:loadstone' && it.buc === 'cursed') {
+    msg(ctx, it.quantity > 1 ? 'throw.loadstone_any' : 'throw.loadstone');
+    it.known.buc = true; // set_bknown()
+    return 0;
+  }
 
   const n = multishotOf(ctx, obj, def);
   if (n > 1) {

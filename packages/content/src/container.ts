@@ -34,7 +34,7 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { losehp } from './hp';
-import { carryCount, encumberMsg, invOption, prinv } from './itemactions';
+import { carryCount, encumberMsg, invOption, liftLoadstone, prinv } from './itemactions';
 import {
   addToInventory,
   invCount,
@@ -196,6 +196,11 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0
     say(ctx, 'loot.wearing');
     return 0;
   }
+  if (obj.def === 'nh:loadstone' && it.buc === 'cursed') {
+    it.known.buc = true; // set_bknown()
+    say(ctx, it.quantity !== 1 ? 'loot.loadstone.plural' : 'loot.loadstone');
+    return 0;
+  }
   if (it.equipped === 'weapon') {
     if (it.buc === 'cursed' && ctx.defs.object(obj.def).class === 'weapon') {
       // welded(): weldmsg()
@@ -280,18 +285,23 @@ function outContainer(
   const it = obj.c.item;
   if (!it) return 0;
   let qq = Math.min(count, it.quantity);
-  if (!held(ctx, box)) {
-    const cc = carryCount(ctx, obj, qq);
-    if (cc.qq < 1) return -1;
-    qq = cc.qq;
-  }
-  const isCoin = ctx.defs.object(obj.def).class === 'coin';
-  const merges = inventoryOf(ctx.state, ctx.state.playerId).some((o) =>
-    mergable(ctx.defs, o, obj, ctx.state),
-  );
-  if (!isCoin && invCount(ctx, ctx.state.playerId) >= 52 && !merges) {
-    say(ctx, 'pickup.full');
-    return -1;
+  // lift_object(): a loadstone is lifted regardless of its weight
+  const lift = liftLoadstone(ctx, obj);
+  if (lift === 'refuse') return -1;
+  if (lift === null) {
+    if (!held(ctx, box)) {
+      const cc = carryCount(ctx, obj, qq);
+      if (cc.qq < 1) return -1;
+      qq = cc.qq;
+    }
+    const isCoin = ctx.defs.object(obj.def).class === 'coin';
+    const merges = inventoryOf(ctx.state, ctx.state.playerId).some((o) =>
+      mergable(ctx.defs, o, obj, ctx.state),
+    );
+    if (!isCoin && invCount(ctx, ctx.state.playerId) >= 52 && !merges) {
+      say(ctx, 'pickup.full');
+      return -1;
+    }
   }
   const part = qq < it.quantity ? splitStack(ctx, obj.id, qq) : obj.id;
   takeOut(ctx.state, part);

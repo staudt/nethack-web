@@ -27,7 +27,9 @@ import { isSwapWep } from './wield';
 /**
  * The message for the item's name without quantity, BUC or suffixes (xname()): the real name
  * when the hero knows the object type, else its appearance (potions, scrolls) or fixed
- * description ("crude dagger"). Plural (`.plural` keys) when the quantity is not 1.
+ * description ("crude dagger"). Plural (`.plural` keys) when the quantity is not 1. Gems follow
+ * xname()'s GEM_CLASS rule through their catalog keys: "white gem" or "gray stone" (mineral)
+ * unidentified; "diamond", "jade stone" (GemStone()) or "worthless piece of white glass" known.
  * Boots and gloves read "pair of ..." in the catalog's names. Corpses nest the monster as `mon`.
  */
 function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item: Entity): Msg {
@@ -59,9 +61,11 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
       def.class === 'wand' ||
       def.class === 'spellbook'
         ? { key: `obj.generic.${def.class}${plural}` }
-        : def.class === 'armor' && def.armor
-          ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
-          : { key: `${def.descKey ?? def.nameKey}${plural}` };
+        : def.class === 'gem' // ref: xname() GEM_CLASS: xcalled(buf, rock, un)
+          ? { key: `obj.generic.${def.material === 'mineral' ? 'stone' : 'gem'}${plural}` }
+          : def.class === 'armor' && def.armor
+            ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
+            : { key: `${def.descKey ?? def.nameKey}${plural}` };
     return { key: 'obj.called', params: { pre, name: un } };
   }
   const app = state.appearances[def.id];

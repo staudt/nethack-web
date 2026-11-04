@@ -26,6 +26,8 @@ import { fixStrangled } from './jewelry';
 import { adjattrib } from './attrib';
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
+import { LUCK_ITEMS } from './gem';
+import { nearCapacity } from './stats';
 import { hcolor } from './magic';
 import { wakeNearto } from './noise';
 import { nomul, unmulNow } from './nomul';
@@ -111,8 +113,14 @@ function criticallyLowHp(ctx: Ctx): boolean {
   return hp.cur <= 5 || hp.cur * divisor <= maxhp;
 }
 
-/** ref: src/pray.c worst_cursed_item() (no eyewear, loadstones or two-weapon) */
+/** ref: src/pray.c worst_cursed_item() (no eyewear or two-weapon) */
 function worstCursedItem(ctx: Ctx): Entity | null {
+  const inv = inventoryOf(ctx.state, ctx.state.playerId);
+  // if strained or worse, check for loadstone first
+  if (nearCapacity(ctx.state, ctx.defs, ctx.state.playerId) >= HVY_ENCUMBER) {
+    const ls = inv.find((o) => o.def === 'nh:loadstone' && o.c.item?.buc === 'cursed');
+    if (ls) return ls;
+  }
   const w = weldedWeapon(ctx);
   const cursed = (slot: string): Entity | null => {
     const o = worn(ctx, slot);
@@ -131,9 +139,17 @@ function worstCursedItem(ctx: Ctx): Entity | null {
     cursed('amulet') ??
     cursed('ringL') ??
     cursed('ringR') ??
-    w
+    w ??
+    // all worn items ought to be handled by now
+    inv.find(
+      (o) => o.c.item?.buc === 'cursed' && (o.def === 'nh:loadstone' || LUCK_ITEMS.has(o.def)),
+    ) ??
+    null
   );
 }
+
+/** ref: include/hack.h HVY_ENCUMBER (Strained) */
+const HVY_ENCUMBER = 3;
 
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()

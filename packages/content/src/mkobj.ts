@@ -5,6 +5,7 @@ import { putIn } from '@nh/core';
 import { rndmonst } from './generation';
 import { mksobj, type MksobjOpts } from './items';
 import { startCorpseTimeout } from './corpses';
+import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 
 /** What mkobj() needs from a Ctx (corpses schedule a rot timer). */
 export type MkobjCtx = Pick<
@@ -16,15 +17,15 @@ type ClassProbs = readonly { prob: number; cls: ObjectClass | null; name: string
 
 /**
  * The class probabilities of mkobj() on ordinary levels, in NetHack's order; they sum to 100.
- * `null` marks the classes this port does not have yet (gems: only flint and rocks exist):
- * rolling one generates nothing. ref: src/mkobj.c mkobjprobs[]
+ * `null` would mark a class this port does not have (rolling one generates nothing); every class
+ * exists now. ref: src/mkobj.c mkobjprobs[]
  */
 export const MKOBJ_PROBS: ClassProbs = [
   { prob: 10, cls: 'weapon', name: 'weapon' },
   { prob: 11, cls: 'armor', name: 'armor' },
   { prob: 20, cls: 'food', name: 'food' },
   { prob: 8, cls: 'tool', name: 'tool' },
-  { prob: 7, cls: null, name: 'gem' },
+  { prob: 7, cls: 'gem', name: 'gem' },
   { prob: 16, cls: 'potion', name: 'potion' },
   { prob: 16, cls: 'scroll', name: 'scroll' },
   { prob: 4, cls: 'spellbook', name: 'spellbook' },
@@ -33,12 +34,9 @@ export const MKOBJ_PROBS: ClassProbs = [
   { prob: 1, cls: 'amulet', name: 'amulet' },
 ];
 
-/**
- * The class probabilities of a box's contents; they sum to 100. Gems are not made (as above).
- * ref: src/mkobj.c boxiprobs[]
- */
+/** The class probabilities of a box's contents; they sum to 100. ref: src/mkobj.c boxiprobs[] */
 export const BOX_PROBS: ClassProbs = [
-  { prob: 18, cls: null, name: 'gem' },
+  { prob: 18, cls: 'gem', name: 'gem' },
   { prob: 15, cls: 'food', name: 'food' },
   { prob: 18, cls: 'potion', name: 'potion' },
   { prob: 18, cls: 'scroll', name: 'scroll' },
@@ -98,18 +96,22 @@ export function rndmonnum(ctx: MkobjCtx, depth: number): MonsterDef {
  * Picks an object type of class `cls` by probability. ref: src/mkobj.c mkobj():
  * `prob = rnd(oclass_prob_totals[oclass]); while ((prob -= objects[i].oc_prob) > 0) ++i;`
  * Our subset's probabilities do not sum to 1000, so the total is of the registered objects of
- * the class (see DEVIATIONS.md). Returns null when the class has no objects with prob > 0.
+ * the class (see DEVIATIONS.md). The real gems' probabilities depend on the level, as
+ * setgemprobs() (called by oinit() for the level being made) sets them: `ledger` is that level's
+ * (gem.ts gemLedger()). Returns null when the class has no objects with prob > 0.
  */
 export function pickObjectOfClass(
   ctx: Pick<MkobjCtx, 'rng' | 'defs'>,
   cls: ObjectClass,
+  ledger = 1,
 ): ObjectDef | null {
   const list = ctx.defs.objects.filter((o) => o.class === cls);
-  const total = list.reduce((a, o) => a + o.prob, 0);
+  const probOf = (o: ObjectDef): number => (cls === 'gem' ? gemProb(o, ledger) : o.prob);
+  const total = list.reduce((a, o) => a + probOf(o), 0);
   if (total <= 0) return null;
   let prob = ctx.rng.rnd(total);
   for (const o of list) {
-    prob -= o.prob;
+    prob -= probOf(o);
     if (prob <= 0) return o;
   }
   return list[list.length - 1] ?? null;
@@ -129,7 +131,8 @@ export function mkobj(
 ): EntityId | null {
   const cls = oclass === 'random' ? rollClass(ctx, MKOBJ_PROBS) : oclass;
   if (cls === null) return null;
-  const def = pickObjectOfClass(ctx, cls);
+  const ledger = gemLedger(ctx.state, opts.level ?? opts.at?.level ?? ctx.state.currentLevel);
+  const def = pickObjectOfClass(ctx, cls, ledger);
   if (!def) return null;
   const where = opts.at ? { at: opts.at } : {};
   const artif = opts.artif ?? true;
@@ -183,9 +186,10 @@ export function mksobjFull(
  * level's usual amount.
  * ref: src/mkobj.c mkbox_cnts(): chest 7 if locked else 5, large box 5 or 3, sack and oilskin
  * sack 1 (0 for the starting inventory), bag of holding 1; then `rn2(n + 1)` objects made with
- * mkobj(class, FALSE). Ice boxes, rocks turned into gray stones, bags of holding getting a sack
- * instead of a bag and no wand of cancellation do not arise in the subset; a gem roll makes
- * nothing (see MKOBJ_PROBS). Boxes are not trapped (see DEVIATIONS.md).
+ * mkobj(class, FALSE); a rock becomes a gem, glass or gray stone (rnd_class(DILITHIUM_CRYSTAL,
+ * LOADSTONE), keeping its BUC and at most 2 of it, as C changes only the otyp). Ice boxes, bags
+ * of holding getting a sack instead of a bag and no wand of cancellation do not arise in the
+ * subset. Boxes are not trapped (see DEVIATIONS.md).
  */
 export function mkboxCnts(
   ctx: MkobjCtx,
@@ -218,10 +222,16 @@ export function mkboxCnts(
     if (cls === null) continue;
     const obj = mkobj(ctx, cls, { level: opts.level, inMklev: opts.inMklev, artif: false });
     if (obj === null) continue;
-    const it = ctx.state.entities[String(obj)]?.c.item;
+    const o = ctx.state.entities[String(obj)];
+    const it = o?.c.item;
     if (it && cls === 'coin') {
       // 2.5 x level's usual amount
       it.quantity = ctx.rng.rnd(depthOf(ctx, opts.level) + 2) * ctx.rng.rnd(75);
+    } else if (o && it) {
+      while (o.def === 'nh:rock') {
+        o.def = rndClass(ctx.rng, ctx.defs, BOX_ROCK_GEMS, gemLedger(ctx.state, opts.level));
+        if (it.quantity > 2) it.quantity = 1;
+      }
     }
     putIn(ctx.defs, ctx.state, boxId, obj);
   }

@@ -305,6 +305,29 @@ export function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; 
   return { qq: 0, xtra: 0 };
 }
 
+/**
+ * A loadstone is lifted whatever it weighs, unless the hero is out of letters and already has
+ * one that it would not merge with: 'lift', 'refuse' (with the message), or null for any other
+ * object. ref: src/pickup.c lift_object()
+ */
+export function liftLoadstone(ctx: Ctx, obj: Entity): 'lift' | 'refuse' | null {
+  if (obj.def !== 'nh:loadstone') return null;
+  const state = ctx.state;
+  const inv = inventoryOf(state, state.playerId);
+  if (
+    invCount(ctx, state.playerId) < 52 ||
+    !inv.some((o) => o.def === 'nh:loadstone') ||
+    inv.some((o) => mergable(ctx.defs, o, obj, state))
+  )
+    return 'lift';
+  ctx.emit({
+    type: 'msg',
+    key: (obj.c.item?.quantity ?? 1) === 1 ? 'pickup.too_much_another' : 'pickup.too_much_more',
+    params: { item: xnameOf(state, ctx.defs, obj) },
+  });
+  return 'refuse';
+}
+
 /** A multi menu's count limit for a stack (src/pickup.c menu counts); none for a single item. */
 const stackMax = (e: Entity): { max?: number } =>
   (e.c.item?.quantity ?? 1) > 1 ? { max: e.c.item?.quantity ?? 1 } : {};
@@ -323,42 +346,48 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
   if (qq === undefined) {
     // ref: pickup.c pickup_object(obj, count): a count from the menu caps what is lifted
     const want = Math.min(data.counts?.[String(obj.id)] ?? it.quantity, it.quantity);
-    const cc = carryCount(ctx, obj, want);
-    if (cc.qq < 1) return 'abort';
-    qq = cc.qq;
-    // the knapsack holds 52 letters; gold needs none
-    const mergeChoice = inventoryOf(state, id).some((o) => mergable(ctx.defs, o, obj, state));
-    if (def.class !== 'coin' && invCount(ctx, id) >= 52 && !mergeChoice) {
-      const gold = itemsAt(
-        ctx.defs,
-        state,
-        obj.c.pos?.level ?? '',
-        obj.c.pos?.x ?? 0,
-        obj.c.pos?.y ?? 0,
-      ).some((o) => o.id !== obj.id && ctx.defs.object(o.def).class === 'coin');
-      ctx.emit({ type: 'msg', key: gold ? 'pickup.full_gold' : 'pickup.full' });
-      return 'abort';
-    }
-    // "You have a little trouble lifting X.  Continue?" once the load passes Stressed
-    // (flags.pickup_burden defaults to Stressed). ref: lift_object()
-    const prev = Math.max(nearCapacity(state, ctx.defs, id), 2);
-    const next = calcCapacity(state, ctx.defs, id, cc.xtra);
-    if (next > prev) {
-      const load = loadPrefix(next);
-      data.qq = qq;
-      data.stage = 'confirm';
-      ctx.ask(
-        {
-          id: 'pickup-confirm',
-          kind: 'yn',
-          key: 'pickup.confirm',
-          cancellable: true,
-          params: { load: load ?? '', item: nameQty(ctx, obj, qq) },
-        },
-        'nh:pickup',
-        data as unknown as Json,
-      );
-      return 'ask';
+    const lift = liftLoadstone(ctx, obj);
+    if (lift === 'refuse') return 'abort';
+    if (lift === 'lift')
+      qq = want; // lift regardless of current situation
+    else {
+      const cc = carryCount(ctx, obj, want);
+      if (cc.qq < 1) return 'abort';
+      qq = cc.qq;
+      // the knapsack holds 52 letters; gold needs none
+      const mergeChoice = inventoryOf(state, id).some((o) => mergable(ctx.defs, o, obj, state));
+      if (def.class !== 'coin' && invCount(ctx, id) >= 52 && !mergeChoice) {
+        const gold = itemsAt(
+          ctx.defs,
+          state,
+          obj.c.pos?.level ?? '',
+          obj.c.pos?.x ?? 0,
+          obj.c.pos?.y ?? 0,
+        ).some((o) => o.id !== obj.id && ctx.defs.object(o.def).class === 'coin');
+        ctx.emit({ type: 'msg', key: gold ? 'pickup.full_gold' : 'pickup.full' });
+        return 'abort';
+      }
+      // "You have a little trouble lifting X.  Continue?" once the load passes Stressed
+      // (flags.pickup_burden defaults to Stressed). ref: lift_object()
+      const prev = Math.max(nearCapacity(state, ctx.defs, id), 2);
+      const next = calcCapacity(state, ctx.defs, id, cc.xtra);
+      if (next > prev) {
+        const load = loadPrefix(next);
+        data.qq = qq;
+        data.stage = 'confirm';
+        ctx.ask(
+          {
+            id: 'pickup-confirm',
+            kind: 'yn',
+            key: 'pickup.confirm',
+            cancellable: true,
+            params: { load: load ?? '', item: nameQty(ctx, obj, qq) },
+          },
+          'nh:pickup',
+          data as unknown as Json,
+        );
+        return 'ask';
+      }
     }
   } else {
     // resuming after the confirmation
@@ -508,6 +537,11 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
   if (welded(ctx, e)) {
     const bi = defOf(ctx, e).weapon?.bimanual === true;
     ctx.emit({ type: 'msg', key: bi ? 'drop.welded_hands' : 'drop.welded' });
+    return false;
+  }
+  if (e.def === 'nh:loadstone' && it.buc === 'cursed') {
+    ctx.emit({ type: 'msg', key: it.quantity !== 1 ? 'drop.loadstone.plural' : 'drop.loadstone' });
+    it.known.buc = true; // set_bknown()
     return false;
   }
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)

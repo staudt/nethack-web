@@ -34,6 +34,8 @@ export const magicMessagesEn: Record<string, string> = {
 
   // scrolls
   'read.disappears': 'As you read the scroll, it disappears.',
+  'read.blank': 'This scroll seems to be blank.',
+  'read.blank_blind': "You don't remember there being any magic words on this scroll.",
   'read.you_read': 'You read the scroll.',
   'identify.this_is': 'This is an identify scroll.',
   'identify.identify_this_as': 'You identify this as an identify scroll.',
@@ -102,6 +104,8 @@ export const magicMessagesEn: Record<string, string> = {
   // throwing
   'throw.direction': 'In what direction?',
   'throw.worn': 'You cannot throw something you are wearing.',
+  'throw.loadstone': 'For some reason, you cannot throw the stone!',
+  'throw.loadstone_any': 'For some reason, you cannot throw any of the stones!',
   'throw.volley': 'You throw {n} {item}.',
   'throw.slips': 'The {item} slips as you throw it!',
   'throw.floor': 'The {item} hits the floor.',

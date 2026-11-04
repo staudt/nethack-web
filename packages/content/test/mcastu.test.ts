@@ -425,7 +425,12 @@ describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', 
   });
 
   test('paralyze: frozen for 4 + m_lev turns, which is also the damage', () => {
-    const { s, o } = find(5, 'You are frozen in place!');
+    // no natural regeneration during the helpless turns (level + con > rn2(100) never holds)
+    const { s, o } = find(5, 'You are frozen in place!', ({ s }) => {
+      const h = getPlayer(s.state);
+      h.c.attributes!.con = 0;
+      h.c.experience!.level = 0;
+    });
     expect(o.text[0]).toBe('The priest casts a spell at you!');
     const h = getPlayer(o.state);
     expect(h.c.helpless?.reasonKey).toBe('helpless.paralyzed_monster');

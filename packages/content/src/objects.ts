@@ -111,6 +111,45 @@ const tool = (
   ...extra,
 });
 
+/**
+ * A gem, a piece of glass or a gray stone. ref: include/objects.h GEM(): weight 1, sdam and ldam
+ * 3, sling ammo (-P_SLING), merging, not magic; ROCK() gray stones override the weight and the
+ * magic bit. `desc` is the colour ("white"): the description key is `nh:<desc>_gem` or, for
+ * mineral stones, `nh:<desc>_stone` (xname()'s GEM_CLASS "gem"/"stone" word).
+ */
+const gem = (
+  slug: string,
+  desc: string,
+  prob: number,
+  cost: number,
+  material: 'gemstone' | 'glass' | 'mineral',
+  fg: string,
+  extra: Partial<ObjectDef> = {},
+): ObjectDef => ({
+  id: `nh:${slug}`,
+  nameKey: `nh:${slug}`,
+  descKey: `nh:${desc}_${material === 'mineral' ? 'stone' : 'gem'}`,
+  class: 'gem',
+  glyph: { ch: '*', fg },
+  prob,
+  weight: 1,
+  cost,
+  material,
+  merge: true,
+  magic: false,
+  delay: 0,
+  weapon: {
+    small: [1, 3],
+    large: [1, 3],
+    hitBonus: 0,
+    skill: 'sling',
+    bimanual: false,
+    kind: 'whack',
+    role: 'ammo',
+  },
+  ...extra,
+});
+
 export const OBJECTS: readonly ObjectDef[] = [
   // ---- weapons ----
   // ref: objects.h WEAPON("dagger", NoDes, 1, 1, 0, 30, 10, 4, 4, 3, 2, P, P_DAGGER, IRON, HI_METAL, DAGGER)
@@ -263,6 +302,29 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     weapon: {
       small: [1, 6],
+      large: [1, 8],
+      hitBonus: 0,
+      skill: 'short_sword',
+      bimanual: false,
+      kind: 'pierce',
+    },
+  },
+  // ref: objects.h WEAPON("orcish short sword", "crude short sword", 0, 0, 0, 3, 30, 10, 5, 8, 0, P, P_SHORT_SWORD, IRON, CLR_BLACK, ORCISH_SHORT_SWORD)
+  {
+    id: 'nh:orcish_short_sword',
+    nameKey: 'nh:orcish_short_sword',
+    descKey: 'nh:orcish_short_sword.desc',
+    class: 'weapon',
+    glyph: { ch: ')', fg: BLACK },
+    prob: 3,
+    weight: 30,
+    cost: 10,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 0,
+    weapon: {
+      small: [1, 5],
       large: [1, 8],
       hitBonus: 0,
       skill: 'short_sword',
@@ -687,15 +749,85 @@ export const OBJECTS: readonly ObjectDef[] = [
     },
   },
 
+  // ---- gems, glass and gray stones, in objects.h order (o_init.c setgemprobs() depends on it:
+  // the real gems are FIRST_REAL_GEM..LAST_REAL_GEM, then FIRST_GLASS_GEM..LAST_GLASS_GEM) ----
+  // ref: objects.h GEM("dilithium crystal", "white", 2, 1, 4500, 15, 5, GEMSTONE, CLR_WHITE)
+  gem('dilithium_crystal', 'white', 2, 4500, 'gemstone', WHITE),
+  // ref: objects.h GEM("diamond", "white", 3, 1, 4000, 15, 10, GEMSTONE, CLR_WHITE)
+  gem('diamond', 'white', 3, 4000, 'gemstone', WHITE),
+  // ref: objects.h GEM("ruby", "red", 4, 1, 3500, 15, 9, GEMSTONE, CLR_RED)
+  gem('ruby', 'red', 4, 3500, 'gemstone', RED),
+  // ref: objects.h GEM("jacinth", "orange", 3, 1, 3250, 15, 9, GEMSTONE, CLR_ORANGE)
+  gem('jacinth', 'orange', 3, 3250, 'gemstone', ORANGE),
+  // ref: objects.h GEM("sapphire", "blue", 4, 1, 3000, 15, 9, GEMSTONE, CLR_BLUE)
+  gem('sapphire', 'blue', 4, 3000, 'gemstone', BLUE),
+  // ref: objects.h GEM("black opal", "black", 3, 1, 2500, 15, 8, GEMSTONE, CLR_BLACK)
+  gem('black_opal', 'black', 3, 2500, 'gemstone', BLACK),
+  // ref: objects.h GEM("emerald", "green", 5, 1, 2500, 15, 8, GEMSTONE, CLR_GREEN)
+  gem('emerald', 'green', 5, 2500, 'gemstone', GREEN),
+  // ref: objects.h GEM("turquoise", "green", 6, 1, 2000, 15, 6, GEMSTONE, CLR_GREEN)
+  gem('turquoise', 'green', 6, 2000, 'gemstone', GREEN),
+  // ref: objects.h GEM("citrine", "yellow", 4, 1, 1500, 15, 6, GEMSTONE, CLR_YELLOW)
+  gem('citrine', 'yellow', 4, 1500, 'gemstone', YELLOW),
+  // ref: objects.h GEM("aquamarine", "green", 6, 1, 1500, 15, 8, GEMSTONE, CLR_GREEN)
+  gem('aquamarine', 'green', 6, 1500, 'gemstone', GREEN),
+  // ref: objects.h GEM("amber", "yellowish brown", 8, 1, 1000, 15, 2, GEMSTONE, CLR_BROWN)
+  gem('amber', 'yellowish_brown', 8, 1000, 'gemstone', BROWN),
+  // ref: objects.h GEM("topaz", "yellowish brown", 10, 1, 900, 15, 8, GEMSTONE, CLR_BROWN)
+  gem('topaz', 'yellowish_brown', 10, 900, 'gemstone', BROWN),
+  // ref: objects.h GEM("jet", "black", 6, 1, 850, 15, 7, GEMSTONE, CLR_BLACK)
+  gem('jet', 'black', 6, 850, 'gemstone', BLACK),
+  // ref: objects.h GEM("opal", "white", 12, 1, 800, 15, 6, GEMSTONE, CLR_WHITE)
+  gem('opal', 'white', 12, 800, 'gemstone', WHITE),
+  // ref: objects.h GEM("chrysoberyl", "yellow", 8, 1, 700, 15, 5, GEMSTONE, CLR_YELLOW)
+  gem('chrysoberyl', 'yellow', 8, 700, 'gemstone', YELLOW),
+  // ref: objects.h GEM("garnet", "red", 12, 1, 700, 15, 7, GEMSTONE, CLR_RED)
+  gem('garnet', 'red', 12, 700, 'gemstone', RED),
+  // ref: objects.h GEM("amethyst", "violet", 14, 1, 600, 15, 7, GEMSTONE, CLR_MAGENTA)
+  gem('amethyst', 'violet', 14, 600, 'gemstone', MAGENTA),
+  // ref: objects.h GEM("jasper", "red", 15, 1, 500, 15, 7, GEMSTONE, CLR_RED)
+  gem('jasper', 'red', 15, 500, 'gemstone', RED),
+  // ref: objects.h GEM("fluorite", "violet", 15, 1, 400, 15, 4, GEMSTONE, CLR_MAGENTA)
+  gem('fluorite', 'violet', 15, 400, 'gemstone', MAGENTA),
+  // ref: objects.h GEM("obsidian", "black", 9, 1, 200, 15, 6, GEMSTONE, CLR_BLACK)
+  gem('obsidian', 'black', 9, 200, 'gemstone', BLACK),
+  // ref: objects.h GEM("agate", "orange", 12, 1, 200, 15, 6, GEMSTONE, CLR_ORANGE)
+  gem('agate', 'orange', 12, 200, 'gemstone', ORANGE),
+  // ref: objects.h GEM("jade", "green", 10, 1, 300, 15, 6, GEMSTONE, CLR_GREEN)
+  gem('jade', 'green', 10, 300, 'gemstone', GREEN),
+  // ref: objects.h GEM("worthless piece of white glass", "white", 77, 1, 0, 6, 5, GLASS, CLR_WHITE)
+  gem('worthless_piece_of_white_glass', 'white', 77, 0, 'glass', WHITE),
+  // ref: objects.h GEM("worthless piece of blue glass", "blue", 77, 1, 0, 6, 5, GLASS, CLR_BLUE)
+  gem('worthless_piece_of_blue_glass', 'blue', 77, 0, 'glass', BLUE),
+  // ref: objects.h GEM("worthless piece of red glass", "red", 77, 1, 0, 6, 5, GLASS, CLR_RED)
+  gem('worthless_piece_of_red_glass', 'red', 77, 0, 'glass', RED),
+  // ref: objects.h GEM("worthless piece of yellowish brown glass", "yellowish brown", 77, 1, 0, 6, 5, GLASS, CLR_BROWN)
+  gem('worthless_piece_of_yellowish_brown_glass', 'yellowish_brown', 77, 0, 'glass', BROWN),
+  // ref: objects.h GEM("worthless piece of orange glass", "orange", 76, 1, 0, 6, 5, GLASS, CLR_ORANGE)
+  gem('worthless_piece_of_orange_glass', 'orange', 76, 0, 'glass', ORANGE),
+  // ref: objects.h GEM("worthless piece of yellow glass", "yellow", 77, 1, 0, 6, 5, GLASS, CLR_YELLOW)
+  gem('worthless_piece_of_yellow_glass', 'yellow', 77, 0, 'glass', YELLOW),
+  // ref: objects.h GEM("worthless piece of black glass", "black", 76, 1, 0, 6, 5, GLASS, CLR_BLACK)
+  gem('worthless_piece_of_black_glass', 'black', 76, 0, 'glass', BLACK),
+  // ref: objects.h GEM("worthless piece of green glass", "green", 77, 1, 0, 6, 5, GLASS, CLR_GREEN)
+  gem('worthless_piece_of_green_glass', 'green', 77, 0, 'glass', GREEN),
+  // ref: objects.h GEM("worthless piece of violet glass", "violet", 77, 1, 0, 6, 5, GLASS, CLR_MAGENTA)
+  gem('worthless_piece_of_violet_glass', 'violet', 77, 0, 'glass', MAGENTA),
+  // ref: objects.h ROCK("luckstone", "gray", 0, 10, 10, 60, 3, 3, 1, 10, 7, MINERAL, CLR_GRAY, LUCKSTONE)
+  gem('luckstone', 'gray', 10, 60, 'mineral', GRAY, { weight: 10, magic: true }),
+  // ref: objects.h ROCK("loadstone", "gray", 0, 10, 500, 1, 3, 3, 1, 10, 6, MINERAL, CLR_GRAY, LOADSTONE)
+  gem('loadstone', 'gray', 10, 1, 'mineral', GRAY, { weight: 500, magic: true }),
+  // ref: objects.h ROCK("touchstone", "gray", 0, 8, 10, 45, 3, 3, 1, 10, 6, MINERAL, CLR_GRAY, TOUCHSTONE)
+  gem('touchstone', 'gray', 8, 45, 'mineral', GRAY, { weight: 10, magic: true }),
   // ---- stones fired from a sling (gems class; rock and flint merge) ----
   // ref: objects.h ROCK("flint", "gray", 0, 10, 10, 1, 6, 6, 0, 10, 7, MINERAL, CLR_GRAY, FLINT)
   {
     id: 'nh:flint_stone',
     nameKey: 'nh:flint_stone',
-    descKey: 'nh:flint_stone.desc',
+    descKey: 'nh:gray_stone',
     class: 'gem',
     glyph: { ch: '*', fg: GRAY },
-    prob: 0,
+    prob: 10,
     weight: 10,
     cost: 1,
     material: 'mineral',
@@ -798,6 +930,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 3,
     armor: { slot: 'body', ac: 2, mc: 1 },
   },
+  // ref: objects.h ARMOR("orcish chain mail", "crude chain mail", 0, 0, 0, 0, 19, 5, 300, 75, 6, 1, ARM_SUIT, IRON, CLR_BLACK, ORCISH_CHAIN_MAIL)
+  {
+    id: 'nh:orcish_chain_mail',
+    nameKey: 'nh:orcish_chain_mail',
+    descKey: 'nh:orcish_chain_mail.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 19,
+    weight: 300,
+    cost: 75,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 4, mc: 1 },
+  },
   // ref: objects.h ARMOR("ring mail", NoDes, 1, 0, 0, 0, 66, 5, 250, 100, 7, 1, ARM_SUIT, IRON, HI_METAL, RING_MAIL)
   {
     id: 'nh:ring_mail',
@@ -812,6 +960,37 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 5,
     armor: { slot: 'body', ac: 3, mc: 1 },
+  },
+  // ref: objects.h CLOAK("mummy wrapping", NoDes, 1, 0, 0, 0, 0, 3, 2, 10, 1, CLOTH, CLR_GRAY, MUMMY_WRAPPING)
+  {
+    id: 'nh:mummy_wrapping',
+    nameKey: 'nh:mummy_wrapping',
+    class: 'armor',
+    glyph: { ch: '[', fg: GRAY },
+    prob: 0,
+    weight: 3,
+    cost: 2,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 0, mc: 1 },
+  },
+  // ref: objects.h CLOAK("orcish cloak", "coarse mantelet", 0, 0, 0, 8, 0, 10, 40, 10, 1, CLOTH, CLR_BLACK, ORCISH_CLOAK)
+  {
+    id: 'nh:orcish_cloak',
+    nameKey: 'nh:orcish_cloak',
+    descKey: 'nh:orcish_cloak.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 8,
+    weight: 10,
+    cost: 40,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 0, mc: 1 },
   },
   // ref: objects.h CLOAK("dwarvish cloak", "hooded cloak", 0, 0, 0, 8, 0, 10, 50, 10, 1, CLOTH, HI_CLOTH, DWARVISH_CLOAK)
   {
@@ -891,6 +1070,38 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 2,
     armor: { slot: 'boots', ac: 2, mc: 0 },
+  },
+  // ref: objects.h SHIELD("Uruk-hai shield", "white-handed shield", 0, 0, 0, 0, 2, 0, 50, 7, 9, 0, IRON, HI_METAL, URUK_HAI_SHIELD)
+  {
+    id: 'nh:uruk_hai_shield',
+    nameKey: 'nh:uruk_hai_shield',
+    descKey: 'nh:uruk_hai_shield.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 2,
+    weight: 50,
+    cost: 7,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shield', ac: 1, mc: 0 },
+  },
+  // ref: objects.h SHIELD("orcish shield", "red-eyed shield", 0, 0, 0, 0, 2, 0, 50, 7, 9, 0, IRON, CLR_RED, ORCISH_SHIELD)
+  {
+    id: 'nh:orcish_shield',
+    nameKey: 'nh:orcish_shield',
+    descKey: 'nh:orcish_shield.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: RED },
+    prob: 2,
+    weight: 50,
+    cost: 7,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shield', ac: 1, mc: 0 },
   },
   // ref: objects.h SHIELD("dwarvish roundshield", "large round shield", 0, 0, 0, 0, 3, 0, 100, 10, 8, 0, IRON, HI_METAL, DWARVISH_ROUNDSHIELD)
   {
@@ -1698,6 +1909,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     material: 'paper',
     merge: true,
     magic: true,
+    delay: 0,
+  },
+  // ref: objects.h SCROLL("blank paper", "unlabeled", 0, 28, 60, SCR_BLANK_PAPER): a fixed
+  // description, so it stays out of the shuffled labels
+  {
+    id: 'nh:scroll_of_blank_paper',
+    nameKey: 'nh:scroll_of_blank_paper',
+    descKey: 'nh:scroll_of_blank_paper.desc',
+    class: 'scroll',
+    glyph: { ch: '?', fg: WHITE },
+    prob: 28,
+    weight: 5,
+    cost: 60,
+    material: 'paper',
+    merge: true,
+    magic: false,
     delay: 0,
   },
 

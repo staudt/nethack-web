@@ -126,10 +126,12 @@ export function mksobjInit(
       break;
     }
     case 'gem':
-      // ref: mksobj_init() GEM_CLASS: rocks come in rn1(6, 6); other stones (not luckstones)
-      // are a pair 1 time in 6
-      if (def.id === 'nh:rock') it.quantity = rng.rn2(6) + 6;
-      else if (rng.rn2(6) === 0) it.quantity = 2;
+      // ref: mksobj_init() GEM_CLASS: a loadstone is cursed; rocks come in rn1(6, 6); other
+      // gems and stones (not luckstones) are a pair 1 time in 6
+      if (def.id === 'nh:loadstone') curse(it);
+      else if (def.id === 'nh:rock') it.quantity = rng.rn2(6) + 6;
+      else if (def.id !== 'nh:luckstone' && rng.rn2(6) === 0) it.quantity = 2;
+      else it.quantity = 1;
       break;
     case 'food':
       it.eaten = 0;

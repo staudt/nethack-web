@@ -22,7 +22,7 @@ describe('mkobj: the class table', () => {
     ]);
   });
 
-  test('only implemented classes appear, in NetHack ratios (the rest make nothing)', () => {
+  test('every class appears, in NetHack ratios', () => {
     const state = bareState(11);
     const ctx = ctxFor(state);
     const N = 20000;
@@ -42,6 +42,7 @@ describe('mkobj: the class table', () => {
       'amulet',
       'armor',
       'food',
+      'gem',
       'potion',
       'ring',
       'scroll',
@@ -50,7 +51,8 @@ describe('mkobj: the class table', () => {
       'wand',
       'weapon',
     ]);
-    expect(Math.abs(nothing / N - 0.07)).toBeLessThan(0.01); // gems
+    expect(nothing).toBe(0);
+    expect(Math.abs(frac('gem') - 0.07)).toBeLessThan(0.01);
     expect(Math.abs(frac('tool') - 0.08)).toBeLessThan(0.01);
     expect(Math.abs(frac('spellbook') - 0.04)).toBeLessThan(0.008);
     expect(Math.abs(frac('wand') - 0.04)).toBeLessThan(0.008);

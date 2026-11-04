@@ -20,7 +20,7 @@ import { frozenTime, isFrozen, isMConfused, setMConfused } from '../src/mstate';
 import { P, setIntrinsic, setItimeout } from '../src/props';
 import { P_SKILLED, P_UNSKILLED } from '../src/skills';
 import { KEEN } from '../src/spell';
-import { spellDamageBonus, spellHitBonus } from '../src/spellcalc';
+import { percentSuccess, spellDamageBonus, spellHitBonus } from '../src/spellcalc';
 import { findAc, findMac } from '../src/stats';
 import { pwOf, setPw, setUspell, uspellOf } from '../src/uenergy';
 import { addMon } from './helpers';
@@ -123,7 +123,11 @@ describe('the cast command', () => {
 
   test('a directional spell asks its direction after the energy is spent', () => {
     const s = caster();
+    // sleep is level 3: an unskilled XL1 caster has 57%; at XL30 it cannot fail
+    hero(s).c.experience!.level = 30;
     know(s, [FORCE_BOLT, SLEEP, HEALING]);
+    for (const b of [FORCE_BOLT, SLEEP, HEALING])
+      expect(percentSuccess(s.state, defs, b as DefId)).toBe(100);
     for (let i = 0; i < 3; i++) {
       const t0 = s.state.turn;
       const uen = pwOf(s.state).uen;
@@ -624,6 +628,9 @@ describe('healing', () => {
     const s = caster();
     know(s, [HEALING]);
     hero(s).c.hp = { cur: 10, max: 500 };
+    // no natural regeneration at the end of the turn (level + con > rn2(100) never holds)
+    hero(s).c.attributes!.con = 0;
+    hero(s).c.experience!.level = 0;
     castText(s);
     const amt = ctxFor(structuredClone(s.state)).rng.d(6, 4);
     expect(s.text(aim(s, 'self'))).toContain('You feel better.');
@@ -859,7 +866,7 @@ describe('confuse monster', () => {
 });
 
 describe('monster confusion', () => {
-  const bites = (t: string): boolean => /^(The jackal|It) (bites|misses)/.test(t);
+  const bites = (t: string): boolean => /^(The jackal|It) (bites|misses|just misses)/.test(t);
 
   test('a confused monster recovers 1 time in 50 at its move', () => {
     // walled off from the hero: it only wanders

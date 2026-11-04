@@ -56,7 +56,7 @@ describe('vanilla objects data', () => {
     expect(scrolls.length).toBeGreaterThanOrEqual(5);
   });
 
-  test('only water among potions has a fixed description', () => {
+  test('only water among potions and blank paper among scrolls have a fixed description', () => {
     const described = OBJECTS.filter((o) => o.descKey).map((o) => o.id);
     expect(described).toContain('nh:potion_of_water');
     expect(byId('nh:potion_of_healing').descKey).toBeUndefined();
@@ -68,7 +68,9 @@ describe('vanilla objects data', () => {
       expect(byId(id).descKey, id).toBeUndefined();
     }
     for (const o of OBJECTS.filter((d) => d.class === 'scroll'))
-      expect(o.descKey, o.id).toBeUndefined();
+      expect(o.descKey, o.id).toBe(
+        o.id === 'nh:scroll_of_blank_paper' ? 'nh:scroll_of_blank_paper.desc' : undefined,
+      );
   });
 
   test('dagger matches objects.h WEAPON("dagger", ...)', () => {

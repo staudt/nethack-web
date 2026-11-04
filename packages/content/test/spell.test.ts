@@ -32,9 +32,11 @@ const studying = (s: Setup) =>
 describe('studying a spellbook', () => {
   test('a blessed book is always learned after its delay, and identified', () => {
     let tested = 0;
-    for (let seed = 1; seed <= 12; seed++) {
+    for (let seed = 1; seed <= 15; seed++) {
       const s = levelSetup(undefined, seed);
       shuffleAll(s.ctx, SPELLBOOK_CLASSES);
+      // a dull-looking book may put the hero to sleep first: not this case, skip the seed
+      if (s.state.appearances[FORCE_BOLT] === 'nh:dull_spellbook') continue;
       const b = book(s, FORCE_BOLT, 'blessed');
       expect(isKnown(s.state, defs, FORCE_BOLT)).toBe(false);
       expect(readOnce(s, b)).toEqual(['You begin to memorize the runes.']);

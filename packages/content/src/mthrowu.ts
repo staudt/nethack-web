@@ -29,6 +29,7 @@ import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
 import { monNam } from './perception';
 import { luckOf } from './luck';
+import { HARD_GEMS } from './gem';
 import { greatestErosion } from './material';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -99,8 +100,9 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
     (monMoving ? ctx.rng.rn2(3) === 0 : rnl(ctx.rng, 4, luckOf(ctx.state)) === 0)
   )
     broken = false;
-  // flint and hard gems do not break easily (ref: `oc_tough || FLINT`; only flint is in the table)
-  if (obj.def === 'nh:flint_stone' && ctx.rng.rn2(2) === 0) broken = false;
+  // flint and hard gems do not break easily (ref: `GEM_CLASS && oc_tough || FLINT`)
+  if ((obj.def === 'nh:flint_stone' || HARD_GEMS.has(obj.def)) && ctx.rng.rn2(2) === 0)
+    broken = false;
   return broken;
 }
 
@@ -428,7 +430,9 @@ export function selectRwep(ctx: Ctx, monId: EntityId): RangedChoice {
       const sling = find('nh:sling');
       if (sling) {
         const gem = items.find(
-          (o) => ctx.defs.object(o.def).class === 'gem' && o.def !== 'nh:loadstone',
+          (o) =>
+            ctx.defs.object(o.def).class === 'gem' &&
+            (o.def !== 'nh:loadstone' || o.c.item?.buc !== 'cursed'),
         );
         if (gem) return { obj: gem, propellor: sling };
       }
@@ -448,7 +452,11 @@ export function selectRwep(ctx: Ctx, monId: EntityId): RangedChoice {
     if ((isAmmo(od) || isMissile(od)) && mwep && weldedWep && noWeaponWanted && mwep !== launcher)
       usable = false;
     if (!usable) continue;
-    const o = find(id);
+    // a loadstone is thrown only when it is not cursed (C walks the whole inventory for one)
+    const o =
+      id === 'nh:loadstone'
+        ? (items.find((e) => e.def === id && e.c.item?.buc !== 'cursed') ?? null)
+        : find(id);
     if (!o) continue;
     // Don't throw a cursed weapon-in-hand
     if (o === mwep && weldedWep) continue;

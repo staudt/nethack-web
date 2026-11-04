@@ -85,3 +85,8 @@ From 7a (spellcasting: Pw, `Z`, the eight spells, monster casters; done, phone c
 - **Energy sources and drains:** the Amulet's energy drain, energy-draining attacks (AD_DREN), the potion of gain energy, Energy_regeneration and magical breathing; level drain with `u.ueninc[]` (and lowering the level with `#levelchange`).
 - **Spell menu:** reordering and sorting known spells (`+`), attribute exercise from casting.
 - **Known bug:** C's `zhitm()` skips the `resist()` halving for monster-spell rays (`type >= 0`), but the port rolls it at wand level for `by: 'spell'` rays (the god's lightning from an angry temple); no 7a code reaches it.
+
+From 7c (Mines' End, fountains, Orcish Town):
+
+- **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' and unicorns' reactions to gems (gem buying and identification by a shopkeeper's offer, throwing gems to unicorns); kicking gems.
+- **Gem colours:** `randomize_gem_colors()` (turquoise and aquamarine blue or green, fluorite violet, blue, white or green per game); its draws move the game stream.

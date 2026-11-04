@@ -666,7 +666,7 @@ const SEARCHED = new Set([
 /**
  * Whether the monster would love to have the floor item. ref: src/monmove.c
  * mon_would_take_item(): useful potions for thinking monsters; gold for the greedy; gems for
- * jewel lovers; weapons, armor and food (not gems we lack) for object lovers; all only while
+ * jewel lovers (not stones); weapons, armor, gems and food (`practical[]`) for object lovers; all only while
  * the monster's load is under a limit. Not ported: unicorns, gelatinous cubes, boulder
  * throwers, magic lovers (nothing in the roster has M2_MAGIC).
  */
@@ -681,9 +681,11 @@ export function monWouldTakeItem(
   if (!hasFlag(def, 'mindless') && !hasFlag(def, 'animal') && pctload < 75 && SEARCHED.has(od.id))
     return true;
   if (likesGold(def) && od.class === 'coin' && pctload < 95) return true;
+  if (likesGems(def) && od.class === 'gem' && od.material !== 'mineral' && pctload < 85)
+    return true;
   if (
     likesObjs(def) &&
-    (od.class === 'weapon' || od.class === 'armor' || od.class === 'food') &&
+    (od.class === 'weapon' || od.class === 'armor' || od.class === 'gem' || od.class === 'food') &&
     pctload < 75
   )
     return true;

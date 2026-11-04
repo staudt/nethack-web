@@ -5,14 +5,15 @@
 // contained_cost(), contained_gold(), unpaid_cost(), get_cost_of_shop_item(), is_unpaid(),
 // set_cost()
 //
-// Not ported: artifacts, globs (get_pricing_units() is the quantity), glass gems and gemstones
-// (none exist: set_cost()'s per-shopkeeper gem prices), the dunce cap and Hawaiian shirt (neither
-// exists; the checks are made).
+// Not ported: artifacts, globs (get_pricing_units() is the quantity), the dunce cap and Hawaiian
+// shirt (neither exists; the checks are made). get_cost()'s "random from game to game" choice for
+// glass reads the game's seed as `ubirthday` and the type's registry position as `otyp`.
 import {
   contents,
   getPlayer,
   inRooms,
   inventoryOf,
+  type DefId,
   type Entity,
   type EntityId,
   type GameState,
@@ -30,6 +31,7 @@ import {
   uShops,
   type Eshk,
 } from './eshk';
+import { GLASS_GEMS, GLASS_PRICED_AS, gemOffset } from './gem';
 import { isKnown } from './o_init';
 import { saleable } from './shtypes';
 
@@ -120,7 +122,21 @@ export function getprice(state: S, defs: Registry, obj: Entity, shkBuying: boole
  */
 export function oidPriceAdjustment(state: S, defs: Registry, obj: Entity, oid: EntityId): number {
   if (isKnown(state, defs, obj.def)) return 0;
+  const def = defs.object(obj.def);
+  if (def.class === 'gem' && def.material === 'glass') return 0;
   return oid % 4 === 0 ? 1 : 0;
+}
+
+/**
+ * The gem an unidentified piece of glass is priced as: one of two of its colour, "random" from
+ * game to game but the same within a game. ref: src/shk.c get_cost() `pseudorand`
+ */
+export function glassPricedAs(state: S, defs: Registry, glass: DefId): DefId | null {
+  const pair = GLASS_PRICED_AS[GLASS_GEMS.indexOf(glass)];
+  if (!pair) return null;
+  const otyp = defs.objects.findIndex((o) => o.id === glass) + 1; // stand-in for the otyp
+  const pseudorand = Math.abs(state.seed) % otyp >= Math.trunc(otyp / 2);
+  return pseudorand ? pair[0] : pair[1];
 }
 
 /**
@@ -132,8 +148,11 @@ export function getCost(state: S, defs: Registry, obj: Entity, shk: Eshk | null)
   let multiplier = 1;
   let divisor = 1;
   if (!tmp) tmp = 5;
-  // shopkeeper may notice if the player isn't very knowledgeable
-  if (oidPriceAdjustment(state, defs, obj, obj.id) > 0) {
+  // shopkeeper may notice if the player isn't very knowledgeable - especially when gem prices
+  // are concerned: all gems are priced high, real or not
+  const glassAs = isKnown(state, defs, obj.def) ? null : glassPricedAs(state, defs, obj.def);
+  if (glassAs !== null) tmp = defs.object(glassAs).cost;
+  else if (oidPriceAdjustment(state, defs, obj, obj.id) > 0) {
     // unid'd, arbitrarily impose surcharge: tmp *= 4/3
     multiplier *= 4;
     divisor *= 3;
@@ -196,10 +215,18 @@ export function setCost(state: S, defs: Registry, obj: Entity, shkId: EntityId):
   let tmp = (obj.c.item?.quantity ?? 1) * unitPrice;
   let multiplier = 1;
   let divisor = sucker(state) ? 3 : 2;
-  // shopkeeper may notice if the player isn't very knowledgeable (no gems priced per shopkeeper:
-  // no gemstones or glass exist)
-  if (!isKnown(state, defs, obj.def) && defs.object(obj.def).class !== 'gem') {
-    if (tmp > 1 && shkId % 4 === 0) {
+  // shopkeeper may notice if the player isn't very knowledgeable - especially when gem prices
+  // are concerned
+  const def = defs.object(obj.def);
+  if (!isKnown(state, defs, def)) {
+    if (def.class === 'gem') {
+      // different shop keepers give different prices
+      if (def.material === 'gemstone' || def.material === 'glass') {
+        tmp = gemOffset(def.id) % (6 - (shkId % 3));
+        tmp = (tmp + 3) * (obj.c.item?.quantity ?? 1);
+        divisor = 1;
+      }
+    } else if (tmp > 1 && shkId % 4 === 0) {
       multiplier *= 3;
       divisor *= 4;
     }

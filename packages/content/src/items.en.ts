@@ -56,6 +56,8 @@ export const itemMessagesEn: Record<string, string> = {
   'pickup.heavy_pl': 'There are {item|an} here, but even one is too heavy for you to lift.',
   'pickup.full': 'Your knapsack cannot accommodate any more items.',
   'pickup.full_gold': 'Your knapsack cannot accommodate any more items (except gold).',
+  'pickup.too_much_another': 'You are carrying too much stuff to pick up another {item}.',
+  'pickup.too_much_more': 'You are carrying too much stuff to pick up more {item}.',
 
   // dropping
   'drop.menu': 'Drop what?',
@@ -64,6 +66,8 @@ export const itemMessagesEn: Record<string, string> = {
   'drop.worn': 'You cannot drop something you are wearing.',
   'drop.welded': 'You cannot drop something welded to your hand.',
   'drop.welded_hands': 'You cannot drop something welded to your hands.',
+  'drop.loadstone': 'For some reason, you cannot drop the stone!',
+  'drop.loadstone.plural': 'For some reason, you cannot drop the stones!',
 
   // wielding
   'wield.empty_handed': 'empty handed',
