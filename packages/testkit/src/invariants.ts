@@ -149,6 +149,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkSpecialLevels(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
+  checkSpellState(state, errs);
   checkPriests(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
@@ -450,6 +451,56 @@ function checkFleeing(state: GameState, errs: string[]): void {
     if (!state.entities[k]?.c.monster) errs.push(`mflee: '${k}' is not a monster`);
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 0)
       errs.push(`mflee: monster ${k} has flee time ${String(v)}`);
+  }
+}
+
+const isTable = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
+/**
+ * Spell state: the hero's energy (`modData.nh.pw`, written at newGame) keeps
+ * `0 <= uen <= uenmax <= uenpeak`; her spell state (`modData.nh.uspell`, absent while all 0) holds
+ * non-negative whole numbers; the monsters' spell delays (`mspecUsed`, positive turns) and
+ * confusion (`mconf`, true) name living monsters.
+ */
+function checkSpellState(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  if (!isTable(nh)) return;
+  const pw = nh['pw'];
+  if (pw !== undefined) {
+    if (!isTable(pw)) errs.push('modData.nh.pw is not an object');
+    else {
+      const { uen, uenmax, uenpeak } = pw;
+      if (!isCount(uen) || !isCount(uenmax) || !isCount(uenpeak))
+        errs.push(`pw: bad fields ${JSON.stringify(pw)}`);
+      else if (uen > uenmax || uenmax > uenpeak)
+        errs.push(`pw: not 0 <= uen ${uen} <= uenmax ${uenmax} <= uenpeak ${uenpeak}`);
+    }
+  }
+  const us = nh['uspell'];
+  if (us !== undefined) {
+    if (!isTable(us)) errs.push('modData.nh.uspell is not an object');
+    else {
+      const keys = ['uspellprot', 'uspmtime', 'usptime', 'umconf'];
+      if (!keys.every((k) => isCount(us[k]))) errs.push(`uspell: bad fields ${JSON.stringify(us)}`);
+      else if (keys.every((k) => us[k] === 0)) errs.push('uspell: kept while every field is 0');
+    }
+  }
+  for (const key of ['mspecUsed', 'mconf'] as const) {
+    const t = nh[key];
+    if (t === undefined) continue;
+    if (!isTable(t)) {
+      errs.push(`modData.nh.${key} is not an object`);
+      continue;
+    }
+    for (const k of Object.keys(t).sort()) {
+      const v = t[k];
+      if (!state.entities[k]?.c.monster) errs.push(`${key}: '${k}' is not a monster`);
+      if (key === 'mconf' ? v !== true : !isCount(v) || v === 0)
+        errs.push(`${key}: monster ${k} has ${String(v)}`);
+    }
   }
 }
 

@@ -1,7 +1,9 @@
 import type { Mod } from '@nh/core';
+import { wizCast } from './cast';
 import { wizBeforeGameOver, wizDie } from './die';
 import { wizGenesis } from './genesis';
 import { wizIdentify } from './identify';
+import { wizLevelchange } from './levelchange';
 import { wizLevelport } from './levelport';
 import { wizMap } from './map';
 import { wizWhere } from './where';
@@ -23,6 +25,8 @@ export const wizardMod: Mod = {
     api.defineAction(wizWish);
     api.defineAction(wizIdentify);
     api.defineAction(wizGenesis);
+    api.defineAction(wizLevelchange);
+    api.defineAction(wizCast);
     api.defineAction(wizDie);
     api.on('beforeGameOver', wizBeforeGameOver);
   },
@@ -41,3 +45,5 @@ export {
   type GenesisSpec,
 } from './genesis';
 export { WIZ_DIE, wizBeforeGameOver, wizDie } from './die';
+export { WIZ_CAST, wizCast } from './cast';
+export { WIZ_LEVELCHANGE, wizLevelchange } from './levelchange';

@@ -97,3 +97,50 @@ describe('flee table invariants', () => {
     });
   });
 });
+
+describe('spell state invariants', () => {
+  const nh = (s: GameState): Record<string, unknown> => s.modData['nh'] as Record<string, unknown>;
+
+  test('the hero keeps 0 <= Pw <= max <= peak', () => {
+    const s = fresh();
+    expect(nh(s)['pw']).toEqual({ uen: 2, uenmax: 2, uenpeak: 2 });
+    expect(errs(s)).toBe('');
+    nh(s)['pw'] = { uen: 3, uenmax: 2, uenpeak: 2 };
+    expect(errs(s)).toMatch(/pw: not 0 <= uen 3/);
+    nh(s)['pw'] = { uen: 2, uenmax: 5, uenpeak: 4 };
+    expect(errs(s)).toMatch(/uenmax 5 <= uenpeak 4/);
+    nh(s)['pw'] = { uen: -1, uenmax: 2, uenpeak: 2 };
+    expect(errs(s)).toMatch(/pw: bad fields/);
+  });
+
+  test('her spell state is whole non-negative numbers, dropped at all 0', () => {
+    const s = fresh();
+    nh(s)['uspell'] = { uspellprot: 2, uspmtime: 10, usptime: 3, umconf: 45 };
+    expect(errs(s)).toBe('');
+    nh(s)['uspell'] = { uspellprot: -1, uspmtime: 10, usptime: 3, umconf: 0 };
+    expect(errs(s)).toMatch(/uspell: bad fields/);
+    nh(s)['uspell'] = { uspellprot: 0, uspmtime: 0, usptime: 0, umconf: 0 };
+    expect(errs(s)).toMatch(/kept while every field is 0/);
+  });
+
+  test('monster spell delays and confusion name living monsters', () => {
+    runScenario([vanillaMod], (sc) => {
+      sc.level(['-----', '|.@.|', '|...|', '-----']);
+      sc.monster('nh:newt', { x: 1, y: 2 });
+      sc.check((st) => {
+        const id = String(sortedIds(st).find((i) => st.entities[i]?.c.monster)!);
+        const data = (st.modData['nh'] ??= {}) as Record<string, unknown>;
+        data['mspecUsed'] = { [id]: 4 };
+        data['mconf'] = { [id]: true };
+        expect(errs(st)).toBe('');
+        data['mspecUsed'] = { [id]: 0 };
+        expect(errs(st)).toMatch(/mspecUsed: monster \d+ has 0/);
+        data['mspecUsed'] = { '9999': 2 };
+        expect(errs(st)).toMatch(/mspecUsed: '9999' is not a monster/);
+        delete data['mspecUsed'];
+        data['mconf'] = { '9999': true };
+        expect(errs(st)).toMatch(/mconf: '9999' is not a monster/);
+      });
+    });
+  });
+});

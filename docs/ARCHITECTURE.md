@@ -622,7 +622,7 @@ interface Renderer {
 
 Renderers draw only the cells inside the camera. The camera follows the player with a dead zone, so levels of any size scroll.
 
-`status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped'`), `killer`, `endTurn`, `endDepth` and `endLevel`. Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`). The legend covers terrain, roles, monsters, objects, appearances and traps.
+`status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped'`), `killer`, `endTurn`, `endDepth` and `endLevel`. Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`, and `pw`/`pwmax` for spell energy, which the ui prints as `Pw:2(2)` after HP). Spellcasting (7a) needed no core change: the hero's energy and spell state live in content's `modData.nh.pw` and `modData.nh.uspell`, monster spell delays and confusion in `modData.nh.mspecUsed` / `mconf`, like luck, hunger and shops before them. The legend covers terrain, roles, monsters, objects, appearances and traps.
 
 **Objects never leak identity.** `entities` lists creatures only; objects appear as `ViewCell.o`, in `inventory` and in `describe().objects`, always by *shown id*: `state.appearances[def] ?? def`. Names come from the item namer, which only uses what the hero knows (`discovered`, `known`).
 

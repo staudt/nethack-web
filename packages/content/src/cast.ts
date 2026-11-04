@@ -53,13 +53,14 @@ type CastBook =
   | 'nh:spellbook_of_cure_blindness'
   | 'nh:spellbook_of_protection';
 
-const CAST_BOOKS: readonly CastBook[] = [
-  'nh:spellbook_of_force_bolt',
+/** The books of the subset, in objects[] order (the order #wizcast lists them). */
+export const CAST_BOOKS: readonly CastBook[] = [
   'nh:spellbook_of_sleep',
-  'nh:spellbook_of_healing',
-  'nh:spellbook_of_confuse_monster',
   'nh:spellbook_of_light',
   'nh:spellbook_of_detect_monsters',
+  'nh:spellbook_of_healing',
+  'nh:spellbook_of_force_bolt',
+  'nh:spellbook_of_confuse_monster',
   'nh:spellbook_of_cure_blindness',
   'nh:spellbook_of_protection',
 ];

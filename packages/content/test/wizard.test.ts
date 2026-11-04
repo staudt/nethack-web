@@ -1,5 +1,5 @@
 // Wizard mode: the wizard mod, wiz:map, wiz:where, wiz:levelport, wiz:wish, wiz:identify,
-// wiz:genesis and "Die?".
+// wiz:genesis, "Die?", wiz:levelchange and wiz:cast.
 import {
   applyUpdate,
   buildSnapshot,
@@ -30,6 +30,13 @@ import {
   WIZ_IDENTIFY,
   WIZ_WHERE,
   WIZ_WISH,
+  WIZ_CAST,
+  WIZ_LEVELCHANGE,
+  CAST_BOOKS,
+  MAXULEV,
+  newuexp,
+  pwOf,
+  uspellOf,
   addToInventory,
   makemon,
   messagesEn,
@@ -37,6 +44,7 @@ import {
   vanillaMod,
   wizardMod,
 } from '../src/index';
+import { P, setItimeout, timeoutLeft } from '../src/props';
 import { ctxFor, itemOf, render } from './itemHelpers';
 
 const normal = createEngine([vanillaMod]);
@@ -63,6 +71,8 @@ describe('the wizard mod', () => {
       WIZ_WISH,
       WIZ_IDENTIFY,
       WIZ_GENESIS,
+      WIZ_LEVELCHANGE,
+      WIZ_CAST,
     ]);
   });
 
@@ -114,6 +124,15 @@ describe('the wizard mod', () => {
       'wiz.die.prompt',
       'wiz.die.ok',
       'wiz.die.ok_choke',
+      'action.wiz:levelchange',
+      'action.wiz:cast',
+      'wiz.cast.prompt',
+      'wiz.levelchange.prompt',
+      'wiz.levelchange.never_mind',
+      'wiz.levelchange.already',
+      'wiz.levelchange.min',
+      'wiz.levelchange.max',
+      'wiz.levelchange.cannot_lower',
     ])
       expect(messagesEn[k]).toBeDefined();
   });
@@ -706,5 +725,130 @@ describe('"Die?"', () => {
       return;
     }
     throw new Error('no seed where the jackal kills the hero');
+  });
+});
+
+describe('wiz:levelchange', () => {
+  const CHANGE: PlayerAction = { type: 'mod', action: WIZ_LEVELCHANGE as DefId };
+  const change = (state: GameState, text: Json): string[] => {
+    wizard.step(state, CHANGE);
+    return msgs(answerPrompt(state, text)).map((m) => render(m));
+  };
+  const level = (state: GameState): number => getPlayer(state).c.experience!.level;
+
+  test('a numeric prompt; raising gains each level with HP and Pw, taking no time', () => {
+    const state = warmGame(41);
+    const turn = state.turn;
+    const hp = getPlayer(state).c.hp!.max;
+    const pw = pwOf(state);
+    expect(pw).toEqual({ uen: 2, uenmax: 2, uenpeak: 2 });
+    wizard.step(state, CHANGE);
+    const p = state.pendingPrompt?.prompt;
+    expect([p?.kind, p?.key, p?.numeric]).toEqual(['text', 'wiz.levelchange.prompt', true]);
+    const text = msgs(answerPrompt(state, ' 8 ')).map((m) => render(m));
+    // the Valkyrie's intrinsics come at levels 3 and 7 (adjabil())
+    expect(text).toEqual(
+      [2, 3, 4, 5, 6, 7, 8].flatMap((l) => [
+        'You feel more experienced.',
+        `Welcome to experience level ${l}.`,
+        ...(l === 3 ? ['You feel stealthy!'] : l === 7 ? ['You feel quick!'] : []),
+      ]),
+    );
+    expect(level(state)).toBe(8);
+    expect(getPlayer(state).c.experience!.points).toBe(newuexp(7));
+    expect(getPlayer(state).c.hp!.max).toBeGreaterThan(hp);
+    const after = pwOf(state);
+    // newpw() gives a Valkyrie at least 1 per level
+    expect(after.uenmax).toBeGreaterThanOrEqual(2 + 7);
+    expect(after.uen).toBe(after.uenmax);
+    expect(after.uenpeak).toBe(after.uenmax);
+    expect(state.turn).toBe(turn);
+    expect(state.pendingPrompt).toBeNull();
+  });
+
+  test('the same level, lowering, the bounds and anything but a number', () => {
+    const state = warmGame(42);
+    expect(change(state, '1')).toEqual(['You are already that experienced.']);
+    expect(change(state, '0')).toEqual(['You are already as inexperienced as you can get.']);
+    expect(change(state, 'eight')).toEqual(['Never mind.']);
+    expect(change(state, '8x')).toEqual(['Never mind.']);
+    expect(change(state, null)).toEqual(['Never mind.']);
+    expect(level(state)).toBe(1);
+    change(state, '5');
+    expect(change(state, '3')).toEqual([
+      'Experience levels cannot be lowered here (no level drain yet).',
+    ]);
+    expect(level(state)).toBe(5);
+    change(state, '99');
+    expect(level(state)).toBe(MAXULEV);
+    expect(change(state, '31')).toEqual(['You are already as experienced as you can get.']);
+  });
+});
+
+describe('wiz:cast', () => {
+  const CAST: PlayerAction = { type: 'mod', action: WIZ_CAST as DefId };
+  const wizcast = (state: GameState, book: string): GameEvent[] => {
+    wizard.step(state, CAST);
+    return answerPrompt(state, book);
+  };
+  const known = (state: GameState): unknown =>
+    (state.modData['nh'] as Record<string, unknown>)['spells'];
+
+  test('a menu of the eight castable books; dismissing it does nothing', () => {
+    const state = warmGame(51);
+    const turn = state.turn;
+    wizard.step(state, CAST);
+    const p = state.pendingPrompt?.prompt;
+    expect([p?.kind, p?.key]).toEqual(['menu', 'wiz.cast.prompt']);
+    expect(p?.options?.map((o) => render({ key: o.key! }))).toEqual([
+      'sleep',
+      'light',
+      'detect monsters',
+      'healing',
+      'force bolt',
+      'confuse monster',
+      'cure blindness',
+      'protection',
+    ]);
+    expect(p?.options?.map((o) => o.value)).toEqual([...CAST_BOOKS]);
+    expect(msgs(answerPrompt(state, null))).toEqual([]);
+    expect(state.turn).toBe(turn);
+    expect(state.pendingPrompt).toBeNull();
+  });
+
+  test('a spell she does not know, with no energy: no checks, no cost, no skill', () => {
+    const state = warmGame(52);
+    const skills = JSON.stringify((state.modData['nh'] as Record<string, unknown>)['skills']);
+    expect(known(state)).toBeUndefined();
+    const text = msgs(wizcast(state, 'nh:spellbook_of_protection')).map((m) => render(m));
+    expect(text[0]).toMatch(/begins to shimmer with a golden haze\.$/);
+    expect(uspellOf(state).uspellprot).toBeGreaterThan(0);
+    expect(pwOf(state)).toEqual({ uen: 2, uenmax: 2, uenpeak: 2 });
+    expect(known(state)).toBeUndefined();
+    expect(JSON.stringify((state.modData['nh'] as Record<string, unknown>)['skills'])).toBe(skills);
+  });
+
+  test('a directional spell asks its direction: healing at herself', () => {
+    const state = warmGame(53);
+    const hp = getPlayer(state).c.hp!;
+    hp.cur = 1;
+    wizcast(state, 'nh:spellbook_of_healing');
+    expect(state.pendingPrompt?.prompt.kind).toBe('direction');
+    const text = msgs(answerPrompt(state, 'self')).map((m) => render(m));
+    expect(text).toContain('You feel better.');
+    expect(getPlayer(state).c.hp!.cur).toBeGreaterThan(1);
+    expect(pwOf(state).uen).toBe(2);
+    expect(state.pendingPrompt).toBeNull();
+  });
+
+  test('confuse monster while confused (only a forced cast gets there): a purple glow, more confusion', () => {
+    const state = warmGame(54);
+    const h = getPlayer(state);
+    setItimeout(state, h, P.CONFUSION, 10);
+    const text = msgs(wizcast(state, 'nh:spellbook_of_confuse_monster')).map((m) => render(m));
+    expect(text).toEqual(['Your hands begin to glow purple.']);
+    // the cast took a turn: rnd(100) more turns, less the one spent
+    expect(timeoutLeft(state, getPlayer(state), P.CONFUSION)).toBeGreaterThanOrEqual(10);
+    expect(uspellOf(state).umconf).toBe(0);
   });
 });

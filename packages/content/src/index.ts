@@ -135,6 +135,8 @@ export {
   WIZ_IDENTIFY,
   WIZ_GENESIS,
   WIZ_DIE,
+  WIZ_CAST,
+  WIZ_LEVELCHANGE,
   parseGenesis,
   OPEN_DUNGEON_LEVELS,
   doMapping,
@@ -169,7 +171,7 @@ export {
   MAXULEV,
 } from './hero';
 export { pwOf, setPw, uspellOf, setUspell, type Pw, type USpell } from './uenergy';
-export { CAST_ID, CAST_ACTIONS, spelleffects, castProtection } from './cast';
+export { CAST_ID, CAST_ACTIONS, CAST_BOOKS, spelleffects, castProtection } from './cast';
 export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt, spellLevPw } from './spellcalc';
 export { messagesEn } from './messages.en';
 export { ITEM_ACTIONS, lookHere, encumberMsg } from './itemactions';

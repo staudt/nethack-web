@@ -29,7 +29,6 @@ From 5b (objects and traps):
 - **Amulets:** change, unchanging, magical breathing.
 - **Wands:** wishing, digging, teleportation, polymorph, cancellation, make invisible, undead turning, death, enlightenment; breaking (applying) wands.
 - **Tools:** pick-axe and digging, magic lamp (djinni), bag of tricks, horns, musical instruments, #force.
-- **Spells:** casting and spell energy (5b only learns spells from books).
 - **Traps:** the other trap types (pits, webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
 - **Item damage:** `passive_obj` on monster gear, fixing erosion.
 
@@ -46,15 +45,14 @@ From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch
 - **Orcish Town** (`minetn-1`, the seventh variant): orc captains, Uruk-hai, Mordor orcs, orc shamans, `replace_terrain`, `teleport_region` and the booty migrating down the Mines. Until then the variant roll is `rnd(6)`.
 - **Mines' End** (`minend-1..3`): the bottom Mines level stays a filler without down stairs; special-level placement already counts a negative `base` from the bottom.
 - **Fountains:** #quaff, #dip and washing at a fountain, and the Watch's fountain warnings; sinks and trees stay scenery too.
-- **Minetown's missing inhabitants:** College Town's kobold shamans, Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
+- **Minetown's missing inhabitants:** Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
 - **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
 - **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
 
 From 6b2 (the Minetown temple: altars, the priest, #chat, donations and praying on an altar; done, phone check pending):
 
 - **Sacrifice (`#offer`)** (user decision): corpse sacrifice and its gifts, converting altars (and `angry_priest()` turning a priest whose altar is lost into a roaming minion), crowning, the unicorn and same-race penalties, the atheism conduct.
-- **Monster spellcasting** (`castmu.c`, user decision): the priest's `AT_MAGC AD_CLRC` clerical spells, with the other casters (kobold shamans, gnomish wizards).
-- **Priest gear and names:** the 1 in 7 cloak of protection or magic resistance (needs the shuffled cloak appearances), the robe's spellcasting bonus, priestesses (monster genders), the hallucinated "poohbah".
+- **Priest gear and names:** the 1 in 7 cloak of protection or magic resistance (needs the shuffled cloak appearances), priestesses (monster genders), the hallucinated "poohbah".
 - **Other temples:** random altars and temples in ordinary rooms, roaming minions and aligned priests outside temples, the Valley and the Sanctum's high altars, ghosts in untended temples ("You are frightened to death").
 - **Prayer extras:** reviving a pet's corpse on an altar (`pray_revive()`: corpses must remember their monster), undead and demon forms, Gehennom, minions, punishment, level drain, spellbook gifts, crowning, the castle tune, the gnostic conduct and wizard mode's "Force the gods to be pleased?".
 - **Clairvoyance:** objects and monsters in each vision, and `seer_turn` rolled in every game (moves every replay); clairvoyance from objects and the Amulet.
@@ -76,4 +74,14 @@ From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 - **Score list rule:** a future high-score list must skip every game whose mod list includes `wiz` (ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
 - **Wishing for terrain and traps** (`fountain`, `trap door`), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
 - **Genesis extras:** a command count, "saddled", "invisible", "hidden", genders, class descriptions ("dragon"), special-monster forcing.
-- **Other `#wiz*` commands:** #wizpolymorph, #wizdetect, #wizlevelchange, #wizintrinsic, #wizsmell, #wizcast, #wizkill and the rest; explore mode (`-X`); debug panels in the UI.
+- **Other `#wiz*` commands:** #wizpolymorph, #wizdetect, #wizintrinsic, #wizsmell, #wizkill and the rest; lowering the level with #levelchange (needs `losexp()`); explore mode (`-X`); debug panels in the UI.
+
+From 7a (spellcasting: Pw, `Z`, the eight spells, monster casters; done, phone check pending):
+
+- **Spells as defs** (with the mod platform): spell effects are a content table (`SPELL_INFO` and the switch in `cast.ts`), as shop types are; a `defineSpell` def kind or an `ObjectDef.cast` hook would let a mod add a spell. Monster spells (`MCAST_DATA` in `mcastu.ts`) likewise.
+- **The other spellbooks:** the 30-odd level 1-7 books, among them the Valkyrie's special spell cone of cold (`ROLE_SPELL` already names it), with their effects (digging, magic missile, fireball, teleport, ...).
+- **Detect monsters at Skilled:** the timed Detect_monsters property and its redraw.
+- **Monster spells left out:** disappear (needs monster invisibility), destroy armor, summon nasties, clone wizard and touch of death (counted as useless today); `buzzmu()` ray casters (AD_FIRE/AD_COLD/AD_MAGM `AT_MAGC`); monsters remembering her resistances (`M_SEEN_*`, `m_seenres()`); cancellation (`mcan`); Half_spell_damage sources.
+- **Energy sources and drains:** the Amulet's energy drain, energy-draining attacks (AD_DREN), the potion of gain energy, Energy_regeneration and magical breathing; level drain with `u.ueninc[]` (and lowering the level with `#levelchange`).
+- **Spell menu:** reordering and sorting known spells (`+`), attribute exercise from casting.
+- **Known bug:** C's `zhitm()` skips the `resist()` halving for monster-spell rays (`type >= 0`), but the port rolls it at wand level for `by: 'spell'` rays (the god's lightning from an angry temple); no 7a code reaches it.
