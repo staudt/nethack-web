@@ -45,6 +45,7 @@ import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
 import { LOOT_ACTIONS } from './container';
+import { FOUNTAIN_ACTIONS } from './fountain';
 import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
@@ -81,6 +82,7 @@ export const vanillaMod: Mod = {
     for (const a of ZAP_ACTIONS) api.defineAction(a);
     for (const a of APPLY_ACTIONS) api.defineAction(a);
     for (const a of LOOT_ACTIONS) api.defineAction(a);
+    for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
     registerSpells(api);
@@ -466,9 +468,14 @@ export {
   setFountainBits,
   heroOnFountain,
   drinkfountain,
+  dipfountain,
+  somegold,
+  DIP_ID,
+  FOUNTAIN_ACTIONS,
   dryup,
   dogushforth,
 } from './fountain';
+export { waterDamage, type WaterResult } from './water';
 export { monsterDied } from './mondeath';
 export {
   mongets,

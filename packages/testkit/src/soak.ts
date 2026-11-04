@@ -91,6 +91,8 @@ export interface SoakResult {
   chatted: number;
   /** Times the bot paid (`nh:pay`) while owing in a shop. */
   paid: number;
+  /** Times the bot drank from or dipped into a fountain (its own fountain branch). */
+  fountain: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -145,6 +147,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let pickedUp = 0;
   let eaten = 0;
   let quaffed = 0;
+  let fountain = 0;
   let read = 0;
   let thrown = 0;
   let kicks = 0;
@@ -297,6 +300,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       return rng.rn2(2) === 0;
     }
     if (pending.kind === 'text') {
+      // a water demon's wish: always the same one
+      if (pending.id === 'wish') return 'blessed +2 long sword';
       // a short deterministic name or amount, or a cancel
       if (rng.rn2(3) === 0) return null;
       if (pending.numeric) {
@@ -504,6 +509,18 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       if (loots.length > 0 && rng.rn2(2) === 0) action = pickRandom(loots);
     }
 
+    // 4c. on a fountain, 1 time in 10 drink from it or dip a random item (or wash her hands)
+    if (!action) {
+      const dips = selfOffers.filter((o) => isMod(o.action, 'nh:dip'));
+      if (dips.length > 0 && rng.rn2(10) === 0) {
+        action =
+          rng.rn2(2) === 0
+            ? pickRandom(selfOffers.filter((o) => isMod(o.action, 'nh:quaff')))
+            : pickRandom([...dips, ...itemOffers((id) => id === 'nh:dip')]);
+        if (action) fountain++;
+      }
+    }
+
     // 5. occasional gear, reading, throwing, dropping and eating when not hungry
     if (!action) {
       const roll = rng.rn2(100);
@@ -640,6 +657,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     countAnswers,
     chatted,
     paid,
+    fountain,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

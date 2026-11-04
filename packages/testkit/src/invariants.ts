@@ -151,6 +151,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkFleeing(state, errs);
   checkSpellState(state, errs);
   checkPriests(state, errs);
+  checkFountains(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
 
@@ -511,6 +512,39 @@ const ALTAR_OF: Readonly<Record<string, string>> = {
   '-1': 'nh:altar_chaotic',
   '-128': 'nh:altar_unaligned',
 };
+
+/**
+ * Fountain state (`modData.nh.fountains`, `{ [levelId]: { [cellIndex]: bits } }`): every entry
+ * is a fountain cell of an existing level with non-zero bits (an entry is dropped at 0).
+ */
+function checkFountains(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['fountains']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.fountains is not an object');
+    return;
+  }
+  const table = t as Record<string, Record<string, unknown>>;
+  for (const lid of Object.keys(table).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) {
+      errs.push(`fountains: level '${lid}' does not exist`);
+      continue;
+    }
+    const cells = table[lid] ?? {};
+    for (const k of Object.keys(cells).sort()) {
+      const bits = cells[k];
+      if (typeof bits !== 'number' || !Number.isInteger(bits) || bits <= 0 || bits > 7)
+        errs.push(`fountains: ${lid} cell ${k} has bad bits ${String(bits)}`);
+      if (lv.palette[lv.cells[Number(k)] ?? -1] !== 'nh:fountain')
+        errs.push(`fountains: ${lid} cell ${k} is not a fountain`);
+    }
+  }
+}
 
 /**
  * Temple priests (`modData.nh.epri`, keyed by monster id) are living monsters; one that is

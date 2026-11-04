@@ -95,4 +95,11 @@ export const erodeMessagesEn: Record<string, string> = {
   'killer.destroy.book_pl': 'burning books',
   'killer.destroy.wand': 'an exploding wand',
   'killer.destroy.wand_pl': 'exploding wands',
+  // ref: src/trap.c water_damage(), src/apply.c splash_lit()
+  'water.fade': 'Your {item} fades.',
+  'water.fade_pl': 'Your {item} fade.',
+  'water.gets_into': 'Some water gets into your {item}!',
+  'water.cannot_get_into': 'The water cannot get into your {item}.',
+  'water.lantern_flickers': 'Your {item} crackles and flickers.',
+  'water.lantern_crackles': 'Your {item} crackles.',
 };

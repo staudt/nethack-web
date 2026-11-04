@@ -101,6 +101,8 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.pick.none.nh:remove': 'You are not wearing any accessories.',
   'ui.pick.nh:loot': 'What do you want to loot?',
   'ui.pick.none.nh:loot': "You don't find anything here to loot.",
+  'ui.pick.nh:dip': 'What do you want to dip into the fountain?',
+  'ui.pick.none.nh:dip': 'There is nothing here to dip into.',
   'describe.unexplored': 'You have not explored that spot.',
 };
 

@@ -84,6 +84,15 @@ function setStudied(ctx: Pick<Ctx, 'state'>, id: EntityId, n: number): void {
   (d.spestudied ??= {})[String(id)] = n;
 }
 
+/**
+ * A book blanked by water keeps a random part of its study count: the re-init of an over-read
+ * or polymorphed book. ref: src/trap.c water_damage() (obj->spestudied = rn2(obj->spestudied))
+ */
+export function blankStudied(ctx: Pick<Ctx, 'state' | 'rng'>, id: EntityId): void {
+  const n = studied(ctx, id);
+  if (n) setStudied(ctx, id, ctx.rng.rn2(n));
+}
+
 function spbookOf(ctx: Pick<Ctx, 'state'>): Spbook {
   const d = spellData(ctx);
   return (d.spbook ??= { book: null, delay: 0 });

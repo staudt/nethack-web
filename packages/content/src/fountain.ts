@@ -1,12 +1,15 @@
 // Fountains: their state, drinking from one, and drying up (with the Watch's warning in town).
-// ref: src/fountain.c drinkfountain(), dowatersnakes(), dowaterdemon(), dowaternymph(),
-// dogushforth(), gush(), dofindgem(), dryup(); src/potion.c mongrantswish()
+// ref: src/fountain.c drinkfountain(), dipfountain(), wash_hands(), dowatersnakes(),
+// dowaterdemon(), dowaternymph(), dogushforth(), gush(), dofindgem(), dryup();
+// src/potion.c mongrantswish(); src/steal.c somegold()
 //
 // The state lives in `modData.nh.fountains[levelId][cellIndex]` as bits (C keeps them in the
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
 // Not ported (DEVIATIONS "Quaffing"): levitation (no such property), the enlightenment screen,
 // see invisible (only its messages), water nymphs (C's own "no nymph" branch), pools from gushing
 // water (the rolls are drawn, no pool is made), hallucinated snake and liquid names, exercise.
+// Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
+// Lady of the Lake always refuses), no Glib, no livelog.
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -16,13 +19,17 @@ import {
   inventoryOf,
   sortedIds,
   trapAt,
+  type ActionDef,
   type Ctx,
   type DefId,
+  type Entity,
   type EntityId,
   type Json,
   type Level,
   type LevelId,
   type Msg,
+  type Offer,
+  type PlayerAction,
   type Pos,
 } from '@nh/core';
 import { adjattrib, type Attr } from './attrib';
@@ -32,16 +39,19 @@ import { makemon } from './generation';
 import { losehp, losestr } from './hp';
 import { morehungry, newuhs, vomit } from './hunger';
 import { uState } from './luck';
+import { mkgold, removeFromInventory } from './items';
 import { mksobjFull } from './mkobj';
+import { moneyCnt } from './money';
 import { monflee } from './monflee';
 import { forgetMonster } from './mongear';
 import { forgetMState } from './mstate';
 import { monNam } from './perception';
-import { P, hasProp } from './props';
+import { P, hasProp, wornIn } from './props';
 import { clearArea } from './read';
 import { T, setTerrain } from './terrain';
-import { mintrap } from './trap';
+import { dungeonBottom, mintrap } from './trap';
 import { angryGuards, watchmanWarnFountain } from './watch';
+import { waterDamage, type WaterResult } from './water';
 import { answerWish, askWish, type WishData } from './wish';
 
 /** blessedftn: a magic fountain. */
@@ -413,3 +423,214 @@ export function answerFountainWish(ctx: Ctx, action: DefId, value: Json, raw: Js
   if (!ctx.state.gameOver) dryup(ctx, data.fountain.x, data.fountain.y, true);
   return NORMAL_SPEED;
 }
+
+/**
+ * Washing the hero's hands: worn gloves get wet (no Glib exists). ref: src/fountain.c
+ * wash_hands()
+ */
+function washHands(ctx: Ctx): WaterResult {
+  const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
+  say(ctx, gloves ? 'fountain.wash_gloved_hands' : 'fountain.wash_hands');
+  return gloves ? waterDamage(ctx, gloves, null, true) : 'nothing';
+}
+
+/**
+ * Some of a gold amount: all of it under 50, else a random part above a floor that grows with
+ * it. ref: src/steal.c somegold()
+ */
+export function somegold(ctx: Pick<Ctx, 'rng'>, lmoney: number): number {
+  const rn1 = (x: number, y: number): number => ctx.rng.rn2(x) + y;
+  const igold = lmoney;
+  if (igold < 50) return igold;
+  if (igold < 100) return rn1(igold - 25 + 1, 25);
+  if (igold < 500) return rn1(igold - 50 + 1, 50);
+  if (igold < 1000) return rn1(igold - 100 + 1, 100);
+  if (igold < 5000) return rn1(igold - 500 + 1, 500);
+  if (igold < 10000) return rn1(igold - 1000 + 1, 1000);
+  return rn1(igold - 5000 + 1, 5000);
+}
+
+/** The bath: a tenth of somegold() is lost from the coin stacks. ref: dipfountain() case 28 */
+function takeBath(ctx: Ctx, at: Pos): void {
+  let money = moneyCnt(ctx, ctx.state.playerId);
+  if (money <= 10) return;
+  // amount to lose; might get rounded up as fountains don't pay change
+  money = Math.trunc(somegold(ctx, money) / 10);
+  for (const otmp of inventoryOf(ctx.state, ctx.state.playerId)) {
+    if (money <= 0) break;
+    const def = ctx.defs.object(otmp.def);
+    const it = otmp.c.item;
+    if (def.class !== 'coin' || !it) continue;
+    const denomination = def.cost;
+    const coinLoss = Math.min(Math.trunc((money + denomination - 1) / denomination), it.quantity);
+    it.quantity -= coinLoss;
+    money -= coinLoss * denomination;
+    if (!it.quantity) {
+      removeFromInventory(ctx, otmp.id);
+      ctx.remove(otmp.id); // delobj()
+    }
+  }
+  say(ctx, 'fountain.lost_gold');
+  const level = getLevel(ctx.state);
+  setFountainBits(
+    ctx,
+    level.id,
+    at.x,
+    at.y,
+    fountainBits(ctx.state, level.id, at.x, at.y) & ~FTN_LOOTED,
+  );
+}
+
+const LONG_SWORD: DefId = 'nh:long_sword';
+
+/**
+ * Dips an item (or the hero's hands) into the fountain she stands on: the Lady of the Lake for
+ * a long sword, else water damage and then the outcome of rnd(30), then dryup(). Returns the
+ * time taken (0 while a water demon's wish prompt is pending). ref: src/fountain.c
+ * dipfountain()
+ */
+export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): number {
+  const at = heroOnFountain(ctx);
+  if (!at) return 0;
+  const level = getLevel(ctx.state);
+  const hero = getPlayer(ctx.state);
+  const isHands = obj === 'hands';
+  const it = isHands ? undefined : obj.c.item;
+
+  if (
+    !isHands &&
+    it &&
+    obj.def === LONG_SWORD &&
+    (hero.c.experience?.level ?? 1) >= 5 &&
+    !ctx.rng.rn2(30) && // no Knights: rn2(6) is theirs
+    it.quantity === 1 &&
+    // no artifacts: the sword is never one and Excalibur never exists
+    uState(ctx.state).alignType !== 1 // a lawful hero would get Excalibur (no artifacts)
+  ) {
+    // Ha!  Trying to cheat her.
+    say(ctx, 'fountain.freezing_mist');
+    say(ctx, 'fountain.disappears');
+    it.buc = 'cursed';
+    if (it.spe > -6 && !ctx.rng.rn2(3)) it.spe--;
+    delete it.erodeproof;
+    setTerrain(level, at.x, at.y, T.floor);
+    setFountainBits(ctx, level.id, at.x, at.y, 0);
+    if (inTown(level, at.x, at.y)) angryGuards(ctx, false);
+    return NORMAL_SPEED;
+  }
+  const er: WaterResult =
+    isHands || (it?.equipped === 'gloves' && it.carriedBy === ctx.state.playerId)
+      ? washHands(ctx)
+      : waterDamage(ctx, obj, null, true);
+
+  if (er === 'destroyed' || (er !== 'nothing' && !ctx.rng.rn2(2))) return NORMAL_SPEED; // no further effect
+
+  const bits = (): number => fountainBits(ctx.state, level.id, at.x, at.y);
+  const dipped = it ?? null; // not destroyed: the item is still there
+  switch (ctx.rng.rnd(30)) {
+    case 16: // curse the item
+      if (!isHands && dipped && ctx.defs.object(obj.def).class !== 'coin') dipped.buc = 'cursed';
+      break;
+    case 17:
+    case 18:
+    case 19:
+    case 20: // uncurse the item
+      if (dipped?.buc === 'cursed') {
+        if (!blind(ctx)) say(ctx, 'fountain.water_glows');
+        dipped.buc = 'uncursed';
+      } else say(ctx, 'fountain.feeling_of_loss');
+      break;
+    case 21: // water demon
+      if (dowaterdemon(ctx, action, at)) return 0;
+      break;
+    case 22: // water nymph
+      dowaternymph(ctx);
+      break;
+    case 23: // an endless stream of snakes
+      dowatersnakes(ctx);
+      break;
+    case 24: // find a gem
+      if (!(bits() & FTN_LOOTED)) {
+        dofindgem(ctx, at);
+        break;
+      }
+      dogushforth(ctx, false); // C falls through to the gush
+      break;
+    case 25: // water gushes forth
+      dogushforth(ctx, false);
+      break;
+    case 26: // strange feeling
+      say(ctx, 'fountain.tingling');
+      break;
+    case 27: // strange feeling
+      say(ctx, 'fountain.sudden_chill');
+      break;
+    case 28: // strange feeling
+      say(ctx, 'fountain.bath_urge');
+      takeBath(ctx, at);
+      break;
+    case 29: {
+      // you see coins: more of them the closer to the surface
+      if (bits() & FTN_LOOTED) break;
+      setFountainBits(ctx, level.id, at.x, at.y, bits() | FTN_LOOTED);
+      const n = dungeonBottom(ctx.state, level) - level.dlevel + 1;
+      mkgold(ctx, ctx.rng.rnd(n * 2) + 5, { level: level.id, x: at.x, y: at.y });
+      if (!blind(ctx)) say(ctx, 'fountain.coins');
+      break;
+    }
+    default:
+      if (er === 'nothing') say(ctx, 'fountain.nothing_happens');
+      break;
+  }
+  if (ctx.state.gameOver) return NORMAL_SPEED;
+  dryup(ctx, at.x, at.y, true);
+  return NORMAL_SPEED;
+}
+
+export const DIP_ID: DefId = 'nh:dip';
+
+const heroItem = (ctx: Pick<Ctx, 'state'>, id: unknown): Entity | null => {
+  if (typeof id !== 'number') return null;
+  const e = ctx.state.entities[String(id)];
+  return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
+};
+
+const dipArgs = (action: PlayerAction): { item?: unknown; hands?: unknown } | undefined =>
+  action.type === 'mod' ? (action.args as { item?: unknown; hands?: unknown }) : undefined;
+
+/**
+ * #dip into the fountain the hero stands on: every inventory item, and her hands ("Wash your
+ * hands", C's `-`). Dipping into potions, pools and sinks is not ported. ref: src/potion.c
+ * dodip()
+ */
+const dip: ActionDef = {
+  id: DIP_ID,
+  labelKey: 'action.nh:dip',
+  handles: 'mod',
+  offer(ctx, target): Offer[] {
+    if (!heroOnFountain(ctx)) return [];
+    if (target.kind === 'self')
+      return [
+        {
+          action: { type: 'mod', action: DIP_ID, args: { hands: true } },
+          labelKey: 'action.nh:dip.hands',
+        },
+      ];
+    if (target.kind !== 'item') return [];
+    const e = heroItem(ctx, target.id);
+    if (!e) return [];
+    return [
+      { action: { type: 'mod', action: DIP_ID, args: { item: e.id } }, labelKey: 'action.nh:dip' },
+    ];
+  },
+  perform(ctx, action) {
+    const args = dipArgs(action);
+    if (args?.hands) return dipfountain(ctx, DIP_ID, 'hands');
+    const e = heroItem(ctx, args?.item);
+    return e ? dipfountain(ctx, DIP_ID, e) : 0;
+  },
+  // a water demon's wish (the only prompt a dip asks)
+  answer: (ctx, value, data) => answerFountainWish(ctx, DIP_ID, value, data),
+};
+
+export const FOUNTAIN_ACTIONS: readonly ActionDef[] = [dip];

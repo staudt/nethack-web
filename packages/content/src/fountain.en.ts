@@ -1,5 +1,6 @@
 // English text for fountains. ref: src/fountain.c drinkfountain(), dowatersnakes(),
-// dowaterdemon(), dowaternymph(), dogushforth(), dofindgem(), dryup()
+// dowaterdemon(), dowaternymph(), dogushforth(), dofindgem(), dryup(), dipfountain(),
+// wash_hands()
 export const fountainMessagesEn: Record<string, string> = {
   'action.nh:quaff.fountain': 'Drink from the fountain',
   'fountain.feel_great': 'Wow!  This makes you feel great!',
@@ -33,4 +34,18 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.tepid': 'This tepid water is tasteless.',
   'fountain.trickle': 'The flow reduces to a trickle.',
   'fountain.dries_up': 'The fountain dries up!',
+  'action.nh:dip': 'Dip into the fountain',
+  'action.nh:dip.hands': 'Wash your hands',
+  'fountain.freezing_mist': 'A freezing mist rises from the water and envelopes the sword.',
+  'fountain.disappears': 'The fountain disappears!',
+  'fountain.wash_hands': 'You wash your hands in the water.',
+  'fountain.wash_gloved_hands': 'You wash your gloved hands in the water.',
+  'fountain.water_glows': 'The water glows for a moment.',
+  'fountain.feeling_of_loss': 'A feeling of loss comes over you.',
+  'fountain.tingling': 'A strange tingling runs up your arm.',
+  'fountain.sudden_chill': 'You feel a sudden chill.',
+  'fountain.bath_urge': 'An urge to take a bath overwhelms you.',
+  'fountain.lost_gold': 'You lost some of your gold in the fountain!',
+  'fountain.coins': 'Far below you, you see coins glistening in the water.',
+  'fountain.nothing_happens': 'Nothing seems to happen.',
 };
