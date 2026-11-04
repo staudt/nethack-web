@@ -149,10 +149,12 @@ describe('wizard wish, genesis and "Die?"', () => {
     for (let i = 0; i < 200 && !state.pendingPrompt; i++) engine.step(state, { type: 'wait' });
     const p = state.pendingPrompt?.prompt;
     expect([p?.id, p?.kind, p?.key]).toEqual(['die', 'yn', 'wiz.die.prompt']);
-    // pin the jackal: nothing more happens to her
-    jackal.c.actor!.speed = 0;
-    jackal.c.actor!.energy = 0;
-    jackal.c.monster!.asleep = true;
+    // pin the jackal and every other monster here: nothing more happens to her
+    for (const m of [jackal, ...monstersHere(state)]) {
+      m.c.actor!.speed = 0;
+      m.c.actor!.energy = 0;
+      m.c.monster!.asleep = true;
+    }
     engine.step(state, { type: 'answer', promptId: 'die', value: false });
     expect(state.gameOver).toBeNull();
     const hp = getPlayer(state).c.hp!;

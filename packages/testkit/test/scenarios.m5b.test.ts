@@ -130,7 +130,8 @@ describe('traps', () => {
 describe('wands', () => {
   test('zapping a wand of striking at a monster hurts it and spends a charge', () => {
     let hits = 0;
-    for (let seed = 1; seed <= 10; seed++) {
+    let misses = 0;
+    for (let seed = 1; seed <= 50 && (!hits || !misses); seed++) {
       const r = runScenario([vanillaMod], (s) => {
         s.seed(seed);
         s.level(ROOM);
@@ -148,17 +149,20 @@ describe('wands', () => {
       });
       const wand = carried(r.state, WAN.striking as DefId);
       take(r, { kind: 'item', id: wand }, 'nh:zap');
-      answer(r, 'zap-direction', 'e');
+      const keys = answer(r, 'zap-direction', 'e').map((e) => (e.type === 'msg' ? e.key : ''));
       expect(r.state.entities[String(wand)]?.c.item?.spe).toBe(4);
       const jackal = Object.values(r.state.entities).find((e) => e.def === 'nh:jackal');
       const hp = jackal?.c.hp?.cur ?? 0;
-      if (hp < 100) {
-        hits++;
-      }
+      // a wand of striking misses only on a bad to-hit roll (ref: zap.c bhitm() rnd(20) < 10 +
+      // AC); a hit always hurts (d(2,12))
+      const hit = keys.includes('zap.wand_hit');
+      expect(hit || keys.includes('zap.wand_miss')).toBe(true);
+      expect(hp < 100).toBe(hit);
+      if (hit) hits++;
+      else misses++;
       healthy(r);
     }
-    // a wand of striking misses only on a bad to-hit roll (ref: zap.c bhitm() rnd(20) < 10 + AC)
-    expect(hits).toBeGreaterThan(5);
+    expect([hits > 0, misses > 0]).toEqual([true, true]);
   });
 });
 

@@ -337,7 +337,14 @@ describe('shopkeepers and priests', () => {
     shk.c.actor.speed = 0;
     Object.assign(shk.c.pos, { x: 6, y: 2 }); // on his door, next to the hero at 7,2
     s.wait(); // the hero sees him
-    const r = s.engine.step(s.state, { type: 'move', dir: 'w' });
+    // (1 time in 7 he is just "in your way": move again)
+    let r = s.engine.step(s.state, { type: 'move', dir: 'w' });
+    for (
+      let i = 0;
+      i < 20 && r.events.some((e) => e.type === 'msg' && e.key === 'dog.in_the_way_peaceful');
+      i++
+    )
+      r = s.engine.step(s.state, { type: 'move', dir: 'w' });
     const msg = r.events.find((e) => e.type === 'msg' && e.key === 'dog.doesnt_want_swap_peaceful');
     expect(msg && msg.type === 'msg' ? render(msg) : '').toBe(
       "You stop.  Izchak doesn't want to swap places.",

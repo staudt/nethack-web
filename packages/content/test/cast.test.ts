@@ -275,12 +275,15 @@ describe('the cast checks', () => {
     expect(s.state.turn).toBeGreaterThan(t0);
     expect(pwOf(s.state).uen).toBe(95);
 
-    // a 0% chance (Wis 3) always fails too
+    // a 0% chance (Wis 3, a level 2 spell, no robe) always fails too
     const w = caster();
-    know(w, [LIGHT]);
+    know(w, [CURE_BLIND]);
     hero(w).c.attributes!.wis = 3;
+    for (const e of Object.values(w.state.entities))
+      if (e.def === 'nh:robe' && e.c.item) e.c.item.equipped = null;
+    expect(percentSuccess(w.state, defs, CURE_BLIND)).toBe(0);
     expect(castText(w)).toEqual(['You fail to cast the spell correctly.']);
-    expect(pwOf(w.state).uen).toBe(98);
+    expect(pwOf(w.state).uen).toBe(95);
   });
 
   test('a successful cast costs all the energy and trains the spell school', () => {

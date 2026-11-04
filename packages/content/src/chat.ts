@@ -161,6 +161,21 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.bellows');
     case 'chirp':
       return pline('chat.chirps');
+    case 'groan':
+      return ctx.rng.rn2(3) ? 0 : pline('chat.groans');
+    case 'djinni':
+      // (no prisoner here; a tame djinni has no wishes left)
+      if (tame) {
+        say(ctx, 'chat.djinni.no_wishes');
+        return NORMAL_SPEED;
+      }
+      if (m.peaceful) {
+        if (mon.def === 'nh:water_demon') return pline('chat.gurgles');
+        say(ctx, 'chat.djinni.free');
+        return NORMAL_SPEED;
+      }
+      say(ctx, 'chat.djinni.teach');
+      return NORMAL_SPEED;
     case 'soldier': {
       const lines = m.peaceful ? SOLDIER_PAX : SOLDIER_FOE;
       say(ctx, lines[ctx.rng.rn2(3)] ?? 'chat.soldier.useless');

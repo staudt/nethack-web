@@ -150,7 +150,11 @@ const objDef = (ctx: Pick<GearCtx, 'defs'>, id: string): ObjectDef | null =>
 export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId | null {
   const def = objDef(ctx, otyp);
   if (!def) return null;
-  return mksobj(ctx, def, { carriedBy: monId });
+  const id = mksobj(ctx, def, { carriedBy: monId });
+  // demons never get blessed objects (the only S_DEMON here is the water demon)
+  const it = ctx.state.entities[String(id)]?.c.item;
+  if (it?.buc === 'blessed' && monOf(ctx, monId).def.glyph.ch === '&') it.buc = 'cursed';
+  return id;
 }
 
 /**
@@ -195,10 +199,10 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 
 /**
  * The starting weapons and armor of an armed monster.
- * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, hill orc, dwarf
- * and the Watch. Objects missing from the object table (pick-axe, battle axe, two-handed sword, lucern
- * hammer) are not given, but the rolls C makes for them are. (Hill orcs get no bows here: in 5.0
- * only Uruk-hai are given orcish bows.)
+ * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
+ * the Watch and the water demon (S_DEMON falls through to the general case). Objects missing from
+ * the object table (pick-axe, battle axe, two-handed sword, lucern hammer) are not given, but the
+ * rolls C makes for them are. (In 5.0 only Uruk-hai are given orcish bows.)
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   const { def } = monOf(ctx, monId);
@@ -257,9 +261,25 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     // other S_HUMANOID monsters get nothing here
   } else if (ch === 'o') {
     if (rng.rn2(2) !== 0) mongets(ctx, monId, 'nh:orcish_helm');
-    // Only the plain orc branch (default) is in the roster: hill orcs. A goblin always gets the
-    // orcish dagger; others pick the dagger or a scimitar.
-    if (def.id !== 'nh:orc_shaman' && rng.rn2(2) !== 0) {
+    // an orc-captain is equipped as a Mordor orc or an Uruk-hai
+    const mm = def.id !== 'nh:orc_captain' ? def.id : rng.rn2(2) ? 'nh:mordor_orc' : 'nh:uruk_hai';
+    if (mm === 'nh:mordor_orc') {
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:scimitar');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:orcish_shield');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:knife');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:orcish_chain_mail');
+    } else if (mm === 'nh:uruk_hai') {
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:orcish_cloak');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:orcish_short_sword');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:iron_shoes');
+      if (!rng.rn2(3)) {
+        mongets(ctx, monId, 'nh:orcish_bow');
+        mInitThrow(ctx, monId, 'nh:orcish_arrow', 12);
+      }
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:uruk_hai_shield');
+    } else if (def.id !== 'nh:orc_shaman' && rng.rn2(2) !== 0) {
+      // the other orcs: a goblin always gets the orcish dagger; others pick the dagger or a
+      // scimitar
       mongets(
         ctx,
         monId,
@@ -376,7 +396,8 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
 /**
  * The extra items of a monster, and its pocket money.
  * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). The roster has no nymphs,
- * leprechauns or demons; gnomes roll for a candle (not in the table).
+ * leprechauns or S_DEMON items (the water demon gets none); mummies get their wrapping, and
+ * gnomes roll for a candle (not in the table).
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   const { def } = monOf(ctx, monId);
@@ -402,6 +423,8 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     mongets(ctx, monId, 'nh:small_shield');
     mkmonmoney(ctx, monId, rng.rn2(10) + 20);
   }
+  // ref: m_initinv() S_MUMMY
+  if (def.glyph.ch === 'M' && rng.rn2(7)) mongets(ctx, monId, 'nh:mummy_wrapping');
   if (def.glyph.ch === 'G') rng.rn2(60);
   rng.rn2(50);
   rng.rn2(100);
@@ -448,10 +471,11 @@ function mDoWearType(
   for (const o of items) {
     const od = ctx.defs.object(o.def);
     if (od.armor?.slot !== slot) continue;
-    // mummy wrapping is the only cloak for monsters bigger than human: none in the table
+    // mummy wrapping is the only cloak allowed when bigger than human
     if (
       slot === 'cloak' &&
-      (def.size === 'large' || def.size === 'huge' || def.size === 'gigantic')
+      (def.size === 'large' || def.size === 'huge' || def.size === 'gigantic') &&
+      o.def !== 'nh:mummy_wrapping'
     )
       continue;
     // ref: m_dowear_type() W_ARM with the racial exception: hobbits wear elven armor
@@ -499,7 +523,8 @@ function mDoWearType(
 export function mDoWear(ctx: GearCtx, monId: EntityId, creation: boolean): boolean {
   const { def } = monOf(ctx, monId);
   if (def.size === 'tiny' || hasFlag(def, 'nohands') || hasFlag(def, 'animal')) return false;
-  if (hasFlag(def, 'mindless')) return false; // (zombies and mummies are not in the roster)
+  // give mummies a chance to wear their wrappings (no skeletons here)
+  if (hasFlag(def, 'mindless') && (!creation || def.glyph.ch !== 'M')) return false;
   let changed = false;
   const canWearArmor = !cantWearArm(def);
   if (canWearArmor && !whichArmor(ctx, monId, 'body'))
@@ -511,7 +536,8 @@ export function mDoWear(ctx: GearCtx, monId: EntityId, creation: boolean): boole
   if (!wep || !ctx.defs.object(wep.def).weapon?.bimanual)
     changed = mDoWearType(ctx, monId, 'shield', creation, false) || changed;
   changed = mDoWearType(ctx, monId, 'gloves', creation, false) || changed;
-  changed = mDoWearType(ctx, monId, 'boots', creation, false) || changed;
+  if (!hasFlag(def, 'slithy'))
+    changed = mDoWearType(ctx, monId, 'boots', creation, false) || changed;
   changed = mDoWearType(ctx, monId, 'body', creation, !canWearArmor) || changed;
   return changed;
 }

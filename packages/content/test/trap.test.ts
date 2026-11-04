@@ -193,12 +193,14 @@ describe('dotrap: the hero', () => {
       expect(t?.once).toBe(true);
       const lost = 500 - heroHp(state);
       const arrows = floorDefs(state, 2, 1).filter((d) => d === 'nh:arrow').length;
-      if (lost > 0) expect(arrows).toBe(0);
-      else expect(arrows).toBe(1);
-      return lost > 0;
+      // (a hit by an arrow with a negative enchantment may do no damage)
+      const hit = keys(ev).includes('trap.thitu.hit');
+      if (hit) expect(arrows).toBe(0);
+      else expect([arrows, lost]).toEqual([1, 0]);
+      return { hit, lost };
     };
-    findSeed(outcome, (hit) => hit);
-    findSeed(outcome, (hit) => !hit);
+    findSeed(outcome, (r) => r.hit && r.lost > 0);
+    findSeed(outcome, (r) => !r.hit);
   });
 
   test('dart trap shoots a little dart', () => {

@@ -1,6 +1,6 @@
 // Corpses: when a killed monster leaves one, and how corpses rot away.
 // ref: src/mon.c xkilled(), corpse_chance(), make_corpse(); src/mkobj.c start_corpse_timeout()
-import { getPlayer, type Ctx, type Json, type ModApi, type MonsterDef } from '@nh/core';
+import { getPlayer, type Ctx, type DefId, type Json, type ModApi, type MonsterDef } from '@nh/core';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { mkcorpse, rne } from './items';
@@ -8,6 +8,25 @@ import { xnameOf } from './objnam';
 
 /** ref: include/hack.h ROT_AGE: a corpse rots away at this age (turns) */
 export const ROT_AGE = 250;
+
+/** ref: include/hack.h TAINT_AGE: age when a corpse becomes tainted */
+export const TAINT_AGE = 100;
+
+/**
+ * The corpse a zombie or mummy leaves: its living race. ref: src/mon.c undead_to_corpse()
+ * (only the undead in the roster)
+ */
+const UNDEAD_TO_CORPSE: Readonly<Record<string, DefId>> = {
+  'nh:kobold_zombie': 'nh:kobold',
+  'nh:kobold_mummy': 'nh:kobold',
+  'nh:dwarf_zombie': 'nh:dwarf',
+  'nh:dwarf_mummy': 'nh:dwarf',
+  'nh:gnome_zombie': 'nh:gnome',
+  'nh:gnome_mummy': 'nh:gnome',
+  'nh:orc_zombie': 'nh:orc',
+  'nh:orc_mummy': 'nh:orc',
+  'nh:ettin_mummy': 'nh:ettin',
+};
 
 /** ref: include/mondata.h bigmonst() */
 const bigmonst = (def: MonsterDef): boolean =>
@@ -52,8 +71,19 @@ export function xkilledCorpse(
   def: MonsterDef,
   at: { level: string; x: number; y: number },
 ): void {
-  if (def.genFlags.includes('nocorpse')) return; // G_NOCORPSE
+  const undead = UNDEAD_TO_CORPSE[def.id];
+  if (undead === undefined && def.genFlags.includes('nocorpse')) return; // G_NOCORPSE
   if (!corpseChance(ctx, def)) return;
+  if (undead !== undefined) {
+    // ref: make_corpse() zombies and mummies: their race's corpse, and an *OLD* one. The
+    // ettin mummy leaves none (no ettin here).
+    if (!ctx.defs.isMonster(undead)) return;
+    const id = mkcorpse(ctx, ctx.defs.monster(undead), { at });
+    const it = ctx.state.entities[String(id)]?.c.item;
+    if (it) it.age = (it.age ?? 0) - (TAINT_AGE + 1);
+    startCorpseTimeout(ctx, id);
+    return;
+  }
   const id = mkcorpse(ctx, def, { at });
   startCorpseTimeout(ctx, id);
 }

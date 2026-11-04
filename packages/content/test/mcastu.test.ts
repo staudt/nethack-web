@@ -173,9 +173,10 @@ describe('castmu', () => {
   test('while the delay runs it points and curses; the delay counts down each turn', () => {
     const { s, id } = setup(5);
     run(s.state, (ctx) => setMspecUsed(ctx, id, 3));
-    expect(run(s.state, (ctx) => monsterAttack(ctx, id))).toEqual([
-      'The kobold shaman points at you, then curses.',
-    ]);
+    // (at you for a directed spell, all around for an undirected one: the spell is rolled)
+    const said = run(s.state, (ctx) => monsterAttack(ctx, id));
+    expect(said).toHaveLength(1);
+    expect(said[0]).toMatch(/^The kobold shaman points (at you|all around), then curses\.$/);
     expect(heroHp(s.state)).toBe(500);
     s.step({ type: 'wait' });
     expect(mspecUsed({ state: s.state }, id)).toBe(2);

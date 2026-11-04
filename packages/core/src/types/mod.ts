@@ -563,7 +563,9 @@ export type MonsterSound =
   | 'humanoid'
   | 'soldier'
   | 'priest'
-  | 'sell';
+  | 'sell'
+  | 'groan'
+  | 'djinni';
 
 /** Runs a non-hero actor's turn. The engine deducts NORMAL_SPEED before calling `act`. */
 export interface BrainDef {
