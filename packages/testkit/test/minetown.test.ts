@@ -64,6 +64,7 @@ function minetown(seed: number, width = 80, height = 21): { state: GameState; le
   return { state, level: getLevel(state) };
 }
 
+/** The variants with a town (Orcish Town, minetn-1, is tested in content's orctown.test.ts). */
 const VARIANTS = [
   'nh:minetn-2',
   'nh:minetn-3',
@@ -107,8 +108,8 @@ describe('Minetown variants', () => {
     bySeed.set(level.def ?? '', list);
   }
 
-  test('the variant roll covers all six', () => {
-    expect([...bySeed.keys()].sort()).toEqual(VARIANTS);
+  test('the variant roll covers all seven', () => {
+    expect([...bySeed.keys()].sort()).toEqual(['nh:minetn-1', ...VARIANTS]);
   });
 
   test.each(VARIANTS)('%s builds a town at 80x21', (variant) => {
@@ -212,6 +213,7 @@ describe('Minetown variants on bigger maps', () => {
         if ((seen.get(v) ?? 0) >= 4) continue;
         seen.set(v, (seen.get(v) ?? 0) + 1);
         expect(level.width).toBe(w);
+        if (v === 'nh:minetn-1') continue; // Orcish Town: no town left (orctown.test.ts)
         isTown(state, level);
         if (v === 'nh:minetn-6') {
           // Bustling: up stairs left of the town block, down stairs right of it
@@ -221,7 +223,7 @@ describe('Minetown variants on bigger maps', () => {
           expect(level.down?.x).toBeGreaterThan(block.x + block.w - 2);
         }
       }
-      expect([...seen.keys()].sort()).toEqual(VARIANTS);
+      expect([...seen.keys()].sort()).toEqual(['nh:minetn-1', ...VARIANTS]);
     });
   }
 });

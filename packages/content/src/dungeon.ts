@@ -2,6 +2,7 @@
 import type { DefId, DungeonDef, LevelDef } from '@nh/core';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
 import { MINETOWN_VARIANTS } from './minetown';
+import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import type { SpLevFixup } from './sp_lev';
 
 /**
@@ -33,13 +34,16 @@ export const MINEFILL: LevelDef = {
 export const LEVELS: readonly LevelDef[] = [MINEFILL, ...MINETOWN_VARIANTS, ...MINEND_VARIANTS];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
-export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = { ...MINEND_FIXUPS };
+export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
+  ...MINEND_FIXUPS,
+  [MINETN_1.id]: ORCTOWN_FIXUP,
+};
 
 /**
  * The Dungeons of Doom. NetHack gives it `rn1(5, 25)` levels with the Castle at the bottom;
  * without the Castle this port keeps it endless (see DEVIATIONS.md and `DUNGEON_BOTTOM`).
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
- * level 3 or 4 (one of six variants, see minetown.ts) and Mines' End (one of three, see
+ * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
  * minesend.ts) on its last level, which has no down stairs; the other levels are filler.
  * ref: dat/dungeon.lua ("The Gnomish Mines": base 8, range 2; branch base 2, range 3;
  * minetn: base 3, range 2, nlevels 7, flags "town"; minend: base -1, nlevels 3)

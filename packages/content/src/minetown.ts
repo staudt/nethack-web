@@ -1,12 +1,13 @@
-// Minetown: six of NetHack 5.0's seven variants, as LevelDefs. ref: dat/minetn-2.lua .. minetn-7.lua
+// Minetown: NetHack 5.0's seven variants, as LevelDefs. ref: dat/minetn-1.lua .. minetn-7.lua
 //
-// Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) is not shipped, so the variant is
-// a roll among these six. `align[1]` (a shuffled alignment shared by the level) is `random` on the
+// Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) lives in orctown.ts with its
+// fixup; the variant is a roll among all seven, in lua file order. `align[1]` (a shuffled alignment shared by the level) is `random` on the
 // one altar each variant has, which is the same thing. Shops and the temple are typed rooms but
 // stay empty and untended until 6b2/6b3. Monkeys, nymphs and the gnome king
 // statue are skipped (no such monsters or objects yet). `des.room` levels without a level_init
 // start as dark stone, as makemaz() leaves the level before the lua runs.
 import type { LevelContent, LevelDef, RoomDef } from '@nh/core';
+import { MINETN_1 } from './orctown';
 
 const mon = (id: string, extra: Partial<LevelContent> = {}): LevelContent => ({
   kind: 'monster',
@@ -832,8 +833,9 @@ export const MINETN_7: LevelDef = {
   corridors: 'random',
 };
 
-/** In lua file order (minetn-2 .. minetn-7); the variant is `rnd(6)` into this list. */
+/** In lua file order (minetn-1 .. minetn-7); the variant is `rnd(7)` into this list. */
 export const MINETOWN_VARIANTS: readonly LevelDef[] = [
+  MINETN_1,
   MINETN_2,
   MINETN_3,
   MINETN_4,

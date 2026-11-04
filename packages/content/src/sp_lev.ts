@@ -82,6 +82,11 @@ function dry(ctx: Ctx, level: Level, p: Pos): boolean {
   return t.passable && t.door === undefined;
 }
 
+/** A random DRY spot inside the LevelDef's map block (or the level): get_location(DRY). */
+export function randomDrySpot(ctx: Ctx, level: Level, def: LevelDef): Pos | null {
+  return getLocation(ctx, level, def, (p) => dry(ctx, level, p));
+}
+
 /** ref: nhlua math.random(min, max) = min + rn2(max - min + 1) */
 function rollCount(ctx: Ctx, count: LevelCount | undefined): number {
   if (count === undefined) return 1;

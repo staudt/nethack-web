@@ -55,3 +55,12 @@ Boulders, pits and level teleporters (7b is parked; the levels leave them out). 
 - Level tests: each Mines' End and Orcish Town LevelDef builds at the default size and at a larger one, has its up stairs and its luckstone or orcs, and the Catacombs maze connects the stairs to the luckstone spot.
 - The soak bot drinks from and dips into fountains now and then. No long soak runs: short runs on two seeds, plus the existing invariants.
 - Phone check uses wizard mode (`?wizard=1`): levelport, wish, genesis.
+
+## Exit check (step 6, before the phone check)
+
+- Fountains: `#quaff` and `#dip` from the action menu, `q` and `Alt+d`; the Watch's warning, then anger when a town fountain dries up (content `m7c.fountain.test.ts`, `m7c.dip.test.ts`). Phone: pending.
+- Mines' End: all three variants build at 80x21 and 120x40, one luckstone each, the Catacombs maze joins the stairs to every luckstone spot (`minesend.test.ts`). Phone: pending.
+- Orcish Town: the variant roll is `rnd(7)`; the town builds at both sizes with its bars, corpses and horde, no Watch, shopkeeper or priest, and the gang waits on the deeper Mines levels and comes out when the hero arrives (`orctown.test.ts`). Phone: pending.
+- Gems: setgemprobs by depth, colour names until identified (`gem.test.ts`, `luck.test.ts`). Phone: pending.
+- Golden and replays deterministic, each golden change explained in its step's commit (steps 1, 2, 3 and 5; step 6 leaves it at 1c7e87c49d08a91368f9c87d3ab5); `pnpm check` green.
+- Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md`: boulders, mimics, vampires, level teleporters, the water nymph, pools, dilution, gang names and booty.

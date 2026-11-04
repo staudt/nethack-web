@@ -122,7 +122,8 @@ for (let seed = 1; seed <= 80; seed++) {
 
 describe('the shops of a real Minetown', () => {
   test('every variant comes up', () => {
-    expect([...bySeed.keys()].sort()).toEqual(VARIANTS);
+    // Orcish Town (minetn-1) has no shops left
+    expect([...bySeed.keys()].sort()).toEqual(['nh:minetn-1', ...VARIANTS]);
   });
 
   test.each(VARIANTS)('%s: one shopkeeper by the door of each shop, stock on the rest', (v) => {

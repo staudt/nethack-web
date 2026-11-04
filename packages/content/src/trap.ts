@@ -11,7 +11,6 @@ import {
   levelIdFor,
   rootDungeon,
   type GameState,
-  type LevelId,
   cellRules,
   getLevel,
   getPlayer,
@@ -44,6 +43,7 @@ import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
+import { migrateToLevel } from './migrate';
 import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
 import { monWep, whichArmor } from './mongear';
@@ -827,14 +827,6 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
   }
   migrateToLevel(ctx, mon, levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: dst }));
   return 'moved';
-}
-
-/** ref: src/dog.c migrate_to_level(): the monster leaves the map until the hero gets there. */
-function migrateToLevel(ctx: Ctx, mon: Entity, to: LevelId): void {
-  setMtrapped(ctx, mon.id, false);
-  delete mon.c.pos;
-  const t = trapTable(ctx, 'migrating', true);
-  if (t) t[String(mon.id)] = to;
 }
 
 /** Monsters that fell to the level the hero just arrived on come out at random spots. */

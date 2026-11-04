@@ -108,6 +108,7 @@ export const messagesEn: Record<string, string> = {
   'terrain.fountain': 'fountain',
   'terrain.sink': 'sink',
   'terrain.tree': 'tree',
+  'terrain.iron_bars': 'iron bars',
   'terrain.altar': 'altar',
   'role.valkyrie': 'Valkyrie',
   'exp.welcome': 'Welcome to experience level {level}.',
@@ -173,6 +174,7 @@ export const messagesEn: Record<string, string> = {
   'nh:fountain': 'fountain',
   'nh:sink': 'sink',
   'nh:tree': 'tree',
+  'nh:iron_bars': 'iron bars',
   // ref: src/pager.c lookat() S_altar: "%s altar" with align_str()
   'nh:altar_lawful': 'lawful altar',
   'nh:altar_neutral': 'neutral altar',

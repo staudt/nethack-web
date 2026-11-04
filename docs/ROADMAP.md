@@ -42,9 +42,6 @@ From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-chec
 
 From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch; done, phone check pending):
 
-- **Orcish Town** (`minetn-1`, the seventh variant): orc captains, Uruk-hai, Mordor orcs, orc shamans, `replace_terrain`, `teleport_region` and the booty migrating down the Mines. Until then the variant roll is `rnd(6)`.
-- **Mines' End** (`minend-1..3`): the bottom Mines level stays a filler without down stairs; special-level placement already counts a negative `base` from the bottom.
-- **Fountains:** #quaff, #dip and washing at a fountain, and the Watch's fountain warnings; sinks and trees stay scenery too.
 - **Minetown's missing inhabitants:** Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
 - **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
 - **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
@@ -90,3 +87,10 @@ From 7c (Mines' End, fountains, Orcish Town):
 
 - **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' and unicorns' reactions to gems (gem buying and identification by a shopkeeper's offer, throwing gems to unicorns); kicking gems.
 - **Gem colours:** `randomize_gem_colors()` (turquoise and aquamarine blue or green, fluorite violet, blue, white or green per game); its draws move the game stream.
+- **Mimics:** their disguises ("Wait! That's a mimic!", sticking), then the four mimics of the Mimic of the Mines posing as gray stones.
+- **Vampires** (level drain, shapeshifting) for the Catacombs' two `V`, and the level teleporters on its luckstone and flint spots.
+- **The water nymph and theft:** stealing and teleporting away, for fountains (C's "no nymph" outcome stands in) and nymphs elsewhere.
+- **Pools:** gushing fountains making pools, then moats and water in special levels.
+- **Potions:** dilution by water damage and fountains, and `#dip` into potions (mixing).
+- **Orcish Town extras:** the boulders (after 7b's boulder object), the teleport region, the gang's names (and christening the town's orcs) and the booty items that wait for orcs below.
+- **LevelDef fixup hook:** content's `SpLevFixup` table (shuffled spots, BUC, maze walks, iron bars, migrating orcs) exposed to mods as a LevelDef hook.

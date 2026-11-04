@@ -7,6 +7,7 @@ const BLACK = '#000000';
 const WHITE = '#ffffff';
 const GREEN = '#33aa33';
 const BRIGHT_BLUE = '#5555ff';
+const CYAN = '#33bbbb';
 
 export const TERRAIN: readonly TerrainDef[] = [
   // ref: defsym.h S_stone ' ' (NO_COLOR)
@@ -222,6 +223,15 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: true,
     glyph: { ch: '#', fg: GREEN },
   },
+  // ref: defsym.h S_bars '#' (HI_METAL = CLR_CYAN); rm.h IS_OBSTRUCTED() is false for IRONBARS:
+  // they block movement but not sight (Orcish Town's barricades)
+  {
+    id: 'nh:iron_bars',
+    nameKey: 'terrain.iron_bars',
+    passable: false,
+    opaque: false,
+    glyph: { ch: '#', fg: CYAN },
+  },
   // One altar per alignment, all drawn alike; the alignment shows in its name.
   ...(['lawful', 'neutral', 'chaotic', 'unaligned'] as const).map((a): TerrainDef => ({
     id: `nh:altar_${a}`,
@@ -263,6 +273,7 @@ export const T = {
   fountain: 'nh:fountain',
   sink: 'nh:sink',
   tree: 'nh:tree',
+  iron_bars: 'nh:iron_bars',
   altar_lawful: 'nh:altar_lawful',
   altar_neutral: 'nh:altar_neutral',
   altar_chaotic: 'nh:altar_chaotic',

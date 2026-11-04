@@ -107,6 +107,25 @@ export function startCorpseTimeout(
   ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
 }
 
+/**
+ * Makes a corpse that of `mon`: its rot timer is stopped and started again for the new type.
+ * ref: src/mkobj.c set_corpsenm() (obj_stop_timers(), start_corpse_timeout())
+ */
+export function setCorpsenm(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
+  id: number,
+  mon: DefId,
+  inMklev = false,
+): void {
+  const it = ctx.state.entities[String(id)]?.c.item;
+  if (!it) return;
+  it.corpseOf = mon;
+  ctx.state.timers = ctx.state.timers.filter(
+    (t) => !(t.kind === 'nh:rot_corpse' && (t.data as { id?: unknown } | null)?.id === id),
+  );
+  startCorpseTimeout(ctx, id, inMklev);
+}
+
 /** Called when a corpse rots away completely. ref: src/dig.c rot_corpse() */
 function rotCorpse(ctx: Ctx, data: Json): void {
   const id = (data as { id?: unknown } | null)?.id;
