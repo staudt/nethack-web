@@ -22,6 +22,18 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m7c fountains in ordinary rooms** (2026-11-04): rolled now (golden change); sinks, altars and graves stay unrolled.
 - **m7c fountain and Luck state** (2026-11-04): fountain state in `modData.nh.fountains`, no save bump; the luckstone bonus worked out from inventory, not stored.
 
+- **m7d all new object defs in step 1** (2026-11-07): the 8 wands, 5 rings, magical breathing and the scroll of teleportation are added at once (one random-stream shift); until its step, a new wand zaps with no effect and a new ring only sets its property.
+- **m7d level flags in a content table** (2026-11-07): noteleport, hardfloor, maze and non-diggable areas keyed by LevelDef id, worked out from `Level.def`; no LevelDef/Level fields, nothing saved.
+- **m7d no teleport control** (2026-11-07): the ring of teleport control is left out and a blessed scroll of teleportation teleports at random (DEVIATIONS) until a pick-a-position prompt exists (a 7f question).
+- **m7d polymorph, invisibility and see invisible later** (2026-11-07): hero/monster/object polymorph, polytraps, the amulets of change and unchanging, invisibility and see invisible go to a later milestone (7f) because they need core perception/prompt contracts.
+- **m7d level teleport depth cap** (2026-11-07): a random level teleport in the main dungeon goes no deeper than DL25, the cap holes use.
+- **m7d up/down zaps** (2026-11-07): `<`/`>` (and the pad's extra buttons) pick up/down in the zap and spell direction prompts, added with digging.
+- **m7d `wiz:wish` makes traps** (2026-11-07): wishing for a trap name in wizard mode makes it at her feet, as C does.
+- **m7d `dofiretrap()` without fire traps** (2026-11-07): ported for the magic trap; no fire trap def since C only makes them in Gehennom.
+- **m7d warning digits** (2026-11-07): C's warning digits and colours are kept, though warning `0` looks like the boulder `0`.
+- **m7d wand of stasis** (2026-11-07): included (in the vendored objects.h, not on the old ROADMAP list); its only effect is in the teleport code.
+- **m7d cancellation, stasis and dug-trap state in content** (2026-11-07): `mcan`, stasis and dug-trap ownership in `modData.nh` and `Trap.data`, no save-version bump.
+
 ## Approved
 
 - **m7b boulders and Sokoban: four core contract questions** (2026-11-04, approved by the user 2026-11-06: all four recommendations taken). The plan (`~/.claude/plans/m7b-sokoban.md`, `docs/kickoff-m7b.md`, 8 steps: 7b1 boulders/pits/scroll of earth, 7b2 Oracle + Sokoban) needs these core changes, each marked costly to undo by the planner:
