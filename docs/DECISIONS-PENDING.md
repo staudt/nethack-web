@@ -43,6 +43,14 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m8 player name on the device only** (2026-11-07): not in `GameState`.
 - **m8 help text** (2026-11-07): from `help.cmd.*` messages and `action.<id>` labels, no ClientApi change.
 - **m8 deferred** (2026-11-07): conduct, dungeon overview, genocide lists and game-side options (autopickup) go to ROADMAP.
+- **m7e trapped-door spots** (2026-11-07): a transient optional `Level.trappedDoorSpots?: Pos[]` from core levelgen, read and deleted by content on the level's first build (same pattern as the approved `boulderSpots`); never saved. Fallback if refused: door booby traps move to 7f.
+- **m7e trapped boxes** (2026-11-07): in content state `modData.nh.otrapped`, not a core item field (as `mcan`).
+- **m7e explosions on screen** (2026-11-07): the existing `'ray'` event with `kind: 'explosion'` and cell offsets; no new core event.
+- **m7e webs deferred** (2026-11-07): they need giant/cave spiders, which shift every monster roll.
+- **m7e shop damage last** (2026-11-07): step 8, only if budget remains, after breaking wands.
+- **m7e dig offers** (2026-11-07): "Dig" / "Dig down" offers while carrying a pick, besides `#apply`.
+- **m7e breaking wands** (2026-11-07): its own "Break" offer after a yes/no question, not folded into Apply.
+- **m7e golden** (2026-11-07): explained golden updates from new offers are accepted rather than filtering offers out of the soak bot.
 
 ## Approved
 
