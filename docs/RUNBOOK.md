@@ -6,12 +6,14 @@ How an orchestrator session (started with `/loop Follow docs/RUNBOOK.md`) works 
 
 Work through these in order. A milestone is done when all its plan steps are committed and green.
 
-1. **6b3 shops**: plan approved at `~/.claude/plans/m6b3-shops.md`, branch `m6b3`, 6 steps.
-2. **Spellcasting**: hero casting (`Z`, spell energy, failure rates, the spells of the books we have) and monster casters (priests' clerical spells, gnomish wizards, kobold shamans).
-3. **Boulders and Sokoban**: the boulder object, `moverock()`, Sokoban branch and levels with its luck penalties.
-4. **Mines' End, fountains, Orcish Town**: the three Mines' End variants (luckstone), `#quaff`/`#dip` from fountains with the Watch fountain warnings, Orcish Town.
-5. **Deferred wands, rings and traps**: the 5b deferrals in `docs/ROADMAP.md` (wishing, digging, teleportation, polymorph and the other wands; the missing rings and amulets; the other trap types and `#untrap`).
-6. **Release polish**: help and key-list screen, options screen, death screen (DYWYPI, tombstone), high-score list that skips games whose mod list includes `wiz`, title/new-game screen.
+Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
+
+Run 2 (from 2026-11-06), budget 6M with a fresh ledger section:
+
+1. **Look cursor by keyboard**: branch `look` off `main`, one step, no planning agent. Today `;` (and the Look button) only accept a mouse/tap target. Port C's `getpos()` cursor: after `;`, a cursor starts on the hero and moves with the direction keys (`hjklyubn`, capitals move 8, arrow keys and numpad too), `.`/`,`/`;`/`:` pick, Esc cancels; `<`/`>` jump to stairs, `m`/`M` cycle monsters, `o`/`O` objects, `@` back to self (the subset that fits). Tapping still picks directly. Same cursor for any other "pick a position" prompt that uses the same path (e.g. travel `_`, jumping, spell targets) if they share it. Phone: a tap still works; no feature may need a keyboard. Add a TESTPLAN section.
+2. **Boulders and Sokoban**: plan approved at `~/.claude/plans/m7b-sokoban.md` (user took all four planner recommendations on 2026-11-06), kickoff `docs/kickoff-m7b.md`. Branch `m7b`: fast-forward it to the tip of `look` first (`git checkout m7b && git merge --ff-only look`), 8 steps.
+3. **Deferred wands, rings and traps**: the 5b deferrals in `docs/ROADMAP.md` (wishing, digging, teleportation, polymorph and the other wands; the missing rings and amulets; the other trap types and `#untrap`).
+4. **Release polish**: help and key-list screen, options screen, death screen (DYWYPI, tombstone), high-score list that skips games whose mod list includes `wiz`, title/new-game screen.
 
 ## Where am I?
 
