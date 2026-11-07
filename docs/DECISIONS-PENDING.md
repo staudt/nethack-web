@@ -56,6 +56,7 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 ## Approved by the user (m8)
 
 - **m8 high-score storage format** (2026-11-07): the user approved the planner's recommendation as written. localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Unblocks m8 step 4.
+  - To review (step 4, fdeec33): each entry stores the end's parts as rendered (the `EndSummary` fields: name, codes, death words, points, depths, hit points) plus seed, date and app version, and `entryText()` joins them for display, rather than one finished line. Same key, wrapper and cap. Nothing is on `main` yet, so switching to a single line is still cheap.
 
 ## Parked
 
