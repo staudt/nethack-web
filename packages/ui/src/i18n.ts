@@ -23,6 +23,7 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.rip.title': 'You died',
   'ui.rip.killed_by': 'killed by {killer}',
   'ui.escaped': 'You escaped the dungeon.',
+  'ui.quit.title': 'You quit.',
   'ui.save_incompatible':
     "Your saved game is from an older version and can't be restored. Starting a new game.",
   'ui.save': 'Save',

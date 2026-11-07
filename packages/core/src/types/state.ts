@@ -13,7 +13,8 @@ export interface Timer {
 }
 
 export interface GameOver {
-  kind: 'died' | 'escaped';
+  /** 'quit' (m8): the player gave up (content's `#quit`); like 'escaped', no killer. */
+  kind: 'died' | 'escaped' | 'quit';
   /** Message param for the cause: a key, or '@' + a def id (e.g. '@nh:newt'). */
   killer: string;
   turn: number;

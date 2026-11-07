@@ -27,6 +27,7 @@ import { parseParams } from './params';
 import { createRemote, type Remote } from './remote';
 import { addScore, isoDate, loadScores, scoreRows, type ScoreResult } from './scores';
 import { clearSave, loadSave, writeSave } from './storage';
+import { openTitle } from './title';
 import pkg from '../package.json';
 
 const AUTOSAVE_EVERY = 25;
@@ -64,13 +65,13 @@ function useMods(ids: string[]): void {
   remote.setMods(ids);
 }
 
-function startNew(): void {
+function startNew(wizardMode = params.wizard): void {
   dead = false;
   loading = false;
   acts = 0;
   started = true;
   lastScore = null;
-  useMods(newGameMods(params.wizard));
+  useMods(newGameMods(wizardMode));
   seed = randomSeed();
   remote.newGame(seed, size.w, size.h);
 }
@@ -78,6 +79,8 @@ function startNew(): void {
 /** Loads a save with the mods it was made with. */
 function loadText(text: string, mods: string[] = modsForSave(text, params.wizard)): void {
   loading = true;
+  started = true;
+  dead = false;
   seed = savedSeed(text);
   useMods(mods);
   remote.load(text);
@@ -120,29 +123,69 @@ function applyOptions(): void {
   });
 }
 
-function showOptions(): void {
-  openOptions({
-    showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
-    askText: (title, initial, max) => ui.askText(title, initial, max),
-    get: () => options,
-    set: (o) => {
-      options = o;
-      saveOptions(storage, o);
-      applyOptions();
+function showOptions(back?: () => void): void {
+  openOptions(
+    {
+      showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
+      askText: (title, initial, max) => ui.askText(title, initial, max),
+      get: () => options,
+      set: (o) => {
+        options = o;
+        saveOptions(storage, o);
+        applyOptions();
+      },
+      layout,
+      switchLayout: () => {
+        // Keys are bound at start-up: save, remember the choice and reload.
+        saveLayout(storage, layout === 'numpad' ? 'vi' : 'numpad');
+        void saveNow().then(() => location.reload());
+      },
+      resetZoom: () => ui.resetZoom(),
     },
-    layout,
-    switchLayout: () => {
-      // Keys are bound at start-up: save, remember the choice and reload.
-      saveLayout(storage, layout === 'numpad' ? 'vi' : 'numpad');
-      void saveNow().then(() => location.reload());
-    },
-    resetZoom: () => ui.resetZoom(),
-  });
+    back,
+  );
 }
 
 /** The high-score list: the last game's place on it, if it has just ended. */
 function showScores(own: ScoreResult | null, back?: () => void): void {
   ui.showText('High scores', scoreRows(loadScores(storage), own), back);
+}
+
+/** The title screen: Play (asking the name the first time), Wizard mode, High scores, Help, Options. */
+function showTitle(): void {
+  // no game in play: nothing to autosave until Play or Load
+  started = false;
+  openTitle({
+    showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
+    askText: (title, initial, max) => ui.askText(title, initial, max),
+    getOptions: () => options,
+    setOptions: (o) => {
+      options = o;
+      saveOptions(storage, o);
+      applyOptions();
+    },
+    play: (wizardMode) => startNew(wizardMode),
+    scores: (back) => showScores(null, back),
+    help: (back) => ui.showHelp(back),
+    options: (back) => showOptions(back),
+  });
+}
+
+/**
+ * Menu > New game. During a game it goes through #quit ("Really quit without saving?", the end
+ * sequence, then New game on the end sheet opens the title); with no game in play, the title.
+ */
+function newGameFromMenu(): void {
+  const title = (): void => void clearSave().then(showTitle);
+  if (!started || dead) {
+    title();
+    return;
+  }
+  remote.query.actionsFor({ kind: 'self' }).then((offers) => {
+    const quit = offers.find((o) => o.action.type === 'mod' && o.action.action === 'nh:quit');
+    if (quit) remote.act(quit.action);
+    else title();
+  }, title);
 }
 
 const appMenuMod: ClientMod = {
@@ -152,9 +195,7 @@ const appMenuMod: ClientMod = {
     api.addMenuItem({
       id: 'app.new',
       labelKey: 'ui.newgame',
-      run: () => {
-        void clearSave().then(startNew);
-      },
+      run: newGameFromMenu,
     });
     api.addMenuItem({
       id: 'app.save',
@@ -203,7 +244,7 @@ const ui = createUi({
   ],
   ...runPrefixes,
   ...lookOptions,
-  onNewGame: () => void clearSave().then(startNew),
+  onNewGame: () => void clearSave().then(showTitle),
   playerName: () => options.name,
   // ref: src/end.c really_done(): `if (!wizard) topten()`
   onGameOver: (s) => {
@@ -246,7 +287,7 @@ remote.onError((e) => {
   if (loading) {
     // The save could not be restored (e.g. an older save version).
     ui.notify('ui.save_incompatible');
-    void clearSave().then(startNew);
+    void clearSave().then(() => startNew());
     return;
   }
   ui.notify('ui.error', { message: e });
@@ -262,6 +303,10 @@ async function boot(): Promise<void> {
   const stored = params.forceNew || params.explicit ? null : await loadSave();
   const plan = bootPlan(params, stored);
   started = true;
+  if (plan.kind === 'title') {
+    showTitle();
+    return;
+  }
   if (plan.kind === 'load') {
     loadText(plan.save, plan.mods);
     return;

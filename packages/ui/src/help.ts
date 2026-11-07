@@ -15,6 +15,8 @@ export interface HelpDeps {
   menuItems(): readonly { labelKey: string; run(): void }[];
   /** Runs a command chosen from the list (help is already closed). */
   run(cmd: UiCommand): void;
+  /** Runs when the help menu itself is closed (the title screen opens again). */
+  onClose?: () => void;
 }
 
 export interface CommandRow {
@@ -169,5 +171,6 @@ export function openHelp(deps: HelpDeps): void {
       { label: t('ui.help.about'), run: about },
     ],
     cancelLabel: t('ui.close'),
+    ...(deps.onClose ? { onCancel: deps.onClose } : {}),
   });
 }

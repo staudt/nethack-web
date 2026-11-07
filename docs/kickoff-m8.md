@@ -33,3 +33,16 @@ Conduct and achievements (nothing tracks them yet), the dungeon overview, genoci
 - Scenario tests: a death identifies the inventory and emits the disclosure lists with their questions; wizard "Die?" no keeps the pack unidentified; an escape emits no stone fields; `#quit` ends the game as `quit`; `u.urexp` grows by four times each experience gain and by 10 for a scroll learned by reading; kills are counted.
 - UI tests (DOM): the question order, Quit skipping the rest, the tombstone after the last question, a help row running its command.
 - The soak bot never picks `#quit`.
+
+## Exit check (step 6, before the phone check)
+
+- Disclosure: a death identifies the pack (container contents too) and sends the possessions, attributes and vanquished lists with their questions; wizard "Die?" no keeps the pack unidentified; an escape and a quit send the lists with no stone (`m8.end.test.ts`, `m8.quit.test.ts`); the UI asks in order, Quit skips the rest, the stone comes after the last answer (`ui/test/host.test.ts`). Phone: pending.
+- Tombstone and summary: rip.c's layout (name and gold centred, the death wrapped on words, never wider than the stone), the Goodbye lines, the points clause, escape and quit without a stone (`ui/test/status.test.ts`, `ui/test/host.test.ts`). Phone: pending.
+- Help: the command list from the keymap (each binding once, the label rules, `^x`/`M-x`, vi and number pad), a tapped row runs its command, `?` and Menu > Help (`ui/test/help.test.ts`). Phone: pending.
+- Score: `u.urexp` (four times each experience gain, +10 for a scroll, potion or wand type learned by using it), the final points (gold with and without the tenth lost, the depth bonuses, escape valuables), kills counted (`m8.score.test.ts`). Phone: pending.
+- High-score list: entry wording for each end (died, choked, starved, escaped, quit), `[max N]`, rank on insert, ties, the cap at 100, a corrupt file reads empty, a wizard game not shown on it (`app/test/scores.test.ts`; main.ts never calls `addScore` while the `wiz` mod is loaded). Phone: pending.
+- Options: load/save/defaults with storage missing or throwing, run speed -> delay, disclose all/none (`app/test/options.test.ts`, `ui/test/host.test.ts`). Phone: pending.
+- Title and `#quit`: the title only without a save (`app/test/mods.test.ts`), Play asks "Who are you?" once per device (`app/test/title.test.ts`), `#quit` ends the game as `quit` with the lists and no killer, no "Die?" in wizard mode (`m8.quit.test.ts`); the soak bot never quits. Phone: pending.
+- Golden and replays deterministic: the golden changed once, in step 3 (urexp and vanquished counts in `modData.nh`: 596 actions, 09ed4d542adf6c1dff61b0923570 -> 16b219eb1167590f3829f7b1e5e1); steps 1, 2, 4, 5 and 6 left it unchanged (step 6 drops `nh:quit` from the soak's offers; without that filter the golden changes). `pnpm check` green.
+- Core changes, both optional and additive, explained in `ARCHITECTURE.md`: the `list` event's `ask` (step 1) and `GameOver.kind` `'quit'` (step 6).
+- Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md` ("From m8"): conduct and achievements, the overview, genocides, dumplog and bones, the `taken` variant, game-side options, role choice, the name in the game.

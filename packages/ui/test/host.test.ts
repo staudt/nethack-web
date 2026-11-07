@@ -480,6 +480,7 @@ describe('status bar, tombstone, tap to act', () => {
     'end.killer.starving': 'died of {killer}',
     'end.ends.died': 'died',
     'end.ends.escaped': 'escaped',
+    'end.ends.quit': 'quit',
     'end.goodbye': 'Goodbye {name} the {role}...',
     'end.died_in': 'You {ends} in {dungeon} on dungeon level {depth},',
     'end.escaped': 'You escaped from the dungeon,',
@@ -672,6 +673,20 @@ describe('status bar, tombstone, tap to act', () => {
     ]);
     key('Enter');
     expect(m.onNewGame).toHaveBeenCalledOnce();
+  });
+
+  test('end: quitting asks the questions, then "You quit." with no stone', () => {
+    const onGameOver = vi.fn();
+    const m = mkEnd({ onGameOver });
+    m.ui.update(over({ dead: 'quit', endHow: 'quit', killer: 'quit' }), LISTS.slice(1), null);
+    expect(m.title()).toBe('Do you want your possessions identified?');
+    key('q');
+    expect(m.rip()).toBeNull();
+    expect(m.title()).toBe('You quit.');
+    expect(m.texts()[1]).toBe('You quit in The Dungeons of Doom on dungeon level 3,');
+    expect(onGameOver).toHaveBeenCalledWith(
+      expect.objectContaining({ how: 'quit', death: 'quit' }),
+    );
   });
 
   test('end: the summary goes to onGameOver once; High scores shows a sheet and comes back', () => {

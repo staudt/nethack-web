@@ -4,3 +4,6 @@
  * before the actions that are always there. Not from NetHack: menu ordering is ours.
  */
 export const HERE = 10;
+
+/** Offer priority for actions that belong at the end of a menu (#quit). Not from NetHack. */
+export const LAST = -100;

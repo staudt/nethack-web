@@ -204,7 +204,7 @@ export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): voi
     }
     const stone = hasStone(s);
     const m = d.open({
-      title: d.t(stone ? 'ui.rip.title' : 'ui.escaped'),
+      title: d.t(stone ? 'ui.rip.title' : howOf(s) === 'quit' ? 'ui.quit.title' : 'ui.escaped'),
       entries: [
         ...goodbyeLines(d, s, name).map((label) => ({ label, run: () => {}, text: true })),
         ...(d.endEntries?.() ?? []).map((e) => ({

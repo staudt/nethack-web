@@ -31,17 +31,21 @@ export function savedSeed(text: string): number | null {
 }
 
 export type BootPlan =
-  { kind: 'load'; save: string; mods: string[] } | { kind: 'new'; mods: string[] };
+  | { kind: 'load'; save: string; mods: string[] }
+  | { kind: 'new'; mods: string[] }
+  | { kind: 'title' };
 
 /**
  * What to do at start-up. A stored save is resumed with the mods it was made with, so a wizard
  * game stays a wizard game and a normal one stays normal whatever the URL says, except that
  * `new=1`, an explicit seed or size, or `wizard=1` over a save made without the wizard mod
- * starts a new game (whose autosave then replaces the stored one).
+ * starts a new game (whose autosave then replaces the stored one). Without a save and without
+ * any of those, the title screen.
  */
 export function bootPlan(p: Params, save: string | null): BootPlan {
   const fresh: BootPlan = { kind: 'new', mods: newGameMods(p.wizard) };
-  if (p.forceNew || p.explicit || save === null) return fresh;
+  if (p.forceNew || p.explicit) return fresh;
+  if (save === null) return p.wizard ? fresh : { kind: 'title' };
   const mods = savedModIds(save);
   // An unreadable save is handed to the core anyway: its error starts a new game.
   if (mods === null) return { kind: 'load', save, mods: newGameMods(p.wizard) };

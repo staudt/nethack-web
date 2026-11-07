@@ -151,6 +151,8 @@ export interface Ui {
   configure(o: { stepDelayMs?: number; disclose?: Disclose }): void;
   /** Back to the normal zoom (not fitted, not pinched), remembered. */
   resetZoom(): void;
+  /** The help menu (as `?` and Menu > Help); closing it runs `onClose` (the app's title). */
+  showHelp(onClose?: () => void): void;
   readonly api: ClientApi;
   destroy(): void;
 }
@@ -533,8 +535,9 @@ export function createUi(opts: UiOptions): Ui {
       }),
     );
   };
-  const showHelp = (): void =>
+  const showHelp = (onClose?: () => void): void =>
     openHelp({
+      ...(onClose ? { onClose } : {}),
       t,
       has: (k) => hasMessage(catalogs, locale, k),
       open: (spec) => showSheet((onClose) => openMenu(root, { ...spec, onClose })),
@@ -970,6 +973,9 @@ export function createUi(opts: UiOptions): Ui {
       applyZoom();
       saveZoom();
       refreshText();
+    },
+    showHelp(onClose) {
+      if (!destroyed) showHelp(onClose);
     },
     destroy() {
       if (destroyed) return;

@@ -28,7 +28,10 @@ test('a save names its mods', () => {
 test('boot: a stored save keeps its own mods, with or without wizard=1', () => {
   const plain = parseParams('', rnd);
   const wiz = parseParams('?wizard=1', rnd);
-  expect(bootPlan(plain, null)).toEqual({ kind: 'new', mods: ['nh'] });
+  // no save: the title screen, unless the URL asks for a game
+  expect(bootPlan(plain, null)).toEqual({ kind: 'title' });
+  expect(bootPlan(parseParams('?new=1', rnd), null)).toEqual({ kind: 'new', mods: ['nh'] });
+  expect(bootPlan(parseParams('?seed=7', rnd), null)).toEqual({ kind: 'new', mods: ['nh'] });
   expect(bootPlan(wiz, null)).toEqual({ kind: 'new', mods: ['nh', 'wiz'] });
   expect(bootPlan(plain, wizardSave)).toEqual({
     kind: 'load',

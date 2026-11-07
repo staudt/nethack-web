@@ -141,3 +141,15 @@ On the phone (Pages build), no keyboard.
 - [ ] Menu > Help: "Playing on a touch screen", "List of commands", "Menu commands", "About"; each page fits the screen width (rows wrap, no sideways scrolling) and Back returns to the help menu.
 - [ ] List of commands: the movement grid (`7 8 9` with the number pad keys, `y k u` after switching to vi keys), then the commands with their keys (`^D Kick`, `M-p Pray`); tap "Kick": the kick direction pad; tap "Open a door": a compass, and the door opens.
 - [ ] On a keyboard, `?` opens the same help; a command's own key (e.g. `e`) runs it from the list.
+
+## 8 options, scores, title and quit
+
+On the phone (Pages build), no keyboard. Start from a private tab (or clear the site's data) so there is no save, no name and no score list.
+
+- [ ] The app opens on the title screen (webhack: Play, Wizard mode, High scores, Help, Options); Close shows it again. Help and Options open their sheets and Close comes back to the title; High scores is empty.
+- [ ] Play asks "Who are you?": a blank answer asks again, Cancel goes back to the title; type a name and a game starts. Menu > Options shows the name; reload: the game resumes straight away (no title).
+- [ ] Options: set the run speed to "crawl" and travel somewhere (slow); "teleport" (she jumps). Set "End of game" to "show nothing"; reload: both kept. Movement keys switch reloads into the same game.
+- [ ] During a game, Menu > New game: "Really quit without saving?"; No keeps playing (no time passes). Again, Yes: no questions ("show nothing"), then "You quit." with no stone, "Goodbye <name> the Valkyrie...", "You quit in The Dungeons of Doom on dungeon level N with P points,"; High scores shows the game standing out ("... quit in The Dungeons of Doom on level N."; unranked at the end if it scored 0 points); New game opens the title, not a game.
+- [ ] Set "End of game" back to "ask about each list". Actions > Quit (the last row), Yes: the possessions and attributes questions, then the quit summary.
+- [ ] Play, kill a few monsters and die: the questions (possessions, attributes, creatures vanquished), the stone with your name, the summary with points, High scores with the new entry standing out and "You made the top ten list!"; Menu > High scores during the next game shows it too.
+- [ ] Title > Wizard mode: the Wizard status marker; die (`^w` "wand of death", zap yourself, "Die?" Yes): the end sheet's High scores says "Since you were in wizard mode, the score list will not be checked." and the game is not on the list. Quit a wizard game: no "Die?" question, no entry either.

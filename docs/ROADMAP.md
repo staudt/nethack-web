@@ -67,7 +67,7 @@ From 6b3 (shops: shopkeepers, stock, buying, selling, robbery and random dungeon
 
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 
-- **Score list rule:** a future high-score list must skip every game whose mod list includes `wiz` (ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
+- **Score list rule:** done in m8 (the per-device list skips every game whose mod list includes `wiz`; ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
 - **Wishing for terrain** (`fountain`; trap wishes came with 7d), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
 - **Genesis extras:** a command count, "saddled", "invisible", "hidden", genders, class descriptions ("dragon"), special-monster forcing.
 - **Other `#wiz*` commands:** #wizpolymorph, #wizdetect, #wizintrinsic, #wizsmell, #wizkill and the rest; lowering the level with #levelchange (needs `losexp()`); explore mode (`-X`); debug panels in the UI.
@@ -108,3 +108,15 @@ From 7d (teleportation, digging, levitation, the deferred wands, rings and traps
 - **7e (content only):** `#untrap` (floor traps, helping monsters out, pets), trapped doors and boxes (`chest_trap()`, door booby traps: the rolls are already drawn), `#force`; webs (spiders, `rn2` web escape), rolling boulder traps (launch spots, `launch_obj()`; Sokoban's spots), land mines with `scatter()` (also closes the kicked-coins and bag-of-holding scatter deviations; boulders on land mines); breaking wands (`do_break_wand()`) with `explode()` and cancellation blowing up magical traps; the pick-axe and mattock (`use_pick_axe()`, `dig()` occupation, dwarves digging `mdig_tunnel()`), pits from inside a pit, conjoined pits, shop damage (`pay_for_damage()`, `shopdig()`).
 - **7f (needs core contract changes, ask the user):** a `position` Prompt kind (the UI's getpos cursor already exists) for teleport control (ring of teleport control, the blessed scroll, controlled level teleport) and later jumping/polearms; invisibility (wand of make invisible, ring of invisibility, ring/potion of see invisible effects, invisible monsters needing a PerceptionDef hook that hides a monster on a visible square, the remembered-invisible 'I', the magic trap's invisibility toggle); polymorph (hero polyself with forms and attacks, monster newcham(), object poly_obj()/polypiling, polymorph traps, rings of polymorph and polymorph control, amulets of unchanging and of change, which needs hero gender in messages); statues and statue traps.
 - **Also later:** amulets of guarding and flying (5.0 additions; flying shares levitation's checks), potions of levitation and invisibility, magic portals, vault teleporters and niches (`make_niches()`, `makevtele()`), monsters using wands/scrolls/rings (muse.c); deafness (the magic trap's roar), level drain (`losexp()`: the tower of flame, `#levelchange`), fire traps in Gehennom (`dofiretrap()` exists); a cursed spellbook's teleport (`cursed_book()` could call `tele()`).
+
+From m8 (release polish: the end of the game, help, score, the high-score list, options, the title screen and `#quit`):
+
+- **Conduct and achievements:** tracking them (each changes the golden once), then the disclosure's conduct and achievements lists.
+- **Dungeon overview:** `^o`/`#overview` and the disclosure's overview list (needs remembered level features: altars, fountains, shops, branches).
+- **Genocide:** the scroll of genocide and the disclosure's genocided list; `how == GENOCIDED` in done().
+- **Dumplog and bones:** a dump of the finished game (a download from the end sheet), bones levels (need a shared store, so likely never on a static site).
+- **The `taken` variant:** "what you had when you died" after a shopkeeper takes your things at death (paybill()).
+- **Game-side options** (autopickup, `pickup_types`, `paranoid_confirmation`, `safe_pet`, the score list's `end_top`/`end_around`/`end_own`): they change the game, so they must live in `GameState` and be set by actions to keep replays deterministic.
+- **Roles, races, genders and alignment** chosen at new game (one role, the Valkyrie, exists), with the title screen's Play asking for them.
+- **The name in the game:** the welcome ("Hello <name>, welcome to NetHack!") and other in-game uses need the name in `GameState` (a newGame option, the save format and the worker protocol); today it is a device option used only by the stone, Goodbye and the score list.
+- **Version in About and on the title:** the app's `package.json` is 0.0.0 and the Pages build has no commit define yet.

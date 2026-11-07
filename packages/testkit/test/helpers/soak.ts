@@ -14,6 +14,8 @@ export function seedSoaks(seeds: readonly number[]): void {
           `deepest=${r.deepestLevel} kills=${r.kills} explored=${r.cellsExplored}`,
       );
       expect(r.violations).toBeNull();
+      // The bot never quits (#quit is filtered out of its offers).
+      expect(r.outcome).not.toBe('quit');
       // Death is an outcome, not a failure.
       if (r.outcome === 'playing') expect(r.turns).toBeGreaterThanOrEqual(2000);
     });

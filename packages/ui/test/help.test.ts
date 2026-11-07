@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type {
   ActionOffer,
   AsyncCoreQuery,
@@ -141,6 +141,17 @@ describe('help in the UI', () => {
     btn(root, 'Open a door').click();
     (root.querySelector('.nh-dir[data-dir="e"]') as HTMLElement).click();
     expect(acts).toEqual([{ type: 'mod', action: 'nh:open', args: { dir: 'e' } }]);
+  });
+
+  test('showHelp: closing the help menu runs onClose (the title), its pages come back first', () => {
+    const { root } = mk();
+    const onClose = vi.fn();
+    ui?.showHelp(onClose);
+    btn(root, 'Menu commands').click();
+    btn(root, 'Back').click();
+    expect(onClose).not.toHaveBeenCalled();
+    btn(root, 'Close').click();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   test('menu commands are listed and run; Back returns to the help menu', () => {

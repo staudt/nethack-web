@@ -62,7 +62,7 @@ export interface SoakResult {
   /** The actions taken, so a failure can be replayed. */
   log: PlayerAction[];
   /** How the run ended: still playing at the turn limit, or the game ended. */
-  outcome: 'playing' | 'died' | 'escaped';
+  outcome: 'playing' | 'died' | 'escaped' | 'quit';
   /** Objects the hero gained through pickup actions (sum of quantity gained, gold excluded). */
   pickedUp: number;
   /** Eat, quaff, read and throw actions the bot issued (an action may be refused by the game). */
@@ -435,6 +435,12 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       cellOffers.push(...q.actionsFor({ kind: 'cell', pos: { x: pos.x + v.x, y: pos.y + v.y } }));
     }
     offers.push(...cellOffers);
+    // never #quit: a quit would end every run at random (it is offered last, so dropping it
+    // leaves the other offers' order as before)
+    for (let i = offers.length - 1; i >= 0; i--) {
+      const o = offers[i]?.action;
+      if (o && isMod(o, 'nh:quit')) offers.splice(i, 1);
+    }
     const capped = depthNow() >= (opts.maxDepth ?? Infinity);
     if (capped) {
       for (let i = offers.length - 1; i >= 0; i--) {

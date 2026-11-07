@@ -54,6 +54,7 @@ import { registerLight } from './light';
 import { registerSpells } from './spell';
 import { registerCast } from './cast';
 import { registerEnd } from './disclose';
+import { QUIT_ACTIONS } from './quit';
 import { DUNGEONS, LEVELS, SPLEV_FIXUPS } from './dungeon';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
@@ -113,6 +114,7 @@ export const vanillaMod: Mod = {
     registerHunger(api);
     registerEat(api);
     registerEnd(api);
+    for (const a of QUIT_ACTIONS) api.defineAction(a);
     for (const b of BRAINS) api.defineBrain(b);
     for (const m of MONSTERS) api.defineMonster(m);
     for (const o of OBJECTS) {
