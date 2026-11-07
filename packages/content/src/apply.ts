@@ -1,4 +1,5 @@
-// Applying tools (a): lamps, lock tools, containers, whistles and the blindfold.
+// Applying tools (a): lamps, lock tools, containers, whistles, the blindfold and digging tools
+// (the pick-axe and the dwarvish mattock, a weapon; dig.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet()
 //
@@ -18,6 +19,7 @@ import {
   type Offer,
 } from '@nh/core';
 import { useContainer } from './container';
+import { DIG_ID, isPick, usePickAxe } from './dig';
 import { mnextoPos } from './generation';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
@@ -52,6 +54,7 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
 /** Whether `a` can apply this object (the tools of the subset). */
 export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
+  if (isPick(def)) return true; // PICK_AXE, DWARVISH_MATTOCK
   if (def.class !== 'tool') return false;
   return (
     def.container !== undefined ||
@@ -241,6 +244,7 @@ const apply: ActionDef = {
     const def = ctx.defs.object(obj.def);
     if (def.container) return useContainer(ctx, obj);
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
+    if (isPick(def)) return usePickAxe(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
@@ -253,10 +257,12 @@ const apply: ActionDef = {
     }
     return NORMAL_SPEED;
   },
-  // a lock tool may start the lock-picking occupation (lock.ts)
+  // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
+  // on the next move (dig.ts)
   continues: (ctx) =>
     ctx.state.occupation?.action.type === 'mod' &&
-    ctx.state.occupation.action.action === 'nh:picklock',
+    (ctx.state.occupation.action.action === 'nh:picklock' ||
+      ctx.state.occupation.action.action === DIG_ID),
 };
 
 export const APPLY_ACTIONS: readonly ActionDef[] = [apply];

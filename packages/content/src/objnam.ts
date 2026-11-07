@@ -18,6 +18,7 @@ import {
   isFlammable,
   isRottable,
   isRustprone,
+  isWeaponOrWeptool,
 } from './material';
 import { isKnown } from './o_init';
 import { isUnpaid, shopItemCost, unpaidCost } from './price';
@@ -171,12 +172,13 @@ export function doname(
   }
   if (it.lit) params.charges = { key: 'obj.lit' };
 
-  // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS: add_erosion_words() before the enchantment
-  if (def.class === 'weapon' || def.class === 'armor')
+  // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS (a weapon-tool counts as a weapon):
+  // add_erosion_words() before the enchantment
+  if (isWeaponOrWeptool(def) || def.class === 'armor')
     params.erosion = erosionWords(state, defs, item);
 
   if (
-    (def.class === 'weapon' || def.class === 'armor' || CHARGED_RINGS.has(def.id)) &&
+    (isWeaponOrWeptool(def) || def.class === 'armor' || CHARGED_RINGS.has(def.id)) &&
     it.known.spe
   ) {
     params.spe = `${it.spe >= 0 ? '+' : '-'}${Math.abs(it.spe)} `; // "%+d "
@@ -189,7 +191,7 @@ export function doname(
   if (it.equipped === 'weapon') {
     // ref: doname_base() W_WEP: stacks and non-weapons are "(wielded)", a single weapon is
     // "(weapon in hand)" / "(weapon in hands)" when bimanual. (No ammo/missiles in our subset.)
-    if (it.quantity !== 1 || def.class !== 'weapon') params.worn = { key: 'obj.wielded' };
+    if (it.quantity !== 1 || !isWeaponOrWeptool(def)) params.worn = { key: 'obj.wielded' };
     else {
       params.worn = { key: def.weapon?.bimanual ? 'obj.weapon_in_hands' : 'obj.weapon_in_hand' };
     }

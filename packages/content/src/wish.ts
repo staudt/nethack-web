@@ -23,6 +23,7 @@ import {
   isFlammable,
   isRottable,
   isRustprone,
+  isWeaponOrWeptool,
 } from './material';
 import { messagesEn } from './messages.en';
 import { mkobj, mksobjCorpse, mksobjFull } from './mkobj';
@@ -126,7 +127,7 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     // no restrictions except SPE_LIM
   } else if (
     def.class === 'armor' ||
-    def.class === 'weapon' ||
+    isWeaponOrWeptool(def) ||
     (def.class === 'ring' && CHARGED_RINGS.has(def.id))
   ) {
     if (spe > ctx.rng.rnd(5) && spe > it.spe) spe = 0;

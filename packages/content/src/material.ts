@@ -70,9 +70,17 @@ export function isRottable(def: ObjectDef): boolean {
 export const isDamageable = (def: ObjectDef): boolean =>
   isRustprone(def) || isFlammable(def) || isRottable(def) || isCorrodeable(def) || isCrackable(def);
 
+/** A tool with a weapon skill (the pick-axe). ref: include/obj.h is_weptool() */
+export const isWeptool = (def: ObjectDef): boolean =>
+  def.class === 'tool' && def.weapon !== undefined;
+
+/** Weapons and weapon-tools (doname() treats a weapon-tool as WEAPON_CLASS). */
+export const isWeaponOrWeptool = (def: ObjectDef): boolean =>
+  def.class === 'weapon' || isWeptool(def);
+
 /** ref: src/objnam.c erosion_matters(): weapons, armor and weapon-tools (no balls or chains) */
 export function erosionMatters(def: ObjectDef): boolean {
-  if (def.class === 'tool') return def.weapon !== undefined; // is_weptool()
+  if (def.class === 'tool') return isWeptool(def);
   return def.class === 'weapon' || def.class === 'armor';
 }
 

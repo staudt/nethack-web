@@ -586,9 +586,13 @@ describe('wiz:wish and wiz:identify', () => {
     const hash = stateHash(state);
     expect(msgs(wish(state, 'nothing'))).toEqual([]);
     expect(stateHash(state)).toBe(hash);
-    const n = items(state);
+    // one new object (a box's contents are inside it)
+    const loose = (st: GameState): number =>
+      Object.values(st.entities).filter((e) => e.c.item && e.c.item.containedIn === undefined)
+        .length;
+    const n = loose(state);
     wish(state, null);
-    expect(items(state)).toBe(n + 1);
+    expect(loose(state)).toBe(n + 1);
     expect(state.pendingPrompt).toBeNull();
   });
 });

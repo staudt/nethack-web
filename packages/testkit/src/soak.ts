@@ -268,8 +268,10 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   };
   let violations: SoakViolation | null = null;
 
+  // doors are checked once per level, as made (the bot may dig through walls later)
+  const doorsChecked = new Set<string>();
   const check = (action: PlayerAction | null): void => {
-    const errors = [...stepErrors, ...checkInvariants(state, engine.registry)];
+    const errors = [...stepErrors, ...checkInvariants(state, engine.registry, { doorsChecked })];
     stepErrors.length = 0;
     if (errors.length > 0) violations = { step: log.length, action, errors };
   };

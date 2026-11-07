@@ -1699,6 +1699,18 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('tin_whistle', 100, 3, 10, 'metal', CYAN, false, 'whistle'),
   // ref: objects.h TOOL("magic whistle", "whistle", 0, 0, 1, 0, 30, 3, 10, METAL, HI_METAL, MAGIC_WHISTLE)
   tool('magic_whistle', 30, 3, 10, 'metal', CYAN, true, 'whistle'),
+  // tools useful as weapons (is_weptool(): a tool with a weapon skill)
+  // ref: objects.h WEPTOOL("pick-axe", NoDes, 1, 0, 0, 20, 100, 50, 6, 3, WHACK, P_PICK_AXE, IRON, HI_METAL, PICK_AXE)
+  tool('pick_axe', 20, 100, 50, 'iron', CYAN, false, null, {
+    weapon: {
+      small: [1, 6],
+      large: [1, 3],
+      hitBonus: 0,
+      skill: 'pick_axe',
+      bimanual: false,
+      kind: 'whack',
+    },
+  }),
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {

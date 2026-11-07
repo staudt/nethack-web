@@ -201,7 +201,7 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
  * the Watch and the water demon (S_DEMON falls through to the general case). Objects missing from
- * the object table (pick-axe, battle axe, two-handed sword, lucern hammer) are not given, but the
+ * the object table (battle axe, two-handed sword, lucern hammer) are not given, but the
  * rolls C makes for them are. (In 5.0 only Uruk-hai are given orcish bows.)
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
@@ -253,7 +253,7 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
       mongets(ctx, monId, 'nh:dwarvish_iron_helm');
       if (rng.rn2(3) === 0) mongets(ctx, monId, 'nh:dwarvish_mithril_coat');
     } else {
-      // pick-axe (not in the table; a tool without init rolls) 1 time in 3, else a dagger
+      // a pick-axe 1 time in 3, else a dagger
       if (rng.rn2(3) === 0) mongets(ctx, monId, 'nh:pick_axe');
       else mongets(ctx, monId, 'nh:dagger');
     }
@@ -569,6 +569,7 @@ const HWEP: readonly string[] = [
   'nh:spear',
   'nh:aklys',
   'nh:club',
+  'nh:pick_axe',
   'nh:elven_dagger',
   'nh:dagger',
   'nh:orcish_dagger',

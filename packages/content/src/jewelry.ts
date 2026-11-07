@@ -23,6 +23,7 @@ import {
   type Msg,
   type PlayerAction,
 } from '@nh/core';
+import { isWeaponOrWeptool } from './material';
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { stopOccupation } from './eat';
 import { done } from './end';
@@ -83,7 +84,7 @@ const isAccessory = (ctx: Pick<Ctx, 'defs'>, e: Entity): boolean => {
 /** The wielded weapon when it is welded (cursed), which also reveals the curse. ref: src/wield.c welded() */
 function weldedUwep(ctx: Ctx): Entity | null {
   const w = worn(ctx, 'weapon');
-  if (!w?.c.item || w.c.item.buc !== 'cursed' || ctx.defs.object(w.def).class !== 'weapon')
+  if (!w?.c.item || w.c.item.buc !== 'cursed' || !isWeaponOrWeptool(ctx.defs.object(w.def)))
     return null;
   w.c.item.known.buc = true;
   return w;

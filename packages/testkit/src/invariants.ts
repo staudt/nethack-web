@@ -13,8 +13,22 @@ import {
   type Registry,
 } from '@nh/core';
 
+/** Options of {@link checkInvariants}. */
+export interface InvariantOpts {
+  /**
+   * Levels whose doors were already checked: they are skipped, and each level checked is added.
+   * A long run passes one set, so the doors are checked as the level was made, not after the hero
+   * dug through its walls (a pick-axe or a wand of digging leaves doors without walls, as in C).
+   */
+  doorsChecked?: Set<string>;
+}
+
 /** Returns a list of violated invariants; empty means the state is healthy. */
-export function checkInvariants(state: GameState, registry: Registry): string[] {
+export function checkInvariants(
+  state: GameState,
+  registry: Registry,
+  opts: InvariantOpts = {},
+): string[] {
   const errs: string[] = [];
   // one canonical form serves both the plain-data check and the round trip below
   let canon: string | null = null;
@@ -142,7 +156,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
 
   checkEquipment(state, registry, ids, errs);
   checkProps(state, ids, errs);
-  checkDoors(state, registry, errs);
+  checkDoors(state, registry, errs, opts.doorsChecked);
   checkTraps(state, registry, errs);
   checkStairsReachable(state, registry, errs);
   checkBranches(state, registry, errs);
@@ -348,12 +362,19 @@ function checkProps(state: GameState, ids: readonly number[], errs: string[]): v
 /**
  * Doors sit in walls: every door terrain (closed, locked, open, doorway, broken) has solid cells
  * on both sides along one axis, whatever the generator did. Only generated levels are checked in
- * full; the rule holds for scenario levels with a door in a wall too.
+ * full; the rule holds for scenario levels with a door in a wall too. Levels in `checked` are
+ * skipped (digging may open the walls beside a door later); the others are added to it.
  */
-function checkDoors(state: GameState, registry: Registry, errs: string[]): void {
+function checkDoors(
+  state: GameState,
+  registry: Registry,
+  errs: string[],
+  checked?: Set<string>,
+): void {
   for (const lid of Object.keys(state.levels).sort()) {
     const lv = state.levels[lid];
-    if (!lv) continue;
+    if (!lv || checked?.has(lid)) continue;
+    checked?.add(lid);
     const door: boolean[] = lv.palette.map(
       (t) => registry.hasTerrain(t) && !!registry.terrain(t).door,
     );

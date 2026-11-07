@@ -4,10 +4,10 @@
 // src/monmove.c watch_on_duty(), mon_yells(); src/dokick.c watchman_thief_arrest(),
 // watchman_door_damage(); src/uhitm.c hmon() `anger_guards`
 //
-// src/fountain.c watchman_warn_fountain(); src/dig.c watch_dig() (zapped digging only)
+// src/fountain.c watchman_warn_fountain(); src/dig.c watch_dig()
 //
-// Not ported: digging in town with a pick-axe (watch_dig()'s warning), shops (6b3), the Deaf branches
-// (the hero is never deaf) and the shrill-whistle sound effect.
+// Not ported: shops (6b3), the Deaf branches (the hero is never deaf) and the shrill-whistle sound
+// effect.
 import {
   cellIndex,
   cellRules,
@@ -21,6 +21,7 @@ import {
 } from '@nh/core';
 import { blockersOf } from './boulder';
 import { clearPath } from './clearpath';
+import { diggingOf, isDigging, stopDigging } from './digstate';
 import { pickingLock, stopPicking } from './lockstate';
 import { isFrozen, unfreezeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
@@ -199,9 +200,10 @@ export function watchmanDoorDamage(ctx: Ctx, x: number, y: number): void {
 
 /**
  * A peaceful watchman's look around on its turn: a hero picking the lock of a locked door in town
- * is warned once, then arrested, and stops. `in_town(u.ux + u.dx, u.uy + u.dy)` is the door's
- * square while she picks a lock, else her own (u.dx is not kept); the 1-in-3 roll is drawn either
- * way, as in C. ref: src/monmove.c watch_on_duty()
+ * is warned once, then arrested, and stops; one digging into a town wall, door or tree is warned,
+ * then arrested (watch_dig()). `in_town(u.ux + u.dx, u.uy + u.dy)` is the door's square while she
+ * picks a lock, the dug square while she digs sideways, else her own (u.dx is not kept); the
+ * 1-in-3 roll is drawn either way, as in C. ref: src/monmove.c watch_on_duty()
  */
 export function watchOnDuty(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
@@ -210,10 +212,15 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
   const level = hp ? ctx.state.levels[hp.level] : undefined;
   if (!mon || !m || !m.peaceful || !hp || !level) return;
   const door = pickingLock(ctx);
-  const at = door && door.level === hp.level ? door : hp;
+  const dig = isDigging(ctx) ? diggingOf(ctx) : null;
+  const at =
+    door && door.level === hp.level ? door : dig && !dig.down && dig.level === hp.level ? dig : hp;
   // mcansee (monsters are never blinded here) && m_canseeu()
   if (!inTown(level, at.x, at.y) || !couldSee(ctx, mon) || ctx.rng.rn2(3) !== 0) return;
-  if (!door || door.level !== hp.level) return; // digging (watch_dig()) is not ported
+  if (!door || door.level !== hp.level) {
+    if (dig) watchDigBy(ctx, mon, dig.x, dig.y, false);
+    return;
+  }
   const tid = level.palette[level.cells[cellIndex(level, door.x, door.y)] ?? 0];
   if (tid === undefined || ctx.defs.terrain(tid).door !== 'locked') return;
   // couldsee(mtmp->mx, mtmp->my) again in C: the same test here
@@ -234,21 +241,33 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
  * watchman_canseeu()
  */
 export function watchDig(ctx: Ctx, x: number, y: number): void {
+  watchDigBy(ctx, null, x, y, true);
+}
+
+/**
+ * Town Watchmen frown on damage to the town walls, doors, trees or fountains (digging holes in
+ * the ground is fine): `mon` (else a peaceful watchman she could see) warns her once ("Hey, stop
+ * damaging that wall!") while she digs with a pick, and arrests her ("Halt, vandal!") for a zap
+ * or when already warned; either way the digging stops. ref: src/dig.c watch_dig()
+ */
+function watchDigBy(ctx: Ctx, mon: Entity | null, x: number, y: number, zap: boolean): void {
   const level = ctx.state.levels[ctx.state.currentLevel];
   if (!level || !inTown(level, x, y)) return;
   const id = terrainIdAt(level, x, y);
   const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
-  if (
-    door !== 'closed' &&
-    door !== 'locked' &&
-    !isSdoorId(id) &&
-    !isWallId(id) &&
-    id !== T.fountain &&
-    id !== T.tree
-  )
-    return;
-  const mon = watchmanInSight(ctx);
-  if (!mon) return;
-  say(ctx, 'watch.halt_vandal'); // verbalize()
-  angryGuards(ctx, false);
+  const closed = door === 'closed' || door === 'locked';
+  if (!closed && !isSdoorId(id) && !isWallId(id) && id !== T.fountain && id !== T.tree) return;
+  const mtmp = mon ?? watchmanInSight(ctx);
+  if (!mtmp) return;
+  const dig = diggingOf(ctx);
+  if (zap || dig?.warned) {
+    say(ctx, 'watch.halt_vandal'); // verbalize()
+    angryGuards(ctx, false);
+  } else {
+    // IS_DOOR(): a closed door (a secret door is still a wall); IS_OBSTRUCTED(): wall
+    const what = closed ? 'door' : id === T.tree ? 'tree' : id === T.fountain ? 'fountain' : 'wall';
+    say(ctx, `watch.stop_damaging_${what}`);
+    if (dig) dig.warned = true;
+  }
+  stopDigging(ctx); // if (is_digging()) stop_occupation()
 }

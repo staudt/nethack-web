@@ -824,6 +824,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:tin_whistle.plural': 'tin whistles',
   'nh:magic_whistle': 'magic whistle',
   'nh:magic_whistle.plural': 'magic whistles',
+  'nh:pick_axe': 'pick-axe',
+  'nh:pick_axe.plural': 'pick-axes',
   'nh:bag.desc': 'bag',
   'nh:bag.desc.plural': 'bags',
   'nh:key.desc': 'key',

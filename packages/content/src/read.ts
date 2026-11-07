@@ -52,7 +52,7 @@ import { wakeup } from './peaceful';
 import { canSpotMon, monNam } from './perception';
 import { sokobanGuilt } from './sokoban';
 import { CHARGED_RINGS } from './objects';
-import { erosionMatters, isCrackable, isMetallic } from './material';
+import { erosionMatters, isCrackable, isMetallic, isWeaponOrWeptool } from './material';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
@@ -102,7 +102,7 @@ function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
  * creation): weapons, armor, wands and charged rings.
  */
 const usesKnown = (def: ObjectDef): boolean =>
-  def.class === 'weapon' ||
+  isWeaponOrWeptool(def) ||
   def.class === 'armor' ||
   def.class === 'wand' ||
   CHARGED_RINGS.has(def.id);
@@ -261,7 +261,7 @@ function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
   );
   const it = uwep?.c.item;
   const def = uwep ? ctx.defs.object(uwep.def) : null;
-  if (!uwep || !it || def?.class !== 'weapon') {
+  if (!uwep || !it || !def || !isWeaponOrWeptool(def)) {
     strangeFeeling(ctx, scroll.id, amount >= 0 ? 'enchant.hands_twitch' : 'enchant.hands_itch');
     return false;
   }

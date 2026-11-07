@@ -145,6 +145,9 @@ describe('wizard wish, genesis and "Die?"', () => {
     const { state, log } = warm(43);
     command(state, log, WIZ_GENESIS, 'hostile jackal');
     const jackal = monstersHere(state).find((e) => e.def === 'nh:jackal')!;
+    // only the jackal stays (a pet would kill it first)
+    for (const m of monstersHere(state))
+      if (m.id !== jackal.id) delete state.entities[String(m.id)];
     getPlayer(state).c.hp!.cur = 1;
     for (let i = 0; i < 200 && !state.pendingPrompt; i++) engine.step(state, { type: 'wait' });
     const p = state.pendingPrompt?.prompt;

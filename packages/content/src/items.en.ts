@@ -82,6 +82,13 @@ export const itemMessagesEn: Record<string, string> = {
   'wield.already': 'You are already wielding that!',
   'wield.cannot': 'You cannot wield that!',
   'wield.two_handed_shield': 'You cannot wield a two-handed {kind} while wearing a shield.',
+  'wield.two_handed_tool_shield': 'You cannot {verb} a two-handed {kind} while wearing a shield.',
+  'wield.tool_welded': 'Since your weapon is welded to your hand, you cannot {verb} that {item}.',
+  'wield.tool_welded_hands':
+    'Since your weapon is welded to your hands, you cannot {verb} that {item}.',
+  'wield.now_wield': 'You now wield {item|an}.',
+  'wield.verb.swing': 'swing',
+  'kind.tool': 'tool',
   'wield.welded': 'Your {item} is welded to your hand!',
   'wield.welded_pl': 'Your {item} are welded to your hand!',
   'wield.welded_hands': 'Your {item} is welded to your hands!',

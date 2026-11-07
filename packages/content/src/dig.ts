@@ -1,40 +1,56 @@
-// Digging with the wand of digging: across the level through rock, walls and doors, down (a hole
-// she falls through, or a pit where the floor is hard) and up (a rock falls on her head), and the
-// Watch seeing her do it in town.
+// Digging with the wand of digging (across the level through rock, walls and doors, down: a hole
+// she falls through, or a pit where the floor is hard; up: a rock falls on her head) and with a
+// pick-axe or mattock (the dig occupation, sideways or down), and the Watch seeing her do it in
+// town.
 // ref: src/dig.c zap_dig(), dighole(), digactualhole(), dig_check(), furniture_handled(),
+// use_pick_axe(), use_pick_axe2(), dig(), dig_typ(), pick_can_reach(), digcheck_fail_message(),
 // watch_dig() (in watch.ts); src/hack.c may_dig(); src/do_name.c surface(); src/dungeon.c
 // Can_dig_down() (levelflags.ts)
 //
-// Not ported (DEVIATIONS "Digging"): pick-axes and mattocks (dig(), dig_typ()), digging an
-// adjacent pit from inside a pit and conjoined pits (a lateral zap from a pit digs nothing),
-// shop damage (add_damage(), pay_for_damage(), shopdig()), burying and unearthing objects,
+// Not ported (DEVIATIONS "Digging"): axes (chopping trees), digging an adjacent pit from inside a
+// pit and conjoined pits (a lateral zap or swing from a pit digs nothing), shop damage
+// (add_damage(), pay_for_damage(), shopdig()), statues, Fumbling, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), a magical trap's explosion (explode() is not ported: digging
 // down on a teleportation trap or level teleporter leaves it alone), drawbridges, graves, thrones,
-// the air/water levels, engulfing, leashed pets, Flying (no source yet), and pits
+// the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
 import {
   DIRS,
+  DIR_LIST,
+  NORMAL_SPEED,
   getLevel,
   getPlayer,
   inBounds,
   inTown,
+  inventoryOf,
   isPlainFloor,
   isVisible,
   cellIndex,
+  rnl,
   sortedIds,
   trapAt,
   levelIdFor,
+  type ActionDef,
   type Ctx,
   type Dir,
   type Entity,
   type Level,
   type Msg,
+  type ObjectDef,
+  type Offer,
+  type PlayerAction,
+  type PromptOption,
   type Trap,
 } from '@nh/core';
-import { ROCK, boulderAt } from './boulder';
-import { eshkOf } from './eshk';
+import { doAttack } from './actions';
+import { ROCK, boulderAt, fractureRock } from './boulder';
+import { abon, dbon } from './combat';
+import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digstate';
+import { dmgvalSized } from './dmgval';
+import { monsterNearby } from './eat';
+import { eshkOf, inAnyShop } from './eshk';
 import {
   FTN_WARNED,
   breaksink,
@@ -43,15 +59,19 @@ import {
   fountainBits,
   setFountainBits,
 } from './fountain';
-import { ustuck } from './hackmove';
+import { confdir, uMaybeImpaired, ustuck } from './hackmove';
 import { losehp } from './hp';
+import { wieldTool } from './itemactions';
 import { mksobj, placeOnFloor } from './items';
+import { luckOf } from './luck';
+import { greatestErosion } from './material';
+import { xnameOf } from './objnam';
 import { canDigDown, cavernous, levelFlags, nonDiggable } from './levelflags';
 import { migrateToLevel } from './migrate';
 import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
-import { P, hasProp } from './props';
+import { P, hasProp, ringBonus } from './props';
 import { ceilingKey, hardHelmet } from './read';
 import { makeAngryShk } from './shk';
 import { maybeFinishSokoban } from './sokoban';
@@ -65,11 +85,11 @@ import {
   surfaceKey,
   terrainIdAt,
 } from './terrain';
-import { TRAP, fallToLevel, isHole, isPit, maketrap, mintrap, setTrapData } from './trap';
-import { levitating, setUtrap, uInPit } from './trapstate';
+import { TRAP, dotrap, fallToLevel, isHole, isPit, maketrap, mintrap, setTrapData } from './trap';
+import { levitating, setUtrap, uInPit, utrap } from './trapstate';
 import { watchDig } from './watch';
 
-export { surfaceKey };
+export { surfaceKey, DIG_ID };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -385,3 +405,533 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
     zy += d.y;
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// digging with a pick-axe or mattock
+
+/** ref: include/obj.h is_pick(): a weapon or tool of the pick-axe skill */
+export const isPick = (def: ObjectDef): boolean =>
+  (def.class === 'weapon' || def.class === 'tool') && def.weapon?.skill === 'pick_axe';
+
+/** ref: include/obj.h is_axe() */
+export const isAxe = (def: ObjectDef): boolean =>
+  (def.class === 'weapon' || def.class === 'tool') && def.weapon?.skill === 'axe';
+
+/** What digging into a square hits. ref: src/dig.c DIGTYP_* (no statues yet) */
+export type DigTyp = 'undiggable' | 'rock' | 'boulder' | 'door' | 'tree';
+
+/** "You start digging." ... ref: use_pick_axe2() d_action[] */
+const D_ACTION: Record<DigTyp, string> = {
+  undiggable: 'swinging',
+  rock: 'digging',
+  boulder: 'hitting_boulder',
+  door: 'chopping_door',
+  tree: 'cutting_tree',
+};
+
+const closedDoor = (ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean => {
+  const id = terrainIdAt(level, x, y);
+  const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
+  return door === 'closed' || door === 'locked';
+};
+
+/**
+ * Whether the pick reaches what lies at (x, y): from inside a pit only a two-handed pick does (or
+ * the target is in a conjoined pit: none yet); otherwise a one-handed pick-axe cannot reach down
+ * into a seen pit. ref: src/dig.c pick_can_reach() (the hero never flies)
+ */
+function pickCanReach(ctx: Ctx, pick: Entity, level: Level, x: number, y: number): boolean {
+  const t = trapAt(level, x, y);
+  const targetInPit = t !== null && t !== undefined && isPit(t.def) && t.seen;
+  const bimanual = ctx.defs.object(pick.def).weapon?.bimanual === true;
+  if (uInPit(ctx)) return targetInPit ? false : bimanual; // conjoined_pits(): none yet
+  if (bimanual) return true;
+  return !targetInPit;
+}
+
+/**
+ * What digging into (x, y) with `pick` hits: an axe chops doors and trees; a pick reaches a
+ * boulder, a closed door, rock and walls (not trees). ref: src/dig.c dig_typ() (no statues, no
+ * arboreal levels)
+ */
+export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: number): DigTyp {
+  const def = ctx.defs.object(pick.def);
+  if (!inBounds(level, x, y) || (!isPick(def) && !isAxe(def))) return 'undiggable';
+  const id = terrainIdAt(level, x, y);
+  if (isAxe(def))
+    return closedDoor(ctx, level, x, y) ? 'door' : id === T.tree ? 'tree' : 'undiggable';
+  if (boulderAt(ctx, level.id, x, y) && pickCanReach(ctx, pick, level, x, y)) return 'boulder';
+  if (closedDoor(ctx, level, x, y)) return 'door';
+  if (id === T.tree) return 'undiggable'; // pick vs tree
+  return isObstructedId(id) ? 'rock' : 'undiggable';
+}
+
+/** ref: src/dig.c enum digcheck_result (no ladders, thrones, air or water levels) */
+type DigCheck =
+  'passed' | 'pitonly' | 'destroytrap' | 'stairs' | 'altar' | 'toohard' | 'cantdig' | 'boulder';
+
+/** Whether she (BY_YOU) can dig down at (x, y). ref: src/dig.c dig_check() */
+function digCheck(ctx: Ctx, level: Level, x: number, y: number): DigCheck {
+  const ttmp = trapAt(level, x, y);
+  const id = terrainIdAt(level, x, y);
+  if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
+  if (isAltarId(id)) return 'altar';
+  if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
+  // (no magic portals or vibrating squares: undestroyable_trap())
+  if (!canDigDown(ctx, level)) {
+    if (ttmp) return isHole(ttmp.def) || isPit(ttmp.def) ? 'cantdig' : 'destroytrap';
+    return 'pitonly';
+  }
+  if (boulderAt(ctx, level.id, x, y)) return 'boulder';
+  return 'passed';
+}
+
+/** ref: src/dig.c digcheck_fail_message() (a pick: "dig in") */
+function digcheckFailMessage(ctx: Ctx, r: DigCheck, level: Level, x: number, y: number): void {
+  if (r === 'altar') say(ctx, 'dig.altar_too_hard');
+  else if (r === 'boulder') say(ctx, 'dig.no_room');
+  else if (r === 'stairs') say(ctx, 'dig.stairs_too_hard');
+  else if (r === 'cantdig' || r === 'toohard')
+    say(ctx, 'dig.too_hard_here', { surface: surfaceKey(ctx, level, x, y) });
+}
+const digcheckFailed = (r: DigCheck): boolean =>
+  r !== 'passed' && r !== 'pitonly' && r !== 'destroytrap';
+
+/** The hero's wielded weapon, or null. */
+const uwep = (ctx: Ctx): Entity | null =>
+  inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon') ?? null;
+
+/** The pick she would dig with: the wielded one, else the first carried. */
+export function digPick(ctx: Ctx): Entity | null {
+  const w = uwep(ctx);
+  if (w && isPick(ctx.defs.object(w.def))) return w;
+  return (
+    inventoryOf(ctx.state, ctx.state.playerId).find((o) => isPick(ctx.defs.object(o.def))) ?? null
+  );
+}
+
+const wakeNearby = (ctx: Ctx): void => {
+  const p = heroPos(ctx);
+  wakeNearto(ctx, p.x, p.y, (hero(ctx).c.experience?.level ?? 1) * 20);
+};
+
+/**
+ * One turn of digging, the occupation; false when it is over (done, refused, or the pick or
+ * the hero moved). Sideways, effort over 100 breaks through: a boulder falls apart, rock becomes
+ * corridor, a wall an opening (floor on maze levels, corridor on cavernous ones outside town), a
+ * secret or closed door is broken; a shop's walls and door are too hard. Down: a pit after effort
+ * 50, a hole through which she falls after 250 (dighole()); a bear trap holding her is hit; where
+ * the floor cannot be dug through, another trap is destroyed.
+ * ref: src/dig.c dig() (no Fumbling, Earth level, statues, trapped doors, shop damage; the hero
+ * is never a dwarf)
+ */
+export function dig(ctx: Ctx): boolean {
+  const d = diggingOf(ctx);
+  const pick = uwep(ctx);
+  const hp = heroPos(ctx);
+  if (!d || !pick) return false;
+  const pdef = ctx.defs.object(pick.def);
+  // perhaps a nymph stole your pick-axe while you were busy digging, or you teleported away
+  if (
+    !isPick(pdef) ||
+    d.level !== hp.level ||
+    (d.down
+      ? d.x !== hp.x || d.y !== hp.y
+      : Math.max(Math.abs(d.x - hp.x), Math.abs(d.y - hp.y)) !== 1)
+  )
+    return false;
+  const level = getLevel(ctx.state);
+  let dcresult: DigCheck = 'passed';
+  if (d.down) {
+    dcresult = digCheck(ctx, level, hp.x, hp.y);
+    if (digcheckFailed(dcresult)) {
+      digcheckFailMessage(ctx, dcresult, level, hp.x, hp.y);
+      return false;
+    }
+  } else {
+    const id = terrainIdAt(level, d.x, d.y);
+    if (isObstructedId(id) && !mayDig(ctx, level, d.x, d.y)) {
+      if (id === T.tree && digTyp(ctx, pick, level, d.x, d.y) === 'tree') {
+        say(ctx, 'dig.petrified_tree');
+        return false;
+      }
+      if (digTyp(ctx, pick, level, d.x, d.y) === 'rock') {
+        say(ctx, 'dig.wall_too_hard');
+        return false;
+      }
+    }
+  }
+  // (Fumbling is not ported)
+  const h = hero(ctx);
+  const a = h.c.attributes;
+  d.effort +=
+    10 +
+    ctx.rng.rn2(5) +
+    abon(a?.str ?? 10, a?.dex ?? 10, h.c.experience?.level ?? 1) +
+    (pick.c.item?.spe ?? 0) -
+    greatestErosion(pick) +
+    ringBonus(ctx.state, 'nh:ring_of_increase_damage');
+  if (d.down) return digDown(ctx, d, pick, level, dcresult);
+
+  if (d.effort > 100) {
+    const id = terrainIdAt(level, d.x, d.y);
+    const typ = digTyp(ctx, pick, level, d.x, d.y);
+    const boulder = boulderAt(ctx, level.id, d.x, d.y);
+    let digtxt: string;
+    let params: Msg['params'] | undefined;
+    if (typ === 'boulder' && boulder) {
+      fractureRock(ctx, boulder, true);
+      // another boulder here goes back on top of the pile
+      const other = boulderAt(ctx, level.id, d.x, d.y);
+      if (other?.c.item) other.c.item.placed = ctx.state.seq++;
+      digtxt = 'dig.boulder_falls_apart';
+    } else if (id === T.stone || id === T.scorr) {
+      // (a tree needs an axe, which is not applied here)
+      setTerrain(level, d.x, d.y, T.corr);
+      digtxt = 'dig.cut_rock';
+    } else if (isWallId(id)) {
+      if (levelFlags(ctx, level).maze) setTerrain(level, d.x, d.y, T.floor);
+      else if (cavernous(ctx, level) && !inTown(level, d.x, d.y))
+        setTerrain(level, d.x, d.y, T.corr);
+      else setTerrain(level, d.x, d.y, T.doorway); // DOOR, D_NODOOR
+      digtxt = 'dig.wall_opening';
+    } else if (isSdoorId(id)) {
+      setTerrain(level, d.x, d.y, T.doorway); // cvt_sdoor_to_door(), D_BROKEN
+      digtxt = 'dig.secret_door';
+    } else if (closedDoor(ctx, level, d.x, d.y)) {
+      setTerrain(level, d.x, d.y, T.doorway); // D_BROKEN
+      digtxt = 'dig.door_broken';
+      params = { pick: xnameOf(ctx.state, ctx.defs, pick) };
+    } else return false; // statue or boulder got taken
+    if (!d.quiet) say(ctx, digtxt, params);
+    d.lastdigtime = ctx.state.turn;
+    d.quiet = false;
+    d.level = ''; // done: the next attempt starts afresh
+    return false;
+  }
+  // not enough effort has been spent yet
+  const target = digTyp(ctx, pick, level, d.x, d.y);
+  const id = terrainIdAt(level, d.x, d.y);
+  if (isWallId(id) || target === 'door') {
+    if (inAnyShop(level, d.x, d.y)) {
+      say(ctx, target === 'door' ? 'dig.shop_door_too_hard' : 'dig.shop_wall_too_hard');
+      return false;
+    }
+  } else if (target === 'undiggable' || (target === 'rock' && !isObstructedId(id))) {
+    return false; // statue or boulder got taken
+  }
+  if (!d.didmsg) {
+    say(ctx, 'dig.hit_with_might', { target: { key: `dig.target.${target}` } });
+    wakeNearby(ctx);
+    d.didmsg = true;
+  }
+  return true;
+}
+
+/** dig()'s digging-down half, after the effort was added. */
+function digDown(ctx: Ctx, d: Digging, pick: Entity, level: Level, dc: DigCheck): boolean {
+  const ttmp = trapAt(level, d.x, d.y);
+  if (d.effort > 250 || ttmp?.def === TRAP.hole) {
+    dighole(ctx, false, false);
+    setDigging(ctx, null);
+    return false; // done with digging
+  }
+  if (d.effort <= 50 || (ttmp && (ttmp.def === TRAP.trapdoor || isPit(ttmp.def)))) return true;
+  if (ttmp?.def === TRAP.bear && !utrap(ctx)) {
+    // digging onto a set object trap triggers it; hero should have used #untrap first
+    dotrap(ctx, ttmp, { force: true });
+    setDigging(ctx, null); // restart completely from scratch if we resume digging
+    return false;
+  }
+  if (ttmp?.def === TRAP.bear) {
+    if (rnl(ctx.rng, 7, luckOf(ctx.state)) > 4) {
+      let dmg =
+        dmgvalSized(ctx.rng, pick, ctx.defs.object(pick.def), false) +
+        dbon(hero(ctx).c.attributes?.str ?? 10);
+      if (dmg < 1) dmg = 1;
+      else if (whichArmor(ctx, ctx.state.playerId, 'boots')) dmg = Math.trunc((dmg + 1) / 2);
+      say(ctx, 'dig.hit_foot');
+      losehp(ctx, dmg, '@killer.chopping_foot');
+    } else {
+      say(ctx, 'dig.destroy_bear_trap', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+      delfloortrap(ctx, level.id, ttmp);
+      setUtrap(ctx, 0, 'beartrap'); // reset_utrap()
+    }
+    d.effort = 0; // we haven't made any progress toward a pit yet
+    return false;
+  }
+  if (ttmp && dc === 'destroytrap') {
+    say(ctx, ttmp.seen ? 'dig.destroy_trap_seen' : 'dig.destroy_trap', {
+      trap: `@${ttmp.def}`,
+      pick: xnameOf(ctx.state, ctx.defs, pick),
+    });
+    delfloortrap(ctx, level.id, ttmp);
+    d.effort = 0; // we haven't made any progress toward a pit yet
+    return false;
+  }
+  // (an altar is refused by dig_check(): no altar_wrath() here)
+  if (dighole(ctx, true, false)) d.level = ''; // make pit at <u.ux,u.uy>
+  return false;
+}
+
+/** The direction prompt: the eight directions, yourself, up ('<') and down ('>'). */
+const DIG_DIRECTIONS: readonly PromptOption[] = [
+  ...DIR_LIST.map((x) => ({ value: x, key: `dir.${x}` })),
+  { value: 'self', key: 'zap.dir.self' },
+  { value: 'up', key: 'zap.dir.up' },
+  { value: 'down', key: 'zap.dir.down' },
+];
+
+/** Where she digs: a direction, herself, up or down. */
+export type DigDir = Dir | 'self' | 'up' | 'down';
+
+const digDirOf = (v: unknown): DigDir | undefined =>
+  v === 'self' || v === 'up' || v === 'down' ? v : DIR_LIST.find((x) => x === v);
+
+/**
+ * Applying a pick: wielding it first takes the move (the direction is asked on the next one,
+ * as C queues the apply again); else "In what direction do you want to dig?".
+ * ref: src/dig.c use_pick_axe() (no webs; every direction is listed)
+ */
+export function usePickAxe(ctx: Ctx, pick: Entity): number {
+  if (uwep(ctx)?.id !== pick.id) {
+    if (!wieldTool(ctx, pick, 'swing')) return 0;
+    // we're now wielding it. next turn, apply to dig.
+    ctx.state.occupation = {
+      action: { type: 'mod', action: DIG_ID, args: { item: pick.id } },
+      data: null,
+    };
+    return NORMAL_SPEED;
+  }
+  ctx.ask(
+    { id: 'dig-direction', kind: 'direction', key: 'dig.direction', options: [...DIG_DIRECTIONS] },
+    DIG_ID,
+    { item: pick.id },
+  );
+  return 0;
+}
+
+/**
+ * The pick swung toward `dir`: up (no leverage while floating, else the ceiling is out of reach),
+ * at herself (`rnd(2) + dbon() + spe`), at a monster (do_attack()), sideways (the dig starts or
+ * continues if diggable, else what it hit) or down (a seen pit she stands at the edge of first
+ * takes her in; floating, the floor is out of reach). ref: src/dig.c use_pick_axe2() after
+ * getdir() (no engulfing, water, webs, iron bars' "Clang!" is kept; conjoined pits come later)
+ */
+export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
+  const level = getLevel(ctx.state);
+  const hp = heroPos(ctx);
+  if (dir === 'up') {
+    if (levitating(ctx)) say(ctx, 'dig.no_leverage');
+    else
+      say(ctx, 'dig.cant_reach_ceiling', { ceiling: { key: ceilingKey(ctx, level, hp.x, hp.y) } });
+    return NORMAL_SPEED;
+  }
+  if (dir === 'self') {
+    let dam = ctx.rng.rnd(2) + dbon(hero(ctx).c.attributes?.str ?? 10) + (pick.c.item?.spe ?? 0);
+    if (dam <= 0) dam = 1;
+    say(ctx, 'dig.hit_yourself', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+    losehp(ctx, dam, pick.def === 'nh:pick_axe' ? '@killer.own_pick_axe' : '@killer.own_mattock');
+    return NORMAL_SPEED;
+  }
+  if (dir !== 'down') {
+    const flat = uMaybeImpaired(ctx) ? confdir(ctx) : dir; // confdir(FALSE)
+    const rx = hp.x + DIRS[flat].x;
+    const ry = hp.y + DIRS[flat].y;
+    if (!inBounds(level, rx, ry)) {
+      say(ctx, 'dig.clash');
+      return NORMAL_SPEED;
+    }
+    const mon = monAt(ctx, level, rx, ry);
+    if (mon) {
+      const cost = doAttack(ctx, mon, 'nh:move');
+      if (cost !== null) return cost;
+    }
+    const target = digTyp(ctx, pick, level, rx, ry);
+    if (target === 'undiggable') {
+      const id = terrainIdAt(level, rx, ry);
+      const trapHere = trapAt(level, hp.x, hp.y);
+      if (id === T.iron_bars) {
+        say(ctx, 'dig.clang');
+        wakeNearby(ctx);
+      } else if (id === T.tree) say(ctx, 'dig.need_axe');
+      else if (boulderAt(ctx, level.id, rx, ry)) say(ctx, 'dig.cant_reach_boulder');
+      else if (uInPit(ctx) && trapHere) {
+        // (clearing debris between two pits: conjoined pits come later)
+        say(ctx, 'dig.rubble', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+      } else say(ctx, 'dig.thin_air', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+      return NORMAL_SPEED;
+    }
+    const d = diggingOf(ctx);
+    const act = { key: `dig.act.${D_ACTION[target]}` };
+    if (!d || d.x !== rx || d.y !== ry || d.level !== level.id || d.down) {
+      setDigging(ctx, {
+        level: level.id,
+        x: rx,
+        y: ry,
+        down: false,
+        effort: 0,
+        warned: false,
+        quiet: false,
+        lastdigtime: d?.lastdigtime ?? 0,
+        didmsg: false,
+      });
+      say(ctx, 'dig.start', { act });
+    } else {
+      d.quiet = false;
+      d.didmsg = false;
+      say(ctx, 'dig.continue', { act });
+    }
+    ctx.state.occupation = { action: { type: 'mod', action: DIG_ID }, data: null };
+    return NORMAL_SPEED;
+  }
+  // down
+  const surface = surfaceKey(ctx, level, hp.x, hp.y);
+  if (levitating(ctx)) {
+    say(ctx, 'lev.cant_reach_floor', { surface });
+    return NORMAL_SPEED;
+  }
+  const trap = trapAt(level, hp.x, hp.y);
+  if (trap && isPit(trap.def) && trap.seen && !uInPit(ctx)) {
+    // uteetering_at_seen_pit(): FORCEBUNGLE takes her in
+    dotrap(ctx, trap, { force: true });
+    // might escape trap and still be teetering at brink
+    if (!utrap(ctx)) say(ctx, 'pickup.cant_reach_pit');
+    return NORMAL_SPEED;
+  }
+  const d = diggingOf(ctx);
+  if (!d || d.x !== hp.x || d.y !== hp.y || d.level !== level.id || !d.down) {
+    setDigging(ctx, {
+      level: level.id,
+      x: hp.x,
+      y: hp.y,
+      down: true,
+      effort: 0,
+      warned: false,
+      quiet: false,
+      lastdigtime: d?.lastdigtime ?? 0,
+      didmsg: false,
+    });
+    say(ctx, 'dig.start_down');
+    // (in a shop: shopdig(0) and add_damage() come with shop damage)
+  } else {
+    d.didmsg = false;
+    say(ctx, 'dig.continue_down');
+  }
+  ctx.state.occupation = { action: { type: 'mod', action: DIG_ID }, data: null };
+  return NORMAL_SPEED;
+}
+
+/** The hero's item with this id, or null. */
+function heroItem(ctx: Ctx, id: unknown): Entity | null {
+  if (typeof id !== 'number') return null;
+  const e = ctx.state.entities[String(id)];
+  return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
+}
+
+/**
+ * The direction answer (getdir() randomises a flat one, or herself, when she is impaired) and the
+ * swing. ref: src/cmd.c getdir() confdir(FALSE), then use_pick_axe2()
+ */
+function swing(ctx: Ctx, pick: Entity, dir: DigDir): number {
+  let to = dir;
+  if (to !== 'up' && to !== 'down' && uMaybeImpaired(ctx)) to = confdir(ctx);
+  return usePickAxe2(ctx, pick, to);
+}
+
+/** The pick to dig with from an action's args: carried and a pick. */
+function pickArg(ctx: Ctx, args: unknown): Entity | null {
+  const pick = heroItem(ctx, (args as { item?: unknown } | undefined)?.item);
+  return pick && isPick(ctx.defs.object(pick.def)) ? pick : null;
+}
+
+/**
+ * Digging without the apply menu: "Dig" on an adjacent square the pick would dig into and "Dig
+ * down" on herself while she carries a pick-axe or mattock (the wielded one first); they wield it
+ * first if needed, as applying does. With no args the action is the occupation's next turn.
+ */
+const digAction: ActionDef = {
+  id: DIG_ID,
+  labelKey: 'action.nh:dig',
+  handles: 'mod',
+  offer(ctx, target): Offer[] {
+    const pick = digPick(ctx);
+    if (!pick) return [];
+    const p = heroPos(ctx);
+    if (target.kind === 'self') {
+      if (levitating(ctx)) return [];
+      return [
+        {
+          action: { type: 'mod', action: DIG_ID, args: { item: pick.id, dir: 'down' } },
+          labelKey: 'action.nh:dig_down',
+        },
+      ];
+    }
+    if (target.kind !== 'cell') return [];
+    const dir = DIR_LIST.find(
+      (x) => DIRS[x].x === target.pos.x - p.x && DIRS[x].y === target.pos.y - p.y,
+    );
+    if (!dir) return [];
+    if (digTyp(ctx, pick, getLevel(ctx.state), target.pos.x, target.pos.y) === 'undiggable')
+      return [];
+    return [
+      {
+        action: { type: 'mod', action: DIG_ID, args: { item: pick.id, dir } },
+        labelKey: 'action.nh:dig',
+      },
+    ];
+  },
+  perform(ctx, action) {
+    if (action.type !== 'mod') return 0;
+    if (action.args === undefined) {
+      // the occupation: one more turn of digging
+      if (!diggingOf(ctx)) {
+        ctx.state.occupation = null;
+        return 0;
+      }
+      if (!dig(ctx)) ctx.state.occupation = null;
+      return NORMAL_SPEED;
+    }
+    ctx.state.occupation = null;
+    const pick = pickArg(ctx, action.args);
+    if (!pick) return 0;
+    const dir = digDirOf((action.args as { dir?: unknown }).dir);
+    if (dir === undefined) return usePickAxe(ctx, pick); // after wielding it: ask
+    if (uwep(ctx)?.id !== pick.id) {
+      if (!wieldTool(ctx, pick, 'swing')) return 0;
+      // the swing comes on the next move
+      ctx.state.occupation = {
+        action: JSON.parse(JSON.stringify(action)) as PlayerAction,
+        data: null,
+      };
+      return NORMAL_SPEED;
+    }
+    return swing(ctx, pick, dir);
+  },
+  answer(ctx, value, data) {
+    const pick = pickArg(ctx, data);
+    const dir = digDirOf(value);
+    if (!pick || dir === undefined || uwep(ctx)?.id !== pick.id) return 0;
+    return swing(ctx, pick, dir);
+  },
+  continues: (ctx) => continuesDigging(ctx),
+};
+
+/**
+ * Whether the occupation goes on: a swing waiting for the pick to be wielded, or a dig in
+ * progress with no hostile monster next to her (which stops it: "You stop digging.").
+ * ref: src/allmain.c moveloop_core() `if (go.occupation && monster_nearby()) stop_occupation()`
+ */
+function continuesDigging(ctx: Ctx): boolean {
+  const occ = ctx.state.occupation?.action;
+  if (occ?.type !== 'mod' || occ.action !== DIG_ID) return false;
+  if (occ.args !== undefined) return true;
+  if (!diggingOf(ctx)) return false;
+  if (monsterNearby(ctx)) {
+    stopDigging(ctx);
+    return false;
+  }
+  return true;
+}
+
+export const DIG_ACTIONS: readonly ActionDef[] = [digAction];

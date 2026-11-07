@@ -19,6 +19,7 @@ import {
   type Msg,
   rnl,
 } from '@nh/core';
+import { isWeaponOrWeptool } from './material';
 import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } from './align';
 import { rnz } from './corpses';
 import { done } from './end';
@@ -87,7 +88,7 @@ const uhs = (ctx: Ctx): number => HUNGER_RANK[hero(ctx).c.hunger?.state ?? 'not_
 /** The wielded weapon is welded when cursed. ref: src/wield.c welded(), will_weld() */
 function weldedWeapon(ctx: Ctx): Entity | null {
   const w = inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon');
-  return w && w.c.item?.buc === 'cursed' && ctx.defs.object(w.def).class === 'weapon' ? w : null;
+  return w && w.c.item?.buc === 'cursed' && isWeaponOrWeptool(ctx.defs.object(w.def)) ? w : null;
 }
 
 const worn = (ctx: Ctx, slot: string): Entity | null =>
@@ -440,7 +441,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
     case 1: {
       const w = worn(ctx, 'weapon');
       const it = w?.c.item;
-      if (!w || !it || ctx.defs.object(w.def).class !== 'weapon') break;
+      if (!w || !it || !isWeaponOrWeptool(ctx.defs.object(w.def))) break;
       if (it.buc === 'cursed') {
         if (!blind) fixCurseTrouble(ctx, w);
         else it.buc = 'uncursed';

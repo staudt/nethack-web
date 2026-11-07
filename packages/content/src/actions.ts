@@ -9,6 +9,7 @@ import {
   getPlayer,
   inBounds,
   type ActionDef,
+  type DefId,
   type Offer,
   type Ctx,
   type ModApi,
@@ -96,6 +97,50 @@ export function isSafemon(ctx: Ctx, mon: Entity): boolean {
     !hasProp(hero, P.HALLUC) &&
     !hasProp(hero, P.STUNNED)
   );
+}
+
+/**
+ * The hero moves (or swings a pick) into a monster. A safemon is not attacked: 1 time in 7 it is
+ * in the way ("You stop.  Your little dog is in the way!", a pet flees), one that cannot move
+ * "doesn't seem to move!", otherwise null (the caller goes on: swapping places, digging). Any
+ * other monster is attacked, after "Really attack?" for a peaceful one in view (answered by
+ * `handler` with `{ victim }`). Returns the energy used.
+ * ref: src/uhitm.c do_attack(), attack_checks()
+ */
+export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId): number | null {
+  if (isSafemon(ctx, vmon)) {
+    // ref: src/uhitm.c do_attack(): walking into a pet or peaceful monster you can see does
+    // not attack it; 1 time in 7 it is in the way, and one that can't move doesn't
+    const tame = (vmon.c.monster?.tame ?? 0) > 0;
+    const named = { mon: `@${vmon.def}` };
+    if (ctx.rng.rn2(7) === 0) {
+      if (tame) monflee(ctx, vmon.id, ctx.rng.rnd(6), false, false);
+      ctx.emit({
+        type: 'msg',
+        key: tame ? 'dog.in_the_way' : 'dog.in_the_way_peaceful',
+        params: named,
+      });
+      ctx.interrupt(); // end_running()
+      return NORMAL_SPEED;
+    }
+    const vdef = ctx.defs.monster(vmon.def);
+    if (
+      vmon.c.monster?.asleep ||
+      isFrozen(ctx, vmon.id) ||
+      (vdef.speed === 0 && ctx.rng.rn2(6) !== 0)
+    ) {
+      ctx.emit({ type: 'msg', key: 'dog.doesnt_move', params: { mon: monNam(ctx, vmon) } });
+      ctx.interrupt();
+      return NORMAL_SPEED;
+    }
+    return null;
+  }
+  // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
+  if (needsAttackConfirm(ctx, vmon.id)) {
+    askReallyAttack(ctx, vmon.id, handler, { victim: vmon.id });
+    return 0;
+  }
+  return heroAttack(ctx, vmon.id);
 }
 
 /**
@@ -310,38 +355,9 @@ const move: ActionDef = {
     // running" check belongs to travel/run, which is a different action.)
     const victim = monsterIdAt(ctx, to, pos.level);
     const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
-    if (vmon && isSafemon(ctx, vmon)) {
-      // ref: src/uhitm.c do_attack(): walking into a pet or peaceful monster you can see does
-      // not attack it; 1 time in 7 it is in the way, and one that can't move doesn't
-      const tame = (vmon.c.monster?.tame ?? 0) > 0;
-      const named = { mon: `@${vmon.def}` };
-      if (ctx.rng.rn2(7) === 0) {
-        if (tame) monflee(ctx, vmon.id, ctx.rng.rnd(6), false, false);
-        ctx.emit({
-          type: 'msg',
-          key: tame ? 'dog.in_the_way' : 'dog.in_the_way_peaceful',
-          params: named,
-        });
-        ctx.interrupt(); // end_running()
-        return NORMAL_SPEED;
-      }
-      const vdef = ctx.defs.monster(vmon.def);
-      if (
-        vmon.c.monster?.asleep ||
-        isFrozen(ctx, vmon.id) ||
-        (vdef.speed === 0 && ctx.rng.rn2(6) !== 0)
-      ) {
-        ctx.emit({ type: 'msg', key: 'dog.doesnt_move', params: { mon: monNam(ctx, vmon) } });
-        ctx.interrupt();
-        return NORMAL_SPEED;
-      }
-    } else if (victim !== null) {
-      // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
-      if (needsAttackConfirm(ctx, victim)) {
-        askReallyAttack(ctx, victim, 'nh:move', { victim });
-        return 0;
-      }
-      return heroAttack(ctx, victim);
+    if (vmon) {
+      const cost = doAttack(ctx, vmon, 'nh:move');
+      if (cost !== null) return cost;
     }
     return walk(ctx, dir, false);
   },

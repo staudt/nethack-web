@@ -567,6 +567,32 @@ describe('entering a shop', () => {
     ]);
   });
 
+  test('a pick-axe is checked too; with both kinds: "digging tools"', () => {
+    const { s, shk, move } = izchak();
+    addToInventory(
+      ctxOf(s),
+      s.state.playerId,
+      mksobj(ctxOf(s), obj('nh:pick_axe'), { init: false }),
+    );
+    Object.assign(shk.c.pos, { x: 4, y: 1 });
+    expect(said(move('w'))).toEqual([
+      '"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"',
+      '"Will you please leave your pick-axe outside?"',
+    ]);
+    expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    const t = izchak();
+    for (const id of ['nh:pick_axe', 'nh:dwarvish_mattock'])
+      addToInventory(ctxOf(t.s), t.s.state.playerId, mksobj(ctxOf(t.s), obj(id), { init: false }));
+    t.e.customer = true;
+    t.e.surcharge = true;
+    expect(said(t.move('w'))).toEqual([
+      '"Back again, Valkyrie?  I\'ve got my eye on you."',
+      '"Leave the digging tools outside."',
+    ]);
+    // the mattock is not identified when a pick-axe comes with it
+    expect(t.s.state.discovered).not.toContain('nh:dwarvish_mattock');
+  });
+
   test('without one he steps out of her way, and no extra move', () => {
     const { s, shk, move } = izchak();
     Object.assign(shk.c.pos, { x: 4, y: 1 });

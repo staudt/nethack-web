@@ -47,6 +47,7 @@ import { registerLevitation } from './levitation';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
+import { DIG_ACTIONS } from './dig';
 import { LOOT_ACTIONS } from './container';
 import { FOUNTAIN_ACTIONS } from './fountain';
 import { registerLock } from './lock';
@@ -86,6 +87,7 @@ export const vanillaMod: Mod = {
     for (const a of JEWELRY_ACTIONS) api.defineAction(a);
     for (const a of ZAP_ACTIONS) api.defineAction(a);
     for (const a of APPLY_ACTIONS) api.defineAction(a);
+    for (const a of DIG_ACTIONS) api.defineAction(a);
     for (const a of LOOT_ACTIONS) api.defineAction(a);
     for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
     registerLock(api);

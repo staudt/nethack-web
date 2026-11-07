@@ -16,7 +16,7 @@
 // src/dothrow.c check_shop_obj(); src/role.c Hello(); src/dog.c losedogs() (dismiss_kops)
 //
 // Not ported: invisible heroes and steeds (neither exists), deafness and mute keepers, the
-// pick-axe (no such object: only the dwarvish mattock is checked), the shop achievement, globs,
+// shop achievement, globs,
 // gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
 // donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
 // (no Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
@@ -82,6 +82,8 @@ import { emptyShops, setEmptyShops, setURooms, uRooms } from './urooms';
 import { angryGuards, pacifyGuards } from './watch';
 
 const MATTOCK = 'nh:dwarvish_mattock';
+const PICK_AXE = 'nh:pick_axe';
+const isDigTool = (def: string): boolean => def === PICK_AXE || def === MATTOCK;
 
 /**
  * The shopkeeper's name as a proper-name param; while the hero hallucinates, a random name from a
@@ -143,17 +145,20 @@ export function pacifyShk(ctx: Pick<Ctx, 'state'>, shk: EntityId, clearSurcharge
   }
 }
 
-/** The mattocks the hero carries. ref: carrying(DWARVISH_MATTOCK) and its count */
+/** The pick-axes and mattocks the hero carries. ref: carrying(PICK_AXE), carrying(DWARVISH_MATTOCK) */
 export function carriedPicks(ctx: Pick<Ctx, 'state'>): number {
-  return inventoryOf(ctx.state, ctx.state.playerId).filter((o) => o.def === MATTOCK).length;
+  return inventoryOf(ctx.state, ctx.state.playerId).filter((o) => isDigTool(o.def)).length;
 }
 
-/** She is fast with a mattock at her feet, so could pick it up inside. ref: `Fast && sobj_at()` */
+/**
+ * She is fast with a pick-axe or mattock at her feet, so could pick it up inside.
+ * ref: `Fast && (sobj_at(PICK_AXE, u.ux, u.uy) || sobj_at(DWARVISH_MATTOCK, u.ux, u.uy))`
+ */
 export function fastWithPickHere(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
   const hero = getPlayer(ctx.state);
   const p = hero.c.pos;
   if (!p || !hasProp(hero, P.FAST)) return false;
-  return itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y).some((o) => o.def === MATTOCK);
+  return itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y).some((o) => isDigTool(o.def));
 }
 
 /** The monster stands still and silent (asleep or paralyzed). ref: helpless() in muteshk() */
@@ -195,7 +200,7 @@ function desertedShop(ctx: Ctx, level: Level, room: number): void {
  * The hero has just come into shop `room` (its door or floor). With no keeper in it: the deserted
  * message once, and she counts as in no shop (u.ushops cleared) until he is back. Else a new
  * customer is welcomed (and he is pacified), an angry keeper or one with a surcharge warns her, one
- * who was robbed mutters; at the door with a mattock she is asked to leave it outside and he gets
+ * who was robbed mutters; at the door with a pick-axe or mattock she is asked to leave it outside and he gets
  * an extra move to block her way in.
  * ref: src/shk.c u_entered_shop()
  */
@@ -244,15 +249,24 @@ export function uEnteredShop(ctx: Ctx, room: number): void {
   const hp = getPlayer(ctx.state).c.pos;
   if (!hp || insideShop(level, hp.x, hp.y) !== null) return;
   const notUpset = !eshk.surcharge;
-  const cnt = carriedPicks(ctx);
+  const inv = inventoryOf(ctx.state, ctx.state.playerId);
+  const picks = inv.filter((o) => o.def === PICK_AXE).length;
+  const mattocks = inv.filter((o) => o.def === MATTOCK).length;
   let shouldBlock: boolean;
-  if (cnt > 0) {
-    // [ALI] Shopkeeper identifies mattock(s)
-    if (!hasProp(getPlayer(ctx.state), P.BLINDED)) discover(ctx, MATTOCK);
+  if (picks + mattocks > 0) {
+    // carrying both types: "digging tools" (`more than 1' is all that matters)
+    let tool: string;
+    if (picks && mattocks) tool = 'digging_tools';
+    else if (picks) tool = picks > 1 ? 'pick_axes' : 'pick_axe';
+    else {
+      tool = mattocks > 1 ? 'mattocks' : 'mattock';
+      // [ALI] Shopkeeper identifies mattock(s)
+      if (!hasProp(getPlayer(ctx.state), P.BLINDED)) discover(ctx, MATTOCK);
+    }
     ctx.emit({
       type: 'msg',
       key: notUpset ? 'shk.leave_outside_please' : 'shk.leave_outside',
-      params: { tool: cnt > 1 ? '@shk.mattocks' : '@shk.mattock' },
+      params: { tool: `@shk.${tool}` },
     });
     shouldBlock = true;
   } else shouldBlock = fastWithPickHere(ctx);

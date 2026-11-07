@@ -40,6 +40,7 @@ import {
 import { T, surfaceKey } from './terrain';
 import { isHole, isPit, levitating, utrap } from './trapstate';
 import { P, hasProp } from './props';
+import { isWeaponOrWeptool } from './material';
 import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
@@ -754,7 +755,8 @@ const wield: ActionDef = {
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
     if (!e || !it) return [];
-    return defOf(ctx, e).class === 'weapon' && it.equipped === null
+    // ref: dowield() takes any object; weapons and weapon-tools are offered
+    return isWeaponOrWeptool(defOf(ctx, e)) && it.equipped === null
       ? [itemOffer('nh:wield', e.id, 'action.nh:wield')]
       : [];
   },
@@ -863,6 +865,56 @@ function swapWeapons(ctx: Ctx): number {
     else ctx.emit({ type: 'msg', key: 'wield.no_secondary' });
   }
   return result;
+}
+
+/**
+ * Wields a tool in order to use it ("swing" a pick-axe): nothing to do when it already is; refused
+ * while the wielded weapon is welded or for a two-handed tool with a shield; the alternate weapon
+ * is swapped in; a cursed one welds (ready_weapon()), else "You now wield a pick-axe.". True when
+ * it is wielded now (the move is used). Not ported: worn objects (a tool is never worn here),
+ * polymorphed forms, the quiver, `pushweapon`, two-weapon combat. ref: src/wield.c wield_tool()
+ */
+export function wieldTool(ctx: Ctx, obj: Entity, verb: 'swing'): boolean {
+  const cur = wielded(ctx);
+  if (cur?.id === obj.id) return true; // nothing to do if already wielding it
+  const def = defOf(ctx, obj);
+  if (cur && welded(ctx, cur)) {
+    const bi = defOf(ctx, cur).weapon?.bimanual === true;
+    ctx.emit({
+      type: 'msg',
+      key: bi ? 'wield.tool_welded_hands' : 'wield.tool_welded',
+      params: { verb: { key: `wield.verb.${verb}` }, item: xnameOf(ctx.state, ctx.defs, obj) },
+    });
+    return false;
+  }
+  if (wornIn(ctx, 'shield') && def.weapon?.bimanual) {
+    ctx.emit({
+      type: 'msg',
+      key: 'wield.two_handed_tool_shield',
+      params: {
+        verb: { key: `wield.verb.${verb}` },
+        kind: { key: def.class === 'weapon' ? 'kind.weapon' : 'kind.tool' },
+      },
+    });
+    return false;
+  }
+  if (swapWep(ctx)?.id === obj.id) {
+    swapWeapons(ctx);
+    if (swapWep(ctx)?.id === obj.id) return false; // doswapweapon might fail
+  } else if (obj.c.item?.buc === 'cursed') {
+    readyWeapon(ctx, obj); // will_weld(): "welds itself to your hand!"
+  } else {
+    const it = obj.c.item;
+    if (!it) return false;
+    ctx.emit({
+      type: 'msg',
+      key: 'wield.now_wield',
+      params: { item: ctx.defs.itemName(ctx.state, obj) },
+    });
+    if (cur?.c.item) cur.c.item.equipped = null;
+    it.equipped = 'weapon'; // setuwep()
+  }
+  return wielded(ctx)?.id === obj.id;
 }
 
 const swapWeapon: ActionDef = {

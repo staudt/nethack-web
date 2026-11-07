@@ -31,13 +31,14 @@ function gearStats(id: string, n: number) {
 const near = (a: number, b: number, tol = 0.04) => expect(Math.abs(a - b)).toBeLessThan(tol);
 
 describe('starting gear', () => {
-  test('dwarves: cloak and shoes 6/7, armed branch 1/4', () => {
+  test('dwarves: cloak and shoes 6/7, armed branch 1/4, pick-axe 1/4', () => {
     const g = gearStats('nh:dwarf', 3000);
     near(g.f('nh:dwarvish_cloak'), 6 / 7);
     near(g.f('nh:iron_shoes'), 6 / 7);
     near(g.f('nh:dwarvish_short_sword'), 1 / 4);
     near(g.f('nh:dwarvish_iron_helm'), 1 / 4);
     near(g.f('nh:dagger'), 0.5);
+    near(g.f('nh:pick_axe'), 0.25); // the unarmed branch, 1 in 3
   });
   test('hill orcs: orcish helm about half, gold 1 in 5, weapons 1/4 each', () => {
     const g = gearStats('nh:hill_orc', 3000);
