@@ -273,6 +273,9 @@ describe('attacking the priest', () => {
       ].find((c) => !taken.some((t) => t?.x === c.x && t.y === c.y));
       const w = addMon(s.state, 'nh:watchman', spot?.x ?? 1, spot?.y ?? 1, { peaceful: true });
       pin(s, w);
+      // tough enough that the god's lightning, which may cross his square, cannot kill him
+      const wh = mon(s, w)?.c.hp;
+      if (wh) Object.assign(wh, { cur: 1000, max: 1000 });
       const before = align(s);
       const k = fight(s, dir);
       expect(mon(s, s.priest)?.c.monster?.peaceful).toBe(false);

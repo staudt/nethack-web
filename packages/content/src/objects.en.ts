@@ -219,6 +219,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:scroll_of_remove_curse.plural': 'scrolls of remove curse',
   'nh:scroll_of_light': 'scroll of light',
   'nh:scroll_of_light.plural': 'scrolls of light',
+  'nh:scroll_of_earth': 'scroll of earth',
+  'nh:scroll_of_earth.plural': 'scrolls of earth',
   'nh:scroll_of_blank_paper': 'scroll of blank paper',
   'nh:scroll_of_blank_paper.plural': 'scrolls of blank paper',
 

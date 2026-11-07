@@ -137,8 +137,6 @@ describe('random dungeon shops', () => {
   });
 
   test('too few rooms or the first level: no shop and no roll', () => {
-    const sample = levels[0];
-    if (!sample) throw new Error('no level');
     const room = (lx: number): Level['rooms'][number] => ({
       lx,
       ly: 2,
@@ -146,6 +144,12 @@ describe('random dungeon shops', () => {
       hy: 4,
       lit: false,
     });
+    // a generated level whose cells give the made-up rooms no door, so no shop is made
+    const made = [room(2), room(10), room(20), room(30)];
+    const sample = levels.find((lv) =>
+      made.every((_, i) => shopDoors(defs, { ...lv, rooms: made }, i).length === 0),
+    );
+    if (!sample) throw new Error('no level');
     const branch: Level['branch'] = {
       pos: { x: 0, y: 0 },
       to: { dungeon: 'nh:mines', dlevel: 1 },

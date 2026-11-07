@@ -1931,6 +1931,20 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
   },
+  // ref: objects.h SCROLL("earth", "KIRJE", 1, 18, 200, SCR_EARTH)
+  {
+    id: 'nh:scroll_of_earth',
+    nameKey: 'nh:scroll_of_earth',
+    class: 'scroll',
+    glyph: { ch: '?', fg: WHITE },
+    prob: 18,
+    weight: 5,
+    cost: 200,
+    material: 'paper',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
   // ref: objects.h SCROLL("blank paper", "unlabeled", 0, 28, 60, SCR_BLANK_PAPER): a fixed
   // description, so it stays out of the shuffled labels
   {

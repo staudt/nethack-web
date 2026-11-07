@@ -39,3 +39,12 @@ Rolling boulder traps (left off the Sokoban maps), the giant mimics on the top l
 - Scenario tests: every Sokoban variant builds at 80x21 and on a larger map, its boulders and traps sit on floor, its branch stairs and stairs are where the map puts them; a boulder pushed into the first pit of each entry level fills it; a diagonal push is refused; luck penalties; the rules lift after the last pit; the prize is there and not cursed.
 - The soak bot visits Sokoban (a short run from levelport, no long soaks). New invariant: no boulder in a wall or stone and no monster other than the hero on a boulder square.
 - Phone check uses wizard mode (`?wizard=1`): wish, zap, read, levelport to the Oracle and to each Sokoban level.
+
+## Exit check, 7b1 (step 4, before the phone check)
+
+- Boulder: wished for (`` ` `` class and "boulder"), pushed by moving and from the "Push the boulder" offer, "in vain" against walls, boulders, closed doors and diagonal doorways, the monster behind, the squeeze, the message throttle, sight blocked, on top of its pile, monsters and travel go around (core and content `m7b.boulder.test.ts`). Phone: pending.
+- Breaking and kicking: striking and force bolt give 7..66 rocks, kicking hurts; boulders in extra corridors and Mines filler levels (`m7b.levels.test.ts`), Orcish Town's boulders (`orctown.test.ts`). Phone: pending.
+- Pits: falling in, climbing out, spiked poison, the seen-pit prompt, monsters held and freed, boulders filling them (`trap.test.ts`, `m7b.boulder.test.ts`). Phone: pending.
+- Scroll of earth: uncursed, blessed, cursed (the helmet does not help), confused rocks, monsters hit and killed, pits filled and holes plugged (`m7b.earth.test.ts`). Phone: pending.
+- Golden and replays deterministic, each golden change explained in its step's commit (step 2; step 3 left it unchanged, as its DL1 rolls no pit; step 4 for the scroll of earth); `pnpm check` green.
+- Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md`: pools, landmines, teleporters and rolling boulder traps under boulders, shop billing, giants, the `m` prefix, the pit's limited view, Sokoban (7b2).

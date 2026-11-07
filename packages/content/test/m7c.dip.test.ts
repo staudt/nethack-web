@@ -252,7 +252,8 @@ describe('dipping: the rnd(30) outcomes', () => {
     const s = room();
     const snakes = dips(s.state, 'hands', (f) => f === 23)[0]!;
     expect(snakes.text[1]).toBe('An endless stream of snakes pours forth!');
-    const gem = dips(s.state, 'hands', (f) => f === 24)[0]!;
+    // a gem dip whose fountain did not dry up afterwards (dryup() takes its bits with it)
+    const gem = dips(s.state, 'hands', (f) => f === 24).find((d) => !fountainGone(d.state))!;
     expect(gem.text[1]).toBe('You spot a gem in the sparkling waters!');
     expect(fountainBits(gem.state, 'dlvl1', F.x, F.y) & FTN_LOOTED).toBe(FTN_LOOTED);
     expect(

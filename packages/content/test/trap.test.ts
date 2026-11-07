@@ -475,7 +475,8 @@ describe('trap doors and holes', () => {
     expect(lost).toBeLessThanOrEqual(12);
     const hp = getPlayer(state).c.pos;
     expect(hp && trapAt(getLevel(state), hp.x, hp.y)).toBeFalsy();
-    expect(state.levels['dlvl1']?.traps[0]?.seen).toBe(true);
+    const dl1 = state.levels['dlvl1'];
+    expect(dl1 && trapAt(dl1, t.x, t.y)?.seen).toBe(true);
   });
 
   test("'>' on a seen hole jumps in", () => {

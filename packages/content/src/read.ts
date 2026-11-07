@@ -1,11 +1,14 @@
 // Scrolls: reading and the effects of the scrolls in our subset.
 // ref: src/read.c doread(), seffects(), seffect_identify(), seffect_enchant_weapon(),
-// seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_blank_paper(), litroom();
+// seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_earth(),
+// seffect_blank_paper(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
 // src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
 import {
   NORMAL_SPEED,
+  cellIndex,
   computeVisible,
   cellRules,
+  inRooms,
   inventoryOf,
   shownId,
   type ActionDef,
@@ -16,19 +19,42 @@ import {
   type EntityId,
   type Json,
   type Level,
+  type MonsterDef,
   type Msg,
   type ObjectDef,
   type Offer,
   type PlayerAction,
   type PromptOption,
 } from '@nh/core';
-import { blockersOf } from './boulder';
+import { BOULDER, ROCK, blockersOf } from './boulder';
+import { killedByHero } from './buzz';
+import { monsterIdAt } from './combat';
+import { dmgvalSized } from './dmgval';
+import { templeOccupied } from './epri';
+import { isShopType } from './eshk';
+import { boulderDmgval, boulderFlooreffects } from './flooreffects';
+import { losehp } from './hp';
 import { prinv } from './itemactions';
-import { NOINVSYM, objKnown, setCknown, setLknown, setRknown } from './items';
+import {
+  NOINVSYM,
+  mksobj,
+  objKnown,
+  placeObject,
+  setCknown,
+  setLknown,
+  setRknown,
+  stackobj,
+} from './items';
+import { isBig } from './mondata';
+import { heroSees, whichArmor } from './mongear';
+import { wakeNearto } from './noise';
+import { wakeup } from './peaceful';
+import { canSpotMon, monNam } from './perception';
+import { sokobanGuilt } from './sokoban';
 import { CHARGED_RINGS } from './objects';
-import { erosionMatters } from './material';
+import { erosionMatters, isCrackable, isMetallic } from './material';
 import { discover, isKnown } from './o_init';
-import { xnameOf } from './objnam';
+import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
 import { snuffLit } from './light';
@@ -507,6 +533,179 @@ export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
 }
 
 // ---------------------------------------------------------------------------------------------
+// earth
+
+/** ref: src/do_wear.c hard_helmet() */
+const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
+
+/**
+ * What is above (x, y) of the hero's level, as a message key. ref: src/dig.c ceiling(), for the
+ * places that exist here: temples, shops, room floors, doors and walls ("ceiling") and
+ * corridors ("rock cavern"); no vaults, water, air, fire or quest levels.
+ */
+function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string {
+  const rooms = inRooms(level, x, y);
+  if (templeOccupied(level, rooms) !== null) return 'earth.ceiling.temple';
+  if (rooms.some((r) => isShopType(level.rooms[r]?.type))) return 'earth.ceiling.shop';
+  const t = ctx.defs.terrain(level.palette[level.cells[cellIndex(level, x, y)] ?? 0] ?? 'nh:stone');
+  return t.id === 'nh:corr' ? 'earth.ceiling.rock_cavern' : 'earth.ceiling.ceiling';
+}
+
+/**
+ * The boulder (or, confused, the 2..6 rocks) that falls, not yet placed.
+ * ref: src/read.c drop_boulder_on_player() / drop_boulder_on_monster(): `mksobj(confused ? ROCK
+ * : BOULDER, FALSE, FALSE)`, `quan = confused ? rn1(5, 2) : 1`
+ */
+function fallingObject(ctx: Ctx, confused: boolean): Entity {
+  const id = mksobj(ctx, ctx.defs.object(confused ? ROCK : BOULDER), { init: false });
+  const obj = ctx.state.entities[String(id)];
+  const it = obj?.c.item;
+  if (!obj || !it) throw new Error('fallingObject: no object');
+  if (confused) it.quantity = ctx.rng.rn2(5) + 2;
+  return obj;
+}
+
+/**
+ * `dmgval(otmp2, target) * otmp2->quan`: a boulder's `rnd(20)`, a rock's `rnd(3)`, times the
+ * count (one roll). ref: src/weapon.c dmgval()
+ */
+const fallingDamage = (ctx: Ctx, obj: Entity, big: boolean): number =>
+  (obj.def === BOULDER
+    ? boulderDmgval(ctx)
+    : dmgvalSized(ctx.rng, obj, ctx.defs.object(obj.def), big)) * (obj.c.item?.quantity ?? 1);
+
+/**
+ * The fallen object lands at (x, y): into a pit or hole there (a boulder), else on the floor.
+ * Not ported: rocks tumbling into the pit (or through the hole) at the edge of which the hero
+ * stands (flooreffects()'s uteetering_at_seen_pit() branch: no ship_object()).
+ */
+function landFalling(ctx: Ctx, obj: Entity, x: number, y: number): void {
+  if (boulderFlooreffects(ctx, obj, x, y, 'fall')) return;
+  placeObject(ctx, obj.id, ctx.state.currentLevel, x, y);
+  stackobj(ctx, obj.id);
+}
+
+const monsterOn = (ctx: Ctx, x: number, y: number): Entity | null => {
+  const id = monsterIdAt(ctx, { x, y }, ctx.state.currentLevel);
+  return id === null || id === ctx.state.playerId ? null : (ctx.state.entities[String(id)] ?? null);
+};
+
+/** ref: src/do_name.c mhim() from the species (no monster instance has a gender here) */
+const mhim = (def: MonsterDef): string =>
+  def.flags.includes('neuter')
+    ? '@pronoun.it'
+    : def.flags.includes('female')
+      ? '@pronoun.her'
+      : '@pronoun.him';
+
+/**
+ * A boulder (rocks when confused) falls on the hero: "You are hit by a boulder!", the damage
+ * (a hard helmet caps it at 2 when `helmetProtects`), nearby monsters woken, the boulder lands
+ * on her square (filling a pit she is in) and then she takes the damage. Not ported: being
+ * engulfed (no engulfers), Half_physical_damage (no source), polymorphed forms.
+ * ref: src/read.c drop_boulder_on_player()
+ */
+export function dropBoulderOnPlayer(ctx: Ctx, confused: boolean, helmetProtects: boolean): void {
+  const p = heroEntity(ctx).c.pos;
+  if (!p) return;
+  const obj = fallingObject(ctx, confused);
+  msg(ctx, 'earth.you_hit', { obj: doname(ctx.state, ctx.defs, obj) });
+  let dmg = fallingDamage(ctx, obj, false);
+  const uarmh = wornIn(ctx, 'helm');
+  if (uarmh && helmetProtects) {
+    if (hardHelmet(ctx.defs.object(uarmh.def))) {
+      msg(ctx, 'trap.rock.hard_helmet');
+      if (dmg > 2) dmg = 2;
+    } else msg(ctx, 'trap.rock.no_protect', { obj: xnameOf(ctx.state, ctx.defs, uarmh) });
+  }
+  wakeNearto(ctx, p.x, p.y, 4 * 4);
+  landFalling(ctx, obj, p.x, p.y); // before the losehp(), as C
+  if (dmg) losehp(ctx, dmg, '@killer.earth');
+}
+
+/**
+ * A boulder (rocks when confused) falls at (x, y) of the hero's level: a solid monster there
+ * is hit ("The jackal is hit by a boulder!"; a hard helmet caps the damage at 2), killed with
+ * the hero's credit or woken and angered, and the monsters around woken; then the boulder lands
+ * (filling a pit or plugging a hole). Always the hero's doing (`byu`: the scroll is the only
+ * caller). Not ported: engulfers (none), map_invisible() (no remembered-unseen marker).
+ * ref: src/read.c drop_boulder_on_monster()
+ */
+export function dropBoulderOnMonster(ctx: Ctx, x: number, y: number, confused: boolean): boolean {
+  const obj = fallingObject(ctx, confused);
+  const mtmp = monsterOn(ctx, x, y);
+  const mdef = mtmp ? ctx.defs.monster(mtmp.def) : null;
+  // no passes_walls or noncorporeal monster exists
+  if (mtmp && mdef && !mdef.flags.includes('amorphous') && !mdef.flags.includes('unsolid')) {
+    const helmet = whichArmor(ctx, mtmp.id, 'helm');
+    if (heroSees(ctx, { level: ctx.state.currentLevel, x, y }))
+      msg(ctx, 'earth.mon_hit', {
+        mon: monNam(ctx, mtmp),
+        obj: doname(ctx.state, ctx.defs, obj),
+      });
+    let mdmg = fallingDamage(ctx, obj, isBig(mdef));
+    if (helmet) {
+      if (hardHelmet(ctx.defs.object(helmet.def))) {
+        if (canSpotMon(ctx, mtmp)) msg(ctx, 'earth.mon_hard_helmet', { mon: monNam(ctx, mtmp) });
+        else msg(ctx, 'earth.clang'); // the hero is never Deaf
+        if (mdmg > 2) mdmg = 2;
+      } else if (canSpotMon(ctx, mtmp)) {
+        msg(ctx, 'earth.mon_no_protect', {
+          mon: monNam(ctx, mtmp),
+          obj: xnameOf(ctx.state, ctx.defs, helmet),
+          him: mhim(mdef),
+        });
+      }
+    }
+    const hp = mtmp.c.hp;
+    if (hp) hp.cur -= mdmg;
+    if (!hp || hp.cur < 1)
+      killedByHero(ctx, mtmp); // killed(mtmp)
+    else wakeup(ctx, mtmp.id); // wakeup(mtmp, TRUE)
+    wakeNearto(ctx, x, y, 4 * 4);
+  }
+  landFalling(ctx, obj, x, y);
+  return true;
+}
+
+/**
+ * The scroll of earth: "The ceiling rumbles above you!" (around, blessed); a boulder falls on
+ * each open square around the hero unless the scroll is cursed, and on the hero unless it is
+ * blessed (her helmet does not help against a cursed one); confused, rocks fall instead. It is
+ * always identified, and it is cheating in Sokoban. Every level has a ceiling here (no
+ * endgame, Rogue level or quest; no steeds, no engulfing).
+ * ref: src/read.c seffect_earth()
+ */
+function seffectEarth(ctx: Ctx, scroll: Entity, confused: boolean): void {
+  const buc = scroll.c.item?.buc;
+  const p = heroEntity(ctx).c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!p || !level) return;
+  msg(ctx, 'earth.rumbles', {
+    ceiling: { key: ceilingKey(ctx, level, p.x, p.y) },
+    where: { key: buc === 'blessed' ? 'earth.around' : 'earth.above' },
+  });
+  sokobanGuilt(ctx);
+  let nboulders = 0;
+  if (buc !== 'cursed') {
+    const rules = cellRules(level, ctx.defs);
+    for (let x = p.x - 1; x <= p.x + 1; x++) {
+      for (let y = p.y - 1; y <= p.y + 1; y++) {
+        if (x < 0 || y < 0 || x >= level.width || y >= level.height) continue; // isok()
+        if (x === p.x && y === p.y) continue;
+        const t = level.cells[cellIndex(level, x, y)] ?? 0;
+        const tdef = ctx.defs.terrain(level.palette[t] ?? 'nh:stone');
+        // !closed_door() && !IS_OBSTRUCTED() (rock, walls, secret doors); no air
+        if (rules.closedDoor[t] === true || (!tdef.passable && tdef.door === undefined)) continue;
+        if (dropBoulderOnMonster(ctx, x, y, confused)) nboulders++;
+      }
+    }
+  }
+  if (buc !== 'blessed') dropBoulderOnPlayer(ctx, confused, buc !== 'cursed');
+  else if (nboulders === 0) msg(ctx, 'earth.nothing_else');
+}
+
+// ---------------------------------------------------------------------------------------------
 // reading
 
 const heroScroll = (ctx: Ctx, id: unknown): Entity | null => {
@@ -562,6 +761,10 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
         known = !blind;
       }
       break;
+    case 'nh:scroll_of_earth':
+      seffectEarth(ctx, scroll, confused);
+      known = true;
+      break;
     case 'nh:scroll_of_blank_paper':
       // ref: seffect_blank_paper(); the scroll is not used up
       msg(ctx, blind ? 'read.blank_blind' : 'read.blank');
@@ -584,6 +787,7 @@ export const SCROLL_USES: Readonly<
   'nh:scroll_of_enchant_armor': readScroll,
   'nh:scroll_of_remove_curse': readScroll,
   'nh:scroll_of_light': readScroll,
+  'nh:scroll_of_earth': readScroll,
   'nh:scroll_of_blank_paper': readScroll,
 };
 

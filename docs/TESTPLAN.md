@@ -75,6 +75,18 @@ Wizard commands below are in the self-actions menu (tap yourself).
 - [ ] The altar is unaligned; two fountains on the main street; holes in some shop walls; both staircases outside the town walls.
 - [ ] Level teleport deeper in the Mines and to the bottom: orcs wait there, the orc-captain leader at the bottom, some carrying gold, gems or a ring.
 
+## 7b1 boulders and pits
+
+With `?wizard=1`.
+
+- [ ] Wish for `boulder`: it lands at your feet (a `0`). Step off, walk back into it: "With great effort you move the boulder." and you follow it.
+- [ ] Push it into a wall: "You try to move the boulder, but in vain." and no time passes. Stand behind it in a dark spot: you cannot see past it.
+- [ ] Tap the boulder: the action menu offers "Push the boulder" and "Fight the boulder"; kick it: "Ouch! That hurts!".
+- [ ] Wish for `wand of striking`, zap it at a boulder: "The boulder falls apart." and a pile of rocks.
+- [ ] Wish for `scroll of earth`, read it in a room: "The ceiling rumbles above you!", a boulder on every square around you and one on you. A blessed one: "around you", none on you.
+- [ ] Find a pit (or wait for one deeper down): "You fall into a pit!", a few turns of "You are still in a pit." then "You crawl to the edge of the pit."; push a boulder into it: "The boulder fills a pit."
+- [ ] Level teleport to Mines level 1 in a few new games: boulders in the cave.
+
 ## Look cursor
 
 Desktop with a keyboard first, then the phone. Try both key layouts (Options: vi keys / number pad).

@@ -89,6 +89,8 @@ describe('readobjnam', () => {
     expect(parse('`').what).toEqual({ kind: 'class', cls: 'rock' });
     expect(typeOf('boulder')).toBe('nh:boulder');
     expect(typeOf('2 boulders')).toBe('nh:boulder');
+    expect(typeOf('scroll of earth')).toBe('nh:scroll_of_earth');
+    expect(typeOf('2 scrolls of earth')).toBe('nh:scroll_of_earth');
   });
 
   test('appearances and fixed descriptions name the type they belong to this game', () => {

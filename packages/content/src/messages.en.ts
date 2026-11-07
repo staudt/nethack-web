@@ -71,6 +71,8 @@ export const messagesEn: Record<string, string> = {
   'door.hear_open': 'You hear a door open.',
   // a monster the hero can't see or sense (Monnam's "it"); see monNam() and {mon|The}
   'pronoun.it': 'it',
+  'pronoun.him': 'him',
+  'pronoun.her': 'her',
   'pronoun.them': 'them',
   'mon.wakes_up': '{mon|The} wakes up!',
   'mon.wakes_up_calm': '{mon|The} wakes up.',

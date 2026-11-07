@@ -29,12 +29,11 @@ From 5b (objects and traps):
 - **Amulets:** change, unchanging, magical breathing.
 - **Wands:** wishing, digging, teleportation, polymorph, cancellation, make invisible, undead turning, death, enlightenment; breaking (applying) wands.
 - **Tools:** pick-axe and digging, magic lamp (djinni), bag of tricks, horns, musical instruments, #force.
-- **Traps:** the other trap types (pits, webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
+- **Traps:** the other trap types (webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
 - **Item damage:** `passive_obj` on monster gear, fixing erosion.
 
 From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-checked 2026-11-02):
 
-- **Boulders:** the boulder object and `moverock()` (pushing, squeezing past, boulders in Mines filler levels and in blocked extra corridors).
 - **Mines monsters:** dwarf lord, dwarf king, bugbear and mind flayer (the `G` and `h` classes pick only from the monsters that exist; the gnome king and gnomish wizard came with 6b1).
 - **Branch stairs description:** "staircase down to the Gnomish Mines" once used (`stairs_description()`); up and portal branches.
 - **Either/or content entries** in `LevelDef` (minefill's `percent(50) and "h" or "G"`), and a first solidfill pass before a cave init.
