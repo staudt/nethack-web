@@ -8,9 +8,10 @@
 // create_critters(); src/mhitm.c sleep_monst(), slept_monst();
 // src/potion.c speed_up(); src/mhitu.c u_slow_down() (mon_adjust_speed() is in mstate.ts)
 //
-// Teleportation: monsters (u_teleport_mon()), objects (rloco.ts) and the zapper (tele()).
-// The wands of enlightenment, wishing, stasis, undead turning, cancellation, digging and death
-// exist but have no effect yet (a charge is spent, nothing is learned; m7d steps 2-7).
+// Teleportation: monsters (u_teleport_mon()), objects (rloco.ts) and the zapper (tele()); the
+// wand of stasis stops it on the level for a while (teleport.ts setStasis()).
+// The wands of enlightenment, wishing, undead turning, cancellation, digging and death
+// exist but have no effect yet (a charge is spent, nothing is learned; m7d steps 3-7).
 //
 // Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
@@ -81,6 +82,7 @@ import { findAc, findMac } from './stats';
 import { T } from './terrain';
 import { rloco } from './rloco';
 import { TRAP, dotrap, mintrap, tele, uTeleportMon } from './trap';
+import { setStasis } from './teleport';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
 import { checkUnpaid } from './shk';
 
@@ -768,6 +770,11 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
     case WAN.secretDoor:
       known = true; // findit() gives feedback even when nothing is found
       findit(ctx);
+      break;
+    case WAN.stasis:
+      // no immediately obvious effect, and no message so that it isn't distinguishable from other
+      // NODIR wands that produce no message; for multiple zaps, keep the longest duration
+      setStasis(ctx, heroPos(ctx).level, ctx.state.turn + ctx.rng.rn2(21) + 10); // rn1(21, 10)
       break;
     case WAN.createMonster:
       if (createCritters(ctx, ctx.rng.rn2(23) !== 0 ? 1 : ctx.rng.rn2(7) + 2)) known = true;

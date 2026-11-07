@@ -15,6 +15,8 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:spiked_pit': 'spiked pit',
   'nh:trap_door': 'trap door',
   'nh:hole': 'hole',
+  'nh:teleportation_trap': 'teleportation trap',
+  'nh:level_teleporter': 'level teleporter',
 
   'trap.escape': 'You escape {trap|an}.',
   'trap.found': 'You find {trap|an}.',
@@ -158,4 +160,17 @@ export const trapMessagesEn: Record<string, string> = {
   'tele.where.close': ' close by',
   'tele.where.closer': ' closer to you',
   'tele.where.farther': ' farther away',
+  'tele.stasis_mon': 'A mysterious force prevents you teleporting {mon|the}!',
+  // the teleport traps. ref: src/teleport.c tele_trap(), level_tele_trap(), mtele_trap(),
+  // mlevel_tele_trap()
+  'tele.wrenching': 'You feel a wrenching sensation.',
+  'tele.trap_level_step': 'You step onto a level teleport trap!',
+  'tele.trap_level_trigger': 'You trigger a level teleport trap!',
+  'tele.disoriented': 'You feel disoriented.',
+  'tele.even_more_disoriented': 'You feel even more disoriented.',
+  'tele.briefly_oriented': 'You briefly feel oriented.',
+  'tele.mon_disoriented': '{mon|The} seems disoriented.',
+  'tele.mon_disappears': '{mon|The} suddenly disappears!',
+  'tele.mon_shudders': '{mon|The} shudders for a moment.',
+  'tele.mon_out_of_sight': 'Suddenly, {mon|the} disappears out of sight.',
 };

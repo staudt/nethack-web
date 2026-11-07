@@ -9,6 +9,7 @@ import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkshop } from './shknam';
+import { levelFlags } from './levelflags';
 import { T, setTerrain } from './terrain';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
 
@@ -48,8 +49,8 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.spikedPit, // 12 SPIKED_PIT
   TRAP.hole, // 13 HOLE
   TRAP.trapdoor, // 14 TRAPDOOR
-  null, // 15 TELEP_TRAP
-  null, // 16 LEVEL_TELEP
+  TRAP.tele, // 15 TELEP_TRAP
+  TRAP.levelTele, // 16 LEVEL_TELEP
   null, // 17 MAGIC_PORTAL
   null, // 18 WEB
   null, // 19 STATUE_TRAP
@@ -64,14 +65,18 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
 /**
  * A random trap kind for a level of difficulty `lvl`, or null for NO_TRAP ("too hard", or a
  * kind this port does not have). ref: src/mklev.c traptype_rnd(): `kind = rnd(TRAPNUM - 1)`;
- * sleeping gas needs level 2, spiked pits level 5; holes are made only 1 time in 7. The restrictions of the kinds we
- * lack draw no random numbers.
+ * sleeping gas needs level 2, spiked pits level 5; level teleporters need level 5 and a level
+ * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; holes are
+ * made only 1 time in 7. The restrictions of the kinds we lack draw no random numbers (and there
+ * is no single-level branch, Fort Ludios).
  */
-export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number): DefId | null {
+export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number, noteleport = false): DefId | null {
   const kind = ctx.rng.rnd(TRAPNUM_KINDS.length - 1);
   const def = TRAPNUM_KINDS[kind] ?? null;
   if (def === TRAP.sleepGas && lvl < 2) return null;
+  if (def === TRAP.levelTele && (lvl < 5 || noteleport)) return null;
   if (def === TRAP.spikedPit && lvl < 5) return null;
+  if (def === TRAP.tele && noteleport) return null;
   if (def === TRAP.hole && ctx.rng.rn2(7)) return null;
   return def;
 }
@@ -86,7 +91,8 @@ export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number): DefId | null {
  */
 export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | null = null): void {
   const lvl = level.depth; // level_difficulty()
-  while (kind === null) kind = traptypeRnd(ctx, lvl);
+  const noteleport = levelFlags(ctx, level).noteleport === true; // svl.level.flags.noteleport
+  while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   let m: Pos | null;
   if ('lx' in room) {

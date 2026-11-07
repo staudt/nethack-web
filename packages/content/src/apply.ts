@@ -29,7 +29,7 @@ import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas, wornIn } from './props';
-import { noteleportLevel, teleok } from './teleport';
+import { inStasis, noteleportLevel, teleok } from './teleport';
 import { mintrap, teleds } from './trap';
 import { setMtrapped } from './trapstate';
 
@@ -104,6 +104,7 @@ function magicWhistled(ctx: Ctx, obj: Entity): void {
   const hp = hero(ctx).c.pos;
   const level = hp ? ctx.state.levels[hp.level] : undefined;
   if (!hp || !level) return;
+  if (inStasis(ctx.state, level.id)) return; // stasis prevents magic-whistling
   let shift = 0;
   let appear = 0;
   let disappear = 0;

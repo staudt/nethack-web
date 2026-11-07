@@ -23,7 +23,9 @@ import {
   type DefId,
   type Entity,
   type EntityId,
+  type GameState,
   type Level,
+  type LevelId,
   type LevelRef,
   type Pos,
 } from '@nh/core';
@@ -36,11 +38,49 @@ import { dungeonBottom, levelFlags } from './levelflags';
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
 
 /**
- * Teleporting is impossible on this level. ref: src/teleport.c noteleport_level() (the level's
- * `noteleport` flag; the wand of stasis comes later)
+ * The turn until which a wand of stasis stops teleporting on each level, by level id
+ * (`modData.nh.stasis`; svl.level.flags.stasis_until, an absolute turn as C keeps it).
  */
-export function noteleportLevel(ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): boolean {
-  return levelFlags(ctx, level).noteleport === true;
+function stasisTable(state: Readonly<GameState>): Readonly<Record<string, number>> | undefined {
+  const nh = state.modData['nh'];
+  if (nh === null || typeof nh !== 'object' || Array.isArray(nh)) return undefined;
+  const t = nh['stasis'];
+  if (t === null || typeof t !== 'object' || Array.isArray(t)) return undefined;
+  return t as Readonly<Record<string, number>>;
+}
+
+/** A wand of stasis is in effect on the level. ref: `svl.level.flags.stasis_until >= svm.moves` */
+export function inStasis(state: Readonly<GameState>, levelId: LevelId): boolean {
+  const until = stasisTable(state)?.[levelId];
+  return typeof until === 'number' && until >= state.turn;
+}
+
+/**
+ * The wand of stasis: teleporting stops on the level until turn `until`, keeping the longest
+ * duration when zapped again. ref: src/zap.c zapnodir() WAN_STASIS
+ */
+export function setStasis(ctx: Pick<Ctx, 'state'>, levelId: LevelId, until: number): void {
+  const md = ctx.state.modData;
+  let nh = md['nh'];
+  if (nh === null || typeof nh !== 'object' || Array.isArray(nh)) {
+    nh = {};
+    md['nh'] = nh;
+  }
+  let t = nh['stasis'];
+  if (t === null || typeof t !== 'object' || Array.isArray(t)) {
+    t = {};
+    nh['stasis'] = t;
+  }
+  const old = t[levelId];
+  if (typeof old !== 'number' || until > old) t[levelId] = until;
+}
+
+/**
+ * Teleporting is impossible on this level: its `noteleport` flag, or a wand of stasis in effect.
+ * ref: src/teleport.c noteleport_level() (no demon court; no covetous monsters)
+ */
+export function noteleportLevel(ctx: Pick<Ctx, 'defs' | 'state'>, level: Readonly<Level>): boolean {
+  return levelFlags(ctx, level).noteleport === true || inStasis(ctx.state, level.id);
 }
 
 /** What goodpos() needs of a level, gathered once per search. */

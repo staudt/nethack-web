@@ -2,16 +2,18 @@
 // dat/minend-2.lua, dat/minend-3.lua
 //
 // Translation notes (see DEVIATIONS.md "Mines' End"): the mimics of minend-1, the vampires (`V`)
-// and the level teleporters of minend-3, the engravings, the arrival and teleport regions, the
+// of minend-3, the engravings, the arrival and teleport regions, the
 // non-diggable walls and the achievements are left out. minend-2's potion of object detection is
 // a random potion (no such potion yet). The fountains come from the map ('{'); they are not magic.
 // Shuffled niches, "not-cursed" luckstones, minend-2's conditional locked door and minend-3's
-// maze walk are fixups (sp_lev.ts SpLevFixup), as C's are lua code.
+// maze walk and level teleporters (on the shuffled `place` spots) are fixups (sp_lev.ts SpLevFixup), as C's are lua code.
 import type { Ctx, DefId, Level, LevelContent, LevelDef } from '@nh/core';
-import { cellIndex, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
+import { cellIndex, isPlainFloor, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { mazewalk } from './mazewalk';
+import { mktrap } from './mklev';
 import { mksobjFull } from './mkobj';
 import { mapToLevel, shuffle, type SpLevFixup } from './sp_lev';
+import { TRAP } from './trap';
 
 type Spot = readonly [x: number, y: number];
 
@@ -353,7 +355,7 @@ export const MINEND_3: LevelDef = {
     obj('spellbook', 4),
     { ...ANY_OBJECT, count: 3 },
     { kind: 'trap', count: 7 },
-    // the two level teleporters at place[2] and place[1] are left out
+    // the two level teleporters at place[2] and place[1]: MINEND_3_FIXUP
     cls('M', 5),
     mon('ettin_mummy'),
     cls('Z', 5), // the two "V" (vampires) are left out
@@ -379,6 +381,12 @@ const MINEND_3_FIXUP: SpLevFixup = {
     shuffle(ctx, place);
     objectAt(ctx, level, def, 'luckstone', place[1] as Spot, true);
     objectAt(ctx, level, def, 'flint_stone', place[0] as Spot);
+    // -- One-time annoyance factor
+    // des.trap("level teleport", place[2]); des.trap("level teleport", place[1])
+    for (const at of [place[1], place[0]] as Spot[]) {
+      const p = mapToLevel(def, level, at[0], at[1]);
+      if (isPlainFloor(ctx.defs, level, p.x, p.y)) mktrap(ctx, level, p, TRAP.levelTele);
+    }
   },
 };
 

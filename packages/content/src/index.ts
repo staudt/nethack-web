@@ -40,7 +40,7 @@ import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
-import { registerTraps } from './trap';
+import { registerTeleportitis, registerTraps } from './trap';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
@@ -119,6 +119,7 @@ export const vanillaMod: Mod = {
     registerStats(api);
     registerShuffle(api);
     registerHero(api);
+    registerTeleportitis(api); // after regen_pw(), as moveloop_core()
     registerGeneration(api);
     registerMklev(api);
     registerPriest(api); // before the LevelDef contents, as create_altar()

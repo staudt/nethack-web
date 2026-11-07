@@ -11,6 +11,7 @@ import {
   isPlainFloor,
   itemsAt,
   stateHash,
+  trapAt,
   type Ctx,
   type DefId,
   type GameEvent,
@@ -464,6 +465,44 @@ describe('wiz:wish and wiz:identify', () => {
     expect(
       inv(state).find((e) => e.def === 'nh:gold_piece')?.c.item?.quantity,
     ).toBeGreaterThanOrEqual(9000);
+  });
+
+  test('a trap name makes that trap at her feet, unseen and not set off (wizterrainwish())', () => {
+    const state = game(13);
+    const text = (events: GameEvent[]) => msgs(events).map((m) => render(m));
+    const level = getLevel(state);
+    const hp = getPlayer(state).c.pos!;
+    // move her onto plain floor (she starts on the up stairs)
+    const spot = (() => {
+      for (let y = 0; y < level.height; y++)
+        for (let x = 0; x < level.width; x++)
+          if (isPlainFloor(wizard.registry, level, x, y) && !trapAt(level, x, y)) return { x, y };
+      throw new Error('no floor');
+    })();
+    const onStairs = { x: hp.x, y: hp.y };
+    const items0 = items(state);
+    for (const [wished, def, said] of [
+      ['teleportation trap', 'nh:teleportation_trap', 'A teleportation trap.'],
+      ['a level teleporter', 'nh:level_teleporter', 'A level teleporter.'],
+      ['bear trap', 'nh:bear_trap', 'A bear trap.'],
+      ['hole', 'nh:hole', 'A hole.'],
+    ] as const) {
+      Object.assign(hp, spot);
+      const before = { ...hp };
+      expect(text(wish(state, wished))).toEqual([said]);
+      const t = trapAt(getLevel(state), spot.x, spot.y);
+      expect(t?.def).toBe(def);
+      expect(t?.seen).toBe(def === 'nh:hole'); // only holes are always seen
+      expect({ ...getPlayer(state).c.pos }).toEqual(before);
+    }
+    expect(items(state)).toBe(items0); // no object made
+    // not on the stairs
+    Object.assign(hp, onStairs);
+    expect(text(wish(state, 'pit'))).toEqual(['Creation of a pit failed.']);
+    expect(trapAt(getLevel(state), onStairs.x, onStairs.y)).toBeUndefined();
+    // an object name is still an object
+    wish(state, 'skeleton key');
+    expect(inv(state).some((e) => e.def === 'nh:skeleton_key')).toBe(true);
   });
 
   test('wiz:identify fully identifies the inventory; the names show BUC and enchantment', () => {

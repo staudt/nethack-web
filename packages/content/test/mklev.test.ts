@@ -106,6 +106,20 @@ describe('mktrap', () => {
     expect(deep.get(TRAP.spikedPit) ?? 0).toBeGreaterThan(0);
   });
 
+  test('teleportation traps at any depth, level teleporters from 5; none where teleporting is barred', () => {
+    const shallow = kinds(4);
+    expect(shallow.get(TRAP.tele) ?? 0).toBeGreaterThan(0);
+    expect(shallow.has(TRAP.levelTele)).toBe(false);
+    const deep = kinds(5);
+    expect(deep.get(TRAP.tele) ?? 0).toBeGreaterThan(0);
+    expect(deep.get(TRAP.levelTele) ?? 0).toBeGreaterThan(0);
+    const ctx = ctxFor(bareState(77));
+    for (let i = 0; i < 4000; i++) {
+      const k = traptypeRnd(ctx, 10, true);
+      expect(k === TRAP.tele || k === TRAP.levelTele).toBe(false);
+    }
+  });
+
   test('traps go on free plain floor of the room only; no holes at the bottom', () => {
     for (const depth of [1, 3, DUNGEON_BOTTOM]) {
       const { state } = engine.newGame({ seed: 50 + depth });

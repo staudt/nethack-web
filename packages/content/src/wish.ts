@@ -1,7 +1,16 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
-import { getPlayer, type Ctx, type DefId, type EntityId, type Json, type Msg } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  isPlainFloor,
+  type Ctx,
+  type DefId,
+  type EntityId,
+  type Json,
+  type Msg,
+} from '@nh/core';
 import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';
 import { addToInventory, invCount, placeOnFloor, splitStack } from './items';
@@ -21,6 +30,7 @@ import { xnameOf } from './objnam';
 import { CHARGED_RINGS } from './objects';
 import { WRPSYM, mungspaces, readobjnam, wishNames, type WishSpec } from './objnam_read';
 import { nearCapacity } from './stats';
+import { TRAP, canFallThru, isHole, maketrap } from './trap';
 
 /** ref: include/hack.h MAXWISHTRY */
 export const MAXWISHTRY = 5;
@@ -232,6 +242,32 @@ export function askWish(ctx: Ctx, action: DefId, data: WishData): void {
 }
 
 /**
+ * Wizard mode: a wish whose words start with a trap's name ("teleportation trap", "level
+ * teleporter", "pit"...) makes that trap at the hero's feet, unseen and not set off: "A
+ * teleportation trap." ("Creation of a pit failed." on stairs, furniture or a doorway); a hole or
+ * trap door where one cannot fall through is a falling rock trap. True when a trap name matched.
+ * ref: src/objnam.c wizterrainwish() (the trap part; terrain wishes are not ported)
+ */
+function wizTrapWish(ctx: Ctx, buf: string): boolean {
+  const bp = buf.toLowerCase().replace(/^(an?|the) /, ''); // readobjnam_preparse()
+  for (const t of ctx.defs.traps) {
+    const tname = messagesEn[t.nameKey];
+    if (tname === undefined || !bp.startsWith(tname.toLowerCase())) continue;
+    const p = getPlayer(ctx.state).c.pos;
+    if (!p) return true;
+    const level = getLevel(ctx.state, p.level);
+    // found it; avoid stupid mistakes
+    const kind = isHole(t.id) && !canFallThru(ctx.state, level) ? TRAP.rock : t.id;
+    if (isPlainFloor(ctx.defs, level, p.x, p.y)) {
+      maketrap(ctx, p.level, p.x, p.y, kind);
+      ctx.emit({ type: 'msg', key: 'wish.wiz_trap', params: { trap: `@${kind}` } });
+    } else ctx.emit({ type: 'msg', key: 'wish.wiz_trap_failed', params: { trap: `@${kind}` } });
+    return true;
+  }
+  return false;
+}
+
+/**
  * The answer to the wish prompt. ref: src/zap.c makewish(): an unknown name says so and asks
  * again, up to MAXWISHTRY times, then "That's enough tries!" and a random object; "nothing"
  * declines; an empty answer or Escape is a random object (readobjnam("") goes to `any:`).
@@ -242,6 +278,8 @@ export function answerWish(ctx: Ctx, action: DefId, value: Json, data: WishData)
   const buf = typeof value === 'string' ? mungspaces(value) : '';
   const names = wishNames(ctx.state, ctx.defs, messagesEn);
   let spec = readobjnam(buf, names);
+  // wizard mode: traps, after the objects (so "bear trap" is still the object)
+  if (spec === null && data.wizard && wizTrapWish(ctx, buf)) return;
   if (spec === null) {
     ctx.emit({ type: 'msg', key: 'wish.nothing_fitting' });
     if (data.tries + 1 < MAXWISHTRY) {

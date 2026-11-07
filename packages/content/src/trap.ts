@@ -1,7 +1,8 @@
 // Traps: arrow, dart, falling rock, squeaky board, bear trap, sleeping gas, rust, pit, spiked
-// pit, trap door and hole. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(),
+// pit, trap door, hole, teleportation trap and level teleporter. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(),
 // dotrap(), mintrap(), trapeffect_*(), climb_pit(), fall_through(), thitm(), m_harmless_trap(),
-// src/mondata.c mons_see_trap(), src/teleport.c mlevel_tele_trap(), src/hack.c trapmove(),
+// src/mondata.c mons_see_trap(), src/teleport.c tele_trap(), level_tele_trap(), mtele_trap(),
+// mlevel_tele_trap(), src/hack.c trapmove(),
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
@@ -44,6 +45,7 @@ import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
 import {
   SOKOBAN_DUNGEON,
+  inStasis,
   levelAtDepth,
   noteleportLevel,
   randomTeleportLevel,
@@ -58,6 +60,7 @@ import { erodeObj, type ErodeResult } from './erode';
 import { rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
+import { uState } from './luck';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
@@ -66,10 +69,10 @@ import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
 import { minvent, monWep, whichArmor } from './mongear';
 import { clearPath } from './clearpath';
-import { isFrozen, paralyzeMonst } from './mstate';
+import { isFrozen, paralyzeMonst, setMConfused } from './mstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
-import { P, hasProp } from './props';
+import { P, hasProp, makeConfused, timeoutLeft } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import {
@@ -98,6 +101,8 @@ export const TRAP = {
   spikedPit: 'nh:spiked_pit',
   trapdoor: 'nh:trap_door',
   hole: 'nh:hole',
+  tele: 'nh:teleportation_trap',
+  levelTele: 'nh:level_teleporter',
 } as const;
 
 // Colors as in include/color.h (HI_METAL = CYAN, HI_ZAP = BRIGHT_BLUE).
@@ -107,8 +112,9 @@ const BROWN = '#aa5500';
 const BLUE = '#4466ff';
 const BRIGHT_BLUE = '#5555ff';
 const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
+const MAGENTA = '#bb44bb';
 
-/** ref: include/defsym.h S_arrow_trap .. S_hole */
+/** ref: include/defsym.h S_arrow_trap .. S_hole, S_teleportation_trap, S_level_teleporter */
 export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.arrow, nameKey: TRAP.arrow, glyph: { ch: '^', fg: CYAN } },
   { id: TRAP.dart, nameKey: TRAP.dart, glyph: { ch: '^', fg: CYAN } },
@@ -121,7 +127,15 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.spikedPit, nameKey: TRAP.spikedPit, glyph: { ch: '^', fg: BLACK } },
   { id: TRAP.trapdoor, nameKey: TRAP.trapdoor, glyph: { ch: '^', fg: BROWN }, hole: true },
   { id: TRAP.hole, nameKey: TRAP.hole, glyph: { ch: '^', fg: BROWN }, hole: true },
+  { id: TRAP.tele, nameKey: TRAP.tele, glyph: { ch: '^', fg: MAGENTA } },
+  { id: TRAP.levelTele, nameKey: TRAP.levelTele, glyph: { ch: '^', fg: MAGENTA } },
 ];
+
+/**
+ * Traps set off by touching the floor, which flyers and floaters pass over (the teleport traps
+ * are not). ref: src/trap.c floor_trigger()
+ */
+export const floorTrigger = (def: DefId): boolean => def !== TRAP.tele && def !== TRAP.levelTele;
 
 export { isHole, isPit };
 
@@ -580,6 +594,12 @@ export function dotrap(
     case TRAP.trapdoor:
     case TRAP.hole:
       return fallThrough(ctx, levelId, t, opts.plunged === true);
+    case TRAP.tele:
+      seetrap(t);
+      return teleTrap(ctx);
+    case TRAP.levelTele:
+      seetrap(t);
+      return levelTeleTrap(ctx, levelId, t, opts.force === true);
     default:
       return; // another mod's trap: its effects are that mod's business
   }
@@ -693,7 +713,8 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
   const def = ctx.defs.monster(mon.def);
   const lvl = mon.c.pos ? ctx.state.levels[mon.c.pos.level] : undefined;
   const soko = !!lvl && isSokoban(lvl);
-  if (!soko && inAir(ctx, mon)) return true; // `!Sokoban && floor_trigger() && check_in_air()`
+  // `!Sokoban && floor_trigger() && check_in_air()`
+  if (!soko && floorTrigger(trap.def) && inAir(ctx, mon)) return true;
   switch (trap.def) {
     case TRAP.bear:
       return (
@@ -1042,7 +1063,7 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
   if (!TRAPS.some((t) => t.id === trap.def)) return 'finished'; // another mod's trap
   // "Sokoban && (is_pit(tt) || is_hole(tt))": the trap effects handle it
   if (!opts.force && !sokobanTrap(ctx, p.level, trap)) {
-    if (inAir(ctx, mon)) return 'finished'; // floor_trigger() && check_in_air()
+    if (floorTrigger(trap.def) && inAir(ctx, mon)) return 'finished'; // check_in_air()
     if (alreadySeen && ctx.rng.rn2(4) !== 0) return 'finished';
   }
   monLearnsTraps(ctx, monId, trap.def);
@@ -1063,9 +1084,60 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
     case TRAP.pit:
     case TRAP.spikedPit:
       return pitMon(ctx, p.level, mon, trap);
+    case TRAP.tele:
+      mteleTrap(ctx, mon, trap, canseemon(ctx, mon));
+      return 'moved'; // trapeffect_telep_trap(): Trap_Moved_Mon whatever happened
+    case TRAP.levelTele:
+      return mlevelTeleTrap(ctx, mon, trap, canseemon(ctx, mon));
     default:
       return holeMon(ctx, p.level, mon, trap);
   }
+}
+
+/**
+ * A monster on a teleportation trap lands on a random spot of the level, unless the level forbids
+ * teleporting: "The jackal seems disoriented." or "The jackal suddenly disappears!" when seen.
+ * ref: src/teleport.c mtele_trap() (no leashes, vault teleporters or fixed destinations)
+ */
+function mteleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): void {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  // no feedback: a monster stepping on a trap and not teleporting from it isn't visible
+  if (!level || noteleportLevel(ctx, level)) return;
+  const monname = monNam(ctx, mon); // with pre-movement visibility
+  rlocMon(ctx, mon, false);
+  if (inSight) {
+    say(ctx, canseemon(ctx, mon) ? 'tele.mon_disoriented' : 'tele.mon_disappears', {
+      mon: monname,
+    });
+    seetrap(trap);
+  }
+}
+
+/**
+ * A monster on a level teleporter goes to a random level (C's random_teleport_level() from the
+ * hero's level, which is its own), confused, and waits there for the hero: "Suddenly, the jackal
+ * disappears out of sight." when seen, "The jackal shudders for a moment." when the level comes
+ * up the same. ref: src/teleport.c mlevel_tele_trap() (LEVEL_TELEP; no Amulet, endgame or leashes)
+ */
+function mlevelTeleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): TrapResult {
+  if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!level) return 'finished';
+  const nlev = randomTeleportLevel(ctx, level);
+  if (nlev === dungeonLayout(ctx.state, level.dungeon).depthStart + level.dlevel - 1) {
+    if (inSight) say(ctx, 'tele.mon_shudders', { mon: monNam(ctx, mon) });
+    return 'finished';
+  }
+  const to = levelAtDepth(ctx, level, nlev); // get_level()
+  if (inSight) {
+    say(ctx, 'tele.mon_out_of_sight', { mon: monNam(ctx, mon) });
+    seetrap(trap);
+  }
+  setMConfused(ctx, mon.id, true); // is_xport() && !control_teleport()
+  migrateToLevel(ctx, mon, levelIdFor(ctx.state, to));
+  return 'moved'; // no longer on this level
 }
 
 /** True when the outcome means the monster left its square (died or fell). */
@@ -1155,31 +1227,90 @@ export function tele(ctx: Ctx): void {
  * An uncontrolled level teleport: "You feel very disoriented for a moment." in Sokoban, "You
  * shudder for a moment." when the random level is this one, else to a random spot of the level
  * at that depth ("You materialize on a different level!"). Leaving a shop this way is leaving it
- * by the stairs. ref: src/teleport.c level_tele() (random_levtport; no control, Amulet, endgame,
+ * by the stairs. `beforeGoto` is what the caller does once level_tele() has returned, before the
+ * deferred goto_level() at the end of the turn (C's schedule_goto()): it runs on every outcome.
+ * ref: src/teleport.c level_tele() (random_levtport; no control, Amulet, endgame,
  * quest, Gehennom or leashed pets), random_teleport_level(); src/dungeon.c get_level()
  */
-export function levelTele(ctx: Ctx): void {
+export function levelTele(ctx: Ctx, beforeGoto?: () => void): void {
   const level = getLevel(ctx.state, heroPos(ctx).level);
-  if (level.dungeon === SOKOBAN_DUNGEON) {
-    say(ctx, 'tele.very_disoriented');
-    return;
-  }
+  const refuse = (key: string): void => {
+    say(ctx, key);
+    beforeGoto?.();
+  };
+  if (level.dungeon === SOKOBAN_DUNGEON) return refuse('tele.very_disoriented');
   const newlev = randomTeleportLevel(ctx, level);
   const layout = dungeonLayout(ctx.state, level.dungeon);
-  if (newlev === layout.depthStart + level.dlevel - 1) {
-    say(ctx, 'tele.shudder');
-    return;
-  }
+  if (newlev === layout.depthStart + level.dlevel - 1) return refuse('tele.shudder');
   const to = levelAtDepth(ctx, level, newlev);
   if (to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
     const deepest = layout.depthStart + (layout.levels ?? dungeonBottom(ctx.state, level)) - 1;
-    say(ctx, newlev > deepest ? 'tele.cant_get_there_anywhere' : 'tele.cant_get_there_here');
-    return;
+    return refuse(newlev > deepest ? 'tele.cant_get_there_anywhere' : 'tele.cant_get_there_here');
   }
+  beforeGoto?.();
+  if (ctx.state.gameOver) return;
   ctx.goToLevel(to, 'random'); // schedule_goto() -> goto_level(): u_on_rndspot(), pickup(1)
   if (ctx.state.gameOver) return;
   lookHere(ctx);
   say(ctx, 'tele.materialize_level'); // the deferred goto's message
+}
+
+/** tele_trap()'s guard: a trap the hero lands on from a teleport trap does not go off. */
+let inTeleTrap = false;
+
+/**
+ * The hero on a teleportation trap: "You feel a wrenching sensation." with magic resistance or on
+ * a level that forbids teleporting, else a random teleport within the level.
+ * ref: src/teleport.c tele_trap() (no endgame, leashes, vault teleporters or fixed destinations)
+ */
+export function teleTrap(ctx: Ctx): void {
+  // a teleport could place the hero onto a second teleport trap; the recursive call from
+  // spoteffects() must not trigger the trap at the destination
+  if (inTeleTrap) return;
+  inTeleTrap = true;
+  try {
+    const level = getLevel(ctx.state, heroPos(ctx).level);
+    // shieldeff() with Antimagic is display only
+    if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level))
+      say(ctx, 'tele.wrenching');
+    else tele(ctx);
+  } finally {
+    inTeleTrap = false;
+  }
+}
+
+/**
+ * The hero on a level teleporter: "You step onto a level teleport trap!" ("You trigger..." when
+ * forced), "You feel a wrenching sensation." with magic resistance (unless forced), else the trap
+ * is used up and she level-teleports at random; then "You feel disoriented." ("even more" when
+ * confused; "You briefly feel oriented." when hallucinating) and 3 more turns of confusion.
+ * ref: src/teleport.c level_tele_trap() (no endgame, no teleport control)
+ */
+function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boolean): void {
+  say(ctx, intentional ? 'tele.trap_level_trigger' : 'tele.trap_level_step');
+  if (hasProp(heroEnt(ctx), P.ANTIMAGIC) && !intentional) {
+    say(ctx, 'tele.wrenching');
+    return;
+  }
+  deltrap(ctx, levelId, trap);
+  levelTele(ctx, () => {
+    const h = heroEnt(ctx);
+    if (hasProp(h, P.HALLUC)) say(ctx, 'tele.briefly_oriented');
+    else say(ctx, hasProp(h, P.CONFUSION) ? 'tele.even_more_disoriented' : 'tele.disoriented');
+    // in place of a magic portal's brief Stun, and only without control
+    makeConfused(ctx, timeoutLeft(ctx.state, h, P.CONFUSION) + 3, false);
+  });
+}
+
+/**
+ * Teleportitis: 1 turn in 85 she teleports within the level (not while praying).
+ * ref: src/allmain.c moveloop_core() `Teleportation && !rn2(85)` (after regen_pw())
+ */
+export function registerTeleportitis(api: ModApi): void {
+  api.on('endOfTurn', (ctx) => {
+    if (ctx.state.gameOver || uState(ctx.state).uinvulnerable) return;
+    if (hasProp(heroEnt(ctx), P.TELEPORT) && !ctx.rng.rn2(85)) tele(ctx);
+  });
 }
 
 /**
@@ -1264,13 +1395,18 @@ export function rlocMon(ctx: Ctx, mon: Entity, domsg: boolean): boolean {
 /**
  * The hero teleports a monster (the wand's beam): a priest in a temple resists ("The priest of
  * Odin resists your magic!"), anything else lands on a random spot. False when it stays.
- * ref: src/teleport.c u_teleport_mon() (no stasis yet; no engulfers, riders or monsters with
- * teleport control exist)
+ * A wand of stasis in effect stops it: "A mysterious force prevents you teleporting the jackal!".
+ * ref: src/teleport.c u_teleport_mon() (no engulfers, riders or monsters with teleport control
+ * exist)
  */
 export function uTeleportMon(ctx: Ctx, mon: Entity, feedback: boolean): boolean {
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   if (!p || !level) return false;
+  if (inStasis(ctx.state, level.id)) {
+    if (feedback) say(ctx, 'tele.stasis_mon', { mon: monNam(ctx, mon) });
+    return false;
+  }
   if (
     epriOf(ctx, mon.id) !== null &&
     inRooms(level, p.x, p.y).some((r) => level.rooms[r]?.type === TEMPLE)

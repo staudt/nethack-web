@@ -8,6 +8,9 @@ export const zapMessagesEn: Record<string, string> = {
   'wish.aobjnam': '{count}{name}',
   'wish.oops': 'Oops!  {item|The} drops to the floor!',
   'wish.oops.plural': 'Oops!  {item|The} drop to the floor!',
+  // wizterrainwish() (wizard mode)
+  'wish.wiz_trap': '{trap|An}.',
+  'wish.wiz_trap_failed': 'Creation of {trap|an} failed.',
 
   'action.nh:zap': 'Zap',
   'zap.direction': 'In what direction?',
