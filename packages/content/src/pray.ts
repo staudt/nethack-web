@@ -551,6 +551,12 @@ function canPray(ctx: Ctx): PrayerData {
 }
 
 /**
+ * She could pray safely now (no messages, no state change). ref: src/pray.c can_pray(FALSE):
+ * `p_type == 3 && !Inhell`
+ */
+export const canSafelyPray = (ctx: Ctx): boolean => canPray(ctx).pType === 3;
+
+/**
  * Blesses (or curses) the potions of water on the altar under the hero; true if any changed.
  * "The potions on the altar glow light blue for a moment." ref: src/pray.c water_prayer()
  */

@@ -166,7 +166,7 @@ function luckItems(state: Readonly<GameState>): Entity[] {
 }
 
 /** Whether the hero carries a luckstone. ref: src/invent.c carrying(LUCKSTONE) */
-const carryingLuckstone = (state: Readonly<GameState>): boolean =>
+export const carryingLuckstone = (state: Readonly<GameState>): boolean =>
   luckItems(state).some((o) => o.def === 'nh:luckstone');
 
 /**

@@ -14,8 +14,8 @@
 // striking at what is under her, then the objects there; rays hit her own square).
 // Wishing (makewish() through wish.ts; the prompt's answer comes back to the zap action), the
 // death ray (buzz.ts), cancellation of monsters (`mcan`, mstate.ts), objects and the hero
-// (cancel_monst(), cancel_item()). The wands of enlightenment and undead turning exist but have
-// no effect yet (a charge is spent, nothing is learned; m7d step 7).
+// (cancel_monst(), cancel_item()). Undead turning hurts undead and revives corpses (revive.ts
+// revive(), unturnDead()); enlightenment shows the attribute list (enlightenment.ts).
 //
 // Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
@@ -95,6 +95,9 @@ import { luckOf } from './luck';
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { BLANK_PAPER } from './spell';
 import { done } from './end';
+import { monflee } from './monflee';
+import { cxnameSingular, revive, unturnDead } from './revive';
+import { doEnlightenmentEffect } from './enlightenment';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -210,6 +213,15 @@ const cansee = (ctx: Ctx, x: number, y: number): boolean =>
   heroSees(ctx, { level: heroPos(ctx).level, x, y });
 const canseemon = (ctx: Ctx, mon: Entity): boolean =>
   !!mon.c.pos && cansee(ctx, mon.c.pos.x, mon.c.pos.y);
+/** The objects at (x, y) of the hero's level. */
+const itemsHere = (ctx: Ctx, x: number, y: number): Entity[] =>
+  itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y);
+const CORPSE: DefId = 'nh:corpse';
+/**
+ * Corpses left by undead the current zap destroyed: the same zap does not revive them.
+ * ref: context.bypasses, obj->bypass (cleared when each zap starts; never part of the state)
+ */
+const bypassed = new Set<EntityId>();
 const trapHere = (level: Level, x: number, y: number): Trap | undefined =>
   level.traps.find((t) => t.x === x && t.y === y);
 
@@ -581,6 +593,22 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     case WAN.cancellation:
       cancelMonst(ctx, mon, src, true, false);
       break;
+    case WAN.undeadTurning: {
+      wake = false;
+      if (unturnDead(ctx, mon)) wake = true;
+      const mdat = ctx.defs.monster(mon.def);
+      if (mdat.flags.includes('undead')) {
+        // (no vampshifters; no Knight's quest artifact doubling; no turn undead spell yet)
+        wake = true;
+        const dmg = ctx.rng.rnd(8);
+        // context.bypasses: a corpse it leaves is not revived by this same zap
+        const before = new Set(itemsHere(ctx, at.x, at.y).map((o) => o.id));
+        const resisted = resist(ctx, mon, dmg, oclass);
+        for (const o of itemsHere(ctx, at.x, at.y)) if (!before.has(o.id)) bypassed.add(o.id);
+        if (!resisted && alive(ctx, mon.id)) monflee(ctx, mon.id, 0, false, true);
+      }
+      break;
+    }
     case WAN.teleportation:
       // the wand is known if the monster is seen where it lands (or stays)
       uTeleportMon(ctx, mon, true);
@@ -662,6 +690,31 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       rloco(ctx, obj);
       res = 1;
       break;
+    case WAN.undeadTurning: {
+      // eggs: nothing hatches yet (revive_egg() not ported)
+      if (obj.def !== CORPSE || bypassed.has(obj.id)) break;
+      const corpsname = cxnameSingular(ctx, obj);
+      // get corpse's location before revive() uses it up
+      const r = revive(ctx, obj, true);
+      if (!r) break; // no monster implies corpse was left intact
+      res = 1;
+      if (cansee(ctx, x, y)) {
+        if (canSpotMon(ctx, r.mon)) {
+          const tame = (r.mon.c.monster?.tame ?? 0) > 0;
+          say(ctx, tame ? 'zap.resurrected_tame' : 'zap.resurrected', {
+            mon: monNam(ctx, r.mon),
+          });
+          learnIt = true;
+        } else {
+          // saw corpse but don't see monster: placed at a different spot
+          say(ctx, 'zap.corpse_disappears', { corpse: corpsname });
+        }
+      } else {
+        // couldn't see corpse's location (no Healer to hear it revive)
+        if (canSpotMon(ctx, r.mon)) say(ctx, 'zap.mon_appears', { mon: monNam(ctx, r.mon) });
+      }
+      break;
+    }
     default:
       break;
   }
@@ -914,6 +967,11 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
         const data: ZapWishData = { tries: 0, wizard: false, wand: src.item.id };
         askWish(ctx, ZAP_ID, data);
       }
+      break;
+    case WAN.enlightenment:
+      known = true; // objects are always dknown here
+      // do_enlightenment_effect() always describes enlightenment
+      doEnlightenmentEffect(ctx);
       break;
     default:
       break;
@@ -1187,6 +1245,12 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
     case WAN.cancellation:
       cancelMonst(ctx, 'hero', src, true, true);
       break;
+    case WAN.undeadTurning:
+      learnIt = true;
+      // unturn_you(): her carried corpses (a hero is never undead: no polymorph)
+      unturnDead(ctx, 'hero');
+      say(ctx, 'zap.self.shudder');
+      break;
     case WAN.death:
       // a hero is never nonliving or a demon (no polymorph)
       say(ctx, 'zap.self.irradiate');
@@ -1231,6 +1295,7 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
  * zap_updown() for an immediate one up or down; a spell's ray has `u.ulevel / 2 + 1` dice
  */
 export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void {
+  bypassed.clear();
   const otyp = otypOf(src);
   const kind =
     src.kind === 'wand'

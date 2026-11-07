@@ -301,7 +301,7 @@ export function mkgold(
 // weight
 
 /** ref: src/eat.c eaten_stat(): weight of partly eaten food scales with the nutrition left. */
-function eatenStat(base: number, full: number, left: number): number {
+export function eatenStat(base: number, full: number, left: number): number {
   const uneaten = Math.min(left, full);
   const w = full ? Math.trunc((base * uneaten) / full) : 0;
   return w < 1 ? 1 : w;

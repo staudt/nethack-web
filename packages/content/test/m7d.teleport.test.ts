@@ -167,11 +167,11 @@ describe('the new objects', () => {
     }
   });
 
-  test('a new wand zaps with no effect yet: a charge is spent, nothing is learned', () => {
+  test('an immediate wand whose beam hits nothing: a charge is spent, nothing is learned', () => {
     const s = levelSetup(['.....', '..@..', '.....']);
     plainKit(s.state);
     s.step({ type: 'wait' });
-    const w = s.carry(WAN.undeadTurning); // (death has its effect since m7d step 6)
+    const w = s.carry(WAN.undeadTurning); // undead turning at empty floor
     itemOf(s.state, w).spe = 3;
     s.mod('nh:zap', { item: w });
     const p = s.state.pendingPrompt?.prompt;
