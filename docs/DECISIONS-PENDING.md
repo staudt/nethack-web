@@ -34,6 +34,16 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m7d wand of stasis** (2026-11-07): included (in the vendored objects.h, not on the old ROADMAP list); its only effect is in the teleport code.
 - **m7d cancellation, stasis and dug-trap state in content** (2026-11-07): `mcan`, stasis and dug-trap ownership in `modData.nh` and `Trap.data`, no save-version bump.
 
+- **m8 end-of-game questions in the UI** (2026-11-07): an optional `ask?` field on the core `'list'` event; the UI asks "Do you want your possessions identified?" etc. (not core prompts, so not in the replay). Additive core type change.
+- **m8 identify at game over in state** (2026-11-07): content's `beforeGameOver` hook at priority -1000 identifies her inventory, as C does.
+- **m8 which games are recorded** (2026-11-07): every finished game without `wiz`, including `?seed=` games and quits.
+- **m8 score in content** (2026-11-07): `u.urexp` and kill counts in `modData.nh`, one golden update in step 3.
+- **m8 `#quit`** (2026-11-07): `#quit` plus `GameOver.kind 'quit'` (additive core type).
+- **m8 title screen** (2026-11-07): only when there is no save to resume.
+- **m8 player name on the device only** (2026-11-07): not in `GameState`.
+- **m8 help text** (2026-11-07): from `help.cmd.*` messages and `action.<id>` labels, no ClientApi change.
+- **m8 deferred** (2026-11-07): conduct, dungeon overview, genocide lists and game-side options (autopickup) go to ROADMAP.
+
 ## Approved
 
 - **m7b boulders and Sokoban: four core contract questions** (2026-11-04, approved by the user 2026-11-06: all four recommendations taken). The plan (`~/.claude/plans/m7b-sokoban.md`, `docs/kickoff-m7b.md`, 8 steps: 7b1 boulders/pits/scroll of earth, 7b2 Oracle + Sokoban) needs these core changes, each marked costly to undo by the planner:
@@ -45,4 +55,4 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 
 ## Parked
 
-(none)
+- **m8 high-score storage format** (2026-11-07). Blocks m8 step 4 only (steps 1-3 can run). Planner's recommendation: localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Costly because it ships to users' devices and later versions must read it. Answer yes/no or change it (e.g. store structured fields instead of rendered text so other languages can render it).
