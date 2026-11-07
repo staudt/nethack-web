@@ -1,4 +1,4 @@
-# webhack
+# nethack-web
 
 A TypeScript port of NetHack. It plays like the same game but is not an exact clone.
 

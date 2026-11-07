@@ -206,7 +206,7 @@ async function boot(): Promise<void> {
 
 void boot();
 
-(window as unknown as { webhack: unknown }).webhack = {
+(window as unknown as { nethack: unknown }).nethack = {
   hash: () => remote.hash(),
   save: () => remote.save(),
   remote,
