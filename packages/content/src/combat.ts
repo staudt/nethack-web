@@ -44,7 +44,7 @@ import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
 import { P, hasProp, ringBonus } from './props';
-import { isMtrapped, utrap } from './trapstate';
+import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
 import { isBig, nonliving } from './mondata';
 import { dmgval, dmgvalSized } from './dmgval';
 import { angryGuards, isWatch } from './watch';
@@ -458,6 +458,8 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
       continue;
     }
     if (!atk || !MELEE_AT.has(atk.at)) continue; // other attack types: M3+
+    // ref: mattacku(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(mtmp)) continue;`
+    if (atk.at === 'kick' && mtrappedInPit(ctx, monId)) continue;
     // ref: src/mhitu.c mattacku() AT_WEAP: wield a weapon first if one is wanted (the move is
     // spent), then add the weapon's to-hit and announce the swing before rolling
     let attackTmp = tmp;

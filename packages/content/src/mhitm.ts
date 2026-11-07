@@ -29,6 +29,7 @@ import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { acidDamage, destroyItems, erodeArmor, rustm } from './erode';
 import { igniteItems } from './light';
+import { mtrappedInPit } from './trapstate';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -454,6 +455,8 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
     if (i > 0 && (!alive(ctx, mdefId) || !alive(ctx, magrId))) continue;
     if (!MELEE_AT.has(atk.at)) continue; // not ported: hugs, gazes, engulfing, breath, ...
     if (distmin(magr, mdef) > 1) continue;
+    // ref: mattackm(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(magr)) continue;`
+    if (atk.at === 'kick' && mtrappedInPit(ctx, magrId)) continue;
     let res: number = M_ATTK.MISS;
     let mwep: Entity | null = null;
     if (atk.at === 'weapon') {

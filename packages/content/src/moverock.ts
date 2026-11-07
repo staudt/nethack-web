@@ -4,7 +4,7 @@
 // Ported subset: the hero is always a human on foot (no Levitation, riding, very small or giant
 // forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars, landmines,
 // teleporters, rolling boulder traps or buried zombies, and pushing a boulder in a shop does not
-// bill it (DEVIATIONS.md "Boulders"). Pits are step 3 of m7b, the Sokoban rules step 7.
+// bill it (DEVIATIONS.md "Boulders"). The Sokoban rules are step 7 of m7b.
 import {
   DIRS,
   cellIndex,
@@ -25,12 +25,14 @@ import {
 } from '@nh/core';
 import { P, hasProp } from './props';
 import { boulderAt, feelObjects, rememberedBoulder } from './boulder';
+import { boulderFlooreffects } from './flooreffects';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { invWeight } from './stats';
 import { T } from './terrain';
 import { TRAP } from './trap';
+import { isMtrapped, isPit } from './trapstate';
 
 /** ref: include/weight.h WT_SQUEEZABLE_INV */
 const WT_SQUEEZABLE_INV = 850;
@@ -183,9 +185,9 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
     }
     const ttmp = trapAt(level, rx, ry);
     const mtmp = monsterAt(ctx, level, rx, ry);
-    // a monster there blocks the boulder (noncorporeal ones and those trapped in a pit don't:
-    // neither exists yet)
-    if (mtmp) {
+    // a monster there blocks the boulder, unless it is trapped in a pit there (the boulder falls
+    // in on it); no noncorporeal monster exists
+    if (mtmp && !(isMtrapped(ctx, mtmp.id) && ttmp && isPit(ttmp.def))) {
       if (canSpotMon(ctx, mtmp)) {
         ctx.emit({
           type: 'msg',
@@ -204,6 +206,13 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       cannotPushMsg(ctx, what);
       return cannotPush(ctx);
     }
+    if (ttmp && isPit(ttmp.def)) {
+      // the boulder falls into the pit; the other boulders stay where they are. "vision kludge
+      // to get messages right": the pit counts as seen unless the hero is blind
+      // (flooreffects() always fills a pit, so C's place_object() fallback never runs)
+      boulderFlooreffects(ctx, otmp, rx, ry, 'fall', true);
+      return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
+    }
     if (ttmp && (ttmp.def === TRAP.hole || ttmp.def === TRAP.trapdoor)) {
       // the boulder plugs the hole; the other boulders stay where they are
       const trapdoor = ttmp.def === TRAP.trapdoor;
@@ -219,7 +228,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       ctx.remove(otmp.id); // useupf(otmp, 1L); nothing is buried here (bury_objs())
       return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
     }
-    // other traps do not affect a boulder (pits are not ported yet)
+    // other traps do not affect a boulder (no landmines, teleporters or rolling boulder traps)
     dopush(ctx, level, otmp, what, { x: sx, y: sy }, { x: rx, y: ry });
   }
   return 'moved';

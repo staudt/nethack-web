@@ -34,6 +34,7 @@ import { P, hasProp } from './props';
 import { T, setTerrain } from './terrain';
 import { luckOf } from './luck';
 import {
+  climbPit,
   findTrapAt,
   intoTrap,
   plunge,
@@ -42,7 +43,7 @@ import {
   trapToConfirm,
   trapmove,
 } from './trap';
-import { isMtrapped, setMtrapped } from './trapstate';
+import { isMtrapped, isPit, setMtrapped, uInPit } from './trapstate';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
 import { BOULDER, boulderAt, feelObjects, rememberedBoulder } from './boulder';
@@ -436,8 +437,16 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     pos.y = to.y;
     ctx.emit({ type: 'moved', id: player.id, from, to });
     checkSpecialRoom(ctx, false, from); // ref: src/hack.c spoteffects() (before the pickup and trap)
-    lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
-    spotTrap(ctx); // ref: spoteffects() -> dotrap()
+    // ref: spoteffects(): "If not a pit, pickup before triggering trap. If pit, trigger trap
+    // before pickup."
+    const t = trapAt(level, to.x, to.y);
+    if (t && isPit(t.def)) {
+      spotTrap(ctx);
+      if (!ctx.state.gameOver) lookHere(ctx);
+    } else {
+      lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
+      spotTrap(ctx); // ref: spoteffects() -> dotrap()
+    }
     return NORMAL_SPEED;
   }
   switch (check.reason) {
@@ -492,6 +501,11 @@ const open: ActionDef = {
     const raw = action.type === 'mod' ? (action.args as { dir?: unknown } | undefined)?.dir : null;
     const dir = DIR_LIST.find((d) => d === raw);
     if (!dir) return 0;
+    // ref: src/lock.c doopen_indir(): "You can't reach over the edge of the pit.", no time
+    if (uInPit(ctx)) {
+      ctx.emit({ type: 'msg', key: 'trap.pit.cant_reach' });
+      return 0;
+    }
     const from = playerAt(ctx);
     const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
     const level = getLevel(ctx.state);
@@ -639,10 +653,25 @@ const up: ActionDef = {
   labelKey: 'action.up',
   handles: 'mod',
   offer: (ctx, target) =>
-    target.kind === 'self' && terrainUnderHero(ctx).stairs === 'up'
-      ? [{ action: { type: 'mod', action: 'nh:up' }, labelKey: 'action.up', priority: HERE }]
-      : [],
+    target.kind !== 'self'
+      ? []
+      : uInPit(ctx)
+        ? [
+            {
+              action: { type: 'mod', action: 'nh:up' },
+              labelKey: 'action.climb_pit',
+              priority: HERE,
+            },
+          ]
+        : terrainUnderHero(ctx).stairs === 'up'
+          ? [{ action: { type: 'mod', action: 'nh:up' }, labelKey: 'action.up', priority: HERE }]
+          : [],
   perform(ctx) {
+    // ref: doup(): "up" to get out of a pit... climb_pit(), ECMD_TIME
+    if (uInPit(ctx)) {
+      climbPit(ctx);
+      return NORMAL_SPEED;
+    }
     if (terrainUnderHero(ctx).stairs !== 'up') {
       ctx.emit({ type: 'msg', key: 'stairs.cant_up' });
       return 0;

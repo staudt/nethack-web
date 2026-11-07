@@ -221,12 +221,14 @@ function uSlowDown(ctx: Ctx): void {
 // ---------------------------------------------------------------------------------------------
 // traps that hold or drop their victim
 
-/** ref: src/trap.c openholdingtrap(): frees the hero or monster from a bear trap */
+/** ref: src/trap.c openholdingtrap(): frees the hero from a bear trap or pit, a monster from a bear trap */
 function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed: boolean } {
   if (!mon) {
-    if (!utrap(ctx)) return { done: false, noticed: false };
-    say(ctx, 'zap.you_released_trap', { trap: `@${TRAP.bear}` });
-    setUtrap(ctx, 0, 'beartrap'); // reset_utrap()
+    const u = utrap(ctx);
+    if (!u) return { done: false, noticed: false };
+    // defsyms[S_pit] or [S_bear_trap].explanation: "pit" even for a spiked pit
+    say(ctx, 'zap.you_released_trap', { trap: `@${u.type === 'pit' ? TRAP.pit : TRAP.bear}` });
+    setUtrap(ctx, 0, u.type); // reset_utrap()
     return { done: true, noticed: true };
   }
   const p = mon.c.pos;

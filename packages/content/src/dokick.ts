@@ -546,9 +546,11 @@ function canKick(ctx: Ctx): boolean {
     say(ctx, 'kick.too_heavy');
     return false;
   }
-  // ref: dokick(): `u.utrap` TT_BEARTRAP -> "You can't move your leg!"
-  if (utrap(ctx)) {
-    say(ctx, 'kick.cant_move_leg');
+  // ref: dokick(): `u.utrap` TT_PIT -> "There's not enough room to kick down here.",
+  // TT_BEARTRAP -> "You can't move your leg!"
+  const u = utrap(ctx);
+  if (u) {
+    say(ctx, u.type === 'pit' ? 'kick.no_room_pit' : 'kick.cant_move_leg');
     return false;
   }
   // ref: dokick(): squeezed onto a boulder

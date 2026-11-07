@@ -6,7 +6,7 @@
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
 // `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
 // for monsters that fell to a level the hero is not on. Tables are only created on write.
-import { type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
+import { trapAt, type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
 
 type Table = { [k: string]: Json };
 
@@ -37,17 +37,35 @@ export function trapTable(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): T
   return t;
 }
 
-/** The hero's trap (u.utrap turns, u.utraptype); only bear traps exist. */
+/** The hero's trap (u.utrap turns, u.utraptype): TT_BEARTRAP or TT_PIT. */
 export interface UTrap {
   n: number;
-  type: 'beartrap';
+  type: 'beartrap' | 'pit';
 }
 
 /** ref: u.utrap / u.utraptype */
 export function utrap(ctx: Pick<Ctx, 'state'>): UTrap | null {
   const v = root(ctx, false)?.['utrap'];
   if (!isObj(v) || typeof v['n'] !== 'number' || v['n'] <= 0) return null;
-  return { n: v['n'], type: 'beartrap' };
+  return { n: v['n'], type: v['type'] === 'pit' ? 'pit' : 'beartrap' };
+}
+
+/** The hero is caught in a pit or spiked pit. ref: `u.utrap && u.utraptype == TT_PIT` */
+export const uInPit = (ctx: Pick<Ctx, 'state'>): boolean => utrap(ctx)?.type === 'pit';
+
+/** ref: include/trap.h is_pit(): PIT or SPIKED_PIT */
+export const isPit = (def: DefId): boolean => def === 'nh:pit' || def === 'nh:spiked_pit';
+
+/**
+ * Whether the monster is trapped in a pit (or spiked pit). ref: src/mhitu.c mtrapped_in_pit()
+ * (the hero's case is uInPit())
+ */
+export function mtrappedInPit(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  if (!isMtrapped(ctx, id)) return false;
+  const p = ctx.state.entities[String(id)]?.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  const t = level && p ? trapAt(level, p.x, p.y) : undefined;
+  return !!t && isPit(t.def);
 }
 
 /** ref: src/trap.c set_utrap(); 0 turns is reset_utrap() */

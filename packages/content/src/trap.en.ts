@@ -11,6 +11,8 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:bear_trap': 'bear trap',
   'nh:sleeping_gas_trap': 'sleeping gas trap',
   'nh:rust_trap': 'rust trap',
+  'nh:pit': 'pit',
+  'nh:spiked_pit': 'spiked pit',
   'nh:trap_door': 'trap door',
   'nh:hole': 'hole',
 
@@ -86,6 +88,22 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.part.arm': 'arm',
   'trap.part.forelimb': 'forelimb',
 
+  // pits. ref: trapeffect_pit(), climb_pit(), mintrap()
+  'trap.pit.fall': 'You fall into a pit!',
+  'trap.pit.plunge': 'You plunge into a pit!',
+  'trap.pit.spikes': 'You land on a set of sharp iron spikes!',
+  'trap.pit.spikes_protect': 'Your {obj} protects you from the sharp iron spikes.',
+  'trap.pit.spikes_poisoned': 'The spikes were poisoned!',
+  'trap.pit.still_in': 'You are still in a pit.',
+  'trap.pit.crawl_out': 'You crawl to the edge of the pit.',
+  'trap.pit.crevice': 'Your leg gets stuck in a crevice.',
+  'trap.pit.free_leg': 'You free your leg.',
+  'trap.pit.mon_falls': '{mon|The} falls into a pit!',
+  'trap.pit.mon_climbs': '{mon|The} climbs out of the pit.',
+  'trap.pit.mon_climbs_easily': '{mon|The} climbs easily out of the pit.',
+  'trap.pit.cant_reach': "You can't reach over the edge of the pit.",
+  'action.climb_pit': 'Climb out of the pit',
+
   // trap doors and holes
   'trap.door.opens': 'A trap door opens up under you!',
   'trap.hole.gaping': "There's a gaping hole under you!",
@@ -102,6 +120,12 @@ export const trapMessagesEn: Record<string, string> = {
   'killer.trap.falling_rock': 'a falling rock',
   'killer.trap.bear_trap': 'a bear trap',
   'killer.trap.mine_shaft': 'falling down a mine shaft',
+  // NO_KILLER_PREFIX in NetHack ("fell into a pit"); worded to follow "killed by"
+  'killer.trap.pit': 'falling into a pit',
+  'killer.trap.plunged_pit': 'plunging deliberately into a pit',
+  'killer.trap.spiked_pit': 'falling into a pit of iron spikes',
+  'killer.trap.plunged_spiked_pit': 'plunging deliberately into a pit of iron spikes',
+  'killer.trap.poison_spikes': 'falling onto poison spikes',
 
   // elsewhere
   'dog.cant_move_out': "You stop.  Your {mon} can't move out of that {trap}.",
@@ -109,4 +133,5 @@ export const trapMessagesEn: Record<string, string> = {
   'dog.doesnt_want_swap': "You stop.  Your {mon} doesn't want to swap places.",
   'dog.still_trapped': 'The {mon} is still trapped.',
   'kick.cant_move_leg': "You can't move your leg!",
+  'kick.no_room_pit': "There's not enough room to kick down here.",
 };

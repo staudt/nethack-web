@@ -8,7 +8,8 @@ import {
   type GameEvent,
   type PlayerAction,
 } from '@nh/core';
-import { BOULDER, P, T, messagesEn, mfndpos, mksobj, setIntrinsic } from '../src/index';
+import { BOULDER, P, T, isMtrapped, messagesEn, mfndpos, mksobj, setIntrinsic } from '../src/index';
+import { setMtrapped } from '../src/trapstate';
 import { setTerrain } from '../src/actions';
 import { heroAt, mapSetup, newtAt, runDir, travelTo } from './maps';
 import { engine, obj, render } from './itemHelpers';
@@ -227,6 +228,62 @@ describe('moverock: pushing', () => {
     expect(heroAt(m.state)).toEqual({ x: 3, y: 2 });
     expect(m.state.currentLevel).toBe('dlvl1');
     expect(r.turns).toBe(1);
+  });
+
+  test.each(['nh:pit', 'nh:spiked_pit'])(
+    'a boulder pushed onto a %s fills it: trap and boulder are gone, the hero follows',
+    (trap) => {
+      const m = pushSetup();
+      boulder(m, 3, 2);
+      m.level.traps.push({ def: trap as DefId, x: 4, y: 2, seen: false });
+      const r = act(m, move('e'));
+      expect(texts(r.events)).toEqual(['The boulder fills a pit.']);
+      expect(m.level.traps).toHaveLength(0);
+      expect(bouldersAt(m, 4, 2)).toBe(0);
+      expect(heroAt(m.state)).toEqual({ x: 3, y: 2 });
+      expect(r.turns).toBe(1);
+    },
+  );
+
+  /** A pinned newt trapped in a pit two squares east of the hero, behind a boulder. */
+  function newtInPit(hp: number): { m: M; newt: number } {
+    const m = pushSetup();
+    boulder(m, 3, 2);
+    m.level.traps.push({ def: 'nh:pit' as DefId, x: 4, y: 2, seen: true });
+    const newt = newtAt(m.state, 4, 2);
+    const e = m.state.entities[String(newt)];
+    if (e?.c.hp) e.c.hp = { cur: hp, max: hp };
+    if (e?.c.actor) e.c.actor.speed = 0;
+    setMtrapped(m.ctx, newt, true);
+    return { m, newt };
+  }
+
+  test('a monster trapped in the pit does not stop the boulder: it is hit and the pit filled', () => {
+    const { m, newt } = newtInPit(100);
+    const r = act(m, move('e'));
+    const t = texts(r.events);
+    expect(t[0]).toBe('The boulder falls into the pit.');
+    expect(t[1]).toMatch(/^The boulder hits the newt[.!]$/);
+    expect(t[t.length - 1]).toBe('The boulder fills a pit.');
+    const hp = m.state.entities[String(newt)]?.c.hp?.cur ?? 0;
+    expect(hp).toBeLessThan(100);
+    expect(hp).toBeGreaterThanOrEqual(100 - 20 - 6); // rnd(20) plus at most Str 18/xx's +6
+    expect(isMtrapped(m.ctx, newt)).toBe(false);
+    expect(m.state.entities[String(newt)]?.c.pos).toMatchObject({ x: 4, y: 2 });
+    expect(m.level.traps).toHaveLength(0);
+    expect(bouldersAt(m, 4, 2)).toBe(0);
+    expect(heroAt(m.state)).toEqual({ x: 3, y: 2 });
+  });
+
+  test('the boulder kills a weak monster in the pit, with the hero credited', () => {
+    const { m, newt } = newtInPit(1);
+    const xp0 = getPlayer(m.state).c.experience?.points ?? 0;
+    const r = act(m, move('e'));
+    expect(texts(r.events)).toContain('You kill the newt!');
+    expect(texts(r.events)).toContain('The boulder fills a pit.');
+    expect(m.state.entities[String(newt)]).toBeUndefined();
+    expect(getPlayer(m.state).c.experience?.points ?? 0).toBeGreaterThan(xp0);
+    expect(m.level.traps).toHaveLength(0);
   });
 });
 

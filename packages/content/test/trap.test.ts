@@ -161,7 +161,7 @@ function findSeed<R>(body: (seed: number) => R, want: (r: R) => boolean, max = 2
 }
 
 describe('trap defs', () => {
-  test('the nine vanilla traps are registered with ^ glyphs; holes are holes', () => {
+  test('the eleven vanilla traps are registered with ^ glyphs; holes are holes', () => {
     const ids = engine.registry.traps.map((t) => t.id);
     for (const id of Object.values(TRAP)) expect(ids).toContain(id);
     for (const t of engine.registry.traps) expect(t.glyph.ch).toBe('^');
@@ -573,5 +573,157 @@ describe('mintrap: monsters', () => {
     });
     expect(before).toContainEqual({ x: 2, y: 2 });
     expect(after).not.toContainEqual({ x: 2, y: 2 });
+  });
+});
+
+describe('pits', () => {
+  /** Steps east into a pit at (2, 1) (unseen); returns the events. */
+  function fallIn(def: DefId, seed = 1) {
+    const s = setup(ROOM, seed);
+    place(s.state, def, 2, 1);
+    const ev = engine.step(s.state, { type: 'move', dir: 'e' }).events;
+    return { ...s, ev };
+  }
+
+  test('falling in: rnd(6) damage, caught for 2..7 tries; climbing out takes exactly that many', () => {
+    const { state, ev } = fallIn(TRAP.pit);
+    expect(keys(ev)).toContain('trap.pit.fall');
+    expect(heroAt(state)).toEqual({ x: 2, y: 1 });
+    const lost = 500 - heroHp(state);
+    expect(lost).toBeGreaterThanOrEqual(1);
+    expect(lost).toBeLessThanOrEqual(6);
+    const u = utrap({ state });
+    expect(u?.type).toBe('pit');
+    expect(u?.n).toBeGreaterThanOrEqual(2);
+    expect(u?.n).toBeLessThanOrEqual(7);
+    const n = u?.n ?? 0;
+    for (let i = 1; i <= n; i++) {
+      const turn = state.turn;
+      const e = engine.step(state, { type: 'move', dir: 'e' }).events;
+      expect(heroAt(state)).toEqual({ x: 2, y: 1 }); // she stays on the square
+      expect(state.turn).toBeGreaterThan(turn); // the try is spent
+      expect(keys(e)).toContain(i === n ? 'trap.pit.crawl_out' : 'trap.pit.still_in');
+    }
+    expect(utrap({ state })).toBeNull();
+    engine.step(state, { type: 'move', dir: 'e' });
+    expect(heroAt(state)).toEqual({ x: 3, y: 1 });
+  });
+
+  test("'<' in a pit is offered as climbing out and takes a try; kicking is refused", () => {
+    const { state } = fallIn(TRAP.pit);
+    const n = utrap({ state })?.n ?? 0;
+    const offers = engine.query(state).actionsFor({ kind: 'self' });
+    expect(offers.some((o) => o.labelKey === 'action.climb_pit')).toBe(true);
+    const k = engine.step(state, { type: 'mod', action: 'nh:kick' }).events;
+    expect(keys(k)).toContain('kick.no_room_pit');
+    expect(utrap({ state })?.n).toBe(n); // the kick took no try
+    const turn = state.turn;
+    engine.step(state, { type: 'mod', action: 'nh:up' });
+    expect(state.turn).toBeGreaterThan(turn);
+    expect(utrap({ state })?.n ?? 0).toBe(n - 1);
+  });
+
+  test('a spiked pit: rnd(10) on the spikes, poisoned 1 time in 6; iron shoes protect', () => {
+    let plain = 0;
+    const poisonedRun = findSeed(
+      (seed) => {
+        const r = fallIn(TRAP.spikedPit, seed);
+        if (!keys(r.ev).includes('trap.pit.spikes_poisoned')) plain++;
+        return r;
+      },
+      (r) => keys(r.ev).includes('trap.pit.spikes_poisoned'),
+    );
+    expect(plain).toBeGreaterThan(0); // not every fall is poisoned
+    expect(keys(poisonedRun.ev)).toContain('trap.pit.spikes');
+    for (let seed = 1; seed <= 20; seed++) {
+      const { state, ev } = fallIn(TRAP.spikedPit, seed);
+      expect(keys(ev)).toContain('trap.pit.spikes');
+      if (keys(ev).includes('trap.pit.spikes_poisoned')) continue;
+      const lost = 500 - heroHp(state);
+      expect(lost).toBeGreaterThanOrEqual(1);
+      expect(lost).toBeLessThanOrEqual(10);
+    }
+    const s = setup(ROOM);
+    wear(s.state, 'nh:iron_shoes', 'boots');
+    place(s.state, TRAP.spikedPit, 2, 1);
+    const ev = engine.step(s.state, { type: 'move', dir: 'e' }).events;
+    expect(keys(ev)).toContain('trap.pit.spikes_protect');
+    expect(keys(ev)).not.toContain('trap.pit.spikes');
+    expect(keys(ev)).not.toContain('trap.pit.spikes_poisoned');
+    expect(500 - heroHp(s.state)).toBeLessThanOrEqual(6);
+    expect(utrap({ state: s.state })?.type).toBe('pit');
+  });
+
+  test('a seen pit asks "Really step into that pit?"; one time in five it is escaped', () => {
+    const { state } = setup(ROOM);
+    place(state, TRAP.pit, 2, 1, true);
+    const r = engine.step(state, { type: 'move', dir: 'e' });
+    expect(r.prompt?.key).toBe('trap.confirm_into');
+    expect(r.prompt?.params?.['trap']).toBe(`@${TRAP.pit}`);
+    const escaped = findSeed(
+      (seed) => {
+        const s = setup(ROOM, seed);
+        place(s.state, TRAP.pit, 2, 1, true);
+        engine.step(s.state, { type: 'move', dir: 'e' });
+        const ev = engine.step(s.state, {
+          type: 'answer',
+          promptId: 'trap-confirm',
+          value: true,
+        }).events;
+        return { ev, state: s.state };
+      },
+      (x) => keys(x.ev).includes('trap.escape'),
+    );
+    expect(utrap({ state: escaped.state })).toBeNull();
+    expect(heroAt(escaped.state)).toEqual({ x: 2, y: 1 });
+    // teetering at the edge of a seen pit, '>' plunges in
+    const ev = engine.step(escaped.state, { type: 'mod', action: 'nh:down' }).events;
+    expect(keys(ev)).toContain('trap.pit.plunge');
+    expect(utrap({ state: escaped.state })?.type).toBe('pit');
+  });
+
+  test('a monster falls in and is held, takes rnd(6), then climbs out', () => {
+    const s = setup(['.........', '.@.......', '.........']);
+    const m = addMon(s.state, 'nh:hill_orc', 5, 1, { asleep: true });
+    const mon = s.state.entities[String(m)];
+    if (mon?.c.hp) mon.c.hp = { cur: 100, max: 100 };
+    place(s.state, TRAP.pit, 5, 1);
+    let r = '';
+    const ev = withCtx(s.state, (ctx) => {
+      r = mintrap(ctx, m);
+    });
+    expect(r).toBe('caught');
+    expect(keys(ev)).toContain('trap.pit.mon_falls');
+    expect(isMtrapped({ state: s.state }, m)).toBe(true);
+    const hp = mon?.c.hp?.cur ?? 0;
+    expect(100 - hp).toBeGreaterThanOrEqual(1);
+    expect(100 - hp).toBeLessThanOrEqual(6);
+    let out: string[] = [];
+    for (let i = 0; i < 1000 && isMtrapped({ state: s.state }, m); i++)
+      out = keys(withCtx(s.state, (ctx) => void mintrap(ctx, m)));
+    expect(isMtrapped({ state: s.state }, m)).toBe(false);
+    expect(out).toContain('trap.pit.mon_climbs');
+  });
+
+  test('a huge monster climbs out easily at once; flyers do not fall in', () => {
+    const s = setup(['.........', '.@.......', '.........']);
+    const m = addMon(s.state, 'nh:ettin_mummy', 5, 1, { asleep: true });
+    const mon = s.state.entities[String(m)];
+    if (mon?.c.hp) mon.c.hp = { cur: 100, max: 100 };
+    place(s.state, TRAP.pit, 5, 1);
+    withCtx(s.state, (ctx) => void mintrap(ctx, m));
+    expect(isMtrapped({ state: s.state }, m)).toBe(true);
+    const ev = withCtx(s.state, (ctx) => void mintrap(ctx, m));
+    expect(keys(ev)).toContain('trap.pit.mon_climbs_easily');
+    expect(isMtrapped({ state: s.state }, m)).toBe(false);
+
+    const b = addMon(s.state, 'nh:bat', 3, 2);
+    place(s.state, TRAP.pit, 3, 2);
+    let r = '';
+    withCtx(s.state, (ctx) => {
+      r = mintrap(ctx, b);
+    });
+    expect(r).toBe('finished');
+    expect(isMtrapped({ state: s.state }, b)).toBe(false);
   });
 });

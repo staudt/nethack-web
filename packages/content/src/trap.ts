@@ -1,7 +1,8 @@
-// Traps: arrow, dart, falling rock, squeaky board, bear trap, sleeping gas, rust, trap door and
-// hole. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(), dotrap(), mintrap(),
-// trapeffect_*(), fall_through(), thitm(), m_harmless_trap(), src/mondata.c mons_see_trap(),
-// src/teleport.c mlevel_tele_trap(), src/hack.c trapmove(), src/pager.c doidtrap()
+// Traps: arrow, dart, falling rock, squeaky board, bear trap, sleeping gas, rust, pit, spiked
+// pit, trap door and hole. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(),
+// dotrap(), mintrap(), trapeffect_*(), climb_pit(), fall_through(), thitm(), m_harmless_trap(),
+// src/mondata.c mons_see_trap(), src/teleport.c mlevel_tele_trap(), src/hack.c trapmove(),
+// src/pager.c doidtrap()
 import {
   DIRS,
   DIR_LIST,
@@ -32,7 +33,7 @@ import {
   type Trap,
   type TrapDef,
 } from '@nh/core';
-import { blockersOf } from './boulder';
+import { blockersOf, boulderAt } from './boulder';
 import { poisoned } from './attrib';
 import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
@@ -57,6 +58,7 @@ import { findAc, findMac } from './stats';
 import {
   forgetMonTraps,
   isMtrapped,
+  isPit,
   monKnowsTraps,
   monLearnsTraps,
   setMtrapped,
@@ -74,6 +76,8 @@ export const TRAP = {
   bear: 'nh:bear_trap',
   sleepGas: 'nh:sleeping_gas_trap',
   rust: 'nh:rust_trap',
+  pit: 'nh:pit',
+  spikedPit: 'nh:spiked_pit',
   trapdoor: 'nh:trap_door',
   hole: 'nh:hole',
 } as const;
@@ -84,8 +88,9 @@ const GRAY = '#aaaaaa';
 const BROWN = '#aa5500';
 const BLUE = '#4466ff';
 const BRIGHT_BLUE = '#5555ff';
+const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 
-/** ref: include/defsym.h S_arrow_trap .. S_trap_door */
+/** ref: include/defsym.h S_arrow_trap .. S_hole */
 export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.arrow, nameKey: TRAP.arrow, glyph: { ch: '^', fg: CYAN } },
   { id: TRAP.dart, nameKey: TRAP.dart, glyph: { ch: '^', fg: CYAN } },
@@ -94,12 +99,16 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.bear, nameKey: TRAP.bear, glyph: { ch: '^', fg: CYAN } },
   { id: TRAP.sleepGas, nameKey: TRAP.sleepGas, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.rust, nameKey: TRAP.rust, glyph: { ch: '^', fg: BLUE } },
+  { id: TRAP.pit, nameKey: TRAP.pit, glyph: { ch: '^', fg: BLACK } },
+  { id: TRAP.spikedPit, nameKey: TRAP.spikedPit, glyph: { ch: '^', fg: BLACK } },
   { id: TRAP.trapdoor, nameKey: TRAP.trapdoor, glyph: { ch: '^', fg: BROWN }, hole: true },
   { id: TRAP.hole, nameKey: TRAP.hole, glyph: { ch: '^', fg: BROWN }, hole: true },
 ];
 
 /** ref: include/trap.h is_hole() */
 export const isHole = (def: DefId): boolean => def === TRAP.trapdoor || def === TRAP.hole;
+
+export { isPit };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -181,10 +190,13 @@ function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: numbe
 export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: DefId): Trap {
   const level = getLevel(ctx.state, levelId);
   const old = trapAt(level, x, y);
-  // ref: maketrap(): a hero caught in a bear trap that is replaced by another kind is let go
+  // ref: maketrap(): a hero caught in a bear trap or pit that is replaced by another kind is let go
   const hp = getPlayer(ctx.state).c.pos;
-  if (old && def !== TRAP.bear && hp?.level === levelId && hp.x === x && hp.y === y)
-    setUtrap(ctx, 0, 'beartrap');
+  const u = utrap(ctx);
+  if (old && u && hp?.level === levelId && hp.x === x && hp.y === y) {
+    if ((u.type === 'beartrap' && def !== TRAP.bear) || (u.type === 'pit' && !isPit(def)))
+      setUtrap(ctx, 0, u.type);
+  }
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
   if (def === TRAP.squeaky) t.data = { tnote: chooseTrapnote(ctx, level, x, y) };
   else if (isHole(def)) t.data = { dst: holeDestination(ctx, level) };
@@ -366,6 +378,35 @@ function bearTrapYou(ctx: Ctx, trap: Trap): void {
   }
 }
 
+/**
+ * The hero falls (or with '>' plunges) into a pit: "You fall into a pit!", the spikes, `rn1(6, 2)`
+ * turns to climb out, `rnd(6)` damage (`rnd(10)` on spikes, poisoned 1 time in 6).
+ * ref: src/trap.c trapeffect_pit() for the hero: no Levitation, Flying, clinging, steed, Sokoban,
+ * `m` prefix or conjoined pits (nothing digs them); no exercise or selftouch()
+ */
+function pitYou(ctx: Ctx, trap: Trap, plunged: boolean): void {
+  seetrap(trap); // feeltrap()
+  say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  let spikes = trap.def === TRAP.spikedPit;
+  const boots = spikes ? ironShoes(ctx, ctx.state.playerId) : null;
+  if (boots) {
+    say(ctx, 'trap.pit.spikes_protect', { obj: xnameOf(ctx.state, ctx.defs, boots) });
+    spikes = false;
+  } else if (spikes) say(ctx, 'trap.pit.spikes');
+  setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // rn1(6, 2)
+  if (spikes) {
+    losehp(
+      ctx,
+      ctx.rng.rnd(10),
+      plunged ? '@killer.trap.plunged_spiked_pit' : '@killer.trap.spiked_pit',
+    );
+    // "if damage triggered life-saving, poison is limited to attrib loss": there is no
+    // life-saving, so a dead hero is simply not poisoned
+    if (ctx.rng.rn2(6) === 0 && !ctx.state.gameOver)
+      poisoned(ctx, { key: 'trap.pit.spikes_poisoned' }, 'str', '@killer.trap.poison_spikes', 8);
+  } else losehp(ctx, ctx.rng.rnd(6), plunged ? '@killer.trap.plunged_pit' : '@killer.trap.pit');
+}
+
 function sleepGasYou(ctx: Ctx, trap: Trap): void {
   seetrap(trap);
   if (hasProp(heroEnt(ctx), P.SLEEP_RES)) say(ctx, 'trap.gas.enveloped');
@@ -514,6 +555,9 @@ export function dotrap(
       return sleepGasYou(ctx, t);
     case TRAP.rust:
       return rustTrapYou(ctx, t);
+    case TRAP.pit:
+    case TRAP.spikedPit:
+      return pitYou(ctx, t, opts.plunged === true);
     case TRAP.trapdoor:
     case TRAP.hole:
       return fallThrough(ctx, levelId, t, opts.plunged === true);
@@ -530,14 +574,48 @@ export function spotTrap(ctx: Ctx): void {
   if (t && !ctx.state.gameOver) dotrap(ctx, t);
 }
 
+/** m_easy_escape_pit(): huge monsters (no pit fiend exists); the hero is never huge. */
+const mEasyEscapePit = (ctx: Ctx, mon: Entity): boolean => {
+  const size = ctx.defs.monster(mon.def).size;
+  return size === 'huge' || size === 'gigantic';
+};
+
 /**
- * Moving while caught in a bear trap: "You are caught in a bear trap." and a diagonal move, or
- * one time in five, loosens it; at zero "You finally wriggle free.". Returns true if the hero
- * may move (she never does on the turn she gets free). ref: src/hack.c trapmove() TT_BEARTRAP
+ * Trying to climb out of a pit: each try takes one turn off `u.utrap`; at zero "You crawl to the
+ * edge of the pit." (she stays on the square), else "You are still in a pit.". With a boulder
+ * on the square, one try in two her leg gets stuck in a crevice instead.
+ * ref: src/trap.c climb_pit() (no Passes_walls, Flying, clinging, steed or Sokoban levitation;
+ * fill_pit() is not needed: a boulder never rests on a pit, flooreffects() always fills it)
+ */
+export function climbPit(ctx: Ctx): void {
+  const u = utrap(ctx);
+  if (!u || u.type !== 'pit') return;
+  const p = heroPos(ctx);
+  if (ctx.rng.rn2(2) === 0 && boulderAt(ctx, p.level, p.x, p.y)) {
+    say(ctx, 'trap.pit.crevice');
+    say(ctx, 'trap.pit.free_leg');
+    return;
+  }
+  const n = u.n - 1;
+  setUtrap(ctx, n, 'pit');
+  if (n === 0) say(ctx, 'trap.pit.crawl_out');
+  else say(ctx, 'trap.pit.still_in'); // u.dz || flags.verbose
+}
+
+/**
+ * Moving while caught in a trap. Bear trap: "You are caught in a bear trap." and a diagonal
+ * move, or one time in five, loosens it; at zero "You finally wriggle free.". Pit: climb_pit().
+ * Returns true if the hero may move (she never does on the turn she gets free).
+ * ref: src/hack.c trapmove() TT_BEARTRAP, TT_PIT (domove_core() passes no `desttrap`, so there
+ * is no stepping into an adjacent pit)
  */
 export function trapmove(ctx: Ctx, dir: Dir): boolean {
   const u = utrap(ctx);
   if (!u) return true;
+  if (u.type === 'pit') {
+    climbPit(ctx);
+    return false;
+  }
   say(ctx, 'trap.bear.caught');
   let n = u.n;
   if ((DIRS[dir].x !== 0 && DIRS[dir].y !== 0) || ctx.rng.rn2(5) === 0) n--;
@@ -574,7 +652,8 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
 }
 
 /** ref: src/trap.c into_vs_onto() */
-export const intoTrap = (def: DefId): boolean => def === TRAP.bear || def === TRAP.hole;
+export const intoTrap = (def: DefId): boolean =>
+  def === TRAP.bear || def === TRAP.hole || isPit(def);
 
 // ---------------------------------------------------------------------------------------------
 // monsters
@@ -607,6 +686,8 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
       return def.resists.includes('sleep');
     case TRAP.rust:
       return def.id !== 'nh:iron_golem';
+    case TRAP.pit:
+    case TRAP.spikedPit:
     case TRAP.trapdoor:
     case TRAP.hole:
       return def.flags.includes('cling');
@@ -744,6 +825,26 @@ function bearTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   return caughtOr(ctx, mon, killed);
 }
 
+/**
+ * A monster falls into a pit: held (mtrapped) and hurt `rnd(6)` (`rnd(10)` on spikes unless it
+ * wears iron shoes). Flyers, floaters and clingers (every level has a ceiling) do not fall in.
+ * ref: src/trap.c trapeffect_pit() for a monster (no Sokoban, worms, passes_walls or
+ * mselftouch())
+ */
+function pitMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
+  const def = ctx.defs.monster(mon.def);
+  const inSight = canseemon(ctx, mon);
+  if (inAir(ctx, mon) || def.flags.includes('cling')) return 'finished'; // !grounded()
+  setMtrapped(ctx, mon.id, true);
+  if (inSight) {
+    say(ctx, 'trap.pit.mon_falls', { mon: monNam(ctx, mon) });
+    seetrap(trap);
+  }
+  const spikes = trap.def === TRAP.spikedPit && !ironShoes(ctx, mon.id);
+  const killed = thitm(ctx, 0, mon, null, ctx.rng.rnd(spikes ? 10 : 6));
+  return caughtOr(ctx, mon, killed);
+}
+
 function sleepGasMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   const def = ctx.defs.monster(mon.def);
   const inSight = canseemon(ctx, mon);
@@ -876,11 +977,27 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
   }
   if (isMtrapped(ctx, monId)) {
     // "If you come upon an obviously trapped monster, then you must be able to see the trap"
-    if (!trap.seen && canseemon(ctx, mon) && (trap.def === TRAP.bear || trap.def === TRAP.hole))
+    const pit = isPit(trap.def);
+    if (
+      !trap.seen &&
+      canseemon(ctx, mon) &&
+      (trap.def === TRAP.bear || trap.def === TRAP.hole || pit)
+    )
       seetrap(trap);
-    if (ctx.rng.rn2(40) === 0) {
-      if (canseemon(ctx, mon))
-        say(ctx, 'trap.mon_pulls_free', { mon: monNam(ctx, mon), trap: trapName(trap) });
+    // (a boulder never rests on a pit here, so the "pulls free..." fill_pit() case is not needed)
+    if (ctx.rng.rn2(40) === 0 || (pit && mEasyEscapePit(ctx, mon))) {
+      if (canseemon(ctx, mon)) {
+        if (pit)
+          say(
+            ctx,
+            mEasyEscapePit(ctx, mon) ? 'trap.pit.mon_climbs_easily' : 'trap.pit.mon_climbs',
+            {
+              mon: monNam(ctx, mon),
+            },
+          );
+        else if (trap.def === TRAP.bear)
+          say(ctx, 'trap.mon_pulls_free', { mon: monNam(ctx, mon), trap: trapName(trap) });
+      }
       setMtrapped(ctx, monId, false);
     }
     return isMtrapped(ctx, monId) ? 'caught' : 'finished';
@@ -909,6 +1026,9 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
       return sleepGasMon(ctx, mon, trap);
     case TRAP.rust:
       return rustTrapMon(ctx, mon, trap);
+    case TRAP.pit:
+    case TRAP.spikedPit:
+      return pitMon(ctx, mon, trap);
     default:
       return holeMon(ctx, p.level, mon, trap);
   }
@@ -992,15 +1112,20 @@ const idtrap: ActionDef = {
 
 export const TRAP_ACTIONS: readonly ActionDef[] = [idtrap];
 
-/** The seen hole or trap door under the hero, for '>'. ref: src/do.c dodown() uescaped_shaft() */
+/**
+ * The seen hole, trap door or pit under the hero that '>' jumps into (not a pit she is already
+ * in). ref: src/do.c dodown() uteetering_at_seen_pit(), uescaped_shaft()
+ */
 export function seenHoleHere(ctx: Ctx): Trap | null {
   const p = heroPos(ctx);
   const level = ctx.state.levels[p.level];
   const t = level ? trapAt(level, p.x, p.y) : undefined;
-  return t && t.seen && isHole(t.def) ? t : null;
+  if (!t?.seen) return null;
+  if (isHole(t.def)) return t;
+  return isPit(t.def) && utrap(ctx)?.type !== 'pit' ? t : null;
 }
 
-/** Jumping into a seen hole or trap door with '>'. ref: src/do.c dodown() dotrap(TOOKPLUNGE) */
+/** Jumping into a seen hole, trap door or pit with '>'. ref: src/do.c dodown() dotrap(TOOKPLUNGE) */
 export function plunge(ctx: Ctx, t: Trap): number {
   dotrap(ctx, t, { plunged: true });
   return NORMAL_SPEED;
@@ -1012,7 +1137,8 @@ export function registerTraps(api: ModApi): void {
   api.on('levelChange', (ctx, change) => {
     if (change.from === null) return;
     // ref: src/do.c goto_level() reset_utrap(FALSE)
-    if (utrap(ctx)) setUtrap(ctx, 0, 'beartrap');
+    const u = utrap(ctx);
+    if (u) setUtrap(ctx, 0, u.type);
     monArrivals(ctx, change);
   });
   // records of monsters that are gone are dropped

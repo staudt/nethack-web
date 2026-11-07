@@ -16,7 +16,6 @@ import {
   type Entity,
   type EntityId,
   type Json,
-  type MonsterDef,
   type Msg,
   type ObjectDef,
   type Offer,
@@ -26,12 +25,10 @@ import {
 } from '@nh/core';
 import { getdirImpaired } from './hackmove';
 import { aAlign, doaltarobj } from './align';
-import { ACCFOOD, dogfood, hurtPet, isDomestic, isTame, tamedog } from './dog';
+import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { wakeup } from './peaceful';
 import { dogEat } from './dogmove';
 import { dbon, dmgval, monsterIdAt } from './combat';
-import { monsterDied } from './mondeath';
-import { experienceFor, gainExperience } from './hero';
 import { encumberMsg } from './itemactions';
 import {
   placeObject,
@@ -66,9 +63,7 @@ import { acurrstr, findMac } from './stats';
 import { monNam } from './perception';
 import { luckOf } from './luck';
 import { ringBonus } from './props';
-import { angryGuards, isWatch } from './watch';
-import { epriOf } from './epri';
-import { ghodHitsu } from './priest';
+import { hmonThrownHit, missileMsg, type Shot } from './hmon';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -103,27 +98,6 @@ function heroWielded(ctx: Ctx): Entity | null {
 const distmin = (ax: number, ay: number, bx: number, by: number): number =>
   Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 
-/** ref: src/zap.c exclam() */
-const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
-
-/** The ordinal of a volley shot, "the 2nd dagger". ref: src/objnam.c mshot_xname() */
-interface Shot {
-  i: number;
-  n: number;
-}
-
-const missileMsg = (
-  ctx: Ctx,
-  key: string,
-  shot: Shot,
-  missile: Msg,
-  params: Record<string, Msg | string | number>,
-): void => {
-  if (shot.n > 1) {
-    msg(ctx, `${key}_nth`, { ...params, missile, nth: { key: `throw.ord.${shot.i}` } });
-  } else msg(ctx, key, { ...params, missile });
-};
-
 // ---------------------------------------------------------------------------------------------
 // hitting a monster
 
@@ -132,10 +106,6 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
   missileMsg(ctx, 'throw.miss', shot, missile, { mon: monNam(ctx, mon) });
   if (mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(ctx, mon.id); // wakeup(mon, TRUE)
 }
-
-/** ref: src/include/mondata.h nonliving(): undead and manes (our data has no other cases) */
-const nonliving = (def: MonsterDef): boolean =>
-  def.flags.includes('undead') || def.id === 'nh:manes';
 
 /**
  * The thrown object tries to hit the monster; returns true when it was used up (a missile that
@@ -178,7 +148,6 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
 
   const dieroll = ctx.rng.rnd(20);
   const missile = xnameOf(ctx.state, ctx.defs, obj);
-  const name = monNam(ctx, mon);
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
     // ref: thitmonst(): food thrown to a domestic animal (or to a pet that wants it) may tame it
@@ -246,32 +215,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }
   if (dmg < 1) dmg = 1;
-
-  // ref: src/uhitm.c hmon(): hitting a peaceful watchman or temple priest angers the whole Watch
-  // afterwards, and hitting a priest (even a killing blow) brings his god's lightning 1 time in 2
-  const epri = epriOf(ctx, monId);
-  const angerGuards = m.peaceful && (isWatch(mon.def) || epri !== null);
-  const hp = mon.c.hp;
-  // ref: src/uhitm.c hmon_hitmon_pet(): a pet hit by the hero's missile is abused and flees
-  if (m.tame && dmg > 0) {
-    const destroyed = !hp || hp.cur - dmg < 1;
-    hurtPet(ctx, monId, destroyed ? 0 : 10 * ctx.rng.rnd(dmg), destroyed);
-  }
-  if (hp) hp.cur -= dmg;
-  if (!hp || hp.cur < 1) {
-    // ref: src/mon.c xkilled(): "You kill/destroy <mon>!" then experience()
-    msg(ctx, nonliving(mdef) ? 'combat.you_destroy' : 'combat.you_kill', { mon: name });
-    monsterDied(ctx, monId, true);
-    gainExperience(ctx, hero.id, experienceFor(mdef, m.level));
-  } else {
-    // ref: src/uhitm.c hmon_hitmon_msg_hit(): "The dagger hits the newt" + exclam(dmg)
-    missileMsg(ctx, exclam(dmg) === '!' ? 'throw.hit_hard' : 'throw.hit', shot, missile, {
-      mon: name,
-    });
-    wakeup(ctx, monId); // angers a peaceful (not a pet)
-  }
-  if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
-  if (angerGuards) angryGuards(ctx, false);
+  hmonThrownHit(ctx, mon, dmg, missile, shot);
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {
     if (mon.c.pos && (uShops(ctx).length > 0 || obj.c.item?.unpaid))

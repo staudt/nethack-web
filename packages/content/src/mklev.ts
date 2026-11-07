@@ -3,14 +3,14 @@
 // A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
-import { BOULDER } from './boulder';
+import { BOULDER, boulderAt } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkshop } from './shknam';
 import { T, setTerrain } from './terrain';
-import { TRAP, canFallThru, isHole, maketrap } from './trap';
+import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
 
 /**
  * A random free floor square in the room, or null after 100 failed tries (101 attempts).
@@ -44,8 +44,8 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.sleepGas, // 8 SLP_GAS_TRAP
   TRAP.rust, // 9 RUST_TRAP
   null, // 10 FIRE_TRAP
-  null, // 11 PIT
-  null, // 12 SPIKED_PIT
+  TRAP.pit, // 11 PIT
+  TRAP.spikedPit, // 12 SPIKED_PIT
   TRAP.hole, // 13 HOLE
   TRAP.trapdoor, // 14 TRAPDOOR
   null, // 15 TELEP_TRAP
@@ -64,13 +64,14 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
 /**
  * A random trap kind for a level of difficulty `lvl`, or null for NO_TRAP ("too hard", or a
  * kind this port does not have). ref: src/mklev.c traptype_rnd(): `kind = rnd(TRAPNUM - 1)`;
- * sleeping gas needs level 2; holes are made only 1 time in 7. The restrictions of the kinds we
+ * sleeping gas needs level 2, spiked pits level 5; holes are made only 1 time in 7. The restrictions of the kinds we
  * lack draw no random numbers.
  */
 export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number): DefId | null {
   const kind = ctx.rng.rnd(TRAPNUM_KINDS.length - 1);
   const def = TRAPNUM_KINDS[kind] ?? null;
   if (def === TRAP.sleepGas && lvl < 2) return null;
+  if (def === TRAP.spikedPit && lvl < 5) return null;
   if (def === TRAP.hole && ctx.rng.rn2(7)) return null;
   return def;
 }
@@ -79,15 +80,25 @@ export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number): DefId | null {
  * Makes a trap of `kind` (random when null) on a free floor square of the room, or at a given
  * spot (as sp_lev.c create_trap() passes `tm`). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
  * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
- * (which already avoids occupied squares, so the retry loop never repeats). The dead
+ * (which already avoids occupied squares; the retry loop repeats only for a pit or hole on a
+ * boulder). The dead
  * adventurer (`mktrap_victim()`) is not made, but its `rnd(4)` roll is (see DEVIATIONS.md).
  */
 export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | null = null): void {
   const lvl = level.depth; // level_difficulty()
   while (kind === null) kind = traptypeRnd(ctx, lvl);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
-  const m = 'lx' in room ? somexyspace(ctx, level, room) : room;
-  if (!m) return;
+  let m: Pos | null;
+  if ('lx' in room) {
+    // a pit or hole avoids boulder squares (somexyspace() already skips occupied ones)
+    const avoidBoulder = isPit(kind) || isHole(kind);
+    let tryct = 0;
+    do {
+      if (++tryct > 200) return;
+      m = somexyspace(ctx, level, room);
+      if (!m) return;
+    } while (avoidBoulder && boulderAt(ctx, level.id, m.x, m.y));
+  } else m = room;
   maketrap(ctx, level.id, m.x, m.y, kind);
   // gi.in_mklev && kind != NO_TRAP && !(mktrapflags & MKTRAP_NOVICTIM) && lvl <= rnd(4) ...
   ctx.rng.rnd(4);

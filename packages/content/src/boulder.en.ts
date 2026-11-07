@@ -1,6 +1,6 @@
-// English text for boulders: pushing, squeezing, fighting.
+// English text for boulders: pushing, squeezing, fighting, filling pits.
 // ref: src/hack.c moverock_core(), dopush(), cannot_push(), cannot_push_msg(), test_move(),
-// domove_fight_empty()
+// domove_fight_empty(); src/do.c flooreffects()
 export const boulderMessagesEn: Record<string, string> = {
   'action.push': 'Push the boulder',
   'boulder.next': 'next {name}',
@@ -14,6 +14,20 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.plugs_hole': '{what|The} falls into and plugs a hole in the {surface}!',
   'boulder.plugs_trapdoor': '{what|The} triggers and plugs a trap door in the {surface}!',
   'boulder.kerplunk': 'Kerplunk!  You no longer feel {what|the}.',
+  'boulder.into_pit': 'The boulder {verb} into the pit.',
+  'boulder.into_pit_blind': 'A boulder {verb} into the pit.',
+  'boulder.into_pit_you': 'The boulder {verb} into the pit with you.',
+  'boulder.into_pit_you_blind': 'A boulder {verb} into the pit with you.',
+  'boulder.verb.fall': 'fall',
+  'boulder.verb.falls': 'falls',
+  'boulder.crash_beneath': 'You hear a CRASH! beneath you.',
+  'boulder.fills_pit': 'The boulder fills a pit.',
+  'boulder.plugs_hole_floor': 'The boulder plugs a hole.',
+  'boulder.plugs_trapdoor_floor': 'The boulder plugs a trap door.',
+  'boulder.triggers_plugs_trapdoor': 'The boulder triggers and plugs a trap door.',
+  'boulder.hear_verb': 'You hear a boulder {verb}.',
+  // NO_KILLER_PREFIX in NetHack ("squished under a boulder"); worded to follow "killed by"
+  'killer.boulder.squished': 'being squished under a boulder',
   'surface.floor': 'floor',
   'surface.ground': 'ground',
   'move.carrying_too_much': 'You are carrying too much to get through.',

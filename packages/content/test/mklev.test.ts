@@ -95,6 +95,17 @@ describe('mktrap', () => {
     expect(n(TRAP.hole)).toBeGreaterThan(0);
   });
 
+  test('pits come at any depth, spiked pits from level difficulty 5', () => {
+    for (const lvl of [1, 4]) {
+      const k = kinds(lvl);
+      expect(k.get(TRAP.pit) ?? 0).toBeGreaterThan(0);
+      expect(k.has(TRAP.spikedPit)).toBe(false);
+    }
+    const deep = kinds(5);
+    expect(deep.get(TRAP.pit) ?? 0).toBeGreaterThan(0);
+    expect(deep.get(TRAP.spikedPit) ?? 0).toBeGreaterThan(0);
+  });
+
   test('traps go on free plain floor of the room only; no holes at the bottom', () => {
     for (const depth of [1, 3, DUNGEON_BOTTOM]) {
       const { state } = engine.newGame({ seed: 50 + depth });
