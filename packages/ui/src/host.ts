@@ -39,7 +39,8 @@ import { classKey, groupInventory } from './inventory';
 import { openChecklist, openMenu, type MenuEntry, type OpenMenu } from './menu';
 import { createMessageLog } from './messageLog';
 import { injectStyles } from './styles';
-import { an, ripArt, statusLines } from './status';
+import { statusLines } from './status';
+import { playEnd } from './gameover';
 
 /**
  * Delay before the UI sends `continue` for the next move of a travel, run or meal, so the hero is
@@ -115,7 +116,11 @@ export interface UiOptions {
   prefixes?: Record<string, (dir: Dir) => PlayerAction>;
   /** Object ids the look cursor's `o`/`O` skip (NetHack skips boulders and rocks). */
   lookSkipObjects?: readonly string[];
+  /** The player's name for the tombstone and "Goodbye"; the role's name when absent. */
+  playerName?: () => string;
 }
+
+type ListEvent = Extract<GameEvent, { type: 'list' }>;
 
 export interface Ui {
   /**
@@ -341,39 +346,21 @@ export function createUi(opts: UiOptions): Ui {
     if (opts.onNewGame) opts.onNewGame();
     else menuItems.find((m) => m.id === 'new')?.run();
   };
-  const showTombstone = (s: ViewUpdate['status']): void => {
+  /** The end of the game: the disclosure questions and lists, then the stone and summary. */
+  const showTombstone = (s: ViewUpdate['status'], lists: ListEvent[]): void => {
     tombstone = true;
-    const died = s['dead'] === 'died';
-    const facts = [
-      t('ui.rip.turn', { turn: Number(s['endTurn'] ?? s['turn'] ?? 0) }),
-      t('ui.rip.dlvl', { dlvl: Number(s['endDepth'] ?? s['dlvl'] ?? 1) }),
-      t('ui.rip.xl', { xl: Number(s['endLevel'] ?? s['xl'] ?? 1) }),
-    ];
-    let title: string;
-    let body: string;
-    if (died) {
-      const k = String(s['killer'] ?? '');
-      const def = k.startsWith('@') ? k.slice(1) : k;
-      // Monster killers take an article ("a jackal"); 'killer.*' phrases are complete ("starvation").
-      const killer = !def ? '' : def.startsWith('killer.') ? t(def) : an(t(def));
-      const lines = [
-        t('ui.rip.rest'),
-        ...(killer ? [t('ui.rip.killed_by', { killer })] : []),
-        ...facts,
-      ];
-      title = t('ui.rip.title');
-      body = ripArt(lines);
-    } else {
-      title = t('ui.escaped');
-      body = facts.join('\n');
-    }
-    const m = showModal(title, [{ label: t('ui.newgame'), run: newGame }], false);
-    m.el.classList.add('nh-tomb');
-    m.el
-      .querySelector('.nh-sheet-title')
-      ?.after(
-        Object.assign(doc.createElement('pre'), { className: 'nh-sheet-body', textContent: body }),
-      );
+    playEnd(
+      {
+        t,
+        has: (k) => hasMessage(catalogs, locale, k),
+        open: (spec) => showSheet((onClose) => openMenu(root, { ...spec, onClose })),
+        playerName: opts.playerName,
+        year: new Date().getFullYear(),
+        onNewGame: newGame,
+      },
+      lists,
+      s,
+    );
   };
 
   const setLook = (on: boolean): void => {
@@ -927,14 +914,18 @@ export function createUi(opts: UiOptions): Ui {
       inventory = view.inventory;
       renderStatus(view.status);
       playerPos = { x: view.player.x, y: view.player.y };
-      let listEv: Extract<GameEvent, { type: 'list' }> | null = null;
+      let listEv: ListEvent | null = null;
+      const lists: ListEvent[] = [];
       for (const ev of events) {
         if (ev.type === 'msg') log.push(t(ev.key, ev.params));
-        else if (ev.type === 'list') listEv = ev;
+        else if (ev.type === 'list') {
+          listEv = ev;
+          lists.push(ev);
+        }
         for (const fn of eventHandlers) fn(ev);
       }
       if (view.status['dead'] !== undefined) {
-        if (!tombstone) showTombstone(view.status);
+        if (!tombstone) showTombstone(view.status, lists);
         return;
       }
       if (keepGoing && !prompt && !listEv) {

@@ -123,3 +123,13 @@ With `?wizard=1` (wizard wish for each wand, ring, scroll and trap).
 - [ ] `ring of teleportation`: wait (`s` with a count) until it teleports you. `ring of warning`: digits for monsters behind walls. `ring of conflict` near a pet and a peaceful: they attack you and each other.
 - [ ] `wand of wishing`: the wish prompt. `wand of death` at a monster. `wand of cancellation` at a floating eye, then hit it safely; put the wand into a bag of holding: it explodes.
 - [ ] Kill a jackal, stand on its corpse and zap a `wand of undead turning` with `>`: the jackal rises. `wand of enlightenment`: the attribute list.
+
+## 8 end of game
+
+On the phone (Pages build), no keyboard.
+
+- [ ] Die (fight until dead, or `?wizard=1`, wish a `wand of death`, zap yourself, answer "Die?" Yes): "Do you want your possessions identified?" with Yes / No / Quit buttons; Yes shows every item identified (a bag's contents indented under "Contents of the bag:"); Close goes on.
+- [ ] "Do you want to see your attributes?": Yes shows the attribute list; No skips it. Die again and tap Quit at the first question: no more questions, straight to the stone.
+- [ ] The stone fits the screen width without wrapping or sideways scrolling: REST IN PEACE, Valkyrie, your gold as `N Au`, the death ("killed by a jackal") wrapped on words, this year.
+- [ ] Under it: "Goodbye Valkyrie the Valkyrie...", "You died in The Dungeons of Doom on dungeon level N,", the gold and moves line, the level and hit points line; New game starts a new game.
+- [ ] Escape the dungeon (go up the stairs on level 1, answer Yes): the same two questions, then no stone, "You escaped from the dungeon,".

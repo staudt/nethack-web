@@ -469,59 +469,162 @@ describe('status bar, tombstone, tap to act', () => {
     expect(m.root.querySelector('.nh-hp-crit')?.textContent).toBe('HP:3(30)');
   });
 
-  test.each([
-    ['nh:jackal', 'killed by a jackal'],
-    ['@nh:iguana', 'killed by an iguana'],
-    ['@killer.starvation', 'killed by starvation'],
-  ])('tombstone for %s', (killer, text) => {
+  // content's English for the end of the game (the ui tests cannot import content)
+  const END_EN: Record<string, string> = {
+    'end.killer.died': 'killed by {killer}',
+    'end.killer.starving': 'died of {killer}',
+    'end.ends.died': 'died',
+    'end.ends.escaped': 'escaped',
+    'end.goodbye': 'Goodbye {name} the {role}...',
+    'end.died_in': 'You {ends} in {dungeon} on dungeon level {depth},',
+    'end.escaped': 'You escaped from the dungeon,',
+    'end.gold_moves': 'and {gold} piece{gs} of gold, after {moves} move{ms}.',
+    'end.level_hp': 'You were level {level} with a maximum of {hp} hit point{hs} when you {ends}.',
+    'end.ask.inventory': 'Do you want your possessions identified?',
+    'end.ask.attributes': 'Do you want to see your attributes?',
+    'end.inventory': 'Your possessions:',
+    'end.attributes': 'Final attributes:',
+    'role.valkyrie': 'Valkyrie',
+    'nh:main': 'The Dungeons of Doom',
+    'nh:jackal': 'jackal',
+    'killer.starvation': 'starvation',
+    'inv.a': 'a - a long sword',
+    'enl.x': 'You are stunned.',
+  };
+  const LISTS: GameEvent[] = [
+    { type: 'list', titleKey: 'disco.title', items: [{ key: 'enl.x' }] },
+    {
+      type: 'list',
+      ask: 'end.ask.inventory',
+      titleKey: 'end.inventory',
+      items: [{ key: 'inv.a' }],
+    },
+    {
+      type: 'list',
+      ask: 'end.ask.attributes',
+      titleKey: 'end.attributes',
+      items: [{ key: 'enl.x' }],
+    },
+  ];
+  const over = (more: Record<string, string | number> = {}): ViewUpdate =>
+    st({
+      dead: 'died',
+      killer: '@nh:jackal',
+      endHow: 'died',
+      endTurn: 77,
+      endDepth: 3,
+      endLevel: 2,
+      endDungeon: 'nh:main',
+      role: 'role.valkyrie',
+      gold: 12,
+      hpmax: 16,
+      turn: 77,
+      ...more,
+    });
+  const mkEnd = (opts: Partial<UiOptions> = {}) => {
     const onNewGame = vi.fn();
-    const root = document.createElement('div');
-    document.body.append(root);
-    const g = fakeGame();
-    ui = createUi({
-      root,
-      renderer: new FakeRenderer(),
-      game: g.game,
-      mods: [defaultKeymap],
-      onNewGame,
-    });
-    ui.api.addMessages('en', {
-      'nh:jackal': 'jackal',
-      'nh:iguana': 'iguana',
-      'killer.starvation': 'starvation',
-    });
-    ui.update(
-      st({ dead: 'died', killer, endTurn: 77, endDepth: 3, endLevel: 2, turn: 77, dlvl: 3 }),
-      [],
-      null,
-    );
-    const body = root.querySelector('.nh-sheet-body')?.textContent ?? '';
-    expect(body).toContain(text);
-    expect(body).toContain('on turn 77');
-    expect(root.querySelector('.nh-cancel')).toBeNull();
+    const m = mk({ opts: { onNewGame, ...opts } });
+    ui = m.ui;
+    m.ui.api.addMessages('en', END_EN);
+    const title = () => m.root.querySelector('.nh-sheet-title')?.textContent;
+    const texts = () => [...m.root.querySelectorAll('.nh-sheet-text')].map((e) => e.textContent);
+    const rip = () => m.root.querySelector('.nh-rip')?.textContent ?? null;
+    return { ...m, onNewGame, title, texts, rip };
+  };
+
+  test('end: plain lists, then each question; Yes shows the list; the stone after the last', () => {
+    const m = mkEnd();
+    m.ui.update(over(), LISTS, null);
+    // a list without a question shows first, as before
+    expect(m.title()).toBe('[disco.title]');
+    (m.root.querySelector('.nh-cancel') as HTMLButtonElement).click();
+    expect(m.title()).toBe('Do you want your possessions identified?');
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Yes', 'No', 'Quit']);
+    expect(m.rip()).toBeNull();
+    key('y');
+    expect(m.title()).toBe('Your possessions:');
+    expect(m.texts()).toEqual(['a - a long sword']);
+    (m.root.querySelector('.nh-cancel') as HTMLButtonElement).click();
+    expect(m.title()).toBe('Do you want to see your attributes?');
+    key('n');
+    const stone = m.rip() ?? '';
+    for (const part of [
+      'REST',
+      'Valkyrie',
+      '12 Au',
+      'killed by a',
+      'jackal',
+      String(new Date().getFullYear()),
+    ])
+      expect(stone).toContain(part);
+    expect(m.texts()).toEqual([
+      'Goodbye Valkyrie the Valkyrie...',
+      'You died in The Dungeons of Doom on dungeon level 3,',
+      'and 12 pieces of gold, after 77 moves.',
+      'You were level 2 with a maximum of 16 hit points when you died.',
+    ]);
+    // the stone stays: Escape and another game-over update do nothing
     key('Escape');
-    expect(root.querySelector('.nh-sheet')).not.toBeNull();
-    ui.update(st({ dead: 'died', killer, turn: 77 }), [], null);
-    expect(root.querySelectorAll('.nh-sheet').length).toBe(1);
-    btns(root)[0]?.click();
-    expect(onNewGame).toHaveBeenCalledOnce();
+    m.ui.update(over(), [], null);
+    expect(m.root.querySelectorAll('.nh-sheet').length).toBe(1);
+    btns(m.root)[0]?.click();
+    expect(m.onNewGame).toHaveBeenCalledOnce();
   });
 
-  test('escaped summary; Enter starts new game', () => {
-    const onNewGame = vi.fn();
-    const root = document.createElement('div');
-    document.body.append(root);
-    ui = createUi({
-      root,
-      renderer: new FakeRenderer(),
-      game: fakeGame().game,
-      mods: [],
-      onNewGame,
-    });
-    ui.update(st({ dead: 'escaped', turn: 9 }), [], null);
-    expect(root.querySelector('.nh-sheet-title')?.textContent).toBe('You escaped the dungeon.');
+  test.each([['q'], ['Escape']])('end: %s at a question skips every later one', (k) => {
+    const m = mkEnd();
+    m.ui.update(over(), LISTS.slice(1), null);
+    key(k);
+    expect(m.rip()).toContain('jackal');
+    expect(m.title()).toBe('You died');
+  });
+
+  test('end: Enter answers Yes; the player name goes on the stone and in Goodbye', () => {
+    const m = mkEnd({ playerName: () => 'Brunhilde' });
+    m.ui.update(over({ gold: 1, hpmax: 1, endTurn: 1 }), LISTS.slice(2), null);
     key('Enter');
-    expect(onNewGame).toHaveBeenCalledOnce();
+    expect(m.title()).toBe('Final attributes:');
+    key('Escape');
+    expect(m.rip()).toContain('Brunhilde');
+    expect(m.texts()).toEqual([
+      'Goodbye Brunhilde the Valkyrie...',
+      'You died in The Dungeons of Doom on dungeon level 3,',
+      'and 1 piece of gold, after 1 move.',
+      'You were level 2 with a maximum of 1 hit point when you died.',
+    ]);
+  });
+
+  test('end: no questions without lists; starving words; a mod how falls back to killed by', () => {
+    const m = mkEnd();
+    m.ui.update(over({ endHow: 'starving', killer: '@killer.starvation' }), [], null);
+    expect(m.rip()).toContain('died of');
+    expect(m.rip()).toContain('starvation');
+    m.ui.destroy();
+    const n = mkEnd();
+    n.ui.update(over({ endHow: 'mod:melted', killer: '=Izchak' }), [], null);
+    expect(n.rip()).toContain('killed by');
+    expect(n.rip()).toContain('Izchak');
+  });
+
+  test('end: escaping asks the questions but shows no stone', () => {
+    const m = mkEnd();
+    m.ui.update(
+      over({ dead: 'escaped', endHow: 'escaped', killer: 'escaped' }),
+      LISTS.slice(1),
+      null,
+    );
+    key('n');
+    key('n');
+    expect(m.rip()).toBeNull();
+    expect(m.title()).toBe('You escaped the dungeon.');
+    expect(m.texts()).toEqual([
+      'Goodbye Valkyrie the Valkyrie...',
+      'You escaped from the dungeon,',
+      'and 12 pieces of gold, after 77 moves.',
+      'You were level 2 with a maximum of 16 hit points when you escaped.',
+    ]);
+    key('Enter');
+    expect(m.onNewGame).toHaveBeenCalledOnce();
   });
 
   test('tap on a distant cell: one offer acts, none describes', async () => {

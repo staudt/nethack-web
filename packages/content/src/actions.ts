@@ -52,6 +52,7 @@ import { isSokoban } from './sokoban';
 import { xnameOf } from './objnam';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
+import { setEndHow } from './endstate';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -724,6 +725,7 @@ const up: ActionDef = {
     // Anything but 'y' returns ECMD_OK: no message, no time.
     if (value !== true) return 0;
     // ref: src/do.c doup() -> prev_level() -> done(ESCAPED)
+    setEndHow(ctx, 'escaped');
     ctx.endGame({
       kind: 'escaped',
       killer: 'escaped',

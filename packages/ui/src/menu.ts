@@ -50,6 +50,8 @@ export interface MenuSpec {
   sel?: number;
   /** Runs after the Cancel button or Escape closes the menu. */
   onCancel?: () => void;
+  /** Without a Cancel button: what Escape does (closing the menu first). */
+  onEscape?: () => void;
   onClose?: () => void;
 }
 
@@ -166,7 +168,10 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
       sel = (sel - 1 + buttons.length) % Math.max(1, buttons.length);
     else if (e.key === 'Enter') buttons[sel]?.click();
     else if (e.key === 'Escape' && spec.cancelLabel !== undefined) cancel();
-    else if (keyOf.has(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    else if (e.key === 'Escape' && spec.onEscape) {
+      close();
+      spec.onEscape();
+    } else if (keyOf.has(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
       buttons[keyOf.get(e.key) as number]?.click();
       return true;
     }

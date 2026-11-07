@@ -137,23 +137,59 @@ export function an(word: string): string {
   return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`;
 }
 
-/** Headstone art (text only), adapted loosely from rip.c. */
-export function ripArt(lines: string[]): string {
-  const w = Math.max(22, ...lines.map((l) => l.length));
-  const center = (s: string): string => {
-    const pad = w - s.length;
-    const left = Math.floor(pad / 2);
-    return ' '.repeat(left) + s + ' '.repeat(pad - left);
+/** The stone. ref: src/rip.c rip_txt[] (without NH320_DEDICATION) */
+const RIP_TXT: readonly string[] = [
+  '                       ----------',
+  '                      /          \\',
+  '                     /    REST    \\',
+  '                    /      IN      \\',
+  '                   /     PEACE      \\',
+  '                  /                  \\',
+  '                  |                  |', // Name of player
+  '                  |                  |', // Amount of $
+  '                  |                  |', // Type of death
+  '                  |                  |', // .
+  '                  |                  |', // .
+  '                  |                  |', // .
+  '                  |       1001       |', // Real year of death
+  '                 *|     *  *  *      | *',
+  '        _________)/\\\\_//(\\/(/\\)/\\//\\/|_)_______',
+];
+const STONE_LINE_CENT = 28; // char[] element of center of stone face
+const STONE_LINE_LEN = 16; // # chars that fit on one line (note 1 ' ' border)
+const NAME_LINE = 6;
+const GOLD_LINE = 7;
+const DEATH_LINE = 8;
+const YEAR_LINE = 12;
+
+/**
+ * The tombstone's lines: the name (16 characters at most), the gold as `N Au`, the death text
+ * wrapped on spaces over four lines, the year. ref: src/rip.c genl_outrip(), center()
+ */
+export function ripLines(o: { name: string; gold: number; death: string; year: number }): string[] {
+  const rip = RIP_TXT.map((l) => l.split(''));
+  const center = (line: number, text: string): void => {
+    const row = rip[line];
+    if (!row) return;
+    const at = STONE_LINE_CENT - ((text.length + 1) >> 1);
+    for (let k = 0; k < text.length; k++) row[at + k] = text.charAt(k);
   };
-  // Stone edges: '|' at columns 2 and w + 3; the roof slopes in by one column per line.
-  const row = (s: string): string => `  |${center(s)}|`;
-  const out = [
-    `    ${'-'.repeat(w - 2)}`,
-    `   /${' '.repeat(w - 2)}\\`,
-    ...lines.map(row),
-    row(''),
-    ` *|${center('*  *  *')}|*`,
-    '_'.repeat(w + 6),
-  ];
-  return out.join('\n');
+  center(NAME_LINE, o.name.slice(0, STONE_LINE_LEN));
+  // arbitrary upper limit; practical upper limit is quite a bit less
+  center(GOLD_LINE, `${Math.min(Math.max(o.gold, 0), 999999999)} Au`);
+  // Put death type on stone
+  let dpx = o.death;
+  for (let line = DEATH_LINE; line < YEAR_LINE; line++) {
+    let i0 = dpx.length;
+    if (i0 > STONE_LINE_LEN) {
+      let i: number;
+      for (i = STONE_LINE_LEN; i > 0 && i0 > STONE_LINE_LEN; --i) if (dpx.charAt(i) === ' ') i0 = i;
+      if (!i) i0 = STONE_LINE_LEN;
+    }
+    const tmpchar = dpx.charAt(i0);
+    center(line, dpx.slice(0, i0));
+    dpx = tmpchar !== ' ' ? dpx.slice(i0) : dpx.slice(i0 + 1);
+  }
+  center(YEAR_LINE, String(o.year).padStart(4, ' '));
+  return rip.map((r) => r.join(''));
 }

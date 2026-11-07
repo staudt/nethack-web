@@ -27,6 +27,11 @@ export type GameEvent =
    * color.
    */
   | { type: 'ray'; kind: string; fg: string; path: RayStep[] }
-  /** An informational list for the player (discoveries); the UI shows it in a sheet. */
-  | { type: 'list'; titleKey: string; items: Msg[] }
+  /**
+   * An informational list for the player (discoveries); the UI shows it in a sheet. `ask` (a
+   * message key) is a yes/no/quit question the UI asks first, skipping the list on no and every
+   * later asking list on quit: the end-of-game disclosure (ref: src/end.c disclose()). The
+   * answers change nothing in the game, so they never become actions.
+   */
+  | { type: 'list'; titleKey: string; items: Msg[]; ask?: string }
   | { type: 'mod'; mod: string; name: string; data: Json };

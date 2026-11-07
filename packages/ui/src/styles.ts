@@ -19,6 +19,7 @@ padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padd
 .nh-sheet-body{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.15;white-space:pre;overflow-x:auto;color:var(--nh-fg)}
 .nh-modal.nh-tomb{align-items:center}
 .nh-tomb .nh-sheet{border-radius:12px;width:auto;max-width:calc(100% - 16px)}
+.nh-rip{font-size:min(12px,calc((100vw - 48px) / 29));overflow-x:hidden}
 .nh-bar{flex:none;display:flex;gap:8px;padding:8px;background:var(--nh-panel);border-top:1px solid var(--nh-border)}
 .nh-btn{min-width:44px;min-height:44px;padding:8px 14px;font-size:16px;color:var(--nh-fg);background:#232833;border:1px solid var(--nh-border);border-radius:8px;cursor:pointer}
 .nh-bar .nh-btn{flex:1}
@@ -29,7 +30,7 @@ padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padd
 .nh-sheet-title{font-weight:bold;padding:4px}
 .nh-sheet-btn{text-align:left}
 .nh-sheet-heading{font-weight:bold;color:var(--nh-accent);padding:4px 4px 0}
-.nh-sheet-text{padding:2px 4px;color:var(--nh-fg)}
+.nh-sheet-text{padding:2px 4px;color:var(--nh-fg);white-space:pre-wrap}
 .nh-glyph{display:inline-block;min-width:1ch;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:bold;background:#000;border-radius:3px;text-align:center}
 .nh-checkbox::before{content:"[ ]";font-family:ui-monospace,Menlo,Consolas,monospace}
 .nh-checked .nh-checkbox::before{content:"[x]"}

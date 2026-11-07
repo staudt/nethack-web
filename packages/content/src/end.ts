@@ -12,9 +12,9 @@ import { monNam } from './perception';
 import { P, hasProp, updateWornProps } from './props';
 import { hungerData, initUhunger } from './uhunger';
 import { setUstuck, ustuck } from './hackmove';
+import { setEndHow, type How } from './endstate';
 
-/** How the hero died, for the parts of done() that care. ref: include/hack.h DIED, CHOKING ... */
-export type How = 'died' | 'choking' | 'poisoning' | 'starving';
+export type { How } from './endstate';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -49,6 +49,7 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
     savelife(ctx, how);
     return;
   }
+  setEndHow(ctx, how);
   ctx.endGame({
     kind: 'died',
     killer,

@@ -5,11 +5,14 @@ import { OBJECTS } from './objects';
 /** "sewer rat" from 'nh:sewer_rat': the catalog names are the ids spelled out. */
 const plain = (id: string): string => id.replace(/^[^:]*:/, '').replace(/_/g, ' ');
 
+const an = (s: string): string => `${/^[aeiou]/.test(s) ? 'an' : 'a'} ${s}`;
+
 /** Killer texts that read well after "killed by a/an" are given per monster and food. */
 const killers: Record<string, string> = {};
 for (const m of MONSTERS) killers[`killer.rotted.${m.id}`] = `rotted ${plain(m.id)} corpse`;
 for (const o of OBJECTS) {
-  if (o.class === 'food') killers[`killer.choked.${o.id}`] = `choking on ${plain(o.id)}`;
+  // choke(): KILLED_BY_AN food, read after "choked on " (topten.c killed_by_prefix[CHOKING])
+  if (o.class === 'food') killers[`killer.choked.${o.id}`] = an(plain(o.id));
 }
 
 export const eatMessagesEn: Record<string, string> = {
@@ -32,7 +35,7 @@ export const eatMessagesEn: Record<string, string> = {
   'killer.cadaver': 'cadaver',
   'killer.poisonous_corpse': 'poisonous corpse',
   'killer.acidic_corpse': 'acidic corpse',
-  'killer.choked.snack': 'choking on a quick snack',
+  'killer.choked.snack': 'a quick snack',
 
   // eating. ref: src/eat.c
   'eat.finish': 'You finish eating the {item}.',

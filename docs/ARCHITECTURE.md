@@ -341,7 +341,7 @@ type GameEvent =
   | { type: 'blocked'; pos: Pos; terrain: DefId }
   | { type: 'turnEnded'; turn: number }
   | { type: 'searched' }
-  | { type: 'list'; titleKey: string; items: Msg[] } // informational sheet (discoveries)
+  | { type: 'list'; titleKey: string; items: Msg[]; ask?: string } // informational sheet (discoveries); ask: a y/n/q question first (game over)
   | { type: 'mod'; mod: string; name: string; data: Json };
 
 interface Prompt {
@@ -387,6 +387,8 @@ Each step does the following (ref: src/allmain.c moveloop_core):
 A multi-turn action (travel, running, eating) is therefore a series of steps. The UI sends `{ type: 'continue' }` after a short delay while `continuing` is true, which animates the move and lets any other input cancel it by sending (or just swallowing and not sending) a different action. Per-move progress belongs in `state.occupation.data` (JSON; `null` on the first move), never in module variables, so the state can be saved, loaded and replayed in the middle of a travel. `engine.stepAll` loops `continue` until the occupation ends or `MAX_REPEAT` continues were made.
 
 The game stops at once (mid-turn, too) when `ctx.endGame` is called or a prompt is raised.
+
+**The end-of-game disclosure (m8).** At game over content identifies the pack (C's really_done() loop) and emits its disclosure lists as `'list'` events with `ask` set (a message key: "Do you want your possessions identified?"). The UI asks each question with Yes / No / Quit before showing the list (Quit skips every later asking list, C's `done_stopprint`), then shows the tombstone and the summary. The answers change nothing in the game, so they are UI questions: they never become actions, prompts or replay entries, and a dead hero needs no extra step. `ask` was added to the core event type for this; it is optional and additive (events are never saved or replayed, and a list without it shows at once as before). Content does this work in a `beforeGameOver` hook at priority -1000, so it runs only once every other hook has let the game end: **a mod's `beforeGameOver` hook must use a priority above -1000 to be able to cancel** a game over.
 
 Messages are always keys plus params. English text lives in `content/src/messages.en.ts` and is loaded on the client side.
 A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie' } }` becomes "… You are a Valkyrie.".

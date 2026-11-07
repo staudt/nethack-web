@@ -751,6 +751,8 @@ describe('"Die?"', () => {
     const after = answerPrompt(state, false);
     expect(msgs(after).map((m) => m.key)).toContain('wiz.die.ok');
     expect(state.gameOver).toBeNull();
+    // the end-of-game hook never ran (it always sends the attributes list)
+    expect([...events, ...after].filter((e) => e.type === 'list')).toEqual([]);
     expect(state.pendingPrompt).toBeNull();
     const hp = getPlayer(state).c.hp!;
     expect(hp.cur).toBe(hp.max);
@@ -760,9 +762,15 @@ describe('"Die?"', () => {
   });
 
   test('yes: the game ends with that death', () => {
-    const { state } = dying(32);
-    answerPrompt(state, true);
+    const { state, events } = dying(32);
+    expect(events.filter((e) => e.type === 'list')).toEqual([]);
+    const after = answerPrompt(state, true);
     expect(state.gameOver).toMatchObject({ kind: 'died', killer: '@nh:jackal' });
+    // then the end-of-game hook: the disclosure lists
+    expect(after.flatMap((e) => (e.type === 'list' ? [e.ask] : []))).toEqual([
+      'end.ask.inventory',
+      'end.ask.attributes',
+    ]);
   });
 
   test('a normal game just ends', () => {

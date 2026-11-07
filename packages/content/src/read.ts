@@ -106,8 +106,18 @@ const usesKnown = (def: ObjectDef): boolean =>
   def.class === 'wand' ||
   CHARGED_RINGS.has(def.id);
 
-/** ref: src/invent.c identify() / fully_identify_obj(): type, BUC and enchantment, then "d - ..." */
+/** ref: src/invent.c identify(): fully_identify_obj(), then "d - ..." */
 function identify(ctx: Ctx, e: Entity): void {
+  if (!e.c.item) return;
+  fullyIdentify(ctx, e);
+  prinv(ctx, e);
+}
+
+/**
+ * Type, BUC, enchantment and container knowledge, silently. ref: src/invent.c
+ * fully_identify_obj(); src/end.c really_done()'s loop does the same per object.
+ */
+export function fullyIdentify(ctx: Ctx, e: Entity): void {
   const it = e.c.item;
   if (!it) return;
   discover(ctx, e.def);
@@ -118,7 +128,6 @@ function identify(ctx: Ctx, e: Entity): void {
   const def = ctx.defs.object(e.def);
   if (def.container) setCknown(ctx, e.id, true);
   if (def.container?.box) setLknown(ctx, e.id, true);
-  prinv(ctx, e);
 }
 
 const unidentified = (ctx: Ctx): Entity[] =>
