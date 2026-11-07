@@ -11,6 +11,7 @@ import { forgetMState } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
 import { shkgone } from './shk';
+import { countKill } from './vanquished';
 
 /**
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
@@ -37,6 +38,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
   }
   relobj(ctx, monId, at);
   shkgone(ctx, monId); // ref: m_detach()
+  countKill(ctx, e.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);
   ctx.remove(monId);
@@ -94,6 +96,7 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
   shkgone(ctx, id); // ref: m_detach()
+  countKill(ctx, mon.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);

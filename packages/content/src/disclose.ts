@@ -4,8 +4,8 @@
 //
 // The questions themselves ("Do you want your possessions identified?") are asked by the UI:
 // each list event carries its question in `ask`, and the answers change nothing in the game.
-// Not ported: the shopkeeper's `taken` variant, Schroedinger's cat, vanquished (m8 step 3),
-// genocides, conduct, achievements and the dungeon overview (nothing tracks them), dumplog.
+// Not ported: the shopkeeper's `taken` variant, Schroedinger's cat, genocides, conduct,
+// achievements and the dungeon overview (nothing tracks them), dumplog.
 import {
   contents,
   getLevel,
@@ -23,6 +23,9 @@ import { endHow } from './endstate';
 import { setCknown, setLknown } from './items';
 import { xnameOf } from './objnam';
 import { fullyIdentify } from './read';
+import { uState } from './luck';
+import { deepestLevel, finalGold, finalScore } from './urexp';
+import { vanquishedLines } from './vanquished';
 
 /** Below every other hook, so it runs only once nothing cancels the game over. */
 export const END_PRIORITY = -1000;
@@ -128,8 +131,18 @@ export function finalDisclosure(ctx: Ctx, _over: GameOver): 'continue' {
     titleKey: 'end.attributes',
     items: enlightenment(ctx),
   });
+  // ref: list_vanquished(): no question when nothing died
+  const vanq = vanquishedLines(ctx.state, ctx.defs);
+  if (vanq.length > 0)
+    ctx.emit({ type: 'list', ask: 'end.ask.vanquished', titleKey: 'end.vanquished', items: vanq });
   return 'continue';
 }
+
+/** C's role file codes. ref: src/role.c roles[].filecode */
+const ROLE_CODES: Readonly<Record<string, string>> = { 'nh:valkyrie': 'Val' };
+
+/** aligns[1 - u.ualign.type].filecode. ref: src/role.c aligns[] */
+const alignCode = (t: number): string => (t > 0 ? 'Law' : t < 0 ? 'Cha' : 'Neu');
 
 /** The game-over hook and the statuses that exist only after game over. */
 export function registerEnd(api: ModApi): void {
@@ -153,6 +166,36 @@ export function registerEnd(api: ModApi): void {
       if (!state.gameOver) return null;
       const role = getPlayer(state).c.player?.role;
       return role ? defs.role(role).nameKey : null;
+    },
+  });
+  // ref: really_done(): the final `u.urexp` ("with N points")
+  api.defineStatus({
+    id: 'nh:score',
+    field: 'score',
+    value: (state, defs) => (state.gameOver ? finalScore(state, defs) : null),
+  });
+  // ref: really_done(): `umoney` with hidden_gold(), for "and N pieces of gold" and the stone
+  api.defineStatus({
+    id: 'nh:end_gold',
+    field: 'endGold',
+    value: (state, defs) => (state.gameOver ? finalGold(state, defs) : null),
+  });
+  // ref: src/topten.c topten(): `maxlvl = deepest_lev_reached(TRUE)`
+  api.defineStatus({
+    id: 'nh:max_depth',
+    field: 'maxDepth',
+    value: (state) => (state.gameOver ? deepestLevel(state) : null),
+  });
+  // ref: src/topten.c topten(): "Val-Hum-Fem-Neu" (role, race, gender, alignment file codes);
+  // the hero is a human female (hero.ts); null for a role without a code
+  api.defineStatus({
+    id: 'nh:plcode',
+    field: 'plcode',
+    value(state) {
+      if (!state.gameOver) return null;
+      const role = getPlayer(state).c.player?.role;
+      const code = role ? ROLE_CODES[role] : undefined;
+      return code ? `${code}-Hum-Fem-${alignCode(uState(state).alignType)}` : null;
     },
   });
 }

@@ -1,4 +1,5 @@
 import type { Params } from '@nh/core';
+import { makeplural } from './plural';
 
 export type Catalogs = Record<string, Record<string, string>>;
 
@@ -155,6 +156,7 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
  * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
  * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). A string param starting with
  * '=' is a proper name: the rest, with no article under any modifier ("Izchak", "Izchak's").
+ * `{name|plural}` is the English plural ("jackals", "homunculi"; src/objnam.c makeplural()).
  * Missing keys render as `[key]` (warned once).
  */
 export function translate(
@@ -174,7 +176,7 @@ export function translate(
   }
   if (!params) return template;
   return template.replace(
-    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The)?\}/g,
+    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The|\|plural)?\}/g,
     (whole, name: string, mod?: string) => {
       const v = params[name];
       if (v === undefined) return whole;
@@ -195,6 +197,7 @@ export function translate(
           ? out.charAt(0).toUpperCase() + out.slice(1)
           : out;
       }
+      if (mod === '|plural') return makeplural(text);
       if (mod === '|an') return justAn(text) + text;
       if (mod === '|An') {
         const a = justAn(text);

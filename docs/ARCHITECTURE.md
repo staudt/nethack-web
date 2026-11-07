@@ -393,6 +393,7 @@ The game stops at once (mid-turn, too) when `ctx.endGame` is called or a prompt 
 Messages are always keys plus params. English text lives in `content/src/messages.en.ts` and is loaded on the client side.
 A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie' } }` becomes "… You are a Valkyrie.".
 A string param that starts with `=` is a proper name (a shopkeeper's, 6b3): the UI prints the rest as is and the `|the`, `|The` and `|an` modifiers add no article (`{mon|The_s}` with `'=Izchak'` is "Izchak's").
+`{mon|plural}` is the English plural of the param's text (m8, the vanquished list: `{ n: 3, mon: '@nh:jackal' }` in "{n} {mon|plural}" is "3 jackals"; a port of C's makeplural(), in `ui/src/plural.ts`), so monster names need no plural keys.
 
 Due timers fire at the end of each turn, before the `endOfTurn` hooks, in `(at, seq)` order.
 

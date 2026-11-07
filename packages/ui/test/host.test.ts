@@ -483,6 +483,9 @@ describe('status bar, tombstone, tap to act', () => {
     'end.goodbye': 'Goodbye {name} the {role}...',
     'end.died_in': 'You {ends} in {dungeon} on dungeon level {depth},',
     'end.escaped': 'You escaped from the dungeon,',
+    'end.died_in_points':
+      'You {ends} in {dungeon} on dungeon level {depth} with {points} point{ps},',
+    'end.escaped_points': 'You escaped from the dungeon with {points} point{ps},',
     'end.gold_moves': 'and {gold} piece{gs} of gold, after {moves} move{ms}.',
     'end.level_hp': 'You were level {level} with a maximum of {hp} hit point{hs} when you {ends}.',
     'end.ask.inventory': 'Do you want your possessions identified?',
@@ -609,6 +612,20 @@ describe('status bar, tombstone, tap to act', () => {
     n.ui.update(over({ endHow: 'mod:melted', killer: '=Izchak' }), [], null);
     expect(n.rip()).toContain('killed by');
     expect(n.rip()).toContain('Izchak');
+  });
+
+  test('end: the points clause once content scores the game; gold in containers counts', () => {
+    const m = mkEnd();
+    m.ui.update(over({ score: 1, endGold: 30 }), [], null);
+    expect(m.rip()).toContain('30 Au');
+    expect(m.texts().slice(1, 3)).toEqual([
+      'You died in The Dungeons of Doom on dungeon level 3 with 1 point,',
+      'and 30 pieces of gold, after 77 moves.',
+    ]);
+    m.ui.destroy();
+    const n = mkEnd();
+    n.ui.update(over({ dead: 'escaped', endHow: 'escaped', score: 312 }), [], null);
+    expect(n.texts()[1]).toBe('You escaped from the dungeon with 312 points,');
   });
 
   test('end: escaping asks the questions but shows no stone', () => {

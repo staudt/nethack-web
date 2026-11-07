@@ -5,6 +5,7 @@ import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
 import { nearCapacity } from './stats';
 import { pwOf, setPw } from './uenergy';
+import { moreExperienced } from './urexp';
 
 /**
  * The stub hero is a human, female, neutral Valkyrie. ref: src/role.c roles[] Valkyrie allows
@@ -281,7 +282,8 @@ export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
 export function gainExperience(ctx: Ctx, heroId: EntityId, exp: number): void {
   const xp = ctx.state.entities[String(heroId)]?.c.experience;
   if (!xp) return;
-  xp.points += exp; // more_experienced()
+  xp.points += exp; // more_experienced(): u.uexp
+  moreExperienced(ctx, exp, 0); // u.urexp += 4 * exp
   // newexplevel()
   if (xp.level < MAXULEV && xp.points >= newuexp(xp.level)) pluslvl(ctx, heroId, true);
 }

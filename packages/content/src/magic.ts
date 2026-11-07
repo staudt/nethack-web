@@ -4,9 +4,10 @@
 import type { Ctx, Entity, EntityId, Params } from '@nh/core';
 import { getPlayer } from '@nh/core';
 import { encumberMsg } from './itemactions';
-import { nhData, removeFromInventory } from './items';
+import { removeFromInventory } from './items';
 import { billUsedUp } from './shk';
 import { nearCapacity } from './stats';
+import { urexp } from './urexp';
 
 export const heroEntity = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
 
@@ -54,12 +55,10 @@ export function useupall(ctx: Ctx, id: EntityId): void {
 
 /**
  * ref: include/flag.h flags.beginner: true until the score `u.urexp` reaches 2000 (src/exper.c
- * more_experienced()). The score is not tracked here, so `modData.nh.urexp` stands in for it
- * (absent = 0, a beginner).
+ * more_experienced(); the score only grows, so the flag never comes back).
  */
 export function isBeginner(ctx: Pick<Ctx, 'state'>): boolean {
-  const urexp = (nhData(ctx) as unknown as { urexp?: number }).urexp ?? 0;
-  return urexp < 2000;
+  return urexp(ctx.state) < 2000;
 }
 
 /**

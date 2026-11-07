@@ -65,6 +65,7 @@ import { heroSees, minvent } from './mongear';
 import { isCancelled, isFrozen, monAdjustSpeed, mspeed, setCancelled } from './mstate';
 import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
+import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { wakeup } from './peaceful';
 import { buzzFrom, flashburn, resist, resistsMagm, wakeGently, type Ray } from './buzz';
@@ -239,6 +240,16 @@ export function learnwand(ctx: Ctx, wand: Entity): void {
 /** learnwand() for a source: spells are suppressed, so casting never discovers a book. */
 function learn(ctx: Ctx, src: ZapSource): void {
   if (src.kind === 'wand') learnwand(ctx, src.item);
+}
+
+/**
+ * learn(), with 10 points of score when the wand's type was unknown: zapnodir()'s `known` and
+ * weffects()' `disclose` with `was_unkn`. ref: src/zap.c zapnodir(), weffects()
+ */
+function learnScored(ctx: Ctx, src: ZapSource): void {
+  if (src.kind === 'wand' && !isKnown(ctx.state, ctx.defs, src.item.def))
+    moreExperienced(ctx, 0, 10);
+  learn(ctx, src);
 }
 
 /** ref: src/potion.c speed_up() */
@@ -976,7 +987,7 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
     default:
       break;
   }
-  if (known) learn(ctx, src);
+  if (known) learnScored(ctx, src);
 }
 
 /** The wish in progress from a wand of wishing, with the wand to check for dust after it. */
@@ -1319,18 +1330,18 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
   }
   if (kind === 'immediate') {
     if (dir === 'up' || dir === 'down') {
-      if (zapUpdown(ctx, src, dir)) learn(ctx, src);
+      if (zapUpdown(ctx, src, dir)) learnScored(ctx, src);
     } else bhit(ctx, src, dir);
     return;
   }
   if (otyp === WAN.digging) {
     zapDig(ctx, dir);
-    learn(ctx, src); // disclose
+    learnScored(ctx, src); // disclose
     return;
   }
   const ray = RAY_OF[otyp];
   if (!ray) return;
-  learn(ctx, src); // disclose: a ray is always seen
+  learnScored(ctx, src); // disclose: a ray is always seen
   if (src.kind === 'spell')
     buzz(ctx, ray, Math.trunc((hero(ctx).c.experience?.level ?? 1) / 2) + 1, dir, otyp);
   else buzz(ctx, ray, otyp === WAN.magicMissile ? 2 : 6, dir, null);

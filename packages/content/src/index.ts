@@ -343,6 +343,8 @@ export {
 export { ghodHitsu, intemple, priestDonate, priestTalk, priestini, templePriests } from './priest';
 export type { PriestOffer } from './priest';
 export { moneyCnt, money2mon, money2u } from './money';
+export { urexp, moreExperienced, finalScore, finalGold, deepestLevel } from './urexp';
+export { countKill, deaths, vanquishedLines } from './vanquished';
 export {
   BILLSZ,
   SHOPKEEPER,

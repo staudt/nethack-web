@@ -54,6 +54,7 @@ import { sokobanGuilt } from './sokoban';
 import { CHARGED_RINGS } from './objects';
 import { erosionMatters, isCrackable, isMetallic } from './material';
 import { discover, isKnown } from './o_init';
+import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
@@ -111,6 +112,16 @@ function identify(ctx: Ctx, e: Entity): void {
   if (!e.c.item) return;
   fullyIdentify(ctx, e);
   prinv(ctx, e);
+}
+
+/**
+ * A scroll type learned by reading it: discovered, and 10 points of score the first time.
+ * ref: src/read.c learnscrolltyp()
+ */
+function learnscrolltyp(ctx: Ctx, def: ObjectDef): void {
+  if (isKnown(ctx.state, ctx.defs, def)) return;
+  discover(ctx, def);
+  moreExperienced(ctx, 0, 10);
 }
 
 /**
@@ -222,7 +233,7 @@ function seffectIdentify(ctx: Ctx, scroll: Entity, wasKnown: boolean): void {
   const self = confused || (buc === 'cursed' && !wasKnown);
   if (self) msg(ctx, 'identify.identify_this_as');
   else if (!wasKnown) msg(ctx, 'identify.this_is');
-  if (!wasKnown) discover(ctx, def); // learnscrolltyp()
+  if (!wasKnown) learnscrolltyp(ctx, def);
   if (self) return;
   if (inventoryOf(ctx.state, ctx.state.playerId).length === 0) {
     msg(ctx, 'identify.nothing_else');
@@ -431,7 +442,7 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
     it.spe = Math.max(-99, Math.min(99, it.spe + s));
     known = it.known.spe; // gk.known = otmp->known
   }
-  if (known && !wasKnown) discover(ctx, sdef);
+  if (known && !wasKnown) learnscrolltyp(ctx, sdef); // gk.known -> learnscroll()
   if (it.spe > (specialArmor ? 5 : 3) && (specialArmor || ctx.rng.rn2(7) === 0)) {
     msg(ctx, `enchant.vibrate${pl}`, { item });
   }
@@ -799,7 +810,7 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       break;
   }
   if (used) return;
-  if (!wasKnown && known) discover(ctx, def); // learnscroll()
+  if (!wasKnown && known) learnscrolltyp(ctx, def); // learnscroll()
   if (!blank) useup(ctx, itemId);
 }
 

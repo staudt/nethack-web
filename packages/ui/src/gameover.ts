@@ -56,18 +56,24 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
   const endsKey = d.has(`end.ends.${how}`) ? `end.ends.${how}` : 'end.ends.died';
   const ends = d.t(endsKey);
   const num = (k: string, dflt: number): number => Number(s[k] ?? dflt);
-  const gold = num('gold', 0);
+  // really_done()'s umoney counts the gold in containers too (content's `endGold`)
+  const gold = num('endGold', num('gold', 0));
   const moves = num('endTurn', num('turn', 0));
   const hp = num('hpmax', 0);
   const role = s['role'] ? d.t(String(s['role'])) : '';
+  // " with N points," once content scores the game (its `score` status)
+  const points = typeof s['score'] === 'number' ? s['score'] : null;
+  const pts = points === null ? {} : { points, ps: plur(points) };
+  const sfx = points === null ? '' : '_points';
   return [
     d.t('end.goodbye', { name, role }),
     how === 'escaped'
-      ? d.t('end.escaped')
-      : d.t('end.died_in', {
+      ? d.t(`end.escaped${sfx}`, pts)
+      : d.t(`end.died_in${sfx}`, {
           ends,
           dungeon: d.t(String(s['endDungeon'] ?? 'nh:main')),
           depth: num('endDepth', num('dlvl', 1)),
+          ...pts,
         }),
     d.t('end.gold_moves', { gold, gs: plur(gold), moves, ms: plur(moves) }),
     d.t('end.level_hp', { level: num('endLevel', num('xl', 1)), hp, hs: plur(hp), ends }),
@@ -133,7 +139,7 @@ export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): voi
         className: 'nh-sheet-body nh-rip',
         textContent: ripLines({
           name,
-          gold: Number(s['gold'] ?? 0),
+          gold: Number(s['endGold'] ?? s['gold'] ?? 0), // gd.done_money
           death: deathText(d, s),
           year: d.year,
         }).join('\n'),

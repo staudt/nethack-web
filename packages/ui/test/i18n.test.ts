@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import { makeplural } from '../src/plural';
 import type { Params } from '@nh/core';
 import { justAn, mergeMessages, translate, type Catalogs } from '../src/i18n';
 
@@ -127,5 +128,39 @@ describe('{param|the}, {param|The} and the possessives', () => {
     expect(translate(cat, 'en', 'acid', { mon: '@pronoun.it' })).toBe(
       'You are splashed by its acid! Its acid burns.',
     );
+  });
+});
+
+describe('{x|plural}: makeplural()', () => {
+  test.each([
+    ['jackal', 'jackals'],
+    ['fox', 'foxes'],
+    ['homunculus', 'homunculi'],
+    ['dwarf', 'dwarves'],
+    ['watchman', 'watchmen'],
+    ['human', 'humans'],
+    ['kobold shaman', 'kobold shamans'],
+    ['manes', 'manes'],
+    ['uruk-hai', 'uruk-hai'],
+    ['housecat', 'housecats'],
+    ['lichen', 'lichens'],
+    ['giant mimic', 'giant mimics'],
+    ['mumak', 'mumakil'],
+    ['ettin mummy', 'ettin mummies'],
+    ['water moccasin', 'water moccasins'],
+    ['erinys', 'erinyes'],
+    ['vortex', 'vortices'],
+    ['nemesis', 'nemeses'],
+    ['mouse', 'mice'],
+    ['wolf', 'wolves'],
+    ['grid bug', 'grid bugs'],
+    ['lord of the dead', 'lords of the dead'],
+  ])('%s -> %s', (one, many) => {
+    expect(makeplural(one)).toBe(many);
+  });
+
+  test('the modifier pluralizes a translated key', () => {
+    const cat = { en: { 'v.many': '{n} {mon|plural}', 'nh:jackal': 'jackal' } };
+    expect(translate(cat, 'en', 'v.many', { n: 3, mon: '@nh:jackal' })).toBe('3 jackals');
   });
 });

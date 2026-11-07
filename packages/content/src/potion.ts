@@ -16,6 +16,7 @@ import { newuhs, makeSick } from './hunger';
 import { encumberMsg } from './itemactions';
 import { bcsign } from './items';
 import { discover, isKnown } from './o_init';
+import { moreExperienced } from './urexp';
 import { heroEntity, useup } from './magic';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeBlinded, makeConfused, makeHallucinated, timeoutLeft } from './props';
@@ -277,7 +278,10 @@ function dopotion(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
     unknown = true;
     msg(ctx, hasProp(heroEntity(ctx), P.HALLUC) ? 'potion.normal_feeling' : 'potion.peculiar');
   }
-  if (!wasKnown && !unknown) discover(ctx, def);
+  if (!wasKnown && !unknown) {
+    discover(ctx, def);
+    moreExperienced(ctx, 0, 10); // ref: src/potion.c dodrink()
+  }
   useup(ctx, itemId);
 }
 
