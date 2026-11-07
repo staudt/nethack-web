@@ -202,6 +202,8 @@ export {
   ringBonus,
   updateWornProps,
   wornIn,
+  conflictOn,
+  resistConflict,
 } from './props';
 export { poisoned, adjattrib } from './attrib';
 export {
@@ -226,8 +228,16 @@ export {
 export { mdamageu, hitmuAd, magicNegation } from './mhitu';
 export { passive } from './uhitm_passive';
 export { ustuck, setUstuck } from './hackmove';
-export { monNam, canSpotMon, telepathSenses, registerPerception } from './perception';
-export { mattackm, monkilled, mondied, growUp, GROWS_INTO, M_ATTK } from './mhitm';
+export {
+  monNam,
+  canSpotMon,
+  telepathSenses,
+  registerPerception,
+  warningLevel,
+  warningShown,
+  WARNING_PERCEPTION,
+} from './perception';
+export { mattackm, fightm, monkilled, mondied, growUp, GROWS_INTO, M_ATTK } from './mhitm';
 export {
   isFrozen,
   frozenTime,

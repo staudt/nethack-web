@@ -35,7 +35,8 @@ import {
   setMonFlag,
 } from './mongear';
 import { mattackRanged } from './mthrowu';
-import { P, heroHas } from './props';
+import { P, conflictOn, heroHas, resistConflict } from './props';
+import { fightm } from './mhitm';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
@@ -173,6 +174,16 @@ export interface Candidate {
 }
 
 /**
+ * mon_allowflags()'s ALLOW_U: hostile monsters, and under Conflict any monster that does not
+ * resist it (rolled every time, as C does). ref: src/mon.c mon_allowflags()
+ */
+export function monAllowU(ctx: Ctx, mon: Entity): boolean {
+  let allowU = !(mon.c.monster?.peaceful ?? false) && !((mon.c.monster?.tame ?? 0) > 0);
+  if (conflictOn(ctx.state) && !resistConflict(ctx, mon)) allowU = true;
+  return allowU;
+}
+
+/**
  * Squares the monster could move to this turn, in mfndpos() order (x outer, y inner).
  * ref: src/mon.c mfndpos() with mon_allowflags(): hostile monsters may "move" onto the hero
  * (ALLOW_U), monsters that can open doors may enter closed doors (OPENDOOR). Walls, other
@@ -191,7 +202,7 @@ export function mfndpos(
   rules: CellRules,
   id: EntityId,
   heroPos: Pos,
-  opts: { allowM?: boolean; allowTraps?: boolean } = {},
+  opts: { allowM?: boolean; allowTraps?: boolean; allowU?: boolean } = {},
 ): Candidate[] {
   const { e, m, pos, def } = monCount(ctx, id);
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
@@ -246,7 +257,7 @@ export function mfndpos(
       const isHero = nx === heroPos.x && ny === heroPos.y;
       const occupant = isHero ? undefined : taken.get(cellIndex(level, nx, ny));
       if (isHero) {
-        if (m.peaceful) continue; // no ALLOW_U
+        if (!(opts.allowU ?? !m.peaceful)) continue; // no ALLOW_U
       } else if (occupant !== undefined && !opts.allowM) {
         continue; // no ALLOW_M / ALLOW_MDISP
       }
@@ -490,10 +501,11 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
  * A temple priest's move: -1 outside his temple (the normal AI moves him). Peaceful, he mills
  * around his altar keeping out of the hero's lines; angry, he attacks her when next to her and
  * chases her while she is in his temple and he sees her. Returns as {@link moveSpecial}.
- * ref: src/priest.c pri_move() (no conflict, displacement or invisibility)
+ * Under Conflict a peaceful priest that does not resist acts as an angry one.
+ * ref: src/priest.c pri_move() (no displacement or invisibility)
  */
 export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
-  const { m, pos, def } = monCount(ctx, id);
+  const { e, m, pos, def } = monCount(ctx, id);
   const epri = epriOf(ctx, id);
   if (!epri || !histempleAt(ctx, epri, pos.x, pos.y)) return -1;
   const temple = epri.shroom;
@@ -501,7 +513,7 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   let ggx = epri.shrpos.x + ctx.rng.rn2(3) - 1;
   let ggy = epri.shrpos.y + ctx.rng.rn2(3) - 1;
   let avoid = true;
-  if (!m.peaceful) {
+  if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
     if (monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
       monsterAttack(ctx, id);
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
@@ -528,11 +540,11 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
  * the door: within two squares of it he rests unless lined up with the hero (on the spot itself
  * he wanders a little instead), and he steps out of her lines when she is in the shop and more
  * than two squares from the spot. Returns as {@link moveSpecial}.
- * ref: src/shk.c shk_move() (no damage repair, conflict, displacement, invisibility, steeds or
- * holes)
+ * Under Conflict a peaceful one next to her that does not resist attacks her too.
+ * ref: src/shk.c shk_move() (no damage repair, displacement, invisibility, steeds or holes)
  */
 export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
-  const { m, pos } = monCount(ctx, id);
+  const { e, m, pos } = monCount(ctx, id);
   const eshk = eshkOf(ctx, id);
   if (!eshk) return -1;
   if (eshk.shoplevel !== pos.level && !eshk.following) return -1;
@@ -540,7 +552,8 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   const omy = pos.y;
   const udist = dist2(omx, omy, heroPos.x, heroPos.y);
   if (udist < 3) {
-    if (!m.peaceful) {
+    // ANGRY(shkp) || (Conflict && !resist_conflict(shkp))
+    if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
       monsterAttack(ctx, id); // mattacku()
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
     }
@@ -664,7 +677,8 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   const ggx = goal.x;
   const ggy = goal.y;
 
-  const cands = mfndpos(ctx, level, rules, id, heroPos);
+  const e = ctx.state.entities[String(id)];
+  const cands = mfndpos(ctx, level, rules, id, heroPos, e ? { allowU: monAllowU(ctx, e) } : {});
   const cnt = cands.length;
   if (cnt === 0) return 'nomoves'; // MMOVE_NOMOVES
   const track = getTrack(ctx, id);
@@ -750,7 +764,7 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
 export function dochug(
   ctx: Ctx,
   id: EntityId,
-  petMove: (ctx: Ctx, id: EntityId) => void = () => undefined,
+  petMove: (ctx: Ctx, id: EntityId) => 'moved' | 'nothing' | 'done' | 'died' = () => 'moved',
 ): void {
   const { m, pos } = monCount(ctx, id);
   const hero = getPlayer(ctx.state);
@@ -764,6 +778,18 @@ export function dochug(
     setMonFlag(ctx, 'gearchk', id, false);
     if (mDoWear(ctx, id, false)) return;
   }
+
+  // ref: src/mon.c movemon_singlemon(): "continue if the monster died fighting": under Conflict
+  // a monster that sees her and that she sees within BOLT_LIM fights a neighbour instead of
+  // moving (Conflict does not take effect in the first round: a monster stepping into the area
+  // still swings at her). Her seeing its square implies its seeing her (no invisibility).
+  if (
+    conflictOn(ctx.state) &&
+    isVisible(ctx.state, cellIndex(getLevel(ctx.state, pos.level), pos.x, pos.y)) &&
+    dist2(pos.x, pos.y, hp.x, hp.y) <= BOLT_LIM * BOLT_LIM &&
+    fightm(ctx, id)
+  )
+    return; // mon might have died
 
   // ref: dochug(): a monster that can't move does nothing; a confused or stunned one may recover
   if (isFrozen(ctx, id)) return;
@@ -801,7 +827,7 @@ export function dochug(
   // ref: dochug(): "If monster is nearby you, and has to wield a weapon, do so. This costs the
   // monster a move, of course."
   if (
-    !m.peaceful &&
+    (!m.peaceful || conflictOn(ctx.state)) &&
     inrange &&
     dist2(pos.x, pos.y, heroPos.x, heroPos.y) <= 8 &&
     def.attacks.some((a) => a.at === 'weapon') &&
@@ -809,6 +835,12 @@ export function dochug(
   )
     return;
 
+  // phase four's attitude test: hostile, or (rolled each time) not resisting Conflict
+  const hostileNow = (): boolean => {
+    if (!m.peaceful) return true;
+    const me = ctx.state.entities[String(id)];
+    return !!me && conflictOn(ctx.state) && !resistConflict(ctx, me);
+  };
   let status: MoveStatus = 'nothing';
   let panicattk = false;
   if (
@@ -818,6 +850,7 @@ export function dochug(
     isMConfused(ctx, id) ||
     isMStunned(ctx, id) ||
     (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
+    conflictOn(ctx.state) || // `Conflict && !mtmp->iswiz`
     m.peaceful
   ) {
     // ref: dochug(): "Possibly cast an undirected spell if not attacking you" -- within 7
@@ -848,25 +881,23 @@ export function dochug(
           return;
         }
         // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
-        // pets are peaceful, so they never go on to attack the hero
-        if ((m.tame ?? 0) > 0) {
-          petMove(ctx, id);
-          return;
-        }
-        status = mMove(ctx, id, heroPos);
+        // a pet that did nothing goes on to phase four, where only Conflict makes it attack her
+        if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
+        else status = mMove(ctx, id, heroPos);
         if (status === 'died') return;
         distfleeck(); // recalc
         if (status === 'nomoves' && scared) panicattk = true;
         if (status === 'moved') {
           // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
-          // is still not next to the hero uses its ranged attack
+          // is still not next to the hero uses its ranged attack (phase four's attitude test:
+          // hostile, or not resisting Conflict)
           const np = ctx.state.entities[String(id)]?.c.pos;
           if (
             np &&
             def.attacks.some((a) => a.at === 'weapon') &&
             !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
-            dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM &&
-            !m.peaceful
+            hostileNow() &&
+            dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM
           )
             mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
           return;
@@ -875,8 +906,9 @@ export function dochug(
     }
   }
   // MMOVE_DONE (picked something up) means no attack this move
-  // ref: dochug() `((inrange && !scared) || panicattk)`
-  const mayAttack = status !== 'done' && !m.peaceful && ((inrange && !scared) || panicattk);
+  // ref: dochug() `!mtmp->mpeaceful || (Conflict && !resist_conflict(mtmp))`, then
+  // `((inrange && !scared) || panicattk)`
+  const mayAttack = status !== 'done' && hostileNow() && ((inrange && !scared) || panicattk);
   if (mayAttack && monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
     monsterAttack(ctx, id);
   } else if (mayAttack && inrange) {

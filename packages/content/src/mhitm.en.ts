@@ -41,4 +41,5 @@ export const mhitmMessagesEn: Record<string, string> = {
   'mhitm.very_hot': '{mon|The} is suddenly very hot!',
   'mhitm.mildly_tingled': '{mon|The} is mildly tingled.',
   'mhitm.jolted': '{mon|The} is jolted with electricity!',
+  'conflict.releases_you': '{mon|The} releases you!',
 };

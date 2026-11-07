@@ -1,10 +1,10 @@
-// How the hero perceives monsters and objects: blindness, telepathy and hallucination.
-// ref: src/display.c (canspotmon, sensemon, tp_sensemon), src/do_name.c rndmonnam(),
-// src/display.c random_monster() / random_object()
+// How the hero perceives monsters and objects: blindness, telepathy, warning and hallucination.
+// ref: src/display.c (canspotmon, sensemon, tp_sensemon, display_warning(), warning_of()),
+// src/do_name.c rndmonnam(), src/display.c random_monster() / random_object()
 import {
   getPlayer,
   isVisible,
-  senses,
+  type AppearanceDef,
   type Ctx,
   type DefId,
   type Entity,
@@ -51,11 +51,99 @@ export function telepathSenses(state: Readonly<GameState>, defs: Registry, mon: 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
 
+/** ref: include/display.h WARNCOUNT: warning levels 0..5 */
+const WARNCOUNT = 6;
+/** ref: src/allmain.c `svc.context.warnlevel = 1` (never changed): level-0 monsters never warn */
+const WARNLEVEL = 1;
+
+/** The perception def that shows warning digits (not a way of spotting the monster). */
+export const WARNING_PERCEPTION: DefId = 'nh:warning';
+
+/** The legend key of a warning digit. */
+export const warningGlyph = (wl: number): DefId => `nh:warning_${wl}`;
+
+/**
+ * The warning digits, as legend entries: '0'..'5' in C's colours (white, three reds, magenta,
+ * bright magenta; '0' is never shown, as warnlevel is 1). Class 'rock' keeps them out of the
+ * shuffled description pools. ref: src/drawing.c def_warnsyms[]
+ */
+export const WARNING_APPEARANCES: readonly AppearanceDef[] = [
+  '#ffffff',
+  '#cc3333',
+  '#cc3333',
+  '#cc3333',
+  '#bb44bb',
+  '#ff55ff',
+].map((fg, wl) => ({
+  id: warningGlyph(wl),
+  nameKey: warningGlyph(wl),
+  class: 'rock' as const,
+  glyph: { ch: String(wl), fg },
+}));
+
+/**
+ * The warning level (1..5) the hero feels from this monster, or null: she has Warning, it is a
+ * hostile monster on her level less than 10 squares away (distance² < 100), and `m_lev / 4` is
+ * at least the warning threshold. ref: include/display.h _mon_warning(); src/display.c
+ * warning_of()
+ */
+export function warningLevel(
+  state: Readonly<GameState>,
+  defs: Registry,
+  mon: Entity,
+): number | null {
+  if (!defs.isMonster(mon.def) || !heroHas(state, P.WARNING)) return null;
+  const m = mon.c.monster;
+  if (!m || m.peaceful) return null;
+  const hp = getPlayer(state).c.pos;
+  const mp = mon.c.pos;
+  if (!mp || !hp || mp.level !== hp.level) return null;
+  const dx = mp.x - hp.x;
+  const dy = mp.y - hp.y;
+  if (dx * dx + dy * dy >= 100) return null;
+  const tmp = Math.trunc(m.level / 4);
+  if (tmp < WARNLEVEL) return null;
+  return Math.min(tmp, WARNCOUNT - 1);
+}
+
+/** The monster's cell is in her sight. */
+function cellSeen(state: Readonly<GameState>, mon: Entity): boolean {
+  const p = mon.c.pos;
+  const level = p ? state.levels[p.level] : undefined;
+  return (
+    !!p && !!level && p.level === state.currentLevel && isVisible(state, p.y * level.width + p.x)
+  );
+}
+
+/**
+ * The warning digit shown for a monster she neither sees nor senses, or null. Hallucinating, the
+ * digit is any of 1..5, from the turn and the monster (C uses the display RNG).
+ * ref: src/display.c newsym() `mon_warning(mon)` branches, display_warning()
+ */
+export function warningShown(
+  state: Readonly<GameState>,
+  defs: Registry,
+  mon: Entity,
+): DefId | null {
+  const wl = warningLevel(state, defs, mon);
+  if (wl === null || cellSeen(state, mon) || telepathSenses(state, defs, mon)) return null;
+  return warningGlyph(
+    heroHas(state, P.HALLUC) ? ((state.turn + mon.id) % (WARNCOUNT - 1)) + 1 : wl,
+  );
+}
+
 /**
  * The vanilla perception: blindness (no sight), telepathy while blind, and hallucination
  * (every creature and floor object looks like a random one, changing each turn).
  */
 export function registerPerception(api: ModApi): void {
+  for (const a of WARNING_APPEARANCES) api.defineAppearance(a);
+  // first, so that its digit wins over hallucination's random monster
+  api.definePerception({
+    id: WARNING_PERCEPTION,
+    senses: (state, defs, mon) => warningShown(state, defs, mon) !== null,
+    shownAs: (state, defs, e) => (defs.isMonster(e.def) ? warningShown(state, defs, e) : null),
+  });
   api.definePerception({
     id: 'nh:senses',
     blind: (state) => heroHas(state, P.BLINDED),
@@ -69,14 +157,19 @@ export function registerPerception(api: ModApi): void {
   });
 }
 
-/** ref: src/display.h canspotmon(): seen (its cell is visible) or sensed. */
+/**
+ * ref: src/display.h canspotmon(): seen (its cell is visible) or sensed. A warning digit is
+ * neither (sensemon() counts only warning of a monster's kind, which does not exist here).
+ */
 export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
   const p = mon.c.pos;
   const hero = getPlayer(ctx.state).c.pos;
   if (!p || p.level !== hero?.level) return false;
   const level = ctx.state.levels[p.level];
   if (level && isVisible(ctx.state, p.y * level.width + p.x)) return true;
-  return senses(ctx.defs, ctx.state, mon);
+  return ctx.defs.perceptions.some(
+    (d) => d.id !== WARNING_PERCEPTION && d.senses?.(ctx.state, ctx.defs, mon) === true,
+  );
 }
 
 /** The id of a random monster for a hallucinated name. ref: src/do_name.c rndmonnam() */

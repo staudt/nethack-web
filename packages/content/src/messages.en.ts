@@ -73,6 +73,13 @@ export const messagesEn: Record<string, string> = {
   'door.hear_open': 'You hear a door open.',
   // a monster the hero can't see or sense (Monnam's "it"); see monNam() and {mon|The}
   'pronoun.it': 'it',
+  // warning digits (ref: src/drawing.c def_warnsyms[])
+  'nh:warning_0': 'unknown creature causing you worry',
+  'nh:warning_1': 'unknown creature causing you concern',
+  'nh:warning_2': 'unknown creature causing you anxiety',
+  'nh:warning_3': 'unknown creature causing you disquiet',
+  'nh:warning_4': 'unknown creature causing you alarm',
+  'nh:warning_5': 'unknown creature causing you dread',
   'pronoun.him': 'him',
   'pronoun.her': 'her',
   'pronoun.them': 'them',

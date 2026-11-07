@@ -36,11 +36,21 @@ import { addToInventory, splitStack } from './items';
 import { M_ATTK, mattackm, mondied } from './mhitm';
 import { fleeTime, halveFleeTime, isFleeing } from './monflee';
 import { canCarry, minvent, relobj } from './mongear';
-import { MTSZ, clearPath, dist2, getTrack, mfndpos, trackAdd, type Candidate } from './monmove';
+import { monsterAttack } from './combat';
+import {
+  MTSZ,
+  clearPath,
+  dist2,
+  getTrack,
+  mfndpos,
+  monAllowU,
+  trackAdd,
+  type Candidate,
+} from './monmove';
 import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
-import { P, heroHas } from './props';
+import { P, conflictOn, heroHas, resistConflict } from './props';
 import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
 import { stopOccupation } from './eat';
 
@@ -445,8 +455,8 @@ function maxPassiveDmg(ctx: Ctx, mdef: Entity, magr: Entity): number {
 
 /**
  * In Sokoban a calm tame or peaceful monster keeps off the square two steps from the hero with a
- * boulder between, so it does not block her push. ref: src/monmove.c m_avoid_soko_push_loc()
- * (no Conflict)
+ * boulder between, so it does not block her push; not under Conflict.
+ * ref: src/monmove.c m_avoid_soko_push_loc()
  */
 function avoidSokoPushLoc(
   ctx: Ctx,
@@ -463,13 +473,15 @@ function avoidSokoPushLoc(
     (m.peaceful || (m.tame ?? 0) > 0) &&
     !isMConfused(ctx, mon.id) &&
     !isMStunned(ctx, mon.id) &&
+    !conflictOn(ctx.state) &&
     dist2(nx, ny, hp.x, hp.y) === 4 &&
     boulderAt(ctx, level.id, nx + Math.sign(hp.x - nx), ny + Math.sign(hp.y - ny)) !== null
   );
 }
 
 /**
- * The pet's move. ref: src/dogmove.c dog_move(). Not ported: Conflict, leashes, whistles,
+ * The pet's move. Under Conflict it may pick her square and attack her (mattacku), and it fights
+ * other pets and peacefuls. ref: src/dogmove.c dog_move(). Not ported: leashes, whistles,
  * displacing other monsters, kicked-square avoidance, traps, ranged attacks,
  * long worms, minions; a target's "has it already moved this turn" check (mlstmv) is skipped
  * for the return attack.
@@ -502,8 +514,15 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     const whappr = ctx.state.turn - e.whistletime < 5;
     const appr = dogGoal(ctx, mon, e, udist, whappr, goal);
     if (appr === -2) return 'nothing';
+    // `Conflict && !resist_conflict(mtmp)` only matters for a guardian angel (none here: every
+    // pet has an edog), but the roll is made
+    if (conflictOn(ctx.state)) resistConflict(ctx, mon);
     const rules = cellRules(level, ctx.defs);
-    const cands = mfndpos(ctx, level, rules, id, hp, { allowM: true, allowTraps: true });
+    const cands = mfndpos(ctx, level, rules, id, hp, {
+      allowM: true,
+      allowTraps: true,
+      allowU: monAllowU(ctx, mon),
+    });
     const cnt = cands.length;
     const cursedAt = (x: number, y: number): boolean =>
       itemsAt(ctx.defs, ctx.state, pos.level, x, y).some((o) => o.c.item?.buc === 'cursed');
@@ -524,11 +543,12 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         if (!mtmp2 || !m2) continue;
         // the pet's audacity: it balks at foes its level or more above its health allows
         const balk = (mon.c.monster.level ?? 0) + Math.trunc((5 * mhp.cur) / mhp.max) - 2;
+        const conflict = conflictOn(ctx.state);
         if (
           m2.level >= balk ||
-          (m2.tame ?? 0) > 0 ||
+          ((m2.tame ?? 0) > 0 && !conflict) ||
           maxPassiveDmg(ctx, mtmp2, mon) >= mhp.cur ||
-          (mhp.cur * 4 < mhp.max && m2.peaceful)
+          (mhp.cur * 4 < mhp.max && m2.peaceful && !conflict)
         )
           continue;
         if (mtmp2.def === 'nh:floating_eye' && ctx.rng.rn2(10) !== 0) continue;
@@ -602,6 +622,11 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
 
   // newdogpos:
   if ((nix !== omx || niy !== omy) && chi >= 0) {
+    // ALLOW_U (Conflict): the pet attacks her instead of moving
+    if (nix === hp.x && niy === hp.y) {
+      monsterAttack(ctx, id); // mattacku()
+      return 'done';
+    }
     const wasseen = canSpotMon(ctx, mon);
     const from = { x: omx, y: omy };
     pos.x = nix;

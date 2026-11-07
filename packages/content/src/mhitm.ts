@@ -9,7 +9,9 @@
 // cloning puddings, petrification. Item damage: destroy_items() for fire, cold and elec, acid
 // erosion (erode_armor(), acid_damage()) and rustm() for a weapon hitting a fiery monster.
 import {
+  NORMAL_SPEED,
   getPlayer,
+  sortedIds,
   type AttackDef,
   type Ctx,
   type Entity,
@@ -30,6 +32,8 @@ import { xnameOf } from './objnam';
 import { acidDamage, destroyItems, erodeArmor, rustm } from './erode';
 import { igniteItems } from './light';
 import { mtrappedInPit } from './trapstate';
+import { setUstuck, ustuck } from './hackmove';
+import { resistConflict } from './props';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -491,4 +495,56 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
     if (res & M_ATTK.HIT) struck = true;
   }
   return struck ? M_ATTK.HIT : M_ATTK.MISS;
+}
+
+/** ref: src/mon.c monnear(): next to it (not diagonally for a grid bug) */
+function monnear(a: Entity, b: Entity): boolean {
+  const p = a.c.pos;
+  const q = b.c.pos;
+  if (!p || !q || p.level !== q.level) return false;
+  const dx = Math.abs(p.x - q.x);
+  const dy = Math.abs(p.y - q.y);
+  if (a.def === 'nh:grid_bug' && dx !== 0 && dy !== 0) return false;
+  return dx <= 1 && dy <= 1;
+}
+
+/**
+ * Conflict: the monster attacks the first other monster next to it (in id order, C's fmon list),
+ * which may hit back. Returns true when it attacked and hit (or died), so it does not also move.
+ * The hero is never engulfed or sticky here (no itsstuck(), no engulfing). ref: src/mhitm.c
+ * fightm()
+ */
+export function fightm(ctx: Ctx, mtmpId: EntityId): boolean {
+  const mtmp = ent(ctx, mtmpId);
+  if (!mtmp?.c.monster) return false;
+  // perhaps the monster will resist Conflict
+  if (resistConflict(ctx, mtmp)) return false;
+  for (const id of sortedIds(ctx.state)) {
+    if (id === mtmpId) continue;
+    const mon = ent(ctx, id);
+    if (!mon?.c.monster || !monnear(mtmp, mon)) continue;
+    if (ustuck(ctx) === mtmpId) {
+      if (!ctx.rng.rn2(4)) {
+        setUstuck(ctx, null);
+        say(ctx, 'conflict.releases_you', { mon: monNam(ctx, mtmp) });
+      } else break;
+    }
+    // mtmp can be killed
+    const result = mattackm(ctx, mtmpId, id);
+    if (result & M_ATTK.AGR_DIED) return true; // mtmp died
+    // allow attacked monsters a chance to hit back, primarily to allow monsters that resist
+    // conflict to respond
+    const actor = mon.c.actor;
+    if (
+      (result & (M_ATTK.HIT | M_ATTK.DEF_DIED)) === M_ATTK.HIT &&
+      ctx.rng.rn2(4) &&
+      actor &&
+      actor.energy > ctx.rng.rn2(NORMAL_SPEED)
+    ) {
+      actor.energy = actor.energy > NORMAL_SPEED ? actor.energy - NORMAL_SPEED : 0;
+      mattackm(ctx, id, mtmpId); // return attack
+    }
+    return (result & M_ATTK.HIT) !== 0;
+  }
+  return false;
 }

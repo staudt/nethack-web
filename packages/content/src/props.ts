@@ -87,6 +87,22 @@ export const isStrangled = (e: Entity | undefined): boolean =>
 export const heroHas = (state: Readonly<GameState>, name: string): boolean =>
   hasProp(state.entities[String(state.playerId)], name);
 
+/** ref: include/youprop.h Conflict (the ring; no artifact or intrinsic source here) */
+export const conflictOn = (state: Readonly<GameState>): boolean => heroHas(state, P.CONFLICT);
+
+/**
+ * Whether the monster resists the hero's Conflict this time: always a small chance, better for
+ * high-level monsters, worse against a charismatic, experienced hero.
+ * ref: src/mondata.c resist_conflict()
+ */
+export function resistConflict(ctx: Pick<Ctx, 'state' | 'rng'>, mon: Entity): boolean {
+  const hero = getPlayer(ctx.state);
+  const cha = hero.c.attributes?.cha ?? 10; // ACURR(A_CHA)
+  const ulevel = hero.c.experience?.level ?? 1;
+  const resistChance = Math.min(19, cha - (mon.c.monster?.level ?? 0) + ulevel);
+  return ctx.rng.rnd(20) > resistChance;
+}
+
 /** True when the property is held permanently (HFoo & INTRINSIC). */
 export const hasIntrinsic = (e: Entity | undefined, name: string): boolean =>
   e?.c.props?.[name]?.intrinsic === true;

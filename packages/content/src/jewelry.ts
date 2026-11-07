@@ -12,6 +12,7 @@
 import {
   NORMAL_SPEED,
   getPlayer,
+  inventoryOf,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -123,6 +124,31 @@ function adjustAttrib(ctx: Ctx, ring: Entity, which: Attr, val: number): void {
   if (observable || !extremeattr(ctx, which)) learnring(ctx, ring, observable);
 }
 
+/**
+ * Stealth from something other than `obj`: intrinsic or timed, or another worn item (no BStealth:
+ * no steeds). ref: src/do_wear.c toggle_stealth() `oldprop`, HStealth
+ */
+function otherStealth(ctx: Ctx, obj: Entity): boolean {
+  const h = hero(ctx);
+  const p = h.c.props?.[P.STEALTH];
+  if (p && (p.intrinsic || p.timeout > 0)) return true;
+  return inventoryOf(ctx.state, h.id).some((o) => {
+    const eq = o.c.item?.equipped;
+    return o.id !== obj.id && !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.STEALTH;
+  });
+}
+
+/**
+ * Putting on or taking off an item which confers stealth: feedback, and the ring learned, only
+ * when her stealth changes. ref: src/do_wear.c toggle_stealth() (rings only: no elven cloak or
+ * boots, no steed)
+ */
+function toggleStealth(ctx: Ctx, obj: Entity, on: boolean): void {
+  if (otherStealth(ctx, obj)) return;
+  learnring(ctx, obj, true);
+  say(ctx, on ? 'ring.move_quietly' : 'ring.noisy');
+}
+
 /** ref: src/do_wear.c Ring_on(): the ring is already worn as uleft or uright */
 function ringOn(ctx: Ctx, ring: Entity): void {
   const spe = ring.c.item?.spe ?? 0;
@@ -143,6 +169,12 @@ function ringOn(ctx: Ctx, ring: Entity): void {
         learnring(ctx, ring, true);
         // `if (Levitation) spoteffects(FALSE)` is for sinks (none exist)
       }
+      break;
+    case 'nh:ring_of_stealth':
+      toggleStealth(ctx, ring, true);
+      break;
+    case 'nh:ring_of_warning':
+      // see_monsters(): the view shows the warning digits from the next snapshot on
       break;
     case 'nh:ring_of_protection':
       // usually learn enchantment and discover type; won't happen if it's +0 and the type hasn't
@@ -179,6 +211,9 @@ function ringOffOrGone(ctx: Ctx, ring: Entity): void {
     case 'nh:ring_of_levitation':
       floatDown(ctx);
       if (!levitating(ctx)) learnring(ctx, ring, true);
+      break;
+    case 'nh:ring_of_stealth':
+      toggleStealth(ctx, ring, false);
       break;
     default:
       break;
@@ -246,7 +281,11 @@ function amuletOff(ctx: Ctx, amul: Entity): void {
     case 'nh:amulet_of_strangulation':
       if (isStrangled(h)) {
         setItimeout(ctx.state, h, P.STRANGLED, 0);
-        say(ctx, 'amulet.breathe_easier');
+        // Breathless (magical breathing from elsewhere; no breathless forms)
+        say(
+          ctx,
+          hasProp(h, P.MAGICAL_BREATHING) ? 'amulet.neck_unconstricted' : 'amulet.breathe_easier',
+        );
         discover(ctx, amul.def);
       }
       break;
@@ -508,8 +547,8 @@ function jewelryTimeouts(ctx: Ctx): void {
   if (isStrangled(h)) {
     const i = timeoutLeft(ctx.state, h, P.STRANGLED) + 1;
     if (i >= 1 && i <= 5) {
-      // (no Breathless forms)
-      if (ctx.rng.rn2(50) === 0) say(ctx, `choke.neck.${5 - i}`);
+      // Breathless: magical breathing (no breathless forms); it does not stop the strangling
+      if (hasProp(h, P.MAGICAL_BREATHING) || ctx.rng.rn2(50) === 0) say(ctx, `choke.neck.${5 - i}`);
       else {
         say(ctx, `choke.text.${5 - i}`, i === 2 ? { color: hcolor(ctx, 'blue') } : undefined);
         stopOccupation(ctx);

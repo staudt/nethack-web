@@ -190,9 +190,9 @@ function adjVictualNutrition(v: Victual): number {
 function choke(ctx: Ctx, food: Entity | null): void {
   const h = hero(ctx);
   if (h.c.hunger?.state !== 'satiated') return;
-  // (no Breathless forms)
+  // Breathless: the amulet of magical breathing (no breathless forms)
   const hunger = hasProp(h, P.HUNGER);
-  if (hunger || (!isStrangled(h) && ctx.rng.rn2(20) === 0)) {
+  if (hasProp(h, P.MAGICAL_BREATHING) || hunger || (!isStrangled(h) && ctx.rng.rn2(20) === 0)) {
     // You stuff yourself and then vomit voluminously.
     say(ctx, 'eat.stuff');
     morehungry(ctx, hunger ? (h.c.hunger?.nutrition ?? 0) - 60 : 1000); // just got very sick!

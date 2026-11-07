@@ -76,7 +76,9 @@ export function gethungry(ctx: Ctx): void {
     if (nearCapacity(ctx.state, ctx.defs, hero.id) > 1) h.nutrition--;
   } else {
     if (hasProp(hero, P.HUNGER)) h.nutrition--;
-    // (no Conflict, no meat rings, no Amulet of Yendor)
+    // Conflict uses up food too (no artifacts here)
+    if (hasProp(hero, P.CONFLICT)) h.nutrition--;
+    // (no meat rings, no Amulet of Yendor)
     const uleft = wornIn(ctx.state, hero.id, 'ringL');
     const uright = wornIn(ctx.state, hero.id, 'ringR');
     const uamul = wornIn(ctx.state, hero.id, 'amulet');

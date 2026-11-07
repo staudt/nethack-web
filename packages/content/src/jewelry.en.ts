@@ -1,5 +1,5 @@
 // English text for rings and amulets. ref: src/do_wear.c accessory_or_armor_on(), select_off(),
-// Amulet_on(), Amulet_off(); src/timeout.c choke_texts[], choke_texts2[], sleep_dialogue(),
+// Amulet_on(), Amulet_off(), toggle_stealth(); src/timeout.c choke_texts[], choke_texts2[], sleep_dialogue(),
 // nh_timeout(); src/end.c done(), savelife(); src/pray.c fix_worst_trouble(); src/uhitm.c
 // passive(), mhitm_ad_plys(); src/do_wear.c ureflects()
 export const jewelryMessagesEn: Record<string, string> = {
@@ -19,6 +19,9 @@ export const jewelryMessagesEn: Record<string, string> = {
 
   'amulet.constricts': 'It constricts your throat!',
   'amulet.breathe_easier': 'You can breathe more easily!',
+  'amulet.neck_unconstricted': 'Your neck is no longer constricted!',
+  'ring.move_quietly': 'You move very quietly.',
+  'ring.noisy': 'You sure are noisy.',
   'amulet.vanishes': 'Your amulet vanishes!',
   'pray.breathe_again': 'You can breathe again.',
   'choke.text.0': 'You find it hard to breathe.',
