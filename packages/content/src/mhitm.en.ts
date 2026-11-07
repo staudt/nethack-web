@@ -13,6 +13,8 @@ export const mhitmMessagesEn: Record<string, string> = {
   'mhitm.noises_far': 'You hear some noises in the distance.',
   'mhitm.is_killed': '{mon|The} is killed!',
   'mhitm.is_destroyed': '{mon|The} is destroyed!',
+  'mhitm.is_killed_by': '{mon|The} is killed by the {by}!',
+  'mhitm.is_destroyed_by': '{mon|The} is destroyed by the {by}!',
   'mhitm.sad_feeling': 'You have a sad feeling for a moment, then it passes.',
   'mhitm.grows_up': '{mon|The} grows up into {into|an}.',
   'mhitm.avoids_harm': '{mon|The} avoids harm.',

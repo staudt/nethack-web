@@ -438,9 +438,17 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
  * Not ported: leashes, punishment, the steed's saddle. Returns whether the scroll type becomes known.
  */
 function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
-  const buc = scroll.c.item?.buc ?? 'uncursed';
+  const confused = hasProp(heroEntity(ctx), P.CONFUSION);
+  return removeCurse(ctx, scroll.c.item?.buc ?? 'uncursed', confused, scroll);
+}
+
+/**
+ * The remove curse effect of a scroll (`scroll`, hidden from itself) or of a pseudo spellbook
+ * (`scroll` null: the magic trap's SPE_REMOVE_CURSE, read unconfused). Returns whether a
+ * known-cursed item is now known not to be. ref: src/read.c seffect_remove_curse()
+ */
+export function removeCurse(ctx: Ctx, buc: Buc, confused: boolean, scroll: Entity | null): boolean {
   const hero = heroEntity(ctx);
-  const confused = hasProp(hero, P.CONFUSION);
   msg(
     ctx,
     hasProp(hero, P.HALLUC)
@@ -460,7 +468,7 @@ function seffectRemoveCurse(ctx: Ctx, scroll: Entity): boolean {
     const it = obj.c.item;
     if (!it || ctx.defs.object(obj.def).class === 'coin') continue; // gold isn't subject to cursing
     // hide the scroll being read from itself
-    if (obj.id === scroll.id && it.quantity === 1) continue;
+    if (obj.id === scroll?.id && it.quantity === 1) continue;
     if (buc === 'blessed' || it.equipped !== null || obj.def === 'nh:loadstone') {
       if (confused) {
         // ref: src/mkobj.c blessorcurse(obj, 2)

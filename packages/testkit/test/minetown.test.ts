@@ -185,7 +185,7 @@ function priestsOn(state: GameState, levelId: string): number[] {
 describe('College Town', () => {
   test('has its two kobold shamans in every build (ref: dat/minetn-4.lua)', () => {
     let builds = 0;
-    for (let seed = 1; seed <= 90 && builds < 6; seed++) {
+    for (let seed = 1; seed <= 200 && builds < 6; seed++) {
       const { state, level } = minetown(seed);
       if (level.def !== 'nh:minetn-4') continue;
       builds++;

@@ -34,6 +34,7 @@ import { nonliving } from './mondata';
 import { heroSees } from './mongear';
 import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
 import { discover } from './o_init';
+import { xnameOf } from './objnam';
 import { igniteItems } from './light';
 import { monNam } from './perception';
 import { P, hasExtrinsic, hasProp, makeBlinded } from './props';
@@ -443,22 +444,38 @@ export function monSpellHitsSpot(ctx: Ctx, ray: 'fire' | 'lightning', x: number,
   zapOverFloor(ctx, ray, x, y);
 }
 
-/** ref: src/zap.c burn_floor_objects() without feedback: each scroll or book burns 1 in 3 */
-function burnFloorObjects(ctx: Ctx, x: number, y: number): number {
+/**
+ * Scrolls and spellbooks at (x,y) burn, each one 1 in 3; with `feedback` "A scroll labeled FOO
+ * burns." / "2 scrolls labeled FOO burn."; floor items catch light. Returns how many burnt.
+ * ref: src/zap.c burn_floor_objects() (no globs of green slime; no shop charge for the hero's
+ * fire, as zap_over_floor() here)
+ */
+export function burnFloorObjects(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  opts: { level?: string; feedback?: boolean } = {},
+): number {
   let cnt = 0;
-  const level = heroPos(ctx).level;
+  const level = opts.level ?? heroPos(ctx).level;
   for (const o of itemsAt(ctx.defs, ctx.state, level, x, y)) {
     const od = ctx.defs.object(o.def);
     const it = o.c.item;
     if (!it || (od.class !== 'scroll' && od.class !== 'spellbook')) continue;
     if (o.def === 'nh:scroll_of_fire' || o.def === 'nh:spellbook_of_fireball') continue;
     if (ctx.rng.rn2(100) < 2) continue; // obj_resists(obj, 2, 100)
+    const scrquan = it.quantity;
     let del = 0;
-    for (let i = it.quantity; i > 0; i--) if (!ctx.rng.rn2(3)) del++;
+    for (let i = scrquan; i > 0; i--) if (!ctx.rng.rn2(3)) del++;
     if (!del) continue;
+    // save the name before it is gone
+    it.quantity = del > 1 ? 2 : 1;
+    const name = opts.feedback ? xnameOf(ctx.state, ctx.defs, o) : null;
+    it.quantity = scrquan;
     if (del < it.quantity) it.quantity -= del;
     else ctx.remove(o.id);
     cnt += del;
+    if (name) say(ctx, del > 1 ? 'zap.floor_burn_n' : 'zap.floor_burns', { n: del, obj: name });
   }
   // this also ignites floor items, but does not change cnt because they weren't consumed
   igniteItems(ctx, { level, x, y });

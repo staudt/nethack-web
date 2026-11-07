@@ -71,16 +71,18 @@ const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[S
 
 /**
  * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
- * the hero sees its square, a sad feeling for an unseen pet; its things drop and a corpse may
+ * the hero sees its square ("... killed by the <by>!" with a cause key), a sad feeling for an unseen pet; its things drop and a corpse may
  * be left (no treasure drop, no experience). ref: src/mon.c monkilled() -> mondied()
  */
-export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean): void {
+export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean, by?: string): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
   const def = ctx.defs.monster(mon.def);
-  if (fltxt && canSpotMon(ctx, mon))
-    say(ctx, nonliving(def) ? 'mhitm.is_destroyed' : 'mhitm.is_killed', { mon: monNam(ctx, mon) });
-  else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
+  if (fltxt && canSpotMon(ctx, mon)) {
+    const key = nonliving(def) ? 'mhitm.is_destroyed' : 'mhitm.is_killed';
+    // "%s is %s%s%s!": " by the <fltxt>" when the caller names the cause
+    say(ctx, by ? `${key}_by` : key, { mon: monNam(ctx, mon), ...(by ? { by } : {}) });
+  } else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
   mondied(ctx, id);
 }
 

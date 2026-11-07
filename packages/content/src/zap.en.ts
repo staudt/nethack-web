@@ -153,6 +153,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.door.splinters': 'The door splinters!',
   'zap.door.absorbs': 'The door absorbs your bolt!',
   'zap.smell_smoke': 'You smell smoke.',
+  'zap.floor_burns': '{obj|An} burns.',
+  'zap.floor_burn_n': '{n} {obj} burn.',
   'zap.hear_cracking': 'You hear a deep cracking sound.',
   'zap.hear_crackling': 'You hear crackling.',
   'zap.feel_vibrations': 'You feel vibrations.',

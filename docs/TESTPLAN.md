@@ -111,3 +111,15 @@ Desktop with a keyboard first, then the phone. Try both key layouts (Options: vi
 - [ ] `;` then `>` or `<`: the box jumps to the stairs; again cycles if there are several. With no such feature on the level: "Can't find dungeon feature '<'.". `_` altar, `{` fountain, `^` a trap you have found work the same way.
 - [ ] On a map larger than the screen (zoomed in, or `?w=200&h=60`), move the box off screen with `L`/`J`: the map scrolls to follow it, and back to you after picking or Esc.
 - [ ] Phone: tap Look, then tap a cell: it is described at once (no keyboard needed). Tap Look twice: look mode is off again.
+
+## 7d wands, rings and traps
+
+With `?wizard=1` (wizard wish for each wand, ring, scroll and trap).
+
+- [ ] Read a `scroll of teleportation`: you land elsewhere on the level; a `cursed scroll of teleportation`: "You materialize on a different level!". Zap a `wand of teleportation` at a monster (it vanishes) and at yourself. In Sokoban (level teleport there) a teleport scroll gives "A mysterious force prevents you from teleporting!".
+- [ ] Wish `teleportation trap`, `level teleporter`, `magic trap` and `anti-magic field` and step on each (the anti-magic field drains Pw; the magic trap gives flashes, roars and monsters, odd feelings or a tower of flame).
+- [ ] `wand of digging`: zap at a room wall (a doorway), into rock (a corridor), with `>` (you fall to the next level) and `<` (a rock hits you). In Sokoban's first level `>` makes a pit and a wall "glows then fades".
+- [ ] `ring of levitation` over a pit: you float out; walk over a trap door; picking up fails ("You can't reach the floor."); remove it over the trap door: you fall.
+- [ ] `ring of teleportation`: wait (`s` with a count) until it teleports you. `ring of warning`: digits for monsters behind walls. `ring of conflict` near a pet and a peaceful: they attack you and each other.
+- [ ] `wand of wishing`: the wish prompt. `wand of death` at a monster. `wand of cancellation` at a floating eye, then hit it safely; put the wand into a bag of holding: it explodes.
+- [ ] Kill a jackal, stand on its corpse and zap a `wand of undead turning` with `>`: the jackal rises. `wand of enlightenment`: the attribute list.

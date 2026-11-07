@@ -25,11 +25,11 @@ Left out of a milestone on purpose, to be picked up later. Rule differences they
 
 From 5b (objects and traps):
 
-- **Rings:** teleportation, teleport control, polymorph, polymorph control, conflict, levitation, see invisible, invisibility, warning, stealth.
-- **Amulets:** change, unchanging, magical breathing.
-- **Wands:** wishing, digging, teleportation, polymorph, cancellation, make invisible, undead turning, death, enlightenment; breaking (applying) wands.
+- **Rings:** teleport control, polymorph, polymorph control, see invisible, invisibility (teleportation, conflict, levitation, warning and stealth came with 7d).
+- **Amulets:** change, unchanging (magical breathing came with 7d).
+- **Wands:** polymorph, make invisible; breaking (applying) wands (wishing, digging, teleportation, cancellation, undead turning, death and enlightenment came with 7d).
 - **Tools:** pick-axe and digging, magic lamp (djinni), bag of tricks, horns, musical instruments, #force.
-- **Traps:** the other trap types (webs, teleport and level teleporters, magic traps, fire, land mines, rolling boulders, polymorph, anti-magic, statue traps), #untrap, trapped doors and boxes.
+- **Traps:** the other trap types (webs, fire traps in Gehennom, land mines, rolling boulders, polymorph, statue traps), #untrap, trapped doors and boxes (teleportation traps, level teleporters, magic traps and anti-magic fields came with 7d).
 - **Item damage:** `passive_obj` on monster gear, fixing erosion.
 
 From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-checked 2026-11-02):
@@ -41,7 +41,7 @@ From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-chec
 
 From 6b1 (Minetown: special levels in a dungeon, map blocks, rooms and the Watch; done, phone check pending):
 
-- **Minetown's missing inhabitants:** Bazaar Town's monkeys and nymph, Grotto's gnome king statue; Watch reactions to digging through town walls.
+- **Minetown's missing inhabitants:** Bazaar Town's monkeys and nymph, Grotto's gnome king statue (the Watch's reaction to digging came with 7d).
 - **Gnome candles:** gnomes made with a Mines level get a candle 1 time in 20 (`rn2(20)`, else `rn2(60)`); the port always rolls `rn2(60)` and makes no candle (no candle objects yet). Fixing the roll changes the game stream.
 - **Altar alignment:** `induced_align()` for random altars (needs dungeon and level alignments).
 
@@ -68,7 +68,7 @@ From 6b3 (shops: shopkeepers, stock, buying, selling, robbery and random dungeon
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 
 - **Score list rule:** a future high-score list must skip every game whose mod list includes `wiz` (ref: src/end.c really_done(): topten() only if `!wizard && !discover`).
-- **Wishing for terrain and traps** (`fountain`, `trap door`), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
+- **Wishing for terrain** (`fountain`; trap wishes came with 7d), artifacts, named objects and the other `readobjnam()` words listed in `DEVIATIONS.md`; the wish "help" text and history.
 - **Genesis extras:** a command count, "saddled", "invisible", "hidden", genders, class descriptions ("dragon"), special-monster forcing.
 - **Other `#wiz*` commands:** #wizpolymorph, #wizdetect, #wizintrinsic, #wizsmell, #wizkill and the rest; lowering the level with #levelchange (needs `losexp()`); explore mode (`-X`); debug panels in the UI.
 
@@ -86,7 +86,7 @@ From 7c (Mines' End, fountains, Orcish Town):
 - **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' and unicorns' reactions to gems (gem buying and identification by a shopkeeper's offer, throwing gems to unicorns); kicking gems.
 - **Gem colours:** `randomize_gem_colors()` (turquoise and aquamarine blue or green, fluorite violet, blue, white or green per game); its draws move the game stream.
 - **Mimics:** their disguises ("Wait! That's a mimic!", sticking), then the four mimics of the Mimic of the Mines posing as gray stones.
-- **Vampires** (level drain, shapeshifting) for the Catacombs' two `V`, and the level teleporters on its luckstone and flint spots.
+- **Vampires** (level drain, shapeshifting) for the Catacombs' two `V` (its level teleporters came with 7d).
 - **The water nymph and theft:** stealing and teleporting away, for fountains (C's "no nymph" outcome stands in) and nymphs elsewhere.
 - **Pools:** gushing fountains making pools, then moats and water in special levels.
 - **Potions:** dilution by water damage and fountains, and `#dip` into potions (mixing).
@@ -101,4 +101,10 @@ From 7b (boulders, pits, the scroll of earth, the Oracle level and Sokoban):
 - **The Oracle's consultations:** minor and major `doconsult()` for gold, with experience, luck and the rumors file.
 - **Zoos:** random zoos (`mkzoo()` from mklev), the Sokoban zoo as a true irregular room (today a region whose squares next to its door stay empty), the treasure zoo's two giant mimics.
 - **Boulders and other traps:** landmines, teleporters and level teleporters under a pushed boulder, boulders into water and lava (`boulder_hits_pool()`, after pools), shop billing for pushed boulders, objects buried in a filled pit (`bury_objs()`), the pit's limited view (vision.c).
-- **Sokoban extras:** the `noteleport`, `hardfloor` and non-diggable flags (with teleporting and digging), the Elbereth engraving and cursed scroll of scare monster on the prize, the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements.
+- **Sokoban extras:** the Elbereth engraving and cursed scroll of scare monster on the prize, the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements (the `noteleport`, `hardfloor` and non-diggable flags came with 7d).
+
+From 7d (teleportation, digging, levitation, the deferred wands, rings and traps):
+
+- **7e (content only):** `#untrap` (floor traps, helping monsters out, pets), trapped doors and boxes (`chest_trap()`, door booby traps: the rolls are already drawn), `#force`; webs (spiders, `rn2` web escape), rolling boulder traps (launch spots, `launch_obj()`; Sokoban's spots), land mines with `scatter()` (also closes the kicked-coins and bag-of-holding scatter deviations; boulders on land mines); breaking wands (`do_break_wand()`) with `explode()` and cancellation blowing up magical traps; the pick-axe and mattock (`use_pick_axe()`, `dig()` occupation, dwarves digging `mdig_tunnel()`), pits from inside a pit, conjoined pits, shop damage (`pay_for_damage()`, `shopdig()`).
+- **7f (needs core contract changes, ask the user):** a `position` Prompt kind (the UI's getpos cursor already exists) for teleport control (ring of teleport control, the blessed scroll, controlled level teleport) and later jumping/polearms; invisibility (wand of make invisible, ring of invisibility, ring/potion of see invisible effects, invisible monsters needing a PerceptionDef hook that hides a monster on a visible square, the remembered-invisible 'I', the magic trap's invisibility toggle); polymorph (hero polyself with forms and attacks, monster newcham(), object poly_obj()/polypiling, polymorph traps, rings of polymorph and polymorph control, amulets of unchanging and of change, which needs hero gender in messages); statues and statue traps.
+- **Also later:** amulets of guarding and flying (5.0 additions; flying shares levitation's checks), potions of levitation and invisibility, magic portals, vault teleporters and niches (`make_niches()`, `makevtele()`), monsters using wands/scrolls/rings (muse.c); deafness (the magic trap's roar), level drain (`losexp()`: the tower of flame, `#levelchange`), fire traps in Gehennom (`dofiretrap()` exists); a cursed spellbook's teleport (`cursed_book()` could call `tele()`).

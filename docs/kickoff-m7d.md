@@ -37,3 +37,14 @@ Teleport control and the blessed scroll's controlled teleport (need a pick-a-pos
 - Scenario tests: Sokoban refuses teleports, a dug hole there is the hero's (does not count for solving), the entry level only gets a pit; a teleport trap and a level teleporter for the hero and a pinned monster; teleporting out of a shop with unpaid goods is robbery; the Catacombs have their two level teleporters.
 - The soak bot runs with the new objects in the pools (teleports, digging and level changes) and keeps its invariants (no hero or monster in rock, no monster on a boulder outside Orcish Town).
 - Phone check uses wizard mode (`?wizard=1`): wishes for objects and traps, levelport.
+
+## Exit check (step 8, before the phone check)
+
+- New objects: the eight wands, five rings, the amulet and the scroll are in their shuffles and random pools at C's probabilities, and the wish parser finds them (`m7d.teleport.test.ts`). Phone: pending.
+- Teleporting: `tele()`/`safe_teleds()`, level teleports, Sokoban's `noteleport`, the wand and scroll, monsters and objects, shop robbery; teleport traps, level teleporters (the Catacombs' two), teleportitis and stasis (`m7d.teleport.test.ts`, `m7d.teletrap.test.ts`). Phone: pending.
+- Digging: `zap_dig()` through rock, walls, doors and maze levels, undiggable walls, holes and pits down (Sokoban's hardfloor), a rock from above, the Watch (`m7d.dig.test.ts`). Phone: pending.
+- Levitation and the rings of stealth, warning and conflict, the amulet of magical breathing (`m7d.levitation.test.ts`, `m7d.rings.test.ts`). Phone: pending.
+- Wands of wishing, death, cancellation, undead turning and enlightenment (`m7d.wands.test.ts`, `m7d.undead.test.ts`). Phone: pending.
+- Magic traps (the explosion and all twenty fates), anti-magic fields (energy drain, magic resistance, iron shoes, monsters) and the tower of flame (`m7d.magictrap.test.ts`); every trap is wishable in wizard mode (`wizard.test.ts`). Phone: pending.
+- Golden and replays deterministic: the golden changed once, in step 1 (the new object defs: 547 actions/15abae2375dbc6163f06292b39ee -> 596/09ed4d542adf6c1dff61b0923570); the new trap kinds (steps 2 and 8) left it unchanged, as the golden run rolls no random trap kind. `pnpm check` green.
+- Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md` ("From 7d": 7e and 7f): teleport control, invisibility, polymorph, statues, webs, rolling boulders, land mines, `#untrap`, breaking wands, pick-axes, shop damage, deafness and level drain.

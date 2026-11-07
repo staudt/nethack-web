@@ -486,6 +486,8 @@ describe('wiz:wish and wiz:identify', () => {
       ['a level teleporter', 'nh:level_teleporter', 'A level teleporter.'],
       ['bear trap', 'nh:bear_trap', 'A bear trap.'],
       ['hole', 'nh:hole', 'A hole.'],
+      ['magic trap', 'nh:magic_trap', 'A magic trap.'],
+      ['anti-magic field', 'nh:anti_magic_field', 'An anti-magic field.'],
     ] as const) {
       Object.assign(hp, spot);
       const before = { ...hp };

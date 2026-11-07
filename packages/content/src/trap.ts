@@ -53,6 +53,7 @@ import {
   safeTeledsPos,
 } from './teleport';
 import { poisoned } from './attrib';
+import { resistsMagm } from './buzz';
 import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
@@ -105,6 +106,8 @@ export const TRAP = {
   hole: 'nh:hole',
   tele: 'nh:teleportation_trap',
   levelTele: 'nh:level_teleporter',
+  magic: 'nh:magic_trap',
+  antiMagic: 'nh:anti_magic_field',
 } as const;
 
 // Colors as in include/color.h (HI_METAL = CYAN, HI_ZAP = BRIGHT_BLUE).
@@ -116,7 +119,10 @@ const BRIGHT_BLUE = '#5555ff';
 const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 const MAGENTA = '#bb44bb';
 
-/** ref: include/defsym.h S_arrow_trap .. S_hole, S_teleportation_trap, S_level_teleporter */
+/**
+ * ref: include/defsym.h S_arrow_trap .. S_hole, S_teleportation_trap, S_level_teleporter,
+ * S_magic_trap, S_anti_magic_trap (HI_ZAP)
+ */
 export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.arrow, nameKey: TRAP.arrow, glyph: { ch: '^', fg: CYAN } },
   { id: TRAP.dart, nameKey: TRAP.dart, glyph: { ch: '^', fg: CYAN } },
@@ -131,13 +137,32 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.hole, nameKey: TRAP.hole, glyph: { ch: '^', fg: BROWN }, hole: true },
   { id: TRAP.tele, nameKey: TRAP.tele, glyph: { ch: '^', fg: MAGENTA } },
   { id: TRAP.levelTele, nameKey: TRAP.levelTele, glyph: { ch: '^', fg: MAGENTA } },
+  { id: TRAP.magic, nameKey: TRAP.magic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
+  { id: TRAP.antiMagic, nameKey: TRAP.antiMagic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
 ];
 
 /**
- * Traps set off by touching the floor, which flyers and floaters pass over (the teleport traps
- * are not). ref: src/trap.c floor_trigger()
+ * Traps set off by touching the floor, which flyers and floaters pass over (the teleport,
+ * magic and anti-magic traps are not). ref: src/trap.c floor_trigger()
  */
-export const floorTrigger = (def: DefId): boolean => def !== TRAP.tele && def !== TRAP.levelTele;
+export const floorTrigger = (def: DefId): boolean =>
+  def !== TRAP.tele && def !== TRAP.levelTele && def !== TRAP.magic && def !== TRAP.antiMagic;
+
+/**
+ * The effects of a trap kind whose code sits above this module: the magic trap and the
+ * anti-magic field (magictrap.ts, which reaches dog.ts and read.ts, both importers of this
+ * module), handed in at registration as levitation.ts's float-down trap is.
+ */
+export interface TrapEffect {
+  you(ctx: Ctx, trap: Trap): void;
+  mon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult;
+}
+const lateEffects: Record<string, TrapEffect> = {};
+
+/** Called by magictrap.ts's registerMagicTraps(). */
+export function setTrapEffect(def: DefId, fx: TrapEffect): void {
+  lateEffects[def] = fx;
+}
 
 export { isHole, isPit };
 
@@ -237,12 +262,12 @@ const liveTrap = (ctx: Ctx, levelId: string, t: Pick<Trap, 'x' | 'y'>): Trap | u
 };
 
 /** ref: src/trap.c seetrap(), feeltrap() */
-const seetrap = (t: Trap): void => {
+export const seetrap = (t: Trap): void => {
   t.seen = true;
 };
 
 /** ref: src/trap.c deltrap() */
-const deltrap = (ctx: Ctx, levelId: string, t: Trap): void => {
+export const deltrap = (ctx: Ctx, levelId: string, t: Trap): void => {
   ctx.removeTrap(levelId, { x: t.x, y: t.y });
   maybeFinishSokoban(ctx, levelId);
 };
@@ -266,7 +291,7 @@ const heroPos = (ctx: Ctx): { level: string; x: number; y: number } => {
 };
 
 /** ref: cansee(x, y) on the current level */
-function cansee(ctx: Ctx, levelId: string, x: number, y: number): boolean {
+export function cansee(ctx: Ctx, levelId: string, x: number, y: number): boolean {
   const level = ctx.state.levels[levelId];
   return (
     levelId === ctx.state.currentLevel &&
@@ -277,7 +302,7 @@ function cansee(ctx: Ctx, levelId: string, x: number, y: number): boolean {
 }
 
 /** ref: canseemon(): the monster's square is in view (there is no invisibility here) */
-function canseemon(ctx: Ctx, mon: Entity): boolean {
+export function canseemon(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
   return !!p && cansee(ctx, p.level, p.x, p.y);
 }
@@ -396,7 +421,7 @@ function squeakyYou(ctx: Ctx, levelId: string, trap: Trap): void {
 }
 
 /** ref: src/trap.c wearing_iron_shoes() */
-function ironShoes(ctx: Ctx, id: EntityId): Entity | null {
+export function ironShoes(ctx: Ctx, id: EntityId): Entity | null {
   const boots = whichArmor(ctx, id, 'boots');
   return boots && ctx.defs.object(boots.def).material === 'iron' ? boots : null;
 }
@@ -604,7 +629,7 @@ export function dotrap(
       if (t.seen) say(ctx, 'trap.float_over', { trap: trapName(t) });
       return;
     }
-    if (t.seen && !opts.plunged && ctx.rng.rn2(5) === 0) {
+    if (t.seen && t.def !== TRAP.antiMagic && !opts.plunged && ctx.rng.rn2(5) === 0) {
       say(ctx, 'trap.escape', { trap: trapName(t) });
       return;
     }
@@ -638,7 +663,9 @@ export function dotrap(
       seetrap(t);
       return levelTeleTrap(ctx, levelId, t, opts.force === true);
     default:
-      return; // another mod's trap: its effects are that mod's business
+      // the magic traps (magictrap.ts); another mod's trap: its effects are that mod's business
+      lateEffects[t.def]?.you(ctx, t);
+      return;
   }
 }
 
@@ -759,7 +786,7 @@ const inAir = (ctx: Ctx, mon: Entity): boolean => {
 
 /**
  * A trap that cannot hurt this monster is neither avoided nor feared.
- * ref: src/trap.c m_harmless_trap() (all our traps are floor triggers)
+ * ref: src/trap.c m_harmless_trap()
  */
 export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
   const def = ctx.defs.monster(mon.def);
@@ -785,6 +812,10 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
     case TRAP.trapdoor:
     case TRAP.hole:
       return def.flags.includes('cling') && !soko;
+    case TRAP.magic:
+      return true; // usually
+    case TRAP.antiMagic:
+      return resistsMagm(ctx, mon); // (nothing grants AD_MAGM defense to a monster here)
     default:
       return false;
   }
@@ -795,7 +826,7 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
  * ref: src/trap.c thitm(): `find_mac(mon) + tlev + obj->spe <= rnd(20)` hits; a missile that
  * missed (or a falling rock) lands on its square.
  */
-function thitm(
+export function thitm(
   ctx: Ctx,
   tlev: number,
   mon: Entity,
@@ -839,7 +870,7 @@ function thitm(
   return killed;
 }
 
-const caughtOr = (ctx: Ctx, mon: Entity, killed: boolean): TrapResult =>
+export const caughtOr = (ctx: Ctx, mon: Entity, killed: boolean): TrapResult =>
   killed ? 'killed' : isMtrapped(ctx, mon.id) ? 'caught' : 'finished';
 
 /** Arrow, dart and falling rock traps on a monster. */
@@ -1141,8 +1172,11 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
       return 'moved'; // trapeffect_telep_trap(): Trap_Moved_Mon whatever happened
     case TRAP.levelTele:
       return mlevelTeleTrap(ctx, mon, trap, canseemon(ctx, mon));
-    default:
+    case TRAP.trapdoor:
+    case TRAP.hole:
       return holeMon(ctx, p.level, mon, trap);
+    default:
+      return lateEffects[trap.def]?.mon(ctx, mon, trap) ?? 'finished';
   }
 }
 

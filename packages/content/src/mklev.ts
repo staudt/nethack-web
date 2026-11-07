@@ -54,8 +54,8 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   null, // 17 MAGIC_PORTAL
   null, // 18 WEB
   null, // 19 STATUE_TRAP
-  null, // 20 MAGIC_TRAP
-  null, // 21 ANTI_MAGIC
+  TRAP.magic, // 20 MAGIC_TRAP
+  TRAP.antiMagic, // 21 ANTI_MAGIC
   null, // 22 POLY_TRAP
   null, // 23 VIBRATING_SQUARE
   null, // 24 TRAPPED_DOOR
