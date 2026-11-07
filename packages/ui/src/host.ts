@@ -40,7 +40,7 @@ import { openChecklist, openMenu, type MenuEntry, type OpenMenu } from './menu';
 import { createMessageLog } from './messageLog';
 import { injectStyles } from './styles';
 import { statusLines } from './status';
-import { playEnd } from './gameover';
+import { playEnd, type EndEntry, type EndSummary } from './gameover';
 import { openHelp } from './help';
 
 /**
@@ -119,6 +119,10 @@ export interface UiOptions {
   lookSkipObjects?: readonly string[];
   /** The player's name for the tombstone and "Goodbye"; the role's name when absent. */
   playerName?: () => string;
+  /** The finished game, once per game over (the app records the score). */
+  onGameOver?: (s: EndSummary) => void;
+  /** Extra buttons on the end sheet ("High scores"); `back` shows the end sheet again. */
+  endEntries?: () => EndEntry[];
 }
 
 type ListEvent = Extract<GameEvent, { type: 'list' }>;
@@ -130,6 +134,8 @@ export interface Ui {
    */
   update(view: ViewUpdate, events: GameEvent[], prompt: Prompt | null, continuing?: boolean): void;
   notify(key: string, params?: Params): void;
+  /** A read-only sheet of text rows (the app's score list); Close runs `onClose`. */
+  showText(title: string, entries: MenuEntry[], onClose?: () => void): void;
   readonly api: ClientApi;
   destroy(): void;
 }
@@ -360,6 +366,8 @@ export function createUi(opts: UiOptions): Ui {
         playerName: opts.playerName,
         year: new Date().getFullYear(),
         onNewGame: newGame,
+        onGameOver: opts.onGameOver,
+        endEntries: opts.endEntries,
       },
       lists,
       s,
@@ -904,6 +912,9 @@ export function createUi(opts: UiOptions): Ui {
     },
     notify(key, params) {
       if (!destroyed) log.push(t(key, params));
+    },
+    showText(title, entries, onClose) {
+      if (!destroyed) showModal(title, entries, t('ui.close'), undefined, onClose);
     },
     destroy() {
       if (destroyed) return;

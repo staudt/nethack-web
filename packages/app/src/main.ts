@@ -14,10 +14,12 @@ import {
   vanillaKeys,
   wizardKeys,
 } from './keys';
-import { WIZARD, bootPlan, modsForSave, newGameMods } from './mods';
+import { WIZARD, bootPlan, modsForSave, newGameMods, savedSeed } from './mods';
 import { parseParams } from './params';
 import { createRemote, type Remote } from './remote';
+import { addScore, isoDate, loadScores, scoreRows, type ScoreResult } from './scores';
 import { clearSave, loadSave, writeSave } from './storage';
+import pkg from '../package.json';
 
 const AUTOSAVE_EVERY = 25;
 
@@ -38,6 +40,10 @@ let loading = false;
 /** The game mods of the current game include the wizard mod: show the status-line marker. */
 let wizard = false;
 let wizardKeysBound = false;
+/** The current game's seed, for its score entry. */
+let seed: number | null = null;
+/** The last finished game's place on the score list. */
+let lastScore: ScoreResult | null = null;
 
 /** Names the game mods for the next new game or load (from the URL or the save, never state). */
 function useMods(ids: string[]): void {
@@ -55,13 +61,16 @@ function startNew(): void {
   loading = false;
   acts = 0;
   started = true;
+  lastScore = null;
   useMods(newGameMods(params.wizard));
-  remote.newGame(randomSeed(), size.w, size.h);
+  seed = randomSeed();
+  remote.newGame(seed, size.w, size.h);
 }
 
 /** Loads a save with the mods it was made with. */
 function loadText(text: string, mods: string[] = modsForSave(text, params.wizard)): void {
   loading = true;
+  seed = savedSeed(text);
   useMods(mods);
   remote.load(text);
 }
@@ -92,6 +101,11 @@ const storage = ((): Storage | null => {
 })();
 /** Number pad by default (k kicks); vi keys (hjkl move) as a remembered setting. */
 const layout = loadLayout(storage);
+
+/** The high-score list: the last game's place on it, if it has just ended. */
+function showScores(own: ScoreResult | null, back?: () => void): void {
+  ui.showText('High scores', scoreRows(loadScores(storage), own), back);
+}
 
 const appMenuMod: ClientMod = {
   id: 'app',
@@ -126,6 +140,11 @@ const appMenuMod: ClientMod = {
       },
     });
     api.addMenuItem({
+      id: 'app.scores',
+      labelKey: 'app.scores',
+      run: () => showScores(null),
+    });
+    api.addMenuItem({
       id: 'app.keys',
       labelKey: layout === 'numpad' ? 'app.keys.to_vi' : 'app.keys.to_numpad',
       run: () => {
@@ -155,12 +174,25 @@ const ui = createUi({
   ...runPrefixes,
   ...lookOptions,
   onNewGame: () => void clearSave().then(startNew),
+  // ref: src/end.c really_done(): `if (!wizard) topten()`
+  onGameOver: (s) => {
+    const entry = {
+      ...s,
+      points: s.points ?? 0,
+      date: isoDate(new Date()),
+      seed,
+      version: pkg.version,
+    };
+    lastScore = { entry, rank: wizard ? null : addScore(storage, entry), wizard };
+  },
+  endEntries: () => [{ labelKey: 'app.scores', run: (back) => showScores(lastScore, back) }],
 });
 ui.api.addMessages('en', messagesEn);
 ui.api.addMessages('en', keyHelpEn);
 ui.api.addMessages('en', {
   'app.keys.to_vi': 'Keys: use vi keys (hjkl move)',
   'app.keys.to_numpad': 'Keys: use number pad (k kicks)',
+  'app.scores': 'High scores',
   'ui.status.wizard': 'Wizard',
 });
 
@@ -204,6 +236,7 @@ async function boot(): Promise<void> {
     return;
   }
   if (params.forceNew) await clearSave();
+  seed = params.seed;
   useMods(plan.mods);
   remote.newGame(params.seed, params.width, params.height);
 }

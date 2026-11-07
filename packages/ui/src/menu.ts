@@ -11,6 +11,12 @@ export interface MenuEntry {
   text?: boolean;
   /** The key that picks it, already shown in the label (an inventory letter). Others get a-z. */
   key?: string;
+  /** Text rows: a fixed-width column before the label (a score's rank and points). */
+  lead?: string;
+  /** Text rows: a fixed-width column after the label, right-aligned (hit points). */
+  aside?: string;
+  /** Text rows: drawn highlighted (NetHack's standout, the new score). */
+  standout?: boolean;
 }
 
 const MENU_KEYS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -127,7 +133,17 @@ export function openMenu(root: HTMLElement, spec: MenuSpec): OpenMenu {
     if (en.heading || en.text) {
       const d = doc.createElement('div');
       d.className = en.heading ? 'nh-sheet-heading' : 'nh-sheet-text';
-      d.textContent = en.label;
+      if (en.standout) d.classList.add('nh-standout');
+      if (en.lead === undefined && en.aside === undefined) d.textContent = en.label;
+      else {
+        // columns: the label wraps between the two fixed ones (a phone's narrow sheet)
+        d.classList.add('nh-row');
+        const span = (cls: string, text: string): HTMLSpanElement =>
+          Object.assign(doc.createElement('span'), { className: cls, textContent: text });
+        if (en.lead !== undefined) d.append(span('nh-row-lead', en.lead));
+        d.append(span('nh-row-main', en.label));
+        if (en.aside !== undefined) d.append(span('nh-row-aside', en.aside));
+      }
       sheet.append(d);
       continue;
     }

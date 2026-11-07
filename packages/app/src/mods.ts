@@ -19,6 +19,17 @@ export function savedModIds(text: string): string[] | null {
   }
 }
 
+/** The seed a save's game was started with, or null if the text does not say. */
+export function savedSeed(text: string): number | null {
+  try {
+    const file = JSON.parse(text) as { replay?: { seed?: unknown } | null };
+    const seed = file.replay?.seed;
+    return typeof seed === 'number' ? seed : null;
+  } catch {
+    return null;
+  }
+}
+
 export type BootPlan =
   { kind: 'load'; save: string; mods: string[] } | { kind: 'new'; mods: string[] };
 

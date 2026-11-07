@@ -649,6 +649,86 @@ describe('status bar, tombstone, tap to act', () => {
     expect(m.onNewGame).toHaveBeenCalledOnce();
   });
 
+  test('end: the summary goes to onGameOver once; High scores shows a sheet and comes back', () => {
+    const onGameOver = vi.fn();
+    const run = vi.fn((back: () => void) => {
+      m.ui.showText(
+        'High scores',
+        [
+          { label: 'Name', lead: ' No Points', aside: 'Hp [max]', run: () => {}, text: true },
+          {
+            label: 'Val died.',
+            lead: '  1    12',
+            aside: ' -  [16]',
+            run: () => {},
+            text: true,
+            standout: true,
+          },
+        ],
+        back,
+      );
+    });
+    const m = mkEnd({
+      onGameOver,
+      endEntries: () => [{ labelKey: 'app.scores', run }],
+      playerName: () => 'Brunhilde',
+    });
+    m.ui.api.addMessages('en', { 'app.scores': 'High scores' });
+    m.ui.update(
+      over({ score: 12, plcode: 'Val-Hum-Fem-Neu', maxDepth: 4, hp: -3, endGold: 30 }),
+      LISTS.slice(2),
+      null,
+    );
+    expect(onGameOver).not.toHaveBeenCalled(); // not before the questions are answered
+    key('q');
+    expect(onGameOver).toHaveBeenCalledOnce();
+    expect(onGameOver.mock.calls[0]?.[0]).toEqual({
+      how: 'died',
+      points: 12,
+      name: 'Brunhilde',
+      plcode: 'Val-Hum-Fem-Neu',
+      death: 'killed by a jackal',
+      dungeon: 'The Dungeons of Doom',
+      deathLev: 3,
+      maxLvl: 4,
+      hp: -3,
+      maxHp: 16,
+      turns: 77,
+      gold: 30,
+    });
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['a - High scores', 'b - New game']);
+    btns(m.root)[0]?.click();
+    expect(m.title()).toBe('High scores');
+    const row = m.root.querySelector('.nh-standout');
+    expect(row?.querySelector('.nh-row-lead')?.textContent).toBe('  1    12');
+    expect(row?.querySelector('.nh-row-main')?.textContent).toBe('Val died.');
+    expect(row?.querySelector('.nh-row-aside')?.textContent).toBe(' -  [16]');
+    (m.root.querySelector('.nh-cancel') as HTMLButtonElement).click();
+    // back on the end sheet, without recording the game again
+    expect(m.rip()).toContain('Brunhilde');
+    expect(onGameOver).toHaveBeenCalledOnce();
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  test('end: escaping and quitting record their own words, no score without content scoring', () => {
+    const onGameOver = vi.fn();
+    const m = mkEnd({ onGameOver });
+    m.ui.api.addMessages('en', { 'end.ends.quit': 'quit' });
+    m.ui.update(over({ dead: 'escaped', endHow: 'escaped', killer: 'escaped' }), [], null);
+    expect(onGameOver.mock.calls[0]?.[0]).toMatchObject({
+      how: 'escaped',
+      death: 'escaped',
+      points: null,
+      plcode: null,
+      maxLvl: null,
+    });
+    m.ui.destroy();
+    const n = mkEnd({ onGameOver });
+    n.ui.api.addMessages('en', { 'end.ends.quit': 'quit' });
+    n.ui.update(over({ dead: 'quit', endHow: 'quit', killer: '' }), [], null);
+    expect(onGameOver.mock.calls[1]?.[0]).toMatchObject({ how: 'quit', death: 'quit' });
+  });
+
   test('tap on a distant cell: one offer acts, none describes', async () => {
     const m = mk();
     ui = m.ui;

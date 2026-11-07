@@ -20,6 +20,40 @@ export interface EndDeps {
   playerName?: (() => string) | undefined;
   year: number;
   onNewGame(): void;
+  /** Called once with the finished game, before the stone (the app records the score). */
+  onGameOver?: ((s: EndSummary) => void) | undefined;
+  /** Extra buttons on the end sheet ("High scores"); `back` shows the end sheet again. */
+  endEntries?: (() => EndEntry[]) | undefined;
+}
+
+export interface EndEntry {
+  labelKey: string;
+  run(back: () => void): void;
+}
+
+/**
+ * A finished game as the score list records it, in the words of the UI's language at the time.
+ * ref: src/topten.c topten() (the new `toptenentry`)
+ */
+export interface EndSummary {
+  /** content's `endHow`: 'died', 'choking', 'poisoning', 'starving', 'escaped', 'quit' or a mod's. */
+  how: string;
+  /** The final score (`u.urexp`); null when content does not score the game. */
+  points: number | null;
+  name: string;
+  /** 'Val-Hum-Fem-Neu'; null for a role without file codes. */
+  plcode: string | null;
+  /** formatkiller()'s text: "killed by a jackal"; "escaped" / "quit" for those ends. */
+  death: string;
+  /** The dungeon's name: "The Dungeons of Doom". */
+  dungeon: string;
+  deathLev: number;
+  /** deepest_lev_reached(); null when content does not say. */
+  maxLvl: number | null;
+  hp: number;
+  maxHp: number;
+  turns: number;
+  gold: number;
 }
 
 const plur = (n: number): string => (n === 1 ? '' : 's');
@@ -80,6 +114,28 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
   ];
 }
 
+/** The finished game for the score list. ref: src/topten.c topten() "create a new 'topten' entry" */
+export function endSummary(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: string): EndSummary {
+  const how = howOf(s);
+  const num = (k: string, dflt: number): number => Number(s[k] ?? dflt);
+  // done(): escaping and quitting name no killer; deaths[how] is the whole record text
+  const death = how === 'escaped' || how === 'quit' ? d.t(`end.ends.${how}`) : deathText(d, s);
+  return {
+    how,
+    points: typeof s['score'] === 'number' ? s['score'] : null,
+    name,
+    plcode: typeof s['plcode'] === 'string' ? s['plcode'] : null,
+    death,
+    dungeon: d.t(String(s['endDungeon'] ?? 'nh:main')),
+    deathLev: num('endDepth', num('dlvl', 1)),
+    maxLvl: typeof s['maxDepth'] === 'number' ? s['maxDepth'] : null,
+    hp: num('hp', 0),
+    maxHp: num('hpmax', 0),
+    turns: num('endTurn', num('turn', 0)),
+    gold: num('endGold', num('gold', 0)),
+  };
+}
+
 /** Whether the end gets a stone. ref: really_done(): `if (how < GENOCIDED)` outrip() */
 const hasStone = (s: Status): boolean => {
   const how = howOf(s);
@@ -122,13 +178,23 @@ export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): voi
     if (l) showList(l, () => showPlain(i + 1));
     else ask(0);
   };
+  let recorded = false;
   const final = (): void => {
     const name = nameOf(d, s);
+    if (!recorded) {
+      // really_done(): topten() runs whatever the answers were (done_stopprint only hides it)
+      recorded = true;
+      d.onGameOver?.(endSummary(d, s, name));
+    }
     const stone = hasStone(s);
     const m = d.open({
       title: d.t(stone ? 'ui.rip.title' : 'ui.escaped'),
       entries: [
         ...goodbyeLines(d, s, name).map((label) => ({ label, run: () => {}, text: true })),
+        ...(d.endEntries?.() ?? []).map((e) => ({
+          label: d.t(e.labelKey),
+          run: () => e.run(final),
+        })),
         { label: d.t('ui.newgame'), run: d.onNewGame },
       ],
     });

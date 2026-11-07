@@ -5,6 +5,8 @@ export { createGetpos, getposInput, gatherLocs, findFeature, truncateToMap } fro
 export type { Getpos, GetposInput, GetposResult, GetposView } from './getpos';
 export { DEFAULT_STEP_DELAY_MS } from './host';
 export type { GameClient, UiOptions, Ui } from './host';
+export type { EndEntry, EndSummary } from './gameover';
+export type { MenuEntry } from './menu';
 export { defaultKeymap, movementKeys, Keymap } from './keymap';
 export type { KeyLayout } from './keymap';
 export { formatStr, hpLevel, an } from './status';

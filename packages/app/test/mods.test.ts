@@ -2,7 +2,7 @@ import { createEngine, type FromCore } from '@nh/core';
 import { vanillaMod, wizardMod } from '@nh/content';
 import { expect, test } from 'vitest';
 import { createModHost } from '../src/modhost';
-import { bootPlan, modsForSave, newGameMods, savedModIds } from '../src/mods';
+import { bootPlan, modsForSave, newGameMods, savedModIds, savedSeed } from '../src/mods';
 import { parseParams } from '../src/params';
 
 const rnd = (): number => 1;
@@ -17,6 +17,8 @@ const wizardSave = saveWith([vanillaMod, wizardMod]);
 test('a save names its mods', () => {
   expect(savedModIds(normalSave)).toEqual(['nh']);
   expect(savedModIds(wizardSave)).toEqual(['nh', 'wiz']);
+  expect(savedSeed(normalSave)).toBe(2);
+  expect(savedSeed('not json')).toBeNull();
   expect(savedModIds('not json')).toBeNull();
   expect(savedModIds('{"mods":[{"id":3}]}')).toBeNull();
   expect(modsForSave(wizardSave, false)).toEqual(['nh', 'wiz']);

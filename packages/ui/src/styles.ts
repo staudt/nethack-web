@@ -31,6 +31,10 @@ padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padd
 .nh-sheet-btn{text-align:left}
 .nh-sheet-heading{font-weight:bold;color:var(--nh-accent);padding:4px 4px 0}
 .nh-sheet-text{padding:2px 4px;color:var(--nh-fg);white-space:pre-wrap}
+.nh-row{display:flex;gap:.6em;align-items:baseline}
+.nh-row-lead,.nh-row-aside{flex:none;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre}
+.nh-row-main{flex:1;min-width:0;overflow-wrap:anywhere}
+.nh-standout{background:var(--nh-accent);color:#000;border-radius:4px}
 .nh-glyph{display:inline-block;min-width:1ch;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:bold;background:#000;border-radius:3px;text-align:center}
 .nh-checkbox::before{content:"[ ]";font-family:ui-monospace,Menlo,Consolas,monospace}
 .nh-checked .nh-checkbox::before{content:"[x]"}
