@@ -10,6 +10,8 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.look': 'You see: {what}.',
   'ui.look.remembered': '{what} (remembered)',
   'ui.look.mode': 'Look',
+  'ui.look.pick': 'Pick a monster, object or location.',
+  'ui.look.nofeature': "Can't find dungeon feature '{ch}'.",
   'ui.cancel': 'Cancel',
   'ui.yes': 'Yes',
   'ui.no': 'No',

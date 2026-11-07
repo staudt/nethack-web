@@ -17,3 +17,12 @@ test('the ascii renderer offers flash() and tolerates it before mounting', () =>
     r.flash([]);
   }).not.toThrow();
 });
+
+test('the ascii renderer offers setCursor() and tolerates it before mounting', () => {
+  const r = createAsciiRenderer();
+  expect(typeof r.setCursor).toBe('function');
+  expect(() => {
+    r.setCursor({ x: 3, y: 4 });
+    r.setCursor(null);
+  }).not.toThrow();
+});

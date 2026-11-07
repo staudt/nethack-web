@@ -74,3 +74,16 @@ Wizard commands below are in the self-actions menu (tap yourself).
 - [ ] The floor has corpses (priest, shopkeepers, Watch), rocks, at least 7 candles, an oil lamp, and wands of striking and magic missile with 0 charges.
 - [ ] The altar is unaligned; two fountains on the main street; holes in some shop walls; both staircases outside the town walls.
 - [ ] Level teleport deeper in the Mines and to the bottom: orcs wait there, the orc-captain leader at the bottom, some carrying gold, gems or a ring.
+
+## Look cursor
+
+Desktop with a keyboard first, then the phone. Try both key layouts (Options: vi keys / number pad).
+
+- [ ] Press `;`: "Pick a monster, object or location." and a yellow box on your `@`; the Look button shows as pressed.
+- [ ] vi keys: `hjklyubn` move the box one cell, `HJKLYUBN` eight, stopping at the map edge (a diagonal stays diagonal until the edge). Number pad layout: digits and the number pad move it. Both: arrow keys (Up+Left together give a diagonal), Shift+arrow moves eight.
+- [ ] `.` (also `,`, `;`, `:`) on a monster, an object, stairs and an unexplored cell: one "You see: ..." line each, and the box goes away; the next `l`/arrow moves you again.
+- [ ] `;` then Esc: no description, box gone, Look button not pressed.
+- [ ] `;` then `m` repeatedly: the box jumps to each visible monster, nearest first, then back to you; `M` goes the other way. `o`/`O` do the same for objects you see or remember, skipping boulders and rocks. `@` brings it back to you.
+- [ ] `;` then `>` or `<`: the box jumps to the stairs; again cycles if there are several. With no such feature on the level: "Can't find dungeon feature '<'.". `_` altar, `{` fountain, `^` a trap you have found work the same way.
+- [ ] On a map larger than the screen (zoomed in, or `?w=200&h=60`), move the box off screen with `L`/`J`: the map scrolls to follow it, and back to you after picking or Esc.
+- [ ] Phone: tap Look, then tap a cell: it is described at once (no keyboard needed). Tap Look twice: look mode is off again.

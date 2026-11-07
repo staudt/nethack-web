@@ -650,6 +650,8 @@ interface ClientApi {
 
 Client mods run in the UI and are never saved. The default keymap is itself a client mod.
 
+**Position cursor.** Look (`;` or the Look button) puts a keyboard cursor on the hero (NetHack's `getpos()`, `packages/ui/src/getpos.ts`): direction keys resolved through the keymap move it, `.` `,` `;` `:` pick, Esc cancels, `m`/`o`/`@`/`<`/`>` jump. It works on the UI's own copy of the last `ViewUpdate` (never `GameState`); a tap still picks a cell directly. A renderer shows it by implementing the optional `setCursor(pos | null)` (feature-detected, like `flash()`), and the ASCII renderer's camera then follows the cursor instead of the hero. Core has no position prompt; any future one should reuse this cursor.
+
 ## Worker protocol
 
 ```ts

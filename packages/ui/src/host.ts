@@ -15,12 +15,15 @@ import type {
   Target,
   AsyncCoreQuery,
   UiCommand,
+  ViewCell,
+  ViewEntity,
   ViewItem,
   ViewUpdate,
 } from '@nh/core';
 import { ARROW_CODES, DEFAULT_CHORD_MS, createChord, dirOf } from './chord';
 import { attachKeyUp, attachKeys, attachPinch, attachTap } from './input';
 import { openCompass, openTextPrompt } from './compass';
+import { createGetpos, getposInput, type Getpos, type GetposInput } from './getpos';
 import { clampCell, pinchCell } from './pinch';
 import {
   DEFAULT_LOCALE,
@@ -74,6 +77,17 @@ const beamChar = (dx: number, dy: number): string =>
 const isFlashable = (r: object): r is FlashRenderer =>
   typeof (r as Partial<FlashRenderer>).flash === 'function';
 
+/**
+ * What a renderer may offer to show the position cursor (NetHack's getpos() cursor) and keep it
+ * in view; null removes it and the camera follows the hero again. Feature-detected like
+ * {@link ZoomableRenderer}.
+ */
+export interface CursorRenderer {
+  setCursor(pos: Pos | null): void;
+}
+const hasCursor = (r: object): r is CursorRenderer =>
+  typeof (r as Partial<CursorRenderer>).setCursor === 'function';
+
 /** localStorage key of the per-device zoom: `fit`, or the cell width in CSS px. */
 export const ZOOM_STORAGE_KEY = 'nh.zoom';
 
@@ -99,6 +113,8 @@ export interface UiOptions {
    * `prefix:<name>` arms the prefix; the next direction key then performs `prefixes[name](dir)`.
    */
   prefixes?: Record<string, (dir: Dir) => PlayerAction>;
+  /** Object ids the look cursor's `o`/`O` skip (NetHack skips boulders and rocks). */
+  lookSkipObjects?: readonly string[];
 }
 
 export interface Ui {
@@ -206,6 +222,15 @@ export function createUi(opts: UiOptions): Ui {
   let destroyed = false;
   let playerPos: Pos | null = null;
   let lookMode = false;
+  /** The keyboard look cursor, while look mode is on and a view has arrived. */
+  let getpos: Getpos | null = null;
+  const cursorRenderer: CursorRenderer | null = hasCursor(renderer) ? renderer : null;
+  // The UI's copy of the map, for the look cursor (rule 4: never GameState).
+  let mapW = 0;
+  let mapH = 0;
+  let mapCells: ViewCell[] = [];
+  let mapEntities: ViewEntity[] = [];
+  const lookSkip: ReadonlySet<string> = new Set(opts.lookSkipObjects ?? []);
   let modal: OpenMenu | null = null;
   let promptId: string | null = null;
 
@@ -354,6 +379,22 @@ export function createUi(opts: UiOptions): Ui {
   const setLook = (on: boolean): void => {
     lookMode = on;
     layout.lookBtn.setAttribute('aria-pressed', String(on));
+    getpos = null;
+    const p = playerPos;
+    if (on && p && mapW > 0) {
+      getpos = createGetpos(() => ({
+        width: mapW,
+        height: mapH,
+        cells: mapCells,
+        entities: mapEntities,
+        player: playerPos ?? p,
+        glyphOf,
+        skipObjects: lookSkip,
+      }));
+    }
+    cursorRenderer?.setCursor(getpos ? getpos.cursor : null);
+    // ref: src/pager.c do_look(): "Pick a monster, object or location."
+    if (on) log.push(t('ui.look.pick'));
   };
 
   const openActions = (target: Target): void => {
@@ -477,6 +518,21 @@ export function createUi(opts: UiOptions): Ui {
     });
   };
 
+  /** One look-cursor input: move the cursor, or end look mode with a description or not. */
+  const lookInput = (i: GetposInput): void => {
+    const g = getpos;
+    if (!g) return;
+    const r = g.input(i);
+    if (r.type === 'pick') {
+      setLook(false);
+      describe(r.pos);
+    } else if (r.type === 'cancel') setLook(false);
+    else {
+      if (r.type === 'notfound') log.push(t('ui.look.nofeature', { ch: r.ch }));
+      cursorRenderer?.setCursor(g.cursor);
+    }
+  };
+
   const onTap = (x: number, y: number): void => {
     if (modal) return;
     const pos = renderer.cellAt(x, y);
@@ -534,6 +590,12 @@ export function createUi(opts: UiOptions): Ui {
       if (d !== null) modal.pickDir(d);
       return;
     }
+    if (getpos && !modal) {
+      // A (chorded) arrow while the look cursor is up moves it.
+      const i = getposInput({ key: '', code: '' }, cmd);
+      if (i) lookInput(i);
+      return;
+    }
     if (prefix === null) {
       runCommand(cmd);
       return;
@@ -573,6 +635,19 @@ export function createUi(opts: UiOptions): Ui {
       return true;
     }
     const cmd = keymap.resolve(e);
+    if (getpos) {
+      // The look cursor takes every key (ref: src/getpos.c getpos(), force: unknown keys are
+      // ignored); browser shortcuts with Ctrl or Alt pass through.
+      if (e.ctrlKey || e.altKey) return false;
+      const i = getposInput(e, cmd);
+      if (i?.type === 'move' && !i.fast && ARROW_CODES.has(e.code) && cmd) {
+        // Arrows wait for the chord window, so Up+Left move the cursor diagonally.
+        chord.down(e.code, e.repeat, cmd);
+        return true;
+      }
+      if (i) lookInput(i);
+      return true;
+    }
     if ((e.ctrlKey || e.altKey) && !cmd) return false;
     if (prefix !== null) {
       // The key after a prefix: a direction completes it; anything else cancels it.
@@ -835,7 +910,13 @@ export function createUi(opts: UiOptions): Ui {
       const keepGoing = continuing && !skipNextContinuing;
       skipNextContinuing = false;
       renderer.apply(view);
-      if (view.kind === 'full') legend = view.legend;
+      if (view.kind === 'full') {
+        legend = view.legend;
+        mapW = view.width;
+        mapH = view.height;
+        mapCells = view.cells.slice();
+      } else for (const [i, c] of view.cells) mapCells[i] = c;
+      mapEntities = view.entities;
       inventory = view.inventory;
       renderStatus(view.status);
       playerPos = { x: view.player.x, y: view.player.y };

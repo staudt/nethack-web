@@ -29,6 +29,8 @@ export interface AsciiRendererOptions {
   background?: string;
   /** Cell background behind the hero's pets (hilite_pet). Default a dark green. */
   petBackground?: string;
+  /** Outline of the position cursor. Default yellow. */
+  cursorColor?: string;
 }
 
 export type AsciiRenderer = Renderer & {
@@ -48,6 +50,11 @@ export type AsciiRenderer = Renderer & {
    * counterpart of NetHack's tmp_at(DISP_FLASH) and tmp_at(DISP_BEAM).
    */
   flash(cells: readonly FlashCell[]): void;
+  /**
+   * Shows the position cursor (NetHack's getpos() cursor, curs(WIN_MAP, cx, cy)) as a box on a
+   * cell; the camera follows it instead of the hero, like cliparound(cx, cy). null removes it.
+   */
+  setCursor(pos: Pos | null): void;
 };
 
 /** One overlaid cell for {@link AsciiRenderer.flash}. */
@@ -93,6 +100,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   const fontFamily = opts.fontFamily ?? DEFAULT_FONT;
   const background = opts.background ?? '#000';
   const petBackground = opts.petBackground ?? '#1d3b24';
+  const cursorColor = opts.cursorColor ?? '#ff0';
   const minCell = opts.minCellCssPx ?? 6;
 
   let host: HTMLElement | null = null;
@@ -121,6 +129,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   let baseLegend: Record<string, Glyph> = {};
   const overrides = new Map<string, Glyph>();
   let flashed: readonly FlashCell[] = [];
+  let cursor: Pos | null = null;
 
   // Camera
   let cam: CameraState = { x: 0, y: 0 };
@@ -171,7 +180,8 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   function retarget(jump: boolean): void {
     if (!player || width === 0) return;
     const v = view();
-    target = computeTarget(jump ? { x: -1e9, y: -1e9 } : target, player, map(), v, deadZoneFor(v));
+    const follow = cursor ?? player;
+    target = computeTarget(jump ? { x: -1e9, y: -1e9 } : target, follow, map(), v, deadZoneFor(v));
     if (jump) cam = { ...target };
   }
 
@@ -246,6 +256,17 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
       ctx.fillStyle = background;
       ctx.fillRect(fx, fy, cellW, cellH);
       atlas.draw(ctx, typeof g === 'string' ? glyphFor(g) : g, false, fx, fy, cellW, cellH);
+    }
+    if (cursor && cursor.x >= r.x0 && cursor.x < r.x1 && cursor.y >= r.y0 && cursor.y < r.y1) {
+      ctx.strokeStyle = cursorColor;
+      ctx.lineWidth = Math.max(1, Math.round(cellW / 8));
+      const lw = ctx.lineWidth;
+      ctx.strokeRect(
+        cursor.x * cellW - ox + lw / 2,
+        cursor.y * cellH - oy + lw / 2,
+        cellW - lw,
+        cellH - lw,
+      );
     }
   }
 
@@ -358,6 +379,11 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
     },
     flash(cells: readonly FlashCell[]): void {
       flashed = cells;
+      schedule();
+    },
+    setCursor(pos: Pos | null): void {
+      cursor = pos ? { x: pos.x, y: pos.y } : null;
+      retarget(false);
       schedule();
     },
     getCell(): number {

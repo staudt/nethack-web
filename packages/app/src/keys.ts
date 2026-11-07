@@ -191,6 +191,9 @@ export const runPrefixes = {
   },
 };
 
+/** The look cursor's `o`/`O` skip boulders and rocks (ref: src/getpos.c gather_locs_interesting()). */
+export const lookOptions = { lookSkipObjects: ['nh:boulder', 'nh:rock'] };
+
 /** Extended commands (`#enhance`, `#name`) as main-menu items, run if the self offers carry them. */
 export const EXTENDED_COMMANDS: readonly { id: string; labelKey: string; action: string }[] = [
   { id: 'app.ext.enhance', labelKey: 'ui.ext.enhance', action: 'nh:enhance' },

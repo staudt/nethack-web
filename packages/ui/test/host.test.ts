@@ -252,7 +252,10 @@ describe('host', () => {
     tap(m.root.querySelector('.nh-map')!);
     await flush();
     expect(m.acts).toEqual([]);
-    expect(logText(m.root)).toEqual(['You see: floor (remembered).']);
+    expect(logText(m.root)).toEqual([
+      'Pick a monster, object or location.',
+      'You see: floor (remembered).',
+    ]);
     m.state.desc = {
       terrain: 'nh:floor',
       remembered: true,
@@ -1137,5 +1140,156 @@ describe('multi-turn actions in the UI', () => {
     m.ui.destroy();
     vi.advanceTimersByTime(1000);
     expect(m.acts).toEqual([]);
+  });
+});
+
+describe('look cursor (keyboard getpos)', () => {
+  class CursorFake extends FakeRenderer {
+    cursors: (Pos | null)[] = [];
+    setCursor(p: Pos | null) {
+      this.cursors.push(p && { ...p });
+    }
+  }
+  const W = 12;
+  const H = 8;
+  const full = (over: Partial<Extract<ViewUpdate, { kind: 'full' }>> = {}): ViewUpdate => {
+    const cells = Array.from({ length: W * H }, () => ({ g: 'nh:floor', v: true }) as const);
+    return {
+      kind: 'full',
+      levelId: 'l1',
+      width: W,
+      height: H,
+      legend: { 'nh:floor': { ch: '.', fg: '#fff' }, 'nh:down': { ch: '>', fg: '#fff' } },
+      cells: cells.map((c) => ({ ...c })),
+      entities: [{ id: 1, g: 'nh:hero', x: 5, y: 5 }],
+      player: { id: 1, x: 5, y: 5 },
+      turn: 1,
+      status: {},
+      inventory: [],
+      ...over,
+    };
+  };
+  const mkLook = (mods: ClientMod[] = [defaultKeymap]) => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const renderer = new CursorFake();
+    const g = fakeGame();
+    const u = createUi({ root, renderer, game: g.game, mods, chordWindowMs: 0 });
+    ui = u;
+    return { root, renderer, ui: u, ...g };
+  };
+  const look = (m: { root: Element }) =>
+    (m.root.querySelector('.nh-look-btn') as HTMLElement).click();
+
+  test('starts on the hero; vi keys move, a capital moves 8 and stops at the edge; . picks', async () => {
+    // vi layout: capitals are bound to runs (the app's runKeys); any direction command will do
+    const run: ClientMod = {
+      id: 'run',
+      version: '1',
+      register: (api) =>
+        api.bindKey('L', {
+          type: 'action',
+          action: { type: 'mod', action: 'x:run', args: { dir: 'e' } },
+        }),
+    };
+    const m = mkLook([defaultKeymap, run]);
+    m.ui.update(full(), [], null);
+    look(m);
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: 5, y: 5 });
+    expect(logText(m.root).at(-1)).toBe('Pick a monster, object or location.');
+    key('l', 'KeyL');
+    key('k', 'KeyK');
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: 6, y: 4 });
+    key('L', 'KeyL', { shiftKey: true });
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: W - 1, y: 4 });
+    key('.', 'Period');
+    await flush();
+    expect(m.state.describeCalls).toEqual([{ x: W - 1, y: 4 }]);
+    expect(m.acts).toEqual([]); // no move, no wait
+    expect(m.renderer.cursors.at(-1)).toBeNull();
+    // look mode is over: l moves the hero again
+    key('l', 'KeyL');
+    expect(m.acts).toEqual([{ type: 'move', dir: 'e' }]);
+  });
+
+  test('arrows and the number pad move it; Escape cancels without describing', async () => {
+    const m = mkLook();
+    m.ui.update(full(), [], null);
+    look(m);
+    key('ArrowDown', 'ArrowDown');
+    key('7', 'Numpad7');
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: 4, y: 5 });
+    key('Escape', 'Escape');
+    await flush();
+    expect(m.state.describeCalls).toEqual([]);
+    expect(m.renderer.cursors.at(-1)).toBeNull();
+    expect(m.root.querySelector('.nh-look-btn')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  test('m/M cycle monsters nearest first, @ returns, o skips the configured objects', async () => {
+    const v = full({
+      entities: [
+        { id: 1, g: 'nh:hero', x: 5, y: 5 },
+        { id: 2, g: 'nh:newt', x: 9, y: 5 },
+        { id: 3, g: 'nh:jackal', x: 6, y: 6 },
+      ],
+    });
+    if (v.kind !== 'full') throw new Error();
+    v.cells[2 * W + 2]!.o = 'nh:dagger';
+    v.cells[5 * W + 4]!.o = 'nh:boulder';
+    const root = document.createElement('div');
+    document.body.append(root);
+    const renderer = new CursorFake();
+    const g = fakeGame();
+    ui = createUi({
+      root,
+      renderer,
+      game: g.game,
+      mods: [defaultKeymap],
+      lookSkipObjects: ['nh:boulder'],
+    });
+    ui.update(v, [], null);
+    look({ root });
+    key('m', 'KeyM');
+    expect(renderer.cursors.at(-1)).toEqual({ x: 6, y: 6 });
+    key('m', 'KeyM');
+    expect(renderer.cursors.at(-1)).toEqual({ x: 9, y: 5 });
+    key('m', 'KeyM'); // wraps to the hero
+    expect(renderer.cursors.at(-1)).toEqual({ x: 5, y: 5 });
+    key('M', 'KeyM', { shiftKey: true });
+    expect(renderer.cursors.at(-1)).toEqual({ x: 9, y: 5 });
+    key('@', 'Digit2', { shiftKey: true });
+    expect(renderer.cursors.at(-1)).toEqual({ x: 5, y: 5 });
+    key('o', 'KeyO');
+    expect(renderer.cursors.at(-1)).toEqual({ x: 2, y: 2 });
+    key(';', 'Semicolon');
+    await flush();
+    expect(g.state.describeCalls).toEqual([{ x: 2, y: 2 }]);
+  });
+
+  test('> jumps to the down stairs; a missing feature says so', () => {
+    const v = full();
+    if (v.kind !== 'full') throw new Error();
+    v.cells[1 * W + 3]!.g = 'nh:down';
+    const m = mkLook();
+    m.ui.update(v, [], null);
+    look(m);
+    key('>', 'Period', { shiftKey: true });
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: 3, y: 1 });
+    key('<', 'Comma', { shiftKey: true });
+    expect(m.renderer.cursors.at(-1)).toEqual({ x: 3, y: 1 });
+    expect(logText(m.root).at(-1)).toBe("Can't find dungeon feature '<'.");
+  });
+
+  test('a tap still picks directly while the cursor is up', async () => {
+    const m = mkLook();
+    m.ui.update(full(), [], null);
+    look(m);
+    key('h', 'KeyH');
+    m.renderer.cell = { x: 1, y: 1 };
+    tap(m.root.querySelector('.nh-map')!);
+    await flush();
+    expect(m.state.describeCalls).toEqual([{ x: 1, y: 1 }]);
+    expect(m.renderer.cursors.at(-1)).toBeNull();
   });
 });

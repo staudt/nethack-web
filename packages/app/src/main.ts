@@ -5,6 +5,7 @@ import { createUi, movementKeys } from '@nh/ui';
 import {
   extendedCommands,
   loadLayout,
+  lookOptions,
   numpadKeys,
   runPrefixes,
   runKeys,
@@ -151,6 +152,7 @@ const ui = createUi({
     extendedCommands(remote),
   ],
   ...runPrefixes,
+  ...lookOptions,
   onNewGame: () => void clearSave().then(startNew),
 });
 ui.api.addMessages('en', messagesEn);
