@@ -2,7 +2,7 @@
 // boulder part; no pools or lava exist, so boulder_hits_pool() is not ported)
 //
 // Shared by moverock.ts (a pushed boulder) and the scroll of earth (falling boulders), so it sits
-// below both and imports neither; trap.ts does not need it (a boulder never rests on a pit here).
+// below both and imports neither; trap.ts uses it for objects teleported onto a pit or hole (rloco()).
 import {
   cellIndex,
   getPlayer,
@@ -18,8 +18,7 @@ import { hmonThrownHit } from './hmon';
 import { losehp } from './hp';
 import { ringBonus } from './props';
 import { maybeFinishSokoban } from './sokoban';
-import { isHole } from './trap';
-import { isMtrapped, isPit, setMtrapped, setUtrap, utrap } from './trapstate';
+import { isHole, isMtrapped, isPit, setMtrapped, setUtrap, utrap } from './trapstate';
 import { xnameOf } from './objnam';
 
 /**

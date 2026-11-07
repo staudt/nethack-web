@@ -442,9 +442,13 @@ describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', 
   });
 
   test('paralyze with Free action: you stiffen briefly, 1 turn and 1 point', () => {
-    const { s, o } = find(5, 'You stiffen briefly.', ({ s }) =>
-      setIntrinsic(getPlayer(s.state), P.FREE_ACTION, true),
-    );
+    const { s, o } = find(5, 'You stiffen briefly.', ({ s }) => {
+      const h = getPlayer(s.state);
+      setIntrinsic(h, P.FREE_ACTION, true);
+      // max HP one below current: after the 1 point she is at max, so the turn of helplessness
+      // cannot regenerate it away (regen_hp() only runs below max)
+      if (h.c.hp) h.c.hp.max = 499;
+    });
     const h = getPlayer(o.state);
     expect((h.c.helpless?.until ?? 0) - s.state.turn).toBe(1 + 1);
     expect(lost(o)).toBe(1);

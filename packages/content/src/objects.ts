@@ -1274,6 +1274,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'searching',
   },
+  // ref: objects.h RING("stealth", "jade", STEALTH, 100, 1, 0, ...)
+  {
+    id: 'nh:ring_of_stealth',
+    nameKey: 'nh:ring_of_stealth',
+    class: 'ring',
+    glyph: { ch: '=', fg: GREEN },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'stealth',
+  },
   // ref: objects.h RING("sustain ability", "bronze", FIXED_ABIL, 100, 1, 0, ...)
   {
     id: 'nh:ring_of_sustain_ability',
@@ -1288,6 +1303,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
     prop: 'fixed_abil',
+  },
+  // ref: objects.h RING("levitation", "agate", LEVITATION, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_levitation',
+    nameKey: 'nh:ring_of_levitation',
+    class: 'ring',
+    glyph: { ch: '=', fg: RED },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'levitation',
   },
   // ref: objects.h RING("hunger", "topaz", HUNGER, 100, 1, 0, ...)
   {
@@ -1318,6 +1348,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
     prop: 'aggravate_monster',
+  },
+  // ref: objects.h RING("conflict", "ruby", CONFLICT, 300, 1, 0, ...)
+  {
+    id: 'nh:ring_of_conflict',
+    nameKey: 'nh:ring_of_conflict',
+    class: 'ring',
+    glyph: { ch: '=', fg: RED },
+    prob: 1,
+    weight: 3,
+    cost: 300,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'conflict',
+  },
+  // ref: objects.h RING("warning", "diamond", WARNING, 100, 1, 0, ...)
+  {
+    id: 'nh:ring_of_warning',
+    nameKey: 'nh:ring_of_warning',
+    class: 'ring',
+    glyph: { ch: '=', fg: WHITE },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'warning',
   },
   // ref: objects.h RING("poison resistance", "pearl", POISON_RES, 150, 1, 0, ...)
   {
@@ -1408,6 +1468,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
     prop: 'slow_digestion',
+  },
+  // ref: objects.h RING("teleportation", "silver", TELEPORT, 200, 1, 0, ...)
+  {
+    id: 'nh:ring_of_teleportation',
+    nameKey: 'nh:ring_of_teleportation',
+    class: 'ring',
+    glyph: { ch: '=', fg: GRAY },
+    prob: 1,
+    weight: 3,
+    cost: 200,
+    material: 'silver',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'teleport',
   },
 
   // ---- amulets (iron, weight 20, cost 150, magic; appearances are shuffled) ----
@@ -1501,6 +1576,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'reflecting',
   },
+  // ref: objects.h AMULET("amulet of magical breathing", "octagonal", MAGICAL_BREATHING, 75)
+  {
+    id: 'nh:amulet_of_magical_breathing',
+    nameKey: 'nh:amulet_of_magical_breathing',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 75,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'magical_breathing',
+  },
   // ref: objects.h OBJECT(OBJ("cheap plastic imitation of the Amulet of Yendor", "Amulet of Yendor"), ... PLASTIC, 0, AMULET_CLASS, 0, 0, 20, 0, ...)
   {
     id: 'nh:fake_amulet_of_yendor',
@@ -1523,8 +1613,14 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('light', 95, 100, true, 'nodir', 'glass', BRIGHT_CYAN),
   // ref: objects.h WAND("secret door detection", "balsa", 50, 150, 1, NODIR, WOOD, ...)
   wand('secret_door_detection', 50, 150, true, 'nodir', 'wood', BROWN),
+  // ref: objects.h WAND("enlightenment", "crystal", 15, 150, 1, NODIR, GLASS, HI_GLASS, ...)
+  wand('enlightenment', 15, 150, true, 'nodir', 'glass', BRIGHT_CYAN),
   // ref: objects.h WAND("create monster", "maple", 50, 200, 1, NODIR, WOOD, ...)
   wand('create_monster', 50, 200, true, 'nodir', 'wood', BROWN),
+  // ref: objects.h WAND("wishing", "pine", 5, 500, 1, NODIR, WOOD, HI_WOOD, ...)
+  wand('wishing', 5, 500, true, 'nodir', 'wood', BROWN),
+  // ref: objects.h WAND("stasis", "redwood", 45, 150, 1, NODIR, WOOD, CLR_RED, ...)
+  wand('stasis', 45, 150, true, 'nodir', 'wood', RED),
   // ref: objects.h WAND("nothing", "oak", 25, 100, 0, IMMEDIATE, WOOD, ...)
   wand('nothing', 25, 100, false, 'immediate', 'wood', BROWN),
   // ref: objects.h WAND("striking", "ebony", 30, 150, 1, IMMEDIATE, WOOD, ...)
@@ -1533,12 +1629,20 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('slow_monster', 50, 150, true, 'immediate', 'metal', CYAN),
   // ref: objects.h WAND("speed monster", "brass", 50, 150, 1, IMMEDIATE, COPPER, ...)
   wand('speed_monster', 50, 150, true, 'immediate', 'copper', YELLOW),
+  // ref: objects.h WAND("undead turning", "copper", 50, 150, 1, IMMEDIATE, COPPER, HI_COPPER, ...)
+  wand('undead_turning', 50, 150, true, 'immediate', 'copper', YELLOW),
+  // ref: objects.h WAND("cancellation", "platinum", 45, 200, 1, IMMEDIATE, PLATINUM, CLR_WHITE, ...)
+  wand('cancellation', 45, 200, true, 'immediate', 'platinum', WHITE),
+  // ref: objects.h WAND("teleportation", "iridium", 45, 200, 1, IMMEDIATE, METAL, CLR_BRIGHT_CYAN, ...)
+  wand('teleportation', 45, 200, true, 'immediate', 'metal', BRIGHT_CYAN),
   // ref: objects.h WAND("opening", "zinc", 30, 150, 1, IMMEDIATE, METAL, ...)
   wand('opening', 30, 150, true, 'immediate', 'metal', CYAN),
   // ref: objects.h WAND("locking", "aluminum", 30, 150, 1, IMMEDIATE, METAL, ...)
   wand('locking', 30, 150, true, 'immediate', 'metal', CYAN),
   // ref: objects.h WAND("probing", "uranium", 30, 150, 1, IMMEDIATE, METAL, ...)
   wand('probing', 30, 150, true, 'immediate', 'metal', CYAN),
+  // ref: objects.h WAND("digging", "iron", 40, 150, 1, RAY, IRON, HI_METAL, ...)
+  wand('digging', 40, 150, true, 'ray', 'iron', CYAN),
   // ref: objects.h WAND("magic missile", "steel", 50, 150, 1, RAY, IRON, ...)
   wand('magic_missile', 50, 150, true, 'ray', 'iron', CYAN),
   // ref: objects.h WAND("fire", "hexagonal", 40, 175, 1, RAY, IRON, ...)
@@ -1547,6 +1651,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('cold', 40, 175, true, 'ray', 'iron', CYAN),
   // ref: objects.h WAND("sleep", "runed", 50, 175, 1, RAY, IRON, ...)
   wand('sleep', 50, 175, true, 'ray', 'iron', CYAN),
+  // ref: objects.h WAND("death", "long", 5, 500, 1, RAY, IRON, HI_METAL, ...)
+  wand('death', 5, 500, true, 'ray', 'iron', CYAN),
   // ref: objects.h WAND("lightning", "curved", 40, 175, 1, RAY, IRON, ...)
   wand('lightning', 40, 175, true, 'ray', 'iron', CYAN),
 
@@ -1926,6 +2032,20 @@ export const OBJECTS: readonly ObjectDef[] = [
     prob: 90,
     weight: 5,
     cost: 50,
+    material: 'paper',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h SCROLL("teleportation", "VENZAR BORGAVVE", 1, 55, 100, SCR_TELEPORTATION)
+  {
+    id: 'nh:scroll_of_teleportation',
+    nameKey: 'nh:scroll_of_teleportation',
+    class: 'scroll',
+    glyph: { ch: '?', fg: WHITE },
+    prob: 55,
+    weight: 5,
+    cost: 100,
     material: 'paper',
     merge: true,
     magic: true,

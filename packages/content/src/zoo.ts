@@ -1,7 +1,6 @@
 // Treasure zoos: a typed `nh:zoo` room (a LevelDef region with `type: 'nh:zoo', filled: true`)
-// is filled when its level is made, greets the hero on her first entry, and Sokoban's top level
-// puts its prize beside one. ref: src/mkroom.c fill_zoo(); src/hack.c check_special_room() ZOO;
-// dat/soko1-1.lua, dat/soko1-2.lua
+// is filled when its level is made and greets the hero on her first entry (Sokoban's prize beside
+// its zoo is in sokoprize.ts). ref: src/mkroom.c fill_zoo(); src/hack.c check_special_room() ZOO
 //
 // Not ported (DEVIATIONS.md "Sokoban"): random zoos (mkroom(ZOO)), the other kinds of special
 // room, `level.flags.has_zoo` (no zoo sounds), and the irregular room shape: a zoo is the
@@ -16,17 +15,14 @@ import {
   type Ctx,
   type DefId,
   type Level,
-  type LevelDef,
   type ModApi,
   type Pos,
 } from '@nh/core';
 import { makemon } from './generation';
 import { mkgold } from './items';
-import { mksobjFull } from './mkobj';
 import { heroSees } from './mongear';
 import { monNam } from './perception';
 import { P, heroHas } from './props';
-import { mapToLevel, type SpLevFixup } from './sp_lev';
 
 /** ref: include/mkroom.h ZOO */
 export const ZOO: DefId = 'nh:zoo';
@@ -124,46 +120,3 @@ export function enterZoo(ctx: Ctx, roomno: number): void {
     m.asleep = false;
   }
 }
-
-type Spot = readonly [x: number, y: number];
-
-/**
- * Sokoban's prize, beside the zoo on the top level: at one of the listed map spots
- * (`selection.rndcoord(place)`, x then y order), a bag of holding `chance` percent of the time,
- * else an amulet of reflection, not cursed. Its Elbereth engraving and cursed scroll of scare
- * monster are not ported (DEVIATIONS.md "Sokoban"); no achievement is recorded.
- * ref: dat/soko1-1.lua, dat/soko1-2.lua ("Rewards"); src/sp_lev.c create_object() buc
- * "not-cursed"
- */
-function sokobanPrize(chance: number, place: readonly Spot[]): SpLevFixup {
-  return {
-    after(ctx: Ctx, level: Level, def: LevelDef): void {
-      const spot = place[ctx.rng.rn2(place.length)];
-      if (!spot) return;
-      const id = ctx.rng.rn2(100) < chance ? 'nh:bag_of_holding' : 'nh:amulet_of_reflection';
-      const p = mapToLevel(def, level, spot[0], spot[1]);
-      const e = mksobjFull(
-        ctx,
-        ctx.defs.object(id),
-        { at: { level: level.id, x: p.x, y: p.y } },
-        { level: level.id, inMklev: true },
-      );
-      const item = ctx.state.entities[String(e)]?.c.item;
-      if (item?.buc === 'cursed') item.buc = 'uncursed'; // case 4 "not cursed": uncurse()
-    },
-  };
-}
-
-/** The prize fixups of the two top-level variants (soko1-2's bag is the 25% case). */
-export const SOKOBAN_PRIZE_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
-  'nh:soko1-1': sokobanPrize(75, [
-    [16, 11],
-    [16, 13],
-    [16, 15],
-  ]),
-  'nh:soko1-2': sokobanPrize(25, [
-    [16, 10],
-    [16, 12],
-    [16, 14],
-  ]),
-};

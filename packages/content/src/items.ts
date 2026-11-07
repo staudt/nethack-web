@@ -153,9 +153,11 @@ export function mksobjInit(
       if (artif) rng.rn2(40); // ref: `artif && !rn2(40 + 10 * nartifact_exist())`
       break;
     case 'wand':
-      // ref: mksobj_init() WAND_CLASS: spe = rn1(5, NODIR ? 11 : 4); blessorcurse(otmp, 17).
-      // (Wishing and stasis are not in the subset.) recharged stays 0 (absent).
-      it.spe = rng.rn2(5) + (def.wand?.dir === 'nodir' ? 11 : 4);
+      // ref: mksobj_init() WAND_CLASS: wishing 1, stasis rn1(4, 3), else
+      // spe = rn1(5, NODIR ? 11 : 4); blessorcurse(otmp, 17). recharged stays 0 (absent).
+      if (def.id === 'nh:wand_of_wishing') it.spe = 1;
+      else if (def.id === 'nh:wand_of_stasis') it.spe = rng.rn2(4) + 3;
+      else it.spe = rng.rn2(5) + (def.wand?.dir === 'nodir' ? 11 : 4);
       blessorcurse(rng, it, 17);
       break;
     case 'tool':

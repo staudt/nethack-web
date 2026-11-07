@@ -56,6 +56,11 @@ export const P = {
   ADORNED: 'adorned',
   ANTIMAGIC: 'antimagic',
   CLAIRVOYANT: 'clairvoyant',
+  LEVITATION: 'levitation',
+  TELEPORT: 'teleport',
+  CONFLICT: 'conflict',
+  WARNING: 'warning',
+  MAGICAL_BREATHING: 'magical_breathing',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */

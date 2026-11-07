@@ -1,7 +1,7 @@
 // Scrolls: reading and the effects of the scrolls in our subset.
 // ref: src/read.c doread(), seffects(), seffect_identify(), seffect_enchant_weapon(),
 // seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_earth(),
-// seffect_blank_paper(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
+// seffect_blank_paper(), seffect_teleportation(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
 // src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
 import {
   NORMAL_SPEED,
@@ -58,6 +58,7 @@ import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
 import { snuffLit } from './light';
+import { levelTele, tele } from './trap';
 import { luckOf } from './luck';
 import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
 
@@ -761,6 +762,13 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
         known = !blind;
       }
       break;
+    case 'nh:scroll_of_teleportation':
+      // ref: seffect_teleportation(): confused or cursed, a level teleport (its message makes
+      // the scroll known); else scrolltele(), which always learns it
+      if (confused || it.buc === 'cursed') levelTele(ctx);
+      else tele(ctx);
+      known = true;
+      break;
     case 'nh:scroll_of_earth':
       seffectEarth(ctx, scroll, confused);
       known = true;
@@ -787,6 +795,7 @@ export const SCROLL_USES: Readonly<
   'nh:scroll_of_enchant_armor': readScroll,
   'nh:scroll_of_remove_curse': readScroll,
   'nh:scroll_of_light': readScroll,
+  'nh:scroll_of_teleportation': readScroll,
   'nh:scroll_of_earth': readScroll,
   'nh:scroll_of_blank_paper': readScroll,
 };

@@ -8,6 +8,10 @@
 // create_critters(); src/mhitm.c sleep_monst(), slept_monst();
 // src/potion.c speed_up(); src/mhitu.c u_slow_down() (mon_adjust_speed() is in mstate.ts)
 //
+// Teleportation: monsters (u_teleport_mon()), objects (rloco.ts) and the zapper (tele()).
+// The wands of enlightenment, wishing, stasis, undead turning, cancellation, digging and death
+// exist but have no effect yet (a charge is spent, nothing is learned; m7d steps 2-7).
+//
 // Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
@@ -17,6 +21,7 @@ import {
   DIR_LIST,
   NORMAL_SPEED,
   cellIndex,
+  cellRules,
   contents,
   getPlayer,
   inBounds,
@@ -42,7 +47,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { setTerrain } from './actions';
-import { BOULDER, fractureRock } from './boulder';
+import { BOULDER, blockersOf, fractureRock } from './boulder';
+import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
 import { makemon } from './generation';
@@ -73,7 +79,8 @@ import { clearArea, litroom } from './read';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T } from './terrain';
-import { TRAP, dotrap, mintrap } from './trap';
+import { rloco } from './rloco';
+import { TRAP, dotrap, mintrap, tele, uTeleportMon } from './trap';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
 import { checkUnpaid } from './shk';
 
@@ -83,18 +90,26 @@ export const ZAP_ID: DefId = 'nh:zap';
 export const WAN = {
   light: 'nh:wand_of_light',
   secretDoor: 'nh:wand_of_secret_door_detection',
+  enlightenment: 'nh:wand_of_enlightenment',
   createMonster: 'nh:wand_of_create_monster',
+  wishing: 'nh:wand_of_wishing',
+  stasis: 'nh:wand_of_stasis',
   nothing: 'nh:wand_of_nothing',
   striking: 'nh:wand_of_striking',
   slow: 'nh:wand_of_slow_monster',
   speed: 'nh:wand_of_speed_monster',
+  undeadTurning: 'nh:wand_of_undead_turning',
+  cancellation: 'nh:wand_of_cancellation',
+  teleportation: 'nh:wand_of_teleportation',
   opening: 'nh:wand_of_opening',
   locking: 'nh:wand_of_locking',
   probing: 'nh:wand_of_probing',
+  digging: 'nh:wand_of_digging',
   magicMissile: 'nh:wand_of_magic_missile',
   fire: 'nh:wand_of_fire',
   cold: 'nh:wand_of_cold',
   sleep: 'nh:wand_of_sleep',
+  death: 'nh:wand_of_death',
   lightning: 'nh:wand_of_lightning',
 } as const;
 
@@ -537,6 +552,11 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       learnIt ||= openfallingtrap(ctx, mon).noticed;
       break;
     }
+    case WAN.teleportation:
+      // the wand is known if the monster is seen where it lands (or stays)
+      uTeleportMon(ctx, mon, true);
+      learnIt = canSpotMon(ctx, mon);
+      break;
     case WAN.nothing:
     default:
       wake = false;
@@ -604,6 +624,10 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
     case WAN.locking:
       if (isBox(ctx, obj)) res = boxlock(ctx, obj, otyp) ? 1 : 0;
       learnIt = res !== 0;
+      break;
+    case WAN.teleportation:
+      rloco(ctx, obj);
+      res = 1;
       break;
     default:
       break;
@@ -892,6 +916,24 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
       learnIt = true;
       ustatusline(ctx);
       break;
+    case WAN.teleportation: {
+      const was = { ...heroPos(ctx) };
+      tele(ctx);
+      // learned when she lands out of sight of where she was, or 4 or more squares away
+      const now = heroPos(ctx);
+      const level = levelOf(ctx);
+      const sight = clearPath(
+        level,
+        cellRules(level, ctx.defs).opaque,
+        now.x,
+        now.y,
+        was.x,
+        was.y,
+        blockersOf(ctx, level.id),
+      );
+      if (!sight || (now.x - was.x) ** 2 + (now.y - was.y) ** 2 >= 16) learnIt = true;
+      break;
+    }
     case WAN.nothing:
     default:
       break;

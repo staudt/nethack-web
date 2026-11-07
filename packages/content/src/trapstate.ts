@@ -56,6 +56,9 @@ export const uInPit = (ctx: Pick<Ctx, 'state'>): boolean => utrap(ctx)?.type ===
 /** ref: include/trap.h is_pit(): PIT or SPIKED_PIT */
 export const isPit = (def: DefId): boolean => def === 'nh:pit' || def === 'nh:spiked_pit';
 
+/** ref: include/trap.h is_hole() */
+export const isHole = (def: DefId): boolean => def === 'nh:trap_door' || def === 'nh:hole';
+
 /**
  * Whether the monster is trapped in a pit (or spiked pit). ref: src/mhitu.c mtrapped_in_pit()
  * (the hero's case is uInPit())

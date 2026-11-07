@@ -3,14 +3,13 @@
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet()
 //
 // Not ported (see DEVIATIONS.md): the tools outside the subset, Deafness, being underwater,
-// vault guards summoned by a cursed tin whistle, stasis and no-teleport levels, and the combined
+// vault guards summoned by a cursed tin whistle, stasis, and the combined
 // one-sentence report of a known magic whistle (each kind of move is its own sentence here).
 import {
   NORMAL_SPEED,
-  cellIndex,
   getPlayer,
+  inBounds,
   sortedIds,
-  trapAt,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -30,7 +29,8 @@ import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas, wornIn } from './props';
-import { mintrap } from './trap';
+import { noteleportLevel, teleok } from './teleport';
+import { mintrap, teleds } from './trap';
 import { setMtrapped } from './trapstate';
 
 export const APPLY_ID: DefId = 'nh:apply';
@@ -168,7 +168,10 @@ function magicWhistled(ctx: Ctx, obj: Entity): void {
     say(ctx, 'whistle.disappear_n', { n: { key: `whistle.n.${HOW_MANY(disappear)}` } });
 }
 
-/** The hero lands next to a random pet. ref: src/teleport.c tele_to_rnd_pet(), teleok() */
+/**
+ * The hero lands next to a random pet (teleds() with its "You materialize..." message and spot
+ * effects). ref: src/teleport.c tele_to_rnd_pet(), teleok()
+ */
 function teleToRndPet(ctx: Ctx): void {
   const h = hero(ctx);
   const hp = h.c.pos;
@@ -186,22 +189,8 @@ function teleToRndPet(ctx: Ctx): void {
   const tx = pp.x + ctx.rng.rn2(3) - 1;
   const ty = pp.y + ctx.rng.rn2(3) - 1;
   const level = ctx.state.levels[hp.level];
-  if (!level || tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) return;
-  // teleok(tx, ty, FALSE): no trap, a good position for the hero
-  const ter = level.palette[level.cells[cellIndex(level, tx, ty)] ?? 0];
-  if (!ter || !ctx.defs.terrain(ter).passable || trapAt(level, tx, ty)) return;
-  const occupied = sortedIds(ctx.state).some((id) => {
-    const p = ctx.state.entities[String(id)]?.c.pos;
-    return (
-      id !== h.id &&
-      ctx.state.entities[String(id)]?.c.monster &&
-      p?.level === hp.level &&
-      p.x === tx &&
-      p.y === ty
-    );
-  });
-  if (occupied) return;
-  h.c.pos = { level: hp.level, x: tx, y: ty }; // teleds(tx, ty, TELEDS_TELEPORT)
+  if (!level || !inBounds(level, tx, ty)) return; // isok()
+  if (teleok(ctx, level, tx, ty, false)) teleds(ctx, tx, ty, { teleport: true });
 }
 
 /** ref: src/apply.c use_magic_whistle() */
@@ -209,7 +198,8 @@ function useMagicWhistle(ctx: Ctx, obj: Entity): void {
   if (obj.c.item?.buc === 'cursed' && !ctx.rng.rn2(2)) {
     say(ctx, 'whistle.humming');
     wakeNearby(ctx);
-    if (!ctx.rng.rn2(2)) teleToRndPet(ctx);
+    const level = ctx.state.levels[hero(ctx).c.pos?.level ?? ''];
+    if (!ctx.rng.rn2(2) && level && !noteleportLevel(ctx, level)) teleToRndPet(ctx);
     return;
   }
   // it's magic!  it works underwater too (at a higher pitch)

@@ -6,7 +6,7 @@ import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import { ORACLE_LEVEL } from './oracle';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
-import { SOKOBAN_PRIZE_FIXUPS } from './zoo';
+import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
 
 /**
  * The filler level of the Gnomish Mines: a joined, walled cave of gnomes, dwarves and gems.

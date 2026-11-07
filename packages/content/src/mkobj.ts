@@ -47,6 +47,33 @@ export const BOX_PROBS: ClassProbs = [
   { prob: 1, cls: 'amulet', name: 'amulet' },
 ];
 
+/** rnd_class(WAN_LIGHT, WAN_LIGHTNING): every wand, in objects.h order. */
+const WANDS: readonly DefId[] = [
+  'nh:wand_of_light',
+  'nh:wand_of_secret_door_detection',
+  'nh:wand_of_enlightenment',
+  'nh:wand_of_create_monster',
+  'nh:wand_of_wishing',
+  'nh:wand_of_stasis',
+  'nh:wand_of_nothing',
+  'nh:wand_of_striking',
+  'nh:wand_of_slow_monster',
+  'nh:wand_of_speed_monster',
+  'nh:wand_of_undead_turning',
+  'nh:wand_of_cancellation',
+  'nh:wand_of_teleportation',
+  'nh:wand_of_opening',
+  'nh:wand_of_locking',
+  'nh:wand_of_probing',
+  'nh:wand_of_digging',
+  'nh:wand_of_magic_missile',
+  'nh:wand_of_fire',
+  'nh:wand_of_cold',
+  'nh:wand_of_sleep',
+  'nh:wand_of_death',
+  'nh:wand_of_lightning',
+];
+
 /** `for (tprob = rnd(100); (tprob -= iprobs->iprob) > 0; iprobs++)` */
 function rollClass(ctx: Pick<MkobjCtx, 'rng'>, probs: ClassProbs): ObjectClass | null {
   let tprob = ctx.rng.rnd(100);
@@ -187,9 +214,10 @@ export function mksobjFull(
  * ref: src/mkobj.c mkbox_cnts(): chest 7 if locked else 5, large box 5 or 3, sack and oilskin
  * sack 1 (0 for the starting inventory), bag of holding 1; then `rn2(n + 1)` objects made with
  * mkobj(class, FALSE); a rock becomes a gem, glass or gray stone (rnd_class(DILITHIUM_CRYSTAL,
- * LOADSTONE), keeping its BUC and at most 2 of it, as C changes only the otyp). Ice boxes, bags
- * of holding getting a sack instead of a bag and no wand of cancellation do not arise in the
- * subset. Boxes are not trapped (see DEVIATIONS.md).
+ * LOADSTONE), keeping its BUC and at most 2 of it, as C changes only the otyp); a wand of
+ * cancellation in a bag of holding becomes another wand (rnd_class(WAN_LIGHT, WAN_LIGHTNING),
+ * the type only). Ice boxes and bags of holding getting a sack instead of a bag do not arise in
+ * the subset (boxes hold no tools). Boxes are not trapped (see DEVIATIONS.md).
  */
 export function mkboxCnts(
   ctx: MkobjCtx,
@@ -232,6 +260,9 @@ export function mkboxCnts(
         o.def = rndClass(ctx.rng, ctx.defs, BOX_ROCK_GEMS, gemLedger(ctx.state, opts.level));
         if (it.quantity > 2) it.quantity = 1;
       }
+      // a bag of holding never holds a wand of cancellation: only the type changes
+      if (box.def === 'nh:bag_of_holding')
+        while (o.def === 'nh:wand_of_cancellation') o.def = rndClass(ctx.rng, ctx.defs, WANDS, 0);
     }
     putIn(ctx.defs, ctx.state, boxId, obj);
   }

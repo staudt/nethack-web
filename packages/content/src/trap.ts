@@ -2,7 +2,9 @@
 // pit, trap door and hole. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(),
 // dotrap(), mintrap(), trapeffect_*(), climb_pit(), fall_through(), thitm(), m_harmless_trap(),
 // src/mondata.c mons_see_trap(), src/teleport.c mlevel_tele_trap(), src/hack.c trapmove(),
-// src/pager.c doidtrap()
+// src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
+// src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
+// rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
 import {
   DIRS,
   DIR_LIST,
@@ -16,6 +18,7 @@ import {
   getLevel,
   getPlayer,
   inBounds,
+  inRooms,
   isVisible,
   sortedIds,
   trapAt,
@@ -34,13 +37,26 @@ import {
   type TrapDef,
 } from '@nh/core';
 import { blockersOf, boulderAt } from './boulder';
+import { TEMPLE, epriOf } from './epri';
+import { costlySpot, eshkOf, inhishop, onbill } from './eshk';
+import { DUNGEON_BOTTOM, dungeonBottom } from './levelflags';
+import { checkSpecialRoom } from './rooms';
+import { findObjowner, makeAngryShk, stolenValue } from './shk';
+import {
+  SOKOBAN_DUNGEON,
+  levelAtDepth,
+  noteleportLevel,
+  randomTeleportLevel,
+  rlocMonPos,
+  safeTeledsPos,
+} from './teleport';
 import { poisoned } from './attrib';
 import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
 import { erodeObj, type ErodeResult } from './erode';
 import { rlocPos } from './generation';
-import { ustuck } from './hackmove';
+import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
@@ -48,16 +64,17 @@ import { lookHere } from './itemactions';
 import { migrateToLevel } from './migrate';
 import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
-import { monWep, whichArmor } from './mongear';
+import { minvent, monWep, whichArmor } from './mongear';
 import { clearPath } from './clearpath';
 import { isFrozen, paralyzeMonst } from './mstate';
 import { doname, xnameOf } from './objnam';
-import { monNam } from './perception';
+import { canSpotMon, monNam, telepathSenses } from './perception';
 import { P, hasProp } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import {
   forgetMonTraps,
+  isHole,
   isMtrapped,
   isPit,
   monKnowsTraps,
@@ -106,10 +123,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.hole, nameKey: TRAP.hole, glyph: { ch: '^', fg: BROWN }, hole: true },
 ];
 
-/** ref: include/trap.h is_hole() */
-export const isHole = (def: DefId): boolean => def === TRAP.trapdoor || def === TRAP.hole;
-
-export { isPit };
+export { isHole, isPit };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -131,22 +145,7 @@ function dataOf(t: Trap): TrapData {
   return out;
 }
 
-/**
- * The bottom of a dungeon without one for holes and trap doors. NetHack's Dungeons of Doom has
- * `rn1(5, 25)` levels (dat/dungeon.lua base 25, range 5) with the Castle at the bottom; this
- * port's main dungeon is endless and uses the smallest of those, 25 (see DEVIATIONS.md). Stairs
- * still lead deeper.
- */
-export const DUNGEON_BOTTOM = 25;
-
-/**
- * The last level holes lead to in `level`'s dungeon: its last level, or for an endless dungeon
- * DUNGEON_BOTTOM (one below `level` once past it). ref: src/trap.c dng_bottom()
- */
-export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>): number {
-  const n = dungeonLayout(state, level.dungeon).levels;
-  return n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
-}
+export { DUNGEON_BOTTOM, dungeonBottom };
 
 /**
  * Whether one can fall through the floor of `level`: not on its dungeon's last level (or
@@ -1071,6 +1070,216 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
 
 /** True when the outcome means the monster left its square (died or fell). */
 export const trapRemovedMon = (r: TrapResult): boolean => r === 'killed' || r === 'moved';
+
+// ---------------------------------------------------------------------------------------------
+// teleporting the hero, monsters and objects (here because teleds() ends in dotrap() and the
+// teleport traps call back into it; teleport.ts finds the spots)
+
+/** ref: couldsee(x, y): a clear line from the hero to (x, y), lit or not */
+function couldsee(ctx: Ctx, x: number, y: number): boolean {
+  const p = heroPos(ctx);
+  const level = ctx.state.levels[p.level];
+  if (!level || !inBounds(level, x, y)) return false;
+  return clearPath(
+    level,
+    cellRules(level, ctx.defs).opaque,
+    p.x,
+    p.y,
+    x,
+    y,
+    blockersOf(ctx, p.level),
+  );
+}
+
+/**
+ * The hero moves at once to (x, y) of her level: out of any trap and grip, "You materialize in a
+ * different location!" for a teleport (`teleport`), then spoteffects(): shop and room entry or
+ * exit (walking out of a shop with its goods is robbery), the things here and the trap here (a
+ * pit before the things, as a step). The view catches up at the end of the step.
+ * ref: src/teleport.c teleds() (no ball and chain, engulfing, steeds, vaults or regions)
+ */
+export function teleds(ctx: Ctx, x: number, y: number, opts: { teleport?: boolean } = {}): void {
+  const h = heroEnt(ctx);
+  const p = heroPos(ctx);
+  const u = utrap(ctx);
+  if (u) setUtrap(ctx, 0, u.type); // reset_utrap(FALSE)
+  setUstuck(ctx, null);
+  const from = { x: p.x, y: p.y }; // u.ux0, u.uy0
+  h.c.pos = { level: p.level, x, y }; // u_on_newpos()
+  ctx.emit({ type: 'moved', id: h.id, from, to: { x, y } });
+  ctx.interrupt(); // nomul(0)
+  if (opts.teleport)
+    say(ctx, x === from.x && y === from.y ? 'tele.materialize_same' : 'tele.materialize_different');
+  // spoteffects(TRUE)
+  checkSpecialRoom(ctx, false, from);
+  const level = getLevel(ctx.state, p.level);
+  const t = trapAt(level, x, y);
+  if (t && isPit(t.def)) {
+    spotTrap(ctx);
+    if (!ctx.state.gameOver) lookHere(ctx);
+  } else {
+    lookHere(ctx);
+    if (!ctx.state.gameOver) spotTrap(ctx);
+  }
+}
+
+/**
+ * The hero teleports to a random safe spot of her level; false when there is none.
+ * ref: src/teleport.c safe_teleds(TELEDS_TELEPORT)
+ */
+export function safeTeleds(ctx: Ctx): boolean {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  const to = safeTeledsPos(ctx, level);
+  if (!to) return false;
+  teleds(ctx, to.x, to.y, { teleport: true });
+  return true;
+}
+
+/**
+ * The hero teleports within the level: "A mysterious force prevents you from teleporting!" on a
+ * no-teleport level, else to a random safe spot. Reading the scroll always makes it known, so the
+ * reader learns it whatever happens. Nothing gives teleport control yet, so a blessed scroll
+ * teleports at random too (see DEVIATIONS.md "Teleportation").
+ * ref: src/teleport.c tele(), scrolltele() (no Amulet, Wizard's Tower or wizard mode)
+ */
+export function tele(ctx: Ctx): void {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  if (noteleportLevel(ctx, level)) {
+    say(ctx, 'tele.mysterious_force');
+    return;
+  }
+  safeTeleds(ctx);
+}
+
+/**
+ * An uncontrolled level teleport: "You feel very disoriented for a moment." in Sokoban, "You
+ * shudder for a moment." when the random level is this one, else to a random spot of the level
+ * at that depth ("You materialize on a different level!"). Leaving a shop this way is leaving it
+ * by the stairs. ref: src/teleport.c level_tele() (random_levtport; no control, Amulet, endgame,
+ * quest, Gehennom or leashed pets), random_teleport_level(); src/dungeon.c get_level()
+ */
+export function levelTele(ctx: Ctx): void {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  if (level.dungeon === SOKOBAN_DUNGEON) {
+    say(ctx, 'tele.very_disoriented');
+    return;
+  }
+  const newlev = randomTeleportLevel(ctx, level);
+  const layout = dungeonLayout(ctx.state, level.dungeon);
+  if (newlev === layout.depthStart + level.dlevel - 1) {
+    say(ctx, 'tele.shudder');
+    return;
+  }
+  const to = levelAtDepth(ctx, level, newlev);
+  if (to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
+    const deepest = layout.depthStart + (layout.levels ?? dungeonBottom(ctx.state, level)) - 1;
+    say(ctx, newlev > deepest ? 'tele.cant_get_there_anywhere' : 'tele.cant_get_there_here');
+    return;
+  }
+  ctx.goToLevel(to, 'random'); // schedule_goto() -> goto_level(): u_on_rndspot(), pickup(1)
+  if (ctx.state.gameOver) return;
+  lookHere(ctx);
+  say(ctx, 'tele.materialize_level'); // the deferred goto's message
+}
+
+/**
+ * The monster moves to (x, y) of its level: "The jackal vanishes and reappears close by.",
+ * "The jackal vanishes!", "A jackal appears next to you!" (`domsg`, RLOC_MSG); a resident
+ * shopkeeper taken out of his shop gets angry, and shop goods it carries out are stolen by the
+ * hero; a trapped monster is checked against the trap where it lands.
+ * ref: src/teleport.c rloc_to_core() (no worms, engulfing, hiders or STRAT_APPEARMSG)
+ */
+export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boolean): void {
+  const p = mon.c.pos;
+  if (!p) return;
+  const oldx = p.x;
+  const oldy = p.y;
+  if (oldx === x && oldy === y) return; // that was easy
+  const residentShk = eshkOf(ctx, mon.id) !== null && inhishop(ctx, mon.id);
+  const hp = heroPos(ctx);
+  const onHeroLevel = p.level === hp.level;
+  let telemsg = false;
+  if (domsg && onHeroLevel && canSpotMon(ctx, mon)) {
+    if (couldsee(ctx, x, y) || telepathSenses(ctx.state, ctx.defs, mon)) telemsg = true;
+    else say(ctx, 'tele.mon_vanishes', { mon: monNam(ctx, mon) });
+  }
+  mon.c.pos = { level: p.level, x, y };
+  const stuck = ustuck(ctx);
+  if (stuck === mon.id && Math.max(Math.abs(x - hp.x), Math.abs(y - hp.y)) > 1)
+    setUstuck(ctx, null);
+  if (domsg && onHeroLevel && canSpotMon(ctx, mon)) {
+    const du = (x - hp.x) ** 2 + (y - hp.y) ** 2;
+    const near = du <= 2 ? 'next' : du <= BOLT_LIM * BOLT_LIM ? 'close' : null;
+    if (telemsg && (couldsee(ctx, x, y) || telepathSenses(ctx.state, ctx.defs, mon))) {
+      const olddu = (oldx - hp.x) ** 2 + (oldy - hp.y) ** 2;
+      const where = near ?? (olddu === du ? 'none' : du < olddu ? 'closer' : 'farther');
+      say(ctx, 'tele.mon_vanishes_reappears', {
+        mon: monNam(ctx, mon),
+        where: { key: `tele.where.${where}` },
+      });
+    } else
+      say(ctx, hasProp(heroEnt(ctx), P.BLINDED) ? 'tele.mon_arrives' : 'tele.mon_appears', {
+        mon: monNam(ctx, mon),
+        where: { key: `tele.where.${near ?? 'none'}` },
+      });
+  }
+  // shopkeepers only teleport if you zap them with a wand of teleportation
+  if (residentShk && !inhishop(ctx, mon.id)) makeAngryShk(ctx, mon.id);
+  // a monster carrying shop goods out of the shop: the hero is blamed
+  const inv = minvent(ctx, mon.id);
+  if (onHeroLevel && inv.length > 0 && !costlySpot(ctx, x, y)) {
+    const first = inv[0] as Entity;
+    const shkp = findObjowner(ctx, first, oldx, oldy);
+    const peaceful =
+      shkp === null || ctx.state.entities[String(shkp)]?.c.monster?.peaceful === true;
+    for (const o of inv) {
+      const it = o.c.item;
+      if (!it) continue;
+      if (it.noCharge) delete it.noCharge;
+      else if (shkp !== null && onbill(ctx, o.id, shkp))
+        stolenValue(ctx, o, oldx, oldy, peaceful, false);
+    }
+  }
+  // trapped monster teleported away
+  if (isMtrapped(ctx, mon.id)) mintrap(ctx, mon.id);
+}
+
+/** ref: include/hack.h BOLT_LIM */
+const BOLT_LIM = 8;
+
+/**
+ * The monster teleports to a random spot of its level; false when there is none.
+ * ref: src/teleport.c rloc()
+ */
+export function rlocMon(ctx: Ctx, mon: Entity, domsg: boolean): boolean {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!level) return false;
+  const to = rlocMonPos(ctx, level, mon);
+  if (!to) return false;
+  rlocTo(ctx, mon, to.x, to.y, domsg);
+  return true;
+}
+
+/**
+ * The hero teleports a monster (the wand's beam): a priest in a temple resists ("The priest of
+ * Odin resists your magic!"), anything else lands on a random spot. False when it stays.
+ * ref: src/teleport.c u_teleport_mon() (no stasis yet; no engulfers, riders or monsters with
+ * teleport control exist)
+ */
+export function uTeleportMon(ctx: Ctx, mon: Entity, feedback: boolean): boolean {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!p || !level) return false;
+  if (
+    epriOf(ctx, mon.id) !== null &&
+    inRooms(level, p.x, p.y).some((r) => level.rooms[r]?.type === TEMPLE)
+  ) {
+    if (feedback) say(ctx, 'tele.resists', { mon: monNam(ctx, mon) });
+    return false;
+  }
+  return rlocMon(ctx, mon, true);
+}
 
 // ---------------------------------------------------------------------------------------------
 // searching and looking
