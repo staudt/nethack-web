@@ -22,7 +22,11 @@ export const kickMessagesEn: Record<string, string> = {
   'kick.kicks_open_passage': 'Crash!  You kick open a secret passage!',
   'kick.you_kick_obj': 'You kick {item|an}.',
   'kick.thump': 'Thump!',
-  'kick.coins_scatter': 'Thwwpingg!  You scatter the coins!',
+  'kick.thwwpingg': 'Thwwpingg!',
+  // ref: src/dokick.c flyingcoinmsg[]
+  'kick.coins_scatter.0': 'You scatter the coins!',
+  'kick.coins_scatter.1': 'You knock coins all over the place!',
+  'kick.coins_scatter.2': 'You send coins flying in all directions!',
   'kick.shatters': 'The {item} shatters!',
   'kick.shatter': 'The {item} shatter!',
   'kick.you_kick_mon': 'You kick {mon|the}.',

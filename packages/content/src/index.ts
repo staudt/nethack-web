@@ -43,6 +43,7 @@ import { enhanceAction } from './skills';
 import { registerTeleportitis, registerTraps } from './trap';
 import { registerMagicTraps } from './magictrap';
 import { registerRollingBoulders } from './rollboulder';
+import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
 import { registerLevitation } from './levitation';
 import { registerAutosearch } from './actions';
@@ -112,6 +113,7 @@ export const vanillaMod: Mod = {
     registerTraps(api);
     registerMagicTraps();
     registerRollingBoulders();
+    registerLandmines();
     registerJewelry(api);
     registerLevitation(api);
     registerAutosearch(api);

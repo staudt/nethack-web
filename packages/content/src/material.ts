@@ -1,7 +1,7 @@
 // Object materials and erosion levels: the material tests, greatest_erosion and ARM_BONUS.
 // ref: include/objclass.h, include/obj.h, include/hack.h ARM_BONUS(), src/mkobj.c
 // is_flammable(), is_rottable(), src/objnam.c erosion_matters()
-import type { Entity, ObjectDef } from '@nh/core';
+import type { Ctx, Entity, ObjectDef } from '@nh/core';
 
 // ---------------------------------------------------------------------------------------------
 // materials
@@ -94,4 +94,14 @@ export function greatestErosion(item: Entity): number {
 export function armBonus(def: ObjectDef, item: Entity): number {
   const ac = def.armor?.ac ?? 0;
   return ac + (item.c.item?.spe ?? 0) - Math.min(greatestErosion(item), ac);
+}
+
+/**
+ * Whether the object breaks when it hits something hard: potions and glass (not gems); 1% resist.
+ * Eggs, cream pies, melons, venom and cameras do not exist. ref: src/dothrow.c breaktest()
+ */
+export function breaktest(ctx: Pick<Ctx, 'rng' | 'defs'>, e: Entity): boolean {
+  const od = ctx.defs.object(e.def);
+  if (ctx.rng.rn2(100) < 1) return false; // obj_resists(obj, 1, 99)
+  return od.class === 'potion' || (od.material === 'glass' && od.class !== 'gem');
 }

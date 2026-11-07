@@ -68,6 +68,7 @@ import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
 import { thitmonst } from './dothrow';
+import { scatter } from './scatter';
 import { costlySpot, eshkOf, isShopType } from './eshk';
 import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { monNam } from './perception';
@@ -301,7 +302,7 @@ function bhitKicked(
  * ref: src/dokick.c really_kick_object(). The range is `Str / 2 - weight / 40`; it is 1 when the
  * next square is a wall or closed door. A range under 2 is "Thump!" (and a bruise 2 times in 3).
  * Potions and glass shatter. A single coin stack scatters its coins ("Thwwpingg!") 19 times in 20
- * without moving anything; a kicked stack sends one object. The object flies and hits a monster
+ * (`scatter(x, y, rnd(3), VIS_EFFECTS | MAY_HIT)`); a kicked stack sends one object. The object flies and hits a monster
  * with thitmonst().
  */
 function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir): boolean {
@@ -353,9 +354,10 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
     if (!isgold) {
       id = splitStack(ctx, pile.id, 1);
     } else if (ctx.rng.rn2(20) !== 0) {
-      // coins scatter (the scatter() flight of each coin is not ported: they stay where they are)
-      say(ctx, 'kick.coins_scatter');
-      ctx.rng.rnd(3);
+      // the coins fly off in all directions (no deafness)
+      say(ctx, 'kick.thwwpingg');
+      say(ctx, `kick.coins_scatter.${ctx.rng.rn2(3)}`); // ROLL_FROM(flyingcoinmsg)
+      scatter(ctx, x, y, ctx.rng.rnd(3), { visEffects: true, mayHit: true }, pile);
       return true;
     } else if (it.quantity > 300) {
       say(ctx, 'kick.thump');

@@ -8,7 +8,7 @@
 // hands its effects in at registration (`setTrapEffect`), as magictrap.ts does; moverock.ts gets
 // the push case the same way (`setRollingPush`).
 //
-// Not ported: giants snatching the boulder (no giants), land mines on the way (none exist yet),
+// Not ported: giants snatching the boulder (no giants),
 // boulders migrating to another level through a level teleporter (no object migration: the
 // boulder is gone), the bones-file launch spot, deafness, steeds, water and lava.
 import {
@@ -25,7 +25,7 @@ import {
   type Pos,
   type Trap,
 } from '@nh/core';
-import { BOULDER, boulderAt } from './boulder';
+import { BOULDER, boulderAt, fractureRock } from './boulder';
 import { monsterIdAt } from './combat';
 import { diggingOf, setDigging } from './digstate';
 import { dmgvalSized } from './dmgval';
@@ -40,6 +40,7 @@ import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { rloco } from './rloco';
+import { scatter } from './scatter';
 import { randomTeleportLevel } from './teleport';
 import { isStwallId, terrainIdAt, T } from './terrain';
 import {
@@ -47,6 +48,7 @@ import {
   cansee,
   caughtOr,
   dataOf,
+  deltrap,
   isHole,
   isPit,
   seetrap,
@@ -101,7 +103,8 @@ function heroKills(ctx: Ctx, mon: Entity): void {
  * hit, a pit or hole swallows it, a teleporter sends it away).
  * ref: src/trap.c launch_obj() with style ROLL: it hits monsters (ohitmon() with a negative
  * range: a miss rolls on) and the hero (`thitu(9 + spe, dmgval())`), falls into pits and holes
- * (flooreffects()), vanishes on teleporters ("Suddenly the rolling boulder disappears!"), sets
+ * (flooreffects()), sets off land mines 7 times in 10 (it breaks apart and the blast scatters
+ * the rocks; the mine is gone), vanishes on teleporters ("Suddenly the rolling boulder disappears!"), sets
  * another boulder in motion, crashes through closed doors and stops before walls, rock and
  * trees ("Thump!") and iron bars ("Whang!").
  */
@@ -216,6 +219,25 @@ export function launchObj(
           stopped = true;
           break;
         }
+        case TRAP.landmine:
+          if (ctx.rng.rn2(10) > 2) {
+            flush();
+            say(ctx, cansee(ctx, levelId, x, y) ? 'roll.landmine' : 'roll.kaablamm');
+            deltrap(ctx, levelId, t);
+            placeObject(ctx, singleobj.id, levelId, x, y);
+            known = false; // singleobj->otrapped = 0
+            fractureRock(ctx, singleobj, false);
+            scatter(ctx, x, y, 4, {
+              mayDestroy: true,
+              mayHit: true,
+              mayFracture: true,
+              visEffects: true,
+              monMoving,
+            });
+            usedUp = true;
+            stopped = true;
+          }
+          break;
         default:
           if (isPit(t.def) || isHole(t.def)) {
             // the boulder won't be used up if there is a monster in the trap; stop rolling anyway

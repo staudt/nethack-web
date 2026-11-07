@@ -10,8 +10,7 @@
 // choices, the object-class filter menu of menustyle:full, looting several containers through one
 // "Loot which containers?" menu (each floor container has its own offer instead), reverse_loot()
 // while confused, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
-// bag of holding that explodes on its floor, scatter() of a bag of holding explosion (what
-// survives lands at the hero's feet), the weight check when taking things out of a carried container, the
+// bag of holding that explodes on its floor, the weight check when taking things out of a carried container, the
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
 import {
   NORMAL_SPEED,
@@ -45,7 +44,6 @@ import {
   mergable,
   merged,
   objKnown,
-  placeOnFloor,
   removeFromInventory,
   setCknown,
   setLknown,
@@ -60,6 +58,7 @@ import { P, heroHas } from './props';
 import { setSwapWep, swapWep } from './wield';
 import { HERE } from './priority';
 import { costlySpot } from './eshk';
+import { scatter } from './scatter';
 import { surfaceKey } from './terrain';
 import { levitating } from './trapstate';
 import {
@@ -155,15 +154,16 @@ function mbagItemGone(ctx: Ctx, item: Entity, silent: boolean): void {
 }
 
 /**
- * The contents of an exploding bag of holding: some are destroyed, the rest land at the hero's
- * feet (scatter() is not ported). ref: src/pickup.c do_boh_explosion()
+ * The contents of an exploding bag of holding: some are destroyed, the rest are scattered from
+ * the hero's square (`scatter(u.ux, u.uy, 4, MAY_HIT | MAY_DESTROY, otmp)`).
+ * ref: src/pickup.c do_boh_explosion()
  */
 function bohExplosion(ctx: Ctx, boh: Entity): void {
   const p = hero(ctx).c.pos;
   for (const o of contents(ctx.state, boh.id)) {
     takeOut(ctx.state, o.id);
     if (bohItemGone(ctx)) mbagItemGone(ctx, o, true);
-    else if (p) placeOnFloor(ctx, o.id, p.level, p.x, p.y);
+    else if (p) scatter(ctx, p.x, p.y, 4, { mayHit: true, mayDestroy: true }, o);
     else ctx.remove(o.id);
   }
 }

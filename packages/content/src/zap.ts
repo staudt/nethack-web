@@ -51,6 +51,7 @@ import {
   type TerrainDef,
   type Trap,
 } from '@nh/core';
+import { breaktest } from './material';
 import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped, unaware } from './btrapped';
@@ -654,13 +655,6 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     else wakeup(ctx, mon.id);
   }
   if (learnIt) learn(ctx, src);
-}
-
-/** ref: src/dothrow.c breaktest(): potions and glass (not gems) break; 1% resist */
-function breaktest(ctx: Ctx, e: Entity): boolean {
-  const od = ctx.defs.object(e.def);
-  if (ctx.rng.rn2(100) < 1) return false; // obj_resists(obj, 1, 99)
-  return od.class === 'potion' || (od.material === 'glass' && od.class !== 'gem');
 }
 
 /** ref: src/zap.c bhito() for a floor object; returns 1 when it was affected */

@@ -10,6 +10,7 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:falling_rock_trap': 'falling rock trap',
   'nh:squeaky_board': 'squeaky board',
   'nh:bear_trap': 'bear trap',
+  'nh:landmine': 'land mine',
   'nh:rolling_boulder_trap': 'rolling boulder trap',
   'nh:sleeping_gas_trap': 'sleeping gas trap',
   'nh:rust_trap': 'rust trap',
@@ -136,6 +137,7 @@ export const trapMessagesEn: Record<string, string> = {
   'killer.trap.little_dart': 'a little dart',
   'killer.trap.falling_rock': 'a falling rock',
   'killer.trap.bear_trap': 'a bear trap',
+  'killer.trap.landmine': 'a land mine',
   'killer.trap.mine_shaft': 'falling down a mine shaft',
   // NO_KILLER_PREFIX in NetHack ("fell into a pit"); worded to follow "killed by"
   'killer.trap.pit': 'falling into a pit',
@@ -260,4 +262,15 @@ export const trapMessagesEn: Record<string, string> = {
   'roll.whang': 'Whang!',
   // ref: src/hack.c moverock() ROLLING_BOULDER_TRAP
   'roll.rolls_away': '{what|The} suddenly rolls away from you!',
+  'roll.landmine': 'KAABLAMM!!!  The rolling boulder triggers a land mine.',
+  'roll.kaablamm': 'KAABLAMM!!!',
+
+  // land mines. ref: src/trap.c trapeffect_landmine(), src/hack.c moverock()
+  'trap.landmine.you': 'KAABLAMM!!!  You triggered a land mine!',
+  'trap.landmine.mon_triggers': 'KAABLAMM!!!  {mon|The} triggers a land mine!',
+  'trap.landmine.mon_trigger_appears': 'A trigger appears in a pile of soil below {mon|the}.',
+  'trap.landmine.air_currents': 'The air currents set it off!',
+  'trap.landmine.air_currents_mine': 'The air currents set a land mine off!',
+  'trap.landmine.hear': 'Kaablamm!  You hear an explosion in the distance!',
+  'trap.landmine.boulder': 'KAABLAMM!!  {what|The} triggers a land mine.',
 };

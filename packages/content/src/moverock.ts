@@ -2,8 +2,8 @@
 // cannot_push_msg(), could_move_onto_boulder()
 //
 // Ported subset: the hero is always a human on foot or floating (no riding, very small or giant
-// forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars, landmines,
-// teleporters or buried zombies (a rolling boulder trap rolls the boulder away: rollboulder.ts), and pushing a boulder in a shop does not
+// forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars,
+// teleporters or buried zombies (a rolling boulder trap rolls the boulder away: rollboulder.ts; a land mine goes off: landmine.ts), and pushing a boulder in a shop does not
 // bill it (DEVIATIONS.md "Boulders"). In Sokoban a boulder does not roll diagonally and
 // squeezing past one costs Luck.
 import {
@@ -45,6 +45,16 @@ type RollingPush = (ctx: Ctx, trap: Trap, from: Pos, dx: number, dy: number, wha
 let rollingPush: RollingPush | null = null;
 export function setRollingPush(fn: RollingPush): void {
   rollingPush = fn;
+}
+
+/**
+ * A boulder pushed onto a land mine may set it off (landmine.ts, above trap.ts, hands it in at
+ * registration); false when it did not go off.
+ */
+type LandminePush = (ctx: Ctx, trap: Trap, boulder: Entity, what: Msg) => boolean;
+let landminePush: LandminePush | null = null;
+export function setLandminePush(fn: LandminePush): void {
+  landminePush = fn;
 }
 
 /** ref: include/weight.h WT_SQUEEZABLE_INV */
@@ -237,6 +247,10 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       cannotPushMsg(ctx, what);
       return cannotPush(ctx);
     }
+    if (ttmp && ttmp.def === TRAP.landmine && landminePush?.(ctx, ttmp, otmp, what)) {
+      // the blast breaks the boulder apart or scatters it (into the new pit: fill_pit())
+      return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
+    }
     if (ttmp && isPit(ttmp.def)) {
       // the boulder falls into the pit; the other boulders stay where they are. "vision kludge
       // to get messages right": the pit counts as seen unless the hero is blind
@@ -265,7 +279,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       rollingPush(ctx, ttmp, { x: sx, y: sy }, dx, dy, what);
       return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
     }
-    // other traps do not affect a boulder (no landmines or teleporters)
+    // other traps do not affect a boulder (no teleporters)
     dopush(ctx, level, otmp, what, { x: sx, y: sy }, { x: rx, y: ry });
   }
   return 'moved';

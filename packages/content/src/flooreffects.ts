@@ -8,6 +8,7 @@ import {
   getPlayer,
   heroBlind,
   isVisible,
+  itemsAt,
   trapAt,
   type Ctx,
   type Entity,
@@ -36,8 +37,11 @@ import { xnameOf } from './objnam';
  */
 export const boulderDmgval = (ctx: Pick<Ctx, 'rng'>): number => ctx.rng.rnd(20);
 
-/** The verb of flooreffects() (`"fall"` from moverock() and the scroll of earth). */
-export type FloorVerb = 'fall';
+/**
+ * The verb of flooreffects(): `"fall"` from moverock() and the scroll of earth, `"land"` from
+ * scatter(), `"settle"` from fill_pit().
+ */
+export type FloorVerb = 'fall' | 'land' | 'settle';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | { key: string }>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -147,4 +151,25 @@ export function boulderFlooreffects(
 const monsterAt = (ctx: Ctx, levelId: string, x: number, y: number): Entity | null => {
   const id = monsterIdAt(ctx, { x, y }, levelId);
   return id === null || id === ctx.state.playerId ? null : (ctx.state.entities[String(id)] ?? null);
+};
+
+/**
+ * A boulder lying on a pit or hole fills it (after a land mine turned into a pit under it).
+ * ref: src/trap.c fill_pit()
+ */
+export function fillPit(ctx: Ctx, x: number, y: number, monMoving = false): void {
+  const levelId = ctx.state.currentLevel;
+  const level = ctx.state.levels[levelId];
+  const t = level ? trapAt(level, x, y) : undefined;
+  if (!t || !(isPit(t.def) || isHole(t.def))) return;
+  const b = boulderOn(ctx, levelId, x, y);
+  if (!b) return;
+  delete b.c.pos; // obj_extract_self()
+  if (!boulderFlooreffects(ctx, b, x, y, 'settle', false, monMoving))
+    b.c.pos = { level: levelId, x, y };
+}
+
+const boulderOn = (ctx: Ctx, levelId: string, x: number, y: number): Entity | null => {
+  for (const o of itemsAt(ctx.defs, ctx.state, levelId, x, y)) if (o.def === BOULDER) return o;
+  return null;
 };

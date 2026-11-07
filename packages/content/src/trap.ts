@@ -105,6 +105,7 @@ export const TRAP = {
   rock: 'nh:falling_rock_trap',
   squeaky: 'nh:squeaky_board',
   bear: 'nh:bear_trap',
+  landmine: 'nh:landmine',
   rolling: 'nh:rolling_boulder_trap',
   sleepGas: 'nh:sleeping_gas_trap',
   rust: 'nh:rust_trap',
@@ -126,9 +127,10 @@ const BLUE = '#4466ff';
 const BRIGHT_BLUE = '#5555ff';
 const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 const MAGENTA = '#bb44bb';
+const RED = '#cc3333';
 
 /**
- * ref: include/defsym.h S_arrow_trap .. S_hole, S_teleportation_trap, S_level_teleporter,
+ * ref: include/defsym.h S_arrow_trap .. S_hole (S_land_mine CLR_RED), S_teleportation_trap, S_level_teleporter,
  * S_magic_trap, S_anti_magic_trap (HI_ZAP)
  */
 export const TRAPS: readonly TrapDef[] = [
@@ -137,6 +139,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.rock, nameKey: TRAP.rock, glyph: { ch: '^', fg: GRAY } },
   { id: TRAP.squeaky, nameKey: TRAP.squeaky, glyph: { ch: '^', fg: BROWN } },
   { id: TRAP.bear, nameKey: TRAP.bear, glyph: { ch: '^', fg: CYAN } },
+  { id: TRAP.landmine, nameKey: TRAP.landmine, glyph: { ch: '^', fg: RED } },
   { id: TRAP.rolling, nameKey: TRAP.rolling, glyph: { ch: '^', fg: GRAY } },
   { id: TRAP.sleepGas, nameKey: TRAP.sleepGas, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.rust, nameKey: TRAP.rust, glyph: { ch: '^', fg: BLUE } },
@@ -922,6 +925,7 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
     levitating(ctx) &&
     (t.def === TRAP.bear ||
       t.def === TRAP.squeaky ||
+      t.def === TRAP.landmine ||
       t.def === TRAP.rolling ||
       isPit(t.def) ||
       isHole(t.def)) &&

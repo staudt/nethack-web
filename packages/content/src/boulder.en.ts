@@ -22,6 +22,13 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.into_pit_you_blind': 'A boulder {verb} into the pit with you.',
   'boulder.verb.fall': 'fall',
   'boulder.verb.falls': 'falls',
+  // ref: src/explode.c scatter()
+  'boulder.breaks_apart': 'The boulder breaks apart.',
+  'boulder.hear_breaking': 'You hear stone breaking.',
+  'boulder.verb.land': 'land',
+  'boulder.verb.lands': 'lands',
+  'boulder.verb.settle': 'settle',
+  'boulder.verb.settles': 'settles',
   'boulder.crash_beneath': 'You hear a CRASH! beneath you.',
   'boulder.fills_pit': 'The boulder fills a pit.',
   'boulder.plugs_hole_floor': 'The boulder plugs a hole.',
