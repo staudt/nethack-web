@@ -92,7 +92,8 @@ describe('Minetown placement', () => {
       const dl = special[0]?.dlevel ?? 0;
       expect([3, 4]).toContain(dl);
       seen.add(dl);
-      for (const d of state.dungeons) if (d.id !== 'nh:mines') expect(d.special).toEqual([]);
+      for (const d of state.dungeons)
+        if (d.id !== 'nh:mines') expect(d.special.map((x) => x.id)).not.toContain('nh:minetown');
     }
     expect([...seen].sort()).toEqual([3, 4]);
   });

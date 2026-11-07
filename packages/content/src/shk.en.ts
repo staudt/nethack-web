@@ -20,6 +20,7 @@ export const shkMessagesEn: Readonly<Record<string, string>> = {
   'shk.hello': 'Hello',
   'shk.hello.knight': 'Salutations',
   'shk.hello.samurai': 'Irasshaimase',
+  'shk.hello.samurai_other': 'Konnichi wa',
   'shk.hello.tourist': 'Aloha',
   'shk.hello.valkyrie': 'Velkommen',
   'shk.customer': 'customer',

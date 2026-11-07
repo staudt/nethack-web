@@ -7,7 +7,8 @@ export const WIZ_WHERE = 'wiz:where';
  * leaving it, by level (a branch before a special level on the same one); the level the hero
  * is on is marked `*`.
  * ref: src/dungeon.c print_dungeon(), print_branch(), chr_u_on_lvl() (bymenu false), as
- * messages instead of a window; there are no portals to list yet.
+ * messages instead of a window, with the overview's "Stairs up"/"Stairs down" (br_string2())
+ * for C's "Stair"; there are no portals to list yet.
  */
 export function printDungeon(ctx: Ctx): void {
   const dungeons: readonly DungeonLayout[] = ctx.state.dungeons;
@@ -26,15 +27,20 @@ export function printDungeon(ctx: Ctx): void {
       });
     else ctx.emit({ type: 'msg', key: 'wiz.where.level', params: { dungeon, start } });
     const lines = [
-      ...d.branches.map((b) => ({ dlevel: b.dlevel, special: false, id: b.to })),
-      ...d.special.map((s) => ({ dlevel: s.dlevel, special: true, id: s.id })),
+      ...d.branches.map((b) => ({
+        dlevel: b.dlevel,
+        special: false,
+        id: b.to,
+        up: b.dir === 'up',
+      })),
+      ...d.special.map((s) => ({ dlevel: s.dlevel, special: true, id: s.id, up: false })),
     ].sort((a, b) => a.dlevel - b.dlevel || Number(a.special) - Number(b.special));
     for (const l of lines) {
       const depth = start + l.dlevel - 1;
       if (!l.special) {
         ctx.emit({
           type: 'msg',
-          key: 'wiz.where.branch',
+          key: l.up ? 'wiz.where.branch_up' : 'wiz.where.branch',
           params: { dungeon: '@' + ctx.defs.dungeon(l.id).nameKey, depth },
         });
         continue;

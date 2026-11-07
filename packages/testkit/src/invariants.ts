@@ -727,14 +727,18 @@ function checkStairsReachable(state: GameState, registry: Registry, errs: string
 
 /**
  * Branch stairs match the dungeon layout: a dungeon's branch to another dungeon is on exactly the
- * level the layout says (on stairs going down) and on no other level of the parent, and the
- * branch's top level has the stairs back up to it. Only generated levels are checked.
+ * level the layout says (on stairs leading the branch's way, to the child's entry level) and on no
+ * other level of the parent, and the child's entry level has the stairs back the other way to it.
+ * Only generated levels are checked.
  */
 function checkBranches(state: GameState, registry: Registry, errs: string[]): void {
   const lids = Object.keys(state.levels).sort();
-  const parentOf = new Map<string, { dungeon: string; dlevel: number }>();
+  const parentOf = new Map<string, { dungeon: string; dlevel: number; dir: 'up' | 'down' }>();
+  const entryOf = new Map<string, number>();
   for (const d of state.dungeons) {
-    for (const b of d.branches) parentOf.set(b.to, { dungeon: d.id, dlevel: b.dlevel });
+    entryOf.set(d.id, d.entry ?? 1);
+    for (const b of d.branches)
+      parentOf.set(b.to, { dungeon: d.id, dlevel: b.dlevel, dir: b.dir ?? 'down' });
   }
   for (const lid of lids) {
     const lv = state.levels[lid];
@@ -744,13 +748,18 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     const stairs = id !== undefined && registry.hasTerrain(id) ? registry.terrain(id).stairs : null;
     if (stairs !== b.dir)
       errs.push(`level ${lid}: branch stairs ${b.dir} at ${b.pos.x},${b.pos.y} are on '${id}'`);
-    const down = parentOf.get(b.to.dungeon);
-    const up = parentOf.get(lv.dungeon);
-    if (b.dir === 'down') {
-      if (down?.dungeon !== lv.dungeon || down.dlevel !== lv.dlevel || b.to.dlevel !== 1)
+    const child = parentOf.get(b.to.dungeon);
+    const parent = parentOf.get(lv.dungeon);
+    if (child?.dungeon === lv.dungeon && child.dlevel === lv.dlevel) {
+      if (b.dir !== child.dir || b.to.dlevel !== entryOf.get(b.to.dungeon))
         errs.push(`level ${lid}: branch to '${b.to.dungeon}' is not in the layout`);
-    } else if (up?.dungeon !== b.to.dungeon || up.dlevel !== b.to.dlevel || lv.dlevel !== 1) {
-      errs.push(`level ${lid}: branch up to '${b.to.dungeon}' does not match the layout`);
+    } else if (
+      parent?.dungeon !== b.to.dungeon ||
+      parent.dlevel !== b.to.dlevel ||
+      lv.dlevel !== entryOf.get(lv.dungeon) ||
+      b.dir === parent.dir
+    ) {
+      errs.push(`level ${lid}: branch back to '${b.to.dungeon}' is not in the layout`);
     }
   }
   // every generated level that the layout gives a branch has it
@@ -760,7 +769,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     const wanted = [...parentOf].find(
       ([child, p]) =>
         (p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
-        (child === lv.dungeon && lv.dlevel === 1),
+        (child === lv.dungeon && lv.dlevel === entryOf.get(child)),
     );
     if (wanted && !lv.branch) errs.push(`level ${lid}: the layout's branch stairs are missing`);
   }

@@ -77,6 +77,11 @@ export interface Level {
   /** A town level (ref: sp_lev.c level flag "town", level.flags.has_town); see `inTown`. */
   town?: true;
   /**
+   * Sokoban's rules are in force: set by buildLevel from `LevelDef.flags.sokoban`; the mod that
+   * owns the rules deletes it once the level is solved. ref: level.flags.sokoban_rules
+   */
+  sokoban?: true;
+  /**
    * Altars that are shrines, in placement order (ref: rm.h AM_SHRINE in `altarmask`; sp_lev.c
    * create_altar()). Kept on the level, not on a priest, because a shrine outlives its priest.
    * Absent when there are none.

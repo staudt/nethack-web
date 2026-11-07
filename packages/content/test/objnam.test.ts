@@ -155,7 +155,7 @@ describe('item names (English)', () => {
     discover(ctxFor(p.s), 'nh:potion_of_healing');
     expect(p.name()).toBe('a potion of healing');
     const sc = make('nh:scroll_of_identify');
-    expect(sc.name()).toMatch(/^a scroll labeled [A-Z _]+$/);
+    expect(sc.name()).toMatch(/^a scroll labeled [A-Z0-9 _]+$/); // e.g. "NR 9"
     discover(ctxFor(sc.s), 'nh:scroll_of_identify');
     expect(sc.name()).toBe('a scroll of identify');
     // "an" before a vowel-led appearance

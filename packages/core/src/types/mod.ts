@@ -178,10 +178,11 @@ export interface TrapDef {
 }
 
 /**
- * A dungeon: a chain of levels. Every dungeon but one has an `entry`, a branch staircase down
- * from a level of another dungeon to its top level; the one without is the root, whose levels
- * have ids `dlvl<N>`. Without any DungeonDef the engine uses one endless root dungeon,
- * `core:dungeon`. A mod can attach its own dungeon to another mod's.
+ * A dungeon: a chain of levels. Every dungeon but one has an `entry`, a branch staircase (down
+ * by default) from a level of another dungeon to its entry level (`entryLevel`, the top by
+ * default); the one without is the root, whose levels have ids `dlvl<N>`. Without any DungeonDef
+ * the engine uses one endless root dungeon, `core:dungeon`. A mod can attach its own dungeon to
+ * another mod's.
  * ref: dat/dungeon.lua, src/dungeon.c init_dungeons()
  */
 export interface DungeonDef {
@@ -191,6 +192,12 @@ export interface DungeonDef {
   levels?: { base: number; range?: number };
   /** Where its branch stairs leave from. */
   entry?: DungeonEntryDef;
+  /**
+   * The level its branch stairs arrive on: 0 or omitted the top, `n > 0` level n, `n < 0`
+   * counted from the bottom (-1 = the last level); clamped to the dungeon. A negative value needs
+   * `levels`. ref: dat/dungeon.lua `entry`; src/dungeon.c init_dungeon_set_entry()
+   */
+  entryLevel?: number;
   /** LevelDef for its ordinary levels; omitted for the rooms-and-corridors generator. */
   filler?: DefId;
   /** Its fixed special levels, placed in this order when the layout is rolled. */
@@ -219,11 +226,25 @@ export interface SpecialLevelDef {
 
 /** ref: dat/dungeon.lua branches; src/dungeon.c parent_dlevel(), level_range() */
 export interface DungeonEntryDef {
-  /** The DungeonDef whose level has the branch stairs down. */
+  /** The DungeonDef whose level has the branch stairs. */
   from: DefId;
-  /** On level `base` of `from`, or one of `base .. base + range - 1`. */
+  /**
+   * On level `base` of `from`, or one of `base .. base + range - 1`. With `chain` the levels
+   * count from that special level's: `base` 1 is the level below it (`base` may then be any
+   * integer that stays inside `from`).
+   */
   base: number;
   range?: number;
+  /**
+   * A SpecialLevelDef id of `from` that `base` counts from; it must always exist (`chance` 100).
+   * ref: dat/dungeon.lua `chainlevel`; src/dungeon.c level_range() (chain >= 0)
+   */
+  chain?: DefId;
+  /**
+   * Which way the stairs on `from` lead: `down` (default) or `up` into this dungeon, which then
+   * lies above that level. ref: dat/dungeon.lua `direction`; src/dungeon.c init_dungeon_set_depth()
+   */
+  dir?: 'up' | 'down';
 }
 
 /**
@@ -260,11 +281,21 @@ export interface LevelDef {
   /**
    * Where the up and down stairs go; the dungeon still decides which exist. Omitted: a random
    * floor or corridor cell (inside the map block when there is one).
-   * ref: src/sp_lev.c lspo_stair(), lspo_levregion(); src/mkmaze.c place_lregion()
+   * `branch` places the branch stairs, when the dungeon gives the level some; omitted they go
+   * on a random floor or corridor cell of the whole level.
+   * ref: src/sp_lev.c lspo_stair(), lspo_levregion() (type "branch"); src/mkmaze.c
+   * place_lregion()
    */
-  stairs?: { up?: StairPlace; down?: StairPlace };
-  /** `inaccessibles`: join every open area to the stairs. ref: src/sp_lev.c ensure_way_out() */
-  flags?: { inaccessibles?: boolean };
+  stairs?: { up?: StairPlace; down?: StairPlace; branch?: StairPlace };
+  /**
+   * `inaccessibles`: join every open area to the stairs (ref: src/sp_lev.c ensure_way_out()).
+   * `sokoban`: the level is built with `Level.sokoban` set, Sokoban's rules, which the mod that
+   * owns them clears once the puzzle is solved (ref: sp_lev.c level flag "sokoban",
+   * `level.flags.sokoban_rules`). `premapped`: the whole level is known on the first arrival;
+   * core only stores the flag, the owning mod maps the level (ref: level flag "premapped",
+   * src/mkmaze.c sokoban_detect()).
+   */
+  flags?: { inaccessibles?: boolean; sokoban?: boolean; premapped?: boolean };
   contents?: LevelContent[];
 }
 
@@ -572,7 +603,8 @@ export type MonsterSound =
   | 'priest'
   | 'sell'
   | 'groan'
-  | 'djinni';
+  | 'djinni'
+  | 'oracle';
 
 /** Runs a non-hero actor's turn. The engine deducts NORMAL_SPEED before calling `act`. */
 export interface BrainDef {

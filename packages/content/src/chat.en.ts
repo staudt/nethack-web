@@ -49,6 +49,8 @@ export const chatMessagesEn: Record<string, string> = {
   'chat.soldier.food': '"The food\'s not fit for Orcs!"',
   'chat.soldier.feet': '"My feet hurt, I\'ve been on them all day!"',
   'chat.threatens': '{mon|The} threatens you.',
+  'chat.oracle.no_mood': '{mon|The} is in no mood for consultations.',
+  'chat.oracle.no_gold': 'You have no gold.',
   'chat.nothing_to_do': '{mon|The} wants nothing to do with you.',
   'chat.moans': '{mon|The} moans.',
   'chat.huh': '"Huh?"',

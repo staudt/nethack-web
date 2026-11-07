@@ -38,6 +38,7 @@ describe('vanilla monsters', () => {
       'plys',
       'stck',
       'drco',
+      'magm', // the Oracle's passive (uhitm_passive.ts)
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

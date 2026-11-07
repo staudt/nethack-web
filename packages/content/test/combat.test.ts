@@ -273,14 +273,20 @@ describe('formulas', () => {
 describe('hero attacks', () => {
   const fight = (seed: number) => {
     const s = setup(seed);
+    // the pet keeps its spot from the real DL1, which may be the newt's: send it away
+    for (const e of Object.values(s.state.entities))
+      if (e.c.monster?.tame !== undefined) delete s.state.entities[String(e.id)];
     const newt = spawn(s.state, 'nh:newt', { x: 4, y: 2 }, 3);
+    // pinned (speed 0): a newt that moves off the square would let the hero step after it
+    const actor = s.state.entities[String(newt)]?.c.actor;
+    if (actor) actor.speed = 0;
     const log: string[] = [];
     let kills = 0;
     for (let i = 0; i < 60 && s.state.entities[String(newt)]; i++) {
       const before = getPlayer(s.state).c.experience?.points ?? 0;
       const r = s.engine.step(s.state, { type: 'move', dir: 'e' });
       const m = msgs(r.events);
-      log.push(...m.filter((k) => k.startsWith('combat.you_'))); // the newt may bite back
+      log.push(...m.filter((k) => k.startsWith('combat.you_')));
       if (m.includes('combat.you_kill')) {
         kills++;
         expect(getPlayer(s.state).c.experience?.points).toBeGreaterThan(before);

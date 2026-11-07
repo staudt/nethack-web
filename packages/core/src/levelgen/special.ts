@@ -47,7 +47,7 @@ import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS, type LevelTerrain } from './terra
  * the `init` map, then the map block, rooms and corridors, regions, edits, doors and features,
  * then put up stairs,
  * down stairs and branch stairs (as `opts` asks), then join inaccessible areas, set door
- * orientations and fix the walls. Cave (`mines`) levels have CAVE_PALETTE_KEYS after
+ * orientations and fix the walls. `flags.sokoban` sets `Level.sokoban`. Cave (`mines`) levels have CAVE_PALETTE_KEYS after
  * PALETTE_KEYS in their palette; other terrains are appended as they are used.
  * ref: src/sp_lev.c splev_initlev(), lspo_map(), lspo_room(), lspo_random_corridors(),
  *   lspo_region(), lspo_terrain(), lspo_door(),
@@ -155,11 +155,17 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
   }
   if (opts.branch) {
     const whole = { x: 0, y: 0, w: width, h: height };
-    const pos = randomSpot(rng, level, whole, good, 200);
+    // ref: lspo_levregion() type "branch" -> place_lregion(); without one, the whole level
+    const place = def.stairs?.branch;
+    const pos =
+      place === undefined
+        ? randomSpot(rng, level, whole, good, 200)
+        : placeStair(b, place, whole, good, 'stairs.branch');
     cells[pos.y * width + pos.x] = opts.branch.dir === 'up' ? PAL.stairs_up : PAL.stairs_down;
     level.branch = { pos, to: opts.branch.to, dir: opts.branch.dir };
   }
 
+  if (def.flags?.sokoban === true) level.sokoban = true; // level_flags("sokoban")
   if (special) {
     // ref: lspo_finalize_level(): link_doors_rooms(), ensure_way_out(), wallification()
     if (def.flags?.inaccessibles === true) ensureWayOut(b);

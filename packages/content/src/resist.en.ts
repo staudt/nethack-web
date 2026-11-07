@@ -48,6 +48,8 @@ export const resistMessagesEn: Record<string, string> = {
 
   // passive(). ref: src/uhitm.c passive()
   'passive.splashed': 'You are splashed by {mon|the_s} acid!',
+  'passive.magm_miss': 'A hail of magic missiles narrowly misses you!',
+  'passive.magm_hit': 'You are hit by magic missiles appearing from thin air!',
   'passive.frozen_gaze': 'You are frozen by {mon|the_s} gaze!',
   'passive.frozen': 'You are frozen by {mon|the}!',
   'passive.mild_chill': 'You feel a mild chill.',

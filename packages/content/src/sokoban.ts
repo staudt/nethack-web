@@ -4,11 +4,10 @@ import type { Ctx, Level } from '@nh/core';
 import { changeLuck } from './luck';
 
 /**
- * The level still has Sokoban's rules. ref: include/rm.h `Sokoban`. `Level.sokoban` arrives
- * with the Sokoban levels (a later step); until then no level has it and this is always false.
+ * The level still has Sokoban's rules (`Level.sokoban`, set from `LevelDef.flags.sokoban`).
+ * ref: include/rm.h `Sokoban`
  */
-export const isSokoban = (level: Readonly<Level>): boolean =>
-  'sokoban' in level && level.sokoban === true;
+export const isSokoban = (level: Readonly<Level>): boolean => level.sokoban === true;
 
 /**
  * Cheating in Sokoban (squeezing past or breaking a boulder, reading earth) costs a point of

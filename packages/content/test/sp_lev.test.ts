@@ -115,7 +115,10 @@ describe('LevelDef contents', () => {
       const { state, level } = visit(seed, 'tl:rooms_d');
       expect(level.def).toBe('tl:rooms');
       const { monsters, items } = onLevel(state, level);
-      for (const e of [...monsters, ...items]) {
+      // mklev's own room gold is made before its fountains (mklev.c makelevel(): mkgold() then
+      // mkfount()), so a fountain may stand on it; the contents never make gold (mkobjprobs)
+      const made = items.filter((i) => i?.def !== 'nh:gold_piece');
+      for (const e of [...monsters, ...made]) {
         const p = e?.c.pos;
         if (!p) throw new Error('no pos');
         expect(dry).toContain(level.palette[level.cells[p.y * level.width + p.x] ?? -1]);

@@ -61,7 +61,7 @@ function play(state: GameState, picks: readonly number[], onStep?: () => void): 
 }
 
 describe('item soak', () => {
-  itemSoaks([101, 104, 105]);
+  itemSoaks([101, 104, 108]); // 108 throws (m7b step 5: 105 no longer did)
 });
 
 describe('item properties', () => {

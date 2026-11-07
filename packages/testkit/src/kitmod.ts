@@ -82,8 +82,8 @@ export const branchStartMod: Mod = {
 
 /**
  * A game mod for soak runs on a special level: at new game it sends the hero to the up stairs of
- * the first special level in the dungeon layout (Minetown in vanilla), so the bot plays there
- * from the start. Load it after the vanilla mod. Without a special level it does nothing.
+ * the first special level of a branch dungeon in the layout (Minetown in vanilla), else of the
+ * main dungeon, so the bot plays there from the start. Load it after the vanilla mod. Without a special level it does nothing.
  */
 export const specialStartMod: Mod = {
   id: 'testkit-special-start',
@@ -95,7 +95,9 @@ export const specialStartMod: Mod = {
       'levelChange',
       (ctx, change) => {
         if (change.from !== null) return;
-        for (const d of ctx.state.dungeons) {
+        // branch dungeons first: the main dungeon's Oracle comes before Minetown in the layout
+        const [root, ...branches] = ctx.state.dungeons;
+        for (const d of root ? [...branches, root] : branches) {
           const sp = d.special[0];
           if (!sp) continue;
           ctx.goToLevel({ dungeon: d.id, dlevel: sp.dlevel }, 'up');

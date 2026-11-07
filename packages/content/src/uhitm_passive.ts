@@ -34,8 +34,8 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
  * `malive` whether it survived.
  * `weapon` is what hit it (uwep, or uarmf for a kick, or null bare-handed): fire burns and acid
  * corrodes it (passive_obj(), or the boots one time in six), and an acid splash may corrode
- * armor. ref: src/uhitm.c passive(). Golems and `mcan` are not ported; the stoning, rust,
- * corrosion, magic missile and disenchantment cases belong to monsters we do not have. Not ported: brown
+ * armor; the Oracle's magic missiles. ref: src/uhitm.c passive(). Golems and `mcan` are not
+ * ported; the stoning, rust, corrosion and disenchantment cases belong to monsters we do not have. Not ported: brown
  * mold splitting (split_mon). The floating eye's gaze is never reflected (no reflection) nor
  * resisted (no Free_action, no hallucination, no blindness) and the monster is never blind.
  */
@@ -78,6 +78,14 @@ export function passive(
       if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, hero.id, 'corrode');
     }
     if (mhit) hitObj('corrode');
+    if (ctx.state.gameOver) return;
+  } else if (atk.ad === 'magm') {
+    // wrath of gods for attacking Oracle (no shieldeff or monstseesu here)
+    if (hasProp(hero, P.ANTIMAGIC)) say(ctx, 'passive.magm_miss');
+    else {
+      say(ctx, 'passive.magm_hit');
+      mdamageu(ctx, tmp, killer);
+    }
     if (ctx.state.gameOver) return;
   }
 

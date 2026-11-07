@@ -98,13 +98,16 @@ export function shkname(ctx: Pick<Ctx, 'state' | 'cosmetic'>, e: Eshk): string {
   return shkName(e);
 }
 
-/** The role's greeting, as a message key param. ref: src/role.c Hello() (to a shopkeeper) */
-export function hello(ctx: Pick<Ctx, 'state'>): string {
+/**
+ * The role's greeting, as a message key param: to a shopkeeper, or (`toShk` false) to nobody in
+ * particular, where a Samurai says "Konnichi wa". ref: src/role.c Hello()
+ */
+export function hello(ctx: Pick<Ctx, 'state'>, toShk = true): string {
   switch (getPlayer(ctx.state).c.player?.role) {
     case 'nh:knight':
       return '@shk.hello.knight';
     case 'nh:samurai':
-      return '@shk.hello.samurai';
+      return toShk ? '@shk.hello.samurai' : '@shk.hello.samurai_other';
     case 'nh:tourist':
       return '@shk.hello.tourist';
     case 'nh:valkyrie':

@@ -425,8 +425,22 @@ export function loadMods(mods: readonly Mod[]): Registry {
         }
         if (d.entry !== undefined) {
           str(d.entry.from, 'entry.from', d.id);
-          posInt(d.entry.base, 'entry.base');
+          // with a chain level the base is relative to it and may be any integer
+          if (d.entry.chain === undefined) posInt(d.entry.base, 'entry.base');
+          else {
+            str(d.entry.chain, 'entry.chain', d.id);
+            if (!Number.isInteger(d.entry.base)) issue('entry.base', 'must be an integer', d.id);
+          }
           range(d.entry.range, 'entry.range');
+          if (d.entry.dir !== undefined && d.entry.dir !== 'up' && d.entry.dir !== 'down')
+            issue('entry.dir', "must be 'up' or 'down'", d.id);
+        }
+        if (d.entryLevel !== undefined) {
+          if (!Number.isInteger(d.entryLevel)) issue('entryLevel', 'must be an integer', d.id);
+          else if (d.entry === undefined)
+            issue('entryLevel', 'the root dungeon has no branch stairs to arrive by', d.id);
+          else if (d.entryLevel < 0 && d.levels === undefined)
+            issue('entryLevel', 'cannot count from the bottom of an endless dungeon', d.id);
         }
         if (d.filler !== undefined) str(d.filler, 'filler', d.id);
         if (d.special !== undefined) {
@@ -739,7 +753,8 @@ function contentIssues(prefix: string, contents: unknown, out: [string, string][
 
 /**
  * Root first, then breadth-first, each dungeon's children in registration order. Reports a
- * missing or second root, unknown `entry.from`, an entry below the bottom of its parent, and
+ * missing or second root, unknown `entry.from`, an entry below the bottom of its parent, a
+ * `chain` that is not an always-made special level of the parent, and
  * dungeons that cannot be reached from the root (a loop).
  */
 function orderDungeons(
@@ -758,7 +773,44 @@ function orderDungeons(
         path: 'entry.from',
         reason: `unknown dungeon '${d.entry.from}'`,
       });
-    else if (parent.levels && d.entry.base > parent.levels.base)
+    else if (d.entry.chain !== undefined) {
+      // ref: src/dungeon.c level_range(): an absent chain level panics, so it must always exist
+      const sp = (Array.isArray(parent.special) ? parent.special : []).find(
+        (x) => x.id === d.entry?.chain,
+      );
+      if (!sp)
+        issues.push({
+          modId: d.mod,
+          defId: d.id,
+          path: 'entry.chain',
+          reason: `'${d.entry.chain}' is not a special level of '${parent.id}'`,
+        });
+      else if ((sp.chance ?? 100) !== 100)
+        issues.push({
+          modId: d.mod,
+          defId: d.id,
+          path: 'entry.chain',
+          reason: `special level '${sp.id}' must always exist (chance 100)`,
+        });
+      else if (sp.base > 0 && sp.base + d.entry.base < 1)
+        issues.push({
+          modId: d.mod,
+          defId: d.id,
+          path: 'entry.base',
+          reason: `is above the top of '${parent.id}'`,
+        });
+      else if (
+        sp.base > 0 &&
+        parent.levels &&
+        sp.base + (sp.range || 1) - 1 + d.entry.base > parent.levels.base
+      )
+        issues.push({
+          modId: d.mod,
+          defId: d.id,
+          path: 'entry.base',
+          reason: `is below the bottom of '${parent.id}'`,
+        });
+    } else if (parent.levels && d.entry.base > parent.levels.base)
       issues.push({
         modId: d.mod,
         defId: d.id,

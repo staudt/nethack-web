@@ -207,7 +207,7 @@ describe('wiz:where', () => {
       for (const l of lines)
         if ('b' in l)
           expected.push({
-            key: 'wiz.where.branch',
+            key: l.b.dir === 'up' ? 'wiz.where.branch_up' : 'wiz.where.branch',
             params: {
               dungeon: '@' + wizard.registry.dungeon(l.b.to).nameKey,
               depth: start + l.dl - 1,
@@ -217,7 +217,10 @@ describe('wiz:where', () => {
           expected.push({
             key: 'wiz.where.special',
             params: {
-              name: '@' + (l.sp.id === 'nh:minetown' ? 'nh:minetown' : 'nh:minesend'),
+              name:
+                '@' +
+                (wizard.registry.dungeon(d.id).special?.find((x) => x.id === l.sp.id)?.nameKey ??
+                  '?'),
               depth: start + l.dl - 1,
             },
           });
@@ -225,14 +228,22 @@ describe('wiz:where', () => {
     const got = msgs(events).map((m) => ({ key: m.key, params: m.params }));
     expect(got).toEqual(expected);
 
-    // The vanilla layout: the Dungeons of Doom (no bottom yet) with the Mines branch, then the Mines.
+    // The vanilla layout: the Dungeons of Doom (no bottom yet) with the Mines branch and the
+    // Oracle on DL5-9, then the Mines.
     const [main, mines] = state.dungeons;
     const branch = main?.branches[0];
+    const oracle = main?.special[0];
+    expect([5, 6, 7, 8, 9]).toContain(oracle?.dlevel);
     expect(got[0]).toEqual({ key: 'wiz.where.open', params: { dungeon: '@nh:main', start: 1 } });
     expect(got[1]).toEqual({
       key: 'wiz.where.branch',
       params: { dungeon: '@nh:mines', depth: branch?.dlevel ?? -1 },
     });
+    expect(got[2]).toEqual({
+      key: 'wiz.where.special',
+      params: { name: '@nh:oracle', depth: oracle?.dlevel ?? -1 },
+    });
+    got.splice(2, 1);
     expect(got[2]).toEqual({
       key: 'wiz.where.levels',
       params: {

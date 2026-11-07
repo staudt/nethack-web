@@ -28,6 +28,7 @@ import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { isFleeing } from './monflee';
+import { moneyCnt } from './money';
 import { isFrozen, isMConfused, isMStunned } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
@@ -176,6 +177,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       }
       say(ctx, 'chat.djinni.teach');
       return NORMAL_SPEED;
+    case 'oracle':
+      // ref: src/rumors.c doconsult(): its refusals only, no time (ECMD_OK); the consultations
+      // themselves are not ported, so with gold nothing happens (DEVIATIONS "The Oracle")
+      if (!m.peaceful) say(ctx, 'chat.oracle.no_mood', { mon: name });
+      else if (moneyCnt(ctx, ctx.state.playerId) === 0) say(ctx, 'chat.oracle.no_gold');
+      return 0;
     case 'soldier': {
       const lines = m.peaceful ? SOLDIER_PAX : SOLDIER_FOE;
       say(ctx, lines[ctx.rng.rn2(3)] ?? 'chat.soldier.useless');

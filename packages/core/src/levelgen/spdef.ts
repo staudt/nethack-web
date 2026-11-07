@@ -573,7 +573,7 @@ export function specialLevelIssues(def: LevelDef): Issues {
   if (d.stairs !== undefined) {
     if (!isObj(d.stairs)) out.push(['stairs', 'must be an object']);
     else
-      for (const dir of ['up', 'down'] as const) {
+      for (const dir of ['up', 'down', 'branch'] as const) {
         const s = d.stairs[dir];
         const path = `stairs.${dir}`;
         if (s === undefined) continue;
@@ -595,8 +595,10 @@ export function specialLevelIssues(def: LevelDef): Issues {
   }
   if (d.flags !== undefined) {
     if (!isObj(d.flags)) out.push(['flags', 'must be an object']);
-    else if (d.flags.inaccessibles !== undefined && typeof d.flags.inaccessibles !== 'boolean')
-      out.push(['flags.inaccessibles', 'must be a boolean']);
+    else
+      for (const f of ['inaccessibles', 'sokoban', 'premapped'] as const)
+        if (d.flags[f] !== undefined && typeof d.flags[f] !== 'boolean')
+          out.push([`flags.${f}`, 'must be a boolean']);
   }
   if (Array.isArray(d.contents))
     d.contents.forEach((c: unknown, i) => {

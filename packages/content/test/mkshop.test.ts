@@ -67,6 +67,8 @@ for (let seed = 1; seed <= 30; seed++) {
     const shks = sortedIds(state).filter(
       (id) => state.entities[String(id)]?.c.pos?.level === lv.id && eshkOf({ state }, id),
     );
+    // the Oracle (DL5-9) is a special level, which gets no random shop
+    if (lv.def !== undefined) continue;
     levels.push(lv);
     shkRooms.set(
       lv,

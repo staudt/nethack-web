@@ -1818,4 +1818,31 @@ export const MONSTERS: readonly MonsterDef[] = [
     brain: 'nh:melee',
     sound: 'priest',
   },
+  // ref: monsters.h MON(NAM("Oracle"), S_HUMAN, LVL(12, 0, 0, 50, 0), (G_NOGEN | G_UNIQ),
+  // A(ATTK(AT_NONE, AD_MAGM, 0, 4)), SIZ(WT_HUMAN, 400, MS_ORACLE, MZ_HUMAN), ..., 13, HI_ZAP).
+  // "The Oracle of Delphi doesn't move" (speed 0). MS_ORACLE: #chat gives doconsult()'s
+  // refusals only (chat.ts); the consultations are not ported.
+  {
+    id: 'nh:oracle',
+    nameKey: 'nh:oracle',
+    glyph: { ch: '@', fg: BRIGHT_BLUE },
+    level: 12,
+    speed: 0,
+    ac: 0,
+    mr: 50,
+    alignment: 0,
+    attacks: [{ at: 'passive', ad: 'magm', n: 0, d: 4 }],
+    size: 'medium',
+    flags: ['humanoid', 'omnivore', 'nopoly', 'human', 'peaceful', 'female', 'infravisible'],
+    frequency: 0,
+    group: null,
+    genFlags: ['nogen', 'uniq'],
+    difficulty: 13,
+    weight: 1450,
+    nutrition: 400,
+    resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'oracle',
+  },
 ];
