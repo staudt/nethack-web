@@ -127,6 +127,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:flint_stone.plural': 'flint stones',
   'nh:rock': 'rock',
   'nh:rock.plural': 'rocks',
+  'nh:boulder': 'boulder',
+  'nh:boulder.plural': 'boulders',
 
   // ---- armor ----
   'nh:small_shield': 'small shield',

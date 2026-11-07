@@ -15,7 +15,7 @@ import {
   type LevelTerrain,
 } from './levelgen/index';
 import { cellRules } from './movement';
-import { allContents, topObjects } from './objects';
+import { allContents, sightBlockers, topObjects } from './objects';
 import { createQuery } from './query';
 import { loadMods, requireTerrains } from './registry';
 import { createRng, newRngStates } from './rng';
@@ -278,6 +278,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           cellRules(level, registry),
           playerPos(state),
           heroLights(registry, state),
+          sightBlockers(registry, state, level.id),
         );
     const memory = (state.memory[level.id] ??= newMemory(level));
     updateMemory(memory, level, visible);

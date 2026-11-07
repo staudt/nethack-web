@@ -85,6 +85,10 @@ describe('readobjnam', () => {
     expect(parse('2 potions').what).toEqual({ kind: 'class', cls: 'potion' });
     expect(parse('/').what).toEqual({ kind: 'class', cls: 'wand' });
     expect(parse('armor').what).toEqual({ kind: 'class', cls: 'armor' });
+    // ROCK_CLASS: '`' (m7b); "boulder" names the type
+    expect(parse('`').what).toEqual({ kind: 'class', cls: 'rock' });
+    expect(typeOf('boulder')).toBe('nh:boulder');
+    expect(typeOf('2 boulders')).toBe('nh:boulder');
   });
 
   test('appearances and fixed descriptions name the type they belong to this game', () => {

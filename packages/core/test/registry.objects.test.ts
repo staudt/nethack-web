@@ -55,6 +55,7 @@ describe('defineObject validation', () => {
       loadMods([
         mod('ob', (api) => {
           api.defineObject(objDef('g', { class: 'gem' }));
+          api.defineObject(objDef('bould', { class: 'rock', boulder: true }));
           api.defineObject(objDef('ring', { class: 'ring', prop: 'fire_res' }));
           api.defineObject(objDef('amulet', { class: 'amulet', prop: 'esp' }));
           api.defineObject(
@@ -83,8 +84,9 @@ describe('defineObject validation', () => {
   test.each([
     ['nameKey', { nameKey: '' }],
     ['descKey', { descKey: '' }],
-    ['class', { class: 'rock' }],
+    ['class', { class: 'ball' }],
     ['glyph', { glyph: null }],
+    ['boulder', { boulder: 'yes' }],
     ['glyph.ch', { glyph: { ch: 'ab', fg: '#fff' } }],
     ['prob', { prob: -1 }],
     ['prob', { prob: 1001 }],
@@ -155,7 +157,7 @@ describe('defineAppearance validation', () => {
     issuesOf([mod('ob', (api) => api.defineAppearance({ ...APP, ...extra } as never))]);
 
   test.each([
-    ['class', { class: 'rock' }],
+    ['class', { class: 'ball' }],
     ['glyph', { glyph: 5 }],
     ['glyph.fg', { glyph: { ch: '!', fg: '' } }],
     ['nameKey', { nameKey: '' }],

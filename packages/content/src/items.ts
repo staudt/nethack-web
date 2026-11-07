@@ -461,6 +461,11 @@ interface NhData {
   cknown?: Record<string, true>;
   /** The turn of the next clairvoyant vision (context.seer_turn); see detect.ts. */
   seerTurn?: number;
+  /**
+   * The last boulder pushed and the turn of that push, for dopush()'s message throttle
+   * (gb.bldrpush_oid, gb.bldrpushtime); see moverock.ts.
+   */
+  bldrpush?: { oid: number; time: number };
 }
 
 /** The content mod's persistent data (gl.lastinvnr and friends). */

@@ -39,6 +39,7 @@ import {
   type PromptOption,
   type TerrainDef,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import { setTerrain } from './actions';
 import { aAlign, altarWrath } from './align';
 import { monsterIdAt } from './combat';
@@ -400,7 +401,7 @@ function maybeMnexto(ctx: Ctx, monId: EntityId): void {
     const cand = ring[ctx.rng.rn2(ring.length)];
     if (
       cand &&
-      clearPath(level, rules.opaque, hp.x, hp.y, cand.x, cand.y) &&
+      clearPath(level, rules.opaque, hp.x, hp.y, cand.x, cand.y, blockersOf(ctx, level.id)) &&
       (diagok || cand.x === mp.x || cand.y === mp.y)
     ) {
       if (cand.x !== mp.x || cand.y !== mp.y) {

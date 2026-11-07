@@ -43,6 +43,7 @@ import { setSwapWep, swapWep } from './wield';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 import { HERE } from './priority';
+import { BOULDER } from './boulder';
 import { costlySpot, isShopType, uShops } from './eshk';
 import {
   addtobill,
@@ -450,8 +451,9 @@ const pickup: ActionDef = {
   id: 'nh:pickup',
   labelKey: 'action.nh:pickup',
   handles: 'mod',
+  // a lone boulder is not offered: it is far too heavy to lift (pickup.c carry_count())
   offer: (ctx, target) =>
-    target.kind === 'self' && floorHere(ctx).length > 0
+    target.kind === 'self' && floorHere(ctx).some((e) => e.def !== BOULDER)
       ? [
           {
             action: { type: 'mod', action: 'nh:pickup' },

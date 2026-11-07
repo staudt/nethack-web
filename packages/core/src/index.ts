@@ -53,6 +53,7 @@ export {
   itemsAt,
   topObjects,
   topObjectEntities,
+  sightBlockers,
   inventoryOf,
   isContainer,
   contents,

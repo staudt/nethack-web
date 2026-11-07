@@ -44,7 +44,8 @@ export type ObjectClass =
   | 'spellbook'
   | 'wand'
   | 'coin'
-  | 'gem';
+  | 'gem'
+  | 'rock';
 
 /** Where a wand is aimed (ref: include/objclass.h NODIR, IMMEDIATE, RAY). */
 export type WandDir = 'nodir' | 'immediate' | 'ray';
@@ -103,6 +104,12 @@ export interface ObjectDef {
   container?: { capacity: number | null; box: boolean; holding?: boolean };
   /** Spellbooks: the spell level 1..7 (oc_level), 0 for blank paper. */
   spellbook?: { level: number };
+  /**
+   * A boulder: it blocks sight like a wall where it lies on the floor and always lies on top of
+   * its pile. Core uses it for vision (`sightBlockers`) and pile order only; pushing and every
+   * other rule are content's. ref: src/vision.c does_block(), src/mkobj.c place_object()
+   */
+  boulder?: true;
   /** Effect when quaffed or read; called by content's actions. */
   use?(ctx: Ctx, user: EntityId, item: EntityId): void;
   /**

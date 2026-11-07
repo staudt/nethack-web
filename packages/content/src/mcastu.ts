@@ -29,6 +29,7 @@ import {
   type EntityId,
   type Msg,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import { flashburn, monSpellHitsSpot, ureflects } from './buzz';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
@@ -166,7 +167,8 @@ function couldsee(ctx: Ctx, mon: Entity): boolean {
   const hp = getPlayer(ctx.state).c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   if (!p || !hp || !level || hp.level !== p.level) return false;
-  return clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, p.x, p.y);
+  const opaque = cellRules(level, ctx.defs).opaque;
+  return clearPath(level, opaque, hp.x, hp.y, p.x, p.y, blockersOf(ctx, level.id));
 }
 
 /** ref: src/mcastu.c is_undirected_spell() */

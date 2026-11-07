@@ -7,7 +7,14 @@ import type { CellRules } from './movement';
  * each quadrant's axis: 1 for cells in line of sight. Opaque cells that bound the view are
  * included.
  */
-function lineOfSight(level: Level, rules: CellRules, ox: number, oy: number, maxDepth: number) {
+function lineOfSight(
+  level: Level,
+  rules: CellRules,
+  ox: number,
+  oy: number,
+  maxDepth: number,
+  blocked: ReadonlySet<number>,
+) {
   const { width, height, cells } = level;
   const los = new Uint8Array(width * height);
   if (ox < 0 || oy < 0 || ox >= width || oy >= height) return los;
@@ -41,7 +48,7 @@ function lineOfSight(level: Level, rules: CellRules, ox: number, oy: number, max
       const y = tileY(q, depth, col);
       const inb = x >= 0 && y >= 0 && x < width && y < height;
       const idx = y * width + x;
-      const wall = !inb || opaque[cells[idx] ?? 0] === true;
+      const wall = !inb || opaque[cells[idx] ?? 0] === true || blocked.has(idx);
       // is_symmetric: col in [depth*start, depth*end]
       const sym = col * sd >= depth * sn && col * ed0 <= depth * en0;
       if (inb && (wall || sym)) los[idx] = 1;
@@ -59,6 +66,8 @@ function lineOfSight(level: Level, rules: CellRules, ox: number, oy: number, max
   for (let q = 0; q < 4; q++) scan(q, 1, -1, 1, 1, 1);
   return los;
 }
+
+const NO_BLOCKERS: ReadonlySet<number> = new Set();
 
 /** ref: src/vision.c circle_data[] and circle_start[]: half-widths of each row of a circle. */
 const CIRCLE_DATA = [
@@ -90,6 +99,7 @@ function tempLit(
   ox: number,
   oy: number,
   lights: readonly LightAt[],
+  blocked: ReadonlySet<number>,
 ): Uint8Array | null {
   if (lights.length === 0) return null;
   const { width, height } = level;
@@ -97,7 +107,8 @@ function tempLit(
   for (const l of lights) {
     const r = Math.max(0, Math.min(MAX_LIGHT_RADIUS, Math.trunc(l.radius)));
     if (!Number.isFinite(r) || l.x < 0 || l.y < 0 || l.x >= width || l.y >= height) continue;
-    const los = l.x === ox && l.y === oy ? heroLos : lineOfSight(level, rules, l.x, l.y, r);
+    const los =
+      l.x === ox && l.y === oy ? heroLos : lineOfSight(level, rules, l.x, l.y, r, blocked);
     const base = (r * (r + 1)) / 2; // circle_start[r]
     for (let dy = -r; dy <= r; dy++) {
       const y = l.y + dy;
@@ -120,20 +131,22 @@ function tempLit(
  * (lev->lit || TEMP_LIT), or if it is next to the hero (night vision radius 1,
  * "We see this position because of night- or xray-vision").
  * Line of sight uses symmetric recursive shadowcasting (Albert Ford) rather than
- * vision.c's clear_path tables; see DEVIATIONS.md.
+ * vision.c's clear_path tables; see DEVIATIONS.md. `blocked` holds extra cell indices that block
+ * sight like opaque terrain (boulders: `sightBlockers`; ref: src/vision.c does_block()).
  */
 export function computeVisible(
   level: Level,
   rules: CellRules,
   from: Pos,
   lights: readonly LightAt[] = [],
+  blocked: ReadonlySet<number> = NO_BLOCKERS,
 ): number[] {
   const { width, height, cells } = level;
   const ox = from.x;
   const oy = from.y;
   if (ox < 0 || oy < 0 || ox >= width || oy >= height) return [];
-  const los = lineOfSight(level, rules, ox, oy, Infinity);
-  const temp = tempLit(level, rules, los, ox, oy, lights);
+  const los = lineOfSight(level, rules, ox, oy, Infinity, blocked);
+  const temp = tempLit(level, rules, los, ox, oy, lights, blocked);
   const opaque = rules.opaque;
   const n = width * height;
   const out: number[] = [];
@@ -151,7 +164,7 @@ export function computeVisible(
     // ref: vision_recalc() "Make sure doors, walls, boulders or mimics don't show up at the end
     // of dark hallways": a lit cell that blocks sight is seen only if the cell next to it,
     // one step toward the hero, is lit too.
-    if (opaque[cells[i] ?? 0] === true) {
+    if (opaque[cells[i] ?? 0] === true || blocked.has(i)) {
       const nx = x + Math.sign(ox - x);
       const ny = y + Math.sign(oy - y);
       if (!lit(ny * width + nx)) continue;

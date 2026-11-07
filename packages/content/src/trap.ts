@@ -32,6 +32,7 @@ import {
   type Trap,
   type TrapDef,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import { poisoned } from './attrib';
 import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
@@ -464,6 +465,7 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
   const level = ctx.state.levels[levelId];
   if (!level) return;
   const opaque = cellRules(level, ctx.defs).opaque;
+  const blocked = blockersOf(ctx, levelId);
   const maxdist = level.lit[cellIndex(level, trap.x, trap.y)] ? 7 * 7 : 2;
   for (const id of sortedIds(ctx.state)) {
     const mon = ctx.state.entities[String(id)];
@@ -473,7 +475,7 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
     if (def.flags.includes('animal') || def.flags.includes('mindless')) continue;
     if (def.flags.includes('noeyes')) continue; // !haseyes()
     if ((p.x - trap.x) ** 2 + (p.y - trap.y) ** 2 > maxdist) continue;
-    if (!clearPath(level, opaque, p.x, p.y, trap.x, trap.y)) continue; // m_cansee()
+    if (!clearPath(level, opaque, p.x, p.y, trap.x, trap.y, blocked)) continue; // m_cansee()
     monLearnsTraps(ctx, id, trap.def);
   }
 }
@@ -709,7 +711,8 @@ function squeakyMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapRes
   } else if (levelId === ctx.state.currentLevel) {
     // same near/far threshold as mzapmsg(): couldsee() ? BOLT_LIM + 1 : BOLT_LIM - 3
     const hp = heroPos(ctx);
-    const could = clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, p.x, p.y);
+    const opaque = cellRules(level, ctx.defs).opaque;
+    const could = clearPath(level, opaque, hp.x, hp.y, p.x, p.y, blockersOf(ctx, level.id));
     const range = could ? 9 : 5;
     const near = (p.x - hp.x) ** 2 + (p.y - hp.y) ** 2 <= range * range;
     say(ctx, near ? 'trap.squeak.hear_near' : 'trap.squeak.hear_far', { note });

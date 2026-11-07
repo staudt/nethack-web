@@ -538,3 +538,5 @@ export { LOOT_ID, LOOT_ACTIONS, BOX, useContainer, floorContainers } from './con
 export { LOCK_ID, PICKLOCK_ID, KEY, autokey } from './lock';
 export { LAMP, beginBurn, endBurn, igniteItems, lampLights, snuffLit } from './light';
 export { objKnown, setObjKnown, setLknown, setCknown } from './items';
+export { BOULDER, boulderAt, blockersOf } from './boulder';
+export { moverock, couldMoveOntoBoulder } from './moverock';

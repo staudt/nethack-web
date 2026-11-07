@@ -102,6 +102,7 @@ const OBJECT_CLASSES: readonly ObjectClass[] = [
   'wand',
   'coin',
   'gem',
+  'rock',
 ];
 const WAND_DIRS = ['nodir', 'immediate', 'ray'];
 const ARMOR_SLOTS: readonly ArmorSlot[] = [
@@ -372,6 +373,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
         if (d.spellbook !== undefined) int(d.spellbook.level, 'spellbook.level', 0, 7);
         if (d.class === 'spellbook' && d.spellbook === undefined)
           issue('spellbook', 'spellbook objects need spellbook.level', d.id);
+        if (d.boulder !== undefined && (d.boulder as unknown) !== true)
+          issue('boulder', 'must be true when given', d.id);
         if (d.use !== undefined) fn(d.use, 'use', d.id);
         if (d.zap !== undefined) fn(d.zap, 'zap', d.id);
         objects.set(d.id, { ...d, mod: modId });

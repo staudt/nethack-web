@@ -22,6 +22,7 @@ import {
   type PlayerAction,
   type PromptOption,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import { prinv } from './itemactions';
 import { NOINVSYM, objKnown, setCknown, setLknown, setRknown } from './items';
 import { CHARGED_RINGS } from './objects';
@@ -476,7 +477,7 @@ export function clearArea(ctx: Ctx, radius: 5 | 7 | 8 | 9): number[] {
   const dark: Level = { ...level, lit: level.lit.map(() => 1) };
   const circle = CIRCLE[radius] ?? [];
   const out: number[] = [];
-  for (const i of computeVisible(dark, rules, pos)) {
+  for (const i of computeVisible(dark, rules, pos, [], blockersOf(ctx, level.id))) {
     const x = i % level.width;
     const y = (i - x) / level.width;
     const lim = circle[Math.abs(y - pos.y)];

@@ -17,6 +17,7 @@ import {
   trapAt,
 } from '@nh/core';
 import { monsterIdAt } from './combat';
+import { boulderStops } from './moverock';
 import {
   beginSession,
   disturbed,
@@ -197,6 +198,7 @@ function runStep(ctx: Ctx, args: RunArgs): StepResult {
   if (visibleMonsterAt(ctx, to) && !(thereMon && isSafemon(ctx, thereMon))) return none;
   const attacking = there !== null && !(thereMon && isSafemon(ctx, thereMon));
   const check = checkStep(level, cellRules(level, ctx.defs), here, dir);
+  if (!attacking && check.ok && boulderStops(ctx, run, to)) return none;
   if (!attacking && !check.ok) {
     // ref: src/hack.c test_move(): no auto-open while running; orthogonally it says so.
     if (check.reason === 'closedDoor' && (s.dx === 0 || s.dy === 0))

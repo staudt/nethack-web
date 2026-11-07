@@ -291,9 +291,11 @@ Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Le
 
 **Vision.** A cell is seen when it is in line of sight and either adjacent to the hero or lit. A lit cell that blocks sight (a wall or closed door) is seen from afar only if its neighbor one step toward the hero is also lit, which hides lit room walls at the end of dark corridors (ref: src/vision.c vision_recalc()).
 
+**Boulders (m7b).** An `ObjectDef` with `boulder: true` (vanilla: `nh:boulder`, the one object of the `'rock'` class) is the only object core treats specially, in two places. Sight: `sightBlockers(registry, state, levelId)` returns the cell indices holding such an object on the floor, and `computeVisible(level, rules, from, lights?, blocked?)` treats those cells like opaque terrain (seen themselves, shadowing what lies behind, and under the dark-corridor rule above); the engine's `refreshVision` passes them, and content's `clearPath()` takes the same set (ref: src/vision.c does_block()). Pile order: `itemsAt` and `topObjectEntities`/`topObjects` put boulders above every other object, then the most recently placed (ref: src/mkobj.c place_object()), so a boulder is what the map shows and remembers. Why a core change: vision runs in core and must not call into content each step; one flag on the def keeps the mod contract small (a separate `blocksSight`/`onTop` pair had no second user). `blocked` is optional, `ObjectDef.boulder` is optional and the class list only grew, so no existing mod, save or renderer changes; renderers only see `cls: 'rock'`. Pushing (`moverock()`), monsters avoiding boulder squares and every other rule are content's.
+
 **Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id.
 
-**Light sources.** Each `PerceptionDef.lights` returns light sources; those on the current level light, for the hero, every cell within the source's circle (`circle_data`, radius clamped to 0..15) that the source can see, as if `Level.lit` were set there (ref: src/light.c do_light_sources). A source on the hero's cell uses her own line of sight; any other source uses shadowcasting from its cell. The hero still needs line of sight, and the dark-corridor rule for walls and doors applies to light from both kinds. `computeVisible(level, rules, from, lights?)` takes them; core's `heroLights(registry, state)` collects them.
+**Light sources.** Each `PerceptionDef.lights` returns light sources; those on the current level light, for the hero, every cell within the source's circle (`circle_data`, radius clamped to 0..15) that the source can see, as if `Level.lit` were set there (ref: src/light.c do_light_sources). A source on the hero's cell uses her own line of sight; any other source uses shadowcasting from its cell. The hero still needs line of sight, and the dark-corridor rule for walls and doors applies to light from both kinds. `computeVisible(level, rules, from, lights?, blocked?)` takes them; core's `heroLights(registry, state)` collects them.
 
 **Containers.** An item inside a container has `containedIn` set, no `pos` and `carriedBy: null`, so floor piles (`itemsAt`, `topObjects`), `inventoryOf`, `describe()` and the view never see it. Core's `objects.ts` helpers keep the one-place rule: `contents(state, box)` lists what is directly inside, newest first; `putIn(registry, state, box, item)` requires a detached item (like `add_to_container()` requires a free object), refuses non-containers and nesting loops, and does not merge stacks (content merges first); `takeOut(state, item)` leaves the item detached for the caller to place. `allContents(state, box)` lists nested contents too. Testkit checks that a contained item's container is an existing container item, with no loop.
 
@@ -437,7 +439,7 @@ interface MonsterDef {
 interface ObjectDef {
   // ref: include/objclass.h struct objclass
   id: DefId; nameKey: string;
-  class: 'weapon' | 'armor' | 'ring' | 'amulet' | 'tool' | 'food' | 'potion' | 'scroll' | 'spellbook' | 'wand' | 'coin' | 'gem';
+  class: 'weapon' | 'armor' | 'ring' | 'amulet' | 'tool' | 'food' | 'potion' | 'scroll' | 'spellbook' | 'wand' | 'coin' | 'gem' | 'rock'; // 'rock' = ROCK_CLASS (m7b)
   glyph: { ch: string; fg: string };
   descKey?: string; // fixed unidentified description; shuffled classes use appearances instead
   prob: number; weight: number; cost: number; material: string;
@@ -449,6 +451,7 @@ interface ObjectDef {
   wand?: { dir: 'nodir' | 'immediate' | 'ray' }; // oc_dir; required for class 'wand'
   container?: { capacity: number | null; box: boolean; holding?: boolean }; // box: large box/chest (lockable); holding: bag of holding
   spellbook?: { level: number }; // 1..7 (0 for blank paper); required for class 'spellbook'
+  boulder?: true; // m7b: blocks sight where it lies (sightBlockers) and lies on top of its pile; pushing is content's
   use?(ctx: Ctx, user: EntityId, item: EntityId): void; // quaff/read effect
   zap?(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void; // weffects; null for nodir
 }

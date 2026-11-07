@@ -867,6 +867,26 @@ export const OBJECTS: readonly ObjectDef[] = [
       role: 'ammo',
     },
   },
+  // ---- ROCK_CLASS ----
+  // ref: objects.h OBJECT(OBJ("boulder", NoDes), BITS(1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, P_NONE,
+  // MINERAL), 0, ROCK_CLASS, 100, 0, 6000, 0, 20, 20, 0, 0, 2000, HI_MINERAL, BOULDER). ROCK_CLASS
+  // is not in mkobjprobs[], so no random object is a boulder. Glyph '0' (the common `boulder`
+  // option) rather than the class's '`' (DEVIATIONS.md). Its d20 damage is for thrown boulders
+  // (giants), which do not exist.
+  {
+    id: 'nh:boulder',
+    nameKey: 'nh:boulder',
+    class: 'rock',
+    glyph: { ch: '0', fg: GRAY },
+    prob: 100,
+    weight: 6000,
+    cost: 0,
+    material: 'mineral',
+    merge: false,
+    magic: false,
+    delay: 0,
+    boulder: true,
+  },
 
   // ---- armor (ac = 10 - macro ac argument; mc = macro can argument; armor never merges) ----
   // ref: objects.h SHIELD("small shield", "wooden shield", 0, 0, 0, 0, 6, 0, 30, 3, 9, 0, WOOD, HI_WOOD, SMALL_SHIELD)

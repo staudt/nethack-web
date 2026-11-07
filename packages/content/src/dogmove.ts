@@ -16,6 +16,7 @@ import {
   type Level,
   type Pos,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import {
   ACCFOOD,
   APPORT,
@@ -308,7 +309,8 @@ function dogGoal(
   const hp = hero.c.pos as Pos;
   const omx = pos.x;
   const omy = pos.y;
-  const inMastersSight = clearPath(level, rules.opaque, hp.x, hp.y, omx, omy);
+  const blocked = blockersOf(ctx, level.id);
+  const inMastersSight = clearPath(level, rules.opaque, hp.x, hp.y, omx, omy, blocked);
   const hasMinvent = droppables(ctx, mon.id).length > 0;
   let gtyp = UNDEF;
   let gx = 0;
@@ -346,7 +348,7 @@ function dogGoal(
       inMastersSight &&
       !hasMinvent &&
       (!level.lit[cellIndex(level, omx, omy)] || level.lit[cellIndex(level, hp.x, hp.y)]) &&
-      (otyp === MANFOOD || clearPath(level, rules.opaque, omx, omy, nx, ny)) &&
+      (otyp === MANFOOD || clearPath(level, rules.opaque, omx, omy, nx, ny, blocked)) &&
       e.apport > ctx.rng.rn2(8) &&
       canCarry(ctx, mon.id, obj) > 0
     ) {

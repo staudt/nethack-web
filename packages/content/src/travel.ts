@@ -19,6 +19,8 @@ import {
   type Pos,
   trapAt,
 } from '@nh/core';
+import { blockersOf, boulderCells } from './boulder';
+import { boulderStops, couldMoveOntoBoulder } from './moverock';
 
 export function heroPos(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -169,7 +171,8 @@ function couldSee(ctx: Ctx, level: Level, here: Pos): Uint8Array {
   const rules = cellRules(level, ctx.defs);
   const lit = level.lit.map(() => 1 as const);
   const out = new Uint8Array(level.width * level.height);
-  for (const i of computeVisible({ ...level, lit }, rules, here)) out[i] = 1;
+  const blocked = blockersOf(ctx, level.id);
+  for (const i of computeVisible({ ...level, lit }, rules, here, [], blocked)) out[i] = 1;
   return out;
 }
 
@@ -197,6 +200,10 @@ function travelMatrix(
   const trapAhead = (nx: number, ny: number): boolean =>
     traps.has(ny * width + nx) && !(nx === hero.x && ny === hero.y);
   const memory = ctx.state.memory[level.id];
+  // ref: test_move() TEST_TRAV: a boulder is assumed to be pushable, but never two in a row
+  // unless the hero can squeeze onto them (she has no digging tools)
+  const boulders = boulderCells(ctx, level);
+  const squeeze = couldMoveOntoBoulder(ctx);
   const travel = new Int32Array(width * level.height);
   let cur: number[] = [from.y * width + from.x];
   let radius = 1;
@@ -222,6 +229,7 @@ function travelMatrix(
           continue;
         }
         if (trapped) continue; // "do not move through traps"
+        if (!squeeze && boulders.has(ni) && boulders.has(ci)) continue;
         const chk = checkStep(known, rules, { x, y }, d);
         if (!chk.ok && chk.reason !== 'closedDoor') continue;
         if ((memory?.[ni] ?? -1) < 0 && see[ni] !== 1) continue; // levl.seenv || couldsee
@@ -305,6 +313,15 @@ function firstStep(ctx: Ctx, here: Pos, target: Pos): Pos | null {
   if (!path || !first) return null;
   const level = getLevel(ctx.state);
   const crosses = path.slice(0, -1).some((p) => trapAt(level, p.x, p.y)?.seen === true);
+  // core's path knows nothing of boulders: two in a row send it to the travel search too
+  const boulders = boulderCells(ctx, level);
+  const at = (p: Pos): number => p.y * level.width + p.x;
+  const pair =
+    !couldMoveOntoBoulder(ctx) &&
+    path.some(
+      (p, i) => boulders.has(at(p)) && boulders.has(at(i === 0 ? here : (path[i - 1] ?? p))),
+    );
+  if (pair) return stepToward(ctx, here, target);
   return crosses ? stepToward(ctx, here, target) : first;
 }
 
@@ -395,6 +412,11 @@ const travel: ActionDef = {
         e.c.pos.y === next.y,
     );
     if (visibleMonsterAt(ctx, next) && !(there && isSafemon(ctx, there))) return 0;
+    // ref: test_move() DO_MOVE with context.run == 8: travel stops in front of a boulder
+    if (boulderStops(ctx, 8, next)) {
+      ctx.interrupt();
+      return 0;
+    }
     const move = ctx.defs.actions.find((a) => a.handles === 'move');
     if (!move) return 0;
     // ref: src/hack.c findtravelpath(): stepping onto a cell already left during this travel

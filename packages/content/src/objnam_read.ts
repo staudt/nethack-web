@@ -107,6 +107,7 @@ const CLASS_SYMS: Readonly<Record<string, ObjectClass>> = {
   '+': 'spellbook',
   '/': 'wand',
   '*': 'gem',
+  '`': 'rock',
 };
 
 /** ref: src/objnam.c o_ranges[] "gray stone": LUCKSTONE..FLINT */

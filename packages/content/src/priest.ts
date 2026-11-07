@@ -23,6 +23,7 @@ import {
   type ModApi,
   type Pos,
 } from '@nh/core';
+import { blockersOf } from './boulder';
 import { alignGname, altarAlign } from './align';
 import { buzzFrom } from './buzz';
 import { clearPath } from './clearpath';
@@ -171,7 +172,8 @@ function linedupHero(ctx: Ctx, level: Level, hp: Pos, x: number, y: number): boo
   if (!tbx && !tby) return false;
   if (tbx && tby && Math.abs(tbx) !== Math.abs(tby)) return false;
   if (Math.max(Math.abs(tbx), Math.abs(tby)) >= BOLT_LIM) return false;
-  return clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, x, y);
+  const opaque = cellRules(level, ctx.defs).opaque;
+  return clearPath(level, opaque, hp.x, hp.y, x, y, blockersOf(ctx, level.id));
 }
 
 const GHOD_LINES = ['priest.ghod.roars_anger', 'priest.ghod.voice_booms', 'priest.ghod.roars'];
@@ -254,7 +256,8 @@ function canseeNow(ctx: Ctx, at: Pos): boolean {
   const hp = getPlayer(ctx.state).c.pos;
   if (!hp || hp.level !== ctx.state.currentLevel || heroHas(ctx.state, P.BLINDED)) return false;
   const level = getLevel(ctx.state);
-  if (!clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, at.x, at.y)) return false;
+  const opaque = cellRules(level, ctx.defs).opaque;
+  if (!clearPath(level, opaque, hp.x, hp.y, at.x, at.y, blockersOf(ctx, level.id))) return false;
   const near = Math.max(Math.abs(hp.x - at.x), Math.abs(hp.y - at.y)) <= 1;
   return near || level.lit[cellIndex(level, at.x, at.y)] === 1;
 }

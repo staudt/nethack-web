@@ -27,6 +27,7 @@ import {
   type Mod,
   type PlayerAction,
   type Pos,
+  sightBlockers,
 } from '@nh/core';
 import { test } from 'vitest';
 
@@ -253,6 +254,7 @@ export function runScenario(
       cellRules(level, engine.registry),
       playerAt(),
       heroLights(engine.registry, state),
+      sightBlockers(engine.registry, state, level.id),
     );
     const memory = (state.memory[level.id] ??= newMemory(level));
     updateMemory(memory, level, visible);

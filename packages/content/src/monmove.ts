@@ -58,6 +58,7 @@ import {
   shkname,
 } from './shk';
 import { T } from './terrain';
+import { blockersOf, boulderCells } from './boulder';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -129,7 +130,15 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
   if (
     dist2(pos.x, pos.y, hp.x, hp.y) <= 100 &&
     !stealth &&
-    clearPath(level, cellRules(level, ctx.defs).opaque, hp.x, hp.y, pos.x, pos.y) &&
+    clearPath(
+      level,
+      cellRules(level, ctx.defs).opaque,
+      hp.x,
+      hp.y,
+      pos.x,
+      pos.y,
+      blockersOf(ctx, level.id),
+    ) &&
     (heroHas(ctx.state, P.AGGRAVATE_MONSTER) ||
       def.glyph.ch === 'd' ||
       def.glyph.ch === '@' ||
@@ -170,7 +179,8 @@ export interface Candidate {
  * monsters are rejected. A monster avoids a harmful trap of a kind it knows unless `allowTraps`
  * (pets, which decide in dog_move()); a harmful trap is marked `trap`. A hostile monster outside
  * a temple may not step into it while it is the hero's sanctuary (no ALLOW_SANCT: peaceful and
- * tame monsters and priests have it). Not ported: water/lava, boulders, scary squares, long
+ * tame monsters and priests have it). Boulder squares are never candidates (no ALLOW_ROCK).
+ * Not ported: water/lava, scary squares, long
  * worms, digging, wall-walking.
  */
 export function mfndpos(
@@ -210,6 +220,9 @@ export function mfndpos(
     epriOf(ctx, id) === null &&
     level.rooms.some((r) => r.type === TEMPLE) &&
     templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
+  // ref: mfndpos() `checkobj && sobj_at(BOULDER, nx, ny)` without ALLOW_ROCK: no monster here
+  // throws rocks or passes walls, so none steps onto a boulder
+  const boulders = boulderCells(ctx, level);
   const out: Candidate[] = [];
   for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
     for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {
@@ -220,6 +233,7 @@ export function mfndpos(
       if (closed && !canOpen) continue;
       // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors
       if (rules.lockedDoor[to]) continue;
+      if (boulders.has(cellIndex(level, nx, ny))) continue;
       const diagonal = nx !== pos.x && ny !== pos.y;
       // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
       // or out of an intact door
@@ -303,7 +317,13 @@ const SQSRCHRADIUS = 5;
  * Whether the monster is lined up with the hero within bolt range and sees her.
  * ref: src/mthrowu.c lined_up() / linedup(): same row, column or diagonal, distmin < BOLT_LIM
  */
-function linedUp(level: Level, opaque: readonly boolean[], mon: Pos, hero: Pos): boolean {
+function linedUp(
+  level: Level,
+  opaque: readonly boolean[],
+  blocked: ReadonlySet<number>,
+  mon: Pos,
+  hero: Pos,
+): boolean {
   const tbx = hero.x - mon.x;
   const tby = hero.y - mon.y;
   if (tbx === 0 && tby === 0) return false;
@@ -311,7 +331,7 @@ function linedUp(level: Level, opaque: readonly boolean[], mon: Pos, hero: Pos):
     (tbx === 0 || tby === 0 || Math.abs(tbx) === Math.abs(tby)) &&
     distmin(tbx, tby, 0, 0) < BOLT_LIM
   )
-    return clearPath(level, opaque, hero.x, hero.y, mon.x, mon.y);
+    return clearPath(level, opaque, hero.x, hero.y, mon.x, mon.y, blocked);
   return false;
 }
 
@@ -327,6 +347,7 @@ function mSearchItems(
   id: EntityId,
   level: Level,
   opaque: readonly boolean[],
+  blocked: ReadonlySet<number>,
   goal: Pos,
   heroPos: Pos,
 ): boolean {
@@ -357,7 +378,7 @@ function mSearchItems(
       const pile = piles.get(cellIndex(level, xx, yy));
       if (!pile) continue;
       if (minr < distmin(pos.x, pos.y, xx, yy)) continue; // found an object closer already
-      if (!clearPath(level, opaque, pos.x, pos.y, xx, yy)) continue; // m_cansee()
+      if (!clearPath(level, opaque, pos.x, pos.y, xx, yy, blocked)) continue; // m_cansee()
       for (const o of pile) {
         // ref: 3.6 m_move() excluded corpses here; 5.0's mpickstuff() refuses them after the
         // monster has walked to one, which would leave it stuck on the square
@@ -483,7 +504,8 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
     const level = getLevel(ctx.state, pos.level);
     if (inRooms(level, heroPos.x, heroPos.y).includes(temple)) {
       // chase the hero if inside the temple and he can see her
-      if (clearPath(level, cellRules(level, ctx.defs).opaque, pos.x, pos.y, heroPos.x, heroPos.y)) {
+      const opaque = cellRules(level, ctx.defs).opaque;
+      if (clearPath(level, opaque, pos.x, pos.y, heroPos.x, heroPos.y, blockersOf(ctx, level.id))) {
         ggx = heroPos.x;
         ggy = heroPos.y;
       }
@@ -547,7 +569,8 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   } else if (!m.peaceful) {
     // move towards the hero if the shopkeeper can see him
     const level = getLevel(ctx.state, pos.level);
-    if (clearPath(level, cellRules(level, ctx.defs).opaque, omx, omy, heroPos.x, heroPos.y)) {
+    const opaque = cellRules(level, ctx.defs).opaque;
+    if (clearPath(level, opaque, omx, omy, heroPos.x, heroPos.y, blockersOf(ctx, level.id))) {
       gtx = heroPos.x;
       gty = heroPos.y;
     }
@@ -611,10 +634,14 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   // are closing in on a hero they are lined up with ("monsters in combat won't pick stuff up")
   if (!m.peaceful || ctx.rng.rn2(10) === 0) {
     const str = acurrstr(getPlayer(ctx.state).c.attributes?.str ?? 10);
+    const blocked = blockersOf(ctx, level.id);
     const inLine =
-      linedUp(level, rules.opaque, pos, heroPos) &&
+      linedUp(level, rules.opaque, blocked, pos, heroPos) &&
       distmin(pos.x, pos.y, heroPos.x, heroPos.y) <= Math.trunc(str / 2) + 1;
-    if ((appr !== 1 || !inLine) && mSearchItems(ctx, id, level, rules.opaque, goal, heroPos)) {
+    if (
+      (appr !== 1 || !inLine) &&
+      mSearchItems(ctx, id, level, rules.opaque, blocked, goal, heroPos)
+    ) {
       // standing on something wanted: postmov() -> mpickstuff()
       mpickstuff(ctx, id);
       return 'done';
@@ -858,6 +885,7 @@ function sightLine(ctx: Ctx, levelId: string) {
   const level = ctx.state.levels[levelId];
   if (!level) return () => false;
   const rules = cellRules(level, ctx.defs);
+  const blocked = blockersOf(ctx, levelId);
   return (x1: number, y1: number, x2: number, y2: number): boolean =>
-    clearPath(level, rules.opaque, x1, y1, x2, y2);
+    clearPath(level, rules.opaque, x1, y1, x2, y2, blocked);
 }

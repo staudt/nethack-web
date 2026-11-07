@@ -181,7 +181,7 @@ describe('Orcish Town contents', () => {
     engine.step(state, { type: 'move', dir: 's' });
     expect(hero.c.pos).toMatchObject({ x: bar.x, y: bar.y - 1 });
     const opaque = level.palette.map((id) => defs.terrain(id).opaque);
-    expect(clearPath(level, opaque, bar.x, bar.y - 1, bar.x, bar.y + 1)).toBe(true);
+    expect(clearPath(level, opaque, bar.x, bar.y - 1, bar.x, bar.y + 1, new Set())).toBe(true);
     expect(defs.terrain('nh:iron_bars')).toMatchObject({ passable: false, opaque: false });
   });
 });

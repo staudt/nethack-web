@@ -15,7 +15,15 @@ export function isItem(registry: Registry, e: Entity): boolean {
   return e.c.item !== undefined && registry.isObject(e.def);
 }
 
-/** Objects on the floor at (x, y) of `level`, top of the pile first. */
+/** 1 for a boulder (ObjectDef.boulder), else 0: boulders lie on top of their pile. */
+const boulderRank = (registry: Registry, e: Entity): number =>
+  registry.object(e.def).boulder === true ? 1 : 0;
+
+/**
+ * Objects on the floor at (x, y) of `level`, top of the pile first: boulders, then the most
+ * recently placed. ref: src/mkobj.c place_object() puts a boulder on top and anything else
+ * under the boulders already there.
+ */
 export function itemsAt(
   registry: Registry,
   state: Readonly<GameState>,
@@ -29,10 +37,15 @@ export function itemsAt(
     const p = e?.c.pos;
     if (e && p && p.level === level && p.x === x && p.y === y && isItem(registry, e)) out.push(e);
   }
-  return out.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
+  return out.sort(
+    (a, b) =>
+      boulderRank(registry, b) - boulderRank(registry, a) ||
+      (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) ||
+      a.id - b.id,
+  );
 }
 
-/** Cell index -> the top object entity, for every floor object on `level`. */
+/** Cell index -> the top object entity (as `itemsAt` orders a pile), for every floor object on `level`. */
 export function topObjectEntities(
   registry: Registry,
   state: Readonly<GameState>,
@@ -46,9 +59,33 @@ export function topObjectEntities(
     const i = p.y * level.width + p.x;
     const cur = best.get(i);
     // Ties go to the lower id (ids are visited in order), matching itemsAt.
-    if (!cur || (e.c.item?.placed ?? 0) > (cur.c.item?.placed ?? 0)) best.set(i, e);
+    const rank = boulderRank(registry, e) - (cur ? boulderRank(registry, cur) : 0);
+    if (!cur || rank > 0 || (rank === 0 && (e.c.item?.placed ?? 0) > (cur.c.item?.placed ?? 0)))
+      best.set(i, e);
   }
   return best;
+}
+
+/**
+ * Cell indices of `level` that a floor object blocks sight on (a boulder, `ObjectDef.boulder`),
+ * for `computeVisible`'s `blocked` and content's line-of-sight checks.
+ * ref: src/vision.c does_block()
+ */
+export function sightBlockers(
+  registry: Registry,
+  state: Readonly<GameState>,
+  level: LevelId,
+): Set<number> {
+  const out = new Set<number>();
+  const width = state.levels[level]?.width;
+  if (width === undefined) return out;
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (e && p && p.level === level && isItem(registry, e) && registry.object(e.def).boulder)
+      out.add(p.y * width + p.x);
+  }
+  return out;
 }
 
 /** Cell index -> the top object's shown id, for every floor object on `level`. */

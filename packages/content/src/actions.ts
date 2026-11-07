@@ -45,6 +45,10 @@ import {
 import { isMtrapped, setMtrapped } from './trapstate';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
+import { BOULDER, boulderAt, feelObjects, rememberedBoulder } from './boulder';
+import { xnameOf } from './objnam';
+import { moverock } from './moverock';
+import { invWeight, weightCap } from './stats';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -178,6 +182,15 @@ const fight: ActionDef = {
     const dir = dirTo(playerAt(ctx), target.pos);
     if (!dir) return [];
     const seen = ctx.query.describe(target.pos).entities.find((e) => ctx.defs.isMonster(e.def));
+    // a boulder the hero knows of: "You harmlessly attack a boulder." (walking pushes it)
+    if (!seen && rememberedBoulder(ctx, getLevel(ctx.state), target.pos.x, target.pos.y))
+      return [
+        {
+          action: { type: 'mod', action: 'nh:fight', args: { dir } },
+          labelKey: 'action.nh:fight',
+          params: { target: `@${BOULDER}` },
+        },
+      ];
     if (!seen) return [];
     const mon = ctx.state.entities[String(seen.id)];
     // only worth a separate entry where walking would not attack
@@ -201,7 +214,19 @@ const fight: ActionDef = {
     const level = getLevel(ctx.state);
     const victim = monsterIdAt(ctx, to, level.id);
     if (victim === null) {
-      // ref: domove_fight_empty(): "You attack thin air." / "You harmlessly attack the wall."
+      // ref: domove_fight_empty(): "You harmlessly attack a boulder." (the hero learns it is
+      // there: map_object()), "You attack thin air." / "You harmlessly attack the wall."
+      const boulder = inBounds(level, to.x, to.y) ? boulderAt(ctx, level.id, to.x, to.y) : null;
+      if (boulder) {
+        feelObjects(ctx, level, to.x, to.y);
+        ctx.emit({
+          type: 'msg',
+          key: 'fight.harmless_obj',
+          params: { what: xnameOf(ctx.state, ctx.defs, boulder) },
+        });
+        ctx.interrupt();
+        return NORMAL_SPEED;
+      }
       const solid =
         !inBounds(level, to.x, to.y) ||
         !cellRules(level, ctx.defs).passable[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
@@ -255,11 +280,10 @@ const move: ActionDef = {
     const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
     const known = ctx.query.describe(target.pos).terrain === T.door_closed;
     if (!check.ok && (check.reason !== 'closedDoor' || known)) return [];
-    const offer: Offer = {
-      action: { type: 'move', dir },
-      labelKey: 'action.move',
-      params: { dir: `@dir.${dir}` },
-    };
+    // walking into a boulder the hero knows of pushes it
+    const offer: Offer = rememberedBoulder(ctx, level, target.pos.x, target.pos.y)
+      ? { action: { type: 'move', dir }, labelKey: 'action.push' }
+      : { action: { type: 'move', dir }, labelKey: 'action.move', params: { dir: `@dir.${dir}` } };
     return [offer];
   },
   perform(ctx, action: PlayerAction) {
@@ -330,6 +354,21 @@ const move: ActionDef = {
   },
 };
 
+/** ref: include/weight.h WT_TOOMUCH_DIAGONAL */
+const WT_TOOMUCH_DIAGONAL = 600;
+
+/**
+ * Rock or wall the hero cannot pass (IS_OBSTRUCTED(), out of the map counts too); boulders count
+ * only in Sokoban (step 7). ref: src/hack.c bad_rock() for a hero who cannot tunnel
+ */
+function badRock(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  if (!inBounds(level, x, y)) return true;
+  const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
+  if (id === undefined) return true;
+  const t = ctx.defs.terrain(id);
+  return !t.passable && t.door === undefined;
+}
+
 /**
  * The hero steps in direction `dir` (no attack): the confirmation for a seen trap, escaping a
  * bear trap, swapping with a pet, then test_move(). `confirmed` is set once "Really step onto
@@ -367,6 +406,25 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   if (!trapmove(ctx, dir)) {
     ctx.interrupt();
     return NORMAL_SPEED;
+  }
+  if (check.ok) {
+    // ref: src/hack.c test_move(): a diagonal squeeze between rock or walls when carrying more
+    // than 600 (cant_squeeze_thru() case 2; the hero is never too big, Sokoban is step 7)
+    const diagonal = DIRS[dir].x !== 0 && DIRS[dir].y !== 0;
+    if (diagonal && badRock(ctx, level, from.x, to.y) && badRock(ctx, level, to.x, from.y)) {
+      const amt = invWeight(ctx.state, ctx.defs, player.id) + weightCap(ctx.state, player.id);
+      if (amt > WT_TOOMUCH_DIAGONAL) {
+        ctx.emit({ type: 'msg', key: 'move.carrying_too_much' });
+        ctx.interrupt();
+        return 0;
+      }
+    }
+    // ref: test_move(): `if (sobj_at(BOULDER, x, y) ...) moverock() < 0 -> return FALSE`: a
+    // boulder that won't move keeps the hero in place and takes no time
+    if (boulderAt(ctx, level.id, to.x, to.y) && moverock(ctx, dir) === 'blocked') {
+      ctx.interrupt();
+      return 0;
+    }
   }
   const victim = monsterIdAt(ctx, to, pos.level);
   const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
