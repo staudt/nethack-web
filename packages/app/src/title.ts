@@ -46,7 +46,7 @@ export function askName(d: TitleDeps, go: () => void, back: () => void): void {
 export function openTitle(d: TitleDeps): void {
   const again = (): void => openTitle(d);
   d.showText(
-    'webhack',
+    'NetHack',
     [
       { label: 'A TypeScript port of NetHack.', run: () => {}, text: true },
       { label: 'Play', run: () => askName(d, () => d.play(false), again) },

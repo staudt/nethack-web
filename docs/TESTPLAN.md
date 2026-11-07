@@ -146,7 +146,7 @@ On the phone (Pages build), no keyboard.
 
 On the phone (Pages build), no keyboard. Start from a private tab (or clear the site's data) so there is no save, no name and no score list.
 
-- [ ] The app opens on the title screen (webhack: Play, Wizard mode, High scores, Help, Options); Close shows it again. Help and Options open their sheets and Close comes back to the title; High scores is empty.
+- [ ] The app opens on the title screen (NetHack: Play, Wizard mode, High scores, Help, Options); Close shows it again. Help and Options open their sheets and Close comes back to the title; High scores is empty.
 - [ ] Play asks "Who are you?": a blank answer asks again, Cancel goes back to the title; type a name and a game starts. Menu > Options shows the name; reload: the game resumes straight away (no title).
 - [ ] Options: set the run speed to "crawl" and travel somewhere (slow); "teleport" (she jumps). Set "End of game" to "show nothing"; reload: both kept. Movement keys switch reloads into the same game.
 - [ ] During a game, Menu > New game: "Really quit without saving?"; No keeps playing (no time passes). Again, Yes: no questions ("show nothing"), then "You quit." with no stone, "Goodbye <name> the Valkyrie...", "You quit in The Dungeons of Doom on dungeon level N with P points,"; High scores shows the game standing out ("... quit in The Dungeons of Doom on level N."; unranked at the end if it scored 0 points); New game opens the title, not a game.

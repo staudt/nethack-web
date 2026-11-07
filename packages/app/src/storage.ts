@@ -1,3 +1,4 @@
+// Kept from the old repo name: renaming it would orphan saves already in browsers.
 const DB = 'webhack';
 const STORE = 'saves';
 const KEY = 'current';
@@ -6,7 +7,7 @@ let warned = false;
 const warn = (e: unknown): void => {
   if (warned) return;
   warned = true;
-  console.warn('webhack: save storage unavailable', e);
+  console.warn('nethack-web: save storage unavailable', e);
 };
 
 function open(): Promise<IDBDatabase> {
