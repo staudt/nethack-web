@@ -5,7 +5,7 @@
 // The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not
 // levitating, not riding, not swimming. Those branches are not ported. Shop goods kicked out of
 // a shop are owed (stolen_value()); kicked gold (costly_gold(): no loan) and shop damage are not.
-// Also not ported: traps, boxes and chests, boulders, thrones, fountains, graves, trees, sinks,
+// Also not ported: traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import {
@@ -39,7 +39,7 @@ import {
   type PromptOption,
   type TerrainDef,
 } from '@nh/core';
-import { blockersOf } from './boulder';
+import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { setTerrain } from './actions';
 import { aAlign, altarWrath } from './align';
 import { monsterIdAt } from './combat';
@@ -276,6 +276,8 @@ function bhitKicked(
  * with thitmonst().
  */
 function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir): boolean {
+  // a boulder does not move: the kick hurts (kick_ouch())
+  if (pile.def === BOULDER) return false;
   const it = pile.c.item;
   const pos = hero(ctx).c.pos;
   if (!it || !pos) return false;
@@ -549,6 +551,12 @@ function canKick(ctx: Ctx): boolean {
     say(ctx, 'kick.cant_move_leg');
     return false;
   }
+  // ref: dokick(): squeezed onto a boulder
+  const pos = hero(ctx).c.pos;
+  if (pos && boulderAt(ctx, pos.level, pos.x, pos.y)) {
+    say(ctx, 'kick.no_room');
+    return false;
+  }
   return true;
 }
 
@@ -588,7 +596,9 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   const pile = itemsAt(ctx.defs, ctx.state, level.id, x, y);
   const top = pile[0];
   if (top) {
-    if (!reallyKickObject(ctx, top, x, y, dir)) kickOuch(ctx, x, y, 'object');
+    // kickstr(): killer_xname() of the top object; only a boulder gets its own name here
+    if (!reallyKickObject(ctx, top, x, y, dir))
+      kickOuch(ctx, x, y, top.def === BOULDER ? 'boulder' : 'object');
     return NORMAL_SPEED;
   }
   if (terrainAt(ctx, x, y).door !== undefined) kickDoor(ctx, x, y, avrg);

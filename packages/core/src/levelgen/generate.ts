@@ -196,5 +196,6 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
         ? { pos: { x: branchPos.x - 1, y: branchPos.y }, to: opts.branch.to, dir: opts.branch.dir }
         : null,
     traps: [],
+    ...(g.boulders.length > 0 && { boulderSpots: g.boulders.map((p) => ({ x: p.x - 1, y: p.y })) }),
   };
 }

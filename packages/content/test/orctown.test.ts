@@ -166,6 +166,21 @@ describe('Orcish Town contents', () => {
       expect(wands.filter((w) => w.def === 'nh:wand_of_magic_missile')).toHaveLength(2);
       for (const w of wands) expect(w.c.item).toMatchObject({ spe: 0, buc: 'uncursed' });
       expect(quan('nh:rock')).toBeGreaterThanOrEqual(10);
+      // Rubble: each of the 10-19 rocks comes with a boulder 90% of the time. The orcs given a
+      // random spot (get_location(DRY)) never stand on one; the army's rndcoord() spots are fixed
+      // coordinates, which C does not check for boulders.
+      const rubble = things.filter((e) => e.def === 'nh:boulder');
+      expect(rubble.length).toBeGreaterThanOrEqual(5);
+      expect(rubble.length).toBeLessThanOrEqual(19);
+      for (const b of rubble)
+        expect(
+          mons.some(
+            (m) =>
+              (m.def === 'nh:hill_orc' || m.def === 'nh:goblin') &&
+              m.c.pos?.x === b.c.pos?.x &&
+              m.c.pos?.y === b.c.pos?.y,
+          ),
+        ).toBe(false);
     }
   });
 

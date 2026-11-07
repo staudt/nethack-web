@@ -39,7 +39,8 @@ const fountainStartMod: Mod = {
 // Short runs (m7c step 4): the bot drinks from and dips into the fountains around its start,
 // with the fountain-state invariant checked as it goes.
 describe('soak at fountains', () => {
-  for (const seed of [1, 2]) {
+  // seeds whose bot uses a fountain within the 300 turns (re-picked in m7b step 2)
+  for (const seed of [1, 4]) {
     test(`seed ${seed}: 300 turns among fountains`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod, fountainStartMod], { seed, turns: 300, checkEvery: 1 });
       console.log(

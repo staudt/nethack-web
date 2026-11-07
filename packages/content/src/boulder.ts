@@ -74,3 +74,24 @@ export function feelObjects(
   if (top === undefined) delete mem[String(i)];
   else mem[String(i)] = top;
 }
+
+/** ref: include/objects.h ROCK */
+export const ROCK: DefId = 'nh:rock';
+
+/**
+ * A boulder (or, later, a statue) becomes 7..66 rocks where it lies, back on top of its pile; no
+ * messages (the caller says what was seen or heard). Sight through the square is recomputed with
+ * the rest of the view at the end of the step. `byYou` is for sokoban_guilt() (Sokoban's rules
+ * come in a later step). Shop billing (breakobj() in a costly spot) is not ported.
+ * ref: src/zap.c fracture_rock()
+ */
+export function fractureRock(ctx: Pick<Ctx, 'state' | 'rng'>, obj: Entity, _byYou: boolean): void {
+  const it = obj.c.item;
+  if (!it) return;
+  obj.def = ROCK;
+  it.quantity = ctx.rng.rn2(60) + 7; // rn1(60, 7)
+  // dknown = bknown = rknown = 0 (`known` is not modelled for objects without it)
+  it.known = { buc: false, spe: false };
+  // obj_extract_self() + place_object(): back on top of the pile
+  if (obj.c.pos) it.placed = ctx.state.seq++;
+}

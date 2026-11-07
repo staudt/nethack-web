@@ -374,6 +374,10 @@ export function runScenario(
     delete state.memory[level.id];
     delete state.objectMemory[level.id];
     delete state.monsterMemory[level.id];
+    // the replaced level's fountains (vanilla's `modData.nh.fountains`, see invariants.ts) are gone
+    const nh = state.modData['nh'];
+    const ftn = nh && typeof nh === 'object' && !Array.isArray(nh) ? nh['fountains'] : undefined;
+    if (ftn && typeof ftn === 'object' && !Array.isArray(ftn)) delete ftn[level.id];
     clearMonsters(level.id);
     const pos = getPlayer(state).c.pos;
     const at = start ?? up ?? down;

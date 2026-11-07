@@ -55,6 +55,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.probe.empty': 'The {item} is empty.',
   'zap.probe.sdoor': 'Probing reveals a secret door.',
   'zap.hear_shatter': 'You hear something shatter!',
+  'zap.boulder_falls_apart': 'The boulder falls apart.',
+  'zap.hear_crumbling': 'You hear a crumbling sound.',
 
   // doorlock(), boxlock(), obstructed()
   'zap.door.appears': 'A door appears in the wall!',

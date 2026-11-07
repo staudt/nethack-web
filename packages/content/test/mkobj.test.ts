@@ -164,6 +164,11 @@ describe('level objects', () => {
       for (const e of Object.values(state.entities)) {
         if (!e.c.item || !e.c.pos) continue;
         const p = e.c.pos;
+        // dig_corridor()'s boulders lie in corridors
+        if (e.def === 'nh:boulder') {
+          expect(level.palette[level.cells[p.y * level.width + p.x]!]).toBe('nh:corr');
+          continue;
+        }
         const inRoom = level.rooms.some(
           (r) => p.x >= r.lx && p.x <= r.hx && p.y >= r.ly && p.y <= r.hy,
         );

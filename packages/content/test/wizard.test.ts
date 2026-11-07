@@ -458,6 +458,8 @@ describe('wiz:wish and wiz:identify', () => {
     const daggers = inv(state).find((e) => e.def === 'nh:dagger' && e.c.item?.spe === 3);
     const wand = inv(state).find((e) => e.def === 'nh:wand_of_striking');
     expect(daggers && wand).toBeTruthy();
+    // pin: mksobj()'s 1-in-100 erodeproof roll is not part of the wish
+    if (daggers?.c.item) delete daggers.c.item.erodeproof;
     expect(named(state, wand?.id ?? 0)).not.toContain('striking');
     const turn = state.turn;
     const events = wizard.step(state, IDENTIFY).events;

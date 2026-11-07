@@ -5,8 +5,8 @@
 // Translation notes (see DEVIATIONS.md "Orcish Town"): the iron bars (`F`) are drawn as walls in
 // the map, so that core's wallification joins the walls to them as NetHack's iswall() does, and
 // the `before` fixup then turns them into `nh:iron_bars`. `replace_terrain` is expanded into one
-// `edits` entry per `|` cell of each region. The 10-19 boulders and the teleport region are left
-// out (no boulders or teleporting); the rocks are made. The corpses, candles, lamp, wands and
+// `edits` entry per `|` cell of each region. The teleport region is left out (no teleporting);
+// the 10-19 rocks and their boulders are made. The corpses, candles, lamp, wands and
 // the orc horde are the `after` fixup, in lua order. stolen_booty() makes the gang without its
 // name and without the booty items that wait for orcs on the levels below.
 import type { Ctx, DefId, Entity, Level, LevelDef, Pos, TerrainEdit } from '@nh/core';
@@ -318,10 +318,10 @@ export const ORCTOWN_FIXUP: SpLevFixup = {
     for (let n = 0; n < 4; n++) corpseAt(ctx, level, def, 'watchman');
     corpseAt(ctx, level, def, 'watch_captain');
 
-    // Rubble! (the boulders are left out, their percent(90) is still rolled)
+    // Rubble!
     const rubble = random(ctx, 10, 19);
     for (let i = 0; i < rubble; i++) {
-      percent(ctx, 90);
+      if (percent(ctx, 90)) objectAt(ctx, level, def, 'boulder');
       objectAt(ctx, level, def, 'rock');
     }
 

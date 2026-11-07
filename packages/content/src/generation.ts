@@ -16,6 +16,7 @@ import {
   type MonsterDef,
   type Pos,
 } from '@nh/core';
+import { boulderCells } from './boulder';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
 
@@ -173,7 +174,18 @@ const occupiedSet = (ctx: Ctx, level: Level): Set<number> => {
   return s;
 };
 
-/** ref: src/teleport.c goodpos(): passable, not a closed door, nobody there. */
+/**
+ * `taken` plus the boulder squares: goodpos() skips boulder locations for creatures that do not
+ * throw rocks (none here). An explicit makemon() spot ignores boulders, as in NetHack.
+ * ref: src/teleport.c goodpos() `sobj_at(BOULDER, x, y) && !throws_rocks(mdat)`
+ */
+const withBoulders = (ctx: Ctx, level: Level, taken: Set<number>): Set<number> => {
+  const s = new Set(taken);
+  for (const i of boulderCells(ctx, level)) s.add(i);
+  return s;
+};
+
+/** ref: src/teleport.c goodpos(): passable, not a closed door, nobody (and no boulder) there. */
 function goodpos(
   level: Level,
   rules: CellRules,
@@ -194,7 +206,7 @@ function goodpos(
  */
 export function rlocPos(ctx: Ctx, level: Level): Pos | null {
   const rules = cellRules(level, ctx.defs);
-  const taken = occupiedSet(ctx, level);
+  const taken = withBoulders(ctx, level, occupiedSet(ctx, level));
   for (let tries = 0; tries < 50; tries++) {
     const x = ctx.rng.rnd(level.width - 1);
     const y = ctx.rng.rn2(level.height);
@@ -244,7 +256,7 @@ export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos
   const taken = occupiedSet(ctx, level);
   const self = id === null ? undefined : ctx.state.entities[String(id)]?.c.pos;
   if (self && self.level === level.id) taken.delete(cellIndex(level, self.x, self.y));
-  return enexto(ctx, level, cellRules(level, ctx.defs), taken, from);
+  return enexto(ctx, level, cellRules(level, ctx.defs), withBoulders(ctx, level, taken), from);
 }
 
 /**
@@ -310,12 +322,12 @@ export function makemon(
 
   let at: Pos;
   if (pos === null) {
-    const p = randomGoodPos(ctx, level, rules, taken);
+    const p = randomGoodPos(ctx, level, rules, withBoulders(ctx, level, taken));
     if (!p) return null;
     at = p;
   } else if (taken.has(cellIndex(level, pos.x, pos.y))) {
     if (!opts.adjacentOk) return null;
-    const p = enexto(ctx, level, rules, taken, pos);
+    const p = enexto(ctx, level, rules, withBoulders(ctx, level, taken), pos);
     if (!p) return null;
     at = p;
   } else at = pos;
@@ -372,7 +384,7 @@ function initgrp(
   let mm = at;
   while (cnt-- > 0) {
     if (peaceMinded(ctx, def)) continue;
-    const p = enexto(ctx, level, rules, occupiedSet(ctx, level), mm);
+    const p = enexto(ctx, level, rules, withBoulders(ctx, level, occupiedSet(ctx, level)), mm);
     if (!p) continue;
     mm = p;
     makemon(ctx, def, p, { ...opts, level: levelId, nogroup: true, angry: true });

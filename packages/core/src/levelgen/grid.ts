@@ -70,6 +70,8 @@ export class Grid {
   readonly lit: Uint8Array;
   rooms: IRoom[] = [];
   smeq: number[] = [];
+  /** Corridor cells that got a boulder (dig_corridor()'s nxcor roll), in digging order. */
+  boulders: { x: number; y: number }[] = [];
 
   constructor(width: number, height: number) {
     this.colno = width + 1;

@@ -11,7 +11,7 @@
 // Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
-// statues, boulders, drawbridges, the ray animation.
+// statues, drawbridges, the ray animation.
 import {
   DIRS,
   DIR_LIST,
@@ -42,6 +42,7 @@ import {
   type Trap,
 } from '@nh/core';
 import { setTerrain } from './actions';
+import { BOULDER, fractureRock } from './boulder';
 import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
 import { makemon } from './generation';
@@ -577,6 +578,14 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       break;
     case WAN.striking:
     case SPE.forceBolt: {
+      // the boulder falls apart (seen or heard: no deafness, so the wand is always learned)
+      if (obj.def === BOULDER) {
+        say(ctx, cansee(ctx, x, y) ? 'zap.boulder_falls_apart' : 'zap.hear_crumbling');
+        fractureRock(ctx, obj, true);
+        learnIt = true;
+        res = 1;
+        break;
+      }
       // hero_breaks(): something fragile breaks (heard if not seen)
       if (!breaktest(ctx, obj)) break;
       const it = obj.c.item;

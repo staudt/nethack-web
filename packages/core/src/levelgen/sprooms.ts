@@ -105,6 +105,12 @@ function fromGrid(b: Builder, g: Grid, typ0: Uint8Array, mask0: Uint8Array): voi
       if (typ === typ0[gi] && mask === mask0[gi]) continue;
       b.put(i, typ === T.DOOR || typ === T.SDOOR ? doorKey(typ, mask) : (GRID_KEY[typ] as Key));
     }
+  // dig_corridor()'s boulders, for content to make (see Level.boulderSpots)
+  if (g.boulders.length > 0)
+    level.boulderSpots = [
+      ...(level.boulderSpots ?? []),
+      ...g.boulders.map((p) => ({ x: p.x - 1, y: p.y })),
+    ];
 }
 
 const XALIGN = { left: 1, center: 3, right: 5 } as const;

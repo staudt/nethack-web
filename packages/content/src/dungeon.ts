@@ -9,8 +9,8 @@ import type { SpLevFixup } from './sp_lev';
  * The filler level of the Gnomish Mines: a joined, walled cave of gnomes, dwarves and gems.
  * NetHack first does a solidfill of stone (whose random lighting draws one rn2(2)) and then the
  * mines init; the mines init alone makes the same map, so the extra roll is not drawn. Lighting
- * is a coin flip (lit omitted). Boulders do not exist yet, and `percent(50) and "h" or "G"` is two
- * independent 50% entries (see DEVIATIONS.md).
+ * is a coin flip (lit omitted). `percent(50) and "h" or "G"` is two independent 50% entries (see
+ * DEVIATIONS.md).
  * ref: dat/minefill.lua
  */
 export const MINEFILL: LevelDef = {
@@ -20,7 +20,7 @@ export const MINEFILL: LevelDef = {
     { kind: 'object', class: 'gem', count: { min: 2, max: 5 } }, // des.object("*")
     { kind: 'object', class: 'tool' }, // des.object("(")
     { kind: 'object', count: { min: 2, max: 4 } }, // des.object()
-    // percent(75): des.object("boulder") x math.random(1, 2) -- no boulders yet
+    { kind: 'object', id: 'nh:boulder', percent: 75, count: { min: 1, max: 2 } },
     { kind: 'monster', id: 'nh:gnome', count: { min: 6, max: 8 } },
     { kind: 'monster', id: 'nh:gnome_lord' },
     { kind: 'monster', id: 'nh:dwarf', count: 2 },

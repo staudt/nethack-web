@@ -30,6 +30,24 @@ describe('levelgen', () => {
     expect(levelToAscii(lvl)).toMatchSnapshot();
   });
 
+  test('extra corridors ask for boulders, only on corridor cells, on some levels', () => {
+    let withBoulders = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      const lvl = gen(seed, 80, 21, 1 + (seed % 6));
+      const spots = lvl.boulderSpots ?? [];
+      if (lvl.boulderSpots) expect(spots.length).toBeGreaterThan(0); // absent rather than empty
+      if (spots.length) withBoulders++;
+      total += spots.length;
+      for (const p of spots)
+        expect(lvl.palette[lvl.cells[p.y * lvl.width + p.x] ?? -1]).toBe(VANILLA_TERRAIN.corr);
+    }
+    // rn2(50) per new cell of the 4..nroom+3 extra corridors: many levels, never most of them
+    expect(withBoulders).toBeGreaterThan(20);
+    expect(withBoulders).toBeLessThan(200);
+    expect(total).toBeGreaterThanOrEqual(withBoulders);
+  });
+
   test('deterministic and seed-sensitive', () => {
     expect(JSON.stringify(gen(5))).toBe(JSON.stringify(gen(5)));
     expect(JSON.stringify(gen(5))).not.toBe(JSON.stringify(gen(6)));

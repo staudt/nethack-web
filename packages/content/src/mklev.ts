@@ -3,6 +3,7 @@
 // A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
+import { BOULDER } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon } from './generation';
 import { mkgold } from './items';
@@ -188,8 +189,29 @@ export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   if (level.depth > 1 && nroom >= roomThreshold && ctx.rng.rn2(level.depth) < 3) mkshop(ctx, level);
 }
 
+/**
+ * Makes the boulders level generation asked for in its extra corridors (`Level.boulderSpots`,
+ * core makes no objects) and deletes the request, so no saved level keeps it. They come first,
+ * as NetHack makes them while digging, before any room is filled. Boulders draw no random
+ * numbers in mksobj(). ref: src/sp_lev.c dig_corridor() mksobj_at(BOULDER, xx, yy, TRUE, FALSE)
+ */
+export function mkCorridorBoulders(ctx: Ctx, level: Level): void {
+  const spots = level.boulderSpots;
+  if (spots === undefined) return;
+  delete level.boulderSpots;
+  const def = ctx.defs.object(BOULDER);
+  for (const p of spots)
+    mksobjFull(
+      ctx,
+      def,
+      { at: { level: level.id, x: p.x, y: p.y } },
+      { level: level.id, inMklev: true },
+    );
+}
+
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
+    mkCorridorBoulders(ctx, level);
     if (level.def === undefined) mkSpecialRoom(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
       for (const room of level.rooms)

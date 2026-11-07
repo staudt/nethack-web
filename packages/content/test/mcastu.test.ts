@@ -458,8 +458,10 @@ describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', 
         reasonKey: 'helpless.asleep',
       };
     });
+    // the paralyze branch: the only one that sets multi_reason (a 9-point wound is not it)
     const o = outcomes(s.state, (ctx) => castmu(ctx, id, CLRC, true, true)).find(
-      (x) => lost(x) === 9,
+      (x) =>
+        lost(x) === 9 && getPlayer(x.state).c.helpless?.reasonKey === 'helpless.paralyzed_monster',
     );
     expect(o).toBeDefined();
     expect(o!.text).toEqual(['The priest casts a spell at you!']);

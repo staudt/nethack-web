@@ -84,4 +84,11 @@ export interface Level {
   shrines?: Pos[];
   /** Sorted by cell index; only on plain floor. Change through `ctx.placeTrap` / `removeTrap`. */
   traps: Trap[];
+  /**
+   * Transient: the corridor cells where level generation rolled a boulder (ref: src/sp_lev.c
+   * dig_corridor() `nxcor && !rn2(50)`), in digging order. Core makes no objects, so the mod that
+   * owns boulders makes them in its first `newLevel` hook and deletes the field; a level in a
+   * save never has it. Absent when there are none.
+   */
+  boulderSpots?: Pos[];
 }

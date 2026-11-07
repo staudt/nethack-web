@@ -130,8 +130,9 @@ export function dodoor(g: Grid, rng: Rng, depth: number, x: number, y: number): 
 
 /**
  * Dig a corridor from org to dest. With nxcor it may stop at random (dead end).
- * ref: src/sp_lev.c dig_corridor(). Boulders are not generated. At depth > 2 each new corridor cell
- * is secret with chance 1/100 (maybe_sdoor(100)).
+ * ref: src/sp_lev.c dig_corridor(). At depth > 2 each new corridor cell is secret with chance
+ * 1/100 (maybe_sdoor(100)); an extra (nxcor) corridor cell that is not secret gets a boulder 1 time
+ * in 50. Core makes no objects, so the cell goes into `g.boulders` for content to fill.
  */
 export function digCorridor(
   g: Grid,
@@ -172,8 +173,13 @@ export function digCorridor(
     const here = g.get(xx, yy);
     if (here === T.STONE) {
       npoints++;
-      // ref: sp_lev.c dig_corridor(): ftyp == CORR && maybe_sdoor(100)
-      g.set(xx, yy, depth > 2 && rng.rn2(100) === 0 ? T.SCORR : T.CORR);
+      // ref: sp_lev.c dig_corridor(): ftyp == CORR && maybe_sdoor(100), else the corridor and
+      // `if (nxcor && !rn2(50)) mksobj_at(BOULDER, xx, yy, TRUE, FALSE)`
+      if (depth > 2 && rng.rn2(100) === 0) g.set(xx, yy, T.SCORR);
+      else {
+        g.set(xx, yy, T.CORR);
+        if (nxcor && rng.rn2(50) === 0) g.boulders.push({ x: xx, y: yy });
+      }
     } else if (here !== T.CORR && here !== T.SCORR) {
       return { ok: false, npoints }; // strange ...
     }
