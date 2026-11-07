@@ -24,6 +24,8 @@ export interface PassiveTarget {
   /** m_lev */
   level: number;
   pos: Pos & { level: string };
+  /** mcan: it was cancelled (its passive fire and its live responses fail) */
+  mcan: boolean;
 }
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
@@ -34,8 +36,8 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
  * `malive` whether it survived.
  * `weapon` is what hit it (uwep, or uarmf for a kick, or null bare-handed): fire burns and acid
  * corrodes it (passive_obj(), or the boots one time in six), and an acid splash may corrode
- * armor; the Oracle's magic missiles. ref: src/uhitm.c passive(). Golems and `mcan` are not
- * ported; the stoning, rust, corrosion and disenchantment cases belong to monsters we do not have. Not ported: brown
+ * armor; the Oracle's magic missiles; a cancelled monster's fire and live responses fail.
+ * ref: src/uhitm.c passive(). Golems are not ported; the stoning, rust, corrosion and disenchantment cases belong to monsters we do not have. Not ported: brown
  * mold splitting (split_mon). The floating eye's gaze is never reflected (no reflection) nor
  * resisted (no Free_action, no hallucination, no blindness) and the monster is never blind.
  */
@@ -66,10 +68,10 @@ export function passive(
       const uarmf = whichArmor(ctx, hero.id, 'boots');
       if (uarmf && ctx.rng.rn2(6) === 0)
         erodeObj(ctx, uarmf, xnameOf(ctx.state, ctx.defs, uarmf), type, { verbose: true });
-    } else passiveObj(ctx, mon.def.id, weapon);
+    } else passiveObj(ctx, mon.def.id, weapon, mon.mcan);
   };
   if (atk.ad === 'fire') {
-    if (mhit) hitObj('burn'); // `mhitb && !mon->mcan && weapon`
+    if (mhit && !mon.mcan) hitObj('burn'); // `mhitb && !mon->mcan && weapon`
   } else if (atk.ad === 'acid') {
     if (mhit && ctx.rng.rn2(2) !== 0) {
       say(ctx, 'passive.splashed', { mon: shown });
@@ -90,7 +92,7 @@ export function passive(
   }
 
   // These only affect you if they still live.
-  if (!malive || ctx.rng.rn2(3) === 0) return;
+  if (!malive || mon.mcan || ctx.rng.rn2(3) === 0) return;
   switch (atk.ad) {
     case 'plys':
       if (mon.def.id === 'nh:floating_eye') {

@@ -24,7 +24,14 @@ import { monkilled, mondied } from './mondeath';
 export { monkilled, mondied };
 import { magicNegation } from './mhitu';
 import { monWep, monWieldItem } from './mongear';
-import { paralyzeMonst, isFrozen, setMStunned, isMStunned, isMConfused } from './mstate';
+import {
+  paralyzeMonst,
+  isCancelled,
+  isFrozen,
+  setMStunned,
+  isMStunned,
+  isMConfused,
+} from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
 import { nhData } from './items';
@@ -141,8 +148,12 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number): boolean {
   return true;
 }
 
-/** ref: mhitm_mgc_atk_negated() with magic_negation(mdef): always rolls rn2(10) */
-function negated(ctx: Ctx, mdef: Entity, vis: boolean): boolean {
+/**
+ * ref: mhitm_mgc_atk_negated() with magic_negation(mdef): a cancelled attacker is always
+ * negated (no roll, no message), else rn2(10)
+ */
+function negated(ctx: Ctx, magr: Entity, mdef: Entity, vis: boolean): boolean {
+  if (isCancelled(ctx, magr.id)) return true;
   const neg = !(ctx.rng.rn2(10) >= 3 * magicNegation(ctx, mdef.id));
   if (neg && vis && canSpotMon(ctx, mdef))
     say(ctx, 'mhitm.avoids_harm', { mon: monNam(ctx, mdef) });
@@ -183,7 +194,7 @@ function adtyping(
   };
   switch (atk.ad) {
     case 'fire': {
-      if (negated(ctx, mdef, vis)) return 0;
+      if (negated(ctx, magr, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.on_fire', { mon: mdefName() });
       let dmg = damage;
       if (resists(ctx, mdef, 'fire')) {
@@ -196,7 +207,7 @@ function adtyping(
       return dmg + burnt;
     }
     case 'cold': {
-      if (negated(ctx, mdef, vis)) return 0;
+      if (negated(ctx, magr, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.frost', { mon: mdefName() });
       let dmg = damage;
       if (resists(ctx, mdef, 'cold')) {
@@ -206,7 +217,7 @@ function adtyping(
       return dmg + destroyItems(ctx, mdef.id, 'cold', damage);
     }
     case 'elec': {
-      if (negated(ctx, mdef, vis)) return 0;
+      if (negated(ctx, magr, mdef, vis)) return 0;
       if (seen) say(ctx, 'mhitm.zapped', { mon: mdefName() });
       let dmg = damage;
       if (resists(ctx, mdef, 'elec')) {
@@ -231,7 +242,7 @@ function adtyping(
     case 'drdx':
     case 'drco': {
       // ref: mhitm_ad_drst(): `!negated && !rn2(8)` -> mhitm_really_poison()
-      const neg = negated(ctx, mdef, false);
+      const neg = negated(ctx, magr, mdef, false);
       if (!neg && ctx.rng.rn2(8) === 0) {
         if (vis && canSpotMon(ctx, magr))
           say(ctx, 'mhitm.was_poisoned', { mon: monNam(ctx, magr) });
@@ -247,6 +258,7 @@ function adtyping(
       return damage;
     }
     case 'acid':
+      if (isCancelled(ctx, magr.id)) return 0;
       if (resists(ctx, mdef, 'acid')) {
         if (seen) say(ctx, 'mhitm.acid_harmless', { mon: mdefName() });
         damage = 0;
@@ -258,11 +270,12 @@ function adtyping(
       if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, mdef.id));
       return damage;
     case 'stun':
+      if (isCancelled(ctx, magr.id)) return damage;
       if (canSpotMon(ctx, mdef)) say(ctx, 'mhitm.staggers', { mon: mdefName() });
       setMStunned(ctx, mdef.id, true);
       return phys(damage);
     case 'plys':
-      if (!isFrozen(ctx, mdef.id) && ctx.rng.rn2(3) === 0 && !negated(ctx, mdef, vis)) {
+      if (!isFrozen(ctx, mdef.id) && ctx.rng.rn2(3) === 0 && !negated(ctx, magr, mdef, vis)) {
         if (vis && canSpotMon(ctx, mdef))
           say(ctx, 'mhitm.frozen_by', { mon: mdefName(), by: monNam(ctx, magr) });
         paralyzeMonst(ctx, mdef.id, ctx.rng.rnd(10));
@@ -354,7 +367,7 @@ function passivemm(ctx: Ctx, magr: Entity, mdef: Entity, mhit: boolean, mdead: n
     assess = true;
   }
   if (!assess) {
-    if (mdead) return res;
+    if (mdead || isCancelled(ctx, mdef.id)) return res;
     // these only if the defender is still alive
     if (ctx.rng.rn2(3) !== 0) {
       switch (atk.ad) {

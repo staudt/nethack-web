@@ -261,25 +261,26 @@ export function rustm(ctx: Ctx, mdef: Entity, obj: Entity | null): void {
 
 /**
  * The monster's passive attack damages the object that hit it (the hero's weapon).
- * ref: src/uhitm.c passive_obj() (`mcan` is never set; no rust, corrosion or disenchanting
- * monsters in the roster, but their cases are kept)
+ * `mcan`: the monster is cancelled. ref: src/uhitm.c passive_obj() (no rust, corrosion or
+ * disenchanting monsters in the roster, but their cases are kept)
  */
-export function passiveObj(ctx: Ctx, monDef: string, obj: Entity): void {
+export function passiveObj(ctx: Ctx, monDef: string, obj: Entity, mcan: boolean): void {
   const pd = ctx.defs.monster(monDef as Entity['def']);
   const atk = pd.attacks.find((a) => a.at === 'passive');
   if (!atk) return;
   switch (atk.ad) {
     case 'fire':
-      if (ctx.rng.rn2(6) === 0 && pd.id !== 'nh:steam_vortex') erodeObj(ctx, obj, null, 'burn');
+      if (ctx.rng.rn2(6) === 0 && !mcan && pd.id !== 'nh:steam_vortex')
+        erodeObj(ctx, obj, null, 'burn');
       break;
     case 'acid':
       if (ctx.rng.rn2(6) === 0) erodeObj(ctx, obj, null, 'corrode');
       break;
     case 'rust':
-      erodeObj(ctx, obj, null, 'rust');
+      if (!mcan) erodeObj(ctx, obj, null, 'rust');
       break;
     case 'corr':
-      erodeObj(ctx, obj, null, 'corrode');
+      if (!mcan) erodeObj(ctx, obj, null, 'corrode');
       break;
     default:
       break; // AD_ENCH (drain_item) belongs to disenchanters, not in the roster

@@ -640,18 +640,28 @@ function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
 }
 
 /**
- * The hero has just altered a shop object (bitten into food): she pays for it. `at`: where it
- * lies on the floor, or null when she has it. ref: src/mkobj.c costly_alteration() (COST_BITE)
+ * The hero has just altered a shop object (bitten into food, cancelled it): she pays for it.
+ * `at`: where it lies on the floor, or null when she has it. Uncursing or unblessing tells her
+ * its BUC. ref: src/mkobj.c costly_alteration() (COST_BITE, COST_CANCEL, COST_UNCURS,
+ * COST_UNBLSS)
  */
-export function costlyAlteration(ctx: Ctx, obj: Entity, how: 'bite', at: Pos | null): void {
+export function costlyAlteration(
+  ctx: Ctx,
+  obj: Entity,
+  how: 'bite' | 'cancel' | 'uncurse' | 'unbless',
+  at: Pos | null,
+): void {
   const it = obj.c.item;
   if (!it) return;
+  // the shopkeeper describes it as uncursed or unblessed: she will know it is now uncursed
+  const learnBknown = how === 'uncurse' || how === 'unbless';
   const level = getLevel(ctx.state);
   const those = it.quantity === 1 ? '@shk.that' : '@shk.those';
   const them = it.quantity === 1 ? '@pronoun.it' : '@pronoun.them';
   const verb = `@shk.alter.${how}`;
   if (at === null) {
     if (!it.unpaid) return;
+    if (learnBknown) it.known.buc = true;
     ctx.emit({
       type: 'msg',
       key: 'shk.alter_inv',
@@ -665,6 +675,7 @@ export function costlyAlteration(ctx: Ctx, obj: Entity, how: 'bite', at: Pos | n
   // if no shop cares about it, we're done
   if (billable(ctx, obj, objroom, false) === null) return;
   const hp = getPlayer(ctx.state).c.pos;
+  if (learnBknown) it.known.buc = true;
   if (hp && costlySpot(ctx, hp.x, hp.y) && objroom === uShops(ctx)[0]) {
     ctx.emit({ type: 'msg', key: 'shk.alter_floor', params: { verb, those, them } });
     billDummyObject(ctx, obj, true);

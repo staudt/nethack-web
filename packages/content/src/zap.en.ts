@@ -32,6 +32,7 @@ export const zapMessagesEn: Record<string, string> = {
 
   // dozap(), zappable(), backfire()
   'zap.nothing_happens': 'Nothing happens.',
+  'zap.unfortunately': 'Unfortunately, nothing happens.',
   'zap.wrest': 'You wrest one last charge from the worn-out wand.',
   'zap.explodes': '{item|The} suddenly explodes!',
   'zap.glows_fades': '{item|The} glows and fades.',
@@ -63,6 +64,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.probe.flag.slow': ', slow{rest}',
   'zap.probe.flag.fast': ', fast{rest}',
   'zap.probe.flag.very_fast': ', very fast{rest}',
+  'zap.probe.flag.cancelled': ', cancelled{rest}',
   'zap.probe.flag.cant_move': ", can't move{rest}",
   'zap.probe.flag.asleep': ', asleep{rest}',
   'zap.probe.not_carrying': '{mon|The} is not carrying anything.',
@@ -105,6 +107,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.flash.fire': 'bolt of fire',
   'zap.flash.cold': 'bolt of cold',
   'zap.flash.sleep': 'sleep ray',
+  'zap.flash.death': 'death ray',
   'zap.flash.lightning': 'bolt of lightning',
   'zap.ray.hit': '{ray|The} hits {mon|the}{ex}',
   'zap.ray.miss': '{ray|The} misses {mon|the}.',
@@ -147,6 +150,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.self.not_sleepy': "You don't feel sleepy!",
   'zap.self.sleep_ray': 'The sleep ray hits you!',
   'zap.self.feel_better': 'You feel better.',
+  'zap.self.irradiate': 'You irradiate yourself with pure energy!',
+  'zap.self.you_die': 'You die.',
   'zap.speed.much_faster': 'You are suddenly moving much faster.',
   'zap.speed.faster': 'You are suddenly moving faster.',
   'zap.speed.legs': 'Your legs get new energy.',
@@ -163,6 +168,7 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.ray.fire': 'a bolt of fire',
   'killer.ray.cold': 'a bolt of cold',
   'killer.ray.sleep': 'a sleep ray',
+  'killer.ray.death': 'a death ray',
   'killer.ray.lightning': 'a bolt of lightning',
   'killer.zap.self.striking': 'zapping herself with a wand of striking',
   'killer.zap.self.lightning': 'zapping herself with a wand of lightning',
@@ -170,4 +176,5 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.zap.self.cold': 'zapping herself with a wand of cold',
   'killer.zap.self.magic_missile': 'zapping herself with a wand of magic missile',
   'killer.zap.self.spell': 'zapped herself with a spell',
+  'killer.zap.self.death': 'shot herself with a death ray',
 };

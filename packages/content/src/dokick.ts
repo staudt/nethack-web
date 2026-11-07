@@ -61,6 +61,7 @@ import { whichArmor } from './mongear';
 import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
+import { isCancelled } from './mstate';
 import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
@@ -457,6 +458,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
     def,
     level: mon.level,
     pos: { ...target.c.pos },
+    mcan: isCancelled(ctx, monId),
   };
   const hp = target.c.hp;
   if (dmg > 0 && hp) hp.cur -= dmg;
@@ -484,7 +486,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   const def = ctx.defs.monster(target.def);
   const name = monNam(ctx, target);
   const snap: PassiveTarget | null = target.c.pos
-    ? { id: monId, def, level: mon.level, pos: { ...target.c.pos } }
+    ? { id: monId, def, level: mon.level, pos: { ...target.c.pos }, mcan: isCancelled(ctx, monId) }
     : null;
   const passiveMiss = (): void => {
     if (snap) passive(ctx, snap, false, true, uarmf(ctx), 'kick');

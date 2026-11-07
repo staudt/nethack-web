@@ -39,7 +39,7 @@ import { hurtPet } from './dog';
 import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon } from './perception';
-import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
+import { isCancelled, isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
 import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
@@ -194,7 +194,13 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   const def = ctx.defs.monster(target.def);
   const name = monNam(ctx, target);
   const snap: PassiveTarget | null = target.c.pos
-    ? { id: targetId, def, level: mon.level, pos: { ...target.c.pos } }
+    ? {
+        id: targetId,
+        def,
+        level: mon.level,
+        pos: { ...target.c.pos },
+        mcan: isCancelled(ctx, targetId),
+      }
     : null;
   /** ref: src/uhitm.c hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...) */
   const answer = (mhit: boolean, malive: boolean): number => {

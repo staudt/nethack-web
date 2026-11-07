@@ -758,7 +758,13 @@ describe('passive attacks', () => {
         m.c.actor = { energy: 0, speed: 0 };
         const ctx = fullCtx(t.state);
         // call passive() directly: the hero is frozen right here, the clock not yet advanced
-        const snap = { id: mon, def: def('nh:floating_eye'), level: 2, pos: { ...m.c.pos! } };
+        const snap = {
+          id: mon,
+          def: def('nh:floating_eye'),
+          level: 2,
+          pos: { ...m.c.pos! },
+          mcan: false,
+        };
         for (let i = 0; i < 20 && !t.hero.c.helpless; i++)
           passive(ctx, snap, true, true, null, 'weapon');
         if (!t.hero.c.helpless) continue;
@@ -782,6 +788,7 @@ describe('passive attacks', () => {
         def: def('nh:floating_eye'),
         level: 2,
         pos: { level: 'elsewhere', x: 2, y: 1 },
+        mcan: false,
       };
       for (let i = 0; i < 60; i++) passive(ctx, snap, true, true, null, 'weapon');
       expect(t.hero.c.helpless).toBeUndefined();

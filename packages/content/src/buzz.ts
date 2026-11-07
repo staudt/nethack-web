@@ -24,6 +24,7 @@ import {
   type TerrainDef,
 } from '@nh/core';
 import { destroyItems, erodeArmor } from './erode';
+import { done } from './end';
 import { setUstuck, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { losehp } from './hp';
@@ -41,13 +42,17 @@ import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 
 /** Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_LIGHTNING */
-export type Ray = 'magic_missile' | 'fire' | 'cold' | 'sleep' | 'lightning';
-/** ref: include/display.h zap_color_*: HI_ZAP, CLR_ORANGE, CLR_WHITE, HI_ZAP, CLR_WHITE */
+export type Ray = 'magic_missile' | 'fire' | 'cold' | 'sleep' | 'death' | 'lightning';
+/**
+ * ref: include/display.h zap_color_*: HI_ZAP, CLR_ORANGE, CLR_WHITE, HI_ZAP, CLR_BLACK (drawn
+ * dark gray, as objects.ts and monsters.ts do), CLR_WHITE
+ */
 export const RAY_COLOR: Readonly<Record<Ray, string>> = {
   magic_missile: '#5555ff',
   fire: '#ff8800',
   cold: '#ffffff',
   sleep: '#5555ff',
+  death: '#555555',
   lightning: '#ffffff',
 };
 
@@ -223,8 +228,18 @@ function zapHit(ctx: Ctx, ac: number, spell: DefId | null): boolean {
  * ref: src/zap.c zhitm(): the ray's damage to a monster, halved when it resists; the hit points
  * are taken here. Fire burns armor (and may destroy items), cold and lightning may destroy items.
  * A hero's spell (`spellcaster`) gets the Intelligence damage bonus and resists at her level.
+ * `save`: the hero's ray (`type >= 0`) gets a saving throw; a monster's spell does not. The death
+ * ray kills (damage = HP + 1, no saving throw) unless the monster is nonliving, a demon or
+ * resists magic; Death is not in the roster.
  */
-function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number, spellcaster: boolean): number {
+function zhitm(
+  ctx: Ctx,
+  mon: Entity,
+  ray: Ray,
+  nd: number,
+  spellcaster: boolean,
+  save: boolean,
+): number {
   const def = ctx.defs.monster(mon.def);
   const res = (r: string): boolean => def.resists.includes(r);
   const bonus = (n: number): number => (spellcaster ? spellDamageBonus(ctx.state, n) : n);
@@ -259,6 +274,12 @@ function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number, spellcaster: boolean
     case 'sleep':
       sleepMonst(ctx, mon, ctx.rng.d(nd, 25), oclass);
       break;
+    case 'death':
+      // similar to player (no vampire shapeshifters exist)
+      if (nonliving(def) || def.flags.includes('demon') || resistsMagm(ctx, mon)) break;
+      save = false; // so they don't get saving throws
+      tmp = (mon.c.hp?.cur ?? 0) + 1;
+      break;
     case 'lightning': {
       tmp = bonus(ctx.rng.d(nd, 6));
       const orig = tmp;
@@ -267,7 +288,7 @@ function zhitm(ctx: Ctx, mon: Entity, ray: Ray, nd: number, spellcaster: boolean
       break;
     }
   }
-  if (tmp > 0 && resist(ctx, mon, 0, oclass)) tmp = Math.trunc(tmp / 2);
+  if (tmp > 0 && save && resist(ctx, mon, 0, oclass)) tmp = Math.trunc(tmp / 2);
   if (tmp < 0) tmp = 0;
   const hp = mon.c.hp;
   if (hp) hp.cur -= tmp;
@@ -306,6 +327,14 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       if (hasProp(h, P.SLEEP_RES)) say(ctx, 'zap.u.not_sleepy');
       else nomulNow(ctx, ctx.rng.d(nd, 25), 'helpless.asleep', { key: 'eat.wake_up' }); // fall_asleep()
       break;
+    case 'death':
+      // a hero is never nonliving or a demon (no polymorph)
+      if (antimagic(ctx)) {
+        say(ctx, 'zap.u.not_shocked'); // "You aren't affected."
+        break;
+      }
+      done(ctx, '@killer.ray.death'); // KILLED_BY_AN "death ray", whoever sent it
+      return; // lifesaved
     case 'lightning': {
       const orig = ctx.rng.d(nd, 6);
       if (hasProp(h, P.SHOCK_RES)) say(ctx, 'zap.u.not_shocked');
@@ -505,7 +534,7 @@ function buzzSteps(
         if (zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
           // mon_reflects(): no monster can reflect in the subset
           const couldMove = !isFrozen(ctx, mon.id);
-          const tmp = zhitm(ctx, mon, ray, nd, spell !== null);
+          const tmp = zhitm(ctx, mon, ray, nd, spell !== null, src.by === 'hero');
           if ((mon.c.hp?.cur ?? 0) < 1) {
             if (alive(ctx, mon.id)) {
               if (src.by === 'hero') killedByHero(ctx, mon);

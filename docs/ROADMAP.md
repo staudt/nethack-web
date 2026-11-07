@@ -77,10 +77,9 @@ From 7a (spellcasting: Pw, `Z`, the eight spells, monster casters; done, phone c
 - **Spells as defs** (with the mod platform): spell effects are a content table (`SPELL_INFO` and the switch in `cast.ts`), as shop types are; a `defineSpell` def kind or an `ObjectDef.cast` hook would let a mod add a spell. Monster spells (`MCAST_DATA` in `mcastu.ts`) likewise.
 - **The other spellbooks:** the 30-odd level 1-7 books, among them the Valkyrie's special spell cone of cold (`ROLE_SPELL` already names it), with their effects (digging, magic missile, fireball, teleport, ...).
 - **Detect monsters at Skilled:** the timed Detect_monsters property and its redraw.
-- **Monster spells left out:** disappear (needs monster invisibility), destroy armor, summon nasties, clone wizard and touch of death (counted as useless today); `buzzmu()` ray casters (AD_FIRE/AD_COLD/AD_MAGM `AT_MAGC`); monsters remembering her resistances (`M_SEEN_*`, `m_seenres()`); cancellation (`mcan`); Half_spell_damage sources.
+- **Monster spells left out:** disappear (needs monster invisibility), destroy armor, summon nasties, clone wizard and touch of death (counted as useless today); `buzzmu()` ray casters (AD_FIRE/AD_COLD/AD_MAGM `AT_MAGC`); monsters remembering her resistances (`M_SEEN_*`, `m_seenres()`); Half_spell_damage sources.
 - **Energy sources and drains:** the Amulet's energy drain, energy-draining attacks (AD_DREN), the potion of gain energy, Energy_regeneration and magical breathing; level drain with `u.ueninc[]` (and lowering the level with `#levelchange`).
 - **Spell menu:** reordering and sorting known spells (`+`), attribute exercise from casting.
-- **Known bug:** C's `zhitm()` skips the `resist()` halving for monster-spell rays (`type >= 0`), but the port rolls it at wand level for `by: 'spell'` rays (the god's lightning from an angry temple); no 7a code reaches it.
 
 From 7c (Mines' End, fountains, Orcish Town):
 

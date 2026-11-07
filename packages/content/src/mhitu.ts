@@ -17,6 +17,7 @@ import { nomulNow } from './hunger';
 import { done } from './end';
 import { P, hasExtrinsic, hasProp, makeStunned, timeoutLeft } from './props';
 import { monNam } from './perception';
+import { isCancelled } from './mstate';
 import { destroyItems } from './erode';
 import { igniteItems } from './light';
 
@@ -62,10 +63,13 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
 }
 
 /**
- * Whether magical cancellation blocks the special effect of the attack. Always rolls rn2(10).
- * ref: src/uhitm.c mhitm_mgc_atk_negated() (monsters are never cancelled here: no `mcan`)
+ * Whether magical cancellation blocks the special effect of the attack of `magr`: always when
+ * it is cancelled (no roll, no message), else rn2(10) against the hero's MC.
+ * ref: src/uhitm.c mhitm_mgc_atk_negated()
  */
-export function mgcAtkNegated(ctx: Ctx, verbosely: boolean): boolean {
+export function mgcAtkNegated(ctx: Ctx, magr: Entity, verbosely: boolean): boolean {
+  // no message if attacker has been cancelled
+  if (isCancelled(ctx, magr.id)) return true;
   const armpro = magicNegation(ctx);
   const negated = !(ctx.rng.rn2(10) >= 3 * armpro);
   if (negated && verbosely) say(ctx, 'mhitu.avoid_harm');
@@ -98,7 +102,8 @@ const onFire = (at: AttackDef['at']): string => (at === 'hug' ? '@mhitu.roasted'
  * ref: src/uhitm.c mhitm_adtyping() -> mhitm_ad_elec/fire/cold/slee/drst/acid/stun/plys/stck()
  * with `mdef == &gy.youmonst`.
  * Fire, cold and lightning may destroy carried items (destroy_items() with the incoming damage);
- * the hero may die of them. Free action stops paralysis. Not ported: `mcan`, Antimagic.
+ * the hero may die of them. Free action stops paralysis; a cancelled monster's (`mcan`) special
+ * effects never happen. Not ported: Antimagic.
  */
 export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): number {
   const hero = getPlayer(ctx.state);
@@ -107,7 +112,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
   let dmg = damage;
   switch (atk.ad) {
     case 'elec': // mhitm_ad_elec
-      if (!mgcAtkNegated(ctx, true)) {
+      if (!mgcAtkNegated(ctx, mon, true)) {
         say(ctx, 'mhitu.zapped');
         if (hasProp(hero, P.SHOCK_RES)) {
           say(ctx, 'mhitu.zap_no_shock');
@@ -117,7 +122,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       } else dmg = 0;
       break;
     case 'fire': // mhitm_ad_fire
-      if (!mgcAtkNegated(ctx, true)) {
+      if (!mgcAtkNegated(ctx, mon, true)) {
         say(ctx, 'mhitu.on_fire', { how: onFire(atk.at) });
         if (hasProp(hero, P.FIRE_RES)) {
           say(ctx, 'mhitu.fire_not_hot');
@@ -131,7 +136,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       } else dmg = 0;
       break;
     case 'cold': // mhitm_ad_cold
-      if (!mgcAtkNegated(ctx, true)) {
+      if (!mgcAtkNegated(ctx, mon, true)) {
         say(ctx, 'mhitu.frost');
         if (hasProp(hero, P.COLD_RES)) {
           say(ctx, 'mhitu.frost_not_cold');
@@ -140,8 +145,8 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
         if (mlev > ctx.rng.rn2(20)) destroyItems(ctx, hero.id, 'cold', damage);
       } else dmg = 0;
       break;
-    case 'acid': // mhitm_ad_acid: one hit in three splashes you
-      if (ctx.rng.rn2(3) === 0) {
+    case 'acid': // mhitm_ad_acid: one hit in three splashes you (a cancelled monster never)
+      if (!isCancelled(ctx, mon.id) && ctx.rng.rn2(3) === 0) {
         if (hasProp(hero, P.ACID_RES)) {
           say(ctx, 'mhitu.acid_harmless');
           dmg = 0;
@@ -149,7 +154,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       } else dmg = 0;
       break;
     case 'slee': // mhitm_ad_slee
-      if (!hero.c.helpless && ctx.rng.rn2(5) === 0 && !mgcAtkNegated(ctx, true)) {
+      if (!hero.c.helpless && ctx.rng.rn2(5) === 0 && !mgcAtkNegated(ctx, mon, true)) {
         if (hasProp(hero, P.SLEEP_RES)) break;
         // ref: src/timeout.c fall_asleep(-rnd(10), TRUE)
         stopOccupation(ctx);
@@ -161,7 +166,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
     case 'drco':
     case 'drdx': {
       const typ = atk.ad === 'drco' ? 'con' : atk.ad === 'drdx' ? 'dex' : 'str';
-      const negated = mgcAtkNegated(ctx, false);
+      const negated = mgcAtkNegated(ctx, mon, false);
       if (!negated && ctx.rng.rn2(8) === 0) {
         poisoned(
           ctx,
@@ -174,13 +179,13 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       break;
     }
     case 'stun': // mhitm_ad_stun
-      if (ctx.rng.rn2(4) === 0) {
+      if (!isCancelled(ctx, mon.id) && ctx.rng.rn2(4) === 0) {
         makeStunned(ctx, timeoutLeft(ctx.state, hero, P.STUNNED) + dmg, true);
         dmg = Math.trunc(dmg / 2);
       }
       break;
     case 'plys': // mhitm_ad_plys
-      if (!hero.c.helpless && ctx.rng.rn2(3) === 0 && !mgcAtkNegated(ctx, true)) {
+      if (!hero.c.helpless && ctx.rng.rn2(3) === 0 && !mgcAtkNegated(ctx, mon, true)) {
         if (hasProp(hero, P.FREE_ACTION)) say(ctx, 'free_action.stiffen');
         else {
           say(ctx, 'mhitu.frozen_by', { mon: name });
@@ -190,7 +195,7 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
       break;
     case 'stck': {
       // mhitm_ad_stck
-      const negated = mgcAtkNegated(ctx, false);
+      const negated = mgcAtkNegated(ctx, mon, false);
       if (!negated && ustuck(ctx) === null) setUstuck(ctx, mon.id); // set_ustuck(magr)
       break;
     }

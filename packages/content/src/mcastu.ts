@@ -11,8 +11,9 @@
 // never import combat, monmove, actions, zap, peaceful or dog (combat -> mcastu -> zap -> actions
 // -> combat would be a cycle).
 //
-// Not ported (see DEVIATIONS.md "Monster spellcasting"): cancellation (`mcan`), the M_SEEN
-// resistance memory (`m_seenres()`, `monstseesu()`), Half_spell_damage, the hero's displacement
+// A cancelled caster (`mcan`) only curses. Not ported (see DEVIATIONS.md "Monster
+// spellcasting"): the M_SEEN resistance memory (`m_seenres()`, `monstseesu()`),
+// Half_spell_damage, the hero's displacement
 // and invisibility (`foundyou` is always `thinks_it_foundyou`), the AD_FIRE/AD_COLD/AD_MAGM
 // AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
 // Disappear, destroy armor, summon nasties, clone wizard and touch of death are always
@@ -42,6 +43,7 @@ import { mdamageu } from './mhitu';
 import { heroSees } from './mongear';
 import {
   aggravate,
+  isCancelled,
   isFrozen,
   isMConfused,
   monAdjustSpeed,
@@ -298,7 +300,7 @@ export function castmu(
   }
 
   // monster unable to cast spells?
-  if (mspecUsed(ctx, monId) || !ml) {
+  if (isCancelled(ctx, monId) || mspecUsed(ctx, monId) || !ml) {
     cursetxt(ctx, mon, isUndirectedSpell(spellnum));
     return false;
   }

@@ -8,7 +8,8 @@
 // `mstun: { [monsterId]: true }` while it is stunned, `mconf: { [monsterId]: true }` while it is
 // confused, `mspeed: { [monsterId]: 'slow' | 'fast' }`
 // while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed),
-// `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability).
+// `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability),
+// `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone).
 import {
   cellIndex,
   getPlayer,
@@ -26,7 +27,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed';
+type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -172,6 +173,17 @@ export function setMspecUsed(ctx: Pick<Ctx, 'state'>, id: EntityId, n: number): 
   }
 }
 
+/** `mtmp->mcan`: the monster has been cancelled (no special attacks, spells or passives). */
+export function isCancelled(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  return table(ctx, 'mcan', false)?.[String(id)] === true;
+}
+
+/** `mtmp->mcan = 1` */
+export function setCancelled(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mcan', true);
+  if (t) t[String(id)] = true;
+}
+
 /**
  * Wakes the monsters of the hero's level; a paralysed one moves again 1 time in 5. No Wizard's
  * Tower and no monster strategies here. ref: src/wizard.c aggravate()
@@ -187,7 +199,7 @@ export function aggravate(ctx: Ctx): void {
   }
 }
 
-const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed', 'mspecUsed'];
+const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed', 'mspecUsed', 'mcan'];
 
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {

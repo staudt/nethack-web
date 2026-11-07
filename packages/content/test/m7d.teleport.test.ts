@@ -171,13 +171,13 @@ describe('the new objects', () => {
     const s = levelSetup(['.....', '..@..', '.....']);
     plainKit(s.state);
     s.step({ type: 'wait' });
-    const w = s.carry(WAN.death);
+    const w = s.carry(WAN.undeadTurning); // (death has its effect since m7d step 6)
     itemOf(s.state, w).spe = 3;
     s.mod('nh:zap', { item: w });
     const p = s.state.pendingPrompt?.prompt;
     engine.step(s.state, { type: 'answer', promptId: p?.id ?? '', value: 'e' as Json });
     expect(itemOf(s.state, w).spe).toBe(2);
-    expect(isKnown(s.state, defs, WAN.death)).toBe(false);
+    expect(isKnown(s.state, defs, WAN.undeadTurning)).toBe(false);
   });
 });
 

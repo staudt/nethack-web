@@ -1,8 +1,8 @@
 // Wands: zapping (z), immediate beams, rays with bounce and reflection, and zapping yourself;
 // the directional spells (force bolt, sleep, healing) go through the same code with a spell
 // source (C's pseudo spellbook object). ref: src/zap.c dozap(), zappable(), backfire(), weffects(), zapnodir(), bhit(), bhitm(),
-// bhito(), bhitpile(), zapyourself(), learnwand(), probe_monster(), resist(), dobuzz(),
-// zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
+// bhito(), bhitpile(), zapyourself(), learnwand(), probe_monster(), cancel_monst(), cancel_item(),
+// resist(), dobuzz(), zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
 // flashburn(); src/lock.c doorlock(), boxlock(), obstructed(); src/trap.c openholdingtrap(),
 // closeholdingtrap(), openfallingtrap(); src/detect.c findit(), findone(); src/makemon.c
 // create_critters(); src/mhitm.c sleep_monst(), slept_monst();
@@ -12,8 +12,10 @@
 // wand of stasis stops it on the level for a while (teleport.ts setStasis()).
 // Digging (dig.ts zapDig()) and zapping up or down (zap_updown(): probing, opening, locking and
 // striking at what is under her, then the objects there; rays hit her own square).
-// The wands of enlightenment, wishing, undead turning, cancellation and death exist but have no
-// effect yet (a charge is spent, nothing is learned; m7d steps 4-7).
+// Wishing (makewish() through wish.ts; the prompt's answer comes back to the zap action), the
+// death ray (buzz.ts), cancellation of monsters (`mcan`, mstate.ts), objects and the hero
+// (cancel_monst(), cancel_item()). The wands of enlightenment and undead turning exist but have
+// no effect yet (a charge is spent, nothing is learned; m7d step 7).
 //
 // Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
@@ -60,7 +62,7 @@ import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { checkCapacity, useupall } from './magic';
 import { heroSees, minvent } from './mongear';
-import { isFrozen, monAdjustSpeed, mspeed } from './mstate';
+import { isCancelled, isFrozen, monAdjustSpeed, mspeed, setCancelled } from './mstate';
 import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { doname, xnameOf } from './objnam';
@@ -87,7 +89,12 @@ import { rloco } from './rloco';
 import { TRAP, dotrap, mintrap, tele, uTeleportMon } from './trap';
 import { setStasis } from './teleport';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
-import { checkUnpaid } from './shk';
+import { checkUnpaid, costlyAlteration } from './shk';
+import { askWish, answerWish, type WishData } from './wish';
+import { luckOf } from './luck';
+import { abon, acurrClamp, addAbon, type Attr } from './attrib';
+import { BLANK_PAPER } from './spell';
+import { done } from './end';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -144,6 +151,7 @@ const RAY_OF: Readonly<Record<string, Ray>> = {
   [WAN.fire]: 'fire',
   [WAN.cold]: 'cold',
   [WAN.sleep]: 'sleep',
+  [WAN.death]: 'death',
   [WAN.lightning]: 'lightning',
   [SPE.sleep]: 'sleep',
 };
@@ -333,6 +341,7 @@ function monStatus(ctx: Ctx, mon: Entity): Msg {
   if (isMtrapped(ctx, mon.id)) flags.push('trapped');
   const sp = mspeed(ctx, mon.id);
   if (sp) flags.push(sp);
+  if (isCancelled(ctx, mon.id)) flags.push('cancelled');
   if (isFrozen(ctx, mon.id)) flags.push('cant_move');
   else if (m?.asleep) flags.push('asleep');
   return {
@@ -569,6 +578,9 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       learnIt ||= openfallingtrap(ctx, mon).noticed;
       break;
     }
+    case WAN.cancellation:
+      cancelMonst(ctx, mon, src, true, false);
+      break;
     case WAN.teleportation:
       // the wand is known if the monster is seen where it lands (or stays)
       uTeleportMon(ctx, mon, true);
@@ -641,6 +653,10 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
     case WAN.locking:
       if (isBox(ctx, obj)) res = boxlock(ctx, obj, otyp) ? 1 : 0;
       learnIt = res !== 0;
+      break;
+    case WAN.cancellation:
+      cancelItem(ctx, obj);
+      res = 1;
       break;
     case WAN.teleportation:
       rloco(ctx, obj);
@@ -886,10 +902,148 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
     case WAN.createMonster:
       if (createCritters(ctx, ctx.rng.rn2(23) !== 0 ? 1 : ctx.rng.rn2(7) + 2)) known = true;
       break;
+    case WAN.wishing:
+      if (luckOf(ctx.state) + ctx.rng.rn2(5) < 0) {
+        say(ctx, 'zap.unfortunately');
+        break;
+      }
+      // the wand of wishing asks what to wish for, so it always becomes discovered (objects are
+      // always dknown here); makewish(): the answer comes back to the zap action's answer()
+      known = true;
+      if (src.kind === 'wand') {
+        const data: ZapWishData = { tries: 0, wizard: false, wand: src.item.id };
+        askWish(ctx, ZAP_ID, data);
+      }
+      break;
     default:
       break;
   }
   if (known) learn(ctx, src);
+}
+
+/** The wish in progress from a wand of wishing, with the wand to check for dust after it. */
+interface ZapWishData extends WishData {
+  wand: EntityId;
+}
+
+// ---------------------------------------------------------------------------------------------
+// cancellation
+
+/** The attribute bonus of a worn ring that cancel_item() takes away. ref: cancel_item() */
+const RING_ATTR: Readonly<Record<string, Attr>> = {
+  'nh:ring_of_gain_strength': 'str',
+  'nh:ring_of_gain_constitution': 'con',
+  'nh:ring_of_adornment': 'cha',
+};
+
+/**
+ * Cancels an object: a worn ring's attribute bonus goes, a magic object (or an enchanted weapon,
+ * armor or weapon-tool) loses its enchantment or charges (spe 0, or -1 "cancelled" for a wand),
+ * scrolls become blank paper, spellbooks blank spellbooks, potions water (see invisible fruit
+ * juice when it exists), and it is neither blessed nor cursed; a shop makes her pay for altering
+ * its goods. ref: src/zap.c cancel_item() (no gauntlets of dexterity, helms of brilliance,
+ * crystal balls, magic lamps, the Candelabrum, novels, potions of acid or sickness, or revive
+ * timers in the subset; their cases are kept where they cost nothing), src/mkobj.c unbless(),
+ * uncurse()
+ */
+export function cancelItem(ctx: Ctx, obj: Entity): void {
+  const it = obj.c.item;
+  if (!it) return;
+  const otyp = obj.def;
+  const def = ctx.defs.object(otyp);
+  const carried = it.carriedBy === ctx.state.playerId;
+  // costly_alteration(): carried shop goods are billed, floor goods in a shop too
+  const alter = (how: 'cancel' | 'uncurse' | 'unbless'): void => {
+    if (carried) costlyAlteration(ctx, obj, how, null);
+    else if (it.carriedBy === null && it.containedIn === undefined && obj.c.pos)
+      costlyAlteration(ctx, obj, how, obj.c.pos);
+  };
+  if (carried) {
+    // handle items being worn by hero
+    const which = RING_ATTR[otyp];
+    const a = hero(ctx).c.attributes;
+    if (which && a && (it.equipped === 'ringL' || it.equipped === 'ringR')) {
+      const base = a[which] - abon(ctx.state, which);
+      addAbon(ctx, which, -it.spe);
+      a[which] = acurrClamp(which, base + abon(ctx.state, which));
+    }
+  }
+  // cancelled item might not be in hero's possession but cancellation is presumed to be
+  // instigated by hero
+  const weptool = def.class === 'tool' && def.weapon !== undefined;
+  if (
+    def.magic ||
+    (it.spe && (def.class === 'armor' || def.class === 'weapon' || weptool)) ||
+    otyp === 'nh:potion_of_acid' ||
+    otyp === 'nh:potion_of_sickness' ||
+    (otyp === POT_WATER && it.buc !== 'uncursed')
+  ) {
+    const cancelledSpe = def.class === 'wand' || otyp === 'nh:crystal_ball' ? -1 : 0;
+    if (
+      it.spe !== cancelledSpe &&
+      otyp !== WAN.cancellation && // can't cancel cancellation
+      otyp !== 'nh:magic_lamp' && // cancelling doesn't remove djinni
+      otyp !== 'nh:candelabrum_of_invocation'
+    ) {
+      alter('cancel');
+      it.spe = cancelledSpe;
+    }
+    switch (def.class) {
+      case 'scroll':
+        alter('cancel');
+        obj.def = 'nh:scroll_of_blank_paper';
+        it.spe = 0;
+        break;
+      case 'spellbook':
+        if (otyp !== 'nh:spellbook_of_cancellation' && otyp !== 'nh:book_of_the_dead') {
+          alter('cancel');
+          obj.def = BLANK_PAPER;
+        }
+        break;
+      case 'potion':
+        alter(otyp !== POT_WATER ? 'cancel' : it.buc === 'cursed' ? 'uncurse' : 'unbless');
+        if (
+          (otyp === 'nh:potion_of_sickness' || otyp === 'nh:potion_of_see_invisible') &&
+          ctx.defs.isObject('nh:potion_of_fruit_juice')
+        )
+          obj.def = 'nh:potion_of_fruit_juice';
+        else obj.def = POT_WATER;
+        break;
+      default:
+        break;
+    }
+  }
+  // unbless(), uncurse(): Luck and weights follow from the state
+  it.buc = 'uncursed';
+}
+
+/** ref: include/objects.h POT_WATER */
+const POT_WATER: DefId = 'nh:potion_of_water';
+
+/**
+ * Cancels a monster, or the hero: it resists (resist() against the wand's class; the hero only
+ * with magic resistance when someone else cancels her), else the inventory is cancelled first
+ * when it zapped itself (`selfCancel`), and a monster is marked `mcan`. True when it did not
+ * resist. ref: src/zap.c cancel_monst() (no polymorphed hero, shapeshifters, mimics or clay
+ * golems)
+ */
+export function cancelMonst(
+  ctx: Ctx,
+  mdef: Entity | 'hero',
+  src: ZapSource,
+  youattack: boolean,
+  selfCancel: boolean,
+): boolean {
+  const youdefend = mdef === 'hero';
+  if (youdefend ? !youattack && antimagic(ctx) : resist(ctx, mdef, 0, src.kind)) return false;
+  if (selfCancel) {
+    // 1st cancel inventory (AC follows from find_ac())
+    const owner = youdefend ? ctx.state.playerId : mdef.id;
+    for (const o of inventoryOf(ctx.state, owner)) cancelItem(ctx, o);
+  }
+  // now handle special cases
+  if (!youdefend) setCancelled(ctx, mdef.id);
+  return true;
 }
 
 /**
@@ -1030,6 +1184,17 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
       learnIt = true;
       ustatusline(ctx);
       break;
+    case WAN.cancellation:
+      cancelMonst(ctx, 'hero', src, true, true);
+      break;
+    case WAN.death:
+      // a hero is never nonliving or a demon (no polymorph)
+      say(ctx, 'zap.self.irradiate');
+      say(ctx, 'zap.self.you_die');
+      // they might survive with an amulet of life saving
+      learn(ctx, src);
+      done(ctx, '@killer.zap.self.death');
+      return 0;
     case WAN.teleportation: {
       const was = { ...heroPos(ctx) };
       tele(ctx);
@@ -1200,6 +1365,9 @@ function doZapEffect(ctx: Ctx, wand: Entity, dir: ZapDir | null): void {
   if (def.zap) def.zap(ctx, ctx.state.playerId, wand.id, dir);
 }
 
+const isWishData = (raw: Json): raw is Json & ZapWishData =>
+  raw !== null && typeof raw === 'object' && !Array.isArray(raw) && typeof raw['wand'] === 'number';
+
 // ref: src/zap.c dozap(), the z command
 const zap: ActionDef = {
   id: ZAP_ID,
@@ -1239,10 +1407,18 @@ const zap: ActionDef = {
       return 0;
     } else {
       doZapEffect(ctx, wand, null);
+      // a wand of wishing's prompt: the move is spent when it is answered
+      if (ctx.state.pendingPrompt) return 0;
     }
     return afterZap(ctx, wand.id);
   },
   answer(ctx, value: Json, raw: Json) {
+    if (isWishData(raw)) {
+      answerWish(ctx, ZAP_ID, value, raw);
+      if (ctx.state.pendingPrompt) return 0;
+      if (ctx.state.gameOver) return NORMAL_SPEED;
+      return afterZap(ctx, raw.wand);
+    }
     const id = (raw as { item?: unknown } | null)?.item;
     const wand = heroItem(ctx, id);
     if (!wand) return NORMAL_SPEED;

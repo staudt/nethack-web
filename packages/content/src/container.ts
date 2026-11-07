@@ -1,6 +1,6 @@
 // Containers: #loot on a box or bag on the floor, applying a carried bag, taking things out and
 // putting things in through menus, bags of holding (lighter contents, losses from a cursed one,
-// the explosion of one bag of holding put into another).
+// the explosion of one bag of holding or a charged wand of cancellation put into another).
 // ref: src/pickup.c doloot_core(), able_to_loot(), do_loot_cont(), use_container(),
 // in_or_out_menu(), menu_loot(), in_container(), out_container(), mbag_explodes(),
 // do_boh_explosion(), boh_loss(), mbag_item_gone(), u_handsy(); src/mkobj.c add_to_container()
@@ -122,12 +122,17 @@ function freehand(ctx: Ctx): boolean {
 // bag of holding
 
 /**
- * Whether putting `obj` into a bag of holding makes it explode: another bag of holding, or one
- * inside it. ref: src/pickup.c mbag_explodes() (no wands of cancellation or bags of tricks)
+ * Whether putting `obj` into a bag of holding makes it explode: another bag of holding or a
+ * charged wand of cancellation, or one inside it. ref: src/pickup.c mbag_explodes() (no bags of
+ * tricks)
  */
 function mbagExplodes(ctx: Ctx, obj: Entity, depthin: number): boolean {
+  const cancel = obj.def === 'nh:wand_of_cancellation';
+  // these won't cause an explosion when they're empty
+  if (cancel && (obj.c.item?.spe ?? 0) <= 0) return false;
   // odds: 1/1, 2/2, 3/4, 4/8, 5/16, 6/32, 7/64, 8/128, 9/128, 10/128,...
-  if (isMbag(ctx, obj) && ctx.rng.rn2(1 << (depthin > 7 ? 7 : depthin)) <= depthin) return true;
+  if ((isMbag(ctx, obj) || cancel) && ctx.rng.rn2(1 << (depthin > 7 ? 7 : depthin)) <= depthin)
+    return true;
   for (const o of contents(ctx.state, obj.id)) if (mbagExplodes(ctx, o, depthin + 1)) return true;
   return false;
 }

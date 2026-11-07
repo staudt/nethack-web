@@ -190,6 +190,7 @@ describe('the Oracle level', () => {
       def: engine.registry.monster(ORACLE),
       level: 12,
       pos: oracle.c.pos!,
+      mcan: false,
     };
     const hero = getPlayer(state);
     hero.c.hp = { cur: 500, max: 500 };
