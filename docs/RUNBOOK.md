@@ -8,7 +8,12 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
-Run 2 (from 2026-11-06), budget 6M with a fresh ledger section:
+Run 3 (from 2026-11-07), budget **3M** with a fresh ledger section ("## Run 3"):
+
+1. **Finish release polish**: m8 steps 3-6 on branch `m8` (plan `~/.claude/plans/m8-polish.md`, kickoff `docs/kickoff-m8.md`). The high-score format is approved (see `docs/DECISIONS-PENDING.md`), so step 4 is unblocked.
+2. **7e content-only leftovers**: branch `m7e` off `m8`; plan it (the 7e list in `docs/ROADMAP.md` "From 7d": #untrap, trapped doors/boxes, webs, rolling boulders, land mines, breaking wands, pick-axes), then its steps. Anything needing a core contract change goes to 7f / parked, not built.
+
+Run 2 (2026-11-06/07, stopped on budget; branches `look`, `m7b`, `m7d`, `m8` steps 1-2):
 
 1. **Look cursor by keyboard**: branch `look` off `main`, one step, no planning agent. Today `;` (and the Look button) only accept a mouse/tap target. Port C's `getpos()` cursor: after `;`, a cursor starts on the hero and moves with the direction keys (`hjklyubn`, capitals move 8, arrow keys and numpad too), `.`/`,`/`;`/`:` pick, Esc cancels; `<`/`>` jump to stairs, `m`/`M` cycle monsters, `o`/`O` objects, `@` back to self (the subset that fits). Tapping still picks directly. Same cursor for any other "pick a position" prompt that uses the same path (e.g. travel `_`, jumping, spell targets) if they share it. Phone: a tap still works; no feature may need a keyboard. Add a TESTPLAN section.
 2. **Boulders and Sokoban**: plan approved at `~/.claude/plans/m7b-sokoban.md` (user took all four planner recommendations on 2026-11-06), kickoff `docs/kickoff-m7b.md`. Branch `m7b`: fast-forward it to the tip of `look` first (`git checkout m7b && git merge --ff-only look`), 8 steps.
@@ -25,7 +30,7 @@ Keep a ledger at `~/.claude/plans/overnight-ledger.md`: one line per agent with 
 
 Stop cleanly (finish nothing new, write the morning summary) when any of these happens:
 
-- **Budget:** the running total with margin reaches **6,000,000 tokens**. Never start an agent whose typical cost (300k for a step, 250k for a plan) would cross it.
+- **Budget:** the running total with margin reaches the run's budget (run 3: **3,000,000 tokens**). Never start an agent whose typical cost (300k for a step, 250k for a plan) would cross it.
 - **Red check:** `pnpm check` fails after one retry and one fix agent.
 - **Unexplained golden:** a step changes the golden hash without a verified cause in its commit body.
 - **Design stop:** an agent stops on a design question it says is costly to get wrong.
