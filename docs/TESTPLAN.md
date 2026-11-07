@@ -153,3 +153,18 @@ On the phone (Pages build), no keyboard. Start from a private tab (or clear the 
 - [ ] Set "End of game" back to "ask about each list". Actions > Quit (the last row), Yes: the possessions and attributes questions, then the quit summary.
 - [ ] Play, kill a few monsters and die: the questions (possessions, attributes, creatures vanquished), the stone with your name, the summary with points, High scores with the new entry standing out and "You made the top ten list!"; Menu > High scores during the next game shows it too.
 - [ ] Title > Wizard mode: the Wizard status marker; die (`^w` "wand of death", zap yourself, "Die?" Yes): the end sheet's High scores says "Since you were in wizard mode, the score list will not be checked." and the game is not on the list. Quit a wizard game: no "Die?" question, no entry either.
+
+## 7e digging, boulder and box traps, land mines
+
+With `?wizard=1` (`Ctrl+w` wish; a wish that starts with a trap's name, like `land mine`, makes that trap under you, unseen and not set off: step off and back on to trigger it).
+
+- [ ] Wish `pick-axe`. Tap a rock or wall square next to you: the action menu offers "Dig" (and "Dig down" on yourself). Dig east into rock: "You start digging." and a corridor opens; at a room wall: "You make an opening in the wall."; at a closed door: "You break through the door with your pick-axe."
+- [ ] Dig down: "You dig a pit in the floor." and the digging stops; dig down again: a hole and you fall to the next level. At a Sokoban wall: "This wall is too hard to dig into."
+- [ ] In Minetown (level teleport, `Ctrl+o` marks it), dig at a town wall or door: "Hey, stop damaging that wall!" the first time, then the Watch turns hostile. Walk to a shop door carrying the pick: the shopkeeper asks you to leave it outside ("Will you please leave your pick-axe outside?").
+- [ ] Level teleport to the Mines, create a `dwarf` away from you (repeat until one has a pick-axe or mattock): it wields it and tunnels through rock and walls toward you ("You hear crashing rock." when out of sight).
+- [ ] Dig down to a pit, wish `wand of digging` and zap it sideways from inside the pit: "You dig an adjacent pit."; walk into it ("You move into an adjacent pit.") without climbing out. Applying the pick sideways from a pit never digs a new pit.
+- [ ] Wish `rolling boulder trap` in a room, step off and on: a boulder rolls in from one side and hits you (or "Fortunately for you, no boulder was released."). In Sokoban, the rolling boulder trap squares show `^` once found and release nothing.
+- [ ] Wish `trapped large box` and `#loot` it: a trap fires ("You trigger a trap!", a needle, gas, a flame, a shock or "The large box explodes!"). Optional: on a deep level (10+) a door may be booby-trapped when opened or kicked: "KABOOM!!  The door was booby-trapped!".
+- [ ] Wish `locked large box`, stand on it with the long sword wielded and choose "Force the lock of the large box" (`Alt+f`): "You force your long sword into a crack and pry." until the lock opens (or the blade breaks). With a blunt weapon you bash and may wreck the box.
+- [ ] Wish `land mine`, step off and back on: "KAABLAMM!!!  You triggered a land mine!", objects on the square fly around, and you are in a pit with wounded legs.
+- [ ] Wish `100 gold pieces`, drop them and kick the stack: "Thwwpingg!" and the coins scatter.

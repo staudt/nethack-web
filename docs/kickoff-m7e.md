@@ -30,6 +30,10 @@ Setting traps with a beartrap or land mine object (`use_trap()`); kicking boxes 
 - In a normal game the new traps turn up at their usual depths, dwarves carry and use pick-axes, Sokoban has its rolling boulder spots.
 - Replays and the golden test are deterministic (with an explained golden update for the pick-axe object and any other cause the plan names), and `pnpm check` is green locally and in CI.
 
+## Status
+
+Steps 1-5 are done on branch `m7e` (scope 1-6: digging, dwarves, pits, rolling boulder traps, trapped boxes and doors with `#force`, land mines with `scatter()`); the phone checks are in `docs/TESTPLAN.md` ("7e digging, boulder and box traps, land mines"). Steps 6-8 (`#untrap`, breaking wands with `explode()`, shop damage) and webs were not built (budget) and are listed under "Still to do (7e rest)" in `docs/ROADMAP.md`. The exit criteria above hold for what was built; the `#untrap`, breaking-wand and cancellation checks wait for that work.
+
 ## Testing
 
 - Unit tests: `dig()` effort and results per target (rock, room wall, maze wall, cavernous wall, door, boulder, tree, non-diggable), dig down pit then hole, resume and restart rules; adjacent pits and conjoined movement; `mdig_tunnel()` per terrain with a pinned dwarf; `launch_obj()` against a pinned monster, the hero, a pit, a teleport trap, a closed door and another boulder; `mkroll_launch()` spots (clear path both ways); `chest_trap()` outcomes by forcing the roll; `b_trapped()` from each door entry point; `#force` blade and blunt; land mine for the hero, a monster and a boulder; `scatter()` ranges and hits; `untrap_prob()` and each `cnv_trap_obj()`; `explode()` damage with and without resistance; each `do_break_wand()` case.
