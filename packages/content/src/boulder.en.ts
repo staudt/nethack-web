@@ -11,6 +11,7 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.hear_monster': 'You hear a monster behind {what|the}.',
   'boulder.perhaps': "Perhaps that's why you cannot move it.",
   'boulder.squeeze': 'However, you can squeeze yourself into a small opening.',
+  'boulder.wont_roll_diagonally': "{what|The} won't roll diagonally on this {surface}.",
   'boulder.plugs_hole': '{what|The} falls into and plugs a hole in the {surface}!',
   'boulder.plugs_trapdoor': '{what|The} triggers and plugs a trap door in the {surface}!',
   'boulder.kerplunk': 'Kerplunk!  You no longer feel {what|the}.',
@@ -31,5 +32,6 @@ export const boulderMessagesEn: Record<string, string> = {
   'surface.floor': 'floor',
   'surface.ground': 'ground',
   'move.carrying_too_much': 'You are carrying too much to get through.',
+  'move.cannot_pass': 'You cannot pass that way.',
   'fight.harmless_obj': 'You harmlessly attack {what|an}.',
 };

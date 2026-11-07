@@ -59,6 +59,7 @@ import {
 } from './shk';
 import { T } from './terrain';
 import { blockersOf, boulderCells } from './boulder';
+import { isSokoban } from './sokoban';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -175,7 +176,8 @@ export interface Candidate {
  * Squares the monster could move to this turn, in mfndpos() order (x outer, y inner).
  * ref: src/mon.c mfndpos() with mon_allowflags(): hostile monsters may "move" onto the hero
  * (ALLOW_U), monsters that can open doors may enter closed doors (OPENDOOR). Walls, other
- * monsters, intact-door diagonals, any diagonal for a grid bug (NODIAG) and tight squeezes for big
+ * monsters, intact-door diagonals, any diagonal for a grid bug (NODIAG) and tight squeezes (between
+ * rock, walls or Sokoban boulders) for big
  * monsters are rejected. A monster avoids a harmful trap of a kind it knows unless `allowTraps`
  * (pets, which decide in dog_move()); a harmful trap is marked `trap`. A hostile monster outside
  * a temple may not step into it while it is the hero's sanctuary (no ALLOW_SANCT: peaceful and
@@ -200,8 +202,14 @@ export function mfndpos(
     if (p && p.level === level.id && Number(key) !== id && ent.c.item === undefined)
       taken.set(cellIndex(level, p.x, p.y), Number(key));
   }
+  // ref: mfndpos() `checkobj && sobj_at(BOULDER, nx, ny)` without ALLOW_ROCK: no monster here
+  // throws rocks or passes walls, so none steps onto a boulder
+  const boulders = boulderCells(ctx, level);
+  const soko = isSokoban(level);
+  // ref: src/hack.c bad_rock(): rock and walls, and boulders in Sokoban
   const rock = (x: number, y: number): boolean => {
     if (!inBounds(level, x, y)) return true;
+    if (soko && boulders.has(cellIndex(level, x, y))) return true;
     const i = level.cells[cellIndex(level, x, y)] ?? 0;
     return !rules.passable[i] && !rules.closedDoor[i];
   };
@@ -220,9 +228,6 @@ export function mfndpos(
     epriOf(ctx, id) === null &&
     level.rooms.some((r) => r.type === TEMPLE) &&
     templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
-  // ref: mfndpos() `checkobj && sobj_at(BOULDER, nx, ny)` without ALLOW_ROCK: no monster here
-  // throws rocks or passes walls, so none steps onto a boulder
-  const boulders = boulderCells(ctx, level);
   const out: Candidate[] = [];
   for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
     for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {

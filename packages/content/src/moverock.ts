@@ -4,7 +4,8 @@
 // Ported subset: the hero is always a human on foot (no Levitation, riding, very small or giant
 // forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars, landmines,
 // teleporters, rolling boulder traps or buried zombies, and pushing a boulder in a shop does not
-// bill it (DEVIATIONS.md "Boulders"). The Sokoban rules are step 7 of m7b.
+// bill it (DEVIATIONS.md "Boulders"). In Sokoban a boulder does not roll diagonally and
+// squeezing past one costs Luck.
 import {
   DIRS,
   cellIndex,
@@ -26,6 +27,7 @@ import {
 import { P, hasProp } from './props';
 import { boulderAt, feelObjects, rememberedBoulder } from './boulder';
 import { boulderFlooreffects } from './flooreffects';
+import { isSokoban, maybeFinishSokoban, sokobanGuilt } from './sokoban';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
@@ -101,12 +103,13 @@ function cannotPushMsg(ctx: Ctx, what: Msg): void {
 
 /**
  * The push failed: the hero squeezes onto the boulder's square if she carries almost nothing
- * ('moved'), else she stays ('blocked'). ref: src/hack.c cannot_push() (no giant forms; the
- * Sokoban guilt for squeezing is step 7)
+ * ('moved'; cheating in Sokoban), else she stays ('blocked'). ref: src/hack.c cannot_push()
+ * (no giant forms)
  */
 function cannotPush(ctx: Ctx): 'moved' | 'blocked' {
   if (couldMoveOntoBoulder(ctx)) {
     ctx.emit({ type: 'msg', key: 'boulder.squeeze' });
+    sokobanGuilt(ctx);
     return 'moved';
   }
   return 'blocked';
@@ -183,6 +186,16 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       cannotPushMsg(ctx, what);
       return cannotPush(ctx);
     }
+    // "KMH -- Sokoban doesn't let you push boulders diagonally"
+    if (isSokoban(level) && dx !== 0 && dy !== 0) {
+      if (heroBlind(ctx.defs, ctx.state)) feelObjects(ctx, level, sx, sy);
+      ctx.emit({
+        type: 'msg',
+        key: 'boulder.wont_roll_diagonally',
+        params: { what, surface: surfaceKey(level, sx, sy) },
+      });
+      return cannotPush(ctx);
+    }
     const ttmp = trapAt(level, rx, ry);
     const mtmp = monsterAt(ctx, level, rx, ry);
     // a monster there blocks the boulder, unless it is trapped in a pit there (the boulder falls
@@ -225,6 +238,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
           params: { what, surface: surfaceKey(level, rx, ry) },
         });
       ctx.removeTrap(level.id, { x: rx, y: ry }); // deltrap()
+      maybeFinishSokoban(ctx, level.id);
       ctx.remove(otmp.id); // useupf(otmp, 1L); nothing is buried here (bury_objs())
       return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
     }

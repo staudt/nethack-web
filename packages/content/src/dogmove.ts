@@ -16,7 +16,8 @@ import {
   type Level,
   type Pos,
 } from '@nh/core';
-import { blockersOf } from './boulder';
+import { blockersOf, boulderAt } from './boulder';
+import { isSokoban } from './sokoban';
 import {
   ACCFOOD,
   APPORT,
@@ -443,8 +444,33 @@ function maxPassiveDmg(ctx: Ctx, mdef: Entity, magr: Entity): number {
 }
 
 /**
+ * In Sokoban a calm tame or peaceful monster keeps off the square two steps from the hero with a
+ * boulder between, so it does not block her push. ref: src/monmove.c m_avoid_soko_push_loc()
+ * (no Conflict)
+ */
+function avoidSokoPushLoc(
+  ctx: Ctx,
+  level: Level,
+  mon: Entity,
+  hp: Pos,
+  nx: number,
+  ny: number,
+): boolean {
+  const m = mon.c.monster;
+  return (
+    isSokoban(level) &&
+    !!m &&
+    (m.peaceful || (m.tame ?? 0) > 0) &&
+    !isMConfused(ctx, mon.id) &&
+    !isMStunned(ctx, mon.id) &&
+    dist2(nx, ny, hp.x, hp.y) === 4 &&
+    boulderAt(ctx, level.id, nx + Math.sign(hp.x - nx), ny + Math.sign(hp.y - ny)) !== null
+  );
+}
+
+/**
  * The pet's move. ref: src/dogmove.c dog_move(). Not ported: Conflict, leashes, whistles,
- * displacing other monsters, kicked-square and Sokoban avoidance, traps, ranged attacks,
+ * displacing other monsters, kicked-square avoidance, traps, ranged attacks,
  * long worms, minions; a target's "has it already moved this turn" check (mlstmv) is skipped
  * for the return attack.
  */
@@ -518,6 +544,7 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         }
         return 'done';
       }
+      if (avoidSokoPushLoc(ctx, level, mon, hp, nx, ny)) continue;
       // ref: dog_move(): "Dog avoids harmful traps, but perhaps it has to pass one in order to
       // follow player." It avoids only traps the hero has seen, and 1 time in 40 steps on anyway.
       if (c.trap) {

@@ -46,7 +46,8 @@ import {
 import { isMtrapped, isPit, setMtrapped, uInPit } from './trapstate';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
-import { BOULDER, boulderAt, feelObjects, rememberedBoulder } from './boulder';
+import { BOULDER, boulderAt, feelObjects, rememberedBoulder, sokobanBoulder } from './boulder';
+import { isSokoban } from './sokoban';
 import { xnameOf } from './objnam';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
@@ -108,6 +109,7 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
   const diagonal = DIRS[dir].x !== 0 && DIRS[dir].y !== 0;
   const badRock = (x: number, y: number): boolean => {
     if (!inBounds(level, x, y)) return true;
+    if (sokobanBoulder(ctx, level, x, y)) return true; // bad_rock(): Sokoban boulders
     const t = level.cells[cellIndex(level, x, y)] ?? 0;
     return !rules.passable[t] && !rules.closedDoor[t];
   };
@@ -360,10 +362,11 @@ const WT_TOOMUCH_DIAGONAL = 600;
 
 /**
  * Rock or wall the hero cannot pass (IS_OBSTRUCTED(), out of the map counts too); boulders count
- * only in Sokoban (step 7). ref: src/hack.c bad_rock() for a hero who cannot tunnel
+ * only in Sokoban. ref: src/hack.c bad_rock() for a hero who cannot tunnel
  */
 function badRock(ctx: Ctx, level: Level, x: number, y: number): boolean {
   if (!inBounds(level, x, y)) return true;
+  if (sokobanBoulder(ctx, level, x, y)) return true;
   const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
   if (id === undefined) return true;
   const t = ctx.defs.terrain(id);
@@ -409,13 +412,20 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     return NORMAL_SPEED;
   }
   if (check.ok) {
-    // ref: src/hack.c test_move(): a diagonal squeeze between rock or walls when carrying more
-    // than 600 (cant_squeeze_thru() case 2; the hero is never too big, Sokoban is step 7)
+    // ref: src/hack.c test_move(): a diagonal squeeze between rock, walls or Sokoban boulders
+    // when carrying more than 600 (cant_squeeze_thru() case 2), or at all in Sokoban (case 3;
+    // the hero is never too big)
     const diagonal = DIRS[dir].x !== 0 && DIRS[dir].y !== 0;
     if (diagonal && badRock(ctx, level, from.x, to.y) && badRock(ctx, level, to.x, from.y)) {
       const amt = invWeight(ctx.state, ctx.defs, player.id) + weightCap(ctx.state, player.id);
-      if (amt > WT_TOOMUCH_DIAGONAL) {
-        ctx.emit({ type: 'msg', key: 'move.carrying_too_much' });
+      const key =
+        amt > WT_TOOMUCH_DIAGONAL
+          ? 'move.carrying_too_much'
+          : isSokoban(level)
+            ? 'move.cannot_pass'
+            : null;
+      if (key) {
+        ctx.emit({ type: 'msg', key });
         ctx.interrupt();
         return 0;
       }

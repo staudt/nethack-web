@@ -21,6 +21,7 @@ import {
 } from '@nh/core';
 import { blockersOf, boulderCells } from './boulder';
 import { boulderStops, couldMoveOntoBoulder } from './moverock';
+import { isSokoban } from './sokoban';
 
 export function heroPos(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -201,9 +202,16 @@ function travelMatrix(
     traps.has(ny * width + nx) && !(nx === hero.x && ny === hero.y);
   const memory = ctx.state.memory[level.id];
   // ref: test_move() TEST_TRAV: a boulder is assumed to be pushable, but never two in a row
-  // unless the hero can squeeze onto them (she has no digging tools)
+  // unless the hero can squeeze onto them (she has no digging tools); "never travel through
+  // boulders in Sokoban", nor squeeze diagonally between them and walls there (case 3 of
+  // cant_squeeze_thru(); case 2, carrying too much, is left to the move itself)
   const boulders = boulderCells(ctx, level);
   const squeeze = couldMoveOntoBoulder(ctx);
+  const soko = isSokoban(level);
+  const sokoRock = (x: number, y: number): boolean => {
+    const t = known.cells[y * width + x] ?? 0;
+    return boulders.has(y * width + x) || (!rules.passable[t] && !rules.closedDoor[t]);
+  };
   const travel = new Int32Array(width * level.height);
   let cur: number[] = [from.y * width + from.x];
   let radius = 1;
@@ -229,7 +237,9 @@ function travelMatrix(
           continue;
         }
         if (trapped) continue; // "do not move through traps"
+        if (soko && boulders.has(ni)) continue;
         if (!squeeze && boulders.has(ni) && boulders.has(ci)) continue;
+        if (soko && nx !== x && ny !== y && sokoRock(x, ny) && sokoRock(nx, y)) continue;
         const chk = checkStep(known, rules, { x, y }, d);
         if (!chk.ok && chk.reason !== 'closedDoor') continue;
         if ((memory?.[ni] ?? -1) < 0 && see[ni] !== 1) continue; // levl.seenv || couldsee
@@ -304,14 +314,16 @@ function seenTraps(level: Level): Set<number> {
 
 /**
  * The first step of the remembered path to `target`, avoiding seen traps (the target itself
- * may be one): core's pathTo() when its path is trap-free, else the travel search, which knows
- * about traps. null when there is no such path. ref: src/hack.c findtravelpath(TRAVP_TRAVEL)
+ * may be one): core's pathTo() when its path is trap-free, else (or on a Sokoban level) the
+ * travel search, which knows about traps and boulders. null when there is no such path. ref: src/hack.c findtravelpath(TRAVP_TRAVEL)
  */
 function firstStep(ctx: Ctx, here: Pos, target: Pos): Pos | null {
   const path = ctx.query.pathTo(target);
   const first = path?.[0];
   if (!path || !first) return null;
   const level = getLevel(ctx.state);
+  // core's path knows nothing of Sokoban's boulders either: the travel search does
+  if (isSokoban(level)) return stepToward(ctx, here, target);
   const crosses = path.slice(0, -1).some((p) => trapAt(level, p.x, p.y)?.seen === true);
   // core's path knows nothing of boulders: two in a row send it to the travel search too
   const boulders = boulderCells(ctx, level);

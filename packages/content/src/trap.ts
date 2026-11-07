@@ -55,6 +55,7 @@ import { doname, xnameOf } from './objnam';
 import { monNam } from './perception';
 import { P, hasProp } from './props';
 import { findAc, findMac } from './stats';
+import { isSokoban, maybeFinishSokoban } from './sokoban';
 import {
   forgetMonTraps,
   isMtrapped,
@@ -216,8 +217,20 @@ const seetrap = (t: Trap): void => {
 };
 
 /** ref: src/trap.c deltrap() */
-const deltrap = (ctx: Ctx, levelId: string, t: Trap): void =>
+const deltrap = (ctx: Ctx, levelId: string, t: Trap): void => {
   ctx.removeTrap(levelId, { x: t.x, y: t.y });
+  maybeFinishSokoban(ctx, levelId);
+};
+
+/**
+ * A pit or hole on a level with Sokoban's rules: it cannot be escaped, by the hero or by
+ * monsters. ref: src/trap.c dotrap(), mintrap(), trapeffect_pit(), trapeffect_hole()
+ * `Sokoban && (is_pit(ttype) || is_hole(ttype))` (no trap here is made by the hero)
+ */
+const sokobanTrap = (ctx: Pick<Ctx, 'state'>, levelId: string, t: Trap): boolean => {
+  const level = ctx.state.levels[levelId];
+  return !!level && isSokoban(level) && (isPit(t.def) || isHole(t.def));
+};
 
 const heroEnt = (ctx: Ctx): Entity => getPlayer(ctx.state);
 
@@ -381,12 +394,13 @@ function bearTrapYou(ctx: Ctx, trap: Trap): void {
 /**
  * The hero falls (or with '>' plunges) into a pit: "You fall into a pit!", the spikes, `rn1(6, 2)`
  * turns to climb out, `rnd(6)` damage (`rnd(10)` on spikes, poisoned 1 time in 6).
- * ref: src/trap.c trapeffect_pit() for the hero: no Levitation, Flying, clinging, steed, Sokoban,
- * `m` prefix or conjoined pits (nothing digs them); no exercise or selftouch()
+ * In Sokoban the air currents were the message. ref: src/trap.c trapeffect_pit() for the hero: no
+ * Levitation, Flying, clinging, steed, `m` prefix or conjoined pits (nothing digs them); no
+ * exercise or selftouch()
  */
-function pitYou(ctx: Ctx, trap: Trap, plunged: boolean): void {
+function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): void {
   seetrap(trap); // feeltrap()
-  say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  if (!sokobanTrap(ctx, levelId, trap)) say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
   let spikes = trap.def === TRAP.spikedPit;
   const boots = spikes ? ironShoes(ctx, ctx.state.playerId) : null;
   if (boots) {
@@ -471,12 +485,15 @@ function rustTrapYou(ctx: Ctx, trap: Trap): void {
 /**
  * The hero falls through a trap door or hole. ref: src/trap.c fall_through(TRUE, ...) and
  * src/do.c goto_level() (u_on_rndspot(), the fall damage `d(max(dist, 1), 6)`, pickup(1)).
- * `plunged` is TOOKPLUNGE (the hero jumped in with '>').
+ * `plunged` is TOOKPLUNGE (the hero jumped in with '>'). In Sokoban nothing more is said and
+ * nothing holds her back ("You can't escape the Sokoban level traps").
  */
 function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): void {
   seetrap(trap);
-  if (!plunged) say(ctx, trap.def === TRAP.trapdoor ? 'trap.door.opens' : 'trap.hole.gaping');
-  if (ustuck(ctx) !== null) {
+  const soko = sokobanTrap(ctx, levelId, trap);
+  if (!soko && !plunged)
+    say(ctx, trap.def === TRAP.trapdoor ? 'trap.door.opens' : 'trap.hole.gaping');
+  if (!soko && ustuck(ctx) !== null) {
     // ref: fall_through(): `Levitation || u.ustuck || ...` -> "You don't fall in."
     say(ctx, 'trap.dont_fall');
     return;
@@ -525,6 +542,7 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
  * The hero sets off the trap she is standing on. ref: src/trap.c dotrap(): a seen trap is
  * escaped one time in five ("You escape a bear trap."), unless she jumped into a hole on
  * purpose (`plunged`) or the trap is forced on her (`force`: FORCETRAP, e.g. a wand of locking).
+ * In Sokoban a pit or hole is never escaped: "Air currents pull you down into a pit!".
  * The hero never flies, levitates or fumbles.
  */
 export function dotrap(
@@ -535,7 +553,9 @@ export function dotrap(
   const levelId = heroPos(ctx).level;
   const t = liveTrap(ctx, levelId, trap) ?? trap;
   ctx.interrupt(); // nomul(0)
-  if (t.seen && !opts.plunged && !opts.force && ctx.rng.rn2(5) === 0) {
+  // "KMH -- You can't escape the Sokoban level traps"
+  if (sokobanTrap(ctx, levelId, t)) say(ctx, 'trap.air_currents', { trap: trapName(t) });
+  else if (t.seen && !opts.plunged && !opts.force && ctx.rng.rn2(5) === 0) {
     say(ctx, 'trap.escape', { trap: trapName(t) });
     return;
   }
@@ -557,7 +577,7 @@ export function dotrap(
       return rustTrapYou(ctx, t);
     case TRAP.pit:
     case TRAP.spikedPit:
-      return pitYou(ctx, t, opts.plunged === true);
+      return pitYou(ctx, levelId, t, opts.plunged === true);
     case TRAP.trapdoor:
     case TRAP.hole:
       return fallThrough(ctx, levelId, t, opts.plunged === true);
@@ -672,7 +692,9 @@ const inAir = (ctx: Ctx, mon: Entity): boolean => {
  */
 export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
   const def = ctx.defs.monster(mon.def);
-  if (inAir(ctx, mon)) return true;
+  const lvl = mon.c.pos ? ctx.state.levels[mon.c.pos.level] : undefined;
+  const soko = !!lvl && isSokoban(lvl);
+  if (!soko && inAir(ctx, mon)) return true; // `!Sokoban && floor_trigger() && check_in_air()`
   switch (trap.def) {
     case TRAP.bear:
       return (
@@ -690,7 +712,7 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
     case TRAP.spikedPit:
     case TRAP.trapdoor:
     case TRAP.hole:
-      return def.flags.includes('cling');
+      return def.flags.includes('cling') && !soko;
     default:
       return false;
   }
@@ -827,17 +849,22 @@ function bearTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
 
 /**
  * A monster falls into a pit: held (mtrapped) and hurt `rnd(6)` (`rnd(10)` on spikes unless it
- * wears iron shoes). Flyers, floaters and clingers (every level has a ceiling) do not fall in.
- * ref: src/trap.c trapeffect_pit() for a monster (no Sokoban, worms, passes_walls or
- * mselftouch())
+ * wears iron shoes). Flyers, floaters and clingers (every level has a ceiling) do not fall in,
+ * except in Sokoban, where they are dragged in. ref: src/trap.c trapeffect_pit() for a monster
+ * (no worms, passes_walls or mselftouch())
  */
-function pitMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
+function pitMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult {
   const def = ctx.defs.monster(mon.def);
   const inSight = canseemon(ctx, mon);
-  if (inAir(ctx, mon) || def.flags.includes('cling')) return 'finished'; // !grounded()
+  let dragged = false;
+  if (inAir(ctx, mon) || def.flags.includes('cling')) {
+    // !grounded(): only a Sokoban pit is inescapable
+    if (!sokobanTrap(ctx, levelId, trap)) return 'finished';
+    dragged = true; // fallverb = "is dragged"
+  }
   setMtrapped(ctx, mon.id, true);
   if (inSight) {
-    say(ctx, 'trap.pit.mon_falls', { mon: monNam(ctx, mon) });
+    say(ctx, dragged ? 'trap.pit.mon_dragged' : 'trap.pit.mon_falls', { mon: monNam(ctx, mon) });
     seetrap(trap);
   }
   const spikes = trap.def === TRAP.spikedPit && !ironShoes(ctx, mon.id);
@@ -902,7 +929,8 @@ function rustTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
 
 /**
  * A monster falls to a deeper level and waits there until the hero arrives.
- * ref: src/trap.c trapeffect_hole() (not grounded or huge: nothing happens),
+ * ref: src/trap.c trapeffect_hole() (not grounded or huge: nothing happens, except that a
+ * Sokoban hole "yanks" it down),
  * src/teleport.c mlevel_tele_trap(), migrate_to_level() (MIGR_RANDOM)
  */
 function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult {
@@ -913,8 +941,14 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
     def.flags.includes('cling') ||
     def.size === 'huge' ||
     def.size === 'gigantic'
-  )
-    return 'finished';
+  ) {
+    if (!sokobanTrap(ctx, levelId, trap)) return 'finished';
+    // inescapable: a Sokoban hole
+    if (canseemon(ctx, mon)) {
+      say(ctx, 'trap.hole.mon_yanked', { mon: monNam(ctx, mon) });
+      seetrap(trap);
+    }
+  }
   if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
   const level = getLevel(ctx.state, levelId);
   let dst = dataOf(trap).dst;
@@ -962,8 +996,8 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
 /**
  * A monster on a trap: one already caught tries to get free (1 in 40); otherwise a monster
  * that knows this kind of trap avoids it 3 times in 4, and the trap goes off.
- * With `force` (FORCETRAP, e.g. a wand of locking or opening) the trap cannot be avoided.
- * ref: src/trap.c mintrap(). Not ported: metallivores eating bear traps, hiders.
+ * With `force` (FORCETRAP, e.g. a wand of locking or opening), or on a Sokoban pit or hole, the
+ * trap cannot be avoided. ref: src/trap.c mintrap(). Not ported: metallivores eating bear traps, hiders.
  */
 export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {}): TrapResult {
   const mon = ctx.state.entities[String(monId)];
@@ -1007,7 +1041,8 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
     monKnowsTraps(ctx, monId, trap.def) ||
     (trap.def === TRAP.hole && !def.flags.includes('mindless'));
   if (!TRAPS.some((t) => t.id === trap.def)) return 'finished'; // another mod's trap
-  if (!opts.force) {
+  // "Sokoban && (is_pit(tt) || is_hole(tt))": the trap effects handle it
+  if (!opts.force && !sokobanTrap(ctx, p.level, trap)) {
     if (inAir(ctx, mon)) return 'finished'; // floor_trigger() && check_in_air()
     if (alreadySeen && ctx.rng.rn2(4) !== 0) return 'finished';
   }
@@ -1028,7 +1063,7 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
       return rustTrapMon(ctx, mon, trap);
     case TRAP.pit:
     case TRAP.spikedPit:
-      return pitMon(ctx, mon, trap);
+      return pitMon(ctx, p.level, mon, trap);
     default:
       return holeMon(ctx, p.level, mon, trap);
   }

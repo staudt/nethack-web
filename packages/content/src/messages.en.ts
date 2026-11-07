@@ -132,6 +132,7 @@ export const messagesEn: Record<string, string> = {
   'combat.mon_misses': '{mon|The} misses!',
   'combat.mon_just_misses': '{mon|The} just misses!',
   'oracle.welcome': '"{hello}, {name}, welcome to Delphi!"',
+  'zoo.welcome': "Welcome to David's treasure zoo!",
   'oracle.in_delphi': '"You\'re in Delphi, {name}."',
   'combat.you_die': 'You die...',
   'combat.mon_bites': '{mon|The} bites!',

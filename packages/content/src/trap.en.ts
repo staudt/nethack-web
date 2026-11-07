@@ -99,6 +99,7 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.pit.crevice': 'Your leg gets stuck in a crevice.',
   'trap.pit.free_leg': 'You free your leg.',
   'trap.pit.mon_falls': '{mon|The} falls into a pit!',
+  'trap.pit.mon_dragged': '{mon|The} is dragged into a pit!',
   'trap.pit.mon_climbs': '{mon|The} climbs out of the pit.',
   'trap.pit.mon_climbs_easily': '{mon|The} climbs easily out of the pit.',
   'trap.pit.cant_reach': "You can't reach over the edge of the pit.",
@@ -107,6 +108,8 @@ export const trapMessagesEn: Record<string, string> = {
   // trap doors and holes
   'trap.door.opens': 'A trap door opens up under you!',
   'trap.hole.gaping': "There's a gaping hole under you!",
+  'trap.hole.mon_yanked': '{mon|The} seems to be yanked down!',
+  'trap.air_currents': 'Air currents pull you down into {trap|an}!',
   'trap.dont_fall': "You don't fall in.",
   'trap.shaft': 'You fall down a shaft!',
   'trap.shaft_deep': 'You fall down a deep shaft!',

@@ -28,6 +28,7 @@ import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
 import { registerLeaveShops, registerRooms } from './rooms';
 import { registerShops } from './shknam';
+import { registerZoo } from './zoo';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -123,6 +124,7 @@ export const vanillaMod: Mod = {
     registerPriest(api); // before the LevelDef contents, as create_altar()
     registerSpLev(api, SPLEV_FIXUPS);
     registerShops(api); // after the LevelDef contents, as fill_special_room()
+    registerZoo(api); // likewise
     registerRooms(api); // after the pets arrive, as goto_level()
   },
 };

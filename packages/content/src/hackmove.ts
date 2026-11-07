@@ -12,6 +12,7 @@ import {
   type Dir,
   type EntityId,
 } from '@nh/core';
+import { sokobanBoulder } from './boulder';
 import { nhData } from './items';
 import { P, hasProp } from './props';
 import { monNam } from './perception';
@@ -88,9 +89,10 @@ export function impairedDir(ctx: Ctx, dir: Dir): Dir | null {
     const x = pos.x + d.x;
     const y = pos.y + d.y;
     if (!inBounds(level, x, y)) continue;
-    // bad_rock(): solid rock and walls, but not closed doors
+    // bad_rock(): solid rock and walls, but not closed doors; boulders in Sokoban
     const i = level.cells[cellIndex(level, x, y)] ?? 0;
     if (!rules.passable[i] && !rules.closedDoor[i]) continue;
+    if (sokobanBoulder(ctx, level, x, y)) continue;
     return k;
   }
 }

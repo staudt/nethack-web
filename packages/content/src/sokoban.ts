@@ -1,7 +1,7 @@
 // Sokoban: its rules, keyed on the live level flag (C's `svl.level.flags.sokoban_rules`), and its
 // eight levels. A leaf module (core and luck only), so reading, zapping, pushing and traps can all
 // import it.
-import type { Ctx, DefId, Level, LevelContent, LevelDef } from '@nh/core';
+import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelId } from '@nh/core';
 import { changeLuck } from './luck';
 
 /**
@@ -12,12 +12,26 @@ export const isSokoban = (level: Readonly<Level>): boolean => level.sokoban === 
 
 /**
  * Cheating in Sokoban (squeezing past or breaking a boulder, reading earth) costs a point of
- * Luck; anywhere else it is nothing. No conduct is kept (`u.uconduct.sokocheat`).
- * ref: src/trap.c sokoban_guilt()
+ * Luck; anywhere else it is nothing. No conduct is kept (`u.uconduct.sokocheat`) and nothing is
+ * said, as in NetHack. ref: src/trap.c sokoban_guilt()
  */
 export function sokobanGuilt(ctx: Pick<Ctx, 'state'>): void {
   const level = ctx.state.levels[ctx.state.currentLevel];
   if (level && isSokoban(level)) changeLuck(ctx, -1);
+}
+
+/**
+ * After a pit or hole is gone (a boulder filled or plugged it): once the level has no pit or hole
+ * left, its puzzle is solved and Sokoban's rules (luck penalties, no diagonal pushes or squeezes,
+ * inescapable pits and holes) no longer apply there. Spiked pits and trap doors do not count, as
+ * in NetHack; no trap here is made by the hero, and no livelog is kept.
+ * ref: src/trap.c maybe_finish_sokoban(), deltrap()
+ */
+export function maybeFinishSokoban(ctx: Pick<Ctx, 'state'>, levelId: LevelId): void {
+  const level = ctx.state.levels[levelId];
+  if (!level || !isSokoban(level)) return;
+  if (level.traps.some((t) => t.def === PIT || t.def === HOLE)) return;
+  delete level.sokoban; // Sokoban = 0
 }
 
 // The eight levels, transcribed from dat/soko*.lua (one of two variants per level; soko4 is the
@@ -29,9 +43,10 @@ export function sokobanGuilt(ctx: Pick<Ctx, 'state'>): void {
 //
 // Not ported (DEVIATIONS "Sokoban"): the rolling boulder traps (their spots stay floor), the
 // level flags noteleport, hardfloor and solidify, des.non_diggable / des.non_passwall (nothing
-// digs or phases), the monster-generation exclusion regions, and on soko1 the two giant mimics.
-// soko1's treasure zoo and its prize (with the Elbereth engraving and the cursed scroll of scare
-// monster, not ported) come in a later step.
+// digs or phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
+// random monster spots avoid trap squares, generation.ts), and on soko1 the two giant mimics.
+// soko1's treasure zoo is a typed region filled by zoo.ts; its prize is a fixup there (the
+// Elbereth engraving and the cursed scroll of scare monster beside it are not ported).
 
 const SOLID_STONE = { style: 'solidfill', fg: 'nh:stone' } as const;
 /** des.level_flags(..., "premapped", "sokoban", ...) */
@@ -41,6 +56,8 @@ const B: DefId = 'nh:boulder';
 const EARTH: DefId = 'nh:scroll_of_earth';
 const PIT: DefId = 'nh:pit';
 const HOLE: DefId = 'nh:hole';
+/** zoo.ts ZOO */
+const ZOO: DefId = 'nh:zoo';
 
 type Spot = readonly [x: number, y: number];
 /** des.object(id, x, y) at each spot */
@@ -82,7 +99,11 @@ export const SOKO1_1: LevelDef = {
       '-----            -------  ',
     ],
   },
-  regions: [{ area: [0, 0, 25, 17], lit: true }],
+  regions: [
+    { area: [0, 0, 25, 17], lit: true },
+    // des.region({ region={18,10, 22,16}, lit = 1, type = "zoo", filled = 1, irregular = 1 })
+    { area: [18, 10, 22, 16], lit: true, type: ZOO, filled: true },
+  ],
   doors: [
     { x: 23, y: 13, state: 'locked' },
     { x: 17, y: 11, state: 'closed' },
@@ -162,7 +183,11 @@ export const SOKO1_2: LevelDef = {
       '     -------     -------  ',
     ],
   },
-  regions: [{ area: [0, 0, 25, 16], lit: true }],
+  regions: [
+    { area: [0, 0, 25, 16], lit: true },
+    // des.region({ region={18,09, 22,15}, lit = 1, type = "zoo", filled = 1, irregular = 1 })
+    { area: [18, 9, 22, 15], lit: true, type: ZOO, filled: true },
+  ],
   doors: [
     { x: 23, y: 12, state: 'locked' },
     { x: 17, y: 10, state: 'closed' },

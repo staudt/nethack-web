@@ -1,5 +1,5 @@
-// The boulder object and the questions everyone asks about it. A leaf module (core and items
-// only), so monster movement, travel, zapping and reading can all import it.
+// The boulder object and the questions everyone asks about it. A leaf module (core and the
+// sokoban.ts leaf only), so monster movement, travel, zapping and reading can all import it.
 import {
   cellIndex,
   itemsAt,
@@ -12,6 +12,7 @@ import {
   type Level,
   type LevelId,
 } from '@nh/core';
+import { isSokoban, sokobanGuilt } from './sokoban';
 
 /** ref: include/objects.h BOULDER */
 export const BOULDER: DefId = 'nh:boulder';
@@ -48,6 +49,17 @@ export function boulderCells(ctx: Pick<Ctx, 'state'>, level: Level): Set<number>
 export const blockersOf = (ctx: Pick<Ctx, 'state' | 'defs'>, level: LevelId): Set<number> =>
   sightBlockers(ctx.defs, ctx.state, level);
 
+/**
+ * A boulder that counts as rock for tight diagonal squeezes: only on a level with Sokoban's
+ * rules. ref: src/hack.c bad_rock() `Sokoban && sobj_at(BOULDER, x, y)`
+ */
+export const sokobanBoulder = (
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  level: Level,
+  x: number,
+  y: number,
+): boolean => isSokoban(level) && boulderAt(ctx, level.id, x, y) !== null;
+
 /** Whether the hero remembers a boulder at (x, y) (the object glyph shown there). */
 export function rememberedBoulder(
   ctx: Pick<Ctx, 'state'>,
@@ -81,13 +93,14 @@ export const ROCK: DefId = 'nh:rock';
 /**
  * A boulder (or, later, a statue) becomes 7..66 rocks where it lies, back on top of its pile; no
  * messages (the caller says what was seen or heard). Sight through the square is recomputed with
- * the rest of the view at the end of the step. `byYou` is for sokoban_guilt() (Sokoban's rules
- * come in a later step). Shop billing (breakobj() in a costly spot) is not ported.
+ * the rest of the view at the end of the step. The hero breaking a boulder (`byYou`) is cheating
+ * in Sokoban. Shop billing (breakobj() in a costly spot) is not ported.
  * ref: src/zap.c fracture_rock()
  */
-export function fractureRock(ctx: Pick<Ctx, 'state' | 'rng'>, obj: Entity, _byYou: boolean): void {
+export function fractureRock(ctx: Pick<Ctx, 'state' | 'rng'>, obj: Entity, byYou: boolean): void {
   const it = obj.c.item;
   if (!it) return;
+  if (byYou && obj.def === BOULDER) sokobanGuilt(ctx);
   obj.def = ROCK;
   it.quantity = ctx.rng.rn2(60) + 7; // rn1(60, 7)
   // dknown = bknown = rknown = 0 (`known` is not modelled for objects without it)

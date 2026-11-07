@@ -17,6 +17,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { boulderCells } from './boulder';
+import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
 
@@ -185,6 +186,18 @@ const withBoulders = (ctx: Ctx, level: Level, taken: Set<number>): Set<number> =
   return s;
 };
 
+/**
+ * `taken` plus, on a level with Sokoban's rules, every trap square: random new monsters stay off
+ * the pits and holes. This stands in for the levels' `des.exclusion` "monster-generation"
+ * regions (DEVIATIONS.md "Sokoban"). ref: src/makemon.c makemon_rnd_goodpos() (bad_location()
+ * with the exclusion regions)
+ */
+const withSokobanTraps = (level: Level, taken: Set<number>): Set<number> => {
+  if (!isSokoban(level)) return taken;
+  for (const t of level.traps) taken.add(cellIndex(level, t.x, t.y));
+  return taken;
+};
+
 /** ref: src/teleport.c goodpos(): passable, not a closed door, nobody (and no boulder) there. */
 function goodpos(
   level: Level,
@@ -322,7 +335,12 @@ export function makemon(
 
   let at: Pos;
   if (pos === null) {
-    const p = randomGoodPos(ctx, level, rules, withBoulders(ctx, level, taken));
+    const p = randomGoodPos(
+      ctx,
+      level,
+      rules,
+      withSokobanTraps(level, withBoulders(ctx, level, taken)),
+    );
     if (!p) return null;
     at = p;
   } else if (taken.has(cellIndex(level, pos.x, pos.y))) {

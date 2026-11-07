@@ -17,6 +17,7 @@ import { dbon, monsterIdAt } from './combat';
 import { hmonThrownHit } from './hmon';
 import { losehp } from './hp';
 import { ringBonus } from './props';
+import { maybeFinishSokoban } from './sokoban';
 import { isHole } from './trap';
 import { isMtrapped, isPit, setMtrapped, setUtrap, utrap } from './trapstate';
 import { xnameOf } from './objnam';
@@ -116,6 +117,7 @@ export function boulderFlooreffects(
     const m = monsterAt(ctx, levelId, x, y);
     if (m) setMtrapped(ctx, m.id, false);
     ctx.removeTrap(levelId, { x, y });
+    maybeFinishSokoban(ctx, levelId); // deltrap()
     if (utrap(ctx) && uAt) setUtrap(ctx, 0, 'pit');
   }
   ctx.remove(obj.id); // useupf(obj, 1L)
