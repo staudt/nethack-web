@@ -26,6 +26,7 @@ import {
   isRottable,
   isRustprone,
 } from './material';
+import { setBoxTknown, setBoxTrapped } from './btrapstate';
 import { CHARGED_RINGS } from './objects';
 import { mergeBills, samePrice, splitbill } from './eshk';
 
@@ -104,8 +105,9 @@ export function mksobjInit(
   it: ItemComponent,
   artif = false,
   erode = true,
-): void {
+): { otrapped: boolean; tknown: boolean } | null {
   const rng = ctx.rng;
+  let trap: { otrapped: boolean; tknown: boolean } | null = null;
   const lvl = heroLevelOf(ctx);
   switch (def.class) {
     case 'weapon': {
@@ -173,9 +175,9 @@ export function mksobjInit(
         blessorcurse(rng, it, 5);
       } else if (def.id === 'nh:chest' || def.id === 'nh:large_box') {
         if (rng.rn2(5)) it.locked = true;
-        // otrapped = !rn2(10); tknown = otrapped && !rn2(100): trapped boxes are not ported, the
-        // rolls are made
-        if (!rng.rn2(10)) rng.rn2(100);
+        // the caller records them (btrapstate.ts: the item has no id yet)
+        const otrapped = !rng.rn2(10);
+        trap = { otrapped, tknown: otrapped && !rng.rn2(100) }; // obvious trap
       }
       // the contents (mkbox_cnts() in mkobj.ts) are made once the box exists
       break;
@@ -214,6 +216,7 @@ export function mksobjInit(
       break;
   }
   if (erode) mkobjErosions(rng, def, it);
+  return trap;
 }
 
 export interface MksobjOpts {
@@ -256,9 +259,14 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
     if (!opts.corpseOf) throw new Error('mksobj: a corpse needs corpseOf (use mkcorpse)');
     it.corpseOf = opts.corpseOf;
   }
-  if (opts.init ?? true) mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory);
+  const trap =
+    (opts.init ?? true)
+      ? mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory)
+      : null;
   if (opts.quantity !== undefined) it.quantity = opts.quantity;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
+  if (trap?.otrapped) setBoxTrapped(ctx, id, true);
+  if (trap?.tknown) setBoxTknown(ctx, id, true);
   if (opts.at) return placeOnFloor(ctx, id, opts.at.level, opts.at.x, opts.at.y);
   if (opts.carriedBy !== undefined) return addToInventory(ctx, opts.carriedBy, id);
   return id;

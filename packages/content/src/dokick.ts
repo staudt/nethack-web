@@ -43,6 +43,8 @@ import {
 } from '@nh/core';
 import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { setTerrain } from './actions';
+import { doorTrapped } from './btrapstate';
+import { bTrapped, blowDoor } from './btrapped';
 import { aAlign, altarWrath } from './align';
 import { monsterIdAt } from './combat';
 import { getdirImpaired } from './hackmove';
@@ -142,7 +144,8 @@ const terrainAt = (ctx: Ctx, x: number, y: number): TerrainDef => {
  * it shatters, otherwise it crashes open; both leave a doorway here (D_NODOOR and D_BROKEN are
  * the same square). Otherwise "Thwack!!" (1 in 3) or "Whammm!!". In town a watchman in sight
  * arrests the hero for a broken door, and warns her (then arrests her) for a damaged one; a
- * floating hero has not enough leverage ("Ouch!"). Not ported: trapped doors, shop doors.
+ * floating hero has not enough leverage ("Ouch!"). A trapped door that gives way blows up ("You
+ * kick the door.", b_trapped()). Not ported: shop doors.
  */
 function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   const t = terrainAt(ctx, x, y);
@@ -157,10 +160,17 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   }
   if (rnl(ctx.rng, 35, luckOf(ctx.state)) < avrg) {
     const level = getLevel(ctx.state);
-    if (attr(ctx).str > 18 && ctx.rng.rn2(5) === 0) say(ctx, 'kick.door_shatters');
-    else say(ctx, 'kick.door_crashes');
-    setTerrain(level, x, y, T.doorway);
-    ctx.emit({ type: 'doorOpened', pos: { x, y } });
+    if (doorTrapped(ctx, level.id, x, y)) {
+      say(ctx, 'kick.kick_the_door'); // flags.verbose
+      blowDoor(ctx, level, x, y);
+      bTrapped(ctx, 'door');
+      if (ctx.state.gameOver) return;
+    } else {
+      if (attr(ctx).str > 18 && ctx.rng.rn2(5) === 0) say(ctx, 'kick.door_shatters');
+      else say(ctx, 'kick.door_crashes');
+      setTerrain(level, x, y, T.doorway);
+      ctx.emit({ type: 'doorOpened', pos: { x, y } });
+    }
     watchmanThiefArrest(ctx, x, y); // in town
   } else {
     say(ctx, ctx.rng.rn2(3) === 0 ? 'kick.door_thwack' : 'kick.door_whammm');
@@ -183,9 +193,15 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
     if (!levitating(ctx) && ctx.rng.rn2(30) < avrg) {
       const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
       const vertical = id === T.sdoor_v || id === T.sdoor_locked_v;
-      // cvt_sdoor_to_door(): a locked one is uncovered (still locked), a closed one kicked open
-      say(ctx, locked ? 'kick.uncovers_door' : 'kick.kicks_open_door');
-      setTerrain(level, x, y, locked ? T.door_locked : vertical ? T.door_open_v : T.door_open_h);
+      const trapped = doorTrapped(ctx, level.id, x, y);
+      // cvt_sdoor_to_door(): a locked one is uncovered (still locked), a closed one kicked open,
+      // a trapped one blows up
+      say(ctx, locked && !trapped ? 'kick.uncovers_door' : 'kick.kicks_open_door');
+      if (trapped) {
+        blowDoor(ctx, level, x, y);
+        bTrapped(ctx, 'door');
+      } else
+        setTerrain(level, x, y, locked ? T.door_locked : vertical ? T.door_open_v : T.door_open_h);
     } else kickOuch(ctx, x, y, 'wall');
     return;
   }

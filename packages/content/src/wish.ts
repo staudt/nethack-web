@@ -1,6 +1,7 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
+import { setBoxTrapped } from './btrapstate';
 import {
   getLevel,
   getPlayer,
@@ -60,7 +61,7 @@ export interface WishOpts {
  * (rnd_otyp_by_namedesc()'s pick), mksobj(otyp, TRUE, FALSE) or mkobj(oclass, FALSE), then the
  * count, enchantment, corpse type, BUC, erosion, recharge count and lock state asked for.
  * Without `wizard`, a normal wish's limits apply (count, enchantment, Luck, 5000 gold).
- * Not ported: lit lamps, partly eaten food, poison, grease, trapped boxes, names and artifacts.
+ * Not ported: lit lamps, partly eaten food, poison, grease, names and artifacts.
  */
 export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | null {
   const { wizard } = opts;
@@ -188,6 +189,8 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
       delete it.locked;
       it.broken = true;
     }
+    // "trapped" / "untrapped" (not tknown)
+    if (spec.trapped) setBoxTrapped(ctx, id, spec.trapped === 1);
   }
   return id;
 }

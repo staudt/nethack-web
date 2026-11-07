@@ -50,6 +50,7 @@ import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
 import { DIG_ACTIONS } from './dig';
 import { LOOT_ACTIONS } from './container';
+import { FORCE_ACTIONS } from './force';
 import { FOUNTAIN_ACTIONS } from './fountain';
 import { registerLock } from './lock';
 import { registerLight } from './light';
@@ -90,6 +91,7 @@ export const vanillaMod: Mod = {
     for (const a of APPLY_ACTIONS) api.defineAction(a);
     for (const a of DIG_ACTIONS) api.defineAction(a);
     for (const a of LOOT_ACTIONS) api.defineAction(a);
+    for (const a of FORCE_ACTIONS) api.defineAction(a);
     for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);

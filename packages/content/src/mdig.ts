@@ -6,8 +6,7 @@
 // m_digweapon_check(); src/mon.c mfndpos() ALLOW_DIG, mon_allowflags(); src/weapon.c
 // mon_wield_item() NEED_PICK_AXE, NEED_AXE, NEED_PICK_OR_AXE
 //
-// Not ported (DEVIATIONS "Digging"): shop damage (add_damage()), trapped doors (mb_trapped(),
-// step 4), tree fruit (rnd_treefruit_at(): no fruit objects), the Rogue level; mon->weapon_check
+// Not ported (DEVIATIONS "Digging"): shop damage (add_damage()), tree fruit (rnd_treefruit_at(): no fruit objects), the Rogue level; mon->weapon_check
 // is not kept, so a digger that found nothing to wield is not left wanting a pick.
 import {
   getPlayer,
@@ -20,10 +19,12 @@ import {
   type ObjectDef,
 } from '@nh/core';
 import { BOULDER, ROCK } from './boulder';
+import { doorTrapped } from './btrapstate';
+import { blowDoor, mbTrapped } from './btrapped';
 import { mksobj } from './items';
 import { cavernous, levelFlags, nonDiggable } from './levelflags';
 import { uState } from './luck';
-import { minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
+import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { P, hasProp } from './props';
 import {
   T,
@@ -178,8 +179,8 @@ function draftMessage(ctx: Ctx, unexpected: boolean): void {
  * broken ("You feel an unexpected draft." one time in three), a secret corridor opens ("You feel
  * a draft."), a wall becomes an opening (floor on maze levels, corridor on cavernous ones outside
  * town; "You hear crashing rock." one time in five), a tree becomes floor, rock becomes corridor
- * and leaves a rock (3 in 12) or a boulder (1 in 12). Returns true if the monster died (never:
- * no trapped doors yet). ref: src/dig.c mdig_tunnel()
+ * and leaves a rock (3 in 12) or a boulder (1 in 12); a trapped door blows up (mb_trapped()).
+ * Returns true if the monster died. ref: src/dig.c mdig_tunnel()
  */
 export function mdigTunnel(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
@@ -189,8 +190,13 @@ export function mdigTunnel(ctx: Ctx, mon: Entity): boolean {
   let id = terrainIdAt(level, p.x, p.y);
   // cvt_sdoor_to_door(): a closed (or locked) door
   if (isSdoorId(id)) id = T.door_closed;
-  // eats away door if present & closed or locked (no shop damage, no trapped doors yet)
+  // eats away door if present & closed or locked (no shop damage)
   if (closedDoorId(ctx, id)) {
+    if (doorTrapped(ctx, level.id, p.x, p.y)) {
+      const sawit = heroSees(ctx, p); // canseemon()
+      blowDoor(ctx, level, p.x, p.y); // D_NODOOR
+      return mbTrapped(ctx, mon, sawit || heroSees(ctx, p));
+    }
     setTerrain(level, p.x, p.y, T.doorway); // D_BROKEN
     // (flags.verbose) "not too often.."
     if (!unaware(ctx) && ctx.rng.rn2(3) === 0) draftMessage(ctx, true);

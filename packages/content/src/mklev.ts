@@ -1,6 +1,7 @@
 // Filling the rooms of a new level with a monster, traps, gold, a box and objects.
 // ref: src/mklev.c fill_ordinary_room(), makelevel(), mktrap()
 // A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
+import { pruneDoorTraps, setDoorTrapped } from './btrapstate';
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
 import { BOULDER, boulderAt } from './boulder';
@@ -226,9 +227,24 @@ export function mkCorridorBoulders(ctx: Ctx, level: Level): void {
     );
 }
 
+/**
+ * Keeps the doors level generation made trapped (`Level.trappedDoorSpots`, core has no door
+ * traps) in content state and deletes the request, so no saved level keeps it. A spot that is
+ * no longer a closed, locked or secret door is dropped. ref: src/mklev.c dosdoor(),
+ * src/sp_lev.c create_door() (doormask |= D_TRAPPED)
+ */
+export function keepTrappedDoors(ctx: Ctx, level: Level): void {
+  const spots = level.trappedDoorSpots;
+  if (spots === undefined) return;
+  delete level.trappedDoorSpots;
+  for (const p of spots) setDoorTrapped(ctx, level.id, p.x, p.y, true);
+  pruneDoorTraps(ctx, level);
+}
+
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
     mkCorridorBoulders(ctx, level);
+    keepTrappedDoors(ctx, level);
     if (level.def === undefined) mkSpecialRoom(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
       for (const room of level.rooms)

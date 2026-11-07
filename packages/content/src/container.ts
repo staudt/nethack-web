@@ -9,7 +9,7 @@
 // Not ported (see DEVIATIONS.md): the ':' (look inside), 'r' (reversed) and 's' (stash one)
 // choices, the object-class filter menu of menustyle:full, looting several containers through one
 // "Loot which containers?" menu (each floor container has its own offer instead), reverse_loot()
-// while confused, trapped boxes, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
+// while confused, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
 // bag of holding that explodes on its floor, scatter() of a bag of holding explosion (what
 // survives lands at the hero's feet), the weight check when taking things out of a carried container, the
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
@@ -35,6 +35,9 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { losehp } from './hp';
+import { isBoxTrapped } from './btrapstate';
+import { chestTrap } from './chesttrap';
+import { nomulNow } from './hunger';
 import { carryCount, encumberMsg, invOption, liftLoadstone, prinv } from './itemactions';
 import {
   addToInventory,
@@ -388,6 +391,14 @@ export function useContainer(ctx: Ctx, box: Entity): number {
     say(ctx, 'loot.is_locked', { box: xnameOf(ctx.state, ctx.defs, box) });
     if (held(ctx, box)) say(ctx, 'loot.put_down');
     return 0;
+  }
+  if (isBoxTrapped(ctx.state, box.id)) {
+    if (held(ctx, box)) say(ctx, 'ctrap.you_open', { box: xnameOf(ctx.state, ctx.defs, box) });
+    chestTrap(ctx, box, 'hand', false);
+    // even if the trap fails, you've used up this turn (unless it paralyzed her)
+    if (!ctx.state.gameOver && !hero(ctx).c.helpless)
+      nomulNow(ctx, 1, 'helpless.opening_container', null);
+    return NORMAL_SPEED;
   }
   const data: LootData = { box: box.id, used: false, stage: 'what' };
   // cursed_mbag: sometimes toss objects

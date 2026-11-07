@@ -79,17 +79,19 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
  * loses up to d(2,4) maximum HP (never below her level) and takes d(2,4) damage; her armor may
  * burn, carried items may burn or catch light (always when the body was hit, else 2 in 3), and
  * scrolls and books on her square may burn ("You smell paper burning." when blind).
- * ref: src/trap.c dofiretrap() for a floor trap (no box, water, polymorph, slime or ice; the
- * level drain when her maximum drops below her level is not ported)
+ * `box`: the flame bursts from a trapped box (chest_trap()); the rest is the same.
+ * ref: src/trap.c dofiretrap() (no water, polymorph, slime or ice; the level drain when her
+ * maximum drops below her level is not ported)
  */
-export function dofiretrap(ctx: Ctx): void {
+export function dofiretrap(ctx: Ctx, box?: Entity): void {
   const hero = getPlayer(ctx.state);
   const p = heroPos(ctx);
   const level = getLevel(ctx.state, p.level);
   const seeIt = !hasProp(hero, P.BLINDED);
   const origDmg = ctx.rng.d(2, 4); // orig_dmg = num = d(2, 4); both branches set num again
   let num: number;
-  say(ctx, 'fire.tower_erupts', { surface: surfaceKey(ctx, level, p.x, p.y) });
+  if (box) say(ctx, 'fire.tower_bursts', { box: xnameOf(ctx.state, ctx.defs, box) });
+  else say(ctx, 'fire.tower_erupts', { surface: surfaceKey(ctx, level, p.x, p.y) });
   if (hasProp(hero, P.FIRE_RES)) {
     num = ctx.rng.rn2(2); // shieldeff() is not shown
   } else {

@@ -197,5 +197,8 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
         : null,
     traps: [],
     ...(g.boulders.length > 0 && { boulderSpots: g.boulders.map((p) => ({ x: p.x - 1, y: p.y })) }),
+    ...(g.trappedDoors.length > 0 && {
+      trappedDoorSpots: g.trappedDoors.map((p) => ({ x: p.x - 1, y: p.y })),
+    }),
   };
 }

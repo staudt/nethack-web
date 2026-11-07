@@ -20,6 +20,8 @@ import {
   trapAt,
 } from '@nh/core';
 import { openDoorAt } from './actions';
+import { doorTrapped } from './btrapstate';
+import { blowDoor, mbTrapped } from './btrapped';
 import { clearPath } from './clearpath';
 
 export { clearPath };
@@ -786,7 +788,12 @@ function postmovMoved(
   // ref: postmov(): open a closed door the monster just stepped onto, `!can_tunnel` ("taken
   // care of below")
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
-  if (rules.closedDoor[here] && !canTunnel) {
+  if (rules.closedDoor[here] && !canTunnel && doorTrapped(ctx, level.id, pos.x, pos.y)) {
+    const didsee = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
+    blowDoor(ctx, level, pos.x, pos.y); // D_NODOOR
+    if (mbTrapped(ctx, e, didsee || isVisible(ctx.state, cellIndex(level, pos.x, pos.y))))
+      return 'died';
+  } else if (rules.closedDoor[here] && !canTunnel) {
     openDoorAt(ctx, level, pos);
     const seen = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     ctx.emit({ type: 'doorOpened', pos: { x: pos.x, y: pos.y } });

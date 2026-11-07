@@ -1,10 +1,10 @@
 // Locks: applying a skeleton key, lock pick or credit card to an adjacent door or to a box on the
-// floor under the hero, as a multi-turn occupation that can be interrupted and resumed.
+// floor under the hero, as a multi-turn occupation that can be interrupted and resumed; a trapped
+// door or box goes off when its lock gives (#force is force.ts).
 // ref: src/lock.c pick_lock(), picklock(), lock_action(), reset_pick(), maybe_reset_pick(),
 // autokey(); src/allmain.c interrupt_occupation / stop_occupation()
 //
-// Not ported (see DEVIATIONS.md): #force, trapped doors and boxes (and the Master Key of
-// Thievery's trap finding), door mimics, the Rogue bonus (the hero is a Valkyrie), shop doors,
+// Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, door mimics, the Rogue bonus (the hero is a Valkyrie), shop doors,
 // levitation, pits, polymorphed forms without hands, Dex exercise (no exercise system yet).
 import {
   DIRS,
@@ -39,6 +39,9 @@ import { P, heroHas } from './props';
 import { T } from './terrain';
 import { HERE } from './priority';
 import { KEY, PICKLOCK_ID, lockAction, lockData, xlockOf, type Xlock } from './lockstate';
+import { doorTrapped, isBoxTrapped, pruneBoxTraps, pruneDoorTraps } from './btrapstate';
+import { bTrapped, blowDoor } from './btrapped';
+import { chestTrap } from './chesttrap';
 
 export { KEY, PICKLOCK_ID };
 
@@ -145,20 +148,25 @@ function picklock(ctx: Ctx): boolean {
   if (ctx.rng.rn2(100) >= x.chance) return true; // still busy
 
   say(ctx, 'lock.succeed', { action: lockAction(ctx, x) });
+  x.usedtime = 0;
   if (x.door) {
     const lv = levelOf(ctx, x.door.level);
     const t = lv ? terrainAt(ctx, lv, x.door.x, x.door.y) : null;
-    if (lv)
+    if (lv && doorTrapped(ctx, lv.id, x.door.x, x.door.y)) {
+      blowDoor(ctx, lv, x.door.x, x.door.y);
+      bTrapped(ctx, 'door'); // FINGER
+    } else if (lv)
       setTerrain(lv, x.door.x, x.door.y, t?.door === 'locked' ? T.door_closed : T.door_locked);
   } else if (x.box !== undefined) {
-    const it = ctx.state.entities[String(x.box)]?.c.item;
-    if (it) {
+    const box = ctx.state.entities[String(x.box)];
+    const it = box?.c.item;
+    if (box && it) {
       if (it.locked) delete it.locked;
       else it.locked = true;
       setLknown(ctx, x.box, true);
+      if (isBoxTrapped(ctx.state, box.id)) chestTrap(ctx, box, 'finger', false);
     }
   }
-  x.usedtime = 0;
   return false;
 }
 
@@ -543,5 +551,8 @@ export function registerLock(api: ModApi): void {
     const x = xlockOf(ctx);
     if (x?.box !== undefined && !ctx.state.entities[String(x.box)]) resetPick(ctx);
     pruneObjKnown(ctx);
+    pruneBoxTraps(ctx);
+    const level = ctx.state.levels[ctx.state.currentLevel];
+    if (level) pruneDoorTraps(ctx, level);
   });
 }

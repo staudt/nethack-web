@@ -45,6 +45,8 @@ export interface WishSpec {
   locked: boolean;
   unlocked: boolean;
   broken: boolean;
+  /** "trapped" 1, "untrapped" 2, neither 0 (d.trapped) */
+  trapped: 0 | 1 | 2;
   /** "lit"/"burning": parsed, not applied (see DEVIATIONS.md) */
   islit: boolean;
   /** The monster of a "<mon> corpse" / "corpse of <mon>" (d.mntmp). */
@@ -438,7 +440,7 @@ const skipDigits = (s: string): string => s.replace(/^\d+/, '');
 const PROOF = ['rustproof', 'erodeproof', 'corrodeproof', 'fixed', 'fireproof', 'rotproof', 'tempered', 'crackproof']; // prettier-ignore
 /** Words recognized and skipped because the subset has nothing they apply to. */
 const IGNORED = [
-  'unlit', 'extinguished', 'moist', 'wet', 'poisoned', 'trapped', 'untrapped', 'open', 'closed',
+  'unlit', 'extinguished', 'moist', 'wet', 'poisoned', 'open', 'closed',
   'doorless', 'looted', 'disturbed', 'greased', 'zombifying', 'historic', 'diluted', 'empty',
   'medium', 'real', 'fake',
 ]; // prettier-ignore
@@ -474,6 +476,7 @@ export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing
     locked: false,
     unlocked: false,
     broken: false,
+    trapped: 0,
     islit: false,
     mon: null,
   };
@@ -530,6 +533,10 @@ export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing
     } else if (word('broken')) {
       spec.broken = true;
       spec.locked = spec.unlocked = false;
+    } else if (word('trapped')) {
+      spec.trapped = 1;
+    } else if (word('untrapped')) {
+      spec.trapped = 2;
     } else if (word('very')) {
       very = 1;
     } else if (word('thoroughly')) {

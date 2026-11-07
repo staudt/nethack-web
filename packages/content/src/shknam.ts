@@ -5,9 +5,10 @@
 // shop branch); src/mkroom.c mkshop() (random dungeon shops)
 //
 // Not ported: mimics posing as stock (none exist: the rn2(100) < depth roll is made), the tribute
-// novel, the "Closed for inventory" engraving of a locked shop door (no engravings), trapped
-// doors, irregular shops (no Minetown shop is one), Orcus's ghost town, the scroll of charging
-// shopkeepers carry (not in the object table: the roll is made).
+// novel, the "Closed for inventory" engraving of a locked shop door (no engravings), irregular
+// shops (no Minetown shop is one), Orcus's ghost town, the scroll of charging shopkeepers carry
+// (not in the object table: the roll is made).
+import { doorTrapped, setDoorTrapped } from './btrapstate';
 import {
   cellIndex,
   sortedIds,
@@ -257,7 +258,7 @@ function stockGoodpos(
 
 /**
  * Stocks a new shop: its shopkeeper first (nothing more without one), a doorway or broken door
- * made an open door and a secret door a door, then one object of the shop's kinds on each good
+ * made an open door, a secret door a door and a trapped door a locked one, then one object of the shop's kinds on each good
  * square, column by column. ref: src/shknam.c stock_room()
  */
 export function stockRoom(ctx: Ctx, level: Level, room: number, shp: ShopType): void {
@@ -273,6 +274,11 @@ export function stockRoom(ctx: Ctx, level: Level, room: number, shp: ShopType): 
   else if (id === T.sdoor_v || id === T.sdoor_h) setTerrain(level, x, y, T.door_closed);
   else if (id === T.sdoor_locked_v || id === T.sdoor_locked_h)
     setTerrain(level, x, y, T.door_locked);
+  // a trapped shop door becomes a locked one (the trap is gone)
+  if (doorTrapped(ctx, level.id, x, y)) {
+    setDoorTrapped(ctx, level.id, x, y, false);
+    setTerrain(level, x, y, T.door_locked);
+  }
   for (let sx = r.lx; sx <= r.hx; sx++)
     for (let sy = r.ly; sy <= r.hy; sy++)
       if (stockGoodpos(ctx, level, r, e.shd, sx, sy)) mkshobjAt(ctx, level, shp, sx, sy);

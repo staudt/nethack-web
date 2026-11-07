@@ -96,4 +96,11 @@ export interface Level {
    * save never has it. Absent when there are none.
    */
   boulderSpots?: Pos[];
+  /**
+   * Transient: the doors level generation made trapped (ref: src/mklev.c dosdoor(), src/sp_lev.c
+   * create_door() D_TRAPPED). Core has no door traps, so the mod that owns them reads this in its
+   * first `newLevel` hook and deletes the field, like `boulderSpots`; a level in a save never has
+   * it. Absent when there are none.
+   */
+  trappedDoorSpots?: Pos[];
 }

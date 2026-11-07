@@ -54,6 +54,8 @@ import { xnameOf } from './objnam';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
 import { setEndHow } from './endstate';
+import { doorTrapped } from './btrapstate';
+import { bTrapped, blowDoor } from './btrapped';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -82,6 +84,22 @@ export function openDoorAt(ctx: Ctx, level: Level, at: Pos): void {
   };
   const vertical = !passableAt(at.x, at.y - 1) && !passableAt(at.x, at.y + 1);
   setTerrain(level, at.x, at.y, vertical ? T.door_open_v : T.door_open_h);
+}
+
+/**
+ * The hero opens the closed door at `at`: "The door opens.", and a trapped one blows up
+ * ("KABOOM!!  The door was booby-trapped!") leaving an empty doorway.
+ * ref: src/lock.c doopen_indir() (the door always opens: see DEVIATIONS, Doors)
+ */
+function openDoor(ctx: Ctx, level: Level, at: Pos): void {
+  const trapped = doorTrapped(ctx, level.id, at.x, at.y);
+  openDoorAt(ctx, level, at);
+  ctx.emit({ type: 'doorOpened', pos: at });
+  ctx.emit({ type: 'msg', key: 'door.opens' });
+  if (trapped) {
+    blowDoor(ctx, level, at.x, at.y);
+    bTrapped(ctx, 'door');
+  }
 }
 
 /**
@@ -485,9 +503,7 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   switch (check.reason) {
     case 'closedDoor': {
       // ref: src/hack.c test_move() flags.autoopen -> src/lock.c doopen_indir()
-      openDoorAt(ctx, level, to);
-      ctx.emit({ type: 'doorOpened', pos: to });
-      ctx.emit({ type: 'msg', key: 'door.opens' });
+      openDoor(ctx, level, to);
       return NORMAL_SPEED;
     }
     case 'lockedDoor': {
@@ -560,9 +576,7 @@ const open: ActionDef = {
       ctx.emit({ type: 'msg', key });
       return 0;
     }
-    openDoorAt(ctx, level, to);
-    ctx.emit({ type: 'doorOpened', pos: to });
-    ctx.emit({ type: 'msg', key: 'door.opens' });
+    openDoor(ctx, level, to);
     return NORMAL_SPEED;
   },
 };

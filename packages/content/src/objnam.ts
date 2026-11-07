@@ -1,4 +1,5 @@
 // Naming objects for the player. ref: src/objnam.c xname(), doname()
+import { boxTknown, isBoxTrapped } from './btrapstate';
 import type {
   ArmorSlot,
   Entity,
@@ -108,7 +109,7 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
  * (count and prefixes end with a space, suffixes start with one). The name has no article; the
  * UI adds it with the `{item|an}` modifier, which must not add one when the text starts with a
  * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
- * not a Cleric, no poison/grease/prices/trapped boxes, and `dknown` always true.
+ * not a Cleric, no poison/grease/prices, and `dknown` always true.
  */
 export function doname(
   state: Readonly<GameState>,
@@ -167,6 +168,9 @@ export function doname(
     if (cknown && n === 0 && it.quantity === 1) params.count = { key: 'obj.empty' };
     if (def.container.box && objKnown(state, 'lknown', item.id))
       params.eaten = { key: it.broken ? 'obj.broken' : it.locked ? 'obj.locked' : 'obj.unlocked' };
+    // "trapped " before the lock word (obj->otrapped && obj->tknown)
+    if (def.container.box && isBoxTrapped(state, item.id) && boxTknown(state, item.id))
+      params.eaten = { key: 'obj.trapped', params: { lock: params.eaten ?? '' } };
     if (n > 0)
       params.charges = { key: n === 1 ? 'obj.containing1' : 'obj.containing', params: { n } };
   }

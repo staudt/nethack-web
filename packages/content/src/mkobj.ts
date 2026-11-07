@@ -217,7 +217,7 @@ export function mksobjFull(
  * LOADSTONE), keeping its BUC and at most 2 of it, as C changes only the otyp); a wand of
  * cancellation in a bag of holding becomes another wand (rnd_class(WAN_LIGHT, WAN_LIGHTNING),
  * the type only). Ice boxes and bags of holding getting a sack instead of a bag do not arise in
- * the subset (boxes hold no tools). Boxes are not trapped (see DEVIATIONS.md).
+ * the subset (boxes hold no tools).
  */
 export function mkboxCnts(
   ctx: MkobjCtx,

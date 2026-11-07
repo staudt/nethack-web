@@ -29,6 +29,8 @@ export interface Xlock {
   chance: number;
   picktyp: string;
   usedtime: number;
+  /** #force: prying with a blade or bashing with a blunt weapon (C's picktyp 1 or 0). */
+  force?: 'blade' | 'blunt';
 }
 
 interface LockData {

@@ -52,6 +52,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { setTerrain } from './actions';
+import { doorTrapped } from './btrapstate';
+import { blowDoor, mbTrapped, unaware } from './btrapped';
 import { BOULDER, blockersOf, fractureRock } from './boulder';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
@@ -470,8 +472,8 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
 
 /**
  * A door or secret door hit by opening, locking or striking; true if something happened.
- * ref: src/lock.c doorlock(). A doorway stands for both D_NODOOR and D_BROKEN; doors are never
- * trapped; no shop doors.
+ * ref: src/lock.c doorlock(). A doorway stands for both D_NODOOR and D_BROKEN; a trapped door
+ * struck blows up (mb_trapped() on a monster in it); no shop doors.
  */
 function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
   const level = levelOf(ctx);
@@ -512,7 +514,24 @@ function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
       setTerrain(level, x, y, T.door_closed);
     } else res = false;
   } else if (striking) {
-    if (t.door === 'locked' || t.door === 'closed') {
+    if ((t.door === 'locked' || t.door === 'closed') && doorTrapped(ctx, level.id, x, y)) {
+      const mon = monAt(ctx, x, y);
+      const sawit = mon ? canseemon(ctx, mon) : cansee(ctx, x, y);
+      blowDoor(ctx, level, x, y); // D_NODOOR
+      const seeit = mon ? canseemon(ctx, mon) : cansee(ctx, x, y);
+      if (mon)
+        mbTrapped(ctx, mon, sawit || seeit); // its own wake_nearto()
+      else {
+        // flags.verbose
+        if ((sawit || seeit) && !unaware(ctx)) say(ctx, 'btrap.see_door_explode');
+        else {
+          const hp = getPlayer(ctx.state).c.pos;
+          const d2 = hp ? (hp.x - x) ** 2 + (hp.y - y) ** 2 : 0;
+          say(ctx, d2 > 7 * 7 ? 'btrap.hear_distant' : 'btrap.hear_nearby');
+        }
+        wakeNearto(ctx, x, y, 40); // loudness 40
+      }
+    } else if (t.door === 'locked' || t.door === 'closed') {
       const sawit = cansee(ctx, x, y);
       setTerrain(level, x, y, T.doorway); // D_BROKEN
       ctx.emit({ type: 'doorOpened', pos: { x, y } });

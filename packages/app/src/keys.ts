@@ -40,6 +40,7 @@ const SELF_KEYS: [string, string][] = [
   ['Alt+c', 'nh:chat'],
   ['p', 'nh:pay'],
   ['Alt+e', 'nh:enhance'],
+  ['Alt+f', 'nh:force'],
 ];
 
 /** Direction prefixes (see `runPrefixes`): `o` open, `F` fight, `^` identify a trap. */

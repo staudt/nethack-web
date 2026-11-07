@@ -72,6 +72,8 @@ export class Grid {
   smeq: number[] = [];
   /** Corridor cells that got a boulder (dig_corridor()'s nxcor roll), in digging order. */
   boulders: { x: number; y: number }[] = [];
+  /** Doors whose D_TRAPPED roll hit (dosdoor(), create_door()), in making order. */
+  trappedDoors: { x: number; y: number }[] = [];
 
   constructor(width: number, height: number) {
     this.colno = width + 1;

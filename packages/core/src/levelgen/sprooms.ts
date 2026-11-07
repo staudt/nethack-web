@@ -111,6 +111,12 @@ function fromGrid(b: Builder, g: Grid, typ0: Uint8Array, mask0: Uint8Array): voi
       ...(level.boulderSpots ?? []),
       ...g.boulders.map((p) => ({ x: p.x - 1, y: p.y })),
     ];
+  // trapped doors, for content to keep (see Level.trappedDoorSpots)
+  if (g.trappedDoors.length > 0)
+    level.trappedDoorSpots = [
+      ...(level.trappedDoorSpots ?? []),
+      ...g.trappedDoors.map((p) => ({ x: p.x - 1, y: p.y })),
+    ];
 }
 
 const XALIGN = { left: 1, center: 3, right: 5 } as const;
@@ -195,21 +201,22 @@ const STATE_MASK: Record<string, number> = {
 /**
  * A door on a wall of `room`: a random wall among those allowed whose outside is open, at `pos`
  * or a random cell of it, where okdoor() allows (100 tries, else no door). A `random` state is
- * create_door()'s table (lspo_door() draws rnddoor() first, unused). Trapped doors are not made
- * but their roll is drawn. ref: src/sp_lev.c lspo_door(), create_door()
+ * create_door()'s table (lspo_door() draws rnddoor() first, unused). A trapped door goes into
+ * `g.trappedDoors`. ref: src/sp_lev.c lspo_door(), create_door()
  */
 function createDoor(g: Grid, b: Builder, room: IRoom, dd: RoomDoorDef): void {
   const { rng } = b;
   const dwall = dd.wall === undefined || dd.wall === 'random' ? W_ANY : WALL_BITS[dd.wall];
   const dpos = dd.pos ?? -1;
   let mask: number;
+  let trapped = false;
   if (dd.state === 'random') {
     rng.rn2(5); // rnddoor()
     if (rng.rn2(3) === 0) {
       if (rng.rn2(5) === 0) mask = D_ISOPEN;
       else if (rng.rn2(6) === 0) mask = D_LOCKED;
       else mask = D_CLOSED;
-      if (mask !== D_ISOPEN) rng.rn2(25); // D_TRAPPED: not made
+      if (mask !== D_ISOPEN && rng.rn2(25) === 0) trapped = true; // D_TRAPPED
     } else mask = 0; // D_NODOOR
   } else mask = STATE_MASK[dd.state] ?? 0;
   const open = (x: number, y: number): boolean => g.isok(x, y) && !isObstructed(g.get(x, y));
@@ -246,6 +253,7 @@ function createDoor(g: Grid, b: Builder, room: IRoom, dd: RoomDoorDef): void {
     const horiz = g.get(x, y) === T.HWALL ? D_HORIZ : 0;
     g.set(x, y, T.DOOR);
     g.setMask(x, y, mask | horiz);
+    if (trapped) g.trappedDoors.push({ x, y });
     return;
   }
   // C: impossible("create_door: Can't find a proper place!")

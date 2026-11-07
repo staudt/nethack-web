@@ -47,6 +47,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { doAttack } from './actions';
+import { doorTrapped } from './btrapstate';
+import { bTrapped, blowDoor } from './btrapped';
 import { ROCK, boulderAt, fractureRock } from './boulder';
 import { abon, dbon } from './combat';
 import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digstate';
@@ -637,6 +639,7 @@ export function dig(ctx: Ctx): boolean {
     const boulder = boulderAt(ctx, level.id, d.x, d.y);
     let digtxt: string;
     let params: Msg['params'] | undefined;
+    const trapped = doorTrapped(ctx, level.id, d.x, d.y);
     if (typ === 'boulder' && boulder) {
       fractureRock(ctx, boulder, true);
       // another boulder here goes back on top of the pile
@@ -659,6 +662,11 @@ export function dig(ctx: Ctx): boolean {
       params = { pick: xnameOf(ctx.state, ctx.defs, pick) };
     } else return false; // statue or boulder got taken
     if (!d.quiet) say(ctx, digtxt, params);
+    // a trapped door (kept closed by C until now) goes off. ref: dig() `IS_DOOR && D_TRAPPED`
+    if (trapped) {
+      blowDoor(ctx, level, d.x, d.y);
+      bTrapped(ctx, 'door'); // NO_PART
+    }
     d.lastdigtime = ctx.state.turn;
     d.quiet = false;
     d.level = ''; // done: the next attempt starts afresh

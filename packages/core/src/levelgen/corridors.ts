@@ -100,19 +100,23 @@ export function finddpos(g: Grid, rng: Rng, dir: Dir, room: IRoom): Pt | null {
 
 /**
  * Make a door at x,y.
- * ref: src/mklev.c dodoor() / dosdoor(). Deviation (DEVIATIONS.md): trapped doors and door
- * mimics are never made, but their rolls are still drawn so the random stream matches.
+ * ref: src/mklev.c dodoor() / dosdoor(). A trapped door goes into `g.trappedDoors` (core has no
+ * door traps: content keeps them, see Level.trappedDoorSpots). Deviation (DEVIATIONS.md): door
+ * mimics are never made and their roll is not drawn.
  */
 export function dodoor(g: Grid, rng: Rng, depth: number, x: number, y: number): void {
   const wasWall = isWall(g.get(x, y));
   const horiz = wasWall ? g.get(x, y) === T.HWALL : (g.getMask(x, y) & D_HORIZ) !== 0;
   // ref: mklev.c maybe_sdoor(8)
   const sdoor = depth > 2 && rng.rn2(8) === 0;
+  // a door made again here forgets the first one's trap
+  const prev = g.trappedDoors.findIndex((p) => p.x === x && p.y === y);
+  if (prev !== -1) g.trappedDoors.splice(prev, 1);
   let mask: number;
   if (sdoor && wasWall) {
     // ref: mklev.c dosdoor() SDOOR branch: locked unless rn2(5), then the trap roll
     const locked = rng.rn2(5) === 0;
-    if (depth >= 4) rng.rn2(20); // D_TRAPPED: not made
+    if (depth >= 4 && rng.rn2(20) === 0) g.trappedDoors.push({ x, y }); // D_TRAPPED
     g.set(x, y, T.SDOOR);
     g.setMask(x, y, (locked ? D_LOCKED : D_CLOSED) | (horiz ? D_HORIZ : 0));
     return;
@@ -120,7 +124,7 @@ export function dodoor(g: Grid, rng: Rng, depth: number, x: number, y: number): 
     if (rng.rn2(5) === 0) mask = D_ISOPEN;
     else if (rng.rn2(6) === 0) mask = D_LOCKED;
     else mask = D_CLOSED;
-    if (mask !== D_ISOPEN && depth >= 5) rng.rn2(25); // D_TRAPPED: not made
+    if (mask !== D_ISOPEN && depth >= 5 && rng.rn2(25) === 0) g.trappedDoors.push({ x, y }); // D_TRAPPED
   } else {
     mask = 0; // D_NODOOR
   }
