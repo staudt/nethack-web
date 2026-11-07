@@ -21,9 +21,10 @@ import {
   type PlayerAction,
   type Pos,
   type Prompt,
+  type Registry,
   type Rng,
 } from '@nh/core';
-import { checkInvariants } from './invariants';
+import { boulderMoveErrors, checkInvariants } from './invariants';
 
 export interface SoakOptions {
   seed: number;
@@ -93,6 +94,8 @@ export interface SoakResult {
   paid: number;
   /** Times the bot drank from or dipped into a fountain (its own fountain branch). */
   fountain: number;
+  /** Boulders the hero pushed: moved one square, or sunk into a pit or hole she pushed them into. */
+  boulderPushes: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -110,6 +113,45 @@ function lineDir(from: Pos, to: Pos): Dir | null {
     if (v.x === sx && v.y === sy) return d;
   }
   return null;
+}
+
+/** Where the floor boulders are before a step, for `boulderPushesSince`. */
+export interface BoulderSnapshot {
+  /** Boulder id -> cell key `level:x,y`. */
+  cells: Map<EntityId, string>;
+  /** The current level and its trap count. */
+  level: string;
+  traps: number;
+}
+
+export function boulderSnapshot(state: Readonly<GameState>, registry: Registry): BoulderSnapshot {
+  const cells = new Map<EntityId, string>();
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (e?.c.item && p && registry.isObject(e.def) && registry.object(e.def).boulder === true)
+      cells.set(id, `${p.level}:${p.x},${p.y}`);
+  }
+  const level = state.currentLevel;
+  return { cells, level, traps: state.levels[level]?.traps.length ?? 0 };
+}
+
+/**
+ * Boulders pushed since `before` (one step: only the hero moves boulders here, no giants): each
+ * boulder now on another square, plus boulders gone along with as many traps of the hero's level
+ * (filled pits and plugged holes; a boulder broken into rocks takes no trap with it).
+ */
+export function boulderPushesSince(state: Readonly<GameState>, before: BoulderSnapshot): number {
+  let moved = 0;
+  let gone = 0;
+  for (const [id, was] of before.cells) {
+    const p = state.entities[String(id)]?.c.pos;
+    if (!p) gone++;
+    else if (`${p.level}:${p.x},${p.y}` !== was) moved++;
+  }
+  const lv = state.levels[before.level];
+  const trapsGone = state.currentLevel === before.level && lv ? before.traps - lv.traps.length : 0;
+  return moved + Math.min(gone, Math.max(0, trapsGone));
 }
 
 const isMod = (a: PlayerAction, id: string): boolean => a.type === 'mod' && a.action === id;
@@ -178,18 +220,34 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   /** Errors from checks that need the state before a step (pets changing level). */
   const stepErrors: string[] = [];
   let petsFollowed = 0;
+  let boulderPushes = 0;
   const stepAndTrack = (a: PlayerAction): void => {
     const before = isMod(a, 'nh:pickup') ? carriedCount() : 0;
     // where the hero and her pets are, to check who follows her to another level
     const fromLevel = state.currentLevel;
     const fromHero = getPlayer(state).c.pos;
     const petsBefore = new Map<EntityId, Pos>();
+    // monsters' and boulders' cells, to check that no monster walks onto a boulder and to count
+    // the hero's pushes (only she moves boulders: no giants)
+    const monsBefore = new Map<EntityId, string>();
     for (const id of sortedIds(state)) {
       const e = state.entities[String(id)];
       const p = e?.c.pos;
-      if (e?.c.monster?.tame && p?.level === fromLevel) petsBefore.set(id, { x: p.x, y: p.y });
+      if (!e || !p || (!e.c.monster && id !== state.playerId)) continue;
+      if (e.c.monster?.tame && p.level === fromLevel) petsBefore.set(id, { x: p.x, y: p.y });
+      monsBefore.set(id, `${p.level}:${p.x},${p.y}`);
     }
+    const bouldersBefore = boulderSnapshot(state, engine.registry);
     const r = engine.step(state, a);
+    stepErrors.push(
+      ...boulderMoveErrors(
+        state,
+        engine.registry,
+        monsBefore,
+        new Set(bouldersBefore.cells.values()),
+      ),
+    );
+    boulderPushes += boulderPushesSince(state, bouldersBefore);
     if (state.currentLevel !== fromLevel && fromHero) {
       // ref: keepdogs(): only pets next to the hero come along
       for (const [id, p] of petsBefore) {
@@ -658,6 +716,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     chatted,
     paid,
     fountain,
+    boulderPushes,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

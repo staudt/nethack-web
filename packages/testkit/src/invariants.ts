@@ -147,6 +147,7 @@ export function checkInvariants(state: GameState, registry: Registry): string[] 
   checkStairsReachable(state, registry, errs);
   checkBranches(state, registry, errs);
   checkSpecialLevels(state, registry, errs);
+  checkBoulders(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
   checkSpellState(state, errs);
@@ -781,6 +782,78 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
  * out (chance 100) is placed; and a generated level is built from one of the variants exactly
  * when the layout puts the special level there, with `Level.town` set for a town.
  */
+/**
+ * Boulders (`ObjectDef.boulder`) lie on floor the hero could walk on (never in walls, stone or a
+ * closed door), and `Level.sokoban` is set only on a level built from a LevelDef with
+ * `flags.sokoban` (the rules may be lifted in play, so a level from such a def may lack it).
+ * Monsters on boulder squares are not a state invariant: in C an explicitly placed monster (as
+ * Orcish Town's orcs at `rndcoord()` spots) or one that survives a scroll of earth's boulder
+ * shares the square; `boulderMoveErrors` checks that no monster *moves* onto a boulder.
+ */
+function checkBoulders(state: GameState, registry: Registry, errs: string[]): void {
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (!e?.c.item || !p || !registry.isObject(e.def) || registry.object(e.def).boulder !== true)
+      continue;
+    const lv = state.levels[p.level];
+    if (!lv || !inBounds(lv, p.x, p.y)) continue; // reported with the entity
+    const t = lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? -1];
+    if (t === undefined || !registry.hasTerrain(t) || !registry.terrain(t).passable)
+      errs.push(`boulder ${id}: on non-passable '${t ?? '?'}' at ${p.x},${p.y} on ${p.level}`);
+  }
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (lv?.sokoban === undefined) continue;
+    const def = lv.def;
+    const flagged =
+      def !== undefined && registry.levels.some((l) => l.id === def && l.flags?.sokoban === true);
+    if (lv.sokoban !== true || !flagged)
+      errs.push(`level ${lid}: sokoban flag on a level not built from a sokoban LevelDef`);
+  }
+}
+
+/** Cell keys (`level:x,y`) of every floor boulder. */
+export function boulderCells(state: GameState, registry: Registry): Set<string> {
+  const out = new Set<string>();
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (e?.c.item && p && registry.isObject(e.def) && registry.object(e.def).boulder === true)
+      out.add(`${p.level}:${p.x},${p.y}`);
+  }
+  return out;
+}
+
+/**
+ * Monsters other than the hero that moved during a step onto a square holding a boulder both
+ * before and after it (a boulder dropped on a monster, or one broken under it, does not count).
+ * `before` maps monster ids, and the hero's, to their cell keys and `bouldersBefore` is
+ * `boulderCells` from before the step. A pet that swapped places with the hero onto the boulder
+ * she had squeezed onto is allowed: C lets a very small pet do it, and the port lets any pet (see
+ * DEVIATIONS, Swapping with a pet). ref: src/mon.c mfndpos() (no ALLOW_ROCK monsters: no giants);
+ * src/hack.c domove_swap_with_pet()
+ */
+export function boulderMoveErrors(
+  state: GameState,
+  registry: Registry,
+  before: ReadonlyMap<number, string>,
+  bouldersBefore: ReadonlySet<string>,
+): string[] {
+  const errs: string[] = [];
+  let after: Set<string> | null = null;
+  const heroWas = before.get(state.playerId);
+  for (const [id, was] of before) {
+    const p = state.entities[String(id)]?.c.pos;
+    if (!p || id === state.playerId) continue;
+    const key = `${p.level}:${p.x},${p.y}`;
+    if (key === was || key === heroWas || !bouldersBefore.has(key)) continue;
+    after ??= boulderCells(state, registry);
+    if (after.has(key)) errs.push(`monster ${id} moved onto a boulder at ${key}`);
+  }
+  return errs;
+}
+
 function checkSpecialLevels(state: GameState, registry: Registry, errs: string[]): void {
   for (const d of state.dungeons) {
     const def = registry.dungeons.find((x) => x.id === d.id);

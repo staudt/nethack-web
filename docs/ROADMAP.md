@@ -35,7 +35,7 @@ From 5b (objects and traps):
 From 6a (branches, the `LevelDef` format and the Gnomish Mines; done, phone-checked 2026-11-02):
 
 - **Mines monsters:** dwarf lord, dwarf king, bugbear and mind flayer (the `G` and `h` classes pick only from the monsters that exist; the gnome king and gnomish wizard came with 6b1).
-- **Branch stairs description:** "staircase down to the Gnomish Mines" once used (`stairs_description()`); up and portal branches.
+- **Branch stairs description:** "staircase down to the Gnomish Mines" once used (`stairs_description()`); portal branches (up branches came with 7b).
 - **Either/or content entries** in `LevelDef` (minefill's `percent(50) and "h" or "G"`), and a first solidfill pass before a cave init.
 - **Hero races:** the Mines' inhabitants peaceful to gnome and dwarf heroes.
 
@@ -91,5 +91,15 @@ From 7c (Mines' End, fountains, Orcish Town):
 - **The water nymph and theft:** stealing and teleporting away, for fountains (C's "no nymph" outcome stands in) and nymphs elsewhere.
 - **Pools:** gushing fountains making pools, then moats and water in special levels.
 - **Potions:** dilution by water damage and fountains, and `#dip` into potions (mixing).
-- **Orcish Town extras:** the boulders (after 7b's boulder object), the teleport region, the gang's names (and christening the town's orcs) and the booty items that wait for orcs below.
+- **Orcish Town extras:** the teleport region, the gang's names (and christening the town's orcs) and the booty items that wait for orcs below.
 - **LevelDef fixup hook:** content's `SpLevFixup` table (shuffled spots, BUC, maze walks, iron bars, migrating orcs) exposed to mods as a LevelDef hook.
+
+From 7b (boulders, pits, the scroll of earth, the Oracle level and Sokoban):
+
+- **Rolling boulder traps:** the trap itself and its launch spot, then the ones on the Sokoban maps (their spots are plain floor today).
+- **Giants and boulders:** giants carrying, throwing and stepping over boulders (`throws_rocks()`), monsters dropping boulders into pits, priests and shopkeepers fracturing them; the `m` move prefix.
+- **Statues:** statue objects, statue traps and the Oracle's centaur statues.
+- **The Oracle's consultations:** minor and major `doconsult()` for gold, with experience, luck and the rumors file.
+- **Zoos:** random zoos (`mkzoo()` from mklev), the Sokoban zoo as a true irregular room (today a region whose squares next to its door stay empty), the treasure zoo's two giant mimics.
+- **Boulders and other traps:** landmines, teleporters and level teleporters under a pushed boulder, boulders into water and lava (`boulder_hits_pool()`, after pools), shop billing for pushed boulders, objects buried in a filled pit (`bury_objs()`), the pit's limited view (vision.c).
+- **Sokoban extras:** the `noteleport`, `hardfloor` and non-diggable flags (with teleporting and digging), the Elbereth engraving and cursed scroll of scare monster on the prize, the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements.

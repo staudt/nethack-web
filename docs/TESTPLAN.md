@@ -87,6 +87,18 @@ With `?wizard=1`.
 - [ ] Find a pit (or wait for one deeper down): "You fall into a pit!", a few turns of "You are still in a pit." then "You crawl to the edge of the pit."; push a boulder into it: "The boulder fills a pit."
 - [ ] Level teleport to Mines level 1 in a few new games: boulders in the cave.
 
+## 7b2 Oracle and Sokoban
+
+With `?wizard=1`.
+
+- [ ] Wizard "where": the Oracle on DL5-9, and "Stairs up to Sokoban" one level below it.
+- [ ] Level teleport to the Oracle: a centre room with four fountains around the peaceful Oracle; stepping into it: "welcome to Delphi!".
+- [ ] Level teleport to the level below the Oracle: it has two up staircases. Take the one that is not the way back up to the Oracle: Sokoban's entry level, already mapped, boulders (`0`) and pits shown.
+- [ ] Push a boulder into a pit: "The boulder fills a pit." Try to push one diagonally: "The boulder won't roll diagonally on this floor." and no time passes.
+- [ ] Walk into an open pit and confirm: "Air currents pull you down into a pit!", then climb out after a few turns. Try to slip diagonally between a boulder and a wall: "You cannot pass that way."
+- [ ] `>` on the branch stairs takes you back to the main dungeon below the Oracle.
+- [ ] Level teleport to Sokoban level 1 (the top) in a game or two: "Welcome to David's treasure zoo!" when you enter the zoo, sleeping monsters on gold, and a bag of holding or an amulet of reflection behind it.
+
 ## Look cursor
 
 Desktop with a keyboard first, then the phone. Try both key layouts (Options: vi keys / number pad).

@@ -12,7 +12,7 @@ export type {
 } from './scenario';
 export { runReplay, recordGame } from './replay';
 export type { ReplayResult } from './replay';
-export { checkInvariants } from './invariants';
-export { soak } from './soak';
-export type { SoakOptions, SoakResult, SoakViolation } from './soak';
+export { boulderCells, boulderMoveErrors, checkInvariants } from './invariants';
+export { boulderPushesSince, boulderSnapshot, soak } from './soak';
+export type { BoulderSnapshot, SoakOptions, SoakResult, SoakViolation } from './soak';
 export { branchStartMod, soakKitMod, specialStartMod } from './kitmod';

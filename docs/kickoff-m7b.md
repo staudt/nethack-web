@@ -48,3 +48,13 @@ Rolling boulder traps (left off the Sokoban maps), the giant mimics on the top l
 - Scroll of earth: uncursed, blessed, cursed (the helmet does not help), confused rocks, monsters hit and killed, pits filled and holes plugged (`m7b.earth.test.ts`). Phone: pending.
 - Golden and replays deterministic, each golden change explained in its step's commit (step 2; step 3 left it unchanged, as its DL1 rolls no pit; step 4 for the scroll of earth); `pnpm check` green.
 - Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md`: pools, landmines, teleporters and rolling boulder traps under boulders, shop billing, giants, the `m` prefix, the pit's limited view, Sokoban (7b2).
+
+## Exit check, 7b2 (step 8, before the phone check)
+
+- Up-branches chained to a special level: always one level below the chain level, `entry: -1` arrives on the bottom level, Sokoban's depths, branch stairs up on the parent and down on the entry, no stairs past either end, validation errors (core `m7b.dungeon.test.ts`); "Stairs up to Sokoban" in wizard "where" (`wizard.test.ts`). Phone: pending.
+- The Oracle level on DL5-9: the centre room, four fountains, the peaceful Oracle, the Delphi greeting once (`m7b.oracle.test.ts`). Phone: pending.
+- The eight Sokoban levels at 80x21 and 120x40: every boulder, pit and hole at its lua spot on floor, stairs and branch stairs, premapped, the scrolls of earth, `<` from the main dungeon and `>` back (`m7b.sokoban.test.ts`). Phone: pending.
+- Sokoban rules and the prize: the first pit of each entry level filled, no diagonal push or squeeze, inescapable pits and holes, luck -1 for squeezing, breaking and earth (none off Sokoban), the rules lifted after the last pit, the treasure zoo and the not-cursed bag of holding or amulet of reflection (`m7b.sokorules.test.ts`). Phone: pending.
+- Soak and invariants: two 300-turn runs from Sokoban's entry level (`soak.sokoban.test.ts`, boulder pushes counted in `SoakResult.boulderPushes`); new checks for every soak: no boulder on impassable terrain, no monster but the hero moving onto a boulder, `Level.sokoban` only from a sokoban LevelDef (`invariants.m7b.test.ts`).
+- Golden and replays deterministic, each golden change explained in its step's commit (step 5 for the Oracle, step 6 for the Sokoban branch; steps 7 and 8 left it unchanged); `pnpm check` green.
+- Out of scope, logged in `DEVIATIONS.md` and `docs/ROADMAP.md`: rolling boulder traps, giant mimics, the prize's engraving and scare monster, the builds-up difficulty, random zoos, statues and consultations, giants, teleport and dig flags, Sokoban conduct.
