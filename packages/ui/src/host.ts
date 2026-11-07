@@ -22,7 +22,7 @@ import type {
 } from '@nh/core';
 import { ARROW_CODES, DEFAULT_CHORD_MS, createChord, dirOf } from './chord';
 import { attachKeyUp, attachKeys, attachPinch, attachTap } from './input';
-import { openCompass, openTextPrompt } from './compass';
+import { COMPASS_EXTRA_KEYS, openCompass, openTextPrompt } from './compass';
 import { createGetpos, getposInput, type Getpos, type GetposInput } from './getpos';
 import { clampCell, pinchCell } from './pinch';
 import {
@@ -786,7 +786,14 @@ export function createUi(opts: UiOptions): Ui {
           ),
           extras: opts
             .filter((o) => !(typeof o.value === 'string' && known.has(o.value)))
-            .map((o) => ({ label: t(o.key, o.params), run: answer(o.value) })),
+            .map((o) => {
+              const k = typeof o.value === 'string' ? COMPASS_EXTRA_KEYS[o.value] : undefined;
+              return {
+                label: t(o.key, o.params),
+                ...(k !== undefined ? { key: k } : {}),
+                run: answer(o.value),
+              };
+            }),
           onPick: (dir) => answer(valueOf.get(dir))(),
           onCancel: () => answer(null)(),
           onClose,

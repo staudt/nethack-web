@@ -18,6 +18,12 @@ const ARROW: Record<string, string> = {
   se: '↘',
 };
 
+/**
+ * Keys for the compass's extra options by their prompt value: `<` zaps up, `>` down (as
+ * NetHack's getdir()).
+ */
+export const COMPASS_EXTRA_KEYS: Record<string, string> = { up: '<', down: '>' };
+
 /** Keys that pick a direction on the compass: vi keys (arrows go through the host's chord). */
 export const COMPASS_KEYS: Record<string, string> = {
   h: 'w',
@@ -37,8 +43,8 @@ export interface CompassSpec {
   cancelLabel: string;
   /** Aria labels per direction (optional). */
   dirLabels?: Record<string, string>;
-  /** Other options (e.g. up/down) as plain buttons under the pad. */
-  extras?: { label: string; run(): void }[];
+  /** Other options (e.g. up/down) as plain buttons under the pad, each with an optional key. */
+  extras?: { label: string; key?: string; run(): void }[];
   onPick(dir: string): void;
   onCancel(): void;
   onClose?: () => void;
@@ -108,7 +114,12 @@ export function openCompass(root: HTMLElement, spec: CompassSpec): OpenMenu {
     if (e.key === 'Escape') cancel();
     else {
       const dir = COMPASS_KEYS[e.key];
+      const extra = spec.extras?.find((x) => x.key !== undefined && x.key === e.key);
       if (dir) pick(dir);
+      else if (extra) {
+        close();
+        extra.run();
+      }
     }
     return true;
   };

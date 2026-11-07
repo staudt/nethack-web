@@ -280,6 +280,40 @@ export const T = {
   altar_unaligned: 'nh:altar_unaligned',
 } as const;
 
+const WALL_IDS: ReadonlySet<DefId> = new Set<DefId>([
+  T.vwall,
+  T.hwall,
+  T.tlcorn,
+  T.trcorn,
+  T.blcorn,
+  T.brcorn,
+  T.tuwall,
+  T.tdwall,
+  T.tlwall,
+  T.trwall,
+  T.crwall,
+]);
+const SDOOR_IDS: ReadonlySet<DefId> = new Set<DefId>([
+  T.sdoor_v,
+  T.sdoor_h,
+  T.sdoor_locked_v,
+  T.sdoor_locked_h,
+]);
+
+/** ref: include/rm.h IS_WALL(): a wall of any shape (not stone, a secret door or a tree) */
+export const isWallId = (id: DefId | undefined): boolean => id !== undefined && WALL_IDS.has(id);
+/** ref: include/rm.h `typ == SDOOR` */
+export const isSdoorId = (id: DefId | undefined): boolean => id !== undefined && SDOOR_IDS.has(id);
+/** ref: include/rm.h IS_STWALL(): stone or a wall */
+export const isStwallId = (id: DefId | undefined): boolean => id === T.stone || isWallId(id);
+/** ref: include/rm.h IS_OBSTRUCTED(): stone, walls, trees, secret doors and secret corridors */
+export const isObstructedId = (id: DefId | undefined): boolean =>
+  isStwallId(id) || id === T.tree || isSdoorId(id) || id === T.scorr;
+
+/** The terrain id at (x, y) of `level`. */
+export const terrainIdAt = (level: Readonly<Level>, x: number, y: number): DefId | undefined =>
+  level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
+
 /** Sets a cell to terrain `id`, adding it to the level palette when missing. */
 export function setTerrain(level: Level, x: number, y: number, id: DefId): void {
   let pi = level.palette.indexOf(id);

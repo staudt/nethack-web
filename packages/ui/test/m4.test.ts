@@ -157,6 +157,30 @@ describe('compass', () => {
     expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'd2', value: null });
   });
 
+  test('up and down are extra buttons, picked by < and >', () => {
+    const m = mk();
+    const withUpDown = (id: string): Prompt => ({
+      ...dirPrompt(ALL, id),
+      options: [
+        ...ALL.map((d) => ({ value: d, key: `dir.${d}` })),
+        { value: 'up', key: 'dir.up' },
+        { value: 'down', key: 'dir.down' },
+      ],
+    });
+    m.ui.update(view(), [], withUpDown('d1'));
+    expect(m.root.querySelectorAll('.nh-sheet-btn')).toHaveLength(2);
+    key('<');
+    expect(m.acts).toEqual([{ type: 'answer', promptId: 'd1', value: 'up' }]);
+    m.ui.update(view(), [], null);
+    m.ui.update(view(), [], withUpDown('d2'));
+    key('>');
+    expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'd2', value: 'down' });
+    m.ui.update(view(), [], null);
+    m.ui.update(view(), [], dirPrompt(ALL, 'd3'));
+    key('>'); // not offered: nothing
+    expect(m.acts).toHaveLength(2);
+  });
+
   test('arrow keys pick, and two arrows chord into a diagonal', () => {
     vi.useFakeTimers();
     const m = mk();

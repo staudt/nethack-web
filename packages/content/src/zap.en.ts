@@ -15,6 +15,20 @@ export const zapMessagesEn: Record<string, string> = {
   'action.nh:zap': 'Zap',
   'zap.direction': 'In what direction?',
   'zap.dir.self': 'at yourself',
+  'zap.dir.up': 'up',
+  'zap.dir.down': 'down',
+
+  // zap_updown()
+  'zap.probe_up': 'You probe towards the {ceiling}.',
+  'zap.probe_beneath': 'You probe beneath the {surface}.',
+  'zap.probe_beneath_it': 'You probe beneath it.',
+  'zap.probe_nothing': 'Your probe reveals nothing.',
+  'zap.rock_dislodged': 'A rock is dislodged from the {ceiling} and falls on your head.',
+  'zap.trapdoor_something_shatters': 'Something beneath you shatters.',
+  'zap.trapdoor_found_shatters': "There's a trapdoor beneath you; it shatters.",
+  'zap.trapdoor_shatters': 'The trapdoor beneath you shatters.',
+  'zap.dust_swirls': 'Some dust swirls beneath you.',
+  'zap.trapdoor_appears': 'A trapdoor appears beneath you.',
 
   // dozap(), zappable(), backfire()
   'zap.nothing_happens': 'Nothing happens.',

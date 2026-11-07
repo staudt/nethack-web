@@ -4,20 +4,17 @@
 // protection); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
 // zapyourself() (force bolt, sleep, healing); src/read.c seffect_confuse_monster()
 import {
-  DIR_LIST,
   NORMAL_SPEED,
   getLevel,
   getPlayer,
   type ActionDef,
   type Ctx,
   type DefId,
-  type Dir,
   type Entity,
   type Json,
   type ModApi,
   type Msg,
 } from '@nh/core';
-import { confdir, getdirImpaired, uMaybeImpaired } from './hackmove';
 import { monsterDetect } from './detect';
 import { hcolor } from './hcolor';
 import { morehungry } from './hunger';
@@ -33,7 +30,7 @@ import { percentSuccess, spellLevPw, spellSkill } from './spellcalc';
 import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
-import { ZAP_DIRECTIONS, weffectsFrom } from './zap';
+import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, type ZapDir } from './zap';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -275,20 +272,11 @@ const isCastDirection = (data: Json): boolean =>
  * not keep). Then the school is practised. ref: src/spell.c spelleffects() getdir() .. weffects()
  */
 function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
-  const picked: Dir | 'self' | undefined =
-    value === 'self' ? 'self' : DIR_LIST.find((d) => d === value);
-  let dir: Dir | 'self';
-  if (!picked) {
+  // getdir() -> confdir(): an impaired hero casts in a random direction (not up or down)
+  let dir: ZapDir | undefined = zapDirOf(ctx, value);
+  if (dir === undefined) {
     say(ctx, 'cast.energy_released');
     dir = 'self';
-  } else {
-    // getdir() -> confdir(): an impaired hero casts in a random direction
-    dir =
-      picked === 'self'
-        ? uMaybeImpaired(ctx)
-          ? confdir(ctx)
-          : 'self'
-        : getdirImpaired(ctx, picked);
   }
   weffectsFrom(ctx, { kind: 'spell', otyp: cd.book, blessed: cd.blessed }, dir);
   // gain skill for successful cast

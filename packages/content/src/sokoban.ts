@@ -24,15 +24,19 @@ export function sokobanGuilt(ctx: Pick<Ctx, 'state'>): void {
  * After a pit or hole is gone (a boulder filled or plugged it): once the level has no pit or hole
  * left, its puzzle is solved and Sokoban's rules (luck penalties, no diagonal pushes or squeezes,
  * inescapable pits and holes) no longer apply there. Spiked pits and trap doors do not count, as
- * in NetHack; no trap here is made by the hero, and no livelog is kept.
+ * in NetHack, nor do pits and holes the hero dug (`madeby_u`); no livelog is kept.
  * ref: src/trap.c maybe_finish_sokoban(), deltrap()
  */
 export function maybeFinishSokoban(ctx: Pick<Ctx, 'state'>, levelId: LevelId): void {
   const level = ctx.state.levels[levelId];
   if (!level || !isSokoban(level)) return;
-  if (level.traps.some((t) => t.def === PIT || t.def === HOLE)) return;
+  if (level.traps.some((t) => !madeByU(t.data) && (t.def === PIT || t.def === HOLE))) return;
   delete level.sokoban; // Sokoban = 0
 }
+
+/** A trap the hero made (its data's `madeby_u`, set by dig.ts). ref: include/trap.h madeby_u */
+const madeByU = (data: unknown): boolean =>
+  typeof data === 'object' && data !== null && (data as { madeby_u?: unknown }).madeby_u === true;
 
 // The eight levels, transcribed from dat/soko*.lua (one of two variants per level; soko4 is the
 // bottom level, the branch's entry, soko1 the top). Each is a stone solidfill with the map block
@@ -41,9 +45,9 @@ export function maybeFinishSokoban(ctx: Pick<Ctx, 'state'>, levelId: LevelId): v
 // in the lua order. Ids are written out (not imported from boulder.ts or trap.ts) so this module
 // stays a leaf.
 //
-// Not ported (DEVIATIONS "Sokoban"): the rolling boulder traps (their spots stay floor), the
-// level flags noteleport, hardfloor and solidify, des.non_diggable / des.non_passwall (nothing
-// digs or phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
+// The level flags noteleport, hardfloor, mazelevel, solidify and des.non_diggable are a table in
+// levelflags.ts. Not ported (DEVIATIONS "Sokoban"): the rolling boulder traps (their spots stay
+// floor), des.non_passwall (nothing phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
 // random monster spots avoid trap squares, generation.ts), and on soko1 the two giant mimics.
 // soko1's treasure zoo is a typed region filled by zoo.ts; its prize is a fixup there (the
 // Elbereth engraving and the cursed scroll of scare monster beside it are not ported).

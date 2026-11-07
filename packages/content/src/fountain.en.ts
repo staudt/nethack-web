@@ -48,4 +48,6 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.lost_gold': 'You lost some of your gold in the fountain!',
   'fountain.coins': 'Far below you, you see coins glistening in the water.',
   'fountain.nothing_happens': 'Nothing seems to happen.',
+  // ref: src/fountain.c breaksink()
+  'fountain.pipes_break': 'The pipes break!  Water spurts out!',
 };

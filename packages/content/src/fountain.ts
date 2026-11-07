@@ -17,6 +17,7 @@ import {
   getPlayer,
   inTown,
   inventoryOf,
+  isVisible,
   sortedIds,
   trapAt,
   type ActionDef,
@@ -147,6 +148,19 @@ export function dryup(ctx: Ctx, x: number, y: number, isyou: boolean): void {
   setTerrain(level, x, y, T.floor);
   setFountainBits(ctx, level.id, x, y, 0);
   if (isyou && inTown(level, x, y)) angryGuards(ctx, false);
+}
+
+/**
+ * A sink broken by digging becomes a fountain with its gem already found: "The pipes break!
+ * Water spurts out!". ref: src/fountain.c breaksink()
+ */
+export function breaksink(ctx: Ctx, x: number, y: number): void {
+  const level = getLevel(ctx.state);
+  const p = getPlayer(ctx.state).c.pos;
+  const atU = p?.x === x && p.y === y;
+  if (atU || isVisible(ctx.state, cellIndex(level, x, y))) say(ctx, 'fountain.pipes_break');
+  setTerrain(level, x, y, T.fountain);
+  setFountainBits(ctx, level.id, x, y, FTN_LOOTED); // SET_FOUNTAIN_LOOTED
 }
 
 const WATER_MOCCASIN: DefId = 'nh:water_moccasin';

@@ -4,9 +4,9 @@
 // src/monmove.c watch_on_duty(), mon_yells(); src/dokick.c watchman_thief_arrest(),
 // watchman_door_damage(); src/uhitm.c hmon() `anger_guards`
 //
-// src/fountain.c watchman_warn_fountain()
+// src/fountain.c watchman_warn_fountain(); src/dig.c watch_dig() (zapped digging only)
 //
-// Not ported: digging in town (watch_dig()), shops (6b3), the Deaf branches
+// Not ported: digging in town with a pick-axe (watch_dig()'s warning), shops (6b3), the Deaf branches
 // (the hero is never deaf) and the shrill-whistle sound effect.
 import {
   cellIndex,
@@ -24,6 +24,7 @@ import { clearPath } from './clearpath';
 import { pickingLock, stopPicking } from './lockstate';
 import { isFrozen, unfreezeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
+import { T, isSdoorId, isWallId, terrainIdAt } from './terrain';
 
 export const WATCHMAN = 'nh:watchman';
 export const WATCH_CAPTAIN = 'nh:watch_captain';
@@ -224,4 +225,30 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
     setWarned(ctx, level.id, door.x, door.y);
   }
   stopPicking(ctx);
+}
+
+/**
+ * The hero zaps digging at a town door, secret door, wall, fountain or tree (C: or a tree): a
+ * peaceful watchman she could see says "Halt, vandal!  You're under arrest!" and the Watch turns
+ * hostile. Call it before the terrain changes. ref: src/dig.c watch_dig() with `zap` TRUE and
+ * watchman_canseeu()
+ */
+export function watchDig(ctx: Ctx, x: number, y: number): void {
+  const level = ctx.state.levels[ctx.state.currentLevel];
+  if (!level || !inTown(level, x, y)) return;
+  const id = terrainIdAt(level, x, y);
+  const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
+  if (
+    door !== 'closed' &&
+    door !== 'locked' &&
+    !isSdoorId(id) &&
+    !isWallId(id) &&
+    id !== T.fountain &&
+    id !== T.tree
+  )
+    return;
+  const mon = watchmanInSight(ctx);
+  if (!mon) return;
+  say(ctx, 'watch.halt_vandal'); // verbalize()
+  angryGuards(ctx, false);
 }

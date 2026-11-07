@@ -449,16 +449,17 @@ export type RaySource =
 
 /**
  * A ray of rn1(7, 7) squares starting next to `from` (on the hero's level) and heading `dir`,
- * hitting monsters (zap_hit against their AC) and the hero on the way, bouncing off walls.
+ * hitting monsters (zap_hit against their AC) and the hero on the way, bouncing off walls. Zapped
+ * up or down it stays on `from` for one square (it may hit the hero there and burns the floor).
  * ref: src/zap.c dobuzz() for the hero's wands (type 0..9) and spells (10..19) and monster
- * spells (-19..-10)
+ * spells (-19..-10); `dx == 0 && dy == 0` for vertical bolts
  */
 export function buzzFrom(
   ctx: Ctx,
   ray: Ray,
   nd: number,
   from: Pos,
-  dir: Dir,
+  dir: Dir | 'up' | 'down',
   src: RaySource,
 ): void {
   const path: RayStep[] = [];
@@ -472,16 +473,18 @@ function buzzSteps(
   ray: Ray,
   nd: number,
   from: Pos,
-  dir: Dir,
+  dir: Dir | 'up' | 'down',
   src: RaySource,
   path: RayStep[],
 ): void {
   const level = levelOf(ctx);
-  const d = { ...DIRS[dir] };
+  const vertical = dir === 'up' || dir === 'down';
+  const d = vertical ? { x: 0, y: 0 } : { ...DIRS[dir] };
   // the hero's spell: its SPE_ type
   const spell = src.by === 'hero' ? (src.spell ?? null) : null;
   let { x: sx, y: sy } = from;
   let range = ctx.rng.rn2(7) + 7;
+  if (vertical) range = 1;
   while (range-- > 0) {
     const lsx = sx;
     const lsy = sy;

@@ -28,6 +28,7 @@ import { mcastuMessagesEn } from './mcastu.en';
 import { wizardMessagesEn } from './wizard/wizard.en';
 import { fountainMessagesEn } from './fountain.en';
 import { boulderMessagesEn } from './boulder.en';
+import { digMessagesEn } from './dig.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -59,6 +60,7 @@ export const messagesEn: Record<string, string> = {
   ...mcastuMessagesEn,
   ...fountainMessagesEn,
   ...boulderMessagesEn,
+  ...digMessagesEn,
   welcome: 'Hello, welcome to webhack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to webhack! You are a {role}.',
   'door.opens': 'The door opens.',

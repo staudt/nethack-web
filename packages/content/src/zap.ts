@@ -10,10 +10,12 @@
 //
 // Teleportation: monsters (u_teleport_mon()), objects (rloco.ts) and the zapper (tele()); the
 // wand of stasis stops it on the level for a while (teleport.ts setStasis()).
-// The wands of enlightenment, wishing, undead turning, cancellation, digging and death
-// exist but have no effect yet (a charge is spent, nothing is learned; m7d steps 3-7).
+// Digging (dig.ts zapDig()) and zapping up or down (zap_updown(): probing, opening, locking and
+// striking at what is under her, then the objects there; rays hit her own square).
+// The wands of enlightenment, wishing, undead turning, cancellation and death exist but have no
+// effect yet (a charge is spent, nothing is learned; m7d steps 4-7).
 //
-// Not ported (see DEVIATIONS.md): up/down zaps, engraving, breaking (applying) wands, the wands
+// Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
 // statues, drawbridges, the ray animation.
@@ -76,7 +78,8 @@ import {
   setItimeout,
   timeoutLeft,
 } from './props';
-import { clearArea, litroom } from './read';
+import { ceilingKey, clearArea, litroom } from './read';
+import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T } from './terrain';
@@ -281,11 +284,23 @@ function closeholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; notice
   return { done: mintrap(ctx, mon.id, { force: true }) !== 'finished', noticed };
 }
 
-/** ref: src/trap.c openfallingtrap(trapdoor_only TRUE): a trap door (or rock trap) opens */
-function openfallingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed: boolean } {
+/**
+ * ref: src/trap.c openfallingtrap(): a trap door (or rock trap) opens; with `trapdoorOnly` false
+ * (a down zap) a hole or pit goes off too
+ */
+function openfallingtrap(
+  ctx: Ctx,
+  mon: Entity | null,
+  trapdoorOnly = true,
+): { done: boolean; noticed: boolean } {
   const p = mon ? mon.c.pos : heroPos(ctx);
   const t = p ? trapHere(levelOf(ctx), p.x, p.y) : undefined;
-  if (!t || (t.def !== TRAP.trapdoor && t.def !== TRAP.rock))
+  if (
+    !t ||
+    (t.def !== TRAP.trapdoor &&
+      t.def !== TRAP.rock &&
+      (trapdoorOnly || (t.def !== TRAP.hole && t.def !== TRAP.pit && t.def !== TRAP.spikedPit)))
+  )
     return { done: false, noticed: false };
   if (!mon) {
     if (utrap(ctx)) return { done: false, noticed: false };
@@ -697,6 +712,98 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   }
 }
 
+/** ref: include/rm.h IS_FURNITURE(): stairs, fountains, sinks and altars here */
+function isFurniture(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  const t = terrainAt(ctx, level, x, y);
+  return (
+    t.stairs !== undefined || t.id === T.fountain || t.id === T.sink || t.id.startsWith('nh:altar_')
+  );
+}
+
+/**
+ * An immediate wand or spell zapped up or down; true when the hero learns what it is. Probing
+ * probes the ceiling or the floor and the objects on it; opening down frees her from a bear trap
+ * or pit, or sets off the trap door, hole or pit she stands on; locking down springs a bear
+ * trap on her or turns a hole into a trap door; striking up dislodges a rock (2 times in 3),
+ * down shatters a trap door into a hole she may fall through. Then a down zap hits the objects
+ * under her (teleportation sends them away). ref: src/zap.c zap_updown() (no drawbridges,
+ * engravings, quest stairs, stone to flesh or hiding under objects)
+ */
+function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
+  const otyp = otypOf(src);
+  const level = levelOf(ctx);
+  const { x, y } = heroPos(ctx);
+  const ttmp = trapHere(level, x, y);
+  const ceiling = (): Msg => ({ key: ceilingKey(ctx, level, x, y) });
+  let disclose = false;
+  switch (otyp) {
+    case WAN.probing: {
+      let ptmp = 0;
+      if (dir === 'up') say(ctx, 'zap.probe_up', { ceiling: ceiling() });
+      else {
+        ptmp += bhitpile(ctx, src, x, y);
+        // zap_map() has nothing to map under her; display_binventory(): nothing is buried
+        if (isFurniture(ctx, level, x, y)) say(ctx, 'zap.probe_beneath_it');
+        else say(ctx, 'zap.probe_beneath', { surface: surfaceKey(ctx, level, x, y) });
+      }
+      if (!ptmp) say(ctx, 'zap.probe_nothing');
+      return true; // its own bhitpile
+    }
+    case WAN.opening:
+      // down releases her from a bear trap or pit, or sets off a trap door, hole or pit
+      if (dir === 'down') {
+        if (utrap(ctx)) disclose = openholdingtrap(ctx, null).noticed || disclose;
+        else disclose = openfallingtrap(ctx, null, false).noticed || disclose;
+      }
+      break;
+    case WAN.striking:
+    case SPE.forceBolt:
+    case WAN.locking: {
+      const striking = otyp !== WAN.locking;
+      if (striking && dir === 'up' && ctx.rng.rn2(3)) {
+        // similar to zap_dig()
+        say(ctx, 'zap.rock_dislodged', { ceiling: ceiling() });
+        rockOnHead(ctx, level, x, y);
+      } else if (dir === 'down' && ttmp) {
+        let held = false;
+        if (!striking) {
+          const r = closeholdingtrap(ctx, null);
+          disclose = r.noticed || disclose;
+          held = r.done; // now stuck in a bear trap
+        }
+        if (held) {
+          // nothing more
+        } else if (striking && ttmp.def === TRAP.trapdoor) {
+          // striking transforms a trap door into a hole
+          if (blind(ctx) && !ttmp.seen) say(ctx, 'zap.trapdoor_something_shatters');
+          else if (!ttmp.seen) say(ctx, 'zap.trapdoor_found_shatters');
+          else {
+            say(ctx, 'zap.trapdoor_shatters');
+            disclose = true;
+          }
+          ttmp.def = TRAP.hole;
+          ttmp.seen = true;
+          dotrap(ctx, ttmp); // might fall down the hole
+        } else if (!striking && ttmp.def === TRAP.hole) {
+          // locking transforms a hole into a trap door; she won't fall now
+          ttmp.def = TRAP.trapdoor;
+          if (blind(ctx) || !ttmp.seen) say(ctx, 'zap.dust_swirls');
+          else {
+            say(ctx, 'zap.trapdoor_appears');
+            disclose = true;
+          }
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  // down: the objects at <x,y> of wherever she is now, as C does after a fall
+  if (dir === 'down' && !ctx.state.gameOver) bhitpile(ctx, src, x, y);
+  return disclose;
+}
+
 // ---------------------------------------------------------------------------------------------
 // directionless wands: zapnodir()
 
@@ -789,7 +896,7 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
  * The hero's wand or spell ray from her square. ref: src/zap.c ubuzz() for type 0..9 and
  * 10..19 (`spell`: the book)
  */
-function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir, spell: DefId | null): void {
+function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir | 'up' | 'down', spell: DefId | null): void {
   buzzFrom(
     ctx,
     ray,
@@ -953,12 +1060,12 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
 // weffects() and the z command
 
 /**
- * The effect of zapping a wand or casting a directional spell. `dir` is a direction, 'self' or
- * null for a directionless one. ref: src/zap.c weffects(); zapyourself() for 'self' (with the
- * losehp() of dozap() and spelleffects(): "zapped herself with a spell"); a spell's ray has
- * `u.ulevel / 2 + 1` dice
+ * The effect of zapping a wand or casting a directional spell. `dir` is a direction, 'self',
+ * 'up', 'down' or null for a directionless one. ref: src/zap.c weffects(); zapyourself() for
+ * 'self' (with the losehp() of dozap() and spelleffects(): "zapped herself with a spell");
+ * zap_updown() for an immediate one up or down; a spell's ray has `u.ulevel / 2 + 1` dice
  */
-export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: Dir | 'self' | null): void {
+export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void {
   const otyp = otypOf(src);
   const kind =
     src.kind === 'wand'
@@ -981,7 +1088,14 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: Dir | 'self' | null)
     return;
   }
   if (kind === 'immediate') {
-    bhit(ctx, src, dir);
+    if (dir === 'up' || dir === 'down') {
+      if (zapUpdown(ctx, src, dir)) learn(ctx, src);
+    } else bhit(ctx, src, dir);
+    return;
+  }
+  if (otyp === WAN.digging) {
+    zapDig(ctx, dir);
+    learn(ctx, src); // disclose
     return;
   }
   const ray = RAY_OF[otyp];
@@ -995,7 +1109,7 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: Dir | 'self' | null)
 /**
  * The effect of zapping a wand of the subset (ObjectDef.zap): {@link weffectsFrom} with the wand.
  */
-export function weffects(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void {
+export function weffects(ctx: Ctx, user: EntityId, item: EntityId, dir: ZapDir | null): void {
   const wand = ent(ctx, item);
   if (!wand || user !== ctx.state.playerId) return; // monsters don't zap yet
   weffectsFrom(ctx, { kind: 'wand', item: wand }, dir);
@@ -1044,15 +1158,45 @@ function itemArg(action: PlayerAction): unknown {
   return action.type === 'mod' ? (action.args as { item?: unknown } | undefined)?.item : undefined;
 }
 
-/** The direction prompt: the eight directions and yourself ('.'); no up or down. */
-export const ZAP_DIRECTIONS: readonly PromptOption[] = [
+/** A zap's direction: one of the eight, at herself ('.'), up ('<') or down ('>'). */
+export type ZapDir = Dir | 'self' | 'up' | 'down';
+
+/** The direction prompt of another mod's wand (ObjectDef.zap knows no up or down). */
+const FLAT_DIRECTIONS: readonly PromptOption[] = [
   ...DIR_LIST.map((d) => ({ value: d, key: `dir.${d}` })),
   { value: 'self', key: 'zap.dir.self' },
 ];
 
-/** Calls the wand's def zap (weffects for vanilla wands). */
-function doZapEffect(ctx: Ctx, wand: Entity, dir: Dir | 'self' | null): void {
+/** The direction prompt: the eight directions, yourself ('.'), up ('<') and down ('>'). */
+export const ZAP_DIRECTIONS: readonly PromptOption[] = [
+  ...FLAT_DIRECTIONS,
+  { value: 'up', key: 'zap.dir.up' },
+  { value: 'down', key: 'zap.dir.down' },
+];
+
+/**
+ * The answer to the direction prompt, impaired: a stunned (or 1 time in 5 confused) hero zaps a
+ * random way, even when aiming at herself, but never when aiming up or down. Undefined when
+ * the answer is no direction. ref: src/cmd.c getdir() `!u.dz && (Stunned || (Confusion &&
+ * !rn2(5)))` -> confdir()
+ */
+export function zapDirOf(ctx: Ctx, value: Json): ZapDir | undefined {
+  if (value === 'up' || value === 'down') return value;
+  if (value === 'self') return uMaybeImpaired(ctx) ? confdir(ctx) : 'self';
+  const d = DIR_LIST.find((x) => x === value);
+  return d === undefined ? undefined : getdirImpaired(ctx, d);
+}
+
+/** Vanilla wands zap through weffects(), which knows up and down. */
+const zapsUpDown = (ctx: Ctx, wand: Entity): boolean => ctx.defs.object(wand.def).zap === weffects;
+
+/** Calls the wand's def zap (weffects for vanilla wands, which also take up and down). */
+function doZapEffect(ctx: Ctx, wand: Entity, dir: ZapDir | null): void {
   const def = ctx.defs.object(wand.def);
+  if (dir === 'up' || dir === 'down') {
+    if (zapsUpDown(ctx, wand)) weffectsFrom(ctx, { kind: 'wand', item: wand }, dir);
+    return;
+  }
   if (def.zap) def.zap(ctx, ctx.state.playerId, wand.id, dir);
 }
 
@@ -1087,7 +1231,7 @@ const zap: ActionDef = {
           id: 'zap-direction',
           kind: 'direction',
           key: 'zap.direction',
-          options: [...ZAP_DIRECTIONS],
+          options: [...(zapsUpDown(ctx, wand) ? ZAP_DIRECTIONS : FLAT_DIRECTIONS)],
         },
         ZAP_ID,
         { item: wand.id },
@@ -1102,20 +1246,14 @@ const zap: ActionDef = {
     const id = (raw as { item?: unknown } | null)?.item;
     const wand = heroItem(ctx, id);
     if (!wand) return NORMAL_SPEED;
-    const picked: Dir | 'self' | undefined =
-      value === 'self' ? 'self' : DIR_LIST.find((d) => d === value);
-    if (!picked) {
+    // getdir() -> confdir(): an impaired hero zaps in a random direction, even at herself
+    const upDown = value === 'up' || value === 'down';
+    const dir = upDown && !zapsUpDown(ctx, wand) ? undefined : zapDirOf(ctx, value);
+    if (dir === undefined) {
       // "make him pay for knowing !NODIR"
       if (!blind(ctx)) say(ctx, 'zap.glows_fades', { item: xnameOf(ctx.state, ctx.defs, wand) });
       return afterZap(ctx, wand.id);
     }
-    // getdir() -> confdir(): an impaired hero zaps in a random direction, even at herself
-    const dir: Dir | 'self' =
-      picked === 'self'
-        ? uMaybeImpaired(ctx)
-          ? confdir(ctx)
-          : 'self'
-        : getdirImpaired(ctx, picked);
     doZapEffect(ctx, wand, dir);
     if (ctx.state.gameOver) return NORMAL_SPEED;
     return afterZap(ctx, wand.id);

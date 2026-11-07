@@ -537,14 +537,14 @@ export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
 // earth
 
 /** ref: src/do_wear.c hard_helmet() */
-const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
+export const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
 
 /**
  * What is above (x, y) of the hero's level, as a message key. ref: src/dig.c ceiling(), for the
  * places that exist here: temples, shops, room floors, doors and walls ("ceiling") and
  * corridors ("rock cavern"); no vaults, water, air, fire or quest levels.
  */
-function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string {
+export function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string {
   const rooms = inRooms(level, x, y);
   if (templeOccupied(level, rooms) !== null) return 'earth.ceiling.temple';
   if (rooms.some((r) => isShopType(level.rooms[r]?.type))) return 'earth.ceiling.shop';

@@ -144,19 +144,29 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 
 const trapName = (t: Trap): string => `@${t.def}`;
 
-/** Per-trap data: the squeaky board's note (tnote) and a hole's destination depth (dst). */
-interface TrapData {
+/**
+ * Per-trap data: the squeaky board's note (tnote), a hole's destination depth (dst) and whether
+ * the hero made it (madeby_u: pits and holes she dug, dig.ts).
+ */
+export interface TrapData {
   tnote?: number;
   dst?: number;
+  madeby_u?: true;
 }
 
-function dataOf(t: Trap): TrapData {
+export function dataOf(t: Trap): TrapData {
   const d = t.data;
   if (d === null || d === undefined || typeof d !== 'object' || Array.isArray(d)) return {};
   const out: TrapData = {};
   if (typeof d['tnote'] === 'number') out.tnote = d['tnote'];
   if (typeof d['dst'] === 'number') out.dst = d['dst'];
+  if (d['madeby_u'] === true) out.madeby_u = true;
   return out;
+}
+
+/** Sets some of the trap's data, keeping the rest. */
+export function setTrapData(t: Trap, data: TrapData): void {
+  t.data = { ...dataOf(t), ...data };
 }
 
 export { DUNGEON_BOTTOM, dungeonBottom };
@@ -238,7 +248,7 @@ const deltrap = (ctx: Ctx, levelId: string, t: Trap): void => {
 /**
  * A pit or hole on a level with Sokoban's rules: it cannot be escaped, by the hero or by
  * monsters. ref: src/trap.c dotrap(), mintrap(), trapeffect_pit(), trapeffect_hole()
- * `Sokoban && (is_pit(ttype) || is_hole(ttype))` (no trap here is made by the hero)
+ * `Sokoban && (is_pit(ttype) || is_hole(ttype))` (dug ones too)
  */
 const sokobanTrap = (ctx: Pick<Ctx, 'state'>, levelId: string, t: Trap): boolean => {
   const level = ctx.state.levels[levelId];
@@ -370,7 +380,7 @@ const noteOf = (ctx: Ctx, level: Level, trap: Trap): Msg => {
   if (n === undefined) {
     // a trap placed without maketrap(): give it its note now
     n = chooseTrapnote(ctx, level, trap.x, trap.y);
-    trap.data = { tnote: n };
+    setTrapData(trap, { tnote: n });
   }
   return { key: `trap.note.${n}` };
 };
@@ -516,7 +526,7 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
   if (dst === undefined || dst <= level.dlevel) {
     // a trap placed without maketrap(): its destination is rolled now
     dst = holeDestination(ctx, level);
-    trap.data = { dst };
+    setTrapData(trap, { dst });
   }
   if (dst <= level.dlevel) {
     // the bottom level of its dungeon (ref: fall_through(): !Can_fall_thru() -> "don't fall in")
@@ -526,6 +536,16 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
   const dist = dst - level.dlevel;
   if (dist > 1)
     say(ctx, dist > 3 ? 'trap.shaft_very_deep' : dist > 2 ? 'trap.shaft_deep' : 'trap.shaft');
+  fallToLevel(ctx, level, dst);
+}
+
+/**
+ * The hero falls from `level` to level `dst` of its dungeon: a random spot there, `d(dist, 6)`
+ * damage, then what is on the floor. ref: src/do.c goto_level() with `falling` (u_on_rndspot(),
+ * do_fall_dmg, pickup(1))
+ */
+export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: number): void {
+  const dist = dst - level.dlevel;
   ctx.goToLevel({ dungeon: level.dungeon, dlevel: dst }, 'random');
   losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
   if (!ctx.state.gameOver) lookHere(ctx);
@@ -974,7 +994,7 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
   let dst = dataOf(trap).dst;
   if (dst === undefined || dst <= level.dlevel) {
     dst = holeDestination(ctx, level);
-    trap.data = { dst };
+    setTrapData(trap, { dst });
   }
   if (dst <= level.dlevel) return 'finished'; // the bottom level of its dungeon
   if (canseemon(ctx, mon)) {
