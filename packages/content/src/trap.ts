@@ -78,6 +78,8 @@ import { P, hasProp, makeConfused, timeoutLeft } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import {
+  clearConjoinedPits,
+  conjoinedPits,
   forgetMonTraps,
   isHole,
   isMtrapped,
@@ -88,6 +90,7 @@ import {
   setMtrapped,
   setUtrap,
   trapTable,
+  uInPit,
   utrap,
 } from './trapstate';
 
@@ -172,13 +175,15 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 const trapName = (t: Trap): string => `@${t.def}`;
 
 /**
- * Per-trap data: the squeaky board's note (tnote), a hole's destination depth (dst) and whether
- * the hero made it (madeby_u: pits and holes she dug, dig.ts).
+ * Per-trap data: the squeaky board's note (tnote), a hole's destination depth (dst), whether
+ * the hero made it (madeby_u: pits and holes she dug, dig.ts) and a pit's links to the pits next
+ * to it (conjoined: C's 8-bit direction mask; helpers in trapstate.ts).
  */
 export interface TrapData {
   tnote?: number;
   dst?: number;
   madeby_u?: true;
+  conjoined?: number;
 }
 
 export function dataOf(t: Trap): TrapData {
@@ -188,6 +193,7 @@ export function dataOf(t: Trap): TrapData {
   if (typeof d['tnote'] === 'number') out.tnote = d['tnote'];
   if (typeof d['dst'] === 'number') out.dst = d['dst'];
   if (d['madeby_u'] === true) out.madeby_u = true;
+  if (typeof d['conjoined'] === 'number') out.conjoined = d['conjoined'];
   return out;
 }
 
@@ -268,6 +274,8 @@ export const seetrap = (t: Trap): void => {
 
 /** ref: src/trap.c deltrap() */
 export const deltrap = (ctx: Ctx, levelId: string, t: Trap): void => {
+  const level = ctx.state.levels[levelId];
+  if (level) clearConjoinedPits(level, liveTrap(ctx, levelId, t) ?? t);
   ctx.removeTrap(levelId, { x: t.x, y: t.y });
   maybeFinishSokoban(ctx, levelId);
 };
@@ -442,36 +450,82 @@ function bearTrapYou(ctx: Ctx, trap: Trap): void {
 }
 
 /**
+ * How the hero comes into a pit from the square she stood on (u.ux0, u.uy0): from a pit linked
+ * to it (`conj`, conjoined_pits()) or from any pit next to it (`adj`, adj_nonconjoined_pit(),
+ * which is also true for a linked one). Both need her to be in the pit she leaves.
+ * ref: src/trap.c conjoined_pits(), adj_nonconjoined_pit()
+ */
+function pitApproach(
+  ctx: Ctx,
+  levelId: string,
+  trap: Trap,
+  from: Pos | undefined,
+): { conj: boolean; adj: boolean } {
+  const level = ctx.state.levels[levelId];
+  if (!from || !level || !inBounds(level, from.x, from.y)) return { conj: false, adj: false };
+  const withU = trapAt(level, from.x, from.y);
+  const conj = conjoinedPits(ctx, trap, withU, true);
+  // xytodir(u.dx, u.dy) != DIR_ERR: she stepped one square
+  const step = Math.max(Math.abs(trap.x - from.x), Math.abs(trap.y - from.y)) === 1;
+  const adj = !!withU && uInPit(ctx) && isPit(withU.def) && isPit(trap.def) && step;
+  return { conj, adj };
+}
+
+/**
  * The hero falls (or with '>' plunges) into a pit: "You fall into a pit!", the spikes, `rn1(6, 2)`
- * turns to climb out, `rnd(6)` damage (`rnd(10)` on spikes, poisoned 1 time in 6).
+ * turns to climb out, `rnd(6)` damage (`rnd(10)` on spikes, poisoned 1 time in 6). Coming from a
+ * pit next to it (`from`): "You move into an adjacent pit." when the two are conjoined (no
+ * damage, `rnd(4)` on spikes), else "You stumble over debris." (`rnd(3)`, `rnd(6)` on spikes).
  * In Sokoban the air currents were the message; elsewhere a floating hero is not caught (only a
  * forced trap gets this far). ref: src/trap.c trapeffect_pit() for the hero: no Flying,
- * clinging, steed, `m` prefix or conjoined pits (nothing digs them); no exercise or selftouch()
+ * clinging, steed or `m` prefix; no exercise or selftouch()
  */
-function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): void {
+function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean, from?: Pos): void {
   const soko = sokobanTrap(ctx, levelId, trap);
+  const { conj, adj } = pitApproach(ctx, levelId, trap, from);
   // "KMH -- You can't escape the Sokoban level traps"
   if (!soko && levitating(ctx)) return;
   seetrap(trap); // feeltrap()
-  if (!soko) say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  if (!soko) {
+    if (conj) say(ctx, 'trap.pit.move_adjacent');
+    else if (adj) say(ctx, ctx.rng.rn2(5) === 0 ? 'trap.pit.stumble_between' : 'trap.pit.stumble');
+    else say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  }
   let spikes = trap.def === TRAP.spikedPit;
   const boots = spikes ? ironShoes(ctx, ctx.state.playerId) : null;
   if (boots) {
     say(ctx, 'trap.pit.spikes_protect', { obj: xnameOf(ctx.state, ctx.defs, boots) });
     spikes = false;
-  } else if (spikes) say(ctx, 'trap.pit.spikes');
+  } else if (spikes) say(ctx, conj ? 'trap.pit.spikes_step' : 'trap.pit.spikes');
   setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // rn1(6, 2)
   if (spikes) {
     losehp(
       ctx,
-      ctx.rng.rnd(10),
-      plunged ? '@killer.trap.plunged_spiked_pit' : '@killer.trap.spiked_pit',
+      ctx.rng.rnd(conj ? 4 : adj ? 6 : 10),
+      plunged
+        ? '@killer.trap.plunged_spiked_pit'
+        : conj
+          ? '@killer.trap.stepped_spiked_pit'
+          : adj
+            ? '@killer.trap.stumbled_spiked_pit'
+            : '@killer.trap.spiked_pit',
     );
     // "if damage triggered life-saving, poison is limited to attrib loss": there is no
     // life-saving, so a dead hero is simply not poisoned
     if (ctx.rng.rn2(6) === 0 && !ctx.state.gameOver)
-      poisoned(ctx, { key: 'trap.pit.spikes_poisoned' }, 'str', '@killer.trap.poison_spikes', 8);
-  } else losehp(ctx, ctx.rng.rnd(6), plunged ? '@killer.trap.plunged_pit' : '@killer.trap.pit');
+      poisoned(
+        ctx,
+        { key: 'trap.pit.spikes_poisoned' },
+        'str',
+        conj || adj ? '@killer.trap.step_poison_spikes' : '@killer.trap.poison_spikes',
+        8,
+      );
+  } else if (!conj)
+    losehp(
+      ctx,
+      ctx.rng.rnd(adj ? 3 : 6),
+      plunged ? '@killer.trap.plunged_pit' : '@killer.trap.pit',
+    );
 }
 
 function sleepGasYou(ctx: Ctx, trap: Trap): void {
@@ -616,10 +670,12 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
 export function dotrap(
   ctx: Ctx,
   trap: Trap,
-  opts: { plunged?: boolean; force?: boolean } = {},
+  opts: { plunged?: boolean; force?: boolean; from?: Pos } = {},
 ): void {
   const levelId = heroPos(ctx).level;
   const t = liveTrap(ctx, levelId, trap) ?? trap;
+  // conj_pit || adj_pit: stepping from a pit into the next one is never escaped
+  const fromPit = isPit(t.def) && pitApproach(ctx, levelId, t, opts.from).adj;
   ctx.interrupt(); // nomul(0)
   // "KMH -- You can't escape the Sokoban level traps"
   if (sokobanTrap(ctx, levelId, t)) say(ctx, 'trap.air_currents', { trap: trapName(t) });
@@ -629,7 +685,7 @@ export function dotrap(
       if (t.seen) say(ctx, 'trap.float_over', { trap: trapName(t) });
       return;
     }
-    if (t.seen && t.def !== TRAP.antiMagic && !opts.plunged && ctx.rng.rn2(5) === 0) {
+    if (t.seen && t.def !== TRAP.antiMagic && !opts.plunged && !fromPit && ctx.rng.rn2(5) === 0) {
       say(ctx, 'trap.escape', { trap: trapName(t) });
       return;
     }
@@ -652,7 +708,7 @@ export function dotrap(
       return rustTrapYou(ctx, t);
     case TRAP.pit:
     case TRAP.spikedPit:
-      return pitYou(ctx, levelId, t, opts.plunged === true);
+      return pitYou(ctx, levelId, t, opts.plunged === true, opts.from);
     case TRAP.trapdoor:
     case TRAP.hole:
       return fallThrough(ctx, levelId, t, opts.plunged === true);
@@ -669,12 +725,15 @@ export function dotrap(
   }
 }
 
-/** spoteffects(): the trap under the hero, if any, goes off. ref: src/hack.c spoteffects() */
-export function spotTrap(ctx: Ctx): void {
+/**
+ * spoteffects(): the trap under the hero, if any, goes off. `from` is where she stepped from
+ * (u.ux0, u.uy0), for pits next to each other. ref: src/hack.c spoteffects()
+ */
+export function spotTrap(ctx: Ctx, from?: Pos): void {
   const p = heroPos(ctx);
   const level = ctx.state.levels[p.level];
   const t = level ? trapAt(level, p.x, p.y) : undefined;
-  if (t && !ctx.state.gameOver) dotrap(ctx, t);
+  if (t && !ctx.state.gameOver) dotrap(ctx, t, from ? { from } : {});
 }
 
 /** m_easy_escape_pit(): huge monsters (no pit fiend exists); the hero is never huge. */
@@ -714,15 +773,17 @@ export function climbPit(ctx: Ctx): void {
 
 /**
  * Moving while caught in a trap. Bear trap: "You are caught in a bear trap." and a diagonal
- * move, or one time in five, loosens it; at zero "You finally wriggle free.". Pit: climb_pit().
+ * move, or one time in five, loosens it; at zero "You finally wriggle free.". Pit: a seen pit
+ * at the destination (`desttrap`) is stepped into without climbing out, else climb_pit().
  * Returns true if the hero may move (she never does on the turn she gets free).
- * ref: src/hack.c trapmove() TT_BEARTRAP, TT_PIT (domove_core() passes no `desttrap`, so there
- * is no stepping into an adjacent pit)
+ * ref: src/hack.c trapmove() TT_BEARTRAP, TT_PIT (as 3.6's domove() calls it, with the trap at
+ * the destination; 3.7's domove_core() passes NULL, see DEVIATIONS "Traps: the hero")
  */
-export function trapmove(ctx: Ctx, dir: Dir): boolean {
+export function trapmove(ctx: Ctx, dir: Dir, desttrap?: Trap | null): boolean {
   const u = utrap(ctx);
   if (!u) return true;
   if (u.type === 'pit') {
+    if (desttrap?.seen && isPit(desttrap.def)) return true; // move into adjacent pit
     climbPit(ctx);
     return false;
   }

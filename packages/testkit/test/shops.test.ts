@@ -241,6 +241,9 @@ describe('the shops of a real Minetown', () => {
     const hero = getPlayer(state);
     if (hero.c.hp) hero.c.hp = { cur: 100000, max: 100000 };
     const shks = shopkeepers(state, level.id);
+    // doors as the level was made: tunnelling dwarves may dig the walls beside one (as in C)
+    const doorsChecked = new Set<string>();
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
     for (let t = 0; t < 300 && !state.gameOver; t++) {
       engine.stepAll(state, { type: 'wait' });
       for (const { id, e } of shks) {
@@ -250,7 +253,7 @@ describe('the shops of a real Minetown', () => {
         expect(inRooms(level, p.x, p.y)).toContain(e.shoproom);
       }
     }
-    expect(checkInvariants(state, defs)).toEqual([]);
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
   });
 
   test('soak invariant: a peaceful shopkeeper stands in his shop', () => {

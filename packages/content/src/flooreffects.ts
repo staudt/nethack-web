@@ -18,7 +18,15 @@ import { hmonThrownHit } from './hmon';
 import { losehp } from './hp';
 import { ringBonus } from './props';
 import { maybeFinishSokoban } from './sokoban';
-import { isHole, isMtrapped, isPit, setMtrapped, setUtrap, utrap } from './trapstate';
+import {
+  clearConjoinedPits,
+  isHole,
+  isMtrapped,
+  isPit,
+  setMtrapped,
+  setUtrap,
+  utrap,
+} from './trapstate';
 import { xnameOf } from './objnam';
 
 /**
@@ -112,9 +120,11 @@ export function boulderFlooreffects(
     else say(ctx, 'boulder.hear_verb', { verb: { key: `boulder.verb.${verb}` } });
   }
   // deletedwithboulder: delfloortrap() (lets a monster still in it out), reset_utrap()
-  if (trapAt(level, x, y)) {
+  const filled = trapAt(level, x, y);
+  if (filled) {
     const m = monsterAt(ctx, levelId, x, y);
     if (m) setMtrapped(ctx, m.id, false);
+    clearConjoinedPits(level, filled); // deltrap()
     ctx.removeTrap(levelId, { x, y });
     maybeFinishSokoban(ctx, levelId); // deltrap()
     if (utrap(ctx) && uAt) setUtrap(ctx, 0, 'pit');

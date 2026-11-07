@@ -7,8 +7,11 @@
 // watch_dig() (in watch.ts); src/hack.c may_dig(); src/do_name.c surface(); src/dungeon.c
 // Can_dig_down() (levelflags.ts)
 //
-// Not ported (DEVIATIONS "Digging"): axes (chopping trees), digging an adjacent pit from inside a
-// pit and conjoined pits (a lateral zap or swing from a pit digs nothing), shop damage
+// From inside a pit a lateral zap digs one adjacent pit and links the two (conjoined pits), and a
+// swing at a pit next to hers clears the debris between them.
+// ref: src/dig.c adj_pit_checks()
+//
+// Not ported (DEVIATIONS "Digging"): axes (chopping trees), shop damage
 // (add_damage(), pay_for_damage(), shopdig()), statues, Fumbling, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), a magical trap's explosion (explode() is not ported: digging
@@ -38,7 +41,6 @@ import {
   type Entity,
   type Level,
   type Msg,
-  type ObjectDef,
   type Offer,
   type PlayerAction,
   type PromptOption,
@@ -67,6 +69,7 @@ import { luckOf } from './luck';
 import { greatestErosion } from './material';
 import { xnameOf } from './objnam';
 import { canDigDown, cavernous, levelFlags, nonDiggable } from './levelflags';
+import { isAxe, isPick, mayDig, wallDugTo } from './mdig';
 import { migrateToLevel } from './migrate';
 import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
@@ -86,10 +89,19 @@ import {
   terrainIdAt,
 } from './terrain';
 import { TRAP, dotrap, fallToLevel, isHole, isPit, maketrap, mintrap, setTrapData } from './trap';
-import { levitating, setUtrap, uInPit, utrap } from './trapstate';
+import {
+  clearConjoinedPits,
+  conjoinedPits,
+  joinPits,
+  levitating,
+  setUtrap,
+  uInPit,
+  utrap,
+  xytodir,
+} from './trapstate';
 import { watchDig } from './watch';
 
-export { surfaceKey, DIG_ID };
+export { surfaceKey, DIG_ID, isAxe, isPick, mayDig };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -119,17 +131,10 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
   return null;
 }
 
-/**
- * Stone, walls and trees inside a non-diggable area cannot be dug. ref: src/hack.c may_dig()
- */
-export function mayDig(ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean {
-  const id = terrainIdAt(level, x, y);
-  return !((isStwallId(id) || id === T.tree) && nonDiggable(ctx, level, x, y));
-}
-
 /** The trap is gone; Sokoban may be solved. ref: src/trap.c delfloortrap() */
 function delfloortrap(ctx: Ctx, levelId: string, t: Trap | undefined): void {
   if (!t) return;
+  clearConjoinedPits(getLevel(ctx.state, levelId), t); // deltrap()
   ctx.removeTrap(levelId, { x: t.x, y: t.y });
   maybeFinishSokoban(ctx, levelId);
 }
@@ -347,19 +352,28 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
     }
     return;
   }
-  // from a pit: C digs one adjacent pit (conjoined pits); not ported, nothing is dug
-  const pitHere = trapAt(level, hp.x, hp.y);
-  if (uInPit(ctx) && pitHere && isPit(pitHere.def)) return;
   const maze = levelFlags(ctx, level).maze === true;
   const d = DIRS[dir];
   let zx = hp.x + d.x;
   let zy = hp.y + d.y;
+  // 3.6.0: from a PIT: dig one adjacent pit
+  const pitdig = uInPit(ctx) && trapAt(level, hp.x, hp.y) !== undefined;
+  const diridx = xytodir(d.x, d.y);
   let digdepth = ctx.rng.rn2(18) + 8; // rn1(18, 8)
   while (--digdepth >= 0) {
     if (!inBounds(level, zx, zy)) break;
     const id = terrainIdAt(level, zx, zy);
     const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
-    if (door === 'closed' || door === 'locked' || isSdoorId(id)) {
+    if (pitdig) {
+      // we are already in a pit if this is true; a pit already conjoined is passed over
+      if (
+        diridx >= 0 &&
+        !conjoinedPits(ctx, trapAt(level, zx, zy), trapAt(level, hp.x, hp.y), false)
+      ) {
+        digAdjacentPit(ctx, level, zx, zy, diridx); // limited to the adjacent location only
+        break;
+      }
+    } else if (door === 'closed' || door === 'locked' || isSdoorId(id)) {
       // shop doors: no add_damage()
       if (!isSdoorId(id) && cansee(ctx, level, zx, zy)) say(ctx, 'dig.door_razed');
       watchDig(ctx, zx, zy);
@@ -406,16 +420,56 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
   }
 }
 
+/**
+ * Whether a pit can be dug at (x, y) from inside the hero's pit: true, or the reason it cannot
+ * (null: none to give). ref: src/dig.c adj_pit_checks() (no pools, lava, thrones, ladders or
+ * drawbridges exist)
+ */
+export function adjPitChecks(ctx: Ctx, level: Level, x: number, y: number): true | Msg | null {
+  if (!inBounds(level, x, y)) return null;
+  const id = terrainIdAt(level, x, y);
+  const msg = (key: string): Msg => ({ key });
+  // dighole() isn't prepared to deal with doors
+  if (closedDoor(ctx, level, x, y) || isSdoorId(id) || isWallId(id)) return msg('dig.foundation');
+  if (id === T.tree) return msg('dig.roots_glow'); // check trees before stone
+  if (id === T.stone || id === T.scorr) {
+    if (nonDiggable(ctx, level, x, y)) return msg('dig.rock_glows');
+    return true;
+  }
+  if (id === T.iron_bars) return msg('dig.bars_deeper');
+  if (id === T.sink) return msg('dig.plumbing');
+  const stairs = id !== undefined && ctx.defs.terrain(id).stairs !== undefined;
+  const supporting =
+    id === T.fountain ? 'fountain' : isAltarId(id) ? 'altar' : stairs ? 'stairs' : null;
+  if (supporting) return msg(`dig.supporting.${supporting}`);
+  return true;
+}
+
+/**
+ * The wand of digging zapped sideways from inside a pit: a pit is dug at (x, y) if there is none
+ * (rock there becomes corridor, as maketrap() does), and the two pits are conjoined.
+ * ref: src/dig.c zap_dig() pitdig branch
+ */
+function digAdjacentPit(ctx: Ctx, level: Level, x: number, y: number, diridx: number): void {
+  let adjpit = trapAt(level, x, y);
+  if (!(adjpit && isPit(adjpit.def))) {
+    const r = adjPitChecks(ctx, level, x, y);
+    if (r !== true) {
+      if (r) ctx.emit({ type: 'msg', ...r });
+    } else {
+      const id = terrainIdAt(level, x, y);
+      if (id === T.stone || id === T.scorr) setTerrain(level, x, y, T.corr);
+      dighole(ctx, true, true, { x, y });
+      adjpit = trapAt(level, x, y);
+    }
+  }
+  const hp = heroPos(ctx);
+  const withU = trapAt(level, hp.x, hp.y);
+  if (adjpit && isPit(adjpit.def) && withU) joinPits(withU, adjpit, diridx);
+}
+
 // ---------------------------------------------------------------------------------------------
 // digging with a pick-axe or mattock
-
-/** ref: include/obj.h is_pick(): a weapon or tool of the pick-axe skill */
-export const isPick = (def: ObjectDef): boolean =>
-  (def.class === 'weapon' || def.class === 'tool') && def.weapon?.skill === 'pick_axe';
-
-/** ref: include/obj.h is_axe() */
-export const isAxe = (def: ObjectDef): boolean =>
-  (def.class === 'weapon' || def.class === 'tool') && def.weapon?.skill === 'axe';
 
 /** What digging into a square hits. ref: src/dig.c DIGTYP_* (no statues yet) */
 export type DigTyp = 'undiggable' | 'rock' | 'boulder' | 'door' | 'tree';
@@ -436,15 +490,19 @@ const closedDoor = (ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number):
 };
 
 /**
- * Whether the pick reaches what lies at (x, y): from inside a pit only a two-handed pick does (or
- * the target is in a conjoined pit: none yet); otherwise a one-handed pick-axe cannot reach down
- * into a seen pit. ref: src/dig.c pick_can_reach() (the hero never flies)
+ * Whether the pick reaches what lies at (x, y): from inside a pit, only what lies in a pit
+ * conjoined with hers, or with a two-handed pick what is not in a pit; otherwise a one-handed
+ * pick-axe cannot reach down into a seen pit. ref: src/dig.c pick_can_reach() (the hero never
+ * flies)
  */
 function pickCanReach(ctx: Ctx, pick: Entity, level: Level, x: number, y: number): boolean {
   const t = trapAt(level, x, y);
   const targetInPit = t !== null && t !== undefined && isPit(t.def) && t.seen;
   const bimanual = ctx.defs.object(pick.def).weapon?.bimanual === true;
-  if (uInPit(ctx)) return targetInPit ? false : bimanual; // conjoined_pits(): none yet
+  if (uInPit(ctx)) {
+    const hp = heroPos(ctx);
+    return targetInPit ? conjoinedPits(ctx, t, trapAt(level, hp.x, hp.y), false) : bimanual;
+  }
   if (bimanual) return true;
   return !targetInPit;
 }
@@ -590,10 +648,7 @@ export function dig(ctx: Ctx): boolean {
       setTerrain(level, d.x, d.y, T.corr);
       digtxt = 'dig.cut_rock';
     } else if (isWallId(id)) {
-      if (levelFlags(ctx, level).maze) setTerrain(level, d.x, d.y, T.floor);
-      else if (cavernous(ctx, level) && !inTown(level, d.x, d.y))
-        setTerrain(level, d.x, d.y, T.corr);
-      else setTerrain(level, d.x, d.y, T.doorway); // DOOR, D_NODOOR
+      setTerrain(level, d.x, d.y, wallDugTo(ctx, level, d.x, d.y)); // DOOR, D_NODOOR
       digtxt = 'dig.wall_opening';
     } else if (isSdoorId(id)) {
       setTerrain(level, d.x, d.y, T.doorway); // cvt_sdoor_to_door(), D_BROKEN
@@ -716,7 +771,8 @@ export function usePickAxe(ctx: Ctx, pick: Entity): number {
  * at herself (`rnd(2) + dbon() + spe`), at a monster (do_attack()), sideways (the dig starts or
  * continues if diggable, else what it hit) or down (a seen pit she stands at the edge of first
  * takes her in; floating, the floor is out of reach). ref: src/dig.c use_pick_axe2() after
- * getdir() (no engulfing, water, webs, iron bars' "Clang!" is kept; conjoined pits come later)
+ * getdir() (no engulfing, water or webs; iron bars' "Clang!" is kept; the debris between two
+ * pits is cleared, conjoining them)
  */
 export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
   const level = getLevel(ctx.state);
@@ -751,13 +807,25 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
     if (target === 'undiggable') {
       const id = terrainIdAt(level, rx, ry);
       const trapHere = trapAt(level, hp.x, hp.y);
+      const trapThere = trapAt(level, rx, ry);
       if (id === T.iron_bars) {
         say(ctx, 'dig.clang');
         wakeNearby(ctx);
       } else if (id === T.tree) say(ctx, 'dig.need_axe');
       else if (boulderAt(ctx, level.id, rx, ry)) say(ctx, 'dig.cant_reach_boulder');
-      else if (uInPit(ctx) && trapHere) {
-        // (clearing debris between two pits: conjoined pits come later)
+      else if (
+        uInPit(ctx) &&
+        trapThere &&
+        trapHere &&
+        isPit(trapThere.def) &&
+        !conjoinedPits(ctx, trapThere, trapHere, false)
+      ) {
+        const idx = xytodir(rx - hp.x, ry - hp.y);
+        if (idx >= 0) {
+          joinPits(trapHere, trapThere, idx);
+          say(ctx, 'dig.clear_debris');
+        }
+      } else if (uInPit(ctx) && trapHere) {
         say(ctx, 'dig.rubble', { pick: xnameOf(ctx.state, ctx.defs, pick) });
       } else say(ctx, 'dig.thin_air', { pick: xnameOf(ctx.state, ctx.defs, pick) });
       return NORMAL_SPEED;

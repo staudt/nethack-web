@@ -74,4 +74,23 @@ export const digMessagesEn: Record<string, string> = {
   'killer.own_pick_axe': 'her own pick-axe',
   'killer.own_mattock': 'her own dwarvish mattock',
   'killer.chopping_foot': 'chopping off her own foot',
+  // from inside a pit (adj_pit_checks(), use_pick_axe2())
+  'dig.clear_debris': 'You clear some debris from between the pits.',
+  'dig.foundation': 'The foundation is too hard to dig through from this angle.',
+  'dig.roots_glow': "The tree's roots glow then fade.",
+  'dig.bars_deeper': 'The bars go much deeper than your pit.',
+  'dig.plumbing': 'A tangled mass of plumbing remains below the sink.',
+  'dig.supporting.fountain': "The fountain's supporting structures remain intact.",
+  'dig.supporting.altar': "The altar's supporting structures remain intact.",
+  'dig.supporting.stairs': "The stairs' supporting structures remain intact.",
+  // monsters tunnelling (mdig_tunnel(), draft_message())
+  'mdig.unexpected_draft': 'You feel an unexpected draft.',
+  'mdig.draft': 'You feel a draft.',
+  'mdig.draft_4f': 'You feel like you are 4-F.',
+  'mdig.draft_1a': 'You feel like you are 1-A.',
+  'mdig.draft_like.enlisting': 'You feel like enlisting.',
+  'mdig.draft_like.marching': 'You feel like marching.',
+  'mdig.draft_like.protesting': 'You feel like protesting.',
+  'mdig.draft_like.fleeing': 'You feel like fleeing.',
+  'mdig.crashing_rock': 'You hear crashing rock.',
 };

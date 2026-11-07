@@ -324,13 +324,16 @@ describe('the temple priest of a real Minetown', () => {
     if (hero.c.hp) hero.c.hp = { cur: 100000, max: 100000 };
     const [id] = priestsOn(state, level.id);
     const ti = level.rooms.findIndex((r) => r.type === 'nh:temple');
+    // doors as the level was made: tunnelling dwarves may dig the walls beside one (as in C)
+    const doorsChecked = new Set<string>();
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
     for (let t = 0; t < 300 && !state.gameOver; t++) {
       engine.stepAll(state, { type: 'wait' });
       const p = state.entities[String(id)]?.c.pos;
       if (!p) throw new Error('the priest is gone');
       expect(inRooms(level, p.x, p.y)).toContain(ti);
     }
-    expect(checkInvariants(state, defs)).toEqual([]);
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
   });
 
   test('soak invariant: a peaceful priest with his shrine stands in his temple', () => {

@@ -6,7 +6,17 @@
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
 // `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
 // for monsters that fell to a level the hero is not on. Tables are only created on write.
-import { getPlayer, trapAt, type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
+import {
+  getPlayer,
+  inBounds,
+  trapAt,
+  type Ctx,
+  type DefId,
+  type EntityId,
+  type Json,
+  type Level,
+  type Trap,
+} from '@nh/core';
 import { P, hasProp } from './props';
 
 type Table = { [k: string]: Json };
@@ -132,4 +142,83 @@ export function forgetMonTraps(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
     const t = trapTable(ctx, k, false);
     if (t) delete t[String(id)];
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// conjoined pits (ttmp->conjoined): bit `i` of a pit's mask links it to the pit in C's direction
+// `i` (xdir[]/ydir[] order: W, NW, N, NE, E, SE, S, SW). Kept on `Trap.data.conjoined` (TrapData
+// in trap.ts reads it back); this leaf has the helpers so movement and boulders can use them.
+
+/** ref: src/decl.c xdir[], ydir[] */
+const XDIR = [-1, -1, 0, 1, 1, 1, 0, -1] as const;
+const YDIR = [0, -1, -1, -1, 0, 1, 1, 1] as const;
+
+/** C's direction index of a one-square step, or -1 (DIR_ERR). ref: src/cmd.c xytodir() */
+export function xytodir(dx: number, dy: number): number {
+  for (let i = 0; i < 8; i++) if (XDIR[i] === dx && YDIR[i] === dy) return i;
+  return -1;
+}
+
+/** ref: include/hack.h DIR_180() */
+export const dir180 = (i: number): number => (i + 4) % 8;
+
+/** The pit's conjoined mask (0 when none). */
+export function conjoinedOf(t: Readonly<Trap>): number {
+  const d = t.data;
+  if (d === null || d === undefined || typeof d !== 'object' || Array.isArray(d)) return 0;
+  const v = d['conjoined'];
+  return typeof v === 'number' ? v : 0;
+}
+
+/** Sets the pit's conjoined mask, keeping its other data (0 drops the field). */
+export function setConjoined(t: Trap, mask: number): void {
+  const d = t.data;
+  const rest: { [k: string]: Json } =
+    d !== null && d !== undefined && typeof d === 'object' && !Array.isArray(d) ? { ...d } : {};
+  delete rest['conjoined'];
+  if (mask !== 0) rest['conjoined'] = mask;
+  if (Object.keys(rest).length > 0) t.data = rest;
+  else delete t.data;
+}
+
+/** Links two pits next to each other both ways: `from`'s bit `dir`, `to`'s bit DIR_180(dir). */
+export function joinPits(from: Trap, to: Trap, dir: number): void {
+  setConjoined(from, conjoinedOf(from) | (1 << dir));
+  setConjoined(to, conjoinedOf(to) | (1 << dir180(dir)));
+}
+
+/**
+ * Whether `trap2` and `trap1` are next to each other, both pits, and linked both ways; with
+ * `uEntering` only while the hero is in a pit. ref: src/trap.c conjoined_pits()
+ */
+export function conjoinedPits(
+  ctx: Pick<Ctx, 'state'>,
+  trap2: Readonly<Trap> | null | undefined,
+  trap1: Readonly<Trap> | null | undefined,
+  uEntering: boolean,
+): boolean {
+  if (!trap1 || !trap2 || !isPit(trap2.def) || !isPit(trap1.def)) return false;
+  if (uEntering && !uInPit(ctx)) return false;
+  const diridx = xytodir(Math.sign(trap2.x - trap1.x), Math.sign(trap2.y - trap1.y));
+  if (diridx < 0) return false;
+  return (
+    (conjoinedOf(trap1) & (1 << diridx)) !== 0 && (conjoinedOf(trap2) & (1 << dir180(diridx))) !== 0
+  );
+}
+
+/**
+ * A pit going away (filled, removed, turned into something else) unlinks itself from its
+ * neighbours. ref: src/trap.c clear_conjoined_pits() (called by deltrap())
+ */
+export function clearConjoinedPits(level: Level, trap: Trap | null | undefined): void {
+  if (!trap || !isPit(trap.def)) return;
+  const mask = conjoinedOf(trap);
+  for (let i = 0; i < 8; i++) {
+    if ((mask & (1 << i)) === 0) continue;
+    const x = trap.x + (XDIR[i] ?? 0);
+    const y = trap.y + (YDIR[i] ?? 0);
+    const t = inBounds(level, x, y) ? trapAt(level, x, y) : undefined;
+    if (t && isPit(t.def)) setConjoined(t, conjoinedOf(t) & ~(1 << dir180(i)));
+  }
+  setConjoined(trap, 0);
 }

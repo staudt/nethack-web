@@ -58,7 +58,8 @@ import {
   setFollowmsg,
   shkname,
 } from './shk';
-import { T } from './terrain';
+import { T, isObstructedId } from './terrain';
+import { digAbility, mDigweaponCheck, mayDig, mdigTunnel, needsPick, tunnels } from './mdig';
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 
@@ -193,8 +194,10 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * (pets, which decide in dog_move()); a harmful trap is marked `trap`. A hostile monster outside
  * a temple may not step into it while it is the hero's sanctuary (no ALLOW_SANCT: peaceful and
  * tame monsters and priests have it). Boulder squares are never candidates (no ALLOW_ROCK).
- * Not ported: water/lava, scary squares, long
- * worms, digging, wall-walking.
+ * With `allowDig` (ALLOW_DIG, a tunneller: canTunnel()) rock, walls and trees it can dig into
+ * now are candidates, and so are closed and locked doors (thrudoor); intelligent peaceful ones
+ * keep out of shop and temple walls from outside. Not ported: water/lava, scary squares, long
+ * worms, wall-walking.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -202,10 +205,20 @@ export function mfndpos(
   rules: CellRules,
   id: EntityId,
   heroPos: Pos,
-  opts: { allowM?: boolean; allowTraps?: boolean; allowU?: boolean } = {},
+  opts: { allowM?: boolean; allowTraps?: boolean; allowU?: boolean; allowDig?: boolean } = {},
 ): Candidate[] {
   const { e, m, pos, def } = monCount(ctx, id);
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
+  // ref: mfndpos() ALLOW_DIG: "need to be specific about what can currently be dug"
+  const dig = opts.allowDig === true ? digAbility(ctx, e) : null;
+  const thrudoor = !!dig && (dig.rock || dig.tree);
+  const shopOrTemple = (x: number, y: number): boolean =>
+    inAnyShop(level, x, y) || inRooms(level, x, y).some((r) => level.rooms[r]?.type === TEMPLE);
+  const avoidSpecialWalls =
+    !!dig?.rock &&
+    !def.flags.includes('mindless') &&
+    (m.peaceful || (m.tame ?? 0) > 0) &&
+    !shopOrTemple(pos.x, pos.y);
   const taken = new Map<number, EntityId>();
   for (const [key, ent] of Object.entries(ctx.state.entities)) {
     const p = ent.c.pos;
@@ -245,10 +258,18 @@ export function mfndpos(
       if ((nx === pos.x && ny === pos.y) || !inBounds(level, nx, ny)) continue;
       const to = level.cells[cellIndex(level, nx, ny)] ?? 0;
       const closed = rules.closedDoor[to] === true;
-      if (!rules.passable[to] && !closed) continue;
-      if (closed && !canOpen) continue;
-      // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors
-      if (rules.lockedDoor[to]) continue;
+      if (!rules.passable[to] && !closed) {
+        // ref: mfndpos(): `IS_OBSTRUCTED(ntyp) && !((IS_TREE(ntyp) ? treeok : rockok) &&
+        // may_dig(nx, ny))`, then "intelligent peacefuls avoid digging shop/temple walls"
+        const tid = level.palette[to];
+        if (!dig || !isObstructedId(tid)) continue;
+        if (!(tid === T.tree ? dig.tree : dig.rock) || !mayDig(ctx, level, nx, ny)) continue;
+        if (avoidSpecialWalls && shopOrTemple(nx, ny)) continue;
+      }
+      if (closed && !canOpen && !thrudoor) continue;
+      // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
+      // digger goes through (thrudoor)
+      if (rules.lockedDoor[to] && !thrudoor) continue;
       if (boulders.has(cellIndex(level, nx, ny))) continue;
       const diagonal = nx !== pos.x && ny !== pos.y;
       // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
@@ -678,7 +699,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   const ggy = goal.y;
 
   const e = ctx.state.entities[String(id)];
-  const cands = mfndpos(ctx, level, rules, id, heroPos, e ? { allowU: monAllowU(ctx, e) } : {});
+  const canTunnel = e !== undefined && canTunnelNow(ctx, e, heroPos);
+  const cands = mfndpos(
+    ctx,
+    level,
+    rules,
+    id,
+    heroPos,
+    e ? { allowU: monAllowU(ctx, e), allowDig: canTunnel } : {},
+  );
   const cnt = cands.length;
   if (cnt === 0) return 'nomoves'; // MMOVE_NOMOVES
   const track = getTrack(ctx, id);
@@ -709,6 +738,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
     }
   }
   if (chosen === null) return 'nothing';
+  // ref: m_move(): `if (mmoved == MMOVE_MOVED && m_digweapon_check(mtmp, nix, niy)) return
+  // MMOVE_DONE`: wielding a pick to dig there takes the move
+  if (e && mDigweaponCheck(ctx, e, chosen.x, chosen.y)) return 'done';
   // ref: m_move() "if ALLOW_U, attack this spot": the monster stays put and attacks in dochug()
   if (chosen.hero) return 'nothing';
 
@@ -717,21 +749,44 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   pos.x = chosen.x;
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
-  return postmovMoved(ctx, id, level, rules);
+  return postmovMoved(ctx, id, level, rules, canTunnel);
 }
 
 /**
- * What happens after a monster stepped (MMOVE_MOVED): traps, opening a door it stepped onto,
- * picking things up. ref: src/monmove.c postmov()
+ * m_move()'s can_tunnel: a tunneller, unless it needs a pick and is a hostile (or, under
+ * Conflict, any) monster within reach of where it thinks the hero is ("don't tunnel if hostile
+ * and close enough to prefer a weapon"; mon_allowflags() uses the same test for ALLOW_DIG). It
+ * need not carry a pick: one without digs nothing but doors it steps onto. ref:
+ * src/monmove.c m_move(); src/mon.c mon_allowflags() (no Rogue level)
  */
-function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): MoveStatus {
-  const { pos, def } = monCount(ctx, id);
+function canTunnelNow(ctx: Ctx, mon: Entity, heroPos: Pos): boolean {
+  const def = ctx.defs.monster(mon.def);
+  const p = mon.c.pos;
+  if (!tunnels(def) || !p) return false;
+  const hostile = !(mon.c.monster?.peaceful ?? false) || conflictOn(ctx.state);
+  return !(needsPick(def) && hostile && dist2(p.x, p.y, heroPos.x, heroPos.y) <= 8);
+}
+
+/**
+ * What happens after a monster stepped (MMOVE_MOVED): traps, opening a door it stepped onto (a
+ * tunneller breaks it instead), digging the square it stepped into, picking things up.
+ * ref: src/monmove.c postmov()
+ */
+function postmovMoved(
+  ctx: Ctx,
+  id: EntityId,
+  level: Level,
+  rules: CellRules,
+  canTunnel = false,
+): MoveStatus {
+  const { e, pos, def } = monCount(ctx, id);
   // ref: postmov(): `trapret = mintrap(mtmp)`; killed or moved off the level is MMOVE_DIED
   if (trapRemovedMon(mintrap(ctx, id))) return 'died';
 
-  // ref: postmov(): open a closed door the monster just stepped onto
+  // ref: postmov(): open a closed door the monster just stepped onto, `!can_tunnel` ("taken
+  // care of below")
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
-  if (rules.closedDoor[here]) {
+  if (rules.closedDoor[here] && !canTunnel) {
     openDoorAt(ctx, level, pos);
     const seen = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     ctx.emit({ type: 'doorOpened', pos: { x: pos.x, y: pos.y } });
@@ -741,6 +796,8 @@ function postmovMoved(ctx: Ctx, id: EntityId, level: Level, rules: CellRules): M
         : { type: 'msg', key: 'door.hear_open' },
     );
   }
+  // ref: postmov(): "possibly dig"
+  if (canTunnel && mayDig(ctx, level, pos.x, pos.y) && mdigTunnel(ctx, e)) return 'died';
   // ref: postmov(): a monster that moved picks up something it likes on the new square
   if (mpickstuff(ctx, id)) return 'done';
   // ref: postmov(): `if (mtmp->isshk) after_shk_move(mtmp)`

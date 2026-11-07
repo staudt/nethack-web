@@ -614,10 +614,11 @@ export function monWieldItem(ctx: GearCtx, monId: EntityId): boolean {
 
 /**
  * The common tail of mon_wield_item(): wield `obj` (already chosen by select_hwep() or
- * select_rwep()), unless it is wielded already. Returns true if that cost the monster its move.
- * ref: src/weapon.c mon_wield_item()
+ * select_rwep(), or a digging tool), unless it is wielded already. Returns true if that cost the
+ * monster its move. `exclaim`: "wields X!" when it means to attack, "wields X." when it only plans
+ * to dig. ref: src/weapon.c mon_wield_item()
  */
-export function monWield(ctx: GearCtx, monId: EntityId, obj: Entity): boolean {
+export function monWield(ctx: GearCtx, monId: EntityId, obj: Entity, exclaim = true): boolean {
   const { e, def } = monOf(ctx, monId);
   const cur = monWep(ctx, monId);
   if (cur && cur.def === obj.def) return false; // already wielding it
@@ -642,7 +643,7 @@ export function monWield(ctx: GearCtx, monId: EntityId, obj: Entity): boolean {
   if (seen) {
     ctx.emit({
       type: 'msg',
-      key: 'mon.wields',
+      key: exclaim ? 'mon.wields' : 'mon.wields_dig',
       params: { mon: `@${def.id}`, item: doname(ctx.state, ctx.defs, obj) },
     });
   }

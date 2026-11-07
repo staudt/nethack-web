@@ -425,10 +425,11 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
       return 0;
     }
   }
-  // ref: domove_core(): `if (u.utrap) { if (!trapmove(x, y, NULL)) return; }` -- the move is spent;
-  // once free, reset_utrap(TRUE) "might resume levitation"
+  // ref: domove(): `if (u.utrap) { if (!trapmove(x, y, trap)) return; }` -- the move is spent;
+  // once free, reset_utrap(TRUE) "might resume levitation". The trap at the destination lets her
+  // step from a pit into the next one (3.6's domove(); 3.7 passes NULL: DEVIATIONS)
   const wasLevitating = levitating(ctx);
-  if (!trapmove(ctx, dir)) {
+  if (!trapmove(ctx, dir, trapAt(level, to.x, to.y))) {
     resumeLevitation(ctx, wasLevitating);
     ctx.interrupt();
     return NORMAL_SPEED;
@@ -473,7 +474,7 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     // before pickup."
     const t = trapAt(level, to.x, to.y);
     if (t && isPit(t.def)) {
-      spotTrap(ctx);
+      spotTrap(ctx, from);
       if (!ctx.state.gameOver) lookHere(ctx);
     } else {
       lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
