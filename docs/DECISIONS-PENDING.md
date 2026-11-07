@@ -53,6 +53,10 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
   4. Corridor boulders from core levelgen: a transient `Level.boulderSpots?: Pos[]` that content turns into boulders on level creation and then deletes (alternatives: a general request list, or keep skipping C's `rn2(50)` corridor boulder roll).
   Also from the planner: Sokoban's entrance is on the level below the Oracle (not above), so a minimal Oracle level comes with it.
 
+## Approved by the user (m8)
+
+- **m8 high-score storage format** (2026-11-07): the user approved the planner's recommendation as written. localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Unblocks m8 step 4.
+
 ## Parked
 
-- **m8 high-score storage format** (2026-11-07). Blocks m8 step 4 only (steps 1-3 can run). Planner's recommendation: localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Costly because it ships to users' devices and later versions must read it. Answer yes/no or change it (e.g. store structured fields instead of rendered text so other languages can render it).
+(none)
