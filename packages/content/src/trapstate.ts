@@ -150,8 +150,8 @@ export function forgetMonTraps(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 // in trap.ts reads it back); this leaf has the helpers so movement and boulders can use them.
 
 /** ref: src/decl.c xdir[], ydir[] */
-const XDIR = [-1, -1, 0, 1, 1, 1, 0, -1] as const;
-const YDIR = [0, -1, -1, -1, 0, 1, 1, 1] as const;
+export const XDIR = [-1, -1, 0, 1, 1, 1, 0, -1] as const;
+export const YDIR = [0, -1, -1, -1, 0, 1, 1, 1] as const;
 
 /** C's direction index of a one-square step, or -1 (DIR_ERR). ref: src/cmd.c xytodir() */
 export function xytodir(dx: number, dy: number): number {

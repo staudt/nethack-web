@@ -20,6 +20,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { BOULDER, T, WAN, vanillaMod } from '../src/index';
 import { blockersOf } from '../src/boulder';
+import { TRAP, dataOf } from '../src/trap';
 import { mksobj } from '../src/items';
 import { P, setItimeout } from '../src/props';
 import { setPw } from '../src/uenergy';
@@ -98,7 +99,16 @@ describe('boulders in level generation', () => {
       const { state } = engine.newGame({ seed });
       const level = goTo(state, { dungeon: 'nh:mines', dlevel: 1 });
       expect(level.def).toBe('nh:minefill');
-      const count = boulders(state, level).length;
+      // the filler's own boulders: not those waiting on a rolling boulder trap's launch spot
+      const launch = new Set(
+        level.traps.flatMap((t) => {
+          const l = dataOf(t).launch;
+          return t.def === TRAP.rolling && l ? [`${l.x},${l.y}`] : [];
+        }),
+      );
+      const count = boulders(state, level).filter(
+        (b) => !launch.has(`${b.c.pos!.x},${b.c.pos!.y}`),
+      ).length;
       expect(count).toBeLessThanOrEqual(2);
       if (count > 0) withBoulders++;
       n++;

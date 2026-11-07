@@ -20,6 +20,7 @@ import {
 } from '@nh/core';
 import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
 import { monFloorEffects } from './align';
+import { boulderFlooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
 import { mdamageu } from './mhitu';
 import { addToInventory, placeOnFloor, removeFromInventory, splitStack } from './items';
@@ -72,14 +73,16 @@ const SIZE: Record<MonsterDef['size'], number> = {
 const MZ_MEDIUM = 2;
 
 /**
- * ref: src/dothrow.c omon_adj(): size, sleeping, immobility and the object's own hit bonus.
+ * ref: src/dothrow.c omon_adj(): size, sleeping, immobility and the object's own hit bonus (+6
+ * for a boulder).
  * (`mon_notices`, which may wake a frozen target, is not ported: no monster is ever frozen.)
  */
 export function omonAdj(mon: Entity, mdef: MonsterDef, obj: Entity, odef: ObjectDef): number {
   let tmp = SIZE[mdef.size] - MZ_MEDIUM; // -2..+5
   if (mon.c.monster?.asleep) tmp += 2;
   if (mdef.speed === 0) tmp += 4; // immobile
-  if (odef.class === 'weapon' || odef.class === 'gem') tmp += hitval(obj, odef, mdef);
+  if (odef.boulder === true) tmp += 6;
+  else if (odef.class === 'weapon' || odef.class === 'gem') tmp += hitval(obj, odef, mdef);
   return tmp;
 }
 
@@ -115,7 +118,7 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
  * you", a nearer one "almost hit"; a hit costs `dam` hit points. Not ported: blindness, acid,
  * poison, silver, passes_rocks, thrown potions.
  */
-function thitu(
+export function thitu(
   ctx: Ctx,
   tlev: number,
   dam: number,
@@ -156,13 +159,24 @@ const ordKey = (i: number): { key: string } => ({ key: `throw.ord.${i}` });
 
 /**
  * The missile stops and lands (or breaks). ref: src/mthrowu.c drop_throw(): after a hit it
- * breaks per should_mulch_missile(); eggs, pies and venom always break (none exist here). Not
- * ported: stairs and holes, water, passive_obj().
+ * breaks per should_mulch_missile(); eggs, pies and venom always break (none exist here); a
+ * boulder fills a pit or hole there (flooreffects(); `monMoving` is C's context.mon_moving, false
+ * only for a rolling boulder the hero set off). Not ported: shipping down stairs and holes,
+ * water, passive_obj().
  */
-function dropThrow(ctx: Ctx, objId: EntityId, ohit: boolean, level: string, x: number, y: number) {
+function dropThrow(
+  ctx: Ctx,
+  objId: EntityId,
+  ohit: boolean,
+  level: string,
+  x: number,
+  y: number,
+  monMoving = true,
+) {
   const obj = ctx.state.entities[String(objId)];
   if (!obj?.c.item) return;
   if (ohit && shouldMulchMissile(ctx, obj, true)) ctx.remove(objId);
+  else if (boulderFlooreffects(ctx, obj, x, y, 'fall', false, monMoving)) return;
   else {
     monFloorEffects(ctx, obj, { level, x, y }); // flooreffects(): an altar in sight
     placeOnFloor(ctx, objId, level, x, y);
@@ -172,16 +186,19 @@ function dropThrow(ctx: Ctx, objId: EntityId, ohit: boolean, level: string, x: n
 /**
  * A missile in flight hits a monster that is in its way. Returns true when it has stopped.
  * ref: src/mthrowu.c ohitmon(): `5 + find_mac + omon_adj` against rnd(20); hits do dmgval() and
- * may kill (the kill is not credited to the hero). Not ported: mimics, potions, eggs, poison,
- * silver, shades, blinding, aiming bonuses of the archer's level.
+ * may kill (the kill is not credited to the hero, unless `opts.onKill` says otherwise: a rolling
+ * boulder from a trap she knew). A negative `range` (a rolling boulder) never drops it on a
+ * miss. Not ported: mimics, potions, eggs, poison, silver, shades, blinding, aiming bonuses of
+ * the archer's level.
  */
-function ohitmon(
+export function ohitmon(
   ctx: Ctx,
   monId: EntityId,
   objId: EntityId,
   range: number,
   at: PosComponent,
   flush: () => void,
+  opts: { onKill?: (mon: Entity) => void; monMoving?: boolean } = {},
 ): boolean {
   const mon = ctx.state.entities[String(monId)];
   const obj = ctx.state.entities[String(objId)];
@@ -198,7 +215,15 @@ function ohitmon(
       say(ctx, 'throw.miss', { missile, mon: monNam(ctx, mon) });
     }
     if (!range) {
-      dropThrow(ctx, objId, false, at.level, mon.c.pos?.x ?? at.x, mon.c.pos?.y ?? at.y);
+      dropThrow(
+        ctx,
+        objId,
+        false,
+        at.level,
+        mon.c.pos?.x ?? at.x,
+        mon.c.pos?.y ?? at.y,
+        opts.monMoving,
+      );
       return true;
     }
     return false;
@@ -217,9 +242,10 @@ function ohitmon(
       say(ctx, nonliving ? 'mthrow.mon_destroyed' : 'mthrow.mon_killed', { mon: monNam(ctx, mon) });
     }
     // ref: src/mthrowu.c ohitmon() -> monkilled(): a corpse may be left
-    mondied(ctx, monId);
+    if (opts.onKill) opts.onKill(mon);
+    else mondied(ctx, monId);
   }
-  dropThrow(ctx, objId, true, at.level, at.x, at.y);
+  dropThrow(ctx, objId, true, at.level, at.x, at.y, opts.monMoving);
   return true;
 }
 

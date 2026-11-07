@@ -1,7 +1,8 @@
 // English text for traps. ref: src/trap.c dotrap(), trapeffect_*(), fall_through(), thitm(),
 // src/mthrowu.c thitu(), src/hack.c trapmove(), avoid_trap_andor_region(),
 // domove_swap_with_pet(), src/detect.c find_trap(), src/pager.c doidtrap(),
-// src/teleport.c mlevel_tele_trap(), src/dog.c keepdogs(), src/dokick.c dokick()
+// src/teleport.c mlevel_tele_trap(), src/dog.c keepdogs(), src/dokick.c dokick(); the rolling
+// boulder trap: src/trap.c trapeffect_rolling_boulder_trap(), launch_obj(), src/hack.c moverock()
 export const trapMessagesEn: Record<string, string> = {
   // trap names (TrapDef.nameKey = the def id). ref: include/defsym.h
   'nh:arrow_trap': 'arrow trap',
@@ -9,6 +10,7 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:falling_rock_trap': 'falling rock trap',
   'nh:squeaky_board': 'squeaky board',
   'nh:bear_trap': 'bear trap',
+  'nh:rolling_boulder_trap': 'rolling boulder trap',
   'nh:sleeping_gas_trap': 'sleeping gas trap',
   'nh:rust_trap': 'rust trap',
   'nh:pit': 'pit',
@@ -237,4 +239,25 @@ export const trapMessagesEn: Record<string, string> = {
   'fire.you_uninjured': 'You are uninjured.',
   'fire.mon_uninjured': '{mon|The} is uninjured.',
   'fire.smell_paper': 'You smell paper burning.',
+
+  // rolling boulder trap. ref: src/trap.c trapeffect_rolling_boulder_trap(), launch_obj()
+  'trap.rolling.trigger': 'Click!  You trigger a rolling boulder trap!',
+  'trap.rolling.none': 'Fortunately for you, no boulder was released.',
+  'trap.rolling.none_known': 'No boulder was released.',
+  'trap.rolling.mon_triggers': 'Click!  {mon|The} triggers a rolling boulder trap.',
+  'trap.rolling.mon_triggers_something': 'Click!  {mon|The} triggers something.',
+  'roll.see_start': 'You see a boulder start to roll.',
+  'roll.hear_bowling': 'You hear someone bowling.',
+  'roll.hear_nearby': 'You hear rumbling nearby.',
+  'roll.hear_distance': 'You hear rumbling in the distance.',
+  'roll.disappears': 'Suddenly the rolling boulder disappears!',
+  'roll.stop_abruptly': 'You hear a rumbling stop abruptly.',
+  'roll.loud_crash': 'You hear a loud crash!',
+  'roll.loud_crash_hits': 'You hear a loud crash as one boulder hits another!',
+  'roll.loud_crash_motion': 'You hear a loud crash as one boulder sets another in motion!',
+  'roll.door': 'The boulder crashes through a door.',
+  'roll.thump': 'Thump!',
+  'roll.whang': 'Whang!',
+  // ref: src/hack.c moverock() ROLLING_BOULDER_TRAP
+  'roll.rolls_away': '{what|The} suddenly rolls away from you!',
 };

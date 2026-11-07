@@ -1,5 +1,7 @@
 // Traps: arrow, dart, falling rock, squeaky board, bear trap, sleeping gas, rust, pit, spiked
-// pit, trap door, hole, teleportation trap and level teleporter. ref: include/trap.h, include/defsym.h, src/trap.c maketrap(),
+// pit, trap door, hole, teleportation trap and level teleporter; the rolling boulder trap's
+// launch spots (its effect is in rollboulder.ts). ref: include/trap.h, include/defsym.h,
+// src/trap.c maketrap(), mkroll_launch(), find_random_launch_coord(), isclearpath(),
 // dotrap(), mintrap(), trapeffect_*(), climb_pit(), fall_through(), thitm(), m_harmless_trap(),
 // src/mondata.c mons_see_trap(), src/teleport.c tele_trap(), level_tele_trap(), mtele_trap(),
 // mlevel_tele_trap(), src/hack.c trapmove(),
@@ -37,7 +39,7 @@ import {
   type Trap,
   type TrapDef,
 } from '@nh/core';
-import { blockersOf, boulderAt } from './boulder';
+import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { TEMPLE, epriOf } from './epri';
 import { costlySpot, eshkOf, inhishop, onbill } from './eshk';
 import { DUNGEON_BOTTOM, dungeonBottom } from './levelflags';
@@ -78,6 +80,8 @@ import { P, hasProp, makeConfused, timeoutLeft } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import {
+  XDIR,
+  YDIR,
   clearConjoinedPits,
   conjoinedPits,
   forgetMonTraps,
@@ -101,6 +105,7 @@ export const TRAP = {
   rock: 'nh:falling_rock_trap',
   squeaky: 'nh:squeaky_board',
   bear: 'nh:bear_trap',
+  rolling: 'nh:rolling_boulder_trap',
   sleepGas: 'nh:sleeping_gas_trap',
   rust: 'nh:rust_trap',
   pit: 'nh:pit',
@@ -132,6 +137,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.rock, nameKey: TRAP.rock, glyph: { ch: '^', fg: GRAY } },
   { id: TRAP.squeaky, nameKey: TRAP.squeaky, glyph: { ch: '^', fg: BROWN } },
   { id: TRAP.bear, nameKey: TRAP.bear, glyph: { ch: '^', fg: CYAN } },
+  { id: TRAP.rolling, nameKey: TRAP.rolling, glyph: { ch: '^', fg: GRAY } },
   { id: TRAP.sleepGas, nameKey: TRAP.sleepGas, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.rust, nameKey: TRAP.rust, glyph: { ch: '^', fg: BLUE } },
   { id: TRAP.pit, nameKey: TRAP.pit, glyph: { ch: '^', fg: BLACK } },
@@ -176,15 +182,30 @@ const trapName = (t: Trap): string => `@${t.def}`;
 
 /**
  * Per-trap data: the squeaky board's note (tnote), a hole's destination depth (dst), whether
- * the hero made it (madeby_u: pits and holes she dug, dig.ts) and a pit's links to the pits next
- * to it (conjoined: C's 8-bit direction mask; helpers in trapstate.ts).
+ * the hero made it (madeby_u: pits and holes she dug, dig.ts), a pit's links to the pits next
+ * to it (conjoined: C's 8-bit direction mask; helpers in trapstate.ts) and a rolling boulder
+ * trap's two ends (launch, where its boulder waits, and launch2 across the trap; both the trap's
+ * own square when no boulder was placed).
  */
 export interface TrapData {
   tnote?: number;
   dst?: number;
   madeby_u?: true;
   conjoined?: number;
+  launch?: XY;
+  launch2?: XY;
 }
+
+/** A square as plain JSON (a type alias: `Pos` is an interface, which `Json` does not accept). */
+export type XY = { x: number; y: number };
+
+const posOf = (v: unknown): XY | undefined => {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  return typeof o['x'] === 'number' && typeof o['y'] === 'number'
+    ? { x: o['x'], y: o['y'] }
+    : undefined;
+};
 
 export function dataOf(t: Trap): TrapData {
   const d = t.data;
@@ -194,6 +215,10 @@ export function dataOf(t: Trap): TrapData {
   if (typeof d['dst'] === 'number') out.dst = d['dst'];
   if (d['madeby_u'] === true) out.madeby_u = true;
   if (typeof d['conjoined'] === 'number') out.conjoined = d['conjoined'];
+  const l1 = posOf(d['launch']);
+  if (l1) out.launch = l1;
+  const l2 = posOf(d['launch2']);
+  if (l2) out.launch2 = l2;
   return out;
 }
 
@@ -257,8 +282,93 @@ export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: D
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
   if (def === TRAP.squeaky) t.data = { tnote: chooseTrapnote(ctx, level, x, y) };
   else if (isHole(def)) t.data = { dst: holeDestination(ctx, level) };
+  else if (def === TRAP.rolling) {
+    // boulder will roll towards trigger
+    const { launch, launch2 } = mkrollLaunch(ctx, level, x, y);
+    t.data = { launch, launch2 };
+  }
   ctx.placeTrap(levelId, t);
   return trapAt(level, x, y) ?? t;
+}
+
+/**
+ * Whether a boulder could roll `distance` squares from (x, y) in direction (dx, dy): every
+ * square on the map, terrain a zap passes over but no closed door, and no pit, hole or
+ * teleporter. The far end, or null. ref: src/trap.c isclearpath()
+ */
+function isclearpath(
+  ctx: Pick<Ctx, 'defs'>,
+  level: Readonly<Level>,
+  x0: number,
+  y0: number,
+  distance: number,
+  dx: number,
+  dy: number,
+): Pos | null {
+  let x = x0;
+  let y = y0;
+  while (distance-- > 0) {
+    x += dx;
+    y += dy;
+    if (!inBounds(level, x, y)) return null;
+    const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
+    const td = id === undefined ? undefined : ctx.defs.terrain(id);
+    // !ZAP_POS(typ) || closed_door(x, y) (iron bars are ZAP_POS)
+    if (!td || td.door === 'closed' || td.door === 'locked') return null;
+    if (!td.passable && td.door === undefined && id !== 'nh:iron_bars') return null;
+    const t = trapAt(level, x, y);
+    // is_pit() || is_hole() || is_xport() (teleportation trap, level teleporter)
+    if (t && (isPit(t.def) || isHole(t.def) || t.def === TRAP.tele || t.def === TRAP.levelTele))
+      return null;
+  }
+  return { x, y };
+}
+
+/**
+ * A spot 2..8 squares from the trap in a straight line where its boulder can wait, with a clear
+ * path to the trap and as far again beyond it: a random distance `rn1(5, 4)` and a random first
+ * direction, trying the eight directions in turn and coming one square nearer after each round
+ * (down to 2). Never in Sokoban (no draws). ref: src/trap.c find_random_launch_coord() (the
+ * des.trap `launchfrom` spot, `gl.launchplace`, is not ported: no level names one; with none
+ * linedup() fails at once; there is no water)
+ */
+function findRandomLaunchCoord(
+  ctx: Pick<Ctx, 'defs' | 'rng'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): Pos | null {
+  if (isSokoban(level)) return null;
+  const mindist = 2; // ROLLING_BOULDER_TRAP
+  let distance = 4 + ctx.rng.rn2(5); // rn1(5, 4): 4..8 away
+  let tmp = ctx.rng.rn2(8); // randomly pick a direction to try first
+  let trycount = 0;
+  while (distance >= mindist) {
+    const dx = XDIR[tmp] ?? 0;
+    const dy = YDIR[tmp] ?? 0;
+    const cc = isclearpath(ctx, level, x, y, distance, dx, dy);
+    if (cc && isclearpath(ctx, level, x, y, distance, -dx, -dy)) return cc;
+    if (++tmp > 7) tmp = 0;
+    if (++trycount % 8 === 0) --distance;
+  }
+  return null;
+}
+
+/**
+ * A rolling boulder trap's two ends: a boulder on the launch spot (findRandomLaunchCoord()) and
+ * the spot as far on the other side; without a spot both ends are the trap and no boulder is made.
+ * ref: src/trap.c mkroll_launch() (BOULDER, one)
+ */
+function mkrollLaunch(
+  ctx: Ctx,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): { launch: XY; launch2: XY } {
+  const cc = findRandomLaunchCoord(ctx, level, x, y);
+  if (!cc) return { launch: { x, y }, launch2: { x, y } };
+  mksobj(ctx, ctx.defs.object(BOULDER), { at: { level: level.id, x: cc.x, y: cc.y } });
+  return { launch: cc, launch2: { x: x - (cc.x - x), y: y - (cc.y - y) } };
 }
 
 /** The trap in state (the core keeps its own copy). */
@@ -810,10 +920,16 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
   // immune_to_trap(): ground-based traps, which can be evaded by levitation
   if (
     levitating(ctx) &&
-    (t.def === TRAP.bear || t.def === TRAP.squeaky || isPit(t.def) || isHole(t.def)) &&
+    (t.def === TRAP.bear ||
+      t.def === TRAP.squeaky ||
+      t.def === TRAP.rolling ||
+      isPit(t.def) ||
+      isHole(t.def)) &&
     !(isSokoban(level) && (isPit(t.def) || isHole(t.def)))
   )
     return null;
+  // "not dangerous in Sokoban"
+  if (t.def === TRAP.rolling && isSokoban(level)) return null;
   if (t.def === TRAP.rust) {
     const worn = sortedIds(ctx.state).some((id) => {
       const o = ctx.state.entities[String(id)];
@@ -864,6 +980,8 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
         def.flags.includes('whirly') ||
         def.flags.includes('unsolid')
       );
+    case TRAP.rolling:
+      return soko; // the Sokoban rolling boulder traps are not dangerous
     case TRAP.sleepGas:
       return def.resists.includes('sleep');
     case TRAP.rust:

@@ -252,11 +252,13 @@ describe('the Sokoban branch', () => {
         const want = spots(lua.boulders).map(([x, y]) => key(at(x, y)));
         expect(boulders.sort()).toEqual([...want].sort());
         for (const [x, y] of spots(lua.boulders)) expect(terrain(level, at(x, y))).toBe('nh:floor');
-        // traps: exactly the lua pits and holes; the rolling boulder spots are bare floor
+        // traps: exactly the lua pits, holes and rolling boulder traps (with no boulder: the
+        // boulders are only the lua ones, checked above)
         const traps = level.traps.map((t) => `${t.def} ${key(t)}`).sort();
         const wantTraps = [
           ...spots(lua.pits).map(([x, y]) => `nh:pit ${key(at(x, y))}`),
           ...spots(lua.holes).map(([x, y]) => `nh:hole ${key(at(x, y))}`),
+          ...spots(lua.rolling).map(([x, y]) => `nh:rolling_boulder_trap ${key(at(x, y))}`),
         ].sort();
         expect(traps).toEqual(wantTraps);
         for (const t of level.traps) expect(terrain(level, t)).toBe('nh:floor');

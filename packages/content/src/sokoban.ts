@@ -46,8 +46,7 @@ const madeByU = (data: unknown): boolean =>
 // stays a leaf.
 //
 // The level flags noteleport, hardfloor, mazelevel, solidify and des.non_diggable are a table in
-// levelflags.ts. Not ported (DEVIATIONS "Sokoban"): the rolling boulder traps (their spots stay
-// floor), des.non_passwall (nothing phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
+// levelflags.ts. Not ported (DEVIATIONS "Sokoban"): des.non_passwall (nothing phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
 // random monster spots avoid trap squares, generation.ts), and on soko1 the two giant mimics.
 // soko1's treasure zoo is a typed region filled by zoo.ts; its prize is a fixup there (the
 // Elbereth engraving and the cursed scroll of scare monster beside it are not ported).
@@ -60,6 +59,8 @@ const B: DefId = 'nh:boulder';
 const EARTH: DefId = 'nh:scroll_of_earth';
 const PIT: DefId = 'nh:pit';
 const HOLE: DefId = 'nh:hole';
+/** des.trap("rolling boulder"): no launch spot in Sokoban, so no boulder (trap.ts maketrap()) */
+const ROLLING: DefId = 'nh:rolling_boulder_trap';
 /** zoo.ts ZOO */
 const ZOO: DefId = 'nh:zoo';
 
@@ -139,7 +140,7 @@ export const SOKO1_1: LevelDef = {
       [3, 14],
     ),
     ...trapsAt(HOLE, [7, 1]),
-    // rolling boulder trap at [8, 1] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [8, 1]),
     ...trapsAt(
       HOLE,
       [9, 1],
@@ -224,7 +225,7 @@ export const SOKO1_2: LevelDef = {
       [12, 9],
       [11, 10],
     ),
-    // rolling boulder trap at [5, 1] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [5, 1]),
     ...trapsAt(
       HOLE,
       [6, 1],
@@ -291,7 +292,7 @@ export const SOKO2_1: LevelDef = {
       [5, 7],
       [6, 6],
     ),
-    // rolling boulder trap at [7, 9] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [7, 9]),
     ...trapsAt(
       HOLE,
       [8, 9],
@@ -357,7 +358,7 @@ export const SOKO2_2: LevelDef = {
       [5, 10],
       [5, 11],
     ),
-    // rolling boulder trap at [7, 11] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [7, 11]),
     ...trapsAt(
       HOLE,
       [8, 11],
@@ -424,7 +425,7 @@ export const SOKO3_1: LevelDef = {
       [10, 7],
       [10, 10],
     ),
-    // rolling boulder trap at [11, 10] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [11, 10]),
     ...trapsAt(
       HOLE,
       [12, 10],
@@ -493,7 +494,7 @@ export const SOKO3_2: LevelDef = {
       [10, 10],
       [3, 11],
     ),
-    // rolling boulder trap at [11, 10] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [11, 10]),
     ...trapsAt(
       HOLE,
       [12, 10],
@@ -540,9 +541,9 @@ export const SOKO4_1: LevelDef = {
   contents: [
     ...at(B, [2, 2], [2, 3], [10, 2], [9, 3], [10, 4], [8, 7], [9, 8], [9, 9], [8, 10], [10, 10]),
     ...trapsAt(PIT, [4, 6], [2, 6], [2, 7], [2, 8]),
-    // rolling boulder trap at [2, 9] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [2, 9]),
     ...trapsAt(PIT, [2, 10], [3, 10], [4, 10], [5, 10], [6, 10]),
-    // rolling boulder trap at [7, 10] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [7, 10]),
     ...at(EARTH, [2, 11], [3, 11]),
     ...RANDOM_OBJECTS,
   ],
@@ -587,9 +588,9 @@ export const SOKO4_2: LevelDef = {
       [10, 8],
     ),
     ...trapsAt(PIT, [1, 2], [1, 3], [1, 4], [1, 5], [1, 6]),
-    // rolling boulder trap at [1, 7] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [1, 7]),
     ...trapsAt(PIT, [1, 8], [2, 8], [3, 8], [4, 8], [5, 8]),
-    // rolling boulder trap at [6, 8] (not ported: the spot stays floor)
+    ...trapsAt(ROLLING, [6, 8]),
     ...at(EARTH, [1, 9], [2, 9]),
     ...RANDOM_OBJECTS,
   ],

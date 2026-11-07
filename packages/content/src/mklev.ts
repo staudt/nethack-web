@@ -41,7 +41,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.squeaky, // 4 SQKY_BOARD
   TRAP.bear, // 5 BEAR_TRAP
   null, // 6 LANDMINE
-  null, // 7 ROLLING_BOULDER_TRAP
+  TRAP.rolling, // 7 ROLLING_BOULDER_TRAP
   TRAP.sleepGas, // 8 SLP_GAS_TRAP
   TRAP.rust, // 9 RUST_TRAP
   null, // 10 FIRE_TRAP
@@ -65,7 +65,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
 /**
  * A random trap kind for a level of difficulty `lvl`, or null for NO_TRAP ("too hard", or a
  * kind this port does not have). ref: src/mklev.c traptype_rnd(): `kind = rnd(TRAPNUM - 1)`;
- * sleeping gas needs level 2, spiked pits level 5; level teleporters need level 5 and a level
+ * rolling boulder traps and sleeping gas need level 2, spiked pits level 5; level teleporters need level 5 and a level
  * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; holes are
  * made only 1 time in 7. The restrictions of the kinds we lack draw no random numbers (and there
  * is no single-level branch, Fort Ludios).
@@ -73,7 +73,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
 export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number, noteleport = false): DefId | null {
   const kind = ctx.rng.rnd(TRAPNUM_KINDS.length - 1);
   const def = TRAPNUM_KINDS[kind] ?? null;
-  if (def === TRAP.sleepGas && lvl < 2) return null;
+  if ((def === TRAP.rolling || def === TRAP.sleepGas) && lvl < 2) return null;
   if (def === TRAP.levelTele && (lvl < 5 || noteleport)) return null;
   if (def === TRAP.spikedPit && lvl < 5) return null;
   if (def === TRAP.tele && noteleport) return null;

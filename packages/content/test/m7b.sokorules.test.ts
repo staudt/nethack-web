@@ -141,17 +141,22 @@ describe('the first boulder into the first pit of each entry level', () => {
       const pit = mapAt(level, ...sol.pit);
       expect(level.traps.find((t) => t.x === pit.x && t.y === pit.y)?.def).toBe('nh:pit');
       const pits = level.traps.length;
-      let last: GameEvent[] = [];
+      let all: GameEvent[] = [];
       for (const d of sol.moves.split(' ')) {
         const r = act(state, move(d));
         expect(r.turns, `${variant} ${d}`).toBe(1);
-        last = r.events;
+        all = [...all, ...r.events];
       }
       expect(heroAt(state)).toEqual(mapAt(level, ...sol.end));
-      expect(texts(last)).toContain('The boulder fills a pit.');
+      // the last push rolls the boulder over the rolling boulder trap next to the pit (C 3.7's
+      // moverock()): it rolls away into the pit (heard: the boulder pushed beside her hid the
+      // pit); her last step is onto the empty trap
+      expect(texts(all)).toContain('The boulder suddenly rolls away from you!');
+      expect(texts(all)).toContain('You hear a boulder fall.');
       expect(level.traps.some((t) => t.x === pit.x && t.y === pit.y)).toBe(false);
       expect(level.traps).toHaveLength(pits - 1);
       expect(bouldersAt(state, level, pit)).toBe(0);
+      expect(level.traps.some((t) => t.def === 'nh:rolling_boulder_trap')).toBe(true);
       expect(level.sokoban).toBe(true); // other pits remain
       expect(luck(state)).toBe(0);
     });
@@ -299,8 +304,10 @@ describe('inescapable pits and holes', () => {
   test('a seen hole on soko2 always takes her down (100 tries)', () => {
     for (const variant of ['soko2-1', 'soko2-2']) {
       const { state, level } = sokoVariant(variant, 2);
-      // the rolling boulder spot (plain floor here) is just west of the first hole
-      const hole = [...level.traps].sort((a, b) => a.x - b.x || a.y - b.y)[0]!;
+      // the rolling boulder trap (it releases nothing in Sokoban) is just west of the first hole
+      const hole = level.traps
+        .filter((t) => t.def === 'nh:hole')
+        .sort((a, b) => a.x - b.x || a.y - b.y)[0]!;
       expect(hole.def).toBe('nh:hole');
       expect(hole.seen).toBe(true);
       placeHero(state, { x: hole.x - 1, y: hole.y });

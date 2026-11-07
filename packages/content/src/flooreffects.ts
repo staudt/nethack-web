@@ -16,6 +16,7 @@ import { BOULDER } from './boulder';
 import { dbon, monsterIdAt } from './combat';
 import { hmonThrownHit } from './hmon';
 import { losehp } from './hp';
+import { monkilled } from './mondeath';
 import { ringBonus } from './props';
 import { maybeFinishSokoban } from './sokoban';
 import {
@@ -47,6 +48,8 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | { key: stri
  * increase-damage and Str bonuses) and let out of the pit; the hero trapped there is squished
  * (`rnd(15)`); then "The boulder fills a pit." (or plugs the hole), the trap is gone and the
  * boulder used up. Returns false (nothing happened, the caller places the boulder) anywhere else.
+ * With `monMoving` (a rolling boulder set off by a monster) the trapped monster takes the
+ * boulder's dmgval() without the hero's hmon() and its kill is no one's.
  * `seen` is moverock()'s "vision kludge": the pushed-into pit counts as in sight unless the
  * hero is blind. Only the hero's boulders are ported (no `context.mon_moving` case: no monster
  * throws or drops one). The objects in the pit are not buried (bury_objs(): nothing is buried).
@@ -59,6 +62,7 @@ export function boulderFlooreffects(
   y: number,
   verb: FloorVerb,
   seen = false,
+  monMoving = false,
 ): boolean {
   if (obj.def !== BOULDER) return false;
   const levelId = ctx.state.currentLevel;
@@ -88,7 +92,14 @@ export function boulderFlooreffects(
             : 'boulder.into_pit_you',
         { verb: verbs },
       );
-    if (trappedMon) {
+    if (trappedMon && monMoving) {
+      // context.mon_moving (a rolling boulder a monster set off): dmgval() off its hit points,
+      // "The X is killed!" when spotted, mondied(); no credit to the hero
+      const hp2 = trappedMon.c.hp;
+      if (hp2) hp2.cur -= boulderDmgval(ctx);
+      if (!hp2 || hp2.cur < 1) monkilled(ctx, trappedMon.id, true);
+      else setMtrapped(ctx, trappedMon.id, false);
+    } else if (trappedMon) {
       // no passes_walls or rock throwers exist: hmon(mtmp, obj, HMON_THROWN, dieroll 1)
       const hero = getPlayer(ctx.state);
       let dmg = boulderDmgval(ctx);

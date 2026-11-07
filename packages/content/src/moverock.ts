@@ -3,7 +3,7 @@
 //
 // Ported subset: the hero is always a human on foot or floating (no riding, very small or giant
 // forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars, landmines,
-// teleporters, rolling boulder traps or buried zombies, and pushing a boulder in a shop does not
+// teleporters or buried zombies (a rolling boulder trap rolls the boulder away: rollboulder.ts), and pushing a boulder in a shop does not
 // bill it (DEVIATIONS.md "Boulders"). In Sokoban a boulder does not roll diagonally and
 // squeezing past one costs Luck.
 import {
@@ -23,6 +23,7 @@ import {
   type Level,
   type Msg,
   type Pos,
+  type Trap,
 } from '@nh/core';
 import { P, hasProp } from './props';
 import { boulderAt, feelObjects, rememberedBoulder } from './boulder';
@@ -35,6 +36,16 @@ import { invWeight } from './stats';
 import { T } from './terrain';
 import { TRAP } from './trap';
 import { isMtrapped, isPit, levitating } from './trapstate';
+
+/**
+ * A boulder pushed onto a rolling boulder trap rolls away (rollboulder.ts, which sits above
+ * trap.ts and this module's importers, hands it in at registration).
+ */
+type RollingPush = (ctx: Ctx, trap: Trap, from: Pos, dx: number, dy: number, what: Msg) => void;
+let rollingPush: RollingPush | null = null;
+export function setRollingPush(fn: RollingPush): void {
+  rollingPush = fn;
+}
 
 /** ref: include/weight.h WT_SQUEEZABLE_INV */
 const WT_SQUEEZABLE_INV = 850;
@@ -249,7 +260,12 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       ctx.remove(otmp.id); // useupf(otmp, 1L); nothing is buried here (bury_objs())
       return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
     }
-    // other traps do not affect a boulder (no landmines, teleporters or rolling boulder traps)
+    if (ttmp && ttmp.def === TRAP.rolling && rollingPush) {
+      // the boulder continues until it reaches one of the trap's launch spots or the edge
+      rollingPush(ctx, ttmp, { x: sx, y: sy }, dx, dy, what);
+      return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';
+    }
+    // other traps do not affect a boulder (no landmines or teleporters)
     dopush(ctx, level, otmp, what, { x: sx, y: sy }, { x: rx, y: ry });
   }
   return 'moved';

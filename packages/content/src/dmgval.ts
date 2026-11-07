@@ -38,6 +38,10 @@ export function dmgvalSized(rng: Rng, item: Entity, def: ObjectDef, big: boolean
     tmp += dmgvalExtra(rng, def.id, big);
     tmp += item.c.item?.spe ?? 0;
     if (tmp < 0) tmp = 0;
+  } else if (def.boulder === true) {
+    // objects.h BOULDER: oc_wsdam = oc_wldam = 20
+    tmp = rng.rnd(20) + (item.c.item?.spe ?? 0);
+    if (tmp < 0) tmp = 0;
   }
   // "always subtract erosion even for blunt weapons"
   if (tmp > 0) {

@@ -146,19 +146,30 @@ describe('the soak counts boulder pushes', () => {
     expect(b.c.pos).toMatchObject({ x: at.x + 1, y: at.y });
     expect(boulderPushesSince(s, before)).toBe(1);
 
-    // with the other boulders gone, a pit with two floor squares east of it: that boulder goes
-    // next to it and is pushed in
+    // with the other boulders and the rolling boulder traps (which would roll it on) gone, a pit
+    // with two floor squares beside it in a line: that boulder goes next to it and is pushed in
     for (const o of boulders(s)) if (o.id !== b.id) delete s.entities[String(o.id)];
+    lv.traps = lv.traps.filter((t) => t.def !== 'nh:rolling_boulder_trap');
     b.c.pos = { level: lv.id, x: 0, y: 0 };
-    const pit = lv.traps.find(
-      (t) => t.def === 'nh:pit' && floor(s, lv, t.x + 1, t.y) && floor(s, lv, t.x + 2, t.y),
-    );
-    if (!pit) throw new Error('no pit with room east of it');
-    b.c.pos = { level: lv.id, x: pit.x + 1, y: pit.y };
-    putHero(s, pit.x + 2, pit.y);
+    const sides = [
+      { dx: 1, dy: 0, push: 'w' },
+      { dx: -1, dy: 0, push: 'e' },
+      { dx: 0, dy: 1, push: 'n' },
+      { dx: 0, dy: -1, push: 's' },
+    ] as const;
+    const side = (t: { x: number; y: number }) =>
+      sides.find(
+        ({ dx, dy }) =>
+          floor(s, lv, t.x + dx, t.y + dy) && floor(s, lv, t.x + 2 * dx, t.y + 2 * dy),
+      );
+    const pit = lv.traps.find((t) => t.def === 'nh:pit' && side(t));
+    const sd = pit && side(pit);
+    if (!pit || !sd) throw new Error('no pit with room beside it');
+    b.c.pos = { level: lv.id, x: pit.x + sd.dx, y: pit.y + sd.dy };
+    putHero(s, pit.x + 2 * sd.dx, pit.y + 2 * sd.dy);
     const traps = lv.traps.length;
     before = boulderSnapshot(s, engine.registry);
-    engine.step(s, { type: 'move', dir: 'w' });
+    engine.step(s, { type: 'move', dir: sd.push });
     expect(s.entities[String(b.id)]).toBeUndefined();
     expect(lv.traps.length).toBe(traps - 1);
     expect(boulderPushesSince(s, before)).toBe(1);
