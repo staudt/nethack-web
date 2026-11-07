@@ -24,6 +24,9 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.cant_see': "I can't see a trap there.",
   'trap.confirm_onto': 'Really step onto that {trap}?',
   'trap.confirm_into': 'Really step into that {trap}?',
+  'trap.confirm_onto_float': 'Really float onto that {trap}?',
+  'trap.confirm_into_float': 'Really float into that {trap}?',
+  'trap.float_over': 'You float over {trap|an}.',
   'action.nh:idtrap': 'Identify the {trap}',
 
   // arrows, darts, rocks
@@ -98,6 +101,7 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.pit.spikes_poisoned': 'The spikes were poisoned!',
   'trap.pit.still_in': 'You are still in a pit.',
   'trap.pit.crawl_out': 'You crawl to the edge of the pit.',
+  'trap.pit.float_out': 'You struggle against the air currents and float to the edge of the pit.',
   'trap.pit.crevice': 'Your leg gets stuck in a crevice.',
   'trap.pit.free_leg': 'You free your leg.',
   'trap.pit.mon_falls': '{mon|The} falls into a pit!',
@@ -165,6 +169,22 @@ export const trapMessagesEn: Record<string, string> = {
   // mlevel_tele_trap()
   'tele.wrenching': 'You feel a wrenching sensation.',
   'tele.trap_level_step': 'You step onto a level teleport trap!',
+  'tele.trap_level_float': 'You float onto a level teleport trap!',
+
+  // levitation. ref: src/trap.c float_up(), float_down(); src/fountain.c floating_above()
+  'lev.start_to_float': 'You start to float in the air!',
+  'lev.float_out_of_pit': 'You float up, out of the pit!',
+  'lev.float_up_leg_stuck': 'You float up slightly, but your leg is still stuck.',
+  'lev.up_up_away': "Up, up, and awaaaay!  You're walking on air!",
+  'lev.no_longer_trying': "You are no longer trying to float up from the trap's jaws.",
+  'lev.startled': 'Startled, {mon|the} can no longer hold you!',
+  'lev.fall_over': 'You fall over.',
+  'lev.crashed': "Bummer!  You've crashed.",
+  'lev.hit_ground': "Bummer!  You've hit the ground.",
+  'lev.float_gently': 'You float gently to the {surface}.',
+  'lev.floating_above': 'You are floating high above the {what}.',
+  'lev.cant_reach_floor': "You can't reach the {surface}.",
+  'killer.lev.dangerous_winds': 'dangerous winds',
   'tele.trap_level_trigger': 'You trigger a level teleport trap!',
   'tele.disoriented': 'You feel disoriented.',
   'tele.even_more_disoriented': 'You feel even more disoriented.',

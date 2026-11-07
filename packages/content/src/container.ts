@@ -16,6 +16,7 @@
 import {
   NORMAL_SPEED,
   contents,
+  getLevel,
   getPlayer,
   inventoryOf,
   isContainer,
@@ -56,6 +57,8 @@ import { P, heroHas } from './props';
 import { setSwapWep, swapWep } from './wield';
 import { HERE } from './priority';
 import { costlySpot } from './eshk';
+import { surfaceKey } from './terrain';
+import { levitating } from './trapstate';
 import {
   addtobill,
   billUsedUp,
@@ -577,6 +580,14 @@ function doloot(ctx: Ctx, box: Entity): number {
       say(ctx, 'loot.confused');
       return NORMAL_SPEED; // costs a turn
     }
+  }
+  // able_to_loot(): !can_reach_floor() -> cant_reach_floor() (floating, so not the pit's bottom)
+  const p = hero(ctx).c.pos;
+  if (p && levitating(ctx)) {
+    say(ctx, 'lev.cant_reach_floor', {
+      surface: surfaceKey(ctx, getLevel(ctx.state, p.level), p.x, p.y),
+    });
+    return 0;
   }
   if (!freehand(ctx)) {
     say(ctx, 'loot.no_free_hand_loot'); // able_to_loot()

@@ -9,6 +9,7 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.in_vain': 'You try to move {what|the}, but in vain.',
   'boulder.mon_other_side': "There's {mon|an} on the other side.",
   'boulder.hear_monster': 'You hear a monster behind {what|the}.',
+  'boulder.no_leverage': "You don't have enough leverage to push {what|the}.",
   'boulder.perhaps': "Perhaps that's why you cannot move it.",
   'boulder.squeeze': 'However, you can squeeze yourself into a small opening.',
   'boulder.wont_roll_diagonally': "{what|The} won't roll diagonally on this {surface}.",

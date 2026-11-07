@@ -64,6 +64,7 @@ import { uState } from './luck';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
+import { setFloatDownTrap } from './levitation';
 import { migrateToLevel } from './migrate';
 import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
@@ -80,6 +81,7 @@ import {
   isHole,
   isMtrapped,
   isPit,
+  levitating,
   monKnowsTraps,
   monLearnsTraps,
   setMtrapped,
@@ -417,13 +419,16 @@ function bearTrapYou(ctx: Ctx, trap: Trap): void {
 /**
  * The hero falls (or with '>' plunges) into a pit: "You fall into a pit!", the spikes, `rn1(6, 2)`
  * turns to climb out, `rnd(6)` damage (`rnd(10)` on spikes, poisoned 1 time in 6).
- * In Sokoban the air currents were the message. ref: src/trap.c trapeffect_pit() for the hero: no
- * Levitation, Flying, clinging, steed, `m` prefix or conjoined pits (nothing digs them); no
- * exercise or selftouch()
+ * In Sokoban the air currents were the message; elsewhere a floating hero is not caught (only a
+ * forced trap gets this far). ref: src/trap.c trapeffect_pit() for the hero: no Flying,
+ * clinging, steed, `m` prefix or conjoined pits (nothing digs them); no exercise or selftouch()
  */
 function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): void {
+  const soko = sokobanTrap(ctx, levelId, trap);
+  // "KMH -- You can't escape the Sokoban level traps"
+  if (!soko && levitating(ctx)) return;
   seetrap(trap); // feeltrap()
-  if (!sokobanTrap(ctx, levelId, trap)) say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  if (!soko) say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
   let spikes = trap.def === TRAP.spikedPit;
   const boots = spikes ? ironShoes(ctx, ctx.state.playerId) : null;
   if (boots) {
@@ -509,14 +514,18 @@ function rustTrapYou(ctx: Ctx, trap: Trap): void {
  * The hero falls through a trap door or hole. ref: src/trap.c fall_through(TRUE, ...) and
  * src/do.c goto_level() (u_on_rndspot(), the fall damage `d(max(dist, 1), 6)`, pickup(1)).
  * `plunged` is TOOKPLUNGE (the hero jumped in with '>'). In Sokoban nothing more is said and
- * nothing holds her back ("You can't escape the Sokoban level traps").
+ * nothing holds her back ("You can't escape the Sokoban level traps"); elsewhere a floating hero
+ * does not fall (only a forced trap gets this far), and when blind does not even notice.
  */
 function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): void {
-  seetrap(trap);
   const soko = sokobanTrap(ctx, levelId, trap);
+  // "we'll fall even while levitating in Sokoban; otherwise, if we won't fall and won't be told
+  // that we aren't falling, give up now"
+  if (!soko && levitating(ctx) && hasProp(heroEnt(ctx), P.BLINDED)) return;
+  seetrap(trap);
   if (!soko && !plunged)
     say(ctx, trap.def === TRAP.trapdoor ? 'trap.door.opens' : 'trap.hole.gaping');
-  if (!soko && ustuck(ctx) !== null) {
+  if (!soko && (levitating(ctx) || ustuck(ctx) !== null)) {
     // ref: fall_through(): `Levitation || u.ustuck || ...` -> "You don't fall in."
     say(ctx, 'trap.dont_fall');
     return;
@@ -575,8 +584,9 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
  * The hero sets off the trap she is standing on. ref: src/trap.c dotrap(): a seen trap is
  * escaped one time in five ("You escape a bear trap."), unless she jumped into a hole on
  * purpose (`plunged`) or the trap is forced on her (`force`: FORCETRAP, e.g. a wand of locking).
- * In Sokoban a pit or hole is never escaped: "Air currents pull you down into a pit!".
- * The hero never flies, levitates or fumbles.
+ * In Sokoban a pit or hole is never escaped: "Air currents pull you down into a pit!". Elsewhere a
+ * floating hero passes over a trap set off by the floor ("You float over a pit." when it is
+ * seen). The hero never flies or fumbles.
  */
 export function dotrap(
   ctx: Ctx,
@@ -588,9 +598,16 @@ export function dotrap(
   ctx.interrupt(); // nomul(0)
   // "KMH -- You can't escape the Sokoban level traps"
   if (sokobanTrap(ctx, levelId, t)) say(ctx, 'trap.air_currents', { trap: trapName(t) });
-  else if (t.seen && !opts.plunged && !opts.force && ctx.rng.rn2(5) === 0) {
-    say(ctx, 'trap.escape', { trap: trapName(t) });
-    return;
+  else if (!opts.force) {
+    // floor_trigger() && check_in_air(): u_locomotion("step") is "float"
+    if (floorTrigger(t.def) && levitating(ctx)) {
+      if (t.seen) say(ctx, 'trap.float_over', { trap: trapName(t) });
+      return;
+    }
+    if (t.seen && !opts.plunged && ctx.rng.rn2(5) === 0) {
+      say(ctx, 'trap.escape', { trap: trapName(t) });
+      return;
+    }
   }
   monsSeeTrap(ctx, levelId, t);
   switch (t.def) {
@@ -643,7 +660,8 @@ const mEasyEscapePit = (ctx: Ctx, mon: Entity): boolean => {
  * Trying to climb out of a pit: each try takes one turn off `u.utrap`; at zero "You crawl to the
  * edge of the pit." (she stays on the square), else "You are still in a pit.". With a boulder
  * on the square, one try in two her leg gets stuck in a crevice instead.
- * ref: src/trap.c climb_pit() (no Passes_walls, Flying, clinging, steed or Sokoban levitation;
+ * Floating in a Sokoban pit, she "struggles against the air currents and floats" to the edge.
+ * ref: src/trap.c climb_pit() (no Passes_walls, Flying, clinging or steed;
  * fill_pit() is not needed: a boulder never rests on a pit, flooreffects() always fills it)
  */
 export function climbPit(ctx: Ctx): void {
@@ -657,7 +675,13 @@ export function climbPit(ctx: Ctx): void {
   }
   const n = u.n - 1;
   setUtrap(ctx, n, 'pit');
-  if (n === 0) say(ctx, 'trap.pit.crawl_out');
+  if (n === 0)
+    say(
+      ctx,
+      isSokoban(getLevel(ctx.state, p.level)) && levitating(ctx)
+        ? 'trap.pit.float_out'
+        : 'trap.pit.crawl_out',
+    );
   else say(ctx, 'trap.pit.still_in'); // u.dz || flags.verbose
 }
 
@@ -685,7 +709,8 @@ export function trapmove(ctx: Ctx, dir: Dir): boolean {
 
 /**
  * The seen trap at `to` the hero must confirm stepping onto, or null. Rust traps are harmless
- * when she wears nothing rustprone. ref: src/hack.c avoid_trap_andor_region() with
+ * when she wears nothing rustprone, and the ground traps while she floats (not Sokoban's pits
+ * and holes). ref: src/hack.c avoid_trap_andor_region() with
  * paranoid_confirm:trap (on by default) and immune_to_trap(); never when stunned or confused.
  */
 export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
@@ -694,6 +719,13 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
   const level = getLevel(ctx.state);
   const t = trapAt(level, to.x, to.y);
   if (!t?.seen) return null;
+  // immune_to_trap(): ground-based traps, which can be evaded by levitation
+  if (
+    levitating(ctx) &&
+    (t.def === TRAP.bear || t.def === TRAP.squeaky || isPit(t.def) || isHole(t.def)) &&
+    !(isSokoban(level) && (isPit(t.def) || isHole(t.def)))
+  )
+    return null;
   if (t.def === TRAP.rust) {
     const worn = sortedIds(ctx.state).some((id) => {
       const o = ctx.state.entities[String(id)];
@@ -1307,7 +1339,15 @@ export function teleTrap(ctx: Ctx): void {
  * ref: src/teleport.c level_tele_trap() (no endgame, no teleport control)
  */
 function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boolean): void {
-  say(ctx, intentional ? 'tele.trap_level_trigger' : 'tele.trap_level_step');
+  // "float onto" while levitating (u_locomotion())
+  say(
+    ctx,
+    intentional
+      ? 'tele.trap_level_trigger'
+      : levitating(ctx)
+        ? 'tele.trap_level_float'
+        : 'tele.trap_level_step',
+  );
   if (hasProp(heroEnt(ctx), P.ANTIMAGIC) && !intentional) {
     say(ctx, 'tele.wrenching');
     return;
@@ -1531,7 +1571,20 @@ export function plunge(ctx: Ctx, t: Trap): number {
   return NORMAL_SPEED;
 }
 
+/**
+ * The trap at her feet when she stops floating: none she is already caught in, and a hole or trap
+ * door only where there is a level below and nothing holds her. ref: src/trap.c float_down()
+ */
+function floatDownTrap(ctx: Ctx, trap: Trap): void {
+  if (isHole(trap.def)) {
+    const level = getLevel(ctx.state, heroPos(ctx).level);
+    if (!canFallThru(ctx.state, level) || ustuck(ctx) !== null) return;
+  }
+  if (!utrap(ctx)) dotrap(ctx, trap);
+}
+
 export function registerTraps(api: ModApi): void {
+  setFloatDownTrap(floatDownTrap);
   for (const t of TRAPS) api.defineTrap(t);
   for (const a of TRAP_ACTIONS) api.defineAction(a);
   api.on('levelChange', (ctx, change) => {

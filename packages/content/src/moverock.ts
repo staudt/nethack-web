@@ -1,7 +1,7 @@
 // Pushing boulders. ref: src/hack.c moverock(), moverock_core(), dopush(), cannot_push(),
 // cannot_push_msg(), could_move_onto_boulder()
 //
-// Ported subset: the hero is always a human on foot (no Levitation, riding, very small or giant
+// Ported subset: the hero is always a human on foot or floating (no riding, very small or giant
 // forms, Passes_walls, the `m` prefix or tunneling), there are no pools, iron bars, landmines,
 // teleporters, rolling boulder traps or buried zombies, and pushing a boulder in a shop does not
 // bill it (DEVIATIONS.md "Boulders"). In Sokoban a boulder does not roll diagonally and
@@ -34,7 +34,7 @@ import { canSpotMon, monNam } from './perception';
 import { invWeight } from './stats';
 import { T } from './terrain';
 import { TRAP } from './trap';
-import { isMtrapped, isPit } from './trapstate';
+import { isMtrapped, isPit, levitating } from './trapstate';
 
 /** ref: include/weight.h WT_SQUEEZABLE_INV */
 const WT_SQUEEZABLE_INV = 850;
@@ -174,6 +174,13 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
     const what: Msg = firstboulder ? name : { key: 'boulder.next', params: { name } };
     firstboulder = false;
     ctx.interrupt(); // nomul(0)
+
+    // "You don't have enough leverage to push the boulder." (no squeezing past it either)
+    if (levitating(ctx)) {
+      if (heroBlind(ctx.defs, ctx.state)) feelObjects(ctx, level, sx, sy); // feel_location()
+      ctx.emit({ type: 'msg', key: 'boulder.no_leverage', params: { what } });
+      return 'blocked';
+    }
 
     const t = inBounds(level, rx, ry) ? (level.cells[cellIndex(level, rx, ry)] ?? 0) : -1;
     const tdef = t < 0 ? null : ctx.defs.terrain(level.palette[t] ?? T.stone);

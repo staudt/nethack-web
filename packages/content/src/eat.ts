@@ -37,6 +37,7 @@ import { gainExperience } from './hero';
 import { P, hasProp, isStrangled, makeBlinded, makeConfused, timeoutLeft } from './props';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
+import { levitating } from './trapstate';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
 import { costlySpot, isShopType, uShops } from './eshk';
@@ -71,7 +72,8 @@ function reachable(ctx: Ctx, e: Entity): boolean {
   if (it.carriedBy !== null) return it.carriedBy === ctx.state.playerId;
   const hp = hero(ctx).c.pos;
   const p = e.c.pos;
-  return !!hp && !!p && p.level === hp.level && p.x === hp.x && p.y === hp.y;
+  // a floating hero cannot reach the floor (floorfood(), eatfood(): can_reach_floor(TRUE))
+  return !!hp && !!p && p.level === hp.level && p.x === hp.x && p.y === hp.y && !levitating(ctx);
 }
 
 /** ref: src/eat.c obj_nutrition() (no lembas/cram race adjustments: the hero is human) */
@@ -636,7 +638,7 @@ const eat: ActionDef = {
     if (!pos) return [];
     // "There is a X here; eat it?": one offer per food item on the floor
     return itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)
-      .filter((e) => ctx.defs.object(e.def).class === 'food')
+      .filter((e) => ctx.defs.object(e.def).class === 'food' && reachable(ctx, e))
       .map((e) => ({
         ...eatOffer(e.id, 'action.nh:eat_here', { item: ctx.defs.itemName(ctx.state, e) }),
         priority: HERE,

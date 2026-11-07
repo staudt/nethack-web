@@ -5,7 +5,7 @@
 //
 // The state lives in `modData.nh.fountains[levelId][cellIndex]` as bits (C keeps them in the
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
-// Not ported (DEVIATIONS "Quaffing"): levitation (no such property), the enlightenment screen,
+// Not ported (DEVIATIONS "Quaffing"): the enlightenment screen,
 // see invisible (only its messages), water nymphs (C's own "no nymph" branch), pools from gushing
 // water (the rolls are drawn, no pool is made), hallucinated snake and liquid names, exercise.
 // Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
@@ -50,6 +50,7 @@ import { monNam } from './perception';
 import { P, hasProp, wornIn } from './props';
 import { clearArea } from './read';
 import { T, setTerrain } from './terrain';
+import { levitating } from './trapstate';
 import { dungeonBottom, mintrap } from './trap';
 import { angryGuards, watchmanWarnFountain } from './watch';
 import { waterDamage, type WaterResult } from './water';
@@ -313,6 +314,10 @@ const ATTRS: readonly Attr[] = ['str', 'int', 'wis', 'dex', 'con', 'cha'];
 export function drinkfountain(ctx: Ctx, action: DefId): number {
   const at = heroOnFountain(ctx);
   if (!at) return 0;
+  if (levitating(ctx)) {
+    say(ctx, 'lev.floating_above', { what: '@surface.fountain' }); // floating_above()
+    return 0;
+  }
   const level = getLevel(ctx.state);
   const hero = getPlayer(ctx.state);
   const bits = fountainBits(ctx.state, level.id, at.x, at.y);
@@ -506,6 +511,10 @@ const LONG_SWORD: DefId = 'nh:long_sword';
 export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): number {
   const at = heroOnFountain(ctx);
   if (!at) return 0;
+  if (levitating(ctx)) {
+    say(ctx, 'lev.floating_above', { what: '@surface.fountain' }); // floating_above()
+    return 0;
+  }
   const level = getLevel(ctx.state);
   const hero = getPlayer(ctx.state);
   const isHands = obj === 'hands';

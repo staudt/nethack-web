@@ -31,6 +31,7 @@ import { removeFromInventory } from './items';
 import { uState } from './luck';
 import { hcolor } from './magic';
 import { discover, isKnown } from './o_init';
+import { floatDown, floatUp, levitating, otherLevitation } from './levitation';
 import { CHARGED_RINGS } from './objects';
 import { xnameOf } from './objnam';
 import {
@@ -135,6 +136,14 @@ function ringOn(ctx: Ctx, ring: Entity): void {
     case 'nh:ring_of_adornment':
       adjustAttrib(ctx, ring, 'cha', spe);
       break;
+    case 'nh:ring_of_levitation':
+      // `!oldprop && !HLevitation`; nothing blocks it from outside (no solid rock to stand in)
+      if (!otherLevitation(ctx, ring)) {
+        floatUp(ctx);
+        learnring(ctx, ring, true);
+        // `if (Levitation) spoteffects(FALSE)` is for sinks (none exist)
+      }
+      break;
     case 'nh:ring_of_protection':
       // usually learn enchantment and discover type; won't happen if it's +0 and the type hasn't
       // been discovered yet (AC follows from find_ac)
@@ -166,6 +175,10 @@ function ringOffOrGone(ctx: Ctx, ring: Entity): void {
       break;
     case 'nh:ring_of_protection':
       learnring(ctx, ring, spe !== 0);
+      break;
+    case 'nh:ring_of_levitation':
+      floatDown(ctx);
+      if (!levitating(ctx)) learnring(ctx, ring, true);
       break;
     default:
       break;

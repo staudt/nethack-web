@@ -42,6 +42,7 @@ import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
 import { registerTeleportitis, registerTraps } from './trap';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
+import { registerLevitation } from './levitation';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
@@ -102,6 +103,7 @@ export const vanillaMod: Mod = {
     registerMonflee(api);
     registerTraps(api);
     registerJewelry(api);
+    registerLevitation(api);
     registerAutosearch(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
@@ -522,6 +524,7 @@ export {
 } from './trap';
 export type { TrapResult } from './trap';
 export { utrap, isMtrapped, monKnowsTraps } from './trapstate';
+export { levitating, canReachFloor, floatUp, floatDown } from './levitation';
 export {
   JEWELRY_ACTIONS,
   PUTON_ID,

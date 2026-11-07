@@ -1,5 +1,5 @@
 // ref: include/defsym.h PCHAR2 entries (cmap symbols); default chars and colors match NetHack.
-import { cellIndex, type DefId, type Level, type TerrainDef } from '@nh/core';
+import { cellIndex, type Ctx, type DefId, type Level, type TerrainDef } from '@nh/core';
 
 const GRAY = '#aaaaaa';
 const BROWN = '#aa5500';
@@ -319,4 +319,26 @@ export function setTerrain(level: Level, x: number, y: number, id: DefId): void 
   let pi = level.palette.indexOf(id);
   if (pi === -1) pi = level.palette.push(id) - 1;
   level.cells[cellIndex(level, x, y)] = pi;
+}
+
+/**
+ * What the hero digs into at (x, y), as a message param. ref: src/do_name.c surface() for the
+ * terrain that exists here
+ */
+export function surfaceKey(
+  ctx: Pick<Ctx, 'defs'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): string {
+  const id = terrainIdAt(level, x, y);
+  if (id?.startsWith('nh:altar_') === true) return '@surface.altar';
+  if (id === T.fountain) return '@surface.fountain';
+  if (id === undefined) return '@surface.ground';
+  const t = ctx.defs.terrain(id);
+  if (t.stairs !== undefined) return '@surface.stairs';
+  if (isWallId(id) || isSdoorId(id)) return '@surface.wall';
+  if (t.door !== undefined) return '@surface.doorway';
+  // IS_ROOM(): floor and furniture; corridors and rock are "ground"
+  return id === T.corr || id === T.stone || id === T.scorr ? '@surface.ground' : '@surface.floor';
 }

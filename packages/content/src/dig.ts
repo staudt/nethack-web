@@ -11,7 +11,7 @@
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), a magical trap's explosion (explode() is not ported: digging
 // down on a teleportation trap or level teleporter leaves it alone), drawbridges, graves, thrones,
-// the air/water levels, engulfing, leashed pets, Levitation and Flying (no source yet), and pits
+// the air/water levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
 import {
@@ -62,11 +62,14 @@ import {
   isStwallId,
   isWallId,
   setTerrain,
+  surfaceKey,
   terrainIdAt,
 } from './terrain';
 import { TRAP, fallToLevel, isHole, isPit, maketrap, mintrap, setTrapData } from './trap';
-import { setUtrap, uInPit } from './trapstate';
+import { levitating, setUtrap, uInPit } from './trapstate';
 import { watchDig } from './watch';
+
+export { surfaceKey };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -102,23 +105,6 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
 export function mayDig(ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean {
   const id = terrainIdAt(level, x, y);
   return !((isStwallId(id) || id === T.tree) && nonDiggable(ctx, level, x, y));
-}
-
-/**
- * What the hero digs into at (x, y), as a message param. ref: src/do_name.c surface() for the
- * terrain that exists here
- */
-export function surfaceKey(ctx: Ctx, level: Level, x: number, y: number): string {
-  const id = terrainIdAt(level, x, y);
-  if (isAltarId(id)) return '@surface.altar';
-  if (id === T.fountain) return '@surface.fountain';
-  if (id === undefined) return '@surface.ground';
-  const t = ctx.defs.terrain(id);
-  if (t.stairs !== undefined) return '@surface.stairs';
-  if (isWallId(id) || isSdoorId(id)) return '@surface.wall';
-  if (t.door !== undefined) return '@surface.doorway';
-  // IS_ROOM(): floor and furniture; corridors and rock are "ground"
-  return id === T.corr || id === T.stone || id === T.scorr ? '@surface.ground' : '@surface.floor';
 }
 
 /** The trap is gone; Sokoban may be solved. ref: src/trap.c delfloortrap() */
@@ -190,7 +176,10 @@ export function digactualhole(
   if (kind === 'pit') {
     if (byHero) wakeNearto(ctx, hp.x, hp.y, (hero(ctx).c.experience?.level ?? 1) * 20); // wake_nearby()
     if (atU) {
-      setUtrap(ctx, ctx.rng.rn2(4) + 2, 'pit'); // rn1(4, 2)
+      // wont_fall: a floating hero stays above the pit (reset_utrap(TRUE))
+      if (!levitating(ctx))
+        setUtrap(ctx, ctx.rng.rn2(4) + 2, 'pit'); // rn1(4, 2)
+      else setUtrap(ctx, 0, 'pit');
     } else if (mon) {
       const f = ctx.defs.monster(mon.def).flags;
       if (f.includes('fly') || f.includes('float')) {
@@ -203,8 +192,8 @@ export function digactualhole(
     return;
   }
   if (atU) {
-    // a hero held by a monster does not fall
-    if (ustuck(ctx) !== null) return;
+    // a hero held by a monster, or floating (wont_fall), does not fall
+    if (ustuck(ctx) !== null || levitating(ctx)) return;
     say(ctx, 'dig.fall_through');
     // "Earlier checks must ensure that the destination level exists and is in the present
     // dungeon": the next level, not the hole's own destination

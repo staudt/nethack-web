@@ -6,7 +6,8 @@
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
 // `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
 // for monsters that fell to a level the hero is not on. Tables are only created on write.
-import { trapAt, type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
+import { getPlayer, trapAt, type Ctx, type DefId, type EntityId, type Json } from '@nh/core';
+import { P, hasProp } from './props';
 
 type Table = { [k: string]: Json };
 
@@ -48,6 +49,18 @@ export function utrap(ctx: Pick<Ctx, 'state'>): UTrap | null {
   const v = root(ctx, false)?.['utrap'];
   if (!isObj(v) || typeof v['n'] !== 'number' || v['n'] <= 0) return null;
   return { n: v['n'], type: v['type'] === 'pit' ? 'pit' : 'beartrap' };
+}
+
+/**
+ * The hero is floating: a ring of levitation is on (HLevitation || ELevitation) and nothing holds
+ * her to the floor. A bear trap blocks it (BLevitation, set by float_vs_flight() while she is
+ * stuck in the floor); a pit does not. ref: include/youprop.h Levitation; src/polyself.c
+ * float_vs_flight()
+ */
+export function levitating(ctx: Pick<Ctx, 'state'>): boolean {
+  if (!hasProp(getPlayer(ctx.state), P.LEVITATION)) return false;
+  const u = utrap(ctx);
+  return !u || u.type === 'pit';
 }
 
 /** The hero is caught in a pit or spiked pit. ref: `u.utrap && u.utraptype == TT_PIT` */

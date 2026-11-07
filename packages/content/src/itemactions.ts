@@ -9,6 +9,7 @@ import {
   inventoryOf,
   itemsAt,
   shownId,
+  trapAt,
   type ActionDef,
   type ArmorSlot,
   type EquipSlot,
@@ -36,7 +37,9 @@ import {
   stackobj,
   weight,
 } from './items';
-import { T } from './terrain';
+import { T, surfaceKey } from './terrain';
+import { isHole, isPit, levitating, utrap } from './trapstate';
+import { P, hasProp } from './props';
 import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
@@ -174,12 +177,13 @@ export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null 
  * What is here after moving onto a cell with objects, as pickup() -> check_here() -> look_here()
  * with autopickup off: the dungeon feature ("There is a fountain here."), then "You see here X.",
  * one line listing up to 4, or "There are several objects here.". Stops multi-turn movement
- * (travel). ref: src/pickup.c check_here(), src/invent.c look_here() with pile_limit 5.
- * Not ported: engravings, traps, blindness.
+ * (travel). Nothing while she floats: pickup() returns when she cannot reach the floor.
+ * ref: src/pickup.c pickup(1), check_here(), src/invent.c look_here() with pile_limit 5.
+ * Not ported: engravings, traps, blindness, describe_decor() while floating.
  */
 export function lookHere(ctx: Ctx): void {
   const pos = hero(ctx).c.pos;
-  if (!pos) return;
+  if (!pos || levitating(ctx)) return;
   const here = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y);
   const ct = here.length;
   if (ct === 0) return;
@@ -447,6 +451,26 @@ function floorHere(ctx: Ctx): Entity[] {
   return pos ? itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y) : [];
 }
 
+/**
+ * Why a floating hero cannot pick up what is here: the bottom of a seen pit she is not in,
+ * nothing when blind, else the floor (the edge of a hole, a trap door).
+ * ref: src/hack.c pickup_checks() !can_reach_floor() (no steed)
+ */
+function cantReachPickup(ctx: Ctx): void {
+  const pos = hero(ctx).c.pos;
+  if (!pos) return;
+  const level = getLevel(ctx.state, pos.level);
+  const t = trapAt(level, pos.x, pos.y);
+  let key = 'pickup.cant_reach';
+  let surface: string = surfaceKey(ctx, level, pos.x, pos.y);
+  // uteetering_at_seen_pit()
+  if (t && isPit(t.def) && t.seen && utrap(ctx)?.type !== 'pit') key = 'pickup.cant_reach_pit';
+  else if (hasProp(hero(ctx), P.BLINDED)) key = 'pickup.cant_reach_anything';
+  else if (t && isHole(t.def))
+    surface = t.def === 'nh:hole' ? '@pickup.edge_of_hole' : '@nh:trap_door';
+  ctx.emit({ type: 'msg', key, params: { surface } });
+}
+
 const pickup: ActionDef = {
   id: 'nh:pickup',
   labelKey: 'action.nh:pickup',
@@ -467,6 +491,10 @@ const pickup: ActionDef = {
     const here = floorHere(ctx);
     if (here.length === 0) {
       ctx.emit({ type: 'msg', key: 'pickup.nothing' });
+      return 0;
+    }
+    if (levitating(ctx)) {
+      cantReachPickup(ctx);
       return 0;
     }
     const data: PickData = { stage: 'menu', ids: here.map((e) => e.id), enc: 0, picked: 0 };

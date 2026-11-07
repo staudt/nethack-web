@@ -31,7 +31,7 @@ import { canSpotMon, monNam } from './perception';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { P, hasProp } from './props';
-import { T, setTerrain } from './terrain';
+import { T, setTerrain, surfaceKey } from './terrain';
 import { luckOf } from './luck';
 import {
   climbPit,
@@ -43,7 +43,8 @@ import {
   trapToConfirm,
   trapmove,
 } from './trap';
-import { isMtrapped, isPit, setMtrapped, uInPit } from './trapstate';
+import { isMtrapped, isPit, levitating, setMtrapped, uInPit } from './trapstate';
+import { floatingAbove, resumeLevitation } from './levitation';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
 import { BOULDER, boulderAt, feelObjects, rememberedBoulder, sokobanBoulder } from './boulder';
@@ -395,7 +396,8 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
         {
           id: 'trap-confirm',
           kind: 'yn',
-          key: intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto',
+          // "Really float into..." while levitating (u_locomotion("step"))
+          key: `${intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto'}${levitating(ctx) ? '_float' : ''}`,
           params: { trap: `@${t.def}` },
           cancellable: true,
         },
@@ -406,8 +408,11 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
       return 0;
     }
   }
-  // ref: domove_core(): `if (u.utrap) { if (!trapmove(x, y, NULL)) return; }` -- the move is spent
+  // ref: domove_core(): `if (u.utrap) { if (!trapmove(x, y, NULL)) return; }` -- the move is spent;
+  // once free, reset_utrap(TRUE) "might resume levitation"
+  const wasLevitating = levitating(ctx);
   if (!trapmove(ctx, dir)) {
+    resumeLevitation(ctx, wasLevitating);
     ctx.interrupt();
     return NORMAL_SPEED;
   }
@@ -637,6 +642,17 @@ const down: ActionDef = {
       ? [{ action: { type: 'mod', action: 'nh:down' }, labelKey: 'action.down', priority: HERE }]
       : [],
   perform(ctx) {
+    // ref: dodown(): `HLevitation || ELevitation` (even when a bear trap blocks it): "You are
+    // floating high above the stairs.", no time
+    if (hasProp(getPlayer(ctx.state), P.LEVITATION)) {
+      const p = playerAt(ctx);
+      const stairs = terrainUnderHero(ctx).stairs === 'down';
+      floatingAbove(
+        ctx,
+        stairs ? '@surface.stairs' : surfaceKey(ctx, getLevel(ctx.state), p.x, p.y),
+      );
+      return 0;
+    }
     // ref: dodown(): on a seen trap door or hole, `uescaped_shaft()` -> dotrap(TOOKPLUNGE)
     const hole = terrainUnderHero(ctx).stairs === 'down' ? null : seenHoleHere(ctx);
     if (hole) return plunge(ctx, hole);

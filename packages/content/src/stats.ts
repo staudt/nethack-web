@@ -11,6 +11,7 @@ import {
 import { weight } from './items';
 import { armBonus } from './material';
 import { P, hasProp } from './props';
+import { levitating } from './trapstate';
 import { uState } from './luck';
 import { uspellOf } from './uenergy';
 
@@ -93,10 +94,11 @@ export function acurrstr(str: number): number {
 }
 
 /**
- * Carrying capacity. ref: src/hack.c weight_cap(). Not ported: polymorph, levitation, steeds,
- * wounded legs.
+ * Carrying capacity: the most there is while the hero floats. ref: src/hack.c weight_cap().
+ * Not ported: polymorph, steeds.
  */
 export function weightCap(state: Readonly<GameState>, id: EntityId): number {
+  if (id === state.playerId && levitating({ state })) return MAX_CARR_CAP;
   const a = state.entities[String(id)]?.c.attributes;
   const carrcap =
     WT_WEIGHTCAP_STRCON * (acurrstr(a?.str ?? 10) + (a?.con ?? 10)) + WT_WEIGHTCAP_SPARE;

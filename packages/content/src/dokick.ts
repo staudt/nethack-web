@@ -2,8 +2,10 @@
 // really_kick_object(), kick_door(), kick_nondoor(), kick_dumb(), kick_ouch(); src/zap.c bhit()
 // (KICKED_WEAPON); src/do.c set_wounded_legs()
 //
-// The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not
-// levitating, not riding, not swimming. Those branches are not ported. Shop goods kicked out of
+// The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not riding,
+// not swimming. Those branches are not ported; levitating she needs something to brace against,
+// misses small monsters wildly, cannot break doors or reach the floor's objects, but is never
+// pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
 // a shop are owed (stolen_value()); kicked gold (costly_gold(): no loan) and shop damage are not.
 // Also not ported: traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
@@ -47,7 +49,7 @@ import { getdirImpaired } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { losehp } from './hp';
-import { utrap } from './trapstate';
+import { levitating, utrap } from './trapstate';
 import { wakeNearto } from './noise';
 import { setWoundedLegs } from './legs';
 
@@ -61,7 +63,7 @@ import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peacef
 import { passive, type PassiveTarget } from './uhitm_passive';
 import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
-import { T } from './terrain';
+import { T, isObstructedId, terrainIdAt } from './terrain';
 import { thitmonst } from './dothrow';
 import { costlySpot, eshkOf, isShopType } from './eshk';
 import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
@@ -138,14 +140,19 @@ const terrainAt = (ctx: Ctx, x: number, y: number): TerrainDef => {
  * or locked door gives way when `rnl(35) < (Str + Dex + Con) / 3`: with Str over 18 one time in 5
  * it shatters, otherwise it crashes open; both leave a doorway here (D_NODOOR and D_BROKEN are
  * the same square). Otherwise "Thwack!!" (1 in 3) or "Whammm!!". In town a watchman in sight
- * arrests the hero for a broken door, and warns her (then arrests her) for a damaged one. Not
- * ported: trapped doors, shop doors, Levitation.
+ * arrests the hero for a broken door, and warns her (then arrests her) for a damaged one; a
+ * floating hero has not enough leverage ("Ouch!"). Not ported: trapped doors, shop doors.
  */
 function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   const t = terrainAt(ctx, x, y);
   if (t.door !== 'closed' && t.door !== 'locked') {
     kickDumb(ctx);
     return; // uses a turn
+  }
+  // not enough leverage to kick open doors while levitating
+  if (levitating(ctx)) {
+    kickOuch(ctx, x, y, 'door');
+    return;
   }
   if (rnl(ctx.rng, 35, luckOf(ctx.state)) < avrg) {
     const level = getLevel(ctx.state);
@@ -162,8 +169,9 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
 
 /**
  * ref: src/dokick.c kick_nondoor(): secret doors and corridors open up with `rn2(30) < avrg`
- * ("Crash!"), an altar angers its god (altar_wrath()), walls and rock hurt, the up stairs hurt and the down stairs are "dumb", and
- * anything else is empty space.
+ * ("Crash!"), an altar angers its god (altar_wrath()), walls and rock hurt, the up stairs hurt
+ * and the down stairs are "dumb", and anything else is empty space. Floating, she never opens a
+ * secret door or passage and kicks at the air above an altar.
  */
 function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   const level = getLevel(ctx.state);
@@ -171,7 +179,7 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   const secretDoor =
     id === T.sdoor_v || id === T.sdoor_h || id === T.sdoor_locked_v || id === T.sdoor_locked_h;
   if (secretDoor) {
-    if (ctx.rng.rn2(30) < avrg) {
+    if (!levitating(ctx) && ctx.rng.rn2(30) < avrg) {
       const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
       const vertical = id === T.sdoor_v || id === T.sdoor_locked_v;
       // cvt_sdoor_to_door(): a locked one is uncovered (still locked), a closed one kicked open
@@ -181,13 +189,17 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
     return;
   }
   if (id === T.scorr) {
-    if (ctx.rng.rn2(30) < avrg) {
+    if (!levitating(ctx) && ctx.rng.rn2(30) < avrg) {
       say(ctx, 'kick.kicks_open_passage');
       setTerrain(level, x, y, T.corr);
     } else kickOuch(ctx, x, y, 'rock');
     return;
   }
   if (aAlign(ctx, x, y) !== null) {
+    if (levitating(ctx)) {
+      kickDumb(ctx);
+      return;
+    }
     // ref: kick_nondoor() IS_ALTAR: "You kick the altar.", altar_wrath(), 1 in 3 it hurts
     // (the Dex exercise otherwise is not ported)
     say(ctx, hasProp(hero(ctx), P.BLINDED) ? 'kick.something' : 'kick.altar');
@@ -480,6 +492,17 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   // anger target even if wild miss will occur
   setmangry(ctx, monId);
 
+  if (
+    levitating(ctx) &&
+    ctx.rng.rn2(3) === 0 &&
+    def.size === 'tiny' && // verysmall()
+    !def.flags.includes('fly')
+  ) {
+    say(ctx, 'kick.miss_wildly');
+    passiveMiss();
+    return;
+  }
+
   // ref: "What the following confusing if statements mean": over 70% of capacity
   const i = -invWeight(ctx.state, ctx.defs, ctx.state.playerId);
   const j = weightCap(ctx.state, ctx.state.playerId);
@@ -570,6 +593,18 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   const d = DIRS[dir];
   const x = pos.x + d.x;
   const y = pos.y + d.y;
+  // "doors can be opened while levitating, so they must be reachable for bracing purposes"
+  if (levitating(ctx)) {
+    const xx = pos.x - d.x;
+    const yy = pos.y - d.y;
+    if (inBounds(level, xx, yy)) {
+      const id = terrainIdAt(level, xx, yy);
+      if (!isObstructedId(id) && (id === undefined || ctx.defs.terrain(id).door === undefined)) {
+        say(ctx, 'kick.no_brace');
+        return 0;
+      }
+    }
+  }
   // KMH -- Kicking boots always succeed (not ported)
   const a = attr(ctx);
   const avrg = Math.trunc((acurrstr(a.str) + a.dex + a.con) / 3);
@@ -597,7 +632,8 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   // monsters, pools, objects, non-doors, doors -- in that order
   const pile = itemsAt(ctx.defs, ctx.state, level.id, x, y);
   const top = pile[0];
-  if (top) {
+  // floating, only a boulder's top is in reach (`!Levitation || sobj_at(BOULDER, x, y)`)
+  if (top && (!levitating(ctx) || pile.some((e) => e.def === BOULDER))) {
     // kickstr(): killer_xname() of the top object; only a boulder gets its own name here
     if (!reallyKickObject(ctx, top, x, y, dir))
       kickOuch(ctx, x, y, top.def === BOULDER ? 'boulder' : 'object');
