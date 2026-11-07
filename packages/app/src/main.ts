@@ -1,7 +1,7 @@
 import type { ClientMod, PlayerAction } from '@nh/core';
 import { messagesEn } from '@nh/content';
 import { createAsciiRenderer } from '@nh/render-ascii';
-import { createUi, movementKeys } from '@nh/ui';
+import { DEFAULT_STEP_DELAY_MS, createUi, movementKeys } from '@nh/ui';
 import {
   extendedCommands,
   keyHelpEn,
@@ -15,6 +15,14 @@ import {
   wizardKeys,
 } from './keys';
 import { WIZARD, bootPlan, modsForSave, newGameMods, savedSeed } from './mods';
+import {
+  DEFAULT_RUNMODE,
+  loadOptions,
+  openOptions,
+  runmodeDelay,
+  saveOptions,
+  type ClientOptions,
+} from './options';
 import { parseParams } from './params';
 import { createRemote, type Remote } from './remote';
 import { addScore, isoDate, loadScores, scoreRows, type ScoreResult } from './scores';
@@ -101,6 +109,36 @@ const storage = ((): Storage | null => {
 })();
 /** Number pad by default (k kicks); vi keys (hjkl move) as a remembered setting. */
 const layout = loadLayout(storage);
+/** The device's options (name, run speed, disclosure). */
+let options: ClientOptions = loadOptions(storage);
+
+/** Hands the options the UI applies live to it. */
+function applyOptions(): void {
+  ui.configure({
+    stepDelayMs: runmodeDelay(options.runmode ?? DEFAULT_RUNMODE, DEFAULT_STEP_DELAY_MS),
+    disclose: options.disclose ?? 'ask',
+  });
+}
+
+function showOptions(): void {
+  openOptions({
+    showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
+    askText: (title, initial, max) => ui.askText(title, initial, max),
+    get: () => options,
+    set: (o) => {
+      options = o;
+      saveOptions(storage, o);
+      applyOptions();
+    },
+    layout,
+    switchLayout: () => {
+      // Keys are bound at start-up: save, remember the choice and reload.
+      saveLayout(storage, layout === 'numpad' ? 'vi' : 'numpad');
+      void saveNow().then(() => location.reload());
+    },
+    resetZoom: () => ui.resetZoom(),
+  });
+}
 
 /** The high-score list: the last game's place on it, if it has just ended. */
 function showScores(own: ScoreResult | null, back?: () => void): void {
@@ -144,15 +182,7 @@ const appMenuMod: ClientMod = {
       labelKey: 'app.scores',
       run: () => showScores(null),
     });
-    api.addMenuItem({
-      id: 'app.keys',
-      labelKey: layout === 'numpad' ? 'app.keys.to_vi' : 'app.keys.to_numpad',
-      run: () => {
-        // Keys are bound at start-up: save, remember the choice and reload.
-        saveLayout(storage, layout === 'numpad' ? 'vi' : 'numpad');
-        void saveNow().then(() => location.reload());
-      },
-    });
+    api.addMenuItem({ id: 'app.options', labelKey: 'app.options', run: showOptions });
   },
 };
 
@@ -174,6 +204,7 @@ const ui = createUi({
   ...runPrefixes,
   ...lookOptions,
   onNewGame: () => void clearSave().then(startNew),
+  playerName: () => options.name,
   // ref: src/end.c really_done(): `if (!wizard) topten()`
   onGameOver: (s) => {
     const entry = {
@@ -187,11 +218,11 @@ const ui = createUi({
   },
   endEntries: () => [{ labelKey: 'app.scores', run: (back) => showScores(lastScore, back) }],
 });
+applyOptions();
 ui.api.addMessages('en', messagesEn);
 ui.api.addMessages('en', keyHelpEn);
 ui.api.addMessages('en', {
-  'app.keys.to_vi': 'Keys: use vi keys (hjkl move)',
-  'app.keys.to_numpad': 'Keys: use number pad (k kicks)',
+  'app.options': 'Options',
   'app.scores': 'High scores',
   'ui.status.wizard': 'Wizard',
 });

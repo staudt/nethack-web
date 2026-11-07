@@ -587,6 +587,31 @@ describe('status bar, tombstone, tap to act', () => {
     expect(m.title()).toBe('You died');
   });
 
+  test('end: disclose all shows the asked lists without asking; none skips them', () => {
+    const m = mkEnd();
+    m.ui.configure({ disclose: 'all' });
+    m.ui.update(over(), LISTS.slice(1), null);
+    expect(m.title()).toBe('Your possessions:');
+    key('Escape');
+    expect(m.title()).toBe('Final attributes:');
+    key('Escape');
+    expect(m.rip()).toContain('jackal');
+    m.ui.destroy();
+    const n = mkEnd();
+    n.ui.configure({ disclose: 'none' });
+    n.ui.update(over(), LISTS, null);
+    // a list without a question is not a disclosure: it still shows
+    expect(n.title()).toBe('[disco.title]');
+    key('Escape');
+    expect(n.rip()).toContain('jackal');
+  });
+
+  test('end: an empty player name falls back to the role', () => {
+    const m = mkEnd({ playerName: () => undefined });
+    m.ui.update(over(), [], null);
+    expect(m.texts()[0]).toBe('Goodbye Valkyrie the Valkyrie...');
+  });
+
   test('end: Enter answers Yes; the player name goes on the stone and in Goodbye', () => {
     const m = mkEnd({ playerName: () => 'Brunhilde' });
     m.ui.update(over({ gold: 1, hpmax: 1, endTurn: 1 }), LISTS.slice(2), null);
@@ -1256,6 +1281,20 @@ describe('multi-turn actions in the UI', () => {
     expect(m.acts).toEqual([]);
     vi.advanceTimersByTime(1);
     expect(m.acts).toEqual([CONT]);
+  });
+
+  test("configure changes the step delay live, not a flight's", () => {
+    const m = setup();
+    m.ui.configure({ stepDelayMs: 300 });
+    m.ui.update(view(), [], null, true);
+    vi.advanceTimersByTime(299);
+    expect(m.acts).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(m.acts).toEqual([CONT]);
+    m.ui.configure({ stepDelayMs: 0 });
+    m.ui.update(view(), [], null, true);
+    vi.advanceTimersByTime(0);
+    expect(m.acts).toEqual([CONT, CONT]);
   });
 
   test('a key cancels and is swallowed; nothing continues afterwards', () => {

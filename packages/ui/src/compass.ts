@@ -130,6 +130,8 @@ export interface TextSpec {
   title: string;
   params?: Params;
   maxLength: number;
+  /** The text the input starts with (an option's current value). */
+  initial?: string;
   /** A whole number: the phone shows a number pad and only digits are kept. */
   numeric?: boolean;
   okLabel: string;
@@ -151,6 +153,7 @@ export function openTextPrompt(root: HTMLElement, spec: TextSpec): OpenMenu {
   input.autocomplete = 'off';
   input.setAttribute('autocapitalize', 'off');
   input.setAttribute('aria-label', spec.title);
+  if (spec.initial !== undefined) input.value = spec.initial.slice(0, spec.maxLength);
   if (spec.numeric) {
     // a text input with a number pad (type=number would accept 1e5 and lose leading text)
     input.inputMode = 'numeric';

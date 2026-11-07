@@ -11,13 +11,22 @@ import { an, ripLines } from './status';
 type ListEvent = Extract<GameEvent, { type: 'list' }>;
 type Status = ViewUpdate['status'];
 
+/**
+ * What the end of the game discloses: ask before each list (the default), show every list
+ * without asking, or show none. NetHack's `disclose` option, one setting for every list.
+ * ref: src/end.c should_query_disclose_option(), really_done() `strcmp(flags.end_disclose, "none")`
+ */
+export type Disclose = 'ask' | 'all' | 'none';
+
 export interface EndDeps {
   t(key: string, params?: Params): string;
   has(key: string): boolean;
   /** Opens a sheet (replacing any open one). */
   open(spec: MenuSpec): OpenMenu;
-  /** The stone's and the summary's name; the role's name when absent. */
-  playerName?: (() => string) | undefined;
+  /** The stone's and the summary's name; the role's name when absent or empty. */
+  playerName?: (() => string | undefined) | undefined;
+  /** Default 'ask'. */
+  disclose?: Disclose | undefined;
   year: number;
   onNewGame(): void;
   /** Called once with the finished game, before the stone (the app records the score). */
@@ -82,7 +91,7 @@ export function deathText(d: Pick<EndDeps, 't' | 'has'>, s: Status): string {
 
 /** The name on the stone and in "Goodbye". */
 const nameOf = (d: EndDeps, s: Status): string =>
-  d.playerName?.() ?? (s['role'] ? d.t(String(s['role'])) : '');
+  d.playerName?.() || (s['role'] ? d.t(String(s['role'])) : '');
 
 /** really_done()'s closing text. ref: src/end.c really_done() "Goodbye %s the %s..." */
 export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: string): string[] {
@@ -145,11 +154,14 @@ const hasStone = (s: Status): boolean => {
 /**
  * Runs the end sequence: lists without a question first, then each question (Yes shows its
  * list; No skips it; Quit skips every later one, C's done_stopprint), then the stone and the
- * summary with New game. Returns nothing; the last sheet stays until New game.
+ * summary with New game. `disclose` 'all' shows the asked lists without their questions
+ * ('+' in C's option), 'none' skips them ('-'). Returns nothing; the last sheet stays until New
+ * game.
  */
 export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): void {
   const plain = lists.filter((l) => l.ask === undefined);
-  const asked = lists.filter((l) => l.ask !== undefined);
+  const disclose = d.disclose ?? 'ask';
+  const asked = disclose === 'none' ? [] : lists.filter((l) => l.ask !== undefined);
   const showList = (l: ListEvent, next: () => void): void => {
     d.open({
       title: d.t(l.titleKey),
@@ -165,6 +177,10 @@ export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): voi
       return;
     }
     const next = (): void => ask(i + 1);
+    if (disclose === 'all') {
+      showList(l, next);
+      return;
+    }
     const entries: MenuEntry[] = [
       { label: d.t('ui.yes'), run: () => showList(l, next), key: 'y' },
       { label: d.t('ui.no'), run: next, key: 'n' },

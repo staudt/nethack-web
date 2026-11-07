@@ -247,6 +247,25 @@ describe('text prompt', () => {
     expect(input(m.root).inputMode).toBe('');
   });
 
+  test('askText: starts at the given text; OK answers it, Cancel and a replacing sheet null', async () => {
+    const m = mk();
+    const p = m.ui.askText('Who are you?', 'Old', 31);
+    expect(m.root.querySelector('.nh-sheet-title')?.textContent).toBe('Who are you?');
+    expect(input(m.root).value).toBe('Old');
+    expect(input(m.root).maxLength).toBe(31);
+    expect(document.activeElement).toBe(input(m.root)); // the on-screen keyboard comes up
+    input(m.root).value = ' Brunhilde ';
+    (m.root.querySelector('.nh-confirm') as HTMLElement).click();
+    await expect(p).resolves.toBe('Brunhilde');
+    const q = m.ui.askText('Who are you?', '', 31);
+    (m.root.querySelector('.nh-sheet .nh-cancel') as HTMLElement).click();
+    await expect(q).resolves.toBeNull();
+    const r = m.ui.askText('Who are you?', '', 31);
+    m.ui.showText('Other', []);
+    await expect(r).resolves.toBeNull();
+    expect(m.acts).toEqual([]);
+  });
+
   test('game keys do not fire while typing', () => {
     const m = mk();
     m.ui.update(view(), [], tp);
@@ -390,6 +409,18 @@ describe('zoom', () => {
     expect(() => zoomBtn(m.root).click()).not.toThrow();
     expect(renderer.fit).toBe(true);
     vi.restoreAllMocks();
+  });
+
+  test('resetZoom goes back to the normal zoom and remembers it', () => {
+    localStorage.setItem(ZOOM_STORAGE_KEY, '14');
+    const m = mk();
+    m.ui.resetZoom();
+    expect(renderer.calls).toEqual(['zoom:14', 'reset']);
+    expect(localStorage.getItem(ZOOM_STORAGE_KEY)).toBe('');
+    zoomBtn(m.root).click();
+    m.ui.resetZoom();
+    expect(renderer.calls.at(-1)).toBe('reset');
+    expect(zoomBtn(m.root).getAttribute('aria-pressed')).toBe('false');
   });
 
   test('the button is hidden for a renderer without zoom', () => {

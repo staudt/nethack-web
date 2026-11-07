@@ -40,7 +40,7 @@ import { openChecklist, openMenu, type MenuEntry, type OpenMenu } from './menu';
 import { createMessageLog } from './messageLog';
 import { injectStyles } from './styles';
 import { statusLines } from './status';
-import { playEnd, type EndEntry, type EndSummary } from './gameover';
+import { playEnd, type Disclose, type EndEntry, type EndSummary } from './gameover';
 import { openHelp } from './help';
 
 /**
@@ -106,7 +106,10 @@ export interface UiOptions {
   locale?: string;
   /** Window for chording two arrow keys into a diagonal; 0 disables. Default 100. */
   chordWindowMs?: number;
-  /** Delay between the moves of a multi-turn action. Default {@link DEFAULT_STEP_DELAY_MS}. */
+  /**
+   * Delay between the moves of a multi-turn action, and between the frames of a flying object.
+   * Default {@link DEFAULT_STEP_DELAY_MS}. {@link Ui.configure} changes only the moves' delay.
+   */
   stepDelayMs?: number;
   /** Called by the tombstone's New game button; falls back to the menu item with id 'new'. */
   onNewGame?: () => void;
@@ -117,8 +120,8 @@ export interface UiOptions {
   prefixes?: Record<string, (dir: Dir) => PlayerAction>;
   /** Object ids the look cursor's `o`/`O` skip (NetHack skips boulders and rocks). */
   lookSkipObjects?: readonly string[];
-  /** The player's name for the tombstone and "Goodbye"; the role's name when absent. */
-  playerName?: () => string;
+  /** The player's name for the tombstone and "Goodbye"; the role's name when absent or empty. */
+  playerName?: () => string | undefined;
   /** The finished game, once per game over (the app records the score). */
   onGameOver?: (s: EndSummary) => void;
   /** Extra buttons on the end sheet ("High scores"); `back` shows the end sheet again. */
@@ -134,8 +137,20 @@ export interface Ui {
    */
   update(view: ViewUpdate, events: GameEvent[], prompt: Prompt | null, continuing?: boolean): void;
   notify(key: string, params?: Params): void;
-  /** A read-only sheet of text rows (the app's score list); Close runs `onClose`. */
+  /**
+   * A sheet of rows (the app's score list and options): text rows, and buttons that close it
+   * and run; Close runs `onClose`.
+   */
   showText(title: string, entries: MenuEntry[], onClose?: () => void): void;
+  /**
+   * A text input sheet starting at `initial` (works with a phone's on-screen keyboard): the
+   * trimmed text, at most `maxLength` characters, or null on Cancel.
+   */
+  askText(title: string, initial: string, maxLength: number): Promise<string | null>;
+  /** Device options, applied at once: the run speed's step delay, what the end discloses. */
+  configure(o: { stepDelayMs?: number; disclose?: Disclose }): void;
+  /** Back to the normal zoom (not fitted, not pinched), remembered. */
+  resetZoom(): void;
   readonly api: ClientApi;
   destroy(): void;
 }
@@ -249,7 +264,10 @@ export function createUi(opts: UiOptions): Ui {
   let promptId: string | null = null;
 
   // Multi-turn actions (travel, run, meals) advance by `continue` messages, one per step delay.
-  const stepDelayMs = opts.stepDelayMs ?? DEFAULT_STEP_DELAY_MS;
+  let stepDelayMs = opts.stepDelayMs ?? DEFAULT_STEP_DELAY_MS;
+  // A thrown object's flight keeps its pace whatever the run speed (C's tmp_at() delay_output)
+  const flightDelayMs = stepDelayMs;
+  let disclose: Disclose = 'ask';
   let stepTimer: ReturnType<typeof setTimeout> | null = null;
   /** A `continue` was sent and its view has not arrived yet. */
   let continueInFlight = false;
@@ -364,6 +382,7 @@ export function createUi(opts: UiOptions): Ui {
         has: (k) => hasMessage(catalogs, locale, k),
         open: (spec) => showSheet((onClose) => openMenu(root, { ...spec, onClose })),
         playerName: opts.playerName,
+        disclose,
         year: new Date().getFullYear(),
         onNewGame: newGame,
         onGameOver: opts.onGameOver,
@@ -905,7 +924,7 @@ export function createUi(opts: UiOptions): Ui {
           return;
         }
         flasher?.flash(f);
-        anim = { timer: setTimeout(next, stepDelayMs), done };
+        anim = { timer: setTimeout(next, flightDelayMs), done };
       };
       const done = (): void => applyUpdate(view, events, prompt, continuing);
       next();
@@ -915,6 +934,42 @@ export function createUi(opts: UiOptions): Ui {
     },
     showText(title, entries, onClose) {
       if (!destroyed) showModal(title, entries, t('ui.close'), undefined, onClose);
+    },
+    askText(title, initial, maxLength) {
+      return new Promise((resolve) => {
+        if (destroyed) {
+          resolve(null);
+          return;
+        }
+        showSheet((onClose) =>
+          openTextPrompt(root, {
+            title,
+            initial,
+            maxLength,
+            okLabel: t('ui.text.ok'),
+            cancelLabel: t('ui.cancel'),
+            onSubmit: resolve,
+            onCancel: () => resolve(null),
+            onClose: () => {
+              onClose();
+              // replaced by another sheet: no answer (a submit resolves first, synchronously)
+              queueMicrotask(() => resolve(null));
+            },
+          }),
+        );
+      });
+    },
+    configure(o) {
+      if (o.stepDelayMs !== undefined) stepDelayMs = Math.max(0, o.stepDelayMs);
+      if (o.disclose !== undefined) disclose = o.disclose;
+    },
+    resetZoom() {
+      if (destroyed || !zoomer) return;
+      zoomFit = false;
+      zoomCell = null;
+      applyZoom();
+      saveZoom();
+      refreshText();
     },
     destroy() {
       if (destroyed) return;

@@ -93,6 +93,16 @@ describe('projectile flight', () => {
     expect(lines(m.root)).toHaveLength(1);
   });
 
+  test("the run speed (configure) does not change a flight's pace", () => {
+    const m = mk();
+    m.ui.configure({ stepDelayMs: 0 });
+    m.ui.update(view(), [proj('nh:dagger', 6, 7), hit], null);
+    vi.advanceTimersByTime(D - 1);
+    expect(m.r.log).toEqual(['nh:dagger@6,5']);
+    vi.advanceTimersByTime(1);
+    expect(m.r.log.at(-1)).toBe('nh:dagger@7,5');
+  });
+
   test('input skips the rest, applies the update, and is then handled', () => {
     const m = mk();
     m.ui.update(view(), [proj('nh:dagger', 6, 7, 8), hit], null);
