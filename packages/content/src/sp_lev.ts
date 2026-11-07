@@ -23,6 +23,7 @@ import {
   VANILLA_TERRAIN,
 } from '@nh/core';
 import { boulderAt } from './boulder';
+import { premapDetect } from './detect';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mktrap } from './mklev';
@@ -236,7 +237,11 @@ export function mapToLevel(def: LevelDef, level: Level, x: number, y: number): P
   return levelDefPos(def, level.width, level.height, x, y, undefined, `${def.id} fixup`);
 }
 
-/** Fills levels built from a LevelDef, with their fixups; runs after mklev's own newLevel hook. */
+/**
+ * Fills levels built from a LevelDef, with their fixups, then maps a `premapped` one; runs after
+ * mklev's own newLevel hook. ref: src/sp_lev.c load_special(): fixup_special(), then
+ * premap_detect()
+ */
 export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevFixup>> = {}): void {
   api.on('newLevel', (ctx, level) => {
     if (level.def === undefined) return;
@@ -245,5 +250,6 @@ export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevF
     fixup?.before?.(ctx, level, def);
     fillSpecialLevel(ctx, level, def);
     fixup?.after?.(ctx, level, def);
+    if (def.flags?.premapped === true) premapDetect(ctx, level);
   });
 }

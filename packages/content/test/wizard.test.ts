@@ -228,8 +228,8 @@ describe('wiz:where', () => {
     const got = msgs(events).map((m) => ({ key: m.key, params: m.params }));
     expect(got).toEqual(expected);
 
-    // The vanilla layout: the Dungeons of Doom (no bottom yet) with the Mines branch and the
-    // Oracle on DL5-9, then the Mines.
+    // The vanilla layout: the Dungeons of Doom (no bottom yet) with the Mines branch, the
+    // Oracle on DL5-9 and the Sokoban branch up from the level below it, then the Mines.
     const [main, mines] = state.dungeons;
     const branch = main?.branches[0];
     const oracle = main?.special[0];
@@ -243,7 +243,11 @@ describe('wiz:where', () => {
       key: 'wiz.where.special',
       params: { name: '@nh:oracle', depth: oracle?.dlevel ?? -1 },
     });
-    got.splice(2, 1);
+    expect(got[3]).toEqual({
+      key: 'wiz.where.branch_up',
+      params: { dungeon: '@nh:sokoban', depth: (oracle?.dlevel ?? -1) + 1 },
+    });
+    got.splice(2, 2);
     expect(got[2]).toEqual({
       key: 'wiz.where.levels',
       params: {

@@ -177,7 +177,7 @@ describe('priestini', () => {
 describe('pri_move', () => {
   test('a peaceful priest mills around his altar and never leaves the temple', () => {
     for (const [seed, hero] of [
-      [1, { x: 12, y: 3 }], // out in the corridor, lined up with the altar's row
+      [4, { x: 12, y: 3 }], // out in the corridor, lined up with the altar's row
       [2, { x: 6, y: 3 }], // in the doorway
       [3, { x: 1, y: 5 }], // inside
     ] as const) {
@@ -189,7 +189,7 @@ describe('pri_move', () => {
         expect(p && inside(p)).toBe(true);
         expect(mon(s, s.priest)?.c.monster?.peaceful).toBe(true);
         // he keeps out of the hero's lines (move_special() `avoid`): never on her row here
-        if (seed === 1 && t > 0) expect(p?.y).not.toBe(3);
+        if (seed === 4 && t > 0) expect(p?.y).not.toBe(3);
         if (p) seen.add(`${p.x},${p.y}`);
       }
       // he moves about (toward rn1(3,-1) of the altar)

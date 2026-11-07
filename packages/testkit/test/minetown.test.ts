@@ -252,6 +252,7 @@ describe('kicking a door in a real Minetown', () => {
       if (e.c.actor) e.c.actor.speed = 0;
       if (e.def.startsWith('nh:watch')) watch.push(id);
     }
+    if (watch.length === 0) return null; // Orcish Town: no Watch
     const free = (x: number, y: number): boolean =>
       isPlainFloor(defs, level, x, y) && inTown(level, x, y) && !taken.has(`${x},${y}`);
     for (let i = 0; i < level.cells.length; i++) {
@@ -353,6 +354,15 @@ describe('the temple priest of a real Minetown', () => {
     expect(checkInvariants(state, defs)).toEqual([]);
   });
 
+  /** The first seed (from `from`) whose Minetown has a temple priest (not Orcish Town). */
+  function priestTown(from: number) {
+    for (let seed = from; seed < from + 50; seed++) {
+      const t = minetown(seed);
+      if (priestsOn(t.state, t.level.id).length > 0) return t;
+    }
+    throw new Error('no Minetown with a priest');
+  }
+
   test('angered, he casts clerical spells at the hero next to him (m7a)', () => {
     const CLERICAL = [
       'mcastu.wounds.itches',
@@ -369,7 +379,7 @@ describe('the temple priest of a real Minetown', () => {
       'mcastu.fire_pillar',
       'mcastu.geyser',
     ];
-    const { state, level } = minetown(1);
+    const { state, level } = priestTown(1);
     const [id] = priestsOn(state, level.id);
     const priest = state.entities[String(id)];
     const pp = priest?.c.pos;
@@ -407,7 +417,7 @@ describe('the temple priest of a real Minetown', () => {
 
   test('he does not follow the hero off the level, peaceful or angry', () => {
     for (const angry of [false, true]) {
-      const { state, level } = minetown(angry ? 2 : 1);
+      const { state, level } = priestTown(angry ? 2 : 1);
       const [id] = priestsOn(state, level.id);
       const priest = state.entities[String(id)];
       const pp = priest?.c.pos;

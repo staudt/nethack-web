@@ -66,14 +66,16 @@ function reachable(level: Level, from: Pos): Set<number> {
 }
 
 describe('the Mines layout', () => {
-  test('entry on DL2-4, 8 or 9 levels, one branch staircase in the main dungeon', () => {
+  test('entry on DL2-4, 8 or 9 levels, one Mines branch staircase in the main dungeon', () => {
     const entries = new Set<number>();
     const sizes = new Set<number>();
     for (let seed = 1; seed <= 300; seed++) {
-      const [main, mines, ...rest] = rollDungeons(createRng(seedRng(seed)), defs.dungeons);
+      const [main, mines, soko, ...rest] = rollDungeons(createRng(seedRng(seed)), defs.dungeons);
       expect(rest).toEqual([]);
+      expect(soko?.id).toBe('nh:sokoban');
       expect(main).toMatchObject({ id: 'nh:main', depthStart: 1, levels: null });
-      expect(main?.branches).toHaveLength(1);
+      // the Mines' branch stairs, then Sokoban's (below the Oracle, DL6-10)
+      expect(main?.branches.map((x) => x.to)).toEqual(['nh:mines', 'nh:sokoban']);
       const b = main?.branches[0];
       expect(b?.to).toBe('nh:mines');
       const dl = b?.dlevel ?? 0;

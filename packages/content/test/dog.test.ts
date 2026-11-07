@@ -275,7 +275,7 @@ describe('pets fight and eat', () => {
   });
 
   test('a hungry pet weakens (max HP / 3), then starves', () => {
-    const s = setup(ROOM);
+    const s = setup(ROOM, 2); // seed: no rn2(50) cure of its confusion in these turns
     const k = addPet(s.state, 'nh:kitten', 6, 2);
     const e = edogOf(ctxOf(s.state), k)!;
     e.hungrytime = s.state.turn - 501;

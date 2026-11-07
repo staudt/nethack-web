@@ -15,6 +15,7 @@ import {
   type Level,
   type ModApi,
 } from '@nh/core';
+import { BOULDER, boulderCells } from './boulder';
 import { nhData } from './items';
 import { P, hasProp, heroHas } from './props';
 import { T, setTerrain } from './terrain';
@@ -30,6 +31,27 @@ export function showMapSpot(ctx: Ctx, level: Level, x: number, y: number, cnf: b
   const i = y * level.width + x;
   if (level.palette[level.cells[i] ?? 0] === T.scorr) setTerrain(level, x, y, T.corr);
   memory[i] = level.cells[i] ?? 0;
+}
+
+/**
+ * A `premapped` level (Sokoban) is known from the start: every cell but stone goes into the
+ * hero's memory, every boulder is remembered and every trap is seen. NetHack skips only stone
+ * that is non-diggable or non-passwall, which solidify_map() makes of all of Sokoban's stone, so
+ * all stone is skipped here. Run when the level is made, after its contents and fixups.
+ * ref: src/detect.c premap_detect(), skip_premap_detect(); src/sp_lev.c load_special()
+ * (`if (gc.coder->premapped) premap_detect()`)
+ */
+export function premapDetect(ctx: Ctx, level: Level): void {
+  const memory = (ctx.state.memory[level.id] ??= newMemory(level));
+  const objMemory = (ctx.state.objectMemory[level.id] ??= {});
+  const boulders = boulderCells(ctx, level);
+  for (let i = 0; i < level.cells.length; i++) {
+    const t = level.cells[i] ?? 0;
+    if (level.palette[t] === T.stone) continue;
+    memory[i] = t;
+    if (boulders.has(i)) objMemory[String(i)] = BOULDER; // map_object(sobj_at(BOULDER))
+  }
+  for (const t of level.traps) t.seen = true; // tseen = 1; map_trap()
 }
 
 /**

@@ -23,6 +23,7 @@ import {
   relobj,
   uState,
 } from '../src/index';
+import { setU } from '../src/luck';
 import { addMon } from './helpers';
 import { ctxFor, defs, engine, itemOf, levelSetup, render } from './itemHelpers';
 
@@ -230,10 +231,12 @@ describe('looking at an altar', () => {
 
 describe('the wrath of an altar (altar_wrath, kicking)', () => {
   test("its own god: Wisdom and a point of alignment record; another god's: Luck", () => {
-    // the hero is neutral (Odin): the coaligned branch needs record > -rn2(4), always at 0+
+    // the hero is neutral (Odin): the coaligned branch needs record > -rn2(4), always at 1+
+    // (at 0 it fails 1 time in 4)
     const own = onAltarSetup(T.altar_neutral);
     const h = own.hero.c.attributes!;
     h.wis = 12;
+    setU({ state: own.state }, { alignRecord: 1 });
     const ctx = ctxFor(own.state);
     altarWrath(ctx as unknown as Ctx, 2, 1);
     expect(ctx.events.map((e) => (e.type === 'msg' ? render(e) : ''))).toEqual([
@@ -241,7 +244,7 @@ describe('the wrath of an altar (altar_wrath, kicking)', () => {
         /^The voice of Odin (booms out|thunders|rings out|booms): "How darest thou desecrate my altar!"$/,
       ),
     ]);
-    expect([h.wis, uState(own.state).alignRecord]).toEqual([11, -1]);
+    expect([h.wis, uState(own.state).alignRecord]).toEqual([11, 0]);
 
     let lost = 0;
     for (let seed = 1; seed <= 60; seed++) {

@@ -195,7 +195,7 @@ describe('kicking boulders', () => {
   };
 
   test('"Ouch! That hurts!": hit points lost, the boulder stays', () => {
-    const s = levelSetup(['.@..', '....']);
+    const s = levelSetup(['.@..', '....'], 2); // seed: no HP regained in the kick's turn
     const h = getPlayer(s.state);
     h.c.attributes = { str: 18, int: 10, wis: 10, dex: 14, con: 18, cha: 10 };
     const b = mksobj(s.ctx, obj(BOULDER), { init: false, at: { level: 'dlvl1', x: 2, y: 0 } });
