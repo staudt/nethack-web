@@ -15,6 +15,11 @@ export class Keymap {
     this.map.set(key, cmd);
   }
 
+  /** Every binding, `[key, command]`, in binding order (help builds its command list from it). */
+  entries(): [string, UiCommand][] {
+    return [...this.map.entries()];
+  }
+
   /**
    * Lookup by `code` first, then by `key`. With Shift held, `Shift+<code>` and `Shift+<key>`
    * bindings are tried first, so Shift+arrow can differ from the plain arrow.

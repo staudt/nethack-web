@@ -4,6 +4,7 @@ import { createAsciiRenderer } from '@nh/render-ascii';
 import { createUi, movementKeys } from '@nh/ui';
 import {
   extendedCommands,
+  keyHelpEn,
   loadLayout,
   lookOptions,
   numpadKeys,
@@ -156,6 +157,7 @@ const ui = createUi({
   onNewGame: () => void clearSave().then(startNew),
 });
 ui.api.addMessages('en', messagesEn);
+ui.api.addMessages('en', keyHelpEn);
 ui.api.addMessages('en', {
   'app.keys.to_vi': 'Keys: use vi keys (hjkl move)',
   'app.keys.to_numpad': 'Keys: use number pad (k kicks)',

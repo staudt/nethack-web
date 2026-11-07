@@ -223,3 +223,20 @@ export function extendedCommands(game: {
     },
   };
 }
+
+/**
+ * Help descriptions for keys whose command has no `action.*` label of its own, or whose label
+ * needs a target (`help.cmd.<command id>`, see the UI's help).
+ */
+export const keyHelpEn: Record<string, string> = {
+  'help.cmd.nh:down': 'Go down a staircase',
+  'help.cmd.nh:up': 'Go up a staircase',
+  'help.cmd.pick:nh:loot': 'Loot a box on the floor',
+  'help.cmd.pick:nh:dip': 'Dip an object',
+  'help.cmd.prefix:open': 'Open a door',
+  'help.cmd.prefix:fight': 'Fight in a direction, even if you see nothing there',
+  'help.cmd.prefix:idtrap': 'Identify a trap next to you',
+  'help.cmd.prefix:rush': 'Rush in a direction, until something interesting',
+  'help.cmd.prefix:run': 'Run in a direction, until something very interesting',
+  'help.dir.nh:run': 'Shift with a direction: run.',
+};

@@ -41,6 +41,7 @@ import { createMessageLog } from './messageLog';
 import { injectStyles } from './styles';
 import { statusLines } from './status';
 import { playEnd } from './gameover';
+import { openHelp } from './help';
 
 /**
  * Delay before the UI sends `continue` for the next move of a travel, run or meal, so the hero is
@@ -180,6 +181,8 @@ export function createUi(opts: UiOptions): Ui {
       menuItems.push(item);
     },
   };
+  // `?` opens help (ref: src/cmd.c, `?` dohelp); a mod may rebind it.
+  keymap.bind('?', { type: 'ui', id: 'help' });
   for (const mod of opts.mods) mod.register(api);
   refreshText();
 
@@ -476,10 +479,42 @@ export function createUi(opts: UiOptions): Ui {
   const openMainMenu = (): void => {
     showModal(
       t('ui.menu'),
-      menuItems.map((it) => ({ label: t(it.labelKey), run: () => it.run() })),
+      [
+        ...menuItems.map((it) => ({ label: t(it.labelKey), run: () => it.run() })),
+        { label: t('ui.help'), run: () => showHelp() },
+      ],
       true,
     );
   };
+
+  /** A command chosen in help; a direction prefix asks for its direction on the compass. */
+  const runFromHelp = (cmd: UiCommand): void => {
+    const make =
+      cmd.type === 'ui' && cmd.id.startsWith('prefix:') ? opts.prefixes?.[cmd.id.slice(7)] : null;
+    if (!make) {
+      runCommand(cmd);
+      return;
+    }
+    showSheet((onClose) =>
+      openCompass(root, {
+        title: t('ui.help.direction'),
+        enabled: new Set(['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']),
+        cancelLabel: t('ui.compass.cancel'),
+        onPick: (dir) => game.act(make(dir as Dir)),
+        onCancel: () => {},
+        onClose,
+      }),
+    );
+  };
+  const showHelp = (): void =>
+    openHelp({
+      t,
+      has: (k) => hasMessage(catalogs, locale, k),
+      open: (spec) => showSheet((onClose) => openMenu(root, { ...spec, onClose })),
+      entries: () => keymap.entries(),
+      menuItems: () => menuItems,
+      run: runFromHelp,
+    });
 
   const describeLine = (d: Description): string => {
     const names = d.entities.map((e) => t(e.def));
@@ -562,6 +597,9 @@ export function createUi(opts: UiOptions): Ui {
         break;
       case 'inventory':
         openInventory();
+        break;
+      case 'help':
+        showHelp();
         break;
       default:
         if (cmd.id.startsWith('pick:')) pickItem(cmd.id.slice(5));

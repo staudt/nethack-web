@@ -334,7 +334,12 @@ describe('host', () => {
     const m = mk({ mods: [mod] });
     ui = m.ui;
     (m.root.querySelector('.nh-menu-btn') as HTMLElement).click();
-    expect(btns(m.root).map((b) => b.textContent)).toEqual(['a - Alpha', 'b - Beta', 'Cancel']);
+    expect(btns(m.root).map((b) => b.textContent)).toEqual([
+      'a - Alpha',
+      'b - Beta',
+      'c - Help',
+      'Cancel',
+    ]);
     btns(m.root)[1]!.click();
     expect(run2).toHaveBeenCalled();
     expect(run1).not.toHaveBeenCalled();
