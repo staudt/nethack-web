@@ -94,11 +94,15 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m8 high-score storage format** (2026-11-07): the user approved the planner's recommendation as written. localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Unblocks m8 step 4.
   - Entry shape (step 4, fdeec33): each entry stores the end's parts as rendered (the `EndSummary` fields) plus seed, date and app version; `entryText()` joins them for display. **Kept by the user 2026-11-07.**
 
-## Parked
+## Approved by the user (7f)
 
-- **7f core contracts** (2026-11-07). Plan draft: `~/.claude/plans/m7f.md` (summary at the top; ~16 steps, ~4.8M, after m9/m10). Costly to undo, need the user:
+- **7f core contracts** (2026-11-07, **approved by the user 2026-11-08: D1, D3, D5 and D6 as recommended**). Plan: `~/.claude/plans/m7f.md` (summary at the top; ~16 steps, ~4.8M).
   - **D1 position prompt:** new `Prompt.kind: 'position'` (optional `start`, `valid`), answered `{x, y}` or null; UI reuses the getpos cursor, on a phone tap moves and a second tap picks. In replays, UI hosts and the soak bot.
   - **D3 remembered `I`:** a `monsterMemory` entry that is not a MonsterDef id becomes a marker; kept on visible cells, so `ViewCell.m` may appear on visible cells. In saves; renderer meaning changes.
   - **D5 polymorphed hero:** the hero keeps the role def; the form lives in content (`modData.nh.upoly`), no `player.form` in core. In saves.
   - **D6 hero HP while polymorphed:** the form's HP goes into `c.hp`, her own is parked in `upoly`, so damage paths stay as they are. In saves.
   - Cheap ones (D2, D4, D7-D11) and seven small open questions (jumping, cloak of invisibility, centaurs, stone-to-flesh meat, statue colour, polymorph scope cuts, two-run split): take the plan's recommendations, faithful to NetHack (user guidance 2026-11-07), unless the user says otherwise.
+
+## Parked
+
+Nothing parked.
