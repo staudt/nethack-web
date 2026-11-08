@@ -59,6 +59,7 @@ Enforced by dependency-cruiser (`pnpm boundaries`). Run it after adding any impo
 - Port citations: `// ref: src/hack.c domove()` on every ported mechanic.
 - Don't invent mechanics: check `vendor/nethack`, then NetHackWiki, then ask.
 - Def ids are namespaced `mod:name` (vanilla uses `nh:`).
+- Adding vanilla monsters or objects: generate the defs with `pnpm convert:monsters` / `convert:objects` and keep `packages/testkit/test/convert.test.ts` green (see `docs/CONVERTER.md`).
 - Iterate entities via `sortedIds()`; never `for...in` in `core` or `content` (lint-banned).
 - `engine.step(state, action)` mutates state in place; clone first if you need the old one.
 - Messages: emit `{ type: 'msg', key, params }`; English text lives in `packages/content/src/messages.en.ts`.

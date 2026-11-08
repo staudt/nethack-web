@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test"
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test && tsc --noEmit -p tools"
   },
   "dependencies": {
     "@nh/core": "workspace:*",

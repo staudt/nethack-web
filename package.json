@@ -15,7 +15,9 @@
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "check": "pnpm typecheck && pnpm lint && pnpm boundaries && pnpm test"
+    "check": "pnpm typecheck && pnpm lint && pnpm boundaries && pnpm test",
+    "convert:monsters": "node packages/testkit/tools/convert.ts monsters",
+    "convert:objects": "node packages/testkit/tools/convert.ts objects"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
