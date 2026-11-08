@@ -43,4 +43,4 @@ The Riders' `AD_DETH`/`AD_PEST`/`AD_FAMN` (no Astral Plane), `AD_SAMU` (no Amule
 
 ## Status
 
-Steps 1-6 are done (damage-type dispatcher and erosion, gazes/explosions/hugs, theft, engulfing, breath and spit (built later, on m10), stoning). Steps 7 and 8 were not built (budget) and moved to ROADMAP "From m9", where the phone checks for the built steps are in TESTPLAN "9 damage types and attack styles". The golden is now 014ac45b901d01164134892a0614/593; it changed in step 6 (lichen and lizard corpses no longer rot, as in C).
+Steps 1-7 are done (damage-type dispatcher and erosion, gazes/explosions/hugs, theft, engulfing, breath and spit and level drain/lycanthropy (both built later, on m10), stoning). Step 8 was not built (budget) and is in ROADMAP "From m9"; the phone checks for the built steps are in TESTPLAN "9 damage types and attack styles". The hero's beast form from lycanthropy waits for 7f-d. The golden changed in step 6 (lichen and lizard corpses no longer rot, as in C) and step 7 (`pluslvl()` records each level's HP/Pw gains): 01b7dba4892f1a088d6294f6c14c/648.
