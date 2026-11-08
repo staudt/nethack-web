@@ -14,8 +14,8 @@ import {
   type Pos,
   type Rng,
 } from '@nh/core';
-import { mdamageu } from './mhitu';
-import { M_ATTK, NO_HITMSG, mhitmAdtyping, newMhm } from './adtyping';
+import { explmu, gazemu, mdamageu } from './mhitu';
+import { M_ATTK, hitmsgFor, mhitmAdtyping, newMhm } from './adtyping';
 import { castmu } from './mcastu';
 import { monsterDied } from './mondeath';
 import { isFleeing, monflee } from './monflee';
@@ -405,6 +405,9 @@ function hitVerb(at: AttackType): string {
       return 'butts';
     case 'touch':
       return 'touches';
+    case 'explode':
+    case 'boom':
+      return 'explodes';
     default:
       return 'hits';
   }
@@ -438,8 +441,8 @@ export function hitmu(
     if (dmg <= 0) dmg = 1;
   }
   // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
-  // their own line
-  if (!NO_HITMSG.has(atk.ad))
+  // their own line (and a physical hug)
+  if (hitmsgFor(atk))
     ctx.emit({
       type: 'msg',
       key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,
@@ -476,9 +479,10 @@ function nextToHero(ctx: Ctx, mon: Entity): boolean {
 /**
  * The monster `monId` makes all its attacks at the hero (it is adjacent), following mattacku()'s
  * switch on the attack type with the results `sum[]`.
- * ref: src/mhitu.c mattacku(), missmu(). The other attack styles (hugs, gazes, explosions,
- * engulfing, breath, spit) do nothing until their m9 step; a monster at range is not handled
- * here (thrwmu() and castmu() through monmove.ts / mthrowu.ts).
+ * ref: src/mhitu.c mattacku(), missmu(). A hug is automatic after the two attacks before it hit
+ * (or while it holds her); gazes (gazemu()) and explosions (explmu()) need no to-hit roll.
+ * Engulfing (step 4), breath and spit (step 5, at range) do nothing yet; a monster at range is
+ * not handled here (mattackRanged() in mthrowu.ts, through monmove.ts).
  */
 export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const hero = getPlayer(ctx.state);
@@ -565,7 +569,21 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         // castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
         castmu(ctx, monId, atk, true, true);
         break;
-      // AT_HUGS, AT_GAZE, AT_EXPL (step 2), AT_ENGL (step 4), AT_BREA, AT_SPIT (step 5, at range)
+      case 'hug':
+        // automatic if prev two attacks succeed, or while it holds her (`!range2`: next to her);
+        // failed_grab() never fails against the hero (she is never unsolid: no polymorph)
+        if ((i >= 2 && sum[i - 1] && sum[i - 2]) || ustuck(ctx) === monId)
+          sum[i] = hitmu(ctx, mon, atk, null, false, ac);
+        break;
+      case 'gaze':
+        // can affect her either ranged or not (Medusa's gaze works through m_respond(): step 6)
+        if (mon.def !== 'nh:medusa') sum[i] = gazemu(ctx, mon, atk);
+        break;
+      case 'explode':
+        // automatic hit if next to, and aimed at her
+        sum[i] = explmu(ctx, mon, atk, true);
+        break;
+      // AT_ENGL (step 4), AT_BREA, AT_SPIT (step 5, at range)
       default: // no attack
         break;
     }

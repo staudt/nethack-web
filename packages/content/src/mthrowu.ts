@@ -22,14 +22,14 @@ import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
 import { monFloorEffects } from './align';
 import { boulderFlooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
-import { mdamageu } from './mhitu';
+import { gazemu, mdamageu } from './mhitu';
 import { addToInventory, placeOnFloor, removeFromInventory, splitStack } from './items';
 import { heroSees, minvent, monFlag, monWep, monWield } from './mongear';
 import { mondied } from './mhitm';
 import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
 import { monNam } from './perception';
-import { luckOf } from './luck';
+import { luckOf, uState } from './luck';
 import { HARD_GEMS } from './gem';
 import { greatestErosion } from './material';
 
@@ -634,9 +634,10 @@ export function thrwmu(ctx: Ctx, monId: EntityId, clear: ClearFn, prevHero: Pos 
 }
 
 /**
- * A monster that is in range but not next to the hero makes the ranged part of its attack:
- * each weapon attack becomes thrwmu(). ref: src/mhitu.c mattacku() `case AT_WEAP: if (range2)
- * thrwmu(mtmp)`.
+ * A monster that is in range but not next to the hero makes the ranged part of its attacks, in
+ * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(). Nothing while she is in the
+ * midst of a successful prayer (silently at range). ref: src/mhitu.c mattacku() with range2:
+ * `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE: gazemu(mtmp, mattk)` (breath and spit: step 5)
  */
 export function mattackRanged(
   ctx: Ctx,
@@ -647,9 +648,18 @@ export function mattackRanged(
   const mon = ctx.state.entities[String(monId)];
   if (!mon) return;
   const def = ctx.defs.monster(mon.def);
+  if (uState(ctx.state).uinvulnerable) return;
+  let threw = false;
   for (const a of def.attacks) {
-    if (a.at !== 'weapon') continue;
-    thrwmu(ctx, monId, clear, prevHero);
-    break;
+    // counterattack against attack [i-1] might have been fatal
+    if (!ctx.state.entities[String(monId)]?.c.monster) return;
+    if (a.at === 'weapon' && !threw) {
+      thrwmu(ctx, monId, clear, prevHero);
+      threw = true;
+    } else if (a.at === 'gaze' && mon.def !== 'nh:medusa') {
+      // (Medusa's gaze works through m_respond(): step 6)
+      gazemu(ctx, mon, a);
+    }
+    if (ctx.state.gameOver) return;
   }
 }

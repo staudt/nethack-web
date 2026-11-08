@@ -3,9 +3,9 @@
 // src/mon.c monkilled(), mondied(); src/makemon.c grow_up()
 //
 // The damage types are adtyping.ts's (mhitm_adtyping()). Passive responses: acid, disenchantment,
-// paralysis (floating eye), cold, stun, fire and elec. Not ported yet: engulfing, hugs, gazes,
-// breath, spit and explosions (mattackm's switch has their cases, which do nothing until their
-// m9 step), shades, silver, cloning puddings, petrification.
+// paralysis (floating eye), cold, stun, fire and elec. Hugs, gazes (gazemm()) and explosions
+// (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
+// which do nothing until their m9 step), shades, silver, cloning puddings, petrification.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -17,11 +17,12 @@ import {
   type Msg,
 } from '@nh/core';
 import { hitval } from './combat';
-import { monkilled, mondied } from './mondeath';
+import { mondead, monkilled, mondied } from './mondeath';
+import { monExplodes } from './explode';
 
 export { monkilled, mondied };
 import { M_ATTK, drainItem, mhitmAdtyping, newMhm } from './adtyping';
-import { monWep, monWieldItem } from './mongear';
+import { heroSees, monWep, monWieldItem } from './mongear';
 import {
   paralyzeMonst,
   isCancelled,
@@ -181,10 +182,98 @@ function hitmm(
               ? 'touches'
               : atk.at === 'tentacle'
                 ? 'tentacles'
-                : 'hits';
+                : atk.at === 'hug' && ustuck(ctx) !== magr.id
+                  ? 'squeezes'
+                  : 'hits';
     say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
   } else noises(ctx, magr);
   return mdamagem(ctx, magr, mdef, atk, mwep, vis, dieroll);
+}
+
+/** ref: include/mondata.h unsolid() */
+const unsolid = (ctx: Ctx, mon: Entity): boolean =>
+  ctx.defs.monster(mon.def).flags.includes('unsolid');
+
+/**
+ * A hold, wrap, sticky touch or swallow passes right through an unsolid target (lights, vortices,
+ * most elementals): "The owlbear's grab attempt passes right through the yellow light!". Only
+ * monster defenders here (the hero is never unsolid: no polymorph; no long worm tails).
+ * ref: src/mhitm.c failed_grab()
+ */
+export function failedGrab(
+  ctx: Ctx,
+  magr: Entity,
+  mdef: Entity,
+  atk: AttackDef,
+  vis: boolean,
+): boolean {
+  if (
+    unsolid(ctx, mdef) &&
+    (atk.at === 'hug' || atk.ad === 'wrap' || atk.ad === 'stck' || atk.ad === 'dgst')
+  ) {
+    if (vis && canSpotMon(ctx, mdef)) {
+      const verb = atk.ad === 'dgst' ? 'gulp' : atk.ad === 'stck' ? 'adhere' : 'grab';
+      say(ctx, 'mhitm.grab_passes', {
+        magr: monNam(ctx, magr),
+        verb: `@mhitm.verb.${verb}`,
+        mdef: monNam(ctx, mdef),
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The aggressor gazes at the defender: nothing happens when it is cancelled or blind, or the
+ * defender is blind or asleep; else the gaze's damage type acts as a hit (mdamagem()).
+ * ref: src/mhitm.c gazemm() (no Archon, no Medusa: her reflection and stoning are step 6; no
+ * invisible monsters)
+ */
+function gazemm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
+  if (vis) {
+    say(ctx, canSpotMon(ctx, mdef) ? 'mhitm.gazes_at' : 'mhitm.gazes_at_something', {
+      magr: monNam(ctx, magr),
+      mdef: monNam(ctx, mdef),
+    });
+  }
+  if (
+    isCancelled(ctx, magr.id) ||
+    !mcansee(ctx, mdef.id) ||
+    !mcansee(ctx, magr.id) ||
+    mdef.c.monster?.asleep === true
+  ) {
+    if (vis && canSpotMon(ctx, mdef)) say(ctx, 'mhitm.nothing_happens');
+    return M_ATTK.MISS;
+  }
+  return mdamagem(ctx, magr, mdef, atk, null, vis, 0);
+}
+
+/**
+ * The aggressor explodes at the defender ("The yellow light explodes!") and dies: a sphere's
+ * fire, cold or electricity in a real explosion, the rest (lights) as a hit on the defender.
+ * A pet's death gives "You have a melancholy feeling." ref: src/mhitm.c explmm() (no leashes,
+ * no life saving)
+ */
+function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
+  if (isCancelled(ctx, magr.id)) return M_ATTK.MISS;
+  const at = magr.c.pos ? { ...magr.c.pos } : null;
+  if (at && heroSees(ctx, at)) say(ctx, 'mhitm.explodes', { mon: monNam(ctx, magr) });
+  else noises(ctx, magr);
+  const tame = (magr.c.monster?.tame ?? 0) > 0;
+  let result: number;
+  if (atk.ad === 'fire' || atk.ad === 'cold' || atk.ad === 'elec') {
+    if (at) monExplodes(ctx, magr.def, at, atk, false, magr.id);
+    // unconditionally set AGR_DIED here; lifesaving is accounted below
+    result = M_ATTK.AGR_DIED | (alive(ctx, mdef.id) ? 0 : M_ATTK.DEF_DIED);
+  } else result = mdamagem(ctx, magr, mdef, atk, null, vis, 0);
+  // kill off aggressor if it didn't die
+  if (!(result & M_ATTK.AGR_DIED)) {
+    mondead(ctx, magr.id);
+    result |= M_ATTK.AGR_DIED;
+  }
+  if (tame) say(ctx, 'mhitm.melancholy'); // give this one even if it was visible
+  return result;
 }
 
 /** ref: src/mhitm.c missmm() (no seduction) */
@@ -390,11 +479,37 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
         strike = tmp > dieroll;
         // KMH -- don't accumulate to-hit bonuses
         if (mwep) tmp -= hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
-        if (strike) res[i] = hitmm(ctx, magr, mdef, atk, mwep, vis, dieroll);
-        else missmm(ctx, magr, mdef, vis);
+        if (strike) {
+          // for eel AT_TUCH+AD_WRAP attack: can't grab an unsolid target
+          if (unsolid(ctx, mdef) && failedGrab(ctx, magr, mdef, atk, vis)) {
+            strike = false;
+            break;
+          }
+          res[i] = hitmm(ctx, magr, mdef, atk, mwep, vis, dieroll);
+        } else missmm(ctx, magr, mdef, vis);
         break;
       }
-      // AT_HUGS (step 2: automatic if the previous two hit), AT_GAZE, AT_EXPL (step 2),
+      case 'hug': // automatic if prev two attacks succeed
+        strike = i >= 2 && res[i - 1] === M_ATTK.HIT && res[i - 2] === M_ATTK.HIT;
+        if (strike) {
+          if (failedGrab(ctx, magr, mdef, atk, vis)) strike = false;
+          else res[i] = hitmm(ctx, magr, mdef, atk, null, vis, 0);
+        }
+        break;
+      case 'gaze':
+        strike = false;
+        res[i] = gazemm(ctx, magr, mdef, atk, vis);
+        break;
+      case 'explode':
+        // prevent explosions from a distance
+        if (distmin(magr, mdef) > 1) continue;
+        res[i] = explmm(ctx, magr, mdef, atk, vis);
+        if (res[i] === M_ATTK.MISS) {
+          // cancelled--no attack
+          strike = false;
+          attk = false;
+        } else strike = true; // automatic hit
+        break;
       // AT_ENGL (step 4), AT_BREA and AT_SPIT (step 5): no attack yet
       default: // no attack
         attk = false;

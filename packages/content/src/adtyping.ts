@@ -104,7 +104,14 @@ export const newMhm = (damage: number, dieroll = 0): Mhm => ({
  * The damage types whose mhitu branch gives no hitmsg() (they print their own line, or nothing).
  * ref: src/uhitm.c mhitm_ad_blnd(), mhitm_ad_legs(), mhitm_ad_halu()
  */
-export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu']);
+export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu', 'wrap']);
+
+/**
+ * Whether hitmu() gives the hit message for this attack: not for NO_HITMSG's types, nor for a
+ * physical hug (mhitm_ad_phys()'s AT_HUGS branch prints "grabs you!" or "being crushed" itself).
+ */
+export const hitmsgFor = (atk: AttackDef): boolean =>
+  !NO_HITMSG.has(atk.ad) && !(atk.at === 'hug' && atk.ad === 'phys');
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -378,9 +385,64 @@ const acurr = (ctx: Ctx, a: 'dex' | 'con'): number => getPlayer(ctx.state).c.att
 // ---------------------------------------------------------------------------------------------
 // the damage types
 
-/** mhitm_ad_phys(): only the mhitm part (the mhitu weapon damage is added by combat.ts). */
+/**
+ * Whether slippery clothing protects the hero from a hug or wrap: a greased or oilskin cloak (or
+ * suit, or shirt; the helmet against AD_DRIN), 1 time in 3 failing when cursed. Nothing is ever
+ * greased and there is no oilskin cloak yet, so it never does; the rolls are C's.
+ * ref: src/mhitu.c u_slip_free()
+ */
+export function uSlipFree(ctx: Ctx, magr: Entity, atk: AttackDef): boolean {
+  // greased armor does not protect against AT_ENGL+AD_WRAP
+  if (atk.at === 'engulf') return false;
+  const hero = ctx.state.playerId;
+  let obj = whichArmor(ctx, hero, 'cloak') ?? whichArmor(ctx, hero, 'body');
+  if (!obj) obj = whichArmor(ctx, hero, 'shirt');
+  if (atk.ad === 'drin') obj = whichArmor(ctx, hero, 'helm');
+  // (no `greased` flag on objects)
+  if (
+    obj &&
+    obj.def === 'nh:oilskin_cloak' &&
+    (obj.c.item?.buc !== 'cursed' || ctx.rng.rn2(3) !== 0)
+  ) {
+    say(ctx, atk.ad === 'wrap' ? 'mhitu.slips_off' : 'mhitu.cannot_hold', {
+      mon: monNam(ctx, magr),
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+    return true;
+  }
+  return false;
+}
+
+/** ref: include/mondata.h slithy() with S_SNAKE or S_NAGA: a coiling wrap */
+const coils = (ctx: Ctx, mon: Entity): boolean => {
+  const d = ctx.defs.monster(mon.def);
+  return d.flags.includes('slithy') && (d.glyph.ch === 'S' || d.glyph.ch === 'N');
+};
+
+/**
+ * mhitm_ad_phys(): the mhitm part, and the mhitu AT_HUGS hold (the mhitu weapon damage is added
+ * by combat.ts). A hug that is not a hold yet grabs her half the time ("The owlbear grabs you!");
+ * one that holds her crushes ("You are being crushed."); otherwise it just does its damage.
+ */
 function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
-  if (mdef.id === ctx.state.playerId) return; // mhitu: combat.ts did dmgval()
+  if (mdef.id === ctx.state.playerId) {
+    // (the hero is never sticky: no polymorph)
+    if (atk.at === 'hug') {
+      if (ustuck(ctx) === null && ctx.rng.rn2(2)) {
+        if (uSlipFree(ctx, magr, atk)) {
+          mhm.damage = 0;
+        } else {
+          setUstuck(ctx, magr.id);
+          say(ctx, 'mhitu.grabs_you', { mon: monNam(ctx, magr) });
+          mhm.hitflags |= M_ATTK.HIT;
+        }
+      } else if (ustuck(ctx) === magr.id) {
+        // exercise(A_STR, FALSE): no exercise
+        say(ctx, magr.def === 'nh:rope_golem' ? 'mhitu.being_choked' : 'mhitu.being_crushed');
+      }
+    }
+    return; // mhitu: combat.ts did dmgval()
+  }
   // a kick against a thick-skinned monster does nothing; a weapon (on AT_WEAP or AT_CLAW) adds
   // dmgval()
   const pd = ctx.defs.monster(mdef.def);
@@ -618,6 +680,43 @@ function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   // C's mhitm branch draws the negation roll (`if (negated) damage = 0`); the port has always
   // treated it as plain damage (see the plan's step 1 notes)
   adPhys(ctx, magr, atk, mdef, mhm, env);
+}
+
+/**
+ * mhitm_ad_wrap(): a python or eel swinging (or coiling) itself around the hero, 1 time in 10,
+ * then holding her; while held a hug crushes. Drowning needs pools (none yet). A monster target
+ * is only brushed against when the damage comes to nothing.
+ */
+function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, _env: AdEnv): void {
+  const coil = coils(ctx, magr);
+  if (mdef.id === ctx.state.playerId) {
+    // (`!sticks(pd)`: the hero is never sticky)
+    if (!isCancelled(ctx, magr.id) || ustuck(ctx) === magr.id) {
+      if (ustuck(ctx) === null && ctx.rng.rn2(10) === 0) {
+        if (uSlipFree(ctx, magr, atk)) {
+          mhm.damage = 0;
+        } else {
+          setUstuck(ctx, magr.id); // before message, for botl update
+          say(ctx, coil ? 'mhitu.coils_around' : 'mhitu.swings_around', {
+            mon: monNam(ctx, magr),
+          });
+        }
+      } else if (ustuck(ctx) === magr.id) {
+        // pools: "X drowns you..." on a pool or moat square (no water terrain yet)
+        if (atk.at === 'hug') say(ctx, 'mhitu.being_crushed');
+      } else {
+        mhm.damage = 0;
+        say(ctx, coil ? 'mhitu.brushes_against' : 'mhitu.brushes_leg', {
+          mon: monNam(ctx, magr),
+        });
+      }
+    } else mhm.damage = 0;
+    return;
+  }
+  // mhitm
+  if (isCancelled(ctx, magr.id)) mhm.damage = 0;
+  if (!mhm.damage && (canSpotMon(ctx, magr) || canSpotMon(ctx, mdef)))
+    say(ctx, 'mhitm.brushes_against', { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
 }
 
 /** mhitm_ad_rust(), mhitm_ad_corr(), mhitm_ad_dcay(): erode a random piece of armor */
@@ -943,6 +1042,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   conf: adConf,
   dise: adDise,
   halu: adHalu,
+  wrap: adWrap,
 };
 
 /**

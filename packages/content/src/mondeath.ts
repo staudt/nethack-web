@@ -63,7 +63,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
       else placeOnFloor(ctx, id, at.level, at.x, at.y);
     }
   }
-  xkilledCorpse(ctx, def, at);
+  xkilledCorpse(ctx, def, at, true);
 }
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -94,11 +94,22 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   if (!mon?.c.monster) return;
   const def = ctx.defs.monster(mon.def);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
+  mondead(ctx, id);
+  if (at) xkilledCorpse(ctx, def, at);
+}
+
+/**
+ * The monster dies with no corpse (an exploding light or sphere): its things drop and it is
+ * removed. ref: src/mon.c mondead() -> m_detach() (no life saving)
+ */
+export function mondead(ctx: Ctx, id: EntityId): void {
+  const mon = ent(ctx, id);
+  if (!mon?.c.monster) return;
+  const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
   shkgone(ctx, id); // ref: m_detach()
   countKill(ctx, mon.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);
-  if (at) xkilledCorpse(ctx, def, at);
 }

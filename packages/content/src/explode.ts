@@ -1,17 +1,19 @@
-// Explosions: the 3x3 blast of a broken wand or of a magical trap set off by cancellation or
-// digging. ref: src/explode.c explode(), explosionmask()
+// Explosions: the 3x3 blast of a broken wand, of a magical trap set off by cancellation or
+// digging, or of an exploding monster (a gas spore dying, a sphere's AT_EXPL).
+// ref: src/explode.c explode(), explosionmask(), mon_explodes(), adtyp_to_expltype()
 //
 // Below zap.ts and dig.ts (both call it); it must not import them.
 // Not ported (see DEVIATIONS.md): engulfing (the hero inside an engulfer), steeds, polymorphed
 // heroes (grabbing, ugolemeffects()), golems (golemeffects(), completelyburns()), shields shown
 // on resisting targets, hallucinated names, Deafness, Invulnerable, Half_physical_damage,
-// slime, exercise(), the monster-explosion and scroll/oil kinds (gas spores, fire scrolls).
+// slime, exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
 // A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
 // explosion here is hers (C's type >= 0).
 import {
   getPlayer,
   inBounds,
   sortedIds,
+  type AttackDef,
   type Ctx,
   type DefId,
   type Entity,
@@ -25,6 +27,7 @@ import {
   rayDmgstr,
   resist,
   resistsMagm,
+  wakeGently,
   zapOverFloor,
   type Ray,
   type ShopDamageFlag,
@@ -34,7 +37,8 @@ import { destroyItems, erodeArmor, type DestroyType } from './erode';
 import { ustuck } from './hackmove';
 import { igniteItems } from './light';
 import { nonliving } from './mondata';
-import { monkilled } from './mondeath';
+import { mondead, monkilled } from './mondeath';
+import { setDeathExplosion } from './corpses';
 import { heroSees } from './mongear';
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
@@ -57,13 +61,17 @@ export const EXPL_COLOR: Readonly<Record<ExplType, string>> = {
 };
 
 /**
- * What exploded: a broken wand (`wand`: its type, C's `-(otyp)` with WAND_CLASS) or a magical
- * trap (C's TRAP_EXPLODE: a generic magical blast). `by: 'hero'` is C's `!context.mon_moving`:
- * she gets the kills (and the blame); 'other' kills as another monster would.
+ * What exploded: a broken wand (`wand`: its type, C's `-(otyp)` with WAND_CLASS), a magical
+ * trap (C's TRAP_EXPLODE: a generic magical blast) or a monster (`mon`: C's MON_EXPLODE, with
+ * the damage type `ad` of its AT_BOOM or AT_EXPL attack: phys for a gas spore, else fire, cold or
+ * elec). `by: 'hero'` is C's `!context.mon_moving`: she gets the kills (and the blame); 'other'
+ * kills as another monster would.
  */
 export interface ExplSource {
   wand?: DefId;
   trap?: true;
+  mon?: DefId;
+  ad?: 'phys' | 'fire' | 'cold' | 'elec';
   by: 'hero' | 'other';
 }
 
@@ -76,10 +84,10 @@ const WAND_ZAPTYPE: Readonly<Record<string, number>> = {
   'nh:wand_of_lightning': 5,
 };
 
-type Adtyp = 'magm' | 'fire' | 'cold' | 'disn' | 'elec';
+type Adtyp = 'magm' | 'fire' | 'cold' | 'disn' | 'elec' | 'phys';
 const ADTYP: readonly (Adtyp | null)[] = ['magm', 'fire', 'cold', null, 'disn', 'elec'];
 /** The ray whose floor effects the blast has (zap_over_floor()'s damgtype). */
-const AD_RAY: Readonly<Record<Adtyp, Ray>> = {
+const AD_RAY: Readonly<Record<Exclude<Adtyp, 'phys'>, Ray>> = {
   magm: 'magic_missile',
   fire: 'fire',
   cold: 'cold',
@@ -94,6 +102,8 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 function monResists(ctx: Ctx, mon: Entity, adtyp: Adtyp, wand: boolean): boolean {
   const def = ctx.defs.monster(mon.def);
   switch (adtyp) {
+    case 'phys':
+      return false;
     case 'magm':
       return resistsMagm(ctx, mon);
     case 'disn':
@@ -111,6 +121,8 @@ function monResists(ctx: Ctx, mon: Entity, adtyp: Adtyp, wand: boolean): boolean
 function heroResists(ctx: Ctx, adtyp: Adtyp, wand: boolean): boolean {
   const h = getPlayer(ctx.state);
   switch (adtyp) {
+    case 'phys':
+      return false;
     case 'magm':
       return hasProp(h, P.ANTIMAGIC);
     case 'fire':
@@ -168,6 +180,9 @@ export function explode(
   if (!hp0 || !level) return;
   const wand = src.wand !== undefined;
   const monMoving = src.by !== 'hero';
+  // MON_EXPLODE: a monster's explosion is a negative ("monster breath") type, so it does not
+  // anger what it hits; a gas spore's is PHYS_EXPL_TYPE, which has no floor effects at all
+  const monExpl = src.mon !== undefined;
   // the zap type: ray wands keep theirs, the others (and traps) make a generic magical blast
   const type = wand ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0) : 0;
   let damu = dam;
@@ -178,7 +193,7 @@ export function explode(
       damu = Math.trunc(damu / 5);
     else if (role === 'nh:healer' || role === 'nh:knight') damu = Math.trunc(damu / 2);
   }
-  const adtyp = ADTYP[type % 10];
+  const adtyp: Adtyp | null | undefined = monExpl ? (src.ad ?? 'phys') : ADTYP[type % 10];
   if (!adtyp) return; // impossible("explosion base type %d?")
   const strKey: Record<Adtyp, string> = {
     magm: 'explode.magical_blast',
@@ -186,8 +201,13 @@ export function explode(
     cold: 'explode.ball_of_cold',
     disn: wand ? 'explode.death_field' : 'explode.disintegration_field',
     elec: 'explode.ball_of_lightning',
+    phys: 'explode.explosion',
   };
-  let str = strKey[adtyp];
+  // MON_EXPLODE: "gas spore's explosion" (C's killer.name)
+  let strMsg: Msg = monExpl
+    ? { key: 'explode.mon_explosion', params: { mon: `@${src.mon ?? ''}` } }
+    : { key: strKey[adtyp] };
+  let generic = false;
   const ux = hp0.x;
   const uy = hp0.y;
   // held but not engulfed: the holder reaching into the blast takes double damage
@@ -226,13 +246,15 @@ export function explode(
     const ev: GameEvent = { type: 'ray', kind: 'explosion', fg: EXPL_COLOR[expl], path };
     ctx.emit(ev);
   } else {
-    if (src.trap) str = 'explode.explosion'; // generic
+    if (src.trap || monExpl) {
+      strMsg = { key: 'explode.explosion' }; // generic
+      generic = true;
+    }
     say(ctx, 'explode.hear_blast');
     didmsg = true;
   }
   if (!didmsg) say(ctx, 'explode.boom');
 
-  const strMsg: Msg = { key: str };
   let uhurt: 0 | 1 | 2 = 0;
   const shopdamage: ShopDamageFlag = { damaged: false };
   // apply effects to monsters and floor objects first, in case the damage to the hero is fatal
@@ -244,18 +266,22 @@ export function explode(
         const xx = x + i - 1;
         const yy = y + j - 1;
         if (xx === ux && yy === uy) uhurt = m === 'shield' ? 1 : 2;
-        zapOverFloor(
-          ctx,
-          AD_RAY[adtyp],
-          xx,
-          yy,
-          src.wand ?? '',
-          monMoving ? undefined : shopdamage,
-        );
+        // zap_over_floor() returns at once for PHYS_EXPL_TYPE
+        if (adtyp !== 'phys')
+          zapOverFloor(
+            ctx,
+            AD_RAY[adtyp],
+            xx,
+            yy,
+            src.wand ?? '',
+            monMoving || monExpl ? undefined : shopdamage,
+          );
         const mtmp = monAt(ctx, level, xx, yy);
         if (!mtmp) continue;
-        // zap_over_floor(): the monster there is woken (and angered: the zap type is >= 0)
-        wakeup(ctx, mtmp.id);
+        // zap_over_floor(): the monster there is woken, and angered when the zap type is >= 0
+        // (not a monster's explosion)
+        if (!monExpl) wakeup(ctx, mtmp.id);
+        else if (adtyp !== 'phys') wakeGently(ctx, mtmp);
         const seen = heroSees(ctx, { level: level.id, x: xx, y: yy });
         if (seen) say(ctx, 'explode.mon_caught', { mon: monNam(ctx, mtmp), what: strMsg });
         const itemdmg = destroyAny(ctx, mtmp.id, adtyp, dam);
@@ -315,20 +341,69 @@ export function explode(
     }
     if (hp && hp.cur <= 0) {
       say(ctx, later ? 'explode.the_x_fatal' : 'explode.fatal', { what: strMsg });
-      const killer = wand
-        ? `@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`
-        : str === 'explode.explosion'
-          ? '@killer.explode.trap_unseen'
-          : '@killer.explode.trap';
+      const killer = monExpl
+        ? generic
+          ? '@killer.explode.mon_unseen'
+          : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
+        : wand
+          ? `@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`
+          : generic
+            ? '@killer.explode.trap_unseen'
+            : '@killer.explode.trap';
       done(ctx, killer);
       if (ctx.state.gameOver) return;
     }
   }
 
-  if (shopdamage.damaged) payForDamage(ctx, rayDmgstr(AD_RAY[adtyp]), false);
+  if (shopdamage.damaged && adtyp !== 'phys') payForDamage(ctx, rayDmgstr(AD_RAY[adtyp]), false);
 
   // explosions are noisy
   let noise = dam * dam;
   if (noise < 50) noise = 50; // in case random damage is very small
   wakeNearto(ctx, x, y, noise);
 }
+
+/** The look of a monster's explosion. ref: src/explode.c adtyp_to_expltype() */
+const MON_EXPLTYPE: Readonly<Record<NonNullable<ExplSource['ad']>, ExplType>> = {
+  phys: 'noxious', // gas spore
+  fire: 'fiery',
+  cold: 'frosty',
+  elec: 'magical', // "there currently isn't an electric explosion type"
+};
+
+/**
+ * A monster explodes in a real explosion (a gas spore dying, or a sphere's AT_EXPL attack): it
+ * dies first (mondead(), no corpse) so it is not caught in its own blast, then explode() centred
+ * on its square with C's damage: d(damn, damd), or d(level + 1, damd) when damn is 0.
+ * `byHero`: C's `!context.mon_moving` (her kill set off the gas spore: she gets the credit for
+ * what the blast kills). ref: src/explode.c mon_explodes() (no shapeshifters)
+ */
+export function monExplodes(
+  ctx: Ctx,
+  monDef: DefId,
+  at: { level: string; x: number; y: number },
+  atk: AttackDef,
+  byHero: boolean,
+  monId?: number,
+): void {
+  const def = ctx.defs.monster(monDef);
+  const dmg = atk.n ? ctx.rng.d(atk.n, atk.d) : atk.d ? ctx.rng.d(def.level + 1, atk.d) : 0;
+  const ad = atk.ad === 'fire' || atk.ad === 'cold' || atk.ad === 'elec' ? atk.ad : 'phys';
+  // kill it now so it won't appear to be caught in its own explosion
+  if (monId !== undefined) mondead(ctx, monId);
+  if (at.level !== ctx.state.currentLevel) return;
+  explode(
+    ctx,
+    at.x,
+    at.y,
+    { mon: monDef, ad, by: byHero ? 'hero' : 'other' },
+    dmg,
+    MON_EXPLTYPE[ad],
+  );
+}
+
+// ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (the AT_BOOM attack)
+setDeathExplosion((ctx, def, at, byHero) => {
+  const atk = def.attacks.find((a) => a.at === 'boom');
+  if (atk) monExplodes(ctx, def.id, at, atk, byHero);
+});

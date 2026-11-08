@@ -220,6 +220,7 @@ export const zapMessagesEn: Record<string, string> = {
   'explode.disintegration_field': 'disintegration field',
   'explode.ball_of_lightning': 'ball of lightning',
   'explode.explosion': 'explosion',
+  'explode.mon_explosion': "{mon}'s explosion",
   'explode.hear_blast': 'You hear a blast.',
   'explode.boom': 'Boom!',
   'explode.mon_caught': '{mon|The} is caught in the {what}!',
@@ -235,6 +236,12 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.explode.own.elec': 'catching herself in her own ball of lightning',
   'killer.explode.trap': 'catching herself in a magical blast',
   'killer.explode.trap_unseen': 'catching herself in an explosion',
+  // mon_explodes(): KILLED_BY_AN "<monster>'s explosion", or "explosion" when unseen
+  'killer.explode.mon_unseen': 'an explosion',
+  'killer.explode.mon.gas_spore': "a gas spore's explosion",
+  'killer.explode.mon.flaming_sphere': "a flaming sphere's explosion",
+  'killer.explode.mon.freezing_sphere': "a freezing sphere's explosion",
+  'killer.explode.mon.shocking_sphere': "a shocking sphere's explosion",
   // do_break_wand() (breakwand.ts)
   'break.hands_occupied': 'Your hands are occupied!',
   'break.too_weak': "You don't have the strength to break your {item}!",

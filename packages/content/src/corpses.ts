@@ -50,9 +50,26 @@ export function rnz(ctx: Pick<Ctx, 'state' | 'rng'>, i: number): number {
 }
 
 /**
+ * A gas spore (any monster with an AT_BOOM attack) exploding as it dies: explode.ts registers it
+ * (it sits above mondeath.ts, which calls in here). `byHero`: C's `!context.mon_moving`.
+ */
+export type DeathExplosion = (
+  ctx: Ctx,
+  def: MonsterDef,
+  at: { level: string; x: number; y: number },
+  byHero: boolean,
+) => void;
+let deathExplosion: DeathExplosion | null = null;
+
+/** Registers the AT_BOOM explosion (explode.ts, at load time). */
+export function setDeathExplosion(fn: DeathExplosion): void {
+  deathExplosion = fn;
+}
+
+/**
  * Whether a killed monster leaves a corpse. ref: src/mon.c corpse_chance(): big monsters always
- * do, others with chance 1/(2 + (rare) + (tiny)). Not ported: gas spores, liches, golems,
- * player monsters, riders, shopkeepers, cloned monsters.
+ * do, others with chance 1/(2 + (rare) + (tiny)). Not ported: liches, golems, player monsters,
+ * riders, shopkeepers, cloned monsters. (The gas spore's explosion is in xkilledCorpse().)
  */
 export function corpseChance(ctx: Ctx, def: MonsterDef): boolean {
   if (bigmonst(def)) return true;
@@ -70,7 +87,14 @@ export function xkilledCorpse(
   ctx: Ctx,
   def: MonsterDef,
   at: { level: string; x: number; y: number },
+  byHero = false,
 ): void {
+  // ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (no engulfers yet:
+  // the was_swallowed branch is step 4's)
+  if (def.attacks.some((a) => a.at === 'boom')) {
+    deathExplosion?.(ctx, def, at, byHero);
+    return;
+  }
   const undead = UNDEAD_TO_CORPSE[def.id];
   if (undead === undefined && def.genFlags.includes('nocorpse')) return; // G_NOCORPSE
   if (!corpseChance(ctx, def)) return;

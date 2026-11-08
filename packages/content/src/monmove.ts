@@ -966,13 +966,16 @@ export function dochug(
         distfleeck(); // recalc
         if (status === 'nomoves' && scared) panicattk = true;
         if (status === 'moved') {
-          // ref: dochug(): "Monsters can move and then shoot on same turn": an armed monster that
-          // is still not next to the hero uses its ranged attack (phase four's attitude test:
-          // hostile, or not resisting Conflict)
+          // ref: dochug(): "Monsters can move and then shoot on same turn": a monster with a
+          // weapon or a ranged attack (C's ranged_attk_available(): breath, spit or gaze; AT_MAGC
+          // too, but buzzmu() casters are not ported) that is still not next to the hero uses
+          // its ranged attack (phase four's attitude test: hostile, or not resisting Conflict)
           const np = ctx.state.entities[String(id)]?.c.pos;
           if (
             np &&
-            def.attacks.some((a) => a.at === 'weapon') &&
+            def.attacks.some(
+              (a) => a.at === 'weapon' || a.at === 'gaze' || a.at === 'breath' || a.at === 'spit',
+            ) &&
             !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
             hostileNow() &&
             dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM
