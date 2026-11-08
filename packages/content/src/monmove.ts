@@ -55,6 +55,7 @@ import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
+import { findgold } from './steal';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
 import { afterShkMove } from './rooms';
@@ -105,6 +106,17 @@ const verySmall = (def: MonsterDef): boolean => def.size === 'tiny';
 /** ref: include/mondata.h bigmonst(): msize >= MZ_LARGE */
 const bigMonst = (def: MonsterDef): boolean =>
   def.size === 'large' || def.size === 'huge' || def.size === 'gigantic';
+/**
+ * A leprechaun carrying more gold than the hero wants to avoid her.
+ * ref: src/monmove.c leppie_avoidance()
+ */
+function leppieAvoidance(ctx: Ctx, id: EntityId, def: MonsterDef): boolean {
+  if (def.id !== 'nh:leprechaun') return false;
+  const lepgold = findgold(ctx, id);
+  const ygold = findgold(ctx, ctx.state.playerId);
+  return lepgold !== null && (lepgold.c.item?.quantity ?? 0) > (ygold?.c.item?.quantity ?? 0);
+}
+
 /** ref: include/mondata.h is_wanderer() */
 const isWanderer = (def: MonsterDef): boolean => def.flags.includes('wander');
 /** ref: include/mondata.h S_BAT class (every 'B' in our roster). */
@@ -681,7 +693,11 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   // 0 for peacefuls and erratic bats
   let appr = isFleeing(ctx, id) ? -1 : 1;
   if (isMConfused(ctx, id)) appr = 0;
-  else if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
+  else {
+    if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
+    // ref: m_move(): a leprechaun with more gold than she has keeps away
+    if (appr === 1 && leppieAvoidance(ctx, id, def)) appr = -1;
+  }
   if (isMStunned(ctx, id)) appr = 0;
 
   // ref: m_move(): hostile monsters (and peaceful ones 1 time in 10) look for items unless they
@@ -926,6 +942,12 @@ export function dochug(
     scared ||
     isMConfused(ctx, id) ||
     isMStunned(ctx, id) ||
+    // (no invisible monsters: `mtmp->minvis && !rn2(3)`)
+    // a leprechaun moves on (rather than standing to fight) when she has no gold: always if it
+    // has some, else half the time
+    (def.glyph.ch === 'l' &&
+      !findgold(ctx, ctx.state.playerId) &&
+      (findgold(ctx, id) !== null || ctx.rng.rn2(2) !== 0)) ||
     (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
     conflictOn(ctx.state) || // `Conflict && !mtmp->iswiz`
     (!mcansee(ctx, id) && ctx.rng.rn2(4) === 0) ||

@@ -172,6 +172,22 @@ export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boole
   );
 }
 
+/**
+ * Like monNam(), but "someone" (humanoids that are neither animals nor mindless) or "something"
+ * instead of "it" for a monster she can't see or sense; while hallucinating either, at random.
+ * ref: src/do_name.c some_mon_nam() (AUGMENT_IT)
+ */
+export function someMonNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entity): string {
+  if (canSpotMon(ctx, mon)) return monNam(ctx, mon);
+  const def = ctx.defs.monster(mon.def);
+  const sOne = hasProp(getPlayer(ctx.state), P.HALLUC)
+    ? !ctx.cosmetic.rn2(2)
+    : def.flags.includes('humanoid') &&
+      !def.flags.includes('animal') &&
+      !def.flags.includes('mindless');
+  return sOne ? '@pronoun.someone' : '@pronoun.something';
+}
+
 /** The id of a random monster for a hallucinated name. ref: src/do_name.c rndmonnam() */
 function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
   const all = ctx.defs.monsters;

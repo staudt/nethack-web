@@ -34,6 +34,7 @@ import {
 } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
+import { couldSeduce } from './steal';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { acidDamage, erodeArmor } from './erode';
@@ -148,7 +149,8 @@ function mdamagem(
   mhitmAdtyping(ctx, magr.id, atk, mdef.id, mhm, { vis, mwep, growUp });
   if (mhm.done) return mhm.hitflags;
   const damage = mhm.damage;
-  if (!damage) return M_ATTK.HIT;
+  // C returns mhm.hitflags (a thief that teleported away: AGR_DONE)
+  if (!damage) return mhm.hitflags !== M_ATTK.MISS ? mhm.hitflags : M_ATTK.HIT;
   const hp = mdef.c.hp;
   if (!hp) return M_ATTK.HIT;
   hp.cur -= damage;
@@ -170,7 +172,15 @@ function hitmm(
   vis: boolean,
   dieroll: number,
 ): number {
-  if (vis) {
+  const compat = !isCancelled(ctx, magr.id) ? couldSeduce(ctx, magr, mdef, atk) : 0;
+  if (vis && compat) {
+    // "The water nymph smiles at the jackal seductively."
+    say(ctx, mcansee(ctx, mdef.id) ? 'mhitm.smiles_at' : 'mhitm.talks_to', {
+      magr: monNam(ctx, magr),
+      mdef: monNam(ctx, mdef),
+      how: { key: compat === 2 ? 'mhitm.engagingly' : 'mhitm.seductively' },
+    });
+  } else if (vis) {
     const verb =
       atk.at === 'bite'
         ? 'bites'
@@ -276,10 +286,15 @@ function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
   return result;
 }
 
-/** ref: src/mhitm.c missmm() (no seduction) */
-function missmm(ctx: Ctx, magr: Entity, mdef: Entity, vis: boolean): void {
-  if (vis) say(ctx, 'mhitm.misses', { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
-  else noises(ctx, magr);
+/** ref: src/mhitm.c missmm(): "The nymph pretends to be friendly to the jackal." */
+function missmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): void {
+  if (vis) {
+    const friendly = !isCancelled(ctx, magr.id) && couldSeduce(ctx, magr, mdef, atk) !== 0;
+    say(ctx, friendly ? 'mhitm.pretends_friendly' : 'mhitm.misses', {
+      magr: monNam(ctx, magr),
+      mdef: monNam(ctx, mdef),
+    });
+  } else noises(ctx, magr);
 }
 
 /**
@@ -486,7 +501,7 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
             break;
           }
           res[i] = hitmm(ctx, magr, mdef, atk, mwep, vis, dieroll);
-        } else missmm(ctx, magr, mdef, vis);
+        } else missmm(ctx, magr, mdef, atk, vis);
         break;
       }
       case 'hug': // automatic if prev two attacks succeed

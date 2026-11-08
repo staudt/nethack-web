@@ -56,6 +56,11 @@ describe('vanilla monsters', () => {
       'curs',
       // m9 step 2
       'wrap',
+      // m9 step 3 (steal.ts)
+      'sgld',
+      'sitm',
+      'sedu',
+      'ssex',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

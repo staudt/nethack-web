@@ -11,6 +11,7 @@ import { mthrowuMessagesEn } from './mthrowu.en';
 import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
 import { adtypingMessagesEn } from './adtyping.en';
+import { stealMessagesEn } from './steal.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -47,6 +48,7 @@ export const messagesEn: Record<string, string> = {
   ...skillMessagesEn,
   ...mhitmMessagesEn,
   ...adtypingMessagesEn,
+  ...stealMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -259,6 +261,10 @@ export const messagesEn: Record<string, string> = {
   'nh:housecat': 'housecat',
   'nh:large_cat': 'large cat',
   'nh:homunculus': 'homunculus',
+  'nh:leprechaun': 'leprechaun',
+  'nh:water_nymph': 'water nymph',
+  'nh:wood_nymph': 'wood nymph',
+  'nh:mountain_nymph': 'mountain nymph',
   'nh:centipede': 'centipede',
   'nh:rabid_rat': 'rabid rat',
   'nh:kobold_mummy': 'kobold mummy',
@@ -271,6 +277,7 @@ export const messagesEn: Record<string, string> = {
   'nh:gas_spore': 'gas spore',
   'nh:yellow_light': 'yellow light',
   'nh:pyrolisk': 'pyrolisk',
+  'nh:monkey': 'monkey',
   'nh:owlbear': 'owlbear',
   'nh:python': 'python',
   'nh:water_moccasin': 'water moccasin',

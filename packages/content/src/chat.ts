@@ -177,6 +177,21 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       }
       say(ctx, 'chat.djinni.teach');
       return NORMAL_SPEED;
+    case 'seduce': {
+      // nymphs never doseduce(); the hero is female (SYSOPT_SEDUCE on)
+      const female = def.flags.includes('female') ? 1 : 0;
+      const swval = female !== 1 ? ctx.rng.rn2(3) : 0;
+      if (swval === 2) {
+        say(ctx, 'chat.hello_sailor');
+        return NORMAL_SPEED;
+      }
+      return pline(swval === 1 ? 'chat.comes_on' : 'chat.cajoles');
+    }
+    case 'laugh':
+      return pline(
+        ['chat.giggles', 'chat.chuckles', 'chat.snickers', 'chat.laughs'][ctx.rng.rn2(4)] ??
+          'chat.laughs',
+      );
     case 'oracle':
       // ref: src/rumors.c doconsult(): its refusals only, no time (ECMD_OK); the consultations
       // themselves are not ported, so with gold nothing happens (DEVIATIONS "The Oracle")

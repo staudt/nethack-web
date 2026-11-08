@@ -88,6 +88,12 @@ const ARMOR_SIMPLE: Record<ArmorSlot, string> = {
   shield: 'shield',
 };
 
+/** The plain word for a piece of armor ("cloak", "suit"). ref: src/objnam.c armor_simple_name() */
+export function armorSimpleName(def: ObjectDef): Msg {
+  const slot = def.armor?.slot;
+  return { key: `kind.${slot ? ARMOR_SIMPLE[slot] : 'suit'}` };
+}
+
 /**
  * The name the hero gave this unidentified type (oc_uname), or null. Only classes the call
  * command accepts (see call.ts) show it. Read-only: never creates the mod data.

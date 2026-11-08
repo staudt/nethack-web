@@ -33,6 +33,7 @@ import { boulderCells } from './boulder';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { dungeonBottom, levelFlags } from './levelflags';
+import { canSpotMon, monNam } from './perception';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
@@ -117,6 +118,21 @@ const accessible = (o: Occupancy, i: number): boolean => {
   const t = o.level.cells[i] ?? 0;
   return o.rules.passable[t] === true && !o.rules.closedDoor[t];
 };
+
+/**
+ * The monster cannot teleport here ("A mysterious force prevents the jackal from teleporting!"
+ * when seen). ref: src/teleport.c tele_restrict()
+ */
+export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (level && noteleportLevel(ctx, level)) {
+    if (canSpotMon(ctx, mon))
+      ctx.emit({ type: 'msg', key: 'adtyp.tele_restrict', params: { mon: monNam(ctx, mon) } });
+    return true;
+  }
+  return false;
+}
 
 /**
  * ref: src/teleport.c goodpos(x, y, mtmp, 0): on the map, not the hero's square (unless `who` is

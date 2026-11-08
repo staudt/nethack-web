@@ -450,7 +450,7 @@ interface MonsterDef {
   resists: string[]; conveys: string[]; // mresists / mconveys, lowercased MR_ names: 'fire', 'cold', 'sleep', 'disint', 'elec', 'poison', 'acid', 'stone'
   weight: number; nutrition: number; // corpse cwt / cnutrit
   brain: DefId; // must name a registered BrainDef (checked after all mods load)
-  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon); absent = silent
+  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon, 'seduce' and 'laugh' in m9 step 3 for nymphs and the leprechaun); absent = silent
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass

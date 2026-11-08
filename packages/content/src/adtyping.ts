@@ -52,20 +52,25 @@ import {
 import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './erode';
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
-import { monWep, whichArmor } from './mongear';
+import { minvent, monWep, setMonFlag, whichArmor } from './mongear';
 import { mondied, monkilled } from './mondeath';
 import { drainEn } from './uenergy';
 import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
 import { levitating } from './trapstate';
-import { tele, rlocMon } from './trap';
-import { noteleportLevel } from './teleport';
+import { canseemon, tele, rlocMon } from './trap';
+import { teleRestrict } from './teleport';
+
+export { teleRestrict };
 import { attrcurse } from './pray';
 import { costlyAlteration } from './shk';
 import { CHARGED_RINGS } from './objects';
 import { isWeptool } from './material';
-import { xnameOf } from './objnam';
+import { doname, xnameOf } from './objnam';
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { unaware } from './btrapped';
+import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
+import { monflee } from './monflee';
+import { addToInventory, removeFromInventory } from './items';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -106,12 +111,18 @@ export const newMhm = (damage: number, dieroll = 0): Mhm => ({
  */
 export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu', 'wrap']);
 
+/** The theft and seduction types: their mhitu branch gives hitmsg() only for animals (monkeys). */
+const SEDU_TYPES: ReadonlySet<string> = new Set(['sitm', 'sedu', 'ssex']);
+
 /**
  * Whether hitmu() gives the hit message for this attack: not for NO_HITMSG's types, nor for a
- * physical hug (mhitm_ad_phys()'s AT_HUGS branch prints "grabs you!" or "being crushed" itself).
+ * physical hug (mhitm_ad_phys()'s AT_HUGS branch prints "grabs you!" or "being crushed" itself),
+ * nor for a nymph's theft (mhitm_ad_sedu() prints its own lines; an animal's gets the hitmsg()).
  */
-export const hitmsgFor = (atk: AttackDef): boolean =>
-  !NO_HITMSG.has(atk.ad) && !(atk.at === 'hug' && atk.ad === 'phys');
+export const hitmsgFor = (atk: AttackDef, animal = false): boolean =>
+  !NO_HITMSG.has(atk.ad) &&
+  !(atk.at === 'hug' && atk.ad === 'phys') &&
+  !(SEDU_TYPES.has(atk.ad) && !animal);
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -355,20 +366,6 @@ export function xdrainenergym(ctx: Ctx, mon: Entity, givemsg: boolean): void {
     setMspecUsed(ctx, mon.id, mspecUsed(ctx, mon.id) + ctx.rng.d(2, 2));
     if (givemsg) say(ctx, 'adtyp.lethargic', { mon: monNam(ctx, mon) });
   }
-}
-
-/**
- * The monster cannot teleport here ("A mysterious force prevents the jackal from teleporting!"
- * when seen). ref: src/teleport.c tele_restrict()
- */
-export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
-  const p = mon.c.pos;
-  const level = p ? ctx.state.levels[p.level] : undefined;
-  if (level && noteleportLevel(ctx, level)) {
-    if (canSpotMon(ctx, mon)) say(ctx, 'adtyp.tele_restrict', { mon: monNam(ctx, mon) });
-    return true;
-  }
-  return false;
 }
 
 /** ref: include/mondata.h completelyrusts(), completelyrots() */
@@ -1014,6 +1011,118 @@ function adDise(
   // else does ordinary damage
 }
 
+// ---------------------------------------------------------------------------------------------
+// theft (steal.ts)
+
+function adSgld(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    // hitmsg() is the caller's; (`pd->mlet == pa->mlet`: a polymorphed hero, 7f)
+    if (!isCancelled(ctx, magr.id)) stealgold(ctx, magr);
+    return;
+  }
+  mhm.damage = 0;
+  if (isCancelled(ctx, magr.id)) return;
+  // technically incorrect; no check for stealing gold from between mdef's feet...
+  const gold = findgold(ctx, mdef.id);
+  if (!gold) return;
+  addToInventory(ctx, magr.id, gold.id); // obj_extract_self(), add_to_minv()
+  // (no mstrategy)
+  const name = monNam(ctx, magr);
+  if (env.vis && canSpotMon(ctx, mdef))
+    say(ctx, 'steal.steals_gold_from', { magr: name, mdef: monNam(ctx, mdef) });
+  if (!teleRestrict(ctx, magr)) {
+    const couldspot = canSpotMon(ctx, magr);
+    mhm.hitflags = M_ATTK.AGR_DONE;
+    rlocMon(ctx, magr, false);
+    if (env.vis && couldspot && !canSpotMon(ctx, magr))
+      say(ctx, 'adtyp.suddenly_disappears', { mon: name });
+  }
+}
+
+/** ref: include/mondata.h locomotion() for "run": float, fly, slither, ooze, swim or run */
+function locomotionRun(ctx: Ctx, mon: Entity): string {
+  const f = ctx.defs.monster(mon.def).flags;
+  return f.includes('float')
+    ? 'float'
+    : f.includes('fly')
+      ? 'fly'
+      : f.includes('slithy')
+        ? 'slither'
+        : f.includes('amorphous')
+          ? 'ooze'
+          : 'run';
+}
+
+function adSedu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  const animal = isAnimal(ctx.defs.monster(magr.def));
+  if (mdef.id === ctx.state.playerId) {
+    if (animal) {
+      // hitmsg() is the caller's (hitmsgFor())
+      if (isCancelled(ctx, magr.id)) return;
+      // continue below
+    } else if (isCancelled(ctx, magr.id)) {
+      // (the polymorphed hero with a seduction attack is 7f)
+      if (!hasProp(mdef, P.BLINDED)) say(ctx, 'steal.plain_tries', { mon: monNam(ctx, magr) }); // flags.female: "charm"
+      if (ctx.rng.rn2(3)) {
+        if (!teleRestrict(ctx, magr)) rlocMon(ctx, magr, true);
+        mhm.hitflags = M_ATTK.AGR_DONE;
+        mhm.done = true;
+      }
+      return;
+    }
+    const { stolen, result } = steal(ctx, magr);
+    if (result === -1) {
+      mhm.hitflags = M_ATTK.AGR_DIED;
+      mhm.done = true;
+      return;
+    }
+    if (result === 0) return;
+    if (!animal && !teleRestrict(ctx, magr)) rlocMon(ctx, magr, true);
+    if (animal && stolen && canseemon(ctx, magr))
+      say(ctx, 'steal.tries_to_run_away', {
+        mon: monNam(ctx, magr),
+        how: { key: `steal.loco.${locomotionRun(ctx, magr)}` },
+        item: stolen,
+      });
+    monflee(ctx, magr.id, 0, false, false);
+    mhm.hitflags = M_ATTK.AGR_DONE;
+    mhm.done = true;
+    return;
+  }
+  if (isCancelled(ctx, magr.id)) return;
+  // find an object to steal, non-cursed if magr is tame
+  const tame = (magr.c.monster?.tame ?? 0) > 0;
+  const obj = minvent(ctx, mdef.id).find((o) => !tame || o.c.item?.buc !== 'cursed');
+  if (obj) {
+    const mdefnam = monNam(ctx, mdef);
+    // (no steeds or saddles)
+    const wasWep = obj.c.item?.equipped === 'weapon';
+    const onam = env.vis ? doname(ctx.state, ctx.defs, obj) : null;
+    removeFromInventory(ctx, obj.id); // extract_from_minvent()
+    addToInventory(ctx, magr.id, obj.id); // add_to_minv(): might merge
+    const name = monNam(ctx, magr);
+    if (env.vis && onam && canSpotMon(ctx, mdef))
+      say(ctx, 'steal.steals_from', { magr: name, item: onam, mdef: mdefnam });
+    if (wasWep) setMonFlag(ctx, 'nowep', mdef.id, false); // possibly_unwield()
+    // (no mstrategy; mselftouch() with a stolen cockatrice corpse: step 6)
+    if (isNymph(ctx.defs.monster(magr.def)) && !teleRestrict(ctx, magr)) {
+      const couldspot = canSpotMon(ctx, magr);
+      mhm.hitflags = M_ATTK.AGR_DONE;
+      rlocMon(ctx, magr, false);
+      if (env.vis && couldspot && !canSpotMon(ctx, magr))
+        say(ctx, 'adtyp.suddenly_disappears', { mon: name });
+    }
+  }
+  mhm.damage = 0;
+}
+
+/**
+ * AD_SSEX acts as AD_SEDU (C's behaviour with SEDUCE=0) until monsters have genders and
+ * doseduce() is ported: DECISIONS-PENDING "m9 taken defaults" 7, DEVIATIONS "Theft".
+ * ref: src/uhitm.c mhitm_ad_ssex()
+ */
+const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => adSedu(ctx, magr, atk, mdef, mhm, env);
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -1043,6 +1152,10 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   dise: adDise,
   halu: adHalu,
   wrap: adWrap,
+  sgld: adSgld,
+  sitm: adSedu, // "for now these are the same"
+  sedu: adSedu,
+  ssex: adSsex,
 };
 
 /**
@@ -1050,8 +1163,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
  * the result flags). `magr` attacks `mdef` (either may be the hero, `ctx.state.playerId`; a hero
  * attacker is 7f). The hero may die inside (instadeath poison): check `ctx.state.gameOver`.
  * ref: src/uhitm.c mhitm_adtyping(). C's default (`damage = 0`) is for types this port does not
- * have; the types later m9 steps add (wrap, steal, engulf, stoning, drain, were...) still do plain
- * damage here.
+ * have; the types later m9 steps add (engulf, stoning, drain, were...) still do plain damage here.
  */
 export function mhitmAdtyping(
   ctx: Ctx,

@@ -3,8 +3,7 @@
 // Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) lives in orctown.ts with its
 // fixup; the variant is a roll among all seven, in lua file order. `align[1]` (a shuffled alignment shared by the level) is `random` on the
 // one altar each variant has, which is the same thing. Shops and the temple are typed rooms but
-// stay empty and untended until 6b2/6b3. Monkeys, nymphs and the gnome king
-// statue are skipped (no such monsters or objects yet). `des.room` levels without a level_init
+// stay empty and untended until 6b2/6b3. The gnome king statue is skipped (no statues yet). `des.room` levels without a level_init
 // start as dark stone, as makemaz() leaves the level before the lua runs.
 import type { LevelContent, LevelDef, RoomDef } from '@nh/core';
 import { MINETN_1 } from './orctown';
@@ -682,7 +681,7 @@ export const MINETN_6: LevelDef = {
   ],
 };
 
-/** "Bazaar Town". The monkeys and the nymph are skipped. ref: dat/minetn-7.lua */
+/** "Bazaar Town". ref: dat/minetn-7.lua */
 export const MINETN_7: LevelDef = {
   id: 'nh:minetn-7',
   init: STONE,
@@ -710,8 +709,7 @@ export const MINETN_7: LevelDef = {
           y: 2,
           w: 3,
           h: 4,
-          // des.monster("monkey") x3 skipped
-          contents: [mon('gnome')],
+          contents: [mon('gnome'), mon('monkey', { count: 3 })],
           doors: [{ state: 'closed', wall: 'south' }],
         },
         {
@@ -721,7 +719,7 @@ export const MINETN_7: LevelDef = {
           w: 4,
           h: 2,
           doors: [{ state: 'closed', wall: 'south', pos: 0 }],
-          // des.monster("n") skipped
+          contents: [cls('n')],
         },
         { percent: 75, x: 16, y: 5, w: 2, h: 2, doors: [{ state: 'closed', wall: 'south' }] },
         {
@@ -825,8 +823,12 @@ export const MINETN_7: LevelDef = {
           contents: WIZARDS,
         },
       ],
-      // des.monster("monkey") x2 skipped
-      contents: [...WATCH, mon('gnome', { count: 3 }), mon('gnome_lord')],
+      contents: [
+        ...WATCH,
+        mon('gnome', { count: 3 }),
+        mon('gnome_lord'),
+        mon('monkey', { count: 2 }),
+      ],
     },
     ...OUTSKIRTS,
   ],

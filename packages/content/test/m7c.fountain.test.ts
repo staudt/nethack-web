@@ -218,7 +218,7 @@ describe('#quaff from a fountain', () => {
       'But it disappears.',
     ]);
     expect(first(30)[0]).toBe('Your thirst is quenched.');
-    expect(first(28)[0]).toBe('A large bubble rises to the surface and pops.');
+    expect(first(28)[0]).toBe('You attract a water nymph!'); // m9 step 3: a real nymph
   });
 
   test('fate 20: foul water makes her hungrier and vomit', () => {
@@ -336,7 +336,7 @@ describe('#quaff from a fountain', () => {
     expect(d.state.monsterMemory['dlvl1']?.[String(1 * 13 + 1)]).toBe('nh:newt');
   });
 
-  test('fate 27: a gem or glass once; then the nymph bubble', () => {
+  test('fate 27: a gem or glass once; then a water nymph', () => {
     const s = room();
     const d = drinks(s.state, (f) => f === 27)[0]!;
     expect(d.text[0]).toBe('You spot a gem in the sparkling waters!');
@@ -350,9 +350,14 @@ describe('#quaff from a fountain', () => {
     if (!fountainGone(d))
       expect(fountainBits(d.state, 'dlvl1', F.x, F.y) & FTN_LOOTED).toBeTruthy();
     setFountainBits({ state: s.state }, 'dlvl1', F.x, F.y, FTN_LOOTED);
-    expect(drinks(s.state, (f) => f === 27)[0]!.text[0]).toBe(
-      'A large bubble rises to the surface and pops.',
-    );
+    // ref: dowaternymph(): an awake water nymph next to her (m9 step 3)
+    const n = drinks(s.state, (f) => f === 27)[0]!;
+    expect(n.text[0]).toBe('You attract a water nymph!');
+    const [nymph] = monsOf(n.state, 'nh:water_nymph');
+    expect(nymph).toBeDefined();
+    const e = n.state.entities[String(nymph)]!;
+    expect(e.c.monster!.asleep).toBe(false);
+    expect(Math.max(Math.abs(e.c.pos!.x - F.x), Math.abs(e.c.pos!.y - F.y))).toBe(1);
   });
 
   test('fate 29: bad breath scares every monster', () => {

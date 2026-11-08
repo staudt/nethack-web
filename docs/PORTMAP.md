@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2763 citations.
+150 NetHack files, 2793 citations.
 
 ## dat/dungeon.lua
 
@@ -241,6 +241,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`
 - `humanoid()`: `packages/content/src/peaceful.ts`
+- `is_animal()`: `packages/content/src/steal.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
 - `is_giant()`: `packages/content/src/givit.ts`
 - `is_mercenary()`: `packages/content/src/mongear.ts`
@@ -249,6 +250,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
+- `locomotion()`: `packages/content/src/adtyping.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nonliving()`: `packages/content/src/mondata.ts`
 - `poisonous()`: `packages/content/src/dog.ts`
@@ -611,6 +613,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_nam()`: `packages/content/src/perception.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
+- `some_mon_nam()`: `packages/content/src/perception.ts`
 - `surface()`: `packages/content/src/moverock.ts`, `packages/content/src/terrain.ts`
 - `x_monnam()`: `packages/content/src/perception.ts`
 
@@ -940,7 +943,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hold_another_object()`: `packages/content/src/wish.ts`
 - `identify()`: `packages/content/src/read.ts`
 - `identify_pack()`: `packages/content/src/read.ts`
-- `inv_cnt()`: `packages/content/src/items.ts`
+- `inv_cnt()`: `packages/content/src/items.ts`, `packages/content/src/steal.ts`
 - `look_here()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.en.ts`
 - `m_carrying()`: `packages/content/src/mdig.ts`
 - `m_useup()`: `packages/content/src/erode.ts`
@@ -1052,6 +1055,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/mhitu.c
 
 - (file): `packages/content/src/adtyping.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/resist.en.ts`
+- `could_seduce()`: `packages/content/src/steal.ts`
 - `diseasemu()`: `packages/content/src/adtyping.ts`
 - `explmu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
 - `gazemu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
@@ -1204,7 +1208,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `killed()`: `packages/content/src/buzz.ts`, `packages/content/src/dokick.ts`
 - `levl_follower()`: `packages/content/src/dog.ts`
 - `m_calcdistress()`: `packages/content/src/monflee.ts`, `packages/content/src/mstate.ts`
-- `m_detach()`: `packages/content/src/mondeath.ts`, `packages/content/src/trapstate.ts`
+- `m_detach()`: `packages/content/src/mondeath.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trapstate.ts`
 - `m_move_aggress()`: `packages/content/src/monmove.ts`
 - `make_corpse()`: `packages/content/src/corpses.ts`
 - `max_mon_load()`: `packages/content/src/mongear.ts`
@@ -1256,6 +1260,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `disturb()`: `packages/content/src/monmove.ts`
 - `dochug()`: `packages/content/src/brains.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `dochugw()`: `packages/content/src/travel.ts`
+- `leppie_avoidance()`: `packages/content/src/monmove.ts`
 - `m_avoid_soko_push_loc()`: `packages/content/src/dogmove.ts`
 - `m_digweapon_check()`: `packages/content/src/mdig.ts`
 - `m_move()`: `packages/content/src/brains.ts`, `packages/content/src/dogmove.ts`, `packages/content/src/monmove.ts`
@@ -1623,7 +1628,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shk_your()`: `packages/content/src/revive.ts`
 - `shkgone()`: `packages/content/src/shk.ts`
 - `shkname()`: `packages/content/src/shk.ts`
-- `shop_keeper()`: `packages/content/src/eshk.ts`, `packages/content/src/revive.ts`
+- `shop_keeper()`: `packages/content/src/eshk.ts`, `packages/content/src/revive.ts`, `packages/content/src/steal.ts`
 - `shop_object()`: `packages/content/src/shk.ts`
 - `shopdig()`: `packages/content/src/shkpay.ts`
 - `sortbill_cmp()`: `packages/content/src/pay.ts`
@@ -1760,9 +1765,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/steal.c
 
+- `findgold()`: `packages/content/src/steal.ts`
+- `mpickobj()`: `packages/content/src/steal.ts`
 - `relobj()`: `packages/content/src/mongear.ts`
-- `remove_worn_item()`: `packages/content/src/jewelry.ts`
-- `somegold()`: `packages/content/src/fountain.ts`
+- `remove_worn_item()`: `packages/content/src/jewelry.ts`, `packages/content/src/steal.ts`
+- `somegold()`: `packages/content/src/steal.ts`
+- `steal()`: `packages/content/src/steal.en.ts`, `packages/content/src/steal.ts`
+- `stealarm()`: `packages/content/src/steal.en.ts`, `packages/content/src/steal.ts`
+- `stealgold()`: `packages/content/src/steal.en.ts`, `packages/content/src/steal.ts`
+- `thiefdead()`: `packages/content/src/nomul.ts`, `packages/content/src/steal.ts`
+- `unresponsive()`: `packages/content/src/steal.ts`
+- `unstolenarm()`: `packages/content/src/steal.en.ts`, `packages/content/src/steal.ts`
+- `worn_item_removal()`: `packages/content/src/steal.ts`
 
 ## src/teleport.c
 
@@ -1783,7 +1797,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `safe_teleds()`: `packages/content/src/teleport.ts`, `packages/content/src/trap.ts`
 - `scrolltele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `tele()`: `packages/content/src/trap.ts`
-- `tele_restrict()`: `packages/content/src/adtyping.ts`
+- `tele_restrict()`: `packages/content/src/teleport.ts`
 - `tele_to_rnd_pet()`: `packages/content/src/apply.ts`
 - `tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `teleds()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
@@ -1920,6 +1934,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhitm_ad_halu()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_phys()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/combat.ts`
+- `mhitm_ad_ssex()`: `packages/content/src/adtyping.ts`
 - `mhitm_adtyping()`: `packages/content/src/adtyping.ts`, `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `mhitm_mgc_atk_negated()`: `packages/content/src/adtyping.ts`
 - `missum()`: `packages/content/src/combat.ts`

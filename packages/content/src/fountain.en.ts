@@ -16,6 +16,8 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.snakes': 'An endless stream of snakes pours forth!',
   'fountain.hissing': 'You hear something hissing!',
   'fountain.unleash': 'You unleash {mon|an}!',
+  'fountain.attract': 'You attract {mon|an}!',
+  'fountain.seductive_voice': 'You hear a seductive voice.',
   'fountain.presence_of_evil': 'You feel the presence of evil.',
   'fountain.grateful': 'Grateful for his release, he grants you a wish!',
   'fountain.no_good': "This water's no good!",

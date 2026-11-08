@@ -196,7 +196,7 @@ describe('dipping: the rnd(30) outcomes', () => {
     expect(first(26)[1]).toBe('A strange tingling runs up your arm.');
     expect(first(27)[1]).toBe('You feel a sudden chill.');
     expect(first(28)[1]).toBe('An urge to take a bath overwhelms you.');
-    expect(first(22)[1]).toBe('A large bubble rises to the surface and pops.');
+    expect(first(22)[1]).toBe('You attract a water nymph!'); // m9 step 3
     expect(first(25)[1]).toBe('Water sprays all over you.');
   });
 

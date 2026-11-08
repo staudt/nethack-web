@@ -506,13 +506,13 @@ export {
   heroOnFountain,
   drinkfountain,
   dipfountain,
-  somegold,
   DIP_ID,
   FOUNTAIN_ACTIONS,
   dryup,
   dogushforth,
 } from './fountain';
 export { waterDamage, type WaterResult } from './water';
+export { somegold } from './steal';
 export { monsterDied } from './mondeath';
 export {
   mongets,

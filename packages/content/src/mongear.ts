@@ -134,7 +134,7 @@ export function whichArmor(
 }
 
 /** Gold the monster carries. ref: src/invent.c findgold() */
-function findGold(ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId): Entity | null {
+export function findGold(ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId): Entity | null {
   return inventoryOf(ctx.state, id).find((o) => ctx.defs.object(o.def).class === 'coin') ?? null;
 }
 
@@ -395,8 +395,9 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
 
 /**
  * The extra items of a monster, and its pocket money.
- * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). The roster has no nymphs,
- * leprechauns or S_DEMON items (the water demon gets none); mummies get their wrapping, and
+ * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). No S_DEMON items (the water
+ * demon gets none); mummies get their wrapping, nymphs roll for a mirror and a potion of object
+ * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold, and
  * gnomes roll for a candle (not in the table).
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
@@ -425,6 +426,12 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   }
   // ref: m_initinv() S_MUMMY
   if (def.glyph.ch === 'M' && rng.rn2(7)) mongets(ctx, monId, 'nh:mummy_wrapping');
+  // ref: m_initinv() S_NYMPH, S_LEPRECHAUN
+  if (def.glyph.ch === 'n') {
+    if (!rng.rn2(2)) mongets(ctx, monId, 'nh:mirror');
+    if (!rng.rn2(2)) mongets(ctx, monId, 'nh:potion_of_object_detection');
+  }
+  if (def.glyph.ch === 'l') mkmonmoney(ctx, monId, rng.d(depth, 30));
   if (def.glyph.ch === 'G') rng.rn2(60);
   rng.rn2(50);
   rng.rn2(100);
@@ -734,6 +741,8 @@ export function canCarry(
   const iquan = item.c.item?.quantity ?? 1;
   if (iquan > 1 && hasFlag(def, 'nohands')) return 1;
   if (e.c.monster?.peaceful && !e.c.monster.tame) return 0; // mpeaceful && !mtame
+  // nymphs deal in stolen merchandise, but not boulders or statues
+  if (def.glyph.ch === 'n') return ctx.defs.object(item.def).class === 'rock' ? 0 : iquan;
   if (currMonLoad(ctx, monId) + weight(ctx.defs, item, ctx.state) > maxMonLoad(def)) return 0;
   return iquan;
 }
@@ -741,8 +750,8 @@ export function canCarry(
 /**
  * The monster picks up one item stack from the cell it stands on.
  * ref: src/mon.c mpickstuff(). A shopkeeper in his shop never picks up, and other monsters but
- * pets rarely do in a shop. Corpses are never picked up (none of the roster is a nymph or
- * handles cockatrice or acidic corpses). The monster then wants to re-check its gear.
+ * pets rarely do in a shop. Only nymphs pick up corpses (the cockatrice, lizard and acidic
+ * exceptions are step 6's). The monster then wants to re-check its gear.
  */
 export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
   const { e, def } = monOf(ctx, monId);
@@ -756,7 +765,9 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
     return false;
   for (const o of itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)) {
     if (!monWouldTakeItem(ctx, monId, o)) continue;
-    if (o.def === 'nh:corpse') continue;
+    // nymphs take everything; most monsters don't pick up corpses (no cockatrices, lizards or
+    // acidic corpses for the others yet)
+    if (o.def === 'nh:corpse' && def.glyph.ch !== 'n') continue;
     const carry = canCarry(ctx, monId, o);
     if (carry === 0) continue;
     let take = o.id;

@@ -24,6 +24,7 @@ import {
   type ModApi,
 } from '@nh/core';
 import { monNam } from './perception';
+import { thiefdead } from './nomul';
 
 type Table = { [k: string]: Json };
 
@@ -239,6 +240,7 @@ const KEYS: readonly Key[] = [
 
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  thiefdead(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->m_id == gs.stealmid) thiefdead()`
   for (const k of KEYS) {
     const t = table(ctx, k, false);
     if (t) delete t[String(id)];

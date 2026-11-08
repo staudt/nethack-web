@@ -368,6 +368,10 @@ export function makemon(
     },
   });
 
+  // ref: makemon() switch (ptr->mlet): leprechauns sleep, nymphs 4 times in 5 (no Amulet)
+  const mon = ctx.state.entities[String(id)]?.c.monster;
+  if (mon && mdef.glyph.ch === 'l') mon.asleep = true;
+  else if (mon && mdef.glyph.ch === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {

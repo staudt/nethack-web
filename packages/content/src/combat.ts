@@ -442,7 +442,7 @@ export function hitmu(
   }
   // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
   // their own line (and a physical hug)
-  if (hitmsgFor(atk))
+  if (hitmsgFor(atk, ctx.defs.monster(mon.def).flags.includes('animal')))
     ctx.emit({
       type: 'msg',
       key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,

@@ -463,6 +463,11 @@ interface NhData {
   oldcap?: number;
   /** Message shown when the current helplessness ends (ref: nomovemsg). */
   nomovemsg?: Msg | null;
+  /** The function to run when the helplessness ends, by setAfternmv() key (ref: afternmv). */
+  afternmv?: string;
+  /** The worn armor being taken off for a thief, and the thief (ref: stealoid, stealmid). */
+  stealoid?: number;
+  stealmid?: number;
   /** Items whose erodeproofing the hero knows, by item id (obj->rknown); see rknown(). */
   rknown?: Record<string, true>;
   /** Boxes whose lock state the hero knows, by item id (obj->lknown); see objKnown(). */

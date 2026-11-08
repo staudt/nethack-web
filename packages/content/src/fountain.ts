@@ -1,12 +1,12 @@
 // Fountains: their state, drinking from one, and drying up (with the Watch's warning in town).
 // ref: src/fountain.c drinkfountain(), dipfountain(), wash_hands(), dowatersnakes(),
 // dowaterdemon(), dowaternymph(), dogushforth(), gush(), dofindgem(), dryup();
-// src/potion.c mongrantswish(); src/steal.c somegold()
+// src/potion.c mongrantswish()
 //
 // The state lives in `modData.nh.fountains[levelId][cellIndex]` as bits (C keeps them in the
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
 // Not ported (DEVIATIONS "Quaffing"): the enlightenment screen,
-// see invisible (only its messages), water nymphs (C's own "no nymph" branch), pools from gushing
+// see invisible (only its messages), pools from gushing
 // water (the rolls are drawn, no pool is made), hallucinated snake and liquid names, exercise.
 // Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
 // Lady of the Lake always refuses), no Glib, no livelog.
@@ -37,6 +37,7 @@ import { adjattrib, type Attr } from './attrib';
 import { monsterDetect } from './detect';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { makemon } from './generation';
+import { somegold } from './steal';
 import { losehp, losestr } from './hp';
 import { morehungry, newuhs, vomit } from './hunger';
 import { uState } from './luck';
@@ -166,6 +167,7 @@ export function breaksink(ctx: Ctx, x: number, y: number): void {
 
 const WATER_MOCCASIN: DefId = 'nh:water_moccasin';
 const WATER_DEMON: DefId = 'nh:water_demon';
+const WATER_NYMPH: DefId = 'nh:water_nymph';
 
 /** A monster made at the hero's square falls into a trap there. */
 function trapHere(ctx: Ctx, id: EntityId): void {
@@ -227,11 +229,21 @@ function dowaterdemon(ctx: Ctx, action: DefId, at: Pos): boolean {
 }
 
 /**
- * Water nymph: none exist, so C's own "no nymph" branch.
- * ref: src/fountain.c dowaternymph()
+ * Water nymph: "You attract a water nymph!" (or "You hear a seductive voice." blind), awake;
+ * if none can be made (no room), the bubble. ref: src/fountain.c dowaternymph() (genocide and
+ * extinction are not tracked)
  */
 function dowaternymph(ctx: Ctx): void {
-  say(ctx, blind(ctx) ? 'fountain.loud_pop' : 'fountain.bubble_pops');
+  const pos = getPlayer(ctx.state).c.pos;
+  const id = pos ? makemon(ctx, ctx.defs.monster(WATER_NYMPH), pos, { adjacentOk: true }) : null;
+  const mon = id === null ? undefined : ctx.state.entities[String(id)];
+  if (id !== null && mon?.c.monster) {
+    if (!blind(ctx))
+      say(ctx, 'fountain.attract', { mon: monNam(ctx, mon) }); // a_monnam()
+    else say(ctx, 'fountain.seductive_voice');
+    mon.c.monster.asleep = false;
+    trapHere(ctx, id);
+  } else say(ctx, blind(ctx) ? 'fountain.loud_pop' : 'fountain.bubble_pops');
 }
 
 /** ref: rm.h IS_DOOR() || SDOOR on the eight squares around x,y. ref: src/mkroom.c nexttodoor() */
@@ -451,22 +463,6 @@ function washHands(ctx: Ctx): WaterResult {
   const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
   say(ctx, gloves ? 'fountain.wash_gloved_hands' : 'fountain.wash_hands');
   return gloves ? waterDamage(ctx, gloves, null, true) : 'nothing';
-}
-
-/**
- * Some of a gold amount: all of it under 50, else a random part above a floor that grows with
- * it. ref: src/steal.c somegold()
- */
-export function somegold(ctx: Pick<Ctx, 'rng'>, lmoney: number): number {
-  const rn1 = (x: number, y: number): number => ctx.rng.rn2(x) + y;
-  const igold = lmoney;
-  if (igold < 50) return igold;
-  if (igold < 100) return rn1(igold - 25 + 1, 25);
-  if (igold < 500) return rn1(igold - 50 + 1, 50);
-  if (igold < 1000) return rn1(igold - 100 + 1, 100);
-  if (igold < 5000) return rn1(igold - 500 + 1, 500);
-  if (igold < 10000) return rn1(igold - 1000 + 1, 1000);
-  return rn1(igold - 5000 + 1, 5000);
 }
 
 /** The bath: a tenth of somegold() is lost from the coin stacks. ref: dipfountain() case 28 */

@@ -50,8 +50,14 @@ export const isHelpless = (ctx: Pick<Ctx, 'state'>): boolean =>
  * Makes the hero helpless from outside an action (a hook or a timer): the extra energy that
  * `nomul` returns is taken from the hero's energy at once.
  */
-export function nomulNow(ctx: Ctx, turns: number, reasonKey: string, finish: Msg | null): void {
-  const extra = nomul(ctx, turns, reasonKey, finish);
+export function nomulNow(
+  ctx: Ctx,
+  turns: number,
+  reasonKey: string,
+  finish: Msg | null,
+  after?: string,
+): void {
+  const extra = nomul(ctx, turns, reasonKey, finish, after);
   const actor = getPlayer(ctx.state).c.actor;
   if (actor) actor.energy -= extra;
 }

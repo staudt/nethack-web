@@ -271,7 +271,7 @@ function amuletOn(ctx: Ctx, amul: Entity): void {
 }
 
 /** ref: src/do_wear.c Amulet_off(), with its off_msg() after the amulet is off */
-function amuletOff(ctx: Ctx, amul: Entity): void {
+export function amuletOff(ctx: Ctx, amul: Entity): void {
   const it = amul.c.item;
   if (!it) return;
   it.equipped = null;
