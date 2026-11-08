@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3217 citations.
+152 NetHack files, 3222 citations.
 
 ## dat/dungeon.lua
 
@@ -644,6 +644,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `drop()`: `packages/content/src/itemactions.ts`
 - `dropx()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
+- `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`
 - `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
 - `heal_legs()`: `packages/content/src/props.ts`

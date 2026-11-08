@@ -106,24 +106,38 @@ export const GROWS_INTO: Readonly<Record<string, string>> = {
 
 /**
  * A monster that killed `victim` gains hit points and maybe a level, growing into its bigger
- * form ("The kitten grows up into a housecat."). Returns false if it died (never here).
- * ref: src/makemon.c grow_up() (with a victim; golems and elementals are not special here)
+ * form ("The kitten grows up into a housecat."). With no victim (`null`: a wraith corpse, as a
+ * potion of gain level would) it always goes up a level, a killer bee into a queen bee. Returns
+ * false if it died (never here).
+ * ref: src/makemon.c grow_up() (golems and elementals are not special here)
  */
-export function growUp(ctx: Ctx, id: EntityId, victimLevel: number): boolean {
+export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): boolean {
   const mon = ent(ctx, id);
   const m = mon?.c.monster;
   const hp = mon?.c.hp;
   if (!mon || !m || !hp) return false;
   const oldDef = ctx.defs.monster(mon.def);
-  const newType = GROWS_INTO[mon.def];
+  const newType =
+    mon.def === 'nh:killer_bee' && victimLevel === null ? 'nh:queen_bee' : GROWS_INTO[mon.def];
   const newDef =
     newType && ctx.defs.isMonster(newType as never) ? ctx.defs.monster(newType as never) : oldDef;
-  const hpThreshold = m.level ? m.level * 8 : 4;
-  let levLimit = Math.trunc((3 * oldDef.level) / 2);
-  if (newDef !== oldDef && newDef.level > levLimit) levLimit = newDef.level;
-  let maxIncrease = ctx.rng.rnd(victimLevel + 1);
-  if (hp.max + maxIncrease > hpThreshold + 1) maxIncrease = Math.max(hpThreshold + 1 - hp.max, 0);
-  const curIncrease = maxIncrease > 1 ? ctx.rng.rn2(maxIncrease) : 0;
+  let hpThreshold: number;
+  let levLimit: number;
+  let maxIncrease: number;
+  let curIncrease: number;
+  if (victimLevel !== null) {
+    hpThreshold = m.level ? m.level * 8 : 4;
+    levLimit = Math.trunc((3 * oldDef.level) / 2);
+    if (newDef !== oldDef && newDef.level > levLimit) levLimit = newDef.level;
+    maxIncrease = ctx.rng.rnd(victimLevel + 1);
+    if (hp.max + maxIncrease > hpThreshold + 1) maxIncrease = Math.max(hpThreshold + 1 - hp.max, 0);
+    curIncrease = maxIncrease > 1 ? ctx.rng.rn2(maxIncrease) : 0;
+  } else {
+    // a gain level potion or wraith corpse; always go up a level unless already at maximum
+    maxIncrease = curIncrease = ctx.rng.rnd(8);
+    hpThreshold = 0; // smaller than `mhpmax + max_increase'
+    levLimit = 50; // recalc below
+  }
   hp.max += maxIncrease;
   hp.cur += curIncrease;
   if (hp.max <= hpThreshold) return true;

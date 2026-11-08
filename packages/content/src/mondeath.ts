@@ -13,6 +13,8 @@ import { forgetMState } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
 import { shkgone } from './shk';
+import { setHistoric } from './statuestate';
+import { unmapInvisible } from './invis';
 import { countKill } from './vanquished';
 
 /**
@@ -48,6 +50,7 @@ export function monsterDied(
   // ref: xkilled(): `if (gs.stoned) monstone(mtmp)`: a statue holding its things, no corpse
   const statue = stoned && at ? makeStatue(ctx, e, at) : null;
   relobj(ctx, monId, at);
+  forgetUnseenAt(ctx, at);
   shkgone(ctx, monId); // ref: m_detach()
   countKill(ctx, e.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, monId);
@@ -83,8 +86,8 @@ export function monsterDied(
  * The statue (or, for a small monster, sometimes a pile of rocks) a monster turning to stone
  * leaves where it stands, with its possessions inside; a boulder it carries falls out. Call it
  * before the monster is removed. Returns the statue's (or the rocks') id.
- * ref: src/mon.c monstone() (the object part; no vampires, life saving, lit objects, names,
- * genders or historic statues), src/mkobj.c mkcorpstat(STATUE)
+ * A unique monster's statue is historic. ref: src/mon.c monstone() (the object part; no
+ * vampires, life saving, lit objects or names; no genders), src/mkobj.c mkcorpstat(STATUE)
  */
 export function makeStatue(
   ctx: Ctx,
@@ -108,10 +111,20 @@ export function makeStatue(
       it.containedIn = statue;
       it.placed = ctx.state.seq++;
     }
+    // Archeologists should not break unique statues
+    if (def.genFlags.includes('uniq')) setHistoric(ctx, statue, true);
     placeOnFloor(ctx, statue, at.level, at.x, at.y);
     return statue;
   }
   return mksobj(ctx, ctx.defs.object('nh:rock'), { at });
+}
+
+/**
+ * A dying monster's square loses its remembered-unseen `I` (on her level).
+ * ref: src/mon.c mondead(), monstone(): `if (glyph_is_invisible(...)) unmap_object(x, y)`
+ */
+function forgetUnseenAt(ctx: Ctx, at: { level: string; x: number; y: number } | undefined): void {
+  if (at && at.level === ctx.state.currentLevel) unmapInvisible(ctx, at.x, at.y);
 }
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -167,6 +180,7 @@ export function mondead(ctx: Ctx, id: EntityId): void {
   restoreWereForm(ctx, mon);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
+  forgetUnseenAt(ctx, at);
   shkgone(ctx, id); // ref: m_detach()
   countKill(ctx, mon.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, id);

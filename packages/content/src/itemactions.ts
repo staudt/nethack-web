@@ -575,6 +575,17 @@ function weldMsg(ctx: Ctx, e: Entity): void {
   });
 }
 
+type DigestsFood = (ctx: Ctx, engulfer: Entity, obj: Entity) => boolean;
+let digestsFood: DigestsFood | null = null;
+
+/**
+ * Binds engulfer_digests_food() (digestfood.ts, above stoning.ts and mhitm.ts) at registration.
+ * ref: src/do.c dropz()
+ */
+export function setEngulferDigestsFood(fn: DigestsFood): void {
+  digestsFood = fn;
+}
+
 /**
  * Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(), doaltarobj(), dropz().
  * Returns whether it was dropped, or the shopkeeper's offer to ask about (the object then lies
@@ -602,8 +613,8 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)
   if (swapWep(ctx)?.id === e.id) setSwapWep(ctx, null); // setuswapwep(NULL), before the message
   // drop(): swallowed, a barrier between her and the floor: "You drop the dagger into the purple
-  // worm's stomach." and dropz() puts it in the engulfer's inventory (no shop theft, no food
-  // digested at once)
+  // worm's stomach." and dropz() puts it in the engulfer's inventory unless it eats it at once
+  // (engulfer_digests_food(), digestfood.ts; no shop theft)
   const sw = uswallow(ctx);
   const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
   if (engulfer) {
@@ -613,6 +624,7 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
       params: { item: ctx.defs.itemName(ctx.state, e), mon: monNam(ctx, engulfer) },
     });
     removeFromInventory(ctx, e.id);
+    if (digestsFood?.(ctx, engulfer, e)) return true;
     delete it.noCharge; // mpickobj()
     addToInventory(ctx, engulfer.id, e.id);
     return true;

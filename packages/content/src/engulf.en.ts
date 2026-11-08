@@ -65,6 +65,8 @@ export const engulfMessagesEn: Record<string, string> = {
   'throw.vanishes_currents': '{item|The} vanishes into {mon|the_s} currents.',
   'drop.into': 'You drop {item|an} into {mon|the}.',
   'drop.into_stomach': 'You drop {item|an} into {mon|the_s} stomach.',
+  'drop.digested': '{item|The} is instantly digested!',
+  'drop.digested_pl': '{item|The} are instantly digested!',
   'pickup.tongue': 'You pick up {mon|the_s} tongue.',
   'pickup.tongue_slimy': "But it's kind of slimy, so you drop it.",
   'pickup.swallowed_see': "You don't see anything in here to pick up.",
