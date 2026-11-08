@@ -361,11 +361,17 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       if (pending.id === 'leave-dungeon') return false;
       if (pending.id === 'attack-peaceful') return rng.rn2(10) === 0;
       if (pending.id === 'pray-confirm') return true; // the bot only prays in trouble
+      if (pending.id === 'tele-nowhere') return false; // a controlled level teleport to 0
       return rng.rn2(2) === 0;
     }
     if (pending.kind === 'text') {
       // a water demon's wish: always the same one
       if (pending.id === 'wish') return 'blessed +2 long sword';
+      // a controlled level teleport: a depth near the top
+      if (pending.id === 'tele-level') {
+        textAnswers++;
+        return String(1 + rng.rn2(8));
+      }
       // a short deterministic name or amount, or a cancel
       if (rng.rn2(3) === 0) return null;
       if (pending.numeric) {

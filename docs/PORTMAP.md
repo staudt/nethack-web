@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3097 citations.
+152 NetHack files, 3102 citations.
 
 ## dat/dungeon.lua
 

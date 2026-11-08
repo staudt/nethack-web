@@ -24,7 +24,9 @@ import {
   getPlayer,
   inBounds,
   inRooms,
+  inventoryOf,
   isVisible,
+  rnl,
   sortedIds,
   trapAt,
   type ActionDef,
@@ -70,7 +72,10 @@ import { erodeObj, type ErodeResult } from './erode';
 import { rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
-import { uState } from './luck';
+import { luckOf, uState } from './luck';
+import { done } from './end';
+import { setEndHow } from './endstate';
+import { surfaceKey } from './terrain';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
@@ -1674,16 +1679,69 @@ export function safeTeleds(ctx: Ctx): boolean {
 }
 
 /**
+ * NetHack's `Teleport_control && !Stunned`: the hero steers her own teleports (the ring of
+ * teleport control, a tengu corpse).
+ */
+export function teleControlled(ctx: Pick<Ctx, 'state'>): boolean {
+  const h = getPlayer(ctx.state);
+  return hasProp(h, P.TELEPORT_CONTROL) && !hasProp(h, P.STUNNED);
+}
+
+/**
+ * The prompt handler of every controlled teleport but wizard ^T: the position prompt of
+ * {@link tele}, the level prompt of {@link levelTele} and its "Go to Nowhere" question. Offered
+ * nowhere (only those ask).
+ */
+export const TELE_ID: DefId = 'nh:tele';
+
+/** What a teleport prompt carries to its answer. */
+interface TeleData {
+  stage: 'tele' | 'level' | 'nowhere';
+  /** The move's energy, spent with the answer (a read leaves it to the answer; others paid it). */
+  cost: number;
+  /** A teleportation trap (tele_trap()'s guard) or a level teleporter (its messages after). */
+  trap?: true;
+  /** level_tele()'s `trycnt`: level prompts asked so far. */
+  tries?: number;
+}
+
+export interface TeleOptions {
+  /** A blessed scroll of teleportation: controlled even without Teleport_control. */
+  blessed?: boolean;
+  /** The move's energy when a prompt is raised, spent by the answer (default 0: already paid). */
+  cost?: number;
+  /** Set by tele_trap(). */
+  trap?: boolean;
+}
+
+const teleData = (stage: TeleData['stage'], cost: number, trap: boolean): TeleData => ({
+  stage,
+  cost,
+  ...(trap ? { trap: true as const } : {}),
+});
+
+/**
  * The hero teleports within the level: "A mysterious force prevents you from teleporting!" on a
- * no-teleport level, else to a random safe spot. Reading the scroll always makes it known, so the
- * reader learns it whatever happens. Nothing gives teleport control yet, so a blessed scroll
- * teleports at random too (see DEVIATIONS.md "Teleportation").
+ * no-teleport level; with teleport control or a blessed scroll, and not stunned, "Where do you
+ * want to be teleported?" and the position prompt (answered through {@link TELE_ID}); else to a
+ * random safe spot. Reading the scroll always makes it known, so the reader learns it whatever
+ * happens. While another prompt is pending (two in one turn) the teleport is random.
  * ref: src/teleport.c tele(), scrolltele() (no Amulet, Wizard's Tower or wizard mode)
  */
-export function tele(ctx: Ctx): void {
+export function tele(ctx: Ctx, opts: TeleOptions = {}): void {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   if (noteleportLevel(ctx, level)) {
     say(ctx, 'tele.mysterious_force');
+    return;
+  }
+  const h = heroEnt(ctx);
+  if (
+    (hasProp(h, P.TELEPORT_CONTROL) || opts.blessed === true) &&
+    !hasProp(h, P.STUNNED) &&
+    ctx.state.pendingPrompt === null
+  ) {
+    const data = teleData('tele', opts.cost ?? 0, opts.trap === true);
+    askTeleport(ctx, TELE_ID, data as unknown as Json); // unconscious: random already
     return;
   }
   safeTeleds(ctx);
@@ -1724,31 +1782,191 @@ export function answerTeleport(ctx: Ctx, value: Json): void {
   safeTeleds(ctx);
 }
 
+/** The hero's depth (C's depth(&u.uz)). */
+function heroDepth(ctx: Ctx, level: Readonly<Level>): number {
+  return dungeonLayout(ctx.state, level.dungeon).depthStart + level.dlevel - 1;
+}
+
 /**
- * An uncontrolled level teleport: "You feel very disoriented for a moment." in Sokoban, "You
- * shudder for a moment." when the random level is this one, else to a random spot of the level
- * at that depth ("You materialize on a different level!"). Leaving a shop this way is leaving it
- * by the stairs. `beforeGoto` is what the caller does once level_tele() has returned, before the
- * deferred goto_level() at the end of the turn (C's schedule_goto()): it runs on every outcome.
- * ref: src/teleport.c level_tele() (random_levtport; no control, Amulet, endgame,
- * quest, Gehennom or leashed pets), random_teleport_level(); src/dungeon.c get_level()
+ * A level teleport: "You feel very disoriented for a moment." in Sokoban; with teleport control
+ * (and not stunned) the prompt "To what level do you want to teleport?" (answered through
+ * {@link TELE_ID}); else a random level: "You shudder for a moment." when it is this one, else
+ * a random spot of the level at that depth ("You materialize on a different level!"). Leaving a
+ * shop this way is leaving it by the stairs. A level teleporter's own messages (`trap`) come
+ * once level_tele() is over, before the deferred goto_level() at the end of the turn (C's
+ * schedule_goto()), on every outcome.
+ * ref: src/teleport.c level_tele() (no Amulet, endgame, quest, Knox, Gehennom, leashed pets or
+ * level names), random_teleport_level(); src/dungeon.c get_level()
  */
-export function levelTele(ctx: Ctx, beforeGoto?: () => void): void {
+export function levelTele(ctx: Ctx, opts: { cost?: number; trap?: boolean } = {}): void {
   const level = getLevel(ctx.state, heroPos(ctx).level);
-  const refuse = (key: string): void => {
-    say(ctx, key);
-    beforeGoto?.();
-  };
-  if (level.dungeon === SOKOBAN_DUNGEON) return refuse('tele.very_disoriented');
+  const trap = opts.trap === true;
+  if (level.dungeon === SOKOBAN_DUNGEON) {
+    say(ctx, 'tele.very_disoriented');
+    levelTeleTrapAfter(ctx, trap);
+    return;
+  }
+  if (teleControlled(ctx) && ctx.state.pendingPrompt === null) {
+    askLevel(ctx, { ...teleData('level', opts.cost ?? 0, trap), tries: 0 });
+    return;
+  }
+  randomLevtport(ctx, trap);
+}
+
+/** One round of level_tele()'s getlin() loop. */
+function askLevel(ctx: Ctx, data: TeleData): void {
+  const tries = (data.tries ?? 0) + 1;
+  ctx.ask(
+    {
+      id: 'tele-level',
+      kind: 'text',
+      // `++trycnt == 2` adds the hint, which stays for later tries
+      key: tries >= 2 ? 'tele.level_prompt_again' : 'tele.level_prompt',
+      maxLength: 32,
+    },
+    TELE_ID,
+    { ...data, tries } as unknown as Json,
+  );
+}
+
+/** C's atoi(): optional blanks and sign, then digits; 0 when there are none. */
+function atoi(buf: string): number {
+  const m = /^\s*([-+]?\d+)/.exec(buf);
+  return m?.[1] ? parseInt(m[1], 10) : 0;
+}
+
+const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' && c <= '9';
+
+/**
+ * The answer to the level prompt: "*" is a random level; a confused hero says "Oops..." and goes
+ * to a random level 4 times in 5 (rnl(5)), even when she cancels; cancelling stays put; text that
+ * is not a number asks again, up to 10 tries, then a random level; 0 asks "Go to Nowhere.  Are
+ * you sure?"; any other number is the depth to go to.
+ * ref: src/teleport.c level_tele() (the Teleport_control loop; lev_by_name() is not ported)
+ */
+function answerLevel(ctx: Ctx, value: Json, data: TeleData): void {
+  const trap = data.trap === true;
+  const buf = typeof value === 'string' ? value : null;
+  if (buf === '*') return randomLevtport(ctx, trap);
+  if (hasProp(heroEnt(ctx), P.CONFUSION) && rnl(ctx.rng, 5, luckOf(ctx.state)) !== 0) {
+    say(ctx, 'tele.oops');
+    return randomLevtport(ctx, trap);
+  }
+  if (buf === null) return levelTeleTrapAfter(ctx, trap); // cancelled
+  const newlev = atoi(buf);
+  const tries = data.tries ?? 1;
+  const number = isDigit(buf[0]) || (buf[0] === '-' && isDigit(buf[1]));
+  if (newlev === 0 && !number && tries < 10) return askLevel(ctx, data);
+  // no dungeon escape via this route
+  if (newlev === 0) {
+    if (tries >= 10) return randomLevtport(ctx, trap);
+    ctx.ask(
+      { id: 'tele-nowhere', kind: 'yn', key: 'tele.nowhere_confirm', cancellable: true },
+      TELE_ID,
+      { ...data, stage: 'nowhere' } as unknown as Json,
+    );
+    return;
+  }
+  levelTeleTo(ctx, newlev, trap);
+}
+
+/**
+ * "Go to Nowhere.  Are you sure?" answered: yes is suicide ("You scream in agony as your body
+ * begins to warp..."); surviving it (life saving) rematerializes her where she was.
+ * ref: src/teleport.c level_tele() `if (newlev == 0)`
+ */
+function answerNowhere(ctx: Ctx, value: Json, data: TeleData): void {
+  const trap = data.trap === true;
+  if (value !== true) return levelTeleTrapAfter(ctx, trap);
+  say(ctx, 'tele.nowhere_warp');
+  say(ctx, 'tele.nowhere_cease');
+  const p = heroPos(ctx);
+  const invent = inventoryOf(ctx.state, ctx.state.playerId).length > 0;
+  if (invent)
+    say(ctx, 'tele.nowhere_thud', {
+      surface: surfaceKey(ctx, getLevel(ctx.state, p.level), p.x, p.y),
+    });
+  done(ctx, '@killer.tele.suicide');
+  if (ctx.state.gameOver) return;
+  say(ctx, 'tele.nowhere_coalesce');
+  say(ctx, invent ? 'tele.nowhere_rematerialize_gather' : 'tele.nowhere_rematerialize');
+  levelTeleTrapAfter(ctx, trap);
+}
+
+/** level_tele()'s `random_levtport:` */
+function randomLevtport(ctx: Ctx, trap: boolean): void {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
   const newlev = randomTeleportLevel(ctx, level);
+  if (newlev === heroDepth(ctx, level)) {
+    say(ctx, 'tele.shudder');
+    levelTeleTrapAfter(ctx, trap);
+    return;
+  }
+  levelTeleTo(ctx, newlev, trap);
+}
+
+/**
+ * The rest of level_tele() once the depth is known. Above the dungeon (a negative depth): "You
+ * arrive in heaven." at -10 or less (death), Cloud 9 at -9, else "You are now high above the
+ * clouds..."; she floats down to earth when levitating (escaping the dungeon), else plummets to
+ * her death; surviving a death there leaves her on the surface, out of the dungeon. Otherwise
+ * the level at that depth (get_level()): "You can't get there from here." when that is this
+ * level at another depth, nothing when it is this depth, else the goto.
+ * ref: src/teleport.c level_tele() (no shop bills for the dead or escaped, no Flying)
+ */
+function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  if (newlev < 0) {
+    let killer: string | null = null;
+    let escape: string | null = null;
+    if (newlev <= -10) {
+      say(ctx, 'tele.heaven');
+      say(ctx, 'tele.heaven_admit');
+      killer = '@killer.tele.heaven';
+    } else if (newlev === -9) {
+      say(ctx, 'tele.cloud9_happy');
+      say(ctx, 'tele.cloud9');
+    } else say(ctx, 'tele.clouds');
+    if (killer === null) {
+      if (hasProp(heroEnt(ctx), P.LEVITATION)) escape = 'tele.escape_float';
+      else {
+        say(ctx, 'tele.cant_fly');
+        say(ctx, 'tele.plummet');
+        killer = '@killer.tele.plummet';
+      }
+    }
+    if (killer !== null) {
+      done(ctx, killer);
+      if (ctx.state.gameOver) return;
+      // can only get here via life-saving: the hero has now left the dungeon
+      escape = 'tele.escape_surface';
+    }
+    say(ctx, escape ?? 'tele.escape_surface');
+    levelTeleTrapAfter(ctx, trap);
+    if (ctx.state.gameOver) return;
+    // schedule_goto() to level 0: goto_level() -> done(ESCAPED)
+    setEndHow(ctx, 'escaped');
+    ctx.endGame({
+      kind: 'escaped',
+      killer: 'escaped',
+      turn: ctx.state.turn,
+      depth: 1,
+      level: getPlayer(ctx.state).c.experience?.level ?? 1,
+    });
+    return;
+  }
   const layout = dungeonLayout(ctx.state, level.dungeon);
-  if (newlev === layout.depthStart + level.dlevel - 1) return refuse('tele.shudder');
   const to = levelAtDepth(ctx, level, newlev);
   if (to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
-    const deepest = layout.depthStart + (layout.levels ?? dungeonBottom(ctx.state, level)) - 1;
-    return refuse(newlev > deepest ? 'tele.cant_get_there_anywhere' : 'tele.cant_get_there_here');
+    if (newlev !== heroDepth(ctx, level)) {
+      const deepest = layout.depthStart + (layout.levels ?? dungeonBottom(ctx.state, level)) - 1;
+      say(ctx, newlev > deepest ? 'tele.cant_get_there_anywhere' : 'tele.cant_get_there_here');
+    }
+    // the same depth: schedule_goto() to where she is does nothing
+    levelTeleTrapAfter(ctx, trap);
+    return;
   }
-  beforeGoto?.();
+  levelTeleTrapAfter(ctx, trap);
   if (ctx.state.gameOver) return;
   ctx.goToLevel(to, 'random'); // schedule_goto() -> goto_level(): u_on_rndspot(), pickup(1)
   if (ctx.state.gameOver) return;
@@ -1774,7 +1992,7 @@ export function teleTrap(ctx: Ctx): void {
     // shieldeff() with Antimagic is display only
     if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level))
       say(ctx, 'tele.wrenching');
-    else tele(ctx);
+    else tele(ctx, { trap: true });
   } finally {
     inTeleTrap = false;
   }
@@ -1783,9 +2001,9 @@ export function teleTrap(ctx: Ctx): void {
 /**
  * The hero on a level teleporter: "You step onto a level teleport trap!" ("You trigger..." when
  * forced), "You feel a wrenching sensation." with magic resistance (unless forced), else the trap
- * is used up and she level-teleports at random; then "You feel disoriented." ("even more" when
- * confused; "You briefly feel oriented." when hallucinating) and 3 more turns of confusion.
- * ref: src/teleport.c level_tele_trap() (no endgame, no teleport control)
+ * is used up and she level-teleports (asked where with teleport control); then
+ * {@link levelTeleTrapAfter}.
+ * ref: src/teleport.c level_tele_trap() (no endgame)
  */
 function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boolean): void {
   // "float onto" while levitating (u_locomotion())
@@ -1802,14 +2020,51 @@ function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boole
     return;
   }
   deltrap(ctx, levelId, trap);
-  levelTele(ctx, () => {
-    const h = heroEnt(ctx);
-    if (hasProp(h, P.HALLUC)) say(ctx, 'tele.briefly_oriented');
-    else say(ctx, hasProp(h, P.CONFUSION) ? 'tele.even_more_disoriented' : 'tele.disoriented');
-    // in place of a magic portal's brief Stun, and only without control
-    makeConfused(ctx, timeoutLeft(ctx.state, h, P.CONFUSION) + 3, false);
-  });
+  levelTele(ctx, { trap: true });
 }
+
+/**
+ * What a level teleporter adds once level_tele() is over (`trap`; nothing otherwise): "You
+ * briefly feel centered." with teleport control ("oriented" when hallucinating), else "You feel
+ * disoriented." ("even more" when confused) and 3 more turns of confusion.
+ * ref: src/teleport.c level_tele_trap() after level_tele()
+ */
+function levelTeleTrapAfter(ctx: Ctx, trap: boolean): void {
+  if (!trap || ctx.state.gameOver) return;
+  const h = heroEnt(ctx);
+  const control = hasProp(h, P.TELEPORT_CONTROL);
+  if (hasProp(h, P.HALLUC) || control)
+    say(ctx, hasProp(h, P.HALLUC) ? 'tele.briefly_oriented' : 'tele.briefly_centered');
+  else say(ctx, hasProp(h, P.CONFUSION) ? 'tele.even_more_disoriented' : 'tele.disoriented');
+  // in place of a magic portal's brief Stun, and only without control
+  if (!control) makeConfused(ctx, timeoutLeft(ctx.state, h, P.CONFUSION) + 3, false);
+}
+
+/** The answer to a teleport prompt: see {@link TELE_ID}. */
+export const teleAction: ActionDef = {
+  id: TELE_ID,
+  labelKey: 'action.nh:tele',
+  handles: 'mod',
+  offer: () => [],
+  perform: () => 0,
+  answer(ctx, value, raw) {
+    const data = raw as unknown as TeleData;
+    if (data.stage === 'tele') {
+      if (data.trap) {
+        // tele_trap()'s guard covers the landing, as when the trap teleports her at random
+        inTeleTrap = true;
+        try {
+          answerTeleport(ctx, value);
+        } finally {
+          inTeleTrap = false;
+        }
+      } else answerTeleport(ctx, value);
+    } else if (data.stage === 'level') answerLevel(ctx, value, data);
+    else answerNowhere(ctx, value, data);
+    // asked again: the move is spent with the last answer
+    return ctx.state.pendingPrompt?.handler === TELE_ID ? 0 : data.cost;
+  },
+};
 
 /**
  * Teleportitis: 1 turn in 85 she teleports within the level (not while praying).

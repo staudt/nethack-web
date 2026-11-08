@@ -793,8 +793,9 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
     case 'nh:scroll_of_teleportation':
       // ref: seffect_teleportation(): confused or cursed, a level teleport (its message makes
       // the scroll known); else scrolltele(), which always learns it
-      if (confused || it.buc === 'cursed') levelTele(ctx);
-      else tele(ctx);
+      // (controlled, the prompt's answer spends the move)
+      if (confused || it.buc === 'cursed') levelTele(ctx, { cost: NORMAL_SPEED });
+      else tele(ctx, { blessed: it.buc === 'blessed', cost: NORMAL_SPEED });
       known = true;
       break;
     case 'nh:scroll_of_earth':
@@ -861,7 +862,7 @@ const read: ActionDef = {
       return 0;
     }
     def.use(ctx, ctx.state.playerId, e.id);
-    // an identify menu is waiting: the move is spent when it is answered
+    // an identify menu or a teleport prompt is waiting: the move is spent when it is answered
     return ctx.state.pendingPrompt ? 0 : NORMAL_SPEED;
   },
   answer(ctx, value, raw) {

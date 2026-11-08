@@ -1533,6 +1533,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'teleport',
   },
+  // ref: objects.h RING("teleport control", "gold", TELEPORT_CONTROL, 300, 1, 0, ...)
+  {
+    id: 'nh:ring_of_teleport_control',
+    nameKey: 'nh:ring_of_teleport_control',
+    class: 'ring',
+    glyph: { ch: '=', fg: YELLOW },
+    prob: 1,
+    weight: 3,
+    cost: 300,
+    material: 'gold',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'teleport_control',
+  },
 
   // ---- amulets (iron, weight 20, cost 150, magic; appearances are shuffled) ----
   // ref: objects.h AMULET("amulet of ESP", "circular", TELEPAT, 120)

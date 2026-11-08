@@ -7,6 +7,7 @@ export const adtypingMessagesEn: Record<string, string> = {
   'adtyp.falls_to_pieces': '{mon|The} falls to pieces!',
   'adtyp.you_not_affected': 'You are not affected.',
   'adtyp.position_uncertain': 'Your position suddenly seems very uncertain!',
+  'adtyp.position_uncertain_ctrl': 'Your position suddenly seems uncertain!',
   'adtyp.suddenly_disappears': '{mon|The} suddenly disappears!',
   'adtyp.blinds_you': '{mon|The} blinds you!',
   'adtyp.is_blinded': '{mon|The} is blinded.',

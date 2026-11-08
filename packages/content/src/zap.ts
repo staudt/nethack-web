@@ -98,7 +98,7 @@ import { findAc, findMac } from './stats';
 import { T } from './terrain';
 import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
-import { TRAP, dotrap, isMagicalTrap, mintrap, tele, uTeleportMon } from './trap';
+import { TRAP, dotrap, isMagicalTrap, mintrap, tele, teleControlled, uTeleportMon } from './trap';
 import { setStasis } from './teleport';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
 import { checkUnpaid, costlyAlteration } from './shk';
@@ -1416,8 +1416,9 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       return 0;
     case WAN.teleportation: {
       const was = { ...heroPos(ctx) };
-      tele(ctx);
-      // learned when she lands out of sight of where she was, or 4 or more squares away
+      tele(ctx); // controlled: the cell is asked for after the zap
+      // learned with control, or when she lands out of sight of where she was, or 4 or more
+      // squares away
       const now = heroPos(ctx);
       const level = levelOf(ctx);
       const sight = clearPath(
@@ -1429,7 +1430,8 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
         was.y,
         blockersOf(ctx, level.id),
       );
-      if (!sight || (now.x - was.x) ** 2 + (now.y - was.y) ** 2 >= 16) learnIt = true;
+      if (teleControlled(ctx) || !sight || (now.x - was.x) ** 2 + (now.y - was.y) ** 2 >= 16)
+        learnIt = true;
       break;
     }
     case WAN.light: {

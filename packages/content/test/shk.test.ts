@@ -360,7 +360,13 @@ describe('shopkeepers and priests', () => {
     pe.c.actor.speed = 0;
     Object.assign(pe.c.pos, { x: 6, y: 2 });
     t.wait();
-    const r2 = t.engine.step(t.state, { type: 'move', dir: 'w' });
+    let r2 = t.engine.step(t.state, { type: 'move', dir: 'w' });
+    for (
+      let i = 0;
+      i < 20 && r2.events.some((e) => e.type === 'msg' && e.key === 'dog.in_the_way_peaceful');
+      i++
+    )
+      r2 = t.engine.step(t.state, { type: 'move', dir: 'w' });
     const m2 = r2.events.find((e) => e.type === 'msg' && e.key === 'dog.doesnt_want_swap_peaceful');
     expect(m2 && m2.type === 'msg' ? render(m2) : '').toMatch(
       /^You stop\. {2}The priest of \w+ doesn't want to swap places\.$/,

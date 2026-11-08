@@ -41,7 +41,7 @@ import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
-import { registerTeleportitis, registerTraps } from './trap';
+import { registerTeleportitis, registerTraps, teleAction } from './trap';
 import { registerMagicTraps } from './magictrap';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
@@ -94,6 +94,7 @@ export const vanillaMod: Mod = {
     for (const a of PRAY_ACTIONS) api.defineAction(a);
     for (const a of JEWELRY_ACTIONS) api.defineAction(a);
     for (const a of ZAP_ACTIONS) api.defineAction(a);
+    api.defineAction(teleAction); // the controlled teleport prompts' answers
     for (const a of APPLY_ACTIONS) api.defineAction(a);
     for (const a of DIG_ACTIONS) api.defineAction(a);
     for (const a of LOOT_ACTIONS) api.defineAction(a);
@@ -559,6 +560,8 @@ export {
   mintrap,
   mHarmlessTrap,
   isHole,
+  TELE_ID,
+  teleControlled,
 } from './trap';
 export type { TrapResult } from './trap';
 export { utrap, isMtrapped, monKnowsTraps } from './trapstate';

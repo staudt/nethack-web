@@ -58,7 +58,7 @@ import { mondied, monkilled } from './mondeath';
 import { drainEn } from './uenergy';
 import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
 import { levitating } from './trapstate';
-import { canseemon, tele, rlocMon } from './trap';
+import { canseemon, tele, teleControlled, rlocMon } from './trap';
 import { teleRestrict } from './teleport';
 
 export { teleRestrict };
@@ -785,9 +785,14 @@ function adTlpt(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
   if (mdef.id === ctx.state.playerId) {
     if (mgcAtkNegated(ctx, magr, false)) say(ctx, 'adtyp.you_not_affected');
     else {
-      // flags.verbose; no Teleport_control exists, so always "very "
-      say(ctx, 'adtyp.position_uncertain');
-      tele(ctx);
+      // flags.verbose; "very " unless she controls it (and is awake)
+      say(
+        ctx,
+        teleControlled(ctx) && !unaware(ctx)
+          ? 'adtyp.position_uncertain_ctrl'
+          : 'adtyp.position_uncertain',
+      );
+      tele(ctx); // controlled: the cell is asked for once the monster's move stops
       // make sure the damage isn't fatal (no Half_physical_damage, no polymorph)
       const hp = getPlayer(ctx.state).c.hp;
       if (hp && mhm.damage >= hp.cur) {

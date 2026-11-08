@@ -342,6 +342,8 @@ describe('conjoined pits', () => {
   test('into a pit next to hers that is not conjoined she stumbles over debris', () => {
     for (let seed = 1; seed <= 6; seed++) {
       const m = twoPits(seed, false);
+      // a spare move: the turn does not end, so no HP regeneration hides the damage
+      getPlayer(m.state).c.actor!.energy += 12;
       const text = stepEast(m);
       expect(getPlayer(m.state).c.pos).toMatchObject({ x: 2, y: 0 });
       expect(text.some((t) => t.startsWith('You stumble over debris'))).toBe(true);

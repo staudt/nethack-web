@@ -490,6 +490,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:ring_of_slow_digestion.plural': 'rings of slow digestion',
   'nh:ring_of_teleportation': 'ring of teleportation',
   'nh:ring_of_teleportation.plural': 'rings of teleportation',
+  'nh:ring_of_teleport_control': 'ring of teleport control',
+  'nh:ring_of_teleport_control.plural': 'rings of teleport control',
   'nh:amulet_of_esp': 'amulet of ESP',
   'nh:amulet_of_esp.plural': 'amulets of ESP',
   'nh:amulet_of_life_saving': 'amulet of life saving',
