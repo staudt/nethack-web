@@ -52,6 +52,21 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m7e breaking wands** (2026-11-07): its own "Break" offer after a yes/no question, not folded into Apply.
 - **m7e golden** (2026-11-07): explained golden updates from new offers are accepted rather than filtering offers out of the soak bot.
 
+- **m9 taken defaults** (2026-11-07, all cheap, planner's recommendations, faithful to NetHack 3.7):
+  1. One function per damage type in the 3.7 shape (`adtyping.ts`), existing cases moved in step 1.
+  2. About 22 real vanilla monster rows through the converter, not test-only defs.
+  3. A minimal `nh:statue` object for stoned monsters (holds their inventory); 7f-c adds display, generation, statue traps.
+  4. Engulfing without a core change: engulfer on the hero's cell, map hidden via the blindness hook, an `engulfed` status the UI draws as the swallow box.
+  5. Hero lycanthropy without transforming; the per-turn change roll waits for 7f.
+  6. Sliming deferred (m9 step 8 or 7f).
+  7. Incubus/succubus seduction acts as item theft until monsters have genders.
+  8. No real-time clock (night, full moon): gremlins never curse; core stays deterministic.
+  9. Cockatrice eggs deferred (m9 step 8 or m10).
+  10. Level drain records HP/energy gained per level from m9 on, average-gain fallback for older saves.
+  11. Stoning before drain and lycanthropy (7f depends on it).
+  12. Monster blindness in content state.
+  13. A sickness type flag (food poisoning vs illness).
+
 ## Approved
 
 - **m7b boulders and Sokoban: four core contract questions** (2026-11-04, approved by the user 2026-11-06: all four recommendations taken). The plan (`~/.claude/plans/m7b-sokoban.md`, `docs/kickoff-m7b.md`, 8 steps: 7b1 boulders/pits/scroll of earth, 7b2 Oracle + Sokoban) needs these core changes, each marked costly to undo by the planner:
