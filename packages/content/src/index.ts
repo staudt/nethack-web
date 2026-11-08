@@ -17,6 +17,7 @@ import { registerNomul } from './nomul';
 import { EAT_ACTIONS, registerEat } from './eat';
 import { registerHunger } from './hunger';
 import { registerCorpses } from './corpses';
+import { registerRevive } from './revive';
 import { registerHero } from './hero';
 import { ROLES } from './roles';
 import { TERRAIN } from './terrain';
@@ -126,6 +127,7 @@ export const vanillaMod: Mod = {
     registerAutosearch(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
+    registerRevive(api);
     registerHunger(api);
     registerEat(api);
     registerEnd(api);

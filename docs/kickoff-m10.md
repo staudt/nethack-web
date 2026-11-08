@@ -31,4 +31,4 @@ Monsters whose attacks or traits are not ported: breath and spit (m9 step 5), le
 
 ## Status
 
-Draft, not started. Branch `m10` off `m9`; run by the overnight loop (`docs/RUNBOOK.md`, run 4 item 4).
+All five steps done on branch `m10` (one commit each): 1 early animals and humanoids (af26a95), 2 spiders and webs (6e6fe89), 3 blobs, jellies, vortices, spheres and elementals (8873e63; earth elemental deferred: no wall-walking), 4 undead, imps, regenerators and teleporters (09e3ec4), 5 armed humanoids, trolls and eaters (this step's commit). 83 new rows, 164 monsters in the roster. Golden: 648 actions, `03e939f8d678bb1715cba3ea6b31` (moved once, in step 4, by the fleeing teleporters' `rn2(40)`; steps 1-3 and 5 left it unchanged because the 400-turn run stays on DL1 at XL1). Phone checks: TESTPLAN "10 monster batch 1"; what is left for later: ROADMAP "From m10" and DEVIATIONS' m10 rows.

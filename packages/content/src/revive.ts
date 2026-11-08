@@ -15,10 +15,13 @@ import {
   inventoryOf,
   type Ctx,
   type Entity,
+  type Json,
+  type ModApi,
   type Msg,
 } from '@nh/core';
 import { costlySpot, isShopType, shopKeeper } from './eshk';
 import { makemon, mnextoPos } from './generation';
+import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { eatenStat, placeObject, removeFromInventory, splitStack } from './items';
 import { heroSees } from './mongear';
@@ -216,4 +219,68 @@ export function unturnDead(ctx: Ctx, who: Entity | 'hero'): number {
   }
   if (isU && res) encumberMsg(ctx);
   return res;
+}
+
+/**
+ * A troll corpse's revival timer: the troll rises where the corpse is ("<The troll> rises from
+ * the dead!", "The troll corpse disappears!" when only the spot is seen; "The troll corpse
+ * writhes out of your grasp!" / "You feel squirming in your backpack!" from her pack; "<A
+ * troll> suddenly appears!" from a monster's). A corpse that cannot rise (someone else's level,
+ * inside a container) rots away instead: "You feel less hassled." ref: src/do.c revive_mon(),
+ * revive_corpse() (no Riders, no displacers, no buried corpses)
+ */
+function reviveMon(ctx: Ctx, data: Json): void {
+  const id = (data as { id?: unknown } | null)?.id;
+  if (typeof id !== 'number') return;
+  const body = ctx.state.entities[String(id)];
+  const it = body?.c.item;
+  if (!body || body.def !== CORPSE || !it) return; // eaten or gone
+  const carrier = it.carriedBy ?? null;
+  const inInvent = carrier === ctx.state.playerId;
+  const isUwep = inInvent && it.equipped === 'weapon';
+  const chewed = (it.eaten ?? 0) !== 0;
+  const cname = cxnameSingular(ctx, body);
+  const at = objLocation(ctx, body);
+  const v = hungerData(ctx).victual;
+  const r = revive(ctx, body, false);
+  if (!r) {
+    // ref: revive_mon(): rot this corpse away
+    say(ctx, 'revive.less_hassled');
+    const when = ctx.rng.d(5, 50) - (ctx.state.turn - (it.age ?? 0));
+    ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
+    return;
+  }
+  // ref: src/eat.c food_disappears(): a meal on this corpse is over
+  if (v && v.piece === id && !ctx.state.entities[String(id)]) {
+    hungerData(ctx).victual = null;
+    ctx.interrupt();
+  }
+  const mon = r.mon;
+  const seen = !!mon.c.pos && heroSees(ctx, mon.c.pos);
+  const mname = monNam(ctx, mon);
+  if (inInvent) {
+    if (isUwep) say(ctx, 'revive.writhes_grasp', { corpse: cname });
+    else say(ctx, 'revive.squirming');
+    encumberMsg(ctx);
+  } else if (carrier !== null) {
+    // ref: revive_corpse() OBJ_MINVENT
+    const mcarry = ctx.state.entities[String(carrier)];
+    if (seen) {
+      if (mcarry?.c.pos && heroSees(ctx, mcarry.c.pos))
+        say(ctx, canSpotMon(ctx, mon) ? 'revive.startled' : 'revive.startled_gone', {
+          mon: monNam(ctx, mcarry),
+          corpse: cname,
+        });
+      else if (canSpotMon(ctx, mon))
+        say(ctx, chewed ? 'revive.appears_chewed' : 'revive.appears', { mon: mname });
+    }
+  } else if (at && (heroSees(ctx, at) || seen)) {
+    // ref: revive_corpse() OBJ_FLOOR
+    if (seen) say(ctx, chewed ? 'revive.rises_chewed' : 'revive.rises', { mon: mname });
+    else say(ctx, 'revive.disappears', { corpse: cname });
+  }
+}
+
+export function registerRevive(api: ModApi): void {
+  api.defineTimer({ id: 'nh:revive_mon', fire: reviveMon });
 }

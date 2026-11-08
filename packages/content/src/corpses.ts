@@ -158,7 +158,7 @@ export function xkilledCorpse(
 /**
  * Starts the timer that rots a corpse away. ref: src/mkobj.c start_corpse_timeout(): the
  * corpse's age counts toward ROT_AGE and the time varies by rnz(10) - 10 (rnz(25) - 25 for
- * level creation). Lizards and lichens never rot. Trolls (revive) and Riders are not handled.
+ * level creation). Lizards and lichens never rot; trolls may revive instead. No Riders.
  */
 export function startCorpseTimeout(
   ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
@@ -173,8 +173,22 @@ export function startCorpseTimeout(
   const age = Math.max(ctx.state.turn, 1) - (it.age ?? 0);
   let when = age > ROT_AGE ? rotAdjust : ROT_AGE - age;
   when += rnz(ctx, rotAdjust) - rotAdjust;
+  // ref: start_corpse_timeout(): a troll revives 1 time in TROLL_REVIVE_CHANCE for each age
+  // 2..TAINT_AGE (revive.ts 'nh:revive_mon'); no Riders, no zombify
+  if (it.corpseOf && trollCorpse(it.corpseOf)) {
+    for (let a = 2; a <= TAINT_AGE; a++)
+      if (!ctx.rng.rn2(TROLL_REVIVE_CHANCE)) {
+        ctx.schedule(a, 'nh:revive_mon', { id });
+        return;
+      }
+  }
   ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
 }
+
+/** ref: include/hack.h TROLL_REVIVE_CHANCE: 1/37 for 50 turns, about 75% */
+const TROLL_REVIVE_CHANCE = 37;
+/** ref: start_corpse_timeout() `mons[body->corpsenm].mlet == S_TROLL` (the roster's troll) */
+const trollCorpse = (mon: DefId): boolean => mon === 'nh:troll';
 
 /**
  * Makes a corpse that of `mon`: its rot timer is stopped and started again for the new type.
@@ -190,7 +204,11 @@ export function setCorpsenm(
   if (!it) return;
   it.corpseOf = mon;
   ctx.state.timers = ctx.state.timers.filter(
-    (t) => !(t.kind === 'nh:rot_corpse' && (t.data as { id?: unknown } | null)?.id === id),
+    (t) =>
+      !(
+        (t.kind === 'nh:rot_corpse' || t.kind === 'nh:revive_mon') &&
+        (t.data as { id?: unknown } | null)?.id === id
+      ),
   );
   startCorpseTimeout(ctx, id, inMklev);
 }

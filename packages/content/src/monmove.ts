@@ -64,6 +64,7 @@ import { mHarmlessTrap, mintrap, rlocMon, rlocTo, trapRemovedMon } from './trap'
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
 import { maybeSpinWeb } from './web';
+import { monEatsHere } from './meat';
 import { findgold } from './steal';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
@@ -739,7 +740,8 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
       (appr !== 1 || !inLine) &&
       mSearchItems(ctx, id, level, rules.opaque, blocked, goal, heroPos)
     ) {
-      // standing on something wanted: postmov() -> mpickstuff()
+      // standing on something wanted: postmov() -> eating, then mpickstuff()
+      if (monEatsHere(ctx, id)) return 'died';
       mpickstuff(ctx, id);
       return 'done';
     }
@@ -861,6 +863,9 @@ function postmovMoved(
   }
   // ref: postmov(): "possibly dig"
   if (canTunnel && mayDig(ctx, level, pos.x, pos.y) && mdigTunnel(ctx, e)) return 'died';
+  // ref: postmov(): rock moles and rust monsters eat metal, gelatinous cubes eat and engulf
+  // objects, purple worms and ghouls eat corpses (meat.ts)
+  if (monEatsHere(ctx, id)) return 'died';
   // ref: postmov(): a monster that moved picks up something it likes on the new square
   if (mpickstuff(ctx, id)) return 'done';
   // ref: postmov(): `if (mtmp->isshk) after_shk_move(mtmp)`

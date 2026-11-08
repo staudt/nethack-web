@@ -202,3 +202,19 @@ With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an ite
 - [ ] Create a `cockatrice` (or `chickatrice`): its hissing says "You hear the cockatrice's hissing." and sometimes "You are slowing down." (stoning countdown, five turns, "Stone" in the status). Wish `lizard corpse`, eat it: "You feel limber!" cured. Repeat curing with an `acidic corpse` (wish `acid blob corpse`) or by praying (prayer fixes stoning).
 - [ ] Hit a cockatrice bare-handed (take your gloves off): you turn to stone and die. Same when you eat a cockatrice corpse ("You turn to stone"). Picking up a cockatrice corpse bare-handed also kills you.
 - [ ] Wish `leather gloves` and wear them, then wish `cockatrice corpse`: picking it up and wielding it is safe with gloves. Hit a `jackal` with it: "The jackal turns to stone." and a statue of a jackal is left (look: "statue of a jackal"). Lose the gloves (take them off while wielding): you die.
+
+## 10 monster batch 1
+
+With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; heal or raise your level with the wizard commands when a fight goes badly). New monsters, steps 1-5; what is left out is in ROADMAP "From m10".
+
+- [ ] Create a `hobgoblin`, a `wolf`, a `killer bee` and a `pony`: they fight as usual. #chat to the pony: "The pony neighs." Eat the killer bee's corpse a few times (wish `killer bee corpse`): sometimes "You feel healthy."
+- [ ] Create a `giant spider` next to a wall and wait (`20s`): "The giant spider spins a web." Walk into the web: "You stumble into a spider web!", then "You are stuck to the web." for a few turns and "You disentangle yourself."
+- [ ] Wish `dagger`, wield it, #untrap an adjacent web: "You cut through the web." Wish `wand of fire` and zap it across another web: "A web bursts into flames!"
+- [ ] Create a `shrieker` and stand next to it: "The shrieker shrieks."; now and then a monster turns up (sometimes a purple worm).
+- [ ] Wish `long sword` (iron), wield it, create a `brown pudding` and hit it: "The brown pudding divides as you hit it!" (two puddings).
+- [ ] Create a `freezing sphere`: it explodes on you (cold). Create an `ice vortex`: it engulfs you and freezes you.
+- [ ] Create a `human zombie`, kill it: it leaves a human corpse; eat it: "You cannibal!  You will regret this!" (Luck drops; you aggravate monsters).
+- [ ] Create an `imp`: it curses at you (a cuss line or "The imp casts aspersions on your ancestry.") and heals every turn. Create a `tengu`: now and then it teleports next to you. Wish `tengu corpse` and eat a few: "You feel very jumpy." (teleportitis) or "You feel in control of yourself."
+- [ ] Create a `Grey-elf`, kill it: it leaves elven gear (elven mithril-coat, elven dagger, elven bow and arrows, not all at once). A `forest centaur` may shoot arrows, an `ogre` carries a club, a `soldier` a spear, short sword, dagger or knife and some armor.
+- [ ] Create a `troll`, kill it, and stand next to its corpse for up to 50 turns (`20s`): usually "The troll rises from the dead!"
+- [ ] Drop a `dagger` (wish) and create a `rust monster` on the other side of it; when it walks over the dagger: "The rust monster eats a dagger!" (a `rock mole` eats any metal, gold too). Drop a `food ration` and a dagger in a corridor and create a `gelatinous cube` beyond them: it eats the food and engulfs the dagger.

@@ -32,6 +32,17 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.unturn.it_comes_alive': 'It suddenly comes alive!',
   'zap.unturn.it_reanimates': 'It suddenly reanimates!',
   'zap.unturn.appears': '{mon|An} suddenly appears!',
+  // ref: src/do.c revive_corpse(), revive_mon(): a troll corpse rising on its own
+  'revive.rises': '{mon|The} rises from the dead!',
+  'revive.rises_chewed': 'The bite-covered {mon} rises from the dead!',
+  'revive.disappears': 'The {corpse} disappears!',
+  'revive.writhes_grasp': 'The {corpse} writhes out of your grasp!',
+  'revive.squirming': 'You feel squirming in your backpack!',
+  'revive.startled': 'Startled, {mon|the} drops a {corpse} as it revives!',
+  'revive.startled_gone': 'Startled, {mon|the} drops a {corpse} as it disappears!',
+  'revive.appears': '{mon|The} suddenly appears!',
+  'revive.appears_chewed': 'The bite-covered {mon} suddenly appears!',
+  'revive.less_hassled': 'You feel less hassled.',
   'zap.self.shudder': 'You shudder in dread.',
 
   'action.nh:zap': 'Zap',

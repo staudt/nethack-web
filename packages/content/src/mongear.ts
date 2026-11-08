@@ -160,14 +160,38 @@ export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId |
 }
 
 /**
- * Rolls mksobj_init() for an object this port lacks, to keep the random stream in step.
- * (Only the battle axe, two-handed sword and lucern hammer are still missing.)
+ * Rolls mksobj_init() for an object this port lacks, to keep the random stream in step: the
+ * class and material are what mksobj_init() and mkobj_erosions() look at.
  */
-function burnWeapon(ctx: GearCtx): void {
-  // (all three are iron, which matters for mkobj_erosions())
-  const dummy = { id: 'nh:none' as DefId, class: 'weapon' as const, material: 'iron', cost: 0 };
+function burnObj(
+  ctx: GearCtx,
+  cls: 'weapon' | 'armor' | 'food' | 'tool' = 'weapon',
+  material = 'iron',
+): void {
+  const dummy = { id: 'nh:none' as DefId, class: cls, material, cost: 0 };
   const it = { quantity: 1, buc: 'uncursed', spe: 0 } as ItemComponent;
   mksobjInit(ctx, dummy, it);
+}
+
+/** A missing iron weapon (battle axe, two-handed sword, lucern hammer, flail, polearms). */
+const burnWeapon = (ctx: GearCtx): void => burnObj(ctx);
+
+/** Elven gear the object table lacks: its init rolls, by class and material. */
+const MISSING_ELVEN: Readonly<Record<string, ['weapon' | 'armor', string]>> = {
+  'nh:elven_cloak': ['armor', 'cloth'],
+  'nh:elven_leather_helm': ['armor', 'leather'],
+  'nh:elven_boots': ['armor', 'leather'],
+  'nh:elven_shield': ['armor', 'wood'],
+  'nh:elven_short_sword': ['weapon', 'wood'],
+  'nh:elven_broadsword': ['weapon', 'wood'],
+  'nh:elven_spear': ['weapon', 'wood'],
+};
+
+/** mongets() of elven gear: a missing object only makes its init rolls. */
+function elvenGets(ctx: GearCtx, monId: EntityId, otyp: string): void {
+  if (mongets(ctx, monId, otyp) !== null) return;
+  const m = MISSING_ELVEN[otyp];
+  if (m) burnObj(ctx, m[0], m[1]);
 }
 
 /**
@@ -202,8 +226,9 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 /**
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
- * giants and ettins, the Watch and the water demon (S_DEMON falls through to the general case). Objects missing from
- * the object table (battle axe, two-handed sword, lucern hammer) are not given, but the
+ * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the water demon
+ * (S_DEMON falls through to the general case). Objects missing from the object table (battle
+ * axe, two-handed sword, lucern hammer, flail, polearms, most elven gear) are not given, but the
  * rolls C makes for them are. (In 5.0 only Uruk-hai are given orcish bows.)
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
@@ -212,6 +237,30 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   const ch = def.glyph.ch;
   if (ch === '@' && isMercenary(def)) {
     mercWeapons(ctx, monId, def);
+  } else if (ch === '@' && hasFlag(def, 'elf')) {
+    // ref: m_initweap() S_HUMAN is_elf() (no elven monarch in the roster)
+    if (rng.rn2(2)) elvenGets(ctx, monId, rng.rn2(2) ? 'nh:elven_mithril_coat' : 'nh:elven_cloak');
+    if (rng.rn2(2)) elvenGets(ctx, monId, 'nh:elven_leather_helm');
+    else if (!rng.rn2(4)) elvenGets(ctx, monId, 'nh:elven_boots');
+    if (rng.rn2(2)) elvenGets(ctx, monId, 'nh:elven_dagger');
+    switch (rng.rn2(3)) {
+      case 0:
+        if (!rng.rn2(4)) elvenGets(ctx, monId, 'nh:elven_shield');
+        if (rng.rn2(3)) elvenGets(ctx, monId, 'nh:elven_short_sword');
+        elvenGets(ctx, monId, 'nh:elven_bow');
+        mInitThrow(ctx, monId, 'nh:elven_arrow', 12);
+        break;
+      case 1:
+        elvenGets(ctx, monId, 'nh:elven_broadsword');
+        if (rng.rn2(2)) elvenGets(ctx, monId, 'nh:elven_shield');
+        break;
+      default:
+        if (rng.rn2(2)) {
+          elvenGets(ctx, monId, 'nh:elven_spear');
+          elvenGets(ctx, monId, 'nh:elven_shield');
+        }
+        break;
+    }
   } else if (ch === '@') {
     // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST`: a mace, +1..+3, cursed half the time
     if (def.id === ALIGNED_CLERIC) {
@@ -295,6 +344,28 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
         def.id === 'nh:goblin' || rng.rn2(2) === 0 ? 'nh:orcish_dagger' : 'nh:scimitar',
       );
     }
+  } else if (ch === 'O') {
+    // ref: m_initweap() S_OGRE (no ogre tyrant in the roster; the battle axe is missing)
+    if (!rng.rn2(def.id === 'nh:ogre_lord' ? 6 : 12)) burnWeapon(ctx);
+    else mongets(ctx, monId, 'nh:club');
+  } else if (ch === 'T') {
+    // ref: m_initweap() S_TROLL: a ranseur, partisan, glaive or spetum half the time (no
+    // polearms in the object table: rn2(4) picks one, only its init rolls are made)
+    if (!rng.rn2(2)) {
+      rng.rn2(4);
+      burnWeapon(ctx);
+    }
+  } else if (ch === 'C') {
+    // ref: m_initweap() S_CENTAUR
+    if (rng.rn2(2)) {
+      if (def.id === 'nh:forest_centaur') {
+        mongets(ctx, monId, 'nh:bow');
+        mInitThrow(ctx, monId, 'nh:arrow', 12);
+      } else {
+        mongets(ctx, monId, 'nh:crossbow');
+        mInitThrow(ctx, monId, 'nh:crossbow_bolt', 12);
+      }
+    }
   } else if (ch === 'k') {
     if (rng.rn2(4) === 0) mInitThrow(ctx, monId, 'nh:dart', 12);
   } else {
@@ -335,24 +406,28 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
 
 /**
  * A mercenary's weapons. ref: src/makemon.c m_initweap() S_HUMAN `is_mercenary(ptr)`, for the
- * Watch (the only mercenaries in the roster). There are no polearms or silver sabers in the object
- * table yet: a watchman's polearm is a spear and a watch captain's silver saber a long sword
- * (DEVIATIONS.md); the rolls are C's.
+ * Watch, soldiers and sergeants. There are no polearms or silver sabers in the object table yet:
+ * a watchman's or soldier's polearm is a spear and a watch captain's silver saber a long sword
+ * (DEVIATIONS.md); the rolls are C's (a sergeant's flail: rolls only).
  */
 function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   const rng = ctx.rng;
   let w1: string | null = null;
   let w2: string | null = null;
-  if (def.id === 'nh:watchman') {
+  if (def.id === 'nh:watchman' || def.id === 'nh:soldier') {
     if (rng.rn2(3) === 0) {
       w1 = 'nh:spear'; // a random polearm (partisan .. bec de corbin) in C
       w2 = rng.rn2(2) !== 0 ? 'nh:dagger' : 'nh:knife';
     } else w1 = rng.rn2(2) !== 0 ? 'nh:spear' : 'nh:short_sword';
+  } else if (def.id === 'nh:sergeant') {
+    // FLAIL : MACE (no flail in the object table: its init rolls only)
+    if (rng.rn2(2)) burnWeapon(ctx);
+    else w1 = 'nh:mace';
   } else if (def.id === 'nh:watch_captain') {
     rng.rn2(2); // LONG_SWORD : SILVER_SABER
     w1 = 'nh:long_sword';
   } else {
-    // default: other mercenaries (none in the roster)
+    // default: other mercenaries (none in the roster: no lieutenants or captains yet)
     if (rng.rn2(4) === 0) w1 = 'nh:dagger';
     if (rng.rn2(7) === 0) w2 = 'nh:spear';
   }
@@ -362,7 +437,12 @@ function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
 }
 
 /** The armor class each mercenary's armor approximates. ref: m_initinv() `mac` */
-const MERC_AC: Readonly<Record<string, number>> = { 'nh:watchman': 3, 'nh:watch_captain': -2 };
+const MERC_AC: Readonly<Record<string, number>> = {
+  'nh:soldier': 3,
+  'nh:sergeant': 0,
+  'nh:watchman': 3,
+  'nh:watch_captain': -2,
+};
 
 /**
  * A mercenary's armor, in five rounds that stop once it is armored enough.
@@ -400,6 +480,13 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   // watch captains get a better weapon instead; most watchmen carry a tin whistle (not in the
   // table: `if (rn2(3)) mongets(mtmp, TIN_WHISTLE)`, only the roll is made)
   if (def.id === 'nh:watchman') rng.rn2(3);
+  else if (def.id !== 'nh:watch_captain') {
+    // soldiers and their officers: a K-ration, a C-ration, a bugle for officers (none of the
+    // three is in the object table: only their init rolls are made)
+    if (!rng.rn2(3)) burnObj(ctx, 'food', 'veggy');
+    if (!rng.rn2(2)) burnObj(ctx, 'food', 'veggy');
+    if (def.id !== 'nh:soldier' && !rng.rn2(3)) burnObj(ctx, 'tool', 'copper');
+  }
 }
 
 /**
