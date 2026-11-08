@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3187 citations.
+152 NetHack files, 3198 citations.
 
 ## dat/dungeon.lua
 
@@ -156,6 +156,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `glyph_is_invisible()`: `packages/content/src/invis.ts`
 - `is_safemon()`: `packages/content/src/actions.ts`
 - `mon_visible()`: `packages/content/src/invis.ts`
+- `obj_to_glyph()`: `packages/content/src/statuestate.ts`, `packages/core/src/types/mod.ts`
 - `zap_color_()`: `packages/content/src/buzz.ts`
 
 ## include/dog.h
@@ -306,12 +307,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/monsters.ts`, `packages/testkit/src/convert/emit.ts`
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
+- `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
 - `PM_SHOPKEEPER()`: `packages/content/src/eshk.ts`
 
 ## include/obj.h
 
 - (file): `packages/content/src/btrapstate.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
+- `CORPSTAT_HISTORIC()`: `packages/content/src/statuestate.ts`
 - `Is_candle()`: `packages/content/src/items.ts`, `packages/content/src/price.ts`
 - `Is_container()`: `packages/core/src/objects.ts`
 - `Is_mbag()`: `packages/content/src/container.ts`
@@ -345,7 +348,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
@@ -610,6 +613,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `canseemon()`: `packages/content/src/trap.ts`
 - `display_self()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `magic_map_background()`: `packages/content/src/wizard/map.ts`
+- `map_glyphinfo()`: `packages/content/src/statuestate.ts`
 - `map_invisible()`: `packages/content/src/invis.ts`, `packages/core/src/memory.ts`, `packages/render-ascii/src/renderer.ts`
 - `map_object()`: `packages/core/src/engine.ts`
 - `map_trap()`: `packages/core/src/view.ts`
@@ -1239,14 +1243,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `may_generate_eroded()`: `packages/content/src/items.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
 - `mkbox_cnts()`: `packages/content/src/mkobj.ts`
-- `mkcorpstat()`: `packages/content/src/items.ts`
+- `mkcorpstat()`: `packages/content/src/items.ts`, `packages/content/src/statue.ts`
 - `mkgold()`: `packages/content/src/items.ts`
 - `mkobj()`: `packages/content/src/mkobj.ts`
 - `mkobj_at()`: `packages/content/src/mkobj.ts`
 - `mkobj_erosions()`: `packages/content/src/items.ts`
 - `mkobjprobs()`: `packages/content/src/mkobj.ts`
 - `mksobj()`: `packages/content/src/items.ts`, `packages/content/src/mkobj.ts`
-- `mksobj_init()`: `packages/content/src/btrapstate.ts`, `packages/content/src/items.ts`
+- `mksobj_init()`: `packages/content/src/btrapstate.ts`, `packages/content/src/items.ts`, `packages/content/src/mkobj.ts`
 - `next_ident()`: `packages/content/src/shk.ts`
 - `obfree()`: `packages/content/src/lock.ts`
 - `obj_extract_self()`: `packages/core/src/objects.ts`
@@ -2174,6 +2178,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `bhitpile()`: `packages/content/src/zap.ts`
 - `bounce_dir()`: `packages/content/src/buzz.ts`
 - `boxlock_invent()`: `packages/content/src/zap.ts`
+- `break_statue()`: `packages/content/src/statue.ts`
 - `burn_floor_objects()`: `packages/content/src/buzz.ts`
 - `cancel_item()`: `packages/content/src/zap.ts`
 - `cancel_monst()`: `packages/content/src/mstate.ts`, `packages/content/src/zap.ts`

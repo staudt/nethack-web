@@ -3,6 +3,7 @@
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
 import { setBoxTrapped } from './btrapstate';
 import {
+  contents,
   getLevel,
   getPlayer,
   isPlainFloor,
@@ -32,6 +33,8 @@ import { xnameOf } from './objnam';
 import { CHARGED_RINGS } from './objects';
 import { WRPSYM, mungspaces, readobjnam, wishNames, type WishSpec } from './objnam_read';
 import { nearCapacity } from './stats';
+import { STATUE, setHistoric } from './statuestate';
+import { counterWere, isWere } from './werestate';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
 
 /** ref: include/hack.h MAXWISHTRY */
@@ -140,14 +143,29 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     if (spe > it.spe) spe = it.spe;
   }
   if (spesgn === -1) spe = -spe;
-  // corpses keep spe for their gender; boxes and keys use it for nothing settable
-  if (!['nh:corpse', 'nh:chest', 'nh:large_box', 'nh:skeleton_key'].includes(def.id)) it.spe = spe;
+  // corpses and statues keep spe for their gender (and historic flag); boxes and keys use it
+  // for nothing settable
+  if (!['nh:corpse', STATUE, 'nh:chest', 'nh:large_box', 'nh:skeleton_key'].includes(def.id))
+    it.spe = spe;
+  // a historic statue
+  if (spec.historic && def.id === STATUE) setHistoric(ctx, id, true);
 
-  // the corpse type
-  if (spec.mon !== null && def.id === 'nh:corpse' && ctx.defs.isMonster(spec.mon)) {
-    const mon = ctx.defs.monster(spec.mon);
-    if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
+  // the corpse or statue type
+  if (spec.mon !== null && ctx.defs.isMonster(spec.mon)) {
+    let mon = ctx.defs.monster(spec.mon);
+    // werecreatures in beast form are all flagged no-corpse so for corpses and statues, switch
+    // to their corresponding human form
+    const human = counterWere(mon.id);
+    if (isWere(mon) && mon.genFlags.includes('nocorpse') && human && ctx.defs.isMonster(human))
+      mon = ctx.defs.monster(human);
+    if (def.id === 'nh:corpse') {
+      if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
+        it.corpseOf = mon.id;
+    } else if (def.id === STATUE) {
       it.corpseOf = mon.id;
+      // no spellbook in a statue of a very small monster
+      if (mon.size === 'tiny') for (const o of contents(ctx.state, id)) ctx.remove(o.id);
+    }
   }
 
   // BUC: setting the fields directly is safe

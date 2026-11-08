@@ -57,7 +57,18 @@ export const stoningMessagesEn: Record<string, string> = {
   'killer.ston.tasting.nh:chickatrice': 'tasting chickatrice meat',
   'killer.ston.tasting.nh:medusa': 'tasting Medusa meat',
   'enl.turning_to_stone': 'turning to stone',
-  // statues: "statue of a newt"
-  'nh:statue.of': 'statue of {mon|an}',
-  'nh:statue.of.plural': 'statues of {mon|an}',
+  // statues: "statue of a newt", "statue of the Oracle", an Archeologist's "historic statue of
+  // a gnome king" (xname()); break_statue(), the force bolt, digging and fighting one
+  'nh:statue.of': '{historic}statue of {mon|an}',
+  'nh:statue.of.plural': '{historic}statues of {mon|an}',
+  'nh:statue.of.the': '{historic}statue of the {mon}',
+  'nh:statue.of.the.plural': '{historic}statues of the {mon}',
+  'nh:statue.historic': 'historic ',
+  'statue.historic_guilt': 'You feel guilty about damaging such a historic statue.',
+  'statue.shatters': 'The statue shatters.',
+  'statue.crumbles': 'The {item} crumbles.',
+  'statue.hear_crumbling': 'You hear stone crumbling.',
+  'dig.target.statue': 'statue',
+  'dig.act.chipping_statue': 'chipping the statue',
+  'dig.cant_reach_statue': "You can't reach the statue.",
 };

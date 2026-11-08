@@ -38,8 +38,11 @@ import { losehp } from './hp';
 import { isBoxTrapped } from './btrapstate';
 import { chestTrap } from './chesttrap';
 import { nomulNow } from './hunger';
+import { BOULDER } from './boulder';
+import { STATUE } from './statuestate';
 import { carryCount, encumberMsg, invOption, liftLoadstone, prinv } from './itemactions';
 import {
+  MSIZE,
   addToInventory,
   invCount,
   mergable,
@@ -228,8 +231,13 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0
 
   if (fatalCorpseMistake(ctx, obj)) return -1;
 
-  // boxes can't fit into any container
-  if (isBox(ctx, obj)) {
+  // boxes, boulders, and big statues can't fit into any container
+  const bigStatue =
+    obj.def === STATUE &&
+    !!it.corpseOf &&
+    ctx.defs.isMonster(it.corpseOf) &&
+    (MSIZE[ctx.defs.monster(it.corpseOf).size] ?? 0) >= (MSIZE['large'] ?? 3);
+  if (isBox(ctx, obj) || obj.def === BOULDER || bigStatue) {
     say(ctx, 'loot.cant_fit', {
       item: xnameOf(ctx.state, ctx.defs, obj),
       box: xnameOf(ctx.state, ctx.defs, box),

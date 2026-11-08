@@ -20,7 +20,8 @@
 // Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
-// statues, drawbridges, the ray animation.
+// statue traps, drawbridges, the ray animation. Striking and force bolt break statues
+// (statue.ts breakStatue()); probing lists what a statue holds.
 import {
   DIRS,
   DIR_LIST,
@@ -56,6 +57,8 @@ import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped, unaware } from './btrapped';
 import { BOULDER, blockersOf, fractureRock } from './boulder';
+import { breakStatue } from './statue';
+import { STATUE } from './statuestate';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
@@ -89,7 +92,7 @@ import { eshkOf, inAnyShop } from './eshk';
 import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { healup } from './potion';
-import { canSpotMon, monNam } from './perception';
+import { canSpotMon, monNam, rndmonnam } from './perception';
 import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown, wornIn } from './props';
 import { ceilingKey, clearArea, litroom } from './read';
 import { rockOnHead, surfaceKey, zapDig } from './dig';
@@ -821,8 +824,8 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
   const otyp = otypOf(src);
   switch (otyp) {
     case WAN.probing:
-      // only containers tell anything new (every object is dknown here)
-      if (isContainer(ctx.defs, obj)) {
+      // only containers and statues tell anything new (every object is dknown here)
+      if (isContainer(ctx.defs, obj) || obj.def === STATUE) {
         const inside = contents(ctx.state, obj.id);
         if (!inside.length)
           say(ctx, 'zap.probe.empty', { item: xnameOf(ctx.state, ctx.defs, obj) });
@@ -842,6 +845,18 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       if (obj.def === BOULDER) {
         say(ctx, cansee(ctx, x, y) ? 'zap.boulder_falls_apart' : 'zap.hear_crumbling');
         fractureRock(ctx, obj, true);
+        learnIt = true;
+        res = 1;
+        break;
+      }
+      if (obj.def === STATUE) {
+        // "The statue shatters." (a hallucinating hero sees a random monster shatter)
+        if (breakStatue(ctx, obj)) {
+          if (!cansee(ctx, x, y)) say(ctx, 'zap.hear_crumbling');
+          else if (hasProp(getPlayer(ctx.state), P.HALLUC))
+            say(ctx, 'zap.mon_shatters', { mon: `@${rndmonnam(ctx)}` });
+          else say(ctx, 'statue.shatters');
+        }
         learnIt = true;
         res = 1;
         break;

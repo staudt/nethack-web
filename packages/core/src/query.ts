@@ -1,6 +1,6 @@
 import type { DefId } from './types/common';
 import { cellRules } from './movement';
-import { isItem, itemsAt, shownId } from './objects';
+import { isItem, itemShownId, itemsAt } from './objects';
 import { perceivesMonster, selfView, shownAs } from './perception';
 import { findPath } from './path';
 import { getLevel, isVisible, playerPos } from './state';
@@ -66,7 +66,7 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
       const objects = visible
         ? itemsAt(registry, state, level.id, pos.x, pos.y).map((e) => ({
             id: e.id,
-            def: shownAs(registry, state, e, shownId(state, e.def)),
+            def: shownAs(registry, state, e, itemShownId(registry, state, e)),
             name: registry.itemName(state, e),
           }))
         : [];

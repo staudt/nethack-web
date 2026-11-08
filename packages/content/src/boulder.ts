@@ -91,7 +91,7 @@ export function feelObjects(
 export const ROCK: DefId = 'nh:rock';
 
 /**
- * A boulder (or, later, a statue) becomes 7..66 rocks where it lies, back on top of its pile; no
+ * A boulder or a statue (statue.ts breakStatue()) becomes 7..66 rocks where it lies, back on top of its pile; no
  * messages (the caller says what was seen or heard). Sight through the square is recomputed with
  * the rest of the view at the end of the step. The hero breaking a boulder (`byYou`) is cheating
  * in Sokoban. Shop billing (breakobj() in a costly spot) is not ported.
@@ -102,6 +102,7 @@ export function fractureRock(ctx: Pick<Ctx, 'state' | 'rng'>, obj: Entity, byYou
   if (!it) return;
   if (byYou && obj.def === BOULDER) sokobanGuilt(ctx);
   obj.def = ROCK;
+  delete it.corpseOf; // dealloc_oextra(), and a rock shows no monster
   it.quantity = ctx.rng.rn2(60) + 7; // rn1(60, 7)
   // dknown = bknown = rknown = 0 (`known` is not modelled for objects without it)
   it.known = { buc: false, spe: false };

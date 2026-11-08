@@ -405,7 +405,7 @@ describe('the treasure zoo and the prize', () => {
     test(`${variant}: a not-cursed prize at one of its spots, both kinds seen`, () => {
       const kinds = new Set<string>();
       let from = 1;
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 24; i++) {
         const { state, level } = sokoVariant(variant, 1, from);
         from = state.seed + 1;
         const at = spots.map(([x, y]) => mapAt(level, x, y));

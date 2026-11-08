@@ -1,7 +1,7 @@
 // Objects blown or knocked about: a land mine's blast, kicked coins, a bag of holding's explosion.
 // ref: src/explode.c scatter()
 //
-// Not ported: the ball and chain (none exist), statues (none exist: only boulders fracture), shop
+// Not ported: the ball and chain (none exist), statue traps (a statue's is deleted), shop
 // billing for gold blown out of a shop (credit_report(), addtobill(): see DEVIATIONS.md, Shop
 // damage), sinks under a flying object stop it as in NetHack but nothing else (pools, lava) does.
 import {
@@ -10,7 +10,7 @@ import {
   inBounds,
   isVisible,
   itemsAt,
-  shownId,
+  itemShownId,
   type Ctx,
   type Entity,
   type EntityId,
@@ -18,12 +18,15 @@ import {
   type Pos,
 } from '@nh/core';
 import { BOULDER, fractureRock } from './boulder';
+import { breakStatue } from './statue';
+import { STATUE } from './statuestate';
 import { monsterIdAt } from './combat';
 import { dmgvalSized } from './dmgval';
 import { stopOccupation } from './eat';
 import { boulderFlooreffects } from './flooreffects';
 import { placeOnFloor, splitStack, weight } from './items';
 import { breaktest } from './material';
+import { xnameOf } from './objnam';
 import { ohitmon, thitu } from './mthrowu';
 import { cansee } from './trap';
 import { T, terrainIdAt } from './terrain';
@@ -101,12 +104,21 @@ export function scatter(
     } else single = null; // all used
     delete otmp.c.pos; // obj_extract_self()
     let usedUp = false;
-    // 9 in 10 chance of fracturing boulders (no statues exist)
-    if (flags.mayFracture && otmp.def === BOULDER && ctx.rng.rn2(10)) {
-      say(ctx, cansee(ctx, levelId, sx, sy) ? 'boulder.breaks_apart' : 'boulder.hear_breaking');
-      otmp.c.pos = { level: levelId, x: sx, y: sy }; // place_object()
-      fractureRock(ctx, otmp, false);
-      // (fracture_rock() restacks another boulder here to the top: boulders always are)
+    // 9 in 10 chance of fracturing boulders or statues
+    if (flags.mayFracture && (otmp.def === BOULDER || otmp.def === STATUE) && ctx.rng.rn2(10)) {
+      if (otmp.def === BOULDER) {
+        say(ctx, cansee(ctx, levelId, sx, sy) ? 'boulder.breaks_apart' : 'boulder.hear_breaking');
+        otmp.c.pos = { level: levelId, x: sx, y: sy }; // place_object()
+        fractureRock(ctx, otmp, false);
+        // (fracture_rock() restacks another boulder here to the top: boulders always are)
+      } else {
+        // (no statue traps to delete)
+        if (cansee(ctx, levelId, sx, sy))
+          say(ctx, 'statue.crumbles', { item: xnameOf(ctx.state, ctx.defs, otmp) });
+        else say(ctx, 'statue.hear_crumbling');
+        otmp.c.pos = { level: levelId, x: sx, y: sy }; // its contents drop at ox, oy
+        breakStatue(ctx, otmp, false);
+      }
       usedUp = true;
     } else if (flags.mayDestroy) {
       // 1 in 10 chance of destruction of obj; glass destruction
@@ -138,7 +150,7 @@ export function scatter(
     for (const f of fliers) {
       if (f.path.length === 0) continue;
       const o = ctx.state.entities[String(f.id)];
-      if (o) ctx.emit({ type: 'projectile', g: shownId(ctx.state, o.def), path: f.path });
+      if (o) ctx.emit({ type: 'projectile', g: itemShownId(ctx.defs, ctx.state, o), path: f.path });
       f.path = [];
     }
   };

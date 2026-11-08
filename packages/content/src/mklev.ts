@@ -10,6 +10,7 @@ import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkshop } from './shknam';
+import { mkcorpstat } from './statue';
 import { levelFlags } from './levelflags';
 import { T, setTerrain } from './terrain';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
@@ -132,8 +133,8 @@ export function mktrap(
  * One ordinary room's contents, in mklev's order: a monster (1 in 3; a giant spider gets a web
  * under it), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
- * a fountain (1 in 10), then random objects (1 in 3 for the first, then 1 in 5 for each
- * further one). ref: src/mklev.c fill_ordinary_room(). Mimics, sinks, altars, graves, statues,
+ * a fountain (1 in 10), a statue (1 in 20), then random objects (1 in 3 for the first, then 1 in 5 for each
+ * further one). ref: src/mklev.c fill_ordinary_room(). Mimics, sinks, altars, graves,
  * engravings and the bonus items do not exist, and so do not roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
@@ -154,6 +155,9 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
     mkgold(ctx, 0, { level: level.id, x: pos.x, y: pos.y });
   if (ctx.rng.rn2(10) === 0) mkfount(ctx, level, room);
+  // put statues inside
+  if (ctx.rng.rn2(20) === 0 && (pos = somexyspace(ctx, level, room)))
+    mkcorpstat(ctx, null, { level: level.id, x: pos.x, y: pos.y }, { init: true, inMklev: true });
   // put box/chest inside
   const nroom = level.rooms.filter((r) => r.parent === undefined).length; // svr.rooms[] only
   if (ctx.rng.rn2(Math.trunc((nroom * 5) / 2)) === 0 && (pos = somexyspace(ctx, level, room))) {

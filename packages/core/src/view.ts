@@ -1,4 +1,4 @@
-import { inventoryOf, isItem, shownId, topObjectEntities } from './objects';
+import { inventoryOf, isItem, itemShownId, topObjectEntities } from './objects';
 import { isMarker } from './memory';
 import { perceivesMonster, selfView, shownAs } from './perception';
 import { getLevel, getPlayer } from './state';
@@ -80,7 +80,7 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     const cell: ViewCell = { g: m >= 0 ? (shown[m] ?? null) : null, v };
     const live = v ? liveObjects.get(i) : undefined;
     const o = live
-      ? shownAs(registry, state, live, shownId(state, live.def))
+      ? shownAs(registry, state, live, itemShownId(registry, state, live))
       : v
         ? undefined
         : objMemory?.[String(i)];
@@ -129,7 +129,7 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
       return {
         id: e.id,
         letter: item?.letter ?? null,
-        g: shownId(state, e.def),
+        g: itemShownId(registry, state, e),
         cls: registry.object(e.def).class,
         name: registry.itemName(state, e),
         equipped: item?.equipped ?? null,

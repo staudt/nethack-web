@@ -49,6 +49,7 @@ export { createHost } from './host';
 export type { Host } from './host';
 export {
   shownId,
+  itemShownId,
   isItem,
   itemsAt,
   topObjects,

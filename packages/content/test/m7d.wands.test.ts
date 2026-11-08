@@ -211,7 +211,8 @@ describe('wand of cancellation', () => {
   test('a monster that fails to resist is cancelled (probing shows it)', () => {
     let cancelled = 0;
     let resisted = 0;
-    for (let seed = 1; seed <= 60 && (cancelled < 1 || resisted < 1); seed++) {
+    // resist(): rn2(100 + 12 - 1) < mr, about 1 time in 11
+    for (let seed = 1; seed <= 200 && (cancelled < 1 || resisted < 1); seed++) {
       const s = make(['@.....'], seed);
       const m = pinned(s, 'nh:kobold_shaman', 2, 0); // mr 10
       zap(s, wand(s, WAN.cancellation), 'e');

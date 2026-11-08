@@ -1,5 +1,6 @@
 // Naming objects for the player. ref: src/objnam.c xname(), doname()
 import { boxTknown, isBoxTrapped } from './btrapstate';
+import { isHistoric } from './statuestate';
 import type {
   ArmorSlot,
   Entity,
@@ -10,7 +11,7 @@ import type {
   Params,
   Registry,
 } from '@nh/core';
-import { contents } from '@nh/core';
+import { contents, getPlayer } from '@nh/core';
 import { objKnown, rknown } from './items';
 import {
   isCorrodeable,
@@ -40,9 +41,15 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   if (def.id === 'nh:corpse' && it?.corpseOf) {
     return { key: `${def.nameKey}${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
-  // ref: xname() STATUE: "statue of a newt" (no historic statues, no unique monsters' names)
+  // ref: xname() STATUE: "statue of a newt", "statue of the Oracle" (the_unique_pm()); an
+  // Archeologist sees a "historic statue of ..." (no personal names: type_is_pname())
   if (def.id === 'nh:statue' && it?.corpseOf) {
-    return { key: `nh:statue.of${plural}`, params: { mon: `@${it.corpseOf}` } };
+    const uniq = defs.isMonster(it.corpseOf) && defs.monster(it.corpseOf).genFlags.includes('uniq');
+    const hist = getPlayer(state).def === 'nh:archeologist' && isHistoric(state, item.id);
+    return {
+      key: `nh:statue.of${uniq ? '.the' : ''}${plural}`,
+      params: { mon: `@${it.corpseOf}`, historic: hist ? { key: 'nh:statue.historic' } : '' },
+    };
   }
   // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
   if (def.id === FAKE_AMULET) {

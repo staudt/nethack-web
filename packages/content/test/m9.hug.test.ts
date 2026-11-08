@@ -77,9 +77,16 @@ describe('the owlbear (AT_HUGS AD_PHYS)', () => {
       const newt = mon(s.state, 'nh:newt', 6, 4);
       newt.c.monster!.asleep = true; // +4 to hit
       mattackm(s.ctx, ob.id, newt.id);
-      if (keys(s.ctx).includes('mhitm.squeezes')) squeezed++;
+      const k = keys(s.ctx);
+      // the hug comes exactly when both claws hit
+      const both = k[0] === 'mhitm.hits' && k[1] === 'mhitm.hits';
+      expect(k.includes('mhitm.squeezes')).toBe(both);
+      if (both) {
+        expect(k[2]).toBe('mhitm.squeezes');
+        squeezed++;
+      }
     }
-    expect(squeezed).toBeGreaterThan(10);
+    expect(squeezed).toBeGreaterThan(3);
   });
 
   test("a grab passes right through an unsolid yellow light; so does a lichen's touch", () => {

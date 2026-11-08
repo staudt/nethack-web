@@ -112,6 +112,13 @@ export interface ObjectDef {
    * other rule are content's. ref: src/vision.c does_block(), src/mkobj.c place_object()
    */
   boulder?: true;
+  /**
+   * A per-instance shown id (a legend key, usually an AppearanceDef) for this item, or null for
+   * the usual one (`state.appearances[def]` or the def). Used wherever core shows a floor or
+   * carried item: the view, object memory and `describe()`. Must read state only (no RNG).
+   * Vanilla draws a statue as the monster it depicts. ref: include/display.h obj_to_glyph()
+   */
+  appearanceOf?(state: Readonly<GameState>, defs: Registry, item: Entity): DefId | null;
   /** Effect when quaffed or read; called by content's actions. */
   use?(ctx: Ctx, user: EntityId, item: EntityId): void;
   /**
@@ -511,6 +518,13 @@ export interface LevelContent {
   coords?: LevelCoords;
   /** Monsters: forced peaceful (true) or hostile (false); omitted = peace_minded() as usual. */
   peaceful?: boolean;
+  /**
+   * Objects that show a monster (corpses, statues): a monster def id, or a one-character monster
+   * class for a random monster of that class (des.object `montype`).
+   */
+  montype?: DefId | string;
+  /** Statues: a historic statue (des.object `historic`). */
+  historic?: true;
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */

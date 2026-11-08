@@ -13,7 +13,7 @@
 //
 // In a shop, walls and doors dug and holes or pits made are damage its keeper wants paid for and
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
-// Not ported (DEVIATIONS "Digging"): axes (chopping trees), statues, Fumbling, burying and unearthing objects,
+// Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, Fumbling, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), drawbridges, graves, thrones,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
@@ -52,6 +52,8 @@ import { expels } from './engulf';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { ROCK, boulderAt, fractureRock } from './boulder';
+import { breakStatue } from './statue';
+import { statueAt } from './statuestate';
 import { abon, dbon } from './combat';
 import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digstate';
 import { dmgvalSized } from './dmgval';
@@ -549,13 +551,14 @@ function digAdjacentPit(ctx: Ctx, level: Level, x: number, y: number, diridx: nu
 // ---------------------------------------------------------------------------------------------
 // digging with a pick-axe or mattock
 
-/** What digging into a square hits. ref: src/dig.c DIGTYP_* (no statues yet) */
-export type DigTyp = 'undiggable' | 'rock' | 'boulder' | 'door' | 'tree';
+/** What digging into a square hits. ref: src/dig.c DIGTYP_* */
+export type DigTyp = 'undiggable' | 'rock' | 'statue' | 'boulder' | 'door' | 'tree';
 
 /** "You start digging." ... ref: use_pick_axe2() d_action[] */
 const D_ACTION: Record<DigTyp, string> = {
   undiggable: 'swinging',
   rock: 'digging',
+  statue: 'chipping_statue',
   boulder: 'hitting_boulder',
   door: 'chopping_door',
   tree: 'cutting_tree',
@@ -587,7 +590,7 @@ function pickCanReach(ctx: Ctx, pick: Entity, level: Level, x: number, y: number
 
 /**
  * What digging into (x, y) with `pick` hits: an axe chops doors and trees; a pick reaches a
- * boulder, a closed door, rock and walls (not trees). ref: src/dig.c dig_typ() (no statues, no
+ * statue, a boulder, a closed door, rock and walls (not trees). ref: src/dig.c dig_typ() (no
  * arboreal levels)
  */
 export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: number): DigTyp {
@@ -596,6 +599,7 @@ export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: numbe
   const id = terrainIdAt(level, x, y);
   if (isAxe(def))
     return closedDoor(ctx, level, x, y) ? 'door' : id === T.tree ? 'tree' : 'undiggable';
+  if (statueAt(ctx, level.id, x, y) && pickCanReach(ctx, pick, level, x, y)) return 'statue';
   if (boulderAt(ctx, level.id, x, y) && pickCanReach(ctx, pick, level, x, y)) return 'boulder';
   if (closedDoor(ctx, level, x, y)) return 'door';
   if (id === T.tree) return 'undiggable'; // pick vs tree
@@ -672,7 +676,7 @@ const wakeNearby = (ctx: Ctx): void => {
  * through stops ("This wall seems too hard to dig into."), but the effort adds up over swings
  * and breaking through is damage to pay for. Down: a pit after effort 50, a hole through which she falls after 250 (dighole()); a bear
  * trap holding her is hit; where the floor cannot be dug through, another trap is destroyed.
- * ref: src/dig.c dig() (no Fumbling, Earth level or statues; the hero is never a dwarf)
+ * ref: src/dig.c dig() (no Fumbling or Earth level; the hero is never a dwarf)
  */
 export function dig(ctx: Ctx): boolean {
   const d = diggingOf(ctx);
@@ -727,12 +731,16 @@ export function dig(ctx: Ctx): boolean {
     const id = terrainIdAt(level, d.x, d.y);
     const typ = digTyp(ctx, pick, level, d.x, d.y);
     const boulder = boulderAt(ctx, level.id, d.x, d.y);
-    let digtxt: string;
+    let digtxt: string | null;
     let params: Msg['params'] | undefined;
     const trapped = doorTrapped(ctx, level.id, d.x, d.y);
     const shopedge = inAnyShop(level, d.x, d.y);
     let dmgtxt: DmgStr | null = null;
-    if (typ === 'boulder' && boulder) {
+    const statue = typ === 'statue' ? statueAt(ctx, level.id, d.x, d.y) : null;
+    if (statue) {
+      // false: it was a statue trap; break_statue() said what happened
+      digtxt = breakStatue(ctx, statue) ? 'statue.shatters' : null;
+    } else if (typ === 'boulder' && boulder) {
       fractureRock(ctx, boulder, true);
       // another boulder here goes back on top of the pile
       const other = boulderAt(ctx, level.id, d.x, d.y);
@@ -762,7 +770,7 @@ export function dig(ctx: Ctx): boolean {
       digtxt = 'dig.door_broken';
       params = { pick: xnameOf(ctx.state, ctx.defs, pick) };
     } else return false; // statue or boulder got taken
-    if (!d.quiet) say(ctx, digtxt, params);
+    if (digtxt && !d.quiet) say(ctx, digtxt, params);
     if (dmgtxt) payForDamage(ctx, dmgtxt, false);
     // a trapped door (kept closed by C until now) goes off. ref: dig() `IS_DOOR && D_TRAPPED`
     if (trapped) {
@@ -942,7 +950,9 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
         say(ctx, 'dig.clang');
         wakeNearby(ctx);
       } else if (id === T.tree) say(ctx, 'dig.need_axe');
+      // if both boulders and statues are present, the topmost boulder is the target
       else if (boulderAt(ctx, level.id, rx, ry)) say(ctx, 'dig.cant_reach_boulder');
+      else if (statueAt(ctx, level.id, rx, ry)) say(ctx, 'dig.cant_reach_statue');
       else if (
         uInPit(ctx) &&
         trapThere &&

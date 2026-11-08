@@ -53,6 +53,8 @@ export interface WishSpec {
   islit: boolean;
   /** The monster of a "<mon> corpse" / "corpse of <mon>" (d.mntmp). */
   mon: DefId | null;
+  /** "historic" (d.ishistoric): a historic statue */
+  historic: boolean;
 }
 
 /** An object type as the parser sees it: NetHack's oc_name, oc_descr and oc_uname. */
@@ -443,7 +445,7 @@ const PROOF = ['rustproof', 'erodeproof', 'corrodeproof', 'fixed', 'fireproof', 
 /** Words recognized and skipped because the subset has nothing they apply to. */
 const IGNORED = [
   'unlit', 'extinguished', 'moist', 'wet', 'poisoned', 'open', 'closed',
-  'doorless', 'looted', 'disturbed', 'greased', 'zombifying', 'historic', 'diluted', 'empty',
+  'doorless', 'looted', 'disturbed', 'greased', 'zombifying', 'diluted', 'empty',
   'medium', 'real', 'fake',
 ]; // prettier-ignore
 
@@ -458,7 +460,7 @@ const NOT_MONSTER = ['samurai sword', 'wizard lock', 'death wand', 'master key',
  * explicit "nothing"/"nil"/"none", or null when nothing fitting exists. An empty string is a
  * random object, as in NetHack.
  * ref: src/objnam.c readobjnam(), readobjnam_preparse(), readobjnam_parse_charges(),
- * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, tins, globs, statues and
+ * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, tins, globs,
  * figurines, eggs, o_ranges other than gray stones ("helmet called x"), the alternate spellings table,
  * Japanese names, wizard-mode terrain and traps; see DEVIATIONS.md.
  */
@@ -485,6 +487,7 @@ export function readobjnam(
     trapped: 0,
     islit: false,
     mon: null,
+    historic: false,
   };
   let bp = mungspaces(input).toLowerCase();
   if (bp === 'nothing' || bp === 'nil' || bp === 'none') return 'nothing';
@@ -526,6 +529,8 @@ export function readobjnam(
       spec.blessed = spec.iscursed = false;
     } else if (PROOF.some(word)) {
       spec.erodeproof = true;
+    } else if (word('historic')) {
+      spec.historic = true;
     } else if (word('lit') || word('burning')) {
       spec.islit = true;
     } else if (word('unlabeled') || word('unlabelled') || word('blank')) {

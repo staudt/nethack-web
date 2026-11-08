@@ -13,7 +13,7 @@ import { explmu } from '../src/mhitu';
 import { mfndpos } from '../src/monmove';
 import { thrwmu } from '../src/mthrowu';
 import { monInvisible, setMinvis } from '../src/invis';
-import { setMspecUsed } from '../src/mstate';
+import { setMspecUsed, setStoredMux, storedMux } from '../src/mstate';
 import { P, setIntrinsic } from '../src/props';
 import { couldSeduce } from '../src/steal';
 import { cellRules, createRng, seedRng } from '@nh/core';
@@ -81,6 +81,7 @@ describe('set_apparxy(): where a monster thinks she is', () => {
     let found = 0;
     const seen = new Set<string>();
     for (let i = 0; i < 600; i++) {
+      setStoredMux(ctx, j, null); // a fresh guess each time (one that found her keeps knowing)
       const g = setApparxy(ctx, ent(s, j));
       expect(cheb(g, HERO)).toBeLessThanOrEqual(1);
       expect(g).not.toEqual({ x: HX + 1, y: HY }); // never its own square
@@ -91,6 +92,36 @@ describe('set_apparxy(): where a monster thinks she is', () => {
     expect(found).toBeGreaterThan(600 / 3);
     expect(found).toBeLessThan(600 / 2);
     expect(seen.size).toBe(8); // her square and the seven others
+  });
+
+  test('the guess outlives the move while the monster cannot see her (mux/muy)', () => {
+    const s = make();
+    const j = pinned(s, 'nh:jackal', HX + 2, HY);
+    const ctx = ctxOf(s);
+    setApparxy(ctx, ent(s, j));
+    expect(storedMux(ctx, j)).toBeNull(); // it sees her: nothing kept
+    invisible(s);
+    // once it finds her it keeps knowing while she stays put
+    let tries = 0;
+    while (cheb(setApparxy(ctx, ent(s, j)), HERO) !== 0) expect(++tries).toBeLessThan(200);
+    expect(storedMux(ctx, j)).toEqual(HERO);
+    for (let i = 0; i < 50; i++) expect(setApparxy(ctx, ent(s, j))).toEqual(HERO);
+    // a wrong guess is kept too, and she moving away makes it guess again
+    setStoredMux(ctx, j, { x: HX - 1, y: HY });
+    const hp = getPlayer(s.state).c.pos!;
+    let missed = 0;
+    for (let i = 0; i < 60; i++) {
+      setStoredMux(ctx, j, { x: HX - 1, y: HY });
+      if (cheb(setApparxy(ctx, ent(s, j)), HERO) !== 0) missed++;
+    }
+    expect(missed).toBeGreaterThan(0);
+    setStoredMux(ctx, j, { x: HX - 1, y: HY });
+    Object.assign(hp, { x: HX - 1 }); // she steps onto the kept guess: found
+    expect(setApparxy(ctx, ent(s, j))).toEqual({ x: HX - 1, y: HY });
+    // visible again: the guess is dropped
+    invisible(s, false);
+    setApparxy(ctx, ent(s, j));
+    expect(storedMux(ctx, j)).toBeNull();
   });
 
   test('a guess avoids rock and stays where she could see', () => {
@@ -308,6 +339,8 @@ describe('a monster that wants to see her', () => {
     ent(s, j).c.hp = { cur: 1000, max: 1000 };
     let wild = 0;
     for (let t = 0; t < 60; t++) {
+      // a guess that found her is kept while she stays put: forget it so it guesses afresh
+      setStoredMux(ctxOf(s), j, null);
       const out = s.text(s.step({ type: 'wait' }));
       if (out.some((l) => /wildly|thin air|spot beside/.test(l))) wild++;
       getPlayer(s.state).c.hp!.cur = 500;

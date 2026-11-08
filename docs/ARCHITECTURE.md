@@ -184,10 +184,14 @@ interface LevelContent {
   x?: number; y?: number; // a fixed spot (both or neither); see Map blocks for the origin
   coords?: 'map' | 'level';
   peaceful?: boolean; // monsters: forced peaceful or hostile; omitted = peace_minded()
+  montype?: string; // m7f-c, objects showing a monster (statues, corpses): a MonsterDef id, or one glyph character for a random monster of that class
+  historic?: true; // m7f-c, statues: des.object's `historic`
 }
 ```
 
 An entry with `x`,`y` goes on that spot as given, with no terrain check (ref: src/sp_lev.c get_location() for fixed coordinates); in Level coordinates -1 is the last column or row, and a spot outside the level throws a RangeError naming the LevelDef. A monster whose spot is taken goes to a close free one; a trap whose spot is not plain floor is not made. `peaceful` sets the monster's peacefulness after it is made (ref: create_monster() `m->peaceful > BOOL_RANDOM`); members of its group are unaffected. `loadMods` reports an `x` without `y` (or the reverse), a non-integer coordinate, a `peaceful` that is not a boolean and `peaceful` on a non-monster.
+
+`montype` and `historic` (m7f-c) are des.object's: content makes the object with `id`, then sets the monster it shows (a class letter is rolled with `mkclass()` before the spot is chosen, as lspo_object() reads the table first) and the historic flag; `loadMods` reports a `montype` that is neither a registered monster nor a class some monster has. Why a core change: LevelContent is core's type and the Oracle's centaur statues and Grotto's gnome king statue need both fields; they are optional and additive.
 
 With neither `id` nor `class` the thing is random: `makemon` with a random type (and its group), `mkobj` of a random class, or a random trap kind for the level's difficulty. A monster class picks with `mkclass()` (ref: src/makemon.c), which may choose `nogen` monsters as special levels do. Every thing goes on a random *dry* spot of the map block, or of the whole level without one: passable terrain that is not a door, so floor, corridor or stairs (ref: src/sp_lev.c get_location(), is_ok_location() DRY; 100 random tries, then the first in column order); a monster whose spot is taken goes to a close free one (`enexto`); traps need plain floor. Holes become falling rock traps where one cannot fall through (ref: src/mklev.c mktrap()).
 
@@ -472,6 +476,7 @@ interface ObjectDef {
   container?: { capacity: number | null; box: boolean; holding?: boolean }; // box: large box/chest (lockable); holding: bag of holding
   spellbook?: { level: number }; // 1..7 (0 for blank paper); required for class 'spellbook'
   boulder?: true; // m7b: blocks sight where it lies (sightBlockers) and lies on top of its pile; pushing is content's
+  appearanceOf?(state: Readonly<GameState>, defs: Registry, item: Entity): DefId | null; // m7f-c: a per-instance shown id (see Objects never leak identity)
   use?(ctx: Ctx, user: EntityId, item: EntityId): void; // quaff/read effect
   zap?(ctx: Ctx, user: EntityId, item: EntityId, dir: Dir | 'self' | null): void; // weffects; null for nodir
 }
@@ -654,7 +659,7 @@ Renderers draw only the cells inside the camera. The camera follows the player w
 
 `status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped' | 'quit'`), `killer`, `endTurn`, `endDepth` and `endLevel`. Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`, and `pw`/`pwmax` for spell energy, which the ui prints as `Pw:2(2)` after HP). Fountains (7c) needed none either: each fountain's magic, looted and warned bits live in `modData.nh.fountains` (`{ [levelId]: { [cellIndex]: bits } }`, dropped at 0), and the luckstone's Luck is worked out from the inventory on read. Spellcasting (7a) needed no core change: the hero's energy and spell state live in content's `modData.nh.pw` and `modData.nh.uspell`, monster spell delays and confusion in `modData.nh.mspecUsed` / `mconf`, like luck, hunger and shops before them. The legend covers terrain, roles, monsters, objects, appearances and traps.
 
-**Objects never leak identity.** `entities` lists creatures only; objects appear as `ViewCell.o`, in `inventory` and in `describe().objects`, always by *shown id*: `state.appearances[def] ?? def`. Names come from the item namer, which only uses what the hero knows (`discovered`, `known`).
+**Objects never leak identity.** `entities` lists creatures only; objects appear as `ViewCell.o`, in `inventory` and in `describe().objects`, always by *shown id*: `itemShownId(registry, state, item)`, which is the def's `appearanceOf(state, defs, item)` answer when it gives one, else `state.appearances[def] ?? def`. Object memory stores the same id, so a remembered object keeps its look. Names come from the item namer, which only uses what the hero knows (`discovered`, `known`). Vanilla's statue answers `appearanceOf` with one AppearanceDef per monster (`nh:statue-<monster>`: the monster's letter in the statue's white), so a statue looks like the monster it shows, as in NetHack 3.6+, and a client mod can restyle those ids. Why a core change (m7f-c): core alone builds the view, memory and `describe()` from a per-def shown id, so every statue looked alike; the hook is optional and additive (no state, save or renderer change), and it must read state only, as perception hooks do.
 
 ## Client mods
 

@@ -10,6 +10,15 @@ export function shownId(state: Readonly<GameState>, def: DefId): DefId {
   return state.appearances[def] ?? def;
 }
 
+/**
+ * The id a player sees for this item: its def's `appearanceOf` answer (a statue drawn as its
+ * monster), else `shownId()` of its def.
+ */
+export function itemShownId(registry: Registry, state: Readonly<GameState>, e: Entity): DefId {
+  const def = registry.isObject(e.def) ? registry.object(e.def) : undefined;
+  return def?.appearanceOf?.(state, registry, e) ?? shownId(state, e.def);
+}
+
 /** True for an entity whose def is a registered object. */
 export function isItem(registry: Registry, e: Entity): boolean {
   return e.c.item !== undefined && registry.isObject(e.def);
@@ -88,14 +97,15 @@ export function sightBlockers(
   return out;
 }
 
-/** Cell index -> the top object's shown id, for every floor object on `level`. */
+/** Cell index -> the top object's shown id (`itemShownId`), for every floor object on `level`. */
 export function topObjects(
   registry: Registry,
   state: Readonly<GameState>,
   level: Level,
 ): Map<number, DefId> {
   const out = new Map<number, DefId>();
-  for (const [i, e] of topObjectEntities(registry, state, level)) out.set(i, shownId(state, e.def));
+  for (const [i, e] of topObjectEntities(registry, state, level))
+    out.set(i, itemShownId(registry, state, e));
   return out;
 }
 

@@ -12,7 +12,8 @@
 // `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability),
 // `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone),
 // `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
-// C's `!mcansee && !mblinded`), `minvis` (invis.ts).
+// C's `!mcansee && !mblinded`), `minvis` (invis.ts), `mux: { [monsterId]: [x, y] }` (mux/muy, kept
+// by apparxy.ts setApparxy() while the monster cannot see the hero).
 import {
   getPlayer,
   sortedIds,
@@ -30,7 +31,8 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded' | 'minvis';
+type Key =
+  'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded' | 'minvis' | 'mux';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -83,6 +85,28 @@ export function setMStunned(ctx: Pick<Ctx, 'state'>, id: EntityId, on: boolean):
     if (t) t[String(id)] = true;
   } else {
     const t = table(ctx, 'mstun', false);
+    if (t) delete t[String(id)];
+  }
+}
+
+/** `mtmp->mux, mtmp->muy` as kept between moves, or null. */
+export function storedMux(ctx: Pick<Ctx, 'state'>, id: EntityId): { x: number; y: number } | null {
+  const v = table(ctx, 'mux', false)?.[String(id)];
+  return Array.isArray(v) && typeof v[0] === 'number' && typeof v[1] === 'number'
+    ? { x: v[0], y: v[1] }
+    : null;
+}
+
+export function setStoredMux(
+  ctx: Pick<Ctx, 'state'>,
+  id: EntityId,
+  p: { x: number; y: number } | null,
+): void {
+  if (p) {
+    const t = table(ctx, 'mux', true);
+    if (t) t[String(id)] = [p.x, p.y];
+  } else {
+    const t = table(ctx, 'mux', false);
     if (t) delete t[String(id)];
   }
 }
@@ -246,6 +270,7 @@ const KEYS: readonly Key[] = [
   'mcan',
   'mblinded',
   'minvis', // invis.ts
+  'mux', // apparxy.ts
 ];
 
 /** Forgets the states of a monster that died or left. */

@@ -14,6 +14,7 @@ import {
   type Registry,
 } from '@nh/core';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
+import { STATUE } from './statuestate';
 import {
   REMEMBERED_UNSEEN_APPEARANCE,
   cantSeeSelf,
@@ -182,8 +183,9 @@ export function registerPerception(api: ModApi): void {
     senses: telepathSenses,
     shownAs(state, defs, e) {
       if (!heroHas(state, P.HALLUC)) return null;
-      // ref: random_monster() / random_object(): any monster or object glyph
-      const pool = defs.isMonster(e.def) ? defs.monsters : defs.objects;
+      // ref: random_monster() / random_object(): any monster or object glyph; a statue is seen
+      // as a random monster (display.c: "statues are seen as random monsters")
+      const pool = defs.isMonster(e.def) || e.def === STATUE ? defs.monsters : defs.objects;
       return pool[mix(state.seed, state.turn, e.id) % pool.length]?.id ?? null;
     },
   });
@@ -241,7 +243,7 @@ export function someMonNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: E
 }
 
 /** The id of a random monster for a hallucinated name. ref: src/do_name.c rndmonnam() */
-function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
+export function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
   const all = ctx.defs.monsters;
   return all[ctx.cosmetic.rn2(all.length)]?.id ?? 'nh:newt';
 }

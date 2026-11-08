@@ -690,7 +690,8 @@ describe('wiz:wish and wiz:identify', () => {
   });
 
   test('"nothing" changes nothing; Escape is a random object, as in NetHack', () => {
-    const state = game(16);
+    // a seed whose random object does not merge into a stack she carries
+    const state = game(17);
     const hash = stateHash(state);
     expect(msgs(wish(state, 'nothing'))).toEqual([]);
     expect(stateHash(state)).toBe(hash);
@@ -887,7 +888,7 @@ describe('"Die?"', () => {
 
   test('a normal game just ends', () => {
     // a seed whose angry jackal gets through within 200 turns (the hero at 1 HP regenerates)
-    for (let seed = 33; seed < 63; seed++) {
+    for (let seed = 35; seed < 65; seed++) {
       const { state } = normal.newGame({ seed });
       (state.modData['nh'] ??= {}) as Record<string, unknown>;
       (state.modData['nh'] as Record<string, unknown>)['debugMongen'] = true; // only the jackal

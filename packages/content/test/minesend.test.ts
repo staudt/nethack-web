@@ -151,8 +151,8 @@ describe.each([
 
 describe("Mines' End contents", () => {
   // searched start: the vampires and mimics have no MonsterDefs, so each becomes a random monster
-  // (create_monster() as for a genocided class); from seed 3 none falls outside these classes
-  const seeds = seedsByVariant(80, 21, 3);
+  // (create_monster() as for a genocided class); from seed 6 none falls outside these classes
+  const seeds = seedsByVariant(80, 21, 6);
 
   test('the Catacombs: undead and floating eyes, no vampires; a flint on a place', () => {
     const { state, level } = minesEnd(seeds['nh:minend-3'] ?? 0);

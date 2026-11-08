@@ -3,7 +3,7 @@
 // Translation notes (see DEVIATIONS.md): Orcish Town (minetn-1) lives in orctown.ts with its
 // fixup; the variant is a roll among all seven, in lua file order. `align[1]` (a shuffled alignment shared by the level) is `random` on the
 // one altar each variant has, which is the same thing. Shops and the temple are typed rooms but
-// stay empty and untended until 6b2/6b3. The gnome king statue is skipped (no statues yet). `des.room` levels without a level_init
+// stay empty and untended until 6b2/6b3. `des.room` levels without a level_init
 // start as dark stone, as makemaz() leaves the level before the lua runs.
 import type { LevelContent, LevelDef, RoomDef } from '@nh/core';
 import { MINETN_1 } from './orctown';
@@ -456,7 +456,7 @@ export const MINETN_4: LevelDef = {
 };
 
 /**
- * "Grotto Town": a dark cave town drawn as one map block. The gnome king statue is skipped.
+ * "Grotto Town": a dark cave town drawn as one map block.
  * ref: dat/minetn-5.lua
  */
 export const MINETN_5: LevelDef = {
@@ -587,7 +587,7 @@ export const MINETN_5: LevelDef = {
     mon('gnome_lord', at(71, 19)),
     { kind: 'object', id: 'nh:chest', x: 73, y: 19 },
     { kind: 'object', class: 'tool', x: 50, y: 3 },
-    // des.object({ id = "statue", x=38, y=15, montype="gnome king", historic=1 }) skipped
+    { kind: 'object', id: 'nh:statue', x: 38, y: 15, montype: 'nh:gnome_king', historic: true },
   ],
 };
 

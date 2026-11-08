@@ -6,6 +6,7 @@ import { rndmonst, setLevelObjectAt } from './generation';
 import { mksobj, type MksobjOpts } from './items';
 import { startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
+import { STATUE } from './statuestate';
 
 /** What mkobj() needs from a Ctx (corpses schedule a rot timer). */
 export type MkobjCtx = Pick<
@@ -198,12 +199,55 @@ export function mksobjFull(
   opts: MksobjOpts,
   gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
 ): EntityId {
+  if (def.id === STATUE) return mksobjStatue(ctx, def, opts, gen);
   const id = mksobj(ctx, def, opts);
   if ((opts.init ?? true) && def.container) {
     mkboxCnts(ctx, id, {
       level: gen.level ?? opts.at?.level ?? ctx.state.currentLevel,
       inMklev: gen.inMklev === true,
     });
+  }
+  return id;
+}
+
+/**
+ * A statue, as mksobj(STATUE, init, artif) makes it: with `init`, a random monster
+ * (rndmonnum()) and, unless that monster is very small, a spellbook inside when
+ * `rn2(level_difficulty() / 2 + 10) > 10`; without, just the random monster. `opts.corpseOf`
+ * then overrides the monster (mkcorpstat()'s `ptr`, sp_lev's `montype`, a wish), keeping the
+ * spellbook rolled for the random one as C does. A monster given without `init` skips the
+ * random monster (C rolls rndmonnum() and throws it away), and no gender is rolled (statue
+ * genders are not modelled, as for corpses).
+ * ref: src/mkobj.c mksobj_init() ROCK_CLASS, mksobj() STATUE, mkcorpstat()
+ */
+export function mksobjStatue(
+  ctx: MkobjCtx,
+  def: ObjectDef,
+  opts: MksobjOpts,
+  gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
+): EntityId {
+  const level = gen.level ?? opts.at?.level;
+  const depth = depthOf(ctx, level);
+  let mon = opts.corpseOf;
+  let book: EntityId | null = null;
+  if (opts.init ?? true) {
+    const m = rndmonnum(ctx, depth);
+    mon ??= m.id;
+    if (m.size !== 'tiny' && ctx.rng.rn2(Math.trunc(depth / 2) + 10) > 10)
+      book = mkobj(ctx, 'spellbook', {
+        artif: false,
+        ...(level !== undefined ? { level } : {}),
+        inMklev: gen.inMklev === true,
+      });
+  } else mon ??= rndmonnum(ctx, depth).id;
+  const id = mksobj(ctx, def, { ...opts, corpseOf: mon });
+  if (book !== null) {
+    // add_to_container(): a statue holds its contents as C's Has_contents() (no core container)
+    const it = ctx.state.entities[String(book)]?.c.item;
+    if (it) {
+      it.containedIn = id;
+      it.placed = ctx.state.seq++;
+    }
   }
   return id;
 }

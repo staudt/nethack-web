@@ -52,8 +52,8 @@ import { floatingAbove, resumeLevitation } from './levitation';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
 import { BOULDER, boulderAt, feelObjects, rememberedBoulder, sokobanBoulder } from './boulder';
+import { STATUE, rememberedStatue, statueAt } from './statuestate';
 import { isSokoban } from './sokoban';
-import { xnameOf } from './objnam';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
 import { setEndHow } from './endstate';
@@ -179,14 +179,19 @@ export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId): number | null 
  * ref: src/hack.c domove_fight_empty()
  */
 function fightEmpty(ctx: Ctx, level: Level, to: Pos): number {
+  const inb = inBounds(level, to.x, to.y);
+  let boulder = inb ? boulderAt(ctx, level.id, to.x, to.y) : null;
+  // if a statue is displayed at the target location, the hero is attacking it
+  if (inb && rememberedStatue(ctx.state, level.id, cellIndex(level, to.x, to.y)))
+    boulder = statueAt(ctx, level.id, to.x, to.y);
   unmapInvisible(ctx, to.x, to.y); // "about to become known empty -- remove 'I' if present"
-  const boulder = inBounds(level, to.x, to.y) ? boulderAt(ctx, level.id, to.x, to.y) : null;
   if (boulder) {
     feelObjects(ctx, level, to.x, to.y);
     ctx.emit({
       type: 'msg',
       key: 'fight.harmless_obj',
-      params: { what: xnameOf(ctx.state, ctx.defs, boulder) },
+      // ansimpleoname(): "a boulder", "a statue" (no monster: minimal_xname())
+      params: { what: { key: ctx.defs.object(boulder.def).nameKey } },
     });
     ctx.interrupt();
     return NORMAL_SPEED;
@@ -362,13 +367,18 @@ const fight: ActionDef = {
           params: { target: '@pronoun.it' },
         },
       ];
-    // a boulder the hero knows of: "You harmlessly attack a boulder." (walking pushes it)
-    if (!seen && rememberedBoulder(ctx, getLevel(ctx.state), target.pos.x, target.pos.y))
+    // a boulder the hero knows of: "You harmlessly attack a boulder." (walking pushes it); a
+    // statue: "You harmlessly attack a statue." (walking steps onto it)
+    const lvl = getLevel(ctx.state);
+    const statueShown =
+      inBounds(lvl, target.pos.x, target.pos.y) &&
+      rememberedStatue(ctx.state, lvl.id, cellIndex(lvl, target.pos.x, target.pos.y));
+    if (!seen && (statueShown || rememberedBoulder(ctx, lvl, target.pos.x, target.pos.y)))
       return [
         {
           action: { type: 'mod', action: 'nh:fight', args: { dir } },
           labelKey: 'action.nh:fight',
-          params: { target: `@${BOULDER}` },
+          params: { target: `@${statueShown ? STATUE : BOULDER}` },
         },
       ];
     // a seen web: cut through it (walking would step into it)

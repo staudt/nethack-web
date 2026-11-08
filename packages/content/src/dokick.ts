@@ -25,7 +25,7 @@ import {
   inventoryOf,
   itemsAt,
   rnl,
-  shownId,
+  itemShownId,
   isVisible,
   type ActionDef,
   type Ctx,
@@ -311,7 +311,7 @@ function bhitKicked(
     if (coin && itemsAt(ctx.defs, ctx.state, level.id, x, y).length > 0) break;
   }
   if (path.length > 0 && obj)
-    ctx.emit({ type: 'projectile', g: shownId(ctx.state, obj.def), path });
+    ctx.emit({ type: 'projectile', g: itemShownId(ctx.defs, ctx.state, obj), path });
   return { pos: { x, y }, mon };
 }
 

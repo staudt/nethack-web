@@ -60,6 +60,8 @@ import {
   mspecUsed,
   setMConfused,
   setMStunned,
+  setStoredMux,
+  storedMux,
 } from './mstate';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, rlocMon, rlocTo, trapRemovedMon } from './trap';
@@ -328,6 +330,7 @@ export function mfndpos(
       if (realHero && g) {
         g.x = heroPos.x;
         g.y = heroPos.y;
+        if (storedMux(ctx, id)) setStoredMux(ctx, id, g); // kept while it can't see her
       }
       const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
       const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));

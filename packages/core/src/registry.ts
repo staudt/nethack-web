@@ -582,6 +582,13 @@ export function loadMods(mods: readonly Mod[]): Registry {
           ![...monsters.values()].some((m) => m.glyph.ch === c.class)
         )
           ref(`${prefix}[${i}].class`, `no monster has glyph '${c.class}'`);
+        if (typeof c.montype === 'string') {
+          const ok =
+            [...c.montype].length === 1
+              ? [...monsters.values()].some((m) => m.glyph.ch === c.montype)
+              : monsters.has(c.montype);
+          if (!ok) ref(`${prefix}[${i}].montype`, `unknown montype '${c.montype}'`);
+        }
       });
     }
   }

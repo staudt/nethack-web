@@ -3,6 +3,8 @@ import { ACTIONS } from './actions';
 import { BRAINS } from './brains';
 import { MONSTERS } from './monsters';
 import { OBJECTS, APPEARANCES } from './objects';
+import { STATUE, statueAppearanceOf, statueAppearances } from './statuestate';
+import { registerStatues } from './statue';
 import { registerShuffle } from './o_init';
 import { nameItem } from './objnam';
 import { registerProps } from './props';
@@ -140,9 +142,18 @@ export const vanillaMod: Mod = {
     for (const o of OBJECTS) {
       const use = USES[o.id];
       const zap = WAND_ZAPS[o.id];
-      api.defineObject({ ...o, ...(use ? { use } : {}), ...(zap ? { zap } : {}) });
+      const appearanceOf = o.id === STATUE ? statueAppearanceOf : undefined;
+      api.defineObject({
+        ...o,
+        ...(use ? { use } : {}),
+        ...(zap ? { zap } : {}),
+        ...(appearanceOf ? { appearanceOf } : {}),
+      });
     }
     for (const a of APPEARANCES) api.defineAppearance(a);
+    const statueFg = OBJECTS.find((o) => o.id === STATUE)?.glyph.fg ?? '#ffffff';
+    for (const a of statueAppearances(MONSTERS, statueFg)) api.defineAppearance(a);
+    registerStatues(api);
     api.setItemNamer(nameItem);
     registerStats(api);
     registerShuffle(api);

@@ -110,6 +110,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.probe.sdoor': 'Probing reveals a secret door.',
   'zap.hear_shatter': 'You hear something shatter!',
   'zap.boulder_falls_apart': 'The boulder falls apart.',
+  'zap.mon_shatters': 'The {mon} shatters.',
   'zap.hear_crumbling': 'You hear a crumbling sound.',
 
   // doorlock(), boxlock(), obstructed()

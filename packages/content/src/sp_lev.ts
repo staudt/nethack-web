@@ -26,6 +26,7 @@ import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
 import { makemon, mkclass } from './generation';
 import { mkobjAt, mksobjFull } from './mkobj';
+import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
 
 /**
@@ -153,12 +154,28 @@ function createObject(
   ldef: LevelDef,
   room?: number,
 ): void {
+  // lspo_object(): `montype` is read (a class letter rolled with mkclass(class, G_NOGEN |
+  // G_IGNORE)) before create_object() picks the spot and makes the object
+  const mon =
+    c.montype === undefined
+      ? undefined
+      : [...c.montype].length === 1
+        ? mkclass(ctx, c.montype, level.depth, ['nogen'])?.id
+        : (c.montype as DefId);
   const pos = contentSpot(ctx, level, c, ldef, room);
   if (!pos) return;
   const at = { level: level.id, x: pos.x, y: pos.y };
-  if (c.id !== undefined)
-    mksobjFull(ctx, ctx.defs.object(c.id), { at }, { level: level.id, inMklev: true });
-  else mkobjAt(ctx, (c.class as ObjectClass | undefined) ?? 'random', at, true);
+  if (c.id !== undefined) {
+    // create_object(): mksobj_at(id, x, y, TRUE, ...), then set_corpsenm(montype) and the
+    // historic flag
+    const id = mksobjFull(
+      ctx,
+      ctx.defs.object(c.id),
+      { at, ...(mon !== undefined ? { corpseOf: mon } : {}) },
+      { level: level.id, inMklev: true },
+    );
+    if (c.historic && c.id === STATUE) setHistoric(ctx, id, true);
+  } else mkobjAt(ctx, (c.class as ObjectClass | undefined) ?? 'random', at, true);
 }
 
 /**

@@ -2,8 +2,7 @@
 // Oracle), five random rooms and random corridors. A leaf module (core types only).
 // ref: dat/oracle.lua
 //
-// Not ported (DEVIATIONS "The Oracle"): the eight centaur statues of the centre room (no
-// statues), `noflip` (no level flipping), consultations (#chat).
+// Not ported (DEVIATIONS "The Oracle"): `noflip` (no level flipping), consultations (#chat).
 import type { DefId, LevelContent, LevelDef } from '@nh/core';
 
 /** The Delphi room type. ref: include/mkroom.h DELPHI */
@@ -14,6 +13,15 @@ export const ORACLE: DefId = 'nh:oracle';
 const OBJ: LevelContent = { kind: 'object' };
 const MON: LevelContent = { kind: 'monster' };
 const TRAP: LevelContent = { kind: 'trap' };
+/** des.object({ id = "statue", x, y, montype = "C", historic = true }) */
+const centaurStatue = (x: number, y: number): LevelContent => ({
+  kind: 'object',
+  id: 'nh:statue',
+  x,
+  y,
+  montype: 'C',
+  historic: true,
+});
 
 /**
  * oracle.lua. As in the Minetown `des.room` levels the map starts as dark stone (makemaz() leaves
@@ -32,6 +40,19 @@ export const ORACLE_LEVEL: LevelDef = {
       yalign: 'center',
       w: 11,
       h: 9,
+      // the eight historic centaur statues, made before the Delphi
+      contents: [
+        centaurStatue(0, 0),
+        centaurStatue(0, 8),
+        centaurStatue(10, 0),
+        centaurStatue(10, 8),
+        centaurStatue(5, 1),
+        centaurStatue(5, 7),
+        centaurStatue(2, 4),
+        centaurStatue(8, 4),
+        MON,
+        MON,
+      ],
       rooms: [
         {
           type: DELPHI,
@@ -50,7 +71,6 @@ export const ORACLE_LEVEL: LevelDef = {
           doors: [{ state: 'nodoor' }],
         },
       ],
-      contents: [MON, MON],
     },
     { stairs: ['up'], contents: [OBJ] },
     { stairs: ['down'], contents: [OBJ, TRAP, MON, MON] },
