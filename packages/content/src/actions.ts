@@ -24,9 +24,10 @@ import {
 } from '@nh/core';
 import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
-import { digests, isSwallowed, uswallow } from './engulfstate';
+import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
-import { askReallyAttack, needsAttackConfirm } from './peaceful';
+import { askReallyAttack, attackChecksUnseen, needsAttackConfirm } from './peaceful';
+import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
 import { isFrozen } from './mstate';
 import { canSpotMon, monNam } from './perception';
@@ -157,12 +158,54 @@ export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId): number | null 
     }
     return null;
   }
+  // ref: src/uhitm.c attack_checks(): "Wait!  There's something there you can't see!"
+  const at = vmon.c.pos;
+  if (at && attackChecksUnseen(ctx, vmon, at.x, at.y)) {
+    ctx.interrupt(); // domove(): nomul(0) before attacking a monster that is not safe
+    return NORMAL_SPEED;
+  }
   // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
   if (needsAttackConfirm(ctx, vmon.id)) {
     askReallyAttack(ctx, vmon.id, handler, { victim: vmon.id });
     return 0;
   }
   return heroAttack(ctx, vmon.id);
+}
+
+/**
+ * Nothing to fight at `to` (a forced fight, or walking into a remembered `I` with no monster
+ * there): the `I` goes, and "You harmlessly attack a boulder." (the hero learns it is there:
+ * map_object()), "You harmlessly attack the wall." or "You attack thin air.". The move is spent.
+ * ref: src/hack.c domove_fight_empty()
+ */
+function fightEmpty(ctx: Ctx, level: Level, to: Pos): number {
+  unmapInvisible(ctx, to.x, to.y); // "about to become known empty -- remove 'I' if present"
+  const boulder = inBounds(level, to.x, to.y) ? boulderAt(ctx, level.id, to.x, to.y) : null;
+  if (boulder) {
+    feelObjects(ctx, level, to.x, to.y);
+    ctx.emit({
+      type: 'msg',
+      key: 'fight.harmless_obj',
+      params: { what: xnameOf(ctx.state, ctx.defs, boulder) },
+    });
+    ctx.interrupt();
+    return NORMAL_SPEED;
+  }
+  const solid =
+    !inBounds(level, to.x, to.y) ||
+    !cellRules(level, ctx.defs).passable[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
+  if (solid) {
+    const id = inBounds(level, to.x, to.y)
+      ? level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0]
+      : undefined;
+    ctx.emit({
+      type: 'msg',
+      key: 'fight.harmless',
+      params: { what: `@${id ? ctx.defs.terrain(id).nameKey : 'nh:stone'}` },
+    });
+  } else ctx.emit({ type: 'msg', key: 'fight.thin_air' });
+  ctx.interrupt();
+  return NORMAL_SPEED;
 }
 
 /**
@@ -310,6 +353,15 @@ const fight: ActionDef = {
     const dir = dirTo(playerAt(ctx), target.pos);
     if (!dir) return [];
     const seen = ctx.query.describe(target.pos).entities.find((e) => ctx.defs.isMonster(e.def));
+    // a remembered, unseen monster: fight it (walking into the `I` does the same)
+    if (!seen && markedUnseen(ctx, target.pos.x, target.pos.y))
+      return [
+        {
+          action: { type: 'mod', action: 'nh:fight', args: { dir } },
+          labelKey: 'action.nh:fight',
+          params: { target: '@pronoun.it' },
+        },
+      ];
     // a boulder the hero knows of: "You harmlessly attack a boulder." (walking pushes it)
     if (!seen && rememberedBoulder(ctx, getLevel(ctx.state), target.pos.x, target.pos.y))
       return [
@@ -359,40 +411,24 @@ const fight: ActionDef = {
         ctx.interrupt();
         return NORMAL_SPEED;
       }
-      // ref: domove_fight_empty(): "You harmlessly attack a boulder." (the hero learns it is
-      // there: map_object()), "You attack thin air." / "You harmlessly attack the wall."
-      const boulder = inBounds(level, to.x, to.y) ? boulderAt(ctx, level.id, to.x, to.y) : null;
-      if (boulder) {
-        feelObjects(ctx, level, to.x, to.y);
-        ctx.emit({
-          type: 'msg',
-          key: 'fight.harmless_obj',
-          params: { what: xnameOf(ctx.state, ctx.defs, boulder) },
-        });
-        ctx.interrupt();
-        return NORMAL_SPEED;
-      }
-      const solid =
-        !inBounds(level, to.x, to.y) ||
-        !cellRules(level, ctx.defs).passable[level.cells[cellIndex(level, to.x, to.y)] ?? 0];
-      if (solid) {
-        const id = inBounds(level, to.x, to.y)
-          ? level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0]
-          : undefined;
-        ctx.emit({
-          type: 'msg',
-          key: 'fight.harmless',
-          params: { what: `@${id ? ctx.defs.terrain(id).nameKey : 'nh:stone'}` },
-        });
-      } else ctx.emit({ type: 'msg', key: 'fight.thin_air' });
-      ctx.interrupt();
-      return NORMAL_SPEED;
+      return fightEmpty(ctx, level, to);
     }
     if (needsAttackConfirm(ctx, victim)) {
       askReallyAttack(ctx, victim, 'nh:move', { victim });
       return 0;
     }
-    return heroAttack(ctx, victim);
+    const cost = heroAttack(ctx, victim);
+    // ref: src/uhitm.c do_attack() atk_done: a forced fight at a monster she can't spot that
+    // lives on leaves the `I` where she struck
+    const vmon = ctx.state.entities[String(victim)];
+    if (
+      vmon?.c.monster &&
+      !canSpotMon(ctx, vmon) &&
+      !markedUnseen(ctx, to.x, to.y) &&
+      !engulfingU(ctx, victim)
+    )
+      mapInvisible(ctx, to.x, to.y);
+    return cost;
   },
 };
 
@@ -420,6 +456,8 @@ const move: ActionDef = {
         },
       ];
     }
+    // walking into a remembered `I` fights it: `nh:fight` offers that
+    if (markedUnseen(ctx, target.pos.x, target.pos.y)) return [];
     // a door the hero knows gets `nh:open` (and kick) instead, so a tap never bumps into it
     // unasked; one she doesn't know (blind) she walks into, which opens it
     const check = checkStep(level, cellRules(level, ctx.defs), from, dir);
@@ -455,6 +493,9 @@ const move: ActionDef = {
     if (vmon) {
       const cost = doAttack(ctx, vmon, 'nh:move');
       if (cost !== null) return cost;
+    } else if (markedUnseen(ctx, to.x, to.y)) {
+      // ref: src/hack.c domove_fight_empty(): "remembered an 'I' && didn't use a move command"
+      return fightEmpty(ctx, level, to);
     }
     return walk(ctx, dir, false);
   },
@@ -696,17 +737,32 @@ const search: ActionDef = {
     target.kind === 'self' ? [{ action: { type: 'search' }, labelKey: 'action.search' }] : [],
   perform(ctx) {
     ctx.emit({ type: 'searched' });
-    dosearch0(ctx);
+    dosearch0(ctx, false);
     return NORMAL_SPEED;
   },
 };
 
 /**
- * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching).
- * ref: src/detect.c dosearch0(): x outer, y inner. Hidden monsters are not implemented; there is
- * no lenses/artifact bonus (fund = 0). Luck counts.
+ * An explicit search finds a monster next to her that she can't spot: "You feel an unseen
+ * monster!" and the `I`. 1 when found (the search ends there), -1 when the `I` already marks it
+ * (the square is skipped), 0 otherwise. ref: src/detect.c mfind0() (no mimics, hiders or
+ * warning; no Wis exercise)
  */
-function dosearch0(ctx: Ctx): void {
+function mfind0(ctx: Ctx, mon: Entity, x: number, y: number): number {
+  if (canSpotMon(ctx, mon)) return 0;
+  // "Found invisible monster in square which already has 'I' in it."
+  if (markedUnseen(ctx, x, y)) return -1;
+  mapInvisible(ctx, x, y);
+  ctx.emit({ type: 'msg', key: 'search.unseen_monster' });
+  return 1;
+}
+
+/**
+ * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching:
+ * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. Hidden monsters and mimics are not
+ * implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
+ */
+function dosearch0(ctx: Ctx, aflag: boolean): void {
   const here = playerAt(ctx);
   const level = getLevel(ctx.state);
   for (let x = here.x - 1; x <= here.x + 1; x++) {
@@ -724,6 +780,16 @@ function dosearch0(ctx: Ctx): void {
         setTerrain(level, x, y, T.corr);
         ctx.emit({ type: 'msg', key: 'search.found_passage' });
       } else {
+        // ref: dosearch0(): an explicit search finds an unseen monster (mfind0()), or forgets an
+        // `I` with nothing there ("see if an invisible monster has moved"; blind, feel_location()
+        // does the same)
+        const mid = aflag ? null : monsterIdAt(ctx, { x, y }, level.id);
+        const mon = mid === null ? undefined : ctx.state.entities[String(mid)];
+        if (mon) {
+          const found = mfind0(ctx, mon, x, y);
+          if (found === -1) continue;
+          if (found > 0) return;
+        } else if (!aflag) unmapInvisible(ctx, x, y);
         // ref: dosearch0(): `(trap = t_at(x, y)) && !trap->tseen && !rnl(8)` -> find_trap()
         findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state)));
       }
@@ -739,7 +805,7 @@ export function registerAutosearch(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
     const hero = getPlayer(ctx.state);
     if (ctx.state.gameOver || hero.c.helpless || !hasProp(hero, P.SEARCHING)) return;
-    dosearch0(ctx);
+    dosearch0(ctx, true);
   });
 }
 

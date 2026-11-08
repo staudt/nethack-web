@@ -40,7 +40,7 @@ import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
 import { discover } from './o_init';
 import { xnameOf } from './objnam';
 import { igniteItems } from './light';
-import { monNam } from './perception';
+import { monNam, revealUnseenAt } from './perception';
 import { P, hasExtrinsic, hasProp, makeBlinded } from './props';
 import { payForDamage, type DmgStr } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
@@ -675,6 +675,8 @@ function buzzSteps(
           (inBounds(level, lsx, lsy) && cansee(ctx, lsx, lsy)))
       )
         path.push({ x: sx, y: sy, dx: d.x, dy: d.y });
+      // ref: dobuzz(): "reveal/unreveal invisible monsters before tmp_at()"
+      revealUnseenAt(ctx, monAt(ctx, sx, sy), sx, sy);
       // poison gas leaves its 1x1 cloud via zap_over_floor() after the hit (skipped when
       // reflected): deferred to the end of the step, its range change unused
       let gasHit = ray === 'poison_gas';

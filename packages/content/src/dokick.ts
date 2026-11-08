@@ -76,7 +76,9 @@ import { costlySpot, eshkOf, inAnyShop, isShopType } from './eshk';
 import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { payForDamage } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
-import { monNam } from './perception';
+import { canSpotMon, monNam, revealUnseenAt } from './perception';
+import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
+import { engulfingU } from './engulfstate';
 import { abuseDog } from './dog';
 import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 
@@ -298,6 +300,9 @@ function bhitKicked(
     }
     if (isVisible(ctx.state, cellIndex(level, x, y))) path.push({ x, y });
     const m = monsterIdAt(ctx, { x, y }, level.id);
+    // ref: bhit(): an unseen monster that stops it on a seen square is remembered as `I`; an
+    // `I` with nothing there is forgotten
+    revealUnseenAt(ctx, m === null ? null : ctx.state.entities[String(m)], x, y);
     if (m !== null) {
       mon = m;
       break;
@@ -663,8 +668,23 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   }
   if (mtmp !== null) {
     kickMonster(ctx, mtmp, x, y);
+    // ref: dokick(): "see comment in attack_checks()": an unseen monster that lives on and did
+    // not evade the kick is remembered as `I`
+    const m = ctx.state.entities[String(mtmp)];
+    const mp = m?.c.pos;
+    if (
+      m?.c.monster &&
+      mp &&
+      !canSpotMon(ctx, m) &&
+      mp.x === x &&
+      mp.y === y &&
+      !markedUnseen(ctx, x, y) &&
+      !engulfingU(ctx, mtmp)
+    )
+      mapInvisible(ctx, x, y);
     return NORMAL_SPEED;
   }
+  unmapInvisible(ctx, x, y); // ref: dokick(): nothing there
   // monsters, pools, objects, non-doors, doors -- in that order
   const pile = itemsAt(ctx.defs, ctx.state, level.id, x, y);
   const top = pile[0];

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3158 citations.
+152 NetHack files, 3174 citations.
 
 ## dat/dungeon.lua
 
@@ -153,6 +153,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `_mon_warning()`: `packages/content/src/perception.ts`
 - `_tp_sensemon()`: `packages/content/src/perception.ts`
 - `explosion_to_glyph()`: `packages/content/src/explode.ts`
+- `glyph_is_invisible()`: `packages/content/src/invis.ts`
 - `is_safemon()`: `packages/content/src/actions.ts`
 - `mon_visible()`: `packages/content/src/invis.ts`
 - `zap_color_()`: `packages/content/src/buzz.ts`
@@ -570,6 +571,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dosearch0()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `findit()`: `packages/content/src/zap.ts`
 - `findone()`: `packages/content/src/zap.ts`
+- `mfind0()`: `packages/content/src/actions.ts`
 - `monster_detect()`: `packages/content/src/cast.ts`, `packages/content/src/detect.ts`
 - `premap_detect()`: `packages/content/src/detect.ts`
 - `show_map_spot()`: `packages/content/src/detect.ts`, `packages/content/src/wizard/map.ts`
@@ -920,7 +922,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `closed_door()`: `packages/content/src/actions.ts`, `packages/core/src/movement.ts`
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
-- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
+- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/travel.ts`
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
 - `domove_fight_web()`: `packages/content/src/actions.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
@@ -2161,7 +2163,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
-- `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
+- `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
 - `bhitm()`: `packages/content/src/zap.ts`
 - `bhito()`: `packages/content/src/zap.ts`
 - `bhitpile()`: `packages/content/src/zap.ts`

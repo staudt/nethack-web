@@ -17,9 +17,11 @@ import { P, hasExtrinsic, hasProp, heroHas } from './props';
 import {
   REMEMBERED_UNSEEN_APPEARANCE,
   cantSeeSelf,
+  mapInvisible,
   monInvisible,
   monVisible,
   seeInvisible,
+  unmapInvisible,
 } from './invis';
 import { epriOf, priestName } from './epri';
 import { eshkOf, shkName } from './eshk';
@@ -201,6 +203,25 @@ export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boole
   return ctx.defs.perceptions.some(
     (d) => d.id !== WARNING_PERCEPTION && d.senses?.(ctx.state, ctx.defs, mon) === true,
   );
+}
+
+/**
+ * A thrown or kicked object or a ray crosses (x, y) of her level holding `mon` (or nothing): on a
+ * square she sees, a monster she can't spot there is remembered as `I`, and an `I` with nothing
+ * there is forgotten. ref: src/zap.c bhit() THROWN_WEAPON/KICKED_WEAPON ("'I' present but no
+ * monster: erase"), dobuzz() ("reveal/unreveal invisible monsters before tmp_at()")
+ */
+export function revealUnseenAt(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  mon: Entity | null | undefined,
+  x: number,
+  y: number,
+): void {
+  const level = ctx.state.levels[ctx.state.currentLevel];
+  if (!level || x < 0 || y < 0 || x >= level.width || y >= level.height) return;
+  if (!isVisible(ctx.state, y * level.width + x)) return;
+  if (!mon) unmapInvisible(ctx, x, y);
+  else if (!canSpotMon(ctx, mon)) mapInvisible(ctx, x, y);
 }
 
 /**

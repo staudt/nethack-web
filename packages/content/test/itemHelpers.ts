@@ -103,7 +103,15 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
 }
 
 // ---- a small level for the item action tests ----
-import { newMemory, type DefId, type Level, type PlayerAction, type StepResult } from '@nh/core';
+import {
+  cellRules,
+  computeVisible,
+  newMemory,
+  type DefId,
+  type Level,
+  type PlayerAction,
+  type StepResult,
+} from '@nh/core';
 import { T } from '../src/index';
 
 /**
@@ -160,6 +168,7 @@ export function levelSetup(rows: string[] = ['.....', '..@..', '.....'], seed = 
   const hero = getPlayer(state);
   if (hero.c.pos) Object.assign(hero.c.pos, { level: 'dlvl1', x: start.x, y: start.y });
   if (hero.c.hp) hero.c.hp = { cur: 500, max: 500 };
+  state.visible = computeVisible(level, cellRules(level, defs), start); // the new level in view
   const step = (a: PlayerAction): StepResult => engine.stepAll(state, a);
   const mod = (action: string, args?: Record<string, unknown>): StepResult =>
     step({ type: 'mod', action: action as DefId, ...(args ? { args: args as never } : {}) });

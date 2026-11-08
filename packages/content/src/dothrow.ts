@@ -65,7 +65,7 @@ import {
   weaponHitBonus,
 } from './skills';
 import { acurrstr, findMac } from './stats';
-import { monNam } from './perception';
+import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
 import { ringBonus } from './props';
 import { hmonThrownHit, missileMsg, type Shot } from './hmon';
@@ -361,6 +361,9 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
     }
     // ref: src/zap.c bhit() tmp_at(): the cell is drawn only when the hero can see it
     if (isVisible(ctx.state, y * level.width + x)) path.push({ x, y });
+    // ref: bhit(): an unseen monster that stops it on a seen square is remembered as `I`; an
+    // `I` with nothing there is forgotten
+    revealUnseenAt(ctx, mid === null ? null : ctx.state.entities[String(mid)], x, y);
     if (mid !== null) {
       hitMon = mid;
       break;

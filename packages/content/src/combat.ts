@@ -60,7 +60,7 @@ import { cloneMon } from './clone';
 import { canseemon, mintrap } from './trap';
 import { summonWereMu } from './were';
 import { isWere } from './werestate';
-import { cantSeeSelf } from './invis';
+import { cantSeeSelf, mapInvisible } from './invis';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -481,6 +481,7 @@ export function hitmu(
   again: boolean,
   ac: number,
 ): number {
+  unseenAttacker(ctx, mon); // ref: hitmu(): `if (!canspotmon(mtmp)) map_invisible(...)`
   const name = monNam(ctx, mon);
   let dmg = ctx.rng.d(atk.n, atk.d);
   // (no midnight(): undead get no extra damage)
@@ -600,7 +601,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
             prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
             ac,
           );
-        else missmu(ctx, name, tmp === j);
+        else missmu(ctx, mon, name, tmp === j);
         break;
       }
       case 'weapon': {
@@ -623,7 +624,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
             prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
             ac,
           );
-        else missmu(ctx, name, attackTmp === j);
+        else missmu(ctx, mon, name, attackTmp === j);
         break;
       }
       case 'magic':
@@ -650,7 +651,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         let j = 0;
         if (isSwallowed(ctx) || (!mspecUsed(ctx, monId) && tmp > (j = ctx.rng.rnd(20 + i))))
           sum[i] = gulpmu(ctx, mon, atk);
-        else missmu(ctx, name, tmp === j);
+        else missmu(ctx, mon, name, tmp === j);
         break;
       }
       // AT_BREA, AT_SPIT (step 5, at range)
@@ -665,8 +666,18 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   }
 }
 
-/** ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose) */
-function missmu(ctx: Ctx, name: string, nearmiss: boolean): void {
+/** A monster she can't spot attacks her: she remembers it as `I` where it is. */
+function unseenAttacker(ctx: Ctx, mon: Entity): void {
+  const p = mon.c.pos;
+  if (p && p.level === ctx.state.currentLevel && !canSpotMon(ctx, mon)) mapInvisible(ctx, p.x, p.y);
+}
+
+/**
+ * ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose); an
+ * attacker she can't spot is remembered as `I`
+ */
+function missmu(ctx: Ctx, mon: Entity, name: string, nearmiss: boolean): void {
+  unseenAttacker(ctx, mon);
   ctx.emit({
     type: 'msg',
     key: nearmiss ? 'combat.mon_just_misses' : 'combat.mon_misses',

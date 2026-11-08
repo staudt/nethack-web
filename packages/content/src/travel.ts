@@ -22,6 +22,7 @@ import {
 import { blockersOf, boulderCells } from './boulder';
 import { boulderStops, couldMoveOntoBoulder } from './moverock';
 import { isSokoban } from './sokoban';
+import { unmapInvisible } from './invis';
 
 export function heroPos(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -439,6 +440,9 @@ const travel: ActionDef = {
       ctx.interrupt();
     }
     session.visited.push(here.y * width + here.x);
+    // ref: src/hack.c domove(): travel sets context.nopick, so a remembered `I` with nothing
+    // there is not fought but forgotten (unmap_invisible()) and walked into
+    if (!there) unmapInvisible(ctx, next.x, next.y);
     // Delegating keeps door auto-open, diagonal rules etc. identical to walking.
     return move.perform(ctx, { type: 'move', dir });
   },

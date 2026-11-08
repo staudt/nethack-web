@@ -49,6 +49,7 @@ export const kickMessagesEn: Record<string, string> = {
   'killer.kick.boulder': 'kicking a boulder',
   'killer.kick.nothing': 'kicking nothing',
   'attack.confirm': 'Really attack {mon|the}?',
+  'attack.wait_unseen': "Wait!  There's something there you can't see!",
   'mon.gets_angry': '{mon|The} gets angry!',
   'mon.turns_to_flee': '{mon|The} turns to flee.',
 };

@@ -32,6 +32,7 @@ import { isSokoban, maybeFinishSokoban, sokobanGuilt } from './sokoban';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
+import { mapInvisible, unmapInvisible } from './invis';
 import { invWeight } from './stats';
 import { T } from './terrain';
 import { TRAP } from './trap';
@@ -156,7 +157,8 @@ function dopush(
   const givemesg = moves > nh.bldrpush.time + 2 || moves < nh.bldrpush.time;
   if (givemesg) ctx.emit({ type: 'msg', key: 'boulder.push', params: { what } });
   nh.bldrpush.time = moves;
-  // ref: dopush() movobj(): "Move the boulder *after* the message."
+  // ref: dopush() movobj(): "Move the boulder *after* the message." (an `I` there goes first)
+  unmapInvisible(ctx, r.x, r.y);
   otmp.c.pos = { level: level.id, x: r.x, y: r.y };
   if (otmp.c.item) otmp.c.item.placed = ctx.state.seq++;
   if (heroBlind(ctx.defs, ctx.state)) {
@@ -237,6 +239,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
         });
       } else {
         ctx.emit({ type: 'msg', key: 'boulder.hear_monster', params: { what } });
+        mapInvisible(ctx, rx, ry);
       }
       // flags.verbose: "Perhaps that's why you cannot move it." (deliver_part1 is always set:
       // the monster was seen, or heard as the hero is never Deaf)

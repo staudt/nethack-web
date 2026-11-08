@@ -7,13 +7,15 @@ import {
   sortedIds,
   type Ctx,
   type DefId,
+  type Entity,
   type EntityId,
   type Json,
 } from '@nh/core';
 import { monflee } from './monflee';
 import { heroSees } from './mongear';
 import { P, hasProp } from './props';
-import { canSpotMon, monNam } from './perception';
+import { canSpotMon, monNam, warningShown } from './perception';
+import { mapInvisible, markedUnseen } from './invis';
 import { adjalign } from './luck';
 import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
@@ -40,6 +42,23 @@ export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
   if (hasProp(hero, P.STUNNED) || hasProp(hero, P.CONFUSION) || hasProp(hero, P.HALLUC))
     return false;
   return canSpotMon(ctx, mon);
+}
+
+/**
+ * The hero goes to attack a monster she can't spot, on a square that shows neither a warning
+ * digit nor the remembered `I`: "Wait!  There's something there you can't see!", the `I` is
+ * mapped there and the monster is woken (and angered: an attack attempt). True when the attack
+ * is called off (the move is still spent). Not for a forced fight (the `F` prefix, a kick at an
+ * unseen monster) or an engulfer. ref: src/uhitm.c attack_checks() (no mimics or hiders)
+ */
+export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number): boolean {
+  if (engulfingU(ctx, mon.id)) return false; // `if (engulfing_u(mtmp)) return FALSE`
+  if (canSpotMon(ctx, mon) || warningShown(ctx.state, ctx.defs, mon) !== null) return false;
+  if (markedUnseen(ctx, x, y)) return false;
+  say(ctx, 'attack.wait_unseen');
+  mapInvisible(ctx, x, y);
+  wakeup(ctx, mon.id); // wakeup(mtmp, TRUE): "always necessary"
+  return true;
 }
 
 /**

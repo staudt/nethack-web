@@ -4,8 +4,8 @@
 // hurtle_step() (the jumping path); src/spell.c spelleffects() SPE_JUMPING
 //
 // Not ported: Knights (no such role), steeds, polymorphed forms without legs, water, lava, the
-// Planes, ball and chain, Passes_walls, regions, the remembered-unseen marker (7f-b) and a hero
-// whose touch petrifies (DEVIATIONS.md "Jumping").
+// Planes, ball and chain, Passes_walls, regions and a hero whose touch petrifies (DEVIATIONS.md
+// "Jumping").
 import {
   NORMAL_SPEED,
   getLevel,
@@ -36,6 +36,7 @@ import { wakeNearto } from './noise';
 import { nomul } from './nomul';
 import { setmangry } from './peaceful';
 import { canSpotMon, someMonNam } from './perception';
+import { mapInvisible, markedUnseen } from './invis';
 import { P, conflictOn, hasExtrinsic, hasProp, timeoutLeft } from './props';
 import { useSkill } from './skills';
 import { isSokoban } from './sokoban';
@@ -380,11 +381,13 @@ function hurtleJumpStep(
   const monId = monsterIdAt(ctx, { x, y }, level.id);
   const mon = monId !== null ? ctx.state.entities[String(monId)] : undefined;
   if (mon?.c.monster) {
-    const seen = canSpotMon(ctx, mon);
+    // `!glyph_is_monster(glyph) && !glyph_is_invisible(glyph)`: she finds it
+    const spotted = canSpotMon(ctx, mon);
+    const known = spotted || markedUnseen(ctx, x, y);
     const name = someMonNam(ctx, mon);
-    say(ctx, seen ? 'jump.bump_mon' : 'jump.find_mon', { mon: name });
+    say(ctx, known ? 'jump.bump_mon' : 'jump.find_mon', { mon: name });
     mon.c.monster.asleep = false; // wakeup(mon, FALSE)
-    // map_invisible() for an unseen one: no remembered-unseen marker yet (7f-b)
+    if (!spotted) mapInvisible(ctx, x, y);
     setmangry(ctx, mon.id);
     // a bodily collision: body armor, a cloak or a shirt protects her
     const pid = ctx.state.playerId;

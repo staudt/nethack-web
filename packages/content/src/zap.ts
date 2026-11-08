@@ -62,7 +62,7 @@ import { igniteItems } from './light';
 import { makemon } from './generation';
 import { mRespond } from './mrespond';
 import { confdir, getdirImpaired, setUstuck, uMaybeImpaired, ustuck } from './hackmove';
-import { digests, isSwallowed, uswallow } from './engulfstate';
+import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { expels } from './engulf';
 import { losehp } from './hp';
 import { nomulNow } from './hunger';
@@ -117,9 +117,12 @@ import {
   heroInvisBlocked,
   heroInvisible,
   knownInvisible,
+  mapInvisible,
+  markedUnseen,
   monInvisible,
   selfInvisMessage,
   setMinvis,
+  unmapInvisible,
 } from './invis';
 
 export const ZAP_ID: DefId = 'nh:zap';
@@ -668,11 +671,13 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   let wake = true;
   let helpful = false;
   let learnIt = false;
+  let revealInvis = false;
   const otyp = otypOf(src);
   const oclass = src.kind;
   switch (otyp) {
     case WAN.striking:
     case SPE.forceBolt:
+      revealInvis = true;
       learnIt = cansee(ctx, at.x, at.y);
       if (resistsMagm(ctx, mon)) {
         say(ctx, 'zap.boing');
@@ -693,6 +698,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       break;
     case SPE.healing: {
       const healamt = ctx.rng.d(6, 4);
+      revealInvis = true;
       wake = false; // wakeup() makes the target angry
       // healmon(mtmp, healamt, 0)
       const hp = mon.c.hp;
@@ -711,7 +717,8 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       setMinvis(ctx, mon, false);
       if (!oldinvis && knownInvisible(ctx, mon)) {
         say(ctx, 'zap.turns_transparent', { mon: nam });
-        learnIt = true; // (reveal_invis: she sees it, so no `I`)
+        revealInvis = true;
+        learnIt = true;
       } else if (couldsee && !canseemon(ctx, mon)) {
         // the same message as a teleported monster ending up out of sight: ambiguous
         say(ctx, 'tele.mon_vanishes', { mon: nam });
@@ -733,6 +740,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     }
     case WAN.probing:
       wake = false;
+      revealInvis = true;
       probeMonster(ctx, mon);
       learnIt = true;
       break;
@@ -758,6 +766,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       const mdat = ctx.defs.monster(mon.def);
       if (mdat.flags.includes('undead')) {
         // (no vampshifters; no Knight's quest artifact doubling; no turn undead spell yet)
+        revealInvis = true;
         wake = true;
         const dmg = ctx.rng.rnd(8);
         // context.bypasses: a corpse it leaves is not revived by this same zap
@@ -770,15 +779,19 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     }
     case WAN.teleportation:
       // the wand is known if the monster is seen where it lands (or stays)
-      uTeleportMon(ctx, mon, true);
+      revealInvis = !uTeleportMon(ctx, mon, true);
       learnIt = canSpotMon(ctx, mon);
       break;
     case WAN.light: // (broken wand)
-      if (flashHitsMon(ctx, mon)) learnIt = true;
+      if (flashHitsMon(ctx, mon)) {
+        learnIt = true;
+        revealInvis = true;
+      }
       break;
     case WAN.sleep: {
       // (broken wand) wakeup() doesn't rouse victims of temporary sleep, so `wake` stays
       const spe = src.kind === 'wand' ? (src.item.c.item?.spe ?? 0) : 0;
+      revealInvis = true;
       if (sleepMonst(ctx, mon, ctx.rng.d(1 + spe, 12), 'wand')) sleptMonst(ctx, mon);
       if (!blind(ctx)) learnIt = true;
       break;
@@ -792,6 +805,11 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     if (helpful) wakeGently(ctx, mon);
     else wakeup(ctx, mon.id);
     mRespond(ctx, mon);
+  }
+  // reveal_invis: a monster she can't spot on a square she sees, hit by something noticeable,
+  // is remembered as `I` (never the engulfer: `if (engulfing_u(mtmp)) reveal_invis = FALSE`)
+  if (revealInvis && alive(ctx, mon.id) && !engulfingU(ctx, mon.id)) {
+    if (cansee(ctx, at.x, at.y) && !canSpotMon(ctx, mon)) mapInvisible(ctx, at.x, at.y);
   }
   if (learnIt) learn(ctx, src);
 }
@@ -931,6 +949,9 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
       bhitm(ctx, mon, src, { x, y });
       if (ctx.state.gameOver) return;
       range -= 3;
+    } else if (otyp === WAN.probing && markedUnseen(ctx, x, y)) {
+      // ref: bhit(): probing past a remembered `I` with nothing there forgets it
+      unmapInvisible(ctx, x, y);
     }
     if (bhitpile(ctx, src, x, y)) range--;
     if (

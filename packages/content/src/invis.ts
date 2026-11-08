@@ -214,13 +214,20 @@ export function mapInvisible(ctx: Pick<Ctx, 'state'>, x: number, y: number): voi
  * unmap_invisible()
  */
 export function unmapInvisible(ctx: Pick<Ctx, 'state'>, x: number, y: number): boolean {
+  if (!markedUnseen(ctx, x, y)) return false;
+  setMonsterMark(ctx.state, ctx.state.currentLevel, { x, y }, null);
+  return true;
+}
+
+/**
+ * She remembers an unseen monster at (x, y) of her level: the `I` is there.
+ * ref: include/display.h glyph_is_invisible(levl[x][y].glyph)
+ */
+export function markedUnseen(ctx: Pick<Ctx, 'state'>, x: number, y: number): boolean {
   const level = ctx.state.levels[ctx.state.currentLevel];
   if (!level || x < 0 || y < 0 || x >= level.width || y >= level.height) return false;
-  const lid = ctx.state.currentLevel;
-  if (ctx.state.monsterMemory[lid]?.[String(cellIndex(level, x, y))] !== REMEMBERED_UNSEEN)
-    return false;
-  setMonsterMark(ctx.state, lid, { x, y }, null);
-  return true;
+  const mem = ctx.state.monsterMemory[ctx.state.currentLevel];
+  return mem?.[String(cellIndex(level, x, y))] === REMEMBERED_UNSEEN;
 }
 
 /**

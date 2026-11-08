@@ -120,6 +120,7 @@ export const messagesEn: Record<string, string> = {
   'door.closed': 'That door is closed.',
   'search.found_door': 'You find a hidden door.',
   'search.found_passage': 'You find a hidden passage.',
+  'search.unseen_monster': 'You feel an unseen monster!',
   'stairs.cant_down': "You can't go down here.",
   'stairs.cant_up': "You can't go up here.",
   'stairs.leave_confirm': 'Beware, there will be no return!  Still climb?',

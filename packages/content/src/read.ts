@@ -50,6 +50,7 @@ import { heroSees, whichArmor } from './mongear';
 import { wakeNearto } from './noise';
 import { wakeup } from './peaceful';
 import { canSpotMon, monNam } from './perception';
+import { mapInvisible, monInvisible } from './invis';
 import { sokobanGuilt } from './sokoban';
 import { CHARGED_RINGS } from './objects';
 import { erosionMatters, isCrackable, isMetallic, isWeaponOrWeptool } from './material';
@@ -657,7 +658,7 @@ export function dropBoulderOnPlayer(ctx: Ctx, confused: boolean, helmetProtects:
  * is hit ("The jackal is hit by a boulder!"; a hard helmet caps the damage at 2), killed with
  * the hero's credit or woken and angered, and the monsters around woken; then the boulder lands
  * (filling a pit or plugging a hole). Always the hero's doing (`byu`: the scroll is the only
- * caller). Not ported: engulfers (none), map_invisible() (no remembered-unseen marker).
+ * caller). Not ported: engulfers (none).
  * ref: src/read.c drop_boulder_on_monster()
  */
 export function dropBoulderOnMonster(ctx: Ctx, x: number, y: number, confused: boolean): boolean {
@@ -667,11 +668,13 @@ export function dropBoulderOnMonster(ctx: Ctx, x: number, y: number, confused: b
   // no passes_walls or noncorporeal monster exists
   if (mtmp && mdef && !mdef.flags.includes('amorphous') && !mdef.flags.includes('unsolid')) {
     const helmet = whichArmor(ctx, mtmp.id, 'helm');
-    if (heroSees(ctx, { level: ctx.state.currentLevel, x, y }))
+    if (heroSees(ctx, { level: ctx.state.currentLevel, x, y })) {
       msg(ctx, 'earth.mon_hit', {
         mon: monNam(ctx, mtmp),
         obj: doname(ctx.state, ctx.defs, obj),
       });
+      if (monInvisible(ctx, mtmp) && !canSpotMon(ctx, mtmp)) mapInvisible(ctx, x, y);
+    }
     let mdmg = fallingDamage(ctx, obj, isBig(mdef));
     if (helmet) {
       if (hardHelmet(ctx.defs.object(helmet.def))) {
