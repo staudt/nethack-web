@@ -52,7 +52,7 @@ interface GameState {
   playerId: EntityId;
   memory: Record<LevelId, number[]>; // remembered palette index per cell, -1 = never seen
   objectMemory: Record<LevelId, Record<string, DefId>>; // cell index -> remembered top object (shown id)
-  monsterMemory: Record<LevelId, Record<string, DefId>>; // cell index -> monster def last seen there; set/cleared by refreshVision for visible cells
+  monsterMemory: Record<LevelId, Record<string, DefId>>; // cell index -> monster def last seen there, or a marker (any non-monster id, the `I`); set/cleared by refreshVision for visible cells
   appearances: Record<DefId, DefId>; // object def -> appearance def, shuffled per game
   discovered: DefId[]; // object defs the hero has identified, sorted
   visible: number[]; // sorted cell indices visible to the player now
@@ -302,7 +302,7 @@ Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Le
 
 **Boulders (m7b).** An `ObjectDef` with `boulder: true` (vanilla: `nh:boulder`, the one object of the `'rock'` class) is the only object core treats specially, in two places. Sight: `sightBlockers(registry, state, levelId)` returns the cell indices holding such an object on the floor, and `computeVisible(level, rules, from, lights?, blocked?)` treats those cells like opaque terrain (seen themselves, shadowing what lies behind, and under the dark-corridor rule above); the engine's `refreshVision` passes them, and content's `clearPath()` takes the same set (ref: src/vision.c does_block()). Pile order: `itemsAt` and `topObjectEntities`/`topObjects` put boulders above every other object, then the most recently placed (ref: src/mkobj.c place_object()), so a boulder is what the map shows and remembers. Why a core change: vision runs in core and must not call into content each step; one flag on the def keeps the mod contract small (a separate `blocksSight`/`onTop` pair had no second user). `blocked` is optional, `ObjectDef.boulder` is optional and the class list only grew, so no existing mod, save or renderer changes; renderers only see `cls: 'rock'`. The class list grew once more in m9 step 5 with `'venom'` (C's VENOM_CLASS: the splashes of venom a cobra spits, made only when spat and never at random); the union is additive, so no mod, save or renderer changes. Pushing (`moverock()`), monsters avoiding boulder squares and every other rule are content's.
 
-**Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id.
+**Perception.** Every `PerceptionDef` is consulted. If any `blind` returns true, `refreshVision` makes no cell visible, so nothing new is remembered (content may "feel" cells by writing `state.memory` itself). A monster on a cell that is not visible is still in `ViewSnapshot.entities` and in `describe().entities` when some `senses` returns true. `shownAs` replaces the shown id of creatures (not the hero) and of live floor objects in the view and in `describe()`. Memory always keeps the true shown id. A monster on a *visible* cell is hidden when some `hides` returns true and no `senses` does (C's `mon_visible()`: invisibility): it is left out of `entities`, `describe().entities` and monster memory (its cell counts as empty there), and core's `perceivesMonster(registry, state, mon, cellVisible)` answers the same question for content. `actionsFor({ kind: 'entity', id })` returns `[]` for any creature the hero neither sees nor senses (on another level, out of view, or hidden), so a client cannot probe a hidden id. `self` says how the hero is shown (C's `display_self()`/`canspotself()`): the first non-null answer's `g` replaces her glyph in the view and in `describe()` (a polymorph form) and `unseen: true` sets `ViewEntity.unseen` (invisible without see invisible); it is separate from `shownAs`, so hallucination never disguises her. Why a core change (m7f-b): core alone builds the view and `describe()`, so content could not hide a monster standing in plain sight nor change the hero's glyph; both hooks are optional and additive, so no existing mod, save or renderer changes (`hides` beside `senses` rather than a three-valued `senses`, which would break every existing def; a core `invisible` flag would hard-code one property).
 
 **Light sources.** Each `PerceptionDef.lights` returns light sources; those on the current level light, for the hero, every cell within the source's circle (`circle_data`, radius clamped to 0..15) that the source can see, as if `Level.lit` were set there (ref: src/light.c do_light_sources). A source on the hero's cell uses her own line of sight; any other source uses shadowcasting from its cell. The hero still needs line of sight, and the dark-corridor rule for walls and doors applies to light from both kinds. `computeVisible(level, rules, from, lights?, blocked?)` takes them; core's `heroLights(registry, state)` collects them.
 
@@ -310,7 +310,9 @@ Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Le
 
 **Traps.** A `TrapDef` (`{ id, nameKey, glyph, hole? }`) only names and draws a trap; its effects belong to content. Traps live in `Level.traps` and change only through `ctx.placeTrap` (which replaces a trap on the same cell and throws unless the cell is *plain floor*: passable terrain with no `door`, `stairs` or `looksLike`) and `ctx.removeTrap`. Game logic finds traps with core's `trapAt(level, x, y)`, seen or not. Players only learn of a trap when content sets `seen` (it went off, or a search found it): `query.trapAt` and `describe().trap` report seen traps only, and the snapshot shows them as `ViewCell.t`, visible or remembered. Renderers draw monster > object > trap > terrain. Vanilla's effects are content's `trap.ts` (`dotrap`, `mintrap`); a kind whose code sits above `trap.ts` in the module graph (the magic trap and the anti-magic field, `magictrap.ts`, which tames and uncurses through modules that import `trap.ts`) hands its effects in at registration with `setTrapEffect`. Per-level teleport and digging rules (Sokoban's `noteleport`, `hardfloor`, non-diggable walls) are a content table keyed by LevelDef id (`levelflags.ts`), as the level fixups are, so they add nothing to `Level` or the save.
 
-**Monster memory.** `refreshVision` updates `monsterMemory` for the cells now visible: a live monster there is recorded, an empty cell is cleared. Cells out of view keep their entry, so a monster glyph stays where it was last seen until that cell is seen again. The snapshot exposes it as `ViewCell.m` on cells that are not visible, and live monsters stay in `entities` only, never duplicated as `m`. Deltas include `m` changes.
+**Monster memory.** `refreshVision` updates `monsterMemory` for the cells now visible: a monster the hero perceives there (seen and not hidden, or sensed) is recorded, an empty cell is cleared. Cells out of view keep their entry, so a monster glyph stays where it was last seen until that cell is seen again. The snapshot exposes it as `ViewCell.m` on cells that are not visible, and live monsters stay in `entities` only, never duplicated as `m`. Deltas include `m` changes.
+
+**Markers (m7f-b).** An entry whose id is not a MonsterDef id is a *marker* (`isMarker(registry, id)`); vanilla's is the remembered-unseen `I`, an AppearanceDef like the warning digits. On a visible cell `refreshVision` keeps a marker while no perceived monster is there, and a perceived monster replaces it (C's `newsym()`: `display_monster()` "also gets rid of any invisibility glyph", else `map_invisible()` again); the hero's own visible cell never keeps one (C's `map_invisible()` skips it and `newsym()` maps over it). Content places and clears markers with `setMonsterMark(state, levelId, pos, id | null)` (C's `map_invisible()`/`unmap_invisible()`); a marker is shown as `ViewCell.m` on *any* cell, visible or not. Testkit accepts registered monsters and appearances as entries. Why a core change: C keeps the `I` on a square in plain view until the hero learns otherwise, but vision runs in core and cleared every visible empty cell; a marker kind inside the existing map needed no new state field, no SAVE_VERSION bump and no new ViewCell field, only a wider meaning of `m` (a renderer that drew `m` only on cells out of view simply misses the `I` on visible cells).
 
 ## Randomness
 
@@ -491,6 +493,8 @@ interface PerceptionDef {
   blind?(state: Readonly<GameState>, defs: Registry): boolean; // any true: no cell is visible
   senses?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean; // shown though unseen (telepathy)
   shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null; // disguise (hallucination); first answer wins
+  hides?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean; // not seen on a visible cell (invisible); senses overrides
+  self?(state: Readonly<GameState>, defs: Registry): { g?: DefId; unseen?: true } | null; // how the hero is shown; first answer wins
   lights?(state: Readonly<GameState>, defs: Registry): { level: LevelId; x: number; y: number; radius: number }[]; // light sources (lit lamps)
 }
 
@@ -601,7 +605,7 @@ interface ViewCell {
   g: DefId | null; // remembered terrain glyph key
   v: boolean; // visible now?
   o?: DefId; // top object's shown id: live when visible, remembered otherwise
-  m?: DefId; // monster remembered on a cell not seen now; live monsters are only in `entities`
+  m?: DefId; // monster remembered on a cell not seen now, or a marker (`I`) on any cell; live monsters are only in `entities`
   t?: DefId; // a trap the hero has seen; drawn under objects
 }
 interface ViewItem { id: EntityId; letter: string | null; g: DefId; cls: ObjectClass; name: Msg; equipped: EquipSlot | null }
@@ -611,6 +615,7 @@ interface ViewEntity {
   x: number;
   y: number;
   tame?: true; // the hero's pet (hilite_pet)
+  unseen?: true; // the hero only: she cannot see herself (render-ascii dims her)
 }
 interface ViewSnapshot {
   kind: 'full';

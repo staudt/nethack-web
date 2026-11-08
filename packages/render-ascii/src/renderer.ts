@@ -98,9 +98,13 @@ export function objectLayer(c: ViewCell): DefId | null {
   return c.o ?? c.t ?? null;
 }
 
-/** The remembered monster glyph id to draw dimmed on a cell that is not in view now, or null. */
+/**
+ * The remembered monster glyph id to draw over a cell, under any entity there, or null: a
+ * monster last seen on a cell out of view, or a marker (the remembered-unseen `I`) on any cell.
+ * ref: src/display.c map_invisible()
+ */
 export function monsterLayer(c: ViewCell): DefId | null {
-  return !c.v && c.m !== undefined ? c.m : null;
+  return c.m ?? null;
 }
 
 export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRenderer {
@@ -243,8 +247,9 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
           ctx.fillRect(px, dy, cellW, cellH);
         }
         if (mon !== null) {
-          // A monster last seen here: its glyph, dimmed like a remembered object, on top of it.
-          atlas.draw(ctx, glyphFor(mon), true, px, dy, cellW, cellH);
+          // A monster last seen here, dimmed like a remembered object, or a marker on a cell in
+          // view (drawn plain), on top of what lies there.
+          atlas.draw(ctx, glyphFor(mon), !c.v, px, dy, cellW, cellH);
         } else if (top !== null) {
           // Objects and traps replace the terrain glyph; dimmed when only remembered.
           atlas.draw(ctx, glyphFor(top), !c.v, px, dy, cellW, cellH);
@@ -263,7 +268,8 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
           ? highlightBackground
           : background;
       ctx.fillRect(dx, dy, cellW, cellH);
-      atlas.draw(ctx, glyphFor(e.g), false, dx, dy, cellW, cellH);
+      // A hero who cannot see herself (invisible) is drawn dimmed, not hidden (DEVIATIONS).
+      atlas.draw(ctx, glyphFor(e.g), e.unseen === true, dx, dy, cellW, cellH);
     }
     for (const { pos: f, g } of flashed) {
       if (f.x < r.x0 || f.x >= r.x1 || f.y < r.y0 || f.y >= r.y1) continue;

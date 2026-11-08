@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3122 citations.
+152 NetHack files, 3132 citations.
 
 ## dat/dungeon.lua
 
@@ -597,19 +597,25 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/display.c
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
 - `canseemon()`: `packages/content/src/mcastu.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trap.ts`
+- `display_self()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `magic_map_background()`: `packages/content/src/wizard/map.ts`
+- `map_invisible()`: `packages/core/src/memory.ts`, `packages/render-ascii/src/renderer.ts`
 - `map_object()`: `packages/core/src/engine.ts`
 - `map_trap()`: `packages/core/src/view.ts`
-- `newsym()`: `packages/content/src/perception.ts`
+- `mon_visible()`: `packages/core/src/perception.ts`
+- `newsym()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/memory.ts`, `packages/core/src/perception.ts`
 - `swallowed()`: `packages/content/src/perception.ts`, `packages/ui/src/host.ts`
 - `tmp_at()`: `packages/core/src/types/event.ts`
+- `unmap_invisible()`: `packages/core/src/memory.ts`
 - `zapdir_to_glyph()`: `packages/ui/src/host.ts`
 
 ## src/display.h
 
-- `canspotmon()`: `packages/content/src/perception.ts`
+- `canspotmon()`: `packages/content/src/perception.ts`, `packages/core/src/query.ts`
+- `canspotself()`: `packages/core/src/types/mod.ts`
+- `mon_visible()`: `packages/core/src/types/mod.ts`
 
 ## src/do.c
 

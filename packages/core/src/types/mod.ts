@@ -155,11 +155,32 @@ export interface PerceptionDef {
    */
   shownAs?(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null;
   /**
+   * True when the hero does not see this monster although its cell is visible (invisibility).
+   * A hidden monster is left out of the view, `describe()`, `actionsFor()` and monster memory
+   * (its cell counts as empty, but a marker there stays) unless some `senses` is true.
+   * ref: src/display.h mon_visible()
+   */
+  hides?(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean;
+  /**
+   * How the hero is shown to herself: `g` replaces her glyph (a legend key, e.g. a polymorph
+   * form) and `unseen` says she cannot see herself (invisible without see invisible). The first
+   * non-null answer wins. ref: src/display.c display_self(), src/display.h canspotself()
+   */
+  self?(state: Readonly<GameState>, defs: Registry): SelfView | null;
+  /**
    * Light sources (lit lamps, a lit monster): cells within `radius` that the source can see are
    * lit for the hero, as if `Level.lit` were set. Radius is clamped to 0..15; sources on other
    * levels are ignored. ref: src/light.c do_light_sources()
    */
   lights?(state: Readonly<GameState>, defs: Registry): LightSource[];
+}
+
+/** How the hero is shown (`PerceptionDef.self`). */
+export interface SelfView {
+  /** The legend key drawn for her instead of her role's glyph. */
+  g?: DefId;
+  /** She cannot see herself; renderers may draw her dimmed or not at all. */
+  unseen?: true;
 }
 
 /** A light source at a cell (ref: src/light.c struct ls_t). */

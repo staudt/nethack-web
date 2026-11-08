@@ -102,10 +102,19 @@ describe('gatherLocs', () => {
     cells[1] = { g: 'x:floor', v: true, o: 'x:boulder' };
     cells[2] = { g: 'x:floor', v: false, o: 'x:gem', m: 'x:newt' }; // remembered monster on top
     cells[3 * W + 8] = { g: 'x:floor', v: true, o: 'x:gem' };
+    cells[5 * W + 4] = { g: 'x:floor', v: true, o: 'x:gem', m: 'x:unseen' }; // an `I` in view
     const withMon: GetposView = { ...v, entities: [{ id: 2, g: 'x:a', x: 8, y: 3 }] };
     expect(gatherLocs(withMon, 'objs')).toEqual([
       { x: 4, y: 3 },
       { x: 0, y: 0 },
+    ]);
+  });
+  test('monsters: an `I` marker on the map is not one (C skips remembered-unseen glyphs)', () => {
+    const v = mkView({ entities: [{ id: 2, g: 'x:a', x: 6, y: 3 }] });
+    (v.cells as ViewCell[])[2 * W + 4] = { g: 'x:floor', v: true, m: 'x:unseen' };
+    expect(gatherLocs(v, 'mons')).toEqual([
+      { x: 4, y: 3 },
+      { x: 6, y: 3 },
     ]);
   });
 });

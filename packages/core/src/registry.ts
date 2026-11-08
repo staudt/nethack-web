@@ -396,7 +396,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
       },
       definePerception(d) {
         if (!guard('definePerception') || !checkId(d.id, 'perception')) return;
-        const parts = ['blind', 'senses', 'shownAs', 'lights'] as const;
+        const parts = ['blind', 'senses', 'shownAs', 'hides', 'self', 'lights'] as const;
         if (!parts.some((k) => d[k] !== undefined))
           issue('definePerception', `needs at least one of ${parts.join(', ')}`, d.id);
         for (const k of parts) if (d[k] !== undefined) fn(d[k], k, d.id);

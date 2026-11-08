@@ -1,7 +1,7 @@
 import type { DefId } from './types/common';
 import { cellRules } from './movement';
 import { isItem, itemsAt, shownId } from './objects';
-import { senses, shownAs } from './perception';
+import { perceivesMonster, selfView, shownAs } from './perception';
 import { findPath } from './path';
 import { getLevel, isVisible, playerPos } from './state';
 import { trapAt } from './traps';
@@ -27,6 +27,16 @@ const forbidden = (what: string) => (): never => {
 
 /** Read-only queries, answered from player knowledge (memory + current vision). */
 export function createQuery(registry: Registry, state: GameState): CoreQuery {
+  /** An entity target the hero may ask about: a creature on her level she sees or senses. */
+  const entityShown = (id: number): boolean => {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (!e || isItem(registry, e)) return true; // items and unknown ids: the offers decide
+    if (!p || p.level !== state.currentLevel) return false;
+    const level = getLevel(state);
+    return perceivesMonster(registry, state, e, isVisible(state, cellIndex(level, p.x, p.y)));
+  };
+
   const query: CoreQuery = {
     describe(pos: Pos): Description {
       const level = getLevel(state);
@@ -48,8 +58,9 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         const p = e?.c.pos;
         if (!e || !p || p.level !== level.id || p.x !== pos.x || p.y !== pos.y) return [];
         if (isItem(registry, e)) return [];
-        if (id === state.playerId) return [{ id: e.id, def: e.def }];
-        if (!visible && !senses(registry, state, e)) return [];
+        if (id === state.playerId)
+          return [{ id: e.id, def: selfView(registry, state)?.g ?? e.def }];
+        if (!perceivesMonster(registry, state, e, visible)) return [];
         return [{ id: e.id, def: shownAs(registry, state, e, e.def) }];
       });
       const objects = visible
@@ -92,6 +103,8 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
       if (state.gameOver || state.pendingPrompt) return [];
       if (t.kind === 'item' && state.entities[String(t.id)]?.c.item?.carriedBy !== state.playerId)
         return [];
+      // ref: src/display.h canspotmon(): no offers about a creature the hero neither sees nor senses
+      if (t.kind === 'entity' && !entityShown(t.id)) return [];
       // a stable sort: equal priorities keep registration order
       return registry.actions
         .flatMap((def) => def.offer(ctx, t).map((o) => ({ ...o, source: def.mod })))

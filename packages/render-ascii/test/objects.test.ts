@@ -6,11 +6,14 @@ test('objectLayer returns the top object id, or null', () => {
   expect(objectLayer({ g: 'nh:floor', v: false })).toBeNull();
 });
 
-test('monsterLayer shows a remembered monster only on cells out of view', () => {
+test('monsterLayer shows a remembered monster out of view and a marker on any cell', () => {
   expect(monsterLayer({ g: 'nh:floor', v: false, m: 'nh:newt' })).toBe('nh:newt');
   expect(monsterLayer({ g: 'nh:floor', v: false })).toBeNull();
-  // a live monster in view is an entity, never drawn from the cell
-  expect(monsterLayer({ g: 'nh:floor', v: true, m: 'nh:newt' })).toBeNull();
+  expect(monsterLayer({ g: 'nh:floor', v: true })).toBeNull();
+  // core sets `m` on a cell in view only for a marker (the remembered-unseen `I`)
+  expect(monsterLayer({ g: 'nh:floor', v: true, m: 'nh:remembered_unseen' })).toBe(
+    'nh:remembered_unseen',
+  );
 });
 
 test('objectLayer draws an object over a seen trap, and the trap over terrain', () => {

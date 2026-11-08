@@ -114,7 +114,8 @@ const clampToMap = (p: Pos, v: { width: number; height: number }): Pos => ({
 
 /**
  * Spots for `m`/`o`/`z`: the hero's spot first, then the shown monsters (or objects, or the
- * prompt's valid cells) nearest first, ties by row then column. Without valid cells `z` only
+ * prompt's valid cells) nearest first, ties by row then column. As in C, `m` skips markers (the
+ * remembered-unseen `I`), and `o` skips objects under a marker (it is the glyph shown there). Without valid cells `z` only
  * returns to the hero (C falls back to its "interesting" spots, not ported).
  * ref: src/getpos.c gather_locs(), gather_locs_interesting() (GLOC_VALID), cmp_coord_distu()
  */
@@ -131,8 +132,8 @@ export function gatherLocs(v: GetposView, gloc: GlocKind): Pos[] {
     v.cells.forEach((c, i) => {
       const x = i % v.width;
       const y = Math.floor(i / v.width);
-      // The shown glyph must be the object: no creature (seen or remembered) drawn over it.
-      if (c.o === undefined || at(x, y) || shownMon.has(i) || (!c.v && c.m !== undefined)) return;
+      // The shown glyph must be the object: no creature (seen or remembered) or marker over it.
+      if (c.o === undefined || at(x, y) || shownMon.has(i) || c.m !== undefined) return;
       if (v.skipObjects?.has(c.o)) return;
       out.push({ x, y });
     });

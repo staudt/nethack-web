@@ -1,5 +1,6 @@
 import { inventoryOf, isItem, shownId, topObjectEntities } from './objects';
-import { senses, shownAs } from './perception';
+import { isMarker } from './memory';
+import { perceivesMonster, selfView, shownAs } from './perception';
 import { getLevel, getPlayer } from './state';
 import type { DefId, Glyph } from './types/common';
 import type { Registry } from './types/mod';
@@ -84,24 +85,29 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
         ? undefined
         : objMemory?.[String(i)];
     if (o !== undefined) cell.o = o;
-    const mm = v ? undefined : monMemory?.[String(i)];
-    if (mm !== undefined) cell.m = mm;
+    // a remembered monster only out of view; a marker (`I`) on any cell
+    const mm = monMemory?.[String(i)];
+    if (mm !== undefined && (!v || isMarker(registry, mm))) cell.m = mm;
     const t = traps.get(i);
     if (t !== undefined) cell.t = t;
     cells[i] = cell;
   }
 
   const isVis = new Set(visible);
+  const self = selfView(registry, state);
   const entities: ViewEntity[] = [];
   for (const id of sortedIds(state)) {
     const e = state.entities[String(id)];
     const p = e?.c.pos;
     if (!e || !p || p.level !== level.id || isItem(registry, e)) continue;
     if (e.id === state.playerId) {
-      entities.push({ id: e.id, g: e.def, x: p.x, y: p.y });
+      // ref: src/display.c display_self(): her form's glyph; `unseen` when she can't spot herself
+      const ve: ViewEntity = { id: e.id, g: self?.g ?? e.def, x: p.x, y: p.y };
+      if (self?.unseen) ve.unseen = true;
+      entities.push(ve);
       continue;
     }
-    if (!isVis.has(p.y * level.width + p.x) && !senses(registry, state, e)) continue;
+    if (!perceivesMonster(registry, state, e, isVis.has(p.y * level.width + p.x))) continue;
     const ve: ViewEntity = { id: e.id, g: shownAs(registry, state, e, e.def), x: p.x, y: p.y };
     if ((e.c.monster?.tame ?? 0) > 0) ve.tame = true;
     entities.push(ve);

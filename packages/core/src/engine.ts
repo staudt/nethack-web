@@ -34,7 +34,8 @@ import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
 import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
-import { heroBlind, heroLights } from './perception';
+import { heroBlind, heroLights, perceivesMonster } from './perception';
+import { isMarker } from './memory';
 import { placeTrapOn, removeTrapOn, trapAt } from './traps';
 
 export const DEFAULT_WIDTH = 80;
@@ -307,19 +308,31 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (o === undefined) delete objMemory[String(i)];
       else objMemory[String(i)] = o;
     }
-    // ref: src/display.c: a monster's glyph stays on a cell until the cell is seen again
+    // ref: src/display.c newsym(): a monster's glyph stays on a cell until the cell is seen
+    // again; on a seen cell a perceived monster is remembered (replacing a marker), a marker
+    // (the remembered-unseen `I`) stays while no perceived monster is there, else it is cleared;
+    // the hero's own seen cell never keeps one (map_invisible() skips it, newsym() maps over it)
     const monMemory = (state.monsterMemory[level.id] ??= {});
+    const vis = new Set(visible);
+    const hp = playerPos(state);
+    const heroAt = hp.y * level.width + hp.x;
     const mons = new Map<number, DefId>();
     for (const id of sortedIds(state)) {
       const e = state.entities[String(id)];
       const p = e?.c.pos;
-      if (e && p && p.level === level.id && id !== state.playerId && registry.isMonster(e.def))
-        mons.set(p.y * level.width + p.x, e.def);
+      if (!e || !p || p.level !== level.id || id === state.playerId || !registry.isMonster(e.def))
+        continue;
+      const i = p.y * level.width + p.x;
+      if (vis.has(i) && perceivesMonster(registry, state, e, true)) mons.set(i, e.def);
     }
     for (const i of visible) {
       const m = mons.get(i);
-      if (m === undefined) delete monMemory[String(i)];
-      else monMemory[String(i)] = m;
+      const k = String(i);
+      if (m !== undefined) monMemory[k] = m;
+      else {
+        const old = monMemory[k];
+        if (old !== undefined && (i === heroAt || !isMarker(registry, old))) delete monMemory[k];
+      }
     }
     state.visible = visible;
   };

@@ -439,7 +439,10 @@ function checkTraps(state: GameState, registry: Registry, errs: string[]): void 
   }
 }
 
-/** Remembered monsters: keys are in-bounds cell indices of a known level, values registered monsters. */
+/**
+ * Remembered monsters: keys are in-bounds cell indices of a known level, values registered
+ * monsters or markers (registered appearances, such as the remembered-unseen `I`).
+ */
 function checkMonsterMemory(state: GameState, registry: Registry, errs: string[]): void {
   for (const lid of Object.keys(state.monsterMemory).sort()) {
     const lv = state.levels[lid];
@@ -457,8 +460,10 @@ function checkMonsterMemory(state: GameState, registry: Registry, errs: string[]
         break;
       }
       const def = mem[k];
-      if (def === undefined || !registry.isMonster(def)) {
-        errs.push(`monsterMemory ${lid}: '${String(def)}' at ${k} is not a registered monster`);
+      if (def === undefined || !(registry.isMonster(def) || registry.isAppearance(def))) {
+        errs.push(
+          `monsterMemory ${lid}: '${String(def)}' at ${k} is not a registered monster or marker`,
+        );
         break;
       }
     }

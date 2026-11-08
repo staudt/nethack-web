@@ -9,7 +9,11 @@ export interface ViewCell {
   v: boolean;
   /** Top object's shown id: seen now if visible, else remembered. Absent when none. */
   o?: DefId;
-  /** A monster remembered on a cell not seen now (live monsters are in `entities`). */
+  /**
+   * A remembered monster on a cell not seen now (live monsters are in `entities`), or, on any
+   * cell, a marker such as the remembered-unseen `I` (a legend key that is not a monster def).
+   * Drawn under any entity on the cell.
+   */
   m?: DefId;
   /** A trap the hero has seen here (a TrapDef id); objects are drawn over it. */
   t?: DefId;
@@ -34,6 +38,8 @@ export interface ViewEntity {
   y: number;
   /** The hero's pet, for highlighting (ref: hilite_pet). */
   tame?: true;
+  /** The hero only: she cannot see herself (invisible); renderers may dim or hide her. */
+  unseen?: true;
 }
 
 export interface ViewPlayer {
