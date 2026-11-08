@@ -1,5 +1,7 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { digests, isSwallowed, uswallow } from './engulfstate';
+import { monNam } from './perception';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -478,7 +480,7 @@ const pickup: ActionDef = {
   handles: 'mod',
   // a lone boulder is not offered: it is far too heavy to lift (pickup.c carry_count())
   offer: (ctx, target) =>
-    target.kind === 'self' && floorHere(ctx).some((e) => e.def !== BOULDER)
+    target.kind === 'self' && !isSwallowed(ctx) && floorHere(ctx).some((e) => e.def !== BOULDER)
       ? [
           {
             action: { type: 'mod', action: 'nh:pickup' },
@@ -489,6 +491,24 @@ const pickup: ActionDef = {
       : [],
   // ref: src/pickup.c pickup(what = 0): one object is taken directly, several are chosen from a menu
   perform(ctx) {
+    // ref: src/hack.c pickup_checks(): "uswallow case added by GAN 01/29/87" (taking things back
+    // out of the engulfer, loot_mon(), is not ported: DEVIATIONS "Engulfing")
+    const sw = uswallow(ctx);
+    const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+    if (engulfer) {
+      if (
+        digests(ctx.defs.monster(engulfer.def)) &&
+        inventoryOf(ctx.state, engulfer.id).length === 0
+      ) {
+        ctx.emit({ type: 'msg', key: 'pickup.tongue', params: { mon: monNam(ctx, engulfer) } });
+        ctx.emit({ type: 'msg', key: 'pickup.tongue_slimy' });
+      } else
+        ctx.emit({
+          type: 'msg',
+          key: hasProp(hero(ctx), P.BLINDED) ? 'pickup.swallowed_feel' : 'pickup.swallowed_see',
+        });
+      return NORMAL_SPEED;
+    }
     const here = floorHere(ctx);
     if (here.length === 0) {
       ctx.emit({ type: 'msg', key: 'pickup.nothing' });
@@ -577,6 +597,22 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
   }
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)
   if (swapWep(ctx)?.id === e.id) setSwapWep(ctx, null); // setuswapwep(NULL), before the message
+  // drop(): swallowed, a barrier between her and the floor: "You drop the dagger into the purple
+  // worm's stomach." and dropz() puts it in the engulfer's inventory (no shop theft, no food
+  // digested at once)
+  const sw = uswallow(ctx);
+  const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (engulfer) {
+    ctx.emit({
+      type: 'msg',
+      key: digests(ctx.defs.monster(engulfer.def)) ? 'drop.into_stomach' : 'drop.into',
+      params: { item: ctx.defs.itemName(ctx.state, e), mon: monNam(ctx, engulfer) },
+    });
+    removeFromInventory(ctx, e.id);
+    delete it.noCharge; // mpickobj()
+    addToInventory(ctx, engulfer.id, e.id);
+    return true;
+  }
   // drop(): no "You drop" on an altar; dropx(): doaltarobj() names it instead and sets bknown
   const altar = aAlign(ctx, pos.x, pos.y) !== null;
   if (!altar)

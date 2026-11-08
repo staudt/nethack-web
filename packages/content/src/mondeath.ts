@@ -4,6 +4,7 @@ import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/c
 import { nonliving } from './mondata';
 import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse } from './corpses';
+import { engulfingU } from './engulfstate';
 import { placeOnFloor, weight } from './items';
 import { mkobj } from './mkobj';
 import { forgetMonster, relobj } from './mongear';
@@ -27,6 +28,7 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
   if (!e?.c.monster) return;
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
+  const wasinside = engulfingU(ctx, monId);
   if (byHero) {
     // ref: xkilled(): punish bad behavior, alignment (with the mtmp->ispriest branch)
     const epri = epriOf(ctx, monId);
@@ -63,7 +65,8 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
       else placeOnFloor(ctx, id, at.level, at.x, at.y);
     }
   }
-  xkilledCorpse(ctx, def, at, true);
+  // corpse--none if hero was inside the monster
+  if (!wasinside) xkilledCorpse(ctx, def, at, true);
 }
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -74,9 +77,16 @@ const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[S
 /**
  * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
  * the hero sees its square ("... killed by the <by>!" with a cause key), a sad feeling for an unseen pet; its things drop and a corpse may
- * be left (no treasure drop, no experience). ref: src/mon.c monkilled() -> mondied()
+ * be left (no treasure drop, no experience; none when `digested`). ref: src/mon.c monkilled() ->
+ * mondied() (mondead() for AD_DGST)
  */
-export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean, by?: string): void {
+export function monkilled(
+  ctx: Ctx,
+  id: EntityId,
+  fltxt: boolean,
+  by?: string,
+  digested = false,
+): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
   const def = ctx.defs.monster(mon.def);
@@ -85,7 +95,9 @@ export function monkilled(ctx: Ctx, id: EntityId, fltxt: boolean, by?: string): 
     // "%s is %s%s%s!": " by the <fltxt>" when the caller names the cause
     say(ctx, by ? `${key}_by` : key, { mon: monNam(ctx, mon), ...(by ? { by } : {}) });
   } else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
-  mondied(ctx, id);
+  // no corpse if digested (gd.disintegested)
+  if (digested) mondead(ctx, id);
+  else mondied(ctx, id);
 }
 
 /** ref: src/mon.c mondied(): mondead() and maybe a corpse */

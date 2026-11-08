@@ -2,6 +2,7 @@
 // throwing (ammo, launchers, breaking).
 // ref: src/mthrowu.c thitu(), drop_throw(), monmulti(), monshoot(), ohitmon(), m_throw(), thrwmu(),
 // linedup(); src/weapon.c select_rwep(); src/dothrow.c should_mulch_missile(), omon_adj()
+import { isSwallowed } from './engulfstate';
 import {
   getPlayer,
   inBounds,
@@ -649,6 +650,8 @@ export function mattackRanged(
   if (!mon) return;
   const def = ctx.defs.monster(mon.def);
   if (uState(ctx.state).uinvulnerable) return;
+  // ref: src/mhitu.c mattacku(): if swallowed, she can only be affected by u.ustuck
+  if (isSwallowed(ctx)) return;
   let threw = false;
   for (const a of def.attacks) {
     // counterattack against attack [i-1] might have been fatal

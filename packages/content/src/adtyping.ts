@@ -71,6 +71,9 @@ import { unaware } from './btrapped';
 import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
 import { monflee } from './monflee';
 import { addToInventory, removeFromInventory } from './items';
+import { corpseChanceSwallowed } from './corpses';
+import { swallowedNutrition } from './dog';
+import { wakeNearto } from './noise';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -1123,6 +1126,31 @@ function adSedu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
  */
 const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => adSedu(ctx, magr, atk, mdef, mhm, env);
 
+/**
+ * Digestion. Against the hero the engulfing attack does it (gulpmu()); a monster swallowed by
+ * another is eaten whole: "Burrrrp!" (heard nearby), all its hit points as damage, a gas spore
+ * explodes inside instead of leaving a corpse, and a pet is half fed by it.
+ * ref: src/uhitm.c mhitm_ad_dgst() (no Riders; monsters' amulets of life saving are not worn)
+ */
+const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
+  if (mdef.id === ctx.state.playerId) {
+    mhm.damage = 0;
+    return;
+  }
+  const ap = magr.c.pos;
+  // `flags.verbose && !Deaf`: verbalize("Burrrrp!")
+  say(ctx, 'adtyp.burrrrp');
+  if (ap) wakeNearto(ctx, ap.x, ap.y, 2 * 2); // Burrrrp!
+  mhm.damage = mdef.c.hp?.cur ?? 0;
+  // Is a corpse for nutrition possible?  It may kill magr
+  const dp = mdef.c.pos;
+  const pd = ctx.defs.monster(mdef.def);
+  if (!dp || !corpseChanceSwallowed(ctx, pd, dp, magr.id) || !ent(ctx, magr.id)?.c.monster) return;
+  // Pets get nutrition from swallowing monster whole; no nutrition from G_NOCORPSE monsters
+  if ((magr.c.monster?.tame ?? 0) > 0 && !pd.genFlags.includes('nocorpse'))
+    swallowedNutrition(ctx, magr, pd);
+};
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -1156,6 +1184,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   sitm: adSedu, // "for now these are the same"
   sedu: adSedu,
   ssex: adSsex,
+  dgst: adDgst,
 };
 
 /**

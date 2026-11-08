@@ -1,9 +1,24 @@
 // Monster attacks on the hero: damage and the special damage types, gazes and explosions.
 // ref: src/mhitu.c hitmu(), mdamageu(), magic_negation(), gazemu(), explmu(); src/uhitm.c
 // mhitm_adtyping() (the `mdef == &gy.youmonst` branches live in adtyping.ts)
-import { cellRules, getPlayer, type AttackDef, type Ctx, type Entity, type Msg } from '@nh/core';
+import {
+  cellRules,
+  getPlayer,
+  inventoryOf,
+  type AttackDef,
+  type Ctx,
+  type Entity,
+  type Msg,
+} from '@nh/core';
 import { done } from './end';
-import { M_ATTK, mhitmAdtyping, newMhm, resistsBlnd } from './adtyping';
+import { M_ATTK, canBlnd, diseasemu, mhitmAdtyping, newMhm, resistsBlnd } from './adtyping';
+import { digests, enfolds, flaming, isSwallowed, setUswallow, uswallow } from './engulfstate';
+import { engulfTarget, expels } from './engulf';
+import { setUstuck } from './hackmove';
+import { snuffLit } from './light';
+import { findAc } from './stats';
+import { setMtrapped, setUtrap, utrap } from './trapstate';
+import { drainEn } from './uenergy';
 import { blockersOf } from './boulder';
 import { unaware } from './btrapped';
 import { clearPath } from './clearpath';
@@ -19,6 +34,7 @@ import { monNam } from './perception';
 import {
   P,
   hasProp,
+  incrItimeout,
   makeBlinded,
   makeConfused,
   makeHallucinated,
@@ -61,6 +77,8 @@ export function hitmuAd(ctx: Ctx, mon: Entity, atk: AttackDef, damage: number): 
   mhitmAdtyping(ctx, mon.id, atk, ctx.state.playerId, mhm);
   return mhm.damage;
 }
+
+const acurr = (ctx: Ctx, a: 'con'): number => getPlayer(ctx.state).c.attributes?.[a] ?? 10;
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -255,4 +273,177 @@ export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): 
   if (killAgr && !dead()) mondead(ctx, mon.id);
   if (at) wakeNearto(ctx, at.x, at.y, 7 * 7);
   return dead() ? M_ATTK.AGR_DIED : M_ATTK.MISS;
+}
+
+/**
+ * The engulfer swallows the hero, or (once she is inside) its engulfing attack works on her. The
+ * first gulp moves it onto her square: "The fog cloud engulfs you!" ("swallows you whole" for a
+ * digester, "folds itself around you" for an enfolder), she is let out of a trap and her lit
+ * objects go out (unless it is flaming), and u.uswldtim is set: for digestion `(Con + 10 - AC +
+ * rn2(20)) / level + 3`, else `rnd(level + 5)`, at least 2. Each attack counts it down and does
+ * its damage type: total digestion when it runs out ("The purple worm totally digests you!"),
+ * being pummeled or laden with moisture, acid, blinding dust, and the elemental vortices' 1 in 2
+ * shocks, frost and fire, energy drain; when the time is up she is expelled.
+ * ref: src/mhitu.c gulpmu() (no steeds, leashes, ball and chain or polymorphed forms; touching a
+ * cockatrice hero is 7f; the boulder-in-pit refusal is not ported; Half_physical_damage and
+ * Slow_digestion's ring are the only sources: the latter is checked)
+ */
+export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
+  const hero = getPlayer(ctx.state);
+  const pa = ctx.defs.monster(mon.def);
+  let tmp = ctx.rng.d(atk.n, atk.d);
+  let physical = false;
+  if (!isSwallowed(ctx)) {
+    // swallows you
+    const hp = hero.c.pos;
+    const mp = mon.c.pos;
+    if (!hp || !mp) return M_ATTK.MISS;
+    if (!engulfTarget(ctx, mon, 'hero')) return M_ATTK.MISS;
+    // failed_grab(): the hero is never unsolid (no polymorph)
+    const from = { x: mp.x, y: mp.y };
+    setMtrapped(ctx, mon.id, false); // no longer on old trap
+    mon.c.pos = { ...hp };
+    ctx.emit({ type: 'moved', id: mon.id, from, to: { x: hp.x, y: hp.y } });
+    setUstuck(ctx, mon.id);
+    say(
+      ctx,
+      digests(pa) ? 'engulf.swallows_whole' : enfolds(pa) ? 'engulf.folds' : 'engulf.engulfs',
+      {
+        mon: monNam(ctx, mon),
+      },
+    );
+    stopOccupation(ctx);
+    const t = utrap(ctx);
+    if (t) {
+      say(ctx, 'engulf.released_trap'); // (no webs: always "trap")
+      setUtrap(ctx, 0, t.type);
+    }
+    // (no leashes; touch_petrifies(youmonst.data) needs polymorph: 7f)
+    let tim: number;
+    if (atk.ad === 'dgst') {
+      // good armor and high constitution make it take longer to be digested
+      tim = acurr(ctx, 'con') + 10 - findAc(ctx.state, ctx.defs, hero.id) + ctx.rng.rn2(20);
+      if (tim < 0) tim = 0;
+      tim = Math.trunc(tim / Math.max(1, mon.c.monster?.level ?? 1));
+      tim += 3;
+    } else {
+      // higher level attacker takes longer to eject hero
+      tim = ctx.rng.rnd((mon.c.monster?.level ?? 0) + Math.trunc(10 / 2));
+    }
+    setUswallow(ctx, { mon: mon.id, tim: tim < 2 ? 2 : tim });
+    if (!flaming(pa)) for (const o of inventoryOf(ctx.state, hero.id)) snuffLit(ctx, o);
+  }
+  const sw = uswallow(ctx);
+  if (!sw || sw.mon !== mon.id) return M_ATTK.MISS;
+  if (sw.tim > 0) sw.tim -= 1;
+  const name = monNam(ctx, mon);
+  const mcan = isCancelled(ctx, mon.id);
+  switch (atk.ad) {
+    case 'dgst':
+      physical = true;
+      if (hasProp(hero, P.SLOW_DIGESTION)) {
+        // messages are handled below
+        sw.tim = 0;
+        tmp = 0;
+      } else if (sw.tim === 0) {
+        say(ctx, 'engulf.totally_digests', { mon: name });
+        tmp = hero.c.hp?.cur ?? 0;
+      } else {
+        say(ctx, 'engulf.digests', {
+          mon: name,
+          how: {
+            key:
+              sw.tim === 2 ? 'engulf.thoroughly' : sw.tim === 1 ? 'engulf.utterly' : 'engulf.plain',
+          },
+        });
+      }
+      break;
+    case 'phys':
+      physical = true;
+      if (mon.def === 'nh:fog_cloud') {
+        const breathless = hasProp(hero, P.MAGICAL_BREATHING);
+        say(ctx, breathless ? 'engulf.moisture_mild' : 'engulf.moisture');
+        if (breathless) tmp = 0;
+      } else say(ctx, enfolds(pa) ? 'engulf.squashed' : 'engulf.pummeled');
+      break;
+    case 'acid':
+      if (hasProp(hero, P.ACID_RES)) {
+        say(ctx, 'engulf.harmless_goo');
+        tmp = 0;
+      } else say(ctx, hasProp(hero, P.HALLUC) ? 'engulf.slimed' : 'engulf.slime_burns');
+      break;
+    case 'blnd':
+      if (canBlnd(ctx, mon, hero, atk.at)) {
+        if (!hasProp(hero, P.BLINDED)) {
+          say(ctx, 'engulf.cant_see');
+          makeBlinded(ctx, tmp, false);
+        } else incrItimeout(ctx.state, hero, P.BLINDED, 1); // keep him blind until disgorged
+      }
+      tmp = 0;
+      break;
+    case 'elec':
+      if (!mcan && ctx.rng.rn2(2)) {
+        say(ctx, 'engulf.crackles');
+        if (hasProp(hero, P.SHOCK_RES)) {
+          say(ctx, 'engulf.seem_unhurt');
+          tmp = 0;
+        }
+      } else tmp = 0;
+      break;
+    case 'cold':
+      if (!mcan && ctx.rng.rn2(2)) {
+        if (hasProp(hero, P.COLD_RES)) {
+          say(ctx, 'engulf.mildly_chilly');
+          tmp = 0;
+        } else say(ctx, 'engulf.freezing');
+      } else tmp = 0;
+      break;
+    case 'fire':
+      if (!mcan && ctx.rng.rn2(2)) {
+        if (hasProp(hero, P.FIRE_RES)) {
+          say(ctx, 'engulf.mildly_hot');
+          tmp = 0;
+        } else say(ctx, 'engulf.burning');
+        // burn_away_slime(): no sliming
+      } else tmp = 0;
+      break;
+    case 'dise':
+      if (!diseasemu(ctx, mon)) tmp = 0;
+      break;
+    case 'dren':
+      // AC magic cancellation doesn't help when engulfed
+      if (!mcan && ctx.rng.rn2(4)) drainEn(ctx, tmp, false); // 75% chance
+      tmp = 0;
+      break;
+    default:
+      physical = true;
+      tmp = 0;
+      break;
+  }
+  if (physical) {
+    // same damage reduction for AC as in hitmu
+    const ac = findAc(ctx.state, ctx.defs, hero.id);
+    if (ac < 0) tmp -= ctx.rng.rnd(-ac);
+    if (tmp < 0) tmp = 1;
+  }
+  mdamageu(ctx, tmp, `@${mon.def}`);
+  if (tmp) stopOccupation(ctx);
+  if (ctx.state.gameOver) return M_ATTK.HIT;
+  const now = uswallow(ctx);
+  if (!now) {
+    // life-saving has already expelled swallowed hero
+  } else if (!now.tim) {
+    say(
+      ctx,
+      digests(pa)
+        ? 'engulf.get_regurgitated'
+        : enfolds(pa)
+          ? 'engulf.get_released'
+          : 'engulf.get_expelled',
+    );
+    if (digests(pa) && hasProp(hero, P.SLOW_DIGESTION))
+      say(ctx, 'engulf.doesnt_like_taste', { mon: name });
+    expels(ctx, mon, false);
+  }
+  return M_ATTK.HIT;
 }

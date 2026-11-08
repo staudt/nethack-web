@@ -5,6 +5,10 @@
 //
 // The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
 // prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
+import { uswallow } from './engulfstate';
+import { monNam } from './perception';
+import { monsterDied } from './mondeath';
+import { experienceFor, gainExperience } from './hero';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -166,7 +170,13 @@ export function inTrouble(ctx: Ctx): number {
   if (criticallyLowHp(ctx)) return TROUBLE_HIT;
   if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
   if (worstCursedItem(ctx)) return TROUBLE_CURSED_ITEMS;
-  if (timeoutLeft(ctx.state, h, P.BLINDED) > 1 && !hasIntrinsic(h, P.BLINDED)) return TROUBLE_BLIND;
+  // (not while inside a blinding engulfer: it would only blind her again)
+  if (
+    timeoutLeft(ctx.state, h, P.BLINDED) > 1 &&
+    !hasIntrinsic(h, P.BLINDED) &&
+    !swallowedByBlinder(ctx)
+  )
+    return TROUBLE_BLIND;
   if (hasProp(h, P.WOUNDED_LEGS)) return TROUBLE_WOUNDED_LEGS;
   if (uhs(ctx) >= HUNGER_RANK.hungry!) return TROUBLE_HUNGRY;
   if (timeoutLeft(ctx.state, h, P.STUNNED) > 0) return TROUBLE_STUNNED;
@@ -286,15 +296,43 @@ function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
   );
 }
 
-/** ref: src/pray.c god_zaps_you() (no reflection or disintegration resistance exists) */
+/** ref: src/pray.c god_zaps_you() (no reflection exists) */
 function godZapsYou(ctx: Ctx, align: number): void {
-  say(ctx, 'pray.lightning');
-  if (hasProp(hero(ctx), P.SHOCK_RES)) say(ctx, 'pray.not_affected');
-  else {
-    fryByGod(ctx, align, false);
-    return;
+  // swallowed, the engulfer takes the bolt (and she gets the experience: "It takes guts to
+  // successfully pull off this trick on your god, anyway.")
+  const engulfer = (): Entity | undefined => {
+    const sw = uswallow(ctx);
+    return sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  };
+  const zapped = (mon: Entity, key: string, resists: boolean, nocorpse: boolean): void => {
+    say(ctx, key, { mon: monNam(ctx, mon) });
+    if (!resists) {
+      say(ctx, nocorpse ? 'pray.mon_dust' : 'pray.mon_fries', { mon: monNam(ctx, mon) });
+      // xkilled(u.ustuck, XKILL_NOMSG | XKILL_NOCONDUCT [| XKILL_NOCORPSE])
+      const def = ctx.defs.monster(mon.def);
+      const lvl = mon.c.monster?.level ?? def.level;
+      monsterDied(ctx, mon.id, true); // (inside it: no corpse either way)
+      gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
+    } else say(ctx, 'pray.mon_unaffected', { mon: monNam(ctx, mon) });
+  };
+  const e1 = engulfer();
+  if (e1) {
+    say(ctx, 'pray.lightning_down');
+    zapped(e1, 'pray.strikes_mon', ctx.defs.monster(e1.def).resists.includes('elec'), false);
+  } else {
+    say(ctx, 'pray.lightning');
+    if (hasProp(hero(ctx), P.SHOCK_RES)) say(ctx, 'pray.not_affected');
+    else {
+      fryByGod(ctx, align, false);
+      return;
+    }
   }
   say(ctx, 'pray.not_deterred', { god: alignGname(align) });
+  const e2 = engulfer();
+  if (e2) {
+    zapped(e2, 'pray.disint_hits_mon', ctx.defs.monster(e2.def).resists.includes('disint'), true);
+    return;
+  }
   say(ctx, 'pray.disint_beam');
   fryByGod(ctx, align, true);
 }
@@ -674,4 +712,13 @@ export function registerPray(api: ModApi): void {
     const u = uState(ctx.state);
     if (u.ublesscnt > 0) setU(ctx, { ublesscnt: u.ublesscnt - 1 });
   });
+}
+
+/** `u.uswallow && attacktype_fordmg(u.ustuck->data, AT_ENGL, AD_BLND)` */
+function swallowedByBlinder(ctx: Ctx): boolean {
+  const sw = uswallow(ctx);
+  const mon = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  return (
+    !!mon && ctx.defs.monster(mon.def).attacks.some((a) => a.at === 'engulf' && a.ad === 'blnd')
+  );
 }

@@ -47,6 +47,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { doAttack } from './actions';
+import { digests, isSwallowed, isWhirly, uswallow } from './engulfstate';
+import { expels } from './engulf';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { ROCK, boulderAt, fractureRock } from './boulder';
@@ -383,6 +385,19 @@ export function rockOnHead(ctx: Ctx, level: Level, x: number, y: number): void {
  * touched. ref: src/dig.c zap_dig()
  */
 export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
+  // swallowed: a hole in the engulfer (not a whirly one) leaves it almost dead and lets her out
+  const sw = uswallow(ctx);
+  const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (engulfer) {
+    const edef = ctx.defs.monster(engulfer.def);
+    if (!isWhirly(edef)) {
+      if (digests(edef)) say(ctx, 'dig.pierce_stomach', { mon: monNam(ctx, engulfer) });
+      const ehp = engulfer.c.hp;
+      if (ehp) ehp.cur = edef.genFlags.includes('uniq') ? Math.trunc((ehp.cur + 1) / 2) : 1;
+      expels(ctx, engulfer, !digests(edef));
+    }
+    return;
+  }
   const level = getLevel(ctx.state);
   const hp = heroPos(ctx);
   if (dir === 'up' || dir === 'down') {
@@ -666,6 +681,7 @@ export function dig(ctx: Ctx): boolean {
   const pdef = ctx.defs.object(pick.def);
   // perhaps a nymph stole your pick-axe while you were busy digging, or you teleported away
   if (
+    isSwallowed(ctx) ||
     !isPick(pdef) ||
     d.level !== hp.level ||
     (d.down
@@ -864,12 +880,19 @@ export function usePickAxe(ctx: Ctx, pick: Entity): number {
  * at herself (`rnd(2) + dbon() + spe`), at a monster (do_attack()), sideways (the dig starts or
  * continues if diggable, else what it hit) or down (a seen pit she stands at the edge of first
  * takes her in; floating, the floor is out of reach). ref: src/dig.c use_pick_axe2() after
- * getdir() (no engulfing, water or webs; iron bars' "Clang!" is kept; the debris between two
+ * getdir() (no water or webs; iron bars' "Clang!" is kept; the debris between two
  * pits is cleared, conjoining them)
  */
 export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
   const level = getLevel(ctx.state);
   const hp = heroPos(ctx);
+  // swallowed: the swing attacks the engulfer, whatever the direction
+  const sw = uswallow(ctx);
+  const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (engulfer) {
+    const r = doAttack(ctx, engulfer, 'nh:move');
+    if (r !== null) return r;
+  }
   if (dir === 'up') {
     if (levitating(ctx)) say(ctx, 'dig.no_leverage');
     else

@@ -1,5 +1,6 @@
 // Attacking peaceful monsters: the confirmation, waking monsters and making them angry.
 // ref: src/uhitm.c attack_checks(), src/mon.c wakeup(), setmangry(), peacefuls_respond()
+import { engulfingU } from './engulfstate';
 import {
   getPlayer,
   inRooms,
@@ -34,6 +35,7 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
 export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
   const mon = ctx.state.entities[String(id)];
   if (!mon?.c.monster?.peaceful || !mon.c.pos) return false;
+  if (engulfingU(ctx, id)) return false; // attack_checks(): `if (engulfing_u(mtmp)) return FALSE`
   const hero = getPlayer(ctx.state);
   if (hasProp(hero, P.STUNNED) || hasProp(hero, P.CONFUSION) || hasProp(hero, P.HALLUC))
     return false;

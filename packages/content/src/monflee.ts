@@ -5,7 +5,8 @@
 // `modData.nh.mflee`: an entry `{ [monsterId]: fleetim }` exists exactly while the monster flees;
 // 0 means an untimed flight.
 import { sortedIds, type Ctx, type EntityId, type Json, type ModApi } from '@nh/core';
-import { ustuck, setUstuck } from './hackmove';
+import { ustuck } from './hackmove';
+import { releaseHero } from './engulf';
 import { heroSees } from './mongear';
 import { monNam } from './perception';
 
@@ -77,7 +78,7 @@ export function monflee(
 ): void {
   const mon = ctx.state.entities[String(id)];
   if (!mon?.c.monster) return;
-  if (ustuck(ctx) === id) setUstuck(ctx, null); // release_hero()
+  if (ustuck(ctx) === id) releaseHero(ctx, id); // expels/unstuck
   const t = table(ctx, true);
   if (!t) return;
   const key = String(id);

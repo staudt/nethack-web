@@ -293,6 +293,30 @@ export function createUi(opts: UiOptions): Ui {
     flasher?.flash([]);
     a.done();
   }
+  /**
+   * Swallowed: C's swallow box (S_sw_tl .. S_sw_br, `/-\\`, `| |`, `\\-/`) in the engulfer's colour
+   * around the hero, kept as the overlay until she is out. ref: src/display.c swallowed()
+   */
+  let swallowShown = false;
+  const showSwallowBox = (engulfer: unknown): void => {
+    if (!flasher) return;
+    const p = playerPos;
+    if (typeof engulfer !== 'string' || !p) {
+      if (swallowShown) flasher.flash([]);
+      swallowShown = false;
+      return;
+    }
+    const fg = glyphOf(engulfer)?.fg ?? '#aaaaaa';
+    const box: { pos: Pos; g: Glyph }[] = [];
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        if (p.x + dx < 0 || p.y + dy < 0 || p.x + dx >= mapW || p.y + dy >= mapH) continue;
+        box.push({ pos: { x: p.x + dx, y: p.y + dy }, g: { ch: explosionChar(dx, dy), fg } });
+      }
+    flasher.flash(box);
+    swallowShown = true;
+  };
   const clearStepTimer = (): void => {
     if (stepTimer !== null) clearTimeout(stepTimer);
     stepTimer = null;
@@ -1037,6 +1061,7 @@ export function createUi(opts: UiOptions): Ui {
       inventory = view.inventory;
       renderStatus(view.status);
       playerPos = { x: view.player.x, y: view.player.y };
+      showSwallowBox(view.status['engulfed']);
       let listEv: ListEvent | null = null;
       const lists: ListEvent[] = [];
       for (const ev of events) {

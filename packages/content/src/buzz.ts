@@ -27,6 +27,7 @@ import { destroyItems, erodeArmor } from './erode';
 import { inAnyShop } from './eshk';
 import { done } from './end';
 import { setUstuck, ustuck } from './hackmove';
+import { uswallow } from './engulfstate';
 import { experienceFor, gainExperience } from './hero';
 import { losehp } from './hp';
 import { nomulNow } from './hunger';
@@ -570,6 +571,21 @@ function buzzSteps(
   path: RayStep[],
   shop: ShopDamageFlag,
 ): void {
+  // ref: dobuzz(): swallowed, the hero's ray hits the engulfer ("The bolt of fire rips into the
+  // fog cloud!"); a monster's does nothing (`type < 0`)
+  const sw = uswallow(ctx);
+  const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (engulfer) {
+    if (src.by !== 'hero') return;
+    const tmp = zhitm(ctx, engulfer, ray, nd, src.spell !== undefined, true);
+    say(ctx, 'zap.ray.rips_into', {
+      ray: rayName(ray),
+      mon: monNam(ctx, engulfer),
+      ex: exclam(tmp),
+    });
+    if ((engulfer.c.hp?.cur ?? 0) < 1 && alive(ctx, engulfer.id)) killedByHero(ctx, engulfer);
+    return;
+  }
   const level = levelOf(ctx);
   const vertical = dir === 'up' || dir === 'down';
   const d = vertical ? { x: 0, y: 0 } : { ...DIRS[dir] };

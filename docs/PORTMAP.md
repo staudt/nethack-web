@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2793 citations.
+150 NetHack files, 2833 citations.
 
 ## dat/dungeon.lua
 
@@ -237,6 +237,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `carnivorous()`: `packages/content/src/dog.ts`
 - `completelyrots()`: `packages/content/src/adtyping.ts`
 - `completelyrusts()`: `packages/content/src/adtyping.ts`
+- `digests()`: `packages/content/src/engulfstate.ts`
+- `enfolds()`: `packages/content/src/engulfstate.ts`
+- `flaming()`: `packages/content/src/engulfstate.ts`
 - `haseyes()`: `packages/content/src/adtyping.ts`
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`
@@ -247,6 +250,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_mercenary()`: `packages/content/src/mongear.ts`
 - `is_wanderer()`: `packages/content/src/monmove.ts`
 - `is_watch()`: `packages/content/src/watch.ts`
+- `is_whirly()`: `packages/content/src/engulfstate.ts`
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
@@ -265,12 +269,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monflag.h
 
+- `MZ_HUGE()`: `packages/content/src/engulf.ts`
 - `ms_sounds()`: `packages/core/src/types/mod.ts`
 
 ## include/monst.h
 
 - (file): `packages/content/src/mstate.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
 - `MON_WEP()`: `packages/content/src/mongear.ts`
+- `engulfing_u()`: `packages/content/src/engulfstate.ts`
 - `monmax_difficulty()`: `packages/content/src/generation.ts`
 - `monmin_difficulty()`: `packages/content/src/generation.ts`
 
@@ -420,7 +426,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/urooms.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/urooms.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
 
@@ -571,6 +577,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `map_object()`: `packages/core/src/engine.ts`
 - `map_trap()`: `packages/core/src/view.ts`
 - `newsym()`: `packages/content/src/perception.ts`
+- `swallowed()`: `packages/content/src/perception.ts`, `packages/ui/src/host.ts`
 - `tmp_at()`: `packages/core/src/types/event.ts`
 - `zapdir_to_glyph()`: `packages/ui/src/host.ts`
 
@@ -600,6 +607,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `reset_utrap()`: `packages/content/src/trap.ts`
 - `set_wounded_legs()`: `packages/content/src/legs.ts`
 - `u_on_newpos()`: `packages/core/src/engine.ts`
+- `u_stuck_cannot_go()`: `packages/content/src/actions.ts`
 - `uescaped_shaft()`: `packages/content/src/trap.ts`
 - `uteetering_at_seen_pit()`: `packages/content/src/trap.ts`
 
@@ -796,11 +804,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ends()`: `packages/content/src/end.en.ts`
 - `get_valuables()`: `packages/content/src/urexp.ts`
 - `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/ui/src/gameover.ts`
-- `savelife()`: `packages/content/src/end.ts`
+- `savelife()`: `packages/content/src/end.ts`, `packages/content/src/engulf.ts`
 - `should_query_disclose_option()`: `packages/ui/src/gameover.ts`
 
 ## src/engrave.c
 
+- (file): `packages/content/src/levitation.ts`
 - `can_reach_floor()`: `packages/content/src/levitation.ts`
 
 ## src/exper.c
@@ -1036,9 +1045,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/mhitm.c
 
 - (file): `packages/content/src/mhitm.en.ts`, `packages/content/src/mhitm.ts`
+- `engulf_target()`: `packages/content/src/engulf.ts`
 - `explmm()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.ts`
 - `failed_grab()`: `packages/content/src/mhitm.ts`
 - `gazemm()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.ts`
+- `gulpmm()`: `packages/content/src/engulf.en.ts`, `packages/content/src/mhitm.ts`
 - `hitmm()`: `packages/content/src/mhitm.ts`
 - `mattackm()`: `packages/content/src/mhitm.ts`
 - `max_passive_dmg()`: `packages/content/src/dogmove.ts`
@@ -1057,8 +1068,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/adtyping.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/resist.en.ts`
 - `could_seduce()`: `packages/content/src/steal.ts`
 - `diseasemu()`: `packages/content/src/adtyping.ts`
+- `expels()`: `packages/content/src/engulf.en.ts`, `packages/content/src/engulf.ts`
 - `explmu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
 - `gazemu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
+- `gulpmu()`: `packages/content/src/engulf.en.ts`, `packages/content/src/mhitu.ts`
 - `hitmsg()`: `packages/content/src/combat.ts`
 - `hitmu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `magic_negation()`: `packages/content/src/adtyping.ts`, `packages/content/src/mhitu.ts`
@@ -1229,9 +1242,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mpickstuff()`: `packages/content/src/mongear.ts`
 - `pacify_guards()`: `packages/content/src/watch.ts`
 - `peacefuls_respond()`: `packages/content/src/peaceful.ts`, `packages/content/src/watch.en.ts`, `packages/content/src/watch.ts`
-- `set_ustuck()`: `packages/content/src/hackmove.ts`
+- `set_ustuck()`: `packages/content/src/engulfstate.ts`, `packages/content/src/hackmove.ts`
 - `setmangry()`: `packages/content/src/kick.en.ts`, `packages/content/src/peaceful.ts`
 - `undead_to_corpse()`: `packages/content/src/corpses.ts`
+- `unstuck()`: `packages/content/src/engulf.ts`
 - `wake_msg()`: `packages/content/src/monmove.ts`
 - `wake_nearby()`: `packages/content/src/apply.ts`, `packages/content/src/btrapped.ts`, `packages/content/src/trap.ts`
 - `wake_nearto_core()`: `packages/content/src/apply.ts`, `packages/content/src/noise.ts`
@@ -1271,6 +1285,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_yells()`: `packages/content/src/watch.ts`
 - `monflee()`: `packages/content/src/kick.en.ts`, `packages/content/src/monflee.ts`
 - `postmov()`: `packages/content/src/actions.ts`, `packages/content/src/monmove.ts`
+- `release_hero()`: `packages/content/src/engulf.ts`
 - `set_apparxy()`: `packages/content/src/monmove.ts`
 - `watch_on_duty()`: `packages/content/src/watch.ts`
 
@@ -1931,6 +1946,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `known_hitum()`: `packages/content/src/combat.ts`
 - `mhitm_ad_()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.en.ts`, `packages/content/src/resist.en.ts`
 - `mhitm_ad_blnd()`: `packages/content/src/adtyping.ts`, `packages/content/src/mstate.ts`
+- `mhitm_ad_dgst()`: `packages/content/src/adtyping.ts`, `packages/content/src/dog.ts`
 - `mhitm_ad_halu()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_phys()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/combat.ts`
@@ -1956,7 +1972,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `couldsee()`: `packages/content/src/watch.ts`
 - `do_clear_area()`: `packages/content/src/read.ts`
 - `does_block()`: `packages/content/src/boulder.ts`, `packages/core/src/objects.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
-- `vision_recalc()`: `packages/core/src/engine.ts`, `packages/core/src/vision.ts`
+- `vision_recalc()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/vision.ts`
 
 ## src/weapon.c
 

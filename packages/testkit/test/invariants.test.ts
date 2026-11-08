@@ -65,6 +65,22 @@ describe('invariants', () => {
     expect(errs(s).join('\n')).toMatch(/share cell/);
   });
 
+  test('only the engulfer holding the hero may share her cell', () => {
+    const s = fresh();
+    const p = getPlayer(s);
+    s.entities['99'] = {
+      id: 99,
+      def: 'nh:fog_cloud',
+      c: { pos: { ...p.c.pos! }, monster: {} as never },
+    };
+    const nh = s.modData['nh'] as Record<string, unknown>;
+    nh['ustuck'] = 99;
+    nh['uswallow'] = { mon: 99, tim: 3 };
+    expect(errs(s).join('\n')).not.toMatch(/share cell/);
+    s.entities['98'] = { id: 98, def: 'nh:newt', c: { pos: { ...p.c.pos! } } };
+    expect(errs(s).join('\n')).toMatch(/share cell/);
+  });
+
   test('player missing / no actor / no pos', () => {
     let s = fresh();
     delete s.entities[String(s.playerId)];

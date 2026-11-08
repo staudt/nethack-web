@@ -37,11 +37,11 @@ import { destroyItems, erodeArmor, type DestroyType } from './erode';
 import { ustuck } from './hackmove';
 import { igniteItems } from './light';
 import { nonliving } from './mondata';
-import { mondead, monkilled } from './mondeath';
+import { mondead, mondied, monkilled } from './mondeath';
 import { setDeathExplosion } from './corpses';
 import { heroSees } from './mongear';
 import { wakeNearto } from './noise';
-import { monNam } from './perception';
+import { canSpotMon, monNam } from './perception';
 import { setmangry, wakeup } from './peaceful';
 import { P, hasProp } from './props';
 import { payForDamage } from './shkpay';
@@ -403,7 +403,25 @@ export function monExplodes(
 }
 
 // ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (the AT_BOOM attack)
-setDeathExplosion((ctx, def, at, byHero) => {
+setDeathExplosion((ctx, def, at, byHero, swallower) => {
   const atk = def.attacks.find((a) => a.at === 'boom');
-  if (atk) monExplodes(ctx, def.id, at, atk, byHero);
+  if (!atk) return;
+  const magr = swallower === null ? undefined : ctx.state.entities[String(swallower)];
+  if (!magr?.c.monster) {
+    monExplodes(ctx, def.id, at, atk, byHero);
+    return;
+  }
+  // a gas spore exploding inside an engulfer: suppress the usual explosion since it's contained
+  // (the hero as the engulfer is 7f's polymorph)
+  const tmp = atk.n ? ctx.rng.d(atk.n, atk.d) : atk.d ? ctx.rng.d(def.level + 1, atk.d) : 0;
+  say(ctx, 'explode.hear_explosion');
+  const hp = magr.c.hp;
+  if (hp) hp.cur -= tmp;
+  const spotted = canSpotMon(ctx, magr);
+  const seen = !!magr.c.pos && heroSees(ctx, magr.c.pos);
+  const name = monNam(ctx, magr);
+  if (!hp || hp.cur < 1) {
+    mondied(ctx, magr.id);
+    if (spotted) say(ctx, 'explode.rips_open', { mon: name });
+  } else if (seen) say(ctx, 'explode.indigestion', { mon: name });
 });

@@ -14,7 +14,8 @@ import {
   type Pos,
   type Rng,
 } from '@nh/core';
-import { explmu, gazemu, mdamageu } from './mhitu';
+import { explmu, gazemu, gulpmu, mdamageu } from './mhitu';
+import { isSwallowed, uswallow } from './engulfstate';
 import { M_ATTK, hitmsgFor, mhitmAdtyping, newMhm } from './adtyping';
 import { castmu } from './mcastu';
 import { monsterDied } from './mondeath';
@@ -41,7 +42,7 @@ import { hurtPet } from './dog';
 import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon } from './perception';
-import { isCancelled, isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
+import { isCancelled, isFrozen, isMConfused, isMStunned, mspecUsed, setMConfused } from './mstate';
 import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
@@ -244,7 +245,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     (isFleeing(ctx, targetId) ? 2 : 0) -
     (utrap(ctx) ? 3 : 0); // ref: find_roll_to_hit(): `if (u.utrap) tmp -= 3`
   const dieroll = ctx.rng.rnd(20);
-  if (!(tmp > dieroll)) {
+  // ref: hitum(): `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
+  if (!(tmp > dieroll) && !isSwallowed(ctx)) {
     // ref: src/uhitm.c missum(): "You miss <mon>." then wakeup(mdef, TRUE)
     ctx.emit({ type: 'msg', key: 'combat.you_miss', params: { mon: name } });
     wakeup(ctx, targetId);
@@ -481,8 +483,9 @@ function nextToHero(ctx: Ctx, mon: Entity): boolean {
  * switch on the attack type with the results `sum[]`.
  * ref: src/mhitu.c mattacku(), missmu(). A hug is automatic after the two attacks before it hit
  * (or while it holds her); gazes (gazemu()) and explosions (explmu()) need no to-hit roll.
- * Engulfing (step 4), breath and spit (step 5, at range) do nothing yet; a monster at range is
- * not handled here (mattackRanged() in mthrowu.ts, through monmove.ts).
+ * An engulfer swallows her (gulpmu()); while she is inside, only it attacks, with its engulfing
+ * attack alone. Breath and spit (step 5, at range) do nothing yet; a monster at range is not
+ * handled here (mattackRanged() in mthrowu.ts, through monmove.ts).
  */
 export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const hero = getPlayer(ctx.state);
@@ -492,7 +495,11 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   if (!mon || !m || !hp) throw new Error(`Entity ${monId} cannot attack`);
   const def = ctx.defs.monster(mon.def);
   const name = monNam(ctx, mon);
-  // ref: src/mhitu.c mattacku(): "in the midst of successful prayer" monsters won't attack
+  // ref: src/mhitu.c mattacku(): if swallowed, she can only be affected by u.ustuck, and
+  // stomachs can't hurt her while she prays
+  const swallower = uswallow(ctx)?.mon ?? null;
+  if (swallower !== null && (swallower !== monId || uState(ctx.state).uinvulnerable)) return;
+  // "in the midst of successful prayer" monsters won't attack
   if (uState(ctx.state).uinvulnerable) {
     if (ustuck(ctx) === monId) say0(ctx, 'pray.loosens_grip', { mon: name });
     else if (canSpotMon(ctx, mon)) say0(ctx, 'pray.pulls_back', { mon: name });
@@ -518,6 +525,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     if (i > 0 && !nextToHero(ctx, mon)) continue;
     const atk = def.attacks[i];
     if (!atk) continue;
+    if (isSwallowed(ctx) && atk.at !== 'engulf') continue;
     switch (atk.at) {
       case 'claw': // "hand to hand" attacks
       case 'kick':
@@ -583,7 +591,15 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         // automatic hit if next to, and aimed at her
         sum[i] = explmu(ctx, mon, atk, true);
         break;
-      // AT_ENGL (step 4), AT_BREA, AT_SPIT (step 5, at range)
+      case 'engulf': {
+        // (next to her and aimed at her: no displacement, so never "gulps some air!")
+        let j = 0;
+        if (isSwallowed(ctx) || (!mspecUsed(ctx, monId) && tmp > (j = ctx.rng.rnd(20 + i))))
+          sum[i] = gulpmu(ctx, mon, atk);
+        else missmu(ctx, name, tmp === j);
+        break;
+      }
+      // AT_BREA, AT_SPIT (step 5, at range)
       default: // no attack
         break;
     }

@@ -12,6 +12,7 @@ import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
 import { adtypingMessagesEn } from './adtyping.en';
 import { stealMessagesEn } from './steal.en';
+import { engulfMessagesEn } from './engulf.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -49,6 +50,7 @@ export const messagesEn: Record<string, string> = {
   ...mhitmMessagesEn,
   ...adtypingMessagesEn,
   ...stealMessagesEn,
+  ...engulfMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -275,6 +277,9 @@ export const messagesEn: Record<string, string> = {
   'nh:quantum_mechanic': 'quantum mechanic',
   'nh:rust_monster': 'rust monster',
   'nh:gas_spore': 'gas spore',
+  'nh:fog_cloud': 'fog cloud',
+  'nh:dust_vortex': 'dust vortex',
+  'nh:purple_worm': 'purple worm',
   'nh:yellow_light': 'yellow light',
   'nh:pyrolisk': 'pyrolisk',
   'nh:monkey': 'monkey',

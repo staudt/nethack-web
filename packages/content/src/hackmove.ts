@@ -16,6 +16,7 @@ import { sokobanBoulder } from './boulder';
 import { nhData } from './items';
 import { P, hasProp } from './props';
 import { monNam } from './perception';
+import { setUswallow } from './engulfstate';
 
 /** ref: src/decl.c dirs_ord[]: the order in which confdir() picks a random direction. */
 const DIRS_ORD: readonly Dir[] = ['w', 'n', 'e', 's', 'nw', 'ne', 'se', 'sw'];
@@ -63,9 +64,10 @@ export function ustuck(ctx: Pick<Ctx, 'state'>): EntityId | null {
   return id;
 }
 
-/** ref: src/mon.c set_ustuck() */
+/** ref: src/mon.c set_ustuck(): no holder means not swallowed either */
 export function setUstuck(ctx: Pick<Ctx, 'state'>, id: EntityId | null): void {
   (nhData(ctx) as unknown as { ustuck?: EntityId | null }).ustuck = id;
+  if (id === null) setUswallow(ctx, null);
 }
 
 /**

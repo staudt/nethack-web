@@ -8,8 +8,11 @@
 // which do nothing until their m9 step), shades, silver, cloning puddings, petrification.
 import {
   NORMAL_SPEED,
+  cellIndex,
+  getLevel,
   getPlayer,
   sortedIds,
+  trapAt,
   type AttackDef,
   type Ctx,
   type Entity,
@@ -22,7 +25,7 @@ import { monExplodes } from './explode';
 
 export { monkilled, mondied };
 import { M_ATTK, drainItem, mhitmAdtyping, newMhm } from './adtyping';
-import { heroSees, monWep, monWieldItem } from './mongear';
+import { heroSees, minvent, monWep, monWieldItem } from './mongear';
 import {
   paralyzeMonst,
   isCancelled,
@@ -40,6 +43,10 @@ import { xnameOf } from './objnam';
 import { acidDamage, erodeArmor } from './erode';
 import { mtrappedInPit } from './trapstate';
 import { setUstuck, ustuck } from './hackmove';
+import { digests, enfolds, engulfingU, flaming, setMswallower } from './engulfstate';
+import { engulfTarget } from './engulf';
+import { snuffLit } from './light';
+import { mintrap } from './trap';
 import { resistConflict } from './props';
 
 export { M_ATTK };
@@ -156,7 +163,7 @@ function mdamagem(
   hp.cur -= damage;
   if (hp.cur < 1) {
     const victimLevel = mdef.c.monster?.level ?? 0;
-    monkilled(ctx, mdef.id, true);
+    monkilled(ctx, mdef.id, true, undefined, atk.ad === 'dgst');
     return M_ATTK.DEF_DIED | (growUp(ctx, magr.id, victimLevel) ? 0 : M_ATTK.AGR_DIED);
   }
   return M_ATTK.HIT;
@@ -284,6 +291,94 @@ function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
   }
   if (tame) say(ctx, 'mhitm.melancholy'); // give this one even if it was visible
   return result;
+}
+
+/**
+ * The aggressor swallows the defender ("The purple worm swallows the newt."): it moves onto the
+ * defender's square for the damage (a digester eats it whole), then, if both live, lets it out
+ * ("The newt is regurgitated!") and goes back. A dead defender leaves the aggressor on its
+ * square, unless that square is no good for it; a trap there may catch it.
+ * ref: src/mhitm.c gulpmm() (no vampire shapeshifters, no pools)
+ */
+function gulpmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
+  if (!engulfTarget(ctx, magr, mdef)) return M_ATTK.MISS;
+  const pa = ctx.defs.monster(magr.def);
+  if (vis)
+    say(ctx, 'mhitm.engulfs', {
+      magr: monNam(ctx, magr),
+      verb: {
+        key: digests(pa)
+          ? 'mhitm.verb.swallows'
+          : enfolds(pa)
+            ? 'mhitm.verb.encloses'
+            : 'mhitm.verb.engulfs',
+      },
+      mdef: monNam(ctx, mdef),
+    });
+  if (!flaming(pa)) for (const o of minvent(ctx, mdef.id)) snuffLit(ctx, o);
+  const ap = magr.c.pos;
+  const dp = mdef.c.pos;
+  if (!ap || !dp) return M_ATTK.MISS;
+  const a = { ...ap };
+  const d = { ...dp };
+  // leave the defender where it is, but not on the map; the aggressor moves onto its square
+  magr.c.pos = { ...d };
+  ctx.emit({ type: 'moved', id: magr.id, from: { x: a.x, y: a.y }, to: { x: d.x, y: d.y } });
+  setMswallower(magr.id); // corpse_chance() wants this
+  let status = mdamagem(ctx, magr, mdef, atk, null, vis, 0);
+  setMswallower(null);
+  const agrDied = !alive(ctx, magr.id);
+  const defDied = !alive(ctx, mdef.id);
+  if (agrDied) status |= M_ATTK.AGR_DIED;
+  if (defDied) status |= M_ATTK.DEF_DIED;
+  const back = (): void => {
+    const p = magr.c.pos;
+    if (!p) return;
+    magr.c.pos = { ...a };
+    ctx.emit({ type: 'moved', id: magr.id, from: { x: p.x, y: p.y }, to: { x: a.x, y: a.y } });
+  };
+  if (agrDied && defDied) {
+    // both died -- do nothing
+  } else if (defDied) {
+    // if the gulp targeted an inhospitable location, magr returns to its previous spot
+    if (!goodposFor(ctx, magr, d)) back();
+    // aggressor moves to <dx,dy> and might encounter trouble there (no pools)
+    else if (trapAt(getLevel(ctx.state, d.level), d.x, d.y)) {
+      mintrap(ctx, magr.id);
+      if (!alive(ctx, magr.id)) status |= M_ATTK.AGR_DIED;
+    }
+  } else if (agrDied) {
+    // aggressor died: the defender is back on the map where it was
+  } else {
+    // both alive, put them back
+    if (heroSees(ctx, d))
+      say(ctx, 'mhitm.let_out', {
+        mon: monNam(ctx, mdef),
+        how: {
+          key: digests(pa)
+            ? 'mhitm.regurgitated'
+            : enfolds(pa)
+              ? 'mhitm.released'
+              : 'mhitm.expelled',
+        },
+      });
+    back();
+  }
+  return status;
+}
+
+/** goodpos() for the aggressor at the dead defender's square (the square is free now) */
+function goodposFor(ctx: Ctx, mon: Entity, p: { level: string; x: number; y: number }): boolean {
+  const level = getLevel(ctx.state, p.level);
+  const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? 0];
+  if (id === undefined || !ctx.defs.terrain(id).passable) return false;
+  for (const oid of sortedIds(ctx.state)) {
+    if (oid === mon.id) continue;
+    const e = ctx.state.entities[String(oid)];
+    const q = e?.c.pos;
+    if (e && !e.c.item && q && q.level === p.level && q.x === p.x && q.y === p.y) return false;
+  }
+  return true;
 }
 
 /** ref: src/mhitm.c missmm(): "The nymph pretends to be friendly to the jackal." */
@@ -525,7 +620,24 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
           attk = false;
         } else strike = true; // automatic hit
         break;
-      // AT_ENGL (step 4), AT_BREA and AT_SPIT (step 5): no attack yet
+      case 'engulf': {
+        // (no shades, no steeds)
+        // D: Prevent engulf from a distance
+        if (distmin(magr, mdef) > 1) continue;
+        // Engulfing attacks are directed at the hero if possible. -dlc
+        if (engulfingU(ctx, magrId)) {
+          strike = false;
+          break;
+        }
+        strike = tmp > ctx.rng.rnd(20 + i);
+        if (strike) {
+          if (failedGrab(ctx, magr, mdef, atk, vis))
+            strike = false; // purple worm can't swallow unsolid mons
+          else res[i] = gulpmm(ctx, magr, mdef, atk, vis);
+        } else missmm(ctx, magr, mdef, atk, vis);
+        break;
+      }
+      // AT_BREA and AT_SPIT (step 5): no attack yet
       default: // no attack
         attk = false;
         break;

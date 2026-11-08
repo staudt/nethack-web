@@ -269,6 +269,10 @@ export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos
   const taken = occupiedSet(ctx, level);
   const self = id === null ? undefined : ctx.state.entities[String(id)]?.c.pos;
   if (self && self.level === level.id) taken.delete(cellIndex(level, self.x, self.y));
+  // goodpos(): the hero's square is never free for a monster (an engulfer shares it)
+  const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
+  if (id !== ctx.state.playerId && hp && hp.level === level.id)
+    taken.add(cellIndex(level, hp.x, hp.y));
   return enexto(ctx, level, cellRules(level, ctx.defs), withBoulders(ctx, level, taken), from);
 }
 

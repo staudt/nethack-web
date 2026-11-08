@@ -2,9 +2,9 @@
 //
 // Every death of the hero goes through `done()`, so a worn amulet of life saving can intercept
 // it, and so can a mod's `beforeGameOver` hook (wizard mode).
-// Not ported: the high-score "while attempting to cheat Death" reason (no score list), expelling
-// from an engulfer (no engulfing), lava traps, polymorph, Unchanging.
-import { getPlayer, inventoryOf, type Ctx, type Msg } from '@nh/core';
+// Not ported: the high-score "while attempting to cheat Death" reason (no score list), lava
+// traps, polymorph, Unchanging.
+import { getPlayer, inventoryOf, type Ctx, type Entity, type Msg } from '@nh/core';
 import { removeFromInventory } from './items';
 import { nomul } from './nomul';
 import { discover } from './o_init';
@@ -13,6 +13,7 @@ import { P, hasProp, updateWornProps } from './props';
 import { hungerData, initUhunger } from './uhunger';
 import { setUstuck, ustuck } from './hackmove';
 import { setEndHow, type How } from './endstate';
+import { isSwallowed } from './engulfstate';
 
 export type { How } from './endstate';
 
@@ -61,6 +62,12 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
   if (ctx.state.gameOver === null) savelife(ctx, how);
 }
 
+/** expels(u.ustuck, ..., TRUE): engulf.ts registers it (it sits above end.ts) */
+let savelifeExpels: ((ctx: Ctx, mon: Entity) => void) | null = null;
+export function setSavelifeExpels(fn: (ctx: Ctx, mon: Entity) => void): void {
+  savelifeExpels = fn;
+}
+
 /** ref: src/end.c savelife() */
 function savelife(ctx: Ctx, how: How): void {
   const hero = getPlayer(ctx.state);
@@ -86,7 +93,11 @@ function savelife(ctx: Ctx, how: How): void {
   const stuck = ustuck(ctx);
   if (stuck !== null) {
     const mon = ctx.state.entities[String(stuck)];
-    if (mon) say(ctx, 'lifesave.released', { mon: monNam(ctx, mon) });
-    setUstuck(ctx, null); // unstuck()
+    // might drop hero onto a trap that kills her all over again
+    if (mon && isSwallowed(ctx) && savelifeExpels) savelifeExpels(ctx, mon);
+    else {
+      if (mon) say(ctx, 'lifesave.released', { mon: monNam(ctx, mon) });
+      setUstuck(ctx, null); // unstuck()
+    }
   }
 }

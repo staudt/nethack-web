@@ -61,6 +61,8 @@ import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
 import { makemon } from './generation';
 import { confdir, getdirImpaired, setUstuck, uMaybeImpaired, ustuck } from './hackmove';
+import { digests, isSwallowed, uswallow } from './engulfstate';
+import { expels } from './engulf';
 import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { checkCapacity, useupall } from './magic';
@@ -357,10 +359,22 @@ function openfallingtrap(
   return { done: mintrap(ctx, mon.id, { force: true }) !== 'finished', noticed };
 }
 
-/** ref: src/zap.c release_hold(): the hero is held (never engulfed or sticky here) */
+/**
+ * ref: src/zap.c release_hold(): an engulfer opens up ("The purple worm opens its mouth!" for a
+ * digester) and lets her out; a holder lets go (the hero is never sticky here)
+ */
 export function releaseHold(ctx: Ctx): void {
   const id = ustuck(ctx);
   const mon = id === null ? undefined : ent(ctx, id);
+  if (mon && isSwallowed(ctx)) {
+    if (digests(ctx.defs.monster(mon.def))) {
+      if (!hasProp(hero(ctx), P.BLINDED)) say(ctx, 'zap.opens_mouth', { mon: monNam(ctx, mon) });
+      else say(ctx, 'zap.rush_of_air');
+    }
+    // gives "you get regurgitated" or "you get expelled from <mon>"
+    expels(ctx, mon, true);
+    return;
+  }
   setUstuck(ctx, null);
   if (mon) say(ctx, 'zap.released_grasp', { mon: monNam(ctx, mon) });
 }
@@ -646,7 +660,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       learnIt = cansee(ctx, at.x, at.y);
       if (resistsMagm(ctx, mon)) {
         say(ctx, 'zap.boing');
-      } else if (ctx.rng.rnd(20) < 10 + findMac(ctx.state, ctx.defs, mon.id)) {
+      } else if (isSwallowed(ctx) || ctx.rng.rnd(20) < 10 + findMac(ctx.state, ctx.defs, mon.id)) {
         let dmg = ctx.rng.d(2, 12);
         if (otyp === SPE.forceBolt) dmg = spellDamageBonus(ctx.state, dmg);
         say(ctx, oclass === 'wand' ? 'zap.wand_hit' : 'zap.spell_hit', {
@@ -1459,7 +1473,11 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
     return;
   }
   if (kind === 'immediate') {
-    if (dir === 'up' || dir === 'down') {
+    // ref: weffects(): `if (u.uswallow) (void) bhitm(u.ustuck, obj)`
+    const sw = uswallow(ctx);
+    const engulfer = sw ? ent(ctx, sw.mon) : undefined;
+    if (engulfer?.c.pos) bhitm(ctx, engulfer, src, { x: engulfer.c.pos.x, y: engulfer.c.pos.y });
+    else if (dir === 'up' || dir === 'down') {
       if (zapUpdown(ctx, src, dir)) learnScored(ctx, src);
     } else bhit(ctx, src, dir);
     return;

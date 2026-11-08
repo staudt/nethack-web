@@ -23,7 +23,8 @@ import {
   trapAt,
 } from '@nh/core';
 import { heroAttack, monsterIdAt } from './combat';
-import { escapeFromStickyMon, impairedDir } from './hackmove';
+import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
+import { digests, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
 import { askReallyAttack, needsAttackConfirm } from './peaceful';
 import { monflee } from './monflee';
@@ -238,6 +239,46 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
 }
 
 /**
+ * While swallowed every move attacks the engulfer (no stun or confusion roll, no escape roll);
+ * null when she is not swallowed. ref: src/hack.c domove_core(): `if (u.uswallow) { u.dx = u.dy
+ * = 0; x = u.ustuck->mx, y = u.ustuck->my; mtmp = u.ustuck; }` then do_attack()
+ */
+function attackEngulfer(ctx: Ctx): number | null {
+  const sw = uswallow(ctx);
+  const mon = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (!mon) return null;
+  const cost = doAttack(ctx, mon, 'nh:move') ?? heroAttack(ctx, mon.id);
+  ctx.interrupt(); // no running or travelling on inside it
+  return cost;
+}
+
+/**
+ * The hero cannot take the stairs while held or swallowed: "You are engulfed, and cannot go
+ * down." (the move is spent). ref: src/do.c u_stuck_cannot_go() (no sticky hero: no polymorph)
+ */
+function uStuckCannotGo(ctx: Ctx, updn: 'up' | 'down'): boolean {
+  const id = ustuck(ctx);
+  if (id === null) return false;
+  const mon = ctx.state.entities[String(id)];
+  const sw = uswallow(ctx);
+  ctx.emit({
+    type: 'msg',
+    key: 'stairs.stuck',
+    params: {
+      how: {
+        key: !sw
+          ? 'stairs.stuck.held'
+          : mon && digests(ctx.defs.monster(mon.def))
+            ? 'stairs.stuck.swallowed'
+            : 'stairs.stuck.engulfed',
+      },
+      dir: { key: `stairs.stuck.${updn}` },
+    },
+  });
+  return true;
+}
+
+/**
  * Fight: attack whatever is in that direction, even a pet or a peaceful monster (still asking
  * "Really attack?" for a peaceful one). ref: src/cmd.c the F prefix (context.forcefight),
  * src/hack.c domove_fight_empty()
@@ -247,6 +288,21 @@ const fight: ActionDef = {
   labelKey: 'action.nh:fight',
   handles: 'mod',
   offer(ctx, target) {
+    // swallowed: her own square offers to attack the engulfer (any direction does)
+    const sw = uswallow(ctx);
+    if (sw) {
+      const mon = ctx.state.entities[String(sw.mon)];
+      return target.kind === 'self' && mon
+        ? [
+            {
+              action: { type: 'mod', action: 'nh:fight', args: { dir: 'n' } },
+              labelKey: 'action.attack',
+              params: { target: `@${mon.def}` },
+              priority: HERE,
+            },
+          ]
+        : [];
+    }
     if (target.kind !== 'cell') return [];
     const dir = dirTo(playerAt(ctx), target.pos);
     if (!dir) return [];
@@ -276,6 +332,8 @@ const fight: ActionDef = {
     const raw = action.type === 'mod' ? (action.args as { dir?: unknown } | undefined)?.dir : null;
     const want = DIR_LIST.find((d) => d === raw);
     if (!want) return 0;
+    const swallowed = attackEngulfer(ctx);
+    if (swallowed !== null) return swallowed;
     const dir = impairedDir(ctx, want);
     if (dir === null) return NORMAL_SPEED;
     const from = playerAt(ctx);
@@ -325,7 +383,7 @@ const move: ActionDef = {
   labelKey: 'action.move',
   handles: 'move',
   offer(ctx, target) {
-    if (target.kind !== 'cell') return [];
+    if (target.kind !== 'cell' || isSwallowed(ctx)) return [];
     const from = playerAt(ctx);
     const dir = dirTo(from, target.pos);
     if (!dir) return [];
@@ -362,6 +420,8 @@ const move: ActionDef = {
     if (!pos) throw new Error('Player has no position');
     const level = getLevel(ctx.state, pos.level);
     const from = { x: pos.x, y: pos.y };
+    const swallowed = attackEngulfer(ctx);
+    if (swallowed !== null) return swallowed;
     // ref: src/hack.c domove_core(): impaired_movement() picks a random direction when stunned
     // (and the move is lost if none is found), then escape_from_sticky_mon()
     const dir = impairedDir(ctx, action.dir);
@@ -687,6 +747,7 @@ const down: ActionDef = {
       return 0;
     }
     // ref: dodown(): on a seen trap door or hole, `uescaped_shaft()` -> dotrap(TOOKPLUNGE)
+    if (uStuckCannotGo(ctx, 'down')) return NORMAL_SPEED;
     const hole = terrainUnderHero(ctx).stairs === 'down' ? null : seenHoleHere(ctx);
     if (hole) return plunge(ctx, hole);
     if (terrainUnderHero(ctx).stairs !== 'down') {
@@ -735,6 +796,7 @@ const up: ActionDef = {
       ctx.emit({ type: 'msg', key: 'stairs.cant_up' });
       return 0;
     }
+    if (uStuckCannotGo(ctx, 'up')) return NORMAL_SPEED;
     const branch = branchUnderHero(ctx);
     if (branch) {
       ctx.goToLevel(branch.to, 'branch');

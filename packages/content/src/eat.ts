@@ -2,6 +2,7 @@
 // ref: src/eat.c doeat(), start_eating(), eatfood(), done_eating(), bite(), choke(),
 // rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx(); shop food: touchfood()'s
 // costly_alteration(COST_BITE), useupf()
+import { engulferOf } from './engulfstate';
 import {
   NORMAL_SPEED,
   getLevel,
@@ -72,8 +73,17 @@ function reachable(ctx: Ctx, e: Entity): boolean {
   if (it.carriedBy !== null) return it.carriedBy === ctx.state.playerId;
   const hp = hero(ctx).c.pos;
   const p = e.c.pos;
-  // a floating hero cannot reach the floor (floorfood(), eatfood(): can_reach_floor(TRUE))
-  return !!hp && !!p && p.level === hp.level && p.x === hp.x && p.y === hp.y && !levitating(ctx);
+  // a floating or swallowed hero cannot reach the floor (floorfood(), eatfood():
+  // can_reach_floor(TRUE))
+  return (
+    !!hp &&
+    !!p &&
+    p.level === hp.level &&
+    p.x === hp.x &&
+    p.y === hp.y &&
+    !levitating(ctx) &&
+    engulferOf(ctx.state) === null
+  );
 }
 
 /** ref: src/eat.c obj_nutrition() (no lembas/cram race adjustments: the hero is human) */

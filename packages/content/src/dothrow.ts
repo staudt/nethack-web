@@ -1,6 +1,8 @@
 // Throwing objects. ref: src/dothrow.c dothrow(), throw_obj(), throwit(), thitmonst(), tmiss(),
 // hitfloor(); src/zap.c bhit() (thrown objects only); src/uhitm.c hmon_hitmon(); shop goods
 // thrown (check_shop_obj(), in shk.ts)
+import { digests, engulfingU, isSwallowed, isWhirly, uswallow } from './engulfstate';
+import { mpickobj } from './steal';
 import {
   DIRS,
   DIR_LIST,
@@ -146,6 +148,10 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   tmp += disttmp;
   tmp += omonAdj(mon, mdef, obj, odef);
 
+  // the engulfer holding her is a guaranteed hit
+  const guaranteedHit = engulfingU(ctx, monId);
+  if (guaranteedHit) tmp += 1000;
+
   const dieroll = ctx.rng.rnd(20);
   const missile = xnameOf(ctx.state, ctx.defs, obj);
 
@@ -167,6 +173,17 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
         return true; // the food is gone (or the monster was just tamed)
       tmiss(ctx, mon, missile, shot);
       m.asleep = false;
+      return false;
+    }
+    if (guaranteedHit) {
+      // this assumes that guaranteed_hit is due to swallowing: "The apple vanishes into the
+      // purple worm's entrails." (a cockatrice corpse is step 6)
+      wakeup(ctx, monId);
+      const md = ctx.defs.monster(mon.def);
+      msg(ctx, `throw.vanishes${digests(md) ? '_entrails' : isWhirly(md) ? '_currents' : ''}`, {
+        item: missile,
+        mon: monNam(ctx, mon),
+      });
       return false;
     }
     tmiss(ctx, mon, missile, shot);
@@ -260,6 +277,22 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       dy = ctx.rng.rn2(3) - 1;
       if (!dx && !dy) dz = 1;
     }
+  }
+
+  // ref: throwit(): `if (u.uswallow) { mon = u.ustuck; bhitpos = mon's square }`: the object
+  // goes straight at the engulfer (a guaranteed hit) and, unless used up or the engulfer died,
+  // ends up inside it (swallowit())
+  const sw = uswallow(ctx);
+  if (sw) {
+    const engulfer = ctx.state.entities[String(sw.mon)];
+    if (engulfer && thitmonst(ctx, sw.mon, objId, shot)) return; // used up
+    if (ctx.state.entities[String(sw.mon)]?.c.monster && isSwallowed(ctx)) {
+      const o = ctx.state.entities[String(objId)];
+      if (o) mpickobj(ctx, sw.mon, o);
+      return;
+    }
+    placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
+    return;
   }
 
   if (dz) {

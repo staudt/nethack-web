@@ -69,6 +69,10 @@ export function checkInvariants(
     }
   }
 
+  // The engulfer holding the hero shares her square, as in C (place_monster(mtmp, u.ux, u.uy));
+  // it is the only creature allowed to (content's modData.nh.uswallow, kept with u.ustuck).
+  const nh = state.modData['nh'] as { uswallow?: { mon?: unknown } | null } | undefined;
+  const engulfer = typeof nh?.uswallow?.mon === 'number' ? nh.uswallow.mon : null;
   const seen = new Map<string, number>();
   for (const id of ids) {
     const e = state.entities[String(id)];
@@ -115,7 +119,12 @@ export function checkInvariants(
     if (e.c.item) continue;
     const key = `${p.level}:${p.x},${p.y}`;
     const other = seen.get(key);
-    if (other !== undefined) errs.push(`entities ${other} and ${id} share cell ${key}`);
+    const swallowPair =
+      engulfer !== null &&
+      ((other === state.playerId && id === engulfer) ||
+        (other === engulfer && id === state.playerId));
+    if (other !== undefined && !swallowPair)
+      errs.push(`entities ${other} and ${id} share cell ${key}`);
     else seen.set(key, id);
   }
 

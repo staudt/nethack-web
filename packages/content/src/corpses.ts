@@ -1,6 +1,15 @@
 // Corpses: when a killed monster leaves one, and how corpses rot away.
 // ref: src/mon.c xkilled(), corpse_chance(), make_corpse(); src/mkobj.c start_corpse_timeout()
-import { getPlayer, type Ctx, type DefId, type Json, type ModApi, type MonsterDef } from '@nh/core';
+import {
+  getPlayer,
+  type Ctx,
+  type DefId,
+  type EntityId,
+  type Json,
+  type ModApi,
+  type MonsterDef,
+} from '@nh/core';
+import { mswallowerOf } from './engulfstate';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { mkcorpse, rne } from './items';
@@ -58,6 +67,7 @@ export type DeathExplosion = (
   def: MonsterDef,
   at: { level: string; x: number; y: number },
   byHero: boolean,
+  swallower: EntityId | null,
 ) => void;
 let deathExplosion: DeathExplosion | null = null;
 
@@ -77,6 +87,32 @@ export function corpseChance(ctx: Ctx, def: MonsterDef): boolean {
   return ctx.rng.rn2(tmp) === 0;
 }
 
+/** gm.mswallower, while it is an engulfer that still exists */
+function swallowerOf(ctx: Ctx): EntityId | null {
+  const id = mswallowerOf();
+  const e = id === null ? undefined : ctx.state.entities[String(id)];
+  if (!e?.c.monster) return null;
+  return ctx.defs.monster(e.def).attacks.some((a) => a.at === 'engulf') ? (id as EntityId) : null;
+}
+
+/**
+ * corpse_chance() for a monster swallowed whole by `magr` (C's `was_swallowed`): a gas spore
+ * explodes inside it (and leaves nothing), else the usual chance. The caller makes no corpse; a
+ * digesting pet takes the nourishment. ref: src/mon.c corpse_chance()
+ */
+export function corpseChanceSwallowed(
+  ctx: Ctx,
+  def: MonsterDef,
+  at: { level: string; x: number; y: number },
+  magr: EntityId,
+): boolean {
+  if (def.attacks.some((a) => a.at === 'boom')) {
+    deathExplosion?.(ctx, def, at, false, magr);
+    return false;
+  }
+  return corpseChance(ctx, def);
+}
+
 /**
  * Leaves a corpse where the hero killed `def`, if the rules say so, and starts its rot timer.
  * ref: src/mon.c xkilled() ("corpse--none if hero was inside the monster"), make_corpse().
@@ -89,10 +125,10 @@ export function xkilledCorpse(
   at: { level: string; x: number; y: number },
   byHero = false,
 ): void {
-  // ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (no engulfers yet:
-  // the was_swallowed branch is step 4's)
+  // ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (inside the monster
+  // that swallowed it, gm.mswallower, when one did)
   if (def.attacks.some((a) => a.at === 'boom')) {
-    deathExplosion?.(ctx, def, at, byHero);
+    deathExplosion?.(ctx, def, at, byHero, swallowerOf(ctx));
     return;
   }
   const undead = UNDEAD_TO_CORPSE[def.id];

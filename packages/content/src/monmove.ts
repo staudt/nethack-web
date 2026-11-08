@@ -26,6 +26,9 @@ import { clearPath } from './clearpath';
 
 export { clearPath };
 import { monsterAttack } from './combat';
+import { uswallow } from './engulfstate';
+import { releaseHero } from './engulf';
+import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
 import {
   canCarry,
@@ -687,6 +690,10 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
     if (xm === 1) return postmovMoved(ctx, id, level, rules);
     if (xm === 0) return 'nothing';
   }
+  // ref: m_move() not_special: while the hero is swallowed, other monsters do not come for her
+  // (and the engulfer holding her stays where she is: DEVIATIONS "Engulfing")
+  const sw = uswallow(ctx);
+  if (sw && (sw.mon === id || !isFleeing(ctx, id))) return sw.mon === id ? 'nothing' : 'moved';
   const goal: Pos = { x: heroPos.x, y: heroPos.y };
 
   // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, 0 for a confused monster, else overridden to
@@ -898,6 +905,12 @@ export function dochug(
   const def = ctx.defs.monster(ctx.state.entities[String(id)]?.def ?? 'nh:none');
   // ref: dochug(): "fleeing monsters might regain courage"
   regainCourage(ctx, id);
+  // ref: dochug(): "Cease conflict-induced swallow/grab if conflict has ended. Releasing the hero
+  // in this way uses up the monster's turn."
+  if (ustuck(ctx) === id && m.peaceful && !isMConfused(ctx, id) && !conflictOn(ctx.state)) {
+    releaseHero(ctx, id);
+    return;
+  }
   // ref: src/monmove.c distfleeck(): inrange, nearby and scared; only the hero's sanctuary
   // scares (no Elbereth, scare monster or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
   let inrange = false;

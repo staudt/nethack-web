@@ -1,6 +1,7 @@
 // How the hero perceives monsters and objects: blindness, telepathy, warning and hallucination.
 // ref: src/display.c (canspotmon, sensemon, tp_sensemon, display_warning(), warning_of()),
 // src/do_name.c rndmonnam(), src/display.c random_monster() / random_object()
+import { engulferOf } from './engulfstate';
 import {
   getPlayer,
   isVisible,
@@ -137,6 +138,16 @@ export function warningShown(
  * (every creature and floor object looks like a random one, changing each turn).
  */
 export function registerPerception(api: ModApi): void {
+  // the engulfer's def while the hero is swallowed: the ui draws C's swallow box around her
+  // (ref: src/display.c swallowed())
+  api.defineStatus({
+    id: 'nh:engulfed',
+    field: 'engulfed',
+    value: (state) => {
+      const id = engulferOf(state);
+      return id === null ? null : (state.entities[String(id)]?.def ?? null);
+    },
+  });
   for (const a of WARNING_APPEARANCES) api.defineAppearance(a);
   // first, so that its digit wins over hallucination's random monster
   api.definePerception({
@@ -146,7 +157,8 @@ export function registerPerception(api: ModApi): void {
   });
   api.definePerception({
     id: 'nh:senses',
-    blind: (state) => heroHas(state, P.BLINDED),
+    // swallowed: "You see nothing, nothing can see you" (ref: src/vision.c vision_recalc())
+    blind: (state) => heroHas(state, P.BLINDED) || engulferOf(state) !== null,
     senses: telepathSenses,
     shownAs(state, defs, e) {
       if (!heroHas(state, P.HALLUC)) return null;
@@ -202,7 +214,8 @@ function rndmonnam(ctx: Pick<Ctx, 'defs' | 'cosmetic'>): DefId {
  * x_monnam()
  */
 export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entity): string {
-  if (!canSpotMon(ctx, mon)) return '@pronoun.it';
+  // x_monnam(): `do_it = !canspotmon(mtmp) && ... && !engulfing_u(mtmp)`
+  if (!canSpotMon(ctx, mon) && engulferOf(ctx.state) !== mon.id) return '@pronoun.it';
   if (hasProp(getPlayer(ctx.state), P.HALLUC)) return `@${rndmonnam(ctx)}`;
   const epri = epriOf(ctx, mon.id);
   if (epri) return priestName(epri); // "the priest of Odin"

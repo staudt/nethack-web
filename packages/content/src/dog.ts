@@ -501,3 +501,26 @@ export function registerDog(api: ModApi): void {
   });
   api.on('endOfTurn', cleanup);
 }
+
+/**
+ * A pet swallowed a monster of type `cdef` whole: half the nourishment of its corpse and a quarter
+ * of the eating time. ref: src/uhitm.c mhitm_ad_dgst() (dog_nutrition() of a virtual corpse)
+ */
+export function swallowedNutrition(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  pet: Entity,
+  cdef: MonsterDef,
+): void {
+  const mult = { tiny: 8, small: 6, medium: 5, large: 4, huge: 3, gigantic: 2 }[
+    ctx.defs.monster(pet.def).size
+  ];
+  // dog_nutrition(): a corpse takes 3 + (cwt >> 6) turns and gives its nutrition times the size
+  let meal = 3 + (cdef.weight >> 6);
+  let nutrit = cdef.nutrition * mult;
+  // only 50% nutrition, 25% of normal eating time
+  if (meal > 1) meal = Math.trunc((meal + 3) / 4);
+  setMeating(ctx, pet.id, meal);
+  if (nutrit > 1) nutrit = Math.trunc(nutrit / 2);
+  const edog = edogOf(ctx, pet.id);
+  if (edog) edog.hungrytime += nutrit;
+}
