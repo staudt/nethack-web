@@ -1,10 +1,14 @@
-import type { DefId, Json, Params } from './common';
+import type { DefId, Json, Params, Pos } from './common';
 
 /** A question the core asks the player; answered with a `{ type: 'answer' }` action. */
 export interface Prompt {
   id: string;
-  /** 'text' is answered with a string (at most `maxLength` characters), or null to cancel. */
-  kind: 'yn' | 'direction' | 'menu' | 'text';
+  /**
+   * 'text' is answered with a string (at most `maxLength` characters), or null to cancel.
+   * 'position' asks for a map cell of the hero's level (NetHack's getpos()): it is answered with
+   * `{ x, y }` (integers inside the level) or null to cancel; the engine refuses anything else.
+   */
+  kind: 'yn' | 'direction' | 'menu' | 'text' | 'position';
   key: string;
   params?: Params;
   options?: PromptOption[];
@@ -25,6 +29,14 @@ export interface Prompt {
    * `null`. Multi menus, direction and text prompts can always be cancelled.
    */
   cancellable?: boolean;
+  /** Position prompts: where the cursor starts (default: the hero). */
+  start?: Pos;
+  /**
+   * Position prompts: cells to highlight and jump between (NetHack's getpos_hilitefunc and
+   * getvalid). Only a hint: any cell may be picked and the handler checks the answer itself, so
+   * it must list only cells the hero knows of.
+   */
+  valid?: Pos[];
 }
 
 export interface PromptOption {

@@ -168,12 +168,14 @@ export {
   WIZ_DIE,
   WIZ_CAST,
   WIZ_LEVELCHANGE,
+  WIZ_TELEPORT,
   parseGenesis,
   OPEN_DUNGEON_LEVELS,
   doMapping,
   levelportLevels,
   printDungeon,
 } from './wizard';
+export { askPosition, positionAnswer, type AskPositionOptions } from './getpos';
 export { ACTIONS } from './actions';
 export { TRAVEL_ACTIONS } from './travel';
 export { RUN_ACTIONS, RUN_MODES } from './run';

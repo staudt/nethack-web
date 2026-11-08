@@ -96,6 +96,16 @@ export interface CursorRenderer {
 const hasCursor = (r: object): r is CursorRenderer =>
   typeof (r as Partial<CursorRenderer>).setCursor === 'function';
 
+/**
+ * What a renderer may offer to mark a position prompt's valid cells (NetHack's
+ * getpos_hilitefunc); null removes the marks. Feature-detected like {@link CursorRenderer}.
+ */
+export interface HighlightRenderer {
+  setHighlights(cells: readonly Pos[] | null): void;
+}
+const hasHighlights = (r: object): r is HighlightRenderer =>
+  typeof (r as Partial<HighlightRenderer>).setHighlights === 'function';
+
 /** localStorage key of the per-device zoom: `fit`, or the cell width in CSS px. */
 export const ZOOM_STORAGE_KEY = 'nh.zoom';
 
@@ -262,6 +272,26 @@ export function createUi(opts: UiOptions): Ui {
   /** The keyboard look cursor, while look mode is on and a view has arrived. */
   let getpos: Getpos | null = null;
   const cursorRenderer: CursorRenderer | null = hasCursor(renderer) ? renderer : null;
+  const hiliteRenderer: HighlightRenderer | null = hasHighlights(renderer) ? renderer : null;
+  /** The core's position prompt being answered with the cursor, if any. */
+  let posPrompt: Prompt | null = null;
+  /** The cell the last tap put the cursor on; a second tap there picks it. */
+  let tapArmed: Pos | null = null;
+  // Its button bar (Pick, Cancel), shown instead of the main bar while it is up.
+  const posBar = doc.createElement('div');
+  posBar.className = 'nh-bar nh-pos-bar';
+  posBar.hidden = true;
+  const mkPosBtn = (cls: string, label: string): HTMLButtonElement => {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = `nh-btn ${cls}`;
+    b.textContent = label;
+    return b;
+  };
+  const posPickBtn = mkPosBtn('nh-pos-pick', t('ui.pos.pick'));
+  const posCancelBtn = mkPosBtn('nh-pos-cancel', t('ui.cancel'));
+  posBar.append(posPickBtn, posCancelBtn);
+  layout.bar.after(posBar);
   // The UI's copy of the map, for the look cursor (rule 4: never GameState).
   let mapW = 0;
   let mapH = 0;
@@ -343,6 +373,7 @@ export function createUi(opts: UiOptions): Ui {
   let prefix: string | null = null;
 
   const closeModal = (): void => {
+    endPosition();
     const m = modal;
     modal = null;
     promptId = null;
@@ -424,6 +455,68 @@ export function createUi(opts: UiOptions): Ui {
       s,
     );
   };
+
+  /** Leaves the position prompt's cursor mode (the answer, if any, is already sent). */
+  function endPosition(): void {
+    if (!posPrompt) return;
+    posPrompt = null;
+    tapArmed = null;
+    getpos = null;
+    cursorRenderer?.setCursor(null);
+    hiliteRenderer?.setHighlights(null);
+    posBar.hidden = true;
+    layout.bar.hidden = false;
+  }
+  const answerPosition = (pos: Pos | null): void => {
+    const p = posPrompt;
+    if (!p) return;
+    endPosition();
+    game.act({ type: 'answer', promptId: p.id, value: pos ? { x: pos.x, y: pos.y } : null });
+  };
+  /**
+   * A position prompt: its question in the log, the cursor on its start (else the hero), its
+   * valid cells highlighted, and the Pick/Cancel bar. Keys work as in Look (`z`/`Z` jump between
+   * the valid cells); a tap moves the cursor and a second tap on the same cell picks it, so one
+   * stray tap never decides. ref: src/getpos.c getpos()
+   */
+  const startPosition = (p: Prompt): void => {
+    closeModal();
+    chordReset();
+    prefix = null;
+    if (lookMode) setLook(false);
+    log.push(t(p.key, p.params));
+    promptId = p.id;
+    const here = playerPos;
+    if (!here || mapW === 0) {
+      game.act({ type: 'answer', promptId: p.id, value: null }); // no map to point at
+      return;
+    }
+    const valid = p.valid ?? [];
+    getpos = createGetpos(
+      () => ({
+        width: mapW,
+        height: mapH,
+        cells: mapCells,
+        entities: mapEntities,
+        player: playerPos ?? here,
+        glyphOf,
+        skipObjects: lookSkip,
+        valid,
+      }),
+      p.start,
+    );
+    posPrompt = p;
+    cursorRenderer?.setCursor(getpos.cursor);
+    hiliteRenderer?.setHighlights(valid.length ? valid : null);
+    layout.bar.hidden = true;
+    posBar.hidden = false;
+  };
+  const onPosPick = (): void => {
+    if (getpos && posPrompt) answerPosition(getpos.cursor);
+  };
+  const onPosCancel = (): void => answerPosition(null);
+  posPickBtn.addEventListener('click', onPosPick);
+  posCancelBtn.addEventListener('click', onPosCancel);
 
   const setLook = (on: boolean): void => {
     lookMode = on;
@@ -605,6 +698,16 @@ export function createUi(opts: UiOptions): Ui {
     const g = getpos;
     if (!g) return;
     const r = g.input(i);
+    if (posPrompt) {
+      tapArmed = null; // a key moved it: the next tap only moves it again
+      if (r.type === 'pick') answerPosition(r.pos);
+      else if (r.type === 'cancel') answerPosition(null);
+      else {
+        if (r.type === 'notfound') log.push(t('ui.look.nofeature', { ch: r.ch }));
+        cursorRenderer?.setCursor(g.cursor);
+      }
+      return;
+    }
     if (r.type === 'pick') {
       setLook(false);
       describe(r.pos);
@@ -619,6 +722,17 @@ export function createUi(opts: UiOptions): Ui {
     if (modal) return;
     const pos = renderer.cellAt(x, y);
     if (!pos) return;
+    if (posPrompt && getpos) {
+      // A position prompt: a tap moves the cursor there, a second tap on the same cell picks it
+      // (a first tap on the cursor's start only arms it).
+      const armed = tapArmed;
+      if (armed && armed.x === pos.x && armed.y === pos.y) answerPosition(pos);
+      else {
+        lookInput({ type: 'to', pos });
+        tapArmed = { x: pos.x, y: pos.y };
+      }
+      return;
+    }
     const wasLook = lookMode;
     // Any other tap while a travel or run animates just cancels it.
     if (cancelContinuing()) return;
@@ -653,7 +767,7 @@ export function createUi(opts: UiOptions): Ui {
         openActions({ kind: 'self' });
         break;
       case 'look':
-        setLook(!lookMode);
+        if (!posPrompt) setLook(!lookMode);
         break;
       case 'inventory':
         openInventory();
@@ -803,7 +917,7 @@ export function createUi(opts: UiOptions): Ui {
   };
   const onLookBtn = (): void => {
     if (cancelContinuing()) return;
-    if (!modal) setLook(!lookMode);
+    if (!modal && !posPrompt) setLook(!lookMode);
   };
   const onInventoryBtn = (): void => {
     if (cancelContinuing()) return;
@@ -815,6 +929,10 @@ export function createUi(opts: UiOptions): Ui {
   layout.lookBtn.addEventListener('click', onLookBtn);
 
   const showPrompt = (p: Prompt): void => {
+    if (p.kind === 'position') {
+      startPosition(p);
+      return;
+    }
     const answer =
       (value: unknown): MenuEntry['run'] =>
       () =>
@@ -1032,6 +1150,8 @@ export function createUi(opts: UiOptions): Ui {
       layout.menuBtn.removeEventListener('click', onMenuBtn);
       layout.actionsBtn.removeEventListener('click', onActionsBtn);
       layout.lookBtn.removeEventListener('click', onLookBtn);
+      posPickBtn.removeEventListener('click', onPosPick);
+      posCancelBtn.removeEventListener('click', onPosCancel);
       renderer.destroy();
       root.replaceChildren();
       root.classList.remove('nh-ui');

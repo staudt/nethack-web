@@ -502,6 +502,55 @@ describe('prompts', () => {
       'has no answer()',
     );
   });
+
+  describe('position prompts', () => {
+    const askPos = (s: GameState): void => {
+      s.pendingPrompt = {
+        prompt: { id: 'pos', kind: 'position', key: 'k', start: { x: 1, y: 1 }, valid: [] },
+        handler: 'fk:ask',
+        data: null,
+      };
+    };
+
+    test('a cell of the level or null reaches the handler', () => {
+      const s = fresh();
+      const { width, height } = getLevel(s);
+      for (const value of [{ x: 0, y: 0 }, { x: width - 1, y: height - 1 }, null]) {
+        askPos(s);
+        engine.step(s, { type: 'answer', promptId: 'pos', value });
+        expect(s.pendingPrompt).toBeNull();
+      }
+      expect(ctl.answered.map((a) => a.value)).toEqual([
+        { x: 0, y: 0 },
+        { x: width - 1, y: height - 1 },
+        null,
+      ]);
+    });
+
+    test('anything else throws and leaves the prompt pending', () => {
+      const s = fresh();
+      const { width, height } = getLevel(s);
+      askPos(s);
+      for (const value of [
+        { x: width, y: 0 },
+        { x: 0, y: height },
+        { x: -1, y: 0 },
+        { x: 1.5, y: 2 },
+        { x: '1', y: 2 },
+        { x: 1 },
+        { x: 1, y: 2, z: 3 },
+        [1, 2],
+        'n',
+        3,
+        true,
+      ] as Json[])
+        expect(() => engine.step(s, { type: 'answer', promptId: 'pos', value })).toThrow(
+          'A position answer',
+        );
+      expect(s.pendingPrompt?.prompt.id).toBe('pos');
+      expect(ctl.answered).toEqual([]);
+    });
+  });
 });
 
 describe('multi-turn actions', () => {

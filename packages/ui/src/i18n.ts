@@ -14,6 +14,7 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.look.pick': 'Pick a monster, object or location.',
   'ui.look.nofeature': "Can't find dungeon feature '{ch}'.",
   'ui.cancel': 'Cancel',
+  'ui.pos.pick': 'Pick',
   'ui.yes': 'Yes',
   'ui.no': 'No',
   'ui.quit': 'Quit',

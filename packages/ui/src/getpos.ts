@@ -5,7 +5,8 @@ import type { KeyLike } from './keymap';
 /**
  * The keyboard position cursor of NetHack's getpos() (ref: src/getpos.c getpos()), as a pure
  * state machine over the UI's mirror of the view. The host turns keys into {@link GetposInput}s
- * with {@link getposInput} and draws `cursor`; a tap picks a cell without it.
+ * with {@link getposInput} and draws `cursor`. Look mode and the core's position prompt both use
+ * it; a tap moves the cursor there.
  */
 
 /** What the cursor may look at: the UI's copy of the last view, never GameState. */
@@ -18,9 +19,11 @@ export interface GetposView {
   glyphOf(id: string): Glyph | undefined;
   /** Object ids that `o`/`O` skip (NetHack skips boulders and rocks). */
   skipObjects?: ReadonlySet<string>;
+  /** A position prompt's valid cells (its hint), which `z`/`Z` cycle through. */
+  valid?: readonly Pos[];
 }
 
-export type GlocKind = 'mons' | 'objs';
+export type GlocKind = 'mons' | 'objs' | 'valid';
 
 export type GetposInput =
   | { type: 'move'; dir: Dir; fast: boolean }
@@ -28,7 +31,9 @@ export type GetposInput =
   | { type: 'cancel' }
   | { type: 'self' }
   | { type: 'gloc'; gloc: GlocKind; prev: boolean }
-  | { type: 'feature'; ch: string };
+  | { type: 'feature'; ch: string }
+  /** A tap: the cursor goes to that cell. */
+  | { type: 'to'; pos: Pos };
 
 export type GetposResult =
   | { type: 'moved' }
@@ -72,6 +77,8 @@ export function getposInput(e: KeyLike, cmd: UiCommand | undefined): GetposInput
   if (e.key === '@') return { type: 'self' };
   if (e.key === 'm' || e.key === 'M') return { type: 'gloc', gloc: 'mons', prev: e.key === 'M' };
   if (e.key === 'o' || e.key === 'O') return { type: 'gloc', gloc: 'objs', prev: e.key === 'O' };
+  // ref: src/cmd.c NHKF_GETPOS_VALID_NEXT 'z', NHKF_GETPOS_VALID_PREV 'Z'
+  if (e.key === 'z' || e.key === 'Z') return { type: 'gloc', gloc: 'valid', prev: e.key === 'Z' };
   if (FEATURE_KEYS.has(e.key)) return { type: 'feature', ch: e.key };
   const d = cmd ? dirOf(cmd) : null;
   if (!isDir(d)) return null;
@@ -100,10 +107,16 @@ export function truncateToMap(c: Pos, dx: number, dy: number, w: number, h: numb
   return { x: c.x + dx, y: c.y + dy };
 }
 
+const clampToMap = (p: Pos, v: { width: number; height: number }): Pos => ({
+  x: Math.min(Math.max(0, p.x), v.width - 1),
+  y: Math.min(Math.max(0, p.y), v.height - 1),
+});
+
 /**
- * Spots for `m`/`o`: the hero's spot first, then the shown monsters (or objects) nearest first,
- * ties by row then column. ref: src/getpos.c gather_locs(), gather_locs_interesting(),
- * cmp_coord_distu()
+ * Spots for `m`/`o`/`z`: the hero's spot first, then the shown monsters (or objects, or the
+ * prompt's valid cells) nearest first, ties by row then column. Without valid cells `z` only
+ * returns to the hero (C falls back to its "interesting" spots, not ported).
+ * ref: src/getpos.c gather_locs(), gather_locs_interesting() (GLOC_VALID), cmp_coord_distu()
  */
 export function gatherLocs(v: GetposView, gloc: GlocKind): Pos[] {
   const u = v.player;
@@ -112,6 +125,8 @@ export function gatherLocs(v: GetposView, gloc: GlocKind): Pos[] {
   const out: Pos[] = [{ x: u.x, y: u.y }];
   if (gloc === 'mons') {
     for (const e of v.entities) if (!at(e.x, e.y)) out.push({ x: e.x, y: e.y });
+  } else if (gloc === 'valid') {
+    for (const p of v.valid ?? []) if (!at(p.x, p.y)) out.push({ x: p.x, y: p.y });
   } else {
     v.cells.forEach((c, i) => {
       const x = i % v.width;
@@ -154,12 +169,16 @@ export function findFeature(v: GetposView, from: Pos, ch: string): Pos | null {
   return null;
 }
 
-/** Starts a cursor on the hero. `view` is read again on each input (the mirror may change). */
-export function createGetpos(view: () => GetposView): Getpos {
+/**
+ * Starts a cursor on `start` (a position prompt's), else on the hero. `view` is read again on
+ * each input (the mirror may change).
+ */
+export function createGetpos(view: () => GetposView, start?: Pos): Getpos {
   const v0 = view();
-  let cursor: Pos = { x: v0.player.x, y: v0.player.y };
+  const s0 = start ?? v0.player;
+  let cursor: Pos = clampToMap(s0, v0);
   const garr: Partial<Record<GlocKind, Pos[]>> = {};
-  const gidx: Record<GlocKind, number> = { mons: 0, objs: 0 };
+  const gidx: Record<GlocKind, number> = { mons: 0, objs: 0, valid: 0 };
   return {
     get cursor() {
       return cursor;
@@ -179,7 +198,7 @@ export function createGetpos(view: () => GetposView): Getpos {
         }
         case 'self':
           // reset 'm&M', 'o&O' so the next one starts from the nearest again
-          gidx.mons = gidx.objs = 0;
+          gidx.mons = gidx.objs = gidx.valid = 0;
           cursor = { x: v.player.x, y: v.player.y };
           return { type: 'moved' };
         case 'gloc': {
@@ -190,6 +209,9 @@ export function createGetpos(view: () => GetposView): Getpos {
           if (p) cursor = { x: p.x, y: p.y };
           return { type: 'moved' };
         }
+        case 'to':
+          cursor = clampToMap(i.pos, v);
+          return { type: 'moved' };
         case 'feature': {
           const p = findFeature(v, cursor, i.ch);
           if (!p) return { type: 'notfound', ch: i.ch };

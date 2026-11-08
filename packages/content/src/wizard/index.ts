@@ -6,6 +6,7 @@ import { wizIdentify } from './identify';
 import { wizLevelchange } from './levelchange';
 import { wizLevelport } from './levelport';
 import { wizMap } from './map';
+import { wizTeleport } from './teleport';
 import { wizWhere } from './where';
 import { wizWish } from './wish';
 
@@ -22,6 +23,7 @@ export const wizardMod: Mod = {
     api.defineAction(wizMap);
     api.defineAction(wizWhere);
     api.defineAction(wizLevelport);
+    api.defineAction(wizTeleport);
     api.defineAction(wizWish);
     api.defineAction(wizIdentify);
     api.defineAction(wizGenesis);
@@ -34,6 +36,7 @@ export const wizardMod: Mod = {
 
 export { OPEN_DUNGEON_LEVELS, WIZ_LEVELPORT, levelportLevels, wizLevelport } from './levelport';
 export { WIZ_MAP, doMapping } from './map';
+export { WIZ_TELEPORT, wizTeleport } from './teleport';
 export { WIZ_WHERE, printDungeon } from './where';
 export { WIZ_IDENTIFY, wizIdentify } from './identify';
 export { WIZ_WISH, wizWish } from './wish';

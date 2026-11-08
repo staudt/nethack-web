@@ -33,6 +33,7 @@ import {
   WIZ_WISH,
   WIZ_CAST,
   WIZ_LEVELCHANGE,
+  WIZ_TELEPORT,
   CAST_BOOKS,
   MAXULEV,
   newuexp,
@@ -69,6 +70,7 @@ describe('the wizard mod', () => {
       WIZ_MAP,
       WIZ_WHERE,
       WIZ_LEVELPORT,
+      WIZ_TELEPORT,
       WIZ_WISH,
       WIZ_IDENTIFY,
       WIZ_GENESIS,
@@ -108,6 +110,10 @@ describe('the wizard mod', () => {
       'wiz.levelport.level',
       'wiz.levelport.here',
       'wiz.levelport.arrive',
+      'action.wiz:teleport',
+      'tele.where_to',
+      'tele.sorry',
+      'tele.unconscious_control',
       'action.wiz:wish',
       'action.wiz:identify',
       'wish.prompt',
@@ -403,6 +409,107 @@ describe('wiz:levelport', () => {
 
     expect(msgs(levelport(state, 'nh:main', 1))).toEqual([]);
     expect(stateHash(state)).toBe(hash);
+  });
+});
+
+describe('wiz:teleport', () => {
+  const TELEPORT: PlayerAction = { type: 'mod', action: WIZ_TELEPORT as DefId };
+  const heroAt = (state: GameState) => {
+    const p = getPlayer(state).c.pos;
+    if (!p) throw new Error('no hero');
+    return p;
+  };
+  const nutrition = (state: GameState): number => getPlayer(state).c.hunger?.nutrition ?? NaN;
+  /** The farthest plain floor cell with nothing on it and no trap (a clean landing spot). */
+  function farFloor(state: GameState): { x: number; y: number } {
+    const level = getLevel(state);
+    const h = heroAt(state);
+    const taken = new Set(
+      Object.values(state.entities).flatMap((e) =>
+        e.c.pos && e.c.pos.level === level.id ? [e.c.pos.y * level.width + e.c.pos.x] : [],
+      ),
+    );
+    let best: { x: number; y: number } | null = null;
+    let bestD = -1;
+    for (let y = 0; y < level.height; y++)
+      for (let x = 0; x < level.width; x++) {
+        if (!isPlainFloor(wizard.registry, level, x, y) || trapAt(level, x, y)) continue;
+        if (taken.has(y * level.width + x)) continue;
+        const d = Math.max(Math.abs(x - h.x), Math.abs(y - h.y));
+        if (d > bestD) [best, bestD] = [{ x, y }, d];
+      }
+    if (!best) throw new Error('no floor');
+    return best;
+  }
+  /** A wall cell of the level. */
+  function wallCell(state: GameState): { x: number; y: number } {
+    const level = getLevel(state);
+    const i = level.cells.findIndex((c) => level.palette[c] === 'nh:vwall');
+    if (i < 0) throw new Error('no wall');
+    return { x: i % level.width, y: Math.floor(i / level.width) };
+  }
+  const answer = (state: GameState, value: Json): GameEvent[] => {
+    const id = state.pendingPrompt?.prompt.id;
+    if (!id) throw new Error('no prompt');
+    return wizard.step(state, { type: 'answer', promptId: id, value }).events;
+  };
+
+  test('asks for a position with the cursor on the hero, taking no time yet', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const turn = state.turn;
+    const r = wizard.step(state, TELEPORT);
+    expect(r.prompt).toMatchObject({ kind: 'position', key: 'tele.where_to' });
+    expect(r.prompt?.start).toBeUndefined(); // the UI starts on the hero
+    expect(state.turn).toBe(turn);
+  });
+
+  test('lands on the picked spot; 100 nutrition and the move', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const to = farFloor(state);
+    const food = nutrition(state);
+    const turn = state.turn;
+    wizard.step(state, TELEPORT);
+    const events = answer(state, to);
+    expect(heroAt(state)).toMatchObject(to);
+    expect(msgs(events).map((m) => m.key)).toContain('tele.materialize_different');
+    expect(nutrition(state)).toBeLessThanOrEqual(food - 100);
+    expect(state.turn).toBeGreaterThan(turn);
+  });
+
+  test('ignores a no-teleport level, as wizard mode does', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const level = getLevel(state);
+    const nh = state.modData['nh'] as Record<string, unknown>;
+    nh['stasis'] = { [level.id]: state.turn + 100 }; // stasis makes the level no-teleport
+    const to = farFloor(state);
+    wizard.step(state, TELEPORT);
+    answer(state, to);
+    expect(heroAt(state)).toMatchObject(to);
+  });
+
+  test('a wall is "Sorry..." and a random teleport to a safe spot', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const wall = wallCell(state);
+    wizard.step(state, TELEPORT);
+    const events = answer(state, wall);
+    expect(msgs(events).map((m) => m.key)).toEqual(
+      expect.arrayContaining(['tele.sorry', expect.stringMatching(/^tele\.materialize_/)]),
+    );
+    const p = heroAt(state);
+    expect(p.x === wall.x && p.y === wall.y).toBe(false);
+  });
+
+  test('cancelling stays put but still costs the nutrition and the move', () => {
+    const { state } = wizard.newGame({ seed: 4 });
+    const from = { ...heroAt(state) };
+    const food = nutrition(state);
+    const turn = state.turn;
+    wizard.step(state, TELEPORT);
+    const events = answer(state, null);
+    expect(heroAt(state)).toEqual(from);
+    expect(msgs(events).filter((m) => m.key.startsWith('tele.'))).toEqual([]);
+    expect(nutrition(state)).toBeLessThanOrEqual(food - 100);
+    expect(state.turn).toBeGreaterThan(turn);
   });
 });
 

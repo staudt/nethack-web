@@ -18,6 +18,7 @@ import {
   levelIdFor,
   rootDungeon,
   type GameState,
+  type Json,
   cellRules,
   getLevel,
   getPlayer,
@@ -56,7 +57,10 @@ import {
   randomTeleportLevel,
   rlocMonPos,
   safeTeledsPos,
+  teleok,
 } from './teleport';
+import { askPosition, positionAnswer } from './getpos';
+import { unaware } from './btrapped';
 import { poisoned } from './attrib';
 import { resistsMagm } from './buzz';
 import { dmgval, dmgvalSized } from './dmgval';
@@ -1682,6 +1686,41 @@ export function tele(ctx: Ctx): void {
     say(ctx, 'tele.mysterious_force');
     return;
   }
+  safeTeleds(ctx);
+}
+
+/**
+ * The controlled half of scrolltele(): "Being unconscious, you cannot control your teleport."
+ * (then a random teleport), else the position prompt "Where do you want to be teleported?",
+ * whose answer `handler` passes to {@link answerTeleport}. The cursor starts on the hero (C:
+ * `iflags.travelcc` when set; dotele() clears it first). True when the prompt was raised.
+ * ref: src/teleport.c scrolltele() (the Teleport_control / wizard branch; no steed)
+ */
+export function askTeleport(ctx: Ctx, handler: DefId, data: Json): boolean {
+  if (unaware(ctx)) {
+    say(ctx, 'tele.unconscious_control');
+    safeTeleds(ctx);
+    return false;
+  }
+  askPosition(ctx, 'tele.where_to', handler, data, { id: 'tele-where' });
+  return true;
+}
+
+/**
+ * The answer to {@link askTeleport}: null aborts (nothing happens); a spot she may land on
+ * (teleok(), traps refused) is where she materializes; anything else is "Sorry..." and a
+ * random teleport.
+ * ref: src/teleport.c scrolltele() after getpos()
+ */
+export function answerTeleport(ctx: Ctx, value: Json): void {
+  const cc = positionAnswer(value);
+  if (!cc) return; // abort
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  if (teleok(ctx, level, cc.x, cc.y, false)) {
+    teleds(ctx, cc.x, cc.y, { teleport: true });
+    return;
+  }
+  say(ctx, 'tele.sorry');
   safeTeleds(ctx);
 }
 

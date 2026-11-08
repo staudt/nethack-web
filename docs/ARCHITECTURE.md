@@ -351,7 +351,7 @@ type GameEvent =
 
 interface Prompt {
   id: string;
-  kind: 'yn' | 'direction' | 'menu' | 'text'; // 'text' is answered with a string of at most maxLength characters (null cancels)
+  kind: 'yn' | 'direction' | 'menu' | 'text' | 'position'; // 'text' is answered with a string of at most maxLength characters (null cancels); 'position' with { x, y } on the hero's level or null (7f-a)
   key: string;
   params?: Params;
   options?: { value: Json; key: string; params?: Params; glyph?: DefId; max?: number }[]; // max: a count 1..max may be chosen (a stack size)
@@ -359,6 +359,8 @@ interface Prompt {
   maxLength?: number; // text prompts: the longest accepted answer
   numeric?: boolean; // text prompts: a whole number (gold to donate); the UI shows a number pad and takes digits only, the answer stays a string
   cancellable?: boolean; // single-select menus and yn: Cancel and Escape answer null (NetHack's ESC)
+  start?: Pos; // position prompts: where the cursor starts (default the hero)
+  valid?: Pos[]; // position prompts: cells to highlight and jump between; a hint the handler re-checks
 }
 ```
 
@@ -377,7 +379,7 @@ interface Engine {
 
 Each step does the following (ref: src/allmain.c moveloop_core):
 
-1. If the game is over, the step throws. If a prompt is pending, the action must be its `answer`, which goes to the handler's `answer()`.
+1. If the game is over, the step throws. If a prompt is pending, the action must be its `answer`, which goes to the handler's `answer()`. A `'position'` prompt's answer must be null or `{ x, y }` (integers inside the current level, no other keys); anything else throws and the prompt stays pending.
    Any action other than `continue` first clears `state.occupation` (this is how input cancels a multi-turn action). `continue` takes the action to perform from `state.occupation.action` instead (and does nothing without one). If the action's def has `continues`, the engine sets `state.occupation = { action: <clone>, data: null }` before performing a fresh action.
 2. `beforeAction` hooks run, and any of them may cancel the action (which also clears the occupation).
 3. The action's `perform` runs and returns its energy cost. The default cost is 12, and a cost of 0 means no time passes (for example, bumping a wall). Vision is refreshed.
@@ -556,7 +558,7 @@ Inside `offer()` and queries, every mutating `Ctx` member throws, and so do `rng
   - malformed fields
 - **Vanilla gets no special access.** `@nh/content` exports `vanillaMod` (id `nh`), which registers terrain, the stub role, monsters, their brain, actions and its hooks (hero stats, regeneration, generation) through `ModApi`.
 - Game mods are recorded in saves as `ModRef[]`. Loading a save with a different mod list fails with a clear error.
-- **Wizard mode is an ordinary game mod.** `@nh/content` also exports `wizardMod` (id `wiz`, depends on `nh`, def ids `wiz:*`, code in `packages/content/src/wizard/`), NetHack's `-D` debug mode. It is not part of `vanillaMod`: the app loads `[vanillaMod, wizardMod]` for `?wizard=1`, and the save's mod list (`nh@…, wiz@…`) keeps a wizard game a wizard game (see Worker protocol). It registers only through `ModApi`: actions offered on `{ kind: 'self' }` (`wiz:map`, `wiz:where`, `wiz:levelport`, `wiz:wish`, `wiz:identify`, `wiz:genesis`), the `wiz:die` prompt handler and a `beforeGameOver` hook. Loading it draws no random numbers, so a seed builds the same game with or without it. "Die?": content's `done()` calls `ctx.endGame()`; the hook asks a yn prompt and cancels for deaths (not escapes); `done()` then sees the game still going and runs `savelife()`, as after life saving, and the engine's prompt pause stops time until the answer, which either ends the game with the recorded `GameOver` or says "OK, so you don't die." The hook is the one core interface the mod needed: a death happens deep inside a monster's move, and nothing else lets another mod stop the game from ending. A future score list must skip games whose mod list includes `wiz` (ROADMAP).
+- **Wizard mode is an ordinary game mod.** `@nh/content` also exports `wizardMod` (id `wiz`, depends on `nh`, def ids `wiz:*`, code in `packages/content/src/wizard/`), NetHack's `-D` debug mode. It is not part of `vanillaMod`: the app loads `[vanillaMod, wizardMod]` for `?wizard=1`, and the save's mod list (`nh@…, wiz@…`) keeps a wizard game a wizard game (see Worker protocol). It registers only through `ModApi`: actions offered on `{ kind: 'self' }` (`wiz:map`, `wiz:where`, `wiz:levelport`, `wiz:teleport`, `wiz:wish`, `wiz:identify`, `wiz:genesis`), the `wiz:die` prompt handler and a `beforeGameOver` hook. Loading it draws no random numbers, so a seed builds the same game with or without it. "Die?": content's `done()` calls `ctx.endGame()`; the hook asks a yn prompt and cancels for deaths (not escapes); `done()` then sees the game still going and runs `savelife()`, as after life saving, and the engine's prompt pause stops time until the answer, which either ends the game with the recorded `GameOver` or says "OK, so you don't die." The hook is the one core interface the mod needed: a death happens deep inside a monster's move, and nothing else lets another mod stop the game from ending. A future score list must skip games whose mod list includes `wiz` (ROADMAP).
 - **Typed names go through the message catalog.** The wish parser (`content/src/objnam_read.ts readobjnam()`) and genesis (`nameToMon()`) match what the player types against names built from the English catalog (`wishNames(state, defs, messagesEn)`): object names stripped to NetHack's `objects[]` form ("potion of healing" -> "healing"), this game's appearances, fixed descriptions, called names and monster names. The parser returns a plain `WishSpec`; making the object (`wish.ts mkWished()`, which draws the RNG) is separate, so a later wand of wishing reuses both. A different-language client would need its own catalog passed in.
 
 ## Queries
@@ -669,7 +671,9 @@ interface ClientApi {
 
 Client mods run in the UI and are never saved. The default keymap is itself a client mod.
 
-**Position cursor.** Look (`;` or the Look button) puts a keyboard cursor on the hero (NetHack's `getpos()`, `packages/ui/src/getpos.ts`): direction keys resolved through the keymap move it, `.` `,` `;` `:` pick, Esc cancels, `m`/`o`/`@`/`<`/`>` jump. It works on the UI's own copy of the last `ViewUpdate` (never `GameState`); a tap still picks a cell directly. A renderer shows it by implementing the optional `setCursor(pos | null)` (feature-detected, like `flash()`), and the ASCII renderer's camera then follows the cursor instead of the hero. Core has no position prompt; any future one should reuse this cursor.
+**Position cursor.** Look (`;` or the Look button) puts a keyboard cursor on the hero (NetHack's `getpos()`, `packages/ui/src/getpos.ts`): direction keys resolved through the keymap move it, `.` `,` `;` `:` pick, Esc cancels, `m`/`o`/`@`/`<`/`>` jump. It works on the UI's own copy of the last `ViewUpdate` (never `GameState`); in Look a tap still picks a cell directly. A renderer shows it by implementing the optional `setCursor(pos | null)` (feature-detected, like `flash()`), and the ASCII renderer's camera then follows the cursor instead of the hero.
+
+**Position prompts (7f-a, D1).** When the core needs a map cell (controlled teleport, wizard `^T`, later `#jump`), content asks a `Prompt` of kind `'position'` (`askPosition()` in `packages/content/src/getpos.ts`) with an optional `start` and `valid` list, and the answer is `{ x, y }` or null. Why a core change: before it, core could only ask yes/no, a direction, a menu or text, and a menu of cells is unusable on an 80x21 map and cannot say "anywhere"; NetHack's `getpos()` serves teleport control, jumping, polearms and more. The engine checks the answer's shape (see step 1), never its meaning: the handler re-checks the cell (C's `teleok()` and "Sorry..."), so `valid` is only a hint for the UI and must list only cells the hero knows of. The UI reuses the Look cursor for it: the question goes to the log, the cursor starts on `start` (else the hero), the main bar is replaced by Pick and Cancel, keys work as in Look plus `z`/`Z` to cycle the valid cells, and a tap moves the cursor while a second tap on the same cell picks it (one stray tap must not decide where she lands). A renderer marks the valid cells by implementing the optional `setHighlights(cells | null)` (feature-detected; the ASCII renderer draws a background). The soak bot answers with a random valid cell, else a random cell she sees, else null. Answers are recorded in replays like any other.
 
 ## Worker protocol
 

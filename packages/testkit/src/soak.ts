@@ -4,6 +4,7 @@ import {
   DIR_LIST,
   createEngine,
   createRng,
+  getLevel,
   getPlayer,
   inRooms,
   inventoryOf,
@@ -88,6 +89,8 @@ export interface SoakResult {
   /** Text prompts answered with a string, and count-menu entries answered with a partial count. */
   textAnswers: number;
   countAnswers: number;
+  /** Position prompts answered (a valid cell, a seen cell or a cancel). */
+  positionAnswers: number;
   /** Chats with a temple priest (`nh:chat`). */
   chatted: number;
   /** Times the bot paid (`nh:pay`) while owing in a shop. */
@@ -203,6 +206,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let putOn = 0;
   let textAnswers = 0;
   let countAnswers = 0;
+  let positionAnswers = 0;
   let chatted = 0;
   let paid = 0;
   let nextPay = 0;
@@ -370,6 +374,18 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       }
       textAnswers++;
       return `n${rng.rn2(100)}`;
+    }
+    if (pending.kind === 'position') {
+      // a random valid cell, else a random cell she sees, else a cancel
+      positionAnswers++;
+      const valid = pending.valid ?? [];
+      const pick = valid.length > 0 ? valid[rng.rn2(valid.length)] : undefined;
+      if (pick) return { x: pick.x, y: pick.y };
+      const seen = state.visible;
+      const width = getLevel(state).width;
+      const i = seen.length > 0 ? seen[rng.rn2(seen.length)] : undefined;
+      if (i === undefined) return null;
+      return { x: i % width, y: Math.floor(i / width) };
     }
     if (pending.kind === 'direction') {
       const dirs = opts_.map((o) => o.value);
@@ -721,6 +737,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     putOn,
     textAnswers,
     countAnswers,
+    positionAnswers,
     chatted,
     paid,
     fountain,

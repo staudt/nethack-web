@@ -26,3 +26,12 @@ test('the ascii renderer offers setCursor() and tolerates it before mounting', (
     r.setCursor(null);
   }).not.toThrow();
 });
+
+test('the ascii renderer offers setHighlights() and tolerates it before mounting', () => {
+  const r = createAsciiRenderer();
+  expect(typeof r.setHighlights).toBe('function');
+  expect(() => {
+    r.setHighlights([{ x: 3, y: 4 }]);
+    r.setHighlights(null);
+  }).not.toThrow();
+});

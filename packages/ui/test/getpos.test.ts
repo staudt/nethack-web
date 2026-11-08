@@ -148,4 +148,42 @@ describe('createGetpos', () => {
     expect(g.input({ type: 'pick' })).toEqual({ type: 'pick', pos: { x: 5, y: 5 } });
     expect(g.input({ type: 'feature', ch: '_' })).toEqual({ type: 'notfound', ch: '_' });
   });
+
+  test('a position prompt: starts on `start`, z/Z cycle its valid cells, a tap moves', () => {
+    const v = mkView({
+      valid: [
+        { x: 9, y: 0 },
+        { x: 5, y: 3 },
+      ],
+    });
+    const g = createGetpos(() => v, { x: 2, y: 1 });
+    expect(g.cursor).toEqual({ x: 2, y: 1 });
+    expect(getposInput({ key: 'z', code: 'KeyZ' }, undefined)).toEqual({
+      type: 'gloc',
+      gloc: 'valid',
+      prev: false,
+    });
+    // the hero's spot first, then the valid cells nearest first
+    expect(gatherLocs(v, 'valid')).toEqual([
+      { x: 4, y: 3 },
+      { x: 5, y: 3 },
+      { x: 9, y: 0 },
+    ]);
+    g.input({ type: 'gloc', gloc: 'valid', prev: false });
+    expect(g.cursor).toEqual({ x: 5, y: 3 });
+    g.input({ type: 'gloc', gloc: 'valid', prev: false });
+    expect(g.cursor).toEqual({ x: 9, y: 0 });
+    g.input({ type: 'gloc', gloc: 'valid', prev: true });
+    expect(g.cursor).toEqual({ x: 5, y: 3 });
+    expect(g.input({ type: 'to', pos: { x: 7, y: 2 } })).toEqual({ type: 'moved' });
+    expect(g.cursor).toEqual({ x: 7, y: 2 });
+    g.input({ type: 'to', pos: { x: 40, y: -3 } });
+    expect(g.cursor).toEqual({ x: W - 1, y: 0 });
+    // no valid cells: z only returns to the hero
+    expect(gatherLocs(mkView(), 'valid')).toEqual([{ x: 4, y: 3 }]);
+  });
+
+  test('a start off the map is clamped onto it', () => {
+    expect(createGetpos(() => mkView(), { x: -2, y: 99 }).cursor).toEqual({ x: 0, y: H - 1 });
+  });
 });

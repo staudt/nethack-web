@@ -23,6 +23,7 @@ padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padd
 .nh-bar{flex:none;display:flex;gap:8px;padding:8px;background:var(--nh-panel);border-top:1px solid var(--nh-border)}
 .nh-btn{min-width:44px;min-height:44px;padding:8px 14px;font-size:16px;color:var(--nh-fg);background:#232833;border:1px solid var(--nh-border);border-radius:8px;cursor:pointer}
 .nh-bar .nh-btn{flex:1}
+.nh-bar[hidden]{display:none}
 .nh-bar .nh-menu-btn,.nh-bar .nh-zoom-btn{flex:none;min-width:48px;padding-left:10px;padding-right:10px}
 .nh-btn[aria-pressed="true"],.nh-sel{background:var(--nh-accent);color:#000}
 .nh-modal{position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}

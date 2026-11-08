@@ -1540,6 +1540,114 @@ describe('look cursor (keyboard getpos)', () => {
     expect(logText(m.root).at(-1)).toBe("Can't find dungeon feature '<'.");
   });
 
+  describe('a position prompt', () => {
+    class HiliteFake extends CursorFake {
+      hilites: (readonly Pos[] | null)[] = [];
+      setHighlights(c: readonly Pos[] | null) {
+        this.hilites.push(c);
+      }
+    }
+    const posPrompt: Prompt = {
+      id: 'tele-where',
+      kind: 'position',
+      key: 'ui.look.pick',
+      start: { x: 2, y: 3 },
+      valid: [
+        { x: 8, y: 1 },
+        { x: 6, y: 5 },
+      ],
+    };
+    const mkPos = () => {
+      const root = document.createElement('div');
+      document.body.append(root);
+      const renderer = new HiliteFake();
+      const g = fakeGame();
+      const u = createUi({ root, renderer, game: g.game, mods: [defaultKeymap], chordWindowMs: 0 });
+      ui = u;
+      u.update(full(), [], posPrompt);
+      return { root, renderer, ui: u, ...g };
+    };
+    const bars = (root: Element) => ({
+      main: root.querySelector('.nh-bar:not(.nh-pos-bar)') as HTMLElement,
+      pos: root.querySelector('.nh-pos-bar') as HTMLElement,
+    });
+
+    test('shows its question, the cursor on its start, the valid cells and Pick/Cancel', () => {
+      const m = mkPos();
+      expect(logText(m.root).at(-1)).toBe('Pick a monster, object or location.');
+      expect(m.renderer.cursors.at(-1)).toEqual({ x: 2, y: 3 });
+      expect(m.renderer.hilites.at(-1)).toEqual(posPrompt.valid);
+      expect(bars(m.root).main.hidden).toBe(true);
+      expect(bars(m.root).pos.hidden).toBe(false);
+      expect(m.root.querySelector('.nh-modal')).toBeNull();
+    });
+
+    test('keys move it as in Look, z/Z jump between the valid cells, . answers the cell', () => {
+      const m = mkPos();
+      key('z', 'KeyZ'); // nearest valid cell to the hero (5,5) first
+      expect(m.renderer.cursors.at(-1)).toEqual({ x: 6, y: 5 });
+      key('z', 'KeyZ');
+      expect(m.renderer.cursors.at(-1)).toEqual({ x: 8, y: 1 });
+      key('l', 'KeyL');
+      expect(m.acts).toEqual([]);
+      key('.', 'Period');
+      expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: { x: 9, y: 1 } }]);
+      expect(m.renderer.cursors.at(-1)).toBeNull();
+      expect(m.renderer.hilites.at(-1)).toBeNull();
+      expect(bars(m.root).main.hidden).toBe(false);
+      expect(bars(m.root).pos.hidden).toBe(true);
+      // the cursor is gone: keys act again once the prompt is over
+      m.ui.update(view(9, 1), [], null);
+      key('h', 'KeyH');
+      expect(m.acts.at(-1)).toEqual({ type: 'move', dir: 'w' });
+    });
+
+    test('a tap moves the cursor; a second tap on the same cell picks', () => {
+      const m = mkPos();
+      const map = m.root.querySelector('.nh-map')!;
+      m.renderer.cell = { x: 2, y: 3 }; // the cursor's start: one tap only arms it
+      tap(map);
+      expect(m.acts).toEqual([]);
+      m.renderer.cell = { x: 10, y: 6 };
+      tap(map);
+      expect(m.renderer.cursors.at(-1)).toEqual({ x: 10, y: 6 });
+      expect(m.acts).toEqual([]);
+      m.renderer.cell = { x: 9, y: 6 };
+      tap(map);
+      expect(m.acts).toEqual([]);
+      tap(map);
+      expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: { x: 9, y: 6 } }]);
+    });
+
+    test('the Pick button answers the cursor, Cancel and Escape answer null', () => {
+      let m = mkPos();
+      (m.root.querySelector('.nh-pos-pick') as HTMLElement).click();
+      expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: { x: 2, y: 3 } }]);
+      ui?.destroy();
+      m = mkPos();
+      (m.root.querySelector('.nh-pos-cancel') as HTMLElement).click();
+      expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: null }]);
+      ui?.destroy();
+      m = mkPos();
+      key('Escape', 'Escape');
+      expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: null }]);
+    });
+
+    test('without a start the cursor is on the hero; the Look button is ignored', () => {
+      const root = document.createElement('div');
+      document.body.append(root);
+      const renderer = new HiliteFake();
+      const g = fakeGame();
+      ui = createUi({ root, renderer, game: g.game, mods: [defaultKeymap] });
+      ui.update(full(), [], { id: 'p', kind: 'position', key: 'ui.look.pick' });
+      expect(renderer.cursors.at(-1)).toEqual({ x: 5, y: 5 });
+      expect(renderer.hilites.at(-1)).toBeNull();
+      look({ root });
+      expect(renderer.cursors.at(-1)).toEqual({ x: 5, y: 5 });
+      expect(root.querySelector('.nh-look-btn')!.getAttribute('aria-pressed')).toBe('false');
+    });
+  });
+
   test('a tap still picks directly while the cursor is up', async () => {
     const m = mkLook();
     m.ui.update(full(), [], null);

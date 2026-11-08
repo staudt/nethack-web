@@ -3,6 +3,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'action.wiz:map': 'Wizard: map the level',
   'action.wiz:where': 'Wizard: dungeon overview',
   'action.wiz:levelport': 'Wizard: level teleport',
+  'action.wiz:teleport': 'Wizard: teleport',
   'action.wiz:wish': 'Wizard: wish',
   'action.wiz:identify': 'Wizard: identify inventory',
   'action.wiz:genesis': 'Wizard: create a monster',

@@ -77,6 +77,23 @@ export class UnknownActionError extends Error {
   }
 }
 
+/**
+ * A position prompt's answer must be null (cancelled) or `{ x, y }`, integers inside `level`;
+ * anything else throws before the handler sees it, and the prompt stays pending.
+ */
+function checkPosition(level: Level, value: Json): void {
+  if (value === null) return;
+  const p = value as { x?: unknown; y?: unknown };
+  const ok =
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 2 &&
+    Number.isInteger(p.x) &&
+    Number.isInteger(p.y) &&
+    inBounds(level, p.x as number, p.y as number);
+  if (!ok) throw new Error(`A position answer must be null or {x, y} on the level`);
+}
+
 export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): Engine {
   const registry = loadMods(mods);
   const terrain = opts.terrain ?? VANILLA_TERRAIN;
@@ -408,6 +425,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           throw new Error(`Prompt '${pending.prompt.id}' must be answered first`);
         const def = registry.actions.find((a) => a.id === pending.handler);
         if (!def?.answer) throw new Error(`Prompt handler '${pending.handler}' has no answer()`);
+        if (pending.prompt.kind === 'position') checkPosition(getLevel(state), action.value);
         state.pendingPrompt = null;
         state.occupation = null;
         // An answer may start a multi-turn action by setting `state.occupation` (e.g. a run).

@@ -31,6 +31,8 @@ export interface AsciiRendererOptions {
   petBackground?: string;
   /** Outline of the position cursor. Default yellow. */
   cursorColor?: string;
+  /** Cell background of a position prompt's valid cells. Default a dark blue. */
+  highlightBackground?: string;
 }
 
 export type AsciiRenderer = Renderer & {
@@ -55,6 +57,11 @@ export type AsciiRenderer = Renderer & {
    * cell; the camera follows it instead of the hero, like cliparound(cx, cy). null removes it.
    */
   setCursor(pos: Pos | null): void;
+  /**
+   * Marks a position prompt's valid cells with a background (NetHack's getpos_hilitefunc,
+   * HiliteBackground); null removes the marks.
+   */
+  setHighlights(cells: readonly Pos[] | null): void;
 };
 
 /** One overlaid cell for {@link AsciiRenderer.flash}. */
@@ -101,6 +108,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   const background = opts.background ?? '#000';
   const petBackground = opts.petBackground ?? '#1d3b24';
   const cursorColor = opts.cursorColor ?? '#ff0';
+  const highlightBackground = opts.highlightBackground ?? '#1f2f55';
   const minCell = opts.minCellCssPx ?? 6;
 
   let host: HTMLElement | null = null;
@@ -130,6 +138,8 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   const overrides = new Map<string, Glyph>();
   let flashed: readonly FlashCell[] = [];
   let cursor: Pos | null = null;
+  /** Highlighted cells as `y * width + x`. */
+  let highlights = new Set<number>();
 
   // Camera
   let cam: CameraState = { x: 0, y: 0 };
@@ -226,15 +236,17 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
         const px = x * cellW - ox;
         const top = objectLayer(c);
         const mon = monsterLayer(c);
+        const hl = highlights.has(y * width + x);
+        if (hl || mon !== null || top !== null) {
+          // Objects, traps and remembered monsters cover the terrain glyph.
+          ctx.fillStyle = hl ? highlightBackground : background;
+          ctx.fillRect(px, dy, cellW, cellH);
+        }
         if (mon !== null) {
           // A monster last seen here: its glyph, dimmed like a remembered object, on top of it.
-          ctx.fillStyle = background;
-          ctx.fillRect(px, dy, cellW, cellH);
           atlas.draw(ctx, glyphFor(mon), true, px, dy, cellW, cellH);
         } else if (top !== null) {
           // Objects and traps replace the terrain glyph; dimmed when only remembered.
-          ctx.fillStyle = background;
-          ctx.fillRect(px, dy, cellW, cellH);
           atlas.draw(ctx, glyphFor(top), !c.v, px, dy, cellW, cellH);
         } else {
           atlas.draw(ctx, glyphFor(c.g), !c.v, px, dy, cellW, cellH);
@@ -245,7 +257,11 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
       if (e.x < r.x0 || e.x >= r.x1 || e.y < r.y0 || e.y >= r.y1) continue;
       const dx = e.x * cellW - ox;
       const dy = e.y * cellH - oy;
-      ctx.fillStyle = e.tame ? petBackground : background;
+      ctx.fillStyle = e.tame
+        ? petBackground
+        : highlights.has(e.y * width + e.x)
+          ? highlightBackground
+          : background;
       ctx.fillRect(dx, dy, cellW, cellH);
       atlas.draw(ctx, glyphFor(e.g), false, dx, dy, cellW, cellH);
     }
@@ -384,6 +400,10 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
     setCursor(pos: Pos | null): void {
       cursor = pos ? { x: pos.x, y: pos.y } : null;
       retarget(false);
+      schedule();
+    },
+    setHighlights(cells: readonly Pos[] | null): void {
+      highlights = new Set((cells ?? []).map((p) => p.y * width + p.x));
       schedule();
     },
     getCell(): number {

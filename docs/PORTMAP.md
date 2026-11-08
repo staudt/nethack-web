@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3091 citations.
+152 NetHack files, 3097 citations.
 
 ## dat/dungeon.lua
 
@@ -528,6 +528,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/cmd.c
 
 - (file): `packages/app/src/keys.ts`, `packages/content/src/actions.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/index.ts`, `packages/ui/src/host.ts`
+- `NHKF_GETPOS_VALID_NEXT()`: `packages/ui/src/getpos.ts`
 - `commands_init()`: `packages/app/src/keys.ts`
 - `confdir()`: `packages/content/src/dig.ts`, `packages/content/src/hackmove.ts`
 - `do_run()`: `packages/content/src/run.ts`
@@ -877,7 +878,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - `gather_locs()`: `packages/ui/src/getpos.ts`
 - `gather_locs_interesting()`: `packages/app/src/keys.ts`, `packages/ui/src/getpos.ts`
-- `getpos()`: `packages/ui/src/getpos.ts`, `packages/ui/src/host.ts`
+- `getpos()`: `packages/content/src/getpos.ts`, `packages/ui/src/getpos.ts`, `packages/ui/src/host.ts`
+- `getpos_sethilite()`: `packages/content/src/getpos.ts`
 - `truncate_to_map()`: `packages/ui/src/getpos.ts`
 
 ## src/hack.c
@@ -1849,6 +1851,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/teleport.ts`
 - `collect_coords()`: `packages/content/src/teleport.ts`
+- `dotele()`: `packages/content/src/wizard/teleport.ts`
+- `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
 - `enexto()`: `packages/content/src/generation.ts`, `packages/core/src/engine.ts`
 - `enexto_core()`: `packages/content/src/generation.ts`
 - `goodpos()`: `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`
@@ -1862,8 +1866,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rloc_to_core()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `rloco()`: `packages/content/src/rloco.ts`, `packages/content/src/teleport.ts`
 - `safe_teleds()`: `packages/content/src/teleport.ts`, `packages/content/src/trap.ts`
-- `scrolltele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
-- `tele()`: `packages/content/src/trap.ts`
+- `scrolltele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`, `packages/content/src/wizard/teleport.ts`
+- `tele()`: `packages/content/src/trap.ts`, `packages/content/src/wizard/teleport.ts`
 - `tele_restrict()`: `packages/content/src/teleport.ts`
 - `tele_to_rnd_pet()`: `packages/content/src/apply.ts`
 - `tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`

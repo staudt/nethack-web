@@ -1,6 +1,6 @@
 export const UI_VERSION = 1;
 export { createUi, ZOOM_STORAGE_KEY } from './host';
-export type { CursorRenderer, FlashRenderer, ZoomableRenderer } from './host';
+export type { CursorRenderer, FlashRenderer, HighlightRenderer, ZoomableRenderer } from './host';
 export { createGetpos, getposInput, gatherLocs, findFeature, truncateToMap } from './getpos';
 export type { Getpos, GetposInput, GetposResult, GetposView } from './getpos';
 export { DEFAULT_STEP_DELAY_MS } from './host';
