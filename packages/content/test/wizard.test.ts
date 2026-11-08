@@ -133,7 +133,6 @@ describe('the wizard mod', () => {
       'wiz.levelchange.already',
       'wiz.levelchange.min',
       'wiz.levelchange.max',
-      'wiz.levelchange.cannot_lower',
     ])
       expect(messagesEn[k]).toBeDefined();
   });
@@ -857,9 +856,24 @@ describe('wiz:levelchange', () => {
     expect(change(state, null)).toEqual(['Never mind.']);
     expect(level(state)).toBe(1);
     change(state, '5');
-    expect(change(state, '3')).toEqual([
-      'Experience levels cannot be lowered here (no level drain yet).',
+    const hp5 = getPlayer(state).c.hp!.max;
+    // lowering drains one level at a time (losexp("#levelchange")), stealth goes at level 2
+    expect(change(state, '2')).toEqual([
+      'Farvel level 5.',
+      'Farvel level 4.',
+      'Farvel level 3.',
+      'You feel less stealthy!',
     ]);
+    expect(level(state)).toBe(2);
+    expect(getPlayer(state).c.hp!.max).toBeLessThan(hp5);
+    expect(getPlayer(state).c.experience!.points).toBe(newuexp(2) - 1);
+    // and nothing restores them: u.ulevelmax is the new level ("Welcome", not "Welcome back")
+    expect(change(state, '3')).toEqual([
+      'You feel more experienced.',
+      'Welcome to experience level 3.',
+      'You feel stealthy!',
+    ]);
+    change(state, '5');
     expect(level(state)).toBe(5);
     change(state, '99');
     expect(level(state)).toBe(MAXULEV);

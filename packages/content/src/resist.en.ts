@@ -80,6 +80,8 @@ export const resistMessagesEn: Record<string, string> = {
   // role abilities. ref: src/attrib.c val_abil[]
   'abil.stealthy': 'You feel stealthy!',
   'abil.quick': 'You feel quick!',
+  'abil.less_stealthy': 'You feel less stealthy!',
+  'abil.slow': 'You feel slow!',
 
   // being stuck. ref: src/hack.c escape_from_sticky_mon()
   'stuck.cannot_escape': 'You cannot escape from {mon|the}!',

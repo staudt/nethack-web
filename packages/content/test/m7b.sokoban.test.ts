@@ -279,7 +279,20 @@ describe('the Sokoban branch', () => {
         const food = ofClass('food').reduce((n, e) => n + (e.c.item?.quantity ?? 0), 0);
         expect(food).toBeGreaterThanOrEqual(4);
         expect(food).toBeLessThanOrEqual(8);
-        expect([ofClass('ring').length, ofClass('wand').length]).toEqual([1, 1]);
+        // (a snake or spider made with the level brings a random object of its own to hide
+        // under: those may be rings or wands too)
+        const hiders = new Set(
+          things
+            .filter((e) => e.c.monster && 'Ss'.includes(defs.monster(e.def).glyph.ch))
+            .map((e) => key(e.c.pos!)),
+        );
+        for (const c of ['ring', 'wand']) {
+          const all = ofClass(c);
+          const loose = all.filter((e) => !hiders.has(key(e.c.pos!)));
+          expect(all.length, c).toBeGreaterThanOrEqual(1);
+          expect(loose.length, c).toBeLessThanOrEqual(1);
+          expect(all.length - loose.length, c).toBeLessThanOrEqual(hiders.size);
+        }
         // stairs and branch stairs at their spots; the top has no up stairs, the bottom no down
         const { up, down, branch } = lua.stairs;
         const spot = (p: Xy | undefined) => (p ? key(at(...p)) : null);

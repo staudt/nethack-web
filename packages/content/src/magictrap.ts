@@ -10,7 +10,7 @@
 //
 // Not modelled: deafness (the roar is only its message), invisibility (the low hum is only its
 // message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
-// passers, golems, polymorph, steeds, water and ice, green slime, level drain (losexp()).
+// passers, golems, polymorph, steeds, water and ice, green slime.
 import {
   getLevel,
   getPlayer,
@@ -27,6 +27,7 @@ import { tamedog } from './dog';
 import { destroyItems, erodeArmor } from './erode';
 import { makemon } from './generation';
 import { losehp } from './hp';
+import { losexp } from './exper';
 import { igniteItems } from './light';
 import { monkilled } from './mondeath';
 import { isCancelled, mspecUsed, setMspecUsed } from './mstate';
@@ -101,8 +102,10 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
       const uhpmin = Math.max(hero.c.experience?.level ?? 1, 1); // minuhpmax(1)
       const olduhpmax = hp.max;
       if (hp.max > uhpmin) hp.max -= ctx.rng.rn2(Math.min(hp.max, num + 1));
-      // setuhpmax(); losexp() is not ported
-      if (hp.max < uhpmin) hp.max = Math.min(olduhpmax, uhpmin);
+      if (hp.max < uhpmin) {
+        hp.max = Math.min(olduhpmax, uhpmin); // setuhpmax()
+        losexp(ctx, null); // never fatal when 'drainer' is Null (a lycanthrope resists)
+      }
       if (hp.cur > hp.max) hp.cur = hp.max;
     }
   }

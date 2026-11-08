@@ -9,7 +9,9 @@ import { isStoned, makeStoned } from './stonestate';
 import { uswallow } from './engulfstate';
 import { monNam } from './perception';
 import { monsterDied } from './mondeath';
-import { experienceFor, gainExperience } from './hero';
+import { experienceFor, gainExperience, pluslvl, setUlevelmax, ulevelmax } from './hero';
+import { losexp } from './exper';
+import { ulycn, youUnwere } from './werestate';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -62,6 +64,7 @@ const TROUBLE_STRANGLED = 12;
 const TROUBLE_SICK = 10;
 const TROUBLE_STARVING = 9;
 const TROUBLE_HIT = 7;
+const TROUBLE_LYCANTHROPE = 6;
 const TROUBLE_UNUSEABLE_HANDS = 2;
 const TROUBLE_CURSED_ITEMS = -3;
 const TROUBLE_BLIND = -5;
@@ -160,7 +163,7 @@ const HVY_ENCUMBER = 3;
 
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
- * Not ported (they cannot happen): sliming, lava, clouds, lycanthropy,
+ * Not ported (they cannot happen): sliming, lava, clouds,
  * collapsing and poisoned attributes (no AMAX), walls, levitation, blindfolds, punishment,
  * fumbling, saddles, deafness.
  */
@@ -171,6 +174,7 @@ export function inTrouble(ctx: Ctx): number {
   if (hungerData(ctx).sick) return TROUBLE_SICK;
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
   if (criticallyLowHp(ctx)) return TROUBLE_HIT;
+  if (ulycn(ctx.state) !== null) return TROUBLE_LYCANTHROPE;
   if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
   if (worstCursedItem(ctx)) return TROUBLE_CURSED_ITEMS;
   // (not while inside a blinding engulfer: it would only blind her again)
@@ -232,6 +236,9 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
       hp.cur = hp.max;
       break;
     }
+    case TROUBLE_LYCANTHROPE:
+      youUnwere(ctx, true);
+      break;
     case TROUBLE_UNUSEABLE_HANDS: {
       const w = weldedWeapon(ctx);
       if (w) fixCurseTrouble(ctx, w);
@@ -367,7 +374,8 @@ function angrygods(ctx: Ctx, respGod: number): void {
       say(ctx, u.alignRecord < 0 && respGod === u.alignType ? 'pray.strayed' : 'pray.arrogant');
       say(ctx, 'pray.relearn');
       adjattrib(ctx, 'wis', -1, false);
-      break; // losexp(): levels are never lost here
+      losexp(ctx, null);
+      break;
     case 6: // punish(): no ball and chain, so as 4 and 5
     case 4:
     case 5:
@@ -504,10 +512,14 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
     case 2: {
       if (!blind) say(ctx, 'pray.golden_glow', { color: hcolor(ctx, 'golden') });
       const hp = her.c.hp;
-      if (hp) {
-        hp.max += 5;
-        hp.cur = hp.max;
-      }
+      const xp = her.c.experience;
+      // if any levels have been lost (and not yet regained), treat this effect like blessed
+      // full healing
+      if (xp && xp.level < ulevelmax(ctx, xp.level)) {
+        setUlevelmax(ctx, ulevelmax(ctx, xp.level) - 1, xp.level); // see potion.c
+        pluslvl(ctx, her.id, false);
+      } else if (hp) hp.max += 5;
+      if (hp) hp.cur = hp.max;
       const hd = hungerData(ctx);
       if (hd.strLoss > 0 && her.c.attributes) {
         her.c.attributes.str += hd.strLoss;

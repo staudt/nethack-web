@@ -7,10 +7,12 @@
 // hero's name (the window's title says "Your attributes:"), no weapon and skill insight, no
 // spellcasting line, no "Miscellaneous" section (the elapsed real time would break
 // determinism), no deaths counted ("You have been killed..."), and nothing for polymorph,
-// lycanthropy, steeds, swallowing, being held, water, invisibility, see invisible,
+// steeds, swallowing, being held, water, invisibility, see invisible,
 // infravision, half damage or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
 import { isStoned } from './stonestate';
+import { resistsDrliHero } from './exper';
+import { ulycn } from './werestate';
 import { getPlayer, type Ctx, type Msg } from '@nh/core';
 import { alignGname } from './align';
 import { carryingLuckstone, moreluck, stoneLuck } from './gem';
@@ -172,6 +174,8 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.POISON_RES)) are('poison_res');
   const temp = (prop: string): boolean => timeoutLeft(ctx.state, h, prop) > 0;
   if (has(P.ACID_RES)) are(temp(P.ACID_RES) ? 'acid_res_temp' : 'acid_res');
+  // Drain_resistance: only a lycanthrope's here (set_uasmon())
+  if (resistsDrliHero(ctx)) are('drain_res');
   if (has(P.STONE_RES)) are(temp(P.STONE_RES) ? 'stone_res_temp' : 'stone_res');
   // vision and senses
   if (has(P.TELEPAT)) are('telepathic');
@@ -214,6 +218,11 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.FREE_ACTION)) have('free_action');
   if (has(P.FIXED_ABIL)) have('fixed_abil');
   if (has(P.LIFESAVED)) line('enl.lifesaved');
+  // polymorph and other shape change: "you are a werecreature" (the beast form, Unchanging,
+  // polymorph control and Hate_silver lines are 7f's or need silver)
+  const lycn = ulycn(ctx.state);
+  if (lycn !== null)
+    line('enl.you_are', { what: { key: 'enl.lycanthrope', params: { mon: `@${lycn}` } } });
   // miscellany
   const luck = luckOf(ctx.state);
   if (luck) {

@@ -17,6 +17,8 @@ import { encumberMsg } from './itemactions';
 import { bcsign } from './items';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
+import { pluslvl, setUlevelmax, ulevelmax } from './hero';
+import { ulycn, youUnwere } from './werestate';
 import { heroEntity, useup } from './magic';
 import { nomulNow } from './hunger';
 import { P, hasProp, makeBlinded, makeConfused, makeHallucinated, timeoutLeft } from './props';
@@ -185,13 +187,20 @@ function peffectExtraHealing(ctx: Ctx, p: Entity): Effect {
 }
 
 /**
- * ref: src/potion.c peffect_full_healing(). Not ported: restoring a lost level when blessed
- * (levels are never lost), wounded legs, hallucination.
+ * ref: src/potion.c peffect_full_healing(): a blessed one restores one lost level ("when
+ * multiple levels have been lost, drinking multiple potions will only get half of them back").
+ * Not ported: wounded legs, hallucination.
  */
 function peffectFullHealing(ctx: Ctx, p: Entity): Effect {
   const buc = p.c.item?.buc ?? 'uncursed';
   msg(ctx, 'potion.completely_healed');
   healup(ctx, 400, 4 + 4 * bcsign(buc), buc !== 'cursed', true);
+  const h = heroEntity(ctx);
+  const xp = h.c.experience;
+  if (buc === 'blessed' && xp && xp.level < ulevelmax(ctx, xp.level)) {
+    setUlevelmax(ctx, ulevelmax(ctx, xp.level) - 1, xp.level);
+    pluslvl(ctx, h.id, false);
+  }
   return { unknown: false };
 }
 
@@ -211,8 +220,8 @@ function peffectSeeInvisible(ctx: Ctx, p: Entity): Effect {
 
 /**
  * ref: src/potion.c peffect_water(). The hero is neutral and alive, so the chaotic and undead
- * branches do not apply: holy water is "full of awe", unholy "full of dread", plain water
- * feeds a little (and identifies the type).
+ * branches do not apply: holy water is "full of awe" (and cures lycanthropy: "You feel
+ * purified."), unholy "full of dread", plain water feeds a little (and identifies the type).
  */
 function peffectWater(ctx: Ctx, p: Entity): Effect {
   const buc = p.c.item?.buc ?? 'uncursed';
@@ -224,12 +233,14 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
   if (buc === 'blessed') {
     msg(ctx, 'potion.water_holy');
     cureSick(ctx);
+    if (ulycn(ctx.state) !== null) youUnwere(ctx, true); // "Purified"
   } else if (uState(ctx.state).alignType === 1) {
     // lawful heroes are burned; unreachable while the hero is neutral
     msg(ctx, 'potion.water_burns');
     const hp = heroEntity(ctx).c.hp;
     if (hp) hp.cur -= ctx.rng.d(2, 6);
   } else msg(ctx, 'potion.water_unholy');
+  // unholy water and a lycanthrope: you_were() turns her into the beast (7f)
   return { unknown: true };
 }
 

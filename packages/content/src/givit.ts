@@ -13,6 +13,8 @@ import {
   setIntrinsic,
   timeoutLeft,
 } from './props';
+import { pluslvl } from './hero';
+import { counterWere, setUlycn } from './werestate';
 import { pwOf, setPw } from './uenergy';
 
 /** ref: include/mondata.h telepathic(): the floating eye and the mind flayers */
@@ -159,8 +161,9 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
 /**
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
  * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic. Not ported
- * (no systems for them): the wraith's level, lycanthropy, mimicking, shapeshifters, displacer
- * beast, disenchanter, the nurse and the stalker's invisibility.
+ * (no systems for them): mimicking, shapeshifters, displacer beast, disenchanter, the nurse and
+ * the stalker's invisibility. The wraith gives a level (pluslvl(FALSE)), a human-form were
+ * creature its lycanthropy (set_ulycn(); the beast forms leave no corpse).
  */
 export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   const hero = getPlayer(ctx.state);
@@ -176,6 +179,17 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
       ctx.emit({ type: 'msg', key: 'givit.qm_faster' });
     }
     return;
+  }
+  // the wraith's level, and lycanthropy from a were creature's human-form corpse; these
+  // `break` without checking for an intrinsic
+  if (def.id === 'nh:wraith') {
+    pluslvl(ctx, hero.id, false);
+    return;
+  }
+  const catchLycanthropy = counterWere(def.id);
+  if (catchLycanthropy !== null && def.flags.includes('were') && def.flags.includes('human')) {
+    setUlycn(ctx, catchLycanthropy);
+    return; // retouch_equipment(2): no silver items
   }
   let stuns = 0;
   switch (def.id) {

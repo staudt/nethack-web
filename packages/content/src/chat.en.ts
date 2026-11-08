@@ -39,6 +39,8 @@ export const chatMessagesEn: Record<string, string> = {
   'chat.trumpets': '{mon|The} trumpets!',
   'chat.shrieks': '{mon|The} shrieks.',
   'chat.imitates': '{mon|The} imitates you.',
+  'chat.were_moon': '{mon|The} whispers inaudibly.  All you can make out is "moon".',
+  'chat.cantrip': '{mon|The} seems to mutter a cantrip.',
   'chat.hisses': '{mon|The} hisses!',
   'chat.drones': '{mon|The} drones.',
   'chat.buzzes': '{mon|The} buzzes angrily.',

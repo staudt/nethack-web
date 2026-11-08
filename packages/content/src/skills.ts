@@ -237,8 +237,7 @@ function knownSkills(ctx: SkillCtx): string[] {
 
 /**
  * Gains `n` skill slots (a level was gained); says so when that made more skills advanceable.
- * ref: src/weapon.c add_weapon_skill(). (Losing levels does not exist yet: lose_weapon_skill()
- * is not ported.)
+ * ref: src/weapon.c add_weapon_skill()
  */
 export function addWeaponSkill(ctx: Pick<Ctx, 'state' | 'emit'>, n: number): void {
   const all = knownSkills(ctx);
@@ -249,12 +248,36 @@ export function addWeaponSkill(ctx: Pick<Ctx, 'state' | 'emit'>, n: number): voi
   if (before < after) giveMayAdvanceMsg(ctx, null);
 }
 
+/**
+ * Loses `n` skill slots (levels were drained): first the unused ones, then the last skill
+ * advanced drops a level and refunds the rest of the slots it took. An advancement made before
+ * m9 step 7 (an older save) has no record and is not taken back.
+ * ref: src/weapon.c lose_weapon_skill()
+ */
+export function loseWeaponSkill(ctx: Pick<Ctx, 'state'>, n: number): void {
+  const data = nhData(ctx);
+  while (--n >= 0) {
+    // deduct first from unused slots then from last placed one, if any
+    if (weaponSlots(ctx)) {
+      data.weaponSlots = weaponSlots(ctx) - 1;
+    } else if (data.skillsAdvanced && data.skillRecord?.length) {
+      const skill = data.skillRecord.pop()!;
+      data.skillsAdvanced--;
+      const skills = (data.skills ??= {});
+      skills[skill] = (skills[skill] ?? P_UNSKILLED + 1) - 1; // drop skill one level
+      // Lost skill might have taken more than one slot; refund rest.
+      data.weaponSlots = slotsRequired(ctx, skill) - 1;
+    }
+  }
+}
+
 /** ref: src/weapon.c skill_advance(): spends the slots and raises the level. */
 function skillAdvanceNow(ctx: Pick<Ctx, 'state' | 'emit'>, skill: string): void {
   const data = nhData(ctx);
   data.weaponSlots = weaponSlots(ctx) - slotsRequired(ctx, skill);
   const skills = (data.skills ??= {});
   skills[skill] = (skills[skill] ?? P_UNSKILLED) + 1;
+  (data.skillRecord ??= []).push(skill); // u.skill_record[u.skills_advanced++]
   data.skillsAdvanced = (data.skillsAdvanced ?? 0) + 1;
   ctx.emit({
     type: 'msg',

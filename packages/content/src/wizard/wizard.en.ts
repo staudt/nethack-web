@@ -15,7 +15,6 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.levelchange.already': 'You are already that experienced.',
   'wiz.levelchange.min': 'You are already as inexperienced as you can get.',
   'wiz.levelchange.max': 'You are already as experienced as you can get.',
-  'wiz.levelchange.cannot_lower': 'Experience levels cannot be lowered here (no level drain yet).',
   'wiz.genesis.prompt': 'Create what kind of monster?',
   'wiz.genesis.prompt_help': 'Create what kind of monster? [type name or symbol]',
   'wiz.genesis.never_heard': "I've never heard of such monsters.",

@@ -57,7 +57,9 @@ import { angryGuards, isWatch } from './watch';
 import { epriOf } from './epri';
 import { ghodHitsu } from './priest';
 import { cloneMon } from './clone';
-import { mintrap } from './trap';
+import { canseemon, mintrap } from './trap';
+import { summonWereMu } from './were';
+import { isWere } from './werestate';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -537,12 +539,19 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const m = mon?.c.monster;
   const hp = hero.c.hp;
   if (!mon || !m || !hp) throw new Error(`Entity ${monId} cannot attack`);
-  const def = ctx.defs.monster(mon.def);
-  const name = monNam(ctx, mon);
+  let def = ctx.defs.monster(mon.def);
+  let name = monNam(ctx, mon);
   // ref: src/mhitu.c mattacku(): if swallowed, she can only be affected by u.ustuck, and
   // stomachs can't hurt her while she prays
   const swallower = uswallow(ctx)?.mon ?? null;
   if (swallower !== null && (swallower !== monId || uState(ctx.state).uinvulnerable)) return;
+  // when not cancelled, were creatures can summon critters and change form (summonmu(); demons
+  // do not summon here: msummon() is not ported); a change that made it flee ends the attack
+  if (!isCancelled(ctx, monId) && isWere(def)) {
+    if (summonWereMu(ctx, mon, canseemon(ctx, mon))) return;
+    def = ctx.defs.monster(mon.def); // update cached value in case of were change
+    name = monNam(ctx, mon);
+  }
   // "in the midst of successful prayer" monsters won't attack
   if (uState(ctx.state).uinvulnerable) {
     if (ustuck(ctx) === monId) say0(ctx, 'pray.loosens_grip', { mon: name });

@@ -477,6 +477,8 @@ interface NhData {
   weaponSlots?: number;
   /** How many skill advancements were made (u.skills_advanced, limit P_SKILL_LIMIT). */
   skillsAdvanced?: number;
+  /** The skills advanced, in order (u.skill_record); lose_weapon_skill() takes back the last. */
+  skillRecord?: string[];
   /** The alternate weapon's item id (uswapwep); it must still be carried to count. */
   uswapwep?: number | null;
   /** Names the hero gave object types ("called"), by object def id (oc_uname). */

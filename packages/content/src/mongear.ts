@@ -368,6 +368,10 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     }
   } else if (ch === 'k') {
     if (rng.rn2(4) === 0) mInitThrow(ctx, monId, 'nh:dart', 12);
+  } else if (ch === 'W') {
+    // ref: m_initweap() S_WRAITH (only the armed barrow wight gets here)
+    mongets(ctx, monId, 'nh:knife');
+    mongets(ctx, monId, 'nh:long_sword');
   } else {
     // The general case. ref: m_initweap() `default:` (gnomes and any other armed monster)
     const bias = isLord(def) ? 1 : 0;

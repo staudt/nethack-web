@@ -616,7 +616,9 @@ export type MonsterSound =
   | 'trumpet'
   | 'imitate'
   | 'burble'
-  | 'boast';
+  | 'boast'
+  | 'were'
+  | 'spell';
 
 /** Runs a non-hero actor's turn. The engine deducts NORMAL_SPEED before calling `act`. */
 export interface BrainDef {

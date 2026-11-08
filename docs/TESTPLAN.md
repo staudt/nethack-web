@@ -186,7 +186,7 @@ Shop damage (find a shop on DL2-6, or Minetown's; wish `1000 gold pieces` first)
 
 ## 9 damage types and attack styles
 
-With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; use "Wizard: change experience level" or just heal when a fight goes badly). Step 7 (level drain, lycanthropy) is not built yet: see ROADMAP "From m9".
+With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; use "Wizard: change experience level" or just heal when a fight goes badly). What is left out is in ROADMAP "From m9".
 
 - [ ] Wear iron armor (wish `plate mail`), create a `rust monster`: its touch says "Your plate mail rusts!" (the armor shows "rusty"); hit it with a wielded iron weapon (`long sword`): "Your long sword rusts!" (the passive). Fighting it bare-handed hurts nothing.
 - [ ] Create a `quantum mechanic`: its claw hurts and "Your position suddenly seems very uncertain!" (you teleport).
@@ -204,6 +204,10 @@ With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an ite
 - [ ] Wish `leather gloves` and wear them, then wish `cockatrice corpse`: picking it up and wielding it is safe with gloves. Hit a `jackal` with it: "The jackal turns to stone." and a statue of a jackal is left (look: "statue of a jackal"). Lose the gloves (take them off while wielding): you die.
 - [ ] Create a `winter wolf cub` a few squares away in a straight line: "The winter wolf cub breathes frost!" and a white ray; as a Valkyrie "You don't feel cold." (no damage).
 - [ ] Create a `cobra` a few squares away in a line: "The cobra spits venom!", "You are hit by a splash of blinding venom." and "The venom blinds you." No venom is left on the floor.
+- [ ] Raise your level to 8 ("Wizard: change experience level"), create a `wraith`: now and then its touch says "Farvel level 8." (you lose a level; at 7 also "You feel slow!"; the status line shows the lower level and max HP). Kill it, eat its corpse: "You feel more experienced.", "Welcome back to experience level N." A `barrow wight` carries a long sword and its blade drains too.
+- [ ] "Wizard: change experience level" to a lower level: one "Farvel level N." per level lost, no death.
+- [ ] Create a `wererat` (the `@` one): next to you it may turn into a rat ("The wererat changes into a rat.", dropping its weapon), summon help ("The wererat summons help!" and rats appear around you) and bite: "You feel feverish." Enlightenment (wish `wand of enlightenment`, zap it) lists "You are a wererat." and "level-drain resistant". Pray (wait ~300 turns after the last prayer, or at low HP): "You feel purified." Or quaff blessed water (wish `holy water`): "You feel full of awe." "You feel purified."
+- [ ] Create a `werejackal` (the `d` one) and kill it: its corpse is a werejackal corpse of the human form (look at it); eating it gives lycanthropy (enlightenment).
 
 ## 10 monster batch 1
 

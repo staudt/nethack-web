@@ -187,6 +187,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.shrieks');
     case 'imitate':
       return pline('chat.imitates');
+    case 'were':
+      // never a full moon (no clock): only the whisper
+      return pline('chat.were_moon');
+    case 'spell':
+      // deliberately vague, since it's not actually casting any spell
+      return pline('chat.cantrip');
     case 'cuss':
       // (no minions: `is_lminion()` never holds, so a peaceful one is never "not too late")
       if (!m.peaceful) {

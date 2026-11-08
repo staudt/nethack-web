@@ -1,5 +1,6 @@
 import { getPlayer, type ActionDef, type Ctx } from '@nh/core';
-import { MAXULEV, pluslvl } from '../hero';
+import { LEVELCHANGE, losexp } from '../exper';
+import { MAXULEV, pluslvl, setUlevelmax } from '../hero';
 import { mungspaces } from '../objnam_read';
 
 export const WIZ_LEVELCHANGE = 'wiz:levelchange';
@@ -9,9 +10,9 @@ const say = (ctx: Ctx, key: string): void => ctx.emit({ type: 'msg', key });
 /**
  * #levelchange: set the hero's experience level. Raising it gains the levels one at a time as a
  * potion of gain level does (pluslvl(FALSE): "You feel more experienced.", HP and Pw for each);
- * lowering it is refused, since level drain (losexp()) is not ported. Takes no time (ECMD_OK).
- * There is no u.ulevelmax to reset (no level drain to restore from).
- * ref: src/wizcmds.c wiz_level_change(), src/exper.c pluslvl()
+ * lowering it drains them one at a time (losexp("#levelchange"): never fatal, not resisted).
+ * Either way u.ulevelmax becomes the new level, so nothing restores the lost ones. Takes no time
+ * (ECMD_OK). ref: src/wizcmds.c wiz_level_change(), src/exper.c pluslvl(), losexp()
  */
 export const wizLevelchange: ActionDef = {
   id: WIZ_LEVELCHANGE,
@@ -49,7 +50,16 @@ export const wizLevelchange: ActionDef = {
     if (newlevel === xp.level) {
       say(ctx, 'wiz.levelchange.already');
     } else if (newlevel < xp.level) {
-      say(ctx, xp.level === 1 ? 'wiz.levelchange.min' : 'wiz.levelchange.cannot_lower');
+      if (xp.level === 1) {
+        say(ctx, 'wiz.levelchange.min');
+        return 0;
+      }
+      if (newlevel < 1) newlevel = 1;
+      while (xp.level > newlevel) {
+        const before = xp.level;
+        losexp(ctx, LEVELCHANGE);
+        if (xp.level === before) break;
+      }
     } else {
       if (xp.level >= MAXULEV) {
         say(ctx, 'wiz.levelchange.max');
@@ -62,6 +72,8 @@ export const wizLevelchange: ActionDef = {
         if (xp.level === before) break; // no hp component: pluslvl() did nothing
       }
     }
+    // blessed full healing or restore ability won't fix any lost levels
+    setUlevelmax(ctx, xp.level, xp.level);
     return 0;
   },
 };

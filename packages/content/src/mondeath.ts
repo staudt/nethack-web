@@ -1,5 +1,6 @@
 // What happens to the world when a monster dies by the hero's hand.
 // ref: src/mon.c xkilled(), mondead(), m_detach() (shkgone())
+import { restoreWereForm } from './werestate';
 import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { nonliving } from './mondata';
 import { canSpotMon, monNam } from './perception';
@@ -31,6 +32,7 @@ export function monsterDied(
 ): EntityId | null {
   const e = ctx.state.entities[String(monId)];
   if (!e?.c.monster) return null;
+  restoreWereForm(ctx, e); // ref: mondead(): lycanthropes die in their true form
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
   const wasinside = engulfingU(ctx, monId);
@@ -147,6 +149,7 @@ export function monkilled(
 export function mondied(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
+  restoreWereForm(ctx, mon); // the corpse is the human form's
   const def = ctx.defs.monster(mon.def);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   mondead(ctx, id);
@@ -160,6 +163,8 @@ export function mondied(ctx: Ctx, id: EntityId): void {
 export function mondead(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
+  // restore lycanthropes to true form at death (no chameleons)
+  restoreWereForm(ctx, mon);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
   shkgone(ctx, id); // ref: m_detach()

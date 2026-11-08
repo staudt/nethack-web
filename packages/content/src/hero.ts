@@ -151,8 +151,8 @@ const enermod = (en: number): number => Math.trunc((3 * en) / 4);
 /**
  * Energy gained: at level 0 (hero creation) the initial value, else the per-level gain.
  * ref: src/exper.c newpw(). `ulevel` is the level before it is incremented and `wis` is
- * ACURR(A_WIS). `uenmax` is only used for the post-30 throttle. No u.ueninc[] record (nothing
- * drains levels).
+ * ACURR(A_WIS). `uenmax` is only used for the post-30 throttle. pluslvl() records the gain
+ * (u.ueninc[]).
  */
 export function newpw(ctx: Ctx, ulevel: number, wis: number, uenmax = 0): number {
   const role = VALK_ENADV;
@@ -241,10 +241,83 @@ export function experienceFor(def: MonsterDef, monLevel: number): number {
 }
 
 /**
+ * The level-drain bookkeeping in `modData.nh` (open question 10 of the m9 plan): `uhpinc` and
+ * `ueninc` map a level to the hit points and energy gained when leaving it (C's u.uhpinc[] and
+ * u.ueninc[], recorded by pluslvl() from m9 step 7 on), and `ulevelmax` is the highest level
+ * reached, stored only while it is above the current level (after a level was lost).
+ * ref: include/you.h uhpinc, ueninc, ulevelmax
+ */
+interface LevelData {
+  uhpinc?: Record<string, number>;
+  ueninc?: Record<string, number>;
+  ulevelmax?: number;
+}
+
+function levelData(ctx: Pick<Ctx, 'state'>, create: boolean): LevelData | null {
+  const md = ctx.state.modData;
+  let d = md['nh'] as unknown as LevelData | undefined;
+  if (typeof d !== 'object' || d === null) {
+    if (!create) return null;
+    d = {};
+    md['nh'] = d as unknown as (typeof md)[string];
+  }
+  return d;
+}
+
+/** The hit points (`hp`) and energy (`en`) gained when leaving `level`. */
+function recordIncrements(ctx: Pick<Ctx, 'state'>, level: number, hp: number, en: number): void {
+  const d = levelData(ctx, true);
+  if (!d) return;
+  (d.uhpinc ??= {})[String(level)] = hp;
+  (d.ueninc ??= {})[String(level)] = en;
+}
+
+/** ref: src/role.c the Valkyrie's and human's hpadv/enadv `infix` (no `inrnd`): u_init()'s values */
+const INITIAL_HP = VALK_HPADV.infix + HUMAN_HPADV.infix;
+const INITIAL_EN = VALK_ENADV.infix + HUMAN_ENADV.infix;
+
+/**
+ * u.uhpinc[level] and u.ueninc[level]: what leaving `level` gave. A level gained before m9 step 7
+ * (an older save) has no record: the average gain per level above the initial value instead.
+ */
+export function levelIncrements(
+  ctx: Pick<Ctx, 'state'>,
+  level: number,
+  hpmax: number,
+  uenmax: number,
+  ulevel: number,
+): { hp: number; en: number } {
+  const d = levelData(ctx, false);
+  const avg = (max: number, initial: number): number =>
+    ulevel > 1 ? Math.max(Math.floor((max - initial) / (ulevel - 1)), 0) : 0;
+  return {
+    hp: d?.uhpinc?.[String(level)] ?? avg(hpmax, INITIAL_HP),
+    en: d?.ueninc?.[String(level)] ?? avg(uenmax, INITIAL_EN),
+  };
+}
+
+/** u.ulevelmax: the highest experience level reached (the current one unless levels were lost). */
+export function ulevelmax(ctx: Pick<Ctx, 'state'>, ulevel: number): number {
+  return Math.max(levelData(ctx, false)?.ulevelmax ?? 0, ulevel);
+}
+
+/** Sets u.ulevelmax; stored only while it is above the current level. */
+export function setUlevelmax(ctx: Pick<Ctx, 'state'>, value: number, ulevel: number): void {
+  if (value > ulevel) {
+    const d = levelData(ctx, true);
+    if (d) d.ulevelmax = value;
+  } else {
+    const d = levelData(ctx, false);
+    if (d && d.ulevelmax !== undefined) delete d.ulevelmax;
+  }
+}
+
+/**
  * Gains one experience level: HP, then Pw, then the level and its intrinsics. `incr` is true for
  * experience growth and false for a level gained outright ("You feel more experienced.").
- * ref: src/exper.c pluslvl(). No polymorph, no level drain (no u.ulevelmax "back "), no rank
- * achievements or livelog.
+ * The gains are recorded for level drain (u.uhpinc[], u.ueninc[]), and a level lost before is
+ * welcomed back. ref: src/exper.c pluslvl(), src/attrib.c newhp(), src/exper.c newpw(). No
+ * polymorph, no rank achievements or livelog.
  */
 export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
   const hero = ctx.state.entities[String(heroId)];
@@ -261,6 +334,8 @@ export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
   const eninc = newpw(ctx, xp.level, hero.c.attributes?.wis ?? 10, pw.uenmax);
   const uenmax = pw.uenmax + eninc;
   setPw(ctx, { uenmax, uenpeak: Math.max(pw.uenpeak, uenmax), uen: pw.uen + eninc });
+  // remember the increments; future level drain could take them away again
+  if (xp.level < MAXULEV) recordIncrements(ctx, xp.level, inc, eninc);
   if (xp.level < MAXULEV) {
     if (incr) {
       const next = newuexp(xp.level + 1);
@@ -268,8 +343,14 @@ export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
     } else {
       xp.points = newuexp(xp.level);
     }
+    const max = ulevelmax(ctx, xp.level);
     xp.level += 1;
-    ctx.emit({ type: 'msg', key: 'exp.welcome', params: { level: xp.level } });
+    ctx.emit({
+      type: 'msg',
+      key: max < xp.level ? 'exp.welcome' : 'exp.welcome_back',
+      params: { level: xp.level },
+    });
+    setUlevelmax(ctx, Math.max(max, xp.level), xp.level);
     adjabil(ctx, heroId, xp.level - 1, xp.level);
   }
 }

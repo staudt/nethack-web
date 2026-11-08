@@ -308,6 +308,12 @@ export function catchUpRegen(ctx: Pick<Ctx, 'defs'>, mon: Entity, imv: number): 
   healmon(mon, regenerates(ctx, mon) ? imv : Math.trunc(imv / 20));
 }
 
+/** were_change(): were.ts registers it at load (it sits far above this leaf) */
+let wereChangeHook: ((ctx: Ctx, mon: Entity) => void) | null = null;
+export function setWereChange(fn: (ctx: Ctx, mon: Entity) => void): void {
+  wereChangeHook = fn;
+}
+
 /**
  * The spellcasting delays and the paralysis timers count down once a turn (ref: m_calcdistress():
  * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mblinded &&
@@ -318,7 +324,10 @@ export function registerMState(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
     for (const id of sortedIds(ctx.state)) {
       const e = ctx.state.entities[String(id)];
-      if (e?.c.monster && e.c.pos?.level === ctx.state.currentLevel) monRegen(ctx, id);
+      if (!e?.c.monster || e.c.pos?.level !== ctx.state.currentLevel) continue;
+      monRegen(ctx, id);
+      // possibly polymorph lycanthropes (no shapechangers: decide_to_shapeshift() is 7f)
+      wereChangeHook?.(ctx, e);
     }
     const su = table(ctx, 'mspecUsed', false);
     if (su) {

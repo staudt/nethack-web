@@ -13,6 +13,7 @@ import {
   inventoryOf,
   type AttackDef,
   type Ctx,
+  type DefId,
   type Entity,
   type EntityId,
   type Msg,
@@ -76,6 +77,9 @@ import { swallowedNutrition } from './dog';
 import { wakeNearto } from './noise';
 import { doStoneU, monstone } from './stoning';
 import { resistsSton } from './stonestate';
+import { losexp, resistsDrliHero } from './exper';
+import { isHumanForm, isWere, setUlycn, ulycn } from './werestate';
+import { wereChange } from './were';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -853,7 +857,8 @@ function adCurs(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
   if (!night() && magr.def === 'nh:gremlin') return;
   if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(10)) {
     setCancelled(ctx, mdef.id); // cancelled regardless of lifesave
-    // is_were(pd) && pd->mlet != S_HUMAN: were_change(mdef) (step 7)
+    const pd = ctx.defs.monster(mdef.def);
+    if (isWere(pd) && !isHumanForm(pd)) wereChange(ctx, mdef);
     if (mdef.def === 'nh:clay_golem') {
       if (env.vis && canSpotMon(ctx, mdef)) {
         say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
@@ -1215,6 +1220,67 @@ const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   doStoneMon(ctx, magr, atk, mdef, mhm, env);
 };
 
+/**
+ * Whether a monster resists level drain: undead, demons and were creatures.
+ * ref: src/mondata.c resists_drli() (no Death, vampire shapeshifters or drain-resisting
+ * artifacts; the hero's side is exper.ts resistsDrliHero())
+ */
+export function resistsDrli(ctx: Ctx, mon: Entity): boolean {
+  const flags = ctx.defs.monster(mon.def).flags;
+  return flags.includes('undead') || flags.includes('demon') || flags.includes('were');
+}
+
+/**
+ * Level drain. Against the hero, 1 time in 3 unless magic cancellation stops it ("You avoid
+ * harm."), she loses a level (losexp("life drainage")); a lycanthrope resists. Against a monster, 1 time in 3 unless
+ * it resists or is protected: "The jackal becomes weaker!", 2d6 off its maximum hit points (never
+ * below its level + 1) as the damage, and a level, or its life at level 0.
+ * ref: src/uhitm.c mhitm_ad_drli() (no Death's touch, no Stormbringer)
+ */
+const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
+  if (mdef.id === ctx.state.playerId) {
+    // (the hitmsg() is hitmu()'s)
+    if (!ctx.rng.rn2(3) && !resistsDrliHero(ctx) && !mgcAtkNegated(ctx, magr, true))
+      losexp(ctx, '@killer.life_drainage');
+    return;
+  }
+  if (
+    !ctx.rng.rn2(3) &&
+    !resistsDrli(ctx, mdef) &&
+    !mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)
+  ) {
+    mhm.damage = ctx.rng.d(2, 6);
+    if (env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'adtyp.becomes_weaker', { mon: monNam(ctx, mdef) });
+    const m = mdef.c.monster;
+    const hp = mdef.c.hp;
+    if (!m || !hp) return;
+    if (hp.max - mhm.damage > m.level) hp.max -= mhm.damage;
+    // limit floor of mhpmax reduction to current m_lev + 1
+    else if (hp.max > m.level) hp.max = m.level + 1;
+    if (m.level === 0)
+      mhm.damage = hp.cur; // automatic kill if drained past level 0
+    else m.level--;
+  }
+};
+
+/**
+ * A lycanthrope's bite. Against the hero, 1 time in 4 unless magic cancellation stops it, she
+ * catches lycanthropy: "You feel feverish." (u.ulycn is the biter's form). Against a monster it
+ * is a plain hit. ref: src/uhitm.c mhitm_ad_were() (no Protection_from_shape_changers, no
+ * defending artifacts, no exercise(); retouch_equipment() is moot without silver items)
+ */
+const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (mdef.id === ctx.state.playerId) {
+    if (!ctx.rng.rn2(4) && ulycn(ctx.state) === null && !mgcAtkNegated(ctx, magr, true)) {
+      say(ctx, 'were.feverish');
+      setUlycn(ctx, magr.def as DefId);
+    }
+    return;
+  }
+  adPhys(ctx, magr, atk, mdef, mhm, env);
+};
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -1250,6 +1316,8 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   ssex: adSsex,
   dgst: adDgst,
   ston: adSton,
+  drli: adDrli,
+  were: adWere,
 };
 
 /**
@@ -1257,7 +1325,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
  * the result flags). `magr` attacks `mdef` (either may be the hero, `ctx.state.playerId`; a hero
  * attacker is 7f). The hero may die inside (instadeath poison): check `ctx.state.gameOver`.
  * ref: src/uhitm.c mhitm_adtyping(). C's default (`damage = 0`) is for types this port does not
- * have; the types later m9 steps add (engulf, stoning, drain, were...) still do plain damage here.
+ * have; the types no step ported yet (sliming, AD_HEAL, AD_DRIN...) still do plain damage here.
  */
 export function mhitmAdtyping(
   ctx: Ctx,
