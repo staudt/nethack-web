@@ -1,8 +1,10 @@
 // Throwing objects. ref: src/dothrow.c dothrow(), throw_obj(), throwit(), thitmonst(), tmiss(),
 // hitfloor(); src/zap.c bhit() (thrown objects only); src/uhitm.c hmon_hitmon(); shop goods
 // thrown (check_shop_obj(), in shk.ts)
+import { minstapetrify } from './stoning';
+import { bareCorpseTouch, petrifyingCorpse } from './stonetouch';
 import { digests, engulfingU, isSwallowed, isWhirly, uswallow } from './engulfstate';
-import { mpickobj } from './steal';
+import { isAnimal, mpickobj } from './steal';
 import {
   DIRS,
   DIR_LIST,
@@ -177,9 +179,18 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     }
     if (guaranteedHit) {
       // this assumes that guaranteed_hit is due to swallowing: "The apple vanishes into the
-      // purple worm's entrails." (a cockatrice corpse is step 6)
+      // purple worm's entrails."
       wakeup(ctx, monId);
       const md = ctx.defs.monster(mon.def);
+      // a cockatrice corpse turns an animal engulfer to stone
+      if (petrifyingCorpse(ctx, obj) && isAnimal(md)) {
+        minstapetrify(ctx, mon, true);
+        // don't leave a cockatrice corpse available in a statue
+        if (!isSwallowed(ctx)) {
+          ctx.remove(objId);
+          return true;
+        }
+      }
       msg(ctx, `throw.vanishes${digests(md) ? '_entrails' : isWhirly(md) ? '_currents' : ''}`, {
         item: missile,
         mon: monNam(ctx, mon),
@@ -440,6 +451,9 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
     return 0;
   }
 
+  // throwing a cockatrice corpse bare-handed (a life-saved hero throws it anyway)
+  bareCorpseTouch(ctx, obj, 'throw');
+  if (ctx.state.gameOver) return NORMAL_SPEED;
   const n = multishotOf(ctx, obj, def);
   if (n > 1) {
     const many = { ...obj, c: { ...obj.c, item: { ...it, quantity: n } } };

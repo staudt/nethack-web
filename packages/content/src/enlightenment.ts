@@ -10,6 +10,7 @@
 // lycanthropy, steeds, swallowing, being held, water, invisibility, see invisible,
 // infravision, half damage, teleport control or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
+import { isStoned } from './stonestate';
 import { getPlayer, type Ctx, type Msg } from '@nh/core';
 import { alignGname } from './align';
 import { carryingLuckstone, moreluck, stoneLuck } from './gem';
@@ -105,6 +106,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   // ---- Status
   line('enl.status');
   if (levitating(ctx)) are('levitating');
+  if (isStoned(ctx.state)) are('turning_to_stone');
   if (isStrangled(h)) are('strangled');
   const hd = hungerData(ctx);
   if (hd.sick) are('sick_food_poisoning');

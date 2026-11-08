@@ -11,6 +11,7 @@
 // Also not ported: traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
+import { bareCorpseTouch } from './stonetouch';
 import {
   DIRS,
   DIR_LIST,
@@ -320,6 +321,9 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
   const it = pile.c.item;
   const pos = hero(ctx).c.pos;
   if (!it || !pos) return false;
+  // kicking a cockatrice corpse barefoot (a life-saved hero kicks it anyway)
+  bareCorpseTouch(ctx, pile, 'kick');
+  if (ctx.state.gameOver) return true;
   const level = getLevel(ctx.state);
   const od = ctx.defs.object(pile.def);
   const isgold = od.class === 'coin';

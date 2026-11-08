@@ -51,6 +51,7 @@ export const P = {
   FIXED_ABIL: 'fixed_abil',
   LIFESAVED: 'lifesaved',
   STRANGLED: 'strangled',
+  STONED: 'stoned',
   SLEEPY: 'sleepy',
   REFLECTING: 'reflecting',
   ADORNED: 'adorned',

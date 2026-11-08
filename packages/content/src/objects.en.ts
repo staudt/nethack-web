@@ -128,6 +128,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:rock': 'rock',
   'nh:rock.plural': 'rocks',
   'nh:boulder': 'boulder',
+  'nh:statue': 'statue',
+  'nh:statue.plural': 'statues',
   'nh:boulder.plural': 'boulders',
 
   // ---- armor ----

@@ -58,6 +58,7 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.status.hallu': 'Hallu',
   'ui.status.lev': 'Lev',
   'ui.status.strngl': 'Strngl',
+  'ui.status.stone': 'Stone',
   'ui.status.deaf': 'Deaf',
   'ui.ext.enhance': '#enhance',
   'ui.ext.call': '#name',

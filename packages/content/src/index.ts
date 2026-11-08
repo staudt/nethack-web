@@ -45,6 +45,7 @@ import { registerMagicTraps } from './magictrap';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
+import { registerStoning } from './stoning';
 import { registerLevitation } from './levitation';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
@@ -119,6 +120,7 @@ export const vanillaMod: Mod = {
     registerMagicTraps();
     registerRollingBoulders();
     registerLandmines();
+    registerStoning(api); // ahead of the strangling timer, as nh_timeout()
     registerJewelry(api);
     registerLevitation(api);
     registerAutosearch(api);

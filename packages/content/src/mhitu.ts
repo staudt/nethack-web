@@ -11,6 +11,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { done } from './end';
+import { xkilledStoned } from './stoning';
 import { M_ATTK, canBlnd, diseasemu, mhitmAdtyping, newMhm, resistsBlnd } from './adtyping';
 import { digests, enfolds, flaming, isSwallowed, setUswallow, uswallow } from './engulfstate';
 import { engulfTarget, expels } from './engulf';
@@ -31,8 +32,10 @@ import { heroSees } from './mongear';
 import { isCancelled, isMConfused, isMStunned, mcansee, mspecUsed, setMspecUsed } from './mstate';
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
+import { discover } from './o_init';
 import {
   P,
+  hasExtrinsic,
   hasProp,
   incrItimeout,
   makeBlinded,
@@ -102,8 +105,9 @@ function couldsee(ctx: Ctx, mon: Entity): boolean {
  * radiance (which also stuns her briefly) and the pyrolisk's fiery gaze (burnt armor, burnt
  * items, fire resistance); a cancelled monster, or one gazing at a hallucinating (3 times in 4)
  * or unconscious hero, only "looks confused" (puzzled, irritated...). Always a miss for the
- * attack sequence. ref: src/mhitu.c gazemu(). Not ported: Medusa's stoning gaze and its
- * reflection (step 6), the AD_SLEE and AD_SLOW gazes (C compiles them only with PM_BEHOLDER,
+ * attack sequence. Medusa's gaze turns her to stone unless she cannot see it or resists (an
+ * amulet of reflection turns it back on Medusa). ref: src/mhitu.c gazemu(). Not ported: the
+ * AD_SLEE and AD_SLOW gazes (C compiles them only with PM_BEHOLDER,
  * which 3.7 does not define), the monster's memory of her resistances (m_seenres()).
  */
 export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
@@ -114,13 +118,56 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
   let already = false;
   let react = -1;
   const name = monNam(ctx, mon);
-  const reflectable = false; // Reflecting && couldsee && is_medusa (step 6)
+  const isMedusa = mon.def === 'nh:medusa';
+  // ureflects(): only the amulet of reflection reflects here
+  const reflectable = hasExtrinsic(hero, P.REFLECTING) && couldsee(ctx, mon) && isMedusa;
   if ((hasProp(hero, P.HALLUC) && ctx.rng.rn2(4) !== 0) || (unaware(ctx) && !reflectable))
     cancelled = true;
   const spec = (): boolean => mcanseeu && mspecUsed(ctx, mon.id) === 0 && ctx.rng.rn2(5) !== 0;
   switch (atk.ad) {
     case 'ston':
-      break; // Medusa (step 6)
+      // note: Medusa is the only monster with a stoning gaze
+      if (cancelled || !mcansee(ctx, mon.id)) {
+        if (!seen) break; // silently
+        if (unaware(ctx)) {
+          // can't see attacker even though not blind
+          react = isMedusa ? 4 : 2; // irritated or puzzled
+          break;
+        }
+        if (isMedusa && hasProp(hero, P.HALLUC) && ctx.rng.rn2(3) === 0)
+          say(ctx, 'stone.serpent_cut');
+        else
+          say(
+            ctx,
+            isMedusa && isCancelled(ctx, mon.id) && react < 0
+              ? 'stone.not_ugly'
+              : 'stone.gazes_ineffectually',
+            { mon: name },
+          );
+        break;
+      }
+      if (reflectable) {
+        // hero has line of sight to Medusa and she's not blind
+        if (seen) {
+          say(ctx, 'reflect.gaze_medallion', { mon: name });
+          discover(ctx, 'nh:amulet_of_reflection');
+        }
+        // (mon_reflects(): monsters wear no reflecting armor here)
+        // m_canseeu(): she is never invisible, so Medusa sees her when she can see at all
+        if (seen) say(ctx, 'stone.is_turned', { mon: name });
+        say(ctx, 'combat.you_kill', { mon: name }); // killed(mtmp): xkilled(XKILL_GIVEMSG)
+        xkilledStoned(ctx, mon);
+        if (ctx.state.entities[String(mon.id)]?.c.monster) break;
+        return M_ATTK.AGR_DIED;
+      }
+      if (seen && couldsee(ctx, mon) && !hasProp(hero, P.STONE_RES) && !unaware(ctx)) {
+        say(ctx, 'stone.meet_gaze', { mon: name });
+        stopOccupation(ctx);
+        // (no polymorph into a stone golem: 7f)
+        say(ctx, 'stone.you_turn');
+        done(ctx, isMedusa ? '@killer.ston.medusa' : `@${mon.def}`, 'stoning');
+      }
+      break;
     case 'conf':
       if (spec()) {
         if (cancelled) {

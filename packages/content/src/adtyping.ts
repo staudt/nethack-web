@@ -74,6 +74,8 @@ import { addToInventory, removeFromInventory } from './items';
 import { corpseChanceSwallowed } from './corpses';
 import { swallowedNutrition } from './dog';
 import { wakeNearto } from './noise';
+import { doStoneU, monstone } from './stoning';
+import { resistsSton } from './stonestate';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -1107,7 +1109,7 @@ function adSedu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
     if (env.vis && onam && canSpotMon(ctx, mdef))
       say(ctx, 'steal.steals_from', { magr: name, item: onam, mdef: mdefnam });
     if (wasWep) setMonFlag(ctx, 'nowep', mdef.id, false); // possibly_unwield()
-    // (no mstrategy; mselftouch() with a stolen cockatrice corpse: step 6)
+    // (no mstrategy; mselftouch(): monsters never wield corpses here)
     if (isNymph(ctx.defs.monster(magr.def)) && !teleRestrict(ctx, magr)) {
       const couldspot = canSpotMon(ctx, magr);
       mhm.hitflags = M_ATTK.AGR_DONE;
@@ -1151,6 +1153,58 @@ const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
     swallowedNutrition(ctx, magr, pd);
 };
 
+/**
+ * A monster touched by a petrifying attack (or touching a cockatrice) turns to stone unless it
+ * resists: "The jackal turns to stone!", a statue; the attacker may grow up from the kill. A
+ * resisting defender takes no damage from AD_STON itself (1 from anything else).
+ * ref: src/uhitm.c do_stone_mon() (no munstone(): monsters do not cure themselves; no golems'
+ * mon_to_stone(): 7f; no monster life saving)
+ */
+function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) {
+  if (!resistsSton(ctx, mdef)) {
+    if (env.vis && canSpotMon(ctx, mdef)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, mdef) });
+    const tame = (mdef.c.monster?.tame ?? 0) > 0;
+    const victimLevel = mdef.c.monster?.level ?? 0;
+    monstone(ctx, mdef);
+    if (tame && !env.vis) say(ctx, 'stone.peculiarly_sad');
+    const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
+    mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+    mhm.done = true;
+    return;
+  }
+  mhm.damage = atk.ad === 'ston' ? 0 : 1;
+}
+
+/**
+ * A cockatrice's touch. Against the hero, 1 time in 3 it hisses ("You hear the cockatrice's
+ * hissing!"; a cancelled one only coughs), and 1 time in 10 of those she starts turning to stone
+ * (do_stone_u()); against a monster, it turns to stone unless cancelled or resistant.
+ * ref: src/uhitm.c mhitm_ad_ston() (no moon phases: never a new moon; the hero is never deaf)
+ */
+const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (mdef.id === ctx.state.playerId) {
+    // (the hitmsg() is hitmu()'s)
+    if (ctx.rng.rn2(3) !== 0) return;
+    const name = monNam(ctx, magr);
+    if (isCancelled(ctx, magr.id)) {
+      say(ctx, 'stone.cough', { mon: name });
+      return;
+    }
+    if (hasProp(mdef, P.HALLUC) && !hasProp(mdef, P.BLINDED)) {
+      say(ctx, 'stone.hear_hissing');
+      say(ctx, 'stone.blowing_kiss', { mon: name });
+    } else say(ctx, 'stone.hissing', { mon: name });
+    if (ctx.rng.rn2(10) === 0 && doStoneU(ctx, magr)) {
+      mhm.hitflags = M_ATTK.HIT;
+      mhm.done = true;
+    }
+    return;
+  }
+  // mhitm
+  if (isCancelled(ctx, magr.id)) return;
+  doStoneMon(ctx, magr, atk, mdef, mhm, env);
+};
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -1185,6 +1239,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   sedu: adSedu,
   ssex: adSsex,
   dgst: adDgst,
+  ston: adSton,
 };
 
 /**

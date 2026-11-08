@@ -151,7 +151,7 @@ export function xkilledCorpse(
 /**
  * Starts the timer that rots a corpse away. ref: src/mkobj.c start_corpse_timeout(): the
  * corpse's age counts toward ROT_AGE and the time varies by rnz(10) - 10 (rnz(25) - 25 for
- * level creation). Lizards, lichens, trolls (revive) and Riders are not handled.
+ * level creation). Lizards and lichens never rot. Trolls (revive) and Riders are not handled.
  */
 export function startCorpseTimeout(
   ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
@@ -160,6 +160,8 @@ export function startCorpseTimeout(
 ): void {
   const it = ctx.state.entities[String(id)]?.c.item;
   if (!it) return;
+  // lizards and lichen don't rot or revive
+  if (it.corpseOf === 'nh:lizard' || it.corpseOf === 'nh:lichen') return;
   const rotAdjust = inMklev ? 25 : 10; // ref: gi.in_mklev ? 25 : 10
   const age = Math.max(ctx.state.turn, 1) - (it.age ?? 0);
   let when = age > ROT_AGE ? rotAdjust : ROT_AGE - age;

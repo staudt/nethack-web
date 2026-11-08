@@ -3,7 +3,7 @@
 // ref: src/end.c done(how), really_done(how)
 import type { Ctx, GameState, Json } from '@nh/core';
 /** How the hero died, for the parts of done() that care. ref: include/hack.h DIED, CHOKING ... */
-export type How = 'died' | 'choking' | 'poisoning' | 'starving';
+export type How = 'died' | 'choking' | 'poisoning' | 'starving' | 'stoning';
 
 /** C's `how` for the ends the port has. ref: include/hack.h DIED ... ESCAPED */
 export type EndHow = How | 'escaped' | 'quit';

@@ -887,6 +887,24 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     boulder: true,
   },
+  // ref: objects.h OBJECT(OBJ("statue", NoDes), BITS(1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, P_NONE,
+  // MINERAL), 0, ROCK_CLASS, 900, 0, 2500, 0, 20, 20, 0, 0, 2500, CLR_WHITE, STATUE). Only
+  // monsters turned to stone make one (monstone()): its `corpseOf` is the monster and it holds
+  // the monster's possessions (`containedIn`, as C's Has_contents(); it is not a container the
+  // hero can open). Shown as the class's '`' for now: 7f-c gives statues the monster's shape.
+  {
+    id: 'nh:statue',
+    nameKey: 'nh:statue',
+    class: 'rock',
+    glyph: { ch: '`', fg: WHITE },
+    prob: 900,
+    weight: 2500,
+    cost: 0,
+    material: 'mineral',
+    merge: false,
+    magic: false,
+    delay: 0,
+  },
 
   // ---- armor (ac = 10 - macro ac argument; mc = macro can argument; armor never merges) ----
   // ref: objects.h SHIELD("small shield", "wooden shield", 0, 0, 0, 0, 6, 0, 30, 3, 9, 0, WOOD, HI_WOOD, SMALL_SHIELD)

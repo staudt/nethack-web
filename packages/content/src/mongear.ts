@@ -2,6 +2,7 @@
 // dropping everything on death.
 // ref: src/makemon.c m_initweap(), m_initinv(), mongets(); src/worn.c m_dowear();
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
+import { resistsSton, touchPetrifies } from './stonestate';
 import {
   cellIndex,
   inventoryOf,
@@ -750,8 +751,8 @@ export function canCarry(
 /**
  * The monster picks up one item stack from the cell it stands on.
  * ref: src/mon.c mpickstuff(). A shopkeeper in his shop never picks up, and other monsters but
- * pets rarely do in a shop. Only nymphs pick up corpses (the cockatrice, lizard and acidic
- * exceptions are step 6's). The monster then wants to re-check its gear.
+ * pets rarely do in a shop. Only nymphs pick up corpses, and not a cockatrice's bare-handed. The
+ * monster then wants to re-check its gear.
  */
 export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
   const { e, def } = monOf(ctx, monId);
@@ -765,9 +766,20 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
     return false;
   for (const o of itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)) {
     if (!monWouldTakeItem(ctx, monId, o)) continue;
-    // nymphs take everything; most monsters don't pick up corpses (no cockatrices, lizards or
-    // acidic corpses for the others yet)
+    // nymphs take everything; most monsters don't pick up corpses (C lets cockatrice, lizard
+    // and acidic corpses through for monsters that use them: muse.c is not ported)
     if (o.def === 'nh:corpse' && def.glyph.ch !== 'n') continue;
+    // can_touch_safely(): a cockatrice corpse without gloves
+    const of = o.c.item?.corpseOf;
+    if (
+      o.def === 'nh:corpse' &&
+      of &&
+      ctx.defs.isMonster(of) &&
+      touchPetrifies(ctx.defs.monster(of)) &&
+      !whichArmor(ctx, monId, 'gloves') &&
+      !resistsSton(ctx, e)
+    )
+      continue;
     const carry = canCarry(ctx, monId, o);
     if (carry === 0) continue;
     let take = o.id;

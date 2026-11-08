@@ -5,9 +5,9 @@ import { nonliving } from './mondata';
 import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse } from './corpses';
 import { engulfingU } from './engulfstate';
-import { placeOnFloor, weight } from './items';
+import { mksobj, placeOnFloor, removeFromInventory, weight } from './items';
 import { mkobj } from './mkobj';
-import { forgetMonster, relobj } from './mongear';
+import { forgetMonster, minvent, relobj } from './mongear';
 import { forgetMState } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
@@ -23,9 +23,14 @@ import { countKill } from './vanquished';
  * small monsters (smaller than MZ_HUMAN) do not leave heavy (owt > 30) or bulky (oc_big =
  * bimanual here) objects. Then corpse_chance() and make_corpse().
  */
-export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
+export function monsterDied(
+  ctx: Ctx,
+  monId: EntityId,
+  byHero: boolean,
+  stoned = false,
+): EntityId | null {
   const e = ctx.state.entities[String(monId)];
-  if (!e?.c.monster) return;
+  if (!e?.c.monster) return null;
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
   const wasinside = engulfingU(ctx, monId);
@@ -38,13 +43,15 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
       epri ? { shralign: epri.shralign, coaligned: pCoaligned(ctx, epri) } : null,
     );
   }
+  // ref: xkilled(): `if (gs.stoned) monstone(mtmp)`: a statue holding its things, no corpse
+  const statue = stoned && at ? makeStatue(ctx, e, at) : null;
   relobj(ctx, monId, at);
   shkgone(ctx, monId); // ref: m_detach()
   countKill(ctx, e.def); // ref: mondead(): mvitals[].died++
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);
   ctx.remove(monId);
-  if (!byHero || !at) return;
+  if (!byHero || !at || stoned) return statue;
 
   const hero = getPlayer(ctx.state).c.pos;
   const onHero = hero?.level === at.level && hero.x === at.x && hero.y === at.y;
@@ -67,6 +74,42 @@ export function monsterDied(ctx: Ctx, monId: EntityId, byHero: boolean): void {
   }
   // corpse--none if hero was inside the monster
   if (!wasinside) xkilledCorpse(ctx, def, at, true);
+  return null;
+}
+
+/**
+ * The statue (or, for a small monster, sometimes a pile of rocks) a monster turning to stone
+ * leaves where it stands, with its possessions inside; a boulder it carries falls out. Call it
+ * before the monster is removed. Returns the statue's (or the rocks') id.
+ * ref: src/mon.c monstone() (the object part; no vampires, life saving, lit objects, names,
+ * genders or historic statues), src/mkobj.c mkcorpstat(STATUE)
+ */
+export function makeStatue(
+  ctx: Ctx,
+  mon: Entity,
+  at: { level: string; x: number; y: number },
+): EntityId {
+  const def = ctx.defs.monster(mon.def);
+  if (def.size !== 'tiny' || ctx.rng.rn2(2 + (def.frequency > 2 ? 1 : 0)) === 0) {
+    const inside: Entity[] = [];
+    // some objects may end up outside the statue
+    for (const o of minvent(ctx, mon.id)) {
+      if (o.def === 'nh:boulder') placeOnFloor(ctx, o.id, at.level, at.x, at.y);
+      else inside.push(o);
+    }
+    const statue = mksobj(ctx, ctx.defs.object('nh:statue'), { init: false, corpseOf: def.id });
+    // add_to_container()
+    for (const o of inside) {
+      const it = o.c.item;
+      if (!it) continue;
+      removeFromInventory(ctx, o.id);
+      it.containedIn = statue;
+      it.placed = ctx.state.seq++;
+    }
+    placeOnFloor(ctx, statue, at.level, at.x, at.y);
+    return statue;
+  }
+  return mksobj(ctx, ctx.defs.object('nh:rock'), { at });
 }
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>

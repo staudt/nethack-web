@@ -122,18 +122,35 @@ export function setMspeed(ctx: Pick<Ctx, 'state'>, id: EntityId, v: MSpeed): voi
 
 /**
  * ref: src/worn.c mon_adjust_speed() for +1 / -1: MSLOW and MFAST cancel each other; the change
- * is told when seen, and `seen` runs then (a wand's learnwand()).
+ * is told when seen, and `seen` runs then (a wand's learnwand()). -3 is petrification: intrinsic
+ * speed is taken away (normal speed is not reduced) and "<mon> is slowing down." is told.
  */
 export function monAdjustSpeed(
   ctx: Ctx,
   mon: Entity,
-  adjust: 1 | -1,
+  adjust: 1 | -1 | -3,
   seen: () => void = () => undefined,
 ): void {
   const old = mspeed(ctx, mon.id);
-  const now = adjust > 0 ? (old === 'slow' ? null : 'fast') : old === 'fast' ? null : 'slow';
+  const petrify = adjust === -3;
+  const now = petrify
+    ? old === 'fast'
+      ? null
+      : old
+    : adjust > 0
+      ? old === 'slow'
+        ? null
+        : 'fast'
+      : old === 'fast'
+        ? null
+        : 'slow';
   setMspeed(ctx, mon.id, now);
   const def = ctx.defs.monster(mon.def);
+  if (petrify) {
+    if (def.speed > 0 && !isFrozen(ctx, mon.id) && !mon.c.monster?.asleep && canseemon(ctx, mon))
+      ctx.emit({ type: 'msg', key: 'stone.mon_slowing', params: { mon: monNam(ctx, mon) } });
+    return;
+  }
   if (
     now !== old &&
     def.speed > 0 &&

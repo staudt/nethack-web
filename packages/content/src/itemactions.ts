@@ -1,5 +1,6 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { cantWieldCorpse, fatalCorpseMistake } from './stonetouch';
 import { digests, isSwallowed, uswallow } from './engulfstate';
 import { monNam } from './perception';
 import {
@@ -352,6 +353,8 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
 
   let qq = data.qq;
   if (qq === undefined) {
+    // ref: pickup_object(): touching a cockatrice corpse bare-handed
+    if (fatalCorpseMistake(ctx, obj)) return 'abort';
     // ref: pickup.c pickup_object(obj, count): a count from the menu caps what is lifted
     const want = Math.min(data.counts?.[String(obj.id)] ?? it.quantity, it.quantity);
     const lift = liftLoadstone(ctx, obj);
@@ -791,8 +794,9 @@ const wield: ActionDef = {
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
     if (!e || !it) return [];
-    // ref: dowield() takes any object; weapons and weapon-tools are offered
-    return isWeaponOrWeptool(defOf(ctx, e)) && it.equipped === null
+    // ref: dowield() takes any object; weapons, weapon-tools and corpses (a cockatrice's is a
+    // weapon) are offered
+    return (isWeaponOrWeptool(defOf(ctx, e)) || e.def === 'nh:corpse') && it.equipped === null
       ? [itemOffer('nh:wield', e.id, 'action.nh:wield')]
       : [];
   },
@@ -858,6 +862,8 @@ function readyWeapon(ctx: Ctx, wep: Entity | null): number {
   const wit = wep.c.item;
   if (!wit) return 0;
   const def = defOf(ctx, wep);
+  // hero must have been life-saved to get past cant_wield_corpse(); use a turn
+  if (cantWieldCorpse(ctx, wep)) return NORMAL_SPEED;
   if (wornIn(ctx, 'shield') && def.weapon?.bimanual) {
     ctx.emit({ type: 'msg', key: 'wield.two_handed_shield', params: { kind: weaponKind(def) } });
     return 0;

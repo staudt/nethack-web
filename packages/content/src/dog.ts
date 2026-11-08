@@ -4,6 +4,7 @@
 //
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
+import { fleshPetrifies, resistsSton } from './stonestate';
 import {
   getLevel,
   getPlayer,
@@ -149,7 +150,7 @@ const AFTER_SLIME_MOLD = new Set([
 
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
- * Not ported: poisoned weapons, artifacts, riders, cockatrices, ghouls, royal jelly, eggs
+ * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, eggs
  * (none exist), slime, garlic, tins, polymorph food, silver-haters, metallivores.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
@@ -157,6 +158,16 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
   const odef = ctx.defs.object(obj.def);
   const cursed = obj.c.item?.buc === 'cursed';
   if (odef.class === 'food') {
+    const fx = obj.c.item?.corpseOf;
+    // c*ckatrice or Medusa
+    if (
+      obj.def === 'nh:corpse' &&
+      fx &&
+      ctx.defs.isMonster(fx) &&
+      fleshPetrifies(ctx.defs.monster(fx)) &&
+      !resistsSton(ctx, mon)
+    )
+      return POISON;
     const carni = carnivorous(mdef);
     const herbi = herbivorous(mdef);
     if (!carni && !herbi) return cursed ? UNDEF : APPORT;

@@ -35,6 +35,8 @@ import {
 import { cpostfxOf } from './givit';
 import { die, losehp, losestr } from './hp';
 import { gainExperience } from './hero';
+import { done } from './end';
+import { fixPetrification, fleshPetrifies, isStoned } from './stonestate';
 import { P, hasProp, isStrangled, makeBlinded, makeConfused, timeoutLeft } from './props';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
@@ -47,6 +49,8 @@ import { addtobill, billUsedUp, costlyAlteration, stolenValue } from './shk';
 // ---------------------------------------------------------------------------------------------
 // helpers
 
+/** ref: PM_LIZARD */
+const LIZARD = 'nh:lizard';
 const hero = (ctx: Ctx): Entity => getPlayer(ctx.state);
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -376,8 +380,9 @@ const TASTES = ['okay', 'stringy', 'gamey', 'fatty', 'tough'] as const;
 /**
  * Checks a corpse that is about to be eaten. Returns 0 (fine), 1 (the hero passed out; the
  * meal is not started) or 2 (the corpse is used up). ref: src/eat.c eatcorpse()
- * Not ported: petrification, sliming, globs, vegan/vegetarian conduct, cannibalism (no human
- * monsters in the roster), `orotten`, lizards and lichens (not in the roster).
+ * Not ported: sliming, globs, vegan/vegetarian conduct, cannibalism (no human monsters in the
+ * roster), `orotten`. Lizards and lichens never rot; a petrifying corpse is never "tainted"
+ * (cprefx() turns her to stone).
  */
 function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   const it = e.c.item;
@@ -385,12 +390,16 @@ function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   const mon = ctx.defs.monster(it.corpseOf);
   let retcode = 0;
   let tp = 0;
-  const age = it.age ?? 0;
-  let rotted = Math.trunc((ctx.state.turn - age) / (10 + ctx.rng.rn2(20)));
-  if (it.buc === 'cursed') rotted += 2;
-  else if (it.buc === 'blessed') rotted -= 2;
+  const stoneable = fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES);
+  let rotted = 0;
+  if (!nonrottingCorpse(mon.id)) {
+    const age = it.age ?? 0;
+    rotted = Math.trunc((ctx.state.turn - age) / (10 + ctx.rng.rn2(20)));
+    if (it.buc === 'cursed') rotted += 2;
+    else if (it.buc === 'blessed') rotted -= 2;
+  }
 
-  if (rotted > 5) {
+  if (!stoneable && rotted > 5) {
     say(ctx, 'eat.tainted');
     // Sick_resistance does not exist
     let sickTime = 10 + ctx.rng.rn2(10); // rn1(10, 10)
@@ -427,7 +436,7 @@ function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   // delay is weight dependent
   v.reqtime = 3 + (mon.weight >> 6);
 
-  if (!tp && ctx.rng.rn2(7) === 0) {
+  if (!tp && !nonrottingCorpse(mon.id) && ctx.rng.rn2(7) === 0) {
     if (rottenfood(ctx, e)) retcode = 1;
     if (!mon.nutrition) {
       // no nutrition: rots away, no message if you passed out
@@ -459,10 +468,30 @@ function cpostfx(ctx: Ctx, corpse: Entity): void {
   if (of && ctx.defs.isMonster(of)) cpostfxOf(ctx, ctx.defs.monster(of));
 }
 
-/** ref: src/eat.c cprefx(): nothing applies to the roster (no cannibalism, cockatrice, pets). */
-function cprefx(_ctx: Ctx, _corpse: Entity): void {
-  // intentionally empty for the current roster
+/**
+ * The first bite of a corpse: a cockatrice's (or Medusa's) flesh turns her to stone at once
+ * unless she resists; a lizard's, or an acidic monster's, cures petrification in progress.
+ * ref: src/eat.c cprefx() (no cannibalism or pets in the roster yet, no tins, no Riders, no green
+ * slime; no polymorph into a stone golem: 7f)
+ */
+function cprefx(ctx: Ctx, corpse: Entity): void {
+  const of = corpse.c.item?.corpseOf;
+  if (!of || !ctx.defs.isMonster(of)) return;
+  const mon = ctx.defs.monster(of);
+  if (fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES)) {
+    say(ctx, 'stone.you_turn_eat');
+    done(ctx, `@killer.ston.tasting.${mon.id}`, 'stoning');
+    const v = victualOf(ctx);
+    if (v) v.eating = false;
+    return; // lifesaved
+  }
+  if (mon.id === LIZARD) {
+    if (isStoned(ctx.state)) fixPetrification(ctx);
+  } else if (mon.flags.includes('acid') && isStoned(ctx.state)) fixPetrification(ctx);
 }
+
+/** ref: src/eat.c nonrotting_corpse(): lizards and lichens never rot */
+export const nonrottingCorpse = (mon: string): boolean => mon === LIZARD || mon === 'nh:lichen';
 
 // ---------------------------------------------------------------------------------------------
 // ordinary food
@@ -525,7 +554,11 @@ function startEating(ctx: Ctx, piece: Entity, alreadyPartlyEaten: boolean): void
   if (!v) return;
   v.fullwarn = false;
   v.eating = true;
-  if (isCorpse(piece)) cprefx(ctx, piece);
+  if (isCorpse(piece)) {
+    cprefx(ctx, piece);
+    // hero died and was lifesaved
+    if (ctx.state.gameOver || !v.eating) return;
+  }
   const data = nhData(ctx);
   const oldNomovemsg = data.nomovemsg ?? null;
   if (bite(ctx)) {

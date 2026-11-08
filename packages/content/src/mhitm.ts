@@ -5,7 +5,8 @@
 // The damage types are adtyping.ts's (mhitm_adtyping()). Passive responses: acid, disenchantment,
 // paralysis (floating eye), cold, stun, fire and elec. Hugs, gazes (gazemm()) and explosions
 // (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
-// which do nothing until their m9 step), shades, silver, cloning puddings, petrification.
+// which do nothing until their m9 step), shades, silver, cloning puddings. Touching a cockatrice
+// turns the attacker to stone (mdamagem()).
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -48,6 +49,8 @@ import { engulfTarget } from './engulf';
 import { snuffLit } from './light';
 import { mintrap } from './trap';
 import { resistConflict } from './props';
+import { monstone } from './stoning';
+import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 
 export { M_ATTK };
 
@@ -153,6 +156,26 @@ function mdamagem(
   dieroll: number,
 ): number {
   const mhm = newMhm(ctx.rng.d(atk.n, atk.d), dieroll);
+  // touching a cockatrice (or digesting Medusa) without the armor that protects this attack
+  const pd = ctx.defs.monster(mdef.def);
+  if (
+    (touchPetrifies(pd) || (atk.ad === 'dgst' && pd.id === 'nh:medusa')) &&
+    !resistsSton(ctx, magr)
+  ) {
+    const protector = attkProtection(atk.at);
+    // a wielded weapon gives the same protection as gloves here
+    const worn = (slot: string): boolean =>
+      (slot === 'gloves' && mwep !== null) ||
+      minvent(ctx, magr.id).some((o) => o.c.item?.equipped === slot);
+    if (protector !== 'never' && (protector.length === 0 || !protector.every(worn))) {
+      // (no golems: mon_to_stone() is 7f)
+      if (vis && canSpotMon(ctx, magr)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
+      const tame = (magr.c.monster?.tame ?? 0) > 0;
+      monstone(ctx, magr);
+      if (tame && !vis) say(ctx, 'stone.peculiarly_sad');
+      return M_ATTK.AGR_DIED;
+    }
+  }
   mhitmAdtyping(ctx, magr.id, atk, mdef.id, mhm, { vis, mwep, growUp });
   if (mhm.done) return mhm.hitflags;
   const damage = mhm.damage;
@@ -584,7 +607,8 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
         if (atk.at === 'kick' && mtrappedInPit(ctx, magrId)) continue;
         // Nymph that teleported away on first attack?
         if (distmin(magr, mdef) > 1) continue;
-        // (monsters won't attack cockatrices physically with a weapon in hand: step 6)
+        // (C's "monsters won't attack cockatrices physically if they have a weapon instead" test
+        // reads `mwep`, which is only set for AT_WEAP: it never applies, so it is not ported)
         const dieroll = ctx.rng.rnd(20 + i);
         strike = tmp > dieroll;
         // KMH -- don't accumulate to-hit bonuses

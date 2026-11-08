@@ -255,8 +255,9 @@ export function checkInvariants(
 const INVLET = /^[$a-zA-Z#]$/;
 
 /**
- * A contained item's container is an existing container item, and following containers upward
- * ends at an item that is not contained (no nesting loop).
+ * A contained item's container is an existing container item (or a statue, which holds the
+ * possessions of the monster turned to stone: C's Has_contents()), and following containers
+ * upward ends at an item that is not contained (no nesting loop).
  */
 function checkContained(
   state: GameState,
@@ -266,7 +267,11 @@ function checkContained(
   errs: string[],
 ): void {
   const box = state.entities[String(item.containedIn)];
-  if (!box?.c.item || !registry.isObject(box.def) || !registry.object(box.def).container) {
+  if (
+    !box?.c.item ||
+    !registry.isObject(box.def) ||
+    (!registry.object(box.def).container && box.def !== 'nh:statue')
+  ) {
     errs.push(`item ${id}: contained in ${item.containedIn ?? '?'}, which is not a container item`);
     return;
   }

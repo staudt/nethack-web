@@ -84,13 +84,17 @@ export interface ItemComponent {
   equipped: EquipSlot | null;
   /** Placement sequence (from `state.seq`); the highest on a cell is the top of the pile. */
   placed: number;
-  /** Corpses: the monster it was (obj->corpsenm). */
+  /** Corpses and statues: the monster it was or shows (obj->corpsenm). */
   corpseOf?: DefId;
   /** Turn the object was created (obj->age), for rotting. */
   age?: number;
   /** Nutrition left in partly eaten food (obj->oeaten). */
   eaten?: number;
-  /** The container item this one is inside (obj->ocontainer, where == OBJ_CONTAINED). */
+  /**
+   * The container item this one is inside (obj->ocontainer, where == OBJ_CONTAINED). A mod may
+   * also let a non-container item hold others (vanilla statues, whose contents are put in by
+   * content, not by `putIn`).
+   */
   containedIn?: EntityId;
   /** A locked box (obj->olocked). */
   locked?: true;

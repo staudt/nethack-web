@@ -5,6 +5,7 @@
 //
 // The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
 // prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
+import { isStoned, makeStoned } from './stonestate';
 import { uswallow } from './engulfstate';
 import { monNam } from './perception';
 import { monsterDied } from './mondeath';
@@ -56,6 +57,7 @@ export const PRAY_ID: DefId = 'nh:pray';
 const PRAYER_DONE: DefId = 'nh:prayer_done';
 
 /** ref: src/pray.c TROUBLE_* (the ones that can happen here) */
+const TROUBLE_STONED = 14;
 const TROUBLE_STRANGLED = 12;
 const TROUBLE_SICK = 10;
 const TROUBLE_STARVING = 9;
@@ -158,12 +160,13 @@ const HVY_ENCUMBER = 3;
 
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
- * Not ported (they cannot happen): stoning, sliming, lava, clouds, lycanthropy,
+ * Not ported (they cannot happen): sliming, lava, clouds, lycanthropy,
  * collapsing and poisoned attributes (no AMAX), walls, levitation, blindfolds, punishment,
  * fumbling, saddles, deafness.
  */
 export function inTrouble(ctx: Ctx): number {
   const h = hero(ctx);
+  if (isStoned(ctx.state)) return TROUBLE_STONED;
   if (isStrangled(h)) return TROUBLE_STRANGLED;
   if (hungerData(ctx).sick) return TROUBLE_SICK;
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
@@ -203,6 +206,9 @@ function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
 function fixWorstTrouble(ctx: Ctx, trouble: number): void {
   const h = hero(ctx);
   switch (trouble) {
+    case TROUBLE_STONED:
+      makeStoned(ctx, 0, 'stone.more_limber', null);
+      break;
     case TROUBLE_STRANGLED:
       fixStrangled(ctx);
       break;

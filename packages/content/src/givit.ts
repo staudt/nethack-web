@@ -8,6 +8,7 @@ import {
   hasProp,
   incrItimeout,
   makeHallucinated,
+  makeConfused,
   makeStunned,
   setIntrinsic,
   timeoutLeft,
@@ -161,6 +162,11 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
       break;
     default:
       break;
+  }
+  // ref: cpostfx() PM_LIZARD: stun and confusion drop to 2 turns (then check intrinsics)
+  if (def.id === 'nh:lizard') {
+    if (timeoutLeft(ctx.state, hero, P.STUNNED) > 2) makeStunned(ctx, 2, false);
+    if (timeoutLeft(ctx.state, hero, P.CONFUSION) > 2) makeConfused(ctx, 2, false);
   }
   if (stuns > 0) {
     for (let i = 0; i < stuns; i++)

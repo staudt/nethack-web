@@ -63,6 +63,8 @@ describe('vanilla monsters', () => {
       'ssex',
       // m9 step 4 (gulpmu, mhitm_ad_dgst)
       'dgst',
+      // m9 step 6 (stoning.ts, mhitm_ad_ston, passive())
+      'ston',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

@@ -145,6 +145,7 @@ export function entryText(e: EndSummary): string {
     } else if (e.how === 'choking') {
       s += `choked on h${e.plcode?.split('-')[2]?.startsWith('F') ? 'er' : 'is'} food`;
     } else if (e.how === 'poisoning') s += 'was poisoned';
+    else if (e.how === 'stoning') s += 'turned to stone';
     else s += 'died';
     s += ` in ${e.dungeon} on level ${e.deathLev}`;
     if (e.deathLev !== maxLvl) s += ` [max ${maxLvl}]`;

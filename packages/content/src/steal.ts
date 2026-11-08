@@ -5,9 +5,11 @@
 // src/mhitu.c could_seduce()
 //
 // Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet() (no Amulet or
-// quest artifacts), ball and chain, leashes, boulders in inventory, a stolen cockatrice corpse
-// petrifying the thief (step 6). The hero is always female (the Valkyrie), so the nymph "charms"
-// her; the male "seduces you and you take off" wording is not reachable.
+// quest artifacts), ball and chain, leashes, boulders in inventory. The hero is always female
+// (the Valkyrie), so the nymph "charms" her; the male "seduces you and you take off" wording is
+// not reachable.
+import { minstapetrify } from './stoning';
+import { petrifyingCorpse } from './stonetouch';
 import {
   getPlayer,
   inventoryOf,
@@ -25,7 +27,7 @@ import { encumberMsg } from './itemactions';
 import { addToInventory, nhData, removeFromInventory, splitStack } from './items';
 import { amuletOff, blindfOff, ringGone } from './jewelry';
 import { moneyCnt } from './money';
-import { canCarry, findGold } from './mongear';
+import { canCarry, findGold, whichArmor } from './mongear';
 import { monflee } from './monflee';
 import { nomulNow } from './hunger';
 import { setAfternmv, setAfternmvKey, setStealIds, stealIds } from './nomul';
@@ -412,8 +414,13 @@ export function steal(ctx: Ctx, mon: Entity): { stolen: Msg | null; result: numb
     item: doname(ctx.state, ctx.defs, otmp),
   });
   encumberMsg(ctx);
-  // (a stolen cockatrice corpse petrifying a gloveless thief: step 6)
+  const couldPetrify = petrifyingCorpse(ctx, otmp);
   mpickobj(ctx, mon.id, otmp);
+  // a stolen cockatrice corpse petrifies a gloveless thief
+  if (couldPetrify && !whichArmor(ctx, mon.id, 'gloves')) {
+    minstapetrify(ctx, mon, true);
+    return { stolen, result: -1 };
+  }
   return { stolen, result: h.c.helpless !== undefined ? 0 : 1 };
 }
 

@@ -40,6 +40,10 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   if (def.id === 'nh:corpse' && it?.corpseOf) {
     return { key: `${def.nameKey}${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
+  // ref: xname() STATUE: "statue of a newt" (no historic statues, no unique monsters' names)
+  if (def.id === 'nh:statue' && it?.corpseOf) {
+    return { key: `nh:statue.of${plural}`, params: { mon: `@${it.corpseOf}` } };
+  }
   // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
   if (def.id === FAKE_AMULET) {
     return { key: `${it?.known.spe ? def.nameKey : (def.descKey ?? def.nameKey)}${plural}` };

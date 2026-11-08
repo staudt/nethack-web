@@ -13,6 +13,7 @@ import { mhitmMessagesEn } from './mhitm.en';
 import { adtypingMessagesEn } from './adtyping.en';
 import { stealMessagesEn } from './steal.en';
 import { engulfMessagesEn } from './engulf.en';
+import { stoningMessagesEn } from './stoning.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -51,6 +52,7 @@ export const messagesEn: Record<string, string> = {
   ...adtypingMessagesEn,
   ...stealMessagesEn,
   ...engulfMessagesEn,
+  ...stoningMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -281,6 +283,9 @@ export const messagesEn: Record<string, string> = {
   'nh:dust_vortex': 'dust vortex',
   'nh:purple_worm': 'purple worm',
   'nh:yellow_light': 'yellow light',
+  'nh:lizard': 'lizard',
+  'nh:chickatrice': 'chickatrice',
+  'nh:cockatrice': 'cockatrice',
   'nh:pyrolisk': 'pyrolisk',
   'nh:monkey': 'monkey',
   'nh:owlbear': 'owlbear',

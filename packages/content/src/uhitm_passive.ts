@@ -20,6 +20,7 @@ import { changeLuck } from './luck';
 import { discover } from './o_init';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
+import { done } from './end';
 
 /** The attacked monster as it was before the blow (it may be dead and removed afterwards). */
 export interface PassiveTarget {
@@ -43,7 +44,8 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
  * armor; the Oracle's magic missiles; a cancelled monster's fire and live responses fail.
  * A rust monster's or black pudding's passive rusts or corrodes the weapon (or the boots of a
  * kick), a disenchanter's drains its enchantment ("Your long sword seems less effective.").
- * ref: src/uhitm.c passive(), passive_obj(). Golems are not ported; stoning is step 6. Not
+ * A cockatrice's passive turns her to stone when she hit it bare-handed or kicked it barefoot.
+ * ref: src/uhitm.c passive(), passive_obj(). Golems are not ported. Not
  * ported: brown mold splitting (split_mon). A blind floating eye "cannot defend itself".
  */
 export function passive(
@@ -113,6 +115,20 @@ export function passive(
     }
     if (mhit) hitObj('corrode');
     if (ctx.state.gameOver) return;
+  } else if (atk.ad === 'ston') {
+    // a bare-handed blow without gloves, or a kick without boots, touches the cockatrice
+    if (mhit) {
+      const unprotected =
+        aatyp === 'kick'
+          ? !whichArmor(ctx, hero.id, 'boots')
+          : !whichArmor(ctx, hero.id, 'gloves') && !weapon;
+      if (unprotected && !hasProp(hero, P.STONE_RES)) {
+        // done_in_by(mon, STONING): "You turn to stone..." (no polymorph into a stone golem: 7f)
+        say(ctx, 'stone.you_turn');
+        done(ctx, killer, 'stoning');
+        return;
+      }
+    }
   } else if (atk.ad === 'magm') {
     // wrath of gods for attacking Oracle (no shieldeff or monstseesu here)
     if (hasProp(hero, P.ANTIMAGIC)) say(ctx, 'passive.magm_miss');

@@ -12,6 +12,7 @@
 // while confused, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
 // bag of holding that explodes on its floor, the weight check when taking things out of a carried container, the
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
+import { fatalCorpseMistake } from './stonetouch';
 import {
   NORMAL_SPEED,
   contents,
@@ -225,6 +226,8 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0
     it.equipped = null; // setuwep((struct obj *) 0)
   } else if (swapWep(ctx)?.id === obj.id) setSwapWep(ctx, null);
 
+  if (fatalCorpseMistake(ctx, obj)) return -1;
+
   // boxes can't fit into any container
   if (isBox(ctx, obj)) {
     say(ctx, 'loot.cant_fit', {
@@ -295,6 +298,7 @@ function outContainer(
 ): -1 | 0 | 1 {
   const it = obj.c.item;
   if (!it) return 0;
+  if (fatalCorpseMistake(ctx, obj)) return -1;
   let qq = Math.min(count, it.quantity);
   // lift_object(): a loadstone is lifted regardless of its weight
   const lift = liftLoadstone(ctx, obj);

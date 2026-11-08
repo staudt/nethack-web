@@ -228,7 +228,7 @@ export interface MksobjOpts {
   at?: { level: LevelId; x: number; y: number };
   /** ... or put into this entity's inventory (merging). Neither: the item is left detached. */
   carriedBy?: EntityId;
-  /** Corpses only: the monster. */
+  /** Corpses (required) and statues: the monster. */
   corpseOf?: DefId;
   /** mksobj's `artif`: rolls the artifact chance (the roll is made; no artifact results). */
   artif?: boolean;
@@ -258,7 +258,7 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
   if (def.id === 'nh:corpse') {
     if (!opts.corpseOf) throw new Error('mksobj: a corpse needs corpseOf (use mkcorpse)');
     it.corpseOf = opts.corpseOf;
-  }
+  } else if (def.id === 'nh:statue' && opts.corpseOf) it.corpseOf = opts.corpseOf;
   const trap =
     (opts.init ?? true)
       ? mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory)
@@ -308,6 +308,16 @@ export function mkgold(
 // ---------------------------------------------------------------------------------------------
 // weight
 
+/** ref: include/monflag.h MZ_TINY .. MZ_GIGANTIC */
+export const MSIZE: Readonly<Record<string, number>> = {
+  tiny: 0,
+  small: 1,
+  medium: 2,
+  large: 3,
+  huge: 4,
+  gigantic: 7,
+};
+
 /** ref: src/eat.c eaten_stat(): weight of partly eaten food scales with the nutrition left. */
 export function eatenStat(base: number, full: number, left: number): number {
   const uneaten = Math.min(left, full);
@@ -339,6 +349,18 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
             ? Math.trunc((cwt + 3) / 4)
             : Math.trunc((cwt + 1) / 2);
     return def.weight * it.quantity + cwt;
+  }
+  if (def.id === 'nh:statue' && state) {
+    // ref: weight(): 1.5 times the corpse weight, at least (2 * msize + 1) * 100 for monsters
+    // that are tiny or leave no corpse; plus what the statue holds
+    let wt = def.weight * it.quantity;
+    if (it.corpseOf && defs.isMonster(it.corpseOf)) {
+      const mon = defs.monster(it.corpseOf);
+      const msize = MSIZE[mon.size] ?? 0;
+      wt = Math.max(Math.trunc((3 * mon.weight) / 2), (2 * msize + 1) * 100) * it.quantity;
+    }
+    for (const o of contents(state, item.id)) wt += weight(defs, o, state);
+    return wt;
   }
   if (def.id === 'nh:corpse' && it.corpseOf && defs.isMonster(it.corpseOf)) {
     const mon = defs.monster(it.corpseOf);

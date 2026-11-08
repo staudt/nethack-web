@@ -1,4 +1,7 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
+import { minstapetrify } from './stoning';
+import { corpseName, petrifyingCorpse } from './stonetouch';
+import { resistsSton } from './stonestate';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -26,7 +29,7 @@ import { xnameOf } from './objnam';
 import { stopOccupation } from './eat';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
-import { weight } from './items';
+import { MSIZE, weight } from './items';
 import { heroSees, monWep, monWieldItem } from './mongear';
 import { findAc, findMac, nearCapacity } from './stats';
 import {
@@ -264,6 +267,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   let useSkill = false;
   let train = false;
   let strBonus = true;
+  let hittxt = false;
   if (!weapon) {
     // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack)
     dmg = ctx.rng.rnd(2);
@@ -273,6 +277,24 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     dmg = dmgval(ctx.rng, weapon.item, weapon.def, def);
     useSkill = true;
     train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
+  } else if (weapon.item.def === 'nh:corpse') {
+    // hmon_hitmon_misc_obj() CORPSE: a cockatrice corpse turns the monster to stone
+    if (petrifyingCorpse(ctx, weapon.item)) {
+      dmg = 1;
+      hittxt = true;
+      ctx.emit({
+        type: 'msg',
+        key: 'stone.hit_with',
+        params: { mon: name, item: corpseName(weapon.item) },
+      });
+      minstapetrify(ctx, target, true);
+      // (no munstone(): monsters do not cure themselves)
+      if (!resistsSton(ctx, target))
+        return answer(true, ctx.state.entities[String(targetId)]?.c.monster !== undefined);
+    } else {
+      const of = weapon.item.c.item?.corpseOf;
+      dmg = (of && ctx.defs.isMonster(of) ? (MSIZE[ctx.defs.monster(of).size] ?? 0) : 0) + 1;
+    }
   } else if (weapon.def.material === 'veggy' || weapon.def.material === 'paper') {
     // hmon_hitmon_misc_obj default: vegetables and paper do no damage
     dmg = 0;
@@ -327,11 +349,12 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     return answer(true, false);
   }
   // ref: src/uhitm.c hmon_hitmon_msg_hit(): "You hit <mon>" + exclam(dmg)
-  ctx.emit({
-    type: 'msg',
-    key: exclam(dmg) === '!' ? 'combat.you_hit_hard' : 'combat.you_hit',
-    params: { mon: name },
-  });
+  if (!hittxt)
+    ctx.emit({
+      type: 'msg',
+      key: exclam(dmg) === '!' ? 'combat.you_hit_hard' : 'combat.you_hit',
+      params: { mon: name },
+    });
   // ref: src/uhitm.c hmon_hitmon(): `else if (u.umconf && hmd.hand_to_hand)` (every blow here
   // is hand-to-hand: thrown and fired objects hit through dothrow.ts)
   if (uspellOf(ctx.state).umconf) {

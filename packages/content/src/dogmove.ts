@@ -1,6 +1,7 @@
 // How a pet moves: hunger, eating, fetching, choosing a goal, fighting other monsters.
 // ref: src/dogmove.c dog_move(), dog_goal(), dog_invent(), dog_eat(), dog_nutrition(),
 // dog_hunger(), dog_starve(), can_reach_location(); src/mhitm.c max_passive_dmg()
+import { resistsSton, touchPetrifies } from './stonestate';
 import {
   cellIndex,
   cellRules,
@@ -552,6 +553,8 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         )
           continue;
         if (mtmp2.def === 'nh:floating_eye' && ctx.rng.rn2(10) !== 0) continue;
+        // a cockatrice is avoided unless the pet resists (no ranged attacks: always skipped)
+        if (touchPetrifies(ctx.defs.monster(mtmp2.def)) && !resistsSton(ctx, mon)) continue;
         const mstatus = mattackm(ctx, id, mtmp2.id);
         if (mstatus & M_ATTK.AGR_DIED) return 'died';
         if (

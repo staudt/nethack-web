@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2833 citations.
+150 NetHack files, 2875 citations.
 
 ## dat/dungeon.lua
 
@@ -240,6 +240,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `digests()`: `packages/content/src/engulfstate.ts`
 - `enfolds()`: `packages/content/src/engulfstate.ts`
 - `flaming()`: `packages/content/src/engulfstate.ts`
+- `flesh_petrifies()`: `packages/content/src/stonestate.ts`
 - `haseyes()`: `packages/content/src/adtyping.ts`
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`
@@ -258,9 +259,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nonliving()`: `packages/content/src/mondata.ts`
 - `poisonous()`: `packages/content/src/dog.ts`
+- `resists_ston()`: `packages/content/src/stonestate.ts`
 - `slithy()`: `packages/content/src/adtyping.ts`
 - `telepathic()`: `packages/content/src/givit.ts`, `packages/content/src/price.ts`
 - `thick_skinned()`: `packages/content/src/dokick.ts`
+- `touch_petrifies()`: `packages/content/src/stonestate.ts`
 - `tunnels()`: `packages/content/src/mdig.ts`
 - `unsolid()`: `packages/content/src/mhitm.ts`
 - `vegan()`: `packages/content/src/dog.ts`
@@ -270,6 +273,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/monflag.h
 
 - `MZ_HUGE()`: `packages/content/src/engulf.ts`
+- `MZ_TINY()`: `packages/content/src/items.ts`
 - `ms_sounds()`: `packages/core/src/types/mod.ts`
 
 ## include/monst.h
@@ -503,6 +507,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
 - `BL_MASK_LEV()`: `packages/content/src/levitation.ts`
+- `bl_stone()`: `packages/content/src/stoning.ts`
 - `bl_strngl()`: `packages/content/src/jewelry.ts`
 - `bot2()`: `packages/content/src/hero.ts`
 - `get_strength_str()`: `packages/ui/src/status.ts`
@@ -686,7 +691,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/dokick.c
 
-- (file): `packages/content/src/kick.en.ts`
+- (file): `packages/content/src/kick.en.ts`, `packages/content/src/stonetouch.ts`
 - `dokick()`: `packages/content/src/dokick.ts`
 - `flyingcoinmsg()`: `packages/content/src/kick.en.ts`
 - `ghitm()`: `packages/content/src/dokick.ts`
@@ -716,7 +721,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `omon_adj()`: `packages/content/src/mthrowu.ts`
 - `should_mulch_missile()`: `packages/content/src/mthrowu.ts`
 - `thitmonst()`: `packages/content/src/dothrow.ts`
-- `throw_obj()`: `packages/content/src/dothrow.ts`, `packages/content/src/fire.ts`, `packages/content/src/mthrowu.en.ts`
+- `throw_obj()`: `packages/content/src/dothrow.ts`, `packages/content/src/fire.ts`, `packages/content/src/mthrowu.en.ts`, `packages/content/src/stonetouch.ts`
 - `throwing_weapon()`: `packages/content/src/dothrow.ts`
 - `throwit()`: `packages/content/src/dothrow.ts`, `packages/content/src/mthrowu.en.ts`
 - `tmiss()`: `packages/content/src/dothrow.ts`
@@ -769,6 +774,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `eaten_stat()`: `packages/content/src/dogmove.ts`, `packages/content/src/items.ts`
 - `eatfood()`: `packages/content/src/eat.ts`
 - `eye_of_newt_buzz()`: `packages/content/src/givit.ts`
+- `fix_petrification()`: `packages/content/src/stonestate.ts`
 - `food_disappears()`: `packages/content/src/corpses.ts`
 - `food_xname()`: `packages/content/src/eat.ts`
 - `fpostfx()`: `packages/content/src/eat.ts`
@@ -782,6 +788,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_finished_meal()`: `packages/content/src/eat.ts`
 - `morehungry()`: `packages/content/src/hunger.ts`
 - `newuhs()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/testkit/src/scenario.ts`
+- `nonrotting_corpse()`: `packages/content/src/eat.ts`
 - `obj_nutrition()`: `packages/content/src/eat.ts`, `packages/content/src/items.ts`
 - `reset_eat()`: `packages/content/src/eat.ts`
 - `rottenfood()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
@@ -797,6 +804,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/disclose.ts`
 - `container_contents()`: `packages/content/src/disclose.ts`
+- `delayed_killer()`: `packages/content/src/stonestate.ts`
 - `disclose()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/core/src/types/event.ts`, `packages/ui/src/gameover.ts`
 - `done()`: `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
 - `done2()`: `packages/content/src/end.en.ts`, `packages/content/src/quit.ts`
@@ -1045,6 +1053,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/mhitm.c
 
 - (file): `packages/content/src/mhitm.en.ts`, `packages/content/src/mhitm.ts`
+- `attk_protection()`: `packages/content/src/stonestate.ts`
 - `engulf_target()`: `packages/content/src/engulf.ts`
 - `explmm()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.ts`
 - `failed_grab()`: `packages/content/src/mhitm.ts`
@@ -1237,6 +1246,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `monkilled()`: `packages/content/src/mondeath.ts`
 - `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`
 - `monster_census()`: `packages/content/src/wizard/genesis.ts`
+- `monstone()`: `packages/content/src/mondeath.ts`, `packages/content/src/stoning.ts`
 - `movemon()`: `packages/core/src/turn.ts`
 - `movemon_singlemon()`: `packages/content/src/monmove.ts`
 - `mpickstuff()`: `packages/content/src/mongear.ts`
@@ -1250,7 +1260,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wake_nearby()`: `packages/content/src/apply.ts`, `packages/content/src/btrapped.ts`, `packages/content/src/trap.ts`
 - `wake_nearto_core()`: `packages/content/src/apply.ts`, `packages/content/src/noise.ts`
 - `wakeup()`: `packages/content/src/peaceful.ts`
-- `xkilled()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/corpses.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/hmon.ts`, `packages/content/src/luck.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/rollboulder.ts`
+- `xkilled()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/corpses.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/hmon.ts`, `packages/content/src/luck.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/stoning.ts`
 
 ## src/mondata.c
 
@@ -1395,6 +1405,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_loot_cont()`: `packages/content/src/container.ts`, `packages/content/src/lock.ts`, `packages/content/src/pickup.en.ts`
 - `doloot_core()`: `packages/content/src/container.ts`, `packages/content/src/pickup.en.ts`
 - `encumber_msg()`: `packages/content/src/itemactions.ts`
+- `fatal_corpse_mistake()`: `packages/content/src/stonetouch.ts`
 - `in_container()`: `packages/content/src/container.ts`
 - `is_boh_item_gone()`: `packages/content/src/container.ts`
 - `lift_object()`: `packages/content/src/container.ts`, `packages/content/src/itemactions.ts`
@@ -1423,6 +1434,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `make_confused()`: `packages/content/src/props.ts`
 - `make_hallucinated()`: `packages/content/src/props.ts`
 - `make_sick()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
+- `make_stoned()`: `packages/content/src/stonestate.ts`
 - `make_stunned()`: `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
 - `make_vomiting()`: `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
 - `peffect_blindness()`: `packages/content/src/potion.ts`
@@ -1829,8 +1841,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fall_asleep()`: `packages/content/src/adtyping.ts`, `packages/content/src/trap.ts`
 - `incr_itimeout()`: `packages/content/src/props.ts`
 - `lantern_message()`: `packages/content/src/light.ts`
-- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
+- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stoning.ts`
 - `set_itimeout()`: `packages/content/src/props.ts`
+- `stoned_dialogue()`: `packages/content/src/stoning.ts`
+- `stoned_texts()`: `packages/content/src/stoning.en.ts`
 - `vomiting_dialogue()`: `packages/content/src/hunger.ts`
 
 ## src/topten.c
@@ -1881,12 +1895,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `help_monster_out()`: `packages/content/src/untrap.ts`
 - `hole_destination()`: `packages/content/src/trap.ts`
 - `ignite_items()`: `packages/content/src/light.ts`
+- `instapetrify()`: `packages/content/src/stonetouch.ts`, `packages/content/src/stoning.ts`
 - `into_vs_onto()`: `packages/content/src/trap.ts`, `packages/content/src/untrap.ts`
 - `isclearpath()`: `packages/content/src/trap.ts`
 - `launch_obj()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `m_harmless_trap()`: `packages/content/src/trap.ts`
 - `maketrap()`: `packages/content/src/trap.ts`
 - `maybe_finish_sokoban()`: `packages/content/src/sokoban.ts`
+- `minstapetrify()`: `packages/content/src/stoning.ts`
 - `mintrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mkroll_launch()`: `packages/content/src/trap.ts`
 - `move_into_trap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
@@ -1931,6 +1947,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/dog.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/resist.en.ts`
 - `attack_checks()`: `packages/content/src/actions.ts`, `packages/content/src/kick.en.ts`, `packages/content/src/peaceful.ts`
 - `do_attack()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
+- `do_stone_mon()`: `packages/content/src/adtyping.ts`
+- `do_stone_u()`: `packages/content/src/stoning.ts`
 - `erode_armor()`: `packages/content/src/erode.ts`
 - `find_roll_to_hit()`: `packages/content/src/combat.ts`
 - `flash_hits_mon()`: `packages/content/src/zap.ts`
@@ -1951,6 +1969,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_phys()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/combat.ts`
 - `mhitm_ad_ssex()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_ston()`: `packages/content/src/adtyping.ts`, `packages/content/src/stoning.en.ts`
 - `mhitm_adtyping()`: `packages/content/src/adtyping.ts`, `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `mhitm_mgc_atk_negated()`: `packages/content/src/adtyping.ts`
 - `missum()`: `packages/content/src/combat.ts`
@@ -2003,7 +2022,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/wield.c
 
-- (file): `packages/content/src/itemactions.ts`
+- (file): `packages/content/src/itemactions.ts`, `packages/content/src/stonetouch.ts`
+- `cant_wield_corpse()`: `packages/content/src/stonetouch.ts`
 - `chwepon()`: `packages/content/src/read.ts`
 - `doswapweapon()`: `packages/content/src/itemactions.ts`, `packages/content/src/wield.ts`
 - `dowield()`: `packages/content/src/itemactions.ts`
