@@ -71,6 +71,7 @@ import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
 import { thitmonst } from './dothrow';
 import { scatter } from './scatter';
+import { stuckInWeb } from './web';
 import { costlySpot, eshkOf, inAnyShop, isShopType } from './eshk';
 import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { payForDamage } from './shkpay';
@@ -261,7 +262,8 @@ function fragile(ctx: Ctx, e: Entity): boolean {
 
 /**
  * Flies the (detached) object `dist` squares from the cell (x, y) in direction `dir`; it stops
- * before a wall or closed door, on a monster, and a coin stops on a square that holds objects.
+ * before a wall or closed door, on a monster, in a web 1 time in 3, and a coin stops on a square
+ * that holds objects.
  * ref: src/zap.c bhit() with KICKED_WEAPON: "object starts one square in front of player"
  */
 function bhitKicked(
@@ -300,6 +302,7 @@ function bhitKicked(
       mon = m;
       break;
     }
+    if (obj && stuckInWeb(ctx, level, x, y, obj)) break;
     if (coin && itemsAt(ctx.defs, ctx.state, level.id, x, y).length > 0) break;
   }
   if (path.length > 0 && obj)

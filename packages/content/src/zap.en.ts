@@ -76,6 +76,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.mon_released_seen': '{mon|The} is released from the {trap}.',
   'zap.mon_released': '{mon|The} is released from {trap|an}.',
   'zap.trap_opens': 'The {trap} opens.',
+  'zap.something_released': 'Something is released from the {trap}.',
+  'zap.web_burns': 'A web bursts into flames!',
 
   // probing: probe_monster(), mstatusline(), ustatusline(), bhito()
   'zap.probe.status': 'Status of {mon|the}: Level {lvl}  HP {hp}({hpmax})  AC {ac}{flags}.',

@@ -124,6 +124,7 @@ import {
   xytodir,
 } from './trapstate';
 import { watchDig } from './watch';
+import { nomulNow } from './hunger';
 
 export { surfaceKey, DIG_ID, isAxe, isPick, mayDig };
 
@@ -854,8 +855,9 @@ const digDirOf = (v: unknown): DigDir | undefined =>
 
 /**
  * Applying a pick: wielding it first takes the move (the direction is asked on the next one,
- * as C queues the apply again); else "In what direction do you want to dig?".
- * ref: src/dig.c use_pick_axe() (no webs; every direction is listed)
+ * as C queues the apply again); stuck in a web: "Unfortunately, you can't dig while entangled in
+ * a web."; else "In what direction do you want to dig?".
+ * ref: src/dig.c use_pick_axe() (every direction is listed)
  */
 export function usePickAxe(ctx: Ctx, pick: Entity): number {
   if (uwep(ctx)?.id !== pick.id) {
@@ -866,6 +868,10 @@ export function usePickAxe(ctx: Ctx, pick: Entity): number {
       data: null,
     };
     return NORMAL_SPEED;
+  }
+  if (utrap(ctx)?.type === 'web') {
+    say(ctx, 'dig.entangled'); // (res == 0: no prior message)
+    return 0;
   }
   ctx.ask(
     { id: 'dig-direction', kind: 'direction', key: 'dig.direction', options: [...DIG_DIRECTIONS] },
@@ -880,8 +886,8 @@ export function usePickAxe(ctx: Ctx, pick: Entity): number {
  * at herself (`rnd(2) + dbon() + spe`), at a monster (do_attack()), sideways (the dig starts or
  * continues if diggable, else what it hit) or down (a seen pit she stands at the edge of first
  * takes her in; floating, the floor is out of reach). ref: src/dig.c use_pick_axe2() after
- * getdir() (no water or webs; iron bars' "Clang!" is kept; the debris between two
- * pits is cleared, conjoining them)
+ * getdir() (no water; a web there entangles the pick and holds her `d(2, 2)` turns; iron bars'
+ * "Clang!" is kept; the debris between two pits is cleared, conjoining them)
  */
 export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
   const level = getLevel(ctx.state);
@@ -924,7 +930,15 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
       const id = terrainIdAt(level, rx, ry);
       const trapHere = trapAt(level, hp.x, hp.y);
       const trapThere = trapAt(level, rx, ry);
-      if (id === T.iron_bars) {
+      if (trapThere?.def === TRAP.web) {
+        if (!trapThere.seen) {
+          trapThere.seen = true; // seetrap()
+          say(ctx, 'dig.web_there');
+        }
+        say(ctx, 'dig.web_entangled', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+        // you ought to be able to let go; tough luck
+        nomulNow(ctx, ctx.rng.d(2, 2), 'helpless.web', { key: 'dig.pull_free' });
+      } else if (id === T.iron_bars) {
         say(ctx, 'dig.clang');
         wakeNearby(ctx);
       } else if (id === T.tree) say(ctx, 'dig.need_axe');

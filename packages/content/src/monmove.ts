@@ -58,6 +58,7 @@ import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
+import { maybeSpinWeb } from './web';
 import { findgold } from './steal';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
@@ -998,6 +999,13 @@ export function dochug(
         if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
         else status = mMove(ctx, id, heroPos);
         if (status === 'died') return;
+        // ref: m_move() postmov: `maybe_spin_web(mtmp)` after MMOVE_MOVED or MMOVE_DONE (m_move()
+        // returns early, skipping postmov, while the hero is swallowed by another monster)
+        if (status === 'moved' || status === 'done') {
+          const sw = uswallow(ctx);
+          const me = ctx.state.entities[String(id)];
+          if (me && (!sw || sw.mon === id)) maybeSpinWeb(ctx, me);
+        }
         distfleeck(); // recalc
         if (status === 'nomoves' && scared) panicattk = true;
         if (status === 'moved') {

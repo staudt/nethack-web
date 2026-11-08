@@ -14,6 +14,7 @@ export const engulfMessagesEn: Record<string, string> = {
   'engulf.folds': '{mon|The} folds itself around you!',
   'engulf.engulfs': '{mon|The} engulfs you!',
   'engulf.released_trap': 'You are released from the trap!',
+  'engulf.released_web': 'You are released from the web!',
   'engulf.totally_digests': '{mon|The} totally digests you!',
   'engulf.digests': '{mon|The}{how} digests you!',
   'engulf.thoroughly': ' thoroughly',

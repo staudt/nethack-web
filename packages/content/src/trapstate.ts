@@ -48,22 +48,24 @@ export function trapTable(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): T
   return t;
 }
 
-/** The hero's trap (u.utrap turns, u.utraptype): TT_BEARTRAP or TT_PIT. */
+/** The hero's trap (u.utrap turns, u.utraptype): TT_BEARTRAP, TT_PIT or TT_WEB. */
 export interface UTrap {
   n: number;
-  type: 'beartrap' | 'pit';
+  type: 'beartrap' | 'pit' | 'web';
 }
 
 /** ref: u.utrap / u.utraptype */
 export function utrap(ctx: Pick<Ctx, 'state'>): UTrap | null {
   const v = root(ctx, false)?.['utrap'];
   if (!isObj(v) || typeof v['n'] !== 'number' || v['n'] <= 0) return null;
-  return { n: v['n'], type: v['type'] === 'pit' ? 'pit' : 'beartrap' };
+  const t = v['type'];
+  // older saves and unknown kinds read as a bear trap
+  return { n: v['n'], type: t === 'pit' || t === 'web' ? t : 'beartrap' };
 }
 
 /**
  * The hero is floating: a ring of levitation is on (HLevitation || ELevitation) and nothing holds
- * her to the floor. A bear trap blocks it (BLevitation, set by float_vs_flight() while she is
+ * her to the floor. A bear trap or a web blocks it (BLevitation, set by float_vs_flight() while she is
  * stuck in the floor); a pit does not. ref: include/youprop.h Levitation; src/polyself.c
  * float_vs_flight()
  */

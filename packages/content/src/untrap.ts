@@ -1,13 +1,13 @@
 // #untrap: disarming a seen trap under the hero or next to her (arrow and dart traps give up
 // their ammunition, bear traps and land mines become objects), helping a trapped monster out of
-// a pit or a bear trap, checking the boxes at her feet and an adjacent door for traps. Failing
-// may set the trap off.
+// a pit, a bear trap or a web, removing webs, checking the boxes at her feet and an adjacent
+// door for traps. Failing may set the trap off.
 // ref: src/trap.c dountrap(), could_untrap(), untrap_prob(), cnv_trap_obj(), into_vs_onto(),
 // move_into_trap(), try_disarm(), reward_untrap(), disarm_holdingtrap(), disarm_landmine(),
 // disarm_squeaky_board(), disarm_shooting_trap(), try_lift(), help_monster_out(), disarm_box(),
 // untrap_box(), untrap()
 //
-// Not ported (see DEVIATIONS.md): webs (no web traps), oil and grease for squeaky boards (neither
+// Not ported (see DEVIATIONS.md): Sting and fire artifacts on webs (no artifacts), oil and grease for squeaky boards (neither
 // object exists), the Master Key of Thievery, mimics, cockatrices, steeds, polymorphed forms,
 // Fumbling, selling or burying the object of a trap she set (she sets none), exercise. A shop
 // door she blows up is scheduled for repair, free (C: "probably ought to charge for this").
@@ -22,6 +22,7 @@ import {
   getPlayer,
   inBounds,
   inventoryOf,
+  isPlainFloor,
   rnl,
   trapAt,
   type ActionDef,
@@ -69,7 +70,8 @@ import { checkSpecialRoom } from './rooms';
 import { helpless } from './shk';
 import { calcCapacity, invWeight, weightCap } from './stats';
 import { T } from './terrain';
-import { TRAP, dataOf, deltrap, dotrap } from './trap';
+import { TRAP, dataOf, deltrap, dotrap, maketrap } from './trap';
+import { isBlade } from './skills';
 import { isMtrapped, isPit, levitating, setMtrapped, setUtrap, utrap } from './trapstate';
 import { mksobj, weight } from './items';
 
@@ -111,6 +113,16 @@ function monAt(ctx: Ctx, levelId: string, x: number, y: number): Entity | null {
   return id === null || id === ctx.state.playerId ? null : (ctx.state.entities[String(id)] ?? null);
 }
 
+/**
+ * The wielded weapon if it is a blade (the secondary weapon would count while dual wielding,
+ * which does not exist). ref: src/trap.c untrap_prob(), disarm_holdingtrap()
+ * `(uwep && is_blade(uwep)) ? uwep : ...`
+ */
+function bladeWielded(ctx: Ctx): Entity | null {
+  const w = inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon');
+  return w && isBlade(ctx.defs.object(w.def)) ? w : null;
+}
+
 /** ref: src/wield.c welded(uwep) && bimanual(uwep) (welded() reveals the curse) */
 function weldedBimanual(ctx: Ctx): boolean {
   const w = inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon');
@@ -135,13 +147,19 @@ export function couldUntrap(ctx: Ctx, verbosely: boolean): boolean {
 }
 
 /**
- * Whether disarming fails: 0 is success. The chance is 1 in 3, worse while confused,
- * hallucinating, blind or stunned, better for a trap she set. ref: src/trap.c untrap_prob()
- * (no webs, Fumbling or quest artifact; the Ranger and Rogue cases are kept for those roles)
+ * Whether disarming fails: 0 is success. The chance is 1 in 3 (a web: 1 in 7 unless she wields a
+ * blade and nothing is caught in it), worse while confused, hallucinating, blind or stunned,
+ * better for a trap she set. ref: src/trap.c untrap_prob() (no Sting or fire artifacts, Fumbling
+ * or quest artifact; she is never a webmaker; the Ranger and Rogue cases are kept for those roles)
  */
 export function untrapProb(ctx: Ctx, t: Trap): number {
   let chance = 3;
   const h = hero(ctx);
+  // non-spiders are less adept at dealing with webs
+  if (t.def === TRAP.web) {
+    // a blade keeps 3 (Sting or a fire artifact would make it 1: none exist)
+    if (!bladeWielded(ctx) || monAt(ctx, heroPos(ctx).level, t.x, t.y)) chance = 7;
+  }
   if (confusedNow(ctx)) chance++;
   if (hasProp(h, P.BLINDED)) chance++;
   if (hasProp(h, P.STUNNED)) chance += 2;
@@ -169,9 +187,10 @@ export function cnvTrapObj(ctx: Ctx, levelId: string, t: Trap, otyp: DefId, cnt:
   deltrap(ctx, levelId, t);
 }
 
-/** ref: src/trap.c into_vs_onto() (no magic portals or webs) */
+/** ref: src/trap.c into_vs_onto() (no magic portals) */
 const intoVsOnto = (def: DefId): boolean =>
   def === TRAP.bear ||
+  def === TRAP.web ||
   isPit(def) ||
   def === TRAP.hole ||
   def === TRAP.tele ||
@@ -215,8 +234,9 @@ function moveIntoTrap(ctx: Ctx, level: Level, t: Trap): void {
 /**
  * One try at disarming `t`: 0 when she does not even try (a monster or boulder in the way, out
  * of reach), 1 when she tries and fails ("Whoops..." sets it off 4 times in 5 with Luck 0, a
- * trapped monster takes the bear trap's bite instead), 2 when she succeeds.
- * ref: src/trap.c try_disarm() (no webs, steeds or polymorphed forms)
+ * trapped monster takes the bear trap's bite instead, or the web may spread to her square and
+ * catch her too), 2 when she succeeds. ref: src/trap.c try_disarm() (no steeds or polymorphed
+ * forms)
  */
 function tryDisarm(
   ctx: Ctx,
@@ -226,7 +246,7 @@ function tryDisarm(
   here: boolean,
 ): 0 | 1 | 2 {
   const mon = monAt(ctx, level.id, t.x, t.y);
-  const holdingtrap = t.def === TRAP.bear;
+  const holdingtrap = t.def === TRAP.bear || t.def === TRAP.web;
   // Test for monster first, monsters are displayed instead of trap.
   if (mon && (!isMtrapped(ctx, mon.id) || !holdingtrap)) {
     say(ctx, 'untrap.in_the_way', { mon: monNam(ctx, mon) });
@@ -265,16 +285,36 @@ function tryDisarm(
       say(ctx, 'untrap.whoops');
       if (mon) {
         // must be a trap that holds monsters
-        if (mon.c.monster?.tame) abuseDog(ctx, mon.id);
-        const hp = mon.c.hp;
-        if (hp) {
-          hp.cur -= ctx.rng.rnd(4);
-          if (hp.cur <= 0) killedByHero(ctx, mon);
+        if (t.def === TRAP.bear) {
+          if (mon.c.monster?.tame) abuseDog(ctx, mon.id);
+          const hp = mon.c.hp;
+          if (hp) {
+            hp.cur -= ctx.rng.rnd(4);
+            if (hp.cur <= 0) killedByHero(ctx, mon);
+          }
+        } else {
+          // don't always try to spread the web; a trap already at her spot is not clobbered
+          // (she is never a webmaker)
+          let t2: Trap | undefined = trapAt(level, p.x, p.y);
+          if (ctx.rng.rn2(3) === 0) {
+            // (maketrap() fails on stairs; core keeps traps off doorways too)
+            if (!t2 && isPlainFloor(ctx.defs, level, p.x, p.y)) {
+              // make a new web to trap hero in
+              maketrap(ctx, level.id, p.x, p.y, TRAP.web);
+              t2 = trapAt(level, p.x, p.y);
+            }
+            if (t2?.def === TRAP.web) {
+              say(ctx, 'untrap.web_sticks');
+              dotrap(ctx, t2, { noWebMsg: true });
+            }
+          }
+          if (isMtrapped(ctx, mon.id))
+            say(ctx, 'untrap.remains_entangled', { mon: monNam(ctx, mon) });
         }
       } else if (here) dotrap(ctx, t, { force: true });
       else moveIntoTrap(ctx, level, t);
     } else {
-      say(ctx, 'untrap.difficult', {
+      say(ctx, t.def === TRAP.web ? 'untrap.difficult_remove' : 'untrap.difficult', {
         which: {
           key: dataOf(t).madeby_u
             ? 'untrap.which.your'
@@ -324,8 +364,9 @@ export function rewardUntrap(ctx: Ctx, t: Trap, mon: Entity): void {
 }
 
 /**
- * A bear trap: a monster caught in it is extracted, else the trap becomes a beartrap object.
- * ref: src/trap.c disarm_holdingtrap() (no webs)
+ * A bear trap or web: a monster caught in it is extracted, else the bear trap becomes a beartrap
+ * object and the web is gone ("You cut through the web." with a blade wielded, else "You succeed
+ * in removing the web."). ref: src/trap.c disarm_holdingtrap() (no Sting or fire artifacts)
  */
 function disarmHoldingtrap(ctx: Ctx, level: Level, t: Trap, here: boolean): number {
   const fails = tryDisarm(ctx, level, t, false, here);
@@ -334,11 +375,18 @@ function disarmHoldingtrap(ctx: Ctx, level: Level, t: Trap, here: boolean): numb
   const mon = monAt(ctx, level.id, t.x, t.y);
   if (mon) {
     setMtrapped(ctx, mon.id, false);
-    say(ctx, 'untrap.extract', { mon: monNam(ctx, mon), which: whichOf(t) });
+    say(ctx, 'untrap.extract', {
+      mon: monNam(ctx, mon),
+      which: whichOf(t),
+      trap: `@${t.def === TRAP.bear ? TRAP.bear : TRAP.web}`,
+    });
     rewardUntrap(ctx, t, mon);
-  } else {
+  } else if (t.def === TRAP.bear) {
     say(ctx, 'untrap.disarm_bear', { which: whichOf(t) });
     cnvTrapObj(ctx, level.id, t, BEARTRAP, 1);
+  } else {
+    say(ctx, bladeWielded(ctx) ? 'untrap.cut_web' : 'untrap.remove_web', { which: whichOf(t) });
+    deltrap(ctx, level.id, t);
   }
   return 1;
 }
@@ -619,6 +667,7 @@ function floorTrap(ctx: Ctx, level: Level, t: Trap, here: boolean): number {
   let r: number;
   switch (t.def) {
     case TRAP.bear:
+    case TRAP.web:
       r = disarmHoldingtrap(ctx, level, t, here);
       break;
     case TRAP.landmine:
@@ -739,7 +788,7 @@ export function untrap(ctx: Ctx, dir: Dir | 'self'): number {
         {
           id: 'untrap-floor',
           kind: 'yn',
-          key: boxcnt === 1 ? 'untrap.floor_q_box' : 'untrap.floor_q_boxes',
+          key: `${boxcnt === 1 ? 'untrap.floor_q_box' : 'untrap.floor_q_boxes'}${t.def === TRAP.web ? '_remove' : ''}`,
           params: { trap: trapName(t) },
           cancellable: true,
         },

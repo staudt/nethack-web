@@ -53,7 +53,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.tele, // 15 TELEP_TRAP
   TRAP.levelTele, // 16 LEVEL_TELEP
   null, // 17 MAGIC_PORTAL
-  null, // 18 WEB
+  TRAP.web, // 18 WEB
   null, // 19 STATUE_TRAP
   TRAP.magic, // 20 MAGIC_TRAP
   TRAP.antiMagic, // 21 ANTI_MAGIC
@@ -66,18 +66,25 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
 /**
  * A random trap kind for a level of difficulty `lvl`, or null for NO_TRAP ("too hard", or a
  * kind this port does not have). ref: src/mklev.c traptype_rnd(): `kind = rnd(TRAPNUM - 1)`;
- * rolling boulder traps and sleeping gas need level 2, spiked pits level 5, land mines level 6; level teleporters need level 5 and a level
+ * rolling boulder traps and sleeping gas need level 2, spiked pits level 5, land mines level 6,
+ * webs level 7 (unless no spider comes with them, `noSpiderOnWeb`); level teleporters need level 5 and a level
  * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; holes are
  * made only 1 time in 7. The restrictions of the kinds we lack draw no random numbers (and there
  * is no single-level branch, Fort Ludios).
  */
-export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number, noteleport = false): DefId | null {
+export function traptypeRnd(
+  ctx: Pick<Ctx, 'rng'>,
+  lvl: number,
+  noteleport = false,
+  noSpiderOnWeb = false,
+): DefId | null {
   const kind = ctx.rng.rnd(TRAPNUM_KINDS.length - 1);
   const def = TRAPNUM_KINDS[kind] ?? null;
   if ((def === TRAP.rolling || def === TRAP.sleepGas) && lvl < 2) return null;
   if (def === TRAP.levelTele && (lvl < 5 || noteleport)) return null;
   if (def === TRAP.spikedPit && lvl < 5) return null;
   if (def === TRAP.landmine && lvl < 6) return null;
+  if (def === TRAP.web && lvl < 7 && !noSpiderOnWeb) return null;
   if (def === TRAP.tele && noteleport) return null;
   if (def === TRAP.hole && ctx.rng.rn2(7)) return null;
   return def;
@@ -88,13 +95,20 @@ export function traptypeRnd(ctx: Pick<Ctx, 'rng'>, lvl: number, noteleport = fal
  * spot (as sp_lev.c create_trap() passes `tm`). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
  * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
  * (which already avoids occupied squares; the retry loop repeats only for a pit or hole on a
- * boulder). The dead
+ * boulder). A web gets a giant spider on it (made with the level, so it may get an object under
+ * it), unless `noSpiderOnWeb` (MKTRAP_NOSPIDERONWEB). The dead
  * adventurer (`mktrap_victim()`) is not made, but its `rnd(4)` roll is (see DEVIATIONS.md).
  */
-export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | null = null): void {
+export function mktrap(
+  ctx: Ctx,
+  level: Level,
+  room: Room | Pos,
+  kind: DefId | null = null,
+  noSpiderOnWeb = false,
+): void {
   const lvl = level.depth; // level_difficulty()
   const noteleport = levelFlags(ctx, level).noteleport === true; // svl.level.flags.noteleport
-  while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport);
+  while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport, noSpiderOnWeb);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   let m: Pos | null;
   if ('lx' in room) {
@@ -108,12 +122,15 @@ export function mktrap(ctx: Ctx, level: Level, room: Room | Pos, kind: DefId | n
     } while (avoidBoulder && boulderAt(ctx, level.id, m.x, m.y));
   } else m = room;
   maketrap(ctx, level.id, m.x, m.y, kind);
+  if (kind === TRAP.web && !noSpiderOnWeb)
+    makemon(ctx, ctx.defs.monster(GIANT_SPIDER), m, { level: level.id, inMklev: true });
   // gi.in_mklev && kind != NO_TRAP && !(mktrapflags & MKTRAP_NOVICTIM) && lvl <= rnd(4) ...
   ctx.rng.rnd(4);
 }
 
 /**
- * One ordinary room's contents, in mklev's order: a monster (1 in 3), traps (while 1 in x,
+ * One ordinary room's contents, in mklev's order: a monster (1 in 3; a giant spider gets a web
+ * under it), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
  * a fountain (1 in 10), then random objects (1 in 3 for the first, then 1 in 5 for each
  * further one). ref: src/mklev.c fill_ordinary_room(). Mimics, sinks, altars, graves, statues,
@@ -123,8 +140,13 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
   let trycnt = 0;
   // put a sleeping monster inside
-  if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
-    makemon(ctx, null, pos, { level: level.id, nogroup: true, inMklev: true });
+  if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room))) {
+    const tmonst = makemon(ctx, null, pos, { level: level.id, nogroup: true, inMklev: true });
+    // !occupied(): somexyspace() found no trap or furniture there
+    const tdef = tmonst === null ? undefined : ctx.state.entities[String(tmonst)]?.def;
+    if (tdef === GIANT_SPIDER && !trapAt(level, pos.x, pos.y))
+      maketrap(ctx, level.id, pos.x, pos.y, TRAP.web);
+  }
   // put traps inside
   let x = 8 - Math.trunc(level.depth / 6);
   if (x <= 1) x = 2;
@@ -152,6 +174,8 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
     }
   }
 }
+
+const GIANT_SPIDER: DefId = 'nh:giant_spider';
 
 const SDOORS: readonly DefId[] = [T.sdoor_v, T.sdoor_h, T.sdoor_locked_v, T.sdoor_locked_h];
 

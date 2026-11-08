@@ -161,10 +161,10 @@ function findSeed<R>(body: (seed: number) => R, want: (r: R) => boolean, max = 2
 }
 
 describe('trap defs', () => {
-  test('the eleven vanilla traps are registered with ^ glyphs; holes are holes', () => {
+  test('the vanilla traps are registered with ^ glyphs (a web is "); holes are holes', () => {
     const ids = engine.registry.traps.map((t) => t.id);
     for (const id of Object.values(TRAP)) expect(ids).toContain(id);
-    for (const t of engine.registry.traps) expect(t.glyph.ch).toBe('^');
+    for (const t of engine.registry.traps) expect(t.glyph.ch).toBe(t.id === TRAP.web ? '"' : '^');
     expect(engine.registry.trap(TRAP.hole).hole).toBe(true);
     expect(engine.registry.trap(TRAP.trapdoor).hole).toBe(true);
   });

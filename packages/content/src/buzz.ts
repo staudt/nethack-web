@@ -22,6 +22,7 @@ import {
   type Pos,
   type RayStep,
   type TerrainDef,
+  trapAt,
 } from '@nh/core';
 import { destroyItems, erodeArmor } from './erode';
 import { inAnyShop } from './eshk';
@@ -45,6 +46,7 @@ import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { spellDamageBonus, spellHitBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
+import { setMtrapped, setUtrap, utrap } from './trapstate';
 
 /** Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_LIGHTNING */
 export type Ray = 'magic_missile' | 'fire' | 'cold' | 'sleep' | 'death' | 'lightning';
@@ -409,7 +411,7 @@ function bounceDir(
 /**
  * ref: src/zap.c zap_over_floor() for the hero's wand rays and for explosions (explode.ts): a
  * secret door is revealed, a closed door absorbs the ray (fire, cold and lightning destroy it),
- * fire burns scrolls and spellbooks on the floor. Returns the range change. `explodingWand`:
+ * fire burns a web and the scrolls and spellbooks on the floor. Returns the range change. `explodingWand`:
  * the broken wand's type (C's exploding_wand_typ, "the blast"; a wand of striking's blast
  * breaks the door), or '' for an explosion with no wand (a magical trap's: still "your bolt").
  * The monster there is not woken here (the caller does it). A shop door destroyed is damage:
@@ -428,6 +430,8 @@ export function zapOverFloor(
   const seeIt = cansee(ctx, x, y);
   const blast = explodingWand !== undefined && explodingWand !== '';
   let rangemod = 0;
+  // ZT_FIRE: a web here burns ("a burning web is too flimsy to notice if you can't see it")
+  if (ray === 'fire') burnWeb(ctx, level, x, y, seeIt);
   const id = cellId(level, x, y);
   if (isSdoor(id)) {
     const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
@@ -466,8 +470,26 @@ export function zapOverFloor(
 }
 
 /**
+ * Fire over a web: "A web bursts into flames!" (when seen) and it is gone, letting go whoever it
+ * held. ref: src/zap.c zap_over_floor() ZT_FIRE, src/trap.c delfloortrap() (a web is no pit, so
+ * deltrap() has no conjoined pits or Sokoban to see to)
+ */
+function burnWeb(ctx: Ctx, level: Level, x: number, y: number, seeIt: boolean): void {
+  const t = trapAt(level, x, y);
+  if (t?.def !== 'nh:web') return;
+  if (seeIt) say(ctx, 'zap.web_burns'); // (Norep)
+  const hp = heroPos(ctx);
+  const mon = monAt(ctx, x, y);
+  if (hp.level === level.id && hp.x === x && hp.y === y) {
+    const u = utrap(ctx);
+    if (u) setUtrap(ctx, 0, u.type); // reset_utrap(TRUE)
+  } else if (mon) setMtrapped(ctx, mon.id, false);
+  ctx.removeTrap(level.id, { x, y });
+}
+
+/**
  * A monster's fire pillar or lightning bolt hits the floor at (x,y) (the hero's square): fire burns
- * scrolls and spellbooks there. ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
+ * a web and scrolls and spellbooks there. ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
  */
 export function monSpellHitsSpot(ctx: Ctx, ray: 'fire' | 'lightning', x: number, y: number): void {
   zapOverFloor(ctx, ray, x, y);

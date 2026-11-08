@@ -36,6 +36,7 @@ import { P, hasProp } from './props';
 import { T, setTerrain, surfaceKey } from './terrain';
 import { luckOf } from './luck';
 import {
+  TRAP,
   climbPit,
   findTrapAt,
   intoTrap,
@@ -58,6 +59,7 @@ import { setEndHow } from './endstate';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { SHOP_DOOR_COST } from './shopdamage';
+import { fightWeb } from './web';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -280,8 +282,9 @@ function uStuckCannotGo(ctx: Ctx, updn: 'up' | 'down'): boolean {
 
 /**
  * Fight: attack whatever is in that direction, even a pet or a peaceful monster (still asking
- * "Really attack?" for a peaceful one). ref: src/cmd.c the F prefix (context.forcefight),
- * src/hack.c domove_fight_empty()
+ * "Really attack?" for a peaceful one), or a seen web there (cut or punch through it).
+ * ref: src/cmd.c the F prefix (context.forcefight), src/hack.c domove_fight_web(),
+ * domove_fight_empty()
  */
 const fight: ActionDef = {
   id: 'nh:fight',
@@ -316,6 +319,16 @@ const fight: ActionDef = {
           params: { target: `@${BOULDER}` },
         },
       ];
+    // a seen web: cut through it (walking would step into it)
+    const web = seen ? undefined : trapAt(getLevel(ctx.state), target.pos.x, target.pos.y);
+    if (web?.def === TRAP.web && web.seen)
+      return [
+        {
+          action: { type: 'mod', action: 'nh:fight', args: { dir } },
+          labelKey: 'action.nh:fight',
+          params: { target: `@${TRAP.web}` },
+        },
+      ];
     if (!seen) return [];
     const mon = ctx.state.entities[String(seen.id)];
     // only worth a separate entry where walking would not attack
@@ -341,6 +354,11 @@ const fight: ActionDef = {
     const level = getLevel(ctx.state);
     const victim = monsterIdAt(ctx, to, level.id);
     if (victim === null) {
+      // ref: domove_fight_web()
+      if (fightWeb(ctx, level, to.x, to.y)) {
+        ctx.interrupt();
+        return NORMAL_SPEED;
+      }
       // ref: domove_fight_empty(): "You harmlessly attack a boulder." (the hero learns it is
       // there: map_object()), "You attack thin air." / "You harmlessly attack the wall."
       const boulder = inBounds(level, to.x, to.y) ? boulderAt(ctx, level.id, to.x, to.y) : null;

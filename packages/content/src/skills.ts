@@ -140,6 +140,18 @@ export function skillInit(ctx: Pick<Ctx, 'state' | 'defs'>, heroId: number): voi
   data.skillsAdvanced = 0;
 }
 
+/**
+ * A bladed weapon: a weapon-class object of the dagger .. saber skills (daggers and the dwarvish
+ * mattock included, axes and polearms not). ref: include/obj.h is_blade()
+ */
+export function isBlade(def: ObjectDef): boolean {
+  const weapons = SKILL_GROUPS.find((g) => g.id === 'weapon')?.skills ?? [];
+  const sk = def.weapon ? weapons.indexOf(def.weapon.skill) : -1;
+  return (
+    def.class === 'weapon' && sk >= weapons.indexOf('dagger') && sk <= weapons.indexOf('saber')
+  );
+}
+
 /** The hero's current level in a skill (restricted = 0 when absent). */
 export function skillLevel(ctx: SkillCtx, skill: string): number {
   return nhData(ctx).skills?.[skill] ?? P_RESTRICTED;

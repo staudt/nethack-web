@@ -82,7 +82,7 @@ export function floatingAbove(ctx: Ctx, what: string): void {
 }
 
 /**
- * The hero starts to float: out of a pit, or held by a bear trap's jaws (which block the
+ * The hero starts to float: out of a pit, or held by a bear trap's jaws or a web (which block the
  * levitation until she is free), else "You start to float in the air!". Levitation gives the
  * maximum carrying capacity. ref: src/trap.c float_up()
  */
@@ -93,7 +93,10 @@ export function floatUp(ctx: Ctx): void {
       setUtrap(ctx, 0, 'pit'); // reset_utrap(FALSE)
       say(ctx, 'lev.float_out_of_pit');
       // fill_pit(): a boulder never rests on a pit (flooreffects() fills it)
+    } else if (u.type === 'web') {
+      say(ctx, 'lev.float_up_web');
     } else {
+      // bear trap
       say(ctx, 'lev.float_up_leg_stuck');
     }
   } else if (hasProp(hero(ctx), P.HALLUC)) {
@@ -117,7 +120,7 @@ export function floatDown(ctx: Ctx): boolean {
   const held = utrap(ctx);
   if (held && held.type !== 'pit') {
     // BLevitation from being stuck in the floor: she never left it
-    say(ctx, 'lev.no_longer_trying');
+    say(ctx, held.type === 'web' ? 'lev.no_longer_trying_web' : 'lev.no_longer_trying');
     encumberMsg(ctx);
     return false;
   }

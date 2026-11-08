@@ -281,21 +281,24 @@ function speedUp(ctx: Ctx, duration: number): void {
 // traps that hold or drop their victim
 
 /**
- * ref: src/trap.c openholdingtrap(): frees the hero from a bear trap or pit, a monster from a bear
- * trap (an adjacent one may be grateful, 1 in 2: reward_untrap())
+ * ref: src/trap.c openholdingtrap(): frees the hero from a bear trap, web or pit, a monster from a
+ * bear trap or web (an adjacent one may be grateful, 1 in 2: reward_untrap())
  */
 function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed: boolean } {
   if (!mon) {
     const u = utrap(ctx);
     if (!u) return { done: false, noticed: false };
-    // defsyms[S_pit] or [S_bear_trap].explanation: "pit" even for a spiked pit
-    say(ctx, 'zap.you_released_trap', { trap: `@${u.type === 'pit' ? TRAP.pit : TRAP.bear}` });
+    // defsyms[S_web], [S_pit] or [S_bear_trap].explanation: "pit" even for a spiked pit
+    say(ctx, 'zap.you_released_trap', {
+      trap: `@${u.type === 'web' ? TRAP.web : u.type === 'pit' ? TRAP.pit : TRAP.bear}`,
+    });
     setUtrap(ctx, 0, u.type); // reset_utrap()
     return { done: true, noticed: true };
   }
   const p = mon.c.pos;
   const t = p ? trapHere(levelOf(ctx), p.x, p.y) : undefined;
-  if (!t || t.def !== TRAP.bear || !isMtrapped(ctx, mon.id)) return { done: false, noticed: false };
+  if (!t || (t.def !== TRAP.bear && t.def !== TRAP.web) || !isMtrapped(ctx, mon.id))
+    return { done: false, noticed: false };
   setMtrapped(ctx, mon.id, false);
   let noticed = false;
   if (canSpotMon(ctx, mon)) {
@@ -306,7 +309,9 @@ function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed
     });
   } else if (cansee(ctx, t.x, t.y) && t.seen) {
     noticed = true;
-    say(ctx, 'zap.trap_opens', { trap: `@${t.def}` });
+    say(ctx, t.def === TRAP.web ? 'zap.something_released' : 'zap.trap_opens', {
+      trap: `@${t.def}`,
+    });
   }
   // might pacify monster if adjacent
   const hp = heroPos(ctx);
@@ -315,11 +320,11 @@ function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed
   return { done: true, noticed };
 }
 
-/** ref: src/trap.c closeholdingtrap(): a bear trap here springs on the hero or monster */
+/** ref: src/trap.c closeholdingtrap(): a bear trap or web here catches the hero or monster */
 function closeholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed: boolean } {
   const p = mon ? mon.c.pos : heroPos(ctx);
   const t = p ? trapHere(levelOf(ctx), p.x, p.y) : undefined;
-  if (!t || t.def !== TRAP.bear) return { done: false, noticed: false };
+  if (!t || (t.def !== TRAP.bear && t.def !== TRAP.web)) return { done: false, noticed: false };
   if (!mon) {
     if (utrap(ctx)) return { done: false, noticed: false };
     dotrap(ctx, t, { force: true });

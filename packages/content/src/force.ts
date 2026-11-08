@@ -32,7 +32,7 @@ import { greatestErosion, isWeptool } from './material';
 import { xnameOf, zorkmids } from './objnam';
 import { P, hasProp } from './props';
 import { stolenValue } from './shk';
-import { SKILL_GROUPS } from './skills';
+import { SKILL_GROUPS, isBlade } from './skills';
 import { surfaceKey } from './terrain';
 import { levitating } from './trapstate';
 
@@ -47,17 +47,13 @@ const WEAPON_SKILLS: readonly string[] = SKILL_GROUPS.find((g) => g.id === 'weap
 const pSkill = (s: string): number => WEAPON_SKILLS.indexOf(s) + 1;
 const P_DAGGER = pSkill('dagger');
 const P_PICK_AXE = pSkill('pick_axe');
-const P_SABER = pSkill('saber');
 const P_FLAIL = pSkill('flail');
 const P_LANCE = pSkill('lance');
 
 const skillOf = (def: ObjectDef): number => (def.weapon ? pSkill(def.weapon.skill) : 0);
 
 /** ref: include/obj.h is_blade() && !is_pick() */
-function isBlade(def: ObjectDef): boolean {
-  const sk = skillOf(def);
-  return def.class === 'weapon' && sk >= P_DAGGER && sk <= P_SABER && sk !== P_PICK_AXE;
-}
+const isBladeNotPick = (def: ObjectDef): boolean => isBlade(def) && skillOf(def) !== P_PICK_AXE;
 
 /** oc_wldam: the large-monster damage die (a boulder or statue: d20). ref: include/objects.h */
 const wldam = (def: ObjectDef): number => def.weapon?.large[1] ?? (def.class === 'rock' ? 20 : 0);
@@ -247,7 +243,7 @@ const force: ActionDef = {
       if (level) say(ctx, 'lev.cant_reach_floor', { surface: surfaceKey(ctx, level, p.x, p.y) });
       return 0;
     }
-    const picktyp = isBlade(ctx.defs.object(w.def)) ? 'blade' : 'blunt';
+    const picktyp = isBladeNotPick(ctx.defs.object(w.def)) ? 'blade' : 'blunt';
     const x = xlockOf(ctx);
     if (x?.force === picktyp && x.usedtime && x.box !== undefined) {
       say(ctx, 'force.resume');

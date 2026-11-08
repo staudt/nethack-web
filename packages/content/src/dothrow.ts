@@ -47,6 +47,7 @@ import { isUnpaid } from './price';
 import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
 import { xnameOf } from './objnam';
+import { stuckInWeb } from './web';
 import {
   ammoAndLauncher,
   isAmmo,
@@ -364,6 +365,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       hitMon = mid;
       break;
     }
+    if (stuckInWeb(ctx, level, x, y, obj)) break;
   }
   // ref: src/dothrow.c throwit() tmp_at(DISP_FLASH, obj_to_glyph(obj)); the UI animates it first
   if (path.length > 0) ctx.emit({ type: 'projectile', g: shownId(ctx.state, obj.def), path });

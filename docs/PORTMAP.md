@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2908 citations.
+150 NetHack files, 2935 citations.
 
 ## dat/dungeon.lua
 
@@ -269,6 +269,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `vegan()`: `packages/content/src/dog.ts`
 - `vegetarian()`: `packages/content/src/shtypes.ts`
 - `verysmall()`: `packages/content/src/monmove.ts`
+- `webmaker()`: `packages/content/src/trap.ts`
 
 ## include/monflag.h
 
@@ -305,7 +306,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `greatest_erosion()`: `packages/content/src/material.ts`
 - `is_ammo()`: `packages/content/src/mthrowu.ts`
 - `is_axe()`: `packages/content/src/mdig.ts`
-- `is_blade()`: `packages/content/src/force.ts`
+- `is_blade()`: `packages/content/src/force.ts`, `packages/content/src/skills.ts`
 - `is_launcher()`: `packages/content/src/mthrowu.ts`
 - `is_missile()`: `packages/content/src/mthrowu.ts`
 - `is_pick()`: `packages/content/src/mdig.ts`
@@ -879,6 +880,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
+- `domove_fight_web()`: `packages/content/src/actions.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
 - `domove_swap_with_pet()`: `packages/content/src/actions.ts`
 - `dopush()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `escape_from_sticky_mon()`: `packages/content/src/hackmove.ts`, `packages/content/src/resist.en.ts`
@@ -1277,18 +1279,21 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/monmove.c
 
-- (file): `packages/content/src/mdig.ts`, `packages/content/src/mongear.ts`, `packages/content/src/monmove.ts`
+- (file): `packages/content/src/mdig.ts`, `packages/content/src/mongear.ts`, `packages/content/src/monmove.ts`, `packages/content/src/trap.en.ts`
 - `accessible()`: `packages/content/src/teleport.ts`
 - `closed_door()`: `packages/content/src/buzz.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/zap.ts`
+- `count_webbing_walls()`: `packages/content/src/web.ts`
 - `distfleeck()`: `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `disturb()`: `packages/content/src/monmove.ts`
 - `dochug()`: `packages/content/src/brains.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `dochugw()`: `packages/content/src/travel.ts`
+- `holds_up_web()`: `packages/content/src/web.ts`
 - `leppie_avoidance()`: `packages/content/src/monmove.ts`
 - `m_avoid_soko_push_loc()`: `packages/content/src/dogmove.ts`
 - `m_digweapon_check()`: `packages/content/src/mdig.ts`
 - `m_move()`: `packages/content/src/brains.ts`, `packages/content/src/dogmove.ts`, `packages/content/src/monmove.ts`
 - `m_search_items()`: `packages/content/src/monmove.ts`
+- `maybe_spin_web()`: `packages/content/src/web.ts`
 - `mb_trapped()`: `packages/content/src/btrapped.ts`
 - `mon_track_add()`: `packages/content/src/monmove.ts`
 - `mon_track_clear()`: `packages/content/src/monflee.ts`
@@ -1297,6 +1302,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `postmov()`: `packages/content/src/actions.ts`, `packages/content/src/monmove.ts`
 - `release_hero()`: `packages/content/src/engulf.ts`
 - `set_apparxy()`: `packages/content/src/monmove.ts`
+- `soko_allow_web()`: `packages/content/src/web.ts`
 - `watch_on_duty()`: `packages/content/src/watch.ts`
 
 ## src/mthrowu.c
@@ -1871,7 +1877,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cnv_trap_obj()`: `packages/content/src/untrap.ts`
 - `conjoined_pits()`: `packages/content/src/trap.ts`, `packages/content/src/trapstate.ts`
 - `could_untrap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
-- `delfloortrap()`: `packages/content/src/dig.ts`
+- `delfloortrap()`: `packages/content/src/buzz.ts`, `packages/content/src/dig.ts`
 - `deltrap()`: `packages/content/src/sokoban.ts`, `packages/content/src/trap.ts`, `packages/core/src/types/mod.ts`
 - `disarm_box()`: `packages/content/src/untrap.ts`
 - `disarm_holdingtrap()`: `packages/content/src/untrap.ts`
@@ -1906,6 +1912,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mintrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mkroll_launch()`: `packages/content/src/trap.ts`
 - `move_into_trap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
+- `mu_maybe_destroy_web()`: `packages/content/src/trap.ts`
 - `openfallingtrap()`: `packages/content/src/zap.ts`
 - `openholdingtrap()`: `packages/content/src/zap.ts`
 - `reset_utrap()`: `packages/content/src/levitation.ts`
@@ -1923,6 +1930,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapeffect_magic_trap()`: `packages/content/src/magictrap.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `trapeffect_rolling_boulder_trap()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
+- `trapeffect_web()`: `packages/content/src/trap.ts`
 - `trapnote()`: `packages/content/src/trap.en.ts`
 - `try_disarm()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `try_lift()`: `packages/content/src/untrap.ts`
@@ -2018,6 +2026,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `slots_required()`: `packages/content/src/skills.ts`
 - `use_skill()`: `packages/content/src/skills.ts`
 - `weapon_dam_bonus()`: `packages/content/src/skills.ts`
+- `weapon_descr()`: `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
 - `weapon_hit_bonus()`: `packages/content/src/skills.ts`
 
 ## src/wield.c
@@ -2069,7 +2078,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
-- `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/zap.ts`
+- `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
 - `bhitm()`: `packages/content/src/zap.ts`
 - `bhito()`: `packages/content/src/zap.ts`
 - `bhitpile()`: `packages/content/src/zap.ts`

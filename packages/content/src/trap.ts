@@ -1,8 +1,9 @@
 // Traps: arrow, dart, falling rock, squeaky board, bear trap, sleeping gas, rust, pit, spiked
-// pit, trap door, hole, teleportation trap and level teleporter; the rolling boulder trap's
+// pit, trap door, hole, teleportation trap, level teleporter and web; the rolling boulder trap's
 // launch spots (its effect is in rollboulder.ts). ref: include/trap.h, include/defsym.h,
 // src/trap.c maketrap(), mkroll_launch(), find_random_launch_coord(), isclearpath(),
 // dotrap(), mintrap(), trapeffect_*(), climb_pit(), fall_through(), thitm(), m_harmless_trap(),
+// mu_maybe_destroy_web(),
 // src/mondata.c mons_see_trap(), src/teleport.c tele_trap(), level_tele_trap(), mtele_trap(),
 // mlevel_tele_trap(), src/hack.c trapmove(),
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
@@ -76,6 +77,7 @@ import { monkilled } from './mondeath';
 import { minvent, monWep, whichArmor } from './mongear';
 import { clearPath } from './clearpath';
 import { isFrozen, paralyzeMonst, setMConfused } from './mstate';
+import { flaming, isWhirly } from './engulfstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
@@ -119,7 +121,12 @@ export const TRAP = {
   levelTele: 'nh:level_teleporter',
   magic: 'nh:magic_trap',
   antiMagic: 'nh:anti_magic_field',
+  web: 'nh:web',
 } as const;
+
+/** The two spiders that spin webs and walk them freely. ref: include/mondata.h webmaker() */
+export const webmaker = (def: { id: DefId }): boolean =>
+  def.id === 'nh:cave_spider' || def.id === 'nh:giant_spider';
 
 /** ref: include/trap.h is_magical_trap() (no polymorph traps yet) */
 export const isMagicalTrap = (def: DefId): boolean =>
@@ -137,7 +144,7 @@ const RED = '#cc3333';
 
 /**
  * ref: include/defsym.h S_arrow_trap .. S_hole (S_land_mine CLR_RED), S_teleportation_trap, S_level_teleporter,
- * S_magic_trap, S_anti_magic_trap (HI_ZAP)
+ * S_magic_trap, S_anti_magic_trap (HI_ZAP), S_web (CLR_GRAY)
  */
 export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.arrow, nameKey: TRAP.arrow, glyph: { ch: '^', fg: CYAN } },
@@ -157,14 +164,19 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.levelTele, nameKey: TRAP.levelTele, glyph: { ch: '^', fg: MAGENTA } },
   { id: TRAP.magic, nameKey: TRAP.magic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.antiMagic, nameKey: TRAP.antiMagic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
+  { id: TRAP.web, nameKey: TRAP.web, glyph: { ch: '"', fg: GRAY } }, // S_web
 ];
 
 /**
  * Traps set off by touching the floor, which flyers and floaters pass over (the teleport,
- * magic and anti-magic traps are not). ref: src/trap.c floor_trigger()
+ * magic and anti-magic traps and webs are not). ref: src/trap.c floor_trigger()
  */
 export const floorTrigger = (def: DefId): boolean =>
-  def !== TRAP.tele && def !== TRAP.levelTele && def !== TRAP.magic && def !== TRAP.antiMagic;
+  def !== TRAP.tele &&
+  def !== TRAP.levelTele &&
+  def !== TRAP.magic &&
+  def !== TRAP.antiMagic &&
+  def !== TRAP.web;
 
 /**
  * The effects of a trap kind whose code sits above this module: the magic trap and the
@@ -282,11 +294,16 @@ function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: numbe
 export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: DefId): Trap {
   const level = getLevel(ctx.state, levelId);
   const old = trapAt(level, x, y);
-  // ref: maketrap(): a hero caught in a bear trap or pit that is replaced by another kind is let go
+  // ref: maketrap(): a hero caught in a bear trap, web or pit that is replaced by another kind is
+  // let go
   const hp = getPlayer(ctx.state).c.pos;
   const u = utrap(ctx);
   if (old && u && hp?.level === levelId && hp.x === x && hp.y === y) {
-    if ((u.type === 'beartrap' && def !== TRAP.bear) || (u.type === 'pit' && !isPit(def)))
+    if (
+      (u.type === 'beartrap' && def !== TRAP.bear) ||
+      (u.type === 'web' && def !== TRAP.web) ||
+      (u.type === 'pit' && !isPit(def))
+    )
       setUtrap(ctx, 0, u.type);
   }
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
@@ -651,6 +668,90 @@ function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean, from?: 
     );
 }
 
+/**
+ * A monster (or the hero) going through a web: an amorphous, whirly, flaming or unsolid one, or a
+ * gelatinous cube, gets through; a flaming or acidic one destroys it ("The fire vortex burns a
+ * spider web!"), the others flow through it ("The fog cloud flows through a spider web."). Returns
+ * true if it got through. The hero is never any of these (no polymorph), so only monsters come
+ * here; nobody makes webs of the hero's (`a_your[madeby_u]` is always "a").
+ * ref: src/trap.c mu_maybe_destroy_web()
+ */
+export function muMaybeDestroyWeb(
+  ctx: Ctx,
+  levelId: string,
+  mon: Entity,
+  domsg: boolean,
+  trap: Trap,
+): boolean {
+  const def = ctx.defs.monster(mon.def);
+  if (
+    !def.flags.includes('amorphous') &&
+    !isWhirly(def) &&
+    !flaming(def) &&
+    !def.flags.includes('unsolid') &&
+    def.id !== 'nh:gelatinous_cube'
+  )
+    return false;
+  if (flaming(def) || def.flags.includes('acid')) {
+    if (domsg)
+      say(ctx, flaming(def) ? 'trap.web.mon_burns' : 'trap.web.mon_dissolves', {
+        mon: monNam(ctx, mon),
+      });
+    deltrap(ctx, levelId, trap);
+    return true;
+  }
+  if (domsg) {
+    say(ctx, 'trap.web.mon_flows', { mon: monNam(ctx, mon) });
+    seetrap(trap);
+  }
+  return true;
+}
+
+/**
+ * The hero walks into a web: "You stumble into a spider web!" ("float into" while levitating,
+ * "You are caught by a spider web!" when forced), then she is stuck for a time set by her
+ * Strength: `rn1(6, 6)` at 3, down to `rnd(2)` at 15..17 and 1 at 18..18/50; from 18/51 she
+ * tears through it ("You tear through a web!") and the web is gone. `msgok` false is NOWEBMSG
+ * (the "web sticks to you" of a failed #untrap). ref: src/trap.c trapeffect_web() for the hero
+ * (no steed, no polymorphed forms: she is never a webmaker nor goes through webs)
+ */
+function webYou(ctx: Ctx, levelId: string, trap: Trap, forced: boolean, msgok: boolean): void {
+  seetrap(trap); // feeltrap()
+  if (msgok)
+    say(
+      ctx,
+      forced
+        ? 'trap.web.caught_by'
+        : levitating(ctx)
+          ? 'trap.web.float_into' // u_locomotion("stumble")
+          : 'trap.web.stumble',
+    );
+  // time will be adjusted below
+  setUtrap(ctx, 1, 'web');
+  // Time stuck in the web depends on your strength (ACURR(A_STR), 18/xx encoded as 18 + xx).
+  const str = heroEnt(ctx).c.attributes?.str ?? 10;
+  const rng = ctx.rng;
+  let tim: number;
+  if (str <= 3)
+    tim = rng.rn2(6) + 6; // rn1(6, 6)
+  else if (str < 6)
+    tim = rng.rn2(6) + 4; // rn1(6, 4)
+  else if (str < 9)
+    tim = rng.rn2(4) + 4; // rn1(4, 4)
+  else if (str < 12)
+    tim = rng.rn2(4) + 2; // rn1(4, 2)
+  else if (str < 15)
+    tim = rng.rn2(2) + 2; // rn1(2, 2)
+  else if (str < 18) tim = rng.rnd(2);
+  else if (str < 69) tim = 1;
+  else {
+    tim = 0;
+    if (msgok) say(ctx, 'trap.web.tear_through');
+    deltrap(ctx, levelId, trap);
+  }
+  setUtrap(ctx, tim, 'web');
+}
+
 function sleepGasYou(ctx: Ctx, trap: Trap): void {
   seetrap(trap);
   if (hasProp(heroEnt(ctx), P.SLEEP_RES)) say(ctx, 'trap.gas.enveloped');
@@ -794,7 +895,7 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
 export function dotrap(
   ctx: Ctx,
   trap: Trap,
-  opts: { plunged?: boolean; force?: boolean; from?: Pos } = {},
+  opts: { plunged?: boolean; force?: boolean; from?: Pos; noWebMsg?: boolean } = {},
 ): void {
   const levelId = heroPos(ctx).level;
   const t = liveTrap(ctx, levelId, trap) ?? trap;
@@ -842,6 +943,8 @@ export function dotrap(
     case TRAP.levelTele:
       seetrap(t);
       return levelTeleTrap(ctx, levelId, t, opts.force === true);
+    case TRAP.web:
+      return webYou(ctx, levelId, t, opts.force === true, opts.noWebMsg !== true);
     default:
       // the magic traps (magictrap.ts); another mod's trap: its effects are that mod's business
       lateEffects[t.def]?.you(ctx, t);
@@ -898,7 +1001,9 @@ export function climbPit(ctx: Ctx): void {
 /**
  * Moving while caught in a trap. Bear trap: "You are caught in a bear trap." and a diagonal
  * move, or one time in five, loosens it; at zero "You finally wriggle free.". Pit: a seen pit
- * at the destination (`desttrap`) is stepped into without climbing out, else climb_pit().
+ * at the destination (`desttrap`) is stepped into without climbing out, else climb_pit(). Web:
+ * each try takes one turn off, "You are stuck to the web." / "You disentangle yourself." (no
+ * Sting).
  * Returns true if the hero may move (she never does on the turn she gets free).
  * ref: src/hack.c trapmove() TT_BEARTRAP, TT_PIT (as 3.6's domove() calls it, with the trap at
  * the destination; 3.7's domove_core() passes NULL, see DEVIATIONS "Traps: the hero")
@@ -909,6 +1014,12 @@ export function trapmove(ctx: Ctx, dir: Dir, desttrap?: Trap | null): boolean {
   if (u.type === 'pit') {
     if (desttrap?.seen && isPit(desttrap.def)) return true; // move into adjacent pit
     climbPit(ctx);
+    return false;
+  }
+  if (u.type === 'web') {
+    const n = u.n - 1;
+    setUtrap(ctx, n, 'web');
+    say(ctx, n ? 'trap.web.stuck' : 'trap.web.disentangle'); // (Norep, flags.verbose)
     return false;
   }
   say(ctx, 'trap.bear.caught');
@@ -963,7 +1074,7 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
 
 /** ref: src/trap.c into_vs_onto() */
 export const intoTrap = (def: DefId): boolean =>
-  def === TRAP.bear || def === TRAP.hole || isPit(def);
+  def === TRAP.bear || def === TRAP.hole || def === TRAP.web || isPit(def);
 
 // ---------------------------------------------------------------------------------------------
 // monsters
@@ -1006,6 +1117,13 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
     case TRAP.trapdoor:
     case TRAP.hole:
       return def.flags.includes('cling') && !soko;
+    case TRAP.web:
+      return (
+        def.flags.includes('amorphous') ||
+        webmaker(def) ||
+        isWhirly(def) ||
+        def.flags.includes('unsolid')
+      );
     case TRAP.magic:
       return true; // usually
     case TRAP.antiMagic:
@@ -1169,6 +1287,60 @@ function pitMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult 
   return caughtOr(ctx, mon, killed);
 }
 
+/** ref: trapeffect_web(): the big monsters that tear through webs */
+const TEARS_WEBS: readonly DefId[] = [
+  'nh:titanothere',
+  'nh:baluchitherium',
+  'nh:purple_worm',
+  'nh:jabberwock',
+  'nh:iron_golem',
+  'nh:balrog',
+  'nh:kraken',
+  'nh:mastodon',
+  'nh:orion',
+  'nh:norn',
+  'nh:cyclops',
+  'nh:lord_surtur',
+];
+
+/**
+ * A monster in a web: a webmaker walks it, the ones that go through webs do
+ * (mu_maybe_destroy_web()); giants (and the TEARS_WEBS list) tear through it ("The purple worm
+ * tears through a spider web!"); anything else is caught ("The jackal is caught in a spider
+ * web."; an owlbear or bugbear out of sight roars). Forced and not caught: "The X avoids a
+ * spider web!". ref: src/trap.c trapeffect_web() for a monster (no dragons or long worms exist)
+ */
+function webMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap, force: boolean): TrapResult {
+  const def = ctx.defs.monster(mon.def);
+  const inSight = canseemon(ctx, mon);
+  if (webmaker(def)) return 'finished';
+  if (muMaybeDestroyWeb(ctx, levelId, mon, inSight, trap)) return 'finished';
+  let tearWeb = false;
+  if (TEARS_WEBS.includes(def.id)) tearWeb = true;
+  else if ((def.id === 'nh:owlbear' || def.id === 'nh:bugbear') && !inSight) {
+    say(ctx, 'trap.web.roaring');
+    setMtrapped(ctx, mon.id, true);
+  } else {
+    // S_GIANT; (S_DRAGON && extra_nasty(), long worms with more than 5 segments: none here)
+    if (def.glyph.ch === 'H') tearWeb = true;
+    else if (inSight) {
+      say(ctx, 'trap.web.mon_caught', { mon: monNam(ctx, mon) });
+      seetrap(trap);
+    }
+    setMtrapped(ctx, mon.id, !tearWeb);
+  }
+  if (tearWeb) {
+    if (inSight) say(ctx, 'trap.web.mon_tears', { mon: monNam(ctx, mon) });
+    deltrap(ctx, levelId, trap);
+  } else if (force && !isMtrapped(ctx, mon.id)) {
+    if (inSight) {
+      say(ctx, 'trap.web.mon_avoids', { mon: monNam(ctx, mon) });
+      seetrap(trap);
+    }
+  }
+  return isMtrapped(ctx, mon.id) ? 'caught' : 'finished';
+}
+
 function sleepGasMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   const def = ctx.defs.monster(mon.def);
   const inSight = canseemon(ctx, mon);
@@ -1312,7 +1484,7 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
     if (
       !trap.seen &&
       canseemon(ctx, mon) &&
-      (trap.def === TRAP.bear || trap.def === TRAP.hole || pit)
+      (trap.def === TRAP.bear || trap.def === TRAP.hole || trap.def === TRAP.web || pit)
     )
       seetrap(trap);
     // (a boulder never rests on a pit here, so the "pulls free..." fill_pit() case is not needed)
@@ -1326,7 +1498,7 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
               mon: monNam(ctx, mon),
             },
           );
-        else if (trap.def === TRAP.bear)
+        else if (trap.def === TRAP.bear || trap.def === TRAP.web)
           say(ctx, 'trap.mon_pulls_free', { mon: monNam(ctx, mon), trap: trapName(trap) });
       }
       setMtrapped(ctx, monId, false);
@@ -1369,6 +1541,8 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
     case TRAP.trapdoor:
     case TRAP.hole:
       return holeMon(ctx, p.level, mon, trap);
+    case TRAP.web:
+      return webMon(ctx, p.level, mon, trap, opts.force === true);
     default:
       return lateEffects[trap.def]?.mon(ctx, mon, trap) ?? 'finished';
   }

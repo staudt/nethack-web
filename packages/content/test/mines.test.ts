@@ -137,8 +137,13 @@ describe('Mines levels', () => {
         const here = sortedIds(state)
           .map((id) => state.entities[String(id)])
           .filter((e) => e?.c.pos?.level === level.id && e.id !== state.playerId);
+        // (a random des.trap() web from level 7 comes with its giant spider: mktrap())
+        const onWeb = (e: (typeof here)[number]): boolean =>
+          e?.def === 'nh:giant_spider' &&
+          level.traps.some((t) => t.def === 'nh:web' && t.x === e.c.pos?.x && t.y === e.c.pos.y);
         const mons = here
           .filter((e) => e?.c.monster && e.c.monster.tame === undefined) // not the kitten
+          .filter((e) => !onWeb(e))
           .map((e) => e?.def ?? 'nh:none');
         const glyphs = mons.map((d) => defs.monster(d).glyph.ch);
         expect(glyphs.every((g) => g === 'G' || g === 'h')).toBe(true);

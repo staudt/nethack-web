@@ -362,7 +362,7 @@ export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
     stopOccupation(ctx);
     const t = utrap(ctx);
     if (t) {
-      say(ctx, 'engulf.released_trap'); // (no webs: always "trap")
+      say(ctx, t.type === 'web' ? 'engulf.released_web' : 'engulf.released_trap');
       setUtrap(ctx, 0, t.type);
     }
     // (no leashes; touch_petrifies(youmonst.data) needs polymorph: 7f)
