@@ -30,6 +30,7 @@ import { uswallow } from './engulfstate';
 import { releaseHero } from './engulf';
 import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
+import { mRespond } from './mrespond';
 import {
   canCarry,
   mDoWear,
@@ -904,6 +905,10 @@ export function dochug(
   m.lastHero = heroPos;
 
   const def = ctx.defs.monster(ctx.state.entities[String(id)]?.def ?? 'nh:none');
+  // ref: dochug(): "some monsters have special abilities" (m_respond(): the shrieker's shriek;
+  // no M1_TPORT teleport before it yet)
+  const self = ctx.state.entities[String(id)];
+  if (self) mRespond(ctx, self);
   // ref: dochug(): "fleeing monsters might regain courage"
   regainCourage(ctx, id);
   // ref: dochug(): "Cease conflict-induced swallow/grab if conflict has ended. Releasing the hero

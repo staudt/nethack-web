@@ -256,6 +256,15 @@ const KEYS: readonly Key[] = [
 ];
 
 /** Forgets the states of a monster that died or left. */
+/** clone_mon()'s `*m2 = *mon`: the clone starts with the original's conditions. */
+export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId): void {
+  for (const k of KEYS) {
+    const t = table(ctx, k, false);
+    const v = t?.[String(from)];
+    if (t && v !== undefined) t[String(to)] = v;
+  }
+}
+
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   thiefdead(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->m_id == gs.stealmid) thiefdead()`
   for (const k of KEYS) {

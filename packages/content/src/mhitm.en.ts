@@ -1,6 +1,7 @@
 // English messages for monster-vs-monster fights (ref: src/mhitm.c, src/uhitm.c mhitm_ad_*)
 export const mhitmMessagesEn: Record<string, string> = {
   'mhitm.hits': '{magr|The} hits {mdef|the}.',
+  'mhitm.divides': '{mdef|The} divides as {magr|the} hits it!',
   'mhitm.bites': '{magr|The} bites {mdef|the}.',
   'mhitm.stings': '{magr|The} stings {mdef|the}.',
   'mhitm.butts': '{magr|The} butts {mdef|the}.',

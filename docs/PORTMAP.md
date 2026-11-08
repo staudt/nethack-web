@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2935 citations.
+150 NetHack files, 2960 citations.
 
 ## dat/dungeon.lua
 
@@ -1011,6 +1011,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - `adj_lev()`: `packages/content/src/generation.ts`
 - `align_shift()`: `packages/content/src/generation.ts`
+- `clone_mon()`: `packages/content/src/clone.ts`
 - `create_critters()`: `packages/content/src/zap.ts`
 - `grow_up()`: `packages/content/src/mhitm.ts`
 - `init_mongen_order()`: `packages/content/src/generation.ts`
@@ -1234,6 +1235,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_calcdistress()`: `packages/content/src/monflee.ts`, `packages/content/src/mstate.ts`
 - `m_detach()`: `packages/content/src/mondeath.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trapstate.ts`
 - `m_move_aggress()`: `packages/content/src/monmove.ts`
+- `m_respond()`: `packages/content/src/mrespond.ts`
+- `m_respond_shrieker()`: `packages/content/src/mrespond.ts`
 - `make_corpse()`: `packages/content/src/corpses.ts`
 - `max_mon_load()`: `packages/content/src/mongear.ts`
 - `maybe_mnexto()`: `packages/content/src/dokick.ts`
@@ -1967,6 +1970,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hmon_hitmon_dmg_recalc()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
 - `hmon_hitmon_msg_hit()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_pet()`: `packages/content/src/combat.ts`, `packages/content/src/dog.ts`, `packages/content/src/hmon.ts`
+- `hmon_hitmon_splitmon()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_weapon_melee()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
 - `hmon_hitmon_weapon_ranged()`: `packages/content/src/dothrow.ts`
 - `known_hitum()`: `packages/content/src/combat.ts`

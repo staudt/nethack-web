@@ -457,6 +457,11 @@ function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
     mhm.damage += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
     if (mhm.damage < 1) mhm.damage = 1;
     rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
+  } else if (magr.def === 'nh:purple_worm' && mdef.def === 'nh:shrieker') {
+    // "we don't want purple worm's bite attack to kill a shrieker because then it won't swallow
+    // the corpse; but if the target survives, the subsequent engulf attack should accomplish that"
+    const mhp = mdef.c.hp?.cur ?? 0;
+    if (mhm.damage >= mhp && mhp > 1) mhm.damage = mhp - 1;
   }
 }
 

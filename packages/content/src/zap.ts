@@ -60,6 +60,7 @@ import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
 import { makemon } from './generation';
+import { mRespond } from './mrespond';
 import { confdir, getdirImpaired, setUstuck, uMaybeImpaired, ustuck } from './hackmove';
 import { digests, isSwallowed, uswallow } from './engulfstate';
 import { expels } from './engulf';
@@ -765,6 +766,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   if (wake && alive(ctx, mon.id)) {
     if (helpful) wakeGently(ctx, mon);
     else wakeup(ctx, mon.id);
+    mRespond(ctx, mon);
   }
   if (learnIt) learn(ctx, src);
 }

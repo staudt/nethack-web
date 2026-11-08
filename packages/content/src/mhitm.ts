@@ -48,6 +48,7 @@ import { digests, enfolds, engulfingU, flaming, setMswallower } from './engulfst
 import { engulfTarget } from './engulf';
 import { snuffLit } from './light';
 import { mintrap } from './trap';
+import { cloneMon } from './clone';
 import { resistConflict } from './props';
 import { monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
@@ -620,6 +621,24 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
             break;
           }
           res[i] = hitmm(ctx, magr, mdef, atk, mwep, vis, dieroll);
+          // ref: mattackm(): a pudding hit with an iron or metal weapon divides
+          const mdefHp = ctx.state.entities[String(mdefId)]?.c.hp;
+          const mat = mwep ? ctx.defs.object(mwep.def).material : null;
+          if (
+            (mdef.def === 'nh:black_pudding' || mdef.def === 'nh:brown_pudding') &&
+            (mat === 'iron' || mat === 'metal') &&
+            mdefHp !== undefined &&
+            mdefHp.cur > 1 &&
+            !isCancelled(ctx, mdefId)
+          ) {
+            const mclone = cloneMon(ctx, mdefId, true);
+            if (mclone !== null) {
+              if (vis && canSpotMon(ctx, mdef))
+                say(ctx, 'mhitm.divides', { mdef: monNam(ctx, mdef), magr: monNam(ctx, magr) });
+              mintrap(ctx, mclone);
+              if (!alive(ctx, magrId)) res[i] = (res[i] ?? 0) | M_ATTK.AGR_DIED;
+            }
+          }
         } else missmm(ctx, magr, mdef, atk, vis);
         break;
       }

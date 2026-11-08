@@ -56,6 +56,8 @@ import { dmgval, dmgvalSized } from './dmgval';
 import { angryGuards, isWatch } from './watch';
 import { epriOf } from './epri';
 import { ghodHitsu } from './priest';
+import { cloneMon } from './clone';
+import { mintrap } from './trap';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -347,6 +349,25 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
     if (angerGuards) angryGuards(ctx, false);
     return answer(true, false);
+  }
+  // ref: src/uhitm.c hmon_hitmon_splitmon(): a pudding that is "alive and healthy enough to
+  // split", hit hand to hand with a wielded iron or metal object (not ammo or a missile), divides
+  // (no two-weapon combat, no mon_moving: the hero is attacking)
+  if (
+    (def.id === 'nh:black_pudding' || def.id === 'nh:brown_pudding') &&
+    hp.cur > 1 &&
+    !isCancelled(ctx, targetId) &&
+    weapon &&
+    (weapon.def.material === 'iron' || weapon.def.material === 'metal') &&
+    weapon.def.weapon?.role !== 'ammo' && // !is_ammo()
+    weapon.def.weapon?.role !== 'missile' // !is_missile()
+  ) {
+    const mclone = cloneMon(ctx, targetId, false);
+    if (mclone !== null) {
+      ctx.emit({ type: 'msg', key: 'combat.divides', params: { mon: name } });
+      hittxt = true;
+      mintrap(ctx, mclone);
+    }
   }
   // ref: src/uhitm.c hmon_hitmon_msg_hit(): "You hit <mon>" + exclam(dmg)
   if (!hittxt)
