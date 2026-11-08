@@ -19,6 +19,11 @@ const CHANGED_MESSAGE =
   'Golden replay changed. If this change in game behavior is intended, update packages/testkit/test/fixtures/golden.json in the same commit and explain why in the commit message.';
 
 /** The kit mod gives the bot a bow, arrows and darts, so the pinned run fires and throws. */
+// The bot seed is picked so the run lasts the full `turns` (golden.json has no comments): bot
+// seed 7 died at turn 76 after m7f-c step 1, praying twice too soon (C's angrygods() with
+// ugangr 2 and Luck -6 has maxanger 12, so 1 in 4 is god_zaps_you(): faithful). Bot seed 13
+// plays all 400 turns and reaches dungeon level 2. Re-pick it the same way if a stream shift
+// ends the run early again.
 const MODS = [vanillaMod, soakKitMod];
 
 describe('golden replay', () => {
