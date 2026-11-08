@@ -8,6 +8,17 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
+Run 5 (from 2026-11-08), target **6M**, may run to **8M** to finish features (user, 2026-11-08), fresh ledger section ("## Run 5"). The user approved the 7f core contracts D1, D3, D5 and D6 (`docs/DECISIONS-PENDING.md`); the plan `~/.claude/plans/m7f.md` and `docs/kickoff-m7f.md` exist, so **no planning agent** for 7f: each sub-milestone's first step agent also reads the plan's "Depends on m9/m10" section and reconciles it with what m9/m10 actually built (a "Step N:" bullet under Changes during work). One chain of branches, each off the previous tip, starting from `m10` (= `main` f615715).
+
+1. **m9 step 7, level drain and lycanthropy** (on branch `m10`, like step 5; plan `~/.claude/plans/m9.md` step 7, kickoff `docs/kickoff-m9.md`): the hero turning into a wolf is handed to 7f-d step 3; the docs part of step 7 only updates the m9 TESTPLAN/ROADMAP lines it changes.
+2. **7f-a position prompt and teleport control** (branch `m7f-a` off `m10`, steps 1-3), then the TESTPLAN section.
+3. **7f-b invisibility** (branch `m7f-b` off `m7f-a`, steps 1-4), then the TESTPLAN section.
+4. **7f-c statues** (branch `m7f-c` off `m7f-b`, steps 1-3), then the TESTPLAN section.
+5. **7f-d polymorph** (branch `m7f-d` off `m7f-c`, steps 1-6; stop point after step 2 only if the budget forces it), then the TESTPLAN section.
+6. **m9 step 8** (sliming, nurse, mind flayer, eggs, amorous demons; branch `m7f-d`), only if the budget allows: sliming now finishes as a green slime form through 7f-d's `polymon()`.
+
+Done in run 4 (2026-11-07/08, 5.61M, merged to `main` at f615715): tools (converter, test:fast, PORTMAP), the 7e rest, m9 steps 1-6, m10 monster batch 1.
+
 Run 4 (from 2026-11-07), budget **6M** with a fresh ledger section ("## Run 4"). One chain of branches, each off the previous tip: `tools` off `m7e`, then `m7e` fast-forwarded to `tools` for the 7e rest, then `m9` off `m7e`, then `m10` off `m9`.
 
 1. **Speed-ups** (branch `tools` off `m7e`, two steps, no planning agent; golden must stay unchanged):
@@ -42,7 +53,7 @@ Keep a ledger at `~/.claude/plans/overnight-ledger.md`: one line per agent with 
 
 Stop cleanly (finish nothing new, write the morning summary) when any of these happens:
 
-- **Budget:** the running total with margin reaches the run's budget (run 4: **6,000,000 tokens**). Never start an agent whose typical cost (300k for a step, 250k for a plan) would cross it.
+- **Budget:** the running total with margin reaches the run's budget (run 5: target **6,000,000 tokens**, hard cap **8,000,000**). Past the target, start a step only to finish the current sub-milestone or a feature the next step completes, and never start an agent whose typical cost (300k for a step, 250k for a plan) would cross the hard cap.
 - **Red check:** `pnpm check` fails after one retry and one fix agent.
 - **Unexplained golden:** a step changes the golden hash without a verified cause in its commit body.
 - **Design stop:** an agent stops on a design question it says is costly to get wrong.
@@ -51,7 +62,7 @@ Stop cleanly (finish nothing new, write the morning summary) when any of these h
 
 ## For each step
 
-1. Spawn one `general-purpose` agent with the step brief below. Model tiering (run 4): porting mechanics, planning and fix agents use the default (Opus); docs-only wrap-ups, TESTPLAN sections and pure data batches use `model: sonnet`. Do not run two agents that write to the repo at the same time. A read-only planning agent may run alongside a step agent.
+1. Spawn one `general-purpose` agent with the step brief below. Model tiering (from run 4): porting mechanics, planning and fix agents use the default (Opus); docs-only wrap-ups, TESTPLAN sections and pure data batches use `model: sonnet`. Do not run two agents that write to the repo at the same time. A read-only planning agent may run alongside a step agent.
 2. When it reports, verify yourself: `git status` clean and the commit is there. Then, from run 4, verify **in the verify worktree** so the next step can start at once: `git -C <verify> checkout -q --detach <hash>` (create it once with `git worktree add --detach /home/ricardo/git/nethack-verify <hash>`), `pnpm install --frozen-lockfile --offline` there only if the lockfile changed, then `pnpm check` there (with `export PATH=$HOME/.local/share/pnpm/bin:$PATH`), in the background, and spawn the next step agent meanwhile. The verify worktree needs `vendor/nethack` symlinked to the main checkout's (submodules are not shared). Timeouts there while an agent also runs tests are load, not failures: rerun just the failing files once. Read the check's result before pushing, and record and push only once that check is green; if it is red, stop the next agent, then follow the failure rule below. Never run two verify checks at once.
    - A timeout or SIGKILL (exit 137) under load: rerun once on a quiet machine.
    - A real failure: one fix agent (brief: the failing output, fix it in a new commit, same rules). Still red: stop.

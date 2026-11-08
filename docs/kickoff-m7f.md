@@ -1,0 +1,33 @@
+# Kickoff: NetHack TypeScript port, milestone 7f
+
+Milestone 7f adds what 7d and 7e could not do without core contract changes:
+
+- **Position prompt:** teleport control, the blessed scroll of teleportation, controlled level teleport, wizard `^T` and `#jump`.
+- **Invisibility:** invisible monsters and an invisible hero, see invisible, the remembered `I`, attacks on unseen targets, and monsters guessing where an invisible hero is.
+- **Statues:** statues of monsters with contents, statue traps, stone to flesh, and stoned monsters leaving statues.
+- **Polymorph:** monsters, objects, polytraps, rings and amulets, the hero's polymorph into forms, armor breaking, form attacks, system shock and polymorph control.
+
+It runs as four sub-milestones, 7f-a to 7f-d, each on its own branch, after m9 and m10. The core changes are decisions D1-D8 of the plan as the user approved them (2026-11-08: D1 position prompt, D3 remembered `I`, D5 form in `modData.nh.upoly`, D6 form HP in `c.hp`; the cheap ones as recommended). Each is documented in `docs/ARCHITECTURE.md`, with its reason, in the step that makes it. Read `CLAUDE.md`, `docs/ARCHITECTURE.md`, `DEVIATIONS.md` and `~/.claude/plans/m7f.md` first.
+
+## Scope
+
+1. **7f-a, position prompt and teleport control** (branch `m7f-a`, 3 steps): `Prompt.kind: 'position'` with the getpos cursor (tap to move, tap again to pick), the soak bot's answers, `wiz:teleport`, the ring of teleport control, controlled teleports and level teleports, jumping boots, the spellbook of jumping and `#jump` (ref: src/teleport.c tele(), dotelecmd(), level_tele(); src/apply.c dojump(), jump(); src/do_name.c getpos()).
+2. **7f-b, invisibility** (branch `m7f-b`, 4 steps): the perception `hides`/`self` hooks, `I` markers, the invisibility objects (wand, ring, potion, cloak) and see invisible, attacking and searching for unseen monsters, and monsters and shopkeepers against an invisible hero (ref: src/display.c map_invisible(); src/hack.c domove(); src/monmove.c set_apparxy(); src/mhitu.c wildmiss(); src/shk.c inhishop()).
+3. **7f-c, statues** (branch `m7f-c`, 3 steps): statue objects shown as their monster, contents, breaking, statue traps, stone to flesh, and stoned monsters leaving statues (ref: src/mkobj.c mkcorpstat(); src/trap.c activate_statue_trap(), animate_statue(); src/zap.c break_statue(), stone_to_flesh_obj()).
+4. **7f-d, polymorph** (branch `m7f-d`, 6 steps, stop point after step 2): the objects and polytraps, monster and object polymorph, the hero's polymorph, what a form can wear and use, fighting as a form (ref: src/polyself.c polyself(), polymon(), rehumanize(), newman(), break_armor(); src/mon.c newcham(); src/zap.c poly_obj(); src/uhitm.c hmonas()).
+
+## Out of scope
+
+Golems, figurines, vampire shapeshifting, polearms, and `#monster` abilities for forms the roster lacks. See the plan's open question 7 and its ROADMAP leftovers.
+
+## Exit criteria
+
+- The plan's phone check for each sub-milestone passes on a phone with `?wizard=1`.
+- No feature needs a keyboard: the position prompt works by tapping.
+- Replays and the golden test are deterministic, every golden change has a verified cause in its commit, and `pnpm check` is green locally and in CI.
+
+## Testing
+
+- Core tests for the position prompt validation and the perception hooks, using a test PerceptionDef.
+- Unit tests per source and per rule with forced rolls, searched seeds or pinned monsters, never lucky seeds.
+- The soak bot answers position prompts and keeps its invariants with polymorphed monsters.
