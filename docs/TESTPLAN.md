@@ -186,7 +186,7 @@ Shop damage (find a shop on DL2-6, or Minetown's; wish `1000 gold pieces` first)
 
 ## 9 damage types and attack styles
 
-With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; use "Wizard: change experience level" or just heal when a fight goes badly). Step 5 (breath, spit) and step 7 (level drain, lycanthropy) are not built yet: see ROADMAP "From m9".
+With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; use "Wizard: change experience level" or just heal when a fight goes badly). Step 7 (level drain, lycanthropy) is not built yet: see ROADMAP "From m9".
 
 - [ ] Wear iron armor (wish `plate mail`), create a `rust monster`: its touch says "Your plate mail rusts!" (the armor shows "rusty"); hit it with a wielded iron weapon (`long sword`): "Your long sword rusts!" (the passive). Fighting it bare-handed hurts nothing.
 - [ ] Create a `quantum mechanic`: its claw hurts and "Your position suddenly seems very uncertain!" (you teleport).
@@ -202,6 +202,8 @@ With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an ite
 - [ ] Create a `cockatrice` (or `chickatrice`): its hissing says "You hear the cockatrice's hissing." and sometimes "You are slowing down." (stoning countdown, five turns, "Stone" in the status). Wish `lizard corpse`, eat it: "You feel limber!" cured. Repeat curing with an `acidic corpse` (wish `acid blob corpse`) or by praying (prayer fixes stoning).
 - [ ] Hit a cockatrice bare-handed (take your gloves off): you turn to stone and die. Same when you eat a cockatrice corpse ("You turn to stone"). Picking up a cockatrice corpse bare-handed also kills you.
 - [ ] Wish `leather gloves` and wear them, then wish `cockatrice corpse`: picking it up and wielding it is safe with gloves. Hit a `jackal` with it: "The jackal turns to stone." and a statue of a jackal is left (look: "statue of a jackal"). Lose the gloves (take them off while wielding): you die.
+- [ ] Create a `winter wolf cub` a few squares away in a straight line: "The winter wolf cub breathes frost!" and a white ray; as a Valkyrie "You don't feel cold." (no damage).
+- [ ] Create a `cobra` a few squares away in a line: "The cobra spits venom!", "You are hit by a splash of blinding venom." and "The venom blinds you." No venom is left on the floor.
 
 ## 10 monster batch 1
 

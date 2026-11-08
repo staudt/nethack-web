@@ -24,7 +24,8 @@ import {
   type TerrainDef,
   trapAt,
 } from '@nh/core';
-import { destroyItems, erodeArmor } from './erode';
+import { poisoned } from './attrib';
+import { acidDamage, destroyItems, erodeArmor } from './erode';
 import { inAnyShop } from './eshk';
 import { done } from './end';
 import { setUstuck, ustuck } from './hackmove';
@@ -34,7 +35,7 @@ import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { monkilled, monsterDied } from './mondeath';
 import { nonliving } from './mondata';
-import { heroSees } from './mongear';
+import { heroSees, monWep } from './mongear';
 import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
 import { discover } from './o_init';
 import { xnameOf } from './objnam';
@@ -48,11 +49,15 @@ import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
 
-/** Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_LIGHTNING */
-export type Ray = 'magic_missile' | 'fire' | 'cold' | 'sleep' | 'death' | 'lightning';
+/**
+ * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
+ * gas and acid exist only as monster breath)
+ */
+export type Ray =
+  'magic_missile' | 'fire' | 'cold' | 'sleep' | 'death' | 'lightning' | 'poison_gas' | 'acid';
 /**
  * ref: include/display.h zap_color_*: HI_ZAP, CLR_ORANGE, CLR_WHITE, HI_ZAP, CLR_BLACK (drawn
- * dark gray, as objects.ts and monsters.ts do), CLR_WHITE
+ * dark gray, as objects.ts and monsters.ts do), CLR_WHITE, CLR_GREEN, CLR_YELLOW
  */
 export const RAY_COLOR: Readonly<Record<Ray, string>> = {
   magic_missile: '#5555ff',
@@ -61,6 +66,8 @@ export const RAY_COLOR: Readonly<Record<Ray, string>> = {
   sleep: '#5555ff',
   death: '#555555',
   lightning: '#ffffff',
+  poison_gas: '#00aa00',
+  acid: '#ffff55',
 };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -74,7 +81,10 @@ const alive = (ctx: Ctx, id: EntityId): boolean => ent(ctx, id)?.c.monster !== u
 const antimagic = (ctx: Ctx): boolean => hasProp(hero(ctx), P.ANTIMAGIC);
 /** ref: exclam(): "." for force <= 4, else "!" */
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
-const rayName = (ray: Ray): Msg => ({ key: `zap.flash.${ray}` });
+/** ref: src/zap.c flash_str(): "bolt of fire", or a breath's "blast of fire" (types 20..29) */
+const rayName = (ray: Ray, src?: RaySource): Msg => ({
+  key: src?.by === 'breath' ? `zap.flash.breath.${ray}` : `zap.flash.${ray}`,
+});
 
 function heroPos(ctx: Ctx): { level: string; x: number; y: number } {
   const p = hero(ctx).c.pos;
@@ -294,6 +304,16 @@ function zhitm(
       if (!ctx.rng.rn2(3)) tmp += destroyItems(ctx, mon.id, 'elec', orig);
       break;
     }
+    case 'poison_gas':
+      if (res('poison')) break;
+      tmp = ctx.rng.d(nd, 6);
+      break;
+    case 'acid':
+      if (res('acid')) break;
+      tmp = ctx.rng.d(nd, 6);
+      if (!ctx.rng.rn2(6)) acidDamage(ctx, monWep(ctx, mon.id));
+      if (!ctx.rng.rn2(6)) erodeArmor(ctx, mon.id, 'corrode');
+      break;
   }
   if (tmp > 0 && save && resist(ctx, mon, 0, oclass)) tmp = Math.trunc(tmp / 2);
   if (tmp < 0) tmp = 0;
@@ -349,6 +369,20 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'elec', orig);
       break;
     }
+    case 'poison_gas':
+      // "blast": no "was poisoned" line (the blast of poison gas was named)
+      poisoned(ctx, null, 'dex', '@killer.poisoned_blast', 15);
+      break;
+    case 'acid':
+      if (hasProp(h, P.ACID_RES)) say(ctx, 'zap.u.acid_no_hurt');
+      else {
+        say(ctx, 'zap.u.acid_burns');
+        dam = ctx.rng.d(nd, 6);
+      }
+      // (no two-weapon combat)
+      if (!ctx.rng.rn2(6)) acidDamage(ctx, monWep(ctx, h.id));
+      if (!ctx.rng.rn2(6)) erodeArmor(ctx, h.id, 'corrode');
+      break;
   }
   if (ctx.state.gameOver) return;
   // "<flash> zapped by herself" (the hero's own ricochet) or "a bolt of lightning"
@@ -539,10 +573,14 @@ export function burnFloorObjects(
  * hits is angered with `wakeup`, peaceful.ts's, passed in because peaceful.ts sits above this
  * module), or a monster's
  * spell (BZ_M_SPELL: a monster it kills is killed by "another monster", one it hits is only
- * woken up, and a hero it kills dies of "a bolt of lightning").
+ * woken up, and a hero it kills dies of "a bolt of lightning"), or a monster's breath
+ * (BZ_M_BREATH: the same, named "blast of ...", and a hero it kills dies of "a blast of frost
+ * exhaled by a winter wolf cub").
  */
 export type RaySource =
-  { by: 'hero'; spell?: DefId; wakeup: (ctx: Ctx, id: EntityId) => void } | { by: 'spell' };
+  | { by: 'hero'; spell?: DefId; wakeup: (ctx: Ctx, id: EntityId) => void }
+  | { by: 'spell' }
+  | { by: 'breath'; mon: EntityId };
 
 /**
  * A ray of rn1(7, 7) squares starting next to `from` (on the hero's level) and heading `dir`,
@@ -601,7 +639,7 @@ function buzzSteps(
     if (src.by !== 'hero') return;
     const tmp = zhitm(ctx, engulfer, ray, nd, src.spell !== undefined, true);
     say(ctx, 'zap.ray.rips_into', {
-      ray: rayName(ray),
+      ray: rayName(ray, src),
       mon: monNam(ctx, engulfer),
       ex: exclam(tmp),
     });
@@ -613,6 +651,15 @@ function buzzSteps(
   const d = vertical ? { x: 0, y: 0 } : { ...DIRS[dir] };
   // the hero's spell: its SPE_ type
   const spell = src.by === 'hero' ? (src.spell ?? null) : null;
+  // the hero's death by this ray: "a blast of frost exhaled by a winter wolf cub" (zhitu()'s
+  // death_inflicted_by(); the breather may die of its own bounced blast before it hits her)
+  const breather = src.by === 'breath' ? ent(ctx, src.mon) : undefined;
+  const killer =
+    src.by === 'hero'
+      ? `@killer.zap.ray.${ray}`
+      : breather
+        ? `@killer.breath.${ray}.${breather.def.replace(/^.*:/, '')}`
+        : `@killer.ray.${ray}`;
   let { x: sx, y: sy } = from;
   let range = ctx.rng.rn2(7) + 7;
   if (vertical) range = 1;
@@ -629,7 +676,11 @@ function buzzSteps(
           (inBounds(level, lsx, lsy) && cansee(ctx, lsx, lsy)))
       )
         path.push({ x: sx, y: sy, dx: d.x, dy: d.y });
-      range += zapOverFloor(ctx, ray, sx, sy, undefined, src.by === 'hero' ? shop : undefined);
+      // poison gas leaves its 1x1 cloud via zap_over_floor() after the hit (skipped when
+      // reflected): deferred to the end of the step, its range change unused
+      let gasHit = ray === 'poison_gas';
+      if (!gasHit)
+        range += zapOverFloor(ctx, ray, sx, sy, undefined, src.by === 'hero' ? shop : undefined);
       const mon = monAt(ctx, sx, sy);
       const hp = heroPos(ctx);
       if (mon) {
@@ -643,7 +694,11 @@ function buzzSteps(
               else monkilled(ctx, mon.id, true); // killed by another monster
             }
           } else {
-            say(ctx, 'zap.ray.hit', { ray: rayName(ray), mon: monNam(ctx, mon), ex: exclam(tmp) });
+            say(ctx, 'zap.ray.hit', {
+              ray: rayName(ray, src),
+              mon: monNam(ctx, mon),
+              ex: exclam(tmp),
+            });
             if (couldMove && isFrozen(ctx, mon.id)) sleptMonst(ctx, mon);
             if (ray !== 'sleep') {
               if (src.by === 'hero') src.wakeup(ctx, mon.id);
@@ -652,28 +707,24 @@ function buzzSteps(
           }
           range -= 2;
         } else if (canseemon(ctx, mon)) {
-          say(ctx, 'zap.ray.miss', { ray: rayName(ray), mon: monNam(ctx, mon) });
+          say(ctx, 'zap.ray.miss', { ray: rayName(ray, src), mon: monNam(ctx, mon) });
         }
       } else if (hp.x === sx && hp.y === sy && range >= 0) {
         ctx.interrupt(); // nomul(0)
         if (zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId), null)) {
           range -= 2;
-          say(ctx, 'zap.ray.hits_you', { ray: rayName(ray) });
+          say(ctx, 'zap.ray.hits_you', { ray: rayName(ray, src) });
           if (hasExtrinsic(hero(ctx), P.REFLECTING)) {
             if (!blind(ctx)) ureflects(ctx, 'zap.ray.reflects');
             else say(ctx, 'zap.ray.not_affected');
             d.x = -d.x;
             d.y = -d.y;
+            gasHit = false;
           } else {
-            zhitu(
-              ctx,
-              ray,
-              nd,
-              src.by === 'hero' ? `@killer.zap.ray.${ray}` : `@killer.ray.${ray}`,
-            );
+            zhitu(ctx, ray, nd, killer);
           }
         } else if (!blind(ctx)) {
-          say(ctx, 'zap.ray.whizzes', { ray: rayName(ray) });
+          say(ctx, 'zap.ray.whizzes', { ray: rayName(ray, src) });
         } else if (ray === 'lightning') {
           say(ctx, 'zap.ray.tingles');
         }
@@ -681,6 +732,7 @@ function buzzSteps(
         if (ray === 'lightning') flashburn(ctx, ctx.rng.d(nd, 50));
       }
       if (ctx.state.gameOver) return;
+      if (gasHit) zapOverFloor(ctx, ray, sx, sy, undefined, undefined);
       const t = terrainAt(ctx, level, sx, sy);
       bounceNow = !zapPos(t) || (closedDoor(t) && range >= 0);
     }
@@ -688,7 +740,7 @@ function buzzSteps(
       const out = !inBounds(level, sx, sy) || cellId(level, sx, sy) === T.stone;
       const bchance = out ? 10 : 75;
       if (--range > 0 && inBounds(level, lsx, lsy) && cansee(ctx, lsx, lsy))
-        say(ctx, 'zap.ray.bounces', { ray: rayName(ray) });
+        say(ctx, 'zap.ray.bounces', { ray: rayName(ray, src) });
       bounceDir(ctx, level, sx, sy, d, bchance);
     }
   }

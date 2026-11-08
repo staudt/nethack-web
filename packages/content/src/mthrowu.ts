@@ -4,12 +4,15 @@
 // linedup(); src/weapon.c select_rwep(); src/dothrow.c should_mulch_missile(), omon_adj()
 import { isSwallowed } from './engulfstate';
 import {
+  DIRS,
   getPlayer,
   inBounds,
   isVisible,
   shownId,
+  type AttackDef,
   type Ctx,
   type DefId,
+  type Dir,
   type Entity,
   type EntityId,
   type MonsterDef,
@@ -24,7 +27,7 @@ import { monFloorEffects } from './align';
 import { boulderFlooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
 import { gazemu, mdamageu } from './mhitu';
-import { addToInventory, placeOnFloor, removeFromInventory, splitStack } from './items';
+import { addToInventory, mksobj, placeOnFloor, removeFromInventory, splitStack } from './items';
 import { heroSees, minvent, monFlag, monWep, monWield } from './mongear';
 import { mondied } from './mhitm';
 import { xnameOf } from './objnam';
@@ -33,6 +36,13 @@ import { monNam } from './perception';
 import { luckOf, uState } from './luck';
 import { HARD_GEMS } from './gem';
 import { greatestErosion } from './material';
+import { buzzFrom, type Ray } from './buzz';
+import { canBlnd } from './adtyping';
+import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
+import { P, hasProp, makeBlinded, timeoutLeft } from './props';
+
+const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
+const ACID_VENOM: DefId = 'nh:splash_of_acid_venom';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -117,7 +127,8 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
  * A missile may hit the hero. Returns true on a hit. `tlev` is the pseudo-level (to-hit).
  * ref: src/mthrowu.c thitu(): `u.uac + tlev <= rnd(20)` misses; a miss by 2 or more is "misses
  * you", a nearer one "almost hit"; a hit costs `dam` hit points. Not ported: blindness, acid,
- * poison, silver, passes_rocks, thrown potions.
+ * poison, silver, passes_rocks, thrown potions. Acid venom: "It burns!", or no damage with acid
+ * resistance ("It doesn't seem to hurt you.").
  */
 export function thitu(
   ctx: Ctx,
@@ -139,6 +150,12 @@ export function thitu(
   }
   // ref: src/zap.c exclam()
   say(ctx, `${dam <= 4 ? 'mthrow.hit' : 'mthrow.hit_hard'}${k}`, p);
+  const isAcid = obj.def === ACID_VENOM;
+  if (isAcid && hasProp(hero, P.ACID_RES)) {
+    say(ctx, 'mthrow.acid_no_hurt');
+    return true;
+  }
+  if (isAcid) say(ctx, 'mthrow.acid_burns');
   mdamageu(ctx, dam, `@${obj.def}`); // losehp(dam, killer_xname(obj), KILLED_BY)
   return true;
 }
@@ -160,7 +177,7 @@ const ordKey = (i: number): { key: string } => ({ key: `throw.ord.${i}` });
 
 /**
  * The missile stops and lands (or breaks). ref: src/mthrowu.c drop_throw(): after a hit it
- * breaks per should_mulch_missile(); eggs, pies and venom always break (none exist here); a
+ * breaks per should_mulch_missile(); venom always breaks (eggs and pies do not exist here); a
  * boulder fills a pit or hole there (flooreffects(); `monMoving` is C's context.mon_moving, false
  * only for a rolling boulder the hero set off). Not ported: shipping down stairs and holes,
  * water, passive_obj().
@@ -176,7 +193,9 @@ function dropThrow(
 ) {
   const obj = ctx.state.entities[String(objId)];
   if (!obj?.c.item) return;
-  if (ohit && shouldMulchMissile(ctx, obj, true)) ctx.remove(objId);
+  // venom always breaks
+  if (ctx.defs.object(obj.def).class === 'venom' || (ohit && shouldMulchMissile(ctx, obj, true)))
+    ctx.remove(objId);
   else if (boulderFlooreffects(ctx, obj, x, y, 'fall', false, monMoving)) return;
   else {
     monFloorEffects(ctx, obj, { level, x, y }); // flooreffects(): an altar in sight
@@ -189,8 +208,8 @@ function dropThrow(
  * ref: src/mthrowu.c ohitmon(): `5 + find_mac + omon_adj` against rnd(20); hits do dmgval() and
  * may kill (the kill is not credited to the hero, unless `opts.onKill` says otherwise: a rolling
  * boulder from a trap she knew). A negative `range` (a rolling boulder) never drops it on a
- * miss. Not ported: mimics, potions, eggs, poison, silver, shades, blinding, aiming bonuses of
- * the archer's level.
+ * miss. Acid venom burns (not an acid resistant monster), blinding venom blinds (can_blnd()).
+ * Not ported: mimics, potions, eggs, poison, silver, shades, aiming bonuses of the archer's level.
  */
 export function ohitmon(
   ctx: Ctx,
@@ -229,14 +248,29 @@ export function ohitmon(
     }
     return false;
   }
-  const damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef));
+  let damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef));
+  const acid = obj.def === ACID_VENOM;
+  if (acid && mdef.resists.includes('acid')) damage = 0;
   m.asleep = false;
   if (vis) {
     flush();
     say(ctx, damage <= 4 ? 'throw.hit' : 'throw.hit_hard', { missile, mon: monNam(ctx, mon) });
+    if (acid)
+      say(ctx, mdef.resists.includes('acid') ? 'mthrow.mon_unaffected' : 'mthrow.acid_burns_mon', {
+        mon: monNam(ctx, mon),
+      });
   }
   const hp = mon.c.hp;
   if (hp) hp.cur -= damage;
+  // blinding venom does 0 damage, but verify that the target is still alive anyway
+  if (
+    hp &&
+    hp.cur >= 1 &&
+    canBlnd(ctx, null, mon, obj.def === BLINDING_VENOM ? 'spit' : 'weapon', obj)
+  ) {
+    if (vis && mcansee(ctx, monId)) say(ctx, 'mthrow.mon_blinded_venom', { mon: monNam(ctx, mon) });
+    setMblinded(ctx, monId, mblinded(ctx, monId) + ctx.rng.rnd(25) + 20);
+  }
   if (!hp || hp.cur < 1) {
     if (vis) {
       const nonliving = mdef.flags.includes('undead') || mon.def === 'nh:manes';
@@ -267,8 +301,9 @@ function flightBlocked(ctx: Ctx, level: string, x: number, y: number): boolean {
  * One missile leaves the monster's stack and flies `range` cells in direction (dx, dy).
  * ref: src/mthrowu.c m_throw(). A cursed one may misfire in a random direction; it stops at a
  * wall or closed door, at the first monster it hits, at the hero (hit or miss), or when its
- * range is used up (a miss lands on the hero's square). Not ported: iron bars, sinks, tethered
- * weapons, shades, potions, eggs, pies, venom, blinding, poison.
+ * range is used up (a miss lands on the hero's square). Venom: blinding venom blinds her
+ * (to-hit 8, no damage), acid venom burns. Not ported: iron bars, sinks, tethered weapons,
+ * shades, potions, eggs, pies, poison.
  */
 function mThrow(
   ctx: Ctx,
@@ -288,7 +323,8 @@ function mThrow(
   let dy = dyIn;
   let range = rangeIn;
 
-  // take one missile out of the monster's inventory (unwielding it if it was the weapon)
+  // take one missile out of the monster's inventory (unwielding it if it was the weapon); spat
+  // venom is not in its inventory (OBJ_FREE)
   const objId = stack.c.item.quantity > 1 ? splitStack(ctx, stackId, 1) : stackId;
   removeFromInventory(ctx, objId);
   const obj = ctx.state.entities[String(objId)];
@@ -343,27 +379,44 @@ function mThrow(
       }
     } else if (hpos && hpos.level === level && hpos.x === x && hpos.y === y) {
       stopOccupation(ctx);
-      // ref: src/mthrowu.c u_catch_thrown_obj(): 1 in (100 - Dex) when able to move
+      // ref: src/mthrowu.c u_catch_thrown_obj(): 1 in (100 - Dex) when able to move; not venom
       const dex = hero.c.attributes?.dex ?? 10;
-      if (hero.c.helpless === undefined && ctx.rng.rn2(100 - dex) === 0) {
+      const venom = odef.class === 'venom';
+      if (!venom && hero.c.helpless === undefined && ctx.rng.rn2(100 - dex) === 0) {
         flush();
         say(ctx, 'mthrow.catch', { obj: name });
         addToInventory(ctx, hero.id, objId);
         return;
       }
-      // ref: m_throw(): to-hit is 8 + spe + 3 - distance (at least -4) (+1 for big heroes: no);
-      // damage is dmgval(), at least 1
-      const mdist = distmin(hpos.x, hpos.y, mpos.x, mpos.y);
-      let hitv = 3 - mdist;
-      if (hitv < -4) hitv = -4;
-      hitv += 8 + obj.c.item.spe;
-      let dam = dmgvalSized(ctx.rng, obj, odef, false);
-      if (dam < 1) dam = 1;
       flush();
-      const hit = thitu(ctx, hitv, dam, obj, nth);
+      let hit: boolean;
+      if (obj.def === BLINDING_VENOM) {
+        hit = thitu(ctx, 8, 0, obj, nth);
+      } else {
+        // ref: m_throw(): to-hit is 8 + spe + 3 - distance (at least -4) (+1 for big heroes:
+        // no); damage is dmgval(), at least 1
+        const mdist = distmin(hpos.x, hpos.y, mpos.x, mpos.y);
+        let hitv = 3 - mdist;
+        if (hitv < -4) hitv = -4;
+        hitv += 8 + obj.c.item.spe;
+        let dam = dmgvalSized(ctx.rng, obj, odef, false);
+        if (dam < 1) dam = 1;
+        hit = thitu(ctx, hitv, dam, obj, nth);
+      }
       mesgGiven = true;
+      let blindinc = 0;
+      if (hit && canBlnd(ctx, null, hero, obj.def === BLINDING_VENOM ? 'spit' : 'weapon', obj)) {
+        blindinc = ctx.rng.rnd(25);
+        // venom in the eyes
+        say(ctx, hasProp(hero, P.BLINDED) ? 'mthrow.eyes_sting' : 'mthrow.venom_blinds');
+      }
       if (hit) {
         dropThrow(ctx, objId, true, level, hpos.x, hpos.y);
+        if (blindinc) {
+          // (at the end of m_throw(); u.ucreamed is not kept)
+          makeBlinded(ctx, timeoutLeft(ctx.state, hero, P.BLINDED) + blindinc, false);
+          if (!hasProp(hero, P.BLINDED)) say(ctx, 'mthrow.vision_clears');
+        }
         return;
       }
     }
@@ -634,11 +687,140 @@ export function thrwmu(ctx: Ctx, monId: EntityId, clear: ClearFn, prevHero: Pos 
   return false;
 }
 
+// ---------------------------------------------------------------------------------------------
+// breath and spit
+
+/** ref: src/mthrowu.c breathwep[] (the hallucinatory rnd_hallublast() is not ported) */
+const BREATH_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
+  magm: 'magic_missile',
+  fire: 'fire',
+  cold: 'cold',
+  slee: 'sleep',
+  elec: 'lightning',
+  drst: 'poison_gas',
+  acid: 'acid',
+};
+
+const sgn = (n: number): -1 | 0 | 1 => (n > 0 ? 1 : n < 0 ? -1 : 0);
+
+/** The direction from (0, 0) toward (tbx, tby), which linedUp() has made a straight line. */
+function dirToward(tbx: number, tby: number): Dir {
+  const dx = sgn(tbx);
+  const dy = sgn(tby);
+  const d = (Object.keys(DIRS) as Dir[]).find((k) => DIRS[k].x === dx && DIRS[k].y === dy);
+  if (!d) throw new Error('dirToward: no direction');
+  return d;
+}
+
+/**
+ * Where the attacker aims: the hero's square or the target monster's, if the target is lined up
+ * (m_lined_up(): for the hero C's mux/muy, which is her square here).
+ */
+function linedTarget(ctx: Ctx, mon: Entity, targetId: EntityId, clear: ClearFn): Pos | null {
+  const mpos = mon.c.pos;
+  const tpos = ctx.state.entities[String(targetId)]?.c.pos;
+  if (!mpos || !tpos || tpos.level !== mpos.level) return null;
+  return linedUp(mpos, tpos, clear) ? { x: tpos.x, y: tpos.y } : null;
+}
+
+/**
+ * A monster breathes at the hero or at another monster (`targetId`) when it is lined up: a
+ * cancelled one only coughs; otherwise 2 times in 3, while its breath is not used up
+ * (`mspec_used`), "The winter wolf cub breathes frost!" and a ray of the attack's type with the
+ * attack's dice (dobuzz() with BZ_M_BREATH). Afterwards the breath is used up for 8..25 turns
+ * (always against a monster, 1 time in 3 against the hero), and a sleep breath that will put
+ * the hero to sleep waits rnd(20) more. Returns true when the attack counts as a hit.
+ * ref: src/mthrowu.c breamm(), breamu(). Not ported: AD_RBRE's random type and disintegration
+ * (no such breather yet), the monster's memory of her resistances and reflection (m_seenres()),
+ * a pet's hunger.
+ */
+export function breamm(
+  ctx: Ctx,
+  monId: EntityId,
+  atk: AttackDef,
+  targetId: EntityId,
+  clear: ClearFn,
+): boolean {
+  const mon = ctx.state.entities[String(monId)];
+  const mpos = mon?.c.pos;
+  if (!mon || !mpos) return false;
+  const utarget = targetId === ctx.state.playerId;
+  const tpos = linedTarget(ctx, mon, targetId, clear);
+  if (!tpos) return true;
+  if (isCancelled(ctx, monId)) {
+    // (no deafness in the port)
+    if (heroSees(ctx, mpos)) say(ctx, 'mthrow.coughs', { mon: monNam(ctx, mon) });
+    else say(ctx, 'mthrow.hear_cough');
+    return false;
+  }
+  if (mspecUsed(ctx, monId) || !ctx.rng.rn2(3)) return false;
+  const ray = BREATH_RAY[atk.ad];
+  if (!ray) return true; // impossible("Breath weapon %d used")
+  if (heroSees(ctx, mpos))
+    say(ctx, 'mthrow.breathes', { mon: monNam(ctx, mon), breath: { key: `mthrow.breath.${ray}` } });
+  buzzFrom(ctx, ray, atk.n, { x: mpos.x, y: mpos.y }, dirToward(tpos.x - mpos.x, tpos.y - mpos.y), {
+    by: 'breath',
+    mon: monId,
+  });
+  ctx.interrupt(); // nomul(0)
+  // breath runs out sometimes. Also, give monster some cunning; don't breath if the target fell
+  // asleep.
+  if (ctx.state.entities[String(monId)]?.c.monster) {
+    if (!utarget || !ctx.rng.rn2(3)) setMspecUsed(ctx, monId, 8 + ctx.rng.rn2(18));
+    if (utarget && ray === 'sleep' && !hasProp(getPlayer(ctx.state), P.SLEEP_RES))
+      setMspecUsed(ctx, monId, mspecUsed(ctx, monId) + ctx.rng.rnd(20));
+  }
+  return true;
+}
+
+/**
+ * A monster spits venom at the hero or at another monster (`targetId`): a cancelled one gives a
+ * dry rattle; lined up, it makes blinding venom (AD_BLND, AD_DRST) or acid venom and, 1 time in
+ * (BOLT_LIM - distance), "The cobra spits venom!" and throws it (m_throw()) as far as the target.
+ * Returns true when it spat. ref: src/mthrowu.c spitmm(), spitmu(). Not ported: a pet's hunger.
+ */
+export function spitmm(
+  ctx: Ctx,
+  monId: EntityId,
+  atk: AttackDef,
+  targetId: EntityId,
+  clear: ClearFn,
+): boolean {
+  const mon = ctx.state.entities[String(monId)];
+  const mpos = mon?.c.pos;
+  const hero = getPlayer(ctx.state);
+  if (!mon || !mpos) return false;
+  if (isCancelled(ctx, monId)) {
+    const hpos = hero.c.pos;
+    const d2 = hpos ? (hpos.x - mpos.x) ** 2 + (hpos.y - mpos.y) ** 2 : Infinity;
+    if (d2 < BOLT_LIM * BOLT_LIM) {
+      if (heroSees(ctx, mpos)) say(ctx, 'mthrow.dry_rattle', { mon: monNam(ctx, mon) });
+      else say(ctx, 'mthrow.hear_dry_rattle');
+    }
+    return false;
+  }
+  const tpos = linedTarget(ctx, mon, targetId, clear);
+  if (!tpos) return false;
+  const otyp = atk.ad === 'blnd' || atk.ad === 'drst' ? BLINDING_VENOM : ACID_VENOM;
+  const otmp = mksobj(ctx, ctx.defs.object(otyp), { quantity: 1 });
+  const dist = distmin(mpos.x, mpos.y, tpos.x, tpos.y);
+  if (ctx.rng.rn2(BOLT_LIM - dist)) {
+    ctx.remove(otmp); // obfree()
+    return false;
+  }
+  const seen = heroSees(ctx, mpos);
+  if (seen) say(ctx, 'mthrow.spits', { mon: monNam(ctx, mon) });
+  mThrow(ctx, monId, sgn(tpos.x - mpos.x), sgn(tpos.y - mpos.y), dist, otmp, { i: 1, n: 1, seen });
+  ctx.interrupt(); // nomul(0)
+  return true;
+}
+
 /**
  * A monster that is in range but not next to the hero makes the ranged part of its attacks, in
- * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(). Nothing while she is in the
- * midst of a successful prayer (silently at range). ref: src/mhitu.c mattacku() with range2:
- * `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE: gazemu(mtmp, mattk)` (breath and spit: step 5)
+ * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(), a breath breamu(), a spit
+ * spitmu(). Nothing while she is in the midst of a successful prayer (silently at range).
+ * ref: src/mhitu.c mattacku() with range2: `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE:
+ * gazemu(mtmp, mattk)`, `case AT_BREA: breamu(mtmp, mattk)`, `case AT_SPIT: spitmu(mtmp, mattk)`
  */
 export function mattackRanged(
   ctx: Ctx,
@@ -662,6 +844,10 @@ export function mattackRanged(
     } else if (a.at === 'gaze' && mon.def !== 'nh:medusa') {
       // (Medusa's gaze works through m_respond(): step 6)
       gazemu(ctx, mon, a);
+    } else if (a.at === 'breath') {
+      breamm(ctx, monId, a, ctx.state.playerId, clear); // breamu()
+    } else if (a.at === 'spit') {
+      spitmm(ctx, monId, a, ctx.state.playerId, clear); // spitmu()
     }
     if (ctx.state.gameOver) return;
   }

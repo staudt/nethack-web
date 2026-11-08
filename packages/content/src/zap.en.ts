@@ -144,6 +144,14 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.flash.sleep': 'sleep ray',
   'zap.flash.death': 'death ray',
   'zap.flash.lightning': 'bolt of lightning',
+  'zap.flash.breath.magic_missile': 'blast of missiles',
+  'zap.flash.breath.fire': 'blast of fire',
+  'zap.flash.breath.cold': 'blast of frost',
+  'zap.flash.breath.sleep': 'blast of sleep gas',
+  'zap.flash.breath.death': 'blast of disintegration',
+  'zap.flash.breath.lightning': 'blast of lightning',
+  'zap.flash.breath.poison_gas': 'blast of poison gas',
+  'zap.flash.breath.acid': 'blast of acid',
   'zap.ray.hit': '{ray|The} hits {mon|the}{ex}',
   'zap.ray.miss': '{ray|The} misses {mon|the}.',
   'zap.ray.hits_you': '{ray|The} hits you!',
@@ -157,6 +165,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.u.not_cold': "You don't feel cold.",
   'zap.u.not_sleepy': "You don't feel sleepy.",
   'zap.u.not_shocked': "You aren't affected.",
+  'zap.u.acid_no_hurt': "The acid doesn't hurt.",
+  'zap.u.acid_burns': 'The acid burns!',
   'zap.blinded_flash': 'You are blinded by the flash!',
 
   // zap_over_floor()
@@ -217,6 +227,9 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.ray.sleep': 'a sleep ray',
   'killer.ray.death': 'a death ray',
   'killer.ray.lightning': 'a bolt of lightning',
+  // a monster's breath (zhitu(): "<flash> exhaled by <an mon>", death_inflicted_by())
+  'killer.breath.cold.winter_wolf_cub': 'a blast of frost exhaled by a winter wolf cub',
+  'killer.poisoned_blast': 'a poisoned blast',
   'killer.zap.self.striking': 'zapping herself with a wand of striking',
   'killer.zap.self.lightning': 'zapping herself with a wand of lightning',
   'killer.zap.self.fire': 'zapping herself with a wand of fire',

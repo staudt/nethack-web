@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-151 NetHack files, 3037 citations.
+151 NetHack files, 3045 citations.
 
 ## dat/dungeon.lua
 
@@ -1329,6 +1329,9 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mthrowu.c
 
+- `breamm()`: `packages/content/src/mthrowu.ts`
+- `breamu()`: `packages/content/src/mthrowu.ts`
+- `breathwep()`: `packages/content/src/mthrowu.ts`
 - `drop_throw()`: `packages/content/src/mthrowu.ts`
 - `lined_up()`: `packages/content/src/monmove.ts`
 - `linedup()`: `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/priest.ts`
@@ -1336,6 +1339,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `monmulti()`: `packages/content/src/mthrowu.ts`
 - `monshoot()`: `packages/content/src/mthrowu.en.ts`, `packages/content/src/mthrowu.ts`
 - `ohitmon()`: `packages/content/src/mthrowu.ts`
+- `spitmm()`: `packages/content/src/mthrowu.ts`
+- `spitmu()`: `packages/content/src/mthrowu.ts`
 - `thitu()`: `packages/content/src/mthrowu.en.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/trap.ts`
 - `thrwmu()`: `packages/content/src/mthrowu.ts`
 - `u_catch_thrown_obj()`: `packages/content/src/mthrowu.ts`
@@ -2120,6 +2125,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dozap()`: `packages/content/src/zap.ts`
 - `drain_item()`: `packages/content/src/adtyping.ts`
 - `exclam()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/trap.ts`, `packages/content/src/zap.ts`
+- `flash_str()`: `packages/content/src/buzz.ts`
 - `flashburn()`: `packages/content/src/buzz.ts`
 - `fracture_rock()`: `packages/content/src/boulder.ts`
 - `get_obj_location()`: `packages/content/src/chesttrap.ts`

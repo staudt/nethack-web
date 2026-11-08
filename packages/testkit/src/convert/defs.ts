@@ -161,6 +161,7 @@ const OBJ_CLASS: Readonly<Record<string, ObjectClass>> = {
   COIN_CLASS: 'coin',
   GEM_CLASS: 'gem',
   ROCK_CLASS: 'rock',
+  VENOM_CLASS: 'venom',
 };
 
 const ARM_SLOT: Readonly<Record<string, ArmorSlot>> = {

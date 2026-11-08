@@ -246,8 +246,8 @@ export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
 
 /**
  * Whether the attack of `magr` (null: no specific aggressor) of type `aatyp` can blind `mdef`.
- * ref: src/mondata.c can_blnd(). Not ported: cream pies (no `u.ucreamed`), potions of blindness,
- * blinding venom (step 5), visored helmets (helmet appearances are not shuffled here, so no helmet
+ * `obj`: the object thrown or spat (blinding venom). ref: src/mondata.c can_blnd(). Not ported:
+ * cream pies (no `u.ucreamed`), potions of blindness, visored helmets (helmet appearances are not shuffled here, so no helmet
  * is a "visored helmet").
  */
 export function canBlnd(
@@ -255,6 +255,7 @@ export function canBlnd(
   magr: Entity | null,
   mdef: Entity,
   aatyp: AttackDef['at'],
+  obj: Entity | null = null,
 ): boolean {
   const isYou = mdef.id === ctx.state.playerId;
   // no eyes protect against all attacks for now
@@ -276,7 +277,11 @@ export function canBlnd(
     case 'weapon':
     case 'spit':
     case 'passive':
-      return false; // other objects cannot cause blindness yet
+      // an object is used (thrown/spit/other)
+      if (obj?.def !== 'nh:splash_of_blinding_venom') return false; // other objects cannot cause blindness yet
+      // all ublindf, including lenses, protect (no u.ucreamed; no visored helmet: see above)
+      if (isYou && ublindf) return false;
+      break;
     case 'engulf':
       if (isYou && (ublindf || unaware(ctx))) return false;
       if (!isYou && mdef.c.monster?.asleep) return false;

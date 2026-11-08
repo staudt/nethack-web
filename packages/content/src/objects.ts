@@ -906,6 +906,37 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
   },
 
+  // ---- venom: only made when a monster spits (VENOM_CLASS is not in mkobj's class table) ----
+  // ref: objects.h OBJECT(OBJ("splash of blinding venom", "splash of venom"), ..., VENOM_CLASS, 500, 0, 1, 0, 0, 0, 0, 0, 0, HI_ORGANIC, BLINDING_VENOM)
+  {
+    id: 'nh:splash_of_blinding_venom',
+    nameKey: 'nh:splash_of_blinding_venom',
+    class: 'venom',
+    glyph: { ch: '.', fg: BROWN },
+    prob: 500,
+    weight: 1,
+    cost: 0,
+    material: 'liquid',
+    merge: true,
+    magic: false,
+    delay: 0,
+  },
+  // ref: objects.h OBJECT(OBJ("splash of acid venom", "splash of venom"), ..., VENOM_CLASS, 500, 0, 1, 0, 6, 6, 0, 0, 0, HI_ORGANIC, ACID_VENOM)
+  // (its d6 damage, oc_wsdam/oc_wldam, is in dmgval.ts: it has no weapon skill)
+  {
+    id: 'nh:splash_of_acid_venom',
+    nameKey: 'nh:splash_of_acid_venom',
+    class: 'venom',
+    glyph: { ch: '.', fg: BROWN },
+    prob: 500,
+    weight: 1,
+    cost: 0,
+    material: 'liquid',
+    merge: true,
+    magic: false,
+    delay: 0,
+  },
+
   // ---- armor (ac = 10 - macro ac argument; mc = macro can argument; armor never merges) ----
   // ref: objects.h SHIELD("small shield", "wooden shield", 0, 0, 0, 0, 6, 0, 30, 3, 9, 0, WOOD, HI_WOOD, SMALL_SHIELD)
   {

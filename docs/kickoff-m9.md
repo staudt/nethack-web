@@ -43,4 +43,4 @@ The Riders' `AD_DETH`/`AD_PEST`/`AD_FAMN` (no Astral Plane), `AD_SAMU` (no Amule
 
 ## Status
 
-Steps 1-4 and 6 are done (damage-type dispatcher and erosion, gazes/explosions/hugs, theft, engulfing, stoning). Steps 5, 7 and 8 were not built (budget) and moved to ROADMAP "From m9", where the phone checks for the built steps are in TESTPLAN "9 damage types and attack styles". The golden is now 014ac45b901d01164134892a0614/593; it changed in step 6 (lichen and lizard corpses no longer rot, as in C).
+Steps 1-6 are done (damage-type dispatcher and erosion, gazes/explosions/hugs, theft, engulfing, breath and spit (built later, on m10), stoning). Steps 7 and 8 were not built (budget) and moved to ROADMAP "From m9", where the phone checks for the built steps are in TESTPLAN "9 damage types and attack styles". The golden is now 014ac45b901d01164134892a0614/593; it changed in step 6 (lichen and lizard corpses no longer rot, as in C).

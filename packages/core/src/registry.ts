@@ -103,6 +103,7 @@ const OBJECT_CLASSES: readonly ObjectClass[] = [
   'coin',
   'gem',
   'rock',
+  'venom',
 ];
 const WAND_DIRS = ['nodir', 'immediate', 'ray'];
 const ARMOR_SLOTS: readonly ArmorSlot[] = [

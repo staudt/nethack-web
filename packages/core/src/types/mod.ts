@@ -45,7 +45,9 @@ export type ObjectClass =
   | 'wand'
   | 'coin'
   | 'gem'
-  | 'rock';
+  | 'rock'
+  /** Spit venom (ref: VENOM_CLASS): made when spat, never generated at random. */
+  | 'venom';
 
 /** Where a wand is aimed (ref: include/objclass.h NODIR, IMMEDIATE, RAY). */
 export type WandDir = 'nodir' | 'immediate' | 'ray';

@@ -130,6 +130,10 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:boulder': 'boulder',
   'nh:statue': 'statue',
   'nh:statue.plural': 'statues',
+  'nh:splash_of_blinding_venom': 'splash of blinding venom',
+  'nh:splash_of_blinding_venom.plural': 'splashes of blinding venom',
+  'nh:splash_of_acid_venom': 'splash of acid venom',
+  'nh:splash_of_acid_venom.plural': 'splashes of acid venom',
   'nh:boulder.plural': 'boulders',
 
   // ---- armor ----
