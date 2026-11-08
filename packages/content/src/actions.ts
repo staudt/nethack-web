@@ -394,13 +394,13 @@ const move: ActionDef = {
 };
 
 /** ref: include/weight.h WT_TOOMUCH_DIAGONAL */
-const WT_TOOMUCH_DIAGONAL = 600;
+export const WT_TOOMUCH_DIAGONAL = 600;
 
 /**
  * Rock or wall the hero cannot pass (IS_OBSTRUCTED(), out of the map counts too); boulders count
  * only in Sokoban. ref: src/hack.c bad_rock() for a hero who cannot tunnel
  */
-function badRock(ctx: Ctx, level: Level, x: number, y: number): boolean {
+export function badRock(ctx: Ctx, level: Level, x: number, y: number): boolean {
   if (!inBounds(level, x, y)) return true;
   if (sokobanBoulder(ctx, level, x, y)) return true;
   const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];

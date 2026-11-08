@@ -281,7 +281,12 @@ function wizTrapWish(ctx: Ctx, buf: string): boolean {
 export function answerWish(ctx: Ctx, action: DefId, value: Json, data: WishData): void {
   const buf = typeof value === 'string' ? mungspaces(value) : '';
   const names = wishNames(ctx.state, ctx.defs, messagesEn);
-  let spec = readobjnam(buf, names);
+  let spec = readobjnam(buf, names, { wizard: data.wizard === true });
+  // wizard mode: "trapped land mine", "bear trap trap" (readobjnam()'s `goto wiztrap`)
+  if (spec !== null && spec !== 'nothing' && spec.what.kind === 'wiztrap') {
+    wizTrapWish(ctx, spec.what.trap);
+    return;
+  }
   // wizard mode: traps, after the objects (so "bear trap" is still the object)
   if (spec === null && data.wizard && wizTrapWish(ctx, buf)) return;
   if (spec === null) {

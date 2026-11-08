@@ -319,6 +319,7 @@ describe('offers', () => {
     expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 1 } }).map((o) => o.action)).toEqual([
       { type: 'mod', action: 'nh:open', args: { dir: 'e' } },
       { type: 'mod', action: 'nh:kick', args: { dir: 'e' } },
+      { type: 'mod', action: 'nh:untrap', args: { dir: 'e' } },
     ]);
     expect(q.actionsFor({ kind: 'cell', pos: { x: 1, y: 0 } })).toEqual([]);
     // a far cell offers travel (and running) but never a single move
@@ -337,7 +338,7 @@ describe('offers', () => {
       q
         .actionsFor({ kind: 'cell', pos })
         .map((o) => (o.action.type === 'mod' ? o.action.action : o.action.type));
-    expect(ids({ x: 1, y: 1 })).toEqual(['nh:open', 'nh:kick']);
+    expect(ids({ x: 1, y: 1 })).toEqual(['nh:open', 'nh:kick', 'nh:untrap']);
     const turn = state.turn;
     const keys = (ev: GameEvent[]) => ev.flatMap((e) => (e.type === 'msg' ? [e.key] : []));
     expect(keys(step({ type: 'mod', action: 'nh:open', args: { dir: 'nw' } }))).toEqual([
@@ -350,7 +351,7 @@ describe('offers', () => {
     // the locked door, seen from next to it: it looks closed, so it is offered the same way
     getPlayer(state).c.pos = { level: 'dlvl1', x: 1, y: 0 };
     step({ type: 'search' });
-    expect(ids({ x: 0, y: 0 })).toEqual(['nh:open', 'nh:kick']);
+    expect(ids({ x: 0, y: 0 })).toEqual(['nh:open', 'nh:kick', 'nh:untrap']);
     const before = state.turn;
     expect(keys(step({ type: 'mod', action: 'nh:open', args: { dir: 'w' } }))).toEqual([
       'door.locked',

@@ -22,7 +22,9 @@ export type WishWhat =
   /** A random object of a random wish class (`any:`, wrpsym[rn2(...)]). */
   | { kind: 'random' }
   /** `cnt` gold pieces. */
-  | { kind: 'gold' };
+  | { kind: 'gold' }
+  /** Wizard mode: the armed trap rather than its object (`goto wiztrap`), by its trap name. */
+  | { kind: 'wiztrap'; trap: 'bear trap' | 'land mine' };
 
 /** The parsed wish, in the fields of NetHack's struct _readobjnam_data that the port uses. */
 export interface WishSpec {
@@ -460,7 +462,11 @@ const NOT_MONSTER = ['samurai sword', 'wizard lock', 'death wand', 'master key',
  * figurines, eggs, o_ranges other than gray stones ("helmet called x"), the alternate spellings table,
  * Japanese names, wizard-mode terrain and traps; see DEVIATIONS.md.
  */
-export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing' | null {
+export function readobjnam(
+  input: string,
+  names: WishNames,
+  opts: { wizard?: boolean } = {},
+): WishSpec | 'nothing' | null {
   const spec: WishSpec = {
     what: { kind: 'random' },
     cnt: 0,
@@ -748,6 +754,23 @@ export function readobjnam(input: string, names: WishNames): WishSpec | 'nothing
         srch = true;
         break;
       }
+    }
+  }
+
+  // ref: readobjnam_postparse1() Part I: in wizard mode "bear trap"/"beartrap" and "land
+  // mine"/"landmine" are the objects; "trapped <foo>" or any suffix but " object" ("<foo> trap")
+  // is the armed trap, "untrapped <foo>" or "<foo> object" the object
+  if (!srch && opts.wizard) {
+    const m = /^(bear|land) ?(trap|mine)(.*)$/.exec(bp);
+    const beartrap = m?.[1] === 'bear';
+    if (m && m[2] === (beartrap ? 'trap' : 'mine')) {
+      const zp = m[3] ?? '';
+      if (spec.trapped === 2 || zp === ' object') {
+        const obj = fixed(beartrap ? 'nh:beartrap' : 'nh:land_mine');
+        if (obj) return obj;
+      } else if (spec.trapped === 1 || zp !== '')
+        return typfnd({ kind: 'wiztrap', trap: beartrap ? 'bear trap' : 'land mine' });
+      // no prefix or suffix: the object name matches below
     }
   }
 

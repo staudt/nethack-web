@@ -156,7 +156,7 @@ On the phone (Pages build), no keyboard. Start from a private tab (or clear the 
 
 ## 7e digging, boulder and box traps, land mines
 
-With `?wizard=1` (`Ctrl+w` wish; a wish that starts with a trap's name, like `land mine`, makes that trap under you, unseen and not set off: step off and back on to trigger it).
+With `?wizard=1` (`Ctrl+w` wish; a wish that starts with a trap's name, like `rolling boulder trap`, makes that trap under you, unseen and not set off: step off and back on to trigger it; `land mine` and `bear trap` alone are the objects, `land mine trap` and `bear trap trap` the traps).
 
 - [ ] Wish `pick-axe`. Tap a rock or wall square next to you: the action menu offers "Dig" (and "Dig down" on yourself). Dig east into rock: "You start digging." and a corridor opens; at a room wall: "You make an opening in the wall."; at a closed door: "You break through the door with your pick-axe."
 - [ ] Dig down: "You dig a pit in the floor." and the digging stops; dig down again: a hole and you fall to the next level. At a Sokoban wall: "This wall is too hard to dig into."
@@ -166,5 +166,8 @@ With `?wizard=1` (`Ctrl+w` wish; a wish that starts with a trap's name, like `la
 - [ ] Wish `rolling boulder trap` in a room, step off and on: a boulder rolls in from one side and hits you (or "Fortunately for you, no boulder was released."). In Sokoban, the rolling boulder trap squares show `^` once found and release nothing.
 - [ ] Wish `trapped large box` and `#loot` it: a trap fires ("You trigger a trap!", a needle, gas, a flame, a shock or "The large box explodes!"). Optional: on a deep level (10+) a door may be booby-trapped when opened or kicked: "KABOOM!!  The door was booby-trapped!".
 - [ ] Wish `locked large box`, stand on it with the long sword wielded and choose "Force the lock of the large box" (`Alt+f`): "You force your long sword into a crack and pry." until the lock opens (or the blade breaks). With a blunt weapon you bash and may wreck the box.
-- [ ] Wish `land mine`, step off and back on: "KAABLAMM!!!  You triggered a land mine!", objects on the square fly around, and you are in a pit with wounded legs.
+- [ ] Wish `land mine trap`, step off and back on: "KAABLAMM!!!  You triggered a land mine!", objects on the square fly around, and you are in a pit with wounded legs.
 - [ ] Wish `100 gold pieces`, drop them and kick the stack: "Thwwpingg!" and the coins scatter.
+- [ ] `#untrap`: wish `bear trap trap`, step east and tap the `^` (search to see it if needed): "Untrap the bear trap" (also "Untrap" on yourself, `Alt+u`, which asks the direction): "You disarm the bear trap." and a beartrap object lies there, or "Whoops..." and you are caught in it. The same with `arrow trap`: a stack of arrows.
+- [ ] Wish `pit` under your pet's square (stand there, wish, step off and let the pet walk in), then "Untrap the pit" next to it: "You reach out your arms and grab the kitten." and "You pull the kitten out of the pit.".
+- [ ] Wish `trapped large box`, stand on it, "Untrap" > here: "There is a large box here.  Check it for traps?" yes: "You find a trap on the large box!" (not always: try again), "Disarm it?" yes: "You disarm it!" or "You set it off!".

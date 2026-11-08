@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-148 NetHack files, 2633 citations.
+148 NetHack files, 2662 citations.
 
 ## dat/dungeon.lua
 
@@ -159,7 +159,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
 
 ## include/hack.h
@@ -174,7 +174,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ER_()`: `packages/content/src/erode.ts`
 - `ER_NOTHING()`: `packages/content/src/water.ts`
 - `EXT_ENCUMBER()`: `packages/content/src/magic.ts`
-- `HVY_ENCUMBER()`: `packages/content/src/pray.ts`
+- `HVY_ENCUMBER()`: `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
 - `MOD_ENCUMBER()`: `packages/content/src/hero.ts`, `packages/content/src/wish.ts`
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
@@ -299,7 +299,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
@@ -1762,13 +1762,21 @@ whole. A missing function may still be ported under a citation this parser canno
 - `clear_conjoined_pits()`: `packages/content/src/trapstate.ts`
 - `climb_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `closeholdingtrap()`: `packages/content/src/zap.ts`
+- `cnv_trap_obj()`: `packages/content/src/untrap.ts`
 - `conjoined_pits()`: `packages/content/src/trap.ts`, `packages/content/src/trapstate.ts`
+- `could_untrap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `delfloortrap()`: `packages/content/src/dig.ts`
 - `deltrap()`: `packages/content/src/sokoban.ts`, `packages/content/src/trap.ts`, `packages/core/src/types/mod.ts`
+- `disarm_box()`: `packages/content/src/untrap.ts`
+- `disarm_holdingtrap()`: `packages/content/src/untrap.ts`
+- `disarm_landmine()`: `packages/content/src/untrap.ts`
+- `disarm_shooting_trap()`: `packages/content/src/untrap.ts`
+- `disarm_squeaky_board()`: `packages/content/src/untrap.ts`
 - `dng_bottom()`: `packages/content/src/levelflags.ts`, `packages/content/src/trap.ts`
 - `dofiretrap()`: `packages/content/src/magictrap.ts`
 - `domagictrap()`: `packages/content/src/magictrap.ts`
 - `dotrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `dountrap()`: `packages/content/src/untrap.ts`
 - `drain_en()`: `packages/content/src/magictrap.ts`
 - `erode_obj()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `fall_through()`: `packages/content/src/trap.ts`
@@ -1778,9 +1786,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `float_down()`: `packages/content/src/levitation.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `float_up()`: `packages/content/src/levitation.ts`, `packages/content/src/trap.en.ts`
 - `floor_trigger()`: `packages/content/src/trap.ts`
+- `help_monster_out()`: `packages/content/src/untrap.ts`
 - `hole_destination()`: `packages/content/src/trap.ts`
 - `ignite_items()`: `packages/content/src/light.ts`
-- `into_vs_onto()`: `packages/content/src/trap.ts`
+- `into_vs_onto()`: `packages/content/src/trap.ts`, `packages/content/src/untrap.ts`
 - `isclearpath()`: `packages/content/src/trap.ts`
 - `launch_obj()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `m_harmless_trap()`: `packages/content/src/trap.ts`
@@ -1788,9 +1797,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_finish_sokoban()`: `packages/content/src/sokoban.ts`
 - `mintrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mkroll_launch()`: `packages/content/src/trap.ts`
+- `move_into_trap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `openfallingtrap()`: `packages/content/src/zap.ts`
 - `openholdingtrap()`: `packages/content/src/zap.ts`
 - `reset_utrap()`: `packages/content/src/levitation.ts`
+- `reward_untrap()`: `packages/content/src/untrap.ts`
 - `seetrap()`: `packages/content/src/trap.ts`
 - `set_utrap()`: `packages/content/src/trapstate.ts`
 - `sokoban_guilt()`: `packages/content/src/sokoban.ts`
@@ -1805,6 +1816,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapeffect_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `trapeffect_rolling_boulder_trap()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `trapnote()`: `packages/content/src/trap.en.ts`
+- `try_disarm()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
+- `try_lift()`: `packages/content/src/untrap.ts`
+- `unsqueak_ok()`: `packages/content/src/untrap.ts`
+- `untrap()`: `packages/content/src/untrap.ts`
+- `untrap_box()`: `packages/content/src/untrap.ts`
+- `untrap_prob()`: `packages/content/src/untrap.ts`
 - `water_damage()`: `packages/content/src/erode.en.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/water.ts`
 - `water_damage_chain()`: `packages/content/src/water.ts`
 - `wearing_iron_shoes()`: `packages/content/src/trap.ts`
@@ -1898,7 +1915,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `freehand()`: `packages/content/src/container.ts`
 - `ready_weapon()`: `packages/content/src/itemactions.ts`
 - `setuswapwep()`: `packages/content/src/wield.ts`
-- `welded()`: `packages/content/src/dothrow.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`
+- `welded()`: `packages/content/src/dothrow.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
 - `weldmsg()`: `packages/content/src/dothrow.ts`, `packages/content/src/itemactions.ts`
 - `wield_tool()`: `packages/content/src/itemactions.ts`
 - `will_weld()`: `packages/content/src/itemactions.ts`, `packages/content/src/pray.ts`

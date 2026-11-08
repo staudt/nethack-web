@@ -484,7 +484,9 @@ describe('wiz:wish and wiz:identify', () => {
     for (const [wished, def, said] of [
       ['teleportation trap', 'nh:teleportation_trap', 'A teleportation trap.'],
       ['a level teleporter', 'nh:level_teleporter', 'A level teleporter.'],
-      ['bear trap', 'nh:bear_trap', 'A bear trap.'],
+      // "bear trap" alone is the object (readobjnam() Part I); "trapped" or a suffix: the trap
+      ['bear trap trap', 'nh:bear_trap', 'A bear trap.'],
+      ['trapped land mine', 'nh:landmine', 'A land mine.'],
       ['hole', 'nh:hole', 'A hole.'],
       ['magic trap', 'nh:magic_trap', 'A magic trap.'],
       ['anti-magic field', 'nh:anti_magic_field', 'An anti-magic field.'],

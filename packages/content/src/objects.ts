@@ -1695,6 +1695,11 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('oil_lamp', 45, 20, 10, 'copper', YELLOW, false, 'lamp'),
   // ref: objects.h EYEWEAR("blindfold", NoDes, 1, BLINDED, 50, 2, 20, CLOTH, CLR_BLACK, BLINDFOLD)
   tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
+  // made only by #untrap (and wishes); setting them (use_trap()) is not ported
+  // ref: objects.h TOOL("land mine", NoDes, 1, 0, 0, 0, 0, 200, 180, IRON, CLR_RED, LAND_MINE)
+  tool('land_mine', 0, 200, 180, 'iron', RED, false, null),
+  // ref: objects.h TOOL("beartrap", NoDes, 1, 0, 0, 0, 0, 200, 60, IRON, HI_METAL, BEARTRAP)
+  tool('beartrap', 0, 200, 60, 'iron', CYAN, false, null),
   // ref: objects.h TOOL("tin whistle", "whistle", 0, 0, 0, 0, 100, 3, 10, METAL, HI_METAL, TIN_WHISTLE)
   tool('tin_whistle', 100, 3, 10, 'metal', CYAN, false, 'whistle'),
   // ref: objects.h TOOL("magic whistle", "whistle", 0, 0, 1, 0, 30, 3, 10, METAL, HI_METAL, MAGIC_WHISTLE)

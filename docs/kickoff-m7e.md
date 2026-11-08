@@ -32,7 +32,7 @@ Setting traps with a beartrap or land mine object (`use_trap()`); kicking boxes 
 
 ## Status
 
-Steps 1-5 are done on branch `m7e` (scope 1-6: digging, dwarves, pits, rolling boulder traps, trapped boxes and doors with `#force`, land mines with `scatter()`); the phone checks are in `docs/TESTPLAN.md` ("7e digging, boulder and box traps, land mines"). Steps 6-8 (`#untrap`, breaking wands with `explode()`, shop damage) and webs were not built (budget) and are listed under "Still to do (7e rest)" in `docs/ROADMAP.md`. The exit criteria above hold for what was built; the `#untrap`, breaking-wand and cancellation checks wait for that work.
+Steps 1-6 are done on branch `m7e` (scope 1-7: digging, dwarves, pits, rolling boulder traps, trapped boxes and doors with `#force`, land mines with `scatter()`, `#untrap`); the phone checks for steps 1-5 are in `docs/TESTPLAN.md` ("7e digging, boulder and box traps, land mines"), step 6's are phone check 7 of the plan. Steps 7-8 (breaking wands with `explode()`, shop damage) and webs are listed under "Still to do (7e rest)" in `docs/ROADMAP.md`. The exit criteria above hold for what was built; the breaking-wand and cancellation checks wait for that work.
 
 ## Testing
 
