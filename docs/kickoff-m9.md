@@ -40,3 +40,7 @@ The Riders' `AD_DETH`/`AD_PEST`/`AD_FAMN` (no Astral Plane), `AD_SAMU` (no Amule
 - Scenario tests: a leprechaun steals and teleports, then avoids you; a nymph charms off a cloak over turns; being swallowed until expelled or digested; a gas spore's chain explosion; a cockatrice corpse wielded with and without gloves; stoning cured by a lizard corpse at each dialogue stage; level drain to death at level 1; a were rat changing form and summoning rats.
 - The soak bot runs with the new monsters (wizard genesis on deep levels) and keeps its invariants (the engulfer on the hero's cell is the only shared cell).
 - Phone check uses wizard mode (`?wizard=1`): genesis, wishes, levelport.
+
+## Status
+
+Steps 1-4 and 6 are done (damage-type dispatcher and erosion, gazes/explosions/hugs, theft, engulfing, stoning). Steps 5, 7 and 8 were not built (budget) and moved to ROADMAP "From m9", where the phone checks for the built steps are in TESTPLAN "9 damage types and attack styles". The golden is now 014ac45b901d01164134892a0614/593; it changed in step 6 (lichen and lizard corpses no longer rot, as in C).

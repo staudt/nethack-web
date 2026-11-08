@@ -183,3 +183,23 @@ Shop damage (find a shop on DL2-6, or Minetown's; wish `1000 gold pieces` first)
 - [ ] Inside a shop, wish `wand of digging` and zap it at a shop wall: a doorway, then the question for 200 zorkmids ("dig into"); a few turns later "Suddenly, a section of the wall closes up!" and anything lying in the gap is now inside the shop.
 - [ ] Wish `pick-axe` inside a shop and dig down: "You start digging downward." and "Madam, do not damage the floor here!"; pick up something without paying and keep digging down until you fall through: "X grabs your backpack!" and only your worn and wielded things stay with you.
 - [ ] Wish `wand of fire` and zap it at a shop's closed door from outside: "The door is consumed in flames!" and the question about "burn away"; break a `wand of digging` in a shop: pits around you and the question after the blast.
+
+## 9 damage types and attack styles
+
+With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an item; use "Wizard: change experience level" or just heal when a fight goes badly). Step 5 (breath, spit) and step 7 (level drain, lycanthropy) are not built yet: see ROADMAP "From m9".
+
+- [ ] Wear iron armor (wish `plate mail`), create a `rust monster`: its touch says "Your plate mail rusts!" (the armor shows "rusty"); hit it with a wielded iron weapon (`long sword`): "Your long sword rusts!" (the passive). Fighting it bare-handed hurts nothing.
+- [ ] Create a `quantum mechanic`: its claw hurts and "Your position suddenly seems very uncertain!" (you teleport). A `raven` can blind you ("can't see"), a `gremlin` and a `xan` (leg wounds) hit too.
+- [ ] Disenchant and confusion where testable: a `disenchanter` hit lowers the enchantment of worn armor ("Your armor seems less effective" style message); a brown or gray pudding and a `gray ooze` rot or rust armor and weapon on hit.
+- [ ] Create a `pyrolisk` in line of sight (not adjacent): "The pyrolisk's gaze is burning!" and you take fire damage (cloak or armor may burn).
+- [ ] Create a `gas spore` two squares away and throw a dagger at it: it dies with an explosion box and "gas spore's explosion" damage to what stands next to it (try a second monster beside it). Create one adjacent and kill it in melee: it explodes on you.
+- [ ] Create a `yellow light` next to you: it explodes and you are blinded for a long time (wait it out with `20s`; a unicorn horn or prayer cures it). A `black light` explosion makes you hallucinate.
+- [ ] Create an `owlbear`: after its two claws it grabs you ("grabs you!"); walking away says you cannot move out of its grasp; kill it or get free. Create a `python`: its bite wraps you; same.
+- [ ] Carry 100+ gold (wish `200 gold pieces`), create a `leprechaun`: "Your purse feels lighter." and it vanishes (teleports); find it later: it keeps away from you.
+- [ ] Wear a cloak (and body armor under it), create a `water nymph`: she charms you ("charms you.  You gladly hand over your cloak"), taking off the armor takes several turns, then she teleports away with it. Stealing something small is quicker. A `monkey` snatches one item and runs.
+- [ ] Quaff from a fountain repeatedly until a water nymph appears ("A water nymph emerges from the fountain" style), then fight or lose an item to her.
+- [ ] Create a `fog cloud`: it engulfs you, the swallow box is drawn around you and the map is hidden; attack it (tap it) until it dies or expels you. Try a `dust vortex` (blinds you inside) and an `ice vortex`/`energy vortex` (deeper).
+- [ ] Create a `purple worm` and a `newt` beside it (the worm may swallow the newt, "swallows the newt"). Engulfed by the worm, wish `wand of digging` and zap it (any direction): "You pierce the purple worm's stomach wall!" and you are out.
+- [ ] Create a `cockatrice` (or `chickatrice`): its hissing says "You hear the cockatrice's hissing." and sometimes "You are slowing down." (stoning countdown, five turns, "Stone" in the status). Wish `lizard corpse`, eat it: "You feel limber!" cured. Repeat curing with an `acidic corpse` (wish `acid blob corpse`) or by praying (prayer fixes stoning).
+- [ ] Hit a cockatrice bare-handed (take your gloves off): you turn to stone and die. Same when you eat a cockatrice corpse ("You turn to stone"). Picking up a cockatrice corpse bare-handed also kills you.
+- [ ] Wish `leather gloves` and wear them, then wish `cockatrice corpse`: picking it up and wielding it is safe with gloves. Hit a `jackal` with it: "The jackal turns to stone." and a statue of a jackal is left (look: "statue of a jackal"). Lose the gloves (take them off while wielding): you die.
