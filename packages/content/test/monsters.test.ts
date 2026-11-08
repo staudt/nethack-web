@@ -25,7 +25,7 @@ describe('vanilla monsters', () => {
   });
 
   test('every attack uses a damage type the port implements', () => {
-    // ref: include/monattk.h AD_*: the types milestone 4 handles
+    // ref: include/monattk.h AD_*: the types milestone 4 and m9 handle
     const known = [
       'phys',
       'elec',
@@ -39,6 +39,21 @@ describe('vanilla monsters', () => {
       'stck',
       'drco',
       'magm', // the Oracle's passive (uhitm_passive.ts)
+      // m9 step 1 (adtyping.ts)
+      'drdx',
+      'rust',
+      'corr',
+      'dcay',
+      'ench',
+      'blnd',
+      'conf',
+      'halu',
+      'legs',
+      'slow',
+      'dren',
+      'tlpt',
+      'dise',
+      'curs',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

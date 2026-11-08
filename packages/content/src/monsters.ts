@@ -11,6 +11,7 @@ const YELLOW = '#ffff55';
 const WHITE = '#ffffff'; // HI_DOMESTIC
 const GRAY = '#aaaaaa';
 const BRIGHT_BLUE = '#5555ff'; // HI_ZAP
+const CYAN = '#33bbbb';
 const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 
 export const MONSTERS: readonly MonsterDef[] = [
@@ -1446,6 +1447,58 @@ export const MONSTERS: readonly MonsterDef[] = [
     weight: 1700,
     nutrition: 250,
     resists: ['cold', 'sleep', 'poison'],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'silent',
+  },
+  // ref: monsters.h MON(NAM("quantum mechanic"), S_QUANTMECH, ...)
+  {
+    id: 'nh:quantum_mechanic',
+    nameKey: 'nh:quantum_mechanic',
+    glyph: { ch: 'Q', fg: CYAN },
+    level: 7,
+    speed: 12,
+    ac: 3,
+    mr: 10,
+    alignment: 0,
+    attacks: [{ at: 'claw', ad: 'tlpt', n: 1, d: 4 }],
+    size: 'medium',
+    flags: ['humanoid', 'omnivore', 'pois', 'tport', 'hostile', 'infravisible'],
+    frequency: 3,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 9,
+    weight: 1450,
+    nutrition: 20,
+    resists: ['poison'],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'humanoid',
+  },
+  // ref: monsters.h MON(NAM("rust monster"), S_RUSTMONST, ...)
+  {
+    id: 'nh:rust_monster',
+    nameKey: 'nh:rust_monster',
+    glyph: { ch: 'R', fg: BROWN },
+    level: 5,
+    speed: 18,
+    ac: 2,
+    mr: 0,
+    alignment: 0,
+    attacks: [
+      { at: 'touch', ad: 'rust', n: 0, d: 0 },
+      { at: 'touch', ad: 'rust', n: 0, d: 0 },
+      { at: 'passive', ad: 'rust', n: 0, d: 0 },
+    ],
+    size: 'medium',
+    flags: ['swim', 'animal', 'nohands', 'metallivore', 'hostile', 'infravisible'],
+    frequency: 2,
+    group: null,
+    genFlags: ['geno'],
+    difficulty: 8,
+    weight: 1000,
+    nutrition: 250,
+    resists: [],
     conveys: [],
     brain: 'nh:melee',
     sound: 'silent',

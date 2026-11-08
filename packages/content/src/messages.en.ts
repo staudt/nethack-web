@@ -10,6 +10,7 @@ import { kickMessagesEn } from './kick.en';
 import { mthrowuMessagesEn } from './mthrowu.en';
 import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
+import { adtypingMessagesEn } from './adtyping.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -45,6 +46,7 @@ export const messagesEn: Record<string, string> = {
   ...mthrowuMessagesEn,
   ...skillMessagesEn,
   ...mhitmMessagesEn,
+  ...adtypingMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -264,6 +266,8 @@ export const messagesEn: Record<string, string> = {
   'nh:orc_mummy': 'orc mummy',
   'nh:dwarf_mummy': 'dwarf mummy',
   'nh:ettin_mummy': 'ettin mummy',
+  'nh:quantum_mechanic': 'quantum mechanic',
+  'nh:rust_monster': 'rust monster',
   'nh:water_moccasin': 'water moccasin',
   'nh:kobold_zombie': 'kobold zombie',
   'nh:gnome_zombie': 'gnome zombie',

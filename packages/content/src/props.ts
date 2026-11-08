@@ -208,6 +208,14 @@ export function ringBonus(state: Readonly<GameState>, ring: string, id = state.p
   return n;
 }
 
+/** ref: src/mhitu.c u_slow_down(): HFast = 0 (no speed boots, so always "You slow down.") */
+export function uSlowDown(ctx: Pick<Ctx, 'state' | 'emit'>): void {
+  const h = getPlayer(ctx.state);
+  setIntrinsic(h, P.FAST, false);
+  setItimeout(ctx.state, h, P.FAST, 0);
+  ctx.emit({ type: 'msg', key: 'zap.slow_down' });
+}
+
 /**
  * Sets the hero's stun timer to `xtime` more turns (0 ends it), with NetHack's messages.
  * ref: src/potion.c make_stunned(). Not ported: riding ("You wobble in the saddle"),

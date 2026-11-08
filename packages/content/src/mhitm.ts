@@ -2,12 +2,10 @@
 // passivemm(), noises(); src/uhitm.c mhitm_ad_*() (the mdef-is-a-monster branches);
 // src/mon.c monkilled(), mondied(); src/makemon.c grow_up()
 //
-// Ported damage types: phys (with the wielded weapon), fire, cold, elec, sleep, poison
-// (drst/drdx/drco), acid, stun and paralysis; any other type does plain damage. Passive
-// responses: acid, paralysis (floating eye), cold, stun, fire and elec. Not ported: engulfing,
-// hugs, gazes, breath, spit and explosions (mattackm skips those attack types), shades, silver,
-// cloning puddings, petrification. Item damage: destroy_items() for fire, cold and elec, acid
-// erosion (erode_armor(), acid_damage()) and rustm() for a weapon hitting a fiery monster.
+// The damage types are adtyping.ts's (mhitm_adtyping()). Passive responses: acid, disenchantment,
+// paralysis (floating eye), cold, stun, fire and elec. Not ported yet: engulfing, hugs, gazes,
+// breath, spit and explosions (mattackm's switch has their cases, which do nothing until their
+// m9 step), shades, silver, cloning puddings, petrification.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -18,11 +16,11 @@ import {
   type EntityId,
   type Msg,
 } from '@nh/core';
-import { dmgval, hitval } from './combat';
+import { hitval } from './combat';
 import { monkilled, mondied } from './mondeath';
 
 export { monkilled, mondied };
-import { magicNegation } from './mhitu';
+import { M_ATTK, drainItem, mhitmAdtyping, newMhm } from './adtyping';
 import { monWep, monWieldItem } from './mongear';
 import {
   paralyzeMonst,
@@ -31,31 +29,18 @@ import {
   setMStunned,
   isMStunned,
   isMConfused,
+  mcansee,
 } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { findMac } from './stats';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
-import { acidDamage, destroyItems, erodeArmor, rustm } from './erode';
-import { igniteItems } from './light';
+import { acidDamage, erodeArmor } from './erode';
 import { mtrappedInPit } from './trapstate';
 import { setUstuck, ustuck } from './hackmove';
 import { resistConflict } from './props';
 
-/** ref: include/mhitm.h M_ATTK_* */
-export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
-
-/** The melee attack types mattackm() rolls to hit with. */
-const MELEE_AT = new Set<AttackDef['at']>([
-  'weapon',
-  'claw',
-  'kick',
-  'bite',
-  'sting',
-  'touch',
-  'butt',
-  'tentacle',
-]);
+export { M_ATTK };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -148,144 +133,6 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number): boolean {
   return true;
 }
 
-/**
- * ref: mhitm_mgc_atk_negated() with magic_negation(mdef): a cancelled attacker is always
- * negated (no roll, no message), else rn2(10)
- */
-function negated(ctx: Ctx, magr: Entity, mdef: Entity, vis: boolean): boolean {
-  if (isCancelled(ctx, magr.id)) return true;
-  const neg = !(ctx.rng.rn2(10) >= 3 * magicNegation(ctx, mdef.id));
-  if (neg && vis && canSpotMon(ctx, mdef))
-    say(ctx, 'mhitm.avoids_harm', { mon: monNam(ctx, mdef) });
-  return neg;
-}
-
-/** ref: src/mhitm.c sleep_monst() (no resist() roll: how = -1) */
-function sleepMonst(ctx: Ctx, mdef: Entity, amt: number): boolean {
-  if (resists(ctx, mdef, 'sleep')) return false;
-  if (isFrozen(ctx, mdef.id)) return false;
-  paralyzeMonst(ctx, mdef.id, amt);
-  return true;
-}
-
-/** The damage type's effect on a monster; returns the damage. ref: src/uhitm.c mhitm_adtyping() */
-function adtyping(
-  ctx: Ctx,
-  magr: Entity,
-  atk: AttackDef,
-  mdef: Entity,
-  mwep: Entity | null,
-  damage: number,
-  vis: boolean,
-): number {
-  const mdefName = (): string => monNam(ctx, mdef);
-  const seen = vis && canSpotMon(ctx, mdef);
-  const phys = (dmg: number): number => {
-    // ref: mhitm_ad_phys() mhitm: a kick against a thick-skinned monster does nothing; a weapon
-    // (on AT_WEAP or AT_CLAW) adds dmgval()
-    const pd = ctx.defs.monster(mdef.def);
-    if (atk.at === 'kick' && pd.flags.includes('thick_hide')) return 0;
-    if (mwep && (atk.at === 'weapon' || atk.at === 'claw')) {
-      dmg += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
-      if (dmg < 1) dmg = 1;
-      rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
-    }
-    return dmg;
-  };
-  switch (atk.ad) {
-    case 'fire': {
-      if (negated(ctx, magr, mdef, vis)) return 0;
-      if (seen) say(ctx, 'mhitm.on_fire', { mon: mdefName() });
-      let dmg = damage;
-      if (resists(ctx, mdef, 'fire')) {
-        if (seen) say(ctx, 'mhitm.fire_no_burn', { mon: mdefName() });
-        dmg = 0;
-      }
-      // the defender's carried items burn, with the attack's original damage
-      const burnt = destroyItems(ctx, mdef.id, 'fire', damage);
-      igniteItems(ctx, mdef.id);
-      return dmg + burnt;
-    }
-    case 'cold': {
-      if (negated(ctx, magr, mdef, vis)) return 0;
-      if (seen) say(ctx, 'mhitm.frost', { mon: mdefName() });
-      let dmg = damage;
-      if (resists(ctx, mdef, 'cold')) {
-        if (seen) say(ctx, 'mhitm.frost_no_chill', { mon: mdefName() });
-        dmg = 0;
-      }
-      return dmg + destroyItems(ctx, mdef.id, 'cold', damage);
-    }
-    case 'elec': {
-      if (negated(ctx, magr, mdef, vis)) return 0;
-      if (seen) say(ctx, 'mhitm.zapped', { mon: mdefName() });
-      let dmg = damage;
-      if (resists(ctx, mdef, 'elec')) {
-        if (seen) say(ctx, 'mhitm.zap_no_shock', { mon: mdefName() });
-        dmg = 0;
-      }
-      return dmg + destroyItems(ctx, mdef.id, 'elec', damage);
-    }
-    case 'slee':
-      // ref: mhitm_ad_slee(): `sleep_monst(rnd(10)) && sleep_monst(rnd(10))`. As in NetHack the
-      // second call fails (the target can no longer move), so it sleeps without the message.
-      if (
-        !mdef.c.monster?.asleep &&
-        sleepMonst(ctx, mdef, ctx.rng.rnd(10)) &&
-        sleepMonst(ctx, mdef, ctx.rng.rnd(10))
-      ) {
-        if (vis && canSpotMon(ctx, mdef))
-          say(ctx, 'mhitm.put_to_sleep', { mon: mdefName(), by: monNam(ctx, magr) });
-      }
-      return damage;
-    case 'drst':
-    case 'drdx':
-    case 'drco': {
-      // ref: mhitm_ad_drst(): `!negated && !rn2(8)` -> mhitm_really_poison()
-      const neg = negated(ctx, magr, mdef, false);
-      if (!neg && ctx.rng.rn2(8) === 0) {
-        if (vis && canSpotMon(ctx, magr))
-          say(ctx, 'mhitm.was_poisoned', { mon: monNam(ctx, magr) });
-        if (resists(ctx, mdef, 'poison')) {
-          if (vis && canSpotMon(ctx, mdef) && canSpotMon(ctx, magr))
-            say(ctx, 'mhitm.poison_no_effect', { mon: mdefName() });
-        } else {
-          damage += ctx.rng.rn2(10) + 6; // rn1(10, 6)
-          if (damage >= (mdef.c.hp?.cur ?? 0) && vis && canSpotMon(ctx, mdef))
-            say(ctx, 'mhitm.poison_deadly');
-        }
-      }
-      return damage;
-    }
-    case 'acid':
-      if (isCancelled(ctx, magr.id)) return 0;
-      if (resists(ctx, mdef, 'acid')) {
-        if (seen) say(ctx, 'mhitm.acid_harmless', { mon: mdefName() });
-        damage = 0;
-      } else if (seen) {
-        say(ctx, 'mhitm.acid', { mon: mdefName() });
-        say(ctx, 'mhitm.acid_burns', { mon: mdefName() });
-      }
-      if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, mdef.id, 'corrode');
-      if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, mdef.id));
-      return damage;
-    case 'stun':
-      if (isCancelled(ctx, magr.id)) return damage;
-      if (canSpotMon(ctx, mdef)) say(ctx, 'mhitm.staggers', { mon: mdefName() });
-      setMStunned(ctx, mdef.id, true);
-      return phys(damage);
-    case 'plys':
-      if (!isFrozen(ctx, mdef.id) && ctx.rng.rn2(3) === 0 && !negated(ctx, magr, mdef, vis)) {
-        if (vis && canSpotMon(ctx, mdef))
-          say(ctx, 'mhitm.frozen_by', { mon: mdefName(), by: monNam(ctx, magr) });
-        paralyzeMonst(ctx, mdef.id, ctx.rng.rnd(10));
-      }
-      return damage;
-    default:
-      return phys(damage);
-  }
-}
-
 /** ref: src/mhitm.c mdamagem(): damage, death and growing up */
 function mdamagem(
   ctx: Ctx,
@@ -294,9 +141,12 @@ function mdamagem(
   atk: AttackDef,
   mwep: Entity | null,
   vis: boolean,
+  dieroll: number,
 ): number {
-  let damage = ctx.rng.d(atk.n, atk.d);
-  damage = adtyping(ctx, magr, atk, mdef, mwep, damage, vis);
+  const mhm = newMhm(ctx.rng.d(atk.n, atk.d), dieroll);
+  mhitmAdtyping(ctx, magr.id, atk, mdef.id, mhm, { vis, mwep, growUp });
+  if (mhm.done) return mhm.hitflags;
+  const damage = mhm.damage;
   if (!damage) return M_ATTK.HIT;
   const hp = mdef.c.hp;
   if (!hp) return M_ATTK.HIT;
@@ -317,6 +167,7 @@ function hitmm(
   atk: AttackDef,
   mwep: Entity | null,
   vis: boolean,
+  dieroll: number,
 ): number {
   if (vis) {
     const verb =
@@ -333,7 +184,7 @@ function hitmm(
                 : 'hits';
     say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
   } else noises(ctx, magr);
-  return mdamagem(ctx, magr, mdef, atk, mwep, vis);
+  return mdamagem(ctx, magr, mdef, atk, mwep, vis, dieroll);
 }
 
 /** ref: src/mhitm.c missmm() (no seduction) */
@@ -342,8 +193,18 @@ function missmm(ctx: Ctx, magr: Entity, mdef: Entity, vis: boolean): void {
   else noises(ctx, magr);
 }
 
-/** ref: src/mhitm.c passivemm(): the defender's passive response hits the attacker */
-function passivemm(ctx: Ctx, magr: Entity, mdef: Entity, mhit: boolean, mdead: number): number {
+/**
+ * ref: src/mhitm.c passivemm(): the defender's passive response hits the attacker (`mwep`: the
+ * weapon it hit with, which a disenchanter drains)
+ */
+function passivemm(
+  ctx: Ctx,
+  magr: Entity,
+  mdef: Entity,
+  mhit: boolean,
+  mdead: number,
+  mwep: Entity | null,
+): number {
   const ddef = ctx.defs.monster(mdef.def);
   const res = mdead | (mhit ? M_ATTK.HIT : M_ATTK.MISS);
   const atk = ddef.attacks.find((a) => a.at === 'passive');
@@ -365,6 +226,9 @@ function passivemm(ctx: Ctx, magr: Entity, mdef: Entity, mhit: boolean, mdead: n
     if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, magr.id, 'corrode');
     if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, magr.id));
     assess = true;
+  } else if (atk.ad === 'ench') {
+    // KMH -- remove enchantment (disenchanter); no message
+    if (mhit && !isCancelled(ctx, mdef.id) && mwep) drainItem(ctx, mwep, false);
   }
   if (!assess) {
     if (mdead || isCancelled(ctx, mdef.id)) return res;
@@ -375,7 +239,13 @@ function passivemm(ctx: Ctx, magr: Entity, mdef: Entity, mhit: boolean, mdead: n
           if (tmp > 127) tmp = 127;
           if (mdef.def === 'nh:floating_eye') {
             if (ctx.rng.rn2(4) === 0) tmp = 127;
-            if (!ctx.defs.monster(magr.def).flags.includes('noeyes')) {
+            // `magr->mcansee && haseyes(madat) && mdef->mcansee` (no invisibility; no
+            // reflection: mon_reflects() needs worn shields and amulets of reflection on monsters)
+            if (
+              mcansee(ctx, magr.id) &&
+              !ctx.defs.monster(magr.def).flags.includes('noeyes') &&
+              mcansee(ctx, mdef.id)
+            ) {
               if (seenAgr) say(ctx, 'mhitm.frozen_gaze', { mon: name(), by: monNam(ctx, mdef) });
               paralyzeMonst(ctx, magr.id, tmp);
             }
@@ -464,48 +334,84 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
   if (pa.flags.includes('elf') && ctx.defs.monster(mdef.def).flags.includes('orc')) tmp++;
 
   const vis = canSpotMon(ctx, magr) || canSpotMon(ctx, mdef);
+  const bhitpos = { ...dp };
   let struck = false;
+  const res: number[] = [];
   for (let i = 0; i < pa.attacks.length; i++) {
+    res[i] = M_ATTK.MISS;
     const atk = pa.attacks[i];
     if (!atk) continue;
     // the target might no longer be there
-    if (i > 0 && (!alive(ctx, mdefId) || !alive(ctx, magrId))) continue;
-    if (!MELEE_AT.has(atk.at)) continue; // not ported: hugs, gazes, engulfing, breath, ...
-    if (distmin(magr, mdef) > 1) continue;
-    // ref: mattackm(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(magr)) continue;`
-    if (atk.at === 'kick' && mtrappedInPit(ctx, magrId)) continue;
-    let res: number = M_ATTK.MISS;
+    const at = mdef.c.pos;
+    if (
+      i > 0 &&
+      (!alive(ctx, mdefId) ||
+        !alive(ctx, magrId) ||
+        !at ||
+        at.x !== bhitpos.x ||
+        at.y !== bhitpos.y ||
+        at.level !== bhitpos.level)
+    )
+      continue;
     let mwep: Entity | null = null;
-    if (atk.at === 'weapon') {
-      if (!monWep(ctx, magrId) && monWieldItem(ctx, magrId)) return M_ATTK.MISS;
-      mwep = monWep(ctx, magrId);
-      if (mwep) {
-        if (vis) {
-          const wdef = ctx.defs.object(mwep.def);
-          say(ctx, `mhitm.${wdef.weapon?.kind === 'pierce' ? 'thrusts' : 'swings'}`, {
-            magr: monNam(ctx, magr),
-            mdef: monNam(ctx, mdef),
-            weapon: xnameOf(ctx.state, ctx.defs, mwep),
-          });
+    let attk = true;
+    let strike = false;
+    switch (atk.at) {
+      case 'weapon':
+      case 'claw':
+      case 'kick':
+      case 'bite':
+      case 'sting':
+      case 'touch':
+      case 'butt':
+      case 'tentacle': {
+        if (atk.at === 'weapon') {
+          // "hand to hand" attacks; at a distance C's thrwmm() fires (not ported here)
+          if (distmin(magr, mdef) > 1) continue;
+          if (!monWep(ctx, magrId) && monWieldItem(ctx, magrId)) return M_ATTK.MISS;
+          mwep = monWep(ctx, magrId);
+          if (mwep) {
+            if (vis) {
+              const wdef = ctx.defs.object(mwep.def);
+              say(ctx, `mhitm.${wdef.weapon?.kind === 'pierce' ? 'thrusts' : 'swings'}`, {
+                magr: monNam(ctx, magr),
+                mdef: monNam(ctx, mdef),
+                weapon: xnameOf(ctx.state, ctx.defs, mwep),
+              });
+            }
+            tmp += hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
+          }
         }
-        tmp += hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
+        if (atk.at === 'kick' && mtrappedInPit(ctx, magrId)) continue;
+        // Nymph that teleported away on first attack?
+        if (distmin(magr, mdef) > 1) continue;
+        // (monsters won't attack cockatrices physically with a weapon in hand: step 6)
+        const dieroll = ctx.rng.rnd(20 + i);
+        strike = tmp > dieroll;
+        // KMH -- don't accumulate to-hit bonuses
+        if (mwep) tmp -= hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
+        if (strike) res[i] = hitmm(ctx, magr, mdef, atk, mwep, vis, dieroll);
+        else missmm(ctx, magr, mdef, vis);
+        break;
       }
+      // AT_HUGS (step 2: automatic if the previous two hit), AT_GAZE, AT_EXPL (step 2),
+      // AT_ENGL (step 4), AT_BREA and AT_SPIT (step 5): no attack yet
+      default: // no attack
+        attk = false;
+        break;
     }
-    const dieroll = ctx.rng.rnd(20 + i);
-    const strike = tmp > dieroll;
-    if (mwep) tmp -= hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
-    if (strike) res = hitmm(ctx, magr, mdef, atk, mwep, vis);
-    else missmm(ctx, magr, mdef, vis);
-
-    if (!(res & M_ATTK.AGR_DIED) && alive(ctx, magrId)) {
+    let r = res[i] ?? M_ATTK.MISS;
+    if (attk && !(r & M_ATTK.AGR_DIED) && alive(ctx, magrId)) {
       const d = ent(ctx, mdefId);
       if (!d || distmin(magr, d) <= 1)
-        res = passivemm(ctx, magr, d ?? mdef, strike, res & M_ATTK.DEF_DIED);
+        r = passivemm(ctx, magr, d ?? mdef, strike, r & M_ATTK.DEF_DIED, mwep);
     }
-    if (res & M_ATTK.DEF_DIED) return res;
-    if (res & M_ATTK.AGR_DIED) return res;
-    if (helpless(ctx, magrId)) return res;
-    if (res & M_ATTK.HIT) struck = true;
+    res[i] = r;
+    if (r & M_ATTK.DEF_DIED) return r;
+    if (r & M_ATTK.AGR_DIED) return r;
+    // return if aggressor can no longer attack
+    if (r & M_ATTK.AGR_DONE || helpless(ctx, magrId)) return r;
+    if (r & M_ATTK.HIT) struck = true; // at least one hit
   }
   return struck ? M_ATTK.HIT : M_ATTK.MISS;
 }

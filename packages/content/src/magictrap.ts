@@ -49,7 +49,7 @@ import {
   thitm,
   type TrapResult,
 } from './trap';
-import { pwOf, setPw } from './uenergy';
+import { drainEn, pwOf, setPw } from './uenergy';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -285,36 +285,8 @@ function magicTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
 // ---------------------------------------------------------------------------------------------
 // the anti-magic field
 
-/**
- * The hero loses `n` energy, throttled to `rnd(n)` when that is more than a third of her
- * current plus maximum; what goes below 0 comes off the maximum (`rnd()` of it). "You feel your
- * magical energy drain away." ("!" when more than she had, or `maxAlreadyDrained`), "You feel
- * momentarily lethargic." with no maximum left. ref: src/trap.c drain_en()
- */
-export function drainEn(ctx: Ctx, n: number, maxAlreadyDrained: boolean): void {
-  let punct = maxAlreadyDrained ? '!' : '.';
-  const pw = pwOf(ctx.state);
-  let key: string;
-  if (pw.uenmax < 1) {
-    // energy is completely gone
-    if (pw.uen || pw.uenmax) setPw(ctx, { uen: 0, uenmax: 0 });
-    key = 'antimagic.momentarily_lethargic';
-  } else {
-    // throttle further loss a bit when there's not much left to lose
-    if (n > Math.trunc((pw.uen + pw.uenmax) / 3)) n = ctx.rng.rnd(n);
-    key = 'antimagic.drain_away';
-    if (n > pw.uen) punct = '!';
-    let uen = pw.uen - n;
-    let uenmax = pw.uenmax;
-    if (uen < 0) {
-      uenmax -= ctx.rng.rnd(-uen);
-      if (uenmax < 0) uenmax = 0;
-      uen = 0;
-    } else if (uen > uenmax) uen = uenmax;
-    setPw(ctx, { uen, uenmax });
-  }
-  say(ctx, key, { p: punct });
-}
+// drainEn (src/trap.c drain_en()) moved to uenergy.ts; re-exported for the old callers
+export { drainEn };
 
 /**
  * The hero on an anti-magic field (never escaped once seen): positively enchanted iron shoes

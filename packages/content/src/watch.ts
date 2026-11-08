@@ -23,7 +23,7 @@ import { blockersOf } from './boulder';
 import { clearPath } from './clearpath';
 import { diggingOf, isDigging, stopDigging } from './digstate';
 import { pickingLock, stopPicking } from './lockstate';
-import { isFrozen, unfreezeMonst } from './mstate';
+import { isFrozen, mcansee, unfreezeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { T, isSdoorId, isWallId, terrainIdAt } from './terrain';
 
@@ -215,8 +215,14 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
   const dig = isDigging(ctx) ? diggingOf(ctx) : null;
   const at =
     door && door.level === hp.level ? door : dig && !dig.down && dig.level === hp.level ? dig : hp;
-  // mcansee (monsters are never blinded here) && m_canseeu()
-  if (!inTown(level, at.x, at.y) || !couldSee(ctx, mon) || ctx.rng.rn2(3) !== 0) return;
+  // mcansee && m_canseeu()
+  if (
+    !inTown(level, at.x, at.y) ||
+    !mcansee(ctx, id) ||
+    !couldSee(ctx, mon) ||
+    ctx.rng.rn2(3) !== 0
+  )
+    return;
   if (!door || door.level !== hp.level) {
     if (dig) watchDigBy(ctx, mon, dig.x, dig.y, false);
     return;

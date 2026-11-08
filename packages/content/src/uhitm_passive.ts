@@ -6,6 +6,7 @@ import {
   type Entity,
   type EntityId,
   type MonsterDef,
+  type Msg,
   type Pos,
 } from '@nh/core';
 import { erodeArmor, erodeObj, passiveObj } from './erode';
@@ -13,6 +14,9 @@ import { mdamageu } from './mhitu';
 import { heroSees, whichArmor } from './mongear';
 import { nomulNow } from './hunger';
 import { P, hasExtrinsic, hasProp, makeStunned } from './props';
+import { drainItem } from './adtyping';
+import { mcansee } from './mstate';
+import { changeLuck } from './luck';
 import { discover } from './o_init';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
@@ -28,7 +32,7 @@ export interface PassiveTarget {
   mcan: boolean;
 }
 
-const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
+const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
@@ -37,9 +41,10 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
  * `weapon` is what hit it (uwep, or uarmf for a kick, or null bare-handed): fire burns and acid
  * corrodes it (passive_obj(), or the boots one time in six), and an acid splash may corrode
  * armor; the Oracle's magic missiles; a cancelled monster's fire and live responses fail.
- * ref: src/uhitm.c passive(). Golems are not ported; the stoning, rust, corrosion and disenchantment cases belong to monsters we do not have. Not ported: brown
- * mold splitting (split_mon). The floating eye's gaze is never reflected (no reflection) nor
- * resisted (no Free_action, no hallucination, no blindness) and the monster is never blind.
+ * A rust monster's or black pudding's passive rusts or corrodes the weapon (or the boots of a
+ * kick), a disenchanter's drains its enchantment ("Your long sword seems less effective.").
+ * ref: src/uhitm.c passive(), passive_obj(). Golems are not ported; stoning is step 6. Not
+ * ported: brown mold splitting (split_mon). A blind floating eye "cannot defend itself".
  */
 export function passive(
   ctx: Ctx,
@@ -72,6 +77,33 @@ export function passive(
   };
   if (atk.ad === 'fire') {
     if (mhit && !mon.mcan) hitObj('burn'); // `mhitb && !mon->mcan && weapon`
+  } else if (atk.ad === 'rust' || atk.ad === 'corr') {
+    // `mhitb && !mon->mcan && weapon`: the boots of a kick always, else passive_obj()
+    if (mhit && !mon.mcan && weapon) {
+      const type = atk.ad === 'rust' ? 'rust' : 'corrode';
+      if (aatyp === 'kick') {
+        const uarmf = whichArmor(ctx, hero.id, 'boots');
+        if (uarmf)
+          erodeObj(ctx, uarmf, xnameOf(ctx.state, ctx.defs, uarmf), type, { verbose: true });
+      } else passiveObj(ctx, mon.def.id, weapon, mon.mcan);
+    }
+  } else if (atk.ad === 'ench') {
+    // KMH -- remove enchantment (disenchanter): a kick drains the boots; a bare-handed blow the
+    // gloves (passive_obj()'s `obj = uarmg`)
+    if (mhit && !(aatyp === 'kick' && !weapon) && !mon.mcan) {
+      const obj = weapon ?? whichArmor(ctx, hero.id, 'gloves');
+      const it = obj?.c.item;
+      if (
+        obj &&
+        it &&
+        drainItem(ctx, obj, true) &&
+        it.carriedBy === hero.id &&
+        (it.known.spe || ctx.defs.object(obj.def).class === 'armor')
+      ) {
+        const pl = it.quantity !== 1 ? '_pl' : '';
+        say(ctx, `adtyp.less_effective${pl}`, { item: xnameOf(ctx.state, ctx.defs, obj) });
+      }
+    }
   } else if (atk.ad === 'acid') {
     if (mhit && ctx.rng.rn2(2) !== 0) {
       say(ctx, 'passive.splashed', { mon: shown });
@@ -97,6 +129,11 @@ export function passive(
     case 'plys':
       if (mon.def.id === 'nh:floating_eye') {
         if (!heroSees(ctx, mon.pos)) break; // !canseemon(mon)
+        if (!mcansee(ctx, mon.id)) {
+          say(ctx, 'passive.blind_cannot_defend', { mon: shown });
+          if (!ctx.rng.rn2(500)) changeLuck(ctx, -1);
+          break;
+        }
         // ref: src/do_wear.c ureflects(): only the amulet of reflection reflects here
         if (hasExtrinsic(hero, P.REFLECTING)) {
           say(ctx, 'reflect.gaze_medallion', { mon: shown });

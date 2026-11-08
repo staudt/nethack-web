@@ -3,6 +3,7 @@ import {
   NORMAL_SPEED,
   getPlayer,
   sortedIds,
+  type AttackDef,
   type AttackType,
   type Ctx,
   type EntityId,
@@ -13,7 +14,8 @@ import {
   type Pos,
   type Rng,
 } from '@nh/core';
-import { hitmuAd, mdamageu } from './mhitu';
+import { mdamageu } from './mhitu';
+import { M_ATTK, NO_HITMSG, mhitmAdtyping, newMhm } from './adtyping';
 import { castmu } from './mcastu';
 import { monsterDied } from './mondeath';
 import { isFleeing, monflee } from './monflee';
@@ -408,25 +410,76 @@ function hitVerb(at: AttackType): string {
   }
 }
 
-/** Attack types mattacku() resolves as a to-hit roll against the hero in melee. */
-const MELEE_AT = new Set<AttackType>([
-  'claw',
-  'kick',
-  'bite',
-  'sting',
-  'touch',
-  'butt',
-  'tentacle',
-  'weapon',
-]);
-
-/**
- * The monster `monId` makes all its melee attacks at the hero (it is adjacent).
- * ref: src/mhitu.c mattacku(), hitmu(), hitmsg(), missmu(), mdamageu(); src/end.c done_in_by().
- */
 const say0 = (ctx: Ctx, key: string, params?: Record<string, string>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
+/**
+ * The monster hit the hero with attack `i`: base damage d(damn, damd) (plus the wielded weapon's
+ * dmgval() for a weapon attack), the hit message, the damage type's effect, then the damage after
+ * her negative AC. Returns M_ATTK flags. `again`: the previous attack was of the same type and
+ * hit (hitmsg's "again" wording).
+ * ref: src/mhitu.c hitmu(), hitmsg(), mdamageu(); src/uhitm.c mhitm_ad_phys() "hand to hand
+ * weapon" (no artifacts, silver, poisoned weapons or puddings)
+ */
+export function hitmu(
+  ctx: Ctx,
+  mon: Entity,
+  atk: AttackDef,
+  mwep: Entity | null,
+  again: boolean,
+  ac: number,
+): number {
+  const name = monNam(ctx, mon);
+  let dmg = ctx.rng.d(atk.n, atk.d);
+  // (no midnight(): undead get no extra damage)
+  if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
+    // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
+    dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false);
+    if (dmg <= 0) dmg = 1;
+  }
+  // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
+  // their own line
+  if (!NO_HITMSG.has(atk.ad))
+    ctx.emit({
+      type: 'msg',
+      key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,
+      params: { mon: name },
+    });
+  // ref: src/uhitm.c mhitm_adtyping(): the damage type's effect (resistances, sleep, poison, ...)
+  const mhm = newMhm(dmg);
+  mhitmAdtyping(ctx, mon.id, atk, ctx.state.playerId, mhm);
+  if (mhm.done) return mhm.hitflags;
+  dmg = mhm.damage;
+  if (ctx.state.gameOver) {
+    stopOccupation(ctx);
+    return M_ATTK.HIT;
+  }
+  // Negative armor class reduces damage done instead of fully protecting against hits.
+  if (dmg > 0 && ac < 0) {
+    dmg -= ctx.rng.rnd(-ac);
+    if (dmg < 1) dmg = 1;
+  }
+  if (dmg > 0) mdamageu(ctx, dmg, `@${mon.def}`); // ref: src/mhitu.c mdamageu() -> done_in_by()
+  stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
+  return M_ATTK.HIT; // passiveum(): only a polymorphed hero has passive attacks (7f)
+}
+
+/** The monster is next to the hero (C's `!range2` with `u_at(bhitpos)`). */
+function nextToHero(ctx: Ctx, mon: Entity): boolean {
+  const p = mon.c.pos;
+  const hp = getPlayer(ctx.state).c.pos;
+  return (
+    !!p && !!hp && p.level === hp.level && Math.max(Math.abs(p.x - hp.x), Math.abs(p.y - hp.y)) <= 1
+  );
+}
+
+/**
+ * The monster `monId` makes all its attacks at the hero (it is adjacent), following mattacku()'s
+ * switch on the attack type with the results `sum[]`.
+ * ref: src/mhitu.c mattacku(), missmu(). The other attack styles (hugs, gazes, explosions,
+ * engulfing, breath, spit) do nothing until their m9 step; a monster at range is not handled
+ * here (thrwmu() and castmu() through monmove.ts / mthrowu.ts).
+ */
 export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   const hero = getPlayer(ctx.state);
   const mon = ctx.state.entities[String(monId)];
@@ -435,7 +488,6 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
   if (!mon || !m || !hp) throw new Error(`Entity ${monId} cannot attack`);
   const def = ctx.defs.monster(mon.def);
   const name = monNam(ctx, mon);
-  const killer = `@${mon.def}`;
   // ref: src/mhitu.c mattacku(): "in the midst of successful prayer" monsters won't attack
   if (uState(ctx.state).uinvulnerable) {
     if (ustuck(ctx) === monId) say0(ctx, 'pray.loosens_grip', { mon: name });
@@ -452,72 +504,86 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     isMtrapped(ctx, monId),
   );
 
+  const sum: number[] = [];
   let prevHit = -1; // index of the previous attack if it hit (ref: hitmsg_prev)
   for (let i = 0; i < def.attacks.length; i++) {
+    sum[i] = M_ATTK.MISS;
+    // counterattack against attack [i-1] might have been fatal
+    if (!ctx.state.entities[String(monId)]?.c.monster) return;
+    // recalc in case a prior attack moved the hero (a quantum mechanic's teleport)
+    if (i > 0 && !nextToHero(ctx, mon)) continue;
     const atk = def.attacks[i];
-    if (atk?.at === 'magic') {
-      // ref: src/mhitu.c mattacku() AT_MAGC: next to the hero (range2 is false), so
-      // castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
-      castmu(ctx, monId, atk, true, true);
-      prevHit = -1;
-      if (ctx.state.gameOver) return;
-      continue;
-    }
-    if (!atk || !MELEE_AT.has(atk.at)) continue; // other attack types: M3+
-    // ref: mattacku(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(mtmp)) continue;`
-    if (atk.at === 'kick' && mtrappedInPit(ctx, monId)) continue;
-    // ref: src/mhitu.c mattacku() AT_WEAP: wield a weapon first if one is wanted (the move is
-    // spent), then add the weapon's to-hit and announce the swing before rolling
-    let attackTmp = tmp;
-    let mwep: Entity | null = null;
-    if (atk.at === 'weapon') {
-      if (monWieldItem(ctx, monId)) continue;
-      mwep = monWep(ctx, monId);
-      if (mwep) {
-        attackTmp += hitval(mwep, ctx.defs.object(mwep.def), null);
-        if (mon.c.pos && heroSees(ctx, mon.c.pos)) mswings(ctx, mon, mwep);
+    if (!atk) continue;
+    switch (atk.at) {
+      case 'claw': // "hand to hand" attacks
+      case 'kick':
+      case 'bite':
+      case 'sting':
+      case 'touch':
+      case 'butt':
+      case 'tentacle': {
+        // ref: mattacku(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(mtmp)) continue;`
+        if (atk.at === 'kick' && mtrappedInPit(ctx, monId)) continue;
+        const j = ctx.rng.rnd(20 + i);
+        if (tmp > j)
+          sum[i] = hitmu(
+            ctx,
+            mon,
+            atk,
+            null,
+            prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
+            ac,
+          );
+        else missmu(ctx, name, tmp === j);
+        break;
       }
+      case 'weapon': {
+        // ref: src/mhitu.c mattacku() AT_WEAP: wield a weapon first if one is wanted (the move
+        // is spent), then add the weapon's to-hit and announce the swing before rolling
+        if (monWieldItem(ctx, monId)) break;
+        const mwep = monWep(ctx, monId);
+        let attackTmp = tmp;
+        if (mwep) {
+          attackTmp += hitval(mwep, ctx.defs.object(mwep.def), null);
+          if (mon.c.pos && heroSees(ctx, mon.c.pos)) mswings(ctx, mon, mwep);
+        }
+        const j = ctx.rng.rnd(20 + i);
+        if (attackTmp > j)
+          sum[i] = hitmu(
+            ctx,
+            mon,
+            atk,
+            mwep,
+            prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
+            ac,
+          );
+        else missmu(ctx, name, attackTmp === j);
+        break;
+      }
+      case 'magic':
+        // ref: src/mhitu.c mattacku() AT_MAGC: next to the hero (range2 is false), so
+        // castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
+        castmu(ctx, monId, atk, true, true);
+        break;
+      // AT_HUGS, AT_GAZE, AT_EXPL (step 2), AT_ENGL (step 4), AT_BREA, AT_SPIT (step 5, at range)
+      default: // no attack
+        break;
     }
-    const j = ctx.rng.rnd(20 + i);
-    if (!(attackTmp > j)) {
-      // ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose)
-      ctx.emit({
-        type: 'msg',
-        key: attackTmp === j ? 'combat.mon_just_misses' : 'combat.mon_misses',
-        params: { mon: name },
-      });
-      prevHit = -1;
-      continue;
-    }
-    // ref: src/mhitu.c hitmu(): base damage d(damn, damd), then hitmsg()
-    let dmg = ctx.rng.d(atk.n, atk.d);
-    if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
-      // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
-      dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false);
-      if (dmg <= 0) dmg = 1;
-    }
-    const again = prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at;
-    ctx.emit({
-      type: 'msg',
-      key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,
-      params: { mon: name },
-    });
-    prevHit = i;
-    // ref: src/uhitm.c mhitm_adtyping(): the damage type's effect (resistances, sleep, poison, ...)
-    dmg = hitmuAd(ctx, mon, atk, dmg);
-    if (ctx.state.gameOver) {
-      stopOccupation(ctx);
-      return;
-    }
-    // Negative armor class reduces damage done instead of fully protecting against hits.
-    if (dmg > 0 && ac < 0) {
-      dmg -= ctx.rng.rnd(-ac);
-      if (dmg < 1) dmg = 1;
-    }
-    if (dmg > 0) mdamageu(ctx, dmg, killer); // ref: src/mhitu.c mdamageu() -> done_in_by()
-    stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
+    prevHit = sum[i] ? i : -1;
     if (ctx.state.gameOver) return;
+    const r = sum[i] ?? M_ATTK.MISS;
+    if (r & M_ATTK.AGR_DIED) return; // attacker dead
+    if (r & M_ATTK.AGR_DONE) break; // attacker teleported, no more attacks
   }
+}
+
+/** ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose) */
+function missmu(ctx: Ctx, name: string, nearmiss: boolean): void {
+  ctx.emit({
+    type: 'msg',
+    key: nearmiss ? 'combat.mon_just_misses' : 'combat.mon_misses',
+    params: { mon: name },
+  });
 }
 
 /**

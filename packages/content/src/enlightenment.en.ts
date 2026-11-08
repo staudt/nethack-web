@@ -24,6 +24,8 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.trapped_in': 'trapped in {trap|an}',
   'enl.trapped': 'trapped',
   'enl.wounded_right_leg': 'a wounded right leg',
+  'enl.wounded_left_leg': 'a wounded left leg',
+  'enl.wounded_legs': 'wounded legs',
   'enl.sleepy': 'You fall asleep uncontrollably.',
   'enl.hunger_rapidly': 'You hunger rapidly.',
   'enl.hunger.satiated': 'satiated',

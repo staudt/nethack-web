@@ -9,7 +9,9 @@
 // confused, `mspeed: { [monsterId]: 'slow' | 'fast' }`
 // while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed),
 // `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability),
-// `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone).
+// `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone),
+// `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
+// C's `!mcansee && !mblinded`).
 import {
   cellIndex,
   getPlayer,
@@ -27,7 +29,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan';
+type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -184,6 +186,32 @@ export function setCancelled(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   if (t) t[String(id)] = true;
 }
 
+/** `mtmp->mcansee`: the monster can see (it is not blinded). */
+export function mcansee(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  return typeof table(ctx, 'mblinded', false)?.[String(id)] !== 'number';
+}
+
+/** `mtmp->mblinded`: turns of blindness left (0 when it can see, or when blind for good). */
+export function mblinded(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
+  const v = table(ctx, 'mblinded', false)?.[String(id)];
+  return typeof v === 'number' ? v : 0;
+}
+
+/**
+ * `mcansee = 0, mblinded = turns` (at most 127, C's 7-bit field); 0 turns blinds it for good.
+ * ref: src/uhitm.c mhitm_ad_blnd()
+ */
+export function setMblinded(ctx: Pick<Ctx, 'state'>, id: EntityId, turns: number): void {
+  const t = table(ctx, 'mblinded', true);
+  if (t) t[String(id)] = Math.max(0, Math.min(turns, 127));
+}
+
+/** `mcansee = 1, mblinded = 0` */
+export function unblindMonst(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mblinded', false);
+  if (t) delete t[String(id)];
+}
+
 /**
  * Wakes the monsters of the hero's level; a paralysed one moves again 1 time in 5. No Wizard's
  * Tower and no monster strategies here. ref: src/wizard.c aggravate()
@@ -199,7 +227,15 @@ export function aggravate(ctx: Ctx): void {
   }
 }
 
-const KEYS: readonly Key[] = ['mfrozen', 'mstun', 'mconf', 'mspeed', 'mspecUsed', 'mcan'];
+const KEYS: readonly Key[] = [
+  'mfrozen',
+  'mstun',
+  'mconf',
+  'mspeed',
+  'mspecUsed',
+  'mcan',
+  'mblinded',
+];
 
 /** Forgets the states of a monster that died or left. */
 export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
@@ -211,8 +247,9 @@ export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 
 /**
  * The spellcasting delays and the paralysis timers count down once a turn (ref: m_calcdistress():
- * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mfrozen &&
- * !--mtmp->mfrozen) mtmp->mcanmove = 1;`); entries of monsters that no longer exist go.
+ * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mblinded &&
+ * !--mtmp->mblinded) mtmp->mcansee = 1;` and `if (mtmp->mfrozen && !--mtmp->mfrozen)
+ * mtmp->mcanmove = 1;`); entries of monsters that no longer exist go.
  */
 export function registerMState(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
@@ -222,6 +259,15 @@ export function registerMState(api: ModApi): void {
         const v = su[key];
         if (typeof v !== 'number' || v - 1 <= 0) delete su[key];
         else su[key] = v - 1;
+      }
+    }
+    const bl = table(ctx, 'mblinded', false);
+    if (bl) {
+      for (const id of sortedIds(ctx.state)) {
+        const v = bl[String(id)];
+        if (typeof v !== 'number' || v === 0) continue; // 0: blind for good
+        if (v - 1 <= 0) delete bl[String(id)];
+        else bl[String(id)] = v - 1;
       }
     }
     const t = table(ctx, 'mfrozen', false);

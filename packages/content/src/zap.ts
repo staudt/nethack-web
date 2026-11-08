@@ -87,15 +87,7 @@ import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { healup } from './potion';
 import { canSpotMon, monNam } from './perception';
-import {
-  P,
-  hasIntrinsic,
-  hasProp,
-  incrItimeout,
-  setIntrinsic,
-  setItimeout,
-  timeoutLeft,
-} from './props';
+import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown } from './props';
 import { ceilingKey, clearArea, litroom } from './read';
 import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
@@ -281,14 +273,6 @@ function speedUp(ctx: Ctx, duration: number): void {
     say(ctx, hasIntrinsic(h, P.FAST) ? 'zap.speed.faster' : 'zap.speed.much_faster');
   else say(ctx, 'zap.speed.legs');
   incrItimeout(ctx.state, h, P.FAST, duration);
-}
-
-/** ref: src/mhitu.c u_slow_down(): HFast = 0 (no speed boots) */
-function uSlowDown(ctx: Ctx): void {
-  const h = hero(ctx);
-  setIntrinsic(h, P.FAST, false);
-  setItimeout(ctx.state, h, P.FAST, 0);
-  say(ctx, 'zap.slow_down');
 }
 
 // ---------------------------------------------------------------------------------------------

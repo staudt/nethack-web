@@ -19,9 +19,16 @@ export interface Victual {
   pending: boolean;
 }
 
-/** Sickness (food poisoning). ref: Sick, u.usick_type = SICK_VOMITABLE */
+/** ref: include/you.h SICK_VOMITABLE, SICK_NONVOMITABLE, SICK_ALL (u.usick_type bits) */
+export const SICK_VOMITABLE = 1;
+export const SICK_NONVOMITABLE = 2;
+export const SICK_ALL = SICK_VOMITABLE | SICK_NONVOMITABLE;
+
+/** Sickness: food poisoning and illness. ref: Sick, u.usick_type */
 export interface Sick {
   remaining: number;
+  /** u.usick_type: SICK_VOMITABLE and/or SICK_NONVOMITABLE; absent (older saves) is vomitable. */
+  type?: number;
   /** A killer message key. */
   killer: string;
 }

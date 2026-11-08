@@ -90,6 +90,7 @@ export const eatMessagesEn: Record<string, string> = {
   'sick.worse': 'You feel even worse.',
   'sick.much_worse': 'You feel much worse.',
   'sick.cured': 'You feel cured.  What a relief!',
+  'sick.somewhat_better': 'You feel somewhat better.',
   'sick.text.0': 'Your sickness feels worse.',
   'sick.text.1': 'Your sickness is severe.',
   'sick.text.2': "You are at Death's door.",

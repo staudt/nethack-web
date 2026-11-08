@@ -75,6 +75,7 @@ export const shkMessagesEn: Readonly<Record<string, string>> = {
   'shk.alter.unbless': 'unbless',
   'shk.alter.disenchant': 'disenchant',
   'shk.alter.destroy': 'destroy',
+  'shk.alter.drain': 'drain',
   'shk.alter_inv': '"You {verb} {those} {item}, you pay for {them}!"',
   'shk.alter_floor': '"You {verb} {those}, you pay for {them}!"',
   'shk.bought': 'You bought {item|an} for {n} {gp}.',

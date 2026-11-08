@@ -42,7 +42,15 @@ import { fightm } from './mhitm';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
-import { isFrozen, isMConfused, isMStunned, mspecUsed, setMConfused, setMStunned } from './mstate';
+import {
+  isFrozen,
+  isMConfused,
+  isMStunned,
+  mcansee,
+  mspecUsed,
+  setMConfused,
+  setMStunned,
+} from './mstate';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
@@ -920,6 +928,7 @@ export function dochug(
     isMStunned(ctx, id) ||
     (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
     conflictOn(ctx.state) || // `Conflict && !mtmp->iswiz`
+    (!mcansee(ctx, id) && ctx.rng.rn2(4) === 0) ||
     m.peaceful
   ) {
     // ref: dochug(): "Possibly cast an undirected spell if not attacking you" -- within 7

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2720 citations.
+150 NetHack files, 2737 citations.
 
 ## dat/dungeon.lua
 
@@ -170,7 +170,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/hack.h
 
-- (file): `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
 - `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
@@ -212,7 +212,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/mhitm.h
 
-- `M_ATTK_()`: `packages/content/src/mhitm.ts`
+- `M_ATTK_()`: `packages/content/src/adtyping.ts`
 
 ## include/mkroom.h
 
@@ -235,6 +235,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `bigmonst()`: `packages/content/src/corpses.ts`, `packages/content/src/dokick.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`
 - `cantweararm()`: `packages/content/src/mongear.ts`
 - `carnivorous()`: `packages/content/src/dog.ts`
+- `completelyrots()`: `packages/content/src/adtyping.ts`
+- `completelyrusts()`: `packages/content/src/adtyping.ts`
+- `haseyes()`: `packages/content/src/adtyping.ts`
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`
 - `humanoid()`: `packages/content/src/peaceful.ts`
@@ -346,6 +349,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/prop.h
 
 - (file): `packages/content/src/props.ts`, `packages/core/src/types/entity.ts`
+- `LEFT_SIDE()`: `packages/content/src/legs.ts`
 - `W_ACCESSORY()`: `packages/content/src/props.ts`
 - `W_RINGL()`: `packages/core/src/types/entity.ts`
 
@@ -414,6 +418,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/urooms.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
+- `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
 
 ## include/youprop.h
 
@@ -634,7 +639,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hard_helmet()`: `packages/content/src/read.ts`, `packages/content/src/trap.ts`
 - `learnring()`: `packages/content/src/jewelry.ts`
 - `select_off()`: `packages/content/src/jewelry.en.ts`
-- `some_armor()`: `packages/content/src/read.ts`
+- `some_armor()`: `packages/content/src/adtyping.ts`, `packages/content/src/read.ts`
 - `toggle_stealth()`: `packages/content/src/jewelry.ts`
 - `ureflects()`: `packages/content/src/uhitm_passive.ts`
 
@@ -782,7 +787,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `disclose()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/core/src/types/event.ts`, `packages/ui/src/gameover.ts`
 - `done()`: `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
 - `done2()`: `packages/content/src/end.en.ts`, `packages/content/src/quit.ts`
-- `done_in_by()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
+- `done_in_by()`: `packages/content/src/mhitu.ts`
 - `ends()`: `packages/content/src/end.en.ts`
 - `get_valuables()`: `packages/content/src/urexp.ts`
 - `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/ui/src/gameover.ts`
@@ -891,6 +896,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fuzzymatch()`: `packages/content/src/objnam_read.ts`
 - `isqrt()`: `packages/content/src/spellcalc.ts`
 - `mungspaces()`: `packages/content/src/objnam_read.ts`
+- `night()`: `packages/content/src/adtyping.ts`
 - `online2()`: `packages/content/src/monmove.ts`
 - `ordin()`: `packages/app/src/scores.ts`
 - `sgn()`: `packages/content/src/shk.ts`
@@ -1032,24 +1038,26 @@ whole. A missing function may still be ported under a citation this parser canno
 - `paralyze_monst()`: `packages/content/src/mstate.ts`
 - `passivemm()`: `packages/content/src/mhitm.ts`
 - `rustm()`: `packages/content/src/erode.ts`
-- `sleep_monst()`: `packages/content/src/buzz.ts`, `packages/content/src/mhitm.ts`, `packages/content/src/trap.ts`
+- `sleep_monst()`: `packages/content/src/adtyping.ts`, `packages/content/src/buzz.ts`, `packages/content/src/trap.ts`
 - `slept_monst()`: `packages/content/src/buzz.ts`
+- `xdrainenergym()`: `packages/content/src/adtyping.ts`
 
 ## src/mhitu.c
 
 - (file): `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/resist.en.ts`
+- `diseasemu()`: `packages/content/src/adtyping.ts`
 - `hitmsg()`: `packages/content/src/combat.ts`
 - `hitmu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
-- `magic_negation()`: `packages/content/src/mhitu.ts`
+- `magic_negation()`: `packages/content/src/adtyping.ts`, `packages/content/src/mhitu.ts`
 - `mattacku()`: `packages/content/src/combat.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/travel.ts`
 - `mdamageu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `missmu()`: `packages/content/src/combat.ts`
-- `mpoisons_subj()`: `packages/content/src/mhitu.ts`
+- `mpoisons_subj()`: `packages/content/src/adtyping.ts`
 - `mswings()`: `packages/content/src/combat.ts`
 - `mswings_verb()`: `packages/content/src/combat.ts`
 - `mtrapped_in_pit()`: `packages/content/src/trapstate.ts`
 - `stop_occupation()`: `packages/content/src/travel.ts`
-- `u_slow_down()`: `packages/content/src/zap.ts`
+- `u_slow_down()`: `packages/content/src/props.ts`
 
 ## src/minion.c
 
@@ -1218,13 +1226,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mondata.c
 
-- (file): `packages/content/src/zap.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/zap.ts`
+- `can_blnd()`: `packages/content/src/adtyping.ts`
 - `mon_knows_traps()`: `packages/content/src/trapstate.ts`
 - `mon_learns_traps()`: `packages/content/src/trapstate.ts`
 - `mons_see_trap()`: `packages/content/src/trap.ts`
 - `name_to_mon()`: `packages/content/src/mondata.ts`
 - `name_to_monplus()`: `packages/content/src/mondata.ts`
-- `on_fire()`: `packages/content/src/mhitu.ts`
+- `on_fire()`: `packages/content/src/adtyping.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
 
@@ -1295,6 +1304,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/objnam.c
 
 - (file): `packages/content/src/objects.en.ts`, `packages/core/src/types/mod.ts`
+- `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
 - `as_is()`: `packages/content/src/objnam_read.ts`
@@ -1763,6 +1773,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `safe_teleds()`: `packages/content/src/teleport.ts`, `packages/content/src/trap.ts`
 - `scrolltele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `tele()`: `packages/content/src/trap.ts`
+- `tele_restrict()`: `packages/content/src/adtyping.ts`
 - `tele_to_rnd_pet()`: `packages/content/src/apply.ts`
 - `tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `teleds()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
@@ -1776,7 +1787,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `burn_object()`: `packages/content/src/light.ts`
 - `choke_dialogue()`: `packages/content/src/jewelry.ts`
 - `end_burn()`: `packages/content/src/light.ts`
-- `fall_asleep()`: `packages/content/src/mhitu.ts`, `packages/content/src/trap.ts`
+- `fall_asleep()`: `packages/content/src/adtyping.ts`, `packages/content/src/trap.ts`
 - `incr_itimeout()`: `packages/content/src/props.ts`
 - `lantern_message()`: `packages/content/src/light.ts`
 - `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
@@ -1819,7 +1830,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `domagictrap()`: `packages/content/src/magictrap.ts`
 - `dotrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `dountrap()`: `packages/content/src/untrap.ts`
-- `drain_en()`: `packages/content/src/magictrap.ts`
+- `drain_en()`: `packages/content/src/uenergy.ts`
 - `erode_obj()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `fall_through()`: `packages/content/src/trap.ts`
 - `feeltrap()`: `packages/content/src/trap.ts`
@@ -1894,17 +1905,18 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hmon_hitmon_weapon_melee()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
 - `hmon_hitmon_weapon_ranged()`: `packages/content/src/dothrow.ts`
 - `known_hitum()`: `packages/content/src/combat.ts`
-- `mhitm_ad_()`: `packages/content/src/mhitm.en.ts`, `packages/content/src/resist.en.ts`
-- `mhitm_ad_drst()`: `packages/content/src/mhitm.ts`
-- `mhitm_ad_phys()`: `packages/content/src/combat.ts`, `packages/content/src/mhitm.ts`
-- `mhitm_ad_slee()`: `packages/content/src/mhitm.ts`
-- `mhitm_adtyping()`: `packages/content/src/combat.ts`, `packages/content/src/mhitm.ts`, `packages/content/src/mhitu.ts`
-- `mhitm_mgc_atk_negated()`: `packages/content/src/mhitm.ts`, `packages/content/src/mhitu.ts`
+- `mhitm_ad_()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.en.ts`, `packages/content/src/resist.en.ts`
+- `mhitm_ad_blnd()`: `packages/content/src/adtyping.ts`, `packages/content/src/mstate.ts`
+- `mhitm_ad_halu()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_phys()`: `packages/content/src/combat.ts`
+- `mhitm_adtyping()`: `packages/content/src/adtyping.ts`, `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
+- `mhitm_mgc_atk_negated()`: `packages/content/src/adtyping.ts`
 - `missum()`: `packages/content/src/combat.ts`
 - `nohandglow()`: `packages/content/src/combat.ts`
 - `paranoid_query()`: `packages/content/src/peaceful.ts`
 - `passive()`: `packages/content/src/dokick.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/uhitm_passive.ts`
-- `passive_obj()`: `packages/content/src/erode.ts`
+- `passive_obj()`: `packages/content/src/erode.ts`, `packages/content/src/uhitm_passive.ts`
 
 ## src/vault.c
 
@@ -2011,6 +2023,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_enlightenment_effect()`: `packages/content/src/enlightenment.ts`
 - `dobuzz()`: `packages/content/src/buzz.ts`, `packages/core/src/types/event.ts`
 - `dozap()`: `packages/content/src/zap.ts`
+- `drain_item()`: `packages/content/src/adtyping.ts`
 - `exclam()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/trap.ts`, `packages/content/src/zap.ts`
 - `flashburn()`: `packages/content/src/buzz.ts`
 - `fracture_rock()`: `packages/content/src/boulder.ts`

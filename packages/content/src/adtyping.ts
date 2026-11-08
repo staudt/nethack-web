@@ -1,0 +1,970 @@
+// The damage types (AD_*) of monster attacks: one function per type, each holding the mhitu
+// (the defender is the hero) and mhitm (monster vs monster) branches, as NetHack 3.7 does.
+// ref: src/uhitm.c mhitm_adtyping(), mhitm_ad_*(), mhitm_mgc_atk_negated(); include/hack.h
+// struct mhitm_data
+//
+// The hero's own branch (`magr == &gy.youmonst`) is only reachable when she is polymorphed:
+// each handler marks it `// 7f`. The hit message (C's hitmsg() at the top of most mhitu
+// branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
+// `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
+// m9 steps) do physical damage, as before.
+import {
+  getPlayer,
+  inventoryOf,
+  type AttackDef,
+  type Ctx,
+  type Entity,
+  type EntityId,
+  type Msg,
+} from '@nh/core';
+import { stopOccupation } from './eat';
+import { poisoned } from './attrib';
+import { setUstuck, ustuck } from './hackmove';
+import { SICK_NONVOMITABLE, hungerData, makeSick, nomulNow } from './hunger';
+import {
+  P,
+  hasExtrinsic,
+  hasIntrinsic,
+  hasProp,
+  makeBlinded,
+  makeConfused,
+  makeStunned,
+  timeoutLeft,
+  uSlowDown,
+} from './props';
+import { canSpotMon, monNam } from './perception';
+import {
+  isCancelled,
+  isFrozen,
+  isMConfused,
+  mblinded,
+  mcansee,
+  monAdjustSpeed,
+  mspecUsed,
+  mspeed,
+  paralyzeMonst,
+  setCancelled,
+  setMConfused,
+  setMStunned,
+  setMblinded,
+  setMspecUsed,
+} from './mstate';
+import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './erode';
+import { igniteItems } from './light';
+import { dmgval } from './dmgval';
+import { monWep, whichArmor } from './mongear';
+import { mondied, monkilled } from './mondeath';
+import { drainEn } from './uenergy';
+import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
+import { levitating } from './trapstate';
+import { tele, rlocMon } from './trap';
+import { noteleportLevel } from './teleport';
+import { attrcurse } from './pray';
+import { costlyAlteration } from './shk';
+import { CHARGED_RINGS } from './objects';
+import { isWeptool } from './material';
+import { xnameOf } from './objnam';
+import { abon, acurrClamp, addAbon, type Attr } from './attrib';
+import { unaware } from './btrapped';
+
+/** ref: include/mhitm.h M_ATTK_* */
+export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
+
+/** The result of one attack. ref: include/hack.h struct mhitm_data */
+export interface Mhm {
+  damage: number;
+  /** M_ATTK bits */
+  hitflags: number;
+  /** the handler resolved the attack: the caller returns `hitflags` */
+  done: boolean;
+  permdmg: number;
+  specialdmg: number;
+  dieroll: number;
+}
+
+/** What C's mhitm branches read from globals: gv.vis and mattackm()'s `mwep`. */
+export interface AdEnv {
+  vis: boolean;
+  /** the attacker's wielded weapon for this attack (AT_WEAP or AT_CLAW), else null */
+  mwep: Entity | null;
+  /** grow_up() for a monster that killed its defender (mhitm.ts; late-bound to avoid a cycle) */
+  growUp?: (ctx: Ctx, id: EntityId, victimLevel: number) => boolean;
+}
+
+export const newMhm = (damage: number, dieroll = 0): Mhm => ({
+  damage,
+  hitflags: M_ATTK.MISS,
+  done: false,
+  permdmg: 0,
+  specialdmg: 0,
+  dieroll,
+});
+
+/**
+ * The damage types whose mhitu branch gives no hitmsg() (they print their own line, or nothing).
+ * ref: src/uhitm.c mhitm_ad_blnd(), mhitm_ad_legs(), mhitm_ad_halu()
+ */
+export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu']);
+
+const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
+  ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[String(id)];
+
+const resists = (ctx: Ctx, mon: Entity, mr: string): boolean =>
+  ctx.defs.monster(mon.def).resists.includes(mr);
+
+// ---------------------------------------------------------------------------------------------
+// magic cancellation
+
+/**
+ * The magic cancellation of the hero (or of monster `who`): the best worn armor's MC.
+ * ref: src/mhitu.c magic_negation(): the hero's extrinsic Protection (a ring of protection) adds 1,
+ * at most 3. Not ported: intrinsic Protection's minimum of 1, the amulet of guarding, monsters'
+ * protection (no high priests).
+ */
+export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): number {
+  let mc = 0;
+  for (const o of inventoryOf(ctx.state, who)) {
+    const slot = o.c.item?.equipped;
+    if (!slot || slot === 'weapon') continue;
+    mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);
+  }
+  const gotprot =
+    who === ctx.state.playerId && hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION);
+  if (gotprot) mc = Math.min(mc + 1, 3);
+  return mc;
+}
+
+/**
+ * Whether magical cancellation blocks the special effect of the attack of `magr` on the hero:
+ * always when it is cancelled (no roll, no message), else rn2(10) against the hero's MC.
+ * ref: src/uhitm.c mhitm_mgc_atk_negated() with `mdef == &gy.youmonst`
+ */
+export function mgcAtkNegated(ctx: Ctx, magr: Entity, verbosely: boolean): boolean {
+  // no message if attacker has been cancelled
+  if (isCancelled(ctx, magr.id)) return true;
+  const armpro = magicNegation(ctx);
+  const negated = !(ctx.rng.rn2(10) >= 3 * armpro);
+  if (negated && verbosely) say(ctx, 'mhitu.avoid_harm');
+  return negated;
+}
+
+/**
+ * The same against a monster defender ("The jackal avoids harm." when seen).
+ * ref: src/uhitm.c mhitm_mgc_atk_negated() with magic_negation(mdef)
+ */
+function mgcAtkNegatedMon(
+  ctx: Ctx,
+  magr: Entity,
+  mdef: Entity,
+  verbosely: boolean,
+  vis: boolean,
+): boolean {
+  if (isCancelled(ctx, magr.id)) return true;
+  const neg = !(ctx.rng.rn2(10) >= 3 * magicNegation(ctx, mdef.id));
+  if (neg && verbosely && vis && canSpotMon(ctx, mdef))
+    say(ctx, 'mhitm.avoids_harm', { mon: monNam(ctx, mdef) });
+  return neg;
+}
+
+// ---------------------------------------------------------------------------------------------
+// helpers
+
+/** ref: src/mhitu.c mpoisons_subj(): how a poison attack was delivered (a message key) */
+function poisonSubj(at: AttackDef['at']): string {
+  switch (at) {
+    case 'weapon':
+      return '@poison.subj.attack';
+    case 'touch':
+      return '@poison.subj.contact';
+    case 'gaze':
+      return '@poison.subj.gaze';
+    case 'bite':
+      return '@poison.subj.bite';
+    default:
+      return '@poison.subj.sting';
+  }
+}
+
+/** ref: src/mondata.c on_fire() for the monsters we have: hugs roast, the rest set you on fire */
+const onFire = (at: AttackDef['at']): string => (at === 'hug' ? '@mhitu.roasted' : '@mhitu.fire');
+
+/** ref: src/mhitm.c sleep_monst() (no resist() roll: how = -1) */
+function sleepMonst(ctx: Ctx, mdef: Entity, amt: number): boolean {
+  if (resists(ctx, mdef, 'sleep')) return false;
+  if (isFrozen(ctx, mdef.id)) return false;
+  paralyzeMonst(ctx, mdef.id, amt);
+  return true;
+}
+
+/** ref: include/mondata.h haseyes() */
+const haseyes = (ctx: Ctx, mon: Entity): boolean =>
+  mon.id === ctx.state.playerId || !ctx.defs.monster(mon.def).flags.includes('noeyes');
+
+/**
+ * The defender (the hero or a monster) cannot be blinded: already blind, unconscious, eyeless,
+ * asleep, or a monster with a blinding explosion or gaze of its own. ref: src/mondata.c
+ * resists_blnd() (no Sunsword)
+ */
+export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
+  if (mon.id === ctx.state.playerId) {
+    if (hasProp(mon, P.BLINDED) || unaware(ctx)) return true;
+  } else if (
+    !mcansee(ctx, mon.id) ||
+    !haseyes(ctx, mon) ||
+    mon.c.monster?.asleep === true // msleeping
+  )
+    return true;
+  if (mon.id === ctx.state.playerId) return false; // (polymorphed into a yellow light: 7f)
+  const def = ctx.defs.monster(mon.def);
+  return def.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze'));
+}
+
+/**
+ * Whether the attack of `magr` (null: no specific aggressor) of type `aatyp` can blind `mdef`.
+ * ref: src/mondata.c can_blnd(). Not ported: cream pies (no `u.ucreamed`), potions of blindness,
+ * blinding venom (step 5), visored helmets (helmet appearances are not shuffled here, so no helmet
+ * is a "visored helmet").
+ */
+export function canBlnd(
+  ctx: Ctx,
+  magr: Entity | null,
+  mdef: Entity,
+  aatyp: AttackDef['at'],
+): boolean {
+  const isYou = mdef.id === ctx.state.playerId;
+  // no eyes protect against all attacks for now
+  if (!haseyes(ctx, mdef)) return false;
+  // if monster has been permanently blinded, the deed is already done (mon_perma_blind())
+  if (!isYou && !mcansee(ctx, mdef.id) && mblinded(ctx, mdef.id) === 0) return false;
+  // a crow will not pluck out the eye of another crow
+  if (magr?.def === 'nh:raven' && mdef.def === 'nh:raven') return false;
+  const ublindf = isYou && whichArmor(ctx, mdef.id, 'blindfold') !== null;
+  switch (aatyp) {
+    case 'explode':
+    case 'boom':
+    case 'gaze':
+    case 'magic':
+    case 'breath':
+      // light-based attacks may be cancelled or resisted
+      if (magr && isCancelled(ctx, magr.id)) return false;
+      return !resistsBlnd(ctx, mdef);
+    case 'weapon':
+    case 'spit':
+    case 'passive':
+      return false; // other objects cannot cause blindness yet
+    case 'engulf':
+      if (isYou && (ublindf || unaware(ctx))) return false;
+      if (!isYou && mdef.c.monster?.asleep) return false;
+      break;
+    case 'claw':
+      // e.g. raven: all ublindf, including lenses, protect
+      if (ublindf) return false;
+      break;
+    case 'touch':
+    case 'sting':
+      // some physical, blind-inducing attacks can be cancelled
+      if (magr && isCancelled(ctx, magr.id)) return false;
+      break;
+    default:
+      break;
+  }
+  return true;
+}
+
+/**
+ * Takes one point of enchantment or charge off an object (a worn ring's attribute bonus with it);
+ * false if it has none to lose, or resists (1 time in 10). `byYou`: the hero did it (a shop bills
+ * her for its own goods). ref: src/zap.c drain_item() (no artifacts: defends(AD_DRLI) is never
+ * true; no gauntlets of dexterity or helms of brilliance in the subset, their cases kept)
+ */
+export function drainItem(ctx: Ctx, obj: Entity | null, byYou: boolean): boolean {
+  const it = obj?.c.item;
+  if (!obj || !it) return false;
+  const def = ctx.defs.object(obj.def);
+  const charged = def.class === 'wand' || CHARGED_RINGS.has(def.id);
+  if (
+    (!charged && def.class !== 'weapon' && def.class !== 'armor' && !isWeptool(def)) ||
+    it.spe <= 0
+  )
+    return false;
+  if (ctx.rng.rn2(100) < 10) return false; // obj_resists(obj, 10, 90)
+  // charge for the cost of the object
+  if (byYou && it.carriedBy === ctx.state.playerId) costlyAlteration(ctx, obj, 'drain', null);
+  it.spe--;
+  const uRing =
+    it.carriedBy === ctx.state.playerId && (it.equipped === 'ringL' || it.equipped === 'ringR');
+  const attr: Attr | null =
+    obj.def === 'nh:ring_of_gain_strength'
+      ? 'str'
+      : obj.def === 'nh:ring_of_gain_constitution'
+        ? 'con'
+        : obj.def === 'nh:ring_of_adornment'
+          ? 'cha'
+          : null;
+  // rings of increase accuracy/damage and protection are summed where they are used
+  const a = getPlayer(ctx.state).c.attributes;
+  if (attr && uRing && a) {
+    const base = a[attr] - abon(ctx.state, attr);
+    addAbon(ctx, attr, -1);
+    a[attr] = acurrClamp(attr, base + abon(ctx.state, attr));
+  }
+  return true;
+}
+
+/**
+ * A piece of the victim's armor: the cloak, suit or shirt, sometimes (1 in 4 each) the helmet,
+ * gloves, boots or shield instead. ref: src/do_wear.c some_armor()
+ */
+export function someArmor(ctx: Ctx, victim: EntityId): Entity | null {
+  let otmph =
+    whichArmor(ctx, victim, 'cloak') ??
+    whichArmor(ctx, victim, 'body') ??
+    whichArmor(ctx, victim, 'shirt');
+  for (const slot of ['helm', 'gloves', 'boots', 'shield'] as const) {
+    const otmp = whichArmor(ctx, victim, slot);
+    if (otmp && (!otmph || !ctx.rng.rn2(4))) otmph = otmp;
+  }
+  return otmph;
+}
+
+/** "Your X seems less effective." ref: Yobjnam2(obj, "seem") */
+function lessEffective(ctx: Ctx, obj: Entity): void {
+  const pl = (obj.c.item?.quantity ?? 1) !== 1 ? '_pl' : '';
+  say(ctx, `adtyp.less_effective${pl}`, { item: xnameOf(ctx.state, ctx.defs, obj) });
+}
+
+/**
+ * Hero or monster drained a monster's spell energy: casters and breathers wait d(2,2) more turns
+ * ("The kobold shaman seems lethargic."). ref: src/mhitm.c xdrainenergym()
+ */
+export function xdrainenergym(ctx: Ctx, mon: Entity, givemsg: boolean): void {
+  const def = ctx.defs.monster(mon.def);
+  if (
+    mspecUsed(ctx, mon.id) < 20 && // limit draining
+    def.attacks.some((a) => a.at === 'magic' || a.at === 'breath')
+  ) {
+    setMspecUsed(ctx, mon.id, mspecUsed(ctx, mon.id) + ctx.rng.d(2, 2));
+    if (givemsg) say(ctx, 'adtyp.lethargic', { mon: monNam(ctx, mon) });
+  }
+}
+
+/**
+ * The monster cannot teleport here ("A mysterious force prevents the jackal from teleporting!"
+ * when seen). ref: src/teleport.c tele_restrict()
+ */
+export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (level && noteleportLevel(ctx, level)) {
+    if (canSpotMon(ctx, mon)) say(ctx, 'adtyp.tele_restrict', { mon: monNam(ctx, mon) });
+    return true;
+  }
+  return false;
+}
+
+/** ref: include/mondata.h completelyrusts(), completelyrots() */
+const completely = (type: ErodeType, def: string): boolean =>
+  type === 'rust'
+    ? def === 'nh:iron_golem'
+    : type === 'rot'
+      ? def === 'nh:wood_golem' || def === 'nh:leather_golem'
+      : false;
+
+/** The hero's ACURR(A_DEX) and ACURR(A_CON). */
+const acurr = (ctx: Ctx, a: 'dex' | 'con'): number => getPlayer(ctx.state).c.attributes?.[a] ?? 10;
+
+// ---------------------------------------------------------------------------------------------
+// the damage types
+
+/** mhitm_ad_phys(): only the mhitm part (the mhitu weapon damage is added by combat.ts). */
+function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) return; // mhitu: combat.ts did dmgval()
+  // a kick against a thick-skinned monster does nothing; a weapon (on AT_WEAP or AT_CLAW) adds
+  // dmgval()
+  const pd = ctx.defs.monster(mdef.def);
+  if (atk.at === 'kick' && pd.flags.includes('thick_hide')) {
+    mhm.damage = 0;
+    return;
+  }
+  const mwep = env.mwep;
+  if (mwep && (atk.at === 'weapon' || atk.at === 'claw')) {
+    mhm.damage += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
+    if (mhm.damage < 1) mhm.damage = 1;
+    rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
+  }
+}
+
+function adElec(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  const damage = mhm.damage;
+  if (mdef.id === ctx.state.playerId) {
+    if (!mgcAtkNegated(ctx, magr, true)) {
+      say(ctx, 'mhitu.zapped');
+      if (hasProp(mdef, P.SHOCK_RES)) {
+        say(ctx, 'mhitu.zap_no_shock');
+        mhm.damage = 0;
+      }
+      if ((magr.c.monster?.level ?? 0) > ctx.rng.rn2(20))
+        destroyItems(ctx, mdef.id, 'elec', damage);
+    } else mhm.damage = 0;
+    return;
+  }
+  if (mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)) {
+    mhm.damage = 0;
+    return;
+  }
+  const seen = env.vis && canSpotMon(ctx, mdef);
+  if (seen) say(ctx, 'mhitm.zapped', { mon: monNam(ctx, mdef) });
+  if (resists(ctx, mdef, 'elec')) {
+    if (seen) say(ctx, 'mhitm.zap_no_shock', { mon: monNam(ctx, mdef) });
+    mhm.damage = 0;
+  }
+  mhm.damage += destroyItems(ctx, mdef.id, 'elec', damage);
+}
+
+function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  const damage = mhm.damage;
+  if (mdef.id === ctx.state.playerId) {
+    if (!mgcAtkNegated(ctx, magr, true)) {
+      say(ctx, 'mhitu.on_fire', { how: onFire(atk.at) });
+      if (hasProp(mdef, P.FIRE_RES)) {
+        say(ctx, 'mhitu.fire_not_hot');
+        mhm.damage = 0;
+      }
+      // burn_away_slime(): no sliming
+      if ((magr.c.monster?.level ?? 0) > ctx.rng.rn2(20)) {
+        destroyItems(ctx, mdef.id, 'fire', damage);
+        igniteItems(ctx, mdef.id);
+      }
+    } else mhm.damage = 0;
+    return;
+  }
+  if (mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)) {
+    mhm.damage = 0;
+    return;
+  }
+  const seen = env.vis && canSpotMon(ctx, mdef);
+  if (seen) say(ctx, 'mhitm.on_fire', { mon: monNam(ctx, mdef) });
+  if (resists(ctx, mdef, 'fire')) {
+    if (seen) say(ctx, 'mhitm.fire_no_burn', { mon: monNam(ctx, mdef) });
+    mhm.damage = 0;
+  }
+  // the defender's carried items burn, with the attack's original damage
+  const burnt = destroyItems(ctx, mdef.id, 'fire', damage);
+  igniteItems(ctx, mdef.id);
+  mhm.damage += burnt;
+}
+
+function adCold(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  const damage = mhm.damage;
+  if (mdef.id === ctx.state.playerId) {
+    if (!mgcAtkNegated(ctx, magr, true)) {
+      say(ctx, 'mhitu.frost');
+      if (hasProp(mdef, P.COLD_RES)) {
+        say(ctx, 'mhitu.frost_not_cold');
+        mhm.damage = 0;
+      }
+      if ((magr.c.monster?.level ?? 0) > ctx.rng.rn2(20))
+        destroyItems(ctx, mdef.id, 'cold', damage);
+    } else mhm.damage = 0;
+    return;
+  }
+  if (mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)) {
+    mhm.damage = 0;
+    return;
+  }
+  const seen = env.vis && canSpotMon(ctx, mdef);
+  if (seen) say(ctx, 'mhitm.frost', { mon: monNam(ctx, mdef) });
+  if (resists(ctx, mdef, 'cold')) {
+    if (seen) say(ctx, 'mhitm.frost_no_chill', { mon: monNam(ctx, mdef) });
+    mhm.damage = 0;
+  }
+  mhm.damage += destroyItems(ctx, mdef.id, 'cold', damage);
+}
+
+function adAcid(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    // one hit in three splashes you (a cancelled monster never)
+    if (!isCancelled(ctx, magr.id) && ctx.rng.rn2(3) === 0) {
+      if (hasProp(mdef, P.ACID_RES)) {
+        say(ctx, 'mhitu.acid_harmless');
+        mhm.damage = 0;
+      } else say(ctx, 'mhitu.acid_burns');
+    } else mhm.damage = 0;
+    return;
+  }
+  if (isCancelled(ctx, magr.id)) {
+    mhm.damage = 0;
+    return;
+  }
+  const seen = env.vis && canSpotMon(ctx, mdef);
+  if (resists(ctx, mdef, 'acid')) {
+    if (seen) say(ctx, 'mhitm.acid_harmless', { mon: monNam(ctx, mdef) });
+    mhm.damage = 0;
+  } else if (seen) {
+    say(ctx, 'mhitm.acid', { mon: monNam(ctx, mdef) });
+    say(ctx, 'mhitm.acid_burns', { mon: monNam(ctx, mdef) });
+  }
+  if (ctx.rng.rn2(30) === 0) erodeArmor(ctx, mdef.id, 'corrode');
+  if (ctx.rng.rn2(6) === 0) acidDamage(ctx, monWep(ctx, mdef.id));
+}
+
+function adSlee(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!mdef.c.helpless && ctx.rng.rn2(5) === 0 && !mgcAtkNegated(ctx, magr, true)) {
+      if (hasProp(mdef, P.SLEEP_RES)) return;
+      // ref: src/timeout.c fall_asleep(-rnd(10), TRUE)
+      stopOccupation(ctx);
+      nomulNow(ctx, ctx.rng.rnd(10), 'helpless.asleep', { key: 'eat.wake_up' });
+      say(ctx, 'mhitu.put_to_sleep', { mon: monNam(ctx, magr) });
+    }
+    return;
+  }
+  // `sleep_monst(rnd(10)) && sleep_monst(rnd(10))`. As in NetHack the second call fails (the
+  // target can no longer move), so it sleeps without the message.
+  if (
+    !mdef.c.monster?.asleep &&
+    sleepMonst(ctx, mdef, ctx.rng.rnd(10)) &&
+    sleepMonst(ctx, mdef, ctx.rng.rnd(10))
+  ) {
+    if (env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'mhitm.put_to_sleep', { mon: monNam(ctx, mdef), by: monNam(ctx, magr) });
+  }
+}
+
+/** mhitm_ad_drst(): AD_DRST, AD_DRDX and AD_DRCO */
+function adDrst(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    const typ = atk.ad === 'drco' ? 'con' : atk.ad === 'drdx' ? 'dex' : 'str';
+    const negated = mgcAtkNegated(ctx, magr, false);
+    if (!negated && ctx.rng.rn2(8) === 0) {
+      const name = monNam(ctx, magr);
+      poisoned(
+        ctx,
+        { key: 'mhitu.was_poisoned', params: { mon: name, subj: poisonSubj(atk.at) } },
+        typ,
+        name,
+        30,
+      );
+    }
+    return;
+  }
+  // `!negated && !rn2(8)` -> mhitm_really_poison()
+  const neg = mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  if (!neg && ctx.rng.rn2(8) === 0) {
+    if (env.vis && canSpotMon(ctx, magr))
+      say(ctx, 'mhitm.was_poisoned', { mon: monNam(ctx, magr) });
+    if (resists(ctx, mdef, 'poison')) {
+      if (env.vis && canSpotMon(ctx, mdef) && canSpotMon(ctx, magr))
+        say(ctx, 'mhitm.poison_no_effect', { mon: monNam(ctx, mdef) });
+    } else {
+      mhm.damage += ctx.rng.rn2(10) + 6; // rn1(10, 6)
+      if (mhm.damage >= (mdef.c.hp?.cur ?? 0) && env.vis && canSpotMon(ctx, mdef))
+        say(ctx, 'mhitm.poison_deadly');
+    }
+  }
+}
+
+function adStun(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!isCancelled(ctx, magr.id) && ctx.rng.rn2(4) === 0) {
+      makeStunned(ctx, timeoutLeft(ctx.state, mdef, P.STUNNED) + mhm.damage, true);
+      mhm.damage = Math.trunc(mhm.damage / 2);
+    }
+    return;
+  }
+  if (isCancelled(ctx, magr.id)) return;
+  if (canSpotMon(ctx, mdef)) say(ctx, 'mhitm.staggers', { mon: monNam(ctx, mdef) });
+  setMStunned(ctx, mdef.id, true);
+  adPhys(ctx, magr, atk, mdef, mhm, env);
+}
+
+function adPlys(
+  ctx: Ctx,
+  magr: Entity,
+  _atk: AttackDef,
+  mdef: Entity,
+  _mhm: Mhm,
+  env: AdEnv,
+): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!mdef.c.helpless && ctx.rng.rn2(3) === 0 && !mgcAtkNegated(ctx, magr, true)) {
+      if (hasProp(mdef, P.FREE_ACTION)) say(ctx, 'free_action.stiffen');
+      else {
+        say(ctx, 'mhitu.frozen_by', { mon: monNam(ctx, magr) });
+        nomulNow(ctx, ctx.rng.rnd(10), 'helpless.paralyzed', { key: 'eat.can_move_again' });
+      }
+    }
+    return;
+  }
+  if (
+    !isFrozen(ctx, mdef.id) &&
+    ctx.rng.rn2(3) === 0 &&
+    !mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)
+  ) {
+    if (env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'mhitm.frozen_by', { mon: monNam(ctx, mdef), by: monNam(ctx, magr) });
+    paralyzeMonst(ctx, mdef.id, ctx.rng.rnd(10));
+  }
+}
+
+function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    const negated = mgcAtkNegated(ctx, magr, false);
+    if (!negated && ustuck(ctx) === null) setUstuck(ctx, magr.id); // set_ustuck(magr)
+    return;
+  }
+  // C's mhitm branch draws the negation roll (`if (negated) damage = 0`); the port has always
+  // treated it as plain damage (see the plan's step 1 notes)
+  adPhys(ctx, magr, atk, mdef, mhm, env);
+}
+
+/** mhitm_ad_rust(), mhitm_ad_corr(), mhitm_ad_dcay(): erode a random piece of armor */
+function adErode(
+  type: ErodeType,
+): (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void {
+  return (ctx, magr, _atk, mdef, mhm, env) => {
+    // 7f: the polymorphed hero's touch (xkilled() of an iron/wood/leather golem)
+    if (mdef.id === ctx.state.playerId) {
+      if (isCancelled(ctx, magr.id)) return;
+      // completelyrusts(youmonst.data): only a polymorphed hero (7f)
+      erodeArmor(ctx, mdef.id, type);
+      return;
+    }
+    if (isCancelled(ctx, magr.id)) return;
+    if (completely(type, mdef.def)) {
+      // the life-saved case is hypothetical because life-saving doesn't work for golems
+      if (env.vis && canSpotMon(ctx, mdef))
+        say(ctx, 'adtyp.falls_to_pieces', { mon: monNam(ctx, mdef) });
+      const victimLevel = mdef.c.monster?.level ?? 0;
+      monkilled(ctx, mdef.id, false); // monkilled(mdef, (char *) 0, AD_RUST)
+      mhm.done = true;
+      if (ent(ctx, mdef.id)?.c.monster) {
+        mhm.hitflags = M_ATTK.MISS;
+        return;
+      }
+      const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
+      mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+      return;
+    }
+    erodeArmor(ctx, mdef.id, type);
+    mhm.damage = 0;
+  };
+}
+
+function adDren(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    const negated = mgcAtkNegated(ctx, magr, false);
+    if (!negated && !ctx.rng.rn2(4)) drainEn(ctx, mhm.damage, false); // 25% chance
+    mhm.damage = 0;
+    return;
+  }
+  const negated = mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  if (!negated && !ctx.rng.rn2(4))
+    xdrainenergym(ctx, mdef, env.vis && canSpotMon(ctx, mdef) && atk.at !== 'engulf');
+  mhm.damage = 0;
+}
+
+function adTlpt(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (mgcAtkNegated(ctx, magr, false)) say(ctx, 'adtyp.you_not_affected');
+    else {
+      // flags.verbose; no Teleport_control exists, so always "very "
+      say(ctx, 'adtyp.position_uncertain');
+      tele(ctx);
+      // make sure the damage isn't fatal (no Half_physical_damage, no polymorph)
+      const hp = getPlayer(ctx.state).c.hp;
+      if (hp && mhm.damage >= hp.cur) {
+        mhm.damage = hp.cur - 1;
+        if (mhm.damage < 1) {
+          // implies hp <= 1: the caller takes it straight back off
+          mhm.damage = 1;
+          if (hp.cur === 1) hp.cur++;
+        }
+      }
+    }
+    return;
+  }
+  const hp = mdef.c.hp;
+  if (isCancelled(ctx, magr.id) || mhm.damage >= (hp?.cur ?? 0) || teleRestrict(ctx, mdef)) {
+    // no negation message
+  } else if (mgcAtkNegatedMon(ctx, magr, mdef, true, env.vis)) {
+    if (env.vis) say(ctx, 'mhitm.not_affected', { mon: monNam(ctx, mdef) });
+  } else {
+    const wasseen = canSpotMon(ctx, mdef);
+    const name = monNam(ctx, mdef);
+    rlocMon(ctx, mdef, false);
+    if (env.vis && wasseen && !canSpotMon(ctx, mdef))
+      say(ctx, 'adtyp.suddenly_disappears', { mon: name });
+    if (hp && mhm.damage >= hp.cur) {
+      if (hp.cur === 1) hp.cur++;
+      mhm.damage = hp.cur - 1;
+    }
+  }
+}
+
+function adBlnd(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (canBlnd(ctx, magr, mdef, atk.at)) {
+      if (!hasProp(mdef, P.BLINDED)) say(ctx, 'adtyp.blinds_you', { mon: monNam(ctx, magr) });
+      makeBlinded(ctx, timeoutLeft(ctx.state, mdef, P.BLINDED) + mhm.damage, false);
+      // `if (!Blind) Your1(vision_clears)`: the Eyes of the Overworld do not exist
+    }
+    mhm.damage = 0;
+    return;
+  }
+  if (canBlnd(ctx, magr, mdef, atk.at)) {
+    if (env.vis && mcansee(ctx, mdef.id) && canSpotMon(ctx, mdef))
+      say(ctx, 'adtyp.is_blinded', { mon: monNam(ctx, mdef) }); // no Archon
+    let rndTmp = ctx.rng.d(atk.n, atk.d);
+    if ((rndTmp += mblinded(ctx, mdef.id)) > 127) rndTmp = 127;
+    setMblinded(ctx, mdef.id, rndTmp);
+  }
+  mhm.damage = 0;
+}
+
+/** ref: src/hacklib.c night(): there is no clock (see DEVIATIONS.md "No clock") */
+const night = (): boolean => false;
+
+function adCurs(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!night() && magr.def === 'nh:gremlin') return;
+    if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(10)) {
+      // never Deaf
+      if (hasProp(mdef, P.BLINDED)) say(ctx, 'adtyp.hear_laughter');
+      else say(ctx, 'adtyp.chuckles', { mon: monNam(ctx, magr) });
+      // u.umonnum == PM_CLAY_GOLEM: 7f
+      attrcurse(ctx); // mon_give_prop(magr, ...): monsters' intrinsics are not modelled
+    }
+    return;
+  }
+  if (!night() && magr.def === 'nh:gremlin') return;
+  if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(10)) {
+    setCancelled(ctx, mdef.id); // cancelled regardless of lifesave
+    // is_were(pd) && pd->mlet != S_HUMAN: were_change(mdef) (step 7)
+    if (mdef.def === 'nh:clay_golem') {
+      if (env.vis && canSpotMon(ctx, mdef)) {
+        say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
+        say(ctx, 'mhitm.is_destroyed', { mon: monNam(ctx, mdef) });
+      }
+      const victimLevel = mdef.c.monster?.level ?? 0;
+      mondied(ctx, mdef.id);
+      mhm.done = true;
+      if (ent(ctx, mdef.id)?.c.monster) {
+        mhm.hitflags = M_ATTK.MISS;
+        return;
+      }
+      const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
+      mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+      return;
+    }
+    if (!env.vis) say(ctx, 'adtyp.hear_laughter');
+    else if (canSpotMon(ctx, magr)) say(ctx, 'adtyp.chuckles', { mon: monNam(ctx, magr) });
+  }
+}
+
+function adEnch(
+  ctx: Ctx,
+  magr: Entity,
+  _atk: AttackDef,
+  mdef: Entity,
+  _mhm: Mhm,
+  _env: AdEnv,
+): void {
+  if (mdef.id !== ctx.state.playerId) return; // mhitm: there's no msomearmor(), so just damage
+  const negated = mgcAtkNegated(ctx, magr, false);
+  // uncancelled is sufficient enough; please don't make this attack less frequent
+  if (negated) return;
+  let obj = someArmor(ctx, mdef.id);
+  if (!obj) {
+    // some rings are susceptible; amulets and blindfolds aren't (at present)
+    const slot = (['', 'ringR', 'ringL', 'amulet', 'blindfold'] as const)[ctx.rng.rn2(5)];
+    obj = slot ? whichArmor(ctx, mdef.id, slot) : null;
+  }
+  if (obj && drainItem(ctx, obj, false)) lessEffective(ctx, obj);
+}
+
+function adSlow(
+  ctx: Ctx,
+  magr: Entity,
+  _atk: AttackDef,
+  mdef: Entity,
+  _mhm: Mhm,
+  env: AdEnv,
+): void {
+  const isYou = mdef.id === ctx.state.playerId;
+  const negated = isYou
+    ? mgcAtkNegated(ctx, magr, false)
+    : mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  // defended(mdef, AD_SLOW): no artifacts
+  if (isYou) {
+    // HFast: the intrinsic or a timed speed, not speed boots
+    const hfast = hasIntrinsic(mdef, P.FAST) || timeoutLeft(ctx.state, mdef, P.FAST) > 0;
+    if (!negated && hfast && !ctx.rng.rn2(4)) uSlowDown(ctx);
+    return;
+  }
+  if (!negated && mspeed(ctx, mdef.id) !== 'slow') {
+    const oldspeed = mspeed(ctx, mdef.id);
+    monAdjustSpeed(ctx, mdef, -1);
+    if (mspeed(ctx, mdef.id) !== oldspeed && env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'adtyp.slows_down', { mon: monNam(ctx, mdef) });
+  }
+}
+
+function adConf(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(4) && !mspecUsed(ctx, magr.id)) {
+      setMspecUsed(ctx, magr.id, mspecUsed(ctx, magr.id) + (mhm.damage + ctx.rng.rn2(6)));
+      say(ctx, hasProp(mdef, P.CONFUSION) ? 'adtyp.more_confused' : 'adtyp.getting_confused');
+      // make_confused(HConfusion + damage, FALSE)
+      makeConfused(ctx, timeoutLeft(ctx.state, mdef, P.CONFUSION) + mhm.damage, false);
+    }
+    mhm.damage = 0;
+    return;
+  }
+  // Since confusing another monster doesn't have a real time limit, setting spec_used would not
+  // really be right (though we still should check for it).
+  if (!isCancelled(ctx, magr.id) && !isMConfused(ctx, mdef.id) && !mspecUsed(ctx, magr.id)) {
+    if (env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'adtyp.looks_confused', { mon: monNam(ctx, mdef), more: '' });
+    setMConfused(ctx, mdef.id, true);
+  }
+}
+
+function adHalu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id !== ctx.state.playerId) {
+    if (!isCancelled(ctx, magr.id) && haseyes(ctx, mdef) && mcansee(ctx, mdef.id)) {
+      if (env.vis && canSpotMon(ctx, mdef))
+        say(ctx, 'adtyp.looks_confused', {
+          mon: monNam(ctx, mdef),
+          more: isMConfused(ctx, mdef.id) ? '@adtyp.more' : '',
+        });
+      setMConfused(ctx, mdef.id, true);
+    }
+  }
+  mhm.damage = 0;
+}
+
+function adLegs(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (mdef.id !== ctx.state.playerId) {
+    if (isCancelled(ctx, magr.id)) {
+      mhm.damage = 0;
+      return;
+    }
+    adPhys(ctx, magr, atk, mdef, mhm, env);
+    return;
+  }
+  const side = ctx.rng.rn2(2) ? RIGHT_SIDE : LEFT_SIDE;
+  const params = {
+    mon: monNam(ctx, magr),
+    side: `@adtyp.${side === RIGHT_SIDE ? 'right' : 'left'}`,
+  };
+  // This case is too obvious to ignore, but NetHack is not in general very good at considering
+  // height--most short monsters still _can_ attack you when you're flying or mounted.
+  if (levitating(ctx) && !ctx.defs.monster(magr.def).flags.includes('fly')) {
+    say(ctx, 'adtyp.tries_to_reach', params);
+    mhm.damage = 0;
+  } else if (isCancelled(ctx, magr.id)) {
+    say(ctx, 'adtyp.nuzzles', params);
+    mhm.damage = 0;
+  } else {
+    const uarmf = whichArmor(ctx, mdef.id, 'boots');
+    if (uarmf) {
+      if (ctx.rng.rn2(2) && (uarmf.def === 'nh:low_boots' || uarmf.def === 'nh:iron_shoes'))
+        say(ctx, 'adtyp.pricks_exposed', params);
+      else if (!ctx.rng.rn2(5)) say(ctx, 'adtyp.pricks_boot', params);
+      else {
+        say(ctx, 'adtyp.scratches_boot', params);
+        mhm.damage = 0;
+        return;
+      }
+    } else say(ctx, 'adtyp.pricks', params);
+    setWoundedLegs(ctx, ctx.rng.rnd(60 - acurr(ctx, 'dex')), side);
+    // exercise(A_STR, FALSE), exercise(A_DEX, FALSE): no exercise
+  }
+}
+
+/**
+ * The hero catches a terminal illness: "You feel deathly sick." (non-vomitable: no recovery
+ * roll when it runs out). ref: src/mhitu.c diseasemu() (no Sick_resistance exists)
+ */
+export function diseasemu(ctx: Ctx, magr: Entity): boolean {
+  const sick = hungerData(ctx).sick;
+  const xtime = sick ? Math.trunc(sick.remaining / 3) + 1 : ctx.rng.rn2(acurr(ctx, 'con')) + 20; // rn1(ACURR(A_CON), 20)
+  makeSick(ctx, xtime, `@${magr.def}`, true, SICK_NONVOMITABLE);
+  return true;
+}
+
+function adDise(
+  ctx: Ctx,
+  magr: Entity,
+  _atk: AttackDef,
+  mdef: Entity,
+  mhm: Mhm,
+  _env: AdEnv,
+): void {
+  if (mdef.id === ctx.state.playerId) {
+    if (!diseasemu(ctx, magr)) mhm.damage = 0;
+    return;
+  }
+  // protected monsters use the same criteria as for a poly'd hero gaining sick resistance (no
+  // artifacts or dragon scales guard against it here)
+  const pd = ctx.defs.monster(mdef.def);
+  if (pd.glyph.ch === 'F' || mdef.def === 'nh:ghoul') mhm.damage = 0;
+  // else does ordinary damage
+}
+
+type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
+
+const HANDLERS: Readonly<Record<string, Handler>> = {
+  stun: adStun,
+  legs: adLegs,
+  phys: adPhys,
+  fire: adFire,
+  cold: adCold,
+  elec: adElec,
+  acid: adAcid,
+  tlpt: adTlpt,
+  blnd: adBlnd,
+  curs: adCurs,
+  rust: adErode('rust'),
+  corr: adErode('corrode'),
+  dcay: adErode('rot'),
+  dren: adDren,
+  drst: adDrst,
+  drdx: adDrst,
+  drco: adDrst,
+  stck: adStck,
+  plys: adPlys,
+  slee: adSlee,
+  ench: adEnch,
+  slow: adSlow,
+  conf: adConf,
+  dise: adDise,
+  halu: adHalu,
+};
+
+/**
+ * The effect of the attack's damage type: updates `mhm` (the damage left to apply, or `done` with
+ * the result flags). `magr` attacks `mdef` (either may be the hero, `ctx.state.playerId`; a hero
+ * attacker is 7f). The hero may die inside (instadeath poison): check `ctx.state.gameOver`.
+ * ref: src/uhitm.c mhitm_adtyping(). C's default (`damage = 0`) is for types this port does not
+ * have; the types later m9 steps add (wrap, steal, engulf, stoning, drain, were...) still do plain
+ * damage here.
+ */
+export function mhitmAdtyping(
+  ctx: Ctx,
+  magrId: EntityId,
+  atk: AttackDef,
+  mdefId: EntityId,
+  mhm: Mhm,
+  env: AdEnv = { vis: false, mwep: null },
+): void {
+  const magr = ent(ctx, magrId);
+  const mdef = ent(ctx, mdefId);
+  if (!magr || !mdef) return;
+  if (magrId === ctx.state.playerId) return; // 7f: the polymorphed hero's damageum()
+  const h = HANDLERS[atk.ad] ?? adPhys;
+  h(ctx, magr, atk, mdef, mhm, env);
+}

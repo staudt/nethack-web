@@ -15,7 +15,7 @@ import { alignGname } from './align';
 import { carryingLuckstone, moreluck, stoneLuck } from './gem';
 import { hungerData } from './hunger';
 import { luckOf, uState } from './luck';
-import { magicNegation } from './mhitu';
+import { magicNegation } from './adtyping';
 import { canSafelyPray } from './pray';
 import {
   P,
@@ -128,8 +128,11 @@ export function enlightenment(ctx: Ctx): Msg[] {
     if (t) line('enl.you_are', { what: { key: 'enl.trapped_in', params: { trap: `@${t.def}` } } });
     else are('trapped');
   }
-  // the port's wounded legs are always the right leg (set_wounded_legs(RIGHT_SIDE, ...))
-  if (has(P.WOUNDED_LEGS)) have('wounded_right_leg');
+  // Wounded_leg_side: legs.ts keeps the EWounded_legs side bits (1 left, 2 right)
+  if (has(P.WOUNDED_LEGS)) {
+    const sides = (ctx.state.modData['nh'] as { legSides?: number } | undefined)?.legSides ?? 2;
+    have(sides === 3 ? 'wounded_legs' : sides === 1 ? 'wounded_left_leg' : 'wounded_right_leg');
+  }
   if (has(P.SLEEPY)) line('enl.sleepy');
   if (has(P.HUNGER)) line('enl.hunger_rapidly');
   // hunger status; "not hungry" too

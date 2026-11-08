@@ -10,7 +10,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { nhData } from './items';
-import { hungerData } from './uhunger';
+import { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE, hungerData, type Sick } from './uhunger';
 import { done } from './end';
 import { uState } from './luck';
 import { nomul } from './nomul';
@@ -19,6 +19,7 @@ import { CHARGED_RINGS } from './objects';
 import { P, hasProp, wornIn } from './props';
 
 export type { HungerData, Sick, Victual } from './uhunger';
+export { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE } from './uhunger';
 export { hungerData, initUhunger } from './uhunger';
 
 /** Hunger states in u.uhs order. ref: include/you.h */
@@ -271,11 +272,18 @@ export function newuhs(ctx: Ctx, incr: boolean, eating = false): void {
 // sickness (food poisoning)
 
 /**
- * Makes the hero deathly sick for `xtime` more turns, or (0) cures her. `killer` is a message
- * key naming the cause of death. ref: src/potion.c make_sick() with type SICK_VOMITABLE
- * (the only kind we have).
+ * Makes the hero deathly sick for `xtime` more turns, or (0) cures the `type` bits of her
+ * sickness ("You feel somewhat better." when only part of it goes). `killer` is a message key
+ * naming the cause of death. `type` defaults to SICK_VOMITABLE when making her sick (food
+ * poisoning) and SICK_ALL when curing. ref: src/potion.c make_sick() (no Sick_resistance exists)
  */
-export function makeSick(ctx: Ctx, xtime: number, killer: string, talk = true): void {
+export function makeSick(
+  ctx: Ctx,
+  xtime: number,
+  killer: string,
+  talk = true,
+  type: number = xtime > 0 ? SICK_VOMITABLE : SICK_ALL,
+): void {
   const hd = hungerData(ctx);
   const old = hd.sick?.remaining ?? 0;
   if (xtime > 0) {
@@ -285,12 +293,25 @@ export function makeSick(ctx: Ctx, xtime: number, killer: string, talk = true): 
         type: 'msg',
         key: xtime <= Math.trunc(old / 2) ? 'sick.much_worse' : 'sick.worse',
       });
-    hd.sick = { remaining: xtime, killer };
-  } else if (old > 0) {
-    hd.sick = null;
-    if (talk) ctx.emit({ type: 'msg', key: 'sick.cured' });
+    const t = (hd.sick ? sickType(hd.sick) : 0) | type;
+    // the type is kept only when it is not plain food poisoning (a missing field reads so)
+    hd.sick = { remaining: xtime, killer, ...(t !== SICK_VOMITABLE ? { type: t } : {}) };
+  } else if (hd.sick && old > 0 && type & sickType(hd.sick)) {
+    const left = sickType(hd.sick) & ~type;
+    if (left) {
+      // only partly cured
+      if (talk) ctx.emit({ type: 'msg', key: 'sick.somewhat_better' });
+      const { type: _gone, ...rest } = hd.sick;
+      hd.sick = { ...rest, remaining: old * 2, ...(left !== SICK_VOMITABLE ? { type: left } : {}) }; // approximation
+    } else {
+      hd.sick = null;
+      if (talk) ctx.emit({ type: 'msg', key: 'sick.cured' });
+    }
   }
 }
+
+/** u.usick_type of a sickness (a missing field is food poisoning). */
+export const sickType = (sick: Sick): number => sick.type ?? SICK_VOMITABLE;
 
 /** Whether the hero is sick. ref: Sick */
 export const isSick = (ctx: Pick<Ctx, 'state'>): boolean => hungerData(ctx).sick !== null;
@@ -307,10 +328,10 @@ function sicknessTimeout(ctx: Ctx): void {
   }
   sick.remaining -= 1;
   if (sick.remaining > 0) return;
-  // hero might be able to bounce back from food poisoning
+  // hero might be able to bounce back from food poisoning, but not other forms of illness
   const hero = getPlayer(ctx.state);
   const con = hero.c.attributes?.con ?? 10;
-  if (ctx.rng.rn2(100) < con) {
+  if ((sickType(sick) & SICK_NONVOMITABLE) === 0 && ctx.rng.rn2(100) < con) {
     ctx.emit({ type: 'msg', key: 'sick.recovered' });
     hd.sick = null;
     // adjattrib(A_CON, -1, 1): sustain ability keeps it
@@ -362,7 +383,7 @@ function vomitingTimeout(ctx: Ctx): void {
 
 /** ref: src/eat.c vomit(): cures food poisoning and leaves the hero helpless for 2 turns. */
 export function vomit(ctx: Ctx): void {
-  if (isSick(ctx)) makeSick(ctx, 0, '', true);
+  if (isSick(ctx)) makeSick(ctx, 0, '', true, SICK_VOMITABLE); // make_sick(0L, 0, TRUE, SICK_VOMITABLE)
   if (!isHelpless(ctx)) nomulNow(ctx, 2, 'helpless.vomiting', { key: 'eat.can_move_again' });
 }
 

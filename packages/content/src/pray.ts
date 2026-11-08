@@ -251,7 +251,7 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
 }
 
 /** ref: src/sit.c attrcurse(): takes away one intrinsic, starting at a random one */
-function attrcurse(ctx: Ctx): boolean {
+export function attrcurse(ctx: Ctx): boolean {
   const h = hero(ctx);
   // [prop, message] in attrcurse()'s order (teleportitis, invisibility, see invisible and
   // aggravation do not exist: their cases fall through)

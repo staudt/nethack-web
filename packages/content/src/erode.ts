@@ -283,7 +283,7 @@ export function passiveObj(ctx: Ctx, monDef: string, obj: Entity, mcan: boolean)
       if (!mcan) erodeObj(ctx, obj, null, 'corrode');
       break;
     default:
-      break; // AD_ENCH (drain_item) belongs to disenchanters, not in the roster
+      break; // AD_ENCH (drain_item()): adtyping.ts drainItem(), called by passive()/passivemm()
   }
 }
 
