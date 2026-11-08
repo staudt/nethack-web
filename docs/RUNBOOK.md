@@ -8,7 +8,19 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
-Run 3 (from 2026-11-07), budget **3M** with a fresh ledger section ("## Run 3"):
+Run 4 (from 2026-11-07), budget **6M** with a fresh ledger section ("## Run 4"). One chain of branches, each off the previous tip: `tools` off `m7e`, then `m7e` fast-forwarded to `tools` for the 7e rest, then `m9` off `m7e`, then `m10` off `m9`.
+
+1. **Speed-ups** (branch `tools` off `m7e`, two steps, no planning agent; golden must stay unchanged):
+   - Step A, **data converter**: a script under `packages/testkit` (or `tools/`, Node only, never imported by `core`/`content`) that parses `vendor/nethack/include/monsters.h` and `objects.h` into the content def format, plus a test that checks every existing `nh:` monster and object def against the C row (stats, attacks, flags, weight, cost, probability), with the known intentional differences listed in the test. It does not replace existing defs or add new ones yet. Document how a later milestone uses it to add a batch.
+   - Step B, **fast/slow tests and the port map**: split the slow random-play tests (soaks, golden, determinism, large replays) into a `slow` project or pattern, add `pnpm test:fast` for agents' iteration; `pnpm check` still runs everything. Generate `docs/PORTMAP.md` (NetHack file/function -> our file) from the `// ref:` citations with a script and `pnpm portmap`, and mention it in `CLAUDE.md`'s conventions so agents look things up there first.
+2. **Rest of 7e** (branch `m7e`: `git checkout m7e && git merge --ff-only tools`): steps 6-8 of `~/.claude/plans/m7e.md` (#untrap; breaking wands with explode(); shop damage and repair), kickoff `docs/kickoff-m7e.md`; then move the 7e leftovers off ROADMAP and append the TESTPLAN lines. The plan's "Run 3 stop" bullet lists what remains; webs stay deferred to the monster batch.
+3. **m9 damage types and attack styles** (branch `m9` off `m7e`, planning agent first): port the missing `AD_*` damage types and `AT_*` attack styles for all three directions (monster vs hero, hero vs monster, monster vs monster): stoning (and cockatrice corpses/eggs/touch), sliming, level drain, theft (nymph, leprechaun), engulfing/digestion, gaze, exploding monsters, rust/corrode/rot, lycanthropy, teleport, disease, hunger, sticky/wrap (drowning), curse items, slow, drain energy, and the passives. Add only the monsters needed to test them if any; the batch comes next. Polymorph-dependent effects go to 7f.
+4. **m10 monster batch 1** (branch `m10` off `m9`, planning agent first): with the step-A converter, add the vanilla monsters up to about difficulty 10 whose attacks now exist, with their corpse effects, generation flags and webs (spiders). Expect the golden and random-roll changes on every batch step: verified cause in each commit.
+5. **Draft only, read-only, alongside any step**: a planning agent writes `~/.claude/plans/m7f.md` (teleport control / position prompt, invisibility, statues, polymorph) with options and a recommendation each; nothing is built. Park it in `docs/DECISIONS-PENDING.md` for the user (the orchestrator commits that entry and `docs/kickoff-m7f.md` if the planner wrote its text into the plan file).
+
+Roles and races are not in this run (user, 2026-11-07).
+
+Run 3 (2026-11-07, stopped on budget at ~2.66M; `m8` finished, `m7e` steps 1-5):
 
 1. **Finish release polish**: m8 steps 3-6 on branch `m8` (plan `~/.claude/plans/m8-polish.md`, kickoff `docs/kickoff-m8.md`). The high-score format is approved (see `docs/DECISIONS-PENDING.md`), so step 4 is unblocked.
 2. **7e content-only leftovers**: branch `m7e` off `m8`; plan it (the 7e list in `docs/ROADMAP.md` "From 7d": #untrap, trapped doors/boxes, webs, rolling boulders, land mines, breaking wands, pick-axes), then its steps. Anything needing a core contract change goes to 7f / parked, not built.
@@ -30,7 +42,7 @@ Keep a ledger at `~/.claude/plans/overnight-ledger.md`: one line per agent with 
 
 Stop cleanly (finish nothing new, write the morning summary) when any of these happens:
 
-- **Budget:** the running total with margin reaches the run's budget (run 3: **3,000,000 tokens**). Never start an agent whose typical cost (300k for a step, 250k for a plan) would cross it.
+- **Budget:** the running total with margin reaches the run's budget (run 4: **6,000,000 tokens**). Never start an agent whose typical cost (300k for a step, 250k for a plan) would cross it.
 - **Red check:** `pnpm check` fails after one retry and one fix agent.
 - **Unexplained golden:** a step changes the golden hash without a verified cause in its commit body.
 - **Design stop:** an agent stops on a design question it says is costly to get wrong.
@@ -39,8 +51,8 @@ Stop cleanly (finish nothing new, write the morning summary) when any of these h
 
 ## For each step
 
-1. Spawn one `general-purpose` agent with the step brief below. Do not run two agents that write to the repo at the same time. A read-only planning agent may run alongside a step agent.
-2. When it reports, verify yourself: `git status` clean, the commit is there, then `pnpm check` (with `export PATH=$HOME/.local/share/pnpm/bin:$PATH`). Before running it make sure no other `vitest`/`tsc` run is active.
+1. Spawn one `general-purpose` agent with the step brief below. Model tiering (run 4): porting mechanics, planning and fix agents use the default (Opus); docs-only wrap-ups, TESTPLAN sections and pure data batches use `model: sonnet`. Do not run two agents that write to the repo at the same time. A read-only planning agent may run alongside a step agent.
+2. When it reports, verify yourself: `git status` clean and the commit is there. Then, from run 4, verify **in the verify worktree** so the next step can start at once: `git -C <verify> checkout -q --detach <hash>` (create it once with `git worktree add --detach /home/ricardo/git/nethack-verify <hash>`), `pnpm install --frozen-lockfile --offline` there only if the lockfile changed, then `pnpm check` there (with `export PATH=$HOME/.local/share/pnpm/bin:$PATH`), in the background, and spawn the next step agent meanwhile. Record and push only once that check is green; if it is red, stop the next agent, then follow the failure rule below. Never run two verify checks at once.
    - A timeout or SIGKILL (exit 137) under load: rerun once on a quiet machine.
    - A real failure: one fix agent (brief: the failing output, fix it in a new commit, same rules). Still red: stop.
 3. Record the step in the ledger and one line in the memory file `m6-choice.md` (or the current milestone's memory file): commit hash, what it did.
