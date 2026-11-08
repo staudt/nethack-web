@@ -67,6 +67,19 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
   12. Monster blindness in content state.
   13. A sickness type flag (food poisoning vs illness).
 
+- **m10 taken defaults** (2026-11-07, all cheap, planner's recommendations, faithful to NetHack 3.7):
+  1. Add the missing `MonsterSound` names (shriek, cuss, sqawk, neigh, trumpet, imitate, burble) to core in step 1 (additive).
+  2. Snakes and spiders made with a level get C's random object but don't hide yet (hiding needs 7f); DEVIATIONS row.
+  3. Mimics, piercers, black light and stalker wait for 7f.
+  4. Unicorns deferred to a "unicorns and the unicorn horn" milestone.
+  5. Human, elf, giant and ettin rows added as corpse targets for zombies and mummies.
+  6. Port monster HP regeneration (missing today) in step 4; moves the golden.
+  7. No globs for gray ooze and brown pudding yet; DEVIATIONS row.
+  8. Tengu corpses give a real teleport-control intrinsic that does nothing until 7f, keeping C's draws.
+  9. Purple worms attack shriekers only if monster-vs-monster targeting exists; otherwise DEVIATIONS.
+  10. Batches: 1 early animals/humanoids, 2 spiders and webs, 3 blobs/jellies/vortices/spheres/elementals, 4 undead/imps/regeneration/teleporters, 5 armed humanoids/trolls/eaters; cut 5 first, then step 3's elementals.
+  11. Port the dog/cat eating penalty with cannibalism in step 4.
+
 ## Approved
 
 - **m7b boulders and Sokoban: four core contract questions** (2026-11-04, approved by the user 2026-11-06: all four recommendations taken). The plan (`~/.claude/plans/m7b-sokoban.md`, `docs/kickoff-m7b.md`, 8 steps: 7b1 boulders/pits/scroll of earth, 7b2 Oracle + Sokoban) needs these core changes, each marked costly to undo by the planner:
