@@ -43,7 +43,7 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 - **m8 player name on the device only** (2026-11-07): not in `GameState`.
 - **m8 help text** (2026-11-07): from `help.cmd.*` messages and `action.<id>` labels, no ClientApi change.
 - **m8 deferred** (2026-11-07): conduct, dungeon overview, genocide lists and game-side options (autopickup) go to ROADMAP.
-- **m7e trapped-door spots** (2026-11-07): a transient optional `Level.trappedDoorSpots?: Pos[]` from core levelgen, read and deleted by content on the level's first build (same pattern as the approved `boulderSpots`); never saved. Fallback if refused: door booby traps move to 7f.
+- **m7e trapped-door spots** (2026-11-07): a transient optional `Level.trappedDoorSpots?: Pos[]` from core levelgen, read and deleted by content on the level's first build (same pattern as the approved `boulderSpots`); never saved. **Approved by the user 2026-11-07** (tested trapped doors on the phone).
 - **m7e trapped boxes** (2026-11-07): in content state `modData.nh.otrapped`, not a core item field (as `mcan`).
 - **m7e explosions on screen** (2026-11-07): the existing `'ray'` event with `kind: 'explosion'` and cell offsets; no new core event.
 - **m7e webs deferred** (2026-11-07): they need giant/cave spiders, which shift every monster roll.
@@ -64,8 +64,13 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 ## Approved by the user (m8)
 
 - **m8 high-score storage format** (2026-11-07): the user approved the planner's recommendation as written. localStorage key `nh.topten` holding `{format:'nh-ts-topten', version:1, entries}`, top 100, each entry the rendered English line plus seed, date and app version. Unblocks m8 step 4.
-  - To review (step 4, fdeec33): each entry stores the end's parts as rendered (the `EndSummary` fields: name, codes, death words, points, depths, hit points) plus seed, date and app version, and `entryText()` joins them for display, rather than one finished line. Same key, wrapper and cap. Nothing is on `main` yet, so switching to a single line is still cheap.
+  - Entry shape (step 4, fdeec33): each entry stores the end's parts as rendered (the `EndSummary` fields) plus seed, date and app version; `entryText()` joins them for display. **Kept by the user 2026-11-07.**
 
 ## Parked
 
-(none)
+- **7f core contracts** (2026-11-07). Plan draft: `~/.claude/plans/m7f.md` (summary at the top; ~16 steps, ~4.8M, after m9/m10). Costly to undo, need the user:
+  - **D1 position prompt:** new `Prompt.kind: 'position'` (optional `start`, `valid`), answered `{x, y}` or null; UI reuses the getpos cursor, on a phone tap moves and a second tap picks. In replays, UI hosts and the soak bot.
+  - **D3 remembered `I`:** a `monsterMemory` entry that is not a MonsterDef id becomes a marker; kept on visible cells, so `ViewCell.m` may appear on visible cells. In saves; renderer meaning changes.
+  - **D5 polymorphed hero:** the hero keeps the role def; the form lives in content (`modData.nh.upoly`), no `player.form` in core. In saves.
+  - **D6 hero HP while polymorphed:** the form's HP goes into `c.hp`, her own is parked in `upoly`, so damage paths stay as they are. In saves.
+  - Cheap ones (D2, D4, D7-D11) and seven small open questions (jumping, cloak of invisibility, centaurs, stone-to-flesh meat, statue colour, polymorph scope cuts, two-run split): take the plan's recommendations, faithful to NetHack (user guidance 2026-11-07), unless the user says otherwise.
