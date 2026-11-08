@@ -3,6 +3,7 @@
 // ref: src/shknam.c shtypes[], shkliquors[] .. shkhealthfoods[], veggy_item(), saleable()
 import type { Ctx, DefId, Entity, ObjectClass, ObjectDef } from '@nh/core';
 import type { Eshk } from './eshk';
+import { vegetarian } from './mondata';
 
 // ---------------------------------------------------------------------------------------------
 // shopkeeper names. ref: src/shknam.c shkliquors[] .. shkhealthfoods[] (shktools[] without the
@@ -548,17 +549,9 @@ export function shopType(id: DefId | undefined): ShopType | null {
 // ---------------------------------------------------------------------------------------------
 // vegetarian food
 
-/**
- * ref: include/mondata.h vegetarian(): vegan (blobs, jellies, fungi, vortices, lights,
- * elementals but stalkers; no golems or ghosts in the roster) or a pudding but the black one
- */
-function vegetarianMon(ctx: Pick<Ctx, 'defs'>, id: DefId): boolean {
-  if (!ctx.defs.isMonster(id)) return false;
-  const ch = ctx.defs.monster(id).glyph.ch;
-  if ('bjFvy'.includes(ch)) return true;
-  if (ch === 'E') return id !== 'nh:stalker';
-  return ch === 'P' && id !== 'nh:black_pudding';
-}
+/** ref: include/mondata.h vegetarian() of a monster type id */
+const vegetarianMon = (ctx: Pick<Ctx, 'defs'>, id: DefId): boolean =>
+  ctx.defs.isMonster(id) && vegetarian(ctx.defs.monster(id));
 
 /**
  * The object (or, with `obj` null, the object type `def`) is vegetarian food; for a type, one

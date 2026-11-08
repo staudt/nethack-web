@@ -24,6 +24,7 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:magic_trap': 'magic trap',
   'nh:anti_magic_field': 'anti-magic field',
   'nh:web': 'web',
+  'nh:statue_trap': 'statue trap',
 
   'trap.escape': 'You escape {trap|an}.',
   'trap.found': 'You find {trap|an}.',

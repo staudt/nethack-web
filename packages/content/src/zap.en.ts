@@ -111,6 +111,10 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.hear_shatter': 'You hear something shatter!',
   'zap.boulder_falls_apart': 'The boulder falls apart.',
   'zap.mon_shatters': 'The {mon} shatters.',
+  'zap.stf.blood_drips': 'Blood drips on your face.',
+  'zap.stf.blood_pools': 'Blood pools at your feet.',
+  'zap.stf.blood_pools_beneath': 'Blood pools beneath your feet.',
+  'zap.stf.smell_meat': 'You smell the odor of meat.',
   'zap.hear_crumbling': 'You hear a crumbling sound.',
 
   // doorlock(), boxlock(), obstructed()

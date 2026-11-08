@@ -20,8 +20,10 @@
 // Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
-// statue traps, drawbridges, the ray animation. Striking and force bolt break statues
-// (statue.ts breakStatue()); probing lists what a statue holds.
+// drawbridges, the ray animation. Striking and force bolt break statues
+// (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
+// holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
+// cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
 import {
   DIRS,
   DIR_LIST,
@@ -57,7 +59,8 @@ import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped, unaware } from './btrapped';
 import { BOULDER, blockersOf, fractureRock } from './boulder';
-import { breakStatue } from './statue';
+import { activateStatueTrap, breakStatue } from './statue';
+import { stoneToFleshObj } from './stoneflesh';
 import { STATUE } from './statuestate';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
@@ -103,7 +106,9 @@ import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
 import { TRAP, dotrap, isMagicalTrap, mintrap, tele, teleControlled, uTeleportMon } from './trap';
 import { setStasis } from './teleport';
-import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
+import { isMtrapped, levitating, setMtrapped, setUtrap, utrap } from './trapstate';
+import { fixPetrification, isStoned } from './stonestate';
+import { merged } from './items';
 import { checkUnpaid, costlyAlteration } from './shk';
 import { payForDamage } from './shkpay';
 import { SHOP_DOOR_COST, addDamage, addShopDamage } from './shopdamage';
@@ -163,6 +168,7 @@ export const SPE = {
   forceBolt: 'nh:spellbook_of_force_bolt',
   sleep: 'nh:spellbook_of_sleep',
   healing: 'nh:spellbook_of_healing',
+  stoneToFlesh: 'nh:spellbook_of_stone_to_flesh',
 } as const;
 
 /**
@@ -886,6 +892,9 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       rloco(ctx, obj);
       res = 1;
       break;
+    case SPE.stoneToFlesh:
+      res = stoneToFleshObj(ctx, obj);
+      break;
     case WAN.undeadTurning: {
       // eggs: nothing hatches yet (revive_egg() not ported)
       if (obj.def !== CORPSE || bypassed.has(obj.id)) break;
@@ -921,6 +930,13 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
 /** ref: src/zap.c bhitpile(): every object on the square; the number affected */
 export function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number {
   let hit = 0;
+  const otyp = otypOf(src);
+  if (otyp === WAN.striking || otyp === SPE.forceBolt) {
+    // a statue trap there brings its statue to life before the pile is hit
+    const levelId = heroPos(ctx).level;
+    const t = trapHere(levelOf(ctx), x, y);
+    if (t?.def === TRAP.statue && activateStatueTrap(ctx, levelId, t, true)) learn(ctx, src);
+  }
   for (const o of itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y)) {
     if (!ctx.state.entities[String(o.id)]) continue;
     hit += bhito(ctx, o, src, x, y);
@@ -1003,8 +1019,9 @@ function isFurniture(ctx: Ctx, level: Level, x: number, y: number): boolean {
  * or pit, or sets off the trap door, hole or pit she stands on; locking down springs a bear
  * trap on her or turns a hole into a trap door; striking up dislodges a rock (2 times in 3),
  * down shatters a trap door into a hole she may fall through. Then a down zap hits the objects
- * under her (teleportation sends them away). ref: src/zap.c zap_updown() (no drawbridges,
- * engravings, quest stairs, stone to flesh or hiding under objects)
+ * under her (teleportation sends them away); stone to flesh bleeds from the ceiling or pools at
+ * her feet when nothing lies there. ref: src/zap.c zap_updown() (no drawbridges,
+ * engravings, quest stairs or hiding under objects)
  */
 function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
   const otyp = otypOf(src);
@@ -1032,6 +1049,12 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
         if (utrap(ctx)) disclose = openholdingtrap(ctx, null).noticed || disclose;
         else disclose = openfallingtrap(ctx, null, false).noticed || disclose;
       }
+      break;
+    case SPE.stoneToFlesh:
+      // (no air or water levels, no engravings)
+      if (dir === 'up') say(ctx, 'zap.stf.blood_drips');
+      else if (itemsHere(ctx, x, y).length === 0)
+        say(ctx, levitating(ctx) ? 'zap.stf.blood_pools_beneath' : 'zap.stf.blood_pools');
       break;
     case WAN.striking:
     case SPE.forceBolt:
@@ -1111,7 +1134,8 @@ function findit(ctx: Ctx): number {
       scorrs++;
     }
     const t = trapHere(level, x, y);
-    if (t && !t.seen) {
+    // ("shouldn't successful 'find' reveal and activate statue traps?")
+    if (t && !t.seen && t.def !== TRAP.statue) {
       t.seen = true;
       traps++;
     }
@@ -1516,6 +1540,37 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       const dmg = ctx.rng.d(speOf(src), 25) + ctx.rng.rnd(25);
       if (!blind(ctx) && !h.c.helpless) learnIt = true; // flashburn() blinded her
       flashburn(ctx, dmg);
+      break;
+    }
+    case SPE.stoneToFlesh: {
+      // (no stone golem form)
+      if (isStoned(ctx.state)) {
+        learnIt = true;
+        fixPetrification(ctx); // saved!
+      }
+      // but at a cost..
+      const { x, y } = heroPos(ctx);
+      for (const o of inventoryOf(ctx.state, h.id)) {
+        if (!ent(ctx, o.id)) continue;
+        if (bhito(ctx, o, src, x, y)) learnIt = true;
+      }
+      // it is possible that we can now merge some inventory (not worn items)
+      let didmerge: boolean;
+      do {
+        didmerge = false;
+        const inv = inventoryOf(ctx.state, h.id);
+        for (let i = 0; !didmerge && i < inv.length; i++) {
+          const a = inv[i];
+          if (!a?.c.item || a.c.item.equipped !== null) continue;
+          for (let j = i + 1; j < inv.length; j++) {
+            const b = inv[j];
+            if (b && merged(ctx, a, b)) {
+              didmerge = true;
+              break;
+            }
+          }
+        }
+      } while (didmerge);
       break;
     }
     case WAN.nothing:

@@ -64,7 +64,7 @@ export function shkYour(ctx: Ctx, obj: Entity, cap: boolean): Msg {
 }
 
 /** The shopkeeper of the shop at x,y of her level. ref: shop_keeper(*in_rooms(x, y, SHOPBASE)) */
-function shopAt(ctx: Ctx, x: number, y: number): Entity | null {
+export function shopAt(ctx: Ctx, x: number, y: number): Entity | null {
   const level = getLevel(ctx.state);
   const room = inRooms(level, x, y).find((r) => isShopType(level.rooms[r]?.type));
   const id = room === undefined ? null : shopKeeper(ctx, level.id, room);

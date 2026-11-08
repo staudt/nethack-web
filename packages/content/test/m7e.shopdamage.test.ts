@@ -292,34 +292,43 @@ describe('what damages a shop', () => {
 
 describe('repairs', () => {
   /** The keeper paid off (peaceful, at home), the hero back out on the corridor. */
-  function paidOff(): ReturnType<typeof shop> {
-    for (let seed = 1; seed < 40; seed++) {
+  function paidOff(from = 1): ReturnType<typeof shop> & { seed: number } {
+    for (let seed = from; seed < from + 40; seed++) {
       const s = shop(seed);
       run(s.state, breakDoor);
       if (!s.state.pendingPrompt) continue;
       answer(s.state, true);
       Object.assign(getPlayer(s.state).c.pos!, { x: 8, y: 2 });
-      return s;
+      return { ...s, seed };
     }
     throw new Error('never asked');
   }
 
   test('REPAIR_DELAY turns later: "Suddenly, the shop door reappears!" (closed)', () => {
-    const s = paidOff();
-    const when = damageList(s, 'dlvl1')[0]?.when ?? 0;
-    const out: string[] = [];
-    for (let i = 0; i < 20 && damageList(s, 'dlvl1').length; i++)
-      out.push(...texts(engine.stepAll(s.state, { type: 'wait' }).events));
-    expect(terrainIdAt(s.level, DOOR.x, DOOR.y)).toBe(T.door_closed);
-    expect(damageList(s, 'dlvl1')).toEqual([]);
-    expect(s.state.turn - when).toBeGreaterThanOrEqual(5);
-    expect(out).toContain('Suddenly, the shop door reappears!');
-    // seen: "Izchak whispers an incantation."; unseen but close: muttering
-    expect(
-      out.some((m) =>
-        /^(\w+ whispers an incantation|You hear someone muttering an incantation)\.$/.test(m),
-      ),
-    ).toBe(true);
+    // searched: the first paid-off game where the keeper repairs it within BOLT_LIM / 2 of her
+    // (from afar he "whispers something")
+    let close = 0;
+    for (let from = 1; from < 200 && !close;) {
+      const s = paidOff(from);
+      from = s.seed + 1;
+      const when = damageList(s, 'dlvl1')[0]?.when ?? 0;
+      const out: string[] = [];
+      for (let i = 0; i < 20 && damageList(s, 'dlvl1').length; i++)
+        out.push(...texts(engine.stepAll(s.state, { type: 'wait' }).events));
+      expect(terrainIdAt(s.level, DOOR.x, DOOR.y)).toBe(T.door_closed);
+      expect(damageList(s, 'dlvl1')).toEqual([]);
+      expect(s.state.turn - when).toBeGreaterThanOrEqual(5);
+      expect(out).toContain('Suddenly, the shop door reappears!');
+      if (out.some((m) => /^\w+ whispers something\.$/.test(m))) continue;
+      // seen: "Izchak whispers an incantation."; unseen but close: muttering
+      expect(
+        out.some((m) =>
+          /^(\w+ whispers an incantation|You hear someone muttering an incantation)\.$/.test(m),
+        ),
+      ).toBe(true);
+      close++;
+    }
+    expect(close).toBe(1);
   });
 
   test('a rebuilt wall pushes objects into the shop; boulders merge into it', () => {

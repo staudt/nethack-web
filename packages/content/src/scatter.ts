@@ -1,7 +1,7 @@
 // Objects blown or knocked about: a land mine's blast, kicked coins, a bag of holding's explosion.
 // ref: src/explode.c scatter()
 //
-// Not ported: the ball and chain (none exist), statue traps (a statue's is deleted), shop
+// Not ported: the ball and chain (none exist), shop
 // billing for gold blown out of a shop (credit_report(), addtobill(): see DEVIATIONS.md, Shop
 // damage), sinks under a flying object stop it as in NetHack but nothing else (pools, lava) does.
 import {
@@ -11,6 +11,7 @@ import {
   isVisible,
   itemsAt,
   itemShownId,
+  trapAt,
   type Ctx,
   type Entity,
   type EntityId,
@@ -28,7 +29,7 @@ import { placeOnFloor, splitStack, weight } from './items';
 import { breaktest } from './material';
 import { xnameOf } from './objnam';
 import { ohitmon, thitu } from './mthrowu';
-import { cansee } from './trap';
+import { TRAP, cansee } from './trap';
 import { T, terrainIdAt } from './terrain';
 
 /**
@@ -112,7 +113,9 @@ export function scatter(
         fractureRock(ctx, otmp, false);
         // (fracture_rock() restacks another boulder here to the top: boulders always are)
       } else {
-        // (no statue traps to delete)
+        const level = ctx.state.levels[levelId];
+        if (level && trapAt(level, sx, sy)?.def === TRAP.statue)
+          ctx.removeTrap(levelId, { x: sx, y: sy }); // deltrap()
         if (cansee(ctx, levelId, sx, sy))
           say(ctx, 'statue.crumbles', { item: xnameOf(ctx.state, ctx.defs, otmp) });
         else say(ctx, 'statue.hear_crumbling');

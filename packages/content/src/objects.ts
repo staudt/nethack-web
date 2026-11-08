@@ -1954,6 +1954,68 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     food: { nutrition: 0 },
   },
+  // ref: objects.h FOOD("meatball", 0, 1, 1, 0, FLESH, 5, CLR_BROWN, MEATBALL)
+  // (this one and the next three are made only by stone to flesh: stoneflesh.ts)
+  {
+    id: 'nh:meatball',
+    nameKey: 'nh:meatball',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 1,
+    cost: 5,
+    material: 'flesh',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 5 },
+  },
+  // ref: objects.h FOOD("meat stick", 0, 1, 1, 0, FLESH, 5, CLR_BROWN, MEAT_STICK)
+  {
+    id: 'nh:meat_stick',
+    nameKey: 'nh:meat_stick',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 1,
+    cost: 5,
+    material: 'flesh',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 5 },
+  },
+  // ref: objects.h FOOD("enormous meatball", 0, 20, 400, 0, FLESH, 2000, CLR_BROWN, ENORMOUS_MEATBALL)
+  // (formerly "huge chunk of meat")
+  {
+    id: 'nh:enormous_meatball',
+    nameKey: 'nh:enormous_meatball',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 400,
+    cost: 105,
+    material: 'flesh',
+    merge: true,
+    magic: false,
+    delay: 20,
+    food: { nutrition: 2000 },
+  },
+  // ref: objects.h OBJECT(OBJ("meat ring", NoDes), BITS(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, FLESH), 0, FOOD_CLASS, 0, 1, 5, 1, 0, 0, 0, 0, 5, CLR_BROWN, MEAT_RING)
+  {
+    id: 'nh:meat_ring',
+    nameKey: 'nh:meat_ring',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 5,
+    cost: 1,
+    material: 'flesh',
+    merge: false,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 5 },
+  },
 
   // ---- coin ----
   // ref: objects.h COIN("gold piece", 1000, GOLD, 1, GOLD_PIECE)
@@ -2265,6 +2327,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   spellbook('protection', 18, 3, 1, true, WHITE),
   // ref: objects.h SPELL("jumping", "thin", P_ESCAPE_SPELL, 20, 3, 1, 1, IMMEDIATE, HI_PAPER, SPE_JUMPING)
   spellbook('jumping', 20, 3, 1, true, WHITE),
+  // ref: objects.h SPELL("stone to flesh", "thick", P_HEALING_SPELL, 15, 1, 3, 1, IMMEDIATE, HI_PAPER, SPE_STONE_TO_FLESH)
+  spellbook('stone_to_flesh', 15, 1, 3, true, WHITE),
   // ref: objects.h SPELL("blank paper", "plain", P_NONE, 18, 0, 0, 0, 0, HI_PAPER, SPE_BLANK_PAPER)
   spellbook('blank_paper', 18, 0, 0, false, WHITE, 'plain_spellbook'),
 ];

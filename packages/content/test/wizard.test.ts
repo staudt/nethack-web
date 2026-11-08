@@ -998,7 +998,7 @@ describe('wiz:cast', () => {
   const known = (state: GameState): unknown =>
     (state.modData['nh'] as Record<string, unknown>)['spells'];
 
-  test('a menu of the nine castable books; dismissing it does nothing', () => {
+  test('a menu of the ten castable books; dismissing it does nothing', () => {
     const state = warmGame(51);
     const turn = state.turn;
     wizard.step(state, CAST);
@@ -1014,6 +1014,7 @@ describe('wiz:cast', () => {
       'cure blindness',
       'protection',
       'jumping',
+      'stone to flesh',
     ]);
     expect(p?.options?.map((o) => o.value)).toEqual([...CAST_BOOKS]);
     expect(msgs(answerPrompt(state, null))).toEqual([]);

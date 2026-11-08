@@ -104,13 +104,14 @@ function depthOf(ctx: Pick<MkobjCtx, 'state'>, level: LevelId | undefined): numb
 }
 
 /**
- * A random monster type for a corpse, like the level's monsters.
+ * A random monster type for a corpse, like the level's monsters (`minadj`/`maxadj` widen the
+ * difficulty window: rndmonnum_adj(); 0, 0 is rndmonnum()).
  * ref: src/mkobj.c rndmonnum_adj(): plan A is rndmonst(); plan B (nothing eligible) is any
  * common monster, picked uniformly from the whole table (our table has no G_NOGEN/UNIQ rows to
  * skip except those flagged so).
  */
-export function rndmonnum(ctx: MkobjCtx, depth: number): MonsterDef {
-  const m = rndmonst(ctx, depth);
+export function rndmonnum(ctx: MkobjCtx, depth: number, minadj = 0, maxadj = 0): MonsterDef {
+  const m = rndmonst(ctx, depth, minadj, maxadj);
   if (m) return m;
   const all = ctx.defs.monsters.filter(
     (d) => !d.genFlags.includes('nogen') && !d.genFlags.includes('uniq'),

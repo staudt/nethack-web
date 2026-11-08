@@ -132,6 +132,7 @@ export const TRAP = {
   magic: 'nh:magic_trap',
   antiMagic: 'nh:anti_magic_field',
   web: 'nh:web',
+  statue: 'nh:statue_trap',
 } as const;
 
 /** The two spiders that spin webs and walk them freely. ref: include/mondata.h webmaker() */
@@ -175,6 +176,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.magic, nameKey: TRAP.magic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.antiMagic, nameKey: TRAP.antiMagic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.web, nameKey: TRAP.web, glyph: { ch: '"', fg: GRAY } }, // S_web
+  { id: TRAP.statue, nameKey: TRAP.statue, glyph: { ch: '^', fg: GRAY } }, // S_statue_trap
 ];
 
 /**
@@ -186,16 +188,19 @@ export const floorTrigger = (def: DefId): boolean =>
   def !== TRAP.levelTele &&
   def !== TRAP.magic &&
   def !== TRAP.antiMagic &&
-  def !== TRAP.web;
+  def !== TRAP.web &&
+  def !== TRAP.statue;
 
 /**
  * The effects of a trap kind whose code sits above this module: the magic trap and the
  * anti-magic field (magictrap.ts, which reaches dog.ts and read.ts, both importers of this
- * module), handed in at registration as levitation.ts's float-down trap is.
+ * module), handed in at registration as levitation.ts's float-down trap is. `made` runs when
+ * maketrap() makes one (the statue trap's statue); `inMklev` is C's gi.in_mklev.
  */
 export interface TrapEffect {
   you(ctx: Ctx, trap: Trap): void;
   mon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult;
+  made?(ctx: Ctx, levelId: string, trap: Trap, inMklev: boolean): void;
 }
 const lateEffects: Record<string, TrapEffect> = {};
 
@@ -301,7 +306,14 @@ function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: numbe
  * `add_damage(x, y, 0L)`). Returns the trap as stored.
  * ref: src/trap.c maketrap() (the parts for our trap types)
  */
-export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: DefId): Trap {
+export function maketrap(
+  ctx: Ctx,
+  levelId: string,
+  x: number,
+  y: number,
+  def: DefId,
+  opts: { inMklev?: boolean } = {},
+): Trap {
   const level = getLevel(ctx.state, levelId);
   const old = trapAt(level, x, y);
   // ref: maketrap(): a hero caught in a bear trap, web or pit that is replaced by another kind is
@@ -328,7 +340,10 @@ export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: D
     t.data = { launch, launch2 };
   }
   ctx.placeTrap(levelId, t);
-  return trapAt(level, x, y) ?? t;
+  const placed = trapAt(level, x, y) ?? t;
+  // STATUE_TRAP: mk_trap_statue() (statue.ts)
+  lateEffects[def]?.made?.(ctx, levelId, placed, opts.inMklev === true);
+  return placed;
 }
 
 /**
@@ -1131,6 +1146,8 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
         isWhirly(def) ||
         def.flags.includes('unsolid')
       );
+    case TRAP.statue:
+      return true;
     case TRAP.magic:
       return true; // usually
     case TRAP.antiMagic:
@@ -2184,7 +2201,8 @@ export function uTeleportMon(ctx: Ctx, mon: Entity, feedback: boolean): boolean 
 
 /**
  * Searching may find an unseen trap next to the hero. ref: src/detect.c dosearch0() `!rnl(8)`,
- * find_trap(). Returns true when one was found.
+ * find_trap(); a statue trap is set off instead (activate_statue_trap()), which ends the search.
+ * Returns 'found', 'statue' or null.
  */
 export function findTrapAt(
   ctx: Ctx,
@@ -2192,13 +2210,17 @@ export function findTrapAt(
   x: number,
   y: number,
   rnl8: () => number,
-): boolean {
+): 'found' | 'statue' | null {
   const t = trapAt(level, x, y);
-  if (!t || t.seen || rnl8() !== 0) return false;
+  if (!t || t.seen || rnl8() !== 0) return null;
   ctx.interrupt(); // nomul(0)
+  if (t.def === TRAP.statue) {
+    lateEffects[t.def]?.you(ctx, t);
+    return 'statue';
+  }
   t.seen = true;
   say(ctx, 'trap.found', { trap: trapName(t) });
-  return true;
+  return 'found';
 }
 
 interface IdArgs {
@@ -2278,6 +2300,7 @@ export function plunge(ctx: Ctx, t: Trap): number {
  * door only where there is a level below and nothing holds her. ref: src/trap.c float_down()
  */
 function floatDownTrap(ctx: Ctx, trap: Trap): void {
+  if (trap.def === TRAP.statue) return;
   if (isHole(trap.def)) {
     const level = getLevel(ctx.state, heroPos(ctx).level);
     if (!canFallThru(ctx.state, level) || ustuck(ctx) !== null) return;

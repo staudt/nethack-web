@@ -191,6 +191,14 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:carrot.plural': 'carrots',
   'nh:corpse': '{mon} corpse',
   'nh:corpse.plural': '{mon} corpses',
+  'nh:meatball': 'meatball',
+  'nh:meatball.plural': 'meatballs',
+  'nh:meat_stick': 'meat stick',
+  'nh:meat_stick.plural': 'meat sticks',
+  'nh:enormous_meatball': 'enormous meatball',
+  'nh:enormous_meatball.plural': 'enormous meatballs',
+  'nh:meat_ring': 'meat ring',
+  'nh:meat_ring.plural': 'meat rings',
 
   // ---- coin ----
   'nh:gold_piece': 'gold piece',
@@ -730,6 +738,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:spellbook_of_protection.plural': 'spellbooks of protection',
   'nh:spellbook_of_jumping': 'spellbook of jumping',
   'nh:spellbook_of_jumping.plural': 'spellbooks of jumping',
+  'nh:spellbook_of_stone_to_flesh': 'spellbook of stone to flesh',
+  'nh:spellbook_of_stone_to_flesh.plural': 'spellbooks of stone to flesh',
   'nh:spellbook_of_blank_paper': 'spellbook of blank paper',
   'nh:spellbook_of_blank_paper.plural': 'spellbooks of blank paper',
   'nh:plain_spellbook.desc': 'plain spellbook',

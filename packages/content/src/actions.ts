@@ -801,7 +801,9 @@ function dosearch0(ctx: Ctx, aflag: boolean): void {
           if (found > 0) return;
         } else if (!aflag) unmapInvisible(ctx, x, y);
         // ref: dosearch0(): `(trap = t_at(x, y)) && !trap->tseen && !rnl(8)` -> find_trap()
-        findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state)));
+        // a statue trap goes off instead of being found, and the search ends
+        if (findTrapAt(ctx, level, x, y, () => rnl(ctx.rng, 8, luckOf(ctx.state))) === 'statue')
+          return;
       }
     }
   }

@@ -8,10 +8,12 @@
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
 // a shop are owed (stolen_value()), and a shop door broken by a kick is damage he wants paid for
 // (add_damage(), pay_for_damage()); kicked gold (costly_gold(): no loan) is not.
-// Also not ported: traps, boxes and chests, thrones, fountains, graves, trees, sinks,
+// Also not ported: traps but statue traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import { bareCorpseTouch } from './stonetouch';
+import { activateStatueTrap } from './statue';
+import { TRAP } from './trap';
 import {
   DIRS,
   DIR_LIST,
@@ -19,6 +21,7 @@ import {
   cellIndex,
   cellRules,
   getLevel,
+  trapAt,
   getPlayer,
   inBounds,
   inRooms,
@@ -326,6 +329,12 @@ function bhitKicked(
 function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir): boolean {
   // a boulder does not move: the kick hurts (kick_ouch())
   if (pile.def === BOULDER) return false;
+  // a statue trap there sets its statue off instead (pits and webs are not ported here)
+  const trap = trapAt(getLevel(ctx.state), x, y);
+  if (trap?.def === TRAP.statue) {
+    activateStatueTrap(ctx, ctx.state.currentLevel, trap, false);
+    return true;
+  }
   const it = pile.c.item;
   const pos = hero(ctx).c.pos;
   if (!it || !pos) return false;

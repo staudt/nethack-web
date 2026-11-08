@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3198 citations.
+152 NetHack files, 3217 citations.
 
 ## dat/dungeon.lua
 
@@ -263,6 +263,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_giant()`: `packages/content/src/givit.ts`
 - `is_human()`: `packages/content/src/werestate.ts`
 - `is_mercenary()`: `packages/content/src/mongear.ts`
+- `is_unicorn()`: `packages/content/src/statue.ts`
 - `is_wanderer()`: `packages/content/src/monmove.ts`
 - `is_watch()`: `packages/content/src/watch.ts`
 - `is_were()`: `packages/content/src/werestate.ts`
@@ -284,7 +285,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `tunnels()`: `packages/content/src/mdig.ts`
 - `unsolid()`: `packages/content/src/mhitm.ts`
 - `vegan()`: `packages/content/src/dog.ts`, `packages/content/src/meat.ts`
-- `vegetarian()`: `packages/content/src/shtypes.ts`
+- `vegetarian()`: `packages/content/src/mondata.ts`, `packages/content/src/shtypes.ts`
 - `verysmall()`: `packages/content/src/monmove.ts`
 - `webmaker()`: `packages/content/src/trap.ts`
 
@@ -348,7 +349,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
@@ -1306,7 +1307,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_allowflags()`: `packages/content/src/monmove.ts`
 - `mondead()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
 - `mondied()`: `packages/content/src/mondeath.ts`
-- `mongone()`: `packages/content/src/fountain.ts`
+- `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/statue.ts`
 - `monkilled()`: `packages/content/src/mondeath.ts`
 - `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`
 - `monster_census()`: `packages/content/src/wizard/genesis.ts`
@@ -1579,7 +1580,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/read.c
 
 - (file): `packages/content/src/wizard/genesis.ts`
-- `cant_revive()`: `packages/content/src/revive.ts`
+- `cant_revive()`: `packages/content/src/revive.ts`, `packages/content/src/statue.ts`
 - `create_particular()`: `packages/content/src/wizard/genesis.ts`
 - `create_particular_creation()`: `packages/content/src/wizard/genesis.ts`
 - `create_particular_parse()`: `packages/content/src/wizard/genesis.ts`
@@ -1940,7 +1941,9 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/magictrap.ts`, `packages/core/src/types/mod.ts`
 - `acid_damage()`: `packages/content/src/erode.ts`
+- `activate_statue_trap()`: `packages/content/src/statue.ts`
 - `adj_nonconjoined_pit()`: `packages/content/src/trap.ts`
+- `animate_statue()`: `packages/content/src/statue.ts`
 - `b_trapped()`: `packages/content/src/btrapped.ts`
 - `blindgas()`: `packages/content/src/chesttrap.ts`
 - `blow_up_landmine()`: `packages/content/src/landmine.ts`
@@ -1986,6 +1989,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_finish_sokoban()`: `packages/content/src/sokoban.ts`
 - `minstapetrify()`: `packages/content/src/stoning.ts`
 - `mintrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `mk_trap_statue()`: `packages/content/src/statue.ts`
 - `mkroll_launch()`: `packages/content/src/trap.ts`
 - `move_into_trap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `mu_maybe_destroy_web()`: `packages/content/src/trap.ts`
@@ -2006,6 +2010,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapeffect_magic_trap()`: `packages/content/src/magictrap.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `trapeffect_rolling_boulder_trap()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
+- `trapeffect_statue_trap()`: `packages/content/src/statue.ts`
 - `trapeffect_web()`: `packages/content/src/trap.ts`
 - `trapnote()`: `packages/content/src/trap.en.ts`
 - `try_disarm()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
@@ -2193,19 +2198,21 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flash_str()`: `packages/content/src/buzz.ts`
 - `flashburn()`: `packages/content/src/buzz.ts`
 - `fracture_rock()`: `packages/content/src/boulder.ts`
-- `get_obj_location()`: `packages/content/src/chesttrap.ts`
+- `get_obj_location()`: `packages/content/src/chesttrap.ts`, `packages/content/src/stoneflesh.ts`
 - `inventory_resistance_check()`: `packages/content/src/erode.ts`
 - `learnwand()`: `packages/content/src/zap.ts`
 - `makewish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/wish.ts`
 - `maybe_destroy_item()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `mon_spell_hits_spot()`: `packages/content/src/buzz.ts`
 - `obj_resists()`: `packages/content/src/meat.ts`
+- `poly_obj()`: `packages/content/src/stoneflesh.ts`
 - `probe_monster()`: `packages/content/src/zap.ts`
 - `release_hold()`: `packages/content/src/zap.ts`
 - `resist()`: `packages/content/src/buzz.ts`
 - `revive()`: `packages/content/src/revive.ts`
 - `spell_damage_bonus()`: `packages/content/src/spellcalc.ts`
 - `spell_hit_bonus()`: `packages/content/src/spellcalc.ts`
+- `stone_to_flesh_obj()`: `packages/content/src/stoneflesh.ts`
 - `tmp_at()`: `packages/content/src/dothrow.ts`
 - `u_adtyp_resistance_obj()`: `packages/content/src/erode.ts`
 - `ubuzz()`: `packages/content/src/zap.ts`

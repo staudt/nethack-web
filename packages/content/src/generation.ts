@@ -54,15 +54,18 @@ function alignShift(_def: MonsterDef): number {
 }
 
 /**
- * A random monster type appropriate for a level of difficulty `depth` (and the hero's level).
+ * A random monster type appropriate for a level of difficulty `depth` (and the hero's level),
+ * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()).
  * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling; returns null if none qualify.
  */
 export function rndmonst(
   ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
   depth: number,
+  minadj = 0,
+  maxadj = 0,
 ): MonsterDef | null {
-  const minmlev = monminDifficulty(depth);
-  const maxmlev = monmaxDifficulty(depth, heroLevel(ctx));
+  const minmlev = monminDifficulty(depth) + minadj;
+  const maxmlev = monmaxDifficulty(depth, heroLevel(ctx)) + maxadj;
   let total = 0;
   let selected: MonsterDef | null = null;
   for (const def of ctx.defs.monsters) {
