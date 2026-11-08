@@ -52,7 +52,7 @@ import {
   stockShops,
 } from '../src/index';
 import { messagesEn } from '../src/messages.en';
-import { P, setItimeout } from '../src/props';
+import { P, setIntrinsic, setItimeout } from '../src/props';
 import { tamedog } from '../src/dog';
 import { wakeup } from '../src/peaceful';
 import { shkArrivals } from '../src/shk';
@@ -615,6 +615,23 @@ describe('entering a shop', () => {
     // the way in is free
     expect(said(move('w'))).toEqual([]);
     expect(getPlayer(s.state).c.pos).toMatchObject(SHK_SPOT);
+  });
+
+  test('an invisible customer is not welcome, and he stays on his spot in her way (7f-b)', () => {
+    const { s, shk, move } = izchak();
+    setIntrinsic(getPlayer(s.state), P.INVIS, true);
+    expect(said(move('w'))).toEqual([
+      'Izchak senses your presence.',
+      '"Invisible customers are not welcome!"',
+    ]);
+    // no extra move, and at his normal speed he never steps out of her way
+    shk.c.actor.speed = 16;
+    for (let t = 0; t < 60; t++) {
+      s.engine.step(s.state, { type: 'wait' });
+      expect(shk.c.pos).toMatchObject(SHK_SPOT);
+    }
+    expect(said(move('w'))).toEqual([]);
+    expect(getPlayer(s.state).c.pos).toMatchObject({ x: 6, y: 2 });
   });
 });
 

@@ -89,6 +89,10 @@ export const monInvisible = (ctx: Pick<Ctx, 'state'>, mon: Entity): boolean =>
 export const monPermInvisible = (ctx: Pick<Ctx, 'state'>, mon: Entity): boolean =>
   (bits(ctx.state, mon) & PERMINVIS) !== 0;
 
+/** `mon->invis_blkd`: something it wears (a mummy wrapping) blocks its invisibility. */
+export const invisBlocked = (ctx: Pick<Ctx, 'state'>, mon: Entity): boolean =>
+  (bits(ctx.state, mon) & INVIS_BLKD) !== 0;
+
 function setFlags(ctx: Pick<Ctx, 'state'>, mon: Entity, minvis: boolean, perm: boolean): void {
   const b = bits(ctx.state, mon) & INVIS_BLKD;
   setBits(ctx.state, mon, b | (minvis ? MINVIS : 0) | (perm ? PERMINVIS : 0));

@@ -266,8 +266,9 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
  * or electricity in a real explosion (mon_explodes()), a yellow light's blinding blast (a long
  * blindness unless she cannot be blinded), a black light's hallucination. "The X explodes!"
  * first; "You seem unaffected by it." when she was not. Wakes monsters within 7 squares.
- * ref: src/mhitu.c explmu() (`ufound` is always true: no displacement; no artifact defense,
- * no polymorph forms)
+ * Aimed at a wrong guess (`ufound` false: she is invisible to it), "The X explodes at a spot in
+ * thin air!" and she is not affected. ref: src/mhitu.c explmu() (no displacement, artifact
+ * defense or polymorph forms)
  */
 export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): number {
   if (isCancelled(ctx, mon.id)) return M_ATTK.MISS;
@@ -277,7 +278,11 @@ export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): 
   let notAffected = false; // defended(mtmp, adtyp): no artifacts
   const tmp = ctx.rng.d(atk.n, atk.d);
   const name = monNam(ctx, mon);
-  if (ufound) say(ctx, 'combat.mon_explodes', { mon: name }); // hitmsg()
+  if (!ufound)
+    say(ctx, canseemon(ctx, mon) ? 'mhitu.explodes_thin_air' : 'mhitu.it_explodes_thin_air', {
+      mon: name,
+    });
+  else say(ctx, 'combat.mon_explodes', { mon: name }); // hitmsg()
   const dead = (): boolean => !ctx.state.entities[String(mon.id)]?.c.monster;
   switch (atk.ad) {
     case 'cold':

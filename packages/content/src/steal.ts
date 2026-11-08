@@ -33,7 +33,7 @@ import { nomulNow } from './hunger';
 import { setAfternmv, setAfternmvKey, setStealIds, stealIds } from './nomul';
 import { armorSimpleName, doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, someMonNam } from './perception';
-import { cloakOff } from './invis';
+import { cloakOff, monInvisible, perceives, seeInvisible } from './invis';
 import { P, hasProp, updateWornProps } from './props';
 import { subfrombill } from './shk';
 import { teleRestrict } from './teleport';
@@ -482,8 +482,9 @@ setAfternmv('unstolenarm', unstolenarm);
  * Whether the attacker could seduce the defender with this attack (or at all, with `atk` null):
  * 0 no, 1 yes, 2 "wrong gender for a nymph" (still steals, "engagingly"). Only nymphs (and
  * incubi/succubi, not in the roster) with a theft or seduction damage type.
- * ref: src/mhitu.c could_seduce() (no invisibility; the hero is female; monsters have no gender
- * of their own yet, so one not flagged female counts as male: DEVIATIONS "Theft")
+ * An invisible seducer cannot seduce a defender that does not see invisible.
+ * ref: src/mhitu.c could_seduce() (the hero is female; monsters have no gender of their own yet,
+ * so one not flagged female counts as male: DEVIATIONS "Theft")
  */
 export function couldSeduce(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -499,6 +500,12 @@ export function couldSeduce(
   const has = (ad: string): boolean => pagr.attacks.some((a) => a.ad === ad);
   let adtyp = atk ? atk.ad : has('ssex') ? 'ssex' : has('sedu') ? 'sedu' : 'phys';
   if (adtyp === 'ssex') adtyp = 'sedu'; // !SYSOPT_SEDUCE: DECISIONS m9 taken default 7
+  // agrinvis && !defperc
+  const defperc =
+    mdef.id === ctx.state.playerId
+      ? seeInvisible(ctx.state)
+      : perceives(ctx.defs.monster(mdef.def));
+  if (monInvisible(ctx, magr) && !defperc && adtyp === 'sedu') return 0;
   if (!isNymph(pagr) || (adtyp !== 'sedu' && adtyp !== 'sitm')) return 0;
   return female(magr) === 1 - female(mdef) ? 1 : 2;
 }

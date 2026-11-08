@@ -45,7 +45,9 @@ import {
 } from './mongear';
 import { mattackRanged } from './mthrowu';
 import { P, conflictOn, heroHas, resistConflict } from './props';
-import { fightm } from './mhitm';
+import { fightm, mattackm } from './mhitm';
+import { M_ATTK } from './adtyping';
+import { couldseeAt, invisTo, setApparxy } from './apparxy';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
@@ -84,7 +86,7 @@ import { T, isObstructedId } from './terrain';
 import { digAbility, mDigweaponCheck, mayDig, mdigTunnel, needsPick, tunnels } from './mdig';
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
-import { monInvisible } from './invis';
+import { heroInvisible, monInvisible } from './invis';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -200,7 +202,7 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
 export interface Candidate {
   x: number;
   y: number;
-  /** The square holds the hero (ALLOW_U). */
+  /** The square holds the hero, or is where the monster thinks she is (ALLOW_U). */
   hero: boolean;
   /** The monster on the square (only with `allowM`: ALLOW_M). */
   mon?: EntityId;
@@ -239,7 +241,18 @@ export function mfndpos(
   rules: CellRules,
   id: EntityId,
   heroPos: Pos,
-  opts: { allowM?: boolean; allowTraps?: boolean; allowU?: boolean; allowDig?: boolean } = {},
+  opts: {
+    allowM?: boolean;
+    allowTraps?: boolean;
+    allowU?: boolean;
+    allowDig?: boolean;
+    /**
+     * Where the monster thinks the hero is (C's mux/muy, setApparxy()): that square is an
+     * ALLOW_U one too, with whatever monster stands there; when her own square is next to it,
+     * the guess is set to her ("it found you").
+     */
+    guess?: Pos;
+  } = {},
 ): Candidate[] {
   const { e, m, pos, def } = monCount(ctx, id);
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
@@ -309,8 +322,15 @@ export function mfndpos(
       // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
       // or out of an intact door
       if (diagonal && (noDiag(def) || rules.intactDoor[here] || rules.intactDoor[to])) continue;
-      const isHero = nx === heroPos.x && ny === heroPos.y;
-      const occupant = isHero ? undefined : taken.get(cellIndex(level, nx, ny));
+      const realHero = nx === heroPos.x && ny === heroPos.y;
+      const g = opts.guess;
+      // ref: mfndpos(): "If it's right next to you, it found you, displaced or no."
+      if (realHero && g) {
+        g.x = heroPos.x;
+        g.y = heroPos.y;
+      }
+      const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
+      const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));
       if (isHero) {
         if (!(opts.allowU ?? !m.peaceful)) continue; // no ALLOW_U
       } else if (occupant !== undefined && !opts.allowM) {
@@ -556,10 +576,12 @@ export function moveSpecial(ctx: Ctx, id: EntityId, heroPos: Pos, o: MoveSpecial
  * A temple priest's move: -1 outside his temple (the normal AI moves him). Peaceful, he mills
  * around his altar keeping out of the hero's lines; angry, he attacks her when next to her and
  * chases her while she is in his temple and he sees her. Returns as {@link moveSpecial}.
- * Under Conflict a peaceful priest that does not resist acts as an angry one.
- * ref: src/priest.c pri_move() (no displacement or invisibility)
+ * Under Conflict a peaceful priest that does not resist acts as an angry one. A peaceful one does
+ * not keep out of the lines of an invisible hero; an angry one chases her only while he can see
+ * her. `ap` is where he thinks she is (mattacku()'s target).
+ * ref: src/priest.c pri_move() (no displacement)
  */
-export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
+export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos = heroPos): -2 | -1 | 0 | 1 {
   const { e, m, pos, def } = monCount(ctx, id);
   const epri = epriOf(ctx, id);
   if (!epri || !histempleAt(ctx, epri, pos.x, pos.y)) return -1;
@@ -570,20 +592,24 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   let avoid = true;
   if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
     if (monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
-      monsterAttack(ctx, id);
+      monsterAttack(ctx, id, ap);
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
     }
     const level = getLevel(ctx.state, pos.level);
     if (inRooms(level, heroPos.x, heroPos.y).includes(temple)) {
-      // chase the hero if inside the temple and he can see her
+      // chase the hero if inside the temple and he can see her (mcansee && m_canseeu())
       const opaque = cellRules(level, ctx.defs).opaque;
-      if (clearPath(level, opaque, pos.x, pos.y, heroPos.x, heroPos.y, blockersOf(ctx, level.id))) {
+      if (
+        mcansee(ctx, id) &&
+        !invisTo(ctx, e) &&
+        clearPath(level, opaque, pos.x, pos.y, heroPos.x, heroPos.y, blockersOf(ctx, level.id))
+      ) {
         ggx = heroPos.x;
         ggy = heroPos.y;
       }
       avoid = false;
     }
-  }
+  } else if (heroInvisible(ctx.state)) avoid = false;
   return moveSpecial(ctx, id, heroPos, { appr: 1, avoid, goal: { x: ggx, y: ggy } });
 }
 
@@ -598,9 +624,12 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
  * Under Conflict a peaceful one next to her that does not resist attacks her too.
  * In his shop he first repairs damage whose time has come (shk_fixes_damage()); while she digs a
  * hole in his shop he comes to her as it nears completion (holetime()).
- * ref: src/shk.c shk_move() (no displacement, invisibility or steeds)
+ * An invisible hero gets none of the peaceful keeper's manners: he heads for his spot by the door
+ * and stays there, in her way; angry, he goes for her only while he can see her. `ap` is where
+ * he thinks she is (mattacku()'s target).
+ * ref: src/shk.c shk_move() (no displacement or steeds)
  */
-export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
+export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos = heroPos): -2 | -1 | 0 | 1 {
   const eshk = eshkOf(ctx, id);
   if (!eshk) return -1;
   if (eshk.shoplevel !== monCount(ctx, id).pos.level && !eshk.following) return -1;
@@ -612,7 +641,7 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   if (udist < 3) {
     // ANGRY(shkp) || (Conflict && !resist_conflict(shkp))
     if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
-      monsterAttack(ctx, id); // mattacku()
+      monsterAttack(ctx, id, ap); // mattacku()
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
     }
     if (eshk.following) {
@@ -644,13 +673,19 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
     gtx = heroPos.x;
     gty = heroPos.y;
   } else if (!m.peaceful) {
-    // move towards the hero if the shopkeeper can see him
+    // move towards the hero if the shopkeeper can see him (mcansee && m_canseeu())
     const level = getLevel(ctx.state, pos.level);
     const opaque = cellRules(level, ctx.defs).opaque;
-    if (clearPath(level, opaque, omx, omy, heroPos.x, heroPos.y, blockersOf(ctx, level.id))) {
+    if (
+      mcansee(ctx, id) &&
+      !invisTo(ctx, e) &&
+      clearPath(level, opaque, omx, omy, heroPos.x, heroPos.y, blockersOf(ctx, level.id))
+    ) {
       gtx = heroPos.x;
       gty = heroPos.y;
     }
+  } else if (heroInvisible(ctx.state)) {
+    avoid = false; // (`Invis || u.usteed`)
   } else {
     uondoor = heroPos.x === eshk.shd.x && heroPos.y === eshk.shd.y;
     // she is on his door with a mattock: he stands in her way
@@ -679,21 +714,25 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
 
 /**
  * Chooses and performs one step. ref: src/monmove.c m_move() and postmov().
- * The goal is where the monster thinks the hero is (set_apparxy: the true position, since we
- * have no invisibility or displacement). appr is 1 (approach) for hostiles, -1 (flee) for
- * fleeing monsters, 0 (wander) for peacefuls and, one time in three, for bats. Monsters walk to and pick up items they want
- * (m_search_items, mpickstuff). Not ported: ranged
- * "balking", tracking the hero's trail, tunneling, special movers, traps.
+ * The goal is where the monster thinks the hero is (`ap`, set_apparxy(), guessed again here unless
+ * dochug()'s guess found her; mfndpos() sets it to her when she is next to it). appr is 1
+ * (approach) for hostiles, -1 (flee) for fleeing monsters, 0 (wander) for peacefuls, blind
+ * monsters, 10 times in 11 for one she is invisible to that should see her, and, one time in
+ * three, for bats. Monsters walk to and pick up items they want (m_search_items, mpickstuff).
+ * Stepping toward the wrong guess attacks whatever monster is there (m_move_aggress()). Not
+ * ported: ranged "balking", tracking the hero's trail, tunneling, special movers, traps.
  */
-function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
+function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   const { m, pos, def } = monCount(ctx, id);
   const level = getLevel(ctx.state, pos.level);
   const rules = cellRules(level, ctx.defs);
+  // ref: m_move(): "Where does 'mtmp' think you are?"
+  Object.assign(ap, setApparxy(ctx, monCount(ctx, id).e, ap));
 
   // ref: m_move(): "likewise for shopkeeper, guard, or priest"; -1 (a priest outside his
   // temple, a shopkeeper following the hero) goes on with the normal AI
   if (epriOf(ctx, id) || eshkOf(ctx, id)) {
-    const xm = epriOf(ctx, id) ? priMove(ctx, id, heroPos) : shkMove(ctx, id, heroPos);
+    const xm = epriOf(ctx, id) ? priMove(ctx, id, heroPos, ap) : shkMove(ctx, id, heroPos, ap);
     if (xm === -2) return 'died';
     if (xm === 1) return postmovMoved(ctx, id, level, rules);
     if (xm === 0) return 'nothing';
@@ -716,14 +755,27 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   // (and the engulfer holding her stays where she is: DEVIATIONS "Engulfing")
   const sw = uswallow(ctx);
   if (sw && (sw.mon === id || !isFleeing(ctx, id))) return sw.mon === id ? 'nothing' : 'moved';
-  const goal: Pos = { x: heroPos.x, y: heroPos.y };
+  const goal: Pos = { x: ap.x, y: ap.y };
 
   // ref: m_move(): `appr = mtmp->mflee ? -1 : 1`, 0 for a confused monster, else overridden to
-  // 0 for peacefuls and erratic bats
+  // 0 for blind ones, mostly for one that should see her but she is invisible to, peacefuls and
+  // erratic bats
   let appr = isFleeing(ctx, id) ? -1 : 1;
   if (isMConfused(ctx, id)) appr = 0;
   else {
-    if (m.peaceful || (isBatClass(def) && ctx.rng.rn2(3) === 0)) appr = 0;
+    const gi = cellIndex(level, goal.x, goal.y);
+    const oi = cellIndex(level, pos.x, pos.y);
+    const shouldSee =
+      couldseeAt(ctx, pos.x, pos.y) &&
+      (level.lit[gi] === 1 || level.lit[oi] !== 1) &&
+      dist2(pos.x, pos.y, goal.x, goal.y) <= 36;
+    if (
+      !mcansee(ctx, id) ||
+      (shouldSee && invisTo(ctx, monCount(ctx, id).e) && ctx.rng.rn2(11)) ||
+      m.peaceful ||
+      (isBatClass(def) && ctx.rng.rn2(3) === 0)
+    )
+      appr = 0;
     // ref: m_move(): a leprechaun with more gold than she has keeps away
     if (appr === 1 && leppieAvoidance(ctx, id, def)) appr = -1;
   }
@@ -735,12 +787,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
     const str = acurrstr(getPlayer(ctx.state).c.attributes?.str ?? 10);
     const blocked = blockersOf(ctx, level.id);
     const inLine =
-      linedUp(level, rules.opaque, blocked, pos, heroPos) &&
-      distmin(pos.x, pos.y, heroPos.x, heroPos.y) <= Math.trunc(str / 2) + 1;
-    if (
-      (appr !== 1 || !inLine) &&
-      mSearchItems(ctx, id, level, rules.opaque, blocked, goal, heroPos)
-    ) {
+      linedUp(level, rules.opaque, blocked, pos, ap) &&
+      distmin(pos.x, pos.y, ap.x, ap.y) <= Math.trunc(str / 2) + 1;
+    if ((appr !== 1 || !inLine) && mSearchItems(ctx, id, level, rules.opaque, blocked, goal, ap)) {
       // standing on something wanted: postmov() -> eating, then mpickstuff()
       if (monEatsHere(ctx, id)) return 'died';
       mpickstuff(ctx, id);
@@ -749,10 +798,10 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
     // ref: m_search_items() finish_search: a fleeing monster that found something to go for heads
     // for it, unless the hero is within 3 squares (then it keeps running from her). (Found an item
     // = the goal moved off the hero; an item on the hero's own square is not told apart.)
-    if (appr === -1 && (goal.x !== heroPos.x || goal.y !== heroPos.y)) {
-      if (distmin(pos.x, pos.y, heroPos.x, heroPos.y) <= 3) {
-        goal.x = heroPos.x;
-        goal.y = heroPos.y;
+    if (appr === -1 && (goal.x !== ap.x || goal.y !== ap.y)) {
+      if (distmin(pos.x, pos.y, ap.x, ap.y) <= 3) {
+        goal.x = ap.x;
+        goal.y = ap.y;
       } else appr = 1;
     }
   }
@@ -760,14 +809,14 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   const ggy = goal.y;
 
   const e = ctx.state.entities[String(id)];
-  const canTunnel = e !== undefined && canTunnelNow(ctx, e, heroPos);
+  const canTunnel = e !== undefined && canTunnelNow(ctx, e, ap);
   const cands = mfndpos(
     ctx,
     level,
     rules,
     id,
     heroPos,
-    e ? { allowU: monAllowU(ctx, e), allowDig: canTunnel } : {},
+    e ? { allowU: monAllowU(ctx, e), allowDig: canTunnel, guess: ap } : { guess: ap },
   );
   const cnt = cands.length;
   if (cnt === 0) return 'nomoves'; // MMOVE_NOMOVES
@@ -803,7 +852,12 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   // MMOVE_DONE`: wielding a pick to dig there takes the move
   if (e && mDigweaponCheck(ctx, e, chosen.x, chosen.y)) return 'done';
   // ref: m_move() "if ALLOW_U, attack this spot": the monster stays put and attacks in dochug()
-  if (chosen.hero) return 'nothing';
+  // when it is her; else it mistakes the spot for her (m_move_aggress())
+  // (an ALLOW_U square is her own or the guess, which mfndpos() set to her when she is near)
+  if (chosen.hero) {
+    if (ap.x === heroPos.x && ap.y === heroPos.y) return 'nothing';
+    return mMoveAggress(ctx, id, chosen.mon ?? null);
+  }
 
   const from = { x: pos.x, y: pos.y };
   trackAdd(ctx, id, from.x, from.y);
@@ -811,6 +865,30 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
   return postmovMoved(ctx, id, level, rules, canTunnel);
+}
+
+/**
+ * The monster steps at the spot where it thinks the hero is, which is not her: it attacks the
+ * monster there (`target`), which may hit back; the move is spent either way.
+ * ref: src/monmove.c m_move_aggress()
+ */
+function mMoveAggress(ctx: Ctx, id: EntityId, target: EntityId | null): MoveStatus {
+  let mstatus: number = M_ATTK.MISS;
+  if (target !== null) mstatus = mattackm(ctx, id, target);
+  if (mstatus & M_ATTK.AGR_DIED || !ctx.state.entities[String(id)]?.c.monster) return 'died';
+  const actor = target === null ? undefined : ctx.state.entities[String(target)]?.c.actor;
+  if (
+    (mstatus & (M_ATTK.HIT | M_ATTK.DEF_DIED)) === M_ATTK.HIT &&
+    ctx.rng.rn2(4) &&
+    actor &&
+    actor.energy > ctx.rng.rn2(NORMAL_SPEED) &&
+    target !== null
+  ) {
+    actor.energy = actor.energy > NORMAL_SPEED ? actor.energy - NORMAL_SPEED : 0;
+    mstatus = mattackm(ctx, target, id); // return attack
+    if (mstatus & M_ATTK.DEF_DIED) return 'died';
+  }
+  return 'done';
 }
 
 /**
@@ -908,10 +986,13 @@ export function dochug(
   // ref: src/mon.c movemon_singlemon(): "continue if the monster died fighting": under Conflict
   // a monster that sees her and that she sees within BOLT_LIM fights a neighbour instead of
   // moving (Conflict does not take effect in the first round: a monster stepping into the area
-  // still swings at her). Her seeing its square implies its seeing her (no invisibility).
+  // still swings at her). Her seeing its square stands in for couldsee() in m_canseeu().
+  const me0 = ctx.state.entities[String(id)];
   if (
     conflictOn(ctx.state) &&
     isVisible(ctx.state, cellIndex(getLevel(ctx.state, pos.level), pos.x, pos.y)) &&
+    me0 !== undefined &&
+    !invisTo(ctx, me0) &&
     dist2(pos.x, pos.y, hp.x, hp.y) <= BOLT_LIM * BOLT_LIM &&
     fightm(ctx, id)
   )
@@ -923,7 +1004,6 @@ export function dochug(
   if (isMConfused(ctx, id) && ctx.rng.rn2(50) === 0) setMConfused(ctx, id, false);
   if (isMStunned(ctx, id) && ctx.rng.rn2(10) === 0) setMStunned(ctx, id, false);
 
-  // ref: set_apparxy(): the monster knows where the hero is
   const heroPos = { x: hp.x, y: hp.y };
   const prevHero = m.lastHero; // where it last saw her (stands in for u.ux0/u.uy0)
   m.lastHero = heroPos;
@@ -952,6 +1032,9 @@ export function dochug(
     releaseHero(ctx, id);
     return;
   }
+  // ref: dochug() PHASE TWO: "The monster decides where it thinks you are" (set_apparxy()); the
+  // guess `ap` is this move's mux/muy (m_move() may guess again or find her)
+  const ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
   // ref: src/monmove.c distfleeck(): inrange, nearby and scared; only the hero's sanctuary
   // scares (no Elbereth, scare monster or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
   let inrange = false;
@@ -959,8 +1042,8 @@ export function dochug(
   let scared = false;
   const distfleeck = (): void => {
     const p = ctx.state.entities[String(id)]?.c.pos ?? pos;
-    inrange = dist2(p.x, p.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM;
-    nearby = inrange && monnear(def, p.x, p.y, heroPos.x, heroPos.y);
+    inrange = dist2(p.x, p.y, ap.x, ap.y) <= BOLT_LIM * BOLT_LIM;
+    nearby = inrange && monnear(def, p.x, p.y, ap.x, ap.y);
     const e = ctx.state.entities[String(id)];
     scared = nearby && !m.peaceful && e !== undefined && inYourSanctuary(ctx, e, 0, 0);
     if (scared) monflee(ctx, id, ctx.rng.rnd(ctx.rng.rn2(7) ? 10 : 100), true, true);
@@ -976,7 +1059,7 @@ export function dochug(
   if (
     (!m.peaceful || conflictOn(ctx.state)) &&
     inrange &&
-    dist2(pos.x, pos.y, heroPos.x, heroPos.y) <= 8 &&
+    dist2(pos.x, pos.y, ap.x, ap.y) <= 8 &&
     def.attacks.some((a) => a.at === 'weapon') &&
     monWieldItem(ctx, id)
   )
@@ -1037,7 +1120,7 @@ export function dochug(
         // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
         // a pet that did nothing goes on to phase four, where only Conflict makes it attack her
         if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
-        else status = mMove(ctx, id, heroPos);
+        else status = mMove(ctx, id, heroPos, ap);
         if (status === 'died') return;
         // ref: m_move() postmov: `maybe_spin_web(mtmp)` after MMOVE_MOVED or MMOVE_DONE (m_move()
         // returns early, skipping postmov, while the hero is swallowed by another monster)
@@ -1059,10 +1142,10 @@ export function dochug(
             def.attacks.some(
               (a) => a.at === 'weapon' || a.at === 'gaze' || a.at === 'breath' || a.at === 'spit',
             ) &&
-            !monnear(def, np.x, np.y, heroPos.x, heroPos.y)
+            !nearby
           ) {
-            if (hostileNow() && dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM)
-              mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
+            if (hostileNow() && inrange)
+              mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero, ap);
             maybeCuss(ctx, id, inrange, heroPos); // phase four goes on to the cussing
           }
           return;
@@ -1074,11 +1157,12 @@ export function dochug(
   // ref: dochug() `!mtmp->mpeaceful || (Conflict && !resist_conflict(mtmp))`, then
   // `((inrange && !scared) || panicattk)`
   const mayAttack = status !== 'done' && hostileNow() && ((inrange && !scared) || panicattk);
-  if (mayAttack && monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
-    monsterAttack(ctx, id);
+  // ref: mattacku(): range2 is `!monnear(mtmp, mtmp->mux, mtmp->muy)`
+  if (mayAttack && monnear(def, pos.x, pos.y, ap.x, ap.y)) {
+    monsterAttack(ctx, id, ap);
   } else if (mayAttack && inrange) {
     // ref: mattacku() with range2: a weapon attack at a distance throws or shoots
-    mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero);
+    mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero, ap);
   }
   maybeCuss(ctx, id, inrange, heroPos);
 }

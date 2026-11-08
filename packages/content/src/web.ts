@@ -20,7 +20,7 @@ import { clearPath } from './clearpath';
 import { inAnyShop } from './eshk';
 import { monWep } from './mongear';
 import { isFrozen, mspecUsed, setMspecUsed } from './mstate';
-import { monNam } from './perception';
+import { canSpotMon, monNam } from './perception';
 import { addShopDamage } from './shopdamage';
 import { BARE_HANDED, P_UNSKILLED, isBlade, skillLevel, useSkill } from './skills';
 import { isSokoban } from './sokoban';
@@ -99,7 +99,8 @@ export function maybeSpinWeb(ctx: Ctx, mon: Entity): void {
   const trap = maketrap(ctx, level.id, p.x, p.y, TRAP.web);
   setMspecUsed(ctx, mon.id, ctx.rng.d(4, 4)); // 4..16
   if (cansee(ctx, level.id, p.x, p.y)) {
-    say(ctx, 'trap.web.spins', { mon: monNam(ctx, mon) }); // (no invisibility: never "Something")
+    if (canSpotMon(ctx, mon)) say(ctx, 'trap.web.spins', { mon: monNam(ctx, mon) });
+    else say(ctx, 'trap.web.something_spins');
     trap.seen = true;
   }
   if (inAnyShop(level, p.x, p.y) && level.id === ctx.state.currentLevel)

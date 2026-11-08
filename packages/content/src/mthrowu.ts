@@ -590,17 +590,23 @@ function monmulti(ctx: Ctx, monId: EntityId, otmp: Entity, mwep: Entity | null):
 }
 
 /**
- * The monster throws or shoots `otmp` at the hero, who is in line at distance `dm`.
- * ref: src/mthrowu.c monshoot(): announces "N arrows" or "an arrow" when seen, then one m_throw
- * per missile.
+ * The monster throws or shoots `otmp` toward `to` (where it thinks the hero is), in line at
+ * distance `dm`. ref: src/mthrowu.c monshoot(): announces "N arrows" or "an arrow" when seen,
+ * then one m_throw per missile.
  */
-function monshoot(ctx: Ctx, monId: EntityId, otmp: Entity, mwep: Entity | null, dm: number): void {
+function monshoot(
+  ctx: Ctx,
+  monId: EntityId,
+  otmp: Entity,
+  mwep: Entity | null,
+  dm: number,
+  to: Pos,
+): void {
   const mon = ctx.state.entities[String(monId)];
-  const hero = getPlayer(ctx.state);
   const mpos = mon?.c.pos;
-  const hpos = hero.c.pos;
+  const hpos = to;
   const it = otmp.c.item;
-  if (!mon || !mpos || !hpos || !it) return;
+  if (!mon || !mpos || !it) return;
   const odef = ctx.defs.object(otmp.def);
   const wdef = mwep ? ctx.defs.object(mwep.def) : null;
   const multishot = monmulti(ctx, monId, otmp, mwep);
@@ -653,15 +659,23 @@ export function linedUp(mon: Pos, hero: Pos, clear: ClearFn): boolean {
  * the launcher it needs (that takes its move); then, if the hero is lined up, it throws or
  * shoots. If she is moving away it only does so with a chance that falls with distance.
  * ref: src/mthrowu.c thrwmu(). `clear` is the line-of-sight test; `prevHero` is where the monster
- * last saw her (the hero's u.ux0/u.uy0), or null.
+ * last saw her (the hero's u.ux0/u.uy0), or null; `aim` is where it thinks she is (mux/muy:
+ * lined_up() and the throw go there), by default her square.
  * Returns true when the monster used its move to wield something.
  */
-export function thrwmu(ctx: Ctx, monId: EntityId, clear: ClearFn, prevHero: Pos | null): boolean {
+export function thrwmu(
+  ctx: Ctx,
+  monId: EntityId,
+  clear: ClearFn,
+  prevHero: Pos | null,
+  aim?: Pos,
+): boolean {
   const mon = ctx.state.entities[String(monId)];
   const hero = getPlayer(ctx.state);
   const mpos = mon?.c.pos;
   const hpos = hero.c.pos;
   if (!mon || !mpos || !hpos) return false;
+  const tpos = aim ?? hpos;
 
   // "Rearranged beginning so monsters can use polearms not in a line": wield first
   if (!monFlag(ctx, 'nowep', monId) || !monWep(ctx, monId)) {
@@ -678,11 +692,11 @@ export function thrwmu(ctx: Ctx, monId: EntityId, clear: ClearFn, prevHero: Pos 
   const retreating =
     prevHero !== null &&
     distmin(hpos.x, hpos.y, mpos.x, mpos.y) > distmin(prevHero.x, prevHero.y, mpos.x, mpos.y);
-  if (!linedUp(mpos, hpos, clear)) return false;
-  if (retreating && ctx.rng.rn2(BOLT_LIM - distmin(mpos.x, mpos.y, hpos.x, hpos.y)) !== 0)
+  if (!linedUp(mpos, tpos, clear)) return false;
+  if (retreating && ctx.rng.rn2(BOLT_LIM - distmin(mpos.x, mpos.y, tpos.x, tpos.y)) !== 0)
     return false;
 
-  monshoot(ctx, monId, obj, monWep(ctx, monId), distmin(mpos.x, mpos.y, hpos.x, hpos.y));
+  monshoot(ctx, monId, obj, monWep(ctx, monId), distmin(mpos.x, mpos.y, tpos.x, tpos.y), tpos);
   stopOccupation(ctx);
   return false;
 }
@@ -714,12 +728,19 @@ function dirToward(tbx: number, tby: number): Dir {
 
 /**
  * Where the attacker aims: the hero's square or the target monster's, if the target is lined up
- * (m_lined_up(): for the hero C's mux/muy, which is her square here).
+ * (m_lined_up(): for the hero C's mux/muy, `aim`, where the attacker thinks she is).
  */
-function linedTarget(ctx: Ctx, mon: Entity, targetId: EntityId, clear: ClearFn): Pos | null {
+function linedTarget(
+  ctx: Ctx,
+  mon: Entity,
+  targetId: EntityId,
+  clear: ClearFn,
+  aim?: Pos,
+): Pos | null {
   const mpos = mon.c.pos;
-  const tpos = ctx.state.entities[String(targetId)]?.c.pos;
-  if (!mpos || !tpos || tpos.level !== mpos.level) return null;
+  const tpos0 = ctx.state.entities[String(targetId)]?.c.pos;
+  if (!mpos || !tpos0 || tpos0.level !== mpos.level) return null;
+  const tpos = targetId === ctx.state.playerId && aim ? aim : tpos0;
   return linedUp(mpos, tpos, clear) ? { x: tpos.x, y: tpos.y } : null;
 }
 
@@ -740,12 +761,13 @@ export function breamm(
   atk: AttackDef,
   targetId: EntityId,
   clear: ClearFn,
+  aim?: Pos,
 ): boolean {
   const mon = ctx.state.entities[String(monId)];
   const mpos = mon?.c.pos;
   if (!mon || !mpos) return false;
   const utarget = targetId === ctx.state.playerId;
-  const tpos = linedTarget(ctx, mon, targetId, clear);
+  const tpos = linedTarget(ctx, mon, targetId, clear, aim);
   if (!tpos) return true;
   if (isCancelled(ctx, monId)) {
     // (no deafness in the port)
@@ -785,6 +807,7 @@ export function spitmm(
   atk: AttackDef,
   targetId: EntityId,
   clear: ClearFn,
+  aim?: Pos,
 ): boolean {
   const mon = ctx.state.entities[String(monId)];
   const mpos = mon?.c.pos;
@@ -799,7 +822,7 @@ export function spitmm(
     }
     return false;
   }
-  const tpos = linedTarget(ctx, mon, targetId, clear);
+  const tpos = linedTarget(ctx, mon, targetId, clear, aim);
   if (!tpos) return false;
   const otyp = atk.ad === 'blnd' || atk.ad === 'drst' ? BLINDING_VENOM : ACID_VENOM;
   const otmp = mksobj(ctx, ctx.defs.object(otyp), { quantity: 1 });
@@ -818,7 +841,8 @@ export function spitmm(
 /**
  * A monster that is in range but not next to the hero makes the ranged part of its attacks, in
  * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(), a breath breamu(), a spit
- * spitmu(). Nothing while she is in the midst of a successful prayer (silently at range).
+ * spitmu(). Nothing while she is in the midst of a successful prayer (silently at range). `aim`
+ * is where the monster thinks she is (mux/muy), by default her square.
  * ref: src/mhitu.c mattacku() with range2: `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE:
  * gazemu(mtmp, mattk)`, `case AT_BREA: breamu(mtmp, mattk)`, `case AT_SPIT: spitmu(mtmp, mattk)`
  */
@@ -827,6 +851,7 @@ export function mattackRanged(
   monId: EntityId,
   clear: ClearFn,
   prevHero: Pos | null,
+  aim?: Pos,
 ): void {
   const mon = ctx.state.entities[String(monId)];
   if (!mon) return;
@@ -839,15 +864,15 @@ export function mattackRanged(
     // counterattack against attack [i-1] might have been fatal
     if (!ctx.state.entities[String(monId)]?.c.monster) return;
     if (a.at === 'weapon' && !threw) {
-      thrwmu(ctx, monId, clear, prevHero);
+      thrwmu(ctx, monId, clear, prevHero, aim);
       threw = true;
     } else if (a.at === 'gaze' && mon.def !== 'nh:medusa') {
       // (Medusa's gaze works through m_respond(): step 6)
       gazemu(ctx, mon, a);
     } else if (a.at === 'breath') {
-      breamm(ctx, monId, a, ctx.state.playerId, clear); // breamu()
+      breamm(ctx, monId, a, ctx.state.playerId, clear, aim); // breamu()
     } else if (a.at === 'spit') {
-      spitmm(ctx, monId, a, ctx.state.playerId, clear); // spitmu()
+      spitmm(ctx, monId, a, ctx.state.playerId, clear, aim); // spitmu()
     }
     if (ctx.state.gameOver) return;
   }

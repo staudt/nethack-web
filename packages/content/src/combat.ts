@@ -5,6 +5,7 @@ import { resistsSton } from './stonestate';
 import {
   NORMAL_SPEED,
   getPlayer,
+  isVisible,
   sortedIds,
   type AttackDef,
   type AttackType,
@@ -45,7 +46,15 @@ import { hurtPet } from './dog';
 import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon } from './perception';
-import { isCancelled, isFrozen, isMConfused, isMStunned, mspecUsed, setMConfused } from './mstate';
+import {
+  isCancelled,
+  isFrozen,
+  isMConfused,
+  isMStunned,
+  mcansee,
+  mspecUsed,
+  setMConfused,
+} from './mstate';
 import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
@@ -61,6 +70,9 @@ import { canseemon, mintrap } from './trap';
 import { summonWereMu } from './were';
 import { isWere } from './werestate';
 import { cantSeeSelf, mapInvisible } from './invis';
+import { invisTo } from './apparxy';
+import { couldSeduce } from './steal';
+import { digests, isWhirly } from './engulfstate';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -410,7 +422,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
 /**
  * Monster to-hit: `tmp > rnd(20 + i)` for attack index i.
  * ref: src/mhitu.c mattacku(): tmp = AC_VALUE(u.uac) + 10; tmp += m_lev; if (tmp <= 0) tmp = 1.
- * (Hero not invisible, monster can see; a trapped monster has -2.)
+ * A monster that cannot see her (blind, or she is invisible to it) and a trapped one have -2.
  */
 export function monsterToHit(
   rng: Rng,
@@ -418,10 +430,12 @@ export function monsterToHit(
   monLevel: number,
   heroHelpless = false,
   monTrapped = false,
+  unseen = false,
 ): number {
   let tmp = acValue(rng, heroAc) + 10;
   tmp += monLevel;
   if (heroHelpless) tmp += 4; // multi < 0
+  if (unseen) tmp -= 2; // (Invis && !perceives(mdat)) || !mtmp->mcansee
   if (monTrapped) tmp -= 2; // mtmp->mtrapped
   if (tmp <= 0) tmp = 1;
   return tmp;
@@ -517,30 +531,31 @@ export function hitmu(
   return M_ATTK.HIT; // passiveum(): only a polymorphed hero has passive attacks (7f)
 }
 
-/** The monster is next to the hero (C's `!range2` with `u_at(bhitpos)`). */
-function nextToHero(ctx: Ctx, mon: Entity): boolean {
-  const p = mon.c.pos;
+/** C's foundyou: `u_at(mtmp->mux, mtmp->muy)`, the guess `ap` is her square. */
+function foundYou(ctx: Ctx, ap: Pos | undefined): boolean {
   const hp = getPlayer(ctx.state).c.pos;
-  return (
-    !!p && !!hp && p.level === hp.level && Math.max(Math.abs(p.x - hp.x), Math.abs(p.y - hp.y)) <= 1
-  );
+  return !ap || (!!hp && ap.x === hp.x && ap.y === hp.y);
 }
 
 /**
- * The monster `monId` makes all its attacks at the hero (it is adjacent), following mattacku()'s
- * switch on the attack type with the results `sum[]`.
+ * The monster `monId` makes all its attacks at the hero (it is next to where it thinks she is,
+ * `ap`: C's mux/muy, by default her square), following mattacku()'s switch on the attack type
+ * with the results `sum[]`.
  * ref: src/mhitu.c mattacku(), missmu(). A hug is automatic after the two attacks before it hit
  * (or while it holds her); gazes (gazemu()) and explosions (explmu()) need no to-hit roll.
  * An engulfer swallows her (gulpmu()); while she is inside, only it attacks, with its engulfing
- * attack alone. Breath and spit (step 5, at range) do nothing yet; a monster at range is not
- * handled here (mattackRanged() in mthrowu.ts, through monmove.ts).
+ * attack alone. A monster that guessed wrong (she is invisible to it) misses wildly (wildmiss())
+ * and makes no more physical attacks, gulps air, explodes at thin air or casts at it. A monster
+ * at range is not handled here (mattackRanged() in mthrowu.ts, through monmove.ts).
  */
-export function monsterAttack(ctx: Ctx, monId: EntityId): void {
+export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
   const hero = getPlayer(ctx.state);
   const mon = ctx.state.entities[String(monId)];
   const m = mon?.c.monster;
   const hp = hero.c.hp;
   if (!mon || !m || !hp) throw new Error(`Entity ${monId} cannot attack`);
+  // ref: mattacku(): if swallowed, u.ustuck->mux = u.ux (it knows where she is)
+  let found = foundYou(ctx, ap) || uswallow(ctx)?.mon === monId;
   let def = ctx.defs.monster(mon.def);
   let name = monNam(ctx, mon);
   // ref: src/mhitu.c mattacku(): if swallowed, she can only be affected by u.ustuck, and
@@ -568,19 +583,31 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     m.level,
     hero.c.helpless !== undefined,
     isMtrapped(ctx, monId),
+    invisTo(ctx, mon) || !mcansee(ctx, monId),
   );
 
+  const firstFound = found;
+  const startPos = hero.c.pos ? { x: hero.c.pos.x, y: hero.c.pos.y } : null; // bhitpos
+  let skipnonmagc = false;
   const sum: number[] = [];
   let prevHit = -1; // index of the previous attack if it hit (ref: hitmsg_prev)
   for (let i = 0; i < def.attacks.length; i++) {
     sum[i] = M_ATTK.MISS;
     // counterattack against attack [i-1] might have been fatal
     if (!ctx.state.entities[String(monId)]?.c.monster) return;
-    // recalc in case a prior attack moved the hero (a quantum mechanic's teleport)
-    if (i > 0 && !nextToHero(ctx, mon)) continue;
+    if (i > 0) {
+      // recalc in case a prior attack moved the hero (a quantum mechanic's teleport); the
+      // monster makes no new guess
+      found = foundYou(ctx, ap) || uswallow(ctx)?.mon === monId;
+      // if hero was found but isn't anymore, avoid wildmiss now
+      if (firstFound && !found) continue;
+      const now = getPlayer(ctx.state).c.pos;
+      if (!startPos || !now || now.x !== startPos.x || now.y !== startPos.y) continue;
+    }
     const atk = def.attacks[i];
     if (!atk) continue;
     if (isSwallowed(ctx) && atk.at !== 'engulf') continue;
+    if (skipnonmagc && atk.at !== 'magic') continue;
     switch (atk.at) {
       case 'claw': // "hand to hand" attacks
       case 'kick':
@@ -591,6 +618,11 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
       case 'tentacle': {
         // ref: mattacku(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(mtmp)) continue;`
         if (atk.at === 'kick' && mtrappedInPit(ctx, monId)) continue;
+        if (!found) {
+          wildmiss(ctx, mon, atk);
+          skipnonmagc = true; // skip any remaining non-spell attacks
+          break;
+        }
         const j = ctx.rng.rnd(20 + i);
         if (tmp > j)
           sum[i] = hitmu(
@@ -608,6 +640,11 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         // ref: src/mhitu.c mattacku() AT_WEAP: wield a weapon first if one is wanted (the move
         // is spent), then add the weapon's to-hit and announce the swing before rolling
         if (monWieldItem(ctx, monId)) break;
+        if (!found) {
+          wildmiss(ctx, mon, atk);
+          skipnonmagc = true;
+          break;
+        }
         const mwep = monWep(ctx, monId);
         let attackTmp = tmp;
         if (mwep) {
@@ -628,9 +665,9 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         break;
       }
       case 'magic':
-        // ref: src/mhitu.c mattacku() AT_MAGC: next to the hero (range2 is false), so
-        // castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
-        castmu(ctx, monId, atk, true, true);
+        // ref: src/mhitu.c mattacku() AT_MAGC: next to where it thinks she is (range2 is false),
+        // so castmu(mtmp, mattk, TRUE, foundyou) with no to-hit roll; buzzmu() is the ranged case
+        castmu(ctx, monId, atk, true, found, ap);
         break;
       case 'hug':
         // automatic if prev two attacks succeed, or while it holds her (`!range2`: next to her);
@@ -644,14 +681,17 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
         break;
       case 'explode':
         // automatic hit if next to, and aimed at her
-        sum[i] = explmu(ctx, mon, atk, true);
+        sum[i] = explmu(ctx, mon, atk, found);
         break;
       case 'engulf': {
-        // (next to her and aimed at her: no displacement, so never "gulps some air!")
         let j = 0;
-        if (isSwallowed(ctx) || (!mspecUsed(ctx, monId) && tmp > (j = ctx.rng.rnd(20 + i))))
-          sum[i] = gulpmu(ctx, mon, atk);
-        else missmu(ctx, mon, name, tmp === j);
+        if (found) {
+          if (isSwallowed(ctx) || (!mspecUsed(ctx, monId) && tmp > (j = ctx.rng.rnd(20 + i))))
+            sum[i] = gulpmu(ctx, mon, atk);
+          else missmu(ctx, mon, name, tmp === j);
+        } else if (digests(def)) say0(ctx, 'combat.gulps_air', { mon: name });
+        else if (canseemon(ctx, mon)) say0(ctx, 'combat.lunges_recoils', { mon: name });
+        else say0(ctx, isWhirly(def) ? 'combat.hear_rushing' : 'combat.hear_splat');
         break;
       }
       // AT_BREA, AT_SPIT (step 5, at range)
@@ -663,6 +703,48 @@ export function monsterAttack(ctx: Ctx, monId: EntityId): void {
     const r = sum[i] ?? M_ATTK.MISS;
     if (r & M_ATTK.AGR_DIED) return; // attacker dead
     if (r & M_ATTK.AGR_DONE) break; // attacker teleported, no more attacks
+  }
+}
+
+/**
+ * The monster attacks a spot where it thinks the hero is, but she is not there (she is invisible
+ * to it): on a square she sees, a nymph "tries to touch you and misses!", others swing (snap,
+ * kick, lunge) wildly and miss, attack a spot beside her or strike at thin air. No `I` is left
+ * ("no way to tell where _this_ is coming from"). ref: src/mhitu.c wildmiss() (no displacement
+ * or Underwater; flags.verbose is always on)
+ */
+function wildmiss(ctx: Ctx, mon: Entity, atk: AttackDef): void {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  // no feedback if hero doesn't see the monster's spot
+  if (!p || !level || p.level !== ctx.state.currentLevel) return;
+  if (!isVisible(ctx.state, p.y * level.width + p.x)) return;
+  const compat =
+    atk.ad === 'sedu' || atk.ad === 'ssex' ? couldSeduce(ctx, mon, getPlayer(ctx.state), atk) : 0;
+  const name = monNam(ctx, mon);
+  if (compat) {
+    say0(ctx, 'combat.wild_touch', { mon: name });
+    return;
+  }
+  const def = ctx.defs.monster(mon.def);
+  const swings =
+    atk.at === 'bite'
+      ? 'snaps'
+      : atk.at === 'kick'
+        ? 'kicks'
+        : atk.at === 'sting' || atk.at === 'butt' || def.flags.includes('nolimbs')
+          ? 'lunges'
+          : 'swings';
+  switch (ctx.rng.rn2(3)) {
+    case 0:
+      say0(ctx, `combat.wild_${swings}`, { mon: name });
+      break;
+    case 1:
+      say0(ctx, 'combat.wild_spot', { mon: name });
+      break;
+    default:
+      say0(ctx, 'combat.wild_thin_air', { mon: name });
+      break;
   }
 }
 

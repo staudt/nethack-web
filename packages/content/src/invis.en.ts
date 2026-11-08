@@ -1,8 +1,9 @@
 // English text for invisibility and see invisible. ref: src/potion.c self_invis_message(),
 // peffect_invisibility(), peffect_see_invisible(); src/do_wear.c Cloak_on(), Cloak_off(),
 // Ring_on(), Ring_off_or_gone(); src/worn.c m_dowear_type(); src/zap.c bhitm(), zapyourself(),
-// mstatusline(); src/trap.c domagictrap(); src/fountain.c drinkfountain(); src/mhitu.c explmu();
-// src/pager.c invisexplain[]
+// mstatusline(); src/trap.c domagictrap(); src/fountain.c drinkfountain(); src/mhitu.c explmu(),
+// wildmiss(), mattacku(); src/shk.c u_entered_shop(), pay_for_damage(); src/mhitu.c gazemu();
+// src/monmove.c maybe_spin_web(); src/pager.c invisexplain[]
 export const invisMessagesEn: Record<string, string> = {
   'nh:remembered_unseen': 'remembered, unseen, creature',
   'invis.self.plain.cant_see': "Gee!  All of a sudden, you can't see yourself.",
@@ -33,4 +34,19 @@ export const invisMessagesEn: Record<string, string> = {
   'magictrap.more_hidden': 'You feel a little more hidden now.',
   'fountain.feel_transparent': 'You feel transparent.',
   'mhitu.not_terribly_bright': 'You get the impression it was not terribly bright.',
+  // monsters attacking where they think an invisible hero is
+  'combat.wild_touch': '{mon|The} tries to touch you and misses!',
+  'combat.wild_swings': '{mon|The} swings wildly and misses!',
+  'combat.wild_snaps': '{mon|The} snaps wildly and misses!',
+  'combat.wild_kicks': '{mon|The} kicks wildly and misses!',
+  'combat.wild_lunges': '{mon|The} lunges wildly and misses!',
+  'combat.wild_spot': '{mon|The} attacks a spot beside you.',
+  'combat.wild_thin_air': '{mon|The} strikes at thin air!',
+  'combat.gulps_air': '{mon|The} gulps some air!',
+  'combat.lunges_recoils': '{mon|The} lunges forward and recoils!',
+  'combat.hear_rushing': 'You hear a rushing noise nearby.',
+  'combat.hear_splat': 'You hear a splat nearby.',
+  'mhitu.explodes_thin_air': '{mon|The} explodes at a spot in thin air!',
+  'mhitu.it_explodes_thin_air': 'It explodes at a spot in thin air!',
+  'trap.web.something_spins': 'Something spins a web.',
 };

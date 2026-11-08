@@ -15,7 +15,7 @@
 // src/mkobj.c costly_alteration(), bill_dummy_object(); src/invent.c count_contents();
 // src/dothrow.c check_shop_obj(); src/role.c Hello(); src/dog.c losedogs() (dismiss_kops)
 //
-// Not ported: invisible heroes and steeds (neither exists), deafness and mute keepers, the
+// Not ported: steeds (none exist), deafness and mute keepers, the
 // shop achievement, globs,
 // gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
 // donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
@@ -62,6 +62,7 @@ import { isCandle } from './items';
 import { adjalign, uState } from './luck';
 import { money2mon, money2u, moneyCnt } from './money';
 import { isFrozen, unfreezeMonst } from './mstate';
+import { heroInvisible } from './invis';
 import { discover, isKnown } from './o_init';
 import { doname, paydoname, xnameOf, zorkmids } from './objnam';
 import { canSpotMon } from './perception';
@@ -202,7 +203,8 @@ function desertedShop(ctx: Ctx, level: Level, room: number): void {
  * message once, and she counts as in no shop (u.ushops cleared) until he is back. Else a new
  * customer is welcomed (and he is pacified), an angry keeper or one with a surcharge warns her, one
  * who was robbed mutters; at the door with a pick-axe or mattock she is asked to leave it outside and he gets
- * an extra move to block her way in.
+ * an extra move to block her way in. An invisible hero is told "Invisible customers are not
+ * welcome!" and nothing else (he blocks her by standing on his spot: shk_move()).
  * ref: src/shk.c u_entered_shop()
  */
 export function uEnteredShop(ctx: Ctx, room: number): void {
@@ -227,6 +229,11 @@ export function uEnteredShop(ctx: Ctx, room: number): void {
   }
   if (helpless(ctx, shk) || eshk.following) return; // no dialog
 
+  if (heroInvisible(ctx.state)) {
+    ctx.emit({ type: 'msg', key: 'shk.senses_presence', params: { shk: shkname(ctx, eshk) } });
+    ctx.emit({ type: 'msg', key: 'shk.invisible_not_welcome' });
+    return;
+  }
   const shop = shopNameParam(level, room);
   const name = plname(ctx);
   if (!mon?.c.monster?.peaceful) {

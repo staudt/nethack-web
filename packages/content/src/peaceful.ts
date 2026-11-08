@@ -16,6 +16,8 @@ import { heroSees } from './mongear';
 import { P, hasProp } from './props';
 import { canSpotMon, monNam, warningShown } from './perception';
 import { mapInvisible, markedUnseen } from './invis';
+import { invisTo } from './apparxy';
+import { mcansee } from './mstate';
 import { adjalign } from './luck';
 import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
@@ -99,13 +101,16 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
     const m = mon?.c.monster;
     if (!mon || !m || id === victim || !mon.c.pos) continue;
     const def = ctx.defs.monster(mon.def);
-    // couldsee() && m_canseeu(): approximated by the hero seeing its square
+    // couldsee() && mcansee && m_canseeu(): the line of sight approximated by the hero seeing
+    // its square
     if (
       def.flags.includes('mindless') ||
       !m.peaceful ||
       m.tame ||
       m.asleep ||
-      !heroSees(ctx, mon.c.pos)
+      !heroSees(ctx, mon.c.pos) ||
+      !mcansee(ctx, id) ||
+      invisTo(ctx, mon)
     )
       continue;
     const priest = epriOf(ctx, id) !== null;

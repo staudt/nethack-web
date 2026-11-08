@@ -318,16 +318,11 @@ describe('the higher mage spells (a level-forced caster)', () => {
     expect(o.state.entities[String(sleeper)]?.c.monster?.asleep).toBe(false);
   });
 
-  test('a level 20 caster never picks disappear, destroy armor, summon or the Wizard spells', () => {
+  test('a level 20 caster never picks destroy armor, summon or the Wizard spells', () => {
     const { s, id } = setup(20);
     run(s.state, () => undefined);
-    const useless: McastSpell[] = [
-      'disappear',
-      'destry_armr',
-      'summon_mons',
-      'clone_wiz',
-      'death_touch',
-    ];
+    // (disappear is ported since 7f-b: useful while the caster is visible, see m7f.apparxy)
+    const useless: McastSpell[] = ['destry_armr', 'summon_mons', 'clone_wiz', 'death_touch'];
     run(s.state, (ctx) => {
       const mon = ctx.state.entities[String(id)]!;
       for (const sp of useless) expect(spellWouldBeUseless(ctx, mon, sp)).toBe(true);

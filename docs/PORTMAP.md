@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3174 citations.
+152 NetHack files, 3187 citations.
 
 ## dat/dungeon.lua
 
@@ -438,6 +438,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/vision.h
 
 - `MAX_RADIUS()`: `packages/core/src/vision.ts`
+- `m_canseeu()`: `packages/content/src/apparxy.ts`
 
 ## include/weight.h
 
@@ -599,6 +600,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_pick_axe()`: `packages/content/src/dig.ts`
 - `use_pick_axe2()`: `packages/content/src/dig.ts`
 - `watch_dig()`: `packages/content/src/watch.ts`
+- `watchman_canseeu()`: `packages/content/src/watch.ts`
 - `zap_dig()`: `packages/content/src/dig.en.ts`, `packages/content/src/dig.ts`
 
 ## src/display.c
@@ -1086,6 +1088,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_undirected_spell()`: `packages/content/src/mcastu.ts`
 - `m_cure_self()`: `packages/content/src/mcastu.ts`
 - `mcast_blind_you()`: `packages/content/src/mcastu.ts`
+- `mcast_disappear()`: `packages/content/src/mcastu.ts`
 - `mcast_insects()`: `packages/content/src/mcastu.ts`
 - `mcast_lightning()`: `packages/content/src/mcastu.ts`
 - `mcast_open_wounds()`: `packages/content/src/mcastu.ts`
@@ -1143,6 +1146,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `summonmu()`: `packages/content/src/were.ts`
 - `u_slip_free()`: `packages/content/src/adtyping.ts`
 - `u_slow_down()`: `packages/content/src/props.ts`
+- `wildmiss()`: `packages/content/src/combat.ts`
 
 ## src/minion.c
 
@@ -1348,6 +1352,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_avoid_soko_push_loc()`: `packages/content/src/dogmove.ts`
 - `m_digweapon_check()`: `packages/content/src/mdig.ts`
 - `m_move()`: `packages/content/src/brains.ts`, `packages/content/src/dogmove.ts`, `packages/content/src/meat.ts`, `packages/content/src/monmove.ts`
+- `m_move_aggress()`: `packages/content/src/monmove.ts`
 - `m_search_items()`: `packages/content/src/monmove.ts`
 - `maybe_spin_web()`: `packages/content/src/web.ts`
 - `mb_trapped()`: `packages/content/src/btrapped.ts`
@@ -1358,7 +1363,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `monflee()`: `packages/content/src/kick.en.ts`, `packages/content/src/monflee.ts`
 - `postmov()`: `packages/content/src/actions.ts`, `packages/content/src/monmove.ts`
 - `release_hero()`: `packages/content/src/engulf.ts`
-- `set_apparxy()`: `packages/content/src/monmove.ts`
+- `set_apparxy()`: `packages/content/src/apparxy.ts`
 - `soko_allow_web()`: `packages/content/src/web.ts`
 - `watch_on_duty()`: `packages/content/src/watch.ts`
 
@@ -2062,11 +2067,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/vision.c
 
-- (file): `packages/content/src/mcastu.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/travel.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/mcastu.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/travel.ts`, `packages/content/src/watch.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`
 - `circle_data()`: `packages/content/src/read.ts`, `packages/core/src/vision.ts`
 - `circle_start()`: `packages/core/src/vision.ts`
 - `clear_path()`: `packages/content/src/clearpath.ts`
-- `couldsee()`: `packages/content/src/watch.ts`
+- `couldsee()`: `packages/content/src/apparxy.ts`
 - `do_clear_area()`: `packages/content/src/read.ts`
 - `does_block()`: `packages/content/src/boulder.ts`, `packages/core/src/objects.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
 - `vision_recalc()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/vision.ts`

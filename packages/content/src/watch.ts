@@ -25,6 +25,7 @@ import { diggingOf, isDigging, stopDigging } from './digstate';
 import { pickingLock, stopPicking } from './lockstate';
 import { isFrozen, mcansee, unfreezeMonst } from './mstate';
 import { canSpotMon, monNam } from './perception';
+import { invisTo } from './apparxy';
 import { T, isSdoorId, isWallId, terrainIdAt } from './terrain';
 
 export const WATCHMAN = 'nh:watchman';
@@ -47,8 +48,8 @@ function levelMonsters(ctx: Ctx): Entity[] {
 }
 
 /**
- * couldsee(x, y): a clear line from the hero to the square, lit or not; also stands in for
- * m_canseeu() (the hero is never invisible, underwater or buried). ref: src/vision.c couldsee()
+ * couldsee(x, y): a clear line from the hero to the square, lit or not. ref: src/vision.c
+ * couldsee()
  */
 function couldSee(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
@@ -154,6 +155,23 @@ function watchmanInSight(ctx: Ctx): Entity | null {
 }
 
 /**
+ * A peaceful watchman that sees the hero, the first in id order (get_iter_mons()).
+ * ref: src/dig.c watchman_canseeu(): mcansee && m_canseeu()
+ */
+function watchmanCanSeeU(ctx: Ctx): Entity | null {
+  for (const mon of levelMonsters(ctx))
+    if (
+      isWatch(mon.def) &&
+      mon.c.monster?.peaceful &&
+      mcansee(ctx, mon.id) &&
+      !invisTo(ctx, mon) &&
+      couldSee(ctx, mon)
+    )
+      return mon;
+  return null;
+}
+
+/**
  * The hero used a town fountain: a peaceful watchman she could see yells "Hey, stop using that
  * fountain!". Returns whether one did. ref: src/fountain.c watchman_warn_fountain() through
  * get_iter_mons() (the hero is never deaf)
@@ -219,6 +237,7 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
   if (
     !inTown(level, at.x, at.y) ||
     !mcansee(ctx, id) ||
+    invisTo(ctx, mon) ||
     !couldSee(ctx, mon) ||
     ctx.rng.rn2(3) !== 0
   )
@@ -242,7 +261,7 @@ export function watchOnDuty(ctx: Ctx, id: EntityId): void {
 
 /**
  * The hero zaps digging at a town door, secret door, wall, fountain or tree (C: or a tree): a
- * peaceful watchman she could see says "Halt, vandal!  You're under arrest!" and the Watch turns
+ * peaceful watchman that sees her says "Halt, vandal!  You're under arrest!" and the Watch turns
  * hostile. Call it before the terrain changes. ref: src/dig.c watch_dig() with `zap` TRUE and
  * watchman_canseeu()
  */
@@ -252,7 +271,7 @@ export function watchDig(ctx: Ctx, x: number, y: number): void {
 
 /**
  * Town Watchmen frown on damage to the town walls, doors, trees or fountains (digging holes in
- * the ground is fine): `mon` (else a peaceful watchman she could see) warns her once ("Hey, stop
+ * the ground is fine): `mon` (else a peaceful watchman that sees her) warns her once ("Hey, stop
  * damaging that wall!") while she digs with a pick, and arrests her ("Halt, vandal!") for a zap
  * or when already warned; either way the digging stops. ref: src/dig.c watch_dig()
  */
@@ -263,7 +282,7 @@ function watchDigBy(ctx: Ctx, mon: Entity | null, x: number, y: number, zap: boo
   const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
   const closed = door === 'closed' || door === 'locked';
   if (!closed && !isSdoorId(id) && !isWallId(id) && id !== T.fountain && id !== T.tree) return;
-  const mtmp = mon ?? watchmanInSight(ctx);
+  const mtmp = mon ?? watchmanCanSeeU(ctx);
   if (!mtmp) return;
   const dig = diggingOf(ctx);
   if (zap || dig?.warned) {

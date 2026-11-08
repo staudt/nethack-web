@@ -11,24 +11,26 @@
 // never import combat, monmove, actions, zap, peaceful or dog (combat -> mcastu -> zap -> actions
 // -> combat would be a cycle).
 //
-// A cancelled caster (`mcan`) only curses. Not ported (see DEVIATIONS.md "Monster
-// spellcasting"): the M_SEEN resistance memory (`m_seenres()`, `monstseesu()`),
-// Half_spell_damage, the hero's displacement
-// and invisibility (`foundyou` is always `thinks_it_foundyou`), the AD_FIRE/AD_COLD/AD_MAGM
+// A cancelled caster (`mcan`) only curses. An invisible hero is where the caster thinks she is
+// (`ap`, C's mux/muy: apparxy.ts), so a directed spell may go "at thin air". Not ported (see
+// DEVIATIONS.md "Monster spellcasting"): the M_SEEN resistance memory (`m_seenres()`,
+// `monstseesu()`), Half_spell_damage, the hero's displacement, the AD_FIRE/AD_COLD/AD_MAGM
 // AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
-// Disappear, destroy armor, summon nasties, clone wizard and touch of death are always
-// useless, so they are never chosen. Insects are always "insects" (no hallucinated names); no
+// Destroy armor, summon nasties, clone wizard and touch of death are always useless, so they
+// are never chosen. Insects are always "insects" (no hallucinated names); no
 // Half_physical_damage, burn_away_slime() or melting ice.
 import {
   NORMAL_SPEED,
   cellRules,
   getPlayer,
+  isVisible,
   sortedIds,
   type AttackDef,
   type Ctx,
   type Entity,
   type EntityId,
   type Msg,
+  type Pos,
 } from '@nh/core';
 import { blockersOf } from './boulder';
 import { flashburn, monSpellHitsSpot, ureflects } from './buzz';
@@ -61,7 +63,16 @@ import {
   timeoutLeft,
 } from './props';
 import { rndcurse } from './sit';
-import { canseemon } from './invis';
+import {
+  canseemon,
+  heroInvisible,
+  invisBlocked,
+  mapInvisible,
+  monInvisible,
+  perceives,
+  seeInvisible,
+  setMinvis,
+} from './invis';
 
 /** ref: include/mcastu.h MONSPELL() names, in their enum order */
 export type McastSpell =
@@ -196,9 +207,13 @@ export function spellWouldBeUseless(ctx: Ctx, mon: Entity, s: McastSpell): boole
   if (data.sight && !couldsee(ctx, mon)) return true;
   const hero = getPlayer(ctx.state);
   switch (s) {
-    // not ported (disappear waits for 7f-b step 4; no destroy_arm(), nasties or the Wizard): never
-    // chosen
     case 'disappear':
+      // invisibility when already invisible
+      if (monInvisible(ctx, mon) || invisBlocked(ctx, mon)) return true;
+      // peaceful monster won't cast invisibility if you can't see invisible
+      if (mon.c.monster?.peaceful && !seeInvisible(ctx.state)) return true;
+      break;
+    // not ported (no destroy_arm(), nasties or the Wizard): never chosen
     case 'destry_armr':
     case 'summon_mons':
     case 'clone_wiz':
@@ -250,13 +265,29 @@ function chooseMonsterSpell(ctx: Ctx, mon: Entity, ad: string): McastSpell {
   return list[0] ?? 'psi_bolt';
 }
 
+/** The hero is invisible to the caster and it guesses wrong. */
+const missesInvisible = (ctx: Ctx, mon: Entity, ap: Pos): boolean => {
+  const hp = getPlayer(ctx.state).c.pos;
+  return (
+    heroInvisible(ctx.state) &&
+    !perceives(ctx.defs.monster(mon.def)) &&
+    (!hp || ap.x !== hp.x || ap.y !== hp.y)
+  );
+};
+
 /** Feedback when a frustrated monster couldn't cast a spell. ref: src/mcastu.c cursetxt() */
-function cursetxt(ctx: Ctx, mon: Entity, undirected: boolean): void {
+function cursetxt(ctx: Ctx, mon: Entity, undirected: boolean, ap: Pos): void {
   if (canseemon(ctx, mon) && couldsee(ctx, mon)) {
-    // spellcasting monsters are impolite (the hero is never invisible, hidden or displaced)
-    say(ctx, undirected ? 'mcastu.points_all_around' : 'mcastu.points_at_you', {
-      mon: monNam(ctx, mon),
-    });
+    // spellcasting monsters are impolite (no hidden or displaced hero)
+    say(
+      ctx,
+      undirected
+        ? 'mcastu.points_all_around'
+        : missesInvisible(ctx, mon, ap)
+          ? 'mcastu.points_general_direction'
+          : 'mcastu.points_at_you',
+      { mon: monNam(ctx, mon) },
+    );
   } else if (ctx.state.turn % 4 === 0 || !ctx.rng.rn2(4)) {
     say(ctx, 'mcastu.mumbled_curse');
   }
@@ -268,7 +299,8 @@ const isSpellAttack = (atk: AttackDef): boolean => atk.ad === 'spel' || atk.ad =
  * The monster `monId` casts with its AT_MAGC attack `atk`. Three cases: it is attacking the
  * hero (search for a useful spell); it thinks it is (`foundYou` false: a directed spell then
  * fails, after the delay is set); it is not attacking (`thinksItFoundYou` false: one choice,
- * and only an undirected useful spell is cast). True when a spell was cast (M_ATTK_HIT).
+ * and only an undirected useful spell is cast). True when a spell was cast (M_ATTK_HIT). `ap` is
+ * where the caster thinks the hero is (mux/muy), by default her square.
  * ref: src/mcastu.c castmu()
  */
 export function castmu(
@@ -277,10 +309,13 @@ export function castmu(
   atk: AttackDef,
   thinksItFoundYou: boolean,
   foundYou: boolean,
+  ap?: Pos,
 ): boolean {
   const mon = ctx.state.entities[String(monId)];
   const m = mon?.c.monster;
   if (!mon || !m) return false;
+  const hp = getPlayer(ctx.state).c.pos;
+  const aim: Pos = ap ?? (hp ? { x: hp.x, y: hp.y } : { x: 0, y: 0 });
   const ml = m.level;
   let spellnum: McastSpell = 'psi_bolt';
 
@@ -299,7 +334,7 @@ export function castmu(
 
   // monster unable to cast spells?
   if (isCancelled(ctx, monId) || mspecUsed(ctx, monId) || !ml) {
-    cursetxt(ctx, mon, isUndirectedSpell(spellnum));
+    cursetxt(ctx, mon, isUndirectedSpell(spellnum), aim);
     return false;
   }
 
@@ -322,7 +357,8 @@ export function castmu(
   const undirected = isUndirectedSpell(spellnum);
   if (canSpotMon(ctx, mon) || !undirected) {
     const who = canSpotMon(ctx, mon) ? 'casts' : 'something_casts';
-    say(ctx, `mcastu.${who}${undirected ? '' : '_at_you'}`, { mon: monNam(ctx, mon) });
+    const at = undirected ? '' : missesInvisible(ctx, mon, aim) ? '_near_you' : '_at_you';
+    say(ctx, `mcastu.${who}${at}`, { mon: monNam(ctx, mon) });
   }
 
   // As these are spells, the damage is related to the level of the monster casting the spell.
@@ -334,7 +370,7 @@ export function castmu(
   else dmg = ctx.rng.d(Math.trunc(ml / 2) + 1, 6);
 
   if (isSpellAttack(atk)) {
-    mcastSpell(ctx, mon, dmg, spellnum);
+    mcastSpell(ctx, mon, dmg, spellnum, aim);
     dmg = 0; // done by the spell casting functions
   }
   if (dmg) mdamageu(ctx, dmg, `@${mon.def}`);
@@ -455,7 +491,7 @@ function monsterCensus(ctx: Ctx): number {
  * At least four hostile ants (mkclass(S_ANT): giant ants, killer bees, soldier ants...) appear
  * around the hero, or snakes when no ant can be made. ref: src/mcastu.c mcast_insects()
  */
-function mcastInsects(ctx: Ctx, mon: Entity): void {
+function mcastInsects(ctx: Ctx, mon: Entity, ap: Pos): void {
   const p = getPlayer(ctx.state).c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   if (!p || !level) return;
@@ -468,8 +504,8 @@ function mcastInsects(ctx: Ctx, mon: Entity): void {
   let quan = ml < 2 ? 1 : ctx.rng.rnd(Math.trunc(ml / 2));
   if (quan < 3) quan = 3;
   for (let i = 0; i <= quan; i++) {
-    // enexto(&bypos, mtmp->mux, mtmp->muy, mtmp->data): mux/muy is the hero's square
-    const bypos = mnextoPos(ctx, level, null, p);
+    // enexto(&bypos, mtmp->mux, mtmp->muy, mtmp->data)
+    const bypos = mnextoPos(ctx, level, null, { x: ap.x, y: ap.y });
     if (!bypos) return;
     const def = mkclass(ctx, cls, level.depth);
     const id = def ? makemon(ctx, def, bypos, { angry: true }) : null; // MM_ANGRY | MM_NOMSG
@@ -499,6 +535,8 @@ function mcastInsects(ctx: Ctx, mon: Entity): void {
       );
   } else if (!success) say(ctx, 'mcastu.sticks', { mon: monNam(ctx, mon) });
   else if (cls === 'S') say(ctx, 'mcastu.transforms', { mon: monNam(ctx, mon), what });
+  else if (missesInvisible(ctx, mon, ap))
+    say(ctx, 'mcastu.summons_near_you', { mon: monNam(ctx, mon), what });
   else say(ctx, 'mcastu.summons', { mon: monNam(ctx, mon), what });
 }
 
@@ -578,8 +616,32 @@ function mcastOpenWounds(ctx: Ctx, dmg: number): number {
   return dmg;
 }
 
+/**
+ * "The kobold shaman suddenly disappears!" (or "becomes transparent" when she sees invisible): the
+ * caster becomes permanently invisible, and an `I` marks it on a square she sees when she can no
+ * longer spot it. ref: src/mcastu.c mcast_disappear()
+ */
+function mcastDisappear(ctx: Ctx, mon: Entity): void {
+  if (monInvisible(ctx, mon) || invisBlocked(ctx, mon)) return; // impossible()
+  if (canseemon(ctx, mon))
+    say(ctx, seeInvisible(ctx.state) ? 'mcastu.becomes_transparent' : 'mcastu.disappears', {
+      mon: monNam(ctx, mon),
+    });
+  setMinvis(ctx, mon);
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (
+    p &&
+    level &&
+    p.level === ctx.state.currentLevel &&
+    isVisible(ctx.state, p.y * level.width + p.x) &&
+    !canSpotMon(ctx, mon)
+  )
+    mapInvisible(ctx, p.x, p.y);
+}
+
 /** The spell's effect on the hero (or the caster). ref: src/mcastu.c mcast_spell() */
-function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell): void {
+function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell, ap: Pos): void {
   // dmg 0 with a directed spell is impossible() in C; it cannot happen here (foundyou)
   if (dmg === 0 && !isUndirectedSpell(s)) return;
   switch (s) {
@@ -616,7 +678,10 @@ function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell): void {
     case 'clone_wiz':
     case 'summon_mons':
     case 'destry_armr':
-    case 'disappear':
+      dmg = 0;
+      break;
+    case 'disappear': // makes self invisible
+      mcastDisappear(ctx, mon);
       dmg = 0;
       break;
     case 'geyser':
@@ -629,7 +694,7 @@ function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell): void {
       dmg = mcastLightning(ctx);
       break;
     case 'insects':
-      mcastInsects(ctx, mon);
+      mcastInsects(ctx, mon, ap);
       dmg = 0;
       break;
     case 'blind_you':

@@ -31,6 +31,7 @@ import { adjalign, uState } from './luck';
 import { money2mon, moneyCnt } from './money';
 import { zorkmids } from './objnam';
 import { canSpotMon } from './perception';
+import { heroInvisible } from './invis';
 import {
   checkCredit,
   helpless,
@@ -317,6 +318,7 @@ export function payForDamage(ctx: Ctx, dmgstr: DmgStr, cantMollify: boolean): vo
   }
   // (a pay question already pending this move covers this damage too)
   if (ctx.state.pendingPrompt) return;
+  if (heroInvisible(ctx.state)) say(ctx, 'shk.invisibility_no_fool', { shk: shkname(ctx, e) });
   const data: PayData = { shkDamage: shk, cost };
   ctx.ask(
     {
