@@ -224,3 +224,16 @@ With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an ite
 - [ ] Create a `Grey-elf`, kill it: it leaves elven gear (elven mithril-coat, elven dagger, elven bow and arrows, not all at once). A `forest centaur` may shoot arrows, an `ogre` carries a club, a `soldier` a spear, short sword, dagger or knife and some armor.
 - [ ] Create a `troll`, kill it, and stand next to its corpse for up to 50 turns (`20s`): usually "The troll rises from the dead!"
 - [ ] Drop a `dagger` (wish) and create a `rust monster` on the other side of it; when it walks over the dagger: "The rust monster eats a dagger!" (a `rock mole` eats any metal, gold too). Drop a `food ration` and a dagger in a corridor and create a `gelatinous cube` beyond them: it eats the food and engulfs the dagger.
+
+## 7f-a position prompt and teleport control
+
+With `?wizard=1` (`Ctrl+w` wishes). The position prompt shows its question in the log, a cursor and **Pick** / **Cancel** buttons; a tap moves the cursor, a second tap on the same cell picks it. Keys work as in Look (`;`); `z`/`Z` jump between highlighted cells.
+
+- [ ] Wish `blessed scroll of teleportation` and read it: "Where do you want to be teleported?" and the cursor on you. Tap a far spot in another room once (the cursor moves, nothing happens), tap it again: you are there. Read another and press **Cancel**: you stay put (the scroll is used up and known).
+- [ ] Read one more and pick a wall: "Sorry..." and you land somewhere at random.
+- [ ] Wish `ring of teleport control`, put it on. Wish `teleportation trap` (it appears under you, unseen), step off and back on: the prompt asks where; pick a spot and land there.
+- [ ] Wish `level teleporter`, step off and back on: "To what level do you want to teleport?"; type a depth (e.g. 3): you arrive on that level ("You briefly feel centered."). Type nonsense at a second one: you are asked again with a hint.
+- [ ] In the self-actions menu choose **Wizard: teleport**: the cursor appears without the ring too; pick a wall: "Sorry...". Pick a floor spot: you are there.
+- [ ] Wish `jumping boots` and wear them: **Jump** appears in the self-actions menu (`Alt+j`). Choose it: "Where do you want to jump?" and the cells you can reach (up to 3 squares, not through walls or boulders) are highlighted; `z` cycles them. Tap one twice: you land there and lose a turn. Pick a cell outside the highlight four squares away: "Too far!" and no time passes.
+- [ ] Create a `newt` (`Ctrl+g`) and jump to a cell straight past it: "You bump into a newt." and you stop short of it. Wish `pit`, step off it and back: you fall in. Jump out: "You leap from the pit!". Jump back across it: "You pass right over a pit."
+- [ ] Take the boots off: **Jump** is gone. Wish `blessed spellbook of jumping`, read it, and cast jumping (`Z`; raise your level with the wizard level change if you lack energy): the same highlighted cursor (more cells once escape spells are Basic); Cancel says "Nothing happens." and still uses the move and energy. **Jump** is offered again while you know the spell and casts it.

@@ -6,7 +6,7 @@
 // FROMOUTSIDE / FROMEXPER bits) and `timeout` the turn a timed effect ends (0 = none). Names are
 // NetHack's property names lowercased: 'cold_res', 'stunned', 'fast', 'stealth', ...
 //
-// Worn rings and amulets confer their `ObjectDef.prop` as an extrinsic (NetHack's
+// Worn rings, amulets and armor confer their `ObjectDef.prop` as an extrinsic (NetHack's
 // uprops[].extrinsic, set by setworn()): it is cached on the wearer as the entry
 // `props['<name>:worn']` (present while some worn item gives it), rebuilt by `updateWornProps()`
 // whenever the hero's accessories change and as a safety net after every action and turn.
@@ -61,6 +61,7 @@ export const P = {
   TELEPORT: 'teleport',
   TELEPORT_CONTROL: 'teleport_control',
   CONFLICT: 'conflict',
+  JUMPING: 'jumping',
   WARNING: 'warning',
   MAGICAL_BREATHING: 'magical_breathing',
 } as const;
@@ -163,8 +164,23 @@ export function incrItimeout(
   setItimeout(state, e, name, timeoutLeft(state, e, name) + incr);
 }
 
-/** Accessory slots whose items confer their property while worn. ref: include/prop.h W_ACCESSORY */
-const ACCESSORY_SLOTS: ReadonlySet<string> = new Set(['ringL', 'ringR', 'amulet', 'blindfold']);
+/**
+ * Slots whose items confer their property while worn: the accessories and the armor (jumping
+ * boots). ref: include/prop.h W_ACCESSORY, W_ARMOR
+ */
+const ACCESSORY_SLOTS: ReadonlySet<string> = new Set([
+  'ringL',
+  'ringR',
+  'amulet',
+  'blindfold',
+  'body',
+  'cloak',
+  'shirt',
+  'helm',
+  'gloves',
+  'boots',
+  'shield',
+]);
 
 /** The item the entity wears in `slot` (uleft = 'ringL', uright = 'ringR', uamul = 'amulet'). */
 export function wornIn(state: Readonly<GameState>, id: EntityId, slot: string): Entity | null {

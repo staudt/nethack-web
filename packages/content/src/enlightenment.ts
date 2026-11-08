@@ -191,6 +191,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.AGGRAVATE_MONSTER)) line('enl.aggravate');
   if (has(P.CONFLICT)) line('enl.conflict');
   // transportation
+  if (has(P.JUMPING)) can('jump');
   if (has(P.TELEPORT)) can('teleport');
   if (has(P.TELEPORT_CONTROL)) have('teleport_control');
   // levitation blocked by a bear trap (BLevitation's I_SPECIAL)

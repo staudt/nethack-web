@@ -35,3 +35,18 @@ export function woundedLegSides(ctx: Pick<Ctx, 'state'>): number {
   const nh = ctx.state.modData['nh'] as { legSides?: number } | undefined;
   return nh?.legSides ?? RIGHT_SIDE;
 }
+
+/**
+ * "Your left leg is in no shape for jumping." (the wounded side, or "legs are" for both).
+ * `what` is the activity's message key. ref: src/do.c legs_in_no_shape() (no steed)
+ */
+export function legsInNoShape(ctx: Ctx, what: string): void {
+  const wl = woundedLegSides(ctx) & BOTH_SIDES;
+  const key =
+    wl === BOTH_SIDES
+      ? 'legs.no_shape_both'
+      : wl === LEFT_SIDE
+        ? 'legs.no_shape_left'
+        : 'legs.no_shape_right';
+  ctx.emit({ type: 'msg', key, params: { what: `@${what}` } });
+}

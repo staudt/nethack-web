@@ -80,6 +80,7 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.stealthy': 'stealthy',
   'enl.aggravate': 'You aggravate monsters.',
   'enl.conflict': 'You cause conflict.',
+  'enl.jump': 'jump',
   'enl.teleport': 'teleport',
   'enl.teleport_control': 'teleport control',
   'enl.would_levitate': 'You would levitate if not trapped.',

@@ -135,7 +135,8 @@ describe('domagictrap() fates', () => {
       const s = room();
       const sleeper = addMon(s.state, 'nh:jackal', 8, 2, { asleep: true });
       const before = monsters(s.state).length;
-      const text = run(s.state, (ctx) => magicTrapFate(ctx, fate));
+      // burn 1: a searched roll whose random monsters form no group (makemon() may add one)
+      const text = run(s.state, (ctx) => magicTrapFate(ctx, fate), 1);
       expect(text).toContain('You are momentarily blinded by a flash of light!');
       expect(text).toContain('You hear a deafening roar!');
       const hero = getPlayer(s.state);

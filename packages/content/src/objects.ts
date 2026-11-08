@@ -1140,6 +1140,24 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 2,
     armor: { slot: 'boots', ac: 2, mc: 0 },
   },
+  // ref: objects.h BOOTS("jumping boots", "hiking boots", 0, 1, JUMPING, 12, 2, 20, 50, 9, 0, LEATHER, HI_LEATHER, JUMPING_BOOTS)
+  // (the only boots of the shuffled range here, so the description stays: o_init.ts SHUFFLED)
+  {
+    id: 'nh:jumping_boots',
+    nameKey: 'nh:jumping_boots',
+    descKey: 'nh:jumping_boots.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 20,
+    cost: 50,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'jumping',
+  },
   // ref: objects.h SHIELD("Uruk-hai shield", "white-handed shield", 0, 0, 0, 0, 2, 0, 50, 7, 9, 0, IRON, HI_METAL, URUK_HAI_SHIELD)
   {
     id: 'nh:uruk_hai_shield',
@@ -2182,6 +2200,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   spellbook('cure_blindness', 25, 2, 2, true, YELLOW),
   // ref: objects.h SPELL("protection", "dull", P_CLERIC_SPELL, 18, 3, 1, 1, NODIR, HI_PAPER, ...)
   spellbook('protection', 18, 3, 1, true, WHITE),
+  // ref: objects.h SPELL("jumping", "thin", P_ESCAPE_SPELL, 20, 3, 1, 1, IMMEDIATE, HI_PAPER, SPE_JUMPING)
+  spellbook('jumping', 20, 3, 1, true, WHITE),
   // ref: objects.h SPELL("blank paper", "plain", P_NONE, 18, 0, 0, 0, 0, HI_PAPER, SPE_BLANK_PAPER)
   spellbook('blank_paper', 18, 0, 0, false, WHITE, 'plain_spellbook'),
 ];

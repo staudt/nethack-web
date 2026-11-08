@@ -66,6 +66,7 @@ export const spellMessagesEn: Record<string, string> = {
   'spell.name.nh:spellbook_of_confuse_monster': 'confuse monster',
   'spell.name.nh:spellbook_of_cure_blindness': 'cure blindness',
   'spell.name.nh:spellbook_of_protection': 'protection',
+  'spell.name.nh:spellbook_of_jumping': 'jumping',
 
   // ref: src/spell.c docast(), rejectcasting(), spelleffects_check(), cast_protection();
   // src/timeout.c nh_timeout(); src/detect.c monster_detect()

@@ -27,7 +27,8 @@ export const SPELLBOOK_CLASSES: readonly ObjectClass[] = ['spellbook'];
 
 /**
  * Classes whose descriptions are shuffled per game, in NetHack's order (venom does not exist;
- * the armor sub-ranges, helmets, gloves, cloaks and boots, are not in our subset).
+ * the armor sub-ranges, helmets, gloves, cloaks and boots, have at most one member here, which
+ * keeps its own description: leather gloves, jumping boots).
  * ref: src/o_init.c shuffle_all() shuffle_classes[]
  */
 const SHUFFLED: readonly ObjectClass[] = [

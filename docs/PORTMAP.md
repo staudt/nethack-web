@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3102 citations.
+152 NetHack files, 3122 citations.
 
 ## dat/dungeon.lua
 
@@ -383,6 +383,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/rm.h
 
 - (file): `packages/content/src/eshk.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
+- `ACCESSIBLE()`: `packages/content/src/jump.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `D_LOCKED()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`, `packages/core/src/types/mod.ts`
 - `D_NODOOR()`: `packages/core/src/levelgen/grid.ts`
@@ -449,7 +450,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/youprop.h
 
-- (file): `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/core/src/types/entity.ts`
 
 ## src/allmain.c
 
@@ -469,12 +470,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/apply.c
 
-- (file): `packages/content/src/apply.en.ts`
+- (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`
 - `broken_wand_explode()`: `packages/content/src/breakwand.ts`
 - `catch_lit()`: `packages/content/src/light.ts`
+- `check_jump()`: `packages/content/src/jump.ts`
 - `discard_broken_wand()`: `packages/content/src/breakwand.ts`
+- `display_jump_positions()`: `packages/content/src/jump.ts`
 - `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
+- `dojump()`: `packages/content/src/jump.ts`
+- `get_valid_jump_position()`: `packages/content/src/jump.ts`
+- `is_valid_jump_pos()`: `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
+- `jump()`: `packages/content/src/cast.ts`, `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
 - `magic_whistled()`: `packages/content/src/apply.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
@@ -620,6 +627,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`
 - `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
 - `heal_legs()`: `packages/content/src/props.ts`
+- `legs_in_no_shape()`: `packages/content/src/legs.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
 - `menu_drop()`: `packages/content/src/itemactions.ts`
 - `mnexto()`: `packages/core/src/engine.ts`
@@ -724,6 +732,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/dothrow.c
 
+- (file): `packages/content/src/jump.en.ts`
 - `breakmsg()`: `packages/content/src/scatter.ts`
 - `breakobj()`: `packages/content/src/scatter.ts`
 - `breaks()`: `packages/content/src/scatter.ts`
@@ -733,6 +742,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dothrow()`: `packages/content/src/dothrow.ts`
 - `hero_breaks()`: `packages/content/src/dokick.ts`
 - `hitfloor()`: `packages/content/src/dothrow.ts`
+- `hurtle_jump()`: `packages/content/src/jump.ts`
 - `multishot_class_bonus()`: `packages/content/src/dothrow.ts`
 - `omon_adj()`: `packages/content/src/mthrowu.ts`
 - `should_mulch_missile()`: `packages/content/src/mthrowu.ts`
@@ -742,6 +752,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `throwit()`: `packages/content/src/dothrow.ts`, `packages/content/src/mthrowu.en.ts`
 - `tmiss()`: `packages/content/src/dothrow.ts`
 - `tmp_at()`: `packages/content/src/dothrow.ts`
+- `walk_path()`: `packages/content/src/jump.ts`
 
 ## src/drawing.c
 
@@ -1820,7 +1831,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rejectcasting()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
 - `spell_backfire()`: `packages/content/src/cast.ts`
 - `spell_skilltype()`: `packages/content/src/spellcalc.ts`
-- `spelleffects()`: `packages/content/src/cast.ts`, `packages/content/src/wizard/cast.ts`
+- `spelleffects()`: `packages/content/src/cast.ts`, `packages/content/src/jump.ts`, `packages/content/src/wizard/cast.ts`
 - `spelleffects_check()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
 - `spellet()`: `packages/content/src/spell.ts`
 - `spellretention()`: `packages/content/src/spell.ts`

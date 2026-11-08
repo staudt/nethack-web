@@ -125,6 +125,7 @@ describe('were creatures changing form', () => {
     const w = mon(s.state, 'nh:human_werejackal');
     const sword = mongets(s.ctx, w.id, 'nh:long_sword')!;
     s.state.entities[String(sword)]!.c.item!.equipped = 'weapon';
+    delete s.state.entities[String(sword)]!.c.item!.erosion; // pinned: mksobj() may rust it
     w.c.monster!.asleep = true;
     w.c.hp = { cur: 20, max: 100 };
     newWere(s.ctx, w);

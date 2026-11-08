@@ -26,6 +26,10 @@ Golems, figurines, vampire shapeshifting, polearms, and `#monster` abilities for
 - No feature needs a keyboard: the position prompt works by tapping.
 - Replays and the golden test are deterministic, every golden change has a verified cause in its commit, and `pnpm check` is green locally and in CI.
 
+### Status
+
+- **7f-a (branch `m7f-a`, steps 1-3 done):** the position prompt, `wiz:teleport`, the ring of teleport control with controlled teleports and level teleports, and jumping (boots, spell, `#jump`) are built. Keyboard-free: every prompt answers by tapping (tap twice or Pick, Cancel), `#jump` is a self offer. Golden changes in steps 2 and 3 were verified by filtering the new defs. `pnpm check` green locally at each step; CI and the phone check (TESTPLAN "7f-a position prompt and teleport control") are pending.
+
 ## Testing
 
 - Core tests for the position prompt validation and the perception hooks, using a test PerceptionDef.

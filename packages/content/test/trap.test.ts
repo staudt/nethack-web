@@ -579,9 +579,11 @@ describe('mintrap: monsters', () => {
 
 describe('pits', () => {
   /** Steps east into a pit at (2, 1) (unseen); returns the events. */
-  function fallIn(def: DefId, seed = 1) {
+  function fallIn(def: DefId, seed = 1, spare = false) {
     const s = setup(ROOM, seed);
     place(s.state, def, 2, 1);
+    // a spare move: the turn does not end, so no HP regeneration hides the damage
+    if (spare) getPlayer(s.state).c.actor!.energy += 12;
     const ev = engine.step(s.state, { type: 'move', dir: 'e' }).events;
     return { ...s, ev };
   }
@@ -637,7 +639,7 @@ describe('pits', () => {
     expect(plain).toBeGreaterThan(0); // not every fall is poisoned
     expect(keys(poisonedRun.ev)).toContain('trap.pit.spikes');
     for (let seed = 1; seed <= 20; seed++) {
-      const { state, ev } = fallIn(TRAP.spikedPit, seed);
+      const { state, ev } = fallIn(TRAP.spikedPit, seed, true);
       expect(keys(ev)).toContain('trap.pit.spikes');
       if (keys(ev).includes('trap.pit.spikes_poisoned')) continue;
       const lost = 500 - heroHp(state);

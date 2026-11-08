@@ -185,6 +185,8 @@ describe('explosions of attack wands', () => {
       const brown = pinned(m, 'nh:brown_mold', 5, 4); // cold resistant
       const far = pinned(m, 'nh:newt', 8, 5);
       const id = giveWand(m, 'nh:wand_of_fire', 3);
+      // a spare move: the turn does not end, so no HP regeneration hides the damage
+      getPlayer(m.state).c.actor!.energy += 12;
       const msgs = breakIt(m, id);
       const dam = 3 * 4 * 2;
       expect(msgs).toContain('Boom!');

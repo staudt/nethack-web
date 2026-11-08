@@ -95,7 +95,7 @@ describe('Mines levels', () => {
   test('every level: a minefill cave with reachable stairs, gnomes, dwarves, gems and traps', () => {
     const seen = new Set<string>();
     // seeds whose Minetown is not Orcish Town (its orcs are scattered over the filler levels)
-    for (const seed of [1, 3, 4]) {
+    for (const seed of [2, 3, 4]) {
       const { state } = engine.newGame({ seed });
       const mines = state.dungeons.find((d) => d.id === 'nh:mines');
       const n = mines?.levels ?? 0;

@@ -1,7 +1,7 @@
 // Casting spells: the `Z` command, the checks before a cast and the effects of the spells of the
 // subset. ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
 // spell_backfire(), spelleffects(), cast_protection(); src/timeout.c nh_timeout() (spell
-// protection); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
+// protection); src/apply.c jump() (the spell of jumping, jump.ts); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
 // zapyourself() (force bolt, sleep, healing); src/read.c seffect_confuse_monster()
 import {
   NORMAL_SPEED,
@@ -23,6 +23,7 @@ import { checkCapacity, strangeFeeling } from './magic';
 import { healup } from './potion';
 import { freehand } from './pray';
 import { P, hasProp, isStrangled, makeConfused, makeStunned, timeoutLeft, wornIn } from './props';
+import { jump, jumpSpellDone, setJumpSpell } from './jump';
 import { litroom } from './read';
 import { P_EXPERT, P_SKILLED, skillLevel, useSkill } from './skills';
 import { KEEN, knownSpells, spellEntry, spellet } from './spell';
@@ -48,7 +49,8 @@ type CastBook =
   | 'nh:spellbook_of_light'
   | 'nh:spellbook_of_detect_monsters'
   | 'nh:spellbook_of_cure_blindness'
-  | 'nh:spellbook_of_protection';
+  | 'nh:spellbook_of_protection'
+  | 'nh:spellbook_of_jumping';
 
 /** The books of the subset, in objects[] order (the order #wizcast lists them). */
 export const CAST_BOOKS: readonly CastBook[] = [
@@ -60,16 +62,18 @@ export const CAST_BOOKS: readonly CastBook[] = [
   'nh:spellbook_of_confuse_monster',
   'nh:spellbook_of_cure_blindness',
   'nh:spellbook_of_protection',
+  'nh:spellbook_of_jumping',
 ];
 
 const isCastBook = (book: DefId): book is CastBook =>
   (CAST_BOOKS as readonly string[]).includes(book);
 
 /**
- * The effect of each spell (the switch of spelleffects()): a function, or 'direction' for the
- * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object).
+ * The effect of each spell (the switch of spelleffects()): a function, 'direction' for the
+ * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object), or
+ * 'jump' for jumping, which asks where to land.
  */
-function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' {
+function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | 'jump' {
   switch (book) {
     case 'nh:spellbook_of_force_bolt':
     case 'nh:spellbook_of_sleep':
@@ -91,6 +95,8 @@ function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' {
       return (ctx) => healup(ctx, 0, 0, false, true);
     case 'nh:spellbook_of_protection':
       return castProtection;
+    case 'nh:spellbook_of_jumping':
+      return 'jump';
   }
 }
 
@@ -246,6 +252,12 @@ export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
       data as unknown as Json,
     );
     return 0;
+  }
+  if (effect === 'jump') {
+    // ref: spelleffects() SPE_JUMPING: jump(max(role_skill, 1)), "Nothing happens." when she
+    // did not jump; the position prompt's answer (jump.ts) finishes the cast
+    const used = jump(ctx, Math.max(skillLevel(ctx, spellSkill(book)), 1), { force });
+    return used === null ? 0 : jumpSpellDone(ctx, used, force);
   }
   effect(ctx);
   // gain skill for successful cast
@@ -453,6 +465,8 @@ export const CAST_ACTIONS: readonly ActionDef[] = [castAction];
 
 export function registerCast(api: ModApi): void {
   for (const a of CAST_ACTIONS) api.defineAction(a);
+  // #jump without Jumping casts a fresh spell of jumping (ref: src/apply.c jump())
+  setJumpSpell((ctx) => spelleffects(ctx, 'nh:spellbook_of_jumping', false));
   // ref: src/timeout.c nh_timeout(): "Dissipate spell-based protection." (after the
   // `u.uinvulnerable` return)
   api.on('endOfTurn', (ctx) => {

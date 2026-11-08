@@ -47,6 +47,8 @@ const OBJECT_DIFFERENCES: Readonly<Record<string, string>> = {
   'nh:boulder.ch': "drawn as '0' (the common `boulder` option), DEVIATIONS.md Boulders",
   'nh:leather_gloves.descKey':
     'the only glove type in the table, so its range never shuffles (o_init.ts SHUFFLED)',
+  'nh:jumping_boots.descKey':
+    'the only boots of the shuffled range in the table, so it never shuffles (o_init.ts SHUFFLED)',
   'nh:potion_of_blindness.prop': POTION_PROP,
   'nh:potion_of_confusion.prop': POTION_PROP,
   'nh:potion_of_hallucination.prop': POTION_PROP,
