@@ -16,7 +16,7 @@ import {
   type StepResult,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { setIntrinsic } from '../src/props';
+import { P, hasIntrinsic, setIntrinsic } from '../src/props';
 import { setTerrain } from '../src/terrain';
 import {
   FTN_LOOTED,
@@ -219,6 +219,23 @@ describe('#quaff from a fountain', () => {
     ]);
     expect(first(30)[0]).toBe('Your thirst is quenched.');
     expect(first(28)[0]).toBe('You attract a water nymph!'); // m9 step 3: a real nymph
+  });
+
+  test('fate 25: see invisible for good; blind and invisible, she feels transparent', () => {
+    const s = room();
+    const d = drinks(s.state, (f) => f === 25)[0]!;
+    expect(hasIntrinsic(getPlayer(d.state), P.SEE_INVIS)).toBe(true);
+    const b = room();
+    setIntrinsic(getPlayer(b.state), P.INVIS, true);
+    setIntrinsic(getPlayer(b.state), P.BLINDED, true);
+    const db = drinks(b.state, (f) => f === 25)[0]!;
+    expect(db.text[0]).toBe('You feel transparent.');
+    const c = room();
+    setIntrinsic(getPlayer(c.state), P.BLINDED, true);
+    expect(drinks(c.state, (f) => f === 25)[0]!.text.slice(0, 2)).toEqual([
+      'You feel very self-conscious.',
+      'Then it passes.',
+    ]);
   });
 
   test('fate 20: foul water makes her hungrier and vomit', () => {

@@ -48,6 +48,7 @@ import { spellDamageBonus, spellHitBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
+import { canseemon } from './invis';
 
 /**
  * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
@@ -128,8 +129,6 @@ function monAt(ctx: Ctx, x: number, y: number): Entity | null {
 
 const cansee = (ctx: Ctx, x: number, y: number): boolean =>
   heroSees(ctx, { level: heroPos(ctx).level, x, y });
-const canseemon = (ctx: Ctx, mon: Entity): boolean =>
-  !!mon.c.pos && cansee(ctx, mon.c.pos.x, mon.c.pos.y);
 
 /** The hero kills the monster: "You kill it!", then experience. ref: src/mon.c killed(), xkilled() */
 export function killedByHero(ctx: Ctx, mon: Entity): void {

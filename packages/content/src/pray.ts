@@ -276,13 +276,15 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
 /** ref: src/sit.c attrcurse(): takes away one intrinsic, starting at a random one */
 export function attrcurse(ctx: Ctx): boolean {
   const h = hero(ctx);
-  // [prop, message] in attrcurse()'s order (teleportitis, invisibility, see invisible and
-  // aggravation do not exist: their cases fall through)
+  // [prop, message] in attrcurse()'s order (teleportitis and aggravation do not exist: their
+  // cases fall through)
   const order: [number, string, string][] = [
     [1, P.FIRE_RES, 'attrcurse.warmer'],
     [3, P.POISON_RES, 'attrcurse.sick'],
     [4, P.TELEPAT, 'attrcurse.senses_fail'],
     [5, P.COLD_RES, 'attrcurse.cooler'],
+    [6, P.INVIS, 'attrcurse.paranoid'],
+    [7, P.SEE_INVIS, hasProp(h, P.HALLUC) ? 'attrcurse.puttie_tat' : 'attrcurse.saw_something'],
     [8, P.FAST, 'attrcurse.slower'],
     [9, P.STEALTH, 'attrcurse.clumsy'],
     [10, P.PROTECTION, 'attrcurse.vulnerable'],

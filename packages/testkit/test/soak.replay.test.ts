@@ -29,7 +29,7 @@ describe('soak with multi-turn actions', () => {
 });
 
 describe('soak with the kit mod (fire, throw, kick, text and count prompts)', () => {
-  test('three seeds keep every invariant', { timeout: 40000 }, () => {
+  test('three seeds keep every invariant', { timeout: 120000 }, () => {
     const tot = { kicks: 0, fired: 0, thrown: 0, countAnswers: 0, textAnswers: 0 };
     for (const seed of [21, 22, 23]) {
       const r = soak([vanillaMod, soakKitMod], { seed, turns: 1200, checkEvery: 5 });

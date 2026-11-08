@@ -14,6 +14,13 @@ import {
   type Registry,
 } from '@nh/core';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
+import {
+  REMEMBERED_UNSEEN_APPEARANCE,
+  cantSeeSelf,
+  monInvisible,
+  monVisible,
+  seeInvisible,
+} from './invis';
 import { epriOf, priestName } from './epri';
 import { eshkOf, shkName } from './eshk';
 
@@ -127,7 +134,9 @@ export function warningShown(
   mon: Entity,
 ): DefId | null {
   const wl = warningLevel(state, defs, mon);
-  if (wl === null || cellSeen(state, mon) || telepathSenses(state, defs, mon)) return null;
+  // newsym(): an invisible monster on a seen square still shows its warning digit
+  if (wl === null || (cellSeen(state, mon) && monVisible({ state }, mon))) return null;
+  if (telepathSenses(state, defs, mon)) return null;
   return warningGlyph(
     heroHas(state, P.HALLUC) ? ((state.turn + mon.id) % (WARNCOUNT - 1)) + 1 : wl,
   );
@@ -155,6 +164,15 @@ export function registerPerception(api: ModApi): void {
     senses: (state, defs, mon) => warningShown(state, defs, mon) !== null,
     shownAs: (state, defs, e) => (defs.isMonster(e.def) ? warningShown(state, defs, e) : null),
   });
+  // invisibility: an invisible monster is not seen on a visible square unless she sees invisible
+  // (mon_visible()), and an invisible hero who can't see invisible can't see herself
+  // (canspotself()); `self` answers null otherwise so that later defs (a polymorph form) get a turn
+  api.defineAppearance(REMEMBERED_UNSEEN_APPEARANCE);
+  api.definePerception({
+    id: 'nh:invisibility',
+    hides: (state, _defs, mon) => monInvisible({ state }, mon) && !seeInvisible(state),
+    self: (state) => (cantSeeSelf(state) ? { unseen: true } : null),
+  });
   api.definePerception({
     id: 'nh:senses',
     // swallowed: "You see nothing, nothing can see you" (ref: src/vision.c vision_recalc())
@@ -170,15 +188,16 @@ export function registerPerception(api: ModApi): void {
 }
 
 /**
- * ref: src/display.h canspotmon(): seen (its cell is visible) or sensed. A warning digit is
- * neither (sensemon() counts only warning of a monster's kind, which does not exist here).
+ * ref: src/display.h canspotmon(): seen (canseemon(): its cell is visible and mon_visible()) or
+ * sensed. A warning digit is neither (sensemon() counts only warning of a monster's kind, which
+ * does not exist here).
  */
 export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
   const p = mon.c.pos;
   const hero = getPlayer(ctx.state).c.pos;
   if (!p || p.level !== hero?.level) return false;
   const level = ctx.state.levels[p.level];
-  if (level && isVisible(ctx.state, p.y * level.width + p.x)) return true;
+  if (level && isVisible(ctx.state, p.y * level.width + p.x) && monVisible(ctx, mon)) return true;
   return ctx.defs.perceptions.some(
     (d) => d.id !== WARNING_PERCEPTION && d.senses?.(ctx.state, ctx.defs, mon) === true,
   );

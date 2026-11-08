@@ -12,6 +12,7 @@ import { messagesEn } from '../messages.en';
 import { nameToMon } from '../mondata';
 import { mungspaces, wishNames } from '../objnam_read';
 import { canSpotMon, monNam } from '../perception';
+import { setMinvis } from '../invis';
 import { heroPos } from '../travel';
 
 export const WIZ_GENESIS = 'wiz:genesis';
@@ -39,13 +40,14 @@ export interface GenesisSpec {
   peaceful: boolean;
   hostile: boolean;
   sleeping: boolean;
+  invisible: boolean;
 }
 
 /**
- * ref: src/read.c create_particular_parse(): an optional count, "sleeping", then "tame",
+ * ref: src/read.c create_particular_parse(): an optional count, "sleeping", "invisible", then "tame",
  * "peaceful" or "hostile", then `*`/"random" (a random monster), a monster name (name_to_mon())
  * or a class symbol (name_to_monclass() for single characters). Null when nothing matches.
- * Not ported: "saddled", "invisible", "hidden", "female"/"male", class descriptions
+ * Not ported: "saddled", "hidden", "female"/"male", class descriptions
  * ("dragon"), the long worm and ']' / 'I' / '~' special cases.
  */
 export function parseGenesis(ctx: Ctx, text: string): GenesisSpec | null {
@@ -66,6 +68,12 @@ export function parseGenesis(ctx: Ctx, text: string): GenesisSpec | null {
     sleeping = true;
     bufp = bufp.slice(0, sl) + ' '.repeat(9) + bufp.slice(sl + 9);
   }
+  let invisible = false;
+  const inv = bufp.toLowerCase().indexOf('invisible ');
+  if (inv >= 0) {
+    invisible = true;
+    bufp = bufp.slice(0, inv) + ' '.repeat(10) + bufp.slice(inv + 10);
+  }
   bufp = mungspaces(bufp);
   const lower = bufp.toLowerCase();
   let tame = false;
@@ -81,7 +89,7 @@ export function parseGenesis(ctx: Ctx, text: string): GenesisSpec | null {
     bufp = bufp.slice(8);
     hostile = true;
   }
-  const spec = { quan, which: null, cls: null, tame, peaceful, hostile, sleeping };
+  const spec = { quan, which: null, cls: null, tame, peaceful, hostile, sleeping, invisible };
   if (bufp === '*' || bufp === 'random') return spec;
   const names = wishNames(ctx.state, ctx.defs, messagesEn).monsters;
   const which = nameToMon(names, bufp);
@@ -123,6 +131,7 @@ export function createParticular(ctx: Ctx, spec: GenesisSpec): boolean {
     const mon = ctx.state.entities[String(id)];
     const m = mon?.c.monster;
     if (!mon || !m) continue;
+    if (spec.invisible) setMinvis(ctx, mon, false); // makemon()'s MM_MINVIS
     if (canSpotMon(ctx, mon))
       ctx.emit({ type: 'msg', key: 'wiz.genesis.appears', params: { mon: monNam(ctx, mon) } });
     if (spec.tame) {

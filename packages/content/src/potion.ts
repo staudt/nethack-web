@@ -21,7 +21,19 @@ import { pluslvl, setUlevelmax, ulevelmax } from './hero';
 import { ulycn, youUnwere } from './werestate';
 import { heroEntity, useup } from './magic';
 import { nomulNow } from './hunger';
-import { P, hasProp, makeBlinded, makeConfused, makeHallucinated, timeoutLeft } from './props';
+import {
+  P,
+  hasIntrinsic,
+  hasProp,
+  incrItimeout,
+  makeBlinded,
+  makeConfused,
+  makeHallucinated,
+  setIntrinsic,
+  timeoutLeft,
+} from './props';
+import { cantSeeSelf, heroInvisBlocked, heroInvisible, selfInvisMessage } from './invis';
+import { aggravate } from './mstate';
 
 /**
  * ref: src/potion.c healup(): heals `nhp` and, if that goes past the maximum, raises the maximum
@@ -205,17 +217,56 @@ function peffectFullHealing(ctx: Ctx, p: Entity): Effect {
 }
 
 /**
- * ref: src/potion.c peffect_see_invisible(). No invisibility or See_invisible status exists yet,
- * so the effect is only the taste message; the random draws are still made.
+ * ref: src/potion.c peffect_invisibility() (the potion: the spell is not in the subset). A
+ * blessed potion may make it permanent; a cursed one aggravates and takes permanent invisibility
+ * away, leaving the timed part.
+ */
+function peffectInvisibility(ctx: Ctx, p: Entity): Effect {
+  const buc = p.c.item?.buc ?? 'uncursed';
+  const h = heroEntity(ctx);
+  let nothing = false;
+  if (heroInvisible(ctx.state) || hasProp(h, P.BLINDED) || heroInvisBlocked(ctx.state))
+    nothing = true;
+  else selfInvisMessage(ctx);
+  if (buc === 'blessed' && !ctx.rng.rn2(hasIntrinsic(h, P.INVIS) || hInvisTimed(ctx) ? 15 : 30))
+    setIntrinsic(h, P.INVIS, true);
+  else incrItimeout(ctx.state, h, P.INVIS, ctx.rng.d(6 - 3 * bcsign(buc), 100) + 100);
+  if (buc === 'cursed') {
+    msg(ctx, 'potion.presence_known');
+    aggravate(ctx);
+    // temporary invisibility, but no permanent invisibility
+    setIntrinsic(h, P.INVIS, false);
+  }
+  return nothing ? { unknown: false, nothing: true } : { unknown: false };
+}
+
+/** HInvis's timed part (C's HInvis is nonzero for either part). */
+const hInvisTimed = (ctx: Ctx): boolean => timeoutLeft(ctx.state, heroEntity(ctx), P.INVIS) > 0;
+
+/**
+ * ref: src/potion.c peffect_see_invisible(): the taste (no fruit juice, no diluted potions, no
+ * hallucinated wording), sight restored unless cursed, then permanent (blessed, sometimes) or
+ * timed see invisible; seeing herself invisible identifies it.
  */
 function peffectSeeInvisible(ctx: Ctx, p: Entity): Effect {
   const buc = p.c.item?.buc ?? 'uncursed';
+  const h = heroEntity(ctx);
+  const showMsg = cantSeeSelf(ctx.state) && !hasProp(h, P.BLINDED);
+  const hInvis = hasIntrinsic(h, P.INVIS) || hInvisTimed(ctx);
+  const hSee = hasIntrinsic(h, P.SEE_INVIS) || timeoutLeft(ctx.state, h, P.SEE_INVIS) > 0;
+  const permchance = 10 - (hInvis ? 3 : 0) - (hSee ? 6 : 0);
+  let unknown = true;
   msg(ctx, buc === 'cursed' ? 'potion.tastes_rotten' : 'potion.tastes_juice');
-  // permchance = 10 (not invisible, no See_invisible yet)
-  if (buc === 'blessed' && ctx.rng.rn2(10) === 0) {
-    /* HSee_invisible |= FROMOUTSIDE: no status to set */
-  } else ctx.rng.rn2(100); // rn1(100, 750): the timeout
-  return { unknown: true };
+  // tell them they can see again immediately, which will help them identify the potion
+  if (buc !== 'cursed') makeBlinded(ctx, 0, true);
+  if (buc === 'blessed' && !ctx.rng.rn2(permchance)) setIntrinsic(h, P.SEE_INVIS, true);
+  else incrItimeout(ctx.state, h, P.SEE_INVIS, ctx.rng.rn2(100) + 750); // rn1(100, 750)
+  // see_monsters(): the next snapshot shows invisible monsters
+  if (showMsg && !hasProp(h, P.BLINDED)) {
+    msg(ctx, 'potion.see_through_visible');
+    unknown = false;
+  }
+  return { unknown };
 }
 
 /**
@@ -263,6 +314,8 @@ function peffects(ctx: Ctx, p: Entity): Effect {
       return peffectExtraHealing(ctx, p);
     case 'nh:potion_of_full_healing':
       return peffectFullHealing(ctx, p);
+    case 'nh:potion_of_invisibility':
+      return peffectInvisibility(ctx, p);
     case 'nh:potion_of_see_invisible':
       return peffectSeeInvisible(ctx, p);
     case 'nh:potion_of_water':
@@ -308,6 +361,7 @@ export const POTION_USES: Readonly<
   'nh:potion_of_healing': dopotion,
   'nh:potion_of_extra_healing': dopotion,
   'nh:potion_of_full_healing': dopotion,
+  'nh:potion_of_invisibility': dopotion,
   'nh:potion_of_see_invisible': dopotion,
   'nh:potion_of_water': dopotion,
 };

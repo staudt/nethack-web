@@ -7,7 +7,7 @@
 // hero's name (the window's title says "Your attributes:"), no weapon and skill insight, no
 // spellcasting line, no "Miscellaneous" section (the elapsed real time would break
 // determinism), no deaths counted ("You have been killed..."), and nothing for polymorph,
-// steeds, swallowing, being held, water, invisibility, see invisible,
+// steeds, swallowing, being held, water,
 // infravision, half damage or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
 import { isStoned } from './stonestate';
@@ -15,6 +15,13 @@ import { resistsDrliHero } from './exper';
 import { ulycn } from './werestate';
 import { getPlayer, type Ctx, type Msg } from '@nh/core';
 import { alignGname } from './align';
+import {
+  cantSeeSelf,
+  heroInvisBlocked,
+  heroInvisSource,
+  heroInvisible,
+  seeInvisible,
+} from './invis';
 import { carryingLuckstone, moreluck, stoneLuck } from './gem';
 import { hungerData } from './hunger';
 import { luckOf, uState } from './luck';
@@ -178,6 +185,11 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (resistsDrliHero(ctx)) are('drain_res');
   if (has(P.STONE_RES)) are(temp(P.STONE_RES) ? 'stone_res_temp' : 'stone_res');
   // vision and senses
+  if (seeInvisible(ctx.state)) {
+    if (!has(P.BLINDED)) line('enl.see_invisible');
+    else if (!hasIntrinsic(h, P.BLINDED)) line('enl.see_invisible_unblind');
+    else line('enl.see_invisible_perm');
+  }
   if (has(P.TELEPAT)) are('telepathic');
   if (has(P.WARNING)) are('warned');
   if (has(P.SEARCHING)) have('searching');
@@ -187,6 +199,10 @@ export function enlightenment(ctx: Ctx): Msg[] {
     const adorn = ringBonus(ctx.state, 'nh:ring_of_adornment');
     are(adorn > 0 ? 'charismatic_more' : adorn < 0 ? 'charismatic_less' : 'charismatic');
   }
+  if (cantSeeSelf(ctx.state)) are('invisible');
+  else if (heroInvisible(ctx.state)) are('invisible_to_others');
+  // ordinarily "visible" is redundant; a special case when invisibility would be expected
+  else if (heroInvisSource(ctx.state) && heroInvisBlocked(ctx.state)) are('visible');
   if (has(P.STEALTH)) are('stealthy');
   if (has(P.AGGRAVATE_MONSTER)) line('enl.aggravate');
   if (has(P.CONFLICT)) line('enl.conflict');

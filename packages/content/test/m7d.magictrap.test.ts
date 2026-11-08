@@ -159,9 +159,9 @@ describe('domagictrap() fates', () => {
     expect(monsters(s.state).length).toBeGreaterThan(before);
   });
 
-  test('10: nothing; 11: a low hum; 13-18: odd feelings (hallucination changes some)', () => {
+  // (11, the low hum toggling invisibility: m7f.invis.test.ts)
+  test('10: nothing; 13-18: odd feelings (hallucination changes some)', () => {
     const cases: [number, string, string][] = [
-      [11, 'You hear a low hum.', 'You hear a low hum.'],
       [13, 'A shiver runs up and down your spine!', 'A shiver runs up and down your spine!'],
       [14, 'You hear distant howling.', 'You hear the moon howling at you.'],
       [15, 'You suddenly yearn for your distant homeland.', 'You suddenly yearn for Cleveland.'],

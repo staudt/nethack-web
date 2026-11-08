@@ -64,6 +64,8 @@ export const P = {
   JUMPING: 'jumping',
   WARNING: 'warning',
   MAGICAL_BREATHING: 'magical_breathing',
+  INVIS: 'invis',
+  SEE_INVIS: 'see_invis',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */

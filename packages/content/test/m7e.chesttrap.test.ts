@@ -386,7 +386,10 @@ describe('trapped doors', () => {
     expect(t.slice(0, 2)).toEqual(['The door opens.', kaboom]);
     expect(cell(m, 3, 1)).toBe(T.doorway);
     expect(hp(m)).toBeLessThan(before);
-    expect(hasProp(getPlayer(m.state), P.STUNNED)).toBe(true);
+    // stunned for as many turns as the damage: a 1-point blast wears off at the end of this turn
+    expect(t).toContain('You stagger...');
+    const stunned = hasProp(getPlayer(m.state), P.STUNNED);
+    expect(stunned).toBe(!t.includes('You feel a bit steadier now.'));
     expect(doorTrapped(m.ctx, 'dlvl1', 3, 1)).toBe(false);
   });
 

@@ -33,6 +33,7 @@ import { nomulNow } from './hunger';
 import { setAfternmv, setAfternmvKey, setStealIds, stealIds } from './nomul';
 import { armorSimpleName, doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, someMonNam } from './perception';
+import { cloakOff } from './invis';
 import { P, hasProp, updateWornProps } from './props';
 import { subfrombill } from './shk';
 import { teleRestrict } from './teleport';
@@ -185,6 +186,7 @@ export function removeWornItem(ctx: Ctx, obj: Entity): void {
   else if (slot) {
     it.equipped = null; // Armor_off() .. Shirt_off(), uwepgone()
     updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
+    if (slot === 'cloak') cloakOff(ctx, obj);
   }
   if (swapWep(ctx)?.id === obj.id) setSwapWep(ctx, null); // uswapwepgone()
 }

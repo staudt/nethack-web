@@ -1092,6 +1092,23 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'cloak', ac: 2, mc: 2 },
   },
+  // ref: objects.h CLOAK("cloak of invisibility", "opera cloak", 0, 1, INVIS, 12, 0, 10, 60, 9, 1, CLOTH, CLR_BRIGHT_MAGENTA, CLOAK_OF_INVISIBILITY)
+  {
+    id: 'nh:cloak_of_invisibility',
+    nameKey: 'nh:cloak_of_invisibility',
+    descKey: 'nh:cloak_of_invisibility.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BRIGHT_MAGENTA },
+    prob: 12,
+    weight: 10,
+    cost: 60,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+    prop: 'invis',
+  },
   // ref: objects.h HELM("orcish helm", "iron skull cap", 0, 0, 0, 6, 1, 30, 10, 9, 0, IRON, CLR_BLACK, ORCISH_HELM)
   {
     id: 'nh:orcish_helm',
@@ -1566,6 +1583,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'teleport_control',
   },
+  // ref: objects.h RING("invisibility", "wire", INVIS, 150, 1, 0, 5, IRON, HI_METAL, RIN_INVISIBILITY)
+  {
+    id: 'nh:ring_of_invisibility',
+    nameKey: 'nh:ring_of_invisibility',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'invis',
+  },
+  // ref: objects.h RING("see invisible", "engagement", SEE_INVIS, 150, 1, 0, 5, IRON, HI_METAL, RIN_SEE_INVISIBLE)
+  {
+    id: 'nh:ring_of_see_invisible',
+    nameKey: 'nh:ring_of_see_invisible',
+    class: 'ring',
+    glyph: { ch: '=', fg: CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'see_invis',
+  },
 
   // ---- amulets (iron, weight 20, cost 150, magic; appearances are shuffled) ----
   // ref: objects.h AMULET("amulet of ESP", "circular", TELEPAT, 120)
@@ -1707,6 +1754,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('nothing', 25, 100, false, 'immediate', 'wood', BROWN),
   // ref: objects.h WAND("striking", "ebony", 30, 150, 1, IMMEDIATE, WOOD, ...)
   wand('striking', 30, 150, true, 'immediate', 'wood', BROWN),
+  // ref: objects.h WAND("make invisible", "marble", 45, 150, 1, IMMEDIATE, MINERAL, HI_MINERAL, ...)
+  wand('make_invisible', 45, 150, true, 'immediate', 'mineral', GRAY),
   // ref: objects.h WAND("slow monster", "tin", 50, 150, 1, IMMEDIATE, METAL, ...)
   wand('slow_monster', 50, 150, true, 'immediate', 'metal', CYAN),
   // ref: objects.h WAND("speed monster", "brass", 50, 150, 1, IMMEDIATE, COPPER, ...)
@@ -1961,6 +2010,20 @@ export const OBJECTS: readonly ObjectDef[] = [
     prob: 30,
     weight: 20,
     cost: 100,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h POTION("invisibility", "brilliant blue", 1, INVIS, 40, 150, CLR_BRIGHT_BLUE, POT_INVISIBILITY)
+  {
+    id: 'nh:potion_of_invisibility',
+    nameKey: 'nh:potion_of_invisibility',
+    class: 'potion',
+    glyph: { ch: '!', fg: BRIGHT_BLUE },
+    prob: 40,
+    weight: 20,
+    cost: 150,
     material: 'glass',
     merge: true,
     magic: true,

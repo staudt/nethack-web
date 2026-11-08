@@ -84,6 +84,7 @@ import { T, isObstructedId } from './terrain';
 import { digAbility, mDigweaponCheck, mayDig, mdigTunnel, needsPick, tunnels } from './mdig';
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
+import { monInvisible } from './invis';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -995,7 +996,7 @@ export function dochug(
     scared ||
     isMConfused(ctx, id) ||
     isMStunned(ctx, id) ||
-    // (no invisible monsters: `mtmp->minvis && !rn2(3)`)
+    (monInvisible(ctx, monCount(ctx, id).e) && !ctx.rng.rn2(3)) ||
     // a leprechaun moves on (rather than standing to fight) when she has no gold: always if it
     // has some, else half the time
     (def.glyph.ch === 'l' &&
@@ -1084,7 +1085,7 @@ export function dochug(
 
 /**
  * ref: dochug(): "extra emotional attack for vile monsters": a hostile MS_CUSS monster within
- * range on a square the hero could see curses her one time in five (no invisible monsters).
+ * range on a square the hero could see, if it is not invisible, curses her one time in five.
  * Skipped when the monster died attacking or the game ended.
  */
 function maybeCuss(ctx: Ctx, id: EntityId, inrange: boolean, heroPos: Pos): void {
@@ -1093,6 +1094,7 @@ function maybeCuss(ctx: Ctx, id: EntityId, inrange: boolean, heroPos: Pos): void
   if (!mon?.c.monster || !p || ctx.state.gameOver || !inrange) return;
   if (ctx.defs.monster(mon.def).sound !== 'cuss' || mon.c.monster.peaceful) return;
   if (!sightLine(ctx, p.level)(heroPos.x, heroPos.y, p.x, p.y)) return;
+  if (monInvisible(ctx, mon)) return;
   if (!ctx.rng.rn2(5)) cuss(ctx, mon);
 }
 

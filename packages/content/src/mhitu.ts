@@ -28,11 +28,11 @@ import { erodeArmor, destroyItems } from './erode';
 import { monExplodes } from './explode';
 import { igniteItems } from './light';
 import { mondead } from './mondeath';
-import { heroSees } from './mongear';
 import { isCancelled, isMConfused, isMStunned, mcansee, mspecUsed, setMspecUsed } from './mstate';
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
 import { discover } from './o_init';
+import { canseemon, monVisible } from './invis';
 import {
   P,
   hasExtrinsic,
@@ -85,9 +85,6 @@ const acurr = (ctx: Ctx, a: 'con'): number => getPlayer(ctx.state).c.attributes?
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
-
-/** canseemon(): the monster's square is in view (there is no invisibility here) */
-const canseemon = (ctx: Ctx, mon: Entity): boolean => !!mon.c.pos && heroSees(ctx, mon.c.pos);
 
 /** couldsee(mx, my): a clear line from the hero to the monster, lit or not. ref: src/vision.c */
 function couldsee(ctx: Ctx, mon: Entity): boolean {
@@ -292,12 +289,13 @@ export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): 
     case 'blnd':
       notAffected = resistsBlnd(ctx, hero);
       if (ufound && !notAffected) {
-        // `mon_visible(mtmp) || rnd(tmp /= 2) > u.ulevel`: no monster is invisible, so the
-        // roll for an invisible one ("You get the impression it was not terribly bright.") is
-        // never reached
-        say(ctx, 'mhitu.blast_of_light');
-        makeBlinded(ctx, tmp, false);
-        // `if (!Blind) Your1(vision_clears)`: no Eyes of the Overworld
+        // sometimes she's affected even if it's invisible
+        const half = Math.trunc(tmp / 2);
+        if (monVisible(ctx, mon) || ctx.rng.rnd(half) > (hero.c.experience?.level ?? 1)) {
+          say(ctx, 'mhitu.blast_of_light');
+          makeBlinded(ctx, monVisible(ctx, mon) ? tmp : half, false);
+          // `if (!Blind) Your1(vision_clears)`: no Eyes of the Overworld
+        } else say(ctx, 'mhitu.not_terribly_bright');
       }
       break;
     case 'halu':

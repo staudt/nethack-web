@@ -219,7 +219,7 @@ describe('thrwmu: wielding the launcher first', () => {
         volleys++;
         expect(text(ev)[0]).toBe('The gnome lord shoots 2 arrows!');
         // the second missile is named
-        expect(text(ev).some((m) => /the 2nd arrow/.test(m))).toBe(true);
+        expect(text(ev).some((m) => /the 2nd arrow/i.test(m))).toBe(true);
         expect(projs(ev)).toHaveLength(2);
       }
     }

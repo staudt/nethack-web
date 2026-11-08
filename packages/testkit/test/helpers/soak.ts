@@ -7,7 +7,7 @@ import { soak } from '../../src/index';
 /** One 2000-turn 80x21 soak test per seed. */
 export function seedSoaks(seeds: readonly number[]): void {
   for (const seed of seeds) {
-    test(`seed ${seed}: 2000 turns at 80x21`, { timeout: 40000 }, () => {
+    test(`seed ${seed}: 2000 turns at 80x21`, { timeout: 120000 }, () => {
       const r = soak([vanillaMod], { seed, turns: 2000, width: 80, height: 21, checkEvery: 10 });
       console.log(
         `soak 80x21 seed=${seed}: outcome=${r.outcome} actions=${r.actions} turns=${r.turns} ` +

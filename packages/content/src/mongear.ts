@@ -28,6 +28,8 @@ import {
   type ItemCtx,
 } from './items';
 import { doname, xnameOf } from './objnam';
+import { canseemon, monInvisible, seeInvisible, updateMonInvis } from './invis';
+import { discover } from './o_init';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { monFloorEffects } from './align';
 import { ALIGNED_CLERIC } from './epri';
@@ -589,6 +591,8 @@ function mDoWearType(
   racialException: boolean,
 ): boolean {
   const { def } = monOf(ctx, monId);
+  const mon = ctx.state.entities[String(monId)];
+  if (!mon) return false;
   const items = minvent(ctx, monId);
   const old = items.find((o) => o.c.item?.equipped === slot) ?? null;
   if (old?.c.item?.buc === 'cursed') return false;
@@ -603,6 +607,15 @@ function mDoWearType(
       o.def !== 'nh:mummy_wrapping'
     )
       continue;
+    // avoid a mummy wrapping if it will let the hero see the monster (unless this is a new mummy)
+    if (
+      slot === 'cloak' &&
+      o.def === 'nh:mummy_wrapping' &&
+      monInvisible(ctx, mon) &&
+      !seeInvisible(ctx.state) &&
+      !creation
+    )
+      continue;
     // ref: m_dowear_type() W_ARM with the racial exception: hobbits wear elven armor
     if (slot === 'body' && racialException && !(def.id === 'nh:hobbit' && /elven/.test(o.def)))
       continue;
@@ -612,9 +625,9 @@ function mDoWearType(
   }
   if (!best || best === old) return false;
 
+  const sawmon = canseemon(ctx, mon);
   if (!creation) {
-    const pos = ctx.state.entities[String(monId)]?.c.pos;
-    if (pos && sees(ctx, pos)) {
+    if (sawmon) {
       ctx.emit(
         old
           ? {
@@ -635,8 +648,17 @@ function mDoWearType(
     }
   }
   if (old?.c.item) old.c.item.equipped = null;
+  if (old) updateMonInvis(ctx, mon, old, false);
   const bi = best.c.item;
   if (bi) bi.equipped = slot;
+  updateMonInvis(ctx, mon, best, true);
+  // if she couldn't see it but now can, or vice versa
+  if (!creation && sawmon !== canseemon(ctx, mon) && monInvisible(ctx, mon)) {
+    if (!seeInvisible(ctx.state)) {
+      ctx.emit({ type: 'msg', key: 'mon.suddenly_unseen', params: { mon: `@${def.id}` } });
+      discover(ctx, best.def);
+    }
+  }
   return true;
 }
 

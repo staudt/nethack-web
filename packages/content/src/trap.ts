@@ -92,6 +92,7 @@ import { canSpotMon, monNam, telepathSenses } from './perception';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
+import { canseemon as canseemonInvis } from './invis';
 import {
   XDIR,
   YDIR,
@@ -458,11 +459,8 @@ export function cansee(ctx: Ctx, levelId: string, x: number, y: number): boolean
   );
 }
 
-/** ref: canseemon(): the monster's square is in view (there is no invisibility here) */
-export function canseemon(ctx: Ctx, mon: Entity): boolean {
-  const p = mon.c.pos;
-  return !!p && cansee(ctx, p.level, p.x, p.y);
-}
+/** ref: canseemon() (invis.ts) */
+export const canseemon = (ctx: Ctx, mon: Entity): boolean => canseemonInvis(ctx, mon);
 
 /** ref: t_missile(): one arrow, dart or rock, made with mksobj(otyp, TRUE, FALSE) */
 function tMissile(ctx: Ctx, otyp: DefId): Entity {

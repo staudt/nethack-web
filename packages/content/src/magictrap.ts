@@ -8,8 +8,7 @@
 // TrapDef exists (C makes fire traps only in Gehennom): `dofiretrap()` serves the magic trap's
 // fate 12 and a monster's 1-in-21 magic trap.
 //
-// Not modelled: deafness (the roar is only its message), invisibility (the low hum is only its
-// message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
+// Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
 // passers, golems, polymorph, steeds, water and ice, green slime.
 import {
   getLevel,
@@ -34,7 +33,8 @@ import { isCancelled, mspecUsed, setMspecUsed } from './mstate';
 import { wakeNearto } from './noise';
 import { xnameOf } from './objnam';
 import { monNam } from './perception';
-import { P, hasProp, makeBlinded } from './props';
+import { P, hasExtrinsic, hasProp, makeBlinded, setIntrinsic, setItimeout } from './props';
+import { heroInvisible, seeInvisible, selfInvisMessage } from './invis';
 import { removeCurse } from './read';
 import { costlyAlteration } from './shk';
 import { surfaceKey } from './terrain';
@@ -185,9 +185,9 @@ function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
 /**
  * One of domagictrap()'s twenty fates (1..20). 1-9: a flash of light blinds her (`rn1(5, 10)`
  * turns) and a deafening roar wakes the monsters within 7 squares after `rnd(4)` monsters
- * appear next to her; 10: nothing; 11: a low hum; 12: a tower of flame; 13-18: odd feelings;
+ * appear next to her; 10: nothing; 11: a low hum toggles her invisibility; 12: a tower of flame; 13-18: odd feelings;
  * 19: +1 Charisma and the adjacent monsters are tamed; 20: worn and wielded items are uncursed.
- * ref: src/trap.c domagictrap() (no deafness or invisibility; no Quest, so she always yearns
+ * ref: src/trap.c domagictrap() (no deafness; no Quest, so she always yearns
  * for her distant homeland)
  */
 export function magicTrapFate(ctx: Ctx, fate: number): void {
@@ -213,9 +213,29 @@ export function magicTrapFate(ctx: Ctx, fate: number): void {
   switch (fate) {
     case 10: // sometimes nothing happens
       return;
-    case 11: // toggle intrinsic invisibility (not modelled: the hum only)
+    case 11: {
+      // toggle intrinsic invisibility
       say(ctx, 'magictrap.low_hum');
+      const blind = hasProp(hero, P.BLINDED);
+      const hp = hero.c.props?.[P.INVIS];
+      const hInvis = !!hp && (hp.intrinsic || hp.timeout > 0);
+      if (!heroInvisible(ctx.state)) {
+        if (!blind) selfInvisMessage(ctx);
+      } else if (!hasExtrinsic(hero, P.INVIS)) {
+        // (no polymorph forms: never pm_invisible())
+        if (!blind)
+          say(ctx, seeInvisible(ctx.state) ? 'magictrap.cant_see_through' : 'magictrap.see_again');
+      } else {
+        // invisible from another source
+        say(ctx, hInvis ? 'magictrap.more_obvious' : 'magictrap.more_hidden');
+      }
+      // HInvis = HInvis ? 0 : HInvis | FROMOUTSIDE
+      if (hInvis) {
+        setIntrinsic(hero, P.INVIS, false);
+        setItimeout(ctx.state, hero, P.INVIS, 0);
+      } else setIntrinsic(hero, P.INVIS, true);
       return;
+    }
     case 12: // a flash of fire
       dofiretrap(ctx);
       return;

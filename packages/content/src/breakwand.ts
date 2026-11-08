@@ -4,7 +4,7 @@
 //
 // Above zap.ts and dig.ts; imported by apply.ts only.
 // A shop's walls and doors dug by a broken wand of digging are damage to pay for.
-// Not ported (see DEVIATIONS.md): polymorph and make invisible (no such wands), liquid flow into
+// Not ported (see DEVIATIONS.md): polymorph (no such wand), liquid flow into
 // the pits (no pools),
 // ice, the paranoid_confirmation option (always a y/n question), a hero without hands.
 import {

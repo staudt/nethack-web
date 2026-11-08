@@ -12,11 +12,9 @@
 // `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability),
 // `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone),
 // `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
-// C's `!mcansee && !mblinded`).
+// C's `!mcansee && !mblinded`), `minvis` (invis.ts).
 import {
-  cellIndex,
   getPlayer,
-  isVisible,
   sortedIds,
   type Ctx,
   type Entity,
@@ -24,6 +22,7 @@ import {
   type Json,
   type ModApi,
 } from '@nh/core';
+import { canseemon } from './invis';
 import { monNam } from './perception';
 import { thiefdead } from './nomul';
 
@@ -31,7 +30,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded';
+type Key = 'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded' | 'minvis';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -170,14 +169,6 @@ export function monAdjustSpeed(
   }
 }
 
-/** ref: canseemon(): the monster's square is in view (there is no invisibility here) */
-function canseemon(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
-  const p = mon.c.pos;
-  if (!p || p.level !== ctx.state.currentLevel) return false;
-  const level = ctx.state.levels[p.level];
-  return level !== undefined && isVisible(ctx.state, cellIndex(level, p.x, p.y));
-}
-
 /** `mtmp->mspec_used`: turns before it can cast a spell again (0 when it can). */
 export function mspecUsed(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
   const v = table(ctx, 'mspecUsed', false)?.[String(id)];
@@ -254,6 +245,7 @@ const KEYS: readonly Key[] = [
   'mspecUsed',
   'mcan',
   'mblinded',
+  'minvis', // invis.ts
 ];
 
 /** Forgets the states of a monster that died or left. */

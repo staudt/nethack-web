@@ -52,6 +52,7 @@ import { cloneMon } from './clone';
 import { resistConflict } from './props';
 import { monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
+import { monInvisible, perceives } from './invis';
 
 export { M_ATTK };
 
@@ -462,12 +463,14 @@ function passivemm(
           if (tmp > 127) tmp = 127;
           if (mdef.def === 'nh:floating_eye') {
             if (ctx.rng.rn2(4) === 0) tmp = 127;
-            // `magr->mcansee && haseyes(madat) && mdef->mcansee` (no invisibility; no
-            // reflection: mon_reflects() needs worn shields and amulets of reflection on monsters)
+            // `magr->mcansee && haseyes(madat) && mdef->mcansee && (perceives(madat) ||
+            // !mdef->minvis)` (no reflection: mon_reflects() needs worn shields and amulets of
+            // reflection on monsters)
             if (
               mcansee(ctx, magr.id) &&
               !ctx.defs.monster(magr.def).flags.includes('noeyes') &&
-              mcansee(ctx, mdef.id)
+              mcansee(ctx, mdef.id) &&
+              (perceives(ctx.defs.monster(magr.def)) || !monInvisible(ctx, mdef))
             ) {
               if (seenAgr) say(ctx, 'mhitm.frozen_gaze', { mon: name(), by: monNam(ctx, mdef) });
               paralyzeMonst(ctx, magr.id, tmp);

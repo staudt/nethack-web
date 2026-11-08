@@ -457,21 +457,30 @@ describe('random webs', () => {
   });
 
   test('fill_ordinary_room(): the room monster, a giant spider, gets a web under it', () => {
-    const m = make(['---------', '|.......|', '|.......|', '|..@....|', '|.......|', '---------']);
-    m.level.depth = 14; // giant spiders (difficulty 7) in rndmonst()'s window
-    const room: Room = { lx: 1, ly: 1, hx: 7, hy: 4, lit: true };
-    m.level.rooms.push(room);
-    run(m.state, (ctx) => {
-      // only the giant spider can be picked
-      const defs = Object.create(ctx.defs, {
-        monsters: { value: [ctx.defs.monster('nh:giant_spider')] },
-      }) as Ctx['defs'];
-      fillOrdinaryRoom(scripted({ ...ctx, defs }, [0]), ctx.state.levels['dlvl1']!, room);
-    });
-    const spider = Object.values(m.state.entities).find((e) => e?.def === 'nh:giant_spider');
-    expect(spider).toBeDefined();
-    const p = spider!.c.pos!;
-    expect(webAt(m, p.x, p.y)).toBe(true);
+    // somexy() may pick her own square (no monster there): search a seed where one is made
+    let found = false;
+    for (let seed = 1; seed <= 30 && !found; seed++) {
+      const m = make(
+        ['---------', '|.......|', '|.......|', '|..@....|', '|.......|', '---------'],
+        seed,
+      );
+      m.level.depth = 14; // giant spiders (difficulty 7) in rndmonst()'s window
+      const room: Room = { lx: 1, ly: 1, hx: 7, hy: 4, lit: true };
+      m.level.rooms.push(room);
+      run(m.state, (ctx) => {
+        // only the giant spider can be picked
+        const defs = Object.create(ctx.defs, {
+          monsters: { value: [ctx.defs.monster('nh:giant_spider')] },
+        }) as Ctx['defs'];
+        fillOrdinaryRoom(scripted({ ...ctx, defs }, [0]), ctx.state.levels['dlvl1']!, room);
+      });
+      const spider = Object.values(m.state.entities).find((e) => e?.def === 'nh:giant_spider');
+      if (!spider) continue;
+      found = true;
+      const p = spider.c.pos!;
+      expect(webAt(m, p.x, p.y)).toBe(true);
+    }
+    expect(found).toBe(true);
   });
 
   test('maketrap() over a web lets her go only for another kind', () => {

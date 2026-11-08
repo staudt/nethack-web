@@ -49,9 +49,12 @@ const OBJECT_DIFFERENCES: Readonly<Record<string, string>> = {
     'the only glove type in the table, so its range never shuffles (o_init.ts SHUFFLED)',
   'nh:jumping_boots.descKey':
     'the only boots of the shuffled range in the table, so it never shuffles (o_init.ts SHUFFLED)',
+  'nh:cloak_of_invisibility.descKey':
+    'the only cloak of the shuffled range in the table, so it never shuffles (o_init.ts SHUFFLED)',
   'nh:potion_of_blindness.prop': POTION_PROP,
   'nh:potion_of_confusion.prop': POTION_PROP,
   'nh:potion_of_hallucination.prop': POTION_PROP,
+  'nh:potion_of_invisibility.prop': POTION_PROP,
   'nh:potion_of_see_invisible.prop': POTION_PROP,
 };
 

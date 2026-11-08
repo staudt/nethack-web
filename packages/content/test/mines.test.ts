@@ -94,10 +94,16 @@ describe('the Mines layout', () => {
 describe('Mines levels', () => {
   test('every level: a minefill cave with reachable stairs, gnomes, dwarves, gems and traps', () => {
     const seen = new Set<string>();
-    // seeds whose Minetown is not Orcish Town (its orcs are scattered over the filler levels)
-    for (const seed of [2, 3, 4]) {
+    // three seeds whose Minetown is not Orcish Town (its orcs are scattered over the filler
+    // levels)
+    let checked = 0;
+    for (let seed = 1; seed <= 20 && checked < 3; seed++) {
       const { state } = engine.newGame({ seed });
       const mines = state.dungeons.find((d) => d.id === 'nh:mines');
+      const town = mines?.special.find((s) => s.id === 'nh:minetown');
+      if (!town) continue;
+      if (goTo(state, { dungeon: 'nh:mines', dlevel: town.dlevel }).def === 'nh:minetn-1') continue;
+      checked++;
       const n = mines?.levels ?? 0;
       expect(n).toBeGreaterThanOrEqual(8);
       for (let dlevel = 1; dlevel <= n; dlevel++) {
@@ -161,6 +167,7 @@ describe('Mines levels', () => {
         expect(level.traps.length).toBeLessThanOrEqual(6);
       }
     }
+    expect(checked).toBe(3);
     expect(seen).toContain('nh:hobbit'); // the 50% "h"
   });
 

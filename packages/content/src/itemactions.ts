@@ -43,6 +43,7 @@ import {
 import { T, surfaceKey } from './terrain';
 import { isHole, isPit, levitating, utrap } from './trapstate';
 import { P, hasProp } from './props';
+import { cloakOff, cloakOn } from './invis';
 import { isWeaponOrWeptool } from './material';
 import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
@@ -1099,6 +1100,7 @@ const wear: ActionDef = {
     if (!canWear(ctx, obj, true)) return 0;
     it.equipped = def.armor.slot;
     it.known.spe = true; // Armor_on() etc.: "+/- evident because of status line AC"
+    if (def.armor.slot === 'cloak') cloakOn(ctx, obj);
     if (def.delay > 0) {
       return NORMAL_SPEED + nomul(ctx, def.delay, 'helpless.dressing', finishDressing);
     }
@@ -1185,6 +1187,7 @@ const takeoff: ActionDef = {
     }
     if (cursedWorn(ctx, obj)) return 0;
     it.equipped = null;
+    if (slot === 'cloak') cloakOff(ctx, obj);
     const delay = defOf(ctx, obj).delay;
     if (delay > 0) {
       return (

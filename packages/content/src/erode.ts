@@ -36,6 +36,7 @@ import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { ringGone } from './jewelry';
+import { cloakOff, updateMonInvis } from './invis';
 import { CHARGED_RINGS } from './objects';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -173,7 +174,14 @@ export function erodeObj(
         subj: subject(ctx, victim, vismon, name, true),
         verb: { key: `erode.verb.${type}${pl}` },
       });
-    it.equipped = null; // remove_worn_item() / extract_from_minvent(): armor has no on/off effects
+    const wasWorn = it.equipped;
+    it.equipped = null; // remove_worn_item() / extract_from_minvent()
+    // Cloak_off() / update_mon_extrinsics(): only invisibility has on/off effects here
+    if (wasWorn && wasWorn !== 'weapon') {
+      if (uvictim) {
+        if (wasWorn === 'cloak') cloakOff(ctx, obj);
+      } else if (victim) updateMonInvis(ctx, victim, obj, false);
+    }
     if (uvictim) removeFromInventory(ctx, obj.id);
     ctx.remove(obj.id); // delobj()
     setRknown(ctx, obj.id, false);

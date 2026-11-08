@@ -124,9 +124,16 @@ describe('the shrieker', () => {
     expect(out).toEqual(['The shrieker shrieks.']);
     expect(monCount(m)).toBe(before);
     expect(ent(m, sleeper)!.c.monster!.asleep).toBe(false);
-    // rn2(10) == 0, rn2(13) != 0: a random monster
+    // rn2(10) == 0, rn2(13) != 0: a random monster (makemon(NULL): with its group if it has one)
+    const ids0 = new Set(sortedIds(m.state));
     run(m.state, (ctx) => mRespond(scripted(ctx, [0, 1]), ent(m, shr)!));
-    expect(monCount(m)).toBe(before + 1);
+    const made = sortedIds(m.state)
+      .filter((id) => !ids0.has(id))
+      .map((id) => ent(m, id)!)
+      .filter((e) => e.c.monster);
+    expect(made.length).toBeGreaterThan(0);
+    expect(monCount(m)).toBe(before + made.length);
+    expect(new Set(made.map((e) => e.def)).size).toBe(1);
   });
 
   test('1 in 13 of those is a purple worm, a baby one when the adult is too strong', () => {

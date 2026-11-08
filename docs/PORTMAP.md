@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3132 citations.
+152 NetHack files, 3158 citations.
 
 ## dat/dungeon.lua
 
@@ -147,11 +147,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/display.h
 
-- (file): `packages/content/src/perception.ts`
+- (file): `packages/content/src/invis.ts`, `packages/content/src/perception.ts`
+- `_canseemon()`: `packages/content/src/invis.ts`
+- `_mon_visible()`: `packages/content/src/invis.ts`
 - `_mon_warning()`: `packages/content/src/perception.ts`
 - `_tp_sensemon()`: `packages/content/src/perception.ts`
 - `explosion_to_glyph()`: `packages/content/src/explode.ts`
 - `is_safemon()`: `packages/content/src/actions.ts`
+- `mon_visible()`: `packages/content/src/invis.ts`
 - `zap_color_()`: `packages/content/src/buzz.ts`
 
 ## include/dog.h
@@ -177,7 +180,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
-- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
+- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
 - `CANNIBAL_ALLOWED()`: `packages/content/src/eat.ts`
 - `DIR_180()`: `packages/content/src/trapstate.ts`
 - `EF_()`: `packages/content/src/erode.ts`
@@ -268,6 +271,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `locomotion()`: `packages/content/src/adtyping.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nonliving()`: `packages/content/src/mondata.ts`
+- `perceives()`: `packages/content/src/invis.ts`
 - `poisonous()`: `packages/content/src/dog.ts`
 - `regenerates()`: `packages/content/src/mstate.ts`
 - `resists_ston()`: `packages/content/src/stonestate.ts`
@@ -450,7 +454,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/youprop.h
 
-- (file): `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/core/src/types/entity.ts`
 
 ## src/allmain.c
 
@@ -597,11 +601,12 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/display.c
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
-- `canseemon()`: `packages/content/src/mcastu.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trap.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/invis.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
+- `GLYPH_INVISIBLE()`: `packages/content/src/invis.ts`
+- `canseemon()`: `packages/content/src/trap.ts`
 - `display_self()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `magic_map_background()`: `packages/content/src/wizard/map.ts`
-- `map_invisible()`: `packages/core/src/memory.ts`, `packages/render-ascii/src/renderer.ts`
+- `map_invisible()`: `packages/content/src/invis.ts`, `packages/core/src/memory.ts`, `packages/render-ascii/src/renderer.ts`
 - `map_object()`: `packages/core/src/engine.ts`
 - `map_trap()`: `packages/core/src/view.ts`
 - `mon_visible()`: `packages/core/src/perception.ts`
@@ -662,11 +667,13 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/do_wear.c
 
-- (file): `packages/content/src/itemactions.ts`
+- (file): `packages/content/src/invis.ts`, `packages/content/src/itemactions.ts`
 - `Amulet_off()`: `packages/content/src/jewelry.ts`
 - `Amulet_on()`: `packages/content/src/jewelry.ts`
 - `Blindf_off()`: `packages/content/src/jewelry.ts`
 - `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/testkit/src/invariants.ts`
+- `Cloak_off()`: `packages/content/src/invis.ts`
+- `Cloak_on()`: `packages/content/src/invis.ts`
 - `Ring_gone()`: `packages/content/src/jewelry.ts`
 - `Ring_off()`: `packages/content/src/jewelry.ts`
 - `Ring_off_or_gone()`: `packages/content/src/jewelry.ts`
@@ -762,6 +769,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/drawing.c
 
+- `DEF_INVISIBLE()`: `packages/content/src/invis.ts`
 - `def_warnsyms()`: `packages/content/src/messages.en.ts`, `packages/content/src/perception.ts`
 
 ## src/dungeon.c
@@ -1502,10 +1510,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_full_healing()`: `packages/content/src/potion.ts`
 - `peffect_hallucination()`: `packages/content/src/potion.ts`
 - `peffect_healing()`: `packages/content/src/potion.ts`
+- `peffect_invisibility()`: `packages/content/src/potion.ts`
 - `peffect_see_invisible()`: `packages/content/src/potion.ts`
 - `peffect_sleeping()`: `packages/content/src/potion.ts`
 - `peffect_water()`: `packages/content/src/potion.ts`
 - `peffects()`: `packages/content/src/potion.ts`
+- `self_invis_message()`: `packages/content/src/invis.en.ts`, `packages/content/src/invis.ts`
 - `speed_up()`: `packages/content/src/zap.ts`
 - `split_mon()`: `packages/content/src/clone.ts`
 - `strange_feeling()`: `packages/content/src/magic.ts`
@@ -2140,7 +2150,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_dowear()`: `packages/content/src/mongear.ts`
 - `m_dowear_type()`: `packages/content/src/mongear.ts`
 - `mon_adjust_speed()`: `packages/content/src/mstate.ts`
+- `mon_set_minvis()`: `packages/content/src/invis.ts`
 - `setworn()`: `packages/content/src/jewelry.ts`, `packages/content/src/props.ts`
+- `update_mon_extrinsics()`: `packages/content/src/invis.ts`
 - `which_armor()`: `packages/content/src/mongear.ts`
 
 ## src/zap.c

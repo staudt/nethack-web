@@ -40,7 +40,6 @@ import { nomulNow } from './hunger';
 import { nhData } from './items';
 import { igniteItems } from './light';
 import { mdamageu } from './mhitu';
-import { heroSees } from './mongear';
 import {
   aggravate,
   isCancelled,
@@ -62,6 +61,7 @@ import {
   timeoutLeft,
 } from './props';
 import { rndcurse } from './sit';
+import { canseemon } from './invis';
 
 /** ref: include/mcastu.h MONSPELL() names, in their enum order */
 export type McastSpell =
@@ -160,9 +160,6 @@ const MON_WIZARD_SPELLS: readonly McastSpell[] = [
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
-/** ref: canseemon(): the monster's square is in view (there is no invisibility here) */
-const canseemon = (ctx: Ctx, mon: Entity): boolean => !!mon.c.pos && heroSees(ctx, mon.c.pos);
-
 /** couldsee(mx, my): a clear line from the hero to the monster, lit or not. ref: src/vision.c */
 function couldsee(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
@@ -199,7 +196,8 @@ export function spellWouldBeUseless(ctx: Ctx, mon: Entity, s: McastSpell): boole
   if (data.sight && !couldsee(ctx, mon)) return true;
   const hero = getPlayer(ctx.state);
   switch (s) {
-    // not ported (no monster invisibility, destroy_arm(), nasties or the Wizard): never chosen
+    // not ported (disappear waits for 7f-b step 4; no destroy_arm(), nasties or the Wizard): never
+    // chosen
     case 'disappear':
     case 'destry_armr':
     case 'summon_mons':

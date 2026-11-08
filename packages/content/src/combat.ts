@@ -60,6 +60,7 @@ import { cloneMon } from './clone';
 import { canseemon, mintrap } from './trap';
 import { summonWereMu } from './were';
 import { isWere } from './werestate';
+import { cantSeeSelf } from './invis';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -680,7 +681,7 @@ function missmu(ctx: Ctx, name: string, nearmiss: boolean): void {
 function nohandglow(ctx: Ctx, mon: Entity): void {
   const { umconf } = uspellOf(ctx.state);
   if (!umconf || isMConfused(ctx, mon.id)) return;
-  const altfeedback = hasProp(getPlayer(ctx.state), P.BLINDED); // Blind || Invisible
+  const altfeedback = hasProp(getPlayer(ctx.state), P.BLINDED) || cantSeeSelf(ctx.state); // Blind || Invisible
   if (umconf === 1) {
     if (altfeedback) ctx.emit({ type: 'msg', key: 'combat.hands_stop_tingling' });
     else

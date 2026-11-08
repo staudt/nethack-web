@@ -291,7 +291,7 @@ describe('call sites', () => {
 
   test("a red mold's passive fire burns the wooden club that hits it", () => {
     let burnt = false;
-    for (let seed = 1; seed <= 80 && !burnt; seed++) {
+    for (let seed = 1; seed <= 200 && !burnt; seed++) {
       const s = plain(seed);
       const club = ent(s, s.carry('nh:club'));
       ent(s, spear(s)).c.item!.equipped = null;

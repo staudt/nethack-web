@@ -5,8 +5,7 @@
 //
 // The state lives in `modData.nh.fountains[levelId][cellIndex]` as bits (C keeps them in the
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
-// Not ported (DEVIATIONS "Quaffing"): the enlightenment screen,
-// see invisible (only its messages), pools from gushing
+// Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, pools from gushing
 // water (the rolls are drawn, no pool is made), hallucinated snake and liquid names, exercise.
 // Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
 // Lady of the Lake always refuses), no Glib, no livelog.
@@ -48,7 +47,8 @@ import { monflee } from './monflee';
 import { forgetMonster } from './mongear';
 import { forgetMState } from './mstate';
 import { monNam } from './perception';
-import { P, hasProp, wornIn } from './props';
+import { P, hasProp, setIntrinsic, wornIn } from './props';
+import { cantSeeSelf } from './invis';
 import { clearArea } from './read';
 import { T, setTerrain } from './terrain';
 import { levitating } from './trapstate';
@@ -403,14 +403,18 @@ export function drinkfountain(ctx: Ctx, action: DefId): number {
         }
         break;
       }
-      case 25: // see invisible (no such property: the messages only)
+      case 25: // see invisible
         if (blind(ctx)) {
-          say(ctx, 'fountain.self_conscious');
-          say(ctx, 'fountain.then_passes');
+          if (cantSeeSelf(ctx.state)) say(ctx, 'fountain.feel_transparent');
+          else {
+            say(ctx, 'fountain.self_conscious');
+            say(ctx, 'fountain.then_passes');
+          }
         } else {
           say(ctx, 'fountain.stalking_image');
           say(ctx, 'fountain.it_disappears');
         }
+        setIntrinsic(getPlayer(ctx.state), P.SEE_INVIS, true); // HSee_invisible |= FROMOUTSIDE
         break;
       case 26: // see monsters
         if (monsterDetect(ctx)) say(ctx, 'fountain.tastes_like_nothing');

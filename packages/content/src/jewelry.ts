@@ -24,6 +24,13 @@ import {
   type PlayerAction,
 } from '@nh/core';
 import { isWeaponOrWeptool } from './material';
+import {
+  cantSeeSelf,
+  heroInvisBlocked,
+  heroInvisible,
+  seeInvisible,
+  selfInvisMessage,
+} from './invis';
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { stopOccupation } from './eat';
 import { done } from './end';
@@ -57,6 +64,7 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 const hero = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
+const blind = (ctx: Pick<Ctx, 'state'>): boolean => hasProp(hero(ctx), P.BLINDED);
 const worn = (ctx: Pick<Ctx, 'state'>, slot: EquipSlot): Entity | null =>
   wornIn(ctx.state, ctx.state.playerId, slot);
 
@@ -150,6 +158,20 @@ function toggleStealth(ctx: Ctx, obj: Entity, on: boolean): void {
   say(ctx, on ? 'ring.move_quietly' : 'ring.noisy');
 }
 
+/** HFoo: the property from an intrinsic or a timeout (not from worn items). */
+function hprop(ctx: Ctx, name: string): boolean {
+  const p = hero(ctx).c.props?.[name];
+  return !!p && (p.intrinsic || p.timeout > 0);
+}
+
+/** `oldprop`: another worn item than `obj` confers the property. ref: Ring_on() */
+function otherWorn(ctx: Ctx, obj: Entity, prop: string): boolean {
+  return inventoryOf(ctx.state, hero(ctx).id).some((o) => {
+    const eq = o.c.item?.equipped;
+    return o.id !== obj.id && !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === prop;
+  });
+}
+
 /** ref: src/do_wear.c Ring_on(): the ring is already worn as uleft or uright */
 function ringOn(ctx: Ctx, ring: Entity): void {
   const spe = ring.c.item?.spe ?? 0;
@@ -176,6 +198,29 @@ function ringOn(ctx: Ctx, ring: Entity): void {
       break;
     case 'nh:ring_of_warning':
       // see_monsters(): the view shows the warning digits from the next snapshot on
+      break;
+    case 'nh:ring_of_see_invisible':
+      // can now see invisible monsters (see_monsters(): the next snapshot shows them)
+      if (
+        heroInvisible(ctx.state) &&
+        !otherWorn(ctx, ring, P.SEE_INVIS) &&
+        !hprop(ctx, P.SEE_INVIS) &&
+        !blind(ctx)
+      ) {
+        say(ctx, 'ring.transparent_but_there');
+        learnring(ctx, ring, true);
+      }
+      break;
+    case 'nh:ring_of_invisibility':
+      if (
+        !otherWorn(ctx, ring, P.INVIS) &&
+        !hprop(ctx, P.INVIS) &&
+        !heroInvisBlocked(ctx.state) &&
+        !blind(ctx)
+      ) {
+        learnring(ctx, ring, true);
+        selfInvisMessage(ctx);
+      }
       break;
     case 'nh:ring_of_protection':
       // usually learn enchantment and discover type; won't happen if it's +0 and the type hasn't
@@ -215,6 +260,19 @@ function ringOffOrGone(ctx: Ctx, ring: Entity): void {
       break;
     case 'nh:ring_of_stealth':
       toggleStealth(ctx, ring, false);
+      break;
+    case 'nh:ring_of_see_invisible':
+      // make invisible monsters go away (see_monsters(): from the next snapshot on)
+      if (cantSeeSelf(ctx.state) && !blind(ctx)) {
+        say(ctx, 'ring.cannot_see_self');
+        learnring(ctx, ring, true);
+      }
+      break;
+    case 'nh:ring_of_invisibility':
+      if (!heroInvisible(ctx.state) && !heroInvisBlocked(ctx.state) && !blind(ctx)) {
+        say(ctx, seeInvisible(ctx.state) ? 'ring.unfade_completely' : 'ring.unfade');
+        learnring(ctx, ring, true);
+      }
       break;
     default:
       break;

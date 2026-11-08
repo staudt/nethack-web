@@ -39,6 +39,7 @@ import { boulderMessagesEn } from './boulder.en';
 import { digMessagesEn } from './dig.en';
 import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
+import { invisMessagesEn } from './invis.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -80,6 +81,7 @@ export const messagesEn: Record<string, string> = {
   ...digMessagesEn,
   ...enlightenmentMessagesEn,
   ...jumpMessagesEn,
+  ...invisMessagesEn,
   ...endMessagesEn,
   welcome: 'Hello, welcome to NetHack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to NetHack! You are a {role}.',

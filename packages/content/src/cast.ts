@@ -32,6 +32,7 @@ import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
 import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, type ZapDir } from './zap';
+import { cantSeeSelf } from './invis';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -310,7 +311,7 @@ function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
  */
 export function confuseMonsterSpell(ctx: Ctx, blessed: boolean): void {
   const h = hero(ctx);
-  const altfeedback = hasProp(h, P.BLINDED); // Blind || Invisible (no hero invisibility)
+  const altfeedback = hasProp(h, P.BLINDED) || cantSeeSelf(ctx.state); // Blind || Invisible
   if (hasProp(h, P.CONFUSION)) {
     if (!blessed) {
       if (altfeedback) say(ctx, 'cast.hands_begin_tingle');

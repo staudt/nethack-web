@@ -90,7 +90,7 @@ import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { healup } from './potion';
 import { canSpotMon, monNam } from './perception';
-import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown } from './props';
+import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown, wornIn } from './props';
 import { ceilingKey, clearArea, litroom } from './read';
 import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
@@ -112,6 +112,15 @@ import { done } from './end';
 import { monflee } from './monflee';
 import { cxnameSingular, revive, unturnDead } from './revive';
 import { doEnlightenmentEffect } from './enlightenment';
+import {
+  canseemon,
+  heroInvisBlocked,
+  heroInvisible,
+  knownInvisible,
+  monInvisible,
+  selfInvisMessage,
+  setMinvis,
+} from './invis';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -125,6 +134,7 @@ export const WAN = {
   stasis: 'nh:wand_of_stasis',
   nothing: 'nh:wand_of_nothing',
   striking: 'nh:wand_of_striking',
+  makeInvisible: 'nh:wand_of_make_invisible',
   slow: 'nh:wand_of_slow_monster',
   speed: 'nh:wand_of_speed_monster',
   undeadTurning: 'nh:wand_of_undead_turning',
@@ -225,8 +235,6 @@ function monAt(ctx: Ctx, x: number, y: number): Entity | null {
 
 const cansee = (ctx: Ctx, x: number, y: number): boolean =>
   heroSees(ctx, { level: heroPos(ctx).level, x, y });
-const canseemon = (ctx: Ctx, mon: Entity): boolean =>
-  !!mon.c.pos && cansee(ctx, mon.c.pos.x, mon.c.pos.y);
 /** The objects at (x, y) of the hero's level. */
 const itemsHere = (ctx: Ctx, x: number, y: number): Entity[] =>
   itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y);
@@ -397,6 +405,7 @@ function monStatus(ctx: Ctx, mon: Entity): Msg {
   if (isMtrapped(ctx, mon.id)) flags.push('trapped');
   const sp = mspeed(ctx, mon.id);
   if (sp) flags.push(sp);
+  if (monInvisible(ctx, mon)) flags.push('invisible');
   if (isCancelled(ctx, mon.id)) flags.push('cancelled');
   if (isFrozen(ctx, mon.id)) flags.push('cant_move');
   else if (m?.asleep) flags.push('asleep');
@@ -444,6 +453,7 @@ function ustatusline(ctx: Ctx): void {
   if (utrap(ctx)) flags.push('trapped');
   if (timeoutLeft(ctx.state, h, P.FAST) > 0) flags.push('very_fast');
   else if (hasProp(h, P.FAST)) flags.push('fast');
+  if (heroInvisible(ctx.state)) flags.push('invisible');
   say(ctx, 'zap.probe.you', {
     lvl: h.c.experience?.level ?? 1,
     hp: h.c.hp?.cur ?? 0,
@@ -691,6 +701,21 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       if (canseemon(ctx, mon)) say(ctx, 'zap.looks_better', { mon: monNam(ctx, mon) });
       const m = mon.c.monster;
       if ((m?.tame ?? 0) > 0 || m?.peaceful) adjalign(ctx, Math.sign(uState(ctx.state).alignType));
+      break;
+    }
+    case WAN.makeInvisible: {
+      const oldinvis = monInvisible(ctx, mon);
+      const couldsee = canseemon(ctx, mon);
+      // format the monster's name before altering its visibility
+      const nam = monNam(ctx, mon);
+      setMinvis(ctx, mon, false);
+      if (!oldinvis && knownInvisible(ctx, mon)) {
+        say(ctx, 'zap.turns_transparent', { mon: nam });
+        learnIt = true; // (reveal_invis: she sees it, so no `I`)
+      } else if (couldsee && !canseemon(ctx, mon)) {
+        // the same message as a teleported monster ending up out of sight: ambiguous
+        say(ctx, 'tele.mon_vanishes', { mon: nam });
+      }
       break;
     }
     case WAN.slow:
@@ -1371,6 +1396,22 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
         uSlowDown(ctx);
       }
       break;
+    case WAN.makeInvisible: {
+      // test before changing HInvis
+      const msg = !heroInvisible(ctx.state) && !blind(ctx) && !heroInvisBlocked(ctx.state);
+      if (heroInvisBlocked(ctx.state)) {
+        // a mummy wrapping absorbs it and protects her
+        const wrap = wornIn(ctx.state, h.id, 'cloak');
+        if (wrap) say(ctx, 'zap.self.itchy', { item: xnameOf(ctx.state, ctx.defs, wrap) });
+        break;
+      }
+      incrItimeout(ctx.state, h, P.INVIS, ctx.rng.rn2(15) + 31); // rn1(15, 31)
+      if (msg) {
+        learnIt = true;
+        selfInvisMessage(ctx);
+      }
+      break;
+    }
     case WAN.opening:
       if (ustuck(ctx) !== null) {
         releaseHold(ctx);
