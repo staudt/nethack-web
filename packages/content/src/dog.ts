@@ -20,7 +20,14 @@ import { makemon, mnextoPos } from './generation';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
 import { forgetMonster } from './mongear';
-import { frozenTime, forgetMState, isFrozen, isMConfused, paralyzeMonst } from './mstate';
+import {
+  catchUpRegen,
+  frozenTime,
+  forgetMState,
+  isFrozen,
+  isMConfused,
+  paralyzeMonst,
+} from './mstate';
 import { canSpotMon, monNam } from './perception';
 import { P, heroHas } from './props';
 import { ustuck, setUstuck } from './hackmove';
@@ -465,13 +472,15 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     }
     followers.push(mon);
   }
-  // pets left here earlier have been alone a while
+  // monsters left here earlier have been alone a while: pets go wilder, wounds heal
   const since = left[to];
   if (since !== undefined) {
     for (const id of sortedIds(ctx.state)) {
       const mon = ctx.state.entities[String(id)];
-      if (mon?.c.pos?.level === to && isTame(mon))
-        catchUpTameness(ctx, mon, ctx.state.turn - since);
+      if (mon?.c.monster && mon.c.pos?.level === to) {
+        if (isTame(mon)) catchUpTameness(ctx, mon, ctx.state.turn - since);
+        catchUpRegen(ctx, mon, ctx.state.turn - since);
+      }
     }
   }
   const level = getLevel(ctx.state, to);

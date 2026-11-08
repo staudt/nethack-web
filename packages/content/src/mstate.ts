@@ -1,6 +1,7 @@
 // Monster paralysis, stun, confusion, speed and the spellcasting delay. ref: include/monst.h
 // mcanmove/mfrozen, mstun, mconf, mspec_used; src/mon.c m_calcdistress() (the mfrozen countdown),
-// src/monmove.c dochug() (un-stunning and unconfusing), mon_regen() (the mspec_used countdown);
+// src/monmove.c dochug() (un-stunning and unconfusing), mon_regen() (HP and the mspec_used
+// countdown);
 // src/worn.c mon_adjust_speed(); src/wizard.c aggravate()
 //
 // MonsterComponent is core's, so the content mod keeps them in `modData.nh`:
@@ -273,6 +274,40 @@ export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   }
 }
 
+/** ref: include/mondata.h regenerates(): M1_REGEN */
+const regenerates = (ctx: Pick<Ctx, 'defs'>, mon: Entity): boolean =>
+  ctx.defs.monster(mon.def).flags.includes('regen');
+
+/** ref: src/mon.c healmon(mon, amt, 0): HP go up by `amt`, never past the maximum */
+function healmon(mon: Entity, amt: number): void {
+  const hp = mon.c.hp;
+  if (!hp || amt <= 0) return;
+  hp.cur = Math.min(hp.cur + amt, hp.max);
+}
+
+/**
+ * Monster hit point regeneration, once a turn for the monsters on the hero's level: 1 HP on the
+ * turns divisible by 20, every turn for a regenerator (imps, quasits, vampire bats...). C's
+ * `moves` is the turn that is ending (mcalcdistress() runs before `moves++`; this hook runs
+ * after the port's turn counter went up). ref: src/monmove.c mon_regen() (its mspec_used
+ * countdown is below; no meating digestion: `digest_meal` is FALSE here), called from
+ * src/mon.c m_calcdistress() (no minliquid() check for immobile monsters)
+ */
+export function monRegen(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): void {
+  const mon = ctx.state.entities[String(id)];
+  if (!mon?.c.monster) return;
+  if ((ctx.state.turn - 1) % 20 === 0 || regenerates(ctx, mon)) healmon(mon, 1);
+}
+
+/**
+ * Hit points a monster left behind on another level regained meanwhile: `imv` turns, or
+ * `imv / 20` for a non-regenerator. ref: src/dog.c mon_catchup_elapsed_time() "recover lost hit
+ * points"
+ */
+export function catchUpRegen(ctx: Pick<Ctx, 'defs'>, mon: Entity, imv: number): void {
+  healmon(mon, regenerates(ctx, mon) ? imv : Math.trunc(imv / 20));
+}
+
 /**
  * The spellcasting delays and the paralysis timers count down once a turn (ref: m_calcdistress():
  * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mblinded &&
@@ -281,6 +316,10 @@ export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
  */
 export function registerMState(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
+    for (const id of sortedIds(ctx.state)) {
+      const e = ctx.state.entities[String(id)];
+      if (e?.c.monster && e.c.pos?.level === ctx.state.currentLevel) monRegen(ctx, id);
+    }
     const su = table(ctx, 'mspecUsed', false);
     if (su) {
       for (const key of Object.keys(su).sort()) {

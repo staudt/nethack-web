@@ -1,10 +1,13 @@
-// Monster cloning: a brown pudding hit with iron divides. ref: src/makemon.c clone_mon()
+// Monster cloning: a brown pudding hit with iron divides, a gremlin in water multiplies.
+// ref: src/makemon.c clone_mon(); src/potion.c split_mon()
 import { getLevel, type Ctx, type EntityId } from '@nh/core';
 import { mnextoPos } from './generation';
 import { edogOf, tamedog } from './dog';
 import { fleeTime, isFleeing, monflee } from './monflee';
 import { copyMState } from './mstate';
 import { luckOf } from './luck';
+import { canSpotMon, monNam } from './perception';
+import { setSplitMon } from './trap';
 
 /**
  * A copy of the monster next to it ("copy condition of old monster"): same type, level, maximum
@@ -66,3 +69,26 @@ export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean): EntityId |
   }
   return m2;
 }
+
+/**
+ * A gremlin splits in water: a clone (see `cloneMon`) takes half the maximum HP too, and "The
+ * gremlin multiplies!" when the hero can spot it. Returns the new monster, or null.
+ * ref: src/potion.c split_mon() (monsters only: no polymorphed hero; no attacker's heat)
+ */
+export function splitMon(ctx: Ctx, id: EntityId, monMoving: boolean): EntityId | null {
+  const mon = ctx.state.entities[String(id)];
+  const hp = mon?.c.hp;
+  if (!mon || !hp) return null;
+  if (hp.cur > hp.max) hp.cur = hp.max; // sanity precaution
+  const m2 = hp.cur > 1 ? cloneMon(ctx, id, monMoving) : null;
+  const hp2 = m2 === null ? undefined : ctx.state.entities[String(m2)]?.c.hp;
+  if (m2 !== null && hp2) {
+    hp2.max = Math.trunc(hp.max / 2);
+    hp.max -= hp2.max;
+    if (canSpotMon(ctx, mon))
+      ctx.emit({ type: 'msg', key: 'clone.multiplies', params: { mon: monNam(ctx, mon) } });
+  }
+  return m2;
+}
+
+setSplitMon(splitMon);

@@ -27,6 +27,7 @@ import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { confdir, uMaybeImpaired } from './hackmove';
+import { cuss } from './cuss';
 import { isFleeing } from './monflee';
 import { moneyCnt } from './money';
 import { aggravate, isFrozen, isMConfused, isMStunned } from './mstate';
@@ -186,7 +187,14 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.shrieks');
     case 'imitate':
       return pline('chat.imitates');
-    // 'cuss' (imps, m10 step 4) needs wizard.c cuss(): no monster here makes it yet
+    case 'cuss':
+      // (no minions: `is_lminion()` never holds, so a peaceful one is never "not too late")
+      if (!m.peaceful) {
+        cuss(ctx, mon);
+        return NORMAL_SPEED;
+      }
+      say(ctx, 'chat.doomed');
+      return NORMAL_SPEED;
     case 'djinni':
       // (no prisoner here; a tame djinni has no wishes left)
       if (tame) {
@@ -226,7 +234,16 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       say(ctx, lines[ctx.rng.rn2(3)] ?? 'chat.soldier.useless');
       return NORMAL_SPEED;
     }
+    case 'boast': // giants; a peaceful one falls through to the humanoid lines
     case 'humanoid': {
+      if (msound === 'boast' && !m.peaceful) {
+        const r = ctx.rng.rn2(4);
+        if (r === 0) return pline('chat.boast.gems');
+        if (r === 1) return pline('chat.boast.mutton');
+        const p = mon.c.pos;
+        if (p) wakeNearto(ctx, p.x, p.y, 7 * 7);
+        return pline('chat.boast.fee_fie');
+      }
       if (!m.peaceful) return pline('chat.threatens');
       // generic peaceful humanoid behaviour
       const cur = hp?.cur ?? 1;

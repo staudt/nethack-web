@@ -23,7 +23,7 @@ export const TAINT_AGE = 100;
 
 /**
  * The corpse a zombie or mummy leaves: its living race. ref: src/mon.c undead_to_corpse()
- * (only the undead in the roster)
+ * (no vampires yet)
  */
 const UNDEAD_TO_CORPSE: Readonly<Record<string, DefId>> = {
   'nh:kobold_zombie': 'nh:kobold',
@@ -34,6 +34,13 @@ const UNDEAD_TO_CORPSE: Readonly<Record<string, DefId>> = {
   'nh:gnome_mummy': 'nh:gnome',
   'nh:orc_zombie': 'nh:orc',
   'nh:orc_mummy': 'nh:orc',
+  'nh:elf_zombie': 'nh:elf',
+  'nh:elf_mummy': 'nh:elf',
+  'nh:human_zombie': 'nh:human',
+  'nh:human_mummy': 'nh:human',
+  'nh:giant_zombie': 'nh:giant',
+  'nh:giant_mummy': 'nh:giant',
+  'nh:ettin_zombie': 'nh:ettin',
   'nh:ettin_mummy': 'nh:ettin',
 };
 

@@ -28,6 +28,7 @@ import {
   type ItemCtx,
 } from './items';
 import { doname, xnameOf } from './objnam';
+import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { monFloorEffects } from './align';
 import { ALIGNED_CLERIC } from './epri';
 import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
@@ -201,7 +202,7 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 /**
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
- * the Watch and the water demon (S_DEMON falls through to the general case). Objects missing from
+ * giants and ettins, the Watch and the water demon (S_DEMON falls through to the general case). Objects missing from
  * the object table (battle axe, two-handed sword, lucern hammer) are not given, but the
  * rolls C makes for them are. (In 5.0 only Uruk-hai are given orcish bows.)
  */
@@ -225,6 +226,13 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
       }
     }
     // (no other S_HUMAN monster in the roster is armed: they get nothing here)
+  } else if (ch === 'H') {
+    // ref: m_initweap() S_GIANT: "giants get a boulder to throw sometimes, ettins get clubs"
+    // (giants do not throw boulders yet: ROADMAP "Giants and boulders")
+    const ettin = def.id === 'nh:ettin';
+    if (rng.rn2(2)) mongets(ctx, monId, ettin ? 'nh:club' : 'nh:boulder');
+    if (!ettin && !rng.rn2(5))
+      getsOrBurn(ctx, monId, rng.rn2(2) ? 'nh:two_handed_sword' : 'nh:battle_axe');
   } else if (ch === 'h' && def.id === 'nh:hobbit') {
     switch (rng.rn2(3)) {
       case 0:
@@ -398,8 +406,8 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
  * The extra items of a monster, and its pocket money.
  * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). No S_DEMON items (the water
  * demon gets none); mummies get their wrapping, nymphs roll for a mirror and a potion of object
- * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold, and
- * gnomes roll for a candle (not in the table).
+ * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
+ * giants gems, and gnomes roll for a candle (not in the table).
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   const { def } = monOf(ctx, monId);
@@ -434,6 +442,24 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   }
   if (def.glyph.ch === 'l') mkmonmoney(ctx, monId, rng.d(depth, 30));
   if (def.glyph.ch === 'G') rng.rn2(60);
+  // ref: m_initinv() S_GIANT is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass (no
+  // minotaur here)
+  if (def.glyph.ch === 'H' && def.flags.includes('giant')) {
+    const e = ctx.state.entities[String(monId)];
+    const lev = Math.trunc((e?.c.monster?.level ?? def.level) / 2);
+    for (let cnt = lev > 0 ? rng.rn2(lev) : 0; cnt; cnt--) {
+      const otyp = rndClass(
+        rng,
+        ctx.defs,
+        [...REAL_GEMS, ...GLASS_GEMS],
+        gemLedger(ctx.state, e?.c.pos?.level ?? ctx.state.currentLevel),
+      );
+      const id = mksobj(ctx, ctx.defs.object(otyp), { init: false });
+      const it = ctx.state.entities[String(id)]?.c.item;
+      if (it) it.quantity = rng.rn2(2) + 3; // rn1(2, 3)
+      addToInventory(ctx, monId, id);
+    }
+  }
   rng.rn2(50);
   rng.rn2(100);
   if (likesGold(def) && !findGold(ctx, monId) && rng.rn2(5) === 0) {

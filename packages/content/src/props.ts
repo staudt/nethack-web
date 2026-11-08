@@ -59,6 +59,7 @@ export const P = {
   CLAIRVOYANT: 'clairvoyant',
   LEVITATION: 'levitation',
   TELEPORT: 'teleport',
+  TELEPORT_CONTROL: 'teleport_control',
   CONFLICT: 'conflict',
   WARNING: 'warning',
   MAGICAL_BREATHING: 'magical_breathing',

@@ -710,6 +710,9 @@ describe('combat with real objects', () => {
       if (!mon?.c.hp || !mon.c.monster) break;
       mon.c.monster.asleep = true;
       mon.c.monster.peaceful = true;
+      // mon_regen() gives back 1 HP at the end of a turn where C's `moves % 20 == 0`: wait
+      // that turn out first, so the hit is measured alone
+      if (s.state.turn % 20 === 0) s.step({ type: 'wait' });
       const before = mon.c.hp.cur;
       s.step({ type: 'mod', action: 'nh:fight' as DefId, args: { dir: 'e' } });
       // the monsters are peaceful (so that they stay quiet): fight, confirm "Really attack?"

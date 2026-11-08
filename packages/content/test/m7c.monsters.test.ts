@@ -277,10 +277,12 @@ describe('corpses', () => {
     }
   });
 
-  test('an orc mummy leaves an orc corpse; the ettin mummy none (no ettin here)', () => {
+  test('an orc mummy leaves an orc corpse; the ettin mummy an ettin one', () => {
     const orc = deaths('nh:orc_mummy').flatMap((o) => o.corpses);
     expect(orc.length).toBeGreaterThan(0);
     for (const c of orc) expect(c.c.item?.corpseOf).toBe('nh:orc');
-    for (const o of deaths('nh:ettin_mummy', 20)) expect(o.corpses).toEqual([]);
+    const ettin = deaths('nh:ettin_mummy', 20).flatMap((o) => o.corpses);
+    expect(ettin.length).toBeGreaterThan(0);
+    for (const c of ettin) expect(c.c.item?.corpseOf).toBe('nh:ettin');
   });
 });

@@ -31,6 +31,9 @@ import { releaseHero } from './engulf';
 import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
 import { mRespond } from './mrespond';
+import { cuss } from './cuss';
+import { noteleportLevel, teleRestrict } from './teleport';
+import { mnextoPos } from './generation';
 import {
   canCarry,
   mDoWear,
@@ -47,6 +50,7 @@ import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
 import {
+  isCancelled,
   isFrozen,
   isMConfused,
   isMStunned,
@@ -56,7 +60,7 @@ import {
   setMStunned,
 } from './mstate';
 import { meating, setMeating } from './dog';
-import { mHarmlessTrap, mintrap, trapRemovedMon } from './trap';
+import { mHarmlessTrap, mintrap, rlocMon, rlocTo, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
 import { maybeSpinWeb } from './web';
@@ -692,6 +696,20 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos): MoveStatus {
     if (xm === 1) return postmovMoved(ctx, id, level, rules);
     if (xm === 0) return 'nothing';
   }
+  // ref: m_move(): "teleport if that lies in our nature": a tengu jumps one time in five, to a
+  // random spot when hurt (under 7 HP), peaceful or half the time, else next to the hero
+  // (mnexto(); with no room it stays: deal_with_overcrowding() is not ported)
+  if (def.id === TENGU && !ctx.rng.rn2(5) && !isCancelled(ctx, id)) {
+    const me = ctx.state.entities[String(id)];
+    if (me && !teleRestrict(ctx, me)) {
+      if ((me.c.hp?.cur ?? 0) < 7 || m.peaceful || ctx.rng.rn2(2)) rlocMon(ctx, me, true);
+      else {
+        const to = mnextoPos(ctx, level, id, heroPos);
+        if (to) rlocTo(ctx, me, to.x, to.y, true);
+      }
+      return postmovMoved(ctx, id, level, rules);
+    }
+  }
   // ref: m_move() not_special: while the hero is swallowed, other monsters do not come for her
   // (and the engulfer holding her stays where she is: DEVIATIONS "Engulfing")
   const sw = uswallow(ctx);
@@ -905,9 +923,20 @@ export function dochug(
   m.lastHero = heroPos;
 
   const def = ctx.defs.monster(ctx.state.entities[String(id)]?.def ?? 'nh:none');
-  // ref: dochug(): "some monsters have special abilities" (m_respond(): the shrieker's shriek;
-  // no M1_TPORT teleport before it yet)
   const self = ctx.state.entities[String(id)];
+  // ref: dochug(): "Some monsters teleport. Teleportation costs a turn." (no Wizard of Yendor;
+  // `leppie_stash()` is not ported: see DEVIATIONS "Theft")
+  if (
+    self &&
+    isFleeing(ctx, id) &&
+    !ctx.rng.rn2(40) &&
+    canTeleport(def) &&
+    !noteleportLevel(ctx, getLevel(ctx.state, pos.level))
+  ) {
+    rlocMon(ctx, self, true);
+    return;
+  }
+  // ref: dochug(): "some monsters have special abilities" (m_respond(): the shrieker's shriek)
   if (self) mRespond(ctx, self);
   // ref: dochug(): "fleeing monsters might regain courage"
   regainCourage(ctx, id);
@@ -1024,11 +1053,12 @@ export function dochug(
             def.attacks.some(
               (a) => a.at === 'weapon' || a.at === 'gaze' || a.at === 'breath' || a.at === 'spit',
             ) &&
-            !monnear(def, np.x, np.y, heroPos.x, heroPos.y) &&
-            hostileNow() &&
-            dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM
-          )
-            mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
+            !monnear(def, np.x, np.y, heroPos.x, heroPos.y)
+          ) {
+            if (hostileNow() && dist2(np.x, np.y, heroPos.x, heroPos.y) <= BOLT_LIM * BOLT_LIM)
+              mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero);
+            maybeCuss(ctx, id, inrange, heroPos); // phase four goes on to the cussing
+          }
           return;
         }
       }
@@ -1044,7 +1074,28 @@ export function dochug(
     // ref: mattacku() with range2: a weapon attack at a distance throws or shoots
     mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero);
   }
+  maybeCuss(ctx, id, inrange, heroPos);
 }
+
+/**
+ * ref: dochug(): "extra emotional attack for vile monsters": a hostile MS_CUSS monster within
+ * range on a square the hero could see curses her one time in five (no invisible monsters).
+ * Skipped when the monster died attacking or the game ended.
+ */
+function maybeCuss(ctx: Ctx, id: EntityId, inrange: boolean, heroPos: Pos): void {
+  const mon = ctx.state.entities[String(id)];
+  const p = mon?.c.pos;
+  if (!mon?.c.monster || !p || ctx.state.gameOver || !inrange) return;
+  if (ctx.defs.monster(mon.def).sound !== 'cuss' || mon.c.monster.peaceful) return;
+  if (!sightLine(ctx, p.level)(heroPos.x, heroPos.y, p.x, p.y)) return;
+  if (!ctx.rng.rn2(5)) cuss(ctx, mon);
+}
+
+/** ref: PM_TENGU */
+const TENGU = 'nh:tengu';
+
+/** ref: include/mondata.h can_teleport(): M1_TPORT */
+const canTeleport = (def: MonsterDef): boolean => def.flags.includes('tport');
 
 /** The hero's clear-line-of-sight test on a level (couldsee), for ranged attacks. */
 function sightLine(ctx: Ctx, levelId: string) {

@@ -1361,6 +1361,13 @@ const armPart = (ctx: Ctx, mon: Entity): Msg => ({
   key: ctx.defs.monster(mon.def).flags.includes('animal') ? 'trap.part.forelimb' : 'trap.part.arm',
 });
 
+type SplitMon = (ctx: Ctx, id: EntityId, monMoving: boolean) => EntityId | null;
+/** split_mon(): clone.ts registers it (it sits above trap.ts, through dog.ts) */
+let splitMonFn: SplitMon | null = null;
+export function setSplitMon(fn: SplitMon): void {
+  splitMonFn = fn;
+}
+
 function rustTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   const inSight = canseemon(ctx, mon);
   if (inSight) seetrap(trap);
@@ -1392,7 +1399,8 @@ function rustTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
         whichArmor(ctx, id, 'cloak') ?? whichArmor(ctx, id, 'body') ?? whichArmor(ctx, id, 'shirt'),
       );
   }
-  // completelyrusts() (iron golems) and gremlins: not in the roster
+  // completelyrusts() (iron golems): not in the roster
+  if (mon.def === 'nh:gremlin' && ctx.rng.rn2(3)) splitMonFn?.(ctx, id, true);
   return caughtOr(ctx, mon, false);
 }
 

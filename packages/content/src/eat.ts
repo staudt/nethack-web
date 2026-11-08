@@ -15,6 +15,7 @@ import {
   type EntityId,
   type Msg,
   type ModApi,
+  type MonsterDef,
   type ObjectDef,
   type Offer,
   type PlayerAction,
@@ -37,7 +38,16 @@ import { die, losehp, losestr } from './hp';
 import { gainExperience } from './hero';
 import { done } from './end';
 import { fixPetrification, fleshPetrifies, isStoned } from './stonestate';
-import { P, hasProp, isStrangled, makeBlinded, makeConfused, timeoutLeft } from './props';
+import {
+  P,
+  hasProp,
+  isStrangled,
+  makeBlinded,
+  makeConfused,
+  setIntrinsic,
+  timeoutLeft,
+} from './props';
+import { changeLuck } from './luck';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
@@ -380,9 +390,8 @@ const TASTES = ['okay', 'stringy', 'gamey', 'fatty', 'tough'] as const;
 /**
  * Checks a corpse that is about to be eaten. Returns 0 (fine), 1 (the hero passed out; the
  * meal is not started) or 2 (the corpse is used up). ref: src/eat.c eatcorpse()
- * Not ported: sliming, globs, vegan/vegetarian conduct, cannibalism (no human monsters in the
- * roster), `orotten`. Lizards and lichens never rot; a petrifying corpse is never "tainted"
- * (cprefx() turns her to stone).
+ * Not ported: sliming, globs, vegan/vegetarian conduct, `orotten`. Lizards and lichens never
+ * rot; a petrifying corpse is never "tainted" (cprefx() turns her to stone).
  */
 function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   const it = e.c.item;
@@ -400,7 +409,8 @@ function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   }
 
   if (!stoneable && rotted > 5) {
-    say(ctx, 'eat.tainted');
+    const cannibal = maybeCannibal(ctx, mon, false);
+    say(ctx, cannibal ? 'eat.tainted_cannibal' : 'eat.tainted');
     // Sick_resistance does not exist
     let sickTime = 10 + ctx.rng.rn2(10); // rn1(10, 10)
     const old = hungerData(ctx).sick?.remaining ?? 0;
@@ -469,15 +479,50 @@ function cpostfx(ctx: Ctx, corpse: Entity): void {
 }
 
 /**
- * The first bite of a corpse: a cockatrice's (or Medusa's) flesh turns her to stone at once
- * unless she resists; a lizard's, or an acidic monster's, cures petrification in progress.
- * ref: src/eat.c cprefx() (no cannibalism or pets in the roster yet, no tins, no Riders, no green
- * slime; no polymorph into a stone golem: 7f)
+ * ref: include/hack.h CANNIBAL_ALLOWED(): Cave dwellers and orcs may; the hero here is always a
+ * human Valkyrie
+ */
+const cannibalAllowed = (): boolean => false;
+
+/** Domestic animals the hero should not eat. ref: src/eat.c cprefx() PM_LITTLE_DOG..PM_LARGE_CAT */
+const DOMESTIC = new Set([
+  'nh:little_dog',
+  'nh:dog',
+  'nh:large_dog',
+  'nh:kitten',
+  'nh:housecat',
+  'nh:large_cat',
+]);
+
+/**
+ * Eating a corpse of her own race: "You cannibal!  You will regret this!" (when `allowmsg`),
+ * the Aggravate_monster intrinsic and 2..5 points of Luck lost. True if it was cannibalism.
+ * ref: src/eat.c maybe_cannibal() (`your_race()`: the hero is human, M2_HUMAN; she is never
+ * polymorphed or a lycanthrope; the once-a-turn `ate_brains` guard is for a mind flayer's
+ * tentacles and is not needed)
+ */
+function maybeCannibal(ctx: Ctx, mon: MonsterDef, allowmsg: boolean): boolean {
+  if (!cannibalAllowed() && mon.flags.includes('human')) {
+    if (allowmsg) say(ctx, 'eat.cannibal');
+    setIntrinsic(hero(ctx), P.AGGRAVATE_MONSTER, true);
+    changeLuck(ctx, -(ctx.rng.rn2(4) + 2)); // -rn1(4, 2)
+    return true;
+  }
+  return false;
+}
+
+/**
+ * The first bite of a corpse: eating her own kind is cannibalism, a cockatrice's (or Medusa's)
+ * flesh turns her to stone at once unless she resists, a dog or cat was a bad idea, and a
+ * lizard's, or an acidic monster's, cures petrification in progress.
+ * ref: src/eat.c cprefx() (no tins, no Riders, no green slime; no polymorph into a stone golem:
+ * 7f)
  */
 function cprefx(ctx: Ctx, corpse: Entity): void {
   const of = corpse.c.item?.corpseOf;
   if (!of || !ctx.defs.isMonster(of)) return;
   const mon = ctx.defs.monster(of);
+  maybeCannibal(ctx, mon, true);
   if (fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES)) {
     say(ctx, 'stone.you_turn_eat');
     done(ctx, `@killer.ston.tasting.${mon.id}`, 'stoning');
@@ -485,7 +530,13 @@ function cprefx(ctx: Ctx, corpse: Entity): void {
     if (v) v.eating = false;
     return; // lifesaved
   }
-  if (mon.id === LIZARD) {
+  if (DOMESTIC.has(mon.id)) {
+    // cannibals are allowed to eat domestic animals without penalty
+    if (!cannibalAllowed()) {
+      say(ctx, 'eat.domestic', { mon: `@${mon.id}` });
+      setIntrinsic(hero(ctx), P.AGGRAVATE_MONSTER, true);
+    }
+  } else if (mon.id === LIZARD) {
     if (isStoned(ctx.state)) fixPetrification(ctx);
   } else if (mon.flags.includes('acid') && isStoned(ctx.state)) fixPetrification(ctx);
 }

@@ -15,32 +15,38 @@ import {
 } from './props';
 import { pwOf, setPw } from './uenergy';
 
-/**
- * The conveyable properties in include/prop.h order (corpse_intrinsic() scans them in that
- * order). `mr` is the MR_ name in `MonsterDef.conveys`; telepathy has no MR bit
- * (ref: include/mondata.h telepathic()).
- */
-const CONVEYED: readonly { prop: string; mr: string | null }[] = [
-  { prop: P.FIRE_RES, mr: 'fire' },
-  { prop: P.COLD_RES, mr: 'cold' },
-  { prop: P.SLEEP_RES, mr: 'sleep' },
-  { prop: P.DISINT_RES, mr: 'disint' },
-  { prop: P.SHOCK_RES, mr: 'elec' },
-  { prop: P.POISON_RES, mr: 'poison' },
-  { prop: P.ACID_RES, mr: 'acid' },
-  { prop: P.STONE_RES, mr: 'stone' },
-  { prop: P.TELEPAT, mr: null },
-];
-
 /** ref: include/mondata.h telepathic(): the floating eye and the mind flayers */
 const telepathic = (def: MonsterDef): boolean =>
   def.id === 'nh:floating_eye' || def.id === 'nh:mind_flayer' || def.id === 'nh:master_mind_flayer';
 
+/** A resistance the corpse conveys (`mconveys`, the MR_ name in `MonsterDef.conveys`). */
+const conveys =
+  (mr: string) =>
+  (def: MonsterDef): boolean =>
+    def.conveys.includes(mr);
+
+/**
+ * The conveyable properties in include/prop.h order (corpse_intrinsic() scans them in that
+ * order) and the test for each. ref: src/eat.c intrinsic_possible()
+ */
+const CONVEYED: readonly { prop: string; possible: (def: MonsterDef) => boolean }[] = [
+  { prop: P.FIRE_RES, possible: conveys('fire') },
+  { prop: P.COLD_RES, possible: conveys('cold') },
+  { prop: P.SLEEP_RES, possible: conveys('sleep') },
+  { prop: P.DISINT_RES, possible: conveys('disint') },
+  { prop: P.SHOCK_RES, possible: conveys('elec') },
+  { prop: P.POISON_RES, possible: conveys('poison') },
+  { prop: P.ACID_RES, possible: conveys('acid') },
+  { prop: P.STONE_RES, possible: conveys('stone') },
+  { prop: P.TELEPAT, possible: telepathic },
+  // can_teleport(), control_teleport(): M1_TPORT, M1_TPORT_CNTRL
+  { prop: P.TELEPORT, possible: (def) => def.flags.includes('tport') },
+  { prop: P.TELEPORT_CONTROL, possible: (def) => def.flags.includes('tport_cntrl') },
+];
+
 /** ref: src/eat.c intrinsic_possible() */
 function intrinsicPossible(prop: string, def: MonsterDef): boolean {
-  const c = CONVEYED.find((x) => x.prop === prop);
-  if (!c) return false;
-  return c.mr === null ? telepathic(def) : def.conveys.includes(c.mr);
+  return CONVEYED.find((x) => x.prop === prop)?.possible(def) ?? false;
 }
 
 /** The property to try to give, 'str' for a giant's strength, or null. ref: src/eat.c corpse_intrinsic() */
@@ -72,6 +78,12 @@ export function shouldGivit(ctx: Ctx, prop: string, def: MonsterDef): boolean {
       chance =
         (def.id === 'nh:killer_bee' || def.id === 'nh:scorpion') && ctx.rng.rn2(4) === 0 ? 1 : 15;
       break;
+    case P.TELEPORT:
+      chance = 10;
+      break;
+    case P.TELEPORT_CONTROL:
+      chance = 12;
+      break;
     case P.TELEPAT:
       chance = 1;
       break;
@@ -94,6 +106,8 @@ const GIVIT_MESSAGES: Record<string, string> = {
   [P.COLD_RES]: 'givit.cold',
   [P.DISINT_RES]: 'givit.disint',
   [P.SHOCK_RES]: 'givit.shock',
+  [P.TELEPORT]: 'givit.teleport',
+  [P.TELEPORT_CONTROL]: 'givit.teleport_control',
   [P.TELEPAT]: 'givit.telepat',
 };
 
@@ -103,6 +117,8 @@ const HALLU_WORDING = new Set([
   'givit.disint',
   'givit.shock',
   'givit.telepat',
+  'givit.teleport',
+  'givit.teleport_control',
   'givit.acid',
   'givit.stone',
 ]);
@@ -142,12 +158,25 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
 
 /**
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
- * stun, then a chance at an intrinsic. Not ported (no systems for them): the wraith's level,
- * lycanthropy, mimicking, the quantum mechanic, shapeshifters, displacer beast, disenchanter,
- * the nurse and the stalker's invisibility.
+ * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic. Not ported
+ * (no systems for them): the wraith's level, lycanthropy, mimicking, shapeshifters, displacer
+ * beast, disenchanter, the nurse and the stalker's invisibility.
  */
 export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   const hero = getPlayer(ctx.state);
+  if (def.id === 'nh:quantum_mechanic') {
+    // `HFast & INTRINSIC` (from outside or from experience) is taken away, else given; the timed
+    // part (a wand or potion of speed) stays. No intrinsic check after it.
+    ctx.emit({ type: 'msg', key: 'givit.qm_velocity' });
+    if (hasIntrinsic(hero, P.FAST)) {
+      setIntrinsic(hero, P.FAST, false);
+      ctx.emit({ type: 'msg', key: 'givit.qm_slower' });
+    } else {
+      setIntrinsic(hero, P.FAST, true);
+      ctx.emit({ type: 'msg', key: 'givit.qm_faster' });
+    }
+    return;
+  }
   let stuns = 0;
   switch (def.id) {
     case 'nh:stalker':

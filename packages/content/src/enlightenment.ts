@@ -8,7 +8,7 @@
 // spellcasting line, no "Miscellaneous" section (the elapsed real time would break
 // determinism), no deaths counted ("You have been killed..."), and nothing for polymorph,
 // lycanthropy, steeds, swallowing, being held, water, invisibility, see invisible,
-// infravision, half damage, teleport control or the other properties the port lacks.
+// infravision, half damage or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
 import { isStoned } from './stonestate';
 import { getPlayer, type Ctx, type Msg } from '@nh/core';
@@ -188,6 +188,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.CONFLICT)) line('enl.conflict');
   // transportation
   if (has(P.TELEPORT)) can('teleport');
+  if (has(P.TELEPORT_CONTROL)) have('teleport_control');
   // levitation blocked by a bear trap (BLevitation's I_SPECIAL)
   if (has(P.LEVITATION) && !levitating(ctx)) line('enl.would_levitate');
   if (has(P.MAGICAL_BREATHING)) can('breathless');

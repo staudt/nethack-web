@@ -71,6 +71,9 @@ export const eatMessagesEn: Record<string, string> = {
 
   // corpses. ref: src/eat.c eatcorpse()
   'eat.tainted': 'Ulch - that meat was tainted!',
+  'eat.tainted_cannibal': 'Ulch - that meat was tainted, you cannibal!',
+  'eat.cannibal': 'You cannibal!  You will regret this!',
+  'eat.domestic': 'You feel that eating the {mon} was a bad idea.',
   'eat.tainted_note': '(It must have died too long ago to be safe to eat.)',
   'eat.acid': 'You have a very bad case of stomach acid.',
   'eat.poisonous': 'Ecch - that must have been poisonous!',

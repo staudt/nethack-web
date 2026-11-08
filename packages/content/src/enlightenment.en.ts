@@ -81,6 +81,7 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.aggravate': 'You aggravate monsters.',
   'enl.conflict': 'You cause conflict.',
   'enl.teleport': 'teleport',
+  'enl.teleport_control': 'teleport control',
   'enl.would_levitate': 'You would levitate if not trapped.',
   'enl.breathless': 'survive without air',
   'enl.regenerate': 'You regenerate.',
