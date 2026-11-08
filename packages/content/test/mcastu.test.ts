@@ -487,10 +487,13 @@ describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', 
     });
   });
 
+  /** S_ANT monsters: mkclass(S_ANT) picks giant ants, killer bees, soldier and fire ants... */
   const ants = (st: GameState) =>
-    Object.values(st.entities).filter((e) => e.def === 'nh:giant_ant');
+    Object.values(st.entities).filter(
+      (e) => defs.isMonster(e.def) && defs.monster(e.def).glyph.ch === 'a',
+    );
 
-  test('insects: quan + 1 awake hostile giant ants around her (quan >= 3)', () => {
+  test('insects: quan + 1 awake hostile ants around her (quan >= 3)', () => {
     const { o } = find(9, 'The priest summons insects!');
     expect(o.text[0]).toBe('The priest casts a spell!'); // undirected
     const made = ants(o.state);
@@ -500,6 +503,17 @@ describe('the clerical spells (a level-forced aligned cleric casting AD_CLRC)', 
       expect(a.c.monster).toMatchObject({ peaceful: false, asleep: false });
       expect(a.c.monster?.tame).toBeUndefined();
     }
+  });
+
+  test('insects: mkclass(S_ANT) also makes killer bees and soldier ants, not only giant ants', () => {
+    const st = setup(9, 4, 3, 100, CLERIC);
+    const kinds = new Set<string>();
+    for (const o of outcomes(st.s.state, (ctx) => castmu(ctx, st.id, CLRC, true, true), 400))
+      if (o.text.includes('The priest summons insects!'))
+        for (const a of ants(o.state)) kinds.add(a.def);
+    expect(kinds).toContain('nh:giant_ant');
+    expect(kinds).toContain('nh:killer_bee');
+    expect(kinds).toContain('nh:soldier_ant');
   });
 
   test('insects from an unseen caster: she only hears the summoning', () => {

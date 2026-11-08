@@ -17,8 +17,8 @@
 // and invisibility (`foundyou` is always `thinks_it_foundyou`), the AD_FIRE/AD_COLD/AD_MAGM
 // AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
 // Disappear, destroy armor, summon nasties, clone wizard and touch of death are always
-// useless, so they are never chosen. Insects are always "insects" (no hallucinated names, no
-// snakes in the roster); no Half_physical_damage, burn_away_slime() or melting ice.
+// useless, so they are never chosen. Insects are always "insects" (no hallucinated names); no
+// Half_physical_damage, burn_away_slime() or melting ice.
 import {
   NORMAL_SPEED,
   cellRules,
@@ -454,8 +454,8 @@ function monsterCensus(ctx: Ctx): number {
 }
 
 /**
- * At least four hostile giant ants appear around the hero (snakes when no ant can be made:
- * the roster has none, so nothing appears then). ref: src/mcastu.c mcast_insects()
+ * At least four hostile ants (mkclass(S_ANT): giant ants, killer bees, soldier ants...) appear
+ * around the hero, or snakes when no ant can be made. ref: src/mcastu.c mcast_insects()
  */
 function mcastInsects(ctx: Ctx, mon: Entity): void {
   const p = getPlayer(ctx.state).c.pos;

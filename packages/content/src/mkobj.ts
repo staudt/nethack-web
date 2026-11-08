@@ -2,7 +2,7 @@
 // ref: src/mkobj.c mkobj(), mkobj_at(), rndmonnum()
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
 import { putIn } from '@nh/core';
-import { rndmonst } from './generation';
+import { rndmonst, setLevelObjectAt } from './generation';
 import { mksobj, type MksobjOpts } from './items';
 import { startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
@@ -277,3 +277,8 @@ export function mkobjAt(
 ): EntityId | null {
   return mkobj(ctx, oclass, { at, inMklev });
 }
+
+// makemon()'s S_SPIDER/S_SNAKE level-creation object. ref: src/makemon.c makemon()
+setLevelObjectAt((ctx, at) => {
+  mkobjAt(ctx, 'random', at, true);
+});

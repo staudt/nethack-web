@@ -140,7 +140,7 @@ function createMonster(
   const pos = contentSpot(ctx, level, c, ldef, room);
   // someone already there: a close place instead (makemon's enexto)
   if (!pos) return;
-  const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true });
+  const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true, inMklev: true });
   const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
 }

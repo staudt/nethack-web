@@ -118,6 +118,57 @@ describe('makemon', () => {
     );
   });
 
+  test('snakes and spiders made with the level get a random object on their square', () => {
+    // ref: src/makemon.c makemon() S_SPIDER/S_SNAKE: mkobj_at(RANDOM_CLASS) when in_mklev
+    const def = (id: string) => MONSTERS.find((m) => m.id === id) as (typeof MONSTERS)[number];
+    withCtx(13, (ctx, state) => {
+      for (const [id, inMklev, want] of [
+        ['nh:garter_snake', true, 1],
+        ['nh:pit_viper', true, 1],
+        ['nh:centipede', true, 1],
+        ['nh:garter_snake', false, 0], // a snake made later gets nothing
+        ['nh:jackal', true, 0], // other classes get nothing
+      ] as const) {
+        for (let i = 0; i < 10; i++) {
+          const before = new Set(Object.keys(state.entities));
+          const mid = makemon(ctx, def(id), null, { nogroup: true, inMklev });
+          const p = state.entities[String(mid)]?.c.pos;
+          expect(p).toBeDefined();
+          // new objects on the floor (a box's contents are inside it, not on the floor)
+          const floor = Object.keys(state.entities).filter(
+            (k) => !before.has(k) && state.entities[k]?.c.item && state.entities[k]?.c.pos,
+          );
+          expect(floor.length, `${id} #${i}`).toBe(want);
+          for (const k of floor)
+            expect(state.entities[k]?.c.pos).toMatchObject({ x: p?.x, y: p?.y });
+        }
+      }
+    });
+  });
+
+  test('a level-made group of garter snakes: every snake has its object', () => {
+    const snake = MONSTERS.find((m) => m.id === 'nh:garter_snake') as (typeof MONSTERS)[number];
+    withCtx(
+      17,
+      (ctx, state) => {
+        const before = new Set(Object.keys(state.entities));
+        makemon(ctx, snake, null, { group: true, inMklev: true });
+        const fresh = Object.keys(state.entities).filter((k) => !before.has(k));
+        const snakes = fresh.filter((k) => state.entities[k]?.def === 'nh:garter_snake');
+        expect(snakes.length).toBeGreaterThan(1);
+        for (const k of snakes) {
+          const p = state.entities[k]?.c.pos;
+          const under = fresh.filter((o) => {
+            const q = state.entities[o]?.c.pos;
+            return state.entities[o]?.c.item && q && q.x === p?.x && q.y === p?.y;
+          });
+          expect(under.length, `snake ${k}`).toBeGreaterThanOrEqual(1);
+        }
+      },
+      8,
+    );
+  });
+
   test('random placement is never in view of the hero', () => {
     withCtx(11, (ctx, state) => {
       const vis = new Set(state.visible);

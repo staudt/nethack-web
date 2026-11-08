@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-150 NetHack files, 2875 citations.
+150 NetHack files, 2908 citations.
 
 ## dat/dungeon.lua
 
@@ -1017,7 +1017,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_initinv()`: `packages/content/src/mongear.ts`
 - `m_initthrow()`: `packages/content/src/mongear.ts`
 - `m_initweap()`: `packages/content/src/mongear.ts`
-- `makemon()`: `packages/content/src/generation.ts`, `packages/content/src/mongear.ts`
+- `makemon()`: `packages/content/src/generation.ts`, `packages/content/src/mkobj.ts`, `packages/content/src/mongear.ts`
 - `makemon_rnd_goodpos()`: `packages/content/src/generation.ts`
 - `mkclass()`: `packages/content/src/generation.ts`
 - `mkclass_aligned()`: `packages/content/src/generation.ts`

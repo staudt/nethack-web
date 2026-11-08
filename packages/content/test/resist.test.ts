@@ -1098,6 +1098,18 @@ describe('corpse intrinsics', () => {
       expect(shouldGivit(ctx, P.FIRE_RES, lvl('nh:red_mold', 15))).toBe(true);
   });
 
+  test('should_givit: killer bees give poison resistance 1 time in 4 outright, else L in 15', () => {
+    const { ctx } = bare();
+    const rate = (id: string): number => {
+      let n = 0;
+      for (let i = 0; i < 8000; i++) if (shouldGivit(ctx, P.POISON_RES, def(id))) n++;
+      return n / 8000;
+    };
+    // killer bee, level 1: 1/4 + 3/4 * 1/15 = 0.3; a soldier ant (level 3) only 3/15
+    expect(Math.abs(rate('nh:killer_bee') - 0.3)).toBeLessThan(0.03);
+    expect(Math.abs(rate('nh:soldier_ant') - 3 / 15)).toBeLessThan(0.03);
+  });
+
   test('corpse_intrinsic picks among the conveyed resistances at random', () => {
     const { ctx } = bare();
     const counts: Record<string, number> = {};

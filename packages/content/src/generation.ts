@@ -319,6 +319,15 @@ export interface MakemonOpts {
   adjacentOk?: boolean;
   /** No starting weapons, armor or gold (MM_NOINVENT). */
   noInventory?: boolean;
+  /** Made while a level is being created (gi.in_mklev): snakes and spiders get an object. */
+  inMklev?: boolean;
+}
+
+type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
+/** mkobj_at(RANDOM_CLASS, x, y, TRUE): mkobj.ts registers it (it sits above generation.ts) */
+let levelObjectAt: LevelObjectAt | null = null;
+export function setLevelObjectAt(fn: LevelObjectAt): void {
+  levelObjectAt = fn;
 }
 
 /**
@@ -372,10 +381,16 @@ export function makemon(
     },
   });
 
-  // ref: makemon() switch (ptr->mlet): leprechauns sleep, nymphs 4 times in 5 (no Amulet)
+  // ref: makemon() switch (ptr->mlet): snakes and spiders made with the level get an object
+  // on their square (they do not hide under it yet: DEVIATIONS "Hiding monsters"),
+  // leprechauns sleep, nymphs 4 times in 5 (no Amulet)
   const mon = ctx.state.entities[String(id)]?.c.monster;
-  if (mon && mdef.glyph.ch === 'l') mon.asleep = true;
-  else if (mon && mdef.glyph.ch === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
+  const mlet = mdef.glyph.ch;
+  if ((mlet === 'S' || mlet === 's') && opts.inMklev) {
+    if (!levelObjectAt) throw new Error('makemon: mkobj.ts has not registered mkobj_at()');
+    levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
+  } else if (mon && mlet === 'l') mon.asleep = true;
+  else if (mon && mlet === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {

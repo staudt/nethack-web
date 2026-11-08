@@ -72,7 +72,12 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number): void {
       const t = id === undefined ? undefined : ctx.defs.terrain(id);
       if (!t?.passable || t.door !== undefined) continue; // not a room square
       if (door && distmin(sx, sy, door.x, door.y) <= 1) continue;
-      makemon(ctx, null, { x: sx, y: sy }, { level: level.id, asleep: true, nogroup: true });
+      makemon(
+        ctx,
+        null,
+        { x: sx, y: sy },
+        { level: level.id, asleep: true, nogroup: true, inMklev: true },
+      );
       let i: number;
       if (door) {
         const distval = (sx - door.x) ** 2 + (sy - door.y) ** 2; // dist2()

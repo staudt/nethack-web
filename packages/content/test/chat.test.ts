@@ -18,9 +18,11 @@ import {
   P,
   T,
   checkSpecialRoom,
+  edogOf,
   epriOf,
   findAc,
   hasIntrinsic,
+  initedog,
   mksobj,
   moneyCnt,
   paralyzeMonst,
@@ -168,6 +170,18 @@ describe('domonnoise(): each sound', () => {
     ['nh:hobbit', { peaceful: true }, 'chat.hobbit.ring'],
     ['nh:dwarf', { peaceful: true }, 'chat.mining'],
     ['nh:gecko', { halluc: true }, 'chat.gecko'],
+    // m10 step 1 sounds
+    ['nh:pony', {}, 'chat.neighs'], // MS_NEIGH, tameness < 5
+    ['nh:horse', { peaceful: true, tame: 10 }, 'chat.whickers'], // tame and not hungry
+    ['nh:raven', {}, 'chat.nevermore'], // a hostile raven
+    ['nh:raven', { peaceful: true }, 'chat.squawks'],
+    ['nh:mumak', {}, 'chat.trumpets'],
+    ['nh:leocrotta', {}, 'chat.imitates'],
+    ['nh:crocodile', {}, 'chat.bellows'],
+    ['nh:baby_crocodile', {}, 'chat.chirps'],
+    ['nh:killer_bee', {}, 'chat.buzzes'],
+    ['nh:wolf', {}, 'chat.growls_bark'],
+    ['nh:tiger', {}, 'chat.growls'],
   ] as const)('%s %j: %s', (def, o, key) => {
     expect(line(def, o)).toEqual({ msgs: [key], took: true });
   });
@@ -185,6 +199,31 @@ describe('domonnoise(): each sound', () => {
     expect(['chat.soldier.useless', 'chat.soldier.dog_meat', 'chat.soldier.surrender']).toContain(
       line('nh:watchman').msgs[0],
     );
+  });
+
+  test('a mumak trumpets and wakes the monsters within 11 squares (wake_nearto 11 * 11)', () => {
+    const s = setup(['..................', '..@...............', '..................']);
+    const mumak = pin(s, addMon(s.state, 'nh:mumak', 3, 1));
+    const near = pin(s, addMon(s.state, 'nh:jackal', 13, 1, { asleep: true })); // dist2 100
+    const far = pin(s, addMon(s.state, 'nh:jackal', 15, 1, { asleep: true })); // dist2 144
+    s.wait();
+    const { msgs } = chat(s, 'e');
+    expect(msgs).toContain('chat.trumpets');
+    expect(s.state.entities[String(mumak)]?.c.monster?.asleep).toBe(false);
+    expect(s.state.entities[String(near)]?.c.monster?.asleep).toBe(false);
+    expect(s.state.entities[String(far)]?.c.monster?.asleep).toBe(true);
+  });
+
+  test('a tame horse past its hungry time whinnies', () => {
+    const s = setup(['.....', '..@..', '.....']);
+    const id = pin(s, addMon(s.state, 'nh:horse', 3, 1, { peaceful: true }));
+    initedog(ctxOf(s), id, true);
+    const m = s.state.entities[String(id)]?.c.monster;
+    if (m) m.tame = 10;
+    const e = edogOf(s, id);
+    if (e) e.hungrytime = 0;
+    s.wait();
+    expect(chat(s, 'e').msgs).toEqual(['chat.whinnies']);
   });
 
   test('a silent monster says nothing and no time passes', () => {

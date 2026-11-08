@@ -124,7 +124,7 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let trycnt = 0;
   // put a sleeping monster inside
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
-    makemon(ctx, null, pos, { level: level.id, nogroup: true });
+    makemon(ctx, null, pos, { level: level.id, nogroup: true, inMklev: true });
   // put traps inside
   let x = 8 - Math.trunc(level.depth / 6);
   if (x <= 1) x = 2;

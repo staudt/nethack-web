@@ -29,7 +29,8 @@ import { eshkOf } from './eshk';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { isFleeing } from './monflee';
 import { moneyCnt } from './money';
-import { isFrozen, isMConfused, isMStunned } from './mstate';
+import { aggravate, isFrozen, isMConfused, isMStunned } from './mstate';
+import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
 import { P, heroHas, isStrangled } from './props';
@@ -149,6 +150,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline(m.peaceful ? 'chat.snarls' : 'chat.roars');
     case 'squeak':
       return pline('chat.squeaks');
+    case 'sqawk':
+      if (mon.def === 'nh:raven' && !m.peaceful) {
+        say(ctx, 'chat.nevermore');
+        return NORMAL_SPEED;
+      }
+      return pline('chat.squawks');
     case 'hiss':
       return m.peaceful ? 0 : pline('chat.hisses'); // a peaceful one makes no sound
     case 'buzz':
@@ -156,6 +163,9 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
     case 'grunt':
     case 'orc':
       return pline('chat.grunts');
+    case 'neigh':
+      if (tame < 5) return pline('chat.neighs');
+      return pline(turn > hungrytime ? 'chat.whinnies' : 'chat.whickers');
     case 'moo':
       return pline('chat.moos');
     case 'bellow':
@@ -164,6 +174,19 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.chirps');
     case 'groan':
       return ctx.rng.rn2(3) ? 0 : pline('chat.groans');
+    case 'burble':
+      return pline('chat.burbles');
+    case 'trumpet': {
+      const p = mon.c.pos;
+      if (p) wakeNearto(ctx, p.x, p.y, 11 * 11);
+      return pline('chat.trumpets');
+    }
+    case 'shriek':
+      aggravate(ctx);
+      return pline('chat.shrieks');
+    case 'imitate':
+      return pline('chat.imitates');
+    // 'cuss' (imps, m10 step 4) needs wizard.c cuss(): no monster here makes it yet
     case 'djinni':
       // (no prisoner here; a tame djinni has no wishes left)
       if (tame) {
