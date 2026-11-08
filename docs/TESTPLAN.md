@@ -175,3 +175,11 @@ With `?wizard=1` (`Ctrl+w` wish; a wish that starts with a trap's name, like `ro
 - [ ] Wish `wand of digging`, break it in the middle of a room: pits on the eight squares around you and under you (with many charges some are holes, and you may fall through). Break one next to a room wall: the wall squares become doorways.
 - [ ] Wish `wand of striking` and break it next to a closed door: "A wall of force smashes down around you!", "The door crashes open!". Wish `wand of teleportation`, create two monsters next to you and break it: they vanish elsewhere on the level.
 - [ ] Wish `magic trap` two squares east (stand there, wish, step back), wish `wand of cancellation` and zap it east: "Boom!", the trap is gone and the wand identified. Wish `level teleporter` under you and zap a `wand of digging` down: "You are caught in the magical blast!" and the trap is gone (no hole).
+
+Shop damage (find a shop on DL2-6, or Minetown's; wish `1000 gold pieces` first):
+
+- [ ] Stand outside a shop next to its closed door and kick it until it breaks: the shopkeeper appears in the doorway and asks "Minx!  You did 400 zorkmids worth of damage!"  Pay?. Yes: "Mollified, X accepts your restitution.", he goes back in and your gold is 400 less. About 5 turns later (wait with `s`) "Suddenly, the shop door reappears!" (closed) and "X whispers an incantation.".
+- [ ] Repeat with a fresh door and answer no: "Oh, yes!  You'll pay!" and he attacks. Drop your gold first and do it again: "How dare you break my door?" without the question.
+- [ ] Inside a shop, wish `wand of digging` and zap it at a shop wall: a doorway, then the question for 200 zorkmids ("dig into"); a few turns later "Suddenly, a section of the wall closes up!" and anything lying in the gap is now inside the shop.
+- [ ] Wish `pick-axe` inside a shop and dig down: "You start digging downward." and "Madam, do not damage the floor here!"; pick up something without paying and keep digging down until you fall through: "X grabs your backpack!" and only your worn and wielded things stay with you.
+- [ ] Wish `wand of fire` and zap it at a shop's closed door from outside: "The door is consumed in flames!" and the question about "burn away"; break a `wand of digging` in a shop: pits around you and the question after the blast.

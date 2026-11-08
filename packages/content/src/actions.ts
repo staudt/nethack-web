@@ -56,6 +56,7 @@ import { invWeight, weightCap } from './stats';
 import { setEndHow } from './endstate';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
+import { SHOP_DOOR_COST } from './shopdamage';
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -97,7 +98,7 @@ function openDoor(ctx: Ctx, level: Level, at: Pos): void {
   ctx.emit({ type: 'doorOpened', pos: at });
   ctx.emit({ type: 'msg', key: 'door.opens' });
   if (trapped) {
-    blowDoor(ctx, level, at.x, at.y);
+    blowDoor(ctx, level, at.x, at.y, SHOP_DOOR_COST);
     bTrapped(ctx, 'door');
   }
 }

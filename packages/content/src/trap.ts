@@ -41,10 +41,12 @@ import {
 } from '@nh/core';
 import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { TEMPLE, epriOf } from './epri';
-import { costlySpot, eshkOf, inhishop, onbill } from './eshk';
+import { costlySpot, eshkOf, inhishop, onbill, uShops } from './eshk';
 import { DUNGEON_BOTTOM, dungeonBottom } from './levelflags';
 import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
+import { shopdig } from './shkpay';
+import { addShopDamage } from './shopdamage';
 import {
   SOKOBAN_DUNGEON,
   inStasis,
@@ -273,7 +275,8 @@ function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: numbe
 
 /**
  * Makes a trap of type `def` at (x, y) of `levelId`: holes are always seen, squeaky boards get
- * a note, holes and trap doors a destination. Returns the trap as stored.
+ * a note, holes and trap doors a destination (in a shop on the hero's level, scheduled for repair:
+ * `add_damage(x, y, 0L)`). Returns the trap as stored.
  * ref: src/trap.c maketrap() (the parts for our trap types)
  */
 export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: DefId): Trap {
@@ -288,8 +291,11 @@ export function maketrap(ctx: Ctx, levelId: string, x: number, y: number, def: D
   }
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
   if (def === TRAP.squeaky) t.data = { tnote: chooseTrapnote(ctx, level, x, y) };
-  else if (isHole(def)) t.data = { dst: holeDestination(ctx, level) };
-  else if (def === TRAP.rolling) {
+  else if (isHole(def)) {
+    t.data = { dst: holeDestination(ctx, level) };
+    // schedule repair (a door or wall is digactualhole()'s: core keeps traps off them)
+    if (levelId === ctx.state.currentLevel) addShopDamage(ctx, x, y, 0);
+  } else if (def === TRAP.rolling) {
     // boulder will roll towards trigger
     const { launch, launch2 } = mkrollLaunch(ctx, level, x, y);
     t.data = { launch, launch2 };
@@ -738,6 +744,7 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
     say(ctx, 'trap.dont_fall');
     return;
   }
+  if (uShops(ctx).length > 0) shopdig(ctx, true);
   const dist = dst - level.dlevel;
   if (dist > 1)
     say(ctx, dist > 3 ? 'trap.shaft_very_deep' : dist > 2 ? 'trap.shaft_deep' : 'trap.shaft');

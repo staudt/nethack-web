@@ -60,6 +60,7 @@ import {
   setFollowmsg,
   shkname,
 } from './shk';
+import { holetime, shkFixesDamage } from './shkdamage';
 import { T, isObstructedId } from './terrain';
 import { digAbility, mDigweaponCheck, mayDig, mdigTunnel, needsPick, tunnels } from './mdig';
 import { blockersOf, boulderCells } from './boulder';
@@ -564,13 +565,16 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
  * he wanders a little instead), and he steps out of her lines when she is in the shop and more
  * than two squares from the spot. Returns as {@link moveSpecial}.
  * Under Conflict a peaceful one next to her that does not resist attacks her too.
- * ref: src/shk.c shk_move() (no damage repair, displacement, invisibility, steeds or holes)
+ * In his shop he first repairs damage whose time has come (shk_fixes_damage()); while she digs a
+ * hole in his shop he comes to her as it nears completion (holetime()).
+ * ref: src/shk.c shk_move() (no displacement, invisibility or steeds)
  */
 export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
-  const { e, m, pos } = monCount(ctx, id);
   const eshk = eshkOf(ctx, id);
   if (!eshk) return -1;
-  if (eshk.shoplevel !== pos.level && !eshk.following) return -1;
+  if (eshk.shoplevel !== monCount(ctx, id).pos.level && !eshk.following) return -1;
+  if (inhishop(ctx, id)) shkFixesDamage(ctx, id);
+  const { e, m, pos } = monCount(ctx, id);
   const omx = pos.x;
   const omy = pos.y;
   const udist = dist2(omx, omy, heroPos.x, heroPos.y);
@@ -603,8 +607,9 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
   const satdoor = gtx === omx && gty === omy;
   let avoid = false;
   let uondoor = false;
-  if (eshk.following) {
-    if (udist > 4 && eshk.bill.length === 0) return -1; // leave it to m_move
+  const z = holetime(ctx);
+  if (eshk.following || (z >= 0 && z * z <= udist)) {
+    if (udist > 4 && eshk.following && eshk.bill.length === 0) return -1; // leave it to m_move
     gtx = heroPos.x;
     gty = heroPos.y;
   } else if (!m.peaceful) {
@@ -631,14 +636,14 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos): -2 | -1 | 0 | 1 {
       }
     }
   }
-  const z = moveSpecial(ctx, id, heroPos, {
+  const moved = moveSpecial(ctx, id, heroPos, {
     appr,
     avoid,
     goal: { x: gtx, y: gty },
     shk: { inHisShop: inhishop(ctx, id), following: eshk.following, uondoor },
   });
-  if (z > 0) afterShkMove(ctx, id);
-  return z;
+  if (moved > 0) afterShkMove(ctx, id);
+  return moved;
 }
 
 /**

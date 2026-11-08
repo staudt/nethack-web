@@ -82,7 +82,7 @@ import {
   type Ray,
 } from './buzz';
 import { explode } from './explode';
-import { eshkOf } from './eshk';
+import { eshkOf, inAnyShop } from './eshk';
 import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { healup } from './potion';
@@ -107,6 +107,8 @@ import { TRAP, dotrap, isMagicalTrap, mintrap, tele, uTeleportMon } from './trap
 import { setStasis } from './teleport';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
 import { checkUnpaid, costlyAlteration } from './shk';
+import { payForDamage } from './shkpay';
+import { SHOP_DOOR_COST, addDamage, addShopDamage } from './shopdamage';
 import { askWish, answerWish, type WishData } from './wish';
 import { luckOf } from './luck';
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
@@ -498,9 +500,10 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
 /**
  * A door or secret door hit by opening, locking or striking; true if something happened.
  * ref: src/lock.c doorlock(). A doorway stands for both D_NODOOR and D_BROKEN; a trapped door
- * struck blows up (mb_trapped() on a monster in it); no shop doors.
+ * struck blows up (mb_trapped() on a monster in it); a shop door destroyed is damage to repair
+ * (`add_damage(x, y, 0L)`). 'broken': struck open (D_BROKEN), which bhit() charges for.
  */
-function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
+function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean | 'broken' {
   const level = levelOf(ctx);
   const id = cellId(level, x, y);
   const striking = otyp === WAN.striking || otyp === SPE.forceBolt;
@@ -514,7 +517,7 @@ function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
   }
   const t = terrainAt(ctx, level, x, y);
   let msg: string | null = null;
-  let res = true;
+  let res: boolean | 'broken' = true;
   if (otyp === WAN.locking) {
     if (obstructed(ctx, x, y)) return false;
     // traps are never in doorways here
@@ -542,7 +545,7 @@ function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
     if ((t.door === 'locked' || t.door === 'closed') && doorTrapped(ctx, level.id, x, y)) {
       const mon = monAt(ctx, x, y);
       const sawit = mon ? canseemon(ctx, mon) : cansee(ctx, x, y);
-      blowDoor(ctx, level, x, y); // D_NODOOR
+      blowDoor(ctx, level, x, y, 0); // D_NODOOR; door was destroyed
       const seeit = mon ? canseemon(ctx, mon) : cansee(ctx, x, y);
       if (mon)
         mbTrapped(ctx, mon, sawit || seeit); // its own wake_nearto()
@@ -558,7 +561,9 @@ function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
       }
     } else if (t.door === 'locked' || t.door === 'closed') {
       const sawit = cansee(ctx, x, y);
+      addShopDamage(ctx, x, y, 0); // door was destroyed
       setTerrain(level, x, y, T.doorway); // D_BROKEN
+      res = 'broken';
       ctx.emit({ type: 'doorOpened', pos: { x, y } });
       say(ctx, sawit ? 'zap.door.crashes_open' : 'zap.door.crashing_sound');
       wakeNearto(ctx, x, y, 20);
@@ -871,6 +876,7 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   const d = DIRS[dir];
   let range = ctx.rng.rn2(8) + 6;
   let { x, y } = heroPos(ctx);
+  let shopdoor = false;
   while (range-- > 0) {
     x += d.x;
     y += d.y;
@@ -902,14 +908,19 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
       (otyp === WAN.opening ||
         otyp === WAN.locking ||
         otyp === WAN.striking ||
-        otyp === SPE.forceBolt) &&
-      doorlock(ctx, otyp, x, y) &&
-      (cansee(ctx, x, y) || otyp === WAN.striking)
-    )
-      learn(ctx, src);
+        otyp === SPE.forceBolt)
+    ) {
+      const res = doorlock(ctx, otyp, x, y);
+      if (res && (cansee(ctx, x, y) || otyp === WAN.striking)) learn(ctx, src);
+      if (res === 'broken' && inAnyShop(level, x, y)) {
+        shopdoor = true;
+        addDamage(ctx, x, y, SHOP_DOOR_COST);
+      }
+    }
     // the terrain read before the door handling decides (a secret door stops the beam)
     if (!zapPos(before) || closedDoor(terrainAt(ctx, level, x, y))) break;
   }
+  if (shopdoor) payForDamage(ctx, 'destroy', false);
 }
 
 /** ref: include/rm.h IS_FURNITURE(): stairs, fountains, sinks and altars here */

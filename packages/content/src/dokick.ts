@@ -6,7 +6,8 @@
 // not swimming. Those branches are not ported; levitating she needs something to brace against,
 // misses small monsters wildly, cannot break doors or reach the floor's objects, but is never
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
-// a shop are owed (stolen_value()); kicked gold (costly_gold(): no loan) and shop damage are not.
+// a shop are owed (stolen_value()), and a shop door broken by a kick is damage he wants paid for
+// (add_damage(), pay_for_damage()); kicked gold (costly_gold(): no loan) is not.
 // Also not ported: traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
@@ -69,8 +70,10 @@ import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
 import { thitmonst } from './dothrow';
 import { scatter } from './scatter';
-import { costlySpot, eshkOf, isShopType } from './eshk';
+import { costlySpot, eshkOf, inAnyShop, isShopType } from './eshk';
 import { costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
+import { payForDamage } from './shkpay';
+import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { monNam } from './perception';
 import { abuseDog } from './dog';
 import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
@@ -161,16 +164,22 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   }
   if (rnl(ctx.rng, 35, luckOf(ctx.state)) < avrg) {
     const level = getLevel(ctx.state);
+    const shopdoor = inAnyShop(level, x, y);
+    // break the door
     if (doorTrapped(ctx, level.id, x, y)) {
       say(ctx, 'kick.kick_the_door'); // flags.verbose
       blowDoor(ctx, level, x, y);
       bTrapped(ctx, 'door');
       if (ctx.state.gameOver) return;
     } else {
-      if (attr(ctx).str > 18 && ctx.rng.rn2(5) === 0) say(ctx, 'kick.door_shatters');
+      if (attr(ctx).str > 18 && ctx.rng.rn2(5) === 0 && !shopdoor) say(ctx, 'kick.door_shatters');
       else say(ctx, 'kick.door_crashes');
       setTerrain(level, x, y, T.doorway);
       ctx.emit({ type: 'doorOpened', pos: { x, y } });
+    }
+    if (shopdoor) {
+      addDamage(ctx, x, y, SHOP_DOOR_COST);
+      payForDamage(ctx, 'break', false);
     }
     watchmanThiefArrest(ctx, x, y); // in town
   } else {

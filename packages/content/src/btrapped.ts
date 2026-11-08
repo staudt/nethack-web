@@ -7,6 +7,7 @@ import { losehp } from './hp';
 import { heroSees } from './mongear';
 import { mondied } from './mondeath';
 import { setMStunned } from './mstate';
+import { addShopDamage } from './shopdamage';
 import { wakeNearto } from './noise';
 import { P, makeStunned, timeoutLeft } from './props';
 import { T, setTerrain } from './terrain';
@@ -27,8 +28,14 @@ export function wakeNearby(ctx: Ctx): void {
   if (p) wakeNearto(ctx, p.x, p.y, (h.c.experience?.level ?? 1) * 20);
 }
 
-/** The trapped door at x,y is blown away: an empty doorway (D_NODOOR), no trap any more. */
-export function blowDoor(ctx: Ctx, level: Level, x: number, y: number): void {
+/**
+ * The trapped door at x,y is blown away: an empty doorway (D_NODOOR), no trap any more. With
+ * `shopCost`, a shop's door is damage for its keeper to repair (and charge `shopCost` for).
+ * ref: the callers' `if (*in_rooms(x, y, SHOPBASE)) add_damage(x, y, cost)`
+ */
+export function blowDoor(ctx: Ctx, level: Level, x: number, y: number, shopCost?: number): void {
+  if (shopCost !== undefined && level.id === ctx.state.currentLevel)
+    addShopDamage(ctx, x, y, shopCost);
   setDoorTrapped(ctx, level.id, x, y, false);
   setTerrain(level, x, y, T.doorway);
   ctx.emit({ type: 'doorOpened', pos: { x, y } });

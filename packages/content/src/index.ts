@@ -53,6 +53,8 @@ import { DIG_ACTIONS } from './dig';
 import { LOOT_ACTIONS } from './container';
 import { FORCE_ACTIONS } from './force';
 import { UNTRAP_ACTIONS } from './untrap';
+import { registerShopDamage } from './shkdamage';
+import { shkDamageAction } from './shkpay';
 import { FOUNTAIN_ACTIONS } from './fountain';
 import { registerLock } from './lock';
 import { registerLight } from './light';
@@ -95,6 +97,7 @@ export const vanillaMod: Mod = {
     for (const a of LOOT_ACTIONS) api.defineAction(a);
     for (const a of FORCE_ACTIONS) api.defineAction(a);
     for (const a of UNTRAP_ACTIONS) api.defineAction(a);
+    api.defineAction(shkDamageAction);
     for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
@@ -145,6 +148,7 @@ export const vanillaMod: Mod = {
     registerShops(api); // after the LevelDef contents, as fill_special_room()
     registerZoo(api); // likewise
     registerRooms(api); // after the pets arrive, as goto_level()
+    registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
   },
 };
 

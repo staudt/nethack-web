@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-149 NetHack files, 2684 citations.
+150 NetHack files, 2720 citations.
 
 ## dat/dungeon.lua
 
@@ -173,7 +173,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
-- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/trap.ts`
+- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
 - `DIR_180()`: `packages/content/src/trapstate.ts`
 - `EF_()`: `packages/content/src/erode.ts`
 - `ERODE_()`: `packages/content/src/erode.ts`
@@ -184,6 +184,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MOD_ENCUMBER()`: `packages/content/src/hero.ts`, `packages/content/src/wish.ts`
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
+- `SHOP_DOOR_COST()`: `packages/content/src/shopdamage.ts`
+- `SHOP_HOLE_COST()`: `packages/content/src/shopdamage.ts`
+- `SHOP_PIT_COST()`: `packages/content/src/shopdamage.ts`
+- `SHOP_WALL_COST()`: `packages/content/src/shopdamage.ts`
 - `SLT_ENCUMBER()`: `packages/content/src/dokick.ts`
 - `TAINT_AGE()`: `packages/content/src/corpses.ts`
 - `VIS_EFFECTS()`: `packages/content/src/scatter.ts`
@@ -204,6 +208,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/mextra.h
 
 - (file): `packages/content/src/dog.ts`, `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`
+- `REPAIR_DELAY()`: `packages/content/src/shopdamage.ts`
 
 ## include/mhitm.h
 
@@ -346,7 +351,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/rm.h
 
-- (file): `packages/content/src/eshk.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
+- (file): `packages/content/src/eshk.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `D_LOCKED()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`, `packages/core/src/types/mod.ts`
 - `D_NODOOR()`: `packages/core/src/levelgen/grid.ts`
@@ -354,7 +359,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `IS_DOOR()`: `packages/content/src/fountain.ts`
 - `IS_FURNITURE()`: `packages/content/src/zap.ts`
 - `IS_OBSTRUCTED()`: `packages/content/src/run.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
-- `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`
+- `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`
 - `IS_STWALL()`: `packages/content/src/cast.ts`, `packages/content/src/terrain.ts`
 - `IS_WALL()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
 - `levl()`: `packages/core/src/levelgen/grid.ts`
@@ -441,6 +446,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `magic_whistled()`: `packages/content/src/apply.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
+- `um_dist()`: `packages/content/src/shkpay.ts`
 - `use_lamp()`: `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_whistle()`: `packages/content/src/apply.ts`
@@ -473,6 +479,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `stone_luck()`: `packages/content/src/gem.ts`
 - `val_abil()`: `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stats.ts`
 - `vary_init_attr()`: `packages/content/src/hero.ts`
+
+## src/ball.c
+
+- `litter()`: `packages/content/src/shkdamage.ts`
 
 ## src/botl.c
 
@@ -534,6 +544,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dighole()`: `packages/content/src/dig.en.ts`, `packages/content/src/dig.ts`
 - `draft_message()`: `packages/content/src/mdig.ts`
 - `furniture_handled()`: `packages/content/src/dig.ts`
+- `holetime()`: `packages/content/src/shkdamage.ts`
 - `is_digging()`: `packages/content/src/digstate.ts`
 - `mdig_tunnel()`: `packages/content/src/mdig.ts`
 - `pick_can_reach()`: `packages/content/src/dig.ts`
@@ -572,7 +583,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropx()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
 - `heal_legs()`: `packages/content/src/props.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
 - `menu_drop()`: `packages/content/src/itemactions.ts`
@@ -846,7 +857,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hcolor()`: `packages/content/src/hcolor.ts`
 - `hcolors()`: `packages/content/src/hcolor.ts`
 - `impaired_movement()`: `packages/content/src/hackmove.ts`
-- `in_rooms()`: `packages/content/src/urooms.ts`, `packages/core/src/rooms.ts`
+- `in_rooms()`: `packages/content/src/shopdamage.ts`, `packages/content/src/urooms.ts`, `packages/core/src/rooms.ts`
 - `in_town()`: `packages/core/src/rooms.ts`
 - `inv_weight()`: `packages/content/src/stats.ts`
 - `lookaround()`: `packages/content/src/run.ts`, `packages/content/src/travel.ts`
@@ -1506,6 +1517,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/shk.c
 
 - (file): `packages/content/src/gem.ts`, `packages/content/src/rooms.ts`
+- `add_damage()`: `packages/content/src/shopdamage.ts`
 - `add_one_tobill()`: `packages/content/src/shk.ts`
 - `addtobill()`: `packages/content/src/shk.ts`
 - `addupbill()`: `packages/content/src/shk.ts`
@@ -1515,6 +1527,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `bill_box_content()`: `packages/content/src/shk.ts`
 - `billable()`: `packages/content/src/shk.ts`
 - `bp_to_obj()`: `packages/content/src/shk.ts`
+- `cad()`: `packages/content/src/shkpay.ts`
 - `call_kops()`: `packages/content/src/shk.ts`
 - `check_credit()`: `packages/content/src/shk.ts`
 - `check_unpaid()`: `packages/content/src/shk.ts`
@@ -1532,12 +1545,17 @@ whole. A missing function may still be ported under a citation this parser canno
 - `currency()`: `packages/content/src/objnam.ts`
 - `delete_contents()`: `packages/core/src/objects.ts`
 - `deserted_shop()`: `packages/content/src/shk.ts`
+- `discard_damage_owned_by()`: `packages/content/src/shopdamage.ts`
+- `discard_damage_struct()`: `packages/content/src/shopdamage.ts`
 - `dopay()`: `packages/content/src/pay.ts`
 - `dopayobj()`: `packages/content/src/pay.ts`
 - `dropped_container()`: `packages/content/src/shk.ts`
+- `find_damage()`: `packages/content/src/shkdamage.ts`
 - `find_objowner()`: `packages/content/src/shk.ts`
+- `fix_shop_damage()`: `packages/content/src/shkdamage.ts`
 - `get_cost()`: `packages/content/src/price.ts`
 - `get_cost_of_shop_item()`: `packages/content/src/price.ts`
+- `getcad()`: `packages/content/src/shkpay.ts`
 - `getprice()`: `packages/content/src/price.ts`
 - `home_shk()`: `packages/content/src/shk.ts`
 - `hot_pursuit()`: `packages/content/src/shk.ts`
@@ -1546,10 +1564,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `inside_shop()`: `packages/content/src/eshk.ts`
 - `insufficient_funds()`: `packages/content/src/pay.ts`
 - `is_unpaid()`: `packages/content/src/price.ts`
+- `litter_getpos()`: `packages/content/src/shkdamage.ts`
+- `litter_scatter()`: `packages/content/src/shkdamage.ts`
 - `make_angry_shk()`: `packages/content/src/shk.ts`
 - `make_happy_shk()`: `packages/content/src/shk.ts`
 - `make_happy_shoppers()`: `packages/content/src/shk.ts`
 - `make_itemized_bill()`: `packages/content/src/pay.ts`
+- `mnearto()`: `packages/content/src/shk.ts`
 - `money2mon()`: `packages/content/src/money.ts`
 - `money2u()`: `packages/content/src/money.ts`
 - `next_shkp()`: `packages/content/src/eshk.ts`, `packages/content/src/pay.ts`
@@ -1559,9 +1580,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pacify_shk()`: `packages/content/src/shk.ts`
 - `pay()`: `packages/content/src/shk.ts`
 - `pay_billed_items()`: `packages/content/src/pay.ts`
+- `pay_for_damage()`: `packages/content/src/shkpay.ts`
 - `picked_container()`: `packages/content/src/shk.ts`
 - `price_quote()`: `packages/content/src/shk.ts`
 - `reject_purchase()`: `packages/content/src/pay.ts`
+- `repair_damage()`: `packages/content/src/shkdamage.ts`
+- `repairable_damage()`: `packages/content/src/shkdamage.ts`
 - `rile_shk()`: `packages/content/src/shk.ts`
 - `rob_shop()`: `packages/content/src/shk.ts`
 - `rouse_shk()`: `packages/content/src/shk.ts`
@@ -1572,6 +1596,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `setpaid()`: `packages/content/src/shk.ts`
 - `shk_chat()`: `packages/content/src/shk.ts`
 - `shk_embellish()`: `packages/content/src/shk.ts`
+- `shk_fixes_damage()`: `packages/content/src/shkdamage.ts`
+- `shk_impaired()`: `packages/content/src/shkdamage.ts`
 - `shk_move()`: `packages/content/src/monmove.ts`
 - `shk_names_obj()`: `packages/content/src/shk.ts`
 - `shk_your()`: `packages/content/src/revive.ts`
@@ -1579,6 +1605,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shkname()`: `packages/content/src/shk.ts`
 - `shop_keeper()`: `packages/content/src/eshk.ts`, `packages/content/src/revive.ts`
 - `shop_object()`: `packages/content/src/shk.ts`
+- `shopdig()`: `packages/content/src/shkpay.ts`
 - `sortbill_cmp()`: `packages/content/src/pay.ts`
 - `splitbill()`: `packages/content/src/eshk.ts`
 - `stolen_container()`: `packages/content/src/shk.ts`

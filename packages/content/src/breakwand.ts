@@ -3,8 +3,9 @@
 // broken_wand_explode(), discard_broken_wand(), doapply() (WAND_CLASS)
 //
 // Above zap.ts and dig.ts; imported by apply.ts only.
-// Not ported (see DEVIATIONS.md): polymorph and make invisible (no such wands), shop damage
-// for walls and doors dug (pay_for_damage(), step 8), liquid flow into the pits (no pools),
+// A shop's walls and doors dug by a broken wand of digging are damage to pay for.
+// Not ported (see DEVIATIONS.md): polymorph and make invisible (no such wands), liquid flow into
+// the pits (no pools),
 // ice, the paranoid_confirmation option (always a y/n question), a hero without hands.
 import {
   NORMAL_SPEED,
@@ -31,7 +32,9 @@ import { discover } from './o_init';
 import { xnameOf } from './objnam';
 import { freehand } from './pray';
 import { litroom } from './read';
+import { inAnyShop } from './eshk';
 import { checkUnpaid, costlyAlteration } from './shk';
+import { payForDamage } from './shkpay';
 import { isWallId, terrainIdAt } from './terrain';
 import { watchDig } from './watch';
 import {
@@ -206,6 +209,7 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
   const src: ZapSource = { kind: 'wand', item: obj };
   clearBypasses();
   const level = getLevel(ctx.state);
+  let shopDamage = false;
   // this makes it hit her last, so that she can see the action first
   for (let i = 0; i < XDIR.length; i++) {
     const x = ox + (XDIR[i] ?? 0);
@@ -218,10 +222,13 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
         const id = terrainIdAt(level, x, y);
         const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
         // pits and holes don't anger guards, but a wall or door dug does
-        if (isWallId(id) || door !== undefined) watchDig(ctx, x, y); // (no shop damage yet)
+        if (isWallId(id) || door !== undefined) {
+          watchDig(ctx, x, y);
+          if (inAnyShop(level, x, y)) shopDamage = true;
+        }
         // liquid flow: fillholetyp() is always ROOM (no pools)
         const pit = ctx.rng.rn2(it.spe) < 3 || !canDigDown(ctx, level);
-        digactualhole(ctx, x, y, false, pit ? 'pit' : 'hole');
+        digactualhole(ctx, x, y, false, pit ? 'pit' : 'hole'); // BY_OBJECT
       }
       if (ctx.state.currentLevel !== level.id) break; // she fell through
       fillPit(ctx, x, y);
@@ -249,6 +256,8 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
       if (damage && !ctx.state.gameOver) losehp(ctx, damage, '@killer.breakwand.self');
     }
   }
+  // if she fell through, this finds nothing: digactualhole() handled the damage
+  if (shopDamage && !ctx.state.gameOver) payForDamage(ctx, 'dig into', false);
   if (obj.def === WAN.light && !ctx.state.gameOver) litroom(ctx, true, false);
   return discardBrokenWand(ctx, obj);
 }

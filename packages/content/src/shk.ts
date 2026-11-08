@@ -77,6 +77,7 @@ import {
   unpaidCost,
 } from './price';
 import { P, hasProp } from './props';
+import { discardDamageOwnedBy } from './shopdamage';
 import { SHTYPES, saleable, shopType } from './shtypes';
 import { emptyShops, setEmptyShops, setURooms, uRooms } from './urooms';
 import { angryGuards, pacifyGuards } from './watch';
@@ -1528,26 +1529,41 @@ function spotFree(ctx: Ctx, levelId: string, x: number, y: number): EntityId | t
 }
 
 /**
- * Puts him on his spot on his shop level: a monster standing there is moved next to it; with the
- * hero there, he goes next to it. ref: src/mon.c mnearto(move_other = TRUE)
+ * Puts monster `mid` on x,y of level `levelId`: a monster standing there is moved next to it;
+ * with the hero there, it goes next to it. ref: src/mon.c mnearto(move_other = TRUE)
  */
-function putHome(ctx: Ctx, shk: EntityId, e: Eshk): void {
-  const mon = ctx.state.entities[String(shk)];
-  const level = ctx.state.levels[e.shoplevel];
+export function mnearto(ctx: Ctx, mid: EntityId, levelId: string, x: number, y: number): void {
+  const mon = ctx.state.entities[String(mid)];
+  const level = ctx.state.levels[levelId];
   if (!mon?.c.pos || !level) return;
-  const { x, y } = e.shk;
   if (mon.c.pos.level === level.id && mon.c.pos.x === x && mon.c.pos.y === y) return;
   const other = spotFree(ctx, level.id, x, y);
   let to: Pos | null = { x, y };
-  if (other === ctx.state.playerId) to = mnextoPos(ctx, level, shk, e.shk);
+  if (other === ctx.state.playerId) to = mnextoPos(ctx, level, mid, { x, y });
   else if (other !== true) {
     const o = ctx.state.entities[String(other)];
-    const away = mnextoPos(ctx, level, other, e.shk);
+    const away = mnextoPos(ctx, level, other, { x, y });
     if (o?.c.pos && away) o.c.pos = { level: level.id, x: away.x, y: away.y };
-    else to = mnextoPos(ctx, level, shk, e.shk);
+    else to = mnextoPos(ctx, level, mid, { x, y });
   }
   if (!to) return;
   mon.c.pos = { level: level.id, x: to.x, y: to.y };
+}
+
+/** Puts him on his spot on his shop level. ref: src/shk.c home_shk() mnearto() */
+function putHome(ctx: Ctx, shk: EntityId, e: Eshk): void {
+  mnearto(ctx, shk, e.shoplevel, e.shk.x, e.shk.y);
+}
+
+/**
+ * He goes back to his spot, and her shop occupancy is checked again.
+ * ref: src/shk.c home_shk(killkops = FALSE)
+ */
+export function homeShk(ctx: Ctx, shk: EntityId): void {
+  const e = eshkOf(ctx, shk);
+  if (!e) return;
+  putHome(ctx, shk, e);
+  afterHome(ctx, shk, e);
 }
 
 /**
@@ -1634,11 +1650,12 @@ export function makeAngryShk(ctx: Ctx, shk: EntityId): void {
 /**
  * The shopkeeper dies (call before his Eshk is dropped): on his level the goods on his shop's
  * floor are ordinary objects again and, when the hero is in his shop, her bill is void and she
- * counts as in no shop. ref: src/shk.c shkgone() (no damage list)
+ * counts as in no shop, and the damage to his shop stays unrepaired. ref: src/shk.c shkgone()
  */
 export function shkgone(ctx: Ctx, shk: EntityId): void {
   const e = eshkOf(ctx, shk);
   if (!e || e.shoplevel !== ctx.state.currentLevel) return;
+  discardDamageOwnedBy(ctx, shk);
   const level = getLevel(ctx.state);
   const r = level.rooms[e.shoproom];
   if (!r) return;

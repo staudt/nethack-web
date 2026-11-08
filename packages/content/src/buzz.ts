@@ -24,6 +24,7 @@ import {
   type TerrainDef,
 } from '@nh/core';
 import { destroyItems, erodeArmor } from './erode';
+import { inAnyShop } from './eshk';
 import { done } from './end';
 import { setUstuck, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
@@ -38,6 +39,8 @@ import { xnameOf } from './objnam';
 import { igniteItems } from './light';
 import { monNam } from './perception';
 import { P, hasExtrinsic, hasProp, makeBlinded } from './props';
+import { payForDamage, type DmgStr } from './shkpay';
+import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { spellDamageBonus, spellHitBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
@@ -408,7 +411,9 @@ function bounceDir(
  * fire burns scrolls and spellbooks on the floor. Returns the range change. `explodingWand`:
  * the broken wand's type (C's exploding_wand_typ, "the blast"; a wand of striking's blast
  * breaks the door), or '' for an explosion with no wand (a magical trap's: still "your bolt").
- * The monster there is not woken here (the caller does it).
+ * The monster there is not woken here (the caller does it). A shop door destroyed is damage:
+ * with `shop` (the hero's ray or blast, C's type >= 0) it costs SHOP_DOOR_COST and sets
+ * `shop.damaged` (the caller then calls pay_for_damage()), without it (a monster's) it is free.
  */
 export function zapOverFloor(
   ctx: Ctx,
@@ -416,6 +421,7 @@ export function zapOverFloor(
   x: number,
   y: number,
   explodingWand?: DefId | '',
+  shop?: ShopDamageFlag,
 ): number {
   const level = levelOf(ctx);
   const seeIt = cansee(ctx, x, y);
@@ -441,6 +447,11 @@ export function zapOverFloor(
         ? (['zap.door.crashes_open', 'zap.feel_cool_air'] as [string, string])
         : undefined);
     if (b) {
+      // door gets broken
+      if (inAnyShop(level, x, y)) {
+        addDamage(ctx, x, y, shop ? SHOP_DOOR_COST : 0);
+        if (shop) shop.damaged = true;
+      }
       setTerrain(level, x, y, T.doorway); // D_NODOOR / D_BROKEN
       ctx.emit({ type: 'doorOpened', pos: { x, y } });
       say(ctx, seeIt ? b[0] : b[1]);
@@ -464,8 +475,8 @@ export function monSpellHitsSpot(ctx: Ctx, ray: 'fire' | 'lightning', x: number,
 /**
  * Scrolls and spellbooks at (x,y) burn, each one 1 in 3; with `feedback` "A scroll labeled FOO
  * burns." / "2 scrolls labeled FOO burn."; floor items catch light. Returns how many burnt.
- * ref: src/zap.c burn_floor_objects() (no globs of green slime; no shop charge for the hero's
- * fire, as zap_over_floor() here)
+ * ref: src/zap.c burn_floor_objects() (no globs of green slime; no shop charge for the shop
+ * goods the hero's fire burns)
  */
 export function burnFloorObjects(
   ctx: Ctx,
@@ -526,8 +537,26 @@ export function buzzFrom(
   src: RaySource,
 ): void {
   const path: RayStep[] = [];
-  buzzSteps(ctx, ray, nd, from, dir, src, path);
+  const shop: ShopDamageFlag = { damaged: false };
+  buzzSteps(ctx, ray, nd, from, dir, src, path, shop);
   if (path.length > 0) ctx.emit({ type: 'ray', kind: ray, fg: RAY_COLOR[ray], path });
+  if (shop.damaged) payForDamage(ctx, rayDmgstr(ray), false);
+}
+
+/** What a ray (or blast) did to a shop door, for pay_for_damage(). */
+export function rayDmgstr(ray: Ray): DmgStr {
+  return ray === 'fire'
+    ? 'burn away'
+    : ray === 'cold'
+      ? 'shatter'
+      : ray === 'death'
+        ? 'disintegrate'
+        : 'destroy';
+}
+
+/** zap_over_floor()'s `shopdamage` output, for the hero's rays and blasts. */
+export interface ShopDamageFlag {
+  damaged: boolean;
 }
 
 /** The steps of {@link buzzFrom}; the cells the hero sees the ray cross go to `path` (tmp_at()). */
@@ -539,6 +568,7 @@ function buzzSteps(
   dir: Dir | 'up' | 'down',
   src: RaySource,
   path: RayStep[],
+  shop: ShopDamageFlag,
 ): void {
   const level = levelOf(ctx);
   const vertical = dir === 'up' || dir === 'down';
@@ -561,7 +591,7 @@ function buzzSteps(
           (inBounds(level, lsx, lsy) && cansee(ctx, lsx, lsy)))
       )
         path.push({ x: sx, y: sy, dx: d.x, dy: d.y });
-      range += zapOverFloor(ctx, ray, sx, sy);
+      range += zapOverFloor(ctx, ray, sx, sy, undefined, src.by === 'hero' ? shop : undefined);
       const mon = monAt(ctx, sx, sy);
       const hp = heroPos(ctx);
       if (mon) {

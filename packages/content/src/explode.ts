@@ -5,8 +5,9 @@
 // Not ported (see DEVIATIONS.md): engulfing (the hero inside an engulfer), steeds, polymorphed
 // heroes (grabbing, ugolemeffects()), golems (golemeffects(), completelyburns()), shields shown
 // on resisting targets, hallucinated names, Deafness, Invulnerable, Half_physical_damage,
-// slime, exercise(), the monster-explosion and scroll/oil kinds (gas spores, fire scrolls),
-// shop damage (pay_for_damage()).
+// slime, exercise(), the monster-explosion and scroll/oil kinds (gas spores, fire scrolls).
+// A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
+// explosion here is hers (C's type >= 0).
 import {
   getPlayer,
   inBounds,
@@ -19,7 +20,15 @@ import {
   type Msg,
   type RayStep,
 } from '@nh/core';
-import { killedByHero, resist, resistsMagm, zapOverFloor, type Ray } from './buzz';
+import {
+  killedByHero,
+  rayDmgstr,
+  resist,
+  resistsMagm,
+  zapOverFloor,
+  type Ray,
+  type ShopDamageFlag,
+} from './buzz';
 import { done } from './end';
 import { destroyItems, erodeArmor, type DestroyType } from './erode';
 import { ustuck } from './hackmove';
@@ -31,6 +40,7 @@ import { wakeNearto } from './noise';
 import { monNam } from './perception';
 import { setmangry, wakeup } from './peaceful';
 import { P, hasProp } from './props';
+import { payForDamage } from './shkpay';
 
 /** The explosion's look (C's EXPL_* colours). ref: include/hack.h explosion types */
 export type ExplType = 'dark' | 'noxious' | 'muddy' | 'wet' | 'magical' | 'fiery' | 'frosty';
@@ -224,6 +234,7 @@ export function explode(
 
   const strMsg: Msg = { key: str };
   let uhurt: 0 | 1 | 2 = 0;
+  const shopdamage: ShopDamageFlag = { damaged: false };
   // apply effects to monsters and floor objects first, in case the damage to the hero is fatal
   if (dam) {
     for (let i = 0; i < 3; i++) {
@@ -233,7 +244,14 @@ export function explode(
         const xx = x + i - 1;
         const yy = y + j - 1;
         if (xx === ux && yy === uy) uhurt = m === 'shield' ? 1 : 2;
-        zapOverFloor(ctx, AD_RAY[adtyp], xx, yy, src.wand ?? '');
+        zapOverFloor(
+          ctx,
+          AD_RAY[adtyp],
+          xx,
+          yy,
+          src.wand ?? '',
+          monMoving ? undefined : shopdamage,
+        );
         const mtmp = monAt(ctx, level, xx, yy);
         if (!mtmp) continue;
         // zap_over_floor(): the monster there is woken (and angered: the zap type is >= 0)
@@ -306,6 +324,8 @@ export function explode(
       if (ctx.state.gameOver) return;
     }
   }
+
+  if (shopdamage.damaged) payForDamage(ctx, rayDmgstr(AD_RAY[adtyp]), false);
 
   // explosions are noisy
   let noise = dam * dam;

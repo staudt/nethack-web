@@ -6,7 +6,8 @@
 // m_digweapon_check(); src/mon.c mfndpos() ALLOW_DIG, mon_allowflags(); src/weapon.c
 // mon_wield_item() NEED_PICK_AXE, NEED_AXE, NEED_PICK_OR_AXE
 //
-// Not ported (DEVIATIONS "Digging"): shop damage (add_damage()), tree fruit (rnd_treefruit_at(): no fruit objects), the Rogue level; mon->weapon_check
+// A shop's wall or door dug is damage its keeper repairs for free (add_damage(x, y, 0L)).
+// Not ported (DEVIATIONS "Digging"): tree fruit (rnd_treefruit_at(): no fruit objects), the Rogue level; mon->weapon_check
 // is not kept, so a digger that found nothing to wield is not left wanting a pick.
 import {
   getPlayer,
@@ -26,6 +27,7 @@ import { cavernous, levelFlags, nonDiggable } from './levelflags';
 import { uState } from './luck';
 import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { P, hasProp } from './props';
+import { addShopDamage } from './shopdamage';
 import {
   T,
   isObstructedId,
@@ -190,8 +192,9 @@ export function mdigTunnel(ctx: Ctx, mon: Entity): boolean {
   let id = terrainIdAt(level, p.x, p.y);
   // cvt_sdoor_to_door(): a closed (or locked) door
   if (isSdoorId(id)) id = T.door_closed;
-  // eats away door if present & closed or locked (no shop damage)
+  // eats away door if present & closed or locked
   if (closedDoorId(ctx, id)) {
+    if (p.level === ctx.state.currentLevel) addShopDamage(ctx, p.x, p.y, 0);
     if (doorTrapped(ctx, level.id, p.x, p.y)) {
       const sawit = heroSees(ctx, p); // canseemon()
       blowDoor(ctx, level, p.x, p.y); // D_NODOOR
@@ -212,6 +215,7 @@ export function mdigTunnel(ctx: Ctx, mon: Entity): boolean {
   if (!mayDig(ctx, level, p.x, p.y)) return false;
   if (isWallId(id)) {
     if (ctx.rng.rn2(5) === 0) say(ctx, 'mdig.crashing_rock'); // flags.verbose
+    if (p.level === ctx.state.currentLevel) addShopDamage(ctx, p.x, p.y, 0);
     setTerrain(level, p.x, p.y, wallDugTo(ctx, level, p.x, p.y));
   } else if (id === T.tree) {
     setTerrain(level, p.x, p.y, T.floor); // (no tree fruit: pile is not used)

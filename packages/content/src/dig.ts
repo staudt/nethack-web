@@ -11,8 +11,9 @@
 // swing at a pit next to hers clears the debris between them.
 // ref: src/dig.c adj_pit_checks()
 //
-// Not ported (DEVIATIONS "Digging"): axes (chopping trees), shop damage
-// (add_damage(), pay_for_damage(), shopdig()), statues, Fumbling, burying and unearthing objects,
+// In a shop, walls and doors dug and holes or pits made are damage its keeper wants paid for and
+// repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
+// Not ported (DEVIATIONS "Digging"): axes (chopping trees), statues, Fumbling, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), drawbridges, graves, thrones,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
@@ -53,7 +54,7 @@ import { abon, dbon } from './combat';
 import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digstate';
 import { dmgvalSized } from './dmgval';
 import { monsterNearby } from './eat';
-import { eshkOf, inAnyShop } from './eshk';
+import { eshkOf, inAnyShop, uShops } from './eshk';
 import { explode } from './explode';
 import {
   FTN_WARNED,
@@ -79,6 +80,15 @@ import { canSpotMon, monNam } from './perception';
 import { P, hasProp, ringBonus } from './props';
 import { ceilingKey, hardHelmet } from './read';
 import { makeAngryShk } from './shk';
+import { payForDamage, shopdig, type DmgStr } from './shkpay';
+import {
+  SHOP_DOOR_COST,
+  SHOP_HOLE_COST,
+  SHOP_PIT_COST,
+  SHOP_WALL_COST,
+  addDamage,
+} from './shopdamage';
+import { acurrstr } from './stats';
 import { maybeFinishSokoban } from './sokoban';
 import {
   T,
@@ -177,10 +187,11 @@ const grounded = (ctx: Ctx, mon: Entity): boolean => {
 };
 
 /**
- * A pit or hole appears at (x, y) of the hero's level, dug by the hero (`byHero`: she is
- * blamed, the trap is hers, `madeby_u`) or by nobody in particular. A pit holds her `rn1(4, 2)`
- * turns or traps the monster there; through a hole she falls to the next level, and a monster
- * there drops to it. ref: src/dig.c digactualhole() (BY_YOU, or BY_OBJECT without the blame)
+ * A pit or hole appears at (x, y) of the hero's level, dug by the hero (`byHero`: BY_YOU) or by
+ * her broken wand (BY_OBJECT): either way she is to blame (the trap is hers, `madeby_u`, and a
+ * shop's damage is hers to pay for). A pit holds her `rn1(4, 2)` turns or traps the monster
+ * there; through a hole she falls to the next level (in a shop the keeper may grab her pack
+ * first), and a monster there drops to it. ref: src/dig.c digactualhole() (BY_YOU, BY_OBJECT)
  */
 export function digactualhole(
   ctx: Ctx,
@@ -198,6 +209,13 @@ export function digactualhole(
   if (kind === 'hole' && !canDigDown(ctx, level)) kind = 'pit';
   const oldId = terrainIdAt(level, x, y);
   const surface = surfaceKey(ctx, level, x, y);
+  // BY_OBJECT means the hero broke a wand, so blame her for it (both callers are hers)
+  const herosFault = true;
+  const oldDoor = oldId !== undefined && ctx.defs.terrain(oldId).door !== undefined;
+  const shopdoor = oldDoor && inAnyShop(level, x, y);
+  // maketrap(): schedule the repair of a shop's door or wall (hers to pay for; a hole in the
+  // floor is maketrap()'s own)
+  if (inAnyShop(level, x, y) && (oldDoor || isWallId(oldId))) addDamage(ctx, x, y, SHOP_HOLE_COST);
   // maketrap(): a door or doorway becomes floor, rock a corridor, a wall a doorway (floor on
   // maze levels, corridor on cavernous ones); only a broken wand of digging reaches these
   if (oldId !== undefined && (ctx.defs.terrain(oldId).door !== undefined || isAltarId(oldId)))
@@ -208,7 +226,7 @@ export function digactualhole(
   // maketrap() refuses the stairs; core keeps traps off doorways (the dug wall stays one, pitless)
   if (!isPlainFloor(ctx.defs, level, x, y)) return;
   const t = maketrap(ctx, level.id, x, y, kind === 'pit' ? TRAP.pit : TRAP.hole);
-  if (byHero) setTrapData(t, { madeby_u: true });
+  if (herosFault) setTrapData(t, { madeby_u: true });
   // tseen = 0, then seetrap() if seen or feeltrap() when she dug it
   t.seen = byHero || cansee(ctx, level, x, y);
   const trap = `@${t.def}`;
@@ -219,6 +237,8 @@ export function digactualhole(
     say(ctx, isStwallId(oldId) ? 'dig.crumbles' : 'dig.appears', { surface, trap });
   }
   if (kind === 'pit') {
+    if (shopdoor && herosFault) payForDamage(ctx, 'ruin', false);
+    else if (inAnyShop(level, x, y)) addDamage(ctx, x, y, herosFault ? SHOP_PIT_COST : 0);
     if (byHero) wakeNearto(ctx, hp.x, hp.y, (hero(ctx).c.experience?.level ?? 1) * 20); // wake_nearby()
     if (atU) {
       // wont_fall: a floating hero stays above the pit (reset_utrap(TRUE))
@@ -238,13 +258,20 @@ export function digactualhole(
   }
   if (atU) {
     // a hero held by a monster, or floating (wont_fall), does not fall
-    if (ustuck(ctx) !== null || levitating(ctx)) return;
+    if (ustuck(ctx) !== null || levitating(ctx)) {
+      if (shopdoor && herosFault) payForDamage(ctx, 'ruin', false);
+      return;
+    }
+    if (uShops(ctx).length > 0 && herosFault)
+      shopdig(ctx, true); // shk might snatch pack
+    else payForDamage(ctx, 'dig into', true); // handle any earlier hero-caused damage
     say(ctx, 'dig.fall_through');
     // "Earlier checks must ensure that the destination level exists and is in the present
     // dungeon": the next level, not the hole's own destination
     fallToLevel(ctx, level, level.dlevel + 1);
     return;
   }
+  if (shopdoor && herosFault) payForDamage(ctx, 'ruin', false);
   if (!mon) return;
   const size = ctx.defs.monster(mon.def).size;
   if (!grounded(ctx, mon) || size === 'huge' || size === 'gigantic') return;
@@ -380,6 +407,8 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
   // 3.6.0: from a PIT: dig one adjacent pit
   const pitdig = uInPit(ctx) && trapAt(level, hp.x, hp.y) !== undefined;
   const diridx = xytodir(d.x, d.y);
+  let shopdoor = false;
+  let shopwall = false;
   let digdepth = ctx.rng.rn2(18) + 8; // rn1(18, 8)
   while (--digdepth >= 0) {
     if (!inBounds(level, zx, zy)) break;
@@ -395,7 +424,10 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
         break;
       }
     } else if (door === 'closed' || door === 'locked' || isSdoorId(id)) {
-      // shop doors: no add_damage()
+      if (inAnyShop(level, zx, zy)) {
+        addDamage(ctx, zx, zy, SHOP_DOOR_COST);
+        shopdoor = true;
+      }
       if (!isSdoorId(id) && cansee(ctx, level, zx, zy)) say(ctx, 'dig.door_razed');
       watchDig(ctx, zx, zy);
       setTerrain(level, zx, zy, T.doorway); // D_NODOOR
@@ -403,8 +435,13 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
       if (maze) break;
     } else if (maze) {
       if (isWallId(id)) {
-        if (!nonDiggable(ctx, level, zx, zy)) setTerrain(level, zx, zy, T.floor);
-        else if (!blind(ctx)) say(ctx, 'dig.wall_glows');
+        if (!nonDiggable(ctx, level, zx, zy)) {
+          if (inAnyShop(level, zx, zy)) {
+            addDamage(ctx, zx, zy, SHOP_WALL_COST);
+            shopwall = true;
+          }
+          setTerrain(level, zx, zy, T.floor);
+        } else if (!blind(ctx)) say(ctx, 'dig.wall_glows');
         break;
       } else if (id === T.tree) {
         if (!nonDiggable(ctx, level, zx, zy)) setTerrain(level, zx, zy, T.floor);
@@ -418,7 +455,10 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
     } else if (isObstructedId(id)) {
       if (!mayDig(ctx, level, zx, zy)) break;
       if (isWallId(id)) {
-        // shop walls: no add_damage()
+        if (inAnyShop(level, zx, zy)) {
+          addDamage(ctx, zx, zy, SHOP_WALL_COST);
+          shopwall = true;
+        }
         watchDig(ctx, zx, zy);
         setTerrain(
           level,
@@ -439,6 +479,7 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
     zx += d.x;
     zy += d.y;
   }
+  if (shopdoor || shopwall) payForDamage(ctx, shopdoor ? 'destroy' : 'dig into', false);
 }
 
 /**
@@ -611,11 +652,11 @@ const wakeNearby = (ctx: Ctx): void => {
  * One turn of digging, the occupation; false when it is over (done, refused, or the pick or
  * the hero moved). Sideways, effort over 100 breaks through: a boulder falls apart, rock becomes
  * corridor, a wall an opening (floor on maze levels, corridor on cavernous ones outside town), a
- * secret or closed door is broken; a shop's walls and door are too hard. Down: a pit after effort
- * 50, a hole through which she falls after 250 (dighole()); a bear trap holding her is hit; where
- * the floor cannot be dug through, another trap is destroyed.
- * ref: src/dig.c dig() (no Fumbling, Earth level, statues, trapped doors, shop damage; the hero
- * is never a dwarf)
+ * secret or closed door is broken; at a shop's wall or door each swing that does not break
+ * through stops ("This wall seems too hard to dig into."), but the effort adds up over swings
+ * and breaking through is damage to pay for. Down: a pit after effort 50, a hole through which she falls after 250 (dighole()); a bear
+ * trap holding her is hit; where the floor cannot be dug through, another trap is destroyed.
+ * ref: src/dig.c dig() (no Fumbling, Earth level or statues; the hero is never a dwarf)
  */
 export function dig(ctx: Ctx): boolean {
   const d = diggingOf(ctx);
@@ -672,6 +713,8 @@ export function dig(ctx: Ctx): boolean {
     let digtxt: string;
     let params: Msg['params'] | undefined;
     const trapped = doorTrapped(ctx, level.id, d.x, d.y);
+    const shopedge = inAnyShop(level, d.x, d.y);
+    let dmgtxt: DmgStr | null = null;
     if (typ === 'boulder' && boulder) {
       fractureRock(ctx, boulder, true);
       // another boulder here goes back on top of the pile
@@ -683,17 +726,27 @@ export function dig(ctx: Ctx): boolean {
       setTerrain(level, d.x, d.y, T.corr);
       digtxt = 'dig.cut_rock';
     } else if (isWallId(id)) {
+      if (shopedge) {
+        const a = hero(ctx).c.attributes;
+        addDamage(ctx, d.x, d.y, 10 * acurrstr(a?.str ?? 10)); // SHOP_WALL_DMG
+        dmgtxt = 'damage';
+      }
       setTerrain(level, d.x, d.y, wallDugTo(ctx, level, d.x, d.y)); // DOOR, D_NODOOR
       digtxt = 'dig.wall_opening';
     } else if (isSdoorId(id)) {
       setTerrain(level, d.x, d.y, T.doorway); // cvt_sdoor_to_door(), D_BROKEN
       digtxt = 'dig.secret_door';
     } else if (closedDoor(ctx, level, d.x, d.y)) {
+      if (shopedge) {
+        addDamage(ctx, d.x, d.y, SHOP_DOOR_COST);
+        dmgtxt = 'break';
+      }
       setTerrain(level, d.x, d.y, T.doorway); // D_BROKEN
       digtxt = 'dig.door_broken';
       params = { pick: xnameOf(ctx.state, ctx.defs, pick) };
     } else return false; // statue or boulder got taken
     if (!d.quiet) say(ctx, digtxt, params);
+    if (dmgtxt) payForDamage(ctx, dmgtxt, false);
     // a trapped door (kept closed by C until now) goes off. ref: dig() `IS_DOOR && D_TRAPPED`
     if (trapped) {
       blowDoor(ctx, level, d.x, d.y);
@@ -921,7 +974,10 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
       didmsg: false,
     });
     say(ctx, 'dig.start_down');
-    // (in a shop: shopdig(0) and add_damage() come with shop damage)
+    if (uShops(ctx).length > 0) {
+      shopdig(ctx, false);
+      addDamage(ctx, hp.x, hp.y, SHOP_PIT_COST);
+    }
   } else {
     d.didmsg = false;
     say(ctx, 'dig.continue_down');

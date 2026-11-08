@@ -41,6 +41,7 @@ import { HERE } from './priority';
 import { KEY, PICKLOCK_ID, lockAction, lockData, xlockOf, type Xlock } from './lockstate';
 import { doorTrapped, isBoxTrapped, pruneBoxTraps, pruneDoorTraps } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
+import { SHOP_DOOR_COST } from './shopdamage';
 import { chestTrap } from './chesttrap';
 
 export { KEY, PICKLOCK_ID };
@@ -153,7 +154,7 @@ function picklock(ctx: Ctx): boolean {
     const lv = levelOf(ctx, x.door.level);
     const t = lv ? terrainAt(ctx, lv, x.door.x, x.door.y) : null;
     if (lv && doorTrapped(ctx, lv.id, x.door.x, x.door.y)) {
-      blowDoor(ctx, lv, x.door.x, x.door.y);
+      blowDoor(ctx, lv, x.door.x, x.door.y, SHOP_DOOR_COST);
       bTrapped(ctx, 'door'); // FINGER
     } else if (lv)
       setTerrain(lv, x.door.x, x.door.y, t?.door === 'locked' ? T.door_closed : T.door_locked);

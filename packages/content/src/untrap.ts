@@ -9,8 +9,8 @@
 //
 // Not ported (see DEVIATIONS.md): webs (no web traps), oil and grease for squeaky boards (neither
 // object exists), the Master Key of Thievery, mimics, cockatrices, steeds, polymorphed forms,
-// Fumbling, selling or burying the object of a trap she set (she sets none), the shop charge for
-// a door she blows up, exercise.
+// Fumbling, selling or burying the object of a trap she set (she sets none), exercise. A shop
+// door she blows up is scheduled for repair, free (C: "probably ought to charge for this").
 import {
   DIRS,
   DIR_LIST,
@@ -569,7 +569,7 @@ function disarmDoor(ctx: Ctx, x: number, y: number): number {
     const ch = 15 + (roleIs(ctx, 'nh:rogue') ? ulevel(ctx) * 3 : ulevel(ctx));
     if (confusedNow(ctx) || ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch) {
       say(ctx, 'untrap.set_it_off');
-      blowDoor(ctx, level, x, y); // D_NODOOR (no shop damage yet)
+      blowDoor(ctx, level, x, y, 0); // D_NODOOR (probably ought to charge for this damage...)
       bTrapped(ctx, 'door'); // FINGER
     } else {
       say(ctx, 'untrap.disarm_it');
