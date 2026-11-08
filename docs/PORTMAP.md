@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-148 NetHack files, 2662 citations.
+149 NetHack files, 2684 citations.
 
 ## dat/dungeon.lua
 
@@ -119,6 +119,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/digstate.ts`, `packages/content/src/run.ts`, `packages/content/src/uhunger.ts`
 
+## include/decl.h
+
+- `xdir()`: `packages/content/src/breakwand.ts`
+- `ydir()`: `packages/content/src/breakwand.ts`
+
 ## include/defsym.h
 
 - (file): `packages/content/src/terrain.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
@@ -141,6 +146,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/perception.ts`
 - `_mon_warning()`: `packages/content/src/perception.ts`
 - `_tp_sensemon()`: `packages/content/src/perception.ts`
+- `explosion_to_glyph()`: `packages/content/src/explode.ts`
 - `is_safemon()`: `packages/content/src/actions.ts`
 - `zap_color_()`: `packages/content/src/buzz.ts`
 
@@ -164,7 +170,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/hack.h
 
-- (file): `packages/content/src/endstate.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
+- (file): `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
 - `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/trap.ts`
@@ -379,6 +385,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/trap.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
 - `Trap_Effect_Finished()`: `packages/content/src/trap.ts`
 - `is_hole()`: `packages/content/src/trapstate.ts`
+- `is_magical_trap()`: `packages/content/src/trap.ts`
 - `is_pit()`: `packages/content/src/trapstate.ts`
 - `madeby_u()`: `packages/content/src/sokoban.ts`
 
@@ -426,7 +433,10 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/apply.c
 
 - (file): `packages/content/src/apply.en.ts`
+- `broken_wand_explode()`: `packages/content/src/breakwand.ts`
 - `catch_lit()`: `packages/content/src/light.ts`
+- `discard_broken_wand()`: `packages/content/src/breakwand.ts`
+- `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
 - `magic_whistled()`: `packages/content/src/apply.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
@@ -785,6 +795,9 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/explode.c
 
+- `explode()`: `packages/content/src/explode.ts`, `packages/core/src/types/event.ts`
+- `explosion()`: `packages/ui/src/host.ts`
+- `explosionmask()`: `packages/content/src/explode.ts`
 - `scatter()`: `packages/content/src/boulder.en.ts`, `packages/content/src/scatter.ts`
 
 ## src/fountain.c
@@ -1194,6 +1207,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mondata.c
 
+- (file): `packages/content/src/zap.ts`
 - `mon_knows_traps()`: `packages/content/src/trapstate.ts`
 - `mon_learns_traps()`: `packages/content/src/trapstate.ts`
 - `mons_see_trap()`: `packages/content/src/trap.ts`
@@ -1261,6 +1275,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dodiscovered()`: `packages/content/src/itemactions.ts`
 - `init_objects()`: `packages/content/src/o_init.ts`
 - `obj_shuffle_range()`: `packages/testkit/src/convert/cdata.ts`
+- `objdescr_is()`: `packages/content/src/breakwand.ts`
 - `setgemprobs()`: `packages/content/src/gem.ts`
 - `shuffle()`: `packages/content/src/o_init.ts`
 - `shuffle_all()`: `packages/content/src/o_init.ts`, `packages/core/src/types/state.ts`
@@ -1841,6 +1856,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_attack()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
 - `erode_armor()`: `packages/content/src/erode.ts`
 - `find_roll_to_hit()`: `packages/content/src/combat.ts`
+- `flash_hits_mon()`: `packages/content/src/zap.ts`
 - `hitum()`: `packages/content/src/combat.ts`
 - `hmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
@@ -1939,6 +1955,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/worn.c
 
 - (file): `packages/content/src/mongear.en.ts`
+- `clear_bypasses()`: `packages/content/src/zap.ts`
 - `find_mac()`: `packages/content/src/stats.ts`
 - `m_dowear()`: `packages/content/src/mongear.ts`
 - `m_dowear_type()`: `packages/content/src/mongear.ts`
@@ -1948,7 +1965,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/zap.c
 
-- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
+- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`, `packages/content/src/zap.ts`
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
@@ -1961,7 +1978,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `burn_floor_objects()`: `packages/content/src/buzz.ts`
 - `cancel_item()`: `packages/content/src/zap.ts`
 - `cancel_monst()`: `packages/content/src/mstate.ts`, `packages/content/src/zap.ts`
-- `destroy_items()`: `packages/content/src/erode.ts`
+- `destroy_items()`: `packages/content/src/erode.ts`, `packages/content/src/explode.ts`
 - `destroy_strings()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `destroyable()`: `packages/content/src/erode.ts`
 - `do_enlightenment_effect()`: `packages/content/src/enlightenment.ts`

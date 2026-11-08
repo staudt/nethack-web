@@ -32,7 +32,7 @@ Setting traps with a beartrap or land mine object (`use_trap()`); kicking boxes 
 
 ## Status
 
-Steps 1-6 are done on branch `m7e` (scope 1-7: digging, dwarves, pits, rolling boulder traps, trapped boxes and doors with `#force`, land mines with `scatter()`, `#untrap`); the phone checks for steps 1-5 are in `docs/TESTPLAN.md` ("7e digging, boulder and box traps, land mines"), step 6's are phone check 7 of the plan. Steps 7-8 (breaking wands with `explode()`, shop damage) and webs are listed under "Still to do (7e rest)" in `docs/ROADMAP.md`. The exit criteria above hold for what was built; the breaking-wand and cancellation checks wait for that work.
+Steps 1-7 are done on branch `m7e` (scope 1-8: digging, dwarves, pits, rolling boulder traps, trapped boxes and doors with `#force`, land mines with `scatter()`, `#untrap`, breaking wands with `explode()` and magical traps blowing up); the phone checks for steps 1-5 and 7 are in `docs/TESTPLAN.md` ("7e digging, boulder and box traps, land mines"), step 6's are phone check 7 of the plan. Step 8 (shop damage) and webs are listed under "Still to do (7e rest)" in `docs/ROADMAP.md`, the rest left for later under "From 7e". Exit check: every exit criterion above holds except shop damage and webs (deferred); the golden never changed in m7e (596 actions, `16b219eb1167590f3829f7b1e5e1`: the golden run never digs, untraps or breaks a wand), and `pnpm check` is green.
 
 ## Testing
 

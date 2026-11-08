@@ -14,8 +14,7 @@
 // Not ported (DEVIATIONS "Digging"): axes (chopping trees), shop damage
 // (add_damage(), pay_for_damage(), shopdig()), statues, Fumbling, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
-// is always ROOM and draws nothing), a magical trap's explosion (explode() is not ported: digging
-// down on a teleportation trap or level teleporter leaves it alone), drawbridges, graves, thrones,
+// is always ROOM and draws nothing), drawbridges, graves, thrones,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
@@ -55,6 +54,7 @@ import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digs
 import { dmgvalSized } from './dmgval';
 import { monsterNearby } from './eat';
 import { eshkOf, inAnyShop } from './eshk';
+import { explode } from './explode';
 import {
   FTN_WARNED,
   breaksink,
@@ -90,7 +90,17 @@ import {
   surfaceKey,
   terrainIdAt,
 } from './terrain';
-import { TRAP, dotrap, fallToLevel, isHole, isPit, maketrap, mintrap, setTrapData } from './trap';
+import {
+  TRAP,
+  dotrap,
+  fallToLevel,
+  isHole,
+  isMagicalTrap,
+  isPit,
+  maketrap,
+  mintrap,
+  setTrapData,
+} from './trap';
 import {
   clearConjoinedPits,
   conjoinedPits,
@@ -186,9 +196,17 @@ export function digactualhole(
   if (furnitureHandled(ctx, level, x, y, byHero)) return;
   // ref: "digactualhole: can't dig %s on this level."
   if (kind === 'hole' && !canDigDown(ctx, level)) kind = 'pit';
-  if (!isPlainFloor(ctx.defs, level, x, y)) return; // maketrap() refuses (stairs; doorways here)
   const oldId = terrainIdAt(level, x, y);
   const surface = surfaceKey(ctx, level, x, y);
+  // maketrap(): a door or doorway becomes floor, rock a corridor, a wall a doorway (floor on
+  // maze levels, corridor on cavernous ones); only a broken wand of digging reaches these
+  if (oldId !== undefined && (ctx.defs.terrain(oldId).door !== undefined || isAltarId(oldId)))
+    setTerrain(level, x, y, T.floor);
+  else if (oldId === T.stone || oldId === T.scorr) setTerrain(level, x, y, T.corr);
+  else if (isWallId(oldId) || isSdoorId(oldId))
+    setTerrain(level, x, y, wallDugTo(ctx, level, x, y));
+  // maketrap() refuses the stairs; core keeps traps off doorways (the dug wall stays one, pitless)
+  if (!isPlainFloor(ctx.defs, level, x, y)) return;
   const t = maketrap(ctx, level.id, x, y, kind === 'pit' ? TRAP.pit : TRAP.hole);
   if (byHero) setTrapData(t, { madeby_u: true });
   // tseen = 0, then seetrap() if seen or feeltrap() when she dug it
@@ -279,8 +297,9 @@ export function dighole(
     say(ctx, here ? 'dig.too_hard_here' : 'dig.too_hard_there', { surface });
     return false;
   }
-  if (ttmp && (ttmp.def === TRAP.tele || ttmp.def === TRAP.levelTele)) {
-    // is_magical_trap(): C explodes it (explode() is not ported) and deletes it; it stays
+  if (ttmp && isMagicalTrap(ttmp.def)) {
+    explode(ctx, x, y, { trap: true, by: 'hero' }, 20 + ctx.rng.d(3, 6), 'magical');
+    if (!ctx.state.gameOver) delfloortrap(ctx, level.id, ttmp); // deltrap()
     return false;
   }
   const boulder = boulderAt(ctx, level.id, x, y);
@@ -527,15 +546,26 @@ export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: numbe
 }
 
 /** ref: src/dig.c enum digcheck_result (no ladders, thrones, air or water levels) */
-type DigCheck =
-  'passed' | 'pitonly' | 'destroytrap' | 'stairs' | 'altar' | 'toohard' | 'cantdig' | 'boulder';
+export type DigCheck =
+  | 'passed'
+  | 'pitonly'
+  | 'destroytrap'
+  | 'stairs'
+  | 'altar'
+  | 'toohard'
+  | 'cantdig'
+  | 'boulder'
+  | 'objtrap';
 
-/** Whether she (BY_YOU) can dig down at (x, y). ref: src/dig.c dig_check() */
-function digCheck(ctx: Ctx, level: Level, x: number, y: number): DigCheck {
+/**
+ * Whether she (BY_YOU) or a broken wand (`byObject`, BY_OBJECT: altars allowed, no sanctum yet;
+ * an existing trap refused) can dig down at (x, y). ref: src/dig.c dig_check()
+ */
+export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject = false): DigCheck {
   const ttmp = trapAt(level, x, y);
   const id = terrainIdAt(level, x, y);
   if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
-  if (isAltarId(id)) return 'altar';
+  if (isAltarId(id) && !byObject) return 'altar';
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
   // (no magic portals or vibrating squares: undestroyable_trap())
   if (!canDigDown(ctx, level)) {
@@ -543,6 +573,8 @@ function digCheck(ctx: Ctx, level: Level, x: number, y: number): DigCheck {
     return 'pitonly';
   }
   if (boulderAt(ctx, level.id, x, y)) return 'boulder';
+  // the block against existing traps is mainly to prevent broken wands from turning holes into pits
+  if (byObject && ttmp) return 'objtrap';
   return 'passed';
 }
 
@@ -554,7 +586,7 @@ function digcheckFailMessage(ctx: Ctx, r: DigCheck, level: Level, x: number, y: 
   else if (r === 'cantdig' || r === 'toohard')
     say(ctx, 'dig.too_hard_here', { surface: surfaceKey(ctx, level, x, y) });
 }
-const digcheckFailed = (r: DigCheck): boolean =>
+export const digcheckFailed = (r: DigCheck): boolean =>
   r !== 'passed' && r !== 'pitonly' && r !== 'destroytrap';
 
 /** The hero's wielded weapon, or null. */

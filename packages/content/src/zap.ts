@@ -71,7 +71,19 @@ import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { wakeup } from './peaceful';
-import { buzzFrom, flashburn, resist, resistsMagm, wakeGently, type Ray } from './buzz';
+import {
+  buzzFrom,
+  flashburn,
+  resist,
+  resistsMagm,
+  sleepMonst,
+  sleptMonst,
+  wakeGently,
+  type Ray,
+} from './buzz';
+import { explode } from './explode';
+import { eshkOf } from './eshk';
+import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { healup } from './potion';
 import { canSpotMon, monNam } from './perception';
@@ -90,7 +102,8 @@ import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T } from './terrain';
 import { rloco } from './rloco';
-import { TRAP, dotrap, mintrap, tele, uTeleportMon } from './trap';
+import { rewardUntrap } from './untrap';
+import { TRAP, dotrap, isMagicalTrap, mintrap, tele, uTeleportMon } from './trap';
 import { setStasis } from './teleport';
 import { isMtrapped, setMtrapped, setUtrap, utrap } from './trapstate';
 import { checkUnpaid, costlyAlteration } from './shk';
@@ -226,6 +239,10 @@ const CORPSE: DefId = 'nh:corpse';
  * ref: context.bypasses, obj->bypass (cleared when each zap starts; never part of the state)
  */
 const bypassed = new Set<EntityId>();
+/** A new zap (or a wand breaking) starts: no corpse is bypassed. ref: clear_bypasses() */
+export function clearBypasses(): void {
+  bypassed.clear();
+}
 const trapHere = (level: Level, x: number, y: number): Trap | undefined =>
   level.traps.find((t) => t.x === x && t.y === y);
 
@@ -275,7 +292,10 @@ function uSlowDown(ctx: Ctx): void {
 // ---------------------------------------------------------------------------------------------
 // traps that hold or drop their victim
 
-/** ref: src/trap.c openholdingtrap(): frees the hero from a bear trap or pit, a monster from a bear trap */
+/**
+ * ref: src/trap.c openholdingtrap(): frees the hero from a bear trap or pit, a monster from a bear
+ * trap (an adjacent one may be grateful, 1 in 2: reward_untrap())
+ */
 function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed: boolean } {
   if (!mon) {
     const u = utrap(ctx);
@@ -300,6 +320,10 @@ function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed
     noticed = true;
     say(ctx, 'zap.trap_opens', { trap: `@${t.def}` });
   }
+  // might pacify monster if adjacent
+  const hp = heroPos(ctx);
+  if (ctx.rng.rn2(2) && p && Math.max(Math.abs(p.x - hp.x), Math.abs(p.y - hp.y)) <= 1)
+    rewardUntrap(ctx, t, mon);
   return { done: true, noticed };
 }
 
@@ -348,7 +372,7 @@ function openfallingtrap(
 }
 
 /** ref: src/zap.c release_hold(): the hero is held (never engulfed or sticky here) */
-function releaseHold(ctx: Ctx): void {
+export function releaseHold(ctx: Ctx): void {
   const id = ustuck(ctx);
   const mon = id === null ? undefined : ent(ctx, id);
   setUstuck(ctx, null);
@@ -545,13 +569,83 @@ function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean {
 }
 
 // ---------------------------------------------------------------------------------------------
+// broken wands (breakwand.ts): the charges, the flash, magical traps blowing up
+
+/** The wand's charges (a spell has none). */
+const speOf = (src: ZapSource): number => (src.kind === 'wand' ? (src.item.c.item?.spe ?? 0) : 0);
+
+/**
+ * A broken wand of light flashes at the monster: a sleeper with eyes wakes ("The flash awakens
+ * X."), one that can see is blinded (only the message: monster blindness is not modelled),
+ * angered, and may flee when within dist2 9; true when the hero noticed something.
+ * ref: src/uhitm.c flash_hits_mon() (no mimics, gremlins or Sunsword), src/mondata.c
+ * resists_blnd()
+ */
+function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
+  const m = mon.c.monster;
+  const p = mon.c.pos;
+  if (!m || !p) return false;
+  const def = ctx.defs.monster(mon.def);
+  const useeit = canseemon(ctx, mon);
+  const haseyes = !def.flags.includes('noeyes');
+  if (m.asleep && haseyes) {
+    m.asleep = false;
+    if (!useeit) return false;
+    say(ctx, 'zap.flash_awakens', { mon: monNam(ctx, mon) });
+    return true;
+  }
+  if (def.glyph.ch === 'y') return false; // S_LIGHT
+  const resistsBlnd =
+    !haseyes ||
+    m.asleep === true ||
+    def.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze'));
+  if (resistsBlnd) {
+    if (useeit) {
+      const level = levelOf(ctx);
+      say(ctx, level.lit[cellIndex(level, p.x, p.y)] ? 'zap.flash_shines' : 'zap.illuminated', {
+        mon: monNam(ctx, mon),
+      });
+    }
+    return false;
+  }
+  const hp = heroPos(ctx);
+  const tmp = (hp.x - p.x) ** 2 + (hp.y - p.y) ** 2;
+  if (useeit) say(ctx, 'zap.blinded_by_flash', { mon: monNam(ctx, mon) });
+  if (alive(ctx, mon.id)) {
+    setmangry(ctx, mon.id); // !context.mon_moving
+    if (tmp < 9 && !eshkOf(ctx, mon.id) && ctx.rng.rn2(4))
+      monflee(ctx, mon.id, ctx.rng.rn2(4) ? ctx.rng.rnd(100) : 0, false, true);
+    // mcansee = 0, mblinded = ...: monster blindness is not modelled
+  }
+  return useeit;
+}
+
+/**
+ * A cancellation beam hits a magical trap: it explodes (`20 + d(3, 6)`, a magical blast she
+ * gets the blame for) and is gone; the wand is learned when she saw it. ref: src/zap.c
+ * maybe_explode_trap() (no magic portals or vibrating squares: undestroyable_trap())
+ */
+function maybeExplodeTrap(ctx: Ctx, src: ZapSource, x: number, y: number): void {
+  if (otypOf(src) !== WAN.cancellation) return; // (no spell of cancellation yet)
+  const level = levelOf(ctx);
+  const ttmp = trapHere(level, x, y);
+  if (!ttmp || !isMagicalTrap(ttmp.def)) return;
+  const seeit = cansee(ctx, x, y);
+  // note: this explosion mustn't destroy the wand
+  explode(ctx, x, y, { trap: true, by: 'hero' }, 20 + ctx.rng.d(3, 6), 'magical');
+  if (ctx.state.gameOver) return;
+  ctx.removeTrap(level.id, { x, y }); // deltrap()
+  if (seeit) learn(ctx, src);
+}
+
+// ---------------------------------------------------------------------------------------------
 // immediate wands: bhit(), bhitm(), bhito(), bhitpile()
 
 /**
  * ref: src/zap.c bhitm(): the monster is hit by the wand's or spell's effect. No Pestilence or
  * monster blindness exist (healing never hurts and cures no blindness).
  */
-function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
+export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   let wake = true;
   let helpful = false;
   let learnIt = false;
@@ -645,6 +739,16 @@ function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       uTeleportMon(ctx, mon, true);
       learnIt = canSpotMon(ctx, mon);
       break;
+    case WAN.light: // (broken wand)
+      if (flashHitsMon(ctx, mon)) learnIt = true;
+      break;
+    case WAN.sleep: {
+      // (broken wand) wakeup() doesn't rouse victims of temporary sleep, so `wake` stays
+      const spe = src.kind === 'wand' ? (src.item.c.item?.spe ?? 0) : 0;
+      if (sleepMonst(ctx, mon, ctx.rng.d(1 + spe, 12), 'wand')) sleptMonst(ctx, mon);
+      if (!blind(ctx)) learnIt = true;
+      break;
+    }
     case WAN.nothing:
     default:
       wake = false;
@@ -747,7 +851,7 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
 }
 
 /** ref: src/zap.c bhitpile(): every object on the square; the number affected */
-function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number {
+export function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number {
   let hit = 0;
   for (const o of itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y)) {
     if (!ctx.state.entities[String(o.id)]) continue;
@@ -771,6 +875,9 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
     x += d.x;
     y += d.y;
     if (!inBounds(level, x, y)) break;
+    // zap_map(): cancellation blows up a magical trap
+    maybeExplodeTrap(ctx, src, x, y);
+    if (ctx.state.gameOver) return;
     // zap_map(): probing maps the square and reveals a secret door
     if (otyp === WAN.probing && isSdoor(cellId(level, x, y))) {
       const locked =
@@ -893,7 +1000,11 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
       break;
   }
   // down: the objects at <x,y> of wherever she is now, as C does after a fall
-  if (dir === 'down' && !ctx.state.gameOver) bhitpile(ctx, src, x, y);
+  if (dir === 'down' && !ctx.state.gameOver) {
+    bhitpile(ctx, src, x, y);
+    // zap_map(): cancellation blows up the magical trap under her
+    if (!ctx.state.gameOver) maybeExplodeTrap(ctx, src, x, y);
+  }
   return disclose;
 }
 
@@ -1155,8 +1266,12 @@ const SELF_KILLER: Readonly<Record<string, string>> = {
   [WAN.magicMissile]: '@killer.zap.self.magic_missile',
 };
 
-/** ref: src/zap.c zapyourself() with `ordinary` TRUE; returns the damage to take */
-function zapyourself(ctx: Ctx, src: ZapSource): number {
+/**
+ * ref: src/zap.c zapyourself(); `ordinary` false for a broken wand (striking hits for
+ * `d(1 + spe, 6)` without "You bash yourself!", sleep says "You fall asleep!", light flashes).
+ * Returns the damage to take.
+ */
+export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
   const h = hero(ctx);
   let learnIt = false;
   let damage = 0;
@@ -1166,10 +1281,10 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
     case SPE.forceBolt:
       learnIt = true;
       if (antimagic(ctx)) say(ctx, 'zap.boing');
-      else {
+      else if (ordinary) {
         say(ctx, 'zap.self.bash');
         damage = ctx.rng.d(2, 12);
-      }
+      } else damage = ctx.rng.d(1 + speOf(src), 6);
       break;
     case WAN.lightning: {
       learnIt = true;
@@ -1225,7 +1340,7 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
       learnIt = true;
       if (hasProp(h, P.SLEEP_RES)) say(ctx, 'zap.self.not_sleepy');
       else {
-        say(ctx, 'zap.self.sleep_ray');
+        say(ctx, ordinary ? 'zap.self.sleep_ray' : 'zap.self.fall_asleep');
         nomulNow(ctx, ctx.rng.rnd(50), 'helpless.asleep', { key: 'eat.wake_up' }); // fall_asleep()
       }
       break;
@@ -1301,6 +1416,13 @@ function zapyourself(ctx: Ctx, src: ZapSource): number {
       if (!sight || (now.x - was.x) ** 2 + (now.y - was.y) ** 2 >= 16) learnIt = true;
       break;
     }
+    case WAN.light: {
+      // (broken wand) lightdamage() hurts only a gremlin: no polymorph
+      const dmg = ctx.rng.d(speOf(src), 25) + ctx.rng.rnd(25);
+      if (!blind(ctx) && !h.c.helpless) learnIt = true; // flashburn() blinded her
+      flashburn(ctx, dmg);
+      break;
+    }
     case WAN.nothing:
     default:
       break;
@@ -1374,7 +1496,7 @@ export const WAND_ZAPS: Readonly<Record<string, NonNullable<ObjectDef['zap']>>> 
   Object.fromEntries(Object.values(WAN).map((id) => [id, weffects]));
 
 /** ref: src/zap.c zappable(): uses a charge, maybe wresting the last one */
-function zappable(ctx: Ctx, wand: Entity): boolean {
+export function zappable(ctx: Ctx, wand: Entity): boolean {
   const it = wand.c.item;
   if (!it) return false;
   if (it.spe < 0 || (it.spe === 0 && ctx.rng.rn2(WAND_WREST_CHANCE))) return false;

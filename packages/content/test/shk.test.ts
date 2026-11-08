@@ -706,6 +706,19 @@ describe('prices', () => {
     expect(getCost(t.s.state, defs, ration, t.e)).toBe(5);
   });
 
+  test("a unique monster's corpse is priced 51 times its base, not once (G_UNIQ)", () => {
+    // ref: src/shk.c corpsenm_price_adj(): tmp = 1 + 50 for unique_corpstat()
+    const t = bare(15);
+    const id = mksobj(ctxOf(t.s), obj('nh:corpse'), {
+      init: false,
+      corpseOf: 'nh:oracle',
+      at: { level: 'dlvl1', x: 3, y: 2 },
+    });
+    const corpse = t.s.state.entities[String(id)]!;
+    // the Oracle: level 12, nutrition 400, conveys nothing: (11 * 2 + 400 / 30) * (1 + 50)
+    expect(getprice(t.s.state, defs, corpse, true)).toBe(defs.object('nh:corpse').cost + 35 * 51);
+  });
+
   test('an unidentified type costs a third more when its id is a multiple of 4', () => {
     const t = bare(15, 'nh:candle_shop');
     const candles: Entity[] = [];

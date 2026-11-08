@@ -119,6 +119,10 @@ export const TRAP = {
   antiMagic: 'nh:anti_magic_field',
 } as const;
 
+/** ref: include/trap.h is_magical_trap() (no polymorph traps yet) */
+export const isMagicalTrap = (def: DefId): boolean =>
+  def === TRAP.tele || def === TRAP.levelTele || def === TRAP.magic || def === TRAP.antiMagic;
+
 // Colors as in include/color.h (HI_METAL = CYAN, HI_ZAP = BRIGHT_BLUE).
 const CYAN = '#33bbbb';
 const GRAY = '#aaaaaa';

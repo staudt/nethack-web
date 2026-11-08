@@ -344,6 +344,8 @@ type GameEvent =
   | { type: 'blocked'; pos: Pos; terrain: DefId }
   | { type: 'turnEnded'; turn: number }
   | { type: 'searched' }
+  | { type: 'projectile'; g: DefId; path: Pos[] } // a flying object, the cells she sees it cross
+  | { type: 'ray'; kind: string; fg: string; path: RayStep[] } // a ray's seen cells and directions; kind 'explosion': the 3x3 box, each dx,dy the offset from the centre (m7e)
   | { type: 'list'; titleKey: string; items: Msg[]; ask?: string } // informational sheet (discoveries); ask: a y/n/q question first (game over)
   | { type: 'mod'; mod: string; name: string; data: Json };
 

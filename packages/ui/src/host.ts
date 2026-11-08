@@ -76,6 +76,12 @@ export interface FlashRenderer {
 /** ref: src/display.c zapdir_to_glyph(): S_vbeam, S_hbeam, S_lslant or S_rslant */
 const beamChar = (dx: number, dy: number): string =>
   dx === 0 ? '|' : dy === 0 ? '-' : dx === dy ? '\\' : '/';
+/**
+ * The explosion box at offset (dx, dy) from the centre. ref: src/explode.c explosion[][],
+ * defsym.h S_expl_tl .. S_expl_br (`/-\\`, `| |`, `\\-/`)
+ */
+const explosionChar = (dx: number, dy: number): string =>
+  dy === 0 ? (dx === 0 ? ' ' : '|') : dx === 0 ? '-' : dx < 0 === dy < 0 ? '/' : '\\';
 const isFlashable = (r: object): r is FlashRenderer =>
   typeof (r as Partial<FlashRenderer>).flash === 'function';
 
@@ -905,7 +911,14 @@ export function createUi(opts: UiOptions): Ui {
       if (flasher)
         for (const ev of events) {
           if (ev.type === 'projectile') for (const pos of ev.path) frames.push([{ pos, g: ev.g }]);
-          else if (ev.type === 'ray') {
+          else if (ev.type === 'ray' && ev.kind === 'explosion') {
+            // the whole 3x3 box at once, held for two delays (nh_delay_output() twice)
+            const box = ev.path.map((s) => ({
+              pos: { x: s.x, y: s.y },
+              g: { ch: explosionChar(s.dx, s.dy), fg: ev.fg },
+            }));
+            if (box.length) frames.push(box, box);
+          } else if (ev.type === 'ray') {
             let trail: { pos: Pos; g: Glyph }[] = [];
             for (const s of ev.path) {
               const g = { ch: beamChar(s.dx, s.dy), fg: ev.fg };

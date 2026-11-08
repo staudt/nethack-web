@@ -24,7 +24,8 @@ export type GameEvent =
    * A ray (ref: src/zap.c dobuzz() with tmp_at(DISP_BEAM)): it grows one cell at a time and stays
    * drawn until it ends. `path` is the cells the hero sees it cross, in order, each with the ray's
    * direction there, so a bounce shows as a turn; `kind` names the ray (e.g. `fire`), `fg` is its
-   * color.
+   * color. Kind `explosion` is an explosion's 3x3 box (ref: src/explode.c explode()), shown at once:
+   * each step's `dx, dy` is its offset from the centre.
    */
   | { type: 'ray'; kind: string; fg: string; path: RayStep[] }
   /**

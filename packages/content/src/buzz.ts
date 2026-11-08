@@ -403,19 +403,29 @@ function bounceDir(
 }
 
 /**
- * ref: src/zap.c zap_over_floor() for the hero's wand rays: a secret door is revealed, a closed
- * door absorbs the ray (fire, cold and lightning destroy it), fire burns scrolls and spellbooks
- * on the floor. Returns the range change.
+ * ref: src/zap.c zap_over_floor() for the hero's wand rays and for explosions (explode.ts): a
+ * secret door is revealed, a closed door absorbs the ray (fire, cold and lightning destroy it),
+ * fire burns scrolls and spellbooks on the floor. Returns the range change. `explodingWand`:
+ * the broken wand's type (C's exploding_wand_typ, "the blast"; a wand of striking's blast
+ * breaks the door), or '' for an explosion with no wand (a magical trap's: still "your bolt").
+ * The monster there is not woken here (the caller does it).
  */
-function zapOverFloor(ctx: Ctx, ray: Ray, x: number, y: number): number {
+export function zapOverFloor(
+  ctx: Ctx,
+  ray: Ray,
+  x: number,
+  y: number,
+  explodingWand?: DefId | '',
+): number {
   const level = levelOf(ctx);
   const seeIt = cansee(ctx, x, y);
+  const blast = explodingWand !== undefined && explodingWand !== '';
   let rangemod = 0;
   const id = cellId(level, x, y);
   if (isSdoor(id)) {
     const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
     setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
-    if (seeIt) say(ctx, 'zap.door.sdoor');
+    if (seeIt) say(ctx, blast ? 'zap.door.sdoor_blast' : 'zap.door.sdoor');
   }
   if (closedDoor(terrainAt(ctx, level, x, y))) {
     rangemod = -1000;
@@ -424,12 +434,19 @@ function zapOverFloor(ctx: Ctx, ray: Ray, x: number, y: number): number {
       cold: ['zap.door.freezes', 'zap.hear_cracking'],
       lightning: ['zap.door.splinters', 'zap.hear_crackling'],
     };
-    const b = broken[ray];
+    // def_case: a magical explosion from a broken wand of striking breaks the door
+    const b =
+      broken[ray] ??
+      (explodingWand === 'nh:wand_of_striking'
+        ? (['zap.door.crashes_open', 'zap.feel_cool_air'] as [string, string])
+        : undefined);
     if (b) {
       setTerrain(level, x, y, T.doorway); // D_NODOOR / D_BROKEN
       ctx.emit({ type: 'doorOpened', pos: { x, y } });
       say(ctx, seeIt ? b[0] : b[1]);
-    } else say(ctx, seeIt ? 'zap.door.absorbs' : 'zap.feel_vibrations');
+    } else if (!seeIt) say(ctx, 'zap.feel_vibrations');
+    // "the door absorbs the blast" would be inaccurate for an exploding wand
+    else say(ctx, blast ? 'zap.door.intact' : 'zap.door.absorbs');
   }
   if (ray === 'fire' && burnFloorObjects(ctx, x, y) && seeIt)
     say(ctx, blind(ctx) ? 'zap.whiff_smoke' : 'zap.puff_smoke');

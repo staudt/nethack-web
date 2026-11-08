@@ -77,7 +77,7 @@ function corpsenmPriceAdj(defs: Registry, obj: Entity): number {
   let tmp = 1;
   for (const [mr, cost] of ICOST) if (ptr.conveys.includes(mr)) tmp += cost;
   if (TELEPATHIC.has(ptr.id)) tmp += 5;
-  if (ptr.genFlags.includes('unique')) tmp += 50;
+  if (ptr.genFlags.includes('uniq')) tmp += 50; // unique_corpstat(): G_UNIQ
   let val = Math.max(1, (ptr.level - 1) * 2);
   val += Math.max(1, Math.trunc(ptr.nutrition / 30));
   return val * tmp;

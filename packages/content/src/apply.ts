@@ -1,5 +1,6 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, the blindfold and digging tools
-// (the pick-axe and the dwarvish mattock, a weapon; dig.ts).
+// (the pick-axe and the dwarvish mattock, a weapon; dig.ts); applying a wand breaks it
+// (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet()
 //
@@ -18,6 +19,7 @@ import {
   type Msg,
   type Offer,
 } from '@nh/core';
+import { answerBreakWand, doBreakWand } from './breakwand';
 import { useContainer } from './container';
 import { DIG_ID, isPick, usePickAxe } from './dig';
 import { mnextoPos } from './generation';
@@ -51,10 +53,11 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
   return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
 }
 
-/** Whether `a` can apply this object (the tools of the subset). */
+/** Whether `a` can apply this object (the tools of the subset, and wands: breaking them). */
 export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
   if (isPick(def)) return true; // PICK_AXE, DWARVISH_MATTOCK
+  if (def.class === 'wand') return true; // do_break_wand()
   if (def.class !== 'tool') return false;
   return (
     def.container !== undefined ||
@@ -223,11 +226,13 @@ const apply: ActionDef = {
   offer(ctx, target): Offer[] {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
+    // applying a wand breaks it: its own "Break" offer (still #apply, so `a` lists wands)
+    const wand = e !== null && ctx.defs.object(e.def).class === 'wand';
     return e && applicable(ctx, e)
       ? [
           {
             action: { type: 'mod', action: APPLY_ID, args: { item: e.id } },
-            labelKey: 'action.nh:apply',
+            labelKey: wand ? 'action.nh:break' : 'action.nh:apply',
           },
         ]
       : [];
@@ -242,6 +247,7 @@ const apply: ActionDef = {
     }
     if (checkCapacity(ctx)) return 0;
     const def = ctx.defs.object(obj.def);
+    if (def.class === 'wand') return doBreakWand(ctx, obj, APPLY_ID);
     if (def.container) return useContainer(ctx, obj);
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
     if (isPick(def)) return usePickAxe(ctx, obj);
@@ -257,6 +263,8 @@ const apply: ActionDef = {
     }
     return NORMAL_SPEED;
   },
+  // "Are you really sure you want to break X?"
+  answer: answerBreakWand,
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts)
   continues: (ctx) =>

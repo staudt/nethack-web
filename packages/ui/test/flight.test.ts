@@ -172,6 +172,17 @@ describe('projectile flight', () => {
     expect(n.r.log[2]).toBe('-o@6,5 |o@6,6 \\o@7,7');
   });
 
+  test("an explosion shows C's box at once, for two delays", () => {
+    const m = mk();
+    const path = [];
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) path.push({ x: 6 + i - 1, y: 4 + j - 1, dx: i - 1, dy: j - 1 });
+    m.ui.update(view(), [{ type: 'ray', kind: 'explosion', fg: 'm', path }], null);
+    vi.advanceTimersByTime(2 * D);
+    const box = '/m@5,3 |m@5,4 \\m@5,5 -m@6,3  m@6,4 -m@6,5 \\m@7,3 |m@7,4 /m@7,5';
+    expect(m.r.log).toEqual([box, box, 'off', 'apply']);
+  });
+
   test('no projectile events, no animation', () => {
     const m = mk();
     m.ui.update(view(), [hit], null);

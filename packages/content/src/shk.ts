@@ -657,12 +657,12 @@ function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
  * The hero has just altered a shop object (bitten into food, cancelled it): she pays for it.
  * `at`: where it lies on the floor, or null when she has it. Uncursing or unblessing tells her
  * its BUC. ref: src/mkobj.c costly_alteration() (COST_BITE, COST_CANCEL, COST_UNCURS,
- * COST_UNBLSS, COST_DECHNT)
+ * COST_UNBLSS, COST_DECHNT, COST_DSTROY)
  */
 export function costlyAlteration(
   ctx: Ctx,
   obj: Entity,
-  how: 'bite' | 'cancel' | 'uncurse' | 'unbless' | 'disenchant',
+  how: 'bite' | 'cancel' | 'uncurse' | 'unbless' | 'disenchant' | 'destroy',
   at: Pos | null,
 ): void {
   const it = obj.c.item;

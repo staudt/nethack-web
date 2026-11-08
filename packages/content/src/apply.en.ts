@@ -4,6 +4,7 @@
 // src/do_wear.c on_msg(), Blindf_on(), Blindf_off(); src/potion.c make_blinded()
 export const applyMessagesEn: Record<string, string> = {
   'action.nh:apply': 'Apply',
+  'action.nh:break': 'Break',
   'apply.cant': "Sorry, I don't know how to use that.",
   'apply.nothing_seems': 'Nothing seems to happen.',
 

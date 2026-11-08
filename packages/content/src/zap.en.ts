@@ -158,6 +158,10 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.hear_cracking': 'You hear a deep cracking sound.',
   'zap.hear_crackling': 'You hear crackling.',
   'zap.feel_vibrations': 'You feel vibrations.',
+  // a wand's explosion at a door (zap_over_floor() with exploding_wand_typ)
+  'zap.door.sdoor_blast': 'The blast reveals a secret door.',
+  'zap.door.intact': 'The door remains intact.',
+  'zap.feel_cool_air': 'You feel a burst of cool air.',
   'zap.puff_smoke': 'You see a puff of smoke.',
   'zap.whiff_smoke': 'You smell a whiff of smoke.',
 
@@ -173,6 +177,12 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.self.idiot': "Idiot!  You've shot yourself!",
   'zap.self.not_sleepy': "You don't feel sleepy!",
   'zap.self.sleep_ray': 'The sleep ray hits you!',
+  'zap.self.fall_asleep': 'You fall asleep!',
+  // a broken wand of light: flash_hits_mon()
+  'zap.flash_awakens': 'The flash awakens {mon|the}.',
+  'zap.blinded_by_flash': '{mon|The} is blinded by the flash!',
+  'zap.flash_shines': 'The flash of light shines on {mon|the}.',
+  'zap.illuminated': '{mon|The} is illuminated.',
   'zap.self.feel_better': 'You feel better.',
   'zap.self.irradiate': 'You irradiate yourself with pure energy!',
   'zap.self.you_die': 'You die.',
@@ -201,4 +211,38 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.zap.self.magic_missile': 'zapping herself with a wand of magic missile',
   'killer.zap.self.spell': 'zapped herself with a spell',
   'killer.zap.self.death': 'shot herself with a death ray',
+
+  // explode() (explode.ts)
+  'explode.magical_blast': 'magical blast',
+  'explode.fireball': 'fireball',
+  'explode.ball_of_cold': 'ball of cold',
+  'explode.death_field': 'death field',
+  'explode.disintegration_field': 'disintegration field',
+  'explode.ball_of_lightning': 'ball of lightning',
+  'explode.explosion': 'explosion',
+  'explode.hear_blast': 'You hear a blast.',
+  'explode.boom': 'Boom!',
+  'explode.mon_caught': '{mon|The} is caught in the {what}!',
+  'explode.mon_resists': '{mon|The} resists the {what}!',
+  'explode.you_caught': 'You are caught in the {what}!',
+  'explode.fatal': 'It is fatal.',
+  'explode.the_x_fatal': 'The {what} is fatal.',
+  // NO_KILLER_PREFIX in NetHack ("caught herself in her own fireball"); worded to follow "killed by"
+  'killer.explode.own.magm': 'catching herself in her own magical blast',
+  'killer.explode.own.fire': 'catching herself in her own fireball',
+  'killer.explode.own.cold': 'catching herself in her own ball of cold',
+  'killer.explode.own.death': 'catching herself in her own death field',
+  'killer.explode.own.elec': 'catching herself in her own ball of lightning',
+  'killer.explode.trap': 'catching herself in a magical blast',
+  'killer.explode.trap_unseen': 'catching herself in an explosion',
+  // do_break_wand() (breakwand.ts)
+  'break.hands_occupied': 'Your hands are occupied!',
+  'break.too_weak': "You don't have the strength to break your {item}!",
+  'break.confirm': 'Are you really sure you want to break your {item}?',
+  'break.break': 'Raising your {item} high above your head, you break it in two!',
+  'break.snap': 'Raising your {item} high above your head, you snap it in two!',
+  'break.nothing_else': 'But nothing else happens...',
+  'break.wall_of_force': 'A wall of force smashes down around you!',
+  // NO_KILLER_PREFIX in NetHack ("killed herself by breaking a wand")
+  'killer.breakwand.self': 'killing herself by breaking a wand',
 };
