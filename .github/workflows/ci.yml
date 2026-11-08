@@ -11,6 +11,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: false
+      # The converter and port map tests read NetHack's sources (reference only, never compiled).
+      - run: git submodule update --init --depth 1 vendor/nethack
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:

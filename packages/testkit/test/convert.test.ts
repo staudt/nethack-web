@@ -2,7 +2,7 @@
 // (monsters.h, objects.h) through the converter (src/convert, docs/CONVERTER.md). Each known
 // difference is listed below with its reason; `TODO(bug)` marks one that looks unintended and is
 // left for a later step (changing a def here would move the golden replay).
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { MONSTERS, OBJECTS } from '@nh/content';
 import type { MonsterDef, ObjectDef } from '@nh/core';
 import { describe, expect, test } from 'vitest';
@@ -16,11 +16,15 @@ import { monsterData, monsterIds, objectData, objectId } from '../src/convert/de
 import { emitMonsters, emitObjects } from '../src/convert/emit.ts';
 import { Preprocessor, evalExpr, tokenize } from '../src/convert/cpp.ts';
 
+const VENDOR_INCLUDE = new URL('../../../vendor/nethack/include/', import.meta.url);
+if (!existsSync(new URL('monsters.h', VENDOR_INCLUDE))) {
+  throw new Error(
+    'vendor/nethack is not checked out: run `git submodule update --init vendor/nethack`',
+  );
+}
+
 const headers = Object.fromEntries(
-  VENDOR_HEADER_FILES.map((f) => [
-    f,
-    readFileSync(new URL(`../../../vendor/nethack/include/${f}`, import.meta.url), 'utf8'),
-  ]),
+  VENDOR_HEADER_FILES.map((f) => [f, readFileSync(new URL(f, VENDOR_INCLUDE), 'utf8')]),
 ) as unknown as VendorHeaders;
 
 const C_MONSTERS = parseMonsters(headers);
@@ -47,8 +51,6 @@ const OBJECT_DIFFERENCES: Readonly<Record<string, string>> = {
   'nh:potion_of_confusion.prop': POTION_PROP,
   'nh:potion_of_hallucination.prop': POTION_PROP,
   'nh:potion_of_see_invisible.prop': POTION_PROP,
-  'nh:pick_axe.weapon.hitBonus':
-    'TODO(bug): WEPTOOL() passes its strike mode (WHACK = 4) as oc_hitbon, which hitval() adds; follow C or log a deviation',
 };
 
 const sorted = (xs: readonly string[]): string[] => [...xs].sort();

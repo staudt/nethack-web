@@ -47,6 +47,8 @@ Enforced by dependency-cruiser (`pnpm boundaries`). Run it after adding any impo
 
 - `pnpm dev`: Vite app. Use `pnpm dev --host` to reach it over LAN from a phone.
 - `pnpm test`: Vitest unit, property and determinism tests.
+- `pnpm test:fast`: the same without the slow files listed in `vitest.slow.ts` (soaks, golden, determinism, long replays); use it while iterating, and the full `pnpm check` before committing.
+- `pnpm portmap`: regenerate `docs/PORTMAP.md` after adding or changing `// ref:` citations (a test fails when it is stale).
 - `pnpm lint`: ESLint flat config (includes the core/content global bans).
 - `pnpm typecheck`: TypeScript strict across all packages.
 - `pnpm boundaries`: dependency-cruiser package boundary check.
@@ -57,6 +59,7 @@ Enforced by dependency-cruiser (`pnpm boundaries`). Run it after adding any impo
 
 - Conventional Commits; small vertical steps; run `pnpm check` before committing.
 - Port citations: `// ref: src/hack.c domove()` on every ported mechanic.
+- To find where a NetHack function lives in this port, look it up in `docs/PORTMAP.md` first.
 - Don't invent mechanics: check `vendor/nethack`, then NetHackWiki, then ask.
 - Def ids are namespaced `mod:name` (vanilla uses `nh:`).
 - Adding vanilla monsters or objects: generate the defs with `pnpm convert:monsters` / `convert:objects` and keep `packages/testkit/test/convert.test.ts` green (see `docs/CONVERTER.md`).

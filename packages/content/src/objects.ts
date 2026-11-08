@@ -1705,7 +1705,8 @@ export const OBJECTS: readonly ObjectDef[] = [
     weapon: {
       small: [1, 6],
       large: [1, 3],
-      hitBonus: 0,
+      // WEPTOOL() passes its strike mode (WHACK = 4) as oc_hitbon too; hitval() adds it
+      hitBonus: 4,
       skill: 'pick_axe',
       bimanual: false,
       kind: 'whack',
