@@ -65,6 +65,7 @@ export const spellMessagesEn: Record<string, string> = {
   'spell.name.nh:spellbook_of_force_bolt': 'force bolt',
   'spell.name.nh:spellbook_of_confuse_monster': 'confuse monster',
   'spell.name.nh:spellbook_of_cure_blindness': 'cure blindness',
+  'spell.name.nh:spellbook_of_polymorph': 'polymorph',
   'spell.name.nh:spellbook_of_protection': 'protection',
   'spell.name.nh:spellbook_of_jumping': 'jumping',
   'spell.name.nh:spellbook_of_stone_to_flesh': 'stone to flesh',

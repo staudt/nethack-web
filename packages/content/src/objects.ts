@@ -1583,6 +1583,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'teleport_control',
   },
+  // ref: objects.h RING("polymorph", "ivory", POLYMORPH, 300, 1, 0, 4, BONE, CLR_WHITE, RIN_POLYMORPH)
+  {
+    id: 'nh:ring_of_polymorph',
+    nameKey: 'nh:ring_of_polymorph',
+    class: 'ring',
+    glyph: { ch: '=', fg: WHITE },
+    prob: 1,
+    weight: 3,
+    cost: 300,
+    material: 'bone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'polymorph',
+  },
+  // ref: objects.h RING("polymorph control", "emerald", POLYMORPH_CONTROL, 300, 1, 0, 8, GEMSTONE, CLR_BRIGHT_GREEN, RIN_POLYMORPH_CONTROL)
+  {
+    id: 'nh:ring_of_polymorph_control',
+    nameKey: 'nh:ring_of_polymorph_control',
+    class: 'ring',
+    glyph: { ch: '=', fg: BRIGHT_GREEN },
+    prob: 1,
+    weight: 3,
+    cost: 300,
+    material: 'gemstone',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'polymorph_control',
+  },
   // ref: objects.h RING("invisibility", "wire", INVIS, 150, 1, 0, 5, IRON, HI_METAL, RIN_INVISIBILITY)
   {
     id: 'nh:ring_of_invisibility',
@@ -1690,6 +1720,35 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'poison_res',
   },
+  // ref: objects.h AMULET("amulet of change", "square", 0, 115, AMULET_OF_CHANGE)
+  {
+    id: 'nh:amulet_of_change',
+    nameKey: 'nh:amulet_of_change',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 115,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h AMULET("amulet of unchanging", "concave", UNCHANGING, 60, AMULET_OF_UNCHANGING)
+  {
+    id: 'nh:amulet_of_unchanging',
+    nameKey: 'nh:amulet_of_unchanging',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 60,
+    weight: 20,
+    cost: 150,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'unchanging',
+  },
   // ref: objects.h AMULET("amulet of reflection", "hexagonal", REFLECTING, 75)
   {
     id: 'nh:amulet_of_reflection',
@@ -1762,6 +1821,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('speed_monster', 50, 150, true, 'immediate', 'copper', YELLOW),
   // ref: objects.h WAND("undead turning", "copper", 50, 150, 1, IMMEDIATE, COPPER, HI_COPPER, ...)
   wand('undead_turning', 50, 150, true, 'immediate', 'copper', YELLOW),
+  // ref: objects.h WAND("polymorph", "silver", 45, 200, 1, IMMEDIATE, SILVER, HI_SILVER, WAN_POLYMORPH)
+  wand('polymorph', 45, 200, true, 'immediate', 'silver', GRAY),
   // ref: objects.h WAND("cancellation", "platinum", 45, 200, 1, IMMEDIATE, PLATINUM, CLR_WHITE, ...)
   wand('cancellation', 45, 200, true, 'immediate', 'platinum', WHITE),
   // ref: objects.h WAND("teleportation", "iridium", 45, 200, 1, IMMEDIATE, METAL, CLR_BRIGHT_CYAN, ...)
@@ -2161,6 +2222,20 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 0,
   },
+  // ref: objects.h POTION("polymorph", "golden", 1, 0, 10, 200, CLR_YELLOW, POT_POLYMORPH)
+  {
+    id: 'nh:potion_of_polymorph',
+    nameKey: 'nh:potion_of_polymorph',
+    class: 'potion',
+    glyph: { ch: '!', fg: YELLOW },
+    prob: 10,
+    weight: 20,
+    cost: 200,
+    material: 'glass',
+    merge: true,
+    magic: true,
+    delay: 0,
+  },
   // ref: objects.h POTION("booze", "brown", 0, ..., 40, 50, CLR_BROWN, POT_BOOZE)
   {
     id: 'nh:potion_of_booze',
@@ -2308,7 +2383,7 @@ export const OBJECTS: readonly ObjectDef[] = [
   },
 
   // ---- spellbooks (weight 50, cost level * 100; appearances are shuffled, so no descKey;
-  // a subset of the level 1-3 books plus blank paper) ----
+  // a subset of the books plus blank paper) ----
   // ref: objects.h SPELL("sleep", "mottled", P_ENCHANTMENT_SPELL, 30, 1, 3, 1, RAY, HI_PAPER, SPE_SLEEP)
   spellbook('sleep', 30, 1, 3, true, WHITE),
   // ref: objects.h SPELL("light", "cloth", P_DIVINATION_SPELL, 45, 1, 1, 1, NODIR, HI_CLOTH, SPE_LIGHT)
@@ -2323,6 +2398,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   spellbook('confuse_monster', 49, 2, 1, true, ORANGE),
   // ref: objects.h SPELL("cure blindness", "yellow", P_HEALING_SPELL, 25, 2, 2, 1, IMMEDIATE, CLR_YELLOW, ...)
   spellbook('cure_blindness', 25, 2, 2, true, YELLOW),
+  // ref: objects.h SPELL("polymorph", "silver", P_MATTER_SPELL, 10, 8, 6, 1, IMMEDIATE, HI_SILVER, SPE_POLYMORPH)
+  spellbook('polymorph', 10, 8, 6, true, GRAY),
   // ref: objects.h SPELL("protection", "dull", P_CLERIC_SPELL, 18, 3, 1, 1, NODIR, HI_PAPER, ...)
   spellbook('protection', 18, 3, 1, true, WHITE),
   // ref: objects.h SPELL("jumping", "thin", P_ESCAPE_SPELL, 20, 3, 1, 1, IMMEDIATE, HI_PAPER, SPE_JUMPING)

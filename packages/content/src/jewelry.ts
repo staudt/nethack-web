@@ -34,6 +34,7 @@ import {
 import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { stopOccupation } from './eat';
 import { done } from './end';
+import { changeSex, heroFemale, polyGender } from './gender';
 import { nomulNow } from './hunger';
 import { prinv } from './itemactions';
 import { removeFromInventory } from './items';
@@ -315,6 +316,28 @@ function amuletOn(ctx: Ctx, amul: Entity): void {
         say(ctx, 'amulet.constricts');
       }
       break;
+    case 'nh:amulet_of_unchanging':
+      // if (Slimed) make_slimed(0L, 0): no sliming yet
+      break;
+    case 'nh:amulet_of_change': {
+      const origSex = polyGender(ctx.state);
+      // in normal play it's not possible to put on an amulet of change while already wearing an
+      // amulet of unchanging, but Unchanging may come from elsewhere (wizard mode in C)
+      if (!hasProp(h, P.UNCHANGING)) changeSex(ctx.state);
+      const newSex = polyGender(ctx.state);
+      if (newSex !== origSex) discover(ctx, amul.def);
+      prinv(ctx, amul); // on_msg(): "z - an amulet of change (being worn)."
+      onMsgDone = true;
+      // don't use same message as polymorph
+      if (newSex !== origSex)
+        say(ctx, heroFemale(ctx.state) ? 'amulet.change.feminine' : 'amulet.change.masculine');
+      // (already polymorphed into a single-gender monster: only the base sex changed; or
+      // Unchanging); trycall() is not ported
+      else say(ctx, 'amulet.change.not_yourself');
+      say(ctx, 'amulet.disintegrates');
+      useupAmulet(ctx);
+      break;
+    }
     case 'nh:amulet_of_restful_sleep': {
       const newnap = ctx.rng.rnd(98) + 2;
       const oldnap = timeoutLeft(ctx.state, h, P.SLEEPY);
@@ -322,7 +345,8 @@ function amuletOn(ctx: Ctx, amul: Entity): void {
       break;
     }
     default:
-      // ESP, life saving, versus poison, reflection and the imitation: nothing happens now
+      // ESP, life saving, versus poison, reflection, magical breathing (no poison gas regions)
+      // and the imitation: nothing happens now
       break;
   }
   if (!onMsgDone) prinv(ctx, amul); // on_msg(): "z - a circular amulet (being worn)."

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3222 citations.
+152 NetHack files, 3242 citations.
 
 ## dat/dungeon.lua
 
@@ -193,6 +193,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `HVY_ENCUMBER()`: `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
 - `MOD_ENCUMBER()`: `packages/content/src/hero.ts`, `packages/content/src/wish.ts`
 - `NODIAG()`: `packages/content/src/monmove.ts`
+- `POLY_CONTROLLED()`: `packages/content/src/polyself.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
 - `SHOP_DOOR_COST()`: `packages/content/src/shopdamage.ts`
 - `SHOP_HOLE_COST()`: `packages/content/src/shopdamage.ts`
@@ -457,6 +458,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
+- `uhis()`: `packages/content/src/gender.ts`
 
 ## include/youprop.h
 
@@ -1500,7 +1502,10 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/polyself.c
 
 - (file): `packages/content/src/trapstate.ts`
+- `change_sex()`: `packages/content/src/gender.ts`
 - `mbodypart()`: `packages/content/src/trap.ts`
+- `poly_gender()`: `packages/content/src/gender.ts`
+- `polyself()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`
 
 ## src/potion.c
 
@@ -1524,6 +1529,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_hallucination()`: `packages/content/src/potion.ts`
 - `peffect_healing()`: `packages/content/src/potion.ts`
 - `peffect_invisibility()`: `packages/content/src/potion.ts`
+- `peffect_polymorph()`: `packages/content/src/potion.ts`
 - `peffect_see_invisible()`: `packages/content/src/potion.ts`
 - `peffect_sleeping()`: `packages/content/src/potion.ts`
 - `peffect_water()`: `packages/content/src/potion.ts`
@@ -2010,6 +2016,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapeffect_landmine()`: `packages/content/src/landmine.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_magic_trap()`: `packages/content/src/magictrap.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `trapeffect_poly_trap()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`
 - `trapeffect_rolling_boulder_trap()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_statue_trap()`: `packages/content/src/statue.ts`
 - `trapeffect_web()`: `packages/content/src/trap.ts`

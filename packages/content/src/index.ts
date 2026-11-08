@@ -45,6 +45,7 @@ import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
 import { registerTeleportitis, registerTraps, teleAction } from './trap';
 import { registerMagicTraps } from './magictrap';
+import { registerPolyTrap } from './polyself';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
@@ -125,6 +126,7 @@ export const vanillaMod: Mod = {
     registerMonflee(api);
     registerTraps(api);
     registerMagicTraps();
+    registerPolyTrap();
     registerRollingBoulders();
     registerLandmines();
     registerDigestFood();

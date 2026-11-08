@@ -5,9 +5,7 @@
 // src/mhitu.c could_seduce()
 //
 // Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet() (no Amulet or
-// quest artifacts), ball and chain, leashes, boulders in inventory. The hero is always female
-// (the Valkyrie), so the nymph "charms" her; the male "seduces you and you take off" wording is
-// not reachable.
+// quest artifacts), ball and chain, leashes, boulders in inventory.
 import { minstapetrify } from './stoning';
 import { petrifyingCorpse } from './stonetouch';
 import {
@@ -22,6 +20,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { stopOccupation } from './eat';
+import { heroFemale, polyGender } from './gender';
 import { shopKeeper, insideShop, uShops } from './eshk';
 import { encumberMsg } from './itemactions';
 import { addToInventory, nhData, removeFromInventory, splitStack } from './items';
@@ -361,18 +360,32 @@ export function steal(ctx: Ctx, mon: Entity): { stolen: Msg | null; result: numb
         const curssv = it.buc === 'cursed';
         const helpless = h.c.helpless !== undefined;
         const slowly = armordelay >= 1 || helpless;
-        // flags.female: "She charms you.  You gladly hand over your cloak."
-        say(ctx, 'steal.charms', {
-          mon: !seen ? '@pronoun.she' : monnambuf,
-          how: {
+        const item = armorSimpleName(ctx.defs.object(otmp.def));
+        if (heroFemale(ctx.state))
+          // "She charms you.  You gladly hand over your cloak."
+          say(ctx, 'steal.charms', {
+            mon: !seen ? '@pronoun.she' : monnambuf,
+            how: {
+              key: curssv
+                ? 'steal.charm.let_her_take'
+                : !slowly
+                  ? 'steal.charm.hand_over'
+                  : 'steal.charm.start_removing',
+            },
+            item,
+          });
+        else {
+          // "The beautiful water nymph seduces you and you take off your cloak."
+          const how = {
             key: curssv
-              ? 'steal.charm.let_her_take'
+              ? 'steal.seduce.helps_you_take'
               : !slowly
-                ? 'steal.charm.hand_over'
-                : 'steal.charm.start_removing',
-          },
-          item: armorSimpleName(ctx.defs.object(otmp.def)),
-        });
+                ? 'steal.seduce.you_take'
+                : 'steal.seduce.you_start_taking',
+          };
+          if (!seen) say(ctx, 'steal.seduces_unseen', { how, item });
+          else say(ctx, 'steal.seduces', { mon: monnambuf, how, item });
+        }
         named++;
         // the following is to set multi for later on: nomul(-armordelay), "taking off clothes",
         // nomovemsg = 0 ("You can move again."); a longer helplessness is kept (nomul()'s
@@ -483,8 +496,8 @@ setAfternmv('unstolenarm', unstolenarm);
  * 0 no, 1 yes, 2 "wrong gender for a nymph" (still steals, "engagingly"). Only nymphs (and
  * incubi/succubi, not in the roster) with a theft or seduction damage type.
  * An invisible seducer cannot seduce a defender that does not see invisible.
- * ref: src/mhitu.c could_seduce() (the hero is female; monsters have no gender of their own yet,
- * so one not flagged female counts as male: DEVIATIONS "Theft")
+ * ref: src/mhitu.c could_seduce() (the hero's gender is poly_gender(); monsters have no gender of
+ * their own yet, so one not flagged female counts as male: DEVIATIONS "Theft")
  */
 export function couldSeduce(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -496,7 +509,11 @@ export function couldSeduce(
   const pagr = ctx.defs.monster(magr.def);
   if (isAnimal(pagr)) return 0;
   const female = (e: Entity): number =>
-    e.id === ctx.state.playerId ? 1 : ctx.defs.monster(e.def).flags.includes('female') ? 1 : 0;
+    e.id === ctx.state.playerId
+      ? polyGender(ctx.state)
+      : ctx.defs.monster(e.def).flags.includes('female')
+        ? 1
+        : 0;
   const has = (ad: string): boolean => pagr.attacks.some((a) => a.ad === ad);
   let adtyp = atk ? atk.ad : has('ssex') ? 'ssex' : has('sedu') ? 'sedu' : 'phys';
   if (adtyp === 'ssex') adtyp = 'sedu'; // !SYSOPT_SEDUCE: DECISIONS m9 taken default 7

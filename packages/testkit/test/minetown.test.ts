@@ -388,6 +388,16 @@ describe('the temple priest of a real Minetown', () => {
     const pp = priest?.c.pos;
     if (!priest?.c.monster || !pp) throw new Error('no priest');
     priest.c.monster.peaceful = false;
+    // only the priest casts here: the town's other spellcasters (a gnomish wizard's psi bolt) go
+    for (const k of sortedIds(state)) {
+      const e = state.entities[String(k)];
+      const caster = e?.c.monster && defs.monster(e.def).attacks.some((a) => a.at === 'magic');
+      if (caster && k !== id && e.c.pos?.level === level.id) {
+        for (const o of sortedIds(state))
+          if (state.entities[String(o)]?.c.item?.carriedBy === k) delete state.entities[String(o)];
+        delete state.entities[String(k)];
+      }
+    }
     const hero = getPlayer(state);
     if (hero.c.hp) hero.c.hp = { cur: 100000, max: 100000 };
     const taken = new Set(

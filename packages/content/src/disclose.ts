@@ -20,6 +20,7 @@ import {
 } from '@nh/core';
 import { enlightenment } from './enlightenment';
 import { endHow } from './endstate';
+import { heroFemale } from './gender';
 import { setCknown, setLknown } from './items';
 import { xnameOf } from './objnam';
 import { fullyIdentify } from './read';
@@ -187,7 +188,7 @@ export function registerEnd(api: ModApi): void {
     value: (state) => (state.gameOver ? deepestLevel(state) : null),
   });
   // ref: src/topten.c topten(): "Val-Hum-Fem-Neu" (role, race, gender, alignment file codes);
-  // the hero is a human female (hero.ts); null for a role without a code
+  // the hero is human (hero.ts), her gender flags.female (gender.ts); null for a role without a code
   api.defineStatus({
     id: 'nh:plcode',
     field: 'plcode',
@@ -195,7 +196,8 @@ export function registerEnd(api: ModApi): void {
       if (!state.gameOver) return null;
       const role = getPlayer(state).c.player?.role;
       const code = role ? ROLE_CODES[role] : undefined;
-      return code ? `${code}-Hum-Fem-${alignCode(uState(state).alignType)}` : null;
+      const gend = heroFemale(state) ? 'Fem' : 'Mal';
+      return code ? `${code}-Hum-${gend}-${alignCode(uState(state).alignType)}` : null;
     },
   });
 }

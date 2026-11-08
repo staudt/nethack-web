@@ -235,9 +235,16 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.FREE_ACTION)) have('free_action');
   if (has(P.FIXED_ABIL)) have('fixed_abil');
   if (has(P.LIFESAVED)) line('enl.lifesaved');
-  // polymorph and other shape change: "you are a werecreature" (the beast form, Unchanging,
-  // polymorph control and Hate_silver lines are 7f's or need silver)
+  // polymorph and other shape change (no protection from shape changers; the polymorphed form,
+  // its eggs and the beast form are 7f-d's; Hate_silver needs silver)
   const lycn = ulycn(ctx.state);
+  if (has(P.UNCHANGING)) {
+    can('unchanging');
+    // blocked shape changes
+    if (has(P.POLYMORPH)) line('enl.would_polymorph');
+    else if (lycn !== null) line('enl.would_change_shape');
+  } else if (has(P.POLYMORPH)) are('polymorphing');
+  if (has(P.POLYMORPH_CONTROL)) have('polymorph_control');
   if (lycn !== null)
     line('enl.you_are', { what: { key: 'enl.lycanthrope', params: { mon: `@${lycn}` } } });
   // miscellany

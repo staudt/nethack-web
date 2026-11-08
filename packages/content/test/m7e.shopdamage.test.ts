@@ -21,6 +21,7 @@ import {
   type Mod,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
+import { setHeroFemale } from '../src/gender';
 import { checkSpecialRoom, eshkOf, stockShops, vanillaMod } from '../src/index';
 import { digactualhole, usePickAxe2, zapDig } from '../src/dig';
 import { zapOverFloor } from '../src/buzz';
@@ -391,6 +392,11 @@ describe('shopdig()', () => {
     const s = shop(1, { x: 3, y: 2 });
     expect(texts(run(s.state, (ctx) => shopdig(ctx, false)))).toEqual([
       '"Madam, do not damage the floor here!"',
+    ]);
+    // a male hero (7f-d: the amulet of change) is "Sir"
+    setHeroFemale(s.state, false);
+    expect(texts(run(s.state, (ctx) => shopdig(ctx, false)))).toEqual([
+      '"Sir, do not damage the floor here!"',
     ]);
   });
 

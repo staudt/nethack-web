@@ -21,6 +21,7 @@ import {
   urexp,
   vanquishedLines,
 } from '../src/index';
+import { setHeroFemale } from '../src/gender';
 import { addMon, setup } from './helpers';
 import { ctxFor, levelSetup, obj, plainKit, render } from './itemHelpers';
 
@@ -159,6 +160,9 @@ describe('final score', () => {
     expect(st['maxDepth']).toBe(4);
     expect(st['plcode']).toBe('Val-Hum-Fem-Neu');
     expect(st['endGold']).toBe(10);
+    // an amulet of change made her male (7f-d): topten's gender file code
+    setHeroFemale(d.s.state, false);
+    expect(buildSnapshot(d.s.engine.registry, d.s.state).status['plcode']).toBe('Val-Hum-Mal-Neu');
   });
 });
 

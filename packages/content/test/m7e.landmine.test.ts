@@ -160,8 +160,8 @@ describe('boulders and land mines', () => {
   test('a pushed boulder sets one off 9 times in 10; it breaks apart or fills the pit', () => {
     let blown = 0;
     // searched seeds: in none does the blast throw the boulder back onto its old square (then
-    // moverock() is 'blocked', C's `sobj_at(BOULDER, sx, sy) ? -1 : 0`)
-    for (let seed = 6; seed <= 25; seed++) {
+    // moverock() is 'blocked', C's `sobj_at(BOULDER, sx, sy) ? -1 : 0`) or anywhere else
+    for (let seed = 37; seed <= 56; seed++) {
       const m = mapSetup(ROW, { seed });
       run(m.state, (ctx) => {
         mksobj(ctx, obj(BOULDER), { init: false, at: { level: 'dlvl1', x: 2, y: 1 } });

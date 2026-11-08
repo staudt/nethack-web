@@ -627,17 +627,16 @@ describe('pits', () => {
   });
 
   test('a spiked pit: rnd(10) on the spikes, poisoned 1 time in 6; iron shoes protect', () => {
-    let plain = 0;
-    const poisonedRun = findSeed(
-      (seed) => {
-        const r = fallIn(TRAP.spikedPit, seed);
-        if (!keys(r.ev).includes('trap.pit.spikes_poisoned')) plain++;
-        return r;
-      },
-      (r) => keys(r.ev).includes('trap.pit.spikes_poisoned'),
-    );
-    expect(plain).toBeGreaterThan(0); // not every fall is poisoned
+    const poisoned = (r: { ev: GameEvent[] }): boolean =>
+      keys(r.ev).includes('trap.pit.spikes_poisoned');
+    const poisonedRun = findSeed((seed) => fallIn(TRAP.spikedPit, seed), poisoned);
     expect(keys(poisonedRun.ev)).toContain('trap.pit.spikes');
+    // not every fall is poisoned
+    const plainRun = findSeed(
+      (seed) => fallIn(TRAP.spikedPit, seed),
+      (r) => !poisoned(r),
+    );
+    expect(keys(plainRun.ev)).toContain('trap.pit.spikes');
     for (let seed = 1; seed <= 20; seed++) {
       const { state, ev } = fallIn(TRAP.spikedPit, seed, true);
       expect(keys(ev)).toContain('trap.pit.spikes');

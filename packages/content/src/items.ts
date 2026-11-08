@@ -182,10 +182,12 @@ export function mksobjInit(
       // the contents (mkbox_cnts() in mkobj.ts) are made once the box exists
       break;
     case 'amulet':
-      // ref: mksobj_init() AMULET_CLASS (change is not in the subset)
+      // ref: mksobj_init() AMULET_CLASS
       if (
         rng.rn2(10) &&
-        (def.id === 'nh:amulet_of_strangulation' || def.id === 'nh:amulet_of_restful_sleep')
+        (def.id === 'nh:amulet_of_strangulation' ||
+          def.id === 'nh:amulet_of_change' ||
+          def.id === 'nh:amulet_of_restful_sleep')
       )
         curse(it);
       else blessorcurse(rng, it, 10);
@@ -195,7 +197,7 @@ export function mksobjInit(
       blessorcurse(rng, it, 17);
       break;
     case 'ring':
-      // ref: mksobj_init() RING_CLASS (teleportation and polymorph are not in the subset)
+      // ref: mksobj_init() RING_CLASS
       if (CHARGED_RINGS.has(def.id)) {
         blessorcurse(rng, it, 3);
         if (rng.rn2(10)) {
@@ -208,7 +210,11 @@ export function mksobjInit(
         if (it.spe < 0 && rng.rn2(5)) curse(it);
       } else if (
         rng.rn2(10) &&
-        (def.id === 'nh:ring_of_aggravate_monster' || def.id === 'nh:ring_of_hunger' || !rng.rn2(9))
+        (def.id === 'nh:ring_of_teleportation' ||
+          def.id === 'nh:ring_of_polymorph' ||
+          def.id === 'nh:ring_of_aggravate_monster' ||
+          def.id === 'nh:ring_of_hunger' ||
+          !rng.rn2(9))
       )
         curse(it);
       break;

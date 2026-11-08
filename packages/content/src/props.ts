@@ -66,6 +66,9 @@ export const P = {
   MAGICAL_BREATHING: 'magical_breathing',
   INVIS: 'invis',
   SEE_INVIS: 'see_invis',
+  POLYMORPH: 'polymorph',
+  POLYMORPH_CONTROL: 'polymorph_control',
+  UNCHANGING: 'unchanging',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */

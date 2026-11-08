@@ -69,6 +69,13 @@ function setup(rows: string[]): {
   };
   state.levels['dlvl1'] = level;
   state.memory['dlvl1'] = newMemory(level);
+  // the generated level's creatures and objects would land on the small map: remove them
+  for (const e of Object.values(state.entities))
+    if (e && e.id !== state.playerId && e.c.pos?.level === 'dlvl1') {
+      for (const o of Object.values(state.entities))
+        if (o?.c.item?.carriedBy === e.id) delete state.entities[String(o.id)];
+      delete state.entities[String(e.id)];
+    }
   const pos = getPlayer(state).c.pos;
   if (!pos) throw new Error('no pos');
   pos.x = start.x;

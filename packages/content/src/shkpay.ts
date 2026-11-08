@@ -5,8 +5,7 @@
 // ref: src/shk.c shopdig(), getcad(), pay_for_damage(), cad()
 //
 // Not ported: deafness, invisibility, polymorphed heroes, Keystone Kops; a shopkeeper is never an
-// animal or mute by nature, so only a helpless one is mute (muteshk()); the hero is always
-// female ("Madam", "Minx").
+// animal or mute by nature, so only a helpless one is mute (muteshk()).
 import {
   cellIndex,
   getLevel,
@@ -25,6 +24,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { eshkOf, inhishop, shopKeeper, uShops } from './eshk';
+import { heroFemale, polyGender } from './gender';
 import { mnextoPos } from './generation';
 import { addToInventory, removeFromInventory } from './items';
 import { adjalign, uState } from './luck';
@@ -132,7 +132,11 @@ export function shopdig(ctx: Ctx, fall: boolean): void {
   const lang = helpless(ctx, shk) ? 0 : 2;
   if (!fall) {
     if (lang === 2 && !muteshk(ctx, shk))
-      say(ctx, utrap(ctx)?.type === 'pit' ? 'shk.damage.careful' : 'shk.damage.dont_damage');
+      say(
+        ctx,
+        (utrap(ctx)?.type === 'pit' ? 'shk.damage.careful' : 'shk.damage.dont_damage') +
+          (heroFemale(ctx.state) ? '' : '.male'),
+      );
     commonThief(ctx);
     return;
   }
@@ -325,7 +329,12 @@ export function payForDamage(ctx: Ctx, dmgstr: DmgStr, cantMollify: boolean): vo
       id: 'shk-damage',
       kind: 'yn',
       key: 'shk.damage.pay_q',
-      params: { cad: { key: 'shk.damage.cad' }, n: cost, zm: zorkmids(cost) },
+      params: {
+        // cad(): poly_gender() "minx" / "cad" (no demon or genderless forms yet)
+        cad: { key: polyGender(ctx.state) === 0 ? 'shk.damage.cad.male' : 'shk.damage.cad' },
+        n: cost,
+        zm: zorkmids(cost),
+      },
     },
     SHK_DAMAGE_ID,
     data as unknown as Json,

@@ -18,6 +18,7 @@ import { bcsign } from './items';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { pluslvl, setUlevelmax, ulevelmax } from './hero';
+import { polyself } from './polyself';
 import { ulycn, youUnwere } from './werestate';
 import { heroEntity, useup } from './magic';
 import { nomulNow } from './hunger';
@@ -295,6 +296,22 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
   return { unknown: true };
 }
 
+/**
+ * "You feel a little strange." and, unless Unchanging, she polymorphs; a blessed one gives
+ * control (a low one) when she is in her own form. ref: src/potion.c peffect_polymorph() (the
+ * timeout cap of a blessed potion's form is 7f-d step 3's)
+ */
+function peffectPolymorph(ctx: Ctx, p: Entity): Effect {
+  const h = heroEntity(ctx);
+  msg(ctx, hasProp(h, P.HALLUC) ? 'poly.potion.halluc' : 'poly.potion');
+  if (!hasProp(h, P.UNCHANGING)) {
+    // (u.umonnum != u.umonster: no forms yet)
+    if (p.c.item?.buc !== 'blessed') polyself(ctx);
+    else polyself(ctx, { controlled: true, low: true });
+  }
+  return { unknown: false };
+}
+
 /** ref: src/potion.c peffects() for the potions in our subset. */
 function peffects(ctx: Ctx, p: Entity): Effect {
   switch (p.def) {
@@ -318,6 +335,8 @@ function peffects(ctx: Ctx, p: Entity): Effect {
       return peffectInvisibility(ctx, p);
     case 'nh:potion_of_see_invisible':
       return peffectSeeInvisible(ctx, p);
+    case 'nh:potion_of_polymorph':
+      return peffectPolymorph(ctx, p);
     case 'nh:potion_of_water':
       return peffectWater(ctx, p);
     default:
@@ -363,6 +382,7 @@ export const POTION_USES: Readonly<
   'nh:potion_of_full_healing': dopotion,
   'nh:potion_of_invisibility': dopotion,
   'nh:potion_of_see_invisible': dopotion,
+  'nh:potion_of_polymorph': dopotion,
   'nh:potion_of_water': dopotion,
 };
 

@@ -94,6 +94,7 @@ import { explode } from './explode';
 import { eshkOf, inAnyShop } from './eshk';
 import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
+import { polyself } from './polyself';
 import { healup } from './potion';
 import { canSpotMon, monNam, rndmonnam } from './perception';
 import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown, wornIn } from './props';
@@ -149,6 +150,7 @@ export const WAN = {
   slow: 'nh:wand_of_slow_monster',
   speed: 'nh:wand_of_speed_monster',
   undeadTurning: 'nh:wand_of_undead_turning',
+  polymorph: 'nh:wand_of_polymorph',
   cancellation: 'nh:wand_of_cancellation',
   teleportation: 'nh:wand_of_teleportation',
   opening: 'nh:wand_of_opening',
@@ -169,6 +171,7 @@ export const SPE = {
   sleep: 'nh:spellbook_of_sleep',
   healing: 'nh:spellbook_of_healing',
   stoneToFlesh: 'nh:spellbook_of_stone_to_flesh',
+  polymorph: 'nh:spellbook_of_polymorph',
 } as const;
 
 /**
@@ -1500,6 +1503,13 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       break;
     case WAN.cancellation:
       cancelMonst(ctx, 'hero', src, true, true);
+      break;
+    case WAN.polymorph:
+    case SPE.polymorph:
+      if (!hasProp(h, P.UNCHANGING)) {
+        learnIt = true;
+        polyself(ctx);
+      }
       break;
     case WAN.undeadTurning:
       learnIt = true;

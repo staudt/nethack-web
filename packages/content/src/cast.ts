@@ -50,6 +50,7 @@ type CastBook =
   | 'nh:spellbook_of_light'
   | 'nh:spellbook_of_detect_monsters'
   | 'nh:spellbook_of_cure_blindness'
+  | 'nh:spellbook_of_polymorph'
   | 'nh:spellbook_of_protection'
   | 'nh:spellbook_of_jumping'
   | 'nh:spellbook_of_stone_to_flesh';
@@ -63,6 +64,7 @@ export const CAST_BOOKS: readonly CastBook[] = [
   'nh:spellbook_of_force_bolt',
   'nh:spellbook_of_confuse_monster',
   'nh:spellbook_of_cure_blindness',
+  'nh:spellbook_of_polymorph',
   'nh:spellbook_of_protection',
   'nh:spellbook_of_jumping',
   'nh:spellbook_of_stone_to_flesh',
@@ -82,6 +84,7 @@ function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | 'jump' {
     case 'nh:spellbook_of_sleep':
     case 'nh:spellbook_of_healing':
     case 'nh:spellbook_of_stone_to_flesh':
+    case 'nh:spellbook_of_polymorph':
       return 'direction';
     case 'nh:spellbook_of_confuse_monster':
       // ref: spelleffects(): a duplicate of the scroll's effect, the pseudo object blessed at

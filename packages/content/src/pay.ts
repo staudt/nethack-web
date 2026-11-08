@@ -20,7 +20,15 @@ import {
   type Msg,
   type Offer,
 } from '@nh/core';
-import { dropBillEntry, eshkOf, inhishop, uShops, type BillEntry, type Eshk } from './eshk';
+import {
+  dropBillEntry,
+  eshkOf,
+  inhishop,
+  shkName,
+  uShops,
+  type BillEntry,
+  type Eshk,
+} from './eshk';
 import { moneyCnt, money2mon } from './money';
 import { paydoname, xnameOf, zorkmids } from './objnam';
 import { canSpotMon } from './perception';
@@ -530,7 +538,8 @@ const payAction: ActionDef = {
       {
         action: { type: 'mod', action: PAY_ID, args: { shk: m.id } },
         labelKey: 'action.nh:pay_shk',
-        params: { shk: e ? shkname(ctx, e) : `@${m.def}` },
+        // an offer may not roll: the true name even while hallucinating (as the other offers)
+        params: { shk: e ? shkName(e) : `@${m.def}` },
       },
     ];
   },

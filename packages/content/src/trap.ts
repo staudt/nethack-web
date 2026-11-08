@@ -69,6 +69,7 @@ import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
 import { erodeObj, type ErodeResult } from './erode';
+import { heroFemale } from './gender';
 import { rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
@@ -133,15 +134,20 @@ export const TRAP = {
   antiMagic: 'nh:anti_magic_field',
   web: 'nh:web',
   statue: 'nh:statue_trap',
+  poly: 'nh:polymorph_trap',
 } as const;
 
 /** The two spiders that spin webs and walk them freely. ref: include/mondata.h webmaker() */
 export const webmaker = (def: { id: DefId }): boolean =>
   def.id === 'nh:cave_spider' || def.id === 'nh:giant_spider';
 
-/** ref: include/trap.h is_magical_trap() (no polymorph traps yet) */
+/** ref: include/trap.h is_magical_trap() */
 export const isMagicalTrap = (def: DefId): boolean =>
-  def === TRAP.tele || def === TRAP.levelTele || def === TRAP.magic || def === TRAP.antiMagic;
+  def === TRAP.tele ||
+  def === TRAP.levelTele ||
+  def === TRAP.magic ||
+  def === TRAP.antiMagic ||
+  def === TRAP.poly;
 
 // Colors as in include/color.h (HI_METAL = CYAN, HI_ZAP = BRIGHT_BLUE).
 const CYAN = '#33bbbb';
@@ -152,6 +158,7 @@ const BRIGHT_BLUE = '#5555ff';
 const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 const MAGENTA = '#bb44bb';
 const RED = '#cc3333';
+const BRIGHT_GREEN = '#55ff55';
 
 /**
  * ref: include/defsym.h S_arrow_trap .. S_hole (S_land_mine CLR_RED), S_teleportation_trap, S_level_teleporter,
@@ -177,6 +184,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.antiMagic, nameKey: TRAP.antiMagic, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.web, nameKey: TRAP.web, glyph: { ch: '"', fg: GRAY } }, // S_web
   { id: TRAP.statue, nameKey: TRAP.statue, glyph: { ch: '^', fg: GRAY } }, // S_statue_trap
+  { id: TRAP.poly, nameKey: TRAP.poly, glyph: { ch: '^', fg: BRIGHT_GREEN } }, // S_polymorph_trap
 ];
 
 /**
@@ -189,7 +197,8 @@ export const floorTrigger = (def: DefId): boolean =>
   def !== TRAP.magic &&
   def !== TRAP.antiMagic &&
   def !== TRAP.web &&
-  def !== TRAP.statue;
+  def !== TRAP.statue &&
+  def !== TRAP.poly;
 
 /**
  * The effects of a trap kind whose code sits above this module: the magic trap and the
@@ -1947,7 +1956,8 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
       else {
         say(ctx, 'tele.cant_fly');
         say(ctx, 'tele.plummet');
-        killer = '@killer.tele.plummet';
+        // "... fell to %s death", uhis()
+        killer = heroFemale(ctx.state) ? '@killer.tele.plummet' : '@killer.tele.plummet.his';
       }
     }
     if (killer !== null) {

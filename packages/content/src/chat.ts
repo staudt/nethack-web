@@ -26,6 +26,7 @@ import { edogOf, meating } from './dog';
 import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
+import { polyGender } from './gender';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
 import { isFleeing } from './monflee';
@@ -215,9 +216,9 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       say(ctx, 'chat.djinni.teach');
       return NORMAL_SPEED;
     case 'seduce': {
-      // nymphs never doseduce(); the hero is female (SYSOPT_SEDUCE on)
+      // nymphs never doseduce() (SYSOPT_SEDUCE on)
       const female = def.flags.includes('female') ? 1 : 0;
-      const swval = female !== 1 ? ctx.rng.rn2(3) : 0;
+      const swval = polyGender(ctx.state) !== female ? ctx.rng.rn2(3) : 0;
       if (swval === 2) {
         say(ctx, 'chat.hello_sailor');
         return NORMAL_SPEED;

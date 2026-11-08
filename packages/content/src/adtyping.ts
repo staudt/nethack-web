@@ -19,6 +19,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { stopOccupation } from './eat';
+import { heroFemale } from './gender';
 import { poisoned } from './attrib';
 import { setUstuck, ustuck } from './hackmove';
 import { SICK_NONVOMITABLE, hungerData, makeSick, nomulNow } from './hunger';
@@ -1087,7 +1088,10 @@ function adSedu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
       // continue below
     } else if (isCancelled(ctx, magr.id)) {
       // (the polymorphed hero with a seduction attack is 7f)
-      if (!hasProp(mdef, P.BLINDED)) say(ctx, 'steal.plain_tries', { mon: monNam(ctx, magr) }); // flags.female: "charm"
+      if (!hasProp(mdef, P.BLINDED))
+        say(ctx, heroFemale(ctx.state) ? 'steal.plain_tries' : 'steal.plain_tries.male', {
+          mon: monNam(ctx, magr),
+        });
       if (ctx.rng.rn2(3)) {
         if (!teleRestrict(ctx, magr)) rlocMon(ctx, magr, true);
         mhm.hitflags = M_ATTK.AGR_DONE;

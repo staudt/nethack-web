@@ -57,6 +57,7 @@ import {
   type BillEntry,
   type Eshk,
 } from './eshk';
+import { heroFemale } from './gender';
 import { mnextoPos } from './generation';
 import { isCandle } from './items';
 import { adjalign, uState } from './luck';
@@ -472,9 +473,10 @@ function billBoxContent(ctx: Ctx, obj: Entity, dummy: boolean, shk: EntityId): v
   }
 }
 
-/** ref: src/shk.c append_honorific() (no udemigod, vampires or elves: a human lady) */
+/** ref: src/shk.c append_honorific() (no udemigod, vampires or elves: a human lady or sir) */
 function honorific(ctx: Ctx): { hon: string; title: string } {
-  return { hon: `@shk.hon.${ctx.rng.rn2(4)}`, title: '@shk.lady' };
+  const hon = `@shk.hon.${ctx.rng.rn2(4)}`;
+  return { hon, title: heroFemale(ctx.state) ? '@shk.lady' : '@shk.sir' };
 }
 
 /** The object's name, singular. ("fool xname() into giving singular") */

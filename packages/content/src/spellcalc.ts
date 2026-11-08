@@ -24,6 +24,7 @@ export const SPELL_INFO: Readonly<Record<DefId, SpellInfo>> = {
   'nh:spellbook_of_force_bolt': { skill: 'attack_spell', dir: 'immediate' },
   'nh:spellbook_of_confuse_monster': { skill: 'enchantment_spell', dir: 'immediate' },
   'nh:spellbook_of_cure_blindness': { skill: 'healing_spell', dir: 'immediate' },
+  'nh:spellbook_of_polymorph': { skill: 'matter_spell', dir: 'immediate' },
   'nh:spellbook_of_protection': { skill: 'cleric_spell', dir: 'nodir' },
   'nh:spellbook_of_jumping': { skill: 'escape_spell', dir: 'immediate' },
   'nh:spellbook_of_stone_to_flesh': { skill: 'healing_spell', dir: 'immediate' },

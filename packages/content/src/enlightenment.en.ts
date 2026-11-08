@@ -91,6 +91,12 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.teleport_control': 'teleport control',
   'enl.would_levitate': 'You would levitate if not trapped.',
   'enl.breathless': 'survive without air',
+  'enl.unchanging': 'not change from your current form',
+  'enl.would_polymorph': 'You would polymorph periodically if not locked into your current form.',
+  'enl.would_change_shape':
+    'You would change shape periodically if not locked into your current form.',
+  'enl.polymorphing': 'polymorphing periodically',
+  'enl.polymorph_control': 'polymorph control',
   'enl.regenerate': 'You regenerate.',
   'enl.slow_digestion': 'slower digestion',
   'enl.modif.small': 'small',
