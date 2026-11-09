@@ -48,8 +48,10 @@ describe('polymorph soak', () => {
   // 714 replaced 711 in m12 step 3 (queen bee, lieutenant, captain): it died at turn 141;
   // 718 replaced 714 in m12 step 7 (the guard row): it died at turn 82, and passes without the row;
   // 723 replaced 717 in m13 step 6 (the golems shift the random forms): it died at turn 153, and
-  // passes without the golem rows, as 723 does)
-  for (const seed of [718, 723]) {
+  // passes without the golem rows, as 723 does; 724 replaced 723 in m13 step 8 (the 34 new rows
+  // shift the random forms): it died at turn 120, and 718 and 724 last 400 turns with the rows in
+  // and filtered out)
+  for (const seed of [718, 724]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

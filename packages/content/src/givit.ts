@@ -4,6 +4,7 @@ import { getPlayer, type Ctx, type MonsterDef } from '@nh/core';
 import { gainstr } from './attrib';
 import {
   P,
+  hasFromForm,
   hasIntrinsic,
   hasProp,
   incrItimeout,
@@ -11,8 +12,10 @@ import {
   makeConfused,
   makeStunned,
   setIntrinsic,
+  setItimeout,
   timeoutLeft,
 } from './props';
+import { heroInvisBlocked, heroInvisible, selfInvisMessage } from './invis';
 import { pluslvl } from './hero';
 import { counterWere, setUlycn } from './werestate';
 import { pwOf, setPw } from './uenergy';
@@ -160,9 +163,10 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
 
 /**
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
- * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic. Not ported
- * (no systems for them): mimicking, shapeshifters, displacer beast, disenchanter, the nurse and
- * the stalker's invisibility. The wraith gives a level (pluslvl(FALSE)), a human-form were
+ * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic; the stalker
+ * makes her invisible for a while, or for good with see invisible when she already is. Not ported
+ * (no systems for them): mimicking, shapeshifters, displacer beast, disenchanter and the nurse.
+ * The wraith gives a level (pluslvl(FALSE)), a human-form were
  * creature its lycanthropy (set_ulycn(); the beast forms leave no corpse).
  */
 export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
@@ -194,7 +198,17 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   let stuns = 0;
   switch (def.id) {
     case 'nh:stalker':
-      stuns = 3;
+      // ref: cpostfx() PM_STALKER, then falls through to the yellow light's and the bat's stun
+      if (!heroInvisible(ctx.state)) {
+        setItimeout(ctx.state, hero, P.INVIS, ctx.rng.rn2(100) + 50); // rn1(100, 50)
+        if (!hasProp(hero, P.BLINDED) && !heroInvisBlocked(ctx.state)) selfInvisMessage(ctx);
+      } else {
+        if (!hasIntrinsic(hero, P.INVIS) && !hasFromForm(hero, P.INVIS))
+          ctx.emit({ type: 'msg', key: 'givit.feel_hidden' });
+        setIntrinsic(hero, P.INVIS, true);
+        setIntrinsic(hero, P.SEE_INVIS, true);
+      }
+      stuns = 2;
       break;
     case 'nh:yellow_light':
     case 'nh:giant_bat':

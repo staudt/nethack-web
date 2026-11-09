@@ -18,6 +18,7 @@ import {
   trapAt,
   type AttackDef,
   type Ctx,
+  type DefId,
   type Entity,
   type EntityId,
   type Msg,
@@ -65,7 +66,9 @@ import { resistConflict } from './props';
 import { monPolyWhenStoned, monToStone, monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 import { canseemon, monInvisible, perceives } from './invis';
-import { hatesSilver } from './mondata';
+import { hatesSilver, nonliving } from './mondata';
+import { littleToBig } from './eggstate';
+import { isGenocided } from './vanquished';
 import { isSilver, silverSearsMm } from './silver';
 
 export { M_ATTK };
@@ -108,22 +111,11 @@ function noises(ctx: Ctx, magr: Entity): void {
 }
 
 /**
- * ref: src/makemon.c little_to_big(): the grown-up form, from the defs' `grows into` table.
- * Only the domestic animals grow up here.
- */
-export const GROWS_INTO: Readonly<Record<string, string>> = {
-  'nh:kitten': 'nh:housecat',
-  'nh:housecat': 'nh:large_cat',
-  'nh:little_dog': 'nh:dog',
-  'nh:dog': 'nh:large_dog',
-};
-
-/**
  * A monster that killed `victim` gains hit points and maybe a level, growing into its bigger
  * form ("The kitten grows up into a housecat."). With no victim (`null`: a wraith corpse, as a
- * potion of gain level would) it always goes up a level, a killer bee into a queen bee. Returns
- * false if it died (never here).
- * ref: src/makemon.c grow_up() (home elementals are not special here)
+ * potion of gain level would) it always goes up a level, a killer bee into a queen bee. The
+ * bigger form is little_to_big()'s; growing into a genocided one kills it. Returns false if it
+ * died. ref: src/makemon.c grow_up() (home elementals are not special here; no gender change)
  */
 export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): boolean {
   const mon = ent(ctx, id);
@@ -132,9 +124,10 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): bool
   if (!mon || !m || !hp) return false;
   const oldDef = ctx.defs.monster(mon.def);
   const newType =
-    mon.def === 'nh:killer_bee' && victimLevel === null ? 'nh:queen_bee' : GROWS_INTO[mon.def];
-  const newDef =
-    newType && ctx.defs.isMonster(newType as never) ? ctx.defs.monster(newType as never) : oldDef;
+    mon.def === 'nh:killer_bee' && victimLevel === null
+      ? ('nh:queen_bee' as DefId)
+      : littleToBig(ctx.defs, mon.def);
+  const newDef = ctx.defs.isMonster(newType) ? ctx.defs.monster(newType) : oldDef;
   let hpThreshold: number;
   let levLimit: number;
   let maxIncrease: number;
@@ -163,10 +156,24 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): bool
   else if (levLimit > 49) levLimit = oldDef.level > 49 ? 50 : 49;
   m.level++;
   if (m.level >= newDef.level && newDef !== oldDef) {
+    if (isGenocided(ctx.state, newDef.id)) {
+      // "As <mon> grows up into <a newtype>, it dies!" (allow G_EXTINCT)
+      if (canSpotMon(ctx, mon))
+        say(ctx, nonliving(newDef) ? 'mhitm.grows_up_expires' : 'mhitm.grows_up_dies', {
+          mon: monNam(ctx, mon),
+          into: `@${newDef.id}`,
+        });
+      mon.def = newDef.id; // set_mon_data(): keep the counts accurate
+      mondied(ctx, mon.id);
+      return false;
+    }
     if (canSpotMon(ctx, mon)) {
       const name = monNam(ctx, mon);
       mon.def = newDef.id;
-      say(ctx, 'mhitm.grows_up', { mon: name, into: `@${newDef.id}` });
+      say(ctx, newDef.flags.includes('humanoid') ? 'mhitm.becomes' : 'mhitm.grows_up', {
+        mon: name,
+        into: `@${newDef.id}`,
+      });
     } else mon.def = newDef.id;
     levLimit = m.level;
   }

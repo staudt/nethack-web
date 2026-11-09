@@ -43,6 +43,7 @@ export const eggMessagesEn: Record<string, string> = {
   'egg.crying.chirp': 'chirping',
   'egg.crying.buzz': 'buzzing',
   'egg.crying.grunt': 'grunting',
+  'egg.crying.mumble': 'mumbling',
 
   // hitting and breaking. ref: src/uhitm.c hmon_hitmon_misc_obj() EGG, src/dothrow.c breakmsg()
   'egg.splat': 'Splat!',

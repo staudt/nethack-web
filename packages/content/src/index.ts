@@ -307,7 +307,7 @@ export {
   warningShown,
   WARNING_PERCEPTION,
 } from './perception';
-export { mattackm, fightm, monkilled, mondied, growUp, GROWS_INTO, M_ATTK } from './mhitm';
+export { mattackm, fightm, monkilled, mondied, growUp, M_ATTK } from './mhitm';
 export {
   isFrozen,
   frozenTime,

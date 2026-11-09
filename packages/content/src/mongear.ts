@@ -374,7 +374,7 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   } else if (ch === 'k') {
     if (rng.rn2(4) === 0) mInitThrow(ctx, monId, 'nh:dart', 12);
   } else if (ch === 'W') {
-    // ref: m_initweap() S_WRAITH (only the armed barrow wight gets here)
+    // ref: m_initweap() S_WRAITH (the armed barrow wight and the Nazgul)
     mongets(ctx, monId, 'nh:knife');
     mongets(ctx, monId, 'nh:long_sword');
   } else {
@@ -595,6 +595,15 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     if (!rng.rn2(2)) mongets(ctx, monId, 'nh:potion_of_object_detection');
   }
   if (def.glyph.ch === 'l') mkmonmoney(ctx, monId, rng.d(depth, 30));
+  // ref: m_initinv() S_WRAITH: the Nazgul carries a cursed ring of invisibility (not worn)
+  if (def.id === 'nh:nazgul') {
+    const ring = objDef(ctx, 'nh:ring_of_invisibility');
+    if (ring) {
+      const rid = mksobj(ctx, ring, { init: false, carriedBy: monId });
+      const it = ctx.state.entities[String(rid)]?.c.item;
+      if (it) it.buc = 'cursed'; // curse(otmp)
+    }
+  }
   if (def.glyph.ch === 'G') rng.rn2(60);
   // ref: m_initinv() S_GIANT is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass (no
   // minotaur here)

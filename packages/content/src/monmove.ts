@@ -182,8 +182,9 @@ const monCount = (ctx: Ctx, id: EntityId) => {
 /**
  * Possibly awaken a sleeping monster; true if it woke up.
  * ref: src/monmove.c disturb(). The hero's line of sight is `couldsee()` (ignores light).
- * The Stealth test uses the hero's Stealth property; a mimic posing as an object or furniture is
- * not woken by the 1 in 7. Not applicable to our roster: ettin, nymph, jabberwock, leprechaun.
+ * The Stealth test uses the hero's Stealth property (an ettin is surprised past it 9 times in 10);
+ * nymphs, jabberwocks and leprechauns wake only 1 time in 50; a mimic posing as an object or
+ * furniture is not woken by the 1 in 7.
  */
 export function disturb(ctx: Ctx, id: EntityId): boolean {
   const { m, pos, def } = monCount(ctx, id);
@@ -192,9 +193,9 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
   if (!hp) return false;
   const level = getLevel(ctx.state, pos.level);
   const stealth = heroHas(ctx.state, P.STEALTH);
+  const ch = def.glyph.ch;
   if (
     dist2(pos.x, pos.y, hp.x, hp.y) <= 100 &&
-    !stealth &&
     clearPath(
       level,
       cellRules(level, ctx.defs).opaque,
@@ -204,6 +205,8 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
       pos.y,
       blockersOf(ctx, level.id),
     ) &&
+    (!stealth || (def.id === 'nh:ettin' && ctx.rng.rn2(10) !== 0)) &&
+    (!(ch === 'n' || def.id === 'nh:jabberwock' || ch === 'l') || ctx.rng.rn2(50) === 0) &&
     (heroHas(ctx.state, P.AGGRAVATE_MONSTER) ||
       def.glyph.ch === 'd' ||
       def.glyph.ch === '@' ||

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4176 citations.
+155 NetHack files, 4212 citations.
 
 ## dat/dungeon.lua
 
@@ -1203,7 +1203,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `golemhp()`: `packages/content/src/golem.ts`
 - `grow_up()`: `packages/content/src/mhitm.ts`
 - `init_mongen_order()`: `packages/content/src/generation.ts`
-- `little_to_big()`: `packages/content/src/mhitm.ts`
 - `m_initgrp()`: `packages/content/src/generation.ts`
 - `m_initinv()`: `packages/content/src/mongear.ts`
 - `m_initthrow()`: `packages/content/src/mongear.ts`
@@ -1875,7 +1874,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `seffect_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/read.ts`
 - `seffect_gold_detection()`: `packages/content/src/read.ts`
 - `seffect_identify()`: `packages/content/src/read.ts`
-- `seffect_light()`: `packages/content/src/read.ts`
+- `seffect_light()`: `packages/content/src/read.ts`, `packages/content/src/seffect.ts`
 - `seffect_magic_mapping()`: `packages/content/src/read.ts`
 - `seffect_remove_curse()`: `packages/content/src/read.ts`
 - `seffect_scare_monster()`: `packages/content/src/seffect.ts`

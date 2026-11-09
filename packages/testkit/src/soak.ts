@@ -274,8 +274,13 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
 
   // doors are checked once per level, as made (the bot may dig through walls later)
   const doorsChecked = new Set<string>();
+  // a wall-walker polymorphed where it stood in rock stays there (C's newcham())
+  const wallwalk = { ids: new Set<string>(), spots: new Set<string>() };
   const check = (action: PlayerAction | null): void => {
-    const errors = [...stepErrors, ...checkInvariants(state, engine.registry, { doorsChecked })];
+    const errors = [
+      ...stepErrors,
+      ...checkInvariants(state, engine.registry, { doorsChecked, wallwalk }),
+    ];
     stepErrors.length = 0;
     if (errors.length > 0) violations = { step: log.length, action, errors };
   };

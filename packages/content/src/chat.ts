@@ -184,6 +184,8 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return ctx.rng.rn2(3) ? 0 : pline('chat.groans');
     case 'burble':
       return pline('chat.burbles');
+    case 'mumble': // nagas, liches
+      return pline('chat.mumbles');
     case 'trumpet': {
       const p = mon.c.pos;
       if (p) wakeNearto(ctx, p.x, p.y, 11 * 11);

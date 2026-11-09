@@ -64,6 +64,8 @@ function crySound(def: MonsterDef): string {
       return 'buzz';
     case 'grunt': // gargoyles
       return 'grunt';
+    case 'mumble': // naga hatchlings
+      return 'mumble';
     default:
       // insects, arthropods, worms, sea creatures: "chitter" so the gag works
       return def.glyph.ch === ';' ? 'gurgle' : 'chitter';

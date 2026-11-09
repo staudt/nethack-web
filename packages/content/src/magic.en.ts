@@ -180,6 +180,7 @@ export const magicMessagesEn: Record<string, string> = {
   'read.blind_disappears': 'As you pronounce the formula on it, the scroll disappears.',
   'read.blind_you_read': 'You pronounce the formula on the scroll.',
   'light.sparkle': 'Tiny lights sparkle in the air momentarily.',
+  'light.lights_appear': 'Lights appear all around you!',
   'remove_curse.helping': 'You feel like someone is helping you.',
   'remove_curse.disintegrates': 'The scroll disintegrates.',
   'light.lit_field': 'A lit field surrounds you!',

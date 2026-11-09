@@ -137,8 +137,8 @@ const helperWord = (pm: string): string =>
 
 /**
  * A were creature summons 1 to 5 of its animals next to the hero; returns how many came and how
- * many the hero sees. A type missing from the roster (the winter wolf) does not come, but its
- * roll is made. `yours` (the polymorphed hero's #monster) is called with each one made, which
+ * many the hero sees. A type missing from the monster table does not come, but its roll is
+ * made. `yours` (the polymorphed hero's #monster) is called with each one made, which
  * tames it (monability.ts). ref: src/were.c were_summon()
  */
 export function wereSummon(

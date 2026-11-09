@@ -35,6 +35,21 @@ const KNOWN_SOUNDS = [
   'groan',
   'djinni',
   'oracle',
+  'seduce',
+  'laugh',
+  'shriek',
+  'cuss',
+  'sqawk',
+  'neigh',
+  'trumpet',
+  'imitate',
+  'burble',
+  'boast',
+  'were',
+  'spell',
+  'nurse',
+  'guard',
+  'mumble',
 ];
 
 const q = (s: string): string => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;

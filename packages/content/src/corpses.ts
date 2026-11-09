@@ -285,7 +285,7 @@ export function xkilledCorpse(
  * level creation). Lizards and lichens never rot; trolls may revive instead. No Riders.
  */
 export function startCorpseTimeout(
-  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
+  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule' | 'defs'>,
   id: number,
   inMklev = false,
 ): void {
@@ -299,7 +299,7 @@ export function startCorpseTimeout(
   when += rnz(ctx, rotAdjust) - rotAdjust;
   // ref: start_corpse_timeout(): a troll revives 1 time in TROLL_REVIVE_CHANCE for each age
   // 2..TAINT_AGE (revive.ts 'nh:revive_mon'); no Riders, no zombify
-  if (it.corpseOf && trollCorpse(it.corpseOf)) {
+  if (it.corpseOf && trollCorpse(ctx, it.corpseOf)) {
     for (let a = 2; a <= TAINT_AGE; a++)
       if (!ctx.rng.rn2(TROLL_REVIVE_CHANCE)) {
         ctx.schedule(a, 'nh:revive_mon', { id });
@@ -311,15 +311,16 @@ export function startCorpseTimeout(
 
 /** ref: include/hack.h TROLL_REVIVE_CHANCE: 1/37 for 50 turns, about 75% */
 const TROLL_REVIVE_CHANCE = 37;
-/** ref: start_corpse_timeout() `mons[body->corpsenm].mlet == S_TROLL` (the roster's troll) */
-const trollCorpse = (mon: DefId): boolean => mon === 'nh:troll';
+/** ref: start_corpse_timeout() `mons[body->corpsenm].mlet == S_TROLL` */
+const trollCorpse = (ctx: Pick<Ctx, 'defs'>, mon: DefId): boolean =>
+  ctx.defs.isMonster(mon) && ctx.defs.monster(mon).glyph.ch === 'T';
 
 /**
  * Makes a corpse that of `mon`: its rot timer is stopped and started again for the new type.
  * ref: src/mkobj.c set_corpsenm() (obj_stop_timers(), start_corpse_timeout())
  */
 export function setCorpsenm(
-  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
+  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule' | 'defs'>,
   id: number,
   mon: DefId,
   inMklev = false,

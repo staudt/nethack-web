@@ -26,6 +26,7 @@ import { isGenocided } from './vanquished';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { isUnicorn } from './mondata';
+import { setMinvis } from './invis';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -412,7 +413,8 @@ export function makemon(
 
   // ref: makemon() switch (ptr->mlet): a mimic takes a disguise (set_mimic_sym()); snakes and
   // spiders made with the level get an object on their square and hide under it (hideunder()),
-  // leprechauns sleep, nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
+  // the stalker and the black light are invisible for good, leprechauns sleep, jabberwocks and
+  // nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
   if (mlet === 'm') setMimicSym(ctx, id, opts.inMklev === true);
@@ -420,8 +422,12 @@ export function makemon(
     if (!levelObjectAt) throw new Error('makemon: mkobj.ts has not registered mkobj_at()');
     levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
     hideunder(ctx, id, true);
+  } else if (mdef.id === 'nh:stalker' || mdef.id === 'nh:black_light') {
+    // S_LIGHT, S_ELEMENTAL: `mtmp->perminvis = TRUE; mtmp->minvis = TRUE;`
+    const e = ctx.state.entities[String(id)];
+    if (e) setMinvis(ctx, e);
   } else if (mon && mlet === 'l') mon.asleep = true;
-  else if (mon && mlet === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
+  else if (mon && (mlet === 'n' || mlet === 'J') && ctx.rng.rn2(5)) mon.asleep = true;
   // ref: makemon() S_UNICORN: a unicorn of the hero's alignment is peaceful (MM_ANGRY too)
   else if (
     mon &&

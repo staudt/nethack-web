@@ -22,6 +22,13 @@ export interface InvariantOpts {
    * without walls, or a dug wall corner as an empty doorway, as in C).
    */
   doorsChecked?: Set<string>;
+  /**
+   * Wall-walkers seen at earlier checks: `ids` (the wall-walkers of the last check) and `spots`
+   * (`id@level:x,y`). A long run passes one record, so a monster polymorphed out of a
+   * wall-walking form inside stone, a wall or a door (C's newcham() leaves it there; it can only
+   * step out) is not reported while it stays put.
+   */
+  wallwalk?: { ids: Set<string>; spots: Set<string> };
 }
 
 /** Returns a list of violated invariants; empty means the state is healthy. */
@@ -75,6 +82,7 @@ export function checkInvariants(
   const nh = state.modData['nh'] as { uswallow?: { mon?: unknown } | null } | undefined;
   const engulfer = typeof nh?.uswallow?.mon === 'number' ? nh.uswallow.mon : null;
   const seen = new Map<string, number>();
+  const nowWallwalkers: string[] = [];
   for (const id of ids) {
     const e = state.entities[String(id)];
     if (!e) continue;
@@ -118,10 +126,13 @@ export function checkInvariants(
       e.c.monster !== undefined &&
       registry.isMonster(e.def) &&
       registry.monster(e.def).flags.includes('wallwalk');
-    if (
-      !wallwalk &&
-      (pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable)
-    ) {
+    const spot = `${id}@${p.level}:${p.x},${p.y}`;
+    const blocked =
+      pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable;
+    const ww = opts.wallwalk;
+    if (wallwalk) nowWallwalkers.push(String(id));
+    if (blocked && ww && (wallwalk || ww.ids.has(String(id)))) ww.spots.add(spot);
+    if (blocked && !wallwalk && !ww?.spots.has(spot)) {
       errs.push(`entity ${id}: on impassable cell (${pal ?? '?'}) at ${p.x},${p.y}`);
     }
     // Objects pile up; only creatures need a cell to themselves.
@@ -136,6 +147,7 @@ export function checkInvariants(
       errs.push(`entities ${other} and ${id} share cell ${key}`);
     else seen.set(key, id);
   }
+  if (opts.wallwalk) opts.wallwalk.ids = new Set(nowWallwalkers);
 
   // Items: exactly one place (floor, carrier or container), a living carrier, unique inventory
   // letters per carrier.

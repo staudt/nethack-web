@@ -58,6 +58,33 @@ describe('invariants', () => {
     expect(errs(s).join('\n')).toMatch(/impassable/);
   });
 
+  test('a wall-walker polymorphed inside a wall may stay there; others may not', () => {
+    const s = fresh();
+    const w = wallCell(s);
+    const id = s.nextEntityId++;
+    s.entities[String(id)] = {
+      id,
+      def: 'nh:xorn' as never,
+      c: {
+        pos: { level: s.currentLevel, x: w.x, y: w.y },
+        actor: { energy: 0, speed: 9 },
+        hp: { cur: 5, max: 5 },
+        monster: { level: 8, peaceful: false, asleep: false, lastHero: null },
+      },
+    };
+    const wallwalk = { ids: new Set<string>(), spots: new Set<string>() };
+    const check = (): string => checkInvariants(s, engine.registry, { wallwalk }).join('\n');
+    expect(check()).not.toMatch(/impassable/);
+    s.entities[String(id)]!.def = 'nh:jackal' as never; // newcham() where it stood
+    expect(check()).not.toMatch(/impassable/);
+    expect(errs(s).join('\n')).toMatch(/impassable/); // no record: reported
+    expect(check()).not.toMatch(/impassable/);
+    const fresh2 = { ids: new Set<string>(), spots: new Set<string>() };
+    expect(checkInvariants(s, engine.registry, { wallwalk: fresh2 }).join('\n')).toMatch(
+      /impassable/,
+    );
+  });
+
   test('two entities share a cell', () => {
     const s = fresh();
     const p = getPlayer(s);

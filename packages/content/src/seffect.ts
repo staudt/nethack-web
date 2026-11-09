@@ -35,7 +35,7 @@ import {
 } from '@nh/core';
 import { resist } from './buzz';
 import { monsterIdAt } from './combat';
-import { tamedog } from './dog';
+import { initedog, tamedog } from './dog';
 import { adjAbon, armorOff } from './dowear';
 import { erodeObj, type ErodeType } from './erode';
 import { explode } from './explode';
@@ -51,7 +51,8 @@ import { rechargeRing, ringGone } from './jewelry';
 import { strangeFeeling, useup } from './magic';
 import { heroSees } from './mongear';
 import { monflee, stopFleeing } from './monflee';
-import { isFrozen, unfreezeMonst } from './mstate';
+import { isFrozen, setCancelled, unfreezeMonst } from './mstate';
+import { isGenocided } from './vanquished';
 import {
   erosionMatters,
   isCorrodeable,
@@ -469,6 +470,44 @@ function maybeTame(ctx: Ctx, mtmp: Entity, buc: string, spell: boolean): number 
   const after = ctx.state.entities[String(mtmp.id)]?.c.monster;
   if (!after) return 0;
   return (!wasPeaceful && after.peaceful) || wasTame !== (after.tame ?? 0) ? 1 : 0;
+}
+
+/**
+ * A confused scroll of light surrounds her with cancelled tame lights that will not explode:
+ * `rn1(2, 3)` (2 more when blessed) yellow lights, black lights when cursed; "Lights appear all
+ * around you!" when she sees one, "Tiny lights sparkle in the air momentarily." when that kind
+ * is gone. True when the scroll became known. ref: src/read.c seffect_light() (confused)
+ */
+export function confusedLight(ctx: Ctx, buc: 'blessed' | 'uncursed' | 'cursed'): boolean {
+  const pm = (buc === 'cursed' ? 'nh:black_light' : 'nh:yellow_light') as DefId;
+  if (!ctx.defs.isMonster(pm) || isGenocided(ctx.state, pm)) {
+    say(ctx, 'light.sparkle');
+    return false;
+  }
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!hp) return false;
+  let sawlights = false;
+  const numlights = ctx.rng.rn2(2) + 3 + (buc === 'blessed' ? 2 : 0); // rn1(2, 3) + sblessed * 2
+  for (let i = 0; i < numlights; i++) {
+    // MM_EDOG | NO_MINVENT | MM_NOMSG, on her square (C's byyou: next to her)
+    const id = makemon(
+      ctx,
+      ctx.defs.monster(pm),
+      { x: hp.x, y: hp.y },
+      {
+        adjacentOk: true,
+        noInventory: true,
+      },
+    );
+    const mon = id === null ? undefined : ctx.state.entities[String(id)];
+    if (id === null || !mon?.c.monster) continue;
+    initedog(ctx, id, true);
+    mon.c.monster.asleep = false;
+    setCancelled(ctx, id);
+    if (canSpotMon(ctx, mon)) sawlights = true;
+  }
+  if (sawlights) say(ctx, 'light.lights_appear');
+  return sawlights;
 }
 
 /**

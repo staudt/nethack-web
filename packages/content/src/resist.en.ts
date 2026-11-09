@@ -147,6 +147,7 @@ export const resistMessagesEn: Record<string, string> = {
   'givit.qm_velocity': 'Your velocity suddenly seems very uncertain!',
   'givit.qm_slower': 'You seem slower.',
   'givit.qm_faster': 'You seem faster.',
+  'givit.feel_hidden': 'You feel hidden!',
   'eat.poison_unaffected': 'You seem unaffected by the poison.',
 
   // why the hero cannot act (multi_reason)

@@ -76,6 +76,7 @@ import { snuffLit } from './light';
 import {
   answerSeffect,
   confuseMonster,
+  confusedLight,
   isSeffectAsk,
   seffectAmnesia,
   seffectCharging,
@@ -852,8 +853,8 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       known = seffectRemoveCurse(ctx, scroll);
       break;
     case 'nh:scroll_of_light':
-      // ref: seffect_light(). Confused, it would make tame lights; until pets exist they fizzle.
-      if (confused) msg(ctx, 'light.sparkle');
+      // ref: seffect_light(). Confused, tame cancelled lights around her (seffect.ts).
+      if (confused) known = confusedLight(ctx, it.buc);
       else {
         litroom(ctx, it.buc !== 'cursed', it.buc === 'blessed');
         known = !blind;
