@@ -3,12 +3,29 @@
 // wand into a meat stick, rocks and gems into meatballs. Sits under zap.ts.
 // ref: src/zap.c stone_to_flesh_obj()
 //
-// Not ported: figurines (none exist), the Heart of Ahriman (no artifacts: every object
+// Not ported: the Heart of Ahriman (no artifacts: every object
 // resists 2 times in 100), saved monster traits, vegetarian conduct (the smell is always "the odor
 // of meat": DEVIATIONS.md "Stone to flesh").
-import { contents, type Ctx, type DefId, type Entity, type Msg } from '@nh/core';
+import {
+  cellIndex,
+  contents,
+  getPlayer,
+  isVisible,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type LevelId,
+  type MonsterDef,
+  type Msg,
+} from '@nh/core';
 import { BOULDER } from './boulder';
 import { placeObject } from './items';
+import { costlySpot } from './eshk';
+import { FIGURINE, stopFigTransform } from './figurinestate';
+import { makemon } from './generation';
+import { useup } from './magic';
+import { shopAt } from './revive';
+import { stolenValue } from './shk';
 import { vegetarian } from './mondata';
 import { isGolem } from './golem';
 import { objLocation, polyObj } from './polyobj';
@@ -27,6 +44,55 @@ const CORPSE: DefId = 'nh:corpse';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+const FLESH_GOLEM: DefId = 'nh:flesh_golem';
+
+/**
+ * A figurine hit by stone to flesh becomes its monster (makemon(NO_MINVENT | MM_NOMSG) where it
+ * lies: next to her when she carries it, none when another monster stands on it); a shop's
+ * figurine is paid for as stolen; "The figurine (turns to flesh and) animates!" when seen.
+ * ref: src/zap.c stone_to_flesh_obj() FIGURINE
+ */
+function animateFigurine(
+  ctx: Ctx,
+  obj: Entity,
+  ptr: MonsterDef,
+  at: { level: LevelId; x: number; y: number },
+  golemXform: boolean,
+): Entity | null {
+  const hp = getPlayer(ctx.state).c.pos;
+  const byyou = hp?.level === at.level && hp.x === at.x && hp.y === at.y;
+  const mid = makemon(
+    ctx,
+    ptr,
+    { x: at.x, y: at.y },
+    { level: at.level, adjacentOk: byyou, noInventory: true },
+  );
+  const mon = mid === null ? null : (ctx.state.entities[String(mid)] ?? null);
+  if (!mon?.c.pos) return null;
+  const it = obj.c.item;
+  const carried = it?.carriedBy === ctx.state.playerId;
+  if (
+    at.level === ctx.state.currentLevel &&
+    costlySpot(ctx, at.x, at.y) &&
+    (carried ? !!it?.unpaid : !it?.noCharge)
+  ) {
+    const shkp = shopAt(ctx, at.x, at.y);
+    stolenValue(ctx, obj, at.x, at.y, !!shkp?.c.monster?.peaceful, false);
+  }
+  stopFigTransform(ctx, obj.id);
+  if (carried) useup(ctx, obj.id);
+  else ctx.remove(obj.id);
+  const mp = mon.c.pos;
+  const level = ctx.state.levels[mp.level];
+  if (
+    mp.level === ctx.state.currentLevel &&
+    level &&
+    isVisible(ctx.state, cellIndex(level, mp.x, mp.y))
+  )
+    say(ctx, golemXform ? 'figurine.flesh_animates' : 'figurine.animates');
+  return mon;
+}
 
 /**
  * Stone to flesh hits the object (on the floor, or in her pack when she casts it at herself):
@@ -47,21 +113,30 @@ export function stoneToFleshObj(ctx: Ctx, obj: Entity): number {
   let res = 1;
   let smell = false;
   switch (od.class) {
-    case 'rock': // boulders and statues (no figurines)
+    case 'rock': // boulders and statues
+    case 'tool': // figurines
       if (obj.def === BOULDER) {
         polyObj(ctx, obj, MEAT.enormous);
         smell = true;
-      } else if (obj.def === STATUE) {
+      } else if (obj.def === STATUE || obj.def === FIGURINE) {
         const montype = obj.c.item?.corpseOf;
-        const ptr = montype && ctx.defs.isMonster(montype) ? ctx.defs.monster(montype) : null;
-        // a golem's statue animates as a flesh golem (animate_statue())
-        if (ptr && !isGolem(ptr) && vegetarian(ptr)) {
+        let ptr = montype && ctx.defs.isMonster(montype) ? ctx.defs.monster(montype) : null;
+        let golemXform = false;
+        if (ptr && isGolem(ptr)) golemXform = ptr.id !== FLESH_GOLEM;
+        else if (ptr && vegetarian(ptr)) {
           // don't animate monsters that aren't flesh
           polyObj(ctx, obj, MEAT.meatball);
           smell = true;
           break;
         }
-        const { mon } = animateStatue(ctx, obj, at.x, at.y, 'spell');
+        let mon: Entity | null;
+        if (obj.def === STATUE) {
+          // animate_statue() forces all golems to become flesh golems
+          mon = animateStatue(ctx, obj, at.x, at.y, 'spell').mon;
+        } else {
+          if (golemXform && ctx.defs.isMonster(FLESH_GOLEM)) ptr = ctx.defs.monster(FLESH_GOLEM);
+          mon = ptr ? animateFigurine(ctx, obj, ptr, at, golemXform) : null;
+        }
         if (mon) break;
         if (!ptr || ptr.genFlags.includes('nocorpse') || ptr.genFlags.includes('uniq')) {
           res = 0; // didn't revive but can't leave corpse either

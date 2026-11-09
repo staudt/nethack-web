@@ -148,7 +148,11 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
   if (spesgn === -1) spe = -spe;
   // corpses and statues keep spe for their gender (and historic flag); boxes and keys use it
   // for nothing settable
-  if (!['nh:corpse', STATUE, 'nh:chest', 'nh:large_box', 'nh:skeleton_key'].includes(def.id))
+  if (
+    !['nh:corpse', STATUE, 'nh:figurine', 'nh:chest', 'nh:large_box', 'nh:skeleton_key'].includes(
+      def.id,
+    )
+  )
     it.spe = spe;
   // a historic statue
   if (spec.historic && def.id === STATUE) setHistoric(ctx, id, true);
@@ -159,7 +163,13 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     // werecreatures in beast form are all flagged no-corpse so for corpses and statues, switch
     // to their corresponding human form
     const human = counterWere(mon.id);
-    if (isWere(mon) && mon.genFlags.includes('nocorpse') && human && ctx.defs.isMonster(human))
+    if (
+      def.id !== 'nh:figurine' &&
+      isWere(mon) &&
+      mon.genFlags.includes('nocorpse') &&
+      human &&
+      ctx.defs.isMonster(human)
+    )
       mon = ctx.defs.monster(human);
     if (def.id === 'nh:corpse') {
       if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
@@ -167,6 +177,10 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     } else if (def.id === EGG) {
       // ref: readobjnam() EGG: can_be_hatched(); set_corpsenm() also sets the hatch timer
       setEggCorpsenm(ctx, id, canBeHatched(ctx, mon.id));
+    } else if (def.id === 'nh:figurine') {
+      // not a unique, nor a human unless a werecreature (no mail daemon exists)
+      if (!mon.genFlags.includes('uniq') && (!mon.flags.includes('human') || isWere(mon)))
+        it.corpseOf = mon.id;
     } else if (def.id === STATUE) {
       it.corpseOf = mon.id;
       // no spellbook in a statue of a very small monster

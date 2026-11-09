@@ -38,6 +38,7 @@ import {
   type PlayerAction,
   type PromptOption,
 } from '@nh/core';
+import { figBucChanged } from './figurinestate';
 import { BOULDER, ROCK, blockersOf } from './boulder';
 import { killedByHero } from './buzz';
 import { monsterIdAt } from './combat';
@@ -551,11 +552,14 @@ export function removeCurse(ctx: Ctx, buc: Buc, confused: boolean, scroll: Entit
     if (buc === 'blessed' || it.equipped !== null || obj.def === 'nh:loadstone') {
       if (confused) {
         // ref: src/mkobj.c blessorcurse(obj, 2)
-        if (it.buc === 'uncursed' && ctx.rng.rn2(2) === 0)
+        if (it.buc === 'uncursed' && ctx.rng.rn2(2) === 0) {
           it.buc = ctx.rng.rn2(2) === 0 ? 'cursed' : 'blessed';
+          figBucChanged(ctx, obj.id); // curse() or bless()
+        }
         it.known.buc = false;
       } else if (it.buc === 'cursed') {
         it.buc = 'uncursed';
+        figBucChanged(ctx, obj.id); // uncurse()
         // if the object was known to be cursed and is now known not to be, learn the scroll
         if (it.known.buc) learned = true;
       }

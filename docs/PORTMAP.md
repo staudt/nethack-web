@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4157 citations.
+155 NetHack files, 4176 citations.
 
 ## dat/dungeon.lua
 
@@ -556,6 +556,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
 - `dojump()`: `packages/content/src/jump.ts`
+- `fig_transform()`: `packages/content/src/figurine.ts`
+- `figurine_location_checks()`: `packages/content/src/figurine.ts`
 - `find_poleable_mon()`: `packages/content/src/pole.ts`
 - `get_valid_jump_position()`: `packages/content/src/jump.ts`
 - `get_valid_polearm_position()`: `packages/content/src/pole.ts`
@@ -566,6 +568,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
 - `um_dist()`: `packages/content/src/shkpay.ts`
 - `unfixable_trouble_count()`: `packages/content/src/potion.ts`
+- `use_figurine()`: `packages/content/src/figurine.en.ts`, `packages/content/src/figurine.ts`
 - `use_lamp()`: `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
@@ -832,6 +835,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_leave()`: `packages/content/src/worm.ts`
 - `newedog()`: `packages/content/src/dog.ts`
 - `pet_type()`: `packages/content/src/dog.ts`
+- `pick_familiar_pm()`: `packages/content/src/dog.ts`
 - `tamedog()`: `packages/content/src/dog.ts`
 
 ## src/dogmove.c
@@ -1129,6 +1133,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `addinv()`: `packages/content/src/items.ts`
 - `addinv_core0()`: `packages/content/src/items.ts`
 - `assigninvlet()`: `packages/content/src/items.ts`
+- `carry_obj_effects()`: `packages/content/src/figurinestate.ts`
 - `carrying()`: `packages/content/src/gem.ts`, `packages/content/src/shk.ts`
 - `count_contents()`: `packages/content/src/shk.ts`
 - `count_unpaid()`: `packages/content/src/price.ts`
@@ -1138,6 +1143,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `display_pickinv()`: `packages/content/src/wizard/identify.ts`
 - `findgold()`: `packages/content/src/mongear.ts`
 - `freeinv()`: `packages/content/src/items.ts`
+- `freeinv_core()`: `packages/content/src/items.ts`
 - `hold_another_object()`: `packages/content/src/wish.ts`
 - `identify()`: `packages/content/src/read.ts`
 - `identify_pack()`: `packages/content/src/read.ts`
@@ -1381,10 +1387,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `add_to_minv()`: `packages/content/src/mongear.ts`
 - `bcsign()`: `packages/content/src/items.ts`
 - `bill_dummy_object()`: `packages/content/src/shk.ts`
+- `bless()`: `packages/content/src/figurinestate.ts`
 - `blessorcurse()`: `packages/content/src/items.ts`, `packages/content/src/read.ts`
 - `boxiprobs()`: `packages/content/src/mkobj.ts`
 - `costly_alteration()`: `packages/content/src/shk.ts`
-- `curse()`: `packages/content/src/items.ts`
+- `curse()`: `packages/content/src/figurinestate.ts`, `packages/content/src/items.ts`
 - `get_obj_location()`: `packages/content/src/light.ts`, `packages/content/src/price.ts`
 - `is_flammable()`: `packages/content/src/material.ts`
 - `is_rottable()`: `packages/content/src/material.ts`
@@ -1410,6 +1417,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shop_obj_sanity()`: `packages/testkit/src/invariants.ts`
 - `stackobj()`: `packages/content/src/items.ts`
 - `start_corpse_timeout()`: `packages/content/src/corpses.ts`
+- `uncurse()`: `packages/content/src/figurinestate.ts`
 - `weight()`: `packages/content/src/items.ts`
 
 ## src/mkroom.c
@@ -1673,7 +1681,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wizterrainwish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/terrainwish.ts`
 - `wrp()`: `packages/content/src/objnam_read.ts`
 - `wrpsym()`: `packages/content/src/objnam_read.ts`
-- `xname()`: `packages/content/src/objects.en.ts`, `packages/content/src/objnam.ts`, `packages/testkit/src/convert/defs.ts`
+- `xname()`: `packages/content/src/figurine.en.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam.ts`, `packages/testkit/src/convert/defs.ts`
 
 ## src/options.c
 
@@ -2213,6 +2221,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/eat.en.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.en.ts`, `packages/content/src/slimestate.ts`
 - `attach_egg_hatch_timeout()`: `packages/content/src/eggstate.ts`
+- `attach_fig_transform_timeout()`: `packages/content/src/figurinestate.ts`
 - `begin_burn()`: `packages/content/src/light.ts`
 - `burn_away_slime()`: `packages/content/src/slimestate.ts`
 - `burn_object()`: `packages/content/src/light.ts`
@@ -2231,7 +2240,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `slip_or_trip()`: `packages/content/src/fumble.en.ts`, `packages/content/src/fumble.ts`
 - `stoned_dialogue()`: `packages/content/src/stoning.ts`
 - `stoned_texts()`: `packages/content/src/stoning.en.ts`
-- `stop_timer()`: `packages/content/src/eggstate.ts`
+- `stop_timer()`: `packages/content/src/eggstate.ts`, `packages/content/src/figurinestate.ts`
 - `vomiting_dialogue()`: `packages/content/src/hunger.ts`
 
 ## src/topten.c

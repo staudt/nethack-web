@@ -896,6 +896,9 @@ describe('"Die?"', () => {
       const { state } = normal.newGame({ seed });
       (state.modData['nh'] ??= {}) as Record<string, unknown>;
       (state.modData['nh'] as Record<string, unknown>)['debugMongen'] = true; // only the jackal
+      // and none of the level's own monsters (a newt got there first after m13 step 7)
+      for (const k of Object.keys(state.entities))
+        if (state.entities[k]?.c.monster && Number(k) !== state.playerId) delete state.entities[k];
       normal.step(state, { type: 'wait' });
       getPlayer(state).c.hp!.cur = 1;
       const at = getPlayer(state).c.pos!;

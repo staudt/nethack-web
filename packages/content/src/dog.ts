@@ -14,6 +14,7 @@ import {
   type Entity,
   type EntityId,
   type Json,
+  type LevelId,
   type MonsterDef,
   type ModApi,
 } from '@nh/core';
@@ -313,26 +314,65 @@ function petType(ctx: Ctx): MonsterDef | null {
  * The spell of create familiar: a tame monster next to her, 1 time in 3 her role's pet type,
  * else a random monster up to 3 levels of difficulty per cleric skill level above the usual
  * ("There seems to be nothing available for a familiar." when none fits); 100 tries.
- * ref: src/dog.c make_familiar() with no figurine, pick_familiar_pm()
+ * With a figurine, its monster at (x, y) (her own square: next to her; another monster's: none,
+ * "The figurine writhes and then shatters into pieces!"); then `rn2(10)`: 0 tame, 1 as made,
+ * 2 hostile ("You get a bad feeling about this."), else by its BUC (blessed tame, uncursed as
+ * made, cursed hostile). `quietly` (a figurine transforming on its own) gives no messages.
+ * ref: src/dog.c make_familiar(), pick_familiar_pm() (no extinction, object names, water or
+ * minions; NO_MINVENT leaves nothing to wield)
  */
-export function makeFamiliar(ctx: Ctx, x: number, y: number): EntityId | null {
+export function makeFamiliar(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  figurine?: { obj: Entity; quietly: boolean; level?: LevelId },
+): EntityId | null {
   let id: EntityId | null = null;
   let trycnt = 100;
+  const fig = figurine?.obj.c.item;
   do {
     let pm: MonsterDef | null;
-    if (!ctx.rng.rn2(3)) pm = petType(ctx);
+    if (figurine) {
+      // pick_familiar_pm(): the figurine's monster (G_EXTINCT is not modelled)
+      const mndx = fig?.corpseOf;
+      pm = mndx && ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
+    } else if (!ctx.rng.rn2(3)) pm = petType(ctx);
     else {
       const max = 3 * skillLevel(ctx, 'cleric_spell');
       pm = rndmonst(ctx, getLevel(ctx.state).depth, 0, max);
       if (!pm) ctx.emit({ type: 'msg', key: 'dog.no_familiar' });
     }
     if (!pm) break;
-    // MM_EDOG | MM_IGNOREWATER | NO_MINVENT | MM_NOMSG; her own square is taken (enexto())
-    id = makemon(ctx, pm, { x, y }, { adjacentOk: true, noInventory: true });
+    // MM_EDOG | MM_IGNOREWATER | NO_MINVENT | MM_NOMSG: her own square is taken (makemon()'s
+    // `byyou` enexto()); a figurine's other target square must be free (no MM_ADJACENTOK)
+    const level = figurine?.level ?? ctx.state.currentLevel;
+    const hp = getPlayer(ctx.state).c.pos;
+    const byyou = hp?.level === level && hp.x === x && hp.y === y;
+    id = makemon(ctx, pm, { x, y }, { level, adjacentOk: !figurine || byyou, noInventory: true });
+    if (figurine && id === null) {
+      // monster has been genocided or target spot is occupied
+      if (!figurine.quietly) ctx.emit({ type: 'msg', key: 'figurine.shatters' });
+      break;
+    }
   } while (id === null && --trycnt > 0);
   if (id === null) return null;
-  initedog(ctx, id, true);
   const m = ctx.state.entities[String(id)]?.c.monster;
+  let reallytame = true;
+  if (figurine && m) {
+    // figurine; resulting monster might not become a pet
+    let chance = ctx.rng.rn2(10); // 0==tame, 1==peaceful, 2==hostile
+    if (chance > 2) chance = fig?.buc === 'blessed' ? 0 : fig?.buc !== 'cursed' ? 1 : 2;
+    // 0,1,2:  b=80%,10,10; nc=10%,80,10; c=10%,10,80
+    if (chance > 0) {
+      reallytame = false; // not tame after all
+      if (chance === 2) {
+        // hostile (cursed figurine)
+        if (!figurine.quietly) ctx.emit({ type: 'msg', key: 'figurine.bad_feeling' });
+        m.peaceful = false;
+      }
+    }
+  }
+  if (reallytame) initedog(ctx, id, true);
   if (m) m.asleep = false;
   return id;
 }

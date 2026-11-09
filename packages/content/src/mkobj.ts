@@ -3,7 +3,7 @@
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
 import { putIn } from '@nh/core';
 import { rndmonst, setLevelObjectAt } from './generation';
-import { mksobj, setEggInit, type MksobjOpts } from './items';
+import { mksobj, setEggInit, setFigurineInit, type MksobjOpts } from './items';
 import { canBeHatched, deadSpecies } from './eggstate';
 import { setGolemStatue, startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
@@ -312,6 +312,18 @@ setEggInit((ctx, level) => {
     if (mndx !== null && !deadSpecies(ctx.state, ctx.defs, mndx)) return mndx; // typed egg
   }
   return null;
+});
+
+// A figurine's monster. ref: src/mkobj.c mksobj_init() FIGURINE ("figurines are slightly harder
+// monsters": rndmonnum_adj(5, 10), not human, 30 re-rolls), mksobj() STATUE/FIGURINE without init
+setFigurineInit((ctx, level, init) => {
+  const depth = depthOf(ctx, level);
+  if (!init) return rndmonnum(ctx, depth).id;
+  let tryct = 0;
+  let mon: MonsterDef;
+  do mon = rndmonnum(ctx, depth, 5, 10);
+  while (mon.flags.includes('human') && tryct++ < 30);
+  return mon.id;
 });
 
 // makemon()'s S_SPIDER/S_SNAKE level-creation object. ref: src/makemon.c makemon()

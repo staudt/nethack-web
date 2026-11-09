@@ -21,6 +21,7 @@ import { EAT_ACTIONS, registerEat } from './eat';
 import { registerHunger } from './hunger';
 import { registerCorpses } from './corpses';
 import { registerEggs } from './egg';
+import { registerFigurines } from './figurine';
 import { SIT_ACTIONS } from './dosit';
 import { registerRevive } from './revive';
 import { registerHero } from './hero';
@@ -153,6 +154,7 @@ export const vanillaMod: Mod = {
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
     registerEggs(api);
+    registerFigurines(api);
     registerRevive(api);
     registerHunger(api);
     registerEat(api);

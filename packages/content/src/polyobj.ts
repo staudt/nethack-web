@@ -101,7 +101,7 @@ function mkobjOfClass(ctx: Ctx, obj: Entity): Entity | null {
 /**
  * The object is replaced by a new one where it lies, in the same inventory slot or container: a
  * random object of its class (`id` null, the magic-or-not status kept if 3 tries allow it), or
- * of type `id` (a corpse or statue keeps its monster). The new object keeps the quantity (a type
+ * of type `id` (a corpse, statue or figurine keeps its monster). The new object keeps the quantity (a type
  * that does not merge, or 1 time in 1000 per item for a random one, fuses them into 1), BUC,
  * charges of wands, weapons and armor, the recharge count, erosion where it matters, a box's
  * trap and the shopkeeper's (lack of) interest; it loses any contents. A wand never becomes a
@@ -127,7 +127,8 @@ export function polyObj(ctx: Ctx, obj: Entity, id: DefId | null): Entity {
     });
     otmp = ctx.state.entities[String(nid)] ?? null;
     const it = otmp?.c.item;
-    const usesCorpsenm = (t: DefId): boolean => t === CORPSE || t === STATUE;
+    // USES_CORPSENM(); set_corpsenm() starts no figurine timer: the new object is not carried yet
+    const usesCorpsenm = (t: DefId): boolean => t === CORPSE || t === STATUE || t === 'nh:figurine';
     if (it && old.corpseOf !== undefined && usesCorpsenm(obj.def) && usesCorpsenm(id))
       it.corpseOf = old.corpseOf; // set_corpsenm()
   }

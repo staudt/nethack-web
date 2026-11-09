@@ -55,6 +55,7 @@ import {
   type TerrainDef,
   type Trap,
 } from '@nh/core';
+import { figBucChanged } from './figurinestate';
 import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { breaktest } from './material';
@@ -1496,6 +1497,7 @@ export function cancelItem(ctx: Ctx, obj: Entity): void {
   }
   // unbless(), uncurse(): Luck and weights follow from the state
   it.buc = 'uncursed';
+  figBucChanged(ctx, obj.id);
 }
 
 /** ref: include/objects.h POT_WATER */

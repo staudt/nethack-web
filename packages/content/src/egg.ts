@@ -35,8 +35,8 @@ function cansee(ctx: Ctx, level: string, x: number, y: number): boolean {
   );
 }
 
-/** ref: src/mondata.c locomotion(ptr, "drop") */
-function locomotionDrop(def: MonsterDef): string {
+/** ref: src/mondata.c locomotion(ptr, "drop"), and with "crawl" (the `egg.loco.*` words) */
+export function locomotion(def: MonsterDef, dflt: 'drop' | 'crawl' = 'drop'): string {
   const f = def.flags;
   if (f.includes('float')) return 'float';
   if (f.includes('fly')) return 'fly'; // flys and flyl both say "fly"
@@ -44,7 +44,7 @@ function locomotionDrop(def: MonsterDef): string {
   if (f.includes('amorphous')) return 'ooze';
   if (!def.speed) return 'wiggle';
   if (f.includes('nolimbs')) return 'crawl';
-  return 'drop';
+  return dflt;
 }
 
 /**
@@ -157,7 +157,7 @@ export function hatchEgg(ctx: Ctx, data: Json): void {
   const who: Msg = siblings
     ? { key: 'egg.who.some', params: { mon: `@${mon.def}` } }
     : { key: 'egg.who.one', params: { mon: `@${mon.def}` } };
-  const verb = `@egg.loco.${locomotionDrop(ctx.defs.monster(mon.def))}`;
+  const verb = `@egg.loco.${locomotion(ctx.defs.monster(mon.def))}`;
   let knowsEgg = false;
   switch (loc.where) {
     case 'invent':

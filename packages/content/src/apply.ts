@@ -1,5 +1,5 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the
-// blindfold, the unicorn horn (unicorn.ts) and digging tools
+// blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
@@ -45,6 +45,8 @@ import { inStasis, noteleportLevel, teleok } from './teleport';
 import { mintrap, teleds } from './trap';
 import { setMtrapped } from './trapstate';
 import { UNICORN_HORN, useUnicornHorn } from './unicorn';
+import { useFigurine } from './figurine';
+import { FIGURINE } from './figurinestate';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -77,6 +79,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === WHISTLE.magic ||
     e.def === BUGLE ||
     e.def === UNICORN_HORN ||
+    e.def === FIGURINE ||
     isEyewear(e.def)
   );
 }
@@ -276,6 +279,7 @@ const apply: ActionDef = {
     if (isPick(def)) return usePickAxe(ctx, obj);
     if (isPole(def)) return usePole(ctx, obj, false);
     if (obj.def === BUGLE) return doPlayInstrument(ctx, obj) ? NORMAL_SPEED : 0;
+    if (obj.def === FIGURINE) return useFigurine(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);

@@ -4,6 +4,7 @@
 // Not ported: Magicbane (no artifacts), intelligent artifacts resisting, Half_spell_damage (no
 // source) and the steed's saddle.
 import { getPlayer, inventoryOf, type Ctx } from '@nh/core';
+import { figBucChanged } from './figurinestate';
 import { P, hasProp } from './props';
 
 /**
@@ -23,5 +24,6 @@ export function rndcurse(ctx: Ctx): void {
     const it = otmp?.c.item;
     if (!it || it.buc === 'cursed') continue;
     it.buc = it.buc === 'blessed' ? 'uncursed' : 'cursed';
+    figBucChanged(ctx, otmp.id); // curse() or unbless()
   }
 }

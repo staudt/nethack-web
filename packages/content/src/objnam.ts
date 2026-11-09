@@ -52,6 +52,10 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
       params: { mon: `@${it.corpseOf}`, historic: hist ? { key: 'nh:statue.historic' } : '' },
     };
   }
+  // ref: xname() TOOL_CLASS FIGURINE: "figurine of a kitten" (just_an(); never a unique)
+  if (def.id === 'nh:figurine' && it?.corpseOf) {
+    return { key: `nh:figurine.of${plural}`, params: { mon: `@${it.corpseOf}` } };
+  }
   // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
   if (def.id === FAKE_AMULET) {
     return { key: `${it?.known.spe ? def.nameKey : (def.descKey ?? def.nameKey)}${plural}` };

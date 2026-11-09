@@ -28,6 +28,7 @@ import {
   type Msg,
   rnl,
 } from '@nh/core';
+import { figBucChanged } from './figurinestate';
 import { isWeaponOrWeptool } from './material';
 import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } from './align';
 import { rnz } from './corpses';
@@ -260,6 +261,7 @@ function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
     it.known.buc = !halluc(ctx);
   }
   it.buc = 'uncursed';
+  figBucChanged(ctx, otmp.id); // uncurse()
 }
 
 /** ref: src/pray.c fix_worst_trouble() */
@@ -638,7 +640,10 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
           (o.c.item.equipped !== 'helm' || o.def !== 'nh:helm_of_opposite_alignment')
         ) {
           if (!blind) fixCurseTrouble(ctx, o);
-          else o.c.item.buc = 'uncursed';
+          else {
+            o.c.item.buc = 'uncursed';
+            figBucChanged(ctx, o.id); // uncurse()
+          }
         }
       break;
     }

@@ -32,6 +32,7 @@ import {
   type PlayerAction,
   type Pos,
 } from '@nh/core';
+import { figBucChanged } from './figurinestate';
 import { adjattrib, restoreAttr, type Attr } from './attrib';
 import { monsterDetect } from './detect';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
@@ -400,7 +401,10 @@ export function drinkfountain(ctx: Ctx, action: DefId): number {
         for (const obj of inventoryOf(ctx.state, ctx.state.playerId)) {
           const it = obj.c.item;
           if (!it || ctx.defs.object(obj.def).class === 'coin') continue;
-          if (it.buc !== 'cursed' && !ctx.rng.rn2(5)) it.buc = 'cursed';
+          if (it.buc !== 'cursed' && !ctx.rng.rn2(5)) {
+            it.buc = 'cursed';
+            figBucChanged(ctx, obj.id); // curse()
+          }
         }
         break;
       }
@@ -553,7 +557,10 @@ export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): num
   const dipped = it ?? null; // not destroyed: the item is still there
   switch (ctx.rng.rnd(30)) {
     case 16: // curse the item
-      if (!isHands && dipped && ctx.defs.object(obj.def).class !== 'coin') dipped.buc = 'cursed';
+      if (!isHands && dipped && ctx.defs.object(obj.def).class !== 'coin') {
+        dipped.buc = 'cursed';
+        figBucChanged(ctx, obj.id); // curse()
+      }
       break;
     case 17:
     case 18:
@@ -562,6 +569,7 @@ export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): num
       if (dipped?.buc === 'cursed') {
         if (!blind(ctx)) say(ctx, 'fountain.water_glows');
         dipped.buc = 'uncursed';
+        if (!isHands) figBucChanged(ctx, obj.id); // uncurse()
       } else say(ctx, 'fountain.feeling_of_loss');
       break;
     case 21: // water demon

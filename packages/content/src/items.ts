@@ -31,6 +31,7 @@ import { setBoxTknown, setBoxTrapped } from './btrapstate';
 import { CHARGED_RINGS } from './objects';
 import { mergeBills, samePrice, splitbill } from './eshk';
 import { EGG, attachEggHatchTimeout, deadSpecies, eggHatchAt, splitEggTimer } from './eggstate';
+import { FIGURINE, carryObjEffects, stopFigTransform } from './figurinestate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -190,6 +191,9 @@ export function mksobjInit(
         it.spe = 1;
         it.age = rng.rn2(500) + 1000; // rn1(500, 1000)
         blessorcurse(rng, it, 5);
+      } else if (def.id === FIGURINE) {
+        // the monster (rndmonnum_adj(5, 10), not human) was rolled first, in mksobj()
+        blessorcurse(rng, it, 4);
       } else if (def.id === 'nh:chest' || def.id === 'nh:large_box') {
         if (rng.rn2(5)) it.locked = true;
         // the caller records them (btrapstate.ts: the item has no id yet)
@@ -273,6 +277,15 @@ export interface MksobjOpts {
  */
 export type EggInit = (ctx: ItemCtx, level: LevelId) => DefId | null;
 let eggInit: EggInit | null = null;
+/**
+ * A figurine's monster: with `init`, mksobj_init()'s `rndmonnum_adj(5, 10)` re-rolled up to 30
+ * times past humans; without, mksobj()'s plain rndmonnum(). mkobj.ts registers it.
+ */
+type FigurineInit = (ctx: ItemCtx, level: LevelId, init: boolean) => DefId;
+let figurineInit: FigurineInit | null = null;
+export function setFigurineInit(fn: FigurineInit): void {
+  figurineInit = fn;
+}
 export function setEggInit(fn: EggInit): void {
   eggInit = fn;
 }
@@ -300,6 +313,16 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
     // as set_corpsenm() would after mksobj()
     const level = opts.level ?? opts.at?.level ?? state.currentLevel;
     const mon = (opts.init ?? true) && eggInit ? eggInit(ctx, level) : null;
+    if (mon) it.corpseOf = mon;
+    if (opts.corpseOf) it.corpseOf = opts.corpseOf;
+  }
+  if (def.id === FIGURINE) {
+    // ref: mksobj_init() FIGURINE (before its blessorcurse()), or mksobj()'s STATUE/FIGURINE
+    // case without init; a given monster overrides it as set_corpsenm() would (and a given one
+    // without init skips the throwaway roll, as statues do)
+    const level = opts.level ?? opts.at?.level ?? state.currentLevel;
+    const init = opts.init ?? true;
+    const mon = figurineInit && (init || !opts.corpseOf) ? figurineInit(ctx, level, init) : null;
     if (mon) it.corpseOf = mon;
     if (opts.corpseOf) it.corpseOf = opts.corpseOf;
   }
@@ -735,6 +758,8 @@ export function addToInventory(ctx: ItemCtx, owner: EntityId, itemId: EntityId):
   it.placed = ctx.state.seq++;
   if (owner === ctx.state.playerId) assigninvlet(ctx, owner, itemId);
   else it.letter = null;
+  // carrying affects the obj: a cursed figurine's transform timer
+  if (item.def === FIGURINE) carryObjEffects(ctx, itemId);
   return itemId;
 }
 
@@ -746,6 +771,9 @@ export function addToInventory(ctx: ItemCtx, owner: EntityId, itemId: EntityId):
 export function removeFromInventory(ctx: ItemCtx, itemId: EntityId): void {
   const it = ctx.state.entities[String(itemId)]?.c.item;
   if (!it) return;
+  // ref: freeinv_core(): a figurine leaving the hero's pack stops transforming
+  if (it.carriedBy === ctx.state.playerId && ctx.state.entities[String(itemId)]?.def === FIGURINE)
+    stopFigTransform(ctx, itemId);
   it.carriedBy = null;
   it.equipped = null;
   // ref: src/do.c dropx()/dropz(): leaving the inventory clears the alternate-weapon slot

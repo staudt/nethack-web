@@ -32,7 +32,7 @@ function deadMon(ctx: Ctx, mon: Entity): DeadMon {
  * ref: src/mon.c xkilled(): `!rn2(6) && !(G_NOCORPSE) && not on the hero && not a Kop` makes
  * mkobj(RANDOM_CLASS, TRUE). Food is deleted unless the monster collects things (M2_COLLECT);
  * small monsters (smaller than MZ_HUMAN) do not leave heavy (owt > 30) or bulky (oc_big =
- * bimanual here) objects. Then corpse_chance() and make_corpse().
+ * bimanual here) objects, figurines excepted. Then corpse_chance() and make_corpse().
  */
 export function monsterDied(
   ctx: Ctx,
@@ -83,7 +83,11 @@ export function monsterDied(
       const od = ctx.defs.object(item.def);
       const small = def.size === 'tiny' || def.size === 'small';
       if (od.class === 'food' && !def.flags.includes('collect')) ctx.remove(id);
-      else if (small && (weight(ctx.defs, item, ctx.state) > 30 || od.weapon?.bimanual === true))
+      else if (
+        small &&
+        item.def !== 'nh:figurine' &&
+        (weight(ctx.defs, item, ctx.state) > 30 || od.weapon?.bimanual === true)
+      )
         ctx.remove(id);
       else placeOnFloor(ctx, id, at.level, at.x, at.y);
     }

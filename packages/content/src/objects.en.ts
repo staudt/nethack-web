@@ -1282,6 +1282,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:oil_lamp.plural': 'oil lamps',
   'nh:blindfold': 'blindfold',
   'nh:blindfold.plural': 'blindfolds',
+  'nh:figurine': 'figurine',
+  'nh:figurine.plural': 'figurines',
   'nh:land_mine': 'land mine',
   'nh:land_mine.plural': 'land mines',
   'nh:beartrap': 'beartrap',
