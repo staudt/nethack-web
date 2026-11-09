@@ -154,6 +154,17 @@ function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): bool
   return accessible(o, i) && !o.boulders.has(i);
 }
 
+/** goodpos() for monster `who` at (x, y) of `level`. ref: src/teleport.c goodpos(x, y, mtmp, 0) */
+export function goodposMon(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  level: Level,
+  x: number,
+  y: number,
+  who: EntityId,
+): boolean {
+  return goodpos(occupancy(ctx, level), x, y, who);
+}
+
 /**
  * The hero may land at (x, y) of her level: not on a trap unless `trapok`, and a good position.
  * ref: src/teleport.c teleok() (no Levitation or Flying exemption for pits and holes yet)

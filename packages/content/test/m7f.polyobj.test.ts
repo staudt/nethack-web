@@ -189,7 +189,7 @@ describe('the polymorph trap', () => {
 
 describe('the potion, the wand and the spell (the polymorph itself: m7f.polyself.test.ts)', () => {
   test('the potion: "You feel a little strange." and it is identified', () => {
-    const s = room();
+    const s = room(2); // seed 1's polymorph kills her (since m12 step 6's vault roll)
     const p = s.carry('nh:potion_of_polymorph');
     const text = s.text(s.mod('nh:quaff', { item: p }));
     expect(text).toContain('You feel a little strange.');

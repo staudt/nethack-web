@@ -18,6 +18,7 @@ import { mkshop } from './shknam';
 import { somexyspaceTry } from './somexy';
 import { setTerrain } from './terrain';
 import { isGenocided } from './vanquished';
+import { vaultRoom } from './vaultstate';
 import {
   ANTHOLE,
   BARRACKS,
@@ -60,8 +61,8 @@ const topRooms = (level: Level): number[] =>
 /**
  * An unused room, preferably with only one door: starting at a random room and wrapping round,
  * the first ordinary room with no up stairs (not strict: down stairs only 1 time in 3; strict:
- * none) that has one door, or else passes a 1 in 5 roll. ref: src/mkroom.c pick_room() (no
- * vault ends the list yet; no wizard shortcut)
+ * none) that has one door, or else passes a 1 in 5 roll; the vault is a typed room, passed
+ * over. ref: src/mkroom.c pick_room() (no wizard shortcut)
  */
 export function pickRoom(ctx: Ctx, level: Level, strict: boolean): number | null {
   const rooms = topRooms(level);
@@ -161,11 +162,12 @@ export function doMkroom(ctx: Ctx, level: Level, type: DefId | 'shop'): void {
  * beehive 1 in 5, below DL11 a morgue 1 in 6, below DL12 an anthole 1 in 8, below DL14 barracks
  * 1 in 4, below DL15 a swamp 1 in 6, below DL16 a cockatrice nest 1 in 8; the leprechaun hall,
  * beehive, barracks and nest only while their monster is not genocided, the anthole while an
- * ant is left. ref: src/mklev.c makelevel() (no vault, so the threshold never rises)
+ * ant is left. A vault raises the shop's room threshold by one. ref: src/mklev.c makelevel()
  */
 export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   const nroom = topRooms(level).length;
-  const roomThreshold = level.branch ? 4 : 3; // minimum number of rooms for a special room
+  // minimum number of rooms for a special room, one more with a vault (which nroom counts)
+  const roomThreshold = (level.branch ? 4 : 3) + (vaultRoom(level) !== null ? 1 : 0);
   const uDepth = level.depth;
   const rn2 = (n: number): number => ctx.rng.rn2(n);
   const gone = (id: DefId): boolean => isGenocided(ctx.state, id);

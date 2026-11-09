@@ -5,6 +5,7 @@ import { ensureConnected, makeCorridors } from './corridors';
 import { D_CLOSED, D_LOCKED, D_HORIZ, D_ISOPEN, Grid, T, type IRoom } from './grid';
 import { maxRooms, makeRooms, sortRooms } from './rooms';
 import { PAL, PALETTE_KEYS, type LevelTerrain } from './terrain';
+import { makeVault } from './vault';
 import type { DefId, LevelId } from '../types/common';
 import { DEFAULT_DUNGEON } from '../dungeon';
 
@@ -138,8 +139,9 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
   }
 
   let g = new Grid(width, height);
+  let made: ReturnType<typeof makeRooms>;
   for (let attempt = 0; ; attempt++) {
-    makeRooms(g, rng, depth, maxRooms(width, height));
+    made = makeRooms(g, rng, depth, maxRooms(width, height));
     if (g.rooms.length > 0) break;
     if (attempt + 1 >= MAX_ATTEMPTS) {
       throw new Error(
@@ -152,6 +154,8 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
   makeCorridors(g, rng, depth);
   ensureConnected(g);
   const { up, down } = placeStairs(g, rng, { up: opts.up ?? true, down: opts.down ?? true });
+  // ref: makelevel(): the vault after the stairs and corridors, before the branch stairs
+  const vault = made.vault && makeVault(g, rng, depth, made.rects, made.vault);
   // ref: makelevel(): place_branch() after the corridors and special rooms
   const branchPos = opts.branch ? placeBranch(g, rng, [up, down]) : null;
 
@@ -200,5 +204,7 @@ export function generateLevel(rng: Rng, opts: GenOptions): Level {
     ...(g.trappedDoors.length > 0 && {
       trappedDoorSpots: g.trappedDoors.map((p) => ({ x: p.x - 1, y: p.y })),
     }),
+    ...(vault && { vaultSpot: { x: vault.vault.x - 1, y: vault.vault.y } }),
+    ...(vault?.tele && { vaultTeleSpot: { x: vault.tele.x - 1, y: vault.tele.y } }),
   };
 }

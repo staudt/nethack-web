@@ -1,3 +1,4 @@
+import type { Pos } from '../types/common';
 import type { Rng } from '../types/rng';
 import { Grid, T, type IRoom } from './grid';
 import { RectList, XLIM, YLIM, type NhRect } from './rect';
@@ -20,11 +21,13 @@ interface RoomBox {
 }
 
 /**
- * Shrink/shift a candidate room until it fits in stone, or give up.
- * ref: src/sp_lev.c check_room() (non-vault, non-themeroom path)
+ * Shrink/shift a candidate room until it fits in stone, or give up. A vault keeps one more
+ * square of stone around it. ref: src/sp_lev.c check_room() (no themed rooms)
  */
-export function checkRoom(g: Grid, rng: Rng, box: RoomBox): RoomBox | null {
+export function checkRoom(g: Grid, rng: Rng, box: RoomBox, vault = false): RoomBox | null {
   const { colno: COLNO, rowno: ROWNO } = g;
+  const xlim = XLIM + (vault ? 1 : 0);
+  const ylim = YLIM + (vault ? 1 : 0);
   let { lowx, lowy } = box;
   let hix = lowx + box.ddx;
   let hiy = lowy + box.ddy;
@@ -35,16 +38,16 @@ export function checkRoom(g: Grid, rng: Rng, box: RoomBox): RoomBox | null {
   for (;;) {
     if (hix <= lowx || hiy <= lowy) return null;
     let retry = false;
-    scan: for (let x = lowx - XLIM; x <= hix + XLIM; x++) {
+    scan: for (let x = lowx - xlim; x <= hix + xlim; x++) {
       if (x <= 0 || x >= COLNO) continue;
-      const ymax = Math.min(hiy + YLIM, ROWNO - 1);
-      for (let y = Math.max(lowy - YLIM, 0); y <= ymax; y++) {
+      const ymax = Math.min(hiy + ylim, ROWNO - 1);
+      for (let y = Math.max(lowy - ylim, 0); y <= ymax; y++) {
         if (g.get(x, y) === T.STONE) continue;
         if (rng.rn2(3) === 0) return null;
-        if (x < lowx) lowx = x + XLIM + 1;
-        else hix = x - XLIM - 1;
-        if (y < lowy) lowy = y + YLIM + 1;
-        else hiy = y - YLIM - 1;
+        if (x < lowx) lowx = x + xlim + 1;
+        else hix = x - xlim - 1;
+        if (y < lowy) lowy = y + ylim + 1;
+        else hiy = y - ylim - 1;
         retry = true;
         break scan; // C: goto chk
       }
@@ -107,7 +110,7 @@ const SPLEV_RIGHT = 5;
  * Try to create one room: a totally random one from the free-rectangle list, or one on the 5x5
  * grid (special levels) where `x`,`y` (1..5), `w`,`h` and the aligns may each be random. Returns
  * the new room (pushed to `g.rooms`), or null. The grid uses COLNO/5 and ROWNO/5, so it scales
- * with the level. ref: src/sp_lev.c create_room() (no vaults or themed rooms)
+ * with the level. ref: src/sp_lev.c create_room() (no themed rooms; vaults: {@link createVault})
  */
 export function createRoom(
   g: Grid,
@@ -117,9 +120,39 @@ export function createRoom(
   p: RoomParams = ALL_RANDOM,
   lit?: boolean,
 ): IRoom | null {
+  const rlit = lit ?? litstateRnd(rng, depth);
+  const r = placeRoom(g, rects, rng, p, false);
+  if (!r) return null;
+  const nroom = g.rooms.length;
+  g.smeq[nroom] = nroom;
+  addRoom(g, r.xabs, r.yabs, r.xabs + r.wtmp - 1, r.yabs + r.htmp - 1, rlit);
+  return g.rooms[nroom] as IRoom;
+}
+
+/**
+ * Try to place a vault: a random 2x2 spot in a free rectangle with two squares of stone round
+ * its walls, carved out of the rectangle list but not made (no walls, not in `g.rooms`): its
+ * top-left floor square, or null. ref: src/mklev.c create_vault(), src/sp_lev.c create_room()
+ * with VAULT (the room's `lx`, `ly`; C's `hx = -1` until do_vault makes it)
+ */
+export function createVault(g: Grid, rects: RectList, rng: Rng): Pos | null {
+  // create_room(-1, -1, 2, 2, -1, -1, VAULT, TRUE): litstate_rnd(TRUE) draws nothing
+  const r = placeRoom(g, rects, rng, { x: -1, y: -1, w: 2, h: 2, xal: -1, yal: -1 }, true);
+  return r && { x: r.xabs, y: r.yabs };
+}
+
+/** create_room()'s search and rectangle split; the caller makes the room. */
+function placeRoom(
+  g: Grid,
+  rects: RectList,
+  rng: Rng,
+  p: RoomParams,
+  vault: boolean,
+): { xabs: number; yabs: number; wtmp: number; htmp: number } | null {
   const { colno: COLNO, rowno: ROWNO } = g;
   const div = (a: number, b: number): number => Math.trunc(a / b);
-  const rlit = lit ?? litstateRnd(rng, depth);
+  const xlim = XLIM + (vault ? 1 : 0);
+  const ylim = YLIM + (vault ? 1 : 0);
   let r1: NhRect | null;
   let r2: NhRect = { lx: 0, ly: 0, hx: 0, hy: 0 };
   let xabs = 0;
@@ -134,22 +167,26 @@ export function createRoom(
     let ytmp = p.y;
     let xaltmp = p.xal;
     let yaltmp = p.yal;
-    if (xtmp < 0 && ytmp < 0 && wtmp < 0 && xaltmp < 0 && yaltmp < 0) {
-      // a totally random room
+    if ((xtmp < 0 && ytmp < 0 && wtmp < 0 && xaltmp < 0 && yaltmp < 0) || vault) {
+      // a totally random room (or a vault)
       r1 = rects.rnd(rng);
       if (!r1) return null; // no more free rectangles
       const { hx, hy, lx, ly } = r1;
-      const dx = 2 + rng.rn2(hx - lx > 28 ? 12 : 8);
-      let dy = 2 + rng.rn2(4);
-      if (dx * dy > 50) dy = Math.floor(50 / dx);
-      const xborder = lx > 0 && hx < COLNO - 1 ? 2 * XLIM : XLIM + 1;
-      const yborder = ly > 0 && hy < ROWNO - 1 ? 2 * YLIM : YLIM + 1;
+      let dx = 1;
+      let dy = 1;
+      if (!vault) {
+        dx = 2 + rng.rn2(hx - lx > 28 ? 12 : 8);
+        dy = 2 + rng.rn2(4);
+        if (dx * dy > 50) dy = Math.floor(50 / dx);
+      }
+      const xborder = lx > 0 && hx < COLNO - 1 ? 2 * xlim : xlim + 1;
+      const yborder = ly > 0 && hy < ROWNO - 1 ? 2 * ylim : ylim + 1;
       if (hx - lx < dx + 3 + xborder || hy - ly < dy + 3 + yborder) {
         r1 = null;
         continue;
       }
-      xabs = lx + (lx > 0 ? XLIM : 3) + rng.rn2(hx - (lx > 0 ? lx : 3) - dx - xborder + 1);
-      yabs = ly + (ly > 0 ? YLIM : 2) + rng.rn2(hy - (ly > 0 ? ly : 2) - dy - yborder + 1);
+      xabs = lx + (lx > 0 ? xlim : 3) + rng.rn2(hx - (lx > 0 ? lx : 3) - dx - xborder + 1);
+      yabs = ly + (ly > 0 ? ylim : 2) + rng.rn2(hy - (ly > 0 ? ly : 2) - dy - yborder + 1);
       let ddy = dy;
       const nroom = g.rooms.length;
       if (
@@ -161,7 +198,7 @@ export function createRoom(
         yabs = rng.rn2(3) + 2; // rn1(3, 2)
         if (nroom < 4 && dy > 1) ddy--;
       }
-      const box = checkRoom(g, rng, { lowx: xabs, ddx: dx, lowy: yabs, ddy });
+      const box = checkRoom(g, rng, { lowx: xabs, ddx: dx, lowy: yabs, ddy }, vault);
       if (!box) {
         r1 = null;
         continue;
@@ -200,7 +237,7 @@ export function createRoom(
       r2 = { lx: xabs - 1, ly: yabs - 1, hx: xabs + wtmp + rndpos, hy: yabs + htmp + rndpos };
       r1 = rects.find(r2);
       if (r1) {
-        const box = checkRoom(g, rng, { lowx: xabs, ddx: wtmp, lowy: yabs, ddy: htmp });
+        const box = checkRoom(g, rng, { lowx: xabs, ddx: wtmp, lowy: yabs, ddy: htmp }, vault);
         if (!box) r1 = null;
         else {
           // C keeps wtmp, htmp: only the corner moves
@@ -212,21 +249,31 @@ export function createRoom(
   } while (++trycnt <= 100 && !r1);
   if (!r1) return null;
   rects.split({ ...r1 }, r2);
-  const nroom = g.rooms.length;
-  g.smeq[nroom] = nroom;
-  addRoom(g, xabs, yabs, xabs + wtmp - 1, yabs + htmp - 1, rlit);
-  return g.rooms[nroom] as IRoom;
+  return { xabs, yabs, wtmp, htmp };
 }
 
 /**
- * Make rooms until the rectangle list or the room cap is exhausted.
- * ref: src/mklev.c makerooms() (no themed rooms, no vault)
+ * Make rooms until the rectangle list or the room cap is exhausted. Once there are a sixth of
+ * the room cap, each pass flips a coin for the vault, which is tried once: its spot is returned
+ * (not a room yet; see makeVault). ref: src/mklev.c makerooms() (no themed rooms)
  */
-export function makeRooms(g: Grid, rng: Rng, depth: number, maxRoomCount: number): void {
+export function makeRooms(
+  g: Grid,
+  rng: Rng,
+  depth: number,
+  maxRoomCount: number,
+): { rects: RectList; vault: Pos | null } {
   const rects = new RectList(g.colno, g.rowno);
+  let triedVault = false;
+  let vault: Pos | null = null;
   while (g.rooms.length < maxRoomCount - 1 && rects.rnd(rng)) {
-    if (!createRoom(g, rects, rng, depth)) break;
+    // C: nroom >= MAXNROFROOMS / 6 && rn2(2) && !tried_vault (the coin is drawn every pass)
+    if (g.rooms.length >= Math.trunc(maxRoomCount / 6) && rng.rn2(2) !== 0 && !triedVault) {
+      triedVault = true;
+      vault = createVault(g, rects, rng);
+    } else if (!createRoom(g, rects, rng, depth)) break;
   }
+  return { rects, vault };
 }
 
 /**

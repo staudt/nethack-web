@@ -103,4 +103,17 @@ export interface Level {
    * it. Absent when there are none.
    */
   trappedDoorSpots?: Pos[];
+  /**
+   * Transient: the top-left floor square of the 2x2 treasure vault level generation made (walled,
+   * lit, joined to nothing; ref: src/mklev.c makelevel() do_vault()). It is not in `rooms`: the
+   * mod that owns vaults adds and fills the room in its first `newLevel` hook and deletes the
+   * field, like `boulderSpots`; a level in a save never has it. Absent when there is no vault.
+   */
+  vaultSpot?: Pos;
+  /**
+   * Transient: the vault teleporter's niche, a secret corridor square behind a secret door (ref:
+   * src/mklev.c makevtele(), makeniche(TELEP_TRAP)), where the owning mod makes the once-only
+   * teleportation trap into the vault; same lifetime as `vaultSpot`. Absent when none was made.
+   */
+  vaultTeleSpot?: Pos;
 }

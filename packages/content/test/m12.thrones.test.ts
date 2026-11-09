@@ -425,7 +425,9 @@ describe('kicking a throne', () => {
     const loot = itemsAt(defs, state, 'dlvl1', s.tx, s.ty);
     expect(goldAt(state, s.tx, s.ty)).toBeGreaterThanOrEqual(300);
     expect(goldAt(state, s.tx, s.ty)).toBeLessThanOrEqual(500);
-    expect(loot.filter((o) => defs.object(o.def).class === 'gem')).toHaveLength(3); // Luck + 1
+    // Luck + 1 gems (two of a kind merge into one pile)
+    const gems = loot.filter((o) => defs.object(o.def).class === 'gem');
+    expect(gems.reduce((a, o) => a + (o.c.item?.quantity ?? 0), 0)).toBe(3);
     expect(throneLooted(state, 'dlvl1', s.tx, s.ty)).toBe(true);
     // looted: kicks never loot again; 1 time in 3 it crashes (the loot, kicked first, picked up)
     for (const o of loot) delete state.entities[String(o.id)];

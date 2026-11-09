@@ -152,6 +152,8 @@ describe('nh:move', () => {
 
   test('closed door in a vertical wall opens as door_open_v', () => {
     const { state, step } = setup(['.|.', '@+.', '.|.']);
+    // no random monster in the doorway (iflags.debug_mongen)
+    (state.modData['nh'] as Record<string, unknown>)['debugMongen'] = true;
     // door at (1,1) with walls N and S
     const turn = state.turn;
     const ev = step({ type: 'move', dir: 'e' });

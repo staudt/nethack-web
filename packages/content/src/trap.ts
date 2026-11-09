@@ -58,6 +58,7 @@ import {
   noteleportLevel,
   randomTeleportLevel,
   rlocMonPos,
+  goodposMon,
   safeTeledsPos,
   teleok,
 } from './teleport';
@@ -117,6 +118,8 @@ import {
 } from './trapstate';
 import { MZ_HUGE, isClinger, msize } from './mondata';
 import { heroForm } from './upoly';
+import { somexyspace } from './somexy';
+import { vaultRoom } from './vaultstate';
 
 /** The vanilla trap ids. */
 export const TRAP = {
@@ -1050,7 +1053,7 @@ export function dotrap(
       return fallThrough(ctx, levelId, t, opts.plunged === true);
     case TRAP.tele:
       seetrap(t);
-      return teleTrap(ctx);
+      return teleTrap(ctx, levelId, t);
     case TRAP.levelTele:
       seetrap(t);
       return levelTeleTrap(ctx, levelId, t, opts.force === true || opts.viaSitting === true);
@@ -1670,9 +1673,10 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
 }
 
 /**
- * A monster on a teleportation trap lands on a random spot of the level, unless the level forbids
- * teleporting: "The jackal seems disoriented." or "The jackal suddenly disappears!" when seen.
- * ref: src/teleport.c mtele_trap() (no leashes, vault teleporters or fixed destinations)
+ * A monster on a teleportation trap lands on a random spot of the level (a once-only trap: in
+ * the vault), unless the level forbids teleporting: "The jackal seems disoriented." or "The
+ * jackal suddenly disappears!" when seen.
+ * ref: src/teleport.c mtele_trap() (no leashes or fixed destinations)
  */
 function mteleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): void {
   const p = mon.c.pos;
@@ -1680,7 +1684,9 @@ function mteleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): void {
   // no feedback: a monster stepping on a trap and not teleporting from it isn't visible
   if (!level || noteleportLevel(ctx, level)) return;
   const monname = monNam(ctx, mon); // with pre-movement visibility
-  rlocMon(ctx, mon, false);
+  // don't remove the trap if a vault: the monster would be stuck there
+  if (trap.once === true) mvaultTele(ctx, mon, level);
+  else rlocMon(ctx, mon, false);
   if (inSight) {
     say(ctx, canseemon(ctx, mon) ? 'tele.mon_disoriented' : 'tele.mon_disappears', {
       mon: monname,
@@ -2084,10 +2090,11 @@ let inTeleTrap = false;
 
 /**
  * The hero on a teleportation trap: "You feel a wrenching sensation." with magic resistance or on
- * a level that forbids teleporting, else a random teleport within the level.
- * ref: src/teleport.c tele_trap() (no endgame, leashes, vault teleporters or fixed destinations)
+ * a level that forbids teleporting; a once-only trap (the vault teleporter) is used up and takes
+ * her into the vault; else a random teleport within the level.
+ * ref: src/teleport.c tele_trap() (no endgame, leashes or fixed destinations)
  */
-export function teleTrap(ctx: Ctx): void {
+export function teleTrap(ctx: Ctx, levelId: string, trap: Trap): void {
   // a teleport could place the hero onto a second teleport trap; the recursive call from
   // spoteffects() must not trigger the trap at the destination
   if (inTeleTrap) return;
@@ -2097,10 +2104,45 @@ export function teleTrap(ctx: Ctx): void {
     // shieldeff() with Antimagic is display only
     if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level))
       say(ctx, 'tele.wrenching');
-    else tele(ctx, { trap: true });
+    else if (trap.once === true) {
+      deltrap(ctx, levelId, trap);
+      vaultTele(ctx);
+    } else tele(ctx, { trap: true });
   } finally {
     inTeleTrap = false;
   }
+}
+
+/**
+ * The hero lands on a free square of the level's vault, else teleports at random.
+ * ref: src/teleport.c vault_tele()
+ */
+export function vaultTele(ctx: Ctx): void {
+  const level = getLevel(ctx.state, heroPos(ctx).level);
+  const vr = vaultRoom(level);
+  const room = vr === null ? undefined : level.rooms[vr];
+  const c = room && somexyspace(ctx, level, room);
+  if (c && teleok(ctx, level, c.x, c.y, false)) {
+    teleds(ctx, c.x, c.y, { teleport: true });
+    return;
+  }
+  tele(ctx, { trap: true });
+}
+
+/**
+ * A monster on the vault teleporter lands on a free square of the vault (the trap stays: the
+ * guard would not come for a monster), else anywhere on the level.
+ * ref: src/teleport.c mvault_tele()
+ */
+function mvaultTele(ctx: Ctx, mon: Entity, level: Level): void {
+  const vr = vaultRoom(level);
+  const room = vr === null ? undefined : level.rooms[vr];
+  const c = room && somexyspace(ctx, level, room);
+  if (c && goodposMon(ctx, level, c.x, c.y, mon.id)) {
+    rlocTo(ctx, mon, c.x, c.y, false);
+    return;
+  }
+  rlocMon(ctx, mon, false);
 }
 
 /**

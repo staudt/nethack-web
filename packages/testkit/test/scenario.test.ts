@@ -7,6 +7,8 @@ const scenario = createScenario([vanillaMod]);
 const ROOM = ['-------', '|.....|', '|..@..|', '|.....|', '-------'];
 
 scenario('walk in a lit room', (s) => {
+  // seed 1's stream (since the vault roll of m12 step 6) spawns a monster in the hero's way
+  s.seed(2);
   s.level(ROOM);
   s.expectPos({ x: 3, y: 2 });
   s.expectTurn(1);
@@ -46,6 +48,7 @@ scenario('a closed door auto-opens (vertical wall)', (s) => {
 });
 
 scenario('a closed door auto-opens (horizontal wall)', (s) => {
+  s.seed(2); // seed 1 spawns a newt in the doorway (since m12 step 6)
   s.level([' @ ', '-+-', ' . ']);
   s.act({ type: 'move', dir: 's' });
   s.expectEvent({ type: 'doorOpened' });

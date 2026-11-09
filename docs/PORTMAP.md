@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3923 citations.
+153 NetHack files, 3939 citations.
 
 ## dat/dungeon.lua
 
@@ -236,7 +236,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/mkroom.h
 
-- (file): `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`, `packages/content/src/oracle.ts`, `packages/content/src/shtypes.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/types/level.ts`
+- (file): `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`, `packages/content/src/oracle.ts`, `packages/content/src/shtypes.ts`, `packages/content/src/vaultstate.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/types/level.ts`
 - `IS_SHOP()`: `packages/content/src/eshk.ts`
 - `sbrooms()`: `packages/core/src/types/level.ts`
 
@@ -1275,7 +1275,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `add_room()`: `packages/core/src/levelgen/rooms.ts`
 - `add_subroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `bydoor()`: `packages/content/src/mklev.ts`, `packages/core/src/levelgen/corridors.ts`
+- `cardinal_nextto_room()`: `packages/core/src/levelgen/vault.ts`
+- `create_vault()`: `packages/core/src/levelgen/rooms.ts`
 - `do_room_or_subroom()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
+- `do_vault()`: `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
 - `dodoor()`: `packages/core/src/levelgen/corridors.ts`
 - `dosdoor()`: `packages/content/src/mklev.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/corridors.ts`, `packages/core/src/types/level.ts`
 - `fill_ordinary_room()`: `packages/content/src/mklev.ts`
@@ -1287,8 +1290,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `good_rm_wall_doorpos()`: `packages/core/src/levelgen/corridors.ts`
 - `join()`: `packages/core/src/levelgen/corridors.ts`
 - `makecorridors()`: `packages/core/src/levelgen/corridors.ts`
-- `makelevel()`: `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/generate.ts`
+- `makelevel()`: `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/generate.ts`, `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
+- `makeniche()`: `packages/content/src/vault.ts`, `packages/core/src/levelgen/vault.ts`
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
+- `maketrap()`: `packages/content/src/vault.ts`
 - `maybe_sdoor()`: `packages/core/src/levelgen/corridors.ts`
 - `mkaltar()`: `packages/content/src/mklev.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
@@ -1398,6 +1403,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `morguemon()`: `packages/content/src/roommon.ts`
 - `nexttodoor()`: `packages/content/src/fountain.ts`
 - `pick_room()`: `packages/content/src/mkroom.ts`
+- `search_special()`: `packages/content/src/vaultstate.ts`
 - `somexy()`: `packages/content/src/somexy.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
 - `somexyspace()`: `packages/content/src/somexy.ts`
 - `squadmon()`: `packages/content/src/roommon.ts`
@@ -2033,7 +2039,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_trap()`: `packages/content/src/sp_lev.ts`
 - `dig_corridor()`: `packages/content/src/mklev.ts`, `packages/core/src/levelgen/corridors.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `ensure_way_out()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
-- `fill_special_room()`: `packages/content/src/shknam.ts`, `packages/content/src/zoo.ts`
+- `fill_special_room()`: `packages/content/src/shknam.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`
 - `floodfillchk_match_under()`: `packages/content/src/orctown.ts`
 - `generate_way_out_method()`: `packages/core/src/levelgen/special.ts`
 - `get_location()`: `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
@@ -2138,6 +2144,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `level_tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mlevel_tele_trap()`: `packages/content/src/trap.ts`
 - `mtele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `mvault_tele()`: `packages/content/src/trap.ts`
 - `noteleport_level()`: `packages/content/src/teleport.ts`
 - `random_teleport_level()`: `packages/content/src/teleport.ts`
 - `rloc()`: `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`, `packages/content/src/trap.ts`
@@ -2153,6 +2160,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `teleds()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `teleok()`: `packages/content/src/apply.ts`, `packages/content/src/teleport.ts`
 - `u_teleport_mon()`: `packages/content/src/trap.ts`
+- `vault_tele()`: `packages/content/src/trap.ts`
 
 ## src/timeout.c
 

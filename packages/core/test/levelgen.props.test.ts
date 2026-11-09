@@ -135,7 +135,11 @@ function checkLevel(l: Level, w: number, h: number): void {
     }
   }
 
-  // secret doors sit in a wall line like regular doors, and only below depth 2
+  // secret doors sit in a wall line like regular doors, and only below depth 2 (but for the
+  // vault teleporter's niche and its door, made at any depth: makeniche(TELEP_TRAP))
+  const niche = l.vaultTeleSpot;
+  const nicheOrDoor = (x: number, y: number): boolean =>
+    niche !== undefined && x === niche.x && Math.abs(y - niche.y) <= 1;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const t = at(l, x, y);
@@ -145,7 +149,7 @@ function checkLevel(l: Level, w: number, h: number): void {
         throw new Error(`sdoor_v at ${String(x)},${String(y)} not in a vertical wall line`);
       if (sh && !(WALLS.has(at(l, x - 1, y)) && WALLS.has(at(l, x + 1, y))))
         throw new Error(`sdoor_h at ${String(x)},${String(y)} not in a horizontal wall line`);
-      if ((sv || sh || t === PAL.scorr) && l.depth <= 2)
+      if ((sv || sh || t === PAL.scorr) && l.depth <= 2 && !nicheOrDoor(x, y))
         throw new Error('secret door or corridor above depth 3');
     }
   }

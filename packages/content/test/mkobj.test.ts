@@ -1,6 +1,6 @@
 import { itemsAt } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { MKOBJ_PROBS, mkgold, mkobj, mkobjAt, rndmonnum } from '../src/index';
+import { MKOBJ_PROBS, VAULT, mkgold, mkobj, mkobjAt, rndmonnum } from '../src/index';
 import { OBJECTS } from '../src/objects';
 import { bareState, ctxFor, defs, engine } from './itemHelpers';
 
@@ -157,16 +157,23 @@ describe('level objects', () => {
     let piles = 0;
     let gold = 0;
     let objs = 0;
-    // (seeds 301..450: with the gloves shuffle of m11 step 4, seeds 1..150 drew 0.545 objects per
-    // room by chance; with the potions of step 6, seeds 151..300 drew 0.53; over seeds 1..600
-    // the rate stays near 0.51)
-    for (let seed = 301; seed <= 450; seed++) {
+    // (seeds 1..150: with the gloves shuffle of m11 step 4 they drew 0.545 objects per room by
+    // chance and the test moved to 151..300, then with the potions of step 6 to 301..450; with
+    // the vault roll of m12 step 6 seeds 301..450 drew 0.53 and seeds 1..150 0.51; over seeds
+    // 1..600 the rate stays near 0.52)
+    for (let seed = 1; seed <= 150; seed++) {
       const { state } = engine.newGame({ seed });
       const level = state.levels['dlvl1']!;
-      rooms += level.rooms.length;
+      // the vault's gold is fill_special_room()'s, not fill_ordinary_room()'s
+      const vault = level.rooms.find((r) => r.type === VAULT);
+      rooms += level.rooms.length - (vault ? 1 : 0);
       for (const e of Object.values(state.entities)) {
         if (!e.c.item || !e.c.pos) continue;
         const p = e.c.pos;
+        if (vault && p.x >= vault.lx && p.x <= vault.hx && p.y >= vault.ly && p.y <= vault.hy) {
+          expect(e.def).toBe('nh:gold_piece');
+          continue;
+        }
         // dig_corridor()'s boulders lie in corridors
         if (e.def === 'nh:boulder') {
           expect(level.palette[level.cells[p.y * level.width + p.x]!]).toBe('nh:corr');
@@ -177,9 +184,11 @@ describe('level objects', () => {
         );
         expect(inRoom).toBe(true);
         const t = level.palette[level.cells[p.y * level.width + p.x]!];
-        // gold is rolled before the fountain, which may then be put on it (find_okay_roompos()
-        // ignores objects, as in C); everything else comes after and needs plain floor
-        if (t === 'nh:fountain') expect(e.def).toBe('nh:gold_piece');
+        // gold is rolled before the fountain, sink and altar, which may then be put on it
+        // (find_okay_roompos() ignores objects, as in C); everything else comes after and needs
+        // plain floor
+        if (t === 'nh:fountain' || t === 'nh:sink' || t?.startsWith('nh:altar_') === true)
+          expect(e.def).toBe('nh:gold_piece');
         else expect(t).toBe('nh:floor');
         piles++;
         if (e.def === 'nh:gold_piece') {

@@ -18,6 +18,7 @@ import { describe, expect, test } from 'vitest';
 import {
   COURT,
   LEPREHALL,
+  VAULT,
   WIZ_MKROOM,
   ZOO,
   fillZoo,
@@ -128,8 +129,10 @@ const withKind = (kind: DefId): { m: Made; ri: number }[] =>
 describe('the special-room chain', () => {
   test('up to one special room a level, at its depths: no throne room above DL5, no leprechaun hall above DL6, no zoo above DL7', () => {
     for (const m of made) {
-      const kinds = m.types.filter((t) => t !== undefined);
+      // the vault is besides the chain's room
+      const kinds = m.types.filter((t) => t !== undefined && t !== VAULT);
       expect(kinds.length).toBeLessThanOrEqual(1);
+      expect(m.types.filter((t) => t === VAULT).length).toBeLessThanOrEqual(1);
       const k = kinds[0];
       if (k === COURT) expect(m.level.depth).toBeGreaterThanOrEqual(5);
       if (k === LEPREHALL) expect(m.level.depth).toBeGreaterThanOrEqual(6);

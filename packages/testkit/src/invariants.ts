@@ -184,6 +184,7 @@ export function checkInvariants(
   checkSpellState(state, errs);
   checkPriests(state, errs);
   checkFountains(state, errs);
+  checkVaults(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
 
@@ -592,6 +593,38 @@ function checkFountains(state: GameState, errs: string[]): void {
       if (lv.palette[lv.cells[Number(k)] ?? -1] !== 'nh:fountain')
         errs.push(`fountains: ${lid} cell ${k} is not a fountain`);
     }
+  }
+}
+
+/**
+ * Vaults: no level keeps level generation's transient requests (`vaultSpot`, `vaultTeleSpot`,
+ * consumed by the first `newLevel` hook, never saved), and every hidden vault teleporter
+ * (`modData.nh.vaultTele`, `{ [levelId]: cellIndex }`) waits on a secret corridor of an
+ * existing level.
+ */
+function checkVaults(state: GameState, errs: string[]): void {
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (lv && ('vaultSpot' in lv || 'vaultTeleSpot' in lv))
+      errs.push(`level '${lid}' kept a vault request`);
+  }
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['vaultTele']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.vaultTele is not an object');
+    return;
+  }
+  const table = t as Record<string, unknown>;
+  for (const lid of Object.keys(table).sort()) {
+    const lv = state.levels[lid];
+    const cell = table[lid];
+    if (!lv) errs.push(`vaultTele: level '${lid}' does not exist`);
+    else if (typeof cell !== 'number' || lv.palette[lv.cells[cell] ?? -1] !== 'nh:scorr')
+      errs.push(`vaultTele: ${lid} cell ${String(cell)} is not a secret corridor`);
   }
 }
 

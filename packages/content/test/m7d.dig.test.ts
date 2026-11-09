@@ -113,10 +113,11 @@ describe('digging across the level', () => {
     const w = wand(m.state, WAN.digging);
     zap(m.state, w, 'e');
     expect(cellOf(m.level, 4, 2)).toBe(T.doorway);
-    // rn1(18, 8) squares, a wall costing 3, rock 2: at least 3 squares of corridor, contiguous
+    // rn1(18, 8) squares from the one next to her, the floor costing 1, a wall 3, rock 2: 2
+    // (depth 8) to 11 squares of corridor, contiguous
     let n = 0;
     while (cellOf(m.level, 5 + n, 2) === T.corr) n++;
-    expect(n).toBeGreaterThanOrEqual(3);
+    expect(n).toBeGreaterThanOrEqual(2);
     expect(n).toBeLessThanOrEqual(11);
     for (let x = 5 + n; x < m.level.width; x++) expect(cellOf(m.level, x, 2)).toBe(T.stone);
     // the wand is known (a ray is always seen)

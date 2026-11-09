@@ -35,6 +35,7 @@ import { registerPriest } from './priest';
 import { registerLeaveShops, registerRooms } from './rooms';
 import { registerShops } from './shknam';
 import { registerZoo } from './zoo';
+import { registerVault } from './vault';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -187,6 +188,7 @@ export const vanillaMod: Mod = {
     registerSpLev(api, SPLEV_FIXUPS);
     registerShops(api); // after the LevelDef contents, as fill_special_room()
     registerZoo(api); // likewise
+    registerVault(api); // likewise; the vault is the last room
     registerRooms(api); // after the pets arrive, as goto_level()
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
   },
@@ -566,6 +568,8 @@ export {
   roomDoors,
 } from './zoo';
 export { fillOrdinaryRoom, mktrap, traptypeRnd, mkfount, mksink, mkaltar } from './mklev';
+export { VAULT, vaultRoom, pendingVaultTele } from './vaultstate';
+export { mkVault, fillVault, revealVaultTele } from './vault';
 export {
   FTN_MAGIC,
   FTN_LOOTED,
@@ -624,6 +628,8 @@ export {
   isHole,
   TELE_ID,
   teleControlled,
+  teleTrap,
+  vaultTele,
 } from './trap';
 export type { TrapResult } from './trap';
 export { utrap, isMtrapped, monKnowsTraps } from './trapstate';

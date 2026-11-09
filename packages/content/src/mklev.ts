@@ -15,6 +15,7 @@ import { somexyspace } from './somexy';
 import { mkcorpstat } from './statue';
 import { levelFlags } from './levelflags';
 import { T, setTerrain } from './terrain';
+import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
 
 /**
@@ -269,6 +270,7 @@ export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
     mkCorridorBoulders(ctx, level);
     keepTrappedDoors(ctx, level);
+    mkVault(ctx, level); // after the corridors, before the special room, as do_vault
     if (level.def === undefined) mkSpecialRoom(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
       for (const room of level.rooms)

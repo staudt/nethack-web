@@ -359,8 +359,8 @@ describe('the control prompt', () => {
   });
 
   test('"human" makes a new human; Escape under forced control is "Never mind."', () => {
-    // (seed 1: both new humans survive newman()'s health check)
-    const s = room(1);
+    // (seed 2: both new humans survive newman()'s health check; seed 1 until m12 step 6)
+    const s = room(2);
     run(s, (ctx) => polyself(ctx, { controlled: true }));
     expect(answer(s, null)).toEqual(['Never mind.']);
     expect(form(s)).toBeNull();
@@ -386,7 +386,7 @@ describe('the control prompt', () => {
   });
 
   test('polymorph control (a ring): asked, Escape is a random change, no system shock', () => {
-    const s = room(1);
+    const s = room(2); // seed 1 until m12 step 6's vault roll moved the stream
     setAttr(s, 'con', 3);
     setIntrinsic(hero(s), P.POLYMORPH_CONTROL, true);
     run(s, (ctx) => polyself(ctx));

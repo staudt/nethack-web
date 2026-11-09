@@ -16,6 +16,7 @@ import { describe, expect, test } from 'vitest';
 import {
   SHOPKEEPER,
   SHTYPES,
+  VAULT,
   eshkOf,
   mkSpecialRoom,
   shopDoors,
@@ -81,14 +82,17 @@ for (let seed = 1; seed <= 30; seed++) {
 
 describe('random dungeon shops', () => {
   test('never on the first level', () => {
-    for (const lv of firsts) expect(lv.rooms.filter((r) => r.type !== undefined)).toEqual([]);
+    for (const lv of firsts)
+      expect(lv.rooms.filter((r) => r.type !== undefined && r.type !== VAULT)).toEqual([]);
   });
 
   test('the first room with one door and no stairs, lit, typed, with its shopkeeper', () => {
     let shops = 0;
     for (const lv of levels) {
       // the shop, if any (from DL5 the chain may make a throne room instead: the shop roll missed)
-      const typed = lv.rooms.flatMap((r, i) => (r.type !== undefined ? [i] : []));
+      const typed = lv.rooms.flatMap((r, i) =>
+        r.type !== undefined && r.type !== VAULT ? [i] : [],
+      );
       if (typed.length === 1 && shopType(lv.rooms[typed[0]!]?.type) === null) {
         expect(lv.depth).toBeGreaterThanOrEqual(5);
         continue;
@@ -96,7 +100,9 @@ describe('random dungeon shops', () => {
       expect(typed.length).toBeLessThanOrEqual(1);
       const i = typed[0];
       const rooms = top(lv).length;
-      const enough = rooms >= (lv.branch ? 4 : 3);
+      // the vault counts as a room and raises the threshold by one
+      const vault = lv.rooms.some((r) => r.type === VAULT);
+      const enough = rooms >= (lv.branch ? 4 : 3) + (vault ? 1 : 0);
       if (i === undefined) {
         // depth 2 and 3 always roll (rn2(depth) < 3): no shop means no room could be one
         if (lv.depth <= 3 && enough)
