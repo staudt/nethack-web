@@ -386,7 +386,7 @@ export { mkWished, holdAnotherObject, askWish, answerWish, MAXWISHTRY } from './
 export type { WishData, WishOpts } from './wish';
 export { hitval } from './combat';
 export { nhData } from './items';
-export { rndmonst, makemon, registerGeneration } from './generation';
+export { rndmonst, makemon, registerGeneration, rndghostname } from './generation';
 export { mcalcmove, clearPath, disturb, dochug, mfndpos, moveSpecial, priMove } from './monmove';
 export {
   ALIGNED_CLERIC,
@@ -537,7 +537,7 @@ export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
 export { somexyspace, somexyspaceTry, occupied } from './somexy';
 export { mkSpecialRoom, pickRoom, mkzoo, doMkroom, hasUpstairs, hasDnstairs } from './mkroom';
-export { courtmon, squadmon, antholemon } from './roommon';
+export { courtmon, squadmon, morguemon, ndemon, antholemon } from './roommon';
 export {
   ZOO,
   COURT,

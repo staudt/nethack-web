@@ -87,7 +87,15 @@ import {
 } from './shk';
 import { holetime, shkFixesDamage } from './shkdamage';
 import { T, isObstructedId } from './terrain';
-import { digAbility, mDigweaponCheck, mayDig, mdigTunnel, needsPick, tunnels } from './mdig';
+import {
+  digAbility,
+  mDigweaponCheck,
+  mayDig,
+  mayPasswall,
+  mdigTunnel,
+  needsPick,
+  tunnels,
+} from './mdig';
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { heroInvisible, monInvisible } from './invis';
@@ -237,8 +245,10 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * With `allowDig` (ALLOW_DIG, a tunneller: canTunnel()) rock, walls and trees it can dig into
  * now are candidates, and so are closed and locked doors (thrudoor); intelligent peaceful ones
  * keep out of shop and temple walls from outside. A monster without ALLOW_SSM never steps onto a
- * square that scares it (onscary(): a scroll of scare monster), the hero's own included. Not
- * ported: water/lava, Elbereth, long worms, wall-walking.
+ * square that scares it (onscary(): a scroll of scare monster), the hero's own included. A
+ * monster that passes walls (passes_walls(): ALLOW_WALL, ALLOW_ROCK) goes into stone and walls
+ * that are not non-passwall (may_passwall(): Sokoban's), through closed and locked doors, onto
+ * boulders and through any tight squeeze. Not ported: water/lava, Elbereth, long worms, iron bars.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -263,7 +273,9 @@ export function mfndpos(
   const canOpen = !(def.flags.includes('nohands') || verySmall(def));
   // ref: mfndpos() ALLOW_DIG: "need to be specific about what can currently be dug"
   const dig = opts.allowDig === true ? digAbility(ctx, e) : null;
-  const thrudoor = !!dig && (dig.rock || dig.tree);
+  // ref: mon_allowflags(): `if (passes_walls(mtmp->data)) allowflags |= (ALLOW_ROCK | ALLOW_WALL)`
+  const wallwalk = def.flags.includes('wallwalk');
+  const thrudoor = wallwalk || (!!dig && (dig.rock || dig.tree));
   const shopOrTemple = (x: number, y: number): boolean =>
     inAnyShop(level, x, y) || inRooms(level, x, y).some((r) => level.rooms[r]?.type === TEMPLE);
   const avoidSpecialWalls =
@@ -325,15 +337,18 @@ export function mfndpos(
         // ref: mfndpos(): `IS_OBSTRUCTED(ntyp) && !((IS_TREE(ntyp) ? treeok : rockok) &&
         // may_dig(nx, ny))`, then "intelligent peacefuls avoid digging shop/temple walls"
         const tid = level.palette[to];
-        if (!dig || !isObstructedId(tid)) continue;
-        if (!(tid === T.tree ? dig.tree : dig.rock) || !mayDig(ctx, level, nx, ny)) continue;
+        if (!isObstructedId(tid)) continue;
+        if (!(wallwalk && mayPasswall(ctx, level, nx, ny))) {
+          if (!dig) continue;
+          if (!(tid === T.tree ? dig.tree : dig.rock) || !mayDig(ctx, level, nx, ny)) continue;
+        }
         if (avoidSpecialWalls && shopOrTemple(nx, ny)) continue;
       }
       if (closed && !canOpen && !thrudoor) continue;
       // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
       // digger goes through (thrudoor)
       if (rules.lockedDoor[to] && !thrudoor) continue;
-      if (boulders.has(cellIndex(level, nx, ny))) continue;
+      if (!wallwalk && boulders.has(cellIndex(level, nx, ny))) continue; // ALLOW_ROCK
       const diagonal = nx !== pos.x && ny !== pos.y;
       // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
       // or out of an intact door
@@ -362,8 +377,9 @@ export function mfndpos(
         inYourSanctuary(ctx, null, nx, ny)
       )
         continue;
-      // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big)
-      if (diagonal && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
+      // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big;
+      // never for a monster that passes walls)
+      if (diagonal && !wallwalk && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
       // ref: mfndpos(): "The monster avoids a particular type of trap if it's familiar with the
       // trap type"; harmless traps are neither avoided nor marked
       const ttmp = trapAt(level, nx, ny);
@@ -941,15 +957,16 @@ function postmovMoved(
   // ref: postmov(): `trapret = mintrap(mtmp)`; killed or moved off the level is MMOVE_DIED
   if (trapRemovedMon(mintrap(ctx, id))) return 'died';
 
-  // ref: postmov(): open a closed door the monster just stepped onto, `!can_tunnel` ("taken
-  // care of below")
+  // ref: postmov(): open a closed door the monster just stepped onto, `!passes_walls(ptr)`
+  // ("doesn't need to open doors") and `!can_tunnel` ("taken care of below")
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
-  if (rules.closedDoor[here] && !canTunnel && doorTrapped(ctx, level.id, pos.x, pos.y)) {
+  const opens = rules.closedDoor[here] === true && !def.flags.includes('wallwalk') && !canTunnel;
+  if (opens && doorTrapped(ctx, level.id, pos.x, pos.y)) {
     const didsee = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     blowDoor(ctx, level, pos.x, pos.y); // D_NODOOR
     if (mbTrapped(ctx, e, didsee || isVisible(ctx.state, cellIndex(level, pos.x, pos.y))))
       return 'died';
-  } else if (rules.closedDoor[here] && !canTunnel) {
+  } else if (opens) {
     openDoorAt(ctx, level, pos);
     const seen = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     ctx.emit({ type: 'doorOpened', pos: { x: pos.x, y: pos.y } });

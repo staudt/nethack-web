@@ -7,6 +7,7 @@ export const mkroomMessagesEn: Record<string, string> = {
   'mkroom.beehive': 'You enter a giant beehive!',
   'mkroom.cocknest': 'You enter a disgusting nest!',
   'mkroom.anthole': 'You enter an anthole!',
+  'mkroom.morgue': 'You have an uncanny feeling...',
   'mkroom.barracks': 'You enter a military barracks!',
   'mkroom.barracks_abandoned': 'You enter an abandoned barracks.',
   'throne.shock': 'A massive electric shock shoots through your body!',

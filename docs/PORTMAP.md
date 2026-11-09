@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3905 citations.
+153 NetHack files, 3917 citations.
 
 ## dat/dungeon.lua
 
@@ -733,9 +733,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `docall()`: `packages/content/src/call.ts`
 - `docall_xname()`: `packages/content/src/call.ts`
 - `docallcmd()`: `packages/content/src/call.ts`
+- `ghostnames()`: `packages/content/src/generation.ts`
 - `mhim()`: `packages/content/src/read.ts`
 - `mon_nam()`: `packages/content/src/perception.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
+- `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
 - `some_mon_nam()`: `packages/content/src/perception.ts`
 - `surface()`: `packages/content/src/moverock.ts`, `packages/content/src/terrain.ts`
@@ -1028,7 +1030,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
 - `domove_fight_web()`: `packages/content/src/actions.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
-- `domove_swap_with_pet()`: `packages/content/src/actions.ts`
+- `domove_swap_with_pet()`: `packages/content/src/actions.ts`, `packages/testkit/src/invariants.ts`
 - `dopush()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `escape_from_sticky_mon()`: `packages/content/src/hackmove.ts`, `packages/content/src/resist.en.ts`
 - `findtravelpath()`: `packages/content/src/travel.ts`
@@ -1042,6 +1044,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lookaround()`: `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `losehp()`: `packages/content/src/hp.ts`
 - `may_dig()`: `packages/content/src/mdig.ts`
+- `may_passwall()`: `packages/content/src/mdig.ts`
 - `money_cnt()`: `packages/content/src/detectobj.ts`, `packages/content/src/dosit.ts`, `packages/content/src/stats.ts`
 - `monster_nearby()`: `packages/content/src/eat.ts`
 - `monstinroom()`: `packages/content/src/zoo.ts`
@@ -1261,6 +1264,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - `bribe()`: `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`
 - `monster_census()`: `packages/content/src/mcastu.ts`
+- `ndemon()`: `packages/content/src/roommon.ts`
 
 ## src/mklev.c
 
@@ -1385,6 +1389,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mk_zoo_thronemon()`: `packages/content/src/zoo.ts`
 - `mkshop()`: `packages/content/src/shknam.ts`
 - `mkzoo()`: `packages/content/src/mkroom.ts`
+- `morguemon()`: `packages/content/src/roommon.ts`
 - `nexttodoor()`: `packages/content/src/fountain.ts`
 - `pick_room()`: `packages/content/src/mkroom.ts`
 - `somexy()`: `packages/content/src/somexy.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
@@ -2058,6 +2063,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `sel_set_feature()`: `packages/core/src/types/mod.ts`
 - `sel_set_ter()`: `packages/core/src/levelgen/special.ts`
 - `set_door_orientation()`: `packages/core/src/levelgen/special.ts`
+- `set_wallprop_in_selection()`: `packages/content/src/levelflags.ts`
+- `solidify_map()`: `packages/content/src/levelflags.ts`
 - `splev_initlev()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `spo_endroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `wallification()`: `packages/core/src/levelgen/mkmap.ts`

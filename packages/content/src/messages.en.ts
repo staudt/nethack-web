@@ -392,6 +392,7 @@ export const messagesEn: Record<string, string> = {
   'nh:elf': 'elf',
   'nh:giant': 'giant',
   'nh:ettin': 'ettin',
+  'nh:ghost': 'ghost',
   'nh:water_demon': 'water demon',
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',

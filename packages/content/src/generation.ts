@@ -8,6 +8,7 @@ import {
   isVisible,
   type CellRules,
   type Ctx,
+  type DefId,
   type EntityId,
   type GameState,
   type Level,
@@ -402,6 +403,9 @@ export function makemon(
     levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
   } else if (mon && mlet === 'l') mon.asleep = true;
   else if (mon && mlet === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
+  // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
+  // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
+  if (mdef.id === GHOST) rndghostname(ctx);
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {
@@ -413,6 +417,54 @@ export function makemon(
   // m_dowear(creation))
   if (!opts.noInventory) givePossessions(ctx, id, level.depth);
   return id;
+}
+
+const GHOST: DefId = 'nh:ghost';
+
+/** ref: src/do_name.c ghostnames[] */
+const GHOSTNAMES: readonly string[] = [
+  'Adri',
+  'Andries',
+  'Andreas',
+  'Bert',
+  'David',
+  'Dirk',
+  'Emile',
+  'Frans',
+  'Fred',
+  'Greg',
+  'Hether',
+  'Jay',
+  'John',
+  'Jon',
+  'Karnov',
+  'Kay',
+  'Kenny',
+  'Kevin',
+  'Maud',
+  'Michiel',
+  'Mike',
+  'Peter',
+  'Robert',
+  'Ron',
+  'Tom',
+  'Wilmar',
+  'Nick Danger',
+  'Phoenix',
+  'Jiro',
+  'Mizue',
+  'Stephan',
+  'Lance Braccus',
+  'Shadowhawk',
+  'Murphy',
+];
+
+/**
+ * A ghost's name: one of the ghost names six times in seven, else the hero's own (null here: the
+ * port has no player name). ref: src/do_name.c rndghostname()
+ */
+export function rndghostname(ctx: Pick<Ctx, 'rng'>): string | null {
+  return ctx.rng.rn2(7) ? (GHOSTNAMES[ctx.rng.rn2(GHOSTNAMES.length)] ?? null) : null;
 }
 
 /**

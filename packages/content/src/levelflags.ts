@@ -1,7 +1,8 @@
 // Level flags of the special levels, kept as a content table keyed by LevelDef id (a level with no
 // LevelDef has none). Nothing is saved: the flags follow from `Level.def`.
 // ref: dat/soko*.lua, dat/minend-*.lua, dat/minetn-5.lua des.level_flags() ("noteleport",
-// "hardfloor", "mazelevel", "solidify") and des.non_diggable(selection.area(...));
+// "hardfloor", "mazelevel", "solidify"), des.non_diggable(selection.area(...)) and
+// des.non_passwall(selection.area(...));
 // src/sp_lev.c lspo_level_flags(), set_wall_property(); src/mkmap.c mkmap() (cavernous levels);
 // src/dungeon.c Can_dig_down(); src/hack.c may_dig()
 import {
@@ -22,18 +23,22 @@ export interface FlagRect {
 }
 
 /**
- * ref: level.flags.noteleport, hardfloor, is_maze_lev; W_NONDIGGABLE walls (`'all'`: every wall
- * and, with `solidify`, the stone around the map block).
+ * ref: level.flags.noteleport, hardfloor, is_maze_lev; W_NONDIGGABLE and W_NONPASSWALL walls
+ * (`'all'`: every wall and, with `solidify`, the stone around the map block).
  */
 export interface LevelFlags {
   noteleport?: true;
   hardfloor?: true;
   maze?: true;
   nondiggable?: 'all' | readonly FlagRect[];
+  nonpasswall?: 'all' | readonly FlagRect[];
 }
 
-/** The Sokoban levels: their non_diggable areas cover the whole map, and `solidify` the rest. */
-const SOKO: LevelFlags = { noteleport: true, maze: true, nondiggable: 'all' };
+/**
+ * The Sokoban levels: their non_diggable and non_passwall areas cover the whole map, and
+ * `solidify` the rest (solidify_map() sets both bits).
+ */
+const SOKO: LevelFlags = { noteleport: true, maze: true, nondiggable: 'all', nonpasswall: 'all' };
 /** soko4 (the entry level) also has a hard floor. ref: dat/soko4-1.lua, soko4-2.lua */
 const SOKO_ENTRY: LevelFlags = { ...SOKO, hardfloor: true };
 
@@ -105,7 +110,29 @@ export function nonDiggable(
   x: number,
   y: number,
 ): boolean {
-  const nd = levelFlags(ctx, level).nondiggable;
+  return inFlagArea(ctx, level, levelFlags(ctx, level).nondiggable, x, y);
+}
+
+/**
+ * The cell's W_NONPASSWALL bit, like {@link nonDiggable} for des.non_passwall(): only stone and
+ * walls care (may_passwall()). ref: src/sp_lev.c set_wallprop_in_selection(), solidify_map()
+ */
+export function nonPasswall(
+  ctx: Pick<Ctx, 'defs'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): boolean {
+  return inFlagArea(ctx, level, levelFlags(ctx, level).nonpasswall, x, y);
+}
+
+function inFlagArea(
+  ctx: Pick<Ctx, 'defs'>,
+  level: Readonly<Level>,
+  nd: LevelFlags['nondiggable'],
+  x: number,
+  y: number,
+): boolean {
   if (nd === undefined) return false;
   if (nd === 'all') return true;
   if (level.def === undefined) return false;

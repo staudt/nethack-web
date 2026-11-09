@@ -112,7 +112,15 @@ export function checkInvariants(
       continue;
     }
     const pal = lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? -1];
-    if (pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable) {
+    // a monster that passes walls (a ghost) may stand in stone and walls (ref: src/mon.c mfndpos())
+    const wallwalk =
+      e.c.monster !== undefined &&
+      registry.isMonster(e.def) &&
+      registry.monster(e.def).flags.includes('wallwalk');
+    if (
+      !wallwalk &&
+      (pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable)
+    ) {
       errs.push(`entity ${id}: on impassable cell (${pal ?? '?'}) at ${p.x},${p.y}`);
     }
     // Objects pile up; only creatures need a cell to themselves.
@@ -871,8 +879,8 @@ export function boulderCells(state: GameState, registry: Registry): Set<string> 
  * `before` maps monster ids, and the hero's, to their cell keys and `bouldersBefore` is
  * `boulderCells` from before the step. A pet that swapped places with the hero onto the boulder
  * she had squeezed onto is allowed: C lets a very small pet do it, and the port lets any pet (see
- * DEVIATIONS, Swapping with a pet). ref: src/mon.c mfndpos() (no ALLOW_ROCK monsters: no giants);
- * src/hack.c domove_swap_with_pet()
+ * DEVIATIONS, Swapping with a pet), and so may a monster that passes walls (ALLOW_ROCK).
+ * ref: src/mon.c mfndpos() (no giants yet); src/hack.c domove_swap_with_pet()
  */
 export function boulderMoveErrors(
   state: GameState,
@@ -888,6 +896,13 @@ export function boulderMoveErrors(
     if (!p || id === state.playerId) continue;
     const key = `${p.level}:${p.x},${p.y}`;
     if (key === was || key === heroWas || !bouldersBefore.has(key)) continue;
+    const def = state.entities[String(id)]?.def;
+    if (
+      def !== undefined &&
+      registry.isMonster(def) &&
+      registry.monster(def).flags.includes('wallwalk')
+    )
+      continue;
     after ??= boulderCells(state, registry);
     if (after.has(key)) errs.push(`monster ${id} moved onto a boulder at ${key}`);
   }

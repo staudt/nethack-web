@@ -8,7 +8,7 @@
 // Not ported (DEVIATIONS.md "Special rooms"): `level.flags.has_*` (no level sounds) and the
 // irregular room shape: a LevelDef zoo is the rectangle of its region, filled on its open squares
 // and treated as irregular (the squares next to its first door stay empty), which is what
-// Sokoban's zoo is. Morgues have no fill yet: the chain never types a room with them.
+// Sokoban's zoo is. A morgue's graves draw their roll and make nothing (no graves yet).
 import {
   cellIndex,
   getLevel,
@@ -32,7 +32,7 @@ import { mkobj, mkobjAt, mksobjCorpse, mksobjFull, mksobjStatue } from './mkobj'
 import { heroSees, mongets } from './mongear';
 import { monNam } from './perception';
 import { P, heroHas } from './props';
-import { antholemon, courtmon, squadmon } from './roommon';
+import { antholemon, courtmon, morguemon, squadmon } from './roommon';
 import { somexyspaceTry } from './somexy';
 import { T, setTerrain, terrainIdAt } from './terrain';
 
@@ -75,6 +75,7 @@ export const FILLED_ZOO_KINDS: readonly DefId[] = [
   BEEHIVE,
   COCKNEST,
   ANTHOLE,
+  MORGUE,
   BARRACKS,
 ];
 
@@ -265,8 +266,10 @@ function spacePos(ctx: Ctx, level: Level, x: number, y: number): boolean {
 /**
  * fill_zoo()'s objects on a square after its monster: a beehive's lump of royal jelly (1 in 3), a
  * barracks' payroll, a large box or a chest (1 in 20), a cockatrice nest's statue of a would-be
- * adventurer holding `rn2(5)` random objects (1 in 3), an anthole's random food (1 in 3).
- * ref: src/mkroom.c fill_zoo() (MORGUE: step 4)
+ * adventurer holding `rn2(5)` random objects (1 in 3), an anthole's random food (1 in 3), a
+ * morgue's would-be adventurer's corpse (1 in 5), "lots of treasure buried with dead" (a large
+ * box or a chest, 1 in 10) and a grave (1 in 5: drawn, not made; DEVIATIONS.md "Special rooms").
+ * ref: src/mkroom.c fill_zoo()
  */
 function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: boolean): void {
   const at = { level: level.id, x: p.x, y: p.y };
@@ -294,6 +297,14 @@ function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: 
     }
   } else if (type === ANTHOLE) {
     if (!ctx.rng.rn2(3)) mkobjAt(ctx, 'food', at, inMklev);
+  } else if (type === MORGUE) {
+    if (!ctx.rng.rn2(5)) mkTtObject(ctx, 'nh:corpse', at, inMklev);
+    // lots of treasure buried with dead
+    if (!ctx.rng.rn2(10)) {
+      const box = ctx.rng.rn2(3) ? 'nh:large_box' : 'nh:chest';
+      mksobjFull(ctx, ctx.defs.object(box), { at }, gen);
+    }
+    ctx.rng.rn2(5); // `if (!rn2(5)) make_grave(sx, sy, NULL)`: no graves yet (decision 5)
   }
 }
 
@@ -355,6 +366,7 @@ function addGold(ctx: Ctx, chest: number, quan: number): void {
 function zooMonster(ctx: Ctx, type: DefId, difficulty: number): MonsterDef | null {
   if (type === COURT) return courtmon(ctx, difficulty);
   if (type === BARRACKS) return squadmon(ctx, difficulty);
+  if (type === MORGUE) return morguemon(ctx, difficulty);
   if (type === LEPREHALL) return ctx.defs.monster('nh:leprechaun');
   if (type === COCKNEST) return ctx.defs.monster('nh:cockatrice');
   if (type === ANTHOLE) return antholemon(ctx.state, ctx.defs, difficulty);
@@ -379,8 +391,9 @@ export function registerZoo(api: ModApi): void {
  * treasure zoo!", "You enter an opulent throne room!" (no throne: "an opulent room!"), "You enter
  * a leprechaun hall!", "a giant beehive!", "a disgusting nest!", "an anthole!", "a military
  * barracks!" while a soldier, sergeant, lieutenant or captain is in it, else "an abandoned
- * barracks."), then it becomes an ordinary room and, for zoos and throne rooms, each monster in
- * it wakes one time in three unless she is stealthy. ref: src/hack.c check_special_room(),
+ * barracks.", "You have an uncanny feeling..." in a morgue: no clock, so never midnight's "Run
+ * away!  Run away!"), then it becomes an ordinary room and, for zoos, throne rooms and morgues,
+ * each monster in it wakes one time in three unless she is stealthy. ref: src/hack.c check_special_room(),
  * monstinroom(), wake_msg()
  */
 export function enterZoo(ctx: Ctx, roomno: number): void {
@@ -398,6 +411,8 @@ export function enterZoo(ctx: Ctx, roomno: number): void {
   else if (rt === BEEHIVE) ctx.emit({ type: 'msg', key: 'mkroom.beehive' });
   else if (rt === COCKNEST) ctx.emit({ type: 'msg', key: 'mkroom.cocknest' });
   else if (rt === ANTHOLE) ctx.emit({ type: 'msg', key: 'mkroom.anthole' });
+  else if (rt === MORGUE)
+    ctx.emit({ type: 'msg', key: 'mkroom.morgue' }); // never midnight()
   else if (rt === BARRACKS)
     ctx.emit({
       type: 'msg',

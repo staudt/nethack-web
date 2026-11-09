@@ -23,7 +23,7 @@ import { BOULDER, ROCK } from './boulder';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped } from './btrapped';
 import { mksobj } from './items';
-import { cavernous, levelFlags, nonDiggable } from './levelflags';
+import { cavernous, levelFlags, nonDiggable, nonPasswall } from './levelflags';
 import { uState } from './luck';
 import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { P, hasProp } from './props';
@@ -44,6 +44,14 @@ const say = (ctx: Ctx, key: string): void => ctx.emit({ type: 'msg', key });
 export function mayDig(ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean {
   const id = terrainIdAt(level, x, y);
   return !((isStwallId(id) || id === T.tree) && nonDiggable(ctx, level, x, y));
+}
+
+/**
+ * Stone and walls inside a non-passwall area (Sokoban) cannot be walked through by a monster
+ * that passes walls. ref: src/hack.c may_passwall()
+ */
+export function mayPasswall(ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean {
+  return !(isStwallId(terrainIdAt(level, x, y)) && nonPasswall(ctx, level, x, y));
 }
 
 /**

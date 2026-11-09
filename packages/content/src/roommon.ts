@@ -1,5 +1,5 @@
 // The monsters of special rooms: a leaf above generation.ts, so zoo.ts and the throne code share it.
-// ref: src/mkroom.c courtmon(), squadmon(), antholemon()
+// ref: src/mkroom.c courtmon(), squadmon(), morguemon(), antholemon(); src/minion.c ndemon()
 import type { Ctx, DefId, GameState, MonsterDef, Registry } from '@nh/core';
 import { mkclass } from './generation';
 import { isGenocided } from './vanquished';
@@ -55,6 +55,46 @@ export function squadmon(
   }
   mndx ??= SQUADPROB[ctx.rng.rn2(SQUADPROB.length)]?.pm ?? 'nh:soldier'; // ROLL_FROM(squadprob)
   return isGenocided(ctx.state, mndx) || !ctx.defs.isMonster(mndx) ? null : ctx.defs.monster(mndx);
+}
+
+/**
+ * A morgue's undead for a level of difficulty `depth`: by `i = rn2(100)` and `hd =
+ * rn2(depth)`, a minor demon (`hd > 10 && i < 10`, when ndemon() finds one), a vampire (`hd > 8
+ * && i > 85`), a ghost (`i < 20`), a wraith (`i < 40`) or a zombie. No level is in Gehennom or
+ * the endgame (their `mkclass(S_DEMON)` branch). null: no monster of that class could be made
+ * (makemon() then makes a random one). ref: src/mkroom.c morguemon()
+ */
+export function morguemon(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  depth: number,
+): MonsterDef | null {
+  const i = ctx.rng.rn2(100);
+  const hd = ctx.rng.rn2(depth);
+  if (hd > 10 && i < 10) {
+    const d = ndemon(ctx, depth);
+    if (d) return d;
+    // else do what? As is, it will drop to ghost/wraith/zombie
+  }
+  if (hd > 8 && i > 85) return mkclass(ctx, 'V', depth);
+  return i < 20
+    ? ctx.defs.monster('nh:ghost')
+    : i < 40
+      ? ctx.defs.monster('nh:wraith')
+      : mkclass(ctx, 'Z', depth);
+}
+
+/**
+ * A minor demon of any alignment (A_NONE): mkclass_aligned(S_DEMON) and `is_ndemon()` (a demon
+ * that is no lord or prince); null when there is none (NON_PM). ref: src/minion.c ndemon()
+ */
+export function ndemon(ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>, depth: number): MonsterDef | null {
+  const ptr = mkclass(ctx, '&', depth);
+  return ptr &&
+    ptr.flags.includes('demon') &&
+    !ptr.flags.includes('lord') &&
+    !ptr.flags.includes('prince')
+    ? ptr
+    : null;
 }
 
 const ANTS: readonly [DefId, DefId, DefId] = ['nh:soldier_ant', 'nh:fire_ant', 'nh:giant_ant'];

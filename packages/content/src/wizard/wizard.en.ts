@@ -30,6 +30,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.mkroom.nh:beehive': 'beehive',
   'wiz.mkroom.nh:cockatrice_nest': 'cockatrice nest',
   'wiz.mkroom.nh:anthole': 'anthole',
+  'wiz.mkroom.nh:morgue': 'morgue',
   'wiz.mkroom.nh:barracks': 'barracks',
   'wiz.cast.prompt': 'Cast which spell?',
   'wiz.levelchange.prompt': 'To what experience level do you want to be set?',

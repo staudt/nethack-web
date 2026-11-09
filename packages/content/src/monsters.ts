@@ -4794,6 +4794,42 @@ export const MONSTERS: readonly MonsterDef[] = [
     brain: 'nh:melee',
     sound: 'groan',
   },
+  // ref: monsters.h MON(NAM("ghost"), S_GHOST, LVL(10, 3, -5, 50, -5), (G_NOCORPSE | G_NOGEN), ...):
+  // made in morgues (morguemon()); walks through walls (passes_walls() in mfndpos())
+  {
+    id: 'nh:ghost',
+    nameKey: 'nh:ghost',
+    glyph: { ch: ' ', fg: GRAY },
+    level: 10,
+    speed: 3,
+    ac: -5,
+    mr: 50,
+    alignment: -5,
+    attacks: [{ at: 'touch', ad: 'phys', n: 1, d: 1 }],
+    size: 'medium',
+    flags: [
+      'fly',
+      'breathless',
+      'wallwalk',
+      'humanoid',
+      'unsolid',
+      'nopoly',
+      'undead',
+      'stalk',
+      'hostile',
+      'infravision',
+    ],
+    frequency: 0,
+    group: null,
+    genFlags: ['nocorpse', 'nogen'],
+    difficulty: 12,
+    weight: 1450,
+    nutrition: 0,
+    resists: ['cold', 'disint', 'sleep', 'poison', 'stone'],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'silent',
+  },
   // ref: monsters.h MON(NAM("water demon"), S_DEMON, LVL(8, 12, -4, 30, -7), (G_NOCORPSE | G_NOGEN), ...):
   // made by fountains only; no summoning (msummon)
   {

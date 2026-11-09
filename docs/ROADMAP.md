@@ -62,6 +62,7 @@ From 6b3 (shops: shopkeepers, stock, buying, selling, robbery and random dungeon
 - **Shop damage and repair**: `pay_for_damage()` for broken shop doors and dug walls ("Please pay for the door!"), the shopkeeper repairing them over time, `shopdig()` (he grabs her backpack when she falls through his floor).
 - **Candle lighting**: lighting tallow and wax candles, the candelabrum and candle light ranges (light.ts), gnomes' candles in the Mines; candles are sold unlit until then.
 - **Other mklev special rooms**: throne rooms, leprechaun halls, zoos, temples, beehives, morgues, antholes, barracks, swamps and cockatrice nests (`do_mkroom()`), vaults and the threshold they add, Medusa's level as the lower bound for shops; wizard mode's `SHOPTYPE`.
+- **Graves** (m12 step 4 draws the morgue roll only): grave terrain, `make_grave()` (headstone epitaphs, buried objects and corpses), `mkgrave()` in ordinary rooms (not rolled), digging graves up (zombies, mummies, alignment), #sit on a grave, troll corpses in graves.
 - **Shop types as defs**: `SHTYPES` (shtypes.ts) becomes a mod-defined def kind with the mod platform, so a mod can add a shop type.
 - **Shop extras**: credit for gold dropped in a shop and loans (`donate_gold()`, `costly_gold()`), shoplifting pets, the remaining iprob objects (fruit juice, ice box, elven cloak, magic lamp, potion of oil, scroll of food detection), mimics posing as stock, the tribute novel, usage fees for studying unpaid spellbooks, invisible customers and steeds, hero names in greetings.
 
@@ -126,7 +127,7 @@ From m11 (objects batch: about 150 new rows in eight steps, polearms, silver, eg
 
 From m10 (monster batch 1: 83 new rows in five steps, the web trap, shrieks, pudding division, monster regeneration, teleporters, cannibalism, starting gear, troll revival and object eaters; phone checks in TESTPLAN "10 monster batch 1"):
 
-- **Earth elemental and wall-walking:** `passes_walls()` and ALLOW_WALL in `mfndpos()` (also xorns later).
+- **Earth elemental and wall-walking:** ~~`passes_walls()` and ALLOW_WALL in `mfndpos()`~~ (m12 step 4, ghosts); left: the earth elemental and xorn rows, passing iron bars (`passes_bars()`), a hero form passing walls.
 - **Globs:** gray ooze, brown and black pudding and green slime globs (`make_corpse()`), melding and eating them.
 - **`mm_aggression()`:** monster-vs-monster targeting for hostiles (purple worms hunting shriekers, zombies vs the living).
 - **Gremlins in water and light:** `split_mon()` from pools and fountains (`minliquid()`), splashed potions of water (`potionhit()` on monsters), light damage (camera, wand flashes, `litroom()`) and `flees_light()`.
