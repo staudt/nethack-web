@@ -268,7 +268,7 @@ function tryDisarm(
     const id = ctx.state.playerId;
     if (
       inventoryOf(ctx.state, id).length > 0 &&
-      invWeight(ctx.state, ctx.defs, id) + weightCap(ctx.state, id) > WT_TOOMUCH_DIAGONAL
+      invWeight(ctx.state, ctx.defs, id) + weightCap(ctx.state, ctx.defs, id) > WT_TOOMUCH_DIAGONAL
     ) {
       say(ctx, 'untrap.unable_to_reach', { trap: trapName(t) });
       return 0;

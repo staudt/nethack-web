@@ -50,6 +50,14 @@ export const eatMessagesEn: Record<string, string> = {
   'eat.terrible': 'This {item} is terrible!',
   'eat.bland': 'This {item} is bland.',
   'eat.tripe_yak': 'Yak - dog food!',
+  'eat.tripe_good': 'This tripe ration is surprisingly good!',
+  'eat.tripe_orc': 'Mmm, tripe... not bad!',
+  'eat.tripe_orc_halluc': 'Tastes great!  Less filling!',
+  'eat.lembas_orc': '!#?&* elf kibble!',
+  'eat.lembas_elf': 'A little goes a long way.',
+  'eat.cannot': 'You cannot eat that!',
+  'eat.chicken': 'This tastes just like chicken!',
+  'eat.peck_eyeball': 'You peck the eyeball with delight.',
   'eat.core_dumped': 'Core dumped.',
   'eat.sinister_laughter': 'You hear sinister laughter as you fall asleep...',
   'eat.wake_up': 'You wake up.',
@@ -86,6 +94,7 @@ export const eatMessagesEn: Record<string, string> = {
   'eat.corpse.fatty': 'This {item} is fatty.',
   'eat.corpse.tough': 'This {item} is tough.',
   'eat.corpse.terrible': 'This {item} tastes terrible!',
+  'eat.corpse.delicious': 'This {item} tastes delicious!',
   'corpse.rots_away': 'Your {item} rots away.',
 
   // sickness and vomiting. ref: src/potion.c make_sick(), src/timeout.c

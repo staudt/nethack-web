@@ -497,6 +497,7 @@ describe('status bar, tombstone, tap to act', () => {
     'nh:main': 'The Dungeons of Doom',
     'nh:jackal': 'jackal',
     'killer.starvation': 'starvation',
+    'killer.poly.stuck': 'killed while stuck in creature form',
     'inv.a': 'a - a long sword',
     'enl.x': 'You are stunned.',
   };
@@ -638,6 +639,15 @@ describe('status bar, tombstone, tap to act', () => {
     n.ui.update(over({ endHow: 'mod:melted', killer: '=Izchak' }), [], null);
     expect(n.rip()).toContain('killed by');
     expect(n.rip()).toContain('Izchak');
+  });
+
+  test('end: a NO_KILLER_PREFIX killer is the whole text (topten.c formatkiller())', () => {
+    const m = mkEnd();
+    m.ui.update(over({ killer: '!@killer.poly.stuck' }), [], null);
+    const rip = (m.rip() ?? '').replace(/[\s|]+/g, ' ');
+    expect(rip).toContain('killed while stuck in creature form');
+    expect(rip).not.toContain('killed by');
+    m.ui.destroy();
   });
 
   test('end: the points clause once content scores the game; gold in containers counts', () => {

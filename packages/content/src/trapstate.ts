@@ -75,6 +75,25 @@ export function levitating(ctx: Pick<Ctx, 'state'>): boolean {
   return !u || u.type === 'pit';
 }
 
+/**
+ * The hero flies: her form flies (no amulet of flying exists), and neither levitation (any
+ * source, even blocked) nor being stuck in the floor blocks it (BFlying, float_vs_flight()).
+ * ref: include/youprop.h Flying; src/polyself.c float_vs_flight()
+ */
+export function flying(ctx: Pick<Ctx, 'state'>): boolean {
+  const h = getPlayer(ctx.state);
+  if (!hasProp(h, P.FLYING) || hasProp(h, P.LEVITATION)) return false;
+  const u = utrap(ctx);
+  return !u || u.type === 'pit';
+}
+
+/** u_locomotion(): "float" while levitating, "fly" while flying, else null (she steps). */
+export const uLocomotion = (ctx: Pick<Ctx, 'state'>): 'float' | 'fly' | null =>
+  levitating(ctx) ? 'float' : flying(ctx) ? 'fly' : null;
+
+/** Levitation or Flying: she is in the air (the hero side of check_in_air() without hurtling). */
+export const uInAir = (ctx: Pick<Ctx, 'state'>): boolean => levitating(ctx) || flying(ctx);
+
 /** The hero is caught in a pit or spiked pit. ref: `u.utrap && u.utraptype == TT_PIT` */
 export const uInPit = (ctx: Pick<Ctx, 'state'>): boolean => utrap(ctx)?.type === 'pit';
 

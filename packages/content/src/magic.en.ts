@@ -120,6 +120,8 @@ export const magicMessagesEn: Record<string, string> = {
   // throwing
   'throw.direction': 'In what direction?',
   'throw.worn': 'You cannot throw something you are wearing.',
+  'throw.notake': 'You are physically incapable of throwing or shooting anything.',
+  'throw.nohands': "You can't throw or shoot without hands.",
   'throw.loadstone': 'For some reason, you cannot throw the stone!',
   'throw.loadstone_any': 'For some reason, you cannot throw any of the stones!',
   'throw.volley': 'You throw {n} {item}.',

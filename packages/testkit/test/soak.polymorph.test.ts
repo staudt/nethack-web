@@ -43,7 +43,7 @@ const polyEverythingMod: Mod = {
 };
 
 describe('polymorph soak', () => {
-  for (const seed of [711, 712]) {
+  for (const seed of [711, 715]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

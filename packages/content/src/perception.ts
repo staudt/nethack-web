@@ -3,6 +3,7 @@
 // src/do_name.c rndmonnam(), src/display.c random_monster() / random_object()
 import { engulferOf } from './engulfstate';
 import {
+  cellRules,
   getPlayer,
   isVisible,
   type AppearanceDef,
@@ -13,6 +14,8 @@ import {
   type ModApi,
   type Registry,
 } from '@nh/core';
+import { blockersOf } from './boulder';
+import { clearPath } from './clearpath';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
 import { STATUE } from './statuestate';
 import { heroFormId } from './upoly';
@@ -62,6 +65,26 @@ export function telepathSenses(state: Readonly<GameState>, defs: Registry, mon: 
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
+
+/**
+ * Infravision: a polymorphed hero whose form has it sees an infravisible monster in the dark when
+ * nothing blocks the line to it (it is not hidden by invisibility). ref: include/display.h
+ * see_with_infrared() (only the view and canspotmon() use it; content's canseemon() does not)
+ */
+export function infraSees(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean {
+  if (!defs.isMonster(mon.def) || !heroHas(state, P.INFRAVISION) || heroHas(state, P.BLINDED))
+    return false;
+  if (!defs.monster(mon.def).flags.includes('infravisible')) return false;
+  if (monInvisible({ state }, mon) && !seeInvisible(state)) return false; // mon_visible()
+  const hp = getPlayer(state).c.pos;
+  const mp = mon.c.pos;
+  if (!mp || !hp || mp.level !== hp.level) return false;
+  const level = state.levels[mp.level];
+  if (!level) return false;
+  // couldsee()
+  const opaque = cellRules(level, defs).opaque;
+  return clearPath(level, opaque, hp.x, hp.y, mp.x, mp.y, blockersOf({ state, defs }, level.id));
+}
 
 /** ref: include/display.h WARNCOUNT: warning levels 0..5 */
 const WARNCOUNT = 6;
@@ -190,7 +213,7 @@ export function registerPerception(api: ModApi): void {
     id: 'nh:senses',
     // swallowed: "You see nothing, nothing can see you" (ref: src/vision.c vision_recalc())
     blind: (state) => heroHas(state, P.BLINDED) || engulferOf(state) !== null,
-    senses: telepathSenses,
+    senses: (state, defs, mon) => telepathSenses(state, defs, mon) || infraSees(state, defs, mon),
     shownAs(state, defs, e) {
       if (!heroHas(state, P.HALLUC)) return null;
       // ref: random_monster() / random_object(): any monster or object glyph; a statue is seen

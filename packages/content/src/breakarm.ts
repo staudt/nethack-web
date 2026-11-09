@@ -14,63 +14,26 @@ import { monWep, whichArmor } from './mongear';
 import { monNam } from './perception';
 import { surfaceKey } from './terrain';
 import { cansee } from './trap';
+import { isFlimsy } from './material';
+import {
+  breakarm,
+  hasHorns,
+  isWhirlyDef,
+  nohands,
+  sliparm,
+  verysmall,
+  wrappingAllowed,
+} from './mondata';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 const has = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 
-/** ref: include/mondata.h noncorporeal(): S_GHOST */
-const noncorporeal = (def: MonsterDef): boolean => def.glyph.ch === ' ';
-/** ref: include/mondata.h is_whirly(): vortices and the air elemental */
-export const isWhirlyDef = (def: MonsterDef): boolean =>
-  def.glyph.ch === 'v' || def.id === 'nh:air_elemental';
-/** ref: include/mondata.h verysmall() */
-const verysmall = (def: MonsterDef): boolean => def.size === 'tiny';
-const bigmonst = (def: MonsterDef): boolean =>
-  def.size === 'large' || def.size === 'huge' || def.size === 'gigantic';
-const smallOrUnder = (def: MonsterDef): boolean => def.size === 'tiny' || def.size === 'small';
-
-/** ref: src/mondata.c sliparm(): whirly, small or under, or noncorporeal */
-export const sliparm = (def: MonsterDef): boolean =>
-  isWhirlyDef(def) || smallOrUnder(def) || noncorporeal(def);
-
-/** ref: src/mondata.c breakarm(): creatures that break out of armor */
-export const breakarm = (def: MonsterDef): boolean =>
-  !sliparm(def) &&
-  (bigmonst(def) ||
-    (!smallOrUnder(def) && !has(def, 'humanoid')) ||
-    def.id === 'nh:marilith' ||
-    def.id === 'nh:winged_gargoyle');
-
-const HORNED: readonly string[] = [
-  'nh:horned_devil',
-  'nh:minotaur',
-  'nh:asmodeus',
-  'nh:balrog',
-  'nh:white_unicorn',
-  'nh:gray_unicorn',
-  'nh:black_unicorn',
-  'nh:ki_rin',
-];
-/** ref: src/mondata.c num_horns() > 0 */
-export const hasHorns = (def: MonsterDef): boolean => HORNED.includes(def.id);
-
-/** ref: include/obj.h WrappingAllowed() */
-const wrappingAllowed = (def: MonsterDef): boolean =>
-  has(def, 'humanoid') &&
-  def.size !== 'tiny' &&
-  def.size !== 'gigantic' &&
-  !noncorporeal(def) &&
-  def.glyph.ch !== 'C' &&
-  def.id !== 'nh:winged_gargoyle' &&
-  def.id !== 'nh:marilith';
-
-/** ref: include/obj.h is_flimsy(): leather or softer, or a rubber hose */
-const FLIMSY = new Set(['liquid', 'wax', 'veggy', 'flesh', 'paper', 'cloth', 'leather']);
+export { breakarm, hasHorns, isWhirlyDef, sliparm };
 
 /** ref: src/objnam.c cloak_simple_name() (no alchemy smock) */
-const cloakName = (obj: Entity): string =>
+export const cloakName = (obj: Entity): string =>
   obj.def === 'nh:robe'
     ? '@monarm.cloak.robe'
     : obj.def === 'nh:mummy_wrapping'
@@ -120,7 +83,7 @@ export function monBreakArmor(ctx: Ctx, mon: Entity, polyspot: boolean): void {
   if (!p) return;
   const mdat = ctx.defs.monster(mon.def);
   const vis = cansee(ctx, p.level, p.x, p.y);
-  const handlessOrTiny = has(mdat, 'nohands') || verysmall(mdat);
+  const handlessOrTiny = nohands(mdat) || verysmall(mdat);
   const { his, him } = pronouns(ctx, mon, mdat);
   const name = (): string => monNam(ctx, mon);
   const worn = (slot: 'body' | 'cloak' | 'shirt' | 'helm' | 'gloves' | 'boots' | 'shield') =>
@@ -145,7 +108,7 @@ export function monBreakArmor(ctx: Ctx, mon: Entity, polyspot: boolean): void {
       loseWorn(ctx, mon, otmp, true, polyspot);
     }
   } else if (sliparm(mdat)) {
-    const passesThruClothes = !smallOrUnder(mdat);
+    const passesThruClothes = mdat.size !== 'tiny' && mdat.size !== 'small';
     if ((otmp = worn('body'))) {
       if (vis) say(ctx, 'monarm.armor_falls', { mon: name(), him });
       else say(ctx, 'monarm.hear_thud');
@@ -187,10 +150,7 @@ export function monBreakArmor(ctx: Ctx, mon: Entity, polyspot: boolean): void {
   }
   if (handlessOrTiny || hasHorns(mdat)) {
     // flimsy test for horns matches polyself handling
-    if (
-      (otmp = worn('helm')) &&
-      (handlessOrTiny || !FLIMSY.has(ctx.defs.object(otmp.def).material))
-    ) {
+    if ((otmp = worn('helm')) && (handlessOrTiny || !isFlimsy(ctx.defs.object(otmp.def)))) {
       if (vis)
         say(ctx, 'monarm.helmet_falls', {
           mon: name(),

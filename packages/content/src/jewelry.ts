@@ -43,7 +43,9 @@ import { hcolor } from './magic';
 import { discover, isKnown } from './o_init';
 import { floatDown, floatUp, levitating, otherLevitation } from './levitation';
 import { CHARGED_RINGS } from './objects';
+import { hasHead, nolimbs } from './mondata';
 import { xnameOf } from './objnam';
+import { heroForm } from './upoly';
 import {
   P,
   hasExtrinsic,
@@ -418,14 +420,14 @@ export function blindfOn(ctx: Ctx, obj: Entity): void {
   // (vision follows the blindness after the action: toggle_blindness())
 }
 
-/** ref: src/do_wear.c Blindf_off() */
-export function blindfOff(ctx: Ctx, obj: Entity): void {
+/** ref: src/do_wear.c Blindf_off() (`offMsg` false: Blindf_off(NULL), no "You were wearing") */
+export function blindfOff(ctx: Ctx, obj: Entity, offMsg = true): void {
   const wasBlind = hasProp(hero(ctx), P.BLINDED);
   const it = obj.c.item;
   if (!it) return;
   it.equipped = null; // setworn((struct obj *) 0, otmp->owornmask)
   updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
-  say(ctx, 'takeoff.were_wearing', { item: ctx.defs.itemName(ctx.state, obj) }); // off_msg()
+  if (offMsg) say(ctx, 'takeoff.were_wearing', { item: ctx.defs.itemName(ctx.state, obj) }); // off_msg()
   if (hasProp(hero(ctx), P.BLINDED)) {
     if (wasBlind) say(ctx, 'blindf.still_cant_see');
   } else if (wasBlind) say(ctx, 'blind.see_again');
@@ -440,7 +442,9 @@ function canPutOn(ctx: Ctx, obj: Entity): boolean {
   if (!it || !isAccessory(ctx, obj)) return false;
   if (it.equipped !== null && it.equipped !== 'weapon') return false;
   if (ctx.defs.object(obj.def).class === 'amulet') return worn(ctx, 'amulet') === null;
-  if (isEyewear(obj.def)) return worn(ctx, 'blindfold') === null;
+  const form = heroForm(ctx);
+  if (isEyewear(obj.def)) return worn(ctx, 'blindfold') === null && !(form && !hasHead(form));
+  if (form && nolimbs(form)) return false;
   return worn(ctx, 'ringL') === null || worn(ctx, 'ringR') === null;
 }
 
@@ -506,6 +510,11 @@ const puton: ActionDef = {
       return NORMAL_SPEED;
     }
     if (isEyewear(obj.def)) {
+      const form = heroForm(ctx);
+      if (form && !hasHead(form)) {
+        say(ctx, 'puton.no_head', { item: `@${ctx.defs.object(obj.def).nameKey}` }); // ansimpleoname()
+        return 0;
+      }
       if (worn(ctx, 'blindfold')) {
         say(ctx, 'puton.already_blindfold');
         return 0;
@@ -515,6 +524,11 @@ const puton: ActionDef = {
     }
     if (cls !== 'ring') {
       say(ctx, 'wear.cant');
+      return 0;
+    }
+    const form = heroForm(ctx);
+    if (form && nolimbs(form)) {
+      say(ctx, 'puton.ring_stick');
       return 0;
     }
     const uleft = worn(ctx, 'ringL');

@@ -44,7 +44,19 @@ import { T, surfaceKey } from './terrain';
 import { isHole, isPit, levitating, utrap } from './trapstate';
 import { P, hasProp } from './props';
 import { cloakOff, cloakOn } from './invis';
-import { isWeaponOrWeptool } from './material';
+import { hardHelmet, isFlimsy, isWeaponOrWeptool } from './material';
+import {
+  cantweararm,
+  cantwield,
+  notake,
+  hasHorns,
+  nohands,
+  numHorns,
+  slithy,
+  verysmall,
+  wrappingAllowed,
+} from './mondata';
+import { heroForm } from './upoly';
 import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
@@ -152,6 +164,9 @@ const itemOffer = (action: DefId, id: EntityId, labelKey: string, item: Json = i
 
 /** ref: include/objclass.h is_sword(): short sword .. saber skills */
 const SWORD_SKILLS = ['short_sword', 'broad_sword', 'long_sword', 'two_handed_sword', 'saber'];
+/** ref: include/objclass.h is_sword() */
+export const isSword = (def: ObjectDef): boolean =>
+  !!def.weapon && def.weapon.role !== 'ammo' && SWORD_SKILLS.includes(def.weapon.skill);
 /** "sword", "axe" or "weapon" for the two-handed messages. ref: src/wield.c, src/do_wear.c */
 const weaponKind = (def: ObjectDef): Msg => ({
   key: def.weapon && SWORD_SKILLS.includes(def.weapon.skill) ? 'kind.sword' : 'kind.weapon',
@@ -262,7 +277,7 @@ export function carryCount(ctx: Ctx, obj: Entity, count: number): { qq: number; 
   const id = state.playerId;
   const isGold = defOf(ctx, obj).class === 'coin';
   const umoney = moneyCount(state, ctx.defs, id);
-  const iw0 = invWeight(state, ctx.defs, id) - 2 * weightCap(state, id); // max_capacity()
+  const iw0 = invWeight(state, ctx.defs, id) - 2 * weightCap(state, ctx.defs, id); // max_capacity()
   const owtOf = (n: number): number =>
     isGold
       ? GOLD_WT(n)
@@ -478,13 +493,23 @@ function cantReachPickup(ctx: Ctx): void {
   ctx.emit({ type: 'msg', key, params: { surface } });
 }
 
+/** The polymorphed form cannot pick anything up. ref: include/mondata.h notake() */
+const formNotake = (ctx: Ctx): boolean => {
+  const form = heroForm(ctx);
+  return !!form && notake(form);
+};
+
 const pickup: ActionDef = {
   id: 'nh:pickup',
   labelKey: 'action.nh:pickup',
   handles: 'mod',
   // a lone boulder is not offered: it is far too heavy to lift (pickup.c carry_count())
+  // nor in a form that can't take things (notake())
   offer: (ctx, target) =>
-    target.kind === 'self' && !isSwallowed(ctx) && floorHere(ctx).some((e) => e.def !== BOULDER)
+    target.kind === 'self' &&
+    !isSwallowed(ctx) &&
+    !formNotake(ctx) &&
+    floorHere(ctx).some((e) => e.def !== BOULDER)
       ? [
           {
             action: { type: 'mod', action: 'nh:pickup' },
@@ -522,6 +547,12 @@ const pickup: ActionDef = {
       cantReachPickup(ctx);
       return 0;
     }
+    // a notake() form only looks: "You are physically incapable of picking anything up." needs
+    // the autopickup option, which the port does not have (flags.pickup is off)
+    if (formNotake(ctx)) {
+      lookHere(ctx); // check_here(FALSE)
+      return 0;
+    }
     const data: PickData = { stage: 'menu', ids: here.map((e) => e.id), enc: 0, picked: 0 };
     if (here.length === 1) return pickupLoop(ctx, data);
     const options: PromptOption[] = here.map((e) => {
@@ -557,7 +588,7 @@ const pickup: ActionDef = {
 // drop
 
 /** Cursed weapons weld to the hand. ref: src/wield.c welded(), will_weld() */
-function welded(ctx: Ctx, e: Entity): boolean {
+export function welded(ctx: Ctx, e: Entity): boolean {
   const it = e.c.item;
   if (!it || it.equipped !== 'weapon' || it.buc !== 'cursed') return false;
   it.known.buc = true; // welded() sets bknown
@@ -647,6 +678,27 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
   }
   placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
   return true;
+}
+
+/**
+ * Drops a carried object without a message: out of the inventory (unwielded), into the
+ * engulfer's stomach when she is swallowed (food may be digested at once), else onto the floor
+ * (an altar names it and shows its curse status). ref: src/do.c dropx(), dropy(), dropz() (no
+ * shop selling, ship_object() or flooreffects())
+ */
+export function dropx(ctx: Ctx, e: Entity): void {
+  const pos = hero(ctx).c.pos;
+  if (!e.c.item || !pos) return;
+  removeFromInventory(ctx, e.id);
+  const sw = uswallow(ctx);
+  const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  if (engulfer) {
+    if (digestsFood?.(ctx, engulfer, e)) return;
+    addToInventory(ctx, engulfer.id, e.id);
+    return;
+  }
+  if (aAlign(ctx, pos.x, pos.y) !== null) doaltarobj(ctx, e);
+  placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
 }
 
 /** A drop command's selling state while the hero is in a shop. ref: dodrop() sellobj_state() */
@@ -798,6 +850,19 @@ const dropMany: ActionDef = {
 const handsKey = (ctx: Ctx): string =>
   wornIn(ctx, 'gloves') ? 'wield.empty_handed' : 'wield.bare_handed';
 
+/** A polymorphed form without hands, or very small, can't wield. ref: include/mondata.h cantwield() */
+const formCantWield = (ctx: Ctx): boolean => {
+  const form = heroForm(ctx);
+  return !!form && cantwield(form);
+};
+
+/** dowield()/doswapweapon(): "Don't be ridiculous!" in a form that can't wield (no time). */
+function ridiculous(ctx: Ctx): boolean {
+  if (!formCantWield(ctx)) return false;
+  ctx.emit({ type: 'msg', key: 'wield.ridiculous' });
+  return true;
+}
+
 const wield: ActionDef = {
   id: 'nh:wield',
   labelKey: 'action.nh:wield',
@@ -806,7 +871,7 @@ const wield: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
-    if (!e || !it) return [];
+    if (!e || !it || formCantWield(ctx)) return [];
     // ref: dowield() takes any object; weapons, weapon-tools and corpses (a cockatrice's is a
     // weapon) are offered
     return (isWeaponOrWeptool(defOf(ctx, e)) || e.def === 'nh:corpse') && it.equipped === null
@@ -817,6 +882,7 @@ const wield: ActionDef = {
   perform(ctx, action) {
     const arg = itemArg(action);
     if (arg === undefined) return 0;
+    if (ridiculous(ctx)) return 0;
     const cur = wielded(ctx);
     if (arg === null) {
       // wield nothing
@@ -926,8 +992,8 @@ function swapWeapons(ctx: Ctx): number {
  * Wields a tool in order to use it ("swing" a pick-axe): nothing to do when it already is; refused
  * while the wielded weapon is welded or for a two-handed tool with a shield; the alternate weapon
  * is swapped in; a cursed one welds (ready_weapon()), else "You now wield a pick-axe.". True when
- * it is wielded now (the move is used). Not ported: worn objects (a tool is never worn here),
- * polymorphed forms, the quiver, `pushweapon`, two-weapon combat. ref: src/wield.c wield_tool()
+ * it is wielded now (the move is used). A form that can't wield can't hold it. Not ported: worn
+ * objects (a tool is never worn here), the quiver, `pushweapon`, two-weapon combat. ref: src/wield.c wield_tool()
  */
 export function wieldTool(ctx: Ctx, obj: Entity, verb: 'swing'): boolean {
   const cur = wielded(ctx);
@@ -939,6 +1005,13 @@ export function wieldTool(ctx: Ctx, obj: Entity, verb: 'swing'): boolean {
       type: 'msg',
       key: bi ? 'wield.tool_welded_hands' : 'wield.tool_welded',
       params: { verb: { key: `wield.verb.${verb}` }, item: xnameOf(ctx.state, ctx.defs, obj) },
+    });
+    return false;
+  }
+  if (formCantWield(ctx)) {
+    ctx.emit({
+      type: 'msg',
+      key: (obj.c.item?.quantity ?? 1) > 1 ? 'wield.cant_hold_them' : 'wield.cant_hold',
     });
     return false;
   }
@@ -978,10 +1051,13 @@ const swapWeapon: ActionDef = {
   handles: 'mod',
   // `x` always does something in NetHack; here it is offered when a weapon is wielded or alternate
   offer: (ctx, target) =>
-    target.kind === 'self' && (wielded(ctx) !== null || swapWep(ctx) !== null)
+    target.kind === 'self' &&
+    (wielded(ctx) !== null || swapWep(ctx) !== null) &&
+    !formCantWield(ctx)
       ? selfOffer('nh:swap_weapon', 'action.nh:swap_weapon')
       : [],
-  perform: (ctx) => swapWeapons(ctx),
+  // ref: src/wield.c doswapweapon()
+  perform: (ctx) => (ridiculous(ctx) ? 0 : swapWeapons(ctx)),
 };
 
 function unwield(ctx: Ctx, cur: Entity): number {
@@ -1002,7 +1078,7 @@ const unwieldAction: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
-    if (!e || !it || it.equipped !== 'weapon') return [];
+    if (!e || !it || it.equipped !== 'weapon' || formCantWield(ctx)) return [];
     return it.known.buc && it.buc === 'cursed'
       ? []
       : [itemOffer('nh:unwield', e.id, 'action.nh:wield_nothing', null)];
@@ -1030,17 +1106,35 @@ const SLOT_NOUN: Record<ArmorSlot, string> = {
 const isArmorSlot = (slot: EquipSlot): slot is ArmorSlot => Object.hasOwn(SLOT_NOUN, slot);
 
 /**
- * Whether the armor can be put on; says why not when `noisy`. ref: src/do_wear.c canwearobj()
- * (no polymorph, traps or slippery fingers).
+ * Whether the armor can be put on; says why not when `noisy`. A polymorphed form without hands
+ * or very small can't wear any; one that can't wear body armor (cantweararm()) can't put on a
+ * suit, shirt or cloak (a small form still a cloak, a form WrappingAllowed() a mummy wrapping);
+ * horns keep a hard helmet off, a slithy form or a centaur boots. ref: src/do_wear.c canwearobj()
+ * (no traps or slippery fingers).
  */
 function canWear(ctx: Ctx, obj: Entity, noisy: boolean): boolean {
   const it = obj.c.item;
-  const armor = defOf(ctx, obj).armor;
+  const odef = defOf(ctx, obj);
+  const armor = odef.armor;
   if (!it || !armor) return false;
   const say = (key: string, params?: Record<string, Msg | string | number>): false => {
     if (noisy) ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
     return false;
   };
+  const form = heroForm(ctx);
+  if (form && (verysmall(form) || nohands(form))) return say('wear.cant_form');
+  const which =
+    armor.slot === 'cloak' || armor.slot === 'shirt' || armor.slot === 'body' ? armor.slot : null;
+  if (
+    form &&
+    which &&
+    cantweararm(form) &&
+    // same exception for cloaks as used in m_dowear()
+    (which !== 'cloak' ||
+      (obj.def !== 'nh:mummy_wrapping' ? form.size !== 'small' : !wrappingAllowed(form))) &&
+    !(form.id === 'nh:hobbit' && obj.def === 'nh:elven_mithril_coat') // racial_exception()
+  )
+    return say('wear.wont_fit', { what: { key: `kind.${SLOT_NOUN[which]}` } });
   if (it.equipped !== null) return say('wear.already_that');
   const uwep = wielded(ctx);
   const uwepDef = uwep ? defOf(ctx, uwep) : null;
@@ -1058,13 +1152,23 @@ function canWear(ctx: Ctx, obj: Entity, noisy: boolean): boolean {
   const shirt = wornIn(ctx, 'shirt');
   switch (slot) {
     case 'helm':
-      return wornIn(ctx, 'helm') ? say('wear.already.helm') : true;
+      if (wornIn(ctx, 'helm')) return say('wear.already.helm');
+      // (flimsy exception matches polyself handling)
+      if (form && hasHorns(form) && !isFlimsy(odef))
+        return say(numHorns(form) === 1 ? 'wear.horn' : 'wear.horns', {
+          helm: { key: hardHelmet(odef) ? 'polyarm.helm' : 'polyarm.hat' },
+        });
+      return true;
     case 'shield':
       if (wornIn(ctx, 'shield')) return say('wear.already.shield');
       if (uwepDef?.weapon?.bimanual) return say('wear.shield_two_handed', { kind: wk() });
       return true;
     case 'boots':
-      return wornIn(ctx, 'boots') ? say('wear.already.boots') : true;
+      if (wornIn(ctx, 'boots')) return say('wear.already.boots');
+      if (form && slithy(form)) return say('wear.no_feet');
+      // break_armor() pushes boots off for centaurs, so don't let dowear() put them back on
+      if (form?.glyph.ch === 'C') return say('wear.hooves');
+      return true;
     case 'gloves':
       if (wornIn(ctx, 'gloves')) return say('wear.already.gloves');
       if (weldedUwep) {

@@ -132,11 +132,11 @@ describe('encumbrance', () => {
   test('weight capacity is 25 * (Str + Con) + 50, at most 1000', () => {
     const s = bareState();
     setAttrs(s, 18, 18);
-    expect(weightCap(s, s.playerId)).toBe(950);
+    expect(weightCap(s, defs, s.playerId)).toBe(950);
     setAttrs(s, 10, 10);
-    expect(weightCap(s, s.playerId)).toBe(550);
+    expect(weightCap(s, defs, s.playerId)).toBe(550);
     setAttrs(s, 118, 25); // 18/100 -> 21, Con 25: 25*46+50 > 1000
-    expect(weightCap(s, s.playerId)).toBe(1000);
+    expect(weightCap(s, defs, s.playerId)).toBe(1000);
   });
 
   test('thresholds follow calc_capacity: (2 * excess / cap) + 1', () => {

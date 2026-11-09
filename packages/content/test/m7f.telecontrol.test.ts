@@ -294,7 +294,7 @@ describe('a controlled level teleport', () => {
         'You cease to exist.',
       ]),
     );
-    expect(s.state.gameOver).toMatchObject({ kind: 'died', killer: '@killer.tele.suicide' });
+    expect(s.state.gameOver).toMatchObject({ kind: 'died', killer: '!@killer.tele.suicide' });
   });
 
   test('above the dungeon: she plummets, floats down when levitating, or arrives in heaven', () => {
@@ -325,7 +325,7 @@ describe('a controlled level teleport', () => {
     setIntrinsic(getPlayer(heaven.state), P.LEVITATION, true);
     read(heaven, scroll(heaven, 'cursed'));
     expect(heaven.text(answer(heaven, '-10'))).toContain('You arrive in heaven.');
-    expect(heaven.state.gameOver).toMatchObject({ kind: 'died', killer: '@killer.tele.heaven' });
+    expect(heaven.state.gameOver).toMatchObject({ kind: 'died', killer: '!@killer.tele.heaven' });
   });
 
   test('confused, "Oops..." sends her to a random level most of the time, even cancelling', () => {

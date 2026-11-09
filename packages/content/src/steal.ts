@@ -37,7 +37,7 @@ import { P, hasProp, updateWornProps } from './props';
 import { subfrombill } from './shk';
 import { teleRestrict } from './teleport';
 import { rlocMon } from './trap';
-import { levitating } from './trapstate';
+import { uInAir } from './trapstate';
 import { setSwapWep, swapWep } from './wield';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -117,8 +117,7 @@ export function stealgold(ctx: Ctx, mon: Entity): void {
   const yq = ygold?.c.item?.quantity ?? 0;
   if (fgold && (!ygold || (fgold.c.item?.quantity ?? 0) > yq || !ctx.rng.rn2(5))) {
     mpickobj(ctx, mon.id, fgold); // obj_extract_self(), add_to_minv()
-    // (no Flying)
-    say(ctx, levitating(ctx) ? 'steal.snatches_beneath' : 'steal.snatches_between', {
+    say(ctx, uInAir(ctx) ? 'steal.snatches_beneath' : 'steal.snatches_between', {
       mon: monNam(ctx, mon),
     });
     if (!ygold || !ctx.rng.rn2(5)) {

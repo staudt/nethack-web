@@ -43,7 +43,7 @@ export const stoningMessagesEn: Record<string, string> = {
   'stone.gaze_not_noticed': "{mon|The} doesn't seem to notice that her gaze was reflected.",
   'stone.is_turned': '{mon|The} is turned to stone!',
   // the death reasons ("petrified by ...")
-  'killer.petrification': 'petrification',
+  'killer.petrification': 'killed by petrification',
   'killer.ston.medusa': 'Medusa',
   'killer.ston.corpse.nh:cockatrice': 'a cockatrice corpse',
   'killer.ston.corpse.nh:chickatrice': 'a chickatrice corpse',

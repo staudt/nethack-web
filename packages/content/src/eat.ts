@@ -51,6 +51,8 @@ import { changeLuck } from './luck';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
+import { carnivorous, herbivorous, humanoid, vegan, vegetarian } from './mondata';
+import { heroForm } from './upoly';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
 import { costlySpot, isShopType, uShops } from './eshk';
@@ -205,9 +207,38 @@ function touchfood(ctx: Ctx, e: Entity): Entity {
   return piece;
 }
 
-/** ref: src/eat.c adj_victual_nutrition() (no race adjustments for a human) */
-function adjVictualNutrition(v: Victual): number {
-  return Math.max(-v.nmod, 1);
+/**
+ * The nutrition of the next bite: an elf form gets more out of lembas, an orc form less, a dwarf
+ * form more out of cram. ref: src/eat.c adj_victual_nutrition() (the hero's race is human)
+ */
+function adjVictualNutrition(ctx: Ctx, v: Victual): number {
+  let nut = -v.nmod;
+  const piece = ctx.state.entities[String(v.piece)];
+  const form = heroForm(ctx);
+  if (piece?.def === 'nh:lembas_wafer') {
+    if (form && hasFlag(form, 'elf'))
+      nut += Math.trunc((nut + 2) / 4); // 800 -> 1000
+    else if (form && hasFlag(form, 'orc')) nut -= Math.trunc((nut + 2) / 4); // 800 -> 600
+  } else if (piece?.def === 'nh:cram_ration') {
+    if (form && hasFlag(form, 'dwarf')) nut += Math.trunc((nut + 3) / 6); // 600 -> 700
+  }
+  return Math.max(nut, 1);
+}
+
+const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
+
+/**
+ * What the hero can eat: food, but a ghoul form only non-vegan corpses (and eggs, which do not
+ * exist). ref: src/eat.c is_edible() (no unique objects; the metallivore, gelatinous cube and
+ * fire elemental forms' non-food meals are not ported)
+ */
+export function isEdible(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): boolean {
+  const form = heroForm(ctx);
+  if (form?.id === 'nh:ghoul') {
+    const of = obj.c.item?.corpseOf;
+    return isCorpse(obj) && !!of && ctx.defs.isMonster(of) && !vegan(ctx.defs.monster(of));
+  }
+  return ctx.defs.object(obj.def).class === 'food';
 }
 
 /** ref: src/eat.c choke() for a satiated hero eating `food` */
@@ -243,7 +274,7 @@ function bite(ctx: Ctx): boolean {
     return true;
   }
   if (v.nmod < 0) {
-    lesshungry(ctx, adjVictualNutrition(v), true, (c) => {
+    lesshungry(ctx, adjVictualNutrition(ctx, v), true, (c) => {
       choker(c);
       resetEat(c);
     });
@@ -455,16 +486,34 @@ function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
       retcode = 2;
     }
     if (!retcode) consumeOeaten(ctx, e, 2); // oeaten >>= 2
+  } else if (
+    (mon.id === 'nh:cockatrice' || mon.id === 'nh:chickatrice') &&
+    (hasProp(hero(ctx), P.STONE_RES) || hasProp(hero(ctx), P.HALLUC))
+  ) {
+    say(ctx, 'eat.chicken');
+  } else if (mon.id === 'nh:floating_eye' && heroForm(ctx)?.id === 'nh:raven') {
+    say(ctx, 'eat.peck_eyeball');
   } else if (tp) {
     // we've already delivered a message; don't add "it tastes okay"
   } else {
-    // The hero is an omnivore: never "delicious"; palatable if not too old.
-    const palatable = ctx.rng.rn2(10) !== 0 && (rotted < 1 || ctx.rng.rn2(rotted + 1) === 0);
-    const idx = ctx.rng.rn2(TASTES.length); // meat is never vegetarian
+    // the diet is her form's (her own: a human, an omnivore); yummy is always false for
+    // omnivores, palatable always true
+    const form = heroForm(ctx);
+    const carn = form ? carnivorous(form) : true;
+    const herb = form ? herbivorous(form) : true;
+    const yummy = vegan(mon) ? !carn && herb : carn && !herb;
+    const palatable =
+      (vegetarian(mon) ? herb : carn) &&
+      ctx.rng.rn2(10) !== 0 &&
+      (rotted < 1 || ctx.rng.rn2(rotted + 1) === 0);
+    // veggies are always just "okay"
+    const idx = vegetarian(mon) ? 0 : ctx.rng.rn2(TASTES.length);
     const taste = TASTES[idx] ?? 'okay';
-    say(ctx, palatable ? `eat.corpse.${taste}` : 'eat.corpse.terrible', {
-      item: foodName(ctx, e),
-    });
+    say(
+      ctx,
+      yummy ? 'eat.corpse.delicious' : palatable ? `eat.corpse.${taste}` : 'eat.corpse.terrible',
+      { item: foodName(ctx, e) },
+    );
   }
   return retcode;
 }
@@ -547,6 +596,14 @@ export const nonrottingCorpse = (mon: string): boolean => mon === LIZARD || mon 
 // ---------------------------------------------------------------------------------------------
 // ordinary food
 
+/** An orc or elf form's lembas line, else null. ref: src/eat.c fprefx() LEMBAS_WAFER */
+function lembasLine(ctx: Ctx): string | null {
+  const form = heroForm(ctx);
+  if (form && hasFlag(form, 'orc')) return 'eat.lembas_orc';
+  if (form && hasFlag(form, 'elf')) return 'eat.lembas_elf';
+  return null;
+}
+
 /** Messages on the first bite. ref: src/eat.c fprefx(). Returns false if eating cannot go on. */
 function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
   const h = hero(ctx);
@@ -561,15 +618,25 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
       // 700-1+800 remains below 1500, the choking threshold
       else if (nutrition < 700) say(ctx, 'eat.satiates');
       break;
-    case 'nh:tripe_ration':
-      // The hero is a human, not a carnivorous non-humanoid or an orc.
-      say(ctx, 'eat.tripe_yak');
-      gainExperience(ctx, h.id, 1);
-      if (ctx.rng.rn2(2) !== 0) makeVomiting(ctx, 14 + ctx.rng.rn2(v.reqtime), false); // rn1(reqtime, 14)
+    case 'nh:tripe_ration': {
+      // her race is human; her form may be a carnivorous non-humanoid or an orc
+      const form = heroForm(ctx);
+      if (form && carnivorous(form) && !humanoid(form)) say(ctx, 'eat.tripe_good');
+      else if (form && hasFlag(form, 'orc'))
+        say(ctx, hasProp(h, P.HALLUC) ? 'eat.tripe_orc_halluc' : 'eat.tripe_orc');
+      else {
+        say(ctx, 'eat.tripe_yak');
+        gainExperience(ctx, h.id, 1);
+        if (ctx.rng.rn2(2) !== 0) makeVomiting(ctx, 14 + ctx.rng.rn2(v.reqtime), false); // rn1(reqtime, 14)
+      }
       break;
+    }
     case 'nh:lembas_wafer':
     default:
-      if (e.def === 'nh:apple' && cursed) {
+      // lembas: an orc or elf form has its own line, else give_feedback
+      if (e.def === 'nh:lembas_wafer' && lembasLine(ctx) !== null) {
+        say(ctx, lembasLine(ctx) as string);
+      } else if (e.def === 'nh:apple' && cursed) {
         // feedback deferred til fpostfx()
       } else if (e.def === 'nh:apple') {
         say(ctx, 'eat.core_dumped');
@@ -635,7 +702,12 @@ function startEating(ctx: Ctx, piece: Entity, alreadyPartlyEaten: boolean): void
 function doeat(ctx: Ctx, e: Entity): number {
   const it = e.c.item;
   const def = ctx.defs.object(e.def);
-  if (!it || def.class !== 'food' || !reachable(ctx, e)) return 0;
+  if (!it || !reachable(ctx, e)) return 0;
+  if (!isEdible(ctx, e)) {
+    say(ctx, 'eat.cannot');
+    return 0;
+  }
+  if (def.class !== 'food') return 0;
   const h = hero(ctx);
   const hd = hungerData(ctx);
 
@@ -725,14 +797,14 @@ const eat: ActionDef = {
     if (target.kind === 'item') {
       const e = ctx.state.entities[String(target.id)];
       if (!e?.c.item || e.c.item.carriedBy !== ctx.state.playerId) return [];
-      return ctx.defs.object(e.def).class === 'food' ? [eatOffer(e.id, 'action.nh:eat')] : [];
+      return isEdible(ctx, e) ? [eatOffer(e.id, 'action.nh:eat')] : [];
     }
     if (target.kind !== 'self') return [];
     const pos = hero(ctx).c.pos;
     if (!pos) return [];
     // "There is a X here; eat it?": one offer per food item on the floor
     return itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)
-      .filter((e) => ctx.defs.object(e.def).class === 'food' && reachable(ctx, e))
+      .filter((e) => isEdible(ctx, e) && reachable(ctx, e))
       .map((e) => ({
         ...eatOffer(e.id, 'action.nh:eat_here', { item: ctx.defs.itemName(ctx.state, e) }),
         priority: HERE,

@@ -616,7 +616,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
 
   // ref: "What the following confusing if statements mean": over 70% of capacity
   const i = -invWeight(ctx.state, ctx.defs, ctx.state.playerId);
-  const j = weightCap(ctx.state, ctx.state.playerId);
+  const j = weightCap(ctx.state, ctx.defs, ctx.state.playerId);
   let clumsy = false;
   if (i < Math.trunc((j * 3) / 10)) {
     let doit = false;

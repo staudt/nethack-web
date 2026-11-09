@@ -47,7 +47,7 @@ import {
   trapToConfirm,
   trapmove,
 } from './trap';
-import { isMtrapped, isPit, levitating, setMtrapped, uInPit } from './trapstate';
+import { isMtrapped, isPit, levitating, setMtrapped, uInPit, uLocomotion } from './trapstate';
 import { floatingAbove, resumeLevitation } from './levitation';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
@@ -61,6 +61,14 @@ import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { SHOP_DOOR_COST } from './shopdamage';
 import { fightWeb } from './web';
+import { nohands } from './mondata';
+import { heroForm } from './upoly';
+
+/** The `_float`/`_fly` suffix of a u_locomotion() message, '' when she steps. */
+const uLoco = (ctx: Ctx): string => {
+  const l = uLocomotion(ctx);
+  return l ? `_${l}` : '';
+};
 
 function playerAt(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -562,7 +570,7 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
           id: 'trap-confirm',
           kind: 'yn',
           // "Really float into..." while levitating (u_locomotion("step"))
-          key: `${intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto'}${levitating(ctx) ? '_float' : ''}`,
+          key: `${intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto'}${uLoco(ctx)}`,
           params: { trap: `@${t.def}` },
           cancellable: true,
         },
@@ -588,7 +596,8 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     // the hero is never too big)
     const diagonal = DIRS[dir].x !== 0 && DIRS[dir].y !== 0;
     if (diagonal && badRock(ctx, level, from.x, to.y) && badRock(ctx, level, to.x, from.y)) {
-      const amt = invWeight(ctx.state, ctx.defs, player.id) + weightCap(ctx.state, player.id);
+      const amt =
+        invWeight(ctx.state, ctx.defs, player.id) + weightCap(ctx.state, ctx.defs, player.id);
       const key =
         amt > WT_TOOMUCH_DIAGONAL
           ? 'move.carrying_too_much'
@@ -633,11 +642,13 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   switch (check.reason) {
     case 'closedDoor': {
       // ref: src/hack.c test_move() flags.autoopen -> src/lock.c doopen_indir()
+      if (noHandsToOpen(ctx)) return 0;
       openDoor(ctx, level, to);
       return NORMAL_SPEED;
     }
     case 'lockedDoor': {
       // ref: src/hack.c test_move() closed_door(): locked, so no time passes
+      if (noHandsToOpen(ctx)) return 0;
       ctx.emit({ type: 'msg', key: 'door.locked' });
       return 0;
     }
@@ -658,6 +669,17 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
  * says so and takes no time; opening never sticks (see DEVIATIONS: Doors).
  * ref: src/lock.c doopen(), doopen_indir()
  */
+/**
+ * "You can't open anything -- you have no hands!" for a polymorphed form without hands (no
+ * time). ref: src/lock.c doopen_indir()
+ */
+function noHandsToOpen(ctx: Ctx): boolean {
+  const form = heroForm(ctx);
+  if (!form || !nohands(form)) return false;
+  ctx.emit({ type: 'msg', key: 'door.nohands' });
+  return true;
+}
+
 const open: ActionDef = {
   id: 'nh:open',
   labelKey: 'action.open',
@@ -666,6 +688,8 @@ const open: ActionDef = {
     if (target.kind !== 'cell') return [];
     const dir = dirTo(playerAt(ctx), target.pos);
     if (!dir) return [];
+    const form = heroForm(ctx);
+    if (form && nohands(form)) return [];
     // what the hero knows: a locked door looks closed
     if (ctx.query.describe(target.pos).terrain !== T.door_closed) return [];
     return [
@@ -680,6 +704,7 @@ const open: ActionDef = {
     const raw = action.type === 'mod' ? (action.args as { dir?: unknown } | undefined)?.dir : null;
     const dir = DIR_LIST.find((d) => d === raw);
     if (!dir) return 0;
+    if (noHandsToOpen(ctx)) return 0;
     // ref: src/lock.c doopen_indir(): "You can't reach over the edge of the pit.", no time
     if (uInPit(ctx)) {
       ctx.emit({ type: 'msg', key: 'trap.pit.cant_reach' });

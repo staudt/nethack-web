@@ -81,3 +81,113 @@ export function nameToMonplus(
 /** ref: src/mondata.c name_to_mon(): the monster type a typed name starts with, or null */
 export const nameToMon = (names: readonly MonName[], input: string): DefId | null =>
   nameToMonplus(names, input)?.mon ?? null;
+
+// ---------------------------------------------------------------------------------------------
+// body predicates (ref: include/mondata.h), used for monsters and for the polymorphed hero's form
+
+const has = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
+
+/** ref: include/monflag.h MZ_TINY..MZ_GIGANTIC: the msize numbers (MZ_HUMAN is MZ_MEDIUM) */
+const MSIZE: Readonly<Record<MonsterDef['size'], number>> = {
+  tiny: 0,
+  small: 1,
+  medium: 2,
+  large: 3,
+  huge: 4,
+  gigantic: 7,
+};
+/** ref: include/mondata.h ptr->msize */
+export const msize = (def: MonsterDef): number => MSIZE[def.size];
+/** ref: include/monflag.h MZ_HUMAN */
+export const MZ_HUMAN = 2;
+/** ref: include/monflag.h MZ_HUGE */
+export const MZ_HUGE = 4;
+/** ref: include/weight.h WT_HUMAN */
+export const WT_HUMAN = 1450;
+
+/** ref: include/mondata.h verysmall() */
+export const verysmall = (def: MonsterDef): boolean => def.size === 'tiny';
+/** ref: include/mondata.h noncorporeal(): S_GHOST */
+export const noncorporeal = (def: MonsterDef): boolean => def.glyph.ch === ' ';
+/** ref: include/mondata.h is_whirly(): vortices and the air elemental */
+export const isWhirlyDef = (def: MonsterDef): boolean =>
+  def.glyph.ch === 'v' || def.id === 'nh:air_elemental';
+const smallOrUnder = (def: MonsterDef): boolean => def.size === 'tiny' || def.size === 'small';
+
+/** ref: include/mondata.h nolimbs(): M1_NOLIMBS (which has the M1_NOHANDS and M1_NOHEAD bits) */
+export const nolimbs = (def: MonsterDef): boolean => has(def, 'nolimbs');
+/** ref: include/mondata.h nohands(): M1_NOHANDS, also set by M1_NOLIMBS */
+export const nohands = (def: MonsterDef): boolean => has(def, 'nohands') || nolimbs(def);
+/** ref: include/mondata.h has_head(): no M1_NOHEAD bit (M1_NOLIMBS has it) */
+export const hasHead = (def: MonsterDef): boolean => !has(def, 'nohead') && !nolimbs(def);
+/** ref: include/mondata.h notake() */
+export const notake = (def: MonsterDef): boolean => has(def, 'notake');
+/** ref: include/mondata.h cantwield(): nohands or verysmall */
+export const cantwield = (def: MonsterDef): boolean => nohands(def) || verysmall(def);
+/** ref: include/mondata.h slithy() */
+export const slithy = (def: MonsterDef): boolean => has(def, 'slithy');
+/** ref: include/mondata.h humanoid() */
+export const humanoid = (def: MonsterDef): boolean => has(def, 'humanoid');
+/** ref: include/mondata.h strongmonst() */
+export const strongmonst = (def: MonsterDef): boolean => has(def, 'strong');
+/** ref: include/mondata.h is_flyer() */
+export const isFlyer = (def: MonsterDef): boolean => has(def, 'fly');
+/** ref: include/mondata.h is_clinger() */
+export const isClinger = (def: MonsterDef): boolean => has(def, 'cling');
+/** ref: include/mondata.h carnivorous(): M1_CARNIVORE (M1_OMNIVORE has it) */
+export const carnivorous = (def: MonsterDef): boolean =>
+  has(def, 'carnivore') || has(def, 'omnivore');
+/** ref: include/mondata.h herbivorous(): M1_HERBIVORE (M1_OMNIVORE has it) */
+export const herbivorous = (def: MonsterDef): boolean =>
+  has(def, 'herbivore') || has(def, 'omnivore');
+
+/**
+ * ref: include/mondata.h vegan(): blobs, jellies, fungi, vortices, lights, elementals but the
+ * stalker, noncorporeal monsters (no golems in the roster)
+ */
+export function vegan(def: MonsterDef): boolean {
+  const ch = def.glyph.ch;
+  if ('bjFvy '.includes(ch)) return true;
+  return ch === 'E' && def.id !== 'nh:stalker';
+}
+
+/** ref: src/mondata.c sliparm(): whirly, small or under, or noncorporeal */
+export const sliparm = (def: MonsterDef): boolean =>
+  isWhirlyDef(def) || smallOrUnder(def) || noncorporeal(def);
+
+/** ref: src/mondata.c breakarm(): creatures that break out of armor */
+export const breakarm = (def: MonsterDef): boolean =>
+  !sliparm(def) &&
+  (isBig(def) ||
+    (!smallOrUnder(def) && !humanoid(def)) ||
+    def.id === 'nh:marilith' ||
+    def.id === 'nh:winged_gargoyle');
+
+/** ref: include/mondata.h cantweararm(): breakarm() or sliparm() */
+export const cantweararm = (def: MonsterDef): boolean => breakarm(def) || sliparm(def);
+
+const HORNED: readonly string[] = [
+  'nh:horned_devil',
+  'nh:minotaur',
+  'nh:asmodeus',
+  'nh:balrog',
+  'nh:white_unicorn',
+  'nh:gray_unicorn',
+  'nh:black_unicorn',
+  'nh:ki_rin',
+];
+/** ref: src/mondata.c num_horns(): 1 for the unicorns and the ki-rin, 2 for the others */
+export const numHorns = (def: MonsterDef): number =>
+  !HORNED.includes(def.id) ? 0 : def.glyph.ch === 'u' || def.id === 'nh:ki_rin' ? 1 : 2;
+/** ref: include/mondata.h has_horns() */
+export const hasHorns = (def: MonsterDef): boolean => numHorns(def) > 0;
+
+/** ref: include/obj.h WrappingAllowed() */
+export const wrappingAllowed = (def: MonsterDef): boolean =>
+  humanoid(def) &&
+  def.size !== 'tiny' &&
+  def.size !== 'gigantic' &&
+  !noncorporeal(def) &&
+  def.glyph.ch !== 'C' &&
+  def.id !== 'nh:winged_gargoyle' &&
+  def.id !== 'nh:marilith';

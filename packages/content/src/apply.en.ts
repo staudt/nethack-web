@@ -6,6 +6,7 @@ export const applyMessagesEn: Record<string, string> = {
   'action.nh:apply': 'Apply',
   'action.nh:break': 'Break',
   'apply.cant': "Sorry, I don't know how to use that.",
+  'apply.nohands': "You aren't able to use or apply tools in your current form.",
   'apply.nothing_seems': 'Nothing seems to happen.',
 
   // lamps

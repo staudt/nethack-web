@@ -91,6 +91,8 @@ import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
+import { nohands } from './mondata';
+import { heroForm } from './upoly';
 import { wakeup } from './peaceful';
 import {
   buzzFrom,
@@ -1433,11 +1435,11 @@ function buzz(ctx: Ctx, ray: Ray, nd: number, dir: Dir | 'up' | 'down', spell: D
 
 /** Killers for zapping oneself (NO_KILLER_PREFIX in NetHack: "zapped herself with ..."). */
 const SELF_KILLER: Readonly<Record<string, string>> = {
-  [WAN.striking]: '@killer.zap.self.striking',
-  [WAN.lightning]: '@killer.zap.self.lightning',
-  [WAN.fire]: '@killer.zap.self.fire',
-  [WAN.cold]: '@killer.zap.self.cold',
-  [WAN.magicMissile]: '@killer.zap.self.magic_missile',
+  [WAN.striking]: '!@killer.zap.self.striking',
+  [WAN.lightning]: '!@killer.zap.self.lightning',
+  [WAN.fire]: '!@killer.zap.self.fire',
+  [WAN.cold]: '!@killer.zap.self.cold',
+  [WAN.magicMissile]: '!@killer.zap.self.magic_missile',
 };
 
 /**
@@ -1593,7 +1595,7 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       say(ctx, 'zap.self.you_die');
       // they might survive with an amulet of life saving
       learn(ctx, src);
-      done(ctx, '@killer.zap.self.death');
+      done(ctx, '!@killer.zap.self.death');
       return 0;
     case WAN.teleportation: {
       const was = { ...heroPos(ctx) };
@@ -1688,8 +1690,8 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
         ctx,
         damage,
         src.kind === 'spell'
-          ? '@killer.zap.self.spell'
-          : (SELF_KILLER[otyp] ?? '@killer.zap.self.striking'),
+          ? '!@killer.zap.self.spell'
+          : (SELF_KILLER[otyp] ?? '!@killer.zap.self.striking'),
       );
     return;
   }
@@ -1824,6 +1826,8 @@ const zap: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     if (!e || ctx.defs.object(e.def).class !== 'wand') return [];
+    const form = heroForm(ctx);
+    if (form && nohands(form)) return [];
     return [
       { action: { type: 'mod', action: ZAP_ID, args: { item: e.id } }, labelKey: 'action.nh:zap' },
     ];
@@ -1831,6 +1835,12 @@ const zap: ActionDef = {
   perform(ctx, action) {
     const wand = heroItem(ctx, itemArg(action));
     if (!wand || ctx.defs.object(wand.def).class !== 'wand') return 0;
+    // a form without hands can't zap (no time). ref: src/zap.c dozap()
+    const form = heroForm(ctx);
+    if (form && nohands(form)) {
+      say(ctx, 'zap.nohands');
+      return 0;
+    }
     if (checkCapacity(ctx)) return 0;
     checkUnpaid(ctx, wand); // ref: dozap(): check_unpaid(obj), a usage fee in a shop
     const needDir = ctx.defs.object(wand.def).wand?.dir !== 'nodir';

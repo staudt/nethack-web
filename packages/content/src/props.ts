@@ -71,6 +71,8 @@ export const P = {
   POLYMORPH: 'polymorph',
   POLYMORPH_CONTROL: 'polymorph_control',
   UNCHANGING: 'unchanging',
+  FLYING: 'flying',
+  INFRAVISION: 'infravision',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */

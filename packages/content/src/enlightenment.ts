@@ -37,7 +37,7 @@ import {
   timeoutLeft,
 } from './props';
 import { ENCUMBRANCE_NAMES, UNENCUMBERED, nearCapacity } from './stats';
-import { levitating, utrap } from './trapstate';
+import { flying, levitating, utrap } from './trapstate';
 
 const ARMOR_SLOTS = ['body', 'cloak', 'shirt', 'helm', 'gloves', 'boots', 'shield'] as const;
 
@@ -115,6 +115,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   // ---- Status
   line('enl.status');
   if (levitating(ctx)) are('levitating');
+  else if (flying(ctx)) are('flying'); // can only fly when not levitating
   if (isStoned(ctx.state)) are('turning_to_stone');
   if (isStrangled(h)) are('strangled');
   const hd = hungerData(ctx);
@@ -194,6 +195,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.WARNING)) are('warned');
   if (has(P.SEARCHING)) have('searching');
   if (has(P.CLAIRVOYANT)) are('clairvoyant');
+  if (has(P.INFRAVISION)) have('infravision');
   // appearance and behavior
   if (has(P.ADORNED)) {
     const adorn = ringBonus(ctx.state, 'nh:ring_of_adornment');
@@ -212,6 +214,9 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.TELEPORT_CONTROL)) have('teleport_control');
   // levitation blocked by a bear trap (BLevitation's I_SPECIAL)
   if (has(P.LEVITATION) && !levitating(ctx)) line('enl.would_levitate');
+  // flight blocked by levitation or by being trapped in the floor (BFlying)
+  if (has(P.FLYING) && !flying(ctx))
+    line(has(P.LEVITATION) ? 'enl.would_fly_lev' : 'enl.would_fly_trapped');
   if (has(P.MAGICAL_BREATHING)) can('breathless');
   // physical attributes
   if (has(P.REGENERATION)) line('enl.regenerate');

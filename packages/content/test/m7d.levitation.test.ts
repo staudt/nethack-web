@@ -83,12 +83,12 @@ describe('putting on and taking off the ring', () => {
   test('she floats up, the ring is learned, Lev shows, she can carry the most', () => {
     const m = make(ROOM);
     const r = ring(m);
-    const capBefore = weightCap(m.state, m.state.playerId);
+    const capBefore = weightCap(m.state, defs, m.state.playerId);
     expect(putOn(m, r)).toContain('You start to float in the air!');
     expect(levitating(m.ctx)).toBe(true);
     expect(isKnown(m.state, defs, defs.object(RING))).toBe(true);
     expect(buildSnapshot(defs, m.state).status['lev']).toBe(1);
-    expect(weightCap(m.state, m.state.playerId)).toBe(1000);
+    expect(weightCap(m.state, defs, m.state.playerId)).toBe(1000);
     expect(capBefore).toBeLessThan(1000);
     expect(removeRing(m, r)).toContain('You float gently to the floor.');
     expect(levitating(m.ctx)).toBe(false);

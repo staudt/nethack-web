@@ -65,6 +65,7 @@ export const zapMessagesEn: Record<string, string> = {
 
   // dozap(), zappable(), backfire()
   'zap.nothing_happens': 'Nothing happens.',
+  'zap.nohands': "You aren't able to zap anything in your current form.",
   'zap.unfortunately': 'Unfortunately, nothing happens.',
   'zap.wrest': 'You wrest one last charge from the worn-out wand.',
   'zap.explodes': '{item|The} suddenly explodes!',
@@ -235,11 +236,11 @@ export const zapMessagesEn: Record<string, string> = {
   // a monster's breath (zhitu(): "<flash> exhaled by <an mon>", death_inflicted_by())
   'killer.breath.cold.winter_wolf_cub': 'a blast of frost exhaled by a winter wolf cub',
   'killer.poisoned_blast': 'a poisoned blast',
-  'killer.zap.self.striking': 'zapping herself with a wand of striking',
-  'killer.zap.self.lightning': 'zapping herself with a wand of lightning',
-  'killer.zap.self.fire': 'zapping herself with a wand of fire',
-  'killer.zap.self.cold': 'zapping herself with a wand of cold',
-  'killer.zap.self.magic_missile': 'zapping herself with a wand of magic missile',
+  'killer.zap.self.striking': 'zapped herself with a wand of striking',
+  'killer.zap.self.lightning': 'zapped herself with a wand of lightning',
+  'killer.zap.self.fire': 'zapped herself with a wand of fire',
+  'killer.zap.self.cold': 'zapped herself with a wand of cold',
+  'killer.zap.self.magic_missile': 'zapped herself with a wand of magic missile',
   'killer.zap.self.spell': 'zapped herself with a spell',
   'killer.zap.self.death': 'shot herself with a death ray',
 
@@ -260,13 +261,13 @@ export const zapMessagesEn: Record<string, string> = {
   'explode.fatal': 'It is fatal.',
   'explode.the_x_fatal': 'The {what} is fatal.',
   // NO_KILLER_PREFIX in NetHack ("caught herself in her own fireball"); worded to follow "killed by"
-  'killer.explode.own.magm': 'catching herself in her own magical blast',
-  'killer.explode.own.fire': 'catching herself in her own fireball',
-  'killer.explode.own.cold': 'catching herself in her own ball of cold',
-  'killer.explode.own.death': 'catching herself in her own death field',
-  'killer.explode.own.elec': 'catching herself in her own ball of lightning',
-  'killer.explode.trap': 'catching herself in a magical blast',
-  'killer.explode.trap_unseen': 'catching herself in an explosion',
+  'killer.explode.own.magm': 'caught herself in her own magical blast',
+  'killer.explode.own.fire': 'caught herself in her own fireball',
+  'killer.explode.own.cold': 'caught herself in her own ball of cold',
+  'killer.explode.own.death': 'caught herself in her own death field',
+  'killer.explode.own.elec': 'caught herself in her own ball of lightning',
+  'killer.explode.trap': 'caught herself in a magical blast',
+  'killer.explode.trap_unseen': 'caught herself in an explosion',
   // mon_explodes(): KILLED_BY_AN "<monster>'s explosion", or "explosion" when unseen
   'killer.explode.mon_unseen': 'an explosion',
   'killer.explode.mon.gas_spore': "a gas spore's explosion",
@@ -282,5 +283,5 @@ export const zapMessagesEn: Record<string, string> = {
   'break.nothing_else': 'But nothing else happens...',
   'break.wall_of_force': 'A wall of force smashes down around you!',
   // NO_KILLER_PREFIX in NetHack ("killed herself by breaking a wand")
-  'killer.breakwand.self': 'killing herself by breaking a wand',
+  'killer.breakwand.self': 'killed herself by breaking a wand',
 };

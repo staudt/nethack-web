@@ -35,7 +35,10 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.confirm_into': 'Really step into that {trap}?',
   'trap.confirm_onto_float': 'Really float onto that {trap}?',
   'trap.confirm_into_float': 'Really float into that {trap}?',
+  'trap.confirm_onto_fly': 'Really fly onto that {trap}?',
+  'trap.confirm_into_fly': 'Really fly into that {trap}?',
   'trap.float_over': 'You float over {trap|an}.',
+  'trap.fly_over': 'You fly over {trap|an}.',
   'action.nh:idtrap': 'Identify the {trap}',
 
   // arrows, darts, rocks
@@ -88,6 +91,7 @@ export const trapMessagesEn: Record<string, string> = {
   // maybe_spin_web()
   'trap.web.stumble': 'You stumble into a spider web!',
   'trap.web.float_into': 'You float into a spider web!',
+  'trap.web.fly_into': 'You fly into a spider web!',
   'trap.web.caught_by': 'You are caught by a spider web!',
   'trap.web.tear_through': 'You tear through a web!',
   'trap.web.stuck': 'You are stuck to the web.',
@@ -177,6 +181,11 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.hole.mon_yanked': '{mon|The} seems to be yanked down!',
   'trap.air_currents': 'Air currents pull you down into {trap|an}!',
   'trap.dont_fall': "You don't fall in.",
+  'trap.dont_fit': "You don't fit through.",
+  'trap.swoop.trapdoor': 'You swoop down through the trap door!',
+  'trap.swoop.hole': 'You swoop down into the gaping hole!',
+  'trap.drop.trapdoor': 'You deliberately drop through the trap door!',
+  'trap.drop.hole': 'You deliberately drop into the gaping hole!',
   'trap.shaft': 'You fall down a shaft!',
   'trap.shaft_deep': 'You fall down a deep shaft!',
   'trap.shaft_very_deep': 'You fall down a very deep shaft!',
@@ -241,8 +250,8 @@ export const trapMessagesEn: Record<string, string> = {
   'tele.escape_float': 'You float gently down to earth.',
   'tele.escape_surface': 'You find yourself back on the surface.',
   // NO_KILLER_PREFIX in NetHack ("committed suicide"); worded to follow "killed by"
-  'killer.tele.suicide': 'committing suicide',
-  'killer.tele.heaven': 'going to heaven prematurely',
+  'killer.tele.suicide': 'committed suicide',
+  'killer.tele.heaven': 'went to heaven prematurely',
   'killer.tele.plummet': 'teleporting out of the dungeon and falling to her death',
   'killer.tele.plummet.his': 'teleporting out of the dungeon and falling to his death',
   'action.nh:tele': 'Teleport',
@@ -267,6 +276,7 @@ export const trapMessagesEn: Record<string, string> = {
   'tele.wrenching': 'You feel a wrenching sensation.',
   'tele.trap_level_step': 'You step onto a level teleport trap!',
   'tele.trap_level_float': 'You float onto a level teleport trap!',
+  'tele.trap_level_fly': 'You fly onto a level teleport trap!',
 
   // levitation. ref: src/trap.c float_up(), float_down(); src/fountain.c floating_above()
   'lev.start_to_float': 'You start to float in the air!',

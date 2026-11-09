@@ -36,7 +36,7 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.triggers_plugs_trapdoor': 'The boulder triggers and plugs a trap door.',
   'boulder.hear_verb': 'You hear a boulder {verb}.',
   // NO_KILLER_PREFIX in NetHack ("squished under a boulder"); worded to follow "killed by"
-  'killer.boulder.squished': 'being squished under a boulder',
+  'killer.boulder.squished': 'squished under a boulder',
   'surface.floor': 'floor',
   'surface.ground': 'ground',
   'move.carrying_too_much': 'You are carrying too much to get through.',

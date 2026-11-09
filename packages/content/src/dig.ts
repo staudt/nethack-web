@@ -121,6 +121,7 @@ import {
   joinPits,
   levitating,
   setUtrap,
+  uInAir,
   uInPit,
   utrap,
   xytodir,
@@ -246,8 +247,8 @@ export function digactualhole(
     else if (inAnyShop(level, x, y)) addDamage(ctx, x, y, herosFault ? SHOP_PIT_COST : 0);
     if (byHero) wakeNearto(ctx, hp.x, hp.y, (hero(ctx).c.experience?.level ?? 1) * 20); // wake_nearby()
     if (atU) {
-      // wont_fall: a floating hero stays above the pit (reset_utrap(TRUE))
-      if (!levitating(ctx))
+      // wont_fall: a floating or flying hero stays above the pit (reset_utrap(TRUE))
+      if (!uInAir(ctx))
         setUtrap(ctx, ctx.rng.rn2(4) + 2, 'pit'); // rn1(4, 2)
       else setUtrap(ctx, 0, 'pit');
     } else if (mon) {
@@ -262,8 +263,8 @@ export function digactualhole(
     return;
   }
   if (atU) {
-    // a hero held by a monster, or floating (wont_fall), does not fall
-    if (ustuck(ctx) !== null || levitating(ctx)) {
+    // a hero held by a monster, or floating or flying (wont_fall), does not fall
+    if (ustuck(ctx) !== null || uInAir(ctx)) {
       if (shopdoor && herosFault) payForDamage(ctx, 'ruin', false);
       return;
     }

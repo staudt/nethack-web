@@ -11,7 +11,8 @@ import {
 import { weight } from './items';
 import { armBonus } from './material';
 import { P, hasProp } from './props';
-import { levitating } from './trapstate';
+import { MZ_HUMAN, WT_HUMAN, msize, strongmonst } from './mondata';
+import { flying, levitating } from './trapstate';
 import { uState } from './luck';
 import { uspellOf } from './uenergy';
 import { heroForm } from './upoly';
@@ -95,18 +96,32 @@ export function acurrstr(str: number): number {
 }
 
 /**
- * Carrying capacity: the most there is while the hero floats. ref: src/hack.c weight_cap().
- * Not ported: polymorph, steeds.
+ * Carrying capacity: 25 * (Str + Con) + 50, at most 1000. A polymorphed hero carries as her form
+ * does (as can_carry()): a nymph the most, a form without a corpse weight by its size, a weak or
+ * heavy form by its weight against a human's; floating she carries the most; wounded legs lower
+ * it unless she flies. ref: src/hack.c weight_cap() (no steeds, no air level)
  */
-export function weightCap(state: Readonly<GameState>, id: EntityId): number {
+export function weightCap(state: Readonly<GameState>, defs: Registry, id: EntityId): number {
   if (id === state.playerId && levitating({ state })) return MAX_CARR_CAP;
   const a = state.entities[String(id)]?.c.attributes;
-  const carrcap =
+  let carrcap =
     WT_WEIGHTCAP_STRCON * (acurrstr(a?.str ?? 10) + (a?.con ?? 10)) + WT_WEIGHTCAP_SPARE;
+  const form = id === state.playerId ? heroForm({ state, defs }) : null;
+  if (form) {
+    // consistent with can_carry() in mon.c
+    if (form.glyph.ch === 'n') carrcap = MAX_CARR_CAP;
+    else if (!form.weight) carrcap = Math.trunc((carrcap * msize(form)) / MZ_HUMAN);
+    else if (!strongmonst(form) || form.weight > WT_HUMAN)
+      carrcap = Math.trunc((carrcap * form.weight) / WT_HUMAN);
+  }
   let cap = Math.min(carrcap, MAX_CARR_CAP);
-  // ref: src/hack.c weight_cap(): wounded legs reduce the capacity (WT_WOUNDEDLEG_REDUCT per leg;
-  // only the right leg is ever wounded here)
-  if (hasProp(state.entities[String(id)], P.WOUNDED_LEGS)) cap -= WT_WOUNDEDLEG_REDUCT;
+  // wounded legs reduce the capacity (WT_WOUNDEDLEG_REDUCT per leg; only the right leg is ever
+  // wounded here), unless she flies
+  if (
+    hasProp(state.entities[String(id)], P.WOUNDED_LEGS) &&
+    !(id === state.playerId && flying({ state }))
+  )
+    cap -= WT_WOUNDEDLEG_REDUCT;
   return Math.max(cap, 1);
 }
 
@@ -122,7 +137,7 @@ export function invWeight(state: Readonly<GameState>, defs: Registry, id: Entity
         ? Math.trunc((it.quantity + 50) / 100)
         : weight(defs, o, state);
   }
-  return wt - weightCap(state, id);
+  return wt - weightCap(state, defs, id);
 }
 
 /**
@@ -137,7 +152,7 @@ export function calcCapacity(
 ): number {
   const wt = invWeight(state, defs, id) + xtra;
   if (wt <= 0) return UNENCUMBERED;
-  const wc = weightCap(state, id);
+  const wc = weightCap(state, defs, id);
   if (wc <= 1) return OVERLOADED;
   return Math.min(Math.trunc((wt * 2) / wc) + 1, OVERLOADED);
 }

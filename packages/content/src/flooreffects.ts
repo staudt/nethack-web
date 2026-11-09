@@ -115,7 +115,7 @@ export function boulderFlooreffects(
       if (ctx.state.entities[String(trappedMon.id)]) setMtrapped(ctx, trappedMon.id, false);
     } else {
       // no Passes_walls or giant form for the hero
-      losehp(ctx, ctx.rng.rnd(15), '@killer.boulder.squished');
+      losehp(ctx, ctx.rng.rnd(15), '!@killer.boulder.squished');
       squished = true;
     }
   }

@@ -102,6 +102,7 @@ import {
   forgetMonTraps,
   isHole,
   isMtrapped,
+  flying,
   isPit,
   levitating,
   monKnowsTraps,
@@ -109,9 +110,13 @@ import {
   setMtrapped,
   setUtrap,
   trapTable,
+  uInAir,
   uInPit,
+  uLocomotion,
   utrap,
 } from './trapstate';
+import { MZ_HUGE, isClinger, msize } from './mondata';
+import { heroForm } from './upoly';
 
 /** The vanilla trap ids. */
 export const TRAP = {
@@ -655,7 +660,7 @@ function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean, from?: 
   const soko = sokobanTrap(ctx, levelId, trap);
   const { conj, adj } = pitApproach(ctx, levelId, trap, from);
   // "KMH -- You can't escape the Sokoban level traps"
-  if (!soko && levitating(ctx)) return;
+  if (!soko && (levitating(ctx) || (flying(ctx) && !plunged))) return;
   seetrap(trap); // feeltrap()
   if (!soko) {
     if (conj) say(ctx, 'trap.pit.move_adjacent');
@@ -753,8 +758,8 @@ function webYou(ctx: Ctx, levelId: string, trap: Trap, forced: boolean, msgok: b
       ctx,
       forced
         ? 'trap.web.caught_by'
-        : levitating(ctx)
-          ? 'trap.web.float_into' // u_locomotion("stumble")
+        : uLocomotion(ctx) !== null
+          ? `trap.web.${uLocomotion(ctx)}_into` // u_locomotion("stumble")
           : 'trap.web.stumble',
     );
   // time will be adjusted below
@@ -859,9 +864,19 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
   seetrap(trap);
   if (!soko && !plunged)
     say(ctx, trap.def === TRAP.trapdoor ? 'trap.door.opens' : 'trap.hole.gaping');
-  if (!soko && (levitating(ctx) || ustuck(ctx) !== null)) {
+  const form = heroForm(ctx);
+  if (
+    !soko &&
+    (levitating(ctx) ||
+      ustuck(ctx) !== null ||
+      ((flying(ctx) || (form !== null && isClinger(form))) && !plunged))
+  ) {
     // ref: fall_through(): `Levitation || u.ustuck || ...` -> "You don't fall in."
     say(ctx, 'trap.dont_fall');
+    return;
+  }
+  if (!soko && form !== null && msize(form) >= MZ_HUGE) {
+    say(ctx, 'trap.dont_fit');
     return;
   }
   const level = getLevel(ctx.state, levelId);
@@ -876,11 +891,16 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
     say(ctx, 'trap.dont_fall');
     return;
   }
+  if (plunged && (flying(ctx) || (form !== null && isClinger(form)))) {
+    const into = trap.def === TRAP.trapdoor ? 'trapdoor' : 'hole';
+    say(ctx, flying(ctx) ? `trap.swoop.${into}` : `trap.drop.${into}`);
+  }
   if (uShops(ctx).length > 0) shopdig(ctx, true);
   const dist = dst - level.dlevel;
   if (dist > 1)
     say(ctx, dist > 3 ? 'trap.shaft_very_deep' : dist > 2 ? 'trap.shaft_deep' : 'trap.shaft');
-  fallToLevel(ctx, level, dst);
+  // a flyer swoops down under control: no fall damage (UTOTYPE_NONE)
+  fallToLevel(ctx, level, dst, !flying(ctx));
 }
 
 /**
@@ -888,10 +908,10 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
  * damage, then what is on the floor. ref: src/do.c goto_level() with `falling` (u_on_rndspot(),
  * do_fall_dmg, pickup(1))
  */
-export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: number): void {
+export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: number, falling = true): void {
   const dist = dst - level.dlevel;
   ctx.goToLevel({ dungeon: level.dungeon, dlevel: dst }, 'random');
-  losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
+  if (falling) losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
   if (!ctx.state.gameOver) lookHere(ctx);
 }
 
@@ -936,9 +956,11 @@ export function dotrap(
   // "KMH -- You can't escape the Sokoban level traps"
   if (sokobanTrap(ctx, levelId, t)) say(ctx, 'trap.air_currents', { trap: trapName(t) });
   else if (!opts.force) {
-    // floor_trigger() && check_in_air(): u_locomotion("step") is "float"
-    if (floorTrigger(t.def) && levitating(ctx)) {
-      if (t.seen) say(ctx, 'trap.float_over', { trap: trapName(t) });
+    // floor_trigger() && check_in_air(): u_locomotion("step") is "float" or "fly"; a flyer who
+    // plunged in does not fly over
+    if (floorTrigger(t.def) && (levitating(ctx) || (flying(ctx) && !opts.plunged))) {
+      if (t.seen)
+        say(ctx, levitating(ctx) ? 'trap.float_over' : 'trap.fly_over', { trap: trapName(t) });
       return;
     }
     if (t.seen && t.def !== TRAP.antiMagic && !opts.plunged && !fromPit && ctx.rng.rn2(5) === 0) {
@@ -1073,9 +1095,9 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
   const level = getLevel(ctx.state);
   const t = trapAt(level, to.x, to.y);
   if (!t?.seen) return null;
-  // immune_to_trap(): ground-based traps, which can be evaded by levitation
+  // immune_to_trap(): ground-based traps, which can be evaded by levitation or flight
   if (
-    levitating(ctx) &&
+    uInAir(ctx) &&
     (t.def === TRAP.bear ||
       t.def === TRAP.squeaky ||
       t.def === TRAP.landmine ||
@@ -1910,7 +1932,7 @@ function answerNowhere(ctx: Ctx, value: Json, data: TeleData): void {
     say(ctx, 'tele.nowhere_thud', {
       surface: surfaceKey(ctx, getLevel(ctx.state, p.level), p.x, p.y),
     });
-  done(ctx, '@killer.tele.suicide');
+  done(ctx, '!@killer.tele.suicide');
   if (ctx.state.gameOver) return;
   say(ctx, 'tele.nowhere_coalesce');
   say(ctx, invent ? 'tele.nowhere_rematerialize_gather' : 'tele.nowhere_rematerialize');
@@ -1946,7 +1968,7 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
     if (newlev <= -10) {
       say(ctx, 'tele.heaven');
       say(ctx, 'tele.heaven_admit');
-      killer = '@killer.tele.heaven';
+      killer = '!@killer.tele.heaven';
     } else if (newlev === -9) {
       say(ctx, 'tele.cloud9_happy');
       say(ctx, 'tele.cloud9');
@@ -2034,11 +2056,7 @@ function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boole
   // "float onto" while levitating (u_locomotion())
   say(
     ctx,
-    intentional
-      ? 'tele.trap_level_trigger'
-      : levitating(ctx)
-        ? 'tele.trap_level_float'
-        : 'tele.trap_level_step',
+    intentional ? 'tele.trap_level_trigger' : `tele.trap_level_${uLocomotion(ctx) ?? 'step'}`,
   );
   if (hasProp(heroEnt(ctx), P.ANTIMAGIC) && !intentional) {
     say(ctx, 'tele.wrenching');

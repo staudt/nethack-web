@@ -238,7 +238,7 @@ describe('returning to her own form', () => {
     expect(left).toBeGreaterThanOrEqual(1);
     expect(left).toBeLessThanOrEqual(301); // rnd(100 * 3 + 1)
     run(s, (ctx) => losehp(ctx, 999, '@killer.test'));
-    expect(s.state.gameOver?.killer).toBe('@killer.poly.stuck');
+    expect(s.state.gameOver?.killer).toBe('!@killer.poly.stuck');
   });
 
   test('rehumanize() with an amulet of unchanging: "Your amulet fails!"', () => {

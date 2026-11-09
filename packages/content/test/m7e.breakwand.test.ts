@@ -249,7 +249,7 @@ describe('explosions of attack wands', () => {
     expect(dm).toContain('You are caught in the ball of lightning!');
     expect(d.state.gameOver).toMatchObject({
       kind: 'died',
-      killer: '@killer.explode.own.elec',
+      killer: '!@killer.explode.own.elec',
     });
   });
 });

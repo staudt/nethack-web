@@ -46,7 +46,9 @@ import { uShops } from './eshk';
 import { isUnpaid } from './price';
 import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
+import { nohands, notake } from './mondata';
 import { xnameOf } from './objnam';
+import { heroForm } from './upoly';
 import { stuckInWeb } from './web';
 import {
   ammoAndLauncher,
@@ -504,6 +506,19 @@ export const DIRECTION_OPTIONS: PromptOption[] = DIR_LIST.map((d) => ({
   key: `dir.${d}`,
 }));
 
+/**
+ * A polymorphed form that can't take things or has no hands can't throw: "You are physically
+ * incapable of throwing or shooting anything." / "You can't throw or shoot without hands." (no
+ * time). ref: src/dothrow.c ok_to_throw()
+ */
+function okToThrow(ctx: Ctx, noisy: boolean): boolean {
+  const form = heroForm(ctx);
+  if (!form) return true;
+  const key = notake(form) ? 'throw.notake' : nohands(form) ? 'throw.nohands' : null;
+  if (key && noisy) msg(ctx, key);
+  return key === null;
+}
+
 const throwAction: ActionDef = {
   id: THROW_ID,
   labelKey: 'action.nh:throw',
@@ -512,7 +527,7 @@ const throwAction: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
-    if (!e || !it || ctx.defs.object(e.def).class === 'coin') return [];
+    if (!e || !it || ctx.defs.object(e.def).class === 'coin' || !okToThrow(ctx, false)) return [];
     // worn armor cannot be thrown, nor a weapon known to be welded to the hand
     if (it.equipped !== null && it.equipped !== 'weapon') return [];
     if (it.equipped === 'weapon' && it.buc === 'cursed' && it.known.buc) return [];
@@ -527,6 +542,7 @@ const throwAction: ActionDef = {
   perform(ctx, action) {
     const e = heroItem(ctx, itemArg(action));
     if (!e) return 0;
+    if (!okToThrow(ctx, true)) return 0;
     if (checkCapacity(ctx)) return 0;
     ctx.ask(
       {

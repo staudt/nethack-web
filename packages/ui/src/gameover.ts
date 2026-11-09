@@ -72,12 +72,16 @@ const howOf = (s: Status): string => String(s['endHow'] ?? 'died');
 
 /**
  * The death as the stone words it: killed_by_prefix[how] and the killer. Monsters take an
- * article (KILLED_BY_AN), `killer.*` phrases are complete (KILLED_BY), '=' names are bare.
- * ref: src/topten.c formatkiller()
+ * article (KILLED_BY_AN), `killer.*` phrases are complete (KILLED_BY), '=' names are bare; a
+ * killer marked with a leading '!' is the whole text, with no prefix ("killed while stuck in
+ * creature form": NO_KILLER_PREFIX). ref: src/topten.c formatkiller()
  */
 export function deathText(d: Pick<EndDeps, 't' | 'has'>, s: Status): string {
-  const k = String(s['killer'] ?? '');
+  const raw = String(s['killer'] ?? '');
+  const noPrefix = raw.startsWith('!');
+  const k = noPrefix ? raw.slice(1) : raw;
   const def = k.startsWith('@') ? k.slice(1) : k;
+  if (noPrefix) return def.startsWith('=') ? def.slice(1) : d.t(def);
   const killer = !def
     ? ''
     : def.startsWith('=')

@@ -89,6 +89,7 @@ export const messagesEn: Record<string, string> = {
   'welcome.back': 'Hello, welcome back to NetHack! You are a {role}.',
   'door.opens': 'The door opens.',
   'door.locked': 'This door is locked.',
+  'door.nohands': "You can't open anything -- you have no hands!",
   'door.none': 'You see no door there.',
   'door.already_open': 'This door is already open.',
   'door.no_door': 'This doorway has no door.',

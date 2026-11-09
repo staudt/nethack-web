@@ -53,7 +53,7 @@ import { canSpotMon, monNam } from './perception';
 import { mapInvisible, monInvisible } from './invis';
 import { sokobanGuilt } from './sokoban';
 import { CHARGED_RINGS } from './objects';
-import { erosionMatters, isCrackable, isMetallic, isWeaponOrWeptool } from './material';
+import { erosionMatters, hardHelmet, isWeaponOrWeptool } from './material';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
@@ -566,7 +566,7 @@ export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
 // earth
 
 /** ref: src/do_wear.c hard_helmet() */
-export const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
+export { hardHelmet };
 
 /**
  * What is above (x, y) of the hero's level, as a message key. ref: src/dig.c ceiling(), for the

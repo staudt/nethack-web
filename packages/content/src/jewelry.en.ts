@@ -10,6 +10,8 @@ export const jewelryMessagesEn: Record<string, string> = {
   'puton.hand.right': 'Right',
   'puton.hand.left': 'Left',
   'puton.no_fingers': 'There are no more ring-fingers to fill.',
+  'puton.ring_stick': 'You cannot make the ring stick to your body.',
+  'puton.no_head': 'You have no head to wear {item|an} on.',
   'puton.already_amulet': 'You are already wearing an amulet.',
   'puton.gloves_cursed': 'You cannot remove your gloves to put on the ring.',
   'puton.weapon_hand': 'You cannot free your weapon hand to put on the ring.',

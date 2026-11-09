@@ -58,7 +58,7 @@ import { minvent, monWep, setMonFlag, whichArmor } from './mongear';
 import { mondied, monkilled } from './mondeath';
 import { drainEn } from './uenergy';
 import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
-import { levitating } from './trapstate';
+import { uInAir } from './trapstate';
 import { canseemon, tele, teleControlled, rlocMon } from './trap';
 import { teleRestrict } from './teleport';
 
@@ -984,7 +984,7 @@ function adLegs(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   };
   // This case is too obvious to ignore, but NetHack is not in general very good at considering
   // height--most short monsters still _can_ attack you when you're flying or mounted.
-  if (levitating(ctx) && !ctx.defs.monster(magr.def).flags.includes('fly')) {
+  if (uInAir(ctx) && !ctx.defs.monster(magr.def).flags.includes('fly')) {
     say(ctx, 'adtyp.tries_to_reach', params);
     mhm.damage = 0;
   } else if (isCancelled(ctx, magr.id)) {

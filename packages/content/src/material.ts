@@ -33,6 +33,7 @@ const MATERIALS = [
 ] as const;
 const mat = (def: ObjectDef): number => MATERIALS.indexOf(def.material as never);
 const LIQUID = 1;
+const LEATHER = 7;
 const WOOD = 8;
 const DRAGON_HIDE = 10;
 const IRON = 11;
@@ -49,6 +50,10 @@ export const isCorrodeable = (def: ObjectDef): boolean => mat(def) === COPPER ||
 export const isCrackable = (def: ObjectDef): boolean => mat(def) === GLASS && def.class === 'armor';
 /** ref: include/objclass.h is_metallic() */
 export const isMetallic = (def: ObjectDef): boolean => mat(def) >= IRON && mat(def) <= MITHRIL;
+/** ref: include/obj.h is_flimsy(): leather or softer (no rubber hose) */
+export const isFlimsy = (def: ObjectDef): boolean => mat(def) > 0 && mat(def) <= LEATHER;
+/** ref: src/do_wear.c hard_helmet(): metallic or crackable (callers pass helmets) */
+export const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
 
 const CANDLES = new Set(['nh:tallow_candle', 'nh:wax_candle']);
 

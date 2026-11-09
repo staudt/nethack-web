@@ -195,7 +195,7 @@ describe('wand of death', () => {
     const s = make(['@..']);
     const out = zap(s, wand(s, WAN.death), 'self');
     expect(out).toEqual(['You irradiate yourself with pure energy!', 'You die.']);
-    expect(s.state.gameOver?.killer).toBe('@killer.zap.self.death');
+    expect(s.state.gameOver?.killer).toBe('!@killer.zap.self.death');
     expect(render({ key: 'killer.zap.self.death' })).toBe('shot herself with a death ray');
     // an amulet of life saving brings her back
     const t = make(['@..']);

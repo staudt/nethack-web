@@ -365,7 +365,8 @@ function hurtleJumpStep(
   } else if (diagonal && badRock(ctx, level, u.x, y) && badRock(ctx, level, x, u.y)) {
     const h = hero(ctx);
     const tooMuch =
-      invWeight(ctx.state, ctx.defs, h.id) + weightCap(ctx.state, h.id) > WT_TOOMUCH_DIAGONAL;
+      invWeight(ctx.state, ctx.defs, h.id) + weightCap(ctx.state, ctx.defs, h.id) >
+      WT_TOOMUCH_DIAGONAL;
     if (tooMuch) {
       // the hero is never a big monster
       why = 'killer.jump.crevice';

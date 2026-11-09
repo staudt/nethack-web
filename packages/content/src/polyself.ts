@@ -14,7 +14,7 @@
 // fight yet), pools and lava under the new form, Passes_walls and buried balls, the amulet of
 // strangulation's can_be_strangled(), slime, slippery fingers, eggs, the `#monster` hints and
 // conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
-// What a form can wear, wield, carry and eat (break_armor(), drop_weapon()) is step 4's.
+// What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
 import {
   getPlayer,
   type ActionDef,
@@ -41,15 +41,15 @@ import { MAXULEV, levelIncrements, newhp, newpw, newuexp, setUlevelmax, ulevelma
 import { losehp } from './hp';
 import { makeSick, newuhs } from './hunger';
 import { encumberMsg, prinv } from './itemactions';
-import { levitating } from './levitation';
 import { uState } from './luck';
 import { messagesEn } from './messages.en';
-import { nameToMon } from './mondata';
+import { isFlyer, nameToMon } from './mondata';
 import { isPlaceholder, newcham, polyok } from './newcham';
 import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
 import { mungspaces, wishNames } from './objnam_read';
 import { monNam } from './perception';
+import { breakArmor, dropWeapon } from './polyarmor';
 import { polyObj } from './polyobj';
 import { P, adjabil, hasProp, makeBlinded, setFormProps, wornIn } from './props';
 import { isStoned, makeStoned } from './stonestate';
@@ -62,7 +62,7 @@ import {
   setTrapEffect,
   type TrapResult,
 } from './trap';
-import { setUtrap, utrap } from './trapstate';
+import { setUtrap, uLocomotion, utrap } from './trapstate';
 import { pwOf, setPw } from './uenergy';
 import {
   heroForm,
@@ -150,7 +150,7 @@ const RESISTS: readonly [string, string][] = [
 /**
  * The properties a form gives (C's FROMFORM bits). Drain resistance is exper.ts's
  * resistsDrliHero(); the ones the port has no property for (sickness, hallucination and blindness
- * resistance, infravision, flying, swimming, passing walls) are not set.
+ * resistance, swimming, passing walls) are not set.
  * ref: src/polyself.c set_uasmon()
  */
 function formProps(def: MonsterDef): string[] {
@@ -165,6 +165,8 @@ function formProps(def: MonsterDef): string[] {
   if (hasFlag(def, 'tport')) out.push(P.TELEPORT);
   if (hasFlag(def, 'tport_cntrl')) out.push(P.TELEPORT_CONTROL);
   if (isFloater(def)) out.push(P.LEVITATION);
+  if (isFlyer(def)) out.push(P.FLYING);
+  if (hasFlag(def, 'infravision')) out.push(P.INFRAVISION);
   if (hasFlag(def, 'regen')) out.push(P.REGENERATION);
   if (def.id === 'nh:silver_dragon') out.push(P.REFLECTING);
   if (hasFlag(def, 'noeyes')) out.push(P.BLINDED);
@@ -543,7 +545,8 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   // low level characters can't become high level monsters for long
   if (ulevel < mlvl) u.mtimedone = Math.trunc((u.mtimedone * ulevel) / mlvl);
 
-  // break_armor(), drop_weapon(1): step 4
+  breakArmor(ctx);
+  dropWeapon(ctx, true);
   const ut = utrap(ctx);
   if (ut?.type === 'pit') setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // time to escape resets
   if (wasBlind && !hasProp(h, P.BLINDED)) makeBlinded(ctx, 0, true); // previous form was eyeless
@@ -626,7 +629,7 @@ export function rehumanize(ctx: Ctx): void {
   // you can't revert back while unchanging
   if (hasProp(h, P.UNCHANGING)) {
     if ((h.c.hp?.cur ?? 0) < 1) {
-      done(ctx, '@killer.poly.stuck');
+      done(ctx, '!@killer.poly.stuck');
       return; // don't rehumanize after all
     }
     const uamul = wornIn(ctx.state, h.id, 'amulet');
@@ -889,8 +892,8 @@ function polyTrapYou(ctx: Ctx, trap: Trap): void {
   const p = h.c.pos;
   if (!p) return;
   seetrap(trap);
-  // u_locomotion("step"): "float" while levitating (no Flying here)
-  say(ctx, levitating(ctx) ? 'polytrap.float_onto' : 'polytrap.step_onto');
+  // u_locomotion("step")
+  say(ctx, `polytrap.${uLocomotion(ctx) ?? 'step'}_onto`);
   const shoes = ironShoes(ctx, h.id);
   if (shoes) {
     deltrap(ctx, p.level, trap);

@@ -132,7 +132,7 @@ function stoningTimeout(ctx: Ctx): void {
   }
   if (i === 1) {
     // ref: nh_timeout(): the delayed killer, else "killed by petrification"
-    const killer = stonedKiller(ctx.state) ?? '@killer.petrification';
+    const killer = stonedKiller(ctx.state) ?? '!@killer.petrification';
     makeStoned(ctx, 0, null, null);
     done(ctx, killer, 'stoning');
   }

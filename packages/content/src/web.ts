@@ -117,12 +117,12 @@ const GRAYSTONES: readonly string[] = [
 ];
 
 /**
- * How the hero's weapon is called in "You can't cut a web with a club!": its skill's name
- * (singular), else the object's class ("tool", "gem"...; a corpse, tin, egg, statue, boulder,
- * towel or tin opener by its own name). Armor and food stand alone; one is "a X", several "Xs".
- * ref: src/weapon.c weapon_descr(), src/hack.c domove_fight_web()
+ * How a weapon is called in "You can't cut a web with a club!" and "You find you must drop your
+ * club!": its skill's name (singular), else the object's class ("tool", "gem"...; a corpse, tin,
+ * egg, statue, boulder, towel or tin opener by its own name), as a '@' message reference.
+ * ref: src/weapon.c weapon_descr()
  */
-function cantCutMsg(ctx: Ctx, obj: Entity): Msg {
+export function weaponDescr(ctx: Pick<Ctx, 'defs'>, obj: Entity): string {
   const def = ctx.defs.object(obj.def);
   const w = def.weapon;
   let what: string;
@@ -158,6 +158,17 @@ function cantCutMsg(ctx: Ctx, obj: Entity): Msg {
   )
     what = `@${def.nameKey}`;
   else what = `@web.class.${def.class}`;
+  return what;
+}
+
+/**
+ * "You can't cut a web with a club!": weapon_descr(); armor and food stand alone; one is "a X",
+ * several "Xs". ref: src/hack.c domove_fight_web()
+ */
+function cantCutMsg(ctx: Ctx, obj: Entity): Msg {
+  const def = ctx.defs.object(obj.def);
+  const w = def.weapon;
+  const what = weaponDescr(ctx, obj);
   // "armor", "food" and "venom" as-is; else an() or makeplural()
   if (!w && (def.class === 'armor' || def.class === 'food') && what.startsWith('@web.class.'))
     return { key: 'web.cant_cut', params: { what } };

@@ -21,6 +21,8 @@ import {
 } from '@nh/core';
 import { answerBreakWand, doBreakWand } from './breakwand';
 import { useContainer } from './container';
+import { nohands } from './mondata';
+import { heroForm } from './upoly';
 import { DIG_ID, isPick, usePickAxe } from './dig';
 import { mnextoPos } from './generation';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
@@ -219,6 +221,12 @@ function useMagicWhistle(ctx: Ctx, obj: Entity): void {
 // ---------------------------------------------------------------------------------------------
 // the action
 
+/** The polymorphed form has no hands. ref: include/mondata.h nohands() */
+const formNohands = (ctx: Ctx): boolean => {
+  const form = heroForm(ctx);
+  return !!form && nohands(form);
+};
+
 const apply: ActionDef = {
   id: APPLY_ID,
   labelKey: 'action.nh:apply',
@@ -228,7 +236,7 @@ const apply: ActionDef = {
     const e = heroItem(ctx, target.id);
     // applying a wand breaks it: its own "Break" offer (still #apply, so `a` lists wands)
     const wand = e !== null && ctx.defs.object(e.def).class === 'wand';
-    return e && applicable(ctx, e)
+    return e && applicable(ctx, e) && !formNohands(ctx)
       ? [
           {
             action: { type: 'mod', action: APPLY_ID, args: { item: e.id } },
@@ -241,6 +249,11 @@ const apply: ActionDef = {
   perform(ctx, action) {
     if (action.type !== 'mod') return 0;
     const obj = heroItem(ctx, (action.args as { item?: unknown } | undefined)?.item);
+    // ref: doapply(): a form without hands, before anything else (no time)
+    if (formNohands(ctx)) {
+      say(ctx, 'apply.nohands');
+      return 0;
+    }
     if (!obj || !applicable(ctx, obj)) {
       say(ctx, 'apply.cant');
       return 0;

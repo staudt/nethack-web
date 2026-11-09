@@ -571,7 +571,7 @@ describe('force bolt', () => {
     know(d, [FORCE_BOLT]);
     hero(d).c.hp!.cur = 1;
     castAt(d, 'self');
-    expect(d.state.gameOver?.killer).toBe('@killer.zap.self.spell');
+    expect(d.state.gameOver?.killer).toBe('!@killer.zap.self.spell');
     expect(render({ key: 'killer.zap.self.spell' })).toBe('zapped herself with a spell');
   });
 

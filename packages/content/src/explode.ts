@@ -350,10 +350,10 @@ export function explode(
           ? '@killer.explode.mon_unseen'
           : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
         : wand
-          ? `@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`
+          ? `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`
           : generic
-            ? '@killer.explode.trap_unseen'
-            : '@killer.explode.trap';
+            ? '!@killer.explode.trap_unseen'
+            : '!@killer.explode.trap';
       done(ctx, killer);
       if (ctx.state.gameOver) return;
     }
