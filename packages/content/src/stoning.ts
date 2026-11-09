@@ -7,9 +7,10 @@
 // fatal_corpse_mistake(); src/wield.c cant_wield_corpse(); src/botl.c bl_stone
 //
 // Golems turn into stone golems instead (poly_when_stoned(), mon_to_stone(): newcham.ts registers
-// it). Not ported: vampires reverting (vamp_stone(): 7f), monsters using lizard corpses or
-// acidic potions to cure themselves (munstone(): muse.c is not ported), monster life saving,
-// selftouch() (falling while wielding a cockatrice corpse), the hero's statue (no bones).
+// it). Monsters cure themselves with lizard or acidic corpses or acid (munstone(), muse.ts:
+// minstapetrify()'s callers try it first, as C's do). Not ported: vampires reverting
+// (vamp_stone(): 7f), selftouch() (falling while wielding a cockatrice corpse), the hero's
+// statue (no bones).
 import { getPlayer, type Ctx, type Entity, type EntityId, type ModApi, type Msg } from '@nh/core';
 import { done } from './end';
 import { stopOccupation } from './eat';
@@ -18,7 +19,7 @@ import { experienceFor, gainExperience } from './hero';
 import { makeVomiting, nomulNow } from './hunger';
 import { nhData } from './items';
 import { uState } from './luck';
-import { makeStatue, mondead, monsterDied } from './mondeath';
+import { lifesavedMonster, makeStatue, mondead, monsterDied } from './mondeath';
 import { heroSees } from './mongear';
 import { monAdjustSpeed } from './mstate';
 import { monNam } from './perception';
@@ -84,6 +85,7 @@ export function xkilledStoned(ctx: Ctx, mon: Entity): void {
   const level = mon.c.monster?.level ?? 0;
   const wasinside = engulfingU(ctx, mon.id);
   const statue = monsterDied(ctx, mon.id, true, true);
+  if (ctx.state.entities[String(mon.id)]?.c.monster) return; // life-saved
   jumpOut(ctx, wasinside, def.id, statue);
   gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
@@ -100,11 +102,13 @@ function jumpOut(ctx: Ctx, wasinside: boolean, def: string, obj: EntityId | null
 
 /**
  * The monster turns into a statue holding its possessions (a small one sometimes into rocks)
- * and is gone. ref: src/mon.c monstone()
+ * and is gone, unless its amulet of life saving saves it. ref: src/mon.c monstone()
  */
 export function monstone(ctx: Ctx, mon: Entity): void {
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   if (!at) return;
+  // check for lifesaving before making the statue
+  if (lifesavedMonster(ctx, mon)) return;
   const wasinside = engulfingU(ctx, mon.id);
   const statue = makeStatue(ctx, mon, at);
   mondead(ctx, mon.id);

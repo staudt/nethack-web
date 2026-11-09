@@ -5,7 +5,7 @@ import { isAxe } from './mdig';
 import { hitWithEgg } from './egghit';
 import { minstapetrify } from './stoning';
 import { corpseName, petrifyingCorpse } from './stonetouch';
-import { resistsSton } from './stonestate';
+import { munstone, resistsSton } from './stonestate';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -515,8 +515,8 @@ export function knownHitum(
         key: 'stone.hit_with',
         params: { mon: name, item: corpseName(weapon.item) },
       });
-      minstapetrify(ctx, target, true);
-      // (no munstone(): monsters do not cure themselves)
+      if (!munstone(ctx, target, true)) minstapetrify(ctx, target, true);
+      // note: hp may be <= 0 even if munstoned
       if (!resistsSton(ctx, target))
         return ctx.state.entities[String(targetId)]?.c.monster !== undefined;
     } else {
@@ -575,6 +575,7 @@ export function knownHitum(
       params: { mon: name },
     });
     monsterDied(ctx, targetId, true);
+    if (ctx.state.entities[String(targetId)]?.c.monster) return true; // life-saved
     gainExperience(ctx, hero.id, experienceFor(def, mon.level));
     if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
     if (angerGuards) angryGuards(ctx, false);

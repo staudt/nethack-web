@@ -1,5 +1,9 @@
-// What happens to the world when a monster dies by the hero's hand.
-// ref: src/mon.c xkilled(), mondead(), m_detach() (shkgone())
+// What happens to the world when a monster dies by the hero's hand, and the amulet of life saving
+// that can stop it. ref: src/mon.c xkilled(), mondead(), m_detach() (shkgone()),
+// lifesaved_monster(), mlifesaver(), set_mon_min_mhpmax()
+//
+// A dying monster is removed from the game; one its amulet saved is not, so every caller checks
+// the entity afterwards where C checks DEADMONSTER().
 import { restoreWereForm } from './werestate';
 import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { nonliving } from './mondata';
@@ -9,14 +13,85 @@ import { xkilledCorpse, type DeadMon } from './corpses';
 import { engulfingU } from './engulfstate';
 import { mksobj, placeOnFloor, removeFromInventory, weight } from './items';
 import { mkobj } from './mkobj';
-import { forgetMonster, minvent, relobj } from './mongear';
-import { forgetMState, isMrevived } from './mstate';
+import { forgetMonster, heroSees, minvent, relobj, setMonFlag } from './mongear';
+import { forgetMState, isMrevived, unfreezeMonst } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
 import { shkgone } from './shk';
 import { setHistoric } from './statuestate';
 import { canseemon, unmapInvisible } from './invis';
-import { countKill } from './vanquished';
+import { countKill, isGenocided } from './vanquished';
+import { discover } from './o_init';
+
+const AMULET_OF_LIFE_SAVING = 'nh:amulet_of_life_saving';
+
+/** The worn amulet of life saving that will save the monster. ref: src/mon.c mlifesaver() */
+export function mlifesaver(ctx: Ctx, mon: Entity): Entity | null {
+  if (nonliving(ctx.defs.monster(mon.def))) return null; // (no vampire shapeshifters)
+  const amu = minvent(ctx, mon.id).find((o) => o.c.item?.equipped === 'amulet');
+  return amu?.def === AMULET_OF_LIFE_SAVING ? amu : null;
+}
+
+type WaryDog = (ctx: Ctx, mon: Entity, wasDead: boolean) => void;
+let waryDogFn: WaryDog | null = null;
+
+/** dog.ts hands down wary_dog() (it sits above this module). */
+export function setWaryDog(fn: WaryDog): void {
+  waryDogFn = fn;
+}
+
+/**
+ * The dying monster's amulet of life saving saves it: where the hero sees its square "But
+ * wait...", "The hill orc's medallion begins to glow!" (the amulet learned), "The hill orc
+ * looks much better!" ("reconstitutes!" for an exploding monster) when she sees it, "The
+ * medallion crumbles to dust!". The amulet is used up (another may be put on next move), the
+ * monster can move again, a pet turns wary (wary_dog()), and its hit points are its maximum, at
+ * least `max(m_lev + 1, 10)`. A genocided monster dies anyway ("Unfortunately, the hill orc is
+ * still genocided..."). Returns whether it lives. ref: src/mon.c lifesaved_monster()
+ */
+export function lifesavedMonster(ctx: Ctx, mon: Entity): boolean {
+  const lifesave = mlifesaver(ctx, mon);
+  if (!lifesave) return false;
+  const p = mon.c.pos;
+  // not canseemon: amulets are on the head, and glowing amulets are always visible
+  const seen = p !== undefined && heroSees(ctx, p);
+  if (seen) {
+    say(ctx, 'lifesave.mon.wait');
+    say(ctx, 'lifesave.mon.glow', { mon: monNam(ctx, mon) });
+    discover(ctx, AMULET_OF_LIFE_SAVING);
+    // amulet is visible, but monster might not be
+    if (canseemon(ctx, mon)) {
+      const boom = ctx.defs
+        .monster(mon.def)
+        .attacks.some((a) => a.at === 'explode' || a.at === 'boom');
+      say(ctx, boom ? 'lifesave.mon.reconstitutes' : 'lifesave.mon.better', {
+        mon: monNam(ctx, mon),
+      });
+    }
+    say(ctx, 'lifesave.mon.crumbles');
+  }
+  removeFromInventory(ctx, lifesave.id); // m_useup()
+  ctx.remove(lifesave.id);
+  // equip replacement amulet, if any, on next move
+  setMonFlag(ctx, 'gearchk', mon.id, true); // check_gear_next_turn()
+  const surviver = !isGenocided(ctx.state, mon.def);
+  unfreezeMonst(ctx, mon.id); // mcanmove = 1, mfrozen = 0
+  if ((mon.c.monster?.tame ?? 0) > 0) waryDogFn?.(ctx, mon, !surviver);
+  const hp = mon.c.hp;
+  if (hp) {
+    // set_mon_min_mhpmax(mtmp, 10)
+    const lev = mon.c.monster?.level ?? 0;
+    hp.max = Math.max(hp.max, lev + 1, 10);
+    hp.cur = hp.max;
+  }
+  if (!surviver) {
+    // genocided monster can't be life-saved
+    if (seen) say(ctx, 'lifesave.mon.still_genocided', { mon: monNam(ctx, mon) });
+    if (hp) hp.cur = 0;
+    return false;
+  }
+  return true;
+}
 
 /** What make_corpse() needs of the monster once it is gone (mrevived, canseemon()). */
 function deadMon(ctx: Ctx, mon: Entity): DeadMon {
@@ -43,6 +118,11 @@ export function monsterDied(
 ): EntityId | null {
   const e = ctx.state.entities[String(monId)];
   if (!e?.c.monster) return null;
+  // ref: xkilled() -> mondead()/monstone(): life saving; unseen, "Maybe not..."
+  if (lifesavedMonster(ctx, e)) {
+    if (!e.c.pos || !heroSees(ctx, e.c.pos)) say(ctx, 'lifesave.mon.maybe_not');
+    return null;
+  }
   restoreWereForm(ctx, e); // ref: mondead(): lycanthropes die in their true form
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
@@ -196,16 +276,18 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   const dead = deadMon(ctx, mon);
   mondead(ctx, id);
+  if (ent(ctx, id)?.c.monster) return; // lifesaved
   if (at) xkilledCorpse(ctx, def, at, false, dead);
 }
 
 /**
  * The monster dies with no corpse (an exploding light or sphere): its things drop and it is
- * removed. ref: src/mon.c mondead() -> m_detach() (no life saving)
+ * removed, unless its amulet of life saving saves it. ref: src/mon.c mondead() -> m_detach()
  */
 export function mondead(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
+  if (lifesavedMonster(ctx, mon)) return;
   // restore lycanthropes to true form at death (no chameleons)
   restoreWereForm(ctx, mon);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;

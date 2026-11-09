@@ -42,6 +42,7 @@ import { isCancelled, isMConfused, isMStunned, mcansee, mspecUsed, setMspecUsed 
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
 import { canseemon, monVisible } from './invis';
+import { monReflects } from './musestate';
 import { rehumanize, uPolyStoneGolem, upolyd } from './upoly';
 import {
   P,
@@ -157,7 +158,7 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
       if (reflectable) {
         // hero has line of sight to Medusa and she's not blind
         if (seen) ureflects(ctx, 'reflect.gaze', { mon: name });
-        // (mon_reflects(): monsters wear no reflecting armor here)
+        if (monReflects(ctx, mon, seen ? 'muse.reflect.gaze_away' : null)) break;
         // m_canseeu(): she is never invisible, so Medusa sees her when she can see at all
         if (seen) say(ctx, 'stone.is_turned', { mon: name });
         say(ctx, 'combat.you_kill', { mon: name }); // killed(mtmp): xkilled(XKILL_GIVEMSG)

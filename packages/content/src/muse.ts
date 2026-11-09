@@ -8,13 +8,16 @@
 // lightning and magic missile (rays), striking, teleportation and undead turning, the potions of
 // paralysis, blindness, confusion, sleeping and acid (hurled) and the scroll of earth. And for
 // itself: find_misc()/use_misc() for gain level, invisibility, speed, polymorph (wand, potion or
-// a polymorph trap), the bullwhip against her weapon and looting a carried container.
+// a polymorph trap), the bullwhip against her weapon and looting a carried container. And to
+// save itself from stoning (munstone()) and sliming (munslime()), which low modules reach through
+// stonestate.ts and slimestate.ts.
 // ref: src/muse.c find_defensive(), use_defensive(), precheck(), mzapwand(), mreadmsg(),
 // mquaffmsg(), m_use_healing(), m_sees_sleepy_soldier(), m_tele(), reveal_trap(), mon_escape(),
 // mon_consume_unstone(), find_offensive(), use_offensive(), m_use_undead_turning(),
 // linedup_chk_corpse(), hero_behind_chokepoint(), mon_has_friends(), mon_likes_objpile_at(),
 // buzz_force_miss(), mbhit(), fhito_loc(), mbhitm(), find_misc(), use_misc(),
-// muse_newcham_mon(), mloot_container(), you_aggravate(); src/do.c canletgo();
+// muse_newcham_mon(), mloot_container(), you_aggravate(), munstone(), cures_stoning(),
+// munslime(), muse_unslime(), cures_sliming(), green_mon(); src/do.c canletgo();
 // include/hack.h WAND_BACKFIRE_CHANCE
 //
 // Not ported: the ghost in a milky potion and the djinni in a smoky one (precheck(); as for the
@@ -55,11 +58,14 @@ import {
 import { couldseeAt } from './apparxy';
 import { clearPath } from './clearpath';
 import { blockersOf, boulderAt } from './boulder';
-import { buzzFrom, resist, resistsMagm, wakeGently, type Ray } from './buzz';
+import { buzzFrom, resist, resistsMagm, wakeGently, zhitm, type Ray } from './buzz';
 import { bypassObj, clearBypasses } from './bypass';
 import { isBoxTrapped } from './btrapstate';
 import { uwepOf } from './combat';
-import { dogNutrition, edogOf } from './dog';
+import { dogNutrition, edogOf, meating } from './dog';
+import { explode } from './explode';
+import { experienceFor, gainExperience } from './hero';
+import { hcolor } from './hcolor';
 import { stopOccupation } from './eat';
 import { uswallow } from './engulfstate';
 import { epriOf, inYourSanctuary, templeOccupied } from './epri';
@@ -87,6 +93,7 @@ import { migrateToLevel } from './migrate';
 import {
   amorphous,
   hatesSilver,
+  nonliving,
   isFlyer,
   isUnicorn,
   noncorporeal,
@@ -94,7 +101,7 @@ import {
   nolimbs,
   slithy,
 } from './mondata';
-import { mongone, monkilled } from './mondeath';
+import { mondead, mongone, monkilled, monsterDied } from './mondeath';
 import { canCarry, minvent, monWep, monWouldTakeItem, whichArmor } from './mongear';
 import { isFleeing, monflee } from './monflee';
 import {
@@ -104,8 +111,10 @@ import {
   isMStunned,
   mcansee,
   monAdjustSpeed,
+  mspecUsed,
   mspeed,
   setMConfused,
+  setMspecUsed,
   setMStunned,
 } from './mstate';
 import { newcham } from './newcham';
@@ -134,7 +143,8 @@ import { ceilingKey, dropBoulderOnMonster, dropBoulderOnPlayer } from './read';
 import { unturnDead } from './revive';
 import { helpless } from './shk';
 import { mpickobj, removeWornItem, unresponsive } from './steal';
-import { resistsSton, touchPetrifies } from './stonestate';
+import { resistsSton, setMunstone, touchPetrifies } from './stonestate';
+import { setMunslime, slimeproof } from './slimestate';
 import { onscary } from './scary';
 import { isAnimal } from './steal';
 import { T, isFurnitureId, isStwallId, setTerrain, surfaceKey, terrainIdAt } from './terrain';
@@ -278,6 +288,11 @@ const POT_POLYMORPH: DefId = 'nh:potion_of_polymorph';
 const BULLWHIP: DefId = 'nh:bullwhip';
 const IRON_SHOES: DefId = 'nh:iron_shoes';
 const ACID_BLOB: DefId = 'nh:acid_blob';
+const SCR_FIRE: DefId = 'nh:scroll_of_fire';
+const WAN_FIRE: DefId = 'nh:wand_of_fire';
+/** ref: include/color.h CLR_GREEN, CLR_BRIGHT_GREEN (as monsters.ts draws them) */
+const CLR_GREEN = '#33aa33';
+const CLR_BRIGHT_GREEN = '#55ff55';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -982,7 +997,7 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
     case 'lizard_corpse': {
       if (!otmp) return 0;
       // "not actually called for its unstoning effect"
-      monConsumeUnstone(ctx, mon, otmp);
+      monConsumeUnstone(ctx, mon, otmp, false, false);
       return 2;
     }
     default:
@@ -1420,23 +1435,60 @@ function mreadmsg(ctx: Ctx, mon: Entity, otmp: Entity): void {
 }
 
 /**
- * The monster eats a lizard corpse to cure its confusion and stun: "The gnome eats a lizard
- * corpse." (unseen: "You hear chewing."), "The gnome seems steadier now." (not for bats and
- * stalkers); a pet's hunger is put off by the meal's nutrition, and the meal takes its next move.
- * ref: src/muse.c mon_consume_unstone() with `stoning` false (the stoning half, acid potions and
- * acidic corpses come with munstone())
+ * The monster eats a lizard or acidic corpse, or drinks a potion of acid: "The gnome eats a
+ * lizard corpse." / "The gnome quaffs a potion of acid." (unseen: "You hear chewing." /
+ * "You hear drinking."). Acid burns a monster that does not resist it (`rnd(15)`, "The gnome has
+ * a very bad case of stomach acid."; "The gnome dies!", a kill of the hero's when `byYou`).
+ * `stoning`: it was turning to stone ("is slowing down" and loss of intrinsic speed first, then
+ * "The gnome seems limber!"); else a lizard corpse cures its confusion and stun ("The gnome
+ * seems steadier now.", not for bats and stalkers). A pet's hunger is put off by the meal's
+ * nutrition, and the meal takes its next move.
+ * ref: src/muse.c mon_consume_unstone() (no tins)
  */
-function monConsumeUnstone(ctx: Ctx, mon: Entity, obj: Entity): void {
+function monConsumeUnstone(
+  ctx: Ctx,
+  mon: Entity,
+  obj: Entity,
+  byYou: boolean,
+  stoning: boolean,
+): void {
   const vis = canseemon(ctx, mon);
-  const lizard = obj.def === CORPSE && obj.c.item?.corpseOf === LIZARD;
-  const nutrit = dogNutrition(ctx, mon, obj); // also sets meating
+  const of = obj.def === CORPSE ? obj.c.item?.corpseOf : undefined;
+  const ofDef = of && ctx.defs.isMonster(of) ? ctx.defs.monster(of) : null;
+  const food = obj.def === CORPSE;
+  const potion = ctx.defs.object(obj.def).class === 'potion';
+  const acid = obj.def === POT_ACID || (food && ofDef !== null && acidic(ofDef));
+  const lizard = food && of === LIZARD;
+  const nutrit = food ? dogNutrition(ctx, mon, obj) : 0; // also sets meating
+  // give a "<mon> is slowing down" message and also remove intrinsic speed
+  if (stoning) monAdjustSpeed(ctx, mon, -3);
   if (vis) {
     const it = obj.c.item;
     const one: Entity = it ? { ...obj, c: { ...obj.c, item: { ...it, quantity: 1 } } } : obj;
-    say(ctx, 'muse.eats', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, one) });
-  } else say(ctx, 'muse.hear_chewing');
+    say(ctx, potion ? 'muse.quaffs' : 'muse.eats', {
+      mon: monNam(ctx, mon),
+      item: doname(ctx.state, ctx.defs, one),
+    });
+  } else say(ctx, potion ? 'muse.hear_drinking' : 'muse.hear_chewing');
   useOne(ctx, mon.id, obj);
   const id = mon.id;
+  const hp = mon.c.hp;
+  if (acid && hp && !ctx.defs.monster(mon.def).resists.includes('acid')) {
+    hp.cur -= ctx.rng.rnd(15);
+    if (vis) say(ctx, 'muse.stomach_acid', { mon: monNam(ctx, mon) });
+    if (hp.cur <= 0) {
+      say(ctx, 'muse.dies', { mon: monNam(ctx, mon) });
+      // the hero gets credit (experience) and blame for the kill (XKILL_NOMSG)
+      if (byYou) xkilledNoMsg(ctx, mon);
+      else mondead(ctx, id);
+      return;
+    }
+  }
+  if (stoning && vis) {
+    if (hasProp(getPlayer(ctx.state), P.HALLUC))
+      say(ctx, 'muse.ruined_art', { mon: monNam(ctx, mon) });
+    else say(ctx, 'muse.limber', { mon: monNam(ctx, mon) });
+  }
   if (lizard && (isMConfused(ctx, id) || isMStunned(ctx, id))) {
     setMConfused(ctx, id, false);
     setMStunned(ctx, id, false);
@@ -1452,6 +1504,202 @@ function monConsumeUnstone(ctx: Ctx, mon: Entity, obj: Entity): void {
   }
   // "use up monster's next move"
   if (mon.c.actor) mon.c.actor.energy -= NORMAL_SPEED;
+}
+
+/**
+ * The hero kills the monster without a "You kill" line: experience, alignment and luck, its
+ * things and maybe a corpse. ref: src/mon.c xkilled(mon, XKILL_NOMSG | XKILL_NOCONDUCT)
+ */
+function xkilledNoMsg(ctx: Ctx, mon: Entity): void {
+  const def = ctx.defs.monster(mon.def);
+  const level = mon.c.monster?.level ?? 0;
+  monsterDied(ctx, mon.id, true);
+  if (ctx.state.entities[String(mon.id)]?.c.monster) return; // life-saved
+  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+}
+
+/** ref: include/mondata.h acidic(): M1_ACID */
+const acidic = (def: MonsterDef): boolean => def.flags.includes('acid');
+
+/**
+ * Whether `obj` cures the monster's petrification: a potion of acid, or a lizard or acidic
+ * corpse. ref: src/muse.c cures_stoning() (no globs or tins: mcould_eat_tin() is never needed)
+ */
+function curesStoning(ctx: Ctx, obj: Entity): boolean {
+  if (obj.def === POT_ACID) return true;
+  if (obj.def !== CORPSE) return false;
+  const of = obj.c.item?.corpseOf;
+  if (!of || !ctx.defs.isMonster(of)) return false;
+  return of === LIZARD || acidic(ctx.defs.monster(of));
+}
+
+/**
+ * A monster about to turn to stone eats or drinks the first thing it carries that cures it
+ * (mon_consume_unstone()); not a monster that resists stoning, is eating or is helpless.
+ * Returns whether it ate something (it may have died of the acid).
+ * ref: src/muse.c munstone() (no tins: mcould_eat_tin() always false here; no STRAT_WAITFORU)
+ */
+export function munstone(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
+  if (resistsSton(ctx, mon)) return false;
+  if (meating(ctx, mon.id) > 0 || helpless(ctx, mon.id)) return false;
+  for (const obj of minvent(ctx, mon.id)) {
+    if (curesStoning(ctx, obj)) {
+      monConsumeUnstone(ctx, mon, obj, byYou, true);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether `obj` can burn off the monster's slime: a scroll of fire it can see to read, or a
+ * charged wand of fire. ref: src/muse.c cures_sliming() (no potions of oil or fire horns)
+ */
+function curesSliming(ctx: Ctx, mon: Entity, obj: Entity): boolean {
+  if (obj.def === SCR_FIRE)
+    return haseyes(ctx, mon) && mcansee(ctx, mon.id) && !nohands(ctx.defs.monster(mon.def));
+  return obj.def === WAN_FIRE && spe(obj) > 0;
+}
+
+/**
+ * Whether the hero sees the monster as green (its display color). ref: src/muse.c green_mon()
+ */
+function greenMon(ctx: Ctx, mon: Entity): boolean {
+  if (hasProp(getPlayer(ctx.state), P.HALLUC)) return false;
+  const fg = ctx.defs.monster(mon.def).glyph.fg;
+  return fg === CLR_GREEN || fg === CLR_BRIGHT_GREEN;
+}
+
+/**
+ * A monster about to turn into a green slime burns it off: a fire breather breathes on itself
+ * (not cancelled, its breath ready); else, unless it is an animal or mindless, it uses the first
+ * scroll of fire or charged wand of fire it carries. Not a slimeproof monster, one eating or
+ * helpless. Returns whether it tried (a confused reader fails, and it may die of the fire).
+ * ref: src/muse.c munslime() (no potions of oil or fire horns; no fire traps exist in this
+ * port, so the scan of the squares around it only makes its `rn1()` draws; no STRAT_WAITFORU)
+ */
+export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
+  const def = ctx.defs.monster(mon.def);
+  if (slimeproof(def)) return false;
+  if (meating(ctx, mon.id) > 0 || helpless(ctx, mon.id)) return false;
+  // if monster can breathe fire, do so upon self
+  if (
+    !isCancelled(ctx, mon.id) &&
+    mspecUsed(ctx, mon.id) === 0 &&
+    def.attacks.some((a) => a.at === 'breath' && a.ad === 'fire')
+  )
+    return museUnslime(ctx, mon, null, byYou);
+  // same MUSE criteria as use_defensive()
+  if (!isAnimal(def) && !mindless(ctx, mon)) {
+    for (const obj of minvent(ctx, mon.id))
+      if (curesSliming(ctx, mon, obj)) return museUnslime(ctx, mon, obj, byYou);
+    const p = mon.c.pos;
+    const level = p ? ctx.state.levels[p.level] : undefined;
+    // (no FIRE_TRAP exists: the one under it is never one)
+    if (p && level && def.speed > 0 && !isMtrapped(ctx, mon.id)) {
+      const hp = getPlayer(ctx.state).c.pos;
+      const xy: Pos[] = [];
+      for (let x = p.x - 1; x <= p.x + 1; ++x)
+        for (let y = p.y - 1; y <= p.y + 1; ++y)
+          if (
+            inBounds(level, x, y) &&
+            accessibleAt(ctx, level, x, y) &&
+            !mAt(ctx.state, p.level, x, y) &&
+            !(hp && hp.level === p.level && hp.x === x && hp.y === y)
+          )
+            xy.push({ x, y });
+      for (let idx = 0; idx < xy.length; ++idx) {
+        const ridx = ctx.rng.rn2(xy.length - idx) + idx; // rn1(nxy - idx, idx)
+        if (ridx !== idx) {
+          const a = xy[idx] as Pos;
+          xy[idx] = xy[ridx] as Pos;
+          xy[ridx] = a;
+        }
+        // (a FIRE_TRAP at xy[idx] would stop the shuffle here)
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * The monster burns its slime off (`obj` null: with its own fire breath, `rn2(3)` of using it
+ * up for `rn1(10, 5)` turns): "The lichen starts turning green." ("into ooze" for a green-looking
+ * monster) and a quiet loss of intrinsic speed; then "The lichen breathes fire on itself.", a
+ * wand of fire zapped at itself, or a scroll of fire read (a fireball at its square of
+ * `(2 * (rn1(3, 3) + 2 * bcsign) + 1) / 3`; confused: "Oh, what a pretty fire!" and nothing
+ * cured). Fire that hurts it: "The lichen is burned!" or, fatal, "The lichen is killed by the
+ * fire!" (the hero's kill when `byYou`). "The lichen's slime is burned away!" and the object is
+ * learned when seen. The cure takes its next move.
+ * ref: src/muse.c muse_unslime() (no fire traps, potions of oil or fire horns; trycall() is not
+ * ported; the fireball is a monster's (`by` other) even when `byYou`)
+ */
+function museUnslime(ctx: Ctx, mon: Entity, obj: Entity | null, byYou: boolean): boolean {
+  let vis = canseemon(ctx, mon);
+  let res = true;
+  let dmg = 0;
+  const otyp = obj?.def ?? null;
+  if (vis)
+    say(
+      ctx,
+      greenMon(ctx, mon) ? 'muse.turning_into_ooze' : 'muse.turning_color',
+      greenMon(ctx, mon)
+        ? { mon: monNam(ctx, mon) }
+        : { mon: monNam(ctx, mon), color: hcolor(ctx, 'green') },
+    );
+  // -4 => sliming, causes quiet loss of enhanced speed
+  monAdjustSpeed(ctx, mon, -4);
+  if (!obj) {
+    // monster is using fire breath on self
+    if (vis) say(ctx, 'muse.breathes_fire_self', { mon: monNam(ctx, mon) });
+    if (!ctx.rng.rn2(3)) setMspecUsed(ctx, mon.id, ctx.rng.rn2(10) + 5);
+    // -21 => monster's fire breath; 1 => # of damage dice
+    dmg = zhitm(ctx, mon, 'fire', 1, false, byYou, byYou);
+  } else if (obj.def === SCR_FIRE) {
+    mreadmsg(ctx, mon, obj);
+    const p = mon.c.pos;
+    if (isMConfused(ctx, mon.id)) {
+      if (p && cansee(ctx, p.level, p.x, p.y)) say(ctx, 'muse.pretty_fire');
+      useOne(ctx, mon.id, obj);
+      vis = false; // skip makeknown() below
+      res = false; // failed to cure sliming
+    } else {
+      dmg = Math.trunc((2 * (ctx.rng.rn2(3) + 3 + 2 * bcsign(obj)) + 1) / 3);
+      useOne(ctx, mon.id, obj); // before explode()
+      // -11 => monster's fireball
+      if (p) explode(ctx, p.x, p.y, { scroll: true, by: 'other' }, dmg, 'fiery');
+      dmg = 0; // damage has been applied by explode()
+    }
+  } else {
+    // wand of fire with a positive charge count
+    mzapwand(ctx, mon, obj, true);
+    // -1 => monster's wand of fire; 2 => # of damage dice
+    dmg = zhitm(ctx, mon, 'fire', 2, false, byYou);
+  }
+  const alive = (): boolean => ctx.state.entities[String(mon.id)]?.c.monster !== undefined;
+  if (dmg && alive()) {
+    // zhitm() applies damage but doesn't kill creature off
+    if ((mon.c.hp?.cur ?? 0) <= 0) {
+      if (byYou) {
+        // mon killed self but hero gets credit and blame
+        if (vis)
+          say(
+            ctx,
+            nonliving(ctx.defs.monster(mon.def)) ? 'muse.destroyed_by_fire' : 'muse.killed_by_fire',
+            { mon: monNam(ctx, mon) },
+          );
+        xkilledNoMsg(ctx, mon);
+      } else monkilled(ctx, mon.id, true, 'fire', 'fire');
+    } else if (vis) say(ctx, 'muse.is_burned', { mon: monNam(ctx, mon), ex: exclam(dmg) });
+  }
+  if (vis) {
+    if (res && alive() && (mon.c.hp?.cur ?? 0) > 0)
+      say(ctx, 'muse.slime_burned_away', { mon: monNam(ctx, mon) });
+    if (otyp) discover(ctx, otyp);
+  }
+  // use up monster's next move
+  if (mon.c.actor) mon.c.actor.energy -= NORMAL_SPEED;
+  return res;
 }
 
 /** ref: exclam(): "." for force <= 4, else "!" */
@@ -2076,3 +2324,6 @@ function useBullwhip(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
   }
   return 1;
 }
+
+setMunstone(munstone);
+setMunslime(munslime);

@@ -422,7 +422,9 @@ function godZapsYou(ctx: Ctx, align: number): void {
       const def = ctx.defs.monster(mon.def);
       const lvl = mon.c.monster?.level ?? def.level;
       monsterDied(ctx, mon.id, true); // (inside it: no corpse either way)
-      gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
+      // life-saved: no experience
+      if (!ctx.state.entities[String(mon.id)]?.c.monster)
+        gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
     } else say(ctx, 'pray.mon_unaffected', { mon: monNam(ctx, mon) });
   };
   const e1 = engulfer();

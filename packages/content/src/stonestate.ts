@@ -120,3 +120,20 @@ export function attkProtection(at: string): readonly ArmorSlot[] | 'never' {
       return [];
   }
 }
+
+type Munstone = (ctx: Ctx, mon: Entity, byYou: boolean) => boolean;
+let munstoneFn: Munstone | null = null;
+
+/** muse.ts hands down munstone() (it sits far above this module). */
+export function setMunstone(fn: Munstone): void {
+  munstoneFn = fn;
+}
+
+/**
+ * A monster about to turn to stone eats a lizard or acidic corpse or drinks acid it carries;
+ * true when it did (its `byYou` death from the acid counts as the hero's kill).
+ * ref: src/muse.c munstone()
+ */
+export function munstone(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
+  return munstoneFn ? munstoneFn(ctx, mon, byYou) : false;
+}

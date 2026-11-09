@@ -3,6 +3,12 @@ export const dogMessagesEn: Record<string, string> = {
   'dog.yowls': '{mon|The} yowls!',
   'dog.no_familiar': 'There seems to be nothing available for a familiar.',
   'dog.yelps': '{mon|The} yelps!',
+  // ref: src/dog.c wary_dog()
+  'dog.wary.unable_look': '{mon|The} seems unable to look you in the eye.',
+  'dog.wary.refuses_look': '{mon|The} refuses to look you in the eye.',
+  'dog.wary.avoids_gaze': '{mon|The} avoids your gaze.',
+  'dog.wary.no_longer_tame': '{mon|The} is no longer tame.',
+  'dog.wary.feral': '{mon|The} has become feral.',
   'dog.hisses': '{mon|The} hisses!',
   'dog.growls': '{mon|The} growls!',
   'dog.more_amiable': '{mon|The} seems more amiable.',

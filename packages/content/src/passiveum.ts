@@ -26,6 +26,7 @@ import { monPolyWhenStoned, monToStone, xkilledStoned } from './stoning';
 import { mnextoPos, makemon } from './generation';
 import { initedog } from './dog';
 import { heroInvisible, perceives } from './invis';
+import { monReflects } from './musestate';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -41,7 +42,9 @@ function xkilledNoMsg(ctx: Ctx, mon: Entity): void {
   const level = mon.c.monster?.level ?? 0;
   const def = ctx.defs.monster(mon.def);
   monsterDied(ctx, mon.id, true);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  // life-saved: no experience
+  if (!ctx.state.entities[String(mon.id)]?.c.monster)
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
 /** "The jackal dies!" when the counterattack kills it. ref: src/mhitu.c assess_dmg() */
@@ -66,8 +69,8 @@ function assessDmg(ctx: Ctx, mon: Entity, tmp: number): number {
  * chills (and the cold makes her stronger, maybe splitting her in two), a yellow mold stuns, a
  * red mold burns, a gas spore form explodes ("You explode!") and she returns to human form.
  * Returns M_ATTK flags (AGR_DIED: the attacker died; AGR_DONE: it was frozen).
- * ref: src/mhitu.c passiveum() (no reflecting monsters: mon_reflects();
- * no shieldeff display)
+ * A monster's reflection turns her floating eye gaze back (mon_reflects()).
+ * ref: src/mhitu.c passiveum() (no shieldeff display)
  */
 export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: AttackDef): number {
   const ouatk = olduasmon.attacks.find((a) => a.at === 'passive' || a.at === 'boom');
@@ -148,7 +151,7 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
             if (hasProp(getPlayer(ctx.state), P.BLINDED)) {
               say(ctx, 'passiveum.blind_cannot_defend', { mon: `@${olduasmon.id}` });
             } else {
-              // (mon_reflects(): no monster reflects here)
+              if (monReflects(ctx, mtmp, 'muse.reflect.your_gaze')) return M_ATTK.HIT;
               say(ctx, 'passiveum.frozen_by_gaze', { mon: name });
               paralyzeMonst(ctx, mtmp.id, tmp);
               return M_ATTK.AGR_DONE;

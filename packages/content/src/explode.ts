@@ -347,8 +347,9 @@ export function explode(
       later++;
       ctx.emit(e);
     };
-    // no "You are caught in" for the hero's scroll of fire (seffect_fire() spoke)
-    if (!scroll) say(ctx, 'explode.you_caught', { what: strMsg });
+    // no "You are caught in" for the hero's scroll of fire (seffect_fire() spoke); a monster's
+    // (muse_unslime()) gives it (`type < 0 || olet != SCROLL_CLASS`)
+    if (!scroll || monMoving) say(ctx, 'explode.you_caught', { what: strMsg });
     // do property damage first, in case we end up leaving bones
     if (adtyp === 'fire') burnAwaySlime(counting);
     if (adtyp === 'fire') {
@@ -368,7 +369,7 @@ export function explode(
       if (ctx.state.gameOver) return;
     } else if (hp && hp.cur <= 0) {
       // "It is fatal." right after "You are caught in" or the scroll's "tower of flame" line
-      const caughtLast = scroll ? later === 0 && x === ux && y === uy : later === 0;
+      const caughtLast = scroll && !monMoving ? later === 0 && x === ux && y === uy : later === 0;
       say(ctx, caughtLast ? 'explode.fatal' : 'explode.the_x_fatal', { what: strMsg });
       const killer = monExpl
         ? generic
@@ -421,7 +422,11 @@ export function monExplodes(
   const dmg = atk.n ? ctx.rng.d(atk.n, atk.d) : atk.d ? ctx.rng.d(def.level + 1, atk.d) : 0;
   const ad = atk.ad === 'fire' || atk.ad === 'cold' || atk.ad === 'elec' ? atk.ad : 'phys';
   // kill it now so it won't appear to be caught in its own explosion
-  if (monId !== undefined) mondead(ctx, monId);
+  if (monId !== undefined) {
+    mondead(ctx, monId);
+    // if it's still alive, it must have been lifesaved
+    if (ctx.state.entities[String(monId)]?.c.monster) return;
+  }
   if (at.level !== ctx.state.currentLevel) return;
   explode(
     ctx,

@@ -4,7 +4,7 @@
 // slime.ts can all use it.
 // ref: src/potion.c make_slimed(); src/timeout.c burn_away_slime(); src/end.c delayed_killer();
 // include/mondata.h slimeproof()
-import { getPlayer, type Ctx, type GameState, type MonsterDef } from '@nh/core';
+import { getPlayer, type Ctx, type Entity, type GameState, type MonsterDef } from '@nh/core';
 import { flaming } from './engulfstate';
 import { noncorporeal } from './mondata';
 import { P, setItimeout } from './props';
@@ -67,4 +67,21 @@ export function makeSlimed(
 /** Fire burns the slime off: "The slime that covers you is burned away!" ref: src/timeout.c */
 export function burnAwaySlime(ctx: Pick<Ctx, 'state' | 'emit'>): void {
   if (isSlimed(ctx.state)) makeSlimed(ctx, 0, 'slime.burned_away');
+}
+
+type Munslime = (ctx: Ctx, mon: Entity, byYou: boolean) => boolean;
+let munslimeFn: Munslime | null = null;
+
+/** muse.ts hands down munslime() (it sits far above this module). */
+export function setMunslime(fn: Munslime): void {
+  munslimeFn = fn;
+}
+
+/**
+ * A monster about to turn into a green slime burns the slime off with its fire breath, a wand
+ * or scroll of fire it carries (or a fire trap); true when it did.
+ * ref: src/muse.c munslime()
+ */
+export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
+  return munslimeFn ? munslimeFn(ctx, mon, byYou) : false;
 }

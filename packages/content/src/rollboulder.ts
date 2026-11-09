@@ -93,7 +93,9 @@ function heroKills(ctx: Ctx, mon: Entity): void {
   const def = ctx.defs.monster(mon.def);
   const level = mon.c.monster?.level ?? 0;
   monsterDied(ctx, mon.id, true);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  // life-saved: no experience
+  if (!ctx.state.entities[String(mon.id)]?.c.monster)
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
 /**

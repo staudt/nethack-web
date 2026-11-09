@@ -60,7 +60,7 @@ import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './e
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
 import { forgetMonster, minvent, monWep, setMonFlag, whichArmor } from './mongear';
-import { mondied, monkilled, monsterDied } from './mondeath';
+import { mlifesaver, mondied, monkilled, monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { drainEn } from './uenergy';
 import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
@@ -102,8 +102,15 @@ import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { golemeffects } from './golemfx';
 import { hasHead, noncorporeal, nonliving } from './mondata';
 import { engulfingU, flaming } from './engulfstate';
-import { isSlimed, makeSlimed, slimeproof } from './slimestate';
-import { fleshPetrifies, isStoned, makeStoned, resistsSton, touchPetrifies } from './stonestate';
+import { isSlimed, makeSlimed, munslime, slimeproof } from './slimestate';
+import {
+  fleshPetrifies,
+  isStoned,
+  makeStoned,
+  munstone,
+  resistsSton,
+  touchPetrifies,
+} from './stonestate';
 import { done } from './end';
 import { losespells } from './spell';
 import { drainWeaponSkill } from './skills';
@@ -289,7 +296,9 @@ function uXkilled(ctx: Ctx, mdef: Entity, nocorpse = false): void {
   const level = mdef.c.monster?.level ?? 0;
   const def = ctx.defs.monster(mdef.def);
   monsterDied(ctx, mdef.id, true, false, nocorpse);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  // life-saved: no experience
+  if (!ctx.state.entities[String(mdef.id)]?.c.monster)
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
 /**
@@ -1588,7 +1597,8 @@ const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => adSedu(ctx, magr, at
  * Digestion. Against the hero the engulfing attack does it (gulpmu()); a monster swallowed by
  * another is eaten whole: "Burrrrp!" (heard nearby), all its hit points as damage, a gas spore
  * explodes inside instead of leaving a corpse, and a pet is half fed by it.
- * ref: src/uhitm.c mhitm_ad_dgst() (no Riders; monsters' amulets of life saving are not worn)
+ * An amulet of life saving the victim wears is used up (it does not save it).
+ * ref: src/uhitm.c mhitm_ad_dgst() (no Riders)
  */
 const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
   if (isU(ctx, magr) || mdef.id === ctx.state.playerId) {
@@ -1601,6 +1611,9 @@ const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
   say(ctx, 'adtyp.burrrrp');
   if (ap) wakeNearto(ctx, ap.x, ap.y, 2 * 2); // Burrrrp!
   mhm.damage = mdef.c.hp?.cur ?? 0;
+  // Use up amulet of life saving
+  const amu = mlifesaver(ctx, mdef);
+  if (amu) ctx.remove(amu.id); // m_useup()
   // Is a corpse for nutrition possible?  It may kill magr
   const dp = mdef.c.pos;
   const pd = ctx.defs.monster(mdef.def);
@@ -1615,10 +1628,27 @@ const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
  * resists: "The jackal turns to stone!", a statue; the attacker may grow up from the kill. A
  * resisting defender takes no damage from AD_STON itself (1 from anything else).
  * A golem becomes a stone golem instead (mon_to_stone()).
- * ref: src/uhitm.c do_stone_mon() (no munstone(): monsters do not cure themselves; no monster
- * life saving)
+ * A defender carrying a cure eats or drinks it first (munstone(); the acid may kill it).
+ * ref: src/uhitm.c do_stone_mon()
  */
 function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) {
+  const tame = (mdef.c.monster?.tame ?? 0) > 0;
+  const victimLevel = mdef.c.monster?.level ?? 0;
+  const postStone = (): void => {
+    if (ctx.state.entities[String(mdef.id)]?.c.monster) {
+      mhm.hitflags = M_ATTK.MISS;
+      mhm.done = true;
+      return;
+    } else if (tame && !env.vis) say(ctx, 'stone.peculiarly_sad');
+    const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
+    mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+    mhm.done = true;
+  };
+  // may die from the acid if it eats a stone-curing corpse
+  if (munstone(ctx, mdef, false)) {
+    postStone();
+    return;
+  }
   if (monPolyWhenStoned(ctx, mdef)) {
     monToStone(ctx, mdef);
     mhm.damage = 0;
@@ -1626,13 +1656,8 @@ function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: M
   }
   if (!resistsSton(ctx, mdef)) {
     if (env.vis && canSpotMon(ctx, mdef)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, mdef) });
-    const tame = (mdef.c.monster?.tame ?? 0) > 0;
-    const victimLevel = mdef.c.monster?.level ?? 0;
     monstone(ctx, mdef);
-    if (tame && !env.vis) say(ctx, 'stone.peculiarly_sad');
-    const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
-    mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
-    mhm.done = true;
+    postStone();
     return;
   }
   mhm.damage = atk.ad === 'ston' ? 0 : 1;
@@ -1646,8 +1671,7 @@ function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: M
  */
 const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   if (isU(ctx, magr)) {
-    // (munstone(): monsters do not cure themselves)
-    minstapetrify(ctx, mdef, true);
+    if (!munstone(ctx, mdef, true)) minstapetrify(ctx, mdef, true);
     mhm.damage = 0;
     return;
   }
@@ -1767,6 +1791,9 @@ const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   adPhys(ctx, magr, atk, mdef, mhm, env);
 };
 
+const alive = (ctx: Ctx, id: EntityId): boolean =>
+  ctx.state.entities[String(id)]?.c.monster !== undefined;
+
 const GREEN_SLIME = 'nh:green_slime' as DefId;
 
 /**
@@ -1775,16 +1802,25 @@ const GREEN_SLIME = 'nh:green_slime' as DefId;
  * unaffected, else "You don't feel very well." and she starts turning into a green slime (10
  * turns; "Yuck!" when she already is). Against a monster (and from a hero in green slime form),
  * 1 time in 4 when it is not slimeproof it turns into a green slime (newcham()).
- * ref: src/uhitm.c mhitm_ad_slim() (no munslime(): monsters do not burn the slime off)
+ * A monster that can burns the slime off first (munslime(); the fire may kill it).
+ * ref: src/uhitm.c mhitm_ad_slim()
  */
 const adSlim: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   if (isU(ctx, magr)) {
     if (uNegated(ctx, mdef, false)) return; // physical damage only
     if (!ctx.rng.rn2(4) && !slimeproof(ctx.defs.monster(mdef.def))) {
-      // this assumes newcham() won't fail; since hero has a slime attack, green slimes haven't
-      // been geno'd
-      say(ctx, 'slime.turn_into', { mon: monNam(ctx, mdef) });
-      newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME));
+      if (!munslime(ctx, mdef, true) && alive(ctx, mdef.id)) {
+        // this assumes newcham() won't fail; since hero has a slime attack, green slimes
+        // haven't been geno'd
+        say(ctx, 'slime.turn_into', { mon: monNam(ctx, mdef) });
+        newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME));
+      }
+      // munslime attempt could have been fatal
+      if (!alive(ctx, mdef.id)) {
+        mhm.hitflags = M_ATTK.DEF_DIED; // skip death message
+        mhm.done = true;
+        return;
+      }
       mhm.damage = 0;
     }
     return;
@@ -1811,11 +1847,16 @@ const adSlim: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   // mhitm
   if (mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis)) return; // physical damage only
   if (!ctx.rng.rn2(4) && !slimeproof(ctx.defs.monster(mdef.def))) {
-    newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME), {
-      msg: env.vis && canseemon(ctx, mdef),
-    });
-    // (no STRAT_WAITFORU)
-    mhm.hitflags = M_ATTK.HIT;
+    if (!munslime(ctx, mdef, false) && alive(ctx, mdef.id)) {
+      newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME), {
+        msg: env.vis && canseemon(ctx, mdef),
+      });
+      // (no STRAT_WAITFORU)
+      mhm.hitflags = M_ATTK.HIT;
+    }
+    // munslime attempt could have been fatal, potentially to multiple monsters (SCR_FIRE)
+    if (!alive(ctx, magr.id)) mhm.hitflags |= M_ATTK.AGR_DIED;
+    if (!alive(ctx, mdef.id)) mhm.hitflags |= M_ATTK.DEF_DIED;
     mhm.damage = 0;
   }
 };
@@ -1959,7 +2000,8 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
         say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
       const tame = (magr.c.monster?.tame ?? 0) > 0;
       monstone(ctx, magr);
-      // (no monster life saving)
+      // life-saved; don't continue eating the brains
+      if (alive(ctx, magr.id)) return M_ATTK.MISS;
       if (tame && !visflag) say(ctx, 'stone.sad_thought');
       return M_ATTK.AGR_DIED;
     }

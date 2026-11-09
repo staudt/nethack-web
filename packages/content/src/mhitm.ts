@@ -56,6 +56,7 @@ import { nhData } from './items';
 import { xnameOf } from './objnam';
 import { acidDamage, erodeArmor } from './erode';
 import { mtrappedInPit } from './trapstate';
+import { monReflects } from './musestate';
 import { setUstuck, ustuck } from './hackmove';
 import { digests, enfolds, engulfingU, flaming, setMswallower } from './engulfstate';
 import { engulfTarget } from './engulf';
@@ -216,6 +217,7 @@ function mdamagem(
       if (vis && canSpotMon(ctx, magr)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
       const tame = (magr.c.monster?.tame ?? 0) > 0;
       monstone(ctx, magr);
+      if (alive(ctx, magr.id)) return M_ATTK.HIT; // lifesaved
       if (tame && !vis) say(ctx, 'stone.peculiarly_sad');
       return M_ATTK.AGR_DIED;
     }
@@ -231,6 +233,7 @@ function mdamagem(
   if (hp.cur < 1) {
     const victimLevel = mdef.c.monster?.level ?? 0;
     monkilled(ctx, mdef.id, true, undefined, atk.ad === 'dgst' ? 'dgst' : undefined);
+    if (alive(ctx, mdef.id)) return M_ATTK.HIT; // mdef lifesaved
     return M_ATTK.DEF_DIED | (growUp(ctx, magr.id, victimLevel) ? 0 : M_ATTK.AGR_DIED);
   }
   return M_ATTK.HIT;
@@ -286,8 +289,8 @@ export { failedGrab };
 /**
  * The aggressor gazes at the defender: nothing happens when it is cancelled or blind, or the
  * defender is blind or asleep; else the gaze's damage type acts as a hit (mdamagem()).
- * ref: src/mhitm.c gazemm() (no Archon, no Medusa: her reflection and stoning are step 6; no
- * invisible monsters)
+ * ref: src/mhitm.c gazemm() (no Archon; Medusa is not in the roster, so her gaze's reflection
+ * and stoning are not ported; no invisible monsters)
  */
 function gazemm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
   if (vis) {
@@ -311,8 +314,7 @@ function gazemm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
 /**
  * The aggressor explodes at the defender ("The yellow light explodes!") and dies: a sphere's
  * fire, cold or electricity in a real explosion, the rest (lights) as a hit on the defender.
- * A pet's death gives "You have a melancholy feeling." ref: src/mhitm.c explmm() (no leashes,
- * no life saving)
+ * A pet's death gives "You have a melancholy feeling." ref: src/mhitm.c explmm() (no leashes)
  */
 function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
   if (isCancelled(ctx, magr.id)) return M_ATTK.MISS;
@@ -329,6 +331,7 @@ function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
   // kill off aggressor if it didn't die
   if (!(result & M_ATTK.AGR_DIED)) {
     mondead(ctx, magr.id);
+    if (alive(ctx, magr.id)) return result; // life saved
     result |= M_ATTK.AGR_DIED;
   }
   if (tame) say(ctx, 'mhitm.melancholy'); // give this one even if it was visible
@@ -481,14 +484,19 @@ function passivemm(
           if (mdef.def === 'nh:floating_eye') {
             if (ctx.rng.rn2(4) === 0) tmp = 127;
             // `magr->mcansee && haseyes(madat) && mdef->mcansee && (perceives(madat) ||
-            // !mdef->minvis)` (no reflection: mon_reflects() needs worn shields and amulets of
-            // reflection on monsters)
+            // !mdef->minvis)`
             if (
               mcansee(ctx, magr.id) &&
               !ctx.defs.monster(magr.def).flags.includes('noeyes') &&
               mcansee(ctx, mdef.id) &&
               (perceives(ctx.defs.monster(magr.def)) || !monInvisible(ctx, mdef))
             ) {
+              if (
+                monReflects(ctx, magr, canseemon(ctx, magr) ? 'muse.reflect.gaze_by' : null, {
+                  by: monNam(ctx, mdef),
+                })
+              )
+                return res;
               if (seenAgr) say(ctx, 'mhitm.frozen_gaze', { mon: name(), by: monNam(ctx, mdef) });
               paralyzeMonst(ctx, magr.id, tmp);
             }

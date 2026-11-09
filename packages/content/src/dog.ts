@@ -17,6 +17,7 @@ import {
   type LevelId,
   type MonsterDef,
   type ModApi,
+  type Msg,
 } from '@nh/core';
 import { makemon, mnextoPos, rndmonst } from './generation';
 import { wormArrive, wormLeave } from './worm';
@@ -24,7 +25,9 @@ import { wormRec } from './wormstate';
 import { skillLevel } from './skills';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
-import { forgetMonster } from './mongear';
+import { forgetMonster, heroSees } from './mongear';
+import { setWaryDog } from './mondeath';
+import { heroForm } from './upoly';
 import { hideMonst } from './hide';
 import {
   catchUpRegen,
@@ -689,3 +692,73 @@ export function swallowedNutrition(
   const edog = edogOf(ctx, pet.id);
   if (edog) edog.hungrytime += nutrit;
 }
+
+/**
+ * A pet saved by its amulet of life saving (`wasDead`: it was genocided, so it dies anyway):
+ * starvation's lost maximum hit points come back; a much-abused pet stops being tame (peaceful
+ * 1 time in abuse + 1: "The kitten seems unable to look you in the eye." / "refuses to ...",
+ * "avoids your gaze." without eyes), else it stays tame 1 time in tameness + 1 (if not, peaceful
+ * 1 time in 2): "The kitten is no longer tame." / "has become feral."; one still tame starts a
+ * clean slate (no abuse, its goal forgotten, not hungry for 500 turns).
+ * ref: src/dog.c wary_dog() (no minions, leashes or steeds; `killed_by_u` is not kept: only the
+ * abuse counts)
+ */
+function waryDog(ctx: Ctx, mon: Entity, wasDead: boolean): void {
+  const say = (key: string, params: NonNullable<Msg['params']>): void =>
+    ctx.emit({ type: 'msg', key, params });
+  const quietly = wasDead;
+  setMeating(ctx, mon.id, 0); // finish_meating()
+  const m = mon.c.monster;
+  if (!m || !m.tame) return;
+  const edog = edogOf(ctx, mon.id);
+  // if monster was starving when it died, undo that now
+  const hp = mon.c.hp;
+  if (edog && edog.mhpmaxPenalty && hp) {
+    hp.max += edog.mhpmaxPenalty;
+    hp.cur += edog.mhpmaxPenalty; // heal it
+    edog.mhpmaxPenalty = 0;
+  }
+  const p = mon.c.pos;
+  if (edog && edog.abuse > 2) {
+    delete m.tame;
+    m.peaceful = false;
+    if (edog.abuse >= 0 && edog.abuse < 10) if (!ctx.rng.rn2(edog.abuse + 1)) m.peaceful = true;
+    if (!quietly && p && heroSees(ctx, p)) {
+      const form = heroForm(ctx);
+      if (!form || !form.flags.includes('noeyes')) {
+        if (!ctx.defs.monster(mon.def).flags.includes('noeyes'))
+          say(m.peaceful ? 'dog.wary.unable_look' : 'dog.wary.refuses_look', {
+            mon: monNam(ctx, mon),
+          });
+        else say('dog.wary.avoids_gaze', { mon: monNam(ctx, mon) });
+      }
+    }
+  } else {
+    // chance it goes wild anyway - Pet Sematary
+    const t = ctx.rng.rn2(m.tame + 1);
+    if (t) m.tame = t;
+    else {
+      delete m.tame;
+      m.peaceful = ctx.rng.rn2(2) !== 0;
+    }
+  }
+  if (!m.tame) {
+    if (!quietly && canSpotMon(ctx, mon))
+      say(m.peaceful ? 'dog.wary.no_longer_tame' : 'dog.wary.feral', {
+        mon: monNam(ctx, mon),
+      });
+  } else if (edog) {
+    // it's still a pet; start a clean pet-slate now
+    edog.abuse = 0;
+    edog.ogoal = [-1, -1];
+    if (wasDead || edog.hungrytime < ctx.state.turn + 500) edog.hungrytime = ctx.state.turn + 500;
+    if (wasDead) {
+      edog.droptime = 0;
+      edog.dropdist = 10000;
+      edog.whistletime = 0;
+      edog.apport = 5;
+    } // else lifesaved, so retain current values
+  }
+}
+
+setWaryDog(waryDog);

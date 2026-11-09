@@ -54,7 +54,9 @@ import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { onscary } from './scary';
-import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
+import { isFrozen, isMConfused, isMStunned, mcansee, setMConfused } from './mstate';
+import { monInvisible, perceives } from './invis';
+import { monReflects } from './musestate';
 import { stopOccupation } from './eat';
 
 const DOG_WEAK = 500;
@@ -515,7 +517,17 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
           (mhp.cur * 4 < mhp.max && m2.peaceful && !conflict)
         )
           continue;
-        if (mtmp2.def === 'nh:floating_eye' && ctx.rng.rn2(10) !== 0) continue;
+        // a floating eye the pet would see (and that sees it) is avoided unless it reflects
+        if (
+          mtmp2.def === 'nh:floating_eye' &&
+          ctx.rng.rn2(10) !== 0 &&
+          mcansee(ctx, id) &&
+          !ctx.defs.monster(mon.def).flags.includes('noeyes') &&
+          mcansee(ctx, mtmp2.id) &&
+          (!monInvisible(ctx, mtmp2) || perceives(ctx.defs.monster(mon.def))) &&
+          !monReflects(ctx, mon, null)
+        )
+          continue;
         // a cockatrice is avoided unless the pet resists (no ranged attacks: always skipped)
         if (touchPetrifies(ctx.defs.monster(mtmp2.def)) && !resistsSton(ctx, mon)) continue;
         const mstatus = mattackm(ctx, id, mtmp2.id);

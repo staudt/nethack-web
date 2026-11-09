@@ -63,7 +63,7 @@ import { possiblyUnwield } from './were';
 import { doname } from './objnam';
 import { heroFemale } from './gender';
 import { ustuck } from './hackmove';
-import { monsterDied } from './mondeath';
+import { mlifesaver, monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { isFrozen } from './mstate';
 
@@ -121,7 +121,9 @@ function killedByHeroQuietly(ctx: Ctx, mdef: Entity): void {
   const level = mdef.c.monster?.level ?? 0;
   const def = ctx.defs.monster(mdef.def);
   monsterDied(ctx, mdef.id, true);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  // life-saved: no experience
+  if (!ctx.state.entities[String(mdef.id)]?.c.monster)
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
 /**
@@ -225,7 +227,9 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
         dam = 0;
         break;
       }
-      // (no amulets of life saving for monsters)
+      // Use up amulet of life saving
+      const amu = mlifesaver(ctx, mdef);
+      if (amu) ctx.remove(amu.id); // m_useup()
       newuhs(ctx, false);
       const at = mdef.c.pos ? { ...mdef.c.pos } : null;
       killedByHero(ctx, mdef, true); // XKILL_GIVEMSG | XKILL_NOCORPSE

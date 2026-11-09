@@ -80,7 +80,8 @@ export function mbTrapped(ctx: Ctx, mon: Entity, canseeit: boolean): boolean {
     hp.cur -= ctx.rng.rnd(15);
     if (hp.cur <= 0) {
       mondied(ctx, mon.id);
-      return true;
+      if (!ctx.state.entities[String(mon.id)]?.c.monster) return true;
+      // will get here if lifesaved
     }
   }
   return false;

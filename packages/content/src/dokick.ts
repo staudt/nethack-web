@@ -636,7 +636,9 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
       mon: monNam(ctx, target),
     });
     monsterDied(ctx, monId, true);
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
+    // life-saved: no experience
+    if (!ctx.state.entities[String(monId)]?.c.monster)
+      gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
   }
 }
 

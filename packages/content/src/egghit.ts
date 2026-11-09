@@ -2,14 +2,14 @@
 // ref: src/uhitm.c hmon_hitmon_misc_obj() EGG; src/dothrow.c breakobj() EGG, breakmsg() EGG
 //
 // Not ported: the pyrolisk egg's fiery explosion (it splats like any egg; see DEVIATIONS.md),
-// exercise(A_WIS, FALSE) for a plain splat, munstone() (monsters do not cure themselves).
+// exercise(A_WIS, FALSE) for a plain splat. A petrified monster may cure itself first (munstone()).
 import type { Ctx, Entity, Msg } from '@nh/core';
 import { EGG, killEgg, staleEgg } from './eggstate';
 import { changeLuck } from './luck';
 import { useupall } from './magic';
 import { monNam } from './perception';
 import { placeOnFloor } from './items';
-import { resistsSton, touchPetrifies } from './stonestate';
+import { munstone, resistsSton, touchPetrifies } from './stonestate';
 import { minstapetrify } from './stoning';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
@@ -62,7 +62,7 @@ export function hitWithEgg(ctx: Ctx, mon: Entity, egg: Entity, thrown: boolean):
     });
     it.known.spe = true; // (not much point...)
     useupEggs();
-    minstapetrify(ctx, mon, true);
+    if (!munstone(ctx, mon, true)) minstapetrify(ctx, mon, true);
     if (resistsSton(ctx, mon)) return 'hit';
     return 'stoned';
   }

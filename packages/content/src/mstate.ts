@@ -175,15 +175,20 @@ export function setMspeed(ctx: Pick<Ctx, 'state'>, id: EntityId, v: MSpeed): voi
 /**
  * ref: src/worn.c mon_adjust_speed() for +1 / -1: MSLOW and MFAST cancel each other; the change
  * is told when seen, and `seen` runs then (a wand's learnwand()). -3 is petrification: intrinsic
- * speed is taken away (normal speed is not reduced) and "<mon> is slowing down." is told.
+ * speed is taken away (normal speed is not reduced) and "<mon> is slowing down." is told. -4 is
+ * green slime: intrinsic speed is taken away quietly.
  */
 export function monAdjustSpeed(
   ctx: Ctx,
   mon: Entity,
-  adjust: 1 | -1 | -3,
+  adjust: 1 | -1 | -3 | -4,
   seen: () => void = () => undefined,
 ): void {
   const old = mspeed(ctx, mon.id);
+  if (adjust === -4) {
+    if (old === 'fast') setMspeed(ctx, mon.id, null);
+    return; // give_msg = FALSE
+  }
   const petrify = adjust === -3;
   const now = petrify
     ? old === 'fast'

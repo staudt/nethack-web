@@ -650,7 +650,10 @@ const cantWearArm = (def: MonsterDef): boolean => breakarm(def) || sliparm(def);
 const wrappingAllowed = (def: MonsterDef): boolean =>
   hasFlag(def, 'humanoid') && def.size !== 'tiny' && def.size !== 'gigantic';
 
-type ArmorSlotName = 'shirt' | 'cloak' | 'helm' | 'shield' | 'gloves' | 'boots' | 'body';
+type ArmorSlotName = 'amulet' | 'shirt' | 'cloak' | 'helm' | 'shield' | 'gloves' | 'boots' | 'body';
+
+/** The amulets a monster puts on. ref: src/worn.c m_dowear_type() W_AMUL (no guarding here) */
+const MON_AMULETS: readonly string[] = ['nh:amulet_of_life_saving', 'nh:amulet_of_reflection'];
 
 /**
  * A monster not already fast prefers speed boots. ref: src/worn.c extra_pref() (its permspeed:
@@ -673,8 +676,18 @@ function mDoWearType(
   const items = minvent(ctx, monId);
   const old = items.find((o) => o.c.item?.equipped === slot) ?? null;
   if (old?.c.item?.buc === 'cursed') return false;
+  // no amulet better than life-saving or reflection (and no amulet of guarding exists)
+  if (old && slot === 'amulet') return false;
   let best: Entity | null = old;
   for (const o of items) {
+    if (slot === 'amulet') {
+      // life-saving or reflection; use it
+      if (MON_AMULETS.includes(o.def)) {
+        best = o;
+        break;
+      }
+      continue;
+    }
     const od = ctx.defs.object(o.def);
     if (od.armor?.slot !== slot) continue;
     // mummy wrapping is the only cloak allowed when bigger than human
@@ -765,14 +778,14 @@ function mDoWearType(
 /**
  * The monster puts on the best armor it carries in each slot; returns whether anything changed.
  * ref: src/worn.c m_dowear(). Simplifications: the donning delay (mfrozen) is not applied, and
- * amulets and the other special cases do not exist.
+ * the other special cases do not exist. Amulets: life saving or reflection (no guarding).
  */
 export function mDoWear(ctx: GearCtx, monId: EntityId, creation: boolean): boolean {
   const { def } = monOf(ctx, monId);
   if (def.size === 'tiny' || hasFlag(def, 'nohands') || hasFlag(def, 'animal')) return false;
   // give mummies a chance to wear their wrappings (no skeletons here)
   if (hasFlag(def, 'mindless') && (!creation || def.glyph.ch !== 'M')) return false;
-  let changed = false;
+  let changed = mDoWearType(ctx, monId, 'amulet', creation, false);
   const canWearArmor = !cantWearArm(def);
   if (canWearArmor && !whichArmor(ctx, monId, 'body'))
     changed = mDoWearType(ctx, monId, 'shirt', creation, false) || changed;

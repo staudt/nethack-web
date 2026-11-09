@@ -1,13 +1,22 @@
 // Monster item use, the leaf part that low modules can read: curing a monster's blindness, the
 // monsters' memory of the hero's resistances (M_SEEN_*: which attack wands not to zap at her) and
 // whether a monster has zapped an attack wand before (its first shot always misses).
-// (Later steps add searches_for_item() and mon_reflects() here.)
-// ref: src/muse.c mcureblindness(); src/mondata.c monstseesu(), monstunseesu();
+// And whether a monster reflects (mon_reflects()). (Step 7 adds searches_for_item() here.)
+// ref: src/muse.c mcureblindness(), mon_reflects(); src/mondata.c monstseesu(), monstunseesu();
 // include/monst.h M_SEEN_*, m_seenres(), mwandexp
-import { sortedIds, type Ctx, type EntityId, type Entity, type Msg } from '@nh/core';
+import {
+  inventoryOf,
+  sortedIds,
+  type Ctx,
+  type DefId,
+  type EntityId,
+  type Entity,
+  type Msg,
+} from '@nh/core';
 import { mCanSeeU } from './apparxy';
 import { uswallow } from './engulfstate';
 import { hasWandExp, mcansee, seenResOf, setSeenRes, setWandExp, unblindMonst } from './mstate';
+import { discover } from './o_init';
 import { monNam } from './perception';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -70,3 +79,37 @@ export const monstunseesu = (ctx: Pick<Ctx, 'state' | 'defs'>, bits: number): vo
 export const mwandexp = (ctx: Pick<Ctx, 'state'>, id: EntityId): boolean => hasWandExp(ctx, id);
 
 export const setMwandexp = (ctx: Pick<Ctx, 'state'>, id: EntityId): void => setWandExp(ctx, id);
+
+const SHIELD_OF_REFLECTION: DefId = 'nh:shield_of_reflection';
+const AMULET_OF_REFLECTION: DefId = 'nh:amulet_of_reflection';
+
+/**
+ * Whether the monster reflects: a worn shield of reflection, then a worn amulet of reflection.
+ * When it does and `key` is given, says it with `mon` (the monster) and `what` ("shield",
+ * "amulet") added to `params`, and learns the shield or amulet ("But it reflects from the hill
+ * orc's shield!"). ref: src/muse.c mon_reflects() (no artifact weapons, silver dragon scales or
+ * silver and chromatic dragons in this port)
+ */
+export function monReflects(
+  ctx: Ctx,
+  mon: Entity,
+  key: string | null,
+  params: Msg['params'] = {},
+): boolean {
+  const worn = (slot: string): Entity | undefined =>
+    inventoryOf(ctx.state, mon.id).find((o) => o.c.item?.equipped === slot);
+  let what: 'shield' | 'amulet';
+  let learn: DefId;
+  if (worn('shield')?.def === SHIELD_OF_REFLECTION) {
+    what = 'shield';
+    learn = SHIELD_OF_REFLECTION;
+  } else if (worn('amulet')?.def === AMULET_OF_REFLECTION) {
+    what = 'amulet';
+    learn = AMULET_OF_REFLECTION;
+  } else return false;
+  if (key) {
+    say(ctx, key, { ...params, mon: monNam(ctx, mon), what: { key: `muse.reflect.what.${what}` } });
+    discover(ctx, learn);
+  }
+  return true;
+}

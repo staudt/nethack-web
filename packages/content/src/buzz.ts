@@ -54,7 +54,7 @@ import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
 import { canseemon } from './invis';
-import { M_SEEN, monstseesu, monstunseesu } from './musestate';
+import { M_SEEN, monReflects, monstseesu, monstunseesu } from './musestate';
 
 /**
  * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
@@ -144,7 +144,9 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
   say(ctx, nonliving(def) ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, mon) });
   const level = m.level;
   monsterDied(ctx, mon.id, true, false, nocorpse);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  // life-saved: no experience
+  if (!ctx.state.entities[String(mon.id)]?.c.monster)
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
 /**
@@ -264,7 +266,7 @@ function zapHit(ctx: Ctx, ac: number, spell: DefId | null): boolean {
  * ray kills (damage = HP + 1, no saving throw) unless the monster is nonliving, a demon or
  * resists magic; Death is not in the roster.
  */
-function zhitm(
+export function zhitm(
   ctx: Ctx,
   mon: Entity,
   ray: Ray,
@@ -756,35 +758,44 @@ function buzzSteps(
       const hp = heroPos(ctx);
       if (mon) {
         if (!forceMiss && zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
-          // mon_reflects(): no monster can reflect in the subset
-          const couldMove = !isFrozen(ctx, mon.id);
-          const tmp = zhitm(
-            ctx,
-            mon,
-            ray,
-            nd,
-            spell !== null,
-            src.by === 'hero',
-            // her breath and a monster's wand resist at her level (resist()'s default class)
-            (src.by === 'hero' && src.breath === true) || src.by === 'monwand',
-          );
-          if ((mon.c.hp?.cur ?? 0) < 1) {
-            if (alive(ctx, mon.id)) {
-              // killed by hero: if it's fire, highly flammable monsters leave no corpse
-              if (src.by === 'hero')
-                killedByHero(ctx, mon, ray === 'fire' && completelyburns(mon.def));
-              else monkilled(ctx, mon.id, true); // killed by another monster (AD_RBRE)
+          if (monReflects(ctx, mon, null)) {
+            if (cansee(ctx, sx, sy)) {
+              say(ctx, 'zap.ray.hit', { ray: rayName(ray, src), mon: monNam(ctx, mon), ex: '.' });
+              monReflects(ctx, mon, 'zap.ray.reflects_mon');
+              gasHit = false;
             }
+            d.x = -d.x;
+            d.y = -d.y;
           } else {
-            say(ctx, 'zap.ray.hit', {
-              ray: rayName(ray, src),
-              mon: monNam(ctx, mon),
-              ex: exclam(tmp),
-            });
-            if (couldMove && isFrozen(ctx, mon.id)) sleptMonst(ctx, mon);
-            if (ray !== 'sleep') {
-              if (src.by === 'hero') src.wakeup(ctx, mon.id);
-              else wakeGently(ctx, mon);
+            const couldMove = !isFrozen(ctx, mon.id);
+            const tmp = zhitm(
+              ctx,
+              mon,
+              ray,
+              nd,
+              spell !== null,
+              src.by === 'hero',
+              // her breath and a monster's wand resist at her level (resist()'s default class)
+              (src.by === 'hero' && src.breath === true) || src.by === 'monwand',
+            );
+            if ((mon.c.hp?.cur ?? 0) < 1) {
+              if (alive(ctx, mon.id)) {
+                // killed by hero: if it's fire, highly flammable monsters leave no corpse
+                if (src.by === 'hero')
+                  killedByHero(ctx, mon, ray === 'fire' && completelyburns(mon.def));
+                else monkilled(ctx, mon.id, true); // killed by another monster (AD_RBRE)
+              }
+            } else {
+              say(ctx, 'zap.ray.hit', {
+                ray: rayName(ray, src),
+                mon: monNam(ctx, mon),
+                ex: exclam(tmp),
+              });
+              if (couldMove && isFrozen(ctx, mon.id)) sleptMonst(ctx, mon);
+              if (ray !== 'sleep') {
+                if (src.by === 'hero') src.wakeup(ctx, mon.id);
+                else wakeGently(ctx, mon);
+              }
             }
           }
           range -= 2;
