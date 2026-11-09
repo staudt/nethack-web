@@ -37,6 +37,7 @@ import { nearCapacity } from './stats';
 import { STATUE, setHistoric } from './statuestate';
 import { counterWere, isWere } from './werestate';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
+import { isFurnitureId, terrainIdAt } from './terrain';
 import { P, heroHas } from './props';
 
 /** ref: include/hack.h MAXWISHTRY */
@@ -286,7 +287,8 @@ export function askWish(ctx: Ctx, action: DefId, data: WishData): void {
  * teleporter", "pit"...) makes that trap at the hero's feet, unseen and not set off: "A
  * teleportation trap." ("Creation of a pit failed." on stairs, furniture or a doorway); a hole or
  * trap door where one cannot fall through is a falling rock trap. True when a trap name matched.
- * ref: src/objnam.c wizterrainwish() (the trap part; terrain wishes are not ported)
+ * ref: src/objnam.c wizterrainwish() (the trap part; the wizard mod's terrainwish.ts has the
+ * terrain), src/trap.c maketrap() (no trap on furniture)
  */
 function wizTrapWish(ctx: Ctx, buf: string): boolean {
   const bp = buf.toLowerCase().replace(/^(an?|the) /, ''); // readobjnam_preparse()
@@ -298,7 +300,10 @@ function wizTrapWish(ctx: Ctx, buf: string): boolean {
     const level = getLevel(ctx.state, p.level);
     // found it; avoid stupid mistakes
     const kind = isHole(t.id) && !canFallThru(ctx.state, level) ? TRAP.rock : t.id;
-    if (isPlainFloor(ctx.defs, level, p.x, p.y)) {
+    if (
+      isPlainFloor(ctx.defs, level, p.x, p.y) &&
+      !isFurnitureId(ctx.defs, terrainIdAt(level, p.x, p.y))
+    ) {
       maketrap(ctx, p.level, p.x, p.y, kind);
       ctx.emit({ type: 'msg', key: 'wish.wiz_trap', params: { trap: `@${kind}` } });
     } else ctx.emit({ type: 'msg', key: 'wish.wiz_trap_failed', params: { trap: `@${kind}` } });
@@ -308,13 +313,26 @@ function wizTrapWish(ctx: Ctx, buf: string): boolean {
 }
 
 /**
+ * Wizard mode's terrain wish: true when `buf` named terrain (made, or refused with a message).
+ * ref: src/objnam.c wizterrainwish()
+ */
+export type TerrainWish = (ctx: Ctx, buf: string) => boolean;
+
+/**
  * The answer to the wish prompt. ref: src/zap.c makewish(): an unknown name says so and asks
  * again, up to MAXWISHTRY times, then "That's enough tries!" and a random object; "nothing"
  * declines; an empty answer or Escape is a random object (readobjnam("") goes to `any:`).
  * The object is held (or dropped: "Oops!"), and the prayer timeout grows by rn1(100, 50).
+ * In wizard mode a name that is no object may be a trap, then (`terrain`) terrain.
  * No "help" (wishcmdassist) and no wish history.
  */
-export function answerWish(ctx: Ctx, action: DefId, value: Json, data: WishData): void {
+export function answerWish(
+  ctx: Ctx,
+  action: DefId,
+  value: Json,
+  data: WishData,
+  terrain?: TerrainWish,
+): void {
   const buf = typeof value === 'string' ? mungspaces(value) : '';
   const names = wishNames(ctx.state, ctx.defs, messagesEn);
   let spec = readobjnam(buf, names, { wizard: data.wizard === true });
@@ -325,6 +343,7 @@ export function answerWish(ctx: Ctx, action: DefId, value: Json, data: WishData)
   }
   // wizard mode: traps, after the objects (so "bear trap" is still the object)
   if (spec === null && data.wizard && wizTrapWish(ctx, buf)) return;
+  if (spec === null && data.wizard && terrain?.(ctx, buf)) return;
   if (spec === null) {
     ctx.emit({ type: 'msg', key: 'wish.nothing_fitting' });
     if (data.tries + 1 < MAXWISHTRY) {

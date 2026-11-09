@@ -165,7 +165,7 @@ export const messagesEn: Record<string, string> = {
   'terrain.stairs_down': 'staircase down',
   'terrain.fountain': 'fountain',
   'terrain.sink': 'sink',
-  'terrain.throne': 'throne',
+  'terrain.throne': 'opulent throne',
   'terrain.tree': 'tree',
   'terrain.iron_bars': 'iron bars',
   'terrain.altar': 'altar',
@@ -243,7 +243,7 @@ export const messagesEn: Record<string, string> = {
   'nh:scorr': 'stone',
   'nh:fountain': 'fountain',
   'nh:sink': 'sink',
-  'nh:throne': 'throne',
+  'nh:throne': 'opulent throne',
   'nh:tree': 'tree',
   'nh:iron_bars': 'iron bars',
   // ref: src/pager.c lookat() S_altar: "%s altar" with align_str()

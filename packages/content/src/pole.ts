@@ -42,7 +42,7 @@ import { P, hasProp } from './props';
 import { activateStatueTrap } from './statue';
 import { rememberedStatue, statueAt } from './statuestate';
 import { P_BASIC, P_SKILLED, isPole, skillLevel } from './skills';
-import { T } from './terrain';
+import { T, isFurnitureId } from './terrain';
 import { TRAP } from './trap';
 
 export const POLE_ID: DefId = 'nh:pole';
@@ -196,13 +196,9 @@ interface PoleData {
   confirm?: { x: number; y: number };
 }
 
-/** Furniture (IS_FURNITURE()): stairs, fountains, sinks and altars here. */
-function isFurniture(ctx: Ctx, level: Level, x: number, y: number): boolean {
-  const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
-  if (!id) return false;
-  const t = ctx.defs.terrain(id);
-  return t.stairs !== undefined || id === T.fountain || id === T.sink || id.startsWith('nh:altar_');
-}
+/** Furniture (IS_FURNITURE()): stairs, fountains, thrones, sinks and altars here. */
+const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
+  isFurnitureId(ctx.defs, level.palette[level.cells[cellIndex(level, x, y)] ?? 0]);
 
 /**
  * Applies the polearm (or lance) `obj`: refused while swallowed; an unwielded one is wielded

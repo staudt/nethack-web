@@ -134,6 +134,7 @@ export const scrollMessagesEn: Record<string, string> = {
   'genocide.role.nh:valkyrie': 'valkyrie',
   'killer.scroll_of_genocide': 'a scroll of genocide',
   'killer.genocidal_confusion': 'genocidal confusion',
+  'killer.imperious_order': 'an imperious order',
   'killer.self_genocide': 'self-genocide',
   'polyself.rather_ish': 'You feel rather {mon}-ish.',
   'lifesave.still_genocided': 'Unfortunately you are still genocided...',

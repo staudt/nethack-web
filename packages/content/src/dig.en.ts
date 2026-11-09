@@ -13,6 +13,7 @@ export const digMessagesEn: Record<string, string> = {
   'dig.too_hard_here': 'The {surface} here is too hard to dig in.',
   'dig.too_hard_there': 'The {surface} there is too hard to dig in.',
   'dig.altar_too_hard': 'The altar is too hard to break apart.',
+  'dig.throne_too_hard': 'The throne is too hard to break apart.',
   'dig.boulder_settles': 'The boulder settles into the pit.',
   'dig.boulder_settles_adjacent': 'The boulder settles into the adjacent pit.',
   'dig.kadoom': 'KADOOM!  The boulder falls in!',
@@ -93,6 +94,7 @@ export const digMessagesEn: Record<string, string> = {
   'dig.bars_deeper': 'The bars go much deeper than your pit.',
   'dig.plumbing': 'A tangled mass of plumbing remains below the sink.',
   'dig.supporting.fountain': "The fountain's supporting structures remain intact.",
+  'dig.supporting.throne': "The throne's supporting structures remain intact.",
   'dig.supporting.altar': "The altar's supporting structures remain intact.",
   'dig.supporting.stairs': "The stairs' supporting structures remain intact.",
   // monsters tunnelling (mdig_tunnel(), draft_message())

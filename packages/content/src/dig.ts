@@ -15,7 +15,7 @@
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
 // Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
-// is always ROOM and draws nothing), drawbridges, graves, thrones,
+// is always ROOM and draws nothing), drawbridges, graves,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
@@ -69,6 +69,7 @@ import {
   fountainBits,
   setFountainBits,
 } from './fountain';
+import { setThroneLooted } from './thronestate';
 import { confdir, uMaybeImpaired, ustuck } from './hackmove';
 import { losehp } from './hp';
 import { dropx, welded, wieldTool } from './itemactions';
@@ -226,9 +227,13 @@ export function digactualhole(
   if (inAnyShop(level, x, y) && (oldDoor || isWallId(oldId))) addDamage(ctx, x, y, SHOP_HOLE_COST);
   // maketrap(): a door or doorway becomes floor, rock a corridor, a wall a doorway (floor on
   // maze levels, corridor on cavernous ones); only a broken wand of digging reaches these
-  if (oldId !== undefined && (ctx.defs.terrain(oldId).door !== undefined || isAltarId(oldId)))
+  if (
+    oldId !== undefined &&
+    (ctx.defs.terrain(oldId).door !== undefined || isAltarId(oldId) || oldId === T.throne)
+  ) {
     setTerrain(level, x, y, T.floor);
-  else if (oldId === T.stone || oldId === T.scorr) setTerrain(level, x, y, T.corr);
+    setThroneLooted(ctx, level.id, x, y, false); // clear_flags
+  } else if (oldId === T.stone || oldId === T.scorr) setTerrain(level, x, y, T.corr);
   else if (isWallId(oldId) || isSdoorId(oldId))
     setTerrain(level, x, y, wallDugTo(ctx, level, x, y));
   // maketrap() refuses the stairs; core keeps traps off doorways (the dug wall stays one, pitless)
@@ -299,7 +304,7 @@ export function digactualhole(
 
 /**
  * Digging down at (x, y) (default: under the hero). Refused on undiggable ground ("The floor
- * here is too hard to dig in."), on an altar or (here) a doorway; a boulder there falls in;
+ * here is too hard to dig in."), on a throne, an altar or (here) a doorway; a boulder there falls in;
  * otherwise a pit where the floor cannot be dug through (a hard floor, the bottom of a dungeon,
  * `pitOnly`, an existing other trap there), else a hole. True if something was dug.
  * ref: src/dig.c dighole(), dig_check() (BY_YOU)
@@ -320,8 +325,10 @@ export function dighole(
   const stairs = id !== undefined && ctx.defs.terrain(id).stairs !== undefined;
   const tooHard = isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y);
   // dig_check(BY_YOU, x, y): which of its results dighole() looks at
-  let check: 'stairs' | 'altar' | 'toohard' | 'cantdig' | 'destroytrap' | 'pitonly' | 'ok' = 'ok';
+  let check:
+    'stairs' | 'throne' | 'altar' | 'toohard' | 'cantdig' | 'destroytrap' | 'pitonly' | 'ok' = 'ok';
   if (stairs) check = 'stairs';
+  else if (id === T.throne) check = 'throne';
   else if (isAltarId(id)) check = 'altar';
   else if (tooHard) check = 'toohard';
   else if (!canDigDown(ctx, level))
@@ -348,6 +355,11 @@ export function dighole(
       delfloortrap(ctx, level.id, ttmp);
     }
     ctx.remove(boulder.id); // delobj()
+    return false;
+  }
+  // ref: dighole() IS_THRONE(old_typ), IS_ALTAR(old_typ): "for the wand of digging"
+  if (id === T.throne) {
+    say(ctx, 'dig.throne_too_hard');
     return false;
   }
   if (isAltarId(id)) {
@@ -505,8 +517,8 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
 
 /**
  * Whether a pit can be dug at (x, y) from inside the hero's pit: true, or the reason it cannot
- * (null: none to give). ref: src/dig.c adj_pit_checks() (no pools, lava, thrones, ladders or
- * drawbridges exist)
+ * (null: none to give). ref: src/dig.c adj_pit_checks() (no pools, lava, ladders or drawbridges
+ * exist)
  */
 export function adjPitChecks(ctx: Ctx, level: Level, x: number, y: number): true | Msg | null {
   if (!inBounds(level, x, y)) return null;
@@ -523,7 +535,15 @@ export function adjPitChecks(ctx: Ctx, level: Level, x: number, y: number): true
   if (id === T.sink) return msg('dig.plumbing');
   const stairs = id !== undefined && ctx.defs.terrain(id).stairs !== undefined;
   const supporting =
-    id === T.fountain ? 'fountain' : isAltarId(id) ? 'altar' : stairs ? 'stairs' : null;
+    id === T.fountain
+      ? 'fountain'
+      : id === T.throne
+        ? 'throne'
+        : isAltarId(id)
+          ? 'altar'
+          : stairs
+            ? 'stairs'
+            : null;
   if (supporting) return msg(`dig.supporting.${supporting}`);
   return true;
 }
@@ -609,12 +629,13 @@ export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: numbe
   return isObstructedId(id) ? 'rock' : 'undiggable';
 }
 
-/** ref: src/dig.c enum digcheck_result (no ladders, thrones, air or water levels) */
+/** ref: src/dig.c enum digcheck_result (no ladders, air or water levels) */
 export type DigCheck =
   | 'passed'
   | 'pitonly'
   | 'destroytrap'
   | 'stairs'
+  | 'throne'
   | 'altar'
   | 'toohard'
   | 'cantdig'
@@ -622,13 +643,15 @@ export type DigCheck =
   | 'objtrap';
 
 /**
- * Whether she (BY_YOU) or a broken wand (`byObject`, BY_OBJECT: altars allowed, no sanctum yet;
+ * Whether she (BY_YOU) or a broken wand (`byObject`, BY_OBJECT: thrones and altars allowed, no
+ * sanctum yet;
  * an existing trap refused) can dig down at (x, y). ref: src/dig.c dig_check()
  */
 export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject = false): DigCheck {
   const ttmp = trapAt(level, x, y);
   const id = terrainIdAt(level, x, y);
   if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
+  if (id === T.throne && !byObject) return 'throne';
   if (isAltarId(id) && !byObject) return 'altar';
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
   // (no magic portals or vibrating squares: undestroyable_trap())
@@ -644,7 +667,8 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
 
 /** ref: src/dig.c digcheck_fail_message() (a pick: "dig in") */
 function digcheckFailMessage(ctx: Ctx, r: DigCheck, level: Level, x: number, y: number): void {
-  if (r === 'altar') say(ctx, 'dig.altar_too_hard');
+  if (r === 'throne') say(ctx, 'dig.throne_too_hard');
+  else if (r === 'altar') say(ctx, 'dig.altar_too_hard');
   else if (r === 'boulder') say(ctx, 'dig.no_room');
   else if (r === 'stairs') say(ctx, 'dig.stairs_too_hard');
   else if (r === 'cantdig' || r === 'toohard')

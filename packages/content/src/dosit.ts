@@ -3,8 +3,9 @@
 //
 // Ported: the parts whose terrain and states exist: swallowed, levitating, held by a monster,
 // sitting on the top object of a pile, being stuck in a bear trap, pit or web, setting off the
-// trap she sits on (VIASITTING), sinks, altars (altar_wrath()), stairs and laying eggs.
-// Not ported (m12): thrones and their effects; no steeds, hiding heroes, water, lava, ice,
+// trap she sits on (VIASITTING), sinks, altars (altar_wrath()), stairs, thrones (throne.ts) and
+// laying eggs.
+// Not ported: no steeds, hiding heroes, water, lava, ice,
 // graves, ladders or drawbridges exist; the gremlin splitting in a fountain; cream pies and
 // towels do not exist; Half_physical_damage (no source).
 import {
@@ -35,6 +36,7 @@ import { monNam } from './perception';
 import { LAST } from './priority';
 import { sellobj, sellobjState } from './shk';
 import { T, surfaceKey, terrainIdAt } from './terrain';
+import { answerThrone, throneSitEffect } from './throne';
 import { dotrap } from './trap';
 import { flying, isHole, isPit, levitating, setUtrap, utrap } from './trapstate';
 import { heroForm } from './upoly';
@@ -178,6 +180,9 @@ export function dosit(ctx: Ctx): number {
     altarWrath(ctx, p.x, p.y);
   } else if (tid === T.stairs_up || tid === T.stairs_down) {
     say(ctx, 'sit.on', { what: '@surface.stairs' });
+  } else if (tid === T.throne) {
+    say(ctx, 'sit.on', { what: '@nh:throne' }); // defsyms[S_throne].explanation
+    return throneSitEffect(ctx, SIT_ID);
   } else if (form && laysEggs(form)) {
     return layAnEgg(ctx, form);
   } else {
@@ -200,6 +205,8 @@ const sit: ActionDef = {
       ? [{ action: { type: 'mod', action: SIT_ID }, labelKey: 'action.nh:sit', priority: LAST + 1 }]
       : [],
   perform: (ctx) => dosit(ctx),
+  // a throne's wish or genocide
+  answer: (ctx, value, data) => answerThrone(ctx, SIT_ID, value, data),
 };
 
 export const SIT_ACTIONS: readonly ActionDef[] = [sit];

@@ -127,7 +127,7 @@ import { ceilingKey, clearArea, litroom } from './read';
 import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
-import { T } from './terrain';
+import { T, isFurnitureId } from './terrain';
 import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
 import { TRAP, dotrap, isMagicalTrap, mintrap, tele, teleControlled, uTeleportMon } from './trap';
@@ -1188,13 +1188,9 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   if (shopdoor) payForDamage(ctx, 'destroy', false);
 }
 
-/** ref: include/rm.h IS_FURNITURE(): stairs, fountains, sinks and altars here */
-function isFurniture(ctx: Ctx, level: Level, x: number, y: number): boolean {
-  const t = terrainAt(ctx, level, x, y);
-  return (
-    t.stairs !== undefined || t.id === T.fountain || t.id === T.sink || t.id.startsWith('nh:altar_')
-  );
-}
+/** ref: include/rm.h IS_FURNITURE() */
+const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
+  isFurnitureId(ctx.defs, terrainAt(ctx, level, x, y).id);
 
 /**
  * An immediate wand or spell zapped up or down; true when the hero learns what it is. Probing

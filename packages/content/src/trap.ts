@@ -911,6 +911,40 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
 }
 
 /**
+ * The floor under the hero opens (a kicked throne): she falls to the next level unless floating,
+ * held, flying or clinging, too big, or on a level one cannot fall through ("You don't fall in."
+ * and "The opening under you closes up."); there "The hole in the ceiling above you closes up.".
+ * ref: src/trap.c fall_through(FALSE, 0) (no pets jerking her back, no impact_drop(), no
+ * stronghold)
+ */
+export function fallThroughFloor(ctx: Ctx): void {
+  const p = heroPos(ctx);
+  const level = getLevel(ctx.state, p.level);
+  // if we won't fall and won't be told that we aren't falling, give up now
+  if (hasProp(heroEnt(ctx), P.BLINDED) && levitating(ctx)) return;
+  say(ctx, 'trap.floor_opens', { surface: surfaceKey(ctx, level, p.x, p.y) });
+  const form = heroForm(ctx);
+  let dontFall: string | null = null;
+  if (
+    levitating(ctx) ||
+    ustuck(ctx) !== null ||
+    !canFallThru(ctx.state, level) ||
+    flying(ctx) ||
+    (form !== null && isClinger(form))
+  )
+    dontFall = 'trap.dont_fall';
+  else if (form !== null && msize(form) >= MZ_HUGE) dontFall = 'trap.dont_fit';
+  if (dontFall) {
+    say(ctx, dontFall);
+    say(ctx, 'trap.opening_closes');
+    return;
+  }
+  if (uShops(ctx).length > 0) shopdig(ctx, true);
+  fallToLevel(ctx, level, level.dlevel + 1);
+  if (!ctx.state.gameOver) say(ctx, 'trap.ceiling_closes');
+}
+
+/**
  * The hero falls from `level` to level `dst` of its dungeon: a random spot there, `d(dist, 6)`
  * damage, then what is on the floor. ref: src/do.c goto_level() with `falling` (u_on_rndspot(),
  * do_fall_dmg, pickup(1))

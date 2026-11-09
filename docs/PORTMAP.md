@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3871 citations.
+153 NetHack files, 3887 citations.
 
 ## dat/dungeon.lua
 
@@ -434,11 +434,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `D_NODOOR()`: `packages/core/src/levelgen/grid.ts`
 - `D_TRAPPED()`: `packages/content/src/btrapstate.ts`
 - `IS_DOOR()`: `packages/content/src/fountain.ts`
-- `IS_FURNITURE()`: `packages/content/src/zap.ts`
+- `IS_FURNITURE()`: `packages/content/src/terrain.ts`, `packages/content/src/zap.ts`
 - `IS_OBSTRUCTED()`: `packages/content/src/run.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
 - `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`
 - `IS_STWALL()`: `packages/content/src/cast.ts`, `packages/content/src/terrain.ts`
 - `IS_WALL()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
+- `T_LOOTED()`: `packages/content/src/thronestate.ts`
 - `levl()`: `packages/core/src/levelgen/grid.ts`
 
 ## include/skills.h
@@ -1605,7 +1606,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `spellings()`: `packages/content/src/objnam_read.ts`
 - `suit_simple_name()`: `packages/content/src/seffect.ts`, `packages/content/src/shirt.ts`
 - `wishymatch()`: `packages/content/src/objnam_read.ts`
-- `wizterrainwish()`: `packages/content/src/wish.ts`
+- `wizterrainwish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/terrainwish.ts`
 - `wrp()`: `packages/content/src/objnam_read.ts`
 - `wrpsym()`: `packages/content/src/objnam_read.ts`
 - `xname()`: `packages/content/src/objects.en.ts`, `packages/content/src/objnam.ts`, `packages/testkit/src/convert/defs.ts`
@@ -1772,7 +1773,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_particular_parse()`: `packages/content/src/wizard/genesis.ts`
 - `disintegrate_cursed_armor()`: `packages/content/src/seffect.ts`
 - `do_class_genocide()`: `packages/content/src/genocide.ts`
-- `do_genocide()`: `packages/content/src/genocide.ts`
+- `do_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/throne.ts`
 - `do_mapping()`: `packages/content/src/minesend.ts`
 - `doread()`: `packages/content/src/read.ts`, `packages/content/src/shirt.en.ts`, `packages/content/src/shirt.ts`, `packages/content/src/spell.ts`
 - `drop_boulder_on_monster()`: `packages/content/src/magic.en.ts`, `packages/content/src/read.ts`
@@ -1982,12 +1983,13 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/sit.c
 
-- (file): `packages/content/src/pray.en.ts`
+- (file): `packages/content/src/mkroom.en.ts`, `packages/content/src/pray.en.ts`
 - `attrcurse()`: `packages/content/src/pray.ts`
 - `dosit()`: `packages/content/src/dosit.ts`, `packages/content/src/egg.en.ts`
 - `lay_an_egg()`: `packages/content/src/dosit.ts`, `packages/content/src/egg.en.ts`
 - `rndcurse()`: `packages/content/src/sit.ts`
-- `take_gold()`: `packages/content/src/spell.ts`
+- `take_gold()`: `packages/content/src/spell.ts`, `packages/content/src/throne.ts`
+- `throne_sit_effect()`: `packages/content/src/throne.ts`
 
 ## src/sounds.c
 

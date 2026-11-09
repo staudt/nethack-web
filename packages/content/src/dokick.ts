@@ -9,14 +9,18 @@
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
 // a shop are owed (stolen_value()), and a shop door broken by a kick is damage he wants paid for
 // (add_damage(), pay_for_damage()); kicked gold (costly_gold(): no loan) is not.
-// Also not ported: traps but statue traps, boxes and chests, thrones, fountains, graves, trees, sinks,
+// Thrones: kickThrone() (ref: dokick() IS_THRONE).
+// Also not ported: traps but statue traps, boxes and chests, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import { EGG } from './eggstate';
 import { breakEggs } from './egghit';
 import { bareCorpseTouch } from './stonetouch';
 import { activateStatueTrap } from './statue';
-import { TRAP, mintrap } from './trap';
+import { TRAP, dungeonBottom, fallThroughFloor, mintrap } from './trap';
+import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
+import { mksobjFull } from './mkobj';
+import { setThroneLooted, throneLooted } from './thronestate';
 import {
   DIRS,
   DIR_LIST,
@@ -67,7 +71,7 @@ import { wakeNearto } from './noise';
 import { setWoundedLegs } from './legs';
 
 export { wakeNearto, setWoundedLegs };
-import { nhData, placeOnFloor, splitStack, weight } from './items';
+import { mkgold, nhData, placeOnFloor, splitStack, weight } from './items';
 import { clearPath } from './monmove';
 import { monsterDied } from './mondeath';
 import { whichArmor } from './mongear';
@@ -213,6 +217,51 @@ function kickDoor(ctx: Ctx, x: number, y: number, avrg: number): void {
 }
 
 /**
+ * Kicking a throne: with bad Luck or once looted, 1 time in 3 it is destroyed ("CRASH!  You
+ * destroy the throne.") leaving `rnd(200)` gold; with good Luck 1 time in 3 (not looted) it gives
+ * `rn1(201, 300)` gold and `min(Luck + 1, 6)` gems or glass ("You kick loose some ornamental
+ * coins and gems!") and is looted from then on; else 1 time in 4 the floor opens under her (above
+ * a dungeon's last level), otherwise it hurts. Floating, she kicks at empty space. No Dex
+ * exercise. ref: src/dokick.c dokick() IS_THRONE
+ */
+function kickThrone(ctx: Ctx, x: number, y: number): void {
+  if (levitating(ctx)) {
+    kickDumb(ctx);
+    return;
+  }
+  const level = getLevel(ctx.state);
+  const at = { level: level.id, x, y };
+  const luck = luckOf(ctx.state);
+  const blind = hasProp(hero(ctx), P.BLINDED);
+  const looted = throneLooted(ctx.state, level.id, x, y);
+  if ((luck < 0 || looted) && !ctx.rng.rn2(3)) {
+    setThroneLooted(ctx, level.id, x, y, false); // don't leave loose ends..
+    setTerrain(level, x, y, T.floor);
+    mkgold(ctx, ctx.rng.rnd(200), at);
+    say(ctx, blind ? 'kick.throne_destroyed_blind' : 'kick.throne_destroyed');
+    return;
+  }
+  if (luck > 0 && !ctx.rng.rn2(3) && !looted) {
+    mkgold(ctx, ctx.rng.rn2(201) + 300, at); // rn1(201, 300)
+    const gems = [...REAL_GEMS, ...GLASS_GEMS]; // rnd_class(DILITHIUM_CRYSTAL, LUCKSTONE - 1)
+    for (let i = Math.min(luck + 1, 6); i > 0; i--) {
+      const id = rndClass(ctx.rng, ctx.defs, gems, gemLedger(ctx.state, level.id));
+      mksobjFull(ctx, ctx.defs.object(id), { init: false, at });
+    }
+    say(ctx, blind ? 'kick.something_loose' : 'kick.throne_loot');
+    // prevent endless milking
+    setThroneLooted(ctx, level.id, x, y, true);
+    return;
+  }
+  if (!ctx.rng.rn2(4)) {
+    if (level.dlevel < dungeonBottom(ctx.state, level)) fallThroughFloor(ctx);
+    else kickOuch(ctx, x, y, 'throne');
+    return;
+  }
+  kickOuch(ctx, x, y, 'throne');
+}
+
+/**
  * ref: src/dokick.c kick_nondoor(): secret doors and corridors open up with `rn2(30) < avrg`
  * ("Crash!"), an altar angers its god (altar_wrath()), walls and rock hurt, the up stairs hurt
  * and the down stairs are "dumb", and anything else is empty space. Floating, she never opens a
@@ -244,6 +293,10 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
       say(ctx, 'kick.kicks_open_passage');
       setTerrain(level, x, y, T.corr);
     } else kickOuch(ctx, x, y, 'rock');
+    return;
+  }
+  if (id === T.throne) {
+    kickThrone(ctx, x, y);
     return;
   }
   if (aAlign(ctx, x, y) !== null) {

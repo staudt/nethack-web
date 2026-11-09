@@ -38,9 +38,13 @@ import {
   setGenocided,
 } from './vanquished';
 
-/** do_genocide()'s `how` bits. ref: src/read.c REALLY, PLAYER */
+/** do_genocide()'s `how` bits. ref: src/read.c REALLY, PLAYER, ONTHRONE */
 export const REALLY = 1;
 export const PLAYER = 2;
+/** Ordered from a throne: only the cause of death differs ("imperious order"). */
+export const ONTHRONE = 4;
+
+const READ: DefId = 'nh:read';
 
 const HUMAN: DefId = 'nh:human';
 
@@ -54,6 +58,8 @@ export interface GenoData {
   how: number;
   /** The tries made so far (C's i / j). */
   tries: number;
+  /** The action whose answer() takes the prompt; absent: `nh:read` (the scroll). */
+  action?: DefId;
 }
 
 export const isGenoAsk = (raw: Json): boolean => {
@@ -120,7 +126,7 @@ function askGenocide(ctx: Ctx, data: GenoData): void {
       key: `genocide.${cls ? 'class_prompt' : 'prompt'}${data.tries > 0 ? '_again' : ''}`,
       maxLength: 80,
     },
-    'nh:read',
+    data.action ?? READ,
     data as unknown as Json,
   );
 }
@@ -144,14 +150,23 @@ const declines = (buf: string): boolean => {
 
 /**
  * Genocide (uncursed: how REALLY; cursed: 0, a reverse genocide; confused: PLAYER, the hero's own
- * kind without asking): asks for the type, or starts on the hero. ref: src/read.c do_genocide()
+ * kind without asking; from a throne: REALLY | ONTHRONE): asks for the type, or starts on the
+ * hero. The prompt is answered through `action` (default `nh:read`), carrying `extra` (plain
+ * JSON fields of the caller's own) along with the genocide's data. ref: src/read.c do_genocide()
  */
-export function doGenocide(ctx: Ctx, how: number): void {
+export function doGenocide(
+  ctx: Ctx,
+  how: number,
+  action: DefId = READ,
+  extra: Record<string, Json> = {},
+): void {
   if (how & PLAYER) {
     genocideType(ctx, null, how, true);
     return;
   }
-  askGenocide(ctx, { stage: 'genocide', how, tries: 0 });
+  const data: GenoData = { ...extra, stage: 'genocide', how, tries: 0 };
+  if (action !== READ) data.action = action;
+  askGenocide(ctx, data);
 }
 
 /** Blessed genocide: asks for a class. ref: src/read.c do_class_genocide() */
@@ -252,7 +267,12 @@ function genocideType(ctx: Ctx, ptr: MonsterDef | null, how: number, killplayer:
     setGenocided(ctx, id);
     say(ctx, `genocide.wiped_out.${which}`, { mon: name });
     if (killplayer) {
-      const killer = how & PLAYER ? '@killer.genocidal_confusion' : '@killer.scroll_of_genocide';
+      const killer =
+        how & PLAYER
+          ? '@killer.genocidal_confusion'
+          : how & ONTHRONE
+            ? '@killer.imperious_order' // player selected while on a throne
+            : '@killer.scroll_of_genocide';
       // polymorphed characters will die as soon as they're rehumanized
       if (upolyOf(ctx.state) && heroFormId(ctx.state) !== id) {
         setGenoKiller(ctx, killer);

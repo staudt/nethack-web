@@ -1,5 +1,12 @@
 // ref: include/defsym.h PCHAR2 entries (cmap symbols); default chars and colors match NetHack.
-import { cellIndex, type Ctx, type DefId, type Level, type TerrainDef } from '@nh/core';
+import {
+  cellIndex,
+  type Ctx,
+  type DefId,
+  type Level,
+  type Registry,
+  type TerrainDef,
+} from '@nh/core';
 
 const GRAY = '#aaaaaa';
 const BROWN = '#aa5500';
@@ -319,6 +326,18 @@ export const isStwallId = (id: DefId | undefined): boolean => id === T.stone || 
 /** ref: include/rm.h IS_OBSTRUCTED(): stone, walls, trees, secret doors and secret corridors */
 export const isObstructedId = (id: DefId | undefined): boolean =>
   isStwallId(id) || id === T.tree || isSdoorId(id) || id === T.scorr;
+
+/**
+ * ref: include/rm.h IS_FURNITURE(): stairs, fountains, thrones, sinks and altars here (no
+ * ladders or graves)
+ */
+export const isFurnitureId = (defs: Pick<Registry, 'terrain'>, id: DefId | undefined): boolean =>
+  id !== undefined &&
+  (id === T.fountain ||
+    id === T.throne ||
+    id === T.sink ||
+    id.startsWith('nh:altar_') ||
+    defs.terrain(id).stairs !== undefined);
 
 /** The terrain id at (x, y) of `level`. */
 export const terrainIdAt = (level: Readonly<Level>, x: number, y: number): DefId | undefined =>

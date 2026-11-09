@@ -1,12 +1,14 @@
 import type { ActionDef } from '@nh/core';
 import { encumberMsg } from '../itemactions';
 import { answerWish, askWish, type WishData } from '../wish';
+import { wizTerrainWish } from './terrainwish';
 
 export const WIZ_WISH = 'wiz:wish';
 
 /**
  * #wizwish (^W): wish for an object, as often as wanted, with wizard mode's freedom from the
- * normal wish limits. Takes no time (ECMD_OK). flags.verbose is off for it, so there is no
+ * normal wish limits; a name that is no object may make a trap or terrain under her
+ * (wizterrainwish()). Takes no time (ECMD_OK). flags.verbose is off for it, so there is no
  * "You may wish for an object." first.
  * ref: src/wizcmds.c wiz_wish(), src/zap.c makewish()
  */
@@ -24,7 +26,7 @@ export const wizWish: ActionDef = {
   },
   answer(ctx, value, raw) {
     const data = raw as unknown as WishData | null;
-    answerWish(ctx, WIZ_WISH, value, data ?? { tries: 0, wizard: true });
+    answerWish(ctx, WIZ_WISH, value, data ?? { tries: 0, wizard: true }, wizTerrainWish);
     encumberMsg(ctx);
     return 0;
   },

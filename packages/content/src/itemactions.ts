@@ -181,11 +181,11 @@ const weaponKind = (def: ObjectDef): Msg => ({
 // ---------------------------------------------------------------------------------------------
 // looking at the floor
 
-const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.sink, T.tree]);
+const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.throne, T.sink, T.tree]);
 
 /**
  * The dungeon feature worth mentioning at x,y as a message param, or null: doors and doorways,
- * stairs, fountains, sinks and trees by their terrain name, and an altar as "altar to Odin
+ * stairs, fountains, thrones ("opulent throne"), sinks and trees by their terrain name, and an altar as "altar to Odin
  * (neutral)". ref: src/invent.c dfeature_at() (no high altars)
  */
 export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null {
