@@ -98,21 +98,23 @@ function awakenScare(ctx: Ctx, mon: Entity, scary: boolean): void {
 }
 
 /**
- * The hero's bugle call: every mercenary of the level is woken, made hostile (unless tame) and
- * ready for battle; any other monster within u.ulevel * 30 (distance squared) is woken, and
- * scared within a third of that. ref: src/music.c awaken_soldiers() (bugler = the hero)
+ * A bugle call: every mercenary of the level is woken, made hostile (unless tame) and ready for
+ * battle; any other monster within `level * 30` (distance squared) of the bugler is woken, and
+ * scared within a third of that (the hero's level, or a monster bugler's base level).
+ * ref: src/music.c awaken_soldiers()
  */
-function awakenSoldiers(ctx: Ctx): void {
+export function awakenSoldiers(ctx: Ctx, bugler: Entity | 'hero' = 'hero'): void {
   const h = getPlayer(ctx.state);
-  const hp = h.c.pos;
-  if (!hp) return;
-  const distance = (h.c.experience?.level ?? 1) * 30;
+  const bp = bugler === 'hero' ? h.c.pos : bugler.c.pos;
+  if (!bp) return;
+  const distance =
+    (bugler === 'hero' ? (h.c.experience?.level ?? 1) : ctx.defs.monster(bugler.def).level) * 30;
   let heard = false;
   for (const id of sortedIds(ctx.state)) {
     const mon = ctx.state.entities[String(id)];
     const m = mon?.c.monster;
     const p = mon?.c.pos;
-    if (!mon || !m || !p || p.level !== hp.level || (mon.c.hp?.cur ?? 1) < 1) continue;
+    if (!mon || !m || !p || p.level !== bp.level || (mon.c.hp?.cur ?? 1) < 1) continue;
     // (not the vault guard)
     if (ctx.defs.monster(mon.def).flags.includes('merc') && mon.def !== 'nh:guard') {
       if (!m.tame) m.peaceful = false;
@@ -125,7 +127,7 @@ function awakenSoldiers(ctx: Ctx): void {
         heard = true;
       }
     } else {
-      const distm = (p.x - hp.x) ** 2 + (p.y - hp.y) ** 2;
+      const distm = (p.x - bp.x) ** 2 + (p.y - bp.y) ** 2;
       if (distm < distance) awakenScare(ctx, mon, distm < Math.trunc(distance / 3));
     }
   }

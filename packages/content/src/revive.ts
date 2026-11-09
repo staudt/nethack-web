@@ -188,9 +188,10 @@ function occupied(ctx: Ctx, levelId: string, x: number, y: number): boolean {
  * Tries to revive every corpse `who` (a monster or 'hero') carries; the number that rose.
  * "Your jackal corpse suddenly comes alive!" ("It suddenly comes alive!" after revive()'s glow),
  * "reanimates" for a nonliving one; an unseen carrier's corpse: "<A jackal> suddenly appears!".
+ * `byHero` is C's `!context.mon_moving` (false when a monster zapped the wand).
  * ref: src/zap.c unturn_dead() (eggs are not ported)
  */
-export function unturnDead(ctx: Ctx, who: Entity | 'hero'): number {
+export function unturnDead(ctx: Ctx, who: Entity | 'hero', byHero = true): number {
   const isU = who === 'hero';
   const owner = isU ? getPlayer(ctx.state) : who;
   const youseeit = isU || (!!owner.c.pos && heroSees(ctx, owner.c.pos));
@@ -207,7 +208,7 @@ export function unturnDead(ctx: Ctx, who: Entity | 'hero'): number {
       it.quantity > 1
         ? { key: 'zap.owner.one_of', params: { owner: shkYour(ctx, otmp, false) } }
         : shkYour(ctx, otmp, true);
-    const r = revive(ctx, otmp, true); // !context.mon_moving: only the hero zaps here
+    const r = revive(ctx, otmp, byHero); // !context.mon_moving
     if (!r) continue;
     res++;
     // a different type (cant_revive()'s zombie) cannot happen here

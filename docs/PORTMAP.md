@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4241 citations.
+155 NetHack files, 4251 citations.
 
 ## dat/dungeon.lua
 
@@ -280,13 +280,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flesh_petrifies()`: `packages/content/src/stonestate.ts`
 - `has_head()`: `packages/content/src/mondata.ts`
 - `has_horns()`: `packages/content/src/mondata.ts`
-- `haseyes()`: `packages/content/src/adtyping.ts`, `packages/content/src/musestate.ts`
+- `haseyes()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`, `packages/content/src/mondata.ts`
 - `hides_under()`: `packages/content/src/hidestate.ts`
 - `humanoid()`: `packages/content/src/mondata.ts`, `packages/content/src/peaceful.ts`
 - `is_animal()`: `packages/content/src/steal.ts`
-- `is_bat()`: `packages/content/src/polyself.ts`
+- `is_bat()`: `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
 - `is_clinger()`: `packages/content/src/mondata.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
 - `is_floater()`: `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
@@ -296,7 +296,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_hider()`: `packages/content/src/hidestate.ts`
 - `is_human()`: `packages/content/src/werestate.ts`
 - `is_longworm()`: `packages/content/src/wormstate.ts`
-- `is_mercenary()`: `packages/content/src/mongear.ts`
+- `is_mercenary()`: `packages/content/src/mongear.ts`, `packages/content/src/muse.ts`
 - `is_placeholder()`: `packages/content/src/newcham.ts`
 - `is_rider()`: `packages/content/src/newcham.ts`
 - `is_unicorn()`: `packages/content/src/mondata.ts`
@@ -854,7 +854,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dog_hunger()`: `packages/content/src/dogmove.ts`
 - `dog_invent()`: `packages/content/src/dogmove.ts`
 - `dog_move()`: `packages/content/src/dogmove.ts`
-- `dog_nutrition()`: `packages/content/src/dogmove.ts`
+- `dog_nutrition()`: `packages/content/src/dog.ts`, `packages/content/src/dogmove.ts`
 - `dog_starve()`: `packages/content/src/dogmove.ts`
 - `droppables()`: `packages/content/src/dogmove.ts`
 
@@ -952,7 +952,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `done_eating()`: `packages/content/src/eat.ts`
 - `eat_brains()`: `packages/content/src/adtyping.ts`
 - `eatcorpse()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
-- `eaten_stat()`: `packages/content/src/dogmove.ts`, `packages/content/src/items.ts`
+- `eaten_stat()`: `packages/content/src/dog.ts`, `packages/content/src/items.ts`
 - `eatfood()`: `packages/content/src/eat.ts`
 - `eye_of_newt_buzz()`: `packages/content/src/givit.ts`
 - `fix_petrification()`: `packages/content/src/stonestate.ts`
@@ -1590,8 +1590,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `breamu()`: `packages/content/src/mthrowu.ts`
 - `breathwep()`: `packages/content/src/mthrowu.ts`
 - `drop_throw()`: `packages/content/src/mthrowu.ts`
-- `lined_up()`: `packages/content/src/monmove.ts`
-- `linedup()`: `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/priest.ts`
+- `lined_up()`: `packages/content/src/monmove.ts`, `packages/content/src/muse.ts`
+- `linedup()`: `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/muse.ts`, `packages/content/src/priest.ts`
+- `m_lined_up()`: `packages/content/src/muse.ts`
 - `m_throw()`: `packages/content/src/mthrowu.en.ts`, `packages/content/src/mthrowu.ts`
 - `monmulti()`: `packages/content/src/mthrowu.ts`
 - `monshoot()`: `packages/content/src/mthrowu.en.ts`, `packages/content/src/mthrowu.ts`
@@ -1606,12 +1607,19 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/muse.en.ts`
 - `MUSE_()`: `packages/content/src/muse.ts`
+- `fhito_loc()`: `packages/content/src/muse.ts`
 - `find_defensive()`: `packages/content/src/muse.ts`
+- `m_sees_sleepy_soldier()`: `packages/content/src/muse.ts`
 - `m_tele()`: `packages/content/src/muse.ts`
 - `m_use_healing()`: `packages/content/src/muse.ts`
+- `mbhit()`: `packages/content/src/muse.ts`
+- `mbhitm()`: `packages/content/src/muse.ts`
 - `mcureblindness()`: `packages/content/src/musestate.ts`
+- `mon_consume_unstone()`: `packages/content/src/muse.ts`
 - `mon_escape()`: `packages/content/src/muse.ts`
 - `mquaffmsg()`: `packages/content/src/muse.ts`
+- `mreadmsg()`: `packages/content/src/muse.ts`
+- `mzapwand()`: `packages/content/src/muse.ts`
 - `place_monster()`: `packages/content/src/muse.ts`
 - `precheck()`: `packages/content/src/muse.ts`
 - `remove_monster()`: `packages/content/src/muse.ts`

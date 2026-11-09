@@ -26,6 +26,7 @@ import {
   DOGFOOD,
   MANFOOD,
   UNDEF,
+  dogNutrition,
   dogfood,
   edogOf,
   ensureEdog,
@@ -71,45 +72,6 @@ const helpless = (ctx: Ctx, mon: Entity): boolean =>
 /** The pet's carried things that it may drop (not worn or wielded). ref: droppables() */
 const droppables = (ctx: Ctx, id: EntityId): Entity[] =>
   minvent(ctx, id).filter((o) => o.c.item?.equipped === null);
-
-/** ref: src/dogmove.c dog_nutrition(): nutrition of the food, and how long it takes to eat */
-function dogNutrition(ctx: Ctx, mon: Entity, obj: Entity): number {
-  const mdef = ctx.defs.monster(mon.def);
-  const odef = ctx.defs.object(obj.def);
-  let nutrit: number;
-  let time: number;
-  let full: number;
-  if (odef.class === 'food') {
-    const corpse = obj.c.item?.corpseOf;
-    if (obj.def === 'nh:corpse' && corpse && ctx.defs.isMonster(corpse)) {
-      const cdef = ctx.defs.monster(corpse);
-      time = 3 + (cdef.weight >> 6);
-      nutrit = cdef.nutrition;
-    } else {
-      time = odef.delay;
-      nutrit = odef.food?.nutrition ?? 0;
-    }
-    full = nutrit;
-    const mult = { tiny: 8, small: 6, medium: 5, large: 4, huge: 3, gigantic: 2 }[mdef.size];
-    nutrit *= mult;
-    const eaten = obj.c.item?.eaten;
-    if (eaten !== undefined && full > 0) {
-      // ref: eaten_stat(): scale by how much is left
-      const scale = (n: number): number => Math.max(1, Math.trunc((n * eaten) / full));
-      time = scale(time);
-      nutrit = scale(nutrit);
-    }
-  } else if (odef.class === 'coin') {
-    const q = obj.c.item?.quantity ?? 1;
-    time = Math.trunc(q / 2000) + 1;
-    nutrit = Math.trunc(q / 20);
-  } else {
-    time = Math.trunc(odef.weight / 20) + 1;
-    nutrit = 5 * (odef.food?.nutrition ?? 0);
-  }
-  setMeating(ctx, mon.id, time);
-  return nutrit;
-}
 
 /**
  * The pet eats `obj` (on its square): hunger, tameness and the message. Returns 'died' if it

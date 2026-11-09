@@ -971,8 +971,18 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   if (learnIt) learn(ctx, src);
 }
 
-/** ref: src/zap.c bhito() for a floor object; returns 1 when it was affected */
-function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): number {
+/**
+ * ref: src/zap.c bhito() for a floor object; returns 1 when it was affected. `byHero` is C's
+ * `!context.mon_moving` (false for a monster's wand: muse.ts mbhit()).
+ */
+export function bhito(
+  ctx: Ctx,
+  obj: Entity,
+  src: ZapSource,
+  x: number,
+  y: number,
+  byHero = true,
+): number {
   let res = 0;
   let learnIt = false;
   const otyp = otypOf(src);
@@ -1078,7 +1088,7 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       if (obj.def !== CORPSE) break;
       const corpsname = cxnameSingular(ctx, obj);
       // get corpse's location before revive() uses it up
-      const r = revive(ctx, obj, true);
+      const r = revive(ctx, obj, byHero);
       if (!r) break; // no monster implies corpse was left intact
       res = 1;
       if (cansee(ctx, x, y)) {

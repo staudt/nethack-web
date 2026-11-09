@@ -1,19 +1,27 @@
 // Monsters using items and the level to save themselves: find_defensive() picks what to do,
-// use_defensive() does it (in the same move: nothing about the choice is kept). This step has the
-// item-free escapes (up or down the stairs, the branch stairs, into a trap door or hole, onto a
-// teleportation trap, out of the dungeon from the first level's up stairs) and the healing
-// potions; the defensive wands, scrolls, unicorn horn, lizard corpse and bugle come next.
-// ref: src/muse.c find_defensive(), use_defensive(), precheck(), mquaffmsg(), m_use_healing(),
-// m_tele(), reveal_trap(), mon_escape(); include/hack.h WAND_BACKFIRE_CHANCE
+// use_defensive() does it (in the same move: nothing about the choice is kept): the item-free
+// escapes (up or down the stairs, the branch stairs, into a trap door or hole, onto a
+// teleportation trap, out of the dungeon from the first level's up stairs), the healing potions,
+// the unicorn horn, the lizard corpse, the bugle, the wands of digging, teleportation, create
+// monster and undead turning, and the scrolls of teleportation and create monster.
+// ref: src/muse.c find_defensive(), use_defensive(), precheck(), mzapwand(), mreadmsg(),
+// mquaffmsg(), m_use_healing(), m_sees_sleepy_soldier(), m_tele(), reveal_trap(), mon_escape(),
+// mon_consume_unstone(), mbhit(), mbhitm() (undead turning); include/hack.h WAND_BACKFIRE_CHANCE
 //
 // Not ported: the ghost in a milky potion and the djinni in a smoky one (precheck(); as for the
 // hero's quaff), ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
-// mon_has_special(): never), Fort Ludios (m_next2m(): never reached), deafness (never deaf).
+// mon_has_special(): never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
+// Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools, lava,
+// ice and drawbridges (no such terrain), `trycall()` (naming unknown types).
 import {
   cellIndex,
+  cellRules,
   getLevel,
   getPlayer,
+  inBounds,
+  itemsAt,
   levelIdFor,
+  NORMAL_SPEED,
   rootDungeon,
   trapAt,
   type Ctx,
@@ -26,32 +34,56 @@ import {
   type Trap,
 } from '@nh/core';
 import { couldseeAt } from './apparxy';
-import { boulderAt } from './boulder';
+import { clearPath } from './clearpath';
+import { blockersOf, boulderAt } from './boulder';
+import { resist, wakeGently } from './buzz';
+import { bypassObj, clearBypasses } from './bypass';
+import { uwepOf } from './combat';
+import { dogNutrition, edogOf } from './dog';
+import { stopOccupation } from './eat';
 import { uswallow } from './engulfstate';
 import { epriOf } from './epri';
 import { useOne } from './erode';
-import { eshkOf } from './eshk';
+import { eshkOf, inhishop } from './eshk';
+import { fillPit } from './flooreffects';
+import { makemon, mnextoPos } from './generation';
+import { isGenocided } from './vanquished';
+import { polyWhenStoned } from './golem';
 import { ustuck } from './hackmove';
 import { maybeUnhideAt } from './hide';
-import { canseemon } from './invis';
+import { canseemon, mapInvisible } from './invis';
+import { canDigDown, nonDiggable } from './levelflags';
 import { migrateToLevel } from './migrate';
-import { amorphous, isFlyer, nohands, nolimbs, slithy } from './mondata';
+import { amorphous, isFlyer, isUnicorn, nohands, nolimbs, slithy } from './mondata';
 import { mongone, monkilled } from './mondeath';
 import { minvent } from './mongear';
 import { isFleeing, monflee } from './monflee';
-import { healmon, mcansee } from './mstate';
+import { healmon, isMConfused, isMStunned, mcansee, setMConfused, setMStunned } from './mstate';
+import { linedUp } from './mthrowu';
+import { BUGLE, awakenSoldiers } from './music';
 import { mcureblindness } from './musestate';
 import { discover } from './o_init';
 import { doname, xnameOf } from './objnam';
-import { monNam } from './perception';
+import { canSpotMon, monNam, someMonNam } from './perception';
+import { unturnDead } from './revive';
+import { helpless } from './shk';
+import { resistsSton, touchPetrifies } from './stonestate';
 import { onscary } from './scary';
 import { isAnimal } from './steal';
-import { T, setTerrain } from './terrain';
-import { TRAP, canFallThru, cansee, isHole, mintrap, seetrap } from './trap';
-import { isMtrapped, monLearnsTraps } from './trapstate';
-import { noteleportLevel, teleRestrict } from './teleport';
+import { T, isFurnitureId, isStwallId, setTerrain, surfaceKey, terrainIdAt } from './terrain';
+import { TRAP, canFallThru, cansee, isHole, maketrap, mintrap, rlocMon, seetrap } from './trap';
+import { isMtrapped, isPit, monKnowsTraps, monLearnsTraps } from './trapstate';
+import {
+  SOKOBAN_DUNGEON,
+  levelAtDepth,
+  noteleportLevel,
+  randomTeleportLevel,
+  teleRestrict,
+} from './teleport';
+import { UNICORN_HORN } from './unicorn';
 import { isGuard } from './vaultstate';
 import { wormMove } from './worm';
+import { bhito } from './zap';
 import { mAt, wormRec } from './wormstate';
 
 /** The defensive choices. ref: src/muse.c MUSE_* (the defensive ones; no ladders) */
@@ -75,11 +107,15 @@ export type MuseDef =
   | 'lizard_corpse'
   | 'wan_undead_turning';
 
-/** A monster's choice: C's gm.m.has_defense/defensive, and gt.trapx/trapy for a trap. */
+/**
+ * A monster's choice: C's gm.m.has_defense/defensive, gt.trapx/trapy for a trap, and for a wand
+ * zapped at the hero where the monster thinks she is (mux/muy).
+ */
 export interface MuseChoice<K> {
   kind: K;
   obj: EntityId | null;
   trap?: Pos;
+  aim?: Pos;
 }
 
 /** 0: nothing happened; 1: the monster died; 2: it acted (and can't attack this move). */
@@ -93,6 +129,15 @@ const BOLT_LIM = 8;
 const POT_HEALING: DefId = 'nh:potion_of_healing';
 const POT_EXTRA_HEALING: DefId = 'nh:potion_of_extra_healing';
 const POT_FULL_HEALING: DefId = 'nh:potion_of_full_healing';
+const WAN_DIGGING: DefId = 'nh:wand_of_digging';
+const WAN_TELEPORTATION: DefId = 'nh:wand_of_teleportation';
+const WAN_CREATE_MONSTER: DefId = 'nh:wand_of_create_monster';
+const WAN_UNDEAD_TURNING: DefId = 'nh:wand_of_undead_turning';
+const SCR_TELEPORTATION: DefId = 'nh:scroll_of_teleportation';
+const SCR_CREATE_MONSTER: DefId = 'nh:scroll_of_create_monster';
+const CORPSE: DefId = 'nh:corpse';
+const LIZARD: DefId = 'nh:lizard';
+const ACID_BLOB: DefId = 'nh:acid_blob';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -122,6 +167,22 @@ const noDiag = (mon: Entity): boolean => mon.def === 'nh:grid_bug';
 /** isshk, isgd, ispriest */
 const isShkGdPriest = (ctx: Ctx, id: EntityId): boolean =>
   eshkOf(ctx, id) !== null || isGuard(ctx.state, id) || epriOf(ctx, id) !== null;
+
+/** ref: include/mondata.h haseyes(): not M1_NOEYES */
+const haseyes = (ctx: Ctx, mon: Entity): boolean =>
+  !ctx.defs.monster(mon.def).flags.includes('noeyes');
+
+/** ref: include/mondata.h is_mercenary(): M2_MERC */
+const isMercenary = (ctx: Ctx, mon: Entity): boolean =>
+  ctx.defs.monster(mon.def).flags.includes('merc');
+
+/** ref: include/mondata.h is_bat(): the bat, giant bat and vampire bat */
+const isBat = (mon: Entity): boolean =>
+  mon.def === 'nh:bat' || mon.def === 'nh:giant_bat' || mon.def === 'nh:vampire_bat';
+
+const sgn = (n: number): -1 | 0 | 1 => (n > 0 ? 1 : n < 0 ? -1 : 0);
+
+const spe = (o: Entity): number => o.c.item?.spe ?? 0;
 
 /** ref: src/mkobj.c bcsign() */
 const bcsign = (o: Entity): number =>
@@ -187,6 +248,43 @@ export function precheck(ctx: Ctx, id: EntityId, obj: Entity | null): -1 | 0 | 1
   return -1;
 }
 
+/**
+ * Whether the monster is lined up with where it thinks the hero is (`mu`): same row, column or
+ * diagonal within BOLT_LIM, with a clear path (her line of sight when `mu` is her square).
+ * ref: src/mthrowu.c lined_up(), m_lined_up(), linedup() (the boulder handling and her
+ * concealment are not ported, as for the other ranged attacks)
+ */
+function linedUpHero(ctx: Ctx, mon: Entity, mu: Pos): boolean {
+  const p = mon.c.pos;
+  if (!p) return false;
+  const level = getLevel(ctx.state, p.level);
+  const hp = getPlayer(ctx.state).c.pos;
+  const opaque = cellRules(level, ctx.defs).opaque;
+  const blocked = blockersOf(ctx, level.id);
+  return linedUp(p, mu, (ax, ay, bx, by) =>
+    hp && hp.level === level.id && hp.x === ax && hp.y === ay
+      ? couldseeAt(ctx, bx, by)
+      : clearPath(level, opaque, ax, ay, bx, by, blocked),
+  );
+}
+
+/**
+ * Whether the monster sees a sleeping (helpless) soldier within 3 squares: a mercenary other
+ * than a vault guard. ref: src/muse.c m_sees_sleepy_soldier()
+ */
+function mSeesSleepySoldier(ctx: Ctx, mon: Entity): boolean {
+  const p = mon.c.pos;
+  if (!p) return false;
+  const level = getLevel(ctx.state, p.level);
+  for (let xx = p.x - 3; xx <= p.x + 3; xx++)
+    for (let yy = p.y - 3; yy <= p.y + 3; yy++) {
+      if (!inBounds(level, xx, yy) || (xx === p.x && yy === p.y)) continue;
+      const o = mAt(ctx.state, level.id, xx, yy);
+      if (o && isMercenary(ctx, o) && o.def !== 'nh:guard' && helpless(ctx, o.id)) return true;
+    }
+  return false;
+}
+
 /** ref: src/muse.c m_use_healing(): full, then extra, then plain healing */
 function mUseHealing(ctx: Ctx, id: EntityId): MuseChoice<MuseDef> | null {
   for (const [otyp, kind] of [
@@ -230,8 +328,23 @@ export function findDefensive(
   // (Fort Ludios' m_next2m() test: there is no Fort Ludios)
   if (uswallow(ctx) && stuck) return null;
 
-  // the unicorn horn when confused, stunned or blind, and the lizard corpse when confused or
-  // stunned: the next step
+  // "Since unicorn horns don't get used up, the monster would look silly trying to use the same
+  // cursed horn round after round, so skip cursed unicorn horns. Unicorns use their own horns;
+  // they're excluded from inventory scanning by nohands()." (no Ki-rin)
+  const conf = isMConfused(ctx, id);
+  const stun = isMStunned(ctx, id);
+  if (conf || stun || !mcansee(ctx, id)) {
+    const horn = nohands(def)
+      ? null
+      : (minvent(ctx, id).find((o) => o.def === UNICORN_HORN && o.c.item?.buc !== 'cursed') ??
+        null);
+    if (horn || isUnicorn(def)) return { kind: 'unicorn_horn', obj: horn?.id ?? null };
+  }
+  if (conf || stun) {
+    // (no tins: only the corpse)
+    const liz = minvent(ctx, id).find((o) => o.def === CORPSE && o.c.item?.corpseOf === LIZARD);
+    if (liz) return { kind: 'lizard_corpse', obj: liz.id };
+  }
 
   // "the first case is when the monster is blind (healing cures blindness)"
   if (!mcansee(ctx, id) && !nohands(def)) {
@@ -239,7 +352,23 @@ export function findDefensive(
     if (c) return c;
   }
 
-  // the wand of undead turning against a cockatrice-corpse wielder: the next step
+  // "monsters aren't given wands of undead turning but if they happen to have picked one up, use
+  // it against corpse wielder; when applicable, use it now even if 'mtmp' isn't wounded"
+  const uwep = uwepOf(ctx);
+  const cnm = uwep?.def === CORPSE ? uwep.c.item?.corpseOf : undefined;
+  if (
+    !m.peaceful &&
+    !nohands(def) &&
+    cnm !== undefined &&
+    ctx.defs.isMonster(cnm) &&
+    touchPetrifies(ctx.defs.monster(cnm)) &&
+    !polyWhenStoned(def, isGenocided(ctx.state, 'nh:stone_golem')) &&
+    !resistsSton(ctx, mon) &&
+    linedUpHero(ctx, mon, mu)
+  ) {
+    const w = minvent(ctx, id).find((o) => o.def === WAN_UNDEAD_TURNING && spe(o) > 0);
+    if (w) return { kind: 'wan_undead_turning', obj: w.id, aim: { x: mu.x, y: mu.y } };
+  }
 
   if (!tryescape) {
     // "do we try to heal?"
@@ -297,26 +426,76 @@ export function findDefensive(
   }
 
   if (nohands(def)) return choice; // "can't use objects"
-  // the mercenary's bugle: the next step
 
-  // "use immediate physical escape prior to attempting magic"
+  if (isMercenary(ctx, mon)) {
+    const bugle = mCarrying(ctx, id, BUGLE);
+    if (bugle && mSeesSleepySoldier(ctx, mon)) choice = { kind: 'bugle', obj: bugle.id };
+  }
+
+  // "use immediate physical escape prior to attempting magic" (stairs, trap door or tele-trap,
+  // bugle alert)
   if (choice) return choice;
 
+  // "kludge to cut down on trap destruction (particularly portals)": a pit, web or bear trap
+  // here is ok for the monster to dig in
+  const here = trapAt(level, x, y);
+  const trapHere =
+    here !== undefined && !(isPit(here.def) || here.def === TRAP.web || here.def === TRAP.bear);
+  const hereId = terrainIdAt(level, x, y);
+  const canZapDig =
+    !stuck &&
+    !trapHere &&
+    !isShkGdPriest(ctx, id) &&
+    !isFloater(ctx, mon) &&
+    // "monsters digging in Sokoban can ruin things"
+    level.dungeon !== SOKOBAN_DUNGEON &&
+    // "digging wouldn't be effective; assume they know that" (W_NONDIGGABLE is only ever set on
+    // stone, walls and trees)
+    !(nonDiggable(ctx, level, x, y) && (isStwallId(hereId) || hereId === T.tree)) &&
+    // !Is_botlevel()
+    canFallThru(ctx.state, level);
+  // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"
+  const teleOk = !noteleportLevel(ctx, level) || !monKnowsTraps(ctx, id, TRAP.tele);
+  const reads = mcansee(ctx, id) && haseyes(ctx, mon);
+  // a cursed scroll (a level teleport) is not for a shopkeeper in his shop, a guard or a priest
+  const mayLeave = !(
+    (eshkOf(ctx, id) !== null && inhishop(ctx, id)) ||
+    isGuard(ctx.state, id) ||
+    epriOf(ctx, id) !== null
+  );
+
   // the inventory loop, in minvent order; "don't always use the same selection pattern"
-  // (`nomore(x)`: once x is chosen, later objects of its kind are passed over). The wand of
-  // digging, the teleportation wand and scroll, the create monster wand and scroll and their
-  // checks come with the next step.
+  // (`nomore(x)`: once x is chosen, later objects of its kind are passed over)
+  const is = (k: MuseDef): boolean => choice?.kind === k;
   for (const obj of minvent(ctx, id)) {
     if (choice && !ctx.rng.rn2(3)) break;
-    const kind = choice?.kind;
-    if (kind === 'wan_digging') break;
+    if (is('wan_digging')) break;
+    if (obj.def === WAN_DIGGING && spe(obj) > 0 && canZapDig)
+      choice = { kind: 'wan_digging', obj: obj.id };
+    if (is('wan_tele_self') || is('wan_tele')) continue;
+    // (mon_has_amulet(): never, so never MUSE_WAN_TELEPORTATION)
+    if (obj.def === WAN_TELEPORTATION && spe(obj) > 0 && teleOk)
+      choice = { kind: 'wan_tele_self', obj: obj.id };
+    if (is('scr_tele')) continue;
+    if (
+      obj.def === SCR_TELEPORTATION &&
+      reads &&
+      (obj.c.item?.buc !== 'cursed' || mayLeave) &&
+      teleOk
+    )
+      choice = { kind: 'scr_tele', obj: obj.id };
     // (not Pestilence)
-    if (kind === 'pot_full_healing') continue;
+    if (is('pot_full_healing')) continue;
     if (obj.def === POT_FULL_HEALING) choice = { kind: 'pot_full_healing', obj: obj.id };
-    if (choice?.kind === 'pot_extra_healing') continue;
+    if (is('pot_extra_healing')) continue;
     if (obj.def === POT_EXTRA_HEALING) choice = { kind: 'pot_extra_healing', obj: obj.id };
-    if (choice?.kind === 'pot_healing') continue;
+    if (is('wan_create_monster')) continue;
+    if (obj.def === WAN_CREATE_MONSTER && spe(obj) > 0)
+      choice = { kind: 'wan_create_monster', obj: obj.id };
+    if (is('pot_healing')) continue;
     if (obj.def === POT_HEALING) choice = { kind: 'pot_healing', obj: obj.id };
+    if (is('scr_create_monster')) continue;
+    if (obj.def === SCR_CREATE_MONSTER) choice = { kind: 'scr_create_monster', obj: obj.id };
   }
   return choice;
 }
@@ -379,16 +558,22 @@ function stepOnto(ctx: Ctx, mon: Entity, to: Pos): void {
 }
 
 /**
- * The monster teleports by a trap it chose to step on (`how` 0): unless the level forbids it
- * ("A mysterious force prevents the gnome from teleporting!", and it learns that teleport traps
- * do not work here), the trap goes off under it. ref: src/muse.c m_tele() (how == 0; no Amulet or
- * Wizard's Tower)
+ * The monster teleports: by an object `how` (the wand or scroll of teleportation: rloc() with
+ * its message, the object known when `oseen`), or (`how` null) by the trap it chose to step on,
+ * which goes off under it. Unless the level forbids it ("A mysterious force prevents the gnome
+ * from teleporting!"; the object known when the monster is seen), and then it learns that
+ * teleport traps do not work here. ref: src/muse.c m_tele() (no Amulet or Wizard's Tower)
  */
-function mTeleTrap(ctx: Ctx, mon: Entity): void {
+function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefId | null): void {
   const p = mon.c.pos;
   if (!p) return;
   if (teleRestrict(ctx, mon)) {
+    if (vismon && how) discover(ctx, how);
     if (noteleportLevel(ctx, getLevel(ctx.state, p.level))) monLearnsTraps(ctx, mon.id, TRAP.tele);
+  } else if (how) {
+    // "teleporation has been triggered by an object"
+    if (oseen) discover(ctx, how);
+    rlocMon(ctx, mon, true);
   } else mintrap(ctx, mon.id, { force: true });
 }
 
@@ -485,7 +670,7 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       revealTrap(ctx, level, t, vis);
       stepOnto(ctx, mon, c.trap);
       maybeUnhideAt(ctx, level.id, c.trap.x, c.trap.y);
-      mTeleTrap(ctx, mon);
+      mTele(ctx, mon, vismon, false, null);
       return 2;
     }
     case 'pot_healing': {
@@ -520,9 +705,325 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       useOne(ctx, id, otmp);
       return 2;
     }
+    case 'unicorn_horn': {
+      // "unlike most defensive cases, unicorn horn object is optional"
+      if (vismon) {
+        if (otmp) say(ctx, 'muse.uses_unicorn_horn', { mon: name() });
+        else say(ctx, 'muse.horn_tip_glows', { mon: name() });
+      }
+      if (!mcansee(ctx, id)) mcureblindness(ctx, mon, vismon);
+      else if (isMConfused(ctx, id) || isMStunned(ctx, id)) {
+        setMConfused(ctx, id, false);
+        setMStunned(ctx, id, false);
+        if (vismon) say(ctx, 'muse.steadier', { mon: name() });
+      }
+      return 2;
+    }
+    case 'bugle': {
+      if (!otmp) return 0;
+      if (vismon) say(ctx, 'muse.plays', { mon: name(), item: doname(ctx.state, ctx.defs, otmp) });
+      else say(ctx, 'muse.hear_bugle');
+      awakenSoldiers(ctx, mon);
+      return 2;
+    }
+    case 'wan_tele_self': {
+      if (!otmp) return 0;
+      if (
+        (eshkOf(ctx, id) !== null && inhishop(ctx, id)) ||
+        isGuard(ctx.state, id) ||
+        epriOf(ctx, id)
+      )
+        return 2;
+      mFlee();
+      mzapwand(ctx, mon, otmp, true);
+      mTele(ctx, mon, vismon, oseen, WAN_TELEPORTATION);
+      return 2;
+    }
+    case 'scr_tele': {
+      if (!otmp) return 0;
+      const cursed = otmp.c.item?.buc === 'cursed';
+      if (isShkGdPriest(ctx, id)) return 2;
+      mFlee();
+      // "we want to be able to access otmp after the teleport but it might get destroyed if
+      // still in mtmp's inventory ... so take it out in advance"
+      mreadmsg(ctx, mon, otmp);
+      useOne(ctx, id, otmp);
+      if (cursed || isMConfused(ctx, id)) {
+        const nlev = randomTeleportLevel(ctx, level);
+        if (nlev === level.depth) {
+          if (vismon) say(ctx, 'muse.shudders', { mon: name() });
+        } else migrateToLevel(ctx, mon, levelIdFor(ctx.state, levelAtDepth(ctx, level, nlev)));
+      } else mTele(ctx, mon, vismon, oseen, SCR_TELEPORTATION);
+      return 2;
+    }
+    case 'wan_digging': {
+      if (!otmp) return 0;
+      const { x, y } = p;
+      mFlee();
+      mzapwand(ctx, mon, otmp, false);
+      if (oseen) discover(ctx, WAN_DIGGING);
+      // furniture (stairs included) or stairs (no drawbridges)
+      if (isFurnitureId(ctx.defs, terrainIdAt(level, x, y))) {
+        say(ctx, 'muse.digging_ineffective');
+        return 2;
+      }
+      const surface = surfaceKey(ctx, level, x, y);
+      if (!canDigDown(ctx, level)) {
+        // "can't dig further if there's already a pit (or other trap) here"
+        if (trapAt(level, x, y)) {
+          if (vismon) say(ctx, 'dig.too_hard_here', { surface });
+          return 2;
+        }
+        const t = maketrap(ctx, level.id, x, y, TRAP.pit);
+        if (vis) {
+          seetrap(t);
+          say(ctx, 'muse.made_pit', { mon: name(), surface });
+        }
+        fillPit(ctx, x, y, true);
+        return mintrap(ctx, id, { force: true }) === 'killed' ? 1 : 2;
+      }
+      const t = maketrap(ctx, level.id, x, y, TRAP.hole);
+      seetrap(t);
+      if (vis) {
+        say(ctx, 'muse.made_hole', { mon: name(), surface });
+        say(ctx, isFlyer(ctx.defs.monster(mon.def)) ? 'muse.dives_through' : 'muse.falls_through', {
+          mon: name(),
+        });
+      } else say(ctx, 'muse.hear_crash', { surface });
+      fillPit(ctx, x, y, true);
+      // "we made sure that there is a level for mtmp to go to"
+      migrateToLevel(
+        ctx,
+        mon,
+        levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: level.dlevel + 1 }),
+      );
+      return 2;
+    }
+    case 'wan_undead_turning': {
+      if (!otmp) return 0;
+      mzapwand(ctx, mon, otmp, false);
+      const hp0 = getPlayer(ctx.state).c.pos;
+      const aim = c.aim ?? (hp0 ? { x: hp0.x, y: hp0.y } : { x: p.x, y: p.y });
+      mbhit(ctx, mon, ctx.rng.rn2(8) + 6, otmp, oseen, aim); // rn1(8, 6)
+      return 2;
+    }
+    case 'wan_create_monster': {
+      if (!otmp) return 0;
+      // (no pools: always a random monster)
+      const cc = mnextoPos(ctx, level, null, { x: p.x, y: p.y });
+      if (!cc) return 0;
+      mzapwand(ctx, mon, otmp, false);
+      const nid = makemon(ctx, null, cc, { level: level.id });
+      const nmon = nid === null ? undefined : ctx.state.entities[String(nid)];
+      if (nmon && canSpotMon(ctx, nmon) && oseen) discover(ctx, WAN_CREATE_MONSTER);
+      return 2;
+    }
+    case 'scr_create_monster': {
+      if (!otmp) return 0;
+      let cnt = 1;
+      if (!ctx.rng.rn2(73)) cnt += ctx.rng.rnd(4);
+      const conf = isMConfused(ctx, id);
+      if (conf || otmp.c.item?.buc === 'cursed') cnt += 12;
+      const pm = conf && ctx.defs.isMonster(ACID_BLOB) ? ctx.defs.monster(ACID_BLOB) : null;
+      mreadmsg(ctx, mon, otmp);
+      let known = false;
+      while (cnt--) {
+        const cc = mnextoPos(ctx, level, null, { x: p.x, y: p.y });
+        if (!cc) break;
+        const nid = makemon(ctx, pm, cc, { level: level.id });
+        const nmon = nid === null ? undefined : ctx.state.entities[String(nid)];
+        if (nmon && canSpotMon(ctx, nmon)) known = true;
+      }
+      // "The only case where we don't use oseen."
+      if (known) discover(ctx, SCR_CREATE_MONSTER);
+      useOne(ctx, id, otmp);
+      return 2;
+    }
+    case 'lizard_corpse': {
+      if (!otmp) return 0;
+      // "not actually called for its unstoning effect"
+      monConsumeUnstone(ctx, mon, otmp);
+      return 2;
+    }
     default:
-      return 0; // the item cases of the next step
+      return 0; // MUSE_WAN_TELEPORTATION: never chosen (no Amulet)
   }
+}
+
+/**
+ * A zapped wand: "The kobold zaps a wand of digging!" (stopping her occupation), "The kobold zaps
+ * itself with a wand of teleportation (0:5)!", or unseen "You hear a nearby zap." / "You hear a
+ * distant zap." (and she forgets what she knew of the wand); a charge is used.
+ * ref: src/muse.c mzapwand()
+ */
+function mzapwand(ctx: Ctx, mon: Entity, otmp: Entity, self: boolean): void {
+  const it = otmp.c.item;
+  if (!it || it.spe < 1) return; // "Mon zapping wand with %d charges?"
+  if (!canseemon(ctx, mon)) {
+    say(ctx, heardNearby(ctx, mon) ? 'muse.hear_zap_near' : 'muse.hear_zap_far');
+    it.known = { buc: false, spe: false }; // unknow_object()
+  } else if (self) {
+    say(ctx, 'muse.zaps_self', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, otmp) });
+  } else {
+    say(ctx, 'muse.zaps', { mon: monNam(ctx, mon), item: xnameOf(ctx.state, ctx.defs, otmp) });
+    stopOccupation(ctx);
+  }
+  it.spe -= 1;
+}
+
+/**
+ * A read scroll: "The gnome lord reads a scroll of teleportation!" when seen; otherwise "You hear
+ * someone reading a scroll labeled FOO." (a square she could see within 10 remembers an unseen
+ * monster), and confused "Being confused, the gnome lord mispronounces the magic words..."
+ * ref: src/muse.c mreadmsg() (never deaf; the unseen reader is "someone"/"something": no
+ * meverseen; the "incant" rewording of an unknown label is not ported)
+ */
+function mreadmsg(ctx: Ctx, mon: Entity, otmp: Entity): void {
+  const it = otmp.c.item;
+  const one: Entity = it ? { ...otmp, c: { ...otmp.c, item: { ...it, quantity: 1 } } } : otmp;
+  if (canseemon(ctx, mon)) {
+    say(ctx, 'muse.reads', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, one) });
+  } else {
+    const p = mon.c.pos;
+    const hp = getPlayer(ctx.state).c.pos;
+    if (
+      p &&
+      hp &&
+      !canSpotMon(ctx, mon) &&
+      couldseeAt(ctx, p.x, p.y) &&
+      dist2(p.x, p.y, hp.x, hp.y) <= 10 * 10
+    )
+      mapInvisible(ctx, p.x, p.y);
+    // x_monnam(ARTICLE_A, AUGMENT_IT): "a gnome lord" when sensed, else "someone"/"something"
+    const who = someMonNam(ctx, mon);
+    say(ctx, 'muse.hear_reading', {
+      mon: who.startsWith('@pronoun.') ? who : { key: 'muse.a_mon', params: { mon: who } },
+      item: xnameOf(ctx.state, ctx.defs, one),
+    });
+  }
+  if (isMConfused(ctx, mon.id)) say(ctx, 'muse.mispronounces', { mon: monNam(ctx, mon) });
+}
+
+/**
+ * The monster eats a lizard corpse to cure its confusion and stun: "The gnome eats a lizard
+ * corpse." (unseen: "You hear chewing."), "The gnome seems steadier now." (not for bats and
+ * stalkers); a pet's hunger is put off by the meal's nutrition, and the meal takes its next move.
+ * ref: src/muse.c mon_consume_unstone() with `stoning` false (the stoning half, acid potions and
+ * acidic corpses come with munstone())
+ */
+function monConsumeUnstone(ctx: Ctx, mon: Entity, obj: Entity): void {
+  const vis = canseemon(ctx, mon);
+  const lizard = obj.def === CORPSE && obj.c.item?.corpseOf === LIZARD;
+  const nutrit = dogNutrition(ctx, mon, obj); // also sets meating
+  if (vis) {
+    const it = obj.c.item;
+    const one: Entity = it ? { ...obj, c: { ...obj.c, item: { ...it, quantity: 1 } } } : obj;
+    say(ctx, 'muse.eats', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, one) });
+  } else say(ctx, 'muse.hear_chewing');
+  useOne(ctx, mon.id, obj);
+  const id = mon.id;
+  if (lizard && (isMConfused(ctx, id) || isMStunned(ctx, id))) {
+    setMConfused(ctx, id, false);
+    setMStunned(ctx, id, false);
+    if (vis && !isBat(mon) && mon.def !== 'nh:stalker')
+      say(ctx, 'muse.steadier', { mon: monNam(ctx, mon) });
+  }
+  const edog = edogOf(ctx, id);
+  if ((mon.c.monster?.tame ?? 0) > 0 && edog && nutrit > 0) {
+    // (no minions)
+    if (edog.hungrytime < ctx.state.turn) edog.hungrytime = ctx.state.turn;
+    edog.hungrytime += nutrit;
+    setMConfused(ctx, id, false);
+  }
+  // "use up monster's next move"
+  if (mon.c.actor) mon.c.actor.energy -= NORMAL_SPEED;
+}
+
+/**
+ * A monster's wand of undead turning hits the hero (her carried corpses come alive, "You shudder
+ * in dread.") or a monster (its carried corpses; an undead one resists or takes `rnd(8)`, and
+ * is woken); the wand is known when seen to do something. ref: src/muse.c mbhitm()
+ * (WAN_UNDEAD_TURNING only; the other wands come with find_offensive())
+ */
+function mbhitm(ctx: Ctx, target: Entity | 'hero', oseen: boolean, bx: number, by: number): void {
+  let learnit = false;
+  if (target === 'hero') {
+    // unturn_you() (the hero is never undead here, as for her own zap)
+    unturnDead(ctx, 'hero', false);
+    say(ctx, 'zap.self.shudder');
+    learnit = oseen;
+  } else {
+    const levelId = target.c.pos?.level ?? ctx.state.currentLevel;
+    let wake = false;
+    let revealInvis = false;
+    if (unturnDead(ctx, target, false)) wake = true; // "affects mtmp's invent, not mtmp"
+    if (ctx.defs.monster(target.def).flags.includes('undead')) {
+      wake = revealInvis = true;
+      // context.bypasses: a corpse it leaves is not revived by this same zap
+      const before = new Set(itemsAt(ctx.defs, ctx.state, levelId, bx, by).map((o) => o.id));
+      resist(ctx, target, ctx.rng.rnd(8), 'wand', true);
+      for (const o of itemsAt(ctx.defs, ctx.state, levelId, bx, by))
+        if (!before.has(o.id)) bypassObj(o.id);
+    }
+    const alive = ctx.state.entities[String(target.id)] !== undefined;
+    if (wake) {
+      if (alive) wakeGently(ctx, target);
+      learnit = oseen;
+    }
+    if (revealInvis && alive && cansee(ctx, levelId, bx, by) && !canSpotMon(ctx, target))
+      mapInvisible(ctx, bx, by);
+  }
+  if (learnit) discover(ctx, WAN_UNDEAD_TURNING);
+}
+
+/**
+ * The monster's wand of undead turning travels from it toward `aim` for `range` squares: the
+ * hero or a monster on the way is hit (3 squares less), then the objects there (1 less); it stops
+ * at a wall, rock or a closed door. ref: src/muse.c mbhit(), fhito_loc() (the striking door and
+ * drawbridge cases come with find_offensive())
+ */
+function mbhit(ctx: Ctx, mon: Entity, range: number, wand: Entity, oseen: boolean, aim: Pos): void {
+  const p = mon.c.pos;
+  if (!p) return;
+  const level = getLevel(ctx.state, p.level);
+  const ddx = sgn(aim.x - p.x);
+  const ddy = sgn(aim.y - p.y);
+  let bx = p.x;
+  let by = p.y;
+  while (range-- > 0) {
+    bx += ddx;
+    by += ddy;
+    if (!inBounds(level, bx, by)) break;
+    const hp = getPlayer(ctx.state).c.pos;
+    if (hp && hp.level === level.id && hp.x === bx && hp.y === by) {
+      mbhitm(ctx, 'hero', oseen, bx, by);
+      range -= 3;
+    } else {
+      const mtmp = mAt(ctx.state, level.id, bx, by);
+      if (mtmp) {
+        if (cansee(ctx, level.id, bx, by) && !canSpotMon(ctx, mtmp)) mapInvisible(ctx, bx, by);
+        mbhitm(ctx, mtmp, oseen, bx, by);
+        range -= 3;
+      }
+    }
+    // fhito_loc(): every object there
+    let hit = 0;
+    for (const o of itemsAt(ctx.defs, ctx.state, level.id, bx, by))
+      if (ctx.state.entities[String(o.id)])
+        hit += bhito(ctx, o, { kind: 'wand', item: wand }, bx, by, false);
+    if (hit) range--;
+    // !ZAP_POS(typ) or a closed door
+    const tid = terrainIdAt(level, bx, by);
+    const t = tid === undefined ? undefined : ctx.defs.terrain(tid);
+    if (
+      !t ||
+      t.door === 'closed' ||
+      t.door === 'locked' ||
+      (!t.passable && t.door === undefined && tid !== T.iron_bars)
+    )
+      break;
+  }
+  clearBypasses();
 }
 
 /**
