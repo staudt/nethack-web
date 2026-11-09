@@ -656,11 +656,18 @@ function pitApproach(
  * forced trap gets this far). ref: src/trap.c trapeffect_pit() for the hero: no Flying,
  * clinging, steed or `m` prefix; no exercise or selftouch()
  */
-function pitYou(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean, from?: Pos): void {
+function pitYou(
+  ctx: Ctx,
+  levelId: string,
+  trap: Trap,
+  plunged: boolean,
+  from?: Pos,
+  viaSitting = false,
+): void {
   const soko = sokobanTrap(ctx, levelId, trap);
   const { conj, adj } = pitApproach(ctx, levelId, trap, from);
   // "KMH -- You can't escape the Sokoban level traps"
-  if (!soko && (levitating(ctx) || (flying(ctx) && !plunged))) return;
+  if (!soko && (levitating(ctx) || (flying(ctx) && !plunged && !viaSitting))) return;
   seetrap(trap); // feeltrap()
   if (!soko) {
     if (conj) say(ctx, 'trap.pit.move_adjacent');
@@ -946,7 +953,14 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
 export function dotrap(
   ctx: Ctx,
   trap: Trap,
-  opts: { plunged?: boolean; force?: boolean; from?: Pos; noWebMsg?: boolean } = {},
+  opts: {
+    plunged?: boolean;
+    force?: boolean;
+    from?: Pos;
+    noWebMsg?: boolean;
+    /** #sit on the trap (VIASITTING): a flyer is not up in the air; a level teleporter is triggered */
+    viaSitting?: boolean;
+  } = {},
 ): void {
   const levelId = heroPos(ctx).level;
   const t = liveTrap(ctx, levelId, trap) ?? trap;
@@ -958,7 +972,10 @@ export function dotrap(
   else if (!opts.force) {
     // floor_trigger() && check_in_air(): u_locomotion("step") is "float" or "fly"; a flyer who
     // plunged in does not fly over
-    if (floorTrigger(t.def) && (levitating(ctx) || (flying(ctx) && !opts.plunged))) {
+    if (
+      floorTrigger(t.def) &&
+      (levitating(ctx) || (flying(ctx) && !opts.plunged && !opts.viaSitting))
+    ) {
       if (t.seen)
         say(ctx, levitating(ctx) ? 'trap.float_over' : 'trap.fly_over', { trap: trapName(t) });
       return;
@@ -993,7 +1010,7 @@ export function dotrap(
       return rustTrapYou(ctx, t);
     case TRAP.pit:
     case TRAP.spikedPit:
-      return pitYou(ctx, levelId, t, opts.plunged === true, opts.from);
+      return pitYou(ctx, levelId, t, opts.plunged === true, opts.from, opts.viaSitting === true);
     case TRAP.trapdoor:
     case TRAP.hole:
       return fallThrough(ctx, levelId, t, opts.plunged === true);
@@ -1002,7 +1019,7 @@ export function dotrap(
       return teleTrap(ctx);
     case TRAP.levelTele:
       seetrap(t);
-      return levelTeleTrap(ctx, levelId, t, opts.force === true);
+      return levelTeleTrap(ctx, levelId, t, opts.force === true || opts.viaSitting === true);
     case TRAP.web:
       return webYou(ctx, levelId, t, opts.force === true, opts.noWebMsg !== true);
     default:

@@ -38,7 +38,8 @@ import { cpostfxOf } from './givit';
 import { die, losehp, losestr } from './hp';
 import { gainExperience } from './hero';
 import { done } from './end';
-import { fixPetrification, fleshPetrifies, isStoned } from './stonestate';
+import { fixPetrification, fleshPetrifies, isStoned, makeStoned } from './stonestate';
+import { EGG, staleEgg } from './eggstate';
 import {
   P,
   hasProp,
@@ -231,15 +232,18 @@ function adjVictualNutrition(ctx: Ctx, v: Victual): number {
 const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 
 /**
- * What the hero can eat: food, but a ghoul form only non-vegan corpses (and eggs, which do not
- * exist). ref: src/eat.c is_edible() (no unique objects; the metallivore, gelatinous cube and
+ * What the hero can eat: food, but a ghoul form only non-vegan corpses and eggs.
+ * ref: src/eat.c is_edible() (no unique objects; the metallivore, gelatinous cube and
  * fire elemental forms' non-food meals are not ported)
  */
 export function isEdible(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): boolean {
   const form = heroForm(ctx);
   if (form?.id === 'nh:ghoul') {
     const of = obj.c.item?.corpseOf;
-    return isCorpse(obj) && !!of && ctx.defs.isMonster(of) && !vegan(ctx.defs.monster(of));
+    return (
+      (isCorpse(obj) && !!of && ctx.defs.isMonster(of) && !vegan(ctx.defs.monster(of))) ||
+      obj.def === EGG
+    );
   }
   return ctx.defs.object(obj.def).class === 'food';
 }
@@ -615,6 +619,14 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
   const cursed = it?.buc === 'cursed';
   const item = foodName(ctx, e);
   switch (e.def) {
+    case EGG:
+      // (no pyrolisk egg explosion: DEVIATIONS.md)
+      if (it && staleEgg(ctx.state, it)) {
+        say(ctx, 'egg.rotten'); // perhaps others like it
+        // increasing existing nausea means that it will take longer before eventual vomit
+        makeVomiting(ctx, hungerData(ctx).vomiting + ctx.rng.d(10, 4), true);
+      } else say(ctx, cursed ? 'eat.terrible' : 'eat.delicious', { item }); // give_feedback
+      break;
     case 'nh:food_ration':
       // 200+800 remains below 1000+1, the satiation threshold
       if (nutrition <= 200) say(ctx, 'eat.hits_spot');
@@ -687,6 +699,13 @@ function garlicBreath(ctx: Ctx): void {
 
 /** Effects of finishing ordinary food. ref: src/eat.c fpostfx() */
 function fpostfx(ctx: Ctx, e: Entity): void {
+  // ref: fpostfx() EGG: a cockatrice egg starts the stoning (no stone golem form); note: no
+  // "tastes like chicken" message for eggs
+  const of = e.def === EGG ? e.c.item?.corpseOf : undefined;
+  if (of && ctx.defs.isMonster(of) && fleshPetrifies(ctx.defs.monster(of))) {
+    if (!hasProp(hero(ctx), P.STONE_RES) && !isStoned(ctx.state))
+      makeStoned(ctx, 5, null, `@egg.killer.${of}`);
+  }
   // ref: fpostfx() SPRIG_OF_WOLFSBANE: cures lycanthropy (and a were form)
   if (e.def === 'nh:sprig_of_wolfsbane') {
     const form = heroForm(ctx);

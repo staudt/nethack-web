@@ -46,11 +46,13 @@ import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
 import { fumbleMessagesEn } from './fumble.en';
+import { eggMessagesEn } from './egg.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
   ...shirtMessagesEn,
   ...fumbleMessagesEn,
+  ...eggMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,

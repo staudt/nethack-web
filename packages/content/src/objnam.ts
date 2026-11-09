@@ -13,6 +13,7 @@ import type {
 } from '@nh/core';
 import { contents, getPlayer } from '@nh/core';
 import { objKnown, rknown } from './items';
+import { EGG, knowsEgg } from './eggstate';
 import {
   isCorrodeable,
   isCrackable,
@@ -175,6 +176,16 @@ export function doname(
     params.buc = { key: `obj.buc.${it.buc}` };
 
   if (def.class === 'food' && it.eaten) params.eaten = { key: 'obj.eaten' };
+
+  // ref: doname_base() EGG: "cockatrice egg" when known (obj->known) or recognised
+  // (MV_KNOWS_EGG), and " (laid by you)"; the stale prefix is #if 0 in C
+  if (def.id === EGG && it.corpseOf && (it.known.spe || knowsEgg(state, it.corpseOf))) {
+    params.name = {
+      key: `${def.nameKey}.of${it.quantity !== 1 ? '.plural' : ''}`,
+      params: { mon: `@${it.corpseOf}` },
+    };
+    if (it.spe === 1) params.charges = { key: 'obj.laid_by_you' };
+  }
 
   // ref: doname_base(): "empty " goes before the BUC (containers never stack, so it takes the
   // count's place), "locked "/"unlocked "/"broken " after it, " containing N items" after the

@@ -3732,6 +3732,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     food: { nutrition: 0 },
   },
+  // ref: objects.h FOOD("egg", 85, 1, 1, 1, FLESH, 80, CLR_WHITE, EGG)
+  {
+    id: 'nh:egg',
+    nameKey: 'nh:egg',
+    class: 'food',
+    glyph: { ch: '%', fg: WHITE },
+    prob: 85,
+    weight: 1,
+    cost: 9,
+    material: 'flesh',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 80 },
+  },
   // ref: objects.h FOOD("meatball", 0, 1, 1, 0, FLESH, 5, CLR_BROWN, MEATBALL)
   // (this one and the next three are made only by stone to flesh: stoneflesh.ts)
   {

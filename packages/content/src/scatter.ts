@@ -27,7 +27,7 @@ import { formHatesSilver } from './silver';
 import { stopOccupation } from './eat';
 import { boulderFlooreffects } from './flooreffects';
 import { placeOnFloor, splitStack, weight } from './items';
-import { breaktest } from './material';
+import { breakmsg, breaktest } from './material';
 import { xnameOf } from './objnam';
 import { ohitmon, thitu } from './mthrowu';
 import { TRAP, cansee } from './trap';
@@ -238,11 +238,7 @@ export function scatter(
  */
 function breaks(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
   if (!breaktest(ctx, obj)) return false;
-  if (cansee(ctx, ctx.state.currentLevel, x, y))
-    say(ctx, (obj.c.item?.quantity ?? 1) !== 1 ? 'kick.shatter' : 'kick.shatters', {
-      item: ctx.defs.itemName(ctx.state, obj),
-    });
-  else say(ctx, 'zap.hear_shatter');
+  breakmsg(ctx, obj, cansee(ctx, ctx.state.currentLevel, x, y));
   ctx.remove(obj.id);
   return true;
 }

@@ -1,4 +1,6 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
+import { EGG } from './eggstate';
+import { hitWithEgg } from './egghit';
 import { minstapetrify } from './stoning';
 import { corpseName, petrifyingCorpse } from './stonetouch';
 import { resistsSton } from './stonestate';
@@ -458,6 +460,14 @@ export function knownHitum(
       train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
     }
     silverMsg = silverHit;
+  } else if (weapon.item.def === EGG) {
+    // hmon_hitmon_misc_obj() EGG: nominal physical damage, no bonus, the message always given;
+    // a cockatrice egg stones the monster and hmon() returns
+    dmg = 1;
+    strBonus = false;
+    hittxt = true;
+    if (hitWithEgg(ctx, target, weapon.item, false) === 'stoned')
+      return ctx.state.entities[String(targetId)]?.c.monster !== undefined;
   } else if (weapon.item.def === 'nh:corpse') {
     // hmon_hitmon_misc_obj() CORPSE: a cockatrice corpse turns the monster to stone
     if (petrifyingCorpse(ctx, weapon.item)) {

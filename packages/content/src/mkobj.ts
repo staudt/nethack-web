@@ -3,7 +3,8 @@
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
 import { putIn } from '@nh/core';
 import { rndmonst, setLevelObjectAt } from './generation';
-import { mksobj, type MksobjOpts } from './items';
+import { mksobj, setEggInit, type MksobjOpts } from './items';
+import { canBeHatched, deadSpecies } from './eggstate';
 import { startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 import { STATUE } from './statuestate';
@@ -178,7 +179,8 @@ export function mksobjFull(
   gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
 ): EntityId {
   if (def.id === STATUE) return mksobjStatue(ctx, def, opts, gen);
-  const id = mksobj(ctx, def, opts);
+  const level = opts.level ?? gen.level;
+  const id = mksobj(ctx, def, level !== undefined ? { ...opts, level } : opts);
   if ((opts.init ?? true) && def.container) {
     mkboxCnts(ctx, id, {
       level: gen.level ?? opts.at?.level ?? ctx.state.currentLevel,
@@ -301,6 +303,16 @@ export function mkobjAt(
 ): EntityId | null {
   return mkobj(ctx, oclass, { at, inMklev });
 }
+
+// mksobj_init() EGG: a typed egg 1 time in 3. ref: src/mkobj.c mksobj_init() EGG
+setEggInit((ctx, level) => {
+  if (ctx.rng.rn2(3)) return null; // generic egg
+  for (let tryct = 200; tryct > 0; --tryct) {
+    const mndx = canBeHatched(ctx, rndmonnum(ctx, depthOf(ctx, level)).id);
+    if (mndx !== null && !deadSpecies(mndx)) return mndx; // typed egg
+  }
+  return null;
+});
 
 // makemon()'s S_SPIDER/S_SNAKE level-creation object. ref: src/makemon.c makemon()
 setLevelObjectAt((ctx, at) => {

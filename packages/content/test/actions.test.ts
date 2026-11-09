@@ -236,7 +236,7 @@ describe('offers', () => {
 
   test('self offers wait and search with source nh', () => {
     const { q } = queryFor(['@']);
-    // plus run (asks a direction) and the item actions that apply anywhere: drop several (the kit), swap weapons (the kit has an alternate) and discoveries, then kick, call, pray and enhance, and quit last
+    // plus run (asks a direction) and the item actions that apply anywhere: drop several (the kit), swap weapons (the kit has an alternate) and discoveries, then kick, call, pray and enhance, then sit and quit last
     expect(q.actionsFor({ kind: 'self' })).toEqual([
       { action: { type: 'wait' }, labelKey: 'action.wait', source: 'nh' },
       { action: { type: 'search' }, labelKey: 'action.search', source: 'nh' },
@@ -266,7 +266,13 @@ describe('offers', () => {
         labelKey: 'action.nh:enhance',
         source: 'nh',
       },
-      // #quit, always last
+      // #sit (always there), then #quit, always last
+      {
+        action: { type: 'mod', action: 'nh:sit' },
+        labelKey: 'action.nh:sit',
+        priority: -99,
+        source: 'nh',
+      },
       {
         action: { type: 'mod', action: 'nh:quit' },
         labelKey: 'action.nh:quit',

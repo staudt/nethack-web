@@ -40,9 +40,10 @@ const fountainStartMod: Mod = {
 // with the fountain-state invariant checked as it goes.
 describe('soak at fountains', () => {
   // seeds whose bot uses a fountain within the 300 turns (re-picked in m7b step 2, m7f-a step 3,
-  // m7f-b step 2, m11 step 3 and m11 step 4: new objects shifted the object pools and shuffles; 4
-  // before m11 step 4, 3 before m11 step 3, 4 before m7f-b step 2, 1 before)
-  for (const seed of [2, 3]) {
+  // m7f-b step 2, m11 step 3, m11 step 4 and m11 step 5: new objects shifted the object pools and
+  // shuffles, and step 5's "Sit" offer the bot's random picks; 2 before m11 step 5, 4 before m11
+  // step 4, 3 before m11 step 3, 4 before m7f-b step 2, 1 before)
+  for (const seed of [1, 3]) {
     test(`seed ${seed}: 300 turns among fountains`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod, fountainStartMod], { seed, turns: 300, checkEvery: 1 });
       console.log(

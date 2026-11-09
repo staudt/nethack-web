@@ -158,8 +158,8 @@ const AFTER_SLIME_MOLD = new Set([
 
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
- * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, eggs
- * (none exist), slime, tins, polymorph food, metallivores.
+ * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, slime, tins,
+ * polymorph food, metallivores.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
   const mdef = ctx.defs.monster(mon.def);
@@ -169,7 +169,7 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
     const fx = obj.c.item?.corpseOf;
     // c*ckatrice or Medusa
     if (
-      obj.def === 'nh:corpse' &&
+      (obj.def === 'nh:corpse' || obj.def === 'nh:egg') &&
       fx &&
       ctx.defs.isMonster(fx) &&
       fleshPetrifies(ctx.defs.monster(fx)) &&
@@ -187,6 +187,16 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
       case 'nh:meat_stick':
       case 'nh:enormous_meatball':
         return carni ? DOGFOOD : MANFOOD;
+      case 'nh:egg':
+        // ref: likes_fire(): fire vortex, flaming sphere and the lava-lovers
+        if (
+          fx === 'nh:pyrolisk' &&
+          !['nh:fire_vortex', 'nh:flaming_sphere', 'nh:fire_elemental', 'nh:salamander'].includes(
+            mdef.id,
+          )
+        )
+          return POISON;
+        return carni ? CADAVER : MANFOOD;
       case 'nh:corpse': {
         const fx = obj.c.item?.corpseOf;
         const fptr = fx && ctx.defs.isMonster(fx) ? ctx.defs.monster(fx) : null;

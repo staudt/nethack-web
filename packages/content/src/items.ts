@@ -29,9 +29,13 @@ import {
 import { setBoxTknown, setBoxTrapped } from './btrapstate';
 import { CHARGED_RINGS } from './objects';
 import { mergeBills, samePrice, splitbill } from './eshk';
+import { EGG, attachEggHatchTimeout, deadSpecies, eggHatchAt, splitEggTimer } from './eggstate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
-export type ItemCtx = Pick<Ctx, 'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove'>;
+export type ItemCtx = Pick<
+  Ctx,
+  'state' | 'rng' | 'defs' | 'emit' | 'spawn' | 'remove' | 'schedule'
+>;
 
 /**
  * Number of successes of a 1/x chance, capped; ref: src/rnd.c rne().
@@ -104,8 +108,9 @@ const ALWAYS_CURSED_ARMOR: readonly string[] = [
  * Random initialization of an object's BUC, enchantment, quantity and erosion.
  * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
  * (`erode` false for the hero's starting inventory). Simplified: poisonable weapons roll for
- * poison but are never poisoned, no artifacts; food has no corpse/egg/tin/slime-mold special
- * cases (the corpse is made through mkcorpse(), which supplies the monster).
+ * poison but are never poisoned, no artifacts; food has no corpse/tin/slime-mold special
+ * cases (the corpse is made through mkcorpse(), which supplies the monster; mksobj() rolls the
+ * egg's monster first).
  */
 export function mksobjInit(
   ctx: Pick<ItemCtx, 'state' | 'rng'>,
@@ -243,8 +248,10 @@ export interface MksobjOpts {
   at?: { level: LevelId; x: number; y: number };
   /** ... or put into this entity's inventory (merging). Neither: the item is left detached. */
   carriedBy?: EntityId;
-  /** Corpses (required) and statues: the monster. */
+  /** Corpses (required), statues and eggs: the monster. */
   corpseOf?: DefId;
+  /** The level whose difficulty a random monster (an egg's) follows; default `at`'s, else the hero's. */
+  level?: LevelId;
   /** mksobj's `artif`: rolls the artifact chance (the roll is made; no artifact results). */
   artif?: boolean;
   /** The hero's starting inventory (`moves <= 1 && !in_mklev`): never made eroded. */
@@ -257,6 +264,16 @@ export interface MksobjOpts {
  * A detached item (no `at`/`carriedBy`) is in no place yet and must be placed by the caller
  * before the step ends. Corpses must pass `corpseOf` (random corpses are not implemented).
  */
+/**
+ * mksobj_init()'s EGG roll: `!rn2(3)` then up to 200 tries of can_be_hatched(rndmonnum()) for a
+ * typed egg. mkobj.ts registers it (rndmonnum() sits above this module); null: a generic egg.
+ */
+export type EggInit = (ctx: ItemCtx, level: LevelId) => DefId | null;
+let eggInit: EggInit | null = null;
+export function setEggInit(fn: EggInit): void {
+  eggInit = fn;
+}
+
 export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): EntityId {
   const { state } = ctx;
   const it: ItemComponent = {
@@ -274,12 +291,23 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
     if (!opts.corpseOf) throw new Error('mksobj: a corpse needs corpseOf (use mkcorpse)');
     it.corpseOf = opts.corpseOf;
   } else if (def.id === 'nh:statue' && opts.corpseOf) it.corpseOf = opts.corpseOf;
+  const egg = def.id === EGG;
+  if (egg) {
+    // ref: mksobj_init() EGG (before the food's quantity roll); a given monster overrides it
+    // as set_corpsenm() would after mksobj()
+    const level = opts.level ?? opts.at?.level ?? state.currentLevel;
+    const mon = (opts.init ?? true) && eggInit ? eggInit(ctx, level) : null;
+    if (mon) it.corpseOf = mon;
+    if (opts.corpseOf) it.corpseOf = opts.corpseOf;
+  }
   const trap =
     (opts.init ?? true)
       ? mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory)
       : null;
   if (opts.quantity !== undefined) it.quantity = opts.quantity;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
+  // ref: mksobj() -> set_corpsenm(): a viable egg gets its hatch timer (before it can merge)
+  if (egg && !deadSpecies(it.corpseOf)) attachEggHatchTimeout(ctx, id, 0);
   if (trap?.otrapped) setBoxTrapped(ctx, id, true);
   if (trap?.tknown) setBoxTknown(ctx, id, true);
   if (opts.at) return placeOnFloor(ctx, id, opts.at.level, opts.at.x, opts.at.y);
@@ -400,8 +428,8 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * matter: a picked-up dagger joins the wielded stack, as in NetHack.
  * Candles merge only when their ages are close. Shop state must match (unpaid, no charge), and
  * unpaid stacks only merge at the same price on the same bill (`state` is needed for that; without
- * it unpaid stacks never merge). Not ported: grease, light, names, artifacts, eggs/tins, reviving
- * corpses.
+ * it unpaid stacks never merge). Eggs merge only with the same monster and no hatch timer.
+ * Not ported: grease, light, names, artifacts, tins, reviving corpses.
  */
 export function mergable(
   defs: Registry,
@@ -423,7 +451,15 @@ export function mergable(
   if ((a.erosion?.e2 ?? 0) !== (b.erosion?.e2 ?? 0)) return false;
   if (erosionMatters(def) && (a.erodeproof ?? false) !== (b.erodeproof ?? false)) return false;
   if (def.class === 'food' && (a.eaten ?? 0) !== (b.eaten ?? 0)) return false;
-  if (def.id === 'nh:corpse' && a.corpseOf !== b.corpseOf) return false;
+  if ((def.id === 'nh:corpse' || def.id === EGG) && a.corpseOf !== b.corpseOf) return false;
+  // hatching eggs don't merge (a typed egg's timer is unknown without the state)
+  if (
+    def.id === EGG &&
+    (state
+      ? eggHatchAt(state, into.id) !== null || eggHatchAt(state, obj.id) !== null
+      : a.corpseOf !== undefined)
+  )
+    return false;
   // allow candle merging only if their ages are close
   if (isCandle(def.id) && Math.trunc((a.age ?? 0) / 25) !== Math.trunc((b.age ?? 0) / 25))
     return false;
@@ -796,6 +832,8 @@ export function splitStack(ctx: ItemCtx, itemId: EntityId, n: number): EntityId 
   if (!def) throw new Error('splitStack: missing def');
   const id = ctx.spawn({ def, c: { item: child } });
   if (rknown(ctx.state, itemId)) setRknown(ctx, id, true);
+  // obj_split_timers(): a hatching egg's split-off part keeps the timer
+  if (def === EGG) splitEggTimer(ctx, itemId, id);
   if (it.unpaid) splitbill(ctx, itemId, id, n);
   return id;
 }

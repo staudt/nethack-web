@@ -12,9 +12,10 @@
 // shapeshifters, genocide ("You feel rather gnome-ish."), golems (stone golem when stoned), light
 // sources of shining forms, mimicking and hiding, a hero who sticks to a monster (no such forms
 // fight yet), pools and lava under the new form, Passes_walls and buried balls, the amulet of
-// strangulation's can_be_strangled(), slippery fingers, eggs, the `#monster` hints and
+// strangulation's can_be_strangled(), slippery fingers, the `#monster` hints and
 // conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
+import { eggTypeFromParent, laysEggs, learnEggType } from './eggstate';
 import {
   getPlayer,
   type ActionDef,
@@ -554,6 +555,12 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   const ut = utrap(ctx);
   if (ut?.type === 'pit') setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // time to escape resets
   if (wasBlind && !hasProp(h, P.BLINDED)) makeBlinded(ctx, 0, true); // previous form was eyeless
+
+  // you now know what an egg of your type looks like (and queen bees killer bee eggs)
+  if (laysEggs(def)) {
+    learnEggType(ctx, mntmp);
+    learnEggType(ctx, eggTypeFromParent(ctx, mntmp, true));
+  }
 
   const sw = uswallow(ctx);
   const stuck = ustuck(ctx);

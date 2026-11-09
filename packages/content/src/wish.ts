@@ -1,6 +1,7 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
+import { EGG, canBeHatched, setEggCorpsenm } from './eggstate';
 import { setBoxTrapped } from './btrapstate';
 import {
   contents,
@@ -162,6 +163,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     if (def.id === 'nh:corpse') {
       if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
         it.corpseOf = mon.id;
+    } else if (def.id === EGG) {
+      // ref: readobjnam() EGG: can_be_hatched(); set_corpsenm() also sets the hatch timer
+      setEggCorpsenm(ctx, id, canBeHatched(ctx, mon.id));
     } else if (def.id === STATUE) {
       it.corpseOf = mon.id;
       // no spellbook in a statue of a very small monster

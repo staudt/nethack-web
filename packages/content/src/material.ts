@@ -102,11 +102,36 @@ export function armBonus(def: ObjectDef, item: Entity): number {
 }
 
 /**
- * Whether the object breaks when it hits something hard: potions and glass (not gems); 1% resist.
- * Eggs, cream pies, melons, venom and cameras do not exist. ref: src/dothrow.c breaktest()
+ * Whether the object breaks when it hits something hard: potions, eggs and glass (not gems);
+ * 1% resist. Cream pies, melons and cameras do not exist (venom is handled by its callers).
+ * ref: src/dothrow.c breaktest()
  */
 export function breaktest(ctx: Pick<Ctx, 'rng' | 'defs'>, e: Entity): boolean {
   const od = ctx.defs.object(e.def);
   if (ctx.rng.rn2(100) < 1) return false; // obj_resists(obj, 1, 99)
-  return od.class === 'potion' || (od.material === 'glass' && od.class !== 'gem');
+  return (
+    od.class === 'potion' || od.id === 'nh:egg' || (od.material === 'glass' && od.class !== 'gem')
+  );
+}
+
+/**
+ * The breakage line: "Splat!" for an egg, else "The potion shatters!" (or "You hear something
+ * shatter!" out of view). ref: src/dothrow.c breakmsg()
+ */
+export function breakmsg(
+  ctx: Pick<Ctx, 'state' | 'defs' | 'emit'>,
+  e: Entity,
+  inView: boolean,
+): void {
+  if (e.def === 'nh:egg') {
+    ctx.emit({ type: 'msg', key: 'egg.splat' });
+    return;
+  }
+  if (inView)
+    ctx.emit({
+      type: 'msg',
+      key: (e.c.item?.quantity ?? 1) !== 1 ? 'kick.shatter' : 'kick.shatters',
+      params: { item: ctx.defs.itemName(ctx.state, e) },
+    });
+  else ctx.emit({ type: 'msg', key: 'zap.hear_shatter' });
 }

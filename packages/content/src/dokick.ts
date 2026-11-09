@@ -12,6 +12,8 @@
 // Also not ported: traps but statue traps, boxes and chests, thrones, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
+import { EGG } from './eggstate';
+import { breakEggs } from './egghit';
 import { bareCorpseTouch } from './stonetouch';
 import { activateStatueTrap } from './statue';
 import { TRAP, mintrap } from './trap';
@@ -274,10 +276,13 @@ function unitWeight(ctx: Ctx, e: Entity): number {
   return weight(ctx.defs, { ...e, c: { ...e.c, item: { ...it, quantity: 1 } } }, ctx.state);
 }
 
-/** ref: src/dothrow.c breaktest(): potions and glass (but not gems) break; eggs and such do not exist */
+/**
+ * ref: src/dothrow.c breaktest(): potions, eggs and glass (but not gems) break (the 1% resistance
+ * roll is not made here)
+ */
 function fragile(ctx: Ctx, e: Entity): boolean {
   const od = ctx.defs.object(e.def);
-  return od.class === 'potion' || (od.material === 'glass' && od.class !== 'gem');
+  return od.class === 'potion' || e.def === EGG || (od.material === 'glass' && od.class !== 'gem');
 }
 
 /**
@@ -386,6 +391,11 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
 
   // ref: hero_breaks(): fragile objects should not be kicked
   if (fragile(ctx, pile)) {
+    if (pile.def === EGG) {
+      say(ctx, 'egg.splat'); // breakmsg()
+      breakEggs(ctx, pile, true);
+      return true;
+    }
     say(ctx, it.quantity === 1 ? 'kick.shatters' : 'kick.shatter', {
       item: ctx.defs.itemName(ctx.state, pile),
     });

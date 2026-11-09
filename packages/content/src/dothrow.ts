@@ -75,6 +75,9 @@ import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
 import { P, hasProp, heroHas, ringBonus, wornIn } from './props';
 import { hmonThrownHit, missileMsg, type Shot } from './hmon';
+import { EGG } from './eggstate';
+import { breakEggs, hitWithEgg } from './egghit';
+import { breaktest } from './material';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -129,8 +132,8 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
  * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() plus the launcher's skill damage
  * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
  * missile (should_mulch_missile). Rings of increase accuracy and damage count; gauntlets of power (-2) and of
- * fumbling (-3) hinder a bow. Not ported: racial bows,
- * unicorns, the quest leader, boomerangs and balls, eggs and cream pies, thrown potions (they
+ * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). Not ported: racial bows,
+ * unicorns, the quest leader, boomerangs and balls, cream pies, thrown potions (they
  * land without breaking), taming with food, passive responses, poison, knockback. Silver sears
  * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
  * thrown penalty, melee damage, a miss wakes the monster, and the pole is never used up.
@@ -197,6 +200,13 @@ export function thitmonst(
   }
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
+    // ref: thitmonst(): an egg hits if `guaranteed_hit || ACURR(A_DEX) > rnd(25)`; hmon() uses
+    // it up (or leaves the rock it became)
+    if (obj.def === EGG && (guaranteedHit || dex > ctx.rng.rnd(25))) {
+      if (hitWithEgg(ctx, mon, obj, true) === 'hit')
+        hmonThrownHit(ctx, mon, 1, missile, shot, null, true);
+      return true;
+    }
     // ref: thitmonst(): food thrown to a domestic animal (or to a pet that wants it) may tame it
     // or be caught and eaten (befriend_with_obj(); no monkeys or unicorns here)
     if (
@@ -414,6 +424,14 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       msg(ctx, `throw.floor${it.quantity !== 1 ? '_pl' : ''}`, {
         item: ctx.defs.itemName(ctx.state, obj),
       });
+    // hero_breaks(obj, u.ux, u.uy, BRK_FROM_INV): an egg breaks on the floor
+    if (obj.def === EGG && breaktest(ctx, obj)) {
+      msg(ctx, 'egg.splat');
+      if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj))
+        checkShopObj(ctx, obj, pos.x, pos.y, true);
+      breakEggs(ctx, obj, true);
+      return;
+    }
     // dropy() -> dropz(): sold without asking on a costly spot (stackobj() comes after)
     sellobj(ctx, obj, pos.x, pos.y, sellobjState('normal'));
     placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
@@ -479,6 +497,15 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   if (odef.class === 'venom') {
     msg(ctx, 'throw.venom_splash');
     ctx.remove(objId);
+    return;
+  }
+  // ref: throwit(): `!IS_SOFT() && breaktest(obj)`: an egg breaks where it lands, "Splat!"
+  // (breakmsg()), then breakobj() (the shop's charge first). Thrown potions and glass still land
+  // whole here (DEVIATIONS.md).
+  if (obj.def === EGG && breaktest(ctx, obj)) {
+    msg(ctx, 'egg.splat');
+    if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj)) checkShopObj(ctx, obj, x, y, true);
+    breakEggs(ctx, obj, true);
     return;
   }
   // charge for items thrown out of shop; shk takes possession for items thrown into one

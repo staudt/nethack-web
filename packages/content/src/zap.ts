@@ -58,6 +58,8 @@ import {
 import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { breaktest } from './material';
+import { EGG, attachEggHatchTimeout, deadSpecies } from './eggstate';
+import { breakEggs } from './egghit';
 import { bypassObj, clearBypasses, isBypassed } from './bypass';
 import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
@@ -922,6 +924,12 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       // hero_breaks(): something fragile breaks (heard if not seen)
       if (!breaktest(ctx, obj)) break;
       const it = obj.c.item;
+      if (obj.def === EGG) {
+        say(ctx, 'egg.splat'); // breakmsg()
+        breakEggs(ctx, obj, true);
+        learnIt = true;
+        break;
+      }
       if (cansee(ctx, x, y))
         say(ctx, it && it.quantity !== 1 ? 'kick.shatter' : 'kick.shatters', {
           item: xnameOf(ctx.state, ctx.defs, obj),
@@ -948,7 +956,12 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       res = stoneToFleshObj(ctx, obj);
       break;
     case WAN.undeadTurning: {
-      // eggs: nothing hatches yet (revive_egg() not ported)
+      // ref: revive_egg(): generic eggs with no monster will never hatch
+      if (obj.def === EGG) {
+        const of = obj.c.item?.corpseOf;
+        if (of && !deadSpecies(of)) attachEggHatchTimeout(ctx, obj.id, 0);
+        break;
+      }
       if (obj.def !== CORPSE) break;
       const corpsname = cxnameSingular(ctx, obj);
       // get corpse's location before revive() uses it up

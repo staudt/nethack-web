@@ -84,7 +84,7 @@ export interface ItemComponent {
   equipped: EquipSlot | null;
   /** Placement sequence (from `state.seq`); the highest on a cell is the top of the pile. */
   placed: number;
-  /** Corpses and statues: the monster it was or shows (obj->corpsenm). */
+  /** Corpses, statues and eggs: the monster it was, shows or holds (obj->corpsenm). */
   corpseOf?: DefId;
   /** Turn the object was created (obj->age), for rotting. */
   age?: number;

@@ -3,6 +3,7 @@
 // seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_earth(),
 // seffect_blank_paper(), seffect_teleportation(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
 // src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
+import { EGG, learnEggType } from './eggstate';
 import { adjAbon } from './dowear';
 import {
   NORMAL_SPEED,
@@ -102,9 +103,10 @@ function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
 
 /**
  * Whether obj->known matters for the type (oc_uses_known; for the others NetHack sets it at
- * creation): weapons, armor, wands and charged rings.
+ * creation): weapons, armor, wands, charged rings and eggs.
  */
 const usesKnown = (def: ObjectDef): boolean =>
+  def.id === EGG ||
   isWeaponOrWeptool(def) ||
   def.class === 'armor' ||
   def.class === 'wand' ||
@@ -142,6 +144,7 @@ export function fullyIdentify(ctx: Ctx, e: Entity): void {
   const def = ctx.defs.object(e.def);
   if (def.container) setCknown(ctx, e.id, true);
   if (def.container?.box) setLknown(ctx, e.id, true);
+  if (e.def === EGG && it.corpseOf) learnEggType(ctx, it.corpseOf);
 }
 
 const unidentified = (ctx: Ctx): Entity[] =>

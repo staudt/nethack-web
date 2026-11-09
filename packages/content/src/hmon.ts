@@ -48,7 +48,8 @@ export const missileMsg = (
  * "The dagger hits the newt." and woken; hitting a peaceful watchman or temple priest angers the
  * Watch, and a priest's god strikes 1 time in 2; `silverObj` sears a silver-hater ("Your silver
  * arrow sears the imp's flesh!"). Also used for a boulder falling on a monster
- * trapped in a pit (do.c flooreffects() calls hmon(HMON_THROWN)).
+ * trapped in a pit (do.c flooreffects() calls hmon(HMON_THROWN)). `hittxt`: the hit was already
+ * described (an egg's "Splat!"), so there is no "hits" line.
  * ref: src/uhitm.c hmon(), hmon_hitmon() (pet, damage, hmon_hitmon_msg_hit(), killed())
  */
 export function hmonThrownHit(
@@ -58,6 +59,7 @@ export function hmonThrownHit(
   missile: Msg,
   shot: Shot = { i: 1, n: 1 },
   silverObj: Entity | null = null,
+  hittxt = false,
 ): void {
   const m = mon.c.monster;
   if (!m) return;
@@ -84,9 +86,10 @@ export function hmonThrownHit(
     gainExperience(ctx, heroEntity(ctx).id, experienceFor(mdef, m.level));
   } else {
     // ref: src/uhitm.c hmon_hitmon_msg_hit(): "The dagger hits the newt" + exclam(dmg)
-    missileMsg(ctx, exclam(dmg) === '!' ? 'throw.hit_hard' : 'throw.hit', shot, missile, {
-      mon: name,
-    });
+    if (!hittxt)
+      missileMsg(ctx, exclam(dmg) === '!' ? 'throw.hit_hard' : 'throw.hit', shot, missile, {
+        mon: name,
+      });
     if (silverObj) silverSearsMon(ctx, mon, silverObj);
     wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
