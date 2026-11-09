@@ -1,0 +1,41 @@
+# Kickoff: NetHack TypeScript port, milestone 14 (draft)
+
+Milestone 14 is **monster item use**: NetHack's muse.c. Monsters drink healing potions, flee up and down stairs, through trap doors, holes they dig and teleport traps, read teleportation and create monster, zap attack wands at the hero (the first shot always misses), hurl potions of sleeping, blindness, confusion, paralysis and acid, read the scroll of earth, drink speed, invisibility, gain level and polymorph, disarm the hero with a bullwhip, cure their own stoning and sliming, reflect rays with a shield or amulet, wear amulets of life saving, and are generated carrying such items. The hero's thrown potions now break with their vapors. Seven steps. Read `CLAUDE.md`, `docs/ARCHITECTURE.md` and `DEVIATIONS.md` first, then the plan (`~/.claude/plans/m14.md`).
+
+Almost everything is content: a new `muse.ts` (the find/use pairs, called from `monmove.ts`), a leaf `musestate.ts`, `potionhit.ts`, and munstone()/munslime() late-bound into their low callers. There is no core change and no save-format change: new per-monster state (`mwandexp`, `mseenres`, the stairs a migrating monster took) lives in `modData.nh` tables. Every object and monster the milestone needs already exists; nothing new comes from the converter.
+
+## Scope
+
+1. **The framework, escapes and healing:** `find_defensive()`/`use_defensive()`, `precheck()` (a cursed wand can blow up), the quaff, read and zap messages, healing potions, fleeing by stairs, branch stairs, trap doors, holes and teleport traps (arriving on the matching stairs below or above, or leaving the dungeon from level 1), the dochug() hook and the cornered monster's escape (ref: src/muse.c find_defensive(), use_defensive(), precheck(), mquaffmsg(), mreadmsg(), mzapwand(), mon_escape(); src/monmove.c dochug(), m_move(); src/dog.c migrate_to_level()).
+2. **Defensive items:** scrolls and wands of teleportation, the wand of digging, wands and scrolls of create monster, the unicorn horn (a carried one or a unicorn's own), the lizard corpse, the mercenary's bugle, the wand of undead turning against a cockatrice-corpse wielder (ref: src/muse.c use_defensive(), m_tele(), m_sees_sleepy_soldier(); src/music.c awaken_soldiers()).
+3. **Offensive wands:** death, sleep, fire, cold, lightning and magic missile through `buzz()`, striking, teleportation and undead turning through `mbhit()`, the first-shot miss (`mwandexp`), monsters remembering the hero's resistances and reflection (`m_seenres()`), the mattacku() hook and "move then shoot"; angry shopkeepers zap their wands (ref: src/muse.c find_offensive(), use_offensive(), mbhit(), mbhitm(); src/zap.c dobuzz(); src/mhitu.c mattacku(), monstseesu()).
+4. **Thrown potions and the scroll of earth:** `potionhit()` on the hero and on monsters, `potionbreathe()` vapors, monsters hurling paralysis, blindness, confusion, sleeping and acid, the hero's thrown potions breaking, a monster reading earth, vapors from boiled and forced potions (ref: src/potion.c potionhit(), potionbreathe(); src/mthrowu.c m_throw(); src/dothrow.c throwit(), breakobj(); src/muse.c use_offensive()).
+5. **Misc items:** gain level (cursed: up through the ceiling), make invisible and invisibility, speed monster and speed, polymorph wand and potion, jumping onto a polymorph trap, the bullwhip disarm, looting a carried bag (ref: src/muse.c find_misc(), use_misc(), mloot_container(), you_aggravate()).
+6. **munstone, munslime, reflection and amulets:** monsters curing stoning (lizard and acidic corpses, acid) and sliming (fire breath, wand or scroll of fire, a fire trap), `mon_reflects()` at every site, monsters wearing amulets of life saving and reflection, `lifesaved_monster()` (ref: src/muse.c munstone(), mon_consume_unstone(), munslime(), muse_unslime(), mon_reflects(); src/worn.c m_dowear(); src/mon.c lifesaved_monster()).
+7. **Acquisition:** `rnd_defensive_item()`, `rnd_offensive_item()` and `rnd_misc_item()` give their items at creation (and the soldier's missing `rn2(13)`), `searches_for_item()` whole, magic lovers and the muse corpses in pickup (ref: src/makemon.c m_initweap(), m_initinv(); src/muse.c rnd_*_item(), searches_for_item(); src/monmove.c mon_would_take_item(); src/mon.c mpickstuff()).
+
+## Out of scope
+
+Fire, frost and tooled horns and the expensive camera (no rows), tins and tin openers, the potion of oil, globs of green slime, ladders, the ghost in a milky potion and the djinni in a smoky one, the Ki-rin, Pestilence, Vlad and the Wizard's special cases, monsters carrying the Amulet, Elbereth, roles and races. The full list with reasons is in the plan.
+
+## Exit criteria
+
+- On a phone with `?wizard=1`, using genesis and wishes (dropping an item where a hostile will pick it up):
+  - a wounded monster drinks a potion of healing, and one on the stairs escapes and is found by the stairs on the next level;
+  - a monster digs a hole and falls through, reads a scroll of teleportation, and uses a unicorn horn when confused;
+  - a monster zaps a wand of fire (the first bolt misses), a shield of reflection reflects it, and an angry shopkeeper zaps his wand of striking;
+  - a monster hurls a potion of sleeping that shatters on you, and your thrown potion puts a monster to sleep;
+  - a weak monster drinks speed, invisibility and gain level, and zaps itself with polymorph;
+  - a stoning monster eats a lizard corpse ("seems limber!") and a monster's amulet of life saving saves it once.
+- In a normal game monsters are generated with NetHack's defensive, offensive and misc items at its rates, pick up the ones they want, and use them.
+- Replays and the golden test are deterministic. Every golden change has a verified cause in its commit (expected in step 7, possibly step 1), and `pnpm check` is green locally and in CI.
+
+## Testing
+
+- Unit tests for every muse case (each defensive, offensive and misc item, each escape), precheck()'s backfire, mbhit() on the hero, monsters and objects, potionhit() for each potion on the hero and on a monster, vapors, munstone(), munslime(), mon_reflects(), life saving, and the creation and pickup rules. Use searched seeds or pinned monsters, never lucky ones.
+- Seed-dependent tests moved by fleeing monsters (step 1) or by creation items (step 7) are re-fitted by seed search or pinning, not weakened, and each re-fit is checked with the step's behaviour switched off.
+- A new soak (`soak.muse`) runs the bot among monsters carrying muse items and keeps its invariants (no negative charges, items in one place only, migrating monsters off the map).
+
+## Status
+
+(Filled in by the last step.)

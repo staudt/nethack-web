@@ -158,3 +158,18 @@ The planner marked all fourteen questions cheap to change later; the loop took e
 12. Snakes and spiders made with a level object hide under it.
 13. A display-only grave appearance for grave mimics (no grave terrain).
 14. Master lich and arch-lich left out; lich, demilich and the Nazgul come in.
+
+## Taken (m14 monster item use, 2026-11-09)
+
+The planner marked all ten questions cheap to change later; the loop took each recommendation (`~/.claude/plans/m14.md`, Open questions):
+
+1. The port subset: horns, camera, tins, potion of oil, globs, ladders, the potion ghost and djinni, Ki-rin, Pestilence, Vlad and the Wizard's special cases, and monsters carrying the Amulet stay out; the bag stays in. Drop order if the budget runs short: step 6's life saving, step 5's bag and bullwhip, step 4's vapors from boiled and forced potions.
+2. Item acquisition (`rnd_*_item()`) last, in step 7, so the golden moves there (and maybe in step 1).
+3. Monster choices are not saved; three new optional `modData` tables (`mwandexp`, `mseenres`, `migrVia`); no save-format change.
+4. `m_seenres()`/`monstseesu()` ported in step 3 (monsters stop zapping fire at a fire-resistant hero).
+5. Monsters fleeing by stairs arrive on the matching stairs; DL1's up stairs remove them for good.
+6. The `find_offensive()` hook is a `mattacku()` wrapper in `monmove.ts` (import cycle otherwise), same callers as NetHack.
+7. The hero's thrown potions now break (closes an existing deviation).
+8. Monster life saving in `mondead()` with an audit of callers.
+9. Pets use items as NetHack's `dochug()` lets them.
+10. No horn or camera rows (ROADMAP).
