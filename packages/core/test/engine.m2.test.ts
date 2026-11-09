@@ -7,6 +7,7 @@ import type { GameOver, GameState } from '../src/types/state';
 import type { Ctx, Mod, MonsterDef } from '../src/types/mod';
 import { SAVE_VERSION } from '../src/save';
 import { buildSnapshot } from '../src/view';
+import { DIRS } from '../src/util';
 import { actionsMod, terrainMod } from './helpers/fakeMods';
 
 type ActFn = (ctx: Ctx, id: EntityId) => void;
@@ -429,6 +430,55 @@ describe('ctx primitives', () => {
     const lvl = getLevel(s, 'dlvl1');
     const terrain = lvl.palette[lvl.cells[p.y * lvl.width + p.x] ?? 0]!;
     expect(engine.registry.terrain(terrain).passable).toBe(true);
+  });
+
+  test('objects on the arrival stairs stay under the hero and do not block a moved monster', () => {
+    // (sp_lev seed 2 once had a tripe ration pushed off the up stairs into a doorway)
+    const s = fresh();
+    engine.step(s, mod('fk:goto', { depth: 2, at: 'up' }));
+    const lvl = getLevel(s, 'dlvl1');
+    const down = lvl.down!;
+    const item = (x: number, y: number): EntityId => {
+      const id = s.nextEntityId++;
+      s.entities[String(id)] = {
+        id,
+        def: 'mm:mon',
+        c: {
+          pos: { level: 'dlvl1', x, y },
+          item: {
+            quantity: 1,
+            buc: 'uncursed',
+            spe: 0,
+            known: { buc: false, spe: false },
+            carriedBy: null,
+            letter: null,
+            equipped: null,
+            placed: 0,
+          },
+        },
+      };
+      return id;
+    };
+    const onStairs = item(down.x, down.y);
+    // the stairs' only passable neighbour holds an object: the monster still goes there
+    const passable = (x: number, y: number): boolean =>
+      engine.registry.terrain(lvl.palette[lvl.cells[y * lvl.width + x] ?? 0]!).passable;
+    const solid = lvl.palette.findIndex((t) => !engine.registry.terrain(t).passable);
+    const next = Object.values(DIRS)
+      .map((d) => ({ x: down.x + d.x, y: down.y + d.y }))
+      .find((p) => passable(p.x, p.y))!;
+    lvl.cells = lvl.cells.map((c, i) => {
+      const x = i % lvl.width;
+      const y = Math.floor(i / lvl.width);
+      return (x === down.x && y === down.y) || (x === next.x && y === next.y) ? c : solid;
+    });
+    const beside = item(next.x, next.y);
+    const m = addMon(s, 'mm:mon', { energy: 0 });
+    s.entities[String(m)]!.c.pos = { level: 'dlvl1', x: down.x, y: down.y };
+    engine.step(s, mod('fk:goto', { depth: 1, at: 'down' }));
+    expect(s.entities[String(onStairs)]!.c.pos).toEqual({ level: 'dlvl1', x: down.x, y: down.y });
+    expect(s.entities[String(beside)]!.c.pos).toEqual({ level: 'dlvl1', x: next.x, y: next.y });
+    expect(s.entities[String(m)]!.c.pos).toEqual({ level: 'dlvl1', x: next.x, y: next.y });
   });
 
   test('a monster with no free cell around stays put', () => {

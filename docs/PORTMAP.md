@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3982 citations.
+153 NetHack files, 3983 citations.
 
 ## dat/dungeon.lua
 
@@ -1433,6 +1433,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `kill_genocided_monsters()`: `packages/content/src/genocide.ts`
 - `killed()`: `packages/content/src/buzz.ts`, `packages/content/src/dokick.ts`
 - `levl_follower()`: `packages/content/src/dog.ts`
+- `m_at()`: `packages/core/src/engine.ts`
 - `m_calcdistress()`: `packages/content/src/monflee.ts`, `packages/content/src/mstate.ts`, `packages/content/src/were.ts`
 - `m_consume_obj()`: `packages/content/src/meat.ts`
 - `m_detach()`: `packages/content/src/mondeath.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trapstate.ts`
@@ -2144,7 +2145,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
 - `enexto()`: `packages/content/src/generation.ts`, `packages/core/src/engine.ts`
 - `enexto_core()`: `packages/content/src/generation.ts`
-- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`
+- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`, `packages/core/src/engine.ts`
 - `level_tele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`, `packages/content/src/wizard/levelport.ts`
 - `level_tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mlevel_tele_trap()`: `packages/content/src/trap.ts`

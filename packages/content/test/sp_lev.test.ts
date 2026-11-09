@@ -111,16 +111,26 @@ describe('LevelDef contents', () => {
 
   test('things go only on dry ground (floor, corridor, stairs), traps only on plain floor', () => {
     const dry = new Set(['nh:floor', 'nh:corr', 'nh:stairs_up', 'nh:stairs_down']);
-    // (seeds 3 to 9 but 8 since m12 step 5: on seeds 1 and 8 a rolling boulder trap's launch
-    // boulder lies in a doorway, which C's isclearpath() allows; on seed 2 a tripe ration next
-    // to a chest)
-    for (const seed of [3, 4, 5, 6, 7, 9]) {
+    for (let seed = 1; seed <= 9; seed++) {
       const { state, level } = visit(seed, 'tl:rooms_d');
       expect(level.def).toBe('tl:rooms');
       const { monsters, items } = onLevel(state, level);
       // mklev's own room gold is made before its fountains (mklev.c makelevel(): mkgold() then
-      // mkfount()), so a fountain may stand on it; the contents never make gold (mkobjprobs)
-      const made = items.filter((i) => i?.def !== 'nh:gold_piece');
+      // mkfount()), so a fountain may stand on it; the contents never make gold (mkobjprobs).
+      // A rolling boulder trap's launch boulder may lie in a doorway (C's isclearpath() allows
+      // it). (Seed 2 once had a tripe ration pushed off the up stairs into a doorway by the
+      // hero's arrival: engine.ts placeHero() moved objects as well as monsters.)
+      const launch = new Set(
+        level.traps.flatMap((t) => {
+          const l = (t.data as { launch?: { x: number; y: number } } | undefined)?.launch;
+          return l ? [`${l.x},${l.y}`] : [];
+        }),
+      );
+      const made = items.filter(
+        (i) =>
+          i?.def !== 'nh:gold_piece' &&
+          !(i?.def === 'nh:boulder' && launch.has(`${i.c.pos?.x},${i.c.pos?.y}`)),
+      );
       for (const e of [...monsters, ...made]) {
         const p = e?.c.pos;
         if (!p) throw new Error('no pos');

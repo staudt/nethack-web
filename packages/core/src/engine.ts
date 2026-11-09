@@ -132,6 +132,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       : buildLevel(rng, opts, registry.level(dungeon.filler));
   };
 
+  /** A creature (not an object) stands on x,y, other than `except`. ref: src/mon.c m_at() */
   const occupied = (
     state: GameState,
     level: Level,
@@ -140,11 +141,22 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     except: number,
   ): boolean =>
     sortedIds(state).some((id) => {
-      const p = state.entities[String(id)]?.c.pos;
-      return id !== except && p !== undefined && p.level === level.id && p.x === x && p.y === y;
+      const e = state.entities[String(id)];
+      const p = e?.c.pos;
+      return (
+        id !== except &&
+        !e?.c.item &&
+        p !== undefined &&
+        p.level === level.id &&
+        p.x === x &&
+        p.y === y
+      );
     });
 
-  /** Nearest passable, unoccupied cell to `from` (breadth-first). ref: src/teleport.c enexto() */
+  /**
+   * Nearest passable cell to `from` with no creature on it (objects do not count), breadth-first.
+   * ref: src/teleport.c enexto(), goodpos()
+   */
   const nearestFree = (state: GameState, level: Level, from: Pos, except: number): Pos | null => {
     const rules = cellRules(level, registry);
     const seen = new Set<number>([cellIndex(level, from.x, from.y)]);
@@ -268,7 +280,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
 
   /**
    * Puts the hero on `target` (or any stairs) of `level` and makes it current. A monster on
-   * that spot is moved to the nearest free cell. ref: src/do.c goto_level() u_on_newpos(), mnexto()
+   * that spot is moved to the nearest free cell; objects there stay under the hero.
+   * ref: src/do.c goto_level() u_on_newpos(), mnexto()
    */
   const placeHero = (state: GameState, level: Level, target: Pos | null): void => {
     const spot = target ?? level.up ?? level.down ?? level.branch?.pos;
@@ -279,6 +292,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       const p = e?.c.pos;
       if (!e || id === hero.id || !p || p.level !== level.id || p.x !== spot.x || p.y !== spot.y)
         continue;
+      if (e.c.item) continue; // only m_at() is moved
       const free = nearestFree(state, level, spot, id);
       if (free) e.c.pos = { level: level.id, x: free.x, y: free.y };
     }
