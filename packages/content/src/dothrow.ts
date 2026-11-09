@@ -32,7 +32,7 @@ import { aAlign, doaltarobj } from './align';
 import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { wakeup } from './peaceful';
 import { dogEat } from './dogmove';
-import { dbon, dmgval, monsterIdAt } from './combat';
+import { dbonU, dmgval, monsterIdAt } from './combat';
 import { encumberMsg } from './itemactions';
 import {
   placeObject,
@@ -228,7 +228,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
   if (isAmmo(odef) && !launched) {
     // ref: hmon_hitmon_weapon_ranged(): "then do only 1-2 points of damage"; no skill bonus
     dmg = ctx.rng.rnd(2);
-    dmg += udaminc + dbon(hero.c.attributes?.str ?? 10);
+    dmg += udaminc + dbonU(ctx);
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
     dmg = dmgval(ctx.rng, obj, odef, mdef);
@@ -242,7 +242,7 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     dmg = dmgval(ctx.rng, obj, odef, mdef);
     if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
     if (dmg > 0) dmg += udaminc;
-    dmg += dbon(hero.c.attributes?.str ?? 10);
+    dmg += dbonU(ctx);
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }
   if (dmg < 1) dmg = 1;

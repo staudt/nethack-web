@@ -54,7 +54,7 @@ import { bTrapped, blowDoor } from './btrapped';
 import { ROCK, boulderAt, fractureRock } from './boulder';
 import { breakStatue } from './statue';
 import { statueAt } from './statuestate';
-import { abon, dbon } from './combat';
+import { abonU, dbonU } from './combat';
 import { DIG_ID, diggingOf, setDigging, stopDigging, type Digging } from './digstate';
 import { dmgvalSized } from './dmgval';
 import { monsterNearby } from './eat';
@@ -717,12 +717,10 @@ export function dig(ctx: Ctx): boolean {
     }
   }
   // (Fumbling is not ported)
-  const h = hero(ctx);
-  const a = h.c.attributes;
   d.effort +=
     10 +
     ctx.rng.rn2(5) +
-    abon(a?.str ?? 10, a?.dex ?? 10, h.c.experience?.level ?? 1) +
+    abonU(ctx) +
     (pick.c.item?.spe ?? 0) -
     greatestErosion(pick) +
     ringBonus(ctx.state, 'nh:ring_of_increase_damage');
@@ -819,9 +817,7 @@ function digDown(ctx: Ctx, d: Digging, pick: Entity, level: Level, dc: DigCheck)
   }
   if (ttmp?.def === TRAP.bear) {
     if (rnl(ctx.rng, 7, luckOf(ctx.state)) > 4) {
-      let dmg =
-        dmgvalSized(ctx.rng, pick, ctx.defs.object(pick.def), false) +
-        dbon(hero(ctx).c.attributes?.str ?? 10);
+      let dmg = dmgvalSized(ctx.rng, pick, ctx.defs.object(pick.def), false) + dbonU(ctx);
       if (dmg < 1) dmg = 1;
       else if (whichArmor(ctx, ctx.state.playerId, 'boots')) dmg = Math.trunc((dmg + 1) / 2);
       say(ctx, 'dig.hit_foot');
@@ -915,7 +911,7 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
     return NORMAL_SPEED;
   }
   if (dir === 'self') {
-    let dam = ctx.rng.rnd(2) + dbon(hero(ctx).c.attributes?.str ?? 10) + (pick.c.item?.spe ?? 0);
+    let dam = ctx.rng.rnd(2) + dbonU(ctx) + (pick.c.item?.spe ?? 0);
     if (dam <= 0) dam = 1;
     say(ctx, 'dig.hit_yourself', { pick: xnameOf(ctx.state, ctx.defs, pick) });
     losehp(ctx, dam, pick.def === 'nh:pick_axe' ? '@killer.own_pick_axe' : '@killer.own_mattock');

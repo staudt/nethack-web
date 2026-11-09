@@ -46,6 +46,7 @@ import { enhanceAction } from './skills';
 import { registerTeleportitis, registerTraps, teleAction } from './trap';
 import { registerMagicTraps } from './magictrap';
 import { registerPolyTimeout, registerPolyTrap, registerPolymorphitis } from './polyself';
+import { registerHmonas } from './hmonas';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
@@ -127,6 +128,7 @@ export const vanillaMod: Mod = {
     registerTraps(api);
     registerMagicTraps();
     registerPolyTrap();
+    registerHmonas();
     registerRollingBoulders();
     registerLandmines();
     registerDigestFood();

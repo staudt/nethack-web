@@ -20,6 +20,7 @@ import { mspecUsed, setMspecUsed } from './mstate';
 import { monNam } from './perception';
 import { T } from './terrain';
 import { isMtrapped } from './trapstate';
+import { heroForm } from './upoly';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -28,7 +29,7 @@ const SIZES = ['tiny', 'small', 'medium', 'large', 'huge', 'gigantic'] as const;
 const msize = (s: string): number => SIZES.indexOf(s as (typeof SIZES)[number]);
 /** ref: include/monflag.h MZ_HUGE */
 const MZ_HUGE = 4;
-/** The hero's size: always human-sized (no polymorph). */
+/** The hero's size in her own form: human-sized. */
 const HERO_SIZE = 2;
 
 /**
@@ -38,8 +39,15 @@ const HERO_SIZE = 2;
  * in the monster sense: C reads youmonst.mtrapped, never set)
  */
 export function engulfTarget(ctx: Ctx, magr: Entity, mdef: Entity | 'hero'): boolean {
-  const pa = ctx.defs.monster(magr.def);
-  const dsize = mdef === 'hero' ? HERO_SIZE : msize(ctx.defs.monster(mdef.def).size);
+  // the hero engulfs (or is engulfed) in her polymorphed form
+  const uform = heroForm(ctx);
+  const pa = magr.id === ctx.state.playerId && uform ? uform : ctx.defs.monster(magr.def);
+  const dsize =
+    mdef === 'hero'
+      ? uform
+        ? msize(uform.size)
+        : HERO_SIZE
+      : msize(ctx.defs.monster(mdef.def).size);
   if (dsize >= MZ_HUGE || (msize(pa.size) < dsize && !isWhirly(pa))) return false;
   if (isMtrapped(ctx, magr.id) || (mdef !== 'hero' && isMtrapped(ctx, mdef.id))) return false;
   const dp = mdef === 'hero' ? getPlayer(ctx.state).c.pos : mdef.c.pos;

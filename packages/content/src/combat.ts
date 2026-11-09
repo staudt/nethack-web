@@ -20,7 +20,9 @@ import {
 } from '@nh/core';
 import { explmu, gazemu, gulpmu, mdamageu } from './mhitu';
 import { isSwallowed, uswallow } from './engulfstate';
-import { M_ATTK, hitmsgFor, mhitmAdtyping, newMhm } from './adtyping';
+import { M_ATTK, failedGrab, hitmsgFor, mhitmAdtyping, newMhm } from './adtyping';
+import { passiveum } from './passiveum';
+import { touchPetrifies } from './stonestate';
 import { castmu } from './mcastu';
 import { monsterDied } from './mondeath';
 import { isFleeing, monflee } from './monflee';
@@ -58,9 +60,11 @@ import {
 import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
-import { P, hasProp, ringBonus } from './props';
+import { P, conflictOn, hasProp, ringBonus } from './props';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
 import { isBig, nonliving } from './mondata';
+import { adjLev } from './generation';
+import { heroForm } from './upoly';
 import { dmgval, dmgvalSized } from './dmgval';
 import { angryGuards, isWatch } from './watch';
 import { epriOf } from './epri';
@@ -151,6 +155,10 @@ export interface HeroCombatStats {
   luck?: number;
   /** Rings of increase accuracy (u.uhitinc); defaults to 0. */
   hitinc?: number;
+  /** abon() when it is not from Str and Dex (a polymorphed hero: see abonU()). */
+  abon?: number;
+  /** false: not a weapon or claw attack, so no hitval() and no weapon skill bonus (default true) */
+  weaponBonus?: boolean;
 }
 
 /**
@@ -170,7 +178,7 @@ export function heroToHit(
   const luck = hero.luck ?? 0;
   let tmp =
     1 +
-    abon(hero.str, hero.dex, hero.level) +
+    (hero.abon ?? abon(hero.str, hero.dex, hero.level)) +
     mac +
     (hero.hitinc ?? 0) +
     Math.sign(luck) * Math.trunc((Math.abs(luck) + 2) / 3) +
@@ -180,6 +188,7 @@ export function heroToHit(
   if (target.frozen) tmp += 4; // !mcanmove
   const enc = hero.encumbrance ?? 0;
   if (enc !== 0) tmp -= enc * 2 - 1;
+  if (hero.weaponBonus === false) return tmp;
   if (weapon) {
     tmp += hitval(weapon.item, weapon.def, def);
     tmp += weaponHitBonus(weapon.skill, weapon.def);
@@ -202,59 +211,101 @@ const monsterAt = (ctx: Ctx, pos: Pos, level: string): EntityId | null => {
 /** The monster entity at `pos` on `level`, if any (attacks do not need to see it). */
 export const monsterIdAt = monsterAt;
 
+let hmonasFn: ((ctx: Ctx, targetId: EntityId) => void) | null = null;
+
+/** hmonas.ts hands down hmonas() (it sits above this module). */
+export function setHmonas(fn: (ctx: Ctx, targetId: EntityId) => void): void {
+  hmonasFn = fn;
+}
+
 /**
- * The hero attacks the monster entity `targetId`; returns the energy cost.
- * ref: src/hack.c domove() -> src/uhitm.c do_attack() -> hitum() -> known_hitum() -> hmon().
- * The monster's passive attack answers each blow (ref: hitum() -> passive()). Not ported:
- * knockback, two-weapon. (The peaceful confirmation is asked by the callers, see
- * peaceful.ts.)
+ * ref: src/mondata.c noattacks(): a form whose only attacks are passive ones (AT_NONE; AT_BOOM,
+ * the gas spore's death explosion, isn't an attack here)
  */
-export function heroAttack(ctx: Ctx, targetId: EntityId): number {
+export const noattacks = (def: MonsterDef): boolean =>
+  def.attacks.every((a) => a.at === 'passive' || a.at === 'boom');
+
+/** The hero's wielded weapon (uwep), or null. */
+export const uwepOf = (ctx: Ctx): Entity | null =>
+  inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon') ?? null;
+
+/** The wielded weapon with its skill level, as the to-hit and damage code wants it. */
+export function heroWeapon(ctx: Ctx, wielded: Entity | null): HeroWeapon | null {
+  if (!wielded) return null;
+  const def = ctx.defs.object(wielded.def);
+  return { item: wielded, def, skill: skillLevel(ctx, def.weapon?.skill ?? '') };
+}
+
+/** The monster as passive() needs it after the blow (it may be dead and gone by then). */
+export function passiveSnap(ctx: Ctx, targetId: EntityId): PassiveTarget | null {
+  const target = ctx.state.entities[String(targetId)];
+  const mon = target?.c.monster;
+  if (!target || !mon || !target.c.pos) return null;
+  return {
+    id: targetId,
+    def: ctx.defs.monster(target.def),
+    level: mon.level,
+    pos: { ...target.c.pos },
+    mcan: isCancelled(ctx, targetId),
+  };
+}
+
+/**
+ * abon() for the hero: a polymorphed hero's to-hit bonus comes from her form's adjusted level,
+ * not from Str and Dex. ref: src/weapon.c abon() (`if (Upolyd) return adj_lev(&mons[u.umonnum]) -
+ * 3`; level_difficulty() is the depth)
+ */
+export function abonU(ctx: Ctx): number {
+  const h = getPlayer(ctx.state);
+  const level = h.c.experience?.level ?? 1;
+  const form = heroForm(ctx);
+  if (form) {
+    const depth = h.c.pos ? (ctx.state.levels[h.c.pos.level]?.depth ?? 1) : 1;
+    return adjLev(form, depth, level) - 3;
+  }
+  return abon(h.c.attributes?.str ?? 10, h.c.attributes?.dex ?? 10, level);
+}
+
+/** dbon() for the hero: no Str damage bonus while polymorphed. ref: src/weapon.c dbon() */
+export function dbonU(ctx: Ctx): number {
+  if (heroForm(ctx)) return 0;
+  return dbon(getPlayer(ctx.state).c.attributes?.str ?? 10);
+}
+
+/**
+ * The hero's to-hit number against the monster for one attack of type `aatyp` (a hit needs
+ * `tmp > rnd(20)`). A polymorphed hero uses her form's level for her own and abonU(); an elf
+ * form gets +1 against orcs. hitval() and the weapon skill's to-hit bonus count only for a
+ * weapon or claw attack (and the bare-handed skill for a weaponless one).
+ * ref: src/uhitm.c find_roll_to_hit() (no monk penalties, no caitiff check, no martial-arts kicks:
+ * no such roles)
+ */
+export function findRollToHit(
+  ctx: Ctx,
+  targetId: EntityId,
+  aatyp: AttackType,
+  weapon: HeroWeapon | null,
+): number {
   const hero = getPlayer(ctx.state);
   const target = ctx.state.entities[String(targetId)];
   const mon = target?.c.monster;
-  if (!target || !mon) throw new Error(`Entity ${targetId} is not a monster`);
+  if (!target || !mon) return 0;
   const def = ctx.defs.monster(target.def);
-  const name = monNam(ctx, target);
-  const snap: PassiveTarget | null = target.c.pos
-    ? {
-        id: targetId,
-        def,
-        level: mon.level,
-        pos: { ...target.c.pos },
-        mcan: isCancelled(ctx, targetId),
-      }
-    : null;
-  /** ref: src/uhitm.c hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...) */
-  const answer = (mhit: boolean, malive: boolean): number => {
-    const uwep = inventoryOf(ctx.state, hero.id).find((o) => o.c.item?.equipped === 'weapon');
-    if (snap) passive(ctx, snap, mhit, malive, uwep ?? null, 'weapon');
-    return NORMAL_SPEED;
-  };
+  const form = heroForm(ctx);
   const attrs = hero.c.attributes;
-  const wielded = inventoryOf(ctx.state, hero.id).find((o) => o.c.item?.equipped === 'weapon');
-  const wdef = wielded ? ctx.defs.object(wielded.def) : null;
-  const weapon: HeroWeapon | null =
-    wielded && wdef
-      ? { item: wielded, def: wdef, skill: skillLevel(ctx, wdef.weapon?.skill ?? '') }
-      : null;
-  // ref: src/uhitm.c do_attack() -> src/hack.c overexertion(): combat increases metabolism, and
-  // the hero may faint from it, which cancels the attack. (The HVY_ENCUMBER HP loss is not ported.)
-  gethungry(ctx);
-  if (hero.c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
   const stats: HeroCombatStats = {
     str: attrs?.str ?? 10,
     dex: attrs?.dex ?? 10,
-    level: hero.c.experience?.level ?? 1,
+    // maybe_polyd(youmonst.data->mlevel, u.ulevel)
+    level: form ? form.level : (hero.c.experience?.level ?? 1),
     encumbrance: nearCapacity(ctx.state, ctx.defs, hero.id),
     bareSkill: skillLevel(ctx, BARE_HANDED),
     luck: luckOf(ctx.state),
     hitinc: ringBonus(ctx.state, 'nh:ring_of_increase_accuracy'),
+    abon: abonU(ctx),
+    weaponBonus: aatyp === 'weapon' || aatyp === 'claw',
   };
-
-  // ref: src/uhitm.c hitum()
-  // ref: src/uhitm.c find_roll_to_hit(): +2 against a fleeing monster
-  const tmp =
+  return (
     heroToHit(
       stats,
       def,
@@ -262,16 +313,94 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
       weapon,
       findMac(ctx.state, ctx.defs, targetId),
     ) +
-    (isFleeing(ctx, targetId) ? 2 : 0) -
-    (utrap(ctx) ? 3 : 0); // ref: find_roll_to_hit(): `if (u.utrap) tmp -= 3`
-  const dieroll = ctx.rng.rnd(20);
-  // ref: hitum(): `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
-  if (!(tmp > dieroll) && !isSwallowed(ctx)) {
-    // ref: src/uhitm.c missum(): "You miss <mon>." then wakeup(mdef, TRUE)
-    ctx.emit({ type: 'msg', key: 'combat.you_miss', params: { mon: name } });
-    wakeup(ctx, targetId);
-    return answer(false, true);
+    (isFleeing(ctx, targetId) ? 2 : 0) + // `if (mtmp->mflee) tmp += 2`
+    // `is_orc(mtmp->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
+    (def.flags.includes('orc') && form?.flags.includes('elf') ? 1 : 0) -
+    (utrap(ctx) ? 3 : 0) // `if (u.utrap) tmp -= 3`
+  );
+}
+
+/**
+ * The hero missed: "You miss the jackal." (a nymph form "pretends to be friendly"), and the
+ * monster wakes. ref: src/uhitm.c missum() (no monk armor penalty)
+ */
+export function missum(ctx: Ctx, targetId: EntityId, atk: AttackDef | null): void {
+  const target = ctx.state.entities[String(targetId)];
+  if (!target) return;
+  const hero = getPlayer(ctx.state);
+  const name = monNam(ctx, target);
+  if (couldSeduce(ctx, hero, target, atk))
+    ctx.emit({ type: 'msg', key: 'uhitm.pretend_friendly', params: { mon: name } });
+  else ctx.emit({ type: 'msg', key: 'combat.you_miss', params: { mon: name } });
+  wakeup(ctx, targetId);
+}
+
+/**
+ * The hero attacks the monster entity `targetId`; returns the energy cost.
+ * ref: src/hack.c domove() -> src/uhitm.c do_attack() -> hitum() (or, polymorphed, hmonas()).
+ * A form with passive attacks only cannot attack ("You have no way to attack monsters
+ * physically."). Not ported: knockback, two-weapon. (The peaceful confirmation is asked by the
+ * callers, see peaceful.ts.)
+ */
+export function heroAttack(ctx: Ctx, targetId: EntityId): number {
+  const hero = getPlayer(ctx.state);
+  const target = ctx.state.entities[String(targetId)];
+  if (!target?.c.monster) throw new Error(`Entity ${targetId} is not a monster`);
+  // ref: do_attack(): `if (Upolyd && noattacks(youmonst.data))`: certain "pacifist" monsters
+  // don't attack
+  const form = heroForm(ctx);
+  if (form && noattacks(form)) {
+    ctx.emit({ type: 'msg', key: 'uhitm.no_way_to_attack' });
+    return NORMAL_SPEED;
   }
+  // ref: src/uhitm.c do_attack() -> src/hack.c overexertion(): combat increases metabolism, and
+  // the hero may faint from it, which cancels the attack. (The HVY_ENCUMBER HP loss is not ported.)
+  gethungry(ctx);
+  if (hero.c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
+  if (form && hmonasFn) hmonasFn(ctx, targetId);
+  else hitum(ctx, targetId);
+  return NORMAL_SPEED;
+}
+
+/**
+ * The hero's one weapon (or bare-handed) attack, then the monster's passive response.
+ * ref: src/uhitm.c hitum() -> known_hitum() -> hmon(), then passive()
+ */
+function hitum(ctx: Ctx, targetId: EntityId): void {
+  const snap = passiveSnap(ctx, targetId);
+  const weapon = heroWeapon(ctx, uwepOf(ctx));
+  const tmp = findRollToHit(ctx, targetId, 'weapon', weapon);
+  const dieroll = ctx.rng.rnd(20);
+  // `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
+  const mhit = tmp > dieroll || isSwallowed(ctx);
+  const malive = knownHitum(ctx, targetId, weapon, mhit, null);
+  // ref: hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...)
+  if (snap) passive(ctx, snap, mhit, malive, uwepOf(ctx), 'weapon');
+}
+
+/**
+ * The hero's weapon (or bare-handed) blow at the monster: a miss (missum()) or hmon(), then a
+ * chance that the hurt monster flees. Returns whether the monster is still alive.
+ * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon() (no Vorpal Blade, no worms to cut)
+ */
+export function knownHitum(
+  ctx: Ctx,
+  targetId: EntityId,
+  weapon: HeroWeapon | null,
+  mhit: boolean,
+  uattk: AttackDef | null,
+): boolean {
+  const target = ctx.state.entities[String(targetId)];
+  const mon = target?.c.monster;
+  if (!target || !mon) return false;
+  if (!mhit) {
+    missum(ctx, targetId, uattk);
+    return true;
+  }
+  const def = ctx.defs.monster(target.def);
+  const name = monNam(ctx, target);
+  const hero = getPlayer(ctx.state);
+  const bareSkill = skillLevel(ctx, BARE_HANDED);
 
   // ref: src/uhitm.c hmon(): hitting a peaceful watchman or temple priest angers the whole Watch
   // afterwards, and hitting a priest (even a killing blow) brings his god's lightning 1 time in 2
@@ -307,7 +436,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
       minstapetrify(ctx, target, true);
       // (no munstone(): monsters do not cure themselves)
       if (!resistsSton(ctx, target))
-        return answer(true, ctx.state.entities[String(targetId)]?.c.monster !== undefined);
+        return ctx.state.entities[String(targetId)]?.c.monster !== undefined;
     } else {
       const of = weapon.item.c.item?.corpseOf;
       dmg = (of && ctx.defs.isMonster(of) ? (MSIZE[ctx.defs.monster(of).size] ?? 0) : 0) + 1;
@@ -327,7 +456,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     if (strBonus) {
       // ref: hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` (rings of increase damage)
       dmg += ringBonus(ctx.state, 'nh:ring_of_increase_damage');
-      let sb = dbon(stats.str);
+      let sb = dbonU(ctx);
       if (weapon?.def.weapon?.bimanual) {
         sb = Math.trunc((3 * Math.abs(sb) + 1) / 2) * Math.sign(sb);
       }
@@ -336,10 +465,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     if (useSkill) {
       // ref: hmon_hitmon_dmg_recalc(): a real hit trains the skill (use_skill(wtype, 1))
       if (train) useSkillPoints(ctx, weapon?.def.weapon?.skill ?? BARE_HANDED, 1);
-      dmg += weaponDamBonus(
-        weapon ? weapon.skill : (stats.bareSkill ?? P_UNSKILLED),
-        weapon?.def ?? null,
-      );
+      dmg += weaponDamBonus(weapon ? weapon.skill : bareSkill, weapon?.def ?? null);
     }
     if (dmg < 1) dmg = 1;
   } else if (strBonus) dmg = 1;
@@ -363,7 +489,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     gainExperience(ctx, hero.id, experienceFor(def, mon.level));
     if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
     if (angerGuards) angryGuards(ctx, false);
-    return answer(true, false);
+    return false;
   }
   // ref: src/uhitm.c hmon_hitmon_splitmon(): a pudding that is "alive and healthy enough to
   // split", hit hand to hand with a wielded iron or metal object (not ammo or a missile), divides
@@ -416,7 +542,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
     // ref: src/uhitm.c known_hitum() (the hero's sticky hold is released inside monflee())
     monflee(ctx, targetId, ctx.rng.rn2(3) === 0 ? ctx.rng.rnd(100) : 0, false, true);
   }
-  return answer(true, true);
+  return true;
 }
 
 /**
@@ -496,6 +622,7 @@ export function hitmu(
   ac: number,
 ): number {
   unseenAttacker(ctx, mon); // ref: hitmu(): `if (!canspotmon(mtmp)) map_invisible(...)`
+  const olduasmon = heroForm(ctx);
   const name = monNam(ctx, mon);
   let dmg = ctx.rng.d(atk.n, atk.d);
   // (no midnight(): undead get no extra damage)
@@ -521,14 +648,25 @@ export function hitmu(
     stopOccupation(ctx);
     return M_ATTK.HIT;
   }
+  const hhp = getPlayer(ctx.state).c.hp;
+  if (hhp && hhp.cur < 1) {
+    // already dead? call rehumanize() or done_in_by() as appropriate
+    mdamageu(ctx, 1, `@${mon.def}`);
+    dmg = 0;
+    if (ctx.state.gameOver) return M_ATTK.HIT;
+  }
   // Negative armor class reduces damage done instead of fully protecting against hits.
   if (dmg > 0 && ac < 0) {
     dmg -= ctx.rng.rnd(-ac);
     if (dmg < 1) dmg = 1;
   }
   if (dmg > 0) mdamageu(ctx, dmg, `@${mon.def}`); // ref: src/mhitu.c mdamageu() -> done_in_by()
+  // ref: hitmu(): `if (mhm.damage) res = passiveum(olduasmon, mtmp, mattk)`: only a form she had
+  // when the blow landed has a passive response
+  let res: number = M_ATTK.HIT;
+  if (dmg && olduasmon && !ctx.state.gameOver) res = passiveum(ctx, olduasmon, mon, atk);
   stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
-  return M_ATTK.HIT; // passiveum(): only a polymorphed hero has passive attacks (7f)
+  return res;
 }
 
 /** C's foundyou: `u_at(mtmp->mux, mtmp->muy)`, the guess `ap` is her square. */
@@ -618,22 +756,36 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
       case 'tentacle': {
         // ref: mattacku(): `if (mattk->aatyp == AT_KICK && mtrapped_in_pit(mtmp)) continue;`
         if (atk.at === 'kick' && mtrappedInPit(ctx, monId)) continue;
+        // `!MON_WEP(mtmp) || mtmp->mconf || Conflict || !touch_petrifies(youmonst.data)`: a
+        // monster with a weapon won't touch a cockatrice form bare-handed
+        const uform = heroForm(ctx);
+        if (
+          uform &&
+          touchPetrifies(uform) &&
+          monWep(ctx, monId) &&
+          !isMConfused(ctx, monId) &&
+          !conflictOn(ctx.state)
+        )
+          break;
         if (!found) {
           wildmiss(ctx, mon, atk);
           skipnonmagc = true; // skip any remaining non-spell attacks
           break;
         }
         const j = ctx.rng.rnd(20 + i);
-        if (tmp > j)
-          sum[i] = hitmu(
-            ctx,
-            mon,
-            atk,
-            null,
-            prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
-            ac,
-          );
-        else missmu(ctx, mon, name, tmp === j);
+        if (tmp > j) {
+          // an unsolid form slips out of a grab; a thick-skinned one shrugs off kicks
+          if (uform?.flags.includes('unsolid') && failedGrab(ctx, mon, hero, atk, false)) continue;
+          if (atk.at !== 'kick' || !uform?.flags.includes('thick_hide'))
+            sum[i] = hitmu(
+              ctx,
+              mon,
+              atk,
+              null,
+              prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
+              ac,
+            );
+        } else missmu(ctx, mon, name, tmp === j);
         break;
       }
       case 'weapon': {
@@ -671,8 +823,11 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
         break;
       case 'hug':
         // automatic if prev two attacks succeed, or while it holds her (`!range2`: next to her);
-        // failed_grab() never fails against the hero (she is never unsolid: no polymorph)
-        if ((i >= 2 && sum[i - 1] && sum[i - 2]) || ustuck(ctx) === monId)
+        // it can't grab an unsolid form (failed_grab())
+        if (
+          ((i >= 2 && sum[i - 1] && sum[i - 2]) || ustuck(ctx) === monId) &&
+          !failedGrab(ctx, mon, hero, atk, false)
+        )
           sum[i] = hitmu(ctx, mon, atk, null, false, ac);
         break;
       case 'gaze':

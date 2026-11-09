@@ -32,7 +32,8 @@ import { nomulNow } from './hunger';
 import { setAfternmv, setAfternmvKey, setStealIds, stealIds } from './nomul';
 import { armorSimpleName, doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, someMonNam } from './perception';
-import { cloakOff, monInvisible, perceives, seeInvisible } from './invis';
+import { cloakOff, heroInvisible, monInvisible, perceives, seeInvisible } from './invis';
+import { heroForm } from './upoly';
 import { P, hasProp, updateWornProps } from './props';
 import { subfrombill } from './shk';
 import { teleRestrict } from './teleport';
@@ -504,9 +505,10 @@ export function couldSeduce(
   mdef: Entity,
   atk: AttackDef | null,
 ): number {
-  if (magr.id === ctx.state.playerId) return 0; // 7f: the polymorphed hero
-  const pagr = ctx.defs.monster(magr.def);
-  if (isAnimal(pagr)) return 0;
+  const uagr = magr.id === ctx.state.playerId;
+  // the polymorphed hero seduces with her form's attacks
+  const pagr = uagr ? heroForm(ctx) : ctx.defs.monster(magr.def);
+  if (!pagr || isAnimal(pagr)) return 0;
   const female = (e: Entity): number =>
     e.id === ctx.state.playerId
       ? polyGender(ctx.state)
@@ -521,7 +523,8 @@ export function couldSeduce(
     mdef.id === ctx.state.playerId
       ? seeInvisible(ctx.state)
       : perceives(ctx.defs.monster(mdef.def));
-  if (monInvisible(ctx, magr) && !defperc && adtyp === 'sedu') return 0;
+  const agrinvis = uagr ? heroInvisible(ctx.state) : monInvisible(ctx, magr);
+  if (agrinvis && !defperc && adtyp === 'sedu') return 0;
   if (!isNymph(pagr) || (adtyp !== 'sedu' && adtyp !== 'sitm')) return 0;
   return female(magr) === 1 - female(mdef) ? 1 : 2;
 }

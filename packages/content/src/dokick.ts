@@ -52,7 +52,10 @@ import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { aAlign, altarWrath } from './align';
-import { monsterIdAt } from './combat';
+import { findRollToHit, missum, monsterIdAt } from './combat';
+import { damageum } from './hmonas';
+import { M_ATTK } from './adtyping';
+import { nolimbs, slithy, verysmall } from './mondata';
 import { getdirImpaired, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
@@ -88,7 +91,7 @@ import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 
 import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
-import { heroFormId } from './upoly';
+import { heroForm, heroFormId } from './upoly';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -614,6 +617,35 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     return;
   }
 
+  // Kick attacks by kicking monsters are normal attacks, not special: a polymorphed hero with
+  // kicks makes all of them, each with its own roll
+  const form = heroForm(ctx);
+  if (form?.attacks.some((a) => a.at === 'kick')) {
+    const tmp = findRollToHit(ctx, monId, 'kick', null);
+    for (const uattk of form.attacks) {
+      // first of two kicks might have provoked counterattack that has incapacitated the hero
+      // (ie, floating eye)
+      if (hero(ctx).c.helpless || ctx.state.gameOver) break;
+      // we only care about kicking attacks here
+      if (uattk.at !== 'kick') continue;
+      const kickdieroll = ctx.rng.rnd(20);
+      const cur = ctx.state.entities[String(monId)];
+      if (!cur?.c.monster) break;
+      // (no shades; no blessed or silver boots: special_dmgval())
+      if (tmp > kickdieroll) {
+        say(ctx, 'kick.you_kick_mon', { mon: monNam(ctx, cur) });
+        const sum = damageum(ctx, cur, uattk, 0);
+        if (snap)
+          passive(ctx, snap, sum !== M_ATTK.MISS, !(sum & M_ATTK.DEF_DIED), uarmf(ctx), 'kick');
+        if (sum & M_ATTK.DEF_DIED) break; // Defender died
+      } else {
+        missum(ctx, monId, uattk);
+        passiveMiss();
+      }
+    }
+    return;
+  }
+
   // ref: "What the following confusing if statements mean": over 70% of capacity
   const i = -invWeight(ctx.state, ctx.defs, ctx.state.playerId);
   const j = weightCap(ctx.state, ctx.defs, ctx.state.playerId);
@@ -677,15 +709,30 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
 
 /**
  * The checks at the top of dokick(); false means the hero cannot kick (no time passes).
- * ref: src/dokick.c dokick(): wounded legs, `near_capacity() > SLT_ENCUMBER`, a bear trap
+ * ref: src/dokick.c dokick(): a form with no legs, a tiny one, wounded legs, `near_capacity() >
+ * SLT_ENCUMBER`, a lizard form, a bear trap
  */
 function canKick(ctx: Ctx): boolean {
+  const form = heroForm(ctx);
+  if (form && (nolimbs(form) || slithy(form))) {
+    say(ctx, 'kick.no_legs');
+    return false;
+  }
+  if (form && verysmall(form)) {
+    say(ctx, 'kick.too_small');
+    return false;
+  }
   if (hasProp(hero(ctx), P.WOUNDED_LEGS)) {
     say(ctx, 'kick.legs_no_shape');
     return false;
   }
   if (nearCapacity(ctx.state, ctx.defs, ctx.state.playerId) > SLT_ENCUMBER) {
     say(ctx, 'kick.too_heavy');
+    return false;
+  }
+  if (form?.glyph.ch === ':') {
+    // S_LIZARD
+    say(ctx, 'kick.legs_ineffective');
     return false;
   }
   // ref: dokick(): `u.utrap` TT_PIT -> "There's not enough room to kick down here.",

@@ -2,6 +2,9 @@
 // ref: src/uhitm.c passive() (called from hitum() after every melee attack)
 import {
   getPlayer,
+  inventoryOf,
+  type ArmorSlot,
+  type AttackType,
   type Ctx,
   type Entity,
   type EntityId,
@@ -21,6 +24,7 @@ import { discover } from './o_init';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
 import { done } from './end';
+import { attkProtection } from './stonestate';
 
 /** The attacked monster as it was before the blow (it may be dead and removed afterwards). */
 export interface PassiveTarget {
@@ -33,8 +37,15 @@ export interface PassiveTarget {
   mcan: boolean;
 }
 
+/** uwep: the hero's wielded weapon (passive() reads the global, not its `weapon` argument) */
+const uwep = (ctx: Ctx): Entity | null =>
+  inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.c.item?.equipped === 'weapon') ?? null;
+
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+/** The attack types whose blow can burn, corrode or rust the weapon (or the gloves). */
+const OBJ_ATTACKS: ReadonlySet<AttackType> = new Set(['weapon', 'claw', 'magic', 'touch']);
 
 /**
  * The monster's AT_NONE attack answers the hero's blow. `mhit` says whether she hit it and
@@ -54,7 +65,8 @@ export function passive(
   mhit: boolean,
   malive: boolean,
   weapon: Entity | null,
-  aatyp: 'weapon' | 'kick',
+  aatyp: AttackType,
+  wepWasDestroyed = false,
 ): void {
   const atk = mon.def.attacks.find((a) => a.at === 'passive');
   if (!atk) return; // no passive attacks
@@ -75,7 +87,7 @@ export function passive(
       const uarmf = whichArmor(ctx, hero.id, 'boots');
       if (uarmf && ctx.rng.rn2(6) === 0)
         erodeObj(ctx, uarmf, xnameOf(ctx.state, ctx.defs, uarmf), type, { verbose: true });
-    } else passiveObj(ctx, mon.def.id, weapon, mon.mcan);
+    } else if (OBJ_ATTACKS.has(aatyp)) passiveObj(ctx, mon.def.id, weapon, mon.mcan);
   };
   if (atk.ad === 'fire') {
     if (mhit && !mon.mcan) hitObj('burn'); // `mhitb && !mon->mcan && weapon`
@@ -87,12 +99,25 @@ export function passive(
         const uarmf = whichArmor(ctx, hero.id, 'boots');
         if (uarmf)
           erodeObj(ctx, uarmf, xnameOf(ctx.state, ctx.defs, uarmf), type, { verbose: true });
-      } else passiveObj(ctx, mon.def.id, weapon, mon.mcan);
+      } else if (OBJ_ATTACKS.has(aatyp)) passiveObj(ctx, mon.def.id, weapon, mon.mcan);
     }
   } else if (atk.ad === 'ench') {
     // KMH -- remove enchantment (disenchanter): a kick drains the boots; a bare-handed blow the
-    // gloves (passive_obj()'s `obj = uarmg`)
-    if (mhit && !(aatyp === 'kick' && !weapon) && !mon.mcan) {
+    // gloves (passive_obj()'s `obj = uarmg`); a bite, butt, sting, hug, engulf or tentacles
+    // involve no object
+    const noObject =
+      aatyp === 'bite' ||
+      aatyp === 'butt' ||
+      aatyp === 'sting' ||
+      aatyp === 'hug' ||
+      aatyp === 'spit' ||
+      aatyp === 'engulf' ||
+      aatyp === 'breath' ||
+      aatyp === 'explode' ||
+      aatyp === 'boom' ||
+      aatyp === 'gaze' ||
+      aatyp === 'tentacle';
+    if (mhit && !(aatyp === 'kick' && !weapon) && !noObject && !mon.mcan) {
       const obj = weapon ?? whichArmor(ctx, hero.id, 'gloves');
       const it = obj?.c.item;
       if (
@@ -116,12 +141,18 @@ export function passive(
     if (mhit) hitObj('corrode');
     if (ctx.state.gameOver) return;
   } else if (atk.ad === 'ston') {
-    // a bare-handed blow without gloves, or a kick without boots, touches the cockatrice
+    // a bare-handed blow without gloves, a kick without boots, a bite... touches the cockatrice
     if (mhit) {
+      // hero using monsters' AT_MAGC attack is hitting hand to hand rather than casting a spell
+      const protector: readonly ArmorSlot[] | 'never' =
+        aatyp === 'magic' ? ['gloves'] : attkProtection(aatyp);
+      const worn = (slot: ArmorSlot): boolean => whichArmor(ctx, hero.id, slot) !== null;
       const unprotected =
-        aatyp === 'kick'
-          ? !whichArmor(ctx, hero.id, 'boots')
-          : !whichArmor(ctx, hero.id, 'gloves') && !weapon;
+        protector !== 'never' &&
+        (protector.length === 0 ||
+          (protector.length === 1 && protector[0] === 'gloves'
+            ? !worn('gloves') && !uwep(ctx) && !wepWasDestroyed
+            : protector.some((slot) => !worn(slot))));
       if (unprotected && !hasProp(hero, P.STONE_RES)) {
         // done_in_by(mon, STONING): "You turn to stone..." (no polymorph into a stone golem: 7f)
         say(ctx, 'stone.you_turn');

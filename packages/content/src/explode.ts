@@ -368,7 +368,7 @@ export function explode(
 }
 
 /** The look of a monster's explosion. ref: src/explode.c adtyp_to_expltype() */
-const MON_EXPLTYPE: Readonly<Record<NonNullable<ExplSource['ad']>, ExplType>> = {
+export const MON_EXPLTYPE: Readonly<Record<NonNullable<ExplSource['ad']>, ExplType>> = {
   phys: 'noxious', // gas spore
   fire: 'fiery',
   cold: 'frosty',

@@ -3,8 +3,8 @@
 // ref: src/uhitm.c mhitm_adtyping(), mhitm_ad_*(), mhitm_mgc_atk_negated(); include/hack.h
 // struct mhitm_data
 //
-// The hero's own branch (`magr == &gy.youmonst`) is only reachable when she is polymorphed:
-// each handler marks it `// 7f`. The hit message (C's hitmsg() at the top of most mhitu
+// The hero's own branch (`magr == &gy.youmonst`, C's uhitm) is only reachable when she is
+// polymorphed (hmonas.ts damageum()); it comes first in each handler. The hit message (C's hitmsg() at the top of most mhitu
 // branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
@@ -16,6 +16,7 @@ import {
   type DefId,
   type Entity,
   type EntityId,
+  type MonsterDef,
   type Msg,
 } from '@nh/core';
 import { stopOccupation } from './eat';
@@ -31,6 +32,7 @@ import {
   makeBlinded,
   makeConfused,
   makeStunned,
+  ringBonus,
   timeoutLeft,
   uSlowDown,
 } from './props';
@@ -55,11 +57,12 @@ import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './e
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
 import { minvent, monWep, setMonFlag, whichArmor } from './mongear';
-import { mondied, monkilled } from './mondeath';
+import { mondied, monkilled, monsterDied } from './mondeath';
+import { experienceFor, gainExperience } from './hero';
 import { drainEn } from './uenergy';
 import { setWoundedLegs, LEFT_SIDE, RIGHT_SIDE } from './legs';
 import { uInAir } from './trapstate';
-import { canseemon, tele, teleControlled, rlocMon } from './trap';
+import { canseemon, tele, teleControlled, rlocMon, uTeleportMon } from './trap';
 import { teleRestrict } from './teleport';
 
 export { teleRestrict };
@@ -72,15 +75,18 @@ import { abon, acurrClamp, addAbon, type Attr } from './attrib';
 import { unaware } from './btrapped';
 import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
 import { monflee } from './monflee';
-import { addToInventory, removeFromInventory } from './items';
+import { addToInventory, invCount, placeOnFloor, removeFromInventory } from './items';
 import { corpseChanceSwallowed } from './corpses';
 import { swallowedNutrition } from './dog';
 import { wakeNearto } from './noise';
-import { doStoneU, monstone } from './stoning';
+import { doStoneU, minstapetrify, monstone } from './stoning';
 import { resistsSton } from './stonestate';
 import { losexp, resistsDrliHero } from './exper';
 import { isHumanForm, isWere, setUlycn, ulycn } from './werestate';
 import { wereChange } from './were';
+import { heroForm } from './upoly';
+import { nonliving } from './mondata';
+import { engulfingU } from './engulfstate';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -104,6 +110,8 @@ export interface AdEnv {
   mwep: Entity | null;
   /** grow_up() for a monster that killed its defender (mhitm.ts; late-bound to avoid a cycle) */
   growUp?: (ctx: Ctx, id: EntityId, victimLevel: number) => boolean;
+  /** steal_it(): the polymorphed hero's theft (hmonas.ts; it sits above this module) */
+  uStealIt?: (ctx: Ctx, mdef: Entity, atk: AttackDef) => void;
 }
 
 export const newMhm = (damage: number, dieroll = 0): Mhm => ({
@@ -199,6 +207,80 @@ function mgcAtkNegatedMon(
 // ---------------------------------------------------------------------------------------------
 // helpers
 
+/**
+ * A hold, wrap, sticky touch or swallow passes right through an unsolid target (lights, vortices,
+ * most elementals, or the hero in such a form): "The owlbear's grab attempt passes right through
+ * the yellow light!", "Your grab attempt passes right through the fog cloud!", "The owlbear's
+ * grab attempt passes right through you!". The hero always hears of it. ref: src/mhitm.c
+ * failed_grab() (no long worm tails)
+ */
+export function failedGrab(
+  ctx: Ctx,
+  magr: Entity,
+  mdef: Entity,
+  atk: AttackDef,
+  vis: boolean,
+): boolean {
+  const hero = ctx.state.playerId;
+  const pd = mdef.id === hero ? heroForm(ctx) : ctx.defs.monster(mdef.def);
+  if (
+    pd?.flags.includes('unsolid') &&
+    (atk.at === 'hug' || atk.ad === 'wrap' || atk.ad === 'stck' || atk.ad === 'dgst')
+  ) {
+    if ((vis && canSpotMon(ctx, mdef)) || magr.id === hero || mdef.id === hero) {
+      const verb = `@mhitm.verb.${atk.ad === 'dgst' ? 'gulp' : atk.ad === 'stck' ? 'adhere' : 'grab'}`;
+      if (magr.id === hero) say(ctx, 'uhitm.grab_passes', { verb, mdef: monNam(ctx, mdef) });
+      else if (mdef.id === hero) say(ctx, 'mhitu.grab_passes', { magr: monNam(ctx, magr), verb });
+      else
+        say(ctx, 'mhitm.grab_passes', { magr: monNam(ctx, magr), verb, mdef: monNam(ctx, mdef) });
+    }
+    return true;
+  }
+  return false;
+}
+
+/** The polymorphed hero is the aggressor (C's `magr == &gy.youmonst`). */
+const isU = (ctx: Ctx, e: Entity): boolean => e.id === ctx.state.playerId;
+
+/** Blind: the hero can't see the effect. */
+const uBlind = (ctx: Ctx): boolean => hasProp(getPlayer(ctx.state), P.BLINDED);
+
+/**
+ * mhitm_mgc_atk_negated() with the hero attacking: she is never cancelled, and hmonas() sets
+ * gv.vis, so "The jackal avoids harm." needs only that she sees it. ref: src/uhitm.c
+ */
+function uNegated(ctx: Ctx, mdef: Entity, verbosely: boolean): boolean {
+  const neg = !(ctx.rng.rn2(10) >= 3 * magicNegation(ctx, mdef.id));
+  if (neg && verbosely && canSpotMon(ctx, mdef))
+    say(ctx, 'mhitm.avoids_harm', { mon: monNam(ctx, mdef) });
+  return neg;
+}
+
+/** xkilled(mdef, XKILL_NOMSG): the hero kills it (alignment, luck, experience). ref: src/mon.c */
+function uXkilled(ctx: Ctx, mdef: Entity, nocorpse = false): void {
+  const level = mdef.c.monster?.level ?? 0;
+  const def = ctx.defs.monster(mdef.def);
+  monsterDied(ctx, mdef.id, true, false, nocorpse);
+  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+}
+
+/**
+ * ref: include/mondata.h sticks(): a monster that holds what it hits (a sticky touch, a wrap
+ * that isn't an engulf, a hug)
+ */
+export const sticks = (def: MonsterDef): boolean =>
+  def.attacks.some(
+    (a) => a.ad === 'stck' || (a.ad === 'wrap' && !def.attacks.some((b) => b.at === 'engulf')),
+  ) || def.attacks.some((a) => a.at === 'hug');
+
+/** ref: src/mhitm.c slept_monst(): a sleeping grabber lets go */
+function sleptMonst(ctx: Ctx, mon: Entity): void {
+  if (ustuck(ctx) === mon.id && isFrozen(ctx, mon.id)) {
+    say(ctx, 'zap.grip_relaxes', { mon: monNam(ctx, mon) });
+    setUstuck(ctx, null);
+  }
+}
+
 /** ref: src/mhitu.c mpoisons_subj(): how a poison attack was delivered (a message key) */
 function poisonSubj(at: AttackDef['at']): string {
   switch (at) {
@@ -228,7 +310,9 @@ function sleepMonst(ctx: Ctx, mdef: Entity, amt: number): boolean {
 
 /** ref: include/mondata.h haseyes() */
 const haseyes = (ctx: Ctx, mon: Entity): boolean =>
-  mon.id === ctx.state.playerId || !ctx.defs.monster(mon.def).flags.includes('noeyes');
+  mon.id === ctx.state.playerId
+    ? !heroForm(ctx)?.flags.includes('noeyes')
+    : !ctx.defs.monster(mon.def).flags.includes('noeyes');
 
 /**
  * The defender (the hero or a monster) cannot be blinded: already blind, unconscious, eyeless,
@@ -244,9 +328,9 @@ export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
     mon.c.monster?.asleep === true // msleeping
   )
     return true;
-  if (mon.id === ctx.state.playerId) return false; // (polymorphed into a yellow light: 7f)
-  const def = ctx.defs.monster(mon.def);
-  return def.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze'));
+  // a form (or monster) with a blinding explosion or gaze of its own
+  const def = mon.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mon.def);
+  return !!def?.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze'));
 }
 
 /**
@@ -268,7 +352,9 @@ export function canBlnd(
   // if monster has been permanently blinded, the deed is already done (mon_perma_blind())
   if (!isYou && !mcansee(ctx, mdef.id) && mblinded(ctx, mdef.id) === 0) return false;
   // a crow will not pluck out the eye of another crow
-  if (magr?.def === 'nh:raven' && mdef.def === 'nh:raven') return false;
+  const formOf = (e: Entity): string =>
+    e.id === ctx.state.playerId ? (heroForm(ctx)?.id ?? e.def) : e.def;
+  if (magr && formOf(magr) === 'nh:raven' && formOf(mdef) === 'nh:raven') return false;
   const ublindf = isYou && whichArmor(ctx, mdef.id, 'blindfold') !== null;
   switch (aatyp) {
     case 'explode':
@@ -427,8 +513,8 @@ export function uSlipFree(ctx: Ctx, magr: Entity, atk: AttackDef): boolean {
 
 /** ref: include/mondata.h slithy() with S_SNAKE or S_NAGA: a coiling wrap */
 const coils = (ctx: Ctx, mon: Entity): boolean => {
-  const d = ctx.defs.monster(mon.def);
-  return d.flags.includes('slithy') && (d.glyph.ch === 'S' || d.glyph.ch === 'N');
+  const d = mon.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mon.def);
+  return !!d && d.flags.includes('slithy') && (d.glyph.ch === 'S' || d.glyph.ch === 'N');
 };
 
 /**
@@ -437,6 +523,28 @@ const coils = (ctx: Ctx, mon: Entity): boolean => {
  * one that holds her crushes ("You are being crushed."); otherwise it just does its damage.
  */
 function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    // uhitm (no shades)
+    mhm.damage += mhm.specialdmg;
+    if (atk.at === 'weapon') {
+      // hmonas() uses known_hitum() to deal physical damage, then also damageum() for
+      // non-AD_PHYS; don't inflict extra physical damage for unusual damage types
+      mhm.damage = 0;
+    } else if (atk.at === 'kick' || atk.at === 'claw' || atk.at === 'touch' || atk.at === 'hug') {
+      if (ctx.defs.monster(mdef.def).flags.includes('thick_hide'))
+        mhm.damage = atk.at === 'kick' ? 0 : Math.trunc((mhm.damage + 1) / 2);
+      // add ring(s) of increase damage
+      const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
+      if (udaminc > 0) {
+        mhm.damage += udaminc; // applies even if damage was 0
+      } else if (mhm.damage > 0) {
+        // ring(s) might be negative; avoid converting 0 to non-0 or positive to non-positive
+        mhm.damage += udaminc;
+        if (mhm.damage < 1) mhm.damage = 1;
+      }
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     // (the hero is never sticky: no polymorph)
     if (atk.at === 'hug') {
@@ -477,6 +585,19 @@ function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 
 function adElec(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
   const damage = mhm.damage;
+  if (isU(ctx, magr)) {
+    if (uNegated(ctx, mdef, true)) {
+      mhm.damage = 0;
+      return;
+    }
+    if (!uBlind(ctx)) say(ctx, 'uhitm.zapped', { mon: monNam(ctx, mdef) });
+    if (resists(ctx, mdef, 'elec')) {
+      if (!uBlind(ctx)) say(ctx, 'mhitm.zap_no_shock', { mon: monNam(ctx, mdef) });
+      mhm.damage = 0; // (no golemeffects(): no golems)
+    }
+    mhm.damage += destroyItems(ctx, mdef.id, 'elec', damage);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!mgcAtkNegated(ctx, magr, true)) {
       say(ctx, 'mhitu.zapped');
@@ -504,6 +625,21 @@ function adElec(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 
 function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
   const damage = mhm.damage;
+  if (isU(ctx, magr)) {
+    if (uNegated(ctx, mdef, true)) {
+      mhm.damage = 0;
+      return;
+    }
+    if (!uBlind(ctx)) say(ctx, 'mhitm.on_fire', { mon: monNam(ctx, mdef) });
+    // (completelyburns(): no paper or straw golems)
+    if (resists(ctx, mdef, 'fire')) {
+      if (!uBlind(ctx)) say(ctx, 'uhitm.fire_no_heat', { mon: monNam(ctx, mdef) });
+      mhm.damage = 0;
+    }
+    mhm.damage += destroyItems(ctx, mdef.id, 'fire', damage);
+    igniteItems(ctx, mdef.id);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!mgcAtkNegated(ctx, magr, true)) {
       say(ctx, 'mhitu.on_fire', { how: onFire(atk.at) });
@@ -537,6 +673,19 @@ function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 
 function adCold(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
   const damage = mhm.damage;
+  if (isU(ctx, magr)) {
+    if (uNegated(ctx, mdef, true)) {
+      mhm.damage = 0;
+      return;
+    }
+    if (!uBlind(ctx)) say(ctx, 'mhitm.frost', { mon: monNam(ctx, mdef) });
+    if (resists(ctx, mdef, 'cold')) {
+      if (!uBlind(ctx)) say(ctx, 'uhitm.frost_no_chill', { mon: monNam(ctx, mdef) });
+      mhm.damage = 0;
+    }
+    mhm.damage += destroyItems(ctx, mdef.id, 'cold', damage);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!mgcAtkNegated(ctx, magr, true)) {
       say(ctx, 'mhitu.frost');
@@ -563,6 +712,10 @@ function adCold(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 }
 
 function adAcid(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (resists(ctx, mdef, 'acid')) mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     // one hit in three splashes you (a cancelled monster never)
     if (!isCancelled(ctx, magr.id) && ctx.rng.rn2(3) === 0) {
@@ -590,6 +743,17 @@ function adAcid(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 }
 
 function adSlee(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (
+      !mdef.c.monster?.asleep &&
+      !uNegated(ctx, mdef, false) &&
+      sleepMonst(ctx, mdef, ctx.rng.rnd(10))
+    ) {
+      if (!uBlind(ctx)) say(ctx, 'uhitm.put_to_sleep', { mon: monNam(ctx, mdef) });
+      sleptMonst(ctx, mdef);
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!mdef.c.helpless && ctx.rng.rn2(5) === 0 && !mgcAtkNegated(ctx, magr, true)) {
       if (hasProp(mdef, P.SLEEP_RES)) return;
@@ -614,6 +778,19 @@ function adSlee(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 
 /** mhitm_ad_drst(): AD_DRST, AD_DRDX and AD_DRCO */
 function adDrst(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    const negated = uNegated(ctx, mdef, false);
+    if (!negated && !ctx.rng.rn2(8)) {
+      say(ctx, 'uhitm.was_poisoned', { subj: poisonSubj(atk.at) });
+      if (resists(ctx, mdef, 'poison')) {
+        say(ctx, 'mhitm.poison_no_effect', { mon: monNam(ctx, mdef) });
+      } else if (!ctx.rng.rn2(10)) {
+        say(ctx, 'uhitm.poison_deadly');
+        mhm.damage = mdef.c.hp?.cur ?? 0;
+      } else mhm.damage += ctx.rng.rn2(10) + 6; // rn1(10, 6)
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     const typ = atk.ad === 'drco' ? 'con' : atk.ad === 'drdx' ? 'dex' : 'str';
     const negated = mgcAtkNegated(ctx, magr, false);
@@ -646,6 +823,12 @@ function adDrst(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 }
 
 function adStun(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (!uBlind(ctx)) say(ctx, 'mhitm.staggers', { mon: monNam(ctx, mdef) });
+    setMStunned(ctx, mdef.id, true);
+    adPhys(ctx, magr, atk, mdef, mhm, env);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!isCancelled(ctx, magr.id) && ctx.rng.rn2(4) === 0) {
       makeStunned(ctx, timeoutLeft(ctx.state, mdef, P.STUNNED) + mhm.damage, true);
@@ -659,14 +842,14 @@ function adStun(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   adPhys(ctx, magr, atk, mdef, mhm, env);
 }
 
-function adPlys(
-  ctx: Ctx,
-  magr: Entity,
-  _atk: AttackDef,
-  mdef: Entity,
-  _mhm: Mhm,
-  env: AdEnv,
-): void {
+function adPlys(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (!ctx.rng.rn2(3) && mhm.damage < (mdef.c.hp?.cur ?? 0) && !uNegated(ctx, mdef, true)) {
+      if (!uBlind(ctx)) say(ctx, 'uhitm.frozen_by_you', { mon: monNam(ctx, mdef) });
+      paralyzeMonst(ctx, mdef.id, ctx.rng.rnd(10));
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!mdef.c.helpless && ctx.rng.rn2(3) === 0 && !mgcAtkNegated(ctx, magr, true)) {
       if (hasProp(mdef, P.FREE_ACTION)) say(ctx, 'free_action.stiffen');
@@ -689,6 +872,12 @@ function adPlys(
 }
 
 function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    // `!negated && !sticks(pd) && m_next2u(mdef)`: set_ustuck(mdef), it's now stuck to you --
+    // not ported: the hero never holds a monster (DEVIATIONS "Polymorph")
+    uNegated(ctx, mdef, false);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     const negated = mgcAtkNegated(ctx, magr, false);
     if (!negated && ustuck(ctx) === null) setUstuck(ctx, magr.id); // set_ustuck(magr)
@@ -706,6 +895,22 @@ function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
  */
 function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, _env: AdEnv): void {
   const coil = coils(ctx, magr);
+  if (isU(ctx, magr)) {
+    if (!sticks(ctx.defs.monster(mdef.def))) {
+      if (ustuck(ctx) === null && !ctx.rng.rn2(10)) {
+        // (m_slips_free(): no monster wears greased armor or an oilskin cloak here)
+        say(ctx, coil ? 'uhitm.coil_around' : 'uhitm.swing_around', { mon: monNam(ctx, mdef) });
+        // set_ustuck(mdef): not ported, the hero never holds a monster
+      } else if (ustuck(ctx) === mdef.id) {
+        // (no pools to drown it in)
+        if (atk.at === 'hug') say(ctx, 'uhitm.being_crushed', { mon: monNam(ctx, mdef) });
+      } else {
+        mhm.damage = 0;
+        say(ctx, coil ? 'uhitm.brush_against' : 'uhitm.brush_leg', { mon: monNam(ctx, mdef) });
+      }
+    } else mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     // (`!sticks(pd)`: the hero is never sticky)
     if (!isCancelled(ctx, magr.id) || ustuck(ctx) === magr.id) {
@@ -741,10 +946,15 @@ function adErode(
   type: ErodeType,
 ): (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void {
   return (ctx, magr, _atk, mdef, mhm, env) => {
-    // 7f: the polymorphed hero's touch (xkilled() of an iron/wood/leather golem)
+    if (isU(ctx, magr)) {
+      // (completelyrusts(), completelyrots(): no golems)
+      erodeArmor(ctx, mdef.id, type);
+      mhm.damage = 0;
+      return;
+    }
     if (mdef.id === ctx.state.playerId) {
       if (isCancelled(ctx, magr.id)) return;
-      // completelyrusts(youmonst.data): only a polymorphed hero (7f)
+      // (completelyrusts(youmonst.data): no golem forms)
       erodeArmor(ctx, mdef.id, type);
       return;
     }
@@ -770,6 +980,11 @@ function adErode(
 }
 
 function adDren(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (!uNegated(ctx, mdef, false) && !ctx.rng.rn2(4)) xdrainenergym(ctx, mdef, true);
+    mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     const negated = mgcAtkNegated(ctx, magr, false);
     if (!negated && !ctx.rng.rn2(4)) drainEn(ctx, mhm.damage, false); // 25% chance
@@ -783,6 +998,29 @@ function adDren(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 }
 
 function adTlpt(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (mhm.damage <= 0) mhm.damage = 1;
+    if (uNegated(ctx, mdef, true)) {
+      say(ctx, 'mhitm.not_affected', { mon: monNam(ctx, mdef) });
+    } else {
+      const uSawMon = canseemon(ctx, mdef) || engulfingU(ctx, mdef.id);
+      // record the name before losing sight of monster
+      const name = monNam(ctx, mdef);
+      if (
+        uTeleportMon(ctx, mdef, false) &&
+        uSawMon &&
+        !(canseemon(ctx, mdef) || engulfingU(ctx, mdef.id))
+      )
+        say(ctx, 'adtyp.suddenly_disappears', { mon: name });
+      const hp = mdef.c.hp;
+      if (hp && mhm.damage >= hp.cur) {
+        // see hitmu(mhitu.c)
+        if (hp.cur === 1) hp.cur++;
+        mhm.damage = hp.cur - 1;
+      }
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (mgcAtkNegated(ctx, magr, false)) say(ctx, 'adtyp.you_not_affected');
     else {
@@ -826,6 +1064,17 @@ function adTlpt(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 }
 
 function adBlnd(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (canBlnd(ctx, magr, mdef, atk.at)) {
+      if (!uBlind(ctx) && mcansee(ctx, mdef.id))
+        say(ctx, 'adtyp.is_blinded', { mon: monNam(ctx, mdef) });
+      mhm.damage += mblinded(ctx, mdef.id);
+      if (mhm.damage > 127) mhm.damage = 127;
+      setMblinded(ctx, mdef.id, mhm.damage);
+    }
+    mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (canBlnd(ctx, magr, mdef, atk.at)) {
       if (!hasProp(mdef, P.BLINDED)) say(ctx, 'adtyp.blinds_you', { mon: monNam(ctx, magr) });
@@ -849,13 +1098,22 @@ function adBlnd(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 const night = (): boolean => false;
 
 function adCurs(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    // `night() && !rn2(10) && !mdef->mcan`: never, there is no clock (no clay golems either)
+    if (night() && !ctx.rng.rn2(10) && !isCancelled(ctx, mdef.id)) {
+      setCancelled(ctx, mdef.id);
+      say(ctx, 'uhitm.chuckle');
+    }
+    mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!night() && magr.def === 'nh:gremlin') return;
     if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(10)) {
       // never Deaf
       if (hasProp(mdef, P.BLINDED)) say(ctx, 'adtyp.hear_laughter');
       else say(ctx, 'adtyp.chuckles', { mon: monNam(ctx, magr) });
-      // u.umonnum == PM_CLAY_GOLEM: 7f
+      // (u.umonnum == PM_CLAY_GOLEM: no golem forms)
       attrcurse(ctx); // mon_give_prop(magr, ...): monsters' intrinsics are not modelled
     }
     return;
@@ -894,7 +1152,8 @@ function adEnch(
   _mhm: Mhm,
   _env: AdEnv,
 ): void {
-  if (mdef.id !== ctx.state.playerId) return; // mhitm: there's no msomearmor(), so just damage
+  // uhitm and mhitm: there's no msomearmor() function, so just do damage
+  if (mdef.id !== ctx.state.playerId) return;
   const negated = mgcAtkNegated(ctx, magr, false);
   // uncancelled is sufficient enough; please don't make this attack less frequent
   if (negated) return;
@@ -916,9 +1175,20 @@ function adSlow(
   env: AdEnv,
 ): void {
   const isYou = mdef.id === ctx.state.playerId;
-  const negated = isYou
-    ? mgcAtkNegated(ctx, magr, false)
-    : mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  const negated = isU(ctx, magr)
+    ? uNegated(ctx, mdef, false)
+    : isYou
+      ? mgcAtkNegated(ctx, magr, false)
+      : mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  if (isU(ctx, magr)) {
+    if (!negated && mspeed(ctx, mdef.id) !== 'slow') {
+      const oldspeed = mspeed(ctx, mdef.id);
+      monAdjustSpeed(ctx, mdef, -1);
+      if (mspeed(ctx, mdef.id) !== oldspeed && canseemon(ctx, mdef))
+        say(ctx, 'adtyp.slows_down', { mon: monNam(ctx, mdef) });
+    }
+    return;
+  }
   // defended(mdef, AD_SLOW): no artifacts
   if (isYou) {
     // HFast: the intrinsic or a timed speed, not speed boots
@@ -935,6 +1205,14 @@ function adSlow(
 }
 
 function adConf(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    if (!isMConfused(ctx, mdef.id)) {
+      if (canseemon(ctx, mdef))
+        say(ctx, 'adtyp.looks_confused', { mon: monNam(ctx, mdef), more: '' });
+      setMConfused(ctx, mdef.id, true);
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!isCancelled(ctx, magr.id) && !ctx.rng.rn2(4) && !mspecUsed(ctx, magr.id)) {
       setMspecUsed(ctx, magr.id, mspecUsed(ctx, magr.id) + (mhm.damage + ctx.rng.rn2(6)));
@@ -955,7 +1233,7 @@ function adConf(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 }
 
 function adHalu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
-  if (mdef.id !== ctx.state.playerId) {
+  if (!isU(ctx, magr) && mdef.id !== ctx.state.playerId) {
     if (!isCancelled(ctx, magr.id) && haseyes(ctx, mdef) && mcansee(ctx, mdef.id)) {
       if (env.vis && canSpotMon(ctx, mdef))
         say(ctx, 'adtyp.looks_confused', {
@@ -969,6 +1247,10 @@ function adHalu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
 }
 
 function adLegs(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    adPhys(ctx, magr, atk, mdef, mhm, env);
+    return;
+  }
   if (mdef.id !== ctx.state.playerId) {
     if (isCancelled(ctx, magr.id)) {
       mhm.damage = 0;
@@ -1041,8 +1323,29 @@ function adDise(
 // theft (steal.ts)
 
 function adSgld(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    const mongold = findgold(ctx, mdef.id);
+    if (mongold) {
+      const hero = ctx.state.playerId;
+      const hasGold = findgold(ctx, hero) !== null; // merge_choice(): gold always merges
+      if (hasGold || invCount(ctx, hero) < 52) {
+        addToInventory(ctx, hero, mongold.id);
+        say(ctx, 'uhitm.purse_heavier');
+      } else {
+        say(ctx, 'uhitm.grab_gold_no_room', { mon: monNam(ctx, mdef) });
+        removeFromInventory(ctx, mongold.id);
+        const hp = getPlayer(ctx.state).c.pos;
+        if (hp) placeOnFloor(ctx, mongold.id, hp.level, hp.x, hp.y);
+      }
+    }
+    // (exercise(A_DEX, TRUE): no exercise)
+    mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
-    // hitmsg() is the caller's; (`pd->mlet == pa->mlet`: a polymorphed hero, 7f)
+    // hitmsg() is the caller's; a leprechaun doesn't rob a leprechaun form
+    const pd = heroForm(ctx);
+    if (pd && pd.glyph.ch === ctx.defs.monster(magr.def).glyph.ch) return;
     if (!isCancelled(ctx, magr.id)) stealgold(ctx, magr);
     return;
   }
@@ -1079,15 +1382,29 @@ function locomotionRun(ctx: Ctx, mon: Entity): string {
           : 'run';
 }
 
-function adSedu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+function adSedu(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
+  if (isU(ctx, magr)) {
+    env.uStealIt?.(ctx, mdef, atk);
+    mhm.damage = 0;
+    return;
+  }
   const animal = isAnimal(ctx.defs.monster(magr.def));
   if (mdef.id === ctx.state.playerId) {
+    const uform = heroForm(ctx);
     if (animal) {
       // hitmsg() is the caller's (hitmsgFor())
       if (isCancelled(ctx, magr.id)) return;
       // continue below
+    } else if (uform?.attacks.some((a) => a.ad === 'sedu' || a.ad === 'ssex')) {
+      // a nymph form: it brags or complains instead (never Deaf)
+      say(ctx, minvent(ctx, magr.id).length > 0 ? 'uhitm.nymph_brags' : 'uhitm.nymph_remarks', {
+        mon: monNam(ctx, magr),
+      });
+      if (!teleRestrict(ctx, magr)) rlocMon(ctx, magr, true);
+      mhm.hitflags = M_ATTK.AGR_DONE; // return 3???
+      mhm.done = true;
+      return;
     } else if (isCancelled(ctx, magr.id)) {
-      // (the polymorphed hero with a seduction attack is 7f)
       if (!hasProp(mdef, P.BLINDED))
         say(ctx, heroFemale(ctx.state) ? 'steal.plain_tries' : 'steal.plain_tries.male', {
           mon: monNam(ctx, magr),
@@ -1159,7 +1476,8 @@ const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => adSedu(ctx, magr, at
  * ref: src/uhitm.c mhitm_ad_dgst() (no Riders; monsters' amulets of life saving are not worn)
  */
 const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
-  if (mdef.id === ctx.state.playerId) {
+  if (isU(ctx, magr) || mdef.id === ctx.state.playerId) {
+    // uhitm: gulpum() digests it
     mhm.damage = 0;
     return;
   }
@@ -1206,6 +1524,12 @@ function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: M
  * ref: src/uhitm.c mhitm_ad_ston() (no moon phases: never a new moon; the hero is never deaf)
  */
 const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (isU(ctx, magr)) {
+    // (munstone(): monsters do not cure themselves)
+    minstapetrify(ctx, mdef, true);
+    mhm.damage = 0;
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     // (the hitmsg() is hitmu()'s)
     if (ctx.rng.rn2(3) !== 0) return;
@@ -1247,6 +1571,28 @@ export function resistsDrli(ctx: Ctx, mon: Entity): boolean {
  * ref: src/uhitm.c mhitm_ad_drli() (no Death's touch, no Stormbringer)
  */
 const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
+  if (isU(ctx, magr)) {
+    if (!ctx.rng.rn2(3) && !resistsDrli(ctx, mdef) && !uNegated(ctx, mdef, true)) {
+      mhm.damage = ctx.rng.d(2, 6); // Stormbringer uses monhp_per_lvl (usually 1d8)
+      say(ctx, 'adtyp.becomes_weaker', { mon: monNam(ctx, mdef) });
+      const m = mdef.c.monster;
+      const hp = mdef.c.hp;
+      if (!m || !hp) return;
+      if (hp.max - mhm.damage > m.level) hp.max -= mhm.damage;
+      // limit floor of mhpmax reduction to current m_lev + 1; avoid increasing it if somehow
+      // already less than that
+      else if (hp.max > m.level) hp.max = m.level + 1;
+      hp.cur -= mhm.damage;
+      // !m_lev: level 0 monster is killed regardless of hit points rather than drop to level -1
+      if (hp.cur < 1 || !m.level) {
+        const pd = ctx.defs.monster(mdef.def);
+        say(ctx, nonliving(pd) ? 'uhitm.expires' : 'uhitm.dies', { mon: monNam(ctx, mdef) });
+        uXkilled(ctx, mdef);
+      } else m.level--;
+      mhm.damage = 0; // damage has already been inflicted
+    }
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     // (the hitmsg() is hitmu()'s)
     if (!ctx.rng.rn2(3) && !resistsDrliHero(ctx) && !mgcAtkNegated(ctx, magr, true))
@@ -1280,6 +1626,10 @@ const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
  * defending artifacts, no exercise(); retouch_equipment() is moot without silver items)
  */
 const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (isU(ctx, magr)) {
+    adPhys(ctx, magr, atk, mdef, mhm, env);
+    return;
+  }
   if (mdef.id === ctx.state.playerId) {
     if (!ctx.rng.rn2(4) && ulycn(ctx.state) === null && !mgcAtkNegated(ctx, magr, true)) {
       say(ctx, 'were.feverish');
@@ -1331,8 +1681,8 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
 
 /**
  * The effect of the attack's damage type: updates `mhm` (the damage left to apply, or `done` with
- * the result flags). `magr` attacks `mdef` (either may be the hero, `ctx.state.playerId`; a hero
- * attacker is 7f). The hero may die inside (instadeath poison): check `ctx.state.gameOver`.
+ * the result flags). `magr` attacks `mdef` (either may be the hero, `ctx.state.playerId`; the
+ * hero attacks only while polymorphed, from hmonas.ts damageum()). The hero may die inside (instadeath poison): check `ctx.state.gameOver`.
  * ref: src/uhitm.c mhitm_adtyping(). C's default (`damage = 0`) is for types this port does not
  * have; the types no step ported yet (sliming, AD_HEAL, AD_DRIN...) still do plain damage here.
  */
@@ -1347,7 +1697,6 @@ export function mhitmAdtyping(
   const magr = ent(ctx, magrId);
   const mdef = ent(ctx, mdefId);
   if (!magr || !mdef) return;
-  if (magrId === ctx.state.playerId) return; // 7f: the polymorphed hero's damageum()
   const h = HANDLERS[atk.ad] ?? adPhys;
   h(ctx, magr, atk, mdef, mhm, env);
 }

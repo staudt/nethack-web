@@ -25,7 +25,7 @@ import { mondead, monkilled, mondied } from './mondeath';
 import { monExplodes } from './explode';
 
 export { monkilled, mondied };
-import { M_ATTK, drainItem, mhitmAdtyping, newMhm } from './adtyping';
+import { M_ATTK, drainItem, failedGrab, mhitmAdtyping, newMhm } from './adtyping';
 import { heroSees, minvent, monWep, monWieldItem } from './mongear';
 import {
   paralyzeMonst,
@@ -250,35 +250,7 @@ function hitmm(
 const unsolid = (ctx: Ctx, mon: Entity): boolean =>
   ctx.defs.monster(mon.def).flags.includes('unsolid');
 
-/**
- * A hold, wrap, sticky touch or swallow passes right through an unsolid target (lights, vortices,
- * most elementals): "The owlbear's grab attempt passes right through the yellow light!". Only
- * monster defenders here (the hero is never unsolid: no polymorph; no long worm tails).
- * ref: src/mhitm.c failed_grab()
- */
-export function failedGrab(
-  ctx: Ctx,
-  magr: Entity,
-  mdef: Entity,
-  atk: AttackDef,
-  vis: boolean,
-): boolean {
-  if (
-    unsolid(ctx, mdef) &&
-    (atk.at === 'hug' || atk.ad === 'wrap' || atk.ad === 'stck' || atk.ad === 'dgst')
-  ) {
-    if (vis && canSpotMon(ctx, mdef)) {
-      const verb = atk.ad === 'dgst' ? 'gulp' : atk.ad === 'stck' ? 'adhere' : 'grab';
-      say(ctx, 'mhitm.grab_passes', {
-        magr: monNam(ctx, magr),
-        verb: `@mhitm.verb.${verb}`,
-        mdef: monNam(ctx, mdef),
-      });
-    }
-    return true;
-  }
-  return false;
-}
+export { failedGrab };
 
 /**
  * The aggressor gazes at the defender: nothing happens when it is cancelled or blind, or the

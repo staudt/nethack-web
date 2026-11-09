@@ -14,7 +14,7 @@ import {
   type Entity,
 } from '@nh/core';
 import { BOULDER } from './boulder';
-import { dbon, monsterIdAt } from './combat';
+import { dbonU, monsterIdAt } from './combat';
 import { hmonThrownHit } from './hmon';
 import { losehp } from './hp';
 import { monkilled } from './mondeath';
@@ -105,11 +105,10 @@ export function boulderFlooreffects(
       else setMtrapped(ctx, trappedMon.id, false);
     } else if (trappedMon) {
       // no passes_walls or rock throwers exist: hmon(mtmp, obj, HMON_THROWN, dieroll 1)
-      const hero = getPlayer(ctx.state);
       let dmg = boulderDmgval(ctx);
       // hmon_hitmon_dmg_recalc(): u.udaminc and the Str bonus (no launcher)
       if (dmg > 0) dmg += ringBonus(ctx.state, 'nh:ring_of_increase_damage');
-      dmg += dbon(hero.c.attributes?.str ?? 10);
+      dmg += dbonU(ctx);
       if (dmg < 1) dmg = 1;
       hmonThrownHit(ctx, trappedMon, dmg, xnameOf(ctx.state, ctx.defs, obj));
       if (ctx.state.entities[String(trappedMon.id)]) setMtrapped(ctx, trappedMon.id, false);

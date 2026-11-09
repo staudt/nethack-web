@@ -19,7 +19,7 @@ import { heroForm } from './upoly';
 
 /** ref: include/you.h AC_MAX */
 const AC_MAX = 99;
-/** The hero's base AC: the human race monster. ref: src/do_wear.c find_ac() mons[u.umonnum].ac */
+/** The hero's base AC in her own form: the human race monster. ref: src/do_wear.c find_ac() */
 const HUMAN_AC = 10;
 
 const clampAc = (ac: number): number => Math.max(-AC_MAX, Math.min(AC_MAX, ac));
@@ -33,7 +33,13 @@ const clampAc = (ac: number): number => Math.max(-AC_MAX, Math.min(AC_MAX, ac));
 export function findAc(state: Readonly<GameState>, defs: Registry, id: EntityId): number {
   const e = state.entities[String(id)];
   if (!e) return HUMAN_AC;
-  let ac = defs.isMonster(e.def) ? defs.monster(e.def).ac : HUMAN_AC;
+  // ref: find_ac(): `uac = mons[u.umonnum].ac`, the base armor class of her current form
+  let ac =
+    id === state.playerId
+      ? (heroForm({ state, defs })?.ac ?? HUMAN_AC)
+      : defs.isMonster(e.def)
+        ? defs.monster(e.def).ac
+        : HUMAN_AC;
   for (const o of inventoryOf(state, id)) {
     const it = o.c.item;
     if (!it || it.equipped === null || it.equipped === 'weapon') continue;

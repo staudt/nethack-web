@@ -216,11 +216,17 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
 /**
  * Puts a new object into the hero's inventory, or drops it at her feet with `dropMsg` when it
  * would take her past her encumbrance limit (her current one or Stressed, whichever is more)
- * or past 52 letters. Returns the inventory stack, or null when it was dropped.
+ * or past 52 letters; `holdMsg` prefixes the inventory line ("You steal: "). Returns the
+ * inventory stack, or null when it was dropped.
  * ref: src/invent.c hold_another_object() (no artifacts, fumbling, cockatrice corpses or
  * loadstones; the hero always reaches the floor)
  */
-export function holdAnotherObject(ctx: Ctx, id: EntityId, dropMsg: Msg | null): EntityId | null {
+export function holdAnotherObject(
+  ctx: Ctx,
+  id: EntityId,
+  dropMsg: Msg | null,
+  holdMsg: Msg | null = null,
+): EntityId | null {
   const obj = ctx.state.entities[String(id)];
   const oquan = obj?.c.item?.quantity ?? 1;
   const hero = ctx.state.playerId;
@@ -236,7 +242,7 @@ export function holdAnotherObject(ctx: Ctx, id: EntityId, dropMsg: Msg | null): 
     if (pos) placeOnFloor(ctx, drop, pos.level, pos.x, pos.y);
     return null;
   }
-  prinv(ctx, st, oquan);
+  prinv(ctx, st, oquan, holdMsg);
   encumberMsg(ctx);
   return stack;
 }

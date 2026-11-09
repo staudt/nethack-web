@@ -495,6 +495,9 @@ interface NhData {
   nomovemsg?: Msg | null;
   /** The function to run when the helplessness ends, by setAfternmv() key (ref: afternmv). */
   afternmv?: string;
+  /** The monster a polymorphed hero swallowed whole, for its corpse effects once digested
+   * (gc.corpsenm_digested); see hmonas.ts gulpum(). */
+  corpsenmDigested?: DefId;
   /** The worn armor being taken off for a thief, and the thief (ref: stealoid, stealmid). */
   stealoid?: number;
   stealmid?: number;

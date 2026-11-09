@@ -6,13 +6,14 @@
 // Only what the port models is listed (see DEVIATIONS.md "Enlightenment"): no title with the
 // hero's name (the window's title says "Your attributes:"), no weapon and skill insight, no
 // spellcasting line, no "Miscellaneous" section (the elapsed real time would break
-// determinism), no deaths counted ("You have been killed..."), and nothing for polymorph,
+// determinism), no deaths counted ("You have been killed..."), and nothing for
 // steeds, swallowing, being held, water,
 // infravision, half damage or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
 import { isStoned } from './stonestate';
 import { resistsDrliHero } from './exper';
 import { ulycn } from './werestate';
+import { heroFormId } from './upoly';
 import { getPlayer, type Ctx, type Msg } from '@nh/core';
 import { alignGname } from './align';
 import {
@@ -240,18 +241,30 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.FREE_ACTION)) have('free_action');
   if (has(P.FIXED_ABIL)) have('fixed_abil');
   if (has(P.LIFESAVED)) line('enl.lifesaved');
-  // polymorph and other shape change (no protection from shape changers; the polymorphed form,
-  // its eggs and the beast form are 7f-d's; Hate_silver needs silver)
+  // polymorph and other shape change (no protection from shape changers, no egg-laying forms,
+  // no vampires; Hate_silver needs silver; no wizard-mode timer)
   const lycn = ulycn(ctx.state);
+  const form = heroFormId(ctx.state);
   if (has(P.UNCHANGING)) {
-    can('unchanging');
+    if (form === null) can('unchanging'); // Upolyd handled below after current form
     // blocked shape changes
     if (has(P.POLYMORPH)) line('enl.would_polymorph');
     else if (lycn !== null) line('enl.would_change_shape');
   } else if (has(P.POLYMORPH)) are('polymorphing');
   if (has(P.POLYMORPH_CONTROL)) have('polymorph_control');
-  if (lycn !== null)
-    line('enl.you_are', { what: { key: 'enl.lycanthrope', params: { mon: `@${lycn}` } } });
+  // a foreign shape (the were form is handled below)
+  if (form !== null && form !== lycn)
+    line('enl.you_are', { what: { key: 'enl.polymorphed_into', params: { mon: `@${form}` } } });
+  if (lycn !== null) {
+    // "you are a werecreature [in beast form]"
+    line('enl.you_are', {
+      what: {
+        key: form === lycn ? 'enl.lycanthrope_beast' : 'enl.lycanthrope',
+        params: { mon: `@${lycn}` },
+      },
+    });
+  }
+  if (has(P.UNCHANGING) && form !== null) can('unchanging');
   // miscellany
   const luck = luckOf(ctx.state);
   if (luck) {
