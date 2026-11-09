@@ -40,7 +40,7 @@ import {
   timeoutLeft,
 } from './props';
 import { ENCUMBRANCE_NAMES, UNENCUMBERED, nearCapacity } from './stats';
-import { flying, levitating, utrap } from './trapstate';
+import { flying, levAtWill, levitating, utrap } from './trapstate';
 import { heroHatesSilver } from './silver';
 
 const ARMOR_SLOTS = ['body', 'cloak', 'shirt', 'helm', 'gloves', 'boots', 'shield'] as const;
@@ -118,7 +118,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
 
   // ---- Status
   line('enl.status');
-  if (levitating(ctx)) are('levitating');
+  if (levitating(ctx)) are(levAtWill(ctx) ? 'levitating_at_will' : 'levitating');
   else if (flying(ctx)) are('flying'); // can only fly when not levitating
   if (isStoned(ctx.state)) are('turning_to_stone');
   if (isSlimed(ctx.state)) are('turning_into_slime');

@@ -342,7 +342,8 @@ describe('the temple priest of a real Minetown', () => {
   });
 
   test('soak invariant: a peaceful priest with his shrine stands in his temple', () => {
-    const { state, level } = minetown(3);
+    // (seed 1: seed 3 made Orcish Town after m11 step 6's potions moved the stream)
+    const { state, level } = minetown(1);
     const [id] = priestsOn(state, level.id);
     const priest = state.entities[String(id)];
     const pp = priest?.c.pos;

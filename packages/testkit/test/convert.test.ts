@@ -49,7 +49,9 @@ const OBJECT_DIFFERENCES: Readonly<Record<string, string>> = {
   'nh:potion_of_confusion.prop': POTION_PROP,
   'nh:potion_of_hallucination.prop': POTION_PROP,
   'nh:potion_of_invisibility.prop': POTION_PROP,
+  'nh:potion_of_levitation.prop': POTION_PROP,
   'nh:potion_of_see_invisible.prop': POTION_PROP,
+  'nh:potion_of_speed.prop': POTION_PROP,
 };
 
 const sorted = (xs: readonly string[]): string[] => [...xs].sort();

@@ -62,8 +62,15 @@ const boulders = (state: GameState, level: Level): Entity[] =>
 const terrainAt = (level: Level, x: number, y: number): DefId | undefined =>
   level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
 
-/** No monster on a boulder square, and every boulder on passable ground. */
-function boulderSane(state: GameState, level: Level): void {
+/**
+ * No monster on a boulder square, and every boulder on passable ground. `launch` boulders (a
+ * rolling boulder trap's, keyed "x,y") may sit on a monster: C's mkroll_launch() does not look.
+ */
+function boulderSane(
+  state: GameState,
+  level: Level,
+  launch: ReadonlySet<string> = new Set(),
+): void {
   const { passable } = cellRules(level, defs);
   const mons = new Set(
     onLevel(state, level)
@@ -73,7 +80,7 @@ function boulderSane(state: GameState, level: Level): void {
   for (const b of boulders(state, level)) {
     const i = cellIndex(level, b.c.pos!.x, b.c.pos!.y);
     expect(passable[level.cells[i] ?? 0]).toBe(true);
-    expect(mons.has(i)).toBe(false);
+    if (!launch.has(`${b.c.pos!.x},${b.c.pos!.y}`)) expect(mons.has(i)).toBe(false);
   }
 }
 
@@ -111,12 +118,12 @@ describe('boulders in level generation', () => {
       ).length;
       // a random trap may land on an earlier one (sp_lev's get_location() ignores traps, as in C):
       // a rolling boulder trap replaced that way leaves its launch boulder behind (seed 15)
-      boulderSane(state, level);
+      // (seed 58: a launch boulder on a gnome, made after it as in C)
+      boulderSane(state, level, launch);
       if (level.traps.length < 6) continue;
       expect(count).toBeLessThanOrEqual(2);
       if (count > 0) withBoulders++;
       n++;
-      boulderSane(state, level);
     }
     // percent(75): 45 of 60 expected
     expect(withBoulders / n).toBeGreaterThan(0.55);

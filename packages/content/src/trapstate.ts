@@ -17,7 +17,7 @@ import {
   type Level,
   type Trap,
 } from '@nh/core';
-import { P, hasProp } from './props';
+import { P, hasExtrinsic, hasProp } from './props';
 
 type Table = { [k: string]: Json };
 
@@ -73,6 +73,35 @@ export function levitating(ctx: Pick<Ctx, 'state'>): boolean {
   if (!hasProp(getPlayer(ctx.state), P.LEVITATION)) return false;
   const u = utrap(ctx);
   return !u || u.type === 'pit';
+}
+
+/**
+ * HLevitation & I_SPECIAL: a blessed potion's levitation may be ended at will with `>` (or the
+ * "Stop levitating" offer); `modData.nh.levAtWill`, written only while set. ref:
+ * src/potion.c peffect_levitation(), src/do.c dodown()
+ */
+export function levAtWillFlag(ctx: Pick<Ctx, 'state'>): boolean {
+  const nh = ctx.state.modData['nh'];
+  return isObj(nh) && nh['levAtWill'] === true;
+}
+
+/** Sets or clears HLevitation's I_SPECIAL bit. */
+export function setLevAtWill(ctx: Pick<Ctx, 'state'>, on: boolean): void {
+  const nh = ctx.state.modData['nh'];
+  if (on) {
+    if (isObj(nh)) nh['levAtWill'] = true;
+    else ctx.state.modData['nh'] = { levAtWill: true };
+  } else if (isObj(nh)) delete nh['levAtWill'];
+}
+
+/**
+ * Lev_at_will: the timed levitation is the only source and may be ended at will (no ring or
+ * boots, nothing permanent). ref: include/youprop.h Lev_at_will
+ */
+export function levAtWill(ctx: Pick<Ctx, 'state'>): boolean {
+  const h = getPlayer(ctx.state);
+  const p = h.c.props?.[P.LEVITATION];
+  return levAtWillFlag(ctx) && !p?.intrinsic && !hasExtrinsic(h, P.LEVITATION);
 }
 
 /**

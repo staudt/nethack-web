@@ -32,7 +32,7 @@ import {
   type PlayerAction,
   type Pos,
 } from '@nh/core';
-import { adjattrib, type Attr } from './attrib';
+import { adjattrib, restoreAttr, type Attr } from './attrib';
 import { monsterDetect } from './detect';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { makemon } from './generation';
@@ -340,11 +340,12 @@ export function drinkfountain(ctx: Ctx, action: DefId): number {
   if (mgkftn && uluck >= 0 && fate >= 10) {
     const littleluck = uluck < 4;
     say(ctx, 'fountain.feel_great');
-    // blessed restore ability: no peak values (AMAX) are kept, so nothing to restore
+    // blessed restore ability
+    for (const k of ATTRS) restoreAttr(ctx, k);
     // gain ability, blessed if "natural" luck is high
     let i = ctx.rng.rn2(ATTRS.length); // start at a random attribute
     for (let ii = 0; ii < ATTRS.length; ii++) {
-      if (adjattrib(ctx, ATTRS[i] as Attr, 1, true) && littleluck) break;
+      if (adjattrib(ctx, ATTRS[i] as Attr, 1, littleluck ? true : 'always') && littleluck) break;
       if (++i >= ATTRS.length) i = 0;
     }
     say(ctx, 'fountain.wisp');

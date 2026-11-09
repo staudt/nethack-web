@@ -116,7 +116,12 @@ describe('the shop types', () => {
         seen.add(typeof item === 'object' ? item.def : item);
       }
       if (t.id === 'nh:food_shop')
-        expect([...seen].sort()).toEqual(['food', 'nh:potion_of_booze', 'nh:potion_of_water']);
+        expect([...seen].sort()).toEqual([
+          'food',
+          'nh:potion_of_booze',
+          'nh:potion_of_fruit_juice',
+          'nh:potion_of_water',
+        ]);
       if (t.id === 'nh:candle_shop')
         expect([...seen].sort()).toEqual([
           'nh:brass_lantern',
@@ -828,6 +833,8 @@ describe('prices', () => {
 
   test('a container picked up is billed with its contents, each on its own line', () => {
     const t = bare(15);
+    // an o_id that is not a multiple of 4: no unidentified surcharge (oid_price_adjustment())
+    while (t.s.state.nextEntityId % 4 === 0) t.s.state.nextEntityId++;
     const sack = t.make('nh:sack');
     const apple = mksobj(ctxOf(t.s), obj('nh:apple'), { init: false });
     putIn(defs, t.s.state, sack.id, apple);
@@ -958,6 +965,7 @@ describe('prices', () => {
 
   test('a used-up unpaid potion stays billed by name', () => {
     const t = bare(15);
+    while (t.s.state.nextEntityId % 4 === 0) t.s.state.nextEntityId++; // no o_id surcharge
     const pot = t.make('nh:potion_of_water');
     const it = pot.c.item;
     if (it) it.buc = 'blessed';

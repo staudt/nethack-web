@@ -29,6 +29,8 @@ export interface UPoly {
   mfemale: boolean;
   /** u.macurr: her own attributes (without ring bonuses), restored by polyman() */
   macurr: AttributesComponent;
+  /** u.mamax: her own attribute peaks (the AMAX record, attrstate.ts), when any was lost */
+  mamax?: Partial<AttributesComponent>;
   /** poly_gender() is 2: the form is neuter or not humanoid */
   neuter?: true;
 }

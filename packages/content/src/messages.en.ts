@@ -129,6 +129,7 @@ export const messagesEn: Record<string, string> = {
   'action.wait': 'Wait',
   'action.search': 'Search',
   'action.down': 'Go down',
+  'action.stop_levitating': 'Stop levitating',
   'action.up': 'Go up',
   'action.travel': 'Travel here',
   'action.run': 'Run',

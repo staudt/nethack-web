@@ -4,10 +4,16 @@ import { done } from './end';
 import { losehp } from './hp';
 import { ownHp, upolyd } from './upoly';
 import { P, hasProp } from './props';
-import { abon, acurrClamp, attrOverride, rawAttr, setRawAttr } from './attrstate';
+import { adjattrib, rawAttr } from './attrstate';
 
 export {
+  adjattrib,
+  abase,
   abon,
+  amax,
+  restoreAttr,
+  setAbase,
+  setAmax,
   acurrClamp,
   addAbon,
   adjustAbon,
@@ -21,53 +27,13 @@ export type Attr = keyof AttributesComponent;
 
 /** ref: include/attrib.h STR18 */
 const STR18 = (x: number): number => 18 + x;
-/** ref: src/role.c races[] human attrmin / attrmax */
-const ATTRMIN = 3;
-const ATTRMAX: Record<Attr, number> = {
-  str: STR18(100),
-  int: 18,
-  wis: 18,
-  dex: 18,
-  con: 18,
-  cha: 18,
-};
 
 /**
- * Raises or lowers an attribute. Returns whether it changed. `msg` shows "You feel weak!" etc.
- * ref: src/attrib.c adjattrib() (a dunce cap holds Int and Wis: "Your cap constricts briefly").
- * Not ported: the peak value (AMAX) that a drop below the minimum lowers, abuse and exercise.
+ * "You feel weaker!" after a poisoning ("You feel weaker." without `exclaim`). ref:
+ * src/attrib.c poisontell() (not the "innately weaker" wording of gauntlets of power)
  */
-export function adjattrib(ctx: Ctx, which: Attr, incr: number, msg: boolean): boolean {
-  const hero = getPlayer(ctx.state);
-  const a = hero.c.attributes;
-  if (hasProp(hero, P.FIXED_ABIL) || !a || !incr) return false;
-  if ((which === 'int' || which === 'wis') && attrOverride(ctx.state, which) !== null) {
-    // the dunce cap
-    if (msg) ctx.emit({ type: 'msg', key: 'attr.cap_constricts' });
-    return false;
-  }
-  const old = a[which];
-  // the stored value is ACURR: change ABASE (= ACURR - ABON) within its limits, then add ABON back
-  const bonus = abon(ctx.state, which);
-  const base = Math.max(
-    ATTRMIN,
-    Math.min(ATTRMAX[which], rawAttr(ctx.state, which) - bonus + incr),
-  );
-  setRawAttr(ctx, which, acurrClamp(which, base + bonus));
-  if (a[which] === old) return false;
-  if (msg) {
-    ctx.emit({
-      type: 'msg',
-      key: `attr.${incr > 0 ? 'plus' : 'minus'}.${which}`,
-      params: { very: incr > 1 || incr < -1 ? 'very ' : '' },
-    });
-  }
-  return true;
-}
-
-/** "You feel weaker!" after a poisoning. ref: src/attrib.c poisontell() */
-function poisontell(ctx: Ctx, typ: Attr): void {
-  ctx.emit({ type: 'msg', key: `poison.tell.${typ}` });
+export function poisontell(ctx: Ctx, typ: Attr, exclaim = true): void {
+  ctx.emit({ type: 'msg', key: `poison.tell.${typ}${exclaim ? '' : '.calm'}` });
 }
 
 /**

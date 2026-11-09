@@ -12,6 +12,7 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.you_can': 'You can {what}.',
   // status
   'enl.levitating': 'levitating',
+  'enl.levitating_at_will': 'levitating, at will',
   'enl.strangled': 'being strangled',
   'enl.sick_food_poisoning': 'terminally sick from food poisoning',
   'enl.nauseated': 'nauseated',

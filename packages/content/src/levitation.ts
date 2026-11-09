@@ -3,8 +3,9 @@
 // src/fountain.c floating_above(), src/trap.c reset_utrap(); src/do_wear.c Ring_on(),
 // Ring_off_or_gone() (RIN_LEVITATION)
 //
-// The sources are a worn ring of levitation and levitation boots (no potion, spell or artifact,
-// so no Lev_at_will and no timeout), and the hero never flies, rides, swims or is engulfed. A bear trap
+// The sources are a worn ring of levitation, levitation boots and the potion (timed HLevitation,
+// at will when blessed: Lev_at_will, `>`; ref: src/timeout.c nh_timeout() LEVITATION,
+// levitation_dialogue(); src/do.c dodown()); no spell or artifact yet. A bear trap
 // holds her to the floor (BLevitation): `levitating()` (trapstate.ts) is C's `Levitation`.
 // Not ported: the air and water levels, pools, lava and sinks (dosinkfall()), the ball and
 // chain, hurtling and the steed (DEVIATIONS.md "Levitation").
@@ -30,10 +31,10 @@ import { ustuck, setUstuck } from './hackmove';
 import { losehp } from './hp';
 import { encumberMsg, lookHere } from './itemactions';
 import { monNam } from './perception';
-import { P, hasProp } from './props';
+import { P, hasExtrinsic, hasProp, setItimeout, setTimeoutExpiry, timeoutLeft } from './props';
 import { isSokoban } from './sokoban';
 import { surfaceKey } from './terrain';
-import { levitating, setUtrap, utrap } from './trapstate';
+import { levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
 
 export { levitating };
 
@@ -60,7 +61,7 @@ export const canReachFloor = (ctx: Pick<Ctx, 'state'>): boolean =>
 
 /**
  * Whether another source than `ring` gives levitation: Ring_on()'s `oldprop` (a second ring of
- * levitation) and HLevitation (nothing sets it yet).
+ * levitation, boots) and HLevitation (the potion's timeout).
  */
 export function otherLevitation(ctx: Pick<Ctx, 'state' | 'defs'>, ring: Entity): boolean {
   const h = hero(ctx);
@@ -112,11 +113,16 @@ export function floatUp(ctx: Ctx): void {
  * The hero stops floating (the ring is off): unless something still holds her up she comes down
  * (a sticky monster lets go; in Sokoban the air currents knock her over), the trap here goes off
  * unless she is already in it (a hole or trap door only where there is a level below), then she
- * sees what is on the floor. False when she was not floating after all.
- * ref: src/trap.c float_down(0, 0)
+ * sees what is on the floor. False when she was not floating after all. `timed` is C's hmask
+ * `I_SPECIAL | TIMEOUT`: the potion's levitation and its at-will bit end first.
+ * ref: src/trap.c float_down()
  */
-export function floatDown(ctx: Ctx): boolean {
-  if (levitating(ctx)) return false; // maybe another ring
+export function floatDown(ctx: Ctx, timed = false): boolean {
+  if (timed) {
+    setItimeout(ctx.state, hero(ctx), P.LEVITATION, 0);
+    setLevAtWill(ctx, false);
+  }
+  if (levitating(ctx)) return false; // maybe another ring/potion/boots
   const h = hero(ctx);
   const held = utrap(ctx);
   if (held && held.type !== 'pit') {
@@ -162,9 +168,44 @@ export function resumeLevitation(ctx: Ctx, wasLevitating: boolean): void {
   if (!wasLevitating && levitating(ctx)) floatUp(ctx);
 }
 
+/**
+ * `>` while the potion's levitation may end at will: she comes down (true: time passes), or
+ * "Your latent levitation ceases." when it was blocked and nothing else holds her up (true);
+ * false when something else keeps her floating. ref: src/do.c dodown()
+ */
+export function endLevitationAtWill(ctx: Ctx): boolean {
+  if (floatDown(ctx, true)) return true;
+  if (!hasProp(hero(ctx), P.LEVITATION)) {
+    say(ctx, 'lev.latent_ceases');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * "You float slightly lower." five turns before the potion's levitation ends and "You wobble
+ * unsteadily in the air." three turns before (no pools or lava, so never "over the water"); not
+ * while a ring or boots hold her up. ref: src/timeout.c levitation_dialogue()
+ */
+function levitationDialogue(ctx: Ctx): void {
+  const h = hero(ctx);
+  const nh = ctx.state.modData['nh'] as { u?: { uinvulnerable?: boolean } } | undefined;
+  if (nh?.u?.uinvulnerable || hasExtrinsic(h, P.LEVITATION)) return;
+  const t = timeoutLeft(ctx.state, h, P.LEVITATION) + 1; // HLevitation & TIMEOUT before this turn's tick
+  if (t <= 1) return;
+  // -1 because the last message comes via float_down()
+  const i = Math.trunc((t - 1) / 2);
+  if (t % 2 && i > 0 && i <= 2) say(ctx, i === 2 ? 'lev.slightly_lower' : 'lev.wobble');
+}
+
 /** The "Lev" status condition. ref: src/botl.c BL_MASK_LEV */
 export function registerLevitation(api: ModApi): void {
   setBootsLevitation(floatUp, (ctx) => void floatDown(ctx));
+  // ref: src/timeout.c nh_timeout(): `case LEVITATION: (void) float_down(I_SPECIAL | TIMEOUT, 0L)`
+  setTimeoutExpiry(P.LEVITATION, (ctx) => void floatDown(ctx, true));
+  api.on('endOfTurn', (ctx) => {
+    if (!ctx.state.gameOver) levitationDialogue(ctx);
+  });
   api.defineStatus({
     id: 'nh:levitation',
     field: 'lev',

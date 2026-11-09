@@ -74,7 +74,18 @@ import { costlyAlteration } from './shk';
 import { CHARGED_RINGS } from './objects';
 import { hardHelmet, isWeptool } from './material';
 import { doname, xnameOf } from './objnam';
-import { abon, acurrClamp, addAbon, adjattrib, rawAttr, setRawAttr, type Attr } from './attrib';
+import {
+  abase,
+  abon,
+  acurrClamp,
+  addAbon,
+  adjattrib,
+  amax,
+  rawAttr,
+  setAbase,
+  setRawAttr,
+  type Attr,
+} from './attrib';
 import { unaware } from './btrapped';
 import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
 import { monflee } from './monflee';
@@ -1859,8 +1870,7 @@ export function setAdMdamageu(fn: (ctx: Ctx, n: number, killer: string) => void)
  * is eaten!" / "You eat the jackal's brain!", a noncorporeal one is unharmed, a mindless one
  * doesn't notice, Medusa's brain petrifies its eater; the hero eater is fed, a monster eater adds
  * d10 damage. A hero at minimum Intelligence dies of brainlessness (after life saving too).
- * Returns M_ATTK flags. ref: src/eat.c eat_brains() (no Riders, no cannibalism or conduct; no
- * AMAX: the hero eater's lost Intelligence is not recovered)
+ * Returns M_ATTK flags. ref: src/eat.c eat_brains() (no Riders, no cannibalism or conduct)
  */
 function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: Mhm | null) {
   const pd = mdef.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mdef.def);
@@ -1901,12 +1911,19 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
       return M_ATTK.MISS; // all done; no extra harm inflicted upon target
     }
     morehungry(ctx, -ctx.rng.rnd(30)); // cannot choke
-    // (no AMAX: lost Intelligence is not recovered)
+    if (abase(ctx.state, 'int') < amax(ctx.state, 'int')) {
+      // recover lost Int; won't increase current max
+      setAbase(
+        ctx,
+        'int',
+        Math.min(abase(ctx.state, 'int') + ctx.rng.rnd(4), amax(ctx.state, 'int')),
+      );
+    }
     if (mhm) mhm.damage += xtraDmg;
   } else if (mdef.id === ctx.state.playerId) {
     // no such thing as mindless players
     const a = mdef.c.attributes;
-    if (a && a.int - abon(ctx.state, 'int') <= 3) {
+    if (a && abase(ctx.state, 'int') <= 3) {
       const killer = '@killer.brainlessness';
       if (hasProp(mdef, P.LIFESAVED)) {
         done(ctx, killer);
@@ -1917,7 +1934,7 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
       done(ctx, killer);
       if (ctx.state.gameOver) return M_ATTK.HIT;
       // only when the hero chose not to die: arbitrarily boost intelligence
-      setRawAttr(ctx, 'int', 3 + 2 + abon(ctx.state, 'int'));
+      setAbase(ctx, 'int', 3 + 2); // ATTRMIN(A_INT) + 2
       say(ctx, 'drin.scarecrow');
     }
     giveNutrit = true; // in case a conflicted pet is doing this

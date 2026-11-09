@@ -17,7 +17,7 @@ import { nomul } from './nomul';
 import { nearCapacity } from './stats';
 import { CHARGED_RINGS } from './objects';
 import { P, hasProp, wornIn } from './props';
-import { rawAttr, setRawAttr } from './attrstate';
+import { adjattrib, rawAttr, setRawAttr } from './attrstate';
 
 export type { HungerData, Sick, Victual } from './uhunger';
 export { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE } from './uhunger';
@@ -342,8 +342,7 @@ function sicknessTimeout(ctx: Ctx): void {
     ctx.emit({ type: 'msg', key: 'sick.recovered' });
     hd.sick = null;
     // adjattrib(A_CON, -1, 1): sustain ability keeps it
-    if (hero.c.attributes && !hasProp(hero, P.FIXED_ABIL))
-      setRawAttr(ctx, 'con', Math.max(3, hero.c.attributes.con - 1));
+    adjattrib(ctx, 'con', -1, false);
     return;
   }
   ctx.emit({ type: 'msg', key: 'sick.die' });

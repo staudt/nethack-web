@@ -115,7 +115,7 @@ import { eshkOf, inAnyShop } from './eshk';
 import { setmangry } from './peaceful';
 import { adjalign, uState } from './luck';
 import { polyself } from './polyself';
-import { healup } from './potion';
+import { healup, speedUp } from './potion';
 import { canSpotMon, monNam, rndmonnam } from './perception';
 import { P, hasIntrinsic, hasProp, incrItimeout, timeoutLeft, uSlowDown, wornIn } from './props';
 import { ceilingKey, clearArea, litroom } from './read';
@@ -302,15 +302,6 @@ function learnScored(ctx: Ctx, src: ZapSource): void {
   if (src.kind === 'wand' && !isKnown(ctx.state, ctx.defs, src.item.def))
     moreExperienced(ctx, 0, 10);
   learn(ctx, src);
-}
-
-/** ref: src/potion.c speed_up() */
-function speedUp(ctx: Ctx, duration: number): void {
-  const h = hero(ctx);
-  if (timeoutLeft(ctx.state, h, P.FAST) <= 0)
-    say(ctx, hasIntrinsic(h, P.FAST) ? 'zap.speed.faster' : 'zap.speed.much_faster');
-  else say(ctx, 'zap.speed.legs');
-  incrItimeout(ctx.state, h, P.FAST, duration);
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -93,6 +93,8 @@ interface Occupancy {
   boulders: Set<number>;
   /** The hero's cell on this level, or -1. */
   hero: number;
+  /** The hero's entity id. */
+  heroId: EntityId;
 }
 
 function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
@@ -110,6 +112,7 @@ function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
     mons,
     boulders: boulderCells(ctx, level),
     hero: hp?.level === level.id ? cellIndex(level, hp.x, hp.y) : -1,
+    heroId: ctx.state.playerId,
   };
 }
 
@@ -142,7 +145,7 @@ export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
 function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): boolean {
   if (!inBounds(o.level, x, y)) return false;
   const i = cellIndex(o.level, x, y);
-  const heroIsWho = who !== null && i === o.hero;
+  const heroIsWho = who === o.heroId;
   if (i === o.hero && !heroIsWho) return false;
   if (who !== null) {
     const m = o.mons.get(i);

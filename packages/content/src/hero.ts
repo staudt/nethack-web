@@ -366,6 +366,31 @@ export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
   }
 }
 
+/** ref: include/global.h LARGEST_INT */
+const LARGEST_INT = 32767;
+
+/**
+ * A random experience total within the current level's range (at level 30 when `gaining`, added
+ * to her points so that a blessed potion never lowers them). ref: src/exper.c rndexp()
+ */
+export function rndexp(ctx: Ctx, ulevel: number, uexp: number, gaining: boolean): number {
+  const minexp = ulevel === 1 ? 0 : newuexp(ulevel - 1);
+  const maxexp = newuexp(ulevel);
+  let diff = maxexp - minexp;
+  let factor = 1;
+  // make sure that `diff' is an argument which rn2() can handle
+  while (diff >= LARGEST_INT) {
+    diff = Math.trunc(diff / 2);
+    factor *= 2;
+  }
+  let result = minexp + factor * ctx.rng.rn2(diff);
+  if (ulevel === MAXULEV && gaining) {
+    result += uexp - minexp;
+    if (result < uexp) result = uexp;
+  }
+  return result;
+}
+
 /**
  * Adds experience points and, if a threshold is crossed, gains ONE level. NetHack does the same:
  * pluslvl() caps points at newuexp(level+1)-1, so a huge award takes several kills to cash in.

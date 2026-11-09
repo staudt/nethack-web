@@ -83,8 +83,9 @@ describe('wand of undead turning', () => {
 
   test('a living monster is not hurt; a zombie killed by the zap does not rise from its corpse', () => {
     // whether the zombie leaves a corpse is a roll: look at several seeds, and require some
+    // (seeds 1..8 left none after m11 step 6's stream shift)
     let corpses = 0;
-    for (let seed = 1; seed <= 8; seed++) {
+    for (let seed = 1; seed <= 24; seed++) {
       const s = make(['@.....'], seed);
       const j = pinned(s, 'nh:jackal', 2, 0);
       const z = pinned(s, 'nh:kobold_zombie', 3, 0, 1);

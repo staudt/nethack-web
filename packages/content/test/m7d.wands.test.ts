@@ -328,7 +328,7 @@ describe('wand of cancellation', () => {
     expect(def(book)).toBe('nh:spellbook_of_blank_paper');
     expect(def(potion)).toBe('nh:potion_of_water');
     expect(itemOf(s.state, holy).buc).toBe('uncursed');
-    expect(def(seeInv)).toBe('nh:potion_of_water'); // no fruit juice in the subset
+    expect(def(seeInv)).toBe('nh:potion_of_fruit_juice');
   });
 
   test('a floor object in the beam is cancelled', () => {

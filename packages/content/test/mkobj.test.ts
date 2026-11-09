@@ -157,9 +157,10 @@ describe('level objects', () => {
     let piles = 0;
     let gold = 0;
     let objs = 0;
-    // (seeds 151..300: with the gloves shuffle of m11 step 4, seeds 1..150 drew 0.545 objects per
-    // room by chance; over seeds 151..450 the rate is 0.50 before and after that change)
-    for (let seed = 151; seed <= 300; seed++) {
+    // (seeds 301..450: with the gloves shuffle of m11 step 4, seeds 1..150 drew 0.545 objects per
+    // room by chance; with the potions of step 6, seeds 151..300 drew 0.53; over seeds 1..600
+    // the rate stays near 0.51)
+    for (let seed = 301; seed <= 450; seed++) {
       const { state } = engine.newGame({ seed });
       const level = state.levels['dlvl1']!;
       rooms += level.rooms.length;

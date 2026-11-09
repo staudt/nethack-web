@@ -47,8 +47,16 @@ import {
   trapToConfirm,
   trapmove,
 } from './trap';
-import { isMtrapped, isPit, levitating, setMtrapped, uInPit, uLocomotion } from './trapstate';
-import { floatingAbove, resumeLevitation } from './levitation';
+import {
+  isMtrapped,
+  isPit,
+  levAtWillFlag,
+  levitating,
+  setMtrapped,
+  uInPit,
+  uLocomotion,
+} from './trapstate';
+import { endLevitationAtWill, floatingAbove, resumeLevitation } from './levitation';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
 import { BOULDER, boulderAt, feelObjects, rememberedBoulder, sokobanBoulder } from './boulder';
@@ -852,13 +860,31 @@ const down: ActionDef = {
   labelKey: 'action.down',
   handles: 'mod',
   offer: (ctx, target) =>
-    target.kind === 'self' && (terrainUnderHero(ctx).stairs === 'down' || seenHoleHere(ctx))
-      ? [{ action: { type: 'mod', action: 'nh:down' }, labelKey: 'action.down', priority: HERE }]
-      : [],
+    target.kind !== 'self'
+      ? []
+      : levAtWillFlag(ctx)
+        ? // `>` ends a blessed potion's levitation (offered anywhere: no feature needs a key)
+          [
+            {
+              action: { type: 'mod', action: 'nh:down' },
+              labelKey: 'action.stop_levitating',
+              priority: HERE,
+            },
+          ]
+        : terrainUnderHero(ctx).stairs === 'down' || seenHoleHere(ctx)
+          ? [
+              {
+                action: { type: 'mod', action: 'nh:down' },
+                labelKey: 'action.down',
+                priority: HERE,
+              },
+            ]
+          : [],
   perform(ctx) {
-    // ref: dodown(): `HLevitation || ELevitation` (even when a bear trap blocks it): "You are
-    // floating high above the stairs.", no time
+    // ref: dodown(): `HLevitation || ELevitation` (even when a bear trap blocks it): controlled
+    // levitation ends, else "You are floating high above the stairs.", no time
     if (hasProp(getPlayer(ctx.state), P.LEVITATION)) {
+      if (levAtWillFlag(ctx) && endLevitationAtWill(ctx)) return NORMAL_SPEED;
       const p = playerAt(ctx);
       const stairs = terrainUnderHero(ctx).stairs === 'down';
       floatingAbove(

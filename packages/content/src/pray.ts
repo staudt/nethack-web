@@ -33,7 +33,11 @@ import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } 
 import { rnz } from './corpses';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
-import { adjattrib, rawAttr, setRawAttr } from './attrib';
+import { abase, adjattrib, amax, rawAttr, restoreAttr, setRawAttr, type Attr } from './attrib';
+import { encumberMsg } from './itemactions';
+
+/** The attributes in C's A_STR..A_CHA order. */
+const ATTRS: readonly Attr[] = ['str', 'int', 'wis', 'dex', 'con', 'cha'];
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
 import { LUCK_ITEMS } from './gem';
@@ -68,11 +72,13 @@ const TROUBLE_SICK = 10;
 const TROUBLE_STARVING = 9;
 const TROUBLE_HIT = 7;
 const TROUBLE_LYCANTHROPE = 6;
+const TROUBLE_COLLAPSING = 5;
 const TROUBLE_CURSED_LEVITATION = 3;
 const TROUBLE_UNUSEABLE_HANDS = 2;
 const TROUBLE_FUMBLING = -2;
 const TROUBLE_CURSED_ITEMS = -3;
 const TROUBLE_BLIND = -5;
+const TROUBLE_POISONED = -6;
 const TROUBLE_WOUNDED_LEGS = -7;
 const TROUBLE_HUNGRY = -8;
 const TROUBLE_STUNNED = -9;
@@ -167,11 +173,12 @@ function worstCursedItem(ctx: Ctx): Entity | null {
 
 /** ref: include/hack.h HVY_ENCUMBER (Strained) */
 const HVY_ENCUMBER = 3;
+/** ref: include/hack.h EXT_ENCUMBER (Overtaxed) */
+const EXT_ENCUMBER = 4;
 
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
- * Not ported (they cannot happen): lava, clouds,
- * collapsing and poisoned attributes (no AMAX), walls, blindfolds, punishment, saddles,
+ * Not ported (they cannot happen): lava, clouds, walls, blindfolds, punishment, saddles,
  * deafness.
  */
 export function inTrouble(ctx: Ctx): number {
@@ -183,6 +190,11 @@ export function inTrouble(ctx: Ctx): number {
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
   if ((!upolyd(ctx.state) || hasProp(h, P.UNCHANGING)) && criticallyLowHp(ctx)) return TROUBLE_HIT;
   if (ulycn(ctx.state) !== null) return TROUBLE_LYCANTHROPE;
+  if (
+    nearCapacity(ctx.state, ctx.defs, ctx.state.playerId) >= EXT_ENCUMBER &&
+    amax(ctx.state, 'str') - abase(ctx.state, 'str') > 3
+  )
+    return TROUBLE_COLLAPSING;
   if (cursedLevitation(ctx)) return TROUBLE_CURSED_LEVITATION;
   if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
   // minor troubles
@@ -195,6 +207,7 @@ export function inTrouble(ctx: Ctx): number {
     !swallowedByBlinder(ctx)
   )
     return TROUBLE_BLIND;
+  if (ATTRS.some((k) => abase(ctx.state, k) < amax(ctx.state, k))) return TROUBLE_POISONED;
   if (hasProp(h, P.WOUNDED_LEGS)) return TROUBLE_WOUNDED_LEGS;
   if (uhs(ctx) >= HUNGER_RANK.hungry!) return TROUBLE_HUNGRY;
   if (timeoutLeft(ctx.state, h, P.STUNNED) > 0) return TROUBLE_STUNNED;
@@ -290,6 +303,23 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
     case TROUBLE_LYCANTHROPE:
       youUnwere(ctx, true);
       break;
+    case TROUBLE_COLLAPSING: {
+      // override Fixed_abil; uncurse that if feasible
+      say(
+        ctx,
+        amax(ctx.state, 'str') - abase(ctx.state, 'str') > 6
+          ? 'pray.much_stronger'
+          : 'pray.stronger',
+      );
+      restoreAttr(ctx, 'str');
+      if (hasProp(h, P.FIXED_ABIL)) {
+        const o =
+          stuckRing(ctx, 'ringL', 'nh:ring_of_sustain_ability') ??
+          stuckRing(ctx, 'ringR', 'nh:ring_of_sustain_ability');
+        if (o) fixCurseTrouble(ctx, o);
+      }
+      break;
+    }
     case TROUBLE_CURSED_LEVITATION:
     case TROUBLE_FUMBLING: {
       const o = trouble === TROUBLE_FUMBLING ? cursedFumbling(ctx) : cursedLevitation(ctx);
@@ -309,6 +339,12 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
     case TROUBLE_BLIND:
       say(ctx, 'pray.eyes_better');
       makeBlinded(ctx, 0, false);
+      break;
+    case TROUBLE_POISONED:
+      // override Fixed_abil; ignore items which confer that
+      say(ctx, hasProp(h, P.HALLUC) ? 'pray.tiger' : 'pray.good_health');
+      for (const k of ATTRS) restoreAttr(ctx, k);
+      encumberMsg(ctx);
       break;
     case TROUBLE_WOUNDED_LEGS:
       // heal_legs(0): "Your leg feels better."
@@ -584,6 +620,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
         setRawAttr(ctx, 'str', rawAttr(ctx.state, 'str') + hd.strLoss);
         hd.strLoss = 0;
       }
+      if (restoreAttr(ctx, 'str')) encumberMsg(ctx);
       if ((her.c.hunger?.nutrition ?? 900) < 900) initUhunger(ctx);
       if (uState(ctx.state).luck < 0) setU(ctx, { luck: 0 });
       makeBlinded(ctx, 0, true);

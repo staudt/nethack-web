@@ -29,7 +29,18 @@ import {
   type Msg,
   type Trap,
 } from '@nh/core';
-import { abon, acurrClamp, rawAttr, setRawAttr, type Attr } from './attrib';
+import {
+  abase,
+  abon,
+  acurrClamp,
+  amax,
+  rawAttr,
+  setAbase,
+  setAmax,
+  setRawAttr,
+  type Attr,
+} from './attrib';
+import { amaxSnapshot, restoreAmaxSnapshot } from './attrstate';
 import { unaware } from './btrapped';
 import { resist, resistsMagm } from './buzz';
 import { monsterNearby } from './eat';
@@ -38,7 +49,7 @@ import { expels } from './engulf';
 import { flaming, isWhirly, uswallow } from './engulfstate';
 import { changeSex, heroFemale, setHeroFemale } from './gender';
 import { setUstuck, ustuck } from './hackmove';
-import { MAXULEV, levelIncrements, newhp, newpw, newuexp, setUlevelmax, ulevelmax } from './hero';
+import { MAXULEV, levelIncrements, newhp, newpw, rndexp, setUlevelmax, ulevelmax } from './hero';
 import { losehp } from './hp';
 import { makeSick, newuhs } from './hunger';
 import { encumberMsg, prinv } from './itemactions';
@@ -491,9 +502,11 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
     ? old.macurr
     : baseAttrs(ctx, h.c.attributes ?? { str: 10, int: 10, wis: 10, dex: 10, con: 10, cha: 10 });
   const mfemale = old ? old.mfemale : heroFemale(ctx.state);
+  const ownAmax = old ? old.mamax : amaxSnapshot(ctx.state);
   if (old) {
     // monster to monster; restore human stats, to be immediately changed for the new monster
     restoreAttrs(ctx, h, old.macurr);
+    restoreAmaxSnapshot(ctx, old.mamax);
     setHeroFemale(ctx.state, old.mfemale);
   }
   let dochange = false;
@@ -520,6 +533,7 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
     uhp: old ? old.uhp : { cur: hp.cur, max: hp.max },
     mfemale,
     macurr: ownAttrs,
+    ...(ownAmax ? { mamax: ownAmax } : {}),
     ...(hasFlag(def, 'neuter') || !hasFlag(def, 'humanoid') ? { neuter: true as const } : {}),
   };
   setUpoly(ctx.state, u);
@@ -529,11 +543,11 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   const newMaxStr = uasmonMaxStr(def);
   const a = h.c.attributes;
   if (a) {
-    const bonus = abon(ctx.state, 'str');
-    const base = rawAttr(ctx.state, 'str') - bonus;
-    // a strongmonst() gets its maximum; else exceptional strength is stripped (until she returns)
-    const str = hasFlag(def, 'strong') ? newMaxStr : Math.min(base, newMaxStr);
-    setRawAttr(ctx, 'str', acurrClamp('str', str + bonus));
+    // a strongmonst() gets its maximum; else exceptional strength is stripped (until she
+    // returns): AMAX is the form's maximum and ABASE is kept under it
+    const base = abase(ctx.state, 'str');
+    setAbase(ctx, 'str', hasFlag(def, 'strong') ? newMaxStr : Math.min(base, newMaxStr));
+    setAmax(ctx, 'str', newMaxStr);
   }
   if (hasProp(h, P.STONE_RES) && isStoned(ctx.state))
     makeStoned(ctx, 0, 'polyself.no_longer_petrifying', null);
@@ -618,6 +632,7 @@ function polyman(ctx: Ctx, key: string): void {
   const u = upolyOf(ctx.state);
   if (u) {
     restoreAttrs(ctx, h, u.macurr); // restore old attribs
+    restoreAmaxSnapshot(ctx, u.mamax); // u.amax = u.mamax
     setHeroFemale(ctx.state, u.mfemale);
     h.c.hp = { cur: u.uhp.cur, max: u.uhp.max }; // u.mh = u.mhmax = 0
     setUpoly(ctx.state, null);
@@ -660,20 +675,6 @@ export function rehumanize(ctx: Ctx): void {
   }
   ctx.interrupt(); // nomul(0)
   encumberMsg(ctx);
-}
-
-/** ref: src/exper.c rndexp(FALSE): random experience points within the current level */
-function rndexp(ctx: Ctx, ulevel: number): number {
-  const minexp = ulevel === 1 ? 0 : newuexp(ulevel - 1);
-  const maxexp = newuexp(ulevel);
-  let diff = maxexp - minexp;
-  let factor = 1;
-  // make sure that `diff' is an argument which rn2() can handle (LARGEST_INT)
-  while (diff >= 32767) {
-    diff = Math.trunc(diff / 2);
-    factor *= 2;
-  }
-  return minexp + factor * ctx.rng.rn2(diff);
 }
 
 /** ref: src/hacklib.c rounddiv() */
@@ -724,7 +725,7 @@ export function newman(ctx: Ctx, sexChangeOk: boolean): void {
   if (sexChangeOk && !ctx.rng.rn2(10)) changeSex(ctx);
   adjabil(ctx, h.id, oldlvl, newlvl);
   // random experience points for the new experience level
-  xp.points = rndexp(ctx, newlvl);
+  xp.points = rndexp(ctx, newlvl, xp.points, false);
   // set up new attribute points (particularly Con); polymorphing doesn't change your mind
   redistAttr(ctx, h);
 
@@ -790,19 +791,20 @@ function dead(ctx: Ctx): void {
 }
 
 /**
- * Str, Dex, Con and Cha each change by -2..+2 within the human limits. ref: src/attrib.c
- * redist_attr() (the port keeps no AMAX: the stored value is both)
+ * Str, Dex, Con and Cha: each peak (AMAX) changes by -2..+2 within the human limits and the
+ * current value (ABASE) keeps its proportion of it. ref: src/attrib.c redist_attr()
  */
 function redistAttr(ctx: Ctx, h: Entity): void {
   const a = h.c.attributes;
   if (!a) return;
   for (const k of ATTRS) {
-    if (k === 'int' || k === 'wis') continue;
+    if (k === 'int' || k === 'wis') continue; // polymorphing doesn't change your mind
     const max = k === 'str' ? STR18(100) : 18;
-    const bonus = abon(ctx.state, k);
-    const base = rawAttr(ctx.state, k) - bonus;
-    const v = Math.max(3, Math.min(max, base + ctx.rng.rn2(5) - 2));
-    setRawAttr(ctx, k, acurrClamp(k, v + bonus));
+    const tmp = amax(ctx.state, k);
+    const peak = Math.max(3, Math.min(max, tmp + ctx.rng.rn2(5) - 2));
+    const base = Math.max(3, Math.trunc((abase(ctx.state, k) * peak) / tmp));
+    setAbase(ctx, k, base);
+    setAmax(ctx, k, peak);
   }
 }
 

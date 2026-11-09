@@ -17,6 +17,7 @@ import {
 } from '@nh/core';
 import { BOULDER, boulderCells } from './boulder';
 import { nhData } from './items';
+import { isFrozen, unfreezeMonst } from './mstate';
 import { P, heroClairvoyant, heroHas } from './props';
 import { T, setTerrain } from './terrain';
 
@@ -93,10 +94,11 @@ export function registerClairvoyance(api: ModApi): void {
  * Detect monsters with no object: every monster of the level goes into the hero's monster
  * memory at its cell (it stays shown until the cell is seen again, where NetHack redraws the
  * map after browse_map()) and "You sense the presence of monsters." Returns true, saying
- * nothing, when the level has no monster (the caller gives its own feeling).
+ * nothing, when the level has no monster (the caller gives its own feeling). A cursed source
+ * wakes the sleeping and paralyzed ones: "Monsters sense the presence of you."
  * ref: src/detect.c monster_detect() with no class
  */
-export function monsterDetect(ctx: Ctx): boolean {
+export function monsterDetect(ctx: Ctx, cursed = false): boolean {
   const level = getLevel(ctx.state);
   const mons: Entity[] = [];
   for (const id of sortedIds(ctx.state)) {
@@ -106,10 +108,18 @@ export function monsterDetect(ctx: Ctx): boolean {
   }
   if (mons.length === 0) return true;
   const memory = (ctx.state.monsterMemory[level.id] ??= {});
+  let woken = false;
   for (const e of mons) {
     const p = e.c.pos;
     if (p) memory[String(p.y * level.width + p.x)] = e.def;
+    const m = e.c.monster;
+    if (cursed && m && (m.asleep || isFrozen(ctx, e.id))) {
+      m.asleep = false;
+      unfreezeMonst(ctx, e.id);
+      woken = true;
+    }
   }
   ctx.emit({ type: 'msg', key: 'cast.sense_monsters' });
+  if (woken) ctx.emit({ type: 'msg', key: 'detect.sense_you' });
   return false;
 }

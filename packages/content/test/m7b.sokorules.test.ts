@@ -409,10 +409,12 @@ describe('the treasure zoo and the prize', () => {
         const { state, level } = sokoVariant(variant, 1, from);
         from = state.seed + 1;
         const at = spots.map(([x, y]) => mapAt(level, x, y));
-        const prizes = entitiesOn(state, level).filter((e) => PRIZES.includes(e.def));
+        // (a random object elsewhere may be one of the kinds too: seed 31's second bag)
+        const prizes = entitiesOn(state, level).filter(
+          (e) => PRIZES.includes(e.def) && at.some((q) => q.x === e.c.pos!.x && q.y === e.c.pos!.y),
+        );
         expect(prizes).toHaveLength(1);
         const p = prizes[0]!;
-        expect(at).toContainEqual({ x: p.c.pos!.x, y: p.c.pos!.y });
         expect(p.c.item?.buc).not.toBe('cursed');
         kinds.add(p.def);
       }
