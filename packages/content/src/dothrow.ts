@@ -73,7 +73,7 @@ import {
 import { acurrstr, findMac } from './stats';
 import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
-import { P, hasProp, ringBonus } from './props';
+import { P, hasProp, heroHas, ringBonus, wornIn } from './props';
 import { hmonThrownHit, missileMsg, type Shot } from './hmon';
 
 export const THROW_ID: DefId = 'nh:throw';
@@ -128,7 +128,8 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
  * meant to be thrown (-2 when not) and the skill bonus; `tmp >= rnd(20)` hits; then
  * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() plus the launcher's skill damage
  * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
- * missile (should_mulch_missile). Rings of increase accuracy and damage count. Not ported: gloves with bows, racial bows,
+ * missile (should_mulch_missile). Rings of increase accuracy and damage count; gauntlets of power (-2) and of
+ * fumbling (-3) hinder a bow. Not ported: racial bows,
  * unicorns, the quest leader, boomerangs and balls, eggs and cream pies, thrown potions (they
  * land without breaking), taming with food, passive responses, poison, knockback. Silver sears
  * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
@@ -165,6 +166,14 @@ export function thitmonst(
   let disttmp = 3 - distmin(hero.c.pos.x, hero.c.pos.y, mon.c.pos.x, mon.c.pos.y);
   if (disttmp < -4) disttmp = -4;
   tmp += disttmp;
+  // gloves are a hindrance to proper use of bows
+  const wielded = heroWielded(ctx);
+  const gloves = wornIn(ctx.state, hero.id, 'gloves');
+  if (gloves && wielded && ctx.defs.object(wielded.def).weapon?.skill === 'bow') {
+    if (gloves.def === 'nh:gauntlets_of_power')
+      tmp -= 2; // metal
+    else if (gloves.def === 'nh:gauntlets_of_fumbling') tmp -= 3;
+  }
   tmp += omonAdj(mon, mdef, obj, odef);
 
   // the engulfer holding her is a guaranteed hit
@@ -492,7 +501,8 @@ const multishotClassBonus = (): number => 0;
  * How many to throw or shoot at once. ref: src/dothrow.c throw_obj() "Multishot calculations":
  * only for stacks of weapons (ammo only with its launcher wielded); skilled gives +1 and expert
  * +2 (unless Dex <= 6, which allows none); a crossbow needs Str 18 to fire several; then rnd()
- * of the total. Not ported: confusion/stun, role and race bonuses, fumbling.
+ * of the total (Fumbling or Dex <= 6 allow none). Not ported: confusion/stun, role and race
+ * bonuses.
  */
 function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const it = obj.c.item;
@@ -501,7 +511,8 @@ function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const uwdef = uwep ? ctx.defs.object(uwep.def) : null;
   if (isAmmo(def) ? !matchingLauncher(def, uwdef) : def.class !== 'weapon') return 1;
   const attrs = heroEntity(ctx).c.attributes;
-  const weak = (attrs?.dex ?? 10) <= 6;
+  // poor dexterity also inhibits multishot
+  const weak = heroHas(ctx.state, P.FUMBLING) || (attrs?.dex ?? 10) <= 6;
   let multishot = 1;
   const skill = skillLevel(ctx, def.weapon.skill);
   if (skill === P_EXPERT) multishot++;

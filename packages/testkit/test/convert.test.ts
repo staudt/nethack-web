@@ -45,8 +45,6 @@ const MONSTER_DIFFERENCES: Readonly<Record<string, string>> = {};
 /** `<id>.<field>` -> why our def differs from the C row. */
 const OBJECT_DIFFERENCES: Readonly<Record<string, string>> = {
   'nh:boulder.ch': "drawn as '0' (the common `boulder` option), DEVIATIONS.md Boulders",
-  'nh:leather_gloves.descKey':
-    'the only glove type in the table, so its range never shuffles (o_init.ts ARMOR_RANGES)',
   'nh:potion_of_blindness.prop': POTION_PROP,
   'nh:potion_of_confusion.prop': POTION_PROP,
   'nh:potion_of_hallucination.prop': POTION_PROP,

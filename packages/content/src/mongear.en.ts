@@ -8,6 +8,7 @@ export const monGearMessagesEn: Record<string, string> = {
   'mon.welds': 'The {obj} welds itself to {mon|the_s} hand!',
   'mon.welds_plural': 'The {obj} weld themselves to {mon|the_s} hands!',
   'mon.puts_on': '{mon|The} puts on {item|an}.',
+  'mon.helm_glows': '{mon|The_s} {item} glows {color} for a moment.',
   'mon.removes_puts_on': '{mon|The} removes {old|an} and puts on {item|an}.',
   'mon.picks_up': '{mon|The} picks up {item|an}.',
   'mon.swings': '{mon|The} swings its {weapon}.',

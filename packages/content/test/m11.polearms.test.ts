@@ -372,6 +372,7 @@ describe('silver', () => {
     const s = room();
     const sol = foe(s, 'nh:soldier', s.here.x + 1, s.here.y);
     const sab = mongets(s.ctx as unknown as Ctx, sol, 'nh:silver_saber')!;
+    ent(s, sab)!.c.item!.spe = 0; // pinned: the init roll may enchant it
     const atk = defs.monster('nh:soldier' as DefId).attacks[0]!;
     run(s, (ctx) => setUlycn(ctx, 'nh:werejackal' as DefId));
     const hp0 = getPlayer(s.state).c.hp!.cur;

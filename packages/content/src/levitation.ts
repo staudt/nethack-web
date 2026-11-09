@@ -3,8 +3,8 @@
 // src/fountain.c floating_above(), src/trap.c reset_utrap(); src/do_wear.c Ring_on(),
 // Ring_off_or_gone() (RIN_LEVITATION)
 //
-// The only source is a worn ring of levitation (no potion, spell, boots or artifact, so no
-// Lev_at_will and no timeout), and the hero never flies, rides, swims or is engulfed. A bear trap
+// The sources are a worn ring of levitation and levitation boots (no potion, spell or artifact,
+// so no Lev_at_will and no timeout), and the hero never flies, rides, swims or is engulfed. A bear trap
 // holds her to the floor (BLevitation): `levitating()` (trapstate.ts) is C's `Levitation`.
 // Not ported: the air and water levels, pools, lava and sinks (dosinkfall()), the ball and
 // chain, hurtling and the steed (DEVIATIONS.md "Levitation").
@@ -25,6 +25,7 @@ import {
   type Msg,
   type Trap,
 } from '@nh/core';
+import { setBootsLevitation } from './dowear';
 import { ustuck, setUstuck } from './hackmove';
 import { losehp } from './hp';
 import { encumberMsg, lookHere } from './itemactions';
@@ -163,6 +164,7 @@ export function resumeLevitation(ctx: Ctx, wasLevitating: boolean): void {
 
 /** The "Lev" status condition. ref: src/botl.c BL_MASK_LEV */
 export function registerLevitation(api: ModApi): void {
+  setBootsLevitation(floatUp, (ctx) => void floatDown(ctx));
   api.defineStatus({
     id: 'nh:levitation',
     field: 'lev',

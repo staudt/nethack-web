@@ -69,7 +69,7 @@ import {
 import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
-import { P, conflictOn, hasProp, ringBonus } from './props';
+import { P, conflictOn, hasProp, ringBonus, wornIn } from './props';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
 import { hatesSilver, isBig, nonliving } from './mondata';
 import {
@@ -90,7 +90,7 @@ import { cloneMon } from './clone';
 import { canseemon, mintrap } from './trap';
 import { summonWereMu } from './were';
 import { isWere } from './werestate';
-import { cantSeeSelf, mapInvisible } from './invis';
+import { cantSeeSelf, heroInvisible, mapInvisible } from './invis';
 import { invisTo } from './apparxy';
 import { couldSeduce } from './steal';
 import { digests, isWhirly } from './engulfstate';
@@ -672,6 +672,8 @@ export function hitmu(
   if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
     // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
     dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false, formHatesSilver(ctx));
+    if (wornIn(ctx.state, mon.id, 'gloves')?.def === 'nh:gauntlets_of_power')
+      dmg += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6
     if (dmg <= 0) dmg = 1;
   }
   // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
@@ -919,8 +921,9 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
  * The monster attacks a spot where it thinks the hero is, but she is not there (she is invisible
  * to it): on a square she sees, a nymph "tries to touch you and misses!", others swing (snap,
  * kick, lunge) wildly and miss, attack a spot beside her or strike at thin air. No `I` is left
- * ("no way to tell where _this_ is coming from"). ref: src/mhitu.c wildmiss() (no displacement
- * or Underwater; flags.verbose is always on)
+ * ("no way to tell where _this_ is coming from"). A monster that sees her but not where she is
+ * (she is displaced) strikes at her displaced image. ref: src/mhitu.c wildmiss() (no Underwater;
+ * flags.verbose is always on)
  */
 function wildmiss(ctx: Ctx, mon: Entity, atk: AttackDef): void {
   const p = mon.c.pos;
@@ -931,6 +934,16 @@ function wildmiss(ctx: Ctx, mon: Entity, atk: AttackDef): void {
   const compat =
     atk.ad === 'sedu' || atk.ad === 'ssex' ? couldSeduce(ctx, mon, getPlayer(ctx.state), atk) : 0;
   const name = monNam(ctx, mon);
+  if (!(!mcansee(ctx, mon.id) || invisTo(ctx, mon))) {
+    // Displaced: it attacks her displaced image
+    const inv = heroInvisible(ctx.state) ? '_inv' : '';
+    if (compat)
+      say0(ctx, `combat.displaced_smile_${compat === 2 ? 'engagingly' : 'seductively'}${inv}`, {
+        mon: name,
+      });
+    else say0(ctx, `combat.displaced_strike${inv}`, { mon: name });
+    return;
+  }
   if (compat) {
     say0(ctx, 'combat.wild_touch', { mon: name });
     return;

@@ -10,7 +10,7 @@ import {
 } from '@nh/core';
 import { weight } from './items';
 import { armBonus } from './material';
-import { P, hasProp } from './props';
+import { P, hasExtrinsic, hasProp } from './props';
 import { MZ_HUMAN, WT_HUMAN, msize, strongmonst } from './mondata';
 import { flying, levitating } from './trapstate';
 import { uState } from './luck';
@@ -170,7 +170,8 @@ export const nearCapacity = (state: Readonly<GameState>, defs: Registry, id: Ent
 /**
  * Movement the hero gains per turn. ref: src/allmain.c u_calc_moveamt(): the base speed (her
  * form's while polymorphed), a free
- * action on 2 turns in 3 when Very_fast (a timed Fast) or on 1 turn in 3 when intrinsically Fast
+ * action on 2 turns in 3 when Very_fast (a timed or worn Fast: speed boots) or on 1 turn in 3 when
+ * intrinsically Fast
  * (the Valkyrie at experience level 7, ref: src/attrib.c val_abil { 7, HFast }), then reduced by
  * encumbrance.
  */
@@ -181,7 +182,7 @@ export function heroMovement(ctx: Ctx, hero: EntityId): number {
   const form = hero === ctx.state.playerId ? heroForm(ctx) : null;
   let moveamt = form ? form.speed : (e?.c.actor?.speed ?? 12);
   const fast = e?.c.props?.[P.FAST];
-  if (fast && fast.timeout > 0) {
+  if ((fast && fast.timeout > 0) || hasExtrinsic(e, P.FAST)) {
     // Very_fast: gain a free action on 2/3 of turns
     if (ctx.rng.rn2(3) !== 0) moveamt += NORMAL_SPEED;
   } else if (fast?.intrinsic) {

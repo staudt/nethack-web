@@ -304,7 +304,7 @@ describe('polyself()', () => {
   });
 
   test('the wand at herself and the polymorph trap reach it', () => {
-    let s = room(3);
+    let s = room(1);
     setAttr(s, 'con', 25);
     const wand = s.carry('nh:wand_of_polymorph');
     itemOf(s.state, wand).spe = 5;
@@ -359,8 +359,8 @@ describe('the control prompt', () => {
   });
 
   test('"human" makes a new human; Escape under forced control is "Never mind."', () => {
-    // (seed 4: both new humans survive newman()'s health check)
-    const s = room(4);
+    // (seed 1: both new humans survive newman()'s health check)
+    const s = room(1);
     run(s, (ctx) => polyself(ctx, { controlled: true }));
     expect(answer(s, null)).toEqual(['Never mind.']);
     expect(form(s)).toBeNull();
@@ -386,7 +386,7 @@ describe('the control prompt', () => {
   });
 
   test('polymorph control (a ring): asked, Escape is a random change, no system shock', () => {
-    const s = room(2);
+    const s = room(1);
     setAttr(s, 'con', 3);
     setIntrinsic(hero(s), P.POLYMORPH_CONTROL, true);
     run(s, (ctx) => polyself(ctx));

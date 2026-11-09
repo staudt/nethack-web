@@ -17,6 +17,7 @@ import { nomul } from './nomul';
 import { nearCapacity } from './stats';
 import { CHARGED_RINGS } from './objects';
 import { P, hasProp, wornIn } from './props';
+import { rawAttr, setRawAttr } from './attrstate';
 
 export type { HungerData, Sick, Victual } from './uhunger';
 export { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE } from './uhunger';
@@ -241,12 +242,12 @@ export function newuhs(ctx: Ctx, incr: boolean, eating = false): void {
     const a = hero.c.attributes;
     if (rank(newhs) >= WEAK && rank(h.state) < WEAK) {
       // ATEMP(A_STR) = -1: a temporary loss, never below the minimum of 3
-      if (a && hd.strLoss === 0 && a.str > 3) {
-        a.str -= 1;
+      if (a && hd.strLoss === 0 && rawAttr(ctx.state, 'str') > 3) {
+        setRawAttr(ctx, 'str', rawAttr(ctx.state, 'str') - 1);
         hd.strLoss = 1;
       }
     } else if (rank(newhs) < WEAK && rank(h.state) >= WEAK) {
-      if (a && hd.strLoss > 0) a.str += hd.strLoss;
+      if (a && hd.strLoss > 0) setRawAttr(ctx, 'str', rawAttr(ctx.state, 'str') + hd.strLoss);
       hd.strLoss = 0;
     }
     switch (newhs) {
@@ -342,7 +343,7 @@ function sicknessTimeout(ctx: Ctx): void {
     hd.sick = null;
     // adjattrib(A_CON, -1, 1): sustain ability keeps it
     if (hero.c.attributes && !hasProp(hero, P.FIXED_ABIL))
-      hero.c.attributes.con = Math.max(3, hero.c.attributes.con - 1);
+      setRawAttr(ctx, 'con', Math.max(3, hero.c.attributes.con - 1));
     return;
   }
   ctx.emit({ type: 'msg', key: 'sick.die' });

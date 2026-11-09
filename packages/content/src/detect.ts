@@ -17,7 +17,7 @@ import {
 } from '@nh/core';
 import { BOULDER, boulderCells } from './boulder';
 import { nhData } from './items';
-import { P, hasProp, heroHas } from './props';
+import { P, heroClairvoyant, heroHas } from './props';
 import { T, setTerrain } from './terrain';
 
 /**
@@ -81,7 +81,7 @@ export function doVicinityMap(ctx: Ctx): void {
  */
 export function registerClairvoyance(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
-    if (!hasProp(getPlayer(ctx.state), P.CLAIRVOYANT)) return;
+    if (!heroClairvoyant(ctx.state)) return;
     const d = nhData(ctx);
     if (ctx.state.turn < (d.seerTurn ?? 0)) return;
     doVicinityMap(ctx);

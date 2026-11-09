@@ -36,6 +36,7 @@ import { nearCapacity } from './stats';
 import { STATUE, setHistoric } from './statuestate';
 import { counterWere, isWere } from './werestate';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
+import { P, heroHas } from './props';
 
 /** ref: include/hack.h MAXWISHTRY */
 export const MAXWISHTRY = 5;
@@ -218,8 +219,8 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
  * would take her past her encumbrance limit (her current one or Stressed, whichever is more)
  * or past 52 letters; `holdMsg` prefixes the inventory line ("You steal: "). Returns the
  * inventory stack, or null when it was dropped.
- * ref: src/invent.c hold_another_object() (no artifacts, fumbling, cockatrice corpses or
- * loadstones; the hero always reaches the floor)
+ * A fumbling hero drops it. ref: src/invent.c hold_another_object() (no artifacts, cockatrice
+ * corpses or loadstones; the hero always reaches the floor)
  */
 export function holdAnotherObject(
   ctx: Ctx,
@@ -230,6 +231,13 @@ export function holdAnotherObject(
   const obj = ctx.state.entities[String(id)];
   const oquan = obj?.c.item?.quantity ?? 1;
   const hero = ctx.state.playerId;
+  if (heroHas(ctx.state, P.FUMBLING)) {
+    // a fumbling hero drops it at once (goto drop_it)
+    if (dropMsg) ctx.emit({ type: 'msg', ...dropMsg });
+    const pos = getPlayer(ctx.state).c.pos;
+    if (pos) placeOnFloor(ctx, id, pos.level, pos.x, pos.y);
+    return null;
+  }
   const prev = Math.max(nearCapacity(ctx.state, ctx.defs, hero), PICKUP_BURDEN);
   const stack = addToInventory(ctx, hero, id);
   const st = ctx.state.entities[String(stack)];

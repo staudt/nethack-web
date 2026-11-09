@@ -28,7 +28,7 @@ import {
   type Msg,
   type Trap,
 } from '@nh/core';
-import { abon, acurrClamp, type Attr } from './attrib';
+import { abon, acurrClamp, rawAttr, setRawAttr, type Attr } from './attrib';
 import { unaware } from './btrapped';
 import { resist, resistsMagm } from './buzz';
 import { monsterNearby } from './eat';
@@ -210,15 +210,14 @@ const ATTRS: readonly Attr[] = ['str', 'int', 'wis', 'dex', 'con', 'cha'];
 /** ABASE: the stored attributes (ACURR) less the rings' bonuses. */
 function baseAttrs(ctx: Ctx, a: AttributesComponent): AttributesComponent {
   const out = { ...a };
-  for (const k of ATTRS) out[k] = a[k] - abon(ctx.state, k);
+  for (const k of ATTRS) out[k] = rawAttr(ctx.state, k) - abon(ctx.state, k);
   return out;
 }
 
 /** `u.acurr = u.macurr`: her own attributes back, with the rings' current bonuses. */
 function restoreAttrs(ctx: Ctx, h: Entity, base: AttributesComponent): void {
-  const a = { ...base };
-  for (const k of ATTRS) a[k] = acurrClamp(k, base[k] + abon(ctx.state, k));
-  h.c.attributes = a;
+  h.c.attributes = { ...base };
+  for (const k of ATTRS) setRawAttr(ctx, k, acurrClamp(k, base[k] + abon(ctx.state, k)));
 }
 
 /** The form's attribute: the stored value (ACURR). */
@@ -530,10 +529,10 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   const a = h.c.attributes;
   if (a) {
     const bonus = abon(ctx.state, 'str');
-    const base = a.str - bonus;
+    const base = rawAttr(ctx.state, 'str') - bonus;
     // a strongmonst() gets its maximum; else exceptional strength is stripped (until she returns)
     const str = hasFlag(def, 'strong') ? newMaxStr : Math.min(base, newMaxStr);
-    a.str = acurrClamp('str', str + bonus);
+    setRawAttr(ctx, 'str', acurrClamp('str', str + bonus));
   }
   if (hasProp(h, P.STONE_RES) && isStoned(ctx.state))
     makeStoned(ctx, 0, 'polyself.no_longer_petrifying', null);
@@ -794,9 +793,9 @@ function redistAttr(ctx: Ctx, h: Entity): void {
     if (k === 'int' || k === 'wis') continue;
     const max = k === 'str' ? STR18(100) : 18;
     const bonus = abon(ctx.state, k);
-    const base = a[k] - bonus;
+    const base = rawAttr(ctx.state, k) - bonus;
     const v = Math.max(3, Math.min(max, base + ctx.rng.rn2(5) - 2));
-    a[k] = acurrClamp(k, v + bonus);
+    setRawAttr(ctx, k, acurrClamp(k, v + bonus));
   }
 }
 

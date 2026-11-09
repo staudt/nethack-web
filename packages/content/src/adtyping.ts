@@ -8,6 +8,7 @@
 // branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
+import { loseAbon } from './dowear';
 import {
   getPlayer,
   inventoryOf,
@@ -73,7 +74,7 @@ import { costlyAlteration } from './shk';
 import { CHARGED_RINGS } from './objects';
 import { hardHelmet, isWeptool } from './material';
 import { doname, xnameOf } from './objnam';
-import { abon, acurrClamp, addAbon, adjattrib, type Attr } from './attrib';
+import { abon, acurrClamp, addAbon, adjattrib, rawAttr, setRawAttr, type Attr } from './attrib';
 import { unaware } from './btrapped';
 import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
 import { monflee } from './monflee';
@@ -93,6 +94,7 @@ import { fleshPetrifies, isStoned, makeStoned, resistsSton, touchPetrifies } fro
 import { done } from './end';
 import { losespells } from './spell';
 import { drainWeaponSkill } from './skills';
+import { isKnown } from './o_init';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -425,6 +427,7 @@ export function drainItem(ctx: Ctx, obj: Entity | null, byYou: boolean): boolean
   // charge for the cost of the object
   if (byYou && it.carriedBy === ctx.state.playerId) costlyAlteration(ctx, obj, 'drain', null);
   it.spe--;
+  loseAbon(ctx, obj, 1); // gauntlets of dexterity, helm of brilliance
   const uRing =
     it.carriedBy === ctx.state.playerId && (it.equipped === 'ringL' || it.equipped === 'ringR');
   const attr: Attr | null =
@@ -438,9 +441,9 @@ export function drainItem(ctx: Ctx, obj: Entity | null, byYou: boolean): boolean
   // rings of increase accuracy/damage and protection are summed where they are used
   const a = getPlayer(ctx.state).c.attributes;
   if (attr && uRing && a) {
-    const base = a[attr] - abon(ctx.state, attr);
+    const base = rawAttr(ctx.state, attr) - abon(ctx.state, attr);
     addAbon(ctx, attr, -1);
-    a[attr] = acurrClamp(attr, base + abon(ctx.state, attr));
+    setRawAttr(ctx, attr, acurrClamp(attr, base + abon(ctx.state, attr)));
   }
   return true;
 }
@@ -499,8 +502,7 @@ const acurr = (ctx: Ctx, a: 'dex' | 'con'): number => getPlayer(ctx.state).c.att
 /**
  * Whether slippery clothing protects the hero from a hug or wrap: a greased or oilskin cloak (or
  * suit, or shirt; the helmet against AD_DRIN), 1 time in 3 failing when cursed. Nothing is ever
- * greased and there is no oilskin cloak yet, so it never does; the rolls are C's.
- * ref: src/mhitu.c u_slip_free()
+ * greased here, so only the oilskin cloak does. ref: src/mhitu.c u_slip_free()
  */
 export function uSlipFree(ctx: Ctx, magr: Entity, atk: AttackDef): boolean {
   // greased armor does not protect against AT_ENGL+AD_WRAP
@@ -517,7 +519,38 @@ export function uSlipFree(ctx: Ctx, magr: Entity, atk: AttackDef): boolean {
   ) {
     say(ctx, atk.ad === 'wrap' ? 'mhitu.slips_off' : 'mhitu.cannot_hold', {
       mon: monNam(ctx, magr),
-      item: xnameOf(ctx.state, ctx.defs, obj),
+      item: slipperyName(ctx, obj),
+    });
+    return true;
+  }
+  return false;
+}
+
+/** Avoids "slippery slippery cloak" for an undiscovered oilskin cloak: cloak_simple_name(). */
+const slipperyName = (ctx: Ctx, obj: Entity): Msg =>
+  isKnown(ctx.state, ctx.defs, obj.def) ? xnameOf(ctx.state, ctx.defs, obj) : { key: 'kind.cloak' };
+
+/**
+ * Whether the monster's slippery clothing makes the hero's grab slip off (an oilskin cloak, 1
+ * time in 3 failing when cursed; nothing is greased here). ref: src/uhitm.c m_slips_free()
+ */
+function mSlipsFree(ctx: Ctx, mdef: Entity, atk: AttackDef): boolean {
+  let obj: Entity | null;
+  if (atk.ad === 'drin')
+    obj = whichArmor(ctx, mdef.id, 'helm'); // intelligence drain attacks the head
+  else {
+    // grabbing attacks the body
+    obj = whichArmor(ctx, mdef.id, 'cloak') ?? whichArmor(ctx, mdef.id, 'body');
+    if (!obj) obj = whichArmor(ctx, mdef.id, 'shirt');
+  }
+  if (
+    obj &&
+    obj.def === 'nh:oilskin_cloak' &&
+    (obj.c.item?.buc !== 'cursed' || ctx.rng.rn2(3) !== 0)
+  ) {
+    say(ctx, atk.ad === 'wrap' ? 'uhitm.slip_off' : 'uhitm.cannot_hold', {
+      mon: monNam(ctx, mdef),
+      item: slipperyName(ctx, obj),
     });
     return true;
   }
@@ -586,6 +619,8 @@ function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   const mwep = env.mwep;
   if (mwep && (atk.at === 'weapon' || atk.at === 'claw')) {
     mhm.damage += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
+    if (whichArmor(ctx, magr.id, 'gloves')?.def === 'nh:gauntlets_of_power')
+      mhm.damage += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6
     if (mhm.damage < 1) mhm.damage = 1;
     rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
   } else if (magr.def === 'nh:purple_worm' && mdef.def === 'nh:shrieker') {
@@ -911,8 +946,9 @@ function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   if (isU(ctx, magr)) {
     if (!sticks(ctx.defs.monster(mdef.def))) {
       if (ustuck(ctx) === null && !ctx.rng.rn2(10)) {
-        // (m_slips_free(): no monster wears greased armor or an oilskin cloak here)
-        say(ctx, coil ? 'uhitm.coil_around' : 'uhitm.swing_around', { mon: monNam(ctx, mdef) });
+        if (mSlipsFree(ctx, mdef, atk)) mhm.damage = 0;
+        else
+          say(ctx, coil ? 'uhitm.coil_around' : 'uhitm.swing_around', { mon: monNam(ctx, mdef) });
         // set_ustuck(mdef): not ported, the hero never holds a monster
       } else if (ustuck(ctx) === mdef.id) {
         // (no pools to drown it in)
@@ -1881,7 +1917,7 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
       done(ctx, killer);
       if (ctx.state.gameOver) return M_ATTK.HIT;
       // only when the hero chose not to die: arbitrarily boost intelligence
-      a.int = 3 + 2 + abon(ctx.state, 'int');
+      setRawAttr(ctx, 'int', 3 + 2 + abon(ctx.state, 'int'));
       say(ctx, 'drin.scarecrow');
     }
     giveNutrit = true; // in case a conflicted pet is doing this
@@ -1919,8 +1955,8 @@ const helmName = (ctx: Ctx, obj: Entity): string =>
  * (drainWeaponSkill()); each of those ends the flayer's tentacle attacks this turn. Against a
  * monster (and from a hero in mind flayer form), a headless one is unharmed, a worn helmet blocks
  * 7 times in 8, else its brain is eaten for d10 more damage.
- * ref: src/uhitm.c mhitm_ad_drin() (no long worm tails, no defending artifacts, no dunce cap,
- * no Half_physical_damage, no greased helmets: m_slips_free() never holds)
+ * ref: src/uhitm.c mhitm_ad_drin() (no long worm tails, no defending artifacts, no
+ * Half_physical_damage, no greased helmets: m_slips_free() never holds)
  */
 const adDrin: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   if (isU(ctx, magr)) {
@@ -1966,13 +2002,16 @@ const adDrin: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
     mdamageuFn?.(ctx, mhm.damage, `@${magr.def}`);
     mhm.damage = 0; // don't inflict a second dose below
     if (ctx.state.gameOver) return;
-    // (no dunce cap) u.umortality: an amulet of life saving used up means she died
-    const oldmort = hasProp(mdef, P.LIFESAVED);
-    const r = eatBrains(ctx, magr, mdef, true, null);
-    if (ctx.state.gameOver) return;
-    // skip further AD_DRIN if hero's number of deaths went up
-    if (oldmort && !hasProp(mdef, P.LIFESAVED)) skipdrin = true;
-    if (r === M_ATTK.MISS) return;
+    // a dunce cap keeps her brain (and her Int: adjattrib())
+    if (uarmh?.def !== 'nh:dunce_cap') {
+      // u.umortality: an amulet of life saving used up means she died
+      const oldmort = hasProp(mdef, P.LIFESAVED);
+      const r = eatBrains(ctx, magr, mdef, true, null);
+      if (ctx.state.gameOver) return;
+      // skip further AD_DRIN if hero's number of deaths went up
+      if (oldmort && !hasProp(mdef, P.LIFESAVED)) skipdrin = true;
+      if (r === M_ATTK.MISS) return;
+    }
     adjattrib(ctx, 'int', -ctx.rng.rnd(2), false);
     if (!ctx.rng.rn2(5)) {
       losespells(ctx);

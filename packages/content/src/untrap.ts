@@ -149,8 +149,8 @@ export function couldUntrap(ctx: Ctx, verbosely: boolean): boolean {
 /**
  * Whether disarming fails: 0 is success. The chance is 1 in 3 (a web: 1 in 7 unless she wields a
  * blade and nothing is caught in it), worse while confused, hallucinating, blind or stunned,
- * better for a trap she set. ref: src/trap.c untrap_prob() (no Sting or fire artifacts, Fumbling
- * or quest artifact; she is never a webmaker; the Ranger and Rogue cases are kept for those roles)
+ * better for a trap she set, twice as bad while fumbling. ref: src/trap.c untrap_prob() (no Sting
+ * or fire artifacts or quest artifact; she is never a webmaker; the Ranger and Rogue cases are kept for those roles)
  */
 export function untrapProb(ctx: Ctx, t: Trap): number {
   let chance = 3;
@@ -163,6 +163,7 @@ export function untrapProb(ctx: Ctx, t: Trap): number {
   if (confusedNow(ctx)) chance++;
   if (hasProp(h, P.BLINDED)) chance++;
   if (hasProp(h, P.STUNNED)) chance += 2;
+  if (hasProp(h, P.FUMBLING)) chance *= 2;
   // Your own traps are better known than others.
   if (dataOf(t).madeby_u) chance--;
   if (roleIs(ctx, 'nh:ranger') && t.def === TRAP.bear && chance <= 3) return 0;
@@ -515,7 +516,12 @@ function disarmBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): vo
   if (isBoxTrapped(ctx.state, box.id)) {
     let ch = (hero(ctx).c.attributes?.dex ?? 10) + ulevel(ctx); // ACURR(A_DEX) + u.ulevel
     if (roleIs(ctx, 'nh:rogue')) ch *= 2;
-    if (!force && (confused || ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch)) {
+    if (
+      !force &&
+      (confused ||
+        hasProp(hero(ctx), P.FUMBLING) ||
+        ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch)
+    ) {
       chestTrap(ctx, box, 'finger', true); // 'box' might be gone now
     } else {
       say(ctx, 'untrap.disarm_it');
@@ -615,7 +621,11 @@ function disarmDoor(ctx: Ctx, x: number, y: number): number {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   if (doorTrapped(ctx, level.id, x, y)) {
     const ch = 15 + (roleIs(ctx, 'nh:rogue') ? ulevel(ctx) * 3 : ulevel(ctx));
-    if (confusedNow(ctx) || ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch) {
+    if (
+      confusedNow(ctx) ||
+      hasProp(hero(ctx), P.FUMBLING) ||
+      ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch
+    ) {
       say(ctx, 'untrap.set_it_off');
       blowDoor(ctx, level, x, y, 0); // D_NODOOR (probably ought to charge for this damage...)
       bTrapped(ctx, 'door'); // FINGER

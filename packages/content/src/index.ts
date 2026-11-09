@@ -39,6 +39,7 @@ import { KICK_ACTIONS, registerKick } from './dokick';
 import { CHAT_ACTIONS } from './chat';
 import { PAY_ACTIONS } from './pay';
 import { registerClairvoyance } from './detect';
+import { registerFumbling } from './fumble';
 import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
@@ -54,6 +55,7 @@ import { registerStoning } from './stoning';
 import { registerSliming } from './slime';
 import { registerDigestFood } from './digestfood';
 import { registerLevitation } from './levitation';
+import { registerDowear } from './dowear';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
@@ -127,6 +129,7 @@ export const vanillaMod: Mod = {
     registerPray(api);
     registerKick(api);
     registerClairvoyance(api);
+    registerFumbling(api);
     registerMonflee(api);
     registerTraps(api);
     registerMagicTraps();
@@ -139,6 +142,7 @@ export const vanillaMod: Mod = {
     registerSliming(api); // slime_dialogue() after stoned_dialogue()
     registerJewelry(api);
     registerLevitation(api);
+    registerDowear(api);
     registerPolyTimeout(api); // u.mtimedone after levitation_dialogue(), as nh_timeout()
     registerAutosearch(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);

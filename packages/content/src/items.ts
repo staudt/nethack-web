@@ -92,6 +92,14 @@ export function mkobjErosions(rng: Rng, def: InitDef, it: ItemComponent): void {
   rng.rn2(1000); // greased: not ported
 }
 
+/** The armor mksobj_init() curses 9 times in 10. ref: src/mkobj.c mksobj_init() ARMOR_CLASS */
+const ALWAYS_CURSED_ARMOR: readonly string[] = [
+  'nh:fumble_boots',
+  'nh:levitation_boots',
+  'nh:helm_of_opposite_alignment',
+  'nh:gauntlets_of_fumbling',
+];
+
 /**
  * Random initialization of an object's BUC, enchantment, quantity and erosion.
  * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
@@ -144,8 +152,9 @@ export function mksobjInit(
       blessorcurse(rng, it, 4);
       break;
     case 'armor':
-      // The always-cursed armor types (fumbling, levitation...) are not in our subset.
-      if (rng.rn2(10) !== 0 && rng.rn2(11) === 0) {
+      // fumble and levitation boots, the helm of opposite alignment and gauntlets of fumbling
+      // are cursed 9 times in 10, the rest 1 in 11 of those
+      if (rng.rn2(10) !== 0 && (ALWAYS_CURSED_ARMOR.includes(def.id) || rng.rn2(11) === 0)) {
         it.buc = 'cursed';
         it.spe = -rne(rng, 3, lvl);
       } else if (rng.rn2(10) === 0) {

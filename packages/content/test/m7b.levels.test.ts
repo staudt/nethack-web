@@ -109,6 +109,10 @@ describe('boulders in level generation', () => {
       const count = boulders(state, level).filter(
         (b) => !launch.has(`${b.c.pos!.x},${b.c.pos!.y}`),
       ).length;
+      // a random trap may land on an earlier one (sp_lev's get_location() ignores traps, as in C):
+      // a rolling boulder trap replaced that way leaves its launch boulder behind (seed 15)
+      boulderSane(state, level);
+      if (level.traps.length < 6) continue;
       expect(count).toBeLessThanOrEqual(2);
       if (count > 0) withBoulders++;
       n++;

@@ -703,6 +703,9 @@ export function readobjnam(
   // alternate spellings (only the ones that are not in the spellings[] table)
   if (bp.startsWith('grey spell')) bp = 'gray spell' + bp.slice(10);
   bp = bp.replace('armour', 'armor');
+  // ref: src/objnam.c spellings[] (the gauntlets of power's old names)
+  if (bp === 'gauntlets of ogre power' || bp === 'gauntlets of giant strength')
+    return fixed('nh:gauntlets_of_power');
 
   if (bp.endsWith('holy water')) {
     if (bp.slice(0, -10).endsWith('un')) {

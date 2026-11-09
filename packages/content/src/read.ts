@@ -3,6 +3,7 @@
 // seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_earth(),
 // seffect_blank_paper(), seffect_teleportation(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
 // src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
+import { adjAbon } from './dowear';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -441,7 +442,10 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
   it.buc = buc;
   let known = false;
   if (s) {
+    const oldspe = it.spe;
     it.spe = Math.max(-99, Math.min(99, it.spe + s));
+    // adjust armor bonus for Dex or Int+Wis
+    if (it.spe !== oldspe) adjAbon(ctx, otmp, it.spe - oldspe);
     known = it.known.spe; // gk.known = otmp->known
   }
   if (known && !wasKnown) learnscrolltyp(ctx, sdef); // gk.known -> learnscroll()

@@ -45,10 +45,12 @@ import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
+import { fumbleMessagesEn } from './fumble.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
   ...shirtMessagesEn,
+  ...fumbleMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,

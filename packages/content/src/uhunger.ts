@@ -2,6 +2,7 @@
 // them without an import cycle. ref: src/eat.c init_uhunger()
 import { getPlayer, type Ctx, type HungerState } from '@nh/core';
 import { nhData } from './items';
+import { rawAttr, setRawAttr } from './attrstate';
 
 /** The meal in progress. ref: include/context.h struct victual_info */
 export interface Victual {
@@ -66,6 +67,7 @@ export function initUhunger(ctx: Pick<Ctx, 'state'>): void {
   h.nutrition = 900;
   h.state = 'not_hungry';
   const hd = hungerData(ctx);
-  if (hd.strLoss > 0 && hero.c.attributes) hero.c.attributes.str += hd.strLoss;
+  if (hd.strLoss > 0 && hero.c.attributes)
+    setRawAttr(ctx, 'str', rawAttr(ctx.state, 'str') + hd.strLoss);
   hd.strLoss = 0;
 }

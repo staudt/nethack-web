@@ -36,6 +36,15 @@ export const invisMessagesEn: Record<string, string> = {
   'mhitu.not_terribly_bright': 'You get the impression it was not terribly bright.',
   // monsters attacking where they think an invisible hero is
   'combat.wild_touch': '{mon|The} tries to touch you and misses!',
+  'combat.displaced_strike': '{mon|The} strikes at your displaced image and misses you!',
+  'combat.displaced_strike_inv':
+    '{mon|The} strikes at your invisible displaced image and misses you!',
+  'combat.displaced_smile_engagingly': '{mon|The} smiles engagingly at your displaced image...',
+  'combat.displaced_smile_seductively': '{mon|The} smiles seductively at your displaced image...',
+  'combat.displaced_smile_engagingly_inv':
+    '{mon|The} smiles engagingly at your invisible displaced image...',
+  'combat.displaced_smile_seductively_inv':
+    '{mon|The} smiles seductively at your invisible displaced image...',
   'combat.wild_swings': '{mon|The} swings wildly and misses!',
   'combat.wild_snaps': '{mon|The} snaps wildly and misses!',
   'combat.wild_kicks': '{mon|The} kicks wildly and misses!',

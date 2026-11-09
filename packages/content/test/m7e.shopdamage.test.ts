@@ -320,11 +320,11 @@ describe('repairs', () => {
       expect(damageList(s, 'dlvl1')).toEqual([]);
       expect(s.state.turn - when).toBeGreaterThanOrEqual(5);
       expect(out).toContain('Suddenly, the shop door reappears!');
-      if (out.some((m) => /^\w+ whispers something\.$/.test(m))) continue;
+      if (out.some((m) => /^.+ whispers something\.$/.test(m))) continue; // (names may have spaces)
       // seen: "Izchak whispers an incantation."; unseen but close: muttering
       expect(
         out.some((m) =>
-          /^(\w+ whispers an incantation|You hear someone muttering an incantation)\.$/.test(m),
+          /^(.+ whispers an incantation|You hear someone muttering an incantation)\.$/.test(m),
         ),
       ).toBe(true);
       close++;

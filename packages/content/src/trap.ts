@@ -90,7 +90,7 @@ import { isFrozen, paralyzeMonst, setMConfused } from './mstate';
 import { flaming, isWhirly } from './engulfstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
-import { P, hasProp, makeConfused, timeoutLeft } from './props';
+import { P, hasProp, heroHas, makeConfused, timeoutLeft } from './props';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import { canseemon as canseemonInvis } from './invis';
@@ -941,7 +941,7 @@ export function monsSeeTrap(ctx: Ctx, levelId: string, trap: Trap): void {
  * purpose (`plunged`) or the trap is forced on her (`force`: FORCETRAP, e.g. a wand of locking).
  * In Sokoban a pit or hole is never escaped: "Air currents pull you down into a pit!". Elsewhere a
  * floating hero passes over a trap set off by the floor ("You float over a pit." when it is
- * seen). The hero never flies or fumbles.
+ * seen). A fumbling hero never escapes.
  */
 export function dotrap(
   ctx: Ctx,
@@ -963,7 +963,14 @@ export function dotrap(
         say(ctx, levitating(ctx) ? 'trap.float_over' : 'trap.fly_over', { trap: trapName(t) });
       return;
     }
-    if (t.seen && t.def !== TRAP.antiMagic && !opts.plunged && !fromPit && ctx.rng.rn2(5) === 0) {
+    if (
+      t.seen &&
+      !heroHas(ctx.state, P.FUMBLING) &&
+      t.def !== TRAP.antiMagic &&
+      !opts.plunged &&
+      !fromPit &&
+      ctx.rng.rn2(5) === 0
+    ) {
       say(ctx, 'trap.escape', { trap: trapName(t) });
       return;
     }

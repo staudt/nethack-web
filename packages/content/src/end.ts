@@ -10,6 +10,7 @@ import { nomul } from './nomul';
 import { discover } from './o_init';
 import { monNam } from './perception';
 import { P, hasProp, setIntrinsic, updateWornProps } from './props';
+import { setRawAttr } from './attrstate';
 import { ownHp, upolyd } from './upoly';
 import { hungerData, initUhunger } from './uhunger';
 import { setUstuck, ustuck } from './hackmove';
@@ -47,7 +48,7 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
     }
     // adjattrib(A_CON, -1, TRUE): no message; Fixed_abil keeps it
     const a = hero.c.attributes;
-    if (a && !hasProp(hero, P.FIXED_ABIL)) a.con = Math.max(3, a.con - 1);
+    if (a && !hasProp(hero, P.FIXED_ABIL)) setRawAttr(ctx, 'con', Math.max(3, a.con - 1));
     savelife(ctx, how);
     return;
   }

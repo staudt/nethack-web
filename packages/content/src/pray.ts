@@ -33,7 +33,7 @@ import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } 
 import { rnz } from './corpses';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
-import { adjattrib } from './attrib';
+import { adjattrib, rawAttr, setRawAttr } from './attrib';
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
 import { LUCK_ITEMS } from './gem';
@@ -68,7 +68,9 @@ const TROUBLE_SICK = 10;
 const TROUBLE_STARVING = 9;
 const TROUBLE_HIT = 7;
 const TROUBLE_LYCANTHROPE = 6;
+const TROUBLE_CURSED_LEVITATION = 3;
 const TROUBLE_UNUSEABLE_HANDS = 2;
+const TROUBLE_FUMBLING = -2;
 const TROUBLE_CURSED_ITEMS = -3;
 const TROUBLE_BLIND = -5;
 const TROUBLE_WOUNDED_LEGS = -7;
@@ -146,7 +148,9 @@ function worstCursedItem(ctx: Ctx): Entity | null {
     cursed('shield') ??
     cursed('cloak') ??
     cursed('body') ??
-    cursed('helm') ??
+    // if a worn helmet of opposite alignment is making her an adherent of the current god, he
+    // won't uncurse it for her
+    (worn(ctx, 'helm')?.def !== 'nh:helm_of_opposite_alignment' ? cursed('helm') : null) ??
     cursed('boots') ??
     cursed('shirt') ??
     cursed('amulet') ??
@@ -167,8 +171,8 @@ const HVY_ENCUMBER = 3;
 /**
  * The hero's worst trouble: positive major, negative minor, 0 none. ref: src/pray.c in_trouble()
  * Not ported (they cannot happen): lava, clouds,
- * collapsing and poisoned attributes (no AMAX), walls, levitation, blindfolds, punishment,
- * fumbling, saddles, deafness.
+ * collapsing and poisoned attributes (no AMAX), walls, blindfolds, punishment, saddles,
+ * deafness.
  */
 export function inTrouble(ctx: Ctx): number {
   const h = hero(ctx);
@@ -179,7 +183,10 @@ export function inTrouble(ctx: Ctx): number {
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
   if ((!upolyd(ctx.state) || hasProp(h, P.UNCHANGING)) && criticallyLowHp(ctx)) return TROUBLE_HIT;
   if (ulycn(ctx.state) !== null) return TROUBLE_LYCANTHROPE;
+  if (cursedLevitation(ctx)) return TROUBLE_CURSED_LEVITATION;
   if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
+  // minor troubles
+  if (cursedFumbling(ctx)) return TROUBLE_FUMBLING;
   if (worstCursedItem(ctx)) return TROUBLE_CURSED_ITEMS;
   // (not while inside a blinding engulfer: it would only blind her again)
   if (
@@ -195,6 +202,38 @@ export function inTrouble(ctx: Ctx): number {
   if (timeoutLeft(ctx.state, h, P.HALLUC) > 0) return TROUBLE_HALLUCINATION;
   return 0;
 }
+
+/** ref: src/pray.c `Cursed_obj(obj, typ)`: the hero wears a cursed `typ` in `slot`. */
+function cursedObj(ctx: Ctx, slot: string, typ: string): Entity | null {
+  const o = worn(ctx, slot);
+  return o?.def === typ && o.c.item?.buc === 'cursed' ? o : null;
+}
+
+/**
+ * What keeps a worn ring of type `otyp` on: a welded weapon in the ring's hand (or two-handed),
+ * cursed gloves, or its own curse. ref: src/do_wear.c stuck_ring() (no limbless forms, no
+ * slippery fingers)
+ */
+function stuckRing(ctx: Ctx, slot: 'ringL' | 'ringR', otyp: string): Entity | null {
+  const ring = worn(ctx, slot);
+  if (ring?.def !== otyp) return null;
+  const w = weldedWeapon(ctx);
+  if (w && (slot === 'ringR' || ctx.defs.object(w.def).weapon?.bimanual)) return w;
+  const gloves = worn(ctx, 'gloves');
+  if (gloves?.c.item?.buc === 'cursed') return gloves;
+  return ring.c.item?.buc === 'cursed' ? ring : null;
+}
+
+/** TROUBLE_CURSED_LEVITATION: cursed levitation boots or a stuck ring of levitation. */
+const cursedLevitation = (ctx: Ctx): Entity | null =>
+  cursedObj(ctx, 'boots', 'nh:levitation_boots') ??
+  stuckRing(ctx, 'ringL', 'nh:ring_of_levitation') ??
+  stuckRing(ctx, 'ringR', 'nh:ring_of_levitation');
+
+/** TROUBLE_FUMBLING: cursed gauntlets of fumbling or fumble boots. */
+const cursedFumbling = (ctx: Ctx): Entity | null =>
+  cursedObj(ctx, 'gloves', 'nh:gauntlets_of_fumbling') ??
+  cursedObj(ctx, 'boots', 'nh:fumble_boots');
 
 /** "Your spear softly glows amber." and the curse is gone. ref: src/pray.c fix_curse_trouble() */
 function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
@@ -251,6 +290,12 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
     case TROUBLE_LYCANTHROPE:
       youUnwere(ctx, true);
       break;
+    case TROUBLE_CURSED_LEVITATION:
+    case TROUBLE_FUMBLING: {
+      const o = trouble === TROUBLE_FUMBLING ? cursedFumbling(ctx) : cursedLevitation(ctx);
+      if (o) fixCurseTrouble(ctx, o);
+      break;
+    }
     case TROUBLE_UNUSEABLE_HANDS: {
       const w = weldedWeapon(ctx);
       if (w) fixCurseTrouble(ctx, w);
@@ -536,7 +581,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
       if (hp) hp.cur = hp.max;
       const hd = hungerData(ctx);
       if (hd.strLoss > 0 && her.c.attributes) {
-        her.c.attributes.str += hd.strLoss;
+        setRawAttr(ctx, 'str', rawAttr(ctx.state, 'str') + hd.strLoss);
         hd.strLoss = 0;
       }
       if ((her.c.hunger?.nutrition ?? 900) < 900) initUhunger(ctx);
@@ -550,7 +595,11 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
         color: hcolor(ctx, 'light_blue'),
       });
       for (const o of inventoryOf(ctx.state, ctx.state.playerId))
-        if (o.c.item?.buc === 'cursed') {
+        if (
+          o.c.item?.buc === 'cursed' &&
+          // [see worst_cursed_item()]
+          (o.c.item.equipped !== 'helm' || o.def !== 'nh:helm_of_opposite_alignment')
+        ) {
           if (!blind) fixCurseTrouble(ctx, o);
           else o.c.item.buc = 'uncursed';
         }

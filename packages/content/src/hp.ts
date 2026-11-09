@@ -2,6 +2,7 @@
 import { getPlayer, type Ctx } from '@nh/core';
 import { done, type How } from './end';
 import { P, hasProp } from './props';
+import { rawAttr, setRawAttr } from './attrstate';
 import { rehumanize, upolyd } from './upoly';
 
 /**
@@ -57,5 +58,5 @@ export function losestr(ctx: Ctx, num: number, killer: string): void {
   }
   // adjattrib(A_STR, -num, 1): sustain ability keeps it; not when the damage rehumanized her
   if (num > 0 && (upolyd(ctx.state) || !waspolyd) && !hasProp(h, P.FIXED_ABIL))
-    a.str = Math.max(3, a.str - num);
+    setRawAttr(ctx, 'str', Math.max(3, rawAttr(ctx.state, 'str') - num));
 }

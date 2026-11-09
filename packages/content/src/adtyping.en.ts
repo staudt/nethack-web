@@ -39,6 +39,8 @@ export const adtypingMessagesEn: Record<string, string> = {
   'mhitu.brushes_leg': '{mon|The} brushes against your leg.',
   'mhitu.slips_off': '{mon|The} slips off of your slippery {item}!',
   'mhitu.cannot_hold': '{mon|The} grabs you, but cannot hold onto your slippery {item}!',
+  'uhitm.slip_off': 'You slip off of {mon|the_s} slippery {item}!',
+  'uhitm.cannot_hold': 'You grab, but cannot hold onto {mon|the_s} slippery {item}!',
   'mhitm.brushes_against': '{magr|The} brushes against {mdef|the}.',
   'mhitm.squeezes': '{magr|The} squeezes {mdef|the}.',
   'mhitm.grab_passes': '{magr|The_s} {verb} attempt passes right through {mdef|the}!',

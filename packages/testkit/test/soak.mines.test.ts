@@ -7,11 +7,12 @@ import { branchStartMod, soak } from '../src/index';
 // invariants checked as it goes.
 describe('soak in the Mines', () => {
   const deepest: number[] = [];
-  // seeds re-picked when the game stream changes; 9 goes down to Mines level 2 (m11 step 1: the
-  // new weapon rows shifted the weapon-class picks; 5 did before, since m7f-d step 2's kicking
+  // seeds re-picked when the game stream changes; 4 goes down to Mines level 2 (m11 step 4: the
+  // gloves shuffle; 9 did before, since m11 step 1's new weapon rows shifted the weapon-class
+  // picks; 5 did before, since m7f-d step 2's kicking
   // boots; 7 did before, since m7f-c step 2's new objects; 2 did before, since m7f-c step 1's room statue roll; 6 before, 11 before m7f-b step 2, 2 before
   // m7f-a step 3, 16 before m7f-a step 2, 5 before m7e step 6)
-  for (const seed of [1, 9, 23]) {
+  for (const seed of [1, 4, 23]) {
     test(`seed ${seed}: 2000 turns from the Mines staircase`, { timeout: 120000 }, () => {
       const r = soak([vanillaMod, branchStartMod], { seed, turns: 2000, checkEvery: 5 });
       console.log(

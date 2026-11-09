@@ -2228,6 +2228,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'cloak', ac: 0, mc: 1 },
   },
+  // ref: objects.h CLOAK("oilskin cloak", "slippery cloak", 0, 0, 0, 8, 0, 10, 50, 9, 2, CLOTH, HI_CLOTH, OILSKIN_CLOAK)
+  {
+    id: 'nh:oilskin_cloak',
+    nameKey: 'nh:oilskin_cloak',
+    descKey: 'nh:oilskin_cloak.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 8,
+    weight: 10,
+    cost: 50,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 2 },
+  },
   // ref: objects.h CLOAK("robe", NoDes, 1, 1, 0, 6, 0, 15, 50, 8, 2, CLOTH, CLR_RED, ROBE)
   {
     id: 'nh:robe',
@@ -2323,6 +2339,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     armor: { slot: 'cloak', ac: 1, mc: 1 },
     prop: 'antimagic',
   },
+  // ref: objects.h CLOAK("cloak of displacement", "piece of cloth", 0, 1, DISPLACED, 12, 0, 10, 50, 9, 1, CLOTH, HI_CLOTH, CLOAK_OF_DISPLACEMENT)
+  {
+    id: 'nh:cloak_of_displacement',
+    nameKey: 'nh:cloak_of_displacement',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 10,
+    cost: 50,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+    prop: 'displaced',
+  },
   // ref: objects.h HELM("elven leather helm", "leather hat", 0, 0, 0, 6, 1, 3, 8, 9, 0, LEATHER, HI_LEATHER, ELVEN_LEATHER_HELM)
   {
     id: 'nh:elven_leather_helm',
@@ -2386,6 +2418,39 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'helm', ac: 0, mc: 0 },
   },
+  // ref: objects.h HELM("cornuthaum", "conical hat", 0, 1, CLAIRVOYANT, 5, 1, 4, 80, 10, 1, CLOTH, CLR_BLUE, CORNUTHAUM)
+  {
+    id: 'nh:cornuthaum',
+    nameKey: 'nh:cornuthaum',
+    descKey: 'nh:cornuthaum.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLUE },
+    prob: 5,
+    weight: 4,
+    cost: 80,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'helm', ac: 0, mc: 1 },
+    prop: 'clairvoyant',
+  },
+  // ref: objects.h HELM("dunce cap", "conical hat", 0, 1, 0, 5, 1, 4, 1, 10, 0, CLOTH, CLR_BLUE, DUNCE_CAP)
+  {
+    id: 'nh:dunce_cap',
+    nameKey: 'nh:dunce_cap',
+    descKey: 'nh:dunce_cap.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLUE },
+    prob: 5,
+    weight: 4,
+    cost: 1,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'helm', ac: 0, mc: 0 },
+  },
   // ref: objects.h HELM("dented pot", NoDes, 1, 0, 0, 2, 0, 10, 8, 9, 0, IRON, CLR_BLACK, DENTED_POT)
   {
     id: 'nh:dented_pot',
@@ -2399,6 +2464,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     merge: false,
     magic: false,
     delay: 0,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
+  },
+  // ref: objects.h HELM("helm of brilliance", "crystal helmet", 0, 1, 0, 6, 1, 40, 50, 9, 0, GLASS, CLR_WHITE, HELM_OF_BRILLIANCE)
+  {
+    id: 'nh:helm_of_brilliance',
+    nameKey: 'nh:helm_of_brilliance',
+    descKey: 'nh:helm_of_brilliance.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: WHITE },
+    prob: 6,
+    weight: 40,
+    cost: 50,
+    material: 'glass',
+    merge: false,
+    magic: true,
+    delay: 1,
     armor: { slot: 'helm', ac: 1, mc: 0 },
   },
   // ref: objects.h HELM("helmet", "plumed helmet", 0, 0, 0, 10, 1, 30, 10, 9, 0, IRON, HI_METAL, HELMET)
@@ -2431,6 +2512,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     armor: { slot: 'helm', ac: 1, mc: 0 },
     prop: 'warning',
+  },
+  // ref: objects.h HELM("helm of opposite alignment", "crested helmet", 0, 1, 0, 10, 1, 50, 50, 9, 0, IRON, HI_METAL, HELM_OF_OPPOSITE_ALIGNMENT)
+  {
+    id: 'nh:helm_of_opposite_alignment',
+    nameKey: 'nh:helm_of_opposite_alignment',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 10,
+    weight: 50,
+    cost: 50,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
   },
   // ref: objects.h HELM("helm of telepathy", "visored helmet", 0, 1, TELEPAT, 4, 1, 50, 50, 9, 0, IRON, HI_METAL, HELM_OF_TELEPATHY)
   {
@@ -2496,6 +2592,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 2,
     armor: { slot: 'boots', ac: 2, mc: 0 },
   },
+  // ref: objects.h BOOTS("speed boots", "combat boots", 0, 1, FAST, 12, 2, 20, 50, 9, 0, LEATHER, HI_LEATHER, SPEED_BOOTS)
+  {
+    id: 'nh:speed_boots',
+    nameKey: 'nh:speed_boots',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 20,
+    cost: 50,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'fast',
+  },
   // ref: objects.h BOOTS("water walking boots", "jungle boots", 0, 1, WWALKING, 12, 2, 15, 50, 9, 0, LEATHER, HI_LEATHER, WATER_WALKING_BOOTS)
   {
     id: 'nh:water_walking_boots',
@@ -2558,6 +2670,38 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 2,
     armor: { slot: 'boots', ac: 1, mc: 0 },
+  },
+  // ref: objects.h BOOTS("fumble boots", "riding boots", 0, 1, FUMBLING, 12, 2, 20, 30, 9, 0, LEATHER, HI_LEATHER, FUMBLE_BOOTS)
+  {
+    id: 'nh:fumble_boots',
+    nameKey: 'nh:fumble_boots',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 20,
+    cost: 30,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'fumbling',
+  },
+  // ref: objects.h BOOTS("levitation boots", "snow boots", 0, 1, LEVITATION, 12, 2, 15, 30, 9, 0, LEATHER, HI_LEATHER, LEVITATION_BOOTS)
+  {
+    id: 'nh:levitation_boots',
+    nameKey: 'nh:levitation_boots',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 15,
+    cost: 30,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'levitation',
   },
   // ref: objects.h SHIELD("shield of drain resistance", "wooden shield", 0, 1, 0, DRAIN_RES, 12, 0, 30, 50, 9, 0, WOOD, HI_WOOD, SHIELD_OF_DRAIN_RESISTANCE)
   {
@@ -2693,7 +2837,6 @@ export const OBJECTS: readonly ObjectDef[] = [
   {
     id: 'nh:leather_gloves',
     nameKey: 'nh:leather_gloves',
-    descKey: 'nh:leather_gloves.desc',
     class: 'armor',
     glyph: { ch: '[', fg: BROWN },
     prob: 15,
@@ -2702,6 +2845,52 @@ export const OBJECTS: readonly ObjectDef[] = [
     material: 'leather',
     merge: false,
     magic: false,
+    delay: 1,
+    armor: { slot: 'gloves', ac: 1, mc: 0 },
+  },
+  // ref: objects.h GLOVES("gauntlets of fumbling", "padded gloves", 0, 1, FUMBLING, 8, 1, 10, 50, 9, 0, LEATHER, HI_LEATHER, GAUNTLETS_OF_FUMBLING)
+  {
+    id: 'nh:gauntlets_of_fumbling',
+    nameKey: 'nh:gauntlets_of_fumbling',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 8,
+    weight: 10,
+    cost: 50,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'gloves', ac: 1, mc: 0 },
+    prop: 'fumbling',
+  },
+  // ref: objects.h GLOVES("gauntlets of power", "riding gloves", 0, 1, 0, 8, 1, 30, 50, 9, 0, IRON, CLR_BROWN, GAUNTLETS_OF_POWER)
+  {
+    id: 'nh:gauntlets_of_power',
+    nameKey: 'nh:gauntlets_of_power',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 8,
+    weight: 30,
+    cost: 50,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'gloves', ac: 1, mc: 0 },
+  },
+  // ref: objects.h GLOVES("gauntlets of dexterity", "fencing gloves", 0, 1, 0, 8, 1, 10, 50, 9, 0, LEATHER, HI_LEATHER, GAUNTLETS_OF_DEXTERITY)
+  {
+    id: 'nh:gauntlets_of_dexterity',
+    nameKey: 'nh:gauntlets_of_dexterity',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 8,
+    weight: 10,
+    cost: 50,
+    material: 'leather',
+    merge: false,
+    magic: true,
     delay: 1,
     armor: { slot: 'gloves', ac: 1, mc: 0 },
   },
@@ -4185,8 +4374,8 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   bookLook('thick', WHITE),
   bookLook('checkered', GRAY),
 
-  // ---- armor descriptions, in objects.h order (helmets, cloaks and boots of the shuffled
-  // ranges; the gloves wait for their three gauntlets) ----
+  // ---- armor descriptions, in objects.h order (the helmets, cloaks, gloves and boots of the
+  // shuffled ranges) ----
   armorLook('plumed_helmet', CYAN), // helmet
   armorLook('etched_helmet', GREEN), // helm of caution
   armorLook('crested_helmet', CYAN), // helm of opposite alignment
@@ -4195,6 +4384,10 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   armorLook('opera_cloak', BRIGHT_MAGENTA), // cloak of invisibility
   armorLook('ornamental_cope', WHITE), // cloak of magic resistance
   armorLook('piece_of_cloth', BROWN), // cloak of displacement
+  armorLook('old_gloves', BROWN), // leather gloves
+  armorLook('padded_gloves', BROWN), // gauntlets of fumbling
+  armorLook('riding_gloves', BROWN), // gauntlets of power
+  armorLook('fencing_gloves', BROWN), // gauntlets of dexterity
   armorLook('combat_boots', BROWN), // speed boots
   armorLook('jungle_boots', BROWN), // water walking boots
   armorLook('hiking_boots', BROWN), // jumping boots

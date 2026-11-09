@@ -39,6 +39,7 @@ export const resistMessagesEn: Record<string, string> = {
   'attr.plus.dex': 'You feel {very}agile!',
   'attr.plus.con': 'You feel {very}tough!',
   'attr.plus.cha': 'You feel {very}charismatic!',
+  'attr.cap_constricts': 'Your cap constricts briefly, then relaxes again.',
   'attr.minus.str': 'You feel {very}weak!',
   'attr.minus.int': 'You feel {very}stupid!',
   'attr.minus.wis': 'You feel {very}foolish!',

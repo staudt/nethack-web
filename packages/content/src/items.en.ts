@@ -119,6 +119,27 @@ export const itemMessagesEn: Record<string, string> = {
   // ref: src/do_wear.c toggle_stealth() (elven boots)
   'wear.walk_quietly': 'You walk very quietly.',
   'wear.float_imperceptibly': 'You float imperceptibly.',
+  // ref: src/do_wear.c toggle_displacement() (cloak of displacement)
+  'wear.displaced_on': 'You feel that monsters have difficulty pinpointing your location.',
+  'wear.displaced_off':
+    'You feel that monsters no longer have difficulty pinpointing your location.',
+  // Cloak_on() (oilskin cloak)
+  'wear.fits_tightly': '{item|The} fits very tightly.',
+  // Boots_on(), Boots_off() (speed boots)
+  'wear.speed_up': 'You feel yourself speed up.',
+  'wear.speed_up_more': 'You feel yourself speed up a bit more.',
+  'wear.slow_down': 'You feel yourself slow down.',
+  'wear.slow_down_bit': 'You feel yourself slow down a bit.',
+  // Helmet_on() (helm of opposite alignment, dunce cap) and uchangealign()
+  'wear.helm_vibrates': '{item|The} vibrates for a moment.',
+  'wear.helm_glows': '{item|The} glows {color} for a moment.',
+  'wear.brain_hurts': 'My brain hurts!',
+  'wear.sit_in_corner': 'You feel like sitting in a corner.',
+  'wear.giddy': 'You feel giddy.',
+  'wear.mind_oscillates': 'Your mind oscillates briefly.',
+  'wear.mind_oscillates_wildly': 'Your mind oscillates wildly.',
+  'wear.mind_in_sync': 'Your mind is back in sync with your body.',
+  'wear.mind_muchness': 'Your mind is much of a muchness.',
   'wear.already_that': 'You are already wearing that!',
   // canwearobj() for a polymorphed form
   'wear.cant_form': "You can't wear any armor in your current form.",

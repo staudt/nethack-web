@@ -76,7 +76,20 @@ export const P = {
   INFRAVISION: 'infravision',
   DRAIN_RES: 'drain_res',
   WWALKING: 'wwalking',
+  FUMBLING: 'fumbling',
+  DISPLACED: 'displaced',
 } as const;
+
+/**
+ * BClairvoyant: a worn cornuthaum blocks clairvoyance for anyone but a Wizard (there are no
+ * Wizards here). ref: src/worn.c w_blocks()
+ */
+export const clairvoyanceBlocked = (state: Readonly<GameState>): boolean =>
+  wornIn(state, state.playerId, 'helm')?.def === 'nh:cornuthaum';
+
+/** Clairvoyant: `(HClairvoyant || EClairvoyant) && !BClairvoyant`. ref: include/youprop.h */
+export const heroClairvoyant = (state: Readonly<GameState>): boolean =>
+  heroHas(state, P.CLAIRVOYANT) && !clairvoyanceBlocked(state);
 
 /** The cached extrinsic entry of a property (see the header). */
 const wornKey = (name: string): string => `${name}:worn`;
@@ -352,8 +365,24 @@ export function makeHallucinated(
   return changed;
 }
 
+/**
+ * What runs out-of-module when a timed property ends (Fumbling's trip in fumble.ts, which sits
+ * above this leaf), by property name; registered at load.
+ */
+const EXPIRY: Record<string, (ctx: Ctx) => void> = {};
+
+/** Registers what happens when the property's timeout runs out (nh_timeout()'s case). */
+export function setTimeoutExpiry(name: string, fn: (ctx: Ctx) => void): void {
+  EXPIRY[name] = fn;
+}
+
 /** ref: src/timeout.c nh_timeout(): what happens when a timed property runs out. */
 function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
+  const fn = EXPIRY[name];
+  if (fn) {
+    fn(ctx);
+    return;
+  }
   switch (name) {
     case P.STUNNED:
       // (the timer is already cleared, so make_stunned(0, TRUE)'s message is given directly)

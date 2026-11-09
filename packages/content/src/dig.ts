@@ -13,7 +13,7 @@
 //
 // In a shop, walls and doors dug and holes or pits made are damage its keeper wants paid for and
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
-// Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, Fumbling, burying and unearthing objects,
+// Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
 // is always ROOM and draws nothing), drawbridges, graves, thrones,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
@@ -71,7 +71,7 @@ import {
 } from './fountain';
 import { confdir, uMaybeImpaired, ustuck } from './hackmove';
 import { losehp } from './hp';
-import { wieldTool } from './itemactions';
+import { dropx, welded, wieldTool } from './itemactions';
 import { mksobj, placeOnFloor } from './items';
 import { luckOf } from './luck';
 import { greatestErosion } from './material';
@@ -82,7 +82,8 @@ import { migrateToLevel } from './migrate';
 import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
-import { P, hasProp, ringBonus } from './props';
+import { P, hasProp, heroHas, ringBonus } from './props';
+import { setWoundedLegs } from './legs';
 import { ceilingKey, hardHelmet } from './read';
 import { makeAngryShk } from './shk';
 import { payForDamage, shopdig, type DmgStr } from './shkpay';
@@ -678,7 +679,7 @@ const wakeNearby = (ctx: Ctx): void => {
  * through stops ("This wall seems too hard to dig into."), but the effort adds up over swings
  * and breaking through is damage to pay for. Down: a pit after effort 50, a hole through which she falls after 250 (dighole()); a bear
  * trap holding her is hit; where the floor cannot be dug through, another trap is destroyed.
- * ref: src/dig.c dig() (no Fumbling or Earth level; the hero is never a dwarf)
+ * ref: src/dig.c dig() (no Earth level or steed; the hero is never a dwarf)
  */
 export function dig(ctx: Ctx): boolean {
   const d = diggingOf(ctx);
@@ -717,7 +718,28 @@ export function dig(ctx: Ctx): boolean {
       }
     }
   }
-  // (Fumbling is not ported)
+  if (heroHas(ctx.state, P.FUMBLING) && !ctx.rng.rn2(3)) {
+    const item = xnameOf(ctx.state, ctx.defs, pick);
+    switch (ctx.rng.rn2(3)) {
+      case 0:
+        if (!welded(ctx, pick)) {
+          say(ctx, 'dig.fumble_drop', { item });
+          dropx(ctx, pick);
+        } else {
+          say(ctx, 'dig.bounce_hit', { item });
+          setWoundedLegs(ctx, 5 + ctx.rng.rnd(5));
+        }
+        break;
+      case 1:
+        say(ctx, 'dig.bang', { item });
+        wakeNearby(ctx);
+        break;
+      default:
+        say(ctx, 'dig.swing_misses');
+        break;
+    }
+    return false;
+  }
   d.effort +=
     10 +
     ctx.rng.rn2(5) +
@@ -817,7 +839,7 @@ function digDown(ctx: Ctx, d: Digging, pick: Entity, level: Level, dc: DigCheck)
     return false;
   }
   if (ttmp?.def === TRAP.bear) {
-    if (rnl(ctx.rng, 7, luckOf(ctx.state)) > 4) {
+    if (rnl(ctx.rng, 7, luckOf(ctx.state)) > (heroHas(ctx.state, P.FUMBLING) ? 1 : 4)) {
       let dmg = dmgvalSized(ctx.rng, pick, ctx.defs.object(pick.def), false) + dbonU(ctx);
       if (dmg < 1) dmg = 1;
       else if (whichArmor(ctx, ctx.state.playerId, 'boots')) dmg = Math.trunc((dmg + 1) / 2);

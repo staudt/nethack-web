@@ -1,9 +1,21 @@
 // Attribute changes and poison. ref: src/attrib.c adjattrib(), poisoned(), poisontell(), gainstr()
-import { getPlayer, type AttributesComponent, type Ctx, type GameState, type Msg } from '@nh/core';
+import { getPlayer, type AttributesComponent, type Ctx, type Msg } from '@nh/core';
 import { done } from './end';
 import { losehp } from './hp';
 import { ownHp, upolyd } from './upoly';
 import { P, hasProp } from './props';
+import { abon, acurrClamp, attrOverride, rawAttr, setRawAttr } from './attrstate';
+
+export {
+  abon,
+  acurrClamp,
+  addAbon,
+  adjustAbon,
+  attrOverride,
+  rawAttr,
+  setRawAttr,
+  syncAttrOverrides,
+} from './attrstate';
 
 export type Attr = keyof AttributesComponent;
 
@@ -20,43 +32,28 @@ const ATTRMAX: Record<Attr, number> = {
   cha: 18,
 };
 
-/** ref: src/attrib.c acurr(): 3..125 for (encoded) Str, 3..25 for the others */
-export const acurrClamp = (which: Attr, n: number): number =>
-  Math.max(ATTRMIN, Math.min(which === 'str' ? 125 : 25, n));
-
-/**
- * ABON: the attribute bonus of worn rings (u.abon), the raw sum of their enchantments, kept in
- * `modData.nh.abon`. The stored attribute is ACURR (ABASE + ABON, clamped by acurr()).
- */
-export function abon(state: Readonly<GameState>, which: Attr): number {
-  const nh = state.modData['nh'] as { abon?: Partial<Record<Attr, number>> } | undefined;
-  return nh?.abon?.[which] ?? 0;
-}
-
-/** Adds `n` to ABON; drops the record when it is back to zero. */
-export function addAbon(ctx: Pick<Ctx, 'state'>, which: Attr, n: number): void {
-  const nh = (ctx.state.modData['nh'] ??= {}) as { abon?: Partial<Record<Attr, number>> };
-  const ab = (nh.abon ??= {});
-  const v = (ab[which] ?? 0) + n;
-  if (v) ab[which] = v;
-  else delete ab[which];
-  if (Object.keys(ab).length === 0) delete nh.abon;
-}
-
 /**
  * Raises or lowers an attribute. Returns whether it changed. `msg` shows "You feel weak!" etc.
- * ref: src/attrib.c adjattrib(). Not ported: the peak value (AMAX) that a drop below the
- * minimum lowers, abuse and exercise, and the dunce cap.
+ * ref: src/attrib.c adjattrib() (a dunce cap holds Int and Wis: "Your cap constricts briefly").
+ * Not ported: the peak value (AMAX) that a drop below the minimum lowers, abuse and exercise.
  */
 export function adjattrib(ctx: Ctx, which: Attr, incr: number, msg: boolean): boolean {
   const hero = getPlayer(ctx.state);
   const a = hero.c.attributes;
   if (hasProp(hero, P.FIXED_ABIL) || !a || !incr) return false;
+  if ((which === 'int' || which === 'wis') && attrOverride(ctx.state, which) !== null) {
+    // the dunce cap
+    if (msg) ctx.emit({ type: 'msg', key: 'attr.cap_constricts' });
+    return false;
+  }
   const old = a[which];
   // the stored value is ACURR: change ABASE (= ACURR - ABON) within its limits, then add ABON back
   const bonus = abon(ctx.state, which);
-  const base = Math.max(ATTRMIN, Math.min(ATTRMAX[which], old - bonus + incr));
-  a[which] = acurrClamp(which, base + bonus);
+  const base = Math.max(
+    ATTRMIN,
+    Math.min(ATTRMAX[which], rawAttr(ctx.state, which) - bonus + incr),
+  );
+  setRawAttr(ctx, which, acurrClamp(which, base + bonus));
   if (a[which] === old) return false;
   if (msg) {
     ctx.emit({
@@ -140,8 +137,9 @@ export function gainstr(ctx: Ctx, incr = 0): void {
   if (!a) return;
   let num = incr;
   if (!num) {
-    if (a.str < 18) num = ctx.rng.rn2(4) ? 1 : ctx.rng.rnd(6);
-    else if (a.str < STR18(85)) num = ctx.rng.rnd(10);
+    const str = rawAttr(ctx.state, 'str');
+    if (str < 18) num = ctx.rng.rn2(4) ? 1 : ctx.rng.rnd(6);
+    else if (str < STR18(85)) num = ctx.rng.rnd(10);
     else num = 1;
   }
   adjattrib(ctx, 'str', num, true);

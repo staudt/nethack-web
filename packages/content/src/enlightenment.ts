@@ -34,6 +34,7 @@ import {
   hasExtrinsic,
   hasIntrinsic,
   hasProp,
+  heroClairvoyant,
   isStrangled,
   ringBonus,
   timeoutLeft,
@@ -149,6 +150,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
     const sides = (ctx.state.modData['nh'] as { legSides?: number } | undefined)?.legSides ?? 2;
     have(sides === 3 ? 'wounded_legs' : sides === 1 ? 'wounded_left_leg' : 'wounded_right_leg');
   }
+  if (has(P.FUMBLING)) line('enl.fumble');
   if (has(P.SLEEPY)) line('enl.sleepy');
   if (has(P.HUNGER)) line('enl.hunger_rapidly');
   // hunger status; "not hungry" too
@@ -198,7 +200,8 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.TELEPAT)) are('telepathic');
   if (has(P.WARNING)) are('warned');
   if (has(P.SEARCHING)) have('searching');
-  if (has(P.CLAIRVOYANT)) are('clairvoyant');
+  if (heroClairvoyant(ctx.state)) are('clairvoyant');
+  else if (has(P.CLAIRVOYANT)) line('enl.could_be_clairvoyant'); // blocked by a cornuthaum
   if (has(P.INFRAVISION)) have('infravision');
   // appearance and behavior
   if (has(P.ADORNED)) {
@@ -209,6 +212,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   else if (heroInvisible(ctx.state)) are('invisible_to_others');
   // ordinarily "visible" is redundant; a special case when invisibility would be expected
   else if (heroInvisSource(ctx.state) && heroInvisBlocked(ctx.state)) are('visible');
+  if (has(P.DISPLACED)) are('displaced');
   if (has(P.STEALTH)) are('stealthy');
   if (has(P.AGGRAVATE_MONSTER)) line('enl.aggravate');
   if (has(P.CONFLICT)) line('enl.conflict');

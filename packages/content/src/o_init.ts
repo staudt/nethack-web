@@ -72,11 +72,9 @@ export function shuffleAll(
 
 /**
  * The armor sub-ranges shuffled after the whole classes, in NetHack's order: each object of a
- * range takes one of the range's descriptions. The gloves are left
- * out while leather gloves are the only gloves (it keeps "old gloves", as a range of one
- * cannot shuffle). ref: src/o_init.c shuffle_all() shuffle_types[], obj_shuffle_range()
- * (HELMET..HELM_OF_TELEPATHY, CLOAK_OF_PROTECTION..CLOAK_OF_DISPLACEMENT,
- * SPEED_BOOTS..LEVITATION_BOOTS); shuffle() with `domaterial` FALSE (the material stays).
+ * range takes one of the range's descriptions. ref: src/o_init.c shuffle_all() shuffle_types[],
+ * obj_shuffle_range() (HELMET..HELM_OF_TELEPATHY, LEATHER_GLOVES..GAUNTLETS_OF_DEXTERITY,
+ * CLOAK_OF_PROTECTION..CLOAK_OF_DISPLACEMENT, SPEED_BOOTS..LEVITATION_BOOTS); shuffle() with `domaterial` FALSE (the material stays).
  */
 export interface ArmorRange {
   /** The objects of the range, in objects.h order (those missing from the table are skipped). */
@@ -94,6 +92,15 @@ export const ARMOR_RANGES: readonly ArmorRange[] = [
       'nh:helm_of_telepathy',
     ],
     looks: ['nh:plumed_helmet', 'nh:etched_helmet', 'nh:crested_helmet', 'nh:visored_helmet'],
+  },
+  {
+    objs: [
+      'nh:leather_gloves',
+      'nh:gauntlets_of_fumbling',
+      'nh:gauntlets_of_power',
+      'nh:gauntlets_of_dexterity',
+    ],
+    looks: ['nh:old_gloves', 'nh:padded_gloves', 'nh:riding_gloves', 'nh:fencing_gloves'],
   },
   {
     objs: [

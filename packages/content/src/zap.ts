@@ -24,6 +24,7 @@
 // (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
 // holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
 // cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
+import { loseAbon } from './dowear';
 import {
   DIRS,
   DIR_LIST,
@@ -132,7 +133,7 @@ import { payForDamage } from './shkpay';
 import { SHOP_DOOR_COST, addDamage, addShopDamage } from './shopdamage';
 import { askWish, answerWish, type WishData } from './wish';
 import { luckOf } from './luck';
-import { abon, acurrClamp, addAbon, type Attr } from './attrib';
+import { abon, acurrClamp, addAbon, rawAttr, setRawAttr, type Attr } from './attrib';
 import { BLANK_PAPER } from './spell';
 import { done } from './end';
 import { monflee } from './monflee';
@@ -1334,10 +1335,11 @@ export function cancelItem(ctx: Ctx, obj: Entity): void {
     const which = RING_ATTR[otyp];
     const a = hero(ctx).c.attributes;
     if (which && a && (it.equipped === 'ringL' || it.equipped === 'ringR')) {
-      const base = a[which] - abon(ctx.state, which);
+      const base = rawAttr(ctx.state, which) - abon(ctx.state, which);
       addAbon(ctx, which, -it.spe);
-      a[which] = acurrClamp(which, base + abon(ctx.state, which));
+      setRawAttr(ctx, which, acurrClamp(which, base + abon(ctx.state, which)));
     }
+    loseAbon(ctx, obj, it.spe); // gauntlets of dexterity, helm of brilliance
   }
   // cancelled item might not be in hero's possession but cancellation is presumed to be
   // instigated by hero

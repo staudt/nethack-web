@@ -31,7 +31,7 @@ import {
   seeInvisible,
   selfInvisMessage,
 } from './invis';
-import { abon, acurrClamp, addAbon, type Attr } from './attrib';
+import { abon, acurrClamp, addAbon, rawAttr, setRawAttr, type Attr } from './attrib';
 import { stopOccupation } from './eat';
 import { done } from './end';
 import { changeSex, heroFemale, polyGender } from './gender';
@@ -130,9 +130,9 @@ function adjustAttrib(ctx: Ctx, ring: Entity, which: Attr, val: number): void {
   const a = hero(ctx).c.attributes;
   if (!a) return;
   const old = a[which];
-  const base = old - abon(ctx.state, which);
+  const base = rawAttr(ctx.state, which) - abon(ctx.state, which);
   addAbon(ctx, which, val);
-  a[which] = acurrClamp(which, base + abon(ctx.state, which));
+  setRawAttr(ctx, which, acurrClamp(which, base + abon(ctx.state, which)));
   const observable = old !== a[which];
   if (observable || !extremeattr(ctx, which)) learnring(ctx, ring, observable);
 }

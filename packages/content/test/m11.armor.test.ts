@@ -77,8 +77,9 @@ describe('the rows', () => {
     expect(render({ key: 'nh:low_boots.desc' })).toBe('pair of walking shoes');
   });
 
-  test('a new game shuffles the helmets, cloaks and boots within their ranges', () => {
+  test('a new game shuffles the helmets, gloves, cloaks and boots within their ranges', () => {
     const seen = new Set<string>();
+    const gloves = new Set<string>();
     for (let seed = 1; seed <= 8; seed++) {
       const { state } = engine.newGame({ seed });
       for (const r of ARMOR_RANGES) {
@@ -90,10 +91,11 @@ describe('the rows', () => {
         expect(isKnown(state, defs, 'nh:helmet' as DefId)).toBe(false);
       }
       seen.add(state.appearances['nh:jumping_boots'] as string);
-      // leather gloves keep "old gloves" while they are the only gloves
-      expect(state.appearances['nh:leather_gloves']).toBeUndefined();
+      gloves.add(state.appearances['nh:leather_gloves'] as string);
     }
     expect(seen.size).toBeGreaterThan(1);
+    // the gloves shuffle too, now that the three gauntlets exist
+    expect(gloves.size).toBeGreaterThan(1);
   });
 });
 

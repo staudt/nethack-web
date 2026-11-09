@@ -73,7 +73,7 @@ import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
 import { isCancelled, isFrozen } from './mstate';
-import { P, hasProp, ringBonus } from './props';
+import { P, hasProp, heroHas, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
 import { thitmonst } from './dothrow';
@@ -348,6 +348,10 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
   const trap = trapAt(getLevel(ctx.state), x, y);
   if (trap?.def === TRAP.statue) {
     activateStatueTrap(ctx, ctx.state.currentLevel, trap, false);
+    return true;
+  }
+  if (heroHas(ctx.state, P.FUMBLING) && !ctx.rng.rn2(3)) {
+    say(ctx, 'kick.clumsy_missed');
     return true;
   }
   const it = pile.c.item;
@@ -650,8 +654,8 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   const i = -invWeight(ctx.state, ctx.defs, ctx.state.playerId);
   const j = weightCap(ctx.state, ctx.defs, ctx.state.playerId);
   let clumsy = false;
+  let doit = false;
   if (i < Math.trunc((j * 3) / 10)) {
-    let doit = false;
     if (ctx.rng.rn2(i < Math.trunc(j / 10) ? 2 : i < Math.trunc(j / 5) ? 3 : 4) === 0) {
       if (martial(ctx))
         doit = true; // goto doit
@@ -666,7 +670,8 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     } else if (i < Math.trunc(j / 10)) clumsy = true;
     else if (ctx.rng.rn2(i < Math.trunc(j / 5) ? 2 : 3) === 0) clumsy = true;
   }
-  // (Fumbling and bulky body armor would also make the kick clumsy: not ported)
+  // (bulky body armor would also make the kick clumsy: no armor is oc_bulky here)
+  if (!doit && heroHas(ctx.state, P.FUMBLING)) clumsy = true;
 
   say(ctx, 'kick.you_kick_mon', { mon: name });
   if (

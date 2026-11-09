@@ -33,8 +33,10 @@ import { canseemon, monInvisible, seeInvisible, updateMonInvis } from './invis';
 import { discover } from './o_init';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { monFloorEffects } from './align';
-import { ALIGNED_CLERIC } from './epri';
+import { ALIGNED_CLERIC, epriOf } from './epri';
 import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
+import { color } from './hcolor';
+import { mspeed } from './mstate';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
@@ -627,6 +629,13 @@ const wrappingAllowed = (def: MonsterDef): boolean =>
 
 type ArmorSlotName = 'shirt' | 'cloak' | 'helm' | 'shield' | 'gloves' | 'boots' | 'body';
 
+/**
+ * A monster not already fast prefers speed boots. ref: src/worn.c extra_pref() (its permspeed:
+ * the speed the boots do not give)
+ */
+const extraPref = (ctx: GearCtx, monId: EntityId, o: Entity): number =>
+  o.def === 'nh:speed_boots' && mspeed(ctx, monId) !== 'fast' ? 20 : 0;
+
 /** One slot of m_dowear(); returns the item newly worn, if any. ref: src/worn.c m_dowear_type() */
 function mDoWearType(
   ctx: GearCtx,
@@ -664,11 +673,23 @@ function mDoWearType(
     // ref: m_dowear_type() W_ARM with the racial exception: hobbits wear elven armor
     if (slot === 'body' && racialException && !(def.id === 'nh:hobbit' && /elven/.test(o.def)))
       continue;
+    // changing alignment is not implemented for monsters; priests (no minions here) reject
+    // helms of opposite alignment
+    if (o.def === 'nh:helm_of_opposite_alignment' && epriOf(ctx, monId)) continue;
     if (o.c.item?.equipped) continue;
-    if (best && armorBonus(ctx, best) >= armorBonus(ctx, o)) continue;
+    if (
+      best &&
+      armorBonus(ctx, best) + extraPref(ctx, monId, best) >=
+        armorBonus(ctx, o) + extraPref(ctx, monId, o)
+    )
+      continue;
     best = o;
   }
   if (!best || best === old) return false;
+  // same auto-cursing behavior as for hero
+  const autocurse =
+    (best.def === 'nh:helm_of_opposite_alignment' || best.def === 'nh:dunce_cap') &&
+    best.c.item?.buc !== 'cursed';
 
   const sawmon = canseemon(ctx, mon);
   if (!creation) {
@@ -690,8 +711,19 @@ function mDoWearType(
               params: { mon: `@${def.id}`, item: doname(ctx.state, ctx.defs, best) },
             },
       );
+      if (autocurse)
+        ctx.emit({
+          type: 'msg',
+          key: 'mon.helm_glows',
+          params: {
+            mon: `@${def.id}`,
+            item: xnameOf(ctx.state, ctx.defs, best),
+            color: color('black'), // (no hallucinated colours: no cosmetic rng here)
+          },
+        });
     }
   }
+  if (autocurse && best.c.item) best.c.item.buc = 'cursed';
   if (old?.c.item) old.c.item.equipped = null;
   if (old) updateMonInvis(ctx, mon, old, false);
   const bi = best.c.item;
