@@ -19,7 +19,7 @@ import { mkcorpse, mksobj } from '../src/items';
 import { meatcorpse, meatmetal, meatobj } from '../src/meat';
 import { mInitInv, mInitWeap } from '../src/mongear';
 import { isMStunned } from '../src/mstate';
-import { addMon } from './helpers';
+import { MUSE_ITEMS, addMon } from './helpers';
 import { ctxFor, defs, levelSetup, render } from './itemHelpers';
 
 type S = ReturnType<typeof levelSetup>;
@@ -84,7 +84,7 @@ describe('starting gear (m_initweap, m_initinv)', () => {
       const id = monAt(s, def, 1, 0);
       mInitWeap(ctxFor(s.state), id);
       mInitInv(ctxFor(s.state), id, 5);
-      out.push(carried(s, id).filter((d) => d !== 'nh:gold_piece'));
+      out.push(carried(s, id).filter((d) => d !== 'nh:gold_piece' && !MUSE_ITEMS.has(d)));
     }
     return out;
   }

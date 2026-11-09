@@ -108,3 +108,40 @@ export const posOf = (s: GameState, id: number): Pos => {
   const p = s.entities[String(id)]?.c.pos;
   return { x: p?.x ?? -1, y: p?.y ?? -1 };
 };
+
+/**
+ * Every item rnd_defensive_item(), rnd_offensive_item() and rnd_misc_item() can give a monster
+ * being made (m14 step 7): starting-gear tests that check m_initweap()'s and m_initinv()'s own
+ * items leave these out.
+ */
+export const MUSE_ITEMS: ReadonlySet<string> = new Set([
+  'nh:scroll_of_teleportation',
+  'nh:wand_of_teleportation',
+  'nh:scroll_of_create_monster',
+  'nh:wand_of_create_monster',
+  'nh:potion_of_healing',
+  'nh:potion_of_extra_healing',
+  'nh:potion_of_full_healing',
+  'nh:wand_of_digging',
+  'nh:wand_of_death',
+  'nh:scroll_of_earth',
+  'nh:wand_of_striking',
+  'nh:potion_of_acid',
+  'nh:potion_of_confusion',
+  'nh:potion_of_blindness',
+  'nh:potion_of_sleeping',
+  'nh:potion_of_paralysis',
+  'nh:wand_of_magic_missile',
+  'nh:wand_of_sleep',
+  'nh:wand_of_fire',
+  'nh:wand_of_cold',
+  'nh:wand_of_lightning',
+  'nh:potion_of_polymorph',
+  'nh:wand_of_polymorph',
+  'nh:amulet_of_life_saving',
+  'nh:potion_of_speed',
+  'nh:wand_of_speed_monster',
+  'nh:potion_of_invisibility',
+  'nh:wand_of_make_invisible',
+  'nh:potion_of_gain_level',
+]);

@@ -124,6 +124,7 @@ import { linedUp, mThrowOne } from './mthrowu';
 import { BUGLE, awakenSoldiers } from './music';
 import {
   M_SEEN,
+  curesStoning,
   mSeenres,
   mcureblindness,
   monstseesu,
@@ -1520,18 +1521,6 @@ function xkilledNoMsg(ctx: Ctx, mon: Entity): void {
 
 /** ref: include/mondata.h acidic(): M1_ACID */
 const acidic = (def: MonsterDef): boolean => def.flags.includes('acid');
-
-/**
- * Whether `obj` cures the monster's petrification: a potion of acid, or a lizard or acidic
- * corpse. ref: src/muse.c cures_stoning() (no globs or tins: mcould_eat_tin() is never needed)
- */
-function curesStoning(ctx: Ctx, obj: Entity): boolean {
-  if (obj.def === POT_ACID) return true;
-  if (obj.def !== CORPSE) return false;
-  const of = obj.c.item?.corpseOf;
-  if (!of || !ctx.defs.isMonster(of)) return false;
-  return of === LIZARD || acidic(ctx.defs.monster(of));
-}
 
 /**
  * A monster about to turn to stone eats or drinks the first thing it carries that cures it

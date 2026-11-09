@@ -43,6 +43,7 @@ import {
   monWieldItem,
   monWouldTakeItem,
   mpickstuff,
+  mpickstuffSkips,
   setMonFlag,
 } from './mongear';
 import { mattackRanged } from './mthrowu';
@@ -560,10 +561,15 @@ function mSearchItems(
       if (minr < distmin(pos.x, pos.y, xx, yy)) continue; // found an object closer already
       if (!clearPath(level, opaque, pos.x, pos.y, xx, yy, blocked)) continue; // m_cansee()
       for (const o of pile) {
-        // ref: 3.6 m_move() excluded corpses here; 5.0's mpickstuff() refuses them after the
-        // monster has walked to one, which would leave it stuck on the square
-        if (o.def === 'nh:rock' || o.def === 'nh:corpse') continue;
-        if (monWouldTakeItem(ctx, id, o) && canCarry(ctx, id, o) > 0) {
+        // rocks are never worth a trip; the corpses (and untouchables) 5.0's mpickstuff()
+        // refuses after the monster has walked to one would leave it stuck on the square (C's
+        // search checks only can_touch_safely())
+        if (o.def === 'nh:rock') continue;
+        if (
+          monWouldTakeItem(ctx, id, o) &&
+          canCarry(ctx, id, o) > 0 &&
+          !mpickstuffSkips(ctx, id, o)
+        ) {
           minr = distmin(pos.x, pos.y, xx, yy);
           goal.x = xx;
           goal.y = yy;

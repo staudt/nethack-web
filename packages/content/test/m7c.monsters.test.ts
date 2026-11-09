@@ -15,7 +15,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { monsterAttack } from '../src/combat';
 import { makemon, monsterDied, vanillaMod } from '../src/index';
-import { addMon, setup as roomSetup } from './helpers';
+import { MUSE_ITEMS, addMon, setup as roomSetup } from './helpers';
 import { ctxFor, defs, levelSetup, render } from './itemHelpers';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
@@ -190,7 +190,7 @@ describe('starting gear', () => {
     for (let i = 0; i < n; i++) {
       const mid = makemon(ctx, mdef(id), { x: 0, y: 0 }, { nogroup: true })!;
       const inv = inventoryOf(t.state, mid);
-      const ds = inv.map((e) => e.def);
+      const ds = inv.map((e) => e.def).filter((d) => !MUSE_ITEMS.has(d));
       for (const d of new Set(ds)) counts.set(d, (counts.get(d) ?? 0) + 1);
       const arrows = inv.find((e) => e.def === 'nh:orcish_arrow')?.c.item?.quantity ?? 0;
       const cloak = inv.find((e) => e.c.item?.equipped === 'cloak')?.def ?? null;

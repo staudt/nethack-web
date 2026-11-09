@@ -38,6 +38,7 @@ import { ALIGNED_CLERIC, epriOf } from './epri';
 import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
 import { color } from './hcolor';
 import { mspeed } from './mstate';
+import { rndDefensiveItem, rndMiscItem, rndOffensiveItem, searchesForItem } from './musestate';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
@@ -408,10 +409,20 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
         break;
     }
   }
-  // `if ((int) mtmp->m_lev > rn2(75)) mongets(mtmp, rnd_offensive_item(mtmp));`
-  // (offensive items are wands, potions and scrolls this port cannot choose yet)
-  rng.rn2(75); // the roll is made against m_lev; the item it would give is not
+  // ref: m_initweap() `if ((int) mtmp->m_lev > rn2(75)) mongets(rnd_offensive_item(mtmp))`
+  if (monLevel(ctx, monId) > rng.rn2(75)) mongetsMuse(ctx, monId, rndOffensiveItem(ctx, monId));
 }
+
+/** mtmp->m_lev */
+const monLevel = (ctx: GearCtx, monId: EntityId): number => {
+  const { e, def } = monOf(ctx, monId);
+  return e.c.monster?.level ?? def.level;
+};
+
+/** mongets() of an rnd_*_item() pick (none for 0). */
+const mongetsMuse = (ctx: GearCtx, monId: EntityId, otyp: DefId | null): void => {
+  if (otyp !== null) mongets(ctx, monId, otyp);
+};
 
 /** The trolls' polearms, by m_initweap()'s rn2(4). ref: src/makemon.c m_initweap() S_TROLL */
 const TROLL_POLEARMS = ['nh:ranseur', 'nh:partisan', 'nh:glaive', 'nh:spetum'] as const;
@@ -557,13 +568,14 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
  * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). No S_DEMON items (the water
  * demon gets none); mummies get their wrapping, nymphs roll for a mirror and a potion of object
  * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
- * giants gems, and gnomes roll for a candle (not in the table).
+ * giants gems, and gnomes roll for a candle (not in the table); then, but for most soldiers
+ * (`rn2(13)`), a defensive and a misc item by m_lev.
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   const { def } = monOf(ctx, monId);
   const rng = ctx.rng;
-  // candle for gnomes (not in the table; not in the Mines), then the defensive and misc item
-  // rolls (wands, potions and scrolls this port cannot choose yet): only the rolls are made
+  // candle for gnomes (not in the table; not in the Mines: only the roll), then the defensive and
+  // misc items (rnd_defensive_item(), rnd_misc_item())
   if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
   else if (def.id === SHOPKEEPER) {
     // ref: m_initinv() S_HUMAN PM_SHOPKEEPER: a skeleton key, then from rn2(4) on (falling
@@ -623,8 +635,11 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
       addToInventory(ctx, monId, id);
     }
   }
-  rng.rn2(50);
-  rng.rn2(100);
+  // ordinary soldiers rarely have access to magic (or gold :-)
+  if (def.id === 'nh:soldier' && rng.rn2(13)) return;
+  // ref: m_initinv() `m_lev > rn2(50)`, `m_lev > rn2(100)`
+  if (monLevel(ctx, monId) > rng.rn2(50)) mongetsMuse(ctx, monId, rndDefensiveItem(ctx, monId));
+  if (monLevel(ctx, monId) > rng.rn2(100)) mongetsMuse(ctx, monId, rndMiscItem(ctx, monId));
   if (likesGold(def) && !findGold(ctx, monId) && rng.rn2(5) === 0) {
     const has = inventoryOf(ctx.state, monId).length > 0;
     mkmonmoney(ctx, monId, rng.d(depth, has ? 5 : 10));
@@ -977,31 +992,36 @@ export function currMonLoad(ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId):
   return n;
 }
 
-/** Potions the roster's thinking monsters look for. ref: src/muse.c searches_for_item() */
-const SEARCHED = new Set([
-  'nh:potion_of_healing',
-  'nh:potion_of_extra_healing',
-  'nh:potion_of_full_healing',
-]);
+/** ref: src/monmove.c magical[]: the classes a magic lover (M2_MAGIC) takes */
+const MAGICAL: readonly string[] = ['amulet', 'potion', 'scroll', 'wand', 'ring', 'spellbook'];
 
 /**
  * Whether the monster would love to have the floor item. ref: src/monmove.c
- * mon_would_take_item(): useful potions for thinking monsters; gold for the greedy; gems for
- * jewel lovers (not stones); weapons, armor, gems and food (`practical[]`) for object lovers; all only while
- * the monster's load is under a limit; unicorns take only gemstones. Not ported: gelatinous cubes, boulder
- * throwers, magic lovers (nothing in the roster has M2_MAGIC).
+ * mon_would_take_item(): a pet takes nothing cursed; unicorns take only gemstones; thinking
+ * monsters take what they can use (searches_for_item()); gold for the greedy; gems for
+ * jewel lovers (not stones); weapons, armor, gems and food (`practical[]`) for object lovers;
+ * amulets, potions, scrolls, wands, rings and spellbooks (`magical[]`) for magic lovers; all
+ * only while the monster's load is under a limit. Not ported: gelatinous cubes, boulder
+ * throwers.
  */
 export function monWouldTakeItem(
   ctx: Pick<GearCtx, 'state' | 'defs'>,
   monId: EntityId,
   item: Entity,
 ): boolean {
-  const { def } = monOf(ctx, monId);
+  const { e, def } = monOf(ctx, monId);
   const od = ctx.defs.object(item.def);
   const pctload = Math.trunc((currMonLoad(ctx, monId) * 100) / maxMonLoad(def));
+  // "note: will get overridden if mtmp will eat otmp"
+  if (e.c.monster?.tame && item.c.item?.buc === 'cursed') return false;
   // a unicorn wants nothing but gemstones (not glass)
   if (isUnicorn(def) && od.material !== 'gemstone') return false;
-  if (!hasFlag(def, 'mindless') && !hasFlag(def, 'animal') && pctload < 75 && SEARCHED.has(od.id))
+  if (
+    !hasFlag(def, 'mindless') &&
+    !hasFlag(def, 'animal') &&
+    pctload < 75 &&
+    searchesForItem(ctx, e, item)
+  )
     return true;
   if (likesGold(def) && od.class === 'coin' && pctload < 95) return true;
   if (likesGems(def) && od.class === 'gem' && od.material !== 'mineral' && pctload < 85)
@@ -1012,6 +1032,7 @@ export function monWouldTakeItem(
     pctload < 75
   )
     return true;
+  if (hasFlag(def, 'magic') && MAGICAL.includes(od.class) && pctload < 85) return true;
   return false;
 }
 
@@ -1036,10 +1057,38 @@ export function canCarry(
 }
 
 /**
+ * Whether mpickstuff() passes over an item the monster would take: nymphs take everything, most
+ * monsters no corpse but a cockatrice's, a lizard's or an acidic one's (the ones muse uses), and
+ * nothing it cannot touch safely (a cockatrice corpse without gloves, silver for a silver-hater).
+ * ref: src/mon.c mpickstuff(), can_touch_safely()
+ */
+export function mpickstuffSkips(
+  ctx: Pick<GearCtx, 'state' | 'defs'>,
+  monId: EntityId,
+  o: Entity,
+): boolean {
+  const { e, def } = monOf(ctx, monId);
+  const of = o.c.item?.corpseOf;
+  const pm = o.def === 'nh:corpse' && of && ctx.defs.isMonster(of) ? ctx.defs.monster(of) : null;
+  // "let a handful of corpse types thru to can_carry()"
+  if (
+    o.def === 'nh:corpse' &&
+    def.glyph.ch !== 'n' &&
+    !(pm && (touchPetrifies(pm) || pm.id === 'nh:lizard' || pm.flags.includes('acid')))
+  )
+    return true;
+  // can_touch_safely(): a cockatrice corpse without gloves
+  if (pm && touchPetrifies(pm) && !whichArmor(ctx, monId, 'gloves') && !resistsSton(ctx, e))
+    return true;
+  // can_touch_safely(): silver burns a silver-hater
+  return objDef(ctx, o.def)?.material === 'silver' && hatesSilver(def);
+}
+
+/**
  * The monster picks up one item stack from the cell it stands on.
  * ref: src/mon.c mpickstuff(). A shopkeeper in his shop never picks up, and other monsters but
- * pets rarely do in a shop. Only nymphs pick up corpses, and not a cockatrice's bare-handed. The
- * monster then wants to re-check its gear.
+ * pets rarely do in a shop. Corpses and untouchable items as mpickstuffSkips(). The monster then
+ * wants to re-check its gear.
  */
 export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
   const { e, def } = monOf(ctx, monId);
@@ -1053,22 +1102,7 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
     return false;
   for (const o of itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)) {
     if (!monWouldTakeItem(ctx, monId, o)) continue;
-    // nymphs take everything; most monsters don't pick up corpses (C lets cockatrice, lizard
-    // and acidic corpses through for monsters that use them: muse.c is not ported)
-    if (o.def === 'nh:corpse' && def.glyph.ch !== 'n') continue;
-    // can_touch_safely(): a cockatrice corpse without gloves
-    const of = o.c.item?.corpseOf;
-    if (
-      o.def === 'nh:corpse' &&
-      of &&
-      ctx.defs.isMonster(of) &&
-      touchPetrifies(ctx.defs.monster(of)) &&
-      !whichArmor(ctx, monId, 'gloves') &&
-      !resistsSton(ctx, e)
-    )
-      continue;
-    // can_touch_safely(): silver burns a silver-hater
-    if (objDef(ctx, o.def)?.material === 'silver' && hatesSilver(def)) continue;
+    if (mpickstuffSkips(ctx, monId, o)) continue;
     const carry = canCarry(ctx, monId, o);
     if (carry === 0) continue;
     let take = o.id;
