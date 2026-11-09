@@ -359,7 +359,8 @@ describe('the control prompt', () => {
   });
 
   test('"human" makes a new human; Escape under forced control is "Never mind."', () => {
-    const s = room();
+    // (seed 4: both new humans survive newman()'s health check)
+    const s = room(4);
     run(s, (ctx) => polyself(ctx, { controlled: true }));
     expect(answer(s, null)).toEqual(['Never mind.']);
     expect(form(s)).toBeNull();

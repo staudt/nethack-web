@@ -87,7 +87,7 @@ describe('the objects', () => {
       spellbook: { level: 1 },
     });
     const ids = defs.objects.map((d) => d.id as string);
-    expect(ids.indexOf('nh:jumping_boots')).toBe(ids.indexOf('nh:iron_shoes') + 1);
+    expect(ids.indexOf('nh:jumping_boots')).toBe(ids.indexOf('nh:water_walking_boots') + 1);
     expect(ids.indexOf(JUMPING)).toBe(ids.indexOf('nh:spellbook_of_protection') + 1);
   });
 

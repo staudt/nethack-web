@@ -233,8 +233,8 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
  * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the water demon
- * (S_DEMON falls through to the general case). Objects missing from the object table (the
- * elven armor until it arrives) are not given, but the rolls C makes for them are. (In 5.0 only
+ * (S_DEMON falls through to the general case). Objects missing from the object table (a mod
+ * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
  * Uruk-hai are given orcish bows.)
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
@@ -490,11 +490,11 @@ const MERC_AC: Readonly<Record<string, number>> = {
 };
 
 /**
- * A mercenary's armor, in five rounds that stop once it is armored enough.
- * ref: src/makemon.c m_initinv() S_HUMAN `is_mercenary(ptr)`. Armor missing from the object
- * table (plate mail, crystal plate mail, splint and banded mail, studded leather armor, helmet,
- * dented pot, large shield, low and high boots, leather cloak) and the watchman's tin whistle
- * are not given, and their creation rolls are not made (DEVIATIONS.md).
+ * A mercenary's armor, in five rounds that stop once it is armored enough, then the watchman's
+ * tin whistle or the soldiers' K- and C-rations and their officers' bugle.
+ * ref: src/makemon.c m_initinv() S_HUMAN `is_mercenary(ptr)` (no vault guards). An object
+ * missing from the table (a mod that removes it) is not given; armor then makes no creation
+ * rolls, the rations and the bugle make theirs.
  */
 function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   const rng = ctx.rng;
@@ -522,15 +522,17 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
     if (mac < 10 && rng.rn2(3) !== 0) add(first);
     else if (mac < 10 && rng.rn2(2) !== 0) add(second);
   }
-  // watch captains get a better weapon instead; most watchmen carry a tin whistle (not in the
-  // table: `if (rn2(3)) mongets(mtmp, TIN_WHISTLE)`, only the roll is made)
-  if (def.id === 'nh:watchman') rng.rn2(3);
-  else if (def.id !== 'nh:watch_captain') {
-    // soldiers and their officers: a K-ration, a C-ration, a bugle for officers (none of the
-    // three is in the object table: only their init rolls are made)
-    if (!rng.rn2(3)) burnObj(ctx, 'food', 'veggy');
-    if (!rng.rn2(2)) burnObj(ctx, 'food', 'veggy');
-    if (def.id !== 'nh:soldier' && !rng.rn2(3)) burnObj(ctx, 'tool', 'copper');
+  // watch captains get a better weapon instead; most watchmen carry a whistle
+  if (def.id === 'nh:watchman') {
+    if (rng.rn2(3)) mongets(ctx, monId, 'nh:tin_whistle');
+  } else if (def.id !== 'nh:watch_captain') {
+    // soldiers and their officers: a K-ration, a C-ration, a bugle for officers
+    const getsOrRolls = (otyp: string, cls: 'food' | 'tool', material: string): void => {
+      if (mongets(ctx, monId, otyp) === null) burnObj(ctx, cls, material);
+    };
+    if (!rng.rn2(3)) getsOrRolls('nh:k_ration', 'food', 'veggy');
+    if (!rng.rn2(2)) getsOrRolls('nh:c_ration', 'food', 'veggy');
+    if (def.id !== 'nh:soldier' && !rng.rn2(3)) getsOrRolls('nh:bugle', 'tool', 'copper');
   }
 }
 
@@ -557,11 +559,15 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     if (r <= 2) mongets(ctx, monId, 'nh:potion_of_healing');
     mongets(ctx, monId, 'nh:wand_of_striking');
   } else if (def.id === ALIGNED_CLERIC) {
-    // ref: m_initinv() S_HUMAN MS_PRIEST: a robe (a cloak of protection or of magic resistance
-    // 1 time in 7, which this port lacks: a robe then too, after C's roll), a small shield and
+    // ref: m_initinv() S_HUMAN MS_PRIEST: a robe, or 1 time in 7 a cloak of protection (2 in 3)
+    // or of magic resistance (a table without them gives the robe), a small shield and
     // rn1(10, 20) gold
-    if (rng.rn2(7) === 0) rng.rn2(3);
-    mongets(ctx, monId, 'nh:robe');
+    const cloak = rng.rn2(7)
+      ? 'nh:robe'
+      : rng.rn2(3)
+        ? 'nh:cloak_of_protection'
+        : 'nh:cloak_of_magic_resistance';
+    mongets(ctx, monId, orElse(ctx, cloak, 'nh:robe'));
     mongets(ctx, monId, 'nh:small_shield');
     mkmonmoney(ctx, monId, rng.rn2(10) + 20);
   }

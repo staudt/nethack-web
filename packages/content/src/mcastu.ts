@@ -34,7 +34,8 @@ import {
 } from '@nh/core';
 import { burnAwaySlime } from './slimestate';
 import { blockersOf } from './boulder';
-import { flashburn, monSpellHitsSpot, ureflects } from './buzz';
+import { flashburn, monSpellHitsSpot } from './buzz';
+import { ureflects } from './reflect';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { makemon, mkclass, mnextoPos } from './generation';

@@ -32,7 +32,8 @@ import { nomulNow } from './hunger';
 import { setAfternmv, setAfternmvKey, setStealIds, stealIds } from './nomul';
 import { armorSimpleName, doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, someMonNam } from './perception';
-import { cloakOff, heroInvisible, monInvisible, perceives, seeInvisible } from './invis';
+import { armorOff, isArmorSlot } from './dowear';
+import { heroInvisible, monInvisible, perceives, seeInvisible } from './invis';
 import { heroForm } from './upoly';
 import { P, hasProp, updateWornProps } from './props';
 import { subfrombill } from './shk';
@@ -184,8 +185,8 @@ export function removeWornItem(ctx: Ctx, obj: Entity): void {
   else if (slot === 'blindfold') blindfOff(ctx, obj);
   else if (slot) {
     it.equipped = null; // Armor_off() .. Shirt_off(), uwepgone()
-    updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
-    if (slot === 'cloak') cloakOff(ctx, obj);
+    if (isArmorSlot(slot)) armorOff(ctx, obj, slot);
+    else updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
   }
   if (swapWep(ctx)?.id === obj.id) setSwapWep(ctx, null); // uswapwepgone()
 }

@@ -40,12 +40,10 @@ import { mondead } from './mondeath';
 import { isCancelled, isMConfused, isMStunned, mcansee, mspecUsed, setMspecUsed } from './mstate';
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
-import { discover } from './o_init';
 import { canseemon, monVisible } from './invis';
 import { rehumanize, upolyd } from './upoly';
 import {
   P,
-  hasExtrinsic,
   hasProp,
   incrItimeout,
   makeBlinded,
@@ -54,6 +52,7 @@ import {
   makeStunned,
   timeoutLeft,
 } from './props';
+import { ureflects } from './reflect';
 
 export { magicNegation, mgcAtkNegated } from './adtyping';
 
@@ -128,8 +127,7 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
   let react = -1;
   const name = monNam(ctx, mon);
   const isMedusa = mon.def === 'nh:medusa';
-  // ureflects(): only the amulet of reflection reflects here
-  const reflectable = hasExtrinsic(hero, P.REFLECTING) && couldsee(ctx, mon) && isMedusa;
+  const reflectable = ureflects(ctx, null) && couldsee(ctx, mon) && isMedusa;
   if ((hasProp(hero, P.HALLUC) && ctx.rng.rn2(4) !== 0) || (unaware(ctx) && !reflectable))
     cancelled = true;
   const spec = (): boolean => mcanseeu && mspecUsed(ctx, mon.id) === 0 && ctx.rng.rn2(5) !== 0;
@@ -157,10 +155,7 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
       }
       if (reflectable) {
         // hero has line of sight to Medusa and she's not blind
-        if (seen) {
-          say(ctx, 'reflect.gaze_medallion', { mon: name });
-          discover(ctx, 'nh:amulet_of_reflection');
-        }
+        if (seen) ureflects(ctx, 'reflect.gaze', { mon: name });
         // (mon_reflects(): monsters wear no reflecting armor here)
         // m_canseeu(): she is never invisible, so Medusa sees her when she can see at all
         if (seen) say(ctx, 'stone.is_turned', { mon: name });

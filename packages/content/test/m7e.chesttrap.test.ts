@@ -379,7 +379,8 @@ describe('trapped doors', () => {
   const kaboom = 'KABOOM!!  The door was booby-trapped!';
 
   test('opening one: KABOOM, an empty doorway, and she is stunned', () => {
-    const m = make(HALL);
+    // (seed 2: a blast of more than 1 point, which her regeneration would hide this turn)
+    const m = make(HALL, 2);
     trappedDoor(m);
     const before = hp(m);
     const t = texts(mod(m, 'nh:open', { dir: 'e' }));

@@ -116,6 +116,9 @@ export const itemMessagesEn: Record<string, string> = {
   'wear.cant': "You can't wear that!",
   'wear.now': 'You are now wearing {item|an}.',
   'wear.finish': 'You finish your dressing maneuver.',
+  // ref: src/do_wear.c toggle_stealth() (elven boots)
+  'wear.walk_quietly': 'You walk very quietly.',
+  'wear.float_imperceptibly': 'You float imperceptibly.',
   'wear.already_that': 'You are already wearing that!',
   // canwearobj() for a polymorphed form
   'wear.cant_form': "You can't wear any armor in your current form.",

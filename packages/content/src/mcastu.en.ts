@@ -31,7 +31,7 @@ export const mcastuMessagesEn: Record<string, string> = {
   'mcastu.geyser': 'A sudden geyser slams into you from nowhere!',
   'mcastu.fire_pillar': 'A pillar of fire strikes all around you!',
   'mcastu.lightning': 'A bolt of lightning strikes down at you from above!',
-  'mcastu.bounces': 'It bounces off your medallion.',
+  'mcastu.bounces': 'It bounces off your {what}.',
   'mcastu.insects': 'insects',
   'mcastu.snakes': 'snakes',
   'mcastu.insect': 'an insect',

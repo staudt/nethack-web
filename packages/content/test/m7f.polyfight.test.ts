@@ -114,6 +114,11 @@ describe('the form attacks with each of its attacks (hmonas)', () => {
 
   test("a soldier ant's poisonous sting goes through the poison damage type", () => {
     const s = room();
+    // her starting dagger and food ration outweigh what a soldier ant can carry (its to-hit
+    // would depend on her rolled Str and Con): she carries nothing here
+    for (const id of Object.keys(s.state.entities).sort()) {
+      if (s.state.entities[id]?.c.item?.carriedBy === s.state.playerId) delete s.state.entities[id];
+    }
     become(s, 'nh:soldier_ant');
     const j = foe(s, 'nh:jackal');
     // rn2() is always 0: not negated, poisoned (1 in 8), deadly (1 in 10)

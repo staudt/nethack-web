@@ -656,7 +656,11 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
       } else {
         say(
           ctx,
-          cursed ? 'eat.terrible' : e.def === 'nh:cram_ration' ? 'eat.bland' : 'eat.delicious',
+          cursed
+            ? 'eat.terrible'
+            : e.def === 'nh:cram_ration' || e.def === 'nh:k_ration' || e.def === 'nh:c_ration'
+              ? 'eat.bland'
+              : 'eat.delicious',
           { item },
         );
       }

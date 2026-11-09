@@ -1907,6 +1907,81 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'shield', ac: 1, mc: 0 },
   },
+  // ref: objects.h ARMOR("plate mail", NoDes, 1, 0, 1, 0, 40, 5, 450, 600, 3, 2, ARM_SUIT, IRON, HI_METAL, PLATE_MAIL)
+  {
+    id: 'nh:plate_mail',
+    nameKey: 'nh:plate_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 40,
+    weight: 450,
+    cost: 600,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 7, mc: 2 },
+  },
+  // ref: objects.h ARMOR("crystal plate mail", NoDes, 1, 0, 1, 0, 10, 5, 415, 820, 3, 2, ARM_SUIT, GLASS, CLR_WHITE, CRYSTAL_PLATE_MAIL)
+  {
+    id: 'nh:crystal_plate_mail',
+    nameKey: 'nh:crystal_plate_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: WHITE },
+    prob: 10,
+    weight: 415,
+    cost: 820,
+    material: 'glass',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 7, mc: 2 },
+  },
+  // ref: objects.h ARMOR("bronze plate mail", NoDes, 1, 0, 1, 0, 23, 5, 450, 400, 4, 1, ARM_SUIT, COPPER, HI_COPPER, BRONZE_PLATE_MAIL)
+  {
+    id: 'nh:bronze_plate_mail',
+    nameKey: 'nh:bronze_plate_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: YELLOW },
+    prob: 23,
+    weight: 450,
+    cost: 400,
+    material: 'copper',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 6, mc: 1 },
+  },
+  // ref: objects.h ARMOR("splint mail", NoDes, 1, 0, 1, 0, 57, 5, 400, 80, 4, 1, ARM_SUIT, IRON, HI_METAL, SPLINT_MAIL)
+  {
+    id: 'nh:splint_mail',
+    nameKey: 'nh:splint_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 57,
+    weight: 400,
+    cost: 80,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 6, mc: 1 },
+  },
+  // ref: objects.h ARMOR("banded mail", NoDes, 1, 0, 1, 0, 66, 5, 350, 90, 4, 1, ARM_SUIT, IRON, HI_METAL, BANDED_MAIL)
+  {
+    id: 'nh:banded_mail',
+    nameKey: 'nh:banded_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 66,
+    weight: 350,
+    cost: 90,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 6, mc: 1 },
+  },
   // ref: objects.h ARMOR("elven mithril-coat", NoDes, 1, 0, 0, 0, 15, 1, 150, 240, 5, 2, ARM_SUIT, MITHRIL, HI_SILVER, ELVEN_MITHRIL_COAT)
   {
     id: 'nh:elven_mithril_coat',
@@ -1952,6 +2027,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 3,
     armor: { slot: 'body', ac: 2, mc: 1 },
   },
+  // ref: objects.h ARMOR("chain mail", NoDes, 1, 0, 0, 0, 66, 5, 300, 75, 5, 1, ARM_SUIT, IRON, HI_METAL, CHAIN_MAIL)
+  {
+    id: 'nh:chain_mail',
+    nameKey: 'nh:chain_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 66,
+    weight: 300,
+    cost: 75,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 5, mc: 1 },
+  },
   // ref: objects.h ARMOR("orcish chain mail", "crude chain mail", 0, 0, 0, 0, 19, 5, 300, 75, 6, 1, ARM_SUIT, IRON, CLR_BLACK, ORCISH_CHAIN_MAIL)
   {
     id: 'nh:orcish_chain_mail',
@@ -1968,6 +2058,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 5,
     armor: { slot: 'body', ac: 4, mc: 1 },
   },
+  // ref: objects.h ARMOR("scale mail", NoDes, 1, 0, 0, 0, 66, 5, 250, 45, 6, 1, ARM_SUIT, IRON, HI_METAL, SCALE_MAIL)
+  {
+    id: 'nh:scale_mail',
+    nameKey: 'nh:scale_mail',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 66,
+    weight: 250,
+    cost: 45,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 4, mc: 1 },
+  },
+  // ref: objects.h ARMOR("studded leather armor", NoDes, 1, 0, 0, 0, 66, 3, 200, 15, 7, 1, ARM_SUIT, LEATHER, HI_LEATHER, STUDDED_LEATHER_ARMOR)
+  {
+    id: 'nh:studded_leather_armor',
+    nameKey: 'nh:studded_leather_armor',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 66,
+    weight: 200,
+    cost: 15,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 3,
+    armor: { slot: 'body', ac: 3, mc: 1 },
+  },
   // ref: objects.h ARMOR("ring mail", NoDes, 1, 0, 0, 0, 66, 5, 250, 100, 7, 1, ARM_SUIT, IRON, HI_METAL, RING_MAIL)
   {
     id: 'nh:ring_mail',
@@ -1983,6 +2103,67 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 5,
     armor: { slot: 'body', ac: 3, mc: 1 },
   },
+  // ref: objects.h ARMOR("orcish ring mail", "crude ring mail", 0, 0, 0, 0, 19, 5, 250, 80, 8, 1, ARM_SUIT, IRON, CLR_BLACK, ORCISH_RING_MAIL)
+  {
+    id: 'nh:orcish_ring_mail',
+    nameKey: 'nh:orcish_ring_mail',
+    descKey: 'nh:orcish_ring_mail.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 19,
+    weight: 250,
+    cost: 80,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 5,
+    armor: { slot: 'body', ac: 2, mc: 1 },
+  },
+  // ref: objects.h ARMOR("leather jacket", NoDes, 1, 0, 0, 0, 11, 0, 30, 10, 9, 0, ARM_SUIT, LEATHER, CLR_BLACK, LEATHER_JACKET)
+  {
+    id: 'nh:leather_jacket',
+    nameKey: 'nh:leather_jacket',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 11,
+    weight: 30,
+    cost: 10,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'body', ac: 1, mc: 0 },
+  },
+  // ref: objects.h ARMOR("Hawaiian shirt", NoDes, 1, 0, 0, 0, 8, 0, 5, 3, 10, 0, ARM_SHIRT, CLOTH, CLR_MAGENTA, HAWAIIAN_SHIRT)
+  {
+    id: 'nh:hawaiian_shirt',
+    nameKey: 'nh:hawaiian_shirt',
+    class: 'armor',
+    glyph: { ch: '[', fg: MAGENTA },
+    prob: 8,
+    weight: 5,
+    cost: 3,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shirt', ac: 0, mc: 0 },
+  },
+  // ref: objects.h ARMOR("T-shirt", NoDes, 1, 0, 0, 0, 2, 0, 5, 2, 10, 0, ARM_SHIRT, CLOTH, CLR_WHITE, T_SHIRT)
+  {
+    id: 'nh:t_shirt',
+    nameKey: 'nh:t_shirt',
+    class: 'armor',
+    glyph: { ch: '[', fg: WHITE },
+    prob: 2,
+    weight: 5,
+    cost: 2,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shirt', ac: 0, mc: 0 },
+  },
   // ref: objects.h CLOAK("mummy wrapping", NoDes, 1, 0, 0, 0, 0, 3, 2, 10, 1, CLOTH, CLR_GRAY, MUMMY_WRAPPING)
   {
     id: 'nh:mummy_wrapping',
@@ -1997,6 +2178,23 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 0,
     armor: { slot: 'cloak', ac: 0, mc: 1 },
+  },
+  // ref: objects.h CLOAK("elven cloak", "faded pall", 0, 1, STEALTH, 8, 0, 10, 60, 9, 1, CLOTH, CLR_BLACK, ELVEN_CLOAK)
+  {
+    id: 'nh:elven_cloak',
+    nameKey: 'nh:elven_cloak',
+    descKey: 'nh:elven_cloak.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 8,
+    weight: 10,
+    cost: 60,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+    prop: 'stealth',
   },
   // ref: objects.h CLOAK("orcish cloak", "coarse mantelet", 0, 0, 0, 8, 0, 10, 40, 10, 1, CLOTH, CLR_BLACK, ORCISH_CLOAK)
   {
@@ -2045,11 +2243,58 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'cloak', ac: 2, mc: 2 },
   },
+  // ref: objects.h CLOAK("alchemy smock", "apron", 0, 1, POISON_RES, 11, 0, 10, 50, 9, 1, CLOTH, CLR_WHITE, ALCHEMY_SMOCK)
+  {
+    id: 'nh:alchemy_smock',
+    nameKey: 'nh:alchemy_smock',
+    descKey: 'nh:alchemy_smock.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: WHITE },
+    prob: 11,
+    weight: 10,
+    cost: 50,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+    prop: 'poison_res',
+  },
+  // ref: objects.h CLOAK("leather cloak", NoDes, 1, 0, 0, 8, 0, 15, 40, 9, 1, LEATHER, CLR_BROWN, LEATHER_CLOAK)
+  {
+    id: 'nh:leather_cloak',
+    nameKey: 'nh:leather_cloak',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 8,
+    weight: 15,
+    cost: 40,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+  },
+  // ref: objects.h CLOAK("cloak of protection", "tattered cape", 0, 1, PROTECTION, 11, 0, 10, 50, 7, 3, CLOTH, HI_CLOTH, CLOAK_OF_PROTECTION)
+  {
+    id: 'nh:cloak_of_protection',
+    nameKey: 'nh:cloak_of_protection',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 11,
+    weight: 10,
+    cost: 50,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 3, mc: 3 },
+    prop: 'protection',
+  },
   // ref: objects.h CLOAK("cloak of invisibility", "opera cloak", 0, 1, INVIS, 12, 0, 10, 60, 9, 1, CLOTH, CLR_BRIGHT_MAGENTA, CLOAK_OF_INVISIBILITY)
   {
     id: 'nh:cloak_of_invisibility',
     nameKey: 'nh:cloak_of_invisibility',
-    descKey: 'nh:cloak_of_invisibility.desc',
     class: 'armor',
     glyph: { ch: '[', fg: BRIGHT_MAGENTA },
     prob: 12,
@@ -2061,6 +2306,38 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'cloak', ac: 1, mc: 1 },
     prop: 'invis',
+  },
+  // ref: objects.h CLOAK("cloak of magic resistance", "ornamental cope", 0, 1, ANTIMAGIC, 6, 0, 10, 60, 9, 1, CLOTH, CLR_WHITE, CLOAK_OF_MAGIC_RESISTANCE)
+  {
+    id: 'nh:cloak_of_magic_resistance',
+    nameKey: 'nh:cloak_of_magic_resistance',
+    class: 'armor',
+    glyph: { ch: '[', fg: WHITE },
+    prob: 6,
+    weight: 10,
+    cost: 60,
+    material: 'cloth',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'cloak', ac: 1, mc: 1 },
+    prop: 'antimagic',
+  },
+  // ref: objects.h HELM("elven leather helm", "leather hat", 0, 0, 0, 6, 1, 3, 8, 9, 0, LEATHER, HI_LEATHER, ELVEN_LEATHER_HELM)
+  {
+    id: 'nh:elven_leather_helm',
+    nameKey: 'nh:elven_leather_helm',
+    descKey: 'nh:elven_leather_helm.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 6,
+    weight: 3,
+    cost: 8,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 1,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
   },
   // ref: objects.h HELM("orcish helm", "iron skull cap", 0, 0, 0, 6, 1, 30, 10, 9, 0, IRON, CLR_BLACK, ORCISH_HELM)
   {
@@ -2094,6 +2371,99 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     armor: { slot: 'helm', ac: 2, mc: 0 },
   },
+  // ref: objects.h HELM("fedora", NoDes, 1, 0, 0, 0, 0, 3, 1, 10, 0, CLOTH, CLR_BROWN, FEDORA)
+  {
+    id: 'nh:fedora',
+    nameKey: 'nh:fedora',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 0,
+    weight: 3,
+    cost: 1,
+    material: 'cloth',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'helm', ac: 0, mc: 0 },
+  },
+  // ref: objects.h HELM("dented pot", NoDes, 1, 0, 0, 2, 0, 10, 8, 9, 0, IRON, CLR_BLACK, DENTED_POT)
+  {
+    id: 'nh:dented_pot',
+    nameKey: 'nh:dented_pot',
+    class: 'armor',
+    glyph: { ch: '[', fg: BLACK },
+    prob: 2,
+    weight: 10,
+    cost: 8,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
+  },
+  // ref: objects.h HELM("helmet", "plumed helmet", 0, 0, 0, 10, 1, 30, 10, 9, 0, IRON, HI_METAL, HELMET)
+  {
+    id: 'nh:helmet',
+    nameKey: 'nh:helmet',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 10,
+    weight: 30,
+    cost: 10,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 1,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
+  },
+  // ref: objects.h HELM("helm of caution", "etched helmet", 0, 1, WARNING, 6, 1, 50, 50, 9, 0, IRON, CLR_GREEN, HELM_OF_CAUTION)
+  {
+    id: 'nh:helm_of_caution',
+    nameKey: 'nh:helm_of_caution',
+    class: 'armor',
+    glyph: { ch: '[', fg: GREEN },
+    prob: 6,
+    weight: 50,
+    cost: 50,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
+    prop: 'warning',
+  },
+  // ref: objects.h HELM("helm of telepathy", "visored helmet", 0, 1, TELEPAT, 4, 1, 50, 50, 9, 0, IRON, HI_METAL, HELM_OF_TELEPATHY)
+  {
+    id: 'nh:helm_of_telepathy',
+    nameKey: 'nh:helm_of_telepathy',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 4,
+    weight: 50,
+    cost: 50,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 1,
+    armor: { slot: 'helm', ac: 1, mc: 0 },
+    prop: 'telepat',
+  },
+  // ref: objects.h BOOTS("low boots", "walking shoes", 0, 0, 0, 23, 2, 10, 8, 9, 0, LEATHER, HI_LEATHER, LOW_BOOTS)
+  {
+    id: 'nh:low_boots',
+    nameKey: 'nh:low_boots',
+    descKey: 'nh:low_boots.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 23,
+    weight: 10,
+    cost: 8,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+  },
   // ref: objects.h BOOTS("iron shoes", "hard shoes", 0, 0, 0, 7, 2, 50, 16, 8, 0, IRON, HI_METAL, IRON_SHOES)
   {
     id: 'nh:iron_shoes',
@@ -2110,12 +2480,42 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 2,
     armor: { slot: 'boots', ac: 2, mc: 0 },
   },
+  // ref: objects.h BOOTS("high boots", "jackboots", 0, 0, 0, 14, 2, 20, 12, 8, 0, LEATHER, HI_LEATHER, HIGH_BOOTS)
+  {
+    id: 'nh:high_boots',
+    nameKey: 'nh:high_boots',
+    descKey: 'nh:high_boots.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 14,
+    weight: 20,
+    cost: 12,
+    material: 'leather',
+    merge: false,
+    magic: false,
+    delay: 2,
+    armor: { slot: 'boots', ac: 2, mc: 0 },
+  },
+  // ref: objects.h BOOTS("water walking boots", "jungle boots", 0, 1, WWALKING, 12, 2, 15, 50, 9, 0, LEATHER, HI_LEATHER, WATER_WALKING_BOOTS)
+  {
+    id: 'nh:water_walking_boots',
+    nameKey: 'nh:water_walking_boots',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 15,
+    cost: 50,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'wwalking',
+  },
   // ref: objects.h BOOTS("jumping boots", "hiking boots", 0, 1, JUMPING, 12, 2, 20, 50, 9, 0, LEATHER, HI_LEATHER, JUMPING_BOOTS)
-  // (the boots of the shuffled range here keep their own descriptions: o_init.ts SHUFFLED)
   {
     id: 'nh:jumping_boots',
     nameKey: 'nh:jumping_boots',
-    descKey: 'nh:jumping_boots.desc',
     class: 'armor',
     glyph: { ch: '[', fg: BROWN },
     prob: 12,
@@ -2128,12 +2528,26 @@ export const OBJECTS: readonly ObjectDef[] = [
     armor: { slot: 'boots', ac: 1, mc: 0 },
     prop: 'jumping',
   },
+  // ref: objects.h BOOTS("elven boots", "mud boots", 0, 1, STEALTH, 12, 2, 15, 8, 9, 0, LEATHER, HI_LEATHER, ELVEN_BOOTS)
+  {
+    id: 'nh:elven_boots',
+    nameKey: 'nh:elven_boots',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 15,
+    cost: 8,
+    material: 'leather',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
+    prop: 'stealth',
+  },
   // ref: objects.h BOOTS("kicking boots", "buckled boots", 0, 1, 0, 12, 2, 50, 8, 9, 0, IRON, CLR_BROWN, KICKING_BOOTS)
-  // (the boots of the shuffled range here keep their own descriptions: DEVIATIONS.md Jumping)
   {
     id: 'nh:kicking_boots',
     nameKey: 'nh:kicking_boots',
-    descKey: 'nh:kicking_boots.desc',
     class: 'armor',
     glyph: { ch: '[', fg: BROWN },
     prob: 12,
@@ -2144,6 +2558,56 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: true,
     delay: 2,
     armor: { slot: 'boots', ac: 1, mc: 0 },
+  },
+  // ref: objects.h SHIELD("shield of drain resistance", "wooden shield", 0, 1, 0, DRAIN_RES, 12, 0, 30, 50, 9, 0, WOOD, HI_WOOD, SHIELD_OF_DRAIN_RESISTANCE)
+  {
+    id: 'nh:shield_of_drain_resistance',
+    nameKey: 'nh:shield_of_drain_resistance',
+    descKey: 'nh:shield_of_drain_resistance.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 30,
+    cost: 50,
+    material: 'wood',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'shield', ac: 1, mc: 0 },
+    prop: 'drain_res',
+  },
+  // ref: objects.h SHIELD("shield of shock resistance", "wooden shield", 0, 1, 0, SHOCK_RES, 12, 0, 30, 50, 9, 0, WOOD, HI_WOOD, SHIELD_OF_SHOCK_RESISTANCE)
+  {
+    id: 'nh:shield_of_shock_resistance',
+    nameKey: 'nh:shield_of_shock_resistance',
+    descKey: 'nh:shield_of_shock_resistance.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 30,
+    cost: 50,
+    material: 'wood',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'shield', ac: 1, mc: 0 },
+    prop: 'shock_res',
+  },
+  // ref: objects.h SHIELD("elven shield", "blue and green shield", 0, 0, 0, 0, 2, 0, 40, 7, 8, 0, WOOD, CLR_GREEN, ELVEN_SHIELD)
+  {
+    id: 'nh:elven_shield',
+    nameKey: 'nh:elven_shield',
+    descKey: 'nh:elven_shield.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: GREEN },
+    prob: 2,
+    weight: 40,
+    cost: 7,
+    material: 'wood',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shield', ac: 2, mc: 0 },
   },
   // ref: objects.h SHIELD("Uruk-hai shield", "white-handed shield", 0, 0, 0, 0, 2, 0, 50, 7, 9, 0, IRON, HI_METAL, URUK_HAI_SHIELD)
   {
@@ -2177,6 +2641,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     armor: { slot: 'shield', ac: 1, mc: 0 },
   },
+  // ref: objects.h SHIELD("large shield", NoDes, 1, 0, 1, 0, 4, 0, 100, 10, 8, 0, IRON, HI_METAL, LARGE_SHIELD)
+  {
+    id: 'nh:large_shield',
+    nameKey: 'nh:large_shield',
+    class: 'armor',
+    glyph: { ch: '[', fg: CYAN },
+    prob: 4,
+    weight: 100,
+    cost: 10,
+    material: 'iron',
+    merge: false,
+    magic: false,
+    delay: 0,
+    armor: { slot: 'shield', ac: 2, mc: 0 },
+  },
   // ref: objects.h SHIELD("dwarvish roundshield", "large round shield", 0, 0, 0, 0, 3, 0, 100, 10, 8, 0, IRON, HI_METAL, DWARVISH_ROUNDSHIELD)
   {
     id: 'nh:dwarvish_roundshield',
@@ -2192,6 +2671,23 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 0,
     armor: { slot: 'shield', ac: 2, mc: 0 },
+  },
+  // ref: objects.h SHIELD("shield of reflection", "polished silver shield", 0, 1, 0, REFLECTING, 7, 0, 50, 50, 8, 0, SILVER, HI_SILVER, SHIELD_OF_REFLECTION)
+  {
+    id: 'nh:shield_of_reflection',
+    nameKey: 'nh:shield_of_reflection',
+    descKey: 'nh:shield_of_reflection.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: GRAY },
+    prob: 7,
+    weight: 50,
+    cost: 50,
+    material: 'silver',
+    merge: false,
+    magic: true,
+    delay: 0,
+    armor: { slot: 'shield', ac: 2, mc: 0 },
+    prop: 'reflecting',
   },
   // ref: objects.h GLOVES("leather gloves", "old gloves", 0, 0, 0, 15, 1, 10, 8, 9, 0, LEATHER, HI_LEATHER, LEATHER_GLOVES)
   {
@@ -2866,6 +3362,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('tin_whistle', 100, 3, 10, 'metal', CYAN, false, 'whistle'),
   // ref: objects.h TOOL("magic whistle", "whistle", 0, 0, 1, 0, 30, 3, 10, METAL, HI_METAL, MAGIC_WHISTLE)
   tool('magic_whistle', 30, 3, 10, 'metal', CYAN, true, 'whistle'),
+  // ref: objects.h TOOL("bugle", NoDes, 1, 0, 0, 0, 4, 10, 15, COPPER, HI_COPPER, BUGLE)
+  tool('bugle', 4, 10, 15, 'copper', YELLOW, false, null),
   // tools useful as weapons (is_weptool(): a tool with a weapon skill)
   // ref: objects.h WEPTOOL("pick-axe", NoDes, 1, 0, 0, 20, 100, 50, 6, 3, WHACK, P_PICK_AXE, IRON, HI_METAL, PICK_AXE)
   tool('pick_axe', 20, 100, 50, 'iron', CYAN, false, null, {
@@ -2909,6 +3407,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 3,
     food: { nutrition: 600 },
+  },
+  // ref: objects.h FOOD("K-ration", 0, 1, 10, 0, VEGGY, 400, HI_ORGANIC, K_RATION)
+  {
+    id: 'nh:k_ration',
+    nameKey: 'nh:k_ration',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 10,
+    cost: 25,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 400 },
+  },
+  // ref: objects.h FOOD("C-ration", 0, 1, 10, 0, VEGGY, 300, HI_ORGANIC, C_RATION)
+  {
+    id: 'nh:c_ration',
+    nameKey: 'nh:c_ration',
+    class: 'food',
+    glyph: { ch: '%', fg: BROWN },
+    prob: 0,
+    weight: 10,
+    cost: 20,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 300 },
   },
   // ref: objects.h FOOD("lembas wafer", 20, 2, 5, 0, VEGGY, 800, CLR_WHITE, LEMBAS_WAFER)
   {
@@ -3458,6 +3986,18 @@ const bookLook = (slug: string, fg: string): AppearanceDef => ({
   glyph: { ch: '+', fg },
 });
 
+/**
+ * Shuffled armor descriptions, one sub-range per slot (ref: objects.h HELM(), CLOAK(), BOOTS()
+ * descriptions from HELMET, CLOAK_OF_PROTECTION and SPEED_BOOTS on; o_init.ts ARMOR_RANGES).
+ * Boots are "pair of ..." as xname() names them.
+ */
+const armorLook = (slug: string, fg: string): AppearanceDef => ({
+  id: `nh:${slug}`,
+  nameKey: `nh:${slug}`,
+  class: 'armor',
+  glyph: { ch: '[', fg },
+});
+
 export const APPEARANCES: readonly AppearanceDef[] = [
   // ---- potion descriptions ----
   potionLook('ruby', RED), // gain ability
@@ -3644,4 +4184,22 @@ export const APPEARANCES: readonly AppearanceDef[] = [
   bookLook('thin', WHITE),
   bookLook('thick', WHITE),
   bookLook('checkered', GRAY),
+
+  // ---- armor descriptions, in objects.h order (helmets, cloaks and boots of the shuffled
+  // ranges; the gloves wait for their three gauntlets) ----
+  armorLook('plumed_helmet', CYAN), // helmet
+  armorLook('etched_helmet', GREEN), // helm of caution
+  armorLook('crested_helmet', CYAN), // helm of opposite alignment
+  armorLook('visored_helmet', CYAN), // helm of telepathy
+  armorLook('tattered_cape', BROWN), // cloak of protection
+  armorLook('opera_cloak', BRIGHT_MAGENTA), // cloak of invisibility
+  armorLook('ornamental_cope', WHITE), // cloak of magic resistance
+  armorLook('piece_of_cloth', BROWN), // cloak of displacement
+  armorLook('combat_boots', BROWN), // speed boots
+  armorLook('jungle_boots', BROWN), // water walking boots
+  armorLook('hiking_boots', BROWN), // jumping boots
+  armorLook('mud_boots', BROWN), // elven boots
+  armorLook('buckled_boots', BROWN), // kicking boots
+  armorLook('riding_boots', BROWN), // fumble boots
+  armorLook('snow_boots', BROWN), // levitation boots
 ];

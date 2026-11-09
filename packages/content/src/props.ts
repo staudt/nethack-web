@@ -74,6 +74,8 @@ export const P = {
   UNCHANGING: 'unchanging',
   FLYING: 'flying',
   INFRAVISION: 'infravision',
+  DRAIN_RES: 'drain_res',
+  WWALKING: 'wwalking',
 } as const;
 
 /** The cached extrinsic entry of a property (see the header). */
@@ -240,6 +242,8 @@ export function updateWornProps(state: GameState, defs: Registry, id: EntityId):
     if (!slot || !ACCESSORY_SLOTS.has(slot)) continue;
     const prop = defs.object(o.def).prop;
     if (prop) want.add(wornKey(prop));
+    // the alchemy smock gives poison _and_ acid resistance (ref: src/do_wear.c Cloak_on())
+    if (o.def === 'nh:alchemy_smock' && slot === 'cloak') want.add(wornKey(P.ACID_RES));
   }
   const props = e.c.props;
   for (const k of Object.keys(props ?? {}).sort()) {

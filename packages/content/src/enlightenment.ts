@@ -186,8 +186,8 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.POISON_RES)) are('poison_res');
   const temp = (prop: string): boolean => timeoutLeft(ctx.state, h, prop) > 0;
   if (has(P.ACID_RES)) are(temp(P.ACID_RES) ? 'acid_res_temp' : 'acid_res');
-  // Drain_resistance: only a lycanthrope's here (set_uasmon())
-  if (resistsDrliHero(ctx)) are('drain_res');
+  // Drain_resistance: the shield of drain resistance, a lycanthrope's (set_uasmon())
+  if (has(P.DRAIN_RES) || resistsDrliHero(ctx)) are('drain_res');
   if (has(P.STONE_RES)) are(temp(P.STONE_RES) ? 'stone_res_temp' : 'stone_res');
   // vision and senses
   if (seeInvisible(ctx.state)) {

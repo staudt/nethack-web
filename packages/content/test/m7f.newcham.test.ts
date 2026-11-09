@@ -254,7 +254,9 @@ describe('the polymorph trap and monsters', () => {
     level.traps.push({ def: TRAP.poly as DefId, x: 4, y: 2, seen: false });
     const out = s.text(s.step({ type: 'move', dir: 'e' }));
     expect(out).toContain('Your pair of hard shoes warps strangely.');
-    expect(out.some((t) => t.includes('pair of buckled boots (being worn)'))).toBe(true);
+    // kicking boots show the description the game gave their range (m11 step 3 shuffles boots)
+    const look = (s.state.appearances['nh:kicking_boots'] ?? '').slice(3).replace('_', ' ');
+    expect(out.some((t) => t.includes(`pair of ${look} (being worn)`))).toBe(true);
     expect(trapAt(level, 4, 2)).toBeUndefined();
     const boots = inventoryOf(s.state, s.state.playerId).find(
       (o) => o.c.item?.equipped === 'boots',

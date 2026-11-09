@@ -16,11 +16,11 @@ import { erodeArmor, erodeObj, passiveObj } from './erode';
 import { mdamageu } from './mhitu';
 import { heroSees, whichArmor } from './mongear';
 import { nomulNow } from './hunger';
-import { P, hasExtrinsic, hasProp, makeStunned } from './props';
+import { P, hasProp, makeStunned } from './props';
+import { ureflects } from './reflect';
 import { drainItem } from './adtyping';
 import { mcansee } from './mstate';
 import { changeLuck } from './luck';
-import { discover } from './o_init';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
 import { done } from './end';
@@ -181,12 +181,8 @@ export function passive(
           if (!ctx.rng.rn2(500)) changeLuck(ctx, -1);
           break;
         }
-        // ref: src/do_wear.c ureflects(): only the amulet of reflection reflects here
-        if (hasExtrinsic(hero, P.REFLECTING)) {
-          say(ctx, 'reflect.gaze_medallion', { mon: shown });
-          discover(ctx, 'nh:amulet_of_reflection');
-          break;
-        }
+        // ref: src/muse.c ureflects()
+        if (ureflects(ctx, 'reflect.gaze', { mon: shown })) break;
         if (hasProp(hero, P.FREE_ACTION)) {
           say(ctx, 'free_action.stiffen_gaze', { mon: shown });
           break;

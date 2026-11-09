@@ -90,9 +90,12 @@ describe('starting gear (m_initweap, m_initinv)', () => {
   }
 
   test('elves carry only elven gear, a bow always with its arrows', () => {
-    // (the elven cloak, helm, boots and shield are not in the table yet: rolls only)
     const elven = new Set([
       'nh:elven_mithril_coat',
+      'nh:elven_cloak',
+      'nh:elven_leather_helm',
+      'nh:elven_boots',
+      'nh:elven_shield',
       'nh:elven_dagger',
       'nh:elven_bow',
       'nh:elven_arrow',

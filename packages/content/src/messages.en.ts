@@ -44,9 +44,11 @@ import { monabilityMessagesEn } from './monability.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
+import { shirtMessagesEn } from './shirt.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
+  ...shirtMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,

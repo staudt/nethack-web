@@ -88,4 +88,15 @@ export const applyMessagesEn: Record<string, string> = {
   'pole.useless_stone': 'You uselessly attack stone.',
   'pole.useless': 'You uselessly attack {what|the}.',
   'pole.miss_nobody': 'You miss; there is no one there to hit.',
+  // ref: src/music.c do_play_instrument(), do_improvisation(), awaken_soldiers()
+  'music.incapable': 'You are incapable of playing {item|the}.',
+  'music.start_playing': 'You start playing your {item}.',
+  'music.droning': 'You radiate an obnoxious droning sound.',
+  'music.raucous': 'You generate a raucous noise.',
+  'music.butterflies': 'You disseminate a kaleidoscopic display of floating butterflies.',
+  'music.far_from_music': 'What you perform is quite far from music...',
+  'music.bugle': 'You extract a loud noise from your {item}.',
+  'music.bugle_familiar': 'You extract a loud, familiar noise from your {item}.',
+  'music.ready_for_battle': '{mon|The} is now ready for battle!',
+  'music.rattle': 'You hear the rattle of battle gear being readied.',
 };

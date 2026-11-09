@@ -105,7 +105,8 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
       if (hp.max > uhpmin) hp.max -= ctx.rng.rn2(Math.min(hp.max, num + 1));
       if (hp.max < uhpmin) {
         hp.max = Math.min(olduhpmax, uhpmin); // setuhpmax()
-        losexp(ctx, null); // never fatal when 'drainer' is Null (a lycanthrope resists)
+        // never fatal when 'drainer' is Null (a lycanthrope resists)
+        if (!hasProp(hero, P.DRAIN_RES)) losexp(ctx, null);
       }
       if (hp.cur > hp.max) hp.cur = hp.max;
     }

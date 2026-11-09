@@ -161,7 +161,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.ray.hit': '{ray|The} hits {mon|the}{ex}',
   'zap.ray.miss': '{ray|The} misses {mon|the}.',
   'zap.ray.hits_you': '{ray|The} hits you!',
-  'zap.ray.reflects': 'But it reflects from your medallion!',
+  'zap.ray.reflects': 'But it reflects from your {what}!',
   'zap.ray.not_affected': 'For some reason you are not affected.',
   'zap.ray.whizzes': '{ray|The} whizzes by you!',
   'zap.ray.tingles': 'Your arm tingles.',

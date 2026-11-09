@@ -1,4 +1,5 @@
-// Applying tools (a): lamps, lock tools, containers, whistles, the blindfold and digging tools
+// Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the
+// blindfold and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
@@ -27,6 +28,7 @@ import { DIG_ID, isPick, usePickAxe } from './dig';
 import { POLE_ID, poleAction, usePole } from './pole';
 import { isPole } from './skills';
 import { mnextoPos } from './generation';
+import { BUGLE, doPlayInstrument } from './music';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
@@ -70,6 +72,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     isLockTool(e.def) ||
     e.def === WHISTLE.tin ||
     e.def === WHISTLE.magic ||
+    e.def === BUGLE ||
     isEyewear(e.def)
   );
 }
@@ -268,6 +271,7 @@ const apply: ActionDef = {
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
     if (isPick(def)) return usePickAxe(ctx, obj);
     if (isPole(def)) return usePole(ctx, obj, false);
+    if (obj.def === BUGLE) return doPlayInstrument(ctx, obj) ? NORMAL_SPEED : 0;
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);

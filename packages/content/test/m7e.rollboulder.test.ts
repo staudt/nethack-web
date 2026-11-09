@@ -264,7 +264,8 @@ describe('the boulder rolls', () => {
   });
 
   test('onto a teleportation trap: it vanishes to another spot of the level', () => {
-    const m = mapSetup(ROW);
+    // (seed 2: the random spot is not the one it was rolling to, 1 in 10 on this row)
+    const m = mapSetup(ROW, { seed: 2 });
     rollingTrap(m, 5, 1, [2, 1], [8, 1]);
     m.level.traps.push({ def: TRAP.tele, x: 7, y: 1, seen: false });
     const msgs = run(m.state, (ctx) => {

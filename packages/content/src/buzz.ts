@@ -12,6 +12,7 @@ import {
   inBounds,
   itemsAt,
   sortedIds,
+  inventoryOf,
   type Ctx,
   type DefId,
   type Dir,
@@ -39,11 +40,11 @@ import { monkilled, monsterDied } from './mondeath';
 import { nonliving } from './mondata';
 import { heroSees, monWep } from './mongear';
 import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
-import { discover } from './o_init';
 import { xnameOf } from './objnam';
 import { igniteItems } from './light';
 import { monNam, revealUnseenAt } from './perception';
-import { P, hasExtrinsic, hasProp, makeBlinded } from './props';
+import { P, hasProp, makeBlinded } from './props';
+import { ureflects } from './reflect';
 import { payForDamage, type DmgStr } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { spellDamageBonus, spellHitBonus } from './spellcalc';
@@ -177,10 +178,15 @@ export function resist(
 
 /**
  * ref: src/mondata.c resists_magm(): gray dragons, Angels, Oracle, Yeenoghu, chromatic dragon
- * (AD_MAGM or AD_RBRE attacks); no monster wears magic resistance in the subset.
+ * (AD_MAGM or AD_RBRE attacks), and a monster wearing an item that gives magic resistance (a
+ * cloak of magic resistance; no artifacts or baby gray dragons here).
  */
 export const resistsMagm = (ctx: Ctx, mon: Entity): boolean =>
-  ctx.defs.monster(mon.def).attacks.some((a) => a.ad === 'magm' || a.ad === 'rbre');
+  ctx.defs.monster(mon.def).attacks.some((a) => a.ad === 'magm' || a.ad === 'rbre') ||
+  inventoryOf(ctx.state, mon.id).some((o) => {
+    const eq = o.c.item?.equipped;
+    return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.ANTIMAGIC;
+  });
 
 /** Wakes a monster without angering it (wakeup(mon, FALSE)). */
 export function wakeGently(ctx: Ctx, mon: Entity): void {
@@ -222,14 +228,6 @@ export function flashburn(ctx: Ctx, duration: number): void {
   if (blind(ctx) || hero(ctx).c.helpless) return; // resists_blnd(): already blind or unaware
   say(ctx, 'zap.blinded_flash');
   makeBlinded(ctx, duration, false);
-}
-
-/** ref: ureflects(): only the amulet of reflection reflects in the subset */
-export function ureflects(ctx: Ctx, key: string): boolean {
-  if (!hasExtrinsic(hero(ctx), P.REFLECTING)) return false;
-  say(ctx, key);
-  discover(ctx, 'nh:amulet_of_reflection');
-  return true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -743,7 +741,7 @@ function buzzSteps(
         if (zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId), null)) {
           range -= 2;
           say(ctx, 'zap.ray.hits_you', { ray: rayName(ray, src) });
-          if (hasExtrinsic(hero(ctx), P.REFLECTING)) {
+          if (ureflects(ctx, null)) {
             if (!blind(ctx)) ureflects(ctx, 'zap.ray.reflects');
             else say(ctx, 'zap.ray.not_affected');
             d.x = -d.x;

@@ -161,9 +161,9 @@ const resists = (ctx: Ctx, mon: Entity, mr: string): boolean =>
 
 /**
  * The magic cancellation of the hero (or of monster `who`): the best worn armor's MC.
- * ref: src/mhitu.c magic_negation(): the hero's extrinsic Protection (a ring of protection) adds 1,
- * at most 3. Not ported: intrinsic Protection's minimum of 1, the amulet of guarding, monsters'
- * protection (no high priests).
+ * ref: src/mhitu.c magic_negation(): extrinsic Protection (the hero's ring, a worn cloak of
+ * protection) adds 1, at most 3. Not ported: intrinsic Protection's minimum of 1, the amulet of
+ * guarding, high priests' innate protection.
  */
 export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): number {
   let mc = 0;
@@ -172,8 +172,15 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
     if (!slot || slot === 'weapon') continue;
     mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);
   }
+  // a monster's worn item that gives Protection counts as the hero's extrinsic (protects():
+  // the cloak of protection; no artifacts or high priests here)
   const gotprot =
-    who === ctx.state.playerId && hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION);
+    who === ctx.state.playerId
+      ? hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION)
+      : inventoryOf(ctx.state, who).some((o) => {
+          const eq = o.c.item?.equipped;
+          return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.PROTECTION;
+        });
   if (gotprot) mc = Math.min(mc + 1, 3);
   return mc;
 }
@@ -1601,7 +1608,13 @@ const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   }
   if (mdef.id === ctx.state.playerId) {
     // (the hitmsg() is hitmu()'s)
-    if (!ctx.rng.rn2(3) && !resistsDrliHero(ctx) && !mgcAtkNegated(ctx, magr, true))
+    // `!Drain_resistance` (the shield of drain resistance), then losexp()'s resists_drli()
+    if (
+      !ctx.rng.rn2(3) &&
+      !hasProp(getPlayer(ctx.state), P.DRAIN_RES) &&
+      !resistsDrliHero(ctx) &&
+      !mgcAtkNegated(ctx, magr, true)
+    )
       losexp(ctx, '@killer.life_drainage');
     return;
   }

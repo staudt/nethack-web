@@ -36,7 +36,8 @@ import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { ringGone } from './jewelry';
-import { cloakOff, updateMonInvis } from './invis';
+import { armorOff, isArmorSlot } from './dowear';
+import { updateMonInvis } from './invis';
 import { CHARGED_RINGS } from './objects';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -179,7 +180,7 @@ export function erodeObj(
     // Cloak_off() / update_mon_extrinsics(): only invisibility has on/off effects here
     if (wasWorn && wasWorn !== 'weapon') {
       if (uvictim) {
-        if (wasWorn === 'cloak') cloakOff(ctx, obj);
+        if (isArmorSlot(wasWorn)) armorOff(ctx, obj, wasWorn);
       } else if (victim) updateMonInvis(ctx, victim, obj, false);
     }
     if (uvictim) removeFromInventory(ctx, obj.id);

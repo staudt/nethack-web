@@ -160,8 +160,13 @@ function isTown(state: GameState, level: Level): void {
     shrlevel: level.id,
   });
   const gear = inventoryOf(state, priest.id).map((o) => o.def);
-  for (const d of ['nh:mace', 'nh:robe', 'nh:small_shield', 'nh:gold_piece'])
-    expect(gear).toContain(d);
+  for (const d of ['nh:mace', 'nh:small_shield', 'nh:gold_piece']) expect(gear).toContain(d);
+  // a robe, or 1 time in 7 a cloak of protection or of magic resistance (m_initinv())
+  expect(
+    gear.some((d) =>
+      ['nh:robe', 'nh:cloak_of_protection', 'nh:cloak_of_magic_resistance'].includes(d),
+    ),
+  ).toBe(true);
   // at least the candle shop is always there (no chance roll in any variant)
   expect(level.rooms.some((r) => r.type === 'nh:candle_shop')).toBe(true);
   for (const r of level.rooms) if (r.type) expect([...SHOPS, 'nh:temple']).toContain(r.type);

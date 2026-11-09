@@ -155,7 +155,7 @@ describe('pay_for_damage()', () => {
     expect(s.shk().c.pos).toMatchObject(DOOR);
     expect(texts(events)).toEqual([]);
     const out = texts(answer(s.state, true));
-    expect(out[0]).toMatch(/^Mollified, \w+ accepts your restitution\.$/);
+    expect(out[0]).toMatch(/^Mollified, [\w '-]+ accepts your restitution\.$/);
     expect(gold(s.state)).toBe(600);
     expect(s.shk().c.monster?.peaceful).toBe(true);
     expect(s.shk().c.pos).toMatchObject({ x: 5, y: 2 });
@@ -189,7 +189,7 @@ describe('pay_for_damage()', () => {
         payForDamage(ctx, 'dig into', false);
       }),
     );
-    expect(out[0]).toMatch(/^\w+ shouts:$/);
+    expect(out[0]).toMatch(/^[\w '-]+ shouts:$/);
     expect(out[1]).toBe('"Who dared dig into my shop?"');
   });
 
@@ -408,7 +408,7 @@ describe('shopdig()', () => {
     run(s.state, (c) => addtobill(c, c.state.entities[String(ware)]!, true, false, false));
     const worn = inventoryOf(s.state, s.state.playerId).find((o) => o.c.item?.equipped);
     const out = texts(run(s.state, (c) => shopdig(c, true)));
-    expect(out).toEqual([expect.stringMatching(/^\w+ grabs your backpack!$/)]);
+    expect(out).toEqual([expect.stringMatching(/^[\w '-]+ grabs your backpack!$/)]);
     const taken = inventoryOf(s.state, s.shkId).map((o) => o.id);
     expect(taken).toEqual(expect.arrayContaining([own, ware]));
     expect(eshkOf(s, s.shkId)?.bill).toEqual([]);

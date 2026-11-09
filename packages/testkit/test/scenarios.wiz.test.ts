@@ -142,7 +142,8 @@ describe('wizard wish, genesis and "Die?"', () => {
   });
 
   test('declining death leaves the hero alive with full HP', () => {
-    const { state, log } = warm(43);
+    // (seed 44 since m11 step 3: on 43 the genesised jackal no longer finds its way to her)
+    const { state, log } = warm(44);
     command(state, log, WIZ_GENESIS, 'hostile jackal');
     const jackal = monstersHere(state).find((e) => e.def === 'nh:jackal')!;
     // only the jackal stays (a pet would kill it first)

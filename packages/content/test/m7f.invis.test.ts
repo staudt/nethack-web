@@ -98,7 +98,9 @@ describe('the objects', () => {
     expect(defs.object('nh:ring_of_see_invisible').prop).toBe(P.SEE_INVIS);
     expect(defs.object('nh:potion_of_invisibility').class).toBe('potion');
     expect(defs.object('nh:cloak_of_invisibility').armor?.slot).toBe('cloak');
-    expect(render({ key: 'nh:cloak_of_invisibility.desc' })).toBe('opera cloak');
+    // its description is one of its range's (m11 step 3: the cloak range is shuffled)
+    expect(defs.object('nh:cloak_of_invisibility').descKey).toBeUndefined();
+    expect(render({ key: 'nh:opera_cloak' })).toBe('opera cloak');
   });
 });
 

@@ -122,7 +122,7 @@ From m10 (monster batch 1: 83 new rows in five steps, the web trap, shrieks, pud
 - **Gremlins in water and light:** `split_mon()` from pools and fountains (`minliquid()`), splashed potions of water (`potionhit()` on monsters), light damage (camera, wand flashes, `litroom()`) and `flees_light()`.
 - **`leppie_stash()`** and `deal_with_overcrowding()` for teleporting monsters.
 - **Giants throwing boulders** (ROADMAP "Giants and boulders"): they carry the boulder `m_initweap()` gives them.
-- **Missing armor objects** that starting gear rolls but cannot give (the weapons arrived in m11 step 1): the elven cloak, leather helm, boots and shield, the mercenary armor (plate, splint, banded, studded leather, helmet, dented pot, large shield, boots, leather cloak), K- and C-rations, the bugle and tin whistle.
+- ~~**Missing armor objects** that starting gear rolls but cannot give~~ (weapons m11 step 1; the elven and mercenary armor, K- and C-rations, the bugle and the watchmen's tin whistle m11 step 3).
 - **Eaters' extras:** monsters' intrinsics from eaten corpses (`mon_givit()`), growing up and polymorph food in `m_consume_obj()`, poisoned objects, Rider corpses; troll corpses reviving on a level the hero left (they rot instead) or from containers and graves.
 - **Left out of the batch:** unicorns (with the unicorn horn), mimics and piercers (7f hiding), black light and stalker (7f invisibility), long worms, golems, the naga hatchlings with their adults, the m9 step 5/7/8 monsters, and rows above difficulty 10 that need nothing new (umber hulk, black pudding, winged gargoyle, ogre tyrant, elf noble, elven king, ice and rock troll, lurker above, titanothere, baluchitherium).
 

@@ -63,6 +63,7 @@ import { snuffLit } from './light';
 import { levelTele, tele } from './trap';
 import { luckOf } from './luck';
 import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
+import { isReadableWear, readWear } from './shirt';
 
 export const READ_ID: DefId = 'nh:read';
 
@@ -844,7 +845,7 @@ const read: ActionDef = {
     if (target.kind !== 'item') return [];
     const e = heroScroll(ctx, target.id);
     const cls = e ? ctx.defs.object(e.def).class : null;
-    if (!e || (cls !== 'scroll' && cls !== 'spellbook')) return [];
+    if (!e || (cls !== 'scroll' && cls !== 'spellbook' && !isReadableWear(e.def))) return [];
     return [
       {
         action: { type: 'mod', action: READ_ID, args: { item: e.id } },
@@ -858,6 +859,8 @@ const read: ActionDef = {
     if (!e) return 0;
     if (checkCapacity(ctx)) return 0;
     const def = ctx.defs.object(e.def);
+    // ref: doread() T_SHIRT, ALCHEMY_SMOCK, HAWAIIAN_SHIRT
+    if (isReadableWear(e.def)) return readWear(ctx, e) ? NORMAL_SPEED : 0;
     // ref: doread() `if (scroll->oclass == SPBOOK_CLASS) return study_book(scroll)`
     if (def.class === 'spellbook') return studyBook(ctx, e);
     if (def.class !== 'scroll' || !def.use) {
