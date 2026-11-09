@@ -131,6 +131,12 @@ export const magicMessagesEn: Record<string, string> = {
   'throw.hit': 'The {missile} hits {mon|the}.',
   'throw.hit_hard': 'The {missile} hits {mon|the}!',
   'throw.miss': 'The {missile} misses {mon|the}.',
+  // the polymorphed hero's spit (hmon_hitmon_misc_obj(), breakmsg())
+  'throw.venom_splash': 'Splash!',
+  'throw.venom_blinds': 'The venom blinds {mon|the}!',
+  'throw.venom_blinds_further': 'The venom blinds {mon|the} further!',
+  'throw.venom_harmless': 'Your venom hits {mon|the} harmlessly.',
+  'throw.venom_burns': 'Your venom burns {mon|the}!',
   'throw.hit_nth': 'The {nth} {missile} hits {mon|the}.',
   'throw.hit_hard_nth': 'The {nth} {missile} hits {mon|the}!',
   'throw.miss_nth': 'The {nth} {missile} misses {mon|the}.',

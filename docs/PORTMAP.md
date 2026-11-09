@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3387 citations.
+152 NetHack files, 3402 citations.
 
 ## dat/dungeon.lua
 
@@ -483,6 +483,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
+- `uhim()`: `packages/content/src/gender.ts`
 - `uhis()`: `packages/content/src/gender.ts`
 
 ## include/youprop.h
@@ -578,6 +579,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_run()`: `packages/content/src/run.ts`
 - `do_rush()`: `packages/content/src/run.ts`
 - `dokeylist()`: `packages/ui/src/help.ts`
+- `domonability()`: `packages/content/src/monability.en.ts`, `packages/content/src/monability.ts`
 - `donull()`: `packages/content/src/actions.ts`
 - `dotravel()`: `packages/content/src/travel.ts`
 - `extcmdlist()`: `packages/app/src/keys.ts`
@@ -1554,6 +1556,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/polyarmor.ts`, `packages/content/src/trapstate.ts`
 - `break_armor()`: `packages/content/src/polyarmor.ts`
 - `change_sex()`: `packages/content/src/gender.ts`
+- `dobreathe()`: `packages/content/src/monability.ts`
+- `dogaze()`: `packages/content/src/monability.ts`
+- `dospit()`: `packages/content/src/dothrow.ts`, `packages/content/src/monability.ts`
+- `dosummon()`: `packages/content/src/monability.ts`
 - `drop_weapon()`: `packages/content/src/polyarmor.ts`
 - `dropp()`: `packages/content/src/polyarmor.ts`
 - `float_vs_flight()`: `packages/content/src/trapstate.ts`
@@ -2117,6 +2123,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hmon_hitmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_barehands()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_dmg_recalc()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
+- `hmon_hitmon_misc_obj()`: `packages/content/src/dothrow.ts`
 - `hmon_hitmon_msg_hit()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_pet()`: `packages/content/src/combat.ts`, `packages/content/src/dog.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_splitmon()`: `packages/content/src/combat.ts`
@@ -2299,6 +2306,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `stone_to_flesh_obj()`: `packages/content/src/stoneflesh.ts`
 - `tmp_at()`: `packages/content/src/dothrow.ts`
 - `u_adtyp_resistance_obj()`: `packages/content/src/erode.ts`
+- `ubreatheu()`: `packages/content/src/buzz.ts`
 - `ubuzz()`: `packages/content/src/zap.ts`
 - `unpolyable()`: `packages/content/src/polyobj.ts`
 - `unturn_dead()`: `packages/content/src/revive.ts`

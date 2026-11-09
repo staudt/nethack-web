@@ -69,7 +69,7 @@ import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
 import { erodeObj, type ErodeResult } from './erode';
-import { heroFemale } from './gender';
+import { uhimKey } from './gender';
 import { rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
@@ -1979,7 +1979,7 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
         say(ctx, 'tele.cant_fly');
         say(ctx, 'tele.plummet');
         // "... fell to %s death", uhis()
-        killer = heroFemale(ctx.state) ? '@killer.tele.plummet' : '@killer.tele.plummet.his';
+        killer = uhimKey(ctx.state, '@killer.tele.plummet');
       }
     }
     if (killer !== null) {

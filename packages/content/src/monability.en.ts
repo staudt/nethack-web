@@ -1,0 +1,25 @@
+// English text for the polymorphed hero's #monster. ref: src/cmd.c domonability();
+// src/polyself.c dobreathe(), dogaze(), dosummon()
+export const monabilityMessagesEn: Record<string, string> = {
+  'action.nh:monster': 'Use monster ability',
+  'monability.cant_breathe': "You can't breathe.  Sorry.",
+  'monability.breath_energy': "You don't have enough energy to breathe!",
+  'monability.gaze_blind': "You can't see anything to gaze at.",
+  'monability.gaze_halluc': "You can't gaze at anything you can see.",
+  'monability.gaze_energy': 'You lack the energy to use your special gaze!',
+  'monability.gaze_not_noticed': '{mon|The} seems not to notice your gaze.',
+  'monability.gaze_cant_see_where': "You can't see where to gaze at {mon|the}.",
+  'monability.avoid_gaze': 'You avoid gazing at your {mon}.',
+  'monability.really_confuse': 'Really confuse {mon|the}?',
+  'monability.gaze_confuses': 'Your gaze confuses {mon|the}!',
+  'monability.more_confused': '{mon|The} is getting more and more confused.',
+  'monability.fiery_gaze': 'You attack {mon|the} with a fiery gaze!',
+  'monability.fire_no_burn': "The fire doesn't burn {mon|the}!",
+  'monability.stiffen_gaze': 'You stiffen momentarily under {mon|the_s} gaze.',
+  'monability.gaze_nowhere': 'You gaze at no place in particular.',
+  'monability.summon_energy': 'You lack the energy to send forth a call for help!',
+  'monability.call_brethren': 'You call upon your brethren for help!',
+  'monability.none_arrive': 'But none arrive.',
+  'monability.no_fountain': 'There is no fountain here.',
+  'monability.shriek': 'You shriek.',
+};

@@ -253,7 +253,7 @@ export const trapMessagesEn: Record<string, string> = {
   'killer.tele.suicide': 'committed suicide',
   'killer.tele.heaven': 'went to heaven prematurely',
   'killer.tele.plummet': 'teleporting out of the dungeon and falling to her death',
-  'killer.tele.plummet.his': 'teleporting out of the dungeon and falling to his death',
+  'killer.tele.plummet.m': 'teleporting out of the dungeon and falling to his death',
   'action.nh:tele': 'Teleport',
   'tele.very_disoriented': 'You feel very disoriented for a moment.',
   'tele.shudder': 'You shudder for a moment.',

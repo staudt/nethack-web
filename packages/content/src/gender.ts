@@ -50,3 +50,12 @@ export function changeSex(ctx: Pick<Ctx, 'state' | 'defs'>): void {
   if (!u || !fixed) setHeroFemale(ctx.state, !heroFemale(ctx.state));
   if (u) u.mfemale = !u.mfemale; // poly'd: also change saved sex
 }
+
+/**
+ * A text key that names the hero by C's uhim()/uhis() ("zapped herself with a wand of fire",
+ * "her own pick-axe"): the female text is `key`, the male one `key.m` (flags.female picks, as C's
+ * genders[flags.female]). A leading '!' or '@' of a killer stays in front.
+ * ref: include/you.h uhim(), uhis()
+ */
+export const uhimKey = (state: Readonly<GameState>, key: string): string =>
+  heroFemale(state) ? key : `${key}.m`;

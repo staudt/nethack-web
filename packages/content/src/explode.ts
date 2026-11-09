@@ -22,6 +22,7 @@ import {
   type Msg,
   type RayStep,
 } from '@nh/core';
+import { uhimKey } from './gender';
 import {
   killedByHero,
   rayDmgstr,
@@ -350,10 +351,10 @@ export function explode(
           ? '@killer.explode.mon_unseen'
           : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
         : wand
-          ? `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`
+          ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
           : generic
-            ? '!@killer.explode.trap_unseen'
-            : '!@killer.explode.trap';
+            ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')
+            : uhimKey(ctx.state, '!@killer.explode.trap');
       done(ctx, killer);
       if (ctx.state.gameOver) return;
     }

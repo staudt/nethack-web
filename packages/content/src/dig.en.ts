@@ -77,8 +77,11 @@ export const digMessagesEn: Record<string, string> = {
   'dig.destroy_trap_seen': 'You destroy {trap|the} with your {pick}.',
   'dig.destroy_trap': 'You destroy {trap|an} with your {pick}.',
   'killer.own_pick_axe': 'her own pick-axe',
+  'killer.own_pick_axe.m': 'his own pick-axe',
   'killer.own_mattock': 'her own dwarvish mattock',
+  'killer.own_mattock.m': 'his own dwarvish mattock',
   'killer.chopping_foot': 'chopping off her own foot',
+  'killer.chopping_foot.m': 'chopping off his own foot',
   // from inside a pit (adj_pit_checks(), use_pick_axe2())
   'dig.clear_debris': 'You clear some debris from between the pits.',
   'dig.foundation': 'The foundation is too hard to dig through from this angle.',

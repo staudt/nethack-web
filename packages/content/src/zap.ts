@@ -54,6 +54,7 @@ import {
   type TerrainDef,
   type Trap,
 } from '@nh/core';
+import { uhimKey } from './gender';
 import { breaktest } from './material';
 import { bypassObj, clearBypasses, isBypassed } from './bypass';
 import { setTerrain } from './actions';
@@ -92,7 +93,7 @@ import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { nohands } from './mondata';
-import { heroForm } from './upoly';
+import { heroForm, rehumanize, upolyd } from './upoly';
 import { wakeup } from './peaceful';
 import {
   buzzFrom,
@@ -1392,9 +1393,9 @@ const POT_WATER: DefId = 'nh:potion_of_water';
 /**
  * Cancels a monster, or the hero: it resists (resist() against the wand's class; the hero only
  * with magic resistance when someone else cancels her), else the inventory is cancelled first
- * when it zapped itself (`selfCancel`), and a monster is marked `mcan`. True when it did not
- * resist. ref: src/zap.c cancel_monst() (no polymorphed hero, shapeshifters, mimics or clay
- * golems)
+ * when it zapped itself (`selfCancel`), a monster is marked `mcan` and a polymorphed hero returns
+ * to her own form ("Your amulet grows hot for a moment, then cools." with Unchanging). True when
+ * it did not resist. ref: src/zap.c cancel_monst() (no shapeshifters, mimics or clay golems)
  */
 export function cancelMonst(
   ctx: Ctx,
@@ -1411,7 +1412,15 @@ export function cancelMonst(
     for (const o of inventoryOf(ctx.state, owner)) cancelItem(ctx, o);
   }
   // now handle special cases
-  if (!youdefend) setCancelled(ctx, mdef.id);
+  if (youdefend) {
+    // a polymorphed hero (a lycanthrope in beast form too) returns to normal form unless
+    // Unchanging; it does not cure lycanthropy or polymorphitis (no clay golem form exists)
+    const h = getPlayer(ctx.state);
+    if (upolyd(ctx.state)) {
+      if (hasProp(h, P.UNCHANGING) && (h.c.hp?.cur ?? 0) > 0) say(ctx, 'zap.cancel.amulet_hot');
+      else rehumanize(ctx);
+    }
+  } else setCancelled(ctx, mdef.id);
   return true;
 }
 
@@ -1595,7 +1604,7 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       say(ctx, 'zap.self.you_die');
       // they might survive with an amulet of life saving
       learn(ctx, src);
-      done(ctx, '!@killer.zap.self.death');
+      done(ctx, uhimKey(ctx.state, '!@killer.zap.self.death'));
       return 0;
     case WAN.teleportation: {
       const was = { ...heroPos(ctx) };
@@ -1689,9 +1698,12 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
       losehp(
         ctx,
         damage,
-        src.kind === 'spell'
-          ? '!@killer.zap.self.spell'
-          : (SELF_KILLER[otyp] ?? '!@killer.zap.self.striking'),
+        uhimKey(
+          ctx.state,
+          src.kind === 'spell'
+            ? '!@killer.zap.self.spell'
+            : (SELF_KILLER[otyp] ?? '!@killer.zap.self.striking'),
+        ),
       );
     return;
   }

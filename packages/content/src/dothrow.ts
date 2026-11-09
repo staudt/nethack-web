@@ -30,11 +30,15 @@ import {
 import { getdirImpaired } from './hackmove';
 import { aAlign, doaltarobj } from './align';
 import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
-import { wakeup } from './peaceful';
+import { setmangry, wakeup } from './peaceful';
+import { canBlnd } from './adtyping';
+import { killedByHero } from './buzz';
+import { mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
 import { dbonU, dmgval, monsterIdAt } from './combat';
 import { encumberMsg } from './itemactions';
 import {
+  mksobj,
   placeObject,
   placeOnFloor,
   removeFromInventory,
@@ -69,10 +73,12 @@ import {
 import { acurrstr, findMac } from './stats';
 import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
-import { ringBonus } from './props';
+import { P, hasProp, ringBonus } from './props';
 import { hmonThrownHit, missileMsg, type Shot } from './hmon';
 
 export const THROW_ID: DefId = 'nh:throw';
+
+const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -159,6 +165,19 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
 
   const dieroll = ctx.rng.rnd(20);
   const missile = xnameOf(ctx.state, ctx.defs, obj);
+
+  // venom spat by a polymorphed hero (#monster): `guaranteed_hit || ACURR(A_DEX) > rnd(25)` hits
+  // and is used up; else it misses and splashes where it lands (throwit())
+  if (odef.class === 'venom') {
+    if (guaranteedHit || dex > ctx.rng.rnd(25)) {
+      venomHit(ctx, mon, obj);
+      ctx.remove(objId);
+      return true;
+    }
+    if (guaranteedHit) return false; // (never: the hit above is guaranteed)
+    tmiss(ctx, mon, missile, shot);
+    return false;
+  }
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
     // ref: thitmonst(): food thrown to a domestic animal (or to a pet that wants it) may tame it
@@ -255,6 +274,59 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     return true;
   }
   return false;
+}
+
+/**
+ * The hero's venom hits a monster: blinding venom wakes it, angers it and blinds it for
+ * rn1(25, 21) more turns ("The venom blinds the jackal!", "Splash!" when she is blind or it
+ * cannot be blinded); acid venom burns it for dmgval() unless it resists acid.
+ * ref: src/uhitm.c hmon_hitmon_misc_obj() BLINDING_VENOM, ACID_VENOM
+ */
+function venomHit(ctx: Ctx, mon: Entity, obj: Entity): void {
+  const m = mon.c.monster;
+  if (!m) return;
+  const hero = heroEntity(ctx);
+  if (obj.def === BLINDING_VENOM) {
+    m.asleep = false;
+    if (canBlnd(ctx, hero, mon, 'spit', obj)) {
+      if (hasProp(hero, P.BLINDED)) msg(ctx, 'throw.venom_splash');
+      else
+        msg(ctx, mcansee(ctx, mon.id) ? 'throw.venom_blinds' : 'throw.venom_blinds_further', {
+          mon: monNam(ctx, mon),
+        });
+      setmangry(ctx, mon.id);
+      const dmg = ctx.rng.rn2(25) + 21; // rn1(25, 21)
+      setMblinded(ctx, mon.id, Math.min(127, mblinded(ctx, mon.id) + dmg));
+    } else {
+      msg(ctx, 'throw.venom_splash');
+      setmangry(ctx, mon.id);
+    }
+    return;
+  }
+  // acid venom
+  const mdef = ctx.defs.monster(mon.def);
+  let dmg = 0;
+  if (mdef.resists.includes('acid')) msg(ctx, 'throw.venom_harmless', { mon: monNam(ctx, mon) });
+  else {
+    msg(ctx, 'throw.venom_burns', { mon: monNam(ctx, mon) });
+    dmg = dmgval(ctx.rng, obj, ctx.defs.object(obj.def), mdef);
+  }
+  wakeup(ctx, mon.id);
+  const hp = mon.c.hp;
+  if (hp && dmg > 0) {
+    hp.cur -= dmg;
+    if (hp.cur < 1) killedByHero(ctx, mon);
+  }
+}
+
+/**
+ * The polymorphed hero spits venom of type `otyp` in direction `dir`: a new splash of venom flies
+ * as if thrown and always breaks where it lands ("Splash!"). ref: src/polyself.c dospit() (mksobj(),
+ * `spe = 1` "yours", throwit())
+ */
+export function spitVenom(ctx: Ctx, otyp: DefId, dir: Dir): void {
+  const otmp = mksobj(ctx, ctx.defs.object(otyp), { quantity: 1 });
+  throwit(ctx, otmp, dir, { i: 1, n: 1 });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -377,6 +449,12 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
 
   if (hitMon !== null) {
     if (thitmonst(ctx, hitMon, objId, shot)) return; // used up
+  }
+  // venom always breaks where it lands, even on a soft floor: breakmsg() "Splash!", breakobj()
+  if (odef.class === 'venom') {
+    msg(ctx, 'throw.venom_splash');
+    ctx.remove(objId);
+    return;
   }
   // charge for items thrown out of shop; shk takes possession for items thrown into one
   if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj)) {

@@ -43,6 +43,7 @@ const SELF_KEYS: [string, string][] = [
   ['Alt+f', 'nh:force'],
   ['Alt+u', 'nh:untrap'],
   ['Alt+j', 'nh:jump'],
+  ['Alt+m', 'nh:monster'],
 ];
 
 /** Direction prefixes (see `runPrefixes`): `o` open, `F` fight, `^` identify a trap. */

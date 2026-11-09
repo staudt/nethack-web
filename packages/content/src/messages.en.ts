@@ -39,6 +39,7 @@ import { boulderMessagesEn } from './boulder.en';
 import { digMessagesEn } from './dig.en';
 import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
+import { monabilityMessagesEn } from './monability.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -83,6 +84,7 @@ export const messagesEn: Record<string, string> = {
   ...digMessagesEn,
   ...enlightenmentMessagesEn,
   ...jumpMessagesEn,
+  ...monabilityMessagesEn,
   ...invisMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,

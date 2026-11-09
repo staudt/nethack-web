@@ -705,7 +705,7 @@ export function thrwmu(
 // breath and spit
 
 /** ref: src/mthrowu.c breathwep[] (the hallucinatory rnd_hallublast() is not ported) */
-const BREATH_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
+export const BREATH_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
   magm: 'magic_missile',
   fire: 'fire',
   cold: 'cold',

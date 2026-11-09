@@ -7,6 +7,7 @@ import {
   type Ctx,
   type DefId,
   type Entity,
+  type EntityId,
   type MonsterSound,
   type Msg,
 } from '@nh/core';
@@ -137,10 +138,14 @@ const helperWord = (pm: string): string =>
 /**
  * A were creature summons 1 to 5 of its animals next to the hero; returns how many came and how
  * many the hero sees. A type missing from the roster (the winter wolf) does not come, but its
- * roll is made. ref: src/were.c were_summon() (the polymorphed hero's #monster, `yours`, which
- * tames them, is 7f)
+ * roll is made. `yours` (the polymorphed hero's #monster) is called with each one made, which
+ * tames it (monability.ts). ref: src/were.c were_summon()
  */
-export function wereSummon(ctx: Ctx, pm: string): { total: number; visible: number } {
+export function wereSummon(
+  ctx: Ctx,
+  pm: string,
+  yours?: (ctx: Ctx, id: EntityId) => void,
+): { total: number; visible: number } {
   let total = 0;
   let visible = 0;
   const at = getPlayer(ctx.state).c.pos;
@@ -152,6 +157,7 @@ export function wereSummon(ctx: Ctx, pm: string): { total: number; visible: numb
     if (mtmp) {
       total++;
       if (canseemon(ctx, mtmp)) visible++;
+      if (yours) yours(ctx, mtmp.id); // tamedog(mtmp, NULL, FALSE)
     }
   }
   return { total, visible };

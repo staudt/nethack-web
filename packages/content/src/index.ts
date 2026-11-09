@@ -68,6 +68,7 @@ import { registerLight } from './light';
 import { registerSpells } from './spell';
 import { registerCast } from './cast';
 import { jumpAction } from './jump';
+import { monsterAction } from './monability';
 import { registerEnd } from './disclose';
 import { QUIT_ACTIONS } from './quit';
 import { DUNGEONS, LEVELS, SPLEV_FIXUPS } from './dungeon';
@@ -113,6 +114,7 @@ export const vanillaMod: Mod = {
     registerSpells(api);
     registerCast(api);
     api.defineAction(jumpAction); // #jump and the jump prompts' answers
+    api.defineAction(monsterAction); // #monster: a polymorphed form's ability
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
@@ -228,6 +230,7 @@ export {
 } from './hero';
 export { pwOf, setPw, uspellOf, setUspell, type Pw, type USpell } from './uenergy';
 export { CAST_ID, CAST_ACTIONS, CAST_BOOKS, spelleffects, castProtection } from './cast';
+export { MONSTER_ID, monAbility, domonability } from './monability';
 export { JUMP_ID, jump, isValidJumpPos, validJumpPositions, walkPath } from './jump';
 export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt, spellLevPw } from './spellcalc';
 export { messagesEn } from './messages.en';

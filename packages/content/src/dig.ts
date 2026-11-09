@@ -46,6 +46,7 @@ import {
   type PromptOption,
   type Trap,
 } from '@nh/core';
+import { uhimKey } from './gender';
 import { doAttack } from './actions';
 import { digests, isSwallowed, isWhirly, uswallow } from './engulfstate';
 import { expels } from './engulf';
@@ -821,7 +822,7 @@ function digDown(ctx: Ctx, d: Digging, pick: Entity, level: Level, dc: DigCheck)
       if (dmg < 1) dmg = 1;
       else if (whichArmor(ctx, ctx.state.playerId, 'boots')) dmg = Math.trunc((dmg + 1) / 2);
       say(ctx, 'dig.hit_foot');
-      losehp(ctx, dmg, '@killer.chopping_foot');
+      losehp(ctx, dmg, uhimKey(ctx.state, '@killer.chopping_foot'));
     } else {
       say(ctx, 'dig.destroy_bear_trap', { pick: xnameOf(ctx.state, ctx.defs, pick) });
       delfloortrap(ctx, level.id, ttmp);
@@ -914,7 +915,14 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
     let dam = ctx.rng.rnd(2) + dbonU(ctx) + (pick.c.item?.spe ?? 0);
     if (dam <= 0) dam = 1;
     say(ctx, 'dig.hit_yourself', { pick: xnameOf(ctx.state, ctx.defs, pick) });
-    losehp(ctx, dam, pick.def === 'nh:pick_axe' ? '@killer.own_pick_axe' : '@killer.own_mattock');
+    losehp(
+      ctx,
+      dam,
+      uhimKey(
+        ctx.state,
+        pick.def === 'nh:pick_axe' ? '@killer.own_pick_axe' : '@killer.own_mattock',
+      ),
+    );
     return NORMAL_SPEED;
   }
   if (dir !== 'down') {

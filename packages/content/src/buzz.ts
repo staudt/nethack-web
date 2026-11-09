@@ -24,6 +24,7 @@ import {
   type TerrainDef,
   trapAt,
 } from '@nh/core';
+import { uhimKey } from './gender';
 import { poisoned } from './attrib';
 import { acidDamage, destroyItems, erodeArmor } from './erode';
 import { inAnyShop } from './eshk';
@@ -84,7 +85,10 @@ const antimagic = (ctx: Ctx): boolean => hasProp(hero(ctx), P.ANTIMAGIC);
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
 /** ref: src/zap.c flash_str(): "bolt of fire", or a breath's "blast of fire" (types 20..29) */
 const rayName = (ray: Ray, src?: RaySource): Msg => ({
-  key: src?.by === 'breath' ? `zap.flash.breath.${ray}` : `zap.flash.${ray}`,
+  key:
+    src?.by === 'breath' || (src?.by === 'hero' && src.breath)
+      ? `zap.flash.breath.${ray}`
+      : `zap.flash.${ray}`,
 });
 
 function heroPos(ctx: Ctx): { level: string; x: number; y: number } {
@@ -258,11 +262,13 @@ function zhitm(
   nd: number,
   spellcaster: boolean,
   save: boolean,
+  breath = false,
 ): number {
   const def = ctx.defs.monster(mon.def);
   const res = (r: string): boolean => def.resists.includes(r);
   const bonus = (n: number): number => (spellcaster ? spellDamageBonus(ctx.state, n) : n);
-  const oclass = spellcaster ? 'spell' : 'wand';
+  // the hero's breath (types 20..29) resists as her spells do: resist(mon, '\0') at her level
+  const oclass = spellcaster || breath ? 'spell' : 'wand';
   let tmp = 0;
   switch (ray) {
     case 'magic_missile':
@@ -322,6 +328,14 @@ function zhitm(
   const hp = mon.c.hp;
   if (hp) hp.cur -= tmp;
   return tmp;
+}
+
+/**
+ * The polymorphed hero breathes at herself: the blast hits her with no to-hit roll or message of
+ * its own ("a blast of frost exhaled by herself" if it kills). ref: src/zap.c ubreatheu()
+ */
+export function ubreatheu(ctx: Ctx, ray: Ray, nd: number): void {
+  zhitu(ctx, ray, nd, uhimKey(ctx.state, `@killer.breath.self.${ray}`));
 }
 
 /** ref: src/zap.c zhitu(): the ray hits the hero */
@@ -570,7 +584,8 @@ export function burnFloorObjects(
 }
 
 /**
- * Who sends a ray: the hero (her wand, or her spell when `spell` names its book (types 10..19):
+ * Who sends a ray: the hero (her wand, her breath when `breath` (types 20..29: "blast of frost",
+ * resisted at her level), or her spell when `spell` names its book (types 10..19):
  * the spell to-hit and damage bonuses, resisted at her level; kills are hers, and a monster it
  * hits is angered with `wakeup`, peaceful.ts's, passed in because peaceful.ts sits above this
  * module), or a monster's
@@ -580,7 +595,7 @@ export function burnFloorObjects(
  * exhaled by a winter wolf cub").
  */
 export type RaySource =
-  | { by: 'hero'; spell?: DefId; wakeup: (ctx: Ctx, id: EntityId) => void }
+  | { by: 'hero'; spell?: DefId; breath?: true; wakeup: (ctx: Ctx, id: EntityId) => void }
   | { by: 'spell' }
   | { by: 'breath'; mon: EntityId };
 
@@ -639,7 +654,7 @@ function buzzSteps(
   const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
   if (engulfer) {
     if (src.by !== 'hero') return;
-    const tmp = zhitm(ctx, engulfer, ray, nd, src.spell !== undefined, true);
+    const tmp = zhitm(ctx, engulfer, ray, nd, src.spell !== undefined, true, src.breath === true);
     say(ctx, 'zap.ray.rips_into', {
       ray: rayName(ray, src),
       mon: monNam(ctx, engulfer),
@@ -658,7 +673,7 @@ function buzzSteps(
   const breather = src.by === 'breath' ? ent(ctx, src.mon) : undefined;
   const killer =
     src.by === 'hero'
-      ? `@killer.zap.ray.${ray}`
+      ? uhimKey(ctx.state, src.breath ? `@killer.breath.self.${ray}` : `@killer.zap.ray.${ray}`)
       : breather
         ? `@killer.breath.${ray}.${breather.def.replace(/^.*:/, '')}`
         : `@killer.ray.${ray}`;
@@ -691,7 +706,15 @@ function buzzSteps(
         if (zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
           // mon_reflects(): no monster can reflect in the subset
           const couldMove = !isFrozen(ctx, mon.id);
-          const tmp = zhitm(ctx, mon, ray, nd, spell !== null, src.by === 'hero');
+          const tmp = zhitm(
+            ctx,
+            mon,
+            ray,
+            nd,
+            spell !== null,
+            src.by === 'hero',
+            src.by === 'hero' && src.breath === true,
+          );
           if ((mon.c.hp?.cur ?? 0) < 1) {
             if (alive(ctx, mon.id)) {
               if (src.by === 'hero') killedByHero(ctx, mon);

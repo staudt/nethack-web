@@ -20,6 +20,7 @@ import {
   type Level,
   type Msg,
 } from '@nh/core';
+import { uhimKey } from './gender';
 import { digCheck, digactualhole, digcheckFailed } from './dig';
 import { explode, type ExplType } from './explode';
 import { fillPit } from './flooreffects';
@@ -255,7 +256,8 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
         bhitpile(ctx, src, x, y);
       if (ctx.state.gameOver) break;
       const damage = zapyourself(ctx, src, false);
-      if (damage && !ctx.state.gameOver) losehp(ctx, damage, '!@killer.breakwand.self');
+      if (damage && !ctx.state.gameOver)
+        losehp(ctx, damage, uhimKey(ctx.state, '!@killer.breakwand.self'));
     }
   }
   // potentially give post zap/break feedback
