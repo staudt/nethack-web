@@ -29,6 +29,7 @@ import {
   unmapInvisible,
 } from './invis';
 import { epriOf, priestName } from './epri';
+import { isUndetected } from './hidestate';
 import { eshkOf, shkName } from './eshk';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
@@ -75,7 +76,7 @@ export function infraSees(state: Readonly<GameState>, defs: Registry, mon: Entit
   if (!defs.isMonster(mon.def) || !heroHas(state, P.INFRAVISION) || heroHas(state, P.BLINDED))
     return false;
   if (!defs.monster(mon.def).flags.includes('infravisible')) return false;
-  if (monInvisible({ state }, mon) && !seeInvisible(state)) return false; // mon_visible()
+  if (!monVisible({ state }, mon)) return false; // mon_visible(): not invisible, not hiding
   const hp = getPlayer(state).c.pos;
   const mp = mon.c.pos;
   if (!mp || !hp || mp.level !== hp.level) return false;
@@ -209,6 +210,13 @@ export function registerPerception(api: ModApi): void {
       };
     },
   });
+  // hiding: a monster under an object or on the ceiling (mundetected) is not seen; telepathy still
+  // senses it (core lets `senses` win, as sensemon() does in C's display_monster() callers)
+  // ref: include/display.h _mon_visible()
+  api.definePerception({
+    id: 'nh:hiding',
+    hides: (state, _defs, mon) => isUndetected({ state }, mon.id),
+  });
   api.definePerception({
     id: 'nh:senses',
     // swallowed: "You see nothing, nothing can see you" (ref: src/vision.c vision_recalc())
@@ -225,6 +233,16 @@ export function registerPerception(api: ModApi): void {
 }
 
 /**
+ * ref: include/display.h sensemon(): telepathy (and infravision, which C counts in canseemon());
+ * the warning digit is not a sense of the monster (no warning of a monster's kind).
+ */
+export function sensemon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
+  return ctx.defs.perceptions.some(
+    (d) => d.id !== WARNING_PERCEPTION && d.senses?.(ctx.state, ctx.defs, mon) === true,
+  );
+}
+
+/**
  * ref: src/display.h canspotmon(): seen (canseemon(): its cell is visible and mon_visible()) or
  * sensed. A warning digit is neither (sensemon() counts only warning of a monster's kind, which
  * does not exist here).
@@ -235,9 +253,7 @@ export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boole
   if (!p || p.level !== hero?.level) return false;
   const level = ctx.state.levels[p.level];
   if (level && isVisible(ctx.state, p.y * level.width + p.x) && monVisible(ctx, mon)) return true;
-  return ctx.defs.perceptions.some(
-    (d) => d.id !== WARNING_PERCEPTION && d.senses?.(ctx.state, ctx.defs, mon) === true,
-  );
+  return sensemon(ctx, mon);
 }
 
 /**

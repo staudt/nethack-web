@@ -16,6 +16,7 @@ import {
   type Dir,
   type Entity,
   type Level,
+  type Msg,
   type PlayerAction,
   type Pos,
   type TerrainDef,
@@ -30,14 +31,21 @@ import { askReallyAttack, attackChecksUnseen, needsAttackConfirm } from './peace
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
 import { isFrozen } from './mstate';
-import { canSpotMon, monNam } from './perception';
+import { canSpotMon, monNam, sensemon } from './perception';
+import { hidesUnder, isHider, isUndetected, setUndetected } from './hidestate';
+import { ceilingKey } from './read';
+import { hardHelmet } from './material';
+import { findAc } from './stats';
+import { mdamageu } from './mhitu';
+import { mnextoPos } from './generation';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
-import { P, hasProp } from './props';
+import { P, hasProp, wornIn } from './props';
 import { T, setTerrain, surfaceKey } from './terrain';
 import { luckOf } from './luck';
 import {
   TRAP,
+  rlocMon,
   climbPit,
   findTrapAt,
   intoTrap,
@@ -443,6 +451,8 @@ const fight: ActionDef = {
       askReallyAttack(ctx, victim, 'nh:move', { victim });
       return 0;
     }
+    // ref: src/mon.c wakeup(): a forced fight brings a hiding monster out
+    setUndetected(ctx, victim, false);
     const cost = heroAttack(ctx, victim);
     // ref: src/uhitm.c do_attack() atk_done: a forced fight at a monster she can't spot that
     // lives on leaves the `I` where she struck
@@ -516,10 +526,16 @@ const move: ActionDef = {
     // running" check belongs to travel/run, which is a different action.)
     const victim = monsterIdAt(ctx, to, pos.level);
     const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
-    if (vmon) {
+    // ref: src/hack.c domove_attackmon_at(): "only attack if we know it's there ... or if it
+    // hides_under, in which case we call do_attack() to print the Wait! message"; a ceiling
+    // hider she does not sense is walked under (spoteffects() drops it on her)
+    if (
+      vmon &&
+      (!isUndetected(ctx, vmon.id) || sensemon(ctx, vmon) || hidesUnder(ctx.defs.monster(vmon.def)))
+    ) {
       const cost = doAttack(ctx, vmon, 'nh:move');
       if (cost !== null) return cost;
-    } else if (markedUnseen(ctx, to.x, to.y)) {
+    } else if (!vmon && markedUnseen(ctx, to.x, to.y)) {
       // ref: src/hack.c domove_fight_empty(): "remembered an 'I' && didn't use a move command"
       return fightEmpty(ctx, level, to);
     }
@@ -645,6 +661,7 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
       lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
       spotTrap(ctx); // ref: spoteffects() -> dotrap()
     }
+    if (!ctx.state.gameOver) fallingMonster(ctx);
     return NORMAL_SPEED;
   }
   switch (check.reason) {
@@ -670,6 +687,60 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     case 'bounds':
       return 0;
   }
+}
+
+/**
+ * She stepped under a monster hiding on the ceiling: it comes out and wakes; a piercer "suddenly
+ * drops from the ceiling!": its blow glances off a hard helmet, misses when `AC + 3 <= rnd(20)`,
+ * else hits for 4d6 (a tame one just greets her); anything else jumps near her (tame),
+ * is surprised and turns hostile (peaceful) or "attacks you by surprise!". It then moves next
+ * to her (mnexto(); with no room, anywhere). ref: src/hack.c spoteffects() (no
+ * Half_physical_damage source exists)
+ */
+function fallingMonster(ctx: Ctx): void {
+  if (isSwallowed(ctx)) return;
+  const here = playerAt(ctx);
+  const level = getLevel(ctx.state);
+  const id = monsterIdAt(ctx, here, level.id);
+  const mon = id === null || id === ctx.state.playerId ? undefined : ctx.state.entities[String(id)];
+  const m = mon?.c.monster;
+  if (!mon || !m) return;
+  setUndetected(ctx, mon.id, false);
+  m.asleep = false;
+  const def = ctx.defs.monster(mon.def);
+  const ceiling = { key: ceilingKey(ctx, level, here.x, here.y) };
+  const tame = (m.tame ?? 0) > 0;
+  const say = (key: string, params?: Msg['params']): void =>
+    ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+  if (def.glyph.ch === 'p') {
+    say('hide.drops_from_ceiling', { mon: monNam(ctx, mon), ceiling });
+    const helm = wornIn(ctx.state, ctx.state.playerId, 'helm');
+    if (tame) {
+      // jumps to greet you, not attack
+    } else if (helm && hardHelmet(ctx.defs.object(helm.def))) {
+      say('hide.glances_off', { helm: '@polyarm.helm' });
+    } else if (findAc(ctx.state, ctx.defs, ctx.state.playerId) + 3 <= ctx.rng.rnd(20)) {
+      say('hide.almost_hit_falling', { mon: `@${mon.def}` });
+    } else {
+      say('hide.hit_falling', { mon: `@${mon.def}` });
+      mdamageu(ctx, ctx.rng.d(4, 6), `@${mon.def}`);
+    }
+  } else if (tame) say('hide.jumps_near', { mon: monNam(ctx, mon), ceiling });
+  else if (m.peaceful) {
+    const unseen = hasProp(getPlayer(ctx.state), P.BLINDED) && !sensemon(ctx, mon);
+    say(unseen ? 'hide.you_surprise_something' : 'hide.you_surprise', { mon: monNam(ctx, mon) });
+    m.peaceful = false;
+  } else say('hide.attacks_by_surprise', { mon: monNam(ctx, mon) });
+  if (ctx.state.gameOver) return;
+  // mnexto(mtmp, RLOC_NOMSG): have to move the monster
+  const to = mnextoPos(ctx, level, mon.id, here);
+  if (to) {
+    const p = mon.c.pos;
+    if (!p) return;
+    const from = { x: p.x, y: p.y };
+    mon.c.pos = { level: level.id, x: to.x, y: to.y };
+    ctx.emit({ type: 'moved', id: mon.id, from, to });
+  } else rlocMon(ctx, mon, false);
 }
 
 /**
@@ -786,24 +857,40 @@ const search: ActionDef = {
 };
 
 /**
- * An explicit search finds a monster next to her that she can't spot: "You feel an unseen
- * monster!" and the `I`. 1 when found (the search ends there), -1 when the `I` already marks it
- * (the square is skipped), 0 otherwise. ref: src/detect.c mfind0() (no mimics, hiders or
- * warning; no Wis exercise)
+ * An explicit search finds a monster next to her that she can't spot, or one hiding there (it
+ * comes out): "You feel an unseen monster!" and the `I` when she still can't spot it, else "You
+ * find a rock piercer." (unless she senses it). 1 when found (the search ends there), -1 when the
+ * `I` already marks it (the square is skipped), 0 otherwise. ref: src/detect.c mfind0() (no
+ * mimics, eels or warning; no Wis exercise)
  */
 function mfind0(ctx: Ctx, mon: Entity, x: number, y: number): number {
-  if (canSpotMon(ctx, mon)) return 0;
+  let found = !canSpotMon(ctx, mon);
+  const def = ctx.defs.monster(mon.def);
+  if (isUndetected(ctx, mon.id) && (isHider(def) || hidesUnder(def))) {
+    setUndetected(ctx, mon.id, false);
+    found = true;
+  }
+  if (!found) return 0;
+  const spot = canSpotMon(ctx, mon);
   // "Found invisible monster in square which already has 'I' in it."
-  if (markedUnseen(ctx, x, y)) return -1;
-  mapInvisible(ctx, x, y);
-  ctx.emit({ type: 'msg', key: 'search.unseen_monster' });
+  if (!spot && markedUnseen(ctx, x, y)) return -1;
+  if (!spot) {
+    mapInvisible(ctx, x, y);
+    ctx.emit({ type: 'msg', key: 'search.unseen_monster' });
+  } else if (!sensemon(ctx, mon)) {
+    const tame = (mon.c.monster?.tame ?? 0) > 0;
+    ctx.emit({
+      type: 'msg',
+      key: tame ? 'hide.you_find_pet' : 'hide.you_find',
+      params: { mon: monNam(ctx, mon) },
+    });
+  }
   return 1;
 }
 
 /**
  * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching:
- * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. Hidden monsters and mimics are not
- * implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
+ * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. Mimics are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
  */
 function dosearch0(ctx: Ctx, aflag: boolean): void {
   const here = playerAt(ctx);

@@ -44,7 +44,8 @@ import {
   isMConfused,
   mcansee,
 } from './mstate';
-import { canSpotMon, monNam } from './perception';
+import { canSpotMon, monNam, sensemon } from './perception';
+import { isUndetected, setUndetected } from './hidestate';
 import { findMac } from './stats';
 import { couldSeduce } from './steal';
 import { nhData } from './items';
@@ -60,7 +61,7 @@ import { cloneMon } from './clone';
 import { resistConflict } from './props';
 import { monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
-import { monInvisible, perceives } from './invis';
+import { canseemon, monInvisible, perceives } from './invis';
 import { hatesSilver } from './mondata';
 import { isSilver, silverSearsMm } from './silver';
 
@@ -555,6 +556,15 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
     tmp += 4;
     mdef.c.monster.asleep = false;
   }
+  // mundetected monsters become un-hidden if they are attacked: "Suddenly, you notice a garter
+  // snake." when she now sees it (not asleep: no dreams; no "emerges from hiding"); an attacker
+  // comes out too (pre_mm_attack())
+  if (isUndetected(ctx, mdefId)) {
+    setUndetected(ctx, mdefId, false);
+    if (canseemon(ctx, mdef) && !sensemon(ctx, mdef))
+      ctx.emit({ type: 'msg', key: 'hide.suddenly_notice', params: { mon: monNam(ctx, mdef) } });
+  }
+  setUndetected(ctx, magr.id, false);
   // elves hate orcs
   if (pa.flags.includes('elf') && ctx.defs.monster(mdef.def).flags.includes('orc')) tmp++;
 

@@ -8,6 +8,7 @@ import {
   NORMAL_SPEED,
   getPlayer,
   isVisible,
+  itemsAt,
   sortedIds,
   type AttackDef,
   type AttackType,
@@ -38,7 +39,8 @@ import { monsterDied } from './mondeath';
 import { isFleeing, monflee } from './monflee';
 import { wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
-import { xnameOf } from './objnam';
+import { doname, xnameOf } from './objnam';
+import { hidesUnder, isUndetected, setUndetected } from './hidestate';
 import { stopOccupation } from './eat';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
@@ -58,7 +60,7 @@ import { monNam } from './perception';
 import { hurtPet } from './dog';
 import { luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
-import { canSpotMon } from './perception';
+import { canSpotMon, telepathSenses } from './perception';
 import {
   isCancelled,
   isFrozen,
@@ -675,6 +677,7 @@ export function hitmu(
   ac: number,
 ): number {
   unseenAttacker(ctx, mon); // ref: hitmu(): `if (!canspotmon(mtmp)) map_invisible(...)`
+  revealHiddenAttacker(ctx, mon);
   const olduasmon = heroForm(ctx);
   const name = monNam(ctx, mon);
   let dmg = ctx.rng.d(atk.n, atk.d);
@@ -981,6 +984,29 @@ function wildmiss(ctx: Ctx, mon: Entity, atk: AttackDef): void {
 }
 
 /** A monster she can't spot attacks her: she remembers it as `I` where it is. */
+/**
+ * "If the monster is undetected & hits you, you should know where the attack came from": a
+ * monster hiding under an object comes out, and unless she senses it by telepathy "The garter
+ * snake was hidden under a dagger!" ("Something" when she still can't see it).
+ * ref: src/mhitu.c hitmu() (no eels, no Detect_monsters; dknown is always set)
+ */
+function revealHiddenAttacker(ctx: Ctx, mon: Entity): void {
+  const p = mon.c.pos;
+  if (!p || !isUndetected(ctx, mon.id) || !hidesUnder(ctx.defs.monster(mon.def))) return;
+  setUndetected(ctx, mon.id, false);
+  if (telepathSenses(ctx.state, ctx.defs, mon)) return;
+  const obj = itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y)[0];
+  if (!obj) return;
+  const item = doname(ctx.state, ctx.defs, obj);
+  if (canSpotMon(ctx, mon))
+    ctx.emit({
+      type: 'msg',
+      key: 'hide.was_hidden_under',
+      params: { mon: monNam(ctx, mon), item },
+    });
+  else ctx.emit({ type: 'msg', key: 'hide.something_was_hidden_under', params: { item } });
+}
+
 function unseenAttacker(ctx: Ctx, mon: Entity): void {
   const p = mon.c.pos;
   if (p && p.level === ctx.state.currentLevel && !canSpotMon(ctx, mon)) mapInvisible(ctx, p.x, p.y);

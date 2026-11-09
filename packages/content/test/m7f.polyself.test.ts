@@ -386,7 +386,7 @@ describe('the control prompt', () => {
   });
 
   test('polymorph control (a ring): asked, Escape is a random change, no system shock', () => {
-    const s = room(2); // seed 1 until m12 step 6's vault roll moved the stream
+    const s = room(3); // seed 1 until m12 step 6's vault roll moved the stream; 2 until m13 step 1's rows
     setAttr(s, 'con', 3);
     setIntrinsic(hero(s), P.POLYMORPH_CONTROL, true);
     run(s, (ctx) => polyself(ctx));

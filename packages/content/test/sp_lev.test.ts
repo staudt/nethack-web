@@ -111,7 +111,9 @@ describe('LevelDef contents', () => {
 
   test('things go only on dry ground (floor, corridor, stairs), traps only on plain floor', () => {
     const dry = new Set(['nh:floor', 'nh:corr', 'nh:stairs_up', 'nh:stairs_down']);
-    for (let seed = 1; seed <= 9; seed++) {
+    // (monsters get a turn on arrival: seed 8's homunculus steps into a doorway since m13 step 1
+    // moved the stream, so seed 10 stands in for it)
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 9, 10]) {
       const { state, level } = visit(seed, 'tl:rooms_d');
       expect(level.def).toBe('tl:rooms');
       const { monsters, items } = onLevel(state, level);

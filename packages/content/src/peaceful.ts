@@ -4,18 +4,22 @@ import { engulfingU } from './engulfstate';
 import {
   getPlayer,
   inRooms,
+  itemsAt,
   sortedIds,
   type Ctx,
   type DefId,
   type Entity,
   type EntityId,
   type Json,
+  type Msg,
 } from '@nh/core';
 import { monflee } from './monflee';
 import { heroSees } from './mongear';
 import { P, hasProp } from './props';
-import { canSpotMon, monNam, warningShown } from './perception';
-import { mapInvisible, markedUnseen } from './invis';
+import { canSpotMon, monNam, sensemon, telepathSenses, warningShown } from './perception';
+import { hidesUnder, isUndetected, setUndetected } from './hidestate';
+import { doname } from './objnam';
+import { canseemon, mapInvisible, markedUnseen } from './invis';
 import { invisTo } from './apparxy';
 import { mcansee } from './mstate';
 import { adjalign } from './luck';
@@ -26,7 +30,7 @@ import { ghodHitsu } from './priest';
 import { eshkOf, uShops } from './eshk';
 import { hotPursuit } from './shk';
 
-const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
+const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
@@ -49,18 +53,55 @@ export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
 /**
  * The hero goes to attack a monster she can't spot, on a square that shows neither a warning
  * digit nor the remembered `I`: "Wait!  There's something there you can't see!", the `I` is
- * mapped there and the monster is woken (and angered: an attack attempt). True when the attack
- * is called off (the move is still spent). Not for a forced fight (the `F` prefix, a kick at an
- * unseen monster) or an engulfer. ref: src/uhitm.c attack_checks() (no mimics or hiders)
+ * mapped there and the monster is woken (and angered: an attack attempt). A monster hiding under
+ * an object (she is not blind) comes out instead: "Wait!  There's a garter snake hiding under a
+ * dagger!" (or "a hidden monster" blind; a hallucinated wild or tame one), unless she senses it by
+ * telepathy or remembered an `I` there (then she attacks it). A hidden monster she senses comes
+ * out and wakes. True when the attack is called off (the move is still spent). Not for a forced
+ * fight (the `F` prefix, a kick at an unseen monster) or an engulfer. ref: src/uhitm.c
+ * attack_checks() (no mimics, eels or Detect_monsters)
  */
 export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number): boolean {
   if (engulfingU(ctx, mon.id)) return false; // `if (engulfing_u(mtmp)) return FALSE`
-  if (canSpotMon(ctx, mon) || warningShown(ctx.state, ctx.defs, mon) !== null) return false;
-  if (markedUnseen(ctx, x, y)) return false;
-  say(ctx, 'attack.wait_unseen');
-  mapInvisible(ctx, x, y);
-  wakeup(ctx, mon.id); // wakeup(mtmp, TRUE): "always necessary"
-  return true;
+  const blind = hasProp(getPlayer(ctx.state), P.BLINDED);
+  const def = ctx.defs.monster(mon.def);
+  const warned = warningShown(ctx.state, ctx.defs, mon) !== null;
+  if (
+    !canSpotMon(ctx, mon) &&
+    !warned &&
+    !markedUnseen(ctx, x, y) &&
+    !(!blind && isUndetected(ctx, mon.id) && hidesUnder(def))
+  ) {
+    say(ctx, 'attack.wait_unseen');
+    mapInvisible(ctx, x, y);
+    wakeup(ctx, mon.id); // wakeup(mtmp, TRUE): "always necessary"
+    return true;
+  }
+  if (isUndetected(ctx, mon.id) && !canseemon(ctx, mon) && !warned && hidesUnder(def)) {
+    setUndetected(ctx, mon.id, false);
+    if (mon.c.monster) mon.c.monster.asleep = false;
+    if (markedUnseen(ctx, x, y)) return false; // she attacks it
+    if (!telepathSenses(ctx.state, ctx.defs, mon)) {
+      const notseen = !canSpotMon(ctx, mon);
+      const obj = mon.c.pos ? itemsAt(ctx.defs, ctx.state, mon.c.pos.level, x, y)[0] : undefined;
+      if (!blind && hasProp(getPlayer(ctx.state), P.HALLUC)) {
+        const tame = (mon.c.monster?.tame ?? 0) > 0 ? 'tame' : 'wild';
+        say(ctx, `hide.halluc.${tame}${notseen ? '_unseen' : ''}`, { mon: monNam(ctx, mon) });
+      } else if (blind) say(ctx, 'hide.wait_hidden_monster');
+      else if (obj) {
+        const item = doname(ctx.state, ctx.defs, obj);
+        if (notseen) say(ctx, 'hide.wait_something_hiding_under', { item });
+        else say(ctx, 'hide.wait_hiding_under', { mon: monNam(ctx, mon), item });
+      }
+      return true;
+    }
+  }
+  // make sure to wake up a monster from the above cases if the hero can sense that it is there
+  if (isUndetected(ctx, mon.id) && sensemon(ctx, mon)) {
+    setUndetected(ctx, mon.id, false);
+    wakeup(ctx, mon.id);
+  }
+  return false;
 }
 
 /**

@@ -69,6 +69,15 @@ import { mHarmlessTrap, mintrap, rlocMon, rlocTo, trapRemovedMon } from './trap'
 import { isMtrapped, monKnowsTraps } from './trapstate';
 import { isWatch, watchOnDuty } from './watch';
 import { maybeSpinWeb } from './web';
+import {
+  canHideUnderObj,
+  hidesUnder,
+  hideunder,
+  isHider,
+  isUndetected,
+  maybeUnhideAt,
+  restrap,
+} from './hide';
 import { monEatsHere } from './meat';
 import { findgold } from './steal';
 import { gdMoveLate, isGuard } from './vaultstate';
@@ -905,6 +914,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   pos.x = chosen.x;
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
+  maybeUnhideAt(ctx, level.id, chosen.x, chosen.y); // ref: m_move() after place_monster()
   return postmovMoved(ctx, id, level, rules, canTunnel);
 }
 
@@ -1023,6 +1033,18 @@ export function dochug(
   if (monFlag(ctx, 'gearchk', id) && (m.peaceful || dist2(pos.x, pos.y, hp.x, hp.y) > 9)) {
     setMonFlag(ctx, 'gearchk', id, false);
     if (mDoWear(ctx, id, false)) return;
+  }
+
+  // ref: src/mon.c movemon_singlemon(): "unwatched mimics and piercers may hide again"
+  // (restrap()), and a hiding hider does not move at all; a hider-underer whose object went away
+  // comes out (maybe_unhide_at(): no draw, a guard for the object paths that do not call it)
+  const me00 = ctx.state.entities[String(id)];
+  if (me00) {
+    const d00 = ctx.defs.monster(me00.def);
+    if (isHider(d00)) {
+      if (restrap(ctx, me00)) return;
+      if (isUndetected(ctx, id)) return;
+    } else maybeUnhideAt(ctx, pos.level, pos.x, pos.y);
   }
 
   // ref: src/mon.c movemon_singlemon(): "continue if the monster died fighting": under Conflict
@@ -1168,17 +1190,39 @@ export function dochug(
           setMeating(ctx, id, meal - 1);
           return;
         }
+        // ref: m_move(): a hider-underer on a pile it can hide under does not leave its hiding
+        // place 9 times in 10 (MMOVE_NOTHING, before the pet branch)
+        const here = ctx.state.entities[String(id)]?.c.pos;
+        if (
+          hidesUnder(def) &&
+          here &&
+          canHideUnderObj(ctx, here.level, here.x, here.y) &&
+          ctx.rng.rn2(10)
+        )
+          status = 'nothing';
         // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
         // a pet that did nothing goes on to phase four, where only Conflict makes it attack her
-        if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
+        else if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
         else status = mMove(ctx, id, heroPos, ap);
         if (status === 'died') return;
         // ref: m_move() postmov: `maybe_spin_web(mtmp)` after MMOVE_MOVED or MMOVE_DONE (m_move()
-        // returns early, skipping postmov, while the hero is swallowed by another monster)
+        // returns early, skipping postmov, while the hero is swallowed by another monster), then
+        // a hider-underer hides (again): "Always set--or reset--mundetected if it's already
+        // hidden ... usually set mundetected unless monster can't move."
         if (status === 'moved' || status === 'done') {
           const sw = uswallow(ctx);
           const me = ctx.state.entities[String(id)];
-          if (me && (!sw || sw.mon === id)) maybeSpinWeb(ctx, me);
+          if (me && (!sw || sw.mon === id)) {
+            maybeSpinWeb(ctx, me);
+            const mm = me.c.monster;
+            if (
+              ctx.state.entities[String(id)]?.c.monster &&
+              hidesUnder(ctx.defs.monster(me.def)) &&
+              (isUndetected(ctx, id) ||
+                (!isFrozen(ctx, id) && !(mm?.asleep ?? false) && ctx.rng.rn2(5)))
+            )
+              hideunder(ctx, id);
+          }
         }
         distfleeck(); // recalc
         if (status === 'nomoves' && scared) panicattk = true;

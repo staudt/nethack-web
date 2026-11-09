@@ -7,8 +7,9 @@
 //
 // A leaf over props: perception.ts, mstate.ts, trap.ts and the rest import it. Monster state lives
 // in `modData.nh.minvis: { [monsterId]: bits }` (1 = minvis, 2 = perminvis, 4 = invis_blkd), deleted
-// with the monster by mstate's forgetMState(). Not ported: hiding monsters (mundetected), long
-// worm tails, infravision (see_with_infrared()) and Detect_monsters (no timed monster detection).
+// with the monster by mstate's forgetMState(). Hiding (mundetected) is hidestate.ts's flag. Not
+// ported: long worm tails, infravision (see_with_infrared()) and Detect_monsters (no timed monster
+// detection).
 import {
   cellIndex,
   getPlayer,
@@ -23,6 +24,7 @@ import {
   type Json,
   type MonsterDef,
 } from '@nh/core';
+import { isUndetected } from './hidestate';
 import { discover } from './o_init';
 import { P, hasProp, timeoutLeft, updateWornProps, wornIn } from './props';
 
@@ -180,11 +182,11 @@ export const cantSeeSelf = (state: Readonly<GameState>): boolean =>
 export const perceives = (def: Readonly<MonsterDef>): boolean => def.flags.includes('see_invis');
 
 /**
- * The hero can see the monster, assuming she sees its square: it is not invisible, or she sees
- * invisible. ref: include/display.h _mon_visible() (no hiders: mundetected is not ported)
+ * The hero can see the monster, assuming she sees its square: it is not invisible (or she sees
+ * invisible) and it is not hiding. ref: include/display.h _mon_visible()
  */
 export const monVisible = (ctx: Pick<Ctx, 'state'>, mon: Entity): boolean =>
-  !monInvisible(ctx, mon) || seeInvisible(ctx.state);
+  (!monInvisible(ctx, mon) || seeInvisible(ctx.state)) && !isUndetected(ctx, mon.id);
 
 /** cansee(x, y) on the hero's level. */
 function cansee(state: Readonly<GameState>, p: { level: string; x: number; y: number }): boolean {

@@ -41,6 +41,7 @@ import { digMessagesEn } from './dig.en';
 import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
 import { monabilityMessagesEn } from './monability.en';
+import { hideMessagesEn } from './hide.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -100,6 +101,7 @@ export const messagesEn: Record<string, string> = {
   ...jumpMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,
+  ...hideMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
@@ -286,6 +288,9 @@ export const messagesEn: Record<string, string> = {
   'nh:uruk_hai': 'Uruk-hai',
   'nh:orc_shaman': 'orc shaman',
   'nh:orc_captain': 'orc-captain',
+  'nh:rock_piercer': 'rock piercer',
+  'nh:iron_piercer': 'iron piercer',
+  'nh:glass_piercer': 'glass piercer',
   'nh:dwarf': 'dwarf',
   'nh:manes': 'manes',
   'nh:rothe': 'rothe',
@@ -425,6 +430,8 @@ export const messagesEn: Record<string, string> = {
   'nh:yeti': 'yeti',
   'nh:carnivorous_ape': 'carnivorous ape',
   'nh:sasquatch': 'sasquatch',
+  'nh:trapper': 'trapper',
+  'nh:lurker_above': 'lurker above',
   'nh:pony': 'pony',
   'nh:horse': 'horse',
   'nh:warhorse': 'warhorse',

@@ -22,6 +22,7 @@ import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
 import { isGenocided } from './vanquished';
+import { hideunder } from './hide';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -394,13 +395,14 @@ export function makemon(
   });
 
   // ref: makemon() switch (ptr->mlet): snakes and spiders made with the level get an object
-  // on their square (they do not hide under it yet: DEVIATIONS "Hiding monsters"),
-  // leprechauns sleep, nymphs 4 times in 5 (no Amulet)
+  // on their square and hide under it (hideunder()), leprechauns sleep, nymphs 4 times in 5 (no
+  // Amulet)
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
   if ((mlet === 'S' || mlet === 's') && opts.inMklev) {
     if (!levelObjectAt) throw new Error('makemon: mkobj.ts has not registered mkobj_at()');
     levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
+    hideunder(ctx, id, true);
   } else if (mon && mlet === 'l') mon.asleep = true;
   else if (mon && mlet === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());

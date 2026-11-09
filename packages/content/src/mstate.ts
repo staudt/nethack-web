@@ -32,7 +32,16 @@ type Table = { [k: string]: Json };
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 type Key =
-  'mfrozen' | 'mstun' | 'mconf' | 'mspeed' | 'mspecUsed' | 'mcan' | 'mblinded' | 'minvis' | 'mux';
+  | 'mfrozen'
+  | 'mstun'
+  | 'mconf'
+  | 'mspeed'
+  | 'mspecUsed'
+  | 'mcan'
+  | 'mblinded'
+  | 'minvis'
+  | 'mux'
+  | 'mundetected';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -271,12 +280,14 @@ const KEYS: readonly Key[] = [
   'mblinded',
   'minvis', // invis.ts
   'mux', // apparxy.ts
+  'mundetected', // hidestate.ts
 ];
 
 /** Forgets the states of a monster that died or left. */
 /** clone_mon()'s `*m2 = *mon`: the clone starts with the original's conditions. */
 export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId): void {
   for (const k of KEYS) {
+    if (k === 'mundetected') continue; // ref: src/makemon.c clone_mon(): `m2->mundetected = 0`
     const t = table(ctx, k, false);
     const v = t?.[String(from)];
     if (t && v !== undefined) t[String(to)] = v;

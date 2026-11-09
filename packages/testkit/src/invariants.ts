@@ -514,8 +514,8 @@ const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isI
 /**
  * Spell state: the hero's energy (`modData.nh.pw`, written at newGame) keeps
  * `0 <= uen <= uenmax <= uenpeak`; her spell state (`modData.nh.uspell`, absent while all 0) holds
- * non-negative whole numbers; the monsters' spell delays (`mspecUsed`, positive turns) and
- * confusion (`mconf`, true) name living monsters.
+ * non-negative whole numbers; the monsters' spell delays (`mspecUsed`, positive turns),
+ * confusion (`mconf`, true) and hiding (`mundetected`, true) name living monsters.
  */
 function checkSpellState(state: GameState, errs: string[]): void {
   const nh = state.modData['nh'];
@@ -540,7 +540,7 @@ function checkSpellState(state: GameState, errs: string[]): void {
       else if (keys.every((k) => us[k] === 0)) errs.push('uspell: kept while every field is 0');
     }
   }
-  for (const key of ['mspecUsed', 'mconf'] as const) {
+  for (const key of ['mspecUsed', 'mconf', 'mundetected'] as const) {
     const t = nh[key];
     if (t === undefined) continue;
     if (!isTable(t)) {
@@ -550,7 +550,7 @@ function checkSpellState(state: GameState, errs: string[]): void {
     for (const k of Object.keys(t).sort()) {
       const v = t[k];
       if (!state.entities[k]?.c.monster) errs.push(`${key}: '${k}' is not a monster`);
-      if (key === 'mconf' ? v !== true : !isCount(v) || v === 0)
+      if (key !== 'mspecUsed' ? v !== true : !isCount(v) || v === 0)
         errs.push(`${key}: monster ${k} has ${String(v)}`);
     }
   }

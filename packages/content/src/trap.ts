@@ -9,6 +9,7 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
+import { maybeUnhideAt } from './hide';
 import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
 import { uRooms } from './urooms';
 import {
@@ -2254,6 +2255,7 @@ export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boole
   const stuck = ustuck(ctx);
   if (stuck === mon.id && Math.max(Math.abs(x - hp.x), Math.abs(y - hp.y)) > 1)
     setUstuck(ctx, null);
+  maybeUnhideAt(ctx, p.level, x, y); // ref: src/teleport.c rloc_to_core()
   if (domsg && onHeroLevel && canSpotMon(ctx, mon)) {
     const du = (x - hp.x) ** 2 + (y - hp.y) ** 2;
     const near = du <= 2 ? 'next' : du <= BOLT_LIM * BOLT_LIM ? 'close' : null;

@@ -91,6 +91,7 @@ import { payForDamage } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { canSpotMon, monNam, revealUnseenAt } from './perception';
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
+import { isUndetected, setUndetected } from './hidestate';
 import { engulfingU } from './engulfstate';
 import { abuseDog } from './dog';
 import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
@@ -663,7 +664,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   const mon = target?.c.monster;
   if (!target || !mon) return;
   const def = ctx.defs.monster(target.def);
-  const name = monNam(ctx, target);
+  let name = monNam(ctx, target);
   const snap: PassiveTarget | null = target.c.pos
     ? { id: monId, def, level: mon.level, pos: { ...target.c.pos }, mcan: isCancelled(ctx, monId) }
     : null;
@@ -682,6 +683,16 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     say(ctx, 'kick.miss_wildly');
     passiveMiss();
     return;
+  }
+
+  // reveal hidden target even if kick ends up missing (note: being hidden doesn't affect chance
+  // to hit so neither does this reveal)
+  if (isUndetected(ctx, monId)) {
+    setUndetected(ctx, monId, false);
+    if (!canSpotMon(ctx, target)) mapInvisible(ctx, x, y);
+    if (canSpotMon(ctx, target)) say(ctx, 'hide.there_is_here', { mon: monNam(ctx, target) });
+    else say(ctx, 'hide.something_hidden_here');
+    name = monNam(ctx, target);
   }
 
   // Kick attacks by kicking monsters are normal attacks, not special: a polymorphed hero with

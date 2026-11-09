@@ -22,6 +22,7 @@ import { skillLevel } from './skills';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
 import { forgetMonster } from './mongear';
+import { hideMonst } from './hide';
 import {
   catchUpRegen,
   frozenTime,
@@ -529,14 +530,17 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     }
     followers.push(mon);
   }
-  // monsters left here earlier have been alone a while: pets go wilder, wounds heal
+  // monsters left here earlier have been alone a while: pets go wilder, wounds heal, hiders hide
   const since = left[to];
   if (since !== undefined) {
     for (const id of sortedIds(ctx.state)) {
       const mon = ctx.state.entities[String(id)];
       if (mon?.c.monster && mon.c.pos?.level === to) {
-        if (isTame(mon)) catchUpTameness(ctx, mon, ctx.state.turn - since);
-        catchUpRegen(ctx, mon, ctx.state.turn - since);
+        const elapsed = ctx.state.turn - since;
+        if (isTame(mon)) catchUpTameness(ctx, mon, elapsed);
+        catchUpRegen(ctx, mon, elapsed);
+        // ref: src/restore.c getlev(): "give hiders a chance to hide before their next move"
+        if (elapsed > 0 && elapsed > ctx.rng.rnd(10)) hideMonst(ctx, mon);
       }
     }
   }
