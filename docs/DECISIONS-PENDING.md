@@ -139,3 +139,22 @@ The planner marked all thirteen questions cheap to change later; the loop took e
 11. A looted throne as a per-cell flag in `modData`, like the fountain flags.
 12. The altar and sink rolls in ordinary rooms added in step 5 (moves the golden once).
 13. No wizard-mode branches in content (the wizard-only throne prompts and `pick_room()`'s shortcut are skipped).
+
+## Taken (m13 monster batch 2, 2026-11-09)
+
+The planner marked all fourteen questions cheap to change later; the loop took each recommendation (`~/.claude/plans/m13.md`, Open questions):
+
+1. The 8-step cut (leaving out vampires, incubi, shapeshifters, dragons, beholder, displacer beast, genetic engineer, master/arch-lich, Gehennom rows, angels, Kops, never-generated specials, the hero hiding or mimicking as a form, golem drop objects); if the budget runs short drop step 7 (figurines) first, then step 5 (long worms), then step 6's polypiling.
+2. Hiding through the existing perception `hides` hook plus a content "undetected" flag; no core change.
+3. Mimic disguises through `shownAs`, with an additive core fix: monster memory records what was shown, and an optional `marker` flag on appearances for the remembered `I` (no save-format change; also keeps hallucinated monsters from being remembered as their true kind). The position prompt's monster list still includes a disguised mimic (logged deviation).
+4. Long worm tails as content entities with a tail-to-worm lookup; no core multi-cell monsters.
+5. `LevelContent.appearAs` as an additive core field, like `montype`/`historic`.
+6. Golem drops the port has no object for (leash, saddle, grappling hook, boomerang, iron chain): the rolls are drawn, nothing is made.
+7. Figurines at their real probability 25; the golden change is accepted (verified with prob 0).
+8. Door mimics rolled in content's trapped-door hook (draws later in the level stream, difficulty 9+).
+9. `'mumble'` added to core `MonsterSound`.
+10. Vampires and minor demons stay out (`morguemon()`'s branches keep finding nothing).
+11. `set_mimic_sym()` makes and removes a throwaway object so the random draws match.
+12. Snakes and spiders made with a level object hide under it.
+13. A display-only grave appearance for grave mimics (no grave terrain).
+14. Master lich and arch-lich left out; lich, demilich and the Nazgul come in.
