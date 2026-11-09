@@ -121,3 +121,21 @@ The planner marked all ten questions cheap to change later; the loop took each r
 8. Blessed monster detection acts as uncursed until the timed Detect_monsters property exists.
 9. The golden moves in every step, each verified by filtering the step's defs; the bot seed is re-picked if needed.
 10. Death by genocide: `'genocided'` in content's `How`; core's `GameOver.kind` stays `'died'` (no score or save format change).
+
+## Taken (m12 special rooms, 2026-11-09)
+
+The planner marked all thirteen questions cheap to change later; the loop took each recommendation (`~/.claude/plans/m12.md`, Open questions):
+
+1. The 7-step cut; if the budget runs short, drop steps 6-7 (vaults and the guard) together first, then step 4's wall-walking.
+2. Vaults placed by core's level generator, handed to content through two temporary `Level` fields (consumed and deleted, never saved), like `boulderSpots`. Additive core change, explained in `ARCHITECTURE.md` by step 6.
+3. The vault guard's question as a text prompt raised at end of turn; if the engine misbehaves, the step stops and reports instead of changing core.
+4. `mk_tt_object()` without a high-score file or player monsters: the roll is drawn, an unnamed human corpse or statue is made.
+5. Morgue graves: the roll is drawn, nothing is made; ordinary-room graves are not rolled.
+6. Wall-walking for every monster flagged for it (ghosts now, xorns later), in step 4.
+7. Wizard aids: 3.7's terrain wish plus a `wiz:mkroom` action (not in NetHack; makes each step phone-checkable).
+8. Room kind ids `nh:court`, `nh:leprechaun_hall`, `nh:beehive`, `nh:morgue`, `nh:barracks`, `nh:cockatrice_nest`, `nh:anthole`, `nh:swamp`, `nh:vault`.
+9. The whole `makelevel()` room chain in step 1 (unbuilt kinds draw their roll and make nothing), so later steps don't shift deep-level streams.
+10. No Fort Ludios portal (no roll) and no "ad aerarium" engraving.
+11. A looted throne as a per-cell flag in `modData`, like the fountain flags.
+12. The altar and sink rolls in ordinary rooms added in step 5 (moves the golden once).
+13. No wizard-mode branches in content (the wizard-only throne prompts and `pick_room()`'s shortcut are skipped).
