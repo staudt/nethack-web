@@ -75,7 +75,10 @@ export interface GameState {
   memory: Record<LevelId, number[]>;
   /** Remembered top object per cell, as a shown id; keyed by cell index. */
   objectMemory: Record<LevelId, Record<string, DefId>>;
-  /** A monster stays shown where last seen until that cell is seen again; keyed by cell index. */
+  /**
+   * A monster stays shown where last seen until that cell is seen again, as it was shown (its
+   * `shownAs` id: a disguise, a warning digit) or a marker; keyed by cell index.
+   */
   monsterMemory: Record<LevelId, Record<string, DefId>>;
   /** Object def -> appearance def for randomized descriptions (ref: src/o_init.c shuffle_all). */
   appearances: Record<DefId, DefId>;

@@ -23,6 +23,7 @@ import { givePossessions } from './mongear';
 import { uState } from './luck';
 import { isGenocided } from './vanquished';
 import { hideunder } from './hide';
+import { setMimicSym } from './mimicstate';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -394,12 +395,13 @@ export function makemon(
     },
   });
 
-  // ref: makemon() switch (ptr->mlet): snakes and spiders made with the level get an object
-  // on their square and hide under it (hideunder()), leprechauns sleep, nymphs 4 times in 5 (no
-  // Amulet)
+  // ref: makemon() switch (ptr->mlet): a mimic takes a disguise (set_mimic_sym()); snakes and
+  // spiders made with the level get an object on their square and hide under it (hideunder()),
+  // leprechauns sleep, nymphs 4 times in 5 (no Amulet)
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
-  if ((mlet === 'S' || mlet === 's') && opts.inMklev) {
+  if (mlet === 'm') setMimicSym(ctx, id, opts.inMklev === true);
+  else if ((mlet === 'S' || mlet === 's') && opts.inMklev) {
     if (!levelObjectAt) throw new Error('makemon: mkobj.ts has not registered mkobj_at()');
     levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
     hideunder(ctx, id, true);

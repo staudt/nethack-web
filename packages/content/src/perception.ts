@@ -30,6 +30,7 @@ import {
 } from './invis';
 import { epriOf, priestName } from './epri';
 import { isUndetected } from './hidestate';
+import { MIMIC_APPEARANCES, mappearance, mimicShownAs } from './mimicstate';
 import { eshkOf, shkName } from './eshk';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
@@ -216,6 +217,23 @@ export function registerPerception(api: ModApi): void {
   api.definePerception({
     id: 'nh:hiding',
     hides: (state, _defs, mon) => isUndetected({ state }, mon.id),
+  });
+  // mimicry: a disguised mimic is drawn, described and remembered as what it pretends to be,
+  // unless she senses it (telepathy); hallucinating she sees a random object (furniture stays
+  // furniture, a monster disguise is a random monster)
+  // ref: src/display.c display_monster() (the mimic case), map_object(), what_mon()
+  for (const a of MIMIC_APPEARANCES) api.defineAppearance(a);
+  api.definePerception({
+    id: 'nh:mimicry',
+    shownAs(state, defs, e) {
+      if (!defs.isMonster(e.def)) return null;
+      const ap = mappearance({ state }, e.id);
+      const shown = ap ? mimicShownAs(state, defs, e) : null;
+      if (!ap || shown === null || telepathSenses(state, defs, e)) return null;
+      if (!heroHas(state, P.HALLUC) || ap.type === 'furniture') return shown;
+      const pool = ap.type === 'monster' ? defs.monsters : defs.objects;
+      return pool[mix(state.seed, state.turn, e.id) % pool.length]?.id ?? shown;
+    },
   });
   api.definePerception({
     id: 'nh:senses',

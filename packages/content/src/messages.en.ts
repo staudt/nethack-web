@@ -42,6 +42,7 @@ import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
+import { mimicMessagesEn } from './mimic.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -102,6 +103,7 @@ export const messagesEn: Record<string, string> = {
   ...monabilityMessagesEn,
   ...invisMessagesEn,
   ...hideMessagesEn,
+  ...mimicMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
@@ -319,6 +321,9 @@ export const messagesEn: Record<string, string> = {
   'nh:spotted_jelly': 'spotted jelly',
   'nh:ochre_jelly': 'ochre jelly',
   'nh:leprechaun': 'leprechaun',
+  'nh:small_mimic': 'small mimic',
+  'nh:large_mimic': 'large mimic',
+  'nh:giant_mimic': 'giant mimic',
   'nh:water_nymph': 'water nymph',
   'nh:wood_nymph': 'wood nymph',
   'nh:mountain_nymph': 'mountain nymph',

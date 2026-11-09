@@ -36,11 +36,19 @@ const monDef = (name: string, ch: string): MonsterDef => ({
 });
 
 /** `invis`: entity ids that are invisible; `seeInvis`/`tele`: hero senses; `form`/`unseen`: self. */
-type Flags = { invis?: number[]; tele?: boolean; form?: DefId; unseen?: boolean };
+type Flags = {
+  invis?: number[];
+  tele?: boolean;
+  form?: DefId;
+  unseen?: boolean;
+  /** entity id -> the id it is shown as (shownAs) */
+  shown?: Record<string, DefId>;
+};
 const flags = (s: Readonly<GameState>): Flags => (s.modData['ph'] ?? {}) as Flags;
 const set = (s: GameState, f: Flags): void => void (s.modData['ph'] = f as Json);
 
 const MARK: DefId = 'ph:remembered_unseen';
+const DISGUISE: DefId = 'ph:disguise';
 
 /** Mod 'ph': a test PerceptionDef switched by `modData.ph`, a marker appearance, an entity offer. */
 const phMod: Mod = {
@@ -55,9 +63,18 @@ const phMod: Mod = {
       nameKey: 'ph.unseen',
       class: 'rock',
       glyph: { ch: 'I', fg: '#fff' },
+      marker: true,
+    });
+    // a disguise: an appearance that is not a marker
+    api.defineAppearance({
+      id: DISGUISE,
+      nameKey: 'ph.disguise',
+      class: 'rock',
+      glyph: { ch: ']', fg: '#fff' },
     });
     api.definePerception({
       id: 'ph:invis',
+      shownAs: (s, _d, e) => flags(s).shown?.[String(e.id)] ?? null,
       hides: (s, _d, mon) => (flags(s).invis ?? []).includes(mon.id),
       senses: (s) => flags(s).tele === true,
       self: (s) => {
@@ -176,9 +193,36 @@ describe('perception: hides', () => {
 });
 
 describe('monster memory markers', () => {
-  test('isMarker: any id that is not a MonsterDef id', () => {
+  test('isMarker: an appearance flagged marker, nothing else', () => {
     expect(isMarker(engine.registry, MARK)).toBe(true);
     expect(isMarker(engine.registry, 'ph:mon')).toBe(false);
+    expect(isMarker(engine.registry, DISGUISE)).toBe(false);
+  });
+
+  test('a monster is remembered as it was shown (m13: newsym() keeps the shown glyph)', () => {
+    const s = fresh();
+    const p = nextToHero(s);
+    const id = addMonster(s, p);
+    set(s, { shown: { [String(id)]: DISGUISE } });
+    engine.step(s, WAIT);
+    expect(mem(s, p)).toBe(DISGUISE);
+    expect(view(s).entities.find((e) => e.id === id)?.g).toBe(DISGUISE);
+    // shown as another monster (hallucination): that monster is remembered
+    set(s, { shown: { [String(id)]: 'ph:form' } });
+    engine.step(s, WAIT);
+    expect(mem(s, p)).toBe('ph:form');
+  });
+
+  test('a remembered disguise (not a marker) is cleared when its cell is seen empty', () => {
+    const s = fresh();
+    const p = nextToHero(s);
+    const id = addMonster(s, p);
+    set(s, { shown: { [String(id)]: DISGUISE } });
+    engine.step(s, WAIT);
+    expect(mem(s, p)).toBe(DISGUISE);
+    delete s.entities[String(id)];
+    engine.step(s, WAIT);
+    expect(mem(s, p)).toBeUndefined();
   });
 
   test('a marker stays on a visible empty cell and shows as ViewCell.m there', () => {

@@ -1,4 +1,4 @@
-// Monster memory markers: remembered glyphs that are not monsters (the remembered-unseen `I`).
+// Monster memory markers: remembered glyphs flagged `AppearanceDef.marker` (the remembered-unseen `I`).
 // ref: src/display.c map_invisible(), unmap_invisible(), newsym()
 import type { DefId, LevelId, Pos } from './types/common';
 import type { Registry } from './types/mod';
@@ -6,12 +6,13 @@ import type { GameState } from './types/state';
 import { cellIndex, inBounds } from './util';
 
 /**
- * True when a `monsterMemory` entry is a marker: any id that is not a MonsterDef id (vanilla's
- * remembered-unseen `I` is an AppearanceDef). Vision keeps markers on visible cells until a
- * perceived monster replaces them or content clears them.
+ * True when a `monsterMemory` entry is a marker: an AppearanceDef flagged `marker` (vanilla's
+ * remembered-unseen `I`). Vision keeps markers on visible cells until a perceived monster
+ * replaces them or content clears them; any other entry (a monster, or what one was shown as)
+ * is cleared when its cell is seen empty.
  */
 export function isMarker(registry: Registry, id: DefId): boolean {
-  return !registry.isMonster(id);
+  return registry.isAppearance(id) && registry.appearance(id).marker === true;
 }
 
 /**

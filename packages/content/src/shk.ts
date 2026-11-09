@@ -21,6 +21,7 @@
 // donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
 // (no Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
 // yet), Keystone Kops (call_kops() only sounds the alarm; DEVIATIONS), remote_burglary().
+import { apAsThing } from './mimicstate';
 import {
   NORMAL_SPEED,
   contents,
@@ -66,7 +67,7 @@ import { isFrozen, unfreezeMonst } from './mstate';
 import { heroInvisible } from './invis';
 import { discover, isKnown } from './o_init';
 import { doname, paydoname, xnameOf, zorkmids } from './objnam';
-import { canSpotMon } from './perception';
+import { canSpotMon, sensemon } from './perception';
 import {
   containedCost,
   containedGold,
@@ -189,7 +190,8 @@ function desertedShop(ctx: Ctx, level: Level, room: number): void {
     if (p.x < r.lx || p.x > r.hx || p.y < r.ly || p.y > r.hy) continue;
     if (hp && p.x === hp.x && p.y === hp.y) continue;
     ++n;
-    if (canSpotMon(ctx, mon)) ++m; // sensemon() || canseemon() (no mimics)
+    // sensemon() || ((not posing as an object or furniture) && canseemon())
+    if (sensemon(ctx, mon) || (!apAsThing(ctx, id) && canSpotMon(ctx, mon))) ++m;
   }
   // force feedback to be less specific
   if (hasProp(hero, P.BLINDED) && !hasProp(hero, P.TELEPAT)) ++n;

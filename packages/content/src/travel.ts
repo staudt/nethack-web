@@ -1,4 +1,5 @@
 import { isSafemon } from './actions';
+import { apAsThing } from './mimicstate';
 import {
   DIRS,
   DIR_LIST,
@@ -40,7 +41,8 @@ function targetOf(action: PlayerAction): Pos | null {
 export function visibleMonsterAt(ctx: Ctx, pos: Pos): { peaceful: boolean } | null {
   for (const e of ctx.query.describe(pos).entities) {
     const m = ctx.state.entities[String(e.id)]?.c.monster;
-    if (m) return { peaceful: m.peaceful };
+    // a mimic posing as an object or furniture is not a monster she sees
+    if (m && !apAsThing(ctx, e.id)) return { peaceful: m.peaceful };
   }
   return null;
 }

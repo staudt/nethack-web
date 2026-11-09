@@ -72,7 +72,9 @@ describe('monster memory invariants', () => {
     expect(errs(s)).toMatch(/not a cell index/);
     s.monsterMemory[lv.id] = { '-1': 'nh:newt' };
     expect(errs(s)).toMatch(/not a cell index/);
-    s.monsterMemory[lv.id] = { '3': 'nh:dagger' };
+    s.monsterMemory[lv.id] = { '3': 'nh:dagger' }; // a disguise: an object's legend key
+    expect(errs(s)).toBe('');
+    s.monsterMemory[lv.id] = { '3': 'nh:no_such_thing' };
     expect(errs(s)).toMatch(/not a registered monster/);
     s.monsterMemory[lv.id] = {};
     s.monsterMemory['nowhere'] = {};

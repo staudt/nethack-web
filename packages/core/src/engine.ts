@@ -34,7 +34,7 @@ import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
 import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
-import { heroBlind, heroLights, perceivesMonster } from './perception';
+import { heroBlind, heroLights, perceivesMonster, shownAs } from './perception';
 import { isMarker } from './memory';
 import { placeTrapOn, removeTrapOn, trapAt } from './traps';
 
@@ -337,7 +337,10 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (!e || !p || p.level !== level.id || id === state.playerId || !registry.isMonster(e.def))
         continue;
       const i = p.y * level.width + p.x;
-      if (vis.has(i) && perceivesMonster(registry, state, e, true)) mons.set(i, e.def);
+      // newsym() keeps the glyph that was displayed: a disguise, a warning digit or a
+      // hallucinated monster is remembered as shown
+      if (vis.has(i) && perceivesMonster(registry, state, e, true))
+        mons.set(i, shownAs(registry, state, e, e.def));
     }
     for (const i of visible) {
       const m = mons.get(i);

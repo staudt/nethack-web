@@ -10,6 +10,7 @@
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square after a change
 // during the monsters' move (no onscary()).
+import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
 import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';
 import { isGenocided } from './vanquished';
@@ -155,6 +156,9 @@ export function newcham(
   if (mdat.id === olddata.id) return false; // still the same monster
 
   // (no gender kept for monsters: mgender_from_permonst() is not ported)
+
+  // a mimic that becomes something else drops its disguise
+  if (mApType(ctx, mon.id) !== null && mdat.glyph.ch !== 'm') seemimic(ctx, mon.id); // revert to normal monster
 
   // give the new form the same proportion of HP as its old one had
   const hp = mon.c.hp;

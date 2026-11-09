@@ -23,6 +23,8 @@ import {
   rnl,
   trapAt,
 } from '@nh/core';
+import { mApType, seemimic } from './mimicstate';
+import { stumbleOnDoorMimic } from './mimic';
 import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
 import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
@@ -769,8 +771,10 @@ const open: ActionDef = {
     if (!dir) return [];
     const form = heroForm(ctx);
     if (form && nohands(form)) return [];
-    // what the hero knows: a locked door looks closed
-    if (ctx.query.describe(target.pos).terrain !== T.door_closed) return [];
+    // what the hero knows: a locked door looks closed (and so does a mimic posing as one)
+    const seen = ctx.query.describe(target.pos);
+    if (seen.terrain !== T.door_closed && !seen.entities.some((e) => e.def === T.door_closed))
+      return [];
     return [
       {
         action: { type: 'mod', action: 'nh:open', args: { dir } },
@@ -792,6 +796,10 @@ const open: ActionDef = {
     const from = playerAt(ctx);
     const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
     const level = getLevel(ctx.state);
+    // "That closed door actually is a giant mimic!"
+    const mid = inBounds(level, to.x, to.y) ? monsterIdAt(ctx, to, level.id) : null;
+    if (stumbleOnDoorMimic(ctx, mid === null ? null : ctx.state.entities[String(mid)]))
+      return NORMAL_SPEED;
     const id = inBounds(level, to.x, to.y)
       ? level.palette[level.cells[cellIndex(level, to.x, to.y)] ?? 0]
       : undefined;
@@ -860,15 +868,21 @@ const search: ActionDef = {
  * An explicit search finds a monster next to her that she can't spot, or one hiding there (it
  * comes out): "You feel an unseen monster!" and the `I` when she still can't spot it, else "You
  * find a rock piercer." (unless she senses it). 1 when found (the search ends there), -1 when the
- * `I` already marks it (the square is skipped), 0 otherwise. ref: src/detect.c mfind0() (no
- * mimics, eels or warning; no Wis exercise)
+ * `I` already marks it (the square is skipped), 0 otherwise; a disguised mimic is always found
+ * ("You find a giant mimic."). ref: src/detect.c mfind0() (no eels or warning; no Wis exercise)
  */
 function mfind0(ctx: Ctx, mon: Entity, x: number, y: number): number {
-  let found = !canSpotMon(ctx, mon);
-  const def = ctx.defs.monster(mon.def);
-  if (isUndetected(ctx, mon.id) && (isHider(def) || hidesUnder(def))) {
-    setUndetected(ctx, mon.id, false);
+  let found: boolean;
+  if (mApType(ctx, mon.id) !== null) {
+    seemimic(ctx, mon.id);
     found = true;
+  } else {
+    found = !canSpotMon(ctx, mon);
+    const def = ctx.defs.monster(mon.def);
+    if (isUndetected(ctx, mon.id) && (isHider(def) || hidesUnder(def))) {
+      setUndetected(ctx, mon.id, false);
+      found = true;
+    }
   }
   if (!found) return 0;
   const spot = canSpotMon(ctx, mon);
@@ -890,7 +904,8 @@ function mfind0(ctx: Ctx, mon: Entity, x: number, y: number): number {
 
 /**
  * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching:
- * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. Mimics are not implemented; there is no lenses/artifact bonus (fund = 0). Luck counts.
+ * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. There is no lenses/artifact bonus
+ * (fund = 0). Luck counts.
  */
 function dosearch0(ctx: Ctx, aflag: boolean): void {
   const here = playerAt(ctx);

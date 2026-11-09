@@ -1,5 +1,7 @@
 // Attacking peaceful monsters: the confirmation, waking monsters and making them angry.
 // ref: src/uhitm.c attack_checks(), src/mon.c wakeup(), setmangry(), peacefuls_respond()
+import { mApType, seemimic } from './mimicstate';
+import { stickIfSticky, stumbleOntoMimic } from './mimic';
 import { engulfingU } from './engulfstate';
 import {
   getPlayer,
@@ -58,8 +60,10 @@ export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
  * dagger!" (or "a hidden monster" blind; a hallucinated wild or tame one), unless she senses it by
  * telepathy or remembered an `I` there (then she attacks it). A hidden monster she senses comes
  * out and wakes. True when the attack is called off (the move is still spent). Not for a forced
- * fight (the `F` prefix, a kick at an unseen monster) or an engulfer. ref: src/uhitm.c
- * attack_checks() (no mimics, eels or Detect_monsters)
+ * fight (the `F` prefix, a kick at an unseen monster) or an engulfer. A disguised mimic she does
+ * not sense is stumbled onto ("Wait!  That's a giant mimic!": called off), or attacked when she
+ * remembered an `I` there; an unseen one sticks to her. ref: src/uhitm.c attack_checks() (no
+ * eels or Detect_monsters)
  */
 export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number): boolean {
   if (engulfingU(ctx, mon.id)) return false; // `if (engulfing_u(mtmp)) return FALSE`
@@ -74,7 +78,19 @@ export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number):
   ) {
     say(ctx, 'attack.wait_unseen');
     mapInvisible(ctx, x, y);
-    wakeup(ctx, mon.id); // wakeup(mtmp, TRUE): "always necessary"
+    // if it was an invisible mimic, treat it as if we stumbled onto a visible mimic
+    if (mApType(ctx, mon.id) !== null) stickIfSticky(ctx, mon);
+    wakeup(ctx, mon.id); // wakeup(mtmp, TRUE): "always necessary; also un-mimics mimics"
+    return true;
+  }
+  if (mApType(ctx, mon.id) !== null && !sensemon(ctx, mon) && !warned) {
+    // if a hidden mimic was in a square where she remembers some (probably different) unseen
+    // monster, she is in luck: she attacks it even though it's hidden
+    if (markedUnseen(ctx, x, y)) {
+      seemimic(ctx, mon.id);
+      return false;
+    }
+    stumbleOntoMimic(ctx, mon);
     return true;
   }
   if (isUndetected(ctx, mon.id) && !canseemon(ctx, mon) && !warned && hidesUnder(def)) {
@@ -97,7 +113,7 @@ export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number):
     }
   }
   // make sure to wake up a monster from the above cases if the hero can sense that it is there
-  if (isUndetected(ctx, mon.id) && sensemon(ctx, mon)) {
+  if ((isUndetected(ctx, mon.id) || mApType(ctx, mon.id) !== null) && sensemon(ctx, mon)) {
     setUndetected(ctx, mon.id, false);
     wakeup(ctx, mon.id);
   }
@@ -198,7 +214,7 @@ export function setmangry(ctx: Ctx, id: EntityId): void {
  * Wakes a monster that the hero attacked, which also angers it; a peaceful temple priest
  * attacked in a temple brings down his god's anger (ghod_hitsu()), and a peaceful shopkeeper
  * attacked while she is in no shop goes after her (hot_pursuit()).
- * ref: src/mon.c wakeup(mtmp, TRUE): wake_msg(), `msleeping = 0`, setmangry()
+ * ref: src/mon.c wakeup(mtmp, TRUE): wake_msg(), `msleeping = 0`, seemimic(), setmangry()
  */
 export function wakeup(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
@@ -207,6 +223,9 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
   if (m.asleep && mon.c.pos && heroSees(ctx, mon.c.pos))
     say(ctx, 'mon.wakes_up', { mon: monNam(ctx, mon) });
   m.asleep = false;
+  // mimics come out of hiding (one posing as a monster keeps its disguise)
+  const ap = mApType(ctx, id);
+  if (ap !== null && ap !== 'monster') seemimic(ctx, id);
   const wasPeaceful = m.peaceful;
   setmangry(ctx, id);
   // a peaceful priest attacked in a temple: his god strikes at the hero

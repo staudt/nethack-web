@@ -46,6 +46,7 @@ import {
 } from './mstate';
 import { canSpotMon, monNam, sensemon } from './perception';
 import { isUndetected, setUndetected } from './hidestate';
+import { mApType, seemimic } from './mimicstate';
 import { findMac } from './stats';
 import { couldSeduce } from './steal';
 import { nhData } from './items';
@@ -565,6 +566,10 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
       ctx.emit({ type: 'msg', key: 'hide.suddenly_notice', params: { mon: monNam(ctx, mdef) } });
   }
   setUndetected(ctx, magr.id, false);
+  // ref: pre_mm_attack(): unmimicking happens even if she can't see it, because the formerly
+  // concealed monster is now in action
+  if (mApType(ctx, mdefId) !== null) seemimic(ctx, mdefId);
+  if (mApType(ctx, magr.id) !== null) seemimic(ctx, magr.id);
   // elves hate orcs
   if (pa.flags.includes('elf') && ctx.defs.monster(mdef.def).flags.includes('orc')) tmp++;
 

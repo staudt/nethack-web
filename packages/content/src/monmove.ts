@@ -1,4 +1,5 @@
 // Monster movement and turn logic: mcalcmove, disturb, mfndpos, m_move and dochug.
+import { apAsThing } from './mimicstate';
 import {
   cellIndex,
   cellRules,
@@ -178,8 +179,8 @@ const monCount = (ctx: Ctx, id: EntityId) => {
 /**
  * Possibly awaken a sleeping monster; true if it woke up.
  * ref: src/monmove.c disturb(). The hero's line of sight is `couldsee()` (ignores light).
- * The Stealth test uses the hero's Stealth property. Not applicable to our roster: ettin,
- * nymph, jabberwock, leprechaun, mimics.
+ * The Stealth test uses the hero's Stealth property; a mimic posing as an object or furniture is
+ * not woken by the 1 in 7. Not applicable to our roster: ettin, nymph, jabberwock, leprechaun.
  */
 export function disturb(ctx: Ctx, id: EntityId): boolean {
   const { m, pos, def } = monCount(ctx, id);
@@ -203,7 +204,7 @@ export function disturb(ctx: Ctx, id: EntityId): boolean {
     (heroHas(ctx.state, P.AGGRAVATE_MONSTER) ||
       def.glyph.ch === 'd' ||
       def.glyph.ch === '@' ||
-      ctx.rng.rn2(7) === 0)
+      (ctx.rng.rn2(7) === 0 && !apAsThing(ctx, id)))
   ) {
     // ref: src/mon.c wake_msg()
     const idx = cellIndex(level, pos.x, pos.y);
@@ -1043,6 +1044,7 @@ export function dochug(
     const d00 = ctx.defs.monster(me00.def);
     if (isHider(d00)) {
       if (restrap(ctx, me00)) return;
+      if (apAsThing(ctx, id)) return; // a disguised mimic stays put
       if (isUndetected(ctx, id)) return;
     } else maybeUnhideAt(ctx, pos.level, pos.x, pos.y);
   }

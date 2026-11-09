@@ -40,6 +40,7 @@ export const REMEMBERED_UNSEEN_APPEARANCE: AppearanceDef = {
   nameKey: REMEMBERED_UNSEEN,
   class: 'rock',
   glyph: { ch: 'I', fg: '#aaaaaa' },
+  marker: true,
 };
 
 const MUMMY_WRAPPING: DefId = 'nh:mummy_wrapping';

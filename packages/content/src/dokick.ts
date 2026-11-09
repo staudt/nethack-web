@@ -13,6 +13,7 @@
 // Also not ported: traps but statue traps, boxes and chests, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
+import { mApType, seemimic } from './mimicstate';
 import { EGG } from './eggstate';
 import { breakEggs } from './egghit';
 import { bareCorpseTouch } from './stonetouch';
@@ -577,6 +578,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
   if (uarmf(ctx)?.def === KICKING_BOOTS) dmg += 5;
   if (clumsy) dmg = Math.trunc(dmg / 2); // excessive weight affects Dex, so it affects damage
   if (thickSkinned(def)) dmg = 0; // kicking a dragon or an elephant will not harm it
+  if (mApType(ctx, monId) !== null) seemimic(ctx, monId); // ref: kickdmg()
   // "squeeze some guilt feelings...": a kicked pet is abused and runs off
   if (mon.tame) {
     abuseDog(ctx, monId);
@@ -687,7 +689,9 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
 
   // reveal hidden target even if kick ends up missing (note: being hidden doesn't affect chance
   // to hit so neither does this reveal)
-  if (isUndetected(ctx, monId)) {
+  const kap = mApType(ctx, monId);
+  if (isUndetected(ctx, monId) || (kap !== null && kap !== 'monster')) {
+    if (kap !== null) seemimic(ctx, monId);
     setUndetected(ctx, monId, false);
     if (!canSpotMon(ctx, target)) mapInvisible(ctx, x, y);
     if (canSpotMon(ctx, target)) say(ctx, 'hide.there_is_here', { mon: monNam(ctx, target) });

@@ -134,6 +134,12 @@ export interface AppearanceDef {
   nameKey: string;
   class: ObjectClass;
   glyph: Glyph;
+  /**
+   * A monster memory marker (vanilla's remembered-unseen `I`): kept on a visible cell while no
+   * perceived monster is there. Other ids in monster memory (a remembered monster, warning digit
+   * or disguise) are cleared when their cell is seen empty. ref: src/display.c map_invisible()
+   */
+  marker?: true;
 }
 
 /** A bottom-line field computed from state (AC, gold, hunger); null leaves it out. ref: src/botl.c */

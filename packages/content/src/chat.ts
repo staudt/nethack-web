@@ -2,10 +2,12 @@
 // domonnoise(); src/priest.c priest_talk() (in priest.ts); src/shk.c shk_chat(), price_quote()
 // (in shk.ts)
 //
-// Not ported: polymorph (silent forms), engulfing, water, deafness, statues, mimics and hiders, steeds, the up/down directions, full moon and night (no
+// Not ported: polymorph (silent forms), engulfing, water, deafness, statues, steeds, the up/down directions, full moon and night (no
 // clock), "remembered, unseen" markers, monster confusion and blindness, quest and Oracle talk,
 // and every sound no monster here makes. A hallucinating hero gets no funny currency or wall
 // lines beyond the wall table.
+import { apAsThing } from './mimicstate';
+import { isUndetected } from './hidestate';
 import {
   DIRS,
   DIR_LIST,
@@ -353,6 +355,8 @@ function chatDir(ctx: Ctx, want: Dir | 'self'): ChatResult {
     }
     return 0;
   }
+  // a hiding monster, or a mimic posing as an object or furniture, does not answer
+  if (isUndetected(ctx, id) || apAsThing(ctx, id)) return 0;
   const m = mon.c.monster;
   // sleeping monsters won't talk, except priests (who wake up)
   if ((m.asleep || isFrozen(ctx, id)) && !epriOf(ctx, id)) {

@@ -5,8 +5,7 @@
 // ref: src/mon.c hideunder(), hide_monst(), maybe_unhide_at(), restrap();
 // src/monmove.c can_hide_under_obj()
 //
-// Not ported: eels (no water), the hero hiding as a form (u.uundetected), mimics' restrap()
-// branch (m13 step 2).
+// Not ported: eels (no water), the hero hiding as a form (u.uundetected).
 import {
   cellIndex,
   getPlayer,
@@ -22,7 +21,8 @@ import {
 import { ustuck } from './hackmove';
 import { hidesUnder, isHider, isUndetected, setUndetected } from './hidestate';
 import { canseemon } from './invis';
-import { isCancelled } from './mstate';
+import { isCancelled, isFrozen } from './mstate';
+import { mApType, setMimicSym } from './mimicstate';
 import { xnameOf } from './objnam';
 import { monNam, sensemon } from './perception';
 import { resistsSton, touchPetrifies } from './stonestate';
@@ -148,8 +148,8 @@ function cansee(ctx: Pick<Ctx, 'state'>, level: LevelId, x: number, y: number): 
  * An unwatched hider hides again, 1 time in 3: not cancelled, not on a square she sees, not
  * holding her, not trapped (but in a pit), not next to her when she senses it; a piercer,
  * trapper or lurker above hides on plain floor (every level has a ceiling here). `unseen` is
- * hide_monst()'s forced "hero can't see the spot". Returns whether it hid. ref: src/mon.c
- * restrap() (the mimic branch is m13 step 2)
+ * hide_monst()'s forced "hero can't see the spot"; an awake mimic takes a disguise
+ * (set_mimic_sym()) instead. Returns whether it hid. ref: src/mon.c restrap()
  */
 export function restrap(ctx: Ctx, mon: Entity, unseen = false): boolean {
   const p = mon.c.pos;
@@ -159,6 +159,7 @@ export function restrap(ctx: Ctx, mon: Entity, unseen = false): boolean {
     !!hp && hp.level === p.level && Math.max(Math.abs(hp.x - p.x), Math.abs(hp.y - p.y)) <= 1;
   if (
     isCancelled(ctx, mon.id) ||
+    mApType(ctx, mon.id) !== null ||
     (!unseen && cansee(ctx, p.level, p.x, p.y)) ||
     ctx.rng.rn2(3) ||
     ustuck(ctx) === mon.id ||
@@ -168,6 +169,12 @@ export function restrap(ctx: Ctx, mon: Entity, unseen = false): boolean {
     (sensemon(ctx, mon) && next2u)
   )
     return false;
+  if (ctx.defs.monster(mon.def).glyph.ch === 'm') {
+    // the mimic needs to be awake to disguise itself as something else
+    if (mon.c.monster?.asleep || isFrozen(ctx, mon.id)) return false;
+    setMimicSym(ctx, mon.id);
+    return true;
+  }
   const lv = ctx.state.levels[p.level];
   const here = lv ? lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? 0] : undefined;
   if (here === T.floor) {
@@ -179,14 +186,16 @@ export function restrap(ctx: Ctx, mon: Entity, unseen = false): boolean {
 
 /**
  * Called for each monster when the hero comes back to its level after a while: a hider that is
- * not hiding gets a restrap() as if unseen, a hider-underer a hideunder(). ref: src/mon.c
- * hide_monst() (no mimics or eels yet)
+ * not hiding gets a restrap() as if unseen (a mimic that missed its 1 in 3 gets a second), a
+ * hider-underer a hideunder(). ref: src/mon.c hide_monst() (no eels)
  */
 export function hideMonst(ctx: Ctx, mon: Entity): void {
   const def = ctx.defs.monster(mon.def);
   const hiderUnder = hidesUnder(def);
-  if ((isHider(def) || hiderUnder) && !isUndetected(ctx, mon.id)) {
+  if ((isHider(def) || hiderUnder) && !isUndetected(ctx, mon.id) && mApType(ctx, mon.id) === null) {
     if (isHider(def)) restrap(ctx, mon, true);
+    // try again if mimic missed its 1/3 chance to hide
+    if (def.glyph.ch === 'm' && mApType(ctx, mon.id) === null) restrap(ctx, mon, true);
     if (hiderUnder) hideunder(ctx, mon.id, true);
   }
 }

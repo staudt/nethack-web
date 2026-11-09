@@ -41,7 +41,8 @@ type Key =
   | 'mblinded'
   | 'minvis'
   | 'mux'
-  | 'mundetected';
+  | 'mundetected'
+  | 'mappear';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -281,6 +282,7 @@ const KEYS: readonly Key[] = [
   'minvis', // invis.ts
   'mux', // apparxy.ts
   'mundetected', // hidestate.ts
+  'mappear', // mimicstate.ts
 ];
 
 /** Forgets the states of a monster that died or left. */
@@ -288,6 +290,7 @@ const KEYS: readonly Key[] = [
 export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId): void {
   for (const k of KEYS) {
     if (k === 'mundetected') continue; // ref: src/makemon.c clone_mon(): `m2->mundetected = 0`
+    if (k === 'mappear') continue; // only puddings are cloned, never a disguised mimic
     const t = table(ctx, k, false);
     const v = t?.[String(from)];
     if (t && v !== undefined) t[String(to)] = v;

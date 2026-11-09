@@ -4,8 +4,10 @@
 // ref: src/lock.c pick_lock(), picklock(), lock_action(), reset_pick(), maybe_reset_pick(),
 // autokey(); src/allmain.c interrupt_occupation / stop_occupation()
 //
-// Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, door mimics, the Rogue bonus (the hero is a Valkyrie), shop doors,
+// Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, the Rogue bonus (the hero is a Valkyrie), shop doors,
 // levitation, pits, polymorphed forms without hands, Dex exercise (no exercise system yet).
+import { apAsThing } from './mimicstate';
+import { stumbleOnDoorMimic } from './mimic';
 import {
   DIRS,
   DIR_LIST,
@@ -342,10 +344,12 @@ function pickDoor(ctx: Ctx, pick: Entity, dir: Dir): number {
   const mon = sortedIds(ctx.state)
     .map((id) => ctx.state.entities[String(id)])
     .find((e) => e?.c.monster && e.c.pos?.level === p.level && e.c.pos.x === x && e.c.pos.y === y);
-  if (mon && canSpotMon(ctx, mon)) {
+  if (mon && canSpotMon(ctx, mon) && !apAsThing(ctx, mon.id)) {
     say(ctx, 'lock.wouldnt_appreciate', { mon: monNam(ctx, mon) });
     return LEARNED;
   }
+  // "The door actually was a <mimic>!" (the mimic keeping the key is not ported)
+  if (stumbleOnDoorMimic(ctx, mon)) return LEARNED;
   const t = terrainAt(ctx, lv, x, y);
   // a secret door is not a door yet (IS_DOOR is false for SDOOR)
   if (!t?.door) {

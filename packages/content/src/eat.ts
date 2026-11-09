@@ -2,6 +2,7 @@
 // ref: src/eat.c doeat(), start_eating(), eatfood(), done_eating(), bite(), choke(),
 // rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx(); shop food: touchfood()'s
 // costly_alteration(COST_BITE), useupf()
+import { apAsThing } from './mimicstate';
 import { engulferOf } from './engulfstate';
 import {
   NORMAL_SPEED,
@@ -390,7 +391,7 @@ export function monsterNearby(ctx: Ctx): boolean {
       if (dx === 0 && dy === 0) continue;
       for (const m of ctx.query.describe({ x: pos.x + dx, y: pos.y + dy }).entities) {
         const mon = ctx.state.entities[String(m.id)]?.c.monster;
-        if (mon && !mon.peaceful && !mon.asleep) return true;
+        if (mon && !mon.peaceful && !mon.asleep && !apAsThing(ctx, m.id)) return true;
       }
     }
   return false;

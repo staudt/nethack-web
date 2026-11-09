@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-154 NetHack files, 4013 citations.
+155 NetHack files, 4044 citations.
 
 ## dat/dungeon.lua
 
@@ -109,6 +109,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `A_CHAOTIC()`: `packages/content/src/luck.ts`
 - `A_NEUTRAL()`: `packages/content/src/generation.ts`
 - `A_NONE()`: `packages/content/src/aligntyp.ts`
+- `Align2amask()`: `packages/content/src/mimic.ts`
 
 ## include/attrib.h
 
@@ -140,6 +141,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `S_corr()`: `packages/content/src/terrain.ts`
 - `S_crwall()`: `packages/content/src/terrain.ts`
 - `S_dnstair()`: `packages/content/src/terrain.ts`
+- `S_grave()`: `packages/content/src/mimicstate.ts`
 - `S_ndoor()`: `packages/content/src/terrain.ts`
 - `S_room()`: `packages/content/src/terrain.ts`
 - `S_stone()`: `packages/content/src/terrain.ts`
@@ -159,6 +161,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `_tp_sensemon()`: `packages/content/src/perception.ts`
 - `explosion_to_glyph()`: `packages/content/src/explode.ts`
 - `glyph_is_invisible()`: `packages/content/src/invis.ts`
+- `is_door_mappear()`: `packages/content/src/mimicstate.ts`
 - `is_safemon()`: `packages/content/src/actions.ts`
 - `mon_visible()`: `packages/content/src/invis.ts`
 - `obj_to_glyph()`: `packages/content/src/statuestate.ts`, `packages/core/src/types/mod.ts`
@@ -339,6 +342,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/hidestate.ts`, `packages/content/src/mstate.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
 - `MON_WEP()`: `packages/content/src/mongear.ts`
 - `engulfing_u()`: `packages/content/src/engulfstate.ts`
+- `m_ap_type()`: `packages/content/src/mimicstate.ts`
 - `monmax_difficulty()`: `packages/content/src/generation.ts`
 - `monmin_difficulty()`: `packages/content/src/generation.ts`
 
@@ -407,7 +411,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `GLOVES()`: `packages/content/src/objects.ts`
 - `HELM()`: `packages/content/src/objects.ts`
 - `KICKING_BOOTS()`: `packages/content/src/dokick.ts`
-- `OBJECT()`: `packages/content/src/objects.ts`
+- `OBJECT()`: `packages/content/src/mimicstate.ts`, `packages/content/src/objects.ts`
 - `POTION()`: `packages/content/src/objects.ts`
 - `POT_WATER()`: `packages/content/src/zap.ts`
 - `PROJECTILE()`: `packages/content/src/objects.ts`
@@ -417,6 +421,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `SHIELD()`: `packages/content/src/objects.ts`
 - `SKELETON_KEY()`: `packages/content/src/lockstate.ts`
 - `SPELL()`: `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/zap.ts`
+- `STRANGE_OBJECT()`: `packages/content/src/mimicstate.ts`
 - `TOOL()`: `packages/content/src/objects.ts`
 - `WAND()`: `packages/content/src/objects.ts`, `packages/content/src/zap.ts`
 - `WEAPON()`: `packages/content/src/objects.ts`
@@ -683,13 +688,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/display.c
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/invis.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/invis.ts`, `packages/content/src/mimicstate.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
 - `GLYPH_INVISIBLE()`: `packages/content/src/invis.ts`
 - `canseemon()`: `packages/content/src/trap.ts`
+- `display_monster()`: `packages/content/src/mimicstate.ts`, `packages/content/src/perception.ts`
 - `display_self()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `magic_map_background()`: `packages/content/src/wizard/map.ts`
 - `map_glyphinfo()`: `packages/content/src/statuestate.ts`
-- `map_invisible()`: `packages/content/src/invis.ts`, `packages/core/src/memory.ts`, `packages/render-ascii/src/renderer.ts`
+- `map_invisible()`: `packages/content/src/invis.ts`, `packages/core/src/memory.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
 - `map_object()`: `packages/core/src/engine.ts`
 - `map_trap()`: `packages/core/src/view.ts`
 - `mon_visible()`: `packages/core/src/perception.ts`
@@ -1172,10 +1178,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `picking_lock()`: `packages/content/src/lockstate.ts`
 - `picklock()`: `packages/content/src/lock.en.ts`, `packages/content/src/lock.ts`
 - `reset_pick()`: `packages/content/src/lock.ts`
+- `stumble_on_door_mimic()`: `packages/content/src/mimic.ts`
 - `u_have_forceable_weapon()`: `packages/content/src/force.ts`
 
 ## src/makemon.c
 
+- (file): `packages/content/src/mimicstate.ts`
 - `adj_lev()`: `packages/content/src/generation.ts`
 - `align_shift()`: `packages/content/src/generation.ts`
 - `clone_mon()`: `packages/content/src/clone.ts`, `packages/content/src/mstate.ts`
@@ -1199,6 +1207,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peace_minded()`: `packages/content/src/generation.ts`
 - `rndmonst_adj()`: `packages/content/src/generation.ts`
 - `set_malign()`: `packages/content/src/luck.ts`
+- `set_mimic_sym()`: `packages/content/src/mimic.ts`
+- `syms()`: `packages/content/src/mimic.ts`
 - `uncommon()`: `packages/content/src/generation.ts`
 
 ## src/mcastu.c
@@ -1239,6 +1249,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `noises()`: `packages/content/src/mhitm.ts`
 - `paralyze_monst()`: `packages/content/src/mstate.ts`
 - `passivemm()`: `packages/content/src/mhitm.ts`
+- `pre_mm_attack()`: `packages/content/src/mhitm.ts`
 - `rustm()`: `packages/content/src/erode.ts`
 - `sleep_monst()`: `packages/content/src/adtyping.ts`, `packages/content/src/buzz.ts`, `packages/content/src/trap.ts`
 - `slept_monst()`: `packages/content/src/adtyping.ts`, `packages/content/src/buzz.ts`
@@ -1421,7 +1432,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mon.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hide.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/peaceful.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/genocide.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/peaceful.ts`, `packages/core/src/types/mod.ts`
 - `BREEDER_EGG()`: `packages/content/src/eggstate.ts`
 - `accept_newcham_form()`: `packages/content/src/newcham.ts`
 - `angry_guards()`: `packages/content/src/watch.en.ts`, `packages/content/src/watch.ts`
@@ -1474,6 +1485,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pacify_guards()`: `packages/content/src/watch.ts`
 - `peacefuls_respond()`: `packages/content/src/peaceful.ts`, `packages/content/src/watch.en.ts`, `packages/content/src/watch.ts`
 - `restrap()`: `packages/content/src/hide.ts`
+- `seemimic()`: `packages/content/src/mimicstate.ts`
 - `select_newcham_form()`: `packages/content/src/newcham.ts`
 - `set_mon_data()`: `packages/content/src/werestate.ts`
 - `set_ustuck()`: `packages/content/src/engulfstate.ts`, `packages/content/src/hackmove.ts`
@@ -1481,10 +1493,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `undead_to_corpse()`: `packages/content/src/corpses.ts`
 - `unstuck()`: `packages/content/src/engulf.ts`
 - `validspecmon()`: `packages/content/src/newcham.ts`
-- `wake_msg()`: `packages/content/src/monmove.ts`
+- `wake_msg()`: `packages/content/src/mimic.ts`, `packages/content/src/monmove.ts`
 - `wake_nearby()`: `packages/content/src/apply.ts`, `packages/content/src/btrapped.ts`, `packages/content/src/trap.ts`
 - `wake_nearto_core()`: `packages/content/src/apply.ts`, `packages/content/src/noise.ts`
-- `wakeup()`: `packages/content/src/actions.ts`, `packages/content/src/peaceful.ts`
+- `wakeup()`: `packages/content/src/actions.ts`, `packages/content/src/mimic.ts`, `packages/content/src/peaceful.ts`
 - `xkilled()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/corpses.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/hmon.ts`, `packages/content/src/luck.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/stoning.ts`
 
 ## src/mondata.c
@@ -1604,6 +1616,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shuffle_all()`: `packages/content/src/o_init.ts`, `packages/core/src/types/state.ts`
 - `shuffle_classes()`: `packages/content/src/o_init.ts`
 - `shuffle_types()`: `packages/content/src/o_init.ts`
+
+## src/objects.h
+
+- `STRANGE_OBJECT()`: `packages/content/src/mimic.en.ts`
 
 ## src/objnam.c
 
@@ -2311,8 +2327,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/uhitm.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/peaceful.ts`, `packages/content/src/resist.en.ts`
-- `attack_checks()`: `packages/content/src/actions.ts`, `packages/content/src/hide.en.ts`, `packages/content/src/kick.en.ts`, `packages/content/src/peaceful.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/mimic.ts`, `packages/content/src/resist.en.ts`
+- `attack_checks()`: `packages/content/src/actions.ts`, `packages/content/src/hide.en.ts`, `packages/content/src/kick.en.ts`, `packages/content/src/mimic.ts`, `packages/content/src/peaceful.ts`
 - `damageum()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `do_attack()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
 - `do_stone_mon()`: `packages/content/src/adtyping.ts`
@@ -2360,6 +2376,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `passive_obj()`: `packages/content/src/erode.ts`, `packages/content/src/uhitm_passive.ts`
 - `start_engulf()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `steal_it()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
+- `stumble_onto_mimic()`: `packages/content/src/mimic.ts`
+- `that_is_a_mimic()`: `packages/content/src/mimic.en.ts`, `packages/content/src/mimic.ts`
 
 ## src/vault.c
 
