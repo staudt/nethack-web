@@ -5,6 +5,7 @@ import { itemMessagesEn } from './items.en';
 import { magicMessagesEn } from './magic.en';
 import { eatMessagesEn } from './eat.en';
 import { monGearMessagesEn } from './mongear.en';
+import { museMessagesEn } from './muse.en';
 import { resistMessagesEn } from './resist.en';
 import { kickMessagesEn } from './kick.en';
 import { mthrowuMessagesEn } from './mthrowu.en';
@@ -70,6 +71,7 @@ export const messagesEn: Record<string, string> = {
   ...magicMessagesEn,
   ...eatMessagesEn,
   ...monGearMessagesEn,
+  ...museMessagesEn,
   ...resistMessagesEn,
   ...kickMessagesEn,
   ...mthrowuMessagesEn,

@@ -325,11 +325,22 @@ export function forgetMState(ctx: Pick<Ctx, 'state' | 'remove'>, id: EntityId): 
 const regenerates = (ctx: Pick<Ctx, 'defs'>, mon: Entity): boolean =>
   ctx.defs.monster(mon.def).flags.includes('regen');
 
-/** ref: src/mon.c healmon(mon, amt, 0): HP go up by `amt`, never past the maximum */
-function healmon(mon: Entity, amt: number): void {
+/**
+ * HP go up by `amt`; past the maximum, the maximum goes up by at most `overheal` (0: never past
+ * it). Returns the HP gained. ref: src/mon.c healmon()
+ */
+export function healmon(mon: Entity, amt: number, overheal = 0): number {
   const hp = mon.c.hp;
-  if (!hp || amt <= 0) return;
-  hp.cur = Math.min(hp.cur + amt, hp.max);
+  if (!hp || amt <= 0) return 0;
+  const old = hp.cur;
+  if (hp.cur + amt > hp.max + overheal) {
+    hp.max += overheal;
+    hp.cur = hp.max;
+  } else {
+    hp.cur += amt;
+    if (hp.cur > hp.max) hp.max = hp.cur;
+  }
+  return hp.cur - old;
 }
 
 /**

@@ -46,6 +46,7 @@ import {
   setMonFlag,
 } from './mongear';
 import { mattackRanged } from './mthrowu';
+import { findDefensive, useDefensive } from './muse';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { fightm, mattackm } from './mhitm';
 import { M_ATTK } from './adtyping';
@@ -905,7 +906,14 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   );
   const cnt = cands.length;
   const unicorn = isUnicorn(def);
-  if (cnt === 0 && !unicorn) return 'nomoves'; // MMOVE_NOMOVES
+  if (cnt === 0 && !unicorn) {
+    // ref: m_move(): cornered, `if (find_defensive(mtmp, TRUE) && use_defensive(mtmp)) return
+    // MMOVE_DONE;` (a monster that left the level or died is done with this move)
+    const c = findDefensive(ctx, id, true);
+    if (c && useDefensive(ctx, id, c) !== 0)
+      return ctx.state.entities[String(id)]?.c.pos ? 'done' : 'died';
+    return 'nomoves'; // MMOVE_NOMOVES
+  }
   // ref: m_move(): "on noteleport levels, perhaps we cannot avoid hero": a unicorn there keeps
   // off her lines while it has a square that is not on one
   const avoid = unicorn && noteleportLevel(ctx, level) && cands.some((c) => !c.lined);
@@ -1066,9 +1074,9 @@ function postmovMoved(
  * when it could not (cornered). A hostile monster next to the hero in her sanctuary is scared:
  * it flees and attacks only when it has nowhere to go (panicattk). A confused or stunned monster
  * moves (at random) and attacks only when it did not. A spellcaster that is not attacking may
- * cast an undirected spell instead of moving. Not ported: other scares (Elbereth),
- * invisibility, defensive/misc item use, special
- * per-monster behavior. A pet's move is `petMove` (dog_move).
+ * cast an undirected spell instead of moving. After distfleeck() a monster may drink a healing
+ * potion or flee by the stairs or a trap (find_defensive(): muse.ts). Not ported: other scares
+ * (Elbereth), invisibility, misc item use, special per-monster behavior. A pet's move is `petMove` (dog_move).
  */
 export function dochug(
   ctx: Ctx,
@@ -1172,6 +1180,10 @@ export function dochug(
     if (scared) monflee(ctx, id, ctx.rng.rnd(ctx.rng.rn2(7) ? 10 : 100), true, true);
   };
   distfleeck();
+  // ref: dochug(): "search for and potentially use defensive or miscellaneous items" (a use
+  // that did something ends the move)
+  const dchoice = findDefensive(ctx, id, false, ap);
+  if (dchoice && useDefensive(ctx, id, dchoice) !== 0) return;
   const fleeing = isFleeing(ctx, id);
 
   // ref: dochug(): "the watch will look around and see if you are up to no good :-)"

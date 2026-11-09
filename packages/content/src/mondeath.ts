@@ -217,3 +217,19 @@ export function mondead(ctx: Ctx, id: EntityId): void {
   forgetMState(ctx, id);
   ctx.remove(id);
 }
+
+/**
+ * The monster leaves the game for good with everything it carries (nothing drops, no kill is
+ * counted): one that escaped the dungeon. ref: src/mon.c mongone() (discard_minvent(), m_detach())
+ */
+export function mongone(ctx: Ctx, id: EntityId): void {
+  const mon = ent(ctx, id);
+  if (!mon?.c.monster) return;
+  const at = mon.c.pos ? { ...mon.c.pos } : undefined;
+  for (const o of minvent(ctx, id)) ctx.remove(o.id);
+  forgetUnseenAt(ctx, at);
+  shkgone(ctx, id);
+  forgetMonster(ctx, id);
+  forgetMState(ctx, id);
+  ctx.remove(id);
+}

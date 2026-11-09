@@ -349,7 +349,7 @@ function destroyable(def: ObjectDef, ad: DestroyType): boolean {
 const DSTR = ['freeze', 'boil', 'oil', 'scroll', 'book', 'ring', 'wand'] as const;
 
 /** Uses up one of the hero's or a monster's stack. ref: src/invent.c useup(), m_useup() */
-function useOne(ctx: Ctx, carrier: EntityId, obj: Entity): void {
+export function useOne(ctx: Ctx, carrier: EntityId, obj: Entity): void {
   const it = obj.c.item;
   if (!it) return;
   if (it.quantity > 1) {

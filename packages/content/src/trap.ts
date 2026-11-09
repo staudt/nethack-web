@@ -74,7 +74,7 @@ import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
 import { erodeObj, type ErodeResult } from './erode';
 import { uhimKey } from './gender';
-import { rlocPos } from './generation';
+import { mnextoPos, rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
 import { completelyrusts } from './golem';
@@ -86,7 +86,7 @@ import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
 import { setFloatDownTrap } from './levitation';
-import { migrateToLevel } from './migrate';
+import { arrivalStairs, migrateToLevel, takeMigrVia } from './migrate';
 import { placeWormTailRandomly, removeWorm, wormArrive } from './worm';
 import { takeWormMigr, wormRec } from './wormstate';
 import { isCrackable, isMetallic, isRustprone } from './material';
@@ -1577,7 +1577,13 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
   return 'moved';
 }
 
-/** Monsters that fell to the level the hero just arrived on come out at random spots. */
+/**
+ * Monsters that fell to the level the hero just arrived on come out at random spots; one that
+ * took the stairs comes out on the stairs leading back (next to them when they are taken: the
+ * hero usually stands there), or at a random spot when the level has no such stairs.
+ * ref: src/dog.c mon_arrive() (MIGR_RANDOM: rloc(); MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS:
+ * mnearto(); no `wander` for the time it spent away: see DEVIATIONS "Monster item use")
+ */
 function monArrivals(ctx: Ctx, change: LevelChange): void {
   const t = trapTable(ctx, 'migrating', false);
   if (!t) return;
@@ -1596,10 +1602,21 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
       delete t[key];
       continue;
     }
-    const spot = rlocPos(ctx, level);
+    const viaT = trapTable(ctx, 'migrVia', false)?.[key];
+    const stairs =
+      viaT === 'stairs_up' || viaT === 'stairs_down' || viaT === 'sstairs'
+        ? arrivalStairs(level, viaT)
+        : null;
+    // mnearto(): the stairs themselves when free, else the nearest free square
+    const spot = stairs
+      ? goodposMon(ctx, level, stairs.x, stairs.y, mon.id)
+        ? stairs
+        : mnextoPos(ctx, level, mon.id, stairs)
+      : rlocPos(ctx, level);
     if (!spot) continue; // no room: it keeps waiting
     mon.c.pos = { level: level.id, x: spot.x, y: spot.y };
     delete t[key];
+    takeMigrVia(ctx, mon.id);
     // ref: mon_arrive(): a long worm gets a worm number and its segments back
     const segs = takeWormMigr(ctx.state, mon.id);
     if (segs !== null) wormArrive(ctx, mon.id, segs);
@@ -2481,7 +2498,7 @@ export function registerTraps(api: ModApi): void {
   });
   // records of monsters that are gone are dropped
   api.on('endOfTurn', (ctx) => {
-    for (const k of ['mtrapped', 'mtrapseen', 'migrating'] as const) {
+    for (const k of ['mtrapped', 'mtrapseen', 'migrating', 'migrVia'] as const) {
       const t = trapTable(ctx, k, false);
       if (!t) continue;
       for (const key of Object.keys(t).sort())

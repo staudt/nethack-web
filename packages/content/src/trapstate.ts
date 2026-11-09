@@ -5,7 +5,9 @@
 // The core components have no such fields, so the content mod keeps them in `modData.nh`:
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
 // `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
-// for monsters that fell to a level the hero is not on. Tables are only created on write.
+// for monsters that fell to a level the hero is not on, with `migrVia: { [monsterId]: MigrVia }`
+// for one that took the stairs (C's MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS; absent: MIGR_RANDOM).
+// Tables are only created on write.
 import {
   getPlayer,
   inBounds,
@@ -23,7 +25,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mtrapped' | 'mtrapseen' | 'migrating';
+type Key = 'mtrapped' | 'mtrapseen' | 'migrating' | 'migrVia';
 
 function root(ctx: Pick<Ctx, 'state'>, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -188,7 +190,7 @@ export function monLearnsTraps(ctx: Pick<Ctx, 'state'>, id: EntityId, trap: DefI
 
 /** Drops a monster's trap records (it died or left). ref: src/mon.c m_detach() mtrapped = 0 */
 export function forgetMonTraps(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
-  for (const k of ['mtrapped', 'mtrapseen', 'migrating'] as const) {
+  for (const k of ['mtrapped', 'mtrapseen', 'migrating', 'migrVia'] as const) {
     const t = trapTable(ctx, k, false);
     if (t) delete t[String(id)];
   }

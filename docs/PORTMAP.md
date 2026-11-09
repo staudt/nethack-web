@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4212 citations.
+155 NetHack files, 4241 citations.
 
 ## dat/dungeon.lua
 
@@ -193,7 +193,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
-- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
+- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/muse.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
 - `CANNIBAL_ALLOWED()`: `packages/content/src/eat.ts`
 - `DIR_180()`: `packages/content/src/trapstate.ts`
 - `EF_()`: `packages/content/src/erode.ts`
@@ -217,7 +217,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `TROLL_REVIVE_CHANCE()`: `packages/content/src/corpses.ts`
 - `VAULT_GUARD_TIME()`: `packages/content/src/vaultstate.ts`
 - `VIS_EFFECTS()`: `packages/content/src/scatter.ts`
-- `WAND_BACKFIRE_CHANCE()`: `packages/content/src/zap.ts`
+- `WAND_BACKFIRE_CHANCE()`: `packages/content/src/muse.ts`, `packages/content/src/zap.ts`
 - `invlet_basic()`: `packages/content/src/wish.ts`
 - `isok()`: `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `nonrotting_food()`: `packages/content/src/eat.ts`
@@ -259,6 +259,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`
 - `MZ_TINY()`: `packages/content/src/mthrowu.ts`
+- `NODIAG()`: `packages/content/src/muse.ts`
 - `S_BAT()`: `packages/content/src/monmove.ts`
 - `acidic()`: `packages/content/src/dog.ts`
 - `amorphous()`: `packages/content/src/mondata.ts`, `packages/content/src/polyself.ts`
@@ -279,7 +280,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flesh_petrifies()`: `packages/content/src/stonestate.ts`
 - `has_head()`: `packages/content/src/mondata.ts`
 - `has_horns()`: `packages/content/src/mondata.ts`
-- `haseyes()`: `packages/content/src/adtyping.ts`
+- `haseyes()`: `packages/content/src/adtyping.ts`, `packages/content/src/musestate.ts`
 - `helpless()`: `packages/content/src/mhitm.ts`
 - `herbivorous()`: `packages/content/src/dog.ts`, `packages/content/src/mondata.ts`
 - `hides_under()`: `packages/content/src/hidestate.ts`
@@ -288,7 +289,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_bat()`: `packages/content/src/polyself.ts`
 - `is_clinger()`: `packages/content/src/mondata.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
-- `is_floater()`: `packages/content/src/polyself.ts`
+- `is_floater()`: `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
 - `is_flyer()`: `packages/content/src/mondata.ts`
 - `is_giant()`: `packages/content/src/givit.ts`
 - `is_golem()`: `packages/content/src/golem.ts`
@@ -307,13 +308,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
-- `locomotion()`: `packages/content/src/adtyping.ts`
+- `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
+- `mindless()`: `packages/content/src/muse.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nohands()`: `packages/content/src/apply.ts`, `packages/content/src/mondata.ts`
 - `nolimbs()`: `packages/content/src/mondata.ts`
 - `noncorporeal()`: `packages/content/src/mondata.ts`
 - `nonliving()`: `packages/content/src/mondata.ts`
 - `notake()`: `packages/content/src/itemactions.ts`, `packages/content/src/mondata.ts`
+- `passes_walls()`: `packages/content/src/muse.ts`
 - `perceives()`: `packages/content/src/invis.ts`
 - `pm_invisible()`: `packages/content/src/invis.ts`, `packages/content/src/polyself.ts`
 - `poisonous()`: `packages/content/src/dog.ts`
@@ -327,12 +330,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `strongmonst()`: `packages/content/src/mondata.ts`
 - `telepathic()`: `packages/content/src/givit.ts`, `packages/content/src/polyself.ts`, `packages/content/src/price.ts`
 - `thick_skinned()`: `packages/content/src/dokick.ts`
+- `throws_rocks()`: `packages/content/src/muse.ts`
 - `touch_petrifies()`: `packages/content/src/stonestate.ts`
 - `tunnels()`: `packages/content/src/mdig.ts`
 - `unsolid()`: `packages/content/src/mhitm.ts`, `packages/content/src/polyself.ts`
 - `vegan()`: `packages/content/src/dog.ts`, `packages/content/src/meat.ts`, `packages/content/src/mondata.ts`
 - `vegetarian()`: `packages/content/src/mondata.ts`, `packages/content/src/shtypes.ts`
-- `verysmall()`: `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`
+- `verysmall()`: `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`, `packages/content/src/muse.ts`
+- `vtense()`: `packages/content/src/muse.ts`
 - `webmaker()`: `packages/content/src/polyself.ts`, `packages/content/src/trap.ts`
 - `weirdnonliving()`: `packages/content/src/mondata.ts`
 - `your_race()`: `packages/content/src/polyself.ts`
@@ -830,12 +835,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `make_familiar()`: `packages/content/src/dog.ts`
 - `makedog()`: `packages/content/src/dog.ts`
 - `migrate_to_level()`: `packages/content/src/migrate.ts`, `packages/content/src/wormstate.ts`
-- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
+- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/migrate.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
 - `mon_catchup_elapsed_time()`: `packages/content/src/dog.ts`, `packages/content/src/mstate.ts`
 - `mon_leave()`: `packages/content/src/worm.ts`
 - `newedog()`: `packages/content/src/dog.ts`
 - `pet_type()`: `packages/content/src/dog.ts`
 - `pick_familiar_pm()`: `packages/content/src/dog.ts`
+- `stairway_find()`: `packages/content/src/migrate.ts`
+- `stairway_find_from()`: `packages/content/src/migrate.ts`
 - `tamedog()`: `packages/content/src/dog.ts`
 
 ## src/dogmove.c
@@ -1149,7 +1156,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `identify_pack()`: `packages/content/src/read.ts`
 - `inv_cnt()`: `packages/content/src/items.ts`, `packages/content/src/steal.ts`
 - `look_here()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.en.ts`
-- `m_carrying()`: `packages/content/src/mdig.ts`
+- `m_carrying()`: `packages/content/src/mdig.ts`, `packages/content/src/muse.ts`
 - `m_useup()`: `packages/content/src/erode.ts`
 - `menu_identify()`: `packages/content/src/read.ts`
 - `mergable()`: `packages/content/src/items.ts`
@@ -1384,7 +1391,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/material.ts`
 - `add_to_container()`: `packages/content/src/container.ts`, `packages/core/src/objects.ts`
 - `add_to_minv()`: `packages/content/src/mongear.ts`
-- `bcsign()`: `packages/content/src/items.ts`
+- `bcsign()`: `packages/content/src/items.ts`, `packages/content/src/muse.ts`
 - `bill_dummy_object()`: `packages/content/src/shk.ts`
 - `bless()`: `packages/content/src/figurinestate.ts`
 - `blessorcurse()`: `packages/content/src/items.ts`, `packages/content/src/read.ts`
@@ -1489,7 +1496,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_to_stone()`: `packages/content/src/golem.en.ts`, `packages/content/src/newcham.ts`, `packages/content/src/stoning.ts`
 - `mondead()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
 - `mondied()`: `packages/content/src/mondeath.ts`
-- `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
+- `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
 - `monkilled()`: `packages/content/src/golem.en.ts`, `packages/content/src/mondeath.ts`
 - `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`
 - `monster_census()`: `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
@@ -1597,8 +1604,22 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/muse.c
 
+- (file): `packages/content/src/muse.en.ts`
+- `MUSE_()`: `packages/content/src/muse.ts`
+- `find_defensive()`: `packages/content/src/muse.ts`
+- `m_tele()`: `packages/content/src/muse.ts`
+- `m_use_healing()`: `packages/content/src/muse.ts`
+- `mcureblindness()`: `packages/content/src/musestate.ts`
+- `mon_escape()`: `packages/content/src/muse.ts`
+- `mquaffmsg()`: `packages/content/src/muse.ts`
+- `place_monster()`: `packages/content/src/muse.ts`
+- `precheck()`: `packages/content/src/muse.ts`
+- `remove_monster()`: `packages/content/src/muse.ts`
+- `reveal_trap()`: `packages/content/src/muse.ts`
 - `searches_for_item()`: `packages/content/src/mongear.ts`
 - `ureflects()`: `packages/content/src/reflect.ts`, `packages/content/src/uhitm_passive.ts`
+- `use_defensive()`: `packages/content/src/muse.ts`
+- `worm_move()`: `packages/content/src/muse.ts`
 
 ## src/music.c
 
