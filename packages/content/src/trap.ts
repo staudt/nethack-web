@@ -77,6 +77,7 @@ import { uhimKey } from './gender';
 import { rlocPos } from './generation';
 import { setUstuck, ustuck } from './hackmove';
 import { losehp } from './hp';
+import { completelyrusts } from './golem';
 import { luckOf, uState } from './luck';
 import { done } from './end';
 import { setEndHow } from './endstate';
@@ -122,7 +123,7 @@ import {
   utrap,
 } from './trapstate';
 import { MZ_HUGE, isClinger, msize } from './mondata';
-import { heroForm } from './upoly';
+import { heroForm, heroFormId } from './upoly';
 import { somexyspace } from './somexy';
 import { vaultRoom } from './vaultstate';
 
@@ -862,6 +863,11 @@ function rustTrapYou(ctx: Ctx, trap: Trap): void {
         whichArmor(ctx, id, 'cloak') ?? whichArmor(ctx, id, 'body') ?? whichArmor(ctx, id, 'shirt'),
       );
   }
+  if (heroFormId(ctx.state) === 'nh:iron_golem') {
+    const dam = getPlayer(ctx.state).c.hp?.max ?? 0;
+    say(ctx, 'golem.covered_with_rust');
+    losehp(ctx, dam, '@killer.rusting_away'); // (no Half_physical_damage source)
+  }
 }
 
 /**
@@ -1265,6 +1271,7 @@ export function thitm(
   mon: Entity,
   obj: Entity | null,
   dOverride: number,
+  nocorpse = false, // a trap is completely burning up the target
 ): boolean {
   const p = mon.c.pos;
   if (!p) return false;
@@ -1293,7 +1300,8 @@ export function thitm(
     if (hp) {
       hp.cur -= dam;
       if (hp.cur <= 0) {
-        monkilled(ctx, mon.id, true);
+        // monkilled(mon, "", nocorpse ? -AD_RBRE : AD_PHYS)
+        monkilled(ctx, mon.id, true, undefined, nocorpse ? 'dgst' : undefined);
         killed = !ctx.state.entities[String(mon.id)];
       }
     }
@@ -1520,8 +1528,12 @@ function rustTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
         whichArmor(ctx, id, 'cloak') ?? whichArmor(ctx, id, 'body') ?? whichArmor(ctx, id, 'shirt'),
       );
   }
-  // completelyrusts() (iron golems): not in the roster
-  if (mon.def === 'nh:gremlin' && ctx.rng.rn2(3)) splitMonFn?.(ctx, id, true);
+  if (completelyrusts(mon.def)) {
+    // the life-saved case is hypothetical: life-saving doesn't work for golems
+    if (inSight) say(ctx, 'adtyp.falls_to_pieces', { mon: name });
+    monkilled(ctx, id, false, undefined, 'rust'); // monkilled(mtmp, NULL, AD_RUST)
+    if (!ctx.state.entities[String(id)]?.c.monster) return 'killed';
+  } else if (mon.def === 'nh:gremlin' && ctx.rng.rn2(3)) splitMonFn?.(ctx, id, true);
   return caughtOr(ctx, mon, false);
 }
 

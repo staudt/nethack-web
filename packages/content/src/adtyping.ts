@@ -93,11 +93,13 @@ import { addToInventory, invCount, placeOnFloor, removeFromInventory } from './i
 import { corpseChanceSwallowed } from './corpses';
 import { edogOf, swallowedNutrition } from './dog';
 import { wakeNearto } from './noise';
-import { doStoneU, minstapetrify, monstone } from './stoning';
+import { doStoneU, minstapetrify, monPolyWhenStoned, monToStone, monstone } from './stoning';
 import { losexp, resistsDrliHero } from './exper';
 import { isHumanForm, isWere, setUlycn, ulycn } from './werestate';
 import { wereChange } from './were';
-import { heroForm } from './upoly';
+import { heroForm, heroFormId, rehumanize } from './upoly';
+import { completelyburns, completelyrots, completelyrusts } from './golem';
+import { golemeffects } from './golemfx';
 import { hasHead, noncorporeal, nonliving } from './mondata';
 import { engulfingU, flaming } from './engulfstate';
 import { isSlimed, makeSlimed, slimeproof } from './slimestate';
@@ -497,12 +499,8 @@ export function xdrainenergym(ctx: Ctx, mon: Entity, givemsg: boolean): void {
 }
 
 /** ref: include/mondata.h completelyrusts(), completelyrots() */
-const completely = (type: ErodeType, def: string): boolean =>
-  type === 'rust'
-    ? def === 'nh:iron_golem'
-    : type === 'rot'
-      ? def === 'nh:wood_golem' || def === 'nh:leather_golem'
-      : false;
+const completely = (type: ErodeType, def: DefId): boolean =>
+  type === 'rust' ? completelyrusts(def) : type === 'rot' ? completelyrots(def) : false;
 
 /** The hero's ACURR(A_DEX) and ACURR(A_CON). */
 const acurr = (ctx: Ctx, a: 'dex' | 'con'): number => getPlayer(ctx.state).c.attributes?.[a] ?? 10;
@@ -652,7 +650,8 @@ function adElec(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
     if (!uBlind(ctx)) say(ctx, 'uhitm.zapped', { mon: monNam(ctx, mdef) });
     if (resists(ctx, mdef, 'elec')) {
       if (!uBlind(ctx)) say(ctx, 'mhitm.zap_no_shock', { mon: monNam(ctx, mdef) });
-      mhm.damage = 0; // (no golemeffects(): no golems)
+      golemeffects(ctx, mdef, 'elec', mhm.damage);
+      mhm.damage = 0;
     }
     mhm.damage += destroyItems(ctx, mdef.id, 'elec', damage);
     return;
@@ -677,6 +676,7 @@ function adElec(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
   if (seen) say(ctx, 'mhitm.zapped', { mon: monNam(ctx, mdef) });
   if (resists(ctx, mdef, 'elec')) {
     if (seen) say(ctx, 'mhitm.zap_no_shock', { mon: monNam(ctx, mdef) });
+    golemeffects(ctx, mdef, 'elec', mhm.damage);
     mhm.damage = 0;
   }
   mhm.damage += destroyItems(ctx, mdef.id, 'elec', damage);
@@ -690,9 +690,20 @@ function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
       return;
     }
     if (!uBlind(ctx)) say(ctx, 'mhitm.on_fire', { mon: monNam(ctx, mdef) });
-    // (completelyburns(): no paper or straw golems)
+    if (completelyburns(mdef.def)) {
+      // paper golem or straw golem (life-saving doesn't work for golems)
+      if (!uBlind(ctx)) say(ctx, 'golem.burns_completely', { mon: monNam(ctx, mdef) });
+      else
+        say(ctx, 'golem.smell_burning', {
+          what: mdef.def === 'nh:paper_golem' ? '@golem.paper' : '@golem.straw',
+        });
+      uXkilled(ctx, mdef, true); // xkilled(mdef, XKILL_NOMSG | XKILL_NOCORPSE)
+      mhm.damage = 0;
+      return;
+    }
     if (resists(ctx, mdef, 'fire')) {
       if (!uBlind(ctx)) say(ctx, 'uhitm.fire_no_heat', { mon: monNam(ctx, mdef) });
+      golemeffects(ctx, mdef, 'fire', mhm.damage);
       mhm.damage = 0;
     }
     mhm.damage += destroyItems(ctx, mdef.id, 'fire', damage);
@@ -702,6 +713,13 @@ function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   if (mdef.id === ctx.state.playerId) {
     if (!mgcAtkNegated(ctx, magr, true)) {
       say(ctx, 'mhitu.on_fire', { how: onFire(atk.at) });
+      const form = heroFormId(ctx.state);
+      if (form !== null && completelyburns(form)) {
+        // paper or straw golem: this is okay with unchanging
+        say(ctx, 'golem.you_go_up_in_flames');
+        rehumanize(ctx);
+        return;
+      }
       if (hasProp(mdef, P.FIRE_RES)) {
         say(ctx, 'mhitu.fire_not_hot');
         mhm.damage = 0;
@@ -720,8 +738,23 @@ function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   }
   const seen = env.vis && canSpotMon(ctx, mdef);
   if (seen) say(ctx, 'mhitm.on_fire', { mon: monNam(ctx, mdef) });
+  if (completelyburns(mdef.def)) {
+    // paper golem or straw golem (life-saving doesn't work for golems)
+    if (seen) say(ctx, 'golem.burns_completely', { mon: monNam(ctx, mdef) });
+    const victimLevel = mdef.c.monster?.level ?? 0;
+    monkilled(ctx, mdef.id, false, undefined, 'fire'); // monkilled(mdef, (char *) 0, AD_FIRE)
+    mhm.done = true;
+    if (ent(ctx, mdef.id)?.c.monster) {
+      mhm.hitflags = M_ATTK.MISS;
+      return;
+    }
+    const grew = env.growUp ? env.growUp(ctx, magr.id, victimLevel) : true;
+    mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+    return;
+  }
   if (resists(ctx, mdef, 'fire')) {
     if (seen) say(ctx, 'mhitm.fire_no_burn', { mon: monNam(ctx, mdef) });
+    golemeffects(ctx, mdef, 'fire', mhm.damage);
     mhm.damage = 0;
   }
   // the defender's carried items burn, with the attack's original damage
@@ -740,6 +773,7 @@ function adCold(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
     if (!uBlind(ctx)) say(ctx, 'mhitm.frost', { mon: monNam(ctx, mdef) });
     if (resists(ctx, mdef, 'cold')) {
       if (!uBlind(ctx)) say(ctx, 'uhitm.frost_no_chill', { mon: monNam(ctx, mdef) });
+      golemeffects(ctx, mdef, 'cold', mhm.damage);
       mhm.damage = 0;
     }
     mhm.damage += destroyItems(ctx, mdef.id, 'cold', damage);
@@ -765,6 +799,7 @@ function adCold(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
   if (seen) say(ctx, 'mhitm.frost', { mon: monNam(ctx, mdef) });
   if (resists(ctx, mdef, 'cold')) {
     if (seen) say(ctx, 'mhitm.frost_no_chill', { mon: monNam(ctx, mdef) });
+    golemeffects(ctx, mdef, 'cold', mhm.damage);
     mhm.damage = 0;
   }
   mhm.damage += destroyItems(ctx, mdef.id, 'cold', damage);
@@ -1007,14 +1042,25 @@ function adErode(
 ): (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void {
   return (ctx, magr, _atk, mdef, mhm, env) => {
     if (isU(ctx, magr)) {
-      // (completelyrusts(), completelyrots(): no golems)
+      if (completely(type, mdef.def)) {
+        // iron golem; wood or leather golem
+        say(ctx, 'adtyp.falls_to_pieces', { mon: monNam(ctx, mdef) });
+        uXkilled(ctx, mdef); // xkilled(mdef, XKILL_NOMSG)
+        mhm.hitflags |= M_ATTK.DEF_DIED;
+      }
       erodeArmor(ctx, mdef.id, type);
       mhm.damage = 0;
       return;
     }
     if (mdef.id === ctx.state.playerId) {
       if (isCancelled(ctx, magr.id)) return;
-      // (completelyrusts(youmonst.data): no golem forms)
+      const form = heroFormId(ctx.state);
+      if (form !== null && completely(type, form)) {
+        // "You rust!" / "You rot!": this is okay with unchanging
+        say(ctx, type === 'rust' ? 'golem.you_rust' : 'golem.you_rot');
+        rehumanize(ctx);
+        return;
+      }
       erodeArmor(ctx, mdef.id, type);
       return;
     }
@@ -1024,7 +1070,7 @@ function adErode(
       if (env.vis && canSpotMon(ctx, mdef))
         say(ctx, 'adtyp.falls_to_pieces', { mon: monNam(ctx, mdef) });
       const victimLevel = mdef.c.monster?.level ?? 0;
-      monkilled(ctx, mdef.id, false); // monkilled(mdef, (char *) 0, AD_RUST)
+      monkilled(ctx, mdef.id, false, undefined, type === 'rust' ? 'rust' : 'dcay');
       mhm.done = true;
       if (ent(ctx, mdef.id)?.c.monster) {
         mhm.hitflags = M_ATTK.MISS;
@@ -1159,10 +1205,15 @@ const night = (): boolean => false;
 
 function adCurs(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
   if (isU(ctx, magr)) {
-    // `night() && !rn2(10) && !mdef->mcan`: never, there is no clock (no clay golems either)
+    // `night() && !rn2(10) && !mdef->mcan`: never, there is no clock
     if (night() && !ctx.rng.rn2(10) && !isCancelled(ctx, mdef.id)) {
-      setCancelled(ctx, mdef.id);
-      say(ctx, 'uhitm.chuckle');
+      if (mdef.def === 'nh:clay_golem') {
+        if (!uBlind(ctx)) say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
+        uXkilled(ctx, mdef); // xkilled(mdef, XKILL_NOMSG)
+      } else {
+        setCancelled(ctx, mdef.id);
+        say(ctx, 'uhitm.chuckle');
+      }
     }
     mhm.damage = 0;
     return;
@@ -1173,7 +1224,11 @@ function adCurs(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm,
       // never Deaf
       if (hasProp(mdef, P.BLINDED)) say(ctx, 'adtyp.hear_laughter');
       else say(ctx, 'adtyp.chuckles', { mon: monNam(ctx, magr) });
-      // (u.umonnum == PM_CLAY_GOLEM: no golem forms)
+      if (heroFormId(ctx.state) === 'nh:clay_golem') {
+        say(ctx, 'golem.writing_vanishes_you');
+        rehumanize(ctx); // this is okay with unchanging
+        return;
+      }
       attrcurse(ctx); // mon_give_prop(magr, ...): monsters' intrinsics are not modelled
     }
     return;
@@ -1559,10 +1614,16 @@ const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
  * A monster touched by a petrifying attack (or touching a cockatrice) turns to stone unless it
  * resists: "The jackal turns to stone!", a statue; the attacker may grow up from the kill. A
  * resisting defender takes no damage from AD_STON itself (1 from anything else).
- * ref: src/uhitm.c do_stone_mon() (no munstone(): monsters do not cure themselves; no golems'
- * mon_to_stone(): 7f; no monster life saving)
+ * A golem becomes a stone golem instead (mon_to_stone()).
+ * ref: src/uhitm.c do_stone_mon() (no munstone(): monsters do not cure themselves; no monster
+ * life saving)
  */
 function doStoneMon(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) {
+  if (monPolyWhenStoned(ctx, mdef)) {
+    monToStone(ctx, mdef);
+    mhm.damage = 0;
+    return;
+  }
   if (!resistsSton(ctx, mdef)) {
     if (env.vis && canSpotMon(ctx, mdef)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, mdef) });
     const tame = (mdef.c.monster?.tame ?? 0) > 0;

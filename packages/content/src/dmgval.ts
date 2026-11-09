@@ -65,11 +65,11 @@ function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
 /**
  * ref: src/weapon.c dmgval(): the weapon die by target size, the per-type extra, plus
  * enchantment, never below 0, a silver weapon's `rnd(20)` against a silver-hater, less the
- * greatest erosion (at least 1). Not ported: blessed and axe-versus-wooden bonuses, shades,
- * artifacts.
+ * greatest erosion (at least 1); an axe's `rnd(4)` against a wood golem (is_wooden()). Not
+ * ported: blessed bonuses, shades, artifacts.
  */
 export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
-  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon));
+  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon), mon.id === 'nh:wood_golem');
 }
 
 /**
@@ -82,6 +82,7 @@ export function dmgvalSized(
   def: ObjectDef,
   big: boolean,
   silverHater = false,
+  wooden = false,
 ): number {
   const w = def.weapon;
   let tmp = 0;
@@ -102,6 +103,7 @@ export function dmgvalSized(
     if (tmp < 0) tmp = 0;
   }
   // weapon vs. monster type damage bonuses (weapons, weptools and gems only)
+  if (w && w.skill === 'axe' && wooden) tmp += rng.rnd(4); // is_axe(otmp) && is_wooden(ptr)
   if ((w || def.class === 'gem') && def.material === 'silver' && silverHater) tmp += rng.rnd(20);
   // "always subtract erosion even for blunt weapons"
   if (tmp > 0) {

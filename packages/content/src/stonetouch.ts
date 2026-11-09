@@ -8,6 +8,7 @@ import { done } from './end';
 import { whichArmor } from './mongear';
 import { P, hasProp } from './props';
 import { touchPetrifies } from './stonestate';
+import { uPolyStoneGolem } from './upoly';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -39,11 +40,12 @@ const bareTouch = (ctx: Ctx, obj: Entity, slot: 'gloves' | 'boots'): boolean =>
 
 /**
  * The hero turns to stone at once ("You turn to stone..."), unless she resists petrification.
- * `killer` is the death reason key. ref: src/trap.c instapetrify() (no polymorph into a stone
- * golem: 7f)
+ * `killer` is the death reason key. A golem form becomes a stone golem instead.
+ * ref: src/trap.c instapetrify()
  */
 export function instapetrify(ctx: Ctx, killer: string): void {
   if (hasProp(hero(ctx), P.STONE_RES)) return;
+  if (uPolyStoneGolem(ctx)) return;
   say(ctx, 'stone.you_turn');
   done(ctx, killer, 'stoning');
 }

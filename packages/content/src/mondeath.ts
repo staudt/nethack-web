@@ -3,6 +3,7 @@
 import { restoreWereForm } from './werestate';
 import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { nonliving } from './mondata';
+import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse, type DeadMon } from './corpses';
 import { engulfingU } from './engulfstate';
@@ -145,15 +146,16 @@ const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[S
 /**
  * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
  * the hero sees its square ("... killed by the <by>!" with a cause key), a sad feeling for an unseen pet; its things drop and a corpse may
- * be left (no treasure drop, no experience; none when `digested`). ref: src/mon.c monkilled() ->
- * mondied() (mondead() for AD_DGST)
+ * be left (no treasure drop, no experience; none when digested, `how` 'dgst', or a paper or straw
+ * golem burnt up, 'fire'). A pet golem burnt, rusted or rotted away: "May the paper golem roast
+ * in peace." ref: src/mon.c monkilled() -> mondied() (mondead() for AD_DGST)
  */
 export function monkilled(
   ctx: Ctx,
   id: EntityId,
   fltxt: boolean,
   by?: string,
-  digested = false,
+  how?: 'dgst' | 'fire' | 'rust' | 'dcay',
 ): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
@@ -163,9 +165,22 @@ export function monkilled(
     // "%s is %s%s%s!": " by the <fltxt>" when the caller names the cause
     say(ctx, by ? `${key}_by` : key, { mon: monNam(ctx, mon), ...(by ? { by } : {}) });
   } else if ((mon.c.monster.tame ?? 0) > 0) say(ctx, 'mhitm.sad_feeling');
-  // no corpse if digested (gd.disintegested)
-  if (digested) mondead(ctx, id);
+  const tame = (mon.c.monster.tame ?? 0) > 0;
+  const name = tame ? monNam(ctx, mon) : '';
+  // no corpse if digested or flammable golem burnt up (gd.disintegested)
+  if (how === 'dgst' || (how === 'fire' && completelyburns(mon.def))) mondead(ctx, id);
   else mondied(ctx, id);
+  if (ent(ctx, id)?.c.monster) return; // life-saved
+  // extra message if pet golem is completely destroyed
+  const rxt =
+    how === 'fire' && completelyburns(mon.def)
+      ? 'roast'
+      : how === 'rust' && completelyrusts(mon.def)
+        ? 'rust'
+        : how === 'dcay' && completelyrots(mon.def)
+          ? 'rot'
+          : null;
+  if (tame && rxt) say(ctx, `golem.rest_in_peace.${rxt}`, { mon: name });
 }
 
 /** ref: src/mon.c mondied(): mondead() and maybe a corpse */

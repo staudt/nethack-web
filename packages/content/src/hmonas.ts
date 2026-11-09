@@ -3,6 +3,7 @@
 // damage-type functions of adtyping.ts, and the target's passive answers each one.
 // ref: src/uhitm.c hmonas(), damageum(), explum(), gulpum(), start_engulf(), steal_it();
 // src/dokick.c kick_monster()'s polymorphed branch
+import { golemeffects } from './golemfx';
 import {
   getPlayer,
   type AttackDef,
@@ -278,6 +279,7 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
           say(ctx, 'uhitm.seems_unhurt', { mon: name });
           dam = 0;
         }
+        golemeffects(ctx, mdef, 'elec', dam);
       } else dam = 0;
       break;
     case 'cold':
@@ -286,6 +288,7 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
           say(ctx, 'uhitm.mildly_chilly', { mon: name });
           dam = 0;
         } else say(ctx, 'uhitm.freezing', { mon: name });
+        golemeffects(ctx, mdef, 'cold', dam);
       } else dam = 0;
       break;
     case 'fire':
@@ -294,6 +297,7 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
           say(ctx, 'uhitm.mildly_hot', { mon: name });
           dam = 0;
         } else say(ctx, 'uhitm.burning_crisp', { mon: name });
+        golemeffects(ctx, mdef, 'fire', dam);
       } else dam = 0;
       break;
     case 'dren':

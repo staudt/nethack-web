@@ -5,13 +5,14 @@
 // ref: src/zap.c poly_obj(), obj_resists(), obj_shudders(), do_osshock(), obj_unpolyable(),
 // create_polymon(), zapsetup(), zapwrapup()
 //
-// Not ported: golems (create_polymon() makes none: no golem exists, DEVIATIONS.md Polymorph),
-// eggs, leashes, lamps, markers, potions of oil, poisoned ammo, mail, the Amulet and other
+// Not ported: eggs, leashes, lamps, markers, potions of oil, poisoned ammo, mail, the Amulet and other
 // invocation items (none exist), artifacts (every object resists as an ordinary one), polypile
 // conduct.
 import {
+  cellIndex,
   contents,
   getLevel,
+  isVisible,
   getPlayer,
   inRooms,
   type Ctx,
@@ -36,6 +37,9 @@ import {
   isRustprone,
 } from './material';
 import { mkobj } from './mkobj';
+import { makemon } from './generation';
+import { monNam } from './perception';
+import { isGenocided } from './vanquished';
 import { shopAt } from './revive';
 import { addtobill, billUsedUp, hotPursuit, makeAngryShk, shkname, stolenValue } from './shk';
 import { sokobanGuilt } from './sokoban';
@@ -356,50 +360,103 @@ export function doOsshock(
   return material;
 }
 
-/** ref: src/zap.c create_polymon(): the golem a material melds into */
-function golemFor(ctx: Ctx, material: string): DefId {
+/**
+ * ref: src/zap.c create_polymon(): the golem a material melds into, and the word for the
+ * material ("Some metal objects meld, ...")
+ */
+function golemFor(ctx: Ctx, material: string): { pm: DefId; word: string } {
   switch (material) {
     case 'iron':
     case 'metal':
     case 'mithril':
-      return 'nh:iron_golem';
+      return { pm: 'nh:iron_golem', word: 'metal' };
     case 'copper':
     case 'silver':
     case 'platinum':
     case 'gemstone':
     case 'mineral':
-      return ctx.rng.rn2(2) ? 'nh:stone_golem' : 'nh:clay_golem';
+      return { pm: ctx.rng.rn2(2) ? 'nh:stone_golem' : 'nh:clay_golem', word: 'lithic' };
+    case '':
     case 'flesh':
-      return 'nh:flesh_golem';
+      // there is no flesh type, but all food is type 0, so we use it
+      return { pm: 'nh:flesh_golem', word: 'organic' };
     case 'wood':
-      return 'nh:wood_golem';
+      return { pm: 'nh:wood_golem', word: 'wood' };
     case 'leather':
-      return 'nh:leather_golem';
+      return { pm: 'nh:leather_golem', word: 'leather' };
     case 'cloth':
-      return 'nh:rope_golem';
+      return { pm: 'nh:rope_golem', word: 'cloth' };
     case 'bone':
-      return 'nh:skeleton'; // nearest thing to "bone golem"
+      return { pm: 'nh:skeleton', word: 'bony' }; // nearest thing to "bone golem"
     case 'gold':
-      return 'nh:gold_golem';
+      return { pm: 'nh:gold_golem', word: 'gold' };
     case 'glass':
-      return 'nh:glass_golem';
+      return { pm: 'nh:glass_golem', word: 'glassy' };
     case 'paper':
-      return 'nh:paper_golem';
+      return { pm: 'nh:paper_golem', word: 'paper' };
     default:
-      return 'nh:straw_golem'; // if all else fails...
+      return { pm: 'nh:straw_golem', word: '' }; // if all else fails...
   }
 }
 
 /**
- * Polypiling melds some of the pile at (x, y) into a golem of the shuddered material: none when
- * the pile is a single object. No golem exists yet, so nothing is made (the golem roll is still
- * made). ref: src/zap.c create_polymon()
+ * Uses up objects of the pile, from the top, until `minwt` units are gone: an object of material
+ * `mat` goes when rn2(minwt + 1) is not 0, any other when it is 0; a shop's goods are billed or
+ * owed. ref: src/zap.c polyuse() (no unique objects, ball and chain or mail: obj_resists(otmp, 0,
+ * 0) only draws its rn2(100))
+ */
+function polyuse(ctx: Ctx, pile: readonly Entity[], mat: string, minwtIn: number): void {
+  let minwt = minwtIn;
+  for (const otmp of pile) {
+    if (minwt <= 0) break;
+    const it = otmp.c.item;
+    const p = otmp.c.pos;
+    if (!it || !p || !ctx.state.entities[String(otmp.id)]) continue;
+    if (isBypassed(otmp.id)) continue;
+    ctx.rng.rn2(100); // obj_resists(otmp, 0, 0): preserve unique objects (none resist)
+    if ((ctx.defs.object(otmp.def).material === mat) === (ctx.rng.rn2(minwt + 1) !== 0)) {
+      // appropriately add damage to bill
+      if (costlySpot(ctx, p.x, p.y)) {
+        if (uShops(ctx).length > 0) addtobill(ctx, otmp, false, false, false);
+        else stolenValue(ctx, otmp, p.x, p.y, false, false);
+      }
+      minwt -= it.quantity;
+      ctx.remove(otmp.id);
+    }
+  }
+}
+
+/**
+ * Polypiling melds some of the pile at (x, y) into a golem of the shuddered material (a random
+ * monster when that golem is genocided): none when the pile is a single object. Objects as heavy
+ * as the golem's corpse weight are used up. "Some metal objects meld, and an iron golem arises
+ * from the pile!" ref: src/zap.c create_polymon()
  */
 export function createPolymon(ctx: Ctx, pile: readonly Entity[], material: string): void {
   // bypassed objects are skipped (they end up on top of their pile)
   const left = pile.filter((o) => ctx.state.entities[String(o.id)] && !isBypassed(o.id));
   // no golems if you zap only one object -- not enough stuff
-  if (left.length === 0 || (left.length === 1 && (left[0]?.c.item?.quantity ?? 1) === 1)) return;
-  const pm = golemFor(ctx, material);
-  if (!ctx.defs.isMonster(pm)) return; // DEVIATIONS.md Polymorph: no golems
+  const top = left[0];
+  const p = top?.c.pos;
+  if (!top || !p || (left.length === 1 && (top.c.item?.quantity ?? 1) === 1)) return;
+  // some of these choices are arbitrary
+  const { pm, word } = golemFor(ctx, material);
+  const pdef = ctx.defs.isMonster(pm) ? ctx.defs.monster(pm) : null;
+  const mdat = pdef && !isGenocided(ctx.state, pm) ? pdef : null;
+  const id = makemon(ctx, mdat, { x: p.x, y: p.y }, { level: p.level });
+  polyuse(ctx, left, material, pdef?.weight ?? 0);
+  const mtmp = id === null ? undefined : ctx.state.entities[String(id)];
+  const mp = mtmp?.c.pos;
+  const lev = mp ? ctx.state.levels[mp.level] : undefined;
+  if (
+    mtmp &&
+    mp &&
+    lev &&
+    mp.level === ctx.state.currentLevel &&
+    isVisible(ctx.state, cellIndex(lev, mp.x, mp.y))
+  )
+    say(ctx, 'golem.objects_meld', {
+      material: word ? `@golem.material.${word}` : '',
+      mon: monNam(ctx, mtmp),
+    });
 }

@@ -17,6 +17,7 @@ import {
   type MonsterDef,
   type Pos,
 } from '@nh/core';
+import { golemhp } from './golem';
 import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
@@ -144,8 +145,12 @@ export function adjLev(def: MonsterDef, depth: number, ulevel: number): number {
   return tmp > tmp2 ? tmp2 : tmp > 0 ? tmp : 0;
 }
 
-/** ref: src/makemon.c newmonhp() (ordinary monsters only; no golems, dragons, riders). */
-export function newmonhp(ctx: Ctx, mlev: number): number {
+/**
+ * ref: src/makemon.c newmonhp(): golems have a fixed amount of hit points by kind (golemhp());
+ * no dragons or riders.
+ */
+export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
+  if (id !== undefined && golemhp(id) > 0) return golemhp(id);
   let basehp: number;
   let hp: number;
   if (!mlev) {
@@ -393,7 +398,7 @@ export function makemon(
 
   const ulevel = heroLevel(ctx);
   const mlev = adjLev(mdef, level.depth, ulevel);
-  const hp = newmonhp(ctx, mlev);
+  const hp = newmonhp(ctx, mlev, mdef.id);
   const peaceful = opts.angry ? false : peaceMinded(ctx, mdef);
   const id = ctx.spawn({
     def: mdef.id,

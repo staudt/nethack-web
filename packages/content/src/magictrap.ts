@@ -52,6 +52,7 @@ import {
   type TrapResult,
 } from './trap';
 import { drainEn, pwOf, setPw } from './uenergy';
+import { heroForm, upolyd } from './upoly';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -77,7 +78,8 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
  * burn, carried items may burn or catch light (always when the body was hit, else 2 in 3), and
  * scrolls and books on her square may burn ("You smell paper burning." when blind).
  * `box`: the flame bursts from a trapped box (chest_trap()); the rest is the same.
- * ref: src/trap.c dofiretrap() (no water, polymorph or ice; the level drain when her
+ * A polymorphed hero loses form HP instead (a paper golem all of them).
+ * ref: src/trap.c dofiretrap() (no water or ice; the level drain when her
  * maximum drops below her level is not ported)
  */
 export function dofiretrap(ctx: Ctx, box?: Entity): void {
@@ -91,6 +93,25 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
   else say(ctx, 'fire.tower_erupts', { surface: surfaceKey(ctx, level, p.x, p.y) });
   if (hasProp(hero, P.FIRE_RES)) {
     num = ctx.rng.rn2(2); // shieldeff() is not shown
+  } else if (upolyd(ctx.state)) {
+    num = origDmg;
+    const mh = hero.c.hp;
+    const form = heroForm(ctx);
+    if (mh && form) {
+      const alt =
+        form.id === 'nh:paper_golem'
+          ? mh.max
+          : form.id === 'nh:straw_golem'
+            ? Math.trunc(mh.max / 2)
+            : form.id === 'nh:wood_golem'
+              ? Math.trunc(mh.max / 4)
+              : form.id === 'nh:leather_golem'
+                ? Math.trunc(mh.max / 8)
+                : 0;
+      if (alt > num) num = alt;
+      if (mh.max > form.level) mh.max -= ctx.rng.rn2(Math.min(mh.max, num + 1));
+      if (mh.cur > mh.max) mh.cur = mh.max;
+    }
   } else {
     const hp = hero.c.hp;
     num = ctx.rng.d(2, 4);
@@ -123,7 +144,8 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
 /**
  * A tower of flame under a monster: d(2,4) damage and the same loss of maximum HP unless it
  * resists fire; its armor and items may burn (their damage on top), floor scrolls burn.
- * ref: src/trap.c trapeffect_fire_trap() for a monster (no golems or ice)
+ * Paper, straw, wood and leather golems lose a share of their maximum HP at least (a paper
+ * golem all of it, leaving nothing). ref: src/trap.c trapeffect_fire_trap() for a monster (no ice)
  */
 function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   const p = mon.c.pos;
@@ -140,8 +162,21 @@ function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   if (ctx.defs.monster(mon.def).resists.includes('fire')) {
     if (inSight) say(ctx, 'fire.mon_uninjured', { mon: monNam(ctx, mon) }); // no shieldeff()
   } else {
-    const num = origDmg; // no paper, straw, wood or leather golems
-    if (thitm(ctx, 0, mon, null, num)) killed = true;
+    let num = origDmg;
+    // paper burns very fast, assume straw is tightly packed and burns a bit slower
+    const mhpmax = mon.c.hp?.max ?? 0;
+    const alt =
+      mon.def === 'nh:paper_golem'
+        ? mhpmax
+        : mon.def === 'nh:straw_golem'
+          ? Math.trunc(mhpmax / 2)
+          : mon.def === 'nh:wood_golem'
+            ? Math.trunc(mhpmax / 4)
+            : mon.def === 'nh:leather_golem'
+              ? Math.trunc(mhpmax / 8)
+              : 0;
+    if (alt > num) num = alt;
+    if (thitm(ctx, 0, mon, null, num, mon.def === 'nh:paper_golem')) killed = true;
     else {
       const hp = mon.c.hp;
       if (hp) {

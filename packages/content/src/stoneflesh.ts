@@ -3,13 +3,14 @@
 // wand into a meat stick, rocks and gems into meatballs. Sits under zap.ts.
 // ref: src/zap.c stone_to_flesh_obj()
 //
-// Not ported: figurines and golems (none exist), the Heart of Ahriman (no artifacts: every object
+// Not ported: figurines (none exist), the Heart of Ahriman (no artifacts: every object
 // resists 2 times in 100), saved monster traits, vegetarian conduct (the smell is always "the odor
 // of meat": DEVIATIONS.md "Stone to flesh").
 import { contents, type Ctx, type DefId, type Entity, type Msg } from '@nh/core';
 import { BOULDER } from './boulder';
 import { placeObject } from './items';
 import { vegetarian } from './mondata';
+import { isGolem } from './golem';
 import { objLocation, polyObj } from './polyobj';
 import { animateStatue } from './statue';
 import { STATUE } from './statuestate';
@@ -53,7 +54,8 @@ export function stoneToFleshObj(ctx: Ctx, obj: Entity): number {
       } else if (obj.def === STATUE) {
         const montype = obj.c.item?.corpseOf;
         const ptr = montype && ctx.defs.isMonster(montype) ? ctx.defs.monster(montype) : null;
-        if (ptr && vegetarian(ptr)) {
+        // a golem's statue animates as a flesh golem (animate_statue())
+        if (ptr && !isGolem(ptr) && vegetarian(ptr)) {
           // don't animate monsters that aren't flesh
           polyObj(ctx, obj, MEAT.meatball);
           smell = true;

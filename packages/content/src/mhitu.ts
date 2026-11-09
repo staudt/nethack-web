@@ -1,6 +1,7 @@
 // Monster attacks on the hero: damage and the special damage types, gazes and explosions.
 // ref: src/mhitu.c hitmu(), mdamageu(), magic_negation(), gazemu(), explmu(); src/uhitm.c
 // mhitm_adtyping() (the `mdef == &gy.youmonst` branches live in adtyping.ts)
+import { ugolemeffects } from './golemfx';
 import {
   cellRules,
   getPlayer,
@@ -41,7 +42,7 @@ import { isCancelled, isMConfused, isMStunned, mcansee, mspecUsed, setMspecUsed 
 import { wakeNearto } from './noise';
 import { monNam } from './perception';
 import { canseemon, monVisible } from './invis';
-import { rehumanize, upolyd } from './upoly';
+import { rehumanize, uPolyStoneGolem, upolyd } from './upoly';
 import {
   P,
   hasProp,
@@ -167,7 +168,7 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
       if (seen && couldsee(ctx, mon) && !hasProp(hero, P.STONE_RES) && !unaware(ctx)) {
         say(ctx, 'stone.meet_gaze', { mon: name });
         stopOccupation(ctx);
-        // (no polymorph into a stone golem: 7f)
+        if (uPolyStoneGolem(ctx)) break;
         say(ctx, 'stone.you_turn');
         done(ctx, isMedusa ? '@killer.ston.medusa' : `@${mon.def}`, 'stoning');
       }
@@ -237,7 +238,8 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
           stopOccupation(ctx);
           if (hasProp(hero, P.FIRE_RES)) {
             say(ctx, 'mhitu.fire_not_hot');
-            dmg = 0; // (ugolemeffects(): no polymorph)
+            ugolemeffects(ctx, 'fire', ctx.rng.d(12, 6));
+            dmg = 0;
           }
           burnAwaySlime(ctx);
           if (lev > ctx.rng.rn2(20)) erodeArmor(ctx, hero.id, 'burn'); // burnarmor()
@@ -326,7 +328,10 @@ export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): 
       break; // impossible("unknown exploder damage type %d")
   }
   if (ctx.state.gameOver) return dead() ? M_ATTK.AGR_DIED : M_ATTK.MISS;
-  if (notAffected) say(ctx, 'mhitu.seem_unaffected_by_it'); // (ugolemeffects(): no polymorph)
+  if (notAffected) {
+    say(ctx, 'mhitu.seem_unaffected_by_it');
+    ugolemeffects(ctx, atk.ad, tmp);
+  }
   if (killAgr && !dead()) mondead(ctx, mon.id);
   if (at) wakeNearto(ctx, at.x, at.y, 7 * 7);
   return dead() ? M_ATTK.AGR_DIED : M_ATTK.MISS;
@@ -443,6 +448,7 @@ export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
         say(ctx, 'engulf.crackles');
         if (hasProp(hero, P.SHOCK_RES)) {
           say(ctx, 'engulf.seem_unhurt');
+          ugolemeffects(ctx, 'elec', tmp);
           tmp = 0;
         }
       } else tmp = 0;
@@ -451,6 +457,7 @@ export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
       if (!mcan && ctx.rng.rn2(2)) {
         if (hasProp(hero, P.COLD_RES)) {
           say(ctx, 'engulf.mildly_chilly');
+          ugolemeffects(ctx, 'cold', tmp);
           tmp = 0;
         } else say(ctx, 'engulf.freezing');
       } else tmp = 0;
@@ -459,6 +466,7 @@ export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
       if (!mcan && ctx.rng.rn2(2)) {
         if (hasProp(hero, P.FIRE_RES)) {
           say(ctx, 'engulf.mildly_hot');
+          ugolemeffects(ctx, 'fire', tmp);
           tmp = 0;
         } else say(ctx, 'engulf.burning');
         burnAwaySlime(ctx);

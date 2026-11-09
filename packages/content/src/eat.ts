@@ -57,7 +57,7 @@ import { levitating } from './trapstate';
 import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
 import { monflee } from './monflee';
 import { isWere, ulycn, youUnwere } from './werestate';
-import { heroForm, polymonLate, rehumanize, upolyOf } from './upoly';
+import { heroForm, polymonLate, rehumanize, uPolyStoneGolem, upolyOf } from './upoly';
 import { adjattrib } from './attrstate';
 import { healLegs } from './legs';
 import { xnameOf } from './objnam';
@@ -574,15 +574,14 @@ function maybeCannibal(ctx: Ctx, mon: MonsterDef, allowmsg: boolean): boolean {
  * The first bite of a corpse: eating her own kind is cannibalism, a cockatrice's (or Medusa's)
  * flesh turns her to stone at once unless she resists, a dog or cat was a bad idea, and a
  * lizard's, or an acidic monster's, cures petrification in progress.
- * ref: src/eat.c cprefx() (no tins, no Riders, no green slime; no polymorph into a stone golem:
- * 7f)
+ * ref: src/eat.c cprefx() (no tins, no Riders, no green slime)
  */
 function cprefx(ctx: Ctx, corpse: Entity): void {
   const of = corpse.c.item?.corpseOf;
   if (!of || !ctx.defs.isMonster(of)) return;
   const mon = ctx.defs.monster(of);
   maybeCannibal(ctx, mon, true);
-  if (fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES)) {
+  if (fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES) && !uPolyStoneGolem(ctx)) {
     say(ctx, 'stone.you_turn_eat');
     done(ctx, `@killer.ston.tasting.${mon.id}`, 'stoning');
     const v = victualOf(ctx);
@@ -702,11 +701,11 @@ function garlicBreath(ctx: Ctx): void {
 
 /** Effects of finishing ordinary food. ref: src/eat.c fpostfx() */
 function fpostfx(ctx: Ctx, e: Entity): void {
-  // ref: fpostfx() EGG: a cockatrice egg starts the stoning (no stone golem form); note: no
-  // "tastes like chicken" message for eggs
+  // ref: fpostfx() EGG: a cockatrice egg starts the stoning (a golem form becomes a stone golem);
+  // note: no "tastes like chicken" message for eggs
   const of = e.def === EGG ? e.c.item?.corpseOf : undefined;
   if (of && ctx.defs.isMonster(of) && fleshPetrifies(ctx.defs.monster(of))) {
-    if (!hasProp(hero(ctx), P.STONE_RES) && !isStoned(ctx.state))
+    if (!hasProp(hero(ctx), P.STONE_RES) && !uPolyStoneGolem(ctx) && !isStoned(ctx.state))
       makeStoned(ctx, 5, null, `@egg.killer.${of}`);
   }
   // ref: fpostfx() SPRIG_OF_WOLFSBANE: cures lycanthropy (and a were form)

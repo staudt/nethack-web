@@ -38,6 +38,8 @@ import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { monkilled, monsterDied } from './mondeath';
 import { nonliving } from './mondata';
+import { completelyburns } from './golem';
+import { ugolemeffects } from './golemfx';
 import { heroSees, monWep } from './mongear';
 import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
 import { xnameOf } from './objnam';
@@ -347,8 +349,10 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       break;
     case 'fire': {
       const orig = ctx.rng.d(nd, 6);
-      if (hasProp(h, P.FIRE_RES)) say(ctx, 'zap.u.not_hot');
-      else dam = orig;
+      if (hasProp(h, P.FIRE_RES)) {
+        say(ctx, 'zap.u.not_hot');
+        ugolemeffects(ctx, 'fire', orig);
+      } else dam = orig;
       burnAwaySlime(ctx);
       if (erodeArmor(ctx, h.id, 'burn')) {
         // "body hit"
@@ -360,8 +364,10 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
     }
     case 'cold': {
       const orig = ctx.rng.d(nd, 6);
-      if (hasProp(h, P.COLD_RES)) say(ctx, 'zap.u.not_cold');
-      else dam = orig;
+      if (hasProp(h, P.COLD_RES)) {
+        say(ctx, 'zap.u.not_cold');
+        ugolemeffects(ctx, 'cold', orig);
+      } else dam = orig;
       if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'cold', orig);
       break;
     }
@@ -379,8 +385,10 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       return; // lifesaved
     case 'lightning': {
       const orig = ctx.rng.d(nd, 6);
-      if (hasProp(h, P.SHOCK_RES)) say(ctx, 'zap.u.not_shocked');
-      else dam = orig;
+      if (hasProp(h, P.SHOCK_RES)) {
+        say(ctx, 'zap.u.not_shocked');
+        ugolemeffects(ctx, 'elec', orig);
+      } else dam = orig;
       if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'elec', orig);
       break;
     }
@@ -716,8 +724,10 @@ function buzzSteps(
           );
           if ((mon.c.hp?.cur ?? 0) < 1) {
             if (alive(ctx, mon.id)) {
-              if (src.by === 'hero') killedByHero(ctx, mon);
-              else monkilled(ctx, mon.id, true); // killed by another monster
+              // killed by hero: if it's fire, highly flammable monsters leave no corpse
+              if (src.by === 'hero')
+                killedByHero(ctx, mon, ray === 'fire' && completelyburns(mon.def));
+              else monkilled(ctx, mon.id, true); // killed by another monster (AD_RBRE)
             }
           } else {
             say(ctx, 'zap.ray.hit', {

@@ -25,6 +25,7 @@ import { monNam } from './perception';
 import { xnameOf } from './objnam';
 import { done } from './end';
 import { attkProtection } from './stonestate';
+import { uPolyStoneGolem } from './upoly';
 
 /** The attacked monster as it was before the blow (it may be dead and removed afterwards). */
 export interface PassiveTarget {
@@ -56,7 +57,7 @@ const OBJ_ATTACKS: ReadonlySet<AttackType> = new Set(['weapon', 'claw', 'magic',
  * A rust monster's or black pudding's passive rusts or corrodes the weapon (or the boots of a
  * kick), a disenchanter's drains its enchantment ("Your long sword seems less effective.").
  * A cockatrice's passive turns her to stone when she hit it bare-handed or kicked it barefoot.
- * ref: src/uhitm.c passive(), passive_obj(). Golems are not ported. Not
+ * ref: src/uhitm.c passive(), passive_obj(). Not
  * ported: brown mold splitting (split_mon). A blind floating eye "cannot defend itself".
  */
 export function passive(
@@ -153,8 +154,8 @@ export function passive(
           (protector.length === 1 && protector[0] === 'gloves'
             ? !worn('gloves') && !uwep(ctx) && !wepWasDestroyed
             : protector.some((slot) => !worn(slot))));
-      if (unprotected && !hasProp(hero, P.STONE_RES)) {
-        // done_in_by(mon, STONING): "You turn to stone..." (no polymorph into a stone golem: 7f)
+      if (unprotected && !hasProp(hero, P.STONE_RES) && !uPolyStoneGolem(ctx)) {
+        // done_in_by(mon, STONING): "You turn to stone..."
         say(ctx, 'stone.you_turn');
         done(ctx, killer, 'stoning');
         return;

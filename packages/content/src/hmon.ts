@@ -1,7 +1,7 @@
 // The end of the hero's hmon() for a thrown object (or a boulder falling into a pit onto a
 // monster): pet abuse, damage, the kill or hit message, waking, the Watch and priests.
 // ref: src/uhitm.c hmon(), hmon_hitmon()
-import type { Ctx, Entity, MonsterDef, Msg } from '@nh/core';
+import type { Ctx, Entity, Msg } from '@nh/core';
 import { hurtPet } from './dog';
 import { epriOf } from './epri';
 import { experienceFor, gainExperience } from './hero';
@@ -25,9 +25,8 @@ const msg = (ctx: Ctx, key: string, params?: Record<string, Msg | string | numbe
 /** ref: src/zap.c exclam() */
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
 
-/** ref: src/include/mondata.h nonliving(): undead and manes (our data has no other cases) */
-export const nonliving = (def: MonsterDef): boolean =>
-  def.flags.includes('undead') || def.id === 'nh:manes';
+import { nonliving } from './mondata';
+export { nonliving };
 
 /** A message about a missile, with "the 2nd dagger" for a volley. */
 export const missileMsg = (

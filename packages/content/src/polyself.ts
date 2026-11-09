@@ -65,6 +65,7 @@ import { breakArmor, dropWeapon } from './polyarmor';
 import { polyObj } from './polyobj';
 import { P, adjabil, hasProp, makeBlinded, setFormProps, wornIn } from './props';
 import { isStoned, makeStoned } from './stonestate';
+import { golemhp, isGolem, polyWhenStoned } from './golem';
 import { isSlimed, makeSlimed } from './slimestate';
 import {
   TRAP,
@@ -498,8 +499,9 @@ function setUasmon(ctx: Ctx): void {
  * A genocided form fails: "You feel rather gnome-ish." and false (no exercise()).
  * ref: src/polyself.c polymon()
  */
-export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
-  const def = ctx.defs.monster(mntmp);
+export function polymon(ctx: Ctx, mntmpIn: DefId, sexChangeOk: boolean): boolean {
+  let mntmp = mntmpIn;
+  let def = ctx.defs.monster(mntmp);
   if (isGenocided(ctx.state, mntmp)) {
     say(ctx, 'polyself.rather_ish', { mon: `@${def.nameKey}` });
     return false;
@@ -534,6 +536,12 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   say(ctx, `${same ? 'polyself.feel_like_new' : 'polyself.turn_into'}${gender}`, {
     mon: `@${mntmp}`,
   });
+  if (isStoned(ctx.state) && polyWhenStoned(def, isGenocided(ctx.state, 'nh:stone_golem'))) {
+    // poly_when_stoned already checked stone golem genocide
+    mntmp = 'nh:stone_golem';
+    def = ctx.defs.monster(mntmp);
+    makeStoned(ctx, 0, 'golem.you_turn_to_stone', null);
+  }
 
   const hp = h.c.hp ?? { cur: 1, max: 1 };
   const u: UPoly = {
@@ -567,7 +575,7 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
 
   // there is no experience level of the hero as a monster: the form's own level
   const mlvl = def.level;
-  const mhmax = mlvl ? ctx.rng.d(mlvl, 8) : ctx.rng.rnd(4);
+  const mhmax = isGolem(def) ? golemhp(mntmp) : mlvl ? ctx.rng.d(mlvl, 8) : ctx.rng.rnd(4);
   h.c.hp = { cur: mhmax, max: mhmax };
   const ulevel = h.c.experience?.level ?? 1;
   // low level characters can't become high level monsters for long

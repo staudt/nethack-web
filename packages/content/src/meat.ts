@@ -7,6 +7,7 @@
 // intrinsics are not modelled), growing up, polymorph food and healing corpses (none of those
 // objects or corpses exist), poisoned objects, artifacts, the hero's ball and chain, the
 // "YUM YUM" scroll's "Yum!", Rider corpses.
+import { vegan as veganDef } from './mondata';
 import {
   contents,
   itemsAt,
@@ -33,11 +34,9 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 /** ref: include/objclass.h is_organic(): material up to wood */
 const ORGANIC = new Set(['liquid', 'wax', 'veggy', 'flesh', 'paper', 'cloth', 'leather', 'wood']);
 
-/** ref: include/mondata.h vegan() (no golems or noncorporeal monsters in the roster) */
+/** ref: include/mondata.h vegan() */
 function vegan(ctx: Ctx, mon: DefId): boolean {
-  if (!ctx.defs.isMonster(mon)) return false;
-  const ch = ctx.defs.monster(mon).glyph.ch;
-  return 'bjFvy'.includes(ch) || (ch === 'E' && mon !== 'nh:stalker');
+  return ctx.defs.isMonster(mon) && veganDef(ctx.defs.monster(mon));
 }
 
 /** ref: include/mondata.h corpse_eater() (no piranha in the roster) */

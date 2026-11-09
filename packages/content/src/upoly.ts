@@ -16,6 +16,8 @@ import {
   type HpComponent,
   type MonsterDef,
 } from '@nh/core';
+import { golemhp, isGolem, polyWhenStoned } from './golem';
+import { isGenocided } from './vanquished';
 
 /** The polymorphed hero. ref: include/you.h */
 export interface UPoly {
@@ -106,6 +108,17 @@ export function polymonLate(ctx: Ctx, mntmp: DefId): boolean {
   return polymonFn?.(ctx, mntmp) ?? false;
 }
 
+/**
+ * `poly_when_stoned(youmonst.data) && polymon(PM_STONE_GOLEM)`: a hero in a golem form (not a
+ * stone golem) turns into a stone golem instead of to stone. True when she did.
+ * ref: include/mondata.h poly_when_stoned(); src/trap.c instapetrify() and the other stoning sites
+ */
+export function uPolyStoneGolem(ctx: Ctx): boolean {
+  const form = heroForm(ctx);
+  if (!form || !polyWhenStoned(form, isGenocided(ctx.state, 'nh:stone_golem'))) return false;
+  return polymonLate(ctx, 'nh:stone_golem');
+}
+
 /** rehumanize(), late bound. ref: src/polyself.c rehumanize() */
 export function rehumanize(ctx: Ctx): void {
   rehumanizeFn?.(ctx);
@@ -117,11 +130,15 @@ export function unwereForm(ctx: Ctx): void {
 }
 
 /**
- * Hit points per level of the hero's form for level gain and drain: d8, but rnd(4) for a level 0
- * monster -- and youmonst.m_lev is never set, so after the d8 every form uses rnd(4) (C as is).
- * ref: src/makemon.c monhp_per_lvl() (no golems, no forms above level 49, no adult dragons)
+ * Hit points per level of the hero's form for level gain and drain: d8, but a golem form's
+ * golemhp() / its level, and rnd(4) for a level 0 monster -- youmonst.m_lev is never set, so
+ * after the d8 every other form uses rnd(4) (C as is).
+ * ref: src/makemon.c monhp_per_lvl() (no forms above level 49, no adult dragons)
  */
-export function monhpPerLvl(ctx: Pick<Ctx, 'rng'>): number {
+export function monhpPerLvl(ctx: Pick<Ctx, 'rng' | 'state' | 'defs'>): number {
   ctx.rng.rnd(8); // default is d8 (drawn, then replaced)
+  const form = heroForm(ctx);
+  // draining usually won't be applicable for these critters
+  if (form && isGolem(form)) return Math.trunc(golemhp(form.id) / form.level);
   return ctx.rng.rnd(4); // !mon->m_lev: level 0 monsters use 1d4 instead of Nd8
 }

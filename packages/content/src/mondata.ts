@@ -6,20 +6,19 @@ export function isBig(def: MonsterDef): boolean {
   return def.size === 'large' || def.size === 'huge' || def.size === 'gigantic';
 }
 
-/** ref: include/mondata.h nonliving(): undead and manes (our data has no other cases). */
+/** ref: include/mondata.h weirdnonliving(): golems and vortices */
+export const weirdnonliving = (def: MonsterDef): boolean =>
+  def.glyph.ch === "'" || def.glyph.ch === 'v';
+
+/** ref: include/mondata.h nonliving(): undead, manes, golems and vortices. */
 export function nonliving(def: MonsterDef): boolean {
-  return def.flags.includes('undead') || def.id === 'nh:manes';
+  return def.flags.includes('undead') || def.id === 'nh:manes' || weirdnonliving(def);
 }
 
-/**
- * ref: include/mondata.h vegetarian(): vegan (blobs, jellies, fungi, vortices, lights,
- * elementals but stalkers; no golems or ghosts in the roster) or a pudding but the black one
- */
+/** ref: include/mondata.h vegetarian(): vegan() or a pudding but the black one */
 export function vegetarian(def: MonsterDef): boolean {
-  const ch = def.glyph.ch;
-  if ('bjFvy'.includes(ch)) return true;
-  if (ch === 'E') return def.id !== 'nh:stalker';
-  return ch === 'P' && def.id !== 'nh:black_pudding';
+  if (vegan(def)) return true;
+  return def.glyph.ch === 'P' && def.id !== 'nh:black_pudding';
 }
 
 /** A monster type's name as the player types it (lower case). */
@@ -143,11 +142,12 @@ export const herbivorous = (def: MonsterDef): boolean =>
 
 /**
  * ref: include/mondata.h vegan(): blobs, jellies, fungi, vortices, lights, elementals but the
- * stalker, noncorporeal monsters (no golems in the roster)
+ * stalker, golems but flesh and leather ones, noncorporeal monsters
  */
 export function vegan(def: MonsterDef): boolean {
   const ch = def.glyph.ch;
   if ('bjFvy '.includes(ch)) return true;
+  if (ch === "'") return def.id !== 'nh:flesh_golem' && def.id !== 'nh:leather_golem';
   return ch === 'E' && def.id !== 'nh:stalker';
 }
 

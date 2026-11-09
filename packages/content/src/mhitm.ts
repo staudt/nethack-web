@@ -7,6 +7,8 @@
 // (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
 // which do nothing until their m9 step), shades, cloning puddings. Touching a cockatrice
 // turns the attacker to stone (mdamagem()).
+import { golemeffects } from './golemfx';
+import { isGolem } from './golem';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -60,7 +62,7 @@ import { snuffLit } from './light';
 import { mintrap } from './trap';
 import { cloneMon } from './clone';
 import { resistConflict } from './props';
-import { monstone } from './stoning';
+import { monPolyWhenStoned, monToStone, monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 import { canseemon, monInvisible, perceives } from './invis';
 import { hatesSilver } from './mondata';
@@ -121,7 +123,7 @@ export const GROWS_INTO: Readonly<Record<string, string>> = {
  * form ("The kitten grows up into a housecat."). With no victim (`null`: a wraith corpse, as a
  * potion of gain level would) it always goes up a level, a killer bee into a queen bee. Returns
  * false if it died (never here).
- * ref: src/makemon.c grow_up() (golems and elementals are not special here)
+ * ref: src/makemon.c grow_up() (home elementals are not special here)
  */
 export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): boolean {
   const mon = ent(ctx, id);
@@ -138,7 +140,11 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): bool
   let maxIncrease: number;
   let curIncrease: number;
   if (victimLevel !== null) {
-    hpThreshold = m.level ? m.level * 8 : 4;
+    hpThreshold = !m.level
+      ? 4
+      : isGolem(oldDef) // strange creatures
+        ? (Math.trunc(hp.max / 10) + 1) * 10 - 1
+        : m.level * 8;
     levLimit = Math.trunc((3 * oldDef.level) / 2);
     if (newDef !== oldDef && newDef.level > levLimit) levLimit = newDef.level;
     maxIncrease = ctx.rng.rnd(victimLevel + 1);
@@ -196,7 +202,10 @@ function mdamagem(
       (slot === 'gloves' && mwep !== null) ||
       minvent(ctx, magr.id).some((o) => o.c.item?.equipped === slot);
     if (protector !== 'never' && (protector.length === 0 || !protector.every(worn))) {
-      // (no golems: mon_to_stone() is 7f)
+      if (monPolyWhenStoned(ctx, magr)) {
+        monToStone(ctx, magr);
+        return M_ATTK.HIT; // no damage during the polymorph
+      }
       if (vis && canSpotMon(ctx, magr)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
       const tame = (magr.c.monster?.tame ?? 0) > 0;
       monstone(ctx, magr);
@@ -214,7 +223,7 @@ function mdamagem(
   hp.cur -= damage;
   if (hp.cur < 1) {
     const victimLevel = mdef.c.monster?.level ?? 0;
-    monkilled(ctx, mdef.id, true, undefined, atk.ad === 'dgst');
+    monkilled(ctx, mdef.id, true, undefined, atk.ad === 'dgst' ? 'dgst' : undefined);
     return M_ATTK.DEF_DIED | (growUp(ctx, magr.id, victimLevel) ? 0 : M_ATTK.AGR_DIED);
   }
   return M_ATTK.HIT;
@@ -483,7 +492,10 @@ function passivemm(
           return res;
         case 'cold':
           if (resists(ctx, magr, 'cold')) {
-            if (seenAgr) say(ctx, 'mhitm.mildly_chilly', { mon: name() });
+            if (seenAgr) {
+              say(ctx, 'mhitm.mildly_chilly', { mon: name() });
+              golemeffects(ctx, magr, 'cold', tmp); // (only when seen: C as is)
+            }
             tmp = 0;
             break;
           }
@@ -507,7 +519,10 @@ function passivemm(
           break;
         case 'fire':
           if (resists(ctx, magr, 'fire')) {
-            if (seenAgr) say(ctx, 'mhitm.mildly_warmed', { mon: name() });
+            if (seenAgr) {
+              say(ctx, 'mhitm.mildly_warmed', { mon: name() });
+              golemeffects(ctx, magr, 'fire', tmp); // (only when seen: C as is)
+            }
             tmp = 0;
             break;
           }
@@ -515,7 +530,10 @@ function passivemm(
           break;
         case 'elec':
           if (resists(ctx, magr, 'elec')) {
-            if (seenAgr) say(ctx, 'mhitm.mildly_tingled', { mon: name() });
+            if (seenAgr) {
+              say(ctx, 'mhitm.mildly_tingled', { mon: name() });
+              golemeffects(ctx, magr, 'elec', tmp); // (only when seen: C as is)
+            }
             tmp = 0;
             break;
           }

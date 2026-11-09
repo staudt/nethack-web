@@ -26,7 +26,7 @@ import { makemon, rndmonst } from './generation';
 import { adjalign, uState } from './luck';
 import { messagesEn } from './messages.en';
 import { mondead } from './mondeath';
-import { nameToMon, nonliving } from './mondata';
+import { nameToMon, nonliving, weirdnonliving } from './mondata';
 import { mungspaces, wishNames } from './objnam_read';
 import { P, hasProp } from './props';
 import { heroForm, heroFormId, rehumanize, upolyOf } from './upoly';
@@ -76,13 +76,13 @@ const roleId = (ctx: Pick<Ctx, 'state'>): DefId =>
 
 /**
  * How she feels inside after genociding her own kind while polymorphed: "dead" (living forms,
- * demons included), "condemned" (undead) or "empty" (vortices; no golems).
+ * demons included), "condemned" (undead plus manes) or "empty" (golems plus vortices).
  * ref: src/polyself.c udeadinside()
  */
 function udeadinside(ctx: Ctx): string {
   const form = heroForm(ctx);
   if (!form || !nonliving(form)) return 'genocide.inside.dead';
-  return form.glyph.ch === 'v' ? 'genocide.inside.empty' : 'genocide.inside.condemned';
+  return weirdnonliving(form) ? 'genocide.inside.empty' : 'genocide.inside.condemned';
 }
 
 // ---------------------------------------------------------------------------------------------

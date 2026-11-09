@@ -24,7 +24,9 @@ import { boulderFlooreffects } from './flooreffects';
 import { adjLev, newmonhp } from './generation';
 import { ustuck } from './hackmove';
 import { setAdNewcham } from './adtyping';
-import { newchamInvis } from './invis';
+import { canseemon, newchamInvis } from './invis';
+import { isGolem } from './golem';
+import { setMonToStone } from './stoning';
 import { placeOnFloor } from './items';
 import { minvent, setMonFlag } from './mongear';
 import { canSpotMon, monNam } from './perception';
@@ -171,7 +173,7 @@ export function newcham(
   // set level and hit points
   const depth = ctx.state.levels[p.level]?.depth ?? 1;
   m.level = adjLev(mdat, depth, getPlayer(ctx.state).c.experience?.level ?? 1);
-  const newhp = newmonhp(ctx, m.level);
+  const newhp = newmonhp(ctx, m.level, mdat.id);
   if (hp) {
     hp.max = newhp;
     hp.cur = Math.trunc((hpn * newhp) / Math.max(hpd, 1));
@@ -265,3 +267,18 @@ export function newcham(
 }
 
 setAdNewcham(newcham); // adtyping.ts (AD_SLIM) sits below this module
+
+/**
+ * A golem (not a stone golem) turned to stone becomes a stone golem: "The flesh golem
+ * solidifies... Now it's a stone golem." ("... and returns to normal." if it could not).
+ * ref: src/mon.c mon_to_stone()
+ */
+function monToStone(ctx: Ctx, mon: Entity): void {
+  if (!isGolem(ctx.defs.monster(mon.def))) return; // impossible("Can't polystone %s!")
+  // it's a golem, and not a stone golem
+  if (canseemon(ctx, mon)) say(ctx, 'golem.solidifies', { mon: monNam(ctx, mon) });
+  if (newcham(ctx, mon, ctx.defs.monster('nh:stone_golem'))) {
+    if (canseemon(ctx, mon)) say(ctx, 'golem.now_its', { mon: '@nh:stone_golem' });
+  } else if (canseemon(ctx, mon)) say(ctx, 'golem.returns_to_normal');
+}
+setMonToStone(monToStone); // stoning.ts sits below this module

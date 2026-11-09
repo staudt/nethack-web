@@ -2,6 +2,7 @@
 // ref: src/mon.c xkilled(), corpse_chance(), make_corpse(); src/mkobj.c start_corpse_timeout()
 import {
   getPlayer,
+  rnl,
   type Ctx,
   type DefId,
   type EntityId,
@@ -12,8 +13,11 @@ import {
 import { mswallowerOf } from './engulfstate';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
-import { mkcorpse, mksobj, rne } from './items';
+import { mkcorpse, mkgold, mksobj, rne } from './items';
 import { isUnicorn } from './mondata';
+import { GLASS_GEMS } from './gem';
+import { isGolem } from './golem';
+import { luckOf } from './luck';
 import { xnameOf } from './objnam';
 
 /** ref: include/hack.h ROT_AGE: a corpse rots away at this age (turns) */
@@ -86,11 +90,12 @@ export function setDeathExplosion(fn: DeathExplosion): void {
 
 /**
  * Whether a killed monster leaves a corpse. ref: src/mon.c corpse_chance(): big monsters always
- * do, others with chance 1/(2 + (rare) + (tiny)). Not ported: liches, golems, player monsters,
- * riders, shopkeepers, cloned monsters. (The gas spore's explosion is in xkilledCorpse().)
+ * do, as do golems; others with chance 1/(2 + (rare) + (tiny)). Not ported: liches, player
+ * monsters, riders, shopkeepers, cloned monsters. (The gas spore's explosion is in
+ * xkilledCorpse().)
  */
 export function corpseChance(ctx: Ctx, def: MonsterDef): boolean {
-  if (bigmonst(def)) return true;
+  if (bigmonst(def) || isGolem(def)) return true;
   const tmp = 2 + (def.frequency < 2 ? 1 : 0) + (def.size === 'tiny' ? 1 : 0);
   return ctx.rng.rn2(tmp) === 0;
 }
@@ -153,6 +158,87 @@ function corpseExtras(
   // (a revived unicorn's horn is `degraded_horn`: only poly_obj() reads it, see DEVIATIONS.md)
 }
 
+type GolemStatue = (ctx: Ctx, mon: DefId, at: { level: string; x: number; y: number }) => void;
+let golemStatue: GolemStatue | null = null;
+
+/** mkobj.ts hands down the statue maker (it sits above this module). */
+export function setGolemStatue(fn: GolemStatue): void {
+  golemStatue = fn;
+}
+
+/**
+ * What a golem leaves instead of a corpse: iron chains (d(2,6)), glass gems (d(2,4) of
+ * rn2(NUM_GLASS_GEMS)), 50..69 rocks, a statue of a stone golem, d(2,4) quarterstaffs, small
+ * shields, clubs, elven spears or boomerangs, rn2(3) leashes, bullwhips or grappling hooks, d(2,4)
+ * leather armors, leather cloaks or saddles, 200 - rnl(101) gold, rnd(4) blank scrolls. The
+ * port has no iron chain, boomerang, leash, grappling hook or saddle: their rolls are drawn and
+ * nothing is made (DEVIATIONS.md "Golems"). False for anything else (straw and flesh golems
+ * included: the default corpse rules). ref: src/mon.c make_corpse() PM_*_GOLEM
+ */
+function golemDrop(
+  ctx: Ctx,
+  def: MonsterDef,
+  at: { level: string; x: number; y: number },
+): boolean {
+  const make = (id: string | null): void => {
+    if (id !== null) mksobj(ctx, ctx.defs.object(id as never), { at, init: true });
+  };
+  let num: number;
+  switch (def.id) {
+    case 'nh:iron_golem':
+      num = ctx.rng.d(2, 6);
+      while (num--) make(null); // IRON_CHAIN
+      return true;
+    case 'nh:glass_golem':
+      num = ctx.rng.d(2, 4); // very low chance of creating all glass gems
+      while (num--) make(GLASS_GEMS[ctx.rng.rn2(GLASS_GEMS.length)] ?? null);
+      return true;
+    case 'nh:clay_golem': {
+      const n = ctx.rng.rn2(20) + 50;
+      mksobj(ctx, ctx.defs.object('nh:rock'), { at, init: false, quantity: n });
+      return true;
+    }
+    case 'nh:stone_golem':
+      // mkcorpstat(STATUE, NULL, mdat, ...) without CORPSTAT_INIT
+      golemStatue?.(ctx, def.id, at);
+      return true;
+    case 'nh:wood_golem':
+      num = ctx.rng.d(2, 4);
+      while (num--)
+        make(
+          ctx.rng.rn2(2)
+            ? 'nh:quarterstaff'
+            : ctx.rng.rn2(3)
+              ? 'nh:small_shield'
+              : ctx.rng.rn2(3)
+                ? 'nh:club'
+                : ctx.rng.rn2(3)
+                  ? 'nh:elven_spear'
+                  : null, // BOOMERANG
+        );
+      return true;
+    case 'nh:rope_golem':
+      num = ctx.rng.rn2(3);
+      while (num-- > 0) make(ctx.rng.rn2(2) ? null : ctx.rng.rn2(3) ? 'nh:bullwhip' : null); // LEASH, GRAPPLING_HOOK
+      return true;
+    case 'nh:leather_golem':
+      num = ctx.rng.d(2, 4);
+      while (num--)
+        make(ctx.rng.rn2(4) ? 'nh:leather_armor' : ctx.rng.rn2(3) ? 'nh:leather_cloak' : null); // SADDLE
+      return true;
+    case 'nh:gold_golem':
+      // Good luck gives more coins
+      mkgold(ctx, 200 - rnl(ctx.rng, 101, luckOf(ctx.state)), at);
+      return true;
+    case 'nh:paper_golem':
+      num = ctx.rng.rnd(4);
+      while (num--) make('nh:scroll_of_blank_paper');
+      return true;
+    default:
+      return false;
+  }
+}
+
 /**
  * Leaves a corpse where the hero killed `def`, if the rules say so, and starts its rot timer.
  * ref: src/mon.c xkilled() ("corpse--none if hero was inside the monster"), make_corpse().
@@ -173,8 +259,10 @@ export function xkilledCorpse(
     return;
   }
   const undead = UNDEAD_TO_CORPSE[def.id];
-  if (undead === undefined && def.genFlags.includes('nocorpse')) return; // G_NOCORPSE
+  // G_NOCORPSE stops only make_corpse()'s default case: golems leave their material
+  if (undead === undefined && !isGolem(def) && def.genFlags.includes('nocorpse')) return;
   if (!corpseChance(ctx, def)) return;
+  if (golemDrop(ctx, def, at)) return;
   if (undead !== undefined) {
     // ref: make_corpse() zombies and mummies: their race's corpse, and an *OLD* one. The
     // ettin mummy leaves none (no ettin here).
@@ -185,6 +273,7 @@ export function xkilledCorpse(
     startCorpseTimeout(ctx, id);
     return;
   }
+  if (def.genFlags.includes('nocorpse')) return; // a straw golem
   corpseExtras(ctx, def, at, dead);
   const id = mkcorpse(ctx, def, { at });
   startCorpseTimeout(ctx, id);

@@ -97,12 +97,15 @@ import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
+import { golemhp, isGolem } from './golem';
+import { monkilled } from './mondeath';
+import { ugolemeffects } from './golemfx';
 import { msize, nohands, nonliving } from './mondata';
 import { mIsSteadfast, mhurtle } from './mhurtle';
 import { abuseDog } from './dog';
 import { drainItem, resistsDrli } from './adtyping';
 import { losexp } from './exper';
-import { heroForm, rehumanize, upolyd } from './upoly';
+import { heroForm, heroFormId, polymonLate, rehumanize, upolyd } from './upoly';
 import { wakeup } from './peaceful';
 import {
   buzzFrom,
@@ -841,6 +844,18 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     case WAN.cancellation:
       cancelMonst(ctx, mon, src, true, false);
       break;
+    case SPE.stoneToFlesh:
+      if (isGolem(ctx.defs.monster(mon.def))) {
+        const name = monNam(ctx, mon); // before possible polymorph
+        let mesg: string;
+        // turn stone golem into flesh golem
+        if (mon.def === 'nh:stone_golem' && newcham(ctx, mon, ctx.defs.monster('nh:flesh_golem')))
+          mesg = 'golem.stf.turns_to_flesh';
+        else if (mon.def === 'nh:flesh_golem') mesg = 'golem.stf.fleshier';
+        else mesg = 'golem.stf.rather_fleshy';
+        if (canseemon(ctx, mon)) say(ctx, mesg, { mon: name });
+      } else wake = false; // (no stone-disguised mimics revealed: that_is_a_mimic())
+      break;
     case WAN.polymorph:
     case SPE.polymorph:
       if (mon.def === LONG_WORM && isBypassed(mon.id)) {
@@ -908,10 +923,16 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       break;
     }
     case SPE.drainLife: {
-      // monhp_per_lvl(): d8, rnd(4) at level 0 (no golems, no adult dragons)
+      // monhp_per_lvl(): d8, a golem's golemhp() / its base level, rnd(4) at level 0 (no adult
+      // dragons)
       const lvl = mon.c.monster?.level ?? 0;
       const d8 = ctx.rng.rnd(8);
-      let dmg = lvl ? d8 : ctx.rng.rnd(4);
+      const mdat = ctx.defs.monster(mon.def);
+      let dmg = isGolem(mdat)
+        ? Math.trunc(golemhp(mdat.id) / mdat.level)
+        : lvl
+          ? d8
+          : ctx.rng.rnd(4);
       dmg = spellDamageBonus(ctx.state, dmg);
       if (resistsDrli(ctx, mon)) {
         // shieldeff_mon()
@@ -1484,8 +1505,10 @@ const POT_WATER: DefId = 'nh:potion_of_water';
  * Cancels a monster, or the hero: it resists (resist() against the wand's class; the hero only
  * with magic resistance when someone else cancels her), else the inventory is cancelled first
  * when it zapped itself (`selfCancel`), a monster is marked `mcan` and a polymorphed hero returns
- * to her own form ("Your amulet grows hot for a moment, then cools." with Unchanging). True when
- * it did not resist. ref: src/zap.c cancel_monst() (no shapeshifters, mimics or clay golems)
+ * to her own form ("Your amulet grows hot for a moment, then cools." with Unchanging). A clay
+ * golem dies ("Some writing vanishes from the clay golem's head!"), as does a hero in clay golem
+ * form, even with Unchanging. True when it did not resist. ref: src/zap.c cancel_monst() (no
+ * shapeshifters, no Magicbane: allow_cancel_kill is always TRUE)
  */
 export function cancelMonst(
   ctx: Ctx,
@@ -1504,13 +1527,26 @@ export function cancelMonst(
   // now handle special cases
   if (youdefend) {
     // a polymorphed hero (a lycanthrope in beast form too) returns to normal form unless
-    // Unchanging; it does not cure lycanthropy or polymorphitis (no clay golem form exists)
+    // Unchanging; a clay golem form dies; it does not cure lycanthropy or polymorphitis
     const h = getPlayer(ctx.state);
     if (upolyd(ctx.state)) {
+      if (heroFormId(ctx.state) === 'nh:clay_golem') {
+        if (!blind(ctx)) say(ctx, 'golem.writing_vanishes_you');
+        // "dark" rather than "heavy" is intentional
+        else say(ctx, hasProp(h, P.HALLUC) ? 'golem.feel_dark_headed' : 'golem.feel_light_headed');
+        if (h.c.hp) h.c.hp.cur = 0; // fatal; death handled by rehumanize()
+      }
       if (hasProp(h, P.UNCHANGING) && (h.c.hp?.cur ?? 0) > 0) say(ctx, 'zap.cancel.amulet_hot');
       else rehumanize(ctx);
     }
-  } else setCancelled(ctx, mdef.id);
+  } else {
+    setCancelled(ctx, mdef.id);
+    if (mdef.def === 'nh:clay_golem') {
+      if (canseemon(ctx, mdef)) say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
+      if (youattack) killedByHero(ctx, mdef);
+      else monkilled(ctx, mdef.id, true); // monkilled(mdef, "", AD_SPEL)
+    }
+  }
   return true;
 }
 
@@ -1567,7 +1603,10 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       if (!hasProp(h, P.SHOCK_RES)) {
         say(ctx, 'zap.self.shock');
         damage = orig;
-      } else say(ctx, 'zap.self.unharmed');
+      } else {
+        say(ctx, 'zap.self.unharmed');
+        ugolemeffects(ctx, 'elec', orig);
+      }
       destroyItems(ctx, h.id, 'elec', orig);
       if (ctx.state.gameOver) return 0;
       flashburn(ctx, ctx.rng.rnd(100));
@@ -1576,8 +1615,10 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
     case WAN.fire: {
       learnIt = true;
       const orig = ctx.rng.d(12, 6);
-      if (hasProp(h, P.FIRE_RES)) say(ctx, 'zap.self.warm');
-      else {
+      if (hasProp(h, P.FIRE_RES)) {
+        say(ctx, 'zap.self.warm');
+        ugolemeffects(ctx, 'fire', orig);
+      } else {
         say(ctx, 'zap.self.afire');
         damage = orig;
       }
@@ -1590,8 +1631,10 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
     case WAN.cold: {
       learnIt = true;
       const orig = ctx.rng.d(12, 6);
-      if (hasProp(h, P.COLD_RES)) say(ctx, 'zap.self.chill');
-      else {
+      if (hasProp(h, P.COLD_RES)) {
+        say(ctx, 'zap.self.chill');
+        ugolemeffects(ctx, 'cold', orig);
+      } else {
         say(ctx, 'zap.self.popsicle');
         damage = orig;
       }
@@ -1757,7 +1800,10 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       break;
     }
     case SPE.stoneToFlesh: {
-      // (no stone golem form)
+      if (heroFormId(ctx.state) === 'nh:stone_golem') {
+        learnIt = true;
+        polymonLate(ctx, 'nh:flesh_golem');
+      }
       if (isStoned(ctx.state)) {
         learnIt = true;
         fixPetrification(ctx); // saved!

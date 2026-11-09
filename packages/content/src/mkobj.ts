@@ -5,7 +5,7 @@ import { putIn } from '@nh/core';
 import { rndmonst, setLevelObjectAt } from './generation';
 import { mksobj, setEggInit, type MksobjOpts } from './items';
 import { canBeHatched, deadSpecies } from './eggstate';
-import { startCorpseTimeout } from './corpses';
+import { setGolemStatue, startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 import { STATUE } from './statuestate';
 
@@ -317,4 +317,16 @@ setEggInit((ctx, level) => {
 // makemon()'s S_SPIDER/S_SNAKE level-creation object. ref: src/makemon.c makemon()
 setLevelObjectAt((ctx, at) => {
   mkobjAt(ctx, 'random', at, true);
+});
+
+// make_corpse()'s stone golem statue: mkcorpstat(STATUE, NULL, mdat, x, y, no CORPSTAT_INIT)
+setGolemStatue((ctx, mon, at) => {
+  mksobjStatue(
+    ctx,
+    ctx.defs.object('nh:statue'),
+    { at, init: false, corpseOf: mon },
+    {
+      level: at.level,
+    },
+  );
 });

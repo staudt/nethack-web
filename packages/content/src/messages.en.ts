@@ -45,6 +45,7 @@ import { hideMessagesEn } from './hide.en';
 import { mimicMessagesEn } from './mimic.en';
 import { unicornMessagesEn } from './unicorn.en';
 import { wormMessagesEn } from './worm.en';
+import { golemMessagesEn } from './golem.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -108,6 +109,7 @@ export const messagesEn: Record<string, string> = {
   ...mimicMessagesEn,
   ...unicornMessagesEn,
   ...wormMessagesEn,
+  ...golemMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
@@ -375,6 +377,17 @@ export const messagesEn: Record<string, string> = {
   'nh:ettin_zombie': 'ettin zombie',
   'nh:ghoul': 'ghoul',
   'nh:giant_zombie': 'giant zombie',
+  'nh:straw_golem': 'straw golem',
+  'nh:paper_golem': 'paper golem',
+  'nh:rope_golem': 'rope golem',
+  'nh:gold_golem': 'gold golem',
+  'nh:leather_golem': 'leather golem',
+  'nh:wood_golem': 'wood golem',
+  'nh:flesh_golem': 'flesh golem',
+  'nh:clay_golem': 'clay golem',
+  'nh:stone_golem': 'stone golem',
+  'nh:glass_golem': 'glass golem',
+  'nh:iron_golem': 'iron golem',
   'nh:elf_mummy': 'elf mummy',
   'nh:human_mummy': 'human mummy',
   'nh:giant_mummy': 'giant mummy',

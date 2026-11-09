@@ -10,7 +10,7 @@
 //
 // Not ported: genders, shop billing for a fractured statue (fracture_rock()'s breakobj()), saved
 // monster traits (`omonst`: a stoned monster's statue comes to life as a new monster of its kind),
-// named statues, mimics and hiders, golems (no golems: no flesh golem transformation),
+// named statues, mimics and hiders,
 // doppelgangers (a unique monster's statue does not come to life: cant_revive() would make a
 // doppelganger, which the roster lacks), quest guardians, the hero hiding under objects.
 import {
@@ -34,6 +34,7 @@ import { placeObject, removeFromInventory } from './items';
 import { adjalign, uState } from './luck';
 import { mksobjStatue, rndmonnum, type MkobjCtx } from './mkobj';
 import { isUnicorn, nonliving } from './mondata';
+import { isGolem } from './golem';
 import { forgetMonster, mDoWear, minvent } from './mongear';
 import { forgetMState } from './mstate';
 import { xnameOf } from './objnam';
@@ -194,6 +195,12 @@ export function animateStatue(
   if (ZOMBIFIED.includes(montype) && ctx.defs.isMonster('nh:human_zombie'))
     mptr = ctx.defs.monster('nh:human_zombie');
   else if (mptr.genFlags.includes('uniq')) return { mon: null, fail: 'unique' };
+  let golemXform = false;
+  if (isGolem(mptr) && cause === 'spell' && ctx.defs.isMonster('nh:flesh_golem')) {
+    // statue of any golem hit by stone-to-flesh becomes flesh golem
+    golemXform = mptr.id !== 'nh:flesh_golem';
+    mptr = ctx.defs.monster('nh:flesh_golem');
+  }
 
   const levelId = statue.c.pos?.level ?? hero.c.pos?.level ?? ctx.state.currentLevel;
   const hp = hero.c.pos;
@@ -218,9 +225,11 @@ export function animateStatue(
   const how: Msg = {
     key: !canSpotMon(ctx, mon)
       ? 'statue.how.disappears'
-      : nonliving(mptr)
-        ? 'statue.how.moves'
-        : 'statue.how.comes_to_life',
+      : golemXform
+        ? 'statue.how.turns_into_flesh'
+        : nonliving(mptr)
+          ? 'statue.how.moves'
+          : 'statue.how.comes_to_life',
   };
   if (uAt || cause === 'spell') {
     // "the|your|Manlobbi's statue [of a wombat]"

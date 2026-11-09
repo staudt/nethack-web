@@ -73,6 +73,7 @@ export const stoningMessagesEn: Record<string, string> = {
   'statue.animate': '{owner} {statue} {how}!',
   'statue.how.comes_to_life': 'comes to life',
   'statue.how.moves': 'moves',
+  'statue.how.turns_into_flesh': 'turns into flesh',
   'statue.how.disappears': 'disappears',
   'statue.animate.halluc': 'The {mon} suddenly seems more animated.',
   'statue.animate.shatter': 'Instead of shattering, {owner} {statue} suddenly {how}!',

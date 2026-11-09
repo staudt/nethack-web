@@ -62,7 +62,7 @@ import { aAlign, altarWrath } from './align';
 import { findRollToHit, missum, monsterIdAt } from './combat';
 import { damageum } from './hmonas';
 import { M_ATTK } from './adtyping';
-import { nolimbs, slithy, verysmall } from './mondata';
+import { nolimbs, nonliving as nonlivingDef, slithy, verysmall } from './mondata';
 import { getdirImpaired, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
@@ -632,8 +632,9 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
   passive(ctx, snap, true, !dead, uarmf(ctx), 'kick');
   if (dead && !trapkilled) {
     // ref: src/mon.c killed() -> xkilled(): "You kill/destroy it!"
-    const nonliving = def.flags.includes('undead') || def.id === 'nh:manes';
-    say(ctx, nonliving ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, target) });
+    say(ctx, nonlivingDef(def) ? 'combat.you_destroy' : 'combat.you_kill', {
+      mon: monNam(ctx, target),
+    });
     monsterDied(ctx, monId, true);
     gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
   }

@@ -6,8 +6,8 @@
 // minstapetrify(); src/mon.c monstone(); src/uhitm.c do_stone_u(); src/pickup.c
 // fatal_corpse_mistake(); src/wield.c cant_wield_corpse(); src/botl.c bl_stone
 //
-// Not ported: polymorph (poly_when_stoned() golems and the hero turning into a stone golem,
-// mon_to_stone(): 7f), vampires reverting (vamp_stone(): 7f), monsters using lizard corpses or
+// Golems turn into stone golems instead (poly_when_stoned(), mon_to_stone(): newcham.ts registers
+// it). Not ported: vampires reverting (vamp_stone(): 7f), monsters using lizard corpses or
 // acidic potions to cure themselves (munstone(): muse.c is not ported), monster life saving,
 // selftouch() (falling while wielding a cockatrice corpse), the hero's statue (no bones).
 import { getPlayer, type Ctx, type Entity, type EntityId, type ModApi, type Msg } from '@nh/core';
@@ -26,8 +26,30 @@ import { xnameOf } from './objnam';
 import { P, hasProp, setIntrinsic, setItimeout, timeoutLeft } from './props';
 import { isSlimed, makeSlimed } from './slimestate';
 import { isStoned, makeStoned, resistsSton, stonedKiller } from './stonestate';
+import { uPolyStoneGolem } from './upoly';
+import { polyWhenStoned } from './golem';
+import { isGenocided } from './vanquished';
 
 export { instapetrify, fatalCorpseMistake, cantWieldCorpse, bareCorpseTouch } from './stonetouch';
+
+let monToStoneFn: ((ctx: Ctx, mon: Entity) => void) | null = null;
+
+/** newcham.ts hands down mon_to_stone() (it sits above this module). */
+export function setMonToStone(fn: (ctx: Ctx, mon: Entity) => void): void {
+  monToStoneFn = fn;
+}
+
+/**
+ * The golem turns into a stone golem ("The flesh golem solidifies..."). Call it only when
+ * monPolyWhenStoned(). ref: src/mon.c mon_to_stone()
+ */
+export function monToStone(ctx: Ctx, mon: Entity): void {
+  monToStoneFn?.(ctx, mon);
+}
+
+/** ref: include/mondata.h poly_when_stoned(mon->data) */
+export const monPolyWhenStoned = (ctx: Ctx, mon: Entity): boolean =>
+  polyWhenStoned(ctx.defs.monster(mon.def), isGenocided(ctx.state, 'nh:stone_golem'));
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -37,10 +59,15 @@ const hero = (ctx: Ctx): Entity => getPlayer(ctx.state);
 /**
  * The monster, when it does not resist, is "slowing down" and turns to stone: killed by the hero
  * (experience, alignment and luck as xkilled(), no corpse) when `byHero`, else monstone().
- * ref: src/trap.c minstapetrify() (no golems or vampires: 7f)
+ * A golem becomes a stone golem instead (mon_to_stone()).
+ * ref: src/trap.c minstapetrify() (no vampires: 7f)
  */
 export function minstapetrify(ctx: Ctx, mon: Entity, byHero: boolean): void {
   if (resistsSton(ctx, mon)) return;
+  if (monPolyWhenStoned(ctx, mon)) {
+    monToStone(ctx, mon);
+    return;
+  }
   // give a "<mon> is slowing down" message and also remove intrinsic speed
   monAdjustSpeed(ctx, mon, -3);
   if (mon.c.pos && heroSees(ctx, mon.c.pos)) say(ctx, 'stone.mon_turns', { mon: monNam(ctx, mon) });
@@ -86,10 +113,10 @@ export function monstone(ctx: Ctx, mon: Entity): void {
 
 /**
  * The hiss got through: the hero starts turning to stone (5 turns) unless she already is or
- * resists. ref: src/uhitm.c do_stone_u() (no polymorph into a stone golem: 7f)
+ * resists; a golem form becomes a stone golem instead. ref: src/uhitm.c do_stone_u()
  */
 export function doStoneU(ctx: Ctx, mon: Entity): boolean {
-  if (isStoned(ctx.state) || hasProp(hero(ctx), P.STONE_RES)) return false;
+  if (isStoned(ctx.state) || hasProp(hero(ctx), P.STONE_RES) || uPolyStoneGolem(ctx)) return false;
   // (no unique monster petrifies by touch: KILLED_BY_AN with its name)
   makeStoned(ctx, 5, null, `@${mon.def}`);
   return true;

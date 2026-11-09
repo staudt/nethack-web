@@ -40,7 +40,7 @@ import { buzzFrom, type Ray } from './buzz';
 import { canBlnd } from './adtyping';
 import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
 import { P, hasProp, makeBlinded, timeoutLeft } from './props';
-import { hatesSilver } from './mondata';
+import { hatesSilver, nonliving as nonlivingDef } from './mondata';
 import {
   formHatesSilver,
   heroHatesSilver,
@@ -292,7 +292,7 @@ export function ohitmon(
   }
   if (!hp || hp.cur < 1) {
     if (vis) {
-      const nonliving = mdef.flags.includes('undead') || mon.def === 'nh:manes';
+      const nonliving = nonlivingDef(mdef);
       say(ctx, nonliving ? 'mthrow.mon_destroyed' : 'mthrow.mon_killed', { mon: monNam(ctx, mon) });
     }
     // ref: src/mthrowu.c ohitmon() -> monkilled(): a corpse may be left

@@ -40,6 +40,8 @@ import { ustuck } from './hackmove';
 import { igniteItems } from './light';
 import { nonliving } from './mondata';
 import { mondead, mondied, monkilled } from './mondeath';
+import { completelyburns } from './golem';
+import { golemeffects, ugolemeffects } from './golemfx';
 import { setDeathExplosion } from './corpses';
 import { heroSees } from './mongear';
 import { wakeNearto } from './noise';
@@ -307,8 +309,10 @@ export function explode(
         }
         const mhp = mtmp.c.hp;
         if (m === 'shield') {
-          // golemeffects(): no golems
-          if (mhp) mhp.cur -= itemdmg;
+          // burning items' damage is ignored for golemeffects()
+          if (adtyp === 'fire' || adtyp === 'cold' || adtyp === 'elec')
+            golemeffects(ctx, mtmp, adtyp, dam);
+          if (mhp) mhp.cur -= itemdmg; // item destruction dmg
         } else {
           // resist() with no damage, then the damage by hand (the message comes first)
           let mdam = dam;
@@ -325,8 +329,9 @@ export function explode(
         }
         if (mhp && mhp.cur < 1) {
           if (!monMoving)
-            killedByHero(ctx, mtmp); // xkilled(XKILL_GIVEMSG)
-          else monkilled(ctx, mtmp.id, true); // monkilled(mtmp, "", adtyp)
+            // xkilled(XKILL_GIVEMSG), XKILL_NOCORPSE for a burnt paper or straw golem
+            killedByHero(ctx, mtmp, adtyp === 'fire' && completelyburns(mtmp.def));
+          else monkilled(ctx, mtmp.id, true, undefined, adtyp === 'fire' ? 'fire' : undefined); // monkilled(mtmp, "", adtyp)
         } else if (!monMoving) setmangry(ctx, mtmp.id);
         if (ctx.state.gameOver) return;
       }
@@ -352,6 +357,7 @@ export function explode(
     }
     destroyAny(counting, h.id, adtyp, dam);
     if (ctx.state.gameOver) return;
+    ugolemeffects(counting, adtyp, damu);
     const hp = h.c.hp;
     if (uhurt === 2 && hp) {
       hp.cur -= damu;

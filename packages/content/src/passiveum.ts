@@ -1,6 +1,7 @@
 // The polymorphed hero's passive response to a monster's blow (an acid blob form splashes the
 // attacker, a floating eye form freezes it), and splitting a polymorphed hero in two.
 // ref: src/mhitu.c passiveum(), assess_dmg(), cloneu(); src/potion.c split_mon()
+import { golemeffects } from './golemfx';
 import {
   getLevel,
   getPlayer,
@@ -21,7 +22,7 @@ import { rehumanize, upolyd } from './upoly';
 import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { attkProtection, resistsSton } from './stonestate';
-import { xkilledStoned } from './stoning';
+import { monPolyWhenStoned, monToStone, xkilledStoned } from './stoning';
 import { mnextoPos, makemon } from './generation';
 import { initedog } from './dog';
 import { heroInvisible, perceives } from './invis';
@@ -65,7 +66,7 @@ function assessDmg(ctx: Ctx, mon: Entity, tmp: number): number {
  * chills (and the cold makes her stronger, maybe splitting her in two), a yellow mold stuns, a
  * red mold burns, a gas spore form explodes ("You explode!") and she returns to human form.
  * Returns M_ATTK flags (AGR_DIED: the attacker died; AGR_DONE: it was frozen).
- * ref: src/mhitu.c passiveum() (no golems: golemeffects(); no reflecting monsters: mon_reflects();
+ * ref: src/mhitu.c passiveum() (no reflecting monsters: mon_reflects();
  * no shieldeff display)
  */
 export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: AttackDef): number {
@@ -102,7 +103,10 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
       const unprotected =
         protector !== 'never' && (protector.length === 0 || protector.some((s) => !worn(s)));
       if (!resistsSton(ctx, mtmp) && unprotected) {
-        // (no poly_when_stoned(): no golems)
+        if (monPolyWhenStoned(ctx, mtmp)) {
+          monToStone(ctx, mtmp);
+          return M_ATTK.HIT;
+        }
         say(ctx, 'passiveum.turns_to_stone', { mon: name });
         xkilledStoned(ctx, mtmp);
         return alive(ctx, mtmp) ? M_ATTK.HIT : M_ATTK.AGR_DIED;
@@ -161,6 +165,7 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
         // Brown mold or blue jelly
         if (resists(ctx, mtmp, 'cold')) {
           say(ctx, 'passiveum.mildly_chilly', { mon: name });
+          golemeffects(ctx, mtmp, 'cold', tmp);
           tmp = 0;
           break;
         }
@@ -183,6 +188,7 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
       case 'fire': // Red mold
         if (resists(ctx, mtmp, 'fire')) {
           say(ctx, 'passiveum.mildly_warm', { mon: name });
+          golemeffects(ctx, mtmp, 'fire', tmp);
           tmp = 0;
           break;
         }
@@ -191,6 +197,7 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
       case 'elec':
         if (resists(ctx, mtmp, 'elec')) {
           say(ctx, 'passiveum.slightly_tingled', { mon: name });
+          golemeffects(ctx, mtmp, 'elec', tmp);
           tmp = 0;
           break;
         }
