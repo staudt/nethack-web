@@ -17,6 +17,7 @@ export const jumpMessagesEn: Record<string, string> = {
   'legs.no_shape_left': 'Your left leg is in no shape for {what}.',
   'legs.no_shape_right': 'Your right leg is in no shape for {what}.',
   'legs.no_shape_both': 'Your legs are in no shape for {what}.',
+  'legs.better_both': 'Your legs feel better.',
   'jump.illegal_move': 'Illegal move!',
   'jump.too_far': 'Too far!',
   'jump.cannot_there': 'You cannot jump there!',

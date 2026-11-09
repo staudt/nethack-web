@@ -56,7 +56,9 @@ import { levitating } from './trapstate';
 import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
 import { monflee } from './monflee';
 import { isWere, ulycn, youUnwere } from './werestate';
-import { heroForm } from './upoly';
+import { heroForm, polymonLate, rehumanize, upolyOf } from './upoly';
+import { adjattrib } from './attrstate';
+import { healLegs } from './legs';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
 import { costlySpot, isShopType, uShops } from './eshk';
@@ -718,6 +720,38 @@ function fpostfx(ctx: Ctx, e: Entity): void {
   }
   // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (never creamed: cures it)
   if (e.def === 'nh:carrot') makeBlinded(ctx, 0, true);
+  if (e.def === 'nh:lump_of_royal_jelly') royalJelly(ctx, e.c.item?.buc === 'cursed');
+}
+
+/**
+ * A lump of royal jelly: a killer bee becomes a queen bee; anyone else gains (cursed: loses) a
+ * point of Str and `rnd(20)` hit points (cursed: loses them), the maximum going up by one 1 time
+ * in 17 when they overflow it; her own hit points running out kill her ("rotten lump of royal
+ * jelly"), her form's return her to her own; an uncursed lump heals wounded legs.
+ * ref: src/eat.c fpostfx() LUMP_OF_ROYAL_JELLY
+ */
+function royalJelly(ctx: Ctx, cursed: boolean): void {
+  const h = hero(ctx);
+  if (
+    heroForm(ctx)?.id === 'nh:killer_bee' &&
+    !hasProp(h, P.UNCHANGING) &&
+    polymonLate(ctx, 'nh:queen_bee')
+  )
+    return;
+  // This stuff seems to be VERY healthy!
+  adjattrib(ctx, 'str', cursed ? -1 : 1, true); // gainstr(otmp, 1, TRUE)
+  const hp = h.c.hp; // u.mh when polymorphed, else u.uhp
+  if (hp) {
+    hp.cur += cursed ? -ctx.rng.rnd(20) : ctx.rng.rnd(20);
+    if (hp.cur > hp.max) {
+      if (!ctx.rng.rn2(17)) hp.max += 1; // setuhpmax(max + 1, FALSE)
+      hp.cur = hp.max;
+    } else if (hp.cur <= 0) {
+      if (upolyOf(ctx.state)) rehumanize(ctx);
+      else done(ctx, '@killer.royal_jelly', 'poisoning');
+    }
+  }
+  if (!cursed) healLegs(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------

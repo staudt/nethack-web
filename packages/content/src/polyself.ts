@@ -82,6 +82,7 @@ import {
   heroFormId,
   ownHp,
   rehumanize as rehumanizeLate,
+  setPolymon,
   setRehumanize,
   setUnwere,
   setUpoly,
@@ -967,11 +968,15 @@ function polyTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   return 'finished';
 }
 
-/** Hands the polymorph trap's effects to trap.ts and rehumanize()/you_unwere() to upoly.ts. */
+/**
+ * Hands the polymorph trap's effects to trap.ts and rehumanize(), you_unwere() and polymon() to
+ * upoly.ts.
+ */
 export function registerPolyTrap(): void {
   setTrapEffect(TRAP.poly, { you: polyTrapYou, mon: polyTrapMon });
   setRehumanize(rehumanize);
   setUnwere(unwereForm);
+  setPolymon((ctx, mntmp) => polymon(ctx, mntmp, true));
 }
 
 // ---------------------------------------------------------------------------------------------

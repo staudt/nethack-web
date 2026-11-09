@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3887 citations.
+153 NetHack files, 3905 citations.
 
 ## dat/dungeon.lua
 
@@ -713,7 +713,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`
 - `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/genocide.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
-- `heal_legs()`: `packages/content/src/props.ts`
+- `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
 - `menu_drop()`: `packages/content/src/itemactions.ts`
@@ -1013,14 +1013,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/hack.c
 
-- (file): `packages/content/src/dog.en.ts`, `packages/content/src/eshk.ts`, `packages/content/src/shk.en.ts`, `packages/content/src/zoo.ts`
+- (file): `packages/content/src/dog.en.ts`, `packages/content/src/eshk.ts`, `packages/content/src/shk.en.ts`
 - `avoid_trap_andor_region()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `bad_rock()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.ts`, `packages/content/src/monmove.ts`
 - `calc_capacity()`: `packages/content/src/stats.ts`
 - `cannot_push()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `cannot_push_msg()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `check_capacity()`: `packages/content/src/magic.ts`
-- `check_special_room()`: `packages/content/src/mkroom.en.ts`, `packages/content/src/rooms.ts`
+- `check_special_room()`: `packages/content/src/mkroom.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/zoo.ts`
 - `closed_door()`: `packages/content/src/actions.ts`, `packages/core/src/movement.ts`
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
@@ -1044,6 +1044,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `may_dig()`: `packages/content/src/mdig.ts`
 - `money_cnt()`: `packages/content/src/detectobj.ts`, `packages/content/src/dosit.ts`, `packages/content/src/stats.ts`
 - `monster_nearby()`: `packages/content/src/eat.ts`
+- `monstinroom()`: `packages/content/src/zoo.ts`
 - `move_update()`: `packages/content/src/rooms.ts`, `packages/content/src/urooms.ts`
 - `moverock()`: `packages/content/src/landmine.ts`, `packages/content/src/moverock.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `moverock_core()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
@@ -1123,7 +1124,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `money_cnt()`: `packages/content/src/money.ts`
 - `prinv()`: `packages/content/src/itemactions.ts`
 - `set_cknown_lknown()`: `packages/content/src/read.ts`
-- `sobj_at()`: `packages/content/src/boulder.ts`
+- `sobj_at()`: `packages/content/src/beejelly.ts`, `packages/content/src/boulder.ts`
 - `splitobj()`: `packages/content/src/items.ts`
 - `stackobj()`: `packages/content/src/items.ts`
 - `useup()`: `packages/content/src/eat.ts`, `packages/content/src/erode.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/magic.ts`
@@ -1347,6 +1348,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_rottable()`: `packages/content/src/material.ts`
 - `may_generate_eroded()`: `packages/content/src/items.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
+- `mk_tt_object()`: `packages/content/src/zoo.ts`
 - `mkbox_cnts()`: `packages/content/src/mkobj.ts`
 - `mkcorpstat()`: `packages/content/src/items.ts`, `packages/content/src/statue.ts`
 - `mkgold()`: `packages/content/src/items.ts`
@@ -1387,6 +1389,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pick_room()`: `packages/content/src/mkroom.ts`
 - `somexy()`: `packages/content/src/somexy.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
 - `somexyspace()`: `packages/content/src/somexy.ts`
+- `squadmon()`: `packages/content/src/roommon.ts`
+- `squadprob()`: `packages/content/src/roommon.ts`
 
 ## src/mon.c
 
@@ -1400,6 +1404,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `curr_mon_load()`: `packages/content/src/mongear.ts`
 - `dead_species()`: `packages/content/src/eggstate.ts`
 - `egg_type_from_parent()`: `packages/content/src/eggstate.ts`
+- `find_pmmonst()`: `packages/content/src/beejelly.ts`
 - `healmon()`: `packages/content/src/mstate.ts`, `packages/content/src/uhitm_passive.ts`
 - `isspecmon()`: `packages/content/src/newcham.ts`
 - `kill_eggs()`: `packages/content/src/genocide.ts`
@@ -1483,11 +1488,12 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/mdig.ts`, `packages/content/src/mongear.ts`, `packages/content/src/monmove.ts`, `packages/content/src/trap.en.ts`
 - `accessible()`: `packages/content/src/teleport.ts`
+- `bee_eat_jelly()`: `packages/content/src/beejelly.ts`
 - `closed_door()`: `packages/content/src/buzz.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/zap.ts`
 - `count_webbing_walls()`: `packages/content/src/web.ts`
 - `distfleeck()`: `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `disturb()`: `packages/content/src/monmove.ts`
-- `dochug()`: `packages/content/src/brains.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
+- `dochug()`: `packages/content/src/beejelly.ts`, `packages/content/src/brains.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `dochugw()`: `packages/content/src/travel.ts`
 - `holds_up_web()`: `packages/content/src/web.ts`
 - `leppie_avoidance()`: `packages/content/src/monmove.ts`
@@ -1664,7 +1670,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `newman()`: `packages/content/src/polyself.ts`
 - `poly_gender()`: `packages/content/src/gender.ts`
 - `polyman()`: `packages/content/src/polyself.ts`
-- `polymon()`: `packages/content/src/polyself.ts`
+- `polymon()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`
 - `polyself()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`, `packages/content/src/wizard/polyself.ts`
 - `rehumanize()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`
 - `set_uasmon()`: `packages/content/src/polyself.ts`

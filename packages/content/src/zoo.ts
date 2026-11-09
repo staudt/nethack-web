@@ -2,14 +2,13 @@
 // A typed room (`Room.type` one of the kinds below) is filled when its level is made: by
 // makelevel()'s special-room chain (mkroom.ts types it, this fills it) or a LevelDef region
 // (`type: 'nh:zoo', filled: true`, Sokoban's zoo; its prize is in sokoprize.ts).
-// ref: src/mkroom.c fill_zoo(), mk_zoo_thronemon(); src/sp_lev.c fill_special_room();
-// src/hack.c check_special_room()
+// ref: src/mkroom.c fill_zoo(), mk_zoo_thronemon(); src/mkobj.c mk_tt_object();
+// src/sp_lev.c fill_special_room(); src/hack.c check_special_room()
 //
 // Not ported (DEVIATIONS.md "Special rooms"): `level.flags.has_*` (no level sounds) and the
 // irregular room shape: a LevelDef zoo is the rectangle of its region, filled on its open squares
 // and treated as irregular (the squares next to its first door stay empty), which is what
-// Sokoban's zoo is. Beehives, morgues, barracks, cockatrice nests and antholes have no fill yet:
-// the chain never types a room with them.
+// Sokoban's zoo is. Morgues have no fill yet: the chain never types a room with them.
 import {
   cellIndex,
   getLevel,
@@ -19,6 +18,7 @@ import {
   sortedIds,
   type Ctx,
   type DefId,
+  type EntityId,
   type Level,
   type ModApi,
   type MonsterDef,
@@ -27,11 +27,12 @@ import {
 } from '@nh/core';
 import { makemon } from './generation';
 import { mkgold, mksobj } from './items';
-import { mksobjFull } from './mkobj';
+import { setCorpsenm } from './corpses';
+import { mkobj, mkobjAt, mksobjCorpse, mksobjFull, mksobjStatue } from './mkobj';
 import { heroSees, mongets } from './mongear';
 import { monNam } from './perception';
 import { P, heroHas } from './props';
-import { courtmon } from './roommon';
+import { antholemon, courtmon, squadmon } from './roommon';
 import { somexyspaceTry } from './somexy';
 import { T, setTerrain, terrainIdAt } from './terrain';
 
@@ -67,7 +68,15 @@ const ZOO_KINDS: readonly DefId[] = [
 ];
 
 /** The kinds fill_zoo() can fill so far (the others arrive with their monsters). */
-export const FILLED_ZOO_KINDS: readonly DefId[] = [COURT, ZOO, LEPREHALL];
+export const FILLED_ZOO_KINDS: readonly DefId[] = [
+  COURT,
+  ZOO,
+  LEPREHALL,
+  BEEHIVE,
+  COCKNEST,
+  ANTHOLE,
+  BARRACKS,
+];
 
 /** ref: src/sp_lev.c fill_special_room() (the fill_zoo() cases) */
 export function isZooKind(type: DefId | undefined): boolean {
@@ -140,7 +149,10 @@ function mkZooThronemon(
  * Fills a zoo-like room: on each of its squares a sleeping monster of the room's kind (alone),
  * and for zoos and leprechaun halls a pile of gold that grows with the distance from the room's
  * door (`doors[fdoor]`), out of `500 * level_difficulty()` in all (then `5 * level_difficulty()`
- * a square). A throne room gets its ruler on a free square first, courtiers made hostile, then
+ * a square). A beehive's queen is on its centre square (a LevelDef region's free square when the
+ * centre is not one) among killer bees, with royal jelly; a cockatrice nest has statues, an
+ * anthole food, barracks squadmon()'s soldiers and boxes (fillSquareExtras()).
+ * A throne room gets its ruler on a free square first, courtiers made hostile, then
  * the throne under the ruler and the royal coffers: a chest holding `rn1(50 *
  * level_difficulty(), 10)` gold. A regular room (one level generation made) leaves out the
  * squares on the side of its door; a LevelDef region is irregular: the squares within one of that
@@ -171,6 +183,15 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = tru
       throne = tried.pos;
     }
     mkZooThronemon(ctx, level, throne, difficulty, inMklev);
+  } else if (type === BEEHIVE) {
+    throne = {
+      x: room.lx + Math.trunc((room.hx - room.lx + 1) / 2),
+      y: room.ly + Math.trunc((room.hy - room.ly + 1) / 2),
+    };
+    if (irregular && !spacePos(ctx, level, throne.x, throne.y)) {
+      // center might not be valid, so put queen elsewhere
+      throne = somexyspaceTry(ctx, level, room).pos;
+    }
   } else if (type === ZOO || type === LEPREHALL) goldlim = 500 * difficulty;
 
   for (let sx = room.lx; sx <= room.hx; sx++)
@@ -191,7 +212,10 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = tru
       }
       // don't place monster on explicitly placed throne
       if (type === COURT && id === T.throne) continue;
-      const mdef = zooMonster(ctx, type, difficulty);
+      const mdef =
+        type === BEEHIVE
+          ? ctx.defs.monster(sx === throne.x && sy === throne.y ? 'nh:queen_bee' : 'nh:killer_bee')
+          : zooMonster(ctx, type, difficulty);
       const mon = makemon(
         ctx,
         mdef,
@@ -212,7 +236,7 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = tru
         if (i >= goldlim) i = 5 * difficulty;
         goldlim -= i;
         mkgold(ctx, ctx.rng.rn2(i) + 10, { level: level.id, x: sx, y: sy }); // rn1(i, 10)
-      }
+      } else fillSquareExtras(ctx, level, type, { x: sx, y: sy }, inMklev);
     }
   if (type === COURT) {
     setTerrain(level, throne.x, throne.y, T.throne);
@@ -230,6 +254,81 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = tru
     if (it) it.spe = 2; // so it can be found later
   }
 }
+
+/** SPACE_POS(): a passable room square, not a door. */
+function spacePos(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  const id = terrainIdAt(level, x, y);
+  const t = id === undefined ? undefined : ctx.defs.terrain(id);
+  return t?.passable === true && t.door === undefined;
+}
+
+/**
+ * fill_zoo()'s objects on a square after its monster: a beehive's lump of royal jelly (1 in 3), a
+ * barracks' payroll, a large box or a chest (1 in 20), a cockatrice nest's statue of a would-be
+ * adventurer holding `rn2(5)` random objects (1 in 3), an anthole's random food (1 in 3).
+ * ref: src/mkroom.c fill_zoo() (MORGUE: step 4)
+ */
+function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: boolean): void {
+  const at = { level: level.id, x: p.x, y: p.y };
+  const gen = { level: level.id, inMklev };
+  if (type === BEEHIVE) {
+    if (!ctx.rng.rn2(3)) mksobjFull(ctx, ctx.defs.object('nh:lump_of_royal_jelly'), { at }, gen);
+  } else if (type === BARRACKS) {
+    // the payroll and some loot
+    if (!ctx.rng.rn2(20)) {
+      const box = ctx.rng.rn2(3) ? 'nh:large_box' : 'nh:chest';
+      mksobjFull(ctx, ctx.defs.object(box), { at }, gen);
+    }
+  } else if (type === COCKNEST) {
+    if (!ctx.rng.rn2(3)) {
+      const sobj = mkTtObject(ctx, 'nh:statue', at, inMklev);
+      for (let i = ctx.rng.rn2(5); i; i--) {
+        // add_to_container(sobj, mkobj(RANDOM_CLASS, FALSE)); a statue is not a core container
+        const o = mkobj(ctx, 'random', { level: level.id, inMklev, artif: false });
+        const it = o === null ? undefined : ctx.state.entities[String(o)]?.c.item;
+        if (it) {
+          it.containedIn = sobj;
+          it.placed = ctx.state.seq++;
+        }
+      }
+    }
+  } else if (type === ANTHOLE) {
+    if (!ctx.rng.rn2(3)) mkobjAt(ctx, 'food', at, inMklev);
+  }
+}
+
+/**
+ * A corpse or statue "named after someone listed in the scoreboard file". There is no record
+ * file: get_rnd_toptenentry()'s `rnd(10)` rank roll finds no entry (as with an empty record), so
+ * the object is of a random player monster: the `rn1(13, PM_ARCHEOLOGIST)` roll is drawn and,
+ * with no player monsters, it is an unnamed human (DEVIATIONS.md "Special rooms"). A statue is
+ * made uninitialized (player statues never contain books). ref: src/mkobj.c mk_tt_object(),
+ * src/topten.c tt_oname(), get_rnd_toptenentry()
+ */
+export function mkTtObject(
+  ctx: Ctx,
+  kind: 'nh:corpse' | 'nh:statue',
+  at: { level: Level['id']; x: number; y: number },
+  inMklev = true,
+): EntityId {
+  const gen = { level: at.level, inMklev };
+  const def = ctx.defs.object(kind);
+  const id =
+    kind === 'nh:statue'
+      ? mksobjStatue(ctx, def, { at, init: false, artif: false }, gen)
+      : mksobjCorpse(ctx, def, { at, artif: false }, gen);
+  ctx.rng.rnd(10); // rnd(sysopt.tt_oname_maxrank): the record is empty
+  ctx.rng.rn2(13); // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, PM_ARCHEOLOGIST)
+  if (kind === 'nh:corpse') setCorpsenm(ctx, id, HUMAN, inMklev);
+  else {
+    const it = ctx.state.entities[String(id)]?.c.item;
+    if (it) it.corpseOf = HUMAN;
+  }
+  return id;
+}
+
+/** The stand-in for the player monsters mk_tt_object() picks from. */
+const HUMAN: DefId = 'nh:human';
 
 /** A throne already in the room (one a LevelDef or a wish put there). ref: fill_zoo() COURT */
 function findThrone(level: Level, room: Room): Pos | null {
@@ -255,7 +354,10 @@ function addGold(ctx: Ctx, chest: number, quan: number): void {
 /** The monster fill_zoo() makes on a square of a room of `type`; null: a random one. */
 function zooMonster(ctx: Ctx, type: DefId, difficulty: number): MonsterDef | null {
   if (type === COURT) return courtmon(ctx, difficulty);
+  if (type === BARRACKS) return squadmon(ctx, difficulty);
   if (type === LEPREHALL) return ctx.defs.monster('nh:leprechaun');
+  if (type === COCKNEST) return ctx.defs.monster('nh:cockatrice');
+  if (type === ANTHOLE) return antholemon(ctx.state, ctx.defs, difficulty);
   return null;
 }
 
@@ -275,9 +377,11 @@ export function registerZoo(api: ModApi): void {
 /**
  * The hero enters a zoo-like room for the first time: its entry message ("Welcome to David's
  * treasure zoo!", "You enter an opulent throne room!" (no throne: "an opulent room!"), "You enter
- * a leprechaun hall!"), then it becomes an ordinary room and, for zoos and throne rooms, each
- * monster in it wakes one time in three unless she is stealthy. ref: src/hack.c
- * check_special_room() cases ZOO, COURT, LEPREHALL, wake_msg()
+ * a leprechaun hall!", "a giant beehive!", "a disgusting nest!", "an anthole!", "a military
+ * barracks!" while a soldier, sergeant, lieutenant or captain is in it, else "an abandoned
+ * barracks."), then it becomes an ordinary room and, for zoos and throne rooms, each monster in
+ * it wakes one time in three unless she is stealthy. ref: src/hack.c check_special_room(),
+ * monstinroom(), wake_msg()
  */
 export function enterZoo(ctx: Ctx, roomno: number): void {
   const level = getLevel(ctx.state);
@@ -291,6 +395,16 @@ export function enterZoo(ctx: Ctx, roomno: number): void {
       key: furniturePresent(level, room, T.throne) ? 'mkroom.court' : 'mkroom.court_no_throne',
     });
   else if (rt === LEPREHALL) ctx.emit({ type: 'msg', key: 'mkroom.leprehall' });
+  else if (rt === BEEHIVE) ctx.emit({ type: 'msg', key: 'mkroom.beehive' });
+  else if (rt === COCKNEST) ctx.emit({ type: 'msg', key: 'mkroom.cocknest' });
+  else if (rt === ANTHOLE) ctx.emit({ type: 'msg', key: 'mkroom.anthole' });
+  else if (rt === BARRACKS)
+    ctx.emit({
+      type: 'msg',
+      key: SOLDIERS.some((pm) => monstinroom(ctx, level, room, pm))
+        ? 'mkroom.barracks'
+        : 'mkroom.barracks_abandoned',
+    });
   delete room.type; // rtype = OROOM (before the room's monsters may wake)
   if (rt !== COURT && rt !== ZOO && rt !== SWAMP && rt !== MORGUE) return;
   for (const id of sortedIds(ctx.state)) {
@@ -304,6 +418,20 @@ export function enterZoo(ctx: Ctx, roomno: number): void {
       ctx.emit({ type: 'msg', key: 'mon.wakes_up_calm', params: { mon: monNam(ctx, e) } });
     m.asleep = false;
   }
+}
+
+/** ref: src/hack.c check_special_room() BARRACKS */
+const SOLDIERS: readonly DefId[] = ['nh:soldier', 'nh:sergeant', 'nh:lieutenant', 'nh:captain'];
+
+/** A monster of type `pm` stands in the room. ref: src/hack.c monstinroom() */
+function monstinroom(ctx: Ctx, level: Level, room: Room, pm: DefId): boolean {
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    const p = e?.c.pos;
+    if (e?.def === pm && e.c.monster && p?.level === level.id && insideRoom(room, p.x, p.y))
+      return true;
+  }
+  return false;
 }
 
 /** Some square of the room holds terrain `id`. ref: src/hack.c furniture_present() */

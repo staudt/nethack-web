@@ -1,5 +1,5 @@
 // The monsters of special rooms: a leaf above generation.ts, so zoo.ts and the throne code share it.
-// ref: src/mkroom.c courtmon(), antholemon()
+// ref: src/mkroom.c courtmon(), squadmon(), antholemon()
 import type { Ctx, DefId, GameState, MonsterDef, Registry } from '@nh/core';
 import { mkclass } from './generation';
 import { isGenocided } from './vanquished';
@@ -23,6 +23,38 @@ export function courtmon(
   if (i > 30) return ctx.defs.monster('nh:hobgoblin');
   if (i > 15) return mkclass(ctx, 'G', depth);
   return mkclass(ctx, 'k', depth);
+}
+
+/** ref: src/mkroom.c squadprob[] */
+const SQUADPROB: readonly { pm: DefId; prob: number }[] = [
+  { pm: 'nh:soldier', prob: 80 },
+  { pm: 'nh:sergeant', prob: 15 },
+  { pm: 'nh:lieutenant', prob: 4 },
+  { pm: 'nh:captain', prob: 1 },
+];
+
+/**
+ * A barracks' soldier for a level of difficulty `depth`: by `rnd(80 + depth)` over squadprob[]
+ * (soldier 80, sergeant 15, lieutenant 4, captain 1), and past the table's 100 a uniform pick of
+ * the four. null: that kind is genocided (makemon() then makes a random monster).
+ * ref: src/mkroom.c squadmon()
+ */
+export function squadmon(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  depth: number,
+): MonsterDef | null {
+  const selProb = ctx.rng.rnd(80 + depth);
+  let cpro = 0;
+  let mndx: DefId | undefined;
+  for (const s of SQUADPROB) {
+    cpro += s.prob;
+    if (cpro > selProb) {
+      mndx = s.pm;
+      break;
+    }
+  }
+  mndx ??= SQUADPROB[ctx.rng.rn2(SQUADPROB.length)]?.pm ?? 'nh:soldier'; // ROLL_FROM(squadprob)
+  return isGenocided(ctx.state, mndx) || !ctx.defs.isMonster(mndx) ? null : ctx.defs.monster(mndx);
 }
 
 const ANTS: readonly [DefId, DefId, DefId] = ['nh:soldier_ant', 'nh:fire_ant', 'nh:giant_ant'];

@@ -50,3 +50,17 @@ export function legsInNoShape(ctx: Ctx, what: string): void {
         : 'legs.no_shape_right';
   ctx.emit({ type: 'msg', key, params: { what: `@${what}` } });
 }
+
+/**
+ * Wounded legs heal at once: "Your leg feels better." ("legs feel" when both were hurt), then an
+ * encumbrance check. ref: src/do.c heal_legs(0) (no steed; the Dex penalty is not ported)
+ */
+export function healLegs(ctx: Ctx): void {
+  const h = hero(ctx);
+  if (!hasProp(h, P.WOUNDED_LEGS)) return;
+  const both = (woundedLegSides(ctx) & BOTH_SIDES) === BOTH_SIDES;
+  ctx.emit({ type: 'msg', key: both ? 'legs.better_both' : 'timeout.legs_better' });
+  setItimeout(ctx.state, h, P.WOUNDED_LEGS, 0);
+  delete (nhData(ctx) as unknown as { legSides?: number }).legSides;
+  encumberMsg(ctx);
+}

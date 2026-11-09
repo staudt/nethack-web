@@ -214,6 +214,7 @@ describe('fill_zoo()', () => {
       const near: number[] = [];
       const far: number[] = [];
       let total = 0;
+      let goldlim = 500 * m.level.depth;
       const squares = fillSquares(m.level, ri);
       for (const p of squares) {
         const here = m.entities.filter((e) => e.c.pos?.x === p.x && e.c.pos.y === p.y);
@@ -223,9 +224,17 @@ describe('fill_zoo()', () => {
         expect(g).toBeGreaterThanOrEqual(10);
         total += g;
         const dist2 = (p.x - d.x) ** 2 + (p.y - d.y) ** 2;
-        // sq(dist2) up to the limit: within 2 squares at most 16 + 10, from 3 at least 10
-        if (dist2 <= 4) near.push(g);
-        else if (dist2 >= 9) far.push(g);
+        // rn1(i, 10) with i = sq(dist2) up to the limit, then 5 * depth once it runs out (the
+        // squares in fill order: x outer, y inner)
+        let i = dist2 * dist2;
+        if (i >= goldlim) i = 5 * m.level.depth;
+        goldlim -= i;
+        expect(g).toBeLessThanOrEqual(i + 9);
+        // while the limit lasts: within 2 squares at most 16 + 9, from 3 at least 10
+        if (i === dist2 * dist2) {
+          if (dist2 <= 4) near.push(g);
+          else if (dist2 >= 9) far.push(g);
+        }
       }
       expect(
         m.entities.filter((e) => e.def === 'nh:leprechaun' && inRoom(r, e.c.pos!.x, e.c.pos!.y))

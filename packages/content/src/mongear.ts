@@ -453,8 +453,9 @@ const orElse = (ctx: GearCtx, otyp: string, fallback: string): string =>
 
 /**
  * A mercenary's weapons. ref: src/makemon.c m_initweap() S_HUMAN `is_mercenary(ptr)`, for the
- * Watch, soldiers and sergeants. A table without the polearms, the flail or the silver saber (a
- * mod that removes them) falls back to a spear, init rolls only and a long sword.
+ * Watch and the soldiers and their officers. A table without the polearms, the flail, the
+ * broadsword or the silver saber (a mod that removes them) falls back to a spear, init rolls only
+ * and a long sword.
  */
 function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   const rng = ctx.rng;
@@ -471,10 +472,12 @@ function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
     // FLAIL : MACE
     if (rng.rn2(2)) getsOrBurn(ctx, monId, 'nh:flail');
     else w1 = 'nh:mace';
-  } else if (def.id === 'nh:watch_captain') {
+  } else if (def.id === 'nh:lieutenant') {
+    w1 = rng.rn2(2) ? orElse(ctx, 'nh:broadsword', 'nh:long_sword') : 'nh:long_sword';
+  } else if (def.id === 'nh:captain' || def.id === 'nh:watch_captain') {
     w1 = rng.rn2(2) ? 'nh:long_sword' : orElse(ctx, 'nh:silver_saber', 'nh:long_sword');
   } else {
-    // default: other mercenaries (none in the roster: no lieutenants or captains yet)
+    // default: other mercenaries (none in the roster: vault guards come later)
     if (rng.rn2(4) === 0) w1 = 'nh:dagger';
     if (rng.rn2(7) === 0) w2 = 'nh:spear';
   }
@@ -487,6 +490,8 @@ function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
 const MERC_AC: Readonly<Record<string, number>> = {
   'nh:soldier': 3,
   'nh:sergeant': 0,
+  'nh:lieutenant': -2,
+  'nh:captain': -3,
   'nh:watchman': 3,
   'nh:watch_captain': -2,
 };

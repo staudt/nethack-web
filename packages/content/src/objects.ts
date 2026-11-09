@@ -3717,6 +3717,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     food: { nutrition: 40 },
   },
+  // ref: objects.h FOOD("lump of royal jelly", 0, 1, 2, 0, VEGGY, 200, CLR_YELLOW, LUMP_OF_ROYAL_JELLY)
+  {
+    id: 'nh:lump_of_royal_jelly',
+    nameKey: 'nh:lump_of_royal_jelly',
+    class: 'food',
+    glyph: { ch: '%', fg: YELLOW },
+    prob: 0,
+    weight: 2,
+    cost: 15,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 200 },
+  },
   // ref: objects.h FOOD("corpse", 0, 1, 0, 0, FLESH, 0, CLR_BROWN, CORPSE); weight and nutrition are per monster at runtime
   {
     id: 'nh:corpse',

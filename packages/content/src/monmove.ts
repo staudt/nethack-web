@@ -20,6 +20,7 @@ import {
   trapAt,
 } from '@nh/core';
 import { openDoorAt } from './actions';
+import { beeEatJelly } from './beejelly';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped } from './btrapped';
 import { clearPath } from './clearpath';
@@ -1087,6 +1088,10 @@ export function dochug(
     monWieldItem(ctx, id)
   )
     return;
+
+  // ref: dochug() PHASE THREE: "A killer bee may eat honey in order to turn into a queen bee,
+  // costing it a move."
+  if (def.id === 'nh:killer_bee' && beeEatJelly(ctx, id) >= 0) return;
 
   // phase four's attitude test: hostile, or (rolled each time) not resisting Conflict
   const hostileNow = (): boolean => {

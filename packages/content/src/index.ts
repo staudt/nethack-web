@@ -537,7 +537,7 @@ export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
 export { somexyspace, somexyspaceTry, occupied } from './somexy';
 export { mkSpecialRoom, pickRoom, mkzoo, doMkroom, hasUpstairs, hasDnstairs } from './mkroom';
-export { courtmon, antholemon } from './roommon';
+export { courtmon, squadmon, antholemon } from './roommon';
 export {
   ZOO,
   COURT,
@@ -551,6 +551,7 @@ export {
   FILLED_ZOO_KINDS,
   fillZoo,
   isZooKind,
+  mkTtObject,
   roomDoors,
 } from './zoo';
 export { fillOrdinaryRoom, mktrap, traptypeRnd, mkfount } from './mklev';

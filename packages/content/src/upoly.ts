@@ -84,6 +84,7 @@ export function ownHp(state: GameState): HpComponent | null {
 
 let rehumanizeFn: ((ctx: Ctx) => void) | null = null;
 let unwereFn: ((ctx: Ctx) => void) | null = null;
+let polymonFn: ((ctx: Ctx, mntmp: DefId) => boolean) | null = null;
 
 /** polyself.ts hands down its rehumanize() (hp.ts and friends stay below it). */
 export function setRehumanize(fn: (ctx: Ctx) => void): void {
@@ -93,6 +94,16 @@ export function setRehumanize(fn: (ctx: Ctx) => void): void {
 /** polyself.ts hands down the polymorphed half of you_unwere() (werestate.ts stays a leaf). */
 export function setUnwere(fn: (ctx: Ctx) => void): void {
   unwereFn = fn;
+}
+
+/** polyself.ts hands down its polymon() (eat.ts stays below it). */
+export function setPolymon(fn: (ctx: Ctx, mntmp: DefId) => boolean): void {
+  polymonFn = fn;
+}
+
+/** polymon(), late bound. ref: src/polyself.c polymon() */
+export function polymonLate(ctx: Ctx, mntmp: DefId): boolean {
+  return polymonFn?.(ctx, mntmp) ?? false;
 }
 
 /** rehumanize(), late bound. ref: src/polyself.c rehumanize() */

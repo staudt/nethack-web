@@ -32,6 +32,7 @@ export const eatMessagesEn: Record<string, string> = {
   'hunger.regain': 'You regain consciousness.',
   'hunger.starve': 'You die from starvation.',
   'killer.starvation': 'starvation',
+  'killer.royal_jelly': 'a rotten lump of royal jelly',
   'killer.cadaver': 'cadaver',
   'killer.poisonous_corpse': 'poisonous corpse',
   'killer.acidic_corpse': 'acidic corpse',
