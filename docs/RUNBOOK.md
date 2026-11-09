@@ -8,6 +8,13 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
+Run 7 (from 2026-11-09), target **6M**, may run to **8M** to finish features (user, 2026-11-09: "continue with another round" after light testing), fresh ledger section ("## Run 7"). Run 6 finished m11 and m12 (branch `m12` at 60e924b; main still f615715). One chain of branches off `m12`. Planning agent first for each milestone; park costly-to-undo questions and skip to the next. Default every open choice to NetHack's behaviour (the vendor tree is 5.0-dev; 3.7 where they differ only if the plan says so). Roles and races stay out.
+
+1. **Bug leads** (on branch `m12`, one fix agent, no planner): (a) in Minetown a dwarf digging next to a door trips the door invariant on several seeds (tests moved seeds instead of fixing; see `m12` plan Step 5/6 bullets and `m11` Step 7); find whether the port's `mdig_tunnel()`/door handling differs from C (C turns a dug door into a broken door or doorway) or the invariant is wrong, and fix the real one; (b) on `sp_lev` seed 2 a tripe ration ends up in a doorway beside a chest at level creation (m11 step 3 report); find the cause and fix it if it is a bug. Golden may change only with a verified cause.
+2. **m13 monster batch 2** (branch `m13` off `m12`): the rows left out of batch 1 (ROADMAP "From m10", "Left out of the batch"): mimics and piercers (hiding, "Wait! That's a mimic!", sticking, mimics in shops and zoos), unicorns and the unicorn horn (and throwing gems to unicorns if cheap), long worms (tails), golems and figurines, the m9-step monsters, and higher-difficulty rows that need nothing new. The planner sizes it to about 7-8 steps.
+3. **m14 monster item use** (branch `m14` off `m13`): muse.c: monsters using defensive, offensive and misc items (wands, potions, scrolls), `munstone()`, `munslime()`.
+4. **m15 deeper dungeon** (branch `m15` off `m14`), only if budget allows: the big room, Medusa's level and the Castle (with the wand of wishing and the drawbridge), as the planner sizes it; water and lava need pools, so the planner decides whether a minimal pool/moat step comes first.
+
 Run 6 (from 2026-11-08), target **6M**, may run to **8M** to finish features (user, 2026-11-08: "same idea of 6M+ and going forward"), fresh ledger section ("## Run 6"). One chain of branches, each off the previous tip, starting from `m11` off `m7f-d` (main stays at f615715). Each milestone gets a planning agent first (Between milestones); park costly-to-undo questions and skip to the next milestone. Default every open choice to NetHack 3.7's behaviour. Roles and races stay out.
 
 1. **m11 objects batch** (branch `m11` off `m7f-d`): with the converter, the missing objects and what they need: the weapons and armor starting gear rolls but cannot give (ROADMAP "From m10", "Missing weapon and armor objects"), polearms and lances (`use_pole()` through the position prompt), silver (`Hate_silver`, silver weapons against weres and demons), eggs (m9 step 8 rest: eating, hatching, thrown cockatrice eggs), and the missing potions, scrolls and spellbooks with their effects (levitation, gain level, restore ability, genocide, the remaining spellbooks). The planner sizes the subset to about 8 steps and lists the rest in ROADMAP.
@@ -60,7 +67,7 @@ Keep a ledger at `~/.claude/plans/overnight-ledger.md`: one line per agent with 
 
 Stop cleanly (finish nothing new, write the morning summary) when any of these happens:
 
-- **Budget:** the running total with margin reaches the run's budget (run 6: target **6,000,000 tokens**, hard cap **8,000,000**). Past the target, start a step only to finish the current sub-milestone or a feature the next step completes, and never start an agent whose typical cost (300k for a step, 250k for a plan) would cross the hard cap.
+- **Budget:** the running total with margin reaches the run's budget (run 7: target **6,000,000 tokens**, hard cap **8,000,000**). Past the target, start a step only to finish the current sub-milestone or a feature the next step completes, and never start an agent whose typical cost (300k for a step, 250k for a plan) would cross the hard cap.
 - **Red check:** `pnpm check` fails after one retry and one fix agent.
 - **Unexplained golden:** a step changes the golden hash without a verified cause in its commit body.
 - **Design stop:** an agent stops on a design question it says is costly to get wrong.
