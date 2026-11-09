@@ -32,6 +32,7 @@ import {
   WIZ_WHERE,
   WIZ_WISH,
   WIZ_CAST,
+  WIZ_MKROOM,
   WIZ_LEVELCHANGE,
   WIZ_POLYSELF,
   WIZ_TELEPORT,
@@ -78,6 +79,7 @@ describe('the wizard mod', () => {
       WIZ_LEVELCHANGE,
       WIZ_POLYSELF,
       WIZ_CAST,
+      WIZ_MKROOM,
     ]);
   });
 

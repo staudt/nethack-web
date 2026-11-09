@@ -6,6 +6,7 @@ import { wizIdentify } from './identify';
 import { wizLevelchange } from './levelchange';
 import { wizLevelport } from './levelport';
 import { wizMap } from './map';
+import { wizMkroom } from './mkroom';
 import { wizPolyself } from './polyself';
 import { wizTeleport } from './teleport';
 import { wizWhere } from './where';
@@ -32,6 +33,7 @@ export const wizardMod: Mod = {
     api.defineAction(wizPolyself);
     api.defineAction(wizCast);
     api.defineAction(wizDie);
+    api.defineAction(wizMkroom);
     api.on('beforeGameOver', wizBeforeGameOver);
   },
 };
@@ -53,3 +55,4 @@ export { WIZ_DIE, wizBeforeGameOver, wizDie } from './die';
 export { WIZ_CAST, wizCast } from './cast';
 export { WIZ_LEVELCHANGE, wizLevelchange } from './levelchange';
 export { WIZ_POLYSELF, wizPolyself } from './polyself';
+export { WIZ_MKROOM, wizMkroom } from './mkroom';

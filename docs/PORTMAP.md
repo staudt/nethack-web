@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3840 citations.
+153 NetHack files, 3871 citations.
 
 ## dat/dungeon.lua
 
@@ -143,6 +143,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `S_ndoor()`: `packages/content/src/terrain.ts`
 - `S_room()`: `packages/content/src/terrain.ts`
 - `S_stone()`: `packages/content/src/terrain.ts`
+- `S_throne()`: `packages/content/src/terrain.ts`
 - `S_tree()`: `packages/content/src/terrain.ts`
 - `S_upstair()`: `packages/content/src/terrain.ts`
 - `S_vcdoor()`: `packages/content/src/terrain.ts`
@@ -1011,14 +1012,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/hack.c
 
-- (file): `packages/content/src/dog.en.ts`, `packages/content/src/eshk.ts`, `packages/content/src/shk.en.ts`
+- (file): `packages/content/src/dog.en.ts`, `packages/content/src/eshk.ts`, `packages/content/src/shk.en.ts`, `packages/content/src/zoo.ts`
 - `avoid_trap_andor_region()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `bad_rock()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.ts`, `packages/content/src/monmove.ts`
 - `calc_capacity()`: `packages/content/src/stats.ts`
 - `cannot_push()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `cannot_push_msg()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `check_capacity()`: `packages/content/src/magic.ts`
-- `check_special_room()`: `packages/content/src/rooms.ts`, `packages/content/src/zoo.ts`
+- `check_special_room()`: `packages/content/src/mkroom.en.ts`, `packages/content/src/rooms.ts`
 - `closed_door()`: `packages/content/src/actions.ts`, `packages/core/src/movement.ts`
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
@@ -1030,6 +1031,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dopush()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `escape_from_sticky_mon()`: `packages/content/src/hackmove.ts`, `packages/content/src/resist.en.ts`
 - `findtravelpath()`: `packages/content/src/travel.ts`
+- `furniture_present()`: `packages/content/src/zoo.ts`
 - `hcolor()`: `packages/content/src/hcolor.ts`
 - `hcolors()`: `packages/content/src/hcolor.ts`
 - `impaired_movement()`: `packages/content/src/hackmove.ts`
@@ -1276,11 +1278,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `good_rm_wall_doorpos()`: `packages/core/src/levelgen/corridors.ts`
 - `join()`: `packages/core/src/levelgen/corridors.ts`
 - `makecorridors()`: `packages/core/src/levelgen/corridors.ts`
-- `makelevel()`: `packages/content/src/mklev.ts`, `packages/core/src/levelgen/generate.ts`
+- `makelevel()`: `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/generate.ts`
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
 - `maybe_sdoor()`: `packages/core/src/levelgen/corridors.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
 - `mktrap()`: `packages/content/src/mklev.ts`, `packages/core/src/traps.ts`
+- `occupied()`: `packages/content/src/somexy.ts`
 - `okdoor()`: `packages/core/src/levelgen/corridors.ts`
 - `place_branch()`: `packages/core/src/dungeon.ts`, `packages/core/src/levelgen/generate.ts`
 - `somexy()`: `packages/core/src/levelgen/generate.ts`
@@ -1366,16 +1369,23 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mkroom.c
 
+- (file): `packages/content/src/mkroom.ts`
+- `antholemon()`: `packages/content/src/roommon.ts`
+- `courtmon()`: `packages/content/src/roommon.ts`
+- `do_mkroom()`: `packages/content/src/mkroom.ts`
 - `fill_zoo()`: `packages/content/src/zoo.ts`
-- `has_dnstairs()`: `packages/content/src/shknam.ts`
-- `has_upstairs()`: `packages/content/src/shknam.ts`
+- `has_dnstairs()`: `packages/content/src/mkroom.ts`, `packages/content/src/shknam.ts`
+- `has_upstairs()`: `packages/content/src/mkroom.ts`, `packages/content/src/shknam.ts`
 - `inside_room()`: `packages/core/src/levelgen/grid.ts`, `packages/core/src/rooms.ts`
 - `invalid_shop_shape()`: `packages/content/src/shknam.ts`
 - `isbig()`: `packages/content/src/shknam.ts`
+- `mk_zoo_thronemon()`: `packages/content/src/zoo.ts`
 - `mkshop()`: `packages/content/src/shknam.ts`
+- `mkzoo()`: `packages/content/src/mkroom.ts`
 - `nexttodoor()`: `packages/content/src/fountain.ts`
-- `somexy()`: `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
-- `somexyspace()`: `packages/content/src/mklev.ts`
+- `pick_room()`: `packages/content/src/mkroom.ts`
+- `somexy()`: `packages/content/src/somexy.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
+- `somexyspace()`: `packages/content/src/somexy.ts`
 
 ## src/mon.c
 

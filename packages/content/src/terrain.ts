@@ -8,6 +8,7 @@ const WHITE = '#ffffff';
 const GREEN = '#33aa33';
 const BRIGHT_BLUE = '#5555ff';
 const CYAN = '#33bbbb';
+const YELLOW = '#ffff55';
 
 export const TERRAIN: readonly TerrainDef[] = [
   // ref: defsym.h S_stone ' ' (NO_COLOR)
@@ -216,6 +217,14 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: false,
     glyph: { ch: '{', fg: WHITE },
   },
+  // ref: defsym.h S_throne '\\' (HI_GOLD = CLR_YELLOW): furniture of throne rooms, walkable
+  {
+    id: 'nh:throne',
+    nameKey: 'terrain.throne',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '\\', fg: YELLOW },
+  },
   {
     id: 'nh:tree',
     nameKey: 'terrain.tree',
@@ -272,6 +281,7 @@ export const T = {
   crwall: 'nh:crwall',
   fountain: 'nh:fountain',
   sink: 'nh:sink',
+  throne: 'nh:throne',
   tree: 'nh:tree',
   iron_bars: 'nh:iron_bars',
   altar_lawful: 'nh:altar_lawful',

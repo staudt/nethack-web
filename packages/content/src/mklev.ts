@@ -1,6 +1,6 @@
 // Filling the rooms of a new level with a monster, traps, gold, a box and objects.
 // ref: src/mklev.c fill_ordinary_room(), makelevel(), mktrap()
-// A random dungeon shop is picked before the rooms are filled (makelevel()'s special room roll).
+// makelevel()'s special room (mkroom.ts) is picked before the rooms are filled.
 import { pruneDoorTraps, setDoorTrapped } from './btrapstate';
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
@@ -9,27 +9,12 @@ import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon } from './generation';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
-import { mkshop } from './shknam';
+import { mkSpecialRoom } from './mkroom';
+import { somexyspace } from './somexy';
 import { mkcorpstat } from './statue';
 import { levelFlags } from './levelflags';
 import { T, setTerrain } from './terrain';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
-
-/**
- * A random free floor square in the room, or null after 100 failed tries (101 attempts).
- * ref: src/mkroom.c somexyspace(): somexy() = rn1(hx - lx + 1, lx), rn1(hy - ly + 1, ly), which
- * must be plain ROOM floor and not `occupied()` (a trap or furniture; monsters are ignored).
- * Stairs stand in for all furniture, as no other exists.
- */
-export function somexyspace(ctx: Pick<Ctx, 'rng'>, level: Level, room: Room): Pos | null {
-  for (let trycnt = 0; trycnt <= 100; trycnt++) {
-    const x = room.lx + ctx.rng.rn2(room.hx - room.lx + 1);
-    const y = room.ly + ctx.rng.rn2(room.hy - room.ly + 1);
-    const t = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
-    if (t === 'nh:floor' && !trapAt(level, x, y)) return { x, y };
-  }
-  return null;
-}
 
 /**
  * NetHack's trap numbers 1..25 (include/trap.h), with the kinds this port has; the others are
@@ -223,20 +208,6 @@ export function mkfount(ctx: Ctx, level: Level, room: Room): void {
   if (ctx.rng.rn2(7) === 0) setFountainBits(ctx, level.id, m.x, m.y, FTN_MAGIC);
 }
 
-/** Registers level population: ordinary levels and `rooms` LevelDefs (see sp_lev.ts for the rest). */
-/**
- * Makes up to one special room on an ordinary level: a shop below the first level when there
- * are at least 3 rooms (4 on a branch level), `rn2(depth) < 3` of the time (no Medusa level
- * yet, so there is no lower bound). The other special rooms of that chain (throne rooms, zoos,
- * beehives...) do not exist and draw nothing. ref: src/mklev.c makelevel() (the do_mkroom()
- * chain; no vault, so the threshold never rises)
- */
-export function mkSpecialRoom(ctx: Ctx, level: Level): void {
-  const nroom = level.rooms.filter((r) => r.parent === undefined).length;
-  const roomThreshold = level.branch ? 4 : 3; // minimum number of rooms for a special room
-  if (level.depth > 1 && nroom >= roomThreshold && ctx.rng.rn2(level.depth) < 3) mkshop(ctx, level);
-}
-
 /**
  * Makes the boulders level generation asked for in its extra corridors (`Level.boulderSpots`,
  * core makes no objects) and deletes the request, so no saved level keeps it. They come first,
@@ -271,6 +242,7 @@ export function keepTrappedDoors(ctx: Ctx, level: Level): void {
   pruneDoorTraps(ctx, level);
 }
 
+/** Registers level population: ordinary levels and `rooms` LevelDefs (see sp_lev.ts for the rest). */
 export function registerMklev(api: ModApi): void {
   api.on('newLevel', (ctx, level) => {
     mkCorridorBoulders(ctx, level);

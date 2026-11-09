@@ -5,7 +5,7 @@
 // (`check_special_room(TRUE)` on leaving, `check_special_room(FALSE)` on arrival); src/save.c
 // savemon() -> forget_temple_entry(); src/shk.c after_shk_move()
 //
-// Not ported: the other special rooms (courts, morgues... are not generated), the Minetown
+// Not ported: the special rooms not generated yet (beehives, morgues...), the Minetown
 // achievement, room_discovered() (no overview).
 import {
   getPlayer,
@@ -24,7 +24,7 @@ import { intemple } from './priest';
 import { DELPHI, ORACLE } from './oracle';
 import { hello, plname, shkArrivals, uEnteredShop, uLeftShop } from './shk';
 import { setURooms, specialRoomsAt, storedUShops, uRooms } from './urooms';
-import { ZOO, enterZoo } from './zoo';
+import { enterZoo, isZooKind } from './zoo';
 
 /**
  * Updates u.urooms and u.ushops from the hero's square (`newlev`: clears them, she is leaving the
@@ -67,10 +67,7 @@ export function checkSpecialRoom(ctx: Ctx, newlev: boolean, from?: Pos): void {
     else if (room?.type === DELPHI) {
       enterDelphi(ctx, roomno);
       delete room.type; // everything else gives its message only the first time: rtype = OROOM
-    } else if (room?.type === ZOO) {
-      delete room.type; // rtype = OROOM (before the zoo's monsters may wake)
-      enterZoo(ctx, roomno);
-    }
+    } else if (isZooKind(room?.type)) enterZoo(ctx, roomno); // made an ordinary room there
   }
 }
 

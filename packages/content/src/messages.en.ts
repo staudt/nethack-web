@@ -47,6 +47,7 @@ import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
 import { fumbleMessagesEn } from './fumble.en';
 import { eggMessagesEn } from './egg.en';
+import { mkroomMessagesEn } from './mkroom.en';
 import { scrollMessagesEn } from './scroll.en';
 
 export const messagesEn: Record<string, string> = {
@@ -54,6 +55,7 @@ export const messagesEn: Record<string, string> = {
   ...shirtMessagesEn,
   ...fumbleMessagesEn,
   ...eggMessagesEn,
+  ...mkroomMessagesEn,
   ...scrollMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
@@ -163,6 +165,7 @@ export const messagesEn: Record<string, string> = {
   'terrain.stairs_down': 'staircase down',
   'terrain.fountain': 'fountain',
   'terrain.sink': 'sink',
+  'terrain.throne': 'throne',
   'terrain.tree': 'tree',
   'terrain.iron_bars': 'iron bars',
   'terrain.altar': 'altar',
@@ -240,6 +243,7 @@ export const messagesEn: Record<string, string> = {
   'nh:scorr': 'stone',
   'nh:fountain': 'fountain',
   'nh:sink': 'sink',
+  'nh:throne': 'throne',
   'nh:tree': 'tree',
   'nh:iron_bars': 'iron bars',
   // ref: src/pager.c lookat() S_altar: "%s altar" with align_str()
@@ -364,11 +368,13 @@ export const messagesEn: Record<string, string> = {
   'nh:woodland_elf': 'Woodland-elf',
   'nh:green_elf': 'Green-elf',
   'nh:grey_elf': 'Grey-elf',
+  'nh:elvenking': 'Elvenking',
   'nh:plains_centaur': 'plains centaur',
   'nh:forest_centaur': 'forest centaur',
   'nh:mountain_centaur': 'mountain centaur',
   'nh:ogre': 'ogre',
   'nh:ogre_lord': 'ogre lord',
+  'nh:ogre_king': 'ogre king',
   'nh:soldier': 'soldier',
   'nh:sergeant': 'sergeant',
   'nh:nurse': 'nurse',

@@ -87,7 +87,12 @@ describe('random dungeon shops', () => {
   test('the first room with one door and no stairs, lit, typed, with its shopkeeper', () => {
     let shops = 0;
     for (const lv of levels) {
+      // the shop, if any (from DL5 the chain may make a throne room instead: the shop roll missed)
       const typed = lv.rooms.flatMap((r, i) => (r.type !== undefined ? [i] : []));
+      if (typed.length === 1 && shopType(lv.rooms[typed[0]!]?.type) === null) {
+        expect(lv.depth).toBeGreaterThanOrEqual(5);
+        continue;
+      }
       expect(typed.length).toBeLessThanOrEqual(1);
       const i = typed[0];
       const rooms = top(lv).length;

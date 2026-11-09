@@ -205,6 +205,7 @@ export {
   WIZ_CAST,
   WIZ_LEVELCHANGE,
   WIZ_POLYSELF,
+  WIZ_MKROOM,
   WIZ_TELEPORT,
   parseGenesis,
   OPEN_DUNGEON_LEVELS,
@@ -534,14 +535,25 @@ export {
 } from './hunger';
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
+export { somexyspace, somexyspaceTry, occupied } from './somexy';
+export { mkSpecialRoom, pickRoom, mkzoo, doMkroom, hasUpstairs, hasDnstairs } from './mkroom';
+export { courtmon, antholemon } from './roommon';
 export {
-  fillOrdinaryRoom,
-  mkSpecialRoom,
-  somexyspace,
-  mktrap,
-  traptypeRnd,
-  mkfount,
-} from './mklev';
+  ZOO,
+  COURT,
+  LEPREHALL,
+  BEEHIVE,
+  MORGUE,
+  BARRACKS,
+  SWAMP,
+  COCKNEST,
+  ANTHOLE,
+  FILLED_ZOO_KINDS,
+  fillZoo,
+  isZooKind,
+  roomDoors,
+} from './zoo';
+export { fillOrdinaryRoom, mktrap, traptypeRnd, mkfount } from './mklev';
 export {
   FTN_MAGIC,
   FTN_LOOTED,
