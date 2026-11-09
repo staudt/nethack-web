@@ -148,16 +148,16 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
 }
 
 /**
- * The monster's saving throw against a wand (attack level 12), a scroll (9) or the hero's spell
- * (attack level = her experience level); `damage` is halved when it resists and then taken, which
+ * The monster's saving throw against a wand (attack level 12), a scroll (9), a potion (6) or the
+ * hero's spell (attack level = her experience level); `damage` is halved when it resists and then taken, which
  * may kill it (by the hero, or with `mUsing` by the monster's own wand: gm.m_using).
- * ref: src/zap.c resist() with WAND_CLASS, SCROLL_CLASS or a spell
+ * ref: src/zap.c resist() with WAND_CLASS, SCROLL_CLASS, POTION_CLASS or a spell
  */
 export function resist(
   ctx: Ctx,
   mon: Entity,
   damage: number,
-  oclass: 'wand' | 'scroll' | 'spell' = 'wand',
+  oclass: 'wand' | 'scroll' | 'potion' | 'spell' = 'wand',
   mUsing = false,
 ): boolean {
   const def = ctx.defs.monster(mon.def);
@@ -166,7 +166,9 @@ export function resist(
       ? 12
       : oclass === 'scroll'
         ? 9
-        : (getPlayer(ctx.state).c.experience?.level ?? 1);
+        : oclass === 'potion'
+          ? 6
+          : (getPlayer(ctx.state).c.experience?.level ?? 1);
   let dlev = mon.c.monster?.level ?? 0;
   if (dlev > 50) dlev = 50;
   else if (dlev < 1) dlev = 1;
@@ -206,7 +208,7 @@ export function wakeGently(ctx: Ctx, mon: Entity): void {
 }
 
 /**
- * ref: src/mhitm.c sleep_monst() with a wand's or the hero's spell's resist() roll: a
+ * ref: src/mhitm.c sleep_monst() with a wand's, a potion's or the hero's spell's resist() roll: a
  * sleep-resistant monster or one that resists is unaffected; one that can move is frozen for
  * `amt` turns.
  */
@@ -214,7 +216,7 @@ export function sleepMonst(
   ctx: Ctx,
   mon: Entity,
   amt: number,
-  oclass: 'wand' | 'spell' = 'wand',
+  oclass: 'wand' | 'potion' | 'spell' = 'wand',
 ): boolean {
   if (ctx.defs.monster(mon.def).resists.includes('sleep') || resist(ctx, mon, 0, oclass))
     return false;

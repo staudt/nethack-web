@@ -5,7 +5,8 @@
 // the unicorn horn, the lizard corpse, the bugle, the wands of digging, teleportation, create
 // monster and undead turning, and the scrolls of teleportation and create monster. And to attack
 // the hero: find_offensive()/use_offensive() for the wands of death, sleep, fire, cold,
-// lightning and magic missile (rays), striking, teleportation and undead turning.
+// lightning and magic missile (rays), striking, teleportation and undead turning, the potions of
+// paralysis, blindness, confusion, sleeping and acid (hurled) and the scroll of earth.
 // ref: src/muse.c find_defensive(), use_defensive(), precheck(), mzapwand(), mreadmsg(),
 // mquaffmsg(), m_use_healing(), m_sees_sleepy_soldier(), m_tele(), reveal_trap(), mon_escape(),
 // mon_consume_unstone(), find_offensive(), use_offensive(), m_use_undead_turning(),
@@ -60,15 +61,16 @@ import { isGenocided } from './vanquished';
 import { polyWhenStoned } from './golem';
 import { ustuck } from './hackmove';
 import { maybeUnhideAt } from './hide';
-import { canseemon, mapInvisible } from './invis';
+import { canseemon, mapInvisible, monInvisible } from './invis';
 import { canDigDown, nonDiggable } from './levelflags';
 import { migrateToLevel } from './migrate';
-import { amorphous, isFlyer, isUnicorn, nohands, nolimbs, slithy } from './mondata';
+import { amorphous, isFlyer, isUnicorn, noncorporeal, nohands, nolimbs, slithy } from './mondata';
 import { mongone, monkilled } from './mondeath';
 import { minvent, monWouldTakeItem, whichArmor } from './mongear';
 import { isFleeing, monflee } from './monflee';
 import { healmon, isMConfused, isMStunned, mcansee, setMConfused, setMStunned } from './mstate';
-import { linedUp } from './mthrowu';
+import { hardHelmet } from './material';
+import { linedUp, mThrowOne } from './mthrowu';
 import { BUGLE, awakenSoldiers } from './music';
 import {
   M_SEEN,
@@ -87,6 +89,7 @@ import { findAc, findMac } from './stats';
 import { discover } from './o_init';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, someMonNam } from './perception';
+import { ceilingKey, dropBoulderOnMonster, dropBoulderOnPlayer } from './read';
 import { unturnDead } from './revive';
 import { helpless } from './shk';
 import { resistsSton, touchPetrifies } from './stonestate';
@@ -199,6 +202,13 @@ const RAY_WANDS: readonly (readonly [MuseOff, DefId, Ray, number])[] = [
 const SCR_TELEPORTATION: DefId = 'nh:scroll_of_teleportation';
 const SCR_CREATE_MONSTER: DefId = 'nh:scroll_of_create_monster';
 const CORPSE: DefId = 'nh:corpse';
+const SCR_EARTH: DefId = 'nh:scroll_of_earth';
+/** The offensive potions, thrown at her: C's order in find_offensive() */
+const POT_PARALYSIS: DefId = 'nh:potion_of_paralysis';
+const POT_BLINDNESS: DefId = 'nh:potion_of_blindness';
+const POT_CONFUSION: DefId = 'nh:potion_of_confusion';
+const POT_SLEEPING: DefId = 'nh:potion_of_sleeping';
+const POT_ACID: DefId = 'nh:potion_of_acid';
 const LIZARD: DefId = 'nh:lizard';
 const ACID_BLOB: DefId = 'nh:acid_blob';
 
@@ -1044,12 +1054,12 @@ function dirOf(dx: number, dy: number): Dir | null {
 }
 
 /**
- * Looks for an attack wand for a hostile monster lined up with where it thinks the hero is
- * (`mux`; default: its kept guess, else her square): null when there is none. The last viable
- * wand in the inventory wins, each kind once (C's `nomore()`); the ray wands are skipped when it
- * has seen her reflect or is next to her, and each wand when it has seen her resist it.
- * ref: src/muse.c find_offensive() (the wands; no horns or camera; the potions and the scroll of
- * earth come with thrown potions), m_use_undead_turning()
+ * Looks for an attack wand, potion or scroll of earth for a hostile monster lined up with where
+ * it thinks the hero is (`mux`; default: its kept guess, else her square): null when there is
+ * none. The last viable item in the inventory wins, each kind once (C's `nomore()`); the ray
+ * wands are skipped when it has seen her reflect or is next to her, and each wand or potion when
+ * it has seen her resist it; the scroll of earth only next to her, when it can see.
+ * ref: src/muse.c find_offensive() (no horns or camera), m_use_undead_turning()
  */
 export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<MuseOff> | null {
   const mon = ctx.state.entities[String(id)];
@@ -1069,6 +1079,7 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
   const level = getLevel(ctx.state, p.level);
   const aim = { x: mu.x, y: mu.y };
 
+  const helmet = whichArmor(ctx, id, 'helm');
   const reflectionSkip = mSeenres(ctx, id, M_SEEN.refl) || monnear(mon, mu.x, mu.y);
   // m_use_undead_turning(): she carries a corpse, or one lies on the line from the monster to
   // her and up to 3 squares beyond
@@ -1118,7 +1129,39 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
     if (is('wan_tele')) continue;
     if (obj.def === WAN_TELEPORTATION && spe(obj) > 0 && teleOk && teleWorth())
       choice = { kind: 'wan_tele', obj: obj.id, aim };
-    // (the potions and the scroll of earth come with thrown potions)
+    if (is('pot_paralysis')) continue;
+    if (obj.def === POT_PARALYSIS && !isHelpless(ctx))
+      // multi >= 0
+      choice = { kind: 'pot_paralysis', obj: obj.id, aim };
+    if (is('pot_blindness')) continue;
+    if (obj.def === POT_BLINDNESS && !def.attacks.some((a) => a.at === 'gaze'))
+      choice = { kind: 'pot_blindness', obj: obj.id, aim };
+    if (is('pot_confusion')) continue;
+    if (obj.def === POT_CONFUSION) choice = { kind: 'pot_confusion', obj: obj.id, aim };
+    if (is('pot_sleeping')) continue;
+    if (obj.def === POT_SLEEPING && !mSeenres(ctx, id, M_SEEN.sleep))
+      choice = { kind: 'pot_sleeping', obj: obj.id, aim };
+    if (is('pot_acid')) continue;
+    if (obj.def === POT_ACID && !mSeenres(ctx, id, M_SEEN.acid))
+      choice = { kind: 'pot_acid', obj: obj.id, aim };
+    // "we can safely put this scroll here since the locations that are in a 1 square radius are
+    // a subset of the locations that are in wand or throwing range (in other words, always
+    // lined_up())"; a hard hat (or not minding boulders), else 1 in 10; no Rogue level or endgame
+    if (is('scr_earth')) continue;
+    if (
+      obj.def === SCR_EARTH &&
+      ((helmet !== null && hardHelmet(ctx.defs.object(helmet.def))) ||
+        isMConfused(ctx, id) ||
+        amorphous(def) ||
+        def.flags.includes('wallwalk') || // passes_walls()
+        noncorporeal(def) ||
+        def.flags.includes('unsolid') ||
+        !ctx.rng.rn2(10)) &&
+      dist2(p.x, p.y, mu.x, mu.y) <= 2 &&
+      mcansee(ctx, id) &&
+      haseyes(ctx, mon)
+    )
+      choice = { kind: 'scr_earth', obj: obj.id, aim };
   }
   return choice;
 }
@@ -1128,7 +1171,8 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
  * died) or 2 (it acted: it does not attack as well). A ray wand's bolt goes toward where it
  * thinks she is; "if a monster has never used an attack wand before, it takes them some time to
  * get used to holding that much power, so the first shot always misses" (the ray, and the wand
- * of striking at her). ref: src/muse.c use_offensive() (the wands)
+ * of striking at her). A potion is hurled at her (`m_throw()`: no precheck()); the scroll of
+ * earth drops boulders. ref: src/muse.c use_offensive()
  */
 export function useOffensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseOff>): MuseResult {
   const mon = ctx.state.entities[String(id)];
@@ -1170,9 +1214,88 @@ export function useOffensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseOff>): Mu
       mbhit(ctx, mon, ctx.rng.rn2(8) + 6, otmp, oseen, aim); // rn1(8, 6)
       if (c.kind === 'wan_striking' && alive()) setMwandexp(ctx, id);
       return 2;
+    case 'scr_earth':
+      return useEarth(ctx, mon, otmp, oseen);
+    case 'pot_paralysis':
+    case 'pot_blindness':
+    case 'pot_confusion':
+    case 'pot_sleeping':
+    case 'pot_acid': {
+      if (cansee(ctx, p.level, p.x, p.y)) {
+        const it = otmp.c.item;
+        const one: Entity = it ? { ...otmp, c: { ...otmp.c, item: { ...it, quantity: 1 } } } : otmp;
+        say(ctx, 'muse.hurls', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, one) });
+      }
+      mThrowOne(
+        ctx,
+        id,
+        sgn(aim.x - p.x),
+        sgn(aim.y - p.y),
+        Math.max(Math.abs(aim.x - p.x), Math.abs(aim.y - p.y)), // distmin()
+        otmp.id,
+      );
+      return 2;
+    }
     default:
-      return 0; // (the potions and the scroll of earth come with thrown potions)
+      return 0;
   }
+}
+
+/**
+ * The monster reads a scroll of earth next to her: "The ceiling rumbles above the gnome lord!"
+ * (around it when blessed; "in the middle of nowhere" when it is unseen on a seen square), the
+ * scroll is used up first, a boulder (rocks when confused) falls on each open square around it
+ * (not cursed) and on itself (not blessed), not on her square; then on her when she is next to
+ * it and it is not cursed (a hard helmet helps). Returns 1 when it died, else 2.
+ * ref: src/muse.c use_offensive() MUSE_SCR_EARTH (no steeds)
+ */
+function useEarth(ctx: Ctx, mon: Entity, otmp: Entity, oseen: boolean): MuseResult {
+  const p = mon.c.pos;
+  const level = p ? ctx.state.levels[p.level] : undefined;
+  if (!p || !level) return 0;
+  const id = mon.id;
+  // don't use monster fields after killing it
+  const confused = isMConfused(ctx, id);
+  const mmx = p.x;
+  const mmy = p.y;
+  const buc = otmp.c.item?.buc;
+  const isCursed = buc === 'cursed';
+  const isBlessed = buc === 'blessed';
+  mreadmsg(ctx, mon, otmp);
+  const ceiling = { key: ceilingKey(ctx, level, mmx, mmy) };
+  if (canSpotMon(ctx, mon)) {
+    say(ctx, 'muse.ceiling_rumbles', {
+      ceiling,
+      where: { key: isBlessed ? 'earth.around' : 'earth.above' },
+      mon: monNam(ctx, mon),
+    });
+    if (oseen) discover(ctx, otmp.def);
+  } else if (cansee(ctx, p.level, mmx, mmy)) {
+    say(ctx, 'muse.rumbles_nowhere', { ceiling });
+    if (monInvisible(ctx, mon)) mapInvisible(ctx, mmx, mmy);
+    if (oseen) discover(ctx, otmp.def);
+  }
+  // "could be fatal to monster, so use up the scroll before there's a chance that monster's
+  // inventory will be dropped"
+  useOne(ctx, id, otmp);
+  const hp = getPlayer(ctx.state).c.pos;
+  const rules = cellRules(level, ctx.defs);
+  for (let x = mmx - 1; x <= mmx + 1; x++) {
+    for (let y = mmy - 1; y <= mmy + 1; y++) {
+      if (!inBounds(level, x, y)) continue; // isok()
+      const t = level.cells[cellIndex(level, x, y)] ?? 0;
+      const tdef = ctx.defs.terrain(level.palette[t] ?? 'nh:stone');
+      // !closed_door() && !IS_OBSTRUCTED() (rock, walls, secret doors); no air
+      if (rules.closedDoor[t] === true || (!tdef.passable && tdef.door === undefined)) continue;
+      if (x === mmx && y === mmy ? isBlessed : isCursed) continue;
+      if (hp && x === hp.x && y === hp.y) continue;
+      dropBoulderOnMonster(ctx, x, y, confused, false);
+    }
+  }
+  // attack the player
+  if (hp && Math.max(Math.abs(mmx - hp.x), Math.abs(mmy - hp.y)) === 1 && !isCursed)
+    dropBoulderOnPlayer(ctx, confused, true);
+  return ctx.state.entities[String(id)]?.c.monster ? 2 : 1;
 }
 
 /**

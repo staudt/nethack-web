@@ -40,7 +40,8 @@ import {
 } from '@nh/core';
 import { figBucChanged } from './figurinestate';
 import { BOULDER, ROCK, blockersOf } from './boulder';
-import { killedByHero } from './buzz';
+import { killedByHero, wakeGently } from './buzz';
+import { mondied } from './mondeath';
 import { monsterIdAt } from './combat';
 import { dmgvalSized } from './dmgval';
 import { templeOccupied } from './epri';
@@ -720,11 +721,17 @@ export function dropBoulderOnPlayer(ctx: Ctx, confused: boolean, helmetProtects:
  * A boulder (rocks when confused) falls at (x, y) of the hero's level: a solid monster there
  * is hit ("The jackal is hit by a boulder!"; a hard helmet caps the damage at 2), killed with
  * the hero's credit or woken and angered, and the monsters around woken; then the boulder lands
- * (filling a pit or plugging a hole). Always the hero's doing (`byu`: the scroll is the only
- * caller). Not ported: engulfers (none).
+ * (filling a pit or plugging a hole). Not `byu` (a monster read the scroll): "The jackal is
+ * killed." without credit, or woken without anger. Not ported: engulfers (none).
  * ref: src/read.c drop_boulder_on_monster()
  */
-export function dropBoulderOnMonster(ctx: Ctx, x: number, y: number, confused: boolean): boolean {
+export function dropBoulderOnMonster(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  confused: boolean,
+  byu = true,
+): boolean {
   const obj = fallingObject(ctx, confused);
   const mtmp = monsterOn(ctx, x, y);
   const mdef = mtmp ? ctx.defs.monster(mtmp.def) : null;
@@ -754,9 +761,16 @@ export function dropBoulderOnMonster(ctx: Ctx, x: number, y: number, confused: b
     }
     const hp = mtmp.c.hp;
     if (hp) hp.cur -= mdmg;
-    if (!hp || hp.cur < 1)
-      killedByHero(ctx, mtmp); // killed(mtmp)
-    else wakeup(ctx, mtmp.id); // wakeup(mtmp, TRUE)
+    if (!hp || hp.cur < 1) {
+      if (byu)
+        killedByHero(ctx, mtmp); // killed(mtmp)
+      else {
+        msg(ctx, 'earth.mon_killed', { mon: monNam(ctx, mtmp) });
+        mondied(ctx, mtmp.id);
+      }
+    } else if (byu)
+      wakeup(ctx, mtmp.id); // wakeup(mtmp, TRUE)
+    else wakeGently(ctx, mtmp); // wakeup(mtmp, FALSE)
     wakeNearto(ctx, x, y, 4 * 4);
   }
   landFalling(ctx, obj, x, y);

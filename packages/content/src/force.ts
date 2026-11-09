@@ -35,6 +35,7 @@ import { stolenValue } from './shk';
 import { SKILL_GROUPS, isBlade } from './skills';
 import { surfaceKey } from './terrain';
 import { levitating } from './trapstate';
+import { breatheVapors } from './potionhit';
 
 export const FORCE_ID: DefId = 'nh:force';
 export const FORCELOCK_ID: DefId = 'nh:forcelock';
@@ -181,7 +182,8 @@ function chestShatterMsg(ctx: Ctx, o: Entity): void {
   if (def.class === 'potion') {
     const bottle = { key: `force.bottle.${ctx.rng.rn2(BOTTLES)}` }; // bottlename()
     say(ctx, blind ? 'force.hear_shatter' : 'force.see_shatter', { bottle });
-    return; // (potionbreathe() is not ported)
+    breatheVapors(ctx, o);
+    return;
   }
   const it = o.c.item;
   const q = it?.quantity ?? 1;

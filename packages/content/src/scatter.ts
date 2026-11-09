@@ -28,6 +28,7 @@ import { stopOccupation } from './eat';
 import { boulderFlooreffects } from './flooreffects';
 import { placeOnFloor, splitStack, weight } from './items';
 import { breakmsg, breaktest } from './material';
+import { breakPotionVapors } from './potionhit';
 import { xnameOf } from './objnam';
 import { ohitmon, thitu } from './mthrowu';
 import { TRAP, cansee } from './trap';
@@ -209,6 +210,11 @@ export function scatter(
               f.range -= 3;
               stopOccupation(ctx);
             }
+            // a potion broke on her (potionhit())
+            if (!ctx.state.entities[String(f.id)]) {
+              f.live = false;
+              f.stopped = true;
+            }
           }
         }
       }
@@ -233,12 +239,13 @@ export function scatter(
 
 /**
  * The object breaks if it is breakable: "The potion shatters!" ("You hear something shatter!"
- * out of sight). True when it is gone. ref: src/dothrow.c breaks(), breakmsg(), breakobj()
- * (no vapors, no shop billing)
+ * out of sight), and a potion's vapors next to her. True when it is gone. ref: src/dothrow.c
+ * breaks(), breakmsg(), breakobj() (no shop billing)
  */
 function breaks(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
   if (!breaktest(ctx, obj)) return false;
   breakmsg(ctx, obj, cansee(ctx, ctx.state.currentLevel, x, y));
-  ctx.remove(obj.id);
+  if (ctx.defs.object(obj.def).class === 'potion') breakPotionVapors(ctx, obj, x, y);
+  if (ctx.state.entities[String(obj.id)]) ctx.remove(obj.id);
   return true;
 }

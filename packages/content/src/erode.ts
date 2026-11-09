@@ -5,8 +5,7 @@
 // inventory_resistance_check(); include/objclass.h, src/mkobj.c is_flammable(), is_rottable()
 //
 // Not ported: grease (nothing can be greased yet, so EF_GREASE never protects), shop costs
-// (EF_PAY), potionbreathe() for boiled potions,
-// recharge() for shocked charged rings, the levitation-ring deferral, artifacts.
+// (EF_PAY), recharge() for shocked charged rings, the levitation-ring deferral, artifacts.
 import {
   getPlayer,
   inventoryOf,
@@ -345,6 +344,13 @@ function destroyable(def: ObjectDef, ad: DestroyType): boolean {
   }
 }
 
+let potionbreatheFn: ((ctx: Ctx, obj: Entity) => void) | null = null;
+
+/** potionhit.ts hands down potionbreathe() (it sits far above this module). */
+export function setPotionbreathe(fn: (ctx: Ctx, obj: Entity) => void): void {
+  potionbreatheFn = fn;
+}
+
 /** ref: src/zap.c destroy_strings[] indexes */
 const DSTR = ['freeze', 'boil', 'oil', 'scroll', 'book', 'ring', 'wand'] as const;
 
@@ -456,7 +462,9 @@ function maybeDestroyItem(ctx: Ctx, carrier: Entity, obj: Entity, ad: DestroyTyp
       what: { key: `destroy.${name}${cnt > 1 ? '_pl' : ''}` },
     });
   }
-  // potionbreathe() of a boiled potion: not ported
+  // effects that happen only to the player: a boiled potion's vapors
+  if (uCarry && def.class === 'potion' && ad !== 'cold') potionbreatheFn?.(ctx, obj);
+  if (ctx.state.gameOver) return dmg;
   if (uCarry && it.equipped) {
     if (it.equipped === 'ringL' || it.equipped === 'ringR') ringGone(ctx, obj);
     else it.equipped = null; // setnotworn()

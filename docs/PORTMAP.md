@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4270 citations.
+155 NetHack files, 4290 citations.
 
 ## dat/dungeon.lua
 
@@ -207,6 +207,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MON_POLE_DIST()`: `packages/content/src/mthrowu.ts`
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `POLY_CONTROLLED()`: `packages/content/src/polyself.ts`
+- `POTHIT_HERO_THROW()`: `packages/content/src/potionhit.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
 - `SHOP_DOOR_COST()`: `packages/content/src/shopdamage.ts`
 - `SHOP_HOLE_COST()`: `packages/content/src/shopdamage.ts`
@@ -299,6 +300,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_mercenary()`: `packages/content/src/mongear.ts`, `packages/content/src/muse.ts`
 - `is_placeholder()`: `packages/content/src/newcham.ts`
 - `is_rider()`: `packages/content/src/newcham.ts`
+- `is_silent()`: `packages/content/src/potionhit.ts`
 - `is_unicorn()`: `packages/content/src/mondata.ts`
 - `is_wanderer()`: `packages/content/src/monmove.ts`
 - `is_watch()`: `packages/content/src/watch.ts`
@@ -310,6 +312,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `likes_objs()`: `packages/content/src/mongear.ts`
 - `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
 - `mindless()`: `packages/content/src/muse.ts`
+- `mon_hates_blessings()`: `packages/content/src/potionhit.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nohands()`: `packages/content/src/apply.ts`, `packages/content/src/mondata.ts`
 - `nolimbs()`: `packages/content/src/mondata.ts`
@@ -879,16 +882,15 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/dothrow.c
 
-- (file): `packages/content/src/jump.en.ts`
-- `breakmsg()`: `packages/content/src/egg.en.ts`, `packages/content/src/material.ts`, `packages/content/src/scatter.ts`
-- `breakobj()`: `packages/content/src/egghit.ts`, `packages/content/src/scatter.ts`
-- `breaks()`: `packages/content/src/scatter.ts`
+- (file): `packages/content/src/jump.en.ts`, `packages/content/src/scatter.ts`
+- `breakmsg()`: `packages/content/src/dothrow.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/material.ts`
+- `breakobj()`: `packages/content/src/dothrow.ts`, `packages/content/src/egghit.ts`, `packages/content/src/muse.en.ts`, `packages/content/src/potionhit.ts`
 - `breaktest()`: `packages/content/src/dokick.ts`, `packages/content/src/material.ts`
 - `check_shop_obj()`: `packages/content/src/shk.ts`
 - `dofire()`: `packages/content/src/fire.ts`
 - `dothrow()`: `packages/content/src/dothrow.ts`
 - `gem_accept()`: `packages/content/src/unicorn.ts`
-- `hero_breaks()`: `packages/content/src/dokick.ts`
+- `hero_breaks()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`
 - `hitfloor()`: `packages/content/src/dothrow.ts`
 - `hurtle_jump()`: `packages/content/src/jump.ts`
 - `mhurtle()`: `packages/content/src/mhurtle.ts`
@@ -1186,7 +1188,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `autokey()`: `packages/content/src/lock.ts`
 - `boxlock()`: `packages/content/src/zap.en.ts`, `packages/content/src/zap.ts`
 - `breakchestlock()`: `packages/content/src/force.ts`
-- `chest_shatter_msg()`: `packages/content/src/force.ts`
+- `chest_shatter_msg()`: `packages/content/src/force.ts`, `packages/content/src/potionhit.ts`
 - `doforce()`: `packages/content/src/force.ts`
 - `doopen()`: `packages/content/src/actions.ts`
 - `doopen_indir()`: `packages/content/src/actions.ts`
@@ -1788,8 +1790,9 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/potion.c
 
-- (file): `packages/content/src/eat.en.ts`, `packages/content/src/fountain.ts`, `packages/content/src/potion.ts`, `packages/content/src/resist.en.ts`
-- `bottlenames()`: `packages/content/src/force.ts`
+- (file): `packages/content/src/eat.en.ts`, `packages/content/src/fountain.ts`, `packages/content/src/potion.ts`, `packages/content/src/potionhit.ts`, `packages/content/src/resist.en.ts`
+- `bottlename()`: `packages/content/src/potionhit.ts`
+- `bottlenames()`: `packages/content/src/force.ts`, `packages/content/src/potionhit.ts`
 - `dodrink()`: `packages/content/src/potion.ts`
 - `dopotion()`: `packages/content/src/potion.ts`
 - `healup()`: `packages/content/src/potion.ts`
@@ -1825,6 +1828,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_speed()`: `packages/content/src/potion.ts`
 - `peffect_water()`: `packages/content/src/potion.ts`
 - `peffects()`: `packages/content/src/potion.ts`
+- `potionbreathe()`: `packages/content/src/muse.en.ts`, `packages/content/src/potionhit.ts`
+- `potionhit()`: `packages/content/src/muse.en.ts`, `packages/content/src/potionhit.ts`
 - `self_invis_message()`: `packages/content/src/invis.en.ts`, `packages/content/src/invis.ts`
 - `speed_up()`: `packages/content/src/potion.ts`
 - `split_mon()`: `packages/content/src/clone.ts`, `packages/content/src/passiveum.ts`
@@ -2599,7 +2604,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
 - `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
-- `bhitm()`: `packages/content/src/zap.ts`
+- `bhitm()`: `packages/content/src/potionhit.ts`, `packages/content/src/zap.ts`
 - `bhito()`: `packages/content/src/zap.ts`
 - `bhitpile()`: `packages/content/src/zap.ts`
 - `bounce_dir()`: `packages/content/src/buzz.ts`
@@ -2626,7 +2631,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `inventory_resistance_check()`: `packages/content/src/erode.ts`
 - `learnwand()`: `packages/content/src/zap.ts`
 - `makewish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/wish.ts`
-- `maybe_destroy_item()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
+- `maybe_destroy_item()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`, `packages/content/src/potionhit.ts`
 - `mon_spell_hits_spot()`: `packages/content/src/buzz.ts`
 - `obj_resists()`: `packages/content/src/meat.ts`, `packages/content/src/polyobj.ts`
 - `obj_shudders()`: `packages/content/src/polyobj.ts`

@@ -50,6 +50,7 @@ import {
 } from './silver';
 import { isPole } from './skills';
 import { canseemon } from './invis';
+import { potionhit } from './potionhit';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
 const ACID_VENOM: DefId = 'nh:splash_of_acid_venom';
@@ -141,8 +142,9 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
  * A missile may hit the hero. Returns true on a hit. `tlev` is the pseudo-level (to-hit).
  * ref: src/mthrowu.c thitu(): `u.uac + tlev <= rnd(20)` misses; a miss by 2 or more is "misses
  * you", a nearer one "almost hit"; a hit costs `dam` hit points. Not ported: blindness, acid,
- * poison, passes_rocks, thrown potions. Silver sears a Hate_silver hero. Acid venom: "It burns!", or no damage with acid
- * resistance ("It doesn't seem to hurt you.").
+ * poison, passes_rocks. Silver sears a Hate_silver hero. Acid venom: "It burns!", or no damage
+ * with acid resistance ("It doesn't seem to hurt you."). A potion (scattered by an explosion)
+ * breaks on her (potionhit()) and is gone.
  */
 export function thitu(
   ctx: Ctx,
@@ -167,6 +169,12 @@ export function thitu(
   const isAcid = obj.def === ACID_VENOM;
   if (isAcid && hasProp(hero, P.ACID_RES)) {
     say(ctx, 'mthrow.acid_no_hurt');
+    return true;
+  }
+  if (ctx.defs.object(obj.def).class === 'potion') {
+    // "an explosion which scatters objects might hit hero with one (potions deliberately thrown
+    // at hero are handled by m_throw)": potionhit() uses it up
+    potionhit(ctx, 'hero', obj, 'other');
     return true;
   }
   // extra damage already applied by dmgval()
@@ -225,8 +233,8 @@ function dropThrow(
  * may kill (the kill is not credited to the hero, unless `opts.onKill` says otherwise: a rolling
  * boulder from a trap she knew). A negative `range` (a rolling boulder) never drops it on a
  * miss. Acid venom burns (not an acid resistant monster), blinding venom blinds (can_blnd()).
- * Silver sears a silver-hater. Not ported: mimics, potions, eggs, poison, shades, aiming bonuses
- * of the archer's level.
+ * Silver sears a silver-hater; a potion breaks on it (potionhit()). Not ported: mimics, eggs,
+ * poison, shades, aiming bonuses of the archer's level.
  */
 export function ohitmon(
   ctx: Ctx,
@@ -264,6 +272,13 @@ export function ohitmon(
       return true;
     }
     return false;
+  }
+  if (odef.class === 'potion') {
+    // ref: ohitmon(): a potion breaks on it (`seemimic()`: no mimic is ever hit here)
+    m.asleep = false;
+    flush();
+    potionhit(ctx, mon, obj, 'other');
+    return true;
   }
   let damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef), hatesSilver(mdef));
   const acid = obj.def === ACID_VENOM;
@@ -321,8 +336,9 @@ function flightBlocked(ctx: Ctx, level: string, x: number, y: number): boolean {
  * ref: src/mthrowu.c m_throw(). A cursed one may misfire in a random direction; it stops at a
  * wall or closed door, at the first monster it hits, at the hero (hit or miss), or when its
  * range is used up (a miss lands on the hero's square). Venom: blinding venom blinds her
- * (to-hit 8, no damage), acid venom burns. Not ported: iron bars, sinks, tethered weapons,
- * shades, potions, eggs, pies, poison.
+ * (to-hit 8, no damage), acid venom burns; a potion always breaks on her (potionhit()), or on a
+ * monster it hits, and lands whole when it misses. Not ported: iron bars, sinks, tethered
+ * weapons, shades, eggs, pies, poison.
  */
 function mThrow(
   ctx: Ctx,
@@ -408,6 +424,10 @@ function mThrow(
         return;
       }
       flush();
+      if (odef.class === 'potion') {
+        potionhit(ctx, 'hero', obj, 'mon_thrown');
+        return;
+      }
       let hit: boolean;
       if (obj.def === BLINDING_VENOM) {
         hit = thitu(ctx, 8, 0, obj, nth);
@@ -456,6 +476,23 @@ function mThrow(
     }
   }
   flush();
+}
+
+/**
+ * A monster throws one object of the stack toward (dx, dy), at most `range` squares: muse.c's
+ * hurled potions. ref: src/mthrowu.c m_throw()
+ */
+export function mThrowOne(
+  ctx: Ctx,
+  monId: EntityId,
+  dx: number,
+  dy: number,
+  range: number,
+  stackId: EntityId,
+): void {
+  const mon = ctx.state.entities[String(monId)];
+  if (!mon) return;
+  mThrow(ctx, monId, dx, dy, range, stackId, { i: 1, n: 1, seen: canseemon(ctx, mon) });
 }
 
 // ---------------------------------------------------------------------------------------------
