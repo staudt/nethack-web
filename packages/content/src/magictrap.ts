@@ -10,10 +10,10 @@
 //
 // Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
 // passers, golems, polymorph, steeds, water and ice.
+import { mAt } from './wormstate';
 import {
   getLevel,
   getPlayer,
-  sortedIds,
   type Ctx,
   type Entity,
   type Level,
@@ -65,12 +65,7 @@ const heroPos = (ctx: Ctx): { level: string; x: number; y: number } => {
 const halluc = (ctx: Ctx): boolean => hasProp(getPlayer(ctx.state), P.HALLUC);
 
 function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p?.level === level.id && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 }
 
 // ---------------------------------------------------------------------------------------------

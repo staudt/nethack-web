@@ -27,6 +27,7 @@ import {
 import { canseemon } from './invis';
 import { monNam } from './perception';
 import { thiefdead } from './nomul';
+import { strayWorms, wormgone } from './wormstate';
 
 type Table = { [k: string]: Json };
 
@@ -311,8 +312,9 @@ export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId
   }
 }
 
-export function forgetMState(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+export function forgetMState(ctx: Pick<Ctx, 'state' | 'remove'>, id: EntityId): void {
   thiefdead(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->m_id == gs.stealmid) thiefdead()`
+  wormgone(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->wormno) wormgone(mtmp)`
   for (const k of KEYS) {
     const t = table(ctx, k, false);
     if (t) delete t[String(id)];
@@ -406,5 +408,7 @@ export function registerMState(api: ModApi): void {
       for (const key of Object.keys(tt).sort())
         if (!ctx.state.entities[key]?.c.monster) delete tt[key];
     }
+    // a worm removed by a path that did not call forgetMState() loses its tail here
+    for (const w of strayWorms(ctx.state)) wormgone(ctx, w);
   });
 }

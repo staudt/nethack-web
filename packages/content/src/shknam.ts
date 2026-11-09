@@ -8,6 +8,7 @@
 // Not ported: the tribute novel, the "Closed for inventory" engraving of a locked shop door (no
 // engravings), irregular shops (no Minetown shop is one), Orcus's ghost town, the scroll of
 // charging shopkeepers carry (not in the object table: the roll is made).
+import { mAt } from './wormstate';
 import { doorTrapped, setDoorTrapped } from './btrapstate';
 import {
   cellIndex,
@@ -75,12 +76,7 @@ export function getShopItem(ctx: Pick<Ctx, 'rng' | 'defs'>, shp: ShopType): Shop
 
 /** MON_AT(x, y) on the level being made. */
 function monAt(ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number): boolean {
-  for (const id of sortedIds(ctx.state)) {
-    const p = ctx.state.entities[String(id)];
-    if (p?.c.monster && p.c.pos?.level === level.id && p.c.pos.x === x && p.c.pos.y === y)
-      return true;
-  }
-  return false;
+  return mAt(ctx.state, level.id, x, y) !== null; // a worm's tail square holds the worm
 }
 
 /**

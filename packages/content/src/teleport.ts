@@ -34,6 +34,7 @@ import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { dungeonBottom, levelFlags } from './levelflags';
 import { canSpotMon, monNam } from './perception';
+import { isWormTail, wormRec } from './wormstate';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
@@ -95,6 +96,8 @@ interface Occupancy {
   hero: number;
   /** The hero's entity id. */
   heroId: EntityId;
+  /** Placing a worm that has a worm number. */
+  worm?: true;
 }
 
 function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
@@ -102,7 +105,8 @@ function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
     const p = e?.c.pos;
-    if (e?.c.monster && p?.level === level.id && id !== ctx.state.playerId)
+    // a worm's tail segments are the worm (m_at()); they block like any monster
+    if ((e?.c.monster || isWormTail(e)) && p?.level === level.id && id !== ctx.state.playerId)
       mons.set(cellIndex(level, p.x, p.y), id);
   }
   const hp = getPlayer(ctx.state).c.pos;
@@ -148,8 +152,10 @@ function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): bool
   const heroIsWho = who === o.heroId;
   if (i === o.hero && !heroIsWho) return false;
   if (who !== null) {
+    // `mtmp2 && (mtmp2 != mtmp || mtmp->wormno)`: a worm with a tail does not fit on its own
+    // square either (its segments return the same m_at())
     const m = o.mons.get(i);
-    if (m !== undefined && m !== who) return false;
+    if (m !== undefined && (m !== who || o.worm)) return false;
   }
   return accessible(o, i) && !o.boulders.has(i);
 }
@@ -162,7 +168,8 @@ export function goodposMon(
   y: number,
   who: EntityId,
 ): boolean {
-  return goodpos(occupancy(ctx, level), x, y, who);
+  const o = occupancy(ctx, level);
+  return goodpos(wormRec(ctx.state, who) ? { ...o, worm: true } : o, x, y, who);
 }
 
 /**
@@ -301,7 +308,8 @@ export function rlocMonPos(
   level: Level,
   mon: Entity,
 ): Pos | null {
-  const o = occupancy(ctx, level);
+  const o0 = occupancy(ctx, level);
+  const o: Occupancy = wormRec(ctx.state, mon.id) ? { ...o0, worm: true } : o0;
   const scare = scareCells(ctx, level);
   for (let trycount = 0; trycount < 50; ++trycount) {
     const x = ctx.rng.rnd(level.width - 1);

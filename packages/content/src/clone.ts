@@ -1,6 +1,7 @@
 // Monster cloning: a brown pudding hit with iron divides, a gremlin in water multiplies.
 // ref: src/makemon.c clone_mon(); src/potion.c split_mon()
-import { getLevel, type Ctx, type EntityId } from '@nh/core';
+import { getLevel, getPlayer, type Ctx, type EntityId, type Pos } from '@nh/core';
+import { mAt } from './wormstate';
 import { mnextoPos } from './generation';
 import { edogOf, tamedog } from './dog';
 import { fleeTime, isFleeing, monflee } from './monflee';
@@ -9,8 +10,13 @@ import { luckOf } from './luck';
 import { canSpotMon, monNam } from './perception';
 import { setSplitMon } from './trap';
 
+const heroAt = (ctx: Ctx, level: string, p: Pos): boolean => {
+  const hp = getPlayer(ctx.state).c.pos;
+  return hp?.level === level && hp.x === p.x && hp.y === p.y;
+};
+
 /**
- * A copy of the monster next to it ("copy condition of old monster"): same type, level, maximum
+ * A copy of the monster next to it (or on `where`, when that is free) ("copy condition of old monster"): same type, level, maximum
  * HP and conditions, current HP halved (the original keeps the odd point), no inventory, not
  * trapped. A clone of a peaceful or tame monster made by the hero stays so only
  * `rn2(max(2 + Luck, 2))` of the time; a tame one is tamed afresh with the original's pet record.
@@ -18,15 +24,20 @@ import { setSplitMon } from './trap';
  * ref: src/makemon.c clone_mon() (x == 0: next to the monster; no extinction, names, minions,
  * light sources or mon_track: none apply here)
  */
-export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean): EntityId | null {
+export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean, where?: Pos): EntityId | null {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   const hp = mon?.c.hp;
   const pos = mon?.c.pos;
   if (!mon || !m || !hp || !pos || hp.cur <= 1) return null;
   const level = getLevel(ctx.state, pos.level);
-  // `MON_AT(mm.x, mm.y)` is always true here: enexto() for a free square
-  const at = mnextoPos(ctx, level, id, pos);
+  // `where` is the clone's preferred square (a cut worm's new head); `MON_AT(mm.x, mm.y)` is
+  // always true for the default (next to the monster): enexto() for a free square
+  const want = where ?? pos;
+  const at =
+    where && !mAt(ctx.state, pos.level, where.x, where.y) && !heroAt(ctx, pos.level, where)
+      ? where
+      : mnextoPos(ctx, level, id, want);
   if (!at) return null;
 
   const half = Math.trunc(hp.cur / 2);

@@ -6,13 +6,13 @@
 // A shop's walls and doors dug by a broken wand of digging are damage to pay for.
 // Not ported (see DEVIATIONS.md): liquid flow into the pits (no pools),
 // ice, the paranoid_confirmation option (always a y/n question), a hero without hands.
+import { mAt } from './wormstate';
 import {
   NORMAL_SPEED,
   getLevel,
   getPlayer,
   inBounds,
   itemsAt,
-  sortedIds,
   type Ctx,
   type DefId,
   type Entity,
@@ -78,12 +78,7 @@ function isFragile(ctx: Pick<Ctx, 'state'>, wand: Entity): boolean {
 }
 
 function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p?.level === level.id && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 }
 
 /** ref: src/apply.c discard_broken_wand(): the pieces are gone; nomul(0) */

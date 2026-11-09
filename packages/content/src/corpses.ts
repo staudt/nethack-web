@@ -130,8 +130,9 @@ export interface DeadMon {
 }
 
 /**
- * The objects make_corpse() leaves besides the corpse: a unicorn's horn, which crumbles to dust
- * half the time when the unicorn had been revived. ref: src/mon.c make_corpse() PM_*_UNICORN
+ * The objects make_corpse() leaves besides the corpse: a long worm's tooth, a unicorn's horn
+ * (which crumbles to dust half the time when the unicorn had been revived).
+ * ref: src/mon.c make_corpse() PM_LONG_WORM, PM_*_UNICORN
  */
 function corpseExtras(
   ctx: Ctx,
@@ -139,6 +140,11 @@ function corpseExtras(
   at: { level: string; x: number; y: number },
   dead: DeadMon,
 ): void {
+  // ref: make_corpse() PM_LONG_WORM: `mksobj_at(WORM_TOOTH, x, y, TRUE, FALSE)`
+  if (def.id === 'nh:long_worm') {
+    mksobj(ctx, ctx.defs.object('nh:worm_tooth'), { at, init: true });
+    return;
+  }
   if (!isUnicorn(def)) return;
   if (dead.revived && ctx.rng.rn2(2)) {
     if (dead.seen)

@@ -6,6 +6,7 @@
 //
 // Not ported: deafness, invisibility, polymorphed heroes, Keystone Kops; a shopkeeper is never an
 // animal or mute by nature, so only a helpless one is mute (muteshk()).
+import { mAt } from './wormstate';
 import {
   cellIndex,
   getLevel,
@@ -13,7 +14,6 @@ import {
   inBounds,
   inventoryOf,
   isVisible,
-  sortedIds,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -98,12 +98,7 @@ function commonThief(ctx: Ctx): void {
 
 /** The living monster at x,y of the level, or null. ref: m_at() */
 export function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const m = ctx.state.entities[String(id)];
-    const p = m?.c.pos;
-    if (m?.c.monster && p?.level === level.id && p.x === x && p.y === y) return m;
-  }
-  return null;
+  return mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 }
 
 // ---------------------------------------------------------------------------------------------

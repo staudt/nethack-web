@@ -111,6 +111,8 @@ import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { heroInvisible, monInvisible } from './invis';
 import { isUnicorn } from './mondata';
+import { isWormTail, wormRec } from './wormstate';
+import { wormCross, wormMove, wormNomove } from './worm';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -267,8 +269,8 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * that are not non-passwall (may_passwall(): Sokoban's), through closed and locked doors, onto
  * boulders and through any tight squeeze. A unicorn (NOTONL, unless confused or on a no-teleport
  * level) never steps onto a square lined up with where it thinks the hero is while it can see her;
- * such squares are marked `lined` for every monster. Not ported: water/lava, Elbereth, long
- * worms, iron bars.
+ * such squares are marked `lined` for every monster. No diagonal step passes between two
+ * consecutive segments of a long worm (worm_cross()). Not ported: water/lava, Elbereth, iron bars.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -378,6 +380,8 @@ export function mfndpos(
       // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
       // or out of an intact door
       if (diagonal && (noDiag(def) || rules.intactDoor[here] || rules.intactDoor[to])) continue;
+      // ref: mfndpos(): "mustn't pass between adjacent long worm segments"
+      if (diagonal && wormCross(ctx, level.id, pos.x, pos.y, nx, ny)) continue;
       const realHero = nx === heroPos.x && ny === heroPos.y;
       const g = opts.guess;
       // ref: mfndpos(): "If it's right next to you, it found you, displaced or no."
@@ -394,6 +398,8 @@ export function mfndpos(
         if (!(opts.allowU ?? !m.peaceful)) continue; // no ALLOW_U
       } else if (occupant !== undefined && !opts.allowM) {
         continue; // no ALLOW_M / ALLOW_MDISP
+      } else if (occupant !== undefined && isWormTail(ctx.state.entities[String(occupant)])) {
+        continue; // a worm is fought at its head only (DEVIATIONS.md "Long worms")
       }
       if (
         sanctCheck &&
@@ -935,6 +941,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
       rlocMon(ctx, e, true);
       return 'moved';
     }
+    // ref: m_move(): "for a long worm, shrink it (by discarding end of tail) when it has failed
+    // to move"
+    if (wormRec(ctx.state, id)) wormNomove(ctx, id);
     return 'nothing';
   }
   // ref: m_move(): `if (mmoved == MMOVE_MOVED && m_digweapon_check(mtmp, nix, niy)) return
@@ -953,6 +962,8 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   pos.x = chosen.x;
   pos.y = chosen.y;
   ctx.emit({ type: 'moved', id, from, to: { x: chosen.x, y: chosen.y } });
+  // ref: m_move(): "for a long worm, insert a new segment to reconnect the head with the tail"
+  if (wormRec(ctx.state, id)) wormMove(ctx, id, from);
   maybeUnhideAt(ctx, level.id, chosen.x, chosen.y); // ref: m_move() after place_monster()
   return postmovMoved(ctx, id, level, rules, canTunnel);
 }
@@ -1242,7 +1253,9 @@ export function dochug(
           status = 'nothing';
         // ref: m_move(): `if (mtmp->mtame) { mmoved = dog_move(mtmp, after); goto postmov; }`;
         // a pet that did nothing goes on to phase four, where only Conflict makes it attack her
-        else if ((m.tame ?? 0) > 0) status = petMove(ctx, id);
+        // (`if (mtmp->wormno) goto not_special`: a tame worm with a worm number moves as any
+        // monster does, keeping its tail)
+        else if ((m.tame ?? 0) > 0 && !wormRec(ctx.state, id)) status = petMove(ctx, id);
         else status = mMove(ctx, id, heroPos, ap);
         if (status === 'died') return;
         // ref: m_move() postmov: `maybe_spin_web(mtmp)` after MMOVE_MOVED or MMOVE_DONE (m_move()
@@ -1291,7 +1304,8 @@ export function dochug(
   // MMOVE_DONE (picked something up) means no attack this move
   // ref: dochug() `!mtmp->mpeaceful || (Conflict && !resist_conflict(mtmp))`, then
   // `((inrange && !scared) || panicattk)`
-  const mayAttack = status !== 'done' && hostileNow() && ((inrange && !scared) || panicattk);
+  const hostile = status !== 'done' && hostileNow();
+  const mayAttack = hostile && ((inrange && !scared) || panicattk);
   // ref: mattacku(): range2 is `!monnear(mtmp, mtmp->mux, mtmp->muy)`
   if (mayAttack && monnear(def, pos.x, pos.y, ap.x, ap.y)) {
     monsterAttack(ctx, id, ap);
@@ -1299,7 +1313,30 @@ export function dochug(
     // ref: mattacku() with range2: a weapon attack at a distance throws or shoots
     mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero, ap);
   }
+  // ref: dochug(): `if (mtmp->wormno) wormhitu(mtmp)`
+  if (hostile && wormRec(ctx.state, id)) wormhitu(ctx, id, ap);
   maybeCuss(ctx, id, inrange, heroPos);
+}
+
+/**
+ * A worm whose tail lies next to the hero attacks once more for each such segment. As in NetHack
+ * 5.0, mattacku() still measures from the head ("mattacku() thinks that the head is out of
+ * range"), so only a worm whose head is also next to where it thinks she is gets the extra
+ * attacks. ref: src/worm.c wormhitu()
+ */
+function wormhitu(ctx: Ctx, id: EntityId, ap: Pos): void {
+  const rec = wormRec(ctx.state, id);
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!rec || !hp) return;
+  for (const s of rec.segs) {
+    const w = ctx.state.entities[String(id)];
+    const sp = ctx.state.entities[String(s)]?.c.pos;
+    const wp = w?.c.pos;
+    if (!w?.c.monster || !wp || ctx.state.gameOver) return; // "your passive ability killed the worm"
+    if (!sp || dist2(sp.x, sp.y, hp.x, hp.y) >= 3) continue;
+    // mattacku() with range2 (the head not next to mux/muy): the bites are skipped
+    if (monnear(ctx.defs.monster(w.def), wp.x, wp.y, ap.x, ap.y)) monsterAttack(ctx, id, ap);
+  }
 }
 
 /**

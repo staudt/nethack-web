@@ -143,7 +143,8 @@ export function monsterData(m: CMonster, id: string): MonsterData {
     resists: m.resists.map((r) => lower(r, /^MR_/)),
     conveys: m.conveys.map((r) => lower(r, /^MR_/)),
     brain: 'nh:melee',
-    sound: m.sound === 'MS_SQEEK' ? 'squeak' : lower(m.sound, /^MS_/),
+    // the long worm tail's row writes a literal 0 (MS_SILENT)
+    sound: m.sound === 'MS_SQEEK' ? 'squeak' : m.sound === '0' ? 'silent' : lower(m.sound, /^MS_/),
   };
 }
 

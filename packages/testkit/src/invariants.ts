@@ -183,6 +183,7 @@ export function checkInvariants(
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
   checkSpellState(state, errs);
+  checkWorms(state, ids, errs);
   checkPriests(state, errs);
   checkFountains(state, errs);
   checkVaults(state, errs);
@@ -526,6 +527,51 @@ const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isI
  * non-negative whole numbers; the monsters' spell delays (`mspecUsed`, positive turns),
  * confusion (`mconf`, true) and hiding (`mundetected`, true) name living monsters.
  */
+/**
+ * Long worms (content's `modData.nh.worms` / `wormTail`): every tail segment entity
+ * (`nh:long_worm_tail`) is a bare positioned entity (no monster, actor or hit points) listed in
+ * the record of a living worm on its level, and every record lists only such segments, each linked
+ * back to it. (Segments are not required to be adjacent: as in C, a worm whose head is moved
+ * without its tail, a pet swapping places with her, leaves it behind until it moves on.)
+ */
+function checkWorms(state: GameState, ids: readonly number[], errs: string[]): void {
+  const nh = state.modData['nh'] as
+    { worms?: Record<string, { segs?: unknown }>; wormTail?: Record<string, unknown> } | undefined;
+  const worms = nh?.worms ?? {};
+  const back = nh?.wormTail ?? {};
+  const listed = new Map<number, number>();
+  for (const k of Object.keys(worms).sort()) {
+    const head = state.entities[k];
+    if (!head?.c.monster) {
+      errs.push(`worms: '${k}' is not a living monster`);
+      continue;
+    }
+    const segs = worms[k]?.segs;
+    if (!Array.isArray(segs)) {
+      errs.push(`worms: ${k} has no segment list`);
+      continue;
+    }
+    for (const s of segs) {
+      const seg = typeof s === 'number' ? state.entities[String(s)] : undefined;
+      if (!seg || seg.def !== 'nh:long_worm_tail') {
+        errs.push(`worms: ${k} lists ${String(s)}, not a tail segment`);
+        continue;
+      }
+      listed.set(seg.id, Number(k));
+      if (back[String(seg.id)] !== Number(k))
+        errs.push(`wormTail: segment ${seg.id} does not point back to worm ${k}`);
+      if (seg.c.pos?.level !== head.c.pos?.level)
+        errs.push(`worms: segment ${seg.id} of worm ${k} is not on its level`);
+    }
+  }
+  for (const id of ids) {
+    const e = state.entities[String(id)];
+    if (e?.def !== 'nh:long_worm_tail') continue;
+    if (e.c.monster || e.c.actor || e.c.hp) errs.push(`tail segment ${id} is a monster`);
+    if (!listed.has(id)) errs.push(`tail segment ${id} belongs to no living worm`);
+  }
+}
+
 function checkSpellState(state: GameState, errs: string[]): void {
   const nh = state.modData['nh'];
   if (!isTable(nh)) return;

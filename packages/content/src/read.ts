@@ -46,7 +46,7 @@ import { templeOccupied } from './epri';
 import { isShopType } from './eshk';
 import { boulderDmgval, boulderFlooreffects } from './flooreffects';
 import { losehp } from './hp';
-import { prinv } from './itemactions';
+import { encumberMsg, prinv } from './itemactions';
 import {
   NOINVSYM,
   mksobj,
@@ -301,7 +301,8 @@ function seffectIdentify(ctx: Ctx, scroll: Entity, wasKnown: boolean): void {
 
 /**
  * ref: src/wield.c chwepon(). Returns false when the scroll was used up by a strange feeling.
- * Not ported: worm tooth/crysknife, artifacts, blindness.
+ * A worm tooth enchanted (any non-negative amount) becomes a crysknife, a stack fusing into one;
+ * a crysknife disenchanted turns back. Not ported: artifacts, blindness.
  */
 function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
   const uwep = inventoryOf(ctx.state, ctx.state.playerId).find(
@@ -314,6 +315,23 @@ function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
     return false;
   }
   const sdef = ctx.defs.object(scroll.def);
+  // ref: chwepon(): `uwep->otyp == WORM_TOOTH && amount >= 0` / `CRYSKNIFE && amount < 0`
+  if (
+    (uwep.def === 'nh:worm_tooth' && amount >= 0) ||
+    (uwep.def === 'nh:crysknife' && amount < 0)
+  ) {
+    const sharper = amount >= 0;
+    const multiple = it.quantity > 1;
+    msg(ctx, `enchant.${sharper ? 'tooth' : 'crysknife'}${multiple ? '_fuse' : ''}`);
+    uwep.def = sharper ? 'nh:crysknife' : 'nh:worm_tooth';
+    delete it.erodeproof;
+    if (multiple) it.quantity = 1;
+    if (sharper && it.buc === 'cursed') it.buc = 'uncursed';
+    // (an unpaid tooth's bill is not re-priced: see DEVIATIONS.md "Long worms")
+    if (sharper || scroll.c.item?.known.buc) discover(ctx, sdef);
+    if (multiple) encumberMsg(ctx);
+    return true;
+  }
   const clr = color(amount < 0 ? 'black' : 'blue');
   const pl = isPlural(def, uwep) ? '_pl' : '';
   const item = xnameOf(ctx.state, ctx.defs, uwep);

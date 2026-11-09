@@ -19,6 +19,7 @@
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
+import { mAt } from './wormstate';
 import {
   DIRS,
   DIR_LIST,
@@ -32,7 +33,6 @@ import {
   isVisible,
   cellIndex,
   rnl,
-  sortedIds,
   trapAt,
   levelIdFor,
   type ActionDef,
@@ -154,12 +154,7 @@ const isAltarId = (id: string | undefined): boolean => id?.startsWith('nh:altar_
 
 /** The living monster at (x, y) of `level`, or null. ref: m_at() */
 function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p?.level === level.id && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 }
 
 /** The trap is gone; Sokoban may be solved. ref: src/trap.c delfloortrap() */

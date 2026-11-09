@@ -5,6 +5,7 @@
 // Only terrain is mapped: the hero's memory holds no objects or monsters apart from what the
 // view already shows, so clairvoyance reveals no objects and no "remembered, unseen" monsters,
 // and never says "You sense your surroundings." (DEVIATIONS).
+import { WORM_TAIL, wormRec } from './wormstate';
 import {
   getLevel,
   getPlayer,
@@ -112,6 +113,11 @@ export function monsterDetect(ctx: Ctx, cursed = false): boolean {
   for (const e of mons) {
     const p = e.c.pos;
     if (p) memory[String(p.y * level.width + p.x)] = e.def;
+    // ref: display_monster() -> detect_wsegs(): a worm's tail is shown with it
+    for (const s of wormRec(ctx.state, e.id)?.segs ?? []) {
+      const sp = ctx.state.entities[String(s)]?.c.pos;
+      if (sp) memory[String(sp.y * level.width + sp.x)] = WORM_TAIL;
+    }
     const m = e.c.monster;
     if (cursed && m && (m.asleep || isFrozen(ctx, e.id))) {
       m.asleep = false;

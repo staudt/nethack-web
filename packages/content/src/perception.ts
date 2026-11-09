@@ -27,9 +27,11 @@ import {
   monVisible,
   seeInvisible,
   unmapInvisible,
+  wormKnown,
 } from './invis';
 import { epriOf, priestName } from './epri';
 import { isUndetected } from './hidestate';
+import { isWormTail, wormHeadEntity } from './wormstate';
 import { MIMIC_APPEARANCES, mappearance, mimicShownAs } from './mimicstate';
 import { eshkOf, shkName } from './eshk';
 
@@ -190,8 +192,10 @@ export function registerPerception(api: ModApi): void {
   // first, so that its digit wins over hallucination's random monster
   api.definePerception({
     id: WARNING_PERCEPTION,
-    senses: (state, defs, mon) => warningShown(state, defs, mon) !== null,
-    shownAs: (state, defs, e) => (defs.isMonster(e.def) ? warningShown(state, defs, e) : null),
+    // (never for a worm's tail: newsym() `mon_warning(mon) && !worm_tail`)
+    senses: (state, defs, mon) => !isWormTail(mon) && warningShown(state, defs, mon) !== null,
+    shownAs: (state, defs, e) =>
+      defs.isMonster(e.def) && !isWormTail(e) ? warningShown(state, defs, e) : null,
   });
   // invisibility: an invisible monster is not seen on a visible square unless she sees invisible
   // (mon_visible()), and an invisible hero who can't see invisible can't see herself
@@ -200,7 +204,9 @@ export function registerPerception(api: ModApi): void {
   api.defineAppearance(REMEMBERED_UNSEEN_APPEARANCE);
   api.definePerception({
     id: 'nh:invisibility',
-    hides: (state, _defs, mon) => monInvisible({ state }, mon) && !seeInvisible(state),
+    // (a worm's tail is seen as its worm is: mon_visible() of the worm)
+    hides: (state, _defs, mon) =>
+      monInvisible({ state }, wormHeadEntity(state, mon)) && !seeInvisible(state),
     self: (state) => {
       const form = heroFormId(state);
       const unseen = cantSeeSelf(state);
@@ -239,7 +245,9 @@ export function registerPerception(api: ModApi): void {
     id: 'nh:senses',
     // swallowed: "You see nothing, nothing can see you" (ref: src/vision.c vision_recalc())
     blind: (state) => heroHas(state, P.BLINDED) || engulferOf(state) !== null,
-    senses: (state, defs, mon) => telepathSenses(state, defs, mon) || infraSees(state, defs, mon),
+    // a worm's tail is only ever seen, never sensed (newsym(): `!worm_tail && tp_sensemon()`)
+    senses: (state, defs, mon) =>
+      !isWormTail(mon) && (telepathSenses(state, defs, mon) || infraSees(state, defs, mon)),
     shownAs(state, defs, e) {
       if (!heroHas(state, P.HALLUC)) return null;
       // ref: random_monster() / random_object(): any monster or object glyph; a statue is seen
@@ -270,7 +278,9 @@ export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boole
   const hero = getPlayer(ctx.state).c.pos;
   if (!p || p.level !== hero?.level) return false;
   const level = ctx.state.levels[p.level];
-  if (level && isVisible(ctx.state, p.y * level.width + p.x) && monVisible(ctx, mon)) return true;
+  // (a worm with a tail in view counts as seen: canseemon()'s worm_known())
+  const seen = level && (isVisible(ctx.state, p.y * level.width + p.x) || wormKnown(ctx, mon));
+  if (seen && monVisible(ctx, mon)) return true;
   return sensemon(ctx, mon);
 }
 

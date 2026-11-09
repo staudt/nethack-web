@@ -290,7 +290,7 @@ function poleAt(ctx: Ctx, obj: Entity, cc: Pos, autohit: boolean, confirmed: boo
     gethungry(ctx);
     if (hero(ctx).c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
     setHitmon(ctx, monId);
-    thitmonst(ctx, monId, obj.id, { i: 1, n: 1 }, true);
+    thitmonst(ctx, monId, obj.id, { i: 1, n: 1 }, true, cc);
   } else if (shownStatue(ctx, level, cc.x, cc.y) && statueAt(ctx, level.id, cc.x, cc.y)) {
     const t = trapAt(level, cc.x, cc.y);
     if (t?.def === TRAP.statue && activateStatueTrap(ctx, level.id, t, false)) {

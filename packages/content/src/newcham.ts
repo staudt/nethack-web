@@ -30,6 +30,8 @@ import { minvent, setMonFlag } from './mongear';
 import { canSpotMon, monNam } from './perception';
 import { possiblyUnwield } from './were';
 import { setMonData } from './werestate';
+import { LONG_WORM, wormgone } from './wormstate';
+import { giveWormTail } from './worm';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -157,6 +159,8 @@ export function newcham(
 
   // (no gender kept for monsters: mgender_from_permonst() is not ported)
 
+  // ref: newcham(): "throw tail away" (wormgone(); the head stays and morphs)
+  wormgone(ctx, mon.id);
   // a mimic that becomes something else drops its disguise
   if (mApType(ctx, mon.id) !== null && mdat.glyph.ch !== 'm') seemimic(ctx, mon.id); // revert to normal monster
 
@@ -212,6 +216,9 @@ export function newcham(
       unstuck(ctx, mon);
     }
   }
+
+  // ref: newcham(): a new long worm gets a worm number and a tail of rn2(5) segments
+  if (mdat.id === LONG_WORM) giveWormTail(ctx, mon.id, 'random');
 
   if (msg) {
     if (!canSpotMon(ctx, mon)) {

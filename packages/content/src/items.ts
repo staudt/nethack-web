@@ -1,5 +1,6 @@
 // Object instances: creation, weight, stacking and inventory handling.
 import {
+  allContents,
   contents,
   inventoryOf,
   itemsAt,
@@ -753,6 +754,24 @@ export function removeFromInventory(ctx: ItemCtx, itemId: EntityId): void {
 }
 
 /**
+ * Things that change when no longer held, the item's contents included: a crysknife reverts to a
+ * worm tooth (a fixed one 1 time in 10), losing its fixed flag. ref: src/do.c
+ * obj_no_longer_held() (called by place_object(); no shop charge for the change, see
+ * DEVIATIONS.md "Long worms")
+ */
+export function objNoLongerHeld(ctx: Pick<Ctx, 'state' | 'rng'>, itemId: EntityId): void {
+  for (const id of [itemId, ...allContents(ctx.state, itemId)]) {
+    const o = ctx.state.entities[String(id)];
+    const it = o?.c.item;
+    if (!o || !it || o.def !== 'nh:crysknife') continue;
+    if (!it.erodeproof || !ctx.rng.rn2(10)) {
+      o.def = 'nh:worm_tooth';
+      delete it.erodeproof;
+    }
+  }
+}
+
+/**
  * Drops the item on the floor at (x, y), merging into a mergable stack there, and returns the
  * resulting stack's id. ref: src/mkobj.c place_object() followed by src/mkobj.c stackobj().
  * A new object is the top of the pile; a merged one keeps its stack's position.
@@ -770,6 +789,7 @@ export function placeOnFloor(
   if (it.carriedBy !== null) removeFromInventory(ctx, itemId);
   it.equipped = null;
   delete item.c.pos;
+  objNoLongerHeld(ctx, itemId);
   for (const other of itemsAt(ctx.defs, ctx.state, level, x, y)) {
     if (merged(ctx, other, item)) return other.id;
   }
@@ -794,6 +814,7 @@ export function placeObject(
   if (!item || !it) throw new Error(`placeObject: ${itemId} is not an item`);
   if (it.carriedBy !== null) removeFromInventory(ctx, itemId);
   it.equipped = null;
+  objNoLongerHeld(ctx, itemId);
   item.c.pos = { level, x, y };
   it.placed = ctx.state.seq++;
 }

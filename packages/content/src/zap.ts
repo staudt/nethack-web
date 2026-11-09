@@ -38,7 +38,6 @@ import {
   inventoryOf,
   isContainer,
   itemsAt,
-  sortedIds,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -62,6 +61,7 @@ import { breaktest } from './material';
 import { EGG, attachEggHatchTimeout, deadSpecies } from './eggstate';
 import { breakEggs } from './egghit';
 import { bypassObj, clearBypasses, isBypassed } from './bypass';
+import { LONG_WORM, mAt } from './wormstate';
 import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped, unaware } from './btrapped';
@@ -309,13 +309,7 @@ const cellId = (level: Level, x: number, y: number): DefId | undefined =>
 
 /** The monster at (x, y) of the hero's level, or null. ref: m_at() */
 function monAt(ctx: Ctx, x: number, y: number): Entity | null {
-  const lv = heroPos(ctx).level;
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p && p.level === lv && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, heroPos(ctx).level, x, y); // a worm's tail square holds the worm
 }
 
 const cansee = (ctx: Ctx, x: number, y: number): boolean =>
@@ -849,7 +843,10 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       break;
     case WAN.polymorph:
     case SPE.polymorph:
-      if (resistsMagm(ctx, mon)) {
+      if (mon.def === LONG_WORM && isBypassed(mon.id)) {
+        // "if a long worm has mcorpsenm set, it was polymorphed by the current zap and shouldn't
+        // be affected if hit again" (on its new tail)
+      } else if (resistsMagm(ctx, mon)) {
         // magic resistance protects from polymorph traps, so make it guard against involuntary
         // polymorph attacks too... (shieldeff_mon() is not shown)
       } else if (!resist(ctx, mon, 0, oclass)) {
@@ -869,6 +866,8 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         } else if (newcham(ctx, mon, null, { polyspot: true, msg: giveMsg })) {
           if (giveMsg && (canSpotMon(ctx, mon) || engulfingU(ctx, mon.id))) learnIt = true;
         }
+        // "flag to indicate that mtmp became a long worm on current zap" (MCORPSENM)
+        if (ctx.state.entities[String(mon.id)]?.def === LONG_WORM) bypassObj(mon.id);
       }
       break;
     case WAN.undeadTurning: {

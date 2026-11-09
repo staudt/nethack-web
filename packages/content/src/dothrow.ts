@@ -35,7 +35,8 @@ import { canBlnd } from './adtyping';
 import { killedByHero } from './buzz';
 import { isFrozen, mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
-import { dbonU, dmgval, monsterIdAt } from './combat';
+import { cutwormAt, dbonU, dmgval, monsterIdAt } from './combat';
+import { isAxe } from './mdig';
 import { encumberMsg } from './itemactions';
 import {
   mksobj,
@@ -149,6 +150,7 @@ export function thitmonst(
   objId: EntityId,
   shot: Shot,
   applied = false,
+  at?: Pos,
 ): boolean {
   const mon = ctx.state.entities[String(monId)];
   const obj = ctx.state.entities[String(objId)];
@@ -328,7 +330,11 @@ export function thitmonst(
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }
   if (dmg < 1) dmg = 1;
+  // (remember the weapon's kind: hmon() might destroy it)
+  const chopper = isAxe(odef);
   hmonThrownHit(ctx, mon, dmg, missile, shot, silverHit ? obj : null);
+  // ref: thitmonst(): `if (hmon(...)) { if (mon->wormno) cutworm(mon, bhitpos, chopper); }`
+  if (ctx.state.entities[String(monId)]?.c.monster) cutwormAt(ctx, monId, at, chopper);
   if (applied) return false; // the polearm stays in her hands
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {
@@ -520,7 +526,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   if (path.length > 0) ctx.emit({ type: 'projectile', g: shownId(ctx.state, obj.def), path });
 
   if (hitMon !== null) {
-    if (thitmonst(ctx, hitMon, objId, shot)) return; // used up
+    if (thitmonst(ctx, hitMon, objId, shot, false, { x, y })) return; // used up
   }
   // venom always breaks where it lands, even on a soft floor: breakmsg() "Splash!", breakobj()
   if (odef.class === 'venom') {

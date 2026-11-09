@@ -40,6 +40,8 @@ import { hardHelmet } from './material';
 import { findAc } from './stats';
 import { mdamageu } from './mhitu';
 import { mnextoPos } from './generation';
+import { wormCross } from './worm';
+import { mAt } from './wormstate';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { P, hasProp, wornIn } from './props';
@@ -156,7 +158,7 @@ export function isSafemon(ctx: Ctx, mon: Entity): boolean {
  * `handler` with `{ victim }`). Returns the energy used.
  * ref: src/uhitm.c do_attack(), attack_checks()
  */
-export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId): number | null {
+export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId, hit?: Pos): number | null {
   if (isSafemon(ctx, vmon)) {
     // ref: src/uhitm.c do_attack(): walking into a pet or peaceful monster you can see does
     // not attack it; 1 time in 7 it is in the way, and one that can't move doesn't
@@ -184,18 +186,22 @@ export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId): number | null 
     }
     return null;
   }
-  // ref: src/uhitm.c attack_checks(): "Wait!  There's something there you can't see!"
-  const at = vmon.c.pos;
+  // ref: src/uhitm.c attack_checks(): "Wait!  There's something there you can't see!" (at
+  // bhitpos: a long worm's tail square)
+  const at = hit ?? vmon.c.pos;
   if (at && attackChecksUnseen(ctx, vmon, at.x, at.y)) {
     ctx.interrupt(); // domove(): nomul(0) before attacking a monster that is not safe
     return NORMAL_SPEED;
   }
   // ref: src/uhitm.c attack_checks(): "Really attack the dwarf?" for a peaceful monster in view
   if (needsAttackConfirm(ctx, vmon.id)) {
-    askReallyAttack(ctx, vmon.id, handler, { victim: vmon.id });
+    askReallyAttack(ctx, vmon.id, handler, {
+      victim: vmon.id,
+      ...(at ? { at: { x: at.x, y: at.y } } : {}),
+    });
     return 0;
   }
-  return heroAttack(ctx, vmon.id);
+  return heroAttack(ctx, vmon.id, at);
 }
 
 /**
@@ -450,12 +456,12 @@ const fight: ActionDef = {
       return fightEmpty(ctx, level, to);
     }
     if (needsAttackConfirm(ctx, victim)) {
-      askReallyAttack(ctx, victim, 'nh:move', { victim });
+      askReallyAttack(ctx, victim, 'nh:move', { victim, at: { x: to.x, y: to.y } });
       return 0;
     }
     // ref: src/mon.c wakeup(): a forced fight brings a hiding monster out
     setUndetected(ctx, victim, false);
-    const cost = heroAttack(ctx, victim);
+    const cost = heroAttack(ctx, victim, to);
     // ref: src/uhitm.c do_attack() atk_done: a forced fight at a monster she can't spot that
     // lives on leaves the `I` where she struck
     const vmon = ctx.state.entities[String(victim)];
@@ -535,7 +541,7 @@ const move: ActionDef = {
       vmon &&
       (!isUndetected(ctx, vmon.id) || sensemon(ctx, vmon) || hidesUnder(ctx.defs.monster(vmon.def)))
     ) {
-      const cost = doAttack(ctx, vmon, 'nh:move');
+      const cost = doAttack(ctx, vmon, 'nh:move', to);
       if (cost !== null) return cost;
     } else if (!vmon && markedUnseen(ctx, to.x, to.y)) {
       // ref: src/hack.c domove_fight_empty(): "remembered an 'I' && didn't use a move command"
@@ -546,14 +552,17 @@ const move: ActionDef = {
   // The answer to "Really attack?" (yes attacks) or "Really step onto that trap?" (yes steps);
   // anything else costs nothing (context.move = 0).
   answer(ctx, value, raw) {
-    const data = raw as { victim?: unknown; trapDir?: unknown } | null;
+    const data = raw as { victim?: unknown; trapDir?: unknown; at?: unknown } | null;
     if (value !== true) return 0;
     const trapDir = DIR_LIST.find((d) => d === data?.trapDir);
     if (trapDir) return walk(ctx, trapDir, true);
     const victim = data?.victim;
     if (typeof victim !== 'number') return 0;
     if (!ctx.state.entities[String(victim)]?.c.monster) return 0;
-    return heroAttack(ctx, victim);
+    const at = data?.at as { x?: unknown; y?: unknown } | undefined;
+    const hit =
+      at && typeof at.x === 'number' && typeof at.y === 'number' ? { x: at.x, y: at.y } : undefined;
+    return heroAttack(ctx, victim, hit);
   },
 };
 
@@ -635,6 +644,13 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
         ctx.interrupt();
         return 0;
       }
+    } else if (diagonal && wormCross(ctx, level.id, from.x, from.y, to.x, to.y)) {
+      // ref: test_move(): "consecutive long worm segments are at <ux,y> and <x,uy>"
+      const worm = mAt(ctx.state, level.id, from.x, to.y);
+      if (worm)
+        ctx.emit({ type: 'msg', key: 'worm.in_your_way', params: { mon: monNam(ctx, worm) } });
+      ctx.interrupt();
+      return 0;
     }
     // ref: test_move(): `if (sobj_at(BOULDER, x, y) ...) moverock() < 0 -> return FALSE`: a
     // boulder that won't move keeps the hero in place and takes no time
@@ -645,6 +661,12 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   }
   const victim = monsterIdAt(ctx, to, pos.level);
   const vmon = victim === null ? undefined : ctx.state.entities[String(victim)];
+  // a peaceful worm's tail square: she does not trade places with it (DEVIATIONS.md "Long worms")
+  const vp = vmon?.c.pos;
+  if (vmon && vp && (vp.x !== to.x || vp.y !== to.y)) {
+    ctx.interrupt();
+    return 0;
+  }
   // test_move() still applies: no swapping diagonally through a doorway
   if (vmon && isSafemon(ctx, vmon) && check.ok) return swapWithPet(ctx, vmon, from, to, dir);
   if (check.ok) {

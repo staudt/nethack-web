@@ -304,7 +304,7 @@ describe('polyself()', () => {
   });
 
   test('the wand at herself and the polymorph trap reach it', () => {
-    let s = room(1);
+    let s = room(3);
     setAttr(s, 'con', 25);
     const wand = s.carry('nh:wand_of_polymorph');
     itemOf(s.state, wand).spe = 5;

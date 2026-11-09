@@ -5,13 +5,13 @@
 //
 // Split out of zap.ts so that code below the hero's actions (a god's lightning for an angered
 // priest) can cast a ray without an import cycle; the hero's angering wakeup() is passed in.
+import { mAt } from './wormstate';
 import {
   DIRS,
   cellIndex,
   getPlayer,
   inBounds,
   itemsAt,
-  sortedIds,
   inventoryOf,
   type Ctx,
   type DefId,
@@ -124,13 +124,7 @@ const cellId = (level: Level, x: number, y: number): DefId | undefined =>
 
 /** The monster at (x, y) of the hero's level, or null. ref: m_at() */
 function monAt(ctx: Ctx, x: number, y: number): Entity | null {
-  const lv = heroPos(ctx).level;
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p && p.level === lv && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, heroPos(ctx).level, x, y); // a worm's tail square holds the worm
 }
 
 const cansee = (ctx: Ctx, x: number, y: number): boolean =>

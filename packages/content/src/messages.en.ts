@@ -44,6 +44,7 @@ import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
 import { mimicMessagesEn } from './mimic.en';
 import { unicornMessagesEn } from './unicorn.en';
+import { wormMessagesEn } from './worm.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -106,6 +107,7 @@ export const messagesEn: Record<string, string> = {
   ...hideMessagesEn,
   ...mimicMessagesEn,
   ...unicornMessagesEn,
+  ...wormMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
@@ -350,6 +352,9 @@ export const messagesEn: Record<string, string> = {
   'nh:dust_vortex': 'dust vortex',
   'nh:ice_vortex': 'ice vortex',
   'nh:energy_vortex': 'energy vortex',
+  'nh:baby_long_worm': 'baby long worm',
+  'nh:long_worm': 'long worm',
+  'nh:long_worm_tail': 'long worm tail',
   'nh:baby_purple_worm': 'baby purple worm',
   'nh:purple_worm': 'purple worm',
   'nh:yellow_light': 'yellow light',

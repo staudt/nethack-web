@@ -18,6 +18,8 @@ import {
   type ModApi,
 } from '@nh/core';
 import { makemon, mnextoPos, rndmonst } from './generation';
+import { wormArrive, wormLeave } from './worm';
+import { wormRec } from './wormstate';
 import { skillLevel } from './skills';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
@@ -550,7 +552,10 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
   for (const mon of followers) {
     const spot = mnextoPos(ctx, level, null, hero);
     if (!spot) continue; // no room: it stays behind (mon_arrive would migrate it)
+    // ref: keepdogs() -> mon_leave() drops a worm's tail; mon_arrive() grows it back
+    const segs = wormRec(ctx.state, mon.id) ? wormLeave(ctx, mon.id) : null;
     mon.c.pos = { level: to, x: spot.x, y: spot.y };
+    if (segs !== null) wormArrive(ctx, mon.id, segs);
   }
 }
 

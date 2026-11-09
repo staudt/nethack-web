@@ -116,6 +116,10 @@ export const magicMessagesEn: Record<string, string> = {
   'enchant.violently': 'violently ',
   'enchant.moment': 'moment',
   'enchant.while': 'while',
+  'enchant.tooth': 'Your worm tooth is much sharper now.',
+  'enchant.tooth_fuse': 'Your worm teeth fuse, and become much sharper now.',
+  'enchant.crysknife': 'Your crysknife is much duller now.',
+  'enchant.crysknife_fuse': 'Your crysknives fuse, and become much duller now.',
   'enchant.weapon.glow': 'Your {item} {violently}glows {color} for a {time}.',
   'enchant.weapon.glow_pl': 'Your {item} {violently}glow {color} for a {time}.',
   'enchant.weapon.evaporate':

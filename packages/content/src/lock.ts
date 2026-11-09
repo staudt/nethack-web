@@ -6,6 +6,7 @@
 //
 // Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, the Rogue bonus (the hero is a Valkyrie), shop doors,
 // levitation, pits, polymorphed forms without hands, Dex exercise (no exercise system yet).
+import { mAt } from './wormstate';
 import { apAsThing } from './mimicstate';
 import { stumbleOnDoorMimic } from './mimic';
 import {
@@ -17,7 +18,6 @@ import {
   inventoryOf,
   isContainer,
   itemsAt,
-  sortedIds,
   type ActionDef,
   type Ctx,
   type DefId,
@@ -341,9 +341,7 @@ function pickDoor(ctx: Ctx, pick: Entity, dir: Dir): number {
   const y = p.y + d.y;
   const lv = levelOf(ctx, p.level);
   if (!lv) return NOTHING;
-  const mon = sortedIds(ctx.state)
-    .map((id) => ctx.state.entities[String(id)])
-    .find((e) => e?.c.monster && e.c.pos?.level === p.level && e.c.pos.x === x && e.c.pos.y === y);
+  const mon = mAt(ctx.state, p.level, x, y);
   if (mon && canSpotMon(ctx, mon) && !apAsThing(ctx, mon.id)) {
     say(ctx, 'lock.wouldnt_appreciate', { mon: monNam(ctx, mon) });
     return LEARNED;

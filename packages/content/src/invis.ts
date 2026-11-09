@@ -25,6 +25,7 @@ import {
   type MonsterDef,
 } from '@nh/core';
 import { isUndetected } from './hidestate';
+import { wormRec } from './wormstate';
 import { discover } from './o_init';
 import { P, hasProp, timeoutLeft, updateWornProps, wornIn } from './props';
 
@@ -202,7 +203,20 @@ function cansee(state: Readonly<GameState>, p: { level: string; x: number; y: nu
  */
 export function canseemon(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
   const p = mon.c.pos;
-  return !!p && cansee(ctx.state, p) && monVisible(ctx, mon);
+  return !!p && (cansee(ctx.state, p) || wormKnown(ctx, mon)) && monVisible(ctx, mon);
+}
+
+/**
+ * Some segment of the worm's tail is in view (canseemon() and canspotmon() count the worm as seen
+ * then). ref: src/worm.c worm_known()
+ */
+export function wormKnown(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
+  const rec = wormRec(ctx.state, mon.id);
+  if (!rec) return false;
+  return rec.segs.some((s) => {
+    const sp = ctx.state.entities[String(s)]?.c.pos;
+    return !!sp && cansee(ctx.state, sp);
+  });
 }
 
 /** ref: include/hack.h BOLT_LIM */

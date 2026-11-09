@@ -9,6 +9,7 @@
 // horn crumble), and the corpses cant_revive() turns into a human
 // zombie or a doppelganger (aligned priests, unique monsters): neither monster exists, so those
 // corpses do not rise.
+import { mAt } from './wormstate';
 import {
   getLevel,
   getPlayer,
@@ -180,11 +181,7 @@ export function revive(ctx: Ctx, corpse: Entity, byHero: boolean): Revived | nul
 function occupied(ctx: Ctx, levelId: string, x: number, y: number): boolean {
   const hp = getPlayer(ctx.state).c.pos;
   if (hp && hp.level === levelId && hp.x === x && hp.y === y) return true;
-  for (const e of Object.values(ctx.state.entities)) {
-    const p = e.c.pos;
-    if (e.c.monster && p && p.level === levelId && p.x === x && p.y === y) return true;
-  }
-  return false;
+  return mAt(ctx.state, levelId, x, y) !== null; // a worm's tail square holds the worm
 }
 
 /**

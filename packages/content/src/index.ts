@@ -536,6 +536,18 @@ export {
   hungerData,
 } from './hunger';
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
+export { cutworm } from './wormcut';
+export { giveWormTail, placeWormTailRandomly, wormCross, wormMove, wormNomove } from './worm';
+export {
+  LONG_WORM,
+  WORM_TAIL,
+  countWsegs,
+  isWormTail,
+  mAt,
+  tailOwner,
+  wormHead,
+  wormRec,
+} from './wormstate';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
 export { somexyspace, somexyspaceTry, occupied } from './somexy';
 export {

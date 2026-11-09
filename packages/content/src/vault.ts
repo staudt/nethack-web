@@ -19,6 +19,7 @@
 // noticed after the hero's action or at the end of the turn (grddead()). No deaf hero, no hero
 // hiding or mimicking, no gold eating (the guard never witnesses it), no Croesus (so his name
 // always sends the guard away), no Punishment, no graves (paygd()'s grave for Croesus).
+import { mAt } from './wormstate';
 import {
   cellIndex,
   cellRules,
@@ -351,14 +352,8 @@ function blackout(level: Level, x: number, y: number): void {
     }
 }
 
-const monAt = (ctx: Ctx, level: Level, x: number, y: number): Entity | null => {
-  for (const key of Object.keys(ctx.state.entities).sort((a, b) => Number(a) - Number(b))) {
-    const e = ctx.state.entities[key];
-    const p = e?.c.pos;
-    if (e?.c.monster && p && p.level === level.id && p.x === x && p.y === y) return e;
-  }
-  return null;
-};
+const monAt = (ctx: Ctx, level: Level, x: number, y: number): Entity | null =>
+  mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 
 /** The guard is gone (or will be) once his corridor is. ref: src/vault.c restfakecorr() */
 function restfakecorr(ctx: Ctx, id: EntityId, egd: Egd): void {

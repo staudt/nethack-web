@@ -6,12 +6,12 @@
 // src/monmove.c can_hide_under_obj()
 //
 // Not ported: eels (no water), the hero hiding as a form (u.uundetected).
+import { mAt } from './wormstate';
 import {
   cellIndex,
   getPlayer,
   isVisible,
   itemsAt,
-  sortedIds,
   trapAt,
   type Ctx,
   type Entity,
@@ -33,13 +33,8 @@ export { ceilingHider, hidesUnder, isHider, isUndetected, setUndetected } from '
 
 /** The monster (not the hero) at (x, y) of `level`, or null. */
 function monAt(ctx: Pick<Ctx, 'state'>, level: LevelId, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && id !== ctx.state.playerId && p?.level === level && p.x === x && p.y === y)
-      return e;
-  }
-  return null;
+  const e = mAt(ctx.state, level, x, y); // a worm's tail square holds the worm
+  return e && e.id !== ctx.state.playerId ? e : null;
 }
 
 /** A trap other than a pit is at (x, y) of `level`. */

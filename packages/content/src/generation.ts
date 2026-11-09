@@ -333,6 +333,8 @@ export interface MakemonOpts {
   noInventory?: boolean;
   /** Made while a level is being created (gi.in_mklev): snakes and spiders get an object. */
   inMklev?: boolean;
+  /** A long worm gets no tail segments (MM_NOTAIL; it still grows one). */
+  noTail?: boolean;
 }
 
 type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
@@ -340,6 +342,13 @@ type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) =>
 let levelObjectAt: LevelObjectAt | null = null;
 export function setLevelObjectAt(fn: LevelObjectAt): void {
   levelObjectAt = fn;
+}
+
+type GiveWormTail = (ctx: Ctx, worm: EntityId, nsegs: number | 'random') => void;
+/** worm.ts's giveWormTail() (worm.ts sits above generation.ts) */
+let giveWormTail: GiveWormTail | null = null;
+export function setGiveWormTail(fn: GiveWormTail): void {
+  giveWormTail = fn;
 }
 
 /**
@@ -418,6 +427,12 @@ export function makemon(
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);
+  // ref: makemon(): `mndx == PM_LONG_WORM && (mtmp->wormno = get_wormno()) != 0`:
+  // initworm(mtmp, allowtail ? rn2(5) : 0), and the tail laid behind it
+  if (mdef.id === 'nh:long_worm') {
+    if (!giveWormTail) throw new Error('makemon: worm.ts has not registered giveWormTail()');
+    giveWormTail(ctx, id, opts.noTail ? 0 : 'random');
+  }
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {

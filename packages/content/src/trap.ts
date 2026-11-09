@@ -86,6 +86,8 @@ import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
 import { setFloatDownTrap } from './levitation';
 import { migrateToLevel } from './migrate';
+import { placeWormTailRandomly, removeWorm, wormArrive } from './worm';
+import { takeWormMigr, wormRec } from './wormstate';
 import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
 import { minvent, monWep, whichArmor } from './mongear';
@@ -1586,6 +1588,9 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
     if (!spot) continue; // no room: it keeps waiting
     mon.c.pos = { level: level.id, x: spot.x, y: spot.y };
     delete t[key];
+    // ref: mon_arrive(): a long worm gets a worm number and its segments back
+    const segs = takeWormMigr(ctx.state, mon.id);
+    if (segs !== null) wormArrive(ctx, mon.id, segs);
   }
 }
 
@@ -2235,7 +2240,7 @@ export function registerTeleportitis(api: ModApi): void {
  * "The jackal vanishes!", "A jackal appears next to you!" (`domsg`, RLOC_MSG); a resident
  * shopkeeper taken out of his shop gets angry, and shop goods it carries out are stolen by the
  * hero; a trapped monster is checked against the trap where it lands.
- * ref: src/teleport.c rloc_to_core() (no worms, engulfing, hiders or STRAT_APPEARMSG)
+ * ref: src/teleport.c rloc_to_core() (no engulfing or STRAT_APPEARMSG)
  */
 export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boolean): void {
   const p = mon.c.pos;
@@ -2251,7 +2256,11 @@ export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boole
     if (couldsee(ctx, x, y) || telepathSenses(ctx.state, ctx.defs, mon)) telemsg = true;
     else say(ctx, 'tele.mon_vanishes', { mon: monNam(ctx, mon) });
   }
+  // ref: rloc_to_core(): `if (mtmp->wormno) remove_worm(mtmp)`, then "now put down tail"
+  const worm = wormRec(ctx.state, mon.id) !== null;
+  if (worm) removeWorm(ctx, mon.id);
   mon.c.pos = { level: p.level, x, y };
+  if (worm) placeWormTailRandomly(ctx, mon.id, x, y);
   const stuck = ustuck(ctx);
   if (stuck === mon.id && Math.max(Math.abs(x - hp.x), Math.abs(y - hp.y)) > 1)
     setUstuck(ctx, null);

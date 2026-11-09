@@ -9,10 +9,10 @@
 // exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
 // A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
 // explosion here is hers (C's type >= 0).
+import { mAt } from './wormstate';
 import {
   getPlayer,
   inBounds,
-  sortedIds,
   type AttackDef,
   type Ctx,
   type DefId,
@@ -157,12 +157,7 @@ function destroyAny(ctx: Ctx, id: number, adtyp: Adtyp, dam: number): number {
 }
 
 function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p?.level === level.id && p.x === x && p.y === y) return e;
-  }
-  return null;
+  return mAt(ctx.state, level.id, x, y); // a worm's tail square holds the worm
 }
 
 /**

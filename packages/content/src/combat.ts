@@ -1,5 +1,7 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
 import { EGG } from './eggstate';
+import { mAt, wormRec } from './wormstate';
+import { isAxe } from './mdig';
 import { hitWithEgg } from './egghit';
 import { minstapetrify } from './stoning';
 import { corpseName, petrifyingCorpse } from './stonetouch';
@@ -9,7 +11,6 @@ import {
   getPlayer,
   isVisible,
   itemsAt,
-  sortedIds,
   type AttackDef,
   type AttackType,
   type Ctx,
@@ -52,6 +53,7 @@ import {
   BARE_HANDED,
   skillLevel,
   useSkill as useSkillPoints,
+  isBlade,
   isPole,
   weaponDamBonus,
   weaponHitBonus,
@@ -220,16 +222,13 @@ export function heroToHit(
 /** ref: src/zap.c exclam() */
 const exclam = (force: number): string => (force < 0 ? '?' : force <= 4 ? '.' : '!');
 
-const monsterAt = (ctx: Ctx, pos: Pos, level: string): EntityId | null => {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.monster && p && p.level === level && p.x === pos.x && p.y === pos.y) return id;
-  }
-  return null;
-};
+const monsterAt = (ctx: Ctx, pos: Pos, level: string): EntityId | null =>
+  mAt(ctx.state, level, pos.x, pos.y)?.id ?? null;
 
-/** The monster entity at `pos` on `level`, if any (attacks do not need to see it). */
+/**
+ * The monster entity at `pos` on `level`, if any (attacks do not need to see it); on a long
+ * worm's tail square, the worm. ref: m_at()
+ */
 export const monsterIdAt = monsterAt;
 
 let hmonasFn: ((ctx: Ctx, targetId: EntityId) => void) | null = null;
@@ -238,6 +237,40 @@ let hmonasFn: ((ctx: Ctx, targetId: EntityId) => void) | null = null;
 export function setHmonas(fn: (ctx: Ctx, targetId: EntityId) => void): void {
   hmonasFn = fn;
 }
+
+type Cutworm = (
+  ctx: Ctx,
+  worm: EntityId,
+  x: number,
+  y: number,
+  cuttier: boolean,
+  monMoving?: boolean,
+) => void;
+let cutwormFn: Cutworm | null = null;
+/** wormcut.ts hands down cutworm() (it sits above this module, over clone.ts). */
+export function setCutworm(fn: Cutworm): void {
+  cutwormFn = fn;
+}
+
+/**
+ * A blow that hit a long worm with a worm number, landing on (x, y): maybe it cuts the tail
+ * there. ref: src/worm.c cutworm() (callers check `mon->wormno`)
+ */
+export function cutwormAt(
+  ctx: Ctx,
+  worm: EntityId,
+  at: Pos | undefined,
+  cuttier: boolean,
+  monMoving = false,
+): void {
+  if (!at || !wormRec(ctx.state, worm) || !ctx.state.entities[String(worm)]?.c.monster) return;
+  if (!cutwormFn) throw new Error('cutworm: wormcut.ts is not loaded');
+  cutwormFn(ctx, worm, at.x, at.y, cuttier, monMoving);
+}
+
+/** ref: include/obj.h is_blade() || is_axe(): a hit that may cut a worm well */
+export const sliceOrChop = (def: ObjectDef | undefined): boolean =>
+  !!def && (isBlade(def) || isAxe(def));
 
 /**
  * ref: src/mondata.c noattacks(): a form whose only attacks are passive ones (AT_NONE; AT_BOOM,
@@ -363,7 +396,7 @@ export function missum(ctx: Ctx, targetId: EntityId, atk: AttackDef | null): voi
  * physically."). Not ported: knockback, two-weapon. (The peaceful confirmation is asked by the
  * callers, see peaceful.ts.)
  */
-export function heroAttack(ctx: Ctx, targetId: EntityId): number {
+export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos): number {
   const hero = getPlayer(ctx.state);
   const target = ctx.state.entities[String(targetId)];
   if (!target?.c.monster) throw new Error(`Entity ${targetId} is not a monster`);
@@ -379,7 +412,7 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
   gethungry(ctx);
   if (hero.c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
   if (form && hmonasFn) hmonasFn(ctx, targetId);
-  else hitum(ctx, targetId);
+  else hitum(ctx, targetId, at);
   return NORMAL_SPEED;
 }
 
@@ -387,14 +420,14 @@ export function heroAttack(ctx: Ctx, targetId: EntityId): number {
  * The hero's one weapon (or bare-handed) attack, then the monster's passive response.
  * ref: src/uhitm.c hitum() -> known_hitum() -> hmon(), then passive()
  */
-function hitum(ctx: Ctx, targetId: EntityId): void {
+function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
   const snap = passiveSnap(ctx, targetId);
   const weapon = heroWeapon(ctx, uwepOf(ctx));
   const tmp = findRollToHit(ctx, targetId, 'weapon', weapon);
   const dieroll = ctx.rng.rnd(20);
   // `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
   const mhit = tmp > dieroll || isSwallowed(ctx);
-  const malive = knownHitum(ctx, targetId, weapon, mhit, null);
+  const malive = knownHitum(ctx, targetId, weapon, mhit, null, at);
   // ref: hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...)
   if (snap) passive(ctx, snap, mhit, malive, uwepOf(ctx), 'weapon');
 }
@@ -402,7 +435,8 @@ function hitum(ctx: Ctx, targetId: EntityId): void {
 /**
  * The hero's weapon (or bare-handed) blow at the monster: a miss (missum()) or hmon(), then a
  * chance that the hurt monster flees. Returns whether the monster is still alive.
- * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon() (no Vorpal Blade, no worms to cut)
+ * A blow that did damage to a long worm, landing on its tail (`at`, C's bhitpos), may cut it.
+ * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon() (no Vorpal Blade)
  */
 export function knownHitum(
   ctx: Ctx,
@@ -410,6 +444,7 @@ export function knownHitum(
   weapon: HeroWeapon | null,
   mhit: boolean,
   uattk: AttackDef | null,
+  at?: Pos,
 ): boolean {
   const target = ctx.state.entities[String(targetId)];
   const mon = target?.c.monster;
@@ -597,6 +632,9 @@ export function knownHitum(
     // ref: src/uhitm.c known_hitum() (the hero's sticky hold is released inside monflee())
     monflee(ctx, targetId, ctx.rng.rn2(3) === 0 ? ctx.rng.rnd(100) : 0, false, true);
   }
+  // ref: known_hitum(): a blow that did no damage counts as a miss; `if (mon->wormno && *mhit)
+  // cutworm(mon, gb.bhitpos.x, gb.bhitpos.y, slice_or_chop)`
+  if (dmg > 0) cutwormAt(ctx, targetId, at, sliceOrChop(weapon?.def));
   return true;
 }
 
