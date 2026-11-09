@@ -5,7 +5,7 @@
 // The damage types are adtyping.ts's (mhitm_adtyping()). Passive responses: acid, disenchantment,
 // paralysis (floating eye), cold, stun, fire and elec. Hugs, gazes (gazemm()) and explosions
 // (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
-// which do nothing until their m9 step), shades, silver, cloning puddings. Touching a cockatrice
+// which do nothing until their m9 step), shades, cloning puddings. Touching a cockatrice
 // turns the attacker to stone (mdamagem()).
 import {
   NORMAL_SPEED,
@@ -61,6 +61,8 @@ import { resistConflict } from './props';
 import { monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 import { monInvisible, perceives } from './invis';
+import { hatesSilver } from './mondata';
+import { isSilver, silverSearsMm } from './silver';
 
 export { M_ATTK };
 
@@ -250,6 +252,9 @@ function hitmm(
                   ? 'squeezes'
                   : 'hits';
     say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
+    // ref: src/mhitm.c hitmm(): a silver weapon sears a silver-hater
+    if (mwep && isSilver(ctx, mwep) && hatesSilver(ctx.defs.monster(mdef.def)))
+      silverSearsMm(ctx, magr, mdef, mwep);
   } else noises(ctx, magr);
   return mdamagem(ctx, magr, mdef, atk, mwep, vis, dieroll);
 }

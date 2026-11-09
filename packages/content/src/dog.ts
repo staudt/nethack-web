@@ -5,6 +5,7 @@
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
 import { fleshPetrifies, resistsSton } from './stonestate';
+import { hatesSilver } from './mondata';
 import {
   getLevel,
   getPlayer,
@@ -158,7 +159,7 @@ const AFTER_SLIME_MOLD = new Set([
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
  * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, eggs
- * (none exist), slime, garlic, tins, polymorph food, silver-haters, metallivores.
+ * (none exist), slime, tins, polymorph food, metallivores.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
   const mdef = ctx.defs.monster(mon.def);
@@ -206,6 +207,9 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
         return herbi ? DOGFOOD : starving ? ACCFOOD : MANFOOD;
       case 'nh:banana':
         return herbi || starving ? ACCFOOD : MANFOOD;
+      case 'nh:clove_of_garlic':
+        // (no vampire shapeshifters)
+        return mdef.flags.includes('undead') ? TABU : herbi || starving ? ACCFOOD : MANFOOD;
       default:
         if (starving) return ACCFOOD;
         return AFTER_SLIME_MOLD.has(obj.def)
@@ -217,6 +221,7 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
             : MANFOOD;
     }
   }
+  if (odef.material === 'silver' && hatesSilver(mdef)) return TABU;
   // boulders and rocks: ROCK_CLASS
   if (obj.def === 'nh:boulder' || obj.def === 'nh:statue') return UNDEF;
   return cursed ? UNDEF : APPORT;

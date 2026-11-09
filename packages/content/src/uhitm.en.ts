@@ -121,4 +121,17 @@ export const uhitmMessagesEn: Record<string, string> = {
   // enlightenment
   'enl.polymorphed_into': 'polymorphed into {mon|an}',
   'enl.lycanthrope_beast': '{mon|an} in beast form',
+  // silver (ref: src/uhitm.c hmon_hitmon_msg_silver(); src/mthrowu.c ohitmon(), thitu();
+  // src/mhitm.c hitmm(); src/insight.c)
+  'silver.flesh': '{mon|the_s} flesh',
+  'silver.your': 'Your {obj} sears {whom}!',
+  'silver.your_plural': 'Your {obj} sear {whom}!',
+  'silver.your_silver': 'Your silver {obj} sears {whom}!',
+  'silver.your_silver_plural': 'Your silver {obj} sear {whom}!',
+  'silver.ring_sears': 'Your silver ring sears {whom}!',
+  'silver.seared_flesh': '{mon|The_s} flesh is seared!',
+  'silver.seared': '{mon|The} is seared!',
+  'silver.sears': 'The silver sears {whom}!',
+  'silver.sears_you': 'The silver sears your flesh!',
+  'silver.mm_sears': '{magr|The_s} {weapon} sears {whom}!',
 };

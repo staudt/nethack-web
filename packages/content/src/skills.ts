@@ -152,6 +152,14 @@ export function isBlade(def: ObjectDef): boolean {
   );
 }
 
+/**
+ * A polearm or lance: a weapon or tool of the P_POLEARMS or P_LANCE skill, applied at range.
+ * ref: include/obj.h is_pole()
+ */
+export const isPole = (def: ObjectDef): boolean =>
+  (def.class === 'weapon' || def.class === 'tool') &&
+  (def.weapon?.skill === 'polearms' || def.weapon?.skill === 'lance');
+
 /** The hero's current level in a skill (restricted = 0 when absent). */
 export function skillLevel(ctx: SkillCtx, skill: string): number {
   return nhData(ctx).skills?.[skill] ?? P_RESTRICTED;

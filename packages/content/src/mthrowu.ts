@@ -28,7 +28,7 @@ import { boulderFlooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
 import { gazemu, mdamageu } from './mhitu';
 import { addToInventory, mksobj, placeOnFloor, removeFromInventory, splitStack } from './items';
-import { heroSees, minvent, monFlag, monWep, monWield } from './mongear';
+import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { mondied } from './mhitm';
 import { xnameOf } from './objnam';
 import { findAc, findMac } from './stats';
@@ -40,6 +40,16 @@ import { buzzFrom, type Ray } from './buzz';
 import { canBlnd } from './adtyping';
 import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
 import { P, hasProp, makeBlinded, timeoutLeft } from './props';
+import { hatesSilver } from './mondata';
+import {
+  formHatesSilver,
+  heroHatesSilver,
+  isSilver,
+  silverSearsByMissile,
+  silverSearsYou,
+} from './silver';
+import { isPole } from './skills';
+import { canseemon } from './invis';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
 const ACID_VENOM: DefId = 'nh:splash_of_acid_venom';
@@ -49,6 +59,10 @@ const BOLT_LIM = 8;
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+/** ref: src/hacklib.c dist2() */
+const dist2 = (a: { x: number; y: number }, b: { x: number; y: number }): number =>
+  (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
 const distmin = (ax: number, ay: number, bx: number, by: number): number =>
   Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -127,7 +141,7 @@ export function shouldMulchMissile(ctx: Ctx, obj: Entity, monMoving: boolean): b
  * A missile may hit the hero. Returns true on a hit. `tlev` is the pseudo-level (to-hit).
  * ref: src/mthrowu.c thitu(): `u.uac + tlev <= rnd(20)` misses; a miss by 2 or more is "misses
  * you", a nearer one "almost hit"; a hit costs `dam` hit points. Not ported: blindness, acid,
- * poison, silver, passes_rocks, thrown potions. Acid venom: "It burns!", or no damage with acid
+ * poison, passes_rocks, thrown potions. Silver sears a Hate_silver hero. Acid venom: "It burns!", or no damage with acid
  * resistance ("It doesn't seem to hurt you.").
  */
 export function thitu(
@@ -155,6 +169,8 @@ export function thitu(
     say(ctx, 'mthrow.acid_no_hurt');
     return true;
   }
+  // extra damage already applied by dmgval()
+  if (isSilver(ctx, obj) && heroHatesSilver(ctx)) silverSearsYou(ctx);
   if (isAcid) say(ctx, 'mthrow.acid_burns');
   mdamageu(ctx, dam, `@${obj.def}`); // losehp(dam, killer_xname(obj), KILLED_BY)
   return true;
@@ -209,7 +225,8 @@ function dropThrow(
  * may kill (the kill is not credited to the hero, unless `opts.onKill` says otherwise: a rolling
  * boulder from a trap she knew). A negative `range` (a rolling boulder) never drops it on a
  * miss. Acid venom burns (not an acid resistant monster), blinding venom blinds (can_blnd()).
- * Not ported: mimics, potions, eggs, poison, silver, shades, aiming bonuses of the archer's level.
+ * Silver sears a silver-hater. Not ported: mimics, potions, eggs, poison, shades, aiming bonuses
+ * of the archer's level.
  */
 export function ohitmon(
   ctx: Ctx,
@@ -248,13 +265,15 @@ export function ohitmon(
     }
     return false;
   }
-  let damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef));
+  let damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef), hatesSilver(mdef));
   const acid = obj.def === ACID_VENOM;
   if (acid && mdef.resists.includes('acid')) damage = 0;
   m.asleep = false;
   if (vis) {
     flush();
     say(ctx, damage <= 4 ? 'throw.hit' : 'throw.hit_hard', { missile, mon: monNam(ctx, mon) });
+    // the extra silver damage is dmgval()'s
+    if (odef.material === 'silver' && hatesSilver(mdef)) silverSearsByMissile(ctx, mon);
     if (acid)
       say(ctx, mdef.resists.includes('acid') ? 'mthrow.mon_unaffected' : 'mthrow.acid_burns_mon', {
         mon: monNam(ctx, mon),
@@ -399,7 +418,7 @@ function mThrow(
         let hitv = 3 - mdist;
         if (hitv < -4) hitv = -4;
         hitv += 8 + obj.c.item.spe;
-        let dam = dmgvalSized(ctx.rng, obj, odef, false);
+        let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx));
         if (dam < 1) dam = 1;
         hit = thitu(ctx, hitv, dam, obj, nth);
       }
@@ -487,13 +506,36 @@ export interface RangedChoice {
   propellor: Entity | null;
 }
 
+/** ref: src/weapon.c pwep[]: the polearms (and the lance) a monster applies, best first */
+const PWEP: readonly string[] = [
+  'nh:halberd',
+  'nh:bardiche',
+  'nh:spetum',
+  'nh:bill_guisarme',
+  'nh:voulge',
+  'nh:ranseur',
+  'nh:guisarme',
+  'nh:glaive',
+  'nh:lucern_hammer',
+  'nh:bec_de_corbin',
+  'nh:fauchard',
+  'nh:partisan',
+  'nh:lance',
+];
+
+/** ref: include/hack.h MON_POLE_DIST: how far (distance squared) monsters can use pole-weapons */
+export const MON_POLE_DIST = 5;
+
 /**
- * The monster's best ranged attack. ref: src/weapon.c select_rwep(): the first of rwep[] it
- * carries whose launcher (if any) it also has; sling stones before darts. Not ported: polearms
- * (m11 step 2), throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs
- * and cream pies, silver-haters, artifacts.
+ * The monster's best ranged attack. ref: src/weapon.c select_rwep(): a polearm first when
+ * `poleRange` (the hero, where it thinks she is, within distance squared 13 of a square she
+ * could see: the caller's test), which it must wield (it is its own propellor; strong monsters
+ * without a shield only for the two-handed ones, not a welded other weapon); then the first of
+ * rwep[] it carries whose launcher (if any) it also has; sling stones before darts. A
+ * silver-hater picks no silver polearm. Not ported: throw-and-return aklys (monsters never
+ * throw them), boulders, cockatrice eggs and cream pies, artifacts.
  */
-export function selectRwep(ctx: Ctx, monId: EntityId): RangedChoice {
+export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): RangedChoice {
   const mon = ctx.state.entities[String(monId)];
   const none: RangedChoice = { obj: null, propellor: null };
   if (!mon) return none;
@@ -503,6 +545,22 @@ export function selectRwep(ctx: Ctx, monId: EntityId): RangedChoice {
   const mwep = monWep(ctx, monId);
   const weldedWep = mwep?.c.item?.buc === 'cursed';
   const noWeaponWanted = monFlag(ctx, 'nowep', monId);
+
+  // "Select polearms first; they do more damage and aren't expendable. But don't pick one if
+  // monster's weapon is welded, because then we'd never have a chance to throw non-wielding
+  // missiles."
+  const mweponly = weldedWep && noWeaponWanted;
+  if (poleRange) {
+    const strong = mdef.flags.includes('strong') && whichArmor(ctx, monId, 'shield') === null;
+    for (const id of PWEP) {
+      if (!ctx.defs.isObject(id as DefId)) continue;
+      const od = ctx.defs.object(id as DefId);
+      if (!(strong || !od.weapon?.bimanual)) continue;
+      if (od.material === 'silver' && hatesSilver(mdef)) continue;
+      const o = find(id);
+      if (o && (o === mwep || !mweponly)) return { obj: o, propellor: o }; // force it to wield
+    }
+  }
 
   for (const id of RWEP) {
     // shooting gems from slings; this goes just before the darts
@@ -677,14 +735,42 @@ export function thrwmu(
   if (!mon || !mpos || !hpos) return false;
   const tpos = aim ?? hpos;
 
+  // select_rwep(): `dist2(mx, my, mux, muy) <= 13 && couldsee(mx, my)` allows a polearm
+  const poleRange = dist2(mpos, tpos) <= 13 && clear(hpos.x, hpos.y, mpos.x, mpos.y);
   // "Rearranged beginning so monsters can use polearms not in a line": wield first
   if (!monFlag(ctx, 'nowep', monId) || !monWep(ctx, monId)) {
-    const { propellor } = selectRwep(ctx, monId);
+    const { propellor } = selectRwep(ctx, monId, poleRange);
     if (propellor && monWield(ctx, monId, propellor)) return true;
   }
 
-  const { obj } = selectRwep(ctx, monId);
+  const { obj } = selectRwep(ctx, monId, poleRange);
   if (!obj) return false;
+
+  const odef = ctx.defs.object(obj.def);
+  if (isPole(odef)) {
+    if (obj !== monWep(ctx, monId)) return false; // polearm must be wielded
+    // MON_POLE_DIST encompasses knight's move range: two spots away provided it's not on a
+    // straight diagonal; adjacent it "bashes with" instead of thrusting
+    const rang = dist2(mpos, tpos);
+    if (rang > MON_POLE_DIST || !clear(hpos.x, hpos.y, mpos.x, mpos.y)) return false;
+    if (canseemon(ctx, mon)) {
+      // mswings_verb(): pierce-only weapons thrust (dual-purpose ones would randomize)
+      const verb = rang <= 2 ? 'bashes' : odef.weapon?.kind === 'pierce' ? 'thrusts' : 'swings';
+      say(ctx, `mthrow.pole_${verb}`, {
+        mon: monNam(ctx, mon),
+        item: xnameOf(ctx.state, ctx.defs, obj),
+      });
+    }
+    let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx));
+    let hitv = 3 - distmin(hpos.x, hpos.y, mpos.x, mpos.y);
+    if (hitv < -4) hitv = -4;
+    // (the hero is never a big monster here)
+    hitv += 8 + (obj.c.item?.spe ?? 0);
+    if (dam < 1) dam = 1;
+    thitu(ctx, hitv, dam, obj, null); // (no Half_physical_damage)
+    stopOccupation(ctx);
+    return false;
+  }
 
   // If you are coming toward the monster, the monster should try to soften you up with
   // missiles. If you are going away, you are probably hurt or running. Give chase, but if you

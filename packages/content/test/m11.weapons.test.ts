@@ -113,14 +113,22 @@ describe('the hero and the new weapons', () => {
     ['nh:silver_saber', 'saber'],
     ['nh:war_hammer', 'hammer'],
     ['nh:quarterstaff', 'quarterstaff'],
-    ['nh:halberd', 'polearms'],
     ['nh:trident', 'trident'],
-    ['nh:lance', 'lance'],
     ['nh:battle_axe', 'axe'],
   ])('hitting with a %s trains %s', (weapon, skill) => {
     expect(defs.object(weapon as DefId).weapon?.skill).toBe(skill);
     const { before, after } = train(weapon, skill);
     expect(after).toBeGreaterThan(before);
+  });
+
+  // ref: src/uhitm.c hmon_hitmon_weapon(): a polearm or lance used next to a monster (not
+  // applied, no steed) only bashes for 1-2 and trains nothing; applying it trains (m11.polearms)
+  test.each([
+    ['nh:halberd', 'polearms'],
+    ['nh:lance', 'lance'],
+  ])('bashing with a %s next to a monster does not train %s', (weapon, skill) => {
+    const { before, after } = train(weapon, skill);
+    expect(after).toBe(before);
   });
 
   test('a restricted skill (flail for a Valkyrie) does not train', () => {

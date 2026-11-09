@@ -1,6 +1,6 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, the blindfold and digging tools
-// (the pick-axe and the dwarvish mattock, a weapon; dig.ts); applying a wand breaks it
-// (breakwand.ts).
+// (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
+// applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet()
 //
@@ -24,6 +24,8 @@ import { useContainer } from './container';
 import { nohands } from './mondata';
 import { heroForm } from './upoly';
 import { DIG_ID, isPick, usePickAxe } from './dig';
+import { POLE_ID, poleAction, usePole } from './pole';
+import { isPole } from './skills';
 import { mnextoPos } from './generation';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
@@ -59,6 +61,7 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
 export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
   if (isPick(def)) return true; // PICK_AXE, DWARVISH_MATTOCK
+  if (isPole(def)) return true; // polearms and lances: use_pole()
   if (def.class === 'wand') return true; // do_break_wand()
   if (def.class !== 'tool') return false;
   return (
@@ -264,6 +267,7 @@ const apply: ActionDef = {
     if (def.container) return useContainer(ctx, obj);
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
     if (isPick(def)) return usePickAxe(ctx, obj);
+    if (isPole(def)) return usePole(ctx, obj, false);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
@@ -279,11 +283,12 @@ const apply: ActionDef = {
   // "Are you really sure you want to break X?"
   answer: answerBreakWand,
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
-  // on the next move (dig.ts)
+  // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>
     ctx.state.occupation?.action.type === 'mod' &&
     (ctx.state.occupation.action.action === 'nh:picklock' ||
-      ctx.state.occupation.action.action === DIG_ID),
+      ctx.state.occupation.action.action === DIG_ID ||
+      ctx.state.occupation.action.action === POLE_ID),
 };
 
-export const APPLY_ACTIONS: readonly ActionDef[] = [apply];
+export const APPLY_ACTIONS: readonly ActionDef[] = [apply, poleAction];

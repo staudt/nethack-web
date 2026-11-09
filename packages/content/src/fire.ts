@@ -13,6 +13,7 @@ import { DIRECTION_OPTIONS, heroItem, itemArg, throwObj } from './dothrow';
 import { getdirImpaired } from './hackmove';
 import { checkCapacity } from './magic';
 import { ammoAndLauncher, isMissile } from './mthrowu';
+import { usePole, wieldedPole } from './pole';
 
 export const FIRE_ID: DefId = 'nh:fire';
 
@@ -30,8 +31,9 @@ function firable(ctx: Ctx, defId: DefId): boolean {
  * `nh:fire`: shoot an item in a direction. It is offered on ammo when the matching launcher is
  * wielded (and on darts, which need none) and reuses the throw flight (multishot, range, to-hit
  * and damage all consult the wielded launcher). There is no quiver (see DEVIATIONS.md): the
- * player picks the ammo each time, which the app does with an item picker bound to `f`.
- * ref: src/dothrow.c dofire()
+ * player picks the ammo each time, which the app does with an item picker bound to `f`. A
+ * wielded polearm or lance is offered too: firing it hits the only target in reach, or the one
+ * hit last, with no prompt. ref: src/dothrow.c dofire()
  */
 const fireAction: ActionDef = {
   id: FIRE_ID,
@@ -40,7 +42,9 @@ const fireAction: ActionDef = {
   offer(ctx, target): Offer[] {
     if (target.kind !== 'item') return [];
     const e = heroItem(ctx, target.id);
-    if (!e?.c.item || e.c.item.equipped !== null || !firable(ctx, e.def)) return [];
+    // dofire() with nothing quivered: a wielded polearm or lance is applied (use_pole(uwep, TRUE))
+    const pole = e !== null && wieldedPole(ctx, e);
+    if (!e?.c.item || (!pole && (e.c.item.equipped !== null || !firable(ctx, e.def)))) return [];
     return [
       {
         action: { type: 'mod', action: FIRE_ID, args: { item: e.id } },
@@ -51,6 +55,7 @@ const fireAction: ActionDef = {
   // ref: dofire(): ok_to_throw(), then throw_obj() asks "In what direction?"
   perform(ctx, action) {
     const e = heroItem(ctx, itemArg(action));
+    if (e && wieldedPole(ctx, e)) return usePole(ctx, e, true);
     if (!e || !firable(ctx, e.def)) return 0;
     if (checkCapacity(ctx)) return 0;
     ctx.ask(

@@ -75,4 +75,17 @@ export const applyMessagesEn: Record<string, string> = {
   'blindf.still_cant_see': 'You still cannot see.',
   'blind.eyes_itch': 'Your eyes itch.',
   'blind.eyes_twitch': 'Your eyes twitch.',
+  // polearms and lances (ref: src/apply.c use_pole())
+  'pole.no_room': "There's not enough room here to use that.",
+  'pole.where': 'Where do you want to hit?',
+  'pole.too_far': 'Too far!',
+  'pole.too_close': 'Too close!',
+  'pole.dont_know': "Don't know what to hit.",
+  'pole.cant_see': "You won't hit anything if you can't see that spot.",
+  'pole.cant_reach': "You can't reach that spot from here.",
+  'pole.thump_statue': 'Thump!  Your blow bounces harmlessly off the statue.',
+  'pole.thump_boulder': 'Thump!  Your blow bounces harmlessly off the boulder.',
+  'pole.useless_stone': 'You uselessly attack stone.',
+  'pole.useless': 'You uselessly attack {what|the}.',
+  'pole.miss_nobody': 'You miss; there is no one there to hit.',
 };

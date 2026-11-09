@@ -40,6 +40,7 @@ import {
 } from './props';
 import { ENCUMBRANCE_NAMES, UNENCUMBERED, nearCapacity } from './stats';
 import { flying, levitating, utrap } from './trapstate';
+import { heroHatesSilver } from './silver';
 
 const ARMOR_SLOTS = ['body', 'cloak', 'shirt', 'helm', 'gloves', 'boots', 'shield'] as const;
 
@@ -244,7 +245,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.FIXED_ABIL)) have('fixed_abil');
   if (has(P.LIFESAVED)) line('enl.lifesaved');
   // polymorph and other shape change (no protection from shape changers, no egg-laying forms,
-  // no vampires; Hate_silver needs silver; no wizard-mode timer)
+  // no vampires; no wizard-mode timer)
   const lycn = ulycn(ctx.state);
   const form = heroFormId(ctx.state);
   if (has(P.UNCHANGING)) {
@@ -267,6 +268,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
     });
   }
   if (has(P.UNCHANGING) && form !== null) can('unchanging');
+  if (heroHatesSilver(ctx)) are('hate_silver');
   // miscellany
   const luck = luckOf(ctx.state);
   if (luck) {

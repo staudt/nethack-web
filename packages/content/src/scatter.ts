@@ -23,6 +23,7 @@ import { breakStatue } from './statue';
 import { STATUE } from './statuestate';
 import { monsterIdAt } from './combat';
 import { dmgvalSized } from './dmgval';
+import { formHatesSilver } from './silver';
 import { stopOccupation } from './eat';
 import { boulderFlooreffects } from './flooreffects';
 import { placeOnFloor, splitStack, weight } from './items';
@@ -195,7 +196,13 @@ export function scatter(
           const o = ctx.state.entities[String(f.id)];
           if (flags.mayHit && o) {
             ctx.interrupt(); // if (gm.multi) nomul(0)
-            const dam = dmgvalSized(ctx.rng, o, ctx.defs.object(o.def), false);
+            const dam = dmgvalSized(
+              ctx.rng,
+              o,
+              ctx.defs.object(o.def),
+              false,
+              formHatesSilver(ctx),
+            );
             flush();
             // hitvalu = 8 + spe (the hero is never a big monster)
             if (thitu(ctx, 8 + (o.c.item?.spe ?? 0), dam, o, null)) {

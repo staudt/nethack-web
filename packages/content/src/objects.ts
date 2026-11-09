@@ -2970,6 +2970,36 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     food: { nutrition: 50 },
   },
+  // ref: objects.h FOOD("sprig of wolfsbane", 7, 1, 1, 0, VEGGY, 40, CLR_GREEN, SPRIG_OF_WOLFSBANE)
+  {
+    id: 'nh:sprig_of_wolfsbane',
+    nameKey: 'nh:sprig_of_wolfsbane',
+    class: 'food',
+    glyph: { ch: '%', fg: GREEN },
+    prob: 7,
+    weight: 1,
+    cost: 7,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 40 },
+  },
+  // ref: objects.h FOOD("clove of garlic", 7, 1, 1, 0, VEGGY, 40, CLR_WHITE, CLOVE_OF_GARLIC)
+  {
+    id: 'nh:clove_of_garlic',
+    nameKey: 'nh:clove_of_garlic',
+    class: 'food',
+    glyph: { ch: '%', fg: WHITE },
+    prob: 7,
+    weight: 1,
+    cost: 7,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 40 },
+  },
   // ref: objects.h FOOD("corpse", 0, 1, 0, 0, FLESH, 0, CLR_BROWN, CORPSE); weight and nutrition are per monster at runtime
   {
     id: 'nh:corpse',

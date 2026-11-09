@@ -3,6 +3,7 @@
 // ref: src/makemon.c m_initweap(), m_initinv(), mongets(); src/worn.c m_dowear();
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
 import { resistsSton, touchPetrifies } from './stonestate';
+import { hatesSilver } from './mondata';
 import {
   cellIndex,
   inventoryOf,
@@ -791,7 +792,7 @@ const HWEP: readonly string[] = [
 /**
  * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): giants
  * prefer clubs; only strong monsters without a shield may use two-handed weapons. Not ported:
- * artifacts, the Balrog's bullwhip (no Balrog), cockatrice corpses, silver-haters (m11 step 2).
+ * artifacts, the Balrog's bullwhip (no Balrog), cockatrice corpses. A silver-hater skips silver.
  */
 export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
   const { def } = monOf(ctx, monId);
@@ -807,6 +808,7 @@ export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
     const od = objDef(ctx, id);
     if (!od?.weapon) continue;
     if (!((strong && !wearingShield) || !od.weapon.bimanual)) continue;
+    if (od.material === 'silver' && hatesSilver(def)) continue;
     const o = items.find((x) => x.def === id);
     if (o) return o;
   }
@@ -989,6 +991,8 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
       !resistsSton(ctx, e)
     )
       continue;
+    // can_touch_safely(): silver burns a silver-hater
+    if (objDef(ctx, o.def)?.material === 'silver' && hatesSilver(def)) continue;
     const carry = canCarry(ctx, monId, o);
     if (carry === 0) continue;
     let take = o.id;

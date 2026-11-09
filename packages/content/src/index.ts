@@ -369,7 +369,7 @@ export { CALL_ACTIONS } from './call';
 export { xnameOf } from './objnam';
 export { readobjnam, wishNames, makesingular, mungspaces, SPE_LIM, WRPSYM } from './objnam_read';
 export type { WishSpec, WishWhat, WishNames, ObjName } from './objnam_read';
-export { nameToMon, nameToMonplus } from './mondata';
+export { hatesSilver, nameToMon, nameToMonplus } from './mondata';
 export type { MonName } from './mondata';
 export { mkWished, holdAnotherObject, askWish, answerWish, MAXWISHTRY } from './wish';
 export type { WishData, WishOpts } from './wish';
@@ -510,7 +510,7 @@ export { healup, cureSick, POTION_ACTIONS } from './potion';
 export { READ_ACTIONS } from './read';
 export { THROW_ACTIONS } from './dothrow';
 export { FIRE_ACTIONS, FIRE_ID } from './fire';
-export { thrwmu, selectRwep, linedUp, shouldMulchMissile } from './mthrowu';
+export { MON_POLE_DIST, thrwmu, selectRwep, linedUp, shouldMulchMissile } from './mthrowu';
 export {
   gethungry,
   newuhs,
@@ -609,6 +609,8 @@ export { CHARGED_RINGS } from './objects';
 export { ZAP_ID, WAN, ZAP_ACTIONS, weffects, learnwand } from './zap';
 export { mspeed, setMspeed } from './mstate';
 export { APPLY_ID, APPLY_ACTIONS, WHISTLE, applicable } from './apply';
+export { POLE_ID, polearmRange, usePole, validPolePositions } from './pole';
+export { formHatesSilver, heroHatesSilver, isSilver } from './silver';
 export { LOOT_ID, LOOT_ACTIONS, BOX, useContainer, floorContainers } from './container';
 export { LOCK_ID, PICKLOCK_ID, KEY, autokey } from './lock';
 export { LAMP, beginBurn, endBurn, igniteItems, lampLights, snuffLit } from './light';

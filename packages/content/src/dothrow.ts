@@ -50,7 +50,7 @@ import { uShops } from './eshk';
 import { isUnpaid } from './price';
 import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
-import { nohands, notake } from './mondata';
+import { hatesSilver, nohands, notake } from './mondata';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
 import { stuckInWeb } from './web';
@@ -130,9 +130,17 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
  * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
  * missile (should_mulch_missile). Rings of increase accuracy and damage count. Not ported: gloves with bows, racial bows,
  * unicorns, the quest leader, boomerangs and balls, eggs and cream pies, thrown potions (they
- * land without breaking), taming with food, passive responses, poison, silver, knockback.
+ * land without breaking), taming with food, passive responses, poison, knockback. Silver sears
+ * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
+ * thrown penalty, melee damage, a miss wakes the monster, and the pole is never used up.
  */
-export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot): boolean {
+export function thitmonst(
+  ctx: Ctx,
+  monId: EntityId,
+  objId: EntityId,
+  shot: Shot,
+  applied = false,
+): boolean {
   const mon = ctx.state.entities[String(monId)];
   const obj = ctx.state.entities[String(objId)];
   const m = mon?.c.monster;
@@ -232,21 +240,28 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
       tmp += weaponHitBonus(skillLevel(ctx, uwdef.weapon?.skill ?? ''), uwdef);
     }
   } else {
-    // thrown non-ammo: +2 for a weapon meant to be thrown, -2 otherwise, plus the skill bonus
-    tmp += throwingWeapon(odef) ? 2 : -2;
+    // thrown non-ammo or applied polearm: +2 for a weapon meant to be thrown, -2 for another
+    // thrown one (an applied polearm has neither), plus the skill bonus
+    if (throwingWeapon(odef)) tmp += 2;
+    else if (!applied) tmp -= 2;
     tmp += weaponHitBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }
   if (!(tmp >= dieroll)) {
     tmiss(ctx, mon, missile, shot);
+    if (applied) wakeup(ctx, monId); // wakeup(mon, TRUE)
     return false;
   }
 
   // ref: src/uhitm.c hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` for every thrown weapon
   const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
   let dmg: number;
+  // ref: hmon_hitmon_weapon_*(): silvermsg, silverobj (dmgval() adds the melee rnd(20))
+  const silverHit = odef.material === 'silver' && hatesSilver(mdef);
   if (isAmmo(odef) && !launched) {
-    // ref: hmon_hitmon_weapon_ranged(): "then do only 1-2 points of damage"; no skill bonus
+    // ref: hmon_hitmon_weapon_ranged(): "then do only 1-2 points of damage"; no skill bonus;
+    // silver makes it worse, `rnd(dmg ? 20 : 10)`
     dmg = ctx.rng.rnd(2);
+    if (silverHit) dmg += ctx.rng.rnd(dmg ? 20 : 10);
     dmg += udaminc + dbonU(ctx);
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
@@ -265,7 +280,8 @@ export function thitmonst(ctx: Ctx, monId: EntityId, objId: EntityId, shot: Shot
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
   }
   if (dmg < 1) dmg = 1;
-  hmonThrownHit(ctx, mon, dmg, missile, shot);
+  hmonThrownHit(ctx, mon, dmg, missile, shot, silverHit ? obj : null);
+  if (applied) return false; // the polearm stays in her hands
   // projectiles other than magic stones sometimes disappear when thrown
   if (shouldMulchMissile(ctx, obj, false)) {
     if (mon.c.pos && (uShops(ctx).length > 0 || obj.c.item?.unpaid))

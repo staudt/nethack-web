@@ -19,6 +19,7 @@ import {
   type ObjectDef,
   type Offer,
   type PlayerAction,
+  sortedIds,
 } from '@nh/core';
 import {
   hungerData,
@@ -51,7 +52,9 @@ import { changeLuck } from './luck';
 import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
 import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
-import { carnivorous, herbivorous, humanoid, vegan, vegetarian } from './mondata';
+import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
+import { monflee } from './monflee';
+import { isWere, ulycn, youUnwere } from './werestate';
 import { heroForm } from './upoly';
 import { xnameOf } from './objnam';
 import { HERE } from './priority';
@@ -631,6 +634,16 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
       }
       break;
     }
+    case 'nh:clove_of_garlic': {
+      const form = heroForm(ctx);
+      if (form && form.flags.includes('undead')) {
+        makeVomiting(ctx, 5 + ctx.rng.rn2(v.reqtime), false); // rn1(reqtime, 5)
+        break;
+      }
+      garlicBreath(ctx);
+      say(ctx, cursed ? 'eat.terrible' : 'eat.delicious', { item }); // fall through
+      break;
+    }
     case 'nh:lembas_wafer':
     default:
       // lembas: an orc or elf form has its own line, else give_feedback
@@ -652,8 +665,29 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
   return true;
 }
 
+/**
+ * Eating garlic scares the monsters near her that can smell it (distance squared under 7).
+ * ref: src/eat.c garlic_breath() via iter_mons()
+ */
+function garlicBreath(ctx: Ctx): void {
+  const u = hero(ctx).c.pos;
+  if (!u) return;
+  for (const id of sortedIds(ctx.state)) {
+    const mon = ctx.state.entities[String(id)];
+    const p = mon?.c.pos;
+    if (!mon?.c.monster || !p || p.level !== u.level) continue;
+    if (olfaction(ctx.defs.monster(mon.def)) && (p.x - u.x) ** 2 + (p.y - u.y) ** 2 < 7)
+      monflee(ctx, id, 0, false, false);
+  }
+}
+
 /** Effects of finishing ordinary food. ref: src/eat.c fpostfx() */
 function fpostfx(ctx: Ctx, e: Entity): void {
+  // ref: fpostfx() SPRIG_OF_WOLFSBANE: cures lycanthropy (and a were form)
+  if (e.def === 'nh:sprig_of_wolfsbane') {
+    const form = heroForm(ctx);
+    if (ulycn(ctx.state) !== null || (form && isWere(form))) youUnwere(ctx, true);
+  }
   if (e.def === 'nh:apple' && e.c.item?.buc === 'cursed') {
     // Snow White; no Sleep_resistance
     say(ctx, 'eat.sinister_laughter');

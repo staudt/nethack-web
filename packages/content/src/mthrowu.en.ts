@@ -4,6 +4,10 @@ export const mthrowuMessagesEn: Record<string, string> = {
   'mthrow.throws': '{mon|The} throws {item|an}!',
   'mthrow.throws_n': '{mon|The} throws {n} {item}!',
   'mthrow.shoots': '{mon|The} shoots {item|an}!',
+  // thrwmu() with a polearm (ref: src/mhitu.c mswings_verb())
+  'mthrow.pole_thrusts': '{mon|The} thrusts {item|an}.',
+  'mthrow.pole_swings': '{mon|The} swings {item|an}.',
+  'mthrow.pole_bashes': '{mon|The} bashes with {item|an}.',
   'mthrow.shoots_n': '{mon|The} shoots {n} {item}!',
   'mthrow.misfires': '{mon|The} misfires!',
   'mthrow.slips': 'The {obj} slips as {mon|the} throws it!',

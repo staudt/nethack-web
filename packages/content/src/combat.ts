@@ -48,6 +48,7 @@ import {
   BARE_HANDED,
   skillLevel,
   useSkill as useSkillPoints,
+  isPole,
   weaponDamBonus,
   weaponHitBonus,
 } from './skills';
@@ -70,7 +71,15 @@ import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
 import { P, conflictOn, hasProp, ringBonus } from './props';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
-import { isBig, nonliving } from './mondata';
+import { hatesSilver, isBig, nonliving } from './mondata';
+import {
+  formHatesSilver,
+  heroHatesSilver,
+  isSilver,
+  silverRingBonus,
+  silverSearsMon,
+  silverSearsYou,
+} from './silver';
 import { adjLev } from './generation';
 import { heroForm } from './upoly';
 import { dmgval, dmgvalSized } from './dmgval';
@@ -422,15 +431,33 @@ export function knownHitum(
   let train = false;
   let strBonus = true;
   let hittxt = false;
+  // hmon_hitmon_msg_silver(): a silver ring (barehand_silver_rings) or object (silverobj)
+  let silverMsg = false;
   if (!weapon) {
     // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack)
     dmg = ctx.rng.rnd(2);
     useSkill = true;
     train = dmg > 1; // ref: hmon_hitmon_barehands(): train_weapon_skill = (dmg > 1)
+    // ref: special_dmgval(): no gloves, a silver ring against a silver-hater
+    const ring = silverRingBonus(ctx, target);
+    dmg += ring;
+    silverMsg = ring > 0;
   } else if (weapon.def.weapon) {
-    dmg = dmgval(ctx.rng, weapon.item, weapon.def, def);
-    useSkill = true;
-    train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
+    const role = weapon.def.weapon.role;
+    const silverHit = weapon.def.material === 'silver' && hatesSilver(def);
+    // ref: src/uhitm.c hmon_hitmon_weapon(): striking with a launcher, a missile or ammo in
+    // hand, or a polearm or lance at short range (no steeds) is not a melee weapon blow
+    if (role === 'launcher' || role === 'missile' || role === 'ammo' || isPole(weapon.def)) {
+      // ref: hmon_hitmon_weapon_ranged(): 1-2 points, no skill used or trained; silver adds
+      // `rnd(dmg ? 20 : 10)` (no shades)
+      dmg = ctx.rng.rnd(2);
+      if (silverHit) dmg += ctx.rng.rnd(dmg ? 20 : 10);
+    } else {
+      dmg = dmgval(ctx.rng, weapon.item, weapon.def, def); // silver's rnd(20) included
+      useSkill = true;
+      train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
+    }
+    silverMsg = silverHit;
   } else if (weapon.item.def === 'nh:corpse') {
     // hmon_hitmon_misc_obj() CORPSE: a cockatrice corpse turns the monster to stone
     if (petrifyingCorpse(ctx, weapon.item)) {
@@ -459,6 +486,11 @@ export function knownHitum(
     dmg = Math.trunc((owt + 99) / 100);
     dmg = dmg <= 1 ? 1 : ctx.rng.rnd(dmg);
     if (dmg > 6) dmg = 6;
+    // "things like silver wands can arrive here so we need another silver check"
+    if (weapon.def.material === 'silver' && hatesSilver(def)) {
+      dmg += ctx.rng.rnd(20);
+      silverMsg = true;
+    }
   }
   if (dmg > 0) {
     if (strBonus) {
@@ -487,6 +519,8 @@ export function knownHitum(
   }
   if (hp) hp.cur -= dmg;
   if (!hp || hp.cur < 1) {
+    // ref: src/uhitm.c hmon_hitmon(): the silver line comes before killed()'s
+    if (silverMsg) silverSearsMon(ctx, target, weapon?.item ?? null);
     // ref: src/mon.c xkilled(): "You kill/destroy <mon>!" then experience()
     ctx.emit({
       type: 'msg',
@@ -525,6 +559,7 @@ export function knownHitum(
       key: exclam(dmg) === '!' ? 'combat.you_hit_hard' : 'combat.you_hit',
       params: { mon: name },
     });
+  if (silverMsg) silverSearsMon(ctx, target, weapon?.item ?? null);
   // ref: src/uhitm.c hmon_hitmon(): `else if (u.umconf && hmd.hand_to_hand)` (every blow here
   // is hand-to-hand: thrown and fired objects hit through dothrow.ts)
   if (uspellOf(ctx.state).umconf) {
@@ -619,7 +654,7 @@ const say0 = (ctx: Ctx, key: string, params?: Record<string, string>): void =>
  * her negative AC. Returns M_ATTK flags. `again`: the previous attack was of the same type and
  * hit (hitmsg's "again" wording).
  * ref: src/mhitu.c hitmu(), hitmsg(), mdamageu(); src/uhitm.c mhitm_ad_phys() "hand to hand
- * weapon" (no artifacts, silver, poisoned weapons or puddings)
+ * weapon" (silver included; no artifacts, poisoned weapons or puddings)
  */
 export function hitmu(
   ctx: Ctx,
@@ -636,7 +671,7 @@ export function hitmu(
   // (no midnight(): undead get no extra damage)
   if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
     // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
-    dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false);
+    dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false, formHatesSilver(ctx));
     if (dmg <= 0) dmg = 1;
   }
   // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
@@ -647,6 +682,15 @@ export function hitmu(
       key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,
       params: { mon: name },
     });
+  // ref: src/uhitm.c mhitm_ad_phys(): "The silver sears your flesh!" after the hit message
+  if (
+    atk.at === 'weapon' &&
+    mwep &&
+    atk.ad === 'phys' &&
+    isSilver(ctx, mwep) &&
+    heroHatesSilver(ctx)
+  )
+    silverSearsYou(ctx);
   // ref: src/uhitm.c mhitm_adtyping(): the damage type's effect (resistances, sleep, poison, ...)
   const mhm = newMhm(dmg);
   mhitmAdtyping(ctx, mon.id, atk, ctx.state.playerId, mhm);

@@ -118,6 +118,7 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.mc.3': 'protected',
   'enl.fast': 'fast',
   'enl.very_fast': 'very fast',
+  'enl.hate_silver': 'harmed by silver',
   'enl.reflection': 'reflection',
   'enl.free_action': 'free action',
   'enl.fixed_abil': 'fixed abilities',

@@ -191,3 +191,25 @@ export const wrappingAllowed = (def: MonsterDef): boolean =>
   def.glyph.ch !== 'C' &&
   def.id !== 'nh:winged_gargoyle' &&
   def.id !== 'nh:marilith';
+
+/** ref: include/mondata.h amorphous(): M1_AMORPHOUS */
+export const amorphous = (def: MonsterDef): boolean => has(def, 'amorphous');
+
+/**
+ * True if the monster type is especially affected by silver weapons: were creatures (both
+ * forms), vampires, demons, the shade and the imps but the tengu. mon_hates_silver() adds
+ * vampire shapeshifters, which do not exist yet, so it is this test on the monster's def.
+ * ref: src/mondata.c hates_silver(), mon_hates_silver()
+ */
+export const hatesSilver = (def: MonsterDef): boolean =>
+  has(def, 'were') ||
+  def.glyph.ch === 'V' ||
+  has(def, 'demon') ||
+  def.id === 'nh:shade' ||
+  (def.glyph.ch === 'i' && def.id !== 'nh:tengu');
+
+/**
+ * The monster has a sense of smell: not golems, spheres, jellies, puddings, blobs, vortices,
+ * elementals, fungi or lights. ref: src/mondata.c olfaction()
+ */
+export const olfaction = (def: MonsterDef): boolean => !"'ejPbvEFy".includes(def.glyph.ch);

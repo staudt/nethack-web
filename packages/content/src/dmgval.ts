@@ -1,7 +1,7 @@
 // Weapon damage. ref: src/weapon.c dmgval()
 import type { Entity, MonsterDef, ObjectDef, Rng } from '@nh/core';
 import { greatestErosion } from './material';
-import { isBig } from './mondata';
+import { hatesSilver, isBig } from './mondata';
 
 /**
  * Extra damage some weapons do beyond their die, against large and small targets.
@@ -64,15 +64,25 @@ function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
 
 /**
  * ref: src/weapon.c dmgval(): the weapon die by target size, the per-type extra, plus
- * enchantment, never below 0, less the greatest erosion (at least 1). Not ported: silver/blessed
- * bonuses, artifacts.
+ * enchantment, never below 0, a silver weapon's `rnd(20)` against a silver-hater, less the
+ * greatest erosion (at least 1). Not ported: blessed and axe-versus-wooden bonuses, shades,
+ * artifacts.
  */
 export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
-  return dmgvalSized(rng, item, def, isBig(mon));
+  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon));
 }
 
-/** dmgval() against a target whose size class is already known (the hero is not big). */
-export function dmgvalSized(rng: Rng, item: Entity, def: ObjectDef, big: boolean): number {
+/**
+ * dmgval() against a target whose size class is already known (the hero is not big);
+ * `silverHater`: the target is harmed by silver (mon_hates_silver(), for the hero her form).
+ */
+export function dmgvalSized(
+  rng: Rng,
+  item: Entity,
+  def: ObjectDef,
+  big: boolean,
+  silverHater = false,
+): number {
   const w = def.weapon;
   let tmp = 0;
   if (w) {
@@ -91,6 +101,8 @@ export function dmgvalSized(rng: Rng, item: Entity, def: ObjectDef, big: boolean
     tmp = rng.rnd(20) + (item.c.item?.spe ?? 0);
     if (tmp < 0) tmp = 0;
   }
+  // weapon vs. monster type damage bonuses (weapons, weptools and gems only)
+  if ((w || def.class === 'gem') && def.material === 'silver' && silverHater) tmp += rng.rnd(20);
   // "always subtract erosion even for blunt weapons"
   if (tmp > 0) {
     tmp -= greatestErosion(item);

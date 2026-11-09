@@ -10,6 +10,7 @@ import { monsterDied } from './mondeath';
 import { wakeup } from './peaceful';
 import { monNam } from './perception';
 import { ghodHitsu } from './priest';
+import { silverSearsMon } from './silver';
 import { angryGuards, isWatch } from './watch';
 
 /** The ordinal of a volley shot, "the 2nd dagger". ref: src/objnam.c mshot_xname() */
@@ -45,7 +46,8 @@ export const missileMsg = (
  * The rest of hmon() once a thrown object hit `mon` for `dmg` (at least 1): a pet is abused,
  * the monster loses the hit points and is killed ("You kill the newt!", experience) or told
  * "The dagger hits the newt." and woken; hitting a peaceful watchman or temple priest angers the
- * Watch, and a priest's god strikes 1 time in 2. Also used for a boulder falling on a monster
+ * Watch, and a priest's god strikes 1 time in 2; `silverObj` sears a silver-hater ("Your silver
+ * arrow sears the imp's flesh!"). Also used for a boulder falling on a monster
  * trapped in a pit (do.c flooreffects() calls hmon(HMON_THROWN)).
  * ref: src/uhitm.c hmon(), hmon_hitmon() (pet, damage, hmon_hitmon_msg_hit(), killed())
  */
@@ -55,6 +57,7 @@ export function hmonThrownHit(
   dmg: number,
   missile: Msg,
   shot: Shot = { i: 1, n: 1 },
+  silverObj: Entity | null = null,
 ): void {
   const m = mon.c.monster;
   if (!m) return;
@@ -73,6 +76,8 @@ export function hmonThrownHit(
   }
   if (hp) hp.cur -= dmg;
   if (!hp || hp.cur < 1) {
+    // ref: hmon_hitmon_msg_silver(): before killed()'s line
+    if (silverObj) silverSearsMon(ctx, mon, silverObj);
     // ref: src/mon.c xkilled(): "You kill/destroy <mon>!" then experience()
     msg(ctx, nonliving(mdef) ? 'combat.you_destroy' : 'combat.you_kill', { mon: name });
     monsterDied(ctx, monId, true);
@@ -82,6 +87,7 @@ export function hmonThrownHit(
     missileMsg(ctx, exclam(dmg) === '!' ? 'throw.hit_hard' : 'throw.hit', shot, missile, {
       mon: name,
     });
+    if (silverObj) silverSearsMon(ctx, mon, silverObj);
     wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
   if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
