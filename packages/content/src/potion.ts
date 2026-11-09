@@ -10,6 +10,7 @@ import {
   type DefId,
   type Entity,
   type EntityId,
+  type Level,
   type Offer,
   type PlayerAction,
 } from '@nh/core';
@@ -573,6 +574,17 @@ export function speedUp(ctx: Ctx, duration: number): void {
 }
 
 /**
+ * Whether one can rise through the ceiling of `level`: not in Sokoban, and not from the first
+ * level of the Dungeons of Doom (ledger 1 is the main dungeon's first level; other dungeons
+ * enter at their first level, so that level's up stairs lead out of the branch).
+ * ref: src/dungeon.c Can_rise_up() (no endgame or Wizard's Tower)
+ */
+export function canRiseUp(ctx: Pick<Ctx, 'state'>, level: Readonly<Level>): boolean {
+  const layout = dungeonLayout(ctx.state, level.dungeon);
+  return !isSokoban(level) && (level.dlevel > 1 || layout.depthStart > 1);
+}
+
+/**
  * Cursed: she rises through the ceiling to the level above (not from the first level, which
  * would need the Amulet, nor in Sokoban: "You have an uneasy feeling."). Else one experience
  * level; blessed puts her at a random point of the new level's range.
@@ -584,9 +596,7 @@ function peffectGainLevel(ctx: Ctx, p: Entity): Effect {
   if (buc === 'cursed') {
     const level = getLevel(ctx.state);
     const layout = dungeonLayout(ctx.state, level.dungeon);
-    // ledger 1 is the main dungeon's first level; other dungeons enter at their first level
-    const canRise = !isSokoban(level) && (level.dlevel > 1 || layout.depthStart > 1);
-    if (!canRise) {
+    if (!canRiseUp(ctx, level)) {
       msg(ctx, 'potion.uneasy');
       return { unknown: true };
     }

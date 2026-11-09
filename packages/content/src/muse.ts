@@ -6,12 +6,16 @@
 // monster and undead turning, and the scrolls of teleportation and create monster. And to attack
 // the hero: find_offensive()/use_offensive() for the wands of death, sleep, fire, cold,
 // lightning and magic missile (rays), striking, teleportation and undead turning, the potions of
-// paralysis, blindness, confusion, sleeping and acid (hurled) and the scroll of earth.
+// paralysis, blindness, confusion, sleeping and acid (hurled) and the scroll of earth. And for
+// itself: find_misc()/use_misc() for gain level, invisibility, speed, polymorph (wand, potion or
+// a polymorph trap), the bullwhip against her weapon and looting a carried container.
 // ref: src/muse.c find_defensive(), use_defensive(), precheck(), mzapwand(), mreadmsg(),
 // mquaffmsg(), m_use_healing(), m_sees_sleepy_soldier(), m_tele(), reveal_trap(), mon_escape(),
 // mon_consume_unstone(), find_offensive(), use_offensive(), m_use_undead_turning(),
 // linedup_chk_corpse(), hero_behind_chokepoint(), mon_has_friends(), mon_likes_objpile_at(),
-// buzz_force_miss(), mbhit(), fhito_loc(), mbhitm(); include/hack.h WAND_BACKFIRE_CHANCE
+// buzz_force_miss(), mbhit(), fhito_loc(), mbhitm(), find_misc(), use_misc(),
+// muse_newcham_mon(), mloot_container(), you_aggravate(); src/do.c canletgo();
+// include/hack.h WAND_BACKFIRE_CHANCE
 //
 // Not ported: the ghost in a milky potion and the djinni in a smoky one (precheck(); as for the
 // hero's quaff), ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
@@ -27,11 +31,15 @@ import {
   getPlayer,
   inBounds,
   inRooms,
+  contents,
   inventoryOf,
+  isContainer,
   itemsAt,
   levelIdFor,
   NORMAL_SPEED,
+  putIn,
   rootDungeon,
+  takeOut,
   trapAt,
   type Ctx,
   type DefId,
@@ -39,6 +47,7 @@ import {
   type Entity,
   type EntityId,
   type Level,
+  type MonsterDef,
   type Msg,
   type Pos,
   type Trap,
@@ -48,6 +57,7 @@ import { clearPath } from './clearpath';
 import { blockersOf, boulderAt } from './boulder';
 import { buzzFrom, resist, resistsMagm, wakeGently, type Ray } from './buzz';
 import { bypassObj, clearBypasses } from './bypass';
+import { isBoxTrapped } from './btrapstate';
 import { uwepOf } from './combat';
 import { dogNutrition, edogOf } from './dog';
 import { stopOccupation } from './eat';
@@ -56,19 +66,50 @@ import { epriOf, inYourSanctuary, templeOccupied } from './epri';
 import { useOne } from './erode';
 import { eshkOf, inhishop } from './eshk';
 import { fillPit } from './flooreffects';
-import { makemon, mnextoPos } from './generation';
+import { makemon, mnextoPos, rndmonst } from './generation';
 import { isGenocided } from './vanquished';
 import { polyWhenStoned } from './golem';
 import { ustuck } from './hackmove';
 import { maybeUnhideAt } from './hide';
-import { canseemon, mapInvisible, monInvisible } from './invis';
+import {
+  canseemon,
+  invisBlocked,
+  mapInvisible,
+  monInvisible,
+  seeInvisible,
+  setMinvis,
+} from './invis';
+import { dropx, welded } from './itemactions';
+import { nhData, placeObject, removeFromInventory, setCknown } from './items';
+import { growUp } from './mhitm';
 import { canDigDown, nonDiggable } from './levelflags';
 import { migrateToLevel } from './migrate';
-import { amorphous, isFlyer, isUnicorn, noncorporeal, nohands, nolimbs, slithy } from './mondata';
+import {
+  amorphous,
+  hatesSilver,
+  isFlyer,
+  isUnicorn,
+  noncorporeal,
+  nohands,
+  nolimbs,
+  slithy,
+} from './mondata';
 import { mongone, monkilled } from './mondeath';
-import { minvent, monWouldTakeItem, whichArmor } from './mongear';
+import { canCarry, minvent, monWep, monWouldTakeItem, whichArmor } from './mongear';
 import { isFleeing, monflee } from './monflee';
-import { healmon, isMConfused, isMStunned, mcansee, setMConfused, setMStunned } from './mstate';
+import {
+  healmon,
+  isCancelled,
+  isMConfused,
+  isMStunned,
+  mcansee,
+  monAdjustSpeed,
+  mspeed,
+  setMConfused,
+  setMStunned,
+} from './mstate';
+import { newcham } from './newcham';
+import { canRiseUp } from './potion';
 import { hardHelmet } from './material';
 import { linedUp, mThrowOne } from './mthrowu';
 import { BUGLE, awakenSoldiers } from './music';
@@ -92,6 +133,7 @@ import { canSpotMon, monNam, someMonNam } from './perception';
 import { ceilingKey, dropBoulderOnMonster, dropBoulderOnPlayer } from './read';
 import { unturnDead } from './revive';
 import { helpless } from './shk';
+import { mpickobj, removeWornItem, unresponsive } from './steal';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { onscary } from './scary';
 import { isAnimal } from './steal';
@@ -118,7 +160,8 @@ import {
 import { UNICORN_HORN } from './unicorn';
 import { isGuard } from './vaultstate';
 import { wormMove } from './worm';
-import { bhito, doorlock } from './zap';
+import { bhito, doorlock, learnwand } from './zap';
+import { swapWep } from './wield';
 import { mAt, wormRec } from './wormstate';
 
 /** The defensive choices. ref: src/muse.c MUSE_* (the defensive ones; no ladders) */
@@ -162,6 +205,21 @@ export type MuseOff =
   | 'pot_sleeping'
   | 'pot_acid'
   | 'scr_earth';
+
+/**
+ * The miscellaneous choices. ref: src/muse.c MUSE_* (the misc ones)
+ */
+export type MuseMisc =
+  | 'pot_gain_level'
+  | 'wan_make_invisible'
+  | 'pot_invisibility'
+  | 'poly_trap'
+  | 'wan_polymorph'
+  | 'pot_speed'
+  | 'wan_speed_monster'
+  | 'bullwhip'
+  | 'pot_polymorph'
+  | 'bag';
 
 /**
  * A monster's choice: C's gm.m.has_defense/defensive (or has_offense/offensive), gt.trapx/trapy
@@ -210,6 +268,15 @@ const POT_CONFUSION: DefId = 'nh:potion_of_confusion';
 const POT_SLEEPING: DefId = 'nh:potion_of_sleeping';
 const POT_ACID: DefId = 'nh:potion_of_acid';
 const LIZARD: DefId = 'nh:lizard';
+const POT_GAIN_LEVEL: DefId = 'nh:potion_of_gain_level';
+const WAN_MAKE_INVISIBLE: DefId = 'nh:wand_of_make_invisible';
+const POT_INVISIBILITY: DefId = 'nh:potion_of_invisibility';
+const WAN_SPEED_MONSTER: DefId = 'nh:wand_of_speed_monster';
+const POT_SPEED: DefId = 'nh:potion_of_speed';
+const WAN_POLYMORPH: DefId = 'nh:wand_of_polymorph';
+const POT_POLYMORPH: DefId = 'nh:potion_of_polymorph';
+const BULLWHIP: DefId = 'nh:bullwhip';
+const IRON_SHOES: DefId = 'nh:iron_shoes';
 const ACID_BLOB: DefId = 'nh:acid_blob';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -1582,4 +1649,430 @@ function mquaffmsg(ctx: Ctx, mon: Entity, otmp: Entity): void {
     const one: Entity = it ? { ...otmp, c: { ...otmp.c, item: { ...it, quantity: 1 } } } : otmp;
     say(ctx, 'muse.drinks', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, one) });
   } else say(ctx, 'muse.chugging');
+}
+
+/** ref: src/do.c canletgo(obj, ""): not worn, not a welded weapon, not a cursed loadstone. */
+function canletgo(ctx: Ctx, obj: Entity): boolean {
+  const it = obj.c.item;
+  if (!it) return false;
+  if (it.equipped && it.equipped !== 'weapon') return false; // W_ARMOR | W_ACCESSORY
+  if (it.equipped === 'weapon' && welded(ctx, obj)) return false;
+  if (obj.def === 'nh:loadstone' && it.buc === 'cursed') {
+    it.known.buc = true; // set_bknown()
+    return false;
+  }
+  // (no leashes tied to pets, no saddles)
+  return true;
+}
+
+/**
+ * Looks for something the monster can do for itself or against the hero's weapon, when she is
+ * (it thinks) within 6 squares (`mux`: where it thinks she is, as findDefensive()): a weak
+ * monster (difficulty below 6) next to a polymorph trap jumps onto it; otherwise the last viable
+ * item in its inventory: a potion of gain level (a cursed one not for a guard, shopkeeper or
+ * priest), a bullwhip it wields next to her when she wields something it can pull away (1 in 5),
+ * a wand of make invisible or potion of invisibility (hostiles, or peacefuls when she sees
+ * invisible; not with an uncancelled gaze), a wand or potion of speed (not already fast; not a
+ * vault guard), a wand or potion of polymorph (difficulty below 6), a carried container with
+ * something in it (1 in 5, nothing else chosen yet). null when there is none.
+ * ref: src/muse.c find_misc() (no shapeshifters: `cham` is always NON_PM; no two-weapon combat)
+ */
+export function findMisc(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<MuseMisc> | null {
+  const mon = ctx.state.entities[String(id)];
+  const p = mon?.c.pos;
+  const m = mon?.c.monster;
+  if (!mon || !p || !m) return null;
+  const def = ctx.defs.monster(mon.def);
+  const level = getLevel(ctx.state, p.level);
+  const { x, y } = p;
+  const stuck = ustuck(ctx) === id;
+  const immobile = def.speed === 0;
+  const hero = getPlayer(ctx.state);
+  const hp = hero.c.pos;
+  const mu = mux ?? hp ?? p;
+
+  if (isAnimal(def) || mindless(ctx, mon)) return null;
+  if (uswallow(ctx) && stuck) return null;
+  // "We arbitrarily limit to times when a player is nearby for the same reason as Junior
+  // Pac-Man doesn't have energizers eaten until you can see them..."
+  if (dist2(x, y, mu.x, mu.y) > 36) return null;
+
+  if (!stuck && !immobile && !isMtrapped(ctx, id) && def.difficulty < 6) {
+    const diagOk = !noDiag(mon);
+    const boots = whichArmor(ctx, id, 'boots');
+    for (let xx = x - 1; xx <= x + 1; xx++)
+      for (let yy = y - 1; yy <= y + 1; yy++) {
+        if (!inBounds(level, xx, yy)) continue;
+        if (hp && hp.level === level.id && hp.x === xx && hp.y === yy) continue;
+        if (!diagOk && xx !== x && yy !== y) continue;
+        if ((xx !== x || yy !== y) && mAt(ctx.state, level.id, xx, yy)) continue;
+        const t = trapAt(level, xx, yy);
+        if (
+          !t ||
+          (!ignoresBoulders(ctx, mon) && boulderAt(ctx, level.id, xx, yy)) ||
+          onscary(ctx, xx, yy, mon)
+        )
+          continue;
+        // "use trap if it's the correct type and will polymorph the monster"
+        if (t.def === TRAP.poly && boots?.def !== IRON_SHOES)
+          return { kind: 'poly_trap', obj: null, trap: { x: xx, y: yy } };
+      }
+  }
+  if (nohands(def)) return null;
+
+  const uwep = uwepOf(ctx);
+  const gaze = def.attacks.some((a) => a.at === 'gaze') && !isCancelled(ctx, id);
+  const invisOk =
+    !monInvisible(ctx, mon) &&
+    !invisBlocked(ctx, mon) &&
+    (!m.peaceful || seeInvisible(ctx.state)) &&
+    !gaze;
+  const fast = mspeed(ctx, id) === 'fast';
+  const guard = isGuard(ctx.state, id);
+  // "[bug?] Choice of item is not prioritized; the last viable one in the monster's inventory
+  // will be chosen. 'nomore()' is nearly worthless because it only screens checking of
+  // duplicates when there is no alternate type in between them."
+  let choice: MuseChoice<MuseMisc> | null = null;
+  const is = (k: MuseMisc): boolean => choice?.kind === k;
+  for (const obj of minvent(ctx, id)) {
+    // "Monsters shouldn't recognize cursed items; this kludge is necessary to prevent serious
+    // problems though..."
+    if (obj.def === POT_GAIN_LEVEL && (obj.c.item?.buc !== 'cursed' || !isShkGdPriest(ctx, id)))
+      choice = { kind: 'pot_gain_level', obj: obj.id };
+    if (is('bullwhip')) continue;
+    if (
+      obj.def === BULLWHIP &&
+      !m.peaceful &&
+      // "the random test prevents whip-wielding monster from attempting disarm every turn"
+      uwep !== null &&
+      !ctx.rng.rn2(5) &&
+      monWep(ctx, id)?.id === obj.id &&
+      // "hero's location must be known and adjacent"
+      hp !== undefined &&
+      mu.x === hp.x &&
+      mu.y === hp.y &&
+      dist2(x, y, hp.x, hp.y) <= 2 &&
+      // "don't bother if it can't work (this doesn't prevent cursed weapons from being targeted)"
+      !uswallow(ctx) &&
+      canletgo(ctx, uwep)
+    )
+      choice = { kind: 'bullwhip', obj: obj.id };
+    // "Note: peaceful/tame monsters won't make themselves invisible unless you can see them.
+    // Not really right, but..."
+    if (is('wan_make_invisible')) continue;
+    if (obj.def === WAN_MAKE_INVISIBLE && spe(obj) > 0 && invisOk)
+      choice = { kind: 'wan_make_invisible', obj: obj.id };
+    if (is('pot_invisibility')) continue;
+    if (obj.def === POT_INVISIBILITY && invisOk) choice = { kind: 'pot_invisibility', obj: obj.id };
+    if (is('wan_speed_monster')) continue;
+    if (obj.def === WAN_SPEED_MONSTER && spe(obj) > 0 && !fast && !guard)
+      choice = { kind: 'wan_speed_monster', obj: obj.id };
+    if (is('pot_speed')) continue;
+    if (obj.def === POT_SPEED && !fast && !guard) choice = { kind: 'pot_speed', obj: obj.id };
+    if (is('wan_polymorph')) continue;
+    if (obj.def === WAN_POLYMORPH && spe(obj) > 0 && def.difficulty < 6)
+      choice = { kind: 'wan_polymorph', obj: obj.id };
+    if (is('pot_polymorph')) continue;
+    if (obj.def === POT_POLYMORPH && def.difficulty < 6)
+      choice = { kind: 'pot_polymorph', obj: obj.id };
+    if (is('bag')) continue;
+    if (
+      isContainer(ctx.defs, obj) && // (no bags of tricks or Schroedinger's box)
+      !ctx.rng.rn2(5) &&
+      !choice &&
+      contents(ctx.state, obj.id).length > 0 &&
+      !obj.c.item?.locked &&
+      !isBoxTrapped(ctx.state, obj.id)
+    )
+      choice = { kind: 'bag', obj: obj.id };
+  }
+  return choice;
+}
+
+/**
+ * The type a monster's own polymorph turns it into: one suited to the level rather than
+ * newcham()'s arbitrary choice (null when there is none: newcham() picks).
+ * ref: src/muse.c muse_newcham_mon() (no dragon scales or scale mail)
+ */
+function museNewchamMon(ctx: Ctx, mon: Entity): MonsterDef | null {
+  const p = mon.c.pos;
+  return rndmonst(ctx, p ? getLevel(ctx.state, p.level).depth : 1);
+}
+
+/**
+ * The monster takes things out of a container it carries: up to 1-4 objects (fewer as it
+ * empties), each it can carry; "The gnome removes a dagger from a sack." next to her, "The gnome
+ * rummages through a sack." further away (seen only). The hero no longer knows what is inside.
+ * Returns 2 when something was taken, else 0. ref: src/muse.c mloot_container() (no cursed bag
+ * of holding special case beyond C's refusal, no ice boxes or Schroedinger's box; the further
+ * items' "He removes ..." names the monster again: monsters have no gender here)
+ */
+function mlootContainer(ctx: Ctx, mon: Entity, container: Entity, vismon: boolean): MuseResult {
+  const cit = container.c.item;
+  if (!cit || contents(ctx.state, container.id).length === 0 || cit.locked) return 0;
+  // "FIXME: handle cursed bag of holding"
+  if (ctx.defs.object(container.def).container?.holding === true && cit.buc === 'cursed') return 0;
+  const r = ctx.rng.rn2(10);
+  const takeoutCount = r <= 3 ? 1 : r <= 6 ? 2 : r <= 8 ? 3 : 4;
+  const p = mon.c.pos;
+  const hp = getPlayer(ctx.state).c.pos;
+  const howfar = p && hp ? dist2(p.x, p.y, hp.x, hp.y) : Infinity; // mdistu()
+  let res: MuseResult = 0;
+  let rummaged = false;
+  for (let indx = 0; indx < takeoutCount; ++indx) {
+    const inside = contents(ctx.state, container.id); // cobj order: newest first
+    if (inside.length === 0) break; // "might have removed all items"
+    // "throttle item removal as the container becomes less filled"
+    if (!ctx.rng.rn2(inside.length + 1)) break;
+    const xobj = inside[ctx.rng.rn2(inside.length)];
+    if (!xobj) break;
+    // "hero no longer knows container's contents even if [attempted] removal is observed"
+    setCknown(ctx, container.id, false);
+    const cname = xnameOf(ctx.state, ctx.defs, container);
+    // take it out first so that its weight is not counted twice
+    takeOut(ctx.state, xobj.id);
+    if (canCarry(ctx, mon.id, xobj) > 0) {
+      if (vismon) {
+        if (howfar > 2) {
+          // not adjacent (Norep(): once)
+          if (!rummaged) say(ctx, 'muse.rummages', { mon: monNam(ctx, mon), container: cname });
+          rummaged = true;
+        } else if (indx === 0)
+          say(ctx, 'muse.removes_from', {
+            mon: monNam(ctx, mon),
+            item: doname(ctx.state, ctx.defs, xobj),
+            container: cname,
+          });
+        else
+          say(ctx, 'muse.removes', {
+            mon: monNam(ctx, mon),
+            item: doname(ctx.state, ctx.defs, xobj),
+          });
+      }
+      mpickobj(ctx, mon.id, xobj);
+      res = 2;
+    } else {
+      // "couldn't carry xobj separately so put back inside"
+      const justXobj = contents(ctx.state, container.id).length === 0;
+      putIn(ctx.defs, ctx.state, container.id, xobj.id);
+      if (justXobj) break;
+    }
+  }
+  return res;
+}
+
+/**
+ * The hero senses the monster that made a cursed potion of invisibility fail: "For some reason,
+ * the gnome's presence is known to you." "You feel aggravated at the gnome." (an unconscious hero
+ * is jolted awake at her next move), and an unseen monster is remembered there.
+ * ref: src/muse.c you_aggravate() (the map flash showing the monster is not ported)
+ */
+function youAggravate(ctx: Ctx, mon: Entity): void {
+  // noit_mon_nam(): its name even when she can't see it
+  const name = canSpotMon(ctx, mon) ? monNam(ctx, mon) : `@${mon.def}`;
+  say(ctx, 'muse.presence_known', { mon: name });
+  say(ctx, 'muse.feel_aggravated', { mon: name });
+  const h = getPlayer(ctx.state);
+  if (h.c.helpless && unresponsive(ctx)) {
+    // gm.multi = -1
+    h.c.helpless.until = Math.min(h.c.helpless.until, ctx.state.turn + 2);
+    nhData(ctx).nomovemsg = { key: 'muse.jolted' };
+  }
+  const p = mon.c.pos;
+  if (p && !canSpotMon(ctx, mon)) mapInvisible(ctx, p.x, p.y);
+}
+
+/**
+ * Does what findMisc() chose; call it right after. Returns 0 (nothing happened), 1 (it died, or
+ * C's 1 after a bullwhip attempt) or 2 (it acted). ref: src/muse.c use_misc()
+ */
+export function useMisc(ctx: Ctx, id: EntityId, c: MuseChoice<MuseMisc>): MuseResult {
+  const mon = ctx.state.entities[String(id)];
+  const p = mon?.c.pos;
+  if (!mon?.c.monster || !p) return 0;
+  const otmp = c.obj === null ? null : (ctx.state.entities[String(c.obj)] ?? null);
+  const pre = precheck(ctx, id, otmp);
+  if (pre === 1) return 1;
+  if (pre === -1) return 0; // "case 0: i.e. an exploded wand"
+  const level = getLevel(ctx.state, p.level);
+  const vis = cansee(ctx, p.level, p.x, p.y);
+  const vismon = canseemon(ctx, mon);
+  const oseen = otmp !== null && vismon;
+  const name = (): string => monNam(ctx, mon);
+
+  switch (c.kind) {
+    case 'pot_gain_level': {
+      if (!otmp) return 0;
+      mquaffmsg(ctx, mon, otmp);
+      if (otmp.c.item?.buc === 'cursed') {
+        if (canRiseUp(ctx, level)) {
+          const to = levelAtDepth(ctx, level, level.depth - 1);
+          // "insurance against future changes..."
+          if (to.dungeon !== level.dungeon || to.dlevel !== level.dlevel) {
+            if (vismon)
+              say(ctx, 'muse.rises_up', {
+                mon: name(),
+                ceiling: { key: ceilingKey(ctx, level, p.x, p.y) },
+              });
+            useOne(ctx, id, otmp);
+            migrateToLevel(ctx, mon, levelIdFor(ctx.state, to));
+            return 2;
+          }
+        }
+        if (vismon) say(ctx, 'muse.looks_uneasy', { mon: name() });
+        useOne(ctx, id, otmp);
+        return 2;
+      }
+      if (vismon) say(ctx, 'muse.more_experienced', { mon: name() });
+      if (oseen) discover(ctx, POT_GAIN_LEVEL);
+      useOne(ctx, id, otmp);
+      return growUp(ctx, id, null) ? 2 : 1;
+    }
+    case 'wan_make_invisible':
+    case 'pot_invisibility': {
+      if (!otmp) return 0;
+      const wand = otmp.def === WAN_MAKE_INVISIBLE;
+      if (wand) mzapwand(ctx, mon, otmp, true);
+      else mquaffmsg(ctx, mon, otmp);
+      // "format monster's name before altering its visibility"
+      const nambuf = name();
+      const cursed = otmp.c.item?.buc === 'cursed';
+      setMinvis(ctx, mon, cursed);
+      if (vismon && monInvisible(ctx, mon)) {
+        // was seen, now invisible
+        if (canSpotMon(ctx, mon))
+          say(ctx, 'muse.strange_transparency', {
+            mon: nambuf,
+            how: { key: hasProp(getPlayer(ctx.state), P.HALLUC) ? 'muse.normal' : 'muse.strange' },
+          });
+        else {
+          say(ctx, 'muse.cannot_see', { mon: nambuf });
+          if (vis) mapInvisible(ctx, p.x, p.y);
+        }
+        if (oseen) discover(ctx, otmp.def);
+      } else if (vismon && !monInvisible(ctx, mon)) {
+        // "cursed potion; mon tried to make itself invisible but failed"
+        say(ctx, 'potionhit.briefly_transparent', { mon: name() });
+      } else if (!vismon && canseemon(ctx, mon)) {
+        say(ctx, 'potionhit.appears', { mon: name() });
+      }
+      if (!wand) {
+        if (cursed) youAggravate(ctx, mon);
+        useOne(ctx, id, otmp);
+      }
+      return 2;
+    }
+    case 'wan_speed_monster':
+      if (!otmp) return 0;
+      mzapwand(ctx, mon, otmp, true);
+      monAdjustSpeed(ctx, mon, 1, () => learnwand(ctx, otmp));
+      return 2;
+    case 'pot_speed':
+      if (!otmp) return 0;
+      mquaffmsg(ctx, mon, otmp);
+      // "monster becomes 'one stage faster' permanently"
+      monAdjustSpeed(ctx, mon, 1, () => learnwand(ctx, otmp));
+      useOne(ctx, id, otmp);
+      return 2;
+    case 'wan_polymorph':
+      if (!otmp) return 0;
+      mzapwand(ctx, mon, otmp, true);
+      newcham(ctx, mon, museNewchamMon(ctx, mon), { polyspot: true, msg: true });
+      clearBypasses();
+      if (oseen) discover(ctx, WAN_POLYMORPH);
+      return 2;
+    case 'pot_polymorph':
+      if (!otmp) return 0;
+      mquaffmsg(ctx, mon, otmp);
+      useOne(ctx, id, otmp);
+      if (vismon) say(ctx, 'muse.mutates', { mon: name() });
+      newcham(ctx, mon, museNewchamMon(ctx, mon), { msg: true });
+      if (oseen) discover(ctx, POT_POLYMORPH);
+      return 2;
+    case 'poly_trap': {
+      const t = c.trap ? trapAt(level, c.trap.x, c.trap.y) : undefined;
+      if (!t || !c.trap) return 0;
+      const vistrapspot = cansee(ctx, level.id, t.x, t.y);
+      if (vis || vistrapspot) seetrap(t);
+      if (vismon || vistrapspot)
+        say(ctx, 'muse.deliberately_onto', {
+          mon: someMonNam(ctx, mon),
+          verb: jumpVerb(ctx, mon),
+          trap: t.seen ? `@${t.def}` : { key: 'muse.hidden_trap' },
+        });
+      // "don't use rloc() due to worms"
+      stepOnto(ctx, mon, c.trap);
+      maybeUnhideAt(ctx, level.id, c.trap.x, c.trap.y);
+      newcham(ctx, mon, null, { msg: true });
+      return 2;
+    }
+    case 'bag':
+      if (!otmp) return 0;
+      return mlootContainer(ctx, mon, otmp, vismon);
+    case 'bullwhip':
+      return useBullwhip(ctx, mon, vismon);
+    default:
+      return 0;
+  }
+}
+
+/**
+ * "attempt to disarm hero": "The gnome lord flicks a bullwhip towards your hand!" "The bullwhip
+ * wraps around the long sword you're wielding!"; a welded weapon stays ("It is welded to your
+ * hand." "The whip slips free."), and 1 time in 4 the whip slips free anyway; else the weapon is
+ * yanked to the floor under the monster, to the floor under her, or snatched into its inventory
+ * (a silver-hater drops a silver one at her feet instead). Returns C's 1 (or 0 with nothing to
+ * pull). ref: src/muse.c use_misc() MUSE_BULLWHIP (no two-weapon combat, no heavy iron ball)
+ */
+function useBullwhip(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
+  let whereTo = ctx.rng.rn2(4);
+  const uwep = uwepOf(ctx);
+  // (no two-weapon combat: a weapon that can't be let go falls back to the alternate weapon)
+  const obj = !uwep || !canletgo(ctx, uwep) ? swapWep(ctx) : uwep;
+  if (!obj) return 0; // "shouldn't happen after find_misc()"
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!hp) return 0;
+  const theWeapon = xnameOf(ctx.state, ctx.defs, obj);
+  const odef = ctx.defs.object(obj.def);
+  const hand = { key: odef.weapon?.bimanual === true ? 'muse.hands' : 'muse.hand' };
+  if (vismon) say(ctx, 'muse.flicks_whip', { mon: monNam(ctx, mon), hand });
+  say(ctx, vismon ? 'muse.whip_wraps' : 'muse.whip_wraps_unseen', { item: theWeapon });
+  if (welded(ctx, obj)) {
+    say(ctx, (obj.c.item?.quantity ?? 1) > 1 ? 'muse.welded_pl' : 'muse.welded', { hand });
+    whereTo = 0;
+  }
+  if (!whereTo) {
+    say(ctx, 'muse.whip_slips');
+    return 1;
+  } else if (
+    whereTo === 3 &&
+    hatesSilver(ctx.defs.monster(mon.def)) &&
+    odef.material === 'silver'
+  ) {
+    // "this monster won't want to catch a silver weapon; drop it at hero's feet instead"
+    whereTo = 2;
+  }
+  removeWornItem(ctx, obj);
+  const p = mon.c.pos;
+  switch (whereTo) {
+    case 1: // onto floor beneath mon
+      say(ctx, 'muse.yanks_from', { mon: monNam(ctx, mon), item: theWeapon, hand });
+      removeFromInventory(ctx, obj.id); // freeinv()
+      if (p) placeObject(ctx, obj.id, p.level, p.x, p.y);
+      break;
+    case 2: // onto floor beneath you
+      say(ctx, 'muse.yanks_to', {
+        mon: monNam(ctx, mon),
+        item: theWeapon,
+        surface: surfaceKey(ctx, getLevel(ctx.state, hp.level), hp.x, hp.y),
+      });
+      dropx(ctx, obj);
+      break;
+    case 3: // into mon's inventory
+      say(ctx, 'muse.snatches', { mon: monNam(ctx, mon), item: theWeapon });
+      removeFromInventory(ctx, obj.id); // freeinv()
+      mpickobj(ctx, mon.id, obj);
+      break;
+  }
+  return 1;
 }

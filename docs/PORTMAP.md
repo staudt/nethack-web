@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4290 citations.
+155 NetHack files, 4300 citations.
 
 ## dat/dungeon.lua
 
@@ -734,7 +734,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/do.c
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
-- `canletgo()`: `packages/content/src/itemactions.ts`
+- `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`, `packages/content/src/itemactions.ts`
 - `doddrop()`: `packages/content/src/itemactions.ts`
 - `dodown()`: `packages/content/src/actions.ts`, `packages/content/src/levitation.ts`, `packages/content/src/trap.ts`
@@ -1618,6 +1618,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MUSE_()`: `packages/content/src/muse.ts`
 - `fhito_loc()`: `packages/content/src/muse.ts`
 - `find_defensive()`: `packages/content/src/muse.ts`
+- `find_misc()`: `packages/content/src/muse.ts`
 - `find_offensive()`: `packages/content/src/muse.ts`
 - `hero_behind_chokepoint()`: `packages/content/src/muse.ts`
 - `linedup_chk_corpse()`: `packages/content/src/muse.ts`
@@ -1627,12 +1628,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mbhit()`: `packages/content/src/muse.ts`
 - `mbhitm()`: `packages/content/src/muse.ts`
 - `mcureblindness()`: `packages/content/src/musestate.ts`
+- `mloot_container()`: `packages/content/src/muse.en.ts`, `packages/content/src/muse.ts`
 - `mon_consume_unstone()`: `packages/content/src/muse.ts`
 - `mon_escape()`: `packages/content/src/muse.ts`
 - `mon_has_friends()`: `packages/content/src/muse.ts`
 - `mon_likes_objpile_at()`: `packages/content/src/muse.ts`
 - `mquaffmsg()`: `packages/content/src/muse.ts`
 - `mreadmsg()`: `packages/content/src/muse.ts`
+- `muse_newcham_mon()`: `packages/content/src/muse.ts`
 - `mzapwand()`: `packages/content/src/muse.ts`
 - `place_monster()`: `packages/content/src/muse.ts`
 - `precheck()`: `packages/content/src/muse.ts`
@@ -1641,8 +1644,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `searches_for_item()`: `packages/content/src/mongear.ts`
 - `ureflects()`: `packages/content/src/reflect.ts`, `packages/content/src/uhitm_passive.ts`
 - `use_defensive()`: `packages/content/src/muse.ts`
+- `use_misc()`: `packages/content/src/muse.en.ts`, `packages/content/src/muse.ts`
 - `use_offensive()`: `packages/content/src/muse.ts`
 - `worm_move()`: `packages/content/src/muse.ts`
+- `you_aggravate()`: `packages/content/src/muse.en.ts`, `packages/content/src/muse.ts`
 
 ## src/music.c
 

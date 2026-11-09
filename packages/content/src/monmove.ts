@@ -46,7 +46,14 @@ import {
   setMonFlag,
 } from './mongear';
 import { mattackRanged } from './mthrowu';
-import { findDefensive, findOffensive, useDefensive, useOffensive } from './muse';
+import {
+  findDefensive,
+  findMisc,
+  findOffensive,
+  useDefensive,
+  useMisc,
+  useOffensive,
+} from './muse';
 import { uState } from './luck';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { fightm, mattackm } from './mhitm';
@@ -1184,7 +1191,12 @@ export function dochug(
   // ref: dochug(): "search for and potentially use defensive or miscellaneous items" (a use
   // that did something ends the move)
   const dchoice = findDefensive(ctx, id, false, ap);
-  if (dchoice && useDefensive(ctx, id, dchoice) !== 0) return;
+  if (dchoice) {
+    if (useDefensive(ctx, id, dchoice) !== 0) return;
+  } else {
+    const mchoice = findMisc(ctx, id, ap);
+    if (mchoice && useMisc(ctx, id, mchoice) !== 0) return;
+  }
   const fleeing = isFleeing(ctx, id);
 
   // ref: dochug(): "the watch will look around and see if you are up to no good :-)"
