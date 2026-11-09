@@ -54,6 +54,7 @@ import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
 import { canseemon } from './invis';
+import { M_SEEN, monstseesu, monstunseesu } from './musestate';
 
 /**
  * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
@@ -273,7 +274,8 @@ function zhitm(
   const def = ctx.defs.monster(mon.def);
   const res = (r: string): boolean => def.resists.includes(r);
   const bonus = (n: number): number => (spellcaster ? spellDamageBonus(ctx.state, n) : n);
-  // the hero's breath (types 20..29) resists as her spells do: resist(mon, '\0') at her level
+  // the hero's breath (types 20..29) and a monster's wand (-39..-30, not ZT_WAND(ZT_SLEEP)) resist
+  // as her spells do: resist(mon, '\0') at her level
   const oclass = spellcaster || breath ? 'spell' : 'wand';
   let tmp = 0;
   switch (ray) {
@@ -344,21 +346,33 @@ export function ubreatheu(ctx: Ctx, ray: Ray, nd: number): void {
   zhitu(ctx, ray, nd, uhimKey(ctx.state, `@killer.breath.self.${ray}`));
 }
 
-/** ref: src/zap.c zhitu(): the ray hits the hero */
+/**
+ * ref: src/zap.c zhitu(): the ray hits the hero; the monsters that see her learn whether she
+ * resisted (monstseesu()/monstunseesu())
+ */
 function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
   const h = hero(ctx);
   let dam = 0;
   switch (ray) {
     case 'magic_missile':
-      if (antimagic(ctx)) say(ctx, 'zap.u.missiles_bounce');
-      else dam = ctx.rng.d(nd, 6);
+      if (antimagic(ctx)) {
+        say(ctx, 'zap.u.missiles_bounce');
+        monstseesu(ctx, M_SEEN.magr);
+      } else {
+        dam = ctx.rng.d(nd, 6);
+        monstunseesu(ctx, M_SEEN.magr);
+      }
       break;
     case 'fire': {
       const orig = ctx.rng.d(nd, 6);
       if (hasProp(h, P.FIRE_RES)) {
         say(ctx, 'zap.u.not_hot');
+        monstseesu(ctx, M_SEEN.fire);
         ugolemeffects(ctx, 'fire', orig);
-      } else dam = orig;
+      } else {
+        dam = orig;
+        monstunseesu(ctx, M_SEEN.fire);
+      }
       burnAwaySlime(ctx);
       if (erodeArmor(ctx, h.id, 'burn')) {
         // "body hit"
@@ -372,29 +386,44 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       const orig = ctx.rng.d(nd, 6);
       if (hasProp(h, P.COLD_RES)) {
         say(ctx, 'zap.u.not_cold');
+        monstseesu(ctx, M_SEEN.cold);
         ugolemeffects(ctx, 'cold', orig);
-      } else dam = orig;
+      } else {
+        dam = orig;
+        monstunseesu(ctx, M_SEEN.cold);
+      }
       if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'cold', orig);
       break;
     }
     case 'sleep':
-      if (hasProp(h, P.SLEEP_RES)) say(ctx, 'zap.u.not_sleepy');
-      else nomulNow(ctx, ctx.rng.d(nd, 25), 'helpless.asleep', { key: 'eat.wake_up' }); // fall_asleep()
+      if (hasProp(h, P.SLEEP_RES)) {
+        say(ctx, 'zap.u.not_sleepy');
+        monstseesu(ctx, M_SEEN.sleep);
+      } else {
+        monstunseesu(ctx, M_SEEN.sleep);
+        nomulNow(ctx, ctx.rng.d(nd, 25), 'helpless.asleep', { key: 'eat.wake_up' }); // fall_asleep()
+      }
       break;
     case 'death':
       // a hero is never nonliving or a demon (no polymorph)
       if (antimagic(ctx)) {
+        monstseesu(ctx, M_SEEN.magr);
         say(ctx, 'zap.u.not_shocked'); // "You aren't affected."
         break;
       }
+      monstunseesu(ctx, M_SEEN.magr);
       done(ctx, '@killer.ray.death'); // KILLED_BY_AN "death ray", whoever sent it
       return; // lifesaved
     case 'lightning': {
       const orig = ctx.rng.d(nd, 6);
       if (hasProp(h, P.SHOCK_RES)) {
         say(ctx, 'zap.u.not_shocked');
+        monstseesu(ctx, M_SEEN.elec);
         ugolemeffects(ctx, 'elec', orig);
-      } else dam = orig;
+      } else {
+        dam = orig;
+        monstunseesu(ctx, M_SEEN.elec);
+      }
       if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'elec', orig);
       break;
     }
@@ -403,10 +432,13 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       poisoned(ctx, null, 'dex', '@killer.poisoned_blast', 15);
       break;
     case 'acid':
-      if (hasProp(h, P.ACID_RES)) say(ctx, 'zap.u.acid_no_hurt');
-      else {
+      if (hasProp(h, P.ACID_RES)) {
+        say(ctx, 'zap.u.acid_no_hurt');
+        monstseesu(ctx, M_SEEN.acid);
+      } else {
         say(ctx, 'zap.u.acid_burns');
         dam = ctx.rng.d(nd, 6);
+        monstunseesu(ctx, M_SEEN.acid);
       }
       // (no two-weapon combat)
       if (!ctx.rng.rn2(6)) acidDamage(ctx, monWep(ctx, h.id));
@@ -605,12 +637,15 @@ export function burnFloorObjects(
  * spell (BZ_M_SPELL: a monster it kills is killed by "another monster", one it hits is only
  * woken up, and a hero it kills dies of "a bolt of lightning"), or a monster's breath
  * (BZ_M_BREATH: the same, named "blast of ...", and a hero it kills dies of "a blast of frost
- * exhaled by a winter wolf cub").
+ * exhaled by a winter wolf cub"), or a monster's wand (BZ_M_WAND: as a monster's spell, and
+ * resisted at her level as C's `'\0'` class; `forceMiss`, buzz_force_miss(): the ray hits nothing
+ * on its way, a monster's first shot with an attack wand).
  */
 export type RaySource =
   | { by: 'hero'; spell?: DefId; breath?: true; wakeup: (ctx: Ctx, id: EntityId) => void }
   | { by: 'spell' }
-  | { by: 'breath'; mon: EntityId };
+  | { by: 'breath'; mon: EntityId }
+  | { by: 'monwand'; mon: EntityId; wand: DefId; forceMiss: boolean };
 
 /**
  * A ray of rn1(7, 7) squares starting next to `from` (on the hero's level) and heading `dir`,
@@ -690,6 +725,8 @@ function buzzSteps(
       : breather
         ? `@killer.breath.${ray}.${breather.def.replace(/^.*:/, '')}`
         : `@killer.ray.${ray}`;
+  // buzz_force_miss(): no zap_hit() roll, nothing is hit
+  const forceMiss = src.by === 'monwand' && src.forceMiss;
   let { x: sx, y: sy } = from;
   let range = ctx.rng.rn2(7) + 7;
   if (vertical) range = 1;
@@ -716,7 +753,7 @@ function buzzSteps(
       const mon = monAt(ctx, sx, sy);
       const hp = heroPos(ctx);
       if (mon) {
-        if (zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
+        if (!forceMiss && zapHit(ctx, findMac(ctx.state, ctx.defs, mon.id), spell)) {
           // mon_reflects(): no monster can reflect in the subset
           const couldMove = !isFrozen(ctx, mon.id);
           const tmp = zhitm(
@@ -726,7 +763,8 @@ function buzzSteps(
             nd,
             spell !== null,
             src.by === 'hero',
-            src.by === 'hero' && src.breath === true,
+            // her breath and a monster's wand resist at her level (resist()'s default class)
+            (src.by === 'hero' && src.breath === true) || src.by === 'monwand',
           );
           if ((mon.c.hp?.cur ?? 0) < 1) {
             if (alive(ctx, mon.id)) {
@@ -753,17 +791,19 @@ function buzzSteps(
         }
       } else if (hp.x === sx && hp.y === sy && range >= 0) {
         ctx.interrupt(); // nomul(0)
-        if (zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId), null)) {
+        if (!forceMiss && zapHit(ctx, findAc(ctx.state, ctx.defs, ctx.state.playerId), null)) {
           range -= 2;
           say(ctx, 'zap.ray.hits_you', { ray: rayName(ray, src) });
           if (ureflects(ctx, null)) {
             if (!blind(ctx)) ureflects(ctx, 'zap.ray.reflects');
             else say(ctx, 'zap.ray.not_affected');
+            monstseesu(ctx, M_SEEN.refl);
             d.x = -d.x;
             d.y = -d.y;
             gasHit = false;
           } else {
             zhitu(ctx, ray, nd, killer);
+            monstunseesu(ctx, M_SEEN.refl);
           }
         } else if (!blind(ctx)) {
           say(ctx, 'zap.ray.whizzes', { ray: rayName(ray, src) });

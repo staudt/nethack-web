@@ -14,7 +14,9 @@
 // `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
 // C's `!mcansee && !mblinded`), `minvis` (invis.ts), `mux: { [monsterId]: [x, y] }` (mux/muy, kept
 // by apparxy.ts setApparxy() while the monster cannot see the hero), `mrevived: { [monsterId]: true }`
-// once it came back from a corpse.
+// once it came back from a corpse, `mwandexp: { [monsterId]: true }` once it has zapped an attack
+// wand (muse.c), `mseenres: { [monsterId]: bits }` the hero's resistances it has seen (C's
+// `seen_resistance`, M_SEEN_* bits; musestate.ts).
 import {
   getPlayer,
   sortedIds,
@@ -45,7 +47,9 @@ type Key =
   | 'mux'
   | 'mundetected'
   | 'mappear'
-  | 'mrevived';
+  | 'mrevived'
+  | 'mwandexp'
+  | 'mseenres';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -298,7 +302,33 @@ const KEYS: readonly Key[] = [
   'mundetected', // hidestate.ts
   'mappear', // mimicstate.ts
   'mrevived',
+  'mwandexp', // musestate.ts
+  'mseenres', // musestate.ts
 ];
+
+/** `mtmp->mwandexp`: the monster has zapped an attack wand before. ref: include/monst.h */
+export function hasWandExp(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  return table(ctx, 'mwandexp', false)?.[String(id)] === true;
+}
+
+export function setWandExp(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mwandexp', true);
+  if (t) t[String(id)] = true;
+}
+
+/** `mtmp->seen_resistance` (0 when nothing seen). ref: include/monst.h */
+export function seenResOf(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
+  const v = table(ctx, 'mseenres', false)?.[String(id)];
+  return typeof v === 'number' ? v : 0;
+}
+
+/** Sets `seen_resistance` (0 drops the entry). */
+export function setSeenRes(ctx: Pick<Ctx, 'state'>, id: EntityId, bits: number): void {
+  const t = table(ctx, 'mseenres', bits !== 0);
+  if (!t) return;
+  if (bits === 0) delete t[String(id)];
+  else t[String(id)] = bits;
+}
 
 /** Forgets the states of a monster that died or left. */
 /** clone_mon()'s `*m2 = *mon`: the clone starts with the original's conditions. */

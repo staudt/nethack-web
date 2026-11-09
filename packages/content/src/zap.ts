@@ -584,7 +584,7 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
  * struck blows up (mb_trapped() on a monster in it); a shop door destroyed is damage to repair
  * (`add_damage(x, y, 0L)`). 'broken': struck open (D_BROKEN), which bhit() charges for.
  */
-function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean | 'broken' {
+export function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean | 'broken' {
   const otyp = caseOf(zotyp); // the spells of wizard lock and knock lock and open
   const level = levelOf(ctx);
   const id = cellId(level, x, y);

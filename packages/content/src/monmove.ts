@@ -46,7 +46,8 @@ import {
   setMonFlag,
 } from './mongear';
 import { mattackRanged } from './mthrowu';
-import { findDefensive, useDefensive } from './muse';
+import { findDefensive, findOffensive, useDefensive, useOffensive } from './muse';
+import { uState } from './luck';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { fightm, mattackm } from './mhitm';
 import { M_ATTK } from './adtyping';
@@ -673,7 +674,7 @@ export function priMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos = heroPos)
   let avoid = true;
   if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
     if (monnear(def, pos.x, pos.y, heroPos.x, heroPos.y)) {
-      monsterAttack(ctx, id, ap);
+      mattacku(ctx, id, ap, null);
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
     }
     const level = getLevel(ctx.state, pos.level);
@@ -722,7 +723,7 @@ export function shkMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos = heroPos)
   if (udist < 3) {
     // ANGRY(shkp) || (Conflict && !resist_conflict(shkp))
     if (!m.peaceful || (conflictOn(ctx.state) && !resistConflict(ctx, e))) {
-      monsterAttack(ctx, id, ap); // mattacku()
+      mattacku(ctx, id, ap, null);
       return ctx.state.entities[String(id)]?.c.monster ? 0 : -2;
     }
     if (eshk.following) {
@@ -1302,13 +1303,13 @@ export function dochug(
           const np = ctx.state.entities[String(id)]?.c.pos;
           if (
             np &&
-            def.attacks.some(
+            !nearby &&
+            (def.attacks.some(
               (a) => a.at === 'weapon' || a.at === 'gaze' || a.at === 'breath' || a.at === 'spit',
-            ) &&
-            !nearby
+            ) ||
+              findOffensive(ctx, id, ap) !== null)
           ) {
-            if (hostileNow() && inrange)
-              mattackRanged(ctx, id, sightLine(ctx, np.level), prevHero, ap);
+            if (hostileNow() && inrange) mattacku(ctx, id, ap, prevHero, true);
             maybeCuss(ctx, id, inrange, heroPos); // phase four goes on to the cussing
           }
           return;
@@ -1323,14 +1324,35 @@ export function dochug(
   const mayAttack = hostile && ((inrange && !scared) || panicattk);
   // ref: mattacku(): range2 is `!monnear(mtmp, mtmp->mux, mtmp->muy)`
   if (mayAttack && monnear(def, pos.x, pos.y, ap.x, ap.y)) {
-    monsterAttack(ctx, id, ap);
+    mattacku(ctx, id, ap, prevHero);
   } else if (mayAttack && inrange) {
     // ref: mattacku() with range2: a weapon attack at a distance throws or shoots
-    mattackRanged(ctx, id, sightLine(ctx, pos.level), prevHero, ap);
+    mattacku(ctx, id, ap, prevHero, true);
   }
   // ref: dochug(): `if (mtmp->wormno) wormhitu(mtmp)`
   if (hostile && wormRec(ctx.state, id)) wormhitu(ctx, id, ap);
   maybeCuss(ctx, id, inrange, heroPos);
+}
+
+/**
+ * The monster attacks the hero (where it thinks she is, `ap`): next to her its melee attacks
+ * (monsterAttack()), from afar (`range2`) its ranged ones (mattackRanged(), `prevHero` is where it
+ * last saw her). First, "unlike defensive stuff, don't let them use item _and_ attack": an attack
+ * wand it chose (findOffensive()) that did something is its attack. Swallowed she is attacked
+ * only by the engulfer, which uses no item (find_offensive() refuses), and while she prays nothing
+ * is used. ref: src/mhitu.c mattacku() (the find_offensive() hook comes after the were creature's
+ * summoning in C, which here comes inside monsterAttack())
+ */
+function mattacku(ctx: Ctx, id: EntityId, ap: Pos, prevHero: Pos | null, range2 = false): void {
+  if (!uState(ctx.state).uinvulnerable) {
+    const c = findOffensive(ctx, id, ap);
+    if (c && useOffensive(ctx, id, c) !== 0) return;
+  }
+  const e = ctx.state.entities[String(id)];
+  const p = e?.c.pos;
+  if (!e?.c.monster || !p || ctx.state.gameOver) return;
+  if (range2) mattackRanged(ctx, id, sightLine(ctx, p.level), prevHero, ap);
+  else monsterAttack(ctx, id, ap);
 }
 
 /**
@@ -1350,7 +1372,7 @@ function wormhitu(ctx: Ctx, id: EntityId, ap: Pos): void {
     if (!w?.c.monster || !wp || ctx.state.gameOver) return; // "your passive ability killed the worm"
     if (!sp || dist2(sp.x, sp.y, hp.x, hp.y) >= 3) continue;
     // mattacku() with range2 (the head not next to mux/muy): the bites are skipped
-    if (monnear(ctx.defs.monster(w.def), wp.x, wp.y, ap.x, ap.y)) monsterAttack(ctx, id, ap);
+    if (monnear(ctx.defs.monster(w.def), wp.x, wp.y, ap.x, ap.y)) mattacku(ctx, id, ap, null);
   }
 }
 

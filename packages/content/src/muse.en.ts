@@ -43,4 +43,8 @@ export const museMessagesEn: Record<string, string> = {
   'muse.hear_crash': 'You hear something crash through the {surface}.',
   'muse.eats': '{mon|The} eats {item|an}.',
   'muse.hear_chewing': 'You hear chewing.',
+  'muse.wand_hits_you': 'The wand hits you!',
+  'muse.wand_misses_you': 'The wand misses you.',
+  'muse.resists_magic': '{mon|The} resists the magic!',
+  'killer.wand': 'a wand',
 };
