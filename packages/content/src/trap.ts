@@ -9,6 +9,8 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
+import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
+import { uRooms } from './urooms';
 import {
   DIRS,
   DIR_LIST,
@@ -1749,11 +1751,15 @@ function couldsee(ctx: Ctx, x: number, y: number): boolean {
  * different location!" for a teleport (`teleport`), then spoteffects(): shop and room entry or
  * exit (walking out of a shop with its goods is robbery), the things here and the trap here (a
  * pit before the things, as a step). The view catches up at the end of the step.
- * ref: src/teleport.c teleds() (no ball and chain, engulfing, steeds, vaults or regions)
+ * Leaving the vault while its guard is about makes him notice (uleftvault()), before any room
+ * entry message.
+ * ref: src/teleport.c teleds() (no ball and chain, engulfing, steeds or regions)
  */
 export function teleds(ctx: Ctx, x: number, y: number, opts: { teleport?: boolean } = {}): void {
   const h = heroEnt(ctx);
   const p = heroPos(ctx);
+  const lvl = getLevel(ctx.state, p.level);
+  const vaultGuard = vaultOccupied(lvl, uRooms(ctx)) !== null ? findgd(ctx.state) : null;
   const u = utrap(ctx);
   if (u) setUtrap(ctx, 0, u.type); // reset_utrap(FALSE)
   setUstuck(ctx, null);
@@ -1763,6 +1769,9 @@ export function teleds(ctx: Ctx, x: number, y: number, opts: { teleport?: boolea
   ctx.interrupt(); // nomul(0)
   if (opts.teleport)
     say(ctx, x === from.x && y === from.y ? 'tele.materialize_same' : 'tele.materialize_different');
+  // if hero has left vault, make guard notice (before spoteffects() sets the new u.urooms)
+  if (vaultGuard !== null && vaultOccupied(lvl, inRooms(lvl, x, y)) === null)
+    uleftvaultLate(ctx, vaultGuard);
   // spoteffects(TRUE)
   checkSpecialRoom(ctx, false, from);
   const level = getLevel(ctx.state, p.level);

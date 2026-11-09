@@ -258,6 +258,9 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       say(ctx, line);
       return NORMAL_SPEED;
     }
+    case 'guard': // vault guard
+      say(ctx, moneyCnt(ctx, ctx.state.playerId) ? 'vault.please_drop' : 'vault.please_follow');
+      return NORMAL_SPEED;
     case 'soldier': {
       const lines = m.peaceful ? SOLDIER_PAX : SOLDIER_FOE;
       say(ctx, lines[ctx.rng.rn2(3)] ?? 'chat.soldier.useless');

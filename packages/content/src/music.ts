@@ -113,7 +113,8 @@ function awakenSoldiers(ctx: Ctx): void {
     const m = mon?.c.monster;
     const p = mon?.c.pos;
     if (!mon || !m || !p || p.level !== hp.level || (mon.c.hp?.cur ?? 1) < 1) continue;
-    if (ctx.defs.monster(mon.def).flags.includes('merc')) {
+    // (not the vault guard)
+    if (ctx.defs.monster(mon.def).flags.includes('merc') && mon.def !== 'nh:guard') {
       if (!m.tame) m.peaceful = false;
       m.asleep = false;
       unfreezeMonst(ctx, id);

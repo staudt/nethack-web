@@ -71,6 +71,7 @@ import { isWatch, watchOnDuty } from './watch';
 import { maybeSpinWeb } from './web';
 import { monEatsHere } from './meat';
 import { findgold } from './steal';
+import { gdMoveLate, isGuard } from './vaultstate';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
 import { onscary, scareCells } from './scary';
@@ -765,10 +766,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   Object.assign(ap, setApparxy(ctx, monCount(ctx, id).e, ap));
 
   // ref: m_move(): "likewise for shopkeeper, guard, or priest"; -1 (a priest outside his
-  // temple, a shopkeeper following the hero) goes on with the normal AI
-  if (epriOf(ctx, id) || eshkOf(ctx, id)) {
-    const xm = epriOf(ctx, id) ? priMove(ctx, id, heroPos, ap) : shkMove(ctx, id, heroPos, ap);
-    if (xm === -2) return 'died';
+  // temple, a shopkeeper following the hero, an angry guard) goes on with the normal AI
+  if (epriOf(ctx, id) || eshkOf(ctx, id) || isGuard(ctx.state, id)) {
+    const xm = epriOf(ctx, id)
+      ? priMove(ctx, id, heroPos, ap)
+      : eshkOf(ctx, id)
+        ? shkMove(ctx, id, heroPos, ap)
+        : gdMoveLate(ctx, id);
+    // a guard leaving the map (parked until his corridor is gone) is as good as dead here
+    if (xm === -2 || !ctx.state.entities[String(id)]?.c.monster) return 'died';
     if (xm === 1) return postmovMoved(ctx, id, level, rules);
     if (xm === 0) return 'nothing';
   }

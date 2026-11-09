@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3939 citations.
+153 NetHack files, 3982 citations.
 
 ## dat/dungeon.lua
 
@@ -181,6 +181,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`
+- `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
 
 ## include/hack.h
@@ -210,11 +211,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `SLT_ENCUMBER()`: `packages/content/src/dokick.ts`
 - `TAINT_AGE()`: `packages/content/src/corpses.ts`
 - `TROLL_REVIVE_CHANCE()`: `packages/content/src/corpses.ts`
+- `VAULT_GUARD_TIME()`: `packages/content/src/vaultstate.ts`
 - `VIS_EFFECTS()`: `packages/content/src/scatter.ts`
 - `WAND_BACKFIRE_CHANCE()`: `packages/content/src/zap.ts`
 - `invlet_basic()`: `packages/content/src/wish.ts`
 - `isok()`: `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `nonrotting_food()`: `packages/content/src/eat.ts`
+- `um_dist()`: `packages/content/src/vault.ts`
 
 ## include/hacklib.h
 
@@ -227,7 +230,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/mextra.h
 
-- (file): `packages/content/src/dog.ts`, `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`
+- (file): `packages/content/src/dog.ts`, `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`, `packages/content/src/vaultstate.ts`
 - `REPAIR_DELAY()`: `packages/content/src/shopdamage.ts`
 
 ## include/mhitm.h
@@ -342,6 +345,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
 - `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
+- `PM_GUARD()`: `packages/content/src/vault.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
 - `PM_SHOPKEEPER()`: `packages/content/src/eshk.ts`
 
@@ -428,8 +432,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/rm.h
 
-- (file): `packages/content/src/eshk.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
-- `ACCESSIBLE()`: `packages/content/src/jump.ts`
+- (file): `packages/content/src/eshk.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
+- `ACCESSIBLE()`: `packages/content/src/jump.ts`, `packages/content/src/vault.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `D_LOCKED()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`, `packages/core/src/types/mod.ts`
 - `D_NODOOR()`: `packages/core/src/levelgen/grid.ts`
@@ -437,7 +441,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `IS_DOOR()`: `packages/content/src/fountain.ts`
 - `IS_FURNITURE()`: `packages/content/src/terrain.ts`, `packages/content/src/zap.ts`
 - `IS_OBSTRUCTED()`: `packages/content/src/run.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
-- `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`
+- `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/vault.ts`
 - `IS_STWALL()`: `packages/content/src/cast.ts`, `packages/content/src/terrain.ts`
 - `IS_WALL()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
 - `T_LOOTED()`: `packages/content/src/thronestate.ts`
@@ -514,7 +518,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -960,7 +964,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `done_in_by()`: `packages/content/src/mhitu.ts`
 - `ends()`: `packages/content/src/end.en.ts`
 - `get_valuables()`: `packages/content/src/urexp.ts`
-- `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/ui/src/gameover.ts`
+- `paygd()`: `packages/content/src/vault.ts`
+- `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/content/src/vault.ts`, `packages/ui/src/gameover.ts`
 - `savelife()`: `packages/content/src/end.ts`, `packages/content/src/engulf.ts`
 - `should_query_disclose_option()`: `packages/ui/src/gameover.ts`
 
@@ -1448,7 +1453,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_allowflags()`: `packages/content/src/monmove.ts`
 - `mondead()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
 - `mondied()`: `packages/content/src/mondeath.ts`
-- `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/statue.ts`
+- `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
 - `monkilled()`: `packages/content/src/mondeath.ts`
 - `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`
 - `monster_census()`: `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
@@ -2343,11 +2348,33 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/vault.c
 
-- `hidden_gold()`: `packages/content/src/detectobj.ts`, `packages/content/src/shk.ts`, `packages/content/src/urexp.ts`
+- `blackout()`: `packages/content/src/vault.ts`
+- `clear_fcorr()`: `packages/content/src/vault.en.ts`, `packages/content/src/vault.ts`
+- `find_guard_dest()`: `packages/content/src/vault.ts`
+- `findgd()`: `packages/content/src/vaultstate.ts`
+- `free_egd()`: `packages/content/src/vaultstate.ts`
+- `gd_letknow()`: `packages/content/src/vault.ts`
+- `gd_move()`: `packages/content/src/vault.en.ts`, `packages/content/src/vault.ts`, `packages/content/src/vaultstate.ts`
+- `gd_move_cleanup()`: `packages/content/src/vault.ts`
+- `gd_mv_monaway()`: `packages/content/src/vault.ts`
+- `gd_pick_corridor_gold()`: `packages/content/src/vault.ts`
+- `grddead()`: `packages/content/src/vault.ts`
+- `hidden_gold()`: `packages/content/src/detectobj.ts`, `packages/content/src/shk.ts`, `packages/content/src/urexp.ts`, `packages/content/src/vault.ts`
+- `in_fcorridor()`: `packages/content/src/vault.ts`
+- `invault()`: `packages/content/src/vault.en.ts`, `packages/content/src/vault.ts`
+- `move_gold()`: `packages/content/src/vault.ts`
+- `newegd()`: `packages/content/src/vaultstate.ts`
+- `parkguard()`: `packages/content/src/vault.ts`
+- `paygd()`: `packages/content/src/vault.ts`
+- `restfakecorr()`: `packages/content/src/vault.ts`
+- `uleftvault()`: `packages/content/src/vault.ts`, `packages/content/src/vaultstate.ts`
+- `vault_occupied()`: `packages/content/src/vaultstate.ts`
+- `vault_summon_gd()`: `packages/content/src/vaultstate.ts`
+- `wallify_vault()`: `packages/content/src/vault.ts`
 
 ## src/vision.c
 
-- (file): `packages/content/src/mcastu.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/travel.ts`, `packages/content/src/watch.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/mcastu.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/travel.ts`, `packages/content/src/vault.ts`, `packages/content/src/watch.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`
 - `circle_data()`: `packages/content/src/read.ts`, `packages/core/src/vision.ts`
 - `circle_start()`: `packages/core/src/vision.ts`
 - `clear_path()`: `packages/content/src/clearpath.ts`

@@ -2,6 +2,7 @@
 // dropping everything on death.
 // ref: src/makemon.c m_initweap(), m_initinv(), mongets(); src/worn.c m_dowear();
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
+import { egdOf } from './vaultstate';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { hatesSilver } from './mondata';
 import {
@@ -477,7 +478,7 @@ function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   } else if (def.id === 'nh:captain' || def.id === 'nh:watch_captain') {
     w1 = rng.rn2(2) ? 'nh:long_sword' : orElse(ctx, 'nh:silver_saber', 'nh:long_sword');
   } else {
-    // default: other mercenaries (none in the roster: vault guards come later)
+    // default: other mercenaries (the vault guard)
     if (rng.rn2(4) === 0) w1 = 'nh:dagger';
     if (rng.rn2(7) === 0) w2 = 'nh:spear';
   }
@@ -494,12 +495,13 @@ const MERC_AC: Readonly<Record<string, number>> = {
   'nh:captain': -3,
   'nh:watchman': 3,
   'nh:watch_captain': -2,
+  'nh:guard': -1,
 };
 
 /**
  * A mercenary's armor, in five rounds that stop once it is armored enough, then the watchman's
- * tin whistle or the soldiers' K- and C-rations and their officers' bugle.
- * ref: src/makemon.c m_initinv() S_HUMAN `is_mercenary(ptr)` (no vault guards). An object
+ * tin whistle, the vault guard's cursed one, or the soldiers' K- and C-rations and their
+ * officers' bugle. ref: src/makemon.c m_initinv() S_HUMAN `is_mercenary(ptr)`. An object
  * missing from the table (a mod that removes it) is not given; armor then makes no creation
  * rolls, the rations and the bugle make theirs.
  */
@@ -532,6 +534,13 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   // watch captains get a better weapon instead; most watchmen carry a whistle
   if (def.id === 'nh:watchman') {
     if (rng.rn2(3)) mongets(ctx, monId, 'nh:tin_whistle');
+  } else if (def.id === 'nh:guard') {
+    // "if hero teleports out of a vault while being confronted by the vault's guard, there is
+    // a shrill whistling sound, so guard evidently carries a cursed whistle"
+    // (mksobj(TIN_WHISTLE, TRUE, FALSE), curse(), mpickobj())
+    const id = mongets(ctx, monId, 'nh:tin_whistle');
+    const it = id === null ? undefined : ctx.state.entities[String(id)]?.c.item;
+    if (it) it.buc = 'cursed';
   } else if (def.id !== 'nh:watch_captain') {
     // soldiers and their officers: a K-ration, a C-ration, a bugle for officers
     const getsOrRolls = (otyp: string, cls: 'food' | 'tool', material: string): void => {
@@ -1074,6 +1083,17 @@ export function relobj(
   monMoving = false,
 ): void {
   const pos = at ?? ctx.state.entities[String(monId)]?.c.pos;
+  // vault guard's gold goes away rather than be dropped...
+  const mon = ctx.state.entities[String(monId)];
+  if (mon && egdOf(ctx.state, monId)) {
+    const gold = minvent(ctx, monId).filter((o) => objDef(ctx, o.def)?.class === 'coin');
+    if (gold.length > 0 && canseemon(ctx, mon))
+      ctx.emit({ type: 'msg', key: 'vault.guard_gold_vanishes', params: { mon: `@${mon.def}` } });
+    for (const o of gold) {
+      removeFromInventory(ctx, o.id);
+      ctx.remove(o.id);
+    }
+  }
   for (const o of minvent(ctx, monId)) {
     if (pos && monMoving) monFloorEffects(ctx, o, pos);
     if (pos) placeOnFloor(ctx, o.id, pos.level, pos.x, pos.y);

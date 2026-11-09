@@ -48,6 +48,7 @@ import { shirtMessagesEn } from './shirt.en';
 import { fumbleMessagesEn } from './fumble.en';
 import { eggMessagesEn } from './egg.en';
 import { mkroomMessagesEn } from './mkroom.en';
+import { vaultMessagesEn } from './vault.en';
 import { scrollMessagesEn } from './scroll.en';
 
 export const messagesEn: Record<string, string> = {
@@ -56,6 +57,7 @@ export const messagesEn: Record<string, string> = {
   ...fumbleMessagesEn,
   ...eggMessagesEn,
   ...mkroomMessagesEn,
+  ...vaultMessagesEn,
   ...scrollMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
@@ -397,6 +399,7 @@ export const messagesEn: Record<string, string> = {
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',
   'nh:shopkeeper': 'shopkeeper',
+  'nh:guard': 'guard',
   'nh:aligned_cleric': 'priest',
   // m10 batch 1
   'nh:hobgoblin': 'hobgoblin',

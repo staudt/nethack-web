@@ -464,7 +464,7 @@ interface MonsterDef {
   resists: string[]; conveys: string[]; // mresists / mconveys, lowercased MR_ names: 'fire', 'cold', 'sleep', 'disint', 'elec', 'poison', 'acid', 'stone'
   weight: number; nutrition: number; // corpse cwt / cnutrit
   brain: DefId; // must name a registered BrainDef (checked after all mods load)
-  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon, 'seduce' and 'laugh' in m9 step 3 for nymphs and the leprechaun, 'shriek', 'cuss', 'sqawk', 'neigh', 'trumpet', 'imitate' and 'burble' in m10 step 1 for the m10 monster batch, 'boast' in m10 step 4 for the giant row that zombies and mummies need as a corpse, 'were' and 'spell' in m9 step 7 for the human were forms and the barrow wight); absent = silent
+  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon, 'seduce' and 'laugh' in m9 step 3 for nymphs and the leprechaun, 'shriek', 'cuss', 'sqawk', 'neigh', 'trumpet', 'imitate' and 'burble' in m10 step 1 for the m10 monster batch, 'boast' in m10 step 4 for the giant row that zombies and mummies need as a corpse, 'were' and 'spell' in m9 step 7 for the human were forms and the barrow wight, 'guard' in m12 step 7 for the vault guard's #chat line); absent = silent
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass

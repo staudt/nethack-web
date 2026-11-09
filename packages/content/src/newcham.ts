@@ -10,6 +10,7 @@
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square after a change
 // during the monsters' move (no onscary()).
+import { isGuard } from './vaultstate';
 import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';
 import { isGenocided } from './vanquished';
 import { monBreakArmor } from './breakarm';
@@ -45,9 +46,9 @@ export const isPlaceholder = (def: MonsterDef): boolean => PLACEHOLDERS.includes
 /** ref: include/mondata.h polyok(): not M2_NOPOLY */
 export const polyok = (def: MonsterDef): boolean => !def.flags.includes('nopoly');
 
-/** ref: src/mon.c isspecmon(): shopkeepers, temple priests (no vault guards or quest leaders) */
+/** ref: src/mon.c isspecmon(): shopkeepers, temple priests, vault guards (no quest leaders) */
 const isspecmon = (ctx: Ctx, mon: Entity): boolean =>
-  eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null;
+  eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null || isGuard(ctx.state, mon.id);
 
 /**
  * The form `mndx` if the monster may take it: not genocided, not a placeholder, and polyok() (no

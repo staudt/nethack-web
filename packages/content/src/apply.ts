@@ -3,11 +3,13 @@
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
-// src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet()
+// src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet();
+// src/vault.c vault_summon_gd() (a cursed tin whistle)
 //
 // Not ported (see DEVIATIONS.md): the tools outside the subset, Deafness, being underwater,
-// vault guards summoned by a cursed tin whistle, stasis, and the combined
-// one-sentence report of a known magic whistle (each kind of move is its own sentence here).
+// stasis, and the combined one-sentence report of a known magic whistle (each kind of move is
+// its own sentence here).
+import { vaultSummonGd } from './vaultstate';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -106,7 +108,7 @@ function useWhistle(ctx: Ctx, obj: Entity): void {
     how: { key: obj.c.item?.buc === 'cursed' ? 'whistle.shrill' : 'whistle.high' },
   });
   wakeNearby(ctx);
-  // a cursed one summons the vault guard (vault_summon_gd()): no vaults yet
+  if (obj.c.item?.buc === 'cursed') vaultSummonGd(ctx); // a cursed one summons the vault guard
 }
 
 const HOW_MANY = (n: number): string =>
