@@ -34,7 +34,7 @@ export const SPELLS_ID: DefId = 'nh:spells';
 /** Spell retention period, in turns. ref: src/spell.c KEEN */
 export const KEEN = 20000;
 /** How many times a book can be studied. ref: include/spell.h MAX_SPELL_STUDY */
-const MAX_SPELL_STUDY = 3;
+export const MAX_SPELL_STUDY = 3;
 export const BLANK_PAPER: DefId = 'nh:spellbook_of_blank_paper';
 
 /** One entry of spl_book[]: the book type and the turns left before it is forgotten (sp_know). */
@@ -76,10 +76,12 @@ const spellName = (id: DefId): Msg => ({ key: `spell.name.${id}` });
 export const spellet = (i: number): string =>
   i < 26 ? String.fromCharCode(97 + i) : String.fromCharCode(65 + i - 26);
 
-const studied = (ctx: Pick<Ctx, 'state'>, id: EntityId): number =>
+/** obj->spestudied: how many times the book has been studied. */
+export const studied = (ctx: Pick<Ctx, 'state'>, id: EntityId): number =>
   readData(ctx)?.spestudied?.[String(id)] ?? 0;
 
-function setStudied(ctx: Pick<Ctx, 'state'>, id: EntityId, n: number): void {
+/** Sets obj->spestudied. */
+export function setStudied(ctx: Pick<Ctx, 'state'>, id: EntityId, n: number): void {
   const d = spellData(ctx);
   (d.spestudied ??= {})[String(id)] = n;
 }

@@ -48,32 +48,9 @@ export const BOX_PROBS: ClassProbs = [
   { prob: 1, cls: 'amulet', name: 'amulet' },
 ];
 
-/** rnd_class(WAN_LIGHT, WAN_LIGHTNING): every wand, in objects.h order. */
-const WANDS: readonly DefId[] = [
-  'nh:wand_of_light',
-  'nh:wand_of_secret_door_detection',
-  'nh:wand_of_enlightenment',
-  'nh:wand_of_create_monster',
-  'nh:wand_of_wishing',
-  'nh:wand_of_stasis',
-  'nh:wand_of_nothing',
-  'nh:wand_of_striking',
-  'nh:wand_of_slow_monster',
-  'nh:wand_of_speed_monster',
-  'nh:wand_of_undead_turning',
-  'nh:wand_of_cancellation',
-  'nh:wand_of_teleportation',
-  'nh:wand_of_opening',
-  'nh:wand_of_locking',
-  'nh:wand_of_probing',
-  'nh:wand_of_digging',
-  'nh:wand_of_magic_missile',
-  'nh:wand_of_fire',
-  'nh:wand_of_cold',
-  'nh:wand_of_sleep',
-  'nh:wand_of_death',
-  'nh:wand_of_lightning',
-];
+/** Every wand type in objects.h order (the registry's). */
+const wandIds = (ctx: Pick<MkobjCtx, 'defs'>): DefId[] =>
+  ctx.defs.objects.filter((o) => o.class === 'wand').map((o) => o.id);
 
 /** `for (tprob = rnd(100); (tprob -= iprobs->iprob) > 0; iprobs++)` */
 function rollClass(ctx: Pick<MkobjCtx, 'rng'>, probs: ClassProbs): ObjectClass | null {
@@ -307,7 +284,9 @@ export function mkboxCnts(
       }
       // a bag of holding never holds a wand of cancellation: only the type changes
       if (box.def === 'nh:bag_of_holding')
-        while (o.def === 'nh:wand_of_cancellation') o.def = rndClass(ctx.rng, ctx.defs, WANDS, 0);
+        while (o.def === 'nh:wand_of_cancellation')
+          // rnd_class(WAN_LIGHT, WAN_LIGHTNING): every wand, in objects.h order
+          o.def = rndClass(ctx.rng, ctx.defs, wandIds(ctx), 0);
     }
     putIn(ctx.defs, ctx.state, boxId, obj);
   }

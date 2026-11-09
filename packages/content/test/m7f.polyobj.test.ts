@@ -1,6 +1,6 @@
 // m7f-d step 1: the polymorph objects (objects.h order, properties), the polymorph trap kind, the
-// hero's gender and the amulet of change. Polymorphing itself is steps 2-3: here the trap, wand,
-// spell and potion only reach the stub.
+// hero's gender and the amulet of change. The hero's polymorph is step 3: here the trap, wand,
+// spell and potion only reach the stub (monsters and objects: m7f.newcham.test.ts).
 import {
   getLevel,
   getPlayer,
@@ -184,15 +184,6 @@ describe('the polymorph trap', () => {
     const text = s.text(s.step({ type: 'move', dir: 'e' }));
     expect(text).toContain('You float onto a polymorph trap!');
     expect(trapAt(getLevel(s.state), 3, 2)).toBeUndefined();
-  });
-
-  test('a monster on it is unaffected until step 2', () => {
-    const s = room();
-    addTrap(getLevel(s.state), TRAP.poly, 4, 2);
-    const id = addMon(s.state, 'nh:jackal', 4, 2, { asleep: true });
-    const before = s.state.entities[String(id)]!.def;
-    s.step({ type: 'wait' });
-    expect(s.state.entities[String(id)]?.def).toBe(before);
   });
 });
 

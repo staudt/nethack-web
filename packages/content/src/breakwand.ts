@@ -4,8 +4,7 @@
 //
 // Above zap.ts and dig.ts; imported by apply.ts only.
 // A shop's walls and doors dug by a broken wand of digging are damage to pay for.
-// Not ported (see DEVIATIONS.md): polymorph (no such wand), liquid flow into
-// the pits (no pools),
+// Not ported (see DEVIATIONS.md): liquid flow into the pits (no pools),
 // ice, the paranoid_confirmation option (always a y/n question), a hero without hands.
 import {
   NORMAL_SPEED,
@@ -48,6 +47,7 @@ import {
   type ZapSource,
 } from './zap';
 import { ustuck } from './hackmove';
+import { zapsetup, zapwrapup } from './polyobj';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -190,6 +190,7 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
       affectsObjects = true;
       break;
     case WAN.cancellation:
+    case WAN.polymorph:
     case WAN.teleportation:
     case WAN.undeadTurning:
       affectsObjects = true;
@@ -208,6 +209,7 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
 
   const src: ZapSource = { kind: 'wand', item: obj };
   clearBypasses();
+  zapsetup(); // prepare for potential feedback from polymorph...
   const level = getLevel(ctx.state);
   let shopDamage = false;
   // this makes it hit her last, so that she can see the action first
@@ -256,6 +258,8 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
       if (damage && !ctx.state.gameOver) losehp(ctx, damage, '@killer.breakwand.self');
     }
   }
+  // potentially give post zap/break feedback
+  zapwrapup(ctx);
   // if she fell through, this finds nothing: digactualhole() handled the damage
   if (shopDamage && !ctx.state.gameOver) payForDamage(ctx, 'dig into', false);
   if (obj.def === WAN.light && !ctx.state.gameOver) litroom(ctx, true, false);

@@ -605,3 +605,5 @@ export { LAMP, beginBurn, endBurn, igniteItems, lampLights, snuffLit } from './l
 export { objKnown, setObjKnown, setLknown, setCknown } from './items';
 export { BOULDER, boulderAt, blockersOf } from './boulder';
 export { moverock, couldMoveOntoBoulder } from './moverock';
+export { newcham, polyok } from './newcham';
+export { polyObj } from './polyobj';

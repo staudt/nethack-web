@@ -31,6 +31,7 @@ export function monsterDied(
   monId: EntityId,
   byHero: boolean,
   stoned = false,
+  nocorpse = false,
 ): EntityId | null {
   const e = ctx.state.entities[String(monId)];
   if (!e?.c.monster) return null;
@@ -56,7 +57,8 @@ export function monsterDied(
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);
   ctx.remove(monId);
-  if (!byHero || !at || stoned) return statue;
+  // XKILL_NOCORPSE (system shock): no treasure and no corpse
+  if (!byHero || !at || stoned || nocorpse) return statue;
 
   const hero = getPlayer(ctx.state).c.pos;
   const onHero = hero?.level === at.level && hero.x === at.x && hero.y === at.y;

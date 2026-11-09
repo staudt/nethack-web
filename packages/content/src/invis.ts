@@ -108,6 +108,26 @@ export function setMinvis(ctx: Pick<Ctx, 'state'>, mon: Entity, cursedPotion = f
   setFlags(ctx, mon, blocked ? monInvisible(ctx, mon) : perm, perm);
 }
 
+/** ref: include/mondata.h pm_invisible(): the stalker and the black light */
+const pmInvisible = (def: MonsterDef): boolean =>
+  def.id === 'nh:stalker' || def.id === 'nh:black_light';
+
+/**
+ * A polymorphed monster's invisibility follows its new form unless it was made invisible for
+ * good (a wand or potion) in a form not invisible by nature; something it wears may still block
+ * it. ref: src/mon.c newcham() `if (!mtmp->perminvis || pm_invisible(olddata))`
+ */
+export function newchamInvis(
+  ctx: Pick<Ctx, 'state'>,
+  mon: Entity,
+  olddata: MonsterDef,
+  mdat: MonsterDef,
+): void {
+  let perm = monPermInvisible(ctx, mon);
+  if (!perm || pmInvisible(olddata)) perm = pmInvisible(mdat);
+  setFlags(ctx, mon, invisBlocked(ctx, mon) ? false : perm, perm);
+}
+
 /** `mtmp->minvis = mtmp->perminvis = 0` (a shopkeeper or priest made visible). */
 export function clearMinvis(ctx: Pick<Ctx, 'state'>, mon: Entity): void {
   setFlags(ctx, mon, false, false);

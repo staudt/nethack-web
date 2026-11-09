@@ -106,6 +106,8 @@ export const messagesEn: Record<string, string> = {
   'nh:warning_5': 'unknown creature causing you dread',
   'pronoun.him': 'him',
   'pronoun.her': 'her',
+  'pronoun.his': 'his',
+  'pronoun.its': 'its',
   'pronoun.them': 'them',
   'mon.wakes_up': '{mon|The} wakes up!',
   'mon.wakes_up_calm': '{mon|The} wakes up.',

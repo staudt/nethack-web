@@ -2,8 +2,8 @@
 // really_kick_object(), kick_door(), kick_nondoor(), kick_dumb(), kick_ouch(); src/zap.c bhit()
 // (KICKED_WEAPON); src/do.c set_wounded_legs()
 //
-// The hero is a human Valkyrie: no martial arts, no kicking boots, never polymorphed, not riding,
-// not swimming. Those branches are not ported; levitating she needs something to brace against,
+// The hero is a human Valkyrie: no martial arts, never polymorphed, not riding, not swimming.
+// Those branches are not ported (kicking boots are: martial()); levitating she needs something to brace against,
 // misses small monsters wildly, cannot break doors or reach the floor's objects, but is never
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
 // a shop are owed (stolen_value()), and a shop door broken by a kick is damage he wants paid for
@@ -13,7 +13,7 @@
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
 import { bareCorpseTouch } from './stonetouch';
 import { activateStatueTrap } from './statue';
-import { TRAP } from './trap';
+import { TRAP, mintrap } from './trap';
 import {
   DIRS,
   DIR_LIST,
@@ -52,11 +52,11 @@ import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { aAlign, altarWrath } from './align';
 import { monsterIdAt } from './combat';
-import { getdirImpaired } from './hackmove';
+import { getdirImpaired, ustuck } from './hackmove';
 import { experienceFor, gainExperience } from './hero';
 import { gethungry } from './hunger';
 import { losehp } from './hp';
-import { levitating, utrap } from './trapstate';
+import { isMtrapped, levitating, utrap } from './trapstate';
 import { wakeNearto } from './noise';
 import { setWoundedLegs } from './legs';
 
@@ -68,7 +68,7 @@ import { whichArmor } from './mongear';
 import { encumberMsg } from './itemactions';
 import { needsAttackConfirm, askReallyAttack, setmangry, wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
-import { isCancelled } from './mstate';
+import { isCancelled, isFrozen } from './mstate';
 import { P, hasProp, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
@@ -92,6 +92,15 @@ export const KICK_ID: DefId = 'nh:kick';
 
 /** The hero's worn boots (uarmf), what a kick's passive response damages. */
 const uarmf = (ctx: Ctx): Entity | null => whichArmor(ctx, ctx.state.playerId, 'boots');
+
+/** ref: include/objects.h KICKING_BOOTS */
+export const KICKING_BOOTS: DefId = 'nh:kicking_boots';
+
+/**
+ * Kicks like a martial artist: wearing kicking boots (no Monks or Samurai, no sasquatch form).
+ * ref: src/dokick.c martial()
+ */
+const martial = (ctx: Ctx): boolean => uarmf(ctx)?.def === KICKING_BOOTS;
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -347,6 +356,7 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
   const d = DIRS[dir];
 
   let range = Math.trunc(acurrstr(attr(ctx).str) / 2) - Math.trunc(unitWeight(ctx, pile) / 40);
+  if (martial(ctx)) range += ctx.rng.rnd(3);
   // the object has no place to move into
   const nx = x + d.x;
   const ny = y + d.y;
@@ -478,14 +488,19 @@ function maybeMnexto(ctx: Ctx, monId: EntityId): void {
   }
 }
 
-/** ref: src/dokick.c kickdmg() for a hero who is not polymorphed and wears no boots */
-function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
+/**
+ * ref: src/dokick.c kickdmg() for a hero who is not polymorphed: kicking boots add 5 and, as
+ * martial arts, `rn2(Dex / 2 + 1)`, and 1 time in 3 send a small monster reeling a square back
+ * ("The jackal reels from the blow."), onto any trap there
+ */
+function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y: number }): void {
   const target = ctx.state.entities[String(monId)];
   const mon = target?.c.monster;
   if (!target || !mon || !target.c.pos) return;
   const def = ctx.defs.monster(target.def);
   const a = attr(ctx);
   let dmg = Math.trunc((acurrstr(a.str) + a.dex + a.con) / 15);
+  if (uarmf(ctx)?.def === KICKING_BOOTS) dmg += 5;
   if (clumsy) dmg = Math.trunc(dmg / 2); // excessive weight affects Dex, so it affects damage
   if (thickSkinned(def)) dmg = 0; // kicking a dragon or an elephant will not harm it
   // "squeeze some guilt feelings...": a kicked pet is abused and runs off
@@ -494,7 +509,11 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
     if (mon.tame) monflee(ctx, monId, dmg ? ctx.rng.rnd(dmg) : 1, false, false);
     else stopFleeing(ctx, monId);
   }
-  if (dmg > 0) dmg = ctx.rng.rnd(dmg); // martial arts would add rn2(Dex / 2 + 1)
+  if (dmg > 0) {
+    // convert potential damage to actual damage
+    dmg = ctx.rng.rnd(dmg);
+    if (martial(ctx)) dmg += ctx.rng.rn2(Math.trunc(a.dex / 2) + 1);
+  }
   // boots: `dmg += uarmf->spe`
   const boots = inventoryOf(ctx.state, ctx.state.playerId).find(
     (o) => o.c.item?.equipped === 'boots',
@@ -510,16 +529,55 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean): void {
   };
   const hp = target.c.hp;
   if (dmg > 0 && hp) hp.cur -= dmg;
-  const dead = !hp || hp.cur < 1;
+  let trapkilled = false;
+  if (
+    hp &&
+    hp.cur >= 1 &&
+    martial(ctx) &&
+    !bigmonst(def) &&
+    ctx.rng.rn2(3) === 0 &&
+    !isFrozen(ctx, monId) &&
+    ustuck(ctx) !== monId &&
+    !isMtrapped(ctx, monId)
+  ) {
+    // see if the monster has a place to move into
+    const p = target.c.pos;
+    const to = { level: p.level, x: p.x + dir.x, y: p.y + dir.y };
+    if (reelGoodpos(ctx, target, to)) {
+      say(ctx, 'kick.reels', { mon: monNam(ctx, target) });
+      const from = { x: p.x, y: p.y };
+      target.c.pos = to;
+      ctx.emit({ type: 'moved', id: monId, from, to: { x: to.x, y: to.y } });
+      if (mintrap(ctx, monId) === 'killed') trapkilled = true;
+    }
+  }
+  const dead = !hp || hp.cur < 1 || !ctx.state.entities[String(monId)]?.c.monster;
   // ref: passive(mon, uarmf, TRUE, !DEADMONSTER(mon), AT_KICK, FALSE)
   passive(ctx, snap, true, !dead, uarmf(ctx), 'kick');
-  if (dead) {
+  if (dead && !trapkilled) {
     // ref: src/mon.c killed() -> xkilled(): "You kill/destroy it!"
     const nonliving = def.flags.includes('undead') || def.id === 'nh:manes';
     say(ctx, nonliving ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, target) });
     monsterDied(ctx, monId, true);
     gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
   }
+}
+
+/**
+ * goodpos() for a monster sent reeling: a square in bounds it could stand on, with no other
+ * creature and no boulder (unless it throws rocks). ref: src/teleport.c goodpos()
+ */
+function reelGoodpos(ctx: Ctx, mon: Entity, p: { level: string; x: number; y: number }): boolean {
+  const level = getLevel(ctx.state, p.level);
+  if (!inBounds(level, p.x, p.y)) return false;
+  if (!cellRules(level, ctx.defs).passable[level.cells[cellIndex(level, p.x, p.y)] ?? 0])
+    return false;
+  const hp = hero(ctx).c.pos;
+  if (hp && hp.level === p.level && hp.x === p.x && hp.y === p.y) return false;
+  if (monsterIdAt(ctx, { x: p.x, y: p.y }, p.level) !== null) return false;
+  return (
+    !boulderAt(ctx, p.level, p.x, p.y) || ctx.defs.monster(mon.def).flags.includes('rockthrow')
+  );
 }
 
 /**
@@ -558,12 +616,19 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
   const j = weightCap(ctx.state, ctx.state.playerId);
   let clumsy = false;
   if (i < Math.trunc((j * 3) / 10)) {
+    let doit = false;
     if (ctx.rng.rn2(i < Math.trunc(j / 10) ? 2 : i < Math.trunc(j / 5) ? 3 : 4) === 0) {
-      say(ctx, 'kick.clumsy_no_damage');
-      passiveMiss();
-      return;
+      if (martial(ctx))
+        doit = true; // goto doit
+      else {
+        say(ctx, 'kick.clumsy_no_damage');
+        passiveMiss();
+        return;
+      }
     }
-    if (i < Math.trunc(j / 10)) clumsy = true;
+    if (doit) {
+      // skips the clumsiness checks
+    } else if (i < Math.trunc(j / 10)) clumsy = true;
     else if (ctx.rng.rn2(i < Math.trunc(j / 5) ? 2 : 3) === 0) clumsy = true;
   }
   // (Fumbling and bulky body armor would also make the kick clumsy: not ported)
@@ -577,7 +642,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     !mon.asleep &&
     def.speed >= 12
   ) {
-    if (!def.flags.includes('nohands') && ctx.rng.rn2(3) === 0) {
+    if (!def.flags.includes('nohands') && ctx.rng.rn2(martial(ctx) ? 5 : 3) === 0) {
       say(ctx, clumsy ? 'kick.blocks_clumsy' : 'kick.blocks', { mon: name });
       passiveMiss();
       return;
@@ -600,7 +665,8 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
       return;
     }
   }
-  kickdmg(ctx, monId, clumsy);
+  const hp = hero(ctx).c.pos;
+  kickdmg(ctx, monId, clumsy, hp ? { x: x - hp.x, y: y - hp.y } : { x: 0, y: 0 });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -655,9 +721,10 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
       }
     }
   }
-  // KMH -- Kicking boots always succeed (not ported)
+  // KMH -- Kicking boots always succeed
   const a = attr(ctx);
-  const avrg = Math.trunc((acurrstr(a.str) + a.dex + a.con) / 3);
+  const avrg =
+    uarmf(ctx)?.def === KICKING_BOOTS ? 99 : Math.trunc((acurrstr(a.str) + a.dex + a.con) / 3);
 
   const mtmp = inBounds(level, x, y) ? monsterIdAt(ctx, { x, y }, pos.level) : null;
   if (mtmp !== null) {

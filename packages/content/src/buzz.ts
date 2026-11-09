@@ -130,14 +130,17 @@ function monAt(ctx: Ctx, x: number, y: number): Entity | null {
 const cansee = (ctx: Ctx, x: number, y: number): boolean =>
   heroSees(ctx, { level: heroPos(ctx).level, x, y });
 
-/** The hero kills the monster: "You kill it!", then experience. ref: src/mon.c killed(), xkilled() */
-export function killedByHero(ctx: Ctx, mon: Entity): void {
+/**
+ * The hero kills the monster: "You kill it!", then experience; `nocorpse` leaves neither corpse
+ * nor treasure (XKILL_NOCORPSE). ref: src/mon.c killed(), xkilled()
+ */
+export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
   const m = mon.c.monster;
   if (!m) return;
   const def = ctx.defs.monster(mon.def);
   say(ctx, nonliving(def) ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, mon) });
   const level = m.level;
-  monsterDied(ctx, mon.id, true);
+  monsterDied(ctx, mon.id, true, false, nocorpse);
   gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 

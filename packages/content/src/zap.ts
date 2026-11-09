@@ -55,12 +55,24 @@ import {
   type Trap,
 } from '@nh/core';
 import { breaktest } from './material';
+import { bypassObj, clearBypasses, isBypassed } from './bypass';
 import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped, unaware } from './btrapped';
 import { BOULDER, blockersOf, fractureRock } from './boulder';
 import { activateStatueTrap, breakStatue } from './statue';
 import { stoneToFleshObj } from './stoneflesh';
+import { newcham } from './newcham';
+import {
+  createPolymon,
+  doOsshock,
+  objShudders,
+  objUnpolyable,
+  polyObj,
+  zapsetup,
+  zapwrapup,
+} from './polyobj';
+import { fillPit } from './flooreffects';
 import { STATUE } from './statuestate';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
@@ -83,6 +95,7 @@ import { wakeup } from './peaceful';
 import {
   buzzFrom,
   flashburn,
+  killedByHero,
   resist,
   resistsMagm,
   sleepMonst,
@@ -254,15 +267,7 @@ const cansee = (ctx: Ctx, x: number, y: number): boolean =>
 const itemsHere = (ctx: Ctx, x: number, y: number): Entity[] =>
   itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y);
 const CORPSE: DefId = 'nh:corpse';
-/**
- * Corpses left by undead the current zap destroyed: the same zap does not revive them.
- * ref: context.bypasses, obj->bypass (cleared when each zap starts; never part of the state)
- */
-const bypassed = new Set<EntityId>();
-/** A new zap (or a wand breaking) starts: no corpse is bypassed. ref: clear_bypasses() */
-export function clearBypasses(): void {
-  bypassed.clear();
-}
+export { clearBypasses };
 const trapHere = (level: Level, x: number, y: number): Trap | undefined =>
   level.traps.find((t) => t.x === x && t.y === y);
 
@@ -772,6 +777,30 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     case WAN.cancellation:
       cancelMonst(ctx, mon, src, true, false);
       break;
+    case WAN.polymorph:
+    case SPE.polymorph:
+      if (resistsMagm(ctx, mon)) {
+        // magic resistance protects from polymorph traps, so make it guard against involuntary
+        // polymorph attacks too... (shieldeff_mon() is not shown)
+      } else if (!resist(ctx, mon, 0, oclass)) {
+        const giveMsg =
+          !hasProp(hero(ctx), P.HALLUC) && (canseemon(ctx, mon) || engulfingU(ctx, mon.id));
+        // dropped inventory (due to death by system shock, or loss of wielded weapon and/or worn
+        // armor due to limitations of new shape) won't be hit by this zap
+        for (const o of minvent(ctx, mon.id)) bypassObj(o.id);
+        // natural shapechangers aren't affected by system shock (none exist)
+        if (!ctx.rng.rn2(25)) {
+          if (canseemon(ctx, mon)) {
+            say(ctx, 'zap.shudders', { mon: monNam(ctx, mon) });
+            learnIt = true;
+          }
+          // no corpse after system shock
+          killedByHero(ctx, mon, true);
+        } else if (newcham(ctx, mon, null, { polyspot: true, msg: giveMsg })) {
+          if (giveMsg && (canSpotMon(ctx, mon) || engulfingU(ctx, mon.id))) learnIt = true;
+        }
+      }
+      break;
     case WAN.undeadTurning: {
       wake = false;
       if (unturnDead(ctx, mon)) wake = true;
@@ -784,7 +813,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         // context.bypasses: a corpse it leaves is not revived by this same zap
         const before = new Set(itemsHere(ctx, at.x, at.y).map((o) => o.id));
         const resisted = resist(ctx, mon, dmg, oclass);
-        for (const o of itemsHere(ctx, at.x, at.y)) if (!before.has(o.id)) bypassed.add(o.id);
+        for (const o of itemsHere(ctx, at.x, at.y)) if (!before.has(o.id)) bypassObj(o.id);
         if (!resisted && alive(ctx, mon.id)) monflee(ctx, mon.id, 0, false, true);
       }
       break;
@@ -831,7 +860,22 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
   let res = 0;
   let learnIt = false;
   const otyp = otypOf(src);
+  // a monster's gear dropped by its polymorph, a corpse of an undead this zap destroyed
+  if (isBypassed(obj.id)) return 0;
   switch (otyp) {
+    case WAN.polymorph:
+    case SPE.polymorph:
+      if (objUnpolyable(ctx, obj)) break;
+      res = 1;
+      // (no polypile conduct; a box's lock context is dropped when the box is gone)
+      if (objShudders(ctx, obj)) {
+        if (cansee(ctx, x, y)) learnIt = true;
+        const material = doOsshock(ctx, obj, x, y, polyZapped === null);
+        if (material !== null) polyZapped = material;
+        break;
+      }
+      polyObj(ctx, obj, null);
+      break;
     case WAN.probing:
       // only containers and statues tell anything new (every object is dknown here)
       if (isContainer(ctx.defs, obj) || obj.def === STATUE) {
@@ -900,7 +944,7 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       break;
     case WAN.undeadTurning: {
       // eggs: nothing hatches yet (revive_egg() not ported)
-      if (obj.def !== CORPSE || bypassed.has(obj.id)) break;
+      if (obj.def !== CORPSE) break;
       const corpsname = cxnameSingular(ctx, obj);
       // get corpse's location before revive() uses it up
       const r = revive(ctx, obj, true);
@@ -930,7 +974,14 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
   return res;
 }
 
-/** ref: src/zap.c bhitpile(): every object on the square; the number affected */
+/** gp.poly_zapped: the material of a shuddering object that may meld the pile into a golem */
+let polyZapped: string | null = null;
+
+/**
+ * ref: src/zap.c bhitpile(): every object on the square; the number affected. Then polypiling
+ * may make a golem (create_polymon()), boulders go back on top of the pile, and a boulder made
+ * there fills a pit (fill_pit()).
+ */
 export function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number {
   let hit = 0;
   const otyp = otypOf(src);
@@ -940,10 +991,29 @@ export function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number
     const t = trapHere(levelOf(ctx), x, y);
     if (t?.def === TRAP.statue && activateStatueTrap(ctx, levelId, t, true)) learn(ctx, src);
   }
-  for (const o of itemsAt(ctx.defs, ctx.state, heroPos(ctx).level, x, y)) {
-    if (!ctx.state.entities[String(o.id)]) continue;
+  polyZapped = null;
+  const levelId = heroPos(ctx).level;
+  // the pile from the top down
+  const pileOf = (): Entity[] =>
+    itemsAt(ctx.defs, ctx.state, levelId, x, y).sort(
+      (a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || b.id - a.id,
+    );
+  for (const o of pileOf()) {
+    if (!ctx.state.entities[String(o.id)]?.c.pos) continue;
     hit += bhito(ctx, o, src, x, y);
   }
+  if (polyZapped !== null) createPolymon(ctx, pileOf(), polyZapped);
+  // boulders are expected to be on top: re-stack the pile when a non-boulder is above one
+  // (recreate_pile_at())
+  const pile = pileOf();
+  const firstNon = pile.findIndex((o) => o.def !== BOULDER);
+  if (firstNon >= 0 && pile.slice(firstNon).some((o) => o.def === BOULDER)) {
+    for (const o of [...pile].reverse()) {
+      const it = o.c.item;
+      if (it && o.def === BOULDER) it.placed = ctx.state.seq++;
+    }
+  }
+  if (levelId === ctx.state.currentLevel) fillPit(ctx, x, y);
   return hit;
 }
 
@@ -1601,7 +1671,7 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
  * zap_updown() for an immediate one up or down; a spell's ray has `u.ulevel / 2 + 1` dice
  */
 export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void {
-  bypassed.clear();
+  clearBypasses();
   const otyp = otypOf(src);
   const kind =
     src.kind === 'wand'
@@ -1624,6 +1694,7 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
     return;
   }
   if (kind === 'immediate') {
+    zapsetup(); // reset obj_zapped
     // ref: weffects(): `if (u.uswallow) (void) bhitm(u.ustuck, obj)`
     const sw = uswallow(ctx);
     const engulfer = sw ? ent(ctx, sw.mon) : undefined;
@@ -1631,6 +1702,7 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
     else if (dir === 'up' || dir === 'down') {
       if (zapUpdown(ctx, src, dir)) learnScored(ctx, src);
     } else bhit(ctx, src, dir);
+    zapwrapup(ctx); // give feedback for obj_zapped
     return;
   }
   if (otyp === WAN.digging) {

@@ -1,5 +1,6 @@
 // English text for polymorph. ref: src/polyself.c polyself(); src/trap.c trapeffect_poly_trap();
-// src/potion.c peffect_polymorph()
+// src/potion.c peffect_polymorph(); src/mon.c newcham(); src/worn.c mon_break_armor(); src/zap.c
+// bhitm(), zapwrapup()
 export const polyselfMessagesEn: Record<string, string> = {
   'poly.potion': 'You feel a little strange.',
   'poly.potion.halluc': 'You feel a little normal.',
@@ -7,4 +8,42 @@ export const polyselfMessagesEn: Record<string, string> = {
   'polytrap.float_onto': 'You float onto a polymorph trap!',
   'polytrap.momentarily_different': 'You feel momentarily different.',
   'polytrap.change_coming': 'You feel a change coming over you.',
+  'polytrap.warps': 'Your {item} warps strangely.',
+  // newcham()
+  'newcham.turns_into': '{mon|The} turns into {into|an}!',
+  'newcham.turns_into_tame': 'Your {mon} turns into {into|an}!',
+  'newcham.disappears': '{mon|The} disappears!',
+  'newcham.disappears_tame': 'Your {mon} disappears!',
+  'newcham.appears': '{mon|An} appears!',
+  'newcham.appears_tame': 'Your {mon} appears!',
+  'newcham.break_out': 'You break out of {mon|the}!',
+  'newcham.break_out_stomach': 'You break out of {mon|the_s} stomach!',
+  'newcham.emerge': 'You emerge from {mon|the}!',
+  'newcham.emerge_stomach': 'You emerge from {mon|the_s} stomach!',
+  // bhitm() system shock; zapwrapup()
+  'zap.shudders': '{mon|The} shudders!',
+  'polyobj.shuddering': 'You feel shuddering vibrations.',
+  // mon_break_armor()
+  'monarm.mon_breaks_out': '{mon|The} breaks out of {his} armor!',
+  'monarm.hear_cracking': 'You hear a cracking sound.',
+  'monarm.cloak_tears': '{mon|The_s} {cloak} tears apart!',
+  'monarm.hear_ripping': 'You hear a ripping sound.',
+  'monarm.shirt_rips': '{mon|The_s} shirt rips to shreds!',
+  'monarm.armor_falls': '{mon|The_s} armor falls around {him}!',
+  'monarm.hear_thud': 'You hear a thud.',
+  'monarm.cloak_unsupported': '{mon|The_s} {cloak} falls, unsupported!',
+  'monarm.shrinks_out': '{mon|The} shrinks out of {his} {cloak}!',
+  'monarm.seeps_through': '{mon|The} seeps right through {his} shirt!',
+  'monarm.too_small_shirt': '{mon|The} becomes much too small for {his} shirt!',
+  'monarm.drops_gloves': '{mon|The} drops {his} gloves!',
+  'monarm.drops_gloves_weapon': '{mon|The} drops {his} gloves and weapon!',
+  'monarm.no_shield': '{mon|The} can no longer hold {his} shield!',
+  'monarm.hear_clank': 'You hear a clank.',
+  'monarm.helmet_falls': '{mon|The_s} helmet falls to the {surface}!',
+  'monarm.boots_fall_away': '{mon|The_s} boots fall away!',
+  'monarm.boots_slide': '{mon|The_s} boots slide off {his} feet!',
+  'monarm.boots_pushed': '{mon|The_s} boots are pushed off {his} feet!',
+  'monarm.cloak.cloak': 'cloak',
+  'monarm.cloak.robe': 'robe',
+  'monarm.cloak.wrapping': 'wrapping',
 };

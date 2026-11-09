@@ -32,6 +32,7 @@ export const kickMessagesEn: Record<string, string> = {
   'kick.you_kick_mon': 'You kick {mon|the}.',
   'kick.clumsy_no_damage': 'Your clumsy kick does no damage.',
   'kick.blocks': '{mon|The} blocks your kick.',
+  'kick.reels': '{mon|The} reels from the blow.',
   'kick.blocks_clumsy': '{mon|The} blocks your clumsy kick.',
   'kick.evades': '{mon|The} {verb}, {how} evading your {kick}.',
   'kick.verb.jumps': 'jumps',

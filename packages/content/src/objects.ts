@@ -1158,7 +1158,7 @@ export const OBJECTS: readonly ObjectDef[] = [
     armor: { slot: 'boots', ac: 2, mc: 0 },
   },
   // ref: objects.h BOOTS("jumping boots", "hiking boots", 0, 1, JUMPING, 12, 2, 20, 50, 9, 0, LEATHER, HI_LEATHER, JUMPING_BOOTS)
-  // (the only boots of the shuffled range here, so the description stays: o_init.ts SHUFFLED)
+  // (the boots of the shuffled range here keep their own descriptions: o_init.ts SHUFFLED)
   {
     id: 'nh:jumping_boots',
     nameKey: 'nh:jumping_boots',
@@ -1174,6 +1174,23 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 2,
     armor: { slot: 'boots', ac: 1, mc: 0 },
     prop: 'jumping',
+  },
+  // ref: objects.h BOOTS("kicking boots", "buckled boots", 0, 1, 0, 12, 2, 50, 8, 9, 0, IRON, CLR_BROWN, KICKING_BOOTS)
+  // (the boots of the shuffled range here keep their own descriptions: DEVIATIONS.md Jumping)
+  {
+    id: 'nh:kicking_boots',
+    nameKey: 'nh:kicking_boots',
+    descKey: 'nh:kicking_boots.desc',
+    class: 'armor',
+    glyph: { ch: '[', fg: BROWN },
+    prob: 12,
+    weight: 50,
+    cost: 8,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 2,
+    armor: { slot: 'boots', ac: 1, mc: 0 },
   },
   // ref: objects.h SHIELD("Uruk-hai shield", "white-handed shield", 0, 0, 0, 0, 2, 0, 50, 7, 9, 0, IRON, HI_METAL, URUK_HAI_SHIELD)
   {

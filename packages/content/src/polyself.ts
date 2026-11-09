@@ -1,17 +1,36 @@
-// The hero's polymorph. Step 1 of 7f-d: the polymorph trap's effect on the hero and the entry
-// point `polyself()` that the wand, the spell, the potion and the trap call; polyself() itself is
-// still a silent stub until step 3 builds the forms (D5/D6).
+// The hero's polymorph and the polymorph trap. The trap's effect on the hero and on monsters
+// (newcham.ts), and the entry point `polyself()` that the wand, the spell, the potion and the
+// trap call; polyself() itself is still a silent stub until step 3 builds the forms (D5/D6).
 // ref: src/polyself.c polyself(); src/trap.c trapeffect_poly_trap()
 //
-// Not ported yet: the iron shoes branch of the polymorph trap (3.7: they warp into kicking boots,
-// which do not exist here), steeds, sitting on the trap (VIASITTING).
-import { getPlayer, type Ctx, type Entity, type Msg, type Trap } from '@nh/core';
+// Not ported yet: steeds, sitting on the trap (VIASITTING).
+import { getPlayer, type Ctx, type DefId, type Entity, type Msg, type Trap } from '@nh/core';
+import { resist, resistsMagm } from './buzz';
+import { prinv } from './itemactions';
 import { levitating } from './levitation';
+import { newcham } from './newcham';
+import { xnameOf } from './objnam';
+import { polyObj } from './polyobj';
 import { P, hasProp } from './props';
-import { TRAP, deltrap, seetrap, setTrapEffect, type TrapResult } from './trap';
+import {
+  TRAP,
+  canseemon,
+  deltrap,
+  ironShoes,
+  seetrap,
+  setTrapEffect,
+  type TrapResult,
+} from './trap';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+const IRON_SHOES: DefId = 'nh:iron_shoes';
+const KICKING_BOOTS: DefId = 'nh:kicking_boots';
+
+/** Iron shoes and kicking boots warp into each other. */
+const warpedBoots = (boots: Entity): DefId =>
+  boots.def === IRON_SHOES ? KICKING_BOOTS : IRON_SHOES;
 
 /** polyself()'s flags. ref: include/hack.h POLY_CONTROLLED, POLY_MONSTER, POLY_REVERT, POLY_LOW_CTRL */
 export interface PolyFlags {
@@ -29,10 +48,11 @@ export function polyself(_ctx: Ctx, _flags: PolyFlags = {}): void {
 }
 
 /**
- * The hero on a polymorph trap: "You step onto a polymorph trap!"; magic resistance or
- * Unchanging: "You feel momentarily different." and the trap stays; otherwise the trap is used
- * up, "You feel a change coming over you." and she polymorphs.
- * ref: src/trap.c trapeffect_poly_trap() for the hero (no steed, no iron shoes branch)
+ * The hero on a polymorph trap: "You step onto a polymorph trap!"; iron shoes (or kicking boots)
+ * use the trap up and warp into kicking boots (or iron shoes): "Your pair of hard shoes warps
+ * strangely." and the new inventory line; magic resistance or Unchanging: "You feel momentarily
+ * different." and the trap stays; otherwise the trap is used up, "You feel a change coming over
+ * you." and she polymorphs. ref: src/trap.c trapeffect_poly_trap() for the hero (no steed)
  */
 function polyTrapYou(ctx: Ctx, trap: Trap): void {
   const h = getPlayer(ctx.state);
@@ -41,6 +61,14 @@ function polyTrapYou(ctx: Ctx, trap: Trap): void {
   seetrap(trap);
   // u_locomotion("step"): "float" while levitating (no Flying here)
   say(ctx, levitating(ctx) ? 'polytrap.float_onto' : 'polytrap.step_onto');
+  const shoes = ironShoes(ctx, h.id);
+  if (shoes) {
+    deltrap(ctx, p.level, trap);
+    say(ctx, 'polytrap.warps', { item: xnameOf(ctx.state, ctx.defs, shoes) });
+    const boots = polyObj(ctx, shoes, warpedBoots(shoes));
+    if (boots.c.item?.carriedBy === h.id) prinv(ctx, boots);
+    return;
+  }
   if (hasProp(h, P.ANTIMAGIC) || hasProp(h, P.UNCHANGING)) {
     // shieldeff() is not shown; trap did nothing; don't remove it --KAA
     say(ctx, 'polytrap.momentarily_different');
@@ -52,10 +80,23 @@ function polyTrapYou(ctx: Ctx, trap: Trap): void {
 }
 
 /**
- * A monster on a polymorph trap. ref: src/trap.c trapeffect_poly_trap() for a monster -- 7f-d
- * step 2 (newcham()); until then nothing happens.
+ * A monster on a polymorph trap: its iron shoes (or kicking boots) warp into the other kind and
+ * stay on; magic resistance shields it; otherwise unless it resists (a wand's saving throw) it
+ * changes into a random monster ("The jackal turns into a gnome!") and the trap is seen when the
+ * hero saw it. The trap stays. ref: src/trap.c trapeffect_poly_trap() for a monster
  */
-function polyTrapMon(_ctx: Ctx, _mon: Entity, _trap: Trap): TrapResult {
+function polyTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
+  const inSight = canseemon(ctx, mon);
+  const shoes = ironShoes(ctx, mon.id);
+  if (shoes) {
+    // (taken off and put back on: the new boots stay worn)
+    polyObj(ctx, shoes, warpedBoots(shoes));
+  } else if (resistsMagm(ctx, mon)) {
+    // shieldeff_mon(): not shown
+  } else if (!resist(ctx, mon, 0, 'wand')) {
+    newcham(ctx, mon, null, { msg: true });
+    if (inSight) seetrap(trap);
+  }
   return 'finished';
 }
 

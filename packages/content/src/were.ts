@@ -10,6 +10,8 @@ import {
   type MonsterSound,
   type Msg,
 } from '@nh/core';
+import { monBreakArmor } from './breakarm';
+import { bypassObj } from './bypass';
 import { makemon } from './generation';
 import { placeOnFloor } from './items';
 import { isFleeing } from './monflee';
@@ -33,9 +35,10 @@ const fullMoon = (): boolean => false;
 /**
  * A monster whose new form has no weapon attack drops its wielded weapon ("The wererat drops a
  * long sword."); one that still has one looks for its best weapon again.
+ * `polyspot`: the zap that polymorphed it does not hit the dropped weapon.
  * ref: src/weapon.c possibly_unwield() (no water or lava under it: flooreffects() is moot)
  */
-export function possiblyUnwield(ctx: Ctx, mon: Entity): void {
+export function possiblyUnwield(ctx: Ctx, mon: Entity, polyspot = false): void {
   const mw = monWep(ctx, mon.id);
   if (!mw) return;
   const def = ctx.defs.monster(mon.def);
@@ -45,6 +48,7 @@ export function possiblyUnwield(ctx: Ctx, mon: Entity): void {
     setMonFlag(ctx, 'nowep', mon.id, true); // NO_WEAPON_WANTED
     if (p && cansee(ctx, p.level, p.x, p.y))
       say(ctx, 'were.drops', { mon: monNam(ctx, mon), item: doname(ctx.state, ctx.defs, mw) });
+    if (polyspot) bypassObj(mw.id); // not hit by the zap that polymorphed it
     if (p) placeOnFloor(ctx, mw.id, p.level, p.x, p.y);
     return;
   }
@@ -56,7 +60,7 @@ export function possiblyUnwield(ctx: Ctx, mon: Entity): void {
  * The were creature changes form: "The wererat changes into a rat." (or "into a human") when
  * seen; a helpless one wakes and can move again, it regains a quarter of its lost hit points and a
  * beast drops its weapon. ref: src/were.c new_were() (no Protection_from_shape_changers: no such
- * ring; mon_break_armor() is 7f; the monflee() for a scary square is not ported, as onscary())
+ * ring; the monflee() for a scary square is not ported, as onscary())
  */
 export function newWere(ctx: Ctx, mon: Entity): void {
   const pm = counterWere(mon.def);
@@ -78,7 +82,7 @@ export function newWere(ctx: Ctx, mon: Entity): void {
   // regenerate by 1/4 of the lost hit points
   const hp = mon.c.hp;
   if (hp) hp.cur = Math.min(hp.cur + Math.trunc((hp.max - hp.cur) / 4), hp.max);
-  // mon_break_armor(mon, FALSE): 7f
+  monBreakArmor(ctx, mon, false);
   possiblyUnwield(ctx, mon);
 }
 
