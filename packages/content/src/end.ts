@@ -3,13 +3,14 @@
 // Every death of the hero goes through `done()`, so a worn amulet of life saving can intercept
 // it, and so can a mod's `beforeGameOver` hook (wizard mode).
 // Not ported: the high-score "while attempting to cheat Death" reason (no score list), lava
-// traps, polymorph, Unchanging.
+// traps, a polymorphed hero who sticks to a monster ("You release it.": no sticking forms yet).
 import { getPlayer, inventoryOf, type Ctx, type Entity, type Msg } from '@nh/core';
 import { removeFromInventory } from './items';
 import { nomul } from './nomul';
 import { discover } from './o_init';
 import { monNam } from './perception';
-import { P, hasProp, updateWornProps } from './props';
+import { P, hasProp, setIntrinsic, updateWornProps } from './props';
+import { ownHp, upolyd } from './upoly';
 import { hungerData, initUhunger } from './uhunger';
 import { setUstuck, ustuck } from './hackmove';
 import { setEndHow, type How } from './endstate';
@@ -75,12 +76,16 @@ function savelife(ctx: Ctx, how: How): void {
   if (xp && xp.level < 1) xp.level = 1;
   const con = hero.c.attributes?.con ?? 10;
   const givehp = 50 + 10 * Math.trunc(con / 2);
-  const hp = hero.c.hp;
+  // her own hit points (parked while polymorphed); a polymorphed hero (Unchanging, or a death
+  // that bypasses losing hit points) also gets the form's back
+  const hp = ownHp(ctx.state);
   if (hp) {
     const uhpmin = Math.max(xp?.level ?? 1, 10); // minuhpmax(10)
     if (hp.max < uhpmin) hp.max = uhpmin;
     hp.cur = Math.min(hp.max, givehp);
   }
+  const mh = hero.c.hp;
+  if (upolyd(ctx.state) && mh) mh.cur = Math.min(mh.max, givehp);
   if ((hero.c.hunger?.nutrition ?? 900) < 500 || how === 'choking') initUhunger(ctx);
   // cure impending doom of sickness hero won't have time to fix: the sickness that killed her
   // has run out (`(Sick & TIMEOUT) == 1`)
@@ -90,6 +95,7 @@ function savelife(ctx: Ctx, how: How): void {
   // (as nomulNow(): from inside a monster's move the extra energy is taken at once)
   const extra = nomul(ctx, 1, 'helpless.cheat_death', { key: 'lifesave.survived' });
   if (hero.c.actor) hero.c.actor.energy -= extra;
+  setIntrinsic(hero, P.UNCHANGING, false); // HUnchanging = 0L
   const stuck = ustuck(ctx);
   if (stuck !== null) {
     const mon = ctx.state.entities[String(stuck)];

@@ -2,10 +2,9 @@
 // the role's start (the Valkyrie is always female at the start). Gendered messages pick their key
 // from it, as C picks the word. A leaf module (core only).
 // ref: src/polyself.c change_sex(), poly_gender(); include/you.h uhis()
-//
-// Not here yet: the polymorphed hero's form gender (u.mfemale, neuter and non-humanoid forms):
-// 7f-d step 3.
-import type { GameState, Json } from '@nh/core';
+// While polymorphed flags.female is the form's sex and her own is upoly.ts's `mfemale`.
+import type { Ctx, GameState, Json } from '@nh/core';
+import { upolyOf } from './upoly';
 
 type Table = { [k: string]: Json };
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -30,16 +29,24 @@ export function setHeroFemale(state: GameState, female: boolean): void {
 
 /**
  * The hero's gender as monsters see it: 0 male, 1 female, 2 none (a neuter or non-humanoid
- * form). ref: src/polyself.c poly_gender() (no forms yet: her own gender)
+ * form). ref: src/polyself.c poly_gender()
  */
 export function polyGender(state: Readonly<GameState>): 0 | 1 | 2 {
+  if (upolyOf(state)?.neuter) return 2;
   return heroFemale(state) ? 1 : 0;
 }
 
 /**
- * The hero changes sex. ref: src/polyself.c change_sex() (unpolymorphed: flags.female flips; the
- * role name is the Valkyrie's either way; no forms yet)
+ * The hero changes sex: flags.female flips unless her form is always one sex or neuter, and while
+ * polymorphed her own sex (u.mfemale, restored when she returns) flips too. The role name is the
+ * Valkyrie's either way. ref: src/polyself.c change_sex() (no amorous demon form)
  */
-export function changeSex(state: GameState): void {
-  setHeroFemale(state, !heroFemale(state));
+export function changeSex(ctx: Pick<Ctx, 'state' | 'defs'>): void {
+  const u = upolyOf(ctx.state);
+  const form = u && ctx.defs.isMonster(u.form) ? ctx.defs.monster(u.form) : null;
+  const fixed =
+    form !== null &&
+    (form.flags.includes('male') || form.flags.includes('female') || form.flags.includes('neuter'));
+  if (!u || !fixed) setHeroFemale(ctx.state, !heroFemale(ctx.state));
+  if (u) u.mfemale = !u.mfemale; // poly'd: also change saved sex
 }

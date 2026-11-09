@@ -33,6 +33,7 @@ import {
   WIZ_WISH,
   WIZ_CAST,
   WIZ_LEVELCHANGE,
+  WIZ_POLYSELF,
   WIZ_TELEPORT,
   CAST_BOOKS,
   MAXULEV,
@@ -75,6 +76,7 @@ describe('the wizard mod', () => {
       WIZ_IDENTIFY,
       WIZ_GENESIS,
       WIZ_LEVELCHANGE,
+      WIZ_POLYSELF,
       WIZ_CAST,
     ]);
   });

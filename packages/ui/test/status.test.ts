@@ -86,6 +86,11 @@ describe('statusLines line 2', () => {
     expect(l2.at(-1)?.cls).toBe('nh-hp-crit');
   });
 
+  test('polymorphed: HD:n in place of Xp (ref: src/botl.c)', () => {
+    const [, l2] = statusLines({ xl: 3, xp: 40, hd: 2, turn: 5 });
+    expect(l2.map((f) => f.text)).toEqual(['HD:2', 'T:5']);
+  });
+
   test('mild states have no critical class; absent fields are omitted', () => {
     const [, l2] = statusLines({ turn: 3, hunger: 'hungry', encumbrance: 'burdened' });
     expect(l2.map((f) => f.text)).toEqual(['T:3', 'Hungry', 'Burdened']);

@@ -33,6 +33,7 @@ import { wakeNearto } from './noise';
 import { monNam } from './perception';
 import { discover } from './o_init';
 import { canseemon, monVisible } from './invis';
+import { rehumanize, upolyd } from './upoly';
 import {
   P,
   hasExtrinsic,
@@ -51,8 +52,8 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
- * A monster hit the hero for `n` points of damage: she dies at 0 HP.
- * ref: src/mhitu.c mdamageu() -> src/end.c done_in_by(). `killer` is the death reason (a
+ * A monster hit the hero for `n` points of damage: she dies at 0 HP (polymorphed: returns to her
+ * own form). ref: src/mhitu.c mdamageu() -> src/end.c done_in_by(). `killer` is the death reason (a
  * message key such as '@nh:newt').
  */
 export function mdamageu(ctx: Ctx, n: number, killer: string): void {
@@ -63,7 +64,8 @@ export function mdamageu(ctx: Ctx, n: number, killer: string): void {
   hp.cur -= n;
   // caller might have reduced uhpmax before calling mdamageu()
   if (hp.cur > hp.max) hp.cur = hp.max;
-  if (hp.cur < 1) {
+  if (hp.cur < 1 && upolyd(ctx.state)) rehumanize(ctx);
+  else if (hp.cur < 1) {
     say(ctx, 'combat.you_die');
     done(ctx, killer);
   }

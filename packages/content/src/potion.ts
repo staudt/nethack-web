@@ -18,7 +18,8 @@ import { bcsign } from './items';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { pluslvl, setUlevelmax, ulevelmax } from './hero';
-import { polyself } from './polyself';
+import { polyself, youWere } from './polyself';
+import { upolyd } from './upoly';
 import { ulycn, youUnwere } from './werestate';
 import { heroEntity, useup } from './magic';
 import { nomulNow } from './hunger';
@@ -292,22 +293,23 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
     const hp = heroEntity(ctx).c.hp;
     if (hp) hp.cur -= ctx.rng.d(2, 6);
   } else msg(ctx, 'potion.water_unholy');
-  // unholy water and a lycanthrope: you_were() turns her into the beast (7f)
+  // unholy water and a lycanthrope in her own form: she turns into the beast
+  if (buc === 'cursed' && ulycn(ctx.state) !== null && !upolyd(ctx.state)) youWere(ctx);
   return { unknown: true };
 }
 
 /**
  * "You feel a little strange." and, unless Unchanging, she polymorphs; a blessed one gives
- * control (a low one) when she is in her own form. ref: src/potion.c peffect_polymorph() (the
- * timeout cap of a blessed potion's form is 7f-d step 3's)
+ * control (a low one) when she is in her own form, and the form lasts rn2(15) + 10 turns at most.
+ * ref: src/potion.c peffect_polymorph()
  */
 function peffectPolymorph(ctx: Ctx, p: Entity): Effect {
   const h = heroEntity(ctx);
   msg(ctx, hasProp(h, P.HALLUC) ? 'poly.potion.halluc' : 'poly.potion');
   if (!hasProp(h, P.UNCHANGING)) {
-    // (u.umonnum != u.umonster: no forms yet)
-    if (p.c.item?.buc !== 'blessed') polyself(ctx);
-    else polyself(ctx, { controlled: true, low: true });
+    if (p.c.item?.buc !== 'blessed' || upolyd(ctx.state)) polyself(ctx);
+    // controlled, then the form's time capped (after the prompt's answer)
+    else polyself(ctx, { controlled: true, low: true, cap: true });
   }
   return { unknown: false };
 }

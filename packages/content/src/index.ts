@@ -45,7 +45,7 @@ import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
 import { registerTeleportitis, registerTraps, teleAction } from './trap';
 import { registerMagicTraps } from './magictrap';
-import { registerPolyTrap } from './polyself';
+import { registerPolyTimeout, registerPolyTrap, registerPolymorphitis } from './polyself';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
@@ -133,6 +133,7 @@ export const vanillaMod: Mod = {
     registerStoning(api); // ahead of the strangling timer, as nh_timeout()
     registerJewelry(api);
     registerLevitation(api);
+    registerPolyTimeout(api); // u.mtimedone after levitation_dialogue(), as nh_timeout()
     registerAutosearch(api);
     for (const a of EAT_ACTIONS) api.defineAction(a);
     registerCorpses(api);
@@ -163,6 +164,7 @@ export const vanillaMod: Mod = {
     registerShuffle(api);
     registerHero(api);
     registerTeleportitis(api); // after regen_pw(), as moveloop_core()
+    registerPolymorphitis(api); // after teleportitis, as moveloop_core()
     registerGeneration(api);
     registerMklev(api);
     registerPriest(api); // before the LevelDef contents, as create_altar()
@@ -186,6 +188,7 @@ export {
   WIZ_DIE,
   WIZ_CAST,
   WIZ_LEVELCHANGE,
+  WIZ_POLYSELF,
   WIZ_TELEPORT,
   parseGenesis,
   OPEN_DUNGEON_LEVELS,
@@ -607,3 +610,5 @@ export { BOULDER, boulderAt, blockersOf } from './boulder';
 export { moverock, couldMoveOntoBoulder } from './moverock';
 export { newcham, polyok } from './newcham';
 export { polyObj } from './polyobj';
+export { polyself, polymon, newman, rehumanize, youWere, POLYSELF_ID } from './polyself';
+export { heroForm, heroFormId, upolyOf, upolyd, type UPoly } from './upoly';

@@ -1,10 +1,11 @@
 // Hero stats for the stub Valkyrie: initial attributes/HP/Pw/kit, HP and Pw regeneration and experience.
-import type { AttributesComponent, Ctx, EntityId, ModApi, MonsterDef } from '@nh/core';
+import type { AttributesComponent, Ctx, Entity, EntityId, ModApi, MonsterDef } from '@nh/core';
 import { giveStartingKit } from './kit';
 import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
 import { nearCapacity } from './stats';
 import { pwOf, setPw } from './uenergy';
+import { monhpPerLvl, ownHp, upolyd } from './upoly';
 import { moreExperienced } from './urexp';
 
 /**
@@ -316,15 +317,25 @@ export function setUlevelmax(ctx: Pick<Ctx, 'state'>, value: number, ulevel: num
  * Gains one experience level: HP, then Pw, then the level and its intrinsics. `incr` is true for
  * experience growth and false for a level gained outright ("You feel more experienced.").
  * The gains are recorded for level drain (u.uhpinc[], u.ueninc[]), and a level lost before is
- * welcomed back. ref: src/exper.c pluslvl(), src/attrib.c newhp(), src/exper.c newpw(). No
- * polymorph, no rank achievements or livelog.
+ * welcomed back. While polymorphed the form gains monhp_per_lvl() hit points first, then her own
+ * (parked) ones grow. ref: src/exper.c pluslvl(), src/attrib.c newhp(), src/exper.c newpw(). No
+ * rank achievements or livelog.
  */
 export function pluslvl(ctx: Ctx, heroId: EntityId, incr: boolean): void {
   const hero = ctx.state.entities[String(heroId)];
   const xp = hero?.c.experience;
-  const hp = hero?.c.hp;
+  const hp = heroId === ctx.state.playerId ? ownHp(ctx.state) : hero?.c.hp;
   if (!hero || !xp || !hp) return;
   if (!incr) ctx.emit({ type: 'msg', key: 'exp.more_experienced' });
+  // increase hit points (when polymorphed, do monster form first in order to retain normal
+  // human/whatever increase for later)
+  const mh = hero.c.hp;
+  if (upolyd(ctx.state) && mh) {
+    const hpinc = monhpPerLvl(ctx);
+    mh.cur += hpinc;
+    mh.max += hpinc; // setuhpmax(u.mhmax + hpinc, FALSE)
+    if (mh.cur > mh.max) mh.cur = mh.max;
+  }
   const inc = newhp(ctx, xp.level, hero.c.attributes?.con ?? 10, hp.max);
   hp.cur += inc;
   hp.max += inc;
@@ -381,6 +392,10 @@ function regenHp(ctx: Ctx): void {
   const hp = hero?.c.hp;
   if (!hero || !hp || hp.cur < 1 || hp.cur >= hp.max) return;
   if (uState(state).uinvulnerable) return; // "for the moment at least, you're in tiptop shape"
+  if (upolyd(state)) {
+    regenFormHp(ctx, hero, hp);
+    return;
+  }
   const level = hero.c.experience?.level ?? 1;
   const con = hero.c.attributes?.con ?? 10;
   let heal = level + con > ctx.rng.rn2(100) ? 1 : 0;
@@ -392,6 +407,20 @@ function regenHp(ctx: Ctx): void {
 
 /** ref: include/hack.h MOD_ENCUMBER (Stressed) */
 const MOD_ENCUMBER = 2;
+
+/**
+ * The polymorphed hero's form (u.mh) heals 1 point on turns divisible by 20 while not Stressed,
+ * or every turn with Regeneration (a form like a troll's gives it). Her own hit points do not
+ * heal meanwhile. ref: src/allmain.c regen_hp() Upolyd (no eels: no such forms; `u.umoved` is
+ * not kept, so a Stressed hero never heals this way)
+ */
+function regenFormHp(ctx: Ctx, hero: Entity, hp: { cur: number; max: number }): void {
+  const sleeping = hasProp(hero, P.SLEEPY) && hero.c.helpless?.reasonKey === 'helpless.asleep';
+  const canRegen = hasProp(hero, P.REGENERATION) || sleeping; // U_CAN_REGEN()
+  const encumbranceOk = nearCapacity(ctx.state, ctx.defs, hero.id) < MOD_ENCUMBER;
+  if (canRegen || (encumbranceOk && ctx.state.turn % 20 === 0))
+    hp.cur = Math.min(hp.cur + 1, hp.max);
+}
 
 /**
  * Energy regeneration: on the turns where `moves % ((MAXULEV + 8 - ulevel) * 4 / 6)` is 0 (the

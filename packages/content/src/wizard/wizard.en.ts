@@ -9,6 +9,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'action.wiz:genesis': 'Wizard: create a monster',
   'action.wiz:die': 'Wizard: die',
   'action.wiz:levelchange': 'Wizard: change experience level',
+  'action.wiz:polyself': 'Wizard: polymorph self',
   'action.wiz:cast': 'Wizard: cast any spell',
   'wiz.cast.prompt': 'Cast which spell?',
   'wiz.levelchange.prompt': 'To what experience level do you want to be set?',

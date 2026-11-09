@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3283 citations.
+152 NetHack files, 3323 citations.
 
 ## dat/dungeon.lua
 
@@ -114,6 +114,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/attrib.ts`, `packages/content/src/combat.ts`, `packages/content/src/hero.ts`, `packages/core/src/types/entity.ts`
 - `A_STR()`: `packages/content/src/fountain.ts`
+- `STR18()`: `packages/content/src/polyself.ts`
+- `STR19()`: `packages/content/src/polyself.ts`
 
 ## include/color.h
 
@@ -244,6 +246,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MZ_TINY()`: `packages/content/src/mthrowu.ts`
 - `S_BAT()`: `packages/content/src/monmove.ts`
 - `acidic()`: `packages/content/src/dog.ts`
+- `amorphous()`: `packages/content/src/polyself.ts`
 - `bigmonst()`: `packages/content/src/corpses.ts`, `packages/content/src/dokick.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`
 - `can_teleport()`: `packages/content/src/monmove.ts`
 - `cantweararm()`: `packages/content/src/mongear.ts`
@@ -260,7 +263,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `herbivorous()`: `packages/content/src/dog.ts`
 - `humanoid()`: `packages/content/src/peaceful.ts`
 - `is_animal()`: `packages/content/src/steal.ts`
+- `is_bat()`: `packages/content/src/polyself.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
+- `is_floater()`: `packages/content/src/polyself.ts`
 - `is_giant()`: `packages/content/src/givit.ts`
 - `is_human()`: `packages/content/src/werestate.ts`
 - `is_mercenary()`: `packages/content/src/mongear.ts`
@@ -279,21 +284,23 @@ whole. A missing function may still be ported under a citation this parser canno
 - `noncorporeal()`: `packages/content/src/breakarm.ts`
 - `nonliving()`: `packages/content/src/mondata.ts`
 - `perceives()`: `packages/content/src/invis.ts`
-- `pm_invisible()`: `packages/content/src/invis.ts`
+- `pm_invisible()`: `packages/content/src/invis.ts`, `packages/content/src/polyself.ts`
 - `poisonous()`: `packages/content/src/dog.ts`
 - `polyok()`: `packages/content/src/newcham.ts`
 - `regenerates()`: `packages/content/src/mstate.ts`
 - `resists_ston()`: `packages/content/src/stonestate.ts`
 - `slithy()`: `packages/content/src/adtyping.ts`
-- `telepathic()`: `packages/content/src/givit.ts`, `packages/content/src/price.ts`
+- `sticks()`: `packages/content/src/polyself.ts`
+- `telepathic()`: `packages/content/src/givit.ts`, `packages/content/src/polyself.ts`, `packages/content/src/price.ts`
 - `thick_skinned()`: `packages/content/src/dokick.ts`
 - `touch_petrifies()`: `packages/content/src/stonestate.ts`
 - `tunnels()`: `packages/content/src/mdig.ts`
-- `unsolid()`: `packages/content/src/mhitm.ts`
+- `unsolid()`: `packages/content/src/mhitm.ts`, `packages/content/src/polyself.ts`
 - `vegan()`: `packages/content/src/dog.ts`, `packages/content/src/meat.ts`
 - `vegetarian()`: `packages/content/src/mondata.ts`, `packages/content/src/shtypes.ts`
 - `verysmall()`: `packages/content/src/breakarm.ts`, `packages/content/src/monmove.ts`
-- `webmaker()`: `packages/content/src/trap.ts`
+- `webmaker()`: `packages/content/src/polyself.ts`, `packages/content/src/trap.ts`
+- `your_race()`: `packages/content/src/polyself.ts`
 
 ## include/monflag.h
 
@@ -462,14 +469,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
 - `uhis()`: `packages/content/src/gender.ts`
 
 ## include/youprop.h
 
-- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/core/src/types/entity.ts`
 
 ## src/allmain.c
 
@@ -478,7 +485,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -515,7 +522,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/attrib.c
 
-- (file): `packages/content/src/resist.en.ts`
+- (file): `packages/content/src/polyself.ts`, `packages/content/src/resist.en.ts`
 - `acurr()`: `packages/content/src/attrib.ts`
 - `acurrstr()`: `packages/content/src/stats.ts`
 - `adjabil()`: `packages/content/src/props.ts`
@@ -544,11 +551,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/botl.c
 
-- (file): `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
+- (file): `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
 - `BL_MASK_LEV()`: `packages/content/src/levitation.ts`
 - `bl_stone()`: `packages/content/src/stoning.ts`
 - `bl_strngl()`: `packages/content/src/jewelry.ts`
-- `bot2()`: `packages/content/src/hero.ts`
+- `bot2()`: `packages/content/src/hero.ts`, `packages/ui/src/status.ts`
 - `get_strength_str()`: `packages/ui/src/status.ts`
 
 ## src/cmd.c
@@ -893,6 +900,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `newpw()`: `packages/content/src/hero.ts`
 - `newuexp()`: `packages/content/src/hero.ts`
 - `pluslvl()`: `packages/content/src/hero.ts`, `packages/content/src/were.en.ts`, `packages/content/src/wizard/levelchange.ts`
+- `rndexp()`: `packages/content/src/polyself.ts`
 
 ## src/explode.c
 
@@ -988,6 +996,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `night()`: `packages/content/src/adtyping.ts`, `packages/content/src/were.ts`
 - `online2()`: `packages/content/src/monmove.ts`
 - `ordin()`: `packages/app/src/scores.ts`
+- `rounddiv()`: `packages/content/src/polyself.ts`
 - `sgn()`: `packages/content/src/shk.ts`
 
 ## src/include/mondata.h
@@ -1087,8 +1096,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `makemon_rnd_goodpos()`: `packages/content/src/generation.ts`
 - `mkclass()`: `packages/content/src/generation.ts`
 - `mkclass_aligned()`: `packages/content/src/generation.ts`
+- `mkclass_poly()`: `packages/content/src/polyself.ts`
 - `mkmonmoney()`: `packages/content/src/mongear.ts`
 - `mongets()`: `packages/content/src/mongear.ts`
+- `monhp_per_lvl()`: `packages/content/src/upoly.ts`
 - `newmonhp()`: `packages/content/src/generation.ts`
 - `peace_minded()`: `packages/content/src/generation.ts`
 - `rndmonst_adj()`: `packages/content/src/generation.ts`
@@ -1353,6 +1364,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_learns_traps()`: `packages/content/src/trapstate.ts`
 - `mons_see_trap()`: `packages/content/src/trap.ts`
 - `name_to_mon()`: `packages/content/src/mondata.ts`
+- `name_to_monclass()`: `packages/content/src/polyself.ts`
 - `name_to_monplus()`: `packages/content/src/mondata.ts`
 - `num_horns()`: `packages/content/src/breakarm.ts`
 - `on_fire()`: `packages/content/src/adtyping.ts`
@@ -1522,8 +1534,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/trapstate.ts`
 - `change_sex()`: `packages/content/src/gender.ts`
 - `mbodypart()`: `packages/content/src/trap.ts`
+- `newman()`: `packages/content/src/polyself.ts`
 - `poly_gender()`: `packages/content/src/gender.ts`
-- `polyself()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`
+- `polyman()`: `packages/content/src/polyself.ts`
+- `polymon()`: `packages/content/src/polyself.ts`
+- `polyself()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`, `packages/content/src/wizard/polyself.ts`
+- `rehumanize()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`
+- `set_uasmon()`: `packages/content/src/polyself.ts`
+- `uasmon_maxStr()`: `packages/content/src/polyself.ts`
 
 ## src/potion.c
 
@@ -1547,7 +1565,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_hallucination()`: `packages/content/src/potion.ts`
 - `peffect_healing()`: `packages/content/src/potion.ts`
 - `peffect_invisibility()`: `packages/content/src/potion.ts`
-- `peffect_polymorph()`: `packages/content/src/potion.ts`
+- `peffect_polymorph()`: `packages/content/src/polyself.ts`, `packages/content/src/potion.ts`
 - `peffect_see_invisible()`: `packages/content/src/potion.ts`
 - `peffect_sleeping()`: `packages/content/src/potion.ts`
 - `peffect_water()`: `packages/content/src/potion.ts`
@@ -1658,7 +1676,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/were.en.ts`
 - `Hello()`: `packages/content/src/shk.ts`
 - `aligns()`: `packages/content/src/disclose.ts`
-- `races()`: `packages/content/src/attrib.ts`, `packages/content/src/hero.ts`
+- `races()`: `packages/content/src/attrib.ts`, `packages/content/src/hero.ts`, `packages/content/src/polyself.ts`
 - `roles()`: `packages/content/src/disclose.ts`, `packages/content/src/generation.ts`, `packages/content/src/hero.ts`, `packages/content/src/spellcalc.ts`
 
 ## src/rumors.c
@@ -1949,7 +1967,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fall_asleep()`: `packages/content/src/adtyping.ts`, `packages/content/src/trap.ts`
 - `incr_itimeout()`: `packages/content/src/props.ts`
 - `lantern_message()`: `packages/content/src/light.ts`
-- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stoning.ts`
+- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stoning.ts`
 - `set_itimeout()`: `packages/content/src/props.ts`
 - `stoned_dialogue()`: `packages/content/src/stoning.ts`
 - `stoned_texts()`: `packages/content/src/stoning.en.ts`
@@ -2149,7 +2167,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `were_beastie()`: `packages/content/src/werestate.ts`
 - `were_change()`: `packages/content/src/were.ts`
 - `were_summon()`: `packages/content/src/were.ts`
-- `you_unwere()`: `packages/content/src/werestate.ts`
+- `you_unwere()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`, `packages/content/src/werestate.ts`
+- `you_were()`: `packages/content/src/polyself.ts`
 
 ## src/wield.c
 
@@ -2181,6 +2200,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wiz_level_change()`: `packages/content/src/wizard/levelchange.ts`
 - `wiz_level_tele()`: `packages/content/src/wizard/levelport.ts`
 - `wiz_map()`: `packages/content/src/wizard/map.ts`
+- `wiz_polyself()`: `packages/content/src/wizard/polyself.ts`
 - `wiz_where()`: `packages/content/src/wizard/where.ts`
 - `wiz_wish()`: `packages/content/src/wizard/wish.ts`
 

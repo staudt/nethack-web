@@ -1,6 +1,6 @@
 // m7f-d step 1: the polymorph objects (objects.h order, properties), the polymorph trap kind, the
-// hero's gender and the amulet of change. The hero's polymorph is step 3: here the trap, wand,
-// spell and potion only reach the stub (monsters and objects: m7f.newcham.test.ts).
+// hero's gender and the amulet of change. The hero's polymorph is m7f.polyself.test.ts: here the trap, wand,
+// spell and potion reach it (monsters and objects: m7f.newcham.test.ts).
 import {
   getLevel,
   getPlayer,
@@ -187,7 +187,7 @@ describe('the polymorph trap', () => {
   });
 });
 
-describe('the potion, the wand and the spell (polyself() is a stub until step 3)', () => {
+describe('the potion, the wand and the spell (the polymorph itself: m7f.polyself.test.ts)', () => {
   test('the potion: "You feel a little strange." and it is identified', () => {
     const s = room();
     const p = s.carry('nh:potion_of_polymorph');

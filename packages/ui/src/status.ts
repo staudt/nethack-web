@@ -60,6 +60,7 @@ const HANDLED: ReadonlySet<string> = new Set([
   'ac',
   'xl',
   'xp',
+  'hd',
   'turn',
   'hunger',
   'encumbrance',
@@ -105,7 +106,10 @@ export function statusLines(
   const ac = num(s, 'ac');
   if (ac !== undefined) l2.push({ text: `AC:${ac}` });
   const xl = num(s, 'xl');
-  if (xl !== undefined) {
+  const hd = num(s, 'hd');
+  // polymorphed: the form's level in place of the experience level (ref: src/botl.c bot2())
+  if (hd !== undefined) l2.push({ text: `HD:${hd}` });
+  else if (xl !== undefined) {
     const xp = num(s, 'xp');
     l2.push({ text: xp !== undefined ? `Xp:${xl}/${xp}` : `Xp:${xl}` });
   }

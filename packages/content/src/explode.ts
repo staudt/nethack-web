@@ -44,6 +44,7 @@ import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
 import { setmangry, wakeup } from './peaceful';
 import { P, hasProp } from './props';
+import { rehumanize, upolyd } from './upoly';
 import { payForDamage } from './shkpay';
 
 /** The explosion's look (C's EXPL_* colours). ref: include/hack.h explosion types */
@@ -339,7 +340,10 @@ export function explode(
       hp.cur -= damu;
       ctx.interrupt();
     }
-    if (hp && hp.cur <= 0) {
+    if (hp && hp.cur <= 0 && upolyd(ctx.state)) {
+      rehumanize(ctx);
+      if (ctx.state.gameOver) return;
+    } else if (hp && hp.cur <= 0) {
       say(ctx, later ? 'explode.the_x_fatal' : 'explode.fatal', { what: strMsg });
       const killer = monExpl
         ? generic

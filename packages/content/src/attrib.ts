@@ -1,6 +1,8 @@
 // Attribute changes and poison. ref: src/attrib.c adjattrib(), poisoned(), poisontell(), gainstr()
 import { getPlayer, type AttributesComponent, type Ctx, type GameState, type Msg } from '@nh/core';
+import { done } from './end';
 import { losehp } from './hp';
+import { ownHp, upolyd } from './upoly';
 import { P, hasProp } from './props';
 
 export type Attr = keyof AttributesComponent;
@@ -100,10 +102,14 @@ export function poisoned(
   if (i === 0 && typ !== 'cha') {
     // sometimes survivable instant kill
     let loss = 6 + ctx.rng.d(4, 6); // 10..34
-    if (hp.cur <= loss) {
-      hp.cur = -1;
+    // (C's FIXME: this operates on u.uhp[max] even when hero is polymorphed)
+    const own = ownHp(ctx.state) ?? hp;
+    if (own.cur <= loss) {
+      own.cur = -1;
       ctx.emit({ type: 'msg', key: 'poison.deadly' });
-      losehp(ctx, 0, killer); // dies
+      if (upolyd(ctx.state))
+        done(ctx, killer); // u.uhp < 1 kills her in any form (no "You die...")
+      else losehp(ctx, 0, killer); // dies
     } else {
       // survived, but with severe reaction: maximum HP drops too
       const olduhp = hp.cur;

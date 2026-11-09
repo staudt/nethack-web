@@ -12,6 +12,7 @@ import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience, pluslvl, setUlevelmax, ulevelmax } from './hero';
 import { losexp } from './exper';
 import { ulycn, youUnwere } from './werestate';
+import { ownHp, upolyd } from './upoly';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -173,7 +174,7 @@ export function inTrouble(ctx: Ctx): number {
   if (isStrangled(h)) return TROUBLE_STRANGLED;
   if (hungerData(ctx).sick) return TROUBLE_SICK;
   if (uhs(ctx) >= HUNGER_RANK.weak!) return TROUBLE_STARVING;
-  if (criticallyLowHp(ctx)) return TROUBLE_HIT;
+  if ((!upolyd(ctx.state) || hasProp(h, P.UNCHANGING)) && criticallyLowHp(ctx)) return TROUBLE_HIT;
   if (ulycn(ctx.state) !== null) return TROUBLE_LYCANTHROPE;
   if (!freehand(ctx) && weldedWeapon(ctx)) return TROUBLE_UNUSEABLE_HANDS;
   if (worstCursedItem(ctx)) return TROUBLE_CURSED_ITEMS;
@@ -228,7 +229,12 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
     case TROUBLE_HIT: {
       // "fix all troubles" keeps trying at 5 or less hit points, so always more than that
       say(ctx, 'pray.much_better');
-      const hp = h.c.hp;
+      const mh = h.c.hp;
+      if (upolyd(ctx.state) && mh) {
+        mh.max = Math.max(mh.max + ctx.rng.rnd(5), 5 + 1); // setuhpmax(..., FALSE): the form's
+        mh.cur = mh.max;
+      }
+      const hp = ownHp(ctx.state); // u.uhpmax is updated even when polymorphed
       if (!hp) break;
       let maxhp = hp.max;
       if (maxhp < (h.c.experience?.level ?? 1) * 5 + 11) maxhp += ctx.rng.rnd(5);

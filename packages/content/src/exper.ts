@@ -6,6 +6,7 @@ import { done } from './end';
 import { levelIncrements, newuexp, setUlevelmax, ulevelmax } from './hero';
 import { adjabil } from './props';
 import { pwOf, setPw } from './uenergy';
+import { heroForm, monhpPerLvl, ownHp, rehumanize, upolyd } from './upoly';
 import { ulycn } from './werestate';
 
 /** The `drainer` of wizard mode's #levelchange: never fatal, not resisted. */
@@ -13,10 +14,21 @@ export const LEVELCHANGE = '#levelchange';
 
 /**
  * Whether the hero resists level drain: a lycanthrope does (is_were() for the hero in human
- * form). ref: src/mondata.c resists_drli() with `mon == &youmonst` (no Drain_resistance from
- * artifacts or polymorph: 7f)
+ * form), and so does a hero polymorphed into an undead, demon or were form (set_uasmon()'s
+ * Drain_resistance FROMFORM). ref: src/mondata.c resists_drli() with `mon == &youmonst` (no
+ * Drain_resistance from artifacts)
  */
-export const resistsDrliHero = (ctx: Pick<Ctx, 'state'>): boolean => ulycn(ctx.state) !== null;
+export function resistsDrliHero(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
+  if (ulycn(ctx.state) !== null) return true;
+  const form = heroForm(ctx);
+  return (
+    form !== null &&
+    (form.flags.includes('undead') ||
+      form.flags.includes('demon') ||
+      form.flags.includes('were') ||
+      form.id === 'nh:death')
+  );
+}
 
 /**
  * The hero loses an experience level: "Goodbye level 4.", the intrinsics and weapon-skill slot of
@@ -24,7 +36,8 @@ export const resistsDrliHero = (ctx: Pick<Ctx, 'state'>): boolean => ulycn(ctx.s
  * life-saving minimum, nor above the old maximum), and the experience points down to just below
  * the new level. At level 1 a `drainer` (a death reason key) kills her ("killed by life
  * drainage"); with none (divine anger, a fire trap) she only loses all her experience points.
- * ref: src/exper.c losexp() (no livelog, sounds or polymorphed hit points: 7f)
+ * While polymorphed the form loses monhp_per_lvl() hit points too and may return to her own form.
+ * ref: src/exper.c losexp() (no livelog or sounds)
  */
 export function losexp(ctx: Ctx, drainer: string | null): void {
   // override life-drain resistance when handling an explicit wizard mode request to reduce
@@ -33,7 +46,7 @@ export function losexp(ctx: Ctx, drainer: string | null): void {
   else if (resistsDrliHero(ctx)) return;
   const hero = getPlayer(ctx.state);
   const xp = hero.c.experience;
-  const hp = hero.c.hp;
+  const hp = ownHp(ctx.state); // u.uhp/u.uhpmax, parked while polymorphed
   if (!xp || !hp) return;
   // "Goodbye level 1." is fatal; divine anger (no drainer) at level 1 says nothing
   if (xp.level > 1 || drainer)
@@ -69,4 +82,11 @@ export function losexp(ctx: Ctx, drainer: string | null): void {
   else if (uen > uenmax) uen = uenmax;
   setPw(ctx, { uenmax, uen });
   if (xp.points > 0) xp.points = newuexp(xp.level) - 1;
+  const mh = hero.c.hp;
+  if (upolyd(ctx.state) && mh) {
+    const num = monhpPerLvl(ctx);
+    mh.max -= num;
+    mh.cur -= num;
+    if (mh.cur <= 0) rehumanize(ctx);
+  }
 }

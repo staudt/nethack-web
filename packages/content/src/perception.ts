@@ -15,6 +15,7 @@ import {
 } from '@nh/core';
 import { P, hasExtrinsic, hasProp, heroHas } from './props';
 import { STATUE } from './statuestate';
+import { heroFormId } from './upoly';
 import {
   REMEMBERED_UNSEEN_APPEARANCE,
   cantSeeSelf,
@@ -169,12 +170,21 @@ export function registerPerception(api: ModApi): void {
   });
   // invisibility: an invisible monster is not seen on a visible square unless she sees invisible
   // (mon_visible()), and an invisible hero who can't see invisible can't see herself
-  // (canspotself()); `self` answers null otherwise so that later defs (a polymorph form) get a turn
+  // (canspotself()); a polymorphed hero is drawn as her form (display_self()), unseen or not, so
+  // both answers come from this one def; null otherwise so that later defs get a turn
   api.defineAppearance(REMEMBERED_UNSEEN_APPEARANCE);
   api.definePerception({
     id: 'nh:invisibility',
     hides: (state, _defs, mon) => monInvisible({ state }, mon) && !seeInvisible(state),
-    self: (state) => (cantSeeSelf(state) ? { unseen: true } : null),
+    self: (state) => {
+      const form = heroFormId(state);
+      const unseen = cantSeeSelf(state);
+      if (form === null && !unseen) return null;
+      return {
+        ...(form !== null ? { g: form } : {}),
+        ...(unseen ? { unseen: true as const } : {}),
+      };
+    },
   });
   api.definePerception({
     id: 'nh:senses',

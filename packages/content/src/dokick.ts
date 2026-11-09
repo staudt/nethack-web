@@ -2,7 +2,8 @@
 // really_kick_object(), kick_door(), kick_nondoor(), kick_dumb(), kick_ouch(); src/zap.c bhit()
 // (KICKED_WEAPON); src/do.c set_wounded_legs()
 //
-// The hero is a human Valkyrie: no martial arts, never polymorphed, not riding, not swimming.
+// The hero is a human Valkyrie: no martial arts but kicking boots or a sasquatch form, not riding,
+// not swimming; other polymorphed forms kick as she does (step 4/5 of 7f-d).
 // Those branches are not ported (kicking boots are: martial()); levitating she needs something to brace against,
 // misses small monsters wildly, cannot break doors or reach the floor's objects, but is never
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
@@ -87,6 +88,7 @@ import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 
 import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
+import { heroFormId } from './upoly';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -97,10 +99,11 @@ const uarmf = (ctx: Ctx): Entity | null => whichArmor(ctx, ctx.state.playerId, '
 export const KICKING_BOOTS: DefId = 'nh:kicking_boots';
 
 /**
- * Kicks like a martial artist: wearing kicking boots (no Monks or Samurai, no sasquatch form).
- * ref: src/dokick.c martial()
+ * Kicks like a martial artist: wearing kicking boots or polymorphed into a sasquatch (is_bigfoot();
+ * no Monks or Samurai). ref: src/dokick.c martial()
  */
-const martial = (ctx: Ctx): boolean => uarmf(ctx)?.def === KICKING_BOOTS;
+const martial = (ctx: Ctx): boolean =>
+  uarmf(ctx)?.def === KICKING_BOOTS || heroFormId(ctx.state) === 'nh:sasquatch';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });

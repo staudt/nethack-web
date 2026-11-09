@@ -323,7 +323,7 @@ function amuletOn(ctx: Ctx, amul: Entity): void {
       const origSex = polyGender(ctx.state);
       // in normal play it's not possible to put on an amulet of change while already wearing an
       // amulet of unchanging, but Unchanging may come from elsewhere (wizard mode in C)
-      if (!hasProp(h, P.UNCHANGING)) changeSex(ctx.state);
+      if (!hasProp(h, P.UNCHANGING)) changeSex(ctx);
       const newSex = polyGender(ctx.state);
       if (newSex !== origSex) discover(ctx, amul.def);
       prinv(ctx, amul); // on_msg(): "z - an amulet of change (being worn)."

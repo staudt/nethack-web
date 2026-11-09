@@ -10,6 +10,8 @@
 // uprops[].extrinsic, set by setworn()): it is cached on the wearer as the entry
 // `props['<name>:worn']` (present while some worn item gives it), rebuilt by `updateWornProps()`
 // whenever the hero's accessories change and as a safety net after every action and turn.
+// The polymorphed hero's form confers its properties the same way (C's FROMFORM bits):
+// `props['<name>:form']`, written by `setFormProps()` (set_uasmon()).
 import {
   getPlayer,
   inventoryOf,
@@ -73,15 +75,41 @@ export const P = {
 
 /** The cached extrinsic entry of a property (see the header). */
 const wornKey = (name: string): string => `${name}:worn`;
+/** The entry of a property the polymorphed hero's form gives (FROMFORM; see setFormProps()). */
+const formKey = (name: string): string => `${name}:form`;
 
 /** True when a worn item gives the property (EFoo). */
 export const hasExtrinsic = (e: Entity | undefined, name: string): boolean =>
   e?.c.props?.[wornKey(name)] !== undefined;
 
+/** True when the polymorphed hero's form gives the property (HFoo & FROMFORM). */
+export const hasFromForm = (e: Entity | undefined, name: string): boolean =>
+  e?.c.props?.[formKey(name)] !== undefined;
+
 /** True while the entity has the property, permanently or on a timer. ref: youprop.h (e.g. Stunned) */
 export function hasProp(e: Entity | undefined, name: string): boolean {
   const p = e?.c.props?.[name];
-  return (p !== undefined && (p.intrinsic || p.timeout > 0)) || hasExtrinsic(e, name);
+  return (
+    (p !== undefined && (p.intrinsic || p.timeout > 0)) ||
+    hasExtrinsic(e, name) ||
+    hasFromForm(e, name)
+  );
+}
+
+/**
+ * Sets the properties the hero's form gives (C's FROMFORM bits, set by set_uasmon()): an entry
+ * `props['<name>:form']` for each, every other `:form` entry removed (none in her own form).
+ */
+export function setFormProps(e: Entity, names: readonly string[]): void {
+  const want = new Set(names.map(formKey));
+  const props = e.c.props;
+  for (const k of Object.keys(props ?? {}).sort()) {
+    if (k.endsWith(':form') && !want.has(k) && props) delete props[k];
+  }
+  for (const k of [...want].sort()) {
+    const p = (e.c.props ??= {});
+    p[k] ??= { intrinsic: true, timeout: 0 };
+  }
 }
 
 /**
@@ -111,7 +139,10 @@ export function resistConflict(ctx: Pick<Ctx, 'state' | 'rng'>, mon: Entity): bo
   return ctx.rng.rnd(20) > resistChance;
 }
 
-/** True when the property is held permanently (HFoo & INTRINSIC). */
+/**
+ * True when the property is held permanently (HFoo & FROMOUTSIDE / FROMEXPER; the form's
+ * FROMFORM bits are {@link hasFromForm}).
+ */
 export const hasIntrinsic = (e: Entity | undefined, name: string): boolean =>
   e?.c.props?.[name]?.intrinsic === true;
 

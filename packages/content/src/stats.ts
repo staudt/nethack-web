@@ -14,6 +14,7 @@ import { P, hasProp } from './props';
 import { levitating } from './trapstate';
 import { uState } from './luck';
 import { uspellOf } from './uenergy';
+import { heroForm } from './upoly';
 
 /** ref: include/you.h AC_MAX */
 const AC_MAX = 99;
@@ -146,14 +147,18 @@ export const nearCapacity = (state: Readonly<GameState>, defs: Registry, id: Ent
   calcCapacity(state, defs, id, 0);
 
 /**
- * Movement the hero gains per turn. ref: src/allmain.c u_calc_moveamt(): the base speed, a free
+ * Movement the hero gains per turn. ref: src/allmain.c u_calc_moveamt(): the base speed (her
+ * form's while polymorphed), a free
  * action on 2 turns in 3 when Very_fast (a timed Fast) or on 1 turn in 3 when intrinsically Fast
  * (the Valkyrie at experience level 7, ref: src/attrib.c val_abil { 7, HFast }), then reduced by
  * encumbrance.
  */
 export function heroMovement(ctx: Ctx, hero: EntityId): number {
   const e = ctx.state.entities[String(hero)];
-  let moveamt = e?.c.actor?.speed ?? 12;
+  // youmonst.data->mmove: a polymorphed hero moves at her form's speed (0 for a mold: turns pass
+  // until the form ends)
+  const form = hero === ctx.state.playerId ? heroForm(ctx) : null;
+  let moveamt = form ? form.speed : (e?.c.actor?.speed ?? 12);
   const fast = e?.c.props?.[P.FAST];
   if (fast && fast.timeout > 0) {
     // Very_fast: gain a free action on 2/3 of turns

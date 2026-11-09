@@ -5,6 +5,7 @@
 // you_unwere(); src/mon.c mondead() "restore chameleon, lycanthropes to true form at death";
 // include/mondata.h is_were()
 import type { Ctx, DefId, Entity, MonsterDef } from '@nh/core';
+import { unwereForm } from './upoly';
 
 interface WereData {
   /** u.ulycn: the beast form whose lycanthropy the hero has caught (absent: NON_PM) */
@@ -42,16 +43,16 @@ export function setUlycn(ctx: Pick<Ctx, 'state'>, which: DefId | null): void {
 }
 
 /**
- * The hero is cured of lycanthropy: "You feel purified." when `purify`. The polymorphed half
- * (rehumanize() from beast form, or the u.mtimedone countdown) is 7f.
- * ref: src/were.c you_unwere()
+ * The hero is cured of lycanthropy ("You feel purified." when `purify`), or her beast form's time
+ * ran out: in a were form she returns to her own form (polyself.ts's half, late bound through
+ * upoly.ts). ref: src/were.c you_unwere()
  */
-export function youUnwere(ctx: Pick<Ctx, 'state' | 'emit'>, purify: boolean): void {
+export function youUnwere(ctx: Ctx, purify: boolean): void {
   if (purify) {
     ctx.emit({ type: 'msg', key: 'were.purified' });
     setUlycn(ctx, null); // cure lycanthropy
   }
-  // 7f: `if (!Unchanging && is_were(youmonst.data) && ...) rehumanize()`
+  unwereForm(ctx);
 }
 
 /** ref: include/mondata.h is_were() (M2_WERE) */
@@ -76,7 +77,7 @@ export const counterWere = (id: string): DefId | null => (COUNTER_WERE[id] as De
 /**
  * The were creature's beast form a monster like it belongs to (rats to the wererat, jackals,
  * foxes and coyotes to the werejackal, wolves, wargs and winter wolves to the werewolf), or null.
- * ref: src/were.c were_beastie() (for the polymorphed hero: 7f)
+ * ref: src/were.c were_beastie()
  */
 export function wereBeastie(id: string): DefId | null {
   switch (id) {

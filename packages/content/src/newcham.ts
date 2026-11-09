@@ -38,6 +38,7 @@ const RIDERS: readonly string[] = ['nh:death', 'nh:famine', 'nh:pestilence'];
 const BIRTH_LIMITED: readonly string[] = ['nh:nazgul', 'nh:erinys'];
 /** ref: include/mondata.h is_placeholder() */
 const PLACEHOLDERS: readonly string[] = ['nh:orc', 'nh:giant', 'nh:elf', 'nh:human'];
+export const isPlaceholder = (def: MonsterDef): boolean => PLACEHOLDERS.includes(def.id);
 
 /** ref: include/mondata.h polyok(): not M2_NOPOLY */
 export const polyok = (def: MonsterDef): boolean => !def.flags.includes('nopoly');
