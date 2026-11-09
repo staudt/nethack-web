@@ -105,7 +105,7 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 
 ## Parked
 
-Nothing parked.
+
 
 ## Taken (m11 objects batch, 2026-11-08)
 
@@ -173,3 +173,17 @@ The planner marked all ten questions cheap to change later; the loop took each r
 8. Monster life saving in `mondead()` with an audit of callers.
 9. Pets use items as NetHack's `dochug()` lets them.
 10. No horn or camera rows (ROADMAP).
+
+## Parked (m15 deeper dungeon, 2026-11-09)
+
+The m15 planner (`~/.claude/plans/m15.md`, kickoff draft `~/.claude/plans/m15-kickoff.md`; 9 steps, ~2.7M) marked seven questions **costly to undo**. m15 is not started until the user decides. Recommendations:
+
+1. **Liquids as one core terrain flag**, `TerrainDef.liquid: 'water' | 'lava'`, read by core in four places (no traps on it, no hero arrival on it, objects/traps in it hidden, travel avoids it); everything else (drowning, swimming, monsters in water) in content.
+2. **Nine required `LevelTerrain` keys** (pool, moat, water, lava, lavawall, ice, iron bars, drawbridge up/down) with map characters `P } W L Z I C \ F`, and wall-joining that treats water walls, lava walls and iron bars as walls, as C does.
+4. **Teleport regions as a core `LevelDef` field** honoured by the engine's random arrival (Medusa, the Castle, a big room, Mines' End's minend-2).
+5. **A `replace` terrain edit in `LevelDef`** rather than level fixups.
+6. **Core maze inits** (`maze`, `mazegrid`, `walkfrom()` moved into core) and `DungeonDef.mazeFiller` for the mazes below Medusa (first to drop if short; the alternative is ordinary levels there, logged in DEVIATIONS).
+7. **The main dungeon gets its bottom**: 25-29 levels with the big room, Medusa and the Castle placed; the rogue level, Quest portal, Fort Ludios, Vlad's Tower and the Planes stay out. Old saves keep their endless dungeon.
+8. **Where the Castle's trap doors lead**: (a) a Gehennom stub of C's size entered from the Castle by a branch with no stairs on the Castle end (new core `DungeonEntryDef.stairs: 'child'`), plain maze levels, the Valley and the rest in ROADMAP; or (b) they become falling rock traps as on any bottom level today, and the Castle ends the game for now. Planner: (a) if there is room, else (b).
+
+The cheap ones (taken with m15 unless the user says otherwise): drawbridges as content (terrains + `modData`), a "Really step into the water?" yes/no prompt instead of the `m` prefix, no limited underwater view, "Improvise?" for every instrument then the passtune prompt, whole eel and dragon classes plus the 18 dragon scales via the converter, all 13 big rooms, ice in this milestone.
