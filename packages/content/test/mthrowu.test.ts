@@ -141,6 +141,27 @@ describe('select_rwep', () => {
     expect(selectRwep(ctx, c).obj?.def).toBe('nh:dagger'); // daggers outrank darts
     expect(selectRwep(ctx, c).propellor).toBeNull();
   });
+
+  test('rwep[] order with the m11 weapons: spears, javelins, shuriken, then ya from a yumi', () => {
+    const t = setup(ROOM);
+    const ctx = mctx(t.state);
+    const a = armed(t, ctx, 'nh:hill_orc', 6, 1, [['nh:shuriken', 3], ['nh:javelin']]);
+    expect(selectRwep(ctx, a).obj?.def).toBe('nh:javelin');
+    mongets(ctx, a, 'nh:silver_spear');
+    expect(selectRwep(ctx, a).obj?.def).toBe('nh:silver_spear');
+    const b = armed(t, ctx, 'nh:hill_orc', 6, 2, [['nh:ya', 5], ['nh:arrow', 5], ['nh:bow']]);
+    // the ya outranks arrows, and any bow shoots it, the yumi first
+    expect(selectRwep(ctx, b).obj?.def).toBe('nh:ya');
+    expect(selectRwep(ctx, b).propellor?.def).toBe('nh:bow');
+    mongets(ctx, b, 'nh:yumi');
+    expect(selectRwep(ctx, b).propellor?.def).toBe('nh:yumi');
+    const c = armed(t, ctx, 'nh:hill_orc', 6, 3, [
+      ['nh:shuriken', 3],
+      ['nh:dart', 3],
+    ]);
+    expect(selectRwep(ctx, c).obj?.def).toBe('nh:shuriken');
+    expect(selectRwep(ctx, c).propellor).toBeNull();
+  });
 });
 
 describe('thrwmu: a kobold with darts', () => {

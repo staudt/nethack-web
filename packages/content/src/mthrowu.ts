@@ -443,8 +443,8 @@ function mThrow(
 // choosing and shooting
 
 /**
- * ref: src/weapon.c rwep[]: the missiles a monster throws, best first. Entries this port lacks
- * are skipped by the lookup.
+ * ref: src/weapon.c rwep[]: the missiles a monster throws, best first. Entries a table lacks
+ * are skipped by the lookup (the ya and silver arrow are shot from the yumi or any bow).
  */
 const RWEP: readonly string[] = [
   'nh:dwarvish_spear',
@@ -490,7 +490,7 @@ export interface RangedChoice {
 /**
  * The monster's best ranged attack. ref: src/weapon.c select_rwep(): the first of rwep[] it
  * carries whose launcher (if any) it also has; sling stones before darts. Not ported: polearms
- * (none exist), throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs
+ * (m11 step 2), throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs
  * and cream pies, silver-haters, artifacts.
  */
 export function selectRwep(ctx: Ctx, monId: EntityId): RangedChoice {

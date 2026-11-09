@@ -101,6 +101,7 @@ export const itemMessagesEn: Record<string, string> = {
   'wield.weld_hands': 'The {item} welds itself to your hands!',
   'wield.weld_pl_hands': 'The {item} weld themselves to your hands!',
   'kind.sword': 'sword',
+  'kind.axe': 'axe',
   'kind.weapon': 'weapon',
   'kind.armor': 'armor',
   'kind.suit': 'suit',

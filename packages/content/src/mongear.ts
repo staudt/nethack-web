@@ -175,10 +175,10 @@ function burnObj(
   mksobjInit(ctx, dummy, it);
 }
 
-/** A missing iron weapon (battle axe, two-handed sword, lucern hammer, flail, polearms). */
+/** A missing iron weapon (when the object table lacks it). */
 const burnWeapon = (ctx: GearCtx): void => burnObj(ctx);
 
-/** Elven gear the object table lacks: its init rolls, by class and material. */
+/** Elven gear the object table may lack: its init rolls, by class and material. */
 const MISSING_ELVEN: Readonly<Record<string, ['weapon' | 'armor', string]>> = {
   'nh:elven_cloak': ['armor', 'cloth'],
   'nh:elven_leather_helm': ['armor', 'leather'],
@@ -189,7 +189,7 @@ const MISSING_ELVEN: Readonly<Record<string, ['weapon' | 'armor', string]>> = {
   'nh:elven_spear': ['weapon', 'wood'],
 };
 
-/** mongets() of elven gear: a missing object only makes its init rolls. */
+/** mongets() of elven gear: a missing object (a filtered table) only makes its init rolls. */
 function elvenGets(ctx: GearCtx, monId: EntityId, otyp: string): void {
   if (mongets(ctx, monId, otyp) !== null) return;
   const m = MISSING_ELVEN[otyp];
@@ -213,7 +213,10 @@ function mInitThrow(ctx: GearCtx, monId: EntityId, otyp: string, oquan: number):
   addToInventory(ctx, monId, id);
 }
 
-/** mongets() of a weapon: when the object is missing, its init rolls are still made. */
+/**
+ * mongets() of a weapon: when the object is missing (a table without it, e.g. a mod that
+ * removes it), its init rolls are still made.
+ */
 function getsOrBurn(ctx: GearCtx, monId: EntityId, otyp: string): void {
   if (mongets(ctx, monId, otyp) === null) burnWeapon(ctx);
 }
@@ -229,9 +232,9 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
  * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the water demon
- * (S_DEMON falls through to the general case). Objects missing from the object table (battle
- * axe, two-handed sword, lucern hammer, flail, polearms, most elven gear) are not given, but the
- * rolls C makes for them are. (In 5.0 only Uruk-hai are given orcish bows.)
+ * (S_DEMON falls through to the general case). Objects missing from the object table (the
+ * elven armor until it arrives) are not given, but the rolls C makes for them are. (In 5.0 only
+ * Uruk-hai are given orcish bows.)
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   const { def } = monOf(ctx, monId);
@@ -347,16 +350,12 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
       );
     }
   } else if (ch === 'O') {
-    // ref: m_initweap() S_OGRE (no ogre tyrant in the roster; the battle axe is missing)
-    if (!rng.rn2(def.id === 'nh:ogre_lord' ? 6 : 12)) burnWeapon(ctx);
+    // ref: m_initweap() S_OGRE (no ogre tyrant in the roster)
+    if (!rng.rn2(def.id === 'nh:ogre_lord' ? 6 : 12)) getsOrBurn(ctx, monId, 'nh:battle_axe');
     else mongets(ctx, monId, 'nh:club');
   } else if (ch === 'T') {
-    // ref: m_initweap() S_TROLL: a ranseur, partisan, glaive or spetum half the time (no
-    // polearms in the object table: rn2(4) picks one, only its init rolls are made)
-    if (!rng.rn2(2)) {
-      rng.rn2(4);
-      burnWeapon(ctx);
-    }
+    // ref: m_initweap() S_TROLL: a ranseur, partisan, glaive or spetum half the time
+    if (!rng.rn2(2)) getsOrBurn(ctx, monId, TROLL_POLEARMS[rng.rn2(4)] ?? 'nh:ranseur');
   } else if (ch === 'C') {
     // ref: m_initweap() S_CENTAUR
     if (rng.rn2(2)) {
@@ -410,11 +409,49 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   rng.rn2(75); // the roll is made against m_lev; the item it would give is not
 }
 
+/** The trolls' polearms, by m_initweap()'s rn2(4). ref: src/makemon.c m_initweap() S_TROLL */
+const TROLL_POLEARMS = ['nh:ranseur', 'nh:partisan', 'nh:glaive', 'nh:spetum'] as const;
+
+/** objects.h PARTISAN .. BEC_DE_CORBIN, in table order (all P_POLEARMS in 5.0). */
+const PARTISAN_TO_BEC_DE_CORBIN = [
+  'nh:partisan',
+  'nh:ranseur',
+  'nh:spetum',
+  'nh:glaive',
+  'nh:halberd',
+  'nh:bardiche',
+  'nh:voulge',
+  'nh:fauchard',
+  'nh:guisarme',
+  'nh:bill_guisarme',
+  'nh:lucern_hammer',
+  'nh:bec_de_corbin',
+] as const;
+
+const isPolearm = (ctx: GearCtx, id: string): boolean =>
+  objDef(ctx, id)?.weapon?.skill === 'polearms';
+
+/**
+ * A soldier's or watchman's random polearm: `do w1 = rn1(BEC_DE_CORBIN - PARTISAN + 1,
+ * PARTISAN); while (objects[w1].oc_skill != P_POLEARMS)`. When the table has none of them (a
+ * mod removed them) it is a spear, with no roll.
+ */
+function randomPolearm(ctx: GearCtx): string {
+  if (!PARTISAN_TO_BEC_DE_CORBIN.some((id) => isPolearm(ctx, id))) return 'nh:spear';
+  for (;;) {
+    const w = PARTISAN_TO_BEC_DE_CORBIN[ctx.rng.rn2(PARTISAN_TO_BEC_DE_CORBIN.length)];
+    if (w && isPolearm(ctx, w)) return w;
+  }
+}
+
+/** `mongets()` of `otyp` when it exists, else of `fallback` (a table that lacks it). */
+const orElse = (ctx: GearCtx, otyp: string, fallback: string): string =>
+  objDef(ctx, otyp) ? otyp : fallback;
+
 /**
  * A mercenary's weapons. ref: src/makemon.c m_initweap() S_HUMAN `is_mercenary(ptr)`, for the
- * Watch, soldiers and sergeants. There are no polearms or silver sabers in the object table yet:
- * a watchman's or soldier's polearm is a spear and a watch captain's silver saber a long sword
- * (DEVIATIONS.md); the rolls are C's (a sergeant's flail: rolls only).
+ * Watch, soldiers and sergeants. A table without the polearms, the flail or the silver saber (a
+ * mod that removes them) falls back to a spear, init rolls only and a long sword.
  */
 function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   const rng = ctx.rng;
@@ -422,16 +459,17 @@ function mercWeapons(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
   let w2: string | null = null;
   if (def.id === 'nh:watchman' || def.id === 'nh:soldier') {
     if (rng.rn2(3) === 0) {
-      w1 = 'nh:spear'; // a random polearm (partisan .. bec de corbin) in C
+      // "lance and dwarvish mattock used to be in midst of the polearms but use different
+      // skills from polearms and aren't appropriates choices for human soldiers"
+      w1 = randomPolearm(ctx);
       w2 = rng.rn2(2) !== 0 ? 'nh:dagger' : 'nh:knife';
     } else w1 = rng.rn2(2) !== 0 ? 'nh:spear' : 'nh:short_sword';
   } else if (def.id === 'nh:sergeant') {
-    // FLAIL : MACE (no flail in the object table: its init rolls only)
-    if (rng.rn2(2)) burnWeapon(ctx);
+    // FLAIL : MACE
+    if (rng.rn2(2)) getsOrBurn(ctx, monId, 'nh:flail');
     else w1 = 'nh:mace';
   } else if (def.id === 'nh:watch_captain') {
-    rng.rn2(2); // LONG_SWORD : SILVER_SABER
-    w1 = 'nh:long_sword';
+    w1 = rng.rn2(2) ? 'nh:long_sword' : orElse(ctx, 'nh:silver_saber', 'nh:long_sword');
   } else {
     // default: other mercenaries (none in the roster: no lieutenants or captains yet)
     if (rng.rn2(4) === 0) w1 = 'nh:dagger';
@@ -701,38 +739,70 @@ export { sees as heroSees };
 // weapons
 
 /**
- * Weapons in order of preference, restricted to those in the object table.
- * ref: src/weapon.c hwep[]
+ * Weapons in order of preference. ref: src/weapon.c hwep[], without the cockatrice corpse, the
+ * artifacts' runesword-only preference and the worm tooth and crysknife (not in the table: long
+ * worms). Entries the table lacks are skipped by the lookup.
  */
 const HWEP: readonly string[] = [
+  'nh:tsurugi',
+  'nh:runesword',
   'nh:dwarvish_mattock',
+  'nh:two_handed_sword',
+  'nh:battle_axe',
+  'nh:katana',
+  'nh:unicorn_horn',
+  'nh:trident',
   'nh:long_sword',
+  'nh:elven_broadsword',
+  'nh:broadsword',
   'nh:scimitar',
+  'nh:silver_saber',
+  'nh:morning_star',
+  'nh:elven_short_sword',
   'nh:dwarvish_short_sword',
   'nh:short_sword',
+  'nh:orcish_short_sword',
+  'nh:silver_mace',
   'nh:mace',
   'nh:axe',
   'nh:dwarvish_spear',
+  'nh:silver_spear',
+  'nh:elven_spear',
   'nh:spear',
+  'nh:orcish_spear',
+  'nh:flail',
+  'nh:bullwhip',
+  'nh:quarterstaff',
+  'nh:javelin',
   'nh:aklys',
   'nh:club',
   'nh:pick_axe',
+  'nh:rubber_hose',
+  'nh:war_hammer',
+  'nh:silver_dagger',
   'nh:elven_dagger',
   'nh:dagger',
   'nh:orcish_dagger',
+  'nh:athame',
+  'nh:scalpel',
   'nh:knife',
 ];
 
 /**
- * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): only
- * strong monsters without a shield may use two-handed weapons. Not ported: artifacts,
- * giants' clubs, cockatrice corpses, silver-haters.
+ * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): giants
+ * prefer clubs; only strong monsters without a shield may use two-handed weapons. Not ported:
+ * artifacts, the Balrog's bullwhip (no Balrog), cockatrice corpses, silver-haters (m11 step 2).
  */
 export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
   const { def } = monOf(ctx, monId);
   const strong = isStrong(def);
   const wearingShield = whichArmor(ctx, monId, 'shield') !== null;
   const items = minvent(ctx, monId);
+  // "giants just love to use clubs"
+  if (hasFlag(def, 'giant')) {
+    const club = items.find((x) => x.def === 'nh:club');
+    if (club) return club;
+  }
   for (const id of HWEP) {
     const od = objDef(ctx, id);
     if (!od?.weapon) continue;

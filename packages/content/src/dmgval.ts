@@ -4,15 +4,59 @@ import { greatestErosion } from './material';
 import { isBig } from './mondata';
 
 /**
- * Extra damage some weapons do beyond their die: [small, large] dice or constants.
- * ref: src/weapon.c dmgval() switch (otyp), for the weapons in our subset.
+ * Extra damage some weapons do beyond their die, against large and small targets.
+ * ref: src/weapon.c dmgval() switch (otyp). Not ported: the iron chain (no ball and chain).
  */
 function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
+  if (big) {
+    switch (id) {
+      case 'nh:crossbow_bolt':
+      case 'nh:morning_star':
+      case 'nh:partisan':
+      case 'nh:runesword':
+      case 'nh:elven_broadsword':
+      case 'nh:broadsword':
+        return 1;
+      case 'nh:flail':
+      case 'nh:ranseur':
+      case 'nh:voulge':
+        return rng.rnd(4);
+      case 'nh:halberd':
+      case 'nh:spetum':
+        return rng.rnd(6);
+      case 'nh:battle_axe':
+      case 'nh:bardiche':
+      case 'nh:trident':
+        return rng.d(2, 4);
+      case 'nh:tsurugi':
+      case 'nh:dwarvish_mattock':
+      case 'nh:two_handed_sword':
+        return rng.d(2, 6);
+      default:
+        return 0;
+    }
+  }
   switch (id) {
-    case 'nh:mace': // d6+1 vs small
-      return big ? 0 : 1;
-    case 'nh:dwarvish_mattock': // d12 + 2d6 vs large
-      return big ? rng.d(2, 6) : 0;
+    case 'nh:crossbow_bolt':
+    case 'nh:mace':
+    case 'nh:silver_mace':
+    case 'nh:war_hammer':
+    case 'nh:flail':
+    case 'nh:spetum':
+    case 'nh:trident':
+      return 1;
+    case 'nh:battle_axe':
+    case 'nh:bardiche':
+    case 'nh:bill_guisarme':
+    case 'nh:guisarme':
+    case 'nh:lucern_hammer':
+    case 'nh:morning_star':
+    case 'nh:ranseur':
+    case 'nh:broadsword':
+    case 'nh:elven_broadsword':
+    case 'nh:runesword':
+    case 'nh:voulge':
+      return rng.rnd(4);
     default:
       return 0;
   }

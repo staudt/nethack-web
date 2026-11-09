@@ -169,7 +169,12 @@ export const isSword = (def: ObjectDef): boolean =>
   !!def.weapon && def.weapon.role !== 'ammo' && SWORD_SKILLS.includes(def.weapon.skill);
 /** "sword", "axe" or "weapon" for the two-handed messages. ref: src/wield.c, src/do_wear.c */
 const weaponKind = (def: ObjectDef): Msg => ({
-  key: def.weapon && SWORD_SKILLS.includes(def.weapon.skill) ? 'kind.sword' : 'kind.weapon',
+  key:
+    def.weapon && SWORD_SKILLS.includes(def.weapon.skill)
+      ? 'kind.sword'
+      : def.id === 'nh:battle_axe'
+        ? 'kind.axe'
+        : 'kind.weapon',
 });
 
 // ---------------------------------------------------------------------------------------------

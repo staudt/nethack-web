@@ -90,11 +90,15 @@ describe('starting gear (m_initweap, m_initinv)', () => {
   }
 
   test('elves carry only elven gear, a bow always with its arrows', () => {
+    // (the elven cloak, helm, boots and shield are not in the table yet: rolls only)
     const elven = new Set([
       'nh:elven_mithril_coat',
       'nh:elven_dagger',
       'nh:elven_bow',
       'nh:elven_arrow',
+      'nh:elven_short_sword',
+      'nh:elven_broadsword',
+      'nh:elven_spear',
     ]);
     const g = gear('nh:grey_elf', 60);
     for (const d of g) {
@@ -116,23 +120,46 @@ describe('starting gear (m_initweap, m_initinv)', () => {
       expect(d.every((x) => x === 'nh:crossbow' || x === 'nh:crossbow_bolt')).toBe(true);
   });
 
-  test('ogres carry a club unless the (missing) battle axe was rolled; trolls nothing', () => {
-    const ogres = gear('nh:ogre', 40);
-    const clubs = ogres.filter((d) => d.includes('nh:club')).length;
-    expect(clubs).toBeGreaterThan(30);
-    for (const d of ogres) expect(d.every((x) => x === 'nh:club')).toBe(true);
-    for (const d of gear('nh:troll', 20)) expect(d).toEqual([]);
+  test('ogres carry a club or a battle-axe; trolls a polearm half the time', () => {
+    const ogres = gear('nh:ogre_lord', 60);
+    for (const d of ogres) {
+      expect(d.length).toBe(1);
+      expect(['nh:club', 'nh:battle_axe']).toContain(d[0]);
+    }
+    const axes = ogres.filter((d) => d.includes('nh:battle_axe')).length;
+    expect(axes).toBeGreaterThan(2); // 1 in 6 for an ogre lord
+    expect(axes).toBeLessThan(25);
+    const trolls = gear('nh:troll', 40);
+    const polearms = ['nh:ranseur', 'nh:partisan', 'nh:glaive', 'nh:spetum'];
+    for (const d of trolls) {
+      expect(d.length).toBeLessThanOrEqual(1);
+      for (const x of d) expect(polearms).toContain(x);
+    }
+    const armed = trolls.filter((d) => d.length > 0).length;
+    expect(armed).toBeGreaterThan(8);
+    expect(armed).toBeLessThan(32);
   });
 
-  test('soldiers get a spear, short sword, dagger or knife; sergeants a mace or nothing', () => {
+  test('soldiers get a polearm, spear, short sword, dagger or knife; sergeants a flail or mace', () => {
     const weapons = (d: string[]) => d.filter((x) => defs.object(x as DefId).class === 'weapon');
+    const isPolearm = (x: string) => defs.object(x as DefId).weapon?.skill === 'polearms';
     const soldiers = gear('nh:soldier', 40).map(weapons);
-    for (const d of soldiers)
+    for (const d of soldiers) {
+      expect(d.length).toBeGreaterThan(0);
       for (const x of d)
-        expect(['nh:spear', 'nh:short_sword', 'nh:dagger', 'nh:knife']).toContain(x);
-    expect(soldiers.some((d) => d.length > 0)).toBe(true);
+        if (!isPolearm(x))
+          expect(['nh:spear', 'nh:short_sword', 'nh:dagger', 'nh:knife']).toContain(x);
+    }
+    // a polearm always comes with a dagger or a knife
+    const poled = soldiers.filter((d) => d.some(isPolearm));
+    expect(poled.length).toBeGreaterThan(3);
+    for (const d of poled) expect(d.some((x) => x === 'nh:dagger' || x === 'nh:knife')).toBe(true);
     const sergeants = gear('nh:sergeant', 40).map(weapons);
-    for (const d of sergeants) for (const x of d) expect(['nh:mace', 'nh:knife']).toContain(x);
+    for (const d of sergeants) {
+      expect(d.some((x) => x === 'nh:mace' || x === 'nh:flail')).toBe(true);
+      for (const x of d) expect(['nh:mace', 'nh:flail', 'nh:knife']).toContain(x);
+    }
+    expect(sergeants.some((d) => d.includes('nh:flail'))).toBe(true);
     expect(sergeants.some((d) => d.includes('nh:mace'))).toBe(true);
   });
 });

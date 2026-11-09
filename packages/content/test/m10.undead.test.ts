@@ -437,9 +437,22 @@ describe('giants and ettins', () => {
     const boulders = g.filter((d) => d.includes('nh:boulder')).length;
     expect(boulders).toBeGreaterThan(15);
     expect(boulders).toBeLessThan(45);
-    const gemsPer = g.map((d) => d.filter((x) => x !== 'nh:boulder').length);
+    const isGem = (x: string) => defs.object(x as DefId).class === 'gem' && x !== 'nh:boulder';
+    const gemsPer = g.map((d) => d.filter(isGem).length);
     expect(Math.max(...gemsPer)).toBeLessThanOrEqual(2); // rn2(6 / 2)
     expect(gemsPer.some((n) => n > 0)).toBe(true);
+  });
+
+  test('a giant gets a two-handed sword or a battle-axe one time in five', () => {
+    const g = gear('nh:giant', 60);
+    const weapons = g.map((d) => d.filter((x) => defs.object(x as DefId).class === 'weapon'));
+    for (const w of weapons) {
+      expect(w.length).toBeLessThanOrEqual(1);
+      for (const x of w) expect(['nh:two_handed_sword', 'nh:battle_axe']).toContain(x);
+    }
+    const armed = weapons.filter((w) => w.length > 0).length;
+    expect(armed).toBeGreaterThan(3);
+    expect(armed).toBeLessThan(25);
   });
 });
 

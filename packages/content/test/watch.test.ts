@@ -102,10 +102,12 @@ describe('Watch monsters', () => {
   }
   const near = (a: number, b: number, tol = 0.04) => expect(Math.abs(a - b)).toBeLessThan(tol);
 
-  test('watchmen are peaceful and get mercenary gear: spear or short sword, a knife, armor', () => {
+  test('watchmen are peaceful and get mercenary gear: a polearm, spear or short sword, a knife, armor', () => {
     const g = gear('nh:watchman', 3000);
     expect(g.peaceful).toBe(1);
-    near(g.f('nh:spear'), 2 / 3); // the polearm stand-in 1/3, plus 1/3
+    // rn1(BEC_DE_CORBIN - PARTISAN + 1, PARTISAN): one of twelve polearms, 1/3 of the time
+    near(g.f('nh:halberd'), 1 / 36, 0.015);
+    near(g.f('nh:spear'), 1 / 3);
     near(g.f('nh:short_sword'), 1 / 3);
     near(g.f('nh:dagger'), 1 / 6); // with the polearm
     near(g.f('nh:knife'), 1 / 6 + (2 / 3) * (1 / 4));
@@ -113,10 +115,11 @@ describe('Watch monsters', () => {
     near(g.f('nh:leather_armor'), 1 / 5);
   });
 
-  test('the watch captain is peaceful and gets a long sword', () => {
+  test('the watch captain is peaceful and gets a long sword or a silver saber', () => {
     const g = gear('nh:watch_captain', 500);
     expect(g.peaceful).toBe(1);
-    expect(g.f('nh:long_sword')).toBe(1);
+    expect(g.f('nh:long_sword') + g.f('nh:silver_saber')).toBe(1);
+    near(g.f('nh:silver_saber'), 1 / 2, 0.08);
   });
 });
 
