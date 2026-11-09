@@ -46,6 +46,7 @@ import { CHARGED_RINGS } from './objects';
 import { hasHead, nolimbs } from './mondata';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
+import { isSlimed, makeSlimed } from './slimestate';
 import {
   P,
   hasExtrinsic,
@@ -319,7 +320,7 @@ function amuletOn(ctx: Ctx, amul: Entity): void {
       }
       break;
     case 'nh:amulet_of_unchanging':
-      // if (Slimed) make_slimed(0L, 0): no sliming yet
+      if (isSlimed(ctx.state)) makeSlimed(ctx, 0, null);
       break;
     case 'nh:amulet_of_change': {
       const origSex = polyGender(ctx.state);

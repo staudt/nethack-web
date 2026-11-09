@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-152 NetHack files, 3402 citations.
+152 NetHack files, 3426 citations.
 
 ## dat/dungeon.lua
 
@@ -297,6 +297,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `polyok()`: `packages/content/src/newcham.ts`
 - `regenerates()`: `packages/content/src/mstate.ts`
 - `resists_ston()`: `packages/content/src/stonestate.ts`
+- `slimeproof()`: `packages/content/src/slimestate.ts`
 - `slithy()`: `packages/content/src/adtyping.ts`, `packages/content/src/mondata.ts`
 - `sticks()`: `packages/content/src/adtyping.ts`, `packages/content/src/polyself.ts`
 - `strongmonst()`: `packages/content/src/mondata.ts`
@@ -565,6 +566,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
 - `BL_MASK_LEV()`: `packages/content/src/levitation.ts`
+- `bl_slime()`: `packages/content/src/slime.ts`
 - `bl_stone()`: `packages/content/src/stoning.ts`
 - `bl_strngl()`: `packages/content/src/jewelry.ts`
 - `bot2()`: `packages/content/src/hero.ts`, `packages/ui/src/status.ts`
@@ -855,6 +857,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_reset_eat()`: `packages/content/src/eat.ts`
 - `doeat()`: `packages/content/src/eat.ts`
 - `done_eating()`: `packages/content/src/eat.ts`
+- `eat_brains()`: `packages/content/src/adtyping.ts`
 - `eatcorpse()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
 - `eaten_stat()`: `packages/content/src/dogmove.ts`, `packages/content/src/items.ts`
 - `eatfood()`: `packages/content/src/eat.ts`
@@ -891,7 +894,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/disclose.ts`
 - `container_contents()`: `packages/content/src/disclose.ts`
-- `delayed_killer()`: `packages/content/src/stonestate.ts`
+- `delayed_killer()`: `packages/content/src/slimestate.ts`, `packages/content/src/stonestate.ts`
 - `disclose()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/core/src/types/event.ts`, `packages/ui/src/gameover.ts`
 - `done()`: `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
 - `done2()`: `packages/content/src/end.en.ts`, `packages/content/src/quit.ts`
@@ -1487,7 +1490,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doname()`: `packages/content/src/objnam.ts`
 - `doname_base()`: `packages/content/src/objnam.ts`
 - `erosion_matters()`: `packages/content/src/material.ts`
-- `helm_simple_name()`: `packages/content/src/polyarmor.ts`
+- `helm_simple_name()`: `packages/content/src/adtyping.ts`, `packages/content/src/polyarmor.ts`
 - `just_an()`: `packages/ui/src/i18n.ts`
 - `makeplural()`: `packages/ui/src/plural.ts`
 - `makesingular()`: `packages/content/src/objnam_read.ts`
@@ -1584,6 +1587,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `make_confused()`: `packages/content/src/props.ts`
 - `make_hallucinated()`: `packages/content/src/props.ts`
 - `make_sick()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
+- `make_slimed()`: `packages/content/src/slimestate.ts`
 - `make_stoned()`: `packages/content/src/stonestate.ts`
 - `make_stunned()`: `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
 - `make_vomiting()`: `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
@@ -1928,6 +1932,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `getdir()`: `packages/content/src/cast.ts`
 - `getspell()`: `packages/content/src/cast.ts`
 - `learn()`: `packages/content/src/spell.en.ts`, `packages/content/src/spell.ts`
+- `losespells()`: `packages/content/src/spell.ts`
 - `percent_success()`: `packages/content/src/spellcalc.ts`
 - `rejectcasting()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
 - `spell_backfire()`: `packages/content/src/cast.ts`
@@ -1989,16 +1994,19 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/timeout.c
 
-- (file): `packages/content/src/eat.en.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
+- (file): `packages/content/src/eat.en.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.en.ts`, `packages/content/src/slimestate.ts`
 - `begin_burn()`: `packages/content/src/light.ts`
+- `burn_away_slime()`: `packages/content/src/slimestate.ts`
 - `burn_object()`: `packages/content/src/light.ts`
 - `choke_dialogue()`: `packages/content/src/jewelry.ts`
 - `end_burn()`: `packages/content/src/light.ts`
 - `fall_asleep()`: `packages/content/src/adtyping.ts`, `packages/content/src/trap.ts`
 - `incr_itimeout()`: `packages/content/src/props.ts`
 - `lantern_message()`: `packages/content/src/light.ts`
-- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stoning.ts`
+- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.ts`, `packages/content/src/stoning.ts`
 - `set_itimeout()`: `packages/content/src/props.ts`
+- `slime_dialogue()`: `packages/content/src/slime.ts`
+- `slimed_to_death()`: `packages/content/src/slime.ts`
 - `stoned_dialogue()`: `packages/content/src/stoning.ts`
 - `stoned_texts()`: `packages/content/src/stoning.en.ts`
 - `vomiting_dialogue()`: `packages/content/src/hunger.ts`
@@ -2134,10 +2142,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhitm_ad_()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.en.ts`, `packages/content/src/resist.en.ts`
 - `mhitm_ad_blnd()`: `packages/content/src/adtyping.ts`, `packages/content/src/mstate.ts`
 - `mhitm_ad_dgst()`: `packages/content/src/adtyping.ts`, `packages/content/src/dog.ts`
+- `mhitm_ad_drin()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_drli()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_halu()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_heal()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_phys()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/combat.ts`
+- `mhitm_ad_slim()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_ssex()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_ston()`: `packages/content/src/adtyping.ts`, `packages/content/src/stoning.en.ts`
 - `mhitm_ad_were()`: `packages/content/src/adtyping.ts`
@@ -2176,6 +2187,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `could_advance()`: `packages/content/src/skills.ts`
 - `dbon()`: `packages/content/src/combat.ts`
 - `dmgval()`: `packages/content/src/dmgval.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/read.ts`
+- `drain_weapon_skill()`: `packages/content/src/skills.ts`
 - `enhance_weapon_skill()`: `packages/content/src/skills.ts`
 - `give_may_advance_msg()`: `packages/content/src/skills.ts`
 - `hitval()`: `packages/content/src/combat.ts`

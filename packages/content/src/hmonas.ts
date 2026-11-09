@@ -19,7 +19,10 @@ import {
   resistsBlnd,
   sticks,
   xdrainenergym,
+  resetSkipdrin,
+  skipsDrin,
 } from './adtyping';
+import { makeSlimed } from './slimestate';
 import {
   findRollToHit,
   heroWeapon,
@@ -183,7 +186,7 @@ setAfternmv('finish_digestion', finishDigestion);
  * corpse's intrinsics at the end), the others pummel, burn, freeze, shock, blind or drain it and
  * expel it again. Engulfing a cockatrice petrifies her. Returns M_ATTK flags (MISS when it was
  * expelled alive). ref: src/uhitm.c gulpum(), start_engulf() (no vampire shapeshifters, Riders,
- * green slime, conduct or exercise; no swallow animation)
+ * conduct or exercise; no swallow animation)
  */
 function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
   const form = heroForm(ctx);
@@ -237,7 +240,10 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
         nhData(ctx).corpsenmDigested = pd.id; // possible intrinsic once totally digested
         nomulNow(ctx, tmp, 'helpless.digesting', msgbuf, 'finish_digestion');
       } else say(ctx, msgbuf.key, msgbuf.params);
-      // (exercise(A_CON, TRUE): no exercise)
+      // a green slime (no corpse: the "isn't sitting well" line replaces nothing shown)
+      if (pd.id === 'nh:green_slime') {
+        if (!hasProp(hero, P.UNCHANGING)) makeSlimed(ctx, 5, null);
+      } // (else exercise(A_CON, TRUE): no exercise)
       return M_ATTK.DEF_DIED;
     }
     case 'phys':
@@ -381,8 +387,8 @@ function stealIt(ctx: Ctx, mdef: Entity, mattk: AttackDef): void {
  * its own to-hit roll (weapons and claws through known_hitum(), the rest through damageum()), the
  * monster's passive answering each blow. She stops when it dies or moves away, when she returns
  * to her own form, or when she is made helpless. ref: src/uhitm.c hmonas() (no two-weapon
- * alternation, silver or blessed bonuses (special_dmgval()), shades, knockback, long worms,
- * mind flayers' AD_DRIN; the hero never holds a monster, so a hug or wrap does its damage
+ * alternation, silver or blessed bonuses (special_dmgval()), shades, knockback, long worms;
+ * the hero never holds a monster, so a hug or wrap does its damage
  * without holding: DEVIATIONS "Polymorph")
  */
 export function hmonas(ctx: Ctx, targetId: EntityId): void {
@@ -393,6 +399,7 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
   const snap: PassiveTarget | null = passiveSnap(ctx, targetId);
   const sum: number[] = [];
   let weaponUsed = false;
+  resetSkipdrin(); // [see mattackm(mhitm.c)]
   for (let i = 0; i < form.attacks.length; i++) {
     sum[i] = M_ATTK.MISS;
     // the target might have moved or died
@@ -402,7 +409,7 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         continue;
     }
     const mattk = form.attacks[i];
-    if (!mattk) continue;
+    if (!mattk || skipsDrin(mattk)) continue;
     let weapon: Entity | null = null;
     let dhit = 0;
     const uwep = uwepOf(ctx);

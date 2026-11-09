@@ -10,9 +10,18 @@ import {
   type Entity,
   type Msg,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { done } from './end';
 import { xkilledStoned } from './stoning';
-import { M_ATTK, canBlnd, diseasemu, mhitmAdtyping, newMhm, resistsBlnd } from './adtyping';
+import {
+  M_ATTK,
+  canBlnd,
+  diseasemu,
+  mhitmAdtyping,
+  newMhm,
+  resistsBlnd,
+  setAdMdamageu,
+} from './adtyping';
 import { digests, enfolds, flaming, isSwallowed, setUswallow, uswallow } from './engulfstate';
 import { engulfTarget, expels } from './engulf';
 import { setUstuck } from './hackmove';
@@ -70,6 +79,7 @@ export function mdamageu(ctx: Ctx, n: number, killer: string): void {
     done(ctx, killer);
   }
 }
+setAdMdamageu(mdamageu); // adtyping.ts sits below this module
 
 /**
  * The effect of the attack's damage type on the hero; returns the damage left to apply. The
@@ -234,7 +244,7 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
             say(ctx, 'mhitu.fire_not_hot');
             dmg = 0; // (ugolemeffects(): no polymorph)
           }
-          // burn_away_slime(): no sliming
+          burnAwaySlime(ctx);
           if (lev > ctx.rng.rn2(20)) erodeArmor(ctx, hero.id, 'burn'); // burnarmor()
           if (lev > ctx.rng.rn2(20)) {
             destroyItems(ctx, hero.id, 'fire', origDmg);
@@ -456,7 +466,7 @@ export function gulpmu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
           say(ctx, 'engulf.mildly_hot');
           tmp = 0;
         } else say(ctx, 'engulf.burning');
-        // burn_away_slime(): no sliming
+        burnAwaySlime(ctx);
       } else tmp = 0;
       break;
     case 'dise':

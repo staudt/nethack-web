@@ -14,6 +14,7 @@ import { adtypingMessagesEn } from './adtyping.en';
 import { stealMessagesEn } from './steal.en';
 import { engulfMessagesEn } from './engulf.en';
 import { stoningMessagesEn } from './stoning.en';
+import { slimeMessagesEn } from './slime.en';
 import { wereMessagesEn } from './were.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
@@ -59,6 +60,7 @@ export const messagesEn: Record<string, string> = {
   ...stealMessagesEn,
   ...engulfMessagesEn,
   ...stoningMessagesEn,
+  ...slimeMessagesEn,
   ...wereMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
@@ -313,6 +315,7 @@ export const messagesEn: Record<string, string> = {
   'nh:ettin_mummy': 'ettin mummy',
   'nh:gray_ooze': 'gray ooze',
   'nh:brown_pudding': 'brown pudding',
+  'nh:green_slime': 'green slime',
   'nh:quantum_mechanic': 'quantum mechanic',
   'nh:rust_monster': 'rust monster',
   'nh:gas_spore': 'gas spore',
@@ -359,6 +362,7 @@ export const messagesEn: Record<string, string> = {
   'nh:ogre_lord': 'ogre lord',
   'nh:soldier': 'soldier',
   'nh:sergeant': 'sergeant',
+  'nh:nurse': 'nurse',
   'nh:troll': 'troll',
   'nh:barrow_wight': 'barrow wight',
   'nh:wraith': 'wraith',
@@ -384,6 +388,8 @@ export const messagesEn: Record<string, string> = {
   'nh:cobra': 'cobra',
   'nh:dwarf_lord': 'dwarf lord',
   'nh:dwarf_king': 'dwarf king',
+  'nh:mind_flayer': 'mind flayer',
+  'nh:master_mind_flayer': 'master mind flayer',
   'nh:bugbear': 'bugbear',
   'nh:dingo': 'dingo',
   'nh:wolf': 'wolf',

@@ -13,7 +13,9 @@ import {
   getLevel,
   getPlayer,
   inBounds,
+  inventoryOf,
   type ActionDef,
+  type ArmorSlot,
   type Ctx,
   type Dir,
   type EntityId,
@@ -31,7 +33,9 @@ import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
 import { isFleeing } from './monflee';
 import { moneyCnt } from './money';
-import { aggravate, isFrozen, isMConfused, isMStunned } from './mstate';
+import { aggravate, isCancelled, isFrozen, isMConfused, isMStunned } from './mstate';
+import { isWeptool } from './material';
+import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
@@ -236,6 +240,24 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       if (!m.peaceful) say(ctx, 'chat.oracle.no_mood', { mon: name });
       else if (moneyCnt(ctx, ctx.state.playerId) === 0) say(ctx, 'chat.oracle.no_gold');
       return 0;
+    case 'nurse': {
+      if (isCancelled(ctx, id)) {
+        say(ctx, 'chat.nurse.hate_job');
+        return NORMAL_SPEED;
+      }
+      const hero = ctx.state.playerId;
+      const uwep = inventoryOf(ctx.state, hero).find((o) => o.c.item?.equipped === 'weapon');
+      const od = uwep ? ctx.defs.object(uwep.def) : null;
+      const worn = (slot: ArmorSlot): boolean => whichArmor(ctx, hero, slot) !== null;
+      let line = 'chat.nurse.relax';
+      if (od && (od.class === 'weapon' || isWeptool(od))) line = 'chat.nurse.weapon';
+      else if ((['cloak', 'body', 'helm', 'shield', 'gloves', 'boots'] as const).some(worn))
+        line =
+          getPlayer(ctx.state).c.player?.role === 'nh:healer' ? 'nurse.doc' : 'chat.nurse.undress';
+      else if (worn('shirt')) line = 'chat.nurse.shirt';
+      say(ctx, line);
+      return NORMAL_SPEED;
+    }
     case 'soldier': {
       const lines = m.peaceful ? SOLDIER_PAX : SOLDIER_FOE;
       say(ctx, lines[ctx.rng.rn2(3)] ?? 'chat.soldier.useless');

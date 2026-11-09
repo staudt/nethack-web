@@ -27,12 +27,14 @@ export const endMessagesEn: Record<string, string> = {
   'end.killer.poisoning': 'poisoned by {killer}',
   'end.killer.starving': 'died of {killer}',
   'end.killer.stoning': 'petrified by {killer}',
+  'end.killer.turned_slime': 'turned to slime by {killer}',
   // "when you %s"
   'end.ends.died': 'died',
   'end.ends.choking': 'choked',
   'end.ends.poisoning': 'were poisoned',
   'end.ends.starving': 'starved',
   'end.ends.stoning': 'turned to stone',
+  'end.ends.turned_slime': 'turned into slime',
   'end.ends.escaped': 'escaped',
   'end.ends.quit': 'quit',
   // ref: src/end.c done2()

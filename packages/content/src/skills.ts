@@ -271,6 +271,46 @@ export function loseWeaponSkill(ctx: Pick<Ctx, 'state'>, n: number): void {
   }
 }
 
+/**
+ * Forgets `n` of the skills advanced (picked at random from those on record): each drops a level,
+ * refunds its slots and keeps only the practice of the level below; "You forget some of your
+ * training in long sword." An advancement made before m9 step 7 (an older save) has no record.
+ * ref: src/weapon.c drain_weapon_skill()
+ */
+export function drainWeaponSkill(ctx: Pick<Ctx, 'state' | 'emit' | 'rng'>, n: number): void {
+  const data = nhData(ctx);
+  const drained = new Set<string>();
+  while (--n >= 0) {
+    const record = data.skillRecord ?? [];
+    if (!data.skillsAdvanced || !record.length) continue;
+    // pick a random skill, deleting it from the list
+    const i = ctx.rng.rn2(record.length);
+    const skill = record[i]!;
+    record.splice(i, 1);
+    drained.add(skill);
+    data.skillsAdvanced--;
+    const skills = (data.skills ??= {});
+    const lvl = (skills[skill] ?? P_UNSKILLED + 1) - 1; // drop skill one level
+    skills[skill] = lvl;
+    // refund slots used for skill
+    data.weaponSlots = weaponSlots(ctx) + slotsRequired(ctx, skill);
+    // drain skill training to a value appropriate for new level
+    const curradv = practiceNeededToAdvance(lvl);
+    const prevadv = practiceNeededToAdvance(lvl - 1);
+    const adv = (data.skillAdvance ??= {});
+    if ((adv[skill] ?? 0) >= curradv) adv[skill] = prevadv + ctx.rng.rn2(curradv - prevadv);
+  }
+  // in skill-number order: weapons, spells, then the fighting skills
+  const order = [...SKILL_GROUPS.slice(1), ...SKILL_GROUPS.slice(0, 1)].flatMap((g) => g.skills);
+  for (const skill of order)
+    if (drained.has(skill))
+      ctx.emit({
+        type: 'msg',
+        key: (data.skills?.[skill] ?? 0) >= P_BASIC ? 'skill.forget.some' : 'skill.forget',
+        params: { skill: { key: `skill.${skill}` } },
+      });
+}
+
 /** ref: src/weapon.c skill_advance(): spends the slots and raises the level. */
 function skillAdvanceNow(ctx: Pick<Ctx, 'state' | 'emit'>, skill: string): void {
   const data = nhData(ctx);

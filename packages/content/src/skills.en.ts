@@ -5,6 +5,8 @@ export const skillMessagesEn: Record<string, string> = {
   'skill.confident.spell': 'You feel more confident in your spell casting skills.',
   'skill.confident.fighting': 'You feel more confident in your fighting skills.',
   'skill.advanced': 'You are now more skilled in {skill}.',
+  'skill.forget': 'You forget your training in {skill}.',
+  'skill.forget.some': 'You forget some of your training in {skill}.',
   'skill.advanced.most': 'You are now most skilled in {skill}.',
   'enhance.more': 'You feel you could be more dangerous!',
   'enhance.pick': 'Pick a skill to advance:',

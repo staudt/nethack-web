@@ -25,7 +25,15 @@ import { mondead, monkilled, mondied } from './mondeath';
 import { monExplodes } from './explode';
 
 export { monkilled, mondied };
-import { M_ATTK, drainItem, failedGrab, mhitmAdtyping, newMhm } from './adtyping';
+import {
+  M_ATTK,
+  drainItem,
+  failedGrab,
+  mhitmAdtyping,
+  newMhm,
+  resetSkipdrin,
+  skipsDrin,
+} from './adtyping';
 import { heroSees, minvent, monWep, monWieldItem } from './mongear';
 import {
   paralyzeMonst,
@@ -549,10 +557,11 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
   const bhitpos = { ...dp };
   let struck = false;
   const res: number[] = [];
+  resetSkipdrin();
   for (let i = 0; i < pa.attacks.length; i++) {
     res[i] = M_ATTK.MISS;
     const atk = pa.attacks[i];
-    if (!atk) continue;
+    if (!atk || skipsDrin(atk)) continue;
     // the target might no longer be there
     const at = mdef.c.pos;
     if (

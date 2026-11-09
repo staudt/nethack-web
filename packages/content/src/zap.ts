@@ -54,6 +54,7 @@ import {
   type TerrainDef,
   type Trap,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { breaktest } from './material';
 import { bypassObj, clearBypasses, isBypassed } from './bypass';
@@ -1491,6 +1492,7 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
         say(ctx, 'zap.self.afire');
         damage = orig;
       }
+      burnAwaySlime(ctx);
       erodeArmor(ctx, h.id, 'burn'); // burnarmor()
       destroyItems(ctx, h.id, 'fire', orig);
       igniteItems(ctx, h.id);

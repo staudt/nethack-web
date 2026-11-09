@@ -20,7 +20,15 @@ import {
 } from '@nh/core';
 import { explmu, gazemu, gulpmu, mdamageu } from './mhitu';
 import { isSwallowed, uswallow } from './engulfstate';
-import { M_ATTK, failedGrab, hitmsgFor, mhitmAdtyping, newMhm } from './adtyping';
+import {
+  M_ATTK,
+  failedGrab,
+  hitmsgFor,
+  mhitmAdtyping,
+  newMhm,
+  resetSkipdrin,
+  skipsDrin,
+} from './adtyping';
 import { passiveum } from './passiveum';
 import { touchPetrifies } from './stonestate';
 import { castmu } from './mcastu';
@@ -727,6 +735,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
   const firstFound = found;
   const startPos = hero.c.pos ? { x: hero.c.pos.x, y: hero.c.pos.y } : null; // bhitpos
   let skipnonmagc = false;
+  resetSkipdrin(); // [see mattackm(mhitm.c)]
   const sum: number[] = [];
   let prevHit = -1; // index of the previous attack if it hit (ref: hitmsg_prev)
   for (let i = 0; i < def.attacks.length; i++) {
@@ -746,6 +755,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
     if (!atk) continue;
     if (isSwallowed(ctx) && atk.at !== 'engulf') continue;
     if (skipnonmagc && atk.at !== 'magic') continue;
+    if (skipsDrin(atk)) continue;
     switch (atk.at) {
       case 'claw': // "hand to hand" attacks
       case 'kick':

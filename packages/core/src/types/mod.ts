@@ -653,7 +653,8 @@ export type MonsterSound =
   | 'burble'
   | 'boast'
   | 'were'
-  | 'spell';
+  | 'spell'
+  | 'nurse';
 
 /** Runs a non-hero actor's turn. The engine deducts NORMAL_SPEED before calling `act`. */
 export interface BrainDef {

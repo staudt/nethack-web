@@ -19,11 +19,12 @@ import {
   type MonsterDef,
   type Msg,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { stopOccupation } from './eat';
 import { heroFemale } from './gender';
 import { poisoned } from './attrib';
 import { setUstuck, ustuck } from './hackmove';
-import { SICK_NONVOMITABLE, hungerData, makeSick, nomulNow } from './hunger';
+import { SICK_NONVOMITABLE, hungerData, makeSick, morehungry, nomulNow } from './hunger';
 import {
   P,
   hasExtrinsic,
@@ -52,11 +53,12 @@ import {
   setMStunned,
   setMblinded,
   setMspecUsed,
+  forgetMState,
 } from './mstate';
 import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './erode';
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
-import { minvent, monWep, setMonFlag, whichArmor } from './mongear';
+import { forgetMonster, minvent, monWep, setMonFlag, whichArmor } from './mongear';
 import { mondied, monkilled, monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { drainEn } from './uenergy';
@@ -69,24 +71,28 @@ export { teleRestrict };
 import { attrcurse } from './pray';
 import { costlyAlteration } from './shk';
 import { CHARGED_RINGS } from './objects';
-import { isWeptool } from './material';
+import { hardHelmet, isWeptool } from './material';
 import { doname, xnameOf } from './objnam';
-import { abon, acurrClamp, addAbon, type Attr } from './attrib';
+import { abon, acurrClamp, addAbon, adjattrib, type Attr } from './attrib';
 import { unaware } from './btrapped';
 import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
 import { monflee } from './monflee';
 import { addToInventory, invCount, placeOnFloor, removeFromInventory } from './items';
 import { corpseChanceSwallowed } from './corpses';
-import { swallowedNutrition } from './dog';
+import { edogOf, swallowedNutrition } from './dog';
 import { wakeNearto } from './noise';
 import { doStoneU, minstapetrify, monstone } from './stoning';
-import { resistsSton } from './stonestate';
 import { losexp, resistsDrliHero } from './exper';
 import { isHumanForm, isWere, setUlycn, ulycn } from './werestate';
 import { wereChange } from './were';
 import { heroForm } from './upoly';
-import { nonliving } from './mondata';
-import { engulfingU } from './engulfstate';
+import { hasHead, noncorporeal, nonliving } from './mondata';
+import { engulfingU, flaming } from './engulfstate';
+import { isSlimed, makeSlimed, slimeproof } from './slimestate';
+import { fleshPetrifies, isStoned, makeStoned, resistsSton, touchPetrifies } from './stonestate';
+import { done } from './end';
+import { losespells } from './spell';
+import { drainWeaponSkill } from './skills';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -125,9 +131,9 @@ export const newMhm = (damage: number, dieroll = 0): Mhm => ({
 
 /**
  * The damage types whose mhitu branch gives no hitmsg() (they print their own line, or nothing).
- * ref: src/uhitm.c mhitm_ad_blnd(), mhitm_ad_legs(), mhitm_ad_halu()
+ * ref: src/uhitm.c mhitm_ad_blnd(), mhitm_ad_legs(), mhitm_ad_halu(), mhitm_ad_heal()
  */
-export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu', 'wrap']);
+export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu', 'wrap', 'heal']);
 
 /** The theft and seduction types: their mhitu branch gives hitmsg() only for animals (monkeys). */
 const SEDU_TYPES: ReadonlySet<string> = new Set(['sitm', 'sedu', 'ssex']);
@@ -647,11 +653,11 @@ function adFire(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
         say(ctx, 'mhitu.fire_not_hot');
         mhm.damage = 0;
       }
-      // burn_away_slime(): no sliming
       if ((magr.c.monster?.level ?? 0) > ctx.rng.rn2(20)) {
         destroyItems(ctx, mdef.id, 'fire', damage);
         igniteItems(ctx, mdef.id);
       }
+      burnAwaySlime(ctx);
     } else mhm.damage = 0;
     return;
   }
@@ -1640,6 +1646,354 @@ const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   adPhys(ctx, magr, atk, mdef, mhm, env);
 };
 
+const GREEN_SLIME = 'nh:green_slime' as DefId;
+
+/**
+ * A green slime's touch. Against the hero, unless magic cancellation stops it ("You escape
+ * harm."): a flaming form burns the slime away, Unchanging, a noncorporeal or green slime form is
+ * unaffected, else "You don't feel very well." and she starts turning into a green slime (10
+ * turns; "Yuck!" when she already is). Against a monster (and from a hero in green slime form),
+ * 1 time in 4 when it is not slimeproof it turns into a green slime (newcham()).
+ * ref: src/uhitm.c mhitm_ad_slim() (no munslime(): monsters do not burn the slime off)
+ */
+const adSlim: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
+  if (isU(ctx, magr)) {
+    if (uNegated(ctx, mdef, false)) return; // physical damage only
+    if (!ctx.rng.rn2(4) && !slimeproof(ctx.defs.monster(mdef.def))) {
+      // this assumes newcham() won't fail; since hero has a slime attack, green slimes haven't
+      // been geno'd
+      say(ctx, 'slime.turn_into', { mon: monNam(ctx, mdef) });
+      newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME));
+      mhm.damage = 0;
+    }
+    return;
+  }
+  if (mdef.id === ctx.state.playerId) {
+    // (the hitmsg() is hitmu()'s)
+    if (mgcAtkNegated(ctx, magr, false)) {
+      if (!isCancelled(ctx, magr.id)) say(ctx, 'mhitu.escape_harm');
+      return;
+    }
+    const pd = heroForm(ctx);
+    if (pd && flaming(pd)) {
+      say(ctx, 'slime.burns_away');
+      mhm.damage = 0;
+    } else if (hasProp(mdef, P.UNCHANGING) || (pd && (noncorporeal(pd) || pd.id === GREEN_SLIME))) {
+      say(ctx, 'slime.unaffected');
+      mhm.damage = 0;
+    } else if (!isSlimed(ctx.state)) {
+      say(ctx, 'slime.dont_feel_well');
+      makeSlimed(ctx, 10, null, `@${magr.def}`); // delayed_killer(SLIMED, KILLED_BY_AN, ...)
+    } else say(ctx, 'slime.yuck');
+    return;
+  }
+  // mhitm
+  if (mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis)) return; // physical damage only
+  if (!ctx.rng.rn2(4) && !slimeproof(ctx.defs.monster(mdef.def))) {
+    newcham(ctx, mdef, ctx.defs.monster(GREEN_SLIME), {
+      msg: env.vis && canseemon(ctx, mdef),
+    });
+    // (no STRAT_WAITFORU)
+    mhm.hitflags = M_ATTK.HIT;
+    mhm.damage = 0;
+  }
+};
+
+/** newcham() (newcham.ts sits above this module and registers it). */
+type Newcham = (
+  ctx: Ctx,
+  mon: Entity,
+  form: MonsterDef | null,
+  flags?: { msg?: boolean },
+) => boolean;
+let newcham: Newcham = () => false;
+export function setAdNewcham(fn: Newcham): void {
+  newcham = fn;
+}
+
+/** mongone(): the monster leaves the game with everything it carries. ref: src/mon.c */
+function mongone(ctx: Ctx, mon: Entity): void {
+  for (const o of inventoryOf(ctx.state, mon.id)) ctx.remove(o.id);
+  forgetMonster(ctx, mon.id);
+  forgetMState(ctx, mon.id);
+  ctx.remove(mon.id);
+}
+
+/**
+ * A nurse's healing hands. Against an unarmed hero wearing no armor: "The nurse hits!  (I hope
+ * you don't mind.)", up to 7 hit points back, 1 time in 7 a point more of maximum hit points
+ * (her own: only below 5 per level plus 2d10 per level), sickness cured; then 1 time in 13 of
+ * those the nurse is gone for good, else 1 time in 33 she teleports away and flees. A Healer
+ * who isn't cooperating hears "Doc, I can't help you unless you cooperate." every fifth turn and
+ * takes no damage; anyone else just gets hit, as by a cancelled nurse. Against a monster it is
+ * a plain hit. ref: src/uhitm.c mhitm_ad_heal() (no exercise(): its rolls are kept)
+ */
+const adHeal: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (isU(ctx, magr) || mdef.id !== ctx.state.playerId) {
+    adPhys(ctx, magr, atk, mdef, mhm, env);
+    return;
+  }
+  const hitmsg = (): void => say(ctx, 'combat.mon_hits', { mon: monNam(ctx, magr) });
+  // a cancelled nurse is just an ordinary monster, nurses don't heal those that cause
+  // petrification
+  const form = heroForm(ctx);
+  if (isCancelled(ctx, magr.id) || (form && touchPetrifies(form))) {
+    hitmsg();
+    return;
+  }
+  const hero = ctx.state.playerId;
+  const uwep = whichArmor(ctx, hero, 'weapon');
+  const od = uwep ? ctx.defs.object(uwep.def) : null;
+  const armed = !!od && (od.class === 'weapon' || isWeptool(od));
+  const armored = (['shirt', 'body', 'cloak', 'shield', 'gloves', 'boots', 'helm'] as const).some(
+    (slot) => whichArmor(ctx, hero, slot) !== null,
+  );
+  if (!armed && !armored) {
+    let goaway = false;
+    say(ctx, 'nurse.hits', { mon: monNam(ctx, magr) });
+    const hp = mdef.c.hp;
+    if (hp) {
+      hp.cur += ctx.rng.rnd(7);
+      if (!ctx.rng.rn2(7)) {
+        if (form)
+          hp.max++; // no upper limit necessary; effect is temporary
+        else {
+          // hard upper limit via nurse care: 25 * ulevel
+          const ulevel = mdef.c.experience?.level ?? 1;
+          if (hp.max < 5 * ulevel + ctx.rng.d(2 * ulevel, 10)) hp.max++;
+        }
+        if (!ctx.rng.rn2(13)) goaway = true;
+      }
+      if (hp.cur > hp.max) hp.cur = hp.max;
+    }
+    ctx.rng.rn2(3); // exercise(A_STR, TRUE)
+    ctx.rng.rn2(3); // exercise(A_CON, TRUE)
+    if (hungerData(ctx).sick) makeSick(ctx, 0, '', false);
+    if (goaway) {
+      mongone(ctx, magr);
+      mhm.done = true;
+      mhm.hitflags = M_ATTK.DEF_DIED; // return 2???
+      return;
+    } else if (!ctx.rng.rn2(33)) {
+      if (!teleRestrict(ctx, magr)) rlocMon(ctx, magr, true);
+      monflee(ctx, magr.id, ctx.rng.d(3, 6), true, false);
+      mhm.done = true;
+      mhm.hitflags = M_ATTK.HIT | M_ATTK.DEF_DIED; // return 3???
+      return;
+    }
+    mhm.damage = 0;
+  } else if (getPlayer(ctx.state).c.player?.role === 'nh:healer') {
+    // (the hero is never deaf)
+    if (ctx.state.turn % 5 === 0) say(ctx, 'nurse.doc');
+    mhm.damage = 0;
+  } else hitmsg();
+};
+
+/** gs.skipdrin: a mind flayer's remaining tentacle attacks this turn are pointless. */
+let skipdrin = false;
+/** Resets gs.skipdrin at the start of an attack sequence (mattacku(), mattackm(), hmonas()). */
+export const resetSkipdrin = (): void => {
+  skipdrin = false;
+};
+/** Whether attack `atk` is one of the AT_TENT+AD_DRIN attacks to skip. */
+export const skipsDrin = (atk: AttackDef): boolean =>
+  skipdrin && atk.at === 'tentacle' && atk.ad === 'drin';
+
+/** mdamageu() (mhitu.ts sits above this module and registers it). */
+let mdamageuFn: ((ctx: Ctx, n: number, killer: string) => void) | null = null;
+export function setAdMdamageu(fn: (ctx: Ctx, n: number, killer: string) => void): void {
+  mdamageuFn = fn;
+}
+
+/**
+ * The brain eating of a mind flayer's tentacles: "Your brain is eaten!" / "The jackal's brain
+ * is eaten!" / "You eat the jackal's brain!", a noncorporeal one is unharmed, a mindless one
+ * doesn't notice, Medusa's brain petrifies its eater; the hero eater is fed, a monster eater adds
+ * d10 damage. A hero at minimum Intelligence dies of brainlessness (after life saving too).
+ * Returns M_ATTK flags. ref: src/eat.c eat_brains() (no Riders, no cannibalism or conduct; no
+ * AMAX: the hero eater's lost Intelligence is not recovered)
+ */
+function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: Mhm | null) {
+  const pd = mdef.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mdef.def);
+  const xtraDmg = ctx.rng.rnd(10);
+  if (pd && noncorporeal(pd)) {
+    if (visflag)
+      say(
+        ctx,
+        mdef.id === ctx.state.playerId ? 'drin.brain_unharmed.u' : 'drin.brain_unharmed.mon',
+        { mon: monNam(ctx, mdef) },
+      );
+    return M_ATTK.MISS; // side-effects can't occur
+  } else if (isU(ctx, magr)) say(ctx, 'drin.u_eat_brain', { mon: monNam(ctx, mdef) });
+  else if (mdef.id === ctx.state.playerId) say(ctx, 'drin.u_brain_eaten');
+  else if (visflag && canSpotMon(ctx, mdef))
+    say(ctx, 'drin.mon_brain_eaten', { mon: monNam(ctx, mdef) });
+
+  if (pd && fleshPetrifies(pd)) {
+    // the mind flayer has eaten the brains of a petrification inducing critter
+    if (isU(ctx, magr)) {
+      if (!hasProp(magr, P.STONE_RES) && !isStoned(ctx.state))
+        makeStoned(ctx, 5, null, `@${pd.id}`);
+    } else {
+      if (visflag && canseemon(ctx, magr))
+        say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
+      const tame = (magr.c.monster?.tame ?? 0) > 0;
+      monstone(ctx, magr);
+      // (no monster life saving)
+      if (tame && !visflag) say(ctx, 'stone.sad_thought');
+      return M_ATTK.AGR_DIED;
+    }
+  }
+
+  let giveNutrit = false;
+  if (isU(ctx, magr)) {
+    if (pd?.flags.includes('mindless')) {
+      say(ctx, 'drin.doesnt_notice', { mon: monNam(ctx, mdef) });
+      return M_ATTK.MISS; // all done; no extra harm inflicted upon target
+    }
+    morehungry(ctx, -ctx.rng.rnd(30)); // cannot choke
+    // (no AMAX: lost Intelligence is not recovered)
+    if (mhm) mhm.damage += xtraDmg;
+  } else if (mdef.id === ctx.state.playerId) {
+    // no such thing as mindless players
+    const a = mdef.c.attributes;
+    if (a && a.int - abon(ctx.state, 'int') <= 3) {
+      const killer = '@killer.brainlessness';
+      if (hasProp(mdef, P.LIFESAVED)) {
+        done(ctx, killer);
+        if (ctx.state.gameOver) return M_ATTK.HIT;
+        // amulet of life saving has now been used up
+        say(ctx, 'drin.still_gone');
+      } else say(ctx, 'drin.last_thought');
+      done(ctx, killer);
+      if (ctx.state.gameOver) return M_ATTK.HIT;
+      // only when the hero chose not to die: arbitrarily boost intelligence
+      a.int = 3 + 2 + abon(ctx.state, 'int');
+      say(ctx, 'drin.scarecrow');
+    }
+    giveNutrit = true; // in case a conflicted pet is doing this
+    // caller handles Int and memory loss
+  } else {
+    if (pd?.flags.includes('mindless')) {
+      if (visflag && canSpotMon(ctx, mdef))
+        say(ctx, 'drin.doesnt_notice', { mon: monNam(ctx, mdef) });
+      return M_ATTK.MISS;
+    }
+    if (mhm) {
+      mhm.damage += xtraDmg;
+      if (mhm.damage >= (mdef.c.hp?.cur ?? 0) && visflag && canSpotMon(ctx, mdef))
+        say(ctx, 'drin.last_thought_mon', { mon: monNam(ctx, mdef) });
+    }
+    giveNutrit = true;
+  }
+  if (giveNutrit && (magr.c.monster?.tame ?? 0) > 0) {
+    const edog = edogOf(ctx, magr.id);
+    if (edog) edog.hungrytime += ctx.rng.rnd(60);
+    setMConfused(ctx, magr.id, false);
+  }
+  return M_ATTK.HIT;
+}
+
+/** "helm" for a hard helmet, else "hat". ref: src/objnam.c helm_simple_name() */
+const helmName = (ctx: Ctx, obj: Entity): string =>
+  hardHelmet(ctx.defs.object(obj.def)) ? '@polyarm.helm' : '@polyarm.hat';
+
+/**
+ * A mind flayer's tentacle. Against the hero: a headless form "doesn't seem harmed" (and the
+ * flayer skips its other tentacles), a helmet blocks 7 times in 8, else she takes the damage,
+ * her brain is eaten (eatBrains()), she loses 1-2 points of Intelligence, 1 time in 5 she
+ * forgets spells (losespells()) and 1 time in 5 some of her skill training
+ * (drainWeaponSkill()); each of those ends the flayer's tentacle attacks this turn. Against a
+ * monster (and from a hero in mind flayer form), a headless one is unharmed, a worn helmet blocks
+ * 7 times in 8, else its brain is eaten for d10 more damage.
+ * ref: src/uhitm.c mhitm_ad_drin() (no long worm tails, no defending artifacts, no dunce cap,
+ * no Half_physical_damage, no greased helmets: m_slips_free() never holds)
+ */
+const adDrin: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
+  if (isU(ctx, magr)) {
+    const pd = ctx.defs.monster(mdef.def);
+    if (!hasHead(pd)) {
+      say(ctx, 'drin.mon_not_harmed', { mon: monNam(ctx, mdef) });
+      // hero should skip remaining AT_TENT+AD_DRIN attacks
+      skipdrin = true;
+      mhm.damage = 0;
+      if (!hasProp(magr, P.UNCHANGING) && pd.id === GREEN_SLIME && !isSlimed(ctx.state)) {
+        say(ctx, 'slime.suck_in');
+        makeSlimed(ctx, 10, null);
+      }
+      return;
+    }
+    const helmet = whichArmor(ctx, mdef.id, 'helm');
+    if (helmet && ctx.rng.rn2(8)) {
+      say(ctx, 'drin.mon_helmet_blocks_u', { mon: monNam(ctx, mdef), helm: helmName(ctx, helmet) });
+      return;
+    }
+    const amu = whichArmor(ctx, mdef.id, 'amulet');
+    const lifsav = amu?.def === 'nh:amulet_of_life_saving';
+    eatBrains(ctx, magr, mdef, true, mhm);
+    // skip further AD_DRIN if amulet of life-saving got used up
+    if (lifsav && !whichArmor(ctx, mdef.id, 'amulet')) skipdrin = true;
+    return;
+  }
+  if (mdef.id === ctx.state.playerId) {
+    // (the hitmsg() is hitmu()'s)
+    const pd = heroForm(ctx);
+    if (pd && !hasHead(pd)) {
+      say(ctx, 'drin.u_not_harmed');
+      skipdrin = true; // attacker should skip remaining AT_TENT+AD_DRIN attacks
+      return;
+    }
+    if (uSlipFree(ctx, magr, _atk)) return;
+    const uarmh = whichArmor(ctx, mdef.id, 'helm');
+    if (uarmh && ctx.rng.rn2(8)) {
+      say(ctx, 'drin.u_helmet_blocks', { helm: helmName(ctx, uarmh) });
+      return;
+    }
+    // negative armor class doesn't reduce this damage (no Half_physical_damage)
+    mdamageuFn?.(ctx, mhm.damage, `@${magr.def}`);
+    mhm.damage = 0; // don't inflict a second dose below
+    if (ctx.state.gameOver) return;
+    // (no dunce cap) u.umortality: an amulet of life saving used up means she died
+    const oldmort = hasProp(mdef, P.LIFESAVED);
+    const r = eatBrains(ctx, magr, mdef, true, null);
+    if (ctx.state.gameOver) return;
+    // skip further AD_DRIN if hero's number of deaths went up
+    if (oldmort && !hasProp(mdef, P.LIFESAVED)) skipdrin = true;
+    if (r === M_ATTK.MISS) return;
+    adjattrib(ctx, 'int', -ctx.rng.rnd(2), false);
+    if (!ctx.rng.rn2(5)) {
+      losespells(ctx);
+      skipdrin = true;
+    }
+    if (!ctx.rng.rn2(5)) {
+      drainWeaponSkill(ctx, ctx.rng.rnd(2));
+      skipdrin = true;
+    }
+    return;
+  }
+  // mhitm
+  const pd = ctx.defs.monster(mdef.def);
+  if (!hasHead(pd)) {
+    if (env.vis && canSpotMon(ctx, mdef))
+      say(ctx, 'drin.mon_not_harmed', { mon: monNam(ctx, mdef) });
+    mhm.damage = 0;
+    // don't bother with additional DRIN attacks since they wouldn't be able to hit target on
+    // head either
+    skipdrin = true;
+    return;
+  }
+  if (whichArmor(ctx, mdef.id, 'helm') && ctx.rng.rn2(8)) {
+    if (env.vis && canSpotMon(ctx, magr) && canseemon(ctx, mdef))
+      say(ctx, 'drin.mon_helmet_blocks', { mon: monNam(ctx, mdef), agr: monNam(ctx, magr) });
+    return;
+  }
+  const amu = whichArmor(ctx, mdef.id, 'amulet');
+  const lifsav = amu?.def === 'nh:amulet_of_life_saving';
+  mhm.hitflags = eatBrains(ctx, magr, mdef, env.vis, mhm);
+  // skip further AD_DRIN if amulet of life-saving got used up
+  if (lifsav && !whichArmor(ctx, mdef.id, 'amulet')) skipdrin = true;
+};
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -1677,6 +2031,9 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   ston: adSton,
   drli: adDrli,
   were: adWere,
+  slim: adSlim,
+  heal: adHeal,
+  drin: adDrin,
 };
 
 /**

@@ -11,6 +11,7 @@
 // infravision, half damage or the other properties the port lacks.
 // from_what() is wizard-mode only in C and is not ported.
 import { isStoned } from './stonestate';
+import { isSlimed } from './slimestate';
 import { resistsDrliHero } from './exper';
 import { ulycn } from './werestate';
 import { heroFormId } from './upoly';
@@ -118,6 +119,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (levitating(ctx)) are('levitating');
   else if (flying(ctx)) are('flying'); // can only fly when not levitating
   if (isStoned(ctx.state)) are('turning_to_stone');
+  if (isSlimed(ctx.state)) are('turning_into_slime');
   if (isStrangled(h)) are('strangled');
   const hd = hungerData(ctx);
   if (hd.sick) are('sick_food_poisoning');

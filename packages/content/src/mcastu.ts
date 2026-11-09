@@ -18,7 +18,7 @@
 // AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
 // Destroy armor, summon nasties, clone wizard and touch of death are always useless, so they
 // are never chosen. Insects are always "insects" (no hallucinated names); no
-// Half_physical_damage, burn_away_slime() or melting ice.
+// Half_physical_damage or melting ice.
 import {
   NORMAL_SPEED,
   cellRules,
@@ -32,6 +32,7 @@ import {
   type Msg,
   type Pos,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { blockersOf } from './boulder';
 import { flashburn, monSpellHitsSpot, ureflects } from './buzz';
 import { clearPath } from './clearpath';
@@ -445,6 +446,7 @@ function mcastFirePillar(ctx: Ctx): number {
   say(ctx, 'mcastu.fire_pillar');
   const origDmg = ctx.rng.d(8, 6);
   const dmg = hasProp(hero, P.FIRE_RES) ? 0 : origDmg;
+  burnAwaySlime(ctx);
   erodeArmor(ctx, hero.id, 'burn'); // burnarmor()
   // item destruction dmg
   destroyItems(ctx, hero.id, 'fire', origDmg);

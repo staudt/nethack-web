@@ -51,6 +51,7 @@ import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
 import { registerStoning } from './stoning';
+import { registerSliming } from './slime';
 import { registerDigestFood } from './digestfood';
 import { registerLevitation } from './levitation';
 import { registerAutosearch } from './actions';
@@ -135,6 +136,7 @@ export const vanillaMod: Mod = {
     registerLandmines();
     registerDigestFood();
     registerStoning(api); // ahead of the strangling timer, as nh_timeout()
+    registerSliming(api); // slime_dialogue() after stoned_dialogue()
     registerJewelry(api);
     registerLevitation(api);
     registerPolyTimeout(api); // u.mtimedone after levitation_dialogue(), as nh_timeout()

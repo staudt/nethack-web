@@ -24,6 +24,7 @@ import {
   type TerrainDef,
   trapAt,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { poisoned } from './attrib';
 import { acidDamage, destroyItems, erodeArmor } from './erode';
@@ -351,6 +352,7 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       const orig = ctx.rng.d(nd, 6);
       if (hasProp(h, P.FIRE_RES)) say(ctx, 'zap.u.not_hot');
       else dam = orig;
+      burnAwaySlime(ctx);
       if (erodeArmor(ctx, h.id, 'burn')) {
         // "body hit"
         if (!ctx.rng.rn2(3)) destroyItems(ctx, h.id, 'fire', orig);

@@ -68,6 +68,10 @@ describe('vanilla monsters', () => {
       // m9 step 7 (exper.ts losexp(), were.ts)
       'drli',
       'were',
+      // m9 step 8 (slime.ts, the nurse, mind flayers)
+      'slim',
+      'heal',
+      'drin',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

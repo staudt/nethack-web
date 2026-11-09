@@ -24,6 +24,7 @@ import { monAdjustSpeed } from './mstate';
 import { monNam } from './perception';
 import { xnameOf } from './objnam';
 import { P, hasProp, setIntrinsic, setItimeout, timeoutLeft } from './props';
+import { isSlimed, makeSlimed } from './slimestate';
 import { isStoned, makeStoned, resistsSton, stonedKiller } from './stonestate';
 
 export { instapetrify, fatalCorpseMistake, cantWieldCorpse, bareCorpseTouch } from './stonetouch';
@@ -124,8 +125,9 @@ function stoningTimeout(ctx: Ctx): void {
         delete (nhData(ctx) as { legSides?: number }).legSides;
       }
       break;
-    case 2: // turned to stone: stop vomiting (no message)
+    case 2: // turned to stone: if also vomiting or turning into slime, stop those (no messages)
       makeVomiting(ctx, 0, false);
+      if (isSlimed(ctx.state)) makeSlimed(ctx, 0, null);
       break;
     default:
       break;

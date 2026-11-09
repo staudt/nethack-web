@@ -1,0 +1,52 @@
+// English text for sliming, the nurse's healing and mind flayers. ref: src/timeout.c
+// slime_texts[], burn_away_slime(), slimed_to_death(); src/uhitm.c mhitm_ad_slim(),
+// mhitm_ad_heal(), mhitm_ad_drin(); src/eat.c eat_brains(); src/pray.c fix_worst_trouble();
+// src/polyself.c polymon(), newman(); src/sounds.c MS_NURSE; src/insight.c (enlightenment)
+export const slimeMessagesEn: Record<string, string> = {
+  // slime_dialogue()
+  'slime.dialogue.4': 'You are turning a little {color}.',
+  'slime.dialogue.3': 'Your limbs are getting oozy.',
+  'slime.dialogue.3.extremities': 'Your extremities are getting oozy.',
+  'slime.dialogue.2': 'Your skin begins to peel away.',
+  'slime.dialogue.1': 'You are turning into {mon|an}.',
+  'slime.dialogue.0': 'You have become {mon|an}.',
+  'slime.burned_away': 'The slime that covers you is burned away!',
+  'slime.burns_away': 'The slime burns away!',
+  'slime.disappears': 'The slime disappears.',
+  'slime.still_on_you': 'Your body transforms, but there is still slime on you.',
+  'slime.dont_feel_well': "You don't feel very well.",
+  'slime.unaffected': 'You are unaffected.',
+  'slime.yuck': 'Yuck!',
+  'mhitu.escape_harm': 'You escape harm.',
+  'stone.sad_thought': 'You have a sad thought for a moment, then it passes.',
+  'slime.turn_into': 'You turn {mon|the} into slime.',
+  'slime.suck_in': "You suck in some slime and don't feel very well.",
+  'killer.turned_into_green_slime': 'turned into green slime',
+  'enl.turning_into_slime': 'turning into slime',
+  // mhitm_ad_heal()
+  'nurse.hits': "{mon|The} hits!  (I hope you don't mind.)",
+  'nurse.doc': '"Doc, I can\'t help you unless you cooperate."',
+  // MS_NURSE
+  'chat.nurse.hate_job': '"I hate this job!"',
+  'chat.nurse.weapon': '"Put that weapon away before you hurt someone!"',
+  'chat.nurse.undress': '"Please undress so I can examine you."',
+  'chat.nurse.shirt': '"Take off your shirt, please."',
+  'chat.nurse.relax': '"Relax, this won\'t hurt a bit."',
+  // mhitm_ad_drin(), eat_brains()
+  'drin.u_not_harmed': "You don't seem harmed.",
+  'drin.mon_not_harmed': "{mon|The} doesn't seem harmed.",
+  'drin.u_helmet_blocks': 'Your {helm} blocks the attack to your head.',
+  'drin.mon_helmet_blocks': '{mon|The_s} helmet blocks {agr|the_s} attack to its head.',
+  'drin.mon_helmet_blocks_u': '{mon|The_s} {helm} blocks your attack to its head.',
+  'drin.brain_unharmed.u': 'Your brain is unharmed.',
+  'drin.brain_unharmed.mon': '{mon|The_s} brain is unharmed.',
+  'drin.u_eat_brain': 'You eat {mon|the_s} brain!',
+  'drin.u_brain_eaten': 'Your brain is eaten!',
+  'drin.mon_brain_eaten': '{mon|The_s} brain is eaten!',
+  'drin.doesnt_notice': "{mon|The} doesn't notice.",
+  'drin.last_thought_mon': '{mon|The_s} last thought fades away...',
+  'drin.last_thought': 'Your last thought fades away.',
+  'drin.still_gone': 'Unfortunately your brain is still gone.',
+  'drin.scarecrow': 'You feel like a scarecrow.',
+  'killer.brainlessness': 'brainlessness',
+};

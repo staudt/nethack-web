@@ -54,6 +54,7 @@ export const P = {
   LIFESAVED: 'lifesaved',
   STRANGLED: 'strangled',
   STONED: 'stoned',
+  SLIMED: 'slimed',
   SLEEPY: 'sleepy',
   REFLECTING: 'reflecting',
   ADORNED: 'adorned',

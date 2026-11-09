@@ -9,7 +9,7 @@
 // fate 12 and a monster's 1-in-21 magic trap.
 //
 // Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
-// passers, golems, polymorph, steeds, water and ice, green slime.
+// passers, golems, polymorph, steeds, water and ice.
 import {
   getLevel,
   getPlayer,
@@ -20,6 +20,7 @@ import {
   type Msg,
   type Trap,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { adjattrib } from './attrib';
 import { burnFloorObjects, resistsMagm } from './buzz';
 import { tamedog } from './dog';
@@ -81,7 +82,7 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
  * burn, carried items may burn or catch light (always when the body was hit, else 2 in 3), and
  * scrolls and books on her square may burn ("You smell paper burning." when blind).
  * `box`: the flame bursts from a trapped box (chest_trap()); the rest is the same.
- * ref: src/trap.c dofiretrap() (no water, polymorph, slime or ice; the level drain when her
+ * ref: src/trap.c dofiretrap() (no water, polymorph or ice; the level drain when her
  * maximum drops below her level is not ported)
  */
 export function dofiretrap(ctx: Ctx, box?: Entity): void {
@@ -112,6 +113,7 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
   if (!num) say(ctx, 'fire.you_uninjured');
   else losehp(ctx, num, '@killer.trap.tower_of_flame'); // fire damage
   if (ctx.state.gameOver) return;
+  burnAwaySlime(ctx);
   // burnarmor() || rn2(3)
   if (erodeArmor(ctx, hero.id, 'burn') || ctx.rng.rn2(3)) {
     destroyItems(ctx, hero.id, 'fire', origDmg);

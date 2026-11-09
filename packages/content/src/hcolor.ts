@@ -4,7 +4,7 @@ import { getPlayer, type Ctx, type Msg } from '@nh/core';
 import { P, hasProp } from './props';
 
 export type ColorName =
-  'blue' | 'black' | 'silver' | 'amber' | 'golden' | 'purple' | 'light_blue' | 'red';
+  'blue' | 'black' | 'silver' | 'amber' | 'golden' | 'purple' | 'light_blue' | 'red' | 'green';
 
 /** A color name message (not hallucinating). */
 export const color = (name: ColorName): Msg => ({

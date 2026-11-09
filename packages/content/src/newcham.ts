@@ -20,6 +20,7 @@ import { digests, isWhirly, uswallow } from './engulfstate';
 import { boulderFlooreffects } from './flooreffects';
 import { adjLev, newmonhp } from './generation';
 import { ustuck } from './hackmove';
+import { setAdNewcham } from './adtyping';
 import { newchamInvis } from './invis';
 import { placeOnFloor } from './items';
 import { minvent, setMonFlag } from './mongear';
@@ -248,3 +249,5 @@ export function newcham(
   }
   return true;
 }
+
+setAdNewcham(newcham); // adtyping.ts (AD_SLIM) sits below this module

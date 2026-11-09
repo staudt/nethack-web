@@ -6,7 +6,7 @@
 // Not ported (see DEVIATIONS.md): engulfing (the hero inside an engulfer), steeds, polymorphed
 // heroes (grabbing, ugolemeffects()), golems (golemeffects(), completelyburns()), shields shown
 // on resisting targets, hallucinated names, Deafness, Invulnerable, Half_physical_damage,
-// slime, exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
+// exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
 // A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
 // explosion here is hers (C's type >= 0).
 import {
@@ -22,6 +22,7 @@ import {
   type Msg,
   type RayStep,
 } from '@nh/core';
+import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import {
   killedByHero,
@@ -330,6 +331,8 @@ export function explode(
       ctx.emit(e);
     };
     say(ctx, 'explode.you_caught', { what: strMsg });
+    // do property damage first, in case we end up leaving bones
+    if (adtyp === 'fire') burnAwaySlime(counting);
     if (adtyp === 'fire') {
       erodeArmor(counting, h.id, 'burn'); // burnarmor()
       igniteItems(counting, h.id);

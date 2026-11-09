@@ -12,7 +12,7 @@
 // shapeshifters, genocide ("You feel rather gnome-ish."), golems (stone golem when stoned), light
 // sources of shining forms, mimicking and hiding, a hero who sticks to a monster (no such forms
 // fight yet), pools and lava under the new form, Passes_walls and buried balls, the amulet of
-// strangulation's can_be_strangled(), slime, slippery fingers, eggs, the `#monster` hints and
+// strangulation's can_be_strangled(), slippery fingers, eggs, the `#monster` hints and
 // conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
 import {
@@ -34,7 +34,7 @@ import { resist, resistsMagm } from './buzz';
 import { monsterNearby } from './eat';
 import { done } from './end';
 import { expels } from './engulf';
-import { isWhirly, uswallow } from './engulfstate';
+import { flaming, isWhirly, uswallow } from './engulfstate';
 import { changeSex, heroFemale, setHeroFemale } from './gender';
 import { setUstuck, ustuck } from './hackmove';
 import { MAXULEV, levelIncrements, newhp, newpw, newuexp, setUlevelmax, ulevelmax } from './hero';
@@ -53,6 +53,7 @@ import { breakArmor, dropWeapon } from './polyarmor';
 import { polyObj } from './polyobj';
 import { P, adjabil, hasProp, makeBlinded, setFormProps, wornIn } from './props';
 import { isStoned, makeStoned } from './stonestate';
+import { isSlimed, makeSlimed } from './slimestate';
 import {
   TRAP,
   canseemon,
@@ -536,6 +537,10 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   }
   if (hasProp(h, P.STONE_RES) && isStoned(ctx.state))
     makeStoned(ctx, 0, 'polyself.no_longer_petrifying', null);
+  if (isSlimed(ctx.state)) {
+    if (flaming(def)) makeSlimed(ctx, 0, 'slime.burns_away');
+    else if (mntmp === 'nh:green_slime') makeSlimed(ctx, 0, null); // do it silently
+  }
 
   // there is no experience level of the hero as a monster: the form's own level
   const mlvl = def.level;
@@ -761,6 +766,10 @@ export function newman(ctx: Ctx, sexChangeOk: boolean): void {
   const u = upolyOf(ctx.state);
   const female = u ? u.mfemale : heroFemale(ctx.state);
   polyman(ctx, female ? 'polyself.new_woman' : 'polyself.new_man');
+  if (isSlimed(ctx.state)) {
+    say(ctx, 'slime.still_on_you');
+    makeSlimed(ctx, 10, null);
+  }
   encumberMsg(ctx);
 }
 

@@ -5,6 +5,7 @@
 import {
   NORMAL_SPEED,
   getPlayer,
+  rnl,
   inventoryOf,
   type ActionDef,
   type Ctx,
@@ -21,6 +22,7 @@ import { erodeObj } from './erode';
 import { losehp, losestr } from './hp';
 import { nhData, removeFromInventory } from './items';
 import { useup } from './magic';
+import { luckOf } from './luck';
 import { aggravate } from './mstate';
 import { nomul } from './nomul';
 import { discover, isKnown } from './o_init';
@@ -67,6 +69,38 @@ export const knownSpells = (ctx: Pick<Ctx, 'state'>): readonly KnownSpell[] =>
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
+
+/**
+ * Amnesia for spells: anywhere from none to all of the known spells (the worse of two rolls when
+ * confused, maybe fewer with good luck) have their retention set to zero; each spell is as likely
+ * to go, and they stay in the list. A book being studied is forgotten too.
+ * ref: src/spell.c losespells() (no exercise())
+ */
+export function losespells(ctx: Ctx): void {
+  // in case reading has been interrupted earlier, discard context
+  const sp = spellData(ctx).spbook;
+  if (sp) {
+    sp.book = null;
+    sp.delay = 0;
+  }
+  const spells = spellData(ctx).spells ?? [];
+  const n = spells.length;
+  let nzap = ctx.rng.rn2(n + 1);
+  if (hasProp(getPlayer(ctx.state), P.CONFUSION)) {
+    const i = ctx.rng.rn2(n + 1);
+    if (i > nzap) nzap = i;
+  }
+  // good Luck might ameliorate spell loss
+  if (nzap > 1 && !rnl(ctx.rng, 7, luckOf(ctx.state))) nzap = ctx.rng.rnd(nzap);
+  for (let i = 0; nzap > 0; ++i) {
+    // overall, exactly nzap entries are affected
+    if (ctx.rng.rn2(n - i) < nzap) {
+      const s = spells[i];
+      if (s) s.retention = 0; // lose access to spell [i]
+      --nzap;
+    }
+  }
+}
 
 const hero = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
 const levelOf = (def: ObjectDef): number => def.spellbook?.level ?? 0;
