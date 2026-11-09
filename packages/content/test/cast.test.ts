@@ -15,7 +15,7 @@ import { setTerrain } from '../src/actions';
 import { T, vanillaMod } from '../src/index';
 import { nhData } from '../src/items';
 import { setU, uState } from '../src/luck';
-import { confuseMonsterSpell } from '../src/cast';
+import { confuseMonster } from '../src/seffect';
 import { frozenTime, isFrozen, isMConfused, setMConfused } from '../src/mstate';
 import { P, setIntrinsic, setItimeout } from '../src/props';
 import { P_SKILLED, P_UNSKILLED } from '../src/skills';
@@ -763,7 +763,7 @@ describe('confuse monster', () => {
     setItimeout(s.state, hero(s), P.BLINDED, 50);
     expect(castText(s)).toEqual(['Your hands tingle.']);
     expect(castText(s)).toEqual(['Your hands tingle even more.']);
-    confuseMonsterSpell(s.ctx as unknown as Ctx, true);
+    confuseMonster(s.ctx as unknown as Ctx, true, false, false);
     expect(umconf(s)).toBeGreaterThan(2);
   });
 
@@ -785,12 +785,12 @@ describe('confuse monster', () => {
       ...s.ctx,
       emit: (e: { type: string; key?: string }) => events.push(e.key ?? ''),
     } as unknown as Ctx;
-    confuseMonsterSpell(ctx, false);
+    confuseMonster(ctx, false, false, false);
     expect(events).toEqual(['cast.hands_begin_glow']);
     expect(hero(s).c.props?.[P.CONFUSION]?.timeout ?? 0).toBeGreaterThan(before);
     expect(umconf(s)).toBe(0);
     events.length = 0;
-    confuseMonsterSpell(ctx, true);
+    confuseMonster(ctx, true, false, false);
     expect(events).toEqual(['cast.head_glow', 'conf.less_confused']);
     expect(hero(s).c.props?.[P.CONFUSION]?.timeout ?? 0).toBe(0);
   });

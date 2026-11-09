@@ -11,6 +11,7 @@ import { registerProps } from './props';
 import { registerPerception } from './perception';
 import { registerMState } from './mstate';
 import { registerDog } from './dog';
+import { registerGenocide } from './genocide';
 import { registerLuck } from './luck';
 import { PRAY_ACTIONS, registerPray } from './pray';
 import { registerStats } from './stats';
@@ -127,6 +128,7 @@ export const vanillaMod: Mod = {
     registerMState(api);
     registerLeaveShops(api); // before the pets follow, as goto_level()'s check_special_room(TRUE)
     registerDog(api);
+    registerGenocide(api); // after the pets arrive, as goto_level()'s kill_genocided_monsters()
     registerLuck(api);
     registerPray(api);
     registerKick(api);

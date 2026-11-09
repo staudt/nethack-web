@@ -564,7 +564,8 @@ describe('lycanthropy', () => {
 
 describe('polymorphitis', () => {
   test('with Polymorph she changes on her own about 1 turn in 100', () => {
-    const s = room();
+    // a seed where her first change is not newman()'s fatal system shock
+    const s = room(2);
     setAttr(s, 'con', 25);
     setIntrinsic(hero(s), P.POLYMORPH, true);
     let turns = 0;

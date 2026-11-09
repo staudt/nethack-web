@@ -354,8 +354,8 @@ export function hurtPet(ctx: Ctx, id: EntityId, fleetime: number, destroyed: boo
 /**
  * Food or magic makes the monster peaceful, and tame if it can be; a pet catches and eats thrown
  * food it likes. Returns true when the food was eaten (it is gone) or the monster was just
- * tamed; a shopkeeper is only made happy. ref: src/dog.c tamedog() (no full moon, scrolls of taming
- * or minions)
+ * tamed; a shopkeeper is only made happy; `blessedScroll` (a blessed scroll of taming) tames an
+ * already tame one more. ref: src/dog.c tamedog() (no full moon or minions)
  */
 export function tamedog(
   ctx: Ctx,
@@ -363,6 +363,7 @@ export function tamedog(
   food: Entity | null,
   givemsg: boolean,
   eat: (ctx: Ctx, mon: EntityId, obj: Entity, devour: boolean) => void,
+  blessedScroll = false,
 ): boolean {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
@@ -403,8 +404,11 @@ export function tamedog(
     }
     return false;
   }
+  // maximum tameness is 20, only reachable via eating; a blessed scroll raises low tameness by 2
+  // or 3, uncursed by 0 or 1
   if (m.tame && m.tame < 10) {
     if (m.tame < ctx.rng.rnd(10)) m.tame++;
+    if (blessedScroll) m.tame = Math.min(10, m.tame + 2);
     return false;
   }
   // pacify angry shopkeeper but don't tame him

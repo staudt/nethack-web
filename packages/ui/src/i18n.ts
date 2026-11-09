@@ -160,7 +160,8 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
  * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
  * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). A string param starting with
  * '=' is a proper name: the rest, with no article under any modifier ("Izchak", "Izchak's").
- * `{name|plural}` is the English plural ("jackals", "homunculi"; src/objnam.c makeplural()).
+ * `{name|plural}` is the English plural ("jackals", "homunculi"; src/objnam.c makeplural()),
+ * `{name|Plural}` the same capitalized (upstart()).
  * Missing keys render as `[key]` (warned once).
  */
 export function translate(
@@ -180,7 +181,7 @@ export function translate(
   }
   if (!params) return template;
   return template.replace(
-    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The|\|plural)?\}/g,
+    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The|\|plural|\|Plural)?\}/g,
     (whole, name: string, mod?: string) => {
       const v = params[name];
       if (v === undefined) return whole;
@@ -202,6 +203,10 @@ export function translate(
           : out;
       }
       if (mod === '|plural') return makeplural(text);
+      if (mod === '|Plural') {
+        const pl = makeplural(text);
+        return pl.charAt(0).toUpperCase() + pl.slice(1);
+      }
       if (mod === '|an') return justAn(text) + text;
       if (mod === '|An') {
         const a = justAn(text);

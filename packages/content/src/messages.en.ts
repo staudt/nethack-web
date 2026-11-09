@@ -47,12 +47,14 @@ import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
 import { fumbleMessagesEn } from './fumble.en';
 import { eggMessagesEn } from './egg.en';
+import { scrollMessagesEn } from './scroll.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
   ...shirtMessagesEn,
   ...fumbleMessagesEn,
   ...eggMessagesEn,
+  ...scrollMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,

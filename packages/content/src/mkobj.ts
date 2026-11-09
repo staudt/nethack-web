@@ -309,7 +309,7 @@ setEggInit((ctx, level) => {
   if (ctx.rng.rn2(3)) return null; // generic egg
   for (let tryct = 200; tryct > 0; --tryct) {
     const mndx = canBeHatched(ctx, rndmonnum(ctx, depthOf(ctx, level)).id);
-    if (mndx !== null && !deadSpecies(mndx)) return mndx; // typed egg
+    if (mndx !== null && !deadSpecies(ctx.state, ctx.defs, mndx)) return mndx; // typed egg
   }
   return null;
 });

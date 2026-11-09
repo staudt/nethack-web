@@ -12,6 +12,7 @@ import type {
   MonsterDef,
   Registry,
 } from '@nh/core';
+import { isGenocided } from './vanquished';
 
 export const EGG: DefId = 'nh:egg';
 
@@ -153,10 +154,20 @@ export function eggTypeFromParent(
 }
 
 /**
- * Whether an egg (or tin) of the type is not viable: generic eggs (no monster) are unhatchable.
- * Genocide does not exist yet, so a typed egg is always viable. ref: src/mon.c dead_species()
+ * Whether an egg (or tin) of the type is not viable: generic eggs (no monster) are unhatchable,
+ * and so are those of a genocided species; for an egg, genociding either the baby or the adult
+ * form counts (no extinction). ref: src/mon.c dead_species()
  */
-export const deadSpecies = (mon: DefId | null | undefined): boolean => !mon;
+export function deadSpecies(
+  state: Readonly<GameState>,
+  defs: Pick<Registry, 'isMonster'>,
+  mon: DefId | null | undefined,
+  egg = true,
+): boolean {
+  if (!mon) return true;
+  const alt = egg ? bigToLittle(defs, mon) : mon;
+  return isGenocided(state, mon) || isGenocided(state, alt);
+}
 
 /** ref: include/obj.h stale_egg(): older than 2 * MAX_EGG_HATCH_TIME */
 export const staleEgg = (state: Readonly<GameState>, it: Readonly<ItemComponent>): boolean =>
@@ -210,7 +221,7 @@ export function attachEggHatchTimeout(
  * ref: src/mkobj.c set_corpsenm() EGG
  */
 export function setEggCorpsenm(
-  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule'>,
+  ctx: Pick<Ctx, 'state' | 'rng' | 'schedule' | 'defs'>,
   id: EntityId,
   mon: DefId | null,
 ): void {
@@ -219,7 +230,7 @@ export function setEggCorpsenm(
   const when = killEgg(ctx, id);
   if (mon) it.corpseOf = mon;
   else delete it.corpseOf;
-  if (!deadSpecies(mon)) attachEggHatchTimeout(ctx, id, when);
+  if (!deadSpecies(ctx.state, ctx.defs, mon)) attachEggHatchTimeout(ctx, id, when);
 }
 
 /** obj_split_timers() for an egg: the split-off part hatches at the same time. */

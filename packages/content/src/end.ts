@@ -25,7 +25,8 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 /**
  * The hero dies of `killer` (a death reason key), unless her amulet of life saving saves her
  * or a `beforeGameOver` hook (wizard mode's "Die?") keeps the game going; check
- * `ctx.state.gameOver` afterwards. ref: src/end.c done(): `if (Lifesaved && how <=
+ * `ctx.state.gameOver` afterwards; life saving does not save a genocided hero ("Unfortunately you
+ * are still genocided..."). ref: src/end.c done(): `if (Lifesaved && how <=
  * GENOCIDED)` ("But wait..."), then `(wizard || discover) && !paranoid_query("Die?")`, both
  * ending in savelife(how), else the game ends.
  */
@@ -49,7 +50,8 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
     // adjattrib(A_CON, -1, TRUE): no message; Fixed_abil keeps it
     adjattrib(ctx, 'con', -1, false);
     savelife(ctx, how);
-    return;
+    if (how !== 'genocided') return;
+    say(ctx, 'lifesave.still_genocided');
   }
   setEndHow(ctx, how);
   ctx.endGame({

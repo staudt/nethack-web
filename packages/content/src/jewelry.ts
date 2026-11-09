@@ -288,6 +288,24 @@ export function ringGone(ctx: Ctx, ring: Entity): void {
   ringOffOrGone(ctx, ring);
 }
 
+/**
+ * Changes a ring's enchantment by `s`, taking a worn one off and putting it back on around the
+ * change so its attribute bonus follows. ref: src/read.c recharge() RING_CLASS
+ * (`Ring_off(obj); obj->spe += s; setworn(obj, mask), Ring_on(obj)`)
+ */
+export function rechargeRing(ctx: Ctx, ring: Entity, s: number): void {
+  const it = ring.c.item;
+  if (!it) return;
+  const slot = it.equipped;
+  if (isRingSlot(slot)) ringOffOrGone(ctx, ring);
+  it.spe += s; // update the ring while it's off
+  if (isRingSlot(slot)) {
+    it.equipped = slot;
+    updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
+    ringOn(ctx, ring);
+  }
+}
+
 /** ref: src/do_wear.c Ring_off() with off_msg() first: "You were wearing a ring (on left hand)." */
 function ringOff(ctx: Ctx, ring: Entity): void {
   say(ctx, 'takeoff.were_wearing', { item: ctx.defs.itemName(ctx.state, ring) });

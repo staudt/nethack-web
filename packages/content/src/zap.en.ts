@@ -277,6 +277,7 @@ export const zapMessagesEn: Record<string, string> = {
   // explode() (explode.ts)
   'explode.magical_blast': 'magical blast',
   'explode.fireball': 'fireball',
+  'explode.tower_of_flame': 'tower of flame',
   'explode.ball_of_cold': 'ball of cold',
   'explode.death_field': 'death field',
   'explode.disintegration_field': 'disintegration field',
@@ -302,6 +303,7 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.explode.own.elec': 'caught herself in her own ball of lightning',
   'killer.explode.own.elec.m': 'caught himself in his own ball of lightning',
   'killer.explode.trap': 'caught herself in a magical blast',
+  'killer.explode.tower_of_flame': 'a tower of flame',
   'killer.explode.trap.m': 'caught himself in a magical blast',
   'killer.explode.trap_unseen': 'caught herself in an explosion',
   'killer.explode.trap_unseen.m': 'caught himself in an explosion',

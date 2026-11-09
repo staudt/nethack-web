@@ -28,6 +28,7 @@ export const endMessagesEn: Record<string, string> = {
   'end.killer.starving': 'died of {killer}',
   'end.killer.stoning': 'petrified by {killer}',
   'end.killer.turned_slime': 'turned to slime by {killer}',
+  'end.killer.genocided': 'killed by {killer}',
   // "when you %s"
   'end.ends.died': 'died',
   'end.ends.choking': 'choked',
@@ -35,6 +36,7 @@ export const endMessagesEn: Record<string, string> = {
   'end.ends.starving': 'starved',
   'end.ends.stoning': 'turned to stone',
   'end.ends.turned_slime': 'turned into slime',
+  'end.ends.genocided': 'were genocided',
   'end.ends.escaped': 'escaped',
   'end.ends.quit': 'quit',
   // ref: src/end.c done2()
@@ -58,6 +60,11 @@ export const endMessagesEn: Record<string, string> = {
   'end.thrice': 'thrice',
   'end.n_times': '{n} times',
   'end.blank': '',
+  // ref: src/insight.c list_genocided()
+  'end.ask.genocided': 'Do you want a list of species genocided?',
+  'end.genocided': 'Genocided species:',
+  'end.geno.one': ' {mon|plural}',
+  'end.geno.total': '{n} species genocided.',
   'end.gold_moves': 'and {gold} piece{gs} of gold, after {moves} move{ms}.',
   'end.level_hp': 'You were level {level} with a maximum of {hp} hit point{hs} when you {ends}.',
 };

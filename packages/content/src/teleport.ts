@@ -6,8 +6,7 @@
 // rloc(), rloc_pos_ok(), rloco(), random_teleport_level(); src/dungeon.c get_level()
 //
 // Not ported (see DEVIATIONS.md "Teleportation"): the demon court of Gehennom, covetous
-// monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the
-// onscary() test of rloc_pos_ok() (nothing here scares a monster off a square), the Wizard's
+// monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
 // stairs, water and lava (none exist), Passes_walls.
 import {
   cellIndex,
@@ -29,6 +28,7 @@ import {
   type LevelRef,
   type Pos,
 } from '@nh/core';
+import { onscary, scareCells } from './scary';
 import { boulderCells } from './boulder';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
@@ -259,17 +259,20 @@ export function safeTeledsPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: L
 }
 
 /**
- * A resident shopkeeper or temple priest stays in his room when he can. ref: src/teleport.c
- * rloc_pos_ok() (goodpos() and the room test; no onscary(), no teleport regions)
+ * A resident shopkeeper or temple priest stays in his room when he can; no monster lands where
+ * it would be scared (a scroll of scare monster). ref: src/teleport.c rloc_pos_ok() (goodpos()
+ * with GP_CHECKSCARY and the room test; no teleport regions)
  */
 function rlocPosOk(
-  ctx: Pick<Ctx, 'state'>,
+  ctx: Pick<Ctx, 'state' | 'defs'>,
   o: Occupancy,
   x: number,
   y: number,
   mon: Entity,
+  scare: Set<number>,
 ): boolean {
   if (!goodpos(o, x, y, mon.id)) return false;
+  if (onscary(ctx, x, y, mon, { level: o.level, cells: scare })) return false;
   const eshk = eshkOf(ctx, mon.id);
   if (eshk && inhishop(ctx, mon.id)) return inRooms(o.level, x, y).includes(eshk.shoproom);
   const epri = epriOf(ctx, mon.id);
@@ -288,10 +291,11 @@ export function rlocMonPos(
   mon: Entity,
 ): Pos | null {
   const o = occupancy(ctx, level);
+  const scare = scareCells(ctx, level);
   for (let trycount = 0; trycount < 50; ++trycount) {
     const x = ctx.rng.rnd(level.width - 1);
     const y = ctx.rng.rn2(level.height);
-    if (rlocPosOk(ctx, o, x, y, mon)) return { x, y };
+    if (rlocPosOk(ctx, o, x, y, mon, scare)) return { x, y };
   }
   const candy = collectCoords(ctx, o, Math.trunc(level.width / 2), Math.trunc(level.height / 2), {
     inclCenter: true,
@@ -307,7 +311,7 @@ export function rlocMonPos(
       candy[i + j] = c;
     }
     const c = candy[i] as Pos;
-    if (rlocPosOk(ctx, o, c.x, c.y, mon)) return c;
+    if (rlocPosOk(ctx, o, c.x, c.y, mon, scare)) return c;
     if (!backup && goodpos(o, c.x, c.y, mon.id)) backup = c;
   }
   return backup;

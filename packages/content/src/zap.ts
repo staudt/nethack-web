@@ -82,7 +82,7 @@ import { STATUE } from './statuestate';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { igniteItems } from './light';
-import { makemon } from './generation';
+import { createCritters } from './seffect';
 import { mRespond } from './mrespond';
 import { confdir, getdirImpaired, setUstuck, uMaybeImpaired, ustuck } from './hackmove';
 import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
@@ -950,7 +950,7 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       // ref: revive_egg(): generic eggs with no monster will never hatch
       if (obj.def === EGG) {
         const of = obj.c.item?.corpseOf;
-        if (of && !deadSpecies(of)) attachEggHatchTimeout(ctx, obj.id, 0);
+        if (of && !deadSpecies(ctx.state, ctx.defs, of)) attachEggHatchTimeout(ctx, obj.id, 0);
         break;
       }
       if (obj.def !== CORPSE) break;
@@ -1240,19 +1240,6 @@ function findit(ctx: Ctx): number {
   return sdoors + scorrs + traps;
 }
 
-/** ref: src/makemon.c create_critters(): true when the hero sees a new monster */
-function createCritters(ctx: Ctx, cnt: number): boolean {
-  let known = false;
-  const p = heroPos(ctx);
-  while (cnt-- > 0) {
-    const id = makemon(ctx, null, { x: p.x, y: p.y }, { adjacentOk: true });
-    if (id === null) continue;
-    const mon = ent(ctx, id);
-    if (mon && canSpotMon(ctx, mon)) known = true;
-  }
-  return known;
-}
-
 /** ref: src/zap.c zapnodir() */
 function zapnodir(ctx: Ctx, src: ZapSource): void {
   let known = false;
@@ -1271,7 +1258,7 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
       setStasis(ctx, heroPos(ctx).level, ctx.state.turn + ctx.rng.rn2(21) + 10); // rn1(21, 10)
       break;
     case WAN.createMonster:
-      if (createCritters(ctx, ctx.rng.rn2(23) !== 0 ? 1 : ctx.rng.rn2(7) + 2)) known = true;
+      if (createCritters(ctx, ctx.rng.rn2(23) !== 0 ? 1 : ctx.rng.rn2(7) + 2, null)) known = true;
       break;
     case WAN.wishing:
       if (luckOf(ctx.state) + ctx.rng.rn2(5) < 0) {

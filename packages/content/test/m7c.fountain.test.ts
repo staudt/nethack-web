@@ -244,8 +244,9 @@ describe('#quaff from a fountain', () => {
     const d = drinks(s.state, (f) => f === 20)[0]!;
     expect(d.text[0]).toBe('The water is foul!  You gag and vomit.');
     const n = n0 - getPlayer(d.state).c.hunger!.nutrition;
+    // rn1(20, 11), plus the ordinary hunger of the turn that passes while she vomits
     expect(n).toBeGreaterThanOrEqual(11);
-    expect(n).toBeLessThanOrEqual(30);
+    expect(n).toBeLessThanOrEqual(31);
   });
 
   test('fate 21: contaminated water costs Str and HP, or 1-4 HP with poison resistance', () => {

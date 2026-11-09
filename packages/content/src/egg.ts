@@ -1,7 +1,6 @@
 // Eggs hatching: the hatch timer's handler. ref: src/timeout.c hatch_egg()
 //
-// Not ported: G_EXTINCT (no extinction), genocide (step 7: dead_species() only knows generic
-// eggs), hallucination's names, the long worm's tail, deafness (no Deaf), mimics hiding.
+// Not ported: G_EXTINCT (no extinction), hallucination's names, the long worm's tail, deafness (no Deaf), mimics hiding.
 import {
   cellIndex,
   inBounds,
@@ -20,6 +19,7 @@ import { heroFemale } from './gender';
 import { canseemon } from './invis';
 import { useupall } from './magic';
 import { monNam } from './perception';
+import { isGenocided } from './vanquished';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -124,7 +124,7 @@ export function hatchEgg(ctx: Ctx, data: Json): void {
   let hatchcount = ctx.rng.rnd(it.quantity);
   const canseeHatchspot = !silent && cansee(ctx, loc.level, loc.x, loc.y);
   let mon: Entity | null = null;
-  if (!mdef.genFlags.includes('uniq')) {
+  if (!mdef.genFlags.includes('uniq') && !isGenocided(ctx.state, mnum)) {
     let i = hatchcount;
     let mon2: Entity | null = null;
     for (; i > 0; i--) {

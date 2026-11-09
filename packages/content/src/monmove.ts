@@ -72,6 +72,7 @@ import { monEatsHere } from './meat';
 import { findgold } from './steal';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
+import { onscary, scareCells } from './scary';
 import { afterShkMove } from './rooms';
 import {
   carriedPicks,
@@ -234,8 +235,9 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * tame monsters and priests have it). Boulder squares are never candidates (no ALLOW_ROCK).
  * With `allowDig` (ALLOW_DIG, a tunneller: canTunnel()) rock, walls and trees it can dig into
  * now are candidates, and so are closed and locked doors (thrudoor); intelligent peaceful ones
- * keep out of shop and temple walls from outside. Not ported: water/lava, scary squares, long
- * worms, wall-walking.
+ * keep out of shop and temple walls from outside. A monster without ALLOW_SSM never steps onto a
+ * square that scares it (onscary(): a scroll of scare monster), the hero's own included. Not
+ * ported: water/lava, Elbereth, long worms, wall-walking.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -301,6 +303,17 @@ export function mfndpos(
     epriOf(ctx, id) === null &&
     level.rooms.some((r) => r.type === TEMPLE) &&
     templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
+  // ref: mon_allowflags() ALLOW_SSM: pets, peacefuls, shopkeepers, priests, humans and minotaurs
+  // (and a confused monster's ALLOW_ALL) may step onto a scroll of scare monster
+  const scare = scareCells(ctx, level);
+  const allowSSM =
+    conf ||
+    (m.tame ?? 0) > 0 ||
+    m.peaceful ||
+    eshkOf(ctx, id) !== null ||
+    epriOf(ctx, id) !== null ||
+    def.flags.includes('human') ||
+    def.id === 'nh:minotaur';
   const out: Candidate[] = [];
   for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
     for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {
@@ -332,6 +345,8 @@ export function mfndpos(
         g.y = heroPos.y;
         if (storedMux(ctx, id)) setStoredMux(ctx, id, g); // kept while it can't see her
       }
+      // ref: mfndpos(): `if (onscary(dispx, dispy, mon)) { if (!(flag & ALLOW_SSM)) continue; }`
+      if (!allowSSM && scare.size > 0 && onscary(ctx, nx, ny, e, { level, cells: scare })) continue;
       const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
       const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));
       if (isHero) {
@@ -1038,8 +1053,9 @@ export function dochug(
   // ref: dochug() PHASE TWO: "The monster decides where it thinks you are" (set_apparxy()); the
   // guess `ap` is this move's mux/muy (m_move() may guess again or find her)
   const ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
-  // ref: src/monmove.c distfleeck(): inrange, nearby and scared; only the hero's sanctuary
-  // scares (no Elbereth, scare monster or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
+  // ref: src/monmove.c distfleeck(): inrange, nearby and scared; a scary square where it thinks
+  // the hero is (onscary(): a scroll of scare monster) and the hero's sanctuary scare (no
+  // Elbereth or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
   let inrange = false;
   let nearby = false;
   let scared = false;
@@ -1048,7 +1064,11 @@ export function dochug(
     inrange = dist2(p.x, p.y, ap.x, ap.y) <= BOLT_LIM * BOLT_LIM;
     nearby = inrange && monnear(def, p.x, p.y, ap.x, ap.y);
     const e = ctx.state.entities[String(id)];
-    scared = nearby && !m.peaceful && e !== undefined && inYourSanctuary(ctx, e, 0, 0);
+    // the monster sees the scare where it thinks the hero is when it cannot see her
+    const seescary = e && (!mcansee(ctx, id) || invisTo(ctx, e)) ? ap : heroPos;
+    const sawscary = e !== undefined && onscary(ctx, seescary.x, seescary.y, e);
+    scared =
+      nearby && e !== undefined && (sawscary || (!m.peaceful && inYourSanctuary(ctx, e, 0, 0)));
     if (scared) monflee(ctx, id, ctx.rng.rnd(ctx.rng.rn2(7) ? 10 : 100), true, true);
   };
   distfleeck();

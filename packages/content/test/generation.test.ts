@@ -148,25 +148,29 @@ describe('makemon', () => {
 
   test('a level-made group of garter snakes: every snake has its object', () => {
     const snake = MONSTERS.find((m) => m.id === 'nh:garter_snake') as (typeof MONSTERS)[number];
-    withCtx(
-      17,
-      (ctx, state) => {
-        const before = new Set(Object.keys(state.entities));
-        makemon(ctx, snake, null, { group: true, inMklev: true });
-        const fresh = Object.keys(state.entities).filter((k) => !before.has(k));
-        const snakes = fresh.filter((k) => state.entities[k]?.def === 'nh:garter_snake');
-        expect(snakes.length).toBeGreaterThan(1);
-        for (const k of snakes) {
-          const p = state.entities[k]?.c.pos;
-          const under = fresh.filter((o) => {
-            const q = state.entities[o]?.c.pos;
-            return state.entities[o]?.c.item && q && q.x === p?.x && q.y === p?.y;
-          });
-          expect(under.length, `snake ${k}`).toBeGreaterThanOrEqual(1);
-        }
-      },
-      8,
-    );
+    // the small group comes 1 time in 2: the first seed that makes one
+    let groups = 0;
+    for (let seed = 1; seed <= 20 && groups === 0; seed++)
+      withCtx(
+        seed,
+        (ctx, state) => {
+          const before = new Set(Object.keys(state.entities));
+          makemon(ctx, snake, null, { group: true, inMklev: true });
+          const fresh = Object.keys(state.entities).filter((k) => !before.has(k));
+          const snakes = fresh.filter((k) => state.entities[k]?.def === 'nh:garter_snake');
+          if (snakes.length > 1) groups++;
+          for (const k of snakes) {
+            const p = state.entities[k]?.c.pos;
+            const under = fresh.filter((o) => {
+              const q = state.entities[o]?.c.pos;
+              return state.entities[o]?.c.item && q && q.x === p?.x && q.y === p?.y;
+            });
+            expect(under.length, `snake ${k}`).toBeGreaterThanOrEqual(1);
+          }
+        },
+        8,
+      );
+    expect(groups).toBe(1);
   });
 
   test('random placement is never in view of the hero', () => {

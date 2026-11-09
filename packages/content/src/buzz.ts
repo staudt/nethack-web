@@ -151,18 +151,23 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
 }
 
 /**
- * The monster's saving throw against a wand (attack level 12) or the hero's spell (attack level
- * = her experience level); `damage` is halved when it resists and then taken, which may kill
- * it. ref: src/zap.c resist() with WAND_CLASS or a spell
+ * The monster's saving throw against a wand (attack level 12), a scroll (9) or the hero's spell
+ * (attack level = her experience level); `damage` is halved when it resists and then taken, which
+ * may kill it. ref: src/zap.c resist() with WAND_CLASS, SCROLL_CLASS or a spell
  */
 export function resist(
   ctx: Ctx,
   mon: Entity,
   damage: number,
-  oclass: 'wand' | 'spell' = 'wand',
+  oclass: 'wand' | 'scroll' | 'spell' = 'wand',
 ): boolean {
   const def = ctx.defs.monster(mon.def);
-  const alev = oclass === 'wand' ? 12 : (getPlayer(ctx.state).c.experience?.level ?? 1);
+  const alev =
+    oclass === 'wand'
+      ? 12
+      : oclass === 'scroll'
+        ? 9
+        : (getPlayer(ctx.state).c.experience?.level ?? 1);
   let dlev = mon.c.monster?.level ?? 0;
   if (dlev > 50) dlev = 50;
   else if (dlev < 1) dlev = 1;

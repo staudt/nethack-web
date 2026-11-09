@@ -5,12 +5,13 @@
 //
 // Not ported (none exist here): shapeshifters (chameleons, doppelgangers, sandestins, vampires),
 // the Riders' and the Nazgul's and erinyes' immunity has no monster to apply to but is kept,
-// genocide, the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
+// the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square after a change
 // during the monsters' move (no onscary()).
 import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';
+import { isGenocided } from './vanquished';
 import { monBreakArmor } from './breakarm';
 import { bypassObj } from './bypass';
 import { epriOf } from './epri';
@@ -49,11 +50,12 @@ const isspecmon = (ctx: Ctx, mon: Entity): boolean =>
   eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null;
 
 /**
- * The form `mndx` if the monster may take it: not a placeholder, and polyok() (no genocide,
+ * The form `mndx` if the monster may take it: not genocided, not a placeholder, and polyok() (no
  * player monsters or shapeshifters exist). ref: src/mon.c accept_newcham_form()
  */
-function acceptNewchamForm(mdat: MonsterDef | null): MonsterDef | null {
+function acceptNewchamForm(ctx: Ctx, mdat: MonsterDef | null): MonsterDef | null {
   if (!mdat) return null;
+  if (isGenocided(ctx.state, mdat.id)) return null;
   if (PLACEHOLDERS.includes(mdat.id)) return null;
   // polyok() rules out M2_PNAME, M2_WERE, and all humans except Kops
   return polyok(mdat) ? mdat : null;
@@ -64,7 +66,7 @@ function acceptNewchamForm(mdat: MonsterDef | null): MonsterDef | null {
  * ref: src/mon.c validspecmon()
  */
 function validspecmon(ctx: Ctx, mon: Entity, mdat: MonsterDef): boolean {
-  if (!acceptNewchamForm(mdat)) return false; // geno'd or !polyok
+  if (!acceptNewchamForm(ctx, mdat)) return false; // geno'd or !polyok
   if (isspecmon(ctx, mon)) {
     // reject notake because object manipulation is expected
     // and nohead because speech capability is expected
@@ -144,7 +146,7 @@ export function newcham(
     // select_newcham_form() doesn't always loop, so we retry here too
     let tryct = 20;
     do {
-      mdat = acceptNewchamForm(selectNewchamForm(ctx, mon));
+      mdat = acceptNewchamForm(ctx, selectNewchamForm(ctx, mon));
       if (mdat) break;
     } while (--tryct > 0);
     if (!tryct || !mdat) return false;

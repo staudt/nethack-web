@@ -52,6 +52,7 @@ import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, conflictOn, heroHas, resistConflict } from './props';
+import { onscary } from './scary';
 import { isFrozen, isMConfused, isMStunned, setMConfused } from './mstate';
 import { stopOccupation } from './eat';
 
@@ -560,7 +561,8 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         if (
           (mstatus & (M_ATTK.HIT | M_ATTK.DEF_DIED)) === M_ATTK.HIT &&
           ctx.rng.rn2(4) !== 0 &&
-          ctx.state.entities[String(id)]?.c.monster
+          ctx.state.entities[String(id)]?.c.monster &&
+          !onscary(ctx, omx, omy, mtmp2) // ref: !onscary(mtmp->mx, mtmp->my, mtmp2)
         ) {
           const back = mattackm(ctx, mtmp2.id, id); // return attack
           if (back & M_ATTK.DEF_DIED) return 'died';

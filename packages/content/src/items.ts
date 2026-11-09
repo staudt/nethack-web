@@ -307,7 +307,7 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
   if (opts.quantity !== undefined) it.quantity = opts.quantity;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
   // ref: mksobj() -> set_corpsenm(): a viable egg gets its hatch timer (before it can merge)
-  if (egg && !deadSpecies(it.corpseOf)) attachEggHatchTimeout(ctx, id, 0);
+  if (egg && !deadSpecies(ctx.state, ctx.defs, it.corpseOf)) attachEggHatchTimeout(ctx, id, 0);
   if (trap?.otrapped) setBoxTrapped(ctx, id, true);
   if (trap?.tknown) setBoxTknown(ctx, id, true);
   if (opts.at) return placeOnFloor(ctx, id, opts.at.level, opts.at.x, opts.at.y);

@@ -20,6 +20,7 @@ import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
+import { isGenocided } from './vanquished';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -39,12 +40,15 @@ export const monmaxDifficulty = (levdif: number, ulevel: number): number =>
   Math.trunc((levdif + ulevel) / 2);
 
 /**
- * ref: src/makemon.c uncommon(): not randomly generated (nogen/unique), or Gehennom-only
- * ('hell' genFlag). We are never in Gehennom.
+ * ref: src/makemon.c uncommon(): not randomly generated (nogen/unique), genocided (G_GONE; no
+ * extinction), or Gehennom-only ('hell' genFlag). We are never in Gehennom.
  */
-function uncommon(def: MonsterDef): boolean {
+function uncommon(state: Readonly<GameState>, def: MonsterDef): boolean {
   return (
-    def.genFlags.includes('nogen') || def.genFlags.includes('uniq') || def.genFlags.includes('hell')
+    def.genFlags.includes('nogen') ||
+    def.genFlags.includes('uniq') ||
+    isGenocided(state, def.id) ||
+    def.genFlags.includes('hell')
   );
 }
 
@@ -70,7 +74,7 @@ export function rndmonst(
   let selected: MonsterDef | null = null;
   for (const def of ctx.defs.monsters) {
     if (def.difficulty < minmlev || def.difficulty > maxmlev) continue; // montooweak/strong
-    if (uncommon(def)) continue;
+    if (uncommon(ctx.state, def)) continue;
     const weight = def.frequency + alignShift(def);
     if (weight > 0) {
       total += weight;
@@ -83,8 +87,8 @@ export function rndmonst(
 /**
  * A random monster of glyph class `cls` for a level of difficulty `depth`, or null. Candidates are
  * the class in difficulty order (ref: init_mongen_order()); `allow` lifts generation flags
- * ('nogen' for special levels, as G_NOGEN). Genocide and extinction are not tracked, and no level
- * is in Gehennom. ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
+ * ('nogen' for special levels, as G_NOGEN); genocided species are skipped (mk_gen_ok()'s G_GONE,
+ * no extinction), and no level is in Gehennom. ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
  */
 export function mkclass(
   ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
@@ -106,6 +110,7 @@ export function mkclass(
     const m = list[last] as MonsterDef;
     const mask = ['nogen', 'uniq'];
     if (ctx.rng.rn2(9) || cls === 'L') mask.push('hell');
+    if (isGenocided(ctx.state, m.id)) continue; // mk_gen_ok(): mvflags & G_GONE
     if (m.genFlags.some((f) => mask.includes(f) && !allow.includes(f))) continue;
     const prev = list[last - 1];
     if (num && m.difficulty > maxmlev && prev && m.difficulty > prev.difficulty && ctx.rng.rn2(2))
@@ -367,6 +372,9 @@ export function makemon(
   } else at = pos;
   if (!inBounds(level, at.x, at.y)) return null;
 
+  // ref: makemon(): "if you are to make a specific monster and it has already been genocided,
+  // return"
+  if (def && isGenocided(ctx.state, def.id)) return null;
   const mdef = def ?? rndmonst(ctx, level.depth);
   if (!mdef) return null;
 

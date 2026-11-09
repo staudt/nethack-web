@@ -4,7 +4,7 @@
 //
 // The questions themselves ("Do you want your possessions identified?") are asked by the UI:
 // each list event carries its question in `ask`, and the answers change nothing in the game.
-// Not ported: the shopkeeper's `taken` variant, Schroedinger's cat, genocides, conduct,
+// Not ported: the shopkeeper's `taken` variant, Schroedinger's cat, extinctions, conduct,
 // achievements and the dungeon overview (nothing tracks them), dumplog.
 import {
   contents,
@@ -26,7 +26,7 @@ import { xnameOf } from './objnam';
 import { fullyIdentify } from './read';
 import { uState } from './luck';
 import { deepestLevel, finalGold, finalScore } from './urexp';
-import { vanquishedLines } from './vanquished';
+import { genocidedLines, vanquishedLines } from './vanquished';
 
 /** Below every other hook, so it runs only once nothing cancels the game over. */
 export const END_PRIORITY = -1000;
@@ -136,6 +136,10 @@ export function finalDisclosure(ctx: Ctx, _over: GameOver): 'continue' {
   const vanq = vanquishedLines(ctx.state, ctx.defs);
   if (vanq.length > 0)
     ctx.emit({ type: 'list', ask: 'end.ask.vanquished', titleKey: 'end.vanquished', items: vanq });
+  // ref: list_genocided(): no question when nothing was genocided
+  const geno = genocidedLines(ctx.state, ctx.defs);
+  if (geno.length > 0)
+    ctx.emit({ type: 'list', ask: 'end.ask.genocided', titleKey: 'end.genocided', items: geno });
   return 'continue';
 }
 

@@ -1,8 +1,10 @@
 // Scrolls: reading and the effects of the scrolls in our subset.
+// The scrolls of destroy armor, confuse monster, scare monster, create monster, taming, amnesia,
+// fire and charging are in seffect.ts, genocide in genocide.ts.
 // ref: src/read.c doread(), seffects(), seffect_identify(), seffect_enchant_weapon(),
 // seffect_enchant_armor(), seffect_remove_curse(), seffect_light(), seffect_earth(),
 // seffect_blank_paper(), seffect_teleportation(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
-// src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify(); src/do_wear.c some_armor()
+// seffect_genocide(); src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify()
 import { EGG, learnEggType } from './eggstate';
 import { adjAbon } from './dowear';
 import {
@@ -62,6 +64,21 @@ import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp } from './props';
 import { snuffLit } from './light';
+import {
+  answerSeffect,
+  confuseMonster,
+  isSeffectAsk,
+  seffectAmnesia,
+  seffectCharging,
+  seffectCreateMonster,
+  seffectDestroyArmor,
+  seffectFire,
+  seffectScareMonster,
+  seffectTaming,
+  someArmor,
+  type SeffectResult,
+} from './seffect';
+import { PLAYER, REALLY, answerGenocide, doClassGenocide, doGenocide, isGenoAsk } from './genocide';
 import { levelTele, tele } from './trap';
 import { luckOf } from './luck';
 import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
@@ -372,16 +389,6 @@ function seffectEnchantWeapon(ctx: Ctx, scroll: Entity): boolean {
 
 // ---------------------------------------------------------------------------------------------
 // enchant armor
-
-/** ref: src/do_wear.c some_armor(): the outer layer, or sometimes a helmet, gloves, boots, shield */
-function someArmor(ctx: Ctx): Entity | null {
-  let h = wornIn(ctx, 'cloak') ?? wornIn(ctx, 'body') ?? wornIn(ctx, 'shirt') ?? null;
-  for (const slot of ['helm', 'gloves', 'boots', 'shield']) {
-    const o = wornIn(ctx, slot);
-    if (o && (!h || ctx.rng.rn2(4) === 0)) h = o;
-  }
-  return h;
-}
 
 /**
  * ref: src/read.c seffect_enchant_armor(). Returns true when the scroll was already used up.
@@ -779,6 +786,10 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
 
   let known = false; // gk.known
   let used = false; // the scroll has already been used up
+  const apply = (r: SeffectResult): void => {
+    if (r.known) known = true;
+    if (r.used) used = true;
+  };
   switch (def.id) {
     case 'nh:scroll_of_identify':
       seffectIdentify(ctx, scroll, wasKnown);
@@ -818,11 +829,45 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       msg(ctx, blind ? 'read.blank_blind' : 'read.blank');
       known = true;
       break;
+    case 'nh:scroll_of_destroy_armor':
+      apply(seffectDestroyArmor(ctx, scroll, confused, wasKnown));
+      break;
+    case 'nh:scroll_of_confuse_monster':
+      confuseMonster(ctx, it.buc === 'blessed', it.buc === 'cursed', true);
+      break;
+    case 'nh:scroll_of_scare_monster':
+      seffectScareMonster(ctx, scroll, confused);
+      break;
+    case 'nh:scroll_of_create_monster':
+      apply(seffectCreateMonster(ctx, scroll, confused));
+      break;
+    case 'nh:scroll_of_taming':
+      apply(seffectTaming(ctx, scroll, confused));
+      break;
+    case 'nh:scroll_of_amnesia':
+      apply(seffectAmnesia(ctx, scroll));
+      break;
+    case 'nh:scroll_of_fire':
+      seffectFire(ctx, scroll, confused, wasKnown, () => learnscrolltyp(ctx, def));
+      used = true;
+      break;
+    case 'nh:scroll_of_charging':
+      apply(seffectCharging(ctx, scroll, confused, wasKnown, () => learnscrolltyp(ctx, def)));
+      break;
+    case 'nh:scroll_of_genocide':
+      // ref: seffect_genocide(): known at once; the scroll is used up before the prompt
+      if (!wasKnown) msg(ctx, 'scroll.genocide.found');
+      learnscrolltyp(ctx, def);
+      useup(ctx, itemId);
+      used = true;
+      if (it.buc === 'blessed') doClassGenocide(ctx);
+      else doGenocide(ctx, (it.buc !== 'cursed' ? REALLY : 0) | (confused ? PLAYER : 0));
+      break;
     default:
       break;
   }
-  if (used) return;
   if (!wasKnown && known) learnscrolltyp(ctx, def); // learnscroll()
+  if (used) return;
   if (!blank) useup(ctx, itemId);
 }
 
@@ -838,6 +883,15 @@ export const SCROLL_USES: Readonly<
   'nh:scroll_of_teleportation': readScroll,
   'nh:scroll_of_earth': readScroll,
   'nh:scroll_of_blank_paper': readScroll,
+  'nh:scroll_of_destroy_armor': readScroll,
+  'nh:scroll_of_confuse_monster': readScroll,
+  'nh:scroll_of_scare_monster': readScroll,
+  'nh:scroll_of_create_monster': readScroll,
+  'nh:scroll_of_taming': readScroll,
+  'nh:scroll_of_genocide': readScroll,
+  'nh:scroll_of_amnesia': readScroll,
+  'nh:scroll_of_fire': readScroll,
+  'nh:scroll_of_charging': readScroll,
 };
 
 function itemArg(action: PlayerAction): unknown {
@@ -880,6 +934,8 @@ const read: ActionDef = {
   },
   answer(ctx, value, raw) {
     if (isStudyAsk(raw)) return answerStudy(ctx, value, raw);
+    if (isGenoAsk(raw)) return answerGenocide(ctx, value, raw) ? 0 : NORMAL_SPEED;
+    if (isSeffectAsk(raw)) return answerSeffect(ctx, value, raw);
     const data = raw as unknown as IdentifyData;
     if (data.stage !== 'identify') return 0;
     return identifyAnswer(ctx, value, data) ? 0 : NORMAL_SPEED;

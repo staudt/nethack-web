@@ -693,7 +693,7 @@ describe('wiz:wish and wiz:identify', () => {
 
   test('"nothing" changes nothing; Escape is a random object, as in NetHack', () => {
     // a seed whose random object does not merge into a stack she carries
-    const state = game(17);
+    const state = game(18);
     const hash = stateHash(state);
     expect(msgs(wish(state, 'nothing'))).toEqual([]);
     expect(stateHash(state)).toBe(hash);

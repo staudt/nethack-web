@@ -2,7 +2,7 @@
 // subset. ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
 // spell_backfire(), spelleffects(), cast_protection(); src/timeout.c nh_timeout() (spell
 // protection); src/apply.c jump() (the spell of jumping, jump.ts); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
-// zapyourself() (force bolt, sleep, healing); src/read.c seffect_confuse_monster()
+// zapyourself() (force bolt, sleep, healing); seffect.ts confuseMonster()
 import {
   NORMAL_SPEED,
   getLevel,
@@ -25,6 +25,7 @@ import { freehand } from './pray';
 import { P, hasProp, isStrangled, makeConfused, makeStunned, timeoutLeft, wornIn } from './props';
 import { jump, jumpSpellDone, setJumpSpell } from './jump';
 import { litroom } from './read';
+import { confuseMonster } from './seffect';
 import { P_EXPERT, P_SKILLED, skillLevel, useSkill } from './skills';
 import { KEEN, knownSpells, spellEntry, spellet } from './spell';
 import { percentSuccess, spellLevPw, spellSkill } from './spellcalc';
@@ -32,7 +33,6 @@ import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
 import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, type ZapDir } from './zap';
-import { cantSeeSelf } from './invis';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -89,7 +89,8 @@ function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | 'jump' {
     case 'nh:spellbook_of_confuse_monster':
       // ref: spelleffects(): a duplicate of the scroll's effect, the pseudo object blessed at
       // Skilled (the skill is read before this cast practises it)
-      return (ctx) => confuseMonsterSpell(ctx, skillLevel(ctx, spellSkill(book)) >= P_SKILLED);
+      return (ctx) =>
+        confuseMonster(ctx, skillLevel(ctx, spellSkill(book)) >= P_SKILLED, false, false);
     case 'nh:spellbook_of_light':
       // ref: spelleffects() -> weffects() -> zapnodir(): litroom(TRUE, obj) (the pseudo object
       // is never blessed for light); lightdamage() is not ported
@@ -306,49 +307,6 @@ function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
 
 // ---------------------------------------------------------------------------------------------
 // the effects
-
-/**
- * Confuse monster: the hero's hands glow red (umconf charges, 1-2 more, 2-9 blessed; one more
- * once she has 40), and her next hand-to-hand hits confuse monsters (combat.ts). Confused (only
- * reachable by a forced cast: a confused cast fails), the glow is purple and confuses her more;
- * blessed, it cures her confusion. Blind, she feels a tingle. The hero is always human and the
- * spell's pseudo object is never cursed, so the "You feel confused." branch is not ported.
- * ref: src/read.c seffect_confuse_monster()
- */
-export function confuseMonsterSpell(ctx: Ctx, blessed: boolean): void {
-  const h = hero(ctx);
-  const altfeedback = hasProp(h, P.BLINDED) || cantSeeSelf(ctx.state); // Blind || Invisible
-  if (hasProp(h, P.CONFUSION)) {
-    if (!blessed) {
-      if (altfeedback) say(ctx, 'cast.hands_begin_tingle');
-      else say(ctx, 'cast.hands_begin_glow', { color: hcolor(ctx, 'purple') });
-      makeConfused(ctx, timeoutLeft(ctx.state, h, P.CONFUSION) + ctx.rng.rnd(100), false);
-    } else {
-      if (altfeedback) say(ctx, 'cast.head_buzz');
-      else say(ctx, 'cast.head_glow', { color: hcolor(ctx, 'red') });
-      makeConfused(ctx, 0, true);
-    }
-    return;
-  }
-  const { umconf } = uspellOf(ctx.state);
-  let incr = 0; // scroll vs spell: a scroll adds 3
-  if (!blessed) {
-    if (altfeedback) say(ctx, umconf ? 'cast.hands_tingle_more' : 'cast.hands_tingle');
-    else if (!umconf) say(ctx, 'cast.hands_begin_glow', { color: hcolor(ctx, 'red') });
-    else say(ctx, 'cast.glow_intensifies', { color: hcolor(ctx, 'red') });
-    incr += ctx.rng.rnd(2);
-  } else {
-    if (altfeedback) say(ctx, umconf ? 'cast.hands_sharply_more' : 'cast.hands_sharply');
-    else
-      say(ctx, umconf ? 'cast.hands_brilliant_more' : 'cast.hands_brilliant', {
-        color: hcolor(ctx, 'red'),
-      });
-    incr += ctx.rng.rn2(8) + 2; // rn1(8, 2)
-  }
-  // after a while, repeated uses become less effective
-  if (umconf >= 40) incr = 1;
-  setUspell(ctx, { umconf: umconf + incr });
-}
 
 /**
  * Detect monsters, as the spell's object would: on a level without monsters, "You feel

@@ -89,6 +89,7 @@ import {
   type UPoly,
 } from './upoly';
 import { counterWere, isWere, ulycn, wereBeastie } from './werestate';
+import { genoKiller, isGenocided, setGenoKiller, ugenocided } from './vanquished';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -328,7 +329,9 @@ function mkclassPoly(ctx: Ctx, cls: string): DefId | null {
   const mask = ['nogen', 'uniq'];
   if (ctx.rng.rn2(9) || cls === 'L') mask.push('hell');
   const ok = (m: MonsterDef): boolean =>
-    !m.genFlags.some((f) => mask.includes(f)) && !isPlaceholder(m);
+    !isGenocided(ctx.state, m.id) && // mk_gen_ok(): G_GENOD
+    !m.genFlags.some((f) => mask.includes(f)) &&
+    !isPlaceholder(m);
   let num = 0;
   for (const m of list) if (ok(m)) num += m.frequency;
   if (!num) return null;
@@ -491,10 +494,15 @@ function setUasmon(ctx: Ctx): void {
  * her strength capped at it) while it lasts; a stoned hero in a stone-resistant form is cured;
  * an eyeless form blinds her and an eyed one cures that blindness; a form that can't be held or
  * swallowed frees her; a small, amorphous or whirly one slips out of a bear trap or web.
- * Returns true (no genocide here). ref: src/polyself.c polymon()
+ * A genocided form fails: "You feel rather gnome-ish." and false (no exercise()).
+ * ref: src/polyself.c polymon()
  */
 export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
   const def = ctx.defs.monster(mntmp);
+  if (isGenocided(ctx.state, mntmp)) {
+    say(ctx, 'polyself.rather_ish', { mon: `@${def.nameKey}` });
+    return false;
+  }
   const h = getPlayer(ctx.state);
   const wasBlind = hasProp(h, P.BLINDED);
   const old = upolyOf(ctx.state);
@@ -624,7 +632,9 @@ export function polymon(ctx: Ctx, mntmp: DefId, sexChangeOk: boolean): boolean {
 /**
  * Makes her human again: her own attributes, sex and hit points back, the form's
  * properties gone, then `key` ("You return to human form!", "You feel like a new woman!"); a hero
- * whose form blinded her sees again. ref: src/polyself.c polyman() (no genocide)
+ * whose form blinded her sees again; if her race was genocided while she was polymorphed, she
+ * dies of it now ("killed by a scroll of genocide", kept by genocide.ts, or "self-genocide").
+ * ref: src/polyself.c polyman()
  */
 function polyman(ctx: Ctx, key: string): void {
   const h = getPlayer(ctx.state);
@@ -640,6 +650,13 @@ function polyman(ctx: Ctx, key: string): void {
   setUasmon(ctx);
   if (utrap(ctx)?.type === 'pit') setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // time to escape resets
   say(ctx, key);
+  // check whether player foolishly genocided self while poly'd
+  if (ugenocided(ctx.state)) {
+    // intervening activity might have clobbered genocide info
+    const killer = genoKiller(ctx.state) ?? '@killer.self_genocide';
+    setGenoKiller(ctx, null);
+    done(ctx, killer, 'genocided');
+  }
   if (wasBlind && !hasProp(h, P.BLINDED)) makeBlinded(ctx, 0, true); // reverting from eyeless
 }
 

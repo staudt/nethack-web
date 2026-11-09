@@ -27,6 +27,7 @@ import {
   type PlayerAction,
   type PromptOption,
 } from '@nh/core';
+import { SCR_SCARE_MONSTER } from './scary';
 import {
   NOINVSYM,
   addToInventory,
@@ -426,7 +427,11 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
     const ok = data.ok;
     delete data.qq;
     delete data.ok;
-    if (!ok) return 'none';
+    if (!ok) {
+      // ref: lift_object(): `if (obj->otyp == SCR_SCARE_MONSTER && result <= 0) obj->spe = 0`
+      if (obj.def === SCR_SCARE_MONSTER) it.spe = 0;
+      return 'none';
+    }
   }
 
   // ref: src/pickup.c pick_obj(): shop goods go on the bill of the shop they lay in before
@@ -434,6 +439,22 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
   const op = obj.c.pos;
   const part = qq < it.quantity ? splitStack(ctx, obj.id, qq) : obj.id;
   const partObj = state.entities[String(part)];
+  // ref: pickup_object() SCR_SCARE_MONSTER (here after the burden question): a blessed scroll
+  // is unblessed, an uncursed one that was never picked up is marked (spe 1), any other turns to
+  // dust (no shop charge for it)
+  const pit = partObj?.c.item;
+  if (partObj && pit && partObj.def === SCR_SCARE_MONSTER) {
+    if (pit.buc === 'blessed') pit.buc = 'uncursed';
+    else if (!pit.spe && pit.buc !== 'cursed') pit.spe = 1;
+    else {
+      ctx.emit({
+        type: 'msg',
+        key: pit.quantity === 1 ? 'scroll.scare.dust' : 'scroll.scare.dust_pl',
+      });
+      ctx.remove(partObj.id); // useupf(obj, obj->quan)
+      return 'none';
+    }
+  }
   if (op && partObj && costlySpot(ctx, op.x, op.y)) {
     delete partObj.c.pos;
     const level = getLevel(state);

@@ -72,6 +72,8 @@ export const EXPL_COLOR: Readonly<Record<ExplType, string>> = {
  */
 export interface ExplSource {
   wand?: DefId;
+  /** A scroll of fire (C's SCROLL_CLASS with ZT_SPELL(ZT_FIRE)): a "tower of flame". */
+  scroll?: true;
   trap?: true;
   mon?: DefId;
   ad?: 'phys' | 'fire' | 'cold' | 'elec';
@@ -187,7 +189,8 @@ export function explode(
   // anger what it hits; a gas spore's is PHYS_EXPL_TYPE, which has no floor effects at all
   const monExpl = src.mon !== undefined;
   // the zap type: ray wands keep theirs, the others (and traps) make a generic magical blast
-  const type = wand ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0) : 0;
+  const scroll = src.scroll === true;
+  const type = wand ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0) : scroll ? 11 : 0;
   let damu = dam;
   if (wand) {
     // retributive strike: priests, monks and wizards are hurt less, healers and knights half
@@ -200,7 +203,7 @@ export function explode(
   if (!adtyp) return; // impossible("explosion base type %d?")
   const strKey: Record<Adtyp, string> = {
     magm: 'explode.magical_blast',
-    fire: 'explode.fireball',
+    fire: scroll ? 'explode.tower_of_flame' : 'explode.fireball',
     cold: 'explode.ball_of_cold',
     disn: wand ? 'explode.death_field' : 'explode.disintegration_field',
     elec: 'explode.ball_of_lightning',
@@ -253,8 +256,10 @@ export function explode(
       strMsg = { key: 'explode.explosion' }; // generic
       generic = true;
     }
-    say(ctx, 'explode.hear_blast');
-    didmsg = true;
+    if (!scroll) {
+      say(ctx, 'explode.hear_blast');
+      didmsg = true;
+    }
   }
   if (!didmsg) say(ctx, 'explode.boom');
 
@@ -276,7 +281,7 @@ export function explode(
             AD_RAY[adtyp],
             xx,
             yy,
-            src.wand ?? '',
+            src.wand ?? (scroll ? 'nh:scroll_of_fire' : ''),
             monMoving || monExpl ? undefined : shopdamage,
           );
         const mtmp = monAt(ctx, level, xx, yy);
@@ -300,7 +305,7 @@ export function explode(
         } else {
           // resist() with no damage, then the damage by hand (the message comes first)
           let mdam = dam;
-          if (resist(ctx, mtmp, 0, wand ? 'wand' : 'spell')) {
+          if (resist(ctx, mtmp, 0, wand ? 'wand' : scroll ? 'scroll' : 'spell')) {
             if (seen) say(ctx, 'explode.mon_resists', { mon: monNam(ctx, mtmp), what: strMsg });
             mdam = Math.trunc((dam + 1) / 2);
           }
@@ -330,7 +335,8 @@ export function explode(
       later++;
       ctx.emit(e);
     };
-    say(ctx, 'explode.you_caught', { what: strMsg });
+    // no "You are caught in" for the hero's scroll of fire (seffect_fire() spoke)
+    if (!scroll) say(ctx, 'explode.you_caught', { what: strMsg });
     // do property damage first, in case we end up leaving bones
     if (adtyp === 'fire') burnAwaySlime(counting);
     if (adtyp === 'fire') {
@@ -348,16 +354,20 @@ export function explode(
       rehumanize(ctx);
       if (ctx.state.gameOver) return;
     } else if (hp && hp.cur <= 0) {
-      say(ctx, later ? 'explode.the_x_fatal' : 'explode.fatal', { what: strMsg });
+      // "It is fatal." right after "You are caught in" or the scroll's "tower of flame" line
+      const caughtLast = scroll ? later === 0 && x === ux && y === uy : later === 0;
+      say(ctx, caughtLast ? 'explode.fatal' : 'explode.the_x_fatal', { what: strMsg });
       const killer = monExpl
         ? generic
           ? '@killer.explode.mon_unseen'
           : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
-        : wand
-          ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
-          : generic
-            ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')
-            : uhimKey(ctx.state, '!@killer.explode.trap');
+        : scroll
+          ? '@killer.explode.tower_of_flame'
+          : wand
+            ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
+            : generic
+              ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')
+              : uhimKey(ctx.state, '!@killer.explode.trap');
       done(ctx, killer);
       if (ctx.state.gameOver) return;
     }
