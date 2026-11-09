@@ -33,7 +33,7 @@ import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { setmangry, wakeup } from './peaceful';
 import { canBlnd } from './adtyping';
 import { killedByHero } from './buzz';
-import { mblinded, mcansee, setMblinded } from './mstate';
+import { isFrozen, mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
 import { dbonU, dmgval, monsterIdAt } from './combat';
 import { encumberMsg } from './itemactions';
@@ -50,7 +50,8 @@ import { uShops } from './eshk';
 import { isUnpaid } from './price';
 import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
-import { hatesSilver, nohands, notake } from './mondata';
+import { hatesSilver, isUnicorn, nohands, notake } from './mondata';
+import { gemAccept, gemForUnicorn } from './unicorn';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
 import { stuckInWeb } from './web';
@@ -117,10 +118,13 @@ const distmin = (ax: number, ay: number, bx: number, by: number): number =>
 // ---------------------------------------------------------------------------------------------
 // hitting a monster
 
-/** ref: src/dothrow.c tmiss(): "The dagger misses the newt." and a 1 in 3 chance to wake it. */
-function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
+/**
+ * ref: src/dothrow.c tmiss(): "The dagger misses the newt." and (`maybeWakeup`) a 1 in 3
+ * chance to wake it.
+ */
+function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot, maybeWakeup = true): void {
   missileMsg(ctx, 'throw.miss', shot, missile, { mon: monNam(ctx, mon) });
-  if (mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(ctx, mon.id); // wakeup(mon, TRUE)
+  if (maybeWakeup && mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(ctx, mon.id); // wakeup(mon, TRUE)
 }
 
 /**
@@ -132,8 +136,9 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot): void {
  * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() plus the launcher's skill damage
  * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
  * missile (should_mulch_missile). Rings of increase accuracy and damage count; gauntlets of power (-2) and of
- * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). Not ported: racial bows,
- * unicorns, the quest leader, boomerangs and balls, cream pies, thrown potions (they
+ * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). A gem (not a rock or
+ * gray stone, not slung) thrown at a unicorn is caught (gem_accept(): unicorn.ts). Not ported:
+ * racial bows, the quest leader, boomerangs and balls, cream pies, thrown potions (they
  * land without breaking), taming with food, passive responses, poison, knockback. Silver sears
  * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
  * thrown penalty, melee damage, a miss wakes the monster, and the pole is never used up.
@@ -183,8 +188,32 @@ export function thitmonst(
   const guaranteedHit = engulfingU(ctx, monId);
   if (guaranteedHit) tmp += 1000;
 
-  const dieroll = ctx.rng.rnd(20);
   const missile = xnameOf(ctx.state, ctx.defs, obj);
+
+  // ref: thitmonst(): "throwing real gems to co-aligned unicorns boosts Luck, to cross-aligned
+  // unicorns changes Luck by random amount; throwing worthless glass doesn't affect Luck but
+  // doesn't anger them"; rocks, gray stones and slung gems are attacks
+  if (
+    isUnicorn(mdef) &&
+    gemForUnicorn(
+      ctx,
+      obj,
+      wielded?.def !== undefined && ctx.defs.object(wielded.def).weapon?.skill === 'sling',
+    )
+  ) {
+    if (m.asleep || isFrozen(ctx, monId)) {
+      // helpless(mon)
+      tmiss(ctx, mon, missile, shot, false);
+      return false;
+    } else if ((m.tame ?? 0) > 0) {
+      msg(ctx, 'unicorn.catches_drops', { mon: monNam(ctx, mon), obj: missile });
+      return false;
+    }
+    msg(ctx, 'unicorn.catches', { mon: monNam(ctx, mon), obj: missile });
+    return gemAccept(ctx, mon, obj);
+  }
+
+  const dieroll = ctx.rng.rnd(20);
 
   // venom spat by a polymorphed hero (#monster): `guaranteed_hit || ACURR(A_DEX) > rnd(25)` hits
   // and is used up; else it misses and splashes where it lands (throwit())

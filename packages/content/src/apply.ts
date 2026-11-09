@@ -1,5 +1,5 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the
-// blindfold and digging tools
+// blindfold, the unicorn horn (unicorn.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
@@ -44,6 +44,7 @@ import { P, heroHas, wornIn } from './props';
 import { inStasis, noteleportLevel, teleok } from './teleport';
 import { mintrap, teleds } from './trap';
 import { setMtrapped } from './trapstate';
+import { UNICORN_HORN, useUnicornHorn } from './unicorn';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -75,6 +76,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === WHISTLE.tin ||
     e.def === WHISTLE.magic ||
     e.def === BUGLE ||
+    e.def === UNICORN_HORN ||
     isEyewear(e.def)
   );
 }
@@ -277,6 +279,7 @@ const apply: ActionDef = {
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
+    else if (obj.def === UNICORN_HORN) useUnicornHorn(ctx, obj);
     else if (isEyewear(obj.def)) {
       const ublindf = wornIn(ctx.state, ctx.state.playerId, 'blindfold');
       if (ublindf?.id === obj.id) {

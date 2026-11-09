@@ -17,6 +17,7 @@ import {
 import { P, setIntrinsic, heroHas } from './props';
 import { A_NONE } from './aligntyp';
 import { luckTimeout, moreluck } from './gem';
+import { isUnicorn } from './mondata';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -144,7 +145,7 @@ export interface KilledPriest {
  * Luck, and the alignment record moves by the monster's malign; killing a temple priest
  * (`priest`) costs 2 points of alignment and divine protection when he was the hero's own, and
  * earns 2 otherwise. ref: src/mon.c xkilled() "Punish bad behavior" and "adjust alignment
- * points" (no unicorns or quest monsters)
+ * points"; a co-aligned unicorn costs 5 Luck (no quest monsters)
  */
 export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | null = null): void {
   const m = mon.c.monster;
@@ -166,6 +167,11 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
   }
   const tame = (m.tame ?? 0) > 0;
   if ((m.peaceful && ctx.rng.rn2(2) === 0) || tame) changeLuck(ctx, -1);
+  // ref: xkilled(): a unicorn of the hero's alignment
+  if (isUnicorn(def) && Math.sign(u.alignType) === Math.sign(def.alignment)) {
+    changeLuck(ctx, -5);
+    say(ctx, 'unicorn.guilty');
+  }
   if (priest) {
     adjalign(ctx, priest.coaligned ? -2 : 2);
     // cancel divine protection for killing your priest

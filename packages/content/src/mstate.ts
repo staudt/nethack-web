@@ -13,7 +13,8 @@
 // `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone),
 // `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
 // C's `!mcansee && !mblinded`), `minvis` (invis.ts), `mux: { [monsterId]: [x, y] }` (mux/muy, kept
-// by apparxy.ts setApparxy() while the monster cannot see the hero).
+// by apparxy.ts setApparxy() while the monster cannot see the hero), `mrevived: { [monsterId]: true }`
+// once it came back from a corpse.
 import {
   getPlayer,
   sortedIds,
@@ -42,7 +43,8 @@ type Key =
   | 'minvis'
   | 'mux'
   | 'mundetected'
-  | 'mappear';
+  | 'mappear'
+  | 'mrevived';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -82,6 +84,17 @@ export function paralyzeMonst(ctx: Pick<Ctx, 'state'>, id: EntityId, amt: number
 export function unfreezeMonst(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   const t = table(ctx, 'mfrozen', false);
   if (t) delete t[String(id)];
+}
+
+/** `mtmp->mrevived`: brought back from a corpse (revive()); a unicorn's horn may crumble. */
+export function isMrevived(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  return table(ctx, 'mrevived', false)?.[String(id)] === true;
+}
+
+/** ref: src/zap.c revive(): `mtmp->mrevived = 1` */
+export function setMrevived(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mrevived', true);
+  if (t) t[String(id)] = true;
 }
 
 /** `mtmp->mstun` */
@@ -283,6 +296,7 @@ const KEYS: readonly Key[] = [
   'mux', // apparxy.ts
   'mundetected', // hidestate.ts
   'mappear', // mimicstate.ts
+  'mrevived',
 ];
 
 /** Forgets the states of a monster that died or left. */

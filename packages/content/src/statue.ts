@@ -33,7 +33,7 @@ import { mapInvisible } from './invis';
 import { placeObject, removeFromInventory } from './items';
 import { adjalign, uState } from './luck';
 import { mksobjStatue, rndmonnum, type MkobjCtx } from './mkobj';
-import { nonliving } from './mondata';
+import { isUnicorn, nonliving } from './mondata';
 import { forgetMonster, mDoWear, minvent } from './mongear';
 import { forgetMState } from './mstate';
 import { xnameOf } from './objnam';
@@ -106,10 +106,6 @@ export function breakStatue(ctx: Ctx, obj: Entity, byYou = true): boolean {
 
 // ---------------------------------------------------------------------------------------------
 // statue traps
-
-/** ref: include/mondata.h is_unicorn(): S_UNICORN && likes_gems() */
-const isUnicorn = (def: MonsterDef): boolean =>
-  def.glyph.ch === 'u' && def.flags.includes('jewels');
 
 /**
  * mongone() of the statue trap's stand-in: it leaves the game (its inventory is in the statue).

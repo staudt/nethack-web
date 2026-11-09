@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4049 citations.
+155 NetHack files, 4070 citations.
 
 ## dat/dungeon.lua
 
@@ -293,7 +293,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_mercenary()`: `packages/content/src/mongear.ts`
 - `is_placeholder()`: `packages/content/src/newcham.ts`
 - `is_rider()`: `packages/content/src/newcham.ts`
-- `is_unicorn()`: `packages/content/src/statue.ts`
+- `is_unicorn()`: `packages/content/src/mondata.ts`
 - `is_wanderer()`: `packages/content/src/monmove.ts`
 - `is_watch()`: `packages/content/src/watch.ts`
 - `is_were()`: `packages/content/src/werestate.ts`
@@ -562,6 +562,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_lamp()`: `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
+- `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
 - `use_whistle()`: `packages/content/src/apply.ts`
 
 ## src/artifact.c
@@ -866,6 +867,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `check_shop_obj()`: `packages/content/src/shk.ts`
 - `dofire()`: `packages/content/src/fire.ts`
 - `dothrow()`: `packages/content/src/dothrow.ts`
+- `gem_accept()`: `packages/content/src/unicorn.ts`
 - `hero_breaks()`: `packages/content/src/dokick.ts`
 - `hitfloor()`: `packages/content/src/dothrow.ts`
 - `hurtle_jump()`: `packages/content/src/jump.ts`
@@ -874,7 +876,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ok_to_throw()`: `packages/content/src/dothrow.ts`
 - `omon_adj()`: `packages/content/src/mthrowu.ts`
 - `should_mulch_missile()`: `packages/content/src/mthrowu.ts`
-- `thitmonst()`: `packages/content/src/dothrow.ts`
+- `thitmonst()`: `packages/content/src/dothrow.ts`, `packages/content/src/unicorn.ts`
 - `throw_obj()`: `packages/content/src/dothrow.ts`, `packages/content/src/fire.ts`, `packages/content/src/mthrowu.en.ts`, `packages/content/src/stonetouch.ts`
 - `throwing_weapon()`: `packages/content/src/dothrow.ts`
 - `throwit()`: `packages/content/src/dothrow.ts`, `packages/content/src/mthrowu.en.ts`
@@ -1899,6 +1901,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rne()`: `packages/content/src/items.ts`
 - `rnl()`: `packages/core/src/rng.ts`
 - `rnz()`: `packages/content/src/corpses.ts`
+- `shuffle_int_array()`: `packages/content/src/unicorn.ts`
 
 ## src/role.c
 
@@ -2555,7 +2558,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `probe_monster()`: `packages/content/src/zap.ts`
 - `release_hold()`: `packages/content/src/zap.ts`
 - `resist()`: `packages/content/src/buzz.ts`
-- `revive()`: `packages/content/src/revive.ts`
+- `revive()`: `packages/content/src/mstate.ts`, `packages/content/src/revive.ts`
 - `revive_egg()`: `packages/content/src/zap.ts`
 - `spell_damage_bonus()`: `packages/content/src/spellcalc.ts`
 - `spell_hit_bonus()`: `packages/content/src/spellcalc.ts`

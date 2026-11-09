@@ -110,6 +110,7 @@ import {
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { heroInvisible, monInvisible } from './invis';
+import { isUnicorn } from './mondata';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -231,6 +232,11 @@ export interface Candidate {
   mon?: EntityId;
   /** A trap that can hurt the monster is there (ALLOW_TRAPS). */
   trap?: true;
+  /**
+   * The square is lined up with where the monster (seeing her) thinks the hero is (NOTONL in
+   * mfndpos()'s info): a unicorn not on a no-teleport level never gets such a square.
+   */
+  lined?: true;
 }
 
 /**
@@ -259,7 +265,10 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * square that scares it (onscary(): a scroll of scare monster), the hero's own included. A
  * monster that passes walls (passes_walls(): ALLOW_WALL, ALLOW_ROCK) goes into stone and walls
  * that are not non-passwall (may_passwall(): Sokoban's), through closed and locked doors, onto
- * boulders and through any tight squeeze. Not ported: water/lava, Elbereth, long worms, iron bars.
+ * boulders and through any tight squeeze. A unicorn (NOTONL, unless confused or on a no-teleport
+ * level) never steps onto a square lined up with where it thinks the hero is while it can see her;
+ * such squares are marked `lined` for every monster. Not ported: water/lava, Elbereth, long
+ * worms, iron bars.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -318,6 +327,11 @@ export function mfndpos(
   // peaceful one and ALLOW_M are not ported (see DEVIATIONS.md)
   const conf = isMConfused(ctx, id);
   const allowTraps = opts.allowTraps === true || conf;
+  // ref: mon_allowflags(): "unicorn may not be able to avoid hero on a noteleport level"
+  // (NOTONL); mfndpos() `monseeu = mon->mcansee && (!Invis || perceives(mdat))`
+  const notonl = !conf && isUnicorn(def) && !noteleportLevel(ctx, level);
+  const monseeu = mcansee(ctx, id) && !invisTo(ctx, e);
+  const onHerLevel = getPlayer(ctx.state).c.pos?.level === level.id;
   // ref: mfndpos() ALLOW_SANCT: `level.flags.has_temple && *in_rooms(nx, ny, TEMPLE) &&
   // !*in_rooms(x, y, TEMPLE) && in_your_sanctuary(0, nx, ny)` (it only prevents movement)
   const sanctCheck =
@@ -388,6 +402,16 @@ export function mfndpos(
         inYourSanctuary(ctx, null, nx, ny)
       )
         continue;
+      // ref: mfndpos(): `if (monseeu && monlineu(mon, nx, ny))`: lined up with mux/muy
+      let lined = false;
+      if (monseeu && onHerLevel) {
+        const ux = g?.x ?? heroPos.x;
+        const uy = g?.y ?? heroPos.y;
+        if (online2(nx, ny, ux, uy)) {
+          if (notonl) continue;
+          lined = true;
+        }
+      }
       // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big;
       // never for a monster that passes walls)
       if (diagonal && !wallwalk && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
@@ -405,6 +429,7 @@ export function mfndpos(
         hero: isHero,
         ...(occupant !== undefined ? { mon: occupant } : {}),
         ...(harmful ? { trap: true as const } : {}),
+        ...(lined ? { lined: true as const } : {}),
       });
     }
   }
@@ -870,13 +895,18 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
     e ? { allowU: monAllowU(ctx, e), allowDig: canTunnel, guess: ap } : { guess: ap },
   );
   const cnt = cands.length;
-  if (cnt === 0) return 'nomoves'; // MMOVE_NOMOVES
+  const unicorn = isUnicorn(def);
+  if (cnt === 0 && !unicorn) return 'nomoves'; // MMOVE_NOMOVES
+  // ref: m_move(): "on noteleport levels, perhaps we cannot avoid hero": a unicorn there keeps
+  // off her lines while it has a square that is not on one
+  const avoid = unicorn && noteleportLevel(ctx, level) && cands.some((c) => !c.lined);
   const track = getTrack(ctx, id);
   const jcnt = Math.min(MTSZ, cnt - 1);
   let chcnt = 0;
   let chosen: Candidate | null = null;
   let nidist = dist2(pos.x, pos.y, ggx, ggy);
   for (const c of cands) {
+    if (avoid && c.lined) continue;
     if (appr !== 0) {
       // ref: m_move() "mtrack" avoidance of recently visited squares
       let skip = false;
@@ -898,7 +928,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
       nidist = ndist;
     }
   }
-  if (chosen === null) return 'nothing';
+  if (chosen === null) {
+    // ref: m_move(): a unicorn that could not move teleports half the time
+    // (`is_unicorn(ptr) && rn2(2) && !tele_restrict(mtmp)`: rloc(mtmp, RLOC_MSG), MMOVE_MOVED)
+    if (unicorn && e && ctx.rng.rn2(2) && !teleRestrict(ctx, e)) {
+      rlocMon(ctx, e, true);
+      return 'moved';
+    }
+    return 'nothing';
+  }
   // ref: m_move(): `if (mmoved == MMOVE_MOVED && m_digweapon_check(mtmp, nix, niy)) return
   // MMOVE_DONE`: wielding a pick to dig there takes the move
   if (e && mDigweaponCheck(ctx, e, chosen.x, chosen.y)) return 'done';

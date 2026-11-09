@@ -182,6 +182,10 @@ export const numHorns = (def: MonsterDef): number =>
 /** ref: include/mondata.h has_horns() */
 export const hasHorns = (def: MonsterDef): boolean => numHorns(def) > 0;
 
+/** ref: include/mondata.h is_unicorn(): S_UNICORN && likes_gems() (the three unicorns) */
+export const isUnicorn = (def: MonsterDef): boolean =>
+  def.glyph.ch === 'u' && def.flags.includes('jewels');
+
 /** ref: include/obj.h WrappingAllowed() */
 export const wrappingAllowed = (def: MonsterDef): boolean =>
   humanoid(def) &&

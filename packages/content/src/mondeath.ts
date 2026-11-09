@@ -4,18 +4,25 @@ import { restoreWereForm } from './werestate';
 import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { nonliving } from './mondata';
 import { canSpotMon, monNam } from './perception';
-import { xkilledCorpse } from './corpses';
+import { xkilledCorpse, type DeadMon } from './corpses';
 import { engulfingU } from './engulfstate';
 import { mksobj, placeOnFloor, removeFromInventory, weight } from './items';
 import { mkobj } from './mkobj';
 import { forgetMonster, minvent, relobj } from './mongear';
-import { forgetMState } from './mstate';
+import { forgetMState, isMrevived } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
 import { shkgone } from './shk';
 import { setHistoric } from './statuestate';
-import { unmapInvisible } from './invis';
+import { canseemon, unmapInvisible } from './invis';
 import { countKill } from './vanquished';
+
+/** What make_corpse() needs of the monster once it is gone (mrevived, canseemon()). */
+function deadMon(ctx: Ctx, mon: Entity): DeadMon {
+  const revived = isMrevived(ctx, mon.id);
+  // (named only when it can matter: the crumbling horn of a revived unicorn)
+  return { revived, seen: revived && canseemon(ctx, mon) ? monNam(ctx, mon) : null };
+}
 
 /**
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
@@ -39,6 +46,7 @@ export function monsterDied(
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
   const wasinside = engulfingU(ctx, monId);
+  const dead = deadMon(ctx, e);
   if (byHero) {
     // ref: xkilled(): punish bad behavior, alignment (with the mtmp->ispriest branch)
     const epri = epriOf(ctx, monId);
@@ -80,7 +88,7 @@ export function monsterDied(
     }
   }
   // corpse--none if hero was inside the monster
-  if (!wasinside) xkilledCorpse(ctx, def, at, true);
+  if (!wasinside) xkilledCorpse(ctx, def, at, true, dead);
   return null;
 }
 
@@ -167,8 +175,9 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   restoreWereForm(ctx, mon); // the corpse is the human form's
   const def = ctx.defs.monster(mon.def);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
+  const dead = deadMon(ctx, mon);
   mondead(ctx, id);
-  if (at) xkilledCorpse(ctx, def, at);
+  if (at) xkilledCorpse(ctx, def, at, false, dead);
 }
 
 /**

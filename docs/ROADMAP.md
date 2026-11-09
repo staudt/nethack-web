@@ -84,7 +84,7 @@ From 7a (spellcasting: Pw, `Z`, the eight spells, monster casters; done, phone c
 
 From 7c (Mines' End, fountains, Orcish Town):
 
-- **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' and unicorns' reactions to gems (gem buying and identification by a shopkeeper's offer, throwing gems to unicorns); kicking gems.
+- **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' reactions to gems (gem buying and identification by a shopkeeper's offer); kicking gems. (Throwing gems to unicorns: m13 step 4.)
 - **Gem colours:** `randomize_gem_colors()` (turquoise and aquamarine blue or green, fluorite violet, blue, white or green per game); its draws move the game stream.
 - ~~**Mimics:** their disguises ("Wait! That's a mimic!", sticking), then the four mimics of the Mimic of the Mines posing as gray stones.~~ (m13 steps 2 and 3)
 - **Vampires** (level drain, shapeshifting) for the Catacombs' two `V` (its level teleporters came with 7d).

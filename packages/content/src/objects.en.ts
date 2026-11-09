@@ -1290,6 +1290,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:bugle.plural': 'bugles',
   'nh:pick_axe': 'pick-axe',
   'nh:pick_axe.plural': 'pick-axes',
+  'nh:unicorn_horn': 'unicorn horn',
+  'nh:unicorn_horn.plural': 'unicorn horns',
   'nh:bag.desc': 'bag',
   'nh:bag.desc.plural': 'bags',
   'nh:key.desc': 'key',

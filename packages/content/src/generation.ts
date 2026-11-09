@@ -24,6 +24,7 @@ import { uState } from './luck';
 import { isGenocided } from './vanquished';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
+import { isUnicorn } from './mondata';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -397,7 +398,7 @@ export function makemon(
 
   // ref: makemon() switch (ptr->mlet): a mimic takes a disguise (set_mimic_sym()); snakes and
   // spiders made with the level get an object on their square and hide under it (hideunder()),
-  // leprechauns sleep, nymphs 4 times in 5 (no Amulet)
+  // leprechauns sleep, nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
   if (mlet === 'm') setMimicSym(ctx, id, opts.inMklev === true);
@@ -407,6 +408,13 @@ export function makemon(
     hideunder(ctx, id, true);
   } else if (mon && mlet === 'l') mon.asleep = true;
   else if (mon && mlet === 'n' && ctx.rng.rn2(5)) mon.asleep = true;
+  // ref: makemon() S_UNICORN: a unicorn of the hero's alignment is peaceful (MM_ANGRY too)
+  else if (
+    mon &&
+    isUnicorn(mdef) &&
+    Math.sign(uState(ctx.state).alignType) === Math.sign(mdef.alignment)
+  )
+    mon.peaceful = true;
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);

@@ -4,7 +4,7 @@
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
 import { egdOf } from './vaultstate';
 import { resistsSton, touchPetrifies } from './stonestate';
-import { hatesSilver } from './mondata';
+import { hatesSilver, isUnicorn } from './mondata';
 import {
   cellIndex,
   inventoryOf,
@@ -966,7 +966,7 @@ const SEARCHED = new Set([
  * Whether the monster would love to have the floor item. ref: src/monmove.c
  * mon_would_take_item(): useful potions for thinking monsters; gold for the greedy; gems for
  * jewel lovers (not stones); weapons, armor, gems and food (`practical[]`) for object lovers; all only while
- * the monster's load is under a limit. Not ported: unicorns, gelatinous cubes, boulder
+ * the monster's load is under a limit; unicorns take only gemstones. Not ported: gelatinous cubes, boulder
  * throwers, magic lovers (nothing in the roster has M2_MAGIC).
  */
 export function monWouldTakeItem(
@@ -977,6 +977,8 @@ export function monWouldTakeItem(
   const { def } = monOf(ctx, monId);
   const od = ctx.defs.object(item.def);
   const pctload = Math.trunc((currMonLoad(ctx, monId) * 100) / maxMonLoad(def));
+  // a unicorn wants nothing but gemstones (not glass)
+  if (isUnicorn(def) && od.material !== 'gemstone') return false;
   if (!hasFlag(def, 'mindless') && !hasFlag(def, 'animal') && pctload < 75 && SEARCHED.has(od.id))
     return true;
   if (likesGold(def) && od.class === 'coin' && pctload < 95) return true;

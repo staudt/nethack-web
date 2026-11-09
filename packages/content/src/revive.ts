@@ -5,7 +5,8 @@
 // Not ported (see DEVIATIONS.md "Wand effects"): eggs (nothing hatches yet), corpses inside
 // containers, buried corpses, ghosts drawn back into their bodies, saved monster traits
 // (`omonst`: a pet's corpse rises as a new, untame monster of its kind), named corpses, eels
-// out of water, `mrevived` (no kill counts), and the corpses cant_revive() turns into a human
+// out of water, `mrevived`'s experience and kill-count reductions (it only makes a unicorn's
+// horn crumble), and the corpses cant_revive() turns into a human
 // zombie or a doppelganger (aligned priests, unique monsters): neither monster exists, so those
 // corpses do not rise.
 import {
@@ -28,6 +29,7 @@ import { heroSees } from './mongear';
 import { nonliving } from './mondata';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
+import { setMrevived } from './mstate';
 import { billUsedUp, stolenValue } from './shk';
 
 const CORPSE = 'nh:corpse';
@@ -119,6 +121,7 @@ export function revive(ctx: Ctx, corpse: Entity, byHero: boolean): Revived | nul
   const id = makemon(ctx, mptr, pos, { level: level.id, nogroup: true, noInventory: true });
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (!mon) return null;
+  setMrevived(ctx, mon.id); // ref: revive(): `mtmp->mrevived = 1`
 
   // one_of: only one of a stack is revived
   const oneOf = it.quantity > 1;

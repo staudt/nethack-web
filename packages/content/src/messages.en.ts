@@ -43,6 +43,7 @@ import { jumpMessagesEn } from './jump.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
 import { mimicMessagesEn } from './mimic.en';
+import { unicornMessagesEn } from './unicorn.en';
 import { invisMessagesEn } from './invis.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
@@ -104,6 +105,7 @@ export const messagesEn: Record<string, string> = {
   ...invisMessagesEn,
   ...hideMessagesEn,
   ...mimicMessagesEn,
+  ...unicornMessagesEn,
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
@@ -437,6 +439,9 @@ export const messagesEn: Record<string, string> = {
   'nh:sasquatch': 'sasquatch',
   'nh:trapper': 'trapper',
   'nh:lurker_above': 'lurker above',
+  'nh:white_unicorn': 'white unicorn',
+  'nh:gray_unicorn': 'gray unicorn',
+  'nh:black_unicorn': 'black unicorn',
   'nh:pony': 'pony',
   'nh:horse': 'horse',
   'nh:warhorse': 'warhorse',

@@ -3566,6 +3566,18 @@ export const OBJECTS: readonly ObjectDef[] = [
       kind: 'whack',
     },
   }),
+  // part of a unicorn's body, left by its corpse (make_corpse()); applying it cures (unicorn.ts)
+  // ref: objects.h WEPTOOL("unicorn horn", NoDes, 1, 1, 1, 0, 20, 100, 12, 12, PIERCE, P_UNICORN_HORN, BONE, CLR_WHITE, UNICORN_HORN)
+  tool('unicorn_horn', 0, 20, 100, 'bone', WHITE, true, null, {
+    weapon: {
+      small: [1, 12],
+      large: [1, 12],
+      hitBonus: 1,
+      skill: 'unicorn_horn',
+      bimanual: true,
+      kind: 'pierce',
+    },
+  }),
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {

@@ -12,7 +12,8 @@ import {
 import { mswallowerOf } from './engulfstate';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
-import { mkcorpse, rne } from './items';
+import { mkcorpse, mksobj, rne } from './items';
+import { isUnicorn } from './mondata';
 import { xnameOf } from './objnam';
 
 /** ref: include/hack.h ROT_AGE: a corpse rots away at this age (turns) */
@@ -120,6 +121,32 @@ export function corpseChanceSwallowed(
   return corpseChance(ctx, def);
 }
 
+/** What make_corpse() reads of the dead monster, taken before it was removed. */
+export interface DeadMon {
+  /** `mtmp->mrevived` */
+  revived: boolean;
+  /** Its name when the hero saw it die (canseemon()) and it was revived, else null. */
+  seen: string | null;
+}
+
+/**
+ * The objects make_corpse() leaves besides the corpse: a unicorn's horn, which crumbles to dust
+ * half the time when the unicorn had been revived. ref: src/mon.c make_corpse() PM_*_UNICORN
+ */
+function corpseExtras(
+  ctx: Ctx,
+  def: MonsterDef,
+  at: { level: string; x: number; y: number },
+  dead: DeadMon,
+): void {
+  if (!isUnicorn(def)) return;
+  if (dead.revived && ctx.rng.rn2(2)) {
+    if (dead.seen)
+      ctx.emit({ type: 'msg', key: 'unicorn.horn_crumbles', params: { mon: dead.seen } });
+  } else mksobj(ctx, ctx.defs.object('nh:unicorn_horn'), { at, init: true });
+  // (a revived unicorn's horn is `degraded_horn`: only poly_obj() reads it, see DEVIATIONS.md)
+}
+
 /**
  * Leaves a corpse where the hero killed `def`, if the rules say so, and starts its rot timer.
  * ref: src/mon.c xkilled() ("corpse--none if hero was inside the monster"), make_corpse().
@@ -131,6 +158,7 @@ export function xkilledCorpse(
   def: MonsterDef,
   at: { level: string; x: number; y: number },
   byHero = false,
+  dead: DeadMon = { revived: false, seen: null },
 ): void {
   // ref: src/mon.c corpse_chance(): "Gas spores always explode upon death" (inside the monster
   // that swallowed it, gm.mswallower, when one did)
@@ -151,6 +179,7 @@ export function xkilledCorpse(
     startCorpseTimeout(ctx, id);
     return;
   }
+  corpseExtras(ctx, def, at, dead);
   const id = mkcorpse(ctx, def, { at });
   startCorpseTimeout(ctx, id);
 }

@@ -72,12 +72,14 @@ export type InitDef = Pick<
  * A small fraction of new weapons and armor are made eroded or erodeproof.
  * ref: src/mkobj.c mkobj_erosions(), may_generate_eroded(). The objects that may not be eroded
  * are those that cannot erode (erosion_matters(), is_damageable()) and the hero's starting
- * inventory (`moves <= 1 && !in_mklev`, passed in by the caller); worm teeth, unicorn horns and
+ * inventory (`moves <= 1 && !in_mklev`, passed in by the caller), worm teeth and unicorn horns;
  * artifacts do not exist. Grease is not ported: its 1 in 1000 roll is made.
  */
 export function mkobjErosions(rng: Rng, def: InitDef, it: ItemComponent): void {
   const d = def as ObjectDef;
   if (it.erodeproof || !erosionMatters(d) || !isDamageable(d)) return;
+  // part of a monster's body and produced when it dies
+  if (d.id === 'nh:unicorn_horn' || d.id === 'nh:worm_tooth') return;
   if (!rng.rn2(100)) {
     it.erodeproof = true;
   } else {
