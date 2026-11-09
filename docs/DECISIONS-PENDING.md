@@ -106,3 +106,18 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
 ## Parked
 
 Nothing parked.
+
+## Taken (m11 objects batch, 2026-11-08)
+
+The planner marked all ten questions cheap to change later; the loop took each recommendation (`~/.claude/plans/m11.md`, Open questions):
+
+1. The 8-step subset; if the budget runs short, drop step 4 (armor II) first, then chain lightning and the helm of opposite alignment.
+2. Peak attributes (AMAX) in `modData.nh.amax`, not a core field.
+3. Genocide state in `modData.nh.genocided` (sorted ids), checked in content's makemon; mods' monsters genocidable through G_GENO; no extinction.
+4. Blessed levitation ended at will: `modData.nh.levAtWill` and a check on `>`.
+5. A minimal `#sit` in step 5 (a "Sit" self offer: swallowed, levitating, traps, floor, laying eggs); thrones come with m12.
+6. Real polearms and weapons replace the monster-gear stand-ins; the fallbacks stay.
+7. Lances without jousting (no steeds).
+8. Blessed monster detection acts as uncursed until the timed Detect_monsters property exists.
+9. The golden moves in every step, each verified by filtering the step's defs; the bot seed is re-picked if needed.
+10. Death by genocide: `'genocided'` in content's `How`; core's `GameOver.kind` stays `'died'` (no score or save format change).
