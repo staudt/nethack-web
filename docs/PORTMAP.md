@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3768 citations.
+153 NetHack files, 3840 citations.
 
 ## dat/dungeon.lua
 
@@ -321,8 +321,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monflag.h
 
-- `MZ_HUGE()`: `packages/content/src/engulf.ts`, `packages/content/src/mondata.ts`
-- `MZ_HUMAN()`: `packages/content/src/mondata.ts`
+- `MZ_HUGE()`: `packages/content/src/engulf.ts`, `packages/content/src/mhurtle.ts`, `packages/content/src/mondata.ts`
+- `MZ_HUMAN()`: `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
 - `MZ_TINY()`: `packages/content/src/items.ts`, `packages/content/src/mondata.ts`
 - `ms_sounds()`: `packages/core/src/types/mod.ts`
 
@@ -383,7 +383,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
@@ -622,17 +622,28 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/detect.c
 
 - (file): `packages/content/src/zap.en.ts`
-- `cvt_sdoor_to_door()`: `packages/content/src/actions.ts`
-- `do_mapping()`: `packages/content/src/wizard/map.ts`
-- `do_vicinity_map()`: `packages/content/src/detect.ts`
+- `check_map_spot()`: `packages/content/src/detectobj.ts`
+- `clear_stale_map()`: `packages/content/src/detectobj.ts`
+- `cvt_sdoor_to_door()`: `packages/content/src/actions.ts`, `packages/content/src/detectobj.ts`
+- `detect_obj_traps()`: `packages/content/src/detectobj.ts`
+- `display_trap_map()`: `packages/content/src/detectobj.ts`
+- `do_mapping()`: `packages/content/src/detectobj.ts`, `packages/content/src/wizard/map.ts`
+- `do_vicinity_map()`: `packages/content/src/detect.ts`, `packages/content/src/detectobj.ts`
 - `dosearch0()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `findit()`: `packages/content/src/zap.ts`
 - `findone()`: `packages/content/src/zap.ts`
+- `food_detect()`: `packages/content/src/detectobj.ts`
+- `gold_detect()`: `packages/content/src/detectobj.ts`
 - `mfind0()`: `packages/content/src/actions.ts`
 - `monster_detect()`: `packages/content/src/cast.ts`, `packages/content/src/detect.ts`, `packages/content/src/magic.en.ts`
+- `o_in()`: `packages/content/src/detectobj.ts`
+- `o_material()`: `packages/content/src/detectobj.ts`
+- `object_detect()`: `packages/content/src/detectobj.ts`
 - `premap_detect()`: `packages/content/src/detect.ts`
+- `sense_trap()`: `packages/content/src/detectobj.ts`
 - `show_map_spot()`: `packages/content/src/detect.ts`, `packages/content/src/wizard/map.ts`
 - `skip_premap_detect()`: `packages/content/src/detect.ts`
+- `trap_detect()`: `packages/content/src/detectobj.ts`
 
 ## src/dig.c
 
@@ -786,11 +797,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `initedog()`: `packages/content/src/dog.ts`
 - `keepdogs()`: `packages/content/src/dog.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/soak.ts`
 - `losedogs()`: `packages/content/src/dog.ts`, `packages/content/src/shk.ts`, `packages/core/src/types/mod.ts`
+- `make_familiar()`: `packages/content/src/dog.ts`
 - `makedog()`: `packages/content/src/dog.ts`
 - `migrate_to_level()`: `packages/content/src/migrate.ts`
 - `mon_arrive()`: `packages/content/src/dog.ts`
 - `mon_catchup_elapsed_time()`: `packages/content/src/dog.ts`, `packages/content/src/mstate.ts`
 - `newedog()`: `packages/content/src/dog.ts`
+- `pet_type()`: `packages/content/src/dog.ts`
 - `tamedog()`: `packages/content/src/dog.ts`
 
 ## src/dogmove.c
@@ -837,6 +850,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hero_breaks()`: `packages/content/src/dokick.ts`
 - `hitfloor()`: `packages/content/src/dothrow.ts`
 - `hurtle_jump()`: `packages/content/src/jump.ts`
+- `mhurtle()`: `packages/content/src/mhurtle.ts`
 - `multishot_class_bonus()`: `packages/content/src/dothrow.ts`
 - `ok_to_throw()`: `packages/content/src/dothrow.ts`
 - `omon_adj()`: `packages/content/src/mthrowu.ts`
@@ -1025,7 +1039,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lookaround()`: `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `losehp()`: `packages/content/src/hp.ts`
 - `may_dig()`: `packages/content/src/mdig.ts`
-- `money_cnt()`: `packages/content/src/dosit.ts`, `packages/content/src/stats.ts`
+- `money_cnt()`: `packages/content/src/detectobj.ts`, `packages/content/src/dosit.ts`, `packages/content/src/stats.ts`
 - `monster_nearby()`: `packages/content/src/eat.ts`
 - `move_update()`: `packages/content/src/rooms.ts`, `packages/content/src/urooms.ts`
 - `moverock()`: `packages/content/src/landmine.ts`, `packages/content/src/moverock.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
@@ -1436,6 +1450,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hates_silver()`: `packages/content/src/mondata.ts`
 - `little_to_big()`: `packages/content/src/eggstate.ts`
 - `locomotion()`: `packages/content/src/egg.ts`
+- `m_is_steadfast()`: `packages/content/src/mhurtle.ts`
 - `mon_hates_silver()`: `packages/content/src/mondata.ts`, `packages/content/src/silver.ts`
 - `mon_knows_traps()`: `packages/content/src/trapstate.ts`
 - `mon_learns_traps()`: `packages/content/src/trapstate.ts`
@@ -1676,6 +1691,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_invisibility()`: `packages/content/src/potion.ts`
 - `peffect_levitation()`: `packages/content/src/potion.ts`
 - `peffect_monster_detection()`: `packages/content/src/potion.ts`
+- `peffect_object_detection()`: `packages/content/src/potion.ts`
 - `peffect_paralysis()`: `packages/content/src/magic.en.ts`, `packages/content/src/potion.ts`
 - `peffect_polymorph()`: `packages/content/src/polyself.ts`, `packages/content/src/potion.ts`
 - `peffect_restore_ability()`: `packages/content/src/attrstate.ts`, `packages/content/src/magic.en.ts`, `packages/content/src/potion.ts`
@@ -1773,13 +1789,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `seffect_enchant_weapon()`: `packages/content/src/read.ts`
 - `seffect_fire()`: `packages/content/src/seffect.ts`
 - `seffect_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/read.ts`
+- `seffect_gold_detection()`: `packages/content/src/read.ts`
 - `seffect_identify()`: `packages/content/src/read.ts`
 - `seffect_light()`: `packages/content/src/read.ts`
+- `seffect_magic_mapping()`: `packages/content/src/read.ts`
 - `seffect_remove_curse()`: `packages/content/src/read.ts`
 - `seffect_scare_monster()`: `packages/content/src/seffect.ts`
 - `seffect_taming()`: `packages/content/src/seffect.ts`
 - `seffect_teleportation()`: `packages/content/src/read.ts`
-- `seffects()`: `packages/content/src/read.ts`
+- `seffects()`: `packages/content/src/read.ts`, `packages/content/src/seffect.ts`
 - `stripspe()`: `packages/content/src/seffect.ts`
 - `tshirt_text()`: `packages/content/src/shirt.en.ts`
 - `valid_cloud_pos()`: `packages/content/src/seffect.ts`
@@ -2032,6 +2050,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/spell.ts`, `packages/content/src/spellcalc.ts`
 - `age_spells()`: `packages/content/src/spell.ts`
 - `book_disappears()`: `packages/content/src/spell.ts`
+- `can_center_spell_location()`: `packages/content/src/cast.ts`
 - `cast_protection()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
 - `confused_book()`: `packages/content/src/spell.ts`
 - `cursed_book()`: `packages/content/src/spell.ts`
@@ -2045,6 +2064,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `losespells()`: `packages/content/src/spell.ts`
 - `percent_success()`: `packages/content/src/spellcalc.ts`
 - `rejectcasting()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
+- `spell_aim_step()`: `packages/content/src/cast.ts`
 - `spell_backfire()`: `packages/content/src/cast.ts`
 - `spell_skilltype()`: `packages/content/src/spellcalc.ts`
 - `spelleffects()`: `packages/content/src/cast.ts`, `packages/content/src/jump.ts`, `packages/content/src/wizard/cast.ts`
@@ -2053,6 +2073,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `spellretention()`: `packages/content/src/spell.ts`
 - `spelltypemnemonic()`: `packages/content/src/spell.en.ts`, `packages/content/src/spellcalc.ts`
 - `study_book()`: `packages/content/src/spell.en.ts`, `packages/content/src/spell.ts`
+- `throwspell()`: `packages/content/src/cast.ts`
 
 ## src/stairs.c
 
@@ -2061,7 +2082,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/steal.c
 
-- `findgold()`: `packages/content/src/steal.ts`
+- `findgold()`: `packages/content/src/detectobj.ts`, `packages/content/src/steal.ts`
 - `mpickobj()`: `packages/content/src/steal.ts`
 - `relobj()`: `packages/content/src/mongear.ts`
 - `remove_worn_item()`: `packages/content/src/jewelry.ts`, `packages/content/src/steal.ts`
@@ -2283,7 +2304,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/vault.c
 
-- `hidden_gold()`: `packages/content/src/shk.ts`, `packages/content/src/urexp.ts`
+- `hidden_gold()`: `packages/content/src/detectobj.ts`, `packages/content/src/shk.ts`, `packages/content/src/urexp.ts`
 
 ## src/vision.c
 
@@ -2446,7 +2467,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ubuzz()`: `packages/content/src/zap.ts`
 - `unpolyable()`: `packages/content/src/polyobj.ts`
 - `unturn_dead()`: `packages/content/src/revive.ts`
-- `weffects()`: `packages/content/src/zap.ts`, `packages/core/src/types/mod.ts`
+- `weffects()`: `packages/content/src/cast.ts`, `packages/content/src/zap.ts`, `packages/core/src/types/mod.ts`
 - `zap_hit()`: `packages/content/src/buzz.ts`
 - `zap_over_floor()`: `packages/content/src/buzz.ts`
 - `zap_updown()`: `packages/content/src/zap.ts`

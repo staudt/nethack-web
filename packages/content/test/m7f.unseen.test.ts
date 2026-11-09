@@ -231,7 +231,7 @@ describe('ranged hits on unseen monsters', () => {
   });
 
   test('a kick at an unseen monster leaves the `I`; a kick at an empty `I` clears it', () => {
-    const s = make();
+    const s = make(3); // a seed whose kick leaves the jackal alive
     unseen(s, 'nh:jackal', HX + 1, HY);
     s.mod('nh:kick', { dir: 'e' });
     expect(marked(s, HX + 1, HY)).toBe(true);

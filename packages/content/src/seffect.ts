@@ -23,6 +23,7 @@ import {
   type Ctx,
   type DefId,
   type ArmorSlot,
+  type Buc,
   type Entity,
   type EntityId,
   type Json,
@@ -91,6 +92,15 @@ const isPlural = (def: ObjectDef, e: Entity): boolean =>
 
 const plSuffix = (ctx: Ctx, e: Entity): string =>
   isPlural(ctx.defs.object(e.def), e) ? '_pl' : '';
+
+/**
+ * What reads: a scroll's blessing, or the spell's pseudo object (`spell`: resisted at her level,
+ * blessed at Skilled). ref: seffects() `sobj`
+ */
+export interface ScrollSource {
+  buc: Buc;
+  spell?: true;
+}
 
 /** What a scroll's effect tells doread(): `known` (gk.known), `used` (already used up). */
 export interface SeffectResult {
@@ -377,8 +387,9 @@ export function confuseMonster(ctx: Ctx, blessed: boolean, cursed: boolean, scro
  * cursed; "in the distance" when only pets, or nothing, were in sight).
  * ref: src/read.c seffect_scare_monster()
  */
-export function seffectScareMonster(ctx: Ctx, scroll: Entity, confused: boolean): void {
-  const cursed = scroll.c.item?.buc === 'cursed';
+export function seffectScareMonster(ctx: Ctx, src: ScrollSource, confused: boolean): void {
+  const cursed = src.buc === 'cursed';
+  const oclass = src.spell ? 'spell' : 'scroll';
   let ct = 0;
   const lvl = ctx.state.currentLevel;
   for (const id of sortedIds(ctx.state)) {
@@ -391,9 +402,11 @@ export function seffectScareMonster(ctx: Ctx, scroll: Entity, confused: boolean)
       stopFleeing(ctx, id);
       if (isFrozen(ctx, id)) unfreezeMonst(ctx, id);
       m.asleep = false;
-    } else if (!resist(ctx, mtmp, 0, 'scroll')) monflee(ctx, id, 0, false, false);
+    } else if (!resist(ctx, mtmp, 0, oclass)) monflee(ctx, id, 0, false, false);
     if (!m.tame) ct++; // pets don't laugh at you
   }
+  // the spell of cause fear is heard only when nothing was in sight
+  if (src.spell && ct) return;
   say(ctx, confused || cursed ? 'scroll.scare.wailing' : 'scroll.scare.laughter', {
     where: { key: ct ? 'scroll.scare.close_by' : 'scroll.scare.distance' },
   });
@@ -420,8 +433,12 @@ export function createCritters(ctx: Ctx, cnt: number, mptr: MonsterDef | null): 
  * One monster (13 when confused or cursed, acid blobs when confused), and 1 time in 73 an
  * unblessed scroll adds 1-4 more. ref: src/read.c seffect_create_monster()
  */
-export function seffectCreateMonster(ctx: Ctx, scroll: Entity, confused: boolean): SeffectResult {
-  const buc = scroll.c.item?.buc ?? 'uncursed';
+export function seffectCreateMonster(
+  ctx: Ctx,
+  src: ScrollSource,
+  confused: boolean,
+): SeffectResult {
+  const buc = src.buc;
   const cnt =
     1 +
     (confused || buc === 'cursed' ? 12 : 0) +
@@ -438,7 +455,7 @@ export function seffectCreateMonster(ctx: Ctx, scroll: Entity, confused: boolean
  * turns hostile), else it is tamed unless it resists (a shopkeeper is always pacified); 1 when
  * it became peaceful or tamer. ref: src/read.c maybe_tame()
  */
-function maybeTame(ctx: Ctx, mtmp: Entity, buc: string): number {
+function maybeTame(ctx: Ctx, mtmp: Entity, buc: string, spell: boolean): number {
   const m = mtmp.c.monster;
   if (!m) return 0;
   const wasTame = m.tame ?? 0;
@@ -447,7 +464,7 @@ function maybeTame(ctx: Ctx, mtmp: Entity, buc: string): number {
     setmangry(ctx, mtmp.id);
     return wasPeaceful && !m.peaceful ? -1 : 0;
   }
-  if (!resist(ctx, mtmp, 0, 'scroll') || eshkOf(ctx, mtmp.id))
+  if (!resist(ctx, mtmp, 0, spell ? 'spell' : 'scroll') || eshkOf(ctx, mtmp.id))
     tamedog(ctx, mtmp.id, null, false, () => undefined, buc === 'blessed');
   const after = ctx.state.entities[String(mtmp.id)]?.c.monster;
   if (!after) return 0;
@@ -459,8 +476,8 @@ function maybeTame(ctx: Ctx, mtmp: Entity, buc: string): number {
  * may become tame: "The neighborhood is friendlier." (or "unfriendlier", "seems" when she saw no
  * change), "Nothing interesting seems to happen." ref: src/read.c seffect_taming()
  */
-export function seffectTaming(ctx: Ctx, scroll: Entity, confused: boolean): SeffectResult {
-  const buc = scroll.c.item?.buc ?? 'uncursed';
+export function seffectTaming(ctx: Ctx, src: ScrollSource, confused: boolean): SeffectResult {
+  const buc = src.buc;
   let candidates = 0;
   let results = 0;
   let visResults = 0;
@@ -468,7 +485,7 @@ export function seffectTaming(ctx: Ctx, scroll: Entity, confused: boolean): Seff
   if (stuck !== null && isSwallowed(ctx)) {
     const mtmp = ctx.state.entities[String(stuck)];
     candidates = 1;
-    if (mtmp) results = visResults = maybeTame(ctx, mtmp, buc);
+    if (mtmp) results = visResults = maybeTame(ctx, mtmp, buc, src.spell === true);
   } else {
     const p = hero(ctx).c.pos;
     const level = getLevel(ctx.state);
@@ -484,7 +501,7 @@ export function seffectTaming(ctx: Ctx, scroll: Entity, confused: boolean): Seff
         const mtmp = ctx.state.entities[String(id)];
         if (!mtmp) continue;
         ++candidates;
-        const res = maybeTame(ctx, mtmp, buc);
+        const res = maybeTame(ctx, mtmp, buc, src.spell === true);
         results += res;
         if (ctx.state.entities[String(id)] && canSpotMon(ctx, mtmp)) visResults += res;
       }

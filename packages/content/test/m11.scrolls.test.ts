@@ -207,7 +207,7 @@ describe('genocide', () => {
 
 describe('scare monster', () => {
   test('a hostile monster never steps onto the scroll, nor attacks her standing on it', () => {
-    const s = room();
+    const s = room(3); // a seed where the jackal is still fleeing at the end
     s.floor('nh:scroll_of_scare_monster');
     const j = foe(s, 'nh:jackal', 4, 3);
     ent(s, j)!.c.actor!.speed = 12;
@@ -260,7 +260,7 @@ describe('scare monster', () => {
 
 describe('the other scrolls', () => {
   test('create monster: one more monster; confused, acid blobs', () => {
-    const s = room();
+    const s = room(3); // a seed whose random monster comes alone (no group)
     const before = Object.values(s.state.entities).filter((e) => e?.c.monster).length;
     read(s, 'create_monster', 'blessed');
     expect(Object.values(s.state.entities).filter((e) => e?.c.monster).length).toBe(before + 1);

@@ -43,7 +43,8 @@ const polyEverythingMod: Mod = {
 };
 
 describe('polymorph soak', () => {
-  for (const seed of [711, 715]) {
+  // seeds whose runs last past turn 200 (716 replaced 715 in m11 step 8: it died at turn 33)
+  for (const seed of [711, 716]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

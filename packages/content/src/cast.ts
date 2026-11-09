@@ -1,10 +1,16 @@
-// Casting spells: the `Z` command, the checks before a cast and the effects of the spells of the
-// subset. ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
-// spell_backfire(), spelleffects(), cast_protection(); src/timeout.c nh_timeout() (spell
-// protection); src/apply.c jump() (the spell of jumping, jump.ts); src/detect.c monster_detect(); src/zap.c zapnodir() (light), weffects() and
-// zapyourself() (force bolt, sleep, healing); seffect.ts confuseMonster()
+// Casting spells: the `Z` command, the checks before a cast and the effects of the spells.
+// ref: src/spell.c docast(), getspell(), rejectcasting(), spelleffects_check(),
+// spell_backfire(), spelleffects(), throwspell(), spell_aim_step(),
+// can_center_spell_location(), cast_protection(); src/timeout.c nh_timeout() (spell
+// protection); src/apply.c jump() (the spell of jumping, jump.ts); src/detect.c
+// monster_detect(); src/dog.c make_familiar() (dog.ts)
+//
+// The spells that duplicate wands go through zap.ts weffectsFrom() with a spell source, those
+// that duplicate scrolls through read.ts seffectsSpell(), those that duplicate potions through
+// potion.ts peffectsSpell(); detection is detectobj.ts. Chain lightning is not ported (ROADMAP).
 import {
   NORMAL_SPEED,
+  cellRules,
   getLevel,
   getPlayer,
   type ActionDef,
@@ -15,24 +21,44 @@ import {
   type ModApi,
   type Msg,
 } from '@nh/core';
+import { monsterIdAt } from './combat';
 import { monsterDetect } from './detect';
+import { doVicinityMapSpell } from './detectobj';
+import { makeFamiliar } from './dog';
+import { isSwallowed } from './engulfstate';
+import { explode } from './explode';
+import { uhimKey } from './gender';
+import { askPosition, positionAnswer } from './getpos';
 import { hcolor } from './hcolor';
-import { morehungry } from './hunger';
+import { losehp } from './hp';
+import { isSick, morehungry } from './hunger';
 import { uState } from './luck';
 import { checkCapacity, strangeFeeling } from './magic';
-import { healup } from './potion';
+import { heroSees } from './mongear';
+import { canSpotMon } from './perception';
+import { healup, peffectsSpell } from './potion';
 import { freehand } from './pray';
-import { P, hasProp, isStrangled, makeConfused, makeStunned, timeoutLeft, wornIn } from './props';
-import { jump, jumpSpellDone, setJumpSpell } from './jump';
-import { litroom } from './read';
+import {
+  P,
+  clairvoyanceBlocked,
+  hasProp,
+  isStrangled,
+  makeConfused,
+  makeStunned,
+  timeoutLeft,
+  wornIn,
+} from './props';
+import { jump, jumpSpellDone, setJumpSpell, walkPath } from './jump';
+import { litroom, seffectsSpell } from './read';
 import { confuseMonster } from './seffect';
+import { isSlimed, makeSlimed } from './slimestate';
 import { P_EXPERT, P_SKILLED, skillLevel, useSkill } from './skills';
 import { KEEN, knownSpells, spellEntry, spellet } from './spell';
-import { percentSuccess, spellLevPw, spellSkill } from './spellcalc';
+import { percentSuccess, spellDamageBonus, spellLevPw, spellSkill } from './spellcalc';
 import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
-import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, type ZapDir } from './zap';
+import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, zapyourself, type ZapDir } from './zap';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -41,70 +67,138 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 
 const hero = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
 
-/** The books whose spells can be cast (those of the subset). */
-type CastBook =
-  | 'nh:spellbook_of_force_bolt'
-  | 'nh:spellbook_of_sleep'
-  | 'nh:spellbook_of_healing'
-  | 'nh:spellbook_of_confuse_monster'
-  | 'nh:spellbook_of_light'
-  | 'nh:spellbook_of_detect_monsters'
-  | 'nh:spellbook_of_cure_blindness'
-  | 'nh:spellbook_of_polymorph'
-  | 'nh:spellbook_of_protection'
-  | 'nh:spellbook_of_jumping'
-  | 'nh:spellbook_of_stone_to_flesh';
-
-/** The books of the subset, in objects[] order (the order #wizcast lists them). */
-export const CAST_BOOKS: readonly CastBook[] = [
+/** The books whose spells can be cast: those of SPELL_INFO, in objects[] order (#wizcast's). */
+export const CAST_BOOKS: readonly DefId[] = Object.freeze([
+  'nh:spellbook_of_dig',
+  'nh:spellbook_of_magic_missile',
+  'nh:spellbook_of_fireball',
+  'nh:spellbook_of_cone_of_cold',
   'nh:spellbook_of_sleep',
+  'nh:spellbook_of_finger_of_death',
   'nh:spellbook_of_light',
   'nh:spellbook_of_detect_monsters',
   'nh:spellbook_of_healing',
+  'nh:spellbook_of_knock',
   'nh:spellbook_of_force_bolt',
   'nh:spellbook_of_confuse_monster',
   'nh:spellbook_of_cure_blindness',
+  'nh:spellbook_of_drain_life',
+  'nh:spellbook_of_slow_monster',
+  'nh:spellbook_of_wizard_lock',
+  'nh:spellbook_of_create_monster',
+  'nh:spellbook_of_detect_food',
+  'nh:spellbook_of_cause_fear',
+  'nh:spellbook_of_clairvoyance',
+  'nh:spellbook_of_cure_sickness',
+  'nh:spellbook_of_charm_monster',
+  'nh:spellbook_of_haste_self',
+  'nh:spellbook_of_detect_unseen',
+  'nh:spellbook_of_levitation',
+  'nh:spellbook_of_extra_healing',
+  'nh:spellbook_of_restore_ability',
+  'nh:spellbook_of_invisibility',
+  'nh:spellbook_of_detect_treasure',
+  'nh:spellbook_of_remove_curse',
+  'nh:spellbook_of_magic_mapping',
+  'nh:spellbook_of_identify',
+  'nh:spellbook_of_turn_undead',
   'nh:spellbook_of_polymorph',
+  'nh:spellbook_of_teleport_away',
+  'nh:spellbook_of_create_familiar',
+  'nh:spellbook_of_cancellation',
   'nh:spellbook_of_protection',
   'nh:spellbook_of_jumping',
   'nh:spellbook_of_stone_to_flesh',
-];
+]);
 
-const isCastBook = (book: DefId): book is CastBook =>
-  (CAST_BOOKS as readonly string[]).includes(book);
+const isCastBook = (book: DefId): boolean => CAST_BOOKS.includes(book);
+
+/** Skilled or better in the book's school: the pseudo object is blessed. */
+const skilled = (ctx: Ctx, book: DefId): boolean => skillLevel(ctx, spellSkill(book)) >= P_SKILLED;
 
 /**
  * The effect of each spell (the switch of spelleffects()): a function, 'direction' for the
- * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object), or
- * 'jump' for jumping, which asks where to land.
+ * spells that duplicate wand effects and ask a direction (weffects() with the pseudo object),
+ * 'throw' for fireball and cone of cold at Skilled (asks where), or 'jump' for jumping, which
+ * asks where to land.
  */
-function effectOf(book: CastBook): ((ctx: Ctx) => void) | 'direction' | 'jump' {
+function effectOf(ctx: Ctx, book: DefId): ((ctx: Ctx) => void) | 'direction' | 'throw' | 'jump' {
   switch (book) {
+    case 'nh:spellbook_of_fireball':
+    case 'nh:spellbook_of_cone_of_cold':
+      if (skilled(ctx, book)) return 'throw';
+      return 'direction'; // else a ray, as the wand
     case 'nh:spellbook_of_force_bolt':
     case 'nh:spellbook_of_sleep':
-    case 'nh:spellbook_of_healing':
-    case 'nh:spellbook_of_stone_to_flesh':
+    case 'nh:spellbook_of_magic_missile':
+    case 'nh:spellbook_of_knock':
+    case 'nh:spellbook_of_slow_monster':
+    case 'nh:spellbook_of_wizard_lock':
+    case 'nh:spellbook_of_dig':
+    case 'nh:spellbook_of_turn_undead':
     case 'nh:spellbook_of_polymorph':
+    case 'nh:spellbook_of_teleport_away':
+    case 'nh:spellbook_of_cancellation':
+    case 'nh:spellbook_of_finger_of_death':
+    case 'nh:spellbook_of_healing':
+    case 'nh:spellbook_of_extra_healing':
+    case 'nh:spellbook_of_drain_life':
+    case 'nh:spellbook_of_stone_to_flesh':
       return 'direction';
-    case 'nh:spellbook_of_confuse_monster':
-      // ref: spelleffects(): a duplicate of the scroll's effect, the pseudo object blessed at
-      // Skilled (the skill is read before this cast practises it)
-      return (ctx) =>
-        confuseMonster(ctx, skillLevel(ctx, spellSkill(book)) >= P_SKILLED, false, false);
     case 'nh:spellbook_of_light':
       // ref: spelleffects() -> weffects() -> zapnodir(): litroom(TRUE, obj) (the pseudo object
       // is never blessed for light); lightdamage() is not ported
-      return (ctx) => litroom(ctx, true, false);
+      return (c) => litroom(c, true, false);
+    case 'nh:spellbook_of_detect_unseen':
+      // ref: weffects() -> zapnodir(): findit()
+      return (c) => weffectsFrom(c, { kind: 'spell', otyp: book, blessed: false }, null);
+    case 'nh:spellbook_of_confuse_monster':
+      // ref: spelleffects(): a duplicate of the scroll's effect, the pseudo object blessed at
+      // Skilled (the skill is read before this cast practises it)
+      return (c) => confuseMonster(c, skilled(c, book), false, false);
+    case 'nh:spellbook_of_remove_curse':
+    case 'nh:spellbook_of_detect_food':
+    case 'nh:spellbook_of_cause_fear':
+    case 'nh:spellbook_of_identify':
+    case 'nh:spellbook_of_charm_monster':
+      // duplicates of scroll effects, blessed at Skilled
+      return (c) => seffectsSpell(c, book, skilled(c, book));
+    case 'nh:spellbook_of_magic_mapping':
+    case 'nh:spellbook_of_create_monster':
+      return (c) => seffectsSpell(c, book, false);
     case 'nh:spellbook_of_detect_monsters':
       // ref: spelleffects() -> peffects() -> peffect_monster_detection(): the blessed (Skilled)
-      // timed branch is not ported, no role here reaches Skilled in divination
+      // timed branch is not ported (decision 8: as uncursed)
       return castMonsterDetect;
+    case 'nh:spellbook_of_haste_self':
+    case 'nh:spellbook_of_detect_treasure':
+    case 'nh:spellbook_of_levitation':
+    case 'nh:spellbook_of_restore_ability':
+      // duplicates of potion effects, blessed at Skilled
+      return (c) => peffectsSpell(c, book, skilled(c, book));
+    case 'nh:spellbook_of_invisibility':
+      return (c) => peffectsSpell(c, book, false);
     case 'nh:spellbook_of_cure_blindness':
-      return (ctx) => healup(ctx, 0, 0, false, true);
+      return (c) => healup(c, 0, 0, false, true);
+    case 'nh:spellbook_of_cure_sickness':
+      return castCureSickness;
+    case 'nh:spellbook_of_create_familiar':
+      return (c) => {
+        const p = hero(c).c.pos;
+        if (p) makeFamiliar(c, p.x, p.y);
+      };
+    case 'nh:spellbook_of_clairvoyance':
+      return (c) => {
+        if (!clairvoyanceBlocked(c.state)) doVicinityMapSpell(c, skilled(c, book));
+        // at present, only one thing blocks clairvoyance
+        else say(c, 'cast.pointy_hat');
+      };
     case 'nh:spellbook_of_protection':
       return castProtection;
     case 'nh:spellbook_of_jumping':
       return 'jump';
+    default:
+      return () => undefined;
   }
 }
 
@@ -194,11 +288,11 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
 
   const h = hero(ctx);
   const uhunger = h.c.hunger?.nutrition ?? 900;
-  if (uhunger <= 10) {
+  if (uhunger <= 10 && book !== 'nh:spellbook_of_detect_food') {
     say(ctx, 'cast.too_hungry');
     return 0;
   }
-  if ((h.c.attributes?.str ?? 10) < 4) {
+  if ((h.c.attributes?.str ?? 10) < 4 && book !== 'nh:spellbook_of_restore_ability') {
     say(ctx, 'cast.lack_strength');
     return 0;
   }
@@ -217,10 +311,12 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
     );
     return 0;
   }
-  // don't put her (quite) into fainting from casting a spell
-  let hungr = energy * 2;
-  if (hungr > uhunger - 3) hungr = uhunger - 3;
-  morehungry(ctx, hungr);
+  if (book !== 'nh:spellbook_of_detect_food') {
+    // don't put her (quite) into fainting from casting a spell
+    let hungr = energy * 2;
+    if (hungr > uhunger - 3) hungr = uhunger - 3;
+    morehungry(ctx, hungr);
+  }
 
   const chance = percentSuccess(ctx.state, ctx.defs, book);
   if (hasProp(h, P.CONFUSION) || ctx.rng.rnd(100) > chance) {
@@ -239,7 +335,7 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
  */
 export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
   if (!isCastBook(book)) return 0; // knownSpells() only holds books of the subset
-  const effect = effectOf(book);
+  const effect = effectOf(ctx, book);
   let energy = 0;
   if (!force) {
     const res = spelleffectsCheck(ctx, book);
@@ -252,7 +348,8 @@ export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
     // healing is a potion effect extended to take a direction like wands: the pseudo object is
     // blessed at Skilled (it cures blindness)
     const blessed =
-      book === 'nh:spellbook_of_healing' && skillLevel(ctx, spellSkill(book)) >= P_SKILLED;
+      (book === 'nh:spellbook_of_healing' || book === 'nh:spellbook_of_extra_healing') &&
+      skilled(ctx, book);
     const data: CastDirection = { book, blessed, force };
     ctx.ask(
       { id: CAST_DIRECTION, kind: 'direction', key: 'zap.direction', options: [...ZAP_DIRECTIONS] },
@@ -267,9 +364,148 @@ export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
     const used = jump(ctx, Math.max(skillLevel(ctx, spellSkill(book)), 1), { force });
     return used === null ? 0 : jumpSpellDone(ctx, used, force);
   }
+  if (effect === 'throw') {
+    if (throwspell(ctx, book, force)) return 0; // the position prompt finishes the cast
+    if (!force) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+    return NORMAL_SPEED;
+  }
   effect(ctx);
   // gain skill for successful cast
   if (!force) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+  // an identify menu is waiting: the move is spent when it is answered (nh:read)
+  return ctx.state.pendingPrompt ? 0 : NORMAL_SPEED;
+}
+
+// ---------------------------------------------------------------------------------------------
+// fireball and cone of cold at Skilled
+
+/** The pending thrown spell, kept in the position prompt's data. */
+interface CastThrow {
+  throwBook: DefId;
+  force: boolean;
+}
+
+const isCastThrow = (data: Json): boolean =>
+  typeof data === 'object' && data !== null && !Array.isArray(data) && 'throwBook' in data;
+
+/** The walls and stone a thrown spell cannot centre on. ref: rm.h IS_STWALL() */
+const isStwall = (ctx: Ctx, x: number, y: number): boolean => {
+  const level = getLevel(ctx.state);
+  const t = level.palette[level.cells[y * level.width + x] ?? 0];
+  return t !== undefined && STWALL.includes(t);
+};
+
+const distmin = (a: { x: number; y: number }, x: number, y: number): number =>
+  Math.max(Math.abs(a.x - x), Math.abs(a.y - y));
+
+/** ref: src/spell.c can_center_spell_location(): within 10, seen, not a wall or stone */
+function canCenterSpell(ctx: Ctx, x: number, y: number): boolean {
+  const p = hero(ctx).c.pos;
+  const level = getLevel(ctx.state);
+  if (!p || x < 0 || y < 0 || x >= level.width || y >= level.height) return false;
+  if (distmin(p, x, y) > 10) return false;
+  return heroSees(ctx, { level: level.id, x, y }) && !isStwall(ctx, x, y);
+}
+
+/**
+ * "Where do you want to cast the spell?": the position prompt, with the cells it can centre on
+ * highlighted. ref: src/spell.c throwspell() (the prompt half; no water levels)
+ */
+function throwspell(ctx: Ctx, book: DefId, force: boolean): boolean {
+  const p = hero(ctx).c.pos;
+  if (!p) return false;
+  const valid: { x: number; y: number }[] = [];
+  for (let dx = -10; dx <= 10; dx++)
+    for (let dy = -10; dy <= 10; dy++)
+      if ((dx || dy) && canCenterSpell(ctx, p.x + dx, p.y + dy))
+        valid.push({ x: p.x + dx, y: p.y + dy });
+  const data: CastThrow = { throwBook: book, force };
+  askPosition(ctx, 'cast.where', CAST_ID, data as unknown as Json, {
+    id: 'cast-throw',
+    start: { x: p.x, y: p.y },
+    valid,
+  });
+  return true;
+}
+
+/**
+ * The spot is answered: too far, "The spell dissipates over the distance!"; swallowed, "The
+ * spell is cut short!" and it goes off at herself; not seen (and no monster spotted there) or a
+ * wall, "Your mind fails to lock onto that location!"; else the path stops before anything a
+ * zap cannot cross, and rnd(8) + 1 explosions of `u.ulevel / 2 + 1` (with the Intelligence
+ * bonus) go off there and around (the next one 1 square off at random, back on the spot when
+ * that cannot be seen). Cancelled, nothing happens; either way the energy is gone, the move is
+ * spent and the school is practised. ref: src/spell.c throwspell(), spell_aim_step(),
+ * spelleffects() SPE_FIREBALL / SPE_CONE_OF_COLD
+ */
+function castThrown(ctx: Ctx, value: Json, ct: CastThrow): number {
+  const book = ct.throwBook;
+  const fire = book === 'nh:spellbook_of_fireball';
+  const p = hero(ctx).c.pos;
+  const at = positionAnswer(value);
+  let target: { x: number; y: number } | null = null;
+  if (p && at) {
+    const level = getLevel(ctx.state);
+    const mon = monsterIdAt(ctx, at, level.id);
+    const monEnt = mon !== null ? ctx.state.entities[String(mon)] : undefined;
+    if (distmin(p, at.x, at.y) > 10) say(ctx, 'cast.dissipates');
+    else if (isSwallowed(ctx)) {
+      say(ctx, 'cast.cut_short');
+      target = { x: -1, y: -1 }; // u.dx = u.dy = 0: at herself
+    } else if (
+      ((at.x !== p.x || at.y !== p.y) &&
+        !heroSees(ctx, { level: level.id, x: at.x, y: at.y }) &&
+        !(monEnt && canSpotMon(ctx, monEnt))) ||
+      isStwall(ctx, at.x, at.y)
+    )
+      say(ctx, 'cast.mind_fails');
+    else {
+      const rules = cellRules(level, ctx.defs);
+      // spell_aim_step(): ZAP_POS() or an open door
+      target = walkPath(p, at, (x, y) => {
+        if (x < 0 || y < 0 || x >= level.width || y >= level.height) return false;
+        const t = level.cells[y * level.width + x] ?? 0;
+        return rules.passable[t] === true && !rules.closedDoor[t];
+      }).at;
+    }
+  }
+  if (target) {
+    const cc = { ...target };
+    let n = ctx.rng.rnd(8) + 1;
+    let cur = { ...target };
+    while (n--) {
+      if (cur.x < 0) {
+        const damage = zapyourself(ctx, { kind: 'spell', otyp: book, blessed: false });
+        if (damage) losehp(ctx, damage, uhimKey(ctx.state, '!@killer.zap.self.spell'));
+      } else {
+        const lvl = hero(ctx).c.experience?.level ?? 1;
+        explode(
+          ctx,
+          cur.x,
+          cur.y,
+          { spell: fire ? 'fire' : 'cold', by: 'hero' },
+          spellDamageBonus(ctx.state, Math.trunc(lvl / 2) + 1),
+          fire ? 'fiery' : 'frosty',
+        );
+      }
+      if (ctx.state.gameOver) return NORMAL_SPEED;
+      cur = { x: cc.x + ctx.rng.rnd(3) - 2, y: cc.y + ctx.rng.rnd(3) - 2 };
+      const level = getLevel(ctx.state);
+      if (
+        cc.x < 0 ||
+        cur.x < 0 ||
+        cur.y < 0 ||
+        cur.x >= level.width ||
+        cur.y >= level.height ||
+        !heroSees(ctx, { level: level.id, x: cur.x, y: cur.y }) ||
+        isStwall(ctx, cur.x, cur.y) ||
+        isSwallowed(ctx)
+      )
+        cur = { ...cc }; // spell is reflected back to center
+    }
+  }
+  // gain skill for successful cast
+  if (!ct.force && !ctx.state.gameOver) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
   return NORMAL_SPEED;
 }
 
@@ -316,6 +552,19 @@ function castMonsterDetect(ctx: Ctx): void {
   if (!monsterDetect(ctx)) return;
   const halluc = hasProp(hero(ctx), P.HALLUC);
   strangeFeeling(ctx, null, halluc ? 'cast.heebie_jeebies' : 'spell.threatened');
+}
+
+/**
+ * Cure sickness: "You are no longer ill." (or "You are not ill." with no slime either) and "The
+ * slime disappears!" ref: src/spell.c spelleffects() SPE_CURE_SICKNESS
+ */
+function castCureSickness(ctx: Ctx): void {
+  const wasSick = isSick(ctx);
+  const wasSlimed = isSlimed(ctx.state);
+  // cure conditions (which updates status) before feedback
+  healup(ctx, 0, 0, true, false);
+  if (wasSick || !wasSlimed) say(ctx, wasSick ? 'cast.no_longer_ill' : 'cast.not_ill');
+  if (wasSlimed) makeSlimed(ctx, 0, 'cast.slime_disappears');
 }
 
 /** The wall and stone terrain around which the haze shimmers in "stone". ref: rm.h IS_STWALL() */
@@ -419,6 +668,7 @@ const castAction: ActionDef = {
     return 0;
   },
   answer(ctx, value, data) {
+    if (isCastThrow(data)) return castThrown(ctx, value, data as unknown as CastThrow);
     if (isCastDirection(data)) return castAtDirection(ctx, value, data as unknown as CastDirection);
     if (typeof value !== 'number') return 0; // dismissed
     const s = knownSpells(ctx)[value];

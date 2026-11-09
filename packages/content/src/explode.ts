@@ -74,6 +74,10 @@ export interface ExplSource {
   wand?: DefId;
   /** A scroll of fire (C's SCROLL_CLASS with ZT_SPELL(ZT_FIRE)): a "tower of flame". */
   scroll?: true;
+  /** The hero's fireball or cone of cold (ZT_SPELL(ZT_FIRE) or ZT_SPELL(ZT_COLD), no class). */
+  spell?: 'fire' | 'cold';
+  /** With `spell`: C's WAND_CLASS (the fireball cast at herself): resisted as a wand's. */
+  wandClass?: true;
   trap?: true;
   mon?: DefId;
   ad?: 'phys' | 'fire' | 'cold' | 'elec';
@@ -183,14 +187,22 @@ export function explode(
   const hp0 = h.c.pos;
   const level = hp0 ? ctx.state.levels[hp0.level] : undefined;
   if (!hp0 || !level) return;
-  const wand = src.wand !== undefined;
+  const wand = src.wand !== undefined || src.wandClass === true;
   const monMoving = src.by !== 'hero';
   // MON_EXPLODE: a monster's explosion is a negative ("monster breath") type, so it does not
   // anger what it hits; a gas spore's is PHYS_EXPL_TYPE, which has no floor effects at all
   const monExpl = src.mon !== undefined;
   // the zap type: ray wands keep theirs, the others (and traps) make a generic magical blast
   const scroll = src.scroll === true;
-  const type = wand ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0) : scroll ? 11 : 0;
+  const type = src.spell
+    ? src.spell === 'fire'
+      ? 11
+      : 12
+    : wand
+      ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0)
+      : scroll
+        ? 11
+        : 0;
   let damu = dam;
   if (wand) {
     // retributive strike: priests, monks and wizards are hurt less, healers and knights half
@@ -363,7 +375,7 @@ export function explode(
           : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
         : scroll
           ? '@killer.explode.tower_of_flame'
-          : wand
+          : wand || src.spell
             ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
             : generic
               ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')

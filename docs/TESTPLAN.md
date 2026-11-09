@@ -230,6 +230,21 @@ With `?wizard=1` (`Ctrl+g` creates a monster by name, `Ctrl+w` wishes for an ite
 - [ ] Create a `troll`, kill it, and stand next to its corpse for up to 50 turns (`20s`): usually "The troll rises from the dead!"
 - [ ] Drop a `dagger` (wish) and create a `rust monster` on the other side of it; when it walks over the dagger: "The rust monster eats a dagger!" (a `rock mole` eats any metal, gold too). Drop a `food ration` and a dagger in a corridor and create a `gelatinous cube` beyond them: it eats the food and engulfs the dagger.
 
+## 11 objects batch
+
+With `?wizard=1` (`Ctrl+w` wishes for an item, `Ctrl+g` creates a monster by name; heal or raise your level with the wizard commands when a fight goes badly, and use **Wizard: cast** to cast a spell without knowing it). Steps 1-8; what is left out is in ROADMAP "From m11".
+
+- [ ] (1) Create a `soldier` and a `Grey-elf` and kill them: the soldier's gear may hold a polearm (halberd, glaive, ...), the elf's an elven short sword, broadsword or spear. Wish `two-handed sword`, wear a shield and try to wield it: refused.
+- [ ] (2) Wish `halberd`, wield it and **Apply** it: the cursor shows the reachable cells; pick a `jackal` (Ctrl+g) two squares away and hit it. Pick an adjacent cell: "Too close!". Create a `watchman` two squares away: it thrusts its polearm at you.
+- [ ] (2) Wish `silver saber`, wield it and hit a created `imp`: "The silver sears the imp!". Eat a `sprig of wolfsbane` after a werejackal bite (lycanthropy): "You feel purified."
+- [ ] (3) Wish `plate mail`, `helmet`, `elven cloak`, `high boots` and `shield of reflection`, wear them: the AC drops; enlightenment shows stealth and reflection. Wish `tin whistle`, apply it next to a sleeping monster: it wakes. Wish `T-shirt` and **Read** it: a slogan.
+- [ ] (4) Wish `speed boots`, `gauntlets of power` and `levitation boots`, wear them: very fast, Str 25, you float. Wish `cursed levitation boots` and wear them: you cannot come down. Wish `fumble boots`: now and then you trip ("You trip over your own feet.")
+- [ ] (5) Wish `cockatrice egg` and eat it: "You are slowing down." (pray or quaff acid). Throw another at a created monster: it turns to stone. Polymorph (wizard **#polyself**) into a female `cockatrice` and choose **Sit**: "You lay an egg."
+- [ ] (6) Quaff `blessed potion of levitation`: you float; choose **Stop levitating** in the self menu (or `>`): you come down. Quaff `potion of sickness` (an attribute drops), then `potion of restore ability`: it comes back. Quaff `potion of gain level` and `potion of monster detection`.
+- [ ] (7) Read `scroll of genocide` and type `jackal`: "Wiped out all jackals."; Ctrl+g `jackal` now fails. Drop a `scroll of scare monster`, stand on it next to a created `jackal`: it never attacks in melee. Read `scroll of fire`.
+- [ ] (8) Drop a `dagger` and some `gold piece`s in another room, come back and read `scroll of gold detection`: "You feel very greedy, and sense gold!" and the gold shows on the map; quaff `potion of object detection`: the dagger shows too. Read `scroll of magic mapping`: "A map coalesces in your mind!" and the level is drawn. Read `scroll of food detection` with a food ration out of sight: "Your nose tingles and you smell food."
+- [ ] (8) Raise attack spells to Skilled (wizard) and **Wizard: cast** `fireball`: "Where do you want to cast the spell?" with the reachable cells highlighted; tap a monster twice: fireballs explode there. Below Skilled it asks a direction (a ray). Cast `magic missile` at a monster, `create familiar` (a tame pet appears), `cause fear` (monsters in sight flee), `clairvoyance` (the area around you is mapped) and `knock` at a `newt` ("The newt is knocked back!").
+
 ## 7f-a position prompt and teleport control
 
 With `?wizard=1` (`Ctrl+w` wishes). The position prompt shows its question in the log, a cursor and **Pick** / **Cancel** buttons; a tap moves the cursor, a second tap on the same cell picks it. Keys work as in Look (`;`); `z`/`Z` jump between highlighted cells.

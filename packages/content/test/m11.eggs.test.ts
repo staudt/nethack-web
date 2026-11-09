@@ -139,7 +139,13 @@ describe('making eggs (mksobj_init() EGG)', () => {
     });
     const it = ent(s, id)!.c.item!;
     expect(it.corpseOf).toBeDefined();
-    expect(defs.monster(it.corpseOf!).flags).toContain('oviparous');
+    // can_be_hatched(): an oviparous monster, or a killer bee or gargoyle (C's exceptions)
+    const kind = it.corpseOf!;
+    expect(
+      kind === 'nh:killer_bee' ||
+        kind === 'nh:gargoyle' ||
+        defs.monster(kind).flags.includes('oviparous'),
+    ).toBe(true);
     const at = eggHatchAt(s.state, id);
     expect(at).not.toBeNull();
     expect(at! - s.state.turn).toBeGreaterThanOrEqual(151);

@@ -165,7 +165,7 @@ describe('M4 scenarios', () => {
 
   test('a kobold throws darts at the hero from a distance', () => {
     runScenario([vanillaMod], (s) => {
-      s.seed(1); // a seed (searched) whose kobold throws within the four turns
+      s.seed(2); // a seed (searched) whose kobold throws within the four turns
       s.level(BIG);
       s.setHero({ hp: 500 });
       s.monster(

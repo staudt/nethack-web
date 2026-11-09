@@ -17,7 +17,8 @@ import {
   type MonsterDef,
   type ModApi,
 } from '@nh/core';
-import { makemon, mnextoPos } from './generation';
+import { makemon, mnextoPos, rndmonst } from './generation';
+import { skillLevel } from './skills';
 import { nhData } from './items';
 import { isFleeing, monflee, stopFleeing } from './monflee';
 import { forgetMonster } from './mongear';
@@ -293,6 +294,43 @@ export function makedog(ctx: Ctx): EntityId | null {
   );
   if (id === null) return null;
   initedog(ctx, id, true);
+  return id;
+}
+
+/**
+ * The pet type of the role: the Valkyrie has none, so a kitten or a little dog at random (no
+ * `pettype` option). ref: src/dog.c pet_type()
+ */
+function petType(ctx: Ctx): MonsterDef | null {
+  const id = ctx.rng.rn2(2) ? 'nh:kitten' : 'nh:little_dog';
+  return ctx.defs.isMonster(id) ? ctx.defs.monster(id) : null;
+}
+
+/**
+ * The spell of create familiar: a tame monster next to her, 1 time in 3 her role's pet type,
+ * else a random monster up to 3 levels of difficulty per cleric skill level above the usual
+ * ("There seems to be nothing available for a familiar." when none fits); 100 tries.
+ * ref: src/dog.c make_familiar() with no figurine, pick_familiar_pm()
+ */
+export function makeFamiliar(ctx: Ctx, x: number, y: number): EntityId | null {
+  let id: EntityId | null = null;
+  let trycnt = 100;
+  do {
+    let pm: MonsterDef | null;
+    if (!ctx.rng.rn2(3)) pm = petType(ctx);
+    else {
+      const max = 3 * skillLevel(ctx, 'cleric_spell');
+      pm = rndmonst(ctx, getLevel(ctx.state).depth, 0, max);
+      if (!pm) ctx.emit({ type: 'msg', key: 'dog.no_familiar' });
+    }
+    if (!pm) break;
+    // MM_EDOG | MM_IGNOREWATER | NO_MINVENT | MM_NOMSG; her own square is taken (enexto())
+    id = makemon(ctx, pm, { x, y }, { adjacentOk: true, noInventory: true });
+  } while (id === null && --trycnt > 0);
+  if (id === null) return null;
+  initedog(ctx, id, true);
+  const m = ctx.state.entities[String(id)]?.c.monster;
+  if (m) m.asleep = false;
   return id;
 }
 

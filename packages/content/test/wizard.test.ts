@@ -693,7 +693,7 @@ describe('wiz:wish and wiz:identify', () => {
 
   test('"nothing" changes nothing; Escape is a random object, as in NetHack', () => {
     // a seed whose random object does not merge into a stack she carries
-    const state = game(18);
+    const state = game(19);
     const hash = stateHash(state);
     expect(msgs(wish(state, 'nothing'))).toEqual([]);
     expect(stateHash(state)).toBe(hash);
@@ -1000,21 +1000,50 @@ describe('wiz:cast', () => {
   const known = (state: GameState): unknown =>
     (state.modData['nh'] as Record<string, unknown>)['spells'];
 
-  test('a menu of the eleven castable books; dismissing it does nothing', () => {
+  test('a menu of the forty castable books; dismissing it does nothing', () => {
     const state = warmGame(51);
     const turn = state.turn;
     wizard.step(state, CAST);
     const p = state.pendingPrompt?.prompt;
     expect([p?.kind, p?.key]).toEqual(['menu', 'wiz.cast.prompt']);
     expect(p?.options?.map((o) => render({ key: o.key! }))).toEqual([
+      'dig',
+      'magic missile',
+      'fireball',
+      'cone of cold',
       'sleep',
+      'finger of death',
       'light',
       'detect monsters',
       'healing',
+      'knock',
       'force bolt',
       'confuse monster',
       'cure blindness',
+      'drain life',
+      'slow monster',
+      'wizard lock',
+      'create monster',
+      'detect food',
+      'cause fear',
+      'clairvoyance',
+      'cure sickness',
+      'charm monster',
+      'haste self',
+      'detect unseen',
+      'levitation',
+      'extra healing',
+      'restore ability',
+      'invisibility',
+      'detect treasure',
+      'remove curse',
+      'magic mapping',
+      'identify',
+      'turn undead',
       'polymorph',
+      'teleport away',
+      'create familiar',
+      'cancellation',
       'protection',
       'jumping',
       'stone to flesh',

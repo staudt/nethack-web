@@ -127,7 +127,7 @@ describe('leprechauns (AD_SGLD)', () => {
 
 describe('nymphs (AD_SITM, AD_SEDU)', () => {
   test('"The water nymph stole a dagger.": she takes it and teleports away', () => {
-    const s = bare(3); // a seed whose rloc() lands her not next to the hero
+    const s = bare(1); // a seed whose rloc() lands her not next to the hero
     const dagger = s.carry('nh:dagger');
     const ny = mon(s.state, 'nh:water_nymph');
     const mhm = hit(s, ny.id);
@@ -144,7 +144,7 @@ describe('nymphs (AD_SITM, AD_SEDU)', () => {
   });
 
   test('a cloak with no delay: "She charms you.  You gladly hand over your cloak."', () => {
-    const s = bare(3); // a seed whose rloc() lands her not next to the hero
+    const s = bare(1); // a seed whose rloc() lands her not next to the hero
     const cloak = s.carry('nh:orcish_cloak');
     s.state.entities[String(cloak)]!.c.item!.equipped = 'cloak';
     const ny = mon(s.state, 'nh:water_nymph');
@@ -159,7 +159,7 @@ describe('nymphs (AD_SITM, AD_SEDU)', () => {
   });
 
   test('a suit takes 5 turns to take off; then stealarm() hands it over', () => {
-    const s = bare(3); // a seed whose rloc() lands her not next to the hero
+    const s = bare(1); // a seed whose rloc() lands her not next to the hero
     const mail = s.carry('nh:ring_mail');
     s.state.entities[String(mail)]!.c.item!.equipped = 'body';
     const ny = mon(s.state, 'nh:water_nymph');

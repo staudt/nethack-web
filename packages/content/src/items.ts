@@ -552,6 +552,8 @@ interface NhData {
   lknown?: Record<string, true>;
   /** Containers whose contents the hero knows, by item id (obj->cknown); see objKnown(). */
   cknown?: Record<string, true>;
+  /** She can tell edible food (u.uedibility, a blessed food detection); see detectobj.ts. */
+  uedibility?: true;
   /** The turn of the next clairvoyant vision (context.seer_turn); see detect.ts. */
   seerTurn?: number;
   /**

@@ -53,7 +53,7 @@ describe('the objects', () => {
     expect(after('amulet', 'nh:amulet_versus_poison')).toBe('nh:amulet_of_change');
     expect(after('amulet', 'nh:amulet_of_change')).toBe('nh:amulet_of_unchanging');
     expect(after('potion', 'nh:potion_of_full_healing')).toBe('nh:potion_of_polymorph');
-    expect(after('spellbook', 'nh:spellbook_of_cure_blindness')).toBe('nh:spellbook_of_polymorph');
+    expect(after('spellbook', 'nh:spellbook_of_turn_undead')).toBe('nh:spellbook_of_polymorph');
     expect(defs.object('nh:wand_of_polymorph').wand?.dir).toBe('immediate');
     expect(defs.object('nh:ring_of_polymorph').prop).toBe(P.POLYMORPH);
     expect(defs.object('nh:ring_of_polymorph_control').prop).toBe(P.POLYMORPH_CONTROL);

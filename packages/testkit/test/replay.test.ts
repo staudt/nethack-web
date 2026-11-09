@@ -5,8 +5,8 @@ import { recordGame, runReplay } from '../src/index';
 
 describe('replay', () => {
   // A seed whose hero survives this random walk (the walk doesn't fight back or answer prompts,
-  // such as the one for stepping onto a seen trap).
-  const opts = { seed: 1, width: 80, height: 21 };
+  // such as the one for stepping onto a seen trap); 1 before m11 step 8 (it met a seen trap).
+  const opts = { seed: 2, width: 80, height: 21 };
   const actions = randomActions(300, 7);
 
   test('record then replay gives the same hash', () => {

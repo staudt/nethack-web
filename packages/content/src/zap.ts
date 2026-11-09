@@ -1,6 +1,7 @@
 // Wands: zapping (z), immediate beams, rays with bounce and reflection, and zapping yourself;
-// the directional spells (force bolt, sleep, healing) go through the same code with a spell
-// source (C's pseudo spellbook object). ref: src/zap.c dozap(), zappable(), backfire(), weffects(), zapnodir(), bhit(), bhitm(),
+// the spells that duplicate wands (force bolt, sleep, healing, magic missile, knock, drain life,
+// ...: spell.c spelleffects()) go through the same code with a spell source (C's pseudo
+// spellbook object), sharing their wand's `case` (TWIN). ref: src/zap.c dozap(), zappable(), backfire(), weffects(), zapnodir(), bhit(), bhitm(),
 // bhito(), bhitpile(), zapyourself(), learnwand(), probe_monster(), cancel_monst(), cancel_item(),
 // resist(), dobuzz(), zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
 // flashburn(); src/lock.c doorlock(), boxlock(), obstructed(); src/trap.c openholdingtrap(),
@@ -96,7 +97,11 @@ import { wakeNearto } from './noise';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
-import { nohands } from './mondata';
+import { msize, nohands, nonliving } from './mondata';
+import { mIsSteadfast, mhurtle } from './mhurtle';
+import { abuseDog } from './dog';
+import { drainItem, resistsDrli } from './adtyping';
+import { losexp } from './exper';
 import { heroForm, rehumanize, upolyd } from './upoly';
 import { wakeup } from './peaceful';
 import {
@@ -185,14 +190,52 @@ export const WAN = {
   lightning: 'nh:wand_of_lightning',
 } as const;
 
-/** The directional spells that zap like wands. ref: include/objects.h SPELL() */
+/** The spells that zap like wands (weffects()). ref: include/objects.h SPELL() */
 export const SPE = {
-  forceBolt: 'nh:spellbook_of_force_bolt',
+  dig: 'nh:spellbook_of_dig',
+  magicMissile: 'nh:spellbook_of_magic_missile',
+  fireball: 'nh:spellbook_of_fireball',
+  coneOfCold: 'nh:spellbook_of_cone_of_cold',
   sleep: 'nh:spellbook_of_sleep',
+  fingerOfDeath: 'nh:spellbook_of_finger_of_death',
+  light: 'nh:spellbook_of_light',
   healing: 'nh:spellbook_of_healing',
-  stoneToFlesh: 'nh:spellbook_of_stone_to_flesh',
+  knock: 'nh:spellbook_of_knock',
+  forceBolt: 'nh:spellbook_of_force_bolt',
+  drainLife: 'nh:spellbook_of_drain_life',
+  slowMonster: 'nh:spellbook_of_slow_monster',
+  wizardLock: 'nh:spellbook_of_wizard_lock',
+  detectUnseen: 'nh:spellbook_of_detect_unseen',
+  extraHealing: 'nh:spellbook_of_extra_healing',
+  turnUndead: 'nh:spellbook_of_turn_undead',
   polymorph: 'nh:spellbook_of_polymorph',
+  teleportAway: 'nh:spellbook_of_teleport_away',
+  cancellation: 'nh:spellbook_of_cancellation',
+  stoneToFlesh: 'nh:spellbook_of_stone_to_flesh',
 } as const;
+
+/**
+ * The wand whose `case` a spell shares in zap.c's switches (`case WAN_OPENING: case SPE_KNOCK:`
+ * ...); the code that differs for the spell tests the spell's own otyp. Force bolt, sleep and
+ * polymorph keep their explicit cases.
+ */
+const TWIN: Readonly<Record<string, DefId>> = {
+  [SPE.dig]: WAN.digging,
+  [SPE.magicMissile]: WAN.magicMissile,
+  [SPE.coneOfCold]: WAN.cold,
+  [SPE.fingerOfDeath]: WAN.death,
+  [SPE.light]: WAN.light,
+  [SPE.knock]: WAN.opening,
+  [SPE.slowMonster]: WAN.slow,
+  [SPE.wizardLock]: WAN.locking,
+  [SPE.detectUnseen]: WAN.secretDoor,
+  [SPE.turnUndead]: WAN.undeadTurning,
+  [SPE.teleportAway]: WAN.teleportation,
+  [SPE.cancellation]: WAN.cancellation,
+};
+
+/** The `case` an object type takes in zap.c's switches: a spell's twin wand, else itself. */
+const caseOf = (otyp: DefId): DefId => TWIN[otyp] ?? otyp;
 
 /**
  * What is zapped: a wand entity, or a spell (C's pseudo spellbook object: `blessed` when the
@@ -203,6 +246,9 @@ export type ZapSource =
 
 /** The object type zapped (otmp->otyp). */
 const otypOf = (src: ZapSource): DefId => (src.kind === 'wand' ? src.item.def : src.otyp);
+
+/** ref: include/monflag.h MZ_HUMAN */
+const MZ_HUMAN = 2;
 
 /** ref: include/hack.h WAND_BACKFIRE_CHANCE, WAND_WREST_CHANCE; BOLT_LIM */
 const WAND_BACKFIRE_CHANCE = 100;
@@ -215,7 +261,11 @@ const RAY_OF: Readonly<Record<string, Ray>> = {
   [WAN.sleep]: 'sleep',
   [WAN.death]: 'death',
   [WAN.lightning]: 'lightning',
+  [SPE.magicMissile]: 'magic_missile',
+  [SPE.fireball]: 'fire',
+  [SPE.coneOfCold]: 'cold',
   [SPE.sleep]: 'sleep',
+  [SPE.fingerOfDeath]: 'death',
 };
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -485,7 +535,8 @@ function ustatusline(ctx: Ctx): void {
 // locks: doors and boxes
 
 /** ref: src/lock.c boxlock(): locking (Klunk!) or opening (Klick!) a box */
-function boxlock(ctx: Ctx, box: Entity, otyp: DefId): boolean {
+function boxlock(ctx: Ctx, box: Entity, zotyp: DefId): boolean {
+  const otyp = caseOf(zotyp); // the spells of wizard lock and knock lock and open
   const it = box.c.item;
   if (!it) return false;
   if (otyp === WAN.locking) {
@@ -535,7 +586,8 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
  * struck blows up (mb_trapped() on a monster in it); a shop door destroyed is damage to repair
  * (`add_damage(x, y, 0L)`). 'broken': struck open (D_BROKEN), which bhit() charges for.
  */
-function doorlock(ctx: Ctx, otyp: DefId, x: number, y: number): boolean | 'broken' {
+function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean | 'broken' {
+  const otyp = caseOf(zotyp); // the spells of wizard lock and knock lock and open
   const level = levelOf(ctx);
   const id = cellId(level, x, y);
   const striking = otyp === WAN.striking || otyp === SPE.forceBolt;
@@ -663,7 +715,7 @@ function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
  * maybe_explode_trap() (no magic portals or vibrating squares: undestroyable_trap())
  */
 function maybeExplodeTrap(ctx: Ctx, src: ZapSource, x: number, y: number): void {
-  if (otypOf(src) !== WAN.cancellation) return; // (no spell of cancellation yet)
+  if (caseOf(otypOf(src)) !== WAN.cancellation) return;
   const level = levelOf(ctx);
   const ttmp = trapHere(level, x, y);
   if (!ttmp || !isMagicalTrap(ttmp.def)) return;
@@ -689,7 +741,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
   let revealInvis = false;
   const otyp = otypOf(src);
   const oclass = src.kind;
-  switch (otyp) {
+  switch (caseOf(otyp)) {
     case WAN.striking:
     case SPE.forceBolt:
       revealInvis = true;
@@ -711,15 +763,20 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         learnIt = false;
       }
       break;
-    case SPE.healing: {
-      const healamt = ctx.rng.d(6, 4);
+    case SPE.healing:
+    case SPE.extraHealing: {
+      const healamt = ctx.rng.d(6, otyp === SPE.extraHealing ? 8 : 4);
       revealInvis = true;
       wake = false; // wakeup() makes the target angry
       // healmon(mtmp, healamt, 0)
       const hp = mon.c.hp;
       if (hp) hp.cur = hp.cur + healamt > hp.max ? hp.max : hp.cur + healamt;
-      // a blessed (Skilled) spell would cure the monster's blindness: no monster blindness yet
-      if (canseemon(ctx, mon)) say(ctx, 'zap.looks_better', { mon: monNam(ctx, mon) });
+      // plain healing must be blessed to cure blindness, extra healing always cures it: no
+      // monster blindness yet
+      if (canseemon(ctx, mon))
+        say(ctx, otyp === SPE.extraHealing ? 'zap.looks_much_better' : 'zap.looks_better', {
+          mon: monNam(ctx, mon),
+        });
       const m = mon.c.monster;
       if ((m?.tame ?? 0) > 0 || m?.peaceful) adjalign(ctx, Math.sign(uState(ctx.state).alignType));
       break;
@@ -769,7 +826,22 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       const r = openholdingtrap(ctx, mon);
       learnIt ||= r.noticed;
       if (r.done) break;
-      learnIt ||= openfallingtrap(ctx, mon).noticed;
+      const f = openfallingtrap(ctx, mon);
+      learnIt ||= f.noticed;
+      if (f.done || otyp !== SPE.knock) break;
+      // the spell of knock pushes a small monster back (no saddles: no steeds)
+      wake = true;
+      if (msize(ctx.defs.monster(mon.def)) < MZ_HUMAN && !mIsSteadfast(ctx, mon)) {
+        if (canseemon(ctx, mon)) say(ctx, 'zap.knocked_back', { mon: monNam(ctx, mon) });
+        const hp = heroPos(ctx);
+        mhurtle(ctx, mon, at.x - hp.x, at.y - hp.y, ctx.rng.rnd(2));
+      } else if (canseemon(ctx, mon)) say(ctx, 'zap.doesnt_budge', { mon: monNam(ctx, mon) });
+      if (alive(ctx, mon.id)) {
+        // wakeup(mtmp, !mindless(mtmp->data)); the wake below follows
+        if (ctx.defs.monster(mon.def).flags.includes('mindless')) wakeGently(ctx, mon);
+        else wakeup(ctx, mon.id);
+        abuseDog(ctx, mon.id);
+      }
       break;
     }
     case WAN.cancellation:
@@ -804,10 +876,11 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       if (unturnDead(ctx, mon)) wake = true;
       const mdat = ctx.defs.monster(mon.def);
       if (mdat.flags.includes('undead')) {
-        // (no vampshifters; no Knight's quest artifact doubling; no turn undead spell yet)
+        // (no vampshifters; no Knight's quest artifact doubling)
         revealInvis = true;
         wake = true;
-        const dmg = ctx.rng.rnd(8);
+        let dmg = ctx.rng.rnd(8);
+        if (otyp === SPE.turnUndead) dmg = spellDamageBonus(ctx.state, dmg);
         // context.bypasses: a corpse it leaves is not revived by this same zap
         const before = new Set(itemsHere(ctx, at.x, at.y).map((o) => o.id));
         const resisted = resist(ctx, mon, dmg, oclass);
@@ -835,6 +908,30 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       if (!blind(ctx)) learnIt = true;
       break;
     }
+    case SPE.drainLife: {
+      // monhp_per_lvl(): d8, rnd(4) at level 0 (no golems, no adult dragons)
+      const lvl = mon.c.monster?.level ?? 0;
+      const d8 = ctx.rng.rnd(8);
+      let dmg = lvl ? d8 : ctx.rng.rnd(4);
+      dmg = spellDamageBonus(ctx.state, dmg);
+      if (resistsDrli(ctx, mon)) {
+        // shieldeff_mon()
+      } else if (!resist(ctx, mon, dmg, oclass) && alive(ctx, mon.id)) {
+        const hp = mon.c.hp;
+        const m = mon.c.monster;
+        if (hp && m) {
+          hp.cur -= dmg;
+          hp.max -= dmg;
+          // die if already level 0, regardless of hit points
+          if (hp.cur < 1 || hp.max <= 0 || m.level < 1) killedByHero(ctx, mon);
+          else {
+            m.level--;
+            if (canseemon(ctx, mon)) say(ctx, 'zap.seems_weaker', { mon: monNam(ctx, mon) });
+          }
+        }
+      }
+      break;
+    }
     case WAN.nothing:
     default:
       wake = false;
@@ -860,7 +957,7 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
   const otyp = otypOf(src);
   // a monster's gear dropped by its polymorph, a corpse of an undead this zap destroyed
   if (isBypassed(obj.id)) return 0;
-  switch (otyp) {
+  switch (caseOf(otyp)) {
     case WAN.polymorph:
     case SPE.polymorph:
       if (objUnpolyable(ctx, obj)) break;
@@ -937,6 +1034,10 @@ function bhito(ctx: Ctx, obj: Entity, src: ZapSource, x: number, y: number): num
       break;
     case WAN.cancellation:
       cancelItem(ctx, obj);
+      res = 1;
+      break;
+    case SPE.drainLife:
+      drainItem(ctx, obj, true);
       res = 1;
       break;
     case WAN.teleportation:
@@ -1069,8 +1170,8 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
     if (bhitpile(ctx, src, x, y)) range--;
     if (
       (before.door !== undefined || typIsSdoor) &&
-      (otyp === WAN.opening ||
-        otyp === WAN.locking ||
+      (caseOf(otyp) === WAN.opening ||
+        caseOf(otyp) === WAN.locking ||
         otyp === WAN.striking ||
         otyp === SPE.forceBolt)
     ) {
@@ -1112,7 +1213,7 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
   const ttmp = trapHere(level, x, y);
   const ceiling = (): Msg => ({ key: ceilingKey(ctx, level, x, y) });
   let disclose = false;
-  switch (otyp) {
+  switch (caseOf(otyp)) {
     case WAN.probing: {
       let ptmp = 0;
       if (dir === 'up') say(ctx, 'zap.probe_up', { ceiling: ceiling() });
@@ -1141,7 +1242,7 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
     case WAN.striking:
     case SPE.forceBolt:
     case WAN.locking: {
-      const striking = otyp !== WAN.locking;
+      const striking = caseOf(otyp) !== WAN.locking;
       if (striking && dir === 'up' && ctx.rng.rn2(3)) {
         // similar to zap_dig()
         say(ctx, 'zap.rock_dislodged', { ceiling: ceiling() });
@@ -1243,7 +1344,7 @@ function findit(ctx: Ctx): number {
 /** ref: src/zap.c zapnodir() */
 function zapnodir(ctx: Ctx, src: ZapSource): void {
   let known = false;
-  switch (otypOf(src)) {
+  switch (caseOf(otypOf(src))) {
     case WAN.light:
       known = !blind(ctx);
       litroom(ctx, true, false);
@@ -1455,7 +1556,7 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
   let learnIt = false;
   let damage = 0;
   const otyp = otypOf(src);
-  switch (otyp) {
+  switch (caseOf(otyp)) {
     case WAN.striking:
     case SPE.forceBolt:
       learnIt = true;
@@ -1525,9 +1626,36 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       }
       break;
     case SPE.healing:
+    case SPE.extraHealing: {
       learnIt = true; // (no effect for spells...)
-      healup(ctx, ctx.rng.d(6, 4), 0, false, src.kind === 'spell' && src.blessed);
-      say(ctx, 'zap.self.feel_better');
+      const extra = otyp === SPE.extraHealing;
+      healup(
+        ctx,
+        ctx.rng.d(6, extra ? 8 : 4),
+        0,
+        false,
+        (src.kind === 'spell' && src.blessed) || extra,
+      );
+      say(ctx, extra ? 'zap.self.feel_much_better' : 'zap.self.feel_better');
+      break;
+    }
+    case SPE.fireball:
+      say(ctx, 'zap.self.fireball');
+      explode(
+        ctx,
+        h.c.pos?.x ?? 0,
+        h.c.pos?.y ?? 0,
+        { spell: 'fire', wandClass: true, by: 'hero' },
+        ctx.rng.d(6, 6),
+        'fiery',
+      );
+      break;
+    case SPE.drainLife:
+      if (!hasProp(h, P.DRAIN_RES)) {
+        learnIt = true; // (no effect for spells...)
+        losexp(ctx, '@killer.life_drainage');
+      }
+      damage = 0; // no additional damage
       break;
     case WAN.slow:
       if (hasIntrinsic(h, P.FAST) || timeoutLeft(ctx.state, h, P.FAST) > 0) {
@@ -1593,14 +1721,19 @@ export function zapyourself(ctx: Ctx, src: ZapSource, ordinary = true): number {
       unturnDead(ctx, 'hero');
       say(ctx, 'zap.self.shudder');
       break;
-    case WAN.death:
-      // a hero is never nonliving or a demon (no polymorph)
+    case WAN.death: {
+      const form = heroForm(ctx);
+      if (form && (nonliving(form) || form.flags.includes('demon'))) {
+        say(ctx, otyp === WAN.death ? 'zap.self.harmless_beam' : 'zap.self.no_deader');
+        break;
+      }
       say(ctx, 'zap.self.irradiate');
       say(ctx, 'zap.self.you_die');
       // they might survive with an amulet of life saving
       learn(ctx, src);
       done(ctx, uhimKey(ctx.state, '!@killer.zap.self.death'));
       return 0;
+    }
     case WAN.teleportation: {
       const was = { ...heroPos(ctx) };
       tele(ctx); // controlled: the cell is asked for after the zap
@@ -1714,7 +1847,7 @@ export function weffectsFrom(ctx: Ctx, src: ZapSource, dir: ZapDir | null): void
     zapwrapup(ctx); // give feedback for obj_zapped
     return;
   }
-  if (otyp === WAN.digging) {
+  if (caseOf(otyp) === WAN.digging) {
     zapDig(ctx, dir);
     learnScored(ctx, src); // disclose
     return;

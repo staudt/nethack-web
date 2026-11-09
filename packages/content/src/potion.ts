@@ -28,6 +28,7 @@ import { heroEntity, strangeFeeling, useup } from './magic';
 import { abase, adjattrib, amax, poisontell, restoreAttr, type Attr } from './attrib';
 import { doEnlightenmentEffect } from './enlightenment';
 import { monsterDetect } from './detect';
+import { objectDetect } from './detectobj';
 import { losehp } from './hp';
 import { rndexp } from './hero';
 import { hungerData } from './uhunger';
@@ -543,14 +544,15 @@ function peffectGainAbility(ctx: Ctx, p: Entity): Effect {
 function peffectSpeed(ctx: Ctx, p: Entity): Effect {
   const h = heroEntity(ctx);
   const buc = p.c.item?.buc ?? 'uncursed';
-  if (hasProp(h, P.WOUNDED_LEGS) && buc !== 'cursed') {
+  const isSpeed = p.def === 'nh:potion_of_speed'; // not the spell of haste self
+  if (isSpeed && hasProp(h, P.WOUNDED_LEGS) && buc !== 'cursed') {
     // heal_legs(0) (only the right leg is ever hurt)
     setItimeout(ctx.state, h, P.WOUNDED_LEGS, 0);
     msg(ctx, 'timeout.legs_better');
     return { unknown: true };
   }
   speedUp(ctx, ctx.rng.rn2(10) + 100 + 60 * bcsign(buc));
-  if (buc !== 'cursed' && !hasIntrinsic(h, P.FAST) && !hasFromForm(h, P.FAST)) {
+  if (isSpeed && buc !== 'cursed' && !hasIntrinsic(h, P.FAST) && !hasFromForm(h, P.FAST)) {
     msg(ctx, 'potion.quickness_natural');
     setIntrinsic(h, P.FAST, true);
   }
@@ -747,6 +749,11 @@ function peffects(ctx: Ctx, p: Entity): Effect {
       return peffectParalysis(ctx, p);
     case 'nh:potion_of_monster_detection':
       return peffectMonsterDetection(ctx, p);
+    case 'nh:potion_of_object_detection':
+      // ref: peffect_object_detection(): nothing found, the potion goes with a strange feeling
+      if (objectDetect(ctx, { buc: p.c.item?.buc ?? 'uncursed', cls: 'potion', item: p.id }))
+        return { unknown: true, consumed: true };
+      return { unknown: false };
     case 'nh:potion_of_sickness':
       return peffectSickness(ctx, p);
     case 'nh:potion_of_gain_ability':
@@ -763,6 +770,41 @@ function peffects(ctx: Ctx, p: Entity): Effect {
       return peffectAcid(ctx, p);
     default:
       return { unknown: true };
+  }
+}
+
+/**
+ * A spell that duplicates a potion (peffects() with the pseudo spellbook, blessed at Skilled):
+ * haste self, detect treasure, levitation, restore ability (no lost levels) and invisibility.
+ * The pseudo object is a plain entity that is never placed. ref: src/potion.c peffects() SPE_*
+ * cases
+ */
+export function peffectsSpell(ctx: Ctx, book: DefId, blessed: boolean): void {
+  const buc = blessed ? 'blessed' : 'uncursed';
+  if (book === 'nh:spellbook_of_detect_treasure') {
+    objectDetect(ctx, { buc, cls: 'spellbook', item: null });
+    return;
+  }
+  const pseudo = {
+    id: -1,
+    def: book,
+    c: { item: { buc } },
+  } as unknown as Entity;
+  switch (book) {
+    case 'nh:spellbook_of_haste_self':
+      peffectSpeed(ctx, pseudo);
+      break;
+    case 'nh:spellbook_of_levitation':
+      peffectLevitation(ctx, pseudo);
+      break;
+    case 'nh:spellbook_of_restore_ability':
+      peffectRestoreAbility(ctx, pseudo);
+      break;
+    case 'nh:spellbook_of_invisibility':
+      peffectInvisibility(ctx, pseudo);
+      break;
+    default:
+      break;
   }
 }
 
@@ -815,6 +857,7 @@ export const POTION_USES: Readonly<
   'nh:potion_of_gain_level': dopotion,
   'nh:potion_of_enlightenment': dopotion,
   'nh:potion_of_monster_detection': dopotion,
+  'nh:potion_of_object_detection': dopotion,
   'nh:potion_of_gain_energy': dopotion,
   'nh:potion_of_sickness': dopotion,
   'nh:potion_of_fruit_juice': dopotion,

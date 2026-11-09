@@ -1,6 +1,7 @@
 // English messages for pets (ref: src/dog.c, src/dogmove.c, src/sounds.c, src/hack.c)
 export const dogMessagesEn: Record<string, string> = {
   'dog.yowls': '{mon|The} yowls!',
+  'dog.no_familiar': 'There seems to be nothing available for a familiar.',
   'dog.yelps': '{mon|The} yelps!',
   'dog.hisses': '{mon|The} hisses!',
   'dog.growls': '{mon|The} growls!',

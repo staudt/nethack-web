@@ -6,6 +6,14 @@
 // seffect_blank_paper(), seffect_teleportation(), litroom(), drop_boulder_on_player(), drop_boulder_on_monster();
 // seffect_genocide(); src/wield.c chwepon(); src/invent.c identify_pack(), menu_identify()
 import { EGG, learnEggType } from './eggstate';
+import {
+  doMapping,
+  foodDetect,
+  goldDetect,
+  revealSecretDoors,
+  trapDetect,
+  type Detector,
+} from './detectobj';
 import { adjAbon } from './dowear';
 import {
   NORMAL_SPEED,
@@ -247,6 +255,23 @@ function identifyAnswer(ctx: Ctx, value: Json, data: IdentifyData): boolean {
 }
 
 /** ref: src/read.c seffect_identify(): the scroll is used up first, so it never identifies itself. */
+/**
+ * The spell of identify: the scroll's effect with the type already known and nothing used up
+ * ("You're not carrying anything to be identified."). ref: seffect_identify() for a spell
+ */
+function spellIdentify(ctx: Ctx, buc: Buc): void {
+  if (inventoryOf(ctx.state, ctx.state.playerId).length === 0) {
+    msg(ctx, 'identify.nothing');
+    return;
+  }
+  let cval = 1;
+  if (buc === 'blessed' || (buc === 'uncursed' && ctx.rng.rn2(5) === 0)) {
+    cval = ctx.rng.rn2(5); // 0 identifies everything
+    if (cval === 1 && buc === 'blessed' && luckOf(ctx.state) > 0) cval++;
+  }
+  identifyPack(ctx, cval, false);
+}
+
 function seffectIdentify(ctx: Ctx, scroll: Entity, wasKnown: boolean): void {
   const def = ctx.defs.object(scroll.def);
   const buc = scroll.c.item?.buc ?? 'uncursed';
@@ -836,13 +861,13 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       confuseMonster(ctx, it.buc === 'blessed', it.buc === 'cursed', true);
       break;
     case 'nh:scroll_of_scare_monster':
-      seffectScareMonster(ctx, scroll, confused);
+      seffectScareMonster(ctx, { buc: it.buc }, confused);
       break;
     case 'nh:scroll_of_create_monster':
-      apply(seffectCreateMonster(ctx, scroll, confused));
+      apply(seffectCreateMonster(ctx, { buc: it.buc }, confused));
       break;
     case 'nh:scroll_of_taming':
-      apply(seffectTaming(ctx, scroll, confused));
+      apply(seffectTaming(ctx, { buc: it.buc }, confused));
       break;
     case 'nh:scroll_of_amnesia':
       apply(seffectAmnesia(ctx, scroll));
@@ -853,6 +878,30 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       break;
     case 'nh:scroll_of_charging':
       apply(seffectCharging(ctx, scroll, confused, wasKnown, () => learnscrolltyp(ctx, def)));
+      break;
+    case 'nh:scroll_of_gold_detection': {
+      // ref: seffect_gold_detection(): confused or cursed, trap detection
+      const sobj: Detector = { buc: it.buc, cls: 'scroll', item: itemId };
+      if (confused || it.buc === 'cursed') used = trapDetect(ctx, sobj);
+      else {
+        const r = goldDetect(ctx, sobj);
+        used = r.nothing;
+        if (r.known) known = true;
+      }
+      break;
+    }
+    case 'nh:scroll_of_food_detection': {
+      const r = foodDetect(ctx, { buc: it.buc, cls: 'scroll', item: itemId });
+      used = r.nothing;
+      if (r.known) known = true;
+      break;
+    }
+    case 'nh:scroll_of_magic_mapping':
+      // ref: seffect_magic_mapping(): blessed, secret doors are found too (no level here
+      // forbids magic mapping)
+      if (it.buc === 'blessed') revealSecretDoors(ctx);
+      known = true;
+      magicMapping(ctx, it.buc === 'cursed', confused);
       break;
     case 'nh:scroll_of_genocide':
       // ref: seffect_genocide(): known at once; the scroll is used up before the prompt
@@ -871,6 +920,53 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
   if (!blank) useup(ctx, itemId);
 }
 
+/**
+ * "A map coalesces in your mind!" and the level is mapped; a cursed source (not confused)
+ * maps it as a confused one would: "Unfortunately, you can't grasp the details."
+ * ref: src/read.c seffect_magic_mapping() after the scroll's own part
+ */
+function magicMapping(ctx: Ctx, cursed: boolean, confused: boolean): void {
+  msg(ctx, 'read.map_coalesces');
+  const cval = cursed && !confused;
+  doMapping(ctx, confused || cval); // HConfusion = 1 to screw up the map
+  if (cval) msg(ctx, 'read.cant_grasp_details');
+}
+
+/**
+ * A spell that duplicates a scroll (seffects() with the pseudo spellbook, blessed at Skilled):
+ * remove curse, detect food, cause fear, identify, charm monster, magic mapping and create
+ * monster (confuse monster is cast.ts's). ref: src/read.c seffects() SPE_* cases
+ */
+export function seffectsSpell(ctx: Ctx, book: DefId, blessed: boolean): void {
+  const buc: Buc = blessed ? 'blessed' : 'uncursed';
+  const confused = hasProp(heroEntity(ctx), P.CONFUSION);
+  switch (book) {
+    case 'nh:spellbook_of_remove_curse':
+      removeCurse(ctx, buc, confused, null);
+      break;
+    case 'nh:spellbook_of_detect_food':
+      foodDetect(ctx, { buc, cls: 'spellbook', item: null });
+      break;
+    case 'nh:spellbook_of_cause_fear':
+      seffectScareMonster(ctx, { buc, spell: true }, confused);
+      break;
+    case 'nh:spellbook_of_identify':
+      spellIdentify(ctx, buc);
+      break;
+    case 'nh:spellbook_of_charm_monster':
+      seffectTaming(ctx, { buc, spell: true }, confused);
+      break;
+    case 'nh:spellbook_of_magic_mapping':
+      magicMapping(ctx, false, confused);
+      break;
+    case 'nh:spellbook_of_create_monster':
+      seffectCreateMonster(ctx, { buc, spell: true }, confused);
+      break;
+    default:
+      break;
+  }
+}
+
 /** `use` for every scroll in the subset (attached to the defs in index.ts). */
 export const SCROLL_USES: Readonly<
   Record<string, (ctx: Ctx, user: EntityId, item: EntityId) => void>
@@ -881,6 +977,9 @@ export const SCROLL_USES: Readonly<
   'nh:scroll_of_remove_curse': readScroll,
   'nh:scroll_of_light': readScroll,
   'nh:scroll_of_teleportation': readScroll,
+  'nh:scroll_of_gold_detection': readScroll,
+  'nh:scroll_of_food_detection': readScroll,
+  'nh:scroll_of_magic_mapping': readScroll,
   'nh:scroll_of_earth': readScroll,
   'nh:scroll_of_blank_paper': readScroll,
   'nh:scroll_of_destroy_armor': readScroll,

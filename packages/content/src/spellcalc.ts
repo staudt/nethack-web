@@ -15,16 +15,48 @@ export interface SpellInfo {
   dir: WandDir;
 }
 
-/** ref: include/objects.h SPELL() for the books of the subset */
+/**
+ * ref: include/objects.h SPELL() for every book but chain lightning (not ported), in objects.h
+ * order
+ */
 export const SPELL_INFO: Readonly<Record<DefId, SpellInfo>> = {
+  'nh:spellbook_of_dig': { skill: 'matter_spell', dir: 'ray' },
+  'nh:spellbook_of_magic_missile': { skill: 'attack_spell', dir: 'ray' },
+  'nh:spellbook_of_fireball': { skill: 'attack_spell', dir: 'ray' },
+  'nh:spellbook_of_cone_of_cold': { skill: 'attack_spell', dir: 'ray' },
   'nh:spellbook_of_sleep': { skill: 'enchantment_spell', dir: 'ray' },
+  'nh:spellbook_of_finger_of_death': { skill: 'attack_spell', dir: 'ray' },
   'nh:spellbook_of_light': { skill: 'divination_spell', dir: 'nodir' },
   'nh:spellbook_of_detect_monsters': { skill: 'divination_spell', dir: 'nodir' },
   'nh:spellbook_of_healing': { skill: 'healing_spell', dir: 'immediate' },
+  'nh:spellbook_of_knock': { skill: 'matter_spell', dir: 'immediate' },
   'nh:spellbook_of_force_bolt': { skill: 'attack_spell', dir: 'immediate' },
   'nh:spellbook_of_confuse_monster': { skill: 'enchantment_spell', dir: 'immediate' },
   'nh:spellbook_of_cure_blindness': { skill: 'healing_spell', dir: 'immediate' },
+  'nh:spellbook_of_drain_life': { skill: 'attack_spell', dir: 'immediate' },
+  'nh:spellbook_of_slow_monster': { skill: 'enchantment_spell', dir: 'immediate' },
+  'nh:spellbook_of_wizard_lock': { skill: 'matter_spell', dir: 'immediate' },
+  'nh:spellbook_of_create_monster': { skill: 'cleric_spell', dir: 'nodir' },
+  'nh:spellbook_of_detect_food': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_cause_fear': { skill: 'enchantment_spell', dir: 'nodir' },
+  'nh:spellbook_of_clairvoyance': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_cure_sickness': { skill: 'healing_spell', dir: 'nodir' },
+  'nh:spellbook_of_charm_monster': { skill: 'enchantment_spell', dir: 'immediate' },
+  'nh:spellbook_of_haste_self': { skill: 'escape_spell', dir: 'nodir' },
+  'nh:spellbook_of_detect_unseen': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_levitation': { skill: 'escape_spell', dir: 'nodir' },
+  'nh:spellbook_of_extra_healing': { skill: 'healing_spell', dir: 'immediate' },
+  'nh:spellbook_of_restore_ability': { skill: 'healing_spell', dir: 'nodir' },
+  'nh:spellbook_of_invisibility': { skill: 'escape_spell', dir: 'nodir' },
+  'nh:spellbook_of_detect_treasure': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_remove_curse': { skill: 'cleric_spell', dir: 'nodir' },
+  'nh:spellbook_of_magic_mapping': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_identify': { skill: 'divination_spell', dir: 'nodir' },
+  'nh:spellbook_of_turn_undead': { skill: 'cleric_spell', dir: 'immediate' },
   'nh:spellbook_of_polymorph': { skill: 'matter_spell', dir: 'immediate' },
+  'nh:spellbook_of_teleport_away': { skill: 'escape_spell', dir: 'immediate' },
+  'nh:spellbook_of_create_familiar': { skill: 'cleric_spell', dir: 'nodir' },
+  'nh:spellbook_of_cancellation': { skill: 'matter_spell', dir: 'immediate' },
   'nh:spellbook_of_protection': { skill: 'cleric_spell', dir: 'nodir' },
   'nh:spellbook_of_jumping': { skill: 'escape_spell', dir: 'immediate' },
   'nh:spellbook_of_stone_to_flesh': { skill: 'healing_spell', dir: 'immediate' },
@@ -76,10 +108,14 @@ const UARMHBON = 4; // Metal helmets interfere with the mind
 const UARMGBON = 6; // Casting channels through the hands
 const UARMFBON = 2; // All metal interferes to some degree
 
-/** The books whose spells get the role's healing bonus (those of the subset). */
+/** The books whose spells get the role's healing bonus. ref: percent_success() */
 const HEALING_BONUS: ReadonlySet<DefId> = new Set([
   'nh:spellbook_of_healing',
+  'nh:spellbook_of_extra_healing',
   'nh:spellbook_of_cure_blindness',
+  'nh:spellbook_of_cure_sickness',
+  'nh:spellbook_of_restore_ability',
+  'nh:spellbook_of_remove_curse',
 ]);
 
 /** Integer square root, as C's simple odd-number loop. ref: src/hacklib.c isqrt() */

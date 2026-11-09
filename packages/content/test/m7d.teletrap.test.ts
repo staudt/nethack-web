@@ -249,11 +249,13 @@ describe("the Catacombs' level teleporters", () => {
       const spots = MINEND_3_PLACES.map(([x, y]) => mapToLevel(MINEND_3, level, x, y));
       const on = spots.filter((p) => trapAt(level, p.x, p.y)?.def === TRAP.levelTele);
       expect(on).toHaveLength(2);
-      // the luckstone's spot is one of them
-      const stone = Object.values(state.entities).find(
+      // the luckstone's spot is one of them (a random luckstone may lie elsewhere too)
+      const stones = Object.values(state.entities).filter(
         (e) => e.def === 'nh:luckstone' && e.c.pos?.level === level.id,
       );
-      expect(on).toContainEqual({ x: stone?.c.pos?.x, y: stone?.c.pos?.y });
+      expect(stones.some((st) => on.some((p) => p.x === st.c.pos?.x && p.y === st.c.pos.y))).toBe(
+        true,
+      );
     }
     expect(found).toBe(3);
   });
