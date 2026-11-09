@@ -8,6 +8,13 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
+Run 6 (from 2026-11-08), target **6M**, may run to **8M** to finish features (user, 2026-11-08: "same idea of 6M+ and going forward"), fresh ledger section ("## Run 6"). One chain of branches, each off the previous tip, starting from `m11` off `m7f-d` (main stays at f615715). Each milestone gets a planning agent first (Between milestones); park costly-to-undo questions and skip to the next milestone. Default every open choice to NetHack 3.7's behaviour. Roles and races stay out.
+
+1. **m11 objects batch** (branch `m11` off `m7f-d`): with the converter, the missing objects and what they need: the weapons and armor starting gear rolls but cannot give (ROADMAP "From m10", "Missing weapon and armor objects"), polearms and lances (`use_pole()` through the position prompt), silver (`Hate_silver`, silver weapons against weres and demons), eggs (m9 step 8 rest: eating, hatching, thrown cockatrice eggs), and the missing potions, scrolls and spellbooks with their effects (levitation, gain level, restore ability, genocide, the remaining spellbooks). The planner sizes the subset to about 8 steps and lists the rest in ROADMAP.
+2. **m12 special rooms** (branch `m12` off `m11`): `do_mkroom()`'s rooms in ordinary levels: throne rooms (with `#sit` on thrones), beehives (royal jelly), morgues, barracks, leprechaun halls, cockatrice nests, antholes, swamps (pools if cheap), vaults with the guard, random temples (ROADMAP "From 6b3", "Other mklev special rooms", and "From 6b2", "Other temples").
+3. **m13 monster batch 2** (branch `m13` off `m12`): the rows left out of batch 1 (ROADMAP "From m10", "Left out of the batch"): mimics and piercers (hiding, "Wait! That's a mimic!", sticking), unicorns and the unicorn horn, long worms, golems and figurines, the m9-step monsters, and the higher-difficulty rows needing nothing new.
+4. **m14 monster item use** (branch `m14` off `m13`): muse.c: monsters using defensive, offensive and misc items (wands, potions, scrolls), `munstone()`, `munslime()`.
+
 Run 5 (from 2026-11-08), target **6M**, may run to **8M** to finish features (user, 2026-11-08), fresh ledger section ("## Run 5"). The user approved the 7f core contracts D1, D3, D5 and D6 (`docs/DECISIONS-PENDING.md`); the plan `~/.claude/plans/m7f.md` and `docs/kickoff-m7f.md` exist, so **no planning agent** for 7f: each sub-milestone's first step agent also reads the plan's "Depends on m9/m10" section and reconciles it with what m9/m10 actually built (a "Step N:" bullet under Changes during work). One chain of branches, each off the previous tip, starting from `m10` (= `main` f615715).
 
 1. **m9 step 7, level drain and lycanthropy** (on branch `m10`, like step 5; plan `~/.claude/plans/m9.md` step 7, kickoff `docs/kickoff-m9.md`): the hero turning into a wolf is handed to 7f-d step 3; the docs part of step 7 only updates the m9 TESTPLAN/ROADMAP lines it changes.
@@ -53,7 +60,7 @@ Keep a ledger at `~/.claude/plans/overnight-ledger.md`: one line per agent with 
 
 Stop cleanly (finish nothing new, write the morning summary) when any of these happens:
 
-- **Budget:** the running total with margin reaches the run's budget (run 5: target **6,000,000 tokens**, hard cap **8,000,000**). Past the target, start a step only to finish the current sub-milestone or a feature the next step completes, and never start an agent whose typical cost (300k for a step, 250k for a plan) would cross the hard cap.
+- **Budget:** the running total with margin reaches the run's budget (run 6: target **6,000,000 tokens**, hard cap **8,000,000**). Past the target, start a step only to finish the current sub-milestone or a feature the next step completes, and never start an agent whose typical cost (300k for a step, 250k for a plan) would cross the hard cap.
 - **Red check:** `pnpm check` fails after one retry and one fix agent.
 - **Unexplained golden:** a step changes the golden hash without a verified cause in its commit body.
 - **Design stop:** an agent stops on a design question it says is costly to get wrong.
