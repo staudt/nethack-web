@@ -56,6 +56,7 @@ import { P, setIntrinsic, setItimeout } from '../src/props';
 import { tamedog } from '../src/dog';
 import { wakeup } from '../src/peaceful';
 import { shkArrivals } from '../src/shk';
+import { mappearance } from '../src/mimicstate';
 import { addMon, setup } from './helpers';
 import { ctxFor, defs, obj, render } from './itemHelpers';
 
@@ -74,6 +75,10 @@ const itemsAt = (s: S, x: number, y: number) =>
   sortedIds(s.state)
     .map((id) => s.state.entities[String(id)])
     .filter((e) => e?.c.item && e.c.pos?.x === x && e.c.pos.y === y);
+const mimicAt = (s: S, x: number, y: number): Entity | undefined =>
+  sortedIds(s.state)
+    .map((id) => s.state.entities[String(id)])
+    .find((e) => e?.c.monster && !eshkOf(s, e.id) && e.c.pos?.x === x && e.c.pos.y === y);
 const shkOn = (s: S): number[] => sortedIds(s.state).filter((id) => eshkOf(s, id) !== null);
 
 /** The test level with room 0 a shop of `type` (and room 1 of `type2`), the hero at 7,2. */
@@ -169,13 +174,15 @@ describe('stock_room()', () => {
       expect([...(shp?.names ?? []), '-Lucrezia', '+Dirk']).toContain(e.shknam);
       if ('-_'.includes(e.shknam.charAt(0))) expect(e.female).toBe(true);
       if ('+|'.includes(e.shknam.charAt(0))) expect(e.female).toBe(false);
-      // nothing in the column by the door, something it sells on the 12 other squares
+      // nothing in the column by the door, something it sells (or, one time in 100 per level of
+      // depth, a mimic) on the 12 other squares
       for (let y = 1; y <= 3; y++) expect(itemsAt(s, 5, y)).toEqual([]);
       let stocked = 0;
       for (let x = 1; x <= 4; x++)
         for (let y = 1; y <= 3; y++) {
           const here = itemsAt(s, x, y);
-          if (here.length > 0) stocked++;
+          if (here.length > 0 || mimicAt(s, x, y)) stocked++;
+          if (mimicAt(s, x, y)) expect(here).toEqual([]);
           for (const o of here) if (o) expect(saleable(ctxOf(s), e, o)).toBe(true);
         }
       if (type === 'nh:shop') expect(stocked).toBeGreaterThanOrEqual(6);
@@ -184,6 +191,28 @@ describe('stock_room()', () => {
       for (let x = 9; x <= 11; x++)
         for (let y = 1; y <= 3; y++) expect(itemsAt(s, x, y)).toEqual([]);
     }
+  });
+
+  test('deep down most squares are mimics posing as the goods of the shop', () => {
+    const s = shop(1, 'nh:armor_shop');
+    s.level.depth = 60; // rn2(100) < 60 a mimic; rn2(10) >= 60 never a strange object
+    stockShops(ctxOf(s), s.level);
+    let mimics = 0;
+    for (let x = 1; x <= 4; x++)
+      for (let y = 1; y <= 3; y++) {
+        const m = mimicAt(s, x, y);
+        if (!m) {
+          expect(itemsAt(s, x, y)).toHaveLength(1);
+          continue;
+        }
+        mimics++;
+        expect(defs.monster(m.def).glyph.ch).toBe('m');
+        expect(itemsAt(s, x, y)).toEqual([]);
+        const ap = mappearance(s, m.id);
+        expect(ap?.type).toBe('object');
+        expect(['armor', 'weapon']).toContain(defs.object(ap!.id).class);
+      }
+    expect(mimics).toBeGreaterThanOrEqual(4);
   });
 
   test('a secret door becomes a door; a locked door stays locked; no door, no shopkeeper', () => {

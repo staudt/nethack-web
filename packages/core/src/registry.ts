@@ -589,6 +589,21 @@ export function loadMods(mods: readonly Mod[]): Registry {
               : monsters.has(c.montype);
           if (!ok) ref(`${prefix}[${i}].montype`, `unknown montype '${c.montype}'`);
         }
+        const ap: unknown = c.appearAs;
+        if (ap !== undefined) {
+          const a = ap as { kind?: unknown; id?: unknown };
+          const id = typeof a.id === 'string' ? a.id : '';
+          const ok =
+            c.kind === 'monster' &&
+            typeof ap === 'object' &&
+            ap !== null &&
+            (a.kind === 'object'
+              ? objects.has(id)
+              : a.kind === 'furniture'
+                ? terrains.has(id) || appearances.has(id)
+                : a.kind === 'monster' && monsters.has(id));
+          if (!ok) ref(`${prefix}[${i}].appearAs`, `bad appearAs ${JSON.stringify(ap)}`);
+        }
       });
     }
   }

@@ -168,8 +168,9 @@ describe('the shops of a real Minetown', () => {
         const shp = shopType(room.type);
         if (room.type === 'nh:candle_shop') expect(e.shknam).toBe('+Izchak');
         else expect([...(shp?.names ?? []), '-Lucrezia', '+Dirk']).toContain(e.shknam);
-        // stock: every floor square off the door's row holds something the shop sells (a
-        // general store's random-class roll can come up empty: a gem class this port lacks)
+        // stock: every floor square off the door's row holds something the shop sells, or a
+        // mimic (`rn2(100) < depth`, posing as stock: mkshobj_at()) (a general store's
+        // random-class roll can come up empty: a gem class this port lacks)
         let squares = 0;
         let stocked = 0;
         for (let x = room.lx; x <= room.hx; x++)
@@ -188,7 +189,18 @@ describe('the shops of a real Minetown', () => {
               continue;
             }
             squares++;
-            if (here.length > 0) stocked++;
+            const mimic = sortedIds(state)
+              .map((k) => state.entities[String(k)])
+              .find(
+                (m) =>
+                  m?.c.monster &&
+                  defs.monster(m.def).glyph.ch === 'm' &&
+                  m.c.pos?.level === level.id &&
+                  m.c.pos.x === x &&
+                  m.c.pos.y === y,
+              );
+            if (mimic) expect(here).toEqual([]);
+            if (here.length > 0 || mimic) stocked++;
             for (const o of here) if (o) expect(saleable({ defs }, e, o)).toBe(true);
           }
         expect(squares).toBeGreaterThan(0);

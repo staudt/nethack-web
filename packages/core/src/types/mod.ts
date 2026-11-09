@@ -531,6 +531,13 @@ export interface LevelContent {
   montype?: DefId | string;
   /** Statues: a historic statue (des.object `historic`). */
   historic?: true;
+  /**
+   * Monsters: what a mimic (or a shapeshifter) appears as (des.monster `appear_as`): an object
+   * def ("obj:boulder"), a terrain def or display-only appearance ("ter:...") or a monster def
+   * ("mon:..."). Content interprets it after making the monster. ref: src/sp_lev.c
+   * create_monster() (the m_ap_type branch)
+   */
+  appearAs?: { kind: 'object' | 'furniture' | 'monster'; id: DefId };
 }
 
 /** Names an item for the player, from player knowledge only (ref: src/objnam.c doname). */

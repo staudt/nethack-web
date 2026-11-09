@@ -110,8 +110,8 @@ export function dodoor(g: Grid, rng: Rng, depth: number, x: number, y: number): 
  * Make a door at x,y, secret when `sdoor` and x,y is still a wall (a door already made there
  * stays an ordinary door, rolled again).
  * ref: src/mklev.c dosdoor(). A trapped door goes into `g.trappedDoors` (core has no
- * door traps: content keeps them, see Level.trappedDoorSpots). Deviation (DEVIATIONS.md): door
- * mimics are never made and their roll is not drawn.
+ * door traps: content keeps them, see Level.trappedDoorSpots, and from difficulty 9 makes some
+ * of them door mimics, drawing that roll there: DEVIATIONS.md "Level generation").
  */
 export function dosdoor(
   g: Grid,

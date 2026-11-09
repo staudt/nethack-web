@@ -5,9 +5,10 @@
 // once and lets the player browse the map).
 // ref: src/detect.c o_in(), o_material(), check_map_spot(), clear_stale_map(), gold_detect(),
 // food_detect(), object_detect(), sense_trap(), detect_obj_traps(), display_trap_map(),
-// trap_detect(), do_mapping(), do_vicinity_map(), cvt_sdoor_to_door()
+// trap_detect(), do_mapping(), do_vicinity_map(), cvt_sdoor_to_door() (a cursed object
+// detector also shows mimics posing as objects)
 //
-// Not ported (DEVIATIONS "Detection"): buried objects (none exist), mimics (none), the steed,
+// Not ported (DEVIATIONS "Detection"): buried objects (none exist), the steed,
 // the trapped-door and trapped-chest glyphs (a found chest trap is only known, `tknown`; a door
 // trap is not shown), body parts of other forms ("feet", "nose" and "toes" always),
 // observe_object() (every object is seen up close here), level `nommap` (no such level).
@@ -34,9 +35,11 @@ import { showMapSpot } from './detect';
 import { mapInvisible } from './invis';
 import { nhData } from './items';
 import { strangeFeeling, useup } from './magic';
+import { STRANGE_OBJECT, mApType, mappearance, mimicShownAs } from './mimicstate';
 import { minvent } from './mongear';
 import { canSpotMon } from './perception';
 import { P, heroClairvoyant, hasProp } from './props';
+import { STATUE, statueAppearanceId } from './statuestate';
 import { T, setTerrain } from './terrain';
 import { heroFormId } from './upoly';
 
@@ -45,6 +48,7 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 
 const GOLD_PIECE: DefId = 'nh:gold_piece';
 const GOLD_GOLEM: DefId = 'nh:gold_golem';
+const TENGU: DefId = 'nh:tengu';
 
 /**
  * The detecting object (C's sobj): a real scroll or potion (`item`, used up by a strange
@@ -120,6 +124,20 @@ function mapObject(ctx: Ctx, level: Level, obj: Entity | DefId, x: number, y: nu
 function mapGold(ctx: Ctx, level: Level, x: number, y: number): void {
   ctx.rng.rnd(10); // gold.quan = (long) rnd(10): usually more than 1
   mapObject(ctx, level, GOLD_PIECE, x, y);
+}
+
+/**
+ * What a mimic posing as an object is mapped as: its object (a statue of its shape, a tengu's
+ * without one: `temp.corpsenm = has_mcorpsenm(mtmp) ? MCORPSENM(mtmp) : PM_TENGU`).
+ * ref: src/detect.c object_detect()
+ */
+function mimicObjectShown(ctx: Ctx, mon: Entity): DefId {
+  const ap = mappearance(ctx, mon.id);
+  if (ap?.type === 'object' && ap.id === STATUE && ap.corpseOf === undefined) {
+    const id = statueAppearanceId(TENGU);
+    if (ctx.defs.isAppearance(id)) return id;
+  }
+  return mimicShownAs(ctx.state, ctx.defs, mon) ?? STRANGE_OBJECT;
 }
 
 /** The class (and, for gold, material) of a remembered object id or appearance. */
@@ -357,10 +375,10 @@ export function objectDetect(ctx: Ctx, detector: Detector | null): boolean {
     if (heroAt(ctx, o.c.pos?.x ?? -1, o.c.pos?.y ?? -1)) ctu++;
     else ct++;
   }
+  const cursed = detector?.buc === 'cursed';
   for (const mon of levelMonsters(ctx, level)) {
     ct += minvent(ctx, mon.id).length;
-    // (no mimics for a cursed detector)
-    if (findgold(ctx, mon)) {
+    if ((cursed && mApType(ctx, mon.id) === 'object') || findgold(ctx, mon)) {
       ct++;
       break;
     }
@@ -382,7 +400,10 @@ export function objectDetect(ctx: Ctx, detector: Detector | null): boolean {
     if (!p) continue;
     const first = minvent(ctx, mon.id)[0];
     if (first) mapObject(ctx, level, first, p.x, p.y);
-    if (findgold(ctx, mon)) mapGold(ctx, level, p.x, p.y);
+    // a cursed detector shows a mimic posing as an object as that object
+    if (cursed && mApType(ctx, mon.id) === 'object')
+      mapObject(ctx, level, mimicObjectShown(ctx, mon), p.x, p.y);
+    else if (findgold(ctx, mon)) mapGold(ctx, level, p.x, p.y);
   }
   say(ctx, ct ? 'detect.objects.presence' : 'detect.objects.absence', { stuff });
   return false;

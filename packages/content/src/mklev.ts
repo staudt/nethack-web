@@ -7,14 +7,16 @@ import { cellIndex, trapAt } from '@nh/core';
 import { A_LAWFUL, altarOf, type Aligntyp } from './aligntyp';
 import { BOULDER, boulderAt } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
-import { makemon } from './generation';
+import { makemon, mkclass } from './generation';
+import { setMimicSym } from './mimicstate';
+import { isGenocided } from './vanquished';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
 import { somexyspace } from './somexy';
 import { mkcorpstat } from './statue';
 import { levelFlags } from './levelflags';
-import { T, setTerrain } from './terrain';
+import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
 
@@ -251,17 +253,42 @@ export function mkCorridorBoulders(ctx: Ctx, level: Level): void {
     );
 }
 
+/** ref: src/mklev.c dosdoor(): `svm.mvitals[PM_*_MIMIC].mvflags & G_GONE` for all three */
+const MIMICS: readonly DefId[] = ['nh:small_mimic', 'nh:large_mimic', 'nh:giant_mimic'];
+
 /**
  * Keeps the doors level generation made trapped (`Level.trappedDoorSpots`, core has no door
  * traps) in content state and deletes the request, so no saved level keeps it. A spot that is
- * no longer a closed, locked or secret door is dropped. ref: src/mklev.c dosdoor(),
- * src/sp_lev.c create_door() (doormask |= D_TRAPPED)
+ * no longer a closed, locked or secret door is dropped. From difficulty 9 a trapped (not
+ * secret) door is, one time in 5 unless all three mimics are genocided, a doorway with a mimic
+ * posing as the door instead; the roll is drawn here, in core's door order, after the level's
+ * rooms and corridors (decision 8: C draws it while making the door). (Every trapped door with a
+ * door state comes from dosdoor(): no LevelDef has a random-state door, create_door()'s.)
+ * ref: src/mklev.c dosdoor(), src/sp_lev.c create_door() (doormask |= D_TRAPPED)
  */
 export function keepTrappedDoors(ctx: Ctx, level: Level): void {
   const spots = level.trappedDoorSpots;
   if (spots === undefined) return;
   delete level.trappedDoorSpots;
-  for (const p of spots) setDoorTrapped(ctx, level.id, p.x, p.y, true);
+  for (const p of spots) {
+    const typ = terrainIdAt(level, p.x, p.y);
+    if (
+      (typ === T.door_closed || typ === T.door_locked) &&
+      level.depth >= 9 && // level_difficulty()
+      !ctx.rng.rn2(5) &&
+      !MIMICS.every((id) => isGenocided(ctx.state, id))
+    ) {
+      // make a mimic instead
+      setTerrain(level, p.x, p.y, T.doorway);
+      const id = makemon(ctx, mkclass(ctx, 'm', level.depth), p, {
+        level: level.id,
+        inMklev: true,
+      });
+      if (id !== null) setMimicSym(ctx, id, true);
+      continue;
+    }
+    setDoorTrapped(ctx, level.id, p.x, p.y, true);
+  }
   pruneDoorTraps(ctx, level);
 }
 

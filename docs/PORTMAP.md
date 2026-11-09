@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4044 citations.
+155 NetHack files, 4049 citations.
 
 ## dat/dungeon.lua
 
@@ -2067,7 +2067,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `build_room()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `check_room()`: `packages/core/src/levelgen/rooms.ts`
 - `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
-- `create_door()`: `packages/content/src/oracle.ts`, `packages/core/src/levelgen/sprooms.ts`
+- `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/core/src/levelgen/sprooms.ts`
 - `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/sp_lev.ts`
 - `create_object()`: `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
 - `create_room()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`

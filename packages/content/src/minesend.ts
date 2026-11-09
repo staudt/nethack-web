@@ -1,8 +1,7 @@
 // Mines' End: NetHack 5.0's three variants, as LevelDefs plus fixups. ref: dat/minend-1.lua,
 // dat/minend-2.lua, dat/minend-3.lua
 //
-// Translation notes (see DEVIATIONS.md "Mines' End"): the mimics of minend-1, the vampires (`V`)
-// of minend-3, the engravings, the arrival and teleport regions, the
+// Translation notes (see DEVIATIONS.md "Mines' End"): the vampires (`V`) of minend-3, the engravings, the arrival and teleport regions, the
 // non-diggable walls and the achievements are left out. minend-2's potion of object detection is
 // a random potion (no such potion yet). The fountains come from the map ('{'); they are not magic.
 // Shuffled niches, "not-cursed" luckstones, minend-2's conditional locked door and minend-3's
@@ -12,7 +11,7 @@ import { cellIndex, isPlainFloor, VANILLA_TERRAIN, wallifyLevel } from '@nh/core
 import { mazewalk } from './mazewalk';
 import { mktrap } from './mklev';
 import { mksobjFull } from './mkobj';
-import { mapToLevel, shuffle, type SpLevFixup } from './sp_lev';
+import { createMonster, mapToLevel, shuffle, type SpLevFixup } from './sp_lev';
 import { TRAP } from './trap';
 
 type Spot = readonly [x: number, y: number];
@@ -115,7 +114,7 @@ export const MINEND_1: LevelDef = {
 };
 
 /** minend-1's niches (`place`, shuffled; place[6] stays empty). */
-const MINEND_1_PLACES: readonly Spot[] = [
+export const MINEND_1_PLACES: readonly Spot[] = [
   [8, 16],
   [13, 7],
   [21, 8],
@@ -126,8 +125,9 @@ const MINEND_1_PLACES: readonly Spot[] = [
 ];
 
 /**
- * The niche gems and stones, before the scattered objects as in the lua. The four mimics posing
- * as a luckstone, loadstone, flint and touchstone are left out (no mimics).
+ * The niche gems and stones, before the scattered objects as in the lua, with the four mimics
+ * posing as a luckstone, loadstone, flint and touchstone (des.monster({ class = "m", coord,
+ * appear_as = "obj:..." })) after the objects of their niches.
  */
 const MINEND_1_FIXUP: SpLevFixup = {
   before(ctx, level, def) {
@@ -136,18 +136,31 @@ const MINEND_1_FIXUP: SpLevFixup = {
     const p = (n: number): Spot => place[n - 1] as Spot; // lua is 1-based
     const at = (id: string, n: number, notCursed = false): void =>
       objectAt(ctx, level, def, id, p(n), notCursed);
+    const mimic = (id: string, n: number): void => {
+      const [x, y] = p(n);
+      createMonster(
+        ctx,
+        level,
+        { kind: 'monster', class: 'm', x, y, appearAs: { kind: 'object', id: `nh:${id}` } },
+        def,
+      );
+    };
     at('diamond', 7);
     at('emerald', 7);
     at('worthless_piece_of_violet_glass', 7);
+    mimic('luckstone', 7);
     at('worthless_piece_of_white_glass', 1);
     at('emerald', 1);
     at('amethyst', 1);
+    mimic('loadstone', 1);
     at('diamond', 2);
     at('worthless_piece_of_green_glass', 2);
     at('amethyst', 2);
+    mimic('flint_stone', 2);
     at('worthless_piece_of_white_glass', 3);
     at('emerald', 3);
     at('worthless_piece_of_violet_glass', 3);
+    mimic('touchstone', 3);
     at('worthless_piece_of_red_glass', 4);
     at('ruby', 4);
     at('loadstone', 4);

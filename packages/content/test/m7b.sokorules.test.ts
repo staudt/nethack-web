@@ -422,7 +422,22 @@ describe('the treasure zoo and the prize', () => {
     });
 
     test(`${variant}: sleeping monsters on gold, the welcome once`, () => {
-      const { state, level } = sokoVariant(variant, 1);
+      // a level whose two boulder mimics (awake, not zoo monsters) both landed outside the zoo
+      const inRoom = (r: Level['rooms'][number], p: Pos): boolean =>
+        p.x >= r.lx && p.x <= r.hx && p.y >= r.ly && p.y <= r.hy;
+      let found = sokoVariant(variant, 1);
+      while (
+        entitiesOn(found.state, found.level).some(
+          (e) =>
+            e.def === 'nh:giant_mimic' &&
+            inRoom(
+              found.level.rooms.find((r) => r.type === ZOO)!,
+              e.c.pos!,
+            ),
+        )
+      )
+        found = sokoVariant(variant, 1, found.state.seed + 1);
+      const { state, level } = found;
       const zi = level.rooms.findIndex((r) => r.type === ZOO);
       const zoo = level.rooms[zi]!;
       expect(zoo.hx - zoo.lx).toBe(4);

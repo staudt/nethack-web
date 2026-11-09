@@ -14,7 +14,14 @@ import {
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { vanillaMod } from '../src/index';
-import { MINEND_3, MINEND_3_PLACES, MINEND_LUCKSTONE_SPOTS } from '../src/minesend';
+import {
+  MINEND_1,
+  MINEND_1_PLACES,
+  MINEND_3,
+  MINEND_3_PLACES,
+  MINEND_LUCKSTONE_SPOTS,
+} from '../src/minesend';
+import { mappearance } from '../src/mimicstate';
 import { mapToLevel, shuffle } from '../src/sp_lev';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
@@ -175,17 +182,41 @@ describe("Mines' End contents", () => {
     expect(flint.length).toBeGreaterThanOrEqual(1);
   });
 
-  test('minend-1 and minend-2: the gnome king and his court, no mimics', () => {
+  test('minend-1 and minend-2: the gnome king and his court; minend-1 has its four mimics', () => {
     for (const v of ['nh:minend-1', 'nh:minend-2']) {
-      const { state, level } = minesEnd(seeds[v] ?? 0);
+      // a level of the variant without a web among its random traps (a web brings its spider)
+      let seed = seeds[v] ?? 0;
+      let { state, level } = minesEnd(seed);
+      while (level.def !== v || level.traps.some((t) => t.def === 'nh:web'))
+        ({ state, level } = minesEnd(++seed));
       const mons = onLevel(state, level).filter(
         (e) => e?.c.monster && e.c.monster.tame === undefined,
       );
       const ids = mons.map((e) => e?.def);
       expect(ids).toContain('nh:gnome_king');
       expect(ids.filter((d) => d === 'nh:gnome').length).toBeGreaterThanOrEqual(9);
-      const glyphs = new Set(ids.map((d) => defs.monster(d ?? 'nh:none').glyph.ch));
+      const mimics = mons.filter((e) => defs.monster(e?.def ?? 'nh:none').glyph.ch === 'm');
+      const glyphs = new Set(
+        mons.filter((e) => !mimics.includes(e)).map((e) => defs.monster(e!.def).glyph.ch),
+      );
       expect([...glyphs].every((g) => g === 'G' || g === 'h')).toBe(true);
+      if (v === 'nh:minend-2') {
+        expect(mimics).toEqual([]);
+        continue;
+      }
+      // the Mimic of the Mines: four mimics in niches, posing as the four gray stones
+      const niches = MINEND_1_PLACES.map(([x, y]) => mapToLevel(MINEND_1, level, x, y));
+      expect(mimics).toHaveLength(4);
+      for (const m of mimics)
+        expect(niches.some((p) => p.x === m!.c.pos!.x && p.y === m!.c.pos!.y)).toBe(true);
+      expect(
+        mimics.map((m) => mappearance({ state }, m!.id)).sort((a, b) => (a!.id < b!.id ? -1 : 1)),
+      ).toEqual([
+        { type: 'object', id: 'nh:flint_stone' },
+        { type: 'object', id: 'nh:loadstone' },
+        { type: 'object', id: 'nh:luckstone' },
+        { type: 'object', id: 'nh:touchstone' },
+      ]);
     }
   });
 

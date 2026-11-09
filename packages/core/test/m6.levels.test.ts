@@ -127,6 +127,25 @@ describe('defineLevel validation', () => {
       "lv:refs contents[3].id: unknown trap 'lv:pit'",
     ]);
   });
+
+  test('appearAs names a registered def of its kind, on monsters only', () => {
+    const lv: LevelDef = {
+      id: 'lv:ap',
+      init: { style: 'solidfill', fg: 'nh:floor' },
+      contents: [
+        { kind: 'monster', id: 'lv:gnome', appearAs: { kind: 'furniture', id: 'nh:floor' } },
+        { kind: 'monster', id: 'lv:gnome', appearAs: { kind: 'monster', id: 'lv:gnome' } },
+        { kind: 'monster', id: 'lv:gnome', appearAs: { kind: 'object', id: 'lv:boulder' } },
+        { kind: 'monster', id: 'lv:gnome', appearAs: { kind: 'furniture', id: 'lv:grave' } },
+        { kind: 'object', class: 'gem', appearAs: { kind: 'monster', id: 'lv:gnome' } },
+      ],
+    };
+    expect(issues([lv])).toEqual([
+      'lv:ap contents[2].appearAs: bad appearAs {"kind":"object","id":"lv:boulder"}',
+      'lv:ap contents[3].appearAs: bad appearAs {"kind":"furniture","id":"lv:grave"}',
+      'lv:ap contents[4].appearAs: bad appearAs {"kind":"monster","id":"lv:gnome"}',
+    ]);
+  });
 });
 
 describe('buildLevel', () => {

@@ -1,13 +1,13 @@
 // Shopkeepers and their stock: a shop room gets its shopkeeper by the door and an object of its
-// type on every other floor square when its level is made (the shop types are in shtypes.ts).
+// type (or now and then a mimic posing as one) on every other floor square when its level is
+// made (the shop types are in shtypes.ts).
 // ref: src/shknam.c shkinit(), nameshk(), good_shopdoor(), stock_room(), stock_room_goodpos(),
 // mkshobj_at(), get_shop_item(), shkveg(), mkveggy_at(); src/sp_lev.c fill_special_room() (the
 // shop branch); src/mkroom.c mkshop() (random dungeon shops)
 //
-// Not ported: mimics posing as stock (none exist: the rn2(100) < depth roll is made), the tribute
-// novel, the "Closed for inventory" engraving of a locked shop door (no engravings), irregular
-// shops (no Minetown shop is one), Orcus's ghost town, the scroll of charging shopkeepers carry
-// (not in the object table: the roll is made).
+// Not ported: the tribute novel, the "Closed for inventory" engraving of a locked shop door (no
+// engravings), irregular shops (no Minetown shop is one), Orcus's ghost town, the scroll of
+// charging shopkeepers carry (not in the object table: the roll is made).
 import { doorTrapped, setDoorTrapped } from './btrapstate';
 import {
   cellIndex,
@@ -20,7 +20,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { SHOPKEEPER, eshkOf, setEshk, shopDoors, type Eshk } from './eshk';
-import { makemon, rlocPos } from './generation';
+import { makemon, mkclass, rlocPos } from './generation';
 import { mkobj, mksobjFull } from './mkobj';
 import { mkmonmoney, mongets } from './mongear';
 import { T, setTerrain } from './terrain';
@@ -73,11 +73,26 @@ export function getShopItem(ctx: Pick<Ctx, 'rng' | 'defs'>, shp: ShopType): Shop
   }
 }
 
-/** Makes one object of the shop's kinds on x,y. ref: src/shknam.c mkshobj_at(), mkveggy_at() */
+/** MON_AT(x, y) on the level being made. */
+function monAt(ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number): boolean {
+  for (const id of sortedIds(ctx.state)) {
+    const p = ctx.state.entities[String(id)];
+    if (p?.c.monster && p.c.pos?.level === level.id && p.c.pos.x === x && p.c.pos.y === y)
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Makes one object of the shop's kinds on x,y, or, one time in 100 per level of depth, a mimic
+ * there (makemon()'s set_mimic_sym() makes it pose as the shop's stock).
+ * ref: src/shknam.c mkshobj_at(), mkveggy_at()
+ */
 function mkshobjAt(ctx: Ctx, level: Level, shp: ShopType, x: number, y: number): void {
-  // a mimic one time in 100 per level of depth (no mimics exist: the roll is made, the
-  // square is stocked as usual)
-  ctx.rng.rn2(100);
+  if (ctx.rng.rn2(100) < level.depth && !monAt(ctx, level, x, y)) {
+    const ptr = mkclass(ctx, 'm', level.depth); // mkclass(S_MIMIC, 0)
+    if (ptr && makemon(ctx, ptr, { x, y }, { level: level.id, inMklev: true }) !== null) return;
+  }
   const at = { level: level.id, x, y };
   const gen = { level: level.id, inMklev: true };
   const item = getShopItem(ctx, shp);

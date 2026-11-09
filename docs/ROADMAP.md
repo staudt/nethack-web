@@ -64,7 +64,7 @@ From 6b3 (shops: shopkeepers, stock, buying, selling, robbery and random dungeon
 - **Other mklev special rooms**: ~~throne rooms, leprechaun halls, zoos, temples, beehives, morgues, antholes, barracks and cockatrice nests (`do_mkroom()`), vaults and the threshold they add~~ (m12; swamps: see "From m12"), Medusa's level as the lower bound for shops; wizard mode's `SHOPTYPE`.
 - **Graves** (m12 step 4 draws the morgue roll only): grave terrain, `make_grave()` (headstone epitaphs, buried objects and corpses), `mkgrave()` in ordinary rooms (not rolled), digging graves up (zombies, mummies, alignment), #sit on a grave, troll corpses in graves.
 - **Shop types as defs**: `SHTYPES` (shtypes.ts) becomes a mod-defined def kind with the mod platform, so a mod can add a shop type.
-- **Shop extras**: credit for gold dropped in a shop and loans (`donate_gold()`, `costly_gold()`), shoplifting pets, the remaining iprob objects (fruit juice, ice box, elven cloak, magic lamp, potion of oil, scroll of food detection), mimics posing as stock, the tribute novel, usage fees for studying unpaid spellbooks, invisible customers and steeds, hero names in greetings.
+- **Shop extras**: credit for gold dropped in a shop and loans (`donate_gold()`, `costly_gold()`), shoplifting pets, the remaining iprob objects (fruit juice, ice box, elven cloak, magic lamp, potion of oil, scroll of food detection), ~~mimics posing as stock~~ (m13 step 3), the tribute novel, usage fees for studying unpaid spellbooks, invisible customers and steeds, hero names in greetings.
 
 From wizard mode (`docs/kickoff-wiz.md`; done, phone-checked 2026-11-02):
 
@@ -86,7 +86,7 @@ From 7c (Mines' End, fountains, Orcish Town):
 
 - **Touchstone:** rubbing gems and metal on it (`use_stone()`), the Archeologist's and gnome's identification of gems, and the shopkeepers' and unicorns' reactions to gems (gem buying and identification by a shopkeeper's offer, throwing gems to unicorns); kicking gems.
 - **Gem colours:** `randomize_gem_colors()` (turquoise and aquamarine blue or green, fluorite violet, blue, white or green per game); its draws move the game stream.
-- **Mimics:** their disguises ("Wait! That's a mimic!", sticking), then the four mimics of the Mimic of the Mines posing as gray stones.
+- ~~**Mimics:** their disguises ("Wait! That's a mimic!", sticking), then the four mimics of the Mimic of the Mines posing as gray stones.~~ (m13 steps 2 and 3)
 - **Vampires** (level drain, shapeshifting) for the Catacombs' two `V` (its level teleporters came with 7d).
 - **The water nymph and theft:** stealing and teleporting away, for fountains (C's "no nymph" outcome stands in) and nymphs elsewhere.
 - **Pools:** gushing fountains making pools, then moats and water in special levels.
@@ -100,7 +100,7 @@ From 7b (boulders, pits, the scroll of earth, the Oracle level and Sokoban):
 - **Giants and boulders:** giants carrying, throwing and stepping over boulders (`throws_rocks()`), monsters dropping boulders into pits, priests and shopkeepers fracturing them; the `m` move prefix.
 - **Statues:** done with 7f-c (statue objects, statue traps, the Oracle's centaur statues).
 - **The Oracle's consultations:** minor and major `doconsult()` for gold, with experience, luck and the rumors file.
-- **Zoos:** random zoos (`mkzoo()` from mklev), the Sokoban zoo as a true irregular room (today a region whose squares next to its door stay empty), the treasure zoo's two giant mimics.
+- **Zoos:** random zoos (`mkzoo()` from mklev), the Sokoban zoo as a true irregular room (today a region whose squares next to its door stay empty), ~~the treasure zoo's two giant mimics~~ (m13 step 3).
 - **Boulders and other traps:** landmines, teleporters and level teleporters under a pushed boulder, boulders into water and lava (`boulder_hits_pool()`, after pools), shop billing for pushed boulders, objects buried in a filled pit (`bury_objs()`), the pit's limited view (vision.c).
 - **Sokoban extras:** the Elbereth engraving and cursed scroll of scare monster on the prize, the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements (the `noteleport`, `hardfloor` and non-diggable flags came with 7d).
 
@@ -123,7 +123,7 @@ From m12 (special rooms: the whole `makelevel()` chain, throne rooms and thrones
 - **Themed rooms and ordinary niches:** `make_niches()` (trapdoor niches), the themed rooms and `rnd_rect()`'s interplay with them.
 - **Engravings:** the vault niche's "ad aerarium", Elbereth and the rest.
 - **Fort Ludios** and `mk_knox_portal()` (not rolled).
-- **Mimics** in treasure zoos and shops (m13).
+- ~~**Mimics** in treasure zoos and shops~~ (m13 steps 2 and 3).
 - **Thrones elsewhere:** Vlad's tower special throne, the Samurai quest's throne room; wizard mode's "Throne sit effect" and "Analyze throne?" prompts and `pick_room()`'s `|| wizard`.
 - **Priests:** roaming minions and aligned priests outside temples, the Valley's and the Sanctum's high altars.
 - **Player monsters and the record:** `mk_tt_object()`'s corpses and statues named after high-score entries (`tt_oname()`; an unnamed human for now), player-monster forms.
@@ -139,7 +139,7 @@ From m11 (objects batch: about 150 new rows in eight steps, polearms, silver, eg
 - **Eggs:** the pyrolisk egg's explosion (eaten, broken, hitting), `poly_obj()`'s laid-egg case, `unturn_dead()` for carried eggs, thrown potions landing whole (`potionhit()`); #sit's pools, lava, ice, graves, ladders and drawbridges (thrones: m12 step 2).
 - **Potions:** the timed `Detect_monsters` (blessed potion and Skilled spell of detect monsters act as uncursed, decision 8), fruit names, the Healer, dilution, Half_physical_damage, attribute exercise, potion vapors (`potionbreathe()`) and hits (`potionhit()`), monsters drinking and throwing potions (muse.c).
 - **Scrolls and genocide:** the Valkyrie role monster (a confused genocide names her role by id and a confused cursed one sends in nothing), extinction (`G_EXTINCT` from birth counts), chameleons, class names ("dogs") in class genocide, Elbereth, `GP_CHECKSCARY` placement in `makemon()`/`enexto()`, `newcham()`'s flight from a scary square, the "Maud" check, `meverseen`, rechargeable tools (every tool gives "a feeling of loss"), shop charges for dust and altered objects, `selftouch()` for gloves lost while wielding a cockatrice corpse.
-- **Detection and spells:** buried objects, mimics posing as objects (cursed object detection), the trapped-door and trapped-chest glyphs (found chest traps are only known), `nommap` levels, body parts of forms ("hooves"), edibility prompts (`u.uedibility` is recorded only), `browse_map()`, the random farsight's objects and monsters, golems' hit points per level for drain life, knock's hurtle through regions or water and into a cockatrice.
+- **Detection and spells:** buried objects, ~~mimics posing as objects (cursed object detection)~~ (m13 step 3), the trapped-door and trapped-chest glyphs (found chest traps are only known), `nommap` levels, body parts of forms ("hooves"), edibility prompts (`u.uedibility` is recorded only), `browse_map()`, the random farsight's objects and monsters, golems' hit points per level for drain life, knock's hurtle through regions or water and into a cockatrice.
 
 From m10 (monster batch 1: 83 new rows in five steps, the web trap, shrieks, pudding division, monster regeneration, teleporters, cannibalism, starting gear, troll revival and object eaters; phone checks in TESTPLAN "10 monster batch 1"):
 

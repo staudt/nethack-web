@@ -3,6 +3,7 @@
 import type {
   Ctx,
   DefId,
+  EntityId,
   Level,
   LevelContent,
   LevelCount,
@@ -25,6 +26,7 @@ import {
 import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
 import { makemon, mkclass } from './generation';
+import { setMappearance } from './mimicstate';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
@@ -121,11 +123,28 @@ function contentSpot(
 }
 
 /**
- * ref: src/sp_lev.c create_monster(); an occupied spot moves to a close one
- * (`if (MON_AT(x, y) && enexto(...))`); `peaceful` overrides peace_minded()
- * (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`)
+ * des.monster's `appear_as` on a mimic made with its own disguise (set_mimic_sym() in makemon()):
+ * a piece of furniture, an object (with no shape for a corpse or statue), or a monster (its own
+ * kind: no disguise). Other monsters refuse it (no shapeshifters exist). 5.0's screening of a
+ * boulder disguise on a trap, boulder or closed door never runs (`m->x` is the monster's square
+ * by then), so none is made. ref: src/sp_lev.c create_monster() (the m_ap_type branch)
  */
-function createMonster(
+function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['appearAs']>): void {
+  const mon = ctx.state.entities[String(id)];
+  if (!mon || ctx.defs.monster(mon.def).glyph.ch !== 'm') return; // mlet == S_MIMIC
+  if (ap.kind === 'furniture') setMappearance(ctx, id, { type: 'furniture', id: ap.id });
+  else if (ap.kind === 'object') setMappearance(ctx, id, { type: 'object', id: ap.id });
+  else if (ap.id === mon.def)
+    setMappearance(ctx, id, null); // forced to appear as itself
+  else setMappearance(ctx, id, { type: 'monster', id: ap.id });
+}
+
+/**
+ * ref: src/sp_lev.c create_monster(); an occupied spot moves to a close one
+ * (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
+ * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`)
+ */
+export function createMonster(
   ctx: Ctx,
   level: Level,
   c: LevelContent,
@@ -142,6 +161,7 @@ function createMonster(
   // someone already there: a close place instead (makemon's enexto)
   if (!pos) return;
   const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true, inMklev: true });
+  if (id !== null && c.appearAs) applyAppearAs(ctx, id, c.appearAs);
   const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
 }

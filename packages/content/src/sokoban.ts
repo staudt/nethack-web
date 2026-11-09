@@ -47,8 +47,8 @@ const madeByU = (data: unknown): boolean =>
 //
 // The level flags noteleport, hardfloor, mazelevel, solidify and des.non_diggable are a table in
 // levelflags.ts. Not ported (DEVIATIONS "Sokoban"): des.non_passwall (nothing phases), the monster-generation exclusion regions (approximated: on a `sokoban` level
-// random monster spots avoid trap squares, generation.ts), and on soko1 the two giant mimics.
-// soko1's treasure zoo is a typed region filled by zoo.ts; its prize is a fixup there (the
+// random monster spots avoid trap squares, generation.ts). soko1's two giant mimics pose as
+// boulders (LevelContent.appearAs). soko1's treasure zoo is a typed region filled by zoo.ts; its prize is a fixup there (the
 // Elbereth engraving and the cursed scroll of scare monster beside it are not ported).
 
 const SOLID_STONE = { style: 'solidfill', fg: 'nh:stone' } as const;
@@ -77,6 +77,17 @@ const RANDOM_OBJECTS: LevelContent[] = [
   { kind: 'object', class: 'ring' },
   { kind: 'object', class: 'wand' },
 ];
+
+/**
+ * des.monster({ id = "giant mimic", appear_as = "obj:boulder" }) twice, on soko1's two levels
+ * between the traps and the random objects.
+ */
+const BOULDER_MIMICS: LevelContent = {
+  kind: 'monster',
+  id: 'nh:giant_mimic',
+  count: 2,
+  appearAs: { kind: 'object', id: B },
+};
 
 /** ref: dat/soko1-1.lua */
 export const SOKO1_1: LevelDef = {
@@ -159,6 +170,7 @@ export const SOKO1_1: LevelDef = {
       [22, 1],
       [23, 1],
     ),
+    BOULDER_MIMICS,
     ...RANDOM_OBJECTS,
   ],
 };
@@ -247,6 +259,7 @@ export const SOKO1_2: LevelDef = {
       [22, 1],
       [23, 1],
     ),
+    BOULDER_MIMICS,
     ...RANDOM_OBJECTS,
   ],
 };
