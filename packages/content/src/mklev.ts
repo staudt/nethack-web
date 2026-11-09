@@ -4,6 +4,7 @@
 import { pruneDoorTraps, setDoorTrapped } from './btrapstate';
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, trapAt } from '@nh/core';
+import { A_LAWFUL, altarOf, type Aligntyp } from './aligntyp';
 import { BOULDER, boulderAt } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon } from './generation';
@@ -119,9 +120,10 @@ export function mktrap(
  * One ordinary room's contents, in mklev's order: a monster (1 in 3; a giant spider gets a web
  * under it), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
- * a fountain (1 in 10), a statue (1 in 20), then random objects (1 in 3 for the first, then 1 in 5 for each
- * further one). ref: src/mklev.c fill_ordinary_room(). Mimics, sinks, altars, graves,
- * engravings and the bonus items do not exist, and so do not roll.
+ * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a statue (1 in 20), then random
+ * objects (1 in 3 for the first, then 1 in 5 for each further one). ref: src/mklev.c
+ * fill_ordinary_room(). Mimics, graves, engravings and the bonus items do not exist, and so do
+ * not roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
@@ -141,6 +143,9 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
     mkgold(ctx, 0, { level: level.id, x: pos.x, y: pos.y });
   if (ctx.rng.rn2(10) === 0) mkfount(ctx, level, room);
+  if (ctx.rng.rn2(60) === 0) mksink(ctx, level, room);
+  if (ctx.rng.rn2(60) === 0) mkaltar(ctx, level, room);
+  // (the grave roll is not drawn: no graves, DEVIATIONS.md "Special rooms")
   // put statues inside
   if (ctx.rng.rn2(20) === 0 && (pos = somexyspace(ctx, level, room)))
     mkcorpstat(ctx, null, { level: level.id, x: pos.x, y: pos.y }, { init: true, inMklev: true });
@@ -206,6 +211,23 @@ export function mkfount(ctx: Ctx, level: Level, room: Room): void {
   if (!m) return;
   setTerrain(level, m.x, m.y, T.fountain);
   if (ctx.rng.rn2(7) === 0) setFountainBits(ctx, level.id, m.x, m.y, FTN_MAGIC);
+}
+
+/** A sink in the room. ref: src/mklev.c mksink() (no nsinks count: level sounds are not ported) */
+export function mksink(ctx: Ctx, level: Level, room: Room): void {
+  const m = findOkayRoompos(ctx, level, room);
+  if (m) setTerrain(level, m.x, m.y, T.sink);
+}
+
+/**
+ * An altar of a random alignment (chaotic, neutral or lawful) in an ordinary room; not a shrine.
+ * ref: src/mklev.c mkaltar()
+ */
+export function mkaltar(ctx: Ctx, level: Level, room: Room): void {
+  if (room.type !== undefined) return; // croom->rtype != OROOM
+  const m = findOkayRoompos(ctx, level, room);
+  if (!m) return;
+  setTerrain(level, m.x, m.y, altarOf((ctx.rng.rn2(A_LAWFUL + 2) - 1) as Aligntyp));
 }
 
 /**

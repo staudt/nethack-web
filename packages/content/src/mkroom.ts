@@ -1,17 +1,22 @@
 // makelevel()'s special room: up to one shop, throne room, leprechaun hall, zoo... per ordinary
 // level, by depth. The chain only types the room (`Room.type`); shknam.ts stocks shops and zoo.ts
-// fills the others with the rest of the level, as fill_special_room() does.
-// ref: src/mklev.c makelevel(); src/mkroom.c do_mkroom(), pick_room(), mkzoo(), has_upstairs(),
-// has_dnstairs()
+// fills the others with the rest of the level, as fill_special_room() does; a temple gets its
+// shrine and priest at once, as mktemple() does.
+// ref: src/mklev.c makelevel(); src/mkroom.c do_mkroom(), pick_room(), mkzoo(), mktemple(),
+// shrine_pos(), has_upstairs(), has_dnstairs(); src/dungeon.c induced_align()
 //
-// Not ported (DEVIATIONS.md "Special rooms"): temples, beehives, morgues, antholes, barracks,
-// swamps and cockatrice nests are not made yet: their roll is drawn and, when it hits, no room
-// is made (the chain stops there, as C's would with that room); the wizard-mode SHOPTYPE and
-// pick_room()'s `|| wizard`.
-import type { Ctx, DefId, Level, Room } from '@nh/core';
+// Not ported (DEVIATIONS.md "Special rooms"): swamps are not made: their roll is drawn and, when
+// it hits, no room is made (the chain stops there, as C's would with that room); the
+// wizard-mode SHOPTYPE and pick_room()'s `|| wizard`.
+import type { Ctx, DefId, Level, Pos, Room } from '@nh/core';
+import { cellIndex } from '@nh/core';
+import { altarOf, type Aligntyp } from './aligntyp';
 import { TEMPLE } from './epri';
+import { priestini } from './priest';
 import { antholemon } from './roommon';
 import { mkshop } from './shknam';
+import { somexyspaceTry } from './somexy';
+import { setTerrain } from './terrain';
 import { isGenocided } from './vanquished';
 import {
   ANTHOLE,
@@ -87,11 +92,64 @@ export function mkzoo(ctx: Ctx, level: Level, type: DefId): void {
 }
 
 /**
- * Makes a special room of `type`: a shop for any shop type, else a zoo-like room. The kinds not
- * built yet make nothing. ref: src/mkroom.c do_mkroom()
+ * An altar's alignment where a random level makes one: the level's alignment, then the
+ * dungeon's, each `pct` per cent of the time, else a random one. Random levels (the only callers)
+ * are in the Dungeons of Doom, which with its ordinary levels has no alignment, so only the last
+ * roll is drawn. ref: src/dungeon.c induced_align()
+ */
+export function inducedAlign(ctx: Pick<Ctx, 'rng'>): Aligntyp {
+  return (ctx.rng.rn2(3) - 1) as Aligntyp;
+}
+
+/**
+ * The room's centre (with even sizes one of the squares round the middle, by `rn2(2)` on each
+ * axis), or, when that is not plain floor, the last square somexyspace() tried. ref:
+ * src/mkroom.c shrine_pos() (random rooms are regular and have no subrooms, so the roomno test
+ * is the floor test)
+ */
+export function shrinePos(ctx: Pick<Ctx, 'rng'>, level: Level, room: Room): Pos {
+  let delta = room.hx - room.lx;
+  let x = room.lx + Math.trunc(delta / 2);
+  if (delta % 2 && ctx.rng.rn2(2)) x++;
+  delta = room.hy - room.ly;
+  let y = room.ly + Math.trunc(delta / 2);
+  if (delta % 2 && ctx.rng.rn2(2)) y++;
+  if (level.palette[level.cells[cellIndex(level, x, y)] ?? -1] !== 'nh:floor')
+    return somexyspaceTry(ctx, level, room).pos;
+  return { x, y };
+}
+
+/**
+ * Makes room `idx` a temple: its shrine (an altar of induced_align(80)) at shrine_pos() and the
+ * priest beside it, at once. The wizard's `wiz:mkroom` uses it too. ref: src/mkroom.c mktemple()
+ * after pick_room() (has_temple is not kept: the sanctuary asks the room)
+ */
+export function makeTemple(ctx: Ctx, level: Level, idx: number): void {
+  const sroom = level.rooms[idx];
+  if (!sroom) return;
+  sroom.type = TEMPLE;
+  // in temples, shrines are blessed altars located in the center of the room
+  const spot = shrinePos(ctx, level, sroom);
+  setTerrain(level, spot.x, spot.y, altarOf(inducedAlign(ctx)));
+  priestini(ctx, level, idx, spot);
+  // altarmask |= AM_SHRINE
+  if (!level.shrines?.some((p) => p.x === spot.x && p.y === spot.y))
+    (level.shrines ??= []).push({ x: spot.x, y: spot.y });
+}
+
+/** A temple in a room with no stairs. ref: src/mkroom.c mktemple() */
+export function mktemple(ctx: Ctx, level: Level): void {
+  const sroom = pickRoom(ctx, level, true);
+  if (sroom !== null) makeTemple(ctx, level, sroom);
+}
+
+/**
+ * Makes a special room of `type`: a shop for any shop type, a temple, else a zoo-like room. The
+ * kinds not built yet (swamps) make nothing. ref: src/mkroom.c do_mkroom()
  */
 export function doMkroom(ctx: Ctx, level: Level, type: DefId | 'shop'): void {
   if (type === 'shop') mkshop(ctx, level);
+  else if (type === TEMPLE) mktemple(ctx, level);
   else if (FILLED_ZOO_KINDS.includes(type)) mkzoo(ctx, level, type);
 }
 

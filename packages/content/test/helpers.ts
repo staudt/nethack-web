@@ -67,6 +67,8 @@ export function setup(rows: string[], seed = 1) {
   };
   state.levels['dlvl1'] = level;
   state.memory['dlvl1'] = newMemory(level);
+  delete state.objectMemory['dlvl1']; // the generated level's memories do not carry over
+  delete state.monsterMemory['dlvl1'];
   const hero = getPlayer(state);
   if (hero.c.pos) Object.assign(hero.c.pos, { level: 'dlvl1', x: start.x, y: start.y });
   if (hero.c.hp) hero.c.hp = { cur: 500, max: 500 };

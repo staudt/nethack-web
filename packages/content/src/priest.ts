@@ -48,8 +48,10 @@ import { mkobj } from './mkobj';
 import { whichArmor } from './mongear';
 import { P, hasIntrinsic, hasProp, heroHas, incrItimeout, setIntrinsic } from './props';
 import { isFrozen, unfreezeMonst } from './mstate';
+import { monVisible } from './invis';
+import { nomul } from './nomul';
 import { isFleeing } from './monflee';
-import { monNam } from './perception';
+import { canSpotMon, monNam } from './perception';
 import { monLearnsTraps } from './trapstate';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -147,11 +149,16 @@ export function templePriests(ctx: Ctx, level: Level): void {
   const shrines = level.shrines;
   if (!shrines) return;
   const kept: Pos[] = [];
+  // a random level's temple got its priest with it (mktemple())
+  const tended = sortedIds(ctx.state).flatMap((id) => {
+    const e = epriOf(ctx, id);
+    return e && e.shrlevel === level.id ? [e.shrpos] : [];
+  });
   for (const s of shrines) {
     const room = templeOccupied(level, inRooms(level, s.x, s.y));
     if (room === null) continue; // !croom_is_temple: a plain altar
     kept.push(s);
-    priestini(ctx, level, room, s);
+    if (!tended.some((p) => p.x === s.x && p.y === s.y)) priestini(ctx, level, room, s);
   }
   if (kept.length > 0) level.shrines = kept;
   else delete level.shrines;
@@ -266,8 +273,9 @@ function canseeNow(ctx: Ctx, at: Pos): boolean {
  * The hero has just entered temple `roomno` (from `rooms0`, the typed rooms she was in before).
  * Tended: the priest intones (at most every ~2505 turns), "Pilgrim, you enter a sacred place!"
  * (~505), and a forbidding feeling or a sense of peace (~55, or at once when it switches). Untended:
- * an eerie feeling, one time in four nothing. ref: src/priest.c intemple() (no Sanctum, deafness,
- * achievements or ghost: the rn2(5) roll for the ghost is made, but there is no ghost monster)
+ * an eerie feeling, one time in four nothing, and one time in five a hostile ghost appears next to
+ * her and frightens her helpless for 3 turns. ref: src/priest.c intemple() (no Sanctum, deafness
+ * or achievements)
  */
 export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): void {
   const level = getLevel(ctx.state);
@@ -326,8 +334,25 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
   const UNTENDED = ['temple.eerie', 'temple.watched', 'temple.shiver'];
   const feeling = UNTENDED[ctx.rng.rn2(4)];
   if (feeling) ctx.emit({ type: 'msg', key: feeling });
-  ctx.rng.rn2(5); // the ghost (not ported: no ghost monster)
+  if (ctx.rng.rn2(5)) return;
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!hp) return;
+  const gid = makemon(ctx, ctx.defs.monster(GHOST), hp, { adjacentOk: true });
+  const ghost = gid === null ? undefined : ctx.state.entities[String(gid)];
+  if (gid === null || !ghost?.c.monster || !ghost.c.pos) return;
+  // ("A ghost appears next to you." after the first five, "." after ten: no birth counts here)
+  const seen = (canseeNow(ctx, ghost.c.pos) && monVisible(ctx, ghost)) || canSpotMon(ctx, ghost);
+  ctx.emit({ type: 'msg', key: seen ? 'temple.ghost_appears' : 'temple.sense_presence' });
+  ghost.c.monster.peaceful = false; // (set_malign(): computed when needed)
+  ctx.emit({ type: 'msg', key: 'temple.frightened' });
+  // nomul(-3) from inside the move: the extra energy is taken at once (as nomulNow())
+  const extra = nomul(ctx, 3, 'helpless.terrified_ghost', { key: 'temple.regain_composure' });
+  const actor = getPlayer(ctx.state).c.actor;
+  if (actor) actor.energy -= extra;
 }
+
+/** ref: include/monsters.h PM_GHOST */
+const GHOST = 'nh:ghost';
 
 /** Makes the temple priests of each new level (before its other contents, as create_altar()). */
 export function registerPriest(api: ModApi): void {

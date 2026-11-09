@@ -73,7 +73,7 @@ describe('kick: door', () => {
 
 describe('kick: walls and legs', () => {
   test('a wall says Ouch and costs hit points', () => {
-    const s = setup(['|.@.|', '-----'], 1); // a seed where no hit point regenerates that turn
+    const s = setup(['|.@.|', '-----'], 2); // a seed where no hit point regenerates that turn (1 before m12 step 5)
     stats(s);
     const hp0 = s.state.entities[String(s.state.playerId)]!.c.hp!.cur;
     const r = kick(s, 's');

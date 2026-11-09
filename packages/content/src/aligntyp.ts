@@ -25,3 +25,14 @@ const ALTARS: Readonly<Record<string, Aligntyp>> = {
 export function altarAlign(terrain: DefId): Aligntyp | null {
   return ALTARS[terrain] ?? null;
 }
+
+/** The altar terrain of an alignment. ref: Align2amask() */
+export function altarOf(al: Aligntyp): DefId {
+  return al === A_LAWFUL
+    ? T.altar_lawful
+    : al === A_NEUTRAL
+      ? T.altar_neutral
+      : al === A_CHAOTIC
+        ? T.altar_chaotic
+        : T.altar_unaligned;
+}

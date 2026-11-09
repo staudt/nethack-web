@@ -49,7 +49,7 @@ From 6b2 (the Minetown temple: altars, the priest, #chat, donations and praying 
 
 - **Sacrifice (`#offer`)** (user decision): corpse sacrifice and its gifts, converting altars (and `angry_priest()` turning a priest whose altar is lost into a roaming minion), crowning, the unicorn and same-race penalties, the atheism conduct.
 - **Priest gear and names:** the 1 in 7 cloak of protection or magic resistance (needs the shuffled cloak appearances), priestesses (monster genders), the hallucinated "poohbah".
-- **Other temples:** random altars and temples in ordinary rooms, roaming minions and aligned priests outside temples, the Valley and the Sanctum's high altars, ghosts in untended temples ("You are frightened to death").
+- **Other temples:** roaming minions and aligned priests outside temples, the Valley and the Sanctum's high altars (random temples, random altars and the untended temple's ghost came in m12 step 5).
 - **Prayer extras:** reviving a pet's corpse on an altar (`pray_revive()`: corpses must remember their monster), undead and demon forms, Gehennom, minions, punishment, level drain, spellbook gifts, crowning, the castle tune, the gnostic conduct and wizard mode's "Force the gods to be pleased?".
 - **Clairvoyance:** objects and monsters in each vision, and `seer_turn` rolled in every game (moves every replay); clairvoyance from objects and the Amulet.
 - **#chat:** the remaining `domonnoise()` sounds, statues, mimics, hiders, steeds, the up/down directions, deafness and the full-moon howling.

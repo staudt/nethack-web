@@ -1,5 +1,10 @@
-import { getLevel, getPlayer, type ActionDef, type Ctx } from '@nh/core';
+import { getLevel, getPlayer, type ActionDef, type Ctx, type DefId } from '@nh/core';
+import { TEMPLE } from '../epri';
+import { makeTemple } from '../mkroom';
 import { FILLED_ZOO_KINDS, fillZoo } from '../zoo';
+
+/** The kinds it offers: every kind fill_zoo() fills, and a temple. */
+const KINDS: readonly DefId[] = [...FILLED_ZOO_KINDS, TEMPLE];
 
 export const WIZ_MKROOM = 'wiz:mkroom';
 
@@ -20,7 +25,8 @@ function heroRoom(ctx: Ctx): number | null {
 /**
  * Not in NetHack (it stands in for the wizard-mode SHOPTYPE and des.room): turns the ordinary
  * room the hero stands in into a special room of a chosen kind and fills it as level creation
- * would (fill_zoo(); her own square stays empty). Its entry message comes when she next moves
+ * would (fill_zoo(); her own square stays empty; a temple gets its shrine and priest as mktemple()
+ * makes them). Its entry message comes when she next moves
  * within or into it. Takes no time.
  */
 export const wizMkroom: ActionDef = {
@@ -42,7 +48,7 @@ export const wizMkroom: ActionDef = {
         kind: 'menu',
         key: 'wiz.mkroom.prompt',
         cancellable: true,
-        options: FILLED_ZOO_KINDS.map((k) => ({ value: k, key: `wiz.mkroom.${k}` })),
+        options: KINDS.map((k) => ({ value: k, key: `wiz.mkroom.${k}` })),
       },
       WIZ_MKROOM,
       null,
@@ -50,7 +56,7 @@ export const wizMkroom: ActionDef = {
     return 0;
   },
   answer(ctx, value) {
-    const kind = FILLED_ZOO_KINDS.find((k) => k === value);
+    const kind = KINDS.find((k) => k === value);
     if (kind === undefined) return 0;
     const i = heroRoom(ctx);
     const level = getLevel(ctx.state);
@@ -59,8 +65,11 @@ export const wizMkroom: ActionDef = {
       say(ctx, 'wiz.mkroom.no_room');
       return 0;
     }
-    r.type = kind;
-    fillZoo(ctx, level, i, false);
+    if (kind === TEMPLE) makeTemple(ctx, level, i);
+    else {
+      r.type = kind;
+      fillZoo(ctx, level, i, false);
+    }
     return 0;
   },
 };

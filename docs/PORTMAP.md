@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-153 NetHack files, 3917 citations.
+153 NetHack files, 3923 citations.
 
 ## dat/dungeon.lua
 
@@ -341,6 +341,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
 - `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
+- `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
 - `PM_SHOPKEEPER()`: `packages/content/src/eshk.ts`
 
@@ -883,6 +884,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `deepest_lev_reached()`: `packages/content/src/urexp.ts`
 - `depth()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/level.ts`
 - `get_level()`: `packages/content/src/teleport.ts`
+- `induced_align()`: `packages/content/src/mkroom.ts`
 - `init_dungeon_dungeons()`: `packages/core/src/dungeon.ts`
 - `init_dungeon_set_depth()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
 - `init_dungeon_set_entry()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
@@ -1268,6 +1270,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mklev.c
 
+- (file): `packages/content/src/mklev.ts`
 - `add_door()`: `packages/content/src/zoo.ts`
 - `add_room()`: `packages/core/src/levelgen/rooms.ts`
 - `add_subroom()`: `packages/core/src/levelgen/sprooms.ts`
@@ -1287,7 +1290,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `makelevel()`: `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/generate.ts`
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
 - `maybe_sdoor()`: `packages/core/src/levelgen/corridors.ts`
+- `mkaltar()`: `packages/content/src/mklev.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
+- `mksink()`: `packages/content/src/mklev.ts`
 - `mktrap()`: `packages/content/src/mklev.ts`, `packages/core/src/traps.ts`
 - `occupied()`: `packages/content/src/somexy.ts`
 - `okdoor()`: `packages/core/src/levelgen/corridors.ts`
@@ -1388,6 +1393,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `isbig()`: `packages/content/src/shknam.ts`
 - `mk_zoo_thronemon()`: `packages/content/src/zoo.ts`
 - `mkshop()`: `packages/content/src/shknam.ts`
+- `mktemple()`: `packages/content/src/mkroom.ts`
 - `mkzoo()`: `packages/content/src/mkroom.ts`
 - `morguemon()`: `packages/content/src/roommon.ts`
 - `nexttodoor()`: `packages/content/src/fountain.ts`

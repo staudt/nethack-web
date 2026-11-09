@@ -161,7 +161,8 @@ describe('boulders and land mines', () => {
     let blown = 0;
     // searched seeds: in none does the blast throw the boulder back onto its old square (then
     // moverock() is 'blocked', C's `sobj_at(BOULDER, sx, sy) ? -1 : 0`) or anywhere else
-    for (let seed = 1; seed <= 20; seed++) {
+    // (seeds 15 to 34 since m12 step 5's sinks and altars moved the stream; 1 to 20 before)
+    for (let seed = 15; seed <= 34; seed++) {
       const m = mapSetup(ROW, { seed });
       run(m.state, (ctx) => {
         mksobj(ctx, obj(BOULDER), { init: false, at: { level: 'dlvl1', x: 2, y: 1 } });

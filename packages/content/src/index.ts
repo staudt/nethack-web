@@ -536,7 +536,18 @@ export {
 export { EAT_ACTIONS, stopOccupation, losehp } from './eat';
 export { mkobj, mkobjAt, mksobjFull, mkboxCnts, rndmonnum, MKOBJ_PROBS, BOX_PROBS } from './mkobj';
 export { somexyspace, somexyspaceTry, occupied } from './somexy';
-export { mkSpecialRoom, pickRoom, mkzoo, doMkroom, hasUpstairs, hasDnstairs } from './mkroom';
+export {
+  mkSpecialRoom,
+  pickRoom,
+  mkzoo,
+  doMkroom,
+  hasUpstairs,
+  hasDnstairs,
+  inducedAlign,
+  makeTemple,
+  mktemple,
+  shrinePos,
+} from './mkroom';
 export { courtmon, squadmon, morguemon, ndemon, antholemon } from './roommon';
 export {
   ZOO,
@@ -554,7 +565,7 @@ export {
   mkTtObject,
   roomDoors,
 } from './zoo';
-export { fillOrdinaryRoom, mktrap, traptypeRnd, mkfount } from './mklev';
+export { fillOrdinaryRoom, mktrap, traptypeRnd, mkfount, mksink, mkaltar } from './mklev';
 export {
   FTN_MAGIC,
   FTN_LOOTED,
