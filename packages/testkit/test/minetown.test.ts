@@ -388,11 +388,11 @@ describe('the temple priest of a real Minetown', () => {
       'mcastu.fire_pillar',
       'mcastu.geyser',
     ];
-    // (from seed 5: after m12 step 6's vault roll seeds 3 and 4's towns fail the door invariant
-    // the same way; from seed 3: after m12 step 5's sinks and altars seed 2's town fails it
-    // the same way; after m11 step 7's scrolls, seed 1's town had a dwarf dig through a wall next
-    // to a door, which the door invariant flags)
-    const { state, level } = priestTown(5);
+    const { state, level } = priestTown(1);
+    // doors as the level was made: tunnelling dwarves may dig the walls beside one, or a wall
+    // corner into a doorway (as in C's mdig_tunnel(); seeds 1..4 once failed that way here)
+    const doorsChecked = new Set<string>();
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
     const [id] = priestsOn(state, level.id);
     const priest = state.entities[String(id)];
     const pp = priest?.c.pos;
@@ -435,7 +435,7 @@ describe('the temple priest of a real Minetown', () => {
     // never a mage spell
     for (const k of ['mcastu.psi.slight', 'mcastu.reel', 'mcastu.weaker', 'mcastu.aware'])
       expect(heard).not.toContain(k);
-    expect(checkInvariants(state, defs)).toEqual([]);
+    expect(checkInvariants(state, defs, { doorsChecked })).toEqual([]);
   });
 
   test('he does not follow the hero off the level, peaceful or angry', () => {

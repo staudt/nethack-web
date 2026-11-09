@@ -18,7 +18,8 @@ export interface InvariantOpts {
   /**
    * Levels whose doors were already checked: they are skipped, and each level checked is added.
    * A long run passes one set, so the doors are checked as the level was made, not after the hero
-   * dug through its walls (a pick-axe or a wand of digging leaves doors without walls, as in C).
+   * dug through its walls (a pick-axe, a wand of digging or a tunnelling dwarf leaves doors
+   * without walls, or a dug wall corner as an empty doorway, as in C).
    */
   doorsChecked?: Set<string>;
 }
