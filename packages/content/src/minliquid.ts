@@ -8,7 +8,8 @@
 // shapeshifters reverting in the air, deal_with_overcrowding() (a monster with nowhere to go
 // stays where it is), the "You have a sad feeling" for an unseen pet (iflags.sad_feeling).
 import { type Ctx, type Entity, type Msg } from '@nh/core';
-import { dryup } from './fountain';
+import { fireDamageChain } from './flooreffects';
+import { dryup, setGushMinliquid } from './fountain';
 import { experienceFor, gainExperience } from './hero';
 import { isLava, isPool, isWaterwall, mInAir } from './liquid';
 import { mondead, mondied, monsterDied } from './mondeath';
@@ -127,8 +128,11 @@ export function minliquid(ctx: Ctx, mon: Entity, monMoving = true): 0 | 1 {
         } else if (seen) say(ctx, 'liquid.mon_burns_slightly', { mon: monNam(ctx, mon) });
       }
       if (alive(ctx, mon)) {
-        // (fire_damage_chain() of what it carries: m15 step 3's lava objects)
-        if (!mInAir(ctx, mon) && !likesLava(def)) rlocMon(ctx, mon, true);
+        if (!mInAir(ctx, mon) && !likesLava(def)) {
+          const p = mon.c.pos;
+          if (p) fireDamageChain(ctx, minvent(ctx, mon.id), false, p.x, p.y);
+          rlocMon(ctx, mon, true);
+        }
         return 0;
       }
       return 1;
@@ -172,3 +176,4 @@ export function minliquid(ctx: Ctx, mon: Entity, monMoving = true): 0 | 1 {
 }
 
 setMinliquidHook((ctx, mon) => minliquid(ctx, mon) === 1);
+setGushMinliquid((ctx, mon) => void minliquid(ctx, mon, false));

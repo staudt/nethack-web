@@ -50,10 +50,14 @@ export function trapTable(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): T
   return t;
 }
 
-/** The hero's trap (u.utrap turns, u.utraptype): TT_BEARTRAP, TT_PIT or TT_WEB. */
+/**
+ * The hero's trap (u.utrap turns, u.utraptype): TT_BEARTRAP, TT_PIT, TT_WEB, TT_LAVA (sinking
+ * into molten lava: the low byte is the turns to pull free, the rest how deep she is) or
+ * TT_INFLOOR (stuck in lava that cooled to rock).
+ */
 export interface UTrap {
   n: number;
-  type: 'beartrap' | 'pit' | 'web';
+  type: 'beartrap' | 'pit' | 'web' | 'lava' | 'infloor';
 }
 
 /** ref: u.utrap / u.utraptype */
@@ -62,7 +66,10 @@ export function utrap(ctx: Pick<Ctx, 'state'>): UTrap | null {
   if (!isObj(v) || typeof v['n'] !== 'number' || v['n'] <= 0) return null;
   const t = v['type'];
   // older saves and unknown kinds read as a bear trap
-  return { n: v['n'], type: t === 'pit' || t === 'web' ? t : 'beartrap' };
+  return {
+    n: v['n'],
+    type: t === 'pit' || t === 'web' || t === 'lava' || t === 'infloor' ? t : 'beartrap',
+  };
 }
 
 /**
@@ -273,4 +280,22 @@ export function clearConjoinedPits(level: Level, trap: Trap | null | undefined):
     if (t && isPit(t.def)) setConjoined(t, conjoinedOf(t) & ~(1 << dir180(i)));
   }
   setConjoined(trap, 0);
+}
+
+/**
+ * u.umoved for an escape attempt from lava that left her in place (trapmove() TT_LAVA sets it):
+ * kept outside the state for the length of one action, read once by sink_into_lava()'s check.
+ */
+let umovedTry = false;
+
+/** trapmove(): she tried to pull out of the lava this action. */
+export function markUmoved(): void {
+  umovedTry = true;
+}
+
+/** Reads and clears the escape attempt of this action. */
+export function takeUmoved(): boolean {
+  const v = umovedTry;
+  umovedTry = false;
+  return v;
 }

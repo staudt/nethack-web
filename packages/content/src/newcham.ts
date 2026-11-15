@@ -20,7 +20,7 @@ import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { expels, unstuck } from './engulf';
 import { digests, isWhirly, uswallow } from './engulfstate';
-import { boulderFlooreffects } from './flooreffects';
+import { flooreffects } from './flooreffects';
 import { adjLev, newmonhp } from './generation';
 import { ustuck } from './hackmove';
 import { setAdNewcham } from './adtyping';
@@ -258,8 +258,7 @@ export function newcham(
       // this keeps it from being polymorphed in the same zap that polymorphed its carrier
       if (polyspot) bypassObj(o.id);
       // probably ought to give some "drop" message here
-      if (at.level === ctx.state.currentLevel && boulderFlooreffects(ctx, o, at.x, at.y, 'fall'))
-        continue;
+      if (at.level === ctx.state.currentLevel && flooreffects(ctx, o, at.x, at.y, 'fall')) continue;
       placeOnFloor(ctx, o.id, at.level, at.x, at.y);
     }
   }

@@ -5,18 +5,20 @@
 // ref: src/mklev.c makelevel(); src/mkroom.c do_mkroom(), pick_room(), mkzoo(), mktemple(),
 // shrine_pos(), has_upstairs(), has_dnstairs(); src/dungeon.c induced_align()
 //
-// Not ported (DEVIATIONS.md "Special rooms"): swamps are not made: their roll is drawn and, when
-// it hits, no room is made (the chain stops there, as C's would with that room); the
-// wizard-mode SHOPTYPE and pick_room()'s `|| wizard`.
+// Swamps (mkswamp()) are made at once: pools in a checkerboard with eels and piranhas, and fungi.
+// Not ported (DEVIATIONS.md "Special rooms"): the wizard-mode SHOPTYPE and pick_room()'s
+// `|| wizard`, the swamp's level sounds (has_swamp).
 import type { Ctx, DefId, Level, Pos, Room } from '@nh/core';
-import { cellIndex } from '@nh/core';
+import { cellIndex, isPlainFloor, itemsAt, trapAt } from '@nh/core';
+import { monsterIdAt } from './combat';
+import { makemon, mkclass } from './generation';
 import { altarOf, type Aligntyp } from './aligntyp';
 import { TEMPLE } from './epri';
 import { priestini } from './priest';
 import { antholemon } from './roommon';
 import { mkshop } from './shknam';
 import { somexyspaceTry } from './somexy';
-import { setTerrain } from './terrain';
+import { T, nexttodoor, setTerrain } from './terrain';
 import { isGenocided } from './vanquished';
 import { vaultRoom } from './vaultstate';
 import {
@@ -145,12 +147,69 @@ export function mktemple(ctx: Ctx, level: Level): void {
 }
 
 /**
- * Makes a special room of `type`: a shop for any shop type, a temple, else a zoo-like room. The
- * kinds not built yet (swamps) make nothing. ref: src/mkroom.c do_mkroom()
+ * Up to five tries at turning a random ordinary room without stairs into a swamp: every other
+ * free square (no object, monster or trap, not next to a door) becomes a pool, the first with an
+ * eel and then 1 in 4 of them (a giant eel 4 times in 5, else a piranha or an electric eel, as
+ * mkclass() might make a kraken), and 1 in 4 of the squares between get a fungus.
+ * ref: src/mkroom.c mkswamp() (Michiel Huisjes & Fred de Wilde; no engravings)
+ */
+export function mkswamp(ctx: Ctx, level: Level): void {
+  const rooms = topRooms(level);
+  const nroom = rooms.length;
+  if (nroom === 0) return;
+  let eelct = 0;
+  for (let i = 0; i < 5; i++) {
+    // turn up to 5 rooms swampy
+    const idx = rooms[ctx.rng.rn2(nroom)] as number;
+    const sroom = level.rooms[idx] as Room;
+    if (sroom.type !== undefined || hasUpstairs(level, sroom) || hasDnstairs(level, sroom))
+      continue;
+    // satisfied; make a swamp
+    sroom.type = SWAMP;
+    for (let sx = sroom.lx; sx <= sroom.hx; sx++)
+      for (let sy = sroom.ly; sy <= sroom.hy; sy++) {
+        if (!isPlainFloor(ctx.defs, level, sx, sy)) continue; // IS_ROOM(), this room
+        if (
+          itemsAt(ctx.defs, ctx.state, level.id, sx, sy).length > 0 ||
+          monsterIdAt(ctx, { x: sx, y: sy }, level.id) !== null ||
+          trapAt(level, sx, sy) ||
+          nexttodoor(ctx, level, sx, sy)
+        )
+          continue;
+        if ((sx + sy) % 2) {
+          setTerrain(level, sx, sy, T.pool);
+          if (!eelct || !ctx.rng.rn2(4)) {
+            // mkclass() won't do, as we might get kraken
+            const pm = ctx.rng.rn2(5)
+              ? 'nh:giant_eel'
+              : ctx.rng.rn2(2)
+                ? 'nh:piranha'
+                : 'nh:electric_eel';
+            makemon(
+              ctx,
+              ctx.defs.monster(pm),
+              { x: sx, y: sy },
+              { level: level.id, inMklev: true },
+            );
+            eelct++;
+          }
+        } else if (!ctx.rng.rn2(4)) {
+          // swamps tend to be moldy
+          const def = mkclass(ctx, 'F', level.depth);
+          makemon(ctx, def, { x: sx, y: sy }, { level: level.id, inMklev: true });
+        }
+      }
+  }
+}
+
+/**
+ * Makes a special room of `type`: a shop for any shop type, a temple, a swamp, else a zoo-like
+ * room. ref: src/mkroom.c do_mkroom()
  */
 export function doMkroom(ctx: Ctx, level: Level, type: DefId | 'shop'): void {
   if (type === 'shop') mkshop(ctx, level);
   else if (type === TEMPLE) mktemple(ctx, level);
+  else if (type === SWAMP) mkswamp(ctx, level);
   else if (FILLED_ZOO_KINDS.includes(type)) mkzoo(ctx, level, type);
 }
 

@@ -131,14 +131,18 @@ describe('stepping into the water', () => {
 
   test('a heavy load is dumped to crawl out', () => {
     const m = make();
-    const rocks = [carry(m.state, 'nh:boulder'), carry(m.state, 'nh:boulder')];
+    // (boulders would fill the pool as they are dropped: flooreffects())
+    const rocks = ['a', 'b', 'c', 'd', 'e'].map(() => carry(m.state, 'nh:chest'));
     Object.assign(getPlayer(m.state).c.pos ?? {}, POOL);
     const t = withCtx(m.state, (ctx) => void pooleffects(ctx, true));
     expect(t).toContain('You try to crawl out of the water.');
     expect(t).toContain('You dump some of your gear to lose weight...');
     expect(t).toContain('Pheew!  That was close.');
-    for (const r of rocks) expect(itemOf(m.state, r).carriedBy).toBeNull();
-    expect(itemsAt(engine.registry, m.state, 'dlvl1', POOL.x, POOL.y).length).toBeGreaterThan(1);
+    const dropped = rocks.filter((r) => itemOf(m.state, r).carriedBy === null);
+    expect(dropped.length).toBeGreaterThan(0);
+    expect(itemsAt(engine.registry, m.state, 'dlvl1', POOL.x, POOL.y).map((o) => o.id)).toEqual(
+      expect.arrayContaining(dropped),
+    );
     expect(nearCapacity(m.state, engine.registry, m.state.playerId)).toBeLessThanOrEqual(1);
     expect(pos(m.state)).not.toEqual(POOL);
   });

@@ -55,6 +55,12 @@ export const isFlimsy = (def: ObjectDef): boolean => mat(def) > 0 && mat(def) <=
 /** ref: src/do_wear.c hard_helmet(): metallic or crackable (callers pass helmets) */
 export const hardHelmet = (def: ObjectDef): boolean => isMetallic(def) || isCrackable(def);
 
+/** ref: include/objclass.h is_organic(): material up to wood */
+export const isOrganic = (def: ObjectDef): boolean => mat(def) >= 0 && mat(def) <= WOOD;
+
+/** lava_damage()'s `oc_material < DRAGON_HIDE`: up to bone (and no material at all) */
+export const belowDragonHide = (def: ObjectDef): boolean => mat(def) < DRAGON_HIDE;
+
 const CANDLES = new Set(['nh:tallow_candle', 'nh:wax_candle']);
 
 /** ref: src/mkobj.c is_flammable() */

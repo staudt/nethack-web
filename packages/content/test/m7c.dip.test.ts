@@ -197,7 +197,11 @@ describe('dipping: the rnd(30) outcomes', () => {
     expect(first(27)[1]).toBe('You feel a sudden chill.');
     expect(first(28)[1]).toBe('An urge to take a bath overwhelms you.');
     expect(first(22)[1]).toBe('You attract a water nymph!'); // m9 step 3
-    expect(first(25)[1]).toBe('Water sprays all over you.');
+    // the gush: no pool made, or pools (m15 step 3)
+    expect([
+      'Water sprays all over you.',
+      'Water gushes forth from the overflowing fountain!',
+    ]).toContain(first(25)[1]);
   });
 
   test('gloved hands: the gloves get wet', () => {
@@ -260,7 +264,10 @@ describe('dipping: the rnd(30) outcomes', () => {
       itemsAt(defs, gem.state, 'dlvl1', F.x, F.y).some((o) => defs.object(o.def).class === 'gem'),
     ).toBe(true);
     setFountainBits({ state: s.state }, 'dlvl1', F.x, F.y, FTN_LOOTED);
-    expect(dips(s.state, 'hands', (f) => f === 24)[0]!.text[1]).toBe('Water sprays all over you.');
+    expect([
+      'Water sprays all over you.',
+      'Water gushes forth from the overflowing fountain!',
+    ]).toContain(dips(s.state, 'hands', (f) => f === 24)[0]!.text[1]);
   });
 
   test('28: the bath takes somegold() / 10 and clears the looted flag; 10 or less is kept', () => {

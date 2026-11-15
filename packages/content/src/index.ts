@@ -1,3 +1,4 @@
+import { registerIce } from './ice';
 import type { Mod } from '@nh/core';
 import { ACTIONS } from './actions';
 import { BRAINS } from './brains';
@@ -150,6 +151,7 @@ export const vanillaMod: Mod = {
     registerJewelry(api);
     registerLevitation(api);
     registerDrown(api);
+    registerIce(api);
     registerDowear(api);
     registerPolyTimeout(api); // u.mtimedone after levitation_dialogue(), as nh_timeout()
     registerAutosearch(api);
@@ -677,3 +679,7 @@ export { newcham, polyok } from './newcham';
 export { polyObj } from './polyobj';
 export { polyself, polymon, newman, rehumanize, youWere, POLYSELF_ID } from './polyself';
 export { heroForm, heroFormId, upolyOf, upolyd, type UPoly } from './upoly';
+export { isIce, isLava, isPool, isPoolOrLava, mInAir, waterbodyName } from './liquid';
+export { amphibious, breathless, likesLavaId, swimming, uinwater, wwalking } from './uwater';
+export { flying } from './trapstate';
+export { cantDrown, isSwimmer, likesLava } from './mondata';

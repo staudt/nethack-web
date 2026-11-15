@@ -81,7 +81,9 @@ import { completelyrusts } from './golem';
 import { luckOf, uState } from './luck';
 import { done } from './end';
 import { setEndHow } from './endstate';
-import { surfaceKey } from './terrain';
+import { T, setTerrain, surfaceKey, terrainIdAt } from './terrain';
+import { isLava } from './liquid';
+import { setIcedpool, stopMeltTimer } from './icestate';
 import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
@@ -112,6 +114,7 @@ import {
   flying,
   isPit,
   levitating,
+  markUmoved,
   monKnowsTraps,
   monLearnsTraps,
   setMtrapped,
@@ -351,6 +354,12 @@ export function maketrap(
       (u.type === 'pit' && !isPit(def))
     )
       setUtrap(ctx, 0, u.type);
+  }
+  // a pit or hole in ice turns it into floor (`set_levltyp(ROOM)`; no more ice to melt away)
+  if ((isPit(def) || isHole(def)) && terrainIdAt(level, x, y) === T.ice) {
+    setTerrain(level, x, y, T.floor);
+    setIcedpool(ctx, level, x, y, null);
+    stopMeltTimer(ctx, levelId, x, y);
   }
   const t: Trap = { def, x, y, seen: def === TRAP.hole }; // unhideable_trap()
   if (def === TRAP.squeaky) t.data = { tnote: chooseTrapnote(ctx, level, x, y) };
@@ -1129,7 +1138,10 @@ export function climbPit(ctx: Ctx): void {
  * move, or one time in five, loosens it; at zero "You finally wriggle free.". Pit: a seen pit
  * at the destination (`desttrap`) is stepped into without climbing out, else climb_pit(). Web:
  * each try takes one turn off, "You are stuck to the web." / "You disentangle yourself." (no
- * Sting).
+ * Sting). Lava (TT_LAVA): "You are stuck in the lava."; a try toward a square without lava
+ * takes one turn off, and at zero "You pull yourself to the edge of the lava." (she counts as
+ * having moved: she does not sink deeper). Solidified lava (TT_INFLOOR): "You are stuck in the
+ * floor." until "You finally wriggle free.".
  * Returns true if the hero may move (she never does on the turn she gets free).
  * ref: src/hack.c trapmove() TT_BEARTRAP, TT_PIT (as 3.6's domove() calls it, with the trap at
  * the destination; 3.7's domove_core() passes NULL, see DEVIATIONS "Traps: the hero")
@@ -1146,6 +1158,33 @@ export function trapmove(ctx: Ctx, dir: Dir, desttrap?: Trap | null): boolean {
     const n = u.n - 1;
     setUtrap(ctx, n, 'web');
     say(ctx, n ? 'trap.web.stuck' : 'trap.web.disentangle'); // (Norep, flags.verbose)
+    return false;
+  }
+  if (u.type === 'lava') {
+    say(ctx, 'trap.lava.stuck'); // (Norep, flags.verbose)
+    const p = heroPos(ctx);
+    const tx = p.x + DIRS[dir].x;
+    const ty = p.y + DIRS[dir].y;
+    if (!isLava(ctx, getLevel(ctx.state, p.level), tx, ty)) {
+      let n = u.n - 1;
+      if ((n & 0xff) === 0) {
+        n = 0;
+        say(ctx, 'trap.lava.pull_edge');
+      }
+      setUtrap(ctx, n, 'lava');
+    }
+    markUmoved(); // u.umoved = TRUE
+    return false;
+  }
+  if (u.type === 'infloor') {
+    const n = u.n - 1;
+    setUtrap(ctx, n, 'infloor');
+    if (n) {
+      const p = heroPos(ctx);
+      say(ctx, 'trap.infloor.stuck', {
+        surface: surfaceKey(ctx, getLevel(ctx.state, p.level), p.x, p.y),
+      });
+    } else say(ctx, 'trap.bear.free'); // wriggle_free
     return false;
   }
   say(ctx, 'trap.bear.caught');

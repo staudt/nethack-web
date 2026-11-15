@@ -3,7 +3,7 @@
 // the shop are stolen), which trap.ts cannot import. ref: src/teleport.c rloco()
 import { getPlayer, inRooms, type Ctx, type Entity } from '@nh/core';
 import { costlySpot, isShopType } from './eshk';
-import { boulderFlooreffects } from './flooreffects';
+import { flooreffects } from './flooreffects';
 import { placeObject } from './items';
 import { addtobill, costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { rlocoPos } from './teleport';
@@ -25,7 +25,7 @@ export function rloco(ctx: Ctx, obj: Entity): boolean {
   const oty = p.y;
   delete obj.c.pos; // obj_extract_self()
   const to = rlocoPos(ctx, level);
-  if (boulderFlooreffects(ctx, obj, to.x, to.y, 'fall')) return false;
+  if (flooreffects(ctx, obj, to.x, to.y, 'fall')) return false;
   const shkp = findObjowner(ctx, obj, otx, oty);
   const objinshop = shkp !== null && costlySpot(ctx, otx, oty);
   const onboundary = shkp !== null && costlyAdjacent(ctx, shkp, otx, oty);

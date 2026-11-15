@@ -1,5 +1,8 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { isLava, isPool } from './liquid';
+import { breathless, likesLavaId, uinwater, wwalking } from './uwater';
+import { floorEffectsLate } from './floorfx';
 import { cantWieldCorpse, fatalCorpseMistake } from './stonetouch';
 import { digests, isSwallowed, uswallow } from './engulfstate';
 import { monNam } from './perception';
@@ -42,13 +45,15 @@ import {
   weight,
 } from './items';
 import { T, surfaceKey } from './terrain';
-import { isHole, isPit, levitating, utrap } from './trapstate';
+import { flying, isHole, isPit, levitating, utrap } from './trapstate';
 import { P, hasProp } from './props';
 import { armorOff, armorOn } from './dowear';
 import { hardHelmet, isFlimsy, isWeaponOrWeptool } from './material';
 import {
   cantweararm,
   cantwield,
+  isClinger,
+  isFloater,
   notake,
   hasHorns,
   nohands,
@@ -209,7 +214,8 @@ export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null 
  */
 export function lookHere(ctx: Ctx): void {
   const pos = hero(ctx).c.pos;
-  if (!pos || levitating(ctx)) return;
+  // no look in a pool (she is not under it) or in lava: pickup(1)
+  if (!pos || levitating(ctx) || bottomHidden(ctx)) return;
   const here = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y);
   const ct = here.length;
   if (ct === 0) return;
@@ -519,6 +525,45 @@ function cantReachPickup(ctx: Ctx): void {
   ctx.emit({ type: 'msg', key, params: { surface } });
 }
 
+/**
+ * Water or lava between her and what lies on the bottom: on water walking on it, floating,
+ * clinging or flying (and breathing) "You cannot dive into the water to pick things up.", else
+ * unless she is in it "You can't even see the bottom, let alone pick up something."; on lava
+ * "You can't reach the bottom to pick things up." or (unless she likes lava) "You would burn to
+ * a crisp trying to pick things up.". ref: src/hack.c pickup_checks() (no Underwater view: in
+ * the water she reaches the bottom)
+ */
+function cantReachBottom(ctx: Ctx): boolean {
+  const pos = hero(ctx).c.pos;
+  if (!pos) return false;
+  const level = getLevel(ctx.state, pos.level);
+  const pool = isPool(ctx, level, pos.x, pos.y);
+  const lava = isLava(ctx, level, pos.x, pos.y);
+  if (!pool && !lava) return false;
+  const form = heroForm(ctx);
+  const above =
+    wwalking(ctx) ||
+    (form !== null && (isFloater(form) || isClinger(form))) ||
+    (flying(ctx) && !breathless(ctx));
+  let key: string | null = null;
+  if (pool) {
+    if (above) key = 'pickup.cannot_dive';
+    else if (!uinwater(ctx)) key = 'pickup.cant_see_bottom';
+  } else if (above) key = 'pickup.cant_reach_bottom';
+  else if (!likesLavaId(form?.id)) key = 'pickup.burn_to_crisp';
+  if (key === null) return false;
+  ctx.emit({ type: 'msg', key });
+  return true;
+}
+
+/** Objects at her feet she can see and reach: not under water she is not in, nor in lava. */
+function bottomHidden(ctx: Ctx): boolean {
+  const pos = hero(ctx).c.pos;
+  if (!pos) return false;
+  const level = getLevel(ctx.state, pos.level);
+  return (isPool(ctx, level, pos.x, pos.y) && !uinwater(ctx)) || isLava(ctx, level, pos.x, pos.y);
+}
+
 /** The polymorphed form cannot pick anything up. ref: include/mondata.h notake() */
 const formNotake = (ctx: Ctx): boolean => {
   const form = heroForm(ctx);
@@ -535,6 +580,7 @@ const pickup: ActionDef = {
     target.kind === 'self' &&
     !isSwallowed(ctx) &&
     !formNotake(ctx) &&
+    !bottomHidden(ctx) &&
     floorHere(ctx).some((e) => e.def !== BOULDER)
       ? [
           {
@@ -564,6 +610,7 @@ const pickup: ActionDef = {
         });
       return NORMAL_SPEED;
     }
+    if (cantReachBottom(ctx)) return 0;
     const here = floorHere(ctx);
     if (here.length === 0) {
       ctx.emit({ type: 'msg', key: 'pickup.nothing' });
@@ -696,6 +743,8 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
     });
   removeFromInventory(ctx, e.id);
   if (altar) doaltarobj(ctx, e);
+  // ref: src/do.c dropx(): flooreffects() (into water or lava)
+  if (floorEffectsLate(ctx, e, pos.x, pos.y, 'drop')) return true;
   // ref: src/do.c dropz(): place_object(), sellobj(), stackobj()
   const offer = sell ? sellobj(ctx, e, pos.x, pos.y, sell) : null;
   if (offer) {
@@ -709,8 +758,8 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
 /**
  * Drops a carried object without a message: out of the inventory (unwielded), into the
  * engulfer's stomach when she is swallowed (food may be digested at once), else onto the floor
- * (an altar names it and shows its curse status). ref: src/do.c dropx(), dropy(), dropz() (no
- * shop selling, ship_object() or flooreffects())
+ * (an altar names it and shows its curse status; water and lava take it: flooreffects()).
+ * ref: src/do.c dropx(), dropy(), dropz() (no shop selling or ship_object())
  */
 export function dropx(ctx: Ctx, e: Entity): void {
   const pos = hero(ctx).c.pos;
@@ -724,6 +773,7 @@ export function dropx(ctx: Ctx, e: Entity): void {
     return;
   }
   if (aAlign(ctx, pos.x, pos.y) !== null) doaltarobj(ctx, e);
+  if (floorEffectsLate(ctx, e, pos.x, pos.y, 'drop')) return;
   placeOnFloor(ctx, e.id, pos.level, pos.x, pos.y);
 }
 

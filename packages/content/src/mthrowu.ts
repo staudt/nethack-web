@@ -24,7 +24,7 @@ import {
 } from '@nh/core';
 import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
 import { monFloorEffects } from './align';
-import { boulderFlooreffects } from './flooreffects';
+import { flooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
 import { gazemu, mdamageu } from './mhitu';
 import { addToInventory, mksobj, placeOnFloor, removeFromInventory, splitStack } from './items';
@@ -203,8 +203,8 @@ const ordKey = (i: number): { key: string } => ({ key: `throw.ord.${i}` });
  * The missile stops and lands (or breaks). ref: src/mthrowu.c drop_throw(): after a hit it
  * breaks per should_mulch_missile(); venom always breaks (eggs and pies do not exist here); a
  * boulder fills a pit or hole there (flooreffects(); `monMoving` is C's context.mon_moving, false
- * only for a rolling boulder the hero set off). Not ported: shipping down stairs and holes,
- * water, passive_obj().
+ * only for a rolling boulder the hero set off); into water or lava (flooreffects()). Not ported:
+ * shipping down stairs and holes, passive_obj().
  */
 function dropThrow(
   ctx: Ctx,
@@ -220,7 +220,8 @@ function dropThrow(
   // venom always breaks
   if (ctx.defs.object(obj.def).class === 'venom' || (ohit && shouldMulchMissile(ctx, obj, true)))
     ctx.remove(objId);
-  else if (boulderFlooreffects(ctx, obj, x, y, 'fall', false, monMoving)) return;
+  else if (level === ctx.state.currentLevel && flooreffects(ctx, obj, x, y, 'fall', { monMoving }))
+    return;
   else {
     monFloorEffects(ctx, obj, { level, x, y }); // flooreffects(): an altar in sight
     placeOnFloor(ctx, objId, level, x, y);

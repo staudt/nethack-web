@@ -9,6 +9,8 @@ export type How =
   | 'poisoning'
   | 'starving'
   | 'drowning'
+  | 'burning'
+  | 'dissolved'
   | 'stoning'
   | 'turned_slime'
   | 'genocided';

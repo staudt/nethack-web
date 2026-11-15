@@ -5,8 +5,8 @@
 //
 // The state lives in `modData.nh.fountains[levelId][cellIndex]` as bits (C keeps them in the
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
-// Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, pools from gushing
-// water (the rolls are drawn, no pool is made), hallucinated snake and liquid names, exercise.
+// Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, hallucinated snake and liquid
+// names, exercise.
 // Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
 // Lady of the Lake always refuses), no Glib, no livelog.
 import {
@@ -17,6 +17,7 @@ import {
   inTown,
   inventoryOf,
   isVisible,
+  itemsAt,
   sortedIds,
   trapAt,
   type ActionDef,
@@ -32,6 +33,7 @@ import {
   type PlayerAction,
   type Pos,
 } from '@nh/core';
+import { monsterIdAt } from './combat';
 import { figBucChanged } from './figurinestate';
 import { adjattrib, restoreAttr, type Attr } from './attrib';
 import { monsterDetect } from './detect';
@@ -51,11 +53,11 @@ import { monNam } from './perception';
 import { P, hasProp, setIntrinsic, wornIn } from './props';
 import { cantSeeSelf } from './invis';
 import { clearArea } from './read';
-import { T, setTerrain } from './terrain';
-import { levitating } from './trapstate';
+import { T, nexttodoor, setTerrain } from './terrain';
+import { clearConjoinedPits, levitating, setMtrapped } from './trapstate';
 import { dungeonBottom, mintrap } from './trap';
 import { angryGuards, watchmanWarnFountain } from './watch';
-import { waterDamage, type WaterResult } from './water';
+import { waterDamage, waterDamageChain, type WaterResult } from './water';
 import { answerWish, askWish, type WishData } from './wish';
 
 /** blessedftn: a magic fountain. */
@@ -247,36 +249,25 @@ function dowaternymph(ctx: Ctx): void {
   } else say(ctx, blind(ctx) ? 'fountain.loud_pop' : 'fountain.bubble_pops');
 }
 
-/** ref: rm.h IS_DOOR() || SDOOR on the eight squares around x,y. ref: src/mkroom.c nexttodoor() */
-function nexttodoor(ctx: Ctx, level: Level, x: number, y: number): boolean {
-  for (let dx = -1; dx <= 1; dx++)
-    for (let dy = -1; dy <= 1; dy++) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= level.width || ny >= level.height) continue;
-      const tid = level.palette[level.cells[cellIndex(level, nx, ny)] ?? 0];
-      if (tid === undefined) continue;
-      if (ctx.defs.terrain(tid).door !== undefined || SDOORS.has(tid)) return true;
-    }
-  return false;
+/** minliquid() (minliquid.ts, which sits above this module) for a monster under a new pool. */
+let gushMinliquid: ((ctx: Ctx, mon: Entity) => void) | null = null;
+export function setGushMinliquid(fn: (ctx: Ctx, mon: Entity) => void): void {
+  gushMinliquid = fn;
 }
 
-const SDOORS: ReadonlySet<DefId> = new Set([
-  T.sdoor_v,
-  T.sdoor_h,
-  T.sdoor_locked_v,
-  T.sdoor_locked_h,
-]);
-
 /**
- * Gushing water: gush() is tried on every square the hero could see within 7, with its rolls,
- * but no pool terrain exists, so none is made and the hero is told so ("Your thirst is
- * quenched." / "Water sprays all over you."). ref: src/fountain.c dogushforth(), gush()
+ * Gushing water: gush() is tried on every square the hero could see within 7. On every other
+ * square (`(x + y) % 2 == 0`), not hers, `rn2(1 + distmin)` == 0 of the time, on room floor with
+ * no boulder and not next to a door, the trap there is gone and a pool is made ("Water gushes
+ * forth from the overflowing fountain!" the first time): what lies there gets wet and a monster
+ * there meets the water (minliquid()). With no pool made: "Your thirst is quenched." / "Water
+ * sprays all over you.". ref: src/fountain.c dogushforth(), gush() (no engravings)
  */
 export function dogushforth(ctx: Ctx, drinking: boolean): void {
   const level = getLevel(ctx.state);
   const u = getPlayer(ctx.state).c.pos;
   if (!u) return;
+  let madepool = 0;
   for (const i of clearArea(ctx, 7)) {
     const x = i % level.width;
     const y = (i - x) / level.width;
@@ -284,10 +275,26 @@ export function dogushforth(ctx: Ctx, drinking: boolean): void {
     const distmin = Math.max(Math.abs(x - u.x), Math.abs(y - u.y));
     if (ctx.rng.rn2(1 + distmin)) continue;
     if (level.palette[level.cells[i] ?? 0] !== T.floor) continue;
+    const here = itemsAt(ctx.defs, ctx.state, level.id, x, y);
+    if (here.some((o) => o.def === 'nh:boulder')) continue;
     if (nexttodoor(ctx, level, x, y)) continue;
-    // a pool would be made here (no boulders or pools exist)
+    const mid = monsterIdAt(ctx, { x, y }, level.id);
+    const mtmp =
+      mid === null || mid === ctx.state.playerId ? null : ctx.state.entities[String(mid)];
+    const ttmp = trapAt(level, x, y);
+    if (ttmp) {
+      // delfloortrap(): lets a monster in it out
+      if (mtmp) setMtrapped(ctx, mtmp.id, false);
+      clearConjoinedPits(level, ttmp);
+      ctx.removeTrap(level.id, { x, y });
+    }
+    if (!madepool++) say(ctx, 'fountain.gushes_forth');
+    // put a pool at x, y
+    setTerrain(level, x, y, T.pool);
+    waterDamageChain(ctx, here);
+    if (mtmp && ctx.state.entities[String(mtmp.id)]) gushMinliquid?.(ctx, mtmp);
   }
-  say(ctx, drinking ? 'fountain.thirst_quenched' : 'fountain.water_sprays');
+  if (!madepool) say(ctx, drinking ? 'fountain.thirst_quenched' : 'fountain.water_sprays');
 }
 
 /**

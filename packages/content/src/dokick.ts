@@ -13,6 +13,7 @@
 // Also not ported: traps but statue traps, boxes and chests, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
+import { flooreffects } from './flooreffects';
 import { mApType, seemimic } from './mimicstate';
 import { EGG } from './eggstate';
 import { breakEggs } from './egghit';
@@ -504,6 +505,8 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
       if (!isgold) stolenValue(ctx, obj, x, y, peaceful, false);
     } else if (obj.c.item?.unpaid && eshkOf(ctx, shk)) subfrombill(ctx, obj, shk);
   }
+  // flooreffects(): water or lava where it lands
+  if (flooreffects(ctx, obj, land.x, land.y, 'fall', { thrown: true })) return true;
   placeOnFloor(ctx, id, level.id, land.x, land.y);
   return true;
 }

@@ -46,7 +46,7 @@ import { monsterIdAt } from './combat';
 import { dmgvalSized } from './dmgval';
 import { templeOccupied } from './epri';
 import { isShopType } from './eshk';
-import { boulderDmgval, boulderFlooreffects } from './flooreffects';
+import { boulderDmgval, flooreffects } from './flooreffects';
 import { losehp } from './hp';
 import { encumberMsg, prinv } from './itemactions';
 import {
@@ -669,12 +669,12 @@ const fallingDamage = (ctx: Ctx, obj: Entity, big: boolean): number =>
     : dmgvalSized(ctx.rng, obj, ctx.defs.object(obj.def), big)) * (obj.c.item?.quantity ?? 1);
 
 /**
- * The fallen object lands at (x, y): into a pit or hole there (a boulder), else on the floor.
+ * The fallen object lands at (x, y): into a pit, hole, water or lava there, else on the floor.
  * Not ported: rocks tumbling into the pit (or through the hole) at the edge of which the hero
  * stands (flooreffects()'s uteetering_at_seen_pit() branch: no ship_object()).
  */
 function landFalling(ctx: Ctx, obj: Entity, x: number, y: number): void {
-  if (boulderFlooreffects(ctx, obj, x, y, 'fall')) return;
+  if (flooreffects(ctx, obj, x, y, 'fall')) return;
   placeObject(ctx, obj.id, ctx.state.currentLevel, x, y);
   stackobj(ctx, obj.id);
 }

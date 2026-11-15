@@ -217,7 +217,11 @@ describe('#quaff from a fountain', () => {
       'You see an image of someone stalking you.',
       'But it disappears.',
     ]);
-    expect(first(30)[0]).toBe('Your thirst is quenched.');
+    // the gush: no pool made, or pools (m15 step 3)
+    expect([
+      'Your thirst is quenched.',
+      'Water gushes forth from the overflowing fountain!',
+    ]).toContain(first(30)[0]);
     expect(first(28)[0]).toBe('You attract a water nymph!'); // m9 step 3: a real nymph
   });
 

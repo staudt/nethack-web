@@ -507,10 +507,20 @@ function bounceDir(
   }
 }
 
+/** Fire or cold over water, lava and ice (ice.ts, which sits above this module); the range change. */
+type LiquidRay = (ctx: Ctx, level: Level, x: number, y: number, ray: 'fire' | 'cold') => number;
+let liquidRay: LiquidRay | null = null;
+
+/** ice.ts binds fireOverLiquid()/coldOverLiquid() at registration. */
+export function setLiquidRay(fn: LiquidRay): void {
+  liquidRay = fn;
+}
+
 /**
  * ref: src/zap.c zap_over_floor() for the hero's wand rays and for explosions (explode.ts): a
  * secret door is revealed, a closed door absorbs the ray (fire, cold and lightning destroy it),
- * fire burns a web and the scrolls and spellbooks on the floor. Returns the range change. `explodingWand`:
+ * fire burns a web and the scrolls and spellbooks on the floor, boils water and melts ice, cold
+ * freezes water and lava (ice.ts). Returns the range change. `explodingWand`:
  * the broken wand's type (C's exploding_wand_typ, "the blast"; a wand of striking's blast
  * breaks the door), or '' for an explosion with no wand (a magical trap's: still "your bolt").
  * The monster there is not woken here (the caller does it). A shop door destroyed is damage:
@@ -530,7 +540,11 @@ export function zapOverFloor(
   const blast = explodingWand !== undefined && explodingWand !== '';
   let rangemod = 0;
   // ZT_FIRE: a web here burns ("a burning web is too flimsy to notice if you can't see it")
-  if (ray === 'fire') burnWeb(ctx, level, x, y, seeIt);
+  if (ray === 'fire') {
+    burnWeb(ctx, level, x, y, seeIt);
+    // ice melts, a pool boils away, a moat steams
+    rangemod += liquidRay?.(ctx, level, x, y, 'fire') ?? 0;
+  } else if (ray === 'cold') rangemod += liquidRay?.(ctx, level, x, y, 'cold') ?? 0; // freezes
   const id = cellId(level, x, y);
   if (isSdoor(id)) {
     const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
@@ -538,7 +552,7 @@ export function zapOverFloor(
     if (seeIt) say(ctx, blast ? 'zap.door.sdoor_blast' : 'zap.door.sdoor');
   }
   if (closedDoor(terrainAt(ctx, level, x, y))) {
-    rangemod = -1000;
+    rangemod += -1000;
     const broken: Partial<Record<Ray, [string, string]>> = {
       fire: ['zap.door.consumed', 'zap.smell_smoke'],
       cold: ['zap.door.freezes', 'zap.hear_cracking'],

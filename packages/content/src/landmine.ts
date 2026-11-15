@@ -12,6 +12,7 @@
 // steeds, engravings (del_engr_at()), doors and drawbridges under the mine (traps lie only on
 // plain floor), the water and air levels, pools filling the pit (fillholetyp()), the sleeping
 // hero's "The explosion awakens you!", Dex exercise, deafness, digging down on a land mine.
+import { fillholetyp, liquidFlow } from './liquidflow';
 import { getPlayer, trapAt, type Ctx, type Entity, type Msg, type Trap } from '@nh/core';
 import { fillPit } from './flooreffects';
 import { losehp } from './hp';
@@ -24,6 +25,7 @@ import {
   TRAP,
   caughtOr,
   canseemon,
+  cansee,
   dataOf,
   dotrap,
   ironShoes,
@@ -67,7 +69,13 @@ export function blowUpLandmine(ctx: Ctx, trap: Trap, monMoving = false): void {
   wakeNearto(ctx, x, y, 400);
   const level = ctx.state.levels[ctx.state.currentLevel];
   const t = level ? trapAt(level, x, y) : undefined;
-  if (t) toPit(t); // the explosion creates a pit (fillholetyp() is ROOM: no pools)
+  if (t && level) {
+    // fill pit with water, if applicable
+    const typ = fillholetyp(ctx, level, x, y, false);
+    if (typ !== null)
+      liquidFlow(ctx, level, x, y, typ, cansee(ctx, level.id, x, y) ? 'landmine.hole_fills' : null);
+    else toPit(t); // explosion creates a pit
+  }
   fillPit(ctx, x, y, monMoving);
 }
 

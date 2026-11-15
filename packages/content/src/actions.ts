@@ -1,3 +1,4 @@
+import { slipperyIceFumbling } from './fumble';
 import {
   DIRS,
   DIR_LIST,
@@ -450,6 +451,7 @@ const fight: ActionDef = {
     if (!want) return 0;
     const swallowed = attackEngulfer(ctx);
     if (swallowed !== null) return swallowed;
+    slipperyIceFumbling(ctx); // check slippery ice
     const dir = impairedDir(ctx, want);
     if (dir === null) return NORMAL_SPEED;
     const from = playerAt(ctx);
@@ -531,8 +533,10 @@ const move: ActionDef = {
     const from = { x: pos.x, y: pos.y };
     const swallowed = attackEngulfer(ctx);
     if (swallowed !== null) return swallowed;
-    // ref: src/hack.c domove_core(): impaired_movement() picks a random direction when stunned
-    // (and the move is lost if none is found), then escape_from_sticky_mon()
+    // ref: src/hack.c domove_core(): slippery_ice_fumbling(), impaired_movement() picks a
+    // random direction when stunned (and the move is lost if none is found), then
+    // escape_from_sticky_mon()
+    slipperyIceFumbling(ctx);
     const dir = impairedDir(ctx, action.dir);
     if (dir === null) return NORMAL_SPEED;
     const d = DIRS[dir];

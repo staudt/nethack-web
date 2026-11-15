@@ -6,8 +6,8 @@
 // The hero who cannot swim falls in, gets her pack wet, may teleport out, crawls out (dropping
 // gear until she is no worse than burdened) or drowns; life saving puts her somewhere safe.
 // Swimming, amphibious and breathless forms go into the water (u.uinwater, `uwater.ts`) but see
-// and act as on land (DEVIATIONS "Water"). Lava is terrain here; what it does to her is m15
-// step 3 (lava_effects()), until then entering it does nothing.
+// and act as on land (DEVIATIONS "Water"). Lava burns her up, or (fire resistant) she sinks into
+// it and must pull herself out. ref: src/trap.c lava_effects(), sink_into_lava()
 //
 // Not ported: steeds, leashes, the ball and chain, the Plane of Water, a ceiling-hiding form, the
 // teleport-away spell route and check_capacity() of dotele(), a polymorphed gremlin multiplying,
@@ -27,6 +27,13 @@ import {
   type Pos,
 } from '@nh/core';
 import { sokobanBoulder } from './boulder';
+import { destroyItems } from './erode';
+import { igniteItems } from './light';
+import { useupall } from './magic';
+import { isOrganic } from './material';
+import { M_SEEN, monstseesu } from './musestate';
+import { xnameOf } from './objnam';
+import { burnAwaySlime, isSlimed } from './slimestate';
 import { unaware } from './btrapped';
 import { done } from './end';
 import { ustuck } from './hackmove';
@@ -37,19 +44,20 @@ import { dropx, welded } from './itemactions';
 import { isLava, isPool, isPoolOrLava, isWaterwall, waterbodyName } from './liquid';
 import { luckOf } from './luck';
 import { stealIds, unmulNow } from './nomul';
-import { P, hasProp } from './props';
+import { P, hasProp, setItimeout, timeoutLeft, wornIn } from './props';
 import { invWeight, nearCapacity, weightCap } from './stats';
 import { removeWornItem } from './steal';
 import { noteleportLevel, goodposHero, SOKOBAN_DUNGEON } from './teleport';
 import { surfaceKey } from './terrain';
 import { safeTeleds, teleds } from './trap';
-import { XDIR, YDIR, flying, levitating } from './trapstate';
+import { XDIR, YDIR, flying, levitating, setUtrap, takeUmoved, utrap } from './trapstate';
 import { pwOf, setPw } from './uenergy';
 import { heroForm, heroFormId } from './upoly';
 import {
   amphibious,
   breathless,
   knownWwalking,
+  likesLavaId,
   setPoolFx,
   setUinwater,
   swimming,
@@ -211,7 +219,7 @@ export function pooleffects(ctx: Ctx, newspot: boolean, from?: Pos): boolean {
     isPoolOrLava(ctx, level, x, y)
   ) {
     if (isLava(ctx, level, x, y)) {
-      // lava_effects(): m15 step 3
+      if (lavaEffects(ctx)) return true;
     } else if (
       (!wwalking(ctx) || isWaterwall(ctx, level, x, y)) &&
       (newspot || !uinwater(ctx) || !(swimming(ctx) || amphibious(ctx) || breathless(ctx)))
@@ -482,6 +490,209 @@ export function drown(ctx: Ctx, from?: Pos): boolean {
   return true;
 }
 
+// ---------------------------------------------------------------------------------------------
+// lava
+
+/** iflags.in_lava_effects: lava_effects() is not entered again (Boots_off() -> spoteffects()) */
+let inLavaEffects = 0;
+
+const LAVA_KILLER = '@killer.lava';
+
+/** Her pack items lava would burn up: organic or potions, not fireproof. */
+function lavaBurns(ctx: Ctx, obj: Entity): boolean {
+  const def = ctx.defs.object(obj.def);
+  return (
+    (isOrganic(def) || def.class === 'potion') &&
+    !obj.c.item?.erodeproof &&
+    def.prop !== P.FIRE_RES &&
+    obj.def !== 'nh:scroll_of_fire' &&
+    obj.def !== 'nh:spellbook_of_fireball'
+  );
+}
+
+/**
+ * "You find yourself on water." (in it when she is), "You find yourself on top of molten lava."
+ * or back on the ground, after life saving took her out of the lava.
+ * ref: src/trap.c rescued_from_terrain(BURNING / DISSOLVED)
+ */
+function rescuedFromLava(ctx: Ctx): void {
+  const { level, x, y } = heroAt(ctx);
+  if (isPool(ctx, level, x, y))
+    say(ctx, uinwater(ctx) ? 'lava.find_in_water' : 'lava.find_on_water');
+  else if (isLava(ctx, level, x, y)) say(ctx, 'lava.find_on_lava');
+  else backOnGround(ctx, true);
+}
+
+/**
+ * She enters molten lava (or stays on it). A lava-loving form is unharmed. Boots that would burn
+ * go first ("Your boots burst into flame!"). Without fire resistance, water walking keeps her on
+ * top while `d(6, 6)` is less than her hit points ("The lava here burns you!"), else "You fall
+ * into the molten lava!": her organic items and potions burn up, "You burn to a crisp..." and
+ * done(BURNING); life saving puts her somewhere safe (twice at most, then 5 turns of fire
+ * resistance and water walking). Fire resistant and not water walking, she sinks into it
+ * (`TT_LAVA`: "You sink into the molten lava, but it only burns slightly!", 1 hit point). Then
+ * fire destroys items in her pack and lights her lamps. True when she was killed and saved.
+ * ref: src/trap.c lava_effects() (no steeds, protected stolen items, Book of the Dead)
+ */
+export function lavaEffects(ctx: Ctx): boolean {
+  if (inLavaEffects) return false; // skipping recursive lava_effects()
+  const h = hero(ctx);
+  burnAwaySlime(ctx);
+  if (likesLavaId(heroForm(ctx)?.id)) return false;
+  const dmg = ctx.rng.d(6, 6); // only applicable for water walking
+  const fireRes = hasProp(h, P.FIRE_RES);
+  let usurvive = fireRes || (wwalking(ctx) && dmg < (h.c.hp?.cur ?? 0));
+  // flag items to be destroyed before any messages
+  const inUse = new Set<number>();
+  if (!usurvive)
+    for (const o of inventoryOf(ctx.state, h.id)) if (lavaBurns(ctx, o)) inUse.add(o.id);
+  // burn away boots *first* so we know whether to make the player sink into the lava
+  let burncount = 0;
+  let burnmesgcount = 0;
+  const uarmf = wornIn(ctx.state, h.id, 'boots');
+  if (
+    uarmf &&
+    (inUse.has(uarmf.id) || (isOrganic(ctx.defs.object(uarmf.def)) && !uarmf.c.item?.erodeproof))
+  ) {
+    say(ctx, 'lava.burst', { item: xnameOf(ctx.state, ctx.defs, uarmf) });
+    burnmesgcount++;
+    inLavaEffects++;
+    removeWornItem(ctx, uarmf); // Boots_off()
+    useupall(ctx, uarmf.id);
+    inLavaEffects--;
+    inUse.delete(uarmf.id);
+    burncount++;
+  }
+  if (!fireRes) {
+    if (wwalking(ctx)) {
+      say(ctx, 'lava.burns_you');
+      if (usurvive) {
+        losehp(ctx, dmg, LAVA_KILLER); // lava damage
+        burnStuff(ctx, dmg);
+        return false;
+      }
+    } else {
+      const { level, x, y } = heroAt(ctx);
+      say(ctx, 'liquid.fall_bang', { water: `@${waterbodyName(ctx, level, x, y)}` });
+    }
+    usurvive = hasProp(h, P.LIFESAVED);
+    inLavaEffects++;
+    for (const o of inventoryOf(ctx.state, h.id)) {
+      if (!inUse.has(o.id)) continue;
+      if (o.c.item?.equipped) {
+        if (usurvive) {
+          say(ctx, 'lava.burst', { item: xnameOf(ctx.state, ctx.defs, o) });
+          burnmesgcount++;
+        }
+        removeWornItem(ctx, o);
+      }
+      useupall(ctx, o.id);
+      burncount++;
+    }
+    if (usurvive && burncount > burnmesgcount) {
+      const n = burncount - burnmesgcount;
+      say(
+        ctx,
+        burnmesgcount > 0
+          ? n === 1
+            ? 'lava.inv_another'
+            : 'lava.inv_other'
+          : n === 1
+            ? 'lava.inv_an'
+            : 'lava.inv_some',
+      );
+    }
+    // s/he died...
+    const form = heroFormId(ctx.state);
+    const boilAway =
+      form === 'nh:water_elemental' || form === 'nh:steam_vortex' || form === 'nh:fog_cloud';
+    // burn to death; if life-saved on the first pass, try to teleport to safety; if that fails,
+    // burn all over again
+    let pass = 0;
+    for (; pass < 2; pass++) {
+      if (h.c.hp) h.c.hp.cur = -1;
+      say(ctx, boilAway ? 'lava.boil_away' : 'lava.burn_crisp');
+      done(ctx, LAVA_KILLER, 'burning');
+      if (ctx.state.gameOver) {
+        inLavaEffects--;
+        return true;
+      }
+      if (safeTeleds(ctx)) break; // successful life-save
+      say(ctx, 'lava.still_burning'); // nowhere safe to land; repeat burning loop
+    }
+    inLavaEffects--;
+    if (pass === 2) {
+      // life-saved twice and failed to be teleported to safety both times: give the player a
+      // chance to try something else instead of just immediately burning up all over again
+      if (!hasProp(h, P.FIRE_RES)) setItimeout(ctx.state, h, P.FIRE_RES, 5);
+      if (!wwalking(ctx)) setItimeout(ctx.state, h, P.WWALKING, 5);
+      burnStuff(ctx, dmg);
+      return false;
+    }
+    rescuedFromLava(ctx);
+    return true;
+  }
+  const u = utrap(ctx);
+  if (!wwalking(ctx) && u?.type !== 'lava') {
+    // fire resistant: sinking in slowly
+    const turns = ctx.rng.rn2(4) + 4; // rn1(4, 4)
+    const depth = ctx.rng.rn2(4) + 12; // rn1(4, 12)
+    setUtrap(ctx, turns + (depth << 8), 'lava');
+    const { level, x, y } = heroAt(ctx);
+    say(ctx, 'lava.sink_slightly', { water: `@${waterbodyName(ctx, level, x, y)}` });
+    monstseesu(ctx, M_SEEN.fire);
+    if ((h.c.hp?.cur ?? 0) > 1) losehp(ctx, 1, LAVA_KILLER); // lava damage
+  }
+  burnStuff(ctx, dmg);
+  return false;
+}
+
+/** lava_effects()'s burn_stuff: destroy_items(AD_FIRE) and ignite_items() of her pack. */
+function burnStuff(ctx: Ctx, dmg: number): void {
+  if (ctx.state.gameOver) return;
+  destroyItems(ctx, ctx.state.playerId, 'fire', dmg);
+  if (ctx.state.gameOver) return;
+  igniteItems(ctx, ctx.state.playerId);
+}
+
+/**
+ * Once an action while she is sinking into lava (`TT_LAVA`): without fire resistance her hit
+ * points drop to a third; she sinks one step deeper, and at the bottom "You sink below the
+ * surface and die." (done(DISSOLVED), then life saving lets her out: levitation or flight, or a
+ * safe teleport); else, when she did not try to move, "You sink deeper into the lava." (slime
+ * burns away) and she is stuck `rnd(4)` turns longer. `umoved`: she moved or tried to.
+ * ref: src/trap.c sink_into_lava() (no u.uinvulnerable)
+ */
+export function sinkIntoLava(ctx: Ctx, umoved: boolean): void {
+  const u = utrap(ctx);
+  if (!u || u.type !== 'lava') return;
+  const { level, x, y } = heroAt(ctx);
+  if (!isLava(ctx, level, x, y)) {
+    setUtrap(ctx, 0, 'lava'); // reset_utrap(FALSE): this shouldn't happen either
+    return;
+  }
+  const h = hero(ctx);
+  if (!hasProp(h, P.FIRE_RES) && h.c.hp) h.c.hp.cur = Math.trunc((h.c.hp.cur + 2) / 3);
+  const n = u.n - (1 << 8);
+  if (n < 1 << 8) {
+    setUtrap(ctx, n, 'lava');
+    say(ctx, 'lava.sink_below');
+    burnAwaySlime(ctx); // add insult to injury?
+    done(ctx, LAVA_KILLER, 'dissolved');
+    if (ctx.state.gameOver) return;
+    // can only get here via life-saving; try to get away from lava
+    setUtrap(ctx, 0, 'lava'); // reset_utrap(TRUE)
+    // levitation or flight have become unblocked, otherwise Tport
+    if (!levitating(ctx) && !flying(ctx)) safeTeleds(ctx);
+  } else if (!umoved) {
+    setUtrap(ctx, n + ctx.rng.rnd(4), 'lava');
+    if (isSlimed(ctx.state) && ctx.rng.rnd(10 - 1) >= timeoutLeft(ctx.state, h, P.SLIMED)) {
+      say(ctx, 'lava.sink_deeper');
+      burnAwaySlime(ctx);
+    } else say(ctx, 'lava.sink_deeper'); // Norep()
+  } else setUtrap(ctx, n, 'lava');
+}
+
 /**
  * Her energy and square before the action, for the once-per-action pooleffects(FALSE); kept
  * outside the state for the length of one action.
@@ -511,7 +722,18 @@ export function registerDrown(api: ModApi): void {
     const h = hero(ctx);
     const p = h.c.pos;
     // the action took time and did not move her (u.umoved)
-    if (!p || (h.c.actor?.energy ?? b.energy) >= b.energy) return;
+    if (!p || (h.c.actor?.energy ?? b.energy) >= b.energy) {
+      takeUmoved();
+      return;
+    }
+    // [fast hero who gets multiple moves per turn ends up sinking multiple times per turn]
+    if (utrap(ctx)?.type === 'lava') {
+      const moved = p.level !== b.level || p.x !== b.x || p.y !== b.y;
+      sinkIntoLava(ctx, moved || takeUmoved());
+      return;
+    }
+    // when/if hero escapes from lava, he can't just stay there (only when !u.umoved)
+    if (takeUmoved()) return;
     if (p.level !== b.level || p.x !== b.x || p.y !== b.y) return;
     const { level, x, y } = heroAt(ctx);
     if (!uinwater(ctx) && !isPoolOrLava(ctx, level, x, y)) return;

@@ -27,7 +27,7 @@ import {
 } from '@nh/core';
 import { P, hasProp } from './props';
 import { boulderAt, feelObjects, rememberedBoulder } from './boulder';
-import { boulderFlooreffects } from './flooreffects';
+import { boulderFlooreffects, boulderHitsPool } from './flooreffects';
 import { isSokoban, maybeFinishSokoban, sokobanGuilt } from './sokoban';
 import { nhData } from './items';
 import { xnameOf } from './objnam';
@@ -250,6 +250,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       cannotPushMsg(ctx, what);
       return cannotPush(ctx);
     }
+    if (boulderHitsPool(ctx, otmp, rx, ry, true)) continue;
     if (ttmp && ttmp.def === TRAP.landmine && landminePush?.(ctx, ttmp, otmp, what)) {
       // the blast breaks the boulder apart or scatters it (into the new pit: fill_pit())
       return boulderAt(ctx, level.id, sx, sy) ? 'blocked' : 'moved';

@@ -365,7 +365,12 @@ function openholdingtrap(ctx: Ctx, mon: Entity | null): { done: boolean; noticed
     if (!u) return { done: false, noticed: false };
     // defsyms[S_web], [S_pit] or [S_bear_trap].explanation: "pit" even for a spiked pit
     say(ctx, 'zap.you_released_trap', {
-      trap: `@${u.type === 'web' ? TRAP.web : u.type === 'pit' ? TRAP.pit : TRAP.bear}`,
+      trap:
+        u.type === 'lava'
+          ? '@liquid.name.lava'
+          : u.type === 'infloor'
+            ? '@liquid.ground'
+            : `@${u.type === 'web' ? TRAP.web : u.type === 'pit' ? TRAP.pit : TRAP.bear}`,
     });
     setUtrap(ctx, 0, u.type); // reset_utrap()
     return { done: true, noticed: true };

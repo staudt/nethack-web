@@ -14,11 +14,13 @@
 // In a shop, walls and doors dug and holes or pits made are damage its keeper wants paid for and
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
 // Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, burying and unearthing objects,
-// impact_drop() (floor objects stay when she falls), liquid flow (no pools exist, so fillholetyp()
-// is always ROOM and draws nothing), drawbridges, graves,
+// impact_drop() (floor objects stay when she falls), liquid flowing into a pit dug sideways
+// (zap_dig()'s pit_flow()), drawbridges, graves,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
+import { fillholetyp, liquidFlow } from './liquidflow';
+import { isLava, isPoolOrLava } from './liquid';
 import { mAt } from './wormstate';
 import {
   DIRS,
@@ -300,6 +302,8 @@ export function digactualhole(
 /**
  * Digging down at (x, y) (default: under the hero). Refused on undiggable ground ("The floor
  * here is too hard to dig in."), on a throne, an altar or (here) a doorway; a boulder there falls in;
+ * water or lava only sloshes ("The water sloshes furiously for a moment, then subsides."); next to
+ * water or lava the hole fills with it (fillholetyp(), liquid_flow());
  * otherwise a pit where the floor cannot be dug through (a hard floor, the bottom of a dungeon,
  * `pitOnly`, an existing other trap there), else a hole. True if something was dug.
  * ref: src/dig.c dighole(), dig_check() (BY_YOU)
@@ -339,6 +343,13 @@ export function dighole(
     if (!ctx.state.gameOver) delfloortrap(ctx, level.id, ttmp); // deltrap()
     return false;
   }
+  if (isPoolOrLava(ctx, level, x, y)) {
+    say(ctx, 'dig.sloshes', {
+      liquid: isLava(ctx, level, x, y) ? '@surface.lava' : '@surface.water',
+    });
+    wakeNearto(ctx, hp.x, hp.y, (hero(ctx).c.experience?.level ?? 1) * 20); // splashing
+    return false;
+  }
   const boulder = boulderAt(ctx, level.id, x, y);
   if (boulder) {
     if (ttmp && isPit(ttmp.def) && ctx.rng.rn2(2)) {
@@ -366,7 +377,12 @@ export function dighole(
     say(ctx, here ? 'dig.too_hard_here' : 'dig.too_hard_there', { surface });
     return false;
   }
-  // fillholetyp() is ROOM: no pools, moats or lava exist
+  // dig a hole and let fluid flow in (if possible)
+  const typ = fillholetyp(ctx, level, x, y, false);
+  if (typ !== null) {
+    liquidFlow(ctx, level, x, y, typ, 'dig.hole_fills');
+    return true;
+  }
   // magical digging disarms settable traps (the bear trap would be buried)
   if (byMagic && ttmp && ttmp.def === TRAP.bear) delfloortrap(ctx, level.id, ttmp);
   const pit = nohole || pitOnly || check === 'destroytrap' || check === 'pitonly';

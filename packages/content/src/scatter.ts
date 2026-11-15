@@ -25,7 +25,7 @@ import { monsterIdAt } from './combat';
 import { dmgvalSized } from './dmgval';
 import { formHatesSilver } from './silver';
 import { stopOccupation } from './eat';
-import { boulderFlooreffects } from './flooreffects';
+import { flooreffects } from './flooreffects';
 import { placeOnFloor, splitStack, weight } from './items';
 import { breakmsg, breaktest } from './material';
 import { breakPotionVapors } from './potionhit';
@@ -230,8 +230,9 @@ export function scatter(
     const o = ctx.state.entities[String(f.id)];
     if (!f.live || !o?.c.item) continue;
     if (f.x !== sx || f.y !== sy) total += o.c.item.quantity;
-    // flooreffects(): a boulder fills a pit or hole (no pools, lava or altars here)
-    if (!boulderFlooreffects(ctx, o, f.x, f.y, 'land', false, flags.monMoving === true))
+    // flooreffects(): a boulder fills a pit or hole, water and lava take what lands there (no
+    // altars here)
+    if (!flooreffects(ctx, o, f.x, f.y, 'land', { monMoving: flags.monMoving === true }))
       placeOnFloor(ctx, o.id, levelId, f.x, f.y); // place_object() + stackobj()
   }
   return total;

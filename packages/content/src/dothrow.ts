@@ -1,6 +1,9 @@
 // Throwing objects. ref: src/dothrow.c dothrow(), throw_obj(), throwit(), thitmonst(), tmiss(),
 // hitfloor(), hero_breaks(), breakobj(); src/zap.c bhit() (thrown objects only); src/uhitm.c
 // hmon_hitmon(); shop goods thrown (check_shop_obj(), in shk.ts)
+import { flooreffects } from './flooreffects';
+import { isPool } from './liquid';
+import { uinwater } from './uwater';
 import { minstapetrify } from './stoning';
 import { bareCorpseTouch, petrifyingCorpse } from './stonetouch';
 import { digests, engulfingU, isSwallowed, isWhirly, uswallow } from './engulfstate';
@@ -459,8 +462,14 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   }
 
   if (dz) {
-    // ref: src/dothrow.c hitfloor(): "It hits the floor." (on an altar doaltarobj() instead)
-    // then it lands at the hero's feet
+    // ref: src/dothrow.c hitfloor(): into water (IS_SOFT(), or she is in it) it is dropped
+    // there (dropy(): flooreffects())
+    if (isPool(ctx, level, pos.x, pos.y) || uinwater(ctx)) {
+      if (!flooreffects(ctx, obj, pos.x, pos.y, 'drop'))
+        placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
+      return;
+    }
+    // "It hits the floor." (on an altar doaltarobj() instead) then it lands at the hero's feet
     if (aAlign(ctx, pos.x, pos.y) !== null) doaltarobj(ctx, obj);
     else
       msg(ctx, `throw.floor${it.quantity !== 1 ? '_pl' : ''}`, {
@@ -471,7 +480,9 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       heroBreaks(ctx, obj, pos.x, pos.y, !hasProp(hero, P.BLINDED));
       return;
     }
-    // dropy() -> dropz(): sold without asking on a costly spot (stackobj() comes after)
+    // dropy() -> dropz(): flooreffects() (lava), then sold without asking on a costly spot
+    // (stackobj() comes after)
+    if (flooreffects(ctx, obj, pos.x, pos.y, 'drop')) return;
     sellobj(ctx, obj, pos.x, pos.y, sellobjState('normal'));
     placeOnFloor(ctx, objId, pos.level, pos.x, pos.y);
     return;
@@ -538,13 +549,19 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
     ctx.remove(objId);
     return;
   }
-  // ref: throwit(): `!IS_SOFT() && breaktest(obj)`: an egg ("Splat!") or a potion ("The potion
+  // ref: throwit(): `!IS_SOFT() && breaktest(obj)` (water is soft): an egg ("Splat!") or a potion ("The potion
   // shatters!") breaks where it lands (breakmsg()), then breakobj() (the shop's charge first;
   // a potion's vapors next to her). Glass still lands whole here (DEVIATIONS.md).
-  if ((obj.def === EGG || odef.class === 'potion') && breaktest(ctx, obj)) {
+  if (
+    !isPool(ctx, level, x, y) &&
+    (obj.def === EGG || odef.class === 'potion') &&
+    breaktest(ctx, obj)
+  ) {
     heroBreaks(ctx, obj, x, y, isVisible(ctx.state, y * level.width + x));
     return;
   }
+  // flooreffects(): water or lava where it lands
+  if (flooreffects(ctx, obj, x, y, 'fall', { thrown: true })) return;
   // charge for items thrown out of shop; shk takes possession for items thrown into one
   if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj)) {
     placeObject(ctx, objId, pos.level, x, y);

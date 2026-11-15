@@ -2,6 +2,7 @@
 // dropping everything on death.
 // ref: src/makemon.c m_initweap(), m_initinv(), mongets(); src/worn.c m_dowear();
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
+import { floorEffectsLate } from './floorfx';
 import { egdOf } from './vaultstate';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { hatesSilver, isUnicorn } from './mondata';
@@ -1154,6 +1155,11 @@ export function relobj(
   }
   for (const o of minvent(ctx, monId)) {
     if (pos && monMoving) monFloorEffects(ctx, o, pos);
+    if (pos && pos.level === ctx.state.currentLevel) {
+      // mdrop_obj(): flooreffects() (water or lava under it)
+      removeFromInventory(ctx, o.id);
+      if (floorEffectsLate(ctx, o, pos.x, pos.y, 'fall')) continue;
+    }
     if (pos) placeOnFloor(ctx, o.id, pos.level, pos.x, pos.y);
     else {
       removeFromInventory(ctx, o.id);

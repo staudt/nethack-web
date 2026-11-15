@@ -30,7 +30,7 @@ import { monsterIdAt } from './combat';
 import { diggingOf, setDigging } from './digstate';
 import { dmgvalSized } from './dmgval';
 import { stopOccupation } from './eat';
-import { boulderFlooreffects } from './flooreffects';
+import { boulderFlooreffects, flooreffects } from './flooreffects';
 import { experienceFor, gainExperience } from './hero';
 import { placeObject, placeOnFloor } from './items';
 import { monsterDied } from './mondeath';
@@ -253,7 +253,13 @@ export function launchObj(
       }
       if (stopped) break;
     }
-    // flooreffects(): nothing more for a boulder on this square (no pools or lava)
+    // flooreffects(): water or lava on this square takes the boulder
+    if (flooreffects(ctx, singleobj, x, y, 'fall', { monMoving })) {
+      stopHere();
+      flush();
+      usedUp = true;
+      break;
+    }
     const otmp2 = boulderAt(ctx, levelId, x, y);
     if (otmp2) {
       const fx = x + dx;

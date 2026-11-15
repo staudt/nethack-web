@@ -6,6 +6,7 @@
 // A shop's walls and doors dug by a broken wand of digging are damage to pay for.
 // Not ported (see DEVIATIONS.md): liquid flow into the pits (no pools),
 // ice, the paranoid_confirmation option (always a y/n question), a hero without hands.
+import { fillholetyp, liquidFlow } from './liquidflow';
 import { mAt } from './wormstate';
 import {
   NORMAL_SPEED,
@@ -208,6 +209,7 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
   zapsetup(); // prepare for potential feedback from polymorph...
   const level = getLevel(ctx.state);
   let shopDamage = false;
+  let fillmsg = false;
   // this makes it hit her last, so that she can see the action first
   for (let i = 0; i < XDIR.length; i++) {
     const x = ox + (XDIR[i] ?? 0);
@@ -224,9 +226,15 @@ export function answerBreakWand(ctx: Ctx, value: Json, data: Json): number {
           watchDig(ctx, x, y);
           if (inAnyShop(level, x, y)) shopDamage = true;
         }
-        // liquid flow: fillholetyp() is always ROOM (no pools)
-        const pit = ctx.rng.rn2(it.spe) < 3 || !canDigDown(ctx, level);
-        digactualhole(ctx, x, y, false, pit ? 'pit' : 'hole'); // BY_OBJECT
+        // let liquid flow into the newly created pits
+        const typ = fillholetyp(ctx, level, x, y, false);
+        if (typ !== null) {
+          liquidFlow(ctx, level, x, y, typ, fillmsg ? null : 'breakwand.holes_filled');
+          fillmsg = true;
+        } else {
+          const pit = ctx.rng.rn2(it.spe) < 3 || !canDigDown(ctx, level);
+          digactualhole(ctx, x, y, false, pit ? 'pit' : 'hole'); // BY_OBJECT
+        }
       }
       if (ctx.state.currentLevel !== level.id) break; // she fell through
       fillPit(ctx, x, y);

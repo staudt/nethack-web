@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-156 NetHack files, 4417 citations.
+157 NetHack files, 4448 citations.
 
 ## dat/dungeon.lua
 
@@ -417,7 +417,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_damageable()`: `packages/content/src/material.ts`
 - `is_launcher()`: `packages/core/src/types/mod.ts`
 - `is_metallic()`: `packages/content/src/material.ts`
-- `is_organic()`: `packages/content/src/meat.ts`
+- `is_organic()`: `packages/content/src/material.ts`, `packages/content/src/meat.ts`
 - `is_rustprone()`: `packages/content/src/material.ts`
 - `is_sword()`: `packages/content/src/itemactions.ts`
 
@@ -473,7 +473,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `D_LOCKED()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`, `packages/core/src/types/mod.ts`
 - `D_NODOOR()`: `packages/core/src/levelgen/grid.ts`
 - `D_TRAPPED()`: `packages/content/src/btrapstate.ts`
-- `IS_DOOR()`: `packages/content/src/fountain.ts`
 - `IS_FURNITURE()`: `packages/content/src/terrain.ts`, `packages/content/src/zap.ts`
 - `IS_OBSTRUCTED()`: `packages/content/src/run.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
 - `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/vault.ts`
@@ -503,6 +502,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/core/src/types/level.ts`
 
+## include/timeout.h
+
+- `MELT_ICE_AWAY()`: `packages/content/src/icestate.ts`
+
 ## include/trap.h
 
 - (file): `packages/content/src/trap.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
@@ -527,6 +530,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `WT_ELF()`: `packages/content/src/landmine.ts`
 - `WT_HUMAN()`: `packages/content/src/mondata.ts`
 - `WT_NOISY_INV()`: `packages/content/src/fumble.ts`
+- `WT_SPLASH_THRESHOLD()`: `packages/content/src/flooreffects.ts`
 - `WT_SQUEEZABLE_INV()`: `packages/content/src/moverock.ts`
 - `WT_TOOMUCH_DIAGONAL()`: `packages/content/src/actions.ts`, `packages/content/src/drown.ts`
 - `WT_WOUNDEDLEG_REDUCT()`: `packages/content/src/stats.ts`
@@ -714,9 +718,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `digcheck_fail_message()`: `packages/content/src/dig.ts`
 - `dighole()`: `packages/content/src/dig.en.ts`, `packages/content/src/dig.ts`
 - `draft_message()`: `packages/content/src/mdig.ts`
+- `fillholetyp()`: `packages/content/src/liquidflow.ts`
 - `furniture_handled()`: `packages/content/src/dig.ts`
 - `holetime()`: `packages/content/src/shkdamage.ts`
 - `is_digging()`: `packages/content/src/digstate.ts`
+- `liquid_flow()`: `packages/content/src/liquidflow.ts`
 - `mdig_tunnel()`: `packages/content/src/mdig.ts`
 - `pick_can_reach()`: `packages/content/src/dig.ts`
 - `rot_corpse()`: `packages/content/src/corpses.ts`
@@ -756,6 +762,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/do.c
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
+- `boulder_hits_pool()`: `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`, `packages/content/src/itemactions.ts`
 - `doddrop()`: `packages/content/src/itemactions.ts`
@@ -768,7 +775,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropy()`: `packages/content/src/itemactions.ts`
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
-- `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`
+- `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
 - `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/genocide.ts`, `packages/content/src/lock.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1129,6 +1136,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pooleffects()`: `packages/content/src/drown.ts`, `packages/content/src/liquid.en.ts`
 - `rounddiv()`: `packages/content/src/eat.ts`
 - `runmode_delay_output()`: `packages/app/src/options.ts`
+- `slippery_ice_fumbling()`: `packages/content/src/fumble.ts`
 - `spoteffects()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `squeezeablylightinvent()`: `packages/content/src/moverock.ts`
 - `swim_move_danger()`: `packages/content/src/actions.ts`, `packages/content/src/drown.ts`
@@ -1474,10 +1482,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `isbig()`: `packages/content/src/shknam.ts`
 - `mk_zoo_thronemon()`: `packages/content/src/zoo.ts`
 - `mkshop()`: `packages/content/src/shknam.ts`
+- `mkswamp()`: `packages/content/src/mkroom.ts`
 - `mktemple()`: `packages/content/src/mkroom.ts`
 - `mkzoo()`: `packages/content/src/mkroom.ts`
 - `morguemon()`: `packages/content/src/roommon.ts`
-- `nexttodoor()`: `packages/content/src/fountain.ts`
+- `nexttodoor()`: `packages/content/src/terrain.ts`
 - `pick_room()`: `packages/content/src/mkroom.ts`
 - `search_special()`: `packages/content/src/vaultstate.ts`
 - `somexy()`: `packages/content/src/somexy.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/rooms.ts`
@@ -2338,6 +2347,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `slime_dialogue()`: `packages/content/src/slime.ts`
 - `slimed_to_death()`: `packages/content/src/slime.ts`
 - `slip_or_trip()`: `packages/content/src/fumble.en.ts`, `packages/content/src/fumble.ts`
+- `spot_stop_timers()`: `packages/content/src/icestate.ts`
+- `spot_time_left()`: `packages/content/src/icestate.ts`
 - `stoned_dialogue()`: `packages/content/src/stoning.ts`
 - `stoned_texts()`: `packages/content/src/stoning.en.ts`
 - `stop_timer()`: `packages/content/src/eggstate.ts`, `packages/content/src/figurinestate.ts`
@@ -2372,6 +2383,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `could_untrap()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `delfloortrap()`: `packages/content/src/buzz.ts`, `packages/content/src/dig.ts`
 - `deltrap()`: `packages/content/src/sokoban.ts`, `packages/content/src/trap.ts`, `packages/core/src/types/mod.ts`
+- `destroy_strings()`: `packages/content/src/flooreffects.ts`
 - `disarm_box()`: `packages/content/src/untrap.ts`
 - `disarm_holdingtrap()`: `packages/content/src/untrap.ts`
 - `disarm_landmine()`: `packages/content/src/untrap.ts`
@@ -2390,6 +2402,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `feeltrap()`: `packages/content/src/trap.ts`
 - `fill_pit()`: `packages/content/src/flooreffects.ts`
 - `find_random_launch_coord()`: `packages/content/src/trap.ts`
+- `fire_damage()`: `packages/content/src/flooreffects.ts`
+- `fire_damage_chain()`: `packages/content/src/flooreffects.ts`
 - `float_down()`: `packages/content/src/levitation.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `float_up()`: `packages/content/src/levitation.ts`, `packages/content/src/trap.en.ts`
 - `floor_trigger()`: `packages/content/src/trap.ts`
@@ -2400,6 +2414,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `into_vs_onto()`: `packages/content/src/trap.ts`, `packages/content/src/untrap.ts`
 - `isclearpath()`: `packages/content/src/trap.ts`
 - `launch_obj()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
+- `lava_damage()`: `packages/content/src/flooreffects.ts`
+- `lava_effects()`: `packages/content/src/drown.ts`
 - `m_harmless_trap()`: `packages/content/src/trap.ts`
 - `maketrap()`: `packages/content/src/trap.ts`
 - `maybe_finish_sokoban()`: `packages/content/src/sokoban.ts`
@@ -2417,10 +2433,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rnd_nextto_goodpos()`: `packages/content/src/drown.ts`, `packages/content/src/worm.ts`
 - `seetrap()`: `packages/content/src/trap.ts`
 - `set_utrap()`: `packages/content/src/trapstate.ts`
+- `sink_into_lava()`: `packages/content/src/drown.ts`
 - `sokoban_guilt()`: `packages/content/src/sokoban.ts`
 - `t_at()`: `packages/core/src/traps.ts`
 - `t_missile()`: `packages/content/src/trap.ts`
 - `thitm()`: `packages/content/src/trap.ts`
+- `trap_ice_effects()`: `packages/content/src/ice.ts`
 - `trapeffect_anti_magic()`: `packages/content/src/magictrap.ts`
 - `trapeffect_fire_trap()`: `packages/content/src/magictrap.ts`
 - `trapeffect_hole()`: `packages/content/src/trap.ts`
@@ -2690,6 +2708,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `learnwand()`: `packages/content/src/zap.ts`
 - `makewish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/wish.ts`
 - `maybe_destroy_item()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`, `packages/content/src/potionhit.ts`
+- `melt_ice()`: `packages/content/src/ice.ts`
+- `melt_ice_away()`: `packages/content/src/ice.ts`
 - `mon_spell_hits_spot()`: `packages/content/src/buzz.ts`
 - `obj_resists()`: `packages/content/src/meat.ts`, `packages/content/src/polyobj.ts`
 - `obj_shudders()`: `packages/content/src/polyobj.ts`
@@ -2703,6 +2723,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `revive_egg()`: `packages/content/src/zap.ts`
 - `spell_damage_bonus()`: `packages/content/src/spellcalc.ts`
 - `spell_hit_bonus()`: `packages/content/src/spellcalc.ts`
+- `start_melt_ice_timeout()`: `packages/content/src/icestate.ts`
 - `stone_to_flesh_obj()`: `packages/content/src/stoneflesh.ts`
 - `tmp_at()`: `packages/content/src/dothrow.ts`
 - `u_adtyp_resistance_obj()`: `packages/content/src/erode.ts`
@@ -2712,7 +2733,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `unturn_dead()`: `packages/content/src/revive.ts`
 - `weffects()`: `packages/content/src/cast.ts`, `packages/content/src/zap.ts`, `packages/core/src/types/mod.ts`
 - `zap_hit()`: `packages/content/src/buzz.ts`
-- `zap_over_floor()`: `packages/content/src/buzz.ts`
+- `zap_over_floor()`: `packages/content/src/buzz.ts`, `packages/content/src/ice.ts`
 - `zap_updown()`: `packages/content/src/zap.ts`
 - `zapnodir()`: `packages/content/src/teleport.ts`, `packages/content/src/zap.ts`
 - `zappable()`: `packages/content/src/zap.ts`

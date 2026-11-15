@@ -142,7 +142,7 @@ From m13 (monster batch 2: hiding monsters, mimics where NetHack puts them, unic
 
 From m12 (special rooms: the whole `makelevel()` chain, throne rooms and thrones, zoos, leprechaun halls, beehives and royal jelly, cockatrice nests, antholes, barracks, morgues and wall-walking ghosts, random temples, altars and sinks, vaults with their teleporter and guard; phone checks in TESTPLAN "12 special rooms"):
 
-- **Swamps and pools:** water terrain, swimming and drowning, `minliquid()`, wet items, boulders into water, the eels and piranhas; the swamp's chain roll is drawn and nothing is made.
+- ~~**Swamps and pools:** water terrain, swimming and drowning, `minliquid()`, wet items, boulders into water, the eels and piranhas; the swamp's chain roll is drawn and nothing is made.~~ (m15 steps 1-3)
 - **Graves:** the morgue's `!rn2(5)` roll is drawn and nothing is made; `mkgrave()` in ordinary rooms is not rolled; headstones and epitaphs, buried objects, digging graves up; `paygd()`'s "To Croesus" grave.
 - **Level sounds:** `dosounds()` (courtly conversation, buzzing, the vault's "someone counting money", the morgue's and the barracks' noises) and the `has_*` level flags.
 - **Themed rooms and ordinary niches:** `make_niches()` (trapdoor niches), the themed rooms and `rnd_rect()`'s interplay with them.

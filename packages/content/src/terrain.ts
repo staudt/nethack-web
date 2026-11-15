@@ -446,3 +446,17 @@ export function surfaceKey(
   // IS_ROOM(): floor and furniture; corridors and rock are "ground"
   return id === T.corr || id === T.stone || id === T.scorr ? '@surface.ground' : '@surface.floor';
 }
+
+/** IS_DOOR() || SDOOR on the eight squares around (x, y). ref: src/mkroom.c nexttodoor() */
+export function nexttodoor(ctx: Pick<Ctx, 'defs'>, level: Level, x: number, y: number): boolean {
+  for (let dx = -1; dx <= 1; dx++)
+    for (let dy = -1; dy <= 1; dy++) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= level.width || ny >= level.height) continue;
+      const tid = level.palette[level.cells[cellIndex(level, nx, ny)] ?? 0];
+      if (tid === undefined) continue;
+      if (ctx.defs.terrain(tid).door !== undefined || isSdoorId(tid)) return true;
+    }
+  return false;
+}
