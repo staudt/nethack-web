@@ -282,6 +282,13 @@ export const isPrince = (def: MonsterDef): boolean => def.flags.includes('prince
 export const isDlord = (def: MonsterDef): boolean => isDemon(def) && isLord(def);
 /** ref: include/mondata.h is_dprince(): a demon prince (Orcus ... Demogorgon) */
 export const isDprince = (def: MonsterDef): boolean => isDemon(def) && isPrince(def);
+
+/**
+ * Wants one of the invocation items, the Amulet or the quest artifact (any M3_WANTS* flag).
+ * ref: include/mondata.h is_covetous() (M3_COVETOUS)
+ */
+export const isCovetous = (def: MonsterDef): boolean =>
+  def.flags.some((f) => f.startsWith('wants'));
 /** ref: include/mondata.h is_ndemon(): a demon that is neither a lord nor a prince */
 export const isNdemon = (def: MonsterDef): boolean =>
   isDemon(def) && !isLord(def) && !isPrince(def);

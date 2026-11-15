@@ -11,6 +11,7 @@
 // objects (costly_alteration()), being underwater, the steed, the "Maud" name check, the
 // rechargeable tools (none exist: every tool gives "a feeling of loss"), selftouch() for
 // gloves lost while wielding a cockatrice corpse, artifacts.
+import { setDestroyArm } from './mcastu';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -186,6 +187,8 @@ export function disintegrateArm(ctx: Ctx, atmp: Entity | null): boolean {
 
 // zhitu()'s disintegration blast (buzz.ts sits below this module)
 setDisintegrateArm(disintegrateArm);
+// the destroy armor spell (mcastu.ts sits below this module)
+setDestroyArm((ctx) => destroyArm(ctx));
 
 /** ref: src/read.c disintegrate_cursed_armor(): a random cursed worn piece */
 function disintegrateCursedArmor(ctx: Ctx): boolean {

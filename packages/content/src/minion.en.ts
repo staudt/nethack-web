@@ -1,5 +1,6 @@
-// English text for demons summoning demons and the barbed devil. ref: src/minion.c msummon();
-// src/mondata.c msummon_environ(); src/uhitm.c demonpet(), mhitm_ad_stck()
+// English text for demons summoning demons, the barbed devil and the princes' bribes.
+// ref: src/minion.c msummon(), demon_talk(); src/mondata.c msummon_environ(); src/uhitm.c
+// demonpet(), mhitm_ad_stck(); src/monmove.c dochug() "Demonic Blackmail!"
 export const minionMessagesEn: Record<string, string> = {
   'minion.appears': '{mon|An} appears in a {cloud} of {what}!',
   'minion.cloud': 'cloud',
@@ -15,4 +16,15 @@ export const minionMessagesEn: Record<string, string> = {
   'minion.light': 'light',
   'minion.hell_p': 'Some hell-p has arrived!',
   'adtyp.barbs_stick': 'The barbs stick to you!',
+  'demon.appears_before_you': '{mon|An} appears before you.',
+  'demon.good_hunting_brother': '{mon|An} says, "Good hunting, Brother."',
+  'demon.good_hunting_sister': '{mon|An} says, "Good hunting, Sister."',
+  'demon.demands': '{mon|An} demands {n} zorkmids for safe passage.',
+  'demon.demands_one': '{mon|An} demands 1 zorkmid for safe passage.',
+  'demon.offer_prompt': 'How much will you offer?',
+  'demon.vanishes_laughing': '{mon|An} vanishes, laughing about cowardly mortals.',
+  'demon.scowls': '{mon|An} scowls at you menacingly, then vanishes.',
+  'demon.gets_angry': '{mon|An} gets angry...',
+  'demon.whispers': '{mon|The} whispers at thin air.',
+  'demon.gets_angry_now': '{mon|An} gets angry!',
 };

@@ -8,8 +8,7 @@
 // <0,0> auditory case); src/hacklib.c mungspaces(), highc()
 //
 // Not ported (see DEVIATIONS.md): the other instruments, Deafness, being underwater, attribute
-// exercise, Hero_playnotes() (sound), achievements, vault guards, monster strategies
-// (STRAT_WAITMASK), and the scare exemptions for the Wizard, minions, Angels and the Riders
+// exercise, Hero_playnotes() (sound), achievements, vault guards, and the scare exemptions for the Wizard, minions, Angels and the Riders
 // (none exist here).
 import {
   NORMAL_SPEED,
@@ -38,7 +37,7 @@ import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { hasHead, verysmall } from './mondata';
 import { monflee } from './monflee';
-import { unfreezeMonst } from './mstate';
+import { clearWaitMask, stratWaiting, unfreezeMonst } from './mstate';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp, isStrangled } from './props';
@@ -105,8 +104,13 @@ function awakenScare(ctx: Ctx, mon: Entity, scary: boolean): void {
   if (!m) return;
   m.asleep = false;
   unfreezeMonst(ctx, mon.id); // mcanmove = 1, mfrozen = 0
-  if (!scary) return;
   const def = ctx.defs.monster(mon.def);
+  // may scare some monsters -- waiting monsters excluded
+  if (!def.genFlags.includes('uniq') && stratWaiting(ctx, mon.id)) {
+    clearWaitMask(ctx, mon.id);
+    return;
+  }
+  if (!scary) return;
   if (def.flags.includes('mindless')) return;
   let dlev = m.level;
   if (dlev > 50) dlev = 50;
@@ -138,6 +142,7 @@ export function awakenSoldiers(ctx: Ctx, bugler: Entity | 'hero' = 'hero'): void
       if (!m.tame) m.peaceful = false;
       m.asleep = false;
       unfreezeMonst(ctx, id);
+      clearWaitMask(ctx, id);
       if (canSpotMon(ctx, mon)) say(ctx, 'music.ready_for_battle', { mon: monNam(ctx, mon) });
       else if (!heard) {
         // Norep()

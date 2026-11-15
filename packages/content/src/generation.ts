@@ -30,8 +30,17 @@ import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
-import { isBat, isEel, isFloater, isFlyer, isMplayer, isUnicorn } from './mondata';
-import { setMspeed } from './mstate';
+import {
+  isBat,
+  isCovetous,
+  isDprince,
+  isEel,
+  isFloater,
+  isFlyer,
+  isMplayer,
+  isUnicorn,
+} from './mondata';
+import { setMspeed, setStrat } from './mstate';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -405,6 +414,8 @@ export interface MakemonOpts {
   inMklev?: boolean;
   /** A long worm gets no tail segments (MM_NOTAIL; it still grows one). */
   noTail?: boolean;
+  /** No waiting strategy from its kind's M3 flags (MM_NOWAIT). */
+  noWait?: boolean;
 }
 
 type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
@@ -527,6 +538,13 @@ export function makemon(
     if (!giveWormTail) throw new Error('makemon: worm.ts has not registered giveWormTail()');
     giveWormTail(ctx, id, opts.noTail ? 0 : 'random');
   }
+  // ref: makemon(): `is_dprince(ptr) && ptr->msound == MS_BRIBE`: Asmodeus and Baalzebub are born
+  // peaceful and invisible for good (no Excalibur or Demonbane here; no mavenge)
+  if (mon && isDprince(mdef) && mdef.sound === 'bribe') {
+    mon.peaceful = true;
+    const e = ctx.state.entities[String(id)];
+    if (e) setMinvis(ctx, e);
+  }
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {
@@ -537,6 +555,21 @@ export function makemon(
   // ref: makemon(): after any group, "equip with weapons / armor" (m_initweap, m_initinv,
   // m_dowear(creation))
   if (!opts.noInventory) givePossessions(ctx, id, level.depth);
+  // ref: makemon(): `if (ptr->mflags3 && !(mmflags & MM_NOWAIT))`: M3_WAITFORU, M3_CLOSE, and
+  // STRAT_APPEARMSG for those and the covetous kinds
+  if (!opts.noWait) {
+    const f = mdef.flags;
+    const covetous = isCovetous(mdef);
+    setStrat(
+      ctx,
+      id,
+      ...(f.includes('waitforu') ? (['waitForU'] as const) : []),
+      ...(f.includes('close') ? (['close'] as const) : []),
+      ...(f.includes('waitforu') || f.includes('close') || covetous
+        ? (['appearMsg'] as const)
+        : []),
+    );
+  }
   return id;
 }
 

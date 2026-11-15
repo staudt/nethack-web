@@ -16,7 +16,8 @@
 // by apparxy.ts setApparxy() while the monster cannot see the hero), `mrevived: { [monsterId]: true }`
 // once it came back from a corpse, `mwandexp: { [monsterId]: true }` once it has zapped an attack
 // wand (muse.c), `mseenres: { [monsterId]: bits }` the hero's resistances it has seen (C's
-// `seen_resistance`, M_SEEN_* bits; musestate.ts).
+// `seen_resistance`, M_SEEN_* bits; musestate.ts), `mstrat: { [monsterId]: MStrat }` its
+// strategy (C's `mstrategy`: the wait bits, STRAT_APPEARMSG, the covetous strategy and its goal).
 import {
   getPlayer,
   sortedIds,
@@ -50,7 +51,8 @@ type Key =
   | 'mrevived'
   | 'mwandexp'
   | 'mseenres'
-  | 'mflee';
+  | 'mflee'
+  | 'mstrat';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -84,6 +86,67 @@ export function frozenTime(ctx: Pick<Ctx, 'state'>, id: EntityId): number {
 export function paralyzeMonst(ctx: Pick<Ctx, 'state'>, id: EntityId, amt: number): void {
   const t = table(ctx, 'mfrozen', true);
   if (t && amt > 0) t[String(id)] = Math.min(amt, 127);
+  clearStrat(ctx, id, 'waitForU'); // `mon->mstrategy &= ~STRAT_WAITFORU`
+}
+
+/**
+ * A monster's strategy (C's `mstrategy`): `waitForU` (STRAT_WAITFORU: it does nothing until it
+ * sees the hero or is hurt), `close` (STRAT_CLOSE: until she comes next to it), `appearMsg`
+ * (STRAT_APPEARMSG: its next arrival in view says "suddenly appears"), and for a covetous monster
+ * the strategy tactics() follows (`strat`: STRAT_HEAL, or STRAT_PLAYER/GROUND/MONSTR with the
+ * wanted item's flag in `want`; absent is STRAT_NONE) and its goal (`goal`: mgoal, absent is
+ * 0,0). ref: include/monst.h mstrategy, mgoal
+ */
+export interface MStrat {
+  waitForU?: true;
+  close?: true;
+  appearMsg?: true;
+  strat?: 'heal' | 'player' | 'ground' | 'monstr';
+  want?: string;
+  goal?: { x: number; y: number };
+}
+type StratBit = 'waitForU' | 'close' | 'appearMsg';
+
+/** The monster's strategy (an empty one when it has none). */
+export function mstratOf(ctx: Pick<Ctx, 'state'>, id: EntityId): Readonly<MStrat> {
+  const v = table(ctx, 'mstrat', false)?.[String(id)];
+  return isObj(v) ? (v as MStrat) : {};
+}
+
+/** Replaces the monster's strategy (an empty one drops the entry). */
+export function setMstrat(ctx: Pick<Ctx, 'state'>, id: EntityId, s: MStrat): void {
+  const empty = Object.keys(s).length === 0;
+  const t = table(ctx, 'mstrat', !empty);
+  if (!t) return;
+  if (empty) delete t[String(id)];
+  else t[String(id)] = s as unknown as Json;
+}
+
+/** `mstrategy |= bits` */
+export function setStrat(ctx: Pick<Ctx, 'state'>, id: EntityId, ...bits: StratBit[]): void {
+  if (bits.length === 0) return;
+  const s = { ...mstratOf(ctx, id) };
+  for (const b of bits) s[b] = true;
+  setMstrat(ctx, id, s);
+}
+
+/** `mstrategy &= ~bits` */
+export function clearStrat(ctx: Pick<Ctx, 'state'>, id: EntityId, ...bits: StratBit[]): void {
+  const cur = mstratOf(ctx, id);
+  if (!bits.some((b) => cur[b])) return;
+  const s = { ...cur };
+  for (const b of bits) delete s[b];
+  setMstrat(ctx, id, s);
+}
+
+/** `mstrategy &= ~STRAT_WAITMASK`: a waiting monster is prodded into action. */
+export const clearWaitMask = (ctx: Pick<Ctx, 'state'>, id: EntityId): void =>
+  clearStrat(ctx, id, 'waitForU', 'close');
+
+/** `(mstrategy & STRAT_WAITMASK) != 0` */
+export function stratWaiting(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
+  const s = mstratOf(ctx, id);
+  return s.waitForU === true || s.close === true;
 }
 
 /** `mtmp->mfrozen = 0; mtmp->mcanmove = 1;` */
@@ -281,8 +344,8 @@ export function unblindMonst(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 }
 
 /**
- * Wakes the monsters of the hero's level; a paralysed one moves again 1 time in 5. No Wizard's
- * Tower and no monster strategies here. ref: src/wizard.c aggravate()
+ * Wakes the monsters of the hero's level, waiting ones too (and no "suddenly appears" for them);
+ * a paralysed one moves again 1 time in 5. No Wizard's Tower here. ref: src/wizard.c aggravate()
  */
 export function aggravate(ctx: Ctx): void {
   const level = getPlayer(ctx.state).c.pos?.level;
@@ -290,6 +353,7 @@ export function aggravate(ctx: Ctx): void {
     const e = ctx.state.entities[String(id)];
     const m = e?.c.monster;
     if (!e || !m || e.c.pos?.level !== level) continue;
+    clearStrat(ctx, id, 'waitForU', 'appearMsg');
     m.asleep = false;
     if (isFrozen(ctx, id) && !ctx.rng.rn2(5)) unfreezeMonst(ctx, id);
   }
@@ -311,6 +375,7 @@ const KEYS: readonly Key[] = [
   'mwandexp', // musestate.ts
   'mseenres', // musestate.ts
   'mflee', // monflee.ts (its end-of-turn pruning misses a death in the turn the game ends)
+  'mstrat',
 ];
 
 /** `mtmp->mwandexp`: the monster has zapped an attack wand before. ref: include/monst.h */

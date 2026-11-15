@@ -107,7 +107,7 @@ import { isCrackable, isMetallic, isRustprone } from './material';
 import { monkilled } from './mondeath';
 import { minvent, monWep, whichArmor } from './mongear';
 import { clearPath } from './clearpath';
-import { isFrozen, paralyzeMonst, setMConfused } from './mstate';
+import { clearStrat, isFrozen, mstratOf, paralyzeMonst, setMConfused } from './mstate';
 import { flaming, isWhirly } from './engulfstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
@@ -2422,10 +2422,12 @@ export function registerTeleportitis(api: ModApi): void {
 
 /**
  * The monster moves to (x, y) of its level: "The jackal vanishes and reappears close by.",
- * "The jackal vanishes!", "A jackal appears next to you!" (`domsg`, RLOC_MSG); a resident
- * shopkeeper taken out of his shop gets angry, and shop goods it carries out are stolen by the
- * hero; a trapped monster is checked against the trap where it lands.
- * ref: src/teleport.c rloc_to_core() (no engulfing or STRAT_APPEARMSG)
+ * "The jackal vanishes!", "A jackal appears next to you!" (`domsg`, RLOC_MSG); a monster with
+ * STRAT_APPEARMSG gets its one "Asmodeus suddenly appears!" even unseen and without `domsg`
+ * (unless it was seen vanishing); a resident shopkeeper taken out of his shop gets angry, and
+ * shop goods it carries out are stolen by the hero; a trapped monster is checked against the trap
+ * where it lands. ref: src/teleport.c rloc_to_core() (no engulfing; no RLOC_NOMSG: `domsg` false
+ * is RLOC_NONE)
  */
 export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boolean): void {
   const p = mon.c.pos;
@@ -2437,9 +2439,14 @@ export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boole
   const hp = heroPos(ctx);
   const onHeroLevel = p.level === hp.level;
   let telemsg = false;
+  let appearmsg = mstratOf(ctx, mon.id).appearMsg === true;
+  const vanishmsg = domsg;
+  domsg = vanishmsg || appearmsg;
   if (domsg && onHeroLevel && canSpotMon(ctx, mon)) {
     if (couldsee(ctx, x, y) || telepathSenses(ctx.state, ctx.defs, mon)) telemsg = true;
     else say(ctx, 'tele.mon_vanishes', { mon: monNam(ctx, mon) });
+    // avoid "It suddenly appears!" for a STRAT_APPEARMSG monster that has just teleported away
+    appearmsg = false;
   }
   // ref: rloc_to_core(): `if (mtmp->wormno) remove_worm(mtmp)`, then "now put down tail"
   const worm = wormRec(ctx.state, mon.id) !== null;
@@ -2450,9 +2457,10 @@ export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boole
   if (stuck === mon.id && Math.max(Math.abs(x - hp.x), Math.abs(y - hp.y)) > 1)
     setUstuck(ctx, null);
   maybeUnhideAt(ctx, p.level, x, y); // ref: src/teleport.c rloc_to_core()
-  if (domsg && onHeroLevel && canSpotMon(ctx, mon)) {
+  if (domsg && onHeroLevel && (canSpotMon(ctx, mon) || appearmsg)) {
     const du = (x - hp.x) ** 2 + (y - hp.y) ** 2;
     const near = du <= 2 ? 'next' : du <= BOLT_LIM * BOLT_LIM ? 'close' : null;
+    clearStrat(ctx, mon.id, 'appearMsg'); // one chance only
     if (telemsg && (couldsee(ctx, x, y) || telepathSenses(ctx.state, ctx.defs, mon))) {
       const olddu = (oldx - hp.x) ** 2 + (oldy - hp.y) ** 2;
       const where = near ?? (olddu === du ? 'none' : du < olddu ? 'closer' : 'farther');
@@ -2461,10 +2469,11 @@ export function rlocTo(ctx: Ctx, mon: Entity, x: number, y: number, domsg: boole
         where: { key: `tele.where.${where}` },
       });
     } else
-      say(ctx, hasProp(heroEnt(ctx), P.BLINDED) ? 'tele.mon_arrives' : 'tele.mon_appears', {
-        mon: monNam(ctx, mon),
-        where: { key: `tele.where.${near ?? 'none'}` },
-      });
+      say(
+        ctx,
+        `tele.mon_${appearmsg ? 'suddenly_' : ''}${hasProp(heroEnt(ctx), P.BLINDED) ? 'arrives' : 'appears'}`,
+        { mon: monNam(ctx, mon), where: { key: `tele.where.${near ?? 'none'}` } },
+      );
   }
   // shopkeepers only teleport if you zap them with a wand of teleportation
   if (residentShk && !inhishop(ctx, mon.id)) makeAngryShk(ctx, mon.id);

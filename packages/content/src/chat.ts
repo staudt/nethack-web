@@ -33,9 +33,10 @@ import { eshkOf } from './eshk';
 import { polyGender } from './gender';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
+import { demonTalk } from './demontalk';
 import { isFleeing } from './monflee';
 import { moneyCnt } from './money';
-import { aggravate, isCancelled, isFrozen, isMConfused, isMStunned } from './mstate';
+import { aggravate, clearWaitMask, isCancelled, isFrozen, isMConfused, isMStunned } from './mstate';
 import { isWeptool } from './material';
 import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
@@ -205,10 +206,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       // deliberately vague, since it's not actually casting any spell
       return pline('chat.cantrip');
     case 'bribe':
-    // a peaceful, untamed demon prince talks of a bribe (demon_talk(): m17 step 5); else as
-    // MS_CUSS
-    // falls through
     case 'cuss':
+      // a peaceful, untamed demon prince talks of a bribe (demon_talk()); else as MS_CUSS
+      if (msound === 'bribe' && m.peaceful && !tame) {
+        demonTalk(ctx, id);
+        return NORMAL_SPEED;
+      }
       // (no minions: `is_lminion()` never holds, so a peaceful one is never "not too late")
       if (!m.peaceful) {
         cuss(ctx, mon);
@@ -371,6 +374,8 @@ function chatDir(ctx: Ctx, want: Dir | 'self'): ChatResult {
     if (canSpotMon(ctx, mon)) say(ctx, 'chat.not_notice', { mon: monNam(ctx, mon) });
     return 0;
   }
+  // if this monster is waiting for something, prod it into action
+  clearWaitMask(ctx, id);
   if ((m.tame ?? 0) > 0 && meating(ctx, id) > 0) {
     say(ctx, 'chat.eating', { mon: monNam(ctx, mon) });
     return 0;

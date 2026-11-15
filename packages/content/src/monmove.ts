@@ -46,6 +46,7 @@ import {
   monWouldTakeItem,
   mpickstuff,
   mpickstuffSkips,
+  heroSees,
   setMonFlag,
 } from './mongear';
 import { buzzmuAvailable, mattackRanged } from './mthrowu';
@@ -61,22 +62,27 @@ import { uState } from './luck';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { fightm, mattackm } from './mhitm';
 import { M_ATTK } from './adtyping';
-import { couldseeAt, invisTo, setApparxy } from './apparxy';
+import { couldseeAt, invisTo, mCanSeeU, setApparxy } from './apparxy';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
 import { monNam } from './perception';
 import {
+  clearStrat,
   isCancelled,
   isFrozen,
   isMConfused,
   isMStunned,
   mcansee,
   mspecUsed,
+  mstratOf,
   setMConfused,
   setMStunned,
   setStoredMux,
   storedMux,
+  stratWaiting,
 } from './mstate';
+import { tactics } from './covetous';
+import { demonicBlackmail } from './demontalk';
 import { meating, setMeating } from './dog';
 import { mHarmlessTrap, mintrap, rlocMon, rlocTo, trapRemovedMon } from './trap';
 import { isMtrapped, monKnowsTraps } from './trapstate';
@@ -123,9 +129,9 @@ import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { canseemon, heroInvisible, monInvisible } from './invis';
 import { minliquid } from './minliquid';
-import { isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
+import { isCovetous, isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
 import { isLava, isPool, mInAir } from './liquid';
-import { isWormTail, wormRec } from './wormstate';
+import { isWormTail, mAt, wormRec } from './wormstate';
 import { wormCross, wormMove, wormNomove } from './worm';
 import { wipeEngrAt } from './engr';
 
@@ -872,6 +878,18 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   // ref: m_move(): "Where does 'mtmp' think you are?"
   Object.assign(ap, setApparxy(ctx, monCount(ctx, id).e, ap));
 
+  // ref: m_move(): "and the acquisitive monsters get special treatment": a covetous monster
+  // attacks a monster standing on (or holding) what it is after, when next to it
+  if (isCovetous(def)) {
+    const g = mstratOf(ctx, id).goal;
+    const intruder = g ? (mAt(ctx.state, level.id, g.x, g.y)?.id ?? null) : null;
+    if (g && intruder !== null && intruder !== id && dist2(pos.x, pos.y, g.x, g.y) <= 2) {
+      const res = mattackm(ctx, id, intruder);
+      if (res & M_ATTK.AGR_DIED || !ctx.state.entities[String(id)]?.c.monster) return 'died';
+      return postmovMoved(ctx, id, level, rules);
+    }
+    // otherwise continue with normal AI routine
+  }
   // ref: m_move(): "likewise for shopkeeper, guard, or priest"; -1 (a priest outside his
   // temple, a shopkeeper following the hero, an angry guard) goes on with the normal AI
   if (epriOf(ctx, id) || eshkOf(ctx, id) || isGuard(ctx.state, id)) {
@@ -1159,7 +1177,9 @@ export function dochug(
   const meL = ctx.state.entities[String(id)];
   const hpL = getPlayer(ctx.state).c.pos;
   if (meL?.c.pos && hpL?.level === meL.c.pos.level && minliquid(ctx, meL)) return;
-  const { m, pos } = monCount(ctx, id);
+  const mc = monCount(ctx, id);
+  const { m } = mc;
+  let pos = mc.pos;
   const hero = getPlayer(ctx.state);
   const hp = hero.c.pos;
   if (!hp || hp.level !== pos.level) return;
@@ -1210,8 +1230,17 @@ export function dochug(
   )
     return; // mon might have died
 
-  // ref: dochug(): a monster that can't move does nothing; a confused or stunned one may recover
-  if (isFrozen(ctx, id)) return;
+  // ref: dochug(): "check for waitmask status change": one waiting for the hero stops when it
+  // could see her or is hurt; a monster that can't move or waits does nothing; a confused or
+  // stunned one may recover
+  const meW = ctx.state.entities[String(id)];
+  if (
+    meW &&
+    mstratOf(ctx, id).waitForU &&
+    (mCanSeeU(ctx, meW) || (meW.c.hp !== undefined && meW.c.hp.cur < meW.c.hp.max))
+  )
+    clearStrat(ctx, id, 'waitForU');
+  if (isFrozen(ctx, id) || stratWaiting(ctx, id)) return;
   if (m.asleep && !disturb(ctx, id)) return;
   // ref: dochug(): "not frozen or sleeping: wipe out texts written in the dust"
   wipeEngrAt(ctx, getLevel(ctx.state, pos.level), pos.x, pos.y, 1, false);
@@ -1248,7 +1277,16 @@ export function dochug(
   }
   // ref: dochug() PHASE TWO: "The monster decides where it thinks you are" (set_apparxy()); the
   // guess `ap` is this move's mux/muy (m_move() may guess again or find her)
-  const ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
+  let ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
+  // ref: dochug(): "Monsters that want to acquire things may teleport, so do it before inrange
+  // is set." (tactics(); its move goes on unless it left the level)
+  if (self && isCovetous(def)) {
+    tactics(ctx, id);
+    const me = ctx.state.entities[String(id)];
+    if (!me?.c.monster || !me.c.pos || me.c.pos.level !== pos.level) return;
+    pos = me.c.pos;
+    ap = setApparxy(ctx, me);
+  }
   // ref: src/monmove.c distfleeck(): inrange, nearby and scared; a scary square where it thinks
   // the hero is (onscary(): a scroll of scare monster, an Elbereth) and the hero's sanctuary
   // scare (no flees_light; no bravegremlin roll) -- see DEVIATIONS.md
@@ -1278,6 +1316,17 @@ export function dochug(
     if (mchoice && useMisc(ctx, id, mchoice) !== 0) return;
   }
   const fleeing = isFleeing(ctx, id);
+
+  // ref: dochug(): "Demonic Blackmail!"
+  if (
+    nearby &&
+    def.sound === 'bribe' &&
+    m.peaceful &&
+    !(m.tame ?? 0) &&
+    !uswallow(ctx) &&
+    demonicBlackmail(ctx, id, ap, heroSees(ctx, { level: pos.level, x: ap.x, y: ap.y }))
+  )
+    return; // you paid it off
 
   // ref: dochug(): "the watch will look around and see if you are up to no good :-)"
   if (isWatch(def.id)) watchOnDuty(ctx, id);

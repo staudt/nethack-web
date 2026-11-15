@@ -35,7 +35,7 @@ import { maybeSmudgeEngr } from './engr';
 import { askReallyAttack, attackChecksUnseen, needsAttackConfirm } from './peaceful';
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
-import { isFrozen } from './mstate';
+import { clearWaitMask, isFrozen } from './mstate';
 import { canSpotMon, monNam, sensemon } from './perception';
 import { hidesUnder, isHider, isUndetected, setUndetected } from './hidestate';
 import { ceilingKey } from './read';
@@ -192,8 +192,10 @@ export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId, hit?: Pos): num
     }
     return null;
   }
-  // ref: src/uhitm.c attack_checks(): "Wait!  There's something there you can't see!" (at
-  // bhitpos: a long worm's tail square)
+  // ref: src/uhitm.c attack_checks(): "if you're close enough to attack, alert any waiting
+  // monster"; "Wait!  There's something there you can't see!" (at bhitpos: a long worm's tail
+  // square)
+  clearWaitMask(ctx, vmon.id);
   const at = hit ?? vmon.c.pos;
   if (at && attackChecksUnseen(ctx, vmon, at.x, at.y)) {
     ctx.interrupt(); // domove(): nomul(0) before attacking a monster that is not safe

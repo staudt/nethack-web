@@ -1,4 +1,5 @@
 // English message text. Keys are referenced by core events; `{param}` placeholders are filled from event params.
+import { MONSTERS } from './monsters';
 import { objectMessagesEn } from './objects.en';
 import { endMessagesEn } from './end.en';
 import { itemMessagesEn } from './items.en';
@@ -138,6 +139,7 @@ export const messagesEn: Record<string, string> = {
   'door.hear_open': 'You hear a door open.',
   // a monster the hero can't see or sense (Monnam's "it"); see monNam() and {mon|The}
   'pronoun.it': 'it',
+  'pronoun.he': 'he',
   // warning digits (ref: src/drawing.c def_warnsyms[])
   'nh:warning_0': 'unknown creature causing you worry',
   'nh:warning_1': 'unknown creature causing you concern',
@@ -555,6 +557,8 @@ export const messagesEn: Record<string, string> = {
   'nh:jabberwock': 'jabberwock',
   'nh:lich': 'lich',
   'nh:demilich': 'demilich',
+  'nh:master_lich': 'master lich',
+  'nh:arch_lich': 'arch-lich',
   'nh:ghost': 'ghost',
   'nh:water_demon': 'water demon',
   'nh:horned_devil': 'horned devil',
@@ -632,3 +636,15 @@ export const messagesEn: Record<string, string> = {
   'nh:tourist': 'tourist',
   'nh:wizard': 'wizard',
 };
+
+// ref: src/mcastu.c death_inflicted_by(): "the touch of death inflicted by a master lich" (a
+// proper name bare, another unique kind with "the")
+for (const m of MONSTERS) {
+  const name = messagesEn[m.id] ?? m.id;
+  const who = m.flags.includes('pname')
+    ? name
+    : m.genFlags.includes('uniq')
+      ? `the ${name}`
+      : `${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`;
+  messagesEn[`killer.touch_of_death.${m.id}`] = `the touch of death inflicted by ${who}`;
+}

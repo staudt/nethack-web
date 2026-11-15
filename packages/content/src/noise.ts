@@ -2,13 +2,15 @@
 import { sortedIds, type Ctx, type Msg } from '@nh/core';
 import { heroSees } from './mongear';
 import { monNam } from './perception';
+import { clearWaitMask } from './mstate';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
- * Wakes the monsters near a place without angering them.
- * ref: src/mon.c wake_nearto_core(): `dist2 < distance` sets msleeping = 0 (wake_msg() says so)
+ * Wakes the monsters near a place without angering them (a waiting one stops waiting unless it
+ * is unique). ref: src/mon.c wake_nearto_core(): `dist2 < distance` sets msleeping = 0
+ * (wake_msg() says so) and, for a non-G_UNIQ kind, clears STRAT_WAITMASK
  */
 export function wakeNearto(ctx: Ctx, x: number, y: number, distance: number): void {
   for (const id of sortedIds(ctx.state)) {
@@ -19,5 +21,6 @@ export function wakeNearto(ctx: Ctx, x: number, y: number, distance: number): vo
     if ((p.x - x) ** 2 + (p.y - y) ** 2 >= distance) continue;
     if (m.asleep && heroSees(ctx, p)) say(ctx, 'mon.wakes_up_calm', { mon: monNam(ctx, e) });
     m.asleep = false;
+    if (!ctx.defs.monster(e.def).genFlags.includes('uniq')) clearWaitMask(ctx, id);
   }
 }

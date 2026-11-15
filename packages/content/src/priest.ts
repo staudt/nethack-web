@@ -42,7 +42,7 @@ import {
 import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
 import { makemon, rlocPos } from './generation';
 import { addToInventory } from './items';
-import { money2mon, money2u, moneyCnt } from './money';
+import { bribe, money2u, moneyCnt } from './money';
 import { adjalign, setU, uState } from './luck';
 import { mkobj } from './mkobj';
 import { whichArmor } from './mongear';
@@ -443,13 +443,6 @@ export function priestTalk(ctx: Ctx, id: EntityId): PriestOffer | null {
   return { suggested, quan };
 }
 
-/** The amount a getlin() answer offers, as sscanf("%ld"): 0 when it is not a number. */
-function parseOffer(answer: Json): number {
-  if (typeof answer !== 'string') return 0;
-  const m = /^\s*([+-]?\d+)/.exec(answer);
-  return m?.[1] ? Number.parseInt(m[1], 10) : 0;
-}
-
 /**
  * The hero answers how much she offers: 0, nothing or a cancel refuses ("Thou shalt regret thine
  * action!"), less than the suggestion is cheap unless it is most of her gold, the suggestion buys
@@ -463,21 +456,9 @@ export function priestDonate(ctx: Ctx, id: EntityId, answer: Json, ask: PriestOf
   const coaligned = epri ? pCoaligned(ctx, epri) : false;
   const strayed = uState(ctx.state).alignRecord < 0;
   const hero = ctx.state.playerId;
-  const mon = monNam(ctx, priest);
   const { suggested, quan } = ask;
 
-  // bribe()
-  let offer = parseOffer(answer);
-  const umoney = moneyCnt(ctx, hero);
-  if (offer < 0) {
-    say(ctx, 'bribe.shortchange', { mon });
-    offer = 0;
-  } else if (offer === 0) say(ctx, 'bribe.refuse');
-  else if (offer >= umoney) {
-    say(ctx, 'bribe.all', { mon });
-    offer = umoney;
-  } else say(ctx, offer === 1 ? 'bribe.give_one' : 'bribe.give', { mon, n: offer });
-  if (offer > 0) money2mon(ctx, id, offer);
+  let offer = bribe(ctx, id, answer);
 
   const left = moneyCnt(ctx, hero);
   if (offer === 0) {

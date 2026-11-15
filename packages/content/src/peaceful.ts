@@ -26,7 +26,7 @@ import { hidesUnder, isUndetected, setUndetected } from './hidestate';
 import { doname } from './objnam';
 import { canseemon, mapInvisible, markedUnseen } from './invis';
 import { invisTo } from './apparxy';
-import { mcansee } from './mstate';
+import { clearWaitMask, mcansee } from './mstate';
 import { adjalign, uState } from './luck';
 import { delEngrAt, sengrAt } from './engr';
 import { onscary } from './scary';
@@ -227,6 +227,7 @@ export function setmangry(ctx: Ctx, id: EntityId, viaAttack: boolean): void {
     if (!hasProp(getPlayer(ctx.state), P.BLINDED)) say(ctx, 'engr.fades');
     delEngrAt(ctx, ulevel, up.x, up.y);
   }
+  clearWaitMask(ctx, id); // `mtmp->mstrategy &= ~STRAT_WAITMASK`
   if (!m.peaceful) return;
   if (m.tame) return; // pets stay peaceful (abuse_dog has lowered tameness)
   m.peaceful = false;

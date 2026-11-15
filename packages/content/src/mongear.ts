@@ -173,7 +173,7 @@ export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId |
  */
 function burnObj(
   ctx: GearCtx,
-  cls: 'weapon' | 'armor' | 'food' | 'tool' = 'weapon',
+  cls: 'weapon' | 'armor' | 'food' | 'tool' | 'wand' = 'weapon',
   material = 'iron',
 ): void {
   const dummy = { id: 'nh:none' as DefId, class: cls, material, cost: 0 };
@@ -607,6 +607,23 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     mongets(ctx, monId, orElse(ctx, cloak, 'nh:robe'));
     mongets(ctx, monId, 'nh:small_shield');
     mkmonmoney(ctx, monId, rng.rn2(10) + 20);
+  }
+  // ref: m_initinv() S_LICH: a master lich 1 time in 13 an athame (or 1 time in 7 a wand of
+  // nothing, which this port lacks: only its init rolls); an arch-lich 1 time in 3 an athame (2
+  // in 3) or a quarterstaff, at least +1 (rnd(3) when under +2), erodeproof 1 time in 4 (the
+  // mksobj() arguments drawn left to right)
+  if (def.id === 'nh:master_lich' && !rng.rn2(13)) {
+    if (rng.rn2(7)) mongets(ctx, monId, 'nh:athame');
+    else if (mongets(ctx, monId, 'nh:wand_of_nothing') === null) burnObj(ctx, 'wand', 'wood');
+  } else if (def.id === 'nh:arch_lich' && !rng.rn2(3)) {
+    const odef = objDef(ctx, rng.rn2(3) ? 'nh:athame' : 'nh:quarterstaff');
+    const artif = !rng.rn2(13);
+    if (odef) {
+      const oid = mksobj(ctx, odef, { artif, carriedBy: monId });
+      const it = ctx.state.entities[String(oid)]?.c.item;
+      if (it && (it.spe ?? 0) < 2) it.spe = rng.rnd(3);
+      if (it && !rng.rn2(4)) it.erodeproof = true;
+    }
   }
   // ref: m_initinv() S_MUMMY
   if (def.glyph.ch === 'M' && rng.rn2(7)) mongets(ctx, monId, 'nh:mummy_wrapping');

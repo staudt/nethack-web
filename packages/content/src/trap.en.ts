@@ -280,6 +280,8 @@ export const trapMessagesEn: Record<string, string> = {
   'tele.mon_vanishes_reappears': '{mon|The} vanishes and reappears{where}.',
   'tele.mon_appears': '{mon|The} appears{where}!',
   'tele.mon_arrives': '{mon|The} arrives{where}!',
+  'tele.mon_suddenly_appears': '{mon|An} suddenly appears{where}!',
+  'tele.mon_suddenly_arrives': '{mon|An} suddenly arrives{where}!',
   'tele.where.none': '',
   'tele.where.next': ' next to you',
   'tele.where.close': ' close by',

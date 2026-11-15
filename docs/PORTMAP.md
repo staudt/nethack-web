@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-179 NetHack files, 4866 citations.
+179 NetHack files, 4907 citations.
 
 ## dat/bigrm-1.lua
 
@@ -290,7 +290,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
-- `BOLT_LIM()`: `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/muse.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
+- `BOLT_LIM()`: `packages/content/src/covetous.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/muse.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
 - `BZ_OFS_AD()`: `packages/content/src/mthrowu.ts`
 - `BZ_VALID_ADTYP()`: `packages/content/src/mthrowu.ts`
 - `CANNIBAL_ALLOWED()`: `packages/content/src/eat.ts`
@@ -392,6 +392,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_animal()`: `packages/content/src/musestate.ts`, `packages/content/src/steal.ts`
 - `is_bat()`: `packages/content/src/mondata.ts`, `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
 - `is_clinger()`: `packages/content/src/mondata.ts`
+- `is_covetous()`: `packages/content/src/mondata.ts`
 - `is_demon()`: `packages/content/src/mondata.ts`
 - `is_dlord()`: `packages/content/src/mondata.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
@@ -477,7 +478,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monsters.h
 
-- (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/content/src/nasty.ts`, `packages/testkit/src/convert/emit.ts`
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
 - `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
@@ -1090,6 +1091,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Is_botlevel()`: `packages/content/src/levelflags.ts`, `packages/core/src/levelgen/generate.ts`
 - `Is_special()`: `packages/content/src/levelflags.ts`
 - `Is_stronghold()`: `packages/content/src/levelflags.ts`
+- `builds_up()`: `packages/content/src/covetous.ts`
 - `chr_u_on_lvl()`: `packages/content/src/wizard/where.ts`
 - `correct_branch_type()`: `packages/core/src/dungeon.ts`
 - `deepest_lev_reached()`: `packages/content/src/urexp.ts`
@@ -1451,9 +1453,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `castmu()`: `packages/content/src/mcastu.en.ts`, `packages/content/src/mcastu.ts`
 - `choose_monster_spell()`: `packages/content/src/mcastu.ts`
 - `cursetxt()`: `packages/content/src/mcastu.en.ts`, `packages/content/src/mcastu.ts`
+- `death_inflicted_by()`: `packages/content/src/mcastu.ts`, `packages/content/src/messages.en.ts`
 - `is_undirected_spell()`: `packages/content/src/mcastu.ts`
 - `m_cure_self()`: `packages/content/src/mcastu.ts`
 - `mcast_blind_you()`: `packages/content/src/mcastu.ts`
+- `mcast_death_touch()`: `packages/content/src/mcastu.ts`
+- `mcast_destroy_armor()`: `packages/content/src/mcastu.ts`
 - `mcast_disappear()`: `packages/content/src/mcastu.ts`
 - `mcast_insects()`: `packages/content/src/mcastu.ts`
 - `mcast_lightning()`: `packages/content/src/mcastu.ts`
@@ -1462,10 +1467,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mcast_psi_bolt()`: `packages/content/src/mcastu.ts`
 - `mcast_spell()`: `packages/content/src/mcastu.en.ts`, `packages/content/src/mcastu.ts`
 - `mcast_stun_you()`: `packages/content/src/mcastu.ts`
+- `mcast_summon_mons()`: `packages/content/src/mcastu.ts`
 - `mcast_weaken_you()`: `packages/content/src/mcastu.ts`
 - `mon_cleric_spells()`: `packages/content/src/mcastu.ts`
 - `mon_wizard_spells()`: `packages/content/src/mcastu.ts`
 - `spell_would_be_useless()`: `packages/content/src/mcastu.ts`
+- `touch_of_death()`: `packages/content/src/mcastu.ts`
 
 ## src/mhitm.c
 
@@ -1519,7 +1526,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/minion.c
 
-- `bribe()`: `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`
+- `bribe()`: `packages/content/src/demontalk.ts`, `packages/content/src/money.ts`, `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`
+- `demon_talk()`: `packages/content/src/demontalk.ts`, `packages/content/src/minion.en.ts`
 - `dlord()`: `packages/content/src/minion.ts`
 - `dprince()`: `packages/content/src/minion.ts`
 - `monster_census()`: `packages/content/src/mcastu.ts`, `packages/content/src/minion.ts`
@@ -1731,8 +1739,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `minliquid()`: `packages/content/src/minliquid.ts`
 - `minliquid_core()`: `packages/content/src/minliquid.ts`
 - `mlifesaver()`: `packages/content/src/mondeath.ts`
-- `mnearto()`: `packages/content/src/shk.ts`
-- `mnexto()`: `packages/content/src/generation.ts`
+- `mnearto()`: `packages/content/src/covetous.ts`, `packages/content/src/shk.ts`
+- `mnexto()`: `packages/content/src/covetous.ts`, `packages/content/src/generation.ts`
 - `mon_allowflags()`: `packages/content/src/monmove.ts`
 - `mon_to_stone()`: `packages/content/src/golem.en.ts`, `packages/content/src/newcham.ts`, `packages/content/src/stoning.ts`
 - `mondead()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
@@ -1782,7 +1790,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mons_see_trap()`: `packages/content/src/trap.ts`
 - `monstseesu()`: `packages/content/src/musestate.ts`
 - `monstunseesu()`: `packages/content/src/musestate.ts`
-- `msummon_environ()`: `packages/content/src/minion.ts`
+- `msummon_environ()`: `packages/content/src/minion.en.ts`, `packages/content/src/minion.ts`
 - `name_to_mon()`: `packages/content/src/mondata.ts`
 - `name_to_monclass()`: `packages/content/src/genocide.ts`, `packages/content/src/polyself.ts`
 - `name_to_monplus()`: `packages/content/src/mondata.ts`
@@ -1806,7 +1814,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `count_webbing_walls()`: `packages/content/src/web.ts`
 - `distfleeck()`: `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `disturb()`: `packages/content/src/monmove.ts`
-- `dochug()`: `packages/content/src/beejelly.ts`, `packages/content/src/brains.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
+- `dochug()`: `packages/content/src/beejelly.ts`, `packages/content/src/brains.ts`, `packages/content/src/demontalk.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `dochugw()`: `packages/content/src/travel.ts`
 - `holds_up_web()`: `packages/content/src/web.ts`
 - `leppie_avoidance()`: `packages/content/src/monmove.ts`
@@ -2520,6 +2528,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/teleport.c
 
+- (file): `packages/content/src/teleport.ts`
 - `collect_coords()`: `packages/content/src/teleport.ts`
 - `dotele()`: `packages/content/src/drown.ts`, `packages/content/src/wizard/teleport.ts`
 - `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
@@ -2698,7 +2707,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/uhitm.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/mimic.ts`, `packages/content/src/resist.en.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/mimic.ts`, `packages/content/src/minion.en.ts`, `packages/content/src/resist.en.ts`
 - `attack_checks()`: `packages/content/src/actions.ts`, `packages/content/src/hide.en.ts`, `packages/content/src/kick.en.ts`, `packages/content/src/mimic.ts`, `packages/content/src/peaceful.ts`
 - `damageum()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `demonpet()`: `packages/content/src/hmonas.ts`
@@ -2851,8 +2860,18 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/wizard.c
 
 - `aggravate()`: `packages/content/src/mstate.ts`
+- `choose_stairs()`: `packages/content/src/covetous.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`
+- `nasties()`: `packages/content/src/nasty.ts`
+- `nasty()`: `packages/content/src/nasty.ts`
+- `on_ground()`: `packages/content/src/covetous.ts`
+- `other_mon_has_arti()`: `packages/content/src/covetous.ts`
+- `pick_nasty()`: `packages/content/src/nasty.ts`
+- `strategy()`: `packages/content/src/covetous.ts`
+- `tactics()`: `packages/content/src/covetous.ts`
+- `target_on()`: `packages/content/src/covetous.ts`
+- `which_arti()`: `packages/content/src/covetous.ts`
 
 ## src/wizcmds.c
 

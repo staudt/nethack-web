@@ -6,8 +6,7 @@
 // rloc(), rloc_pos_ok(), rloco(), random_teleport_level(); src/dungeon.c get_level();
 // src/engrave.c rloc_engr()
 //
-// Not ported (see DEVIATIONS.md "Teleportation"): the demon court of Gehennom, covetous
-// monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
+// Not ported (see DEVIATIONS.md "Teleportation"): the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
 // stairs, Passes_walls.
 import {
   cellIndex,
@@ -35,10 +34,11 @@ import { engrAt, moveEngr } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { dngBottom, dungeonBottom, inHell, levelFlags } from './levelflags';
-import { isDlord, isDprince } from './mondata';
+import { isCovetous, isDlord, isDprince } from './mondata';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
 import { heroLiquidOk } from './uwater';
+import { heroForm } from './upoly';
 import { mInAir, monLiquidOk } from './liquid';
 import { T } from './terrain';
 import { VIBRATING_SQUARE } from './invocation';
@@ -93,8 +93,9 @@ function mBlocksTeleporting(ctx: Pick<Ctx, 'defs'>, e: Entity | undefined): bool
 
 /**
  * `who` (the hero or a monster) cannot teleport on this level: in Gehennom a demon lord or prince
- * on the level stops everybody else (the demon court), the level's `noteleport` flag, or a wand of
- * stasis in effect. ref: src/teleport.c noteleport_level() (no covetous monsters: m17 step 5)
+ * on the level stops everybody else (the demon court), the level's `noteleport` flag (which a
+ * covetous monster bypasses), or a wand of stasis in effect. ref: src/teleport.c
+ * noteleport_level()
  */
 export function noteleportLevel(
   ctx: Pick<Ctx, 'defs' | 'state'>,
@@ -111,7 +112,15 @@ export function noteleportLevel(
     })
   )
     return true;
-  return levelFlags(ctx, level).noteleport === true || inStasis(ctx.state, level.id);
+  // natural no-teleport level; covetous monsters can bypass these
+  // (the hero's form for the hero: `noteleport_level(&youmonst)`)
+  const e = ctx.state.entities[String(who)];
+  const form =
+    who === ctx.state.playerId ? heroForm(ctx) : e?.c.monster ? ctx.defs.monster(e.def) : null;
+  const covetous = form !== null && isCovetous(form);
+  if (levelFlags(ctx, level).noteleport === true && !covetous) return true;
+  // wand of stasis prevents teleportation while the effect is active (even for covetous monsters)
+  return inStasis(ctx.state, level.id);
 }
 
 /** What goodpos() needs of a level, gathered once per search. */

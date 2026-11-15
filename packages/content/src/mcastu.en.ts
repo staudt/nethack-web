@@ -1,6 +1,18 @@
 // English text for monster spellcasting. ref: src/mcastu.c castmu(), cursetxt(), mcast_spell(),
-// mcast_psi_bolt(), mcast_stun_you(), mcast_weaken_you() and the clerical spells
+// mcast_psi_bolt(), mcast_stun_you(), mcast_weaken_you(), mcast_death_touch(),
+// mcast_summon_mons(), mcast_destroy_armor() and the clerical spells
 export const mcastuMessagesEn: Record<string, string> = {
+  'mcastu.death_touch': "Oh no, {he}'s using the touch of death!",
+  'mcastu.no_deader': 'You seem no deader than before.',
+  'mcastu.out_of_body': 'You have an out of body experience.',
+  'mcastu.lucky': "Lucky for you, it didn't work!",
+  'mcastu.drained': 'You feel drained...',
+  'mcastu.monster_appears': 'A monster appears from nowhere!',
+  'mcastu.monsters_appear': 'Monsters appear from nowhere!',
+  'mcastu.monster_appears_spot': 'A monster appears at a spot near you!',
+  'mcastu.monsters_appear_spot': 'Monsters appear around a spot near you!',
+  'mcastu.field_of_force': 'A field of force surrounds you!',
+  'mcastu.skin_itches': 'Your skin itches.',
   'mcastu.points_at_you': '{mon|The} points at you, then curses.',
   'mcastu.points_all_around': '{mon|The} points all around, then curses.',
   'mcastu.points_general_direction': '{mon|The} points and curses in your general direction.',

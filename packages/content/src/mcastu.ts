@@ -3,8 +3,9 @@
 // spell_would_be_useless(), is_undirected_spell(), cursetxt(), mcast_spell(), m_cure_self(),
 // mcast_psi_bolt(), mcast_stun_you(), mcast_weaken_you(), the clerical mcast_open_wounds(),
 // mcast_confuse_you(), mcast_paralyze(), mcast_blind_you(), mcast_insects(), mcast_lightning(),
-// mcast_fire_pillar(), mcast_geyser(); include/mcastu.h; src/wizard.c has_aggravatables();
-// src/minion.c monster_census()
+// mcast_fire_pillar(), mcast_geyser(), mcast_destroy_armor(), mcast_summon_mons(),
+// mcast_death_touch(), touch_of_death(), death_inflicted_by(); include/mcastu.h; src/wizard.c
+// has_aggravatables(); src/minion.c monster_census()
 //
 // Callers: monsterAttack (combat.ts, an adjacent AT_MAGC attack: castmu(TRUE, TRUE)) and dochug
 // (monmove.ts, an undirected spell while not attacking: castmu(FALSE, FALSE)). This module must
@@ -18,9 +19,9 @@
 // shieldeff(). The AD_FIRE and AD_COLD AT_MAGC attacks (Asmodeus's) envelop her in flames or
 // cover her in frost; the AD_MAGM one (a shower of missiles) scuffs the engraving under her
 // (mon_spell_hits_spot()).
-// Destroy armor, summon nasties, clone wizard and touch of death are always useless, so they
-// are never chosen. Insects are always "insects" (no hallucinated names); no
-// Half_physical_damage or melting ice.
+// Clone wizard is always useless (no Wizard of Yendor yet), so it is never chosen. Insects are
+// always "insects" (no hallucinated names); no Half_physical_damage or melting ice. The touch of
+// death's "he"/"she" follows the kind's gender flag, else "it" (monsters have no gender here).
 import {
   NORMAL_SPEED,
   cellRules,
@@ -41,7 +42,11 @@ import { ureflects } from './reflect';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { makemon, mkclass, mnextoPos } from './generation';
-import { losestr } from './hp';
+import { losehp, losestr } from './hp';
+import { done } from './end';
+import { nasty } from './nasty';
+import { isDemon, nonliving } from './mondata';
+import { heroForm, rehumanize, upolyd } from './upoly';
 import { nomulNow } from './hunger';
 import { nhData } from './items';
 import { igniteItems } from './light';
@@ -55,6 +60,7 @@ import {
   monAdjustSpeed,
   mspeed,
   mspecUsed,
+  mstratOf,
   setMspecUsed,
 } from './mstate';
 import { canSpotMon, monNam, telepathSenses } from './perception';
@@ -190,17 +196,23 @@ function couldsee(ctx: Ctx, mon: Entity): boolean {
 export const isUndirectedSpell = (s: McastSpell): boolean => MCAST_DATA[s].indirect;
 
 /**
- * Some monster on the level is asleep or cannot move (no monster strategies here, so none
- * waits for the hero; no Wizard's Tower). ref: src/wizard.c has_aggravatables()
+ * Some monster on the level waits for the hero, is asleep or cannot move (no Wizard's Tower).
+ * ref: src/wizard.c has_aggravatables()
  */
 function hasAggravatables(ctx: Ctx, mon: Entity): boolean {
   const level = mon.c.pos?.level;
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
     if (!e?.c.monster || e.c.pos?.level !== level) continue;
-    if (e.c.monster.asleep || isFrozen(ctx, e.id)) return true;
+    if (mstratOf(ctx, e.id).waitForU || e.c.monster.asleep || isFrozen(ctx, e.id)) return true;
   }
   return false;
+}
+
+/** destroy_arm(): seffect.ts registers it (it sits far above this module) */
+let destroyArmFn: ((ctx: Ctx) => boolean) | null = null;
+export function setDestroyArm(fn: (ctx: Ctx) => boolean): void {
+  destroyArmFn = fn;
 }
 
 /** Some spells are useless under some circumstances. ref: src/mcastu.c spell_would_be_useless() */
@@ -218,11 +230,11 @@ export function spellWouldBeUseless(ctx: Ctx, mon: Entity, s: McastSpell): boole
       // peaceful monster won't cast invisibility if you can't see invisible
       if (mon.c.monster?.peaceful && !seeInvisible(ctx.state)) return true;
       break;
-    // not ported (no destroy_arm(), nasties or the Wizard): never chosen
-    case 'destry_armr':
-    case 'summon_mons':
-    case 'clone_wiz':
     case 'death_touch':
+      if ((hasProp(hero, P.ANTIMAGIC) || hasProp(hero, P.HALLUC)) && !ctx.rng.rn2(2)) return true;
+      break;
+    // only the Wizard is allowed to clone himself (no Wizard of Yendor yet)
+    case 'clone_wiz':
       return true;
     case 'geyser':
       if (!ctx.rng.rn2(5)) return true;
@@ -674,8 +686,99 @@ function mcastDisappear(ctx: Ctx, mon: Entity): void {
     mapInvisible(ctx, p.x, p.y);
 }
 
+/**
+ * The touch of death: 50 + d(8,6) damage and half that off her maximum HP; a polymorphed hero
+ * returns to her own form, one whose maximum is no more than the drain dies.
+ * ref: src/mcastu.c touch_of_death(), death_inflicted_by()
+ */
+function touchOfDeath(ctx: Ctx, mon: Entity): void {
+  let dmg = 50 + ctx.rng.d(8, 6);
+  const drain = Math.trunc(dmg / 2);
+  // if we get here, we know that hero isn't magic resistant and isn't poly'd into an undead or
+  // demon
+  say(ctx, 'mcastu.drained');
+  const killer = `@killer.touch_of_death.${mon.def}`;
+  const hero = getPlayer(ctx.state);
+  const hp = hero.c.hp;
+  if (!hp) return;
+  if (upolyd(ctx.state)) {
+    hp.cur = 0; // u.mh = 0
+    rehumanize(ctx); // fatal iff Unchanging
+  } else if (drain >= hp.max) {
+    done(ctx, killer);
+  } else {
+    // HP manipulation similar to poisoned(attrib.c)
+    const olduhp = hp.cur;
+    const uhpmin = Math.max(hero.c.experience?.level ?? 1, 3); // minuhpmax(3)
+    hp.max = Math.max(hp.max - drain, uhpmin); // setuhpmax()
+    if (hp.cur > hp.max) hp.cur = hp.max;
+    // adjuhploss(): reduce pending damage if uhp has already been reduced due to drop in uhpmax
+    if (hp.cur < olduhp) dmg -= olduhp - hp.cur;
+    losehp(ctx, Math.max(dmg, 1), killer);
+  }
+}
+
+/** ref: src/mcastu.c mcast_death_touch() */
+function mcastDeathTouch(ctx: Ctx, mon: Entity): void {
+  const def = ctx.defs.monster(mon.def);
+  const he = !canSpotMon(ctx, mon)
+    ? 'pronoun.it'
+    : def.flags.includes('female')
+      ? 'pronoun.she'
+      : def.flags.includes('male')
+        ? 'pronoun.he'
+        : 'pronoun.it';
+  say(ctx, 'mcastu.death_touch', { he: `@${he}` });
+  const hero = getPlayer(ctx.state);
+  const form = heroForm(ctx);
+  if (form && (nonliving(form) || isDemon(form))) {
+    say(ctx, 'mcastu.no_deader');
+  } else if (!hasProp(hero, P.ANTIMAGIC) && ctx.rng.rn2(mon.c.monster?.level ?? 0) > 12) {
+    if (hasProp(hero, P.HALLUC)) say(ctx, 'mcastu.out_of_body');
+    else touchOfDeath(ctx, mon);
+    monstunseesu(ctx, M_SEEN.magr);
+  } else {
+    if (hasProp(hero, P.ANTIMAGIC)) monstseesu(ctx, M_SEEN.magr); // (shieldeff() is display only)
+    say(ctx, 'mcastu.lucky');
+  }
+}
+
+/**
+ * Nasties appear about the spot the caster thinks she is at: "A monster appears from nowhere!",
+ * "Monsters appear around a spot near you!" when she is invisible to it and it guessed wrong.
+ * ref: src/mcastu.c mcast_summon_mons() (no Wizard, no displacement)
+ */
+function mcastSummonMons(ctx: Ctx, mon: Entity, ap: Pos): void {
+  const count = nasty(ctx, mon, ap);
+  if (!count) return; // nothing was created?
+  const one = count === 1;
+  const hp = getPlayer(ctx.state).c.pos;
+  // messages not quite right if plural monsters created but only a single monster is seen
+  if (
+    heroInvisible(ctx.state) &&
+    !perceives(ctx.defs.monster(mon.def)) &&
+    hp &&
+    (ap.x !== hp.x || ap.y !== hp.y)
+  )
+    say(ctx, one ? 'mcastu.monster_appears_spot' : 'mcastu.monsters_appear_spot');
+  else say(ctx, one ? 'mcastu.monster_appears' : 'mcastu.monsters_appear');
+}
+
+/** ref: src/mcastu.c mcast_destroy_armor() */
+function mcastDestroyArmor(ctx: Ctx): void {
+  if (hasProp(getPlayer(ctx.state), P.ANTIMAGIC)) {
+    monstseesu(ctx, M_SEEN.magr); // (shieldeff() is display only)
+    say(ctx, 'mcastu.field_of_force');
+  } else if (!destroyArmFn?.(ctx)) {
+    say(ctx, 'mcastu.skin_itches');
+  } else {
+    // monsters only realize you aren't magic-protected if armor is actually destroyed
+    monstunseesu(ctx, M_SEEN.magr);
+  }
+}
+
 /** The spell's effect on the hero (or the caster). ref: src/mcastu.c mcast_spell() */
-function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell, ap: Pos): void {
+export function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell, ap: Pos): void {
   // dmg 0 with a directed spell is impossible() in C; it cannot happen here (foundyou)
   if (dmg === 0 && !isUndirectedSpell(s)) return;
   switch (s) {
@@ -707,11 +810,19 @@ function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell, ap: Pos):
     case 'psi_bolt':
       dmg = mcastPsiBolt(ctx, dmg);
       break;
-    // never chosen (spellWouldBeUseless)
     case 'death_touch':
-    case 'clone_wiz':
+      mcastDeathTouch(ctx, mon);
+      dmg = 0;
+      break;
+    case 'clone_wiz': // never chosen (spellWouldBeUseless)
+      dmg = 0;
+      break;
     case 'summon_mons':
+      mcastSummonMons(ctx, mon, ap);
+      dmg = 0;
+      break;
     case 'destry_armr':
+      mcastDestroyArmor(ctx);
       dmg = 0;
       break;
     case 'disappear': // makes self invisible

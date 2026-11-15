@@ -5,7 +5,7 @@
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
 import { fleshPetrifies, resistsSton } from './stonestate';
-import { hatesSilver } from './mondata';
+import { hatesSilver, isCovetous, isDemon } from './mondata';
 import {
   getLevel,
   getPlayer,
@@ -35,6 +35,7 @@ import {
   forgetMState,
   isFrozen,
   isMConfused,
+  mstratOf,
   paralyzeMonst,
 } from './mstate';
 import { canSpotMon, monNam } from './perception';
@@ -539,9 +540,14 @@ export function tamedog(
     makeHappyShk(ctx, id);
     return false;
   }
+  // (no priests, guards or minions are tamed either; covetous monsters and, for a hero not in a
+  // demon form, demons never)
+  const form = heroForm(ctx);
   if (
     isFrozen(ctx, id) ||
+    isCovetous(def) ||
     def.flags.includes('human') ||
+    (isDemon(def) && !(form !== null && isDemon(form))) ||
     (food && dogfood(ctx, mon, food) >= MANFOOD)
   )
     return false;
@@ -601,6 +607,8 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     if (Math.max(Math.abs(p.x - fromPos.x), Math.abs(p.y - fromPos.y)) > 1) continue;
     if (!levlFollower(ctx, mon)) continue;
     if (mon.c.monster.asleep || isFrozen(ctx, id)) continue;
+    // monster won't follow if it hasn't noticed you yet
+    if (mstratOf(ctx, id).waitForU) continue;
     // ref: keepdogs(): a trapped follower tries to escape; still eating or trapped, it stays
     if (isMtrapped(ctx, id)) mintrap(ctx, id);
     if (meating(ctx, id) || isMtrapped(ctx, id)) {

@@ -5,7 +5,8 @@
 //
 // Not ported (no such monster or object here): Demonbane ("looks puzzled for a moment"),
 // minions and Angels (lminion(), llord(), the elementals), the bone devil's skeleton, the
-// Wizard of Yendor as summoner (msummon(NULL)), the endgame (dprince()/dlord() never try there).
+// endgame (dprince()/dlord() never try there). msummon(NULL) (summon nasties in Gehennom)
+// summons as the Wizard of Yendor would.
 // Princes and lords absent from the monster table count as gone (G_GONE), as do genocided kinds
 // and a unique one that was already made (C's G_EXTINCT: no birth counts here, so a unique is gone
 // while one is alive anywhere or after one died).
@@ -121,7 +122,7 @@ export function msummonEnviron(def: MonsterDef): { cloud: string; what: string }
 }
 
 /** Live monsters on the hero's level. ref: src/minion.c monster_census(FALSE) */
-function monsterCensus(ctx: Pick<Ctx, 'state'>): number {
+export function monsterCensus(ctx: Pick<Ctx, 'state'>): number {
   const here = ctx.state.currentLevel;
   let count = 0;
   for (const id of sortedIds(ctx.state)) {
@@ -137,17 +138,19 @@ function monsterCensus(ctx: Pick<Ctx, 'state'>): number {
  * a lord 1 in 20, else a minor demon (also maybe two); a minor demon a lord 1 in 20, another
  * minor demon 1 in 6, else its own kind; all of the summoner's alignment sign. A kind that is gone
  * becomes a minor demon. "A horned devil appears in a cloud of smoke!" when one comes and she
- * sees it. Returns how many monsters more are on the level. ref: src/minion.c msummon()
+ * sees it. Returns how many monsters more are on the level. With no summoner (summon nasties in
+ * Gehennom) it summons as the Wizard of Yendor: as a prince, of any alignment.
+ * ref: src/minion.c msummon()
  */
-export function msummon(ctx: Ctx, mon: Entity): number {
-  const ptr = ctx.defs.monster(mon.def);
-  // (no priests or minions summon: the summoner is a demon)
-  const atyp = Math.sign(ptr.alignment);
+export function msummon(ctx: Ctx, mon: Entity | null): number {
+  const ptr = mon ? ctx.defs.monster(mon.def) : null;
+  // (no priests or minions summon: the summoner is a demon); the Wizard is A_NONE
+  const atyp = ptr ? Math.sign(ptr.alignment) : undefined;
   let dtype: DefId | null = null;
   let cnt = 0;
   const twoMaybe = (): number =>
     dtype !== null && !ctx.rng.rn2(4) && isNdemon(ctx.defs.monster(dtype)) ? 2 : 1;
-  if (isDprince(ptr)) {
+  if (!ptr || isDprince(ptr)) {
     dtype = !ctx.rng.rn2(20)
       ? dprince(ctx, atyp)
       : !ctx.rng.rn2(4)

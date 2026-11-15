@@ -380,12 +380,13 @@ describe("the princes' attacks", () => {
 });
 
 describe('chat and demon pets', () => {
-  test('Juiblex gurgles; a hostile Asmodeus cusses, a peaceful one says we are doomed (bribes: step 5)', () => {
+  test('Juiblex gurgles; a hostile Asmodeus cusses, a tame one says we are doomed (a peaceful one asks a bribe: m17.covetous)', () => {
     const j = setup('nh:juiblex');
     expect(run(j.s.state, (ctx) => void domonnoise(ctx, j.id))).toEqual(['Juiblex gurgles.']);
     const a = setup('nh:asmodeus');
     expect(run(a.s.state, (ctx) => void domonnoise(ctx, a.id)).length).toBeGreaterThan(0);
     a.s.state.entities[String(a.id)]!.c.monster!.peaceful = true;
+    a.s.state.entities[String(a.id)]!.c.monster!.tame = 10;
     expect(run(a.s.state, (ctx) => void domonnoise(ctx, a.id))).toEqual(['"We\'re all doomed."']);
   });
 
