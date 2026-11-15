@@ -465,7 +465,7 @@ function maybeTame(ctx: Ctx, mtmp: Entity, buc: string, spell: boolean): number 
   const wasTame = m.tame ?? 0;
   const wasPeaceful = m.peaceful;
   if (buc === 'cursed') {
-    setmangry(ctx, mtmp.id);
+    setmangry(ctx, mtmp.id, false); // setmangry(mtmp, FALSE)
     return wasPeaceful && !m.peaceful ? -1 : 0;
   }
   if (!resist(ctx, mtmp, 0, spell ? 'spell' : 'scroll') || eshkOf(ctx, mtmp.id))

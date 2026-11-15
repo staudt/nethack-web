@@ -141,4 +141,8 @@ export const engraveMessagesEn: Record<string, string> = {
   'look.cant_reach_it': "But you can't reach it!",
   'look.stomach': 'You look around to see what is lying in {mon|the_s} stomach.',
   'look.stomach_feel': 'You try to feel what is lying in {mon|the_s} stomach.',
+
+  // src/mon.c setmangry(): attacking from an Elbereth
+  'engr.hypocrite': 'You feel like a hypocrite.',
+  'engr.fades': 'The engraving beneath you fades.',
 };

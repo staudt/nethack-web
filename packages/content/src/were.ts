@@ -8,14 +8,17 @@ import {
   type DefId,
   type Entity,
   type EntityId,
+  type MonsterDef,
   type MonsterSound,
   type Msg,
+  type Pos,
 } from '@nh/core';
 import { monBreakArmor } from './breakarm';
 import { bypassObj } from './bypass';
 import { makemon } from './generation';
 import { placeOnFloor } from './items';
-import { isFleeing } from './monflee';
+import { isFleeing, monflee } from './monflee';
+import { onscary } from './scary';
 import { monWep, setMonFlag } from './mongear';
 import { setWereChange, unfreezeMonst } from './mstate';
 import { wakeNearto } from './noise';
@@ -60,10 +63,12 @@ export function possiblyUnwield(ctx: Ctx, mon: Entity, polyspot = false): void {
 /**
  * The were creature changes form: "The wererat changes into a rat." (or "into a human") when
  * seen; a helpless one wakes and can move again, it regains a quarter of its lost hit points and a
- * beast drops its weapon. ref: src/were.c new_were() (no Protection_from_shape_changers: no such
- * ring; the monflee() for a scary square is not ported, as onscary())
+ * beast drops its weapon. During the monster's own move (`mux`: C's mon_moving, where it thinks
+ * the hero is) a hostile one next to that square flees 2..10 turns when it scares the new form
+ * (an Elbereth, a scroll of scare monster). ref: src/were.c new_were() (no
+ * Protection_from_shape_changers: no such ring)
  */
-export function newWere(ctx: Ctx, mon: Entity): void {
+export function newWere(ctx: Ctx, mon: Entity, mux?: Pos): void {
   const pm = counterWere(mon.def);
   if (pm === null || !ctx.defs.isMonster(pm)) return; // impossible("unknown lycanthrope")
   const def = ctx.defs.monster(pm);
@@ -85,6 +90,25 @@ export function newWere(ctx: Ctx, mon: Entity): void {
   if (hp) hp.cur = Math.min(hp.cur + Math.trunc((hp.max - hp.cur) / 4), hp.max);
   monBreakArmor(ctx, mon, false);
   possiblyUnwield(ctx, mon);
+  // vision capability isn't changing so we don't call set_apparxy() to update mon's idea of
+  // where hero is; peaceful check is redundant
+  const p = mon.c.pos;
+  if (
+    mux &&
+    p &&
+    m &&
+    !m.peaceful &&
+    onscary(ctx, mux.x, mux.y, mon, { mux }) &&
+    monnear(def, p.x, p.y, mux.x, mux.y)
+  )
+    monflee(ctx, mon.id, ctx.rng.rn2(9) + 2, true, true); // rn1(9, 2): 2..10 turns
+}
+
+/** ref: src/mon.c monnear(): next to (x, y); a grid bug not diagonally */
+function monnear(def: MonsterDef, mx: number, my: number, x: number, y: number): boolean {
+  const d = (mx - x) ** 2 + (my - y) ** 2;
+  if (d === 2 && def.id === 'nh:grid_bug') return false;
+  return d < 3;
 }
 
 /**
@@ -204,13 +228,13 @@ function growlSound(sound: MonsterSound | undefined): string {
  * (the attack stops). ref: src/mhitu.c summonmu() (the were half; demons do not summon here) and
  * mattacku()'s `if (mtmp->mflee && !already_fleeing) return 0;`
  */
-export function summonWereMu(ctx: Ctx, mon: Entity, youseeit: boolean): boolean {
+export function summonWereMu(ctx: Ctx, mon: Entity, youseeit: boolean, mux?: Pos): boolean {
   const alreadyFleeing = isFleeing(ctx, mon.id);
   const def = ctx.defs.monster(mon.def);
   if (isHumanForm(def)) {
     // maybe switch to animal form
-    if (!ctx.rng.rn2(5 - (night() ? 1 : 0) * 2)) newWere(ctx, mon);
-  } else if (!ctx.rng.rn2(30)) newWere(ctx, mon); // maybe switch back to human form
+    if (!ctx.rng.rn2(5 - (night() ? 1 : 0) * 2)) newWere(ctx, mon, mux);
+  } else if (!ctx.rng.rn2(30)) newWere(ctx, mon, mux); // maybe switch back to human form
   // maybe summon compatible critters
   if (!ctx.rng.rn2(10)) {
     const generic = helperWord(mon.def);

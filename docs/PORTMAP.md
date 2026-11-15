@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-177 NetHack files, 4705 citations.
+177 NetHack files, 4707 citations.
 
 ## dat/bigrm-1.lua
 
@@ -1689,7 +1689,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mondied()`: `packages/content/src/mondeath.ts`
 - `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
 - `monkilled()`: `packages/content/src/golem.en.ts`, `packages/content/src/mondeath.ts`
-- `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`
+- `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`, `packages/content/src/were.ts`
 - `monster_census()`: `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
 - `monstone()`: `packages/content/src/mondeath.ts`, `packages/content/src/stoning.ts`
 - `movemon()`: `packages/core/src/turn.ts`

@@ -27,7 +27,9 @@ import { doname } from './objnam';
 import { canseemon, mapInvisible, markedUnseen } from './invis';
 import { invisTo } from './apparxy';
 import { mcansee } from './mstate';
-import { adjalign } from './luck';
+import { adjalign, uState } from './luck';
+import { delEngrAt, sengrAt } from './engr';
+import { onscary } from './scary';
 import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
 import { epriOf, pCoaligned, templeOccupied } from './epri';
@@ -198,14 +200,34 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
 
 /**
  * The monster turns hostile (costing a point of alignment), with "gets angry!" when the hero sees
- * a humanoid do so, or a growl. ref: src/mon.c setmangry(mtmp, TRUE). Not ported: Elbereth
- * hypocrisy, shopkeepers, guards. A temple priest costs 5 points of alignment when he is the hero's
- * own, and earns 2 otherwise.
+ * a humanoid do so, or a growl. A temple priest costs 5 points of alignment when he is the hero's
+ * own, and earns 2 otherwise. Before that, an attack (`viaAttack`) from her own Elbereth on a
+ * monster it scares, or on a peaceful one, is hypocritical: "You feel like a hypocrite.", 5
+ * points of alignment (1d5 when her record is 5 or less) and the engraving is gone, whatever its
+ * type. ref: src/mon.c setmangry(). Not ported: shopkeepers, guards, the quest leader.
  */
-export function setmangry(ctx: Ctx, id: EntityId): void {
+export function setmangry(ctx: Ctx, id: EntityId, viaAttack: boolean): void {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
-  if (!mon || !m || !m.peaceful) return;
+  if (!mon || !m) return;
+  const up = getPlayer(ctx.state).c.pos;
+  const ulevel = up ? ctx.state.levels[up.level] : undefined;
+  if (
+    viaAttack &&
+    up &&
+    ulevel &&
+    sengrAt(ctx, 'Elbereth', ulevel, up.x, up.y, true) &&
+    // only hypocritical if monster is vulnerable to Elbereth (or peaceful--not vulnerable but
+    // attacking it is hypocritical)
+    (onscary(ctx, up.x, up.y, mon) || m.peaceful)
+  ) {
+    say(ctx, 'engr.hypocrite');
+    // reduce to 3 (average) when alignment is already very low
+    adjalign(ctx, uState(ctx.state).alignRecord > 5 ? -5 : -ctx.rng.rnd(5));
+    if (!hasProp(getPlayer(ctx.state), P.BLINDED)) say(ctx, 'engr.fades');
+    delEngrAt(ctx, ulevel, up.x, up.y);
+  }
+  if (!m.peaceful) return;
   if (m.tame) return; // pets stay peaceful (abuse_dog has lowered tameness)
   m.peaceful = false;
   const epri = epriOf(ctx, id);
@@ -236,7 +258,7 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
   const ap = mApType(ctx, id);
   if (ap !== null && ap !== 'monster') seemimic(ctx, id);
   const wasPeaceful = m.peaceful;
-  setmangry(ctx, id);
+  setmangry(ctx, id, true);
   // a peaceful priest attacked in a temple: his god strikes at the hero
   const epri = epriOf(ctx, id);
   const p = mon.c.pos;

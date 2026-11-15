@@ -389,7 +389,7 @@ function hurtleJumpStep(
     say(ctx, known ? 'jump.bump_mon' : 'jump.find_mon', { mon: name });
     mon.c.monster.asleep = false; // wakeup(mon, FALSE)
     if (!spotted) mapInvisible(ctx, x, y);
-    setmangry(ctx, mon.id);
+    setmangry(ctx, mon.id, false); // setmangry(mon, FALSE): a bump, not an attack
     // a bodily collision: body armor, a cloak or a shirt protects her
     const pid = ctx.state.playerId;
     if (

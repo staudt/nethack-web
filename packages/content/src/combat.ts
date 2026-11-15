@@ -815,7 +815,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
   // when not cancelled, were creatures can summon critters and change form (summonmu(); demons
   // do not summon here: msummon() is not ported); a change that made it flee ends the attack
   if (!isCancelled(ctx, monId) && isWere(def)) {
-    if (summonWereMu(ctx, mon, canseemon(ctx, mon))) return;
+    if (summonWereMu(ctx, mon, canseemon(ctx, mon), ap ?? hero.c.pos)) return;
     def = ctx.defs.monster(mon.def); // update cached value in case of were change
     name = monNam(ctx, mon);
   }

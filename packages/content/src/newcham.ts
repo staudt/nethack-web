@@ -8,8 +8,8 @@
 // the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
-// no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square after a change
-// during the monsters' move (no onscary()).
+// no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
+// after a change during the monsters' move (newcham() is not told it is the monsters' move).
 import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
 import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';

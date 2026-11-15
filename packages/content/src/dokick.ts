@@ -689,7 +689,7 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
     if (snap) passive(ctx, snap, false, true, uarmf(ctx), 'kick');
   };
   // anger target even if wild miss will occur
-  setmangry(ctx, monId);
+  setmangry(ctx, monId, true);
 
   if (
     levitating(ctx) &&

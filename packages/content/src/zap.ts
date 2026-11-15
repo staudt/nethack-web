@@ -711,7 +711,7 @@ function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
   const tmp = (hp.x - p.x) ** 2 + (hp.y - p.y) ** 2;
   if (useeit) say(ctx, 'zap.blinded_by_flash', { mon: monNam(ctx, mon) });
   if (alive(ctx, mon.id)) {
-    setmangry(ctx, mon.id); // !context.mon_moving
+    setmangry(ctx, mon.id, true); // !context.mon_moving
     if (tmp < 9 && !eshkOf(ctx, mon.id) && ctx.rng.rn2(4))
       monflee(ctx, mon.id, ctx.rng.rn2(4) ? ctx.rng.rnd(100) : 0, false, true);
     // mcansee = 0, mblinded = ...: monster blindness is not modelled

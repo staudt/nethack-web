@@ -261,7 +261,7 @@ function gazeFrom(
 function gazeAt(ctx: Ctx, mon: Entity, ad: 'fire' | 'conf'): 'not' | number | null {
   const m = mon.c.monster;
   if (!m) return null;
-  setmangry(ctx, mon.id);
+  setmangry(ctx, mon.id, true);
   const def = ctx.defs.monster(mon.def);
   if (
     helpless(ctx, mon.id) ||

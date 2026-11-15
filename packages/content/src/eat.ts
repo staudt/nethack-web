@@ -56,6 +56,7 @@ import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
 import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
 import { monflee } from './monflee';
+import { onscary } from './scary';
 import { isWere, ulycn, youUnwere } from './werestate';
 import { heroForm, polymonLate, rehumanize, uPolyStoneGolem, upolyOf } from './upoly';
 import { adjattrib } from './attrstate';
@@ -382,7 +383,10 @@ export function registerEat(api: ModApi): void {
   });
 }
 
-/** A visible hostile monster next to the hero. ref: src/hack.c monster_nearby() */
+/**
+ * A visible hostile monster next to the hero, not scared by her square (a scroll of scare
+ * monster, her Elbereth). ref: src/hack.c monster_nearby()
+ */
 export function monsterNearby(ctx: Ctx): boolean {
   const pos = hero(ctx).c.pos;
   if (!pos) return false;
@@ -390,8 +394,17 @@ export function monsterNearby(ctx: Ctx): boolean {
     for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue;
       for (const m of ctx.query.describe({ x: pos.x + dx, y: pos.y + dy }).entities) {
-        const mon = ctx.state.entities[String(m.id)]?.c.monster;
-        if (mon && !mon.peaceful && !mon.asleep && !apAsThing(ctx, m.id)) return true;
+        const e = ctx.state.entities[String(m.id)];
+        const mon = e?.c.monster;
+        if (
+          e &&
+          mon &&
+          !mon.peaceful &&
+          !mon.asleep &&
+          !apAsThing(ctx, m.id) &&
+          !onscary(ctx, pos.x, pos.y, e)
+        )
+          return true;
       }
     }
   return false;

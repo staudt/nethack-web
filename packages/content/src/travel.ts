@@ -23,6 +23,7 @@ import {
 import { blockersOf, boulderCells } from './boulder';
 import { boulderStops, couldMoveOntoBoulder } from './moverock';
 import { isSokoban } from './sokoban';
+import { onscary, scareCells } from './scary';
 import { unmapInvisible } from './invis';
 import { flying, levitating } from './trapstate';
 import { heroForm } from './upoly';
@@ -67,7 +68,7 @@ function hostileAdjacent(ctx: Ctx): boolean {
 /** What the hero knew at the end of the last step, to notice disturbances. */
 export interface Watch {
   hp: number;
-  /** Visible, non-peaceful monsters within BOLT_LIM + 1. */
+  /** Visible, non-peaceful monsters within BOLT_LIM + 1 that her square does not scare. */
   seen: number[];
 }
 
@@ -126,6 +127,7 @@ export function watchOf(ctx: Ctx): Watch {
   const here = heroPos(ctx);
   const level = getLevel(ctx.state);
   const seen: number[] = [];
+  let scare: Set<number> | null = null;
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
     const m = e?.c.monster;
@@ -133,6 +135,9 @@ export function watchOf(ctx: Ctx): Watch {
     if (!e || !m || m.peaceful || !p || p.level !== level.id) continue;
     if (!isVisible(ctx.state, p.y * level.width + p.x)) continue;
     if ((p.x - here.x) ** 2 + (p.y - here.y) ** 2 > NOTICE_DIST2) continue;
+    // ref: dochugw(): "monster isn't paralyzed or afraid (scare monster/Elbereth)"
+    scare ??= scareCells(ctx, level);
+    if (onscary(ctx, here.x, here.y, e, { level, cells: scare })) continue;
     seen.push(id);
   }
   return { hp: hero.c.hp?.cur ?? 0, seen };

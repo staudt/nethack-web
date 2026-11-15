@@ -96,7 +96,7 @@ import { findgold } from './steal';
 import { gdMoveLate, isGuard } from './vaultstate';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
-import { onscary, scareCells } from './scary';
+import { SCR_SCARE_MONSTER, anyScare, onscary, scareCells } from './scary';
 import { afterShkMove } from './rooms';
 import {
   carriedPicks,
@@ -282,7 +282,8 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * With `allowDig` (ALLOW_DIG, a tunneller: canTunnel()) rock, walls and trees it can dig into
  * now are candidates, and so are closed and locked doors (thrudoor); intelligent peaceful ones
  * keep out of shop and temple walls from outside. A monster without ALLOW_SSM never steps onto a
- * square that scares it (onscary(): a scroll of scare monster), the hero's own included. A
+ * square that scares it (onscary(): a scroll of scare monster, an Elbereth), the hero's own
+ * included (a displaced hero's image is judged by her real square). A
  * monster that passes walls (passes_walls(): ALLOW_WALL, ALLOW_ROCK) goes into stone and walls
  * that are not non-passwall (may_passwall(): Sokoban's), through closed and locked doors, onto
  * boulders and through any tight squeeze. A unicorn (NOTONL, unless confused or on a no-teleport
@@ -291,7 +292,7 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * consecutive segments of a long worm (worm_cross()). Water and lava: only swimmers and those in
  * the air (flying, floating, clinging hidden) go into water, eels only into water unless there is
  * none next to them, and only those in the air or that like lava onto lava; nothing but swimmers
- * enters a wall of water. Not ported: Elbereth, iron bars, the Plane of Water.
+ * enters a wall of water. Not ported: iron bars, the Plane of Water.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -367,6 +368,8 @@ export function mfndpos(
   // ref: mon_allowflags() ALLOW_SSM: pets, peacefuls, shopkeepers, priests, humans and minotaurs
   // (and a confused monster's ALLOW_ALL) may step onto a scroll of scare monster
   const scare = scareCells(ctx, level);
+  const scary = anyScare(ctx, level, scare);
+  const displaced = onHerLevel && heroHas(ctx.state, P.DISPLACED);
   const allowSSM =
     conf ||
     (m.tame ?? 0) > 0 ||
@@ -428,9 +431,16 @@ export function mfndpos(
           g.y = heroPos.y;
           if (storedMux(ctx, id)) setStoredMux(ctx, id, g); // kept while it can't see her
         }
-        // ref: mfndpos(): `if (onscary(dispx, dispy, mon)) { if (!(flag & ALLOW_SSM)) continue; }`
-        if (!allowSSM && scare.size > 0 && onscary(ctx, nx, ny, e, { level, cells: scare }))
-          continue;
+        // ref: mfndpos(): "Displacement also displaces the Elbereth/scare monster, as long as
+        // you are visible": the square it thinks she is on is judged by her real one; then
+        // `if (onscary(dispx, dispy, mon)) { if (!(flag & ALLOW_SSM)) continue; }`
+        if (!allowSSM && scary) {
+          const disp = displaced && monseeu && g !== undefined && nx === g.x && ny === g.y;
+          const sx = disp ? heroPos.x : nx;
+          const sy = disp ? heroPos.y : ny;
+          const opt = g ? { level, cells: scare, mux: g } : { level, cells: scare };
+          if (onscary(ctx, sx, sy, e, opt)) continue;
+        }
         const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
         const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));
         if (isHero) {
@@ -551,7 +561,9 @@ function linedUp(
  * The monster looks for an item it wants within a few squares and makes it its goal.
  * ref: src/monmove.c m_search_items(): closest first (a later one at equal distance wins),
  * only items in view that it would take and can carry; rocks are never worth a trip; in a shop
- * it usually does not look (a shopkeeper never). Not ported: traps, scary squares, water, the immobile-monster-on-top check, mercenaries.
+ * it usually does not look (a shopkeeper never); no square that scares it ("Don't get stuck
+ * circling an Elbereth"). Not ported: traps, water, the immobile-monster-on-top check,
+ * mercenaries.
  * Returns whether it is already standing on one (MMOVE_DONE).
  */
 function mSearchItems(
@@ -563,7 +575,7 @@ function mSearchItems(
   goal: Pos,
   heroPos: Pos,
 ): boolean {
-  const { m, pos } = monCount(ctx, id);
+  const { e: mon, m, pos } = monCount(ctx, id);
   let minr = SQSRCHRADIUS;
   if (distmin(heroPos.x, heroPos.y, pos.x, pos.y) < SQSRCHRADIUS && !m.peaceful) minr--;
   // in shop, usually skip
@@ -571,16 +583,19 @@ function mSearchItems(
     return false;
   // the objects of the level by cell, top of each pile first
   const piles = new Map<number, Entity[]>();
+  const scare = new Set<number>(); // scareCells(), from the same pass
   for (const e of Object.values(ctx.state.entities)) {
     const p = e.c.pos;
     if (!p || p.level !== level.id || !e.c.item) continue;
     const k = cellIndex(level, p.x, p.y);
+    if (e.def === SCR_SCARE_MONSTER) scare.add(k);
     const list = piles.get(k);
     if (list) list.push(e);
     else piles.set(k, [e]);
   }
   for (const list of piles.values())
     list.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
+  const scary = anyScare(ctx, level, scare);
   const hmx = Math.min(level.width - 1, pos.x + minr);
   const hmy = Math.min(level.height - 1, pos.y + minr);
   const lmx = Math.max(1, pos.x - minr);
@@ -591,6 +606,8 @@ function mSearchItems(
       if (!pile) continue;
       if (minr < distmin(pos.x, pos.y, xx, yy)) continue; // found an object closer already
       if (!clearPath(level, opaque, pos.x, pos.y, xx, yy, blocked)) continue; // m_cansee()
+      // Don't get stuck circling an Elbereth
+      if (scary && onscary(ctx, xx, yy, mon, { level, cells: scare, mux: heroPos })) continue;
       for (const o of pile) {
         // rocks are never worth a trip; the corpses (and untouchables) 5.0's mpickstuff()
         // refuses after the monster has walked to one would leave it stuck on the square (C's
@@ -1233,8 +1250,8 @@ export function dochug(
   // guess `ap` is this move's mux/muy (m_move() may guess again or find her)
   const ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
   // ref: src/monmove.c distfleeck(): inrange, nearby and scared; a scary square where it thinks
-  // the hero is (onscary(): a scroll of scare monster) and the hero's sanctuary scare (no
-  // Elbereth or flees_light; no bravegremlin roll) -- see DEVIATIONS.md
+  // the hero is (onscary(): a scroll of scare monster, an Elbereth) and the hero's sanctuary
+  // scare (no flees_light; no bravegremlin roll) -- see DEVIATIONS.md
   let inrange = false;
   let nearby = false;
   let scared = false;
@@ -1245,7 +1262,7 @@ export function dochug(
     const e = ctx.state.entities[String(id)];
     // the monster sees the scare where it thinks the hero is when it cannot see her
     const seescary = e && (!mcansee(ctx, id) || invisTo(ctx, e)) ? ap : heroPos;
-    const sawscary = e !== undefined && onscary(ctx, seescary.x, seescary.y, e);
+    const sawscary = e !== undefined && onscary(ctx, seescary.x, seescary.y, e, { mux: ap });
     scared =
       nearby && e !== undefined && (sawscary || (!m.peaceful && inYourSanctuary(ctx, e, 0, 0)));
     if (scared) monflee(ctx, id, ctx.rng.rnd(ctx.rng.rn2(7) ? 10 : 100), true, true);

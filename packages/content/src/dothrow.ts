@@ -375,12 +375,12 @@ function venomHit(ctx: Ctx, mon: Entity, obj: Entity): void {
         msg(ctx, mcansee(ctx, mon.id) ? 'throw.venom_blinds' : 'throw.venom_blinds_further', {
           mon: monNam(ctx, mon),
         });
-      setmangry(ctx, mon.id);
+      setmangry(ctx, mon.id, true);
       const dmg = ctx.rng.rn2(25) + 21; // rn1(25, 21)
       setMblinded(ctx, mon.id, Math.min(127, mblinded(ctx, mon.id) + dmg));
     } else {
       msg(ctx, 'throw.venom_splash');
-      setmangry(ctx, mon.id);
+      setmangry(ctx, mon.id, true);
     }
     return;
   }

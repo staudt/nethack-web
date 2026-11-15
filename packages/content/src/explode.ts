@@ -332,7 +332,7 @@ export function explode(
             // xkilled(XKILL_GIVEMSG), XKILL_NOCORPSE for a burnt paper or straw golem
             killedByHero(ctx, mtmp, adtyp === 'fire' && completelyburns(mtmp.def));
           else monkilled(ctx, mtmp.id, true, undefined, adtyp === 'fire' ? 'fire' : undefined); // monkilled(mtmp, "", adtyp)
-        } else if (!monMoving) setmangry(ctx, mtmp.id);
+        } else if (!monMoving) setmangry(ctx, mtmp.id, true);
         if (ctx.state.gameOver) return;
       }
     }
