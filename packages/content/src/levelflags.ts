@@ -43,6 +43,17 @@ const SOKO: LevelFlags = { noteleport: true, maze: true, nondiggable: 'all', non
 const SOKO_ENTRY: LevelFlags = { ...SOKO, hardfloor: true };
 
 /**
+ * The big rooms: "mazelevel", and des.non_diggable() of the whole level, but bigrm-10 (no
+ * non_diggable). ref: dat/bigrm-1.lua .. bigrm-13.lua
+ */
+const BIGROOM_FLAGS: Readonly<Record<DefId, LevelFlags>> = Object.fromEntries(
+  Array.from({ length: 13 }, (_, i): [DefId, LevelFlags] => [
+    `nh:bigrm-${String(i + 1)}`,
+    i + 1 === 10 ? { maze: true } : { maze: true, nondiggable: 'all' },
+  ]),
+);
+
+/**
  * The flags of each special level that has any. Minetown's minetn-1 (Orcish Town) and minetn-6
  * say "mazelevel" too, but their mines-style map makes them cavernous instead (mkmap() clears
  * is_maze_lev), as are the Mines' filler levels; see {@link cavernous}.
@@ -74,6 +85,7 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
       { x1: 53, y1: 14, x2: 61, y2: 14 },
     ],
   },
+  ...BIGROOM_FLAGS,
   /** ref: dat/minend-3.lua (the Catacombs) */
   'nh:minend-3': {
     maze: true,

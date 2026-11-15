@@ -746,15 +746,29 @@ function levelDefIssues(d: LevelDef): [string, string][] {
         if (fields[b] !== undefined && typeof fields[b] !== 'boolean')
           out.push([`init.${b}`, 'must be a boolean']);
     } else if (style === 'maze') {
-      for (const w of ['corrwid', 'wallthick'])
-        if (fields[w] !== undefined) {
-          const v = fields[w];
-          if (!Number.isInteger(v) || (v as number) < 1 || (v as number) > 5)
-            out.push([`init.${w}`, 'must be an integer 1..5']);
-        }
-      for (const b of ['deadends', 'filler'])
-        if (fields[b] !== undefined && typeof fields[b] !== 'boolean')
-          out.push([`init.${b}`, 'must be a boolean']);
+      const width = (v: unknown): boolean =>
+        Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 5;
+      const cw = fields.corrwid;
+      if (typeof cw === 'object' && cw !== null && !Array.isArray(cw)) {
+        const { min, max } = cw as Record<string, unknown>;
+        if (!width(min) || !width(max) || (min as number) > (max as number))
+          out.push([
+            'init.corrwid',
+            'must be an integer 1..5 or { min, max } with 1 <= min <= max <= 5',
+          ]);
+      } else if (cw !== undefined && !width(cw))
+        out.push(['init.corrwid', 'must be an integer 1..5']);
+      if (fields.wallthick !== undefined && !width(fields.wallthick))
+        out.push(['init.wallthick', 'must be an integer 1..5']);
+      const de = fields.deadends;
+      if (typeof de === 'object' && de !== null && !Array.isArray(de)) {
+        const p = (de as Record<string, unknown>).percent;
+        if (!Number.isInteger(p) || (p as number) < 0 || (p as number) > 100)
+          out.push(['init.deadends', 'must be a boolean or { percent } with an integer 0..100']);
+      } else if (de !== undefined && typeof de !== 'boolean')
+        out.push(['init.deadends', 'must be a boolean']);
+      if (fields.filler !== undefined && typeof fields.filler !== 'boolean')
+        out.push(['init.filler', 'must be a boolean']);
       if (fields.filler === true)
         for (const k of ['corrwid', 'wallthick', 'deadends'])
           if (fields[k] !== undefined) out.push([`init.${k}`, 'is not used with filler']);

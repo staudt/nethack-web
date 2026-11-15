@@ -5,8 +5,8 @@
 // Translation notes (see DEVIATIONS.md "Orcish Town"): the iron bars (`F`) are drawn as walls in
 // the map, so that core's wallification joins the walls to them as NetHack's iswall() does, and
 // the `before` fixup then turns them into `nh:iron_bars`. `replace_terrain` is expanded into one
-// `edits` entry per `|` cell of each region. The teleport region is left out (no teleporting);
-// the 10-19 rocks and their boulders are made. The corpses, candles, lamp, wands and
+// `edits` entry per `|` cell of each region (it predates the core `replace` edit; the draws are
+// the same). The 10-19 rocks and their boulders are made. The corpses, candles, lamp, wands and
 // the orc horde are the `after` fixup, in lua order. stolen_booty() makes the gang without its
 // name and without the booty items that wait for orcs on the levels below.
 import type { Ctx, DefId, Entity, Level, LevelDef, Pos, TerrainEdit } from '@nh/core';
@@ -79,7 +79,6 @@ export const MINETN_1: LevelDef = {
     ...replaceTerrain(7, 12, 11, 14, 18),
     ...replaceTerrain(28, 12, 28, 14, 33),
   ],
-  // the teleport region is left out (no teleporting)
   regions: [{ area: [1, 1, 35, 17], lit: true }],
   doors: [
     [5, 8],
@@ -106,6 +105,9 @@ export const MINETN_1: LevelDef = {
     up: { region: [0, 3, 20, -2], coords: 'level', exclude: [0, 1, 36, 17] },
     down: { region: [-24, 3, -6, -2], coords: 'level', exclude: [0, 1, 36, 17] },
   },
+  // des.teleport_region({ region={01,01,75,19}, exclude={01,00,35,21}, region_islev=1 }): keeps
+  // a falling hero out of the town; the map-relative exclusion is cut at the map's last row
+  teleportRegions: [{ area: [0, 1, -6, -2], coords: 'level', exclude: [1, 0, 35, 18] }],
 };
 
 /** One spot each in most shops (`place`, shuffled). */

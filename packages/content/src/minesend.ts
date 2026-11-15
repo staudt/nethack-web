@@ -1,7 +1,7 @@
 // Mines' End: NetHack 5.0's three variants, as LevelDefs plus fixups. ref: dat/minend-1.lua,
 // dat/minend-2.lua, dat/minend-3.lua
 //
-// Translation notes (see DEVIATIONS.md "Mines' End"): the vampires (`V`) of minend-3, the engravings, the arrival and teleport regions, the
+// Translation notes (see DEVIATIONS.md "Mines' End"): the vampires (`V`) of minend-3, the engravings, the arrival region, the
 // non-diggable walls and the achievements are left out. minend-2's potion of object detection is
 // a random potion (no such potion yet). The fountains come from the map ('{'); they are not magic.
 // Shuffled niches, "not-cursed" luckstones, minend-2's conditional locked door and minend-3's
@@ -238,7 +238,6 @@ export const MINEND_2: LevelDef = {
       },
     },
   ],
-  // the teleport region {23,03,48,16} is left out (no teleport regions)
   regions: [
     { area: [23, 3, 48, 6], lit: true },
     { area: [21, 6, 22, 6], lit: true },
@@ -252,6 +251,8 @@ export const MINEND_2: LevelDef = {
     { x: 11, y: 6, state: 'locked' },
   ],
   stairs: { up: { x: 36, y: 4 } },
+  // des.teleport_region({ region={23,03,48,16}, region_islev=1 }) (NetHack x - 1 here)
+  teleportRegions: [{ area: [22, 3, 47, 16], coords: 'level' }],
   contents: [
     // the wine cellar (no engravings; object detection is a random potion)
     objId('potion_of_booze', [10, 7]),

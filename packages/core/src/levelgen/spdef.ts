@@ -171,6 +171,27 @@ export function levelDefRect(
   return [a.x, a.y, b.x, b.y];
 }
 
+/**
+ * `r` in Level coordinates without the bounds check, clamped to the level (as place_lregion()
+ * clamps its area); null when nothing of it is on the level. ref: src/mkmaze.c place_lregion()
+ */
+export function levelDefRectClamped(
+  def: LevelDef,
+  width: number,
+  height: number,
+  r: LevelRect,
+  coords: LevelCoords | undefined,
+): LevelRect | null {
+  const b = coordsOf(def, coords) === 'map' ? (mapBlock(def, width, height) ?? null) : null;
+  const cx = (v: number): number => (b ? b.x + v : v < 0 ? width + v : v);
+  const cy = (v: number): number => (b ? b.y + v : v < 0 ? height + v : v);
+  const x1 = Math.max(cx(r[0]), 0);
+  const y1 = Math.max(cy(r[1]), 0);
+  const x2 = Math.min(cx(r[2]), width - 1);
+  const y2 = Math.min(cy(r[3]), height - 1);
+  return x1 > x2 || y1 > y2 ? null : [x1, y1, x2, y2];
+}
+
 /** The RoomDef at `path` (a Room's `defPath`), or undefined. */
 export function levelDefRoom(def: LevelDef, path: readonly number[]): RoomDef | undefined {
   let list: readonly RoomDef[] | undefined = def.rooms;
@@ -371,6 +392,21 @@ function editIssues(
           if (s[k] !== undefined) rectIssues(`${at}.${k}`, s[k], s.coords, block, hasMap, out);
       });
   }
+  if (e.replace !== undefined) {
+    const r = e.replace;
+    const at = `${path}.replace`;
+    if (!isObj(r)) out.push([at, 'must be an object']);
+    else {
+      for (const k of ['from', 'to'] as const)
+        if (typeof r[k] !== 'string' || !Object.hasOwn(MAP_LEGEND, r[k]) || r[k] === 'x')
+          out.push([`${at}.${k}`, `must be one map character (${LEGEND_TEXT.slice(0, -2)})`]);
+      coordsIssues(at, r.coords, hasMap, out);
+      if (r.area !== undefined) rectIssues(`${at}.area`, r.area, r.coords, block, hasMap, out);
+      else if (r.coords !== undefined) out.push([`${at}.coords`, 'needs an area']);
+      if (r.chance !== undefined && (!isInt(r.chance) || r.chance < 0 || r.chance > 100))
+        out.push([`${at}.chance`, 'must be an integer 0..100']);
+    }
+  }
   if (then !== undefined) editIssues(`${path}.then`, then, block, hasMap, out);
   if (other !== undefined) {
     if (percent === undefined) out.push([`${path}.else`, 'needs a percent']);
@@ -535,7 +571,7 @@ function roomIssues(
 
 /**
  * Shape problems of a LevelDef's map block, rooms, corridors, regions, edits, doors, features,
- * stairs and flags, and of the `coords` of its contents, as [path, reason].
+ * stairs, teleport regions and flags, and of the `coords` of its contents, as [path, reason].
  */
 export function specialLevelIssues(def: LevelDef): Issues {
   const out: Issues = [];
@@ -602,6 +638,17 @@ export function specialLevelIssues(def: LevelDef): Issues {
         } else posIssues(path, s.x, s.y, s.coords, block, hasMap, out);
       }
   }
+  arrayOf(d, 'teleportRegions', out, (t, path) => {
+    coordsIssues(path, t.coords, hasMap, out);
+    rectIssues(`${path}.area`, t.area, t.coords, block, hasMap, out);
+    if (t.exclude !== undefined) {
+      coordsIssues(path, t.excludeCoords, hasMap, out, 'excludeCoords');
+      rectIssues(`${path}.exclude`, t.exclude, t.excludeCoords, block, hasMap, out);
+    } else if (t.excludeCoords !== undefined)
+      out.push([`${path}.excludeCoords`, 'needs an exclude']);
+    if (t.dir !== undefined && t.dir !== 'up' && t.dir !== 'down')
+      out.push([`${path}.dir`, "must be 'up' or 'down' (omitted: both)"]);
+  });
   if (d.flags !== undefined) {
     if (!isObj(d.flags)) out.push(['flags', 'must be an object']);
     else

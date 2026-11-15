@@ -7,11 +7,63 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-157 NetHack files, 4482 citations.
+170 NetHack files, 4513 citations.
+
+## dat/bigrm-1.lua
+
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/levelflags.ts`
+
+## dat/bigrm-10.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-11.lua
+
+- (file): `packages/content/src/bigroom.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+
+## dat/bigrm-12.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-13.lua
+
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/levelflags.ts`
+
+## dat/bigrm-2.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-3.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-4.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-5.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-6.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-7.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-8.lua
+
+- (file): `packages/content/src/bigroom.ts`
+
+## dat/bigrm-9.lua
+
+- (file): `packages/content/src/bigroom.ts`
 
 ## dat/dungeon.lua
 
-- (file): `packages/content/src/dungeon.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/core/src/types/mod.ts`
 
 ## dat/minefill.lua
 
@@ -59,7 +111,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/nhlib.lua
 
-- `percent()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `percent()`: `packages/content/src/bigroom.ts`, `packages/content/src/orctown.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `shuffle()`: `packages/content/src/sp_lev.ts`
 
 ## dat/oracle.lua
@@ -969,7 +1021,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `print_dungeon()`: `packages/content/src/wizard/where.ts`, `packages/content/src/wizard/wizard.en.ts`
 - `surface()`: `packages/content/src/terrain.ts`
 - `u_on_newpos()`: `packages/content/src/actions.ts`
-- `u_on_rndspot()`: `packages/core/src/types/mod.ts`
+- `u_on_rndspot()`: `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 
 ## src/eat.c
 
@@ -1409,11 +1461,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/mkmaze.c
 
 - (file): `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
-- `bad_location()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
+- `bad_location()`: `packages/core/src/levelgen/special.ts`
 - `create_maze()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `extend_spine()`: `packages/core/src/levelgen/mkmap.ts`
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
-- `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/orctown.ts`
+- `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/orctown.ts`, `packages/core/src/types/mod.ts`
 - `is_solid()`: `packages/core/src/levelgen/mkmap.ts`
 - `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 - `iswall_or_stone()`: `packages/core/src/levelgen/mkmap.ts`
@@ -1425,9 +1477,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `migrate_orc()`: `packages/content/src/orctown.ts`
 - `mz_move()`: `packages/core/src/levelgen/maze.ts`
 - `okay()`: `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/maze.ts`
-- `place_lregion()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
+- `place_lregion()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`
 - `populate_maze()`: `packages/content/src/mazefill.ts`
-- `put_lregion_here()`: `packages/core/src/levelgen/special.ts`
+- `put_lregion_here()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
 - `shiny_orc_stuff()`: `packages/content/src/orctown.ts`
 - `spine_array()`: `packages/core/src/levelgen/mkmap.ts`
 - `stolen_booty()`: `packages/content/src/orctown.ts`
@@ -2050,6 +2102,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/selvar.c
 
 - (file): `packages/core/src/levelgen/special.ts`
+- `selection_do_grow()`: `packages/content/src/bigroom.ts`
 - `selection_do_line()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `selection_floodfill()`: `packages/content/src/orctown.ts`
 - `selection_rndcoord()`: `packages/content/src/orctown.ts`
@@ -2233,13 +2286,16 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_object()`: `packages/core/src/types/mod.ts`
 - `lspo_random_corridors()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_region()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_replace_terrain()`: `packages/content/src/bigroom.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_room()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_stair()`: `packages/core/src/types/mod.ts`
+- `lspo_teleport_region()`: `packages/core/src/types/mod.ts`
 - `lspo_terrain()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_trap()`: `packages/core/src/types/mod.ts`
 - `lspo_wallify()`: `packages/content/src/orctown.ts`
 - `lvlfill_maze_grid()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lvlfill_solid()`: `packages/core/src/levelgen/special.ts`
+- `mapfrag_match()`: `packages/content/src/bigroom.ts`
 - `maybe_add_door()`: `packages/content/src/zoo.ts`
 - `maze1xy()`: `packages/content/src/mazefill.ts`
 - `mksobj_at()`: `packages/content/src/mklev.ts`

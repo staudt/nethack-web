@@ -13,6 +13,7 @@ export {
   levelDefArea,
   levelDefPos,
   levelDefRect,
+  levelDefRectClamped,
   levelDefRoom,
   roomDefPos,
   MAP_LEGEND,

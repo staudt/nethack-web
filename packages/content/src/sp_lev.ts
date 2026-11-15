@@ -77,7 +77,8 @@ const NOT_DRY: ReadonlySet<DefId> = new Set([
 ]);
 
 /**
- * DRY: walkable ground that is not a door or a fountain, sink or altar, so floor, corridor and
+ * DRY: walkable ground that is not a door, a liquid (m15: pools, moats, lava sort before DOOR,
+ * so SPACE_POS() refuses them) or a fountain, sink or altar, so floor, corridor, ice, clouds and
  * stairs, with no boulder on it. ref: src/sp_lev.c is_ok_location() DRY (`!bould`),
  * include/rm.h SPACE_POS()
  */
@@ -85,7 +86,12 @@ export function dry(ctx: Ctx, level: Level, p: Pos): boolean {
   const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
   if (id === undefined || NOT_DRY.has(id)) return false;
   const t = ctx.defs.terrain(id);
-  return t.passable && t.door === undefined && !boulderAt(ctx, level.id, p.x, p.y);
+  return (
+    t.passable &&
+    t.door === undefined &&
+    t.liquid === undefined &&
+    !boulderAt(ctx, level.id, p.x, p.y)
+  );
 }
 
 /** A random DRY spot inside the LevelDef's map block (or the level): get_location(DRY). */

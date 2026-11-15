@@ -10,6 +10,7 @@ import {
 import {
   buildLevel,
   generateLevel,
+  levelDefRectClamped,
   VANILLA_TERRAIN,
   type GenOptions,
   type LevelTerrain,
@@ -27,7 +28,7 @@ import type { DefId, Json, Pos } from './types/common';
 import { NORMAL_SPEED } from './types/entity';
 import type { GameEvent } from './types/event';
 import type { Level, LevelRef } from './types/level';
-import type { ActionDef, Ctx, Mod, Registry } from './types/mod';
+import type { ActionDef, Ctx, LevelRect, Mod, Registry, TeleRegionDef } from './types/mod';
 import type { Replay } from './types/protocol';
 import type { Rng } from './types/rng';
 import type { CoreQuery } from './types/query';
@@ -234,6 +235,9 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
           state.memory[id] = newMemory(level);
           for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
         }
+        // ref: src/do.c goto_level(): `up = depth(newlevel) < depth(&u.uz)`; without stairs
+        // (falling, level teleport) or a branch's stairs, u_on_rndspot(up) (u_on_sstairs())
+        const up = level.depth < current.depth;
         placeHero(
           state,
           level,
@@ -242,8 +246,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
             : at === 'down'
               ? level.down
               : at === 'branch'
-                ? (level.branch?.pos ?? null)
-                : randomSpot(ctx.rng, level),
+                ? (level.branch?.pos ?? randomSpot(state, ctx.rng, level, up))
+                : randomSpot(state, ctx.rng, level, up),
         );
         const change = { from: current.id, fromPos: { x: fromPos.x, y: fromPos.y }, to: level.id };
         for (const h of registry.hooks('levelChange')) h.fn(ctx, change);
@@ -272,20 +276,48 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
   };
 
   /**
-   * A random room floor cell without a trap, or null for none: 200 random tries, then the first
-   * such cell in column order. ref: src/mkmaze.c place_lregion(), bad_location()
+   * The hero's random arrival spot (u_on_rndspot()): inside the level's teleport region for the
+   * way she came (the last `TeleRegionDef` whose `dir` fits: 'up' when she went up, 'down' when
+   * she went down, or none) outside its exclusion, else anywhere on the level: room floor (or a
+   * corridor of a corridor maze) with no trap, 200 random tries that also skip a monster, then
+   * the first such cell in column order (a monster there is moved off by placeHero()); null for
+   * none. ref: src/dungeon.c u_on_rndspot(); src/mkmaze.c place_lregion(), put_lregion_here(),
+   * bad_location() (`CORR && is_maze_lev` is approximated by `Level.corrmaze`)
    */
-  const randomSpot = (rng: Rng, level: Level): Pos | null => {
-    const ok = (x: number, y: number): boolean =>
-      level.palette[level.cells[cellIndex(level, x, y)] ?? -1] === terrain.floor &&
-      trapAt(level, x, y) === undefined;
-    for (let tries = 0; tries < 200; tries++) {
-      const x = rng.rn2(level.width);
-      const y = rng.rn2(level.height);
-      if (ok(x, y)) return { x, y };
+  const randomSpot = (state: GameState, rng: Rng, level: Level, up: boolean): Pos | null => {
+    const def = level.def !== undefined ? registry.level(level.def) : undefined;
+    let region: TeleRegionDef | undefined;
+    for (const r of def?.teleportRegions ?? [])
+      if (r.dir === undefined || r.dir === (up ? 'up' : 'down')) region = r;
+    let [lx, ly, hx, hy]: LevelRect = [0, 0, level.width - 1, level.height - 1];
+    let ex: LevelRect | null = null;
+    if (def && region) {
+      const r = levelDefRectClamped(def, level.width, level.height, region.area, region.coords);
+      if (r) [lx, ly, hx, hy] = r;
+      if (region.exclude)
+        ex = levelDefRectClamped(
+          def,
+          level.width,
+          level.height,
+          region.exclude,
+          region.excludeCoords,
+        );
     }
-    for (let x = 0; x < level.width; x++)
-      for (let y = 0; y < level.height; y++) if (ok(x, y)) return { x, y };
+    const corr = level.corrmaze === true;
+    const ok = (x: number, y: number): boolean => {
+      const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
+      return (
+        (id === terrain.floor || (corr && id === terrain.corr)) &&
+        trapAt(level, x, y) === undefined &&
+        !(ex && x >= ex[0] && x <= ex[2] && y >= ex[1] && y <= ex[3])
+      );
+    };
+    for (let tries = 0; tries < 200; tries++) {
+      const x = lx + rng.rn2(hx - lx + 1);
+      const y = ly + rng.rn2(hy - ly + 1);
+      if (ok(x, y) && !occupied(state, level, x, y, state.playerId)) return { x, y };
+    }
+    for (let x = lx; x <= hx; x++) for (let y = ly; y <= hy; y++) if (ok(x, y)) return { x, y };
     return null;
   };
 

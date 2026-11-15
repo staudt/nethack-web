@@ -1,5 +1,6 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
 import type { DefId, DungeonDef, LevelDef } from '@nh/core';
+import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
 import { MINETOWN_VARIANTS } from './minetown';
@@ -42,6 +43,8 @@ export const LEVELS: readonly LevelDef[] = [
   ...MINEND_VARIANTS,
   ORACLE_LEVEL,
   ...SOKOBAN_VARIANTS.flat(),
+  // m15: registered and built in tests; nh:main places the big room from step 9 on
+  ...BIGROOM_VARIANTS,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -50,6 +53,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   ...MINEND_FIXUPS,
   [MINETN_1.id]: ORCTOWN_FIXUP,
   ...SOKOBAN_PRIZE_FIXUPS,
+  ...BIGROOM_FIXUPS,
 };
 
 /**

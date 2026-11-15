@@ -348,7 +348,28 @@ export interface LevelDef {
    * src/mkmaze.c sokoban_detect()).
    */
   flags?: { inaccessibles?: boolean; sokoban?: boolean; premapped?: boolean };
+  /**
+   * m15: where the hero lands when she arrives without stairs (falling, level teleport, a branch
+   * with no stairs at this end). See TeleRegionDef. ref: src/sp_lev.c lspo_teleport_region()
+   */
+  teleportRegions?: TeleRegionDef[];
   contents?: LevelContent[];
+}
+
+/**
+ * des.teleport_region: a random arrival goes on a spot of `area` outside `exclude` (corners
+ * inclusive, with `coords`/`excludeCoords` as StairPlace's). `dir` 'down' is for arrivals from
+ * above (she went down), 'up' from below; omitted both. When several fit, the last one counts
+ * (each overwrites C's `dndest`/`updest`). Without one the whole level is used.
+ * ref: src/sp_lev.c lspo_teleport_region(); src/mkmaze.c fixup_special() LR_TELE, LR_UPTELE,
+ * LR_DOWNTELE; src/dungeon.c u_on_rndspot()
+ */
+export interface TeleRegionDef {
+  area: LevelRect;
+  exclude?: LevelRect;
+  coords?: LevelCoords;
+  excludeCoords?: LevelCoords;
+  dir?: 'up' | 'down';
 }
 
 /**
@@ -469,14 +490,32 @@ export type StairPlace =
   | { region: LevelRect; exclude?: LevelRect; coords?: LevelCoords; excludeCoords?: LevelCoords };
 
 /**
- * Terrain changes. With `percent` (0..100) a roll decides: `set` then `then` on success, `else`
- * otherwise; without it they always apply. ref: nhlib.lua percent(); src/sp_lev.c lspo_terrain()
+ * Terrain changes. With `percent` (0..100) a roll decides: `set`, `replace` then `then` on
+ * success, `else` otherwise; without it they always apply. ref: nhlib.lua percent();
+ * src/sp_lev.c lspo_terrain(), lspo_replace_terrain()
  */
 export interface TerrainEdit {
   percent?: number;
   set?: TerrainSet[];
+  /** m15: des.replace_terrain(), see TerrainReplace. */
+  replace?: TerrainReplace;
   then?: TerrainEdit;
   else?: TerrainEdit;
+}
+
+/**
+ * des.replace_terrain({ region, fromterrain, toterrain, chance }): each cell of `area` (default
+ * the whole level) whose terrain is map character `from` becomes `to` when `rn2(100) < chance`
+ * (default 100; the roll is drawn for every such cell), columns then rows. `from` matches the
+ * terrain that character makes (so '-' is a plain horizontal wall, as NetHack's HWALL before
+ * the walls are joined). Neither may be 'x'. ref: src/sp_lev.c lspo_replace_terrain()
+ */
+export interface TerrainReplace {
+  from: string;
+  to: string;
+  area?: LevelRect;
+  coords?: LevelCoords;
+  chance?: number;
 }
 
 /**
@@ -509,7 +548,10 @@ export type LevelInit =
  * A maze walked through stone (ref: src/mkmaze.c create_maze()), unlit. `corrwid` and
  * `wallthick` (integers 1..5) are the widths of its corridors and walls; omitted, `corrwid` is
  * `rnd(4)` and `wallthick` `rnd(4) - corrwid` (at least 1). `deadends` (default true) keeps the
- * dead ends; false opens a wall at each (ref: maze_remove_deadends()). `filler: true` is
+ * dead ends; false opens a wall at each (ref: maze_remove_deadends()). m15 step 5: `corrwid`
+ * may be `{ min, max }`, drawn `min + rn2(max - min + 1)` (lua `3 + nh.rn2(3)`), and `deadends`
+ * `{ percent }`, kept when `rn2(100) < percent` (lua `percent(50)`), drawn in that order before
+ * the maze (des.level_init's table is read first; ref: dat/bigrm-11.lua). `filler: true` is
  * NetHack's own filler maze instead (ref: src/mkmaze.c makemaz("")), and then the other fields
  * are omitted: a corridor maze without walls 1 time in 3 (`Level.corrmaze`), then half the time
  * random widths with the dead ends opened 1 time in 5, else one-wide corridors and walls; its
@@ -518,9 +560,9 @@ export type LevelInit =
  */
 export interface LevelInitMaze {
   style: 'maze';
-  corrwid?: number;
+  corrwid?: number | { min: number; max: number };
   wallthick?: number;
-  deadends?: boolean;
+  deadends?: boolean | { percent: number };
   filler?: boolean;
 }
 

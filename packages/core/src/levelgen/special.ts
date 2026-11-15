@@ -9,6 +9,7 @@ import type {
   RegionDef,
   StairPlace,
   TerrainEdit,
+  TerrainReplace,
   TerrainSet,
 } from '../types/mod';
 import type { Rng } from '../types/rng';
@@ -54,7 +55,7 @@ import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS, type LevelTerrain } from './terra
  * stairs with mazexy() and sets `Level.corrmaze` for a corridor maze, whose walls are not joined
  * (there are none). ref: src/mkmaze.c create_maze(), makemaz(); src/sp_lev.c lvlfill_maze_grid()
  * ref: src/sp_lev.c splev_initlev(), lspo_map(), lspo_room(), lspo_random_corridors(),
- *   lspo_region(), lspo_terrain(), lspo_door(),
+ *   lspo_region(), lspo_terrain(), lspo_replace_terrain(), lspo_door(),
  *   lspo_feature(), lspo_stair(), lspo_finalize_level(); src/mkmaze.c fixup_special()
  *   place_lregion()
  * @throws RangeError for an empty map size, a `mines` map below MIN_MKMAP_WIDTH x
@@ -81,9 +82,13 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     // the level starts as unlit stone (clear_level_structures())
     let kinds: number[];
     if (init.style === 'maze') {
-      let corrwid = init.corrwid;
+      // des.level_init's table is read in order: a random corrwid, then a random deadends
+      // (ref: dat/bigrm-11.lua `corrwid = 3 + nh.rn2(3)`, `deadends = t_or_f()`)
+      const cw = init.corrwid;
+      let corrwid = typeof cw === 'object' ? cw.min + rng.rn2(cw.max - cw.min + 1) : cw;
       let wallthick = init.wallthick;
-      let rmDeadends = init.deadends === false;
+      const de = init.deadends;
+      let rmDeadends = typeof de === 'object' ? !(rng.rn2(100) < de.percent) : de === false;
       if (init.filler === true) {
         // ref: src/mkmaze.c makemaz(""): corrmaze = !rn2(3), then
         // rn2(2) ? create_maze(-1, -1, !rn2(5)) : create_maze(1, 1, FALSE)
@@ -357,7 +362,29 @@ function applyEdit(b: Builder, e: TerrainEdit, what: string): void {
       b.put(c, k);
     }
   }
+  if (e.replace) replaceTerrain(b, e.replace, `${what}.replace`);
   if (e.then) applyEdit(b, e.then, `${what}.then`);
+}
+
+/**
+ * des.replace_terrain(): over `area` (default the whole level), columns then rows, each cell of
+ * terrain `from` draws `rn2(100)` and becomes `to` below `chance` (default 100). Edits run
+ * before the stairs exist, so none is replaced. ref: src/sp_lev.c lspo_replace_terrain()
+ */
+function replaceTerrain(b: Builder, r: TerrainReplace, what: string): void {
+  const { level, def, rng } = b;
+  const from = MAP_LEGEND[r.from];
+  const to = MAP_LEGEND[r.to];
+  if (from === null || from === undefined || to === null || to === undefined) return;
+  const [x1, y1, x2, y2] = r.area
+    ? levelDefRect(def, level.width, level.height, r.area, r.coords, what)
+    : [0, 0, level.width - 1, level.height - 1];
+  const chance = r.chance ?? 100;
+  for (let x = x1; x <= x2; x++)
+    for (let y = y1; y <= y2; y++) {
+      const c = y * level.width + x;
+      if (b.key(c) === from && rng.rn2(100) < chance) b.put(c, to);
+    }
 }
 
 const RND_DOOR = ['nodoor', 'broken', 'open', 'closed', 'locked'] as const;
