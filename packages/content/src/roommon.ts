@@ -4,7 +4,7 @@ import type { Ctx, DefId, GameState, Level, MonsterDef, Registry } from '@nh/cor
 import { mkclass } from './generation';
 import { inHell } from './levelflags';
 import { isNdemon } from './mondata';
-import { isGenocided } from './vanquished';
+import { isGone } from './vanquished';
 
 /**
  * A throne room's courtier for a level of difficulty `depth`: by `rn2(60) + rn2(3 * depth)`, a
@@ -38,7 +38,7 @@ const SQUADPROB: readonly { pm: DefId; prob: number }[] = [
 /**
  * A barracks' soldier for a level of difficulty `depth`: by `rnd(80 + depth)` over squadprob[]
  * (soldier 80, sergeant 15, lieutenant 4, captain 1), and past the table's 100 a uniform pick of
- * the four. null: that kind is genocided (makemon() then makes a random monster).
+ * the four. null: that kind is genocided or extinct (makemon() then makes a random monster).
  * ref: src/mkroom.c squadmon()
  */
 export function squadmon(
@@ -56,7 +56,7 @@ export function squadmon(
     }
   }
   mndx ??= SQUADPROB[ctx.rng.rn2(SQUADPROB.length)]?.pm ?? 'nh:soldier'; // ROLL_FROM(squadprob)
-  return isGenocided(ctx.state, mndx) || !ctx.defs.isMonster(mndx) ? null : ctx.defs.monster(mndx);
+  return isGone(ctx.state, mndx) || !ctx.defs.isMonster(mndx) ? null : ctx.defs.monster(mndx);
 }
 
 /**
@@ -107,7 +107,7 @@ const ANTS: readonly [DefId, DefId, DefId] = ['nh:soldier_ant', 'nh:fire_ant', '
 /**
  * The ant of an anthole on a level of difficulty `depth`: the same kind within a level, another
  * between levels (`ubirthday % 3 + depth`; `state.seed` stands in for the birthday), the next
- * kind when that one is genocided; null when all three are. Draws no random numbers.
+ * kind when that one is genocided or extinct; null when all three are. Draws no random numbers.
  * ref: src/mkroom.c antholemon()
  */
 export function antholemon(
@@ -119,6 +119,6 @@ export function antholemon(
   let trycnt = 0;
   let mtyp: DefId = ANTS[indx % 3] ?? ANTS[0];
   // try again if chosen type has been genocided
-  while (++trycnt < 3 && isGenocided(state, mtyp)) mtyp = ANTS[(indx + trycnt) % 3] ?? ANTS[0];
-  return isGenocided(state, mtyp) ? null : defs.monster(mtyp);
+  while (++trycnt < 3 && isGone(state, mtyp)) mtyp = ANTS[(indx + trycnt) % 3] ?? ANTS[0];
+  return isGone(state, mtyp) ? null : defs.monster(mtyp);
 }

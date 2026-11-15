@@ -39,6 +39,7 @@ import { adjattrib, restoreAttr, type Attr } from './attrib';
 import { monsterDetect } from './detect';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { makemon } from './generation';
+import { isGone } from './vanquished';
 import { somegold } from './steal';
 import { losehp, losestr } from './hp';
 import { morehungry, newuhs, vomit } from './hunger';
@@ -180,10 +181,16 @@ function trapHere(ctx: Ctx, id: EntityId): void {
   if (p && level && trapAt(level, p.x, p.y)) mintrap(ctx, id);
 }
 
-/** Fountain of snakes: rn1(5, 2) water moccasins. ref: src/fountain.c dowatersnakes() */
+/**
+ * Fountain of snakes: rn1(5, 2) water moccasins, unless they are genocided or extinct ("The
+ * fountain bubbles furiously for a moment, then calms."). ref: src/fountain.c dowatersnakes()
+ */
 function dowatersnakes(ctx: Ctx): void {
-  // genocide and extinction are not tracked: the snakes always come
   let num = ctx.rng.rn2(5) + 2;
+  if (isGone(ctx.state, WATER_MOCCASIN)) {
+    say(ctx, 'fountain.bubbles_furiously');
+    return;
+  }
   say(ctx, blind(ctx) ? 'fountain.hissing' : 'fountain.snakes');
   const pos = getPlayer(ctx.state).c.pos;
   if (!pos) return;
@@ -211,10 +218,15 @@ function mongone(ctx: Ctx, id: EntityId): void {
 
 /**
  * Water demon: hostile, or 1 time in (20 - depth) per 100 grateful and granting a wish (the
- * wish prompt is left pending for `action`; returns true then). ref: src/fountain.c
+ * wish prompt is left pending for `action`; returns true then); when the kind is genocided or
+ * extinct the fountain only bubbles. ref: src/fountain.c
  * dowaterdemon(), src/potion.c mongrantswish()
  */
 function dowaterdemon(ctx: Ctx, action: DefId, at: Pos): boolean {
+  if (isGone(ctx.state, WATER_DEMON)) {
+    say(ctx, 'fountain.bubbles_furiously');
+    return false;
+  }
   const id = makemon(ctx, ctx.defs.monster(WATER_DEMON), at, { adjacentOk: true });
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (id === null || !mon) return false;
@@ -234,12 +246,15 @@ function dowaterdemon(ctx: Ctx, action: DefId, at: Pos): boolean {
 
 /**
  * Water nymph: "You attract a water nymph!" (or "You hear a seductive voice." blind), awake;
- * if none can be made (no room), the bubble. ref: src/fountain.c dowaternymph() (genocide and
- * extinction are not tracked)
+ * if they are genocided or extinct or none can be made (no room), the bubble.
+ * ref: src/fountain.c dowaternymph()
  */
 function dowaternymph(ctx: Ctx): void {
   const pos = getPlayer(ctx.state).c.pos;
-  const id = pos ? makemon(ctx, ctx.defs.monster(WATER_NYMPH), pos, { adjacentOk: true }) : null;
+  const id =
+    pos && !isGone(ctx.state, WATER_NYMPH)
+      ? makemon(ctx, ctx.defs.monster(WATER_NYMPH), pos, { adjacentOk: true })
+      : null;
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (id !== null && mon?.c.monster) {
     if (!blind(ctx))

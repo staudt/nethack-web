@@ -24,6 +24,7 @@ import { experienceFor, gainExperience } from './hero';
 import { attkProtection, resistsSton } from './stonestate';
 import { monPolyWhenStoned, monToStone, xkilledStoned } from './stoning';
 import { mnextoPos, makemon } from './generation';
+import { isExtinct } from './vanquished';
 import { initedog } from './dog';
 import { heroInvisible, perceives } from './invis';
 import { monReflects } from './musestate';
@@ -217,8 +218,8 @@ export function passiveum(ctx: Ctx, olduasmon: MonsterDef, mtmp: Entity, mattk: 
 /**
  * The polymorphed hero splits in two from the attacker's heat: a tame copy of her form beside her
  * takes half her hit points and half her maximum ("You multiply from its heat!").
- * ref: src/potion.c split_mon() with the hero, src/mhitu.c cloneu() (no names: the copy is not
- * christened; no extinction)
+ * Nothing when her form's kind is extinct. ref: src/potion.c split_mon() with the hero,
+ * src/mhitu.c cloneu() (no names: the copy is not christened)
  */
 export function splitU(ctx: Ctx, form: MonsterDef, attacker: Entity | null): Entity | null {
   const h = getPlayer(ctx.state);
@@ -227,6 +228,7 @@ export function splitU(ctx: Ctx, form: MonsterDef, attacker: Entity | null): Ent
   if (!hp || !pos) return null;
   if (hp.cur > hp.max) hp.cur = hp.max; // sanity precaution
   if (hp.cur <= 1) return null;
+  if (isExtinct(ctx.state, form.id)) return null;
   const at = mnextoPos(ctx, getLevel(ctx.state, pos.level), null, pos, form);
   const id = at ? makemon(ctx, form, at, { noInventory: true, nogroup: true }) : null;
   const mon = id === null ? undefined : ctx.state.entities[String(id)];

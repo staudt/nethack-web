@@ -4,7 +4,7 @@
 // kill_genocided_monsters(), kill_eggs(); src/polyself.c udeadinside(); src/do.c goto_level()
 // (`kill_genocided_monsters()` on arrival)
 //
-// Not ported (see DEVIATIONS.md "Genocide"): extinction, chameleons, quest monsters' feedback,
+// Not ported (see DEVIATIONS.md "Genocide"): chameleons, quest monsters' feedback,
 // the vampire shapeshifter's revert, class names ("dogs") in class genocide (a symbol or a monster
 // name only), livelog and conduct, wizard mode's '*'. The hero's role monster (a Valkyrie) does
 // not exist: a confused reader genocides her role by its id (not listed at the end), and a
@@ -33,7 +33,9 @@ import { heroForm, heroFormId, rehumanize, upolyOf } from './upoly';
 import {
   genocidedIds,
   genocidedLines,
+  isExtinct,
   isGenocided,
+  isGone,
   setGenoKiller,
   setGenocided,
 } from './vanquished';
@@ -288,12 +290,13 @@ function genocideType(ctx: Ctx, ptr: MonsterDef | null, how: number, killplayer:
   // a reverse genocide: some of them around her
   const hp = h.c.pos;
   let cnt = 0;
-  if (ptr && hp && !ptr.genFlags.includes('uniq') && !isGenocided(ctx.state, ptr.id)) {
+  if (ptr && hp && !ptr.genFlags.includes('uniq') && !isGone(ctx.state, ptr.id)) {
     const census = monsterCensus(ctx);
     for (let i = ctx.rng.rn2(3) + 4; i > 0; i--) {
       if (makemon(ctx, ptr, { x: hp.x, y: hp.y }, { adjacentOk: true, noInventory: true }) === null)
         break; // couldn't make one
       ++cnt;
+      if (isExtinct(ctx.state, ptr.id)) break; // just made last one
     }
     // accumulated 'cnt' doesn't take groups into account
     if (cnt) cnt = monsterCensus(ctx) - census;

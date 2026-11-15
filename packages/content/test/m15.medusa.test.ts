@@ -37,6 +37,7 @@ import { isPool } from '../src/liquid';
 import { FIRST_ROOM, MEDUSA_VARIANTS } from '../src/medusa';
 import { mattackm } from '../src/mhitm';
 import { mondied } from '../src/mondeath';
+import { isExtinct } from '../src/vanquished';
 import { mRespond } from '../src/mrespond';
 import { monReflects } from '../src/musestate';
 import { xnameOf } from '../src/objnam';
@@ -95,10 +96,13 @@ const goTo = (state: GameState, dlevel: number, at: 'up' | 'random'): Level => {
   return getLevel(state);
 };
 
-/** Medusa variant `n` of a new game with `seed`, the hero falling onto it from above. */
+/**
+ * Medusa variant `n` of a new game with `seed`, the hero falling onto it from above (from the
+ * plain first level: the levels between hold the other variants, and Medusa is made only once).
+ */
 function medusa(n: number, seed: number): { state: GameState; level: Level } {
   const { state } = engine.newGame({ seed });
-  goTo(state, n, 'up');
+  goTo(state, 1, 'up');
   return { state, level: goTo(state, n + 1, 'random') };
 }
 
@@ -170,6 +174,17 @@ describe("Medusa's island", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  test('Medusa is made only once: a second island visited after the first has none', () => {
+    const { state } = engine.newGame({ seed: 1 });
+    goTo(state, 1, 'up');
+    const first = goTo(state, 2, 'random'); // medusa-1
+    expect(monsOn(state, first, 'nh:medusa')).toHaveLength(1);
+    expect(isExtinct(state, 'nh:medusa' as DefId)).toBe(true);
+    const second = goTo(state, 3, 'random'); // medusa-2
+    expect(second.def).toBe(MEDUSA_VARIANTS[1]?.id);
+    expect(monsOn(state, second, 'nh:medusa')).toHaveLength(0);
   });
 
   test('a petrified statue holds what its monster carried', () => {

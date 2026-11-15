@@ -35,7 +35,7 @@ import {
 import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
 import { makeEngrAt, type EngrType } from './engr';
-import { isGenocided } from './vanquished';
+import { isExtinct, isGenocided, isGone, propagate } from './vanquished';
 import { makemon, mkclass } from './generation';
 import { polyWhenStoned } from './golem';
 import { levelFlags } from './levelflags';
@@ -242,7 +242,8 @@ function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['app
  * a water-liking one tries without DRY first, then with it); an occupied spot moves to a close
  * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
  * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
- * MM_ASLEEP. A genocided kind is made at random instead (a genocided unique: nothing).
+ * MM_ASLEEP. A unique that was already made (extinct) is not made again; any other genocided or
+ * extinct kind is made at random instead.
  */
 export function createMonster(
   ctx: Ctx,
@@ -257,9 +258,9 @@ export function createMonster(
       : c.class !== undefined
         ? mkclass(ctx, c.class, level.depth, ['nogen'], { level }) // mkclass(class, G_NOGEN)
         : null;
-  if (def && c.id !== undefined && isGenocided(ctx.state, def.id)) {
-    if (def.genFlags.includes('uniq')) return; // G_UNIQ and G_EXTINCT
-    def = null; // genocided: make random monster
+  if (def && c.id !== undefined) {
+    if (def.genFlags.includes('uniq') && isExtinct(ctx.state, def.id)) return;
+    if (isGone(ctx.state, def.id)) def = null; // genocided or extinct: make random monster
   }
   let pos: Pos | null;
   if (def && (c.x === undefined || c.y === undefined)) {
@@ -300,7 +301,7 @@ function createObject(
     c.montype === undefined
       ? undefined
       : [...c.montype].length === 1
-        ? mkclass(ctx, c.montype, level.depth, ['nogen'], { level })?.id
+        ? mkclass(ctx, c.montype, level.depth, ['nogen'], { level, ignoreGone: true })?.id
         : (c.montype as DefId);
   const pos = contentSpot(ctx, level, c, ldef, room);
   if (!pos) return;
@@ -341,7 +342,8 @@ export function deleteContents(ctx: Ctx, box: EntityId): void {
  * `contents=0`) shows the first kind, starting with its own random one and then rndmonnum(),
  * that makemon() can make somewhere on the level and that neither resists stoning nor turns into
  * a stone golem (up to 1000 tries); that monster's things go into the statue and the monster
- * leaves (mongone()). ref: src/sp_lev.c create_object() (no birth counts: propagate())
+ * leaves (mongone()); its birth is counted only for the kind kept (MM_NOCOUNTBIRTH, then
+ * propagate()). ref: src/sp_lev.c create_object()
  */
 function petrifiedStatue(ctx: Ctx, level: Level, statue: EntityId): void {
   deleteContents(ctx, statue);
@@ -352,7 +354,11 @@ function petrifiedStatue(ctx: Ctx, level: Level, statue: EntityId): void {
   // prevent endless loop in case makemon always fails
   for (let i = 0; i < 1000; i++, wastyp = rndmonnum(ctx, level.depth).id) {
     // makemon without rndmonst() might create a group
-    was = makemon(ctx, ctx.defs.monster(wastyp), null, { level: level.id, inMklev: true });
+    was = makemon(ctx, ctx.defs.monster(wastyp), null, {
+      level: level.id,
+      inMklev: true,
+      noCountBirth: true,
+    });
     if (was !== null) {
       const mon = ctx.state.entities[String(was)];
       const def = ctx.defs.monster(wastyp);
@@ -360,8 +366,10 @@ function petrifiedStatue(ctx: Ctx, level: Level, statue: EntityId): void {
         mon &&
         !resistsSton(ctx, mon) &&
         !polyWhenStoned(def, isGenocided(ctx.state, 'nh:stone_golem'))
-      )
+      ) {
+        propagate(ctx, def, true);
         break;
+      }
       mongone(ctx, was);
       was = null;
     }

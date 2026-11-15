@@ -28,7 +28,7 @@ import { polymon, rehumanize } from '../src/polyself';
 import { P, setItimeout } from '../src/props';
 import { pwOf, setPw, uspellOf } from '../src/uenergy';
 import { heroFormId } from '../src/upoly';
-import { isGenocided } from '../src/vanquished';
+import { isExtinct, isGenocided } from '../src/vanquished';
 import { addMon } from './helpers';
 import { defs, levelSetup, plainKit, render } from './itemHelpers';
 
@@ -159,6 +159,20 @@ describe('genocide', () => {
     expect(t.some((l) => l.startsWith('Sent in'))).toBe(true);
     expect(monsOf(s, 'nh:newt').length).toBeGreaterThanOrEqual(1);
     expect(isGenocided(s.state, 'nh:newt')).toBe(false);
+  });
+
+  test('cursed: a reverse genocide stops with the last one the birth limit allows', () => {
+    const s = room();
+    const nh = s.state.modData['nh'] as { born?: Record<string, number> };
+    nh.born = { ...nh.born, 'nh:nazgul': 8 };
+    read(s, 'genocide', 'cursed');
+    expect(answer(s, 'Nazgul').some((l) => l.startsWith('Sent in'))).toBe(true);
+    expect(monsOf(s, 'nh:nazgul')).toHaveLength(1); // rn1(3, 4) asked for, the ninth made
+    expect(isExtinct(s.state, 'nh:nazgul' as DefId)).toBe(true);
+    // extinct now: none is sent
+    read(s, 'genocide', 'cursed');
+    expect(answer(s, 'Nazgul').some((l) => l.startsWith('Sent in'))).toBe(false);
+    expect(monsOf(s, 'nh:nazgul')).toHaveLength(1);
   });
 
   test('genociding her own race kills her ("killed by a scroll of genocide")', () => {

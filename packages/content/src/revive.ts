@@ -119,7 +119,12 @@ export function revive(ctx: Ctx, corpse: Entity, byHero: boolean): Revived | nul
     if (p) pos = p;
   }
   // NO_MINVENT | MM_NOWAIT | MM_NOMSG | MM_NOCOUNTBIRTH
-  const id = makemon(ctx, mptr, pos, { level: level.id, nogroup: true, noInventory: true });
+  const id = makemon(ctx, mptr, pos, {
+    level: level.id,
+    nogroup: true,
+    noInventory: true,
+    noCountBirth: true,
+  });
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (!mon) return null;
   setMrevived(ctx, mon.id); // ref: revive(): `mtmp->mrevived = 1`

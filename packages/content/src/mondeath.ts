@@ -21,7 +21,7 @@ import { epriOf, pCoaligned } from './epri';
 import { shkgone } from './shk';
 import { setHistoric } from './statuestate';
 import { canseemon, unmapInvisible } from './invis';
-import { countKill, isGenocided } from './vanquished';
+import { countKill, isGenocided, unmakeBirth } from './vanquished';
 import { discover } from './o_init';
 
 const AMULET_OF_LIFE_SAVING = 'nh:amulet_of_life_saving';
@@ -319,4 +319,16 @@ export function mongone(ctx: Ctx, id: EntityId): void {
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);
+}
+
+/**
+ * The caller rejects the monster makemon() just made: its birth is undone (one fewer born unless
+ * `noCountBirth`, as it was made; a unique is no longer extinct) and it leaves with what it
+ * carries. ref: src/makemon.c unmakemon()
+ */
+export function unmakemon(ctx: Ctx, id: EntityId, noCountBirth = false): void {
+  const mon = ent(ctx, id);
+  if (!mon?.c.monster) return;
+  unmakeBirth(ctx, ctx.defs.monster(mon.def), !noCountBirth);
+  mongone(ctx, id);
 }

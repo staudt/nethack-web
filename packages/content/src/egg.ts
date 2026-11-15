@@ -1,6 +1,6 @@
 // Eggs hatching: the hatch timer's handler. ref: src/timeout.c hatch_egg()
 //
-// Not ported: G_EXTINCT (no extinction), hallucination's names, the long worm's tail, deafness (no Deaf), mimics hiding.
+// Not ported: hallucination's names, the long worm's tail, deafness (no Deaf), mimics hiding.
 import {
   cellIndex,
   inBounds,
@@ -19,7 +19,7 @@ import { heroFemale } from './gender';
 import { canseemon } from './invis';
 import { useupall } from './magic';
 import { monNam } from './perception';
-import { isGenocided } from './vanquished';
+import { isGone, isExtinct } from './vanquished';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -102,7 +102,8 @@ function eggWhere(
  * the egg; the hero's own eggs (laid by her, or 1 time in 2 a male hero's carried ones) hatch
  * tame while she is on the level, as does a dragon egg in her pack ("Gleep!"); a hatchling from
  * her pack is very tame. What she sees she learns to recognise; the rest of the stack gets a
- * short new timer. An egg on another level hatches silently (C's "hatched while away": timers
+ * short new timer. A genocided or extinct kind does not hatch, and the hatching stops with the
+ * last one its birth limit allows. An egg on another level hatches silently (C's "hatched while away": timers
  * of other levels run as they come due here). ref: src/timeout.c hatch_egg()
  */
 export function hatchEgg(ctx: Ctx, data: Json): void {
@@ -126,7 +127,7 @@ export function hatchEgg(ctx: Ctx, data: Json): void {
   let hatchcount = ctx.rng.rnd(it.quantity);
   const canseeHatchspot = !silent && cansee(ctx, loc.level, loc.x, loc.y);
   let mon: Entity | null = null;
-  if (!mdef.genFlags.includes('uniq') && !isGenocided(ctx.state, mnum)) {
+  if (!mdef.genFlags.includes('uniq') && !isGone(ctx.state, mnum)) {
     let i = hatchcount;
     let mon2: Entity | null = null;
     for (; i > 0; i--) {
@@ -146,6 +147,7 @@ export function hatchEgg(ctx: Ctx, data: Json): void {
           if (carried && mdef.glyph.ch !== 'D' && m) m.tame = 20;
         }
       }
+      if (isExtinct(ctx.state, mnum)) break; // just made last one
       mon2 = mon; // in case makemon() fails on 2nd egg
     }
     if (!mon) mon = mon2;

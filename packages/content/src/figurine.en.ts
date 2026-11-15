@@ -18,6 +18,7 @@ export const figurineMessagesEn: Record<string, string> = {
   'figurine.how.ground': 'set the figurine on the ground',
   'figurine.supposedly': 'supposedly ',
   'figurine.shatters': 'The figurine writhes and then shatters into pieces!',
+  'figurine.dust': '... into a pile of dust.',
   'figurine.bad_feeling': 'You get a bad feeling about this.',
 
   // transforming on its own

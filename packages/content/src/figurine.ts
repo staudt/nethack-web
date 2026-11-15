@@ -3,7 +3,7 @@
 // ref: src/apply.c use_figurine(), figurine_location_checks(), fig_transform()
 //
 // Not ported (see DEVIATIONS.md "Figurines"): air, water and pools (none exist), object names,
-// extinction, migrating figurines.
+// migrating figurines.
 import {
   DIRS,
   NORMAL_SPEED,

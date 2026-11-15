@@ -21,6 +21,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { makemon, mnextoPos, rndmonst } from './generation';
+import { isExtinct, MAXMONNO, mbirthLimit } from './vanquished';
 import { wormArrive, wormLeave } from './worm';
 import { wormRec } from './wormstate';
 import { skillLevel } from './skills';
@@ -361,9 +362,10 @@ function petType(ctx: Ctx): MonsterDef | null {
  * With a figurine, its monster at (x, y) (her own square: next to her; another monster's: none,
  * "The figurine writhes and then shatters into pieces!"); then `rn2(10)`: 0 tame, 1 as made,
  * 2 hostile ("You get a bad feeling about this."), else by its BUC (blessed tame, uncursed as
- * made, cursed hostile). `quietly` (a figurine transforming on its own) gives no messages.
- * ref: src/dog.c make_familiar(), pick_familiar_pm() (no extinction, object names, water or
- * minions; NO_MINVENT leaves nothing to wield)
+ * made, cursed hostile). A figurine of an extinct kind with a birth limit (the Nazgul, the
+ * erinyes) makes nothing ("... into a pile of dust."). `quietly` (a figurine transforming on its
+ * own) gives no messages. ref: src/dog.c make_familiar(), pick_familiar_pm() (no object names,
+ * water or minions; NO_MINVENT leaves nothing to wield)
  */
 export function makeFamiliar(
   ctx: Ctx,
@@ -377,9 +379,15 @@ export function makeFamiliar(
   do {
     let pm: MonsterDef | null;
     if (figurine) {
-      // pick_familiar_pm(): the figurine's monster (G_EXTINCT is not modelled)
+      // pick_familiar_pm(): the figurine's monster; activating a figurine provides one way to
+      // exceed the maximum number of the target critter created--unless it has a special limit
+      // (erinys, Nazgul)
       const mndx = fig?.corpseOf;
       pm = mndx && ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
+      if (mndx && isExtinct(ctx.state, mndx) && mbirthLimit(mndx) !== MAXMONNO) {
+        if (!figurine.quietly) ctx.emit({ type: 'msg', key: 'figurine.dust' });
+        pm = null;
+      }
     } else if (!ctx.rng.rn2(3)) pm = petType(ctx);
     else {
       const max = 3 * skillLevel(ctx, 'cleric_spell');

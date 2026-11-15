@@ -29,6 +29,7 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.spot_gem': 'You spot a gem in the sparkling waters!',
   'fountain.feel_gem': 'You feel a gem here!',
   'fountain.bubble_pops': 'A large bubble rises to the surface and pops.',
+  'fountain.bubbles_furiously': 'The fountain bubbles furiously for a moment, then calms.',
   'fountain.loud_pop': 'You hear a loud pop.',
   'fountain.bad_breath': 'This water gives you bad breath!',
   'fountain.thirst_quenched': 'Your thirst is quenched.',

@@ -1,13 +1,15 @@
-// Monster deaths per type (C's `mvitals[].died`) and the "Vanquished creatures:" list. A leaf
-// (core only): mondeath.ts counts, disclose.ts lists.
+// Monster vitals (C's `mvitals[]`): deaths per type and the "Vanquished creatures:" list, the
+// genocided species, and births with extinction (`born`, G_EXTINCT). A leaf (core only):
+// mondeath.ts counts deaths, generation.ts births, disclose.ts lists.
 // ref: src/mon.c mondead() (`mvitals[mndx].died++`); src/insight.c list_vanquished(), list_genocided(),
-// vanqsort_cmp()
+// vanqsort_cmp(), num_extinct(), num_gone(); src/makemon.c propagate(), mbirth_limit(), unmakemon()
 import {
   getPlayer,
   type Ctx,
   type DefId,
   type GameState,
   type Json,
+  type MonsterDef,
   type Msg,
   type Registry,
 } from '@nh/core';
@@ -135,21 +137,156 @@ export function setGenoKiller(ctx: Pick<Ctx, 'state'>, killer: string | null): v
   md['nh'] = nh as unknown as Json;
 }
 
+// ---------------------------------------------------------------------------------------------
+// births and extinction (C's `mvitals[].born` and `mvitals[].mvflags & G_EXTINCT`)
+
+interface BornData {
+  /** mvitals[].born by monster def id, capped at 255 (absent = none). */
+  born?: Record<DefId, number>;
+  /** The extinct species (G_EXTINCT), sorted (absent = none). Set at birth, never recomputed:
+   * cleared only by unmakemon() for a unique. */
+  extinct?: DefId[];
+}
+
+const bornOf = (state: Readonly<GameState>): BornData | undefined =>
+  nhOf(state) as BornData | undefined;
+
+const writable = (ctx: Pick<Ctx, 'state'>): BornData => {
+  const md = ctx.state.modData;
+  if (!nhOf(ctx.state)) md['nh'] = {};
+  return md['nh'] as unknown as BornData;
+};
+
+/** The default birth limit. ref: include/global.h MAXMONNO */
+export const MAXMONNO = 120;
+
+/**
+ * How many of a kind may be born before it is extinct: the Nazgul 9, the erinyes 3, any other
+ * MAXMONNO. ref: src/makemon.c mbirth_limit()
+ */
+export const mbirthLimit = (id: DefId): number =>
+  id === 'nh:nazgul' ? 9 : id === 'nh:erinys' ? 3 : MAXMONNO;
+
+/** How many monsters of type `id` were born (counted by makemon()). */
+export const born = (state: Readonly<GameState>, id: DefId): number =>
+  bornOf(state)?.born?.[id] ?? 0;
+
+/** Whether the species is extinct (`mvflags & G_EXTINCT`). */
+export const isExtinct = (state: Readonly<GameState>, id: DefId | null | undefined): boolean =>
+  !!id && (bornOf(state)?.extinct?.includes(id) ?? false);
+
+/** Genocided or extinct (`mvflags & G_GONE`). */
+export const isGone = (state: Readonly<GameState>, id: DefId | null | undefined): boolean =>
+  isGenocided(state, id) || isExtinct(state, id);
+
+function setBorn(ctx: Pick<Ctx, 'state'>, id: DefId, n: number): void {
+  const nh = writable(ctx);
+  const b = (nh.born ??= {});
+  b[id] = n;
+}
+
+function setExtinct(ctx: Pick<Ctx, 'state'>, id: DefId, on: boolean): void {
+  const nh = writable(ctx);
+  const list = nh.extinct ?? [];
+  if (on && !list.includes(id)) nh.extinct = [...list, id].sort();
+  else if (!on && list.includes(id)) {
+    const rest = list.filter((x) => x !== id);
+    if (rest.length > 0) nh.extinct = rest;
+    else delete nh.extinct;
+  }
+}
+
+/**
+ * A monster of kind `def` is being born: a unique (but the high priest) is extinct from now on;
+ * the birth is counted when `tally` (makemon() without MM_NOCOUNTBIRTH; a `ghostly` one from
+ * bones only if it could be born); reaching the birth limit makes a randomly generated kind
+ * extinct. True when the kind could still be born (under its limit and not gone).
+ * ref: src/makemon.c propagate()
+ */
+export function propagate(
+  ctx: Pick<Ctx, 'state'>,
+  def: MonsterDef,
+  tally: boolean,
+  ghostly = false,
+): boolean {
+  const lim = mbirthLimit(def.id);
+  const gone = isGone(ctx.state, def.id); // geno'd|extinct
+  let n = born(ctx.state, def.id);
+  const result = n < lim && !gone;
+  // if it's unique, don't ever make it again
+  if (def.genFlags.includes('uniq') && def.id !== HIGH_CLERIC) setExtinct(ctx, def.id, true);
+  if (n < 255 && tally && (!ghostly || result)) setBorn(ctx, def.id, ++n);
+  if (n >= lim && !def.genFlags.includes('nogen') && !isExtinct(ctx.state, def.id))
+    setExtinct(ctx, def.id, true);
+  return result;
+}
+
+/**
+ * The birth of a monster the caller rejects is undone: one fewer born (unless the count was not
+ * kept or has reached 255), and a unique is no longer extinct. The caller removes the monster.
+ * ref: src/makemon.c unmakemon()
+ */
+export function unmakeBirth(ctx: Pick<Ctx, 'state'>, def: MonsterDef, countbirth: boolean): void {
+  // if count has reached the limit of 255, we don't know whether that just happened when
+  // creating this monster or the threshold had already been reached and further increments
+  // were suppressed; assume the latter
+  const n = born(ctx.state, def.id);
+  if (countbirth && n > 0 && n < 255) setBorn(ctx, def.id, n - 1);
+  if (def.genFlags.includes('uniq')) setExtinct(ctx, def.id, false);
+}
+
+/** C's PM_HIGH_CLERIC (no such row here) */
+const HIGH_CLERIC: DefId = 'nh:high_cleric';
+
+/** A unique kind, never listed as extinct. ref: src/insight.c UniqCritterIndx() */
+const uniqCritter = (def: MonsterDef): boolean =>
+  def.genFlags.includes('uniq') && def.id !== HIGH_CLERIC;
+
+/** Extinct but not genocided, not unique. ref: src/insight.c num_extinct() */
+const extinctOnly = (state: Readonly<GameState>, def: MonsterDef): boolean =>
+  !uniqCritter(def) && isExtinct(state, def.id) && !isGenocided(state, def.id);
+
+/**
+ * How many species are genocided and (with `both`) extinct; the counts choose the disclosure's
+ * question and title. ref: src/insight.c list_genocided() num_genocides(), num_extinct()
+ */
+export function goneCounts(
+  state: Readonly<GameState>,
+  defs: Registry,
+  both: boolean,
+): { genocided: number; extinct: number } {
+  let genocided = 0;
+  let extinct = 0;
+  for (const def of defs.monsters) {
+    if (isGenocided(state, def.id)) genocided++;
+    else if (both && extinctOnly(state, def)) extinct++;
+  }
+  return { genocided, extinct };
+}
+
 /**
  * The "Genocided species:" list in the vanquished order (monster level high to low, then
- * monster index), one plural name a line, then "N species genocided."; empty when nothing was
- * genocided. ref: src/insight.c list_genocided() (no extinction)
+ * monster index), one plural name a line; with `both` (game over, wizard mode) also the extinct
+ * species, marked " (extinct)"; then "N species genocided." and "N species extinct."; empty when
+ * nothing is listed. ref: src/insight.c list_genocided(), num_gone()
  */
-export function genocidedLines(state: Readonly<GameState>, defs: Registry): Msg[] {
+export function genocidedLines(state: Readonly<GameState>, defs: Registry, both = false): Msg[] {
   const gone = defs.monsters
     .map((def, index) => ({ def, index }))
-    .filter((k) => isGenocided(state, k.def.id))
+    .filter(
+      (k) =>
+        !uniqCritter(k.def) &&
+        (isGenocided(state, k.def.id) || (both && extinctOnly(state, k.def))),
+    )
     .sort((a, b) => b.def.level - a.def.level || a.index - b.index);
   if (gone.length === 0) return [];
   const out: Msg[] = gone.map(({ def }) => ({
-    key: 'end.geno.one',
+    key: extinctOnly(state, def) ? 'end.geno.extinct' : 'end.geno.one',
     params: { mon: `@${def.nameKey}` },
   }));
-  out.push({ key: 'end.blank' }, { key: 'end.geno.total', params: { n: gone.length } });
+  const n = goneCounts(state, defs, both);
+  out.push({ key: 'end.blank' });
+  if (n.genocided > 0) out.push({ key: 'end.geno.total', params: { n: n.genocided } });
+  if (n.extinct > 0) out.push({ key: 'end.geno.extinct_total', params: { n: n.extinct } });
   return out;
 }

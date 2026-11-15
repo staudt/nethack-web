@@ -73,6 +73,12 @@ export const endMessagesEn: Record<string, string> = {
   'end.genocided': 'Genocided species:',
   'end.geno.one': ' {mon|plural}',
   'end.geno.total': '{n} species genocided.',
+  'end.geno.extinct': ' {mon|plural} (extinct)',
+  'end.geno.extinct_total': '{n} species extinct.',
+  'end.ask.extinct': 'Do you want a list of extinct species?',
+  'end.ask.genocided_extinct': 'Do you want a list of species genocided and extinct?',
+  'end.extinct': 'Extinct species:',
+  'end.genocided_extinct': 'Genocided or extinct species:',
   'end.gold_moves': 'and {gold} piece{gs} of gold, after {moves} move{ms}.',
   'end.level_hp': 'You were level {level} with a maximum of {hp} hit point{hs} when you {ends}.',
 };

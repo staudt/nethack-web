@@ -19,6 +19,8 @@ export const priestMessagesEn: Record<string, string> = {
   'temple.watched': 'You feel like you are being watched.',
   'temple.shiver': 'A shiver runs down your spine.',
   'temple.ghost_appears': 'An enormous ghost appears next to you!',
+  'temple.ghost_appears_plain': 'A ghost appears next to you!',
+  'temple.ghost_appears_calm': 'A ghost appears next to you.',
   'temple.sense_presence': 'You sense a presence close by!',
   'temple.frightened': 'You are frightened to death, and unable to move.',
   'temple.regain_composure': 'You regain your composure.',

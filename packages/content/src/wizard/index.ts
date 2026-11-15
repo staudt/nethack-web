@@ -1,4 +1,5 @@
 import type { Mod } from '@nh/core';
+import { wizBorn } from './born';
 import { wizCast } from './cast';
 import { wizBeforeGameOver, wizDie } from './die';
 import { wizGenesis } from './genesis';
@@ -34,6 +35,7 @@ export const wizardMod: Mod = {
     api.defineAction(wizCast);
     api.defineAction(wizDie);
     api.defineAction(wizMkroom);
+    api.defineAction(wizBorn);
     api.on('beforeGameOver', wizBeforeGameOver);
   },
 };
@@ -56,3 +58,4 @@ export { WIZ_CAST, wizCast } from './cast';
 export { WIZ_LEVELCHANGE, wizLevelchange } from './levelchange';
 export { WIZ_POLYSELF, wizPolyself } from './polyself';
 export { WIZ_MKROOM, wizMkroom } from './mkroom';
+export { WIZ_BORN, bornLines, wizBorn } from './born';

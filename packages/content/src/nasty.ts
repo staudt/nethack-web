@@ -20,7 +20,7 @@ import { bigToLittle } from './eggstate';
 import { makemon, mnextoPos } from './generation';
 import { inHell } from './levelflags';
 import { monsterCensus, msummon } from './minion';
-import { mongone } from './mondeath';
+import { unmakemon } from './mondeath';
 import { setMspecUsed } from './mstate';
 import { isGenocided } from './vanquished';
 import { mksobj } from './items';
@@ -92,7 +92,7 @@ const ARCH_DIFCAP = 26;
 
 type NastyCtx = Pick<Ctx, 'state' | 'defs' | 'rng'>;
 
-/** Genocided, or absent from this port's monster table. */
+/** Genocided (nasty() overrides extinction), or absent from this port's monster table. */
 const gone = (ctx: NastyCtx, pm: DefId): boolean =>
   !ctx.defs.isMonster(pm) || isGenocided(ctx.state, pm);
 
@@ -184,7 +184,7 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
               (difcap > 0 && d.difficulty >= difcap && ctx.rng.rn2(7) && castsSpells(d)) ||
               clash(d.glyph.ch)
             ) {
-              mongone(ctx, id); // unmakemon()
+              unmakemon(ctx, id);
               mtmp = undefined;
             }
           }

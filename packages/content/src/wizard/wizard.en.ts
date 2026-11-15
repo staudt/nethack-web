@@ -12,6 +12,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'action.wiz:polyself': 'Wizard: polymorph self',
   'action.wiz:cast': 'Wizard: cast any spell',
   'action.wiz:mkroom': 'Wizard: make this room special',
+  'action.wiz:born': 'Wizard: monster births and deaths',
   'wiz.terrain.fountain': 'A fountain.',
   'wiz.terrain.magic_fountain': 'A magic fountain.',
   'wiz.terrain.throne': 'A throne.',
@@ -63,4 +64,10 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.where.connection': '   Connection to {dungeon}: {depth}',
   'wiz.where.special': '  {name}: {depth}',
   'wiz.where.special_here': '* {name}: {depth}',
+  // ref: src/insight.c doborn()
+  'wiz.born.title': 'Monster births and deaths',
+  'wiz.born.header': 'died born',
+  'wiz.born.line': '{died} {born} {flag} {mon}',
+  'wiz.born.blank': '',
+  'wiz.born.total': '{died} {born}',
 };

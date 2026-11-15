@@ -222,6 +222,7 @@ export {
   WIZ_LEVELCHANGE,
   WIZ_POLYSELF,
   WIZ_MKROOM,
+  WIZ_BORN,
   WIZ_TELEPORT,
   parseGenesis,
   OPEN_DUNGEON_LEVELS,
@@ -435,7 +436,16 @@ export { ghodHitsu, intemple, priestDonate, priestTalk, priestini, templePriests
 export type { PriestOffer } from './priest';
 export { moneyCnt, money2mon, money2u } from './money';
 export { urexp, moreExperienced, finalScore, finalGold, deepestLevel } from './urexp';
-export { countKill, deaths, vanquishedLines } from './vanquished';
+export {
+  MAXMONNO,
+  born,
+  countKill,
+  deaths,
+  isExtinct,
+  isGone,
+  mbirthLimit,
+  vanquishedLines,
+} from './vanquished';
 export {
   BILLSZ,
   SHOPKEEPER,

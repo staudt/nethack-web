@@ -3,6 +3,7 @@
 import { getLevel, getPlayer, type Ctx, type EntityId, type Pos } from '@nh/core';
 import { mAt } from './wormstate';
 import { mnextoPos } from './generation';
+import { isExtinct } from './vanquished';
 import { edogOf, tamedog } from './dog';
 import { fleeTime, isFleeing, monflee } from './monflee';
 import { copyMState } from './mstate';
@@ -20,16 +21,17 @@ const heroAt = (ctx: Ctx, level: string, p: Pos): boolean => {
  * HP and conditions, current HP halved (the original keeps the odd point), no inventory, not
  * trapped. A clone of a peaceful or tame monster made by the hero stays so only
  * `rn2(max(2 + Luck, 2))` of the time; a tame one is tamed afresh with the original's pet record.
- * Returns null when the monster has 1 HP or less or there is no room.
- * ref: src/makemon.c clone_mon() (x == 0: next to the monster; no extinction, names, minions,
- * light sources or mon_track: none apply here)
+ * Returns null when the monster has 1 HP or less, its kind is extinct (population control), or
+ * there is no room. ref: src/makemon.c clone_mon() (x == 0: next to the monster; no names,
+ * minions, light sources or mon_track: none apply here)
  */
 export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean, where?: Pos): EntityId | null {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   const hp = mon?.c.hp;
   const pos = mon?.c.pos;
-  if (!mon || !m || !hp || !pos || hp.cur <= 1) return null;
+  // may be too weak or have been extinguished for population control
+  if (!mon || !m || !hp || !pos || hp.cur <= 1 || isExtinct(ctx.state, mon.def)) return null;
   const level = getLevel(ctx.state, pos.level);
   // `where` is the clone's preferred square (a cut worm's new head); `MON_AT(mm.x, mm.y)` is
   // always true for the default (next to the monster): enexto() for a free square

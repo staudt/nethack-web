@@ -156,7 +156,7 @@ export function eggTypeFromParent(
 /**
  * Whether an egg (or tin) of the type is not viable: generic eggs (no monster) are unhatchable,
  * and so are those of a genocided species; for an egg, genociding either the baby or the adult
- * form counts (no extinction). ref: src/mon.c dead_species()
+ * form counts (extinction does not kill eggs). ref: src/mon.c dead_species()
  */
 export function deadSpecies(
   state: Readonly<GameState>,

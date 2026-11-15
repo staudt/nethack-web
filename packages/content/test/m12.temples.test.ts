@@ -237,6 +237,28 @@ describe('an untended temple', () => {
     expect(ghosts / n).toBeGreaterThan(0.08);
     expect(ghosts / n).toBeLessThan(0.35);
   });
+
+  test('the ghost is "enormous" while fewer than five were born, "!" while fewer than ten', () => {
+    // a seed whose entry brings a ghost
+    const enter = (seed: number, bornBefore: number): string[] => {
+      const { state, level } = walledRoom(seed);
+      setTerrain(level, 5, 4, T.altar_neutral);
+      level.rooms[0]!.type = TEMPLE;
+      level.shrines = [{ x: 5, y: 4 }];
+      getPlayer(state).c.pos = { level: level.id, x: 9, y: 4 };
+      const nh = state.modData['nh'] as { born?: Record<string, number> };
+      nh.born = { ...nh.born, 'nh:ghost': bornBefore };
+      return texts(engine.step(state, { type: 'move', dir: 'w' }).events);
+    };
+    const appears = (t: string[]): string[] => t.filter((l) => / ghost appears /.test(l));
+    let seed = 1;
+    while (appears(enter(seed, 0)).length === 0) seed++;
+    // the count includes the ghost just made
+    expect(appears(enter(seed, 3))).toEqual(['An enormous ghost appears next to you!']);
+    expect(appears(enter(seed, 4))).toEqual(['A ghost appears next to you!']);
+    expect(appears(enter(seed, 8))).toEqual(['A ghost appears next to you!']);
+    expect(appears(enter(seed, 9))).toEqual(['A ghost appears next to you.']);
+  });
 });
 
 describe('fill_ordinary_room(): sinks and altars', () => {

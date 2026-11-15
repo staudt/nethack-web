@@ -20,7 +20,7 @@ import { antholemon } from './roommon';
 import { mkshop } from './shknam';
 import { somexyspaceTry } from './somexy';
 import { T, nexttodoor, setTerrain } from './terrain';
-import { isGenocided } from './vanquished';
+import { isGone } from './vanquished';
 import { vaultRoom } from './vaultstate';
 import {
   ANTHOLE,
@@ -223,8 +223,8 @@ export function doMkroom(ctx: Ctx, level: Level, type: DefId | 'shop'): void {
  * leprechaun hall 1 in 8, below DL6 a zoo 1 in 7, below DL8 a temple 1 in 5, below DL9 a
  * beehive 1 in 5, below DL11 a morgue 1 in 6, below DL12 an anthole 1 in 8, below DL14 barracks
  * 1 in 4, below DL15 a swamp 1 in 6, below DL16 a cockatrice nest 1 in 8; the leprechaun hall,
- * beehive, barracks and nest only while their monster is not genocided, the anthole while an
- * ant is left. A vault raises the shop's room threshold by one. ref: src/mklev.c makelevel()
+ * beehive, barracks and nest only while their monster is not genocided or extinct, the anthole
+ * while an ant is left. A vault raises the shop's room threshold by one. ref: src/mklev.c makelevel()
  */
 export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   const nroom = topRooms(level).length;
@@ -232,7 +232,7 @@ export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   const roomThreshold = (level.branch ? 4 : 3) + (vaultRoom(level) !== null ? 1 : 0);
   const uDepth = level.depth;
   const rn2 = (n: number): number => ctx.rng.rn2(n);
-  const gone = (id: DefId): boolean => isGenocided(ctx.state, id);
+  const gone = (id: DefId): boolean => isGone(ctx.state, id); // G_GONE
   if (uDepth > 1 && uDepth < medusaDepth(ctx.state) && nroom >= roomThreshold && rn2(uDepth) < 3)
     doMkroom(ctx, level, 'shop');
   else if (uDepth > 4 && !rn2(6)) doMkroom(ctx, level, COURT);

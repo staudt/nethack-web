@@ -4,7 +4,7 @@
 // isspecmon(); src/makemon.c newmonhp()
 //
 // Not ported (none exist here): shapeshifters (chameleons, doppelgangers, sandestins, vampires),
-// the Riders' and the Nazgul's and erinyes' immunity has no monster to apply to but is kept,
+// the Riders' and the erinyes' immunity has no monster to apply to but is kept,
 // the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
@@ -13,7 +13,7 @@
 import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
 import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';
-import { isGenocided } from './vanquished';
+import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
 import { monBreakArmor } from './breakarm';
 import { bypassObj } from './bypass';
 import { epriOf } from './epri';
@@ -42,8 +42,6 @@ const BOULDER = 'nh:boulder';
 
 /** ref: include/mondata.h is_rider() */
 const RIDERS: readonly string[] = ['nh:death', 'nh:famine', 'nh:pestilence'];
-/** Monsters with a birth limit (mbirth_limit() < MAXMONNO): the Nazgul and the erinyes */
-const BIRTH_LIMITED: readonly string[] = ['nh:nazgul', 'nh:erinys'];
 /** ref: include/mondata.h is_placeholder() */
 const PLACEHOLDERS: readonly string[] = ['nh:orc', 'nh:giant', 'nh:elf', 'nh:human'];
 export const isPlaceholder = (def: MonsterDef): boolean => PLACEHOLDERS.includes(def.id);
@@ -141,8 +139,9 @@ export function newcham(
   let msg = flags.msg === true;
   const seenorsensed = canSpotMon(ctx, mon);
   const olddata = ctx.defs.monster(mon.def);
-  // Riders are immune to polymorph and green slime; so are the Nazgul and erinyes
-  if (RIDERS.includes(olddata.id) || BIRTH_LIMITED.includes(olddata.id)) return false;
+  // Riders are immune to polymorph and green slime; so are kinds with a birth limit (the Nazgul
+  // and erinyes): mbirth_limit() < MAXMONNO
+  if (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO) return false;
   const tame = (m.tame ?? 0) > 0;
   // "The oldmon" (like YMonnam(), "your" for a pet); we need l_oldname whether msg is true or not
   const oldname = monNam(ctx, mon);

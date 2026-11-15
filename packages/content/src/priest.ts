@@ -41,6 +41,7 @@ import {
 } from './epri';
 import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
 import { makemon, rlocPos } from './generation';
+import { born } from './vanquished';
 import { addToInventory } from './items';
 import { bribe, money2u, moneyCnt } from './money';
 import { adjalign, setU, uState } from './luck';
@@ -274,7 +275,8 @@ function canseeNow(ctx: Ctx, at: Pos): boolean {
  * Tended: the priest intones (at most every ~2505 turns), "Pilgrim, you enter a sacred place!"
  * (~505), and a forbidding feeling or a sense of peace (~55, or at once when it switches). Untended:
  * an eerie feeling, one time in four nothing, and one time in five a hostile ghost appears next to
- * her and frightens her helpless for 3 turns. ref: src/priest.c intemple() (no Sanctum, deafness
+ * her ("An enormous ghost" while fewer than five ghosts were born) and frightens her helpless for
+ * 3 turns. ref: src/priest.c intemple() (no Sanctum, deafness
  * or achievements)
  */
 export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): void {
@@ -340,9 +342,19 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
   const gid = makemon(ctx, ctx.defs.monster(GHOST), hp, { adjacentOk: true });
   const ghost = gid === null ? undefined : ctx.state.entities[String(gid)];
   if (gid === null || !ghost?.c.monster || !ghost.c.pos) return;
-  // ("A ghost appears next to you." after the first five, "." after ten: no birth counts here)
+  // "An enormous ghost" while fewer than five ghosts were ever born, "!" while fewer than ten
+  const ngen = born(ctx.state, GHOST);
   const seen = (canseeNow(ctx, ghost.c.pos) && monVisible(ctx, ghost)) || canSpotMon(ctx, ghost);
-  ctx.emit({ type: 'msg', key: seen ? 'temple.ghost_appears' : 'temple.sense_presence' });
+  ctx.emit({
+    type: 'msg',
+    key: !seen
+      ? 'temple.sense_presence'
+      : ngen < 5
+        ? 'temple.ghost_appears'
+        : ngen < 10
+          ? 'temple.ghost_appears_plain'
+          : 'temple.ghost_appears_calm',
+  });
   ghost.c.monster.peaceful = false; // (set_malign(): computed when needed)
   ctx.emit({ type: 'msg', key: 'temple.frightened' });
   // nomul(-3) from inside the move: the extra energy is taken at once (as nomulNow())

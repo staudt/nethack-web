@@ -53,7 +53,7 @@ import { strangeFeeling, useup } from './magic';
 import { heroSees } from './mongear';
 import { monflee, stopFleeing } from './monflee';
 import { isFrozen, setCancelled, unfreezeMonst } from './mstate';
-import { isGenocided } from './vanquished';
+import { isGone } from './vanquished';
 import {
   erosionMatters,
   isCorrodeable,
@@ -486,7 +486,7 @@ function maybeTame(ctx: Ctx, mtmp: Entity, buc: string, spell: boolean): number 
  */
 export function confusedLight(ctx: Ctx, buc: 'blessed' | 'uncursed' | 'cursed'): boolean {
   const pm = (buc === 'cursed' ? 'nh:black_light' : 'nh:yellow_light') as DefId;
-  if (!ctx.defs.isMonster(pm) || isGenocided(ctx.state, pm)) {
+  if (!ctx.defs.isMonster(pm) || isGone(ctx.state, pm)) {
     say(ctx, 'light.sparkle');
     return false;
   }

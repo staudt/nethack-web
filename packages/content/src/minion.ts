@@ -7,9 +7,9 @@
 // minions and Angels (lminion(), llord(), the elementals), the bone devil's skeleton, the
 // endgame (dprince()/dlord() never try there). msummon(NULL) (summon nasties in Gehennom)
 // summons as the Wizard of Yendor would.
-// Princes and lords absent from the monster table count as gone (G_GONE), as do genocided kinds
-// and a unique one that was already made (C's G_EXTINCT: no birth counts here, so a unique is gone
-// while one is alive anywhere or after one died).
+// Princes and lords absent from the monster table count as gone (G_GONE), as do genocided and
+// extinct kinds (a unique is extinct once made). A game saved before birth counts existed (m18)
+// has no extinct list: there a unique also counts as gone while one is alive or after one died.
 import {
   getLevel,
   getPlayer,
@@ -24,7 +24,7 @@ import { canseemon } from './invis';
 import { isDlord, isDprince, isNdemon } from './mondata';
 import { monNam } from './perception';
 import { ndemon } from './roommon';
-import { deaths, isGenocided } from './vanquished';
+import { deaths, isGone } from './vanquished';
 
 /** PM_ORCUS .. PM_DEMOGORGON in C's order (dprince()'s `rn1()` range). ref: include/monsters.h */
 export const DEMON_PRINCES: readonly DefId[] = [
@@ -40,11 +40,12 @@ export const DEMON_PRINCES: readonly DefId[] = [
 export const DEMON_LORDS: readonly DefId[] = ['nh:juiblex', 'nh:yeenoghu'];
 
 /**
- * `mvitals[pm].mvflags & G_GONE`: genocided, absent from the monster table, or a unique kind that
- * already exists or died (G_EXTINCT).
+ * `mvitals[pm].mvflags & G_GONE`: genocided or extinct, or absent from the monster table; for a
+ * game saved before m18 (no extinct list) also a unique kind that exists or died.
  */
 export function demonGone(ctx: Pick<Ctx, 'state' | 'defs'>, pm: DefId): boolean {
-  if (!ctx.defs.isMonster(pm) || isGenocided(ctx.state, pm)) return true;
+  if (!ctx.defs.isMonster(pm) || isGone(ctx.state, pm)) return true;
+  // the pre-m18 fallback: a unique made before births were counted is not extinct
   if (!ctx.defs.monster(pm).genFlags.includes('uniq')) return false;
   if (deaths(ctx.state, pm) > 0) return true;
   return sortedIds(ctx.state).some((id) => {

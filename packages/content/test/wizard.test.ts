@@ -33,6 +33,7 @@ import {
   WIZ_WISH,
   WIZ_CAST,
   WIZ_MKROOM,
+  WIZ_BORN,
   WIZ_LEVELCHANGE,
   WIZ_POLYSELF,
   WIZ_TELEPORT,
@@ -80,6 +81,7 @@ describe('the wizard mod', () => {
       WIZ_POLYSELF,
       WIZ_CAST,
       WIZ_MKROOM,
+      WIZ_BORN,
     ]);
   });
 

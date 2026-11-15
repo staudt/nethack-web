@@ -9,7 +9,7 @@ import { BOULDER, boulderAt } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
 import { makemon, mkclass } from './generation';
 import { setMimicSym } from './mimicstate';
-import { isGenocided } from './vanquished';
+import { isGone } from './vanquished';
 import { mkgold } from './items';
 import { mkobj, mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
@@ -348,8 +348,8 @@ const MIMICS: readonly DefId[] = ['nh:small_mimic', 'nh:large_mimic', 'nh:giant_
  * Keeps the doors level generation made trapped (`Level.trappedDoorSpots`, core has no door
  * traps) in content state and deletes the request, so no saved level keeps it. A spot that is
  * no longer a closed, locked or secret door is dropped. From difficulty 9 a trapped (not
- * secret) door is, one time in 5 unless all three mimics are genocided, a doorway with a mimic
- * posing as the door instead; the roll is drawn here, in core's door order, after the level's
+ * secret) door is, one time in 5 unless all three mimics are genocided or extinct, a doorway
+ * with a mimic posing as the door instead; the roll is drawn here, in core's door order, after the level's
  * rooms and corridors (decision 8: C draws it while making the door). (Every trapped door with a
  * door state comes from dosdoor(): no LevelDef has a random-state door, create_door()'s.)
  * ref: src/mklev.c dosdoor(), src/sp_lev.c create_door() (doormask |= D_TRAPPED)
@@ -364,7 +364,7 @@ export function keepTrappedDoors(ctx: Ctx, level: Level): void {
       (typ === T.door_closed || typ === T.door_locked) &&
       level.depth >= 9 && // level_difficulty()
       !ctx.rng.rn2(5) &&
-      !MIMICS.every((id) => isGenocided(ctx.state, id))
+      !MIMICS.every((id) => isGone(ctx.state, id))
     ) {
       // make a mimic instead
       setTerrain(level, p.x, p.y, T.doorway);

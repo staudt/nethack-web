@@ -139,7 +139,7 @@ export function mkTrapStatue(
   do mptr = rndmonnum(ctx, depth, 3, 6);
   while (--trycount > 0 && isUnicorn(mptr) && ualign === Math.sign(mptr.alignment));
   const statue = mkcorpstat(ctx, mptr.id, { level: levelId, x, y }, { inMklev });
-  const mtmp = makemon(ctx, mptr, null, { level: levelId, inMklev }); // MM_NOCOUNTBIRTH | MM_NOMSG
+  const mtmp = makemon(ctx, mptr, null, { level: levelId, inMklev, noCountBirth: true }); // | MM_NOMSG
   if (mtmp === null) return; // should never happen
   for (const o of minvent(ctx, mtmp)) {
     const it = o.c.item;

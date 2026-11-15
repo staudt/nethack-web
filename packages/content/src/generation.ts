@@ -23,7 +23,7 @@ import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
-import { isGenocided } from './vanquished';
+import { isGenocided, isGone, propagate } from './vanquished';
 import { inHell } from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
@@ -61,12 +61,12 @@ export const monmaxDifficulty = (levdif: number, ulevel: number): number =>
   Math.trunc((levdif + ulevel) / 2);
 
 /**
- * ref: src/makemon.c uncommon(): not randomly generated (nogen/unique), genocided (G_GONE; no
- * extinction), or outside Gehennom Gehennom-only ('hell' genFlag); in Gehennom lawful.
+ * ref: src/makemon.c uncommon(): not randomly generated (nogen/unique), genocided or extinct
+ * (G_GONE), or outside Gehennom Gehennom-only ('hell' genFlag); in Gehennom lawful.
  */
 function uncommon(state: Readonly<GameState>, def: MonsterDef): boolean {
   if (def.genFlags.includes('nogen') || def.genFlags.includes('uniq')) return true;
-  if (isGenocided(state, def.id)) return true;
+  if (isGone(state, def.id)) return true;
   if (inHell(state)) return def.alignment > 0; // maligntyp > A_NEUTRAL
   return def.genFlags.includes('hell');
 }
@@ -113,8 +113,8 @@ export function rndmonst(
 /**
  * A random monster of glyph class `cls` for a level of difficulty `depth`, or null. Candidates are
  * the class in difficulty order (ref: init_mongen_order()); `allow` lifts generation flags
- * ('nogen' for special levels, as G_NOGEN); genocided species are skipped (mk_gen_ok()'s G_GONE,
- * no extinction); 8 times in 9 (always for liches) not Gehennom-only, or in Gehennom not
+ * ('nogen' for special levels, as G_NOGEN); genocided and extinct species are skipped
+ * (mk_gen_ok()'s G_GONE) unless `opts.ignoreGone` (C's G_IGNORE); 8 times in 9 (always for liches) not Gehennom-only, or in Gehennom not
  * never-in-Gehennom. The player monsters are not candidates: C's loop stops at the end of the
  * class's first run of rows, and theirs is a second run of '@' rows after the long worm tail.
  * `opts.atyp` (an alignment sign) keeps only the kinds of that alignment's sign
@@ -127,7 +127,7 @@ export function mkclass(
   cls: string,
   depth: number,
   allow: readonly string[] = [],
-  opts: { atyp?: number; level?: Readonly<Level> } = {},
+  opts: { atyp?: number; level?: Readonly<Level>; ignoreGone?: boolean } = {},
 ): MonsterDef | null {
   const { atyp } = opts;
   const list = ctx.defs.monsters
@@ -146,7 +146,7 @@ export function mkclass(
     if (atyp !== undefined && Math.sign(m.alignment) !== Math.sign(atyp)) continue;
     const mask = ['nogen', 'uniq'];
     if (ctx.rng.rn2(9) || cls === 'L') mask.push(hell ? 'nohell' : 'hell');
-    if (isGenocided(ctx.state, m.id)) continue; // mk_gen_ok(): mvflags & G_GONE
+    if (!opts.ignoreGone && isGone(ctx.state, m.id)) continue; // mk_gen_ok(): mvflags & mv_mask
     if (m.genFlags.some((f) => mask.includes(f) && !allow.includes(f))) continue;
     const prev = list[last - 1];
     if (num && m.difficulty > maxmlev && prev && m.difficulty > prev.difficulty && ctx.rng.rn2(2))
@@ -423,6 +423,9 @@ export interface MakemonOpts {
   noTail?: boolean;
   /** No waiting strategy from its kind's M3 flags (MM_NOWAIT). */
   noWait?: boolean;
+  /** The birth is not counted (MM_NOCOUNTBIRTH: revival, statue traps); a unique still becomes
+   * extinct. */
+  noCountBirth?: boolean;
 }
 
 type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
@@ -477,7 +480,7 @@ export function makemon(
   if (!inBounds(level, at.x, at.y)) return null;
 
   // ref: makemon(): "if you are to make a specific monster and it has already been genocided,
-  // return"
+  // return" (an extinct one is still made when asked for by name)
   if (def && isGenocided(ctx.state, def.id)) return null;
   let mdef = def;
   if (!mdef) {
@@ -491,6 +494,9 @@ export function makemon(
     } while (++tryct <= 50 && !goodpos(ctx, level, rules, taken, at.x, at.y, gpMon(ctx, mdef)));
   }
   if (!mdef) return null;
+  // ref: makemon(): `(void) propagate(mndx, countbirth, FALSE)`: the birth counts from here on
+  // (makemon() cannot fail past this point; a caller that rejects the monster uses unmakemon())
+  propagate(ctx, mdef, opts.noCountBirth !== true);
 
   const ulevel = heroLevel(ctx);
   const mlev = adjLev(mdef, level.depth, ulevel);

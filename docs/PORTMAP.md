@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5033 citations.
+188 NetHack files, 5044 citations.
 
 ## dat/asmodeus.lua
 
@@ -319,7 +319,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
@@ -1384,12 +1384,17 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/insight.c
 
 - `N_times()`: `packages/content/src/end.en.ts`, `packages/content/src/vanquished.ts`
+- `UniqCritterIndx()`: `packages/content/src/vanquished.ts`
 - `align_str()`: `packages/content/src/align.ts`
+- `doborn()`: `packages/content/src/wizard/born.ts`, `packages/content/src/wizard/wizard.en.ts`
 - `enlght_combatinc()`: `packages/content/src/enlightenment.ts`
 - `enlightenment()`: `packages/content/src/enlightenment.ts`
 - `list_genocided()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/genocide.ts`, `packages/content/src/vanquished.ts`
 - `list_vanquished()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/vanquished.ts`
 - `mstatusline()`: `packages/content/src/zap.ts`
+- `num_extinct()`: `packages/content/src/vanquished.ts`
+- `num_genocides()`: `packages/content/src/vanquished.ts`
+- `num_gone()`: `packages/content/src/vanquished.ts`
 - `piousness()`: `packages/content/src/enlightenment.ts`
 - `status_enlightenment()`: `packages/content/src/enlightenment.en.ts`, `packages/content/src/enlightenment.ts`
 - `ustatusline()`: `packages/content/src/zap.ts`
@@ -1478,6 +1483,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_initweap()`: `packages/content/src/mongear.ts`
 - `makemon()`: `packages/content/src/generation.ts`, `packages/content/src/mkobj.ts`, `packages/content/src/mongear.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`
 - `makemon_rnd_goodpos()`: `packages/content/src/generation.ts`
+- `mbirth_limit()`: `packages/content/src/vanquished.ts`
 - `mkclass()`: `packages/content/src/generation.ts`
 - `mkclass_aligned()`: `packages/content/src/generation.ts`
 - `mkclass_poly()`: `packages/content/src/polyself.ts`
@@ -1486,12 +1492,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `monhp_per_lvl()`: `packages/content/src/upoly.ts`
 - `newmonhp()`: `packages/content/src/generation.ts`
 - `peace_minded()`: `packages/content/src/generation.ts`
+- `propagate()`: `packages/content/src/vanquished.ts`
 - `rndmonst_adj()`: `packages/content/src/generation.ts`
 - `set_malign()`: `packages/content/src/luck.ts`
 - `set_mimic_sym()`: `packages/content/src/mimic.ts`
 - `syms()`: `packages/content/src/mimic.ts`
 - `temperature_shift()`: `packages/content/src/temperature.ts`
 - `uncommon()`: `packages/content/src/generation.ts`
+- `unmakemon()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`
 
 ## src/mcastu.c
 
