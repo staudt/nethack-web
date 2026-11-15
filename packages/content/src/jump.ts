@@ -46,7 +46,7 @@ import { checkSpecialRoom } from './rooms';
 import { instapetrify } from './stonetouch';
 import { touchPetrifies } from './stonestate';
 import { T, isObstructedId, isStwallId, terrainIdAt } from './terrain';
-import { cansee, deltrap, dotrap, teleds } from './trap';
+import { TRAP, cansee, deltrap, dotrap, teleds } from './trap';
 import { isHole, isPit, levitating, setUtrap, utrap } from './trapstate';
 import { UNENCUMBERED, invWeight, nearCapacity, weightCap } from './stats';
 
@@ -326,10 +326,10 @@ export function jump(ctx: Ctx, magic: number, spell?: { force: boolean }): numbe
  * door entered diagonally and a squeeze between rocks with too much to carry; a monster in the
  * way is bumped (woken and angered; a cockatrice petrifies her unless body armor, a cloak or a
  * shirt covers her); in Sokoban a diagonal squeeze halts her and a pit or hole pulls her down
- * on its cell; seen traps are passed over. She moves cell by cell (shops and rooms notice).
- * Returns false when the flight stops before (x, y). ref: src/dothrow.c hurtle_jump(),
- * hurtle_step() (no Passes_walls, regions, water, lava, magic portals, vibrating squares, fire
- * traps or ball and chain)
+ * on its cell; a fire trap goes off under her; other seen traps are passed over. She moves cell
+ * by cell (shops and rooms notice). Returns false when the flight stops before (x, y).
+ * ref: src/dothrow.c hurtle_jump(), hurtle_step() (no Passes_walls, regions, water, lava, magic
+ * portals, vibrating squares or ball and chain)
  */
 function hurtleJumpStep(
   ctx: Ctx,
@@ -422,7 +422,10 @@ function hurtleJumpStep(
       range.n = 0;
       return true;
     }
-    if (t.seen) say(ctx, 'jump.pass_over', { trap: `@${t.def}` });
+    if (t.def === TRAP.fire) {
+      dotrap(ctx, t);
+      if (ctx.state.gameOver) return false;
+    } else if (t.seen) say(ctx, 'jump.pass_over', { trap: `@${t.def}` });
   }
   range.n = Math.max(range.n - 1, 0);
   return true;

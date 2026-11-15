@@ -37,6 +37,10 @@ import { heroFormId } from '../src/upoly';
 import { setGenocided } from '../src/vanquished';
 import { addMon } from './helpers';
 import { itemOf, levelSetup, plainKit, render } from './itemHelpers';
+import { MPLAYERS } from '../src/mondata';
+
+/** mk_tt_object()'s kinds: the player monsters, a valkyrie being human (m17). */
+const ADVENTURERS = [...MPLAYERS.filter((m) => m !== 'nh:valkyrie'), 'nh:human'];
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -128,7 +132,7 @@ describe('fill_zoo()', () => {
     expect(jelly).toBeLessThan((6 * FILLED.length) / 2);
   });
 
-  test('a cockatrice nest: cockatrices, and statues of humans holding up to 4 random objects', () => {
+  test('a cockatrice nest: cockatrices, and statues of adventurers holding up to 4 random objects', () => {
     let statues = 0;
     let held = 0;
     for (let seed = 1; seed <= 6; seed++) {
@@ -137,7 +141,7 @@ describe('fill_zoo()', () => {
       expect(mons.every((e) => e.def === 'nh:cockatrice' && e.c.monster!.asleep)).toBe(true);
       for (const st of ents.filter((e) => e.def === 'nh:statue')) {
         statues++;
-        expect(st.c.item!.corpseOf).toBe('nh:human');
+        expect(ADVENTURERS).toContain(st.c.item!.corpseOf); // m17: a player monster
         const inside = ents.filter((e) => e.c.item?.containedIn === st.id);
         expect(inside.length).toBeLessThanOrEqual(4);
         held += inside.length;
@@ -246,7 +250,7 @@ describe('the room monsters', () => {
 });
 
 describe('mk_tt_object()', () => {
-  test('an unnamed human corpse that rots, or statue without a spellbook', () => {
+  test('an unnamed adventurer corpse that rots, or statue without a spellbook', () => {
     const { state, level } = walledRoom(2, 12);
     const at = { level: level.id, x: 3, y: 3 };
     let corpse = 0;
@@ -257,13 +261,13 @@ describe('mk_tt_object()', () => {
     });
     const c = state.entities[String(corpse)]!;
     expect(c.def).toBe('nh:corpse');
-    expect(c.c.item!.corpseOf).toBe('nh:human');
+    expect(ADVENTURERS).toContain(c.c.item!.corpseOf);
     expect(
       state.timers.filter(
         (t) => t.kind === 'nh:rot_corpse' && (t.data as { id: number }).id === corpse,
       ),
     ).toHaveLength(1);
-    expect(state.entities[String(statue)]!.c.item!.corpseOf).toBe('nh:human');
+    expect(ADVENTURERS).toContain(state.entities[String(statue)]!.c.item!.corpseOf);
     expect(all(state).some((e) => e.c.item?.containedIn === statue)).toBe(false);
   });
 });

@@ -158,18 +158,18 @@ describe('the Castle and Gehennom', () => {
     ]);
   });
 
-  test('her fall through a Castle trap door lands in Gehennom: "It is hot here."', () => {
+  test('her fall through a Castle trap door lands in the Valley of the Dead (m17)', () => {
     const { state, level } = castle(2);
     const door = level.traps.find((t) => t.def === TRAP.trapdoor)!;
     getPlayer(state).c.pos = { level: level.id, x: door.x, y: door.y };
     const t = run(state, (ctx) => dotrap(ctx, door));
     expect(t).toContain('A trap door opens up under you!');
-    expect(t).toContain('It is hot here.  You smell smoke...');
+    expect(t).toContain('You arrive at the Valley of the Dead...');
     const here = getLevel(state);
     expect([here.dungeon, here.dlevel]).toEqual([GEHENNOM, 1]);
-    expect(here.def).toBe('nh:mazefill');
+    expect(here.def).toBe('nh:valley');
     expect(inHell(state)).toBe(true);
-    expect(gehennomEntered({ state })).toBe(true);
+    expect(gehennomEntered({ state })).toBe(false); // not until the Valley's gate
     // a fall from one level up: d(1, 6)
     expect(getPlayer(state).c.hp!.max - getPlayer(state).c.hp!.cur).toBeLessThanOrEqual(6);
   });
@@ -217,7 +217,14 @@ describe('the Castle and Gehennom', () => {
   });
 
   test('a level teleport past the bottom of the main dungeon goes to Gehennom', () => {
-    const s = levelSetup(ROOM, 1);
+    // ROOM on a vanilla-sized level: the Valley's map needs 76x20
+    const s = levelSetup(
+      [
+        ...ROOM.map((r) => r.padEnd(80, ' ')),
+        ...Array.from({ length: 21 - ROOM.length }, () => ' '.repeat(80)),
+      ],
+      1,
+    );
     plainKit(s.state);
     s.step({ type: 'wait' });
     setIntrinsic(getPlayer(s.state), P.TELEPORT_CONTROL, true);

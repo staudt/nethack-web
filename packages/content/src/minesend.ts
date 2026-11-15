@@ -432,10 +432,3 @@ export const MINEND_LUCKSTONE_SPOTS: Readonly<Record<DefId, readonly Spot[]>> = 
   [MINEND_2.id]: [MINEND_2_LUCKSTONE],
   [MINEND_3.id]: MINEND_3_PLACES,
 };
-
-/**
- * Levels that magic mapping cannot map (lua level_flags "nommap"). Nothing reads it yet: the
- * scroll and spell of magic mapping are not ported, and C's #wizmap ignores the flag.
- * ref: src/sp_lev.c lspo_level_flags(); src/read.c do_mapping callers
- */
-export const NOMMAP_LEVELS: ReadonlySet<DefId> = new Set([MINEND_3.id]);

@@ -14,7 +14,8 @@ import { mswallowerOf } from './engulfstate';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { mkcorpse, mkgold, mksobj, rne } from './items';
-import { isUnicorn } from './mondata';
+import { isMplayer, isUnicorn } from './mondata';
+import { levelSpecificNocorpse } from './graveyard';
 import { GLASS_GEMS } from './gem';
 import { isGolem } from './golem';
 import { luckOf } from './luck';
@@ -90,12 +91,12 @@ export function setDeathExplosion(fn: DeathExplosion): void {
 
 /**
  * Whether a killed monster leaves a corpse. ref: src/mon.c corpse_chance(): big monsters always
- * do, as do golems; others with chance 1/(2 + (rare) + (tiny)). Not ported: liches, player
- * monsters, riders, shopkeepers, cloned monsters. (The gas spore's explosion is in
- * xkilledCorpse().)
+ * do, as do golems and player monsters; others with chance 1/(2 + (rare) + (tiny)). Not ported:
+ * liches, riders, shopkeepers, cloned monsters. (The gas spore's explosion and
+ * LEVEL_SPECIFIC_NOCORPSE are checked first by the callers: graveyardNocorpse().)
  */
 export function corpseChance(ctx: Ctx, def: MonsterDef): boolean {
-  if (bigmonst(def) || isGolem(def)) return true;
+  if (bigmonst(def) || isGolem(def) || isMplayer(def)) return true;
   const tmp = 2 + (def.frequency < 2 ? 1 : 0) + (def.size === 'tiny' ? 1 : 0);
   return ctx.rng.rn2(tmp) === 0;
 }
@@ -123,7 +124,17 @@ export function corpseChanceSwallowed(
     deathExplosion?.(ctx, def, at, false, magr);
     return false;
   }
+  if (graveyardNocorpse(ctx, def, at.level)) return false;
   return corpseChance(ctx, def);
+}
+
+/**
+ * corpse_chance()'s LEVEL_SPECIFIC_NOCORPSE: an undead dying on a graveyard level leaves no corpse
+ * 2 times in 3. A lich is left out: corpse_chance() turns it to dust before asking (the dust is not
+ * ported; a lich leaves no corpse anyway). ref: src/mon.c corpse_chance()
+ */
+function graveyardNocorpse(ctx: Ctx, def: MonsterDef, levelId: string): boolean {
+  return def.glyph.ch !== 'L' && levelSpecificNocorpse(ctx, def, levelId);
 }
 
 /** What make_corpse() reads of the dead monster, taken before it was removed. */
@@ -273,6 +284,7 @@ export function xkilledCorpse(
     deathExplosion?.(ctx, def, at, byHero, swallowerOf(ctx));
     return;
   }
+  if (graveyardNocorpse(ctx, def, at.level)) return;
   const undead = UNDEAD_TO_CORPSE[def.id];
   // G_NOCORPSE stops only make_corpse()'s default case: golems leave their material
   if (undead === undefined && !isGolem(def) && def.genFlags.includes('nocorpse')) return;

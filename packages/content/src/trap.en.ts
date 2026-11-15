@@ -15,6 +15,7 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:rolling_boulder_trap': 'rolling boulder trap',
   'nh:sleeping_gas_trap': 'sleeping gas trap',
   'nh:rust_trap': 'rust trap',
+  'nh:fire_trap': 'fire trap',
   'nh:pit': 'pit',
   'nh:spiked_pit': 'spiked pit',
   'nh:trap_door': 'trap door',
@@ -222,6 +223,7 @@ export const trapMessagesEn: Record<string, string> = {
   'killer.trap.stumbled_spiked_pit': 'stumbling into a pit of iron spikes',
   'killer.trap.step_poison_spikes': 'stepping on poison spikes',
   'killer.trap.tower_of_flame': 'a tower of flame',
+  'killer.trap.boiling_water': 'boiling water',
   'killer.trap.magical_explosion': 'a magical explosion',
   'killer.trap.anti_magic': 'an anti-magic implosion',
 
@@ -352,6 +354,7 @@ export const trapMessagesEn: Record<string, string> = {
   'fire.you_uninjured': 'You are uninjured.',
   'fire.mon_uninjured': '{mon|The} is uninjured.',
   'fire.smell_paper': 'You smell paper burning.',
+  'fire.steamy_bubbles': 'A cascade of steamy bubbles erupts from {box|the}!',
 
   // rolling boulder trap. ref: src/trap.c trapeffect_rolling_boulder_trap(), launch_obj()
   'trap.rolling.trigger': 'Click!  You trigger a rolling boulder trap!',

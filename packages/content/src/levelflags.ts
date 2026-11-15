@@ -1,7 +1,8 @@
 // Level flags of the special levels, kept as a content table keyed by LevelDef id (a level with no
 // LevelDef has none). Nothing is saved: the flags follow from `Level.def`.
-// ref: dat/soko*.lua, dat/minend-*.lua, dat/minetn-5.lua des.level_flags() ("noteleport",
-// "hardfloor", "mazelevel", "solidify"), des.non_diggable(selection.area(...)) and
+// ref: dat/soko*.lua, dat/minend-*.lua, dat/minetn-5.lua, dat/valley.lua des.level_flags()
+// ("noteleport", "hardfloor", "mazelevel", "solidify", "nommap", "temperate"),
+// des.non_diggable(selection.area(...)) and
 // des.non_passwall(selection.area(...));
 // src/sp_lev.c lspo_level_flags(), set_wall_property(); src/mkmap.c mkmap() (cavernous levels);
 // src/dungeon.c Can_dig_down(); src/hack.c may_dig()
@@ -27,15 +28,19 @@ export interface FlagRect {
 
 /**
  * ref: level.flags.noteleport, hardfloor, is_maze_lev, shortsighted (hostile monsters far from
- * her stop approaching: m_move()); W_NONDIGGABLE and W_NONPASSWALL walls (`'all'`: every wall
- * and, with `solidify`, the stone around the map block); `medusa`: one of Medusa's levels
- * (Is_medusa_level(): create_object()'s petrified statues, fixup_special()'s statues).
+ * her stop approaching: m_move()), nommap (magic mapping fails), temperature 0 on a Gehennom
+ * level (`temperate`: neither hot nor cold; read from m17 step 3); W_NONDIGGABLE and
+ * W_NONPASSWALL walls (`'all'`: every wall and, with `solidify`, the stone around the map block);
+ * `medusa`: one of Medusa's levels (Is_medusa_level(): create_object()'s petrified statues,
+ * fixup_special()'s statues).
  */
 export interface LevelFlags {
   noteleport?: true;
   hardfloor?: true;
   maze?: true;
   shortsighted?: true;
+  nommap?: true;
+  temperate?: true;
   medusa?: true;
   nondiggable?: 'all' | readonly FlagRect[];
   nonpasswall?: 'all' | readonly FlagRect[];
@@ -134,10 +139,20 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   /** ref: dat/minend-3.lua (the Catacombs) */
   'nh:minend-3': {
     maze: true,
+    nommap: true,
     nondiggable: [
       { x1: 67, y1: 3, x2: 73, y2: 7 },
       { x1: 0, y1: 12, x2: 2, y2: 16 },
     ],
+  },
+  /** ref: dat/valley.lua ("Non diggable walls - everywhere!": the whole map) */
+  'nh:valley': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nommap: true,
+    temperate: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }],
   },
 };
 

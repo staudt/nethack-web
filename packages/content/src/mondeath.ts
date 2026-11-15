@@ -10,6 +10,7 @@ import { nonliving } from './mondata';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse, type DeadMon } from './corpses';
+import { levelSpecificNocorpse } from './graveyard';
 import { engulfingU } from './engulfstate';
 import { mksobj, placeOnFloor, removeFromInventory, weight } from './items';
 import { mkobj } from './mkobj';
@@ -148,6 +149,8 @@ export function monsterDied(
   ctx.remove(monId);
   // XKILL_NOCORPSE (system shock): no treasure and no corpse
   if (!byHero || !at || stoned || nocorpse) return statue;
+  // LEVEL_SPECIFIC_NOCORPSE: no treasure and no corpse (corpse_chance() asks again)
+  if (levelSpecificNocorpse(ctx, def, at.level)) return null;
 
   const hero = getPlayer(ctx.state).c.pos;
   const onHero = hero?.level === at.level && hero.x === at.x && hero.y === at.y;

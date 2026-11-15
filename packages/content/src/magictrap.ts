@@ -1,19 +1,21 @@
-// The magic trap, the anti-magic field and the fire trap's tower of flame, for the hero and for
-// monsters. ref: src/trap.c trapeffect_magic_trap(), domagictrap(), trapeffect_anti_magic(),
-// drain_en(), dofiretrap(), trapeffect_fire_trap()
+// The magic trap, the anti-magic field and the fire trap, for the hero and for monsters.
+// ref: src/trap.c trapeffect_magic_trap(), domagictrap(), trapeffect_anti_magic(), drain_en(),
+// dofiretrap(), trapeffect_fire_trap()
 //
 // Module graph: domagictrap() tames monsters (dog.ts) and uncurses (read.ts), and both import
 // trap.ts, so this module sits above trap.ts and hands its effects in at registration
-// (`setTrapEffect`), as trap.ts does with levitation.ts's float-down trap. No `nh:fire_trap`
-// TrapDef exists (C makes fire traps only in Gehennom): `dofiretrap()` serves the magic trap's
-// fate 12 and a monster's 1-in-21 magic trap.
+// (`setTrapEffect`), as trap.ts does with levitation.ts's float-down trap. ice.ts (melt_ice())
+// reaches chesttrap.ts, which imports this module, so its melting is handed in at registration
+// too. `dofiretrap()` serves the fire trap (m17), the magic trap's fate 12, a monster's 1-in-21
+// magic trap and a trapped box's fire (chesttrap.ts).
 //
 // Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
-// passers, golems, polymorph, steeds, water and ice.
+// passers, golems, polymorph, steeds and the hero under water.
 import { mAt } from './wormstate';
 import {
   getLevel,
   getPlayer,
+  trapAt,
   type Ctx,
   type Entity,
   type Level,
@@ -29,6 +31,7 @@ import { makemon } from './generation';
 import { losehp } from './hp';
 import { losexp } from './exper';
 import { igniteItems } from './light';
+import { isIce, isPool } from './liquid';
 import { monkilled } from './mondeath';
 import { isCancelled, mspecUsed, setMspecUsed } from './mstate';
 import { wakeNearto } from './noise';
@@ -78,9 +81,10 @@ function monAt(ctx: Ctx, level: Level, x: number, y: number): Entity | null {
  * burn, carried items may burn or catch light (always when the body was hit, else 2 in 3), and
  * scrolls and books on her square may burn ("You smell paper burning." when blind).
  * `box`: the flame bursts from a trapped box (chest_trap()); the rest is the same.
- * A polymorphed hero loses form HP instead (a paper golem all of them).
- * ref: src/trap.c dofiretrap() (no water or ice; the level drain when her
- * maximum drops below her level is not ported)
+ * A polymorphed hero loses form HP instead (a paper golem all of them). A box sitting in a pool
+ * only boils the water ("A cascade of steamy bubbles erupts from the chest!", `rnd(3)` damage
+ * unless she resists fire). Ice under her melts.
+ * ref: src/trap.c dofiretrap() (she is never under water here)
  */
 export function dofiretrap(ctx: Ctx, box?: Entity): void {
   const hero = getPlayer(ctx.state);
@@ -89,6 +93,14 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
   const seeIt = !hasProp(hero, P.BLINDED);
   const origDmg = ctx.rng.d(2, 4); // orig_dmg = num = d(2, 4); both branches set num again
   let num: number;
+  // (box && !carried(box)) ? is_pool(box->ox, box->oy) : Underwater
+  const bp = box && box.c.item?.carriedBy !== ctx.state.playerId ? box.c.pos : undefined;
+  if (bp && isPool(ctx, getLevel(ctx.state, bp.level), bp.x, bp.y)) {
+    say(ctx, 'fire.steamy_bubbles', { box: xnameOf(ctx.state, ctx.defs, box as Entity) });
+    if (hasProp(hero, P.FIRE_RES)) say(ctx, 'fire.you_uninjured');
+    else losehp(ctx, ctx.rng.rnd(3), '@killer.trap.boiling_water');
+    return;
+  }
   if (box) say(ctx, 'fire.tower_bursts', { box: xnameOf(ctx.state, ctx.defs, box) });
   else say(ctx, 'fire.tower_erupts', { surface: surfaceKey(ctx, level, p.x, p.y) });
   if (hasProp(hero, P.FIRE_RES)) {
@@ -137,15 +149,23 @@ export function dofiretrap(ctx: Ctx, box?: Entity): void {
     if (ctx.state.gameOver) return;
     igniteItems(ctx, hero.id);
   }
-  if (burnFloorObjects(ctx, p.x, p.y, { level: p.level, feedback: seeIt }) && !seeIt)
+  if (!box && burnFloorObjects(ctx, p.x, p.y, { level: p.level, feedback: seeIt }) && !seeIt)
     say(ctx, 'fire.smell_paper');
+  if (isIce(ctx, level, p.x, p.y)) meltIce(ctx, level, p.x, p.y, null);
+}
+
+/** The hero on a fire trap: it is seen, and a tower of flame erupts. ref: trapeffect_fire_trap() */
+function fireTrapYou(ctx: Ctx, trap: Trap): void {
+  seetrap(trap);
+  dofiretrap(ctx);
 }
 
 /**
  * A tower of flame under a monster: d(2,4) damage and the same loss of maximum HP unless it
  * resists fire; its armor and items may burn (their damage on top), floor scrolls burn.
  * Paper, straw, wood and leather golems lose a share of their maximum HP at least (a paper
- * golem all of it, leaving nothing). ref: src/trap.c trapeffect_fire_trap() for a monster (no ice)
+ * golem all of it, leaving nothing). Ice under it melts (and may take the trap with it).
+ * ref: src/trap.c trapeffect_fire_trap() for a monster
  */
 function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   const p = mon.c.pos;
@@ -208,7 +228,10 @@ function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
     distu <= 3 * 3
   )
     say(ctx, 'zap.smell_smoke');
-  if (seeIt) seetrap(trap);
+  if (isIce(ctx, level, tx, ty)) meltIce(ctx, level, tx, ty, null);
+  if (!ctx.state.entities[String(mon.id)]?.c.monster) killed = true; // DEADMONSTER()
+  const t = trapAt(level, tx, ty);
+  if (seeIt && t) seetrap(t);
   return killed ? 'killed' : caughtOr(ctx, mon, false);
 }
 
@@ -436,8 +459,17 @@ function antiMagicMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
   return killed ? 'killed' : caughtOr(ctx, mon, false);
 }
 
-/** Hands the magic trap's and the anti-magic field's effects to trap.ts. */
-export function registerMagicTraps(): void {
+/** ice.ts's melt_ice(), bound by registerMagicTraps(). */
+type MeltIce = (ctx: Ctx, level: Level, x: number, y: number, msg: string | null) => void;
+let meltIce: MeltIce = () => undefined;
+
+/**
+ * Hands the magic trap's, the anti-magic field's and the fire trap's effects to trap.ts, and
+ * binds melt_ice().
+ */
+export function registerMagicTraps(melt: MeltIce): void {
+  meltIce = melt;
   setTrapEffect(TRAP.magic, { you: magicTrapYou, mon: magicTrapMon });
   setTrapEffect(TRAP.antiMagic, { you: antiMagicYou, mon: antiMagicMon });
+  setTrapEffect(TRAP.fire, { you: fireTrapYou, mon: fireTrapMon });
 }

@@ -12,6 +12,7 @@ import { ORACLE_LEVEL } from './oracle';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
 import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
+import { VALLEY } from './valley';
 
 /**
  * The filler level of the Gnomish Mines: a joined, walled cave of gnomes, dwarves and gems.
@@ -46,15 +47,16 @@ export const MINEFILL: LevelDef = {
 export const GEHENNOM_FILLER: DefId = MAZEFILL.id;
 
 /**
- * Gehennom's special levels in dungeon.lua's order, each built as GEHENNOM_FILLER for now (one
- * variant: no `rnd()` draw). The Sanctum is placed but never reached (no invocation: see
+ * Gehennom's special levels in dungeon.lua's order, each built as GEHENNOM_FILLER until its own
+ * LevelDef lands (the Valley's is valley.ts; one variant: no `rnd()` draw). The Sanctum is placed
+ * but never reached (no invocation: see
  * levelflags.ts dngBottom()). ref: dat/dungeon.lua "Gehennom" levels (valley base 1; sanctum
  * base -1; juiblex base 4, range 4; baalz base 6, range 4; asmodeus base 2, range 6; wizard1 base
  * 11, range 6; wizard2 chainlevel "wizard1", base 1; wizard3 chainlevel "wizard1", base 2; orcus
  * base 10, range 6; fakewiz1 and fakewiz2 base -6, range 4)
  */
 const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
-  { id: G.valley, nameKey: 'level.valley', base: 1 },
+  { id: G.valley, nameKey: 'level.valley', base: 1, variants: [VALLEY.id] },
   { id: G.sanctum, nameKey: 'level.sanctum', base: -1 },
   { id: G.juiblex, nameKey: 'level.juiblex', base: 4, range: 4 },
   { id: G.baalz, nameKey: 'level.baalz', base: 6, range: 4 },
@@ -65,7 +67,7 @@ const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
   { id: G.orcus, nameKey: 'level.orcus', base: 10, range: 6 },
   { id: G.fakewiz1, nameKey: 'level.fakewiz1', base: -6, range: 4 },
   { id: G.fakewiz2, nameKey: 'level.fakewiz2', base: -6, range: 4 },
-].map((sp) => ({ ...sp, variants: [GEHENNOM_FILLER] }));
+].map((sp) => ({ variants: [GEHENNOM_FILLER], ...sp }));
 
 export const LEVELS: readonly LevelDef[] = [
   MINEFILL,
@@ -77,6 +79,7 @@ export const LEVELS: readonly LevelDef[] = [
   ...BIGROOM_VARIANTS,
   ...MEDUSA_VARIANTS,
   CASTLE_LEVEL,
+  VALLEY,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -99,8 +102,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * Gehennom: `rn1(5, 20)` levels below the Castle, chained to it with no stairs at the Castle's
  * end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry level's up
  * stairs lead back to the Castle's `up` teleport region. Its eleven special levels are placed
- * (GEHENNOM_SPECIAL) but each is built as the filler until its own step; every level is a plain
- * maze (makemaz("") without hellfill.lua). Vlad's Tower is left out and draws nothing (ROADMAP).
+ * (GEHENNOM_SPECIAL); the Valley of the Dead is built (valley.ts), the others as the filler until
+ * their own step; every other level is a plain maze (makemaz("") without hellfill.lua). Vlad's Tower is left out and draws nothing (ROADMAP).
  * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see

@@ -684,10 +684,10 @@ function monEscape(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
 }
 
 /**
- * The verb for the monster getting onto a trap: jumps, or floats, flies, slithers, oozes or
- * crawls. ref: include/mondata.h locomotion(ptr, "jump"), vtense()
+ * The verb for the monster getting onto a trap: jumps (`dflt` "move": moves), or floats, flies,
+ * slithers, oozes or crawls. ref: include/mondata.h locomotion(ptr, "jump"), vtense()
  */
-function jumpVerb(ctx: Ctx, mon: Entity): Msg {
+function jumpVerb(ctx: Ctx, mon: Entity, dflt: 'jump' | 'move' = 'jump'): Msg {
   const def = ctx.defs.monster(mon.def);
   const v = isFloater(ctx, mon)
     ? 'float'
@@ -701,7 +701,7 @@ function jumpVerb(ctx: Ctx, mon: Entity): Msg {
             ? 'wiggle'
             : nolimbs(def)
               ? 'crawl'
-              : 'jump';
+              : dflt;
   return { key: `muse.loco.${v}` };
 }
 
@@ -1599,8 +1599,8 @@ export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
       if (curesSliming(ctx, mon, obj)) return museUnslime(ctx, mon, obj, byYou);
     const p = mon.c.pos;
     const level = p ? ctx.state.levels[p.level] : undefined;
-    // (no FIRE_TRAP exists: the one under it is never one)
-    if (p && level && def.speed > 0 && !isMtrapped(ctx, mon.id)) {
+    let t = p && level ? trapAt(level, p.x, p.y) : undefined;
+    if (p && level && t?.def !== TRAP.fire && def.speed > 0 && !isMtrapped(ctx, mon.id)) {
       const hp = getPlayer(ctx.state).c.pos;
       const xy: Pos[] = [];
       for (let x = p.x - 1; x <= p.x + 1; ++x)
@@ -1619,9 +1619,11 @@ export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
           xy[idx] = xy[ridx] as Pos;
           xy[ridx] = a;
         }
-        // (a FIRE_TRAP at xy[idx] would stop the shuffle here)
+        const q = xy[idx] as Pos;
+        if ((t = trapAt(level, q.x, q.y))?.def === TRAP.fire) break;
       }
     }
+    if (t?.def === TRAP.fire) return museUnslime(ctx, mon, null, byYou, t);
   }
   return false;
 }
@@ -1634,11 +1636,19 @@ export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
  * `(2 * (rn1(3, 3) + 2 * bcsign) + 1) / 3`; confused: "Oh, what a pretty fire!" and nothing
  * cured). Fire that hurts it: "The lichen is burned!" or, fatal, "The lichen is killed by the
  * fire!" (the hero's kill when `byYou`). "The lichen's slime is burned away!" and the object is
- * learned when seen. The cure takes its next move.
- * ref: src/muse.c muse_unslime() (no fire traps, potions of oil or fire horns; trycall() is not
- * ported; the fireball is a monster's (`by` other) even when `byYou`)
+ * learned when seen. With `trap`, a fire trap under it or next to it: "The lichen triggers the
+ * fire trap!", or it moves there first ("The lichen crawls onto a fire trap!"), and the trap goes
+ * off under it (the kill is never the hero's). The cure takes its next move.
+ * ref: src/muse.c muse_unslime() (no potions of oil or fire horns; trycall() is not ported; the
+ * fireball is a monster's (`by` other) even when `byYou`)
  */
-function museUnslime(ctx: Ctx, mon: Entity, obj: Entity | null, byYou: boolean): boolean {
+function museUnslime(
+  ctx: Ctx,
+  mon: Entity,
+  obj: Entity | null,
+  byYou: boolean,
+  trap?: Trap,
+): boolean {
   let vis = canseemon(ctx, mon);
   let res = true;
   let dmg = 0;
@@ -1653,7 +1663,22 @@ function museUnslime(ctx: Ctx, mon: Entity, obj: Entity | null, byYou: boolean):
     );
   // -4 => sliming, causes quiet loss of enhanced speed
   monAdjustSpeed(ctx, mon, -4);
-  if (!obj) {
+  if (trap) {
+    const p = mon.c.pos;
+    const the = trap.seen ? '@muse.trap.the' : '@muse.trap.a';
+    if (p && p.x === trap.x && p.y === trap.y) {
+      if (vis) say(ctx, 'muse.triggers_fire_trap', { mon: monNam(ctx, mon), the });
+    } else {
+      stepOnto(ctx, mon, trap);
+      if (vis)
+        say(ctx, isFloater(ctx, mon) ? 'muse.over_fire_trap' : 'muse.onto_fire_trap', {
+          mon: monNam(ctx, mon),
+          verb: jumpVerb(ctx, mon, 'move'),
+          the,
+        });
+    }
+    mintrap(ctx, mon.id, { force: true });
+  } else if (!obj) {
     // monster is using fire breath on self
     if (vis) say(ctx, 'muse.breathes_fire_self', { mon: monNam(ctx, mon) });
     if (!ctx.rng.rn2(3)) setMspecUsed(ctx, mon.id, ctx.rng.rn2(10) + 5);

@@ -93,6 +93,11 @@ export const magicMessagesEn: Record<string, string> = {
   'detect.sense_surroundings': 'You sense your surroundings.',
   'read.map_coalesces': 'A map coalesces in your mind!',
   'read.cant_grasp_details': "Unfortunately, you can't grasp the details.",
+  // ref: src/read.c seffect_magic_mapping() on a nommap level
+  'read.crazy_lines': 'Your mind is filled with crazy lines!',
+  'read.modern_art': 'Wow!  Modern art.',
+  'read.head_spins': 'Your head spins in bewilderment.',
+  'read.spell_blocked': 'Your head spins as something blocks the spell!',
   'identify.nothing': "You're not carrying anything to be identified.",
 
   // scrolls

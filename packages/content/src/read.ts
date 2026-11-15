@@ -20,6 +20,7 @@ import {
   cellIndex,
   computeVisible,
   cellRules,
+  getLevel,
   inRooms,
   inventoryOf,
   shownId,
@@ -72,7 +73,8 @@ import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
-import { P, hasProp } from './props';
+import { P, hasProp, makeConfused, timeoutLeft } from './props';
+import { levelFlags } from './levelflags';
 import { snuffLit } from './light';
 import {
   answerSeffect,
@@ -934,8 +936,14 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       break;
     }
     case 'nh:scroll_of_magic_mapping':
-      // ref: seffect_magic_mapping(): blessed, secret doors are found too (no level here
-      // forbids magic mapping)
+      // ref: seffect_magic_mapping(): a nommap level confuses her (the scroll is not learned);
+      // blessed, secret doors are found too
+      if (nommapHere(ctx)) {
+        msg(ctx, 'read.crazy_lines');
+        msg(ctx, hasProp(hero, P.HALLUC) ? 'read.modern_art' : 'read.head_spins');
+        makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + ctx.rng.rnd(30), false);
+        break;
+      }
       if (it.buc === 'blessed') revealSecretDoors(ctx);
       known = true;
       magicMapping(ctx, it.buc === 'cursed', confused);
@@ -957,12 +965,23 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
   if (!blank) useup(ctx, itemId);
 }
 
+/** Magic mapping fails on the hero's level (level.flags.nommap). */
+const nommapHere = (ctx: Ctx): boolean => levelFlags(ctx, getLevel(ctx.state)).nommap === true;
+
 /**
  * "A map coalesces in your mind!" and the level is mapped; a cursed source (not confused)
- * maps it as a confused one would: "Unfortunately, you can't grasp the details."
+ * maps it as a confused one would: "Unfortunately, you can't grasp the details." On a nommap
+ * level: "Your head spins as something blocks the spell!" and `rnd(30)` more turns of confusion.
  * ref: src/read.c seffect_magic_mapping() after the scroll's own part
  */
 function magicMapping(ctx: Ctx, cursed: boolean, confused: boolean): void {
+  if (nommapHere(ctx)) {
+    // (only the spell gets here on such a level)
+    msg(ctx, 'read.spell_blocked');
+    const hero = heroEntity(ctx);
+    makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + ctx.rng.rnd(30), false);
+    return;
+  }
   msg(ctx, 'read.map_coalesces');
   const cval = cursed && !confused;
   doMapping(ctx, confused || cval); // HConfusion = 1 to screw up the map

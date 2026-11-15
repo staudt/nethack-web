@@ -9,14 +9,16 @@
 // fixup does what depends on the shuffled class lists and on the maze: the contents in the
 // script's order, the two stocked maze walks, the drawbridge (closed, facing east: dbridge.ts)
 // and the up stairs in their region of the left-hand maze, which only exists once walked (core
-// puts them on a fixed spot of the courtyard first). There is no graveyard flag (undead leave
-// corpses as anywhere else).
+// puts them on a fixed spot of the courtyard first). The stronghold is a graveyard level (undead
+// seldom leave corpses: graveyard.ts).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
 import { VANILLA_TERRAIN, levelDefRect, trapAt, wallifyLevel } from '@nh/core';
 import { boulderAt } from './boulder';
 import { setBoxTrapped } from './btrapstate';
 import { createDrawbridge } from './dbridge';
 import { CASTLE } from './dbstate';
+import { setGraveyard } from './graveyard';
+import { isStronghold } from './levelflags';
 import { mazewalk } from './mazewalk';
 import { mksobjFull } from './mkobj';
 import {
@@ -243,6 +245,8 @@ function placeUpStairs(ctx: Ctx, level: Level, def: LevelDef): void {
 /** The Castle's fixup: the contents in the script's order, the maze, the drawbridge, the stairs. */
 export const CASTLE_FIXUP: SpLevFixup = {
   before(ctx, level, def) {
+    // ref: src/mkmaze.c fixup_special(): `else if (Is_stronghold(&u.uz)) graveyard = 1`
+    if (isStronghold(ctx.state, level)) setGraveyard(ctx, level.id);
     // Random registers initialisation
     const object = [...OBJECT_CLASSES];
     shuffle(ctx, object);

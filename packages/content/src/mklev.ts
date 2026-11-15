@@ -18,7 +18,7 @@ import { makeEngrAt } from './engr';
 import { makeGrave } from './grave';
 import { randomEngraving } from './rndengr';
 import { mkcorpstat } from './statue';
-import { canDigDown, levelFlags } from './levelflags';
+import { canDigDown, inHell, levelFlags } from './levelflags';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
@@ -38,7 +38,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.rolling, // 7 ROLLING_BOULDER_TRAP
   TRAP.sleepGas, // 8 SLP_GAS_TRAP
   TRAP.rust, // 9 RUST_TRAP
-  null, // 10 FIRE_TRAP
+  TRAP.fire, // 10 FIRE_TRAP
   TRAP.pit, // 11 PIT
   TRAP.spikedPit, // 12 SPIKED_PIT
   TRAP.hole, // 13 HOLE
@@ -61,18 +61,20 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
  * kind this port does not have). ref: src/mklev.c traptype_rnd(): `kind = rnd(TRAPNUM - 1)`;
  * rolling boulder traps and sleeping gas need level 2, spiked pits level 5, land mines level 6,
  * webs level 7 (unless no spider comes with them, `noSpiderOnWeb`), statue and polymorph traps level 8; level teleporters need level 5 and a level
- * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; holes are
- * made only 1 time in 7. The restrictions of the kinds we lack draw no random numbers (and there
- * is no single-level branch, Fort Ludios).
+ * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; fire traps
+ * are made only in Gehennom (`inhell`); holes are made only 1 time in 7. The restrictions of the
+ * kinds we lack draw no random numbers (and there is no single-level branch, Fort Ludios).
  */
 export function traptypeRnd(
   ctx: Pick<Ctx, 'rng'>,
   lvl: number,
   noteleport = false,
   noSpiderOnWeb = false,
+  inhell = false,
 ): DefId | null {
   const kind = ctx.rng.rnd(TRAPNUM_KINDS.length - 1);
   const def = TRAPNUM_KINDS[kind] ?? null;
+  if (def === TRAP.fire && !inhell) return null;
   if ((def === TRAP.rolling || def === TRAP.sleepGas) && lvl < 2) return null;
   if (def === TRAP.levelTele && (lvl < 5 || noteleport)) return null;
   if (def === TRAP.spikedPit && lvl < 5) return null;
@@ -85,9 +87,11 @@ export function traptypeRnd(
 }
 
 /**
- * A random trap kind for a special level: any kind but holes, trap doors where one cannot dig
- * down, and teleportation traps and level teleporters on a no-teleport level, rerolled until one
- * is allowed (the kinds this port lacks reroll too). ref: src/sp_lev.c rndtrap()
+ * A random trap kind for a special level's stocked maze (fill_empty_maze()): any kind but holes,
+ * trap doors where one cannot dig down, and teleportation traps and level teleporters on a
+ * no-teleport level, rerolled until one is allowed (the kinds this port lacks reroll too). Fire
+ * traps are allowed on every level: C's rndtrap() has no fire case (traptype_rnd() keeps them to
+ * Gehennom). ref: src/sp_lev.c rndtrap()
  */
 export function rndtrap(ctx: Ctx, level: Level): DefId {
   const noteleport = levelFlags(ctx, level).noteleport === true;
@@ -103,7 +107,8 @@ export function rndtrap(ctx: Ctx, level: Level): DefId {
 /**
  * Makes a trap of `kind` (random when null) on a free floor square of the room, at a given
  * spot (as sp_lev.c create_trap() passes `tm`), or on a maze level at mazexy() spots without a
- * trap (`'maze'`, MKTRAP_MAZEFLAG). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
+ * trap (`'maze'`, MKTRAP_MAZEFLAG). ref: src/mklev.c mktrap(); a random kind is a fire trap 1
+ * time in 5 in Gehennom, else rerolled until one is allowed; a hole or trap door
  * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
  * (which already avoids occupied squares; the retry loop repeats only for a pit or hole on a
  * boulder). A web gets a giant spider on it (made with the level, so it may get an object under
@@ -119,7 +124,10 @@ export function mktrap(
 ): void {
   const lvl = level.depth; // level_difficulty()
   const noteleport = levelFlags(ctx, level).noteleport === true; // svl.level.flags.noteleport
-  while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport, noSpiderOnWeb);
+  const hell = inHell(ctx.state, level);
+  // bias the frequency of fire traps in Gehennom
+  if (kind === null && hell && !ctx.rng.rn2(5)) kind = TRAP.fire;
+  while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport, noSpiderOnWeb, hell);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   let m: Pos | null;
   if (room === 'maze') {

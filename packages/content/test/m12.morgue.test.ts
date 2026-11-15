@@ -29,6 +29,10 @@ import {
 import { T, setTerrain } from '../src/terrain';
 import { addMon, posOf, setup } from './helpers';
 import { ctxFor, defs, levelSetup, render } from './itemHelpers';
+import { MPLAYERS } from '../src/mondata';
+
+/** mk_tt_object()'s kinds: the player monsters, a valkyrie being human (m17). */
+const ADVENTURERS = [...MPLAYERS.filter((m) => m !== 'nh:valkyrie'), 'nh:human'];
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -94,7 +98,7 @@ const isUndead = (def: DefId): boolean =>
   def === 'nh:ghost' || def === 'nh:wraith' || defs.monster(def).glyph.ch === 'Z';
 
 describe('fill_zoo() MORGUE', () => {
-  test('sleeping ghosts, wraiths and zombies; human corpses about 1 in 5, boxes about 1 in 10', () => {
+  test('sleeping ghosts, wraiths and zombies; adventurer corpses about 1 in 5, boxes about 1 in 10', () => {
     const count: Record<string, number> = {};
     let corpses = 0;
     let boxes = 0;
@@ -118,7 +122,7 @@ describe('fill_zoo() MORGUE', () => {
       mons += ms.length;
       for (const c of ents.filter((e) => e.def === 'nh:corpse' && e.c.pos)) {
         corpses++;
-        expect(c.c.item!.corpseOf).toBe('nh:human');
+        expect(ADVENTURERS).toContain(c.c.item!.corpseOf); // m17: a player monster
       }
       boxes += ents.filter(
         (e) => (e.def === 'nh:large_box' || e.def === 'nh:chest') && e.c.pos,

@@ -29,7 +29,7 @@ import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
-import { isEel, isFloater, isFlyer, isUnicorn } from './mondata';
+import { isEel, isFloater, isFlyer, isMplayer, isUnicorn } from './mondata';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -98,7 +98,9 @@ export function rndmonst(
  * the class in difficulty order (ref: init_mongen_order()); `allow` lifts generation flags
  * ('nogen' for special levels, as G_NOGEN); genocided species are skipped (mk_gen_ok()'s G_GONE,
  * no extinction); 8 times in 9 (always for liches) not Gehennom-only, or in Gehennom not
- * never-in-Gehennom. ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
+ * never-in-Gehennom. The player monsters are not candidates: C's loop stops at the end of the
+ * class's first run of rows, and theirs is a second run of '@' rows after the long worm tail.
+ * ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
  */
 export function mkclass(
   ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
@@ -107,7 +109,7 @@ export function mkclass(
   allow: readonly string[] = [],
 ): MonsterDef | null {
   const list = ctx.defs.monsters
-    .filter((m) => m.glyph.ch === cls)
+    .filter((m) => m.glyph.ch === cls && !isMplayer(m))
     .map((m, i) => ({ m, i }))
     .sort((a, b) => a.m.difficulty - b.m.difficulty || a.i - b.i)
     .map(({ m }) => m);

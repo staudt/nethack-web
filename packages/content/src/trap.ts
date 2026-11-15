@@ -154,6 +154,7 @@ export const TRAP = {
   rolling: 'nh:rolling_boulder_trap',
   sleepGas: 'nh:sleeping_gas_trap',
   rust: 'nh:rust_trap',
+  fire: 'nh:fire_trap',
   pit: 'nh:pit',
   spikedPit: 'nh:spiked_pit',
   trapdoor: 'nh:trap_door',
@@ -190,6 +191,7 @@ const BLACK = '#555555'; // CLR_BLACK, drawn dark gray as objects.ts does
 const MAGENTA = '#bb44bb';
 const RED = '#cc3333';
 const BRIGHT_GREEN = '#55ff55';
+const ORANGE = '#ff8800';
 
 /**
  * ref: include/defsym.h S_arrow_trap .. S_hole (S_land_mine CLR_RED), S_teleportation_trap, S_level_teleporter,
@@ -205,6 +207,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.rolling, nameKey: TRAP.rolling, glyph: { ch: '^', fg: GRAY } },
   { id: TRAP.sleepGas, nameKey: TRAP.sleepGas, glyph: { ch: '^', fg: BRIGHT_BLUE } },
   { id: TRAP.rust, nameKey: TRAP.rust, glyph: { ch: '^', fg: BLUE } },
+  { id: TRAP.fire, nameKey: TRAP.fire, glyph: { ch: '^', fg: ORANGE } }, // S_fire_trap
   { id: TRAP.pit, nameKey: TRAP.pit, glyph: { ch: '^', fg: BLACK } },
   { id: TRAP.spikedPit, nameKey: TRAP.spikedPit, glyph: { ch: '^', fg: BLACK } },
   { id: TRAP.trapdoor, nameKey: TRAP.trapdoor, glyph: { ch: '^', fg: BROWN }, hole: true },
@@ -1329,6 +1332,8 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
       return def.resists.includes('sleep');
     case TRAP.rust:
       return def.id !== 'nh:iron_golem';
+    case TRAP.fire:
+      return def.resists.includes('fire'); // (no artifacts: never defended())
     case TRAP.pit:
     case TRAP.spikedPit:
     case TRAP.trapdoor:

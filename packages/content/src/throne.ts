@@ -14,6 +14,7 @@ import {
   cellIndex,
   cellRules,
   computeVisible,
+  getLevel,
   getPlayer,
   inventoryOf,
   type Ctx,
@@ -26,12 +27,12 @@ import { showMapSpot } from './detect';
 import { doMapping } from './detectobj';
 import { heroFemale } from './gender';
 import { makemon } from './generation';
+import { levelFlags } from './levelflags';
 import { ONTHRONE, REALLY, answerGenocide, doGenocide, isGenoAsk } from './genocide';
 import { losehp } from './hp';
 import { makeSick } from './hunger';
 import { removeFromInventory } from './items';
 import { changeLuck, luckOf, uState } from './luck';
-import { NOMMAP_LEVELS } from './minesend';
 import { aggravate } from './mstate';
 import {
   P,
@@ -105,8 +106,7 @@ function muchBetter(ctx: Ctx): void {
 
 /** Whether magic mapping is refused on the hero's level. ref: level.flags.nommap */
 function nommap(ctx: Ctx): boolean {
-  const def = ctx.state.levels[ctx.state.currentLevel]?.def;
-  return def !== undefined && NOMMAP_LEVELS.has(def);
+  return levelFlags(ctx, getLevel(ctx.state)).nommap === true;
 }
 
 /**

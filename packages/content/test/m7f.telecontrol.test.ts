@@ -63,9 +63,14 @@ const ROOM = [
   '                      ',
   '                      ',
 ];
+/** ROOM on a vanilla-sized (80x21) level, which a special level's fixed map needs. */
+const BIG_ROOM = [
+  ...ROOM.map((r) => r.padEnd(80, ' ')),
+  ...Array.from({ length: 21 - ROOM.length }, () => ' '.repeat(80)),
+];
 type S = ReturnType<typeof levelSetup>;
-function room(seed = 1, control = true): S {
-  const s = levelSetup(ROOM, seed);
+function room(seed = 1, control = true, rows = ROOM): S {
+  const s = levelSetup(rows, seed);
   plainKit(s.state);
   for (const d of defs.objects) if (d.class === 'wand') delete s.state.appearances[d.id];
   s.step({ type: 'wait' });
@@ -255,7 +260,7 @@ describe('a controlled level teleport', () => {
   });
 
   test("past the bottom of the dungeon is its last level; past the main dungeon's, Gehennom", () => {
-    const s = room();
+    const s = room(1, true, BIG_ROOM); // (the Valley's map needs 76x20)
     read(s, scroll(s, 'cursed'));
     answer(s, '99');
     const lv = getLevel(s.state);

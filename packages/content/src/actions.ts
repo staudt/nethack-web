@@ -88,6 +88,7 @@ import { nohands } from './mondata';
 import { heroForm } from './upoly';
 import { pooleffects, swimMoveDanger } from './drown';
 import { VIBRATING_SQUARE, invocationMessage } from './invocation';
+import { askGehennomGate, enterGehennomGate } from './gehennom';
 
 /** The `_float`/`_fly` suffix of a u_locomotion() message, '' when she steps. */
 const uLoco = (ctx: Ctx): string => {
@@ -1091,18 +1092,31 @@ const down: ActionDef = {
       });
       return 0;
     }
-    // Branch stairs lead to the branch stairs of the other dungeon (ref: goto_level() u_on_sstairs()).
-    const branch = branchUnderHero(ctx);
-    if (branch) {
-      ctx.goToLevel(branch.to, 'branch');
-      return NORMAL_SPEED;
-    }
-    // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)).
-    const level = getLevel(ctx.state);
-    ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel + 1 }, 'up');
-    return NORMAL_SPEED;
+    // ref: dodown(): the Valley's gate to Gehennom asks first (no time unless she goes on)
+    if (askGehennomGate(ctx, 'nh:down')) return 0;
+    return goDownStairs(ctx);
+  },
+  answer(ctx, value) {
+    // y_n("Are you sure you want to enter?") != 'y': ECMD_OK
+    if (value !== true) return 0;
+    enterGehennomGate(ctx);
+    return goDownStairs(ctx);
   },
 };
+
+/** dodown() down the stairs she stands on. */
+function goDownStairs(ctx: Ctx): number {
+  // Branch stairs lead to the branch stairs of the other dungeon (ref: goto_level() u_on_sstairs()).
+  const branch = branchUnderHero(ctx);
+  if (branch) {
+    ctx.goToLevel(branch.to, 'branch');
+    return NORMAL_SPEED;
+  }
+  // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)).
+  const level = getLevel(ctx.state);
+  ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel + 1 }, 'up');
+  return NORMAL_SPEED;
+}
 
 // ref: src/do.c doup()
 const up: ActionDef = {

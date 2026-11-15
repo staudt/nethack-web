@@ -27,6 +27,8 @@ import {
 } from '@nh/core';
 import { makemon } from './generation';
 import { makeGrave } from './grave';
+import { setGraveyard } from './graveyard';
+import { MPLAYERS } from './mondata';
 import { mkgold, mksobj } from './items';
 import { setCorpsenm } from './corpses';
 import { mkobj, mkobjAt, mksobjCorpse, mksobjFull, mksobjStatue } from './mkobj';
@@ -312,10 +314,10 @@ function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: 
 /**
  * A corpse or statue "named after someone listed in the scoreboard file". There is no record
  * file: get_rnd_toptenentry()'s `rnd(10)` rank roll finds no entry (as with an empty record), so
- * the object is of a random player monster: the `rn1(13, PM_ARCHEOLOGIST)` roll is drawn and,
- * with no player monsters, it is an unnamed human (DEVIATIONS.md "Special rooms"). A statue is
- * made uninitialized (player statues never contain books). ref: src/mkobj.c mk_tt_object(),
- * src/topten.c tt_oname(), get_rnd_toptenentry()
+ * the object is of a random player monster, `rn1(13, PM_ARCHEOLOGIST)`, unnamed; a valkyrie (no
+ * row: DEVIATIONS.md "The Valley of the Dead (m17)") is a human. A statue is made uninitialized
+ * (player statues never contain books). ref: src/mkobj.c mk_tt_object(), src/topten.c
+ * tt_oname(), get_rnd_toptenentry()
  */
 export function mkTtObject(
   ctx: Ctx,
@@ -330,16 +332,18 @@ export function mkTtObject(
       ? mksobjStatue(ctx, def, { at, init: false, artif: false }, gen)
       : mksobjCorpse(ctx, def, { at, artif: false }, gen);
   ctx.rng.rnd(10); // rnd(sysopt.tt_oname_maxrank): the record is empty
-  ctx.rng.rn2(13); // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, PM_ARCHEOLOGIST)
-  if (kind === 'nh:corpse') setCorpsenm(ctx, id, HUMAN, inMklev);
+  // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, PM_ARCHEOLOGIST)
+  const picked = MPLAYERS[ctx.rng.rn2(MPLAYERS.length)] ?? HUMAN;
+  const pm = ctx.defs.isMonster(picked) ? picked : HUMAN;
+  if (kind === 'nh:corpse') setCorpsenm(ctx, id, pm, inMklev);
   else {
     const it = ctx.state.entities[String(id)]?.c.item;
-    if (it) it.corpseOf = HUMAN;
+    if (it) it.corpseOf = pm;
   }
   return id;
 }
 
-/** The stand-in for the player monsters mk_tt_object() picks from. */
+/** The stand-in for a player monster without a row (the valkyrie). */
 const HUMAN: DefId = 'nh:human';
 
 /** A throne already in the room (one a LevelDef or a wish put there). ref: fill_zoo() COURT */
@@ -384,6 +388,9 @@ export function registerZoo(api: ModApi): void {
       const r = level.rooms[i];
       if (isZooKind(r?.type) && r?.filled !== false) fillZoo(ctx, level, i);
     }
+    // ref: src/mklev.c mklev(): a level made with a morgue (has_morgue, filled or not) is a
+    // graveyard
+    if (level.rooms.some((r) => r.type === MORGUE)) setGraveyard(ctx, level.id);
   });
 }
 

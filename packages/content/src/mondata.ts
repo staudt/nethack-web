@@ -186,6 +186,30 @@ export const hasHorns = (def: MonsterDef): boolean => numHorns(def) > 0;
 export const isUnicorn = (def: MonsterDef): boolean =>
   def.glyph.ch === 'u' && def.flags.includes('jewels');
 
+/**
+ * The player monsters PM_ARCHEOLOGIST .. PM_WIZARD in C's order (the roles' kinds; PM_VALKYRIE
+ * has no row here: its id is the hero's role's, DEVIATIONS.md "The Valley of the Dead (m17)").
+ * ref: include/monsters.h
+ */
+export const MPLAYERS: readonly DefId[] = [
+  'nh:archeologist',
+  'nh:barbarian',
+  'nh:caveman',
+  'nh:healer',
+  'nh:knight',
+  'nh:monk',
+  'nh:cleric',
+  'nh:ranger',
+  'nh:rogue',
+  'nh:samurai',
+  'nh:tourist',
+  'nh:valkyrie',
+  'nh:wizard',
+];
+
+/** ref: include/mondata.h is_mplayer(): PM_ARCHEOLOGIST .. PM_WIZARD */
+export const isMplayer = (def: { id: DefId }): boolean => MPLAYERS.includes(def.id);
+
 /** ref: include/obj.h WrappingAllowed() */
 export const wrappingAllowed = (def: MonsterDef): boolean =>
   humanoid(def) &&

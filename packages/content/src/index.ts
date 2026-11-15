@@ -1,4 +1,4 @@
-import { registerIce } from './ice';
+import { meltIce, registerIce } from './ice';
 import type { Mod } from '@nh/core';
 import { ACTIONS } from './actions';
 import { BRAINS } from './brains';
@@ -143,7 +143,7 @@ export const vanillaMod: Mod = {
     registerFumbling(api);
     registerMonflee(api);
     registerTraps(api);
-    registerMagicTraps();
+    registerMagicTraps(meltIce);
     registerPolyTrap();
     registerHmonas();
     registerRollingBoulders();
