@@ -102,6 +102,19 @@ export const HARD_GEMS: ReadonlySet<DefId> = new Set([
   'nh:topaz',
 ]);
 
+/**
+ * Rings with oc_tough (HARDGEM(mohs): a stone of Mohs hardness 8 or more): they engrave like hard
+ * gems. ref: include/objects.h RING()
+ */
+export const TOUGH_RINGS: ReadonlySet<DefId> = new Set([
+  'nh:ring_of_hunger', // topaz
+  'nh:ring_of_aggravate_monster', // sapphire
+  'nh:ring_of_conflict', // ruby
+  'nh:ring_of_warning', // diamond
+  'nh:ring_of_slow_digestion', // steel
+  'nh:ring_of_polymorph_control', // emerald
+]);
+
 /** Items that confer Luck when carried. ref: src/artifact.c confers_luck() (no artifacts) */
 export const LUCK_ITEMS: ReadonlySet<DefId> = new Set(['nh:luckstone']);
 

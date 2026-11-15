@@ -29,6 +29,7 @@ const PICK_KEYS: [string, string][] = [
 const SELF_KEYS: [string, string][] = [
   [',', 'nh:pickup'],
   [':', 'nh:look'],
+  ['E', 'nh:engrave'],
   ['\\', 'nh:discoveries'],
   ['+', 'nh:spells'],
   ['Z', 'nh:cast'],

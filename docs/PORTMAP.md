@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-176 NetHack files, 4670 citations.
+176 NetHack files, 4684 citations.
 
 ## dat/bigrm-1.lua
 
@@ -199,7 +199,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/context.h
 
-- (file): `packages/content/src/digstate.ts`, `packages/content/src/run.ts`, `packages/content/src/uhunger.ts`
+- (file): `packages/content/src/digstate.ts`, `packages/content/src/engrave.ts`, `packages/content/src/run.ts`, `packages/content/src/uhunger.ts`
 
 ## include/decl.h
 
@@ -264,7 +264,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/engr.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
@@ -522,7 +522,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `POTION()`: `packages/content/src/objects.ts`
 - `POT_WATER()`: `packages/content/src/zap.ts`
 - `PROJECTILE()`: `packages/content/src/objects.ts`
-- `RING()`: `packages/content/src/objects.ts`
+- `RING()`: `packages/content/src/gem.ts`, `packages/content/src/objects.ts`
 - `ROCK()`: `packages/content/src/objects.ts`
 - `SCROLL()`: `packages/content/src/objects.ts`
 - `SHIELD()`: `packages/content/src/objects.ts`
@@ -643,7 +643,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -1150,15 +1150,21 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/engrave.c
 
-- (file): `packages/content/src/engrave.ts`
 - `can_reach_floor()`: `packages/content/src/levitation.ts`, `packages/content/src/reach.ts`
+- `cant_reach_floor()`: `packages/content/src/engrave.ts`
 - `del_engr()`: `packages/content/src/engr.ts`
 - `del_engr_at()`: `packages/content/src/engr.ts`
+- `doengrave()`: `packages/content/src/engrave.ts`
+- `doengrave_ctx_verb()`: `packages/content/src/engrave.ts`
+- `doengrave_sfx_item()`: `packages/content/src/engrave.ts`
 - `engr_at()`: `packages/content/src/engr.ts`
 - `engr_can_be_felt()`: `packages/content/src/engrread.ts`
+- `engrave()`: `packages/content/src/engrave.ts`
 - `make_engr_at()`: `packages/content/src/engr.ts`
 - `read_engr_at()`: `packages/content/src/engrave.en.ts`, `packages/content/src/engrread.ts`
 - `sengr_at()`: `packages/content/src/engr.ts`
+- `stylus_ok()`: `packages/content/src/engrave.ts`
+- `u_can_engrave()`: `packages/content/src/engrave.ts`
 - `u_wipe_engr()`: `packages/content/src/engr.ts`
 - `wipe_engr_at()`: `packages/content/src/engr.ts`
 - `wipeout_text()`: `packages/content/src/engr.ts`

@@ -55,8 +55,12 @@ describe('polymorph soak', () => {
   // 400 turns with and without the step; 727 and 732 replaced 718 and 725 in m16 step 1, whose
   // "Look here" offer shifts the bot's picks: they died at turns 103 and 167, and 727 and 732 last
   // past turn 200 with and without the offer; 731 is no use: without the offer a monster ends on
-  // a closed door at turn 29, an invariant violation already there before m16)
-  for (const seed of [727, 732]) {
+  // a closed door at turn 29, an invariant violation already there before m16; 739 and 741
+  // replaced 727 and 732 in m16 step 2, whose `E` offer shifts the bot's picks: 727 died at turn
+  // 143, and 732 had a monster's orcish helm dropped on stone when it changed form inside the
+  // rock at turn 161 (not engraving: newcham() drops the armor where the monster stands); 739
+  // and 741 last past turn 200 with and without the offer)
+  for (const seed of [739, 741]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

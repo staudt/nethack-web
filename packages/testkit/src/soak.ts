@@ -377,6 +377,11 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         textAnswers++;
         return String(1 + rng.rn2(8));
       }
+      // an engraving: "Elbereth" 1 time in 2, else the answer below
+      if (pending.id === 'engrave' && rng.rn2(2) === 0) {
+        textAnswers++;
+        return 'Elbereth';
+      }
       // a short deterministic name or amount, or a cancel
       if (rng.rn2(3) === 0) return null;
       if (pending.numeric) {
