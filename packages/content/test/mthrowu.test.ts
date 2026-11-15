@@ -58,6 +58,7 @@ function armed(
     const it = t.state.entities[String(item)]!.c.item!;
     it.buc = 'uncursed';
     it.spe = 0;
+    delete it.erosion; // plain gear, so the names do not depend on the seed's erosion rolls
     if (quantity !== undefined) it.quantity = quantity;
   }
   return id;

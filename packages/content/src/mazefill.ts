@@ -10,7 +10,10 @@ import { mkgold } from './items';
 import { mktrap, rndtrap } from './mklev';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { dry, type SpLevFixup } from './sp_lev';
-import { isHole, isPit, maketrap } from './trap';
+import { TRAP, isHole, isPit, maketrap } from './trap';
+import { pickVibrasquareLocation } from './invocation';
+import { invocationLev } from './levelflags';
+import { T, setTerrain } from './terrain';
 
 const MINOTAUR = 'nh:minotaur';
 
@@ -57,9 +60,29 @@ export function populateMaze(ctx: Ctx, level: Level): void {
   for (let i = rng.rn2(6) + 7; i; i--) mktrap(ctx, level, 'maze');
 }
 
-/** `nh:mazefill`'s fixup: populate_maze() once core has made the maze and its stairs. */
+/**
+ * The invocation level (Gehennom's last but one) of a makemaz("") maze: no down stairs (core put
+ * them: they are lifted back to the maze's floor) and the vibrating square instead.
+ * ref: src/mkmaze.c makemaz() `if (!Invocation_lev(&u.uz)) ... else { pick_vibrasquare_location();
+ * maketrap(..., VIBRATING_SQUARE); }`
+ */
+function invocationSquare(ctx: Ctx, level: Level): void {
+  const down = level.down;
+  if (down) {
+    setTerrain(level, down.x, down.y, level.corrmaze === true ? T.corr : T.floor);
+    level.down = null;
+  }
+  const p = pickVibrasquareLocation(ctx, level);
+  maketrap(ctx, level.id, p.x, p.y, TRAP.vibrating, { inMklev: true });
+}
+
+/**
+ * `nh:mazefill`'s fixup: on the invocation level the vibrating square for the down stairs, then
+ * populate_maze() once core has made the maze and its stairs.
+ */
 export const MAZEFILL_FIXUP: SpLevFixup = {
   after(ctx, level) {
+    if (invocationLev(ctx.state, level)) invocationSquare(ctx, level);
     populateMaze(ctx, level);
   },
 };

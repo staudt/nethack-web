@@ -612,6 +612,9 @@ export function findDefensive(
     // "digging wouldn't be effective; assume they know that" (W_NONDIGGABLE is only ever set on
     // stone, walls and trees)
     !(nonDiggable(ctx, level, x, y) && (isStwallId(hereId) || hereId === T.tree)) &&
+    // no holes in doorways here (core keeps traps on plain floor: DEVIATIONS "Digging"), so a
+    // monster in one does not try
+    !(hereId !== undefined && ctx.defs.terrain(hereId).door !== undefined) &&
     !isBotlevel(ctx.state, level);
   // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"
   const teleOk = !noteleportLevel(ctx, level) || !monKnowsTraps(ctx, id, TRAP.tele);

@@ -101,7 +101,9 @@ function parentDlevel(
  * The levels the special levels of one dungeon go on. Each one first rolls whether it exists
  * (`chance <= rn2(100)` leaves it out; C skips the roll in wizard mode, we never do), then they
  * are placed in order, each on a random level of its range not taken by an earlier one; when a
- * later one finds no level, the earlier choice is undone and another tried.
+ * later one finds no level, the earlier choice is undone and another tried. A chained one's
+ * range counts from where its `chain` level is at the time it is placed (C's possible_places()
+ * runs inside place_level()).
  * ref: src/dungeon.c init_level(), possible_places(), pick_level(), place_level(), level_range()
  */
 function placeSpecials(
@@ -111,17 +113,31 @@ function placeSpecials(
 ): { id: DefId; dlevel: number }[] {
   const made = defs.filter((d) => !((d.chance ?? 100) <= rng.rn2(100)));
   const lmax = layout.levels ?? Infinity;
-  const ranges = made.map((d) => {
-    const base = d.base < 0 ? lmax + d.base + 1 : d.base;
+  const placed: number[] = [];
+  // ref: level_range(): `base += levtmp->dlevel.dlevel` for a chain, else a negative base counts
+  // from the end of the dungeon; `panic("level_range: base value out of range")`
+  const rangeOf = (d: SpecialLevelDef): { base: number; count: number } => {
+    let base: number;
+    if (d.chain !== undefined) {
+      const k = made.findIndex((m) => m.id === d.chain);
+      const at = k >= 0 && k < placed.length ? placed[k] : undefined;
+      if (at === undefined)
+        throw new RangeError(
+          `Special level '${d.id}' chains to '${d.chain}', not placed before it`,
+        );
+      base = d.base + at;
+    } else base = d.base < 0 ? lmax + d.base + 1 : d.base;
     if (!Number.isFinite(base) || base < 1 || base > lmax)
       throw new RangeError(`Special level '${d.id}' base ${d.base} is outside '${layout.id}'`);
     const range = d.range ?? 0;
     return { base, count: range ? (base + range - 1 > lmax ? lmax - base + 1 : range) : 1 };
-  });
-  const placed: number[] = [];
+  };
+  // the unchained bases are checked before anything is placed
+  for (const d of made) if (d.chain === undefined) rangeOf(d);
   const place = (i: number): boolean => {
-    const r = ranges[i];
-    if (!r) return true;
+    const d = made[i];
+    if (!d) return true;
+    const r = rangeOf(d);
     const map: number[] = [];
     for (let dl = r.base; dl < r.base + r.count; dl++) if (!placed.includes(dl)) map.push(dl);
     for (let n = map.length; n > 0; n--) {

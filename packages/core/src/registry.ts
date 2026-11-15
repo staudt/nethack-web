@@ -22,6 +22,7 @@ import type {
   PerceptionDef,
   TrapDef,
   DungeonDef,
+  SpecialLevelDef,
   LevelContent,
   LevelDef,
   ItemNamer,
@@ -489,7 +490,30 @@ export function loadMods(mods: readonly Mod[]): Registry {
                 issue(`${at}.town`, 'must be a boolean', d.id);
               // the base must be inside the dungeon however few levels it rolls
               const fewest = d.levels?.base;
-              if (Number.isInteger(sp.base) && sp.base !== 0) {
+              if (sp.chain !== undefined) {
+                str(sp.chain, `${at}.chain`, d.id);
+                const k = d.special?.findIndex((o) => o.id === sp.chain) ?? -1;
+                const target = d.special?.[k];
+                if (!target || k >= i)
+                  issue(`${at}.chain`, `'${sp.chain}' is not an earlier special level`, d.id);
+                else if ((target.chance ?? 100) !== 100)
+                  issue(`${at}.chain`, `'${sp.chain}' is not always made (chance 100)`, d.id);
+                else if (Number.isInteger(sp.base) && sp.base !== 0) {
+                  // ref: level_range(): the chained base must stay inside the dungeon wherever
+                  // the chain level goes (checked for the fewest levels it can roll)
+                  const span = chainSpan(d.special ?? [], k, fewest);
+                  if (
+                    span !== null &&
+                    (sp.base + span.min < 1 ||
+                      (fewest !== undefined && sp.base + span.max > fewest))
+                  )
+                    issue(
+                      `${at}.base`,
+                      `leaves the dungeon from '${sp.chain}' (as few as ${String(fewest)} levels)`,
+                      d.id,
+                    );
+                }
+              } else if (Number.isInteger(sp.base) && sp.base !== 0) {
                 if (fewest === undefined && sp.base < 0)
                   issue(`${at}.base`, 'cannot count from the bottom of an endless dungeon', d.id);
                 else if (fewest !== undefined && Math.abs(sp.base) > fewest)
@@ -729,6 +753,36 @@ export function loadMods(mods: readonly Mod[]): Registry {
     hooks: <K extends HookName>(name: K) => byName.get(name) as RegisteredHook<K>[],
   };
   return Object.freeze(registry);
+}
+
+/**
+ * The lowest and highest level special level `k` of a dungeon can be placed on when the dungeon
+ * has `fewest` levels (undefined: endless), following its own chain; null when that cannot be
+ * told (a bad base or chain, reported on its own). ref: src/dungeon.c level_range()
+ */
+function chainSpan(
+  special: readonly SpecialLevelDef[],
+  k: number,
+  fewest: number | undefined,
+  depth = 0,
+): { min: number; max: number } | null {
+  const sp = special[k];
+  if (!sp || !Number.isInteger(sp.base) || depth > special.length) return null;
+  const lmax = fewest ?? Infinity;
+  let min: number;
+  let max: number;
+  if (sp.chain !== undefined) {
+    const j = special.findIndex((o) => o.id === sp.chain);
+    const span = j >= 0 && j < k ? chainSpan(special, j, fewest, depth + 1) : null;
+    if (!span) return null;
+    min = span.min + sp.base;
+    max = span.max + sp.base;
+  } else if (sp.base < 0) {
+    if (fewest === undefined) return null;
+    min = max = fewest + sp.base + 1;
+  } else min = max = sp.base;
+  const range = typeof sp.range === 'number' && sp.range > 0 ? sp.range : 1;
+  return { min, max: Math.min(max + range - 1, lmax) };
 }
 
 const CONTENT_KINDS = ['monster', 'object', 'trap'];

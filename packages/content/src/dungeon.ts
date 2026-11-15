@@ -1,8 +1,8 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
-import type { DefId, DungeonDef, LevelDef } from '@nh/core';
+import type { DefId, DungeonDef, LevelDef, SpecialLevelDef } from '@nh/core';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
-import { GEHENNOM } from './levelflags';
+import { GEHENNOM, GEHENNOM_SPECIALS as G } from './levelflags';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MEDUSA_FIXUPS, MEDUSA_VARIANTS } from './medusa';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
@@ -39,6 +39,34 @@ export const MINEFILL: LevelDef = {
   ],
 };
 
+/**
+ * Gehennom's filler, and the stand-in of each of its special levels until that level's own
+ * LevelDef lands: makemaz("")'s plain maze for now (m17 step 3 makes it hellfill.lua's).
+ */
+export const GEHENNOM_FILLER: DefId = MAZEFILL.id;
+
+/**
+ * Gehennom's special levels in dungeon.lua's order, each built as GEHENNOM_FILLER for now (one
+ * variant: no `rnd()` draw). The Sanctum is placed but never reached (no invocation: see
+ * levelflags.ts dngBottom()). ref: dat/dungeon.lua "Gehennom" levels (valley base 1; sanctum
+ * base -1; juiblex base 4, range 4; baalz base 6, range 4; asmodeus base 2, range 6; wizard1 base
+ * 11, range 6; wizard2 chainlevel "wizard1", base 1; wizard3 chainlevel "wizard1", base 2; orcus
+ * base 10, range 6; fakewiz1 and fakewiz2 base -6, range 4)
+ */
+const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
+  { id: G.valley, nameKey: 'level.valley', base: 1 },
+  { id: G.sanctum, nameKey: 'level.sanctum', base: -1 },
+  { id: G.juiblex, nameKey: 'level.juiblex', base: 4, range: 4 },
+  { id: G.baalz, nameKey: 'level.baalz', base: 6, range: 4 },
+  { id: G.asmodeus, nameKey: 'level.asmodeus', base: 2, range: 6 },
+  { id: G.wizard1, nameKey: 'level.wizard1', base: 11, range: 6 },
+  { id: G.wizard2, nameKey: 'level.wizard2', chain: G.wizard1, base: 1 },
+  { id: G.wizard3, nameKey: 'level.wizard3', chain: G.wizard1, base: 2 },
+  { id: G.orcus, nameKey: 'level.orcus', base: 10, range: 6 },
+  { id: G.fakewiz1, nameKey: 'level.fakewiz1', base: -6, range: 4 },
+  { id: G.fakewiz2, nameKey: 'level.fakewiz2', base: -6, range: 4 },
+].map((sp) => ({ ...sp, variants: [GEHENNOM_FILLER] }));
+
 export const LEVELS: readonly LevelDef[] = [
   MINEFILL,
   MAZEFILL,
@@ -68,12 +96,12 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * in 40% of games (one of 13 variants, bigroom.ts), Medusa's island 1-4 levels above the bottom
  * (one of 4, medusa.ts) and the Castle on the last level (castle.ts). Below Medusa its ordinary
  * levels are mazes 4 times in 5 (`nh:mazefill`, mazefill.ts).
- * Gehennom (m15 stub): `rn1(5, 20)` levels below the Castle, chained to it with no stairs at the
- * Castle's end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry
- * level's up stairs lead back to the Castle's `up` teleport region. Every level is a plain maze
- * (makemaz("") without hellfill.lua); the Valley, Vlad's Tower and the other special levels are
- * left out and draw nothing (ROADMAP "From m15"). It comes second, as in dungeon.lua, so its rolls
- * come before the Mines'.
+ * Gehennom: `rn1(5, 20)` levels below the Castle, chained to it with no stairs at the Castle's
+ * end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry level's up
+ * stairs lead back to the Castle's `up` teleport region. Its eleven special levels are placed
+ * (GEHENNOM_SPECIAL) but each is built as the filler until its own step; every level is a plain
+ * maze (makemaz("") without hellfill.lua). Vlad's Tower is left out and draws nothing (ROADMAP).
+ * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
  * minesend.ts) on its last level, which has no down stairs; the other levels are filler.
@@ -121,7 +149,8 @@ export const DUNGEONS: readonly DungeonDef[] = [
     levels: { base: 20, range: 5 },
     entry: { from: 'nh:main', chain: CASTLE_LEVEL.id, base: 0, stairs: 'child' },
     // ref: src/mklev.c makelevel(): `In_hell(&u.uz)` -> makemaz("")
-    filler: MAZEFILL.id,
+    filler: GEHENNOM_FILLER,
+    special: GEHENNOM_SPECIAL,
   },
   {
     id: 'nh:mines',

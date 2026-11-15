@@ -4,7 +4,9 @@ import { describe, expect, test } from 'vitest';
 import { recordGame, runReplay, soak, soakKitMod } from '../src/index';
 import { randomActions } from './helpers/actions';
 
-const SEED = 20240609;
+// a seed whose random walk meets no question (a known trap's "Really step onto it?") in its 400
+// actions, with and without m17 step 1's Gehennom layout; 20240609 before m17 step 1
+const SEED = 20240612;
 const W = 80;
 const H = 21;
 const allActions = randomActions(400, 99);

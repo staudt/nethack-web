@@ -51,7 +51,17 @@ import {
 import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { TEMPLE, epriOf } from './epri';
 import { costlySpot, eshkOf, inhishop, onbill, uShops } from './eshk';
-import { DUNGEON_BOTTOM, dungeonBottom, findHell, isBotlevel, isStronghold } from './levelflags';
+import {
+  DUNGEON_BOTTOM,
+  dngBottom,
+  dungeonBottom,
+  findHell,
+  inHell,
+  invocationLev,
+  isBotlevel,
+  isStronghold,
+} from './levelflags';
+import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
 import { shopdig } from './shkpay';
@@ -155,6 +165,7 @@ export const TRAP = {
   web: 'nh:web',
   statue: 'nh:statue_trap',
   poly: 'nh:polymorph_trap',
+  vibrating: VIBRATING_SQUARE,
 } as const;
 
 /** The two spiders that spin webs and walk them freely. ref: include/mondata.h webmaker() */
@@ -205,6 +216,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.web, nameKey: TRAP.web, glyph: { ch: '"', fg: GRAY } }, // S_web
   { id: TRAP.statue, nameKey: TRAP.statue, glyph: { ch: '^', fg: GRAY } }, // S_statue_trap
   { id: TRAP.poly, nameKey: TRAP.poly, glyph: { ch: '^', fg: BRIGHT_GREEN } }, // S_polymorph_trap
+  { id: TRAP.vibrating, nameKey: TRAP.vibrating, glyph: { ch: '~', fg: MAGENTA } }, // S_vibrating_square
 ];
 
 /**
@@ -212,6 +224,7 @@ export const TRAPS: readonly TrapDef[] = [
  * magic and anti-magic traps and webs are not). ref: src/trap.c floor_trigger()
  */
 export const floorTrigger = (def: DefId): boolean =>
+  def !== TRAP.vibrating &&
   def !== TRAP.tele &&
   def !== TRAP.levelTele &&
   def !== TRAP.magic &&
@@ -296,20 +309,20 @@ export { DUNGEON_BOTTOM, dungeonBottom };
 
 /**
  * Whether one can fall through the floor of `level`: not on its dungeon's last level (or
- * DUNGEON_BOTTOM and below for an endless one), except on the stronghold, whose trap doors lead
- * to Gehennom. ref: src/dungeon.c Can_fall_thru() (Can_dig_down() || Is_stronghold(); no hard
- * floor or invocation level here)
+ * DUNGEON_BOTTOM and below for an endless one) nor the invocation level, except on the
+ * stronghold, whose trap doors lead to Gehennom. ref: src/dungeon.c Can_fall_thru()
+ * (Can_dig_down() || Is_stronghold(); no hard floor here)
  */
 export const canFallThru = (state: Readonly<GameState>, level: Readonly<Level>): boolean =>
-  !isBotlevel(state, level) || isStronghold(state, level);
+  (!isBotlevel(state, level) && !invocationLev(state, level)) || isStronghold(state, level);
 
 /**
  * The level number in its dungeon that a hole or trap door on `level` leads to: the next level,
- * and one more each time 1 in 4 comes up, never past the bottom.
- * ref: src/trap.c hole_destination(), dng_bottom()
+ * and one more each time 1 in 4 comes up, never past the bottom (in Gehennom the invocation
+ * level). ref: src/trap.c hole_destination(), dng_bottom()
  */
 export function holeDestination(ctx: Pick<Ctx, 'rng' | 'state'>, level: Readonly<Level>): number {
-  const bottom = dungeonBottom(ctx.state, level);
+  const bottom = dngBottom(ctx.state, level);
   let d = level.dlevel;
   while (d < bottom) {
     d++;
@@ -317,6 +330,16 @@ export function holeDestination(ctx: Pick<Ctx, 'rng' | 'state'>, level: Readonly
   }
   return d;
 }
+
+/**
+ * A hole's stored destination kept above the furthest level one may fall to (a trap made before
+ * the bottom moved: an old save's Gehennom). ref: src/trap.c clamp_hole_destination()
+ */
+export const clampHoleDestination = (
+  state: Readonly<GameState>,
+  level: Readonly<Level>,
+  dst: number,
+): number => Math.min(dst, dngBottom(state, level));
 
 /** A note no other squeaky board on the level uses, if any. ref: src/trap.c choose_trapnote() */
 function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: number): number {
@@ -347,6 +370,9 @@ export function maketrap(
 ): Trap {
   const level = getLevel(ctx.state, levelId);
   const old = trapAt(level, x, y);
+  // ref: maketrap(): `if (undestroyable_trap(ttmp->ttyp)) return NULL`; the square keeps its trap
+  // (returned as is: callers check for one first where it matters)
+  if (old && undestroyableTrap(old.def)) return old;
   // ref: maketrap(): a hero caught in a bear trap, web or pit that is replaced by another kind is
   // let go
   const hp = getPlayer(ctx.state).c.pos;
@@ -932,6 +958,9 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
     dst = holeDestination(ctx, level);
     setTrapData(trap, { dst });
   }
+  // "don't fall beyond the bottom, in case this came from a bones file with different dungeon
+  // size"
+  dst = clampHoleDestination(ctx.state, level, dst);
   if (dst <= level.dlevel) {
     // the bottom level of its dungeon (ref: fall_through(): !Can_fall_thru() -> "don't fall in")
     say(ctx, 'trap.dont_fall');
@@ -1058,6 +1087,7 @@ export function dotrap(
     if (
       t.seen &&
       !heroHas(ctx.state, P.FUMBLING) &&
+      !undestroyableTrap(t.def) &&
       t.def !== TRAP.antiMagic &&
       !opts.plunged &&
       !fromPit &&
@@ -1097,6 +1127,11 @@ export function dotrap(
       return levelTeleTrap(ctx, levelId, t, opts.force === true || opts.viaSitting === true);
     case TRAP.web:
       return webYou(ctx, levelId, t, opts.force === true, opts.noWebMsg !== true);
+    case TRAP.vibrating:
+      // "messages handled elsewhere; the trap symbol is merely to mark the square for future
+      // reference" (invocation.ts invocationMessage())
+      seetrap(t); // feeltrap()
+      return;
     default:
       // the magic traps (magictrap.ts); another mod's trap: its effects are that mod's business
       lateEffects[t.def]?.you(ctx, t);
@@ -1307,6 +1342,7 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
         def.flags.includes('unsolid')
       );
     case TRAP.statue:
+    case TRAP.vibrating:
       return true;
     case TRAP.magic:
       return true; // usually
@@ -1635,6 +1671,7 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
     dst = holeDestination(ctx, level);
     setTrapData(trap, { dst });
   }
+  dst = clampHoleDestination(ctx.state, level, dst); // clamp_hole_destination()
   if (dst <= level.dlevel) return 'finished'; // the bottom level of its dungeon
   if (canseemon(ctx, mon)) {
     say(ctx, trap.def === TRAP.hole ? 'trap.mon_falls_hole' : 'trap.mon_falls_door', {
@@ -1773,8 +1810,33 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
       return holeMon(ctx, p.level, mon, trap);
     case TRAP.web:
       return webMon(ctx, p.level, mon, trap, opts.force === true);
+    case TRAP.vibrating:
+      vibratingSquareMon(ctx, p.level, mon, trap);
+      return 'finished';
     default:
       return lateEffects[trap.def]?.mon(ctx, mon, trap) ?? 'finished';
+  }
+}
+
+/**
+ * A monster on the vibrating square, where she can see it: "You see a strange vibration beneath
+ * the jackal's feet." (just "beneath the <mon>" for one without limbs or up in the air) when she
+ * sees the monster too, else "You see the ground vibrate nearby." (within 2 squares) or "... in
+ * the distance.". ref: src/trap.c trapeffect_vibrating_square() (feet for every limbed kind: no
+ * mbodypart() here, as elsewhere in the port)
+ */
+function vibratingSquareMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): void {
+  if (!cansee(ctx, levelId, trap.x, trap.y) || hasProp(heroEnt(ctx), P.BLINDED)) return;
+  seetrap(trap); // before messages
+  if (canseemon(ctx, mon)) {
+    const def = ctx.defs.monster(mon.def);
+    const bare = def.flags.includes('nolimbs') || inAir(ctx, mon);
+    say(ctx, bare ? 'trap.vibrating.mon' : 'trap.vibrating.mon_feet', { mon: monNam(ctx, mon) });
+  } else {
+    const h = heroPos(ctx);
+    const p = mon.c.pos ?? h;
+    const near = (p.x - h.x) ** 2 + (p.y - h.y) ** 2 <= 2 * 2; // mdistu() <= 2 * 2
+    say(ctx, near ? 'trap.vibrating.nearby' : 'trap.vibrating.distance');
   }
 }
 
@@ -1888,6 +1950,7 @@ export function teleds(ctx: Ctx, x: number, y: number, opts: { teleport?: boolea
     lookHere(ctx);
     if (!ctx.state.gameOver) spotTrap(ctx);
   }
+  if (!ctx.state.gameOver) invocationMessage(ctx); // after spoteffects()
 }
 
 /**
@@ -2181,6 +2244,16 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
     return;
   }
   const layout = dungeonLayout(ctx.state, level.dungeon);
+  // ref: level_tele(): "if invocation did not yet occur, teleporting into the last level of
+  // Gehennom is forbidden" (C lets wizard mode through; here wizard mode's #levelport does not
+  // come this way)
+  if (inHell(ctx.state, level) && layout.levels !== null) {
+    const deepest = layout.depthStart + layout.levels - 1;
+    if (newlev >= deepest) {
+      newlev = deepest - 1;
+      say(ctx, 'tele.sorry');
+    }
+  }
   // ref: level_tele(): from the Dungeons of Doom (the dungeon Gehennom branches from) to a depth
   // past its bottom, find_hell(): Gehennom's first level
   const hell = findHell(ctx.state);

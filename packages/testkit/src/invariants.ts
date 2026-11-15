@@ -1121,7 +1121,19 @@ function checkSpecialLevels(state: GameState, registry: Registry, errs: string[]
       if (seen.has(s.id)) errs.push(`dungeon ${d.id}: special level '${s.id}' placed twice`);
       seen.add(s.id);
       if (d.levels !== null) {
-        const lo = sd.base < 0 ? d.levels + sd.base + 1 : sd.base;
+        // a chained level counts from where its chain level went (m17: the Wizard's Tower)
+        const chainAt =
+          sd.chain === undefined ? undefined : d.special.find((x) => x.id === sd.chain)?.dlevel;
+        if (sd.chain !== undefined && chainAt === undefined) {
+          errs.push(`dungeon ${d.id}: special level '${s.id}' chains to a missing '${sd.chain}'`);
+          continue;
+        }
+        const lo =
+          chainAt !== undefined
+            ? chainAt + sd.base
+            : sd.base < 0
+              ? d.levels + sd.base + 1
+              : sd.base;
         const hi = lo + (sd.range ?? 1) - 1;
         if (s.dlevel < Math.max(1, lo) || s.dlevel > Math.min(d.levels, hi))
           errs.push(
@@ -1147,7 +1159,9 @@ function checkSpecialLevels(state: GameState, registry: Registry, errs: string[]
         errs.push(`level ${lid}: town is ${String(lv.town)} on '${sd.id}'`);
     } else {
       const built = lv.def;
-      if (built !== undefined && def.special?.some((x) => x.variants.includes(built)))
+      // (m17: a special level's stand-in may be the dungeon's own filler or maze filler)
+      const ordinary = built === def.filler || built === def.mazeFiller?.def;
+      if (built !== undefined && !ordinary && def.special?.some((x) => x.variants.includes(built)))
         errs.push(`level ${lid}: built from special variant '${built}' off the layout's place`);
     }
   }

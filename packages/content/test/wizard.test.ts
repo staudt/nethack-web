@@ -280,7 +280,26 @@ describe('wiz:where', () => {
         params: { dungeon: '@nh:gehennom', start: n + 1, end: n + (hell?.levels ?? 0) },
       },
     ]);
-    const rest = got.slice(g + 1); // the Mines' lines
+    // Gehennom's eleven special levels by level (m17: placed, built as filler for now): the
+    // Valley on its first level and the Sanctum on its last
+    const hellSpecials = [...(hell?.special ?? [])].sort((a, b) => a.dlevel - b.dlevel);
+    expect(hellSpecials).toHaveLength(11);
+    expect(hellSpecials[0]).toEqual({ id: 'nh:valley', dlevel: 1 });
+    expect(hellSpecials[10]).toEqual({ id: 'nh:sanctum', dlevel: hell?.levels ?? -1 });
+    expect(got.slice(g + 1, g + 12)).toEqual(
+      hellSpecials.map((sp) => ({
+        key: 'wiz.where.special',
+        params: {
+          name: '@' + `level.${sp.id.slice(3)}`,
+          depth: n + sp.dlevel,
+        },
+      })),
+    );
+    expect(got[g + 1]).toEqual({
+      key: 'wiz.where.special',
+      params: { name: '@level.valley', depth: n + 1 },
+    });
+    const rest = got.slice(g + 12); // the Mines' lines
     expect(rest[0]).toEqual({
       key: 'wiz.where.levels',
       params: {

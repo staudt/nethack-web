@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-177 NetHack files, 4719 citations.
+177 NetHack files, 4749 citations.
 
 ## dat/bigrm-1.lua
 
@@ -67,7 +67,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/dungeon.lua
 
-- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`, `packages/core/src/types/mod.ts`
 
 ## dat/medusa-1.lua
 
@@ -252,6 +252,8 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/dungeon.h
 
 - (file): `packages/core/src/types/state.ts`
+- `Is_sanctum()`: `packages/content/src/levelflags.ts`
+- `Is_valley()`: `packages/content/src/levelflags.ts`
 - `d_level()`: `packages/core/src/types/level.ts`
 
 ## include/engrave.h
@@ -600,6 +602,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_magical_trap()`: `packages/content/src/trap.ts`
 - `is_pit()`: `packages/content/src/trapstate.ts`
 - `madeby_u()`: `packages/content/src/sokoban.ts`
+- `undestroyable_trap()`: `packages/content/src/invocation.ts`
 
 ## include/u_init.h
 
@@ -866,7 +869,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/do.c
 
-- (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
+- (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`, `packages/content/src/trap.en.ts`
 - `boulder_hits_pool()`: `packages/content/src/dbstate.ts`, `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`, `packages/content/src/itemactions.ts`
@@ -1057,12 +1060,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Can_fall_thru()`: `packages/content/src/trap.ts`
 - `Can_rise_up()`: `packages/content/src/potion.ts`
 - `In_hell()`: `packages/content/src/levelflags.ts`
+- `Invocation_lev()`: `packages/content/src/levelflags.ts`
 - `Is_botlevel()`: `packages/content/src/levelflags.ts`, `packages/core/src/levelgen/generate.ts`
+- `Is_special()`: `packages/content/src/levelflags.ts`
 - `Is_stronghold()`: `packages/content/src/levelflags.ts`
 - `chr_u_on_lvl()`: `packages/content/src/wizard/where.ts`
 - `correct_branch_type()`: `packages/core/src/dungeon.ts`
 - `deepest_lev_reached()`: `packages/content/src/urexp.ts`
 - `depth()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/level.ts`
+- `dunlevs_in_dungeon()`: `packages/content/src/levelflags.ts`
 - `find_hell()`: `packages/content/src/levelflags.ts`
 - `get_level()`: `packages/content/src/teleport.ts`
 - `induced_align()`: `packages/content/src/mkroom.ts`
@@ -1253,6 +1259,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `in_rooms()`: `packages/content/src/shopdamage.ts`, `packages/content/src/urooms.ts`, `packages/core/src/rooms.ts`
 - `in_town()`: `packages/core/src/rooms.ts`
 - `inv_weight()`: `packages/content/src/stats.ts`
+- `invocation_message()`: `packages/content/src/invocation.ts`, `packages/content/src/trap.en.ts`
+- `invocation_pos()`: `packages/content/src/invocation.ts`
 - `lookaround()`: `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `losehp()`: `packages/content/src/hp.ts`
 - `may_dig()`: `packages/content/src/mdig.ts`
@@ -1563,6 +1571,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `migrate_orc()`: `packages/content/src/orctown.ts`
 - `mz_move()`: `packages/core/src/levelgen/maze.ts`
 - `okay()`: `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/maze.ts`
+- `pick_vibrasquare_location()`: `packages/content/src/invocation.ts`
 - `place_lregion()`: `packages/content/src/castle.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`
 - `populate_maze()`: `packages/content/src/mazefill.ts`
 - `put_lregion_here()`: `packages/content/src/castle.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
@@ -2534,6 +2543,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `burnarmor()`: `packages/content/src/erode.ts`
 - `chest_trap()`: `packages/content/src/chesttrap.en.ts`, `packages/content/src/chesttrap.ts`
 - `choose_trapnote()`: `packages/content/src/trap.ts`
+- `clamp_hole_destination()`: `packages/content/src/trap.ts`
 - `clear_conjoined_pits()`: `packages/content/src/trapstate.ts`
 - `climb_pit()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `closeholdingtrap()`: `packages/content/src/zap.ts`
@@ -2607,6 +2617,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapeffect_poly_trap()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`
 - `trapeffect_rolling_boulder_trap()`: `packages/content/src/rollboulder.ts`, `packages/content/src/trap.en.ts`
 - `trapeffect_statue_trap()`: `packages/content/src/statue.ts`
+- `trapeffect_vibrating_square()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `trapeffect_web()`: `packages/content/src/trap.ts`
 - `trapnote()`: `packages/content/src/trap.en.ts`
 - `try_disarm()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
@@ -2836,7 +2847,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/zap.c
 
-- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`, `packages/content/src/zap.ts`
+- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
@@ -2870,6 +2881,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `learnwand()`: `packages/content/src/zap.ts`
 - `makewish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/wish.ts`
 - `maybe_destroy_item()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`, `packages/content/src/potionhit.ts`
+- `maybe_explode_trap()`: `packages/content/src/zap.ts`
 - `melt_ice()`: `packages/content/src/ice.ts`
 - `melt_ice_away()`: `packages/content/src/ice.ts`
 - `mon_spell_hits_spot()`: `packages/content/src/buzz.ts`

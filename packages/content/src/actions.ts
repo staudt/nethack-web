@@ -87,6 +87,7 @@ import { fightWeb } from './web';
 import { nohands } from './mondata';
 import { heroForm } from './upoly';
 import { pooleffects, swimMoveDanger } from './drown';
+import { VIBRATING_SQUARE, invocationMessage } from './invocation';
 
 /** The `_float`/`_fly` suffix of a u_locomotion() message, '' when she steps. */
 const uLoco = (ctx: Ctx): string => {
@@ -323,6 +324,7 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     key: tame ? 'dog.swap' : 'dog.swap_peaceful',
     params: { mon: `@${mon.def}` },
   });
+  invocationMessage(ctx); // ref: domove_core(): invocation_message() before spoteffects()
   // ref: src/hack.c spoteffects(): pooleffects() first, then the room, the things, the trap
   if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
   checkSpecialRoom(ctx, false, from);
@@ -737,6 +739,7 @@ function stepTo(ctx: Ctx, level: Level, from: Pos, to: Pos): number {
   pos.x = to.x;
   pos.y = to.y;
   ctx.emit({ type: 'moved', id: player.id, from, to });
+  invocationMessage(ctx); // ref: domove_core(): invocation_message() before spoteffects()
   // ref: src/hack.c spoteffects(): pooleffects() first; when she moved (crawled out, saved)
   // the rest is skipped
   if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
@@ -1079,7 +1082,13 @@ const down: ActionDef = {
     const hole = terrainUnderHero(ctx).stairs === 'down' ? null : seenHoleHere(ctx);
     if (hole) return plunge(ctx, hole);
     if (terrainUnderHero(ctx).stairs !== 'down') {
-      ctx.emit({ type: 'msg', key: 'stairs.cant_down' });
+      // ref: dodown(): "You can't go down here%s.", " yet" on the vibrating square
+      const p = playerAt(ctx);
+      const t = trapAt(getLevel(ctx.state), p.x, p.y);
+      ctx.emit({
+        type: 'msg',
+        key: t?.def === VIBRATING_SQUARE ? 'stairs.cant_down_yet' : 'stairs.cant_down',
+      });
       return 0;
     }
     // Branch stairs lead to the branch stairs of the other dungeon (ref: goto_level() u_on_sstairs()).

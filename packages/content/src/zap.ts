@@ -169,6 +169,7 @@ import {
   setMinvis,
   unmapInvisible,
 } from './invis';
+import { undestroyableTrap } from './invocation';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -721,13 +722,21 @@ function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
 
 /**
  * A cancellation beam hits a magical trap: it explodes (`20 + d(3, 6)`, a magical blast she
- * gets the blame for) and is gone; the wand is learned when she saw it. ref: src/zap.c
- * maybe_explode_trap() (no magic portals or vibrating squares: undestroyable_trap())
+ * gets the blame for) and is gone; the wand is learned when she saw it. An undestroyable trap
+ * (the vibrating square) shrugs it off and is seen. ref: src/zap.c maybe_explode_trap() (no
+ * shieldeff() animation)
  */
 function maybeExplodeTrap(ctx: Ctx, src: ZapSource, x: number, y: number): void {
   if (caseOf(otypOf(src)) !== WAN.cancellation) return;
   const level = levelOf(ctx);
   const ttmp = trapHere(level, x, y);
+  if (ttmp && undestroyableTrap(ttmp.def)) {
+    if (cansee(ctx, x, y)) {
+      ttmp.seen = true;
+      learn(ctx, src);
+    }
+    return;
+  }
   if (!ttmp || !isMagicalTrap(ttmp.def)) return;
   const seeit = cansee(ctx, x, y);
   // note: this explosion mustn't destroy the wand

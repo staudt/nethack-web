@@ -26,6 +26,16 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:web': 'web',
   'nh:statue_trap': 'statue trap',
   'nh:polymorph_trap': 'polymorph trap',
+  'nh:vibrating_square': 'vibrating square',
+  // ref: src/hack.c invocation_message(); src/trap.c trapeffect_vibrating_square(); src/do.c
+  // dodown()
+  'invocation.vibration': 'You feel a strange vibration under your feet.',
+  'invocation.vibration_beneath': 'You feel a strange vibration beneath you.',
+  'trap.vibrating.mon_feet': 'You see a strange vibration beneath {mon|the_s} feet.',
+  'trap.vibrating.mon': 'You see a strange vibration beneath {mon|the}.',
+  'trap.vibrating.nearby': 'You see the ground vibrate nearby.',
+  'trap.vibrating.distance': 'You see the ground vibrate in the distance.',
+  'stairs.cant_down_yet': "You can't go down here yet.",
 
   'trap.escape': 'You escape {trap|an}.',
   'trap.found': 'You find {trap|an}.',

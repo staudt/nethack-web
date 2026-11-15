@@ -34,12 +34,13 @@ import { boulderCells } from './boulder';
 import { engrAt, moveEngr } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
-import { dungeonBottom, levelFlags } from './levelflags';
+import { dngBottom, dungeonBottom, levelFlags } from './levelflags';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
 import { heroLiquidOk } from './uwater';
 import { mInAir, monLiquidOk } from './liquid';
 import { T } from './terrain';
+import { VIBRATING_SQUARE } from './invocation';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
@@ -241,7 +242,8 @@ export function goodposMon(
 }
 
 /**
- * The hero may land at (x, y) of her level: not on a trap unless `trapok`, and a good position.
+ * The hero may land at (x, y) of her level: not on a trap unless `trapok` (the vibrating square,
+ * "not a real trap", is always fine), and a good position.
  * ref: src/teleport.c teleok() (no Levitation or Flying exemption for pits and holes yet)
  */
 export function teleok(
@@ -251,7 +253,10 @@ export function teleok(
   y: number,
   trapok: boolean,
 ): boolean {
-  if (!trapok && inBounds(level, x, y) && trapAt(level, x, y)) return false;
+  if (!trapok && inBounds(level, x, y)) {
+    const t = trapAt(level, x, y);
+    if (t && t.def !== VIBRATING_SQUARE) return false;
+  }
   return goodpos(occupancy(ctx, level), x, y, ctx.state.playerId);
 }
 
@@ -449,8 +454,8 @@ export function rlocEngr(
  * The depth an uncontrolled level teleport from `level` goes to: the current depth 1 time in 5
  * (no teleport), else `rn2(cur + 3 - min) + min` skipping the current depth, kept within the
  * dungeon (from depth 1 to its bottom; DUNGEON_BOTTOM for an old game's endless main dungeon, as
- * for holes).
- * ref: src/teleport.c random_teleport_level() (no quest, Knox, Gehennom or endgame)
+ * for holes; in Gehennom the invocation level, the Sanctum being out of reach).
+ * ref: src/teleport.c random_teleport_level() (no quest, Knox or endgame)
  */
 export function randomTeleportLevel(
   ctx: Pick<Ctx, 'state' | 'rng'>,
@@ -460,7 +465,8 @@ export function randomTeleportLevel(
   const curDepth = layout.depthStart + level.dlevel - 1;
   if (!ctx.rng.rn2(5)) return curDepth;
   const minDepth = 1;
-  const bottom = dungeonBottom(ctx.state, level);
+  // "can't reach Sanctum if the invocation hasn't been performed"
+  const bottom = dngBottom(ctx.state, level);
   const maxDepth = bottom + (layout.depthStart - 1);
   // Get a random value relative to the current dungeon; range is 1 to current+3, current not
   // counting

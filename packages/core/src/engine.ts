@@ -126,8 +126,10 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     const at = specialLevelAt(state, ref);
     const special = at && dungeon.special?.find((s) => s.id === at.id);
     if (special) {
-      // ref: src/mkmaze.c makemaz(): "%s-%d" with rnd(sp->rndlevs), before anything else
-      const variant = special.variants[rng.rnd(special.variants.length) - 1] as DefId;
+      // ref: src/mkmaze.c makemaz(): "%s-%d" with rnd(sp->rndlevs), before anything else; a
+      // level without dungeon.lua's `nlevels` (rndlevs 0) draws nothing
+      const n = special.variants.length;
+      const variant = special.variants[n > 1 ? rng.rnd(n) - 1 : 0] as DefId;
       const level = buildLevel(rng, opts, registry.level(variant));
       if (special.town === true) level.town = true;
       return level;

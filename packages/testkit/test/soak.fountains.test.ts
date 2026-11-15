@@ -45,7 +45,9 @@ describe('soak at fountains', () => {
   // died at turn 7 before a fountain, 1 and 2 use one with and without the offer; 3 before m16
   // step 1, 2 before m11 step 8, 3 before m11 step 6, 2 before m11 step 5, 4 before m11 step 4, 3
   // before m11 step 3, 4 before m7f-b step 2, 1 before)
-  for (const seed of [1, 2]) {
+  // m17 step 1 (Gehennom's layout draws): seed 1 died at turn 25 before a fountain; 2 and 4 use
+  // one with and without the new draws, 1 and 2 before m17 step 1
+  for (const seed of [2, 4]) {
     test(`seed ${seed}: 300 turns among fountains`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod, fountainStartMod], { seed, turns: 300, checkEvery: 1 });
       console.log(

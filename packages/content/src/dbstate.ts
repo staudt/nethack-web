@@ -258,3 +258,15 @@ export const gehennomEntered = (ctx: Pick<Ctx, 'state'>): boolean =>
 export function setGehennomEntered(ctx: Pick<Ctx, 'state'>): void {
   (nhData(ctx, true) as Record<string, Json>)['gehennomEntered'] = true;
 }
+
+/**
+ * u.uevent.uvibrated: she stood on the vibrating square (in C it lets the invocation's tools be
+ * used there; kept for that and for the overview, nothing reads it yet).
+ */
+export const uvibrated = (ctx: Pick<Ctx, 'state'>): boolean =>
+  nhData(ctx, false)?.['uvibrated'] === true;
+
+/** Sets u.uevent.uvibrated. */
+export function setUvibrated(ctx: Pick<Ctx, 'state'>): void {
+  (nhData(ctx, true) as Record<string, Json>)['uvibrated'] = true;
+}

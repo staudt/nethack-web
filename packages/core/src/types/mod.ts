@@ -260,8 +260,10 @@ export interface DungeonDef {
  * A special level of a dungeon (ref: dat/dungeon.lua `levels`; src/dungeon.c init_level(),
  * place_level()). At new game it exists with `chance`% and goes on one of the levels
  * `base .. base + range - 1` that no earlier special level of the dungeon took; a negative `base`
- * counts from the bottom (-1 = the last level). When that level is first made one of `variants`
- * (LevelDef ids) is picked with `rnd(n)` (ref: src/mkmaze.c makemaz()).
+ * counts from the bottom (-1 = the last level), and with `chain` from another special level's.
+ * When that level is first made one of `variants` (LevelDef ids) is picked with `rnd(n)` when
+ * there are two or more, else the only one without a draw (ref: src/mkmaze.c makemaz():
+ * `rnd(sp->rndlevs)` only for dungeon.lua's `nlevels`).
  */
 export interface SpecialLevelDef {
   id: DefId;
@@ -269,6 +271,12 @@ export interface SpecialLevelDef {
   base: number;
   /** How many levels from `base` it may go on; default 1. */
   range?: number;
+  /**
+   * m17: an earlier, always-made (`chance` 100) special level of the same dungeon that `base`
+   * counts from: `base` 1 is the level below wherever that one was placed (no from-the-bottom
+   * rule). ref: dat/dungeon.lua `chainlevel`; src/dungeon.c level_range() (chain >= 0)
+   */
+  chain?: DefId;
   /** 0..100, default 100; `rn2(100)` is drawn either way. */
   chance?: number;
   variants: DefId[];

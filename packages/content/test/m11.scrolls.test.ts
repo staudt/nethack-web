@@ -329,6 +329,8 @@ describe('the other scrolls', () => {
     expect(hero(s).c.hp!.cur).toBeLessThanOrEqual(hp);
     const c = room();
     setItimeout(c.state, hero(c), P.CONFUSION, 50);
+    // a spare move: the turn does not end, so no regeneration hides the lost hit point
+    hero(c).c.actor!.energy += 12;
     const chp = hero(c).c.hp!.cur;
     expect(read(c, 'fire')).toContain('The scroll catches fire and you burn your hands.');
     expect(hero(c).c.hp!.cur).toBe(chp - 1);

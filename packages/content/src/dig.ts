@@ -90,6 +90,7 @@ import { luckOf } from './luck';
 import { greatestErosion } from './material';
 import { xnameOf } from './objnam';
 import { canDigDown, cavernous, levelFlags, nonDiggable } from './levelflags';
+import { undestroyableTrap } from './invocation';
 import { isAxe, isPick, mayDig, wallDugTo } from './mdig';
 import { migrateToLevel } from './migrate';
 import { whichArmor } from './mongear';
@@ -353,7 +354,7 @@ export function dighole(
     check = ttmp ? (isHole(ttmp.def) || isPit(ttmp.def) ? 'cantdig' : 'destroytrap') : 'pitonly';
   const nohole = check === 'cantdig' || check === 'toohard';
   const surface = surfaceKey(ctx, level, x, y);
-  if ((ttmp && nohole) || tooHard) {
+  if ((ttmp && (undestroyableTrap(ttmp.def) || nohole)) || tooHard) {
     say(ctx, here ? 'dig.too_hard_here' : 'dig.too_hard_there', { surface });
     return false;
   }
@@ -712,7 +713,7 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
   // a grave is not dug up (dig_up_grave() is not ported: DEVIATIONS.md "Graves")
   if (id === T.grave) return 'toohard';
-  // (no magic portals or vibrating squares: undestroyable_trap())
+  if (ttmp && undestroyableTrap(ttmp.def)) return 'toohard'; // DIGCHECK_FAIL_UNDESTROYABLETRAP
   if (!canDigDown(ctx, level)) {
     if (ttmp) return isHole(ttmp.def) || isPit(ttmp.def) ? 'cantdig' : 'destroytrap';
     return 'pitonly';

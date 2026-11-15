@@ -100,7 +100,10 @@ describe('engravings made with the level', () => {
       niches++;
       const nx = cell % level.width;
       const ny = Math.trunc(cell / level.width);
-      const found = engravingsOn({ state }, level).filter(({ e }) => e.pristine === 'ad aerarium');
+      // (a random graffiti may read "ad aerarium" too: engrave.txt has it, as a MARK)
+      const found = engravingsOn({ state }, level).filter(
+        ({ e }) => e.pristine === 'ad aerarium' && e.type === 'dust',
+      );
       expect(found).toHaveLength(1);
       const { x, y, e } = found[0]!;
       // two squares from the niche, the secret door between them, on a room's floor

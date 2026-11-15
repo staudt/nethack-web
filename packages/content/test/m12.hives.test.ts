@@ -353,11 +353,15 @@ describe('royal jelly', () => {
     expect(before - hp.cur).toBeLessThanOrEqual(20);
     expect(hasProp(s.hero, P.WOUNDED_LEGS)).toBe(true);
 
-    const d = eater(2);
-    d.hero.c.hp!.cur = 1;
-    const k = d.carry('nh:lump_of_royal_jelly');
-    itemOf(d.state, k).buc = 'cursed';
-    eat(d, k);
+    // a seed where the cursed lump is not rotten (rottenfood() would spare the hit points)
+    let d = eater(2);
+    for (let seed = 2; seed < 40; seed++) {
+      d = eater(seed);
+      d.hero.c.hp!.cur = 1;
+      const k = d.carry('nh:lump_of_royal_jelly');
+      itemOf(d.state, k).buc = 'cursed';
+      if (!eat(d, k).includes('Blecch!  Rotten food!')) break;
+    }
     expect(d.state.gameOver?.killer).toBe('@killer.royal_jelly');
     expect(render({ key: 'killer.royal_jelly' })).toBe('a rotten lump of royal jelly');
   });

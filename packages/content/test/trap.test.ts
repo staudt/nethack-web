@@ -161,10 +161,12 @@ function findSeed<R>(body: (seed: number) => R, want: (r: R) => boolean, max = 2
 }
 
 describe('trap defs', () => {
-  test('the vanilla traps are registered with ^ glyphs (a web is "); holes are holes', () => {
+  test('the vanilla traps are registered with ^ glyphs (a web is ", the vibrating square ~); holes are holes', () => {
     const ids = engine.registry.traps.map((t) => t.id);
     for (const id of Object.values(TRAP)) expect(ids).toContain(id);
-    for (const t of engine.registry.traps) expect(t.glyph.ch).toBe(t.id === TRAP.web ? '"' : '^');
+    // a web is S_web '"', the vibrating square S_vibrating_square '~'
+    const ch = (id: string): string => (id === TRAP.web ? '"' : id === TRAP.vibrating ? '~' : '^');
+    for (const t of engine.registry.traps) expect(t.glyph.ch).toBe(ch(t.id));
     expect(engine.registry.trap(TRAP.hole).hole).toBe(true);
     expect(engine.registry.trap(TRAP.trapdoor).hole).toBe(true);
   });
@@ -589,7 +591,8 @@ describe('pits', () => {
   }
 
   test('falling in: rnd(6) damage, caught for 2..7 tries; climbing out takes exactly that many', () => {
-    const { state, ev } = fallIn(TRAP.pit);
+    // a spare move, so no regeneration at the turn's end hides the damage
+    const { state, ev } = fallIn(TRAP.pit, 1, true);
     expect(keys(ev)).toContain('trap.pit.fall');
     expect(heroAt(state)).toEqual({ x: 2, y: 1 });
     const lost = 500 - heroHp(state);

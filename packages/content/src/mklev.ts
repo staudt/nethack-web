@@ -51,7 +51,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.magic, // 20 MAGIC_TRAP
   TRAP.antiMagic, // 21 ANTI_MAGIC
   TRAP.poly, // 22 POLY_TRAP
-  null, // 23 VIBRATING_SQUARE
+  null, // 23 VIBRATING_SQUARE (TRAP.vibrating: never random)
   null, // 24 TRAPPED_DOOR
   null, // 25 TRAPPED_CHEST
 ];

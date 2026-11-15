@@ -8,6 +8,7 @@
 import {
   dungeonLayout,
   levelDefArea,
+  specialLevelAt,
   type Ctx,
   type DefId,
   type GameState,
@@ -202,11 +203,13 @@ function inFlagArea(
 }
 
 /**
- * Whether a hole can be dug through the level's floor: no hard floor and not the last level of
- * its dungeon (the main dungeon has none). ref: src/dungeon.c Can_dig_down() (no invocation level)
+ * Whether a hole can be dug through the level's floor: no hard floor, not the last level of its
+ * dungeon (the main dungeon has none) and not the invocation level.
+ * ref: src/dungeon.c Can_dig_down()
  */
 export function canDigDown(ctx: Pick<Ctx, 'defs' | 'state'>, level: Readonly<Level>): boolean {
   if (levelFlags(ctx, level).hardfloor) return false;
+  if (invocationLev(ctx.state, level)) return false;
   return level.dlevel < (dungeonLayout(ctx.state, level.dungeon).levels ?? Infinity);
 }
 
@@ -220,13 +223,24 @@ export function canDigDown(ctx: Pick<Ctx, 'defs' | 'state'>, level: Readonly<Lev
 export const DUNGEON_BOTTOM = 25;
 
 /**
- * The last level holes lead to in `level`'s dungeon: its last level, or for an endless dungeon
- * DUNGEON_BOTTOM (one below `level` once past it). ref: src/trap.c dng_bottom() (no quest locate
- * level; no invocation: Gehennom's last level is not cut off)
+ * The last level of `level`'s dungeon: its last level, or for an endless dungeon DUNGEON_BOTTOM
+ * (one below `level` once past it). ref: src/dungeon.c dunlevs_in_dungeon()
  */
 export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>): number {
   const n = dungeonLayout(state, level.dungeon).levels;
   return n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
+}
+
+/**
+ * The last level holes, trap doors and random level teleports reach in `level`'s dungeon: its
+ * last level ({@link dungeonBottom}), but in Gehennom the invocation level above it, since the
+ * invocation that opens the way to the Sanctum never happens in this port.
+ * ref: src/trap.c dng_bottom() (no quest locate level; `u.uevent.invoked` is never set)
+ */
+export function dngBottom(state: Readonly<GameState>, level: Readonly<Level> | LevelRef): number {
+  const n = dungeonLayout(state, level.dungeon).levels;
+  const bottom = n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
+  return HELLISH.includes(level.dungeon) && n !== null ? bottom - 1 : bottom;
 }
 
 /**
@@ -236,8 +250,65 @@ export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>
 export const isBotlevel = (state: Readonly<GameState>, level: Readonly<Level>): boolean =>
   level.dlevel >= (dungeonLayout(state, level.dungeon).levels ?? DUNGEON_BOTTOM);
 
-/** Gehennom (m15 stub): the hellish dungeon below the Castle. */
+/** Gehennom: the hellish dungeon below the Castle. */
 export const GEHENNOM: DefId = 'nh:gehennom';
+
+/**
+ * Gehennom's special levels (SpecialLevelDef ids) in dungeon.lua's order. Until a level's own
+ * LevelDef lands, its one variant is Gehennom's filler, so it builds as an ordinary Gehennom
+ * level while these predicates already know it by its id. ref: dat/dungeon.lua "Gehennom" levels
+ */
+export const GEHENNOM_SPECIALS = {
+  valley: 'nh:valley',
+  sanctum: 'nh:sanctum',
+  juiblex: 'nh:juiblex',
+  baalz: 'nh:baalz',
+  asmodeus: 'nh:asmodeus',
+  wizard1: 'nh:wizard1',
+  wizard2: 'nh:wizard2',
+  wizard3: 'nh:wizard3',
+  orcus: 'nh:orcus',
+  fakewiz1: 'nh:fakewiz1',
+  fakewiz2: 'nh:fakewiz2',
+} as const;
+
+/**
+ * The Gehennom special level on `level` (the hero's by default), or null on an ordinary level,
+ * outside Gehennom and in a game without the layout (made before m17).
+ * ref: src/dungeon.c Is_special() for the levels of dungeon.lua's "Gehennom"
+ */
+export function gehennomSpecial(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): DefId | null {
+  const ref = level ?? state.levels[state.currentLevel];
+  if (!ref || !HELLISH.includes(ref.dungeon)) return null;
+  return specialLevelAt(state, { dungeon: ref.dungeon, dlevel: ref.dlevel })?.id ?? null;
+}
+
+/** The Valley of the Dead, Gehennom's first level. ref: include/dungeon.h Is_valley() */
+export const isValley = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean =>
+  gehennomSpecial(state, level) === GEHENNOM_SPECIALS.valley;
+
+/** Moloch's Sanctum, Gehennom's last level. ref: include/dungeon.h Is_sanctum() */
+export const isSanctum = (
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean => gehennomSpecial(state, level) === GEHENNOM_SPECIALS.sanctum;
+
+/**
+ * The level above Gehennom's bottom, with the vibrating square and no down stairs (any game
+ * with a Gehennom, the layout's special levels or not). ref: src/dungeon.c Invocation_lev()
+ */
+export function invocationLev(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  if (!ref || !HELLISH.includes(ref.dungeon)) return false;
+  const n = dungeonLayout(state, ref.dungeon).levels;
+  return n !== null && ref.dlevel === n - 1;
+}
 
 /** The hellish dungeons (dungeon.lua flags "hellish"). */
 const HELLISH: readonly DefId[] = [GEHENNOM];
