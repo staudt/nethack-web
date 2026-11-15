@@ -17,6 +17,7 @@ import { engulfMessagesEn } from './engulf.en';
 import { stoningMessagesEn } from './stoning.en';
 import { slimeMessagesEn } from './slime.en';
 import { wereMessagesEn } from './were.en';
+import { minionMessagesEn } from './minion.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -89,6 +90,7 @@ export const messagesEn: Record<string, string> = {
   ...stoningMessagesEn,
   ...slimeMessagesEn,
   ...wereMessagesEn,
+  ...minionMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -479,6 +481,7 @@ export const messagesEn: Record<string, string> = {
   'nh:golden_naga': 'golden naga',
   'nh:guardian_naga': 'guardian naga',
   'nh:imp': 'imp',
+  'nh:lemure': 'lemure',
   'nh:quasit': 'quasit',
   'nh:tengu': 'tengu',
   'nh:vampire_bat': 'vampire bat',
@@ -554,6 +557,12 @@ export const messagesEn: Record<string, string> = {
   'nh:demilich': 'demilich',
   'nh:ghost': 'ghost',
   'nh:water_demon': 'water demon',
+  'nh:horned_devil': 'horned devil',
+  'nh:barbed_devil': 'barbed devil',
+  'nh:juiblex': 'Juiblex',
+  'nh:orcus': 'Orcus',
+  'nh:baalzebub': 'Baalzebub',
+  'nh:asmodeus': 'Asmodeus',
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',
   'nh:shopkeeper': 'shopkeeper',
@@ -576,6 +585,8 @@ export const messagesEn: Record<string, string> = {
   'nh:warg': 'warg',
   'nh:winter_wolf': 'winter wolf',
   'nh:winter_wolf_cub': 'winter wolf cub',
+  'nh:hell_hound_pup': 'hell hound pup',
+  'nh:hell_hound': 'hell hound',
   'nh:jaguar': 'jaguar',
   'nh:lynx': 'lynx',
   'nh:panther': 'panther',

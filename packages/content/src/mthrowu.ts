@@ -27,6 +27,8 @@ import { monFloorEffects } from './align';
 import { flooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
 import { gazemu, mdamageu } from './mhitu';
+import { cursetxt } from './mcastu';
+import { M_SEEN, mSeenres } from './musestate';
 import { addToInventory, mksobj, placeOnFloor, removeFromInventory, splitStack } from './items';
 import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { mondied } from './mhitm';
@@ -964,12 +966,90 @@ export function spitmm(
 }
 
 /**
+ * The ray an AT_MAGC attack casts from afar, by its damage type (BZ_VALID_ADTYP() with
+ * flash_types[]'s six named wand rays; no monster casts poison gas or acid).
+ * ref: include/hack.h BZ_VALID_ADTYP(), BZ_OFS_AD()
+ */
+const BUZZ_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
+  magm: 'magic_missile',
+  fire: 'fire',
+  cold: 'cold',
+  slee: 'sleep',
+  disn: 'death',
+  elec: 'lightning',
+};
+
+/** ref: src/mondata.c cvt_adtyp_to_mseenres() */
+const MSEEN_OF: Readonly<Partial<Record<AttackDef['ad'], number>>> = {
+  magm: M_SEEN.magr,
+  fire: M_SEEN.fire,
+  cold: M_SEEN.cold,
+  slee: M_SEEN.sleep,
+  disn: M_SEEN.disint,
+  elec: M_SEEN.elec,
+};
+
+/** An AT_MAGC attack buzzmu() can cast from afar (C's ranged_attk_available() for AT_MAGC). */
+export function buzzmuAvailable(ctx: Pick<Ctx, 'state'>, monId: EntityId, atk: AttackDef): boolean {
+  return (
+    atk.at === 'magic' &&
+    BUZZ_RAY[atk.ad] !== undefined &&
+    !mSeenres(ctx, monId, MSEEN_OF[atk.ad] ?? 0)
+  );
+}
+
+/**
+ * A monster casts its AT_MAGC ray attack at the hero from afar (Asmodeus's cone of cold): a
+ * cancelled one, or one that has seen her resist it, only curses; lined up, 2 times in 3, "Asmodeus
+ * zaps you with a bolt of cold!" and a monster spell ray of the attack's dice. Mage and clerical
+ * spells are not cast from afar. Returns true when it cast (M_ATTK_HIT).
+ * ref: src/mcastu.c buzzmu()
+ */
+export function buzzmu(
+  ctx: Ctx,
+  monId: EntityId,
+  atk: AttackDef,
+  clear: ClearFn,
+  aim?: Pos,
+): boolean {
+  // don't print constant stream of curse messages for 'normal' spellcasting monsters at range
+  const ray = BUZZ_RAY[atk.ad];
+  const mon = ctx.state.entities[String(monId)];
+  const mpos = mon?.c.pos;
+  const hpos = getPlayer(ctx.state).c.pos;
+  if (!ray || !mon || !mpos || !hpos) return false;
+  if (isCancelled(ctx, monId) || mSeenres(ctx, monId, MSEEN_OF[atk.ad] ?? 0)) {
+    cursetxt(ctx, mon, false, aim ?? { x: hpos.x, y: hpos.y });
+    return false;
+  }
+  const tpos = linedTarget(ctx, mon, ctx.state.playerId, clear, aim);
+  if (tpos && ctx.rng.rn2(3)) {
+    ctx.interrupt(); // nomul(0)
+    if (canseemon(ctx, mon))
+      say(ctx, 'mcastu.zaps_you', { mon: monNam(ctx, mon), flash: `@zap.flash.${ray}` });
+    buzzFrom(
+      ctx,
+      ray,
+      atk.n,
+      { x: mpos.x, y: mpos.y },
+      dirToward(tpos.x - mpos.x, tpos.y - mpos.y),
+      {
+        by: 'spell',
+      },
+    );
+    return true;
+  }
+  return false;
+}
+
+/**
  * A monster that is in range but not next to the hero makes the ranged part of its attacks, in
  * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(), a breath breamu(), a spit
- * spitmu(). Nothing while she is in the midst of a successful prayer (silently at range). `aim`
- * is where the monster thinks she is (mux/muy), by default her square.
+ * spitmu(), a spell buzzmu(). Nothing while she is in the midst of a successful prayer (silently
+ * at range). `aim` is where the monster thinks she is (mux/muy), by default her square.
  * ref: src/mhitu.c mattacku() with range2: `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE:
- * gazemu(mtmp, mattk)`, `case AT_BREA: breamu(mtmp, mattk)`, `case AT_SPIT: spitmu(mtmp, mattk)`
+ * gazemu(mtmp, mattk)`, `case AT_BREA: breamu(mtmp, mattk)`, `case AT_SPIT: spitmu(mtmp, mattk)`,
+ * `case AT_MAGC: buzzmu(mtmp, mattk)`
  */
 export function mattackRanged(
   ctx: Ctx,
@@ -998,6 +1078,8 @@ export function mattackRanged(
       breamm(ctx, monId, a, ctx.state.playerId, clear, aim); // breamu()
     } else if (a.at === 'spit') {
       spitmm(ctx, monId, a, ctx.state.playerId, clear, aim); // spitmu()
+    } else if (a.at === 'magic') {
+      buzzmu(ctx, monId, a, clear, aim);
     }
     if (ctx.state.gameOver) return;
   }

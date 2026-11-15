@@ -182,6 +182,8 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.chirps');
     case 'groan':
       return ctx.rng.rn2(3) ? 0 : pline('chat.groans');
+    case 'gurgle':
+      return pline('chat.gurgles');
     case 'burble':
       return pline('chat.burbles');
     case 'mumble': // nagas, liches
@@ -202,6 +204,10 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
     case 'spell':
       // deliberately vague, since it's not actually casting any spell
       return pline('chat.cantrip');
+    case 'bribe':
+    // a peaceful, untamed demon prince talks of a bribe (demon_talk(): m17 step 5); else as
+    // MS_CUSS
+    // falls through
     case 'cuss':
       // (no minions: `is_lminion()` never holds, so a peaceful one is never "not too late")
       if (!m.peaceful) {

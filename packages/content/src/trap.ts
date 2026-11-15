@@ -1855,7 +1855,7 @@ function mteleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): void {
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   // no feedback: a monster stepping on a trap and not teleporting from it isn't visible
-  if (!level || noteleportLevel(ctx, level)) return;
+  if (!level || noteleportLevel(ctx, level, mon.id)) return;
   const monname = monNam(ctx, mon); // with pre-movement visibility
   // don't remove the trap if a vault: the monster would be stuck there
   if (trap.once === true) mvaultTele(ctx, mon, level);
@@ -2022,7 +2022,7 @@ const teleData = (stage: TeleData['stage'], cost: number, trap: boolean): TeleDa
  */
 export function tele(ctx: Ctx, opts: TeleOptions = {}): void {
   const level = getLevel(ctx.state, heroPos(ctx).level);
-  if (noteleportLevel(ctx, level)) {
+  if (noteleportLevel(ctx, level, ctx.state.playerId)) {
     say(ctx, 'tele.mysterious_force');
     return;
   }
@@ -2302,7 +2302,7 @@ export function teleTrap(ctx: Ctx, levelId: string, trap: Trap): void {
   try {
     const level = getLevel(ctx.state, heroPos(ctx).level);
     // shieldeff() with Antimagic is display only
-    if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level))
+    if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level, ctx.state.playerId))
       say(ctx, 'tele.wrenching');
     else if (trap.once === true) {
       deltrap(ctx, levelId, trap);

@@ -980,7 +980,10 @@ function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   }
   if (mdef.id === ctx.state.playerId) {
     const negated = mgcAtkNegated(ctx, magr, false);
-    if (!negated && ustuck(ctx) === null) setUstuck(ctx, magr.id); // set_ustuck(magr)
+    if (!negated && ustuck(ctx) === null) {
+      setUstuck(ctx, magr.id); // set_ustuck(magr)
+      if (magr.def === 'nh:barbed_devil') say(ctx, 'adtyp.barbs_stick');
+    }
     return;
   }
   // C's mhitm branch draws the negation roll (`if (negated) damage = 0`); the port has always

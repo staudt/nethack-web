@@ -48,7 +48,7 @@ import {
   mpickstuffSkips,
   setMonFlag,
 } from './mongear';
-import { mattackRanged } from './mthrowu';
+import { buzzmuAvailable, mattackRanged } from './mthrowu';
 import {
   findDefensive,
   findMisc,
@@ -353,7 +353,7 @@ export function mfndpos(
   const allowTraps = opts.allowTraps === true || conf;
   // ref: mon_allowflags(): "unicorn may not be able to avoid hero on a noteleport level"
   // (NOTONL); mfndpos() `monseeu = mon->mcansee && (!Invis || perceives(mdat))`
-  const notonl = !conf && isUnicorn(def) && !noteleportLevel(ctx, level);
+  const notonl = !conf && isUnicorn(def) && !noteleportLevel(ctx, level, id);
   const monseeu = mcansee(ctx, id) && !invisTo(ctx, e);
   const onHerLevel = getPlayer(ctx.state).c.pos?.level === level.id;
   // ref: mfndpos() ALLOW_SANCT: `level.flags.has_temple && *in_rooms(nx, ny, TEMPLE) &&
@@ -978,7 +978,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   }
   // ref: m_move(): "on noteleport levels, perhaps we cannot avoid hero": a unicorn there keeps
   // off her lines while it has a square that is not on one
-  const avoid = unicorn && noteleportLevel(ctx, level) && cands.some((c) => !c.lined);
+  const avoid = unicorn && noteleportLevel(ctx, level, id) && cands.some((c) => !c.lined);
   const track = getTrack(ctx, id);
   const jcnt = Math.min(MTSZ, cnt - 1);
   let chcnt = 0;
@@ -1231,7 +1231,7 @@ export function dochug(
     isFleeing(ctx, id) &&
     !ctx.rng.rn2(40) &&
     canTeleport(def) &&
-    !noteleportLevel(ctx, getLevel(ctx.state, pos.level))
+    !noteleportLevel(ctx, getLevel(ctx.state, pos.level), id)
   ) {
     rlocMon(ctx, self, true);
     return;
@@ -1390,15 +1390,22 @@ export function dochug(
         if (status === 'nomoves' && scared) panicattk = true;
         if (status === 'moved') {
           // ref: dochug(): "Monsters can move and then shoot on same turn": a monster with a
-          // weapon or a ranged attack (C's ranged_attk_available(): breath, spit or gaze; AT_MAGC
-          // too, but buzzmu() casters are not ported) that is still not next to the hero uses
-          // its ranged attack (phase four's attitude test: hostile, or not resisting Conflict)
+          // weapon or a ranged attack (C's ranged_attk_available(): breath, spit or gaze, and an
+          // AT_MAGC ray that buzzmu() casts and it has not seen her resist; mage and clerical
+          // casters are left out, as buzzmu() does nothing for them) that is still not next to
+          // the hero uses its ranged attack (phase four's attitude test: hostile, or not
+          // resisting Conflict)
           const np = ctx.state.entities[String(id)]?.c.pos;
           if (
             np &&
             !nearby &&
             (def.attacks.some(
-              (a) => a.at === 'weapon' || a.at === 'gaze' || a.at === 'breath' || a.at === 'spit',
+              (a) =>
+                a.at === 'weapon' ||
+                a.at === 'gaze' ||
+                a.at === 'breath' ||
+                a.at === 'spit' ||
+                buzzmuAvailable(ctx, id, a),
             ) ||
               findOffensive(ctx, id, ap) !== null)
           ) {

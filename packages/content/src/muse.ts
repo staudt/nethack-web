@@ -617,7 +617,7 @@ export function findDefensive(
     !(hereId !== undefined && ctx.defs.terrain(hereId).door !== undefined) &&
     !isBotlevel(ctx.state, level);
   // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"
-  const teleOk = !noteleportLevel(ctx, level) || !monKnowsTraps(ctx, id, TRAP.tele);
+  const teleOk = !noteleportLevel(ctx, level, id) || !monKnowsTraps(ctx, id, TRAP.tele);
   const reads = mcansee(ctx, id) && haseyes(ctx, mon);
   // a cursed scroll (a level teleport) is not for a shopkeeper in his shop, a guard or a priest
   const mayLeave = !(
@@ -731,7 +731,8 @@ function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefI
   if (!p) return;
   if (teleRestrict(ctx, mon)) {
     if (vismon && how) discover(ctx, how);
-    if (noteleportLevel(ctx, getLevel(ctx.state, p.level))) monLearnsTraps(ctx, mon.id, TRAP.tele);
+    if (noteleportLevel(ctx, getLevel(ctx.state, p.level), mon.id))
+      monLearnsTraps(ctx, mon.id, TRAP.tele);
   } else if (how) {
     // "teleporation has been triggered by an object"
     if (oseen) discover(ctx, how);
@@ -1188,7 +1189,7 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
     corpseLinedUp(ctx, level, ax, ay, p.x, p.y);
   const teleOk =
     !hasProp(hero, P.TELEPORT_CONTROL) && // "don't give controlled hero a free teleport"
-    (!noteleportLevel(ctx, level) || !monKnowsTraps(ctx, id, TRAP.tele));
+    (!noteleportLevel(ctx, level, id) || !monKnowsTraps(ctx, id, TRAP.tele));
   // "do try to move hero to a more vulnerable spot"
   const teleWorth = (): boolean =>
     onscary(ctx, hp.x, hp.y, mon) ||

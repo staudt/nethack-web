@@ -241,7 +241,7 @@ export function createMonster(
     c.id !== undefined
       ? ctx.defs.monster(c.id)
       : c.class !== undefined
-        ? mkclass(ctx, c.class, level.depth, ['nogen']) // mkclass(class, G_NOGEN)
+        ? mkclass(ctx, c.class, level.depth, ['nogen'], { level }) // mkclass(class, G_NOGEN)
         : null;
   if (def && c.id !== undefined && isGenocided(ctx.state, def.id)) {
     if (def.genFlags.includes('uniq')) return; // G_UNIQ and G_EXTINCT
@@ -286,7 +286,7 @@ function createObject(
     c.montype === undefined
       ? undefined
       : [...c.montype].length === 1
-        ? mkclass(ctx, c.montype, level.depth, ['nogen'])?.id
+        ? mkclass(ctx, c.montype, level.depth, ['nogen'], { level })?.id
         : (c.montype as DefId);
   const pos = contentSpot(ctx, level, c, ldef, room);
   if (!pos) return;

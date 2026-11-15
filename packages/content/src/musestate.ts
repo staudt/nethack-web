@@ -312,7 +312,7 @@ export function rndDefensiveItem(
     switch (r) {
       case 6:
       case 9:
-        if (level && noteleportLevel(ctx, level) && ++trycnt < 2) continue; // try_again
+        if (level && noteleportLevel(ctx, level, mon.id) && ++trycnt < 2) continue; // try_again
         if (!ctx.rng.rn2(3)) return 'nh:wand_of_teleportation';
         return 'nh:scroll_of_teleportation';
       case 0:

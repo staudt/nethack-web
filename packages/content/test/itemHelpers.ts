@@ -87,13 +87,13 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
   return tpl.replace(/\{(\w+)(?:\|(\w+))?\}/g, (_m, name: string, mod?: string) => {
     const v = params[name];
     const text = v === undefined ? '' : typeof v === 'number' ? String(v) : render(v, cat);
+    if (mod !== undefined && typeof v === 'string' && v.startsWith('=')) {
+      // a proper name: no article ("Orcus appears ...")
+      return mod.endsWith('_s') ? `${text}'s` : text;
+    }
     if (mod === 'An') {
       if (/^[0-9]/.test(text)) return text;
       return `${/^[aeiou]/i.test(text) ? 'An' : 'A'} ${text}`;
-    }
-    if (mod !== undefined && typeof v === 'string' && v.startsWith('=')) {
-      // a proper name: no article
-      return mod.endsWith('_s') ? `${text}'s` : text;
     }
     if (mod !== undefined && mod !== 'an') {
       const pronoun = typeof v === 'string' && v.startsWith('@pronoun.');

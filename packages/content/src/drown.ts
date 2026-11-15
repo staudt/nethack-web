@@ -352,7 +352,7 @@ function drownTeleport(ctx: Ctx): boolean {
   if (!(hasProp(h, P.TELEPORT_CONTROL) || ctx.rng.rn2(3) < luckOf(ctx.state) + 2)) return false;
   say(ctx, 'liquid.attempt_teleport');
   const { level } = heroAt(ctx);
-  if (noteleportLevel(ctx, level)) {
+  if (noteleportLevel(ctx, level, ctx.state.playerId)) {
     say(ctx, 'liquid.teleport_fails');
     return false;
   }

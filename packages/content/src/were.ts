@@ -225,8 +225,9 @@ function growlSound(sound: MonsterSound | undefined): string {
  * one 1 time in 5, a beast back 1 time in 30) and 1 time in 10 summons help: "The wererat summons
  * help!", "You feel hemmed in." when none of it is in view, "But none comes."; unseen,
  * "Something squeals!" and "A rat appears!". Returns true when the change made it start fleeing
- * (the attack stops). ref: src/mhitu.c summonmu() (the were half; demons do not summon here) and
- * mattacku()'s `if (mtmp->mflee && !already_fleeing) return 0;`
+ * (the attack stops). ref: src/mhitu.c summonmu() (the were half; the demons' half calls
+ * minion.ts msummon() from combat.ts) and mattacku()'s `if (mtmp->mflee && !already_fleeing)
+ * return 0;`
  */
 export function summonWereMu(ctx: Ctx, mon: Entity, youseeit: boolean, mux?: Pos): boolean {
   const alreadyFleeing = isFleeing(ctx, mon.id);

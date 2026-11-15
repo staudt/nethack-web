@@ -13,10 +13,11 @@
 //
 // A cancelled caster (`mcan`) only curses. An invisible hero is where the caster thinks she is
 // (`ap`, C's mux/muy: apparxy.ts), so a directed spell may go "at thin air". Not ported (see
-// DEVIATIONS.md "Monster spellcasting"): the M_SEEN resistance memory (`m_seenres()`,
-// `monstseesu()`), Half_spell_damage, the hero's displacement, the AD_FIRE/AD_COLD AT_MAGC
-// attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff(). The
-// AD_MAGM one (a shower of missiles) scuffs the engraving under her (mon_spell_hits_spot()).
+// DEVIATIONS.md "Monster spellcasting"): reading the M_SEEN resistance memory (`m_seenres()`;
+// the AD_FIRE/AD_COLD casts record it), Half_spell_damage, the hero's displacement, Deaf, Norep,
+// shieldeff(). The AD_FIRE and AD_COLD AT_MAGC attacks (Asmodeus's) envelop her in flames or
+// cover her in frost; the AD_MAGM one (a shower of missiles) scuffs the engraving under her
+// (mon_spell_hits_spot()).
 // Destroy armor, summon nasties, clone wizard and touch of death are always useless, so they
 // are never chosen. Insects are always "insects" (no hallucinated names); no
 // Half_physical_damage or melting ice.
@@ -45,6 +46,7 @@ import { nomulNow } from './hunger';
 import { nhData } from './items';
 import { igniteItems } from './light';
 import { mdamageu } from './mhitu';
+import { M_SEEN, monstseesu, monstunseesu } from './musestate';
 import {
   aggravate,
   isCancelled,
@@ -279,7 +281,7 @@ const missesInvisible = (ctx: Ctx, mon: Entity, ap: Pos): boolean => {
 };
 
 /** Feedback when a frustrated monster couldn't cast a spell. ref: src/mcastu.c cursetxt() */
-function cursetxt(ctx: Ctx, mon: Entity, undirected: boolean, ap: Pos): void {
+export function cursetxt(ctx: Ctx, mon: Entity, undirected: boolean, ap: Pos): void {
   if (canseemon(ctx, mon) && couldsee(ctx, mon)) {
     // spellcasting monsters are impolite (no hidden or displaced hero)
     say(
@@ -372,8 +374,27 @@ export function castmu(
   } else if (atk.d) dmg = ctx.rng.d(Math.trunc(ml / 2) + atk.n, atk.d);
   else dmg = ctx.rng.d(Math.trunc(ml / 2) + 1, 6);
 
-  if (atk.ad === 'magm') {
-    // the switch on the attack's damage type (AD_FIRE and AD_COLD: no such monster yet)
+  // the switch on the attack's damage type
+  if (atk.ad === 'fire') {
+    say(ctx, 'mcastu.enveloped_flames');
+    if (hasProp(getPlayer(ctx.state), P.FIRE_RES)) {
+      say(ctx, 'mcastu.resist_effects'); // (shieldeff() is display only)
+      monstseesu(ctx, M_SEEN.fire);
+      dmg = 0;
+    } else monstunseesu(ctx, M_SEEN.fire);
+    burnAwaySlime(ctx);
+    // burn up flammable items on the floor, melt ice terrain
+    if (hp) monSpellHitsSpot(ctx, 'fire', hp.x, hp.y);
+  } else if (atk.ad === 'cold') {
+    say(ctx, 'mcastu.covered_frost');
+    if (hasProp(getPlayer(ctx.state), P.COLD_RES)) {
+      say(ctx, 'mcastu.resist_effects');
+      monstseesu(ctx, M_SEEN.cold);
+      dmg = 0;
+    } else monstunseesu(ctx, M_SEEN.cold);
+    // freeze water or lava terrain
+    if (hp) monSpellHitsSpot(ctx, 'cold', hp.x, hp.y);
+  } else if (atk.ad === 'magm') {
     say(ctx, 'mcastu.missiles');
     if (hasProp(getPlayer(ctx.state), P.ANTIMAGIC)) {
       say(ctx, 'mcastu.missiles_bounce');

@@ -687,12 +687,13 @@ function burnWeb(ctx: Ctx, level: Level, x: number, y: number, seeIt: boolean): 
 
 /**
  * A monster's spell hits the floor at (x,y) (the hero's square): a shower of missiles (or acid
- * rain) thoroughly clobbers the engraving there; fire burns a web and scrolls and spellbooks.
+ * rain) thoroughly clobbers the engraving there; fire burns a web and scrolls and spellbooks;
+ * cold freezes water and lava.
  * ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
  */
 export function monSpellHitsSpot(
   ctx: Ctx,
-  ray: 'fire' | 'lightning' | 'magic_missile' | 'acid',
+  ray: 'fire' | 'cold' | 'lightning' | 'magic_missile' | 'acid',
   x: number,
   y: number,
 ): void {

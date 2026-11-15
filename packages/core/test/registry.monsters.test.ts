@@ -72,7 +72,7 @@ describe('defineMonster validation', () => {
     ['nameKey', { nameKey: '' }],
     ['glyph', { glyph: null }],
     ['glyph.ch', { glyph: { ch: 'ab', fg: '#fff' } }],
-    ['level', { level: 51 }],
+    ['level', { level: 128 }],
     ['level', { level: 1.5 }],
     ['speed', { speed: -1 }],
     ['ac', { ac: 21 }],

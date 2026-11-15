@@ -107,14 +107,19 @@ export function rndmonst(
  * no extinction); 8 times in 9 (always for liches) not Gehennom-only, or in Gehennom not
  * never-in-Gehennom. The player monsters are not candidates: C's loop stops at the end of the
  * class's first run of rows, and theirs is a second run of '@' rows after the long worm tail.
- * ref: src/makemon.c mkclass(), mkclass_aligned() with A_NONE
+ * `opts.atyp` (an alignment sign) keeps only the kinds of that alignment's sign
+ * (mkclass_aligned(); omitted is A_NONE, any alignment); `opts.level` is where it is made (C's
+ * u.uz while a level is made; the hero's level when omitted), for Inhell.
+ * ref: src/makemon.c mkclass(), mkclass_aligned()
  */
 export function mkclass(
   ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
   cls: string,
   depth: number,
   allow: readonly string[] = [],
+  opts: { atyp?: number; level?: Readonly<Level> } = {},
 ): MonsterDef | null {
+  const { atyp } = opts;
   const list = ctx.defs.monsters
     .filter((m) => m.glyph.ch === cls && !isMplayer(m))
     .map((m, i) => ({ m, i }))
@@ -123,11 +128,12 @@ export function mkclass(
   const maxmlev = depth >> 1;
   const ulevel = heroLevel(ctx);
   const zeroFreq = list.every((m) => m.frequency === 0);
-  const hell = inHell(ctx.state);
+  const hell = inHell(ctx.state, opts.level);
   const nums: number[] = list.map(() => 0);
   let num = 0;
   for (let last = 0; last < list.length; last++) {
     const m = list[last] as MonsterDef;
+    if (atyp !== undefined && Math.sign(m.alignment) !== Math.sign(atyp)) continue;
     const mask = ['nogen', 'uniq'];
     if (ctx.rng.rn2(9) || cls === 'L') mask.push(hell ? 'nohell' : 'hell');
     if (isGenocided(ctx.state, m.id)) continue; // mk_gen_ok(): mvflags & G_GONE
@@ -148,15 +154,20 @@ export function mkclass(
   return nums[first] ? (list[first] ?? null) : null;
 }
 
-/** ref: src/makemon.c adj_lev() */
+/**
+ * ref: src/makemon.c adj_lev(): "special" demons and devils (above level 49) are level 50, and
+ * no level goes past 49 otherwise (no Wizard of Yendor yet)
+ */
 export function adjLev(def: MonsterDef, depth: number, ulevel: number): number {
   let tmp = def.level;
+  if (tmp > 49) return 50; // "special" demons/devils
   let tmp2 = depth - tmp;
   if (tmp2 < 0) tmp--;
   else tmp += Math.trunc(tmp2 / 5);
   tmp2 = ulevel - def.level;
   if (tmp2 > 0) tmp += Math.trunc(tmp2 / 4);
-  tmp2 = Math.trunc((3 * def.level) / 2);
+  tmp2 = Math.trunc((3 * def.level) / 2); // crude upper limit
+  if (tmp2 > 49) tmp2 = 49; // hard upper limit
   return tmp > tmp2 ? tmp2 : tmp > 0 ? tmp : 0;
 }
 

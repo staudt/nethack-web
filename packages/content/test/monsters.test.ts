@@ -75,10 +75,12 @@ describe('vanilla monsters', () => {
       // m15 step 6 (buzz.ts: the black dragon's disintegration blast)
       'disn',
     ];
-    // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
+    // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts), or
+    // fire, frost and missiles (castmu()'s switch; m17 step 4: Asmodeus's cold)
     for (const m of MONSTERS)
       for (const a of m.attacks)
-        if (a.at === 'magic') expect(['spel', 'clrc'], `${m.id} ${a.ad}`).toContain(a.ad);
+        if (a.at === 'magic')
+          expect(['spel', 'clrc', 'fire', 'cold', 'magm'], `${m.id} ${a.ad}`).toContain(a.ad);
         else expect(known, `${m.id} ${a.ad}`).toContain(a.ad);
   });
 

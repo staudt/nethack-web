@@ -80,7 +80,9 @@ import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
 import { P, conflictOn, hasProp, ringBonus, wornIn } from './props';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
-import { hatesSilver, isBig, nonliving } from './mondata';
+import { hatesSilver, isBig, isDemon, nonliving } from './mondata';
+import { msummon } from './minion';
+import { inHell } from './levelflags';
 import {
   formHatesSilver,
   heroHatesSilver,
@@ -812,9 +814,18 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
   // stomachs can't hurt her while she prays
   const swallower = uswallow(ctx)?.mon ?? null;
   if (swallower !== null && (swallower !== monId || uState(ctx.state).uinvulnerable)) return;
-  // when not cancelled, were creatures can summon critters and change form (summonmu(); demons
-  // do not summon here: msummon() is not ported); a change that made it flee ends the attack
-  if (!isCancelled(ctx, monId) && isWere(def)) {
+  // when not cancelled, many demons can summon more demons and were creatures can summon
+  // critters and change form (summonmu(); no shapechangers here); a change that made it flee
+  // ends the attack
+  if (!isCancelled(ctx, monId) && isDemon(def)) {
+    // ref: src/mhitu.c summonmu(): not the balrog or the amorous demon; more often in Gehennom
+    if (
+      def.id !== 'nh:balrog' &&
+      def.id !== 'nh:incubus' &&
+      !ctx.rng.rn2(inHell(ctx.state) ? 10 : 16)
+    )
+      msummon(ctx, mon);
+  } else if (!isCancelled(ctx, monId) && isWere(def)) {
     if (summonWereMu(ctx, mon, canseemon(ctx, mon), ap ?? hero.c.pos)) return;
     def = ctx.defs.monster(mon.def); // update cached value in case of were change
     name = monNam(ctx, mon);

@@ -303,7 +303,7 @@ describe('the wand of stasis', () => {
     expect(itemOf(s.state, w).spe).toBe(4);
     const level = getLevel(s.state);
     const ctx = ctxFor(s.state) as unknown as Ctx;
-    expect(noteleportLevel(ctx, level)).toBe(true);
+    expect(noteleportLevel(ctx, level, s.state.playerId)).toBe(true);
     const zapped = s.state.turn;
     let turns = 0;
     while (inStasis(s.state, level.id) && turns < 40) {
@@ -313,7 +313,7 @@ describe('the wand of stasis', () => {
     const lasted = s.state.turn - zapped;
     expect(lasted).toBeGreaterThanOrEqual(10);
     expect(lasted).toBeLessThanOrEqual(31);
-    expect(noteleportLevel(ctx, level)).toBe(false);
+    expect(noteleportLevel(ctx, level, s.state.playerId)).toBe(false);
   });
 
   test('"A mysterious force prevents you teleporting the jackal!" from the wand of teleportation', () => {

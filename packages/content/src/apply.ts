@@ -221,7 +221,8 @@ function useMagicWhistle(ctx: Ctx, obj: Entity): void {
     say(ctx, 'whistle.humming');
     wakeNearby(ctx);
     const level = ctx.state.levels[hero(ctx).c.pos?.level ?? ''];
-    if (!ctx.rng.rn2(2) && level && !noteleportLevel(ctx, level)) teleToRndPet(ctx);
+    if (!ctx.rng.rn2(2) && level && !noteleportLevel(ctx, level, ctx.state.playerId))
+      teleToRndPet(ctx);
     return;
   }
   // it's magic!  it works underwater too (at a higher pitch)

@@ -60,11 +60,16 @@ const ordinary = (state: GameState): number[] => {
   return [...Array(d.levels!).keys()].map((i) => i + 1).filter((n) => !taken.has(n));
 };
 
-/** A new game and an ordinary Gehennom level of it that is hot (`want` 1) or cold (-1). */
-function find(want: 1 | -1): { state: GameState; dlevel: number } {
+/**
+ * A new game and an ordinary Gehennom level of it that is hot (`want` 1) or cold (-1) when the
+ * test goes there straight from the start (or by the Valley, `viaValley`): the search makes the
+ * same moves, so the level is built from the same random stream as in the test.
+ */
+function find(want: 1 | -1, viaValley = false): { state: GameState; dlevel: number } {
   for (let seed = 1; seed <= 60; seed++) {
-    const { state } = engine.newGame({ seed });
-    for (const dlevel of ordinary(state).slice(0, 5)) {
+    for (const dlevel of ordinary(engine.newGame({ seed }).state).slice(0, 5)) {
+      const { state } = engine.newGame({ seed });
+      if (viaValley) go(state, 1);
       go(state, dlevel);
       if (temp(state, getLevel(state)) === want) {
         const fresh = engine.newGame({ seed }).state;
@@ -90,7 +95,7 @@ describe('the level temperature', () => {
   });
 
   test('from the Valley onto a hot level and back: "It is hot here.", then the heat is gone', () => {
-    const { state, dlevel } = find(1);
+    const { state, dlevel } = find(1, true);
     go(state, 1);
     const t = go(state, dlevel);
     expect(t).toContain('It is hot here.');
@@ -101,7 +106,7 @@ describe('the level temperature', () => {
   });
 
   test('onto a cold level and back: "It is cold here.", then "You are out of the cold."', () => {
-    const { state, dlevel } = find(-1);
+    const { state, dlevel } = find(-1, true);
     go(state, 1);
     const t = go(state, dlevel);
     expect(t).toContain('It is cold here.');

@@ -476,7 +476,7 @@ interface ActionDef {
 interface MonsterDef {
   // ref: include/permonst.h struct permonst
   id: DefId; nameKey: string; glyph: { ch: string; fg: string };
-  level: number; speed: number; ac: number; mr: number; alignment: number;
+  level: number; speed: number; ac: number; mr: number; alignment: number; // level -1..127 (C's schar; widened from 50 in m17 step 4 for the demon princes, Asmodeus is 105)
   attacks: { at: AttackType; ad: string; n: number; d: number }[]; // at most 6
   size: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gigantic';
   flags: string[]; frequency: number; group: 'small' | 'large' | null; genFlags: string[];
@@ -484,7 +484,7 @@ interface MonsterDef {
   resists: string[]; conveys: string[]; // mresists / mconveys, lowercased MR_ names: 'fire', 'cold', 'sleep', 'disint', 'elec', 'poison', 'acid', 'stone'
   weight: number; nutrition: number; // corpse cwt / cnutrit
   brain: DefId; // must name a registered BrainDef (checked after all mods load)
-  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon, 'seduce' and 'laugh' in m9 step 3 for nymphs and the leprechaun, 'shriek', 'cuss', 'sqawk', 'neigh', 'trumpet', 'imitate' and 'burble' in m10 step 1 for the m10 monster batch, 'boast' in m10 step 4 for the giant row that zombies and mummies need as a corpse, 'were' and 'spell' in m9 step 7 for the human were forms and the barrow wight, 'guard' in m12 step 7 for the vault guard's #chat line, 'mumble' in m13 step 8 for the nagas, their hatchlings and the liches: "mumbles incomprehensibly" and the hatchling's cry); absent = silent
+  sound?: MonsterSound; // msound, what #chat gets: 'bark' | 'mew' | 'squeak' | 'orc' | 'humanoid' | 'soldier' | 'priest' | 'sell' | 'groan' | 'djinni' | ... (MS_ names lowercased; 'groan' and 'djinni' added additively in m7c step 2 for zombies and the water demon, 'seduce' and 'laugh' in m9 step 3 for nymphs and the leprechaun, 'shriek', 'cuss', 'sqawk', 'neigh', 'trumpet', 'imitate' and 'burble' in m10 step 1 for the m10 monster batch, 'boast' in m10 step 4 for the giant row that zombies and mummies need as a corpse, 'were' and 'spell' in m9 step 7 for the human were forms and the barrow wight, 'guard' in m12 step 7 for the vault guard's #chat line, 'mumble' in m13 step 8 for the nagas, their hatchlings and the liches: "mumbles incomprehensibly" and the hatchling's cry, 'gurgle' and 'bribe' in m17 step 4 for Juiblex and the demon princes Baalzebub and Asmodeus); absent = silent
 }
 interface ObjectDef {
   // ref: include/objclass.h struct objclass

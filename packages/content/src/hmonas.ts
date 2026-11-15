@@ -1,17 +1,20 @@
 // Fighting as a monster: the polymorphed hero attacks with each of her form's attacks (weapon,
 // claw, bite, kick, butt, touch, sting, tentacles, hug, explosion, engulfing), each through the
 // damage-type functions of adtyping.ts, and the target's passive answers each one.
-// ref: src/uhitm.c hmonas(), damageum(), explum(), gulpum(), start_engulf(), steal_it();
+// ref: src/uhitm.c hmonas(), damageum(), demonpet(), explum(), gulpum(), start_engulf(), steal_it();
 // src/dokick.c kick_monster()'s polymorphed branch
 import { golemeffects } from './golemfx';
 import {
+  getLevel,
   getPlayer,
   type AttackDef,
   type Ctx,
   type Entity,
   type EntityId,
+  type MonsterDef,
   type Msg,
 } from '@nh/core';
+import { uState } from './luck';
 import {
   M_ATTK,
   failedGrab,
@@ -35,7 +38,10 @@ import {
 } from './combat';
 import { passive, type PassiveTarget } from './uhitm_passive';
 import { heroForm, rehumanize, upolyd } from './upoly';
-import { cantwield } from './mondata';
+import { cantwield, isDemon } from './mondata';
+import { tamedog } from './dog';
+import { makemon } from './generation';
+import { ndemon } from './roommon';
 import { isSwallowed } from './engulfstate';
 import { couldSeduce, findgold, isNymph } from './steal';
 import { canSpotMon, monNam } from './perception';
@@ -85,15 +91,42 @@ const VERB: Partial<Record<AttackDef['at'], string>> = {
 };
 
 /**
+ * A demon form's hit sends in a demon pet: "Some hell-p has arrived!", 1 time in 6 a minor demon
+ * of her alignment (ndemon(): often none), else one of her own form, tamed next to her.
+ * ref: src/uhitm.c demonpet() (no exercise())
+ */
+function demonpet(ctx: Ctx, form: MonsterDef): void {
+  say(ctx, 'minion.hell_p');
+  const i = !ctx.rng.rn2(6)
+    ? ndemon(ctx, getLevel(ctx.state).depth, uState(ctx.state).alignType)
+    : null;
+  const at = getPlayer(ctx.state).c.pos;
+  const id = at ? makemon(ctx, i ?? form, at, { adjacentOk: true }) : null;
+  if (id !== null) tamedog(ctx, id, null, false, () => undefined);
+}
+
+/**
  * One of the form's attacks hit: its dice, then the damage type's effect (adtyping.ts, the
  * hero's branch), then the damage; "You kill the jackal!" when it dies ("You feel embarrassed for
- * a moment." for a pet she can't see). Returns M_ATTK flags. ref: src/uhitm.c damageum() (no
- * demon forms summon: demonpet() needs a demon the hero can turn into, and the roster's only
- * demon cannot be polymorphed into; no Trollsbane)
+ * a moment." for a pet she can't see). A demon form with no weapon (not the balrog or the amorous
+ * demon) 1 time in 13 calls a demon pet instead (demonpet()). Returns M_ATTK flags.
+ * ref: src/uhitm.c damageum() (no Trollsbane)
  */
 export function damageum(ctx: Ctx, mdef: Entity, mattk: AttackDef, specialdmg: number): number {
   const mhm = newMhm(ctx.rng.d(mattk.n, mattk.d));
   mhm.specialdmg = specialdmg;
+  const form = heroForm(ctx);
+  if (
+    form &&
+    isDemon(form) &&
+    !ctx.rng.rn2(13) &&
+    !uwepOf(ctx) &&
+    form.id !== 'nh:incubus' &&
+    form.id !== 'nh:balrog'
+  ) {
+    demonpet(ctx, form);
+    return M_ATTK.MISS;
+  }
   mhitmAdtyping(ctx, ctx.state.playerId, mattk, mdef.id, mhm, {
     vis: true,
     mwep: uwepOf(ctx),

@@ -154,14 +154,14 @@ const objDef = (ctx: Pick<GearCtx, 'defs'>, id: string): ObjectDef | null =>
 /**
  * Gives the monster a new object of type `otyp`; returns its stack, or null when the object
  * does not exist in this port (the caller has already made any rolls C makes before it).
- * ref: src/makemon.c mongets(). No demon, minion, player-monster or prince special cases
- * (none are in the roster).
+ * ref: src/makemon.c mongets(): a demon's blessed object is cursed. No minion, player-monster or
+ * prince special cases (none are in the roster).
  */
 export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId | null {
   const def = objDef(ctx, otyp);
   if (!def) return null;
   const id = mksobj(ctx, def, { carriedBy: monId });
-  // demons never get blessed objects (the only S_DEMON here is the water demon)
+  // demons never get blessed objects
   const it = ctx.state.entities[String(id)]?.c.item;
   if (it?.buc === 'blessed' && monOf(ctx, monId).def.glyph.ch === '&') it.buc = 'cursed';
   return id;
@@ -237,8 +237,9 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 /**
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
- * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the water demon
- * (S_DEMON falls through to the general case). Objects missing from the object table (a mod
+ * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the demons (Orcus's
+ * wand of death, the horned devil's trident or bullwhip, then S_DEMON falls through to the
+ * general case). Objects missing from the object table (a mod
  * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
  * Uruk-hai are given orcish bows.)
  */
@@ -379,7 +380,14 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     // ref: m_initweap() S_WRAITH (the armed barrow wight and the Nazgul)
     mongets(ctx, monId, 'nh:knife');
     mongets(ctx, monId, 'nh:long_sword');
-  } else {
+  } else if (ch !== '&' || hasFlag(def, 'demon')) {
+    // ref: m_initweap() S_DEMON: Orcus's wand, the horned devil's trident or bullwhip (no
+    // balrog, Dispater or Yeenoghu here), then for real demons (not the djinni or the mail
+    // daemon) the general case
+    if (def.id === 'nh:orcus')
+      mongets(ctx, monId, 'nh:wand_of_death'); // the Wand of Orcus
+    else if (def.id === 'nh:horned_devil')
+      mongets(ctx, monId, rng.rn2(4) ? 'nh:trident' : 'nh:bullwhip');
     // The general case. ref: m_initweap() `default:` (gnomes and any other armed monster)
     const bias = isLord(def) ? 1 : 0;
     switch (rng.rnd(14 - 2 * bias)) {
@@ -566,8 +574,8 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
 
 /**
  * The extra items of a monster, and its pocket money.
- * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). No S_DEMON items (the water
- * demon gets none); mummies get their wrapping, nymphs roll for a mirror and a potion of object
+ * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). Asmodeus gets wands of cold
+ * and fire; mummies get their wrapping, nymphs roll for a mirror and a potion of object
  * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
  * giants gems, minotaurs 1 time in 8 a wand of digging, and gnomes roll for a candle (not in
  * the table); then, but for most soldiers (`rn2(13)`), a defensive and a misc item by m_lev.
@@ -608,6 +616,11 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     if (!rng.rn2(2)) mongets(ctx, monId, 'nh:potion_of_object_detection');
   }
   if (def.glyph.ch === 'l') mkmonmoney(ctx, monId, rng.d(depth, 30));
+  // ref: m_initinv() S_DEMON: Asmodeus's wands of cold and fire (no ice devil here)
+  if (def.id === 'nh:asmodeus') {
+    mongets(ctx, monId, 'nh:wand_of_cold');
+    mongets(ctx, monId, 'nh:wand_of_fire');
+  }
   // ref: m_initinv() S_WRAITH: the Nazgul carries a cursed ring of invisibility (not worn)
   if (def.id === 'nh:nazgul') {
     const ring = objDef(ctx, 'nh:ring_of_invisibility');

@@ -273,7 +273,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
           if (!Number.isInteger(v) || (v as number) < min || (v as number) > max)
             issue(path, `must be an integer in [${min}, ${max}]`, d.id);
         };
-        int(d.level, 'level', -1, 50);
+        // C's `schar mlevel`: the demon princes are above 50 (Asmodeus is 105)
+        int(d.level, 'level', -1, 127);
         int(d.speed, 'speed', 0, 50);
         int(d.ac, 'ac', -20, 20);
         int(d.mr, 'mr', 0, 100);

@@ -142,12 +142,13 @@ describe('fill_zoo() MORGUE', () => {
 });
 
 describe('morguemon()', () => {
-  function sample(depth: number, n: number): Record<string, number> {
-    const { state } = walledRoom(1, depth);
+  function sample(depth: number, n: number, gehennom = false): Record<string, number> {
+    const { state, level } = walledRoom(1, depth);
+    if (gehennom) level.dungeon = 'nh:gehennom';
     const out: Record<string, number> = {};
     withCtx(state, (ctx) => {
       for (let i = 0; i < n; i++) {
-        const m = morguemon(ctx, depth);
+        const m = morguemon(ctx, depth, level);
         const k = m === null ? 'null' : m.glyph.ch === 'Z' ? 'Z' : m.id;
         out[k] = (out[k] ?? 0) + 1;
       }
@@ -160,16 +161,34 @@ describe('morguemon()', () => {
     expect(Object.keys(s).sort()).toEqual(['Z', 'nh:ghost', 'nh:wraith']);
   });
 
-  test('deeper, the vampire branch (hd > 8, i > 85) finds no vampire; the demon branch falls to ghosts', () => {
+  test('deeper, the vampire branch (hd > 8, i > 85) finds no vampire; the demon branch mostly falls to ghosts', () => {
     const n = 4000;
     const s = sample(30, n);
-    expect(Object.keys(s).sort()).toEqual(['Z', 'nh:ghost', 'nh:wraith', 'null']);
+    const devils = ['nh:barbed_devil', 'nh:horned_devil'];
+    for (const k of Object.keys(s))
+      expect(['Z', 'nh:ghost', 'nh:wraith', 'null', ...devils]).toContain(k);
     // P(hd > 8) = 21/30, P(i > 85) = 14/100: about 1 in 10 makes a random monster instead
     expect(s['null']! / n).toBeGreaterThan(0.07);
     expect(s['null']! / n).toBeLessThan(0.13);
-    // no minor demon can be made (the water demon is G_NOGEN): i < 10 stays a ghost (i < 20)
-    expect(s['nh:ghost']! / n).toBeGreaterThan(0.17);
+    // outside Gehennom ndemon() finds a devil only when mkclass() lets a Gehennom-only kind
+    // through (1 in 9 per kind; the water demon is G_NOGEN): i < 10 mostly stays a ghost
+    const d = devils.reduce((a, k) => a + (s[k] ?? 0), 0);
+    expect(d).toBeGreaterThan(0);
+    expect(d / n).toBeLessThan(0.03);
+    expect(s['nh:ghost']! / n).toBeGreaterThan(0.16);
     expect(s['nh:ghost']! / n).toBeLessThan(0.23);
+  });
+
+  test('in Gehennom the demon branch (hd > 10, i < 10) is any demon of the class: mkclass(S_DEMON)', () => {
+    const n = 4000;
+    const s = sample(30, n, true);
+    const devils = ['nh:barbed_devil', 'nh:horned_devil'].reduce((a, k) => a + (s[k] ?? 0), 0);
+    // P(hd > 10) = 19/30, P(i < 10) = 1/10: about 6 in 100, nearly all of them devils
+    expect(devils / n).toBeGreaterThan(0.04);
+    expect(devils / n).toBeLessThan(0.08);
+    // no unique or G_NOGEN demon (the princes, the water demon)
+    for (const k of ['nh:juiblex', 'nh:orcus', 'nh:baalzebub', 'nh:asmodeus', 'nh:water_demon'])
+      expect(s[k]).toBeUndefined();
   });
 });
 

@@ -400,7 +400,7 @@ describe('the scroll of teleportation', () => {
     quiet(state);
     run(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:sokoban', dlevel: 4 }, 'up'));
     const level = getLevel(state);
-    expect(noteleportLevel(ctxFor(state) as unknown as Ctx, level)).toBe(true);
+    expect(noteleportLevel(ctxFor(state) as unknown as Ctx, level, state.playerId)).toBe(true);
     const before = { ...getPlayer(state).c.pos };
     for (const buc of ['uncursed', 'cursed'] as const) {
       const sc = mksobj(ctxFor(state), defs.object('nh:scroll_of_teleportation' as never), {
@@ -421,7 +421,9 @@ describe('the scroll of teleportation', () => {
     expect(isKnown(state, defs, 'nh:scroll_of_teleportation')).toBe(true);
     // an ordinary level has no such flag
     const { state: plain } = engine.newGame({ seed: 2 });
-    expect(noteleportLevel(ctxFor(plain) as unknown as Ctx, getLevel(plain))).toBe(false);
+    expect(noteleportLevel(ctxFor(plain) as unknown as Ctx, getLevel(plain), plain.playerId)).toBe(
+      false,
+    );
   });
 });
 

@@ -219,7 +219,7 @@ export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = tru
       const mdef =
         type === BEEHIVE
           ? ctx.defs.monster(sx === throne.x && sy === throne.y ? 'nh:queen_bee' : 'nh:killer_bee')
-          : zooMonster(ctx, type, difficulty);
+          : zooMonster(ctx, type, difficulty, level);
       const mon = makemon(
         ctx,
         mdef,
@@ -368,10 +368,15 @@ function addGold(ctx: Ctx, chest: number, quan: number): void {
 }
 
 /** The monster fill_zoo() makes on a square of a room of `type`; null: a random one. */
-function zooMonster(ctx: Ctx, type: DefId, difficulty: number): MonsterDef | null {
+function zooMonster(
+  ctx: Ctx,
+  type: DefId,
+  difficulty: number,
+  level: Readonly<Level>,
+): MonsterDef | null {
   if (type === COURT) return courtmon(ctx, difficulty);
   if (type === BARRACKS) return squadmon(ctx, difficulty);
-  if (type === MORGUE) return morguemon(ctx, difficulty);
+  if (type === MORGUE) return morguemon(ctx, difficulty, level);
   if (type === LEPREHALL) return ctx.defs.monster('nh:leprechaun');
   if (type === COCKNEST) return ctx.defs.monster('nh:cockatrice');
   if (type === ANTHOLE) return antholemon(ctx.state, ctx.defs, difficulty);

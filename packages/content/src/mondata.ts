@@ -271,3 +271,17 @@ export const sticks = (def: MonsterDef): boolean =>
   def.attacks.some(
     (a) => a.ad === 'stck' || (a.ad === 'wrap' && !def.attacks.some((b) => b.at === 'engulf')),
   ) || def.attacks.some((a) => a.at === 'hug');
+
+/** ref: include/mondata.h is_demon(): M2_DEMON */
+export const isDemon = (def: MonsterDef): boolean => def.flags.includes('demon');
+/** ref: include/mondata.h is_lord(): M2_LORD */
+export const isLord = (def: MonsterDef): boolean => def.flags.includes('lord');
+/** ref: include/mondata.h is_prince(): M2_PRINCE */
+export const isPrince = (def: MonsterDef): boolean => def.flags.includes('prince');
+/** ref: include/mondata.h is_dlord(): a demon lord (Juiblex, Yeenoghu) */
+export const isDlord = (def: MonsterDef): boolean => isDemon(def) && isLord(def);
+/** ref: include/mondata.h is_dprince(): a demon prince (Orcus ... Demogorgon) */
+export const isDprince = (def: MonsterDef): boolean => isDemon(def) && isPrince(def);
+/** ref: include/mondata.h is_ndemon(): a demon that is neither a lord nor a prince */
+export const isNdemon = (def: MonsterDef): boolean =>
+  isDemon(def) && !isLord(def) && !isPrince(def);

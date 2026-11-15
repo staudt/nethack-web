@@ -378,6 +378,10 @@ describe('magic mapping in the Valley (nommap)', () => {
     expect(t).toContain('Your mind is filled with crazy lines!');
     expect(t).toContain('Your head spins in bewilderment.');
     expect(t).not.toContain('A map coalesces in your mind!');
-    expect(timeoutLeft(state, getPlayer(state), P.CONFUSION)).toBeGreaterThan(0);
+    // confused for rnd(30) turns: still, or (a single turn) over by the end of this one
+    expect(
+      timeoutLeft(state, getPlayer(state), P.CONFUSION) > 0 ||
+        t.includes('You feel less confused now.'),
+    ).toBe(true);
   });
 });

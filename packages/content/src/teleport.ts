@@ -34,7 +34,8 @@ import { boulderCells } from './boulder';
 import { engrAt, moveEngr } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
-import { dngBottom, dungeonBottom, levelFlags } from './levelflags';
+import { dngBottom, dungeonBottom, inHell, levelFlags } from './levelflags';
+import { isDlord, isDprince } from './mondata';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
 import { heroLiquidOk } from './uwater';
@@ -83,11 +84,33 @@ export function setStasis(ctx: Pick<Ctx, 'state'>, levelId: LevelId, until: numb
   if (typeof old !== 'number' || until > old) t[levelId] = until;
 }
 
+/** A demon lord or prince (the hero is neither). ref: src/teleport.c m_blocks_teleporting() */
+function mBlocksTeleporting(ctx: Pick<Ctx, 'defs'>, e: Entity | undefined): boolean {
+  if (!e?.c.monster || !ctx.defs.isMonster(e.def)) return false;
+  const def = ctx.defs.monster(e.def);
+  return isDlord(def) || isDprince(def);
+}
+
 /**
- * Teleporting is impossible on this level: its `noteleport` flag, or a wand of stasis in effect.
- * ref: src/teleport.c noteleport_level() (no demon court; no covetous monsters)
+ * `who` (the hero or a monster) cannot teleport on this level: in Gehennom a demon lord or prince
+ * on the level stops everybody else (the demon court), the level's `noteleport` flag, or a wand of
+ * stasis in effect. ref: src/teleport.c noteleport_level() (no covetous monsters: m17 step 5)
  */
-export function noteleportLevel(ctx: Pick<Ctx, 'defs' | 'state'>, level: Readonly<Level>): boolean {
+export function noteleportLevel(
+  ctx: Pick<Ctx, 'defs' | 'state'>,
+  level: Readonly<Level>,
+  who: EntityId,
+): boolean {
+  // demon court in Gehennom prevent others from teleporting
+  if (
+    inHell(ctx.state, level) &&
+    !mBlocksTeleporting(ctx, ctx.state.entities[String(who)]) &&
+    sortedIds(ctx.state).some((id) => {
+      const e = ctx.state.entities[String(id)];
+      return e?.c.pos?.level === level.id && mBlocksTeleporting(ctx, e);
+    })
+  )
+    return true;
   return levelFlags(ctx, level).noteleport === true || inStasis(ctx.state, level.id);
 }
 
@@ -168,7 +191,7 @@ const accessible = (o: Occupancy, i: number): boolean => {
 export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
-  if (level && noteleportLevel(ctx, level)) {
+  if (level && noteleportLevel(ctx, level, mon.id)) {
     if (canSpotMon(ctx, mon))
       ctx.emit({ type: 'msg', key: 'adtyp.tele_restrict', params: { mon: monNam(ctx, mon) } });
     return true;
