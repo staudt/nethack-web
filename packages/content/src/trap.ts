@@ -1613,7 +1613,7 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
       ? goodposMon(ctx, level, stairs.x, stairs.y, mon.id)
         ? stairs
         : mnextoPos(ctx, level, mon.id, stairs)
-      : rlocPos(ctx, level);
+      : rlocPos(ctx, level, mon);
     if (!spot) continue; // no room: it keeps waiting
     mon.c.pos = { level: level.id, x: spot.x, y: spot.y };
     delete t[key];

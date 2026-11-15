@@ -1,12 +1,14 @@
 // A monster thrown back by a blow: the spell of knock's push. ref: src/dothrow.c mhurtle(),
 // mhurtle_step(); src/mondata.c m_is_steadfast()
 //
-// Not ported: hurtling through regions or into water walls, the steed, a cockatrice touched
+// Not ported: hurtling through regions, the steed, a cockatrice touched
 // on the way (minstapetrify()), grid bugs' diagonal rule (no grid bugs).
 import { cellRules, getLevel, getPlayer, trapAt, type Ctx, type Entity, type Msg } from '@nh/core';
 import { boulderCells } from './boulder';
 import { monsterIdAt } from './combat';
 import { isFlyer, msize } from './mondata';
+import { isWaterwall } from './liquid';
+import { minliquid } from './minliquid';
 import { minvent } from './mongear';
 import { setMStunned } from './mstate';
 import { wakeup } from './peaceful';
@@ -60,12 +62,12 @@ export function mhurtle(ctx: Ctx, mon: Entity, dx: number, dy: number, range: nu
   const rules = cellRules(level, ctx.defs);
   const boulders = boulderCells(ctx, level);
   const hp = getPlayer(ctx.state).c.pos;
-  for (let n = 0; n < range; n++) {
+  walk: for (let n = 0; n < range; n++) {
     const p = mon.c.pos;
     if (!p) return;
     const x = p.x + dx;
     const y = p.y + dy;
-    if (x < 0 || y < 0 || x >= level.width || y >= level.height) return;
+    if (x < 0 || y < 0 || x >= level.width || y >= level.height) break;
     const i = y * level.width + x;
     const t = level.cells[i] ?? 0;
     const other = monsterIdAt(ctx, { x, y }, level.id);
@@ -79,6 +81,7 @@ export function mhurtle(ctx: Ctx, mon: Entity, dx: number, dy: number, range: nu
       !boulders.has(i)
     ) {
       mon.c.pos = { ...p, x, y };
+      if (isWaterwall(ctx, level, x, y)) break; // it stops in a wall of water
       if (trapAt(level, x, y)) {
         const res = mintrap(ctx, mon.id);
         if (res === 'killed' || res === 'caught' || res === 'moved') return;
@@ -96,6 +99,11 @@ export function mhurtle(ctx: Ctx, mon: Entity, dx: number, dy: number, range: nu
       say(ctx, 'zap.bumps_into_you', { mon: monNam(ctx, mon) });
       ctx.interrupt();
     }
-    return;
+    break walk;
   }
+  // ref: mhurtle(): `if (t_at(mon->mx, mon->my)) mintrap(mon, FORCEBUNGLE); else minliquid(mon)`
+  // (the trap where it stopped was sprung on the way)
+  const q = mon.c.pos;
+  if (ctx.state.entities[String(mon.id)]?.c.monster && q && !trapAt(level, q.x, q.y))
+    minliquid(ctx, mon);
 }

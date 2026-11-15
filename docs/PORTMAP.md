@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-156 NetHack files, 4391 citations.
+156 NetHack files, 4417 citations.
 
 ## dat/dungeon.lua
 
@@ -137,6 +137,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/defsym.h
 
 - (file): `packages/content/src/terrain.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `S_EEL()`: `packages/content/src/mondata.ts`
 - `S_arrow_trap()`: `packages/content/src/trap.ts`
 - `S_bars()`: `packages/content/src/terrain.ts`
 - `S_corr()`: `packages/content/src/terrain.ts`
@@ -268,8 +269,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `S_BAT()`: `packages/content/src/monmove.ts`
 - `acidic()`: `packages/content/src/dog.ts`, `packages/content/src/muse.ts`
 - `amorphous()`: `packages/content/src/mondata.ts`, `packages/content/src/polyself.ts`
+- `amphibious()`: `packages/content/src/mondata.ts`
 - `bigmonst()`: `packages/content/src/corpses.ts`, `packages/content/src/dokick.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`
+- `breathless()`: `packages/content/src/mondata.ts`
 - `can_teleport()`: `packages/content/src/monmove.ts`
+- `cant_drown()`: `packages/content/src/mondata.ts`
 - `cantweararm()`: `packages/content/src/mondata.ts`, `packages/content/src/mongear.ts`
 - `cantwield()`: `packages/content/src/itemactions.ts`, `packages/content/src/mondata.ts`
 - `carnivorous()`: `packages/content/src/dog.ts`, `packages/content/src/mondata.ts`
@@ -294,7 +298,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_bat()`: `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
 - `is_clinger()`: `packages/content/src/mondata.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
-- `is_floater()`: `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`, `packages/content/src/polyself.ts`
+- `is_floater()`: `packages/content/src/mondata.ts`, `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`, `packages/content/src/polyself.ts`
 - `is_flyer()`: `packages/content/src/mondata.ts`
 - `is_giant()`: `packages/content/src/givit.ts`
 - `is_golem()`: `packages/content/src/golem.ts`
@@ -305,6 +309,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_placeholder()`: `packages/content/src/newcham.ts`
 - `is_rider()`: `packages/content/src/newcham.ts`
 - `is_silent()`: `packages/content/src/potionhit.ts`
+- `is_swimmer()`: `packages/content/src/mondata.ts`
 - `is_unicorn()`: `packages/content/src/mondata.ts`
 - `is_wanderer()`: `packages/content/src/monmove.ts`
 - `is_watch()`: `packages/content/src/watch.ts`
@@ -313,7 +318,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lays_eggs()`: `packages/content/src/eggstate.ts`
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
-- `likes_lava()`: `packages/content/src/uwater.ts`
+- `likes_lava()`: `packages/content/src/mondata.ts`, `packages/content/src/uwater.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
 - `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
 - `mindless()`: `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`
@@ -871,6 +876,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/dog.en.ts`
 - `can_reach_location()`: `packages/content/src/dogmove.ts`
+- `could_reach_item()`: `packages/content/src/dogmove.ts`
 - `dog_eat()`: `packages/content/src/dogmove.ts`, `packages/content/src/monflee.ts`
 - `dog_goal()`: `packages/content/src/dogmove.ts`
 - `dog_hunger()`: `packages/content/src/dogmove.ts`
@@ -1507,6 +1513,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_calcdistress()`: `packages/content/src/monflee.ts`, `packages/content/src/mstate.ts`, `packages/content/src/were.ts`
 - `m_consume_obj()`: `packages/content/src/meat.ts`
 - `m_detach()`: `packages/content/src/mondeath.ts`, `packages/content/src/mstate.ts`, `packages/content/src/trapstate.ts`
+- `m_in_air()`: `packages/content/src/liquid.ts`
 - `m_move_aggress()`: `packages/content/src/monmove.ts`
 - `m_respond()`: `packages/content/src/mrespond.ts`
 - `m_respond_shrieker()`: `packages/content/src/mrespond.ts`
@@ -1520,6 +1527,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `meatmetal()`: `packages/content/src/dog.en.ts`, `packages/content/src/meat.ts`
 - `meatobj()`: `packages/content/src/dog.en.ts`, `packages/content/src/meat.ts`
 - `mfndpos()`: `packages/content/src/mdig.ts`, `packages/content/src/monmove.ts`, `packages/testkit/src/invariants.ts`
+- `minliquid()`: `packages/content/src/minliquid.ts`
+- `minliquid_core()`: `packages/content/src/minliquid.ts`
 - `mlifesaver()`: `packages/content/src/mondeath.ts`
 - `mnearto()`: `packages/content/src/shk.ts`
 - `mnexto()`: `packages/content/src/generation.ts`
@@ -1577,7 +1586,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `noattacks()`: `packages/content/src/combat.ts`
 - `num_horns()`: `packages/content/src/mondata.ts`
 - `olfaction()`: `packages/content/src/mondata.ts`
-- `on_fire()`: `packages/content/src/adtyping.ts`
+- `on_fire()`: `packages/content/src/adtyping.ts`, `packages/content/src/minliquid.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
 - `resists_drli()`: `packages/content/src/adtyping.ts`, `packages/content/src/exper.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
@@ -2285,7 +2294,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
 - `enexto()`: `packages/content/src/generation.ts`, `packages/core/src/engine.ts`
 - `enexto_core()`: `packages/content/src/generation.ts`
-- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`, `packages/content/src/uwater.ts`, `packages/core/src/engine.ts`
+- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/liquid.ts`, `packages/content/src/teleport.ts`, `packages/content/src/uwater.ts`, `packages/core/src/engine.ts`
 - `level_tele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`, `packages/content/src/wizard/levelport.ts`
 - `level_tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mlevel_tele_trap()`: `packages/content/src/trap.ts`

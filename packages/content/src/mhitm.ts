@@ -7,6 +7,8 @@
 // (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
 // which do nothing until their m9 step), shades, cloning puddings. Touching a cockatrice
 // turns the attacker to stone (mdamagem()).
+import { mInAir, monLiquidOk } from './liquid';
+import { minliquid } from './minliquid';
 import { golemeffects } from './golemfx';
 import { isGolem } from './golem';
 import {
@@ -387,7 +389,8 @@ function gulpmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
   } else if (defDied) {
     // if the gulp targeted an inhospitable location, magr returns to its previous spot
     if (!goodposFor(ctx, magr, d)) back();
-    // aggressor moves to <dx,dy> and might encounter trouble there (no pools)
+    // aggressor moves to <dx,dy> and might encounter trouble there
+    else if (minliquid(ctx, magr)) status |= M_ATTK.AGR_DIED;
     else if (trapAt(getLevel(ctx.state, d.level), d.x, d.y)) {
       mintrap(ctx, magr.id);
       if (!alive(ctx, magr.id)) status |= M_ATTK.AGR_DIED;
@@ -412,11 +415,17 @@ function gulpmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
   return status;
 }
 
-/** goodpos() for the aggressor at the dead defender's square (the square is free now) */
+/**
+ * goodpos(dx, dy, magr, MM_IGNOREWATER) for the aggressor at the dead defender's square (the
+ * square is free now): water is fine (minliquid() follows), lava only for one in the air or that
+ * likes it
+ */
 function goodposFor(ctx: Ctx, mon: Entity, p: { level: string; x: number; y: number }): boolean {
   const level = getLevel(ctx.state, p.level);
   const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? 0];
   if (id === undefined || !ctx.defs.terrain(id).passable) return false;
+  const def = ctx.defs.monster(mon.def);
+  if (!monLiquidOk(ctx, level, p.x, p.y, def, mInAir(ctx, mon), true)) return false;
   for (const oid of sortedIds(ctx.state)) {
     if (oid === mon.id) continue;
     const e = ctx.state.entities[String(oid)];

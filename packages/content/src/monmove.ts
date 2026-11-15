@@ -119,8 +119,10 @@ import {
 } from './mdig';
 import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
-import { heroInvisible, monInvisible } from './invis';
-import { isUnicorn } from './mondata';
+import { canseemon, heroInvisible, monInvisible } from './invis';
+import { minliquid } from './minliquid';
+import { isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
+import { isLava, isPool, mInAir } from './liquid';
 import { isWormTail, wormRec } from './wormstate';
 import { wormCross, wormMove, wormNomove } from './worm';
 
@@ -283,7 +285,10 @@ export function monAllowU(ctx: Ctx, mon: Entity): boolean {
  * boulders and through any tight squeeze. A unicorn (NOTONL, unless confused or on a no-teleport
  * level) never steps onto a square lined up with where it thinks the hero is while it can see her;
  * such squares are marked `lined` for every monster. No diagonal step passes between two
- * consecutive segments of a long worm (worm_cross()). Not ported: water/lava, Elbereth, iron bars.
+ * consecutive segments of a long worm (worm_cross()). Water and lava: only swimmers and those in
+ * the air (flying, floating, clinging hidden) go into water, eels only into water unless there is
+ * none next to them, and only those in the air or that like lava onto lava; nothing but swimmers
+ * enters a wall of water. Not ported: Elbereth, iron bars, the Plane of Water.
  */
 export function mfndpos(
   ctx: Ctx,
@@ -367,92 +372,115 @@ export function mfndpos(
     epriOf(ctx, id) !== null ||
     def.flags.includes('human') ||
     def.id === 'nh:minotaur';
+  // ref: mfndpos(): `wantpool = (mdat->mlet == S_EEL)`, `poolok = (m_in_air(mon) ||
+  // (is_swimmer(mdat) && !wantpool))`, `lavaok = (m_in_air(mon) || likes_lava(mdat))` but never
+  // a floating eye ("prefers to avoid heat"); no Plane of Water
+  let wantpool = isEel(def);
+  const inAir = mInAir(ctx, e);
+  const poolok = inAir || (isSwimmer(def) && !wantpool);
+  const lavaok = (inAir || likesLava(def)) && def.id !== 'nh:floating_eye';
   const out: Candidate[] = [];
-  for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
-    for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {
-      if ((nx === pos.x && ny === pos.y) || !inBounds(level, nx, ny)) continue;
-      const to = level.cells[cellIndex(level, nx, ny)] ?? 0;
-      const closed = rules.closedDoor[to] === true;
-      if (!rules.passable[to] && !closed) {
-        // ref: mfndpos(): `IS_OBSTRUCTED(ntyp) && !((IS_TREE(ntyp) ? treeok : rockok) &&
-        // may_dig(nx, ny))`, then "intelligent peacefuls avoid digging shop/temple walls"
-        const tid = level.palette[to];
-        if (!isObstructedId(tid)) continue;
-        if (!(wallwalk && mayPasswall(ctx, level, nx, ny))) {
-          if (!dig) continue;
-          if (!(tid === T.tree ? dig.tree : dig.rock) || !mayDig(ctx, level, nx, ny)) continue;
+  // nexttry: "eels prefer the water, but if there is no water nearby, they will crawl over land"
+  for (;;) {
+    for (let nx = pos.x - 1; nx <= pos.x + 1; nx++) {
+      for (let ny = pos.y - 1; ny <= pos.y + 1; ny++) {
+        if ((nx === pos.x && ny === pos.y) || !inBounds(level, nx, ny)) continue;
+        const to = level.cells[cellIndex(level, nx, ny)] ?? 0;
+        const closed = rules.closedDoor[to] === true;
+        if (!rules.passable[to] && !closed) {
+          // ref: mfndpos(): `IS_OBSTRUCTED(ntyp) && !((IS_TREE(ntyp) ? treeok : rockok) &&
+          // may_dig(nx, ny))`, then "intelligent peacefuls avoid digging shop/temple walls"
+          const tid = level.palette[to];
+          if (!isObstructedId(tid)) continue;
+          if (!(wallwalk && mayPasswall(ctx, level, nx, ny))) {
+            if (!dig) continue;
+            if (!(tid === T.tree ? dig.tree : dig.rock) || !mayDig(ctx, level, nx, ny)) continue;
+          }
+          if (avoidSpecialWalls && shopOrTemple(nx, ny)) continue;
         }
-        if (avoidSpecialWalls && shopOrTemple(nx, ny)) continue;
-      }
-      if (closed && !canOpen && !thrudoor) continue;
-      // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
-      // digger goes through (thrudoor)
-      if (rules.lockedDoor[to] && !thrudoor) continue;
-      if (!wallwalk && boulders.has(cellIndex(level, nx, ny))) continue; // ALLOW_ROCK
-      const diagonal = nx !== pos.x && ny !== pos.y;
-      // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
-      // or out of an intact door
-      if (diagonal && (noDiag(def) || rules.intactDoor[here] || rules.intactDoor[to])) continue;
-      // ref: mfndpos(): "mustn't pass between adjacent long worm segments"
-      if (diagonal && wormCross(ctx, level.id, pos.x, pos.y, nx, ny)) continue;
-      const realHero = nx === heroPos.x && ny === heroPos.y;
-      const g = opts.guess;
-      // ref: mfndpos(): "If it's right next to you, it found you, displaced or no."
-      if (realHero && g) {
-        g.x = heroPos.x;
-        g.y = heroPos.y;
-        if (storedMux(ctx, id)) setStoredMux(ctx, id, g); // kept while it can't see her
-      }
-      // ref: mfndpos(): `if (onscary(dispx, dispy, mon)) { if (!(flag & ALLOW_SSM)) continue; }`
-      if (!allowSSM && scare.size > 0 && onscary(ctx, nx, ny, e, { level, cells: scare })) continue;
-      const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
-      const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));
-      if (isHero) {
-        if (!(opts.allowU ?? !m.peaceful)) continue; // no ALLOW_U
-      } else if (occupant !== undefined && !opts.allowM) {
-        continue; // no ALLOW_M / ALLOW_MDISP
-      } else if (occupant !== undefined && isWormTail(ctx.state.entities[String(occupant)])) {
-        continue; // a worm is fought at its head only (DEVIATIONS.md "Long worms")
-      }
-      if (
-        sanctCheck &&
-        !isHero &&
-        templeOccupied(level, inRooms(level, nx, ny)) !== null &&
-        inYourSanctuary(ctx, null, nx, ny)
-      )
-        continue;
-      // ref: mfndpos(): `if (monseeu && monlineu(mon, nx, ny))`: lined up with mux/muy
-      let lined = false;
-      if (monseeu && onHerLevel) {
-        const ux = g?.x ?? heroPos.x;
-        const uy = g?.y ?? heroPos.y;
-        if (online2(nx, ny, ux, uy)) {
-          if (notonl) continue;
-          lined = true;
+        if (closed && !canOpen && !thrudoor) continue;
+        // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
+        // digger goes through (thrudoor)
+        if (rules.lockedDoor[to] && !thrudoor) continue;
+        if (!wallwalk && boulders.has(cellIndex(level, nx, ny))) continue; // ALLOW_ROCK
+        const diagonal = nx !== pos.x && ny !== pos.y;
+        // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
+        // or out of an intact door
+        if (diagonal && (noDiag(def) || rules.intactDoor[here] || rules.intactDoor[to])) continue;
+        // ref: mfndpos(): "mustn't pass between adjacent long worm segments"
+        if (diagonal && wormCross(ctx, level.id, pos.x, pos.y, nx, ny)) continue;
+        // ref: mfndpos(): `IS_WATERWALL(ntyp) && !is_swimmer(mdat)`; a wall of lava only for one
+        // that passes walls and is lava-safe; water only when `poolok || is_pool(nx, ny) ==
+        // wantpool`, lava only when lavaok
+        const ntyp = level.palette[to];
+        if (ntyp === T.water && !isSwimmer(def)) continue;
+        if ((!lavaok || !wallwalk) && ntyp === T.lavawall) continue;
+        if (!(poolok || isPool(ctx, level, nx, ny) === wantpool)) continue;
+        if (!lavaok && isLava(ctx, level, nx, ny)) continue;
+        const realHero = nx === heroPos.x && ny === heroPos.y;
+        const g = opts.guess;
+        // ref: mfndpos(): "If it's right next to you, it found you, displaced or no."
+        if (realHero && g) {
+          g.x = heroPos.x;
+          g.y = heroPos.y;
+          if (storedMux(ctx, id)) setStoredMux(ctx, id, g); // kept while it can't see her
         }
+        // ref: mfndpos(): `if (onscary(dispx, dispy, mon)) { if (!(flag & ALLOW_SSM)) continue; }`
+        if (!allowSSM && scare.size > 0 && onscary(ctx, nx, ny, e, { level, cells: scare }))
+          continue;
+        const isHero = realHero || (g !== undefined && nx === g.x && ny === g.y);
+        const occupant = realHero ? undefined : taken.get(cellIndex(level, nx, ny));
+        if (isHero) {
+          if (!(opts.allowU ?? !m.peaceful)) continue; // no ALLOW_U
+        } else if (occupant !== undefined && !opts.allowM) {
+          continue; // no ALLOW_M / ALLOW_MDISP
+        } else if (occupant !== undefined && isWormTail(ctx.state.entities[String(occupant)])) {
+          continue; // a worm is fought at its head only (DEVIATIONS.md "Long worms")
+        }
+        if (
+          sanctCheck &&
+          !isHero &&
+          templeOccupied(level, inRooms(level, nx, ny)) !== null &&
+          inYourSanctuary(ctx, null, nx, ny)
+        )
+          continue;
+        // ref: mfndpos(): `if (monseeu && monlineu(mon, nx, ny))`: lined up with mux/muy
+        let lined = false;
+        if (monseeu && onHerLevel) {
+          const ux = g?.x ?? heroPos.x;
+          const uy = g?.y ?? heroPos.y;
+          if (online2(nx, ny, ux, uy)) {
+            if (notonl) continue;
+            lined = true;
+          }
+        }
+        // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big;
+        // never for a monster that passes walls)
+        if (diagonal && !wallwalk && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
+        // ref: mfndpos(): "The monster avoids a particular type of trap if it's familiar with the
+        // trap type"; harmless traps are neither avoided nor marked
+        const ttmp = trapAt(level, nx, ny);
+        let harmful = false;
+        if (ttmp && !mHarmlessTrap(ctx, e, ttmp)) {
+          if (!allowTraps && monKnowsTraps(ctx, id, ttmp.def)) continue;
+          harmful = true;
+        }
+        out.push({
+          x: nx,
+          y: ny,
+          hero: isHero,
+          ...(occupant !== undefined ? { mon: occupant } : {}),
+          ...(harmful ? { trap: true as const } : {}),
+          ...(lined ? { lined: true as const } : {}),
+        });
       }
-      // ref: mfndpos() tight squeeze: bad_rock on both sides and cant_squeeze_thru() (too big;
-      // never for a monster that passes walls)
-      if (diagonal && !wallwalk && rock(pos.x, ny) && rock(nx, pos.y) && bigMonst(def)) continue;
-      // ref: mfndpos(): "The monster avoids a particular type of trap if it's familiar with the
-      // trap type"; harmless traps are neither avoided nor marked
-      const ttmp = trapAt(level, nx, ny);
-      let harmful = false;
-      if (ttmp && !mHarmlessTrap(ctx, e, ttmp)) {
-        if (!allowTraps && monKnowsTraps(ctx, id, ttmp.def)) continue;
-        harmful = true;
-      }
-      out.push({
-        x: nx,
-        y: ny,
-        hero: isHero,
-        ...(occupant !== undefined ? { mon: occupant } : {}),
-        ...(harmful ? { trap: true as const } : {}),
-        ...(lined ? { lined: true as const } : {}),
-      });
     }
+    if (out.length === 0 && wantpool && !isPool(ctx, level, pos.x, pos.y)) {
+      wantpool = false;
+      continue;
+    }
+    return out;
   }
-  return out;
 }
 
 /** The monster's recent positions, newest first, flat [x0,y0,x1,y1,...]. ref: mtmp->mtrack */
@@ -1097,6 +1125,11 @@ export function dochug(
   id: EntityId,
   petMove: (ctx: Ctx, id: EntityId) => 'moved' | 'nothing' | 'done' | 'died' = () => 'moved',
 ): void {
+  // ref: src/mon.c movemon_singlemon(): `if (minliquid(mtmp)) return FALSE;`: a monster in water
+  // or lava drowns, burns or gets out (it may land elsewhere) first; an eel on land gasps
+  const meL = ctx.state.entities[String(id)];
+  const hpL = getPlayer(ctx.state).c.pos;
+  if (meL?.c.pos && hpL?.level === meL.c.pos.level && minliquid(ctx, meL)) return;
   const { m, pos } = monCount(ctx, id);
   const hero = getPlayer(ctx.state);
   const hp = hero.c.pos;
@@ -1120,6 +1153,16 @@ export function dochug(
       if (restrap(ctx, me00)) return;
       if (apAsThing(ctx, id)) return; // a disguised mimic stays put
       if (isUndetected(ctx, id)) return;
+    } else if (
+      isEel(d00) &&
+      !isUndetected(ctx, id) &&
+      (isFleeing(ctx, id) || dist2(pos.x, pos.y, hp.x, hp.y) >= 3) &&
+      !canseemon(ctx, me00) &&
+      !ctx.rng.rn2(4)
+    ) {
+      // "some eels end up stuck in isolated pools, where they can't--or at least won't--move,
+      // so they never reach their post-move chance to re-hide"
+      if (hideunder(ctx, id)) return;
     } else maybeUnhideAt(ctx, pos.level, pos.x, pos.y);
   }
 
@@ -1302,9 +1345,10 @@ export function dochug(
           if (me && (!sw || sw.mon === id)) {
             maybeSpinWeb(ctx, me);
             const mm = me.c.monster;
+            const dme = ctx.defs.monster(me.def);
             if (
               ctx.state.entities[String(id)]?.c.monster &&
-              hidesUnder(ctx.defs.monster(me.def)) &&
+              (hidesUnder(dme) || isEel(dme)) &&
               (isUndetected(ctx, id) ||
                 (!isFrozen(ctx, id) && !(mm?.asleep ?? false) && ctx.rng.rn2(5)))
             )

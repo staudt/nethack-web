@@ -632,7 +632,7 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
   const hero = getPlayer(ctx.state).c.pos;
   if (!hero) return;
   for (const mon of followers) {
-    const spot = mnextoPos(ctx, level, null, hero);
+    const spot = mnextoPos(ctx, level, mon.id, hero);
     if (!spot) continue; // no room: it stays behind (mon_arrive would migrate it)
     // ref: keepdogs() -> mon_leave() drops a worm's tail; mon_arrive() grows it back
     const segs = wormRec(ctx.state, mon.id) ? wormLeave(ctx, mon.id) : null;

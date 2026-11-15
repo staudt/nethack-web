@@ -3,6 +3,7 @@
 // src/mhitm.c mattackm()
 export const hideMessagesEn: Record<string, string> = {
   'hide.see_hide': 'You see {mon|the} hide under {item|an}.',
+  'hide.see_dive': 'You see {mon|the} dive under the water.',
   'hide.wait_hiding_under': "Wait!  There's {mon|an} hiding under {item|an}!",
   'hide.wait_something_hiding_under': "Wait!  There's something hiding under {item|an}!",
   'hide.wait_hidden_monster': "Wait!  There's a hidden monster there!",
@@ -12,6 +13,8 @@ export const hideMessagesEn: Record<string, string> = {
   'hide.halluc.wild_unseen': 'A wild creature is present!',
   'hide.was_hidden_under': '{mon|An} was hidden under {item|an}!',
   'hide.something_was_hidden_under': 'Something was hidden under {item|an}!',
+  'hide.was_hidden_under_water': '{mon|An} was hidden under the water!',
+  'hide.something_was_hidden_under_water': 'Something was hidden under the water!',
   'hide.something': 'something',
   'hide.drops_from_ceiling': '{mon|An} suddenly drops from the {ceiling}!',
   'hide.glances_off': 'Its blow glances off your {helm}.',

@@ -8,7 +8,18 @@
 // Not ported: the Juiblex swamp, Medusa's "shallow sea", the samurai's "pond", the Plane of
 // Water's "limitless water" (none of those levels exist yet) and hallucinatory liquids
 // (hliquid()).
-import { cellIndex, inBounds, type Ctx, type DefId, type Level } from '@nh/core';
+import {
+  cellIndex,
+  inBounds,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type Level,
+  type MonsterDef,
+  type Rng,
+} from '@nh/core';
+import { isUndetected } from './hidestate';
+import { isClinger, isEel, isFlyer, isFloater, isSwimmer, likesLava } from './mondata';
 import { T, terrainIdAt } from './terrain';
 
 type Defs = Pick<Ctx, 'defs'>;
@@ -75,4 +86,43 @@ export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: n
     default:
       return isPool(ctx, level, x, y) ? 'liquid.name.moat' : 'liquid.name.water';
   }
+}
+
+/**
+ * The monster is above the ground: it flies, floats, or clings hidden to the ceiling (every
+ * level here has one). ref: src/mon.c m_in_air()
+ */
+export function mInAir(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
+  const def = ctx.defs.monster(mon.def);
+  return isFlyer(def) || isFloater(def) || (isClinger(def) && isUndetected(ctx, mon.id));
+}
+
+/**
+ * goodpos()'s water and lava rules for a creature of `def` (not the hero) at (x, y): in water
+ * only a swimmer, or one in the air above it (not in a wall of water); an eel out of water is
+ * refused 12 times in 13 (`rn2(13)`, drawn only then); over lava one in the air or that likes
+ * lava, never a floating eye. `inAir` is m_in_air() (a monster being made: flyer or floater).
+ * `ignoreWater`/`ignoreLava` are MM_IGNOREWATER/MM_IGNORELAVA. Returns false when refused, true
+ * when the square's other tests still apply. ref: src/teleport.c goodpos()
+ */
+export function monLiquidOk(
+  ctx: Pick<Ctx, 'defs'> & { rng: Pick<Rng, 'rn2'> },
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+  def: MonsterDef,
+  inAir: boolean,
+  ignoreWater = false,
+  ignoreLava = false,
+): boolean {
+  if (isPool(ctx, level, x, y) && !ignoreWater)
+    return isSwimmer(def) || (!isWaterwall(ctx, level, x, y) && inAir);
+  if (isEel(def) && !ignoreWater && ctx.rng.rn2(13)) return false;
+  if (isLava(ctx, level, x, y) && !ignoreLava) {
+    // 3.6.3: floating eye can levitate over lava but it avoids that due the effect of the heat
+    // causing it to dry out
+    if (def.id === 'nh:floating_eye') return false;
+    return inAir || likesLava(def);
+  }
+  return true;
 }

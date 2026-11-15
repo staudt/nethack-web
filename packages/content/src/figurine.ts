@@ -186,7 +186,7 @@ export function figTransform(ctx: Ctx, data: Json): void {
   if (cc && loc && loc.where !== 'floor') {
     // enexto(): the nearest free square to the carrier
     const level = ctx.state.levels[cc.level];
-    const p = level ? mnextoPos(ctx, level, null, cc) : null;
+    const p = level ? mnextoPos(ctx, level, null, cc, ctx.defs.monster(mndx)) : null;
     cc = p ? { level: cc.level, x: p.x, y: p.y } : null;
   }
   if (!cc || !loc || !figurineLocationChecks(ctx, figurine, cc, true)) {

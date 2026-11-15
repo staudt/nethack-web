@@ -384,7 +384,7 @@ export function healmon(mon: Entity, amt: number, overheal = 0): number {
  * `moves` is the turn that is ending (mcalcdistress() runs before `moves++`; this hook runs
  * after the port's turn counter went up). ref: src/monmove.c mon_regen() (its mspec_used
  * countdown is below; no meating digestion: `digest_meal` is FALSE here), called from
- * src/mon.c m_calcdistress() (no minliquid() check for immobile monsters)
+ * src/mon.c m_calcdistress() (its minliquid() check for immobile monsters is in registerMState())
  */
 export function monRegen(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
@@ -402,6 +402,12 @@ export function catchUpRegen(ctx: Pick<Ctx, 'defs'>, mon: Entity, imv: number): 
 }
 
 /** were_change(): were.ts registers it at load (it sits far above this leaf) */
+/** minliquid() (minliquid.ts sits above this module): true when the monster died */
+let minliquidHook: ((ctx: Ctx, mon: Entity) => boolean) | null = null;
+export function setMinliquidHook(fn: (ctx: Ctx, mon: Entity) => boolean): void {
+  minliquidHook = fn;
+}
+
 let wereChangeHook: ((ctx: Ctx, mon: Entity) => void) | null = null;
 export function setWereChange(fn: (ctx: Ctx, mon: Entity) => void): void {
   wereChangeHook = fn;
@@ -418,6 +424,9 @@ export function registerMState(api: ModApi): void {
     for (const id of sortedIds(ctx.state)) {
       const e = ctx.state.entities[String(id)];
       if (!e?.c.monster || e.c.pos?.level !== ctx.state.currentLevel) continue;
+      // ref: m_calcdistress(): "must check non-moving monsters once/turn in case they managed
+      // to end up in water or lava"
+      if (ctx.defs.monster(e.def).speed === 0 && minliquidHook?.(ctx, e)) continue;
       monRegen(ctx, id);
       // possibly polymorph lycanthropes (no shapechangers: decide_to_shapeshift() is 7f)
       wereChangeHook?.(ctx, e);

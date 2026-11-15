@@ -1,4 +1,7 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
+import { isPool } from './liquid';
+import { isEel } from './mondata';
+import { uinwater } from './uwater';
 import { EGG } from './eggstate';
 import { mAt, wormRec } from './wormstate';
 import { isAxe } from './mdig';
@@ -1027,23 +1030,29 @@ function wildmiss(ctx: Ctx, mon: Entity, atk: AttackDef): void {
  * "If the monster is undetected & hits you, you should know where the attack came from": a
  * monster hiding under an object comes out, and unless she senses it by telepathy "The garter
  * snake was hidden under a dagger!" ("Something" when she still can't see it).
- * ref: src/mhitu.c hitmu() (no eels, no Detect_monsters; dknown is always set)
+ * An eel in water she is not in "was hidden under the water!".
+ * ref: src/mhitu.c hitmu() (no Detect_monsters; dknown is always set)
  */
 function revealHiddenAttacker(ctx: Ctx, mon: Entity): void {
   const p = mon.c.pos;
-  if (!p || !isUndetected(ctx, mon.id) || !hidesUnder(ctx.defs.monster(mon.def))) return;
+  const mdef = ctx.defs.monster(mon.def);
+  if (!p || !isUndetected(ctx, mon.id) || !(hidesUnder(mdef) || isEel(mdef))) return;
   setUndetected(ctx, mon.id, false);
   if (telepathSenses(ctx.state, ctx.defs, mon)) return;
   const obj = itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y)[0];
   if (!obj) return;
-  const item = doname(ctx.state, ctx.defs, obj);
+  const lv = ctx.state.levels[p.level];
+  // "the water" for an object under the water she is not in (no Underwater view)
+  const water = !!lv && isPool(ctx, lv, p.x, p.y) && !uinwater(ctx);
+  const item = water ? '' : doname(ctx.state, ctx.defs, obj);
+  const suffix = water ? '_water' : '';
   if (canSpotMon(ctx, mon))
     ctx.emit({
       type: 'msg',
-      key: 'hide.was_hidden_under',
+      key: `hide.was_hidden_under${suffix}`,
       params: { mon: monNam(ctx, mon), item },
     });
-  else ctx.emit({ type: 'msg', key: 'hide.something_was_hidden_under', params: { item } });
+  else ctx.emit({ type: 'msg', key: `hide.something_was_hidden_under${suffix}`, params: { item } });
 }
 
 function unseenAttacker(ctx: Ctx, mon: Entity): void {

@@ -227,7 +227,7 @@ export function splitU(ctx: Ctx, form: MonsterDef, attacker: Entity | null): Ent
   if (!hp || !pos) return null;
   if (hp.cur > hp.max) hp.cur = hp.max; // sanity precaution
   if (hp.cur <= 1) return null;
-  const at = mnextoPos(ctx, getLevel(ctx.state, pos.level), null, pos);
+  const at = mnextoPos(ctx, getLevel(ctx.state, pos.level), null, pos, form);
   const id = at ? makemon(ctx, form, at, { noInventory: true, nogroup: true }) : null;
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (!mon?.c.monster || !mon.c.hp) return null;

@@ -217,3 +217,20 @@ export const hatesSilver = (def: MonsterDef): boolean =>
  * elementals, fungi or lights. ref: src/mondata.c olfaction()
  */
 export const olfaction = (def: MonsterDef): boolean => !"'ejPbvEFy".includes(def.glyph.ch);
+
+/** ref: include/mondata.h is_swimmer(): M1_SWIM */
+export const isSwimmer = (def: MonsterDef): boolean => has(def, 'swim');
+/** ref: include/mondata.h is_floater(): M1_FLOAT */
+export const isFloater = (def: MonsterDef): boolean => has(def, 'float');
+/** ref: include/mondata.h amphibious(): M1_AMPHIBIOUS */
+export const amphibiousMon = (def: MonsterDef): boolean => has(def, 'amphibious');
+/** ref: include/mondata.h breathless(): M1_BREATHLESS */
+export const breathlessMon = (def: MonsterDef): boolean => has(def, 'breathless');
+/** ref: include/mondata.h cant_drown(): a swimmer, amphibious or breathless */
+export const cantDrown = (def: MonsterDef): boolean =>
+  isSwimmer(def) || amphibiousMon(def) || breathlessMon(def);
+/** ref: include/mondata.h likes_lava(): fire elementals and salamanders */
+export const likesLava = (def: MonsterDef): boolean =>
+  def.id === 'nh:fire_elemental' || def.id === 'nh:salamander';
+/** The S_EEL class (';'): the sea monsters. ref: include/defsym.h S_EEL */
+export const isEel = (def: MonsterDef): boolean => def.glyph.ch === ';';

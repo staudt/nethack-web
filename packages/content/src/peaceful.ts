@@ -1,5 +1,8 @@
 // Attacking peaceful monsters: the confirmation, waking monsters and making them angry.
 // ref: src/uhitm.c attack_checks(), src/mon.c wakeup(), setmangry(), peacefuls_respond()
+import { isPool } from './liquid';
+import { isEel } from './mondata';
+import { uinwater } from './uwater';
 import { mApType, seemimic } from './mimicstate';
 import { stickIfSticky, stumbleOntoMimic } from './mimic';
 import { engulfingU } from './engulfstate';
@@ -93,7 +96,12 @@ export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number):
     stumbleOntoMimic(ctx, mon);
     return true;
   }
-  if (isUndetected(ctx, mon.id) && !canseemon(ctx, mon) && !warned && hidesUnder(def)) {
+  if (
+    isUndetected(ctx, mon.id) &&
+    !canseemon(ctx, mon) &&
+    !warned &&
+    (hidesUnder(def) || isEel(def))
+  ) {
     setUndetected(ctx, mon.id, false);
     if (mon.c.monster) mon.c.monster.asleep = false;
     if (markedUnseen(ctx, x, y)) return false; // she attacks it
@@ -103,7 +111,8 @@ export function attackChecksUnseen(ctx: Ctx, mon: Entity, x: number, y: number):
       if (!blind && hasProp(getPlayer(ctx.state), P.HALLUC)) {
         const tame = (mon.c.monster?.tame ?? 0) > 0 ? 'tame' : 'wild';
         say(ctx, `hide.halluc.${tame}${notseen ? '_unseen' : ''}`, { mon: monNam(ctx, mon) });
-      } else if (blind) say(ctx, 'hide.wait_hidden_monster');
+      } else if (blind || (inWater(ctx, mon) && !uinwater(ctx)))
+        say(ctx, 'hide.wait_hidden_monster');
       else if (obj) {
         const item = doname(ctx.state, ctx.defs, obj);
         if (notseen) say(ctx, 'hide.wait_something_hiding_under', { item });
@@ -237,4 +246,11 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
   }
   // a peaceful shopkeeper attacked while she is in no shop goes after her
   if (wasPeaceful && eshkOf(ctx, id) && uShops(ctx).length === 0) hotPursuit(ctx, id);
+}
+
+/** The monster is on a water square (is_pool(mtmp->mx, mtmp->my)). */
+function inWater(ctx: Ctx, mon: Entity): boolean {
+  const p = mon.c.pos;
+  const lv = p ? ctx.state.levels[p.level] : undefined;
+  return !!p && !!lv && isPool(ctx, lv, p.x, p.y);
 }

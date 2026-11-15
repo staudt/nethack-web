@@ -5,7 +5,9 @@
 // ref: src/mon.c hideunder(), hide_monst(), maybe_unhide_at(), restrap();
 // src/monmove.c can_hide_under_obj()
 //
-// Not ported: eels (no water), the hero hiding as a form (u.uundetected).
+// Eels hide in water (not under objects) and come out of hiding on land.
+// Not ported: the hero hiding as a form (u.uundetected), the Plane of Water, an Underwater hero
+// seeing an eel hide.
 import { mAt } from './wormstate';
 import {
   cellIndex,
@@ -27,6 +29,8 @@ import { xnameOf } from './objnam';
 import { monNam, sensemon } from './perception';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { T } from './terrain';
+import { isPool } from './liquid';
+import { isEel } from './mondata';
 import { isMtrapped, isPit } from './trapstate';
 
 export { ceilingHider, hidesUnder, isHider, isUndetected, setUndetected } from './hidestate';
@@ -83,10 +87,17 @@ export function hideunder(ctx: Ctx, id: EntityId, quiet = false): boolean {
   const seeit = quiet ? false : canseemon(ctx, mon);
   let undetected = false;
   let seenobj: Entity | null = null;
+  let dive = false;
   if (ustuck(ctx) === id) {
     // can't hide if holding you or held by you
   } else if (isMtrapped(ctx, id) || nonPitTrapAt(ctx, p.level, p.x, p.y)) {
     // can't hide while trapped or on/in/under any non-pit trap when not trapped
+  } else if (isEel(def)) {
+    // aquatic creatures only hide under water, not under objects (no Plane of Water; she is
+    // never Underwater here)
+    const lv = ctx.state.levels[p.level];
+    undetected = !!lv && isPool(ctx, lv, p.x, p.y);
+    dive = seeit;
   } else if (
     hidesUnder(def) &&
     canHideUnderObj(ctx, p.level, p.x, p.y) &&
@@ -110,7 +121,9 @@ export function hideunder(ctx: Ctx, id: EntityId, quiet = false): boolean {
     if (pile[i]) undetected = true;
   }
   setUndetected(ctx, id, undetected);
-  if (undetected && seeit && seenobj)
+  if (undetected && dive)
+    ctx.emit({ type: 'msg', key: 'hide.see_dive', params: { mon: monNam(ctx, mon) } });
+  else if (undetected && seeit && seenobj)
     ctx.emit({
       type: 'msg',
       key: 'hide.see_hide',
@@ -121,14 +134,17 @@ export function hideunder(ctx: Ctx, id: EntityId, quiet = false): boolean {
 
 /**
  * A monster hiding under an object at (x, y) whose object went away (or that got trapped) comes
- * out, or hides under what is left. ref: src/mon.c maybe_unhide_at() (no eels, no hero hiding)
+ * out, or hides under what is left; an eel no longer in water comes out.
+ * ref: src/mon.c maybe_unhide_at() (no hero hiding)
  */
 export function maybeUnhideAt(ctx: Ctx, level: LevelId, x: number, y: number): void {
   const mon = monAt(ctx, level, x, y);
   if (!mon || !isUndetected(ctx, mon.id)) return;
+  const def = ctx.defs.monster(mon.def);
+  const lv = ctx.state.levels[level];
   if (
-    hidesUnder(ctx.defs.monster(mon.def)) &&
-    (isMtrapped(ctx, mon.id) || !canHideUnderObj(ctx, level, x, y))
+    (hidesUnder(def) && (isMtrapped(ctx, mon.id) || !canHideUnderObj(ctx, level, x, y))) ||
+    (isEel(def) && !(lv && isPool(ctx, lv, x, y)))
   )
     hideunder(ctx, mon.id);
 }
@@ -182,11 +198,11 @@ export function restrap(ctx: Ctx, mon: Entity, unseen = false): boolean {
 /**
  * Called for each monster when the hero comes back to its level after a while: a hider that is
  * not hiding gets a restrap() as if unseen (a mimic that missed its 1 in 3 gets a second), a
- * hider-underer a hideunder(). ref: src/mon.c hide_monst() (no eels)
+ * hider-underer or an eel a hideunder(). ref: src/mon.c hide_monst()
  */
 export function hideMonst(ctx: Ctx, mon: Entity): void {
   const def = ctx.defs.monster(mon.def);
-  const hiderUnder = hidesUnder(def);
+  const hiderUnder = hidesUnder(def) || isEel(def);
   if ((isHider(def) || hiderUnder) && !isUndetected(ctx, mon.id) && mApType(ctx, mon.id) === null) {
     if (isHider(def)) restrap(ctx, mon, true);
     // try again if mimic missed its 1/3 chance to hide

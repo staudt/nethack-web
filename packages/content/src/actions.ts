@@ -23,6 +23,7 @@ import {
   rnl,
   trapAt,
 } from '@nh/core';
+import { mInAir, monLiquidOk } from './liquid';
 import { mApType, seemimic } from './mimicstate';
 import { stumbleOnDoorMimic } from './mimic';
 import { heroAttack, monsterIdAt } from './combat';
@@ -288,10 +289,15 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     ctx.interrupt();
     return 0;
   }
-  // ref: domove_swap_with_pet(): a peaceful monster won't be displaced onto a trapped square,
-  // and temple priests and shopkeepers not at all (mundisplaceable())
+  // ref: domove_swap_with_pet(): a peaceful monster won't be displaced into water or lava it
+  // can't take (goodpos()) or onto a trapped square, and temple priests and shopkeepers not at
+  // all (mundisplaceable())
   const undisplaceable = epriOf(ctx, mon.id) !== null || eshkOf(ctx, mon.id) !== null;
-  if (trapAt(level, from.x, from.y) || undisplaceable) {
+  if (
+    !monLiquidOk(ctx, level, from.x, from.y, def, mInAir(ctx, mon)) ||
+    trapAt(level, from.x, from.y) ||
+    undisplaceable
+  ) {
     if (tame) return stop('dog.doesnt_want_swap');
     ctx.emit({
       type: 'msg',

@@ -9,6 +9,7 @@ import {
   type CellRules,
   type Ctx,
   type DefId,
+  type Entity,
   type EntityId,
   type GameState,
   type Level,
@@ -25,8 +26,9 @@ import { uState } from './luck';
 import { isGenocided } from './vanquished';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
-import { isUnicorn } from './mondata';
 import { setMinvis } from './invis';
+import { mInAir, monLiquidOk } from './liquid';
+import { isEel, isFloater, isFlyer, isUnicorn } from './mondata';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -216,37 +218,60 @@ const withSokobanTraps = (level: Level, taken: Set<number>): Set<number> => {
   return taken;
 };
 
-/** ref: src/teleport.c goodpos(): passable, not a closed door, nobody (and no boulder) there. */
+/** The creature goodpos() places: its type and m_in_air() (a new one: it flies or floats). */
+export interface GpMon {
+  def: MonsterDef;
+  inAir: boolean;
+}
+
+/** goodpos()'s view of an existing monster, or of a new one of type `def`. */
+export function gpMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity | MonsterDef): GpMon {
+  if ('c' in mon) return { def: ctx.defs.monster(mon.def), inAir: mInAir(ctx, mon) };
+  return { def: mon, inAir: isFlyer(mon) || isFloater(mon) };
+}
+
+/**
+ * ref: src/teleport.c goodpos(): nobody (and no boulder) there, passable and not a closed door.
+ * Water and lava take a creature only as monLiquidOk() says (an eel out of water draws its
+ * `rn2(13)`); with no creature (C's null `mtmp`) they are never good (not ACCESSIBLE()).
+ */
 function goodpos(
+  ctx: Pick<Ctx, 'rng' | 'defs'>,
   level: Level,
   rules: CellRules,
   taken: Set<number>,
   x: number,
   y: number,
+  mon: GpMon | null,
 ): boolean {
   if (!inBounds(level, x, y)) return false;
   const i = cellIndex(level, x, y);
+  if (taken.has(i)) return false;
   const t = level.cells[i] ?? 0;
-  return rules.passable[t] === true && !rules.closedDoor[t] && !taken.has(i);
+  if (mon) {
+    if (!monLiquidOk(ctx, level, x, y, mon.def, mon.inAir)) return false;
+  } else if ((rules.liquid[t] ?? null) !== null) return false;
+  return rules.passable[t] === true && !rules.closedDoor[t];
 }
 
 /**
- * A random free square on `level` for a monster arriving there (a migrating monster).
- * ref: src/teleport.c rloc(): 50 random tries of `rnd(COLNO - 1), rn2(ROWNO)`, then every
- * candidate square in a shuffled order; null when the level is full.
+ * A random free square on `level` for monster `mon` arriving there (a migrating monster; no
+ * monster: no water or lava). ref: src/teleport.c rloc(): 50 random tries of `rnd(COLNO - 1),
+ * rn2(ROWNO)`, then every candidate square in a shuffled order; null when the level is full.
  */
-export function rlocPos(ctx: Ctx, level: Level): Pos | null {
+export function rlocPos(ctx: Ctx, level: Level, mon?: Entity): Pos | null {
   const rules = cellRules(level, ctx.defs);
   const taken = withBoulders(ctx, level, occupiedSet(ctx, level));
+  const gm = mon ? gpMon(ctx, mon) : null;
   for (let tries = 0; tries < 50; tries++) {
     const x = ctx.rng.rnd(level.width - 1);
     const y = ctx.rng.rn2(level.height);
-    if (goodpos(level, rules, taken, x, y)) return { x, y };
+    if (goodpos(ctx, level, rules, taken, x, y, gm)) return { x, y };
   }
   const candy: Pos[] = [];
   for (let x = 0; x < level.width; x++)
     for (let y = 0; y < level.height; y++)
-      if (goodpos(level, rules, taken, x, y)) candy.push({ x, y });
+      if (goodpos(ctx, level, rules, taken, x, y, gm)) candy.push({ x, y });
   if (candy.length === 0) return null;
   return candy[ctx.rng.rn2(candy.length)] ?? null;
 }
@@ -261,6 +286,7 @@ function enexto(
   rules: CellRules,
   taken: Set<number>,
   from: Pos,
+  mon: GpMon | null,
 ): Pos | null {
   const maxR = Math.max(level.width, level.height);
   for (let r = 1; r <= maxR; r++) {
@@ -274,16 +300,23 @@ function enexto(
       ring[i] = ring[j] as Pos;
       ring[j] = t;
     }
-    for (const p of ring) if (goodpos(level, rules, taken, p.x, p.y)) return p;
+    for (const p of ring) if (goodpos(ctx, level, rules, taken, p.x, p.y, mon)) return p;
   }
   return null;
 }
 
 /**
- * The nearest free square to `from` on `level` for monster `id` (which does not block itself).
+ * The nearest free square to `from` on `level` for monster `id` (which does not block itself), or
+ * for a new monster of type `def` (no id). With neither, water and lava are never good.
  * ref: src/mon.c mnexto() / src/teleport.c enexto()
  */
-export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos): Pos | null {
+export function mnextoPos(
+  ctx: Ctx,
+  level: Level,
+  id: EntityId | null,
+  from: Pos,
+  def?: MonsterDef | null,
+): Pos | null {
   const taken = occupiedSet(ctx, level);
   const self = id === null ? undefined : ctx.state.entities[String(id)]?.c.pos;
   if (self && self.level === level.id) taken.delete(cellIndex(level, self.x, self.y));
@@ -291,7 +324,9 @@ export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos
   const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
   if (id !== ctx.state.playerId && hp && hp.level === level.id)
     taken.add(cellIndex(level, hp.x, hp.y));
-  return enexto(ctx, level, cellRules(level, ctx.defs), withBoulders(ctx, level, taken), from);
+  const e = id === null || id === ctx.state.playerId ? undefined : ctx.state.entities[String(id)];
+  const gm = e?.c.monster ? gpMon(ctx, e) : def ? gpMon(ctx, def) : null;
+  return enexto(ctx, level, cellRules(level, ctx.defs), withBoulders(ctx, level, taken), from, gm);
 }
 
 /**
@@ -300,7 +335,13 @@ export function mnextoPos(ctx: Ctx, level: Level, id: EntityId | null, from: Pos
  * (first skipping visible squares, then not). Coordinates exclude the outermost columns/rows
  * like NetHack's rn1(COLNO-3, 2) / rn2(ROWNO).
  */
-function randomGoodPos(ctx: Ctx, level: Level, rules: CellRules, taken: Set<number>): Pos | null {
+function randomGoodPos(
+  ctx: Ctx,
+  level: Level,
+  rules: CellRules,
+  taken: Set<number>,
+  mon: GpMon | null,
+): Pos | null {
   const sees = (x: number, y: number): boolean =>
     level.id === ctx.state.currentLevel && isVisible(ctx.state, cellIndex(level, x, y));
   let nx = 0;
@@ -308,7 +349,7 @@ function randomGoodPos(ctx: Ctx, level: Level, rules: CellRules, taken: Set<numb
   for (let tries = 0; tries < 50; tries++) {
     nx = 1 + ctx.rng.rn2(Math.max(1, level.width - 3));
     ny = ctx.rng.rn2(level.height);
-    if (!sees(nx, ny) && goodpos(level, rules, taken, nx, ny)) return { x: nx, y: ny };
+    if (!sees(nx, ny) && goodpos(ctx, level, rules, taken, nx, ny, mon)) return { x: nx, y: ny };
   }
   for (let pass = 0; pass < 2; pass++) {
     for (let dx = 0; dx < level.width; dx++)
@@ -316,7 +357,7 @@ function randomGoodPos(ctx: Ctx, level: Level, rules: CellRules, taken: Set<numb
         const x = (dx + nx) % level.width;
         const y = (dy + ny) % level.height;
         if (pass === 0 && sees(x, y)) continue;
-        if (goodpos(level, rules, taken, x, y)) return { x, y };
+        if (goodpos(ctx, level, rules, taken, x, y, mon)) return { x, y };
       }
   }
   return null;
@@ -373,6 +414,8 @@ export function makemon(
   const taken = occupiedSet(ctx, level);
   const anymon = def === null;
 
+  // goodpos() for the given type (`fakemon`), or none for a random one: no water or lava
+  const gm = def ? gpMon(ctx, def) : null;
   let at: Pos;
   if (pos === null) {
     const p = randomGoodPos(
@@ -380,12 +423,13 @@ export function makemon(
       level,
       rules,
       withSokobanTraps(level, withBoulders(ctx, level, taken)),
+      gm,
     );
     if (!p) return null;
     at = p;
   } else if (taken.has(cellIndex(level, pos.x, pos.y))) {
     if (!opts.adjacentOk) return null;
-    const p = enexto(ctx, level, rules, withBoulders(ctx, level, taken), pos);
+    const p = enexto(ctx, level, rules, withBoulders(ctx, level, taken), pos, gm);
     if (!p) return null;
     at = p;
   } else at = pos;
@@ -394,7 +438,17 @@ export function makemon(
   // ref: makemon(): "if you are to make a specific monster and it has already been genocided,
   // return"
   if (def && isGenocided(ctx.state, def.id)) return null;
-  const mdef = def ?? rndmonst(ctx, level.depth);
+  let mdef = def;
+  if (!mdef) {
+    // ref: makemon(): "make a random (common) monster that can survive here" (special levels
+    // ask for random monsters on water): up to 50 rndmonst() until goodpos() takes it; the spot
+    // is free, and an explicit spot's boulder does not matter here (see withBoulders())
+    let tryct = 0;
+    do {
+      mdef = rndmonst(ctx, level.depth);
+      if (!mdef) return null;
+    } while (++tryct <= 50 && !goodpos(ctx, level, rules, taken, at.x, at.y, gpMon(ctx, mdef)));
+  }
   if (!mdef) return null;
 
   const ulevel = heroLevel(ctx);
@@ -413,6 +467,7 @@ export function makemon(
 
   // ref: makemon() switch (ptr->mlet): a mimic takes a disguise (set_mimic_sym()); snakes and
   // spiders made with the level get an object on their square and hide under it (hideunder()),
+  // eels made with the level hide in their water,
   // the stalker and the black light are invisible for good, leprechauns sleep, jabberwocks and
   // nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
   const mon = ctx.state.entities[String(id)]?.c.monster;
@@ -422,6 +477,8 @@ export function makemon(
     if (!levelObjectAt) throw new Error('makemon: mkobj.ts has not registered mkobj_at()');
     levelObjectAt(ctx, { level: level.id, x: at.x, y: at.y });
     hideunder(ctx, id, true);
+  } else if (isEel(mdef) && opts.inMklev) {
+    hideunder(ctx, id, true); // S_EEL: `if (gi.in_mklev) (void) hideunder(mtmp);`
   } else if (mdef.id === 'nh:stalker' || mdef.id === 'nh:black_light') {
     // S_LIGHT, S_ELEMENTAL: `mtmp->perminvis = TRUE; mtmp->minvis = TRUE;`
     const e = ctx.state.entities[String(id)];
@@ -526,7 +583,14 @@ function initgrp(
   let mm = at;
   while (cnt-- > 0) {
     if (peaceMinded(ctx, def)) continue;
-    const p = enexto(ctx, level, rules, withBoulders(ctx, level, occupiedSet(ctx, level)), mm);
+    const p = enexto(
+      ctx,
+      level,
+      rules,
+      withBoulders(ctx, level, occupiedSet(ctx, level)),
+      mm,
+      gpMon(ctx, def),
+    );
     if (!p) continue;
     mm = p;
     makemon(ctx, def, p, { ...opts, level: levelId, nogroup: true, angry: true });

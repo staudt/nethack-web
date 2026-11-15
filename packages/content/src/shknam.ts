@@ -203,7 +203,7 @@ export function shkinit(ctx: Ctx, level: Level, room: number, shp: ShopType): En
     const e = ctx.state.entities[String(id)];
     const p = e?.c.pos;
     if (!e?.c.monster || !p || p.level !== level.id || p.x !== spot.x || p.y !== spot.y) continue;
-    const to = rlocPos(ctx, level);
+    const to = rlocPos(ctx, level, e);
     if (to) {
       p.x = to.x;
       p.y = to.y;

@@ -1,6 +1,9 @@
 // How a pet moves: hunger, eating, fetching, choosing a goal, fighting other monsters.
 // ref: src/dogmove.c dog_move(), dog_goal(), dog_invent(), dog_eat(), dog_nutrition(),
-// dog_hunger(), dog_starve(), can_reach_location(); src/mhitm.c max_passive_dmg()
+// dog_hunger(), dog_starve(), can_reach_location(), could_reach_item(); src/mhitm.c
+// max_passive_dmg()
+import { isLava, isPool } from './liquid';
+import { isSwimmer, likesLava } from './mondata';
 import { resistsSton, touchPetrifies } from './stonestate';
 import {
   cellIndex,
@@ -187,12 +190,27 @@ function dogHunger(ctx: Ctx, mon: Entity, e: Edog): boolean {
 }
 
 /**
- * Whether the square can be walked to, square by square, always getting closer.
- * ref: src/dogmove.c can_reach_location() (no water, lava, boulders or digging here)
+ * The monster could pick up objects at (nx, ny): not under water unless it swims, not in lava
+ * unless it likes lava, not under a boulder unless it throws rocks.
+ * ref: src/dogmove.c could_reach_item()
+ */
+function couldReachItem(ctx: Ctx, mon: Entity, level: Level, nx: number, ny: number): boolean {
+  const def = ctx.defs.monster(mon.def);
+  return (
+    (!isPool(ctx, level, nx, ny) || isSwimmer(def)) &&
+    (!isLava(ctx, level, nx, ny) || likesLava(def)) &&
+    (boulderAt(ctx, level.id, nx, ny) === null || def.flags.includes('rockthrow'))
+  );
+}
+
+/**
+ * Whether the square can be walked to, square by square, always getting closer, over squares
+ * where it could reach an item. ref: src/dogmove.c can_reach_location() (no digging here)
  */
 function canReachLocation(
   level: Level,
   ctx: Ctx,
+  mon: Entity,
   mx: number,
   my: number,
   fx: number,
@@ -209,7 +227,8 @@ function canReachLocation(
       const t = level.cells[cellIndex(level, i, j)] ?? 0;
       if (!rules.passable[t] && !rules.closedDoor[t]) continue; // IS_OBSTRUCTED
       if (rules.closedDoor[t]) continue; // closed or locked door
-      if (canReachLocation(level, ctx, i, j, fx, fy)) return true;
+      if (!couldReachItem(ctx, mon, level, i, j)) continue;
+      if (canReachLocation(level, ctx, mon, i, j, fx, fy)) return true;
     }
   return false;
 }
@@ -235,10 +254,12 @@ function dogInvent(ctx: Ctx, mon: Entity, e: Edog, udist: number): 0 | 1 | 2 {
   const obj = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y)[0];
   if (!obj || obj.def === 'nh:boulder' || obj.def === 'nh:statue') return 0;
   const edible = dogfood(ctx, mon, obj);
-  if (edible <= CADAVER || (e.mhpmaxPenalty && edible === ACCFOOD))
+  const lv = ctx.state.levels[pos.level];
+  const reach = !!lv && couldReachItem(ctx, mon, lv, pos.x, pos.y);
+  if ((edible <= CADAVER || (e.mhpmaxPenalty && edible === ACCFOOD)) && reach)
     return dogEat(ctx, mon.id, obj, pos, false) === 'died' ? 2 : 1;
   const carryamt = canCarry(ctx, mon.id, obj);
-  if (carryamt > 0 && obj.c.item?.buc !== 'cursed') {
+  if (carryamt > 0 && obj.c.item?.buc !== 'cursed' && reach) {
     if (ctx.rng.rn2(20) < e.apport + 3) {
       if (ctx.rng.rn2(udist) !== 0 || ctx.rng.rn2(e.apport) === 0) {
         let take = obj.id;
@@ -313,7 +334,12 @@ function dogGoal(
       (o) => o.c.item?.buc === 'cursed',
     );
     if (cursedHere && !(e.mhpmaxPenalty && otyp < MANFOOD)) continue;
-    if (!canReachLocation(level, ctx, omx, omy, nx, ny)) continue;
+    // skip completely unreachable goals
+    if (
+      !couldReachItem(ctx, mon, level, nx, ny) ||
+      !canReachLocation(level, ctx, mon, omx, omy, nx, ny)
+    )
+      continue;
     if (otyp < MANFOOD) {
       if (otyp < gtyp || ddist(nx, ny) < ddist(gx, gy)) {
         gx = nx;
@@ -552,9 +578,10 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
       }
       // the dog eschews cursed objects, but likes dog food
       let food: Entity | null = null;
+      const canReachFood = couldReachItem(ctx, mon, level, nx, ny);
       for (const obj of itemsAt(ctx.defs, ctx.state, pos.level, nx, ny)) {
         if (obj.c.item?.buc === 'cursed') cursemsg.add(i);
-        else {
+        else if (canReachFood) {
           const otyp = dogfood(ctx, mon, obj);
           if (otyp < MANFOOD && (otyp < ACCFOOD || e.hungrytime <= ctx.state.turn)) {
             food = obj;

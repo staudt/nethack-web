@@ -112,6 +112,9 @@ import {
   touchPetrifies,
 } from './stonestate';
 import { done } from './end';
+import { isPool, isWaterwall } from './liquid';
+import { T, terrainIdAt } from './terrain';
+import { amphibious, breathless, swimming } from './uwater';
 import { losespells } from './spell';
 import { drainWeaponSkill } from './skills';
 import { isKnown } from './o_init';
@@ -991,10 +994,21 @@ function adStck(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   adPhys(ctx, magr, atk, mdef, mhm, env);
 }
 
+/** The holders with a "drowned in a pool of water by a giant eel" killer (liquid.en.ts). */
+const WRAP_DROWNERS: ReadonlySet<string> = new Set([
+  'nh:giant_eel',
+  'nh:electric_eel',
+  'nh:kraken',
+  'nh:python',
+  'nh:guardian_naga',
+]);
+
 /**
  * mhitm_ad_wrap(): a python or eel swinging (or coiling) itself around the hero, 1 time in 10,
- * then holding her; while held a hug crushes. Drowning needs pools (none yet). A monster target
- * is only brushed against when the damage comes to nothing.
+ * then holding her; while held, on a pool or moat it drowns her ("The giant eel drowns you...")
+ * unless she swims, is amphibious or breathless, else a hug crushes. The hero never holds a
+ * monster, so she drowns none. A monster target is only brushed against when the damage comes to
+ * nothing.
  */
 function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, _env: AdEnv): void {
   const coil = coils(ctx, magr);
@@ -1006,7 +1020,7 @@ function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
           say(ctx, coil ? 'uhitm.coil_around' : 'uhitm.swing_around', { mon: monNam(ctx, mdef) });
         // set_ustuck(mdef): not ported, the hero never holds a monster
       } else if (ustuck(ctx) === mdef.id) {
-        // (no pools to drown it in)
+        // (the hero never holds a monster: none drowns in her grip)
         if (atk.at === 'hug') say(ctx, 'uhitm.being_crushed', { mon: monNam(ctx, mdef) });
       } else {
         mhm.damage = 0;
@@ -1028,8 +1042,28 @@ function adWrap(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
           });
         }
       } else if (ustuck(ctx) === magr.id) {
-        // pools: "X drowns you..." on a pool or moat square (no water terrain yet)
-        if (atk.at === 'hug') say(ctx, 'mhitu.being_crushed');
+        const mp = magr.c.pos;
+        const lv = mp ? ctx.state.levels[mp.level] : undefined;
+        if (
+          mp &&
+          lv &&
+          isPool(ctx, lv, mp.x, mp.y) &&
+          !swimming(ctx) &&
+          !amphibious(ctx) &&
+          !breathless(ctx)
+        ) {
+          // (no Medusa level or Plane of Water yet)
+          const moat = terrainIdAt(lv, mp.x, mp.y) !== T.pool && !isWaterwall(ctx, lv, mp.x, mp.y);
+          say(ctx, 'liquid.drowns_you', { mon: monNam(ctx, magr) });
+          const w = moat ? 'moat' : 'pool';
+          done(
+            ctx,
+            WRAP_DROWNERS.has(magr.def)
+              ? `@killer.drown_by.${w}.${magr.def}`
+              : `@killer.drown.${w}`,
+            'drowning',
+          );
+        } else if (atk.at === 'hug') say(ctx, 'mhitu.being_crushed');
       } else {
         mhm.damage = 0;
         say(ctx, coil ? 'mhitu.brushes_against' : 'mhitu.brushes_leg', {

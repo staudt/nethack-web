@@ -23,8 +23,8 @@
 // Not ported: the ghost in a milky potion and the djinni in a smoky one (precheck(); as for the
 // hero's quaff), ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
 // mon_has_special(): never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
-// Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools, lava,
-// ice and drawbridges (no such terrain), `trycall()` (naming unknown types), the fire and
+// Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
+// the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
 // frost horns and the expensive camera (no such objects), Half_spell_damage (no source), steeds.
 import {
   DIRS,
@@ -55,6 +55,8 @@ import {
   type Pos,
   type Trap,
 } from '@nh/core';
+import { isPool } from './liquid';
+import { uinwater } from './uwater';
 import { couldseeAt } from './apparxy';
 import { clearPath } from './clearpath';
 import { blockersOf, boulderAt } from './boulder';
@@ -965,8 +967,12 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
     }
     case 'wan_create_monster': {
       if (!otmp) return 0;
-      // (no pools: always a random monster)
-      const cc = mnextoPos(ctx, level, null, { x: p.x, y: p.y });
+      // pm: 0 => random, eel => aquatic, croc => amphibious (only for the spot: the monster
+      // made there is random)
+      const pm = !isPool(ctx, level, p.x, p.y)
+        ? null
+        : ctx.defs.monster(uinwater(ctx) ? 'nh:giant_eel' : 'nh:crocodile');
+      const cc = mnextoPos(ctx, level, null, { x: p.x, y: p.y }, pm);
       if (!cc) return 0;
       mzapwand(ctx, mon, otmp, false);
       const nid = makemon(ctx, null, cc, { level: level.id });

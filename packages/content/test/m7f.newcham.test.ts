@@ -186,7 +186,10 @@ describe('the wand of polymorph at a monster', () => {
         );
       } else if (ent(s, m.id) && ent(s, m.id)!.def !== 'nh:jackal') {
         changed++;
-        expect(out.some((t) => t.startsWith('The jackal turns into '))).toBe(true);
+        // an invisible new form (a black light) "disappears!" instead (newcham())
+        expect(
+          out.some((t) => t.startsWith('The jackal turns into ') || t === 'The jackal disappears!'),
+        ).toBe(true);
       }
     }
     expect(shock).toBeGreaterThan(0);

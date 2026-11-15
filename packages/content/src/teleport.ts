@@ -7,8 +7,7 @@
 //
 // Not ported (see DEVIATIONS.md "Teleportation"): the demon court of Gehennom, covetous
 // monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
-// stairs, Passes_walls; water and lava for monsters (m15 step 2: only the hero's and objects'
-// rules are here).
+// stairs, Passes_walls.
 import {
   cellIndex,
   cellRules,
@@ -37,6 +36,7 @@ import { dungeonBottom, levelFlags } from './levelflags';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
 import { heroLiquidOk } from './uwater';
+import { mInAir, monLiquidOk } from './liquid';
 import { T } from './terrain';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
@@ -103,9 +103,13 @@ interface Occupancy {
   worm?: true;
   /** goodpos()'s water and lava rules for the hero: water, a wall of water, lava. */
   heroLiquid: { water: boolean; waterwall: boolean; lava: boolean };
+  /** goodpos()'s water and lava rules for monster `who` at (x, y) (monLiquidOk()). */
+  monLiquid: (who: EntityId, x: number, y: number) => boolean;
 }
 
-function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
+type OccCtx = Pick<Ctx, 'state' | 'defs'> & { rng?: Ctx['rng'] };
+
+function occupancy(ctx: OccCtx, level: Level): Occupancy {
   const mons = new Map<number, EntityId>();
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
@@ -126,6 +130,24 @@ function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
       water: heroLiquidOk(ctx, 'water', false),
       waterwall: heroLiquidOk(ctx, 'water', true),
       lava: heroLiquidOk(ctx, 'lava', false),
+    },
+    monLiquid: (who, x, y) => {
+      const e = ctx.state.entities[String(who)];
+      const { rng } = ctx;
+      // (every caller placing a monster passes the RNG; without it no liquid is good)
+      if (!e?.c.monster || !rng)
+        return (
+          (cellRules(level, ctx.defs).liquid[level.cells[cellIndex(level, x, y)] ?? 0] ?? null) ===
+          null
+        );
+      return monLiquidOk(
+        { defs: ctx.defs, rng },
+        level,
+        x,
+        y,
+        ctx.defs.monster(e.def),
+        mInAir(ctx, e),
+      );
     },
   };
 }
@@ -154,8 +176,9 @@ export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
 /**
  * ref: src/teleport.c goodpos(x, y, mtmp, 0): on the map, not the hero's square (unless `who` is
  * the hero), no other monster there when placing one (`who` null places an object: monsters do
- * not matter), accessible, and no boulder. The hero goes into water or lava only as goodpos()
- * allows; an object never does (not ACCESSIBLE()); monsters still may (m15 step 2).
+ * not matter), accessible, and no boulder. The hero and monsters go into water or lava only as
+ * goodpos() allows (an eel stays out of dry squares 12 times in 13); an object never does (not
+ * ACCESSIBLE()).
  */
 function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): boolean {
   if (!inBounds(o.level, x, y)) return false;
@@ -176,6 +199,7 @@ function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): bool
       liquid === 'lava' ? o.heroLiquid.lava : wall ? o.heroLiquid.waterwall : o.heroLiquid.water;
     return ok; // goodpos() returns here: no boulder check in water or lava
   }
+  if (who !== null && !heroIsWho && !o.monLiquid(who, x, y)) return false;
   return accessible(o, i) && !o.boulders.has(i);
 }
 
@@ -191,7 +215,7 @@ export function goodposHero(
 
 /** goodpos() for monster `who` at (x, y) of `level`. ref: src/teleport.c goodpos(x, y, mtmp, 0) */
 export function goodposMon(
-  ctx: Pick<Ctx, 'state' | 'defs'>,
+  ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
   level: Level,
   x: number,
   y: number,

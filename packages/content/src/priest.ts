@@ -96,7 +96,7 @@ export function priestini(ctx: Ctx, level: Level, room: number, altar: Pos): Ent
     const p = ctx.state.entities[String(id)]?.c.pos;
     const isMon = ctx.state.entities[String(id)]?.c.monster !== undefined;
     if (!isMon || !p || p.level !== level.id || p.x !== px || p.y !== py) continue;
-    const to = rlocPos(ctx, level);
+    const to = rlocPos(ctx, level, ctx.state.entities[String(id)]);
     if (to) {
       p.x = to.x;
       p.y = to.y;
