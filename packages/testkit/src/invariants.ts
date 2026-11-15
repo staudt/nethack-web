@@ -198,6 +198,7 @@ export function checkInvariants(
   checkWorms(state, ids, errs);
   checkPriests(state, errs);
   checkFountains(state, errs);
+  checkEngravings(state, registry, errs);
   checkVaults(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
@@ -660,6 +661,54 @@ function checkFountains(state: GameState, errs: string[]): void {
         errs.push(`fountains: ${lid} cell ${k} has bad bits ${String(bits)}`);
       if (lv.palette[lv.cells[Number(k)] ?? -1] !== 'nh:fountain')
         errs.push(`fountains: ${lid} cell ${k} is not a fountain`);
+    }
+  }
+}
+
+const ENGR_TYPES = ['dust', 'engrave', 'burn', 'mark', 'blood', 'headstone'];
+
+/**
+ * Engravings (`modData.nh.engr`, `{ [levelId]: { [cellIndex]: Engr } }`): every entry is on an
+ * existing level, has a known type and a text that is not empty, and lies on an ACCESSIBLE()
+ * square (a door, or a passable square that is not liquid: never stone, a wall, a tree, iron
+ * bars, a secret door or corridor, water or lava). Empty level tables are dropped.
+ */
+function checkEngravings(state: GameState, registry: Registry, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['engr']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.engr is not an object');
+    return;
+  }
+  const table = t as Record<string, Record<string, unknown>>;
+  for (const lid of Object.keys(table).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) {
+      errs.push(`engr: level '${lid}' does not exist`);
+      continue;
+    }
+    const cells = table[lid] ?? {};
+    const keys = Object.keys(cells).sort((a, b) => Number(a) - Number(b));
+    if (keys.length === 0) errs.push(`engr: ${lid} has an empty table`);
+    for (const k of keys) {
+      const e = cells[k] as { text?: unknown; type?: unknown } | undefined;
+      const i = Number(k);
+      if (!Number.isInteger(i) || i < 0 || i >= lv.cells.length) {
+        errs.push(`engr: ${lid} cell ${k} is off the map`);
+        continue;
+      }
+      if (typeof e?.text !== 'string' || e.text.length === 0)
+        errs.push(`engr: ${lid} cell ${k} has no text`);
+      if (typeof e?.type !== 'string' || !ENGR_TYPES.includes(e.type))
+        errs.push(`engr: ${lid} cell ${k} has a bad type ${String(e?.type)}`);
+      const tid = lv.palette[lv.cells[i] ?? -1];
+      const def = tid !== undefined && registry.hasTerrain(tid) ? registry.terrain(tid) : null;
+      if (!def || def.liquid !== undefined || (!def.passable && def.door === undefined))
+        errs.push(`engr: ${lid} (${i % lv.width},${Math.floor(i / lv.width)}) is on ${tid}`);
     }
   }
 }

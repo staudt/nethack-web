@@ -13,7 +13,9 @@ import { isGenocided } from './vanquished';
 import { mkgold } from './items';
 import { mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
-import { somexyspace } from './somexy';
+import { somexyspace, somexyspaceTry } from './somexy';
+import { makeEngrAt } from './engr';
+import { randomEngraving } from './rndengr';
 import { mkcorpstat } from './statue';
 import { canDigDown, levelFlags } from './levelflags';
 import { T, setTerrain, terrainIdAt } from './terrain';
@@ -152,10 +154,10 @@ export function mktrap(
  * One ordinary room's contents, in mklev's order: a monster (1 in 3; a giant spider gets a web
  * under it), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
- * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a statue (1 in 20), then random
- * objects (1 in 3 for the first, then 1 in 5 for each further one). ref: src/mklev.c
- * fill_ordinary_room(). Mimics, graves, engravings and the bonus items do not exist, and so do
- * not roll.
+ * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a statue (1 in 20), graffiti
+ * (1 in 27 + 3 * depth), then random objects (1 in 3 for the first, then 1 in 5 for each further
+ * one). ref: src/mklev.c fill_ordinary_room(). Mimics, graves and the bonus items do not exist,
+ * and so do not roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
@@ -192,6 +194,8 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
       { level: level.id, inMklev: true },
     );
   }
+  // maybe make some graffiti
+  if (!ctx.rng.rn2(27 + 3 * Math.abs(level.depth))) graffiti(ctx, level, room);
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room))) {
     mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
     for (trycnt = 0; ctx.rng.rn2(5) === 0;) {
@@ -203,6 +207,21 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
 }
 
 const GIANT_SPIDER: DefId = 'nh:giant_spider';
+
+/**
+ * A random engraving as graffiti (MARK, finished at turn 0) on a floor square of the room: the
+ * spot is somexyspace()'s, tried again while it is not floor and `!rn2(40)`; on anything else
+ * nothing is written. A worn text that reads exactly "Elbereth" guards the objects on it
+ * (make_engr_at()'s `in_mklev`). ref: src/mklev.c fill_ordinary_room() "maybe make some graffiti"
+ */
+function graffiti(ctx: Ctx, level: Level, room: Room): void {
+  const { text, pristine } = randomEngraving(ctx);
+  let p: Pos;
+  do p = somexyspaceTry(ctx, level, room).pos;
+  while (terrainIdAt(level, p.x, p.y) !== T.floor && !ctx.rng.rn2(40));
+  if (terrainIdAt(level, p.x, p.y) === T.floor)
+    makeEngrAt(ctx, level, p.x, p.y, text, pristine, 0, 'mark', { inMklev: true });
+}
 
 const SDOORS: readonly DefId[] = [T.sdoor_v, T.sdoor_h, T.sdoor_locked_v, T.sdoor_locked_h];
 

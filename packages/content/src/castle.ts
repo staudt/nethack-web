@@ -9,8 +9,8 @@
 // fixup does what depends on the shuffled class lists and on the maze: the contents in the
 // script's order, the two stocked maze walks, the drawbridge (closed, facing east: dbridge.ts)
 // and the up stairs in their region of the left-hand maze, which only exists once walked (core
-// puts them on a fixed spot of the courtyard first). There is no Elbereth engraving (no
-// engravings) and no graveyard flag (undead leave corpses as anywhere else).
+// puts them on a fixed spot of the courtyard first). There is no graveyard flag (undead leave
+// corpses as anywhere else).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
 import { VANILLA_TERRAIN, levelDefRect, trapAt, wallifyLevel } from '@nh/core';
 import { boulderAt } from './boulder';
@@ -22,6 +22,7 @@ import { mksobjFull } from './mkobj';
 import {
   addToStatue,
   deleteContents,
+  desEngraving,
   makeContents,
   mapToLevel,
   rndcoord,
@@ -160,9 +161,10 @@ function storeroom(cls: string, x1: number, y1: number): LevelContent[] {
 
 /**
  * The wand of wishing in one of the four towers: a locked, untrapped chest holding only a wand of
- * wishing and a potion of gain level, and on it a cursed scroll of scare monster (no Elbereth).
- * ref: dat/castle.lua; src/sp_lev.c create_object() (SP_OBJ_CONTAINER: delete_contents(), then
- * the contents; `locked`, `trapped`, `buc`)
+ * wishing and a potion of gain level, a burned "Elbereth" under it (guarding no objects:
+ * des.engraving()'s default) and on it a cursed scroll of scare monster.
+ * ref: dat/castle.lua; src/sp_lev.c lspo_engraving(), create_object() (SP_OBJ_CONTAINER:
+ * delete_contents(), then the contents; `locked`, `trapped`, `buc`)
  */
 function wishingChest(ctx: Ctx, level: Level, def: LevelDef): void {
   const place = [
@@ -185,7 +187,8 @@ function wishingChest(ctx: Ctx, level: Level, def: LevelDef): void {
   deleteContents(ctx, chest);
   for (const id of ['nh:wand_of_wishing', 'nh:potion_of_gain_level'] as const)
     addToStatue(ctx, chest, mksobjFull(ctx, ctx.defs.object(id), { init: true }, gen));
-  // des.engraving({ coord = loc, type="burn", text="Elbereth" }): no engravings
+  // des.engraving({ coord = loc, type="burn", text="Elbereth" }), before the scroll
+  desEngraving(ctx, level, def, loc, 'burn', 'Elbereth');
   const scroll = mksobjFull(ctx, ctx.defs.object('nh:scroll_of_scare_monster'), { at }, gen);
   const it = ctx.state.entities[String(scroll)]?.c.item;
   if (it) it.buc = 'cursed';

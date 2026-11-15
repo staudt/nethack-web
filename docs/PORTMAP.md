@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-177 NetHack files, 4707 citations.
+177 NetHack files, 4712 citations.
 
 ## dat/bigrm-1.lua
 
@@ -1486,7 +1486,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mklev.c
 
-- (file): `packages/content/src/mklev.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `add_door()`: `packages/content/src/zoo.ts`
 - `add_room()`: `packages/core/src/levelgen/rooms.ts`
 - `add_subroom()`: `packages/core/src/levelgen/sprooms.ts`
@@ -2361,6 +2361,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_altar()`: `packages/core/src/types/mod.ts`
 - `lspo_door()`: `packages/content/src/oracle.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_drawbridge()`: `packages/content/src/dbridge.ts`
+- `lspo_engraving()`: `packages/content/src/castle.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
 - `lspo_feature()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_finalize_level()`: `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 - `lspo_level_flags()`: `packages/content/src/minesend.ts`
@@ -2903,4 +2904,4 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## util/makedefs.c
 
-- `do_rnd_access_file()`: `packages/content/src/engravetxt.ts`
+- `do_rnd_access_file()`: `packages/content/src/engravetxt.ts`, `packages/content/src/epitaph.ts`

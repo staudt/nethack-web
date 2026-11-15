@@ -99,6 +99,10 @@ export interface SoakResult {
   fountain: number;
   /** Boulders the hero pushed: moved one square, or sunk into a pit or hole she pushed them into. */
   boulderPushes: number;
+  /** Engraving texts the bot typed (`engrave` text prompts answered with a string). */
+  engraved: number;
+  /** Steps after which the hero stood on an engraving reading "Elbereth" (content's `modData.nh.engr`). */
+  onElbereth: number;
   /** The hero's hunger state when the run stopped (null if she has no hunger component). */
   hunger: HungerState | null;
 }
@@ -209,6 +213,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let positionAnswers = 0;
   let chatted = 0;
   let paid = 0;
+  let engraved = 0;
+  let onElbereth = 0;
   let nextPay = 0;
   let aim: Dir | null = null;
   const depthNow = (): number => state.levels[state.currentLevel]?.depth ?? 1;
@@ -223,6 +229,17 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   let continuing = false;
   /** Errors from checks that need the state before a step (pets changing level). */
   const stepErrors: string[] = [];
+  /** The hero stands on an engraving reading "Elbereth" (any case; worn or not finished aside). */
+  const heroOnElbereth = (): boolean => {
+    const p = getPlayer(state).c.pos;
+    const lv = state.levels[state.currentLevel];
+    const nh = state.modData['nh'];
+    if (!p || !lv || !nh || typeof nh !== 'object' || Array.isArray(nh)) return false;
+    const t = (nh as Record<string, Json>)['engr'] as
+      Record<string, Record<string, { text?: unknown }>> | undefined;
+    const e = t?.[lv.id]?.[String(p.y * lv.width + p.x)];
+    return typeof e?.text === 'string' && e.text.toLowerCase() === 'elbereth';
+  };
   let petsFollowed = 0;
   let boulderPushes = 0;
   const stepAndTrack = (a: PlayerAction): void => {
@@ -267,6 +284,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         kills++;
     }
     if (isMod(a, 'nh:pickup')) pickedUp += Math.max(0, carriedCount() - before);
+    if (heroOnElbereth()) onElbereth++;
     deepest = Math.max(deepest, depthNow());
     noteDungeon();
   };
@@ -380,6 +398,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
       // an engraving: "Elbereth" 1 time in 2, else the answer below
       if (pending.id === 'engrave' && rng.rn2(2) === 0) {
         textAnswers++;
+        engraved++;
         return 'Elbereth';
       }
       // a short deterministic name or amount, or a cancel
@@ -389,6 +408,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
         return String(rng.rn2(1000));
       }
       textAnswers++;
+      if (pending.id === 'engrave') engraved++;
       return `n${rng.rn2(100)}`;
     }
     if (pending.kind === 'position') {
@@ -758,6 +778,8 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     paid,
     fountain,
     boulderPushes,
+    engraved,
+    onElbereth,
     hunger: getPlayer(state as GameState).c.hunger?.state ?? null,
   };
   const v = result.violations as SoakViolation | null;

@@ -2,17 +2,18 @@
 // room-entry code (rooms.ts) needs below the level builder. ref: dat/soko1-1.lua, dat/soko1-2.lua
 import type { Ctx, DefId, Level, LevelDef } from '@nh/core';
 import { mksobjFull } from './mkobj';
-import { mapToLevel, type SpLevFixup } from './sp_lev';
+import { desEngraving, mapToLevel, type SpLevFixup } from './sp_lev';
 
 type Spot = readonly [x: number, y: number];
 
 /**
  * Sokoban's prize, beside the zoo on the top level: at one of the listed map spots
  * (`selection.rndcoord(place)`, x then y order), a bag of holding `chance` percent of the time,
- * else an amulet of reflection, not cursed. Its Elbereth engraving and cursed scroll of scare
- * monster are not ported (DEVIATIONS.md "Sokoban"); no achievement is recorded.
- * ref: dat/soko1-1.lua, dat/soko1-2.lua ("Rewards"); src/sp_lev.c create_object() buc
- * "not-cursed"
+ * else an amulet of reflection, not cursed; then a burned "Elbereth" under it (which guards no
+ * objects: des.engraving()'s default) and a cursed scroll of scare monster on it. No achievement
+ * is recorded.
+ * ref: dat/soko1-1.lua, dat/soko1-2.lua ("Rewards"); src/sp_lev.c create_object(), lspo_engraving()
+ * (buc "not-cursed" and "cursed")
  */
 function sokobanPrize(chance: number, place: readonly Spot[]): SpLevFixup {
   return {
@@ -29,6 +30,15 @@ function sokobanPrize(chance: number, place: readonly Spot[]): SpLevFixup {
       );
       const item = ctx.state.entities[String(e)]?.c.item;
       if (item?.buc === 'cursed') item.buc = 'uncursed'; // case 4 "not cursed": uncurse()
+      desEngraving(ctx, level, def, { x: spot[0], y: spot[1] }, 'burn', 'Elbereth');
+      const scroll = mksobjFull(
+        ctx,
+        ctx.defs.object('nh:scroll_of_scare_monster'),
+        { at: { level: level.id, x: p.x, y: p.y } },
+        { level: level.id, inMklev: true },
+      );
+      const it = ctx.state.entities[String(scroll)]?.c.item;
+      if (it) it.buc = 'cursed';
     },
   };
 }

@@ -20,6 +20,7 @@ import {
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { vanillaMod } from '../src/index';
+import { engrAt } from '../src/engr';
 import { mapToLevel } from '../src/sp_lev';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
@@ -272,6 +273,25 @@ describe('the Sokoban branch', () => {
             .map(([x, y]) => key(at(x, y)))
             .sort(),
         );
+        // the top level's prize (m16 step 6): on a burned Elbereth guarding nothing, under a
+        // cursed scroll of scare monster
+        if (name.startsWith('soko1')) {
+          const prize = things.find(
+            (e) => e.def === 'nh:bag_of_holding' || e.def === 'nh:amulet_of_reflection',
+          );
+          const p = prize?.c.pos;
+          expect(p).toBeDefined();
+          expect(engrAt({ state }, level, p!.x, p!.y)).toEqual({
+            text: 'Elbereth',
+            pristine: 'Elbereth',
+            type: 'burn',
+            time: 0,
+          });
+          const scrolls = things.filter(
+            (e) => e.def === 'nh:scroll_of_scare_monster' && key(e.c.pos!) === key(p!),
+          );
+          expect(scrolls.map((e) => e.c.item?.buc)).toEqual(['cursed']);
+        }
         // random objects: four food (1 or 2 each; equal ones made on one spot merge), a ring
         // and a wand, all inside the block
         const ofClass = (c: string) =>

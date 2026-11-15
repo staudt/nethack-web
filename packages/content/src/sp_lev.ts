@@ -28,6 +28,7 @@ import {
 } from '@nh/core';
 import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
+import { makeEngrAt, type EngrType } from './engr';
 import { isGenocided } from './vanquished';
 import { makemon, mkclass } from './generation';
 import { polyWhenStoned } from './golem';
@@ -438,6 +439,29 @@ export function rndcoord(ctx: Pick<Ctx, 'rng'>, spots: Pos[]): Pos {
 /** The Level position of a LevelDef spot (map-relative when the LevelDef has a map block). */
 export function mapToLevel(def: LevelDef, level: Level, x: number, y: number): Pos {
   return levelDefPos(def, level.width, level.height, x, y, undefined, `${def.id} fixup`);
+}
+
+/**
+ * des.engraving() at a fixed spot of a LevelDef (map-relative): `text` of `type`, finished at
+ * turn 0, made with the level; then C's options overwrite what make_engr_at() set:
+ * `guardobjects` (default false, so even an "Elbereth" guards no objects) and `degrade` (default
+ * true; false is `nowipeout`). ref: src/sp_lev.c lspo_engraving()
+ */
+export function desEngraving(
+  ctx: Pick<Ctx, 'state' | 'rng'>,
+  level: Level,
+  def: LevelDef,
+  spot: Pos,
+  type: EngrType,
+  text: string,
+  opts: { degrade?: boolean; guardobjects?: boolean } = {},
+): void {
+  const p = mapToLevel(def, level, spot.x, spot.y);
+  const e = makeEngrAt(ctx, level, p.x, p.y, text, null, 0, type, { inMklev: true });
+  if (opts.guardobjects === true) e.guard = true;
+  else delete e.guard;
+  if (opts.degrade === false) e.nowipe = true;
+  else delete e.nowipe;
 }
 
 /**

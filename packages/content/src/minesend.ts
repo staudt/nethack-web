@@ -1,17 +1,17 @@
 // Mines' End: NetHack 5.0's three variants, as LevelDefs plus fixups. ref: dat/minend-1.lua,
 // dat/minend-2.lua, dat/minend-3.lua
 //
-// Translation notes (see DEVIATIONS.md "Mines' End"): the vampires (`V`) of minend-3, the engravings, the arrival region, the
+// Translation notes (see DEVIATIONS.md "Mines' End"): the vampires (`V`) of minend-3, the arrival region, the
 // non-diggable walls and the achievements are left out. minend-2's potion of object detection is
 // a random potion (no such potion yet). The fountains come from the map ('{'); they are not magic.
-// Shuffled niches, "not-cursed" luckstones, minend-2's conditional locked door and minend-3's
+// Shuffled niches, "not-cursed" luckstones, minend-2's conditional locked door and wine cellar signs and minend-3's
 // maze walk and level teleporters (on the shuffled `place` spots) are fixups (sp_lev.ts SpLevFixup), as C's are lua code.
 import type { Ctx, DefId, Level, LevelContent, LevelDef } from '@nh/core';
 import { cellIndex, isPlainFloor, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { mazewalk } from './mazewalk';
 import { mktrap } from './mklev';
 import { mksobjFull } from './mkobj';
-import { createMonster, mapToLevel, shuffle, type SpLevFixup } from './sp_lev';
+import { createMonster, desEngraving, mapToLevel, shuffle, type SpLevFixup } from './sp_lev';
 import { TRAP } from './trap';
 
 type Spot = readonly [x: number, y: number];
@@ -254,7 +254,7 @@ export const MINEND_2: LevelDef = {
   // des.teleport_region({ region={23,03,48,16}, region_islev=1 }) (NetHack x - 1 here)
   teleportRegions: [{ area: [22, 3, 47, 16], coords: 'level' }],
   contents: [
-    // the wine cellar (no engravings; object detection is a random potion)
+    // the wine cellar (its signs: MINEND_2_FIXUP; object detection is a random potion)
     objId('potion_of_booze', [10, 7]),
     objId('potion_of_booze', [10, 7]),
     obj('potion', undefined, [10, 7]),
@@ -292,16 +292,30 @@ const LOCKED_SDOOR: Readonly<Record<DefId, DefId>> = {
 };
 
 const MINEND_2_FIXUP: SpLevFixup = {
-  /** `des.door("locked", 52, 5)` inside the first percent(50): only when its 'S' was set */
-  before(_ctx, level, def) {
+  /**
+   * `des.door("locked", 52, 5)` inside the first percent(50): only when its 'S' was set; then the
+   * wine cellar's two signs, before the objects (they draw nothing).
+   */
+  before(ctx, level, def) {
     const p = mapToLevel(def, level, 52, 5);
     const i = cellIndex(level, p.x, p.y);
     const id = level.palette[level.cells[i] ?? -1];
     const locked = id !== undefined && Object.hasOwn(LOCKED_SDOOR, id) ? LOCKED_SDOOR[id] : null;
-    if (!locked) return;
-    let k = level.palette.indexOf(locked);
-    if (k === -1) k = level.palette.push(locked) - 1;
-    level.cells[i] = k;
+    if (locked) {
+      let k = level.palette.indexOf(locked);
+      if (k === -1) k = level.palette.push(locked) - 1;
+      level.cells[i] = k;
+    }
+    // the Trespassers sign is a long-running joke
+    desEngraving(
+      ctx,
+      level,
+      def,
+      { x: 12, y: 3 },
+      'engrave',
+      "You are now entering the Gnome King's wine cellar.",
+    );
+    desEngraving(ctx, level, def, { x: 12, y: 4 }, 'engrave', 'Trespassers will be persecuted!');
   },
   /** des.object({ id = "luckstone", x = 70, y = 05, buc = "not-cursed" }) */
   after(ctx, level, def) {

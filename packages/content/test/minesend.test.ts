@@ -21,6 +21,7 @@ import {
   MINEND_3_PLACES,
   MINEND_LUCKSTONE_SPOTS,
 } from '../src/minesend';
+import { engrAt } from '../src/engr';
 import { mappearance } from '../src/mimicstate';
 import { mapToLevel, shuffle } from '../src/sp_lev';
 
@@ -221,7 +222,7 @@ describe("Mines' End contents", () => {
     }
   });
 
-  test('minend-2: booze in the wine cellar; the door at 52,5 is locked whenever it is secret', () => {
+  test('minend-2: booze and signs in the wine cellar; the door at 52,5 is locked whenever it is secret', () => {
     const def = defs.level('nh:minend-2');
     const states = new Set<string>();
     for (let seed = 1; seed <= 200 && states.size < 2; seed++) {
@@ -236,6 +237,19 @@ describe("Mines' End contents", () => {
         (e) => e?.def === 'nh:potion_of_booze' && e.c.pos?.x === cellar.x && e.c.pos.y === cellar.y,
       );
       expect(booze.length).toBeGreaterThanOrEqual(1); // two, or one merged stack
+      // the two signs (m16 step 6): engraved, wearing as usual, guarding nothing
+      for (const [y, text] of [
+        [3, "You are now entering the Gnome King's wine cellar."],
+        [4, 'Trespassers will be persecuted!'],
+      ] as const) {
+        const q = mapToLevel(def, level, 12, y);
+        expect(engrAt({ state }, level, q.x, q.y)).toEqual({
+          text,
+          pristine: text,
+          type: 'engrave',
+          time: 0,
+        });
+      }
     }
     expect(states).toEqual(new Set(['locked', 'wall']));
   });

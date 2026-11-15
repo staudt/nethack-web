@@ -24,8 +24,9 @@ const CHANGED_MESSAGE =
 // ugangr 2 and Luck -6 has maxanger 12, so 1 in 4 is god_zaps_you(): faithful); bot seed 13
 // died at turn 254 after m7f-c step 2 from a tainted kitten corpse; bot seed 4 died at turn 363
 // after m11 step 8 (the new potion, scroll and spellbook rows shift the stream); bot seed 2 died
-// at turn 379 after m12 step 6 (the vault roll reshapes every level). Bot seed 1 plays all 400
-// turns (on dungeon level 1). Re-pick it the same way if a stream shift ends the run early again.
+// at turn 379 after m12 step 6 (the vault roll reshapes every level); bot seed 1 died at turn 206
+// after m16 step 6 (the graffiti roll per room). Bot seed 3 plays all 400 turns. Re-pick it the
+// same way if a stream shift ends the run early again.
 const MODS = [vanillaMod, soakKitMod];
 
 describe('golden replay', () => {

@@ -40,6 +40,7 @@ import {
   uopenedDbridge,
 } from '../src/dbstate';
 import { dighole } from '../src/dig';
+import { engrAt } from '../src/engr';
 import { coldOverLiquid, fireOverLiquid } from '../src/ice';
 import { meltTimeLeft } from '../src/icestate';
 import { tuneClues } from '../src/music';
@@ -264,6 +265,13 @@ describe('the Castle', () => {
         (o) => o.def === 'nh:scroll_of_scare_monster',
       );
       expect(scroll?.c.item?.buc).toBe('cursed');
+      // under it a burned Elbereth (m16 step 6), which guards no objects (des.engraving())
+      expect(engrAt({ state }, level, p.x, p.y)).toEqual({
+        text: 'Elbereth',
+        pristine: 'Elbereth',
+        type: 'burn',
+        time: 0,
+      });
       // the lord's chest by the throne
       const lord = at(level, 37, 8);
       expect(itemsAt(defs, state, level.id, lord.x, lord.y).map((o) => o.def)).toContain(

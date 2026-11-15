@@ -7,11 +7,11 @@
 // ref: src/mklev.c makelevel() do_vault block, makevtele(), makeniche(TELEP_TRAP);
 // src/sp_lev.c fill_special_room() VAULT; src/vault.c; src/allmain.c moveloop_core() invault()
 //
-// Not ported (DEVIATIONS.md "Special rooms"): the Fort Ludios portal (mk_knox_portal()) and the
-// "ad aerarium" engraving by the niche. NetHack's teleporter sits on the secret corridor square
-// itself; here traps live only on plain floor, so it is kept aside (vaultstate.ts) and made on
-// the square once the corridor is found (searching, digging, a wand of secret door detection...),
-// after the hero's action or at the end of the turn, before she can step there.
+// Not ported (DEVIATIONS.md "Special rooms"): the Fort Ludios portal (mk_knox_portal()).
+// NetHack's teleporter sits on the secret corridor square itself; here traps live only on plain
+// floor, so it is kept aside (vaultstate.ts) and made on the square once the corridor is found
+// (searching, digging, a wand of secret door detection...), after the hero's action or at the end
+// of the turn, before she can step there.
 //
 // The guard (DEVIATIONS.md "Vaults"): C keeps a dismissed or dead guard on the monster list at
 // <0,0> until his corridor is gone; here the monster is removed and his record (vaultstate.ts
@@ -80,7 +80,7 @@ import {
 import { deaths } from './vanquished';
 import { uswallow } from './engulfstate';
 import { mpickobj } from './steal';
-import { delEngrAt } from './engr';
+import { delEngrAt, makeEngrAt, wipeEngrAt } from './engr';
 
 /**
  * Turns level generation's vault request into the `nh:vault` room (lit, after the other rooms
@@ -104,7 +104,29 @@ export function mkVault(ctx: Ctx, level: Level): void {
       type: VAULT,
     }) - 1;
   fillVault(ctx, level, idx); // fill_special_room() at once
-  if (tele) setPendingVaultTele(ctx, level.id, cellIndex(level, tele.x, tele.y));
+  if (tele) {
+    setPendingVaultTele(ctx, level.id, cellIndex(level, tele.x, tele.y));
+    nicheEngraving(ctx, level, tele);
+  }
+}
+
+/**
+ * "ad aerarium" in the dust on the room square in front of the vault teleporter's niche (two
+ * squares from it, through its secret door: C's `(xx, yy - dy)`), aged by `wipe_engr_at(5)`.
+ * Core made the niche, so the wipe draws come after the vault's gold here, not inside
+ * makeniche() (DEVIATIONS.md "Vaults"). ref: src/mklev.c makeniche()
+ */
+function nicheEngraving(ctx: Ctx, level: Level, tele: Pos): void {
+  for (const d of [1, -1]) {
+    const y = tele.y + 2 * d;
+    const inRoom = level.rooms.some(
+      (r) => r.type !== VAULT && tele.x >= r.lx && tele.x <= r.hx && y >= r.ly && y <= r.hy,
+    );
+    if (!inRoom) continue;
+    makeEngrAt(ctx, level, tele.x, y, 'ad aerarium', null, 0, 'dust', { inMklev: true });
+    wipeEngrAt(ctx, level, tele.x, y, 5, false); // age it a little
+    return;
+  }
 }
 
 /**

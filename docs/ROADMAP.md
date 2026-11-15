@@ -102,7 +102,7 @@ From 7b (boulders, pits, the scroll of earth, the Oracle level and Sokoban):
 - **The Oracle's consultations:** minor and major `doconsult()` for gold, with experience, luck and the rumors file.
 - **Zoos:** random zoos (`mkzoo()` from mklev), the Sokoban zoo as a true irregular room (today a region whose squares next to its door stay empty), ~~the treasure zoo's two giant mimics~~ (m13 step 3).
 - **Boulders and other traps:** landmines, teleporters and level teleporters under a pushed boulder, boulders into water and lava (`boulder_hits_pool()`, after pools), shop billing for pushed boulders, objects buried in a filled pit (`bury_objs()`), the pit's limited view (vision.c).
-- **Sokoban extras:** the Elbereth engraving and cursed scroll of scare monster on the prize, the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements (the `noteleport`, `hardfloor` and non-diggable flags came with 7d).
+- **Sokoban extras:** the builds-up difficulty adjustment in `level_difficulty()` (twice the levels climbed; changes every Sokoban monster and object roll), `des.exclusion` regions, pet and travel behaviour beyond the listed rules, the Sokoban conduct and achievements (the `noteleport`, `hardfloor` and non-diggable flags came with 7d).
 
 From 7d (teleportation, digging, levitation, the deferred wands, rings and traps):
 
@@ -125,7 +125,7 @@ From m15 (the deeper dungeon: pools, moats, walls of water, lava, ice and clouds
 - **Objects, ice and lava (step 3):** steam clouds (`create_gas_cloud()`), objects buried under freezing water and unearthed by melting ice (`bury_objs()`), fire over fountains, corpses aging on ice, the hero sliding on ice (`hurtle()`), `zap_dig()`'s `pit_flow()`, `lava_effects()`' "bursts into flame" for a hero who will survive, the melt timer as a level timer.
 - **Mazes and the big room (steps 4-5):** `rndtrap()`'s fire traps, trapped doors and chests; the minotaur's wand of digging on the Plane of Earth, Elbereth and "You notice a bovine smell."; NetHack's 79-column maze bound; level flipping (`noflip`, `noflipy`); a one-cell teleport region's trap removal.
 - **Medusa's island leftovers (m15 step 6):** Perseus as a knight named "Perseus" (player monsters and object names), medusa-4's crystal ball, mirrors (applying one at Medusa), Medusa waiting on her island (`STRAT_WAITFORU`), the scripts' arrival rooms, gold dragon armor's light and hallucination resistance, green dragon armor's sickness resistance, dragon armor merging with a hero polymorphing into its dragon, the chromatic dragon and AD_RBRE.
-- **Castle leftovers (m15 step 7):** the burned Elbereth on the wand of wishing's tower (engravings), the graveyard flag (`LEVEL_SPECIFIC_NOCORPSE`: fewer undead corpses, morgues too), the iron chains a destroyed drawbridge scatters (no chain class), a long worm's tail riding a drawbridge, Riders reviving under it (`revive_nasty()`), level flipping (`noflipy`).
+- **Castle leftovers (m15 step 7):** the graveyard flag (`LEVEL_SPECIFIC_NOCORPSE`: fewer undead corpses, morgues too), the iron chains a destroyed drawbridge scatters (no chain class), a long worm's tail riding a drawbridge, Riders reviving under it (`revive_nasty()`), level flipping (`noflipy`).
 - **The passtune (step 8):** Wisdom exercise for playing it, achievements, Deafness, `#open`/`#close` at a portcullis ("no obvious way to open the drawbridge"), the other musical instruments (the bugle is the only one).
 
 From m14 (monster item use: muse.c's defensive, offensive and misc items, escapes by stairs and traps, thrown potions and vapors, munstone and munslime, reflection and life saving, monsters made with items; phone checks in TESTPLAN "14 monster item use"):
@@ -159,7 +159,7 @@ From m12 (special rooms: the whole `makelevel()` chain, throne rooms and thrones
 - **Graves:** the morgue's `!rn2(5)` roll is drawn and nothing is made; `mkgrave()` in ordinary rooms is not rolled; headstones and epitaphs, buried objects, digging graves up; `paygd()`'s "To Croesus" grave.
 - **Level sounds:** `dosounds()` (courtly conversation, buzzing, the vault's "someone counting money", the morgue's and the barracks' noises) and the `has_*` level flags.
 - **Themed rooms and ordinary niches:** `make_niches()` (trapdoor niches), the themed rooms and `rnd_rect()`'s interplay with them.
-- **Engravings:** the vault niche's "ad aerarium", Elbereth and the rest.
+- ~~**Engravings:** the vault niche's "ad aerarium", Elbereth and the rest.~~ (m16)
 - **Fort Ludios** and `mk_knox_portal()` (not rolled).
 - ~~**Mimics** in treasure zoos and shops~~ (m13 steps 2 and 3).
 - **Thrones elsewhere:** Vlad's tower special throne, the Samurai quest's throne room; wizard mode's "Throne sit effect" and "Analyze throne?" prompts and `pick_room()`'s `|| wizard`.

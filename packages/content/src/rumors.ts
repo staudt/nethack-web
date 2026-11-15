@@ -5,6 +5,7 @@
 // rumor read outside level creation (no exercise), the Oracle and fortune cookies (outrumor()).
 import type { Ctx } from '@nh/core';
 import { ENGRAVE_TEXTS } from './engravetxt';
+import { EPITAPH_TEXTS } from './epitaph';
 import { FALSE_RUMORS, TRUE_RUMORS } from './rumortxt';
 
 const COOKIE_MARKER = '[cookie] ';
@@ -29,10 +30,12 @@ export function getrumor(ctx: Pick<Ctx, 'rng'>, truth: -1 | 0 | 1, excludeCookie
   return buf;
 }
 
-/** A random line of a text file (the engrave file for now). ref: src/rumors.c get_rnd_text() */
-export function getRndText(ctx: Pick<Ctx, 'rng'>, file: 'engrave'): string {
+/** A random line of the engrave or epitaph file. ref: src/rumors.c get_rnd_text() */
+export function getRndText(ctx: Pick<Ctx, 'rng'>, file: 'engrave' | 'epitaph'): string {
   switch (file) {
     case 'engrave':
       return pick(ctx, ENGRAVE_TEXTS);
+    case 'epitaph':
+      return pick(ctx, EPITAPH_TEXTS);
   }
 }

@@ -1,4 +1,5 @@
 import {
+  allContents,
   createEngine,
   createRng,
   getPlayer,
@@ -44,7 +45,9 @@ export function ctxFor(state: GameState): TestCtx {
       state.entities[String(id)] = { ...e, id };
       return id;
     },
+    // as the engine's: deleting a container deletes its contents (ref: src/shk.c obfree())
     remove: (id) => {
+      for (const inner of allContents(state, id)) delete state.entities[String(inner)];
       delete state.entities[String(id)];
     },
   };

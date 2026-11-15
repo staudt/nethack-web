@@ -5,13 +5,13 @@
 // mkshobj_at(), get_shop_item(), shkveg(), mkveggy_at(); src/sp_lev.c fill_special_room() (the
 // shop branch); src/mkroom.c mkshop() (random dungeon shops)
 //
-// Not ported: the tribute novel, the "Closed for inventory" engraving of a locked shop door (no
-// engravings), irregular shops (no Minetown shop is one), Orcus's ghost town, the scroll of
-// charging shopkeepers carry (not in the object table: the roll is made).
+// Not ported: the tribute novel, irregular shops (no Minetown shop is one), Orcus's ghost town,
+// the scroll of charging shopkeepers carry (not in the object table: the roll is made).
 import { mAt } from './wormstate';
 import { doorTrapped, setDoorTrapped } from './btrapstate';
 import {
   cellIndex,
+  inRooms,
   sortedIds,
   type Ctx,
   type EntityId,
@@ -20,11 +20,12 @@ import {
   type ObjectDef,
   type Pos,
 } from '@nh/core';
-import { SHOPKEEPER, eshkOf, setEshk, shopDoors, type Eshk } from './eshk';
+import { SHOPKEEPER, eshkOf, insideShop, setEshk, shopDoors, type Eshk } from './eshk';
+import { makeEngrAt } from './engr';
 import { makemon, mkclass, rlocPos } from './generation';
 import { mkobj, mksobjFull } from './mkobj';
 import { mkmonmoney, mongets } from './mongear';
-import { T, setTerrain } from './terrain';
+import { T, setTerrain, terrainIdAt } from './terrain';
 import { monLearnsTraps } from './trapstate';
 import {
   SHTYPES,
@@ -269,8 +270,9 @@ function stockGoodpos(
 
 /**
  * Stocks a new shop: its shopkeeper first (nothing more without one), a doorway or broken door
- * made an open door, a secret door a door and a trapped door a locked one, then one object of the shop's kinds on each good
- * square, column by column. ref: src/shknam.c stock_room()
+ * made an open door, a secret door a door and a trapped door a locked one ("Closed for
+ * inventory" outside a locked one), then one object of the shop's kinds on each good square,
+ * column by column. ref: src/shknam.c stock_room()
  */
 export function stockRoom(ctx: Ctx, level: Level, room: number, shp: ShopType): void {
   const shk = shkinit(ctx, level, room, shp);
@@ -290,9 +292,33 @@ export function stockRoom(ctx: Ctx, level: Level, room: number, shp: ShopType): 
     setDoorTrapped(ctx, level.id, x, y, false);
     setTerrain(level, x, y, T.door_locked);
   }
+  if (terrainIdAt(level, x, y) === T.door_locked) closedForInventory(ctx, level, x, y);
   for (let sx = r.lx; sx <= r.hx; sx++)
     for (let sy = r.ly; sy <= r.hy; sy++)
       if (stockGoodpos(ctx, level, r, e.shd, sx, sy)) mkshobjAt(ctx, level, shp, sx, sy);
+}
+
+/**
+ * "Closed for inventory" in the dust on the square outside the locked shop door at (x, y), made
+ * floor (on a special level or in a room) or corridor if it is neither.
+ * ref: src/shknam.c stock_room() (`levl[sx][sy].doormask == D_LOCKED`)
+ */
+function closedForInventory(ctx: Ctx, level: Level, x: number, y: number): void {
+  let m = x;
+  let n = y;
+  if (insideShop(level, x + 1, y) !== null) m--;
+  else if (insideShop(level, x - 1, y) !== null) m++;
+  if (insideShop(level, x, y + 1) !== null) n--;
+  else if (insideShop(level, x, y - 1) !== null) n++;
+  makeEngrAt(ctx, level, m, n, 'Closed for inventory', null, 0, 'dust', { inMklev: true });
+  const typ = terrainIdAt(level, m, n);
+  if (typ !== T.corr && typ !== T.floor)
+    setTerrain(
+      level,
+      m,
+      n,
+      level.def !== undefined || inRooms(level, m, n).length > 0 ? T.floor : T.corr,
+    );
 }
 
 /**

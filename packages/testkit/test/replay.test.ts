@@ -5,10 +5,10 @@ import { recordGame, runReplay } from '../src/index';
 
 describe('replay', () => {
   // A seed whose hero survives this random walk (the walk doesn't fight back or answer prompts,
-  // such as the one for stepping onto a seen trap) with and without m15 step 9's dungeon rolls;
-  // 3 before m15 step 9 (it met a seen trap), 2 before m12 step 6 (its hero died), 1 before m11
-  // step 8 (it met a seen trap).
-  const opts = { seed: 5, width: 80, height: 21 };
+  // such as the one for stepping onto a seen trap) with and without m16 step 6's graffiti roll;
+  // 5 before m16 step 6 (it met a seen trap), 3 before m15 step 9 (it met a seen trap), 2 before
+  // m12 step 6 (its hero died), 1 before m11 step 8 (it met a seen trap).
+  const opts = { seed: 4, width: 80, height: 21 };
   const actions = randomActions(300, 7);
 
   test('record then replay gives the same hash', () => {
