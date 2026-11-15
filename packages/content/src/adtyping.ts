@@ -59,6 +59,7 @@ import {
 import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './erode';
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
+import { isShade, shadeMiss } from './shade';
 import { forgetMonster, minvent, monWep, setMonFlag, whichArmor } from './mongear';
 import { mlifesaver, mondied, monkilled, monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
@@ -585,7 +586,8 @@ const coils = (ctx: Ctx, mon: Entity): boolean => {
  */
 function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
   if (isU(ctx, magr)) {
-    // uhitm (no shades)
+    // uhitm
+    if (isShade(ctx.defs.monster(mdef.def))) mhm.damage = 0;
     mhm.damage += mhm.specialdmg;
     if (atk.at === 'weapon') {
       // hmonas() uses known_hitum() to deal physical damage, then also damageum() for
@@ -627,12 +629,18 @@ function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
   // a kick against a thick-skinned monster does nothing; a weapon (on AT_WEAP or AT_CLAW) adds
   // dmgval()
   const pd = ctx.defs.monster(mdef.def);
+  const mwep = atk.at === 'weapon' || atk.at === 'claw' ? env.mwep : null;
+  if (
+    shadeMiss(ctx, magr, mdef, mwep ?? null, false, canseemon(ctx, magr) && canseemon(ctx, mdef))
+  ) {
+    mhm.damage = 0;
+    return;
+  }
   if (atk.at === 'kick' && pd.flags.includes('thick_hide')) {
     mhm.damage = 0;
     return;
   }
-  const mwep = env.mwep;
-  if (mwep && (atk.at === 'weapon' || atk.at === 'claw')) {
+  if (mwep) {
     mhm.damage += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
     if (whichArmor(ctx, magr.id, 'gloves')?.def === 'nh:gauntlets_of_power')
       mhm.damage += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6

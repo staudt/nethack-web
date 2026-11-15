@@ -85,6 +85,7 @@ import { breakEggs, hitWithEgg } from './egghit';
 import { breakmsg, breaktest } from './material';
 import { breakPotionVapors, potionhit } from './potionhit';
 import { uWipeEngr } from './engr';
+import { shadeMiss } from './shade';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -521,7 +522,10 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
     }
     const t = ctx.defs.terrain(level.palette[level.cells[y * level.width + x] ?? 0] as DefId);
     const blocked = !t.passable || t.door === 'closed' || t.door === 'locked';
-    const mid = blocked ? null : monsterIdAt(ctx, { x, y }, pos.level);
+    let mid = blocked ? null : monsterIdAt(ctx, { x, y }, pos.level);
+    // ref: bhit(): a shade it passes harmlessly through does not stop it
+    const me = mid === null ? undefined : ctx.state.entities[String(mid)];
+    if (me && shadeMiss(ctx, hero, me, obj, true, true)) mid = null;
     if (blocked) {
       x -= dx;
       y -= dy;

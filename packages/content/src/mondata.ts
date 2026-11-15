@@ -274,6 +274,13 @@ export const sticks = (def: MonsterDef): boolean =>
 
 /** ref: include/mondata.h is_demon(): M2_DEMON */
 export const isDemon = (def: MonsterDef): boolean => def.flags.includes('demon');
+
+/**
+ * Blessed weapons do it extra damage: undead or demons (no vampshifters).
+ * ref: include/mondata.h mon_hates_blessings()
+ */
+export const hatesBlessings = (def: MonsterDef): boolean =>
+  def.flags.includes('undead') || def.flags.includes('demon');
 /** ref: include/mondata.h is_lord(): M2_LORD */
 export const isLord = (def: MonsterDef): boolean => def.flags.includes('lord');
 /** ref: include/mondata.h is_prince(): M2_PRINCE */

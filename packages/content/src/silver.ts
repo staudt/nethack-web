@@ -5,7 +5,7 @@
 // special_dmgval(); src/uhitm.c hmon_hitmon_msg_silver(), mhitm_ad_phys(); src/mhitm.c
 // hitmm(); src/mthrowu.c ohitmon(), thitu()
 import type { Ctx, Entity, Msg } from '@nh/core';
-import { amorphous, hatesSilver, noncorporeal } from './mondata';
+import { amorphous, hatesBlessings, hatesSilver, noncorporeal } from './mondata';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { wornIn } from './props';
@@ -25,6 +25,15 @@ export const isSilver = (ctx: Pick<Ctx, 'defs'>, obj: Entity): boolean =>
 export function formHatesSilver(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
   const form = heroForm(ctx);
   return form !== null && hatesSilver(form);
+}
+
+/**
+ * mon_hates_blessings(&youmonst): the hero's polymorphed form is undead or a demon, so a blessed
+ * weapon does her dmgval()'s extra `rnd(4)`. ref: include/mondata.h mon_hates_blessings()
+ */
+export function formHatesBlessings(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
+  const form = heroForm(ctx);
+  return form !== null && hatesBlessings(form);
 }
 
 /**

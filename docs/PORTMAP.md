@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-182 NetHack files, 4941 citations.
+183 NetHack files, 4963 citations.
 
 ## dat/asmodeus.lua
 
@@ -159,6 +159,10 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/oracle.lua
 
 - (file): `packages/content/src/oracle.ts`
+
+## dat/orcus.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/orcus.ts`
 
 ## dat/quest.lua
 
@@ -438,7 +442,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `likes_objs()`: `packages/content/src/mongear.ts`
 - `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
 - `mindless()`: `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`
-- `mon_hates_blessings()`: `packages/content/src/potionhit.ts`
+- `mon_hates_blessings()`: `packages/content/src/mondata.ts`, `packages/content/src/potionhit.ts`, `packages/content/src/silver.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
 - `nohands()`: `packages/content/src/apply.ts`, `packages/content/src/mondata.ts`
 - `nolimbs()`: `packages/content/src/mondata.ts`
@@ -728,6 +732,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/artifact.c
 
 - `confers_luck()`: `packages/content/src/gem.ts`
+- `shade_glare()`: `packages/content/src/dmgval.ts`
 
 ## src/attrib.c
 
@@ -1052,11 +1057,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ghitm()`: `packages/content/src/dokick.ts`
 - `kick_door()`: `packages/content/src/dokick.ts`, `packages/content/src/watch.ts`
 - `kick_dumb()`: `packages/content/src/dokick.ts`
-- `kick_monster()`: `packages/content/src/dokick.ts`
+- `kick_monster()`: `packages/content/src/dokick.ts`, `packages/content/src/uhitm.en.ts`
 - `kick_nondoor()`: `packages/content/src/dokick.ts`
 - `kick_object()`: `packages/content/src/dokick.ts`
 - `kick_ouch()`: `packages/content/src/dokick.ts`
-- `kickdmg()`: `packages/content/src/dog.ts`, `packages/content/src/dokick.ts`
+- `kickdmg()`: `packages/content/src/dog.ts`, `packages/content/src/dokick.ts`, `packages/content/src/uhitm.en.ts`
 - `kickstr()`: `packages/content/src/dokick.ts`
 - `martial()`: `packages/content/src/dokick.ts`
 - `maybe_kick_monster()`: `packages/content/src/dokick.ts`
@@ -1551,7 +1556,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `add_door()`: `packages/content/src/zoo.ts`
-- `add_room()`: `packages/core/src/levelgen/rooms.ts`
+- `add_room()`: `packages/content/src/orcus.ts`, `packages/core/src/levelgen/rooms.ts`
 - `add_subroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `bydoor()`: `packages/content/src/mklev.ts`, `packages/core/src/levelgen/corridors.ts`
 - `cardinal_nextto_room()`: `packages/core/src/levelgen/vault.ts`
@@ -2421,7 +2426,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/sp_lev.c
 
-- (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/orcus.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
 - `build_room()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `check_room()`: `packages/core/src/levelgen/rooms.ts`
 - `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
@@ -2739,6 +2744,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hitum()`: `packages/content/src/combat.ts`
 - `hmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
+- `hmon_hitmon_()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_barehands()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_dmg_recalc()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
 - `hmon_hitmon_misc_obj()`: `packages/content/src/dothrow.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/egghit.ts`
@@ -2772,6 +2778,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `paranoid_query()`: `packages/content/src/peaceful.ts`
 - `passive()`: `packages/content/src/dokick.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/uhitm_passive.ts`
 - `passive_obj()`: `packages/content/src/erode.ts`, `packages/content/src/uhitm_passive.ts`
+- `shade_aware()`: `packages/content/src/shade.ts`
+- `shade_miss()`: `packages/content/src/shade.ts`, `packages/content/src/uhitm.en.ts`
 - `start_engulf()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `steal_it()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `stumble_onto_mimic()`: `packages/content/src/mimic.ts`

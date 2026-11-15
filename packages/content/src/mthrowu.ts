@@ -22,7 +22,7 @@ import {
   type PosComponent,
   rnl,
 } from '@nh/core';
-import { dmgvalSized, hitval, isBig, monsterIdAt } from './combat';
+import { dmgval, dmgvalSized, hitval, monsterIdAt } from './combat';
 import { monFloorEffects } from './align';
 import { flooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
@@ -44,6 +44,7 @@ import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } 
 import { P, hasProp, makeBlinded, timeoutLeft } from './props';
 import { hatesSilver, nonliving as nonlivingDef } from './mondata';
 import {
+  formHatesBlessings,
   formHatesSilver,
   heroHatesSilver,
   isSilver,
@@ -52,6 +53,7 @@ import {
 } from './silver';
 import { isPole } from './skills';
 import { canseemon } from './invis';
+import { isShade, shadeMiss } from './shade';
 import { potionhit } from './potionhit';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
@@ -237,7 +239,7 @@ function dropThrow(
  * boulder from a trap she knew). A negative `range` (a rolling boulder) never drops it on a
  * miss. Acid venom burns (not an acid resistant monster), blinding venom blinds (can_blnd()).
  * Silver sears a silver-hater; a potion breaks on it (potionhit()). Not ported: mimics, eggs,
- * poison, shades, aiming bonuses of the archer's level.
+ * poison, aiming bonuses of the archer's level.
  */
 export function ohitmon(
   ctx: Ctx,
@@ -283,7 +285,7 @@ export function ohitmon(
     potionhit(ctx, mon, obj, 'other');
     return true;
   }
-  let damage = dmgvalSized(ctx.rng, obj, odef, isBig(mdef), hatesSilver(mdef));
+  let damage = dmgval(ctx.rng, obj, odef, mdef);
   const acid = obj.def === ACID_VENOM;
   if (acid && mdef.resists.includes('acid')) damage = 0;
   m.asleep = false;
@@ -341,7 +343,7 @@ function flightBlocked(ctx: Ctx, level: string, x: number, y: number): boolean {
  * range is used up (a miss lands on the hero's square). Venom: blinding venom blinds her
  * (to-hit 8, no damage), acid venom burns; a potion always breaks on her (potionhit()), or on a
  * monster it hits, and lands whole when it misses. Not ported: iron bars, sinks, tethered
- * weapons, shades, eggs, pies, poison.
+ * weapons, eggs, pies, poison; a shade it would not hurt lets it pass (shade_miss()).
  */
 function mThrow(
   ctx: Ctx,
@@ -410,7 +412,13 @@ function mThrow(
 
     const other = monsterIdAt(ctx, { x, y }, level);
     const hpos = hero.c.pos;
-    if (other !== null) {
+    const om = other === null ? undefined : ctx.state.entities[String(other)];
+    // (a shade's line comes after the flight so far)
+    if (om && isShade(ctx.defs.monster(om.def))) flush();
+    if (om && shadeMiss(ctx, mon, om, obj, true, true)) {
+      // if it is a shade and the missile passes harmlessly through it, skip it in order to
+      // keep going
+    } else if (other !== null) {
       if (ohitmon(ctx, other, objId, range, { level, x, y }, flush)) {
         flush();
         return;
@@ -441,7 +449,9 @@ function mThrow(
         let hitv = 3 - mdist;
         if (hitv < -4) hitv = -4;
         hitv += 8 + obj.c.item.spe;
-        let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx));
+        let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx), false, {
+          blessHater: formHatesBlessings(ctx),
+        });
         if (dam < 1) dam = 1;
         hit = thitu(ctx, hitv, dam, obj, nth);
       }
@@ -801,7 +811,9 @@ export function thrwmu(
         item: xnameOf(ctx.state, ctx.defs, obj),
       });
     }
-    let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx));
+    let dam = dmgvalSized(ctx.rng, obj, odef, false, formHatesSilver(ctx), false, {
+      blessHater: formHatesBlessings(ctx),
+    });
     let hitv = 3 - distmin(hpos.x, hpos.y, mpos.x, mpos.y);
     if (hitv < -4) hitv = -4;
     // (the hero is never a big monster here)

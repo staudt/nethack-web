@@ -1,7 +1,7 @@
 // Weapon damage. ref: src/weapon.c dmgval()
 import type { Entity, MonsterDef, ObjectDef, Rng } from '@nh/core';
 import { greatestErosion } from './material';
-import { hatesSilver, isBig } from './mondata';
+import { hatesBlessings, hatesSilver, isBig } from './mondata';
 
 /**
  * Extra damage some weapons do beyond their die, against large and small targets.
@@ -62,14 +62,26 @@ function dmgvalExtra(rng: Rng, id: string, big: boolean): number {
   }
 }
 
+/** What dmgval() asks of its target besides its size: ref: src/weapon.c dmgval() */
+export interface DmgvalTarget {
+  /** a shade: only silver (shade_glare()) does its base damage */
+  shade?: boolean;
+  /** mon_hates_blessings(): a blessed weapon adds `rnd(4)` */
+  blessHater?: boolean;
+}
+
 /**
  * ref: src/weapon.c dmgval(): the weapon die by target size, the per-type extra, plus
- * enchantment, never below 0, a silver weapon's `rnd(20)` against a silver-hater, less the
- * greatest erosion (at least 1); an axe's `rnd(4)` against a wood golem (is_wooden()). Not
- * ported: blessed bonuses, shades, artifacts.
+ * enchantment, never below 0, nothing against a shade unless silver (shade_glare()), a blessed
+ * weapon's `rnd(4)` against undead and demons (mon_hates_blessings()), an axe's `rnd(4)`
+ * against a wood golem (is_wooden()), a silver weapon's `rnd(20)` against a silver-hater, less
+ * the greatest erosion (at least 1). Not ported: thick skins, artifacts.
  */
 export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
-  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon), mon.id === 'nh:wood_golem');
+  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon), mon.id === 'nh:wood_golem', {
+    shade: mon.id === 'nh:shade',
+    blessHater: hatesBlessings(mon),
+  });
 }
 
 /**
@@ -83,6 +95,7 @@ export function dmgvalSized(
   big: boolean,
   silverHater = false,
   wooden = false,
+  target: DmgvalTarget = {},
 ): number {
   const w = def.weapon;
   let tmp = 0;
@@ -102,9 +115,13 @@ export function dmgvalSized(
     tmp = rng.rnd(20) + (item.c.item?.spe ?? 0);
     if (tmp < 0) tmp = 0;
   }
+  if (target.shade === true && !shadeGlare(def)) tmp = 0;
   // weapon vs. monster type damage bonuses (weapons, weptools and gems only)
-  if (w && w.skill === 'axe' && wooden) tmp += rng.rnd(4); // is_axe(otmp) && is_wooden(ptr)
-  if ((w || def.class === 'gem') && def.material === 'silver' && silverHater) tmp += rng.rnd(20);
+  if (w || def.class === 'gem') {
+    if (item.c.item?.buc === 'blessed' && target.blessHater === true) tmp += rng.rnd(4);
+    if (w && w.skill === 'axe' && wooden) tmp += rng.rnd(4); // is_axe(otmp) && is_wooden(ptr)
+    if (def.material === 'silver' && silverHater) tmp += rng.rnd(20);
+  }
   // "always subtract erosion even for blunt weapons"
   if (tmp > 0) {
     tmp -= greatestErosion(item);
@@ -112,3 +129,9 @@ export function dmgvalSized(
   }
   return tmp;
 }
+
+/**
+ * Harms a shade: any silver object (no artifacts here, so none of the undead-slaying ones).
+ * ref: src/artifact.c shade_glare()
+ */
+export const shadeGlare = (def: ObjectDef): boolean => def.material === 'silver';

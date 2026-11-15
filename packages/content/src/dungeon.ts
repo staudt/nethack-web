@@ -13,6 +13,7 @@ import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
 import { MINETOWN_VARIANTS } from './minetown';
 import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import { ORACLE_LEVEL } from './oracle';
+import { ORCUS_TOWN, ORCUS_TOWN_FIXUP } from './orcus';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
 import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
@@ -53,7 +54,7 @@ export const GEHENNOM_FILLER: DefId = HELLFILL.id;
 /**
  * Gehennom's special levels in dungeon.lua's order, each built as GEHENNOM_FILLER until its own
  * LevelDef lands (the Valley's is valley.ts, Juiblex's swamp juiblex.ts, Baalzebub's and
- * Asmodeus's lairs baalz.ts and asmodeus.ts; one variant: no `rnd()` draw). The Sanctum is placed
+ * Asmodeus's lairs baalz.ts and asmodeus.ts, Orcus Town orcus.ts; one variant: no `rnd()` draw). The Sanctum is placed
  * but never reached (no invocation: see
  * levelflags.ts dngBottom()). ref: dat/dungeon.lua "Gehennom" levels (valley base 1; sanctum
  * base -1; juiblex base 4, range 4; baalz base 6, range 4; asmodeus base 2, range 6; wizard1 base
@@ -69,7 +70,7 @@ const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
   { id: G.wizard1, nameKey: 'level.wizard1', base: 11, range: 6 },
   { id: G.wizard2, nameKey: 'level.wizard2', chain: G.wizard1, base: 1 },
   { id: G.wizard3, nameKey: 'level.wizard3', chain: G.wizard1, base: 2 },
-  { id: G.orcus, nameKey: 'level.orcus', base: 10, range: 6 },
+  { id: G.orcus, nameKey: 'level.orcus', base: 10, range: 6, variants: [ORCUS_TOWN.id] },
   { id: G.fakewiz1, nameKey: 'level.fakewiz1', base: -6, range: 4 },
   { id: G.fakewiz2, nameKey: 'level.fakewiz2', base: -6, range: 4 },
 ].map((sp) => ({ variants: [GEHENNOM_FILLER], ...sp }));
@@ -89,6 +90,7 @@ export const LEVELS: readonly LevelDef[] = [
   JUIBLEX,
   BAALZ,
   ASMODEUS,
+  ORCUS_TOWN,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -104,6 +106,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [JUIBLEX.id]: JUIBLEX_FIXUP,
   [BAALZ.id]: BAALZ_FIXUP,
   [ASMODEUS.id]: ASMODEUS_FIXUP,
+  [ORCUS_TOWN.id]: ORCUS_TOWN_FIXUP,
 };
 
 /**
@@ -115,8 +118,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * Gehennom: `rn1(5, 20)` levels below the Castle, chained to it with no stairs at the Castle's
  * end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry level's up
  * stairs lead back to the Castle's `up` teleport region. Its eleven special levels are placed
- * (GEHENNOM_SPECIAL); the Valley of the Dead and the three demon lairs are built (valley.ts,
- * juiblex.ts, baalz.ts, asmodeus.ts), the others as the filler until their own step; every other level is hellfill.lua's (hellfill.ts). Vlad's Tower is left out
+ * (GEHENNOM_SPECIAL); the Valley of the Dead, the three demon lairs and Orcus Town are built
+ * (valley.ts, juiblex.ts, baalz.ts, asmodeus.ts, orcus.ts), the others as the filler until their own step; every other level is hellfill.lua's (hellfill.ts). Vlad's Tower is left out
  * and draws nothing (ROADMAP).
  * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its

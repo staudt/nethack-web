@@ -167,6 +167,8 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
    * fixup's, MadeLevelFlags)
    */
   'nh:asmodeus-lair': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 20, y2: 11 }] },
+  /** ref: dat/orcus.lua ("mazelevel", "shortsighted") */
+  'nh:orcus-town': { maze: true, shortsighted: true },
   /**
    * ref: dat/baalz.lua des.non_diggable(selection.area(00,00,47,12)) less the two cells west of
    * each eye, which src/mkmaze.c baalz_fixup() makes diggable ("novelty effect; allowing digging

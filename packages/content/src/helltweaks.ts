@@ -2,7 +2,8 @@
 // Gehennom level, outside a protected area. A leaf over selection.ts and the boulder maker:
 // hellfill.ts uses it, and later the lairs, Orcus Town and the towers.
 // ref: dat/nhlib.lua hell_tweaks()
-import type { Ctx, Level } from '@nh/core';
+import type { Ctx, Level, MapBlock } from '@nh/core';
+import { mazeGrid, MZ_WALL } from '@nh/core';
 import { mksobjFull } from './mkobj';
 import {
   eachSel,
@@ -17,6 +18,7 @@ import {
   selPercentage,
   selRandline,
   selRndcoord,
+  selArea,
   selSetRandom,
   setSel,
   setTer,
@@ -117,3 +119,29 @@ export function hellTweaks(ctx: Ctx, level: Level, protectedArea: Sel): void {
     setSel(level, selAnd(selAnd(selGrow(level, fwalls), selMatch(level, 'w')), prot), 'F');
   }
 }
+
+/**
+ * selection.fillrect(lx, ly + 1, hx - 2, hy - 1) of selection.match("-"):bounds() on the fresh
+ * maze grid (the script takes it before any map): the grid's inside, which hell_tweaks() may
+ * change. As hellfill's maze (hellfill.ts), whose script does the same; Asmodeus's lair and Orcus Town.
+ */
+export function gridInside(level: Level): Sel {
+  const kinds = mazeGrid(level.width, level.height, false);
+  let lx = level.width;
+  let ly = level.height;
+  let hx = -1;
+  let hy = -1;
+  for (let y = 0; y < level.height; y++)
+    for (let x = 0; x < level.width; x++)
+      if (kinds[y * level.width + x] === MZ_WALL) {
+        lx = Math.min(lx, x);
+        ly = Math.min(ly, y);
+        hx = Math.max(hx, x);
+        hy = Math.max(hy, y);
+      }
+  return selArea(level, lx + 1, ly + 1, hx - 1, hy - 1);
+}
+
+/** The whole of a placed map block, as the selection des.map() returns (no 'x' in these maps). */
+export const blockSel = (level: Level, b: MapBlock): Sel =>
+  selArea(level, b.x, b.y, b.x + b.w - 1, b.y + b.h - 1);

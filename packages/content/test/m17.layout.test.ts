@@ -133,6 +133,10 @@ describe("Gehennom's layout", () => {
     const orcus = hell(state).special.find((s) => s.id === G.orcus)!;
     expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: orcus.dlevel })).toBe(G.orcus);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: orcus.dlevel }, 'random'));
+    expect(getLevel(state).def).toBe('nh:orcus-town'); // m17 step 7
+    const wiz = hell(state).special.find((s) => s.id === G.fakewiz1)!;
+    expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: wiz.dlevel })).toBe(G.fakewiz1);
+    run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: wiz.dlevel }, 'random'));
     expect(getLevel(state).def).toBe('nh:hellfill'); // m17 step 3
     // an ordinary level has none, and the main dungeon's specials are not Gehennom's
     const taken = new Set(hell(state).special.map((s) => s.dlevel));

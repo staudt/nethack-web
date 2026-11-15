@@ -103,6 +103,7 @@ import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
 import { heroForm, heroFormId } from './upoly';
 import { uWipeEngr } from './engr';
+import { isShade, shadeMiss } from './shade';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -387,7 +388,10 @@ function bhitKicked(
       break;
     }
     if (isVisible(ctx.state, cellIndex(level, x, y))) path.push({ x, y });
-    const m = monsterIdAt(ctx, { x, y }, level.id);
+    let m = monsterIdAt(ctx, { x, y }, level.id);
+    // ref: bhit(): a shade it passes harmlessly through does not stop it
+    const me = m === null ? undefined : ctx.state.entities[String(m)];
+    if (me && obj && shadeMiss(ctx, hero(ctx), me, obj, true, true)) m = null;
     // ref: bhit(): an unseen monster that stops it on a seen square is remembered as `I`; an
     // `I` with nothing there is forgotten
     revealUnseenAt(ctx, m === null ? null : ctx.state.entities[String(m)], x, y);
@@ -590,6 +594,13 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
   if (uarmf(ctx)?.def === KICKING_BOOTS) dmg += 5;
   if (clumsy) dmg = Math.trunc(dmg / 2); // excessive weight affects Dex, so it affects damage
   if (thickSkinned(def)) dmg = 0; // kicking a dragon or an elephant will not harm it
+  // attacking a shade is normally useless (no blessed or silver boots: special_dmgval()); it
+  // doesn't exercise skill or abuse alignment or frighten pet, and shades have no passive
+  // counterattack
+  if (isShade(def)) {
+    say(ctx, 'shade.kick_passes');
+    return;
+  }
   if (mApType(ctx, monId) !== null) seemimic(ctx, monId); // ref: kickdmg()
   // "squeeze some guilt feelings...": a kicked pet is abused and runs off
   if (mon.tame) {
@@ -728,8 +739,12 @@ function kickMonster(ctx: Ctx, monId: EntityId, x: number, y: number): void {
       const kickdieroll = ctx.rng.rnd(20);
       const cur = ctx.state.entities[String(monId)];
       if (!cur?.c.monster) break;
-      // (no shades; no blessed or silver boots: special_dmgval())
-      if (tmp > kickdieroll) {
+      // (no blessed or silver boots: special_dmgval()) doesn't matter whether it would have hit
+      // or missed, and shades have no passive counterattack
+      if (isShade(def)) {
+        say(ctx, 'shade.your_kick', { mon: monNam(ctx, cur) });
+        break; // skip any additional kicks
+      } else if (tmp > kickdieroll) {
         say(ctx, 'kick.you_kick_mon', { mon: monNam(ctx, cur) });
         const sum = damageum(ctx, cur, uattk, 0);
         if (snap)

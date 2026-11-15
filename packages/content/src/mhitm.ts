@@ -73,6 +73,7 @@ import { hatesSilver, nonliving } from './mondata';
 import { littleToBig } from './eggstate';
 import { isGenocided } from './vanquished';
 import { isSilver, silverSearsMm } from './silver';
+import { shadeMiss } from './shade';
 
 export { M_ATTK };
 
@@ -252,6 +253,7 @@ function hitmm(
   dieroll: number,
 ): number {
   const compat = !isCancelled(ctx, magr.id) ? couldSeduce(ctx, magr, mdef, atk) : 0;
+  if (!compat && shadeMiss(ctx, magr, mdef, mwep, false, vis)) return M_ATTK.MISS; // bypass mdamagem()
   if (vis && compat) {
     // "The water nymph smiles at the jackal seductively."
     say(ctx, mcansee(ctx, mdef.id) ? 'mhitm.smiles_at' : 'mhitm.talks_to', {
@@ -752,7 +754,7 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
         } else strike = true; // automatic hit
         break;
       case 'engulf': {
-        // (no shades, no steeds)
+        // (no steeds)
         // D: Prevent engulf from a distance
         if (distmin(magr, mdef) > 1) continue;
         // Engulfing attacks are directed at the hero if possible. -dlc

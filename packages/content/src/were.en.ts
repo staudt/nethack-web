@@ -31,6 +31,7 @@ export const wereMessagesEn: Record<string, string> = {
   'were.sound.squeals': 'squeals',
   'were.sound.screeches': 'screeches',
   'were.sound.neighs': 'neighs',
+  'were.sound.wails': 'wails',
   'were.sound.groans': 'groans',
   'were.sound.lows': 'lows',
   'were.sound.commotions': 'commotions',

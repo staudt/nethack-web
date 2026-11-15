@@ -13,13 +13,13 @@
 // overlap them by three and wall up two of the first part's doors). "V" is a random monster
 // until vampires exist.
 import type { Ctx, DefId, Level, LevelContent, LevelDef, MapBlock } from '@nh/core';
-import { mapBlock, mazeGrid, MZ_WALL, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
+import { mapBlock, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { desMazeGrid, mapCleanup } from './hellfill';
-import { hellTweaks } from './helltweaks';
+import { blockSel, gridInside, hellTweaks } from './helltweaks';
 import { madeLevelFlags, setMadeLevelFlags } from './levelflags';
 import { spLevMap } from './mazefill';
 import { mazewalk } from './mazewalk';
-import { selArea, selNegate, selOr, type Sel } from './selection';
+import { selNegate, selOr } from './selection';
 import {
   blockDef,
   desDoor,
@@ -121,32 +121,6 @@ export const ASMODEUS: LevelDef = {
     { kind: 'monster', count: 3 },
   ],
 };
-
-/**
- * selection.fillrect(lx, ly + 1, hx - 2, hy - 1) of selection.match("-"):bounds() on the fresh
- * maze grid (the script takes it before any map): the grid's inside, which hell_tweaks() may
- * change. As hellfill's maze (hellfill.ts), whose script does the same.
- */
-function gridInside(level: Level): Sel {
-  const kinds = mazeGrid(level.width, level.height, false);
-  let lx = level.width;
-  let ly = level.height;
-  let hx = -1;
-  let hy = -1;
-  for (let y = 0; y < level.height; y++)
-    for (let x = 0; x < level.width; x++)
-      if (kinds[y * level.width + x] === MZ_WALL) {
-        lx = Math.min(lx, x);
-        ly = Math.min(ly, y);
-        hx = Math.max(hx, x);
-        hy = Math.max(hy, y);
-      }
-  return selArea(level, lx + 1, ly + 1, hx - 1, hy - 1);
-}
-
-/** The whole of a placed map block, as the selection des.map() returns (no 'x' in these maps). */
-const blockSel = (level: Level, b: MapBlock): Sel =>
-  selArea(level, b.x, b.y, b.x + b.w - 1, b.y + b.h - 1);
 
 /** Asmodeus's lair: the script in its order around the first map's contents. */
 export const ASMODEUS_FIXUP: SpLevFixup = {

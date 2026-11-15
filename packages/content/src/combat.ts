@@ -84,6 +84,7 @@ import { hatesSilver, isBig, isDemon, nonliving } from './mondata';
 import { msummon } from './minion';
 import { inHell } from './levelflags';
 import {
+  formHatesBlessings,
   formHatesSilver,
   heroHatesSilver,
   isSilver,
@@ -93,7 +94,8 @@ import {
 } from './silver';
 import { adjLev } from './generation';
 import { heroForm } from './upoly';
-import { dmgval, dmgvalSized } from './dmgval';
+import { dmgval, dmgvalSized, shadeGlare } from './dmgval';
+import { isShade, shadeAware, shadeMiss } from './shade';
 import { angryGuards, isWatch } from './watch';
 import { epriOf } from './epri';
 import { ghodHitsu } from './priest';
@@ -480,11 +482,16 @@ export function knownHitum(
   let hittxt = false;
   // hmon_hitmon_msg_silver(): a silver ring (barehand_silver_rings) or object (silverobj)
   let silverMsg = false;
+  // ref: src/uhitm.c hmon_hitmon_*(): attacking a shade is normally useless
+  const shade = isShade(def);
   if (!weapon) {
-    // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack)
-    dmg = ctx.rng.rnd(2);
-    useSkill = true;
-    train = dmg > 1; // ref: hmon_hitmon_barehands(): train_weapon_skill = (dmg > 1)
+    // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack); nothing to a shade
+    if (shade) dmg = 0;
+    else {
+      dmg = ctx.rng.rnd(2);
+      useSkill = true;
+      train = dmg > 1; // ref: hmon_hitmon_barehands(): train_weapon_skill = (dmg > 1)
+    }
     // ref: special_dmgval(): no gloves, a silver ring against a silver-hater
     const ring = silverRingBonus(ctx, target);
     dmg += ring;
@@ -496,8 +503,8 @@ export function knownHitum(
     // hand, or a polearm or lance at short range (no steeds) is not a melee weapon blow
     if (role === 'launcher' || role === 'missile' || role === 'ammo' || isPole(weapon.def)) {
       // ref: hmon_hitmon_weapon_ranged(): 1-2 points, no skill used or trained; silver adds
-      // `rnd(dmg ? 20 : 10)` (no shades)
-      dmg = ctx.rng.rnd(2);
+      // `rnd(dmg ? 20 : 10)`; nothing to a shade unless silver (shade_glare())
+      dmg = shade && !shadeGlare(weapon.def) ? 0 : ctx.rng.rnd(2);
       if (silverHit) dmg += ctx.rng.rnd(dmg ? 20 : 10);
     } else {
       dmg = dmgval(ctx.rng, weapon.item, weapon.def, def); // silver's rnd(20) included
@@ -505,6 +512,9 @@ export function knownHitum(
       train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
     }
     silverMsg = silverHit;
+  } else if (shade && !shadeAware(ctx, weapon.item)) {
+    // ref: hmon_hitmon(): a non-weapon that cannot affect a shade does nothing to it
+    dmg = 0;
   } else if (weapon.item.def === EGG) {
     // hmon_hitmon_misc_obj() EGG: nominal physical damage, no bonus, the message always given;
     // a cockatrice egg stones the monster and hmon() returns
@@ -563,8 +573,14 @@ export function knownHitum(
       dmg += weaponDamBonus(weapon ? weapon.skill : bareSkill, weapon?.def ?? null);
     }
     if (dmg < 1) dmg = 1;
-  } else if (strBonus) dmg = 1;
-  else dmg = 0;
+  }
+  if (dmg < 1) {
+    // make sure that negative damage adjustment can't result in inadvertently boosting the
+    // victim's hit points; a shade gets "harmlessly passes through" (every blow here is hand
+    // to hand)
+    dmg = strBonus && !shade ? 1 : 0;
+    if (shade && !hittxt) hittxt = shadeMiss(ctx, hero, target, weapon?.item ?? null, false, true);
+  }
 
   const hp = target.c.hp;
   // ref: src/uhitm.c hmon_hitmon_pet(): hitting a pet abuses it, and if it lives on it flees
@@ -731,7 +747,17 @@ export function hitmu(
   // (no midnight(): undead get no extra damage)
   if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
     // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
-    dmg += dmgvalSized(ctx.rng, mwep, ctx.defs.object(mwep.def), false, formHatesSilver(ctx));
+    dmg += dmgvalSized(
+      ctx.rng,
+      mwep,
+      ctx.defs.object(mwep.def),
+      false,
+      formHatesSilver(ctx),
+      false,
+      {
+        blessHater: formHatesBlessings(ctx),
+      },
+    );
     if (wornIn(ctx.state, mon.id, 'gloves')?.def === 'nh:gauntlets_of_power')
       dmg += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6
     if (dmg <= 0) dmg = 1;

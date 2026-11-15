@@ -72,6 +72,7 @@ import { ustuck } from './hackmove';
 import { mlifesaver, monsterDied } from './mondeath';
 import { experienceFor, gainExperience } from './hero';
 import { isFrozen } from './mstate';
+import { isShade } from './shade';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -423,12 +424,22 @@ function stealIt(ctx: Ctx, mdef: Entity, mattk: AttackDef): void {
   }
 }
 
+/** The verb of a blow that passes through a shade, by attack type (others: "attack"). */
+const SHADE_VERB: Partial<Record<string, string>> = {
+  touch: 'touch',
+  tentacle: 'tentacles',
+  kick: 'kick',
+  butt: 'head_butt',
+  bite: 'bite',
+  sting: 'sting',
+};
+
 /**
  * The polymorphed hero attacks the monster with every attack of her form, in order, each with
  * its own to-hit roll (weapons and claws through known_hitum(), the rest through damageum()), the
  * monster's passive answering each blow. She stops when it dies or moves away, when she returns
  * to her own form, or when she is made helpless. ref: src/uhitm.c hmonas() (no two-weapon
- * alternation, silver or blessed bonuses (special_dmgval()), shades, knockback, long worms;
+ * alternation, silver or blessed bonuses (special_dmgval()), knockback, long worms;
  * the hero never holds a monster, so a hug or wrap does its damage
  * without holding: DEVIATIONS "Polymorph")
  */
@@ -508,7 +519,12 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         return;
       }
       wakeup(ctx, targetId);
-      // (no shades; no silver or blessed bonus: special_dmgval())
+      // (no silver or blessed bonus: special_dmgval()) a shade is untouched: "Your bite passes
+      // harmlessly through the shade."
+      if (isShade(ctx.defs.monster(target.def))) {
+        say(ctx, `shade.your_${SHADE_VERB[mattk.at] ?? 'attack'}`, { mon: monNam(ctx, target) });
+        return;
+      }
       if (failedGrab(ctx, getPlayer(ctx.state), target, mattk, true)) return; // miss
       if (mattk.at === 'tentacle') say(ctx, 'uhitm.tentacles_suck', { mon: monNam(ctx, target) });
       else say(ctx, `uhitm.you_${VERB[mattk.at] ?? 'hit'}`, { mon: monNam(ctx, target) });
@@ -550,7 +566,13 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         // automatic if prev two attacks succeed, or if already grabbed in a previous attack
         dhit = 1;
         wakeup(ctx, targetId);
-        // can't grab unsolid creatures
+        // hugging a shade (no blessed armor or silver rings: special_dmgval()) never grabs hold
+        if (isShade(ctx.defs.monster(target.def))) {
+          const byhand = form.id === 'nh:rope_golem'; // hug_throttles()
+          say(ctx, byhand ? 'shade.your_grasp' : 'shade.your_hug', { mon: monNam(ctx, target) });
+          break;
+        }
+        // can't grab unsolid creatures (checked after shade handling)
         if (failedGrab(ctx, getPlayer(ctx.state), target, mattk, true)) break;
         if (ustuck(ctx) === targetId) {
           say(ctx, 'uhitm.being_crushed', { mon: monNam(ctx, target) });
@@ -579,8 +601,10 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         dhit = tmp > ctx.rng.rnd(20 + i) ? 1 : 0;
         if (dhit) {
           wakeup(ctx, targetId);
-          // can't engulf unsolid creatures (no shades)
-          if (!failedGrab(ctx, getPlayer(ctx.state), target, mattk, true)) {
+          // can't engulf unsolid creatures
+          if (isShade(ctx.defs.monster(target.def)))
+            say(ctx, 'shade.surround', { mon: monNam(ctx, target) }); // no specialdmg check needed
+          else if (!failedGrab(ctx, getPlayer(ctx.state), target, mattk, true)) {
             const pd = ctx.defs.monster(target.def);
             sum[i] = gulpum(ctx, target, mattk);
             if (

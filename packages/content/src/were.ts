@@ -208,6 +208,8 @@ function growlSound(sound: MonsterSound | undefined): string {
       return 'screeches';
     case 'neigh':
       return 'neighs';
+    case 'wail':
+      return 'wails';
     case 'groan':
       return 'groans';
     case 'moo':

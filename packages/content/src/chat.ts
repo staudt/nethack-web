@@ -40,6 +40,7 @@ import { aggravate, clearWaitMask, isCancelled, isFrozen, isMConfused, isMStunne
 import { isWeptool } from './material';
 import { whichArmor } from './mongear';
 import { wakeNearto } from './noise';
+import { nomul } from './nomul';
 import { canSpotMon, monNam } from './perception';
 import { priestDonate, priestTalk, type PriestOffer } from './priest';
 import { P, heroHas, isStrangled } from './props';
@@ -185,6 +186,15 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return ctx.rng.rn2(3) ? 0 : pline('chat.groans');
     case 'gurgle':
       return pline('chat.gurgles');
+    case 'wail':
+      return pline('chat.wails');
+    case 'bones':
+      // "You freeze for a moment." (nomovemsg 0: "You can move again.")
+      say(ctx, 'chat.rattles', { mon: name });
+      say(ctx, 'chat.freeze');
+      return (
+        NORMAL_SPEED + nomul(ctx, 2, 'helpless.scared_rattling', { key: 'eat.can_move_again' })
+      );
     case 'burble':
       return pline('chat.burbles');
     case 'mumble': // nagas, liches

@@ -380,6 +380,10 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     // ref: m_initweap() S_WRAITH (the armed barrow wight and the Nazgul)
     mongets(ctx, monId, 'nh:knife');
     mongets(ctx, monId, 'nh:long_sword');
+  } else if (ch === 'Z') {
+    // ref: m_initweap() S_ZOMBIE (the only armed one is the skeleton)
+    if (!rng.rn2(4)) mongets(ctx, monId, 'nh:leather_armor');
+    if (!rng.rn2(4)) mongets(ctx, monId, rng.rn2(3) ? 'nh:knife' : 'nh:short_sword');
   } else if (ch !== '&' || hasFlag(def, 'demon')) {
     // ref: m_initweap() S_DEMON: Orcus's wand, the horned devil's trident or bullwhip (no
     // balrog, Dispater or Yeenoghu here), then for real demons (not the djinni or the mail
@@ -831,8 +835,9 @@ function mDoWearType(
 export function mDoWear(ctx: GearCtx, monId: EntityId, creation: boolean): boolean {
   const { def } = monOf(ctx, monId);
   if (def.size === 'tiny' || hasFlag(def, 'nohands') || hasFlag(def, 'animal')) return false;
-  // give mummies a chance to wear their wrappings (no skeletons here)
-  if (hasFlag(def, 'mindless') && (!creation || def.glyph.ch !== 'M')) return false;
+  // give mummies a chance to wear their wrappings and let skeletons wear their initial armor
+  if (hasFlag(def, 'mindless') && (!creation || (def.glyph.ch !== 'M' && def.id !== 'nh:skeleton')))
+    return false;
   let changed = mDoWearType(ctx, monId, 'amulet', creation, false);
   const canWearArmor = !cantWearArm(def);
   if (canWearArmor && !whichArmor(ctx, monId, 'body'))
