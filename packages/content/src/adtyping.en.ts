@@ -68,6 +68,7 @@ export const adtypingMessagesEn: Record<string, string> = {
   'mhitm.gazes_at': '{magr|The} gazes at {mdef|the}...',
   'mhitm.gazes_at_something': '{magr|The} gazes at something...',
   'mhitm.nothing_happens': 'but nothing happens.',
+  'mhitm.gaze_unnoticed': "{mon|The} doesn't seem to notice that {his} gaze was reflected.",
   // explosions (ref: src/mhitu.c explmu(); src/mhitm.c explmm())
   'combat.mon_explodes': '{mon|The} explodes!',
   'combat.mon_explodes_again': '{mon|The} explodes again!',

@@ -295,7 +295,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
               issue(`attacks[${i}].at`, `must be one of ${ATTACK_TYPES.join(', ')}`, d.id);
             str(a.ad, `attacks[${i}].ad`, d.id);
             int(a.n, `attacks[${i}].n`, 0, 100);
-            int(a.d, `attacks[${i}].d`, 0, 100);
+            // up to 255 sides: C keeps the dice in a uchar (the black dragon's 1d255 disintegration)
+            int(a.d, `attacks[${i}].d`, 0, 255);
           });
         if (!SIZES.includes(d.size)) issue('size', `must be one of ${SIZES.join(', ')}`, d.id);
         if (d.group !== null && d.group !== 'small' && d.group !== 'large')
@@ -788,7 +789,17 @@ function contentIssues(prefix: string, contents: unknown, out: [string, string][
   contents.forEach((c: unknown, i) => {
     const at = `${prefix}[${i}]`;
     if (typeof c !== 'object' || c === null) return void out.push([at, 'must be an object']);
-    const { kind, id, class: cls, count, percent, x, y, peaceful } = c as Record<string, unknown>;
+    const {
+      kind,
+      id,
+      class: cls,
+      count,
+      percent,
+      x,
+      y,
+      peaceful,
+      asleep,
+    } = c as Record<string, unknown>;
     if (typeof kind !== 'string' || !CONTENT_KINDS.includes(kind))
       out.push([`${at}.kind`, `must be one of ${CONTENT_KINDS.join(', ')}`]);
     if (id !== undefined && (typeof id !== 'string' || id === ''))
@@ -822,6 +833,10 @@ function contentIssues(prefix: string, contents: unknown, out: [string, string][
     if (peaceful !== undefined) {
       if (typeof peaceful !== 'boolean') out.push([`${at}.peaceful`, 'must be a boolean']);
       else if (kind !== 'monster') out.push([`${at}.peaceful`, 'only monsters can be peaceful']);
+    }
+    if (asleep !== undefined) {
+      if (asleep !== true) out.push([`${at}.asleep`, 'must be true']);
+      else if (kind !== 'monster') out.push([`${at}.asleep`, 'only monsters can be asleep']);
     }
   });
 }

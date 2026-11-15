@@ -73,9 +73,11 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
   if (typeof msg === 'string')
     return msg.startsWith('@')
       ? render({ key: msg.slice(1) }, cat)
-      : msg.startsWith('=')
-        ? msg.slice(1)
-        : msg;
+      : msg.startsWith('=@')
+        ? render({ key: msg.slice(2) }, cat) // a proper name with a translated text
+        : msg.startsWith('=')
+          ? msg.slice(1)
+          : msg;
   const tpl = cat[msg.key];
   if (tpl === undefined) throw new Error(`no message ${msg.key}`);
   const params: Params = msg.params ?? {};

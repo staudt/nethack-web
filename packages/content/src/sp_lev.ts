@@ -1,5 +1,6 @@
 // Making the contents of a LevelDef: monsters, objects and traps at fixed or random dry spots.
-// ref: src/sp_lev.c create_monster(), create_object(), create_trap(), get_location()
+// ref: src/sp_lev.c create_monster(), create_object(), create_trap(), get_location(),
+// is_ok_location(), pm_to_humidity()
 import type {
   Ctx,
   DefId,
@@ -9,11 +10,13 @@ import type {
   LevelCount,
   LevelDef,
   ModApi,
+  MonsterDef,
   ObjectClass,
   Pos,
 } from '@nh/core';
 import {
   cellIndex,
+  contents,
   isPlainFloor,
   levelDefArea,
   levelDefPos,
@@ -25,9 +28,26 @@ import {
 } from '@nh/core';
 import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
+import { isGenocided } from './vanquished';
 import { makemon, mkclass } from './generation';
+import { polyWhenStoned } from './golem';
+import { levelFlags } from './levelflags';
+import { isLava, isPool } from './liquid';
 import { setMappearance } from './mimicstate';
-import { mkobjAt, mksobjFull } from './mkobj';
+import { mkobjAt, mksobjFull, rndmonnum } from './mkobj';
+import {
+  amphibiousMon,
+  isEel,
+  isFloater,
+  isFlyer,
+  isSwimmer,
+  likesLava,
+  noncorporeal,
+} from './mondata';
+import { mongone } from './mondeath';
+import { minvent } from './mongear';
+import { removeFromInventory } from './items';
+import { resistsSton } from './stonestate';
 import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
 
@@ -94,6 +114,60 @@ export function dry(ctx: Ctx, level: Level, p: Pos): boolean {
   );
 }
 
+/** get_location() humidity bits. ref: include/sp_lev.h DRY, WET, HOT, SOLID */
+const DRY = 1;
+const WET = 2;
+const HOT = 4;
+const SOLID = 8;
+
+/**
+ * Where a monster of `def` may be put at random: dry ground, but water for sea monsters,
+ * amphibians and swimmers (and nothing dry), water and lava too for flyers and floaters, rock for
+ * wall-walkers and ghosts, lava for fire lovers. ref: src/sp_lev.c pm_to_humidity()
+ */
+function pmToHumidity(def: MonsterDef | null): number {
+  let loc = DRY;
+  if (!def) return loc;
+  if (isEel(def) || amphibiousMon(def) || isSwimmer(def)) loc = WET;
+  if (isFlyer(def) || isFloater(def)) loc |= HOT | WET;
+  if (def.flags.includes('wallwalk') || noncorporeal(def)) loc |= SOLID;
+  // likes_fire(): the fire vortex, the flaming sphere, likes_lava()
+  if (def.id === 'nh:fire_vortex' || def.id === 'nh:flaming_sphere' || likesLava(def)) loc |= HOT;
+  return loc;
+}
+
+/**
+ * Rock (stone, walls, trees, secret doors and corridors: below POOL in C's terrain order) for
+ * SOLID, DRY ground (a boulder only with SOLID), water for WET, lava for HOT.
+ * ref: src/sp_lev.c is_ok_location()
+ */
+function isOkLocation(ctx: Ctx, level: Level, p: Pos, humidity: number): boolean {
+  const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
+  if (id === undefined) return false;
+  const t = ctx.defs.terrain(id);
+  // IS_OBSTRUCTED(typ): not passable, not a liquid, not iron bars or a door
+  if (
+    humidity & SOLID &&
+    !t.passable &&
+    t.liquid === undefined &&
+    t.door === undefined &&
+    id !== VANILLA_TERRAIN.iron_bars
+  )
+    return true;
+  if (humidity & DRY) {
+    if (dry(ctx, level, p)) return true;
+    if (humidity & SOLID && boulderAt(ctx, level.id, p.x, p.y)) {
+      // SPACE_POS() with a boulder, which a SOLID creature does not mind
+      const t2 = ctx.defs.terrain(id);
+      if (t2.passable && t2.door === undefined && t2.liquid === undefined && !NOT_DRY.has(id))
+        return true;
+    }
+  }
+  if (humidity & WET && isPool(ctx, level, p.x, p.y)) return true;
+  if (humidity & HOT && isLava(ctx, level, p.x, p.y)) return true;
+  return false;
+}
+
 /** A random DRY spot inside the LevelDef's map block (or the level): get_location(DRY). */
 export function randomDrySpot(ctx: Ctx, level: Level, def: LevelDef): Pos | null {
   return getLocation(ctx, level, def, (p) => dry(ctx, level, p));
@@ -146,9 +220,11 @@ function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['app
 }
 
 /**
- * ref: src/sp_lev.c create_monster(); an occupied spot moves to a close one
- * (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
- * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`)
+ * ref: src/sp_lev.c create_monster(); a random spot suits the monster's kind (pm_to_humidity():
+ * a water-liking one tries without DRY first, then with it); an occupied spot moves to a close
+ * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
+ * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
+ * MM_ASLEEP. A genocided kind is made at random instead (a genocided unique: nothing).
  */
 export function createMonster(
   ctx: Ctx,
@@ -157,16 +233,36 @@ export function createMonster(
   ldef: LevelDef,
   room?: number,
 ): void {
-  const def =
+  let def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
       : c.class !== undefined
         ? mkclass(ctx, c.class, level.depth, ['nogen']) // mkclass(class, G_NOGEN)
         : null;
-  const pos = contentSpot(ctx, level, c, ldef, room);
+  if (def && c.id !== undefined && isGenocided(ctx.state, def.id)) {
+    if (def.genFlags.includes('uniq')) return; // G_UNIQ and G_EXTINCT
+    def = null; // genocided: make random monster
+  }
+  let pos: Pos | null;
+  if (def && (c.x === undefined || c.y === undefined)) {
+    // "If water-liking monster, first try is without DRY"
+    let loc = pmToHumidity(def);
+    const spot = (): Pos | null =>
+      getLocation(ctx, level, ldef, (p) => isOkLocation(ctx, level, p, loc), room);
+    pos = spot();
+    if (!pos) {
+      loc |= DRY;
+      pos = spot();
+    }
+  } else pos = contentSpot(ctx, level, c, ldef, room);
   // someone already there: a close place instead (makemon's enexto)
   if (!pos) return;
-  const id = makemon(ctx, def, pos, { level: level.id, adjacentOk: true, inMklev: true });
+  const id = makemon(ctx, def, pos, {
+    level: level.id,
+    adjacentOk: true,
+    inMklev: true,
+    ...(c.asleep ? { asleep: true } : {}),
+  });
   if (id !== null && c.appearAs) applyAppearAs(ctx, id, c.appearAs);
   const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
@@ -201,7 +297,61 @@ function createObject(
       { level: level.id, inMklev: true },
     );
     if (c.historic && c.id === STATUE) setHistoric(ctx, id, true);
+    if (c.id === STATUE && mon === undefined && levelFlags(ctx, level).medusa === true)
+      petrifiedStatue(ctx, level, id);
   } else mkobjAt(ctx, (c.class as ObjectClass | undefined) ?? 'random', at, true);
+}
+
+/** Puts the detached or carried item `item` into the statue (add_to_container()). */
+export function addToStatue(ctx: Ctx, statue: EntityId, item: EntityId): void {
+  const it = ctx.state.entities[String(item)]?.c.item;
+  if (!it) return;
+  if (it.carriedBy !== null) removeFromInventory(ctx, item);
+  it.equipped = null; // obj->owornmask = 0
+  it.containedIn = statue;
+  it.placed = ctx.state.seq++;
+}
+
+/** Empties a container: an explicit empty `contents` (SP_OBJ_CONTAINER: delete_contents()). */
+export function deleteContents(ctx: Ctx, box: EntityId): void {
+  for (const o of contents(ctx.state, box)) ctx.remove(o.id);
+}
+
+/**
+ * "Medusa level special case: statues are petrified monsters, so they are not stone-resistant
+ * and have monster inventory." The statue (made empty: every such statue in the scripts says
+ * `contents=0`) shows the first kind, starting with its own random one and then rndmonnum(),
+ * that makemon() can make somewhere on the level and that neither resists stoning nor turns into
+ * a stone golem (up to 1000 tries); that monster's things go into the statue and the monster
+ * leaves (mongone()). ref: src/sp_lev.c create_object() (no birth counts: propagate())
+ */
+function petrifiedStatue(ctx: Ctx, level: Level, statue: EntityId): void {
+  deleteContents(ctx, statue);
+  const it = ctx.state.entities[String(statue)]?.c.item;
+  if (!it) return;
+  let wastyp: DefId = it.corpseOf ?? rndmonnum(ctx, level.depth).id;
+  let was: EntityId | null = null;
+  // prevent endless loop in case makemon always fails
+  for (let i = 0; i < 1000; i++, wastyp = rndmonnum(ctx, level.depth).id) {
+    // makemon without rndmonst() might create a group
+    was = makemon(ctx, ctx.defs.monster(wastyp), null, { level: level.id, inMklev: true });
+    if (was !== null) {
+      const mon = ctx.state.entities[String(was)];
+      const def = ctx.defs.monster(wastyp);
+      if (
+        mon &&
+        !resistsSton(ctx, mon) &&
+        !polyWhenStoned(def, isGenocided(ctx.state, 'nh:stone_golem'))
+      )
+        break;
+      mongone(ctx, was);
+      was = null;
+    }
+  }
+  if (was === null) return;
+  it.corpseOf = wastyp; // set_corpsenm() (the weight follows the monster)
+  for (const o of minvent(ctx, was)) addToStatue(ctx, statue, o.id);
+  mongone(ctx, was);
 }
 
 /**
@@ -224,7 +374,7 @@ function createTrap(ctx: Ctx, level: Level, c: LevelContent, ldef: LevelDef, roo
 }
 
 /** Makes one contents list (in room `room` when given). */
-function makeContents(
+export function makeContents(
   ctx: Ctx,
   level: Level,
   def: LevelDef,

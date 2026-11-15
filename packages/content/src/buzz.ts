@@ -28,7 +28,7 @@ import {
 import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { poisoned } from './attrib';
-import { acidDamage, destroyItems, erodeArmor } from './erode';
+import { acidDamage, destroyItems, erodeArmor, useOne } from './erode';
 import { inAnyShop } from './eshk';
 import { done } from './end';
 import { setUstuck, ustuck } from './hackmove';
@@ -200,6 +200,31 @@ export const resistsMagm = (ctx: Ctx, mon: Entity): boolean =>
     return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.ANTIMAGIC;
   });
 
+/**
+ * ref: include/mondata.h resists_disint(): its own resistance or worn black dragon scales or scale
+ * mail (`mextrinsics`, set when worn)
+ */
+export const resistsDisint = (ctx: Ctx, mon: Entity): boolean =>
+  ctx.defs.monster(mon.def).resists.includes('disint') ||
+  inventoryOf(ctx.state, mon.id).some((o) => {
+    const eq = o.c.item?.equipped;
+    return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.DISINT_RES;
+  });
+
+/** zhitm()'s damage when the blast disintegrates its target. ref: include/hack.h MAGIC_COOKIE */
+export const MAGIC_COOKIE = 1000;
+
+/** The monster's worn armor in `slot`. ref: src/worn.c which_armor() */
+const wornBy = (ctx: Ctx, mon: Entity, slot: string): Entity | undefined =>
+  inventoryOf(ctx.state, mon.id).find((o) => o.c.item?.equipped === slot);
+
+type DisintegrateArm = (ctx: Ctx, atmp: Entity | null) => boolean;
+/** seffect.ts's disintegrateArm() (seffect.ts sits above this module) */
+let disintegrateArm: DisintegrateArm | null = null;
+export function setDisintegrateArm(fn: DisintegrateArm): void {
+  disintegrateArm = fn;
+}
+
 /** Wakes a monster without angering it (wakeup(mon, FALSE)). */
 export function wakeGently(ctx: Ctx, mon: Entity): void {
   const m = mon.c.monster;
@@ -264,7 +289,11 @@ function zapHit(ctx: Ctx, ac: number, spell: DefId | null): boolean {
  * A hero's spell (`spellcaster`) gets the Intelligence damage bonus and resists at her level.
  * `save`: the hero's ray (`type >= 0`) gets a saving throw; a monster's spell does not. The death
  * ray kills (damage = HP + 1, no saving throw) unless the monster is nonliving, a demon or
- * resists magic; Death is not in the roster.
+ * resists magic; Death is not in the roster. A disintegration blast (`disint`, the death ray
+ * breathed: ZT_BREATH(ZT_DEATH)) does nothing to a monster that resists disintegration, else
+ * destroys its shield (put in `out.armor` for the caller), else its suit and cloak (the suit in
+ * `out.armor`), else its cloak and shirt and returns MAGIC_COOKIE (a hero's blast may still be
+ * halved by the saving throw, C's quirk, and then merely kills).
  */
 export function zhitm(
   ctx: Ctx,
@@ -274,6 +303,8 @@ export function zhitm(
   spellcaster: boolean,
   save: boolean,
   breath = false,
+  disint = false,
+  out?: { armor: Entity | null },
 ): number {
   const def = ctx.defs.monster(mon.def);
   const res = (r: string): boolean => def.resists.includes(r);
@@ -312,6 +343,27 @@ export function zhitm(
       sleepMonst(ctx, mon, ctx.rng.d(nd, 25), oclass);
       break;
     case 'death':
+      if (disint) {
+        if (resistsDisint(ctx, mon)) break; // (shieldeff)
+        const shield = wornBy(ctx, mon, 'shield');
+        const suit = wornBy(ctx, mon, 'body');
+        if (shield) {
+          if (out) out.armor = shield; // destroy shield; victim survives
+        } else if (suit) {
+          // destroy suit, also cloak if present
+          if (out) out.armor = suit;
+          const cloak = wornBy(ctx, mon, 'cloak');
+          if (cloak) useOne(ctx, mon.id, cloak);
+        } else {
+          // no suit, victim dies; destroy cloak and shirt now in case target gets life-saved
+          tmp = MAGIC_COOKIE;
+          for (const slot of ['cloak', 'shirt']) {
+            const o = wornBy(ctx, mon, slot);
+            if (o) useOne(ctx, mon.id, o);
+          }
+        }
+        break;
+      }
       // similar to player (no vampire shapeshifters exist)
       if (nonliving(def) || def.flags.includes('demon') || resistsMagm(ctx, mon)) break;
       save = false; // so they don't get saving throws
@@ -347,14 +399,17 @@ export function zhitm(
  * its own ("a blast of frost exhaled by herself" if it kills). ref: src/zap.c ubreatheu()
  */
 export function ubreatheu(ctx: Ctx, ray: Ray, nd: number): void {
-  zhitu(ctx, ray, nd, uhimKey(ctx.state, `@killer.breath.self.${ray}`));
+  zhitu(ctx, ray, nd, uhimKey(ctx.state, `@killer.breath.self.${ray}`), true);
 }
 
 /**
  * ref: src/zap.c zhitu(): the ray hits the hero; the monsters that see her learn whether she
- * resisted (monstseesu()/monstunseesu())
+ * resisted (monstseesu()/monstunseesu()). A disintegration blast (`disint`) spares her with
+ * Disint_resistance, else destroys her shield, else her suit and cloak, else (her cloak and shirt
+ * crumbling first) kills her. Not ported: carried items that guard against it
+ * (inventory_resistance_check()), the corpseless grave (no bones).
  */
-function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
+function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string, disint = false): void {
   const h = hero(ctx);
   let dam = 0;
   switch (ray) {
@@ -409,6 +464,35 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string): void {
       }
       break;
     case 'death':
+      if (disint) {
+        if (hasProp(h, P.DISINT_RES)) {
+          say(ctx, 'zap.u.not_disintegrated');
+          monstseesu(ctx, M_SEEN.disint);
+          break;
+        }
+        monstunseesu(ctx, M_SEEN.disint);
+        const worn = (slot: string): Entity | null => wornBy(ctx, h, slot) ?? null;
+        const uarms = worn('shield');
+        const uarm = worn('body');
+        if (uarms) {
+          disintegrateArm?.(ctx, uarms); // destroy shield; other possessions are safe
+          break;
+        } else if (uarm) {
+          // destroy suit; if present, cloak goes too
+          const uarmc = worn('cloak');
+          if (uarmc) disintegrateArm?.(ctx, uarmc);
+          disintegrateArm?.(ctx, uarm);
+          break;
+        }
+        // no shield or suit, you're dead; wipe out cloak and/or shirt in case of life-saving
+        const uarmc = worn('cloak');
+        if (uarmc) disintegrateArm?.(ctx, uarmc);
+        const uarmu = worn('shirt');
+        if (uarmu) disintegrateArm?.(ctx, uarmu);
+        monstunseesu(ctx, M_SEEN.magr);
+        done(ctx, killer); // KILLED_BY_AN the blast
+        return; // lifesaved
+      }
       // a hero is never nonliving or a demon (no polymorph)
       if (antimagic(ctx)) {
         monstseesu(ctx, M_SEEN.magr);
@@ -698,6 +782,36 @@ export function rayDmgstr(ray: Ray): DmgStr {
         : 'destroy';
 }
 
+/**
+ * A disintegration blast destroys the monster and what it carries: "The gnome is
+ * disintegrated!" (or, wearing a life saving amulet, the plain hit), every item but disintegration
+ * resistant armor, the amulet and 5 in 100 others gone; no corpse. The hero's blast kills it
+ * as hers without a message. ref: src/zap.c disintegrate_mon() (no artifacts)
+ */
+function disintegrateMon(ctx: Ctx, mon: Entity, byHero: boolean, fltxt: Msg): void {
+  const amulet = wornBy(ctx, mon, 'amulet');
+  const mAmulet = amulet?.def === 'nh:amulet_of_life_saving' ? amulet : undefined; // mlifesaver()
+  if (canseemon(ctx, mon)) {
+    if (!mAmulet) say(ctx, 'zap.ray.mon_disintegrated', { mon: monNam(ctx, mon) });
+    else say(ctx, 'zap.ray.hit', { ray: fltxt, mon: monNam(ctx, mon), ex: '!' });
+  }
+  for (const o of inventoryOf(ctx.state, mon.id)) {
+    // oresist_disintegration(): DISINT_RES armor, obj_resists(obj, 5, 50), the amulet
+    const keep =
+      ctx.defs.object(o.def).prop === P.DISINT_RES || ctx.rng.rn2(100) < 5 || o === mAmulet;
+    if (!keep) ctx.remove(o.id); // extract_from_minvent(), obfree()
+  }
+  if (!byHero) monkilled(ctx, mon.id, false, undefined, 'rbre');
+  else {
+    // xkilled(mon, XKILL_NOMSG | XKILL_NOCORPSE)
+    const level = mon.c.monster?.level ?? 0;
+    const def = ctx.defs.monster(mon.def);
+    monsterDied(ctx, mon.id, true, false, true);
+    if (!ctx.state.entities[String(mon.id)]?.c.monster)
+      gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  }
+}
+
 /** zap_over_floor()'s `shopdamage` output, for the hero's rays and blasts. */
 export interface ShopDamageFlag {
   damaged: boolean;
@@ -718,14 +832,29 @@ function buzzSteps(
   // fog cloud!"); a monster's does nothing (`type < 0`)
   const sw = uswallow(ctx);
   const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
+  // a breathed death ray disintegrates (ZT_BREATH(ZT_DEATH))
+  const disint =
+    ray === 'death' && (src.by === 'breath' || (src.by === 'hero' && src.breath === true));
   if (engulfer) {
     if (src.by !== 'hero') return;
-    const tmp = zhitm(ctx, engulfer, ray, nd, src.spell !== undefined, true, src.breath === true);
+    const tmp = zhitm(
+      ctx,
+      engulfer,
+      ray,
+      nd,
+      src.spell !== undefined,
+      true,
+      src.breath === true,
+      disint,
+    );
     say(ctx, 'zap.ray.rips_into', {
       ray: rayName(ray, src),
       mon: monNam(ctx, engulfer),
       ex: exclam(tmp),
     });
+    // using disintegration from the inside only makes a hole...
+    const ehp = engulfer.c.hp;
+    if (tmp === MAGIC_COOKIE && ehp) ehp.cur = 0;
     if ((engulfer.c.hp?.cur ?? 0) < 1 && alive(ctx, engulfer.id)) killedByHero(ctx, engulfer);
     return;
   }
@@ -782,6 +911,7 @@ function buzzSteps(
             d.y = -d.y;
           } else {
             const couldMove = !isFrozen(ctx, mon.id);
+            const out: { armor: Entity | null } = { armor: null };
             const tmp = zhitm(
               ctx,
               mon,
@@ -791,8 +921,12 @@ function buzzSteps(
               src.by === 'hero',
               // her breath and a monster's wand resist at her level (resist()'s default class)
               (src.by === 'hero' && src.breath === true) || src.by === 'monwand',
+              disint,
+              out,
             );
-            if ((mon.c.hp?.cur ?? 0) < 1) {
+            if (tmp === MAGIC_COOKIE) {
+              disintegrateMon(ctx, mon, src.by === 'hero', rayName(ray, src));
+            } else if ((mon.c.hp?.cur ?? 0) < 1) {
               if (alive(ctx, mon.id)) {
                 // killed by hero: if it's fire, highly flammable monsters leave no corpse
                 if (src.by === 'hero')
@@ -800,11 +934,21 @@ function buzzSteps(
                 else monkilled(ctx, mon.id, true); // killed by another monster (AD_RBRE)
               }
             } else {
-              say(ctx, 'zap.ray.hit', {
-                ray: rayName(ray, src),
-                mon: monNam(ctx, mon),
-                ex: exclam(tmp),
-              });
+              if (!out.armor)
+                say(ctx, 'zap.ray.hit', {
+                  ray: rayName(ray, src),
+                  mon: monNam(ctx, mon),
+                  ex: exclam(tmp),
+                });
+              else {
+                // some armor was destroyed; no damage done
+                if (canseemon(ctx, mon))
+                  say(ctx, 'zap.ray.mon_armor_disintegrated', {
+                    mon: monNam(ctx, mon),
+                    item: xnameOf(ctx.state, ctx.defs, out.armor),
+                  });
+                useOne(ctx, mon.id, out.armor);
+              }
               if (couldMove && isFrozen(ctx, mon.id)) sleptMonst(ctx, mon);
               if (ray !== 'sleep') {
                 if (src.by === 'hero') src.wakeup(ctx, mon.id);
@@ -829,7 +973,7 @@ function buzzSteps(
             d.y = -d.y;
             gasHit = false;
           } else {
-            zhitu(ctx, ray, nd, killer);
+            zhitu(ctx, ray, nd, killer, disint);
             monstunseesu(ctx, M_SEEN.refl);
           }
         } else if (!blind(ctx)) {

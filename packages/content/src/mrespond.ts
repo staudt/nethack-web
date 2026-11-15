@@ -1,14 +1,16 @@
 // A monster's response to the hero's presence or actions (not a passive attack): the shrieker's
-// shriek. ref: src/mon.c m_respond(), m_respond_shrieker(). Medusa's gaze and the Erinyes'
-// aggravation have no monster here yet.
+// shriek, Medusa's gaze. ref: src/mon.c m_respond(), m_respond_shrieker(), m_respond_medusa().
+// The Erinyes' aggravation has no monster here yet.
 import { getLevel, getPlayer, type Ctx, type Entity } from '@nh/core';
 import { stopOccupation } from './eat';
 import { makemon, monmaxDifficulty } from './generation';
+import { couldsee, gazemu } from './mhitu';
 import { aggravate } from './mstate';
 import { monNam } from './perception';
 
 /**
- * ref: src/mon.c m_respond(): a shrieker (MS_SHRIEK) within one square of the hero shrieks.
+ * ref: src/mon.c m_respond(): a shrieker (MS_SHRIEK) within one square of the hero shrieks;
+ * Medusa, in a clear line from her, gazes at her (m_respond_medusa(): her first gaze attack).
  * Called from dochug() each action and from bhitm() when a wand wakes it.
  */
 export function mRespond(ctx: Ctx, mon: Entity): void {
@@ -19,6 +21,10 @@ export function mRespond(ctx: Ctx, mon: Entity): void {
   // `!um_dist(mtmp->mx, mtmp->my, 1)`
   if (def.sound === 'shriek' && Math.max(Math.abs(mp.x - hp.x), Math.abs(mp.y - hp.y)) <= 1)
     mRespondShrieker(ctx, mon);
+  if (mon.def === 'nh:medusa' && couldsee(ctx, mon)) {
+    const gaze = def.attacks.find((a) => a.at === 'gaze');
+    if (gaze) gazemu(ctx, mon, gaze);
+  }
 }
 
 /**

@@ -4,7 +4,7 @@
 // it, and so can a mod's `beforeGameOver` hook (wizard mode).
 // Not ported: the high-score "while attempting to cheat Death" reason (no score list), lava
 // traps, a polymorphed hero who sticks to a monster ("You release it.": no sticking forms yet).
-import { getPlayer, inventoryOf, type Ctx, type Entity, type Msg } from '@nh/core';
+import { getPlayer, inventoryOf, type Ctx, type DefId, type Entity, type Msg } from '@nh/core';
 import { removeFromInventory } from './items';
 import { nomul } from './nomul';
 import { discover } from './o_init';
@@ -54,9 +54,16 @@ export function done(ctx: Ctx, killer: string, how: How = 'died'): void {
     say(ctx, 'lifesave.still_genocided');
   }
   setEndHow(ctx, how);
+  // a monster with a personal name is no "a Medusa": '=@nh:medusa' is bare ("killed by Medusa")
+  // ref: src/end.c done_in_by() (type_is_pname(): KILLED_BY)
+  const mkiller = killer.slice(1) as DefId;
+  const pname =
+    killer.startsWith('@') &&
+    ctx.defs.isMonster(mkiller) &&
+    ctx.defs.monster(mkiller).flags.includes('pname');
   ctx.endGame({
     kind: 'died',
-    killer,
+    killer: pname ? `=${killer}` : killer,
     turn: ctx.state.turn,
     depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
     level: hero.c.experience?.level ?? 1,

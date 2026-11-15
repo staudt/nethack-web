@@ -242,6 +242,27 @@ export function wornIn(state: Readonly<GameState>, id: EntityId, slot: string): 
 }
 
 /**
+ * The extra property each colour of dragon scales and scale mail gives the hero wearing it,
+ * besides its `prop` (gray and silver: none; green's sickness resistance and gold's
+ * hallucination resistance and light have no property here, see DEVIATIONS.md).
+ * ref: src/do_wear.c dragon_armor_handling()
+ */
+const DRAGON_EXTRA: Readonly<Record<string, string>> = {
+  black: P.DRAIN_RES,
+  blue: P.FAST,
+  red: P.INFRAVISION,
+  orange: P.FREE_ACTION,
+  yellow: P.STONE_RES,
+  white: P.SLOW_DIGESTION,
+};
+
+/** The extra property of dragon scales or scale mail `def`, if any. */
+export function dragonArmorExtra(def: string): string | undefined {
+  const m = /^nh:([a-z]+)_dragon_scale(s|_mail)$/.exec(def);
+  return m?.[1] !== undefined && Object.hasOwn(DRAGON_EXTRA, m[1]) ? DRAGON_EXTRA[m[1]] : undefined;
+}
+
+/**
  * Rebuilds the entity's extrinsic entries from its worn accessories (ref: src/worn.c setworn(),
  * setnotworn()). Writes only when something changed, so an entity without worn accessories
  * keeps its props untouched.
@@ -257,6 +278,9 @@ export function updateWornProps(state: GameState, defs: Registry, id: EntityId):
     if (prop) want.add(wornKey(prop));
     // the alchemy smock gives poison _and_ acid resistance (ref: src/do_wear.c Cloak_on())
     if (o.def === 'nh:alchemy_smock' && slot === 'cloak') want.add(wornKey(P.ACID_RES));
+    // the hero's dragon scales and scale mail (dragon_armor_handling() sets the hero's only)
+    const extra = id === state.playerId && slot === 'body' ? dragonArmorExtra(o.def) : undefined;
+    if (extra) want.add(wornKey(extra));
   }
   const props = e.c.props;
   for (const k of Object.keys(props ?? {}).sort()) {

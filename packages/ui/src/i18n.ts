@@ -159,7 +159,8 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
  * English indefinite article (none before a number or "the ...") and `{name|An}` the capitalized one; `{name|the}` / `{name|The}`
  * prefix "the" / "The" unless the param is a pronoun key ('@pronoun.it' gives "it" / "It"), and
  * `{name|the_s}` / `{name|The_s}` are the possessives ("the newt's", "its"). A string param starting with
- * '=' is a proper name: the rest, with no article under any modifier ("Izchak", "Izchak's").
+ * '=' is a proper name: the rest, with no article under any modifier ("Izchak", "Izchak's"); '=@key'
+ * is a proper name whose text is the key's ("Medusa").
  * `{name|plural}` is the English plural ("jackals", "homunculi"; src/objnam.c makeplural()),
  * `{name|Plural}` the same capitalized (upstart()).
  * Missing keys render as `[key]` (warned once).
@@ -188,7 +189,12 @@ export function translate(
       let text: string;
       // a proper name ('=Izchak'): itself, with no article ("Izchak", "Izchak's")
       const proper = typeof v === 'string' && v.startsWith('=');
-      if (proper) text = v.slice(1);
+      // '=@key' is a proper name with a translated text (Medusa: type_is_pname())
+      if (proper)
+        text =
+          v.startsWith('=@') && depth < 4
+            ? translate(catalogs, locale, v.slice(2), undefined, depth + 1)
+            : v.slice(1);
       else if (typeof v === 'string' && v.startsWith('@') && depth < 4) {
         text = translate(catalogs, locale, v.slice(1), undefined, depth + 1);
       } else if (typeof v === 'object') {

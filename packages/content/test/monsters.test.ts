@@ -72,6 +72,8 @@ describe('vanilla monsters', () => {
       'slim',
       'heal',
       'drin',
+      // m15 step 6 (buzz.ts: the black dragon's disintegration blast)
+      'disn',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts)
     for (const m of MONSTERS)

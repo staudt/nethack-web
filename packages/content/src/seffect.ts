@@ -33,7 +33,7 @@ import {
   type Pos,
   type PromptOption,
 } from '@nh/core';
-import { resist } from './buzz';
+import { resist, setDisintegrateArm } from './buzz';
 import { monsterIdAt } from './combat';
 import { initedog, tamedog } from './dog';
 import { adjAbon, armorOff } from './dowear';
@@ -183,6 +183,9 @@ export function disintegrateArm(ctx: Ctx, atmp: Entity | null): boolean {
   ctx.interrupt(); // stop_occupation()
   return true;
 }
+
+// zhitu()'s disintegration blast (buzz.ts sits below this module)
+setDisintegrateArm(disintegrateArm);
 
 /** ref: src/read.c disintegrate_cursed_armor(): a random cursed worn piece */
 function disintegrateCursedArmor(ctx: Ctx): boolean {

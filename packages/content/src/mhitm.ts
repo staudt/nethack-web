@@ -288,11 +288,16 @@ const unsolid = (ctx: Ctx, mon: Entity): boolean =>
 
 export { failedGrab };
 
+/** ref: include/monsters.h PM_MEDUSA */
+const MEDUSA: DefId = 'nh:medusa';
+
 /**
- * The aggressor gazes at the defender: nothing happens when it is cancelled or blind, or the
- * defender is blind or asleep; else the gaze's damage type acts as a hit (mdamagem()).
- * ref: src/mhitm.c gazemm() (no Archon; Medusa is not in the roster, so her gaze's reflection
- * and stoning are not ported; no invisible monsters)
+ * The aggressor gazes at the defender: nothing happens when it is cancelled or blind, an
+ * invisible gazer the defender can't perceive, or the defender is blind or asleep; Medusa's gaze
+ * at a reflecting defender comes back ("The gaze is reflected away by the gnome's shield."): unless
+ * she reflects it too, or the defender is invisible to her, she is turned to stone; else the
+ * gaze's damage type acts as a hit (mdamagem(), Medusa's stoning). ref: src/mhitm.c gazemm()
+ * (no Archon)
  */
 function gazemm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
   if (vis) {
@@ -301,14 +306,37 @@ function gazemm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
       mdef: monNam(ctx, mdef),
     });
   }
+  const pa = ctx.defs.monster(magr.def);
   if (
     isCancelled(ctx, magr.id) ||
     !mcansee(ctx, mdef.id) ||
     !mcansee(ctx, magr.id) ||
+    (monInvisible(ctx, magr) && !perceives(ctx.defs.monster(mdef.def))) ||
     mdef.c.monster?.asleep === true
   ) {
     if (vis && canSpotMon(ctx, mdef)) say(ctx, 'mhitm.nothing_happens');
     return M_ATTK.MISS;
+  }
+  // call mon_reflects 2x, first test, then, if visible, print message
+  if (magr.def === MEDUSA && monReflects(ctx, mdef, null)) {
+    if (canseemon(ctx, mdef)) monReflects(ctx, mdef, 'muse.reflect.gaze_away_mm');
+    if (mcansee(ctx, mdef.id)) {
+      if (monReflects(ctx, magr, null)) {
+        if (canseemon(ctx, magr)) monReflects(ctx, magr, 'muse.reflect.gaze_away_mm');
+        return M_ATTK.MISS;
+      }
+      if (monInvisible(ctx, mdef) && !perceives(pa)) {
+        if (canseemon(ctx, magr))
+          say(ctx, 'mhitm.gaze_unnoticed', {
+            mon: monNam(ctx, magr),
+            his: pa.flags.includes('female') ? '@pronoun.her' : '@pronoun.his',
+          });
+        return M_ATTK.MISS;
+      }
+      if (canseemon(ctx, magr)) say(ctx, 'stone.mon_turns_x', { mon: monNam(ctx, magr) });
+      monstone(ctx, magr);
+      return alive(ctx, magr.id) ? M_ATTK.MISS : M_ATTK.AGR_DIED;
+    }
   }
   return mdamagem(ctx, magr, mdef, atk, null, vis, 0);
 }

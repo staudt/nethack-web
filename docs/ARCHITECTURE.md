@@ -190,6 +190,7 @@ interface LevelContent {
   x?: number; y?: number; // a fixed spot (both or neither); see Map blocks for the origin
   coords?: 'map' | 'level';
   peaceful?: boolean; // monsters: forced peaceful or hostile; omitted = peace_minded()
+  asleep?: true; // m15, monsters: des.monster's `asleep`
   montype?: string; // m7f-c, objects showing a monster (statues, corpses): a MonsterDef id, or one glyph character for a random monster of that class
   historic?: true; // m7f-c, statues: des.object's `historic`
   appearAs?: { kind: 'object' | 'furniture' | 'monster'; id: DefId }; // m13, monsters: des.monster's `appear_as`
@@ -197,6 +198,8 @@ interface LevelContent {
 ```
 
 An entry with `x`,`y` goes on that spot as given, with no terrain check (ref: src/sp_lev.c get_location() for fixed coordinates); in Level coordinates -1 is the last column or row, and a spot outside the level throws a RangeError naming the LevelDef. A monster whose spot is taken goes to a close free one; a trap whose spot is not plain floor is not made. `peaceful` sets the monster's peacefulness after it is made (ref: create_monster() `m->peaceful > BOOL_RANDOM`); members of its group are unaffected. `loadMods` reports an `x` without `y` (or the reverse), a non-integer coordinate, a `peaceful` that is not a boolean and `peaceful` on a non-monster.
+
+`asleep` (m15 step 6) is des.monster's `asleep=1`: content makes the monster asleep (makemon's MM_ASLEEP), so Medusa sleeps on her down stairs and her golems, cobras and the nesting yellow dragon in their rooms. `loadMods` reports an `asleep` that is not `true` and `asleep` on a non-monster. Why a core change: LevelContent is core's type and the Medusa levels need it in their level data; it is optional and additive (no save-format change: LevelDefs are not saved).
 
 `montype` and `historic` (m7f-c) are des.object's: content makes the object with `id`, then sets the monster it shows (a class letter is rolled with `mkclass()` before the spot is chosen, as lspo_object() reads the table first) and the historic flag; `loadMods` reports a `montype` that is neither a registered monster nor a class some monster has. Why a core change: LevelContent is core's type and the Oracle's centaur statues and Grotto's gnome king statue need both fields; they are optional and additive.
 

@@ -88,7 +88,7 @@ describe('defineMonster validation', () => {
     ['attacks[0].at', { attacks: [{ at: 'lick', ad: 'phys', n: 1, d: 1 }] }],
     ['attacks[0].ad', { attacks: [{ at: 'claw', ad: '', n: 1, d: 1 }] }],
     ['attacks[0].n', { attacks: [{ at: 'claw', ad: 'phys', n: -1, d: 1 }] }],
-    ['attacks[0].d', { attacks: [{ at: 'claw', ad: 'phys', n: 1, d: 101 }] }],
+    ['attacks[0].d', { attacks: [{ at: 'claw', ad: 'phys', n: 1, d: 256 }] }],
     ['size', { size: 'enormous' }],
     ['group', { group: 'huge' }],
     ['flags', { flags: [1] }],

@@ -231,15 +231,16 @@ const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[S
  * The monster dies by another monster's hand (or a monster's missile): "The X is killed!" when
  * the hero sees its square ("... killed by the <by>!" with a cause key), a sad feeling for an unseen pet; its things drop and a corpse may
  * be left (no treasure drop, no experience; none when digested, `how` 'dgst', or a paper or straw
- * golem burnt up, 'fire'). A pet golem burnt, rusted or rotted away: "May the paper golem roast
- * in peace." ref: src/mon.c monkilled() -> mondied() (mondead() for AD_DGST)
+ * golem burnt up, 'fire', or disintegrated by a monster's breath, 'rbre'). A pet golem burnt,
+ * rusted or rotted away: "May the paper golem roast in peace." ref: src/mon.c monkilled() ->
+ * mondied() (mondead() for AD_DGST and -AD_RBRE)
  */
 export function monkilled(
   ctx: Ctx,
   id: EntityId,
   fltxt: boolean,
   by?: string,
-  how?: 'dgst' | 'fire' | 'rust' | 'dcay',
+  how?: 'dgst' | 'fire' | 'rust' | 'dcay' | 'rbre',
 ): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
@@ -252,7 +253,8 @@ export function monkilled(
   const tame = (mon.c.monster.tame ?? 0) > 0;
   const name = tame ? monNam(ctx, mon) : '';
   // no corpse if digested or flammable golem burnt up (gd.disintegested)
-  if (how === 'dgst' || (how === 'fire' && completelyburns(mon.def))) mondead(ctx, id);
+  if (how === 'dgst' || how === 'rbre' || (how === 'fire' && completelyburns(mon.def)))
+    mondead(ctx, id);
   else mondied(ctx, id);
   if (ent(ctx, id)?.c.monster) return; // life-saved
   // extra message if pet golem is completely destroyed

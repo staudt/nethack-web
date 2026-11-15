@@ -35,6 +35,7 @@ import { discover } from './o_init';
 import { xnameOf } from './objnam';
 import {
   P,
+  dragonArmorExtra,
   hasExtrinsic,
   hasProp,
   incrItimeout,
@@ -278,8 +279,15 @@ export function armorOn(ctx: WearCtx, obj: Entity): void {
       else if (obj.def === 'nh:gauntlets_of_power') discover(ctx, obj.def);
       else if (obj.def === 'nh:gauntlets_of_dexterity') adjAbon(ctx, obj, spe);
       break;
+    case 'body':
+      // ref: Armor_on() -> dragon_armor_handling(): blue dragon armor's speed
+      if (dragonArmorExtra(obj.def) === P.FAST) {
+        if (!otherWorn(ctx, obj, P.FAST) && timeoutLeft(ctx.state, h, P.FAST) === 0)
+          say(ctx, permanent(ctx, P.FAST) ? 'wear.dragon_speed_up_more' : 'wear.dragon_speed_up');
+      }
+      break;
     default:
-      // Shield_on(), Shirt_on(), Armor_on(): nothing for the armor of the port
+      // Shield_on(), Shirt_on(): nothing for the armor of the port
       break;
   }
 }
@@ -347,6 +355,10 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
         for (const a of abonAttrs(obj.def, slot)) adjustAbon(ctx, a, -spe);
         if (spe) discover(ctx, obj.def);
       }
+      break;
+    case 'body':
+      // ref: Armor_off(), Armor_gone() -> dragon_armor_handling(): "You slow down."
+      if (dragonArmorExtra(obj.def) === P.FAST && !veryFast(ctx)) say(ctx, 'wear.slow_down');
       break;
     default:
       break;

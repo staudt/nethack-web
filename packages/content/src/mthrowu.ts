@@ -837,6 +837,7 @@ export const BREATH_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
   elec: 'lightning',
   drst: 'poison_gas',
   acid: 'acid',
+  disn: 'death', // a disintegration blast (ZT_BREATH(ZT_DEATH))
 };
 
 const sgn = (n: number): -1 | 0 | 1 => (n > 0 ? 1 : n < 0 ? -1 : 0);
@@ -875,8 +876,8 @@ function linedTarget(
  * attack's dice (dobuzz() with BZ_M_BREATH). Afterwards the breath is used up for 8..25 turns
  * (always against a monster, 1 time in 3 against the hero), and a sleep breath that will put
  * the hero to sleep waits rnd(20) more. Returns true when the attack counts as a hit.
- * ref: src/mthrowu.c breamm(), breamu(). Not ported: AD_RBRE's random type and disintegration
- * (no such breather yet), the monster's memory of her resistances and reflection (m_seenres()),
+ * ref: src/mthrowu.c breamm(), breamu(). Not ported: AD_RBRE's random type (no chromatic dragon
+ * yet), the monster's memory of her resistances and reflection (m_seenres()),
  * a pet's hunger.
  */
 export function breamm(

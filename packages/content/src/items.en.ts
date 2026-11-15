@@ -127,6 +127,8 @@ export const itemMessagesEn: Record<string, string> = {
   'wear.fits_tightly': '{item|The} fits very tightly.',
   // Boots_on(), Boots_off() (speed boots)
   'wear.speed_up': 'You feel yourself speed up.',
+  'wear.dragon_speed_up': 'You speed up.',
+  'wear.dragon_speed_up_more': 'You speed up a bit more.',
   'wear.speed_up_more': 'You feel yourself speed up a bit more.',
   'wear.slow_down': 'You feel yourself slow down.',
   'wear.slow_down_bit': 'You feel yourself slow down a bit.',

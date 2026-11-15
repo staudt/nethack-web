@@ -81,11 +81,14 @@ export function deathText(d: Pick<EndDeps, 't' | 'has'>, s: Status): string {
   const noPrefix = raw.startsWith('!');
   const k = noPrefix ? raw.slice(1) : raw;
   const def = k.startsWith('@') ? k.slice(1) : k;
-  if (noPrefix) return def.startsWith('=') ? def.slice(1) : d.t(def);
+  // '=@key': a proper name whose text is the key's ("killed by Medusa")
+  const bare = (name: string): string =>
+    name.startsWith('=@') ? d.t(name.slice(2)) : name.slice(1);
+  if (noPrefix) return def.startsWith('=') ? bare(def) : d.t(def);
   const killer = !def
     ? ''
     : def.startsWith('=')
-      ? def.slice(1)
+      ? bare(def)
       : def.startsWith('killer.')
         ? d.t(def)
         : an(d.t(def));

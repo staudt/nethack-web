@@ -33,6 +33,8 @@ import { releaseHero } from './engulf';
 import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
 import { mRespond } from './mrespond';
+import { levelFlags } from './levelflags';
+import { couldsee } from './mhitu';
 import { cuss } from './cuss';
 import { noteleportLevel, teleRestrict } from './teleport';
 import { mnextoPos } from './generation';
@@ -964,6 +966,15 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   let chcnt = 0;
   let chosen: Candidate | null = null;
   let nidist = dist2(pos.x, pos.y, ggx, ggy);
+  // allow monsters be shortsighted on some levels for balance (medusa-3)
+  if (
+    e !== undefined &&
+    e.c.monster?.peaceful !== true &&
+    levelFlags(ctx, level).shortsighted === true &&
+    nidist > (couldsee(ctx, e) ? 144 : 36) &&
+    appr === 1
+  )
+    appr = 0;
   for (const c of cands) {
     if (avoid && c.lined) continue;
     if (appr !== 0) {

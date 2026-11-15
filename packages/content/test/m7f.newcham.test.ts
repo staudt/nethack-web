@@ -229,7 +229,13 @@ describe('the polymorph trap and monsters', () => {
       mintrap(ctxOf(s), m.id, { force: true });
       if (ent(s, m.id)?.def !== 'nh:jackal') {
         changed++;
-        expect(said(s).some((t) => t.startsWith('The jackal turns into '))).toBe(true);
+        // an invisible new form (a stalker since m15's dragons shifted the stream)
+        // "disappears!" instead (newcham())
+        expect(
+          said(s).some(
+            (t) => t.startsWith('The jackal turns into ') || t === 'The jackal disappears!',
+          ),
+        ).toBe(true);
         expect(trapAt(level, 4, 2)?.seen).toBe(true);
       }
       expect(trapAt(level, 4, 2)).toBeDefined();

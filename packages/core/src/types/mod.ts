@@ -618,6 +618,8 @@ export interface LevelContent {
   coords?: LevelCoords;
   /** Monsters: forced peaceful (true) or hostile (false); omitted = peace_minded() as usual. */
   peaceful?: boolean;
+  /** Monsters: made asleep (des.monster `asleep`; m15). Content interprets it. */
+  asleep?: true;
   /**
    * Objects that show a monster (corpses, statues): a monster def id, or a one-character monster
    * class for a random monster of that class (des.object `montype`).

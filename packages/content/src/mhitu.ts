@@ -100,7 +100,7 @@ const acurr = (ctx: Ctx, a: 'con'): number => getPlayer(ctx.state).c.attributes?
 const BOLT_LIM = 8;
 
 /** couldsee(mx, my): a clear line from the hero to the monster, lit or not. ref: src/vision.c */
-function couldsee(ctx: Ctx, mon: Entity): boolean {
+export function couldsee(ctx: Ctx, mon: Entity): boolean {
   const p = mon.c.pos;
   const hp = getPlayer(ctx.state).c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;

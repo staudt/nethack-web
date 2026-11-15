@@ -340,5 +340,7 @@ export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entit
   if (epri) return priestName(epri); // "the priest of Odin"
   const eshk = eshkOf(ctx, mon.id);
   if (eshk) return shkName(eshk); // "Izchak" (ref: x_monnam() isshk)
+  // a personal name takes no article: "Medusa" (ref: x_monnam() type_is_pname())
+  if (ctx.defs.monster(mon.def).flags.includes('pname')) return `=@${mon.def}`;
   return `@${mon.def}`;
 }

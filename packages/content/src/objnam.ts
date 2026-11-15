@@ -42,14 +42,19 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   if (def.id === 'nh:corpse' && it?.corpseOf) {
     return { key: `${def.nameKey}${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
-  // ref: xname() STATUE: "statue of a newt", "statue of the Oracle" (the_unique_pm()); an
-  // Archeologist sees a "historic statue of ..." (no personal names: type_is_pname())
+  // ref: xname() STATUE: "statue of a newt", "statue of the Oracle" (the_unique_pm()),
+  // "statue of Medusa" (type_is_pname()); an Archeologist sees a "historic statue of ..."
   if (def.id === 'nh:statue' && it?.corpseOf) {
-    const uniq = defs.isMonster(it.corpseOf) && defs.monster(it.corpseOf).genFlags.includes('uniq');
+    const m = defs.isMonster(it.corpseOf) ? defs.monster(it.corpseOf) : null;
+    const pname = m?.flags.includes('pname') === true;
+    const uniq = !pname && m?.genFlags.includes('uniq') === true;
     const hist = getPlayer(state).def === 'nh:archeologist' && isHistoric(state, item.id);
     return {
       key: `nh:statue.of${uniq ? '.the' : ''}${plural}`,
-      params: { mon: `@${it.corpseOf}`, historic: hist ? { key: 'nh:statue.historic' } : '' },
+      params: {
+        mon: `${pname ? '=' : ''}@${it.corpseOf}`,
+        historic: hist ? { key: 'nh:statue.historic' } : '',
+      },
     };
   }
   // ref: xname() TOOL_CLASS FIGURINE: "figurine of a kitten" (just_an(); never a unique)

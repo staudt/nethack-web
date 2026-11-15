@@ -213,6 +213,19 @@ export function goodposHero(
   return goodpos(occupancy(ctx, level), x, y, ctx.state.playerId);
 }
 
+/**
+ * goodpos() with no creature: not the hero's square, accessible, dry and no boulder (monsters do
+ * not matter). ref: src/teleport.c goodpos(x, y, (struct monst *) 0, 0)
+ */
+export function goodposNone(
+  ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
+  level: Level,
+  x: number,
+  y: number,
+): boolean {
+  return goodpos(occupancy(ctx, level), x, y, null);
+}
+
 /** goodpos() for monster `who` at (x, y) of `level`. ref: src/teleport.c goodpos(x, y, mtmp, 0) */
 export function goodposMon(
   ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,

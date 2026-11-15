@@ -23,13 +23,17 @@ export interface FlagRect {
 }
 
 /**
- * ref: level.flags.noteleport, hardfloor, is_maze_lev; W_NONDIGGABLE and W_NONPASSWALL walls
- * (`'all'`: every wall and, with `solidify`, the stone around the map block).
+ * ref: level.flags.noteleport, hardfloor, is_maze_lev, shortsighted (hostile monsters far from
+ * her stop approaching: m_move()); W_NONDIGGABLE and W_NONPASSWALL walls (`'all'`: every wall
+ * and, with `solidify`, the stone around the map block); `medusa`: one of Medusa's levels
+ * (Is_medusa_level(): create_object()'s petrified statues, fixup_special()'s statues).
  */
 export interface LevelFlags {
   noteleport?: true;
   hardfloor?: true;
   maze?: true;
+  shortsighted?: true;
+  medusa?: true;
   nondiggable?: 'all' | readonly FlagRect[];
   nonpasswall?: 'all' | readonly FlagRect[];
 }
@@ -86,6 +90,42 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     ],
   },
   ...BIGROOM_FLAGS,
+  /** ref: dat/medusa-1.lua */
+  'nh:medusa-1': {
+    medusa: true,
+    noteleport: true,
+    maze: true,
+    nondiggable: [{ x1: 30, y1: 6, x2: 46, y2: 13 }],
+  },
+  /** ref: dat/medusa-2.lua */
+  'nh:medusa-2': {
+    medusa: true,
+    noteleport: true,
+    maze: true,
+    nondiggable: [
+      { x1: 1, y1: 2, x2: 6, y2: 17 },
+      { x1: 60, y1: 2, x2: 73, y2: 17 },
+    ],
+  },
+  /** ref: dat/medusa-3.lua ("4th room has diggable walls as Medusa is never placed there") */
+  'nh:medusa-3': {
+    medusa: true,
+    noteleport: true,
+    maze: true,
+    shortsighted: true,
+    nondiggable: [
+      { x1: 6, y1: 4, x2: 10, y2: 8 },
+      { x1: 64, y1: 3, x2: 68, y2: 7 },
+      { x1: 44, y1: 13, x2: 48, y2: 17 },
+    ],
+  },
+  /** ref: dat/medusa-4.lua */
+  'nh:medusa-4': {
+    medusa: true,
+    noteleport: true,
+    maze: true,
+    nondiggable: [{ x1: 1, y1: 1, x2: 22, y2: 14 }],
+  },
   /** ref: dat/minend-3.lua (the Catacombs) */
   'nh:minend-3': {
     maze: true,

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-170 NetHack files, 4513 citations.
+174 NetHack files, 4587 citations.
 
 ## dat/bigrm-1.lua
 
@@ -63,7 +63,23 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/dungeon.lua
 
-- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/core/src/types/mod.ts`
+
+## dat/medusa-1.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`
+
+## dat/medusa-2.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`
+
+## dat/medusa-3.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`
+
+## dat/medusa-4.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`
 
 ## dat/minefill.lua
 
@@ -111,7 +127,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/nhlib.lua
 
-- `percent()`: `packages/content/src/bigroom.ts`, `packages/content/src/orctown.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `percent()`: `packages/content/src/bigroom.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `shuffle()`: `packages/content/src/sp_lev.ts`
 
 ## dat/oracle.lua
@@ -259,6 +275,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ER_NOTHING()`: `packages/content/src/water.ts`
 - `EXT_ENCUMBER()`: `packages/content/src/magic.ts`, `packages/content/src/pray.ts`
 - `HVY_ENCUMBER()`: `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
+- `MAGIC_COOKIE()`: `packages/content/src/buzz.ts`
 - `MAX_EGG_HATCH_TIME()`: `packages/content/src/eggstate.ts`
 - `MOD_ENCUMBER()`: `packages/content/src/hero.ts`, `packages/content/src/wish.ts`
 - `MON_POLE_DIST()`: `packages/content/src/mthrowu.ts`
@@ -388,6 +405,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `poly_when_stoned()`: `packages/content/src/golem.ts`, `packages/content/src/stoning.ts`, `packages/content/src/upoly.ts`
 - `polyok()`: `packages/content/src/newcham.ts`
 - `regenerates()`: `packages/content/src/mstate.ts`
+- `resists_disint()`: `packages/content/src/buzz.ts`
 - `resists_ston()`: `packages/content/src/stonestate.ts`
 - `slimeproof()`: `packages/content/src/slimestate.ts`
 - `slithy()`: `packages/content/src/adtyping.ts`, `packages/content/src/dosit.ts`, `packages/content/src/mondata.ts`
@@ -432,6 +450,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_GUARD()`: `packages/content/src/vault.ts`
+- `PM_KNIGHT()`: `packages/content/src/medusa.ts`
+- `PM_MEDUSA()`: `packages/content/src/mhitm.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
 - `PM_SHOPKEEPER()`: `packages/content/src/eshk.ts`
 
@@ -483,6 +503,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `CLOAK()`: `packages/content/src/objects.ts`
 - `COIN()`: `packages/content/src/objects.ts`
 - `CONTAINER()`: `packages/content/src/container.ts`, `packages/content/src/objects.ts`
+- `DRGN_ARMR()`: `packages/content/src/objects.ts`
 - `EYEWEAR()`: `packages/content/src/objects.ts`
 - `FOOD()`: `packages/content/src/objects.ts`
 - `GEM()`: `packages/content/src/objects.ts`
@@ -543,7 +564,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/sp_lev.h
 
-- (file): `packages/core/src/levelgen/rect.ts`
+- (file): `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/rect.ts`
 
 ## include/spell.h
 
@@ -864,6 +885,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/invis.ts`, `packages/content/src/itemactions.ts`
 - `Amulet_off()`: `packages/content/src/jewelry.ts`
 - `Amulet_on()`: `packages/content/src/jewelry.ts`
+- `Armor_gone()`: `packages/content/src/dowear.ts`
+- `Armor_off()`: `packages/content/src/dowear.ts`
+- `Armor_on()`: `packages/content/src/dowear.ts`
 - `Blindf_off()`: `packages/content/src/jewelry.ts`
 - `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/testkit/src/invariants.ts`
 - `Boots_off()`: `packages/content/src/dowear.ts`
@@ -894,6 +918,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doremring()`: `packages/content/src/jewelry.ts`
 - `dotakeoff()`: `packages/content/src/itemactions.ts`
 - `dowear()`: `packages/content/src/itemactions.ts`
+- `dragon_armor_handling()`: `packages/content/src/props.ts`
 - `equip_ok()`: `packages/content/src/itemactions.ts`
 - `find_ac()`: `packages/content/src/props.ts`, `packages/content/src/stats.ts`
 - `freehand()`: `packages/content/src/pray.ts`
@@ -1080,7 +1105,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `disclose()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/core/src/types/event.ts`, `packages/ui/src/gameover.ts`
 - `done()`: `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
 - `done2()`: `packages/content/src/end.en.ts`, `packages/content/src/quit.ts`
-- `done_in_by()`: `packages/content/src/mhitu.ts`
+- `done_in_by()`: `packages/content/src/end.ts`, `packages/content/src/mhitu.ts`
 - `ends()`: `packages/content/src/end.en.ts`
 - `get_valuables()`: `packages/content/src/urexp.ts`
 - `paygd()`: `packages/content/src/vault.ts`
@@ -1465,7 +1490,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_maze()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `extend_spine()`: `packages/core/src/levelgen/mkmap.ts`
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
-- `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/orctown.ts`, `packages/core/src/types/mod.ts`
+- `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/core/src/types/mod.ts`
 - `is_solid()`: `packages/core/src/levelgen/mkmap.ts`
 - `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 - `iswall_or_stone()`: `packages/core/src/levelgen/mkmap.ts`
@@ -1584,6 +1609,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_in_air()`: `packages/content/src/liquid.ts`
 - `m_move_aggress()`: `packages/content/src/monmove.ts`
 - `m_respond()`: `packages/content/src/mrespond.ts`
+- `m_respond_medusa()`: `packages/content/src/mrespond.ts`
 - `m_respond_shrieker()`: `packages/content/src/mrespond.ts`
 - `make_corpse()`: `packages/content/src/corpses.ts`
 - `max_mon_load()`: `packages/content/src/mongear.ts`
@@ -2105,7 +2131,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `selection_do_grow()`: `packages/content/src/bigroom.ts`
 - `selection_do_line()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `selection_floodfill()`: `packages/content/src/orctown.ts`
-- `selection_rndcoord()`: `packages/content/src/orctown.ts`
+- `selection_rndcoord()`: `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`
 
 ## src/shk.c
 
@@ -2257,7 +2283,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
 - `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/core/src/levelgen/sprooms.ts`
 - `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/sp_lev.ts`
-- `create_object()`: `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
+- `create_object()`: `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
 - `create_room()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_subroom()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_trap()`: `packages/content/src/sp_lev.ts`
@@ -2300,6 +2326,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maze1xy()`: `packages/content/src/mazefill.ts`
 - `mksobj_at()`: `packages/content/src/mklev.ts`
 - `pm_good_location()`: `packages/content/src/priest.ts`
+- `pm_to_humidity()`: `packages/content/src/sp_lev.ts`
 - `rnddoor()`: `packages/core/src/types/mod.ts`
 - `rndtrap()`: `packages/content/src/mklev.ts`
 - `sel_set_door()`: `packages/core/src/types/mod.ts`
@@ -2738,7 +2765,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `setworn()`: `packages/content/src/jewelry.ts`, `packages/content/src/props.ts`
 - `update_mon_extrinsics()`: `packages/content/src/invis.ts`
 - `w_blocks()`: `packages/content/src/props.ts`
-- `which_armor()`: `packages/content/src/mongear.ts`
+- `which_armor()`: `packages/content/src/buzz.ts`, `packages/content/src/mongear.ts`
 
 ## src/zap.c
 
@@ -2761,6 +2788,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `destroy_items()`: `packages/content/src/erode.ts`, `packages/content/src/explode.ts`
 - `destroy_strings()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `destroyable()`: `packages/content/src/erode.ts`
+- `disintegrate_mon()`: `packages/content/src/buzz.ts`
 - `do_enlightenment_effect()`: `packages/content/src/enlightenment.ts`
 - `do_osshock()`: `packages/content/src/polyobj.ts`
 - `dobuzz()`: `packages/content/src/buzz.ts`, `packages/core/src/types/event.ts`

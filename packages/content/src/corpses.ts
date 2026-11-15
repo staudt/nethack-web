@@ -134,10 +134,18 @@ export interface DeadMon {
   seen: string | null;
 }
 
+/** The grown-up dragons whose scales a dead one may leave (`<colour>_dragon_scales`). */
+const SCALY_DRAGONS: ReadonlySet<DefId> = new Set(
+  ['gray', 'gold', 'silver', 'red', 'white', 'orange', 'black', 'blue', 'green', 'yellow'].map(
+    (c): DefId => `nh:${c}_dragon`,
+  ),
+);
+
 /**
- * The objects make_corpse() leaves besides the corpse: a long worm's tooth, a unicorn's horn
- * (which crumbles to dust half the time when the unicorn had been revived).
- * ref: src/mon.c make_corpse() PM_LONG_WORM, PM_*_UNICORN
+ * The objects make_corpse() leaves besides the corpse: a grown-up dragon's scales 1 time in 3
+ * (1 in 20 when it had been revived; uncursed, +0), a long worm's tooth, a unicorn's horn (which
+ * crumbles to dust half the time when the unicorn had been revived).
+ * ref: src/mon.c make_corpse() PM_GRAY_DRAGON .. PM_YELLOW_DRAGON, PM_LONG_WORM, PM_*_UNICORN
  */
 function corpseExtras(
   ctx: Ctx,
@@ -145,6 +153,13 @@ function corpseExtras(
   at: { level: string; x: number; y: number },
   dead: DeadMon,
 ): void {
+  // "Make dragon scales.  This assumes that the order of the dragons is the same as the order of
+  // the scales.": `mksobj_at(num, x, y, FALSE, FALSE)`, spe 0, neither cursed nor blessed
+  if (SCALY_DRAGONS.has(def.id)) {
+    if (!ctx.rng.rn2(dead.revived ? 20 : 3))
+      mksobj(ctx, ctx.defs.object(`${def.id}_scales`), { at, init: false });
+    return;
+  }
   // ref: make_corpse() PM_LONG_WORM: `mksobj_at(WORM_TOOTH, x, y, TRUE, FALSE)`
   if (def.id === 'nh:long_worm') {
     mksobj(ctx, ctx.defs.object('nh:worm_tooth'), { at, init: true });

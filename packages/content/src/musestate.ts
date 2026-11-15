@@ -107,11 +107,11 @@ const SHIELD_OF_REFLECTION: DefId = 'nh:shield_of_reflection';
 const AMULET_OF_REFLECTION: DefId = 'nh:amulet_of_reflection';
 
 /**
- * Whether the monster reflects: a worn shield of reflection, then a worn amulet of reflection.
- * When it does and `key` is given, says it with `mon` (the monster) and `what` ("shield",
- * "amulet") added to `params`, and learns the shield or amulet ("But it reflects from the hill
- * orc's shield!"). ref: src/muse.c mon_reflects() (no artifact weapons, silver dragon scales or
- * silver and chromatic dragons in this port)
+ * Whether the monster reflects: a worn shield of reflection, a worn amulet of reflection, worn
+ * silver dragon scales or scale mail, or a (grown-up) silver dragon's own scales. When it does
+ * and `key` is given, says it with `mon` (the monster) and `what` ("shield", "amulet", "armor",
+ * "scales") added to `params`, and learns the shield or amulet ("But it reflects from the hill
+ * orc's shield!"). ref: src/muse.c mon_reflects() (no artifact weapons or chromatic dragon)
  */
 export function monReflects(
   ctx: Ctx,
@@ -121,18 +121,23 @@ export function monReflects(
 ): boolean {
   const worn = (slot: string): Entity | undefined =>
     inventoryOf(ctx.state, mon.id).find((o) => o.c.item?.equipped === slot);
-  let what: 'shield' | 'amulet';
-  let learn: DefId;
+  let what: 'shield' | 'amulet' | 'armor' | 'scales';
+  let learn: DefId | null = null;
+  const suit = worn('body')?.def;
   if (worn('shield')?.def === SHIELD_OF_REFLECTION) {
     what = 'shield';
     learn = SHIELD_OF_REFLECTION;
   } else if (worn('amulet')?.def === AMULET_OF_REFLECTION) {
     what = 'amulet';
     learn = AMULET_OF_REFLECTION;
-  } else return false;
+  } else if (suit === 'nh:silver_dragon_scales' || suit === 'nh:silver_dragon_scale_mail')
+    what = 'armor';
+  else if (mon.def === 'nh:silver_dragon')
+    what = 'scales'; // silver dragons only reflect when mature; babies do not
+  else return false;
   if (key) {
     say(ctx, key, { ...params, mon: monNam(ctx, mon), what: { key: `muse.reflect.what.${what}` } });
-    discover(ctx, learn);
+    if (learn) discover(ctx, learn);
   }
   return true;
 }
