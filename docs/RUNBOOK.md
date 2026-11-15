@@ -8,6 +8,16 @@ Work through these in order. A milestone is done when all its plan steps are com
 
 Done in run 1 (2026-11-03/04, merged to `main` at 3a62315): 6b3 shops, 7a spellcasting, 7c Mines' End/fountains/Orcish Town.
 
+Done in runs 5-7 (2026-11-08/09, merged to `main` at e455d2b on 2026-11-15 by the user): m9 steps 7-8, 7f-a..d, m11 objects, m12 special rooms, the m12 bug leads, m13 monster batch 2, m14 monster item use.
+
+Run 8 (from 2026-11-15), target **6M**, may run to **8M** to finish features (user, 2026-11-15), fresh ledger section ("## Run 8"). One chain of branches, each off the previous tip, starting from `m15` off `m14` (= `main` e455d2b). Planning agent first for each milestone except m15; park costly-to-undo questions and skip to the next. Default every open choice to NetHack's behaviour (the vendor tree is 5.0-dev; 3.7 where they differ only if the plan says so). Roles and races stay out. Per-milestone memory file: `m15-deeper.md`, `m16-engrave.md`, and so on.
+
+1. **m15 deeper dungeon** (branch `m15`, already created with the setup commit; **no planning agent**: plan `~/.claude/plans/m15.md` and kickoff `docs/kickoff-m15.md` are approved, the user took every recommendation on 2026-11-15, see the plan's "User decisions"). Steps 1-9 as planned; drop order if the budget runs short is in the plan's header (step 9 must run). Q8: the Gehennom stub (a) in step 9 if steps 4 and 9 have room, else (b).
+2. **m16 engravings and Elbereth** (branch `m16` off `m15`; its planner may run read-only alongside m15's last steps): engrave.c: `E` with fingers, wands (the wand engrave messages and auto-identification), athames and other weapons, rings and gems, markers if they exist; dust, engrave, burn and other engraving types; reading engravings on arrival and blind reading; smudging and wiping (`wipe_engr_at()` when fighting, walking, monsters); Elbereth and `onscary()` with 3.7's erase-on-attack rule; random engravings at level creation (`random_engraving()` with the rumors/engrave files if they exist, else a minimal table); the ROADMAP leftovers that wait for engravings (Sokoban's Elbereth on the prize, the vault's "ad aerarium", headstones on graves if cheap). The planner sizes it to about 6-8 steps.
+3. **m17 Gehennom** (branch `m17` off `m16`): builds on m15 step 9 (the Gehennom stub, or the trap-door fallback if step 9 took option b: then this milestone adds Gehennom itself): the Valley of the Dead (its temple of Moloch, graveyard and undead), `hellfill` levels, fire traps, and the Gehennom special levels (Juiblex's swamp, Orcus Town, Asmodeus's and Baalzebub's lairs, the Wizard's tower and its fakes) as the planner sizes them, with the monster rows those levels place (demon princes, hell hounds, liches and so on: covetous `tactics()` only if a placed monster needs it). Vlad's Tower, the Amulet, the Wizard's harassment, the vibrating square and the Planes stay out unless the planner finds them cheap.
+4. **m18 monster batch 3** (branch `m18` off `m17`): the ROADMAP leftovers m17 did not take: vampires and vampire lords (shapeshifting, level drain; `morguemon()`'s vampire branch), master liches and arch-liches with covetous tactics, the remaining demons and hell hounds, the beholder, Keystone Kops (shop robbery), extinction (`mbirth_limit()`, `G_EXTINCT`).
+5. **m19 tools and potions** (branch `m19` off `m18`): `#dip` and potion mixing, dilution, candles, lamps and their light, the magic lamp and its djinni, horns and the other instruments m15 did not add, tins and tin openers.
+
 Run 7 (from 2026-11-09), target **6M**, may run to **8M** to finish features (user, 2026-11-09: "continue with another round" after light testing), fresh ledger section ("## Run 7"). Run 6 finished m11 and m12 (branch `m12` at 60e924b; main still f615715). One chain of branches off `m12`. Planning agent first for each milestone; park costly-to-undo questions and skip to the next. Default every open choice to NetHack's behaviour (the vendor tree is 5.0-dev; 3.7 where they differ only if the plan says so). Roles and races stay out.
 
 1. **Bug leads** (on branch `m12`, one fix agent, no planner): (a) in Minetown a dwarf digging next to a door trips the door invariant on several seeds (tests moved seeds instead of fixing; see `m12` plan Step 5/6 bullets and `m11` Step 7); find whether the port's `mdig_tunnel()`/door handling differs from C (C turns a dug door into a broken door or doorway) or the invariant is wrong, and fix the real one; (b) on `sp_lev` seed 2 a tripe ration ends up in a doorway beside a chest at level creation (m11 step 3 report); find the cause and fix it if it is a bug. Golden may change only with a verified cause.
@@ -85,7 +95,7 @@ Stop cleanly (finish nothing new, write the morning summary) when any of these h
 
 ### Step brief (fill in the brackets)
 
-> You are implementing ONE step of milestone [id] in /home/ricardo/git/webhack (a NetHack TypeScript port), on branch `[branch]` (checked out, clean; latest commit [hash]: [subject]).
+> You are implementing ONE step of milestone [id] in /home/ricardo/git/nethack (a NetHack TypeScript port), on branch `[branch]` (checked out, clean; latest commit [hash]: [subject]).
 >
 > Read first, and only these to start: `CLAUDE.md` (project rules: follow exactly), the plan `[plan path]` (Key decisions, Key types, Steps, User decisions, Changes during work: all earlier Step bullets), `[kickoff path]`. Then only the code the step touches.
 >
@@ -106,7 +116,7 @@ Stop cleanly (finish nothing new, write the morning summary) when any of these h
 
 ### Planning brief
 
-> You are PLANNING (not implementing) milestone [id: title] for /home/ricardo/git/webhack, a NetHack TypeScript port, on branch `[branch]` (latest commit [hash]). Do not change code. You write two files: `docs/kickoff-[id].md` (style of `docs/kickoff-m6b.md`) and `~/.claude/plans/[id].md` (style of `~/.claude/plans/m6b3-shops.md`: Key decisions, Key types, Steps sized for one agent session = one commit with `pnpm check` green, where the golden changes, module-graph pitfalls, phone check, Open questions).
+> You are PLANNING (not implementing) milestone [id: title] for /home/ricardo/git/nethack, a NetHack TypeScript port, on branch `[branch]` (latest commit [hash]). Do not change code. You write two files: `docs/kickoff-[id].md` (style of `docs/kickoff-m6b.md`) and `~/.claude/plans/[id].md` (style of `~/.claude/plans/m6b3-shops.md`: Key decisions, Key types, Steps sized for one agent session = one commit with `pnpm check` green, where the golden changes, module-graph pitfalls, phone check, Open questions).
 >
 > Scope: [queue entry text]. Read narrowly: `CLAUDE.md`, the latest plan's "Changes during work", `DEVIATIONS.md` and `docs/ROADMAP.md` deferrals for this area, the code the milestone touches, and only the vendor functions you will port. Decide the port subset before reading vendor code.
 >
