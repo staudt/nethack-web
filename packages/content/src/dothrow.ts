@@ -84,6 +84,7 @@ import { EGG } from './eggstate';
 import { breakEggs, hitWithEgg } from './egghit';
 import { breakmsg, breaktest } from './material';
 import { breakPotionVapors, potionhit } from './potionhit';
+import { uWipeEngr } from './engr';
 
 export const THROW_ID: DefId = 'nh:throw';
 
@@ -666,6 +667,7 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
     return 0;
   }
 
+  uWipeEngr(ctx, 2); // ref: throw_obj()
   // throwing a cockatrice corpse bare-handed (a life-saved hero throws it anyway)
   bareCorpseTouch(ctx, obj, 'throw');
   if (ctx.state.gameOver) return NORMAL_SPEED;

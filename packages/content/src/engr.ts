@@ -1,6 +1,6 @@
 // Engravings: one per square, as content state. ref: include/engrave.h struct engr;
 // src/engrave.c engr_at(), sengr_at(), make_engr_at(), del_engr_at(), del_engr(), wipeout_text(),
-// wipe_engr_at(), u_wipe_engr()
+// wipe_engr_at(), u_wipe_engr(); src/hack.c maybe_smudge_engr()
 //
 // `modData.nh.engr[levelId][cellIndex]` holds each square's engraving (C's engr_at() list). The
 // text is a data string that wears letter by letter as C's buffer does, never a message key.
@@ -8,7 +8,15 @@
 // an engraving imports it; reading it is engrread.ts, the `E` command engrave.ts.
 // Not kept: `eread`, `erevealed` and the remembered text (engravings are not drawn on the map;
 // DEVIATIONS.md "Engravings"); `exercise(A_WIS, TRUE)` for a typed "Elbereth" (no exercise).
-import { cellIndex, getPlayer, type Ctx, type Json, type Level, type Rng } from '@nh/core';
+import {
+  cellIndex,
+  getPlayer,
+  type Ctx,
+  type Json,
+  type Level,
+  type ModApi,
+  type Rng,
+} from '@nh/core';
 import { isIce } from './liquid';
 import { canReachFloor } from './reach';
 
@@ -53,6 +61,10 @@ const table = (ctx: Pick<Ctx, 'state'>, create: boolean): EngrTable | null => {
   return fresh;
 };
 
+/** isok(): C's engr_at() just finds nothing off the map. */
+const inLevel = (level: Readonly<Level>, x: number, y: number): boolean =>
+  x >= 0 && y >= 0 && x < level.width && y < level.height;
+
 /** The engraving at (x, y) of `level`, or null. ref: src/engrave.c engr_at() */
 export function engrAt(
   ctx: Pick<Ctx, 'state'>,
@@ -60,6 +72,7 @@ export function engrAt(
   x: number,
   y: number,
 ): Engr | null {
+  if (!inLevel(level, x, y)) return null;
   return table(ctx, false)?.[level.id]?.[String(cellIndex(level, x, y))] ?? null;
 }
 
@@ -87,6 +100,7 @@ export function delEngrAt(
   x: number,
   y: number,
 ): void {
+  if (!inLevel(level, x, y)) return;
   const t = table(ctx, false);
   const lv = t?.[level.id];
   const key = String(cellIndex(level, x, y));
@@ -309,4 +323,38 @@ export function uWipeEngr(ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>, cnt: number)
   const level = pos ? ctx.state.levels[pos.level] : undefined;
   if (!pos || !level) return;
   if (canReachFloor(ctx, true)) wipeEngrAt(ctx, level, pos.x, pos.y, cnt, false);
+}
+
+/**
+ * After a walk or a rush that moved her: the engravings on the square she left and the one she
+ * is on now (not headstones) each lose `rnd(5)` characters, if she can reach the floor.
+ * ref: src/hack.c domove(), maybe_smudge_engr()
+ */
+export function maybeSmudgeEngr(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  level: Readonly<Level>,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): void {
+  if (!canReachFloor(ctx, true)) return;
+  const e1 = engrAt(ctx, level, x1, y1);
+  if (e1 && e1.type !== 'headstone') wipeEngrAt(ctx, level, x1, y1, ctx.rng.rnd(5), false);
+  const e2 = x2 !== x1 || y2 !== y1 ? engrAt(ctx, level, x2, y2) : null;
+  if (e2 && e2.type !== 'headstone') wipeEngrAt(ctx, level, x2, y2, ctx.rng.rnd(5), false);
+}
+
+/**
+ * Once a turn, after invault(): `!rn2(40 + 3 * Dex)` scuffs `rnd(3)` characters of the engraving
+ * under the hero. ref: src/allmain.c moveloop_core()
+ */
+export function turnScuff(ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>): void {
+  if (ctx.state.gameOver) return;
+  const dex = getPlayer(ctx.state).c.attributes?.dex ?? 10; // ACURR(A_DEX)
+  if (!ctx.rng.rn2(40 + dex * 3)) uWipeEngr(ctx, ctx.rng.rnd(3));
+}
+
+export function registerEngr(api: ModApi): void {
+  api.on('endOfTurn', turnScuff, { priority: -11 }); // invault() is -10
 }

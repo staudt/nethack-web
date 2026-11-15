@@ -80,6 +80,7 @@ import {
 import { deaths } from './vanquished';
 import { uswallow } from './engulfstate';
 import { mpickobj } from './steal';
+import { delEngrAt } from './engr';
 
 /**
  * Turns level generation's vault request into the `nh:vault` room (lit, after the other rooms
@@ -306,7 +307,7 @@ function parkguard(ctx: Ctx, id: EntityId, egd: Egd): void {
 /**
  * Takes back the fake corridor from its vault end, square by square, while no one stands on
  * it and (unless `forceshow`) the hero could not see it change; true once it is all gone.
- * ref: src/vault.c clear_fcorr(), blackout() (no ball and chain, no engravings)
+ * ref: src/vault.c clear_fcorr(), blackout() (no ball and chain)
  */
 function clearFcorr(ctx: Ctx, id: EntityId, egd: Egd, forceshow: boolean): boolean {
   if (egd.gdlevel !== ctx.state.currentLevel) return true;
@@ -334,6 +335,7 @@ function clearFcorr(ctx: Ctx, id: EntityId, egd: Egd, forceshow: boolean): boole
       // undo light affecting this spot
       if (fc.ftyp === T.stone) blackout(level, fc.x, fc.y);
     }
+    delEngrAt(ctx, level, fc.x, fc.y);
     mapLocation(ctx, level, fc.x, fc.y);
     egd.fcbeg++;
   }
@@ -403,7 +405,7 @@ function moveGold(ctx: Ctx, level: Level, gold: Entity, vroom: number): void {
  * The guard repairs the vault's walls (dug through, or holding gold, rocks or boulders) outside
  * his own corridor: monsters there are moved off, gold goes back in, rocks, boulders and traps
  * vanish. `at` is where the guard is (null once parked).
- * ref: src/vault.c wallify_vault() (no engravings)
+ * ref: src/vault.c wallify_vault()
  */
 function wallifyVault(ctx: Ctx, id: EntityId, egd: Egd): void {
   const level = getLevel(ctx.state, egd.gdlevel);
@@ -438,6 +440,7 @@ function wallifyVault(ctx: Ctx, id: EntityId, egd: Egd): void {
         if (trapAt(level, x, y)) ctx.removeTrap(level.id, { x, y });
         const typ = vaultWallTyp(level, egd.vroom, x, y);
         if (typ) setTerrain(level, x, y, typ);
+        delEngrAt(ctx, level, x, y);
         // the hero knows the walls are restored because of the message: show them
         const memory = ctx.state.memory[level.id];
         if (memory) memory[cellIndex(level, x, y)] = level.cells[cellIndex(level, x, y)] ?? 0;
@@ -577,6 +580,7 @@ export function gdMove(ctx: Ctx, id: EntityId): GdMoveResult {
   const restoreEntry = (x: number, y: number): void => {
     const f0 = egd.fakecorr[0];
     if (f0) setTerrain(level, x, y, f0.ftyp);
+    delEngrAt(ctx, level, x, y);
     mapLocation(ctx, level, x, y);
   };
   if (egd.fakecorr.length === 1) {
@@ -690,7 +694,10 @@ export function gdMove(ctx: Ctx, id: EntityId): GdMoveResult {
         ny = ay;
         typ = t;
         if (accessibleTyp(t)) dig = false;
-        else setTerrain(level, ax, ay, t === T.scorr ? T.corr : T.doorway);
+        else {
+          setTerrain(level, ax, ay, t === T.scorr ? T.corr : T.doorway);
+          delEngrAt(ctx, level, ax, ay);
+        }
         found = true;
         break;
       }
@@ -719,6 +726,7 @@ export function gdMove(ctx: Ctx, id: EntityId): GdMoveResult {
           isRoomTyp(ctx, terrainIdAt(level, ex, ey))
         ) {
           setTerrain(level, nx, ny, T.doorway);
+          delEngrAt(ctx, level, ex, ey); // C's square beyond the new doorway, not the doorway
           made = true;
           break;
         }
@@ -736,6 +744,7 @@ export function gdMove(ctx: Ctx, id: EntityId): GdMoveResult {
         // I don't like this, but ...
         if (isRoomTyp(ctx, typ)) {
           setTerrain(level, nx, ny, T.doorway);
+          delEngrAt(ctx, level, ex, ey); // likewise
           made = true;
           break;
         }

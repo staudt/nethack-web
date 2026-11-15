@@ -4,8 +4,8 @@
 //
 // The hit itself is dothrow.ts thitmonst()'s HMON_APPLIED path. Not ported: steeds and
 // jousting (lances apply like polearms), Snickersnee, mimics and hiders (attack_checks()),
-// engravings (u_wipe_engr()), the confusing touch (u.umconf) on an applied hit, conduct; the
-// queued re-apply after wielding is the next move's occupation, as for the pick-axe.
+// the confusing touch (u.umconf) on an applied hit, conduct; the queued re-apply after wielding
+// is the next move's occupation, as for the pick-axe.
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -44,6 +44,7 @@ import { rememberedStatue, statueAt } from './statuestate';
 import { P_BASIC, P_SKILLED, isPole, skillLevel } from './skills';
 import { T, isFurnitureId } from './terrain';
 import { TRAP } from './trap';
+import { uWipeEngr } from './engr';
 
 export const POLE_ID: DefId = 'nh:pole';
 
@@ -321,6 +322,7 @@ function poleAt(ctx: Ctx, obj: Entity, cc: Pos, autohit: boolean, confirmed: boo
       say(ctx, 'pole.miss_nobody');
     }
   }
+  uWipeEngr(ctx, 2); // ref: use_pole(): "same as for melee or throwing"
   return NORMAL_SPEED;
 }
 

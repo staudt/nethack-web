@@ -127,6 +127,7 @@ import { isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
 import { isLava, isPool, mInAir } from './liquid';
 import { isWormTail, wormRec } from './wormstate';
 import { wormCross, wormMove, wormNomove } from './worm';
+import { wipeEngrAt } from './engr';
 
 /** ref: include/hack.h BOLT_LIM */
 export const BOLT_LIM = 8;
@@ -1195,6 +1196,8 @@ export function dochug(
   // ref: dochug(): a monster that can't move does nothing; a confused or stunned one may recover
   if (isFrozen(ctx, id)) return;
   if (m.asleep && !disturb(ctx, id)) return;
+  // ref: dochug(): "not frozen or sleeping: wipe out texts written in the dust"
+  wipeEngrAt(ctx, getLevel(ctx.state, pos.level), pos.x, pos.y, 1, false);
   if (isMConfused(ctx, id) && ctx.rng.rn2(50) === 0) setMConfused(ctx, id, false);
   if (isMStunned(ctx, id) && ctx.rng.rn2(10) === 0) setMStunned(ctx, id, false);
 

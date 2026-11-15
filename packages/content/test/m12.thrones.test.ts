@@ -258,11 +258,14 @@ describe('the thirteen effects', () => {
     effect(s, 6);
     expect(s.state.pendingPrompt?.handler).toBe(SIT_ID);
     expect(s.state.pendingPrompt?.prompt.key).toBe('wish.prompt');
+    const before = new Set(inventoryOf(s.state, s.state.playerId).map((o) => o.id));
     answer(s.state, 'blessed +2 dagger');
     expect(s.state.pendingPrompt).toBeNull();
+    // the wished dagger is the new one (its +2 is kept unless `spe > rnd(5)`)
     const d = inventoryOf(s.state, s.state.playerId).find(
-      (o) => o.def === 'nh:dagger' && o.c.item?.spe === 2,
+      (o) => o.def === 'nh:dagger' && !before.has(o.id),
     );
+    expect([0, 2]).toContain(d?.c.item?.spe);
     expect(d?.c.item?.buc).toBe('blessed');
     run(s.state, (ctx) => setU(ctx, { luck: -5 }));
     expect(effect(s, 6)).toEqual(['You feel your luck is changing.']);

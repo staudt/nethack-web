@@ -25,6 +25,7 @@ import { registerEggs } from './egg';
 import { registerFigurines } from './figurine';
 import { SIT_ACTIONS } from './dosit';
 import { ENGRAVE_ACTIONS } from './engrave';
+import { registerEngr } from './engr';
 import { registerRevive } from './revive';
 import { registerHero } from './hero';
 import { ROLES } from './roles';
@@ -167,6 +168,7 @@ export const vanillaMod: Mod = {
     registerEnd(api);
     for (const a of SIT_ACTIONS) api.defineAction(a);
     for (const a of ENGRAVE_ACTIONS) api.defineAction(a);
+    registerEngr(api); // the turn's scuff, after invault() by priority
     for (const a of QUIT_ACTIONS) api.defineAction(a);
     for (const b of BRAINS) api.defineBrain(b);
     for (const m of MONSTERS) api.defineMonster(m);

@@ -102,6 +102,7 @@ import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 import { monflee, stopFleeing } from './monflee';
 import { luckOf } from './luck';
 import { heroForm, heroFormId } from './upoly';
+import { uWipeEngr } from './engr';
 
 export const KICK_ID: DefId = 'nh:kick';
 
@@ -885,6 +886,7 @@ function kickDir(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   }
 
   wakeNearto(ctx, pos.x, pos.y, (hero(ctx).c.experience?.level ?? 1) * 20);
+  uWipeEngr(ctx, 2); // ref: dokick()
   if (!inBounds(level, x, y)) {
     kickOuch(ctx, x, y, 'nothing');
     return NORMAL_SPEED;

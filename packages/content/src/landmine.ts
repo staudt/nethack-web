@@ -9,9 +9,9 @@
 // Not ported: setting land mines (`use_trap()`) so none is ever the hero's (madeby_u), the
 // levitating or flying hero's "There is a trigger in a pile of soil below you." (dotrap() never
 // reaches it here: a floating hero passes over, and no forced trap reaches a floating hero),
-// steeds, engravings (del_engr_at()), doors and drawbridges under the mine (traps lie only on
-// plain floor), the water and air levels, pools filling the pit (fillholetyp()), the sleeping
-// hero's "The explosion awakens you!", Dex exercise, deafness, digging down on a land mine.
+// steeds, doors and drawbridges under the mine (traps lie only on plain floor), the water and
+// air levels, pools filling the pit (fillholetyp()), the sleeping hero's "The explosion awakens
+// you!", Dex exercise, deafness, digging down on a land mine.
 import { fillholetyp, liquidFlow } from './liquidflow';
 import { getPlayer, trapAt, type Ctx, type Entity, type Msg, type Trap } from '@nh/core';
 import { fillPit } from './flooreffects';
@@ -35,6 +35,7 @@ import {
   thitm,
   type TrapResult,
 } from './trap';
+import { delEngrAt } from './engr';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -66,8 +67,9 @@ export function blowUpLandmine(ctx: Ctx, trap: Trap, monMoving = false): void {
     visEffects: true,
     monMoving,
   });
-  wakeNearto(ctx, x, y, 400);
   const level = ctx.state.levels[ctx.state.currentLevel];
+  if (level) delEngrAt(ctx, level, x, y);
+  wakeNearto(ctx, x, y, 400);
   const t = level ? trapAt(level, x, y) : undefined;
   if (t && level) {
     // fill pit with water, if applicable

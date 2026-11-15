@@ -5,7 +5,7 @@
 // litter_getpos(), litter_scatter(), repair_damage(), fix_shop_damage(); src/dig.c holetime();
 // src/do.c goto_level() fix_shop_damage()
 //
-// Not ported: balls and chains, engravings (del_engr_at()), walls passed through.
+// Not ported: balls and chains, walls passed through.
 import {
   getLevel,
   inBounds,
@@ -36,6 +36,7 @@ import {
 import { T, isWallId, setTerrain, terrainIdAt } from './terrain';
 import { TRAP, deltrap, isPit } from './trap';
 import { isMtrapped } from './trapstate';
+import { delEngrAt } from './engr';
 
 // ---------------------------------------------------------------------------------------------
 // repairs
@@ -236,6 +237,7 @@ function repairDamage(ctx: Ctx, shk: EntityId, dam: ShopDamage, catchup: boolean
       if (!catchup && seenTrap) say(ctx, 'shk.damage.filled_in', { trap: tname });
     } else if (!catchup && seenTrap) say(ctx, 'shk.damage.trap_vanishes', { trap: tname });
     deltrap(ctx, level.id, ttmp);
+    delEngrAt(ctx, level, x, y);
     if (!catchup) disposition = 3;
   }
   const cur = terrainIdAt(level, x, y);
@@ -259,6 +261,7 @@ function repairDamage(ctx: Ctx, shk: EntityId, dam: ShopDamage, catchup: boolean
   setTerrain(level, x, y, isDoorId(ctx, dam.typ) ? T.door_closed : dam.typ);
   const litter: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
   if (litterGetpos(ctx, litter, x, y, shk)) litterScatter(ctx, litter, x, y, shk);
+  delEngrAt(ctx, level, x, y);
   if (catchup) return 1; // repair occurred while off level so no messages
 
   if (seeit) {

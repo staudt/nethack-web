@@ -8,10 +8,10 @@
 // Which squares are drawbridges (and the tune) is dbstate.ts, a leaf; this module has the entity
 // code and needs drowning (drown.ts), monsters in water (minliquid.ts) and deaths, so the zap,
 // kick and music code call it directly and lower modules late-bind it.
-// Not ported: revive_nasty() (no Riders), engravings (del_engr_at()), Deafness (she always
-// hears), the iron chains a destroyed bridge scatters (there is no iron chain: the rolls are
-// drawn, nothing is made), the Underwater view (she always sees the bridge "coming"), a long
-// worm's tail riding the bridge (a tail segment stays where it is), steeds.
+// Not ported: revive_nasty() (no Riders), Deafness (she always hears), the iron chains a
+// destroyed bridge scatters (there is no iron chain: the rolls are drawn, nothing is made), the
+// Underwater view (she always sees the bridge "coming"), a long worm's tail riding the bridge (a
+// tail segment stays where it is), steeds.
 import {
   getPlayer,
   itemsAt,
@@ -63,6 +63,7 @@ import { heroForm } from './upoly';
 import { amphibious, breathless, swimming, wwalking } from './uwater';
 import { mAt, wormRec } from './wormstate';
 import type { DbDir } from './dbstate';
+import { delEngrAt } from './engr';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -492,9 +493,11 @@ function delallobj(ctx: Ctx, level: Level, x: number, y: number): void {
   for (const o of itemsAt(ctx.defs, ctx.state, level.id, x, y)) ctx.remove(o.id);
 }
 
+/** The trap and the engraving on (x, y) go (C deletes both squares' traps, then engravings). */
 function deltrapAt(ctx: Ctx, level: Level, x: number, y: number): void {
   const t = trapAt(level, x, y);
   if (t) deltrap(ctx, level.id, t);
+  delEngrAt(ctx, level, x, y);
 }
 
 /** The drawbridge operation's level (the hero's) and its span's data, or null. */

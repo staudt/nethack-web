@@ -7,6 +7,7 @@ import { isPool, waterbodyName } from '../liquid';
 import { poolEffects, setUinwater, uinwater } from '../uwater';
 import { waterDamageChain } from '../water';
 import { flying, levitating } from '../trapstate';
+import { delEngrAt } from '../engr';
 
 /** The altar of each alignment word (align_str()). */
 const ALTARS: Readonly<Record<string, DefId>> = {
@@ -79,17 +80,20 @@ export function wizTerrainWish(ctx: Ctx, buf: string): boolean {
   } else if (WATERS.some(([w]) => bp.endsWith(w))) {
     made = (WATERS.find(([w]) => bp.endsWith(w)) as [string, DefId])[1];
     setTerrain(level, x, y, made);
+    delEngrAt(ctx, level, x, y);
     say2('wiz.terrain.liquid', { what: `@${waterbodyName(ctx, level, x, y)}` });
     waterDamageChain(ctx, itemsAt(ctx.defs, ctx.state, level.id, x, y));
   } else if (bp.endsWith('lava')) {
     // also matches "molten lava"
     made = bp.endsWith('wall of lava') ? T.lavawall : T.lava;
     setTerrain(level, x, y, made);
+    delEngrAt(ctx, level, x, y);
     say(made === T.lava ? 'wiz.terrain.lava' : 'wiz.terrain.lavawall');
     if (!(levitating(ctx) || flying(ctx)) || made === T.lavawall) poolEffects(ctx, false);
   } else if (bp.endsWith('ice')) {
     made = T.ice;
     setTerrain(level, x, y, made);
+    delEngrAt(ctx, level, x, y);
     say('wiz.terrain.ice');
   } else if (bp.endsWith('altar')) {
     let al: string;

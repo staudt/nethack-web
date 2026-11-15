@@ -55,6 +55,7 @@ import {
   setTrapEffect,
   type TrapResult,
 } from './trap';
+import { delEngrAt } from './engr';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -226,6 +227,7 @@ export function launchObj(
             flush();
             say(ctx, cansee(ctx, levelId, x, y) ? 'roll.landmine' : 'roll.kaablamm');
             deltrap(ctx, levelId, t);
+            delEngrAt(ctx, level, x, y);
             placeObject(ctx, singleobj.id, levelId, x, y);
             known = false; // singleobj->otrapped = 0
             fractureRock(ctx, singleobj, false);

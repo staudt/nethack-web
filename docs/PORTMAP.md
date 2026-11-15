@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-177 NetHack files, 4697 citations.
+177 NetHack files, 4705 citations.
 
 ## dat/bigrm-1.lua
 
@@ -643,7 +643,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -1234,7 +1234,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
 - `crawl_destination()`: `packages/content/src/drown.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
-- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/travel.ts`
+- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/engr.ts`, `packages/content/src/travel.ts`
 - `domove_attackmon_at()`: `packages/content/src/actions.ts`
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
@@ -1254,6 +1254,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `losehp()`: `packages/content/src/hp.ts`
 - `may_dig()`: `packages/content/src/mdig.ts`
 - `may_passwall()`: `packages/content/src/mdig.ts`
+- `maybe_smudge_engr()`: `packages/content/src/engr.ts`
 - `money_cnt()`: `packages/content/src/detectobj.ts`, `packages/content/src/dosit.ts`, `packages/content/src/stats.ts`
 - `monster_nearby()`: `packages/content/src/eat.ts`
 - `monstinroom()`: `packages/content/src/zoo.ts`

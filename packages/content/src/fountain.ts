@@ -59,6 +59,7 @@ import { dungeonBottom, mintrap } from './trap';
 import { angryGuards, watchmanWarnFountain } from './watch';
 import { waterDamage, waterDamageChain, type WaterResult } from './water';
 import { answerWish, askWish, type WishData } from './wish';
+import { delEngrAt } from './engr';
 
 /** blessedftn: a magic fountain. */
 export const FTN_MAGIC = 1;
@@ -261,7 +262,7 @@ export function setGushMinliquid(fn: (ctx: Ctx, mon: Entity) => void): void {
  * no boulder and not next to a door, the trap there is gone and a pool is made ("Water gushes
  * forth from the overflowing fountain!" the first time): what lies there gets wet and a monster
  * there meets the water (minliquid()). With no pool made: "Your thirst is quenched." / "Water
- * sprays all over you.". ref: src/fountain.c dogushforth(), gush() (no engravings)
+ * sprays all over you.". ref: src/fountain.c dogushforth(), gush()
  */
 export function dogushforth(ctx: Ctx, drinking: boolean): void {
   const level = getLevel(ctx.state);
@@ -291,6 +292,7 @@ export function dogushforth(ctx: Ctx, drinking: boolean): void {
     if (!madepool++) say(ctx, 'fountain.gushes_forth');
     // put a pool at x, y
     setTerrain(level, x, y, T.pool);
+    delEngrAt(ctx, level, x, y); // no kelp!
     waterDamageChain(ctx, here);
     if (mtmp && ctx.state.entities[String(mtmp.id)]) gushMinliquid?.(ctx, mtmp);
   }

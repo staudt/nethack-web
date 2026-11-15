@@ -231,9 +231,9 @@ describe('ranged hits on unseen monsters', () => {
   });
 
   test('a kick at an unseen monster leaves the `I`; a kick at an empty `I` clears it', () => {
-    // a seed whose kick lands: the jackal does not jump away (seed 3 until m12 step 6)
+    // a newt is too slow (speed < 12) to block the kick or jump away, whatever the seed
     const s = make(1);
-    unseen(s, 'nh:jackal', HX + 1, HY);
+    unseen(s, 'nh:newt', HX + 1, HY);
     s.mod('nh:kick', { dir: 'e' });
     expect(marked(s, HX + 1, HY)).toBe(true);
     mapInvisible(s.ctx as unknown as Ctx, HX - 1, HY);

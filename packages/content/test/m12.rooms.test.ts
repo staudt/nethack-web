@@ -291,6 +291,8 @@ describe('entering', () => {
       for (let y = 2; y <= 3; y++)
         expect(mons.some((e) => e.c.pos!.x === x && e.c.pos!.y === y)).toBe(true);
     expect(mons.every((e) => e.c.monster!.asleep && !e.c.monster!.peaceful)).toBe(true);
+    // pinned, so the court she wakes cannot kill her while she walks in and out
+    for (const e of mons) e.c.actor!.speed = 0;
     const all: string[] = [];
     all.push(...texts(engine.step(state, west).events));
     all.push(...texts(engine.step(state, west).events));

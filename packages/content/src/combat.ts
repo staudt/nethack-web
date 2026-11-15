@@ -103,6 +103,7 @@ import { cantSeeSelf, heroInvisible, mapInvisible } from './invis';
 import { invisTo } from './apparxy';
 import { couldSeduce } from './steal';
 import { digests, isWhirly } from './engulfstate';
+import { uWipeEngr } from './engr';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -414,6 +415,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos): number {
   // the hero may faint from it, which cancels the attack. (The HVY_ENCUMBER HP loss is not ported.)
   gethungry(ctx);
   if (hero.c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
+  // ref: do_attack(): "andrew@orca: prevent unlimited pick-axe attacks"
+  uWipeEngr(ctx, 3);
   if (form && hmonasFn) hmonasFn(ctx, targetId);
   else hitum(ctx, targetId, at);
   return NORMAL_SPEED;

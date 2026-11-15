@@ -31,6 +31,7 @@ import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
 import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
+import { maybeSmudgeEngr } from './engr';
 import { askReallyAttack, attackChecksUnseen, needsAttackConfirm } from './peaceful';
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
@@ -700,29 +701,9 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     return 0;
   }
   // test_move() still applies: no swapping diagonally through a doorway
-  if (vmon && isSafemon(ctx, vmon) && check.ok) return swapWithPet(ctx, vmon, from, to, dir);
-  if (check.ok) {
-    // ref: src/hack.c domove()
-    pos.x = to.x;
-    pos.y = to.y;
-    ctx.emit({ type: 'moved', id: player.id, from, to });
-    // ref: src/hack.c spoteffects(): pooleffects() first; when she moved (crawled out, saved)
-    // the rest is skipped
-    if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
-    checkSpecialRoom(ctx, false, from); // ref: src/hack.c spoteffects() (before the pickup and trap)
-    // ref: spoteffects(): "If not a pit, pickup before triggering trap. If pit, trigger trap
-    // before pickup."
-    const t = trapAt(level, to.x, to.y);
-    if (t && isPit(t.def)) {
-      spotTrap(ctx, from);
-      if (!ctx.state.gameOver) lookHere(ctx);
-    } else {
-      lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
-      spotTrap(ctx); // ref: spoteffects() -> dotrap()
-    }
-    if (!ctx.state.gameOver) fallingMonster(ctx);
-    return NORMAL_SPEED;
-  }
+  if (vmon && isSafemon(ctx, vmon) && check.ok)
+    return smudged(ctx, level, from, to, swapWithPet(ctx, vmon, from, to, dir));
+  if (check.ok) return smudged(ctx, level, from, to, stepTo(ctx, level, from, to));
   switch (check.reason) {
     case 'closedDoor': {
       // ref: src/hack.c test_move() flags.autoopen -> src/lock.c doopen_indir()
@@ -746,6 +727,47 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     case 'bounds':
       return 0;
   }
+}
+
+/** The hero steps from `from` onto `to` (test_move() passed). ref: src/hack.c domove() */
+function stepTo(ctx: Ctx, level: Level, from: Pos, to: Pos): number {
+  const player = getPlayer(ctx.state);
+  const pos = player.c.pos;
+  if (!pos) throw new Error('Player has no position');
+  pos.x = to.x;
+  pos.y = to.y;
+  ctx.emit({ type: 'moved', id: player.id, from, to });
+  // ref: src/hack.c spoteffects(): pooleffects() first; when she moved (crawled out, saved)
+  // the rest is skipped
+  if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
+  checkSpecialRoom(ctx, false, from); // ref: src/hack.c spoteffects() (before the pickup and trap)
+  // ref: spoteffects(): "If not a pit, pickup before triggering trap. If pit, trigger trap
+  // before pickup."
+  const t = trapAt(level, to.x, to.y);
+  if (t && isPit(t.def)) {
+    spotTrap(ctx, from);
+    if (!ctx.state.gameOver) lookHere(ctx);
+  } else {
+    lookHere(ctx); // ref: src/hack.c spoteffects() -> pickup(1) -> check_here()
+    spotTrap(ctx); // ref: spoteffects() -> dotrap()
+  }
+  if (!ctx.state.gameOver) fallingMonster(ctx);
+  return NORMAL_SPEED;
+}
+
+/**
+ * After a walk (or a run's step) that moved her: the square she left and the one she is on now
+ * get smudged. A level change on the way (C defers it) smudges the square she stepped onto.
+ * ref: src/hack.c domove(): `domove_succeeded & (DOMOVE_RUSH | DOMOVE_WALK)` ->
+ * maybe_smudge_engr()
+ */
+function smudged(ctx: Ctx, level: Level, from: Pos, to: Pos, cost: number): number {
+  const p = getPlayer(ctx.state).c.pos;
+  if (!p || ctx.state.gameOver) return cost;
+  const here = p.level === level.id ? p : to;
+  if (here.x === from.x && here.y === from.y) return cost; // she did not move
+  maybeSmudgeEngr(ctx, level, from.x, from.y, here.x, here.y);
+  return cost;
 }
 
 /**

@@ -227,7 +227,8 @@ describe('her thrown potions break', () => {
       found = true;
       expect(text).toContain('You smell a peculiar odor...');
       expect(text).toContain('It suddenly gets dark.');
-      expect(hasProp(hero(s.state), P.BLINDED)).toBe(true);
+      // blinded for rnd(5) turns: the turn the throw takes may already have ended it
+      expect(hasProp(hero(s.state), P.BLINDED) || text.includes('You can see again.')).toBe(true);
       expect(floorDefs(s.state, 4, 0)).toEqual([]);
       expect(isKnown(s.state, defs, 'nh:potion_of_blindness' as DefId)).toBe(true);
     }

@@ -35,6 +35,7 @@ import {
   ZOO,
   roomDoors,
 } from './zoo';
+import { delEngrAt } from './engr';
 
 const inside = (r: Room, x: number, y: number): boolean =>
   x >= r.lx && x <= r.hx && y >= r.ly && y <= r.hy;
@@ -152,7 +153,7 @@ export function mktemple(ctx: Ctx, level: Level): void {
  * free square (no object, monster or trap, not next to a door) becomes a pool, the first with an
  * eel and then 1 in 4 of them (a giant eel 4 times in 5, else a piranha or an electric eel, as
  * mkclass() might make a kraken), and 1 in 4 of the squares between get a fungus.
- * ref: src/mkroom.c mkswamp() (Michiel Huisjes & Fred de Wilde; no engravings)
+ * ref: src/mkroom.c mkswamp() (Michiel Huisjes & Fred de Wilde)
  */
 export function mkswamp(ctx: Ctx, level: Level): void {
   const rooms = topRooms(level);
@@ -178,6 +179,7 @@ export function mkswamp(ctx: Ctx, level: Level): void {
         )
           continue;
         if ((sx + sy) % 2) {
+          delEngrAt(ctx, level, sx, sy);
           setTerrain(level, sx, sy, T.pool);
           if (!eelct || !ctx.rng.rn2(4)) {
             // mkclass() won't do, as we might get kraken
