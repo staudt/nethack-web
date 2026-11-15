@@ -179,6 +179,7 @@ import { wormMove } from './worm';
 import { bhito, doorlock, learnwand } from './zap';
 import { swapWep } from './wield';
 import { mAt, wormRec } from './wormstate';
+import { isWiz, noOfWizards } from './wizstate';
 
 /** The defensive choices. ref: src/muse.c MUSE_* (the defensive ones; no ladders) */
 export type MuseDef =
@@ -681,10 +682,11 @@ function revealTrap(ctx: Ctx, level: Level, t: Trap, seeit: boolean): void {
 
 /**
  * The monster leaves the dungeon by the first level's up stairs, for good (with all it carries):
- * "The hill orc escapes the dungeon!" when seen. ref: src/muse.c mon_escape() (no Amulet or
- * invocation items, no Wizard)
+ * "The hill orc escapes the dungeon!" when seen; the Wizard does not while he is the only one.
+ * ref: src/muse.c mon_escape() (no Amulet or invocation items: mon_has_special() is never true)
  */
 function monEscape(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
+  if (isWiz(ctx, mon.id) && noOfWizards(ctx) < 2) return 0;
   if (vismon) say(ctx, 'muse.escapes_dungeon', { mon: monNam(ctx, mon) });
   mongone(ctx, mon.id);
   return 2;
@@ -774,7 +776,7 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
   // back; don't override if already scared"
   const fleetim = !isFleeing(ctx, id) ? 33 - Math.trunc((30 * hp.cur) / Math.max(1, hp.max)) : 0;
   const mFlee = (): void => {
-    if (fleetim) monflee(ctx, id, fleetim, false, false);
+    if (fleetim && !isWiz(ctx, id)) monflee(ctx, id, fleetim, false, false);
   };
   const name = (): string => monNam(ctx, mon);
 

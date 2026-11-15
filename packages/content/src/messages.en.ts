@@ -524,6 +524,7 @@ export const messagesEn: Record<string, string> = {
   'nh:green_dragon': 'green dragon',
   'nh:yellow_dragon': 'yellow dragon',
   'nh:medusa': 'Medusa',
+  'nh:wizard_of_yendor': 'Wizard of Yendor',
   'nh:stalker': 'stalker',
   'nh:ogre': 'ogre',
   'nh:ogre_lord': 'ogre lord',

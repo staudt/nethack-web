@@ -34,6 +34,7 @@ const C_OBJECTS = parseObjects(headers);
 const OBJECT_ALIASES: Readonly<Record<string, string>> = {
   'nh:flint_stone': 'FLINT', // xname() calls it "flint stone"
   'nh:fake_amulet_of_yendor': 'FAKE_AMULET_OF_YENDOR', // C name "cheap plastic imitation of ..."
+  'nh:book_of_the_dead': 'SPE_BOOK_OF_THE_DEAD', // xname() gives no "spellbook of" for it
 };
 
 const POTION_PROP =

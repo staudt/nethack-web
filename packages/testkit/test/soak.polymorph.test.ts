@@ -62,8 +62,10 @@ describe('polymorph soak', () => {
   // and 741 last past turn 200 with and without the offer; 742 and 743 replaced 739 and 741 in m16
   // step 7, whose grave roll per room shifts the stream: 739 ended with a monster on a closed door
   // at step 323 (731's old violation, not graves) and 741 died at turn 191; 742 and 743 last 400
-  // turns with and without the roll)
-  for (const seed of [742, 743]) {
+  // turns with and without the roll; 744 replaced 743 in m17 step 8b, whose Wizard of Yendor row
+  // shifts the random forms: 743 died at turn 17 and lasts 400 turns without the row, as 744
+  // does with and without it)
+  for (const seed of [742, 744]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

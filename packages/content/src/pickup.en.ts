@@ -33,6 +33,7 @@ export const pickupMessagesEn: Record<string, string> = {
   'loot.wearing': 'You cannot stash something you are wearing.',
   'loot.loadstone': "The stone won't leave your person.",
   'loot.loadstone.plural': "The stones won't leave your person.",
+  'loot.trappings': '{item|The} cannot be confined in such trappings.',
   'loot.cant_fit': 'You cannot fit {item|the} into {box|the}.',
   'loot.put_in': 'You put {item|an} into {box|the}.',
   'loot.removing': '{load} removing',

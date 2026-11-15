@@ -139,6 +139,32 @@ export function stealgold(ctx: Ctx, mon: Entity): void {
   }
 }
 
+/** ref: include/objects.h SPE_BOOK_OF_THE_DEAD */
+const BOOK_OF_THE_DEAD = 'nh:book_of_the_dead';
+
+/**
+ * The Wizard (or a quest nemesis) snatches the most valuable thing she has: of the Amulet, the
+ * Bell, the Book of the Dead and the Candelabrum only the Book exists here (no quest artifacts),
+ * so he takes the Book if she carries it, "The Wizard of Yendor steals the Book of the Dead!",
+ * and teleports away (to the stairs: rloc()). ref: src/steal.c stealamulet() (the Book is never
+ * worn or in a shop's bill: it cannot be bought)
+ */
+export function stealamulet(ctx: Ctx, mon: Entity): void {
+  const h = hero(ctx);
+  // (several Books: one at random, as C's `rnd(n)`)
+  const books = inventoryOf(ctx.state, h.id).filter((o) => o.def === BOOK_OF_THE_DEAD);
+  if (books.length === 0) return; // you have nothing of special interest
+  const otmp = books.length > 1 ? books[ctx.rng.rnd(books.length) - 1] : books[0];
+  if (!otmp) return;
+  removeFromInventory(ctx, otmp.id); // freeinv()
+  const item = doname(ctx.state, ctx.defs, otmp);
+  mpickobj(ctx, mon.id, otmp);
+  say(ctx, 'steal.steals', { mon: someMonNam(ctx, mon), item });
+  if (ctx.defs.monster(mon.def).flags.includes('tport') && !teleRestrict(ctx, mon))
+    rlocMon(ctx, mon, true);
+  encumberMsg(ctx);
+}
+
 /**
  * The hero cannot respond to seduction: helpless and asleep, fainted, unconscious, frozen or
  * paralyzed. ref: src/steal.c unresponsive() (unconscious() by the helplessness reason)

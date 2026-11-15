@@ -94,6 +94,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     for (; k < what.types.length - 1; k++) if ((prob -= w(what.types[k] as DefId)) < 0) break;
     typ = what.types[k] ?? null;
   } else if (what.kind === 'random') oclass = WRPSYM[ctx.rng.rn2(WRPSYM.length)] ?? 'weapon';
+  // handle some objects that are only allowed in wizard mode (of the Amulet, the Candelabrum,
+  // the Bell, the Book and the magic lamp only the Book exists)
+  if (typ === 'nh:book_of_the_dead' && !wizard) typ = 'nh:spellbook_of_blank_paper';
 
   // create the object, then fine-tune it
   let id: EntityId | null;

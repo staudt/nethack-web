@@ -108,13 +108,23 @@ export function armBonus(def: ObjectDef, item: Entity): number {
 }
 
 /**
+ * Whether the object resists: the Book of the Dead always (no draw), anything else `ochance`
+ * percent of the time (no artifacts, so `achance` never applies; of the Amulet, the invocation
+ * items and the Riders' corpses only the Book exists). ref: src/zap.c obj_resists()
+ */
+export function objResists(ctx: Pick<Ctx, 'rng'>, obj: Entity, ochance: number): boolean {
+  if (obj.def === 'nh:book_of_the_dead') return true;
+  return ctx.rng.rn2(100) < ochance;
+}
+
+/**
  * Whether the object breaks when it hits something hard: potions, eggs and glass (not gems);
  * 1% resist. Cream pies, melons and cameras do not exist (venom is handled by its callers).
  * ref: src/dothrow.c breaktest()
  */
 export function breaktest(ctx: Pick<Ctx, 'rng' | 'defs'>, e: Entity): boolean {
   const od = ctx.defs.object(e.def);
-  if (ctx.rng.rn2(100) < 1) return false; // obj_resists(obj, 1, 99)
+  if (objResists(ctx, e, 1)) return false; // obj_resists(obj, 1, 99)
   return (
     od.class === 'potion' || od.id === 'nh:egg' || (od.material === 'glass' && od.class !== 'gem')
   );

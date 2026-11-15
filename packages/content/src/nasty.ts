@@ -1,12 +1,21 @@
 // Summon nasties: a spellcaster's high mage spell brings nasty monsters around the spot it thinks
 // the hero is at (in Gehennom 1 time in 10 it gates in demons instead). A leaf over makemon, so
-// that mcastu.ts can call it. ref: src/wizard.c nasty(), pick_nasty(), nasties[]
+// that mcastu.ts can call it; the Wizard's clone too. ref: src/wizard.c nasty(), pick_nasty(),
+// nasties[], clonewiz()
 //
 // Kinds absent from the monster table (the vampire lord, the master mind flayer, the dragons...)
 // count as genocided: pick_nasty() tries their smaller kind, then makemon() fails and a random
 // monster stands in, as for a genocided kind in C. No Rogue level, no endgame, no post-Wizard
 // harassment (a summoner is always given).
-import { getLevel, type Ctx, type DefId, type Entity, type MonsterDef, type Pos } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type MonsterDef,
+  type Pos,
+} from '@nh/core';
 import { bigToLittle } from './eggstate';
 import { makemon, mnextoPos } from './generation';
 import { inHell } from './levelflags';
@@ -14,6 +23,9 @@ import { monsterCensus, msummon } from './minion';
 import { mongone } from './mondeath';
 import { setMspecUsed } from './mstate';
 import { isGenocided } from './vanquished';
+import { mksobj } from './items';
+import { setMappearance } from './mimicstate';
+import { WIZARD_OF_YENDOR } from './wizstate';
 
 /** ref: src/wizard.c nasties[] (neutral, chaotic, lawful) */
 const NASTIES: readonly DefId[] = [
@@ -194,4 +206,53 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
   }
   if (count) count = monsterCensus(ctx) - census;
   return count;
+}
+
+/** ref: include/objects.h FAKE_AMULET_OF_YENDOR */
+const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
+
+/**
+ * The kinds the Wizard's clone may pose as. ref: src/wizard.c wizapp[] (no vampires until m18:
+ * that roll leaves the clone undisguised)
+ */
+const WIZAPP: readonly DefId[] = [
+  'nh:human',
+  'nh:water_demon',
+  'nh:vampire',
+  'nh:red_dragon',
+  'nh:troll',
+  'nh:umber_hulk',
+  'nh:xorn',
+  'nh:xan',
+  'nh:cockatrice',
+  'nh:floating_eye',
+  'nh:guardian_naga',
+  'nh:trapper',
+];
+
+/**
+ * "Double Trouble": a second Wizard of Yendor next to the hero, awake and hostile, half the time
+ * carrying a cheap plastic imitation of the Amulet (she never has the real one), posing as one
+ * of wizapp[] (no protection from shape changers here). The caller casts it only while there is
+ * one Wizard. ref: src/wizard.c clonewiz()
+ */
+export function clonewiz(ctx: Ctx): void {
+  const hp = getPlayer(ctx.state).c.pos;
+  if (!hp) return;
+  const id = makemon(ctx, ctx.defs.monster(WIZARD_OF_YENDOR), hp, {
+    adjacentOk: true,
+    noWait: true,
+  });
+  const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
+  if (id === null || !m) return;
+  m.asleep = false;
+  m.peaceful = false;
+  delete m.tame;
+  if (ctx.rng.rn2(2)) {
+    // give clone a fake
+    mksobj(ctx, ctx.defs.object(FAKE_AMULET), { carriedBy: id });
+  }
+  const app = WIZAPP[ctx.rng.rn2(WIZAPP.length)];
+  if (app !== undefined && ctx.defs.isMonster(app))
+    setMappearance(ctx, id, { type: 'monster', id: app });
 }

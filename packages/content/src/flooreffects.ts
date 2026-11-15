@@ -29,14 +29,13 @@ import { placeOnFloor, weight } from './items';
 import { catchLit } from './light';
 import { isLava, isPool, isPoolOrLava, isWaterwall, mInAir, waterbodyName } from './liquid';
 import { luckOf } from './luck';
-import { belowDragonHide } from './material';
+import { belowDragonHide, objResists } from './material';
 import { mondied } from './mondeath';
 import { wakeNearto } from './noise';
 import { P, hasProp } from './props';
 import { burnAwaySlime } from './slimestate';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { levelTemperature } from './temperature';
-import { objResists } from './polyobj';
 import { flying, levitating } from './trapstate';
 import { setUinwater, uinwater } from './uwater';
 import { waterDamage } from './water';
@@ -297,7 +296,7 @@ const burnKey = (dindx: 'boil' | 'oil' | 'scroll' | 'book', many: boolean): stri
  * `force`), "The sack catches fire and burns." and its contents fall out onto (x, y) (into
  * flooreffects()); else luck may save it (`rn2(20)`); scrolls and spellbooks burn (not fire
  * ones), potions boil, anything else burns one level and may be destroyed.
- * ref: src/trap.c fire_damage() (no Book of the Dead)
+ * ref: src/trap.c fire_damage()
  */
 export function fireDamage(ctx: Ctx, obj: Entity, force: boolean, x: number, y: number): boolean {
   const it = obj.c.item;
@@ -330,6 +329,10 @@ export function fireDamage(ctx: Ctx, obj: Entity, force: boolean, x: number, y: 
   if (!force && luckOf(ctx.state) + 5 > ctx.rng.rn2(20)) return false;
   if (def.class === 'scroll' || def.class === 'spellbook') {
     if (obj.def === 'nh:scroll_of_fire' || obj.def === 'nh:spellbook_of_fireball') return false;
+    if (obj.def === 'nh:book_of_the_dead') {
+      if (inSight) say(ctx, 'erode.book_smoke', { item: name() });
+      return false;
+    }
     if (inSight)
       say(ctx, 'flooreffects.burns', {
         item: name(),
@@ -498,7 +501,7 @@ function hotGround(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
     });
   let survival = obj.c.item?.buc === 'blessed' ? 70 : 50;
   if (obj.c.item?.letter) survival += luckOf(ctx.state) * 2;
-  if (objResists(ctx, survival)) return false;
+  if (objResists(ctx, obj, survival)) return false;
   if (seen) say(ctx, many ? 'flooreffects.shatter_heat_pl' : 'flooreffects.shatters_heat');
   else say(ctx, 'flooreffects.hear_shatter');
   potionVaporsLate(ctx, obj, x, y);

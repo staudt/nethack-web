@@ -88,7 +88,7 @@ import {
   type Attr,
 } from './attrib';
 import { unaware } from './btrapped';
-import { findgold, isAnimal, isNymph, steal, stealgold } from './steal';
+import { findgold, isAnimal, isNymph, steal, stealamulet, stealgold } from './steal';
 import { monflee } from './monflee';
 import { addToInventory, invCount, placeOnFloor, removeFromInventory } from './items';
 import { corpseChanceSwallowed } from './corpses';
@@ -2205,6 +2205,19 @@ const adDrin: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   if (lifsav && !whichArmor(ctx, mdef.id, 'amulet')) skipdrin = true;
 };
 
+/**
+ * AD_SAMU (the Wizard's claws): a plain hit on the hero that 1 time in 20 steals the Book of the
+ * Dead (stealamulet()); nothing against a monster. ref: src/uhitm.c mhitm_ad_samu() (hitmsg()
+ * is the caller's)
+ */
+function adSamu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm): void {
+  if (mdef.id === ctx.state.playerId && !isU(ctx, magr)) {
+    if (!ctx.rng.rn2(20)) stealamulet(ctx, magr);
+    return;
+  }
+  mhm.damage = 0;
+}
+
 type Handler = (ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv) => void;
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
@@ -2235,6 +2248,7 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   halu: adHalu,
   wrap: adWrap,
   sgld: adSgld,
+  samu: adSamu,
   sitm: adSedu, // "for now these are the same"
   sedu: adSedu,
   ssex: adSsex,

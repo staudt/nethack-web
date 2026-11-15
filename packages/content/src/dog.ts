@@ -5,7 +5,8 @@
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
 import { fleshPetrifies, resistsSton } from './stonestate';
-import { hatesSilver, isCovetous, isDemon } from './mondata';
+import { isWiz } from './wizstate';
+import { hatesSilver, isCovetous, isDemon, wants } from './mondata';
 import {
   getLevel,
   getPlayer,
@@ -496,6 +497,8 @@ export function tamedog(
   // reduce timed sleep or paralysis; end indefinite sleep
   if (isFrozen(ctx, id)) paralyzeMonst(ctx, id, Math.trunc((frozenTime(ctx, id) + 1) / 2));
   m.asleep = false;
+  // the Wiz, Medusa and the quest nemeses aren't even made peaceful
+  if (isWiz(ctx, id) || def.id === 'nh:medusa' || wants(def, 'wantsarti')) return false;
 
   if (givemsg && !m.peaceful && canSpotMon(ctx, mon)) {
     ctx.emit({
@@ -564,11 +567,11 @@ export function tamedog(
 
 /**
  * Whether the monster follows the hero to another level when next to her.
- * ref: src/mon.c levl_follower(): pets and a shopkeeper following her always; stalkers unless
- * fleeing
+ * ref: src/mon.c levl_follower(): pets, the Wizard and a shopkeeper following her always;
+ * stalkers unless fleeing (no Amulet: the Wizard never has it)
  */
 function levlFollower(ctx: Ctx, mon: Entity): boolean {
-  if (isTame(mon) || eshkOf(ctx, mon.id)?.following) return true; // is_fshk()
+  if (isTame(mon) || isWiz(ctx, mon.id) || eshkOf(ctx, mon.id)?.following) return true; // is_fshk()
   const def = ctx.defs.monster(mon.def);
   return def.flags.includes('stalk') && !isFleeing(ctx, mon.id);
 }

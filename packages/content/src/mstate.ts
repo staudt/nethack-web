@@ -53,7 +53,8 @@ type Key =
   | 'mwandexp'
   | 'mseenres'
   | 'mflee'
-  | 'mstrat';
+  | 'mstrat'
+  | 'iswiz';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -383,6 +384,7 @@ const KEYS: readonly Key[] = [
   'mseenres', // musestate.ts
   'mflee', // monflee.ts (its end-of-turn pruning misses a death in the turn the game ends)
   'mstrat',
+  'iswiz', // wizstate.ts
 ];
 
 /** `mtmp->mwandexp`: the monster has zapped an attack wand before. ref: include/monst.h */

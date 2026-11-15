@@ -11,6 +11,10 @@ export const mcastuMessagesEn: Record<string, string> = {
   'mcastu.monsters_appear': 'Monsters appear from nowhere!',
   'mcastu.monster_appears_spot': 'A monster appears at a spot near you!',
   'mcastu.monsters_appear_spot': 'Monsters appear around a spot near you!',
+  // ref: src/mcastu.c mcast_summon_mons() (the Wizard's), mcast_clone_wiz()
+  'mcastu.destroy_thief': '"Destroy the thief, my pet!"',
+  'mcastu.destroy_thief_pl': '"Destroy the thief, my pets!"',
+  'mcastu.double_trouble': 'Double Trouble...',
   'mcastu.field_of_force': 'A field of force surrounds you!',
   'mcastu.skin_itches': 'Your skin itches.',
   'mcastu.points_at_you': '{mon|The} points at you, then curses.',

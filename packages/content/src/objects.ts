@@ -5317,6 +5317,23 @@ export const OBJECTS: readonly ObjectDef[] = [
   spellbook('stone_to_flesh', 15, 1, 3, true, WHITE),
   // ref: objects.h SPELL("blank paper", "plain", P_NONE, 18, 0, 0, 0, 0, HI_PAPER, SPE_BLANK_PAPER)
   spellbook('blank_paper', 18, 0, 0, false, WHITE, 'plain_spellbook'),
+  // m17: unique, never random (prob 0); only wizard1.lua makes it. Read: spell.ts deadbook().
+  // ref: objects.h OBJECT(OBJ("Book of the Dead", "papyrus"), BITS(0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, P_NONE, PAPER), 0, SPBOOK_CLASS, 0, 0, 50, 10000, 0, 0, 0, 7, 20, HI_PAPER, SPE_BOOK_OF_THE_DEAD)
+  {
+    id: 'nh:book_of_the_dead',
+    nameKey: 'nh:book_of_the_dead',
+    descKey: 'nh:papyrus_spellbook.desc',
+    class: 'spellbook',
+    glyph: { ch: '+', fg: WHITE },
+    prob: 0,
+    weight: 50,
+    cost: 10000,
+    material: 'paper',
+    merge: false,
+    magic: true,
+    delay: 0,
+    spellbook: { level: 7 },
+  },
 ];
 
 /** Shuffled potion descriptions, one per potion except water (ref: objects.h POTION() descriptions). */

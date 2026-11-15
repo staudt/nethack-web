@@ -1,4 +1,6 @@
 // Spellbooks: studying them and the spells the hero knows. Casting is in cast.ts.
+// The Book of the Dead is read blind too, never too hard and never torn; its effect is
+// deadbook.ts's.
 // ref: src/spell.c study_book(), learn(), cursed_book(), confused_book(), age_spells(),
 // dovspell(), spellretention(); src/read.c doread() (the spellbook branch) (aggravate() is in
 // mstate.ts); src/sit.c take_gold(); src/allmain.c stop_occupation()
@@ -24,6 +26,7 @@ import { nhData, removeFromInventory } from './items';
 import { useup } from './magic';
 import { luckOf } from './luck';
 import { aggravate } from './mstate';
+import { BOOK_OF_THE_DEAD, deadbook } from './deadbook';
 import { nomul } from './nomul';
 import { discover, isKnown } from './o_init';
 import { P, hasProp, makeBlinded, makeConfused, timeoutLeft, wornIn } from './props';
@@ -212,7 +215,7 @@ function cursedBook(ctx: Ctx, book: Entity): boolean {
 
 /** Study while confused: true if the book is destroyed. ref: src/spell.c confused_book() */
 function confusedBook(ctx: Ctx, book: Entity): boolean {
-  if (!ctx.rng.rn2(3)) {
+  if (!ctx.rng.rn2(3) && book.def !== BOOK_OF_THE_DEAD) {
     say(ctx, 'spell.confused_tear');
     say(ctx, 'spell.tear');
     useup(ctx, book.id); // trycall() is not ported
@@ -252,8 +255,9 @@ interface StudyAsk {
 export function studyBook(ctx: Ctx, book: Entity): number {
   const h = hero(ctx);
   const def = ctx.defs.object(book.def);
-  // ref: doread(): "Being blind, you cannot read the mystic runes."
-  if (hasProp(h, P.BLINDED)) {
+  // ref: doread(): "Being blind, you cannot read the mystic runes." (the Book of the Dead can be
+  // read blind)
+  if (hasProp(h, P.BLINDED) && def.id !== BOOK_OF_THE_DEAD) {
     say(ctx, 'spell.blind');
     return 0;
   }
@@ -316,7 +320,7 @@ function readAbility(ctx: Ctx, def: ObjectDef): number {
 function studyChecks(ctx: Ctx, book: Entity): number {
   const it = book.c.item;
   if (!it) return 0;
-  if (it.buc === 'uncursed') {
+  if (it.buc === 'uncursed' && book.def !== BOOK_OF_THE_DEAD) {
     const def = ctx.defs.object(book.def);
     const ability = readAbility(ctx, def);
     const confused = hasProp(hero(ctx), P.CONFUSION);
@@ -344,7 +348,9 @@ function studyRoll(ctx: Ctx, book: Entity): number {
   if (!it) return 0;
   const def = ctx.defs.object(book.def);
   let tooHard = false;
-  if (it.buc === 'cursed') tooHard = true;
+  // (the Book of the Dead is never too hard)
+  if (book.def === BOOK_OF_THE_DEAD) tooHard = false;
+  else if (it.buc === 'cursed') tooHard = true;
   else if (it.buc === 'uncursed' && ctx.rng.rnd(20) > readAbility(ctx, def)) tooHard = true;
 
   if (tooHard) {
@@ -360,7 +366,7 @@ function studyRoll(ctx: Ctx, book: Entity): number {
     confusedBook(ctx, book);
     return NORMAL_SPEED + studyTime(ctx);
   }
-  say(ctx, 'spell.begin');
+  say(ctx, book.def === BOOK_OF_THE_DEAD ? 'spell.begin_recite' : 'spell.begin');
   setLearning(ctx, book);
   return NORMAL_SPEED;
 }
@@ -408,6 +414,11 @@ function learn(ctx: Ctx): { busy: boolean; extra: number } {
   if (sp.delay) {
     sp.delay++; // not if (delay++), so at end delay == 0
     return { busy: true, extra: 0 };
+  }
+  if (book.def === BOOK_OF_THE_DEAD) {
+    deadbook(ctx, book);
+    sp.book = null;
+    return { busy: false, extra: 0 };
   }
   let def = ctx.defs.object(book.def);
   const quoted: Msg = {

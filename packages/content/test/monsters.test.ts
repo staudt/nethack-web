@@ -74,6 +74,8 @@ describe('vanilla monsters', () => {
       'drin',
       // m15 step 6 (buzz.ts: the black dragon's disintegration blast)
       'disn',
+      // m17 step 8b (the Wizard's claws: stealamulet())
+      'samu',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts), or
     // fire, frost and missiles (castmu()'s switch; m17 step 4: Asmodeus's cold)

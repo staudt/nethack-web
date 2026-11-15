@@ -35,6 +35,7 @@ import {
   isFlammable,
   isRottable,
   isRustprone,
+  objResists,
 } from './material';
 import { mkobj } from './mkobj';
 import { makemon } from './generation';
@@ -268,14 +269,6 @@ export function polyObj(ctx: Ctx, obj: Entity, id: DefId | null): Entity {
 }
 
 /**
- * Whether the object resists: `ochance` percent of the time (no artifacts or invocation items
- * exist, so `achance` never applies). ref: src/zap.c obj_resists()
- */
-export function objResists(ctx: Pick<Ctx, 'rng'>, ochance: number): boolean {
-  return ctx.rng.rn2(100) < ochance;
-}
-
-/**
  * The object resists polymorph: the wand, potion and spellbook of polymorph and the amulet of
  * unchanging always, anything else 5 times in 100. ref: src/zap.c obj_unpolyable(), unpolyable()
  */
@@ -285,7 +278,7 @@ export function objUnpolyable(ctx: Ctx, obj: Entity): boolean {
     obj.def === SPE_POLYMORPH ||
     obj.def === POT_POLYMORPH ||
     obj.def === AMULET_OF_UNCHANGING ||
-    objResists(ctx, 5)
+    objResists(ctx, obj, 5)
   );
 }
 
@@ -403,8 +396,7 @@ function golemFor(ctx: Ctx, material: string): { pm: DefId; word: string } {
 /**
  * Uses up objects of the pile, from the top, until `minwt` units are gone: an object of material
  * `mat` goes when rn2(minwt + 1) is not 0, any other when it is 0; a shop's goods are billed or
- * owed. ref: src/zap.c polyuse() (no unique objects, ball and chain or mail: obj_resists(otmp, 0,
- * 0) only draws its rn2(100))
+ * owed; the Book of the Dead is kept. ref: src/zap.c polyuse() (no ball and chain or mail)
  */
 function polyuse(ctx: Ctx, pile: readonly Entity[], mat: string, minwtIn: number): void {
   let minwt = minwtIn;
@@ -414,7 +406,7 @@ function polyuse(ctx: Ctx, pile: readonly Entity[], mat: string, minwtIn: number
     const p = otmp.c.pos;
     if (!it || !p || !ctx.state.entities[String(otmp.id)]) continue;
     if (isBypassed(otmp.id)) continue;
-    ctx.rng.rn2(100); // obj_resists(otmp, 0, 0): preserve unique objects (none resist)
+    if (objResists(ctx, otmp, 0)) continue; // preserve unique objects (the Book of the Dead)
     if ((ctx.defs.object(otmp.def).material === mat) === (ctx.rng.rn2(minwt + 1) !== 0)) {
       // appropriately add damage to bill
       if (costlySpot(ctx, p.x, p.y)) {

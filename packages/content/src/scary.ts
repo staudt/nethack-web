@@ -25,12 +25,13 @@ import { inHell } from './levelflags';
 import { mcansee, storedMux } from './mstate';
 import { P, heroHas } from './props';
 import { egdOf } from './vaultstate';
+import { isWiz } from './wizstate';
 
 export const SCR_SCARE_MONSTER: DefId = 'nh:scroll_of_scare_monster';
 
 const MINOTAUR: DefId = 'nh:minotaur';
 
-/** Directly resistant to any scaring (is_lminion(), the Angel, the Riders). */
+/** Directly resistant to any scaring (is_lminion(), the Angel, the Riders; Rodney: iswiz). */
 const RESISTS_ALL: readonly DefId[] = ['nh:angel', 'nh:death', 'nh:pestilence', 'nh:famine'];
 
 /** Cell indices of `level` holding a scroll of scare monster on the floor. */
@@ -91,7 +92,7 @@ export function onscary(
 ): boolean {
   const def = ctx.defs.monster(mon.def);
   // creatures who are directly resistant to any type of scaring
-  if (RESISTS_ALL.includes(def.id)) return false;
+  if (isWiz(ctx, mon.id) || RESISTS_ALL.includes(def.id)) return false;
   // creatures who are directly resistant to magical scaring: humans etc., uniques
   if (def.glyph.ch === '@' || def.genFlags.includes('uniq')) return false;
   // shopkeepers inside their own shop, priests inside their own temple

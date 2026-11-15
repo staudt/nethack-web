@@ -43,6 +43,8 @@ import { heroForm } from './upoly';
 import { mInAir, monLiquidOk } from './liquid';
 import { T } from './terrain';
 import { VIBRATING_SQUARE } from './invocation';
+import { findTerrain } from './ladder';
+import { isWiz } from './wizstate';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
@@ -410,9 +412,23 @@ function rlocPosOk(
 }
 
 /**
+ * Where the Wizard, teleporting on his level, goes: the up stairs of the dungeon (not a branch's)
+ * while the hero is outside the Wizard's Tower; while she is inside it, the tower's up ladder,
+ * or its down ladder at the top of the tower, which has none. ref: src/teleport.c rloc() (the
+ * `mtmp->iswiz && mtmp->mx` block), stairway_find_forwiz()
+ */
+function wizStairs(ctx: Pick<Ctx, 'state'>, level: Level): Pos | null {
+  const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
+  const heroInTower = hp?.level === level.id && inWTower(ctx.state, level, hp.x, hp.y);
+  if (!heroInTower) return level.up;
+  return findTerrain(level, T.ladder_up) ?? findTerrain(level, T.ladder_down);
+}
+
+/**
  * Where a monster teleported at random lands: 50 random tries, then every square in a shuffled
- * order, else the first plain good position met; null when the level is full.
- * ref: src/teleport.c rloc() (no steed, Wizard or wizard-mode control)
+ * order, else the first plain good position met; null when the level is full. The Wizard goes
+ * to the stairs (wizStairs()) when he is free, "to block the player's escaping before he's
+ * healed". ref: src/teleport.c rloc() (no steed or wizard-mode control)
  */
 export function rlocMonPos(
   ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
@@ -421,6 +437,11 @@ export function rlocMonPos(
 ): Pos | null {
   const o0 = occupancy(ctx, level);
   const o: Occupancy = wormRec(ctx.state, mon.id) ? { ...o0, worm: true } : o0;
+  // the Wizard, not just arriving (deliberately goodpos() rather than rloc_pos_ok())
+  if (isWiz(ctx, mon.id) && mon.c.pos?.level === level.id) {
+    const s = wizStairs(ctx, level);
+    if (s && goodpos(o, s.x, s.y, mon.id)) return s;
+  }
   const scare = scareCells(ctx, level);
   for (let trycount = 0; trycount < 50; ++trycount) {
     const x = ctx.rng.rnd(level.width - 1);

@@ -5,7 +5,15 @@
 // Not ported (DEVIATIONS "Dipping"): potion dilution (potions are untouched, ER_NOTHING), the
 // potion of acid, grease, towels, cans of grease, mail, the Book of the Dead and novels (none of
 // them exist).
-import { contents, getPlayer, type Ctx, type Entity, type Msg } from '@nh/core';
+import {
+  cellIndex,
+  contents,
+  getPlayer,
+  isVisible,
+  type Ctx,
+  type Entity,
+  type Msg,
+} from '@nh/core';
 import { erodeObj } from './erode';
 import { LAMP, snuffLit } from './light';
 import { luckOf } from './luck';
@@ -80,6 +88,18 @@ export function waterDamage(ctx: Ctx, obj: Entity, ostr: Msg | null, force: bool
     return 'damaged';
   }
   if (def.class === 'spellbook') {
+    if (obj.def === 'nh:book_of_the_dead') {
+      // (it can't be contained or buried)
+      const p = it.carriedBy !== null ? ctx.state.entities[String(it.carriedBy)]?.c.pos : obj.c.pos;
+      const level = p ? ctx.state.levels[p.level] : undefined;
+      const seen =
+        p !== undefined &&
+        level !== undefined &&
+        p.level === ctx.state.currentLevel &&
+        isVisible(ctx.state, cellIndex(level, p.x, p.y));
+      if (seen) say(ctx, 'erode.book_steam', { item: xnameOf(ctx.state, ctx.defs, obj) });
+      return 'nothing';
+    }
     if (obj.def === BLANK_PAPER) return 'nothing';
     if (inInvent) say(ctx, `water.fade${pl}`, { item: name });
     obj.def = BLANK_PAPER;

@@ -8,8 +8,8 @@
 // src/mon.c mnexto(), mnearto(); src/monmove.c m_move() (the covetous attack on an intruder)
 //
 // Not ported (see DEVIATIONS.md "Monster AI"): the Amulet (`made_amulet` is always false: it is
-// never made), the invocation (`u.uevent.invoked`), the quest artifacts, the Wizard of Yendor
-// (m17 step 8b), mavenge, and deal_with_overcrowding()'s limbo: a monster
+// never made), the invocation (`u.uevent.invoked`), the quest artifacts, mavenge, and
+// deal_with_overcrowding()'s limbo: a monster
 // with no room next to her stays where it is, and a monster pushed off the goal with no room
 // around it is teleported at random.
 import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type EntityId } from '@nh/core';
@@ -20,7 +20,7 @@ import { eshkOf, inhishop } from './eshk';
 import { mnextoPos } from './generation';
 import { findTerrain } from './ladder';
 import { inWTower } from './levelflags';
-import { isCovetous } from './mondata';
+import { isCovetous, wants } from './mondata';
 import { heroSees, minvent } from './mongear';
 import { isFleeing } from './monflee';
 import { healmon, mstratOf, setMstrat, type MStrat } from './mstate';
@@ -29,6 +29,7 @@ import { mpickobj } from './steal';
 import { goodposMon, noteleportLevel } from './teleport';
 import { T } from './terrain';
 import { rlocMon, rlocTo } from './trap';
+import { isWiz } from './wizstate';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -83,7 +84,7 @@ function otherMonHasArti(ctx: Pick<Ctx, 'state'>, mon: Entity, otyp: DefId): Ent
  * to its spot (to 0,0 for STRAT_NONE). ref: src/wizard.c target_on()
  */
 function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
-  if (!ctx.defs.monster(mon.def).flags.includes(flag)) return null;
+  if (!wants(ctx.defs.monster(mon.def), flag)) return null;
   const otyp = whichArti(ctx, flag);
   const s = { ...mstratOf(ctx, mon.id) };
   delete s.goal;
@@ -255,8 +256,9 @@ export function tactics(ctx: Ctx, id: EntityId): boolean {
     if (sw && sw.mon === id) expels(ctx, mon, true);
     // if wounded, hole up on or near the stairs (to block them)
     const s = chooseStairs(ctx, level.id, id % 2 === 1);
-    // (mavenge: not kept; the Wizard's own case waits for him)
-    const inTower = inWTower(ctx.state, level, p.x, p.y);
+    // (mavenge: not kept); the Wizard with no stairs to block teleports at random too (he never
+    // has the Amulet)
+    const inTower = inWTower(ctx.state, level, p.x, p.y) || (isWiz(ctx, id) && !s);
     if (inTower) {
       if (!noTele() && !ctx.rng.rn2(3 + Math.trunc((mon.c.hp?.cur ?? 0) / 10)))
         rlocMon(ctx, mon, true);

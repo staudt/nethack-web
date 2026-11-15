@@ -10,6 +10,10 @@ export const erodeMessagesEn: Record<string, string> = {
   'erode.subj.the.cap': 'The {item}',
   'erode.subj.the.low': 'the {item}',
   'erode.not_affected': '{subj} is not affected by {by}.',
+  // ref: src/zap.c maybe_destroy_item() (AD_FIRE), src/trap.c fire_damage(), water_damage()
+  'erode.book_glows': '{item|The} glows a strange {color}, but remains intact.',
+  'erode.book_smoke': 'Smoke rises from {item|the}.',
+  'erode.book_steam': 'Steam rises from {item|the}.',
   'erode.not_affected_pl': '{subj} are not affected by {by}.',
   'erode.somehow': 'Somehow, {subj} is not affected by the {by}.',
   'erode.somehow_pl': 'Somehow, {subj} are not affected by the {by}.',

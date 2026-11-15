@@ -1,5 +1,6 @@
 // m17 step 8a: the Wizard's Tower (wizard1-3) and the two fake towers. Each level builds on 80x21
-// with its tower map in the maze grid, its rooms, ladders, doors, fixed monsters, boards and
+// with its tower map in the maze grid, its rooms, ladders, doors, fixed monsters (the Wizard of
+// Yendor asleep on the Book of the Dead: step 8b), boards and
 // treasures, its stairs outside the tower; climbing every ladder both ways lands on the matching
 // ladder (on a level made then or before); the magic portal between the first fake tower and
 // wizard3 works both ways, for the hero and for monsters; the tower's boundary keeps monsters,
@@ -242,8 +243,11 @@ describe("the Wizard's Tower levels", () => {
         ['nh:piranha', 19, 8],
       ] as const)
         expect(monAt(m0, l, at(def, l, x, y))?.def).toBe(id);
-      // the Wizard's spot waits for m17 step 8b
-      expect(monAt(m0, l, at(def, l, 16, 5))).toBeUndefined();
+      // the Wizard asleep on the Book of the Dead
+      const wiz = monAt(m0, l, at(def, l, 16, 5));
+      expect(wiz?.def).toBe('nh:wizard_of_yendor');
+      expect(wiz?.c.monster?.asleep).toBe(true);
+      expect(itemsAt(m0, l, at(def, l, 16, 5)).map((e) => e.def)).toContain('nh:book_of_the_dead');
       // (a random trap made later may replace a board, as mktrap() does)
       for (const [x, y] of [
         [16, 4],

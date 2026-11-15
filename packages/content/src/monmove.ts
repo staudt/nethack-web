@@ -1,5 +1,6 @@
 // Monster movement and turn logic: mcalcmove, disturb, mfndpos, m_move and dochug.
 import { apAsThing } from './mimicstate';
+import { isWiz } from './wizstate';
 import {
   cellIndex,
   cellRules,
@@ -1222,6 +1223,7 @@ export function dochug(
   const me0 = ctx.state.entities[String(id)];
   if (
     conflictOn(ctx.state) &&
+    !isWiz(ctx, id) &&
     isVisible(ctx.state, cellIndex(getLevel(ctx.state, pos.level), pos.x, pos.y)) &&
     me0 !== undefined &&
     !invisTo(ctx, me0) &&
@@ -1253,13 +1255,14 @@ export function dochug(
 
   const def = ctx.defs.monster(ctx.state.entities[String(id)]?.def ?? 'nh:none');
   const self = ctx.state.entities[String(id)];
-  // ref: dochug(): "Some monsters teleport. Teleportation costs a turn." (no Wizard of Yendor;
+  // ref: dochug(): "Some monsters teleport. Teleportation costs a turn." (not the Wizard;
   // `leppie_stash()` is not ported: see DEVIATIONS "Theft")
   if (
     self &&
     isFleeing(ctx, id) &&
     !ctx.rng.rn2(40) &&
     canTeleport(def) &&
+    !isWiz(ctx, id) &&
     !noteleportLevel(ctx, getLevel(ctx.state, pos.level), id)
   ) {
     rlocMon(ctx, self, true);
@@ -1367,7 +1370,7 @@ export function dochug(
       !findgold(ctx, ctx.state.playerId) &&
       (findgold(ctx, id) !== null || ctx.rng.rn2(2) !== 0)) ||
     (isWanderer(def) && ctx.rng.rn2(4) === 0) ||
-    conflictOn(ctx.state) || // `Conflict && !mtmp->iswiz`
+    (conflictOn(ctx.state) && !isWiz(ctx, id)) ||
     (!mcansee(ctx, id) && ctx.rng.rn2(4) === 0) ||
     m.peaceful
   ) {

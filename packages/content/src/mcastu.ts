@@ -19,7 +19,7 @@
 // shieldeff(). The AD_FIRE and AD_COLD AT_MAGC attacks (Asmodeus's) envelop her in flames or
 // cover her in frost; the AD_MAGM one (a shower of missiles) scuffs the engraving under her
 // (mon_spell_hits_spot()).
-// Clone wizard is always useless (no Wizard of Yendor yet), so it is never chosen. Insects are
+// Clone wizard is the Wizard's alone, while he is the only one ("Double Trouble..."). Insects are
 // always "insects" (no hallucinated names); no Half_physical_damage or melting ice. The touch of
 // death's "he"/"she" follows the kind's gender flag, else "it" (monsters have no gender here).
 import {
@@ -44,7 +44,8 @@ import { destroyItems, erodeArmor } from './erode';
 import { makemon, mkclass, mnextoPos } from './generation';
 import { losehp, losestr } from './hp';
 import { done } from './end';
-import { nasty } from './nasty';
+import { clonewiz, nasty } from './nasty';
+import { isWiz, noOfWizards } from './wizstate';
 import { isDemon, nonliving } from './mondata';
 import { inWTower } from './levelflags';
 import { heroForm, rehumanize, upolyd } from './upoly';
@@ -242,9 +243,10 @@ export function spellWouldBeUseless(ctx: Ctx, mon: Entity, s: McastSpell): boole
     case 'death_touch':
       if ((hasProp(hero, P.ANTIMAGIC) || hasProp(hero, P.HALLUC)) && !ctx.rng.rn2(2)) return true;
       break;
-    // only the Wizard is allowed to clone himself (no Wizard of Yendor yet)
+    // only the Wizard is allowed to clone himself
     case 'clone_wiz':
-      return true;
+      if (!isWiz(ctx, mon.id) || noOfWizards(ctx) > 1) return true;
+      break;
     case 'geyser':
       if (!ctx.rng.rn2(5)) return true;
       break;
@@ -761,6 +763,10 @@ function mcastSummonMons(ctx: Ctx, mon: Entity, ap: Pos): void {
   const count = nasty(ctx, mon, ap);
   if (!count) return; // nothing was created?
   const one = count === 1;
+  if (isWiz(ctx, mon.id)) {
+    say(ctx, one ? 'mcastu.destroy_thief' : 'mcastu.destroy_thief_pl');
+    return;
+  }
   const hp = getPlayer(ctx.state).c.pos;
   // messages not quite right if plural monsters created but only a single monster is seen
   if (
@@ -823,7 +829,12 @@ export function mcastSpell(ctx: Ctx, mon: Entity, dmg: number, s: McastSpell, ap
       mcastDeathTouch(ctx, mon);
       dmg = 0;
       break;
-    case 'clone_wiz': // never chosen (spellWouldBeUseless)
+    case 'clone_wiz':
+      // (spellWouldBeUseless() keeps it to the Wizard while he is the only one)
+      if (isWiz(ctx, mon.id) && noOfWizards(ctx) === 1) {
+        say(ctx, 'mcastu.double_trouble');
+        clonewiz(ctx);
+      }
       dmg = 0;
       break;
     case 'summon_mons':

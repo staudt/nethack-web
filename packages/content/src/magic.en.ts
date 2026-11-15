@@ -145,6 +145,7 @@ export const magicMessagesEn: Record<string, string> = {
   'color.purple': 'purple',
   'color.light_blue': 'light blue',
   'color.red': 'red',
+  'color.dark_red': 'dark red',
   'color.green': 'green',
   'color.ultraviolet': 'ultraviolet',
   'color.infrared': 'infrared',

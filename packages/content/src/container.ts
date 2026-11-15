@@ -216,6 +216,12 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0
     say(ctx, it.quantity !== 1 ? 'loot.loadstone.plural' : 'loot.loadstone');
     return 0;
   }
+  if (obj.def === 'nh:book_of_the_dead') {
+    // "Prohibit Amulets in containers; if you allow it, monsters can't steal them. ... Ditto for
+    // the Candelabrum, the Bell and the Book."
+    say(ctx, 'loot.trappings', { item: xnameOf(ctx.state, ctx.defs, obj) });
+    return 0;
+  }
   if (it.equipped === 'weapon') {
     if (it.buc === 'cursed' && ctx.defs.object(obj.def).class === 'weapon') {
       // welded(): weldmsg()

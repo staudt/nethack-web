@@ -119,7 +119,10 @@ describe('the new rows', () => {
       expect(defs.isObject(id as DefId)).toBe(true);
     expect(defs.isObject('nh:spellbook_of_chain_lightning' as DefId)).toBe(false);
     const books = defs.objects.filter(
-      (o) => o.class === 'spellbook' && o.id !== 'nh:spellbook_of_blank_paper',
+      (o) =>
+        o.class === 'spellbook' &&
+        o.id !== 'nh:spellbook_of_blank_paper' &&
+        o.id !== 'nh:book_of_the_dead', // (m17: no spell)
     );
     expect(books).toHaveLength(40);
     for (const b of books) {

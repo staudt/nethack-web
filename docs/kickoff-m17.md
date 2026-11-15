@@ -38,4 +38,16 @@ The Sanctum and the invocation (the Bell, the Candelabrum, the ritual on the vib
 
 ## Status
 
-(Filled in by the last step.)
+All eight steps built on branch `m17` (off `m16`), one commit each, step 8 in two (8a the levels, 8b the Wizard and the Book); nothing was dropped (what each step left out is in ROADMAP "From m17"; the deviations from the plan are in its "Changes during work").
+
+- **Step 1 (d552aa5), the layout and the bottom:** core `SpecialLevelDef.chain`, the eleven specials in dungeon.lua's order with the filler as stand-in, the variant draw only for 2+ variants, `dngBottom()` (the Sanctum out of reach: holes, trap doors, level teleports' "Sorry..."), the invocation level without down stairs and with the vibrating square (`invocation.ts`). Golden 0e86f438cb1a9b11ea18f37645e4/636 -> 079b7c82b915ef1a0a1d207c44c0/667 (the new-game draws; verified with Gehennom's specials empty and the old variant draw).
+- **Step 2 (324d466), the Valley and fire traps:** valley.lua with Moloch's temple and priest, three graveyards, the player-monster corpses, the arrival lines and the gate question; the graveyard flag, nommap, fire traps for the hero and monsters. Golden unchanged.
+- **Step 3 (de0bf3b), hellfill and the temperature:** `selection.ts`, `hell_tweaks()`, the seven hells and ten prefabs (core exports `createMaze()`/`mazeGrid()`/`mkmap()`), 5.0's hot and cold levels and potions boiling, `hellprobs`, fast bats. Golden unchanged.
+- **Step 4 (3e9f2aa), demons and hell hounds:** the rows, `msummon()`/`dprince()`/`dlord()`, the demon court, `buzzmu()`, the princes' wands. Golden unchanged (also with the rows out and msummon off).
+- **Step 5 (433b110), covetous monsters:** the strategy bits, `tactics()`, the bribes (`demontalk.ts`), master liches and arch-liches, destroy armor, summon nasties, touch of death. Golden unchanged.
+- **Step 6 (253871b), the lairs:** Juiblex's swamp, Asmodeus's lair, Baalzebub's beetle (core `WallifyOptions`). Golden unchanged.
+- **Step 7 (a5b4a7d), Orcus Town:** the ruined town, its ghost-town shops and morgue, Orcus's court; shades and skeletons. Golden unchanged.
+- **Step 8a (101575e), the towers:** wizard1-3 and the two fake towers, ladders, the magic portal, `In_W_tower()` (core `goToLevel(to, Pos)`). Golden unchanged.
+- **Step 8b, the Wizard and the Book:** the Wizard of Yendor (`wizstate.ts`: iswiz and `no_of_wizards`; asleep on wizard1's Book, "Double Trouble...", his summons, curses, stairs and claws), the Book of the Dead (unique, `deadbook.ts`, the covetous target), the docs. Golden unchanged: 079b7c82b915ef1a0a1d207c44c0/667.
+
+**Exit check for m17:** keyboard-free: yes (the gate and the bribe are prompts, ladders and portals use the up/down offers and stepping on); deterministic: yes (the one golden move, step 1, was verified by switching its cause off); core changes additive and explained in ARCHITECTURE (`SpecialLevelDef.chain`, the variant draw, the maze builders' exports, `WallifyOptions`, `goToLevel(to, Pos)`, MonsterSound additions, levels up to 127); no save-format change (games started before m17 keep their stub Gehennom); `pnpm check` green at each step. Phone checks: TESTPLAN "17 Gehennom".

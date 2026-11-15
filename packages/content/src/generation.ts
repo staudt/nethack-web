@@ -40,6 +40,7 @@ import {
   isMplayer,
   isUnicorn,
 } from './mondata';
+import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
 
 /**
@@ -551,6 +552,9 @@ export function makemon(
     const e = ctx.state.entities[String(id)];
     if (e) setMinvis(ctx, e);
   }
+  // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++` (no
+  // Earth level: never his spellbook of dig)
+  if (mdef.id === WIZARD_OF_YENDOR) setIsWiz(ctx, id);
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {

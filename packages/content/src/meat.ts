@@ -20,7 +20,7 @@ import {
 } from '@nh/core';
 import { setMeating } from './dog';
 import { mksobj, splitStack, weight } from './items';
-import { isMetallic, isRustprone } from './material';
+import { isMetallic, isRustprone, objResists } from './material';
 import { heroSees } from './mongear';
 import { isFrozen, mcansee, setMStunned, unblindMonst } from './mstate';
 import { doname } from './objnam';
@@ -43,8 +43,8 @@ function vegan(ctx: Ctx, mon: DefId): boolean {
 const corpseEater = (id: string): boolean =>
   id === 'nh:purple_worm' || id === 'nh:baby_purple_worm' || id === 'nh:ghoul';
 
-/** ref: src/zap.c obj_resists(otmp, 5, 95) for an object that is not an artifact */
-const objResists = (ctx: Ctx): boolean => ctx.rng.rn2(100) < 5;
+/** ref: src/zap.c obj_resists(otmp, 5, 95) */
+const resists5 = (ctx: Ctx, otmp: Entity): boolean => objResists(ctx, otmp, 5);
 
 const name = (ctx: Ctx, o: Entity): string => doname(ctx.state, ctx.defs, o) as never;
 
@@ -91,7 +91,7 @@ export function meatmetal(ctx: Ctx, mon: Entity): 0 | 1 {
       otmp.def === 'nh:ring_of_slow_digestion'
     )
       continue;
-    if (!isMetallic(od) || objResists(ctx)) continue;
+    if (!isMetallic(od) || resists5(ctx, otmp)) continue;
     const it = otmp.c.item;
     if (rust && it?.erodeproof) {
       const vis = heroSees(ctx, pos) && canSpotMon(ctx, mon);
@@ -141,7 +141,7 @@ export function meatobj(ctx: Ctx, mon: Entity): 0 | 1 {
       continue;
     if (
       !ORGANIC.has(od.material) ||
-      objResists(ctx) ||
+      resists5(ctx, otmp) ||
       otmp.def === 'nh:amulet_of_strangulation' ||
       otmp.def === 'nh:ring_of_slow_digestion' ||
       (od.class === 'food' && cm && fleshPetrifies(cm) && !resistsSton(ctx, mon))

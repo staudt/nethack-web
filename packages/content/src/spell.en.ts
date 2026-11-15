@@ -15,6 +15,18 @@ export const spellMessagesEn: Record<string, string> = {
   'spell.very_difficult_q': 'This spellbook is very difficult to comprehend.  Continue?',
   'spell.crumbles': 'The spellbook crumbles to dust!',
   'spell.begin': 'You begin to memorize the runes.',
+  'spell.begin_recite': 'You begin to recite the runes.',
+  // ref: src/spell.c deadbook()
+  'deadbook.turn': 'You turn the pages of the Book of the Dead...',
+  'deadbook.ignoring': 'The Book seems to be ignoring you!',
+  'deadbook.scrambled': "The runes appear scrambled.  You can't read them!",
+  'deadbook.chill': 'A chill runs down your spine.',
+  'deadbook.chime': 'You hear a faint chime...',
+  'deadbook.amused': "Vlad's doppelganger is amused.",
+  'deadbook.raised': 'You raised the dead!',
+  'deadbook.ancestors': 'Your ancestors are annoyed with you!',
+  'deadbook.headstones': 'The headstones in the cemetery begin to move!',
+  'deadbook.name': 'Oh my!  Your name appears in the book!',
   'spell.stop': 'You stop studying.',
   'helpless.reading_book': 'reading a book',
 

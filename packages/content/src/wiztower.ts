@@ -16,8 +16,7 @@
 // (the morgues are `filled = 2`: typed, never filled). The "ordinary" arrival rooms make no Room
 // here (no monster arrival `wander`): wizard3's is only where its secret door goes. The map lands
 // two columns right of NetHack's (this port's x_maze_max is two more). "vampire lord" is a random
-// monster until vampires exist. The Wizard of Yendor and the Book of the Dead on wizard1 are m17
-// step 8b's (their spot stays empty).
+// monster until vampires exist.
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, MapBlock } from '@nh/core';
 import { mapBlock, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { desMazeGrid, mapCleanup } from './hellfill';
@@ -151,11 +150,12 @@ export const WIZARD1: LevelDef = towerDef(
     { area: [1, 1, 10, 11], lit: false },
   ],
   [
-    // The wizard and his guards: des.monster({ id = "Wizard of Yendor", x = 16, y = 05,
-    // asleep = 1 }) goes here (m17 step 8b)
+    // The wizard and his guards
+    { ...mon('nh:wizard_of_yendor', 16, 5), asleep: true },
     mon('nh:hell_hound', 15, 5),
     mon(undefined, 17, 5), // "vampire lord": a random monster until vampires exist
-    // The local treasure: des.object("Book of the Dead", 16, 05) goes here (m17 step 8b)
+    // The local treasure
+    { kind: 'object', id: 'nh:book_of_the_dead' as DefId, x: 16, y: 5 },
     // Surrounding terror
     mon('nh:kraken', 14, 2),
     mon('nh:giant_eel', 17, 2),

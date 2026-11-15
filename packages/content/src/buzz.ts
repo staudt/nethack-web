@@ -56,6 +56,7 @@ import { T, setTerrain } from './terrain';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
 import { canseemon } from './invis';
 import { M_SEEN, monReflects, monstseesu, monstunseesu } from './musestate';
+import { objResists } from './material';
 
 /**
  * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
@@ -726,7 +727,7 @@ export function burnFloorObjects(
     const it = o.c.item;
     if (!it || (od.class !== 'scroll' && od.class !== 'spellbook')) continue;
     if (o.def === 'nh:scroll_of_fire' || o.def === 'nh:spellbook_of_fireball') continue;
-    if (ctx.rng.rn2(100) < 2) continue; // obj_resists(obj, 2, 100)
+    if (objResists(ctx, o, 2)) continue; // obj_resists(obj, 2, 100)
     const scrquan = it.quantity;
     let del = 0;
     for (let i = scrquan; i > 0; i--) if (!ctx.rng.rn2(3)) del++;
@@ -813,7 +814,7 @@ function disintegrateMon(ctx: Ctx, mon: Entity, byHero: boolean, fltxt: Msg): vo
   for (const o of inventoryOf(ctx.state, mon.id)) {
     // oresist_disintegration(): DISINT_RES armor, obj_resists(obj, 5, 50), the amulet
     const keep =
-      ctx.defs.object(o.def).prop === P.DISINT_RES || ctx.rng.rn2(100) < 5 || o === mAmulet;
+      ctx.defs.object(o.def).prop === P.DISINT_RES || objResists(ctx, o, 5) || o === mAmulet;
     if (!keep) ctx.remove(o.id); // extract_from_minvent(), obfree()
   }
   if (!byHero) monkilled(ctx, mon.id, false, undefined, 'rbre');

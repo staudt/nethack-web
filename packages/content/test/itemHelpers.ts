@@ -71,7 +71,7 @@ export function bareState(seed = 1): GameState {
   return s;
 }
 
-/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit; `{x|the}`, `{x|The}`, `{x|the_s}`, `{x|The_s}` as in the UI ('=Name' is a proper name). */
+/** Renders a Msg with the English catalog; `{x|an}` adds a/an unless the text starts with a digit or "the "; `{x|the}`, `{x|The}`, `{x|the_s}`, `{x|The_s}` as in the UI ('=Name' is a proper name). */
 export function render(msg: Msg | string, cat: Record<string, string> = messagesEn): string {
   if (typeof msg === 'string')
     return msg.startsWith('@')
@@ -93,6 +93,7 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
     }
     if (mod === 'An') {
       if (/^[0-9]/.test(text)) return text;
+      if (/^the /i.test(text)) return text.charAt(0).toUpperCase() + text.slice(1);
       return `${/^[aeiou]/i.test(text) ? 'An' : 'A'} ${text}`;
     }
     if (mod !== undefined && mod !== 'an') {
@@ -102,7 +103,7 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
       return mod.startsWith('T') ? out.charAt(0).toUpperCase() + out.slice(1) : out;
     }
     if (mod !== 'an') return text;
-    if (/^[0-9]/.test(text)) return text;
+    if (/^[0-9]/.test(text) || /^the /i.test(text)) return text;
     return `${/^[aeiou]/i.test(text) ? 'an' : 'a'} ${text}`;
   });
 }

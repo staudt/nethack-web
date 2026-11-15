@@ -295,7 +295,14 @@ export const isDprince = (def: MonsterDef): boolean => isDemon(def) && isPrince(
  * ref: include/mondata.h is_covetous() (M3_COVETOUS)
  */
 export const isCovetous = (def: MonsterDef): boolean =>
-  def.flags.some((f) => f.startsWith('wants'));
+  def.flags.some((f) => f.startsWith('wants') || f === 'covetous');
+
+/**
+ * Has the M3_WANTS* flag `flag` ('wantsbook'...): the Wizard's M3_COVETOUS (the converter keeps
+ * C's name) is all of them. ref: include/monflag.h M3_COVETOUS, M3_WANTSALL
+ */
+export const wants = (def: MonsterDef, flag: string): boolean =>
+  def.flags.includes(flag) || def.flags.includes('covetous');
 /** ref: include/mondata.h is_ndemon(): a demon that is neither a lord nor a prince */
 export const isNdemon = (def: MonsterDef): boolean =>
   isDemon(def) && !isLord(def) && !isPrince(def);

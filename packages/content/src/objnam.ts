@@ -170,9 +170,10 @@ export function doname(
     it.buc !== 'uncursed';
   // With implicit_uncursed, "uncursed" is printed unless the item is charged and fully known;
   // only rings are oc_charged here, and rings always print it. The imitation Amulet never says
-  // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()).
+  // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()). The Book
+  // of the Dead is unique and a spellbook is always `known`: "the papyrus spellbook" too.
   const fake = def.id === FAKE_AMULET;
-  if (fake && !it.known.spe) params.count = 'the ';
+  if ((fake && !it.known.spe) || def.id === 'nh:book_of_the_dead') params.count = 'the ';
   // A wand is oc_charged: once its charges are known, "uncursed" is implied.
   const impliedUncursed = def.class === 'wand' && it.known.spe && it.buc === 'uncursed';
   if (

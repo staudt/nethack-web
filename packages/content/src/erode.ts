@@ -32,6 +32,7 @@ import { removeFromInventory, rknown, setRknown } from './items';
 import { luckOf } from './luck';
 import { minvent, whichArmor } from './mongear';
 import { xnameOf } from './objnam';
+import { hcolor } from './hcolor';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
 import { ringGone } from './jewelry';
@@ -397,8 +398,13 @@ function maybeDestroyItem(ctx: Ctx, carrier: Entity, obj: Entity, ad: DestroyTyp
     case 'fire':
       xresist = def.class !== 'potion' && resists(P.FIRE_RES, 'fire');
       if (def.id === 'nh:book_of_the_dead') {
-        // "The Book of the Dead glows a strange dark red, but remains intact." (not in our data)
         skip = true;
+        if (uCarry ? !hasProp(hero, P.BLINDED) : vis)
+          ctx.emit({
+            type: 'msg',
+            key: 'erode.book_glows',
+            params: { item: xnameOf(ctx.state, ctx.defs, obj), color: hcolor(ctx, 'dark_red') },
+          });
         break;
       }
       if (def.class === 'potion') {
