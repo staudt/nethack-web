@@ -183,3 +183,20 @@ The m15 planner (`~/.claude/plans/m15.md`, kickoff `docs/kickoff-m15.md`; 9 step
 8. **Where the Castle's trap doors lead** (taken as the planner wrote it: (a) if steps 4 and 9 have room, else (b)): (a) a Gehennom stub of C's size entered from the Castle by a branch with no stairs on the Castle end (new core `DungeonEntryDef.stairs: 'child'`), plain maze levels, the Valley and the rest in ROADMAP; or (b) they become falling rock traps as on any bottom level today, and the Castle ends the game for now. Planner: (a) if there is room, else (b).
 
 The cheap ones are taken with the approval: drawbridges as content (terrains + `modData`), a "Really step into the water?" yes/no prompt instead of the `m` prefix, no limited underwater view, "Improvise?" for every instrument then the passtune prompt, whole eel and dragon classes plus the 18 dragon scales via the converter, all 13 big rooms, ice in this milestone.
+
+## Taken (m16 engravings and Elbereth, 2026-11-15)
+
+The m16 planner (`~/.claude/plans/m16.md`, kickoff `docs/kickoff-m16.md`; 7 steps, ~2.1M) marked all twelve questions cheap to change later; the loop took each recommendation:
+
+1. Engravings are content state (`modData.nh.engr[levelId][cellIndex]`, owned by `engr.ts`), not a core `Level` field; no save-format or mod-contract change.
+2. **For the user to review:** no engraving symbol on the map and no farlook text this milestone (showing it needs a core view channel, which would be costly); engravings are read on arrival and with `:`. Listed in ROADMAP.
+3. A new `:` "Look here" self action (dolook()), always offered.
+4. Engraving texts are literal strings in the state; the rumors, engrave and epitaph files are copied into content as data; the surrounding sentences are message keys.
+5. Random lines: one `rn2(lines)` per pick instead of C's byte seek (both uniform).
+6. No magic markers or towels (left to m19 tools).
+7. Elbereth follows 5.0 (= 3.7): the hero must stand on it, level-made ones guard objects, the immune kinds, not in Gehennom, attacking from it erases it.
+8. `setmangry()` gets C's `viaAttack` argument, every caller checked against C.
+9. Engraving with a wand of wishing asks the wish and then goes on, as C (fallback: end the engraving after the wish, DEVIATIONS).
+10. Graves are the last, droppable step (no burial, no bell, no digging up).
+11. The vault's "ad aerarium" wipe rolls happen after core's level build (DEVIATIONS).
+12. No literate conduct, no Wis exercise if the port has none, no re-read on restore.
