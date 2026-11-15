@@ -40,12 +40,12 @@ const run = (state: GameState, fn: (ctx: Ctx) => void): void => {
   engine.step(state, { type: 'mod', action: 'mz:run' });
 };
 
-/** Medusa's level put on DL20 of this game's layout (the dungeon places it from step 9 on). */
+/** A new game whose Medusa's level is moved to DL20 (above DL21-24; the Castle is DL25-29). */
 function withMedusa(seed: number): GameState {
   const { state } = engine.newGame({ seed });
-  const main = state.dungeons[0];
-  if (!main) throw new Error('no main dungeon');
-  main.special.push({ id: 'nh:medusa', dlevel: 20 });
+  const medusa = state.dungeons[0]?.special.find((s) => s.id === 'nh:medusa');
+  if (!medusa) throw new Error('no Medusa');
+  medusa.dlevel = 20;
   return state;
 }
 
@@ -67,9 +67,10 @@ describe('the maze levels below Medusa', () => {
     let rooms = 0;
     for (let seed = 1; seed <= 3; seed++) {
       const state = withMedusa(seed);
-      for (let d = 17; d <= 26; d++) {
+      for (let d = 17; d <= 24; d++) {
         const l = goTo(state, d);
-        if (d <= 20) expect(l.def).toBeUndefined();
+        if (d < 20) expect(l.def).toBeUndefined();
+        else if (d === 20) expect(l.def).toMatch(/^nh:medusa-[1-4]$/);
         else if (l.def === MAZEFILL.id) mazes++;
         else {
           expect(l.def).toBeUndefined();

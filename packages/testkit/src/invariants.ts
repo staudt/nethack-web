@@ -883,12 +883,20 @@ function checkStairsReachable(state: GameState, registry: Registry, errs: string
  */
 function checkBranches(state: GameState, registry: Registry, errs: string[]): void {
   const lids = Object.keys(state.levels).sort();
-  const parentOf = new Map<string, { dungeon: string; dlevel: number; dir: 'up' | 'down' }>();
+  const parentOf = new Map<
+    string,
+    { dungeon: string; dlevel: number; dir: 'up' | 'down'; childOnly: boolean }
+  >();
   const entryOf = new Map<string, number>();
   for (const d of state.dungeons) {
     entryOf.set(d.id, d.entry ?? 1);
     for (const b of d.branches)
-      parentOf.set(b.to, { dungeon: d.id, dlevel: b.dlevel, dir: b.dir ?? 'down' });
+      parentOf.set(b.to, {
+        dungeon: d.id,
+        dlevel: b.dlevel,
+        dir: b.dir ?? 'down',
+        childOnly: b.stairs === 'child',
+      });
   }
   for (const lid of lids) {
     const lv = state.levels[lid];
@@ -901,7 +909,9 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     const child = parentOf.get(b.to.dungeon);
     const parent = parentOf.get(lv.dungeon);
     if (child?.dungeon === lv.dungeon && child.dlevel === lv.dlevel) {
-      if (b.dir !== child.dir || b.to.dlevel !== entryOf.get(b.to.dungeon))
+      if (child.childOnly)
+        errs.push(`level ${lid}: branch to '${b.to.dungeon}' has no stairs here`);
+      else if (b.dir !== child.dir || b.to.dlevel !== entryOf.get(b.to.dungeon))
         errs.push(`level ${lid}: branch to '${b.to.dungeon}' is not in the layout`);
     } else if (
       parent?.dungeon !== b.to.dungeon ||
@@ -918,7 +928,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     if (!lv) continue;
     const wanted = [...parentOf].find(
       ([child, p]) =>
-        (p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
+        (!p.childOnly && p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
         (child === lv.dungeon && lv.dlevel === entryOf.get(child)),
     );
     if (wanted && !lv.branch) errs.push(`level ${lid}: the layout's branch stairs are missing`);

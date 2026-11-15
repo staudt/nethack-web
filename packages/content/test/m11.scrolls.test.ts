@@ -260,10 +260,17 @@ describe('scare monster', () => {
 
 describe('the other scrolls', () => {
   test('create monster: one more monster; confused, acid blobs', () => {
-    const s = room(3); // a seed whose random monster comes alone (no group)
-    const before = Object.values(s.state.entities).filter((e) => e?.c.monster).length;
-    read(s, 'create_monster', 'blessed');
-    expect(Object.values(s.state.entities).filter((e) => e?.c.monster).length).toBe(before + 1);
+    // one more monster, or more when it comes with a group: search for a seed where it is alone
+    let alone = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const s = room(seed);
+      const before = Object.values(s.state.entities).filter((e) => e?.c.monster).length;
+      read(s, 'create_monster', 'blessed');
+      const made = Object.values(s.state.entities).filter((e) => e?.c.monster).length - before;
+      expect(made).toBeGreaterThanOrEqual(1);
+      if (made === 1) alone++;
+    }
+    expect(alone).toBeGreaterThan(0);
     const c = room();
     setItimeout(c.state, hero(c), P.CONFUSION, 50);
     read(c, 'create_monster');

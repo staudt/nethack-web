@@ -35,6 +35,7 @@ import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
 import { registerLeaveShops, registerRooms } from './rooms';
+import { registerGehennom } from './gehennom';
 import { registerShops } from './shknam';
 import { registerZoo } from './zoo';
 import { registerVault } from './vault';
@@ -197,6 +198,7 @@ export const vanillaMod: Mod = {
     registerVault(api); // likewise; the vault is the last room
     registerRooms(api); // after the pets arrive, as goto_level()
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
+    registerGehennom(api); // the passtune right after the layout; Gehennom's arrival message
   },
 };
 

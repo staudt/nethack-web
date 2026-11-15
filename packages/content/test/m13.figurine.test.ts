@@ -195,6 +195,7 @@ describe('use_figurine() and make_familiar()', () => {
 
   test('BUC decides the attitude: blessed mostly tame, uncursed mostly peaceful, cursed mostly hostile', () => {
     const tally = { blessed: [0, 0, 0], uncursed: [0, 0, 0], cursed: [0, 0, 0] };
+    const bad = { blessed: 0, uncursed: 0, cursed: 0 };
     for (const buc of ['blessed', 'uncursed', 'cursed'] as const) {
       for (let seed = 1; seed <= 30; seed++) {
         const s = make(seed);
@@ -210,12 +211,16 @@ describe('use_figurine() and make_familiar()', () => {
         expect(kitten!.c.pos).toMatchObject({ x: 7, y: 3 });
         const i = m.tame ? 0 : m.peaceful ? 1 : 2;
         tally[buc][i]!++;
-        if (i === 2 && buc === 'cursed')
-          expect(text).toContain('You get a bad feeling about this.');
+        // the hostile roll says so (a kitten left as makemon() made it may be hostile too)
+        if (text.includes('You get a bad feeling about this.')) {
+          expect(i).toBe(2);
+          bad[buc]++;
+        }
       }
     }
     expect(tally.blessed[0]).toBeGreaterThan(18);
     expect(tally.cursed[2]).toBeGreaterThan(18);
+    expect(bad.cursed).toBeGreaterThan(18);
     // uncursed: not tamed by the BUC (peaceful as makemon() made it, a kitten is not)
     expect(tally.uncursed[0]).toBeLessThan(10);
   });
@@ -321,10 +326,22 @@ describe('the cursed figurine transforms on its own (fig_transform())', () => {
 });
 
 describe('stone to flesh on a figurine', () => {
+  // obj_resists(obj, 2, 98): the first seed whose figurines in `fn` all come to life
+  const noResistSeed = (fn: (s: S) => number[]): number => {
+    for (let seed = 1; seed <= 50; seed++) if (fn(make(seed)).every((r) => r === 1)) return seed;
+    throw new Error('no seed');
+  };
+  const animate = (s: S, def: string, x: number, y: number): number => {
+    const f = figurine(s, def, 'uncursed', { x, y });
+    let res = 0;
+    run(s, (ctx) => (res = stoneToFleshObj(ctx, ent(s, f))));
+    return res;
+  };
+
   test('it animates: "The figurine animates!"', () => {
-    const s = make();
-    const f = figurine(s, 'nh:kitten', 'uncursed', { x: 4, y: 3 });
     // obj_resists(obj, 2, 98): a seed where the figurine does not resist
+    const s = make(noResistSeed((t) => [animate(t, 'nh:kitten', 4, 3)]));
+    const f = figurine(s, 'nh:kitten', 'uncursed', { x: 4, y: 3 });
     let res = 0;
     const said = run(s, (ctx) => (res = stoneToFleshObj(ctx, ent(s, f))));
     expect(res).toBe(1);
@@ -334,7 +351,9 @@ describe('stone to flesh on a figurine', () => {
   });
 
   test('a golem figurine becomes a flesh golem; a brown mold one (no flesh) a meatball', () => {
-    const s = make();
+    const s = make(
+      noResistSeed((t) => [animate(t, 'nh:paper_golem', 4, 3), animate(t, 'nh:brown_mold', 2, 1)]),
+    );
     const g = figurine(s, 'nh:paper_golem', 'uncursed', { x: 4, y: 3 });
     let res = 0;
     const said = run(s, (ctx) => (res = stoneToFleshObj(ctx, ent(s, g))));

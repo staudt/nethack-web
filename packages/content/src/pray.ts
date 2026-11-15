@@ -14,7 +14,8 @@ import { experienceFor, gainExperience, pluslvl, setUlevelmax, ulevelmax } from 
 import { losexp } from './exper';
 import { isHumanForm, ulycn, youUnwere } from './werestate';
 import { heroForm, ownHp, upolyd } from './upoly';
-import { castleTune, setUheardTune, uheardTune, uopenedDbridge } from './dbstate';
+import { castleTune, gehennomEntered, setUheardTune, uheardTune, uopenedDbridge } from './dbstate';
+import { inHell } from './levelflags';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -451,7 +452,9 @@ function godZapsYou(ctx: Ctx, align: number): void {
 }
 
 /** ref: src/pray.c angrygods() (no level drain, punishment or minions) */
-function angrygods(ctx: Ctx, respGod: number): void {
+function angrygods(ctx: Ctx, god: number): void {
+  // in Gehennom Moloch answers
+  const respGod = inHell(ctx.state) ? A_NONE : god;
   const u = uState(ctx.state);
   setU(ctx, { ublessed: 0 }); // lose divine protection
   const luck = luckOf(ctx.state);
@@ -589,11 +592,12 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
   let n = ctx.rng.rn2((luckOf(ctx.state) + 6) >> 1);
   if (n >= 6) n = 5; // no spells or crowning: as the gift of an intrinsic
   // takes 2 hints to get the music to enter the stronghold; skip if you've solved it via
-  // mastermind or destroyed the drawbridge (both set uopened_dbridge) (no Valley yet:
-  // gehennom_entered is never set), or if no tune was drawn (a game without the Castle)
+  // mastermind or destroyed the drawbridge (both set uopened_dbridge) or if you've already
+  // travelled past the Valley of the Dead (gehennom_entered: any Gehennom level here), or if no
+  // tune was drawn (an old save)
   if (n === 3) {
     const tune = castleTune(ctx);
-    if (!uopenedDbridge(ctx) && tune !== '') {
+    if (!uopenedDbridge(ctx) && !gehennomEntered(ctx) && tune !== '') {
       const heard = uheardTune(ctx);
       if (heard < 1) {
         godvoice(ctx, gAlign, null);
@@ -742,7 +746,7 @@ function canPray(ctx: Ctx): PrayerData {
  * She could pray safely now (no messages, no state change). ref: src/pray.c can_pray(FALSE):
  * `p_type == 3 && !Inhell`
  */
-export const canSafelyPray = (ctx: Ctx): boolean => canPray(ctx).pType === 3;
+export const canSafelyPray = (ctx: Ctx): boolean => canPray(ctx).pType === 3 && !inHell(ctx.state);
 
 /**
  * Blesses (or curses) the potions of water on the altar under the hero; true if any changed.
@@ -785,8 +789,21 @@ function prayerDone(ctx: Ctx, data: PrayerData): void {
     const p = h.c.pos;
     if (p) wakeNearto(ctx, p.x, p.y, (h.c.experience?.level ?? 1) * 20); // wake_nearby(FALSE)
     adjalign(ctx, -2);
-    say(ctx, 'pray.nothing_else'); // not actually true...
-  } else if (data.pType === 0) {
+    if (!inHell(ctx.state)) {
+      // hero's god[dess] seems to be keeping his/her head down
+      say(ctx, 'pray.nothing_else'); // not actually true...
+      return;
+    } // else use regular Inhell result below
+  }
+  if (inHell(ctx.state)) {
+    say(ctx, 'pray.in_gehennom', { god: alignGname(alignment) });
+    // haltingly aligned is least likely to anger
+    const record = uState(ctx.state).alignRecord;
+    if (record <= 0 || rnl(ctx.rng, record, luckOf(ctx.state)))
+      angrygods(ctx, uState(ctx.state).alignType);
+    return;
+  }
+  if (data.pType === 0) {
     if (crossAltar()) waterPrayer(ctx, false);
     setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 250) });
     changeLuck(ctx, -3);
@@ -836,7 +853,7 @@ const pray: ActionDef = {
     // nomul(-3), "praying", "You finish your prayer.", then prayer_done()
     const extra = nomul(ctx, 3, 'helpless.praying', { key: 'pray.finish' });
     ctx.schedule(4, PRAYER_DONE, data as unknown as Json);
-    if (data.pType === 3) {
+    if (data.pType === 3 && !inHell(ctx.state)) {
       // if you've been true to your god you can't die while you pray
       if (!hasProp(hero(ctx), P.BLINDED)) say(ctx, 'pray.shimmering');
       setU(ctx, { uinvulnerable: true });

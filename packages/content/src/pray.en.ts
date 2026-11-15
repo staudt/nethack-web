@@ -64,6 +64,7 @@ export const prayMessagesEn: Record<string, string> = {
   'pray.durst_scorn': '"Thou durst scorn me?"',
   'pray.diabolical': 'You hear diabolical laughter all around you...',
   'pray.nothing_else': 'Nothing else happens.',
+  'pray.in_gehennom': "Since you are in Gehennom, {god} can't help you.",
   'pray.water.the': 'The potion on the altar glows {color} for a moment.',
   'pray.water.the_pl': 'The potions on the altar glow {color} for a moment.',
   'pray.water.one_of': 'One of the potions on the altar glows {color} for a moment.',

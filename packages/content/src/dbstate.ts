@@ -249,3 +249,12 @@ export const uopenedDbridge = (ctx: Pick<Ctx, 'state'>): boolean =>
 export function setUopenedDbridge(ctx: Pick<Ctx, 'state'>): void {
   (nhData(ctx, true) as Record<string, Json>)['uopenedDbridge'] = true;
 }
+
+/** u.uevent.gehennom_entered: she has been in Gehennom (no Valley: any of its levels). */
+export const gehennomEntered = (ctx: Pick<Ctx, 'state'>): boolean =>
+  nhData(ctx, false)?.['gehennomEntered'] === true;
+
+/** Sets u.uevent.gehennom_entered. */
+export function setGehennomEntered(ctx: Pick<Ctx, 'state'>): void {
+  (nhData(ctx, true) as Record<string, Json>)['gehennomEntered'] = true;
+}

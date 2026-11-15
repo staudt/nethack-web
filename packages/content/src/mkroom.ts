@@ -8,6 +8,7 @@
 // Swamps (mkswamp()) are made at once: pools in a checkerboard with eels and piranhas, and fungi.
 // Not ported (DEVIATIONS.md "Special rooms"): the wizard-mode SHOPTYPE and pick_room()'s
 // `|| wizard`, the swamp's level sounds (has_swamp).
+import { medusaDepth } from './levelflags';
 import type { Ctx, DefId, Level, Pos, Room } from '@nh/core';
 import { cellIndex, isPlainFloor, itemsAt, trapAt } from '@nh/core';
 import { monsterIdAt } from './combat';
@@ -214,9 +215,9 @@ export function doMkroom(ctx: Ctx, level: Level, type: DefId | 'shop'): void {
 }
 
 /**
- * Makes up to one special room on an ordinary level, by depth: a shop below the first level
- * when there are at least 3 rooms (4 on a branch level) `rn2(depth) < 3` of the time (no Medusa
- * level yet, so no lower bound), else below DL4 a throne room 1 time in 6, below DL5 a
+ * Makes up to one special room on an ordinary level, by depth: a shop below the first level and
+ * above Medusa's (no bound in an old game without her) when there are at least 3 rooms (4 on a
+ * branch level) `rn2(depth) < 3` of the time, else below DL4 a throne room 1 time in 6, below DL5 a
  * leprechaun hall 1 in 8, below DL6 a zoo 1 in 7, below DL8 a temple 1 in 5, below DL9 a
  * beehive 1 in 5, below DL11 a morgue 1 in 6, below DL12 an anthole 1 in 8, below DL14 barracks
  * 1 in 4, below DL15 a swamp 1 in 6, below DL16 a cockatrice nest 1 in 8; the leprechaun hall,
@@ -230,7 +231,8 @@ export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   const uDepth = level.depth;
   const rn2 = (n: number): number => ctx.rng.rn2(n);
   const gone = (id: DefId): boolean => isGenocided(ctx.state, id);
-  if (uDepth > 1 && nroom >= roomThreshold && rn2(uDepth) < 3) doMkroom(ctx, level, 'shop');
+  if (uDepth > 1 && uDepth < medusaDepth(ctx.state) && nroom >= roomThreshold && rn2(uDepth) < 3)
+    doMkroom(ctx, level, 'shop');
   else if (uDepth > 4 && !rn2(6)) doMkroom(ctx, level, COURT);
   else if (uDepth > 5 && !rn2(8) && !gone('nh:leprechaun')) doMkroom(ctx, level, LEPREHALL);
   else if (uDepth > 6 && !rn2(7)) doMkroom(ctx, level, ZOO);

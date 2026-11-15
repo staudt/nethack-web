@@ -111,6 +111,8 @@ const waterStartMod: Mod = {
 
 /** What this soak checks at the end of every turn, beyond the testkit invariants. */
 const errors: string[] = [];
+/** The liquid cells of the hero's level at the previous end of turn. */
+const liquidBefore: { level: string; cells: Set<number> } = { level: '', cells: new Set() };
 let killer: string | null = null;
 
 function waterErrors(ctx: Ctx): string[] {
@@ -119,9 +121,17 @@ function waterErrors(ctx: Ctx): string[] {
   if (s.gameOver) return out;
   const level = getLevel(s);
   // nothing in a pool or in lava is shown: no object is remembered on a liquid cell in sight
+  // (core refreshes the memory after the turn's end, so a cell that turned liquid during this
+  // turn, as ice melting on its timer, is checked from the next turn on)
   const mem = s.objectMemory[level.id] ?? {};
+  const wasLiquid = liquidBefore.level === level.id ? liquidBefore.cells : new Set<number>();
+  const liquidNow = new Set<number>();
+  for (let i = 0; i < level.cells.length; i++)
+    if (coversObjects(ctx.defs, level, i)) liquidNow.add(i);
+  liquidBefore.level = level.id;
+  liquidBefore.cells = liquidNow;
   for (const i of s.visible)
-    if (coversObjects(ctx.defs, level, i) && mem[String(i)] !== undefined)
+    if (liquidNow.has(i) && wasLiquid.has(i) && mem[String(i)] !== undefined)
       out.push(`turn ${s.turn}: object shown on liquid cell ${i}`);
   // the hero never ends a turn in water or lava she cannot survive
   const h = getPlayer(s);
@@ -174,6 +184,7 @@ describe('soak by the water', () => {
     test(`seed ${seed}: 300 turns by the water`, { timeout: 60000 }, () => {
       errors.length = 0;
       killer = null;
+      liquidBefore.level = '';
       const r = soak([vanillaMod, waterStartMod, checkMod], { seed, turns: 300, checkEvery: 1 });
       console.log(
         `soak water seed=${seed}: outcome=${r.outcome} turns=${r.turns} killer=${killer} zapped=${r.zapped} pushes=${r.boulderPushes}`,

@@ -17,6 +17,7 @@ import {
   DIR_LIST,
   NORMAL_SPEED,
   cellIndex,
+  depthOf,
   dungeonLayout,
   levelIdFor,
   rootDungeon,
@@ -40,6 +41,7 @@ import {
   type EntityId,
   type Level,
   type LevelChange,
+  type LevelRef,
   type ModApi,
   type Msg,
   type Pos,
@@ -49,7 +51,7 @@ import {
 import { BOULDER, blockersOf, boulderAt } from './boulder';
 import { TEMPLE, epriOf } from './epri';
 import { costlySpot, eshkOf, inhishop, onbill, uShops } from './eshk';
-import { DUNGEON_BOTTOM, dungeonBottom } from './levelflags';
+import { DUNGEON_BOTTOM, dungeonBottom, findHell, isBotlevel, isStronghold } from './levelflags';
 import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
 import { shopdig } from './shkpay';
@@ -294,10 +296,12 @@ export { DUNGEON_BOTTOM, dungeonBottom };
 
 /**
  * Whether one can fall through the floor of `level`: not on its dungeon's last level (or
- * DUNGEON_BOTTOM and below for an endless one). ref: src/dungeon.c Can_fall_thru()
+ * DUNGEON_BOTTOM and below for an endless one), except on the stronghold, whose trap doors lead
+ * to Gehennom. ref: src/dungeon.c Can_fall_thru() (Can_dig_down() || Is_stronghold(); no hard
+ * floor or invocation level here)
  */
 export const canFallThru = (state: Readonly<GameState>, level: Readonly<Level>): boolean =>
-  level.dlevel < (dungeonLayout(state, level.dungeon).levels ?? DUNGEON_BOTTOM);
+  !isBotlevel(state, level) || isStronghold(state, level);
 
 /**
  * The level number in its dungeon that a hole or trap door on `level` leads to: the next level,
@@ -911,6 +915,17 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
     return;
   }
   const level = getLevel(ctx.state, levelId);
+  // ref: fall_through(): `if (Is_stronghold(&u.uz)) find_hell(&dtmp);` (no shaft message)
+  const hell = isStronghold(ctx.state, level) ? findHell(ctx.state) : null;
+  if (hell) {
+    if (plunged && (flying(ctx) || (form !== null && isClinger(form)))) {
+      const into = trap.def === TRAP.trapdoor ? 'trapdoor' : 'hole';
+      say(ctx, flying(ctx) ? `trap.swoop.${into}` : `trap.drop.${into}`);
+    }
+    if (uShops(ctx).length > 0) shopdig(ctx, true);
+    fallToLevel(ctx, level, hell, !flying(ctx));
+    return;
+  }
   let dst = dataOf(trap).dst;
   if (dst === undefined || dst <= level.dlevel) {
     // a trap placed without maketrap(): its destination is rolled now
@@ -931,7 +946,7 @@ function fallThrough(ctx: Ctx, levelId: string, trap: Trap, plunged: boolean): v
   if (dist > 1)
     say(ctx, dist > 3 ? 'trap.shaft_very_deep' : dist > 2 ? 'trap.shaft_deep' : 'trap.shaft');
   // a flyer swoops down under control: no fall damage (UTOTYPE_NONE)
-  fallToLevel(ctx, level, dst, !flying(ctx));
+  fallToLevel(ctx, level, { dungeon: level.dungeon, dlevel: dst }, !flying(ctx));
 }
 
 /**
@@ -964,18 +979,20 @@ export function fallThroughFloor(ctx: Ctx): void {
     return;
   }
   if (uShops(ctx).length > 0) shopdig(ctx, true);
-  fallToLevel(ctx, level, level.dlevel + 1);
+  // ref: fall_through(): the stronghold leads to find_hell()
+  const hell = isStronghold(ctx.state, level) ? findHell(ctx.state) : null;
+  fallToLevel(ctx, level, hell ?? { dungeon: level.dungeon, dlevel: level.dlevel + 1 });
   if (!ctx.state.gameOver) say(ctx, 'trap.ceiling_closes');
 }
 
 /**
- * The hero falls from `level` to level `dst` of its dungeon: a random spot there, `d(dist, 6)`
- * damage, then what is on the floor. ref: src/do.c goto_level() with `falling` (u_on_rndspot(),
- * do_fall_dmg, pickup(1))
+ * The hero falls from `level` to level `dst`: a random spot there, `d(dist, 6)` damage (`dist`
+ * in depth), then what is on the floor. ref: src/do.c goto_level() with `falling`
+ * (u_on_rndspot(), do_fall_dmg, pickup(1))
  */
-export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: number, falling = true): void {
-  const dist = dst - level.dlevel;
-  ctx.goToLevel({ dungeon: level.dungeon, dlevel: dst }, 'random');
+export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: LevelRef, falling = true): void {
+  const dist = depthOf(ctx.state, dst) - level.depth;
+  ctx.goToLevel(dst, 'random');
   if (falling) losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
   if (!ctx.state.gameOver) lookHere(ctx);
 }
@@ -1601,6 +1618,18 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
   }
   if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
   const level = getLevel(ctx.state, levelId);
+  // ref: mlevel_tele_trap(): `if (Is_stronghold(&u.uz)) assign_level(&tolevel, &valley_level);`
+  const hell = isStronghold(ctx.state, level) ? findHell(ctx.state) : null;
+  if (hell) {
+    if (canseemon(ctx, mon)) {
+      say(ctx, trap.def === TRAP.hole ? 'trap.mon_falls_hole' : 'trap.mon_falls_door', {
+        mon: monNam(ctx, mon),
+      });
+      seetrap(trap);
+    }
+    migrateToLevel(ctx, mon, levelIdFor(ctx.state, hell));
+    return 'moved';
+  }
   let dst = dataOf(trap).dst;
   if (dst === undefined || dst <= level.dlevel) {
     dst = holeDestination(ctx, level);
@@ -2152,7 +2181,15 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
     return;
   }
   const layout = dungeonLayout(ctx.state, level.dungeon);
-  const to = levelAtDepth(ctx, level, newlev);
+  // ref: level_tele(): from the Dungeons of Doom (the dungeon Gehennom branches from) to a depth
+  // past its bottom, find_hell(): Gehennom's first level
+  const hell = findHell(ctx.state);
+  const intoHell =
+    hell !== null &&
+    layout.levels !== null &&
+    layout.branches.some((b) => b.to === hell.dungeon) &&
+    newlev >= layout.depthStart + layout.levels;
+  const to = intoHell ? hell : levelAtDepth(ctx, level, newlev);
   if (to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
     if (newlev !== heroDepth(ctx, level)) {
       const deepest = layout.depthStart + (layout.levels ?? dungeonBottom(ctx.state, level)) - 1;

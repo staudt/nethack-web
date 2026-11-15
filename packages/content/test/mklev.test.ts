@@ -121,13 +121,22 @@ describe('mktrap', () => {
   });
 
   test('traps go on free plain floor of the room only; no holes at the bottom', () => {
-    for (const depth of [1, 3, DUNGEON_BOTTOM]) {
+    // the main dungeon's last level, and DUNGEON_BOTTOM in an old game's endless main dungeon
+    for (const [depth, endless] of [
+      [1, false],
+      [3, false],
+      [DUNGEON_BOTTOM, true],
+      [0, false],
+    ] as const) {
       const { state } = engine.newGame({ seed: 50 + depth });
+      const main = state.dungeons[0]!;
+      if (endless) main.levels = null;
+      const bottom = depth === 0 || depth === DUNGEON_BOTTOM;
       const seen = new Set<string>();
       withCtx(state, (ctx) => {
         const level = getLevel(ctx.state);
-        level.depth = depth;
-        level.dlevel = depth;
+        level.depth = depth || main.levels!;
+        level.dlevel = level.depth;
         const room = level.rooms[0]!;
         for (let i = 0; i < 300; i++) {
           level.traps = [];
@@ -148,7 +157,7 @@ describe('mktrap', () => {
         expect(seen.has(TRAP.sleepGas)).toBe(true);
         expect(seen.has(TRAP.trapdoor)).toBe(true);
       }
-      if (depth === DUNGEON_BOTTOM) {
+      if (bottom) {
         expect(seen.has(TRAP.trapdoor)).toBe(false);
         expect(seen.has(TRAP.hole)).toBe(false);
         expect(seen.has(TRAP.rock)).toBe(true);
@@ -176,6 +185,16 @@ describe('mktrap', () => {
   test('holes and trap doors lead no deeper than the dungeon bottom', () => {
     const ctx = ctxFor(bareState(3));
     const at = (dlevel: number) => ({ ...getLevel(ctx.state), dlevel });
+    // the main dungeon's bottom is its last level (the Castle)
+    const n = ctx.state.dungeons[0]!.levels!;
+    for (let i = 0; i < 200; i++) {
+      expect(holeDestination(ctx, at(n - 1))).toBe(n);
+      const d = holeDestination(ctx, at(n - 3));
+      expect(d).toBeGreaterThan(n - 3);
+      expect(d).toBeLessThanOrEqual(n);
+    }
+    // an old game's endless main dungeon: DUNGEON_BOTTOM
+    ctx.state.dungeons[0]!.levels = null;
     for (let i = 0; i < 200; i++) {
       expect(holeDestination(ctx, at(DUNGEON_BOTTOM - 1))).toBe(DUNGEON_BOTTOM);
       const d = holeDestination(ctx, at(DUNGEON_BOTTOM - 3));
@@ -200,6 +219,12 @@ describe('mktrap', () => {
     }
     expect(canFallThru(ctx.state, at(3))).toBe(true);
     expect(canFallThru(ctx.state, at(4))).toBe(false);
+    // the main dungeon's last level (not the Castle here: no Gehennom below it)
+    const n = ctx.state.dungeons[0]!.levels!;
+    expect(canFallThru(ctx.state, { ...getLevel(ctx.state), dlevel: n - 1 })).toBe(true);
+    expect(canFallThru(ctx.state, { ...getLevel(ctx.state), dlevel: n })).toBe(false);
+    // an old game's endless main dungeon: DUNGEON_BOTTOM
+    ctx.state.dungeons[0]!.levels = null;
     expect(canFallThru(ctx.state, { ...getLevel(ctx.state), dlevel: DUNGEON_BOTTOM - 1 })).toBe(
       true,
     );

@@ -297,6 +297,14 @@ export interface DungeonEntryDef {
    * lies above that level. ref: dat/dungeon.lua `direction`; src/dungeon.c init_dungeon_set_depth()
    */
   dir?: 'up' | 'down';
+  /**
+   * m15: which ends get branch stairs: `both` (default), or `child` for none on `from`'s level
+   * (only the child's entry level has stairs, back to it): the only way in is falling or a level
+   * teleport, and arriving on `from`'s level by the child's stairs lands in its teleport region
+   * for that direction. ref: dat/dungeon.lua branchtype "no_down" (BR_NO_END1); src/mklev.c
+   * place_branch()
+   */
+  stairs?: 'both' | 'child';
 }
 
 /**

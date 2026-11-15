@@ -86,7 +86,7 @@ describe('the Oracle level', () => {
     const seen = new Set<number>();
     for (let seed = 1; seed <= 200; seed++) {
       const [main] = rollDungeons(createRng(seedRng(seed)), engine.registry.dungeons);
-      expect(main?.special).toHaveLength(1);
+      // the first of the main dungeon's special levels (dungeon.lua's rogue level is left out)
       const at = main?.special[0];
       expect(at?.id).toBe('nh:oracle');
       expect([5, 6, 7, 8, 9]).toContain(at?.dlevel);

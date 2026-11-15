@@ -598,6 +598,8 @@ export function nhData(ctx: Pick<ItemCtx, 'state'>): NhData {
     d = { lastinvnr: 51 };
     md['nh'] = d as unknown as (typeof md)[string];
   }
+  // another module may have made the table first (the passtune is drawn before the kit)
+  if (typeof d.lastinvnr !== 'number') d.lastinvnr = 51;
   return d;
 }
 

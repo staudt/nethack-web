@@ -58,7 +58,8 @@ export const soakKitMod: Mod = {
 
 /**
  * A game mod for soak runs that should play in a branch: at new game it sends the hero to the
- * main dungeon's first branch staircase (the Mines staircase in vanilla), where the bot takes it
+ * main dungeon's first branch staircase (the Mines staircase in vanilla; Gehennom's connection
+ * has no stairs on the Castle and is skipped), where the bot takes it
  * soon. Load it after the vanilla mod. Without a branch it does nothing.
  */
 export const branchStartMod: Mod = {
@@ -72,7 +73,7 @@ export const branchStartMod: Mod = {
       (ctx, change) => {
         if (change.from !== null) return;
         const main = ctx.state.dungeons[0];
-        const b = main?.branches[0];
+        const b = main?.branches.find((x) => x.stairs !== 'child');
         if (main && b) ctx.goToLevel({ dungeon: main.id, dlevel: b.dlevel }, 'branch');
       },
       { priority: -100 },

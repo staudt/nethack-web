@@ -8,7 +8,8 @@ export const WIZ_WHERE = 'wiz:where';
  * is on is marked `*`.
  * ref: src/dungeon.c print_dungeon(), print_branch(), chr_u_on_lvl() (bymenu false), as
  * messages instead of a window, with the overview's "Stairs up"/"Stairs down" (br_string2())
- * for C's "Stair"; there are no portals to list yet.
+ * for C's "Stair" and C's "Connection" for a branch with no stairs on this end (BR_NO_END1);
+ * there are no portals to list yet.
  */
 export function printDungeon(ctx: Ctx): void {
   const dungeons: readonly DungeonLayout[] = ctx.state.dungeons;
@@ -32,15 +33,26 @@ export function printDungeon(ctx: Ctx): void {
         special: false,
         id: b.to,
         up: b.dir === 'up',
+        connection: b.stairs === 'child',
       })),
-      ...d.special.map((s) => ({ dlevel: s.dlevel, special: true, id: s.id, up: false })),
+      ...d.special.map((s) => ({
+        dlevel: s.dlevel,
+        special: true,
+        id: s.id,
+        up: false,
+        connection: false,
+      })),
     ].sort((a, b) => a.dlevel - b.dlevel || Number(a.special) - Number(b.special));
     for (const l of lines) {
       const depth = start + l.dlevel - 1;
       if (!l.special) {
         ctx.emit({
           type: 'msg',
-          key: l.up ? 'wiz.where.branch_up' : 'wiz.where.branch',
+          key: l.connection
+            ? 'wiz.where.connection'
+            : l.up
+              ? 'wiz.where.branch_up'
+              : 'wiz.where.branch',
           params: { dungeon: '@' + ctx.defs.dungeon(l.id).nameKey, depth },
         });
         continue;

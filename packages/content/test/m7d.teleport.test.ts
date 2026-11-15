@@ -277,10 +277,16 @@ describe('where teleports go', () => {
       expect(seen.has(d + 3)).toBe(true);
       expect(seen.size).toBe(d + 3);
     }
-    // the main dungeon's bottom is the holes' cap
+    // the main dungeon's bottom (the Castle) is the cap
+    const bottom = state.dungeons[0]!.levels!;
     const deep = new Set<number>();
-    for (let i = 0; i < 400; i++) deep.add(randomTeleportLevel(ctx, main(DUNGEON_BOTTOM - 1)));
-    expect(Math.max(...deep)).toBe(DUNGEON_BOTTOM);
+    for (let i = 0; i < 400; i++) deep.add(randomTeleportLevel(ctx, main(bottom - 1)));
+    expect(Math.max(...deep)).toBe(bottom);
+    // a game saved before m15 keeps its endless main dungeon: DUNGEON_BOTTOM caps it
+    state.dungeons[0]!.levels = null;
+    const old = new Set<number>();
+    for (let i = 0; i < 400; i++) old.add(randomTeleportLevel(ctx, main(DUNGEON_BOTTOM - 1)));
+    expect(Math.max(...old)).toBe(DUNGEON_BOTTOM);
   });
 
   test('in the Mines: no deeper than its bottom, up from the bottom, and above it the main dungeon', () => {

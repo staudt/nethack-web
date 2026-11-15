@@ -438,6 +438,12 @@ export function loadMods(mods: readonly Mod[]): Registry {
           range(d.entry.range, 'entry.range');
           if (d.entry.dir !== undefined && d.entry.dir !== 'up' && d.entry.dir !== 'down')
             issue('entry.dir', "must be 'up' or 'down'", d.id);
+          if (
+            d.entry.stairs !== undefined &&
+            d.entry.stairs !== 'both' &&
+            d.entry.stairs !== 'child'
+          )
+            issue('entry.stairs', "must be 'both' or 'child'", d.id);
         }
         if (d.entryLevel !== undefined) {
           if (!Number.isInteger(d.entryLevel)) issue('entryLevel', 'must be an integer', d.id);

@@ -146,7 +146,9 @@ describe("Medusa's island", () => {
         ]).toContain(o.def);
       // every other statue shows a monster that stoning would turn to stone
       const others = statuesOn(state, level).filter((s) => s.id !== perseus.id);
-      expect(others.length).toBeGreaterThanOrEqual(n === 2 ? 10 : 9);
+      // (medusa-2: its eight garden statues and the fixup's last one; the fixup's rnd(4) tries
+      // in the first room may all miss)
+      expect(others.length).toBeGreaterThanOrEqual(9);
       for (const s of others) {
         const m = defs.monster(s.c.item?.corpseOf as DefId);
         expect(m.resists).not.toContain('stone');
@@ -397,7 +399,8 @@ describe("the black dragon's disintegration blast", () => {
     expect(t).toContain('Your shield crumbles away!');
     expect(s.state.entities[String(shield)]).toBeUndefined();
     expect(s.state.gameOver).toBeNull();
-    blast(s.state, dragon, 'w');
+    // the blast may miss her (zap_hit() against her AC): it hits within a few breaths
+    for (let i = 0; i < 20 && !s.state.gameOver; i++) blast(s.state, dragon, 'w');
     expect(s.state.gameOver).not.toBeNull();
   });
 

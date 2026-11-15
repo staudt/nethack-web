@@ -26,9 +26,10 @@ const spellKitMod: Mod = {
 describe('spells soak', () => {
   let cast = 0;
   let aimed = 0;
-  // seeds re-picked when the game stream changes: 302 aimed no directional spell after m12
-  // step 6's vault roll (nor did 303, 304 or 306)
-  for (const seed of [301, 305]) {
+  // seeds re-picked when the game stream changes: 305 aimed no directional spell after m15
+  // step 9's dungeon rolls (309 aims with and without them); 302 aimed none after m12 step 6's
+  // vault roll (nor did 303, 304 or 306)
+  for (const seed of [301, 309]) {
     test(`seed ${seed}: 600 turns knowing every spell`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod, spellKitMod], { seed, turns: 600, checkEvery: 5 });
       console.log(

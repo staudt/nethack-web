@@ -423,7 +423,8 @@ export function rlocoPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: Level)
 /**
  * The depth an uncontrolled level teleport from `level` goes to: the current depth 1 time in 5
  * (no teleport), else `rn2(cur + 3 - min) + min` skipping the current depth, kept within the
- * dungeon (from depth 1 to its bottom; the main dungeon's is DUNGEON_BOTTOM, as for holes).
+ * dungeon (from depth 1 to its bottom; DUNGEON_BOTTOM for an old game's endless main dungeon, as
+ * for holes).
  * ref: src/teleport.c random_teleport_level() (no quest, Knox, Gehennom or endgame)
  */
 export function randomTeleportLevel(
@@ -458,7 +459,7 @@ export function randomTeleportLevel(
 /**
  * The level at absolute `depth` as seen from `level`: in its dungeon, or the parent dungeon's
  * (and so on up) for a depth above its top; past its bottom, its last level (the main dungeon's
- * last is DUNGEON_BOTTOM). ref: src/dungeon.c get_level()
+ * last is DUNGEON_BOTTOM in an old game's endless one). ref: src/dungeon.c get_level()
  */
 export function levelAtDepth(
   ctx: Pick<Ctx, 'state'>,

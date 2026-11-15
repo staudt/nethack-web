@@ -57,6 +57,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.where.open': '{dungeon}: levels {start} and below',
   'wiz.where.branch': '   Stairs down to {dungeon}: {depth}',
   'wiz.where.branch_up': '   Stairs up to {dungeon}: {depth}',
+  'wiz.where.connection': '   Connection to {dungeon}: {depth}',
   'wiz.where.special': '  {name}: {depth}',
   'wiz.where.special_here': '* {name}: {depth}',
 };

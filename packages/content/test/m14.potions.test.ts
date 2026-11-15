@@ -190,7 +190,8 @@ describe('her thrown potions break', () => {
   test('a potion of sleeping that hits puts the monster to sleep; one that misses shatters', () => {
     let hit = false;
     let miss = false;
-    for (let seed = 1; seed <= 40 && !(hit && miss); seed++) {
+    let slept = false;
+    for (let seed = 1; seed <= 40 && !(hit && miss && slept); seed++) {
       const s = make(seed);
       const j = orc(s.state, 9, 3, 200, 'nh:jackal');
       ent(s.state, j)!.c.actor!.speed = 0; // pinned
@@ -202,7 +203,8 @@ describe('her thrown potions break', () => {
       if (text.some((m) => /crashes on the jackal's head/.test(m))) {
         hit = true;
         expect(text).toContain('The jackal falls asleep.');
-        expect(isFrozen({ state: s.state }, j)).toBe(true);
+        // asleep for rnd(12) turns: unless that was 1, still asleep when her move ends
+        if (isFrozen({ state: s.state }, j)) slept = true;
         expect(ent(s.state, j)!.c.monster!.peaceful).toBe(false);
       } else if (text.some((m) => / shatters!$/.test(m))) {
         miss = true;
@@ -211,6 +213,7 @@ describe('her thrown potions break', () => {
     }
     expect(hit).toBe(true);
     expect(miss).toBe(true);
+    expect(slept).toBe(true);
   });
 
   test('a potion breaking next to her gives its vapors', () => {

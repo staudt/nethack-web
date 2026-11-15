@@ -132,6 +132,7 @@ const mapRect = (l: Level, r: LevelRect): LevelRect => {
 
 describe('the big room', () => {
   test('all thirteen build on 80x21 with stairs, 15 objects, 6 traps and 28 monsters', () => {
+    let sixTraps = 0;
     for (let n = 1; n <= 13; n++)
       for (const seed of [1, 2]) {
         const { state, level } = bigroom(n, seed);
@@ -144,7 +145,9 @@ describe('the big room', () => {
         expect(ents.filter((e) => e.c.monster).length).toBeGreaterThanOrEqual(28);
         const items = ents.filter((e) => e.c.item);
         expect(items.length).toBeGreaterThanOrEqual(15);
-        expect(level.traps.length).toBe(6);
+        // six des.trap(): two on the same random spot make one (maketrap() replaces the first)
+        expect(level.traps.length).toBeLessThanOrEqual(6);
+        if (level.traps.length === 6) sixTraps++;
         // random things go on DRY spots: never in water or lava
         for (const e of items.filter((i) => i.def !== 'nh:boulder'))
           expect(liquid(level, e.c.pos?.x ?? 0, e.c.pos?.y ?? 0)).toBe(false);
@@ -152,6 +155,7 @@ describe('the big room', () => {
         const p = playerPos(state);
         expect(ter(level, p.x, p.y)).toBe('nh:floor');
       }
+    expect(sixTraps).toBeGreaterThanOrEqual(22);
   });
 
   test('bigrm-1: most of the time one line shape of one terrain', () => {

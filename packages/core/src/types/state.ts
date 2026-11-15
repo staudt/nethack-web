@@ -39,9 +39,10 @@ export interface DungeonLayout {
   entry?: number;
   /**
    * Where the dungeons entered from it leave it, in `registry.dungeons` order. `dir` is the way
-   * the stairs here lead (ref: struct branch end1_up); absent = down.
+   * the stairs here lead (ref: struct branch end1_up); absent = down. `stairs: 'child'` (m15):
+   * no branch stairs on this end (ref: BR_NO_END1); absent = stairs at both ends.
    */
-  branches: { to: DefId; dlevel: number; dir?: 'up' }[];
+  branches: { to: DefId; dlevel: number; dir?: 'up'; stairs?: 'child' }[];
   /** Where its special levels went, in `DungeonDef.special` order; absent ones are left out. */
   special: { id: DefId; dlevel: number }[];
 }

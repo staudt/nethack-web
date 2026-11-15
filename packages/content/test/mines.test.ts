@@ -70,13 +70,19 @@ describe('the Mines layout', () => {
     const entries = new Set<number>();
     const sizes = new Set<number>();
     for (let seed = 1; seed <= 300; seed++) {
-      const [main, mines, soko, ...rest] = rollDungeons(createRng(seedRng(seed)), defs.dungeons);
+      // dungeon.lua's order: Gehennom comes second
+      const [main, hell, mines, soko, ...rest] = rollDungeons(
+        createRng(seedRng(seed)),
+        defs.dungeons,
+      );
       expect(rest).toEqual([]);
+      expect(hell?.id).toBe('nh:gehennom');
       expect(soko?.id).toBe('nh:sokoban');
-      expect(main).toMatchObject({ id: 'nh:main', depthStart: 1, levels: null });
-      // the Mines' branch stairs, then Sokoban's (below the Oracle, DL6-10)
-      expect(main?.branches.map((x) => x.to)).toEqual(['nh:mines', 'nh:sokoban']);
-      const b = main?.branches[0];
+      expect(main).toMatchObject({ id: 'nh:main', depthStart: 1 });
+      // Gehennom's connection (the Castle), the Mines' branch stairs, then Sokoban's (below the
+      // Oracle, DL6-10)
+      expect(main?.branches.map((x) => x.to)).toEqual(['nh:gehennom', 'nh:mines', 'nh:sokoban']);
+      const b = main?.branches[1];
       expect(b?.to).toBe('nh:mines');
       const dl = b?.dlevel ?? 0;
       expect(dl).toBeGreaterThanOrEqual(2);

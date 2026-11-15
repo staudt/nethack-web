@@ -359,20 +359,35 @@ describe('the control prompt', () => {
   });
 
   test('"human" makes a new human; Escape under forced control is "Never mind."', () => {
-    // (seed 2: both new humans survive newman()'s health check; seed 1 until m12 step 6)
-    const s = room(2);
-    run(s, (ctx) => polyself(ctx, { controlled: true }));
-    expect(answer(s, null)).toEqual(['Never mind.']);
-    expect(form(s)).toBeNull();
-    run(s, (ctx) => polyself(ctx, { controlled: true }));
-    expect(answer(s, 'human')).toContain('You feel like a new woman!');
-    expect(form(s)).toBeNull();
-    // in a form, "human" returns her as a new human too
-    run(s, (ctx) => polymon(ctx, 'nh:jackal' as DefId, false));
-    run(s, (ctx) => polyself(ctx, { controlled: true }));
-    expect(answer(s, 'human')).toContain('You feel like a new woman!');
-    expect(form(s)).toBeNull();
-    expect(upolyOf(s.state)).toBeNull();
+    // a searched seed where both new humans survive newman()'s health check (it moves with the
+    // new-game stream: 1 until m12 step 6, 2 until m15 step 9)
+    const steps = (s: S): string[][] => {
+      run(s, (ctx) => polyself(ctx, { controlled: true }));
+      const never = answer(s, null);
+      const unformed = form(s);
+      run(s, (ctx) => polyself(ctx, { controlled: true }));
+      const first = answer(s, 'human');
+      const human = form(s);
+      expect(never).toEqual(['Never mind.']);
+      expect(unformed).toBeNull();
+      if (s.state.gameOver) return [first, []]; // her new form was not healthy enough
+      expect(human).toBeNull();
+      // in a form, "human" returns her as a new human too
+      run(s, (ctx) => polymon(ctx, 'nh:jackal' as DefId, false));
+      run(s, (ctx) => polyself(ctx, { controlled: true }));
+      return [first, answer(s, 'human')];
+    };
+    let found = false;
+    for (let seed = 1; seed <= 40 && !found; seed++) {
+      const s = room(seed);
+      const [first, second] = steps(s);
+      if (!first?.includes('You feel like a new woman!')) continue;
+      if (!second?.includes('You feel like a new woman!')) continue;
+      found = true;
+      expect(form(s)).toBeNull();
+      expect(upolyOf(s.state)).toBeNull();
+    }
+    expect(found).toBe(true);
   });
 
   test('a class symbol picks a form of that class; a placeholder its substitute', () => {

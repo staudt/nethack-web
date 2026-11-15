@@ -2,6 +2,7 @@
 import type { DefId, DungeonDef, LevelDef } from '@nh/core';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
+import { GEHENNOM } from './levelflags';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MEDUSA_FIXUPS, MEDUSA_VARIANTS } from './medusa';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
@@ -45,8 +46,6 @@ export const LEVELS: readonly LevelDef[] = [
   ...MINEND_VARIANTS,
   ORACLE_LEVEL,
   ...SOKOBAN_VARIANTS.flat(),
-  // m15: registered and built in tests; nh:main places the big room, Medusa and the Castle from
-  // step 9 on
   ...BIGROOM_VARIANTS,
   ...MEDUSA_VARIANTS,
   CASTLE_LEVEL,
@@ -64,10 +63,17 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
 };
 
 /**
- * The Dungeons of Doom. NetHack gives it `rn1(5, 25)` levels with the Castle at the bottom;
- * without the Castle this port keeps it endless (see DEVIATIONS.md and `DUNGEON_BOTTOM`). Its
- * one special level so far is the Oracle on DL5-9 (oracle.ts). Below Medusa's level its ordinary
- * levels are mazes 4 times in 5 (`nh:mazefill`, mazefill.ts; inert until Medusa is placed).
+ * The Dungeons of Doom: `rn1(5, 25)` levels. Its special levels in dungeon.lua's order (the rogue
+ * level is left out and draws nothing): the Oracle on DL5-9 (oracle.ts), the big room on DL10-12
+ * in 40% of games (one of 13 variants, bigroom.ts), Medusa's island 1-4 levels above the bottom
+ * (one of 4, medusa.ts) and the Castle on the last level (castle.ts). Below Medusa its ordinary
+ * levels are mazes 4 times in 5 (`nh:mazefill`, mazefill.ts).
+ * Gehennom (m15 stub): `rn1(5, 20)` levels below the Castle, chained to it with no stairs at the
+ * Castle's end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry
+ * level's up stairs lead back to the Castle's `up` teleport region. Every level is a plain maze
+ * (makemaz("") without hellfill.lua); the Valley, Vlad's Tower and the other special levels are
+ * left out and draw nothing (ROADMAP "From m15"). It comes second, as in dungeon.lua, so its rolls
+ * come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
  * minesend.ts) on its last level, which has no down stairs; the other levels are filler.
@@ -75,21 +81,47 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * Oracle onto its bottom level (`entry = -1`), whose depth is the Oracle's; each level is one of
  * two variants (sokoban.ts), so it has no filler. Its "mazelike" flag and neutral alignment are
  * not modelled.
- * ref: dat/dungeon.lua (oracle: base 5, range 5; "The Gnomish Mines": base 8, range 2; branch base 2, range 3;
- * minetn: base 3, range 2, nlevels 7, flags "town"; minend: base -1, nlevels 3; "Sokoban": base 4,
- * entry -1, soko1..soko4 at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1,
- * direction "up")
+ * ref: dat/dungeon.lua ("The Dungeons of Doom": base 25, range 5; oracle: base 5, range 5;
+ * bigrm: base 10, range 3, chance 40, nlevels 13; medusa: base -5, range 4, nlevels 4; castle:
+ * base -1; "Gehennom": base 20, range 5, its branch: chainlevel "castle", base 0, branchtype
+ * "no_down"; "The Gnomish Mines": base 8, range 2; branch base 2, range 3; minetn: base 3, range 2,
+ * nlevels 7, flags "town"; minend: base -1, nlevels 3; "Sokoban": base 4, entry -1, soko1..soko4
+ * at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1, direction "up")
  */
 export const DUNGEONS: readonly DungeonDef[] = [
   {
     id: 'nh:main',
     nameKey: 'nh:main',
+    levels: { base: 25, range: 5 },
     special: [
       { id: 'nh:oracle', nameKey: 'nh:oracle', base: 5, range: 5, variants: [ORACLE_LEVEL.id] },
+      {
+        id: 'nh:bigroom',
+        nameKey: 'nh:bigroom',
+        base: 10,
+        range: 3,
+        chance: 40,
+        variants: BIGROOM_VARIANTS.map((l) => l.id),
+      },
+      {
+        id: 'nh:medusa',
+        nameKey: 'nh:medusa',
+        base: -5,
+        range: 4,
+        variants: MEDUSA_VARIANTS.map((l) => l.id),
+      },
+      { id: CASTLE_LEVEL.id, nameKey: CASTLE_LEVEL.id, base: -1, variants: [CASTLE_LEVEL.id] },
     ],
     // ref: src/mklev.c makelevel(): `rn2(5) && depth > depth(&medusa_level)` makes a maze
-    // (inert until Medusa's level is placed)
     mazeFiller: { below: 'nh:medusa', def: MAZEFILL.id, roomsOneIn: 5 },
+  },
+  {
+    id: GEHENNOM,
+    nameKey: GEHENNOM,
+    levels: { base: 20, range: 5 },
+    entry: { from: 'nh:main', chain: CASTLE_LEVEL.id, base: 0, stairs: 'child' },
+    // ref: src/mklev.c makelevel(): `In_hell(&u.uz)` -> makemaz("")
+    filler: MAZEFILL.id,
   },
   {
     id: 'nh:mines',

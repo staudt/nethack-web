@@ -16,6 +16,7 @@
 // conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
 import { eggTypeFromParent, laysEggs, learnEggType } from './eggstate';
+import { inHell } from './levelflags';
 import {
   getPlayer,
   type ActionDef,
@@ -323,13 +324,13 @@ function nameToMonclass(ctx: Ctx, buf: string): string | null {
 
 /**
  * A random form of class `cls`, weighted by frequency (not unique or never generated, and 8 times
- * in 9 not Gehennom-only), or null. ref: src/makemon.c mkclass_poly()
+ * in 9 not Gehennom-only, in Gehennom not never-in-Gehennom), or null. ref: src/makemon.c mkclass_poly()
  */
 function mkclassPoly(ctx: Ctx, cls: string): DefId | null {
   const list = ctx.defs.monsters.filter((m) => m.glyph.ch === cls);
   if (list.length === 0) return null;
   const mask = ['nogen', 'uniq'];
-  if (ctx.rng.rn2(9) || cls === 'L') mask.push('hell');
+  if (ctx.rng.rn2(9) || cls === 'L') mask.push(inHell(ctx.state) ? 'nohell' : 'hell');
   const ok = (m: MonsterDef): boolean =>
     !isGenocided(ctx.state, m.id) && // mk_gen_ok(): G_GENOD
     !m.genFlags.some((f) => mask.includes(f)) &&

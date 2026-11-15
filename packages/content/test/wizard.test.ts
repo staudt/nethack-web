@@ -217,7 +217,12 @@ describe('wiz:where', () => {
       for (const l of lines)
         if ('b' in l)
           expected.push({
-            key: l.b.dir === 'up' ? 'wiz.where.branch_up' : 'wiz.where.branch',
+            key:
+              l.b.stairs === 'child'
+                ? 'wiz.where.connection'
+                : l.b.dir === 'up'
+                  ? 'wiz.where.branch_up'
+                  : 'wiz.where.branch',
             params: {
               dungeon: '@' + wizard.registry.dungeon(l.b.to).nameKey,
               depth: start + l.dl - 1,
@@ -238,13 +243,20 @@ describe('wiz:where', () => {
     const got = msgs(events).map((m) => ({ key: m.key, params: m.params }));
     expect(got).toEqual(expected);
 
-    // The vanilla layout: the Dungeons of Doom (no bottom yet) with the Mines branch, the
-    // Oracle on DL5-9 and the Sokoban branch up from the level below it, then the Mines.
-    const [main, mines] = state.dungeons;
-    const branch = main?.branches[0];
+    // The vanilla layout: the Dungeons of Doom (25-29 levels) with the Mines branch, the Oracle
+    // on DL5-9 and the Sokoban branch up from the level below it, then (the big room and) Medusa,
+    // and on the last level Gehennom's connection (no stairs there) and the Castle; then Gehennom
+    // and the Mines.
+    const [main, hell, mines] = state.dungeons;
+    const n = main?.levels ?? 0;
+    expect(n).toBeGreaterThanOrEqual(25);
+    const branch = main?.branches.find((b) => b.to === 'nh:mines');
     const oracle = main?.special[0];
     expect([5, 6, 7, 8, 9]).toContain(oracle?.dlevel);
-    expect(got[0]).toEqual({ key: 'wiz.where.open', params: { dungeon: '@nh:main', start: 1 } });
+    expect(got[0]).toEqual({
+      key: 'wiz.where.levels',
+      params: { dungeon: '@nh:main', start: 1, end: n },
+    });
     expect(got[1]).toEqual({
       key: 'wiz.where.branch',
       params: { dungeon: '@nh:mines', depth: branch?.dlevel ?? -1 },
@@ -257,8 +269,19 @@ describe('wiz:where', () => {
       key: 'wiz.where.branch_up',
       params: { dungeon: '@nh:sokoban', depth: (oracle?.dlevel ?? -1) + 1 },
     });
-    got.splice(2, 2);
-    expect(got[2]).toEqual({
+    const g = got.findIndex(
+      (m) => m.params?.['dungeon'] === '@nh:gehennom' && m.key !== 'wiz.where.connection',
+    );
+    expect(got.slice(g - 2, g + 1)).toEqual([
+      { key: 'wiz.where.connection', params: { dungeon: '@nh:gehennom', depth: n } },
+      { key: 'wiz.where.special', params: { name: '@nh:castle', depth: n } },
+      {
+        key: 'wiz.where.levels',
+        params: { dungeon: '@nh:gehennom', start: n + 1, end: n + (hell?.levels ?? 0) },
+      },
+    ]);
+    const rest = got.slice(g + 1); // the Mines' lines
+    expect(rest[0]).toEqual({
       key: 'wiz.where.levels',
       params: {
         dungeon: '@nh:mines',
@@ -270,7 +293,7 @@ describe('wiz:where', () => {
     // Minetown on Mines level 3 or 4
     const town = mines?.special[0];
     expect([3, 4]).toContain(town?.dlevel);
-    expect(got[3]).toEqual({
+    expect(rest[1]).toEqual({
       key: 'wiz.where.special',
       params: { name: '@nh:minetown', depth: (mines?.depthStart ?? 0) + (town?.dlevel ?? 0) - 1 },
     });
@@ -278,7 +301,7 @@ describe('wiz:where', () => {
     // Mines' End on the last Mines level
     const end = mines?.special[1];
     expect(end?.dlevel).toBe(mines?.levels);
-    expect(got[4]).toEqual({
+    expect(rest[2]).toEqual({
       key: 'wiz.where.special',
       params: { name: '@nh:minesend', depth: (mines?.depthStart ?? 0) + (end?.dlevel ?? 0) - 1 },
     });
@@ -333,9 +356,11 @@ describe('wiz:levelport', () => {
   });
 
   test('the bottomless main dungeon lists 30 levels, or one past the deepest visited', () => {
+    // a game saved before m15: its main dungeon has no bottom
     const { state } = wizard.newGame({ seed: 2 });
     const main = state.dungeons.find((d) => d.id === 'nh:main');
-    expect(main?.levels).toBeNull();
+    main!.levels = null;
+    main!.special = main!.special.filter((sp) => sp.id === 'nh:oracle');
     wizard.step(state, LEVELPORT);
     answer(state, 'nh:main');
     const opts = prompt(state).options ?? [];

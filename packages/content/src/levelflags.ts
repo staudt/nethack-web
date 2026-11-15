@@ -12,8 +12,9 @@ import {
   type DefId,
   type GameState,
   type Level,
+  type LevelRef,
 } from '@nh/core';
-import { isDbWall } from './dbstate';
+import { CASTLE, isDbWall } from './dbstate';
 
 /** A rectangle of map-relative cells, corners included (des.non_diggable(selection.area())). */
 export interface FlagRect {
@@ -212,16 +213,72 @@ export function canDigDown(ctx: Pick<Ctx, 'defs' | 'state'>, level: Readonly<Lev
 /**
  * The bottom of a dungeon without one for holes, trap doors and level teleports. NetHack's
  * Dungeons of Doom has `rn1(5, 25)` levels (dat/dungeon.lua base 25, range 5) with the Castle at
- * the bottom; this port's main dungeon is endless and uses the smallest of those, 25 (see
- * DEVIATIONS.md). Stairs still lead deeper.
+ * the bottom, and so has this port's main dungeon from m15 on; a game saved before m15 keeps its
+ * endless main dungeon (the layout is in the save) and uses the smallest of those, 25, as its
+ * bottom (see DEVIATIONS.md "Dungeon bottom"). Stairs still lead deeper there.
  */
 export const DUNGEON_BOTTOM = 25;
 
 /**
  * The last level holes lead to in `level`'s dungeon: its last level, or for an endless dungeon
- * DUNGEON_BOTTOM (one below `level` once past it). ref: src/trap.c dng_bottom()
+ * DUNGEON_BOTTOM (one below `level` once past it). ref: src/trap.c dng_bottom() (no quest locate
+ * level; no invocation: Gehennom's last level is not cut off)
  */
 export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>): number {
   const n = dungeonLayout(state, level.dungeon).levels;
   return n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
 }
+
+/**
+ * Whether `level` is the last level of its dungeon (DUNGEON_BOTTOM and below for an endless one).
+ * ref: src/dungeon.c Is_botlevel()
+ */
+export const isBotlevel = (state: Readonly<GameState>, level: Readonly<Level>): boolean =>
+  level.dlevel >= (dungeonLayout(state, level.dungeon).levels ?? DUNGEON_BOTTOM);
+
+/** Gehennom (m15 stub): the hellish dungeon below the Castle. */
+export const GEHENNOM: DefId = 'nh:gehennom';
+
+/** The hellish dungeons (dungeon.lua flags "hellish"). */
+const HELLISH: readonly DefId[] = [GEHENNOM];
+
+/** Whether `level` (the hero's by default) is in Gehennom. ref: src/dungeon.c In_hell(), Inhell */
+export function inHell(state: Readonly<GameState>, level?: Readonly<Level>): boolean {
+  const dungeon = level?.dungeon ?? state.levels[state.currentLevel]?.dungeon;
+  return dungeon !== undefined && HELLISH.includes(dungeon);
+}
+
+/**
+ * The gateway to Gehennom, its first level, or null in a game without it (old saves, other
+ * mods' dungeons). ref: src/dungeon.c find_hell()
+ */
+export function findHell(state: Readonly<GameState>): LevelRef | null {
+  const d = state.dungeons.find((x) => HELLISH.includes(x.id));
+  return d ? { dungeon: d.id, dlevel: 1 } : null;
+}
+
+/**
+ * Whether `level` is the stronghold: the Castle that Gehennom branches from. Its trap doors lead
+ * to Gehennom (find_hell()). A Castle elsewhere (a test dungeon, an old save without Gehennom) is
+ * an ordinary bottom level. ref: src/dungeon.c Is_stronghold()
+ */
+export function isStronghold(state: Readonly<GameState>, level: Readonly<Level>): boolean {
+  if (level.def !== CASTLE) return false;
+  const d = state.dungeons.find((x) => x.id === level.dungeon);
+  return d?.branches.some((b) => b.dlevel === level.dlevel && HELLISH.includes(b.to)) === true;
+}
+
+/**
+ * The depth of Medusa's level in this game, or Infinity when it has none (old saves): shops are
+ * made only above it. ref: src/mklev.c makelevel() `u_depth < depth(&medusa_level)`
+ */
+export function medusaDepth(state: Readonly<GameState>): number {
+  for (const d of state.dungeons) {
+    const sp = d.special.find((s) => s.id === MEDUSA);
+    if (sp) return d.depthStart + sp.dlevel - 1;
+  }
+  return Infinity;
+}
+
+/** The special level id of Medusa's island in the dungeon layout. */
+const MEDUSA: DefId = 'nh:medusa';

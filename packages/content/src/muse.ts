@@ -92,7 +92,7 @@ import {
 import { dropx, welded } from './itemactions';
 import { nhData, placeObject, removeFromInventory, setCknown } from './items';
 import { growUp } from './mhitm';
-import { canDigDown, nonDiggable } from './levelflags';
+import { canDigDown, isBotlevel, nonDiggable } from './levelflags';
 import { migrateToLevel } from './migrate';
 import {
   amorphous,
@@ -612,8 +612,7 @@ export function findDefensive(
     // "digging wouldn't be effective; assume they know that" (W_NONDIGGABLE is only ever set on
     // stone, walls and trees)
     !(nonDiggable(ctx, level, x, y) && (isStwallId(hereId) || hereId === T.tree)) &&
-    // !Is_botlevel()
-    canFallThru(ctx.state, level);
+    !isBotlevel(ctx.state, level);
   // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"
   const teleOk = !noteleportLevel(ctx, level) || !monKnowsTraps(ctx, id, TRAP.tele);
   const reads = mcansee(ctx, id) && haseyes(ctx, mon);
@@ -766,8 +765,9 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
 
   switch (c.kind) {
     case 'trapdoor': {
-      // "trap doors on 'bottom' levels of dungeons are rock-drop trap doors"
-      if (!canFallThru(ctx.state, level) || !c.trap) return 0;
+      // "trap doors on 'bottom' levels of dungeons are rock-drop trap doors" (Is_botlevel(): the
+      // stronghold's trap doors lead to Gehennom, but monsters do not flee into them)
+      if (isBotlevel(ctx.state, level) || !c.trap) return 0;
       mFlee();
       const t = trapAt(level, c.trap.x, c.trap.y);
       if (!t) return 0;

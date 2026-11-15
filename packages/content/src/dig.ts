@@ -294,7 +294,7 @@ export function digactualhole(
     say(ctx, 'dig.fall_through');
     // "Earlier checks must ensure that the destination level exists and is in the present
     // dungeon": the next level, not the hole's own destination
-    fallToLevel(ctx, level, level.dlevel + 1);
+    fallToLevel(ctx, level, { dungeon: level.dungeon, dlevel: level.dlevel + 1 });
     return;
   }
   if (shopdoor && herosFault) payForDamage(ctx, 'ruin', false);

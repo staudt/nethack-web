@@ -18,7 +18,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { TELE_ID, WAN, isKnown, teleControlled, vanillaMod } from '../src/index';
 import { P, hasProp, setIntrinsic, timeoutLeft } from '../src/props';
-import { TRAP, tele } from '../src/trap';
+import { DUNGEON_BOTTOM, TRAP, tele } from '../src/trap';
 import { defs, engine, itemOf, levelSetup, plainKit, render } from './itemHelpers';
 
 // a probe action runs content functions with a real Ctx (no time passes)
@@ -254,13 +254,23 @@ describe('a controlled level teleport', () => {
     expect(kinds).toEqual(new Set(['shudder', 'moved']));
   });
 
-  test('past the bottom of the dungeon is its last level', () => {
+  test("past the bottom of the dungeon is its last level; past the main dungeon's, Gehennom", () => {
     const s = room();
     read(s, scroll(s, 'cursed'));
     answer(s, '99');
     const lv = getLevel(s.state);
-    expect(lv.dungeon).toBe('nh:main');
-    expect(lv.dlevel).toBeGreaterThan(20);
+    expect([lv.dungeon, lv.dlevel]).toEqual(['nh:gehennom', 1]); // find_hell()
+    // a game saved before m15: the endless main dungeon's bottom for teleports, DUNGEON_BOTTOM
+    const old = room();
+    old.state.dungeons = old.state.dungeons.filter((d) => d.id !== 'nh:gehennom');
+    const main = old.state.dungeons[0]!;
+    main.levels = null;
+    main.branches = main.branches.filter((b) => b.to !== 'nh:gehennom');
+    main.special = main.special.filter((sp) => sp.id === 'nh:oracle');
+    read(old, scroll(old, 'cursed'));
+    answer(old, '99');
+    const ol = getLevel(old.state);
+    expect([ol.dungeon, ol.dlevel]).toEqual(['nh:main', DUNGEON_BOTTOM]);
   });
 
   test('words ask again with the hint, 10 times, then a random level', () => {

@@ -35,7 +35,11 @@ export function rollDungeons(rng: Rng, defs: readonly DungeonDef[]): DungeonLayo
       if (entry !== 1) layout.entry = entry;
       const dlevel = parentDlevel(rng, parent, out[0] === parent, def.entry);
       const up = def.entry.dir === 'up';
-      parent.branches.push(up ? { to: def.id, dlevel, dir: 'up' } : { to: def.id, dlevel });
+      const branch: DungeonLayout['branches'][number] = { to: def.id, dlevel };
+      if (up) branch.dir = 'up';
+      // ref: correct_branch_type(): "no_down" is BR_NO_END1, no stairs on the parent's end
+      if (def.entry.stairs === 'child') branch.stairs = 'child';
+      parent.branches.push(branch);
       // ref: init_dungeon_set_depth(): the branch level's depth, one up or down the stairs,
       // less the levels above the entry level
       const from = parent.depthStart + dlevel - 1;
@@ -171,8 +175,9 @@ export function depthOf(state: Readonly<GameState>, ref: LevelRef): number {
 /**
  * Which stairs a new level gets: up stairs except on a branch dungeon's top level, down stairs
  * except on the last level, and the branch stairs that leave from it (leading the branch's way,
- * to the child's entry level) or arrive on it (on the child's entry level, leading back the other
- * way). ref: src/mklev.c generate_stairs(), place_branch(); src/dungeon.c Is_branchlev()
+ * to the child's entry level; none for a `stairs: 'child'` branch) or arrive on it (on the
+ * child's entry level, leading back the other way). ref: src/mklev.c generate_stairs(),
+ * place_branch() (`make_stairs = br->type != BR_NO_END1`); src/dungeon.c Is_branchlev()
  */
 export function levelStairs(
   state: Readonly<GameState>,
@@ -185,6 +190,7 @@ export function levelStairs(
     down: layout.levels === null || ref.dlevel < layout.levels,
   };
   const leaving = layout.branches.find((b) => b.dlevel === ref.dlevel);
+  if (leaving?.stairs === 'child') return out;
   if (leaving) {
     const child = dungeonLayout(state, leaving.to);
     out.branch = {
