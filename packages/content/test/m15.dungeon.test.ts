@@ -146,7 +146,16 @@ describe('the Castle and Gehennom', () => {
     expect(level.branch).toBeNull();
     const doors = level.traps.filter((t) => t.def === TRAP.trapdoor);
     expect(doors).toHaveLength(5);
-    expect(level.traps.filter((t) => t.def === TRAP.rock)).toHaveLength(0);
+    // castle.lua's five spots (40,08) .. (55,08), none turned into a falling rock trap (the maze
+    // around the fortress gets random traps, which may be falling rock traps)
+    const [first] = doors;
+    expect(doors.map((t) => [t.x - first!.x, t.y - first!.y])).toEqual([
+      [0, 0],
+      [4, 0],
+      [8, 0],
+      [12, 0],
+      [15, 0],
+    ]);
   });
 
   test('her fall through a Castle trap door lands in Gehennom: "It is hot here."', () => {

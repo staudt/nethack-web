@@ -145,4 +145,10 @@ export const engraveMessagesEn: Record<string, string> = {
   // src/mon.c setmangry(): attacking from an Elbereth
   'engr.hypocrite': 'You feel like a hypocrite.',
   'engr.fades': 'The engraving beneath you fades.',
+
+  // graves: src/engrave.c doengrave(), disturb_grave(); src/dungeon.c surface()
+  'surface.headstone': 'headstone',
+  'engr.small_smudge': 'You would only make a small smudge on the {surface}.',
+  'engr.disturb_undead': 'You disturb the undead!',
+  'engr.post.chips': 'Chips fly out from the headstone.',
 };

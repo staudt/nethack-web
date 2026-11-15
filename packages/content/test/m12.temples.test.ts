@@ -124,9 +124,12 @@ describe('mktemple()', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const { state, level } = walledRoom(seed);
       const room = { lx: 2, ly: 2, hx: 7, hy: 5, lit: true };
+      // four draws each: all four squares show up whatever the stream
       withCtx(state, (ctx) => {
-        const p = shrinePos(ctx, level, room);
-        seen.add(`${p.x},${p.y}`);
+        for (let i = 0; i < 4; i++) {
+          const p = shrinePos(ctx, level, room);
+          seen.add(`${p.x},${p.y}`);
+        }
       });
     }
     expect([...seen].sort()).toEqual(['4,3', '4,4', '5,3', '5,4']);

@@ -374,10 +374,11 @@ export function runScenario(
     delete state.memory[level.id];
     delete state.objectMemory[level.id];
     delete state.monsterMemory[level.id];
-    // the replaced level's fountains and hidden vault teleporter (vanilla's
-    // `modData.nh.fountains`, `modData.nh.vaultTele`, see invariants.ts) are gone
+    // the replaced level's fountains, hidden vault teleporter, engravings and disturbed graves
+    // (vanilla's `modData.nh.fountains`, `vaultTele`, `engr` and `graves`, see invariants.ts)
+    // are gone
     const nh = state.modData['nh'];
-    for (const key of ['fountains', 'vaultTele']) {
+    for (const key of ['fountains', 'vaultTele', 'engr', 'graves']) {
       const t = nh && typeof nh === 'object' && !Array.isArray(nh) ? nh[key] : undefined;
       if (t && typeof t === 'object' && !Array.isArray(t)) delete t[level.id];
     }

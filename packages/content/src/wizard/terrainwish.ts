@@ -8,6 +8,7 @@ import { poolEffects, setUinwater, uinwater } from '../uwater';
 import { waterDamageChain } from '../water';
 import { flying, levitating } from '../trapstate';
 import { delEngrAt } from '../engr';
+import { isGrave, makeGrave, setGraveDisturbed } from '../grave';
 
 /** The altar of each alignment word (align_str()). */
 const ALTARS: Readonly<Record<string, DefId>> = {
@@ -32,9 +33,11 @@ const WATERS: readonly [string, DefId][] = [
  * "blessed fountain", "looted fountain"), "throne" ("looted throne"), "sink", "pool", "moat",
  * "wall of water" (what lies there gets wet), "lava" and "wall of lava" (she falls in unless
  * floating: pooleffects()), "ice", "altar" ("chaotic", "neutral", "lawful" or "unaligned altar";
- * else unaligned 1 time in 6, otherwise a random one of the three), "tree" and "iron bars", made
+ * else unaligned 1 time in 6, otherwise a random one of the three), "grave" or "headstone" (on
+ * floor without a trap: a random epitaph; "looted grave" is a disturbed one), "tree" and "iron
+ * bars", made
  * under the hero ("use at your own risk": stairs and traps are not checked). Leaving water she
- * was in takes her out of it. True when the wish named terrain. Graves, clouds, doors, walls,
+ * was in takes her out of it. True when the wish named terrain. Clouds, doors, walls,
  * secret corridors and floor are not offered, nor `set_wallprop_from_str()`'s nondiggable and
  * nonpasswall words; "melting ice" melts nothing yet (m15 step 3), lava burns nothing yet.
  * ref: src/objnam.c wizterrainwish() (after the traps)
@@ -109,6 +112,14 @@ export function wizTerrainWish(ctx: Ctx, buf: string): boolean {
     made = ALTARS[al] ?? T.altar_unaligned;
     setTerrain(level, x, y, made);
     say(`wiz.terrain.altar.${al}`);
+  } else if (bp.endsWith('grave') || bp.endsWith('headstone')) {
+    if (!makeGrave(ctx, level, x, y, null)) {
+      say('wiz.terrain.no_grave');
+      return true; // badterrain
+    }
+    made = T.grave;
+    setGraveDisturbed(ctx, level, x, y, looted);
+    say(looted ? 'wiz.terrain.grave_disturbed' : 'wiz.terrain.grave');
   } else if (bp.endsWith('tree')) {
     made = T.tree;
     setTerrain(level, x, y, made);
@@ -121,6 +132,7 @@ export function wizTerrainWish(ctx: Ctx, buf: string): boolean {
   // the replaced terrain's flags go with it (lev->flags is overlaid)
   if (oldtyp === T.fountain && made !== T.fountain) setFountainBits(ctx, level.id, x, y, 0);
   if (oldtyp === T.throne && made !== T.throne) setThroneLooted(ctx, level.id, x, y, false);
+  if (oldtyp === T.grave && !isGrave(level, x, y)) setGraveDisturbed(ctx, level, x, y, false);
   showMapSpot(ctx, level, x, y, false); // feel_newsym(): map the spot where the wish occurred
   // she might not be in the water any more
   const here = getPlayer(ctx.state).c.pos;

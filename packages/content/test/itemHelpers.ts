@@ -135,8 +135,9 @@ export function quiet(state: GameState): void {
 export function levelSetup(rows: string[] = ['.....', '..@..', '.....'], seed = 1) {
   const { state } = engine.newGame({ seed });
   quiet(state);
-  // the replaced level's hidden vault teleporter is gone
-  delete (state.modData['nh'] as Record<string, unknown>)['vaultTele'];
+  // the replaced level's hidden vault teleporter, engravings and disturbed graves are gone
+  for (const key of ['vaultTele', 'engr', 'graves'])
+    delete (state.modData['nh'] as Record<string, unknown>)[key];
   for (const k of Object.keys(state.entities)) {
     const e = state.entities[k];
     if (e && !e.c.item && Number(k) !== state.playerId) delete state.entities[k];

@@ -11,9 +11,11 @@
 // engraving action runs with the text answer (C runs it as the occupation's first call). A wand
 // spends a charge when chosen; a wand of wishing asks its wish first (a prompt whose answer
 // carries doengrave()'s state, then the engraving goes on as in C).
-// Not ported: magic markers and towels (no such objects), Fire Brand (no artifacts), graves and
-// headstones (m16 step 7), the literate conduct (no conducts), body_part() (always "fingertip"
-// and "hand"), Deaf (never deaf: "You hear drilling!").
+// Graves (grave.ts): fingers only smudge the headstone, the first stylus disturbs the undead,
+// then engraving adds to the epitaph and anything else writes in the dust.
+// Not ported: magic markers and towels (no such objects), Fire Brand (no artifacts), the literate
+// conduct (no conducts), body_part() (always "fingertip" and "hand"), Deaf (never deaf: "You
+// hear drilling!").
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -37,6 +39,7 @@ import { monsterNearby } from './eat';
 import { delEngrAt, engrAt, makeEngrAt, type EngrType } from './engr';
 import { engulferOf, isWhirly } from './engulfstate';
 import { HARD_GEMS, TOUGH_RINGS } from './gem';
+import { disturbGrave, graveDisturbed, isGrave } from './grave';
 import { dolook, invOption, prinv, welded } from './itemactions';
 import { splitStack } from './items';
 import { isIce, isLava, isPool } from './liquid';
@@ -408,15 +411,16 @@ function sfxWand(ctx: Ctx, wand: Entity, s: SfxState, h: Here, frosted: boolean)
       s.ptext = true;
       s.type = 'engrave';
       identify('engr.is_digging');
-      // (graves: m16 step 7, "Chips fly out from the headstone.")
       s.post = {
         key: isBlind
           ? 'engr.post.drilling' // not Deaf
-          : frosted
-            ? 'engr.post.ice_chips'
-            : isLoweredSpan(h.level, h.x, h.y)
-              ? 'engr.post.splinters'
-              : 'engr.post.gravel',
+          : isGrave(h.level, h.x, h.y)
+            ? 'engr.post.chips'
+            : frosted
+              ? 'engr.post.ice_chips'
+              : isLoweredSpan(h.level, h.x, h.y)
+                ? 'engr.post.splinters'
+                : 'engr.post.gravel',
       };
       break;
     // type = BURN wands
@@ -576,7 +580,18 @@ function withStylus(ctx: Ctx, stylus: Entity | null): number {
     altarWrath(ctx, h.x, h.y);
     return 0;
   }
-  // graves: m16 step 7
+  if (isGrave(h.level, h.x, h.y)) {
+    if (!stylus) {
+      // using only finger
+      say(ctx, 'engr.small_smudge', { surface: surfaceKey(ctx, h.level, h.x, h.y) });
+      return 0;
+    } else if (!graveDisturbed(ctx, h.level, h.x, h.y)) {
+      // disturb the grave: summon a ghoul, same as sometimes happens when kicking; sets the
+      // disturbed bit so that it'll only happen once
+      disturbGrave(ctx, h.x, h.y);
+      return 0;
+    }
+  }
   const form = heroForm(ctx);
   const type: EngrType =
     form && (form.flags.includes('demon') || form.glyph.ch === 'V') ? 'blood' : 'dust';
@@ -598,7 +613,17 @@ function afterSfx(ctx: Ctx, h: Here, stylusIn: Entity | null, s: SfxState): numb
   const { level, x, y } = h;
   let stylus = stylusIn;
   let ptext = s.ptext;
-  // (graves: m16 step 7)
+  if (isGrave(level, x, y)) {
+    if (s.type === 'engrave' || s.type === null) {
+      s.type = 'headstone';
+    } else {
+      // ensures the "cannot wipe out" case
+      s.type = 'dust';
+      s.dengr = false;
+      s.teleengr = false;
+      s.buf = '';
+    }
+  }
   // Identify stylus
   if (s.doknown && stylus) {
     learnwand(ctx, stylus);
@@ -623,10 +648,10 @@ function afterSfx(ctx: Ctx, h: Here, stylusIn: Entity | null, s: SfxState): numb
     say(ctx, blind(ctx) ? 'engr.wand_dust_blind' : 'engr.wand_dust', {
       item: xnameOf(ctx.state, ctx.defs, stylus),
     });
-    // (not on a grave: m16 step 7)
-    say(ctx, 'engr.dust_with_dust', {
-      loc: isIce(ctx, level, x, y) ? '@engr.loc.frost' : '@engr.loc.dust',
-    });
+    if (!isGrave(level, x, y))
+      say(ctx, 'engr.dust_with_dust', {
+        loc: isIce(ctx, level, x, y) ? '@engr.loc.frost' : '@engr.loc.dust',
+      });
     useup(ctx, stylus.id);
     stylus = null; // wand is now gone
     ptext = false;

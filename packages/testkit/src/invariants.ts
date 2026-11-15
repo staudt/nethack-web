@@ -199,6 +199,7 @@ export function checkInvariants(
   checkPriests(state, errs);
   checkFountains(state, errs);
   checkEngravings(state, registry, errs);
+  checkGraves(state, errs);
   checkVaults(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
@@ -710,6 +711,42 @@ function checkEngravings(state: GameState, registry: Registry, errs: string[]): 
       if (!def || def.liquid !== undefined || (!def.passable && def.door === undefined))
         errs.push(`engr: ${lid} (${i % lv.width},${Math.floor(i / lv.width)}) is on ${tid}`);
     }
+  }
+}
+
+/**
+ * Disturbed graves (`modData.nh.graves`, `{ [levelId]: cellIndex[] }`): each list is on an
+ * existing level, not empty, sorted without repeats, and every cell in it is a grave.
+ */
+function checkGraves(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'];
+  const t =
+    nh && typeof nh === 'object' && !Array.isArray(nh)
+      ? (nh as Record<string, unknown>)['graves']
+      : undefined;
+  if (t === undefined) return;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) {
+    errs.push('modData.nh.graves is not an object');
+    return;
+  }
+  const table = t as Record<string, unknown>;
+  for (const lid of Object.keys(table).sort()) {
+    const lv = state.levels[lid];
+    const cells = table[lid];
+    if (!lv) {
+      errs.push(`graves: level '${lid}' does not exist`);
+      continue;
+    }
+    if (!Array.isArray(cells) || cells.length === 0) {
+      errs.push(`graves: ${lid} has no list`);
+      continue;
+    }
+    cells.forEach((c: unknown, j) => {
+      if (j > 0 && !((cells[j - 1] as number) < (c as number)))
+        errs.push(`graves: ${lid} is not sorted`);
+      if (typeof c !== 'number' || lv.palette[lv.cells[c] ?? -1] !== 'nh:grave')
+        errs.push(`graves: ${lid} cell ${String(c)} is not a grave`);
+    });
   }
 }
 

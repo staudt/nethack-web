@@ -188,7 +188,7 @@ const weaponKind = (def: ObjectDef): Msg => ({
 // ---------------------------------------------------------------------------------------------
 // looking at the floor
 
-const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.throne, T.sink, T.tree]);
+const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.throne, T.sink, T.grave, T.tree]);
 
 /**
  * The dungeon feature worth mentioning at x,y as a message param, or null: doors and doorways,

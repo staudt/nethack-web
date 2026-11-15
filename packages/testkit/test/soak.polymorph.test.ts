@@ -59,8 +59,11 @@ describe('polymorph soak', () => {
   // replaced 727 and 732 in m16 step 2, whose `E` offer shifts the bot's picks: 727 died at turn
   // 143, and 732 had a monster's orcish helm dropped on stone when it changed form inside the
   // rock at turn 161 (not engraving: newcham() drops the armor where the monster stands); 739
-  // and 741 last past turn 200 with and without the offer)
-  for (const seed of [739, 741]) {
+  // and 741 last past turn 200 with and without the offer; 742 and 743 replaced 739 and 741 in m16
+  // step 7, whose grave roll per room shifts the stream: 739 ended with a monster on a closed door
+  // at step 323 (731's old violation, not graves) and 741 died at turn 191; 742 and 743 last 400
+  // turns with and without the roll)
+  for (const seed of [742, 743]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

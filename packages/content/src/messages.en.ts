@@ -187,6 +187,7 @@ export const messagesEn: Record<string, string> = {
   'terrain.stairs_down': 'staircase down',
   'terrain.fountain': 'fountain',
   'terrain.sink': 'sink',
+  'terrain.grave': 'grave',
   'terrain.throne': 'opulent throne',
   'terrain.tree': 'tree',
   'terrain.iron_bars': 'iron bars',

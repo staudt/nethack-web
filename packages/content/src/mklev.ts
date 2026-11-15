@@ -11,10 +11,11 @@ import { makemon, mkclass } from './generation';
 import { setMimicSym } from './mimicstate';
 import { isGenocided } from './vanquished';
 import { mkgold } from './items';
-import { mkobjAt, mksobjFull } from './mkobj';
+import { mkobj, mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
 import { somexyspace, somexyspaceTry } from './somexy';
 import { makeEngrAt } from './engr';
+import { makeGrave } from './grave';
 import { randomEngraving } from './rndengr';
 import { mkcorpstat } from './statue';
 import { canDigDown, levelFlags } from './levelflags';
@@ -154,10 +155,10 @@ export function mktrap(
  * One ordinary room's contents, in mklev's order: a monster (1 in 3; a giant spider gets a web
  * under it), traps (while 1 in x,
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
- * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a statue (1 in 20), graffiti
- * (1 in 27 + 3 * depth), then random objects (1 in 3 for the first, then 1 in 5 for each further
- * one). ref: src/mklev.c fill_ordinary_room(). Mimics, graves and the bonus items do not exist,
- * and so do not roll.
+ * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a grave (1 in 80 - 2 * depth, at
+ * least 2), a statue (1 in 20), graffiti (1 in 27 + 3 * depth), then random objects (1 in 3 for
+ * the first, then 1 in 5 for each further one). ref: src/mklev.c fill_ordinary_room(). Mimics
+ * and the bonus items do not exist, and so do not roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
@@ -179,7 +180,9 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   if (ctx.rng.rn2(10) === 0) mkfount(ctx, level, room);
   if (ctx.rng.rn2(60) === 0) mksink(ctx, level, room);
   if (ctx.rng.rn2(60) === 0) mkaltar(ctx, level, room);
-  // (the grave roll is not drawn: no graves, DEVIATIONS.md "Special rooms")
+  x = 80 - level.depth * 2;
+  if (x < 2) x = 2;
+  if (!ctx.rng.rn2(x)) mkgrave(ctx, level, room);
   // put statues inside
   if (ctx.rng.rn2(20) === 0 && (pos = somexyspace(ctx, level, room)))
     mkcorpstat(ctx, null, { level: level.id, x: pos.x, y: pos.y }, { init: true, inMklev: true });
@@ -279,6 +282,35 @@ export function mkaltar(ctx: Ctx, level: Level, room: Room): void {
   const m = findOkayRoompos(ctx, level, room);
   if (!m) return;
   setTerrain(level, m.x, m.y, altarOf((ctx.rng.rn2(A_LAWFUL + 2) - 1) as Aligntyp));
+}
+
+/**
+ * A grave in an ordinary room, away from its doors, with an epitaph or, 1 time in 10, "Saved by
+ * the bell!". What C buries in it (gold 1 time in 3, `rn2(5)` cursed random objects) is made and
+ * thrown away, so the stream stays C's: there is no burial, and no bell (no such object).
+ * ref: src/mklev.c mkgrave()
+ */
+export function mkgrave(ctx: Ctx, level: Level, room: Room): void {
+  const dobell = !ctx.rng.rn2(10);
+  if (room.type !== undefined) return; // croom->rtype != OROOM
+  const m = findOkayRoompos(ctx, level, room);
+  if (!m) return;
+  // Put a grave at <m.x,m.y>
+  makeGrave(ctx, level, m.x, m.y, dobell ? 'Saved by the bell!' : null);
+  // Possibly fill it with objects
+  if (!ctx.rng.rn2(3)) {
+    // a loose stack of gold, buried: mksobj(GOLD_PIECE, TRUE, FALSE) draws nothing, then
+    // `quan = rnd(20) + level_difficulty() * rnd(5)` (not buried here: DEVIATIONS.md "Graves")
+    ctx.rng.rnd(20);
+    ctx.rng.rnd(5);
+  }
+  for (let tryct = ctx.rng.rn2(5); tryct; tryct--) {
+    // mkobj(RANDOM_CLASS, TRUE), cursed and buried: made for its draws, then thrown away
+    const otmp = mkobj(ctx, 'random', { level: level.id, inMklev: true });
+    if (otmp === null) return;
+    ctx.remove(otmp);
+  }
+  // (no bell "in case we accidentally buried someone alive": mksobj_at(BELL) draws nothing)
 }
 
 /**

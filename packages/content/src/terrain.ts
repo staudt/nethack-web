@@ -362,6 +362,15 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: false,
     glyph: { ch: '_', fg: GRAY },
   })),
+  // ref: defsym.h S_grave '|' (CLR_WHITE), "grave": furniture (rm.h IS_FURNITURE()), walkable;
+  // its headstone is an engraving (grave.ts)
+  {
+    id: 'nh:grave',
+    nameKey: 'terrain.grave',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '|', fg: WHITE },
+  },
 ];
 
 /** Short names for terrain ids, for convenient reuse. */
@@ -416,6 +425,7 @@ export const T = {
   altar_neutral: 'nh:altar_neutral',
   altar_chaotic: 'nh:altar_chaotic',
   altar_unaligned: 'nh:altar_unaligned',
+  grave: 'nh:grave',
 } as const;
 
 const WALL_IDS: ReadonlySet<DefId> = new Set<DefId>([
@@ -451,14 +461,15 @@ export const isObstructedId = (id: DefId | undefined): boolean =>
   isStwallId(id) || id === T.tree || isSdoorId(id) || id === T.scorr;
 
 /**
- * ref: include/rm.h IS_FURNITURE(): stairs, fountains, thrones, sinks and altars here (no
- * ladders or graves)
+ * ref: include/rm.h IS_FURNITURE(): stairs, fountains, thrones, sinks, graves and altars here (no
+ * ladders)
  */
 export const isFurnitureId = (defs: Pick<Registry, 'terrain'>, id: DefId | undefined): boolean =>
   id !== undefined &&
   (id === T.fountain ||
     id === T.throne ||
     id === T.sink ||
+    id === T.grave ||
     id.startsWith('nh:altar_') ||
     defs.terrain(id).stairs !== undefined);
 
@@ -492,6 +503,7 @@ export function surfaceKey(
   if (id === T.lava || id === T.lavawall || id === T.drawbridge_up_lava) return '@surface.lava';
   if (id === T.drawbridge_down_h || id === T.drawbridge_down_v) return '@surface.bridge';
   if (id?.startsWith('nh:altar_') === true) return '@surface.altar';
+  if (id === T.grave) return '@surface.headstone';
   if (id === T.fountain) return '@surface.fountain';
   if (id === undefined) return '@surface.ground';
   const t = ctx.defs.terrain(id);

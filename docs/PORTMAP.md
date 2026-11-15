@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-177 NetHack files, 4712 citations.
+177 NetHack files, 4719 citations.
 
 ## dat/bigrm-1.lua
 
@@ -215,7 +215,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `S_corr()`: `packages/content/src/terrain.ts`
 - `S_crwall()`: `packages/content/src/terrain.ts`
 - `S_dnstair()`: `packages/content/src/terrain.ts`
-- `S_grave()`: `packages/content/src/mimicstate.ts`
+- `S_grave()`: `packages/content/src/mimicstate.ts`, `packages/content/src/terrain.ts`
 - `S_ice()`: `packages/content/src/terrain.ts`
 - `S_ndoor()`: `packages/content/src/terrain.ts`
 - `S_room()`: `packages/content/src/terrain.ts`
@@ -548,7 +548,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/rm.h
 
-- (file): `packages/content/src/dbstate.ts`, `packages/content/src/eshk.ts`, `packages/content/src/liquid.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
+- (file): `packages/content/src/dbstate.ts`, `packages/content/src/eshk.ts`, `packages/content/src/grave.ts`, `packages/content/src/liquid.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
 - `ACCESSIBLE()`: `packages/content/src/jump.ts`, `packages/content/src/vault.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `DB_MOAT()`: `packages/content/src/dbstate.ts`
@@ -559,6 +559,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `D_TRAPPED()`: `packages/content/src/btrapstate.ts`
 - `IS_DRAWBRIDGE()`: `packages/content/src/dbstate.ts`
 - `IS_FURNITURE()`: `packages/content/src/terrain.ts`, `packages/content/src/zap.ts`
+- `IS_GRAVE()`: `packages/content/src/grave.ts`
 - `IS_OBSTRUCTED()`: `packages/content/src/run.ts`, `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`
 - `IS_ROOM()`: `packages/content/src/monmove.ts`, `packages/content/src/shknam.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/vault.ts`
 - `IS_STWALL()`: `packages/content/src/cast.ts`, `packages/content/src/terrain.ts`
@@ -1155,6 +1156,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cant_reach_floor()`: `packages/content/src/engrave.ts`
 - `del_engr()`: `packages/content/src/engr.ts`
 - `del_engr_at()`: `packages/content/src/engr.ts`
+- `disturb_grave()`: `packages/content/src/grave.ts`
 - `doengrave()`: `packages/content/src/engrave.ts`
 - `doengrave_ctx_init()`: `packages/content/src/engrave.ts`
 - `doengrave_sfx_item()`: `packages/content/src/engrave.ts`
@@ -1163,6 +1165,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `engr_can_be_felt()`: `packages/content/src/engrread.ts`
 - `engrave()`: `packages/content/src/engrave.ts`
 - `make_engr_at()`: `packages/content/src/engr.ts`
+- `make_grave()`: `packages/content/src/grave.ts`
 - `random_engraving()`: `packages/content/src/rndengr.ts`
 - `read_engr_at()`: `packages/content/src/engrave.en.ts`, `packages/content/src/engrread.ts`
 - `rloc_engr()`: `packages/content/src/engr.ts`, `packages/content/src/teleport.ts`
@@ -1513,6 +1516,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_sdoor()`: `packages/core/src/levelgen/corridors.ts`
 - `mkaltar()`: `packages/content/src/mklev.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
+- `mkgrave()`: `packages/content/src/mklev.ts`
 - `mksink()`: `packages/content/src/mklev.ts`
 - `mktrap()`: `packages/content/src/mklev.ts`, `packages/core/src/traps.ts`
 - `occupied()`: `packages/content/src/somexy.ts`

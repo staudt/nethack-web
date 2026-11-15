@@ -363,6 +363,9 @@ describe('the self-targeted spells', () => {
   test('cure blindness', () => {
     const s = caster();
     know(s, [CURE_BLIND]);
+    // experienced enough never to fail it (a level 2 spell), whatever the stream
+    hero(s).c.experience!.level = 14;
+    expect(percentSuccess(s.state, defs, CURE_BLIND)).toBe(100);
     setItimeout(s.state, hero(s), P.BLINDED, 100);
     expect(castText(s)).toEqual(['You can see again.']);
     expect(hero(s).c.props?.[P.BLINDED]).toBeUndefined();

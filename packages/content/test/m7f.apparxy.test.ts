@@ -339,8 +339,10 @@ describe('a monster that wants to see her', () => {
     ent(s, j).c.hp = { cur: 1000, max: 1000 };
     let wild = 0;
     for (let t = 0; t < 60; t++) {
-      // a guess that found her is kept while she stays put: forget it so it guesses afresh
+      // a guess that found her is kept while she stays put: forget it so it guesses afresh; a
+      // guess that led it away from her: back next to her
       setStoredMux(ctxOf(s), j, null);
+      ent(s, j).c.pos = { level: 'dlvl1', x: HX + 1, y: HY };
       const out = s.text(s.step({ type: 'wait' }));
       if (out.some((l) => /wildly|thin air|spot beside/.test(l))) wild++;
       getPlayer(s.state).c.hp!.cur = 500;

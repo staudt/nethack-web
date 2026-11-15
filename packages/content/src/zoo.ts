@@ -8,7 +8,7 @@
 // Not ported (DEVIATIONS.md "Special rooms"): `level.flags.has_*` (no level sounds) and the
 // irregular room shape: a LevelDef zoo is the rectangle of its region, filled on its open squares
 // and treated as irregular (the squares next to its first door stay empty), which is what
-// Sokoban's zoo is. A morgue's graves draw their roll and make nothing (no graves yet).
+// Sokoban's zoo is.
 import {
   cellIndex,
   getLevel,
@@ -26,6 +26,7 @@ import {
   type Room,
 } from '@nh/core';
 import { makemon } from './generation';
+import { makeGrave } from './grave';
 import { mkgold, mksobj } from './items';
 import { setCorpsenm } from './corpses';
 import { mkobj, mkobjAt, mksobjCorpse, mksobjFull, mksobjStatue } from './mkobj';
@@ -268,7 +269,7 @@ function spacePos(ctx: Ctx, level: Level, x: number, y: number): boolean {
  * barracks' payroll, a large box or a chest (1 in 20), a cockatrice nest's statue of a would-be
  * adventurer holding `rn2(5)` random objects (1 in 3), an anthole's random food (1 in 3), a
  * morgue's would-be adventurer's corpse (1 in 5), "lots of treasure buried with dead" (a large
- * box or a chest, 1 in 10) and a grave (1 in 5: drawn, not made; DEVIATIONS.md "Special rooms").
+ * box or a chest, 1 in 10) and a grave with an epitaph (1 in 5, on a floor square without a trap).
  * ref: src/mkroom.c fill_zoo()
  */
 function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: boolean): void {
@@ -304,7 +305,7 @@ function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: 
       const box = ctx.rng.rn2(3) ? 'nh:large_box' : 'nh:chest';
       mksobjFull(ctx, ctx.defs.object(box), { at }, gen);
     }
-    ctx.rng.rn2(5); // `if (!rn2(5)) make_grave(sx, sy, NULL)`: no graves yet (decision 5)
+    if (!ctx.rng.rn2(5)) makeGrave(ctx, level, p.x, p.y, null);
   }
 }
 

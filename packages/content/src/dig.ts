@@ -15,7 +15,8 @@
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
 // Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flowing into a pit dug sideways
-// (zap_dig()'s pit_flow()), graves,
+// (zap_dig()'s pit_flow()), digging up graves (refused: "The headstone here is too hard to dig
+// in."),
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
@@ -338,7 +339,9 @@ export function dighole(
   const ttmp = trapAt(level, x, y);
   const id = terrainIdAt(level, x, y);
   const stairs = id !== undefined && ctx.defs.terrain(id).stairs !== undefined;
-  const tooHard = isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y);
+  // a grave is not dug up (dig_up_grave() is not ported: DEVIATIONS.md "Graves")
+  const tooHard =
+    (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) || id === T.grave;
   // dig_check(BY_YOU, x, y): which of its results dighole() looks at
   let check:
     'stairs' | 'throne' | 'altar' | 'toohard' | 'cantdig' | 'destroytrap' | 'pitonly' | 'ok' = 'ok';
@@ -707,6 +710,8 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
   if (id === T.throne && !byObject) return 'throne';
   if (isAltarId(id) && !byObject) return 'altar';
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
+  // a grave is not dug up (dig_up_grave() is not ported: DEVIATIONS.md "Graves")
+  if (id === T.grave) return 'toohard';
   // (no magic portals or vibrating squares: undestroyable_trap())
   if (!canDigDown(ctx, level)) {
     if (ttmp) return isHole(ttmp.def) || isPit(ttmp.def) ? 'cantdig' : 'destroytrap';

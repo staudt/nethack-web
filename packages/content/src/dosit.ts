@@ -4,9 +4,9 @@
 // Ported: the parts whose terrain and states exist: swallowed, levitating, held by a monster,
 // sitting in water (on top of it with water walking, or on the muddy bottom when in it), on lava
 // and on ice, sitting on the top object of a pile, being stuck in a bear trap, pit or web,
-// setting off the trap she sits on (VIASITTING), sinks, altars (altar_wrath()), stairs, thrones
-// (throne.ts) and laying eggs.
-// Not ported: no steeds, hiding heroes, graves, ladders or drawbridges exist; the gremlin
+// setting off the trap she sits on (VIASITTING), sinks, altars (altar_wrath()), graves, stairs,
+// thrones (throne.ts) and laying eggs.
+// Not ported: no steeds, hiding heroes, ladders or drawbridges exist; the gremlin
 // splitting in a fountain or pool; burning away slime on lava; lava traps (TT_LAVA, m15 step 3);
 // cream pies and towels do not exist; Half_physical_damage (no source).
 import {
@@ -203,6 +203,8 @@ export function dosit(ctx: Ctx): number {
   } else if (aAlign(ctx, p.x, p.y) !== null) {
     say(ctx, 'sit.on', { what: '@surface.altar' });
     altarWrath(ctx, p.x, p.y);
+  } else if (tid === T.grave) {
+    say(ctx, 'sit.on', { what: '@terrain.grave' });
   } else if (tid === T.stairs_up || tid === T.stairs_down) {
     say(ctx, 'sit.on', { what: '@surface.stairs' });
   } else if (isLava(ctx, level, p.x, p.y)) {

@@ -158,9 +158,9 @@ describe.each([
 });
 
 describe("Mines' End contents", () => {
-  // searched start: the vampires and mimics have no MonsterDefs, so each becomes a random monster
-  // (create_monster() as for a genocided class); from seed 33 none falls outside these classes
-  // (31 before m15 step 9's dungeon rolls moved the new-game stream, 28 before m12 step 6's
+  // searched start: the vampires have no MonsterDefs, so each becomes a random monster
+  // (create_monster() as for a genocided class); since m16 step 7 the Catacombs test lets the two
+  // fall in any class; the start stays 33 (31 before m15 step 9's dungeon rolls moved the new-game stream, 28 before m12 step 6's
   // vault roll moved the stream, 24 before m12 step 5's sinks and
   // altars, 17 before m12 step 3's
   // lieutenants and captains joined the random monsters, 23 before
@@ -174,7 +174,10 @@ describe("Mines' End contents", () => {
     );
     const glyphs = mons.map((e) => defs.monster(e?.def ?? 'nh:none').glyph.ch);
     expect(glyphs.length).toBeGreaterThanOrEqual(15);
-    expect(new Set(glyphs)).toEqual(new Set(['M', 'Z', 'e']));
+    // the two `V`s have no MonsterDefs: each becomes a random monster of any class
+    for (const c of ['M', 'Z', 'e']) expect(glyphs).toContain(c);
+    expect(glyphs.filter((c) => !['M', 'Z', 'e'].includes(c)).length).toBeLessThanOrEqual(2);
+    expect(glyphs).not.toContain('V');
     expect(mons.map((e) => e?.def)).toContain('nh:ettin_mummy');
     const places = MINEND_3_PLACES.map(([x, y]) => mapToLevel(MINEND_3, level, x, y));
     const flint = onLevel(state, level).filter(

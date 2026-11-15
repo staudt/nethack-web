@@ -65,7 +65,8 @@ describe('the maze levels below Medusa', () => {
   test('levels below Medusa are mostly mazes; above it never', () => {
     let mazes = 0;
     let rooms = 0;
-    for (let seed = 1; seed <= 3; seed++) {
+    // `rn2(5)`: 4 in 5 are mazes; enough levels that the count does not hang on the stream
+    for (let seed = 1; seed <= 8; seed++) {
       const state = withMedusa(seed);
       for (let d = 17; d <= 24; d++) {
         const l = goTo(state, d);

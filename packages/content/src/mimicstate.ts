@@ -32,18 +32,16 @@ export type MAppear =
 
 /** ref: include/objects.h STRANGE_OBJECT: shown as `]` (a mimic's "strange object") */
 export const STRANGE_OBJECT: DefId = 'nh:strange_object';
-/** ref: include/defsym.h S_grave: shown only (no grave terrain exists here) */
+/** ref: include/defsym.h S_grave: the grave terrain (m16 step 7) */
 export const GRAVE: DefId = 'nh:grave';
 
 /**
- * The display-only legend keys of disguises the port has no def for: the strange object
- * (ILLOBJ_CLASS `]`, CLR_BLACK drawn dark gray as objects.ts does) and the grave (`|`,
- * CLR_WHITE). Class 'rock' keeps them out of the shuffled description pools.
- * ref: include/objects.h OBJECT(OBJ("strange object", ...)); include/defsym.h S_grave
+ * The display-only legend key of a disguise the port has no def for: the strange object
+ * (ILLOBJ_CLASS `]`, CLR_BLACK drawn dark gray as objects.ts does). Class 'rock' keeps it out of
+ * the shuffled description pools. ref: include/objects.h OBJECT(OBJ("strange object", ...))
  */
 export const MIMIC_APPEARANCES: readonly AppearanceDef[] = [
   { id: STRANGE_OBJECT, nameKey: STRANGE_OBJECT, class: 'rock', glyph: { ch: ']', fg: '#555555' } },
-  { id: GRAVE, nameKey: GRAVE, class: 'rock', glyph: { ch: '|', fg: '#ffffff' } },
 ];
 
 type Table = { [k: string]: Json };
@@ -115,7 +113,7 @@ export function seemimic(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 /**
  * The legend key a disguise is drawn as, or null without one: an object's shown id (its
  * description while unidentified; a statue as the statue of its monster, C's statue glyphs), the
- * strange object, a furniture's terrain def or the grave, a monster's def. Sensing the mimic and
+ * strange object, a furniture's terrain def, a monster's def. Sensing the mimic and
  * hallucination are the perception's (perception.ts). ref: src/display.c display_monster()
  */
 export function mimicShownAs(state: Readonly<GameState>, defs: Registry, e: Entity): DefId | null {
