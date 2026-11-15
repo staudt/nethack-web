@@ -9,6 +9,7 @@
 // after a wall of lava freezes, corpse aging on ice (obj_ice_effects()), the Plane of Water and
 // level temperature. Under a raised drawbridge only what lies under it changes (C's
 // `drawbridgemask`: dbstate.ts setDrawbridgeUnder()), so the bridge stays.
+import { levelTemperature } from './temperature';
 import {
   cellIndex,
   getPlayer,
@@ -187,7 +188,8 @@ export function fireOverLiquid(ctx: Ctx, level: Level, x: number, y: number): nu
 }
 
 /**
- * Cold over (x, y) of the hero's level: a wall of water, and a wall of lava 4 times in 5 (`rn2(5)`),
+ * Cold over (x, y) of the hero's level: a wall of water, and a wall of lava 4 times in 5
+ * (`rn2(5)`; 14 in 15 on a hot level, 1 in 2 on a cold one: `5 + temperature * 10`, at least 2),
  * only "freezes for a moment" and stops the ray; a pool or moat freezes into ice ("The water
  * freezes.", "The moat is bridged with ice!") with a melt timer, remembering what it was; lava
  * cools into floor ("The lava cools and solidifies."), a wall of lava into a wall; range -3. The
@@ -201,7 +203,7 @@ export function coldOverLiquid(ctx: Ctx, level: Level, x: number, y: number): nu
   if (isPool(ctx, level, x, y) || isLava(ctx, level, x, y) || lavawall) {
     const lava = isLava(ctx, level, x, y) || lavawall;
     const moat = isMoat(ctx, level, x, y);
-    const chance = Math.max(2, 5); // 5 + level temperature * 10
+    const chance = Math.max(2, 5 + levelTemperature(ctx, level) * 10);
     if (isWaterwall(ctx, level, x, y) || (lavawall && ctx.rng.rn2(chance))) {
       // for now, don't let WATER freeze
       if (seeIt)

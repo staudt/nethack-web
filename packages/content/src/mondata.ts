@@ -236,6 +236,10 @@ export const hatesSilver = (def: MonsterDef): boolean =>
   def.id === 'nh:shade' ||
   (def.glyph.ch === 'i' && def.id !== 'nh:tengu');
 
+/** ref: include/mondata.h is_bat(): the bat, giant bat and vampire bat */
+export const isBat = (def: MonsterDef): boolean =>
+  def.id === 'nh:bat' || def.id === 'nh:giant_bat' || def.id === 'nh:vampire_bat';
+
 /**
  * The monster has a sense of smell: not golems, spheres, jellies, puddings, blobs, vortices,
  * elementals, fungi or lights. ref: src/mondata.c olfaction()

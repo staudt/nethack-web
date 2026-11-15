@@ -9,6 +9,7 @@ import type {
   LevelContent,
   LevelCount,
   LevelDef,
+  MapBlock,
   ModApi,
   MonsterDef,
   ObjectClass,
@@ -47,10 +48,12 @@ import {
 } from './mondata';
 import { mongone } from './mondeath';
 import { minvent } from './mongear';
-import { removeFromInventory } from './items';
+import { mkgold, removeFromInventory } from './items';
 import { resistsSton } from './stonestate';
 import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
+import { setTer, ter } from './selection';
+import { T } from './terrain';
 
 /**
  * A random spot that passes `ok`: in room `room` (outside its subrooms) when given, else inside
@@ -462,6 +465,79 @@ export function desEngraving(
   else delete e.guard;
   if (opts.degrade === false) e.nowipe = true;
   else delete e.nowipe;
+}
+
+/** des.map()'s `halign`. */
+export type Halign = 'left' | 'half-left' | 'center' | 'half-right' | 'right';
+/** des.map()'s `valign`. */
+export type Valign = 'top' | 'center' | 'bottom';
+
+/**
+ * des.map() at run time, for a fixup that stamps a map where the script draws it: `rows` placed
+ * by `halign`/`valign` (from x_maze_max and y_maze_max, then moved to odd NetHack coordinates and
+ * within the rows as lspo_map() does) or with its top-left at Level `x`,`y`; its cells but the
+ * see-through 'x' become their terrain (`B`, an invisible boundary, becomes floor), lit when `lit`
+ * (lava always), cut at the level's edges. Returns the placed block in Level coordinates (its
+ * contents' spots are relative to it). ref: src/sp_lev.c lspo_map(), sel_set_ter()
+ */
+export function desMap(
+  level: Level,
+  rows: readonly string[],
+  place: { halign?: Halign; valign?: Valign; x?: number; y?: number; lit?: boolean },
+): MapBlock {
+  const w = Math.max(...rows.map((r) => r.length));
+  const h = rows.length;
+  const COLNO = level.width + 1;
+  const ROWNO = level.height;
+  const xMazeMax = (COLNO - 1) & ~1;
+  const yMazeMax = (ROWNO - 1) & ~1;
+  const div = (a: number, b: number): number => Math.trunc(a / b);
+  let xstart: number;
+  let ystart: number;
+  if (place.x !== undefined && place.y !== undefined) {
+    xstart = place.x + 1;
+    ystart = place.y;
+  } else {
+    const ha = place.halign ?? 'center';
+    xstart =
+      ha === 'left'
+        ? 1 // splev_init_present
+        : ha === 'half-left'
+          ? 2 + div(xMazeMax - 2 - w, 4)
+          : ha === 'center'
+            ? 2 + div(xMazeMax - 2 - w, 2)
+            : ha === 'half-right'
+              ? 2 + div((xMazeMax - 2 - w) * 3, 4)
+              : xMazeMax - w - 1;
+    const va = place.valign ?? 'center';
+    ystart = va === 'top' ? 3 : va === 'center' ? 2 + div(yMazeMax - 2 - h, 2) : yMazeMax - h - 1;
+    if (xstart % 2 === 0) xstart++;
+    if (ystart % 2 === 0) ystart++;
+  }
+  if (ystart < 0 || ystart + h > ROWNO) {
+    // try to move the start a bit
+    ystart += ystart > 0 ? -2 : 2;
+    if (h === ROWNO) ystart = 0;
+    if (ystart < 0 || ystart + h > ROWNO) ystart = 0;
+  }
+  const lit = place.lit === true ? 1 : 0;
+  for (let y = ystart; y < Math.min(ROWNO, ystart + h); y++)
+    for (let cx = xstart; cx < Math.min(COLNO, xstart + w); cx++) {
+      const ch = rows[y - ystart]?.[cx - xstart] ?? 'x';
+      if (ch === 'x' || cx < 1) continue;
+      setTer(level, cx - 1, y, ch === 'B' ? T.floor : ter(ch), { lit, litLava: true });
+    }
+  return { x: xstart - 1, y: ystart, w, h };
+}
+
+/**
+ * des.gold() with no amount or spot: `rnd(200)` gold on a random DRY spot of the LevelDef's map
+ * block (or the level). ref: src/sp_lev.c lspo_gold()
+ */
+export function desGold(ctx: Ctx, level: Level, def: LevelDef): void {
+  const p = randomDrySpot(ctx, level, def);
+  if (!p) return;
+  mkgold(ctx, ctx.rng.rnd(200), { level: level.id, x: p.x, y: p.y });
 }
 
 /**

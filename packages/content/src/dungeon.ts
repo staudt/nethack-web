@@ -3,6 +3,7 @@ import type { DefId, DungeonDef, LevelDef, SpecialLevelDef } from '@nh/core';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
 import { GEHENNOM, GEHENNOM_SPECIALS as G } from './levelflags';
+import { HELLFILL, HELLFILL_FIXUP } from './hellfill';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MEDUSA_FIXUPS, MEDUSA_VARIANTS } from './medusa';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
@@ -42,9 +43,9 @@ export const MINEFILL: LevelDef = {
 
 /**
  * Gehennom's filler, and the stand-in of each of its special levels until that level's own
- * LevelDef lands: makemaz("")'s plain maze for now (m17 step 3 makes it hellfill.lua's).
+ * LevelDef lands: hellfill.lua's level (hellfill.ts). ref: dat/dungeon.lua lvlfill = "hellfill"
  */
-export const GEHENNOM_FILLER: DefId = MAZEFILL.id;
+export const GEHENNOM_FILLER: DefId = HELLFILL.id;
 
 /**
  * Gehennom's special levels in dungeon.lua's order, each built as GEHENNOM_FILLER until its own
@@ -80,6 +81,7 @@ export const LEVELS: readonly LevelDef[] = [
   ...MEDUSA_VARIANTS,
   CASTLE_LEVEL,
   VALLEY,
+  HELLFILL,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -91,6 +93,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   ...BIGROOM_FIXUPS,
   ...MEDUSA_FIXUPS,
   [CASTLE_LEVEL.id]: CASTLE_FIXUP,
+  [HELLFILL.id]: HELLFILL_FIXUP,
 };
 
 /**
@@ -103,7 +106,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * end ("no_down"): the Castle's trap doors and level teleports lead in, and its entry level's up
  * stairs lead back to the Castle's `up` teleport region. Its eleven special levels are placed
  * (GEHENNOM_SPECIAL); the Valley of the Dead is built (valley.ts), the others as the filler until
- * their own step; every other level is a plain maze (makemaz("") without hellfill.lua). Vlad's Tower is left out and draws nothing (ROADMAP).
+ * their own step; every other level is hellfill.lua's (hellfill.ts). Vlad's Tower is left out
+ * and draws nothing (ROADMAP).
  * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
@@ -151,7 +155,7 @@ export const DUNGEONS: readonly DungeonDef[] = [
     nameKey: GEHENNOM,
     levels: { base: 20, range: 5 },
     entry: { from: 'nh:main', chain: CASTLE_LEVEL.id, base: 0, stairs: 'child' },
-    // ref: src/mklev.c makelevel(): `In_hell(&u.uz)` -> makemaz("")
+    // ref: dat/dungeon.lua Gehennom's lvlfill = "hellfill"; src/mklev.c makelevel()
     filler: GEHENNOM_FILLER,
     special: GEHENNOM_SPECIAL,
   },

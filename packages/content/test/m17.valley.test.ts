@@ -7,6 +7,7 @@
 // ref: dat/valley.lua; src/do.c goto_level(), dodown(); src/mkroom.c fill_zoo(); src/mklev.c
 // mklev(); src/mon.c make_corpse(), corpse_chance(), xkilled(); src/mkobj.c mk_tt_object();
 // src/read.c seffect_magic_mapping()
+import { levelTemperature } from '../src/temperature';
 import {
   createEngine,
   getLevel,
@@ -233,13 +234,15 @@ describe('entering Gehennom', () => {
   test('arriving on the Valley from outside: its three lines, not yet entered', () => {
     const { state, text } = arrive(1);
     expect(text.slice(0, 3)).toEqual(ARRIVAL);
-    expect(text).not.toContain('It is hot here.  You smell smoke...');
+    expect(text).not.toContain('It is hot here.');
     expect(gehennomEntered({ state })).toBe(false);
   });
 
-  test('arriving on another Gehennom level: the hot line, and Gehennom is entered', () => {
-    const { state, text } = arrive(2, 3);
-    expect(text).toContain('It is hot here.  You smell smoke...');
+  test("arriving on another Gehennom level: its temperature's lines, and Gehennom is entered", () => {
+    const { state, text, level } = arrive(2, 3);
+    if (levelTemperature({ state, defs: engine.registry }, level) < 0)
+      expect(text).toContain('It is cold here.');
+    else expect(text).toEqual(expect.arrayContaining(['It is hot here.', 'You smell smoke...']));
     expect(text).not.toContain(ARRIVAL[0]);
     expect(gehennomEntered({ state })).toBe(true);
   });

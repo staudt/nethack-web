@@ -14,19 +14,26 @@
 // the maze walk). `mazelevel` and `non_diggable` are levelflags.ts entries; `noflip`/`noflipy`
 // are moot (no level flipping).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
-import {
-  cellIndex,
-  levelDefArea,
-  MAP_LEGEND,
-  mapBlock,
-  trapAt,
-  VANILLA_TERRAIN,
-  wallifyLevel,
-} from '@nh/core';
+import { levelDefArea, mapBlock, trapAt, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { mazewalk } from './mazewalk';
 import { mksobjFull } from './mkobj';
 import { mapToLevel, type SpLevFixup } from './sp_lev';
-import { isStwallId, setTerrain, T, terrainIdAt } from './terrain';
+import {
+  eachCell,
+  percent,
+  pick,
+  replaceTerrain,
+  selArea,
+  selGrow,
+  selMatch,
+  selNew,
+  selOr,
+  selPercentage,
+  setSel,
+  ter,
+  type Sel,
+} from './selection';
+import { setTerrain, T, terrainIdAt } from './terrain';
 
 const MAP_1: readonly string[] = [
   '---------------------------------------------------------------------------',
@@ -454,30 +461,7 @@ export const BIGROOM_VARIANTS: readonly LevelDef[] = [
 ];
 
 // ---------------------------------------------------------------------------------------------
-// Fixup helpers: selections (one flag per cell; NetHack walks them columns then rows) and the
-// stairs.
-
-type Sel = boolean[];
-
-/** ref: nhlib.lua percent() */
-const percent = (ctx: Pick<Ctx, 'rng'>, n: number): boolean => ctx.rng.rn2(100) < n;
-
-/** One of `list`: nhlua `list[math.random(1, #list)]`, 1 + rn2(n). */
-const pick = <V>(ctx: Pick<Ctx, 'rng'>, list: readonly V[]): V =>
-  list[ctx.rng.rn2(list.length)] as V;
-
-/** The terrain a map character makes. */
-function ter(ch: string): DefId {
-  const k = MAP_LEGEND[ch];
-  if (k === null || k === undefined) throw new Error(`bigroom: no terrain for '${ch}'`);
-  return VANILLA_TERRAIN[k];
-}
-
-/** Calls `fn` for every cell, columns then rows (selection_iterate()). */
-function eachCell(level: Level, fn: (x: number, y: number, i: number) => void): void {
-  for (let x = 0; x < level.width; x++)
-    for (let y = 0; y < level.height; y++) fn(x, y, cellIndex(level, x, y));
-}
+// Fixup helpers: map-relative selections (selection.ts) and the stairs.
 
 /** A map-relative rectangle in Level coordinates, cut at the level (get_location() ANY_LOC). */
 function mapRect(def: LevelDef, level: Level, r: LevelRect): LevelRect {
@@ -492,88 +476,9 @@ function mapRect(def: LevelDef, level: Level, r: LevelRect): LevelRect {
 
 /** selection.area() of map-relative rectangles, or'ed together. */
 function areas(def: LevelDef, level: Level, rects: readonly LevelRect[]): Sel {
-  const sel: Sel = new Array<boolean>(level.cells.length).fill(false);
-  for (const r of rects) {
-    const [x1, y1, x2, y2] = mapRect(def, level, r);
-    for (let x = x1; x <= x2; x++)
-      for (let y = y1; y <= y2; y++) sel[cellIndex(level, x, y)] = true;
-  }
+  let sel = selNew(level);
+  for (const r of rects) sel = selOr(sel, selArea(level, ...mapRect(def, level, r)));
   return sel;
-}
-
-/** The cells of terrain `id`: selection.match() of one character. */
-function matchTerrain(level: Level, id: DefId): Sel {
-  return level.cells.map((c) => level.palette[c] === id);
-}
-
-/**
- * selection.match() of `.w.` (`vertical`: `.` above and below): floor on both sides of stone or
- * a wall (IS_STWALL()); off the level counts as stone. ref: src/sp_lev.c mapfrag_match()
- */
-function matchFloorWallFloor(level: Level, vertical: boolean): Sel {
-  const floor = (x: number, y: number): boolean =>
-    x >= 0 && y >= 0 && x < level.width && y < level.height && terrainIdAt(level, x, y) === T.floor;
-  const sel: Sel = new Array<boolean>(level.cells.length).fill(false);
-  eachCell(level, (x, y, i) => {
-    const [dx, dy] = vertical ? [0, 1] : [1, 0];
-    sel[i] = isStwallId(terrainIdAt(level, x, y)) && floor(x - dx, y - dy) && floor(x + dx, y + dy);
-  });
-  return sel;
-}
-
-/** selection:percentage(n): each cell kept when rn2(100) < n, columns then rows. */
-function percentage(ctx: Ctx, level: Level, sel: Sel, n: number): Sel {
-  const out: Sel = new Array<boolean>(sel.length).fill(false);
-  eachCell(level, (_x, _y, i) => {
-    if (sel[i] === true && ctx.rng.rn2(100) < n) out[i] = true;
-  });
-  return out;
-}
-
-/** selection:grow(): the cells and their eight neighbours. ref: src/selvar.c selection_do_grow() */
-function grow(level: Level, sel: Sel): Sel {
-  const out = [...sel];
-  eachCell(level, (x, y, i) => {
-    if (sel[i] !== true) return;
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < level.width && ny < level.height)
-          out[cellIndex(level, nx, ny)] = true;
-      }
-  });
-  return out;
-}
-
-/**
- * des.replace_terrain() on a built level: each cell of `sel` (null: the whole level) with
- * terrain `from` draws rn2(100) and becomes `to` below `chance`, columns then rows.
- * ref: src/sp_lev.c lspo_replace_terrain()
- */
-function replaceTerrain(
-  ctx: Ctx,
-  level: Level,
-  sel: Sel | null,
-  from: string,
-  to: string,
-  chance = 100,
-): void {
-  const f = ter(from);
-  const t = ter(to);
-  eachCell(level, (x, y, i) => {
-    if (sel && sel[i] !== true) return;
-    if (level.palette[level.cells[i] ?? -1] === f && ctx.rng.rn2(100) < chance)
-      setTerrain(level, x, y, t);
-  });
-}
-
-/** des.terrain(sel, ch): every cell of `sel` becomes that terrain. */
-function setSel(level: Level, sel: Sel, ch: string): void {
-  const id = ter(ch);
-  eachCell(level, (x, y, i) => {
-    if (sel[i] === true) setTerrain(level, x, y, id);
-  });
 }
 
 /**
@@ -660,9 +565,6 @@ function outline(def: LevelDef, level: Level, x1: number, y1: number, x2: number
   return areas(def, level, sides);
 }
 
-/** `a | b` */
-const or = (a: Sel, b: Sel): Sel => a.map((v, i) => v || b[i] === true);
-
 // ---------------------------------------------------------------------------------------------
 // The fixups, in each script's order.
 
@@ -677,15 +579,19 @@ const FIXUP_1: SpLevFixup = {
       else if (choice === 1)
         setSel(
           level,
-          or(line(def, level, 15, 4, 15, 13), line(def, level, 59, 4, 59, 13)),
+          selOr(line(def, level, 15, 4, 15, 13), line(def, level, 59, 4, 59, 13)),
           terrain,
         );
       else if (choice === 2)
-        setSel(level, or(line(def, level, 10, 8, 64, 8), line(def, level, 37, 3, 37, 14)), terrain);
+        setSel(
+          level,
+          selOr(line(def, level, 10, 8, 64, 8), line(def, level, 37, 3, 37, 14)),
+          terrain,
+        );
       else if (choice === 3) {
         // brackets: [  ]
         setSel(level, outline(def, level, 4, 4, 70, 13), terrain);
-        setSel(level, or(line(def, level, 25, 4, 50, 4), line(def, level, 25, 13, 50, 13)), '.');
+        setSel(level, selOr(line(def, level, 25, 4, 50, 4), line(def, level, 25, 13, 50, 13)), '.');
       } else if (choice === 4) {
         // snake
         setSel(level, areas(def, level, [[5, 5, 69, 12]]), terrain);
@@ -726,7 +632,7 @@ const FIXUP_2: SpLevFixup = {
       darkness.forEach((d, i) => {
         if (d) level.lit[i] = 0; // des.region(darkness, "unlit")
       });
-      if (percent(ctx, 25)) replaceTerrain(ctx, level, grow(level, darkness), '.', 'I');
+      if (percent(ctx, 25)) replaceTerrain(ctx, level, selGrow(level, darkness), '.', 'I');
     });
   },
 };
@@ -736,7 +642,7 @@ const FIXUP_3: SpLevFixup = {
   before(ctx, level, def) {
     beforeStairs(ctx, level, def, () => {
       if (!percent(ctx, 66)) return;
-      const sel = matchFloorWallFloor(level, false); // selection.match("[.w.]")
+      const sel = selMatch(level, '.w.'); // selection.match("[.w.]")
       setSel(level, sel, pick(ctx, ['F', 'T', 'W', 'Z']));
       rejoinWalls(level);
     });
@@ -759,7 +665,7 @@ const FIXUP_5: SpLevFixup = {
   before(ctx, level, def) {
     beforeStairs(ctx, level, def, () => {
       if (!percent(ctx, 25)) return;
-      const sel = grow(level, percentage(ctx, level, matchTerrain(level, T.floor), 2));
+      const sel = selGrow(level, selPercentage(ctx.rng, level, selMatch(level, '.'), 2));
       replaceTerrain(ctx, level, sel, '.', percent(ctx, 50) ? 'I' : 'C');
     });
   },
@@ -832,8 +738,8 @@ const FIXUP_11: SpLevFixup = {
           setTerrain(level, x, y, T.floor);
           boulderAt(ctx, level, x, y);
         });
-      replace(or(matchFloorWallFloor(level, false), matchFloorWallFloor(level, true)));
-      replace(matchFloorWallFloor(level, false));
+      replace(selOr(selMatch(level, '.w.'), selMatch(level, '.\nw\n.')));
+      replace(selMatch(level, '.w.'));
       rejoinWalls(level);
     });
   },

@@ -9,6 +9,7 @@
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
 // Protection_from_shape_changers (no such ring), body parts of polymorphed forms (always "head"
 // and "eyes") and a hit on a long worm's tail (gn.notonhead: always the head).
+import { setPotionVapors } from './floorfx';
 import { getPlayer, isVisible, type Ctx, type Entity, type Msg } from '@nh/core';
 import { abase, amax, setAbase, type Attr } from './attrib';
 import { unaware } from './btrapped';
@@ -541,3 +542,4 @@ export function breakPotionVapors(ctx: Ctx, obj: Entity, x: number, y: number): 
   if (obj.def !== POT.water) say(ctx, uBreathless(ctx) ? 'vapor.eyes_water' : 'vapor.smell');
   potionbreathe(ctx, obj);
 }
+setPotionVapors(breakPotionVapors);

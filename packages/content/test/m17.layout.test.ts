@@ -133,7 +133,7 @@ describe("Gehennom's layout", () => {
     const orcus = hell(state).special.find((s) => s.id === G.orcus)!;
     expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: orcus.dlevel })).toBe(G.orcus);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: orcus.dlevel }, 'random'));
-    expect(getLevel(state).def).toBe('nh:mazefill');
+    expect(getLevel(state).def).toBe('nh:hellfill'); // m17 step 3
     // an ordinary level has none, and the main dungeon's specials are not Gehennom's
     const taken = new Set(hell(state).special.map((s) => s.dlevel));
     const plain = [...Array(hell(state).levels!).keys()]
@@ -254,7 +254,7 @@ describe('the invocation level', () => {
       expect(sq.y).not.toBe(up.y);
       expect(Math.abs(sq.x - up.x)).not.toBe(Math.abs(sq.y - up.y));
       expect(Math.max(Math.abs(sq.x - up.x), Math.abs(sq.y - up.y))).toBeGreaterThan(11);
-      expect(['nh:floor', 'nh:corr']).toContain(
+      expect(['nh:floor', 'nh:corr', 'nh:ice']).toContain(
         level.palette[level.cells[sq.y * level.width + sq.x]!],
       );
       // no down stairs terrain anywhere

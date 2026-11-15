@@ -26,7 +26,9 @@ const DOORS: ReadonlySet<DefId> = new Set([
  * `mazegrid` level (the Castle), whose grid nodes there were stone and whose grid walls the
  * cleanup turned to stone, a spot outside the block is stone until carved. The bounds and
  * the parity are NetHack's, in its coordinates (x one more than ours; x_maze_max and y_maze_max
- * from the level size). The caller wallifies afterwards (core's wallifyLevel).
+ * from the level size). With `liveStone` (a fixup that lays out the level itself, before any
+ * wall cleanup: hellfill's maze grid) a node is stone when its cell is. The caller wallifies
+ * afterwards (core's wallifyLevel).
  * ref: src/sp_lev.c lspo_mazewalk(); src/mkmaze.c walkfrom(), okay()
  */
 export function mazewalk(
@@ -37,6 +39,7 @@ export function mazewalk(
   y: number,
   dir: 'north' | 'south' | 'east' | 'west',
   stocked = true,
+  liveStone = false,
 ): void {
   const block = mapBlock(def, level.width, level.height);
   // a maze grid's nodes outside the map block were stone (lvlfill_maze_grid())
@@ -79,6 +82,7 @@ export function mazewalk(
       maxX: max.x - 1,
       maxY: max.y,
       stone: (lx, ly) => {
+        if (liveStone) return level.cells[cellIndex(level, lx, ly)] === stone;
         const inBlock =
           block !== null &&
           lx >= block.x &&

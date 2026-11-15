@@ -8,6 +8,7 @@ import { canBeHatched, deadSpecies } from './eggstate';
 import { setGolemStatue, startCorpseTimeout } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 import { STATUE } from './statuestate';
+import { inHell } from './levelflags';
 
 /** What mkobj() needs from a Ctx (corpses schedule a rot timer). */
 export type MkobjCtx = Pick<
@@ -34,6 +35,20 @@ export const MKOBJ_PROBS: ClassProbs = [
   { prob: 4, cls: 'wand', name: 'wand' },
   { prob: 3, cls: 'ring', name: 'ring' },
   { prob: 1, cls: 'amulet', name: 'amulet' },
+];
+
+/** mkobj()'s class probabilities in Gehennom; they sum to 100. ref: src/mkobj.c hellprobs[] */
+export const HELL_PROBS: ClassProbs = [
+  { prob: 20, cls: 'weapon', name: 'weapon' },
+  { prob: 20, cls: 'armor', name: 'armor' },
+  { prob: 16, cls: 'food', name: 'food' },
+  { prob: 12, cls: 'tool', name: 'tool' },
+  { prob: 10, cls: 'gem', name: 'gem' },
+  { prob: 1, cls: 'potion', name: 'potion' },
+  { prob: 1, cls: 'scroll', name: 'scroll' },
+  { prob: 8, cls: 'wand', name: 'wand' },
+  { prob: 8, cls: 'ring', name: 'ring' },
+  { prob: 4, cls: 'amulet', name: 'amulet' },
 ];
 
 /** The class probabilities of a box's contents; they sum to 100. ref: src/mkobj.c boxiprobs[] */
@@ -126,7 +141,7 @@ export function pickObjectOfClass(
 
 /**
  * A random object of the given class, or of a random class (`'random'`) according to
- * mkobjprobs[]. Returns the new object's id, or null when the rolled class is not implemented
+ * mkobjprobs[] (hellprobs[] in Gehennom). Returns the new object's id, or null when the rolled class is not implemented
  * (the class roll is still made). With `opts.at` the object is placed on the floor; a
  * container gets its contents.
  * ref: src/mkobj.c mkobj(), mkobj_at(), and mksobj() for a corpse (random monster).
@@ -136,15 +151,18 @@ export function mkobj(
   oclass: ObjectClass | 'random',
   opts: MkobjOpts = {},
 ): EntityId | null {
-  const cls = oclass === 'random' ? rollClass(ctx, MKOBJ_PROBS) : oclass;
+  const where = opts.level ?? opts.at?.level ?? ctx.state.currentLevel;
+  // Inhell: the level being made (NetHack's u.uz while it makes one), else the hero's
+  const hell = inHell(ctx.state, ctx.state.levels[where]);
+  const cls = oclass === 'random' ? rollClass(ctx, hell ? HELL_PROBS : MKOBJ_PROBS) : oclass;
   if (cls === null) return null;
-  const ledger = gemLedger(ctx.state, opts.level ?? opts.at?.level ?? ctx.state.currentLevel);
+  const ledger = gemLedger(ctx.state, where);
   const def = pickObjectOfClass(ctx, cls, ledger);
   if (!def) return null;
-  const where = opts.at ? { at: opts.at } : {};
+  const at = opts.at ? { at: opts.at } : {};
   const artif = opts.artif ?? true;
-  if (def.id === 'nh:corpse') return mksobjCorpse(ctx, def, { artif, ...where }, opts);
-  return mksobjFull(ctx, def, { artif, ...where }, opts);
+  if (def.id === 'nh:corpse') return mksobjCorpse(ctx, def, { artif, ...at }, opts);
+  return mksobjFull(ctx, def, { artif, ...at }, opts);
 }
 
 /**

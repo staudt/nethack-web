@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-178 NetHack files, 4778 citations.
+179 NetHack files, 4832 citations.
 
 ## dat/bigrm-1.lua
 
@@ -68,6 +68,15 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/dungeon.lua
 
 - (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`, `packages/core/src/types/mod.ts`
+
+## dat/hellfill.lua
+
+- (file): `packages/content/src/hellfill.ts`, `packages/content/src/levelflags.ts`
+- `hell_prefabs()`: `packages/content/src/hellfill.ts`
+- `populatemaze()`: `packages/content/src/hellfill.ts`
+- `rnd_halign()`: `packages/content/src/hellfill.ts`
+- `rnd_hell_prefab()`: `packages/content/src/hellfill.ts`
+- `rnd_valign()`: `packages/content/src/hellfill.ts`
 
 ## dat/medusa-1.lua
 
@@ -131,7 +140,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/nhlib.lua
 
-- `percent()`: `packages/content/src/bigroom.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `hell_tweaks()`: `packages/content/src/hellfill.ts`, `packages/content/src/helltweaks.ts`
+- `percent()`: `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `shuffle()`: `packages/content/src/sp_lev.ts`
 
 ## dat/oracle.lua
@@ -378,7 +388,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hides_under()`: `packages/content/src/hidestate.ts`
 - `humanoid()`: `packages/content/src/mondata.ts`, `packages/content/src/peaceful.ts`
 - `is_animal()`: `packages/content/src/musestate.ts`, `packages/content/src/steal.ts`
-- `is_bat()`: `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
+- `is_bat()`: `packages/content/src/mondata.ts`, `packages/content/src/muse.ts`, `packages/content/src/polyself.ts`
 - `is_clinger()`: `packages/content/src/mondata.ts`
 - `is_domestic()`: `packages/content/src/dog.ts`
 - `is_floater()`: `packages/content/src/mondata.ts`, `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`, `packages/content/src/polyself.ts`
@@ -891,6 +901,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
 - `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
+- `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
 - `menu_drop()`: `packages/content/src/itemactions.ts`
@@ -899,6 +910,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `revive_corpse()`: `packages/content/src/revive.ts`, `packages/content/src/zap.en.ts`
 - `revive_mon()`: `packages/content/src/revive.ts`, `packages/content/src/zap.en.ts`
 - `set_wounded_legs()`: `packages/content/src/legs.ts`
+- `temperature_change_msg()`: `packages/content/src/temperature.ts`
 - `u_on_newpos()`: `packages/core/src/engine.ts`
 - `u_stuck_cannot_go()`: `packages/content/src/actions.ts`
 - `uescaped_shaft()`: `packages/content/src/trap.ts`
@@ -1032,7 +1044,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/jump.en.ts`, `packages/content/src/scatter.ts`
 - `breakmsg()`: `packages/content/src/dothrow.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/material.ts`
-- `breakobj()`: `packages/content/src/dothrow.ts`, `packages/content/src/egghit.ts`, `packages/content/src/muse.en.ts`, `packages/content/src/potionhit.ts`
+- `breakobj()`: `packages/content/src/dothrow.ts`, `packages/content/src/egghit.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`, `packages/content/src/muse.en.ts`, `packages/content/src/potionhit.ts`
 - `breaktest()`: `packages/content/src/dokick.ts`, `packages/content/src/material.ts`
 - `check_shop_obj()`: `packages/content/src/shk.ts`
 - `dofire()`: `packages/content/src/fire.ts`
@@ -1421,6 +1433,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_malign()`: `packages/content/src/luck.ts`
 - `set_mimic_sym()`: `packages/content/src/mimic.ts`
 - `syms()`: `packages/content/src/mimic.ts`
+- `temperature_shift()`: `packages/content/src/temperature.ts`
 - `uncommon()`: `packages/content/src/generation.ts`
 
 ## src/mcastu.c
@@ -1522,8 +1535,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `generate_stairs_find_room()`: `packages/core/src/levelgen/generate.ts`
 - `good_rm_wall_doorpos()`: `packages/core/src/levelgen/corridors.ts`
 - `join()`: `packages/core/src/levelgen/corridors.ts`
+- `litstate_rnd()`: `packages/content/src/hellfill.ts`
 - `makecorridors()`: `packages/core/src/levelgen/corridors.ts`
-- `makelevel()`: `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/generate.ts`, `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
+- `makelevel()`: `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/temperature.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/generate.ts`, `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
 - `makeniche()`: `packages/content/src/vault.ts`, `packages/core/src/levelgen/vault.ts`
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
 - `maketrap()`: `packages/content/src/vault.ts`
@@ -1563,7 +1577,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `bad_location()`: `packages/content/src/castle.ts`, `packages/core/src/levelgen/special.ts`
-- `create_maze()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `create_maze()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `extend_spine()`: `packages/core/src/levelgen/mkmap.ts`
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `fixup_special()`: `packages/content/src/castle.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/core/src/types/mod.ts`
@@ -1582,6 +1596,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `place_lregion()`: `packages/content/src/castle.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`
 - `populate_maze()`: `packages/content/src/mazefill.ts`
 - `put_lregion_here()`: `packages/content/src/castle.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
+- `set_levltyp()`: `packages/content/src/selection.ts`
+- `set_levltyp_lit()`: `packages/content/src/selection.ts`
 - `shiny_orc_stuff()`: `packages/content/src/orctown.ts`
 - `spine_array()`: `packages/core/src/levelgen/mkmap.ts`
 - `stolen_booty()`: `packages/content/src/orctown.ts`
@@ -1602,6 +1618,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `costly_alteration()`: `packages/content/src/shk.ts`
 - `curse()`: `packages/content/src/figurinestate.ts`, `packages/content/src/items.ts`
 - `get_obj_location()`: `packages/content/src/light.ts`, `packages/content/src/price.ts`
+- `hellprobs()`: `packages/content/src/mkobj.ts`
 - `is_flammable()`: `packages/content/src/material.ts`
 - `is_rottable()`: `packages/content/src/material.ts`
 - `may_generate_eroded()`: `packages/content/src/items.ts`
@@ -1878,8 +1895,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/nhlsel.c
 
+- (file): `packages/content/src/selection.ts`
 - `l_selection_area()`: `packages/core/src/levelgen/special.ts`
+- `l_selection_fillrect()`: `packages/content/src/selection.ts`
 - `l_selection_line()`: `packages/core/src/levelgen/special.ts`
+- `l_selection_match()`: `packages/content/src/selection.ts`
+- `l_selection_randline()`: `packages/content/src/selection.ts`
+- `l_selection_rect()`: `packages/content/src/selection.ts`
+- `l_selection_setpoint()`: `packages/content/src/selection.ts`
 
 ## src/nhlua.c
 
@@ -2206,11 +2229,16 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/selvar.c
 
-- (file): `packages/core/src/levelgen/special.ts`
-- `selection_do_grow()`: `packages/content/src/bigroom.ts`
+- (file): `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`
+- `selection_do_grow()`: `packages/content/src/selection.ts`
 - `selection_do_line()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `selection_do_randline()`: `packages/content/src/selection.ts`
+- `selection_filter_percent()`: `packages/content/src/selection.ts`
 - `selection_floodfill()`: `packages/content/src/orctown.ts`
-- `selection_rndcoord()`: `packages/content/src/orctown.ts`, `packages/content/src/sp_lev.ts`
+- `selection_getbounds()`: `packages/content/src/selection.ts`
+- `selection_iterate()`: `packages/content/src/selection.ts`
+- `selection_not()`: `packages/content/src/selection.ts`
+- `selection_rndcoord()`: `packages/content/src/orctown.ts`, `packages/content/src/selection.ts`, `packages/content/src/sp_lev.ts`
 
 ## src/shk.c
 
@@ -2356,7 +2384,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/sp_lev.c
 
-- (file): `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
 - `build_room()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `check_room()`: `packages/core/src/levelgen/rooms.ts`
 - `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
@@ -2372,9 +2400,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fill_special_room()`: `packages/content/src/shknam.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`
 - `floodfillchk_match_under()`: `packages/content/src/orctown.ts`
 - `generate_way_out_method()`: `packages/core/src/levelgen/special.ts`
-- `get_location()`: `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `get_location()`: `packages/content/src/hellfill.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `good_stair_loc()`: `packages/content/src/hellfill.ts`
 - `is_ok_location()`: `packages/content/src/sp_lev.ts`
-- `l_create_stairway()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`
+- `l_create_stairway()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`
 - `light_region()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `link_doors_rooms()`: `packages/content/src/zoo.ts`, `packages/core/src/levelgen/special.ts`
 - `load_special()`: `packages/content/src/detect.ts`, `packages/content/src/sp_lev.ts`
@@ -2384,38 +2413,43 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_engraving()`: `packages/content/src/castle.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
 - `lspo_feature()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_finalize_level()`: `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
+- `lspo_gold()`: `packages/content/src/sp_lev.ts`
+- `lspo_level_flags()`: `packages/content/src/levelflags.ts`
 - `lspo_level_init()`: `packages/core/src/types/mod.ts`
 - `lspo_levregion()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
-- `lspo_map()`: `packages/content/src/mazefill.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_map()`: `packages/content/src/mazefill.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_mazewalk()`: `packages/content/src/mazewalk.ts`
 - `lspo_monster()`: `packages/core/src/types/mod.ts`
 - `lspo_object()`: `packages/core/src/types/mod.ts`
 - `lspo_random_corridors()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_region()`: `packages/content/src/graveyard.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
-- `lspo_replace_terrain()`: `packages/content/src/bigroom.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_replace_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_room()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_stair()`: `packages/core/src/types/mod.ts`
 - `lspo_teleport_region()`: `packages/core/src/types/mod.ts`
-- `lspo_terrain()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_trap()`: `packages/core/src/types/mod.ts`
 - `lspo_wallify()`: `packages/content/src/orctown.ts`
 - `lvlfill_maze_grid()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lvlfill_solid()`: `packages/core/src/levelgen/special.ts`
-- `mapfrag_match()`: `packages/content/src/bigroom.ts`
+- `map_cleanup()`: `packages/content/src/hellfill.ts`
+- `mapfrag_match()`: `packages/content/src/selection.ts`
+- `match_maptyps()`: `packages/content/src/selection.ts`
 - `maybe_add_door()`: `packages/content/src/zoo.ts`
 - `maze1xy()`: `packages/content/src/mazefill.ts`
 - `mksobj_at()`: `packages/content/src/mklev.ts`
 - `pm_good_location()`: `packages/content/src/priest.ts`
 - `pm_to_humidity()`: `packages/content/src/sp_lev.ts`
+- `random_wdir()`: `packages/content/src/selection.ts`
 - `rnddoor()`: `packages/core/src/types/mod.ts`
 - `rndtrap()`: `packages/content/src/mklev.ts`
 - `sel_set_door()`: `packages/core/src/types/mod.ts`
 - `sel_set_feature()`: `packages/core/src/types/mod.ts`
-- `sel_set_ter()`: `packages/core/src/levelgen/special.ts`
+- `sel_set_ter()`: `packages/content/src/selection.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/special.ts`
 - `set_door_orientation()`: `packages/core/src/levelgen/special.ts`
 - `set_wallprop_in_selection()`: `packages/content/src/levelflags.ts`
 - `solidify_map()`: `packages/content/src/levelflags.ts`
-- `splev_initlev()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `splev_initlev()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `spo_endroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `wallification()`: `packages/core/src/levelgen/mkmap.ts`
 - `wallify_map()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`

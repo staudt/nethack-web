@@ -25,11 +25,13 @@ import { givePossessions } from './mongear';
 import { uState } from './luck';
 import { isGenocided } from './vanquished';
 import { inHell } from './levelflags';
+import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
-import { isEel, isFloater, isFlyer, isMplayer, isUnicorn } from './mondata';
+import { isBat, isEel, isFloater, isFlyer, isMplayer, isUnicorn } from './mondata';
+import { setMspeed } from './mstate';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -66,25 +68,30 @@ function alignShift(_def: MonsterDef): number {
 
 /**
  * A random monster type appropriate for a level of difficulty `depth` (and the hero's level),
- * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()).
- * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling; returns null if none qualify.
+ * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()). `level`
+ * is where it is made (NetHack's u.uz while a level is made; the hero's level when omitted): in
+ * Gehennom no G_NOHELL kind, and on a hot or cold level resistant kinds weigh 3 more.
+ * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling, temperature_shift(); returns
+ * null if none qualify.
  */
 export function rndmonst(
   ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
   depth: number,
   minadj = 0,
   maxadj = 0,
+  level: Readonly<Level> | undefined = ctx.state.levels[ctx.state.currentLevel],
 ): MonsterDef | null {
   const minmlev = monminDifficulty(depth) + minadj;
   const maxmlev = monmaxDifficulty(depth, heroLevel(ctx)) + maxadj;
-  const hell = inHell(ctx.state);
+  const hell = inHell(ctx.state, level);
   let total = 0;
   let selected: MonsterDef | null = null;
   for (const def of ctx.defs.monsters) {
     if (def.difficulty < minmlev || def.difficulty > maxmlev) continue; // montooweak/strong
     if (uncommon(ctx.state, def)) continue;
     if (hell && def.genFlags.includes('nohell')) continue;
-    const weight = def.frequency + alignShift(def);
+    const weight =
+      def.frequency + alignShift(def) + (level ? temperatureShift(ctx, level, def) : 0);
     if (weight > 0) {
       total += weight;
       if (ctx.rng.rn2(total) < weight) selected = def;
@@ -450,7 +457,7 @@ export function makemon(
     // is free, and an explicit spot's boulder does not matter here (see withBoulders())
     let tryct = 0;
     do {
-      mdef = rndmonst(ctx, level.depth);
+      mdef = rndmonst(ctx, level.depth, 0, 0, level);
       if (!mdef) return null;
     } while (++tryct <= 50 && !goodpos(ctx, level, rules, taken, at.x, at.y, gpMon(ctx, mdef)));
   }
@@ -497,6 +504,9 @@ export function makemon(
     Math.sign(uState(ctx.state).alignType) === Math.sign(mdef.alignment)
   )
     mon.peaceful = true;
+  // ref: makemon() S_BAT: `if (Inhell && is_bat(ptr)) mon_adjust_speed(mtmp, 2, NULL)`, made
+  // fast for good (no message)
+  if (mon && isBat(mdef) && inHell(ctx.state, level)) setMspeed(ctx, id, 'fast');
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);

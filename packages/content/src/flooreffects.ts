@@ -1,12 +1,13 @@
 // Objects landing on the floor: a boulder fills a pool, a pit or a hole, an object falling into
-// water gets wet and one falling into lava burns. ref: src/do.c flooreffects(),
+// water gets wet and one falling into lava burns; a potion may break on a hot level's ground.
+// ref: src/do.c flooreffects(),
 // boulder_hits_pool(); src/trap.c lava_damage(), fire_damage(), fire_damage_chain()
 //
 // Shared by moverock.ts (a pushed boulder), the scroll of earth (falling boulders), dropping,
 // throwing, kicking and scattering, so it sits below them and imports none of them; trap.ts uses
 // it for objects teleported onto a pit or hole (rloco()).
 // Not ported: the Plane of Water, burying the objects under a filled
-// pool or pit (bury_objs(): nothing is buried), globs merging, hot ground boiling potions, the
+// pool or pit (bury_objs(): nothing is buried), globs merging, the
 // teetering-at-a-pit tumble, ship_object().
 import {
   cellIndex,
@@ -23,7 +24,7 @@ import {
 } from '@nh/core';
 import { couldseeAt } from './apparxy';
 import { erodeObj } from './erode';
-import { setFloorEffects } from './floorfx';
+import { potionVaporsLate, setFloorEffects } from './floorfx';
 import { placeOnFloor, weight } from './items';
 import { catchLit } from './light';
 import { isLava, isPool, isPoolOrLava, isWaterwall, mInAir, waterbodyName } from './liquid';
@@ -33,7 +34,9 @@ import { mondied } from './mondeath';
 import { wakeNearto } from './noise';
 import { P, hasProp } from './props';
 import { burnAwaySlime } from './slimestate';
-import { T, setTerrain } from './terrain';
+import { T, setTerrain, terrainIdAt } from './terrain';
+import { levelTemperature } from './temperature';
+import { objResists } from './polyobj';
 import { flying, levitating } from './trapstate';
 import { setUinwater, uinwater } from './uwater';
 import { waterDamage } from './water';
@@ -470,7 +473,37 @@ export function flooreffects(
     }
     return withSpot(ctx, obj, x, y, () => waterDamage(ctx, obj, null, false)) === 'destroyed';
   }
+  if (
+    ctx.defs.object(obj.def).class === 'potion' &&
+    levelTemperature(ctx, level) > 0 &&
+    (terrainIdAt(level, x, y) === T.floor || terrainIdAt(level, x, y) === T.corr)
+  )
+    return hotGround(ctx, obj, x, y);
   return false;
+}
+
+/**
+ * A potion landing on the hot ground of a hot level: "The potion heats up as it hits the hot
+ * ground." when seen; it survives 50 times in 100 (70 blessed; adjusted by 2 per point of Luck
+ * when it is or was hers; there is no oil), else "It shatters from the heat!" ("You hear a
+ * shattering noise." unseen) and it breaks (its vapors next to her). True when it is gone.
+ * ref: src/do.c flooreffects() (the potion part); src/dothrow.c breakobj() (not hero-caused)
+ */
+function hotGround(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
+  const many = (obj.c.item?.quantity ?? 1) > 1;
+  const seen = canseeXY(ctx, x, y);
+  if (seen)
+    say(ctx, many ? 'flooreffects.heat_up_pl' : 'flooreffects.heat_up', {
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+  let survival = obj.c.item?.buc === 'blessed' ? 70 : 50;
+  if (obj.c.item?.letter) survival += luckOf(ctx.state) * 2;
+  if (objResists(ctx, survival)) return false;
+  if (seen) say(ctx, many ? 'flooreffects.shatter_heat_pl' : 'flooreffects.shatters_heat');
+  else say(ctx, 'flooreffects.hear_shatter');
+  potionVaporsLate(ctx, obj, x, y);
+  if (ctx.state.entities[String(obj.id)]) destroyObj(ctx, obj);
+  return true;
 }
 
 setFloorEffects((ctx, obj, x, y, verb) => flooreffects(ctx, obj, x, y, verb));

@@ -1,11 +1,14 @@
 // The dungeon's new-game draw and Gehennom's arrival: the Castle's passtune is drawn right after
 // the dungeon layout; arriving on the Valley of the Dead from outside Gehennom gives its three
-// lines, any other way in NetHack 3.6's hot line (until level temperature, m17 step 3); being on
-// any other Gehennom level, or saying yes at the Valley's gate, marks Gehennom entered.
-// ref: src/dungeon.c init_dungeons() init_castle_tune(); src/do.c goto_level(), dodown()
+// lines; being on any other Gehennom level, or saying yes at the Valley's gate, marks Gehennom
+// entered; every level change ends with the level temperature's lines (temperature.ts).
+// ref: src/dungeon.c init_dungeons() init_castle_tune(); src/do.c goto_level(), dodown(),
+// temperature_change_msg()
 import type { Ctx, DefId, ModApi } from '@nh/core';
 import { gehennomEntered, setCastleTune, setGehennomEntered } from './dbstate';
 import { inHell, isValley } from './levelflags';
+import { temperatureChangeMsg } from './temperature';
+import { heroForm } from './upoly';
 
 /**
  * The passtune: five notes `'A' + rn2(7)`, drawn once at new game after the dungeon rolls.
@@ -26,15 +29,19 @@ export function registerGehennom(api: ModApi): void {
     const from = ctx.state.levels[change.from];
     const valley = isValley(ctx.state);
     // "Check whether we just entered Gehennom."
-    if (from && !inHell(ctx.state, from)) {
-      if (valley) {
-        say(ctx, 'gehennom.valley_arrive');
-        say(ctx, 'gehennom.valley_odor');
-        say(ctx, 'gehennom.valley_groans'); // (she is never deaf here)
-      } else say(ctx, 'gehennom.hot'); // NetHack 3.6's line until level temperature (m17 step 3)
+    if (from && !inHell(ctx.state, from) && valley) {
+      say(ctx, 'gehennom.valley_arrive');
+      say(ctx, 'gehennom.valley_odor');
+      say(ctx, 'gehennom.valley_groans'); // (she is never deaf here)
     }
     // "in case we've managed to bypass the Valley's stairway down"
     if (!valley) setGehennomEntered(ctx);
+  });
+  // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last
+  api.on('levelChange', (ctx, change) => {
+    const from = change.from === null ? undefined : ctx.state.levels[change.from];
+    const to = ctx.state.levels[change.to];
+    if (from && to) temperatureChangeMsg(ctx, from, to, heroForm(ctx));
   });
 }
 

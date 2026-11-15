@@ -7,6 +7,7 @@
 // ref: dat/dungeon.lua; src/dungeon.c init_dungeons(), init_castle_tune(), Can_fall_thru(),
 // find_hell(); src/trap.c fall_through(), mlevel_tele_trap(); src/teleport.c level_tele();
 // src/do.c goto_level(); src/pray.c prayer_done(); src/makemon.c uncommon(), rndmonst_adj()
+import { levelTemperature } from '../src/temperature';
 import {
   createEngine,
   getLevel,
@@ -205,13 +206,18 @@ describe('the Castle and Gehennom', () => {
     }
   });
 
-  test("Gehennom's levels are mazes; entering again says nothing", () => {
+  test("Gehennom's levels are hellfill's; from the temperate Valley, the level's temperature", () => {
     const { state } = castle(4);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: 1 }, 'random'));
     const t = run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: 2 }, 'up'));
-    expect(t).not.toContain('It is hot here.  You smell smoke...');
     const g2 = getLevel(state);
-    expect(g2.def).toBe('nh:mazefill');
+    expect(g2.def).toBe('nh:hellfill'); // m17 step 3
+    const cold = levelTemperature({ state, defs: engine.registry }, g2) < 0;
+    expect(t).toEqual(
+      expect.arrayContaining(
+        cold ? ['It is cold here.'] : ['It is hot here.', 'You smell smoke...'],
+      ),
+    );
     expect(g2.up).not.toBeNull();
     expect(g2.branch).toBeNull();
   });

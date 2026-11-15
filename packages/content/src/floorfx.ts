@@ -18,3 +18,15 @@ export const floorEffectsLate = (
   y: number,
   verb: 'drop' | 'fall',
 ): boolean => fx?.(ctx, obj, x, y, verb) ?? false;
+
+type Vapors = (ctx: Ctx, obj: Entity, x: number, y: number) => void;
+let vapors: Vapors | null = null;
+
+/** potionhit.ts hands down its breakPotionVapors() for flooreffects()'s hot ground. */
+export function setPotionVapors(fn: Vapors): void {
+  vapors = fn;
+}
+
+/** A potion breaking at (x, y): its vapors when next to the hero. ref: src/dothrow.c breakobj() */
+export const potionVaporsLate = (ctx: Ctx, obj: Entity, x: number, y: number): void =>
+  vapors?.(ctx, obj, x, y);

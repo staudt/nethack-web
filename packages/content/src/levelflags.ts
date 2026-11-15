@@ -13,6 +13,7 @@ import {
   type Ctx,
   type DefId,
   type GameState,
+  type Json,
   type Level,
   type LevelRef,
 } from '@nh/core';
@@ -81,6 +82,11 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:soko4-2': SOKO_ENTRY,
   /** ref: src/mkmaze.c makemaz(""): `level.flags.is_maze_lev = 1` */
   'nh:mazefill': { maze: true },
+  /**
+   * ref: dat/hellfill.lua des.level_flags("mazelevel", "noflip"): a walled, joined mines map
+   * (its first kind of level) clears it again (MadeLevelFlags)
+   */
+  'nh:hellfill': { maze: true },
   /** ref: dat/minetn-5.lua (Grotto town is a solidfill map, so it stays a maze level) */
   'nh:minetn-5': { maze: true },
   /** ref: dat/minend-1.lua */
@@ -158,16 +164,63 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
 
 const NONE: LevelFlags = {};
 
-/** The level's flags (none for an ordinary level). */
-export function levelFlags(_ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): LevelFlags {
-  return (level.def !== undefined ? LEVEL_FLAGS[level.def] : undefined) ?? NONE;
+/** What reads the level flags: the registry, and the game state for the flags a level got. */
+type FlagCtx = Pick<Ctx, 'defs'> & { readonly state?: Readonly<GameState> };
+
+/**
+ * Flags a level got from its own random choices while it was made (`modData.nh.levflags` by
+ * level id; hellfill.ts): its kind of hellfill level, `maze` (des.level_flags("mazelevel"), cleared again by a walled,
+ * joined mines map), `cavernous` (that map: mkmap()'s is_cavernous_lev), `temperature` (-1 for
+ * "cold"; read by temperature.ts) and `nondiggable` rectangles in Level coordinates (a prefab's
+ * des.non_diggable()). ref: src/sp_lev.c lspo_level_flags(), set_wallprop_in_selection();
+ * src/mkmap.c mkmap()
+ */
+export interface MadeLevelFlags {
+  /** hellfill.lua's kind of level (1..7, `hellno`), for wizard mode and tests. */
+  hellfill?: number;
+  maze?: boolean;
+  cavernous?: true;
+  temperature?: -1 | 0 | 1;
+  nondiggable?: [number, number, number, number][];
+}
+
+const levflagsTable = (state: Readonly<GameState>): Record<string, Json> | undefined => {
+  const nh = state.modData['nh'] as Record<string, Json> | undefined;
+  return nh?.['levflags'] as Record<string, Json> | undefined;
+};
+
+/** The flags level `levelId` got as it was made (none for most levels). */
+export function madeLevelFlags(state: Readonly<GameState>, levelId: string): MadeLevelFlags {
+  const t = levflagsTable(state);
+  return (t && Object.hasOwn(t, levelId) ? t[levelId] : {}) as MadeLevelFlags;
+}
+
+/** Records flags of level `levelId` as it is made (merged over what it has). */
+export function setMadeLevelFlags(
+  ctx: Pick<Ctx, 'state'>,
+  levelId: string,
+  flags: MadeLevelFlags,
+): void {
+  const nh = (ctx.state.modData['nh'] ??= {}) as Record<string, Json>;
+  const t = (nh['levflags'] ??= {}) as Record<string, Json>;
+  t[levelId] = { ...madeLevelFlags(ctx.state, levelId), ...flags } as Json;
+}
+
+/** The level's flags (none for an ordinary level), with the `maze` flag it got when made. */
+export function levelFlags(ctx: FlagCtx, level: Readonly<Level>): LevelFlags {
+  const base = (level.def !== undefined ? LEVEL_FLAGS[level.def] : undefined) ?? NONE;
+  const made = ctx.state ? madeLevelFlags(ctx.state, level.id) : {};
+  if (made.maze === undefined) return base;
+  const { maze: _maze, ...rest } = base;
+  return made.maze ? { ...rest, maze: true } : rest;
 }
 
 /**
  * A walled, joined mines-style level is cavernous, not mazelike: zapped walls there become
  * corridor rather than doorways. ref: src/mkmap.c mkmap() `if (walled && join)`
  */
-export function cavernous(ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): boolean {
+export function cavernous(ctx: FlagCtx, level: Readonly<Level>): boolean {
+  if (ctx.state && madeLevelFlags(ctx.state, level.id).cavernous === true) return true;
   if (level.def === undefined) return false;
   const init = ctx.defs.level(level.def).init;
   return init.style === 'mines' && init.walled === true && init.joined === true;
@@ -179,30 +232,27 @@ export function cavernous(ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): boole
  * raised drawbridge's portcullis (ref: src/dbridge.c create_drawbridge(), close_drawbridge():
  * "Drawbridges are non-diggable."). Only stone, walls and trees care (may_dig()).
  */
-export function nonDiggable(
-  ctx: Pick<Ctx, 'defs'>,
-  level: Readonly<Level>,
-  x: number,
-  y: number,
-): boolean {
-  return isDbWall(level, x, y) || inFlagArea(ctx, level, levelFlags(ctx, level).nondiggable, x, y);
+export function nonDiggable(ctx: FlagCtx, level: Readonly<Level>, x: number, y: number): boolean {
+  return (
+    isDbWall(level, x, y) ||
+    inFlagArea(ctx, level, levelFlags(ctx, level).nondiggable, x, y) ||
+    (ctx.state !== undefined &&
+      (madeLevelFlags(ctx.state, level.id).nondiggable ?? []).some(
+        ([x1, y1, x2, y2]) => x >= x1 && x <= x2 && y >= y1 && y <= y2,
+      ))
+  );
 }
 
 /**
  * The cell's W_NONPASSWALL bit, like {@link nonDiggable} for des.non_passwall(): only stone and
  * walls care (may_passwall()). ref: src/sp_lev.c set_wallprop_in_selection(), solidify_map()
  */
-export function nonPasswall(
-  ctx: Pick<Ctx, 'defs'>,
-  level: Readonly<Level>,
-  x: number,
-  y: number,
-): boolean {
+export function nonPasswall(ctx: FlagCtx, level: Readonly<Level>, x: number, y: number): boolean {
   return inFlagArea(ctx, level, levelFlags(ctx, level).nonpasswall, x, y);
 }
 
 function inFlagArea(
-  ctx: Pick<Ctx, 'defs'>,
+  ctx: FlagCtx,
   level: Readonly<Level>,
   nd: LevelFlags['nondiggable'],
   x: number,

@@ -4,7 +4,16 @@ export { VANILLA_TERRAIN, PALETTE_KEYS, CAVE_PALETTE_KEYS, PAL } from './terrain
 export type { LevelTerrain } from './terrain';
 export { levelToAscii } from './ascii';
 export { buildLevel, wallifyLevel } from './special';
-export { mazeMax, mazexy, walkfrom } from './maze';
+export {
+  createMaze,
+  mazeGrid,
+  mazeMax,
+  mazexy,
+  walkfrom,
+  MZ_OPEN,
+  MZ_STONE,
+  MZ_WALL,
+} from './maze';
 export type { MazeWalkGrid } from './maze';
 export { mkmap, MK, MIN_MKMAP_WIDTH, MIN_MKMAP_HEIGHT } from './mkmap';
 export type { MkmapOptions } from './mkmap';
