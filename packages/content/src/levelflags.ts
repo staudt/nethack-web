@@ -13,6 +13,7 @@ import {
   type GameState,
   type Level,
 } from '@nh/core';
+import { isDbWall } from './dbstate';
 
 /** A rectangle of map-relative cells, corners included (des.non_diggable(selection.area())). */
 export interface FlagRect {
@@ -126,6 +127,8 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     maze: true,
     nondiggable: [{ x1: 1, y1: 1, x2: 22, y2: 14 }],
   },
+  /** ref: dat/castle.lua ("noflipy": no flipping here) */
+  'nh:castle': { noteleport: true, maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 62, y2: 16 }] },
   /** ref: dat/minend-3.lua (the Catacombs) */
   'nh:minend-3': {
     maze: true,
@@ -155,8 +158,9 @@ export function cavernous(ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): boole
 
 /**
  * The cell's W_NONDIGGABLE bit: inside one of the level's des.non_diggable() areas (map-relative,
- * placed through the LevelDef's map block), or anywhere on a level whose flags say 'all'. Only
- * stone, walls and trees care (may_dig()).
+ * placed through the LevelDef's map block), or anywhere on a level whose flags say 'all', or a
+ * raised drawbridge's portcullis (ref: src/dbridge.c create_drawbridge(), close_drawbridge():
+ * "Drawbridges are non-diggable."). Only stone, walls and trees care (may_dig()).
  */
 export function nonDiggable(
   ctx: Pick<Ctx, 'defs'>,
@@ -164,7 +168,7 @@ export function nonDiggable(
   x: number,
   y: number,
 ): boolean {
-  return inFlagArea(ctx, level, levelFlags(ctx, level).nondiggable, x, y);
+  return isDbWall(level, x, y) || inFlagArea(ctx, level, levelFlags(ctx, level).nondiggable, x, y);
 }
 
 /**

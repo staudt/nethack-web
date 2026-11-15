@@ -6,8 +6,8 @@
 //
 // Not ported: steam clouds (create_gas_cloud(): no gas regions), burying and unearthing the
 // objects in a pool that freezes (they lie on the ice: DEVIATIONS "Water"), fix_wall_spines()
-// after a wall of lava freezes, the drawbridge (m15 step 7), corpse aging on ice
-// (obj_ice_effects()), the Plane of Water and level temperature.
+// after a wall of lava freezes, the moat under a raised drawbridge (m15 step 8), corpse aging
+// on ice (obj_ice_effects()), the Plane of Water and level temperature.
 import {
   cellIndex,
   getPlayer,

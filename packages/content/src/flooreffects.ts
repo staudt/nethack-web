@@ -5,7 +5,7 @@
 // Shared by moverock.ts (a pushed boulder), the scroll of earth (falling boulders), dropping,
 // throwing, kicking and scattering, so it sits below them and imports none of them; trap.ts uses
 // it for objects teleported onto a pit or hole (rloco()).
-// Not ported: the Plane of Water, drawbridges (m15 step 7), burying the objects under a filled
+// Not ported: the Plane of Water, burying the objects under a filled
 // pool or pit (bury_objs(): nothing is buried), globs merging, hot ground boiling potions, the
 // teetering-at-a-pit tumble, ship_object().
 import {
@@ -37,6 +37,7 @@ import { T, setTerrain } from './terrain';
 import { flying, levitating } from './trapstate';
 import { setUinwater, uinwater } from './uwater';
 import { waterDamage } from './water';
+import { isRaisedSpan, setDrawbridgeUnder } from './dbstate';
 import { BOULDER } from './boulder';
 import { dbonU, monsterIdAt } from './combat';
 import { hmonThrownHit } from './hmon';
@@ -220,8 +221,8 @@ const canseeXY = (ctx: Ctx, x: number, y: number): boolean => {
  * ("There is a large splash as the boulder falls into the pool of water."  "It sinks without a
  * trace!"), and molten lava splashes the hero next to it (`d(3, 6)`, `d(1, 6)` fire resistant).
  * The boulder is gone either way. False when (rx, ry) is no water or lava.
- * ref: src/do.c boulder_hits_pool() (no Plane of Water, drawbridges, steeds or Deafness; the
- * objects under it are not buried)
+ * ref: src/do.c boulder_hits_pool() (no Plane of Water, steeds or Deafness; the objects under it
+ * are not buried)
  */
 export function boulderHitsPool(
   ctx: Ctx,
@@ -240,7 +241,9 @@ export function boulderHitsPool(
   const blind = heroBlind(ctx.defs, ctx.state);
   const name = xnameOf(ctx.state, ctx.defs, otmp);
   if (fillsUp) {
-    setTerrain(level, rx, ry, T.floor);
+    // the moat or lava under a raised drawbridge becomes its floor (DB_FLOOR)
+    if (isRaisedSpan(level, rx, ry)) setDrawbridgeUnder(ctx, level, rx, ry, 'floor');
+    else setTerrain(level, rx, ry, T.floor);
     const mtmp = monsterAt(ctx, level.id, rx, ry);
     if (mtmp && !mInAir(ctx, mtmp)) mondied(ctx, mtmp.id);
     // no trap can lie on water; nothing is buried (bury_objs())

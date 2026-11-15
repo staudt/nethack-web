@@ -425,6 +425,16 @@ export function shuffle<T>(ctx: Pick<Ctx, 'rng'>, list: T[]): void {
   }
 }
 
+/**
+ * place:rndcoord(1): one of the spots, removed from the list (the selection walks its spots
+ * column by column). ref: src/selvar.c selection_rndcoord()
+ */
+export function rndcoord(ctx: Pick<Ctx, 'rng'>, spots: Pos[]): Pos {
+  spots.sort((a, b) => a.x - b.x || a.y - b.y);
+  const [p] = spots.splice(ctx.rng.rn2(spots.length), 1);
+  return p as Pos;
+}
+
 /** The Level position of a LevelDef spot (map-relative when the LevelDef has a map block). */
 export function mapToLevel(def: LevelDef, level: Level, x: number, y: number): Pos {
   return levelDefPos(def, level.width, level.height, x, y, undefined, `${def.id} fixup`);

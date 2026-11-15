@@ -3,8 +3,8 @@
 // is_moat(); src/pager.c waterbody_name()
 //
 // A leaf over the registry's terrain defs (`TerrainDef.liquid`), so any game module can import
-// it. Raised drawbridges (m15 step 7) are water through their terrain's `liquid`; what lies under
-// them (moat, lava, ice) is the drawbridge module's business.
+// it. A raised drawbridge's span is its own terrain for each thing that can lie under it
+// (terrain.ts): over the moat it is water and a moat, over lava lava, over ice ice.
 // Not ported: the Juiblex swamp, Medusa's "shallow sea", the samurai's "pond", the Plane of
 // Water's "limitless water" (none of those levels exist yet) and hallucinatory liquids
 // (hliquid()).
@@ -51,13 +51,17 @@ export const isLava = (ctx: Defs, level: Readonly<Level>, x: number, y: number):
 export const isPoolOrLava = (ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean =>
   liquidAt(ctx, level, x, y) !== null;
 
-/** ref: src/dbridge.c is_moat() (no Juiblex level) */
-export const isMoat = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean =>
-  inBounds(level, x, y) && terrainIdAt(level, x, y) === T.moat;
+/** ref: src/dbridge.c is_moat() (no Juiblex level): a moat, or one under a raised drawbridge */
+export const isMoat = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean => {
+  const id = inBounds(level, x, y) ? terrainIdAt(level, x, y) : undefined;
+  return id === T.moat || id === T.drawbridge_up;
+};
 
-/** ref: src/dbridge.c is_ice() */
-export const isIce = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean =>
-  inBounds(level, x, y) && terrainIdAt(level, x, y) === T.ice;
+/** ref: src/dbridge.c is_ice(): ice, or ice under a raised drawbridge */
+export const isIce = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean => {
+  const id = inBounds(level, x, y) ? terrainIdAt(level, x, y) : undefined;
+  return id === T.ice || id === T.drawbridge_up_ice;
+};
 
 /** Whether terrain id `id` is a liquid of either kind. */
 export const isLiquidId = (ctx: Defs, id: DefId | undefined): boolean =>
@@ -70,13 +74,17 @@ export const isLiquidId = (ctx: Defs, id: DefId | undefined): boolean =>
  */
 export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: number): string {
   const id = inBounds(level, x, y) ? terrainIdAt(level, x, y) : undefined;
+  // a raised drawbridge: what lies under it (`ltyp = db_under_typ(drawbridgemask)`)
   switch (id) {
+    case T.drawbridge_up_lava:
     case T.lava:
       return 'liquid.name.lava';
+    case T.drawbridge_up_ice:
     case T.ice:
       return 'liquid.name.ice';
     case T.pool:
       return 'liquid.name.pool';
+    case T.drawbridge_up:
     case T.moat:
       return 'liquid.name.moat';
     case T.water:

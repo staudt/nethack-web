@@ -58,6 +58,7 @@ import { mkroomMessagesEn } from './mkroom.en';
 import { vaultMessagesEn } from './vault.en';
 import { scrollMessagesEn } from './scroll.en';
 import { liquidMessagesEn } from './liquid.en';
+import { dbridgeMessagesEn } from './dbridge.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -69,6 +70,7 @@ export const messagesEn: Record<string, string> = {
   ...vaultMessagesEn,
   ...scrollMessagesEn,
   ...liquidMessagesEn,
+  ...dbridgeMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,
@@ -278,6 +280,15 @@ export const messagesEn: Record<string, string> = {
   'nh:lavawall': 'wall of lava',
   'nh:ice': 'ice',
   'nh:cloud': 'cloud',
+  // a raised drawbridge's span shows what lies under it (S_pool, S_lava, S_ice, S_room)
+  'nh:drawbridge_up': 'moat',
+  'nh:drawbridge_up_lava': 'molten lava',
+  'nh:drawbridge_up_ice': 'ice',
+  'nh:drawbridge_up_floor': 'floor of a room',
+  'nh:drawbridge_down_h': 'lowered drawbridge',
+  'nh:drawbridge_down_v': 'lowered drawbridge',
+  'nh:dbwall_h': 'raised drawbridge',
+  'nh:dbwall_v': 'raised drawbridge',
   // ref: src/pager.c lookat() S_altar: "%s altar" with align_str()
   'nh:altar_lawful': 'lawful altar',
   'nh:altar_neutral': 'neutral altar',

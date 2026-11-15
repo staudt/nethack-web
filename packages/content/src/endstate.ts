@@ -11,6 +11,7 @@ export type How =
   | 'drowning'
   | 'burning'
   | 'dissolved'
+  | 'crushing'
   | 'stoning'
   | 'turned_slime'
   | 'genocided';

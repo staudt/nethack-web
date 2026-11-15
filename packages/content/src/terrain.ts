@@ -311,6 +311,49 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: true,
     glyph: { ch: '#', fg: GRAY },
   },
+  // Drawbridges (ref: include/rm.h DRAWBRIDGE_UP, DRAWBRIDGE_DOWN, DBWALL; src/display.c
+  // back_to_glyph()). The raised bridge's span shows what lies under it and is that (C's
+  // is_pool(), is_lava() and is_ice() read DB_UNDER of `drawbridgemask`), one terrain per kind
+  // (the direction is dbstate.ts's): over the moat it is water (S_pool), over lava lava (S_lava),
+  // else ice (S_ice) or floor (S_room). None is ACCESSIBLE() in C, but test_move() lets her in
+  // as into water. The lowered bridge is S_vodbridge/S_hodbridge '.' (CLR_BROWN), "lowered
+  // drawbridge"; the raised portcullis S_vcdbridge/S_hcdbridge '#' (CLR_BROWN), "raised
+  // drawbridge", a wall (IS_WALL()) that blocks sight.
+  ...(
+    [
+      ['nh:drawbridge_up', 'nh:moat', 'water'],
+      ['nh:drawbridge_up_lava', 'nh:lava', 'lava'],
+      ['nh:drawbridge_up_ice', 'nh:ice', null],
+      ['nh:drawbridge_up_floor', 'nh:floor', null],
+    ] as const
+  ).map(([id, under, liquid]): TerrainDef => ({
+    id,
+    nameKey: `terrain.${under.slice(3)}`,
+    passable: true,
+    opaque: false,
+    ...(liquid ? { liquid } : {}),
+    glyph:
+      under === 'nh:moat'
+        ? { ch: '}', fg: BLUE }
+        : under === 'nh:lava'
+          ? { ch: '}', fg: RED }
+          : { ch: '.', fg: under === 'nh:ice' ? CYAN : GRAY },
+    looksLike: under,
+  })),
+  ...(['h', 'v'] as const).map((o): TerrainDef => ({
+    id: `nh:drawbridge_down_${o}`,
+    nameKey: 'terrain.drawbridge_down',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '.', fg: BROWN },
+  })),
+  ...(['h', 'v'] as const).map((o): TerrainDef => ({
+    id: `nh:dbwall_${o}`,
+    nameKey: 'terrain.dbwall',
+    passable: false,
+    opaque: true,
+    glyph: { ch: '#', fg: BROWN },
+  })),
   // One altar per alignment, all drawn alike; the alignment shows in its name.
   ...(['lawful', 'neutral', 'chaotic', 'unaligned'] as const).map((a): TerrainDef => ({
     id: `nh:altar_${a}`,
@@ -361,6 +404,14 @@ export const T = {
   lavawall: 'nh:lavawall',
   ice: 'nh:ice',
   cloud: 'nh:cloud',
+  drawbridge_up: 'nh:drawbridge_up',
+  drawbridge_up_lava: 'nh:drawbridge_up_lava',
+  drawbridge_up_ice: 'nh:drawbridge_up_ice',
+  drawbridge_up_floor: 'nh:drawbridge_up_floor',
+  drawbridge_down_h: 'nh:drawbridge_down_h',
+  drawbridge_down_v: 'nh:drawbridge_down_v',
+  dbwall_h: 'nh:dbwall_h',
+  dbwall_v: 'nh:dbwall_v',
   altar_lawful: 'nh:altar_lawful',
   altar_neutral: 'nh:altar_neutral',
   altar_chaotic: 'nh:altar_chaotic',
@@ -379,6 +430,8 @@ const WALL_IDS: ReadonlySet<DefId> = new Set<DefId>([
   T.tlwall,
   T.trwall,
   T.crwall,
+  T.dbwall_h, // IS_WALL(): STONE < typ <= DBWALL
+  T.dbwall_v,
 ]);
 const SDOOR_IDS: ReadonlySet<DefId> = new Set<DefId>([
   T.sdoor_v,
@@ -433,9 +486,11 @@ export function surfaceKey(
   const id = terrainIdAt(level, x, y);
   // IS_AIR(): a cloud; is_pool() (no Underwater "bottom"), is_ice(), is_lava()
   if (id === T.cloud) return '@surface.cloud';
-  if (id === T.pool || id === T.moat || id === T.water) return '@surface.water';
-  if (id === T.ice) return '@surface.ice';
-  if (id === T.lava || id === T.lavawall) return '@surface.lava';
+  if (id === T.pool || id === T.moat || id === T.water || id === T.drawbridge_up)
+    return '@surface.water';
+  if (id === T.ice || id === T.drawbridge_up_ice) return '@surface.ice';
+  if (id === T.lava || id === T.lavawall || id === T.drawbridge_up_lava) return '@surface.lava';
+  if (id === T.drawbridge_down_h || id === T.drawbridge_down_v) return '@surface.bridge';
   if (id?.startsWith('nh:altar_') === true) return '@surface.altar';
   if (id === T.fountain) return '@surface.fountain';
   if (id === undefined) return '@surface.ground';

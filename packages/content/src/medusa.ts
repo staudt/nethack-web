@@ -14,7 +14,14 @@
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
 import { polyWhenStoned } from './golem';
 import { mksobjFull, rndmonnum } from './mkobj';
-import { addToStatue, deleteContents, makeContents, mapToLevel, type SpLevFixup } from './sp_lev';
+import {
+  addToStatue,
+  deleteContents,
+  makeContents,
+  mapToLevel,
+  rndcoord,
+  type SpLevFixup,
+} from './sp_lev';
 import { mkcorpstat } from './statue';
 import { STATUE, setHistoric } from './statuestate';
 import { goodposNone } from './teleport';
@@ -389,16 +396,6 @@ function perseus(
   if (percent(ctx, chance[1])) inside('nh:levitation_boots', undefined, 0);
   if (percent(ctx, chance[2])) inside('nh:scimitar', 'blessed', 2);
   if (percent(ctx, chance[3])) inside('nh:sack');
-}
-
-/**
- * place:rndcoord(1, 1): one of the spots, removed from the list (the selection walks its spots
- * column by column). ref: src/selvar.c selection_rndcoord()
- */
-function rndcoord(ctx: Pick<Ctx, 'rng'>, spots: Pos[]): Pos {
-  spots.sort((a, b) => a.x - b.x || a.y - b.y);
-  const [p] = spots.splice(ctx.rng.rn2(spots.length), 1);
-  return p as Pos;
 }
 
 /** The down stairs core put on the LevelDef's spot go to `to` (des.stair("down", medloc)). */

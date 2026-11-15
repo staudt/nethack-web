@@ -1,6 +1,7 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
 import type { DefId, DungeonDef, LevelDef } from '@nh/core';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
+import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MEDUSA_FIXUPS, MEDUSA_VARIANTS } from './medusa';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
@@ -44,9 +45,11 @@ export const LEVELS: readonly LevelDef[] = [
   ...MINEND_VARIANTS,
   ORACLE_LEVEL,
   ...SOKOBAN_VARIANTS.flat(),
-  // m15: registered and built in tests; nh:main places the big room and Medusa from step 9 on
+  // m15: registered and built in tests; nh:main places the big room, Medusa and the Castle from
+  // step 9 on
   ...BIGROOM_VARIANTS,
   ...MEDUSA_VARIANTS,
+  CASTLE_LEVEL,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -57,6 +60,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   ...SOKOBAN_PRIZE_FIXUPS,
   ...BIGROOM_FIXUPS,
   ...MEDUSA_FIXUPS,
+  [CASTLE_LEVEL.id]: CASTLE_FIXUP,
 };
 
 /**
