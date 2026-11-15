@@ -20,6 +20,7 @@ const CHARS: Record<string, DefId> = {
   o: T.doorway,
   '#': T.corr,
   '>': T.stairs_down,
+  '}': T.pool,
 };
 
 export interface MapOpts {

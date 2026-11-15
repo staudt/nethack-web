@@ -110,7 +110,7 @@ describe('defineLevel validation', () => {
   test('references to unknown defs are reported', () => {
     const lv: LevelDef = {
       id: 'lv:refs',
-      init: { style: 'solidfill', fg: 'nh:lava' },
+      init: { style: 'solidfill', fg: 'nh:magma' },
       contents: [
         { kind: 'monster', id: 'lv:dwarf' },
         { kind: 'monster', class: 'h' },
@@ -120,7 +120,7 @@ describe('defineLevel validation', () => {
     };
     expect(issues([lv], [{ id: 'lv:main', nameKey: 'main', filler: 'lv:nope' }])).toEqual([
       "lv:main filler: unknown level 'lv:nope'",
-      "lv:refs init.fg: unknown terrain 'nh:lava'",
+      "lv:refs init.fg: unknown terrain 'nh:magma'",
       "lv:refs contents[0].id: unknown monster 'lv:dwarf'",
       "lv:refs contents[1].class: no monster has glyph 'h'",
       "lv:refs contents[2].id: unknown object 'lv:gem'",

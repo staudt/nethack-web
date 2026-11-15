@@ -7,8 +7,10 @@
 // at will when blessed: Lev_at_will, `>`; ref: src/timeout.c nh_timeout() LEVITATION,
 // levitation_dialogue(); src/do.c dodown()); no spell or artifact yet. A bear trap
 // holds her to the floor (BLevitation): `levitating()` (trapstate.ts) is C's `Levitation`.
-// Not ported: the air and water levels, pools, lava and sinks (dosinkfall()), the ball and
-// chain, hurtling and the steed (DEVIATIONS.md "Levitation").
+// Coming down over water drops her in (drown(), late-bound through uwater.ts); in the water,
+// floating up takes her out (spoteffects()). Not ported: the air and water levels, lava (m15
+// step 3), sinks (dosinkfall()), the ball and chain, hurtling and the steed (DEVIATIONS.md
+// "Levitation").
 //
 // Module graph: float_down() ends in dotrap(), but trap.ts sits above this module (its rust trap
 // reaches jewelry.ts, which calls floatDown(), through erode.ts), so trap.ts hands its trigger in
@@ -34,7 +36,9 @@ import { monNam } from './perception';
 import { P, hasExtrinsic, hasProp, setItimeout, setTimeoutExpiry, timeoutLeft } from './props';
 import { isSokoban } from './sokoban';
 import { surfaceKey } from './terrain';
-import { levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
+import { flying, levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
+import { isPool } from './liquid';
+import { drownLate, poolEffects, swimming, uinwater, wwalking } from './uwater';
 
 export { levitating };
 
@@ -101,6 +105,8 @@ export function floatUp(ctx: Ctx): void {
       // bear trap
       say(ctx, 'lev.float_up_leg_stuck');
     }
+  } else if (uinwater(ctx)) {
+    poolEffects(ctx, true); // spoteffects(TRUE): "You pop out of the water like a cork!"
   } else if (hasProp(hero(ctx), P.HALLUC)) {
     say(ctx, 'lev.up_up_away');
   } else {
@@ -111,10 +117,11 @@ export function floatUp(ctx: Ctx): void {
 
 /**
  * The hero stops floating (the ring is off): unless something still holds her up she comes down
- * (a sticky monster lets go; in Sokoban the air currents knock her over), the trap here goes off
- * unless she is already in it (a hole or trap door only where there is a level below), then she
- * sees what is on the floor. False when she was not floating after all. `timed` is C's hmask
- * `I_SPECIAL | TIMEOUT`: the potion's levitation and its at-will bit end first.
+ * (a sticky monster lets go; over water she cannot walk on she falls in: drown(); in Sokoban the
+ * air currents knock her over), the trap here goes off unless she is already in it (a hole or
+ * trap door only where there is a level below), then she sees what is on the floor. False
+ * when she was not floating after all. `timed` is C's hmask `I_SPECIAL | TIMEOUT`: the potion's
+ * levitation and its at-will bit end first.
  * ref: src/trap.c float_down()
  */
 export function floatDown(ctx: Ctx, timed = false): boolean {
@@ -132,22 +139,38 @@ export function floatDown(ctx: Ctx, timed = false): boolean {
     return false;
   }
   ctx.interrupt(); // nomul(0)
-  const stuck: EntityId | null = ustuck(ctx);
-  if (stuck !== null) {
-    const m = ctx.state.entities[String(stuck)];
-    if (m) say(ctx, 'lev.startled', { mon: monNam(ctx, m) });
-    setUstuck(ctx, null);
+  let noMsg = false;
+  if (!flying(ctx)) {
+    const stuck: EntityId | null = ustuck(ctx);
+    if (stuck !== null) {
+      const m = ctx.state.entities[String(stuck)];
+      if (m) say(ctx, 'lev.startled', { mon: monNam(ctx, m) });
+      setUstuck(ctx, null);
+    }
+    // check for falling into pool; drown() prints its own messages
+    const q = h.c.pos;
+    if (
+      q &&
+      isPool(ctx, getLevel(ctx.state, q.level), q.x, q.y) &&
+      !wwalking(ctx) &&
+      !swimming(ctx) &&
+      !uinwater(ctx)
+    )
+      noMsg = drownLate(ctx);
+    if (ctx.state.gameOver) return true;
   }
   const p = h.c.pos;
   if (!p) return true;
   const level = getLevel(ctx.state, p.level);
   const trap = trapAt(level, p.x, p.y);
-  if (isSokoban(level) && trap) {
+  if (uinwater(ctx) || noMsg) {
+    // u.uinwater messages already in drown()
+  } else if (isSokoban(level) && trap) {
     // the additional force of the air currents knocks her off her feet (no selftouch())
     say(ctx, hasProp(h, P.HALLUC) ? 'lev.crashed' : 'lev.fall_over');
     losehp(ctx, ctx.rng.rnd(2), '@killer.lev.dangerous_winds');
   } else if (hasProp(h, P.HALLUC)) {
-    say(ctx, 'lev.hit_ground');
+    say(ctx, isPool(ctx, level, p.x, p.y) ? 'lev.splashed_down' : 'lev.hit_ground');
   } else {
     say(ctx, 'lev.float_gently', { surface: surfaceKey(ctx, level, p.x, p.y) });
   }

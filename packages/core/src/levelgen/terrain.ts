@@ -48,6 +48,21 @@ export interface LevelTerrain {
   altar_neutral: DefId;
   altar_chaotic: DefId;
   altar_unaligned: DefId;
+  /**
+   * Liquids and the rest of NetHack's map terrain (ref: rm.h POOL, MOAT, WATER, LAVAPOOL,
+   * LAVAWALL, ICE, CLOUD, THRONE, IRONBARS; src/nhlua.c char2typ[]). Not in PALETTE_KEYS
+   * either: a level that uses one appends it to its own palette.
+   */
+  pool: DefId;
+  moat: DefId;
+  /** A wall of water (rm.h WATER). */
+  water: DefId;
+  lava: DefId;
+  lavawall: DefId;
+  ice: DefId;
+  cloud: DefId;
+  throne: DefId;
+  iron_bars: DefId;
 }
 
 export const VANILLA_TERRAIN: LevelTerrain = {
@@ -84,6 +99,15 @@ export const VANILLA_TERRAIN: LevelTerrain = {
   altar_neutral: 'nh:altar_neutral',
   altar_chaotic: 'nh:altar_chaotic',
   altar_unaligned: 'nh:altar_unaligned',
+  pool: 'nh:pool',
+  moat: 'nh:moat',
+  water: 'nh:water',
+  lava: 'nh:lava',
+  lavawall: 'nh:lavawall',
+  ice: 'nh:ice',
+  cloud: 'nh:cloud',
+  throne: 'nh:throne',
+  iron_bars: 'nh:iron_bars',
 };
 
 /**

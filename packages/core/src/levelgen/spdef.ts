@@ -22,10 +22,19 @@ export const MAP_LEGEND: Readonly<Record<string, keyof LevelTerrain | null>> = {
   '{': 'fountain',
   K: 'sink',
   T: 'tree',
+  P: 'pool',
+  '}': 'moat',
+  W: 'water',
+  L: 'lava',
+  Z: 'lavawall',
+  I: 'ice',
+  C: 'cloud',
+  '\\': 'throne',
+  F: 'iron_bars',
   x: null,
 };
 
-const LEGEND_TEXT = "' ' . # - | + S H { K T x";
+const LEGEND_TEXT = "' ' . # - | + S H { K T P } W L Z I C \\ F x";
 
 /** A placed map block, in Level coordinates. */
 export interface MapBlock {

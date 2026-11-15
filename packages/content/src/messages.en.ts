@@ -57,6 +57,7 @@ import { figurineMessagesEn } from './figurine.en';
 import { mkroomMessagesEn } from './mkroom.en';
 import { vaultMessagesEn } from './vault.en';
 import { scrollMessagesEn } from './scroll.en';
+import { liquidMessagesEn } from './liquid.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -67,6 +68,7 @@ export const messagesEn: Record<string, string> = {
   ...mkroomMessagesEn,
   ...vaultMessagesEn,
   ...scrollMessagesEn,
+  ...liquidMessagesEn,
   ...itemMessagesEn,
   ...magicMessagesEn,
   ...eatMessagesEn,
@@ -184,6 +186,13 @@ export const messagesEn: Record<string, string> = {
   'terrain.throne': 'opulent throne',
   'terrain.tree': 'tree',
   'terrain.iron_bars': 'iron bars',
+  'terrain.pool': 'pool of water',
+  'terrain.moat': 'moat',
+  'terrain.water': 'wall of water',
+  'terrain.lava': 'molten lava',
+  'terrain.lavawall': 'wall of lava',
+  'terrain.ice': 'ice',
+  'terrain.cloud': 'cloud',
   'terrain.altar': 'altar',
   'role.valkyrie': 'Valkyrie',
   'exp.welcome': 'Welcome to experience level {level}.',
@@ -262,6 +271,13 @@ export const messagesEn: Record<string, string> = {
   'nh:throne': 'opulent throne',
   'nh:tree': 'tree',
   'nh:iron_bars': 'iron bars',
+  'nh:pool': 'pool of water',
+  'nh:moat': 'moat',
+  'nh:water': 'wall of water',
+  'nh:lava': 'molten lava',
+  'nh:lavawall': 'wall of lava',
+  'nh:ice': 'ice',
+  'nh:cloud': 'cloud',
   // ref: src/pager.c lookat() S_altar: "%s altar" with align_str()
   'nh:altar_lawful': 'lawful altar',
   'nh:altar_neutral': 'neutral altar',

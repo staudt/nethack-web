@@ -37,11 +37,12 @@ export const SDOOR_KEYS: readonly Key[] = [
   'sdoor_locked_v',
   'sdoor_locked_h',
 ];
-/** IS_FURNITURE(): stairs, fountains, sinks, altars. */
+/** IS_FURNITURE(): stairs, fountains, thrones, sinks, altars. */
 export const FURNITURE_KEYS: readonly Key[] = [
   'stairs_up',
   'stairs_down',
   'fountain',
+  'throne',
   'sink',
   'altar_lawful',
   'altar_neutral',

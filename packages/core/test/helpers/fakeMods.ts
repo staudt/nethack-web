@@ -41,6 +41,8 @@ export function terrainMod(
         if (name === 'door_locked') def.door = 'locked';
         if (name === 'stairs_up') def.stairs = 'up';
         if (name === 'stairs_down') def.stairs = 'down';
+        if (name === 'pool' || name === 'moat' || name === 'water') def.liquid = 'water';
+        if (name === 'lava' || name === 'lavawall') def.liquid = 'lava';
         api.defineTerrain(def);
       }
       for (const r of roles) {

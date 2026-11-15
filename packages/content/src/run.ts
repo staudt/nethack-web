@@ -18,6 +18,10 @@ import {
 } from '@nh/core';
 import { monsterIdAt } from './combat';
 import { boulderStops } from './moverock';
+import { isLava, isPool } from './liquid';
+import { T } from './terrain';
+import { flying, levitating } from './trapstate';
+import { knownWwalking } from './uwater';
 import {
   beginSession,
   disturbed,
@@ -66,10 +70,32 @@ function terrainAt(ctx: Ctx, x: number, y: number): TerrainDef {
 const obstructed = (t: TerrainDef): boolean => !t.passable && t.door === undefined;
 
 /**
+ * Running stops in front of water or lava she could fall into (the same terrain as hers, or a
+ * shift-run over water or while in the air, is safe when she knows she won't fall in; walls of
+ * water and lava always stop her), when she remembers the square. ref: src/hack.c
+ * avoid_moving_on_liquid() (no Known_lwalking; flags.mention_walls is off: no message)
+ */
+function avoidMovingOnLiquid(ctx: Ctx, run: number, x: number, y: number): boolean {
+  const level = getLevel(ctx.state);
+  const here = heroPos(ctx);
+  const inAir = levitating(ctx) || flying(ctx);
+  const there = terrainAt(ctx, x, y).id;
+  const lava = isLava(ctx, level, x, y);
+  const wall = there === T.water || there === T.lavawall;
+  if (
+    (there === terrainAt(ctx, here.x, here.y).id || (run < 2 && (!lava || inAir))) &&
+    (inAir || (isPool(ctx, level, x, y) && knownWwalking(ctx))) &&
+    !wall
+  )
+    return false; // liquid is safe to traverse
+  return (ctx.state.memory[level.id]?.[y * level.width + x] ?? -1) >= 0;
+}
+
+/**
  * Stop running if we see something interesting next to us, and turn around a corner if that is the
  * only way to proceed (never turning more than twice the same way). Returns true to stop.
- * Ported: monsters, seen traps, closed doors, corridors, other features. Not ported: water and
- * lava, Blind, grid bugs, mimics (none exist yet).
+ * Ported: monsters, seen traps, closed doors, corridors, water and lava in front (m15),
+ * other features. Not ported: Blind, grid bugs, mimics (none exist yet).
  * ref: src/hack.c lookaround()
  */
 function lookaround(ctx: Ctx, s: Session, run: number): boolean {
@@ -115,6 +141,9 @@ function lookaround(ctx: Ctx, s: Session, run: number): boolean {
         corridor = true; // orthogonal to a closed door, consider it a corridor
       } else if (t.id === 'nh:corr') {
         corridor = true;
+      } else if (t.liquid !== undefined) {
+        if (infront && avoidMovingOnLiquid(ctx, run, x, y)) return true;
+        continue;
       } else {
         // e.g. stairs, an open door or a doorway
         if (run === 1) corridor = true;

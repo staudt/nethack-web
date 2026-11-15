@@ -122,6 +122,7 @@ import {
   uLocomotion,
   utrap,
 } from './trapstate';
+import { poolEffects } from './uwater';
 import { MZ_HUGE, isClinger, msize } from './mondata';
 import { heroForm, heroFormId } from './upoly';
 import { somexyspace } from './somexy';
@@ -1807,7 +1808,8 @@ export function teleds(ctx: Ctx, x: number, y: number, opts: { teleport?: boolea
   // if hero has left vault, make guard notice (before spoteffects() sets the new u.urooms)
   if (vaultGuard !== null && vaultOccupied(lvl, inRooms(lvl, x, y)) === null)
     uleftvaultLate(ctx, vaultGuard);
-  // spoteffects(TRUE)
+  // spoteffects(TRUE): pooleffects() first (she may crawl out or drown)
+  if (poolEffects(ctx, true) || ctx.state.gameOver) return;
   checkSpecialRoom(ctx, false, from);
   const level = getLevel(ctx.state, p.level);
   const t = trapAt(level, x, y);

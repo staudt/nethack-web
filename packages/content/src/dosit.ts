@@ -2,12 +2,13 @@
 // ref: src/sit.c dosit(), lay_an_egg()
 //
 // Ported: the parts whose terrain and states exist: swallowed, levitating, held by a monster,
-// sitting on the top object of a pile, being stuck in a bear trap, pit or web, setting off the
-// trap she sits on (VIASITTING), sinks, altars (altar_wrath()), stairs, thrones (throne.ts) and
-// laying eggs.
-// Not ported: no steeds, hiding heroes, water, lava, ice,
-// graves, ladders or drawbridges exist; the gremlin splitting in a fountain; cream pies and
-// towels do not exist; Half_physical_damage (no source).
+// sitting in water (on top of it with water walking, or on the muddy bottom when in it), on lava
+// and on ice, sitting on the top object of a pile, being stuck in a bear trap, pit or web,
+// setting off the trap she sits on (VIASITTING), sinks, altars (altar_wrath()), stairs, thrones
+// (throne.ts) and laying eggs.
+// Not ported: no steeds, hiding heroes, graves, ladders or drawbridges exist; the gremlin
+// splitting in a fountain or pool; burning away slime on lava; lava traps (TT_LAVA, m15 step 3);
+// cream pies and towels do not exist; Half_physical_damage (no source).
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -40,6 +41,10 @@ import { answerThrone, throneSitEffect } from './throne';
 import { dotrap } from './trap';
 import { flying, isHole, isPit, levitating, setUtrap, utrap } from './trapstate';
 import { heroForm } from './upoly';
+import { isIce, isLava, isPool } from './liquid';
+import { likesLavaId, uinwater } from './uwater';
+import { waterDamage } from './water';
+import { P, hasProp, wornIn } from './props';
 
 export const SIT_ID: DefId = 'nh:sit';
 
@@ -117,6 +122,21 @@ function sitOnObject(ctx: Ctx, obj: Entity, form: MonsterDef | null): void {
   else if (!(od.container?.box || od.material === 'cloth')) say(ctx, 'sit.uncomfortable');
 }
 
+/**
+ * "You sit in the water.": 1 time in 10 her body armor gets wet, and (C checks her boots but
+ * wets the body armor again) 1 time in 10 once more unless her boots are water walking boots.
+ * ref: src/sit.c dosit() in_water (no gremlin splitting)
+ */
+function sitInWater(ctx: Ctx): number {
+  say(ctx, 'sit.in_water');
+  const uarm = wornIn(ctx.state, ctx.state.playerId, 'body');
+  const uarmf = wornIn(ctx.state, ctx.state.playerId, 'boots');
+  if (!ctx.rng.rn2(10) && uarm) waterDamage(ctx, uarm, { key: 'sit.armor' }, true);
+  if (!ctx.rng.rn2(10) && uarmf && uarmf.def !== 'nh:water_walking_boots' && uarm)
+    waterDamage(ctx, uarm, { key: 'sit.armor' }, true);
+  return NORMAL_SPEED;
+}
+
 /** ref: src/sit.c dosit(). Returns the time taken (0: ECMD_OK). */
 export function dosit(ctx: Ctx): number {
   const h = getPlayer(ctx.state);
@@ -143,6 +163,9 @@ export function dosit(ctx: Ctx): number {
     });
     return 0;
   }
+
+  // water walking: she sits in the water (C's `goto in_water`)
+  if (isPool(ctx, level, p.x, p.y) && !uinwater(ctx)) return sitInWater(ctx);
 
   const top = itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y)[0];
   const ut = utrap(ctx);
@@ -172,6 +195,8 @@ export function dosit(ctx: Ctx): number {
       say(ctx, flying(ctx) ? 'sit.land' : 'sit.sit_down');
       dotrap(ctx, trap, { viaSitting: true });
     }
+  } else if (uinwater(ctx) && !(form && eggsInWater(form))) {
+    say(ctx, 'sit.muddy_bottom');
   } else if (tid === T.sink) {
     say(ctx, 'sit.on', { what: '@terrain.sink' });
     say(ctx, form && !humanoid(form) ? 'sit.wet_underside' : 'sit.wet_rump');
@@ -180,6 +205,19 @@ export function dosit(ctx: Ctx): number {
     altarWrath(ctx, p.x, p.y);
   } else if (tid === T.stairs_up || tid === T.stairs_down) {
     say(ctx, 'sit.on', { what: '@surface.stairs' });
+  } else if (isLava(ctx, level, p.x, p.y)) {
+    // must be water walking (burn_away_slime(): no sliming cure here)
+    say(ctx, 'sit.on', { what: '@surface.lava' });
+    if (likesLavaId(form?.id)) {
+      say(ctx, 'sit.lava_warm');
+      return NORMAL_SPEED;
+    }
+    say(ctx, 'sit.lava_burns');
+    const fireRes = hasProp(h, P.FIRE_RES);
+    losehp(ctx, ctx.rng.d(fireRes ? 2 : 10, 10), 'killer.sitting_lava');
+  } else if (isIce(ctx, level, p.x, p.y)) {
+    say(ctx, 'sit.on', { what: '@nh:ice' }); // defsyms[S_ice].explanation
+    if (!hasProp(h, P.COLD_RES)) say(ctx, 'sit.ice_cold');
   } else if (tid === T.throne) {
     say(ctx, 'sit.on', { what: '@nh:throne' }); // defsyms[S_throne].explanation
     return throneSitEffect(ctx, SIT_ID);

@@ -14,6 +14,7 @@ import type {
   ViewSnapshot,
   ViewUpdate,
 } from './types/view';
+import { coversObjects } from './traps';
 import { sortedIds } from './util';
 
 /** Bottom-line values (ref: src/botl.c); absent components are simply left out. */
@@ -78,17 +79,19 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     const v = vp < visible.length && visible[vp] === i;
     const m = memory?.[i] ?? -1;
     const cell: ViewCell = { g: m >= 0 ? (shown[m] ?? null) : null, v };
-    const live = v ? liveObjects.get(i) : undefined;
+    // ref: src/display.c covers_objects(), covers_traps(): nothing in a liquid shows
+    const covered = coversObjects(registry, level, i);
+    const live = v && !covered ? liveObjects.get(i) : undefined;
     const o = live
       ? shownAs(registry, state, live, itemShownId(registry, state, live))
-      : v
+      : v || covered
         ? undefined
         : objMemory?.[String(i)];
     if (o !== undefined) cell.o = o;
     // a remembered monster only out of view; a marker (`I`) on any cell
     const mm = monMemory?.[String(i)];
     if (mm !== undefined && (!v || isMarker(registry, mm))) cell.m = mm;
-    const t = traps.get(i);
+    const t = covered ? undefined : traps.get(i);
     if (t !== undefined) cell.t = t;
     cells[i] = cell;
   }

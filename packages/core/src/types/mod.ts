@@ -19,6 +19,13 @@ export interface TerrainDef {
   glyph: Glyph;
   /** Hidden terrain (secret doors/corridors) is shown to clients as this terrain instead. */
   looksLike?: DefId;
+  /**
+   * A liquid (ref: src/dbridge.c is_pool(), is_lava()): pools, moats and walls of water are
+   * 'water', lava and walls of lava 'lava'. Core keeps traps off it, keeps arrivals and travel
+   * paths out of it and shows no object or trap on it (ref: include/display.h covers_objects());
+   * what happens to whoever enters it is the mod's business. Liquids are usually `passable`.
+   */
+  liquid?: 'water' | 'lava';
 }
 
 export interface RoleDef {

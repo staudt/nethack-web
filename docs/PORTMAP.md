@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-155 NetHack files, 4332 citations.
+156 NetHack files, 4391 citations.
 
 ## dat/dungeon.lua
 
@@ -143,6 +143,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `S_crwall()`: `packages/content/src/terrain.ts`
 - `S_dnstair()`: `packages/content/src/terrain.ts`
 - `S_grave()`: `packages/content/src/mimicstate.ts`
+- `S_ice()`: `packages/content/src/terrain.ts`
 - `S_ndoor()`: `packages/content/src/terrain.ts`
 - `S_room()`: `packages/content/src/terrain.ts`
 - `S_stone()`: `packages/content/src/terrain.ts`
@@ -160,6 +161,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `_mon_visible()`: `packages/content/src/invis.ts`, `packages/content/src/perception.ts`
 - `_mon_warning()`: `packages/content/src/perception.ts`
 - `_tp_sensemon()`: `packages/content/src/perception.ts`
+- `covers_objects()`: `packages/core/src/traps.ts`, `packages/core/src/types/mod.ts`
+- `covers_traps()`: `packages/core/src/traps.ts`
 - `explosion_to_glyph()`: `packages/content/src/explode.ts`
 - `glyph_is_invisible()`: `packages/content/src/invis.ts`
 - `is_door_mappear()`: `packages/content/src/mimicstate.ts`
@@ -214,7 +217,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `SHOP_HOLE_COST()`: `packages/content/src/shopdamage.ts`
 - `SHOP_PIT_COST()`: `packages/content/src/shopdamage.ts`
 - `SHOP_WALL_COST()`: `packages/content/src/shopdamage.ts`
-- `SLT_ENCUMBER()`: `packages/content/src/dokick.ts`
+- `SLT_ENCUMBER()`: `packages/content/src/dokick.ts`, `packages/content/src/drown.ts`
 - `TAINT_AGE()`: `packages/content/src/corpses.ts`
 - `TROLL_REVIVE_CHANCE()`: `packages/content/src/corpses.ts`
 - `VAULT_GUARD_TIME()`: `packages/content/src/vaultstate.ts`
@@ -310,6 +313,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lays_eggs()`: `packages/content/src/eggstate.ts`
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
+- `likes_lava()`: `packages/content/src/uwater.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
 - `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
 - `mindless()`: `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`
@@ -458,7 +462,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/rm.h
 
-- (file): `packages/content/src/eshk.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
+- (file): `packages/content/src/eshk.ts`, `packages/content/src/liquid.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
 - `ACCESSIBLE()`: `packages/content/src/jump.ts`, `packages/content/src/vault.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `D_LOCKED()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`, `packages/core/src/types/mod.ts`
@@ -519,7 +523,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `WT_HUMAN()`: `packages/content/src/mondata.ts`
 - `WT_NOISY_INV()`: `packages/content/src/fumble.ts`
 - `WT_SQUEEZABLE_INV()`: `packages/content/src/moverock.ts`
-- `WT_TOOMUCH_DIAGONAL()`: `packages/content/src/actions.ts`
+- `WT_TOOMUCH_DIAGONAL()`: `packages/content/src/actions.ts`, `packages/content/src/drown.ts`
 - `WT_WOUNDEDLEG_REDUCT()`: `packages/content/src/stats.ts`
 
 ## include/you.h
@@ -532,8 +536,9 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/youprop.h
 
-- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/content/src/uwater.ts`, `packages/core/src/types/entity.ts`
 - `Hate_silver()`: `packages/content/src/silver.ts`
+- `Known_wwalking()`: `packages/content/src/uwater.ts`
 - `Lev_at_will()`: `packages/content/src/trapstate.ts`
 - `Very_fast()`: `packages/content/src/dowear.ts`
 
@@ -544,7 +549,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -648,6 +653,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_occupation()`: `packages/content/src/force.ts`
 - `xytodir()`: `packages/content/src/trapstate.ts`
 
+## src/dbridge.c
+
+- `is_ice()`: `packages/content/src/liquid.ts`
+- `is_lava()`: `packages/content/src/liquid.ts`, `packages/core/src/types/mod.ts`
+- `is_moat()`: `packages/content/src/liquid.ts`
+- `is_pool()`: `packages/content/src/liquid.ts`, `packages/content/src/terrain.ts`, `packages/core/src/types/mod.ts`
+- `is_pool_or_lava()`: `packages/content/src/liquid.ts`
+- `is_waterwall()`: `packages/content/src/liquid.ts`
+
 ## src/decl.c
 
 - `c_obj_colors()`: `packages/content/src/chesttrap.ts`
@@ -712,6 +726,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/boulder.ts`, `packages/content/src/invis.ts`, `packages/content/src/mimicstate.ts`, `packages/content/src/perception.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/render-ascii/src/renderer.ts`
 - `GLYPH_INVISIBLE()`: `packages/content/src/invis.ts`
 - `canseemon()`: `packages/content/src/trap.ts`
+- `covers_objects()`: `packages/core/src/engine.ts`, `packages/core/src/query.ts`, `packages/core/src/view.ts`
+- `covers_traps()`: `packages/core/src/query.ts`, `packages/core/src/view.ts`
 - `display_monster()`: `packages/content/src/detect.ts`, `packages/content/src/mimicstate.ts`, `packages/content/src/perception.ts`
 - `display_self()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `magic_map_background()`: `packages/content/src/wizard/map.ts`
@@ -776,7 +792,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
 - `some_mon_nam()`: `packages/content/src/perception.ts`
-- `surface()`: `packages/content/src/moverock.ts`, `packages/content/src/terrain.ts`
+- `surface()`: `packages/content/src/moverock.ts`
 - `x_monnam()`: `packages/content/src/perception.ts`
 
 ## src/do_wear.c
@@ -938,6 +954,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `possible_places()`: `packages/core/src/dungeon.ts`
 - `print_branch()`: `packages/content/src/wizard/where.ts`
 - `print_dungeon()`: `packages/content/src/wizard/where.ts`, `packages/content/src/wizard/wizard.en.ts`
+- `surface()`: `packages/content/src/terrain.ts`
 - `u_on_newpos()`: `packages/content/src/actions.ts`
 - `u_on_rndspot()`: `packages/core/src/types/mod.ts`
 
@@ -980,6 +997,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `nonrotting_corpse()`: `packages/content/src/eat.ts`
 - `obj_nutrition()`: `packages/content/src/eat.ts`, `packages/content/src/items.ts`
 - `reset_eat()`: `packages/content/src/eat.ts`
+- `reset_faint()`: `packages/content/src/drown.ts`
 - `rottenfood()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
 - `should_givit()`: `packages/content/src/givit.ts`
 - `start_eating()`: `packages/content/src/eat.ts`
@@ -1058,10 +1076,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/hack.c
 
-- (file): `packages/content/src/dog.en.ts`, `packages/content/src/eshk.ts`, `packages/content/src/shk.en.ts`
+- (file): `packages/content/src/dog.en.ts`, `packages/content/src/drown.ts`, `packages/content/src/eshk.ts`, `packages/content/src/run.ts`, `packages/content/src/shk.en.ts`
 - `accessible()`: `packages/content/src/muse.ts`
 - `avoid_trap_andor_region()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
-- `bad_rock()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.ts`, `packages/content/src/monmove.ts`
+- `bad_rock()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.ts`, `packages/content/src/drown.ts`, `packages/content/src/monmove.ts`
 - `calc_capacity()`: `packages/content/src/stats.ts`
 - `cannot_push()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `cannot_push_msg()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
@@ -1069,6 +1087,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `check_special_room()`: `packages/content/src/mkroom.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/zoo.ts`
 - `closed_door()`: `packages/content/src/actions.ts`, `packages/core/src/movement.ts`
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
+- `crawl_destination()`: `packages/content/src/drown.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
 - `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/travel.ts`
 - `domove_attackmon_at()`: `packages/content/src/actions.ts`
@@ -1101,13 +1120,16 @@ whole. A missing function may still be ported under a citation this parser canno
 - `nomul()`: `packages/content/src/combat.ts`, `packages/content/src/nomul.ts`, `packages/core/src/types/entity.ts`
 - `overexertion()`: `packages/content/src/combat.ts`
 - `pickup_checks()`: `packages/content/src/itemactions.ts`
+- `pooleffects()`: `packages/content/src/drown.ts`, `packages/content/src/liquid.en.ts`
 - `rounddiv()`: `packages/content/src/eat.ts`
 - `runmode_delay_output()`: `packages/app/src/options.ts`
 - `spoteffects()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `squeezeablylightinvent()`: `packages/content/src/moverock.ts`
+- `swim_move_danger()`: `packages/content/src/actions.ts`, `packages/content/src/drown.ts`
 - `test_move()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`, `packages/content/src/worm.en.ts`, `packages/core/src/movement.ts`, `packages/core/src/path.ts`
-- `trapmove()`: `packages/content/src/trap.ts`
+- `trapmove()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `u_maybe_impaired()`: `packages/content/src/hackmove.ts`
+- `u_simple_floortyp()`: `packages/content/src/drown.ts`
 - `unconscious()`: `packages/content/src/btrapped.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/mcastu.ts`, `packages/content/src/mdig.ts`
 - `unmul()`: `packages/content/src/nomul.ts`
 - `weight_cap()`: `packages/content/src/stats.ts`
@@ -1378,7 +1400,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/orctown.ts`
 - `is_solid()`: `packages/core/src/levelgen/mkmap.ts`
-- `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`
+- `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 - `iswall_or_stone()`: `packages/core/src/levelgen/mkmap.ts`
 - `makemaz()`: `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `migrate_orc()`: `packages/content/src/orctown.ts`
@@ -1754,11 +1776,13 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/pager.c
 
+- (file): `packages/content/src/liquid.ts`
 - `do_look()`: `packages/ui/src/host.ts`
 - `dohelp()`: `packages/ui/src/help.ts`
 - `doidtrap()`: `packages/content/src/trap.ts`
 - `help_menu_items()`: `packages/ui/src/help.ts`
 - `lookat()`: `packages/content/src/messages.en.ts`
+- `waterbody_name()`: `packages/content/src/liquid.en.ts`, `packages/content/src/terrain.ts`
 
 ## src/pickup.c
 
@@ -2257,11 +2281,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/teleport.c
 
 - `collect_coords()`: `packages/content/src/teleport.ts`
-- `dotele()`: `packages/content/src/wizard/teleport.ts`
+- `dotele()`: `packages/content/src/drown.ts`, `packages/content/src/wizard/teleport.ts`
 - `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
 - `enexto()`: `packages/content/src/generation.ts`, `packages/core/src/engine.ts`
 - `enexto_core()`: `packages/content/src/generation.ts`
-- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`, `packages/core/src/engine.ts`
+- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/teleport.ts`, `packages/content/src/uwater.ts`, `packages/core/src/engine.ts`
 - `level_tele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`, `packages/content/src/wizard/levelport.ts`
 - `level_tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `mlevel_tele_trap()`: `packages/content/src/trap.ts`
@@ -2325,6 +2349,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `adj_nonconjoined_pit()`: `packages/content/src/trap.ts`
 - `animate_statue()`: `packages/content/src/statue.ts`
 - `b_trapped()`: `packages/content/src/btrapped.ts`
+- `back_on_ground()`: `packages/content/src/drown.ts`
 - `blindgas()`: `packages/content/src/chesttrap.ts`
 - `blow_up_landmine()`: `packages/content/src/landmine.ts`
 - `burnarmor()`: `packages/content/src/erode.ts`
@@ -2349,6 +2374,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dotrap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `dountrap()`: `packages/content/src/untrap.ts`
 - `drain_en()`: `packages/content/src/uenergy.ts`
+- `drown()`: `packages/content/src/drown.ts`, `packages/content/src/liquid.en.ts`
+- `emergency_disrobe()`: `packages/content/src/drown.ts`
 - `erode_obj()`: `packages/content/src/erode.en.ts`, `packages/content/src/erode.ts`
 - `fall_through()`: `packages/content/src/trap.ts`
 - `feeltrap()`: `packages/content/src/trap.ts`
@@ -2375,9 +2402,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mu_maybe_destroy_web()`: `packages/content/src/trap.ts`
 - `openfallingtrap()`: `packages/content/src/zap.ts`
 - `openholdingtrap()`: `packages/content/src/zap.ts`
+- `rescued_from_terrain()`: `packages/content/src/drown.ts`
 - `reset_utrap()`: `packages/content/src/levitation.ts`
 - `reward_untrap()`: `packages/content/src/untrap.ts`
-- `rnd_nextto_goodpos()`: `packages/content/src/worm.ts`
+- `rnd_nextto_goodpos()`: `packages/content/src/drown.ts`, `packages/content/src/worm.ts`
 - `seetrap()`: `packages/content/src/trap.ts`
 - `set_utrap()`: `packages/content/src/trapstate.ts`
 - `sokoban_guilt()`: `packages/content/src/sokoban.ts`
@@ -2501,7 +2529,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `clear_path()`: `packages/content/src/clearpath.ts`
 - `couldsee()`: `packages/content/src/apparxy.ts`
 - `do_clear_area()`: `packages/content/src/read.ts`
-- `does_block()`: `packages/content/src/boulder.ts`, `packages/core/src/objects.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
+- `does_block()`: `packages/content/src/boulder.ts`, `packages/content/src/terrain.ts`, `packages/core/src/objects.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
 - `vision_recalc()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/vision.ts`
 
 ## src/weapon.c

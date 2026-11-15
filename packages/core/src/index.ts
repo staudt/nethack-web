@@ -72,5 +72,5 @@ export {
   shownAs,
 } from './perception';
 export { isMarker, setMonsterMark } from './memory';
-export { isPlainFloor, trapAt } from './traps';
+export { coversObjects, isPlainFloor, trapAt } from './traps';
 export { inRooms, inTown, insideRoom, roomHas, roomSomexy } from './rooms';

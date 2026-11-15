@@ -24,6 +24,8 @@ import { blockersOf, boulderCells } from './boulder';
 import { boulderStops, couldMoveOntoBoulder } from './moverock';
 import { isSokoban } from './sokoban';
 import { unmapInvisible } from './invis';
+import { flying, levitating } from './trapstate';
+import { heroForm } from './upoly';
 
 export function heroPos(ctx: Ctx): Pos {
   const pos = getPlayer(ctx.state).c.pos;
@@ -201,8 +203,18 @@ function travelMatrix(
   // ref: test_move() with context.run == 8: a seen trap is never entered (TEST_TRAV) and, like a
   // closed door, delays the search (TEST_TRAP); the hero's own square is exempt
   const traps = seenTraps(level);
+  // ref: test_move() TEST_TRAV: water and lava she remembers count as traps unless she
+  // levitates, flies or clings
+  const wet =
+    levitating(ctx) || flying(ctx) || heroForm(ctx)?.flags.includes('cling') === true
+      ? null
+      : rules.liquid;
   const trapAhead = (nx: number, ny: number): boolean =>
-    traps.has(ny * width + nx) && !(nx === hero.x && ny === hero.y);
+    !(nx === hero.x && ny === hero.y) &&
+    (traps.has(ny * width + nx) ||
+      (wet !== null &&
+        (memory?.[ny * width + nx] ?? -1) >= 0 &&
+        (wet[known.cells[ny * width + nx] ?? 0] ?? null) !== null));
   const memory = ctx.state.memory[level.id];
   // ref: test_move() TEST_TRAV: a boulder is assumed to be pushable, but never two in a row
   // unless the hero can squeeze onto them (she has no digging tools); "never travel through

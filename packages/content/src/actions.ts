@@ -83,6 +83,7 @@ import { SHOP_DOOR_COST } from './shopdamage';
 import { fightWeb } from './web';
 import { nohands } from './mondata';
 import { heroForm } from './upoly';
+import { pooleffects, swimMoveDanger } from './drown';
 
 /** The `_float`/`_fly` suffix of a u_locomotion() message, '' when she steps. */
 const uLoco = (ctx: Ctx): string => {
@@ -314,7 +315,9 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     key: tame ? 'dog.swap' : 'dog.swap_peaceful',
     params: { mon: `@${mon.def}` },
   });
-  checkSpecialRoom(ctx, false, from); // ref: src/hack.c spoteffects()
+  // ref: src/hack.c spoteffects(): pooleffects() first, then the room, the things, the trap
+  if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
+  checkSpecialRoom(ctx, false, from);
   lookHere(ctx);
   spotTrap(ctx);
   return NORMAL_SPEED;
@@ -549,8 +552,8 @@ const move: ActionDef = {
     }
     return walk(ctx, dir, false);
   },
-  // The answer to "Really attack?" (yes attacks) or "Really step onto that trap?" (yes steps);
-  // anything else costs nothing (context.move = 0).
+  // The answer to "Really attack?" (yes attacks), "Really step onto that trap?" or "Really step
+  // into the water?" (yes steps); anything else costs nothing (context.move = 0).
   answer(ctx, value, raw) {
     const data = raw as { victim?: unknown; trapDir?: unknown; at?: unknown } | null;
     if (value !== true) return 0;
@@ -583,10 +586,11 @@ export function badRock(ctx: Ctx, level: Level, x: number, y: number): boolean {
 }
 
 /**
- * The hero steps in direction `dir` (no attack): the confirmation for a seen trap, escaping a
- * bear trap, swapping with a pet, then test_move(). `confirmed` is set once "Really step onto
- * that bear trap?" was answered yes. ref: src/hack.c domove_core() avoid_trap_andor_region(),
- * trapmove(), test_move(), spoteffects()
+ * The hero steps in direction `dir` (no attack): the confirmation for a seen trap or known
+ * water, escaping a bear trap, swapping with a pet, then test_move(). `confirmed` is set once
+ * "Really step onto that bear trap?" or "Really step into the water?" was answered yes.
+ * ref: src/hack.c domove_core() avoid_trap_andor_region(), trapmove(), test_move(),
+ * swim_move_danger() (asked before trapmove() here: DEVIATIONS "Water"), spoteffects()
  */
 function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
   const player = getPlayer(ctx.state);
@@ -607,6 +611,24 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
           // "Really float into..." while levitating (u_locomotion("step"))
           key: `${intoTrap(t.def) ? 'trap.confirm_into' : 'trap.confirm_onto'}${uLoco(ctx)}`,
           params: { trap: `@${t.def}` },
+          cancellable: true,
+        },
+        'nh:move',
+        { trapDir: dir },
+      );
+      ctx.interrupt(); // nomul(0)
+      return 0;
+    }
+    // ref: swim_move_danger(): paranoid_confirm:swim is on by default; C refuses and the `m`
+    // prefix steps in, here she is asked
+    const water = swimMoveDanger(ctx, to);
+    if (water) {
+      ctx.ask(
+        {
+          id: 'swim-confirm',
+          kind: 'yn',
+          key: `liquid.confirm${uLoco(ctx)}`,
+          params: { water: `@${water}` },
           cancellable: true,
         },
         'nh:move',
@@ -674,6 +696,9 @@ function walk(ctx: Ctx, dir: Dir, confirmed: boolean): number {
     pos.x = to.x;
     pos.y = to.y;
     ctx.emit({ type: 'moved', id: player.id, from, to });
+    // ref: src/hack.c spoteffects(): pooleffects() first; when she moved (crawled out, saved)
+    // the rest is skipped
+    if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
     checkSpecialRoom(ctx, false, from); // ref: src/hack.c spoteffects() (before the pickup and trap)
     // ref: spoteffects(): "If not a pit, pickup before triggering trap. If pit, trigger trap
     // before pickup."

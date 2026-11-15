@@ -91,3 +91,11 @@ export function waterDamage(ctx: Ctx, obj: Entity, ostr: Msg | null, force: bool
   const r = erodeObj(ctx, obj, ostr, 'rust');
   return r === 'greased' ? 'nothing' : r; // nothing is ever greased
 }
+
+/**
+ * Gets every object of `objs` wet in turn (her inventory, or the objects on a square).
+ * ref: src/trap.c water_damage_chain() (no potions of acid to explode)
+ */
+export function waterDamageChain(ctx: Ctx, objs: readonly Entity[]): void {
+  for (const o of objs) if (ctx.state.entities[String(o.id)]) waterDamage(ctx, o, null, false);
+}

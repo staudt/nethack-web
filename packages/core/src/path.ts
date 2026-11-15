@@ -5,7 +5,10 @@ import { DIR_LIST, DIRS, cellIndex, inBounds } from './util';
 
 /**
  * A* over remembered cells. Closed doors are traversable (moving in auto-opens),
- * diagonal moves into/out of intact doors are forbidden (ref: src/hack.c test_move()).
+ * diagonal moves into/out of intact doors are forbidden (ref: src/hack.c test_move()), and
+ * remembered water and lava are never crossed, though the goal itself may be one (ref:
+ * test_move() TEST_TRAV `is_pool_or_lava(x, y) && levl[x][y].seenv`; NetHack lets a levitating
+ * or flying hero's travel cross them: content's travel decides that).
  * Among the shortest paths it picks one with the fewest changes of direction, so travel walks
  * straight where it can instead of zigzagging across rooms (NetHack's travel is equally short
  * but makes no such promise; see DEVIATIONS.md).
@@ -24,12 +27,14 @@ export function findPath(
   const goal = cellIndex(level, to.x, to.y);
   if (start === goal) return [];
 
-  const walkable = (i: number): boolean => {
+  const enterable = (i: number): boolean => {
     const m = memory[i] ?? -1;
     if (m < 0) return false;
     return rules.passable[m] === true || rules.closedDoor[m] === true;
   };
-  if (!walkable(goal)) return null;
+  const walkable = (i: number): boolean =>
+    enterable(i) && (i === goal || (rules.liquid[memory[i] ?? -1] ?? null) === null);
+  if (!enterable(goal)) return null;
 
   // States are (cell, direction of the move that entered it); cost is [steps, turns], compared
   // lexicographically, so the step count stays optimal and turns only break ties.

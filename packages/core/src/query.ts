@@ -4,7 +4,7 @@ import { isItem, itemShownId, itemsAt } from './objects';
 import { perceivesMonster, selfView, shownAs } from './perception';
 import { findPath } from './path';
 import { getLevel, isVisible, playerPos } from './state';
-import { trapAt } from './traps';
+import { coversObjects, trapAt } from './traps';
 import type { Pos } from './types/common';
 import type { Ctx, Registry } from './types/mod';
 import type { CoreQuery, Description, Target } from './types/query';
@@ -63,20 +63,23 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         if (!perceivesMonster(registry, state, e, visible)) return [];
         return [{ id: e.id, def: shownAs(registry, state, e, e.def) }];
       });
-      const objects = visible
-        ? itemsAt(registry, state, level.id, pos.x, pos.y).map((e) => ({
-            id: e.id,
-            def: shownAs(registry, state, e, itemShownId(registry, state, e)),
-            name: registry.itemName(state, e),
-          }))
-        : [];
+      // ref: src/display.c covers_objects(), covers_traps(): nothing in a liquid shows
+      const covered = coversObjects(registry, level, i);
+      const objects =
+        visible && !covered
+          ? itemsAt(registry, state, level.id, pos.x, pos.y).map((e) => ({
+              id: e.id,
+              def: shownAs(registry, state, e, itemShownId(registry, state, e)),
+              name: registry.itemName(state, e),
+            }))
+          : [];
       return {
         terrain: mem >= 0 ? shownTerrain(registry, level.palette[mem]) : null,
         remembered: mem >= 0,
         visible,
         entities,
         objects,
-        trap: query.trapAt(level.id, pos)?.def ?? null,
+        trap: covered ? null : (query.trapAt(level.id, pos)?.def ?? null),
       };
     },
 

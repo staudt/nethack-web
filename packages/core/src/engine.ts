@@ -36,7 +36,7 @@ import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
 import { heroBlind, heroLights, perceivesMonster, shownAs } from './perception';
 import { isMarker } from './memory';
-import { placeTrapOn, removeTrapOn, trapAt } from './traps';
+import { coversObjects, placeTrapOn, removeTrapOn, trapAt } from './traps';
 
 export const DEFAULT_WIDTH = 80;
 export const DEFAULT_HEIGHT = 21;
@@ -154,8 +154,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     });
 
   /**
-   * Nearest passable cell to `from` with no creature on it (objects do not count), breadth-first.
-   * ref: src/teleport.c enexto(), goodpos()
+   * Nearest passable dry cell to `from` with no creature on it (objects do not count),
+   * breadth-first. ref: src/teleport.c enexto(), goodpos() (no water or lava)
    */
   const nearestFree = (state: GameState, level: Level, from: Pos, except: number): Pos | null => {
     const rules = cellRules(level, registry);
@@ -169,7 +169,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         const i = cellIndex(level, x, y);
         if (!inBounds(level, x, y) || seen.has(i)) continue;
         seen.add(i);
-        if (!rules.passable[level.cells[i] ?? 0]) continue;
+        const c = level.cells[i] ?? 0;
+        if (!rules.passable[c] || rules.liquid[c] !== null) continue;
         if (!occupied(state, level, x, y, except)) return { x, y };
         queue.push({ x, y });
       }
@@ -318,7 +319,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     const objMemory = (state.objectMemory[level.id] ??= {});
     const top = topObjects(registry, state, level);
     for (const i of visible) {
-      const o = top.get(i);
+      // ref: src/display.c covers_objects(): an object in a liquid is not seen
+      const o = coversObjects(registry, level, i) ? undefined : top.get(i);
       if (o === undefined) delete objMemory[String(i)];
       else objMemory[String(i)] = o;
     }

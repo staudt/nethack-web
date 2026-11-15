@@ -7,7 +7,8 @@
 //
 // Not ported (see DEVIATIONS.md "Teleportation"): the demon court of Gehennom, covetous
 // monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
-// stairs, water and lava (none exist), Passes_walls.
+// stairs, Passes_walls; water and lava for monsters (m15 step 2: only the hero's and objects'
+// rules are here).
 import {
   cellIndex,
   cellRules,
@@ -35,6 +36,8 @@ import { eshkOf, inhishop } from './eshk';
 import { dungeonBottom, levelFlags } from './levelflags';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
+import { heroLiquidOk } from './uwater';
+import { T } from './terrain';
 
 /** The Sokoban dungeon. ref: In_sokoban() */
 export const SOKOBAN_DUNGEON: DefId = 'nh:sokoban';
@@ -98,6 +101,8 @@ interface Occupancy {
   heroId: EntityId;
   /** Placing a worm that has a worm number. */
   worm?: true;
+  /** goodpos()'s water and lava rules for the hero: water, a wall of water, lava. */
+  heroLiquid: { water: boolean; waterwall: boolean; lava: boolean };
 }
 
 function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
@@ -117,6 +122,11 @@ function occupancy(ctx: Pick<Ctx, 'state' | 'defs'>, level: Level): Occupancy {
     boulders: boulderCells(ctx, level),
     hero: hp?.level === level.id ? cellIndex(level, hp.x, hp.y) : -1,
     heroId: ctx.state.playerId,
+    heroLiquid: {
+      water: heroLiquidOk(ctx, 'water', false),
+      waterwall: heroLiquidOk(ctx, 'water', true),
+      lava: heroLiquidOk(ctx, 'lava', false),
+    },
   };
 }
 
@@ -144,7 +154,8 @@ export function teleRestrict(ctx: Ctx, mon: Entity): boolean {
 /**
  * ref: src/teleport.c goodpos(x, y, mtmp, 0): on the map, not the hero's square (unless `who` is
  * the hero), no other monster there when placing one (`who` null places an object: monsters do
- * not matter), accessible, and no boulder.
+ * not matter), accessible, and no boulder. The hero goes into water or lava only as goodpos()
+ * allows; an object never does (not ACCESSIBLE()); monsters still may (m15 step 2).
  */
 function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): boolean {
   if (!inBounds(o.level, x, y)) return false;
@@ -157,7 +168,25 @@ function goodpos(o: Occupancy, x: number, y: number, who: EntityId | null): bool
     const m = o.mons.get(i);
     if (m !== undefined && (m !== who || o.worm)) return false;
   }
+  const liquid = o.rules.liquid[o.level.cells[i] ?? 0] ?? null;
+  if (liquid !== null && (who === null || heroIsWho)) {
+    if (who === null) return false;
+    const wall = o.level.palette[o.level.cells[i] ?? 0] === T.water;
+    const ok =
+      liquid === 'lava' ? o.heroLiquid.lava : wall ? o.heroLiquid.waterwall : o.heroLiquid.water;
+    return ok; // goodpos() returns here: no boulder check in water or lava
+  }
   return accessible(o, i) && !o.boulders.has(i);
+}
+
+/** goodpos() for the hero at (x, y) of `level`, traps allowed. ref: src/teleport.c goodpos() */
+export function goodposHero(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  level: Level,
+  x: number,
+  y: number,
+): boolean {
+  return goodpos(occupancy(ctx, level), x, y, ctx.state.playerId);
 }
 
 /** goodpos() for monster `who` at (x, y) of `level`. ref: src/teleport.c goodpos(x, y, mtmp, 0) */

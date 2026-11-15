@@ -16,6 +16,9 @@ const GREEN = '#33aa33';
 const BRIGHT_BLUE = '#5555ff';
 const CYAN = '#33bbbb';
 const YELLOW = '#ffff55';
+const BLUE = '#4466ff';
+const RED = '#cc3333';
+const ORANGE = '#ff8800';
 
 export const TERRAIN: readonly TerrainDef[] = [
   // ref: defsym.h S_stone ' ' (NO_COLOR)
@@ -248,6 +251,66 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: false,
     glyph: { ch: '#', fg: CYAN },
   },
+  // Liquids (ref: rm.h POOL, MOAT, WATER, LAVAPOOL, LAVAWALL; src/dbridge.c is_pool(),
+  // is_lava()): S_pool '}' (CLR_BLUE) for pools and moats, S_water '}' (CLR_BRIGHT_BLUE) for
+  // walls of water, S_lava '}' (CLR_RED), S_lavawall '}' (CLR_ORANGE). The hero and monsters
+  // can enter them (none is ACCESSIBLE() in C, but test_move() lets her in); walls of water and
+  // lava block sight (ref: src/vision.c does_block()). Names as src/pager.c waterbody_name().
+  {
+    id: 'nh:pool',
+    nameKey: 'terrain.pool',
+    passable: true,
+    opaque: false,
+    liquid: 'water',
+    glyph: { ch: '}', fg: BLUE },
+  },
+  {
+    id: 'nh:moat',
+    nameKey: 'terrain.moat',
+    passable: true,
+    opaque: false,
+    liquid: 'water',
+    glyph: { ch: '}', fg: BLUE },
+  },
+  {
+    id: 'nh:water',
+    nameKey: 'terrain.water',
+    passable: true,
+    opaque: true,
+    liquid: 'water',
+    glyph: { ch: '}', fg: BRIGHT_BLUE },
+  },
+  {
+    id: 'nh:lava',
+    nameKey: 'terrain.lava',
+    passable: true,
+    opaque: false,
+    liquid: 'lava',
+    glyph: { ch: '}', fg: RED },
+  },
+  {
+    id: 'nh:lavawall',
+    nameKey: 'terrain.lavawall',
+    passable: true,
+    opaque: true,
+    liquid: 'lava',
+    glyph: { ch: '}', fg: ORANGE },
+  },
+  // ref: defsym.h S_ice '.' (CLR_CYAN), S_cloud '#' (CLR_GRAY): walkable; a cloud blocks sight
+  {
+    id: 'nh:ice',
+    nameKey: 'terrain.ice',
+    passable: true,
+    opaque: false,
+    glyph: { ch: '.', fg: CYAN },
+  },
+  {
+    id: 'nh:cloud',
+    nameKey: 'terrain.cloud',
+    passable: true,
+    opaque: true,
+    glyph: { ch: '#', fg: GRAY },
+  },
   // One altar per alignment, all drawn alike; the alignment shows in its name.
   ...(['lawful', 'neutral', 'chaotic', 'unaligned'] as const).map((a): TerrainDef => ({
     id: `nh:altar_${a}`,
@@ -291,6 +354,13 @@ export const T = {
   throne: 'nh:throne',
   tree: 'nh:tree',
   iron_bars: 'nh:iron_bars',
+  pool: 'nh:pool',
+  moat: 'nh:moat',
+  water: 'nh:water',
+  lava: 'nh:lava',
+  lavawall: 'nh:lavawall',
+  ice: 'nh:ice',
+  cloud: 'nh:cloud',
   altar_lawful: 'nh:altar_lawful',
   altar_neutral: 'nh:altar_neutral',
   altar_chaotic: 'nh:altar_chaotic',
@@ -351,8 +421,8 @@ export function setTerrain(level: Level, x: number, y: number, id: DefId): void 
 }
 
 /**
- * What the hero digs into at (x, y), as a message param. ref: src/do_name.c surface() for the
- * terrain that exists here
+ * What the hero digs into at (x, y), as a message param. ref: src/dungeon.c surface() for the
+ * terrain that exists here (no Underwater "bottom")
  */
 export function surfaceKey(
   ctx: Pick<Ctx, 'defs'>,
@@ -361,6 +431,11 @@ export function surfaceKey(
   y: number,
 ): string {
   const id = terrainIdAt(level, x, y);
+  // IS_AIR(): a cloud; is_pool() (no Underwater "bottom"), is_ice(), is_lava()
+  if (id === T.cloud) return '@surface.cloud';
+  if (id === T.pool || id === T.moat || id === T.water) return '@surface.water';
+  if (id === T.ice) return '@surface.ice';
+  if (id === T.lava || id === T.lavawall) return '@surface.lava';
   if (id?.startsWith('nh:altar_') === true) return '@surface.altar';
   if (id === T.fountain) return '@surface.fountain';
   if (id === undefined) return '@surface.ground';

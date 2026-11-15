@@ -43,7 +43,9 @@ import {
   timeoutLeft,
   updateWornProps,
 } from './props';
-import { levitating } from './trapstate';
+import { flying, levitating } from './trapstate';
+import { isLava, isPool } from './liquid';
+import { WATER_WALKING_BOOTS, poolEffects, uinwater } from './uwater';
 
 type WearCtx = Ctx;
 
@@ -221,6 +223,7 @@ const veryFast = (ctx: WearCtx): boolean => {
 
 /** The armor `obj`, just put on (its slot is set). ref: src/do_wear.c Type_on() */
 export function armorOn(ctx: WearCtx, obj: Entity): void {
+  const wasinwater = uinwater(ctx); // gw.wasinwater, before setworn()
   updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
   syncAttrOverrides(ctx);
   const h = getPlayer(ctx.state);
@@ -250,6 +253,10 @@ export function armorOn(ctx: WearCtx, obj: Entity): void {
           discover(ctx, obj.def);
           bootsFloat?.up(ctx);
         }
+      } else if (obj.def === WATER_WALKING_BOOTS) {
+        // spoteffects(): "You slowly rise above the surface."; rising makes them known
+        if (uinwater(ctx)) poolEffects(ctx, true);
+        if (wasinwater && !uinwater(ctx)) discover(ctx, obj.def);
       }
       break;
     case 'helm':
@@ -306,6 +313,20 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
         if (!otherLevitation(ctx, obj)) {
           bootsFloat?.down(ctx);
           discover(ctx, obj.def);
+        }
+      } else if (obj.def === WATER_WALKING_BOOTS) {
+        // on water or lava with nothing else holding her up: in she goes (spoteffects())
+        const p = h.c.pos;
+        const level = p ? ctx.state.levels[p.level] : undefined;
+        if (
+          p &&
+          level &&
+          (isPool(ctx, level, p.x, p.y) || isLava(ctx, level, p.x, p.y)) &&
+          !levitating(ctx) &&
+          !flying(ctx)
+        ) {
+          discover(ctx, obj.def); // in case she survives the drowning
+          poolEffects(ctx, true);
         }
       }
       break;

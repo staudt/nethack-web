@@ -60,6 +60,7 @@ import { registerStoning } from './stoning';
 import { registerSliming } from './slime';
 import { registerDigestFood } from './digestfood';
 import { registerLevitation } from './levitation';
+import { registerDrown } from './drown';
 import { registerDowear } from './dowear';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
@@ -148,6 +149,7 @@ export const vanillaMod: Mod = {
     registerSliming(api); // slime_dialogue() after stoned_dialogue()
     registerJewelry(api);
     registerLevitation(api);
+    registerDrown(api);
     registerDowear(api);
     registerPolyTimeout(api); // u.mtimedone after levitation_dialogue(), as nh_timeout()
     registerAutosearch(api);

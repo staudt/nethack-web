@@ -14,6 +14,8 @@ export interface CellRules {
   lockedDoor: readonly boolean[];
   /** Door that blocks diagonal moves: an 'open' or 'closed' door (not a doorway/broken door). */
   intactDoor: readonly boolean[];
+  /** `TerrainDef.liquid` of each palette entry, null for dry terrain. */
+  liquid: readonly ('water' | 'lava' | null)[];
 }
 
 export function cellRules(level: Level, registry: Registry): CellRules {
@@ -22,6 +24,7 @@ export function cellRules(level: Level, registry: Registry): CellRules {
   const closedDoor: boolean[] = [];
   const lockedDoor: boolean[] = [];
   const intactDoor: boolean[] = [];
+  const liquid: ('water' | 'lava' | null)[] = [];
   for (const id of level.palette) {
     const t = registry.terrain(id);
     passable.push(t.passable);
@@ -30,8 +33,9 @@ export function cellRules(level: Level, registry: Registry): CellRules {
     lockedDoor.push(t.door === 'locked');
     // ref: src/hack.c test_move() -- doorless_door(): D_NODOOR/D_BROKEN doorways don't block diagonals
     intactDoor.push(t.door === 'closed' || t.door === 'locked' || t.door === 'open');
+    liquid.push(t.liquid ?? null);
   }
-  return { passable, opaque, closedDoor, lockedDoor, intactDoor };
+  return { passable, opaque, closedDoor, lockedDoor, intactDoor, liquid };
 }
 
 export type StepCheck =

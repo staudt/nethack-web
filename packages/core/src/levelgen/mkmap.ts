@@ -328,8 +328,8 @@ function joinMap(m: CaveMap, rng: Rng): void {
 }
 
 /**
- * A door or secret door, only in wallifyKinds() grids: it joins walls (iswall()) but is not one
- * (IS_WALL()) and is not solid.
+ * A door, secret door, wall of water or lava, or iron bars, only in wallifyKinds() grids: it
+ * joins walls (iswall()) but is not one (IS_WALL()) and is not solid.
  */
 export const MK_DOOR = 13;
 

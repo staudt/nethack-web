@@ -3,15 +3,22 @@ import type { Registry } from './types/mod';
 import { cellIndex, inBounds } from './util';
 
 /**
- * Plain floor: passable terrain that is not a door, doorway, staircase or hidden terrain.
- * Only such cells hold traps. ref: src/mklev.c mktrap() (traps go on ROOM or CORR squares)
+ * Plain floor: passable terrain that is not a door, doorway, staircase, hidden terrain or a
+ * liquid. Only such cells hold traps. ref: src/mklev.c mktrap() (traps go on ROOM or CORR
+ * squares, never on water or lava)
  */
 export function isPlainFloor(registry: Registry, level: Level, x: number, y: number): boolean {
   if (!inBounds(level, x, y)) return false;
   const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
   if (id === undefined) return false;
   const t = registry.terrain(id);
-  return t.passable && t.door === undefined && t.stairs === undefined && t.looksLike === undefined;
+  return (
+    t.passable &&
+    t.door === undefined &&
+    t.stairs === undefined &&
+    t.looksLike === undefined &&
+    t.liquid === undefined
+  );
 }
 
 /** The trap at (x, y) of `level`, seen or not, or undefined. ref: src/trap.c t_at() */
@@ -34,4 +41,13 @@ export function placeTrapOn(registry: Registry, level: Level, t: Trap): void {
 /** Removes the trap at (x, y) of `level`, if any. */
 export function removeTrapOn(level: Level, x: number, y: number): void {
   level.traps = level.traps.filter((t) => t.x !== x || t.y !== y);
+}
+
+/**
+ * A liquid cell hides what lies in it: no object or trap is shown or remembered there.
+ * ref: include/display.h covers_objects(), covers_traps() (no Underwater hero)
+ */
+export function coversObjects(registry: Registry, level: Level, i: number): boolean {
+  const id = level.palette[level.cells[i] ?? -1];
+  return id !== undefined && registry.terrain(id).liquid !== undefined;
 }

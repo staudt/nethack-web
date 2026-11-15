@@ -4,7 +4,14 @@
 import type { Ctx, GameState, Json } from '@nh/core';
 /** How the hero died, for the parts of done() that care. ref: include/hack.h DIED, CHOKING ... */
 export type How =
-  'died' | 'choking' | 'poisoning' | 'starving' | 'stoning' | 'turned_slime' | 'genocided';
+  | 'died'
+  | 'choking'
+  | 'poisoning'
+  | 'starving'
+  | 'drowning'
+  | 'stoning'
+  | 'turned_slime'
+  | 'genocided';
 
 /** C's `how` for the ends the port has. ref: include/hack.h DIED ... ESCAPED */
 export type EndHow = How | 'escaped' | 'quit';

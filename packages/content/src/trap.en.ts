@@ -296,6 +296,7 @@ export const trapMessagesEn: Record<string, string> = {
   'lev.fall_over': 'You fall over.',
   'lev.crashed': "Bummer!  You've crashed.",
   'lev.hit_ground': "Bummer!  You've hit the ground.",
+  'lev.splashed_down': "Bummer!  You've splashed down.",
   'lev.float_gently': 'You float gently to the {surface}.',
   'lev.floating_above': 'You are floating high above the {what}.',
   'lev.cant_reach_floor': "You can't reach the {surface}.",

@@ -235,6 +235,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
           issue('door', "must be 'closed', 'locked', 'open' or 'doorway'", d.id);
         if (d.stairs !== undefined && !['up', 'down'].includes(d.stairs))
           issue('stairs', "must be 'up' or 'down'", d.id);
+        if (d.liquid !== undefined && !['water', 'lava'].includes(d.liquid))
+          issue('liquid', "must be 'water' or 'lava'", d.id);
         glyph(d.glyph, d.id);
         terrains.set(d.id, d);
       },

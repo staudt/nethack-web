@@ -411,7 +411,11 @@ function randomSpot(
 function ensureWayOut(b: Builder): void {
   const { level, rng } = b;
   const { width: W, height: H } = level;
-  const accessible = (i: number): boolean => !has(OBSTRUCTED_KEYS, b.key(i));
+  // ACCESSIBLE(): neither obstructed nor water, lava or iron bars (typ >= DOOR)
+  const accessible = (i: number): boolean => {
+    const k = b.key(i);
+    return !has(OBSTRUCTED_KEYS, k) && !has(UNACCESSIBLE_KEYS, k);
+  };
   const floodOk = (i: number): boolean => {
     const k = b.key(i);
     return accessible(i) || has(SDOOR_KEYS, k) || k === 'scorr';
@@ -531,6 +535,19 @@ function ensureWayOut(b: Builder): void {
   }
 }
 
+/** Not obstructed but not ACCESSIBLE() either (POOL .. IRONBARS in rm.h). */
+const UNACCESSIBLE_KEYS: readonly Key[] = [
+  'pool',
+  'moat',
+  'water',
+  'lava',
+  'lavawall',
+  'iron_bars',
+];
+
+/** IS_DOORJOIN(): IS_OBSTRUCTED() or iron bars. */
+const DOORJOIN_KEYS: readonly Key[] = [...OBSTRUCTED_KEYS, 'iron_bars'];
+
 /** ref: src/sp_lev.c set_door_orientation() */
 function horizontalDoor(b: Builder, x: number, y: number): boolean {
   const { width: W, height: H } = b.level;
@@ -547,7 +564,7 @@ function horizontalDoor(b: Builder, x: number, y: number): boolean {
   if (!wleft && !wright && !wup && !wdown) {
     // out of bounds counts as wall; IS_DOORJOIN() is IS_OBSTRUCTED() or iron bars
     const join = (dx: number, dy: number): boolean =>
-      !ok(x + dx, y + dy) || has(OBSTRUCTED_KEYS, b.key((y + dy) * W + x + dx));
+      !ok(x + dx, y + dy) || has(DOORJOIN_KEYS, b.key((y + dy) * W + x + dx));
     wleft = join(-1, 0);
     wright = join(1, 0);
     wup = join(0, -1);
@@ -573,6 +590,18 @@ function orientDoors(b: Builder): void {
     }
 }
 
+/**
+ * What walls join besides walls: doors, secret doors, walls of water and lava, iron bars.
+ * ref: src/mkmaze.c iswall()
+ */
+const WALL_JOIN_KEYS: readonly Key[] = [
+  ...DOOR_KEYS,
+  ...SDOOR_KEYS,
+  'water',
+  'lavawall',
+  'iron_bars',
+];
+
 /** Walls of the whole level made to join up. ref: src/mkmaze.c wallification() */
 function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
   const { level } = b;
@@ -580,7 +609,7 @@ function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
     const k = b.key(i);
     if (k === 'stone') return MK.BG;
     if (k !== undefined && WALL_MK[k] !== undefined) return WALL_MK[k];
-    return has(DOOR_KEYS, k) || has(SDOOR_KEYS, k) ? MK_DOOR : MK.FG;
+    return has(WALL_JOIN_KEYS, k) ? MK_DOOR : MK.FG;
   });
   const fixed = wallifyKinds(level.width, level.height, kinds);
   for (let i = 0; i < fixed.length; i++) {
@@ -590,8 +619,11 @@ function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
   }
 }
 
-/** IS_ROOM() (ROOM and the furniture after it) or a cross wall: what wallify_map() walls in. */
-const ROOM_KEYS: readonly Key[] = ['floor', ...FURNITURE_KEYS, 'crwall'];
+/**
+ * IS_ROOM() (ROOM, the furniture, ice and clouds after it) or a cross wall: what wallify_map()
+ * walls in.
+ */
+const ROOM_KEYS: readonly Key[] = ['floor', ...FURNITURE_KEYS, 'ice', 'cloud', 'crwall'];
 
 /**
  * Wall-joining for a finished Level, for content that changes terrain after buildLevel (a maze

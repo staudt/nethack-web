@@ -47,6 +47,7 @@ export const RULES: CellRules = {
   closedDoor: flags((i) => i === PAL.closed || i === PAL.locked),
   lockedDoor: flags((i) => i === PAL.locked),
   intactDoor: flags((i) => i === PAL.closed || i === PAL.locked || i === PAL.open),
+  liquid: palette.map(() => null),
 };
 
 /** Builds a Level from ASCII rows. `lit` rows use 'L' for lit; default all dark. Rows are padded with stone. */

@@ -543,7 +543,7 @@ describe('validation', () => {
       contents: [{ kind: 'object', x: 9, y: 0 }],
     };
     expect(issues(bad)).toEqual([
-      "map.rows[0]: unknown map character 'Q' at column 2 (use ' ' . # - | + S H { K T x)",
+      "map.rows[0]: unknown map character 'Q' at column 2 (use ' ' . # - | + S H { K T P } W L Z I C \\ F x)",
       'map.rows[1]: is 3 wide; every row must be 4 wide',
       'map.halign: must be one of left, half-left, center, half-right, right',
       'map.y: give both x and y, or neither',
@@ -552,7 +552,7 @@ describe('validation', () => {
       'regions[1].area: x1,y1 must be the top-left corner and x2,y2 the bottom-right',
       'regions[2].area: must be [x1, y1, x2, y2] integers',
       'regions[2].filled: only a typed region (a room) can be filled',
-      "edits[0].set[0].char: must be one map character (' ' . # - | + S H { K T)",
+      "edits[0].set[0].char: must be one map character (' ' . # - | + S H { K T P } W L Z I C \\ F)",
       'edits[0].set[0]: give exactly one of at, line, area',
       'edits[1].else: needs a percent',
       "doors[0]: 4,0 is outside the 4x2 map (map coordinates run from 0,0; use coords: 'level' for Level coordinates)",
