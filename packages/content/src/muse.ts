@@ -56,6 +56,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { isPool } from './liquid';
+import { destroyDrawbridge } from './dbridge';
+import { findDrawbridge, isDrawbridge, isDrawbridgeWall, isRaisedSpan } from './dbstate';
 import { uinwater } from './uwater';
 import { couldseeAt } from './apparxy';
 import { clearPath } from './clearpath';
@@ -920,8 +922,12 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       mFlee();
       mzapwand(ctx, mon, otmp, false);
       if (oseen) discover(ctx, WAN_DIGGING);
-      // furniture (stairs included) or stairs (no drawbridges)
-      if (isFurnitureId(ctx.defs, terrainIdAt(level, x, y))) {
+      // furniture (stairs included), a drawbridge or its portcullis, or stairs
+      if (
+        isFurnitureId(ctx.defs, terrainIdAt(level, x, y)) ||
+        isDrawbridge(level, x, y) ||
+        isDrawbridgeWall(ctx, level, x, y) !== null
+      ) {
         say(ctx, 'muse.digging_ineffective');
         return 2;
       }
@@ -1827,8 +1833,9 @@ function mbhitm(
 /**
  * The monster's wand (striking, teleportation, undead turning) travels from it toward `aim` for
  * `range` squares: the hero or a monster on the way is hit (3 squares less), then the objects
- * there (1 less); striking breaks a door it meets (doorlock()); it stops at a wall, rock or a
- * door still closed. ref: src/muse.c mbhit(), fhito_loc() (no drawbridges)
+ * there (1 less); striking destroys a drawbridge it hits (the lowered span or the portcullis,
+ * not the moat in front of a raised one) and breaks a door it meets (doorlock()); it stops at a
+ * wall, rock or a door still closed. ref: src/muse.c mbhit(), fhito_loc()
  */
 function mbhit(ctx: Ctx, mon: Entity, range: number, wand: Entity, oseen: boolean, aim: Pos): void {
   const p = mon.c.pos;
@@ -1865,7 +1872,18 @@ function mbhit(ctx: Ctx, mon: Entity, range: number, wand: Entity, oseen: boolea
     const tid = terrainIdAt(level, bx, by);
     const t = tid === undefined ? undefined : ctx.defs.terrain(tid);
     const isDoor = t?.door !== undefined;
-    if ((isDoor || isSdoorId(tid)) && wand.def === WAN_STRIKING) {
+    // if the square is DRAWBRIDGE_UP the zap is passing over the moat in front of a closed
+    // drawbridge and doesn't hit any part of the bridge's mechanism (yet; it might be about to
+    // hit the closed portcullis on the next iteration)
+    const db =
+      wand.def === WAN_STRIKING && !isRaisedSpan(level, bx, by)
+        ? findDrawbridge(ctx, level, bx, by)
+        : null;
+    if (db) {
+      // this might kill mon and destroy the wand
+      destroyDrawbridge(ctx, db.x, db.y, { monMoving: true });
+      if (ctx.state.gameOver) break;
+    } else if ((isDoor || isSdoorId(tid)) && wand.def === WAN_STRIKING) {
       // a broken shop door goes on the shopkeeper's repair list at no cost to her (doorlock())
       if (doorlock(ctx, WAN_STRIKING, bx, by) && oseen) discover(ctx, WAN_STRIKING);
     }

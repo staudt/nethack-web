@@ -6,8 +6,9 @@
 //
 // Not ported: steam clouds (create_gas_cloud(): no gas regions), burying and unearthing the
 // objects in a pool that freezes (they lie on the ice: DEVIATIONS "Water"), fix_wall_spines()
-// after a wall of lava freezes, the moat under a raised drawbridge (m15 step 8), corpse aging
-// on ice (obj_ice_effects()), the Plane of Water and level temperature.
+// after a wall of lava freezes, corpse aging on ice (obj_ice_effects()), the Plane of Water and
+// level temperature. Under a raised drawbridge only what lies under it changes (C's
+// `drawbridgemask`: dbstate.ts setDrawbridgeUnder()), so the bridge stays.
 import {
   cellIndex,
   getPlayer,
@@ -21,6 +22,7 @@ import {
   type ModApi,
 } from '@nh/core';
 import { BOULDER } from './boulder';
+import { drawbridgeData, isDrawbridge, isRaisedSpan, setDrawbridgeUnder } from './dbstate';
 import { setLiquidRay } from './buzz';
 import { monsterIdAt } from './combat';
 import { boulderHitsPool } from './flooreffects';
@@ -93,8 +95,14 @@ export function meltIce(
   msg: string | null,
   monMoving = false,
 ): void {
-  setTerrain(level, x, y, icedpool(ctx, level, x, y) === 'pool' ? T.pool : T.moat);
-  setIcedpool(ctx, level, x, y, null);
+  if (isDrawbridge(level, x, y)) {
+    // revert to DB_MOAT
+    if (drawbridgeData(ctx, level, x, y)?.under === 'ice')
+      setDrawbridgeUnder(ctx, level, x, y, 'moat');
+  } else {
+    setTerrain(level, x, y, icedpool(ctx, level, x, y) === 'pool' ? T.pool : T.moat);
+    setIcedpool(ctx, level, x, y, null);
+  }
   stopMeltTimer(ctx, level.id, x, y); // no more ice to melt away
   trapIceEffects(ctx, level, x, y);
   const current = level.id === ctx.state.currentLevel;
@@ -126,7 +134,8 @@ function meltIceAway(ctx: Ctx, data: Json): void {
   const d = data as { level?: string; x?: number; y?: number } | null;
   const level = d?.level ? ctx.state.levels[d.level] : undefined;
   if (!level || d?.x === undefined || d.y === undefined) return;
-  if (!isIce(ctx, level, d.x, d.y)) return;
+  // the ice under a drawbridge melts whether the bridge is raised or lowered
+  if (!isIce(ctx, level, d.x, d.y) && drawbridgeData(ctx, level, d.x, d.y)?.under !== 'ice') return;
   // melt_ice -> minliquid -> mondead|xkilled shouldn't credit/blame hero
   meltIce(ctx, level, d.x, d.y, 'ice.melts_away', true);
 }
@@ -201,12 +210,18 @@ export function coldOverLiquid(ctx: Ctx, level: Level, x: number, y: number): nu
       return -1000; // stop
     }
     const name = `@${waterbodyName(ctx, level, x, y)}`; // for MOAT
-    if (!lava) setIcedpool(ctx, level, x, y, terrainIdAt(level, x, y) === T.pool ? 'pool' : 'moat');
-    if (lavawall) {
-      const wallAt = (yy: number): boolean =>
-        yy >= 0 && yy < level.height && isWallId(terrainIdAt(level, x, yy));
-      setTerrain(level, x, y, wallAt(y - 1) || wallAt(y + 1) ? T.vwall : T.hwall);
-    } else setTerrain(level, x, y, lava ? T.floor : T.ice);
+    if (isRaisedSpan(level, x, y)) {
+      // the moat or lava under a raised drawbridge: DB_ICE or DB_FLOOR
+      setDrawbridgeUnder(ctx, level, x, y, lava ? 'floor' : 'ice');
+    } else {
+      if (!lava)
+        setIcedpool(ctx, level, x, y, terrainIdAt(level, x, y) === T.pool ? 'pool' : 'moat');
+      if (lavawall) {
+        const wallAt = (yy: number): boolean =>
+          yy >= 0 && yy < level.height && isWallId(terrainIdAt(level, x, yy));
+        setTerrain(level, x, y, wallAt(y - 1) || wallAt(y + 1) ? T.vwall : T.hwall);
+      } else setTerrain(level, x, y, lava ? T.floor : T.ice);
+    }
     if (seeIt) {
       if (lava) say(ctx, 'zap.lava_cools');
       else if (moat) say(ctx, 'zap.bridged_ice', { water: name });

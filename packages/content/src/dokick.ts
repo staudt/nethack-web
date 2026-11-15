@@ -13,6 +13,7 @@
 // Also not ported: traps but statue traps, boxes and chests, fountains, graves, trees, sinks,
 // iron bars, pools, ice and greased objects, the exercise of attributes, Luck, alignment, the
 // bulky-armor clumsiness and the bad-Dex ATEMP penalty of wounded legs.
+import { isDrawbridgeWall } from './dbstate';
 import { flooreffects } from './flooreffects';
 import { mApType, seemimic } from './mimicstate';
 import { EGG } from './eggstate';
@@ -138,13 +139,20 @@ const attr = (ctx: Ctx) => {
 const killerFor = (what: string): string => `@killer.kick.${what}`;
 
 /**
- * ref: src/dokick.c kick_ouch(): "Ouch! That hurts!", the noise wakes the neighbours, 1 time in 3
- * the leg is hurt, and d3 (d5 with Con 15 or less) damage.
+ * ref: src/dokick.c kick_ouch(): "Ouch! That hurts!" (a drawbridge's portcullis: "The drawbridge
+ * is unaffected.", and the killer is kicking a drawbridge), the noise wakes the neighbours, 1
+ * time in 3 the leg is hurt, and d3 (d5 with Con 15 or less) damage.
  */
 function kickOuch(ctx: Ctx, x: number, y: number, what: string): void {
   say(ctx, 'kick.ouch');
   const level = getLevel(ctx.state);
-  if (inBounds(level, x, y)) wakeNearto(ctx, x, y, 5 * 5);
+  if (inBounds(level, x, y)) {
+    if (isDrawbridgeWall(ctx, level, x, y) !== null) {
+      say(ctx, 'kick.drawbridge_unaffected');
+      what = 'drawbridge'; // maploc now refers to the drawbridge
+    }
+    wakeNearto(ctx, x, y, 5 * 5);
+  }
   if (ctx.rng.rn2(3) === 0) setWoundedLegs(ctx, 5 + ctx.rng.rnd(5));
   const dmg = ctx.rng.rnd(attr(ctx).con > 15 ? 3 : 5);
   losehp(ctx, dmg, killerFor(what));

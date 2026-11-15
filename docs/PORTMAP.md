@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-175 NetHack files, 4624 citations.
+175 NetHack files, 4628 citations.
 
 ## dat/bigrm-1.lua
 
@@ -2856,6 +2856,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `unturn_dead()`: `packages/content/src/revive.ts`
 - `weffects()`: `packages/content/src/cast.ts`, `packages/content/src/zap.ts`, `packages/core/src/types/mod.ts`
 - `zap_hit()`: `packages/content/src/buzz.ts`
+- `zap_map()`: `packages/content/src/zap.ts`
 - `zap_over_floor()`: `packages/content/src/buzz.ts`, `packages/content/src/ice.ts`
 - `zap_updown()`: `packages/content/src/zap.ts`
 - `zapnodir()`: `packages/content/src/teleport.ts`, `packages/content/src/zap.ts`

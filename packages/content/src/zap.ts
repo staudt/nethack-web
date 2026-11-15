@@ -21,10 +21,13 @@
 // Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
-// drawbridges, the ray animation. Striking and force bolt break statues
+// the ray animation. Opening, locking, striking and their spells work drawbridges (zap_map(),
+// zap_updown(): dbridge.ts). Striking and force bolt break statues
 // (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
 // holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
 // cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
+import { closeDrawbridge, destroyDrawbridge, openDrawbridge } from './dbridge';
+import { findDrawbridge, isDbWall, isDrawbridgeWall, isLoweredSpan, isRaisedSpan } from './dbstate';
 import { loseAbon } from './dowear';
 import {
   DIRS,
@@ -1166,7 +1169,8 @@ export function bhitpile(ctx: Ctx, src: ZapSource, x: number, y: number): number
 /**
  * The beam of an immediate wand: rn1(8, 6) squares, each monster on the way is hit (costing 3
  * of the range), then the objects; doors are opened, locked or broken, and the beam stops at a
- * wall or closed door. ref: src/zap.c bhit() with ZAPPED_WAND, zap_map() (probing only)
+ * wall or closed door; a drawbridge is opened, closed or destroyed (zapMapDrawbridge()).
+ * ref: src/zap.c bhit() with ZAPPED_WAND, zap_map()
  */
 function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   const level = levelOf(ctx);
@@ -1181,6 +1185,8 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
     if (!inBounds(level, x, y)) break;
     // zap_map(): cancellation blows up a magical trap
     maybeExplodeTrap(ctx, src, x, y);
+    if (ctx.state.gameOver) return;
+    zapMapDrawbridge(ctx, src, level, x, y);
     if (ctx.state.gameOver) return;
     // zap_map(): probing maps the square and reveals a secret door
     if (otyp === WAN.probing && isSdoor(cellId(level, x, y))) {
@@ -1224,6 +1230,46 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
   if (shopdoor) payForDamage(ctx, 'destroy', false);
 }
 
+/**
+ * A lateral beam at (x, y), a drawbridge's span or portcullis: opening and knock lower the
+ * raised bridge when they hit its portcullis; locking and wizard lock raise the lowered one;
+ * striking and force bolt destroy it unless they only pass over the moat in front of a raised
+ * one. Learned when the bridge or the spot is seen (striking always).
+ * ref: src/zap.c zap_map() (`!u.dz`)
+ */
+function zapMapDrawbridge(ctx: Ctx, src: ZapSource, level: Level, x: number, y: number): void {
+  const db = findDrawbridge(ctx, level, x, y);
+  if (!db) return;
+  const seen = (): boolean => cansee(ctx, db.x, db.y) || cansee(ctx, x, y);
+  let learnIt = false;
+  switch (caseOf(otypOf(src))) {
+    case WAN.opening:
+      // dbwall: 'closed door' of raised drawbridge
+      if (isDbWall(level, x, y)) {
+        if (seen()) learnIt = true;
+        openDrawbridge(ctx, db.x, db.y);
+      }
+      break;
+    case WAN.locking:
+      // drawbridge_down: span of lowered drawbridge
+      if (seen() && isLoweredSpan(level, db.x, db.y)) learnIt = true;
+      closeDrawbridge(ctx, db.x, db.y);
+      break;
+    case WAN.striking:
+    case SPE.forceBolt:
+      // !drawbridge_up: not spot in front of raised bridge, so either span of lowered bridge
+      // or portcullis
+      if (!isRaisedSpan(level, x, y)) {
+        learnIt = true;
+        destroyDrawbridge(ctx, db.x, db.y);
+      }
+      break;
+    default:
+      break;
+  }
+  if (learnIt) learn(ctx, src);
+}
+
 /** ref: include/rm.h IS_FURNITURE() */
 const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
   isFurnitureId(ctx.defs, terrainAt(ctx, level, x, y).id);
@@ -1235,8 +1281,9 @@ const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
  * trap on her or turns a hole into a trap door; striking up dislodges a rock (2 times in 3),
  * down shatters a trap door into a hole she may fall through. Then a down zap hits the objects
  * under her (teleportation sends them away); stone to flesh bleeds from the ceiling or pools at
- * her feet when nothing lies there. ref: src/zap.c zap_updown() (no drawbridges,
- * engravings, quest stairs or hiding under objects)
+ * her feet when nothing lies there. Opening at a raised portcullis lowers its drawbridge;
+ * locking (striking) down on a lowered bridge or at its open portcullis raises (destroys) it.
+ * ref: src/zap.c zap_updown() (no engravings, quest stairs or hiding under objects)
  */
 function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
   const otyp = otypOf(src);
@@ -1259,6 +1306,15 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
       return true; // its own bhitpile
     }
     case WAN.opening:
+      // up or down, but at closed portcullis only
+      if (isDbWall(level, x, y)) {
+        const db = findDrawbridge(ctx, level, x, y);
+        if (db) {
+          openDrawbridge(ctx, db.x, db.y);
+          disclose = true;
+          if (ctx.state.gameOver) return disclose;
+        }
+      }
       // down releases her from a bear trap or pit, or sets off a trap door, hole or pit
       if (dir === 'down') {
         if (utrap(ctx)) disclose = openholdingtrap(ctx, null).noticed || disclose;
@@ -1275,7 +1331,20 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
     case SPE.forceBolt:
     case WAN.locking: {
       const striking = caseOf(otyp) !== WAN.locking;
-      if (striking && dir === 'up' && ctx.rng.rn2(3)) {
+      // down at open bridge or up or down at open portcullis
+      const db = (
+        isLoweredSpan(level, x, y)
+          ? dir === 'down'
+          : isDrawbridgeWall(ctx, level, x, y) !== null && !isDbWall(level, x, y)
+      )
+        ? findDrawbridge(ctx, level, x, y)
+        : null;
+      if (db) {
+        if (!striking) closeDrawbridge(ctx, db.x, db.y);
+        else destroyDrawbridge(ctx, db.x, db.y);
+        disclose = true;
+        if (ctx.state.gameOver) return disclose;
+      } else if (striking && dir === 'up' && ctx.rng.rn2(3)) {
         // similar to zap_dig()
         say(ctx, 'zap.rock_dislodged', { ceiling: ceiling() });
         rockOnHead(ctx, level, x, y);

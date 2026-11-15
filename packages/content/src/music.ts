@@ -1,14 +1,21 @@
-// Playing a musical instrument: the bugle, the only instrument of the port.
+// Playing a musical instrument: the bugle, the only instrument of the port. Unless stunned,
+// confused or hallucinating she is asked "Improvise?"; "no" plays the passtune ("Play the
+// passtune?" once she knows it) or a typed tune of notes A-G, which opens or closes the Castle's
+// drawbridge next to her when it is the right one, and otherwise gives the Mastermind clues
+// (tumblers and gears).
 // ref: src/music.c do_play_instrument(), do_improvisation(), improvised_notes(),
 // awaken_soldiers(), awaken_scare(); src/mondata.c can_blow(); src/monmove.c onscary() (its
-// <0,0> auditory case)
+// <0,0> auditory case); src/hacklib.c mungspaces(), highc()
 //
-// Not ported (see DEVIATIONS.md): the other instruments, playing a tune (there is no drawbridge,
-// so "Improvise?" is always answered yes and not asked), Deafness, being underwater, attribute
-// exercise, Hero_playnotes() (sound), vault guards, monster strategies (STRAT_WAITMASK), and the
-// scare exemptions for the Wizard, minions, Angels and the Riders (none exist here).
+// Not ported (see DEVIATIONS.md): the other instruments, Deafness, being underwater, attribute
+// exercise, Hero_playnotes() (sound), achievements, vault guards, monster strategies
+// (STRAT_WAITMASK), and the scare exemptions for the Wizard, minions, Angels and the Riders
+// (none exist here).
 import {
+  NORMAL_SPEED,
+  getLevel,
   getPlayer,
+  inBounds,
   sortedIds,
   type Ctx,
   type DefId,
@@ -16,6 +23,17 @@ import {
   type Json,
   type Msg,
 } from '@nh/core';
+import { closeDrawbridge, openDrawbridge } from './dbridge';
+import {
+  CASTLE,
+  castleTune,
+  findDrawbridge,
+  isDrawbridge,
+  isDrawbridgeWall,
+  isLoweredSpan,
+  setUheardTune,
+  uheardTune,
+} from './dbstate';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { hasHead, verysmall } from './mondata';
@@ -172,14 +190,191 @@ function doImprovisation(ctx: Ctx, instr: Entity): void {
   awakenSoldiers(ctx);
 }
 
+/** The step of do_play_instrument() a question belongs to. */
+type MusicStep = 'improvise' | 'passtune' | 'tune';
+
+const MUSIC_PROMPT: Readonly<Record<MusicStep, string>> = {
+  improvise: 'music-improvise',
+  passtune: 'music-passtune',
+  tune: 'music-tune',
+};
+
+/** Asks the next question of do_play_instrument(); its answer comes back to `handler`. */
+function askMusic(ctx: Ctx, handler: DefId, instr: Entity, step: MusicStep): void {
+  const id = MUSIC_PROMPT[step];
+  if (step === 'tune')
+    ctx.ask({ id, kind: 'text', key: 'music.what_tune', maxLength: 80 }, handler, {
+      music: instr.id,
+      step,
+    });
+  else
+    ctx.ask(
+      {
+        id,
+        kind: 'yn',
+        key: step === 'improvise' ? 'music.improvise' : 'music.play_passtune',
+        cancellable: true,
+      },
+      handler,
+      { music: instr.id, step },
+    );
+}
+
+/** Whether a question's data is one of do_play_instrument()'s. */
+export const isMusicData = (data: Json): boolean =>
+  isObj(data) && typeof data['music'] === 'number' && typeof data['step'] === 'string';
+
 /**
- * Applying an instrument. Returns whether it took time. ref: src/music.c do_play_instrument()
+ * Applying an instrument: "You are incapable of playing the bugle." when she cannot blow; then
+ * "Improvise?" (yes, no or cancel) unless she is stunned, confused or hallucinating, who always
+ * improvise. Returns the energy used (0 while a question is pending: `handler` gets the answer).
+ * ref: src/music.c do_play_instrument()
  */
-export function doPlayInstrument(ctx: Ctx, instr: Entity): boolean {
+export function doPlayInstrument(ctx: Ctx, instr: Entity, handler: DefId): number {
   if (!canBlow(ctx)) {
     say(ctx, 'music.incapable', { item: xnameOf(ctx.state, ctx.defs, instr) });
-    return false;
+    return 0;
+  }
+  const h = getPlayer(ctx.state);
+  if (!(hasProp(h, P.STUNNED) || hasProp(h, P.CONFUSION) || hasProp(h, P.HALLUC))) {
+    askMusic(ctx, handler, instr, 'improvise');
+    return 0;
   }
   doImprovisation(ctx, instr);
-  return true;
+  return NORMAL_SPEED;
+}
+
+/**
+ * The answers of do_play_instrument(): "Improvise?" yes improvises; no asks "Play the passtune?"
+ * when she knows it (u.uevent.uheard_tune == 2), else the tune ("What tune are you playing? [5
+ * notes, A-G]": spaces squeezed, letters raised, H read as B); a cancel anywhere is "Never
+ * mind." and takes no time. ref: src/music.c do_play_instrument()
+ */
+export function answerMusic(ctx: Ctx, value: Json, data: Json, handler: DefId): number {
+  if (!isObj(data)) return 0;
+  const id = data['music'];
+  const instr = typeof id === 'number' ? ctx.state.entities[String(id)] : undefined;
+  if (!instr || instr.c.item?.carriedBy !== ctx.state.playerId) return 0;
+  const nevermind = (): number => {
+    say(ctx, 'music.never_mind');
+    return 0;
+  };
+  switch (data['step']) {
+    case 'improvise':
+      if (value === null) return nevermind();
+      if (value !== false) {
+        doImprovisation(ctx, instr);
+        return NORMAL_SPEED;
+      }
+      if (uheardTune(ctx) === 2) askMusic(ctx, handler, instr, 'passtune');
+      else askMusic(ctx, handler, instr, 'tune');
+      return 0;
+    case 'passtune':
+      if (value === null) return nevermind();
+      if (value === true) return playTune(ctx, instr, castleTune(ctx));
+      askMusic(ctx, handler, instr, 'tune');
+      return 0;
+    case 'tune': {
+      if (typeof value !== 'string') return nevermind();
+      // mungspaces() (a newline ends it), then highc() and any "H" changed to the expected "B"
+      const munged = (value.split('\n')[0] ?? '').replace(/\t/g, ' ').replace(/ +/g, ' ').trim();
+      let buf = '';
+      for (const c of munged) {
+        const up = c >= 'a' && c <= 'z' ? c.toUpperCase() : c;
+        buf += up === 'H' ? 'B' : up;
+      }
+      return playTune(ctx, instr, buf);
+    }
+    default:
+      return 0;
+  }
+}
+
+/**
+ * The tumblers and gears of a wrong tune: a note in its place turns a gear; a note found
+ * elsewhere in the tune, at a place not yet matched whose own note is wrong, clicks a tumbler.
+ * Only the first five notes count. ref: src/music.c do_play_instrument() (the Mastermind hints)
+ */
+export function tuneClues(buf: string, tune: string): { tumblers: number; gears: number } {
+  let tumblers = 0;
+  let gears = 0;
+  const matched = [false, false, false, false, false];
+  for (let x = 0; x < buf.length && x < 5; x++) {
+    if (buf[x] === tune[x]) {
+      gears++;
+      matched[x] = true;
+    } else {
+      for (let y = 0; y < 5; y++)
+        if (!matched[y] && buf[x] === tune[y] && buf[y] !== tune[y]) {
+          tumblers++;
+          matched[y] = true;
+          break;
+        }
+    }
+  }
+  return { tumblers, gears };
+}
+
+const countMsg = (what: 'tumbler' | 'gear', n: number): Msg => ({
+  key: n === 1 ? `music.one_${what}` : `music.n_${what}s`,
+  params: { n },
+});
+
+/**
+ * Playing the notes `buf`: "You extract a strange sound from the bugle!" On the Castle, the
+ * passtune next to its drawbridge (the span or the portcullis, around her) teaches her the tune
+ * and lowers the raised bridge or raises the lowered one; a wrong tune makes her have heard of
+ * it, and next to the drawbridge gives the clues ("You hear 2 tumblers click and 1 gear
+ * turn."); five gears (the right notes and more) teach her the tune. Takes a move.
+ * ref: src/music.c do_play_instrument()
+ */
+function playTune(ctx: Ctx, instr: Entity, buf: string): number {
+  say(ctx, 'music.strange_sound', { item: xnameOf(ctx.state, ctx.defs, instr) });
+  const level = getLevel(ctx.state);
+  const hp = getPlayer(ctx.state).c.pos;
+  if (level.def !== CASTLE || !hp) return NORMAL_SPEED;
+  // (exercise(A_WIS, TRUE) "just for trying" is not ported)
+  const tune = castleTune(ctx);
+  if (tune !== '' && buf === tune) {
+    // search for the drawbridge
+    for (let y = hp.y - 1; y <= hp.y + 1; y++)
+      for (let x = hp.x - 1; x <= hp.x + 1; x++) {
+        if (!inBounds(level, x, y)) continue;
+        const db = findDrawbridge(ctx, level, x, y);
+        if (db) {
+          setUheardTune(ctx, 2); // tune now fully known
+          if (isLoweredSpan(level, db.x, db.y)) closeDrawbridge(ctx, db.x, db.y);
+          else openDrawbridge(ctx, db.x, db.y);
+          return NORMAL_SPEED;
+        }
+      }
+    return NORMAL_SPEED;
+  }
+  if (uheardTune(ctx) < 1) setUheardTune(ctx, 1);
+  // okay, it wasn't the right tune, but perhaps we can give the player some hints like in the
+  // Mastermind game
+  let near = false;
+  for (let y = hp.y - 1; y <= hp.y + 1 && !near; y++)
+    for (let x = hp.x - 1; x <= hp.x + 1 && !near; x++)
+      if (
+        inBounds(level, x, y) &&
+        (isDrawbridge(level, x, y) || isDrawbridgeWall(ctx, level, x, y) !== null)
+      )
+        near = true;
+  if (!near) return NORMAL_SPEED;
+  const { tumblers, gears } = tuneClues(buf, tune);
+  if (tumblers) {
+    if (gears)
+      say(ctx, 'music.tumblers_gears', {
+        tumblers: countMsg('tumbler', tumblers),
+        gears: countMsg('gear', gears),
+      });
+    else say(ctx, 'music.tumblers', { tumblers: countMsg('tumbler', tumblers) });
+  } else if (gears) {
+    say(ctx, 'music.gears', { gears: countMsg('gear', gears) });
+    // could only get `gears == 5' by playing five correct notes followed by excess;
+    // otherwise, tune would have matched above
+    if (gears === 5) setUheardTune(ctx, 2);
+  }
+  return NORMAL_SPEED;
 }

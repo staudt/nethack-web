@@ -48,8 +48,9 @@ export function fillholetyp(
  * The liquid `typ` floods (x, y) of the hero's level: the terrain becomes it, the trap there is
  * gone (whoever it held is free), `fillmsg` ("As you dig, the hole fills with water!") is
  * said, the objects there get wet or burn, then the hero there is in it (pooleffects()) or a
- * monster there meets it (minliquid()). ref: src/dig.c liquid_flow() (with the caller's terrain
- * change; nothing is buried, so nothing is unearthed)
+ * monster there meets it (minliquid()). `typ` may be a raised drawbridge's span over the new
+ * liquid (dighole(): the caller set what is under it). ref: src/dig.c liquid_flow() (with the
+ * caller's terrain change; nothing is buried, so nothing is unearthed)
  */
 export function liquidFlow(
   ctx: Ctx,
@@ -61,7 +62,7 @@ export function liquidFlow(
 ): void {
   setTerrain(level, x, y, typ);
   if (!isPoolOrLava(ctx, level, x, y)) return;
-  const lava = typ === T.lava;
+  const lava = isLava(ctx, level, x, y);
   const t = trapAt(level, x, y);
   const hp = getPlayer(ctx.state).c.pos;
   const uSpot = hp?.level === level.id && hp.x === x && hp.y === y;

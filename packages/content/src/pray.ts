@@ -12,8 +12,9 @@ import { monNam } from './perception';
 import { monsterDied } from './mondeath';
 import { experienceFor, gainExperience, pluslvl, setUlevelmax, ulevelmax } from './hero';
 import { losexp } from './exper';
-import { ulycn, youUnwere } from './werestate';
-import { ownHp, upolyd } from './upoly';
+import { isHumanForm, ulycn, youUnwere } from './werestate';
+import { heroForm, ownHp, upolyd } from './upoly';
+import { castleTune, setUheardTune, uheardTune, uopenedDbridge } from './dbstate';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -507,7 +508,7 @@ function godsUpset(ctx: Ctx, align: number): void {
   angrygods(ctx, align);
 }
 
-/** The god's favors on a good prayer. ref: src/pray.c pleased() (no castle tune or spells) */
+/** The god's favors on a good prayer. ref: src/pray.c pleased() (no spells or crowning) */
 function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   let trouble = inTrouble(ctx); // the worst trouble may have changed while praying
   const record0 = uState(ctx.state).alignRecord;
@@ -586,8 +587,31 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
   const her = hero(ctx);
   const blind = hasProp(her, P.BLINDED);
   let n = ctx.rng.rn2((luckOf(ctx.state) + 6) >> 1);
-  if (n === 3) n = 2; // no castle tune to hint at: as the golden glow
   if (n >= 6) n = 5; // no spells or crowning: as the gift of an intrinsic
+  // takes 2 hints to get the music to enter the stronghold; skip if you've solved it via
+  // mastermind or destroyed the drawbridge (both set uopened_dbridge) (no Valley yet:
+  // gehennom_entered is never set), or if no tune was drawn (a game without the Castle)
+  if (n === 3) {
+    const tune = castleTune(ctx);
+    if (!uopenedDbridge(ctx) && tune !== '') {
+      const heard = uheardTune(ctx);
+      if (heard < 1) {
+        godvoice(ctx, gAlign, null);
+        const form = heroForm(ctx);
+        say(ctx, form && !isHumanForm(form) ? 'pray.hark_creature' : 'pray.hark_mortal');
+        say(ctx, 'pray.right_tune');
+        setUheardTune(ctx, 1);
+        return;
+      }
+      if (heard < 2) {
+        say(ctx, 'pray.divine_music');
+        say(ctx, 'pray.sounds_like', { tune });
+        setUheardTune(ctx, 2);
+        return;
+      }
+    }
+    n = 2; // FALLTHRU to the golden glow
+  }
   switch (n) {
     case 1: {
       const w = worn(ctx, 'weapon');

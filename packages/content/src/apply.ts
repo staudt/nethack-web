@@ -30,7 +30,7 @@ import { DIG_ID, isPick, usePickAxe } from './dig';
 import { POLE_ID, poleAction, usePole } from './pole';
 import { isPole } from './skills';
 import { mnextoPos } from './generation';
-import { BUGLE, doPlayInstrument } from './music';
+import { BUGLE, answerMusic, doPlayInstrument, isMusicData } from './music';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
@@ -278,7 +278,7 @@ const apply: ActionDef = {
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
     if (isPick(def)) return usePickAxe(ctx, obj);
     if (isPole(def)) return usePole(ctx, obj, false);
-    if (obj.def === BUGLE) return doPlayInstrument(ctx, obj) ? NORMAL_SPEED : 0;
+    if (obj.def === BUGLE) return doPlayInstrument(ctx, obj, APPLY_ID);
     if (obj.def === FIGURINE) return useFigurine(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
@@ -293,8 +293,9 @@ const apply: ActionDef = {
     }
     return NORMAL_SPEED;
   },
-  // "Are you really sure you want to break X?"
-  answer: answerBreakWand,
+  // "Are you really sure you want to break X?", or the questions of playing an instrument
+  answer: (ctx, value, data) =>
+    isMusicData(data) ? answerMusic(ctx, value, data, APPLY_ID) : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

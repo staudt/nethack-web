@@ -15,10 +15,19 @@
 // repairs (add_damage(), pay_for_damage(), shopdig(): shopdamage.ts, shkpay.ts).
 // Not ported (DEVIATIONS "Digging"): axes (chopping trees), statue traps, burying and unearthing objects,
 // impact_drop() (floor objects stay when she falls), liquid flowing into a pit dug sideways
-// (zap_dig()'s pit_flow()), drawbridges, graves,
+// (zap_dig()'s pit_flow()), graves,
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
+import { destroyDrawbridge } from './dbridge';
+import {
+  findDrawbridge,
+  isDbWall,
+  isDrawbridgeWall,
+  isLoweredSpan,
+  isRaisedSpan,
+  setDrawbridgeUnder,
+} from './dbstate';
 import { fillholetyp, liquidFlow } from './liquidflow';
 import { isLava, isPoolOrLava } from './liquid';
 import { mAt } from './wormstate';
@@ -168,8 +177,9 @@ function delfloortrap(ctx: Ctx, levelId: string, t: Trap | undefined): void {
 }
 
 /**
- * Fountains and sinks take the dig themselves: a fountain gushes and dries up (warned or not),
- * a sink breaks into a fountain. True when handled. ref: src/dig.c furniture_handled()
+ * Fountains, sinks and drawbridges take the dig themselves: a fountain gushes and dries up
+ * (warned or not), a sink breaks into a fountain, a lowered drawbridge or its portcullis is
+ * destroyed. True when handled. ref: src/dig.c furniture_handled()
  */
 function furnitureHandled(ctx: Ctx, level: Level, x: number, y: number, byHero: boolean): boolean {
   const id = terrainIdAt(level, x, y);
@@ -181,6 +191,12 @@ function furnitureHandled(ctx: Ctx, level: Level, x: number, y: number, byHero: 
   }
   if (id === T.sink) {
     breaksink(ctx, x, y);
+    return true;
+  }
+  if (isLoweredSpan(level, x, y) || isDrawbridgeWall(ctx, level, x, y) !== null) {
+    // if under the portcullis, the bridge is adjacent
+    const db = findDrawbridge(ctx, level, x, y);
+    if (db) destroyDrawbridge(ctx, db.x, db.y);
     return true;
   }
   return false;
@@ -350,6 +366,18 @@ export function dighole(
     wakeNearto(ctx, hp.x, hp.y, (hero(ctx).c.experience?.level ?? 1) * 20); // splashing
     return false;
   }
+  // drawbridge_down is the platform crossing the moat when the bridge is extended;
+  // drawbridge_wall is the open "doorway" or closed "door" where the portcullis/mechanism is
+  if (isLoweredSpan(level, x, y) || isDrawbridgeWall(ctx, level, x, y) !== null) {
+    if (pitOnly) {
+      say(ctx, 'dig.drawbridge_too_hard');
+      return false;
+    }
+    // if under the portcullis, the bridge is adjacent
+    const db = findDrawbridge(ctx, level, x, y);
+    if (db) destroyDrawbridge(ctx, db.x, db.y);
+    return true;
+  }
   const boulder = boulderAt(ctx, level.id, x, y);
   if (boulder) {
     if (ttmp && isPit(ttmp.def) && ctx.rng.rn2(2)) {
@@ -362,6 +390,20 @@ export function dighole(
     }
     ctx.remove(boulder.id); // delobj()
     return false;
+  }
+  if (isRaisedSpan(level, x, y)) {
+    // must be floor or ice, other cases handled above; dig "pit" and let fluid flow in (if
+    // possible)
+    const typ = fillholetyp(ctx, level, x, y, false);
+    if (typ === null) {
+      // we can't dig a hole here since that will destroy the drawbridge; the following is a
+      // cop-out. --dlc
+      say(ctx, here ? 'dig.too_hard_here' : 'dig.too_hard_there', { surface });
+      return false;
+    }
+    setDrawbridgeUnder(ctx, level, x, y, typ === T.lava ? 'lava' : 'moat');
+    liquidFlow(ctx, level, x, y, terrainIdAt(level, x, y) ?? typ, 'dig.hole_fills');
+    return true;
   }
   // ref: dighole() IS_THRONE(old_typ), IS_ALTAR(old_typ): "for the wand of digging"
   if (id === T.throne) {
@@ -748,7 +790,7 @@ export function dig(ctx: Ctx): boolean {
         return false;
       }
       if (digTyp(ctx, pick, level, d.x, d.y) === 'rock') {
-        say(ctx, 'dig.wall_too_hard');
+        say(ctx, isDbWall(level, d.x, d.y) ? 'dig.drawbridge_too_hard_into' : 'dig.wall_too_hard');
         return false;
       }
     }

@@ -63,6 +63,8 @@ export const digMessagesEn: Record<string, string> = {
   'dig.stop': 'You stop digging.',
   'dig.petrified_tree': 'This tree seems to be petrified.',
   'dig.wall_too_hard': 'This wall is too hard to dig into.',
+  'dig.drawbridge_too_hard_into': 'This drawbridge is too hard to dig into.',
+  'dig.drawbridge_too_hard': 'The drawbridge seems too hard to dig through.',
   'dig.shop_wall_too_hard': 'This wall seems too hard to dig into.',
   'dig.shop_door_too_hard': 'This door seems too hard to dig into.',
   'dig.hit_with_might': 'You hit the {target} with all your might.',

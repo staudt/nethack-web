@@ -211,7 +211,9 @@ describe('the bugle', () => {
     const soldier = sleeper(s, 'nh:soldier', 14, 4, true);
     const jackal = sleeper(s, 'nh:jackal', 9, 2);
     const bugle = s.carry('nh:bugle');
-    const out = s.text(s.mod(APPLY_ID, { item: bugle }));
+    const ask = s.mod(APPLY_ID, { item: bugle });
+    expect(ask.prompt?.id).toBe('music-improvise'); // m15 step 8: "Improvise?"
+    const out = s.text(s.step({ type: 'answer', promptId: 'music-improvise', value: true }));
     expect(out).toContain('You extract a loud noise from your bugle.');
     expect(out).toContain('The soldier is now ready for battle!');
     const m = s.state.entities[String(soldier)]!.c.monster!;
