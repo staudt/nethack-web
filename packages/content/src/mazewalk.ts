@@ -1,7 +1,8 @@
 // A maze carved through the stone of a special level's map block. ref: src/sp_lev.c
-// lspo_mazewalk(); src/mkmaze.c walkfrom(), okay(), mz_move()
+// lspo_mazewalk(); src/mkmaze.c walkfrom() (core's), okay()
 import type { Ctx, DefId, Level, LevelDef } from '@nh/core';
-import { cellIndex, levelDefPos, mapBlock, VANILLA_TERRAIN } from '@nh/core';
+import { cellIndex, levelDefPos, mapBlock, mazeMax, VANILLA_TERRAIN, walkfrom } from '@nh/core';
+import { fillEmptyMaze } from './mazefill';
 
 /** IS_DOOR(): a door in any state, doorways included (not secret doors). */
 const DOORS: ReadonlySet<DefId> = new Set([
@@ -12,18 +13,11 @@ const DOORS: ReadonlySet<DefId> = new Set([
   VANILLA_TERRAIN.door_locked,
 ]);
 
-/** mz_move() directions 0..3: north, east, south, west. */
-const MZ: readonly (readonly [number, number])[] = [
-  [0, -1],
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-];
-
 /**
- * des.mazewalk({ x, y, dir, stocked = false }) with the floor type ROOM: from the map spot `x`,`y`
+ * des.mazewalk({ x, y, dir, stocked }) with the floor type ROOM: from the map spot `x`,`y`
  * one step `dir`, that cell becomes floor (unless a door), the walk start is moved onto odd
- * NetHack coordinates, and walkfrom() carves a maze through the stone, two cells per step.
+ * NetHack coordinates, and core's walkfrom() carves a maze through the stone, two cells per
+ * step; `stocked` (lua's default true) then fills it (fill_empty_maze()).
  *
  * NetHack's okay() needs the target node to be STONE when the walk runs, before the level's
  * final wall cleanup. Here core's wall cleanup has already run and turned walls surrounded by rock
@@ -31,21 +25,20 @@ const MZ: readonly (readonly [number, number])[] = [
  * the walk has not carved it yet; spots outside the map block were never stone. The bounds and
  * the parity are NetHack's, in its coordinates (x one more than ours; x_maze_max and y_maze_max
  * from the level size). The caller wallifies afterwards (core's wallifyLevel).
- * ref: src/sp_lev.c lspo_mazewalk(); src/mkmaze.c walkfrom() (the MICRO iterative form, which
- * draws the same rolls as the recursive one), okay()
+ * ref: src/sp_lev.c lspo_mazewalk(); src/mkmaze.c walkfrom(), okay()
  */
 export function mazewalk(
-  ctx: Pick<Ctx, 'rng'>,
+  ctx: Ctx,
   level: Level,
   def: LevelDef,
   x: number,
   y: number,
   dir: 'north' | 'south' | 'east' | 'west',
+  stocked = true,
 ): void {
   const block = mapBlock(def, level.width, level.height);
   const rows = def.map?.rows ?? [];
-  const xMazeMax = level.width & ~1; // (COLNO - 1) & ~1 with COLNO = width + 1
-  const yMazeMax = (level.height - 1) & ~1;
+  const max = mazeMax(level.width, level.height);
   let floor = level.palette.indexOf(VANILLA_TERRAIN.floor);
   if (floor === -1) floor = level.palette.push(VANILLA_TERRAIN.floor) - 1;
   const stone = level.palette.indexOf(VANILLA_TERRAIN.stone);
@@ -56,18 +49,6 @@ export function mazewalk(
   };
   const carve = (cx: number, cy: number): void => {
     level.cells[at(cx, cy)] = floor;
-  };
-  /** ref: src/mkmaze.c okay(): the node two steps away is in bounds and still stone */
-  const okay = (cx: number, cy: number, d: number): boolean => {
-    const [dx, dy] = MZ[d] as readonly [number, number];
-    const nx = cx + 2 * dx;
-    const ny = cy + 2 * dy;
-    if (nx < 3 || ny < 3 || nx > xMazeMax || ny > yMazeMax) return false;
-    if (!block) return false;
-    const mx = nx - 1 - block.x;
-    const my = ny - block.y;
-    if (rows[my]?.[mx] !== ' ') return false;
-    return level.cells[at(nx, ny)] === stone;
   };
 
   // NetHack coordinates of the start
@@ -85,24 +66,24 @@ export function mazewalk(
   }
   if (cy % 2 === 0) cy += dir === 'south' ? 1 : -1;
 
-  // ref: walkfrom()
-  const stack: [number, number][] = [[cx, cy]];
-  if (!isDoor(cx, cy)) carve(cx, cy);
-  while (stack.length > 0) {
-    const top = stack[stack.length - 1] as [number, number];
-    const [tx, ty] = top;
-    const dirs: number[] = [];
-    for (let a = 0; a < 4; a++) if (okay(tx, ty, a)) dirs.push(a);
-    if (dirs.length === 0) {
-      stack.pop();
-      continue;
-    }
-    const d = dirs[ctx.rng.rn2(dirs.length)] as number;
-    const [dx, dy] = MZ[d] as readonly [number, number];
-    carve(tx + dx, ty + dy);
-    const nx = tx + 2 * dx;
-    const ny = ty + 2 * dy;
-    if (!isDoor(nx, ny)) carve(nx, ny);
-    stack.push([nx, ny]);
-  }
+  // ref: walkfrom(), okay(): a node in bounds, still stone (in Level coordinates here)
+  walkfrom(
+    ctx.rng,
+    {
+      minX: 2,
+      minY: 3,
+      maxX: max.x - 1,
+      maxY: max.y,
+      stone: (lx, ly) => {
+        if (!block) return false;
+        if (rows[ly - block.y]?.[lx - block.x] !== ' ') return false;
+        return level.cells[cellIndex(level, lx, ly)] === stone;
+      },
+      door: (lx, ly) => isDoor(lx + 1, ly),
+      carve: (lx, ly) => carve(lx + 1, ly),
+    },
+    cx - 1,
+    cy,
+  );
+  if (stocked) fillEmptyMaze(ctx, level, def);
 }

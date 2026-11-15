@@ -29,6 +29,7 @@ import {
   type Key,
 } from './builder';
 import { generateLevel, type GenOptions } from './generate';
+import { createMaze, mazeGrid, mazexy, MZ_OPEN, MZ_STONE, MZ_WALL } from './maze';
 import { MK, MK_DOOR, mkmap, wallifyKinds } from './mkmap';
 import { litstateRnd } from './rooms';
 import { placeRooms, roomStair } from './sprooms';
@@ -48,7 +49,10 @@ import { CAVE_PALETTE_KEYS, PAL, PALETTE_KEYS, type LevelTerrain } from './terra
  * then put up stairs,
  * down stairs and branch stairs (as `opts` asks), then join inaccessible areas, set door
  * orientations and fix the walls. `flags.sokoban` sets `Level.sokoban`. Cave (`mines`) levels have CAVE_PALETTE_KEYS after
- * PALETTE_KEYS in their palette; other terrains are appended as they are used.
+ * PALETTE_KEYS in their palette; other terrains are appended as they are used. `maze` and
+ * `mazegrid` levels start as unlit stone with the maze (or grid) on it; the filler maze puts its
+ * stairs with mazexy() and sets `Level.corrmaze` for a corridor maze, whose walls are not joined
+ * (there are none). ref: src/mkmaze.c create_maze(), makemaz(); src/sp_lev.c lvlfill_maze_grid()
  * ref: src/sp_lev.c splev_initlev(), lspo_map(), lspo_room(), lspo_random_corridors(),
  *   lspo_region(), lspo_terrain(), lspo_door(),
  *   lspo_feature(), lspo_stair(), lspo_finalize_level(); src/mkmaze.c fixup_special()
@@ -70,27 +74,61 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     const i = palette.indexOf(id);
     return i === -1 ? palette.push(id) - 1 : i;
   };
-  const fg = pal(init.fg);
-  // ref: splev_initlev() LVLINIT_SOLIDFILL and LVLINIT_MINES: lit BOOL_RANDOM is rn2(2)
-  const litOn = init.lit ?? rng.rn2(2) === 1;
   let cells: number[];
   let lit: (0 | 1)[];
-  if (cave) {
-    // ref: src/mkmap.c mkmap(); finish_map() lights fg cells and (when walled) walls
-    const kinds = mkmap(rng, {
-      width,
-      height,
-      smoothed: init.smoothed ?? false,
-      joined: init.joined ?? false,
-      walled: init.walled ?? false,
-    });
-    const toPal = caveKindPalette(pal(init.bg ?? opts.terrain.stone), fg);
+  let corrmaze = false;
+  if (init.style === 'maze' || init.style === 'mazegrid') {
+    // the level starts as unlit stone (clear_level_structures())
+    let kinds: number[];
+    if (init.style === 'maze') {
+      let corrwid = init.corrwid;
+      let wallthick = init.wallthick;
+      let rmDeadends = init.deadends === false;
+      if (init.filler === true) {
+        // ref: src/mkmaze.c makemaz(""): corrmaze = !rn2(3), then
+        // rn2(2) ? create_maze(-1, -1, !rn2(5)) : create_maze(1, 1, FALSE)
+        corrmaze = rng.rn2(3) === 0;
+        if (rng.rn2(2)) rmDeadends = rng.rn2(5) === 0;
+        else {
+          corrwid = 1;
+          wallthick = 1;
+          rmDeadends = false;
+        }
+      }
+      kinds = createMaze(rng, width, height, {
+        ...(corrwid !== undefined ? { corrwid } : {}),
+        ...(wallthick !== undefined ? { wallthick } : {}),
+        rmDeadends,
+        corrmaze,
+      });
+    } else kinds = mazeGrid(width, height, false);
+    const toPal: number[] = [];
+    toPal[MZ_STONE] = PAL.stone;
+    toPal[MZ_WALL] = init.style === 'mazegrid' ? pal(init.bg) : PAL.hwall;
+    toPal[MZ_OPEN] = corrmaze ? PAL.corr : PAL.floor;
     cells = kinds.map((k) => toPal[k] as number);
-    lit = kinds.map((k) => (litOn && k !== MK.BG ? 1 : 0));
+    lit = new Array<0 | 1>(width * height).fill(0);
   } else {
-    // ref: lvlfill_solid()
-    cells = new Array<number>(width * height).fill(fg);
-    lit = new Array<0 | 1>(width * height).fill(litOn ? 1 : 0);
+    const fg = pal(init.fg);
+    // ref: splev_initlev() LVLINIT_SOLIDFILL and LVLINIT_MINES: lit BOOL_RANDOM is rn2(2)
+    const litOn = init.lit ?? rng.rn2(2) === 1;
+    if (cave) {
+      // ref: src/mkmap.c mkmap(); finish_map() lights fg cells and (when walled) walls
+      const kinds = mkmap(rng, {
+        width,
+        height,
+        smoothed: init.smoothed ?? false,
+        joined: init.joined ?? false,
+        walled: init.walled ?? false,
+      });
+      const toPal = caveKindPalette(pal(init.bg ?? opts.terrain.stone), fg);
+      cells = kinds.map((k) => toPal[k] as number);
+      lit = kinds.map((k) => (litOn && k !== MK.BG ? 1 : 0));
+    } else {
+      // ref: lvlfill_solid()
+      cells = new Array<number>(width * height).fill(fg);
+      lit = new Array<0 | 1>(width * height).fill(litOn ? 1 : 0);
+    }
   }
   const level: Level = {
     id: opts.id,
@@ -109,6 +147,7 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     def: def.id,
     traps: [],
   };
+  if (corrmaze) level.corrmaze = true;
 
   const special =
     def.map !== undefined ||
@@ -139,19 +178,39 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     return c === floor || c === corr;
   };
   const area = levelDefArea(def, width, height);
-  if (opts.up ?? true) {
-    level.up =
-      stairRooms.up !== undefined
-        ? roomStair(b, stairRooms.up, good)
-        : placeStair(b, def.stairs?.up, area, good, 'stairs.up');
-    cells[level.up.y * width + level.up.x] = PAL.stairs_up;
-  }
-  if (opts.down ?? true) {
-    level.down =
-      stairRooms.down !== undefined
-        ? roomStair(b, stairRooms.down, good)
-        : placeStair(b, def.stairs?.down, area, good, 'stairs.down');
-    cells[level.down.y * width + level.down.x] = PAL.stairs_down;
+  if (init.style === 'maze' && init.filler === true) {
+    // ref: makemaz(""): mazexy() for the up stairs, then for the down stairs; mkstairs() makes
+    // only those the level has
+    const spot = (): Pos => {
+      const p = mazexy(rng, level, opts.terrain);
+      if (!p) throw new Error(`buildLevel: no maze spot for stairs on '${level.id}'`);
+      return p;
+    };
+    const up = spot();
+    const down = spot();
+    if (opts.up ?? true) {
+      level.up = up;
+      cells[up.y * width + up.x] = PAL.stairs_up;
+    }
+    if (opts.down ?? true) {
+      level.down = down;
+      cells[down.y * width + down.x] = PAL.stairs_down;
+    }
+  } else {
+    if (opts.up ?? true) {
+      level.up =
+        stairRooms.up !== undefined
+          ? roomStair(b, stairRooms.up, good)
+          : placeStair(b, def.stairs?.up, area, good, 'stairs.up');
+      cells[level.up.y * width + level.up.x] = PAL.stairs_up;
+    }
+    if (opts.down ?? true) {
+      level.down =
+        stairRooms.down !== undefined
+          ? roomStair(b, stairRooms.down, good)
+          : placeStair(b, def.stairs?.down, area, good, 'stairs.down');
+      cells[level.down.y * width + level.down.x] = PAL.stairs_down;
+    }
   }
   if (opts.branch) {
     const whole = { x: 0, y: 0, w: width, h: height };
@@ -170,8 +229,10 @@ export function buildLevel(rng: Rng, opts: GenOptions, def: LevelDef): Level {
     // ref: lspo_finalize_level(): link_doors_rooms(), ensure_way_out(), wallification()
     if (def.flags?.inaccessibles === true) ensureWayOut(b);
     orientDoors(b);
-    wallification(b);
   }
+  // ref: lspo_finalize_level() and makemaz(""): `if (!corrmaze) wallification()`
+  if ((special || init.style === 'maze' || init.style === 'mazegrid') && !corrmaze)
+    wallification(b);
   return level;
 }
 

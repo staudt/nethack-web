@@ -478,6 +478,7 @@ export const messagesEn: Record<string, string> = {
   'nh:ettin': 'ettin',
   'nh:storm_giant': 'storm giant',
   'nh:titan': 'titan',
+  'nh:minotaur': 'minotaur',
   'nh:jabberwock': 'jabberwock',
   'nh:lich': 'lich',
   'nh:demilich': 'demilich',

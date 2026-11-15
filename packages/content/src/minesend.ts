@@ -386,7 +386,7 @@ export const MINEND_3_PLACES: readonly Spot[] = [
 const MINEND_3_FIXUP: SpLevFixup = {
   /** des.mazewalk({ x = 36, y = 8, dir = "west", stocked = false }), then des.wallify() */
   before(ctx, level, def) {
-    mazewalk(ctx, level, def, 36, 8, 'west');
+    mazewalk(ctx, level, def, 36, 8, 'west', false);
     wallifyLevel(level, VANILLA_TERRAIN);
   },
   after(ctx, level, def) {

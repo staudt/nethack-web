@@ -56,6 +56,8 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:soko3-2': SOKO,
   'nh:soko4-1': SOKO_ENTRY,
   'nh:soko4-2': SOKO_ENTRY,
+  /** ref: src/mkmaze.c makemaz(""): `level.flags.is_maze_lev = 1` */
+  'nh:mazefill': { maze: true },
   /** ref: dat/minetn-5.lua (Grotto town is a solidfill map, so it stays a maze level) */
   'nh:minetn-5': { maze: true },
   /** ref: dat/minend-1.lua */

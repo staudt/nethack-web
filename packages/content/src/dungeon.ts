@@ -1,5 +1,6 @@
 // The dungeons and their branches, and the levels that fill them. ref: dat/dungeon.lua
 import type { DefId, DungeonDef, LevelDef } from '@nh/core';
+import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
 import { MINETOWN_VARIANTS } from './minetown';
 import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
@@ -36,6 +37,7 @@ export const MINEFILL: LevelDef = {
 
 export const LEVELS: readonly LevelDef[] = [
   MINEFILL,
+  MAZEFILL,
   ...MINETOWN_VARIANTS,
   ...MINEND_VARIANTS,
   ORACLE_LEVEL,
@@ -44,6 +46,7 @@ export const LEVELS: readonly LevelDef[] = [
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
 export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
+  [MAZEFILL.id]: MAZEFILL_FIXUP,
   ...MINEND_FIXUPS,
   [MINETN_1.id]: ORCTOWN_FIXUP,
   ...SOKOBAN_PRIZE_FIXUPS,
@@ -52,7 +55,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
 /**
  * The Dungeons of Doom. NetHack gives it `rn1(5, 25)` levels with the Castle at the bottom;
  * without the Castle this port keeps it endless (see DEVIATIONS.md and `DUNGEON_BOTTOM`). Its
- * one special level so far is the Oracle on DL5-9 (oracle.ts).
+ * one special level so far is the Oracle on DL5-9 (oracle.ts). Below Medusa's level its ordinary
+ * levels are mazes 4 times in 5 (`nh:mazefill`, mazefill.ts; inert until Medusa is placed).
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
  * minesend.ts) on its last level, which has no down stairs; the other levels are filler.
@@ -72,6 +76,9 @@ export const DUNGEONS: readonly DungeonDef[] = [
     special: [
       { id: 'nh:oracle', nameKey: 'nh:oracle', base: 5, range: 5, variants: [ORACLE_LEVEL.id] },
     ],
+    // ref: src/mklev.c makelevel(): `rn2(5) && depth > depth(&medusa_level)` makes a maze
+    // (inert until Medusa's level is placed)
+    mazeFiller: { below: 'nh:medusa', def: MAZEFILL.id, roomsOneIn: 5 },
   },
   {
     id: 'nh:mines',

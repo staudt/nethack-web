@@ -100,7 +100,11 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
   const terrain = opts.terrain ?? VANILLA_TERRAIN;
   requireTerrains(registry, Object.values(terrain), 'levelgen');
 
-  /** New level `ref`: its dungeon's filler LevelDef, else the rooms-and-corridors generator. */
+  /**
+   * New level `ref`: its special level, else its dungeon's filler LevelDef, else (below the
+   * dungeon's `mazeFiller.below`, most of the time) the maze filler, else the rooms-and-corridors
+   * generator.
+   */
   const makeLevel = (
     state: GameState,
     rng: Rng,
@@ -127,9 +131,15 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       if (special.town === true) level.town = true;
       return level;
     }
-    return dungeon.filler === undefined
-      ? generateLevel(rng, opts)
-      : buildLevel(rng, opts, registry.level(dungeon.filler));
+    if (dungeon.filler !== undefined) return buildLevel(rng, opts, registry.level(dungeon.filler));
+    const mazes = dungeon.mazeFiller;
+    const below =
+      mazes && dungeonLayout(state, ref.dungeon).special.find((s) => s.id === mazes.below);
+    // ref: src/mklev.c makelevel(): `rn2(5) && u.uz.dnum == medusa_level.dnum
+    // && depth(&u.uz) > depth(&medusa_level)` makes a maze (makemaz(""))
+    if (mazes && below && rng.rn2(mazes.roomsOneIn) !== 0 && ref.dlevel > below.dlevel)
+      return buildLevel(rng, opts, registry.level(mazes.def));
+    return generateLevel(rng, opts);
   };
 
   /** A creature (not an object) stands on x,y, other than `except`. ref: src/mon.c m_at() */

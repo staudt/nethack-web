@@ -27,8 +27,11 @@ export {
   levelDefRoom,
   roomDefPos,
   MAP_LEGEND,
+  mazeMax,
+  mazexy,
+  walkfrom,
 } from './levelgen/index';
-export type { GenOptions, LevelTerrain, MapBlock } from './levelgen/index';
+export type { GenOptions, LevelTerrain, MapBlock, MazeWalkGrid } from './levelgen/index';
 export {
   DEFAULT_DUNGEON,
   rollDungeons,

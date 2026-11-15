@@ -569,8 +569,8 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
  * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). No S_DEMON items (the water
  * demon gets none); mummies get their wrapping, nymphs roll for a mirror and a potion of object
  * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
- * giants gems, and gnomes roll for a candle (not in the table); then, but for most soldiers
- * (`rn2(13)`), a defensive and a misc item by m_lev.
+ * giants gems, minotaurs 1 time in 8 a wand of digging, and gnomes roll for a candle (not in
+ * the table); then, but for most soldiers (`rn2(13)`), a defensive and a misc item by m_lev.
  */
 export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
   const { def } = monOf(ctx, monId);
@@ -618,9 +618,11 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     }
   }
   if (def.glyph.ch === 'G') rng.rn2(60);
-  // ref: m_initinv() S_GIANT is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass (no
-  // minotaur here)
-  if (def.glyph.ch === 'H' && def.flags.includes('giant')) {
+  // ref: m_initinv() S_GIANT: a minotaur gets a wand of digging 1 time in 8 (no Earth level
+  // here); is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass
+  if (def.id === 'nh:minotaur') {
+    if (!rng.rn2(8)) mongets(ctx, monId, 'nh:wand_of_digging');
+  } else if (def.glyph.ch === 'H' && def.flags.includes('giant')) {
     const e = ctx.state.entities[String(monId)];
     const lev = Math.trunc((e?.c.monster?.level ?? def.level) / 2);
     for (let cnt = lev > 0 ? rng.rn2(lev) : 0; cnt; cnt--) {

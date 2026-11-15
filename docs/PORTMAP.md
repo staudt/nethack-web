@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-157 NetHack files, 4448 citations.
+157 NetHack files, 4482 citations.
 
 ## dat/dungeon.lua
 
@@ -1352,7 +1352,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mklev.c
 
-- (file): `packages/content/src/mklev.ts`
+- (file): `packages/content/src/mklev.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `add_door()`: `packages/content/src/zoo.ts`
 - `add_room()`: `packages/core/src/levelgen/rooms.ts`
 - `add_subroom()`: `packages/core/src/levelgen/sprooms.ts`
@@ -1372,7 +1372,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `good_rm_wall_doorpos()`: `packages/core/src/levelgen/corridors.ts`
 - `join()`: `packages/core/src/levelgen/corridors.ts`
 - `makecorridors()`: `packages/core/src/levelgen/corridors.ts`
-- `makelevel()`: `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`, `packages/core/src/levelgen/generate.ts`, `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
+- `makelevel()`: `packages/content/src/dungeon.ts`, `packages/content/src/mklev.ts`, `packages/content/src/mkroom.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/generate.ts`, `packages/core/src/levelgen/vault.ts`, `packages/core/src/types/level.ts`
 - `makeniche()`: `packages/content/src/vault.ts`, `packages/core/src/levelgen/vault.ts`
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
 - `maketrap()`: `packages/content/src/vault.ts`
@@ -1408,23 +1408,30 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mkmaze.c
 
-- (file): `packages/core/src/types/mod.ts`
+- (file): `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `bad_location()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
+- `create_maze()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `extend_spine()`: `packages/core/src/levelgen/mkmap.ts`
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `fixup_special()`: `packages/content/src/dungeon.ts`, `packages/content/src/orctown.ts`
 - `is_solid()`: `packages/core/src/levelgen/mkmap.ts`
 - `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 - `iswall_or_stone()`: `packages/core/src/levelgen/mkmap.ts`
-- `makemaz()`: `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `makemaz()`: `packages/content/src/levelflags.ts`, `packages/content/src/mazefill.ts`, `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `maze0xy()`: `packages/core/src/levelgen/maze.ts`
+- `maze_inbounds()`: `packages/core/src/levelgen/maze.ts`
+- `maze_remove_deadends()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
+- `mazexy()`: `packages/content/src/mazefill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `migrate_orc()`: `packages/content/src/orctown.ts`
-- `okay()`: `packages/content/src/mazewalk.ts`
+- `mz_move()`: `packages/core/src/levelgen/maze.ts`
+- `okay()`: `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/maze.ts`
 - `place_lregion()`: `packages/core/src/engine.ts`, `packages/core/src/levelgen/special.ts`
+- `populate_maze()`: `packages/content/src/mazefill.ts`
 - `put_lregion_here()`: `packages/core/src/levelgen/special.ts`
 - `shiny_orc_stuff()`: `packages/content/src/orctown.ts`
 - `spine_array()`: `packages/core/src/levelgen/mkmap.ts`
 - `stolen_booty()`: `packages/content/src/orctown.ts`
-- `walkfrom()`: `packages/content/src/mazewalk.ts`
+- `walkfrom()`: `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/maze.ts`
 - `wall_cleanup()`: `packages/core/src/levelgen/mkmap.ts`
 - `wallification()`: `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`
 
@@ -2203,6 +2210,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_trap()`: `packages/content/src/sp_lev.ts`
 - `dig_corridor()`: `packages/content/src/mklev.ts`, `packages/core/src/levelgen/corridors.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `ensure_way_out()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `fill_empty_maze()`: `packages/content/src/mazefill.ts`
 - `fill_special_room()`: `packages/content/src/shknam.ts`, `packages/content/src/vault.ts`, `packages/content/src/zoo.ts`
 - `floodfillchk_match_under()`: `packages/content/src/orctown.ts`
 - `generate_way_out_method()`: `packages/core/src/levelgen/special.ts`
@@ -2219,7 +2227,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_level_flags()`: `packages/content/src/minesend.ts`
 - `lspo_level_init()`: `packages/core/src/types/mod.ts`
 - `lspo_levregion()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
-- `lspo_map()`: `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_map()`: `packages/content/src/mazefill.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_mazewalk()`: `packages/content/src/mazewalk.ts`
 - `lspo_monster()`: `packages/core/src/types/mod.ts`
 - `lspo_object()`: `packages/core/src/types/mod.ts`
@@ -2230,11 +2238,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_terrain()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_trap()`: `packages/core/src/types/mod.ts`
 - `lspo_wallify()`: `packages/content/src/orctown.ts`
+- `lvlfill_maze_grid()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lvlfill_solid()`: `packages/core/src/levelgen/special.ts`
 - `maybe_add_door()`: `packages/content/src/zoo.ts`
+- `maze1xy()`: `packages/content/src/mazefill.ts`
 - `mksobj_at()`: `packages/content/src/mklev.ts`
 - `pm_good_location()`: `packages/content/src/priest.ts`
 - `rnddoor()`: `packages/core/src/types/mod.ts`
+- `rndtrap()`: `packages/content/src/mklev.ts`
 - `sel_set_door()`: `packages/core/src/types/mod.ts`
 - `sel_set_feature()`: `packages/core/src/types/mod.ts`
 - `sel_set_ter()`: `packages/core/src/levelgen/special.ts`

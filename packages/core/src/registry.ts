@@ -446,6 +446,17 @@ export function loadMods(mods: readonly Mod[]): Registry {
             issue('entryLevel', 'cannot count from the bottom of an endless dungeon', d.id);
         }
         if (d.filler !== undefined) str(d.filler, 'filler', d.id);
+        if (d.mazeFiller !== undefined) {
+          const mf: unknown = d.mazeFiller;
+          if (typeof mf !== 'object' || mf === null) issue('mazeFiller', 'must be an object', d.id);
+          else {
+            str(d.mazeFiller.below, 'mazeFiller.below', d.id);
+            str(d.mazeFiller.def, 'mazeFiller.def', d.id);
+            posInt(d.mazeFiller.roomsOneIn, 'mazeFiller.roomsOneIn');
+            if (d.filler !== undefined)
+              issue('mazeFiller', 'a dungeon with a filler makes no other levels', d.id);
+          }
+        }
         if (d.special !== undefined) {
           if (!Array.isArray(d.special)) issue('special', 'must be an array', d.id);
           else
@@ -548,6 +559,16 @@ export function loadMods(mods: readonly Mod[]): Registry {
         path: 'filler',
         reason: `unknown level '${d.filler}'`,
       });
+  for (const d of dungeons.values()) {
+    const def: unknown = d.mazeFiller?.def;
+    if (typeof def === 'string' && def !== '' && !levels.has(def))
+      issues.push({
+        modId: d.mod,
+        defId: d.id,
+        path: 'mazeFiller.def',
+        reason: `unknown level '${def}'`,
+      });
+  }
   for (const d of dungeons.values())
     (Array.isArray(d.special) ? d.special : []).forEach((sp, i) => {
       if (!Array.isArray(sp.variants)) return;
@@ -564,7 +585,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   for (const l of levels.values()) {
     const ref = (path: string, reason: string): void =>
       void issues.push({ modId: l.mod, defId: l.id, path, reason });
-    if (l.init?.style === 'solidfill' || l.init?.style === 'mines')
+    if (l.init?.style === 'solidfill' || l.init?.style === 'mines' || l.init?.style === 'mazegrid')
       for (const key of ['fg', 'bg'] as const) {
         const id: unknown = (l.init as Record<string, unknown>)[key];
         if (typeof id === 'string' && !terrains.has(id))
@@ -724,8 +745,23 @@ function levelDefIssues(d: LevelDef): [string, string][] {
       for (const b of bools)
         if (fields[b] !== undefined && typeof fields[b] !== 'boolean')
           out.push([`init.${b}`, 'must be a boolean']);
+    } else if (style === 'maze') {
+      for (const w of ['corrwid', 'wallthick'])
+        if (fields[w] !== undefined) {
+          const v = fields[w];
+          if (!Number.isInteger(v) || (v as number) < 1 || (v as number) > 5)
+            out.push([`init.${w}`, 'must be an integer 1..5']);
+        }
+      for (const b of ['deadends', 'filler'])
+        if (fields[b] !== undefined && typeof fields[b] !== 'boolean')
+          out.push([`init.${b}`, 'must be a boolean']);
+      if (fields.filler === true)
+        for (const k of ['corrwid', 'wallthick', 'deadends'])
+          if (fields[k] !== undefined) out.push([`init.${k}`, 'is not used with filler']);
+    } else if (style === 'mazegrid') {
+      if (typeof bg !== 'string' || bg === '') out.push(['init.bg', 'must be a terrain id']);
     } else if (style !== 'rooms')
-      out.push(['init.style', "must be 'rooms', 'solidfill' or 'mines'"]);
+      out.push(['init.style', "must be 'rooms', 'solidfill', 'mines', 'maze' or 'mazegrid'"]);
   }
   out.push(...specialLevelIssues(d));
   for (const [prefix, list] of contentLists(d)) contentIssues(prefix, list, out);

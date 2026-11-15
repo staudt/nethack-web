@@ -3,7 +3,7 @@
 // makelevel()'s special room (mkroom.ts) is picked before the rooms are filled.
 import { pruneDoorTraps, setDoorTrapped } from './btrapstate';
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
-import { cellIndex, trapAt } from '@nh/core';
+import { cellIndex, mazexy, trapAt, VANILLA_TERRAIN } from '@nh/core';
 import { A_LAWFUL, altarOf, type Aligntyp } from './aligntyp';
 import { BOULDER, boulderAt } from './boulder';
 import { FTN_MAGIC, setFountainBits } from './fountain';
@@ -15,7 +15,7 @@ import { mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
 import { somexyspace } from './somexy';
 import { mkcorpstat } from './statue';
-import { levelFlags } from './levelflags';
+import { canDigDown, levelFlags } from './levelflags';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
@@ -82,8 +82,25 @@ export function traptypeRnd(
 }
 
 /**
- * Makes a trap of `kind` (random when null) on a free floor square of the room, or at a given
- * spot (as sp_lev.c create_trap() passes `tm`). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
+ * A random trap kind for a special level: any kind but holes, trap doors where one cannot dig
+ * down, and teleportation traps and level teleporters on a no-teleport level, rerolled until one
+ * is allowed (the kinds this port lacks reroll too). ref: src/sp_lev.c rndtrap()
+ */
+export function rndtrap(ctx: Ctx, level: Level): DefId {
+  const noteleport = levelFlags(ctx, level).noteleport === true;
+  for (;;) {
+    const def = TRAPNUM_KINDS[ctx.rng.rnd(TRAPNUM_KINDS.length - 1)] ?? null;
+    if (def === null || def === TRAP.hole) continue;
+    if (def === TRAP.trapdoor && !canDigDown(ctx, level)) continue;
+    if ((def === TRAP.tele || def === TRAP.levelTele) && noteleport) continue;
+    return def;
+  }
+}
+
+/**
+ * Makes a trap of `kind` (random when null) on a free floor square of the room, at a given
+ * spot (as sp_lev.c create_trap() passes `tm`), or on a maze level at mazexy() spots without a
+ * trap (`'maze'`, MKTRAP_MAZEFLAG). ref: src/mklev.c mktrap(); with a room: the kind is rerolled until one is allowed; a hole or trap door
  * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
  * (which already avoids occupied squares; the retry loop repeats only for a pit or hole on a
  * boulder). A web gets a giant spider on it (made with the level, so it may get an object under
@@ -93,7 +110,7 @@ export function traptypeRnd(
 export function mktrap(
   ctx: Ctx,
   level: Level,
-  room: Room | Pos,
+  room: Room | Pos | 'maze',
   kind: DefId | null = null,
   noSpiderOnWeb = false,
 ): void {
@@ -102,7 +119,19 @@ export function mktrap(
   while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport, noSpiderOnWeb);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   let m: Pos | null;
-  if ('lx' in room) {
+  if (room === 'maze') {
+    // MKTRAP_MAZEFLAG: mazexy() spots (maze floor or corridor, so occupied() is a trap there)
+    const avoidBoulder = isPit(kind) || isHole(kind);
+    let tryct = 0;
+    do {
+      if (++tryct > 200) return;
+      m = mazexy(ctx.rng, level, VANILLA_TERRAIN);
+      if (!m) return;
+    } while (
+      trapAt(level, m.x, m.y) !== undefined ||
+      (avoidBoulder && boulderAt(ctx, level.id, m.x, m.y))
+    );
+  } else if ('lx' in room) {
     // a pit or hole avoids boulder squares (somexyspace() already skips occupied ones)
     const avoidBoulder = isPit(kind) || isHole(kind);
     let tryct = 0;

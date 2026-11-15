@@ -81,7 +81,7 @@ const NOT_DRY: ReadonlySet<DefId> = new Set([
  * stairs, with no boulder on it. ref: src/sp_lev.c is_ok_location() DRY (`!bould`),
  * include/rm.h SPACE_POS()
  */
-function dry(ctx: Ctx, level: Level, p: Pos): boolean {
+export function dry(ctx: Ctx, level: Level, p: Pos): boolean {
   const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
   if (id === undefined || NOT_DRY.has(id)) return false;
   const t = ctx.defs.terrain(id);

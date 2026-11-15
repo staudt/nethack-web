@@ -82,6 +82,11 @@ export interface Level {
    */
   sokoban?: true;
   /**
+   * m15: a corridor maze (a `maze` init with `filler`): its maze is corridor without walls, and
+   * mazexy() looks for corridor rather than floor. ref: level.flags.corrmaze
+   */
+  corrmaze?: true;
+  /**
    * Altars that are shrines, in placement order (ref: rm.h AM_SHRINE in `altarmask`; sp_lev.c
    * create_altar()). Kept on the level, not on a priest, because a shrine outlives its priest.
    * Absent when there are none.

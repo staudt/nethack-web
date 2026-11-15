@@ -243,6 +243,15 @@ export interface DungeonDef {
   entryLevel?: number;
   /** LevelDef for its ordinary levels; omitted for the rooms-and-corridors generator. */
   filler?: DefId;
+  /**
+   * m15: mazes deep in a dungeon without a `filler`. When special level `below` is in this
+   * game's layout of the dungeon, each ordinary level draws `rn2(roomsOneIn)`, and one deeper
+   * than `below` is built from LevelDef `def` unless the roll is 0 (else, and above `below`, the
+   * rooms-and-corridors generator). Inert while `below` is not placed. ref: src/mklev.c
+   * makelevel(): `rn2(5) && u.uz.dnum == medusa_level.dnum && depth(&u.uz) >
+   * depth(&medusa_level)`
+   */
+  mazeFiller?: { below: DefId; def: DefId; roomsOneIn: number };
   /** Its fixed special levels, placed in this order when the layout is rolled. */
   special?: SpecialLevelDef[];
 }
@@ -486,10 +495,46 @@ export interface TerrainSet {
  * How the map starts. `rooms`: the ordinary rooms-and-corridors generator, rooms filled as usual.
  * `solidfill`: every cell is terrain `fg`; `lit` omitted is a coin flip.
  * `mines`: a cellular-automaton cave of `fg` in `bg` (default the generator's stone), see
- * LevelInitMines. ref: src/sp_lev.c splev_initlev()
+ * LevelInitMines. `maze` and `mazegrid` (m15): see LevelInitMaze and LevelInitMazeGrid.
+ * ref: src/sp_lev.c splev_initlev()
  */
 export type LevelInit =
-  { style: 'rooms' } | { style: 'solidfill'; fg: DefId; lit?: boolean } | LevelInitMines;
+  | { style: 'rooms' }
+  | { style: 'solidfill'; fg: DefId; lit?: boolean }
+  | LevelInitMines
+  | LevelInitMaze
+  | LevelInitMazeGrid;
+
+/**
+ * A maze walked through stone (ref: src/mkmaze.c create_maze()), unlit. `corrwid` and
+ * `wallthick` (integers 1..5) are the widths of its corridors and walls; omitted, `corrwid` is
+ * `rnd(4)` and `wallthick` `rnd(4) - corrwid` (at least 1). `deadends` (default true) keeps the
+ * dead ends; false opens a wall at each (ref: maze_remove_deadends()). `filler: true` is
+ * NetHack's own filler maze instead (ref: src/mkmaze.c makemaz("")), and then the other fields
+ * are omitted: a corridor maze without walls 1 time in 3 (`Level.corrmaze`), then half the time
+ * random widths with the dead ends opened 1 time in 5, else one-wide corridors and walls; its
+ * up and down stairs go on random corridor spots (ref: mazexy()). The walls are joined at the
+ * end unless the maze is a corridor maze.
+ */
+export interface LevelInitMaze {
+  style: 'maze';
+  corrwid?: number;
+  wallthick?: number;
+  deadends?: boolean;
+  filler?: boolean;
+}
+
+/**
+ * A grid for content's maze walks (ref: src/sp_lev.c lvlfill_maze_grid()), unlit: from the
+ * third column to x_maze_max and down to y_maze_max (NetHack's bounds, see mazeMax()), the cells
+ * with both NetHack coordinates odd (the Level's x even, y odd) and the top two rows are stone,
+ * the others terrain `bg` (a wall); the rest of the level is stone. As on any special level the
+ * walls are joined at the end, so grid walls with nothing open next to them become stone.
+ */
+export interface LevelInitMazeGrid {
+  style: 'mazegrid';
+  bg: DefId;
+}
 
 /**
  * A cave map (ref: src/mkmap.c mkmap()). Booleans default to false, as in des.level_init().
