@@ -200,3 +200,25 @@ The m16 planner (`~/.claude/plans/m16.md`, kickoff `docs/kickoff-m16.md`; 7 step
 10. Graves are the last, droppable step (no burial, no bell, no digging up).
 11. The vault's "ad aerarium" wipe rolls happen after core's level build (DEVIATIONS).
 12. No literate conduct, no Wis exercise if the port has none, no re-read on restore.
+
+## Taken (m17 Gehennom, 2026-11-15)
+
+The m17 planner (`~/.claude/plans/m17.md`, kickoff `docs/kickoff-m17.md`; 8 steps, ~2.4M) marked all seventeen questions cheap to change later; the loop took each recommendation:
+
+1. All eleven Gehennom specials are placed in step 1 (dungeon.lua's order) and built as the filler until their own step swaps in the LevelDef; the new-game draws move only in step 1.
+2. A new optional core field `SpecialLevelDef.chain` (read only when the layout is rolled) lets the tower levels count from wizard1.
+3. A variant is drawn only when a level has two or more variants (the Oracle and the Castle draw one needlessly today); fixed in step 1.
+4. The Sanctum is placed but never built; holes, trap doors and level teleports stop above it ("Sorry..."); wizard-mode levelport reaches its stand-in.
+5. The vibrating square without the invocation.
+6. hellfill built by content over two newly exported core maze builders, not seven filler variants.
+7. 5.0's level temperature messages replace the stub's 3.6 "It is hot here.  You smell smoke..." line.
+8. The Valley's corpses use 13 player-monster rows (never random, never polymorph forms); human corpses as the fallback if an id clashes.
+9. Vampires wait for m18; the scripts' vampires are random monsters until then.
+10. Orcus Town's magic marker or lamp (m19) draws its coin and makes nothing; the Book of the Dead arrives in step 8.
+11. Covetous monsters without the Amulet or the invocation; no harassment after the Wizard dies.
+12. Ladders and magic portals as content terrain and a trap, arriving at a fixed spot through a widened core `goToLevel(to, Pos)`; no core multi-stairs lists.
+13. A partial port of the Wizard's Tower boundary rule.
+14. Orcus's high altar as content state; shops whose keeper is removed.
+15. Shades come with Orcus Town and are dropped with it.
+16. The demon court; covetous monsters ignore no-teleport levels.
+17. Fire traps among random traps on every special level, as NetHack (may move the golden; verified by a switch).
