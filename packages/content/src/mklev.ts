@@ -45,7 +45,7 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
   TRAP.trapdoor, // 14 TRAPDOOR
   TRAP.tele, // 15 TELEP_TRAP
   TRAP.levelTele, // 16 LEVEL_TELEP
-  null, // 17 MAGIC_PORTAL
+  null, // 17 MAGIC_PORTAL (TRAP.portal: never random)
   TRAP.web, // 18 WEB
   TRAP.statue, // 19 STATUE_TRAP
   TRAP.magic, // 20 MAGIC_TRAP

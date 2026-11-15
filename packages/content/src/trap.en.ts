@@ -28,6 +28,11 @@ export const trapMessagesEn: Record<string, string> = {
   'nh:statue_trap': 'statue trap',
   'nh:polymorph_trap': 'polymorph trap',
   'nh:vibrating_square': 'vibrating square',
+  'nh:magic_portal': 'magic portal',
+  // ref: src/teleport.c domagicportal()
+  'portal.activated': 'You activated a magic portal!',
+  'portal.dizzy': 'You feel slightly dizzy.',
+  'portal.dizzier': 'You feel dizzier.',
   // ref: src/hack.c invocation_message(); src/trap.c trapeffect_vibrating_square(); src/do.c
   // dodown()
   'invocation.vibration': 'You feel a strange vibration under your feet.',

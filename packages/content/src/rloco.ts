@@ -13,7 +13,7 @@ import { rlocoPos } from './teleport';
  * on a pit or hole fills it (flooreffects()); shop goods leaving the shop floor are stolen unless
  * she is in the shop and they land in it (unpaid ones come off her bill) or on its boundary (they
  * go on her bill). False when the object was used up on landing.
- * ref: src/teleport.c rloco() (no riders' corpses, trap-door falls or Wizard's Tower)
+ * ref: src/teleport.c rloco() (no riders' corpses or trap-door falls)
  */
 export function rloco(ctx: Ctx, obj: Entity): boolean {
   const p = obj.c.pos;
@@ -24,7 +24,7 @@ export function rloco(ctx: Ctx, obj: Entity): boolean {
   const otx = p.x;
   const oty = p.y;
   delete obj.c.pos; // obj_extract_self()
-  const to = rlocoPos(ctx, level);
+  const to = rlocoPos(ctx, level, { x: otx, y: oty });
   if (flooreffects(ctx, obj, to.x, to.y, 'fall')) return false;
   const shkp = findObjowner(ctx, obj, otx, oty);
   const objinshop = shkp !== null && costlySpot(ctx, otx, oty);

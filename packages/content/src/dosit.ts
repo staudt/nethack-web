@@ -207,6 +207,8 @@ export function dosit(ctx: Ctx): number {
     say(ctx, 'sit.on', { what: '@terrain.grave' });
   } else if (tid === T.stairs_up || tid === T.stairs_down) {
     say(ctx, 'sit.on', { what: '@surface.stairs' });
+  } else if (tid === T.ladder_up || tid === T.ladder_down) {
+    say(ctx, 'sit.on', { what: '@surface.ladder' });
   } else if (isLava(ctx, level, p.x, p.y)) {
     // must be water walking (burn_away_slime(): no sliming cure here)
     say(ctx, 'sit.on', { what: '@surface.lava' });

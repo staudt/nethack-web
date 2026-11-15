@@ -160,7 +160,8 @@ export function backOnGround(ctx: Ctx, rescued: boolean): void {
   else if (surf === '@surface.floor' || surf === '@surface.ground')
     surface = '@liquid.solid_ground';
   else if (surf === '@surface.altar') form = 'an';
-  else if (surf === '@surface.stairs' || surf === '@surface.lava') form = 'the';
+  else if (surf === '@surface.stairs' || surf === '@surface.ladder' || surf === '@surface.lava')
+    form = 'the';
   else {
     // cloud, wall, fountain, doorway: "in a cloud"
     form = 'an';

@@ -59,7 +59,15 @@ import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
 import { setTer, ter } from './selection';
 import { undestroyableTrap } from './invocation';
-import { T, isFurnitureId, isSdoorId, isWallId, setTerrain, terrainIdAt } from './terrain';
+import {
+  T,
+  isFurnitureId,
+  isObstructedId,
+  isSdoorId,
+  isWallId,
+  setTerrain,
+  terrainIdAt,
+} from './terrain';
 
 /**
  * A random spot that passes `ok`: in room `room` (outside its subrooms) when given, else inside
@@ -691,6 +699,77 @@ export function desDoor(
           ? T.door_locked
           : T.doorway,
   );
+}
+
+/** A wall of a room, for {@link desRoomDoor}. */
+export type RoomWall = 'north' | 'south' | 'west' | 'east';
+
+/**
+ * des.door({ state = "secret", wall = ... }) in a region's contents: a secret door on one of
+ * `walls` of the room `r` (Level coordinates of its inside), at a random cell of that wall whose
+ * outside is open, where okdoor() allows (a plain wall with no door or secret door orthogonally
+ * next to it); 100 tries of a random wall, else no door. Run orientDoors() once the walls are
+ * there. ref: src/sp_lev.c lspo_door(), create_door() (`secret`: no door-state draws); src/mklev.c
+ * okdoor(), bydoor()
+ */
+export function desRoomDoor(
+  ctx: Pick<Ctx, 'rng'>,
+  level: Level,
+  r: { lx: number; ly: number; hx: number; hy: number },
+  walls: readonly RoomWall[],
+): void {
+  const open = (x: number, y: number): boolean =>
+    inBounds(level, x, y) && !isObstructedId(terrainIdAt(level, x, y));
+  const doorish = (x: number, y: number): boolean => {
+    if (!inBounds(level, x, y)) return false;
+    const id = terrainIdAt(level, x, y);
+    return isSdoorId(id) || (id !== undefined && DOOR_IDS.has(id));
+  };
+  const okdoor = (x: number, y: number): boolean => {
+    const id = terrainIdAt(level, x, y);
+    return (
+      (id === T.hwall || id === T.vwall) &&
+      !doorish(x + 1, y) &&
+      !doorish(x - 1, y) &&
+      !doorish(x, y + 1) &&
+      !doorish(x, y - 1)
+    );
+  };
+  for (let trycnt = 0; trycnt < 100; trycnt++) {
+    let x: number;
+    let y: number;
+    switch (ctx.rng.rn2(4)) {
+      case 0:
+        if (!walls.includes('north')) continue;
+        y = r.ly - 1;
+        x = r.lx + ctx.rng.rn2(1 + r.hx - r.lx);
+        if (!open(x, y - 1)) continue;
+        break;
+      case 1:
+        if (!walls.includes('south')) continue;
+        y = r.hy + 1;
+        x = r.lx + ctx.rng.rn2(1 + r.hx - r.lx);
+        if (!open(x, y + 1)) continue;
+        break;
+      case 2:
+        if (!walls.includes('west')) continue;
+        x = r.lx - 1;
+        y = r.ly + ctx.rng.rn2(1 + r.hy - r.ly);
+        if (!open(x - 1, y)) continue;
+        break;
+      default:
+        if (!walls.includes('east')) continue;
+        x = r.hx + 1;
+        y = r.ly + ctx.rng.rn2(1 + r.hy - r.ly);
+        if (!open(x + 1, y)) continue;
+        break;
+    }
+    if (inBounds(level, x, y) && okdoor(x, y)) {
+      setTerrain(level, x, y, T.sdoor_v);
+      return;
+    }
+  }
+  // C: impossible("create_door: Can't find a proper place!")
 }
 
 /**

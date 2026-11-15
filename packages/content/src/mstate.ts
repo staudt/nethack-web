@@ -31,6 +31,7 @@ import { canseemon } from './invis';
 import { monNam } from './perception';
 import { thiefdead } from './nomul';
 import { strayWorms, wormgone } from './wormstate';
+import { inWTower } from './levelflags';
 
 type Table = { [k: string]: Json };
 
@@ -345,14 +346,20 @@ export function unblindMonst(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
 
 /**
  * Wakes the monsters of the hero's level, waiting ones too (and no "suddenly appears" for them);
- * a paralysed one moves again 1 time in 5. No Wizard's Tower here. ref: src/wizard.c aggravate()
+ * a paralysed one moves again 1 time in 5. Those on the other side of the Wizard's Tower's walls
+ * from her sleep on. ref: src/wizard.c aggravate()
  */
 export function aggravate(ctx: Ctx): void {
-  const level = getPlayer(ctx.state).c.pos?.level;
+  const hp = getPlayer(ctx.state).c.pos;
+  const level = hp?.level;
+  const lev = level !== undefined ? ctx.state.levels[level] : undefined;
+  const inTower = !!hp && inWTower(ctx.state, lev, hp.x, hp.y);
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
     const m = e?.c.monster;
-    if (!e || !m || e.c.pos?.level !== level) continue;
+    const p = e?.c.pos;
+    if (!e || !m || !p || p.level !== level) continue;
+    if (inWTower(ctx.state, lev, p.x, p.y) !== inTower) continue;
     clearStrat(ctx, id, 'waitForU', 'appearMsg');
     m.asleep = false;
     if (isFrozen(ctx, id) && !ctx.rng.rn2(5)) unfreezeMonst(ctx, id);

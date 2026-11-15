@@ -7,6 +7,7 @@ import { getPlayer, mazeMax, trapAt, type Ctx, type DefId, type Level, type Pos 
 import { setUvibrated } from './dbstate';
 import { invocationLev } from './levelflags';
 import { isPoolOrLava } from './liquid';
+import { MAGIC_PORTAL } from './portal';
 import { isFurnitureId, isObstructedId, terrainIdAt } from './terrain';
 import { flying, levitating } from './trapstate';
 
@@ -14,10 +15,11 @@ import { flying, levitating } from './trapstate';
 export const VIBRATING_SQUARE: DefId = 'nh:vibrating_square';
 
 /**
- * A trap kind nothing destroys, digs through or overwrites (the magic portal comes later).
- * ref: include/trap.h undestroyable_trap()
+ * A trap kind nothing destroys, digs through or overwrites: the magic portal and the vibrating
+ * square. ref: include/trap.h undestroyable_trap()
  */
-export const undestroyableTrap = (def: DefId): boolean => def === VIBRATING_SQUARE;
+export const undestroyableTrap = (def: DefId): boolean =>
+  def === MAGIC_PORTAL || def === VIBRATING_SQUARE;
 
 /**
  * Where the vibrating square goes: a random spot inside the maze margins (C columns `rn1(x_range,

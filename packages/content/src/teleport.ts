@@ -6,8 +6,9 @@
 // rloc(), rloc_pos_ok(), rloco(), random_teleport_level(); src/dungeon.c get_level();
 // src/engrave.c rloc_engr()
 //
-// Not ported (see DEVIATIONS.md "Teleportation"): the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
-// stairs, Passes_walls.
+// Not ported (see DEVIATIONS.md "Teleportation"): the teleport regions of special levels
+// (`dndest`/`updest`, tele_jump_ok()) but the Wizard's Tower's boundary, the Wizard's stairs,
+// Passes_walls.
 import {
   cellIndex,
   cellRules,
@@ -33,7 +34,7 @@ import { boulderCells } from './boulder';
 import { engrAt, moveEngr } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
-import { dngBottom, dungeonBottom, inHell, levelFlags } from './levelflags';
+import { dngBottom, dungeonBottom, inHell, inWTower, levelFlags } from './levelflags';
 import { isCovetous, isDlord, isDprince } from './mondata';
 import { canSpotMon, monNam } from './perception';
 import { isWormTail, wormRec } from './wormstate';
@@ -383,8 +384,10 @@ export function safeTeledsPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: L
 
 /**
  * A resident shopkeeper or temple priest stays in his room when he can; no monster lands where
- * it would be scared (a scroll of scare monster). ref: src/teleport.c rloc_pos_ok() (goodpos()
- * with GP_CHECKSCARY and the room test; no teleport regions)
+ * it would be scared (a scroll of scare monster); on the Wizard's Tower's levels a monster inside
+ * the tower stays inside and one outside stays outside. ref: src/teleport.c rloc_pos_ok() (goodpos()
+ * with GP_CHECKSCARY, the room test, tele_jump_ok() for the tower's boundary only: no other
+ * teleport regions)
  */
 function rlocPosOk(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -400,6 +403,9 @@ function rlocPosOk(
   if (eshk && inhishop(ctx, mon.id)) return inRooms(o.level, x, y).includes(eshk.shoproom);
   const epri = epriOf(ctx, mon.id);
   if (epri && inhistemple(ctx, mon.id)) return inRooms(o.level, x, y).includes(epri.shroom);
+  const p = mon.c.pos;
+  if (p && inWTower(ctx.state, o.level, p.x, p.y) !== inWTower(ctx.state, o.level, x, y))
+    return false;
   return true;
 }
 
@@ -443,11 +449,13 @@ export function rlocMonPos(
 
 /**
  * Where a teleported object lands: `rn1(COLNO - 3, 2), rn2(ROWNO)` until a good position (no
- * boulder, not the hero's square; monsters do not matter), giving up after 4000 tries on the
- * last square tried, as rloco() does. ref: src/teleport.c rloco()
+ * boulder, not the hero's square; monsters do not matter) that keeps an object from `from` inside
+ * the Wizard's Tower inside it and one outside outside it, giving up after 4000 tries on the last
+ * square tried, as rloco() does. ref: src/teleport.c rloco() (no `restricted_fall`)
  */
-export function rlocoPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: Level): Pos {
+export function rlocoPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: Level, from?: Pos): Pos {
   const o = occupancy(ctx, level);
+  const inside = from ? inWTower(ctx.state, level, from.x, from.y) : null;
   let tryLimit = 4000;
   let tx: number;
   let ty: number;
@@ -455,7 +463,10 @@ export function rlocoPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: Level)
     tx = ctx.rng.rn2(Math.max(1, level.width - 3)) + 2;
     ty = ctx.rng.rn2(level.height);
     if (!--tryLimit) break;
-  } while (!goodpos(o, tx, ty, null));
+  } while (
+    !goodpos(o, tx, ty, null) ||
+    (inside !== null && inWTower(ctx.state, level, tx, ty) !== inside)
+  );
   return { x: tx, y: ty };
 }
 

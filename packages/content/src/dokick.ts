@@ -326,7 +326,7 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
   }
   const t = terrainAt(ctx, x, y);
   if (t.stairs === 'down') kickDumb(ctx);
-  else if (t.stairs === 'up') kickOuch(ctx, x, y, 'stairs');
+  else if (t.stairs === 'up') kickOuch(ctx, x, y, t.id === T.ladder_up ? 'ladder' : 'stairs');
   else if (!t.passable && t.door === undefined)
     kickOuch(ctx, x, y, t.id === 'nh:stone' ? 'rock' : 'wall');
   else kickDumb(ctx);

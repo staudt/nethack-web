@@ -291,19 +291,25 @@ function goodpos(
  * monster: no water or lava). ref: src/teleport.c rloc(): 50 random tries of `rnd(COLNO - 1),
  * rn2(ROWNO)`, then every candidate square in a shuffled order; null when the level is full.
  */
-export function rlocPos(ctx: Ctx, level: Level, mon?: Entity): Pos | null {
+export function rlocPos(
+  ctx: Ctx,
+  level: Level,
+  mon?: Entity,
+  ok?: (x: number, y: number) => boolean,
+): Pos | null {
   const rules = cellRules(level, ctx.defs);
   const taken = withBoulders(ctx, level, occupiedSet(ctx, level));
   const gm = mon ? gpMon(ctx, mon) : null;
+  const good = (x: number, y: number): boolean =>
+    goodpos(ctx, level, rules, taken, x, y, gm) && (!ok || ok(x, y));
   for (let tries = 0; tries < 50; tries++) {
     const x = ctx.rng.rnd(level.width - 1);
     const y = ctx.rng.rn2(level.height);
-    if (goodpos(ctx, level, rules, taken, x, y, gm)) return { x, y };
+    if (good(x, y)) return { x, y };
   }
   const candy: Pos[] = [];
   for (let x = 0; x < level.width; x++)
-    for (let y = 0; y < level.height; y++)
-      if (goodpos(ctx, level, rules, taken, x, y, gm)) candy.push({ x, y });
+    for (let y = 0; y < level.height; y++) if (good(x, y)) candy.push({ x, y });
   if (candy.length === 0) return null;
   return candy[ctx.rng.rn2(candy.length)] ?? null;
 }

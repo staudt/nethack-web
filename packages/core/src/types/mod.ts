@@ -816,11 +816,12 @@ export interface Ctx {
   remove(id: EntityId): void;
   /**
    * Moves the hero to level `to`, generating it on first visit, arriving on its up, down or
-   * branch staircase, or on a random room floor cell without a trap ('random', for falling
-   * through a trap door; ref: src/dungeon.c u_on_rndspot()). Throws for a level outside the
-   * layout.
+   * branch staircase, on a random room floor cell without a trap ('random', for falling
+   * through a trap door; ref: src/dungeon.c u_on_rndspot()), or on a fixed spot of it (a `Pos`:
+   * a ladder or a magic portal the caller knows; a monster there is moved off as on stairs;
+   * ref: src/do.c goto_level() u_on_newpos()). Throws for a level outside the layout.
    */
-  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random'): void;
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random' | Pos): void;
   /**
    * Puts a trap on `level`, replacing any trap already on that cell (ref: src/trap.c
    * maketrap()). Throws unless the cell is plain floor (see `isPlainFloor`) or the def is unknown.

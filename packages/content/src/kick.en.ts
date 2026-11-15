@@ -54,6 +54,7 @@ export const kickMessagesEn: Record<string, string> = {
   'killer.kick.door': 'kicking a door',
   'killer.kick.rock': 'kicking a rock',
   'killer.kick.stairs': 'kicking the stairs',
+  'killer.kick.ladder': 'kicking a ladder',
   'killer.kick.object': 'kicking a heavy object',
   'killer.kick.boulder': 'kicking a boulder',
   'killer.kick.nothing': 'kicking nothing',

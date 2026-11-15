@@ -46,6 +46,7 @@ import { losehp, losestr } from './hp';
 import { done } from './end';
 import { nasty } from './nasty';
 import { isDemon, nonliving } from './mondata';
+import { inWTower } from './levelflags';
 import { heroForm, rehumanize, upolyd } from './upoly';
 import { nomulNow } from './hunger';
 import { nhData } from './items';
@@ -196,14 +197,22 @@ function couldsee(ctx: Ctx, mon: Entity): boolean {
 export const isUndirectedSpell = (s: McastSpell): boolean => MCAST_DATA[s].indirect;
 
 /**
- * Some monster on the level waits for the hero, is asleep or cannot move (no Wizard's Tower).
+ * Some monster on the level waits for the hero, is asleep or cannot move, on her side of the
+ * Wizard's Tower's walls and the caster's (none when those differ).
  * ref: src/wizard.c has_aggravatables()
  */
 function hasAggravatables(ctx: Ctx, mon: Entity): boolean {
-  const level = mon.c.pos?.level;
+  const mp = mon.c.pos;
+  const level = mp?.level;
+  const lev = level !== undefined ? ctx.state.levels[level] : undefined;
+  const inTower = !!mp && inWTower(ctx.state, lev, mp.x, mp.y);
+  const hp = getPlayer(ctx.state).c.pos;
+  if (inTower !== (!!hp && inWTower(ctx.state, lev, hp.x, hp.y))) return false;
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
-    if (!e?.c.monster || e.c.pos?.level !== level) continue;
+    const p = e?.c.pos;
+    if (!e?.c.monster || !p || p.level !== level) continue;
+    if (inWTower(ctx.state, lev, p.x, p.y) !== inTower) continue;
     if (mstratOf(ctx, e.id).waitForU || e.c.monster.asleep || isFrozen(ctx, e.id)) return true;
   }
   return false;

@@ -66,6 +66,21 @@ const BIGROOM_FLAGS: Readonly<Record<DefId, LevelFlags>> = Object.fromEntries(
   ]),
 );
 
+/** wizard1.lua's des.non_diggable() and des.non_passwall() areas (the same four). */
+const WIZ1_WALLS: readonly FlagRect[] = [
+  { x1: 0, y1: 0, x2: 11, y2: 12 },
+  { x1: 11, y1: 0, x2: 21, y2: 0 },
+  { x1: 11, y1: 10, x2: 27, y2: 12 },
+  { x1: 21, y1: 0, x2: 27, y2: 10 },
+];
+/** wizard3.lua's des.non_diggable() and des.non_passwall() areas (the same four). */
+const WIZ3_WALLS: readonly FlagRect[] = [
+  { x1: 0, y1: 0, x2: 6, y2: 12 },
+  { x1: 6, y1: 0, x2: 27, y2: 2 },
+  { x1: 16, y1: 2, x2: 27, y2: 12 },
+  { x1: 6, y1: 12, x2: 16, y2: 12 },
+];
+
 /**
  * The flags of each special level that has any. Minetown's minetn-1 (Orcish Town) and minetn-6
  * say "mazelevel" too, but their mines-style map makes them cavernous instead (mkmap() clears
@@ -169,6 +184,33 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:asmodeus-lair': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 20, y2: 11 }] },
   /** ref: dat/orcus.lua ("mazelevel", "shortsighted") */
   'nh:orcus-town': { maze: true, shortsighted: true },
+  /** ref: dat/wizard1.lua ("Walls inside the moat stay diggable") */
+  'nh:wizard1': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: WIZ1_WALLS,
+    nonpasswall: WIZ1_WALLS,
+  },
+  /** ref: dat/wizard2.lua ("Non diggable walls everywhere") */
+  'nh:wizard2': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 27, y2: 12 }],
+    nonpasswall: [{ x1: 0, y1: 0, x2: 27, y2: 12 }],
+  },
+  /** ref: dat/wizard3.lua ("Walls inside the moat stay diggable") */
+  'nh:wizard3': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: WIZ3_WALLS,
+    nonpasswall: WIZ3_WALLS,
+  },
+  /** ref: dat/fakewiz1.lua, dat/fakewiz2.lua ("mazelevel") */
+  'nh:fakewiz1': { maze: true },
+  'nh:fakewiz2': { maze: true },
   /**
    * ref: dat/baalz.lua des.non_diggable(selection.area(00,00,47,12)) less the two cells west of
    * each eye, which src/mkmaze.c baalz_fixup() makes diggable ("novelty effect; allowing digging
@@ -206,6 +248,11 @@ export interface MadeLevelFlags {
   cavernous?: true;
   temperature?: -1 | 0 | 1;
   nondiggable?: [number, number, number, number][];
+  /**
+   * The Wizard's Tower's boundary on wizard1-3 (Level coordinates, corners included): the
+   * exclusion of their teleport region, C's `dndest.nl*`.
+   */
+  wtower?: [number, number, number, number];
 }
 
 const levflagsTable = (state: Readonly<GameState>): Record<string, Json> | undefined => {
@@ -397,6 +444,38 @@ export function invocationLev(
   if (!ref || !HELLISH.includes(ref.dungeon)) return false;
   const n = dungeonLayout(state, ref.dungeon).levels;
   return n !== null && ref.dlevel === n - 1;
+}
+
+/**
+ * A level holding the Wizard's Tower: wizard1, wizard2 or wizard3 (by its special level id, as
+ * C's Is_wiz1_level()...). ref: src/dungeon.c On_W_tower_level()
+ */
+export function onWTowerLevel(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean {
+  const sp = gehennomSpecial(state, level);
+  return (
+    sp === GEHENNOM_SPECIALS.wizard1 ||
+    sp === GEHENNOM_SPECIALS.wizard2 ||
+    sp === GEHENNOM_SPECIALS.wizard3
+  );
+}
+
+/**
+ * Whether (x, y) of `level` is inside the Wizard's Tower: on a tower level built with its tower
+ * (a stand-in of an older game has no boundary), within the exclusion of its teleport region.
+ * ref: src/dungeon.c In_W_tower()
+ */
+export function inWTower(
+  state: Readonly<GameState>,
+  level: Readonly<Level> | undefined,
+  x: number,
+  y: number,
+): boolean {
+  if (!level || !onWTowerLevel(state, level)) return false;
+  const b = madeLevelFlags(state, level.id).wtower;
+  return !!b && x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3];
 }
 
 /** The hellish dungeons (dungeon.lua flags "hellish"). */

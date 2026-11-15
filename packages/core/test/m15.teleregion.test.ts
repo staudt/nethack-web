@@ -158,6 +158,33 @@ describe('teleport regions', () => {
     expect(inside(playerPos(state), [5, 5, 15, 15])).toBe(false);
   });
 
+  test('m17: arriving at a fixed spot, new level or not; a monster there moves off', () => {
+    const { state } = engine.newGame({ seed: 4 });
+    const at = (x: number, y: number) => {
+      ctl.fn = (ctx) => ctx.goToLevel({ dungeon: 'lv:main', dlevel: 3 }, { x, y });
+      engine.step(state, { type: 'mod', action: 'gt:run', args: null });
+    };
+    at(40, 10); // the arena is generated first
+    expect(getLevel(state).def).toBe('lv:arena');
+    expect(playerPos(state)).toMatchObject({ x: 40, y: 10 });
+    go(state, 2, 'random');
+    const arena = Object.values(state.levels).find((l) => l.def === 'lv:arena')!;
+    const id = state.nextEntityId++;
+    state.entities[String(id)] = {
+      id,
+      def: 'x:mon',
+      c: { pos: { level: arena.id, x: 7, y: 3 }, monster: {} },
+    } as never;
+    at(7, 3);
+    expect(playerPos(state)).toMatchObject({ x: 7, y: 3 });
+    const moved = state.entities[String(id)]!.c.pos!;
+    expect(Math.max(Math.abs(moved.x - 7), Math.abs(moved.y - 3))).toBe(1);
+    ctl.fn = (ctx) => ctx.goToLevel({ dungeon: 'lv:main', dlevel: 3 }, { x: W, y: 0 });
+    expect(() => engine.step(state, { type: 'mod', action: 'gt:run', args: null })).toThrow(
+      RangeError,
+    );
+  });
+
   test('bad shapes are reported', () => {
     expect(
       issues([

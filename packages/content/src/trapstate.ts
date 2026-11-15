@@ -6,8 +6,9 @@
 // `utrap: { n, type }` while the hero is caught, `mtrapped: { [monsterId]: true }`,
 // `mtrapseen: { [monsterId]: trapDefId[] }` (sorted) and `migrating: { [monsterId]: levelId }`
 // for monsters that fell to a level the hero is not on, with `migrVia: { [monsterId]: MigrVia }`
-// for one that took the stairs (C's MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS; absent: MIGR_RANDOM).
-// Tables are only created on write.
+// for one that took the stairs (C's MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS, the ladders' and the
+// magic portal's; absent: MIGR_RANDOM) and `migrWTower: { [monsterId]: true }` for one that left
+// from inside the Wizard's Tower (C's `xyflags & 2`). Tables are only created on write.
 import {
   getPlayer,
   inBounds,
@@ -25,7 +26,7 @@ type Table = { [k: string]: Json };
 
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-type Key = 'mtrapped' | 'mtrapseen' | 'migrating' | 'migrVia';
+type Key = 'mtrapped' | 'mtrapseen' | 'migrating' | 'migrVia' | 'migrWTower';
 
 function root(ctx: Pick<Ctx, 'state'>, create: boolean): Table | null {
   const md = ctx.state.modData;

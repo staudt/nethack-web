@@ -480,7 +480,14 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
     const onStairs = hereId !== undefined && ctx.defs.terrain(hereId).stairs !== undefined;
     if (dir === 'up' || onStairs) {
       const ceiling = { key: ceilingKey(ctx, level, hp.x, hp.y) };
-      if (onStairs) say(ctx, 'dig.bounce_stairs', { ceiling });
+      if (onStairs)
+        say(
+          ctx,
+          hereId === T.ladder_up || hereId === T.ladder_down
+            ? 'dig.bounce_ladder'
+            : 'dig.bounce_stairs',
+          { ceiling },
+        );
       say(ctx, 'dig.loosen_rock', { ceiling });
       say(ctx, 'dig.falls_on_head');
       rockOnHead(ctx, level, hp.x, hp.y);
@@ -574,8 +581,7 @@ export function zapDig(ctx: Ctx, dir: Dir | 'up' | 'down'): void {
 
 /**
  * Whether a pit can be dug at (x, y) from inside the hero's pit: true, or the reason it cannot
- * (null: none to give). ref: src/dig.c adj_pit_checks() (no pools, lava, ladders or drawbridges
- * exist)
+ * (null: none to give). ref: src/dig.c adj_pit_checks() (no pools, lava or drawbridges)
  */
 export function adjPitChecks(ctx: Ctx, level: Level, x: number, y: number): true | Msg | null {
   if (!inBounds(level, x, y)) return null;
@@ -590,6 +596,7 @@ export function adjPitChecks(ctx: Ctx, level: Level, x: number, y: number): true
   }
   if (id === T.iron_bars) return msg('dig.bars_deeper');
   if (id === T.sink) return msg('dig.plumbing');
+  if (id === T.ladder_up || id === T.ladder_down) return msg('dig.ladder_unaffected');
   const stairs = id !== undefined && ctx.defs.terrain(id).stairs !== undefined;
   const supporting =
     id === T.fountain
@@ -691,6 +698,7 @@ export type DigCheck =
   | 'passed'
   | 'pitonly'
   | 'destroytrap'
+  | 'ladder'
   | 'stairs'
   | 'throne'
   | 'altar'
@@ -707,6 +715,7 @@ export type DigCheck =
 export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject = false): DigCheck {
   const ttmp = trapAt(level, x, y);
   const id = terrainIdAt(level, x, y);
+  if (id === T.ladder_up || id === T.ladder_down) return 'ladder';
   if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
   if (id === T.throne && !byObject) return 'throne';
   if (isAltarId(id) && !byObject) return 'altar';
@@ -729,6 +738,7 @@ function digcheckFailMessage(ctx: Ctx, r: DigCheck, level: Level, x: number, y: 
   if (r === 'throne') say(ctx, 'dig.throne_too_hard');
   else if (r === 'altar') say(ctx, 'dig.altar_too_hard');
   else if (r === 'boulder') say(ctx, 'dig.no_room');
+  else if (r === 'ladder') say(ctx, 'dig.ladder_resists');
   else if (r === 'stairs') say(ctx, 'dig.stairs_too_hard');
   else if (r === 'cantdig' || r === 'toohard')
     say(ctx, 'dig.too_hard_here', { surface: surfaceKey(ctx, level, x, y) });

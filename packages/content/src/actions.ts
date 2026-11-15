@@ -48,7 +48,8 @@ import { mAt } from './wormstate';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { P, hasProp, wornIn } from './props';
-import { T, setTerrain, surfaceKey } from './terrain';
+import { T, setTerrain, surfaceKey, terrainIdAt } from './terrain';
+import { isLadder, ladderArrival } from './ladder';
 import { luckOf } from './luck';
 import {
   TRAP,
@@ -1072,12 +1073,9 @@ const down: ActionDef = {
     // levitation ends, else "You are floating high above the stairs.", no time
     if (hasProp(getPlayer(ctx.state), P.LEVITATION)) {
       if (levAtWillFlag(ctx) && endLevitationAtWill(ctx)) return NORMAL_SPEED;
+      // (surfaceKey() is "stairs" or "ladder" on them)
       const p = playerAt(ctx);
-      const stairs = terrainUnderHero(ctx).stairs === 'down';
-      floatingAbove(
-        ctx,
-        stairs ? '@surface.stairs' : surfaceKey(ctx, getLevel(ctx.state), p.x, p.y),
-      );
+      floatingAbove(ctx, surfaceKey(ctx, getLevel(ctx.state), p.x, p.y));
       return 0;
     }
     // ref: dodown(): on a seen trap door or hole, `uescaped_shaft()` -> dotrap(TOOKPLUNGE)
@@ -1114,9 +1112,13 @@ function goDownStairs(ctx: Ctx): number {
     ctx.goToLevel(branch.to, 'branch');
     return NORMAL_SPEED;
   }
-  // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)).
+  // Arrive on the up stairs of the next level (ref: goto_level() u_on_newpos(xupstair)), or
+  // from a ladder on its ladder up (stairway_find_from(&u.uz0, at_ladder))
   const level = getLevel(ctx.state);
-  ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel + 1 }, 'up');
+  const to = { dungeon: level.dungeon, dlevel: level.dlevel + 1 };
+  const p = playerAt(ctx);
+  const ladder = isLadder(terrainIdAt(level, p.x, p.y)) ? ladderArrival(ctx, to, false) : null;
+  ctx.goToLevel(to, ladder ?? 'up');
   return NORMAL_SPEED;
 }
 
@@ -1157,7 +1159,11 @@ const up: ActionDef = {
     }
     const level = getLevel(ctx.state);
     if (level.dlevel > 1) {
-      ctx.goToLevel({ dungeon: level.dungeon, dlevel: level.dlevel - 1 }, 'down');
+      // from a ladder, onto the ladder down there
+      const to = { dungeon: level.dungeon, dlevel: level.dlevel - 1 };
+      const p = playerAt(ctx);
+      const ladder = isLadder(terrainIdAt(level, p.x, p.y)) ? ladderArrival(ctx, to, true) : null;
+      ctx.goToLevel(to, ladder ?? 'down');
       return NORMAL_SPEED;
     }
     // ref: doup(): ledger_no == 1 -> y_n("Beware, there will be no return!  Still climb?")

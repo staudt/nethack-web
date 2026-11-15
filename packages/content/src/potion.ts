@@ -40,6 +40,7 @@ import { surfaceKey } from './terrain';
 import { ceilingKey, hardHelmet } from './read';
 import { levelAtDepth } from './teleport';
 import { isSokoban } from './sokoban';
+import { GEHENNOM_SPECIALS, gehennomSpecial, inWTower } from './levelflags';
 import { floatUp } from './levitation';
 import { levitating, setLevAtWill } from './trapstate';
 import { lookHere } from './itemactions';
@@ -574,13 +575,23 @@ export function speedUp(ctx: Ctx, duration: number): void {
 }
 
 /**
- * Whether one can rise through the ceiling of `level`: not in Sokoban, and not from the first
- * level of the Dungeons of Doom (ledger 1 is the main dungeon's first level; other dungeons
- * enter at their first level, so that level's up stairs lead out of the branch).
- * ref: src/dungeon.c Can_rise_up() (no endgame or Wizard's Tower)
+ * Whether one at (x, y) can rise through the ceiling of `level`: not in Sokoban, not from inside
+ * the top of the Wizard's Tower, and not from the first level of the Dungeons of Doom (ledger 1
+ * is the main dungeon's first level; other dungeons enter at their first level, so that level's
+ * up stairs lead out of the branch). ref: src/dungeon.c Can_rise_up() (no endgame)
  */
-export function canRiseUp(ctx: Pick<Ctx, 'state'>, level: Readonly<Level>): boolean {
+export function canRiseUp(
+  ctx: Pick<Ctx, 'state'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): boolean {
   const layout = dungeonLayout(ctx.state, level.dungeon);
+  if (
+    gehennomSpecial(ctx.state, level) === GEHENNOM_SPECIALS.wizard1 &&
+    inWTower(ctx.state, level, x, y)
+  )
+    return false;
   return !isSokoban(level) && (level.dlevel > 1 || layout.depthStart > 1);
 }
 
@@ -596,7 +607,8 @@ function peffectGainLevel(ctx: Ctx, p: Entity): Effect {
   if (buc === 'cursed') {
     const level = getLevel(ctx.state);
     const layout = dungeonLayout(ctx.state, level.dungeon);
-    if (!canRiseUp(ctx, level)) {
+    const hp = h.c.pos;
+    if (!hp || !canRiseUp(ctx, level, hp.x, hp.y)) {
       msg(ctx, 'potion.uneasy');
       return { unknown: true };
     }

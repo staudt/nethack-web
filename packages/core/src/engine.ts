@@ -240,16 +240,20 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         // ref: src/do.c goto_level(): `up = depth(newlevel) < depth(&u.uz)`; without stairs
         // (falling, level teleport) or a branch's stairs, u_on_rndspot(up) (u_on_sstairs())
         const up = level.depth < current.depth;
+        if (typeof at === 'object' && !inBounds(level, at.x, at.y))
+          throw new RangeError(`(${at.x},${at.y}) is outside level '${level.id}'`);
         placeHero(
           state,
           level,
-          at === 'up'
-            ? level.up
-            : at === 'down'
-              ? level.down
-              : at === 'branch'
-                ? (level.branch?.pos ?? randomSpot(state, ctx.rng, level, up))
-                : randomSpot(state, ctx.rng, level, up),
+          typeof at === 'object'
+            ? { x: at.x, y: at.y }
+            : at === 'up'
+              ? level.up
+              : at === 'down'
+                ? level.down
+                : at === 'branch'
+                  ? (level.branch?.pos ?? randomSpot(state, ctx.rng, level, up))
+                  : randomSpot(state, ctx.rng, level, up),
         );
         const change = { from: current.id, fromPos: { x: fromPos.x, y: fromPos.y }, to: level.id };
         for (const h of registry.hooks('levelChange')) h.fn(ctx, change);

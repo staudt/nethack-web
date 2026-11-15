@@ -57,9 +57,11 @@ import {
   dungeonBottom,
   findHell,
   inHell,
+  inWTower,
   invocationLev,
   isBotlevel,
   isStronghold,
+  onWTowerLevel,
 } from './levelflags';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
@@ -100,7 +102,7 @@ import { nomulNow } from './hunger';
 import { mksobj, placeOnFloor } from './items';
 import { lookHere } from './itemactions';
 import { setFloatDownTrap } from './levitation';
-import { arrivalStairs, migrateToLevel, takeMigrVia } from './migrate';
+import { arrivalStairs, migrateToLevel, takeMigrVia, takeMigrWTower } from './migrate';
 import { placeWormTailRandomly, removeWorm, wormArrive } from './worm';
 import { takeWormMigr, wormRec } from './wormstate';
 import { isCrackable, isMetallic, isRustprone } from './material';
@@ -111,7 +113,8 @@ import { clearStrat, isFrozen, mstratOf, paralyzeMonst, setMConfused } from './m
 import { flaming, isWhirly } from './engulfstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
-import { P, hasProp, heroHas, makeConfused, timeoutLeft } from './props';
+import { P, hasProp, heroHas, makeConfused, makeStunned, timeoutLeft } from './props';
+import { MAGIC_PORTAL, portalArrival, portalDest } from './portal';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import { canseemon as canseemonInvis } from './invis';
@@ -167,6 +170,7 @@ export const TRAP = {
   statue: 'nh:statue_trap',
   poly: 'nh:polymorph_trap',
   vibrating: VIBRATING_SQUARE,
+  portal: MAGIC_PORTAL,
 } as const;
 
 /** The two spiders that spin webs and walk them freely. ref: include/mondata.h webmaker() */
@@ -192,6 +196,7 @@ const MAGENTA = '#bb44bb';
 const RED = '#cc3333';
 const BRIGHT_GREEN = '#55ff55';
 const ORANGE = '#ff8800';
+const BRIGHT_MAGENTA = '#ff55ff';
 
 /**
  * ref: include/defsym.h S_arrow_trap .. S_hole (S_land_mine CLR_RED), S_teleportation_trap, S_level_teleporter,
@@ -220,6 +225,7 @@ export const TRAPS: readonly TrapDef[] = [
   { id: TRAP.statue, nameKey: TRAP.statue, glyph: { ch: '^', fg: GRAY } }, // S_statue_trap
   { id: TRAP.poly, nameKey: TRAP.poly, glyph: { ch: '^', fg: BRIGHT_GREEN } }, // S_polymorph_trap
   { id: TRAP.vibrating, nameKey: TRAP.vibrating, glyph: { ch: '~', fg: MAGENTA } }, // S_vibrating_square
+  { id: TRAP.portal, nameKey: TRAP.portal, glyph: { ch: '^', fg: BRIGHT_MAGENTA } }, // S_magic_portal
 ];
 
 /**
@@ -228,6 +234,7 @@ export const TRAPS: readonly TrapDef[] = [
  */
 export const floorTrigger = (def: DefId): boolean =>
   def !== TRAP.vibrating &&
+  def !== TRAP.portal &&
   def !== TRAP.tele &&
   def !== TRAP.levelTele &&
   def !== TRAP.magic &&
@@ -1135,6 +1142,9 @@ export function dotrap(
       // reference" (invocation.ts invocationMessage())
       seetrap(t); // feeltrap()
       return;
+    case TRAP.portal:
+      seetrap(t); // feeltrap()
+      return domagicportal(ctx, t);
     default:
       // the magic traps (magictrap.ts); another mod's trap: its effects are that mod's business
       lateEffects[t.def]?.you(ctx, t);
@@ -1713,21 +1723,25 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
       delete t[key];
       continue;
     }
-    const viaT = trapTable(ctx, 'migrVia', false)?.[key];
-    const stairs =
-      viaT === 'stairs_up' || viaT === 'stairs_down' || viaT === 'sstairs'
-        ? arrivalStairs(level, viaT)
-        : null;
+    const viaT = takeMigrVia(ctx, mon.id, true);
+    const stairs = viaT ? arrivalStairs(level, viaT) : null;
+    // rloc_pos_ok(): on the Wizard's Tower's levels, one that left from inside the tower arrives
+    // inside it, any other outside
+    const fromTower = takeMigrWTower(ctx, mon.id, true);
+    const towerOk = onWTowerLevel(ctx.state, level)
+      ? (x: number, y: number): boolean => inWTower(ctx.state, level, x, y) === fromTower
+      : undefined;
     // mnearto(): the stairs themselves when free, else the nearest free square
     const spot = stairs
       ? goodposMon(ctx, level, stairs.x, stairs.y, mon.id)
         ? stairs
         : mnextoPos(ctx, level, mon.id, stairs)
-      : rlocPos(ctx, level, mon);
+      : rlocPos(ctx, level, mon, towerOk);
     if (!spot) continue; // no room: it keeps waiting
     mon.c.pos = { level: level.id, x: spot.x, y: spot.y };
     delete t[key];
     takeMigrVia(ctx, mon.id);
+    takeMigrWTower(ctx, mon.id);
     // ref: mon_arrive(): a long worm gets a worm number and its segments back
     const segs = takeWormMigr(ctx.state, mon.id);
     if (segs !== null) wormArrive(ctx, mon.id, segs);
@@ -1818,6 +1832,8 @@ export function mintrap(ctx: Ctx, monId: EntityId, opts: { force?: boolean } = {
     case TRAP.vibrating:
       vibratingSquareMon(ctx, p.level, mon, trap);
       return 'finished';
+    case TRAP.portal:
+      return mportalTrap(ctx, mon, trap, canseemon(ctx, mon));
     default:
       return lateEffects[trap.def]?.mon(ctx, mon, trap) ?? 'finished';
   }
@@ -1892,6 +1908,46 @@ function mlevelTeleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): Tr
   setMConfused(ctx, mon.id, true); // is_xport() && !control_teleport()
   migrateToLevel(ctx, mon, levelIdFor(ctx.state, to));
   return 'moved'; // no longer on this level
+}
+
+/**
+ * A monster on a magic portal goes through it, confused, and waits on the level it leads to (it
+ * comes out on that level's portal): "Suddenly, the lich disappears out of sight." when seen.
+ * ref: src/trap.c trapeffect_magic_portal(); src/teleport.c mlevel_tele_trap() (MAGIC_PORTAL,
+ * MIGR_PORTAL; no endgame, leashes or steeds)
+ */
+function mportalTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): TrapResult {
+  if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
+  const dst = portalDest(trap);
+  if (!dst || !mon.c.pos) return 'finished';
+  if (inSight) {
+    say(ctx, 'tele.mon_out_of_sight', { mon: monNam(ctx, mon) });
+    seetrap(trap);
+  }
+  setMConfused(ctx, mon.id, true); // is_xport() && !control_teleport()
+  migrateToLevel(ctx, mon, levelIdFor(ctx.state, dst), 'portal');
+  return 'moved'; // no longer on this level
+}
+
+/**
+ * The hero on a magic portal: "You activated a magic portal!", stunned 3 turns more, and off to
+ * the level it leads to, onto that level's portal ("You feel slightly dizzy." or "You feel
+ * dizzier." once there). ref: src/teleport.c domagicportal(); src/do.c goto_level() (the arrival
+ * portal), deferred_goto() (no endgame, tutorial, buried ball or leashes, so next_to_u() never
+ * holds her back; "if landed from another portal, do nothing": arriving sets no trap off here)
+ */
+function domagicportal(ctx: Ctx, trap: Trap): void {
+  const dst = portalDest(trap);
+  if (!dst) return;
+  say(ctx, 'portal.activated');
+  const stunned = hasProp(heroEnt(ctx), P.STUNNED);
+  makeStunned(ctx, timeoutLeft(ctx.state, heroEnt(ctx), P.STUNNED) + 3, false);
+  ctx.goToLevel(dst, portalArrival(ctx, dst) ?? 'random');
+  if (ctx.state.gameOver) return;
+  const t = trapAt(getLevel(ctx.state), heroPos(ctx).x, heroPos(ctx).y);
+  if (t?.def === TRAP.portal) seetrap(t); // seetrap(ttrap) at the arrival portal
+  lookHere(ctx);
+  say(ctx, stunned ? 'portal.dizzier' : 'portal.dizzy'); // the deferred goto's message
 }
 
 /** True when the outcome means the monster left its square (died or fell). */

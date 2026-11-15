@@ -8,8 +8,8 @@
 // src/mon.c mnexto(), mnearto(); src/monmove.c m_move() (the covetous attack on an intruder)
 //
 // Not ported (see DEVIATIONS.md "Monster AI"): the Amulet (`made_amulet` is always false: it is
-// never made), the invocation (`u.uevent.invoked`), the quest artifacts, the Wizard of Yendor and
-// his Tower (In_W_tower(): m17 step 8), mavenge, and deal_with_overcrowding()'s limbo: a monster
+// never made), the invocation (`u.uevent.invoked`), the quest artifacts, the Wizard of Yendor
+// (m17 step 8b), mavenge, and deal_with_overcrowding()'s limbo: a monster
 // with no room next to her stays where it is, and a monster pushed off the goal with no room
 // around it is teleported at random.
 import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type EntityId } from '@nh/core';
@@ -18,6 +18,8 @@ import { uswallow } from './engulfstate';
 import { inhistemple, epriOf } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { mnextoPos } from './generation';
+import { findTerrain } from './ladder';
+import { inWTower } from './levelflags';
 import { isCovetous } from './mondata';
 import { heroSees, minvent } from './mongear';
 import { isFleeing } from './monflee';
@@ -25,6 +27,7 @@ import { healmon, mstratOf, setMstrat, type MStrat } from './mstate';
 import { doname } from './objnam';
 import { mpickobj } from './steal';
 import { goodposMon, noteleportLevel } from './teleport';
+import { T } from './terrain';
 import { rlocMon, rlocTo } from './trap';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -150,7 +153,10 @@ export function chooseStairs(
     if (b && (b.dir === 'up') === dirUp) return b.pos;
     return dirUp ? level.up : level.down;
   };
-  return find(up) ?? level.branch?.pos ?? find(!up);
+  // no stairs: a ladder that way; then branch stairs, then the other way
+  const ladder = (dirUp: boolean): { x: number; y: number } | null =>
+    findTerrain(level, dirUp ? T.ladder_up : T.ladder_down);
+  return find(up) ?? ladder(up) ?? level.branch?.pos ?? find(!up) ?? ladder(!up);
 }
 
 /**
@@ -249,11 +255,16 @@ export function tactics(ctx: Ctx, id: EntityId): boolean {
     if (sw && sw.mon === id) expels(ctx, mon, true);
     // if wounded, hole up on or near the stairs (to block them)
     const s = chooseStairs(ctx, level.id, id % 2 === 1);
-    // (mavenge: not kept; no Wizard's Tower and no Wizard)
-    if (s && (p.x !== s.x || p.y !== s.y)) {
+    // (mavenge: not kept; the Wizard's own case waits for him)
+    const inTower = inWTower(ctx.state, level, p.x, p.y);
+    if (inTower) {
+      if (!noTele() && !ctx.rng.rn2(3 + Math.trunc((mon.c.hp?.cur ?? 0) / 10)))
+        rlocMon(ctx, mon, true);
+    } else if (s && (p.x !== s.x || p.y !== s.y)) {
       if (!noTele() && !mnearto(ctx, mon, s.x, s.y, true)) return false; // stay where we are
     }
-    const at = mon.c.pos ?? p;
+    // (C updates its cached spot only after mnearto())
+    const at = inTower ? p : (mon.c.pos ?? p);
     // if you're not around, cast healing spells
     const hp = mon.c.hp;
     if (distu(ctx, at.x, at.y) > BOLT_LIM * BOLT_LIM && hp && hp.cur <= hp.max - 8) {

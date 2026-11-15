@@ -92,7 +92,7 @@ import {
 import { dropx, welded } from './itemactions';
 import { nhData, placeObject, removeFromInventory, setCknown } from './items';
 import { growUp } from './mhitm';
-import { canDigDown, isBotlevel, nonDiggable } from './levelflags';
+import { canDigDown, isBotlevel, nonDiggable, onWTowerLevel } from './levelflags';
 import { migrateToLevel } from './migrate';
 import {
   amorphous,
@@ -153,6 +153,7 @@ import { setMunslime, slimeproof } from './slimestate';
 import { onscary } from './scary';
 import { isAnimal } from './steal';
 import { T, isFurnitureId, isStwallId, setTerrain, surfaceKey, terrainIdAt } from './terrain';
+import { isLadder } from './ladder';
 import {
   TRAP,
   canFallThru,
@@ -192,6 +193,8 @@ export type MuseDef =
   | 'teleport_trap'
   | 'upstairs'
   | 'downstairs'
+  | 'up_ladder'
+  | 'dn_ladder'
   | 'sstairs'
   | 'wan_create_monster'
   | 'scr_create_monster'
@@ -547,6 +550,10 @@ export function findDefensive(
     const b = level.branch;
     if (b && b.pos.x === x && b.pos.y === y) {
       if (b.dir === 'up' || !isFloater(ctx, mon)) choice = { kind: 'sstairs', obj: null };
+    } else if (isLadder(terrainIdAt(level, x, y))) {
+      // levl[x][y].typ == LADDER
+      if (stairsAt(ctx, level, x, y) === 'up') choice = { kind: 'up_ladder', obj: null };
+      else if (!isFloater(ctx, mon)) choice = { kind: 'dn_ladder', obj: null };
     } else if (stairsAt(ctx, level, x, y) === 'down') {
       if (!isFloater(ctx, mon)) choice = { kind: 'downstairs', obj: null };
     } else choice = { kind: 'upstairs', obj: null };
@@ -724,7 +731,8 @@ function stepOnto(ctx: Ctx, mon: Entity, to: Pos): void {
  * its message, the object known when `oseen`), or (`how` null) by the trap it chose to step on,
  * which goes off under it. Unless the level forbids it ("A mysterious force prevents the gnome
  * from teleporting!"; the object known when the monster is seen), and then it learns that
- * teleport traps do not work here. ref: src/muse.c m_tele() (no Amulet or Wizard's Tower)
+ * teleport traps do not work here. On the Wizard's Tower's levels it may only seem disoriented
+ * for a moment (1 time in 3). ref: src/muse.c m_tele() (no Amulet)
  */
 function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefId | null): void {
   const p = mon.c.pos;
@@ -733,6 +741,9 @@ function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefI
     if (vismon && how) discover(ctx, how);
     if (noteleportLevel(ctx, getLevel(ctx.state, p.level), mon.id))
       monLearnsTraps(ctx, mon.id, TRAP.tele);
+  } else if (onWTowerLevel(ctx.state, getLevel(ctx.state, p.level)) && !ctx.rng.rn2(3)) {
+    // (mon_has_amulet(): never)
+    if (vismon) say(ctx, 'muse.disoriented_moment', { mon: monNam(ctx, mon) });
   } else if (how) {
     // "teleporation has been triggered by an object"
     if (oseen) discover(ctx, how);
@@ -809,6 +820,25 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
         mon,
         levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: level.dlevel + 1 }),
         'stairs_up',
+      );
+      return 2;
+    }
+    case 'up_ladder':
+    case 'dn_ladder': {
+      mFlee();
+      const up = c.kind === 'up_ladder';
+      if (
+        !isLadder(terrainIdAt(level, p.x, p.y)) ||
+        stairsAt(ctx, level, p.x, p.y) !== (up ? 'up' : 'down')
+      )
+        return 0;
+      if (vismon)
+        say(ctx, up ? 'muse.escapes_up_ladder' : 'muse.escapes_down_ladder', { mon: name() });
+      migrateToLevel(
+        ctx,
+        mon,
+        levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: level.dlevel + (up ? -1 : 1) }),
+        up ? 'ladder_down' : 'ladder_up',
       );
       return 2;
     }
@@ -2195,7 +2225,7 @@ export function useMisc(ctx: Ctx, id: EntityId, c: MuseChoice<MuseMisc>): MuseRe
       if (!otmp) return 0;
       mquaffmsg(ctx, mon, otmp);
       if (otmp.c.item?.buc === 'cursed') {
-        if (canRiseUp(ctx, level)) {
+        if (canRiseUp(ctx, level, p.x, p.y)) {
           const to = levelAtDepth(ctx, level, level.depth - 1);
           // "insurance against future changes..."
           if (to.dungeon !== level.dungeon || to.dlevel !== level.dlevel) {

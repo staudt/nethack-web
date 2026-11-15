@@ -371,6 +371,24 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: false,
     glyph: { ch: '|', fg: WHITE },
   },
+  // ref: defsym.h S_upladder '<', S_dnladder '>' (CLR_BROWN): the Wizard's Tower's ladders (m17;
+  // ladder.ts), stairs for every rule that asks for stairs (On_stairs(), IS_FURNITURE())
+  {
+    id: 'nh:ladder_up',
+    nameKey: 'terrain.ladder_up',
+    passable: true,
+    opaque: false,
+    stairs: 'up',
+    glyph: { ch: '<', fg: BROWN },
+  },
+  {
+    id: 'nh:ladder_down',
+    nameKey: 'terrain.ladder_down',
+    passable: true,
+    opaque: false,
+    stairs: 'down',
+    glyph: { ch: '>', fg: BROWN },
+  },
 ];
 
 /** Short names for terrain ids, for convenient reuse. */
@@ -426,6 +444,8 @@ export const T = {
   altar_chaotic: 'nh:altar_chaotic',
   altar_unaligned: 'nh:altar_unaligned',
   grave: 'nh:grave',
+  ladder_up: 'nh:ladder_up',
+  ladder_down: 'nh:ladder_down',
 } as const;
 
 const WALL_IDS: ReadonlySet<DefId> = new Set<DefId>([
@@ -461,8 +481,8 @@ export const isObstructedId = (id: DefId | undefined): boolean =>
   isStwallId(id) || id === T.tree || isSdoorId(id) || id === T.scorr;
 
 /**
- * ref: include/rm.h IS_FURNITURE(): stairs, fountains, thrones, sinks, graves and altars here (no
- * ladders)
+ * ref: include/rm.h IS_FURNITURE(): stairs, ladders, fountains, thrones, sinks, graves and altars
+ * here
  */
 export const isFurnitureId = (defs: Pick<Registry, 'terrain'>, id: DefId | undefined): boolean =>
   id !== undefined &&
@@ -507,6 +527,7 @@ export function surfaceKey(
   if (id === T.fountain) return '@surface.fountain';
   if (id === undefined) return '@surface.ground';
   const t = ctx.defs.terrain(id);
+  if (id === T.ladder_up || id === T.ladder_down) return '@surface.ladder';
   if (t.stairs !== undefined) return '@surface.stairs';
   if (isWallId(id) || isSdoorId(id)) return '@surface.wall';
   if (t.door !== undefined) return '@surface.doorway';

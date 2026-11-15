@@ -1,5 +1,5 @@
 // m17 step 1: Gehennom's layout and bottom. Its eleven special levels are placed at new game in
-// dungeon.lua's order (built as the filler for now); the Sanctum is out of reach (dng_bottom():
+// dungeon.lua's order (each built from its own LevelDef but the Sanctum); the Sanctum is out of reach (dng_bottom():
 // holes, trap doors and level teleports stop on the invocation level, "Sorry..." for a level
 // teleport aimed at the bottom; wizard mode's #levelport gets through); the invocation level has no
 // down stairs but the vibrating square. Outcomes are asserted over many seeds.
@@ -125,7 +125,7 @@ describe("Gehennom's layout", () => {
     expect(wiz1.size).toBe(6);
   });
 
-  test('the Valley is built, the others as the filler for now; the predicates know each by its id', () => {
+  test('the special levels are built, the Sanctum as the filler; the predicates know each by its id', () => {
     const { state, level } = inGehennom(3, 1);
     expect(level.def).toBe(G.valley); // m17 step 2
     expect(isValley(state)).toBe(true);
@@ -137,6 +137,11 @@ describe("Gehennom's layout", () => {
     const wiz = hell(state).special.find((s) => s.id === G.fakewiz1)!;
     expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: wiz.dlevel })).toBe(G.fakewiz1);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: wiz.dlevel }, 'random'));
+    expect(getLevel(state).def).toBe('nh:fakewiz1'); // m17 step 8
+    // the Sanctum (out of reach but for wizard mode) is the filler
+    const sanctum = hell(state).special.find((s) => s.id === G.sanctum)!;
+    expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: sanctum.dlevel })).toBe(G.sanctum);
+    run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: sanctum.dlevel }, 'random'));
     expect(getLevel(state).def).toBe('nh:hellfill'); // m17 step 3
     // an ordinary level has none, and the main dungeon's specials are not Gehennom's
     const taken = new Set(hell(state).special.map((s) => s.dlevel));
