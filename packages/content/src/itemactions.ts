@@ -1,10 +1,12 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
-import { isLava, isPool } from './liquid';
+import { isIce, isLava, isPool } from './liquid';
 import { breathless, likesLavaId, uinwater, wwalking } from './uwater';
 import { floorEffectsLate } from './floorfx';
 import { cantWieldCorpse, fatalCorpseMistake } from './stonetouch';
-import { digests, isSwallowed, uswallow } from './engulfstate';
+import { digests, engulferOf, isSwallowed, uswallow } from './engulfstate';
+import { readEngrAt } from './engrread';
+import { canReachFloor } from './reach';
 import { monNam } from './perception';
 import {
   NORMAL_SPEED,
@@ -204,39 +206,157 @@ export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null 
   return t.door !== undefined || t.stairs !== undefined || FEATURES.has(id) ? `@${id}` : null;
 }
 
-/**
- * What is here after moving onto a cell with objects, as pickup() -> check_here() -> look_here()
- * with autopickup off: the dungeon feature ("There is a fountain here."), then "You see here X.",
- * one line listing up to 4, or "There are several objects here.". Stops multi-turn movement
- * (travel). Nothing while she floats: pickup() returns when she cannot reach the floor.
- * ref: src/pickup.c pickup(1), check_here(), src/invent.c look_here() with pile_limit 5.
- * Not ported: engravings, traps, blindness, describe_decor() while floating.
- */
-export function lookHere(ctx: Ctx): void {
-  const pos = hero(ctx).c.pos;
-  // no look in a pool (she is not under it) or in lava: pickup(1)
-  if (!pos || levitating(ctx) || bottomHidden(ctx)) return;
-  const here = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y);
-  const ct = here.length;
-  if (ct === 0) return;
-  ctx.interrupt();
-  const feature = dfeatureAt(ctx, pos.x, pos.y);
-  if (feature !== null) ctx.emit({ type: 'msg', key: 'look.feature', params: { feature } });
-  if (ct >= 5) {
-    ctx.emit({ type: 'msg', key: ct < 10 ? 'look.several' : 'look.many' });
-  } else if (ct === 1) {
-    const only = here[0];
-    if (only) ctx.emit({ type: 'msg', key: 'look.one', params: { item: nameQty(ctx, only) } });
-  } else {
-    // ref: src/invent.c look_here(): 2..4 objects are a "Things that are here:" popup; the player
-    // chose one message-log line instead (DEVIATIONS.md): "There are a dagger and a scroll here."
+/** One line for 2..4 objects (DEVIATIONS.md "Item piles"), else a header and a line each. */
+function listObjects(ctx: Ctx, objs: readonly Entity[], header: Msg): void {
+  const ct = objs.length;
+  if (ct <= 4) {
+    // ref: src/invent.c look_here(): 2..4 objects are a "Things that are here:" popup; the
+    // player chose one message-log line instead (DEVIATIONS.md): "There are a dagger and a
+    // scroll here."
     ctx.emit({
       type: 'msg',
       key: `look.list${ct}`,
-      params: Object.fromEntries(here.map((e, i) => ['abcd'[i] ?? 'd', nameQty(ctx, e)])),
+      params: Object.fromEntries(objs.map((e, i) => ['abcd'[i] ?? 'd', nameQty(ctx, e)])),
     });
+    return;
   }
+  ctx.emit({ type: 'msg', ...header });
+  for (const e of objs)
+    ctx.emit({ type: 'msg', key: 'look.item', params: { item: nameQty(ctx, e) } });
 }
+
+/**
+ * Looks at what is here: in an engulfer, its stomach; else a seen trap, the dungeon feature
+ * ("There is a fountain here."), the engraving and the objects: "You see here X.", a list, or
+ * with `objCnt` 5 or more (`pile_limit`) "There are several objects here.". Blind, she feels
+ * ("You try to feel what is lying here on the floor.") unless she cannot reach the floor.
+ * Returns the time taken: a move when blind. ref: src/invent.c look_here() with pile_limit 5.
+ * Not ported: gas clouds (no regions), the thickness of ice (ice_descr()), feeling a cockatrice
+ * corpse, the air and water levels.
+ */
+function lookHereAt(ctx: Ctx, objCnt: number): number {
+  const pos = hero(ctx).c.pos;
+  if (!pos) return 0;
+  const blind = hasProp(hero(ctx), P.BLINDED);
+  const time = blind ? NORMAL_SPEED : 0;
+  const skipObjects = objCnt >= 5;
+  const engulfer = engulferOf(ctx.state);
+  if (engulfer !== null) {
+    const mon = ctx.state.entities[String(engulfer)];
+    if (!mon) return time;
+    ctx.emit({
+      type: 'msg',
+      key: blind ? 'look.stomach_feel' : 'look.stomach',
+      params: { mon: monNam(ctx, mon) },
+    });
+    const inv = inventoryOf(ctx.state, engulfer);
+    if (inv.length === 0) ctx.emit({ type: 'msg', key: blind ? 'look.none_feel' : 'look.none' });
+    else if (inv.length === 1 && inv[0])
+      ctx.emit({
+        type: 'msg',
+        key: blind ? 'look.one_feel' : 'look.one',
+        params: { item: nameQty(ctx, inv[0]) },
+      });
+    else listObjects(ctx, inv, { key: blind ? 'look.things_feel' : 'look.things' });
+    return time;
+  }
+  const level = getLevel(ctx.state, pos.level);
+  const here = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y);
+  const trap = trapAt(level, pos.x, pos.y);
+  if (!skipObjects && trap?.seen)
+    ctx.emit({ type: 'msg', key: 'look.trap', params: { trap: `@${trap.def}` } });
+  const feature = dfeatureAt(ctx, pos.x, pos.y);
+  let skipFeature = false;
+  if (blind) {
+    if (feature !== null && typeof feature === 'object') {
+      // an altar: don't say "altar" twice, dfeature has more info
+      ctx.emit({ type: 'msg', key: 'look.feel_here' });
+    } else if (isIce(ctx, level, pos.x, pos.y)) {
+      // "There is ice here.  You try to feel what is on it." (force_decor())
+      ctx.emit({ type: 'msg', key: 'look.ice_here' });
+      ctx.emit({ type: 'msg', key: 'look.feel_on_ice' });
+      skipFeature = true;
+    } else {
+      const cantReach = !canReachFloor(ctx, true);
+      ctx.emit({
+        type: 'msg',
+        key: cantReach ? 'look.feel_beneath' : 'look.feel_on',
+        params: { surface: surfaceKey(ctx, level, pos.x, pos.y) },
+      });
+    }
+    if (!canReachFloor(ctx, !!trap && isPit(trap.def))) {
+      ctx.emit({ type: 'msg', key: 'look.cant_reach_it' });
+      return 0;
+    }
+  }
+  const sayFeature = (): void => {
+    if (feature !== null && !skipFeature)
+      ctx.emit({ type: 'msg', key: 'look.feature', params: { feature } });
+  };
+  if (here.length === 0 || bottomHidden(ctx)) {
+    sayFeature();
+    readEngrAt(ctx, pos.x, pos.y); // Eric Backus
+    if (!skipObjects && (blind || feature === null))
+      ctx.emit({ type: 'msg', key: blind ? 'look.none_feel' : 'look.none' });
+    return time;
+  }
+  // we know there is something here
+  if (skipObjects) {
+    sayFeature();
+    readEngrAt(ctx, pos.x, pos.y);
+    ctx.emit({ type: 'msg', key: objCnt < 10 ? 'look.several' : 'look.many' });
+  } else if (here.length === 1) {
+    sayFeature();
+    readEngrAt(ctx, pos.x, pos.y);
+    const only = here[0];
+    if (only)
+      ctx.emit({
+        type: 'msg',
+        key: blind ? 'look.one_feel' : 'look.one',
+        params: { item: nameQty(ctx, only) },
+      });
+  } else {
+    // the feature and the list are one window, then the engraving
+    sayFeature();
+    listObjects(ctx, here, { key: blind ? 'look.things_feel' : 'look.things' });
+    readEngrAt(ctx, pos.x, pos.y);
+  }
+  return time;
+}
+
+/**
+ * What is here after arriving on a square, as pickup(1) with autopickup off: the engraving alone
+ * when there are no objects, they lie under water or lava, or she cannot reach the floor
+ * (floating: the engraving is still read); else check_here(): the run stops and look_here()
+ * tells the feature, the engraving and the objects. Nothing while she is swallowed.
+ * ref: src/pickup.c pickup(1), check_here(); src/invent.c look_here(). Not ported: the skip
+ * while fainted or asleep (no unconscious()), `mention_decor` (off by default).
+ */
+export function lookHere(ctx: Ctx): void {
+  const pos = hero(ctx).c.pos;
+  if (!pos || isSwallowed(ctx)) return;
+  const level = getLevel(ctx.state, pos.level);
+  const ct = itemsAt(ctx.defs, ctx.state, pos.level, pos.x, pos.y).length;
+  // no look in a pool (she is not under it) or in lava
+  if (ct === 0 || bottomHidden(ctx)) {
+    readEngrAt(ctx, pos.x, pos.y);
+    return;
+  }
+  // no pickup if levitating: `autopickup && !flags.pickup` always reads
+  const t = trapAt(level, pos.x, pos.y);
+  if (!canReachFloor(ctx, !!t && isPit(t.def))) {
+    readEngrAt(ctx, pos.x, pos.y);
+    return;
+  }
+  ctx.interrupt();
+  lookHereAt(ctx, ct);
+}
+
+/**
+ * The `:` command: look_here() with no pile limit; a move when blind, else no time.
+ * ref: src/invent.c dolook()
+ */
+export const dolook = (ctx: Ctx): number => lookHereAt(ctx, 0);
 
 // ---------------------------------------------------------------------------------------------
 // pick up

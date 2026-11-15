@@ -1,5 +1,5 @@
 // Being swallowed: u.uswallow and u.uswldtim, kept in the content mod's data next to u.ustuck
-// (hackmove.ts). A leaf module: hackmove, combat, zap, buzz, dothrow, end, monmove and the
+// (hackmove.ts; ustuck() is read here). A leaf module: hackmove, combat, zap, buzz, dothrow, end, monmove and the
 // perception read it; engulf.ts and mhitu.ts write it.
 // ref: include/you.h u.uswallow, u.uswldtim; include/monst.h engulfing_u(); src/mon.c set_ustuck()
 import type { Ctx, EntityId, MonsterDef } from '@nh/core';
@@ -58,6 +58,31 @@ export function engulferOf(state: Readonly<Ctx['state']>): EntityId | null {
   )
     return null;
   return sw.mon;
+}
+
+/**
+ * The monster the hero is stuck to (u.ustuck), or null. A sticker that is gone, on another level
+ * or no longer next to the hero lets go (the checks of escape_from_sticky_mon() and m_move()).
+ * The id is kept in the content mod's data (set with hackmove.ts setUstuck()).
+ */
+export function ustuck(ctx: Pick<Ctx, 'state'>): EntityId | null {
+  const d = data(ctx.state);
+  const id = d?.ustuck ?? null;
+  if (!d || id === null) return null;
+  const m = ctx.state.entities[String(id)];
+  const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
+  const mp = m?.c.pos;
+  if (
+    !m?.c.monster ||
+    !mp ||
+    !hp ||
+    mp.level !== hp.level ||
+    Math.max(Math.abs(mp.x - hp.x), Math.abs(mp.y - hp.y)) > 1
+  ) {
+    d.ustuck = null;
+    return null;
+  }
+  return id;
 }
 
 /** u.uswallow */

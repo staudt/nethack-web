@@ -100,7 +100,7 @@ import { wereChange } from './were';
 import { heroForm, heroFormId, rehumanize } from './upoly';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { golemeffects } from './golemfx';
-import { hasHead, noncorporeal, nonliving } from './mondata';
+import { hasHead, noncorporeal, nonliving, sticks } from './mondata';
 import { engulfingU, flaming } from './engulfstate';
 import { isSlimed, makeSlimed, munslime, slimeproof } from './slimestate';
 import {
@@ -304,14 +304,8 @@ function uXkilled(ctx: Ctx, mdef: Entity, nocorpse = false): void {
     gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
 }
 
-/**
- * ref: include/mondata.h sticks(): a monster that holds what it hits (a sticky touch, a wrap
- * that isn't an engulf, a hug)
- */
-export const sticks = (def: MonsterDef): boolean =>
-  def.attacks.some(
-    (a) => a.ad === 'stck' || (a.ad === 'wrap' && !def.attacks.some((b) => b.at === 'engulf')),
-  ) || def.attacks.some((a) => a.at === 'hug');
+// sticks() moved to the leaf mondata.ts (reach.ts reads it); re-exported for its callers
+export { sticks };
 
 /** ref: src/mhitm.c slept_monst(): a sleeping grabber lets go */
 function sleptMonst(ctx: Ctx, mon: Entity): void {

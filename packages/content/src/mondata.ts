@@ -234,3 +234,12 @@ export const likesLava = (def: MonsterDef): boolean =>
   def.id === 'nh:fire_elemental' || def.id === 'nh:salamander';
 /** The S_EEL class (';'): the sea monsters. ref: include/defsym.h S_EEL */
 export const isEel = (def: MonsterDef): boolean => def.glyph.ch === ';';
+
+/**
+ * ref: include/mondata.h sticks(): a monster that holds what it hits (a sticky touch, a wrap
+ * that isn't an engulf, a hug)
+ */
+export const sticks = (def: MonsterDef): boolean =>
+  def.attacks.some(
+    (a) => a.ad === 'stck' || (a.ad === 'wrap' && !def.attacks.some((b) => b.at === 'engulf')),
+  ) || def.attacks.some((a) => a.at === 'hug');

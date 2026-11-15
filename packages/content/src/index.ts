@@ -24,6 +24,7 @@ import { registerCorpses } from './corpses';
 import { registerEggs } from './egg';
 import { registerFigurines } from './figurine';
 import { SIT_ACTIONS } from './dosit';
+import { ENGRAVE_ACTIONS } from './engrave';
 import { registerRevive } from './revive';
 import { registerHero } from './hero';
 import { ROLES } from './roles';
@@ -165,6 +166,7 @@ export const vanillaMod: Mod = {
     registerEat(api);
     registerEnd(api);
     for (const a of SIT_ACTIONS) api.defineAction(a);
+    for (const a of ENGRAVE_ACTIONS) api.defineAction(a);
     for (const a of QUIT_ACTIONS) api.defineAction(a);
     for (const b of BRAINS) api.defineBrain(b);
     for (const m of MONSTERS) api.defineMonster(m);
@@ -257,7 +259,20 @@ export { MONSTER_ID, monAbility, domonability } from './monability';
 export { JUMP_ID, jump, isValidJumpPos, validJumpPositions, walkPath } from './jump';
 export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt, spellLevPw } from './spellcalc';
 export { messagesEn } from './messages.en';
-export { ITEM_ACTIONS, lookHere, encumberMsg } from './itemactions';
+export { ITEM_ACTIONS, lookHere, dolook, encumberMsg } from './itemactions';
+export {
+  engrAt,
+  makeEngrAt,
+  delEngrAt,
+  sengrAt,
+  wipeoutText,
+  wipeEngrAt,
+  uWipeEngr,
+  engravingsOn,
+  type Engr,
+  type EngrType,
+} from './engr';
+export { LOOK_ID, readEngrAt } from './engrave';
 export { nomul } from './nomul';
 export {
   P,

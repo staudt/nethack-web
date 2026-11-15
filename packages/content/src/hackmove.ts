@@ -16,7 +16,7 @@ import { sokobanBoulder } from './boulder';
 import { nhData } from './items';
 import { P, hasProp } from './props';
 import { monNam } from './perception';
-import { setUswallow } from './engulfstate';
+import { setUswallow, ustuck } from './engulfstate';
 
 /** ref: src/decl.c dirs_ord[]: the order in which confdir() picks a random direction. */
 const DIRS_ORD: readonly Dir[] = ['w', 'n', 'e', 's', 'nw', 'ne', 'se', 'sw'];
@@ -39,30 +39,8 @@ export function uMaybeImpaired(ctx: Ctx): boolean {
 export const getdirImpaired = (ctx: Ctx, dir: Dir): Dir =>
   uMaybeImpaired(ctx) ? confdir(ctx) : dir;
 
-/**
- * The monster the hero is stuck to (u.ustuck), or null. A sticker that is gone, on another level
- * or no longer next to the hero lets go (the checks of escape_from_sticky_mon() and m_move()).
- * The id is kept in the content mod's data.
- */
-export function ustuck(ctx: Pick<Ctx, 'state'>): EntityId | null {
-  const d = nhData(ctx) as unknown as { ustuck?: EntityId | null };
-  const id = d.ustuck ?? null;
-  if (id === null) return null;
-  const m = ctx.state.entities[String(id)];
-  const hp = getPlayer(ctx.state).c.pos;
-  const mp = m?.c.pos;
-  if (
-    !m?.c.monster ||
-    !mp ||
-    !hp ||
-    mp.level !== hp.level ||
-    Math.max(Math.abs(mp.x - hp.x), Math.abs(mp.y - hp.y)) > 1
-  ) {
-    d.ustuck = null;
-    return null;
-  }
-  return id;
-}
+// ustuck() lives in the leaf engulfstate.ts (reach.ts reads it); re-exported for its callers
+export { ustuck };
 
 /** ref: src/mon.c set_ustuck(): no holder means not swallowed either */
 export function setUstuck(ctx: Pick<Ctx, 'state'>, id: EntityId | null): void {

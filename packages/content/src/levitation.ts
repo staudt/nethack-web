@@ -15,7 +15,6 @@
 // Module graph: float_down() ends in dotrap(), but trap.ts sits above this module (its rust trap
 // reaches jewelry.ts, which calls floatDown(), through erode.ts), so trap.ts hands its trigger in
 // at registration (`setFloatDownTrap`).
-import { engulferOf } from './engulfstate';
 import {
   getLevel,
   getPlayer,
@@ -32,6 +31,7 @@ import { setBootsLevitation } from './dowear';
 import { ustuck, setUstuck } from './hackmove';
 import { losehp } from './hp';
 import { encumberMsg, lookHere } from './itemactions';
+import { canReachFloor } from './reach';
 import { monNam } from './perception';
 import { P, hasExtrinsic, hasProp, setItimeout, setTimeoutExpiry, timeoutLeft } from './props';
 import { isSokoban } from './sokoban';
@@ -55,13 +55,8 @@ export function setFloatDownTrap(fn: (ctx: Ctx, trap: Trap) => void): void {
   floatDownTrap = fn;
 }
 
-/**
- * Whether the hero can reach the floor: not while swallowed or floating. ref: src/engrave.c
- * can_reach_floor() (no hugging stickers, steeds, hiders or polymorph; the seen-pit edge is not
- * ported)
- */
-export const canReachFloor = (ctx: Pick<Ctx, 'state'>): boolean =>
-  engulferOf(ctx.state) === null && !levitating(ctx);
+// can_reach_floor() is in the leaf reach.ts (the engraving code reads it too)
+export { canReachFloor };
 
 /**
  * Whether another source than `ring` gives levitation: Ring_on()'s `oldprop` (a second ring of

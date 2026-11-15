@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-175 NetHack files, 4644 citations.
+176 NetHack files, 4670 citations.
 
 ## dat/bigrm-1.lua
 
@@ -254,13 +254,17 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/core/src/types/state.ts`
 - `d_level()`: `packages/core/src/types/level.ts`
 
+## include/engrave.h
+
+- (file): `packages/content/src/engr.ts`
+
 ## include/flag.h
 
 - (file): `packages/content/src/generation.ts`, `packages/content/src/magic.ts`
 
 ## include/global.h
 
-- (file): `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/engr.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
@@ -413,7 +417,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `resists_ston()`: `packages/content/src/stonestate.ts`
 - `slimeproof()`: `packages/content/src/slimestate.ts`
 - `slithy()`: `packages/content/src/adtyping.ts`, `packages/content/src/dosit.ts`, `packages/content/src/mondata.ts`
-- `sticks()`: `packages/content/src/adtyping.ts`, `packages/content/src/polyself.ts`
+- `sticks()`: `packages/content/src/mondata.ts`, `packages/content/src/polyself.ts`
 - `strongmonst()`: `packages/content/src/mondata.ts`
 - `telepathic()`: `packages/content/src/givit.ts`, `packages/content/src/polyself.ts`, `packages/content/src/price.ts`
 - `thick_skinned()`: `packages/content/src/dokick.ts`
@@ -727,7 +731,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/cmd.c
 
-- (file): `packages/app/src/keys.ts`, `packages/content/src/actions.ts`, `packages/content/src/dosit.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/index.ts`, `packages/ui/src/host.ts`
+- (file): `packages/app/src/keys.ts`, `packages/content/src/actions.ts`, `packages/content/src/dosit.ts`, `packages/content/src/engrave.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/index.ts`, `packages/ui/src/host.ts`
 - `NHKF_GETPOS_VALID_NEXT()`: `packages/ui/src/getpos.ts`
 - `commands_init()`: `packages/app/src/keys.ts`
 - `confdir()`: `packages/content/src/dig.ts`, `packages/content/src/hackmove.ts`
@@ -1146,8 +1150,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/engrave.c
 
-- (file): `packages/content/src/levitation.ts`
-- `can_reach_floor()`: `packages/content/src/levitation.ts`
+- (file): `packages/content/src/engrave.ts`
+- `can_reach_floor()`: `packages/content/src/levitation.ts`, `packages/content/src/reach.ts`
+- `del_engr()`: `packages/content/src/engr.ts`
+- `del_engr_at()`: `packages/content/src/engr.ts`
+- `engr_at()`: `packages/content/src/engr.ts`
+- `engr_can_be_felt()`: `packages/content/src/engrread.ts`
+- `make_engr_at()`: `packages/content/src/engr.ts`
+- `read_engr_at()`: `packages/content/src/engrave.en.ts`, `packages/content/src/engrread.ts`
+- `sengr_at()`: `packages/content/src/engr.ts`
+- `u_wipe_engr()`: `packages/content/src/engr.ts`
+- `wipe_engr_at()`: `packages/content/src/engr.ts`
+- `wipeout_text()`: `packages/content/src/engr.ts`
 
 ## src/exper.c
 
@@ -1298,6 +1312,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dfeature_at()`: `packages/content/src/itemactions.ts`
 - `display_inventory()`: `packages/content/src/disclose.ts`
 - `display_pickinv()`: `packages/content/src/wizard/identify.ts`
+- `dolook()`: `packages/content/src/engrave.ts`, `packages/content/src/itemactions.ts`
 - `findgold()`: `packages/content/src/mongear.ts`
 - `freeinv()`: `packages/content/src/items.ts`
 - `freeinv_core()`: `packages/content/src/items.ts`
@@ -2489,7 +2504,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/trap.c
 
-- (file): `packages/content/src/magictrap.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/magictrap.ts`, `packages/content/src/reach.ts`, `packages/core/src/types/mod.ts`
 - `acid_damage()`: `packages/content/src/erode.ts`
 - `activate_statue_trap()`: `packages/content/src/statue.ts`
 - `adj_nonconjoined_pit()`: `packages/content/src/trap.ts`
@@ -2578,10 +2593,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `trapnote()`: `packages/content/src/trap.en.ts`
 - `try_disarm()`: `packages/content/src/untrap.en.ts`, `packages/content/src/untrap.ts`
 - `try_lift()`: `packages/content/src/untrap.ts`
+- `uescaped_shaft()`: `packages/content/src/reach.ts`
 - `unsqueak_ok()`: `packages/content/src/untrap.ts`
 - `untrap()`: `packages/content/src/untrap.ts`
 - `untrap_box()`: `packages/content/src/untrap.ts`
 - `untrap_prob()`: `packages/content/src/untrap.ts`
+- `uteetering_at_seen_pit()`: `packages/content/src/reach.ts`
 - `water_damage()`: `packages/content/src/erode.en.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/water.ts`
 - `water_damage_chain()`: `packages/content/src/water.ts`
 - `wearing_iron_shoes()`: `packages/content/src/trap.ts`
