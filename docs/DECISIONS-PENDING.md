@@ -222,3 +222,22 @@ The m17 planner (`~/.claude/plans/m17.md`, kickoff `docs/kickoff-m17.md`; 8 step
 15. Shades come with Orcus Town and are dropped with it.
 16. The demon court; covetous monsters ignore no-teleport levels.
 17. Fire traps among random traps on every special level, as NetHack (may move the golden; verified by a switch).
+
+## Taken (m18 monster batch 3, 2026-11-15)
+
+The m18 planner (`~/.claude/plans/m18.md`, kickoff `docs/kickoff-m18.md`; 7 steps, ~2.45M) marked all fourteen questions cheap to change later; the loop took each recommendation:
+
+1. The cut and drop order: step 7 (Angels and minions), then step 5's four stragglers, then step 5, then step 3. The beholder and the vampire mage are compiled out of 5.0, so neither is ported (ROADMAP corrected).
+2. Birth counts and the extinct list live in `modData.nh` with no save version bump; older saves start their counts at zero and keep the old "unique alive or died" test as a fallback.
+3. Shapeshifters through a content `cham` table (the true kind), born shifted as C does; no core change.
+4. Monster gender is drawn only for the amorous demon (a sparse table), not C's coin flip for every monster, which would move every random stream.
+5. The succubus is shown through the existing `shownAs` perception on the one row `nh:incubus`.
+6. `adj_erinys()` (erinyes strengthened by alignment abuse) is left out: it would need per-monster def overrides in core.
+7. **For the user to note:** `doseduce()` is ported whole with seduction on (5.0's default), replacing m9 decision 7 (seduction as theft).
+8. The grown-up table (`eggstate.ts`) is fixed to the port's row ids (it uses C's enum names today, so leaders, nobles and lords never grow up); may move the golden.
+9. The ring of protection from shape changers and the cream pie at C's probabilities (moves the golden in steps 3 and 6).
+10. Angels' artifact roll is drawn but the weapon stays plain (no artifacts).
+11. The doppelganger's top-ten lookup always takes C's no-entry branch (no record file).
+12. Mines' End variant 3's two vampires are restored, and the scripts' vampire and Angel spots are filled by class or id.
+13. `#wipe` is a new action (the creamed face).
+14. Core `MonsterSound` gains `'vampire'` and `'arrest'` (additive).
