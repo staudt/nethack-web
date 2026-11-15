@@ -14,8 +14,9 @@
 // A cancelled caster (`mcan`) only curses. An invisible hero is where the caster thinks she is
 // (`ap`, C's mux/muy: apparxy.ts), so a directed spell may go "at thin air". Not ported (see
 // DEVIATIONS.md "Monster spellcasting"): the M_SEEN resistance memory (`m_seenres()`,
-// `monstseesu()`), Half_spell_damage, the hero's displacement, the AD_FIRE/AD_COLD/AD_MAGM
-// AT_MAGC attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff().
+// `monstseesu()`), Half_spell_damage, the hero's displacement, the AD_FIRE/AD_COLD AT_MAGC
+// attacks (no such monster: their damage is dealt plainly), Deaf, Norep, shieldeff(). The
+// AD_MAGM one (a shower of missiles) scuffs the engraving under her (mon_spell_hits_spot()).
 // Destroy armor, summon nasties, clone wizard and touch of death are always useless, so they
 // are never chosen. Insects are always "insects" (no hallucinated names); no
 // Half_physical_damage or melting ice.
@@ -371,7 +372,16 @@ export function castmu(
   } else if (atk.d) dmg = ctx.rng.d(Math.trunc(ml / 2) + atk.n, atk.d);
   else dmg = ctx.rng.d(Math.trunc(ml / 2) + 1, 6);
 
-  if (isSpellAttack(atk)) {
+  if (atk.ad === 'magm') {
+    // the switch on the attack's damage type (AD_FIRE and AD_COLD: no such monster yet)
+    say(ctx, 'mcastu.missiles');
+    if (hasProp(getPlayer(ctx.state), P.ANTIMAGIC)) {
+      say(ctx, 'mcastu.missiles_bounce');
+      dmg = 0;
+    } else dmg = ctx.rng.d(Math.trunc(ml / 2) + 1, 6);
+    // shower of magic missiles scuffs an engraving
+    if (hp) monSpellHitsSpot(ctx, 'magic_missile', hp.x, hp.y);
+  } else if (isSpellAttack(atk)) {
     mcastSpell(ctx, mon, dmg, spellnum, aim);
     dmg = 0; // done by the spell casting functions
   }

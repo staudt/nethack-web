@@ -97,6 +97,25 @@ export function delEngrAt(
 }
 
 /**
+ * Moves the engraving at (x, y) to (tx, ty) of the same level, as it is (C changes its
+ * `engr_x`/`engr_y`). ref: src/engrave.c rloc_engr()
+ */
+export function moveEngr(
+  ctx: Pick<Ctx, 'state'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+  tx: number,
+  ty: number,
+): void {
+  const e = engrAt(ctx, level, x, y);
+  if (!e) return;
+  delEngrAt(ctx, level, x, y);
+  const t = table(ctx, true) as EngrTable;
+  (t[level.id] ??= {})[String(cellIndex(level, tx, ty))] = e;
+}
+
+/**
  * Writes `s` at (x, y), replacing what was there. `pristine` is the unworn text when `s` is
  * already worn (random engravings); `type` null picks a random one (`rnd(N_ENGRAVE - 1)`). An
  * "Elbereth" made with the level guards the objects on it (`in_mklev`).

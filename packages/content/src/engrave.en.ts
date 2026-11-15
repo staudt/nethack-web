@@ -32,6 +32,36 @@ export const engraveMessagesEn: Record<string, string> = {
   'engr.blindfold': "That is a bit difficult to engrave with, don't you think?",
   'engr.poison_pen': 'Writing a poison pen letter?',
 
+  // doengrave(), doengrave_sfx_item(), doengrave_sfx_item_WAN(): wands
+  'engr.gesture': 'You gesture, with your wand, towards the {surface} below you.',
+  'engr.wand_cant_reach':
+    "The wand does nothing more, and the tip of the wand can't reach the {surface}.",
+  'engr.too_worn': 'The wand is too worn out to engrave.',
+  'engr.vanishes': 'The engraving on the {surface} vanishes!',
+  'engr.is_digging': 'This {item} is a wand of digging!',
+  'engr.is_fire': 'This {item} is a wand of fire!',
+  'engr.is_lightning': 'This {item} is a wand of lightning!',
+  'engr.now_reads': 'The engraving now reads: {text}',
+  'engr.wand_dust': '{item|The} glows violently, then turns to dust.',
+  'engr.wand_dust_blind': '{item|The} turns to dust.',
+  'engr.dust_with_dust':
+    'You are not going to get anywhere trying to write in the {loc} with your dust.',
+  'engr.glow_fade': '{item|The} glows, then fades.',
+  'engr.post.striking': 'The wand unsuccessfully fights your attempt to write!',
+  'engr.post.bugs_slow': 'The bugs on the {surface} slow down!',
+  'engr.post.bugs_speed': 'The bugs on the {surface} speed up!',
+  'engr.post.bullet_holes': 'The {surface} is riddled by bullet holes!',
+  'engr.post.bugs_stop': 'The bugs on the {surface} stop moving!',
+  'engr.post.ice_cubes': 'A few ice cubes drop from the wand.',
+  'engr.post.drilling': 'You hear drilling!',
+  'engr.post.ice_chips': 'Ice chips fly up from the ice surface!',
+  'engr.post.splinters': 'Splinters fly up from the bridge.',
+  'engr.post.gravel': 'Gravel flies up from the floor.',
+  'engr.post.heat_up': 'You feel the wand heat up.',
+  'engr.post.flames': 'Flames fly from the wand.',
+  'engr.post.lightning': 'Lightning arcs from the wand.',
+  'engr.post.crackling': 'You hear crackling!',
+
   // doengrave(): the current engraving
   'engr.add_q': 'Do you want to add to the current engraving?',
   'engr.wipe_dust': 'You wipe out the message that was written in the dust here.',

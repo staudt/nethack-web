@@ -3,7 +3,8 @@
 // moves themselves (teleds(), tele(), level_tele(), rloc(), rloco()...) are in trap.ts, because
 // teleds() ends in the trap code and the traps call back into it.
 // ref: src/teleport.c noteleport_level(), goodpos(), teleok(), collect_coords(), safe_teleds(),
-// rloc(), rloc_pos_ok(), rloco(), random_teleport_level(); src/dungeon.c get_level()
+// rloc(), rloc_pos_ok(), rloco(), random_teleport_level(); src/dungeon.c get_level();
+// src/engrave.c rloc_engr()
 //
 // Not ported (see DEVIATIONS.md "Teleportation"): the demon court of Gehennom, covetous
 // monsters, the teleport regions of special levels (`dndest`/`updest`, tele_jump_ok()), the Wizard's
@@ -30,6 +31,7 @@ import {
 } from '@nh/core';
 import { onscary, scareCells } from './scary';
 import { boulderCells } from './boulder';
+import { engrAt, moveEngr } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { dungeonBottom, levelFlags } from './levelflags';
@@ -418,6 +420,29 @@ export function rlocoPos(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, level: Level)
     if (!--tryLimit) break;
   } while (!goodpos(o, tx, ty, null));
   return { x: tx, y: ty };
+}
+
+/**
+ * Moves the engraving at (x, y) of `level` to a random good position with no engraving: 200 tries
+ * of `rn1(COLNO - 3, 2), rn2(ROWNO)` (scaled to the level), else it stays.
+ * ref: src/engrave.c rloc_engr()
+ */
+export function rlocEngr(
+  ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
+  level: Level,
+  x: number,
+  y: number,
+): void {
+  const o = occupancy(ctx, level);
+  let tryct = 200;
+  let tx: number;
+  let ty: number;
+  do {
+    if (--tryct < 0) return;
+    tx = ctx.rng.rn2(Math.max(1, level.width - 3)) + 2;
+    ty = ctx.rng.rn2(level.height);
+  } while (engrAt(ctx, level, tx, ty) || !goodpos(o, tx, ty, null));
+  moveEngr(ctx, level, x, y, tx, ty);
 }
 
 /**

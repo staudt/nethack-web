@@ -1,6 +1,6 @@
-// Engravings: the `:` look command and the `E` engrave command (wands come with m16 step 3).
-// ref: src/engrave.c doengrave(), doengrave_sfx_item(), doengrave_ctx_verb(), engrave(),
-// stylus_ok(), u_can_engrave(); src/invent.c dolook()
+// Engravings: the `:` look command and the `E` engrave command.
+// ref: src/engrave.c doengrave(), doengrave_sfx_item(), doengrave_sfx_item_WAN(),
+// doengrave_ctx_verb(), engrave(), stylus_ok(), u_can_engrave(), blengr(); src/invent.c dolook()
 //
 // The state is engr.ts (a leaf) and reading it engrread.ts (a leaf for itemactions.ts); this
 // module holds the commands and may import game modules, so nothing below it imports it.
@@ -8,10 +8,12 @@
 // doengrave() is a small state machine over prompts: the stylus menu (C's getobj()), "Do you
 // want to add to the current engraving?" (yn), the text (getlin()), then the `engrave()`
 // occupation, whose data is C's `context.engraving`. The setup takes no time; the first
-// engraving action runs with the text answer (C runs it as the occupation's first call).
+// engraving action runs with the text answer (C runs it as the occupation's first call). A wand
+// spends a charge when chosen; a wand of wishing asks its wish first (a prompt whose answer
+// carries doengrave()'s state, then the engraving goes on as in C).
 // Not ported: magic markers and towels (no such objects), Fire Brand (no artifacts), graves and
 // headstones (m16 step 7), the literate conduct (no conducts), body_part() (always "fingertip"
-// and "hand"). Wands are engraved with as any other object until step 3 ports their effects.
+// and "hand"), Deaf (never deaf: "You hear drilling!").
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -28,6 +30,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { altarWrath } from './align';
+import { resistsBlnd } from './adtyping';
+import { isLoweredSpan } from './dbstate';
 import { uwepOf } from './combat';
 import { monsterNearby } from './eat';
 import { delEngrAt, engrAt, makeEngrAt, type EngrType } from './engr';
@@ -36,22 +40,31 @@ import { HARD_GEMS, TOUGH_RINGS } from './gem';
 import { dolook, invOption, prinv, welded } from './itemactions';
 import { splitStack } from './items';
 import { isIce, isLava, isPool } from './liquid';
-import { checkCapacity } from './magic';
+import { checkCapacity, useup } from './magic';
 import { cantwield } from './mondata';
 import { doname, xnameOf } from './objnam';
 import { mungspaces } from './objnam_read';
+import { isKnown } from './o_init';
 import { monNam } from './perception';
 import { freehand } from './pray';
 import { LAST } from './priority';
-import { P, heroHas, wornIn } from './props';
+import { P, heroHas, makeBlinded, wornIn } from './props';
 import { canReachFloor } from './reach';
+import { randomEngraving } from './rndengr';
+import { wandExplode } from './seffect';
+import { checkUnpaid } from './shk';
 import { isBlade } from './skills';
 import { isAnimal } from './steal';
 import { T, isObstructedId, surfaceKey, terrainIdAt } from './terrain';
 import { heroForm } from './upoly';
-import { holdAnotherObject } from './wish';
+import { rlocEngr } from './teleport';
+import { moreExperienced } from './urexp';
+import { answerWish, holdAnotherObject, type WishData } from './wish';
+import { WAN, learnwand, zapnodir, zappable } from './zap';
 
 export { readEngrAt, engrCanBeFelt } from './engrread';
+export { randomEngraving } from './rndengr';
+export { rlocEngr } from './teleport';
 
 /** The `:` command: look here. ref: src/invent.c dolook() */
 export const LOOK_ID: DefId = 'nh:look';
@@ -99,13 +112,65 @@ interface EngraveOcc {
   actionct: number;
 }
 
+/**
+ * doengrave()'s state once the stylus has had its effect (C's `struct _doengrave_ctx` fields).
+ * ref: src/engrave.c doengrave_ctx_init()
+ */
+interface SfxState {
+  /** The engraving type; null is C's `type = 0` (random), set only with a new `buf`. */
+  type: EngrType | null;
+  /** She goes on to write a text. */
+  ptext: boolean;
+  /** A wand's charge was used. */
+  zapwand: boolean;
+  /** The current engraving is deleted, or (`teleengr`) sent elsewhere on the level. */
+  dengr: boolean;
+  teleengr: boolean;
+  /** The wand identifies itself. */
+  doknown: boolean;
+  /** The lightning flash blinds her once she starts. */
+  doblind: boolean;
+  /** A new text replaces the engraving (polymorph), and its pristine copy. */
+  buf: string;
+  ebuf: string;
+  /** What is said once she starts engraving (C's `post_engr_text`). */
+  post: Msg | null;
+}
+
 /** The prompt data between doengrave()'s questions. */
 interface EngraveAsk {
-  stage: 'stylus' | 'add' | 'text';
+  stage: 'stylus' | 'wish' | 'add' | 'text';
   stylus?: EntityId | null;
   type?: EngrType;
   eow?: boolean;
+  /** The wish stage: the state to go on with after the wish. */
+  sfx?: SfxState;
+  /** A wand's charge was used: an empty text "glows, then fades" and takes a move. */
+  zapwand?: boolean;
+  /** Said once she starts engraving. */
+  post?: Msg | null;
+  /** The lightning flash blinds her once she starts. */
+  doblind?: boolean;
 }
+
+/** What the add and text stages carry over from the stylus's effects. */
+type WandExtras = Pick<EngraveAsk, 'zapwand' | 'post' | 'doblind'>;
+
+/** The names C's blind polymorphed engraving reads (blind_writing[], decrypted with xcrypt()). */
+const BLIND_WRITING: readonly string[] = [
+  'Ediard Asadov',
+  'Pedro Bucaneg',
+  'Howard Hille Johnson',
+  'John Milton',
+  'Petronella Moens',
+  'Maria Josefa Mujia',
+  'Melchiorre Murenu',
+  'Edith Ranum',
+  'Edward Rushton',
+];
+
+/** ref: include/hack.h WAND_BACKFIRE_CHANCE */
+const WAND_BACKFIRE_CHANCE = 100;
 
 const isOcc = (d: Json | undefined): d is Json & EngraveOcc =>
   !!d &&
@@ -200,12 +265,18 @@ function uCanEngrave(ctx: Ctx): boolean {
   return true;
 }
 
-/** "You can't reach the floor." (or the pit's bottom). ref: src/engrave.c cant_reach_floor() */
-function cantReachFloor(ctx: Ctx, h: Here): void {
-  say(ctx, 'lev.cant_reach_floor', {
+/**
+ * "You can't reach the floor." (or the pit's bottom); for a wand, "The wand does nothing more,
+ * and the tip of the wand can't reach the floor." ref: src/engrave.c cant_reach_floor()
+ */
+function cantReachFloor(ctx: Ctx, h: Here, wand = false): void {
+  say(ctx, wand ? 'engr.wand_cant_reach' : 'lev.cant_reach_floor', {
     surface: canReachFloor(ctx, false) ? '@engr.pit_bottom' : surfaceKey(ctx, h.level, h.x, h.y),
   });
 }
+
+const isWand = (ctx: Ctx, e: Entity | null): e is Entity =>
+  !!e && ctx.defs.object(e.def).class === 'wand';
 
 /** The `E` command: the stylus menu, fingers first, then the suggested items, then the rest. */
 function doengrave(ctx: Ctx): number {
@@ -224,39 +295,220 @@ function doengrave(ctx: Ctx): number {
   return 0;
 }
 
-/** What doengrave_sfx_item() decided: go on (with the type), stop (with the cost), or no text. */
-type Sfx = { go: true; type: EngrType; ptext: boolean } | { go: false; cost: number };
+/** What doengrave_sfx_item() decided: go on (`wish`: after the wish prompt), or stop. */
+type Sfx = { go: true; s: SfxState; wish: boolean } | { go: false; cost: number };
+
+/**
+ * A wand's own effect: directionless wands zap (a wish is asked), the immediate and ray wands
+ * tell their tale, digging engraves, fire and lightning burn (and identify themselves),
+ * polymorph rewrites the current engraving, cancellation and make invisible erase it,
+ * teleportation sends it away, cold erases a burned one. ref: src/engrave.c
+ * doengrave_sfx_item_WAN()
+ */
+function sfxWand(ctx: Ctx, wand: Entity, s: SfxState, h: Here, frosted: boolean): void {
+  const isBlind = blind(ctx);
+  const oep = engrAt(ctx, h.level, h.x, h.y);
+  const surface = surfaceKey(ctx, h.level, h.x, h.y);
+  const known = isKnown(ctx.state, ctx.defs, wand.def);
+  const identify = (key: string): void => {
+    if (!known) {
+      // flags.verbose
+      say(ctx, key, { item: xnameOf(ctx.state, ctx.defs, wand) });
+      s.doknown = true;
+    }
+  };
+  const vanishes = (): void => {
+    if (!isBlind) say(ctx, 'engr.vanishes', { surface });
+  };
+  switch (wand.def) {
+    // DUST wands
+    default:
+      break;
+    // NODIR wands
+    case WAN.light:
+    case WAN.secretDoor:
+    case WAN.stasis:
+    case WAN.createMonster:
+    case WAN.wishing:
+    case WAN.enlightenment:
+      // the wish comes back to the engrave action, which goes on from there
+      zapnodir(
+        ctx,
+        { kind: 'wand', item: wand },
+        {
+          action: ENGRAVE_ID,
+          data: { stage: 'wish', stylus: wand.id, sfx: { ...s } } satisfies EngraveAsk as never,
+        },
+      );
+      break;
+    // IMMEDIATE wands; if wand is "IMMEDIATE", remember to affect the previous engraving even
+    // if turning to dust
+    case WAN.striking:
+      s.post = { key: 'engr.post.striking' };
+      break;
+    case WAN.slow:
+      if (!isBlind) s.post = { key: 'engr.post.bugs_slow', params: { surface } };
+      break;
+    case WAN.speed:
+      if (!isBlind) s.post = { key: 'engr.post.bugs_speed', params: { surface } };
+      break;
+    case WAN.polymorph:
+      if (oep) {
+        if (!isBlind) {
+          s.type = null; // random
+          const r = randomEngraving(ctx);
+          s.buf = r.text;
+          s.ebuf = r.pristine;
+        } else {
+          // keep the same type so that feels don't change and only the text is altered, but you
+          // won't know anyway because you're a _blind writer_
+          s.type = oep.type;
+          s.buf = BLIND_WRITING[ctx.rng.rn2(BLIND_WRITING.length)] as string;
+        }
+        s.dengr = true;
+      }
+      break;
+    case WAN.nothing:
+    case WAN.undeadTurning:
+    case WAN.opening:
+    case WAN.locking:
+    case WAN.probing:
+      break;
+    // RAY wands
+    case WAN.magicMissile:
+      s.ptext = true;
+      if (!isBlind) s.post = { key: 'engr.post.bullet_holes', params: { surface } };
+      break;
+    // can't tell sleep from death - Eric Backus
+    case WAN.sleep:
+    case WAN.death:
+      if (!isBlind) s.post = { key: 'engr.post.bugs_stop', params: { surface } };
+      break;
+    case WAN.cold:
+    case WAN.cancellation:
+    case WAN.makeInvisible:
+      if (wand.def === WAN.cold) {
+        if (!isBlind) s.post = { key: 'engr.post.ice_cubes' };
+        if (!oep || oep.type !== 'burn') break;
+        // then as cancellation (C's FALLTHROUGH)
+      }
+      if (oep && oep.type !== 'headstone') {
+        vanishes();
+        s.dengr = true;
+      }
+      break;
+    case WAN.teleportation:
+      if (oep && oep.type !== 'headstone') {
+        vanishes();
+        s.teleengr = true;
+      }
+      break;
+    // type = ENGRAVE wands
+    case WAN.digging:
+      s.ptext = true;
+      s.type = 'engrave';
+      identify('engr.is_digging');
+      // (graves: m16 step 7, "Chips fly out from the headstone.")
+      s.post = {
+        key: isBlind
+          ? 'engr.post.drilling' // not Deaf
+          : frosted
+            ? 'engr.post.ice_chips'
+            : isLoweredSpan(h.level, h.x, h.y)
+              ? 'engr.post.splinters'
+              : 'engr.post.gravel',
+      };
+      break;
+    // type = BURN wands
+    case WAN.fire:
+      s.ptext = true;
+      s.type = 'burn';
+      identify('engr.is_fire');
+      s.post = { key: isBlind ? 'engr.post.heat_up' : 'engr.post.flames' };
+      break;
+    case WAN.lightning:
+      s.ptext = true;
+      s.type = 'burn';
+      identify('engr.is_lightning');
+      if (!isBlind) {
+        s.post = { key: 'engr.post.lightning' };
+        s.doblind = true;
+      } else s.post = { key: 'engr.post.crackling' }; // not Deaf
+      break;
+  }
+}
 
 /**
  * The stylus's own effect on the engraving type: hard gems and rings engrave, boots write in the
  * dust, blades engrave unless welded or too dull; large objects, food, scrolls and books refuse
- * (that takes a move); a worn blindfold refuses at once. Wands are step 3: the default here.
- * ref: src/engrave.c doengrave_sfx_item()
+ * (that takes a move); a worn blindfold refuses at once; a wand spends a charge (or turns to
+ * dust, or explodes) and has its own effect. ref: src/engrave.c doengrave_sfx_item()
  */
 function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boolean, h: Here): Sfx {
-  if (!stylus) return { go: true, type, ptext: true }; // RANDOM_CLASS: fingers
+  const s: SfxState = {
+    type,
+    ptext: true,
+    zapwand: false,
+    dengr: false,
+    teleengr: false,
+    doknown: false,
+    doblind: false,
+    buf: '',
+    ebuf: '',
+    post: null,
+  };
+  if (!stylus) return { go: true, s, wish: false }; // RANDOM_CLASS: fingers
   const def = ctx.defs.object(stylus.def);
   switch (def.class) {
     case 'ring': // "diamond" rings and others should work
     case 'gem':
       // diamonds & other hard gems should work
-      if ((def.class === 'ring' ? TOUGH_RINGS : HARD_GEMS).has(def.id)) type = 'engrave';
+      if ((def.class === 'ring' ? TOUGH_RINGS : HARD_GEMS).has(def.id)) s.type = 'engrave';
       break;
     case 'armor':
     case 'rock':
       if (def.class === 'armor' && def.armor?.slot === 'boots') {
-        type = 'dust';
+        s.type = 'dust';
         break;
       }
       // other armor and objects too large to engrave with
       say(ctx, 'engr.too_large');
-      return { go: true, type, ptext: false };
+      s.ptext = false;
+      break;
     case 'food':
     case 'scroll':
     case 'spellbook':
       // objects too silly to engrave with
       say(ctx, frosted ? 'engr.too_frosty' : 'engr.too_dirty', { item: yname(ctx, stylus) });
-      return { go: true, type, ptext: false };
+      s.ptext = false;
+      break;
+    // The charge is removed from the wand before prompting for the engraving text, because all
+    // kinds of setup decisions and pre-engraving messages are based upon knowing what type of
+    // engraving the wand is going to do. Also, the player will have potentially seen "You wrest
+    // .." message, and therefore will know they are using a charge.
+    case 'wand':
+      if (zappable(ctx, stylus)) {
+        checkUnpaid(ctx, stylus);
+        if (stylus.c.item?.buc === 'cursed' && !ctx.rng.rn2(WAND_BACKFIRE_CHANCE)) {
+          wandExplode(ctx, stylus, 0);
+          return { go: false, cost: NORMAL_SPEED };
+        }
+        s.zapwand = true;
+        if (!canReachFloor(ctx, true)) s.ptext = false;
+        sfxWand(ctx, stylus, s, h, frosted);
+        if (ctx.state.pendingPrompt) return { go: true, s, wish: true };
+      } else {
+        // failing to wrest one last charge takes time
+        s.ptext = false; // use "early exit" below, return 1
+        // give feedback here if we won't be getting the "can't reach floor" message below
+        if (canReachFloor(ctx, true)) {
+          // cancelled wand turns to dust
+          if ((stylus.c.item?.spe ?? 0) < 0) s.zapwand = true;
+          // empty wand just doesn't write
+          else say(ctx, 'engr.too_worn');
+        }
+      }
+      break;
     case 'weapon':
       // Fire Brand would BURN (no artifacts)
       if (isBlade(def)) {
@@ -268,7 +520,7 @@ function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boole
           });
         else if ((stylus.c.item?.spe ?? 0) <= -3)
           say(ctx, `engr.too_dull${plural(stylus)}`, { item: yname(ctx, stylus) });
-        else type = 'engrave';
+        else s.type = 'engrave';
       }
       break;
     case 'tool':
@@ -282,15 +534,16 @@ function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boole
       say(ctx, 'engr.poison_pen');
       break;
     default:
-      // amulets, potions, coins; wands until m16 step 3
+      // amulets, potions, coins
       break;
   }
-  return { go: true, type, ptext: true };
+  return { go: true, s, wish: false };
 }
 
 /**
- * doengrave() once the stylus is chosen: a free hand, the jelly engulfer, reaching the floor,
- * the altar, the stylus's effect, then the add question. ref: src/engrave.c doengrave()
+ * doengrave() once the stylus is chosen: a free hand, the jelly engulfer, reaching the floor
+ * (a wand only gestures), the altar, the stylus's effect, then afterSfx().
+ * ref: src/engrave.c doengrave()
  */
 function withStylus(ctx: Ctx, stylus: Entity | null): number {
   const h = heroHere(ctx);
@@ -309,13 +562,17 @@ function withStylus(ctx: Ctx, stylus: Entity | null): number {
     say(ctx, 'engr.dissolves');
     return 0;
   }
+  let initialMsgGiven = false;
   if (!canReachFloor(ctx, true)) {
-    // a wand gestures towards the floor (step 3)
-    cantReachFloor(ctx, h);
-    return 0;
+    if (!isWand(ctx, stylus)) {
+      cantReachFloor(ctx, h);
+      return 0;
+    }
+    say(ctx, 'engr.gesture', { surface: surfaceKey(ctx, h.level, h.x, h.y) });
+    initialMsgGiven = true;
   }
   if (terrainIdAt(h.level, h.x, h.y)?.startsWith('nh:altar_') === true) {
-    say(ctx, 'engr.altar_motion', { writer });
+    if (!initialMsgGiven) say(ctx, 'engr.altar_motion', { writer });
     altarWrath(ctx, h.x, h.y);
     return 0;
   }
@@ -326,27 +583,93 @@ function withStylus(ctx: Ctx, stylus: Entity | null): number {
   const frosted = isIce(ctx, h.level, h.x, h.y);
   const sfx = sfxItem(ctx, stylus, type, frosted, h);
   if (!sfx.go) return sfx.cost;
-  // early exit for some implements
-  if (!sfx.ptext) return NORMAL_SPEED;
-  return askAdd(ctx, h, stylus?.id ?? null, sfx.type);
+  // a wand of wishing: the wish's answer goes on with afterSfx()
+  if (sfx.wish) return 0;
+  return afterSfx(ctx, h, stylus, sfx.s);
 }
 
-/** "Do you want to add to the current engraving?" when the types match. */
-function askAdd(ctx: Ctx, h: Here, stylus: EntityId | null, type: EngrType): number {
-  const oep = engrAt(ctx, h.level, h.x, h.y);
+/**
+ * The rest of the implement setup: identify the wand, send the old engraving away or delete it,
+ * write a polymorphed one ("The engraving now reads: ..."), a cancelled wand turns to dust, the
+ * early exit for implements that write nothing; then the add question.
+ * ref: src/engrave.c doengrave()
+ */
+function afterSfx(ctx: Ctx, h: Here, stylusIn: Entity | null, s: SfxState): number {
+  const { level, x, y } = h;
+  let stylus = stylusIn;
+  let ptext = s.ptext;
+  // (graves: m16 step 7)
+  // Identify stylus
+  if (s.doknown && stylus) {
+    learnwand(ctx, stylus);
+    if (isKnown(ctx.state, ctx.defs, stylus.def)) moreExperienced(ctx, 0, 10);
+  }
+  let oepGone = false;
+  if (s.teleengr) {
+    rlocEngr(ctx, level, x, y);
+    oepGone = true;
+  }
+  if (s.dengr) {
+    delEngrAt(ctx, level, x, y);
+    oepGone = true;
+  }
+  // Something has changed the engraving here
+  if (s.buf) {
+    makeEngrAt(ctx, level, x, y, s.buf, s.ebuf, ctx.state.turn, s.type);
+    if (!blind(ctx)) say(ctx, 'engr.now_reads', { text: `"${s.buf}".` });
+    ptext = false;
+  }
+  if (s.zapwand && stylus && (stylus.c.item?.spe ?? 0) < 0) {
+    say(ctx, blind(ctx) ? 'engr.wand_dust_blind' : 'engr.wand_dust', {
+      item: xnameOf(ctx.state, ctx.defs, stylus),
+    });
+    // (not on a grave: m16 step 7)
+    say(ctx, 'engr.dust_with_dust', {
+      loc: isIce(ctx, level, x, y) ? '@engr.loc.frost' : '@engr.loc.dust',
+    });
+    useup(ctx, stylus.id);
+    stylus = null; // wand is now gone
+    ptext = false;
+  }
+  // Early exit for some implements.
+  if (!ptext) {
+    if (isWand(ctx, stylus) && !canReachFloor(ctx, true)) cantReachFloor(ctx, h, true);
+    return NORMAL_SPEED;
+  }
+  return askAdd(ctx, h, stylus?.id ?? null, s.type ?? 'dust', oepGone, {
+    zapwand: s.zapwand,
+    post: s.post,
+    doblind: s.doblind,
+  });
+}
+
+/**
+ * "Do you want to add to the current engraving?" when the types match. `oepGone`: the stylus
+ * deleted or moved the old one (C's `oep = 0`), so there is nothing to add to.
+ */
+function askAdd(
+  ctx: Ctx,
+  h: Here,
+  stylus: EntityId | null,
+  type: EngrType,
+  oepGone: boolean,
+  extras: WandExtras,
+): number {
+  const oep = oepGone ? null : engrAt(ctx, h.level, h.x, h.y);
   if (oep) {
     // Give player the choice to add to engraving.
-    if (type === 'headstone') return afterAdd(ctx, h, stylus, type, 'y');
+    if (type === 'headstone') return afterAdd(ctx, h, stylus, type, 'y', false, extras);
     if (type === oep.type && (!blind(ctx) || oep.type === 'burn' || oep.type === 'engrave')) {
       ctx.ask({ id: 'engrave-add', kind: 'yn', key: 'engr.add_q', cancellable: true }, ENGRAVE_ID, {
         stage: 'add',
         stylus,
         type,
+        ...extras,
       } satisfies EngraveAsk as unknown as Json);
       return 0;
     }
   }
-  return afterAdd(ctx, h, stylus, type, 'n');
+  return afterAdd(ctx, h, stylus, type, 'n', oepGone, extras);
 }
 
 const isWipeable = (t: EngrType): boolean => t === 'dust' || t === 'blood' || t === 'mark';
@@ -386,12 +709,14 @@ function afterAdd(
   stylusId: EntityId | null,
   type: EngrType,
   c: 'y' | 'n',
+  oepGone: boolean,
+  extras: WandExtras,
 ): number {
   const { level, x, y } = h;
   const frosted = isIce(ctx, level, x, y);
   const isBlind = blind(ctx);
   let eow = false;
-  const oep = engrAt(ctx, level, x, y);
+  const oep = oepGone ? null : engrAt(ctx, level, x, y);
   if (oep) {
     if (c === 'n' || isBlind) {
       if (isWipeable(oep.type)) {
@@ -431,7 +756,7 @@ function afterAdd(
       return NORMAL_SPEED;
     }
   }
-  const adding = engrAt(ctx, level, x, y) !== null && !eow;
+  const adding = !oepGone && engrAt(ctx, level, x, y) !== null && !eow;
   const verb = verbOf(type, adding, frosted);
   const loc =
     type === 'dust'
@@ -462,7 +787,13 @@ function afterAdd(
       maxLength: TEXT_MAX,
     },
     ENGRAVE_ID,
-    { stage: 'text', stylus: stylusId, type, eow } satisfies EngraveAsk as unknown as Json,
+    {
+      stage: 'text',
+      stylus: stylusId,
+      type,
+      eow,
+      ...extras,
+    } satisfies EngraveAsk as unknown as Json,
   );
   return 0;
 }
@@ -483,6 +814,12 @@ function answerText(ctx: Ctx, value: Json, d: EngraveAsk): number {
   // Count the actual # of chars engraved not including spaces
   const len = ebuf.replace(/ /g, '').length;
   if (len === 0) {
+    if (d.zapwand) {
+      const wand = heroItem(ctx, stylusId);
+      if (!blind(ctx) && wand)
+        say(ctx, 'engr.glow_fade', { item: xnameOf(ctx.state, ctx.defs, wand) });
+      return NORMAL_SPEED;
+    }
     say(ctx, 'engr.never_mind');
     return 0;
   }
@@ -523,6 +860,12 @@ function answerText(ctx: Ctx, value: Json, d: EngraveAsk): number {
     action: { type: 'mod', action: ENGRAVE_ID },
     data: occ as unknown as Json,
   };
+  if (d.post) ctx.emit({ type: 'msg', ...d.post });
+  if (d.doblind && !resistsBlnd(ctx, getPlayer(ctx.state))) {
+    say(ctx, 'zap.blinded_flash');
+    makeBlinded(ctx, ctx.rng.rnd(50), false);
+    // `if (!Blind) Your1(vision_clears)`: the Eyes of the Overworld do not exist
+  }
   // Engraving always takes at least one action, run as the occupation: its first one is now
   engrave(ctx, ctx.state.occupation.data as Json & EngraveOcc);
   if (ctx.state.occupation && !continuesEngraving(ctx)) ctx.state.occupation = null;
@@ -717,13 +1060,33 @@ const engraveAction: ActionDef = {
       const stylus = heroItem(ctx, value);
       return stylus ? withStylus(ctx, stylus) : 0;
     }
+    if (d.stage === 'wish') {
+      // the wand of wishing's wish (makewish()), then doengrave() goes on
+      answerWish(ctx, ENGRAVE_ID, value, raw as unknown as WishData);
+      if (ctx.state.pendingPrompt) return 0;
+      if (ctx.state.gameOver || !d.sfx) return NORMAL_SPEED;
+      const wand = heroItem(ctx, d.stylus);
+      return wand ? afterSfx(ctx, h, wand, d.sfx) : NORMAL_SPEED;
+    }
     if (d.stage === 'add') {
       if (value === null) {
         // 'q'
         say(ctx, 'engr.never_mind');
         return 0;
       }
-      return afterAdd(ctx, h, d.stylus ?? null, d.type ?? 'dust', value === true ? 'y' : 'n');
+      return afterAdd(
+        ctx,
+        h,
+        d.stylus ?? null,
+        d.type ?? 'dust',
+        value === true ? 'y' : 'n',
+        false,
+        {
+          zapwand: d.zapwand ?? false,
+          post: d.post ?? null,
+          doblind: d.doblind ?? false,
+        },
+      );
     }
     return answerText(ctx, value, d);
   },

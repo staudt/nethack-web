@@ -9,6 +9,8 @@ export const mcastuMessagesEn: Record<string, string> = {
   'mcastu.something_thin_air': 'Something casts a spell at thin air!',
   'mcastu.air_crackles': 'The air crackles around {mon|the}.',
   'mcastu.casts': '{mon|The} casts a spell!',
+  'mcastu.missiles': 'You are hit by a shower of missiles!',
+  'mcastu.missiles_bounce': 'The missiles bounce off!',
   'mcastu.casts_at_you': '{mon|The} casts a spell at you!',
   'mcastu.something_casts': 'Something casts a spell!',
   'mcastu.something_casts_at_you': 'Something casts a spell at you!',

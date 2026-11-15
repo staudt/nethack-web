@@ -18,7 +18,9 @@
 // (cancel_monst(), cancel_item()). Undead turning hurts undead and revives corpses (revive.ts
 // revive(), unturnDead()); enlightenment shows the attribute list (enlightenment.ts).
 //
-// Not ported (see DEVIATIONS.md): engraving, breaking (applying) wands, the wands
+// A down zap hits the engraving under her (zap_map()'s `u.dz > 0` block); engraving with a wand
+// is engrave.ts, which uses zappable() and zapnodir().
+// Not ported (see DEVIATIONS.md): breaking (applying) wands, the wands
 // outside the subset, monster reflection (no monster can reflect yet), lightning blinding
 // monsters, the Deaf/Half_spell_damage/steed/engulfing cases, mimics, shops,
 // the ray animation. Opening, locking, striking and their spells work drawbridges (zap_map(),
@@ -138,7 +140,9 @@ import { T, isFurnitureId } from './terrain';
 import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
 import { TRAP, dotrap, isMagicalTrap, mintrap, tele, teleControlled, uTeleportMon } from './trap';
-import { setStasis } from './teleport';
+import { rlocEngr, setStasis } from './teleport';
+import { delEngrAt, engrAt, makeEngrAt, wipeEngrAt } from './engr';
+import { randomEngraving } from './rndengr';
 import { isMtrapped, levitating, setMtrapped, setUtrap, utrap } from './trapstate';
 import { fixPetrification, isStoned } from './stonestate';
 import { merged } from './items';
@@ -1283,7 +1287,7 @@ const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
  * under her (teleportation sends them away); stone to flesh bleeds from the ceiling or pools at
  * her feet when nothing lies there. Opening at a raised portcullis lowers its drawbridge;
  * locking (striking) down on a lowered bridge or at its open portcullis raises (destroys) it.
- * ref: src/zap.c zap_updown() (no engravings, quest stairs or hiding under objects)
+ * ref: src/zap.c zap_updown() (no quest stairs or hiding under objects)
  */
 function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
   const otyp = otypOf(src);
@@ -1322,10 +1326,13 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
       }
       break;
     case SPE.stoneToFlesh:
-      // (no air or water levels, no engravings)
+      // (no air or water levels)
       if (dir === 'up') say(ctx, 'zap.stf.blood_drips');
-      else if (itemsHere(ctx, x, y).length === 0)
-        say(ctx, levitating(ctx) ? 'zap.stf.blood_pools_beneath' : 'zap.stf.blood_pools');
+      else if (itemsHere(ctx, x, y).length === 0) {
+        // Print this message only if there wasn't an engraving affected here.
+        if (engrAt(ctx, level, x, y)?.type !== 'engrave')
+          say(ctx, levitating(ctx) ? 'zap.stf.blood_pools_beneath' : 'zap.stf.blood_pools');
+      }
       break;
     case WAN.striking:
     case SPE.forceBolt:
@@ -1388,8 +1395,51 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
     bhitpile(ctx, src, x, y);
     // zap_map(): cancellation blows up the magical trap under her
     if (!ctx.state.gameOver) maybeExplodeTrap(ctx, src, x, y);
+    if (!ctx.state.gameOver) zapMapEngraving(ctx, src, levelOf(ctx), x, y);
   }
   return disclose;
+}
+
+/**
+ * A down zap at the engraving there (not a headstone): polymorph makes a new random one,
+ * cancellation and make invisible erase it, teleportation sends it elsewhere on the level, stone
+ * to flesh smooths an engraved one and striking and force bolt scuff it. None of these discloses
+ * the wand. ref: src/zap.c zap_map() (`u.dz > 0`)
+ */
+function zapMapEngraving(ctx: Ctx, src: ZapSource, level: Level, x: number, y: number): void {
+  const e = engrAt(ctx, level, x, y);
+  // subset of engraving effects; none sets `disclose'
+  if (!e || e.type === 'headstone') return;
+  const otyp = otypOf(src);
+  switch (caseOf(otyp)) {
+    case WAN.polymorph:
+    case SPE.polymorph: {
+      delEngrAt(ctx, level, x, y);
+      const r = randomEngraving(ctx);
+      makeEngrAt(ctx, level, x, y, r.text, r.pristine, ctx.state.turn, null);
+      break;
+    }
+    case WAN.cancellation:
+    case WAN.makeInvisible:
+      delEngrAt(ctx, level, x, y);
+      break;
+    case WAN.teleportation:
+      rlocEngr(ctx, level, x, y);
+      break;
+    case SPE.stoneToFlesh:
+      if (e.type === 'engrave') {
+        // only affects things in stone
+        say(ctx, hasProp(hero(ctx), P.HALLUC) ? 'zap.stf.floor_butter' : 'zap.stf.edges_smoother');
+        wipeEngrAt(ctx, level, x, y, ctx.rng.d(2, 4), true);
+      }
+      break;
+    case WAN.striking:
+    case SPE.forceBolt:
+      wipeEngrAt(ctx, level, x, y, ctx.rng.d(2, 4), true);
+      break;
+    default:
+      break;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1442,8 +1492,16 @@ function findit(ctx: Ctx): number {
   return sdoors + scorrs + traps;
 }
 
-/** ref: src/zap.c zapnodir() */
-function zapnodir(ctx: Ctx, src: ZapSource): void {
+/**
+ * A directionless wand or spell. A wand of wishing's wish is asked with `wishVia`'s action and
+ * data when given (engraving with it: the engraving goes on after the wish), else with the zap
+ * action's. ref: src/zap.c zapnodir()
+ */
+export function zapnodir(
+  ctx: Ctx,
+  src: ZapSource,
+  wishVia?: { action: DefId; data: Record<string, Json> },
+): void {
   let known = false;
   switch (caseOf(otypOf(src))) {
     case WAN.light:
@@ -1471,8 +1529,12 @@ function zapnodir(ctx: Ctx, src: ZapSource): void {
       // always dknown here); makewish(): the answer comes back to the zap action's answer()
       known = true;
       if (src.kind === 'wand') {
-        const data: ZapWishData = { tries: 0, wizard: false, wand: src.item.id };
-        askWish(ctx, ZAP_ID, data);
+        if (wishVia)
+          askWish(ctx, wishVia.action, { ...wishVia.data, tries: 0, wizard: false } as WishData);
+        else {
+          const data: ZapWishData = { tries: 0, wizard: false, wand: src.item.id };
+          askWish(ctx, ZAP_ID, data);
+        }
       }
       break;
     case WAN.enlightenment:

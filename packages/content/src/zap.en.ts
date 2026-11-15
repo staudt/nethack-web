@@ -122,6 +122,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.stf.blood_drips': 'Blood drips on your face.',
   'zap.stf.blood_pools': 'Blood pools at your feet.',
   'zap.stf.blood_pools_beneath': 'Blood pools beneath your feet.',
+  'zap.stf.edges_smoother': 'The edges on the floor get smoother.',
+  'zap.stf.floor_butter': 'The floor runs like butter!',
   'zap.stf.smell_meat': 'You smell the odor of meat.',
   'zap.hear_crumbling': 'You hear a crumbling sound.',
 

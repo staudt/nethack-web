@@ -6,6 +6,7 @@
 // Split out of zap.ts so that code below the hero's actions (a god's lightning for an angered
 // priest) can cast a ray without an import cycle; the hero's angering wakeup() is passed in.
 import { mAt } from './wormstate';
+import { engrAt, wipeEngrAt } from './engr';
 import {
   DIRS,
   cellIndex,
@@ -685,10 +686,23 @@ function burnWeb(ctx: Ctx, level: Level, x: number, y: number, seeIt: boolean): 
 }
 
 /**
- * A monster's fire pillar or lightning bolt hits the floor at (x,y) (the hero's square): fire burns
- * a web and scrolls and spellbooks there. ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
+ * A monster's spell hits the floor at (x,y) (the hero's square): a shower of missiles (or acid
+ * rain) thoroughly clobbers the engraving there; fire burns a web and scrolls and spellbooks.
+ * ref: src/zap.c mon_spell_hits_spot() -> zap_over_floor()
  */
-export function monSpellHitsSpot(ctx: Ctx, ray: 'fire' | 'lightning', x: number, y: number): void {
+export function monSpellHitsSpot(
+  ctx: Ctx,
+  ray: 'fire' | 'lightning' | 'magic_missile' | 'acid',
+  x: number,
+  y: number,
+): void {
+  // "shower of missiles" or [hypothetical] "acid rain" attack: thoroughly clobber an engraving
+  // (unless its type makes it be scuff-protected); zap_over_floor() doesn't handle this
+  if (ray === 'magic_missile' || ray === 'acid') {
+    const level = levelOf(ctx);
+    const e = engrAt(ctx, level, x, y);
+    if (e) wipeEngrAt(ctx, level, x, y, e.text.length + ctx.rng.d(6, 6), true);
+  }
   zapOverFloor(ctx, ray, x, y);
 }
 

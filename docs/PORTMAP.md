@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-176 NetHack files, 4684 citations.
+177 NetHack files, 4697 citations.
 
 ## dat/bigrm-1.lua
 
@@ -300,7 +300,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `TROLL_REVIVE_CHANCE()`: `packages/content/src/corpses.ts`
 - `VAULT_GUARD_TIME()`: `packages/content/src/vaultstate.ts`
 - `VIS_EFFECTS()`: `packages/content/src/scatter.ts`
-- `WAND_BACKFIRE_CHANCE()`: `packages/content/src/muse.ts`, `packages/content/src/zap.ts`
+- `WAND_BACKFIRE_CHANCE()`: `packages/content/src/engrave.ts`, `packages/content/src/muse.ts`, `packages/content/src/zap.ts`
 - `invlet_basic()`: `packages/content/src/wish.ts`
 - `isok()`: `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `nonrotting_food()`: `packages/content/src/eat.ts`
@@ -1150,18 +1150,22 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/engrave.c
 
+- (file): `packages/content/src/engrave.ts`
 - `can_reach_floor()`: `packages/content/src/levitation.ts`, `packages/content/src/reach.ts`
 - `cant_reach_floor()`: `packages/content/src/engrave.ts`
 - `del_engr()`: `packages/content/src/engr.ts`
 - `del_engr_at()`: `packages/content/src/engr.ts`
 - `doengrave()`: `packages/content/src/engrave.ts`
-- `doengrave_ctx_verb()`: `packages/content/src/engrave.ts`
+- `doengrave_ctx_init()`: `packages/content/src/engrave.ts`
 - `doengrave_sfx_item()`: `packages/content/src/engrave.ts`
+- `doengrave_sfx_item_WAN()`: `packages/content/src/engrave.ts`
 - `engr_at()`: `packages/content/src/engr.ts`
 - `engr_can_be_felt()`: `packages/content/src/engrread.ts`
 - `engrave()`: `packages/content/src/engrave.ts`
 - `make_engr_at()`: `packages/content/src/engr.ts`
+- `random_engraving()`: `packages/content/src/rndengr.ts`
 - `read_engr_at()`: `packages/content/src/engrave.en.ts`, `packages/content/src/engrread.ts`
+- `rloc_engr()`: `packages/content/src/engr.ts`, `packages/content/src/teleport.ts`
 - `sengr_at()`: `packages/content/src/engr.ts`
 - `stylus_ok()`: `packages/content/src/engrave.ts`
 - `u_can_engrave()`: `packages/content/src/engrave.ts`
@@ -2176,6 +2180,8 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/rumors.c
 
 - `doconsult()`: `packages/content/src/chat.ts`
+- `get_rnd_text()`: `packages/content/src/rumors.ts`
+- `getrumor()`: `packages/content/src/rumors.ts`
 
 ## src/selvar.c
 
@@ -2893,3 +2899,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `zapyourself()`: `packages/content/src/zap.ts`
 - `zhitm()`: `packages/content/src/buzz.ts`
 - `zhitu()`: `packages/content/src/buzz.ts`
+
+## util/makedefs.c
+
+- `do_rnd_access_file()`: `packages/content/src/engravetxt.ts`
