@@ -4,6 +4,7 @@ export { VANILLA_TERRAIN, PALETTE_KEYS, CAVE_PALETTE_KEYS, PAL } from './terrain
 export type { LevelTerrain } from './terrain';
 export { levelToAscii } from './ascii';
 export { buildLevel, wallifyLevel } from './special';
+export type { WallifyOptions } from './special';
 export {
   createMaze,
   mazeGrid,

@@ -28,7 +28,8 @@ const DOORS: ReadonlySet<DefId> = new Set([
  * the parity are NetHack's, in its coordinates (x one more than ours; x_maze_max and y_maze_max
  * from the level size). With `liveStone` (a fixup that lays out the level itself, before any
  * wall cleanup: hellfill's maze grid) a node is stone when its cell is. The caller wallifies
- * afterwards (core's wallifyLevel).
+ * afterwards (core's wallifyLevel). `mapCells` are the cells the script's des.map()s set so far,
+ * for fill_empty_maze() (default: the LevelDef's map and doors).
  * ref: src/sp_lev.c lspo_mazewalk(); src/mkmaze.c walkfrom(), okay()
  */
 export function mazewalk(
@@ -40,6 +41,7 @@ export function mazewalk(
   dir: 'north' | 'south' | 'east' | 'west',
   stocked = true,
   liveStone = false,
+  mapCells?: ReadonlySet<number>,
 ): void {
   const block = mapBlock(def, level.width, level.height);
   // a maze grid's nodes outside the map block were stone (lvlfill_maze_grid())
@@ -100,5 +102,5 @@ export function mazewalk(
     cx - 1,
     cy,
   );
-  if (stocked) fillEmptyMaze(ctx, level, def);
+  if (stocked) fillEmptyMaze(ctx, level, def, mapCells);
 }

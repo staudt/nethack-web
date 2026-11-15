@@ -48,4 +48,30 @@ describe('wallifyLevel', () => {
     expect(at(level, 6, 5)).toBe('nh:vwall');
     expect(at(level, 4, 5)).toBe('nh:stone');
   });
+
+  test('m17: the wall pass limited to `area`; walls in `keep` stay and join only walls', () => {
+    const level = stoneLevel();
+    // a free-standing leg of walls in rock: a T of hwalls with a vwall below its middle
+    for (let x = 10; x <= 12; x++) set(level, x, 5, 'nh:hwall');
+    set(level, 11, 6, 'nh:hwall');
+    set(level, 25, 9, 'nh:hwall'); // outside the area: not cleaned up
+    wallifyLevel(level, VANILLA_TERRAIN, [0, 0, -1, -1], {
+      area: [8, 3, 14, 8],
+      keep: [9, 4, 13, 7],
+    });
+    // kept, and joined to walls only (rock does not count as wall in the kept area)
+    expect(at(level, 10, 5)).toBe('nh:hwall');
+    expect(at(level, 11, 5)).toBe('nh:tdwall');
+    expect(at(level, 12, 5)).toBe('nh:hwall');
+    expect(at(level, 11, 6)).toBe('nh:vwall');
+    expect(at(level, 25, 9)).toBe('nh:hwall');
+    // the same without `keep`: rock all round, so the walls go
+    const plain = stoneLevel();
+    for (let x = 10; x <= 12; x++) set(plain, x, 5, 'nh:hwall');
+    set(plain, 11, 6, 'nh:hwall');
+    set(plain, 25, 9, 'nh:hwall');
+    wallifyLevel(plain, VANILLA_TERRAIN, [0, 0, -1, -1], { area: [8, 3, 14, 8] });
+    expect(at(plain, 11, 5)).toBe('nh:stone');
+    expect(at(plain, 25, 9)).toBe('nh:hwall');
+  });
 });

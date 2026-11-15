@@ -4,11 +4,13 @@
 import type {
   Ctx,
   DefId,
+  DoorState,
   EntityId,
   Level,
   LevelContent,
   LevelCount,
   LevelDef,
+  LevelRect,
   MapBlock,
   ModApi,
   MonsterDef,
@@ -18,13 +20,16 @@ import type {
 import {
   cellIndex,
   contents,
+  inBounds,
   isPlainFloor,
   levelDefArea,
   levelDefPos,
   levelDefRoom,
+  levelStairs,
   roomDefPos,
   roomHas,
   roomSomexy,
+  trapAt,
   VANILLA_TERRAIN,
 } from '@nh/core';
 import { boulderAt } from './boulder';
@@ -53,7 +58,8 @@ import { resistsSton } from './stonestate';
 import { STATUE, setHistoric } from './statuestate';
 import { mktrap } from './mklev';
 import { setTer, ter } from './selection';
-import { T } from './terrain';
+import { undestroyableTrap } from './invocation';
+import { T, isFurnitureId, isSdoorId, isWallId, setTerrain, terrainIdAt } from './terrain';
 
 /**
  * A random spot that passes `ok`: in room `room` (outside its subrooms) when given, else inside
@@ -439,6 +445,16 @@ export function rndcoord(ctx: Pick<Ctx, 'rng'>, spots: Pos[]): Pos {
   return p as Pos;
 }
 
+/**
+ * The LevelDef as a script sees it after a run-time des.map() of `rows` placed at `b` (desMap()):
+ * its contents' fixed spots are relative to that block and their random spots inside it.
+ * ref: src/sp_lev.c lspo_map() (xstart, ystart, xsize, ysize), get_location()
+ */
+export const blockDef = (def: LevelDef, rows: readonly string[], b: MapBlock): LevelDef => ({
+  ...def,
+  map: { rows: [...rows], x: b.x, y: b.y },
+});
+
 /** The Level position of a LevelDef spot (map-relative when the LevelDef has a map block). */
 export function mapToLevel(def: LevelDef, level: Level, x: number, y: number): Pos {
   return levelDefPos(def, level.width, level.height, x, y, undefined, `${def.id} fixup`);
@@ -485,6 +501,28 @@ export function desMap(
   rows: readonly string[],
   place: { halign?: Halign; valign?: Valign; x?: number; y?: number; lit?: boolean },
 ): MapBlock {
+  const b = desMapPlace(level, rows, place);
+  const { w, h } = b;
+  const xstart = b.x + 1;
+  const ystart = b.y;
+  const COLNO = level.width + 1;
+  const ROWNO = level.height;
+  const lit = place.lit === true ? 1 : 0;
+  for (let y = ystart; y < Math.min(ROWNO, ystart + h); y++)
+    for (let cx = xstart; cx < Math.min(COLNO, xstart + w); cx++) {
+      const ch = rows[y - ystart]?.[cx - xstart] ?? 'x';
+      if (ch === 'x' || cx < 1) continue;
+      setTer(level, cx - 1, y, ch === 'B' ? T.floor : ter(ch), { lit, litLava: true });
+    }
+  return b;
+}
+
+/** Where desMap() puts `rows` (Level coordinates), without laying them. */
+export function desMapPlace(
+  level: Readonly<Level>,
+  rows: readonly string[],
+  place: { halign?: Halign; valign?: Valign; x?: number; y?: number },
+): MapBlock {
   const w = Math.max(...rows.map((r) => r.length));
   const h = rows.length;
   const COLNO = level.width + 1;
@@ -520,13 +558,6 @@ export function desMap(
     if (h === ROWNO) ystart = 0;
     if (ystart < 0 || ystart + h > ROWNO) ystart = 0;
   }
-  const lit = place.lit === true ? 1 : 0;
-  for (let y = ystart; y < Math.min(ROWNO, ystart + h); y++)
-    for (let cx = xstart; cx < Math.min(COLNO, xstart + w); cx++) {
-      const ch = rows[y - ystart]?.[cx - xstart] ?? 'x';
-      if (ch === 'x' || cx < 1) continue;
-      setTer(level, cx - 1, y, ch === 'B' ? T.floor : ter(ch), { lit, litLava: true });
-    }
   return { x: xstart - 1, y: ystart, w, h };
 }
 
@@ -555,4 +586,214 @@ export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevF
     fixup?.after?.(ctx, level, def);
     if (def.flags?.premapped === true) premapDetect(ctx, level);
   });
+}
+
+/** IS_DOOR(): a door in any state, doorways included (not secret doors). */
+const DOOR_IDS: ReadonlySet<DefId> = new Set([
+  T.doorway,
+  T.door_open_v,
+  T.door_open_h,
+  T.door_closed,
+  T.door_locked,
+]);
+
+/** The door kinds that face their wall: [vertical, horizontal]. */
+const ORIENTED: readonly (readonly [DefId, DefId])[] = [
+  [T.door_open_v, T.door_open_h],
+  [T.sdoor_v, T.sdoor_h],
+  [T.sdoor_locked_v, T.sdoor_locked_h],
+];
+
+/**
+ * A door or secret door at (x, y) faces its wall: horizontal when a wall, door or secret door is
+ * to its left or right but not both above and below it; with none of those around, rock or iron
+ * bars (or the level's edge) count instead. ref: src/sp_lev.c set_door_orientation()
+ */
+function horizontalDoor(
+  ctx: Pick<Ctx, 'defs'>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): boolean {
+  const joins = (dx: number, dy: number): boolean => {
+    if (!inBounds(level, x + dx, y + dy)) return false;
+    const id = terrainIdAt(level, x + dx, y + dy);
+    return isWallId(id) || isSdoorId(id) || (id !== undefined && DOOR_IDS.has(id));
+  };
+  let wleft = joins(-1, 0);
+  let wright = joins(1, 0);
+  let wup = joins(0, -1);
+  let wdown = joins(0, 1);
+  if (!wleft && !wright && !wup && !wdown) {
+    // IS_DOORJOIN(): IS_OBSTRUCTED() or iron bars; out of bounds is an implicit wall
+    const doorjoin = (dx: number, dy: number): boolean => {
+      if (!inBounds(level, x + dx, y + dy)) return true;
+      const id = terrainIdAt(level, x + dx, y + dy);
+      return (
+        id === T.iron_bars ||
+        (id !== undefined &&
+          !ctx.defs.terrain(id).passable &&
+          ctx.defs.terrain(id).liquid === undefined)
+      );
+    };
+    wleft = doorjoin(-1, 0);
+    wright = doorjoin(1, 0);
+    wup = doorjoin(0, -1);
+    wdown = doorjoin(0, 1);
+  }
+  return (wleft || wright) && !(wup && wdown);
+}
+
+/**
+ * Every open or secret door of the level faces its wall, as a map's '+' and 'S' do once the
+ * level is done. ref: src/sp_lev.c link_doors_rooms() (set_door_orientation())
+ */
+export function orientDoors(ctx: Pick<Ctx, 'defs'>, level: Level): void {
+  for (let y = 0; y < level.height; y++)
+    for (let x = 0; x < level.width; x++) {
+      const id = terrainIdAt(level, x, y);
+      const pair = ORIENTED.find((p) => p[0] === id || p[1] === id);
+      if (pair) setTerrain(level, x, y, horizontalDoor(ctx, level, x, y) ? pair[1] : pair[0]);
+    }
+}
+
+/**
+ * des.door(state, x, y) at a Level spot: a secret door stays secret (locked or not), any other
+ * spot becomes a door in that state (`nodoor` and `broken` a doorway; `random` rolls rnddoor()).
+ * Run orientDoors() once the walls are there. ref: src/sp_lev.c lspo_door(), sel_set_door(),
+ * rnddoor()
+ */
+export function desDoor(
+  ctx: Pick<Ctx, 'rng'>,
+  level: Level,
+  x: number,
+  y: number,
+  state: DoorState,
+): void {
+  const st =
+    state === 'random'
+      ? (['nodoor', 'broken', 'open', 'closed', 'locked'] as const)[ctx.rng.rn2(5)]
+      : state;
+  const id = terrainIdAt(level, x, y);
+  if (isSdoorId(id)) {
+    setTerrain(level, x, y, st === 'locked' ? T.sdoor_locked_v : T.sdoor_v);
+    return;
+  }
+  setTerrain(
+    level,
+    x,
+    y,
+    st === 'open'
+      ? T.door_open_v
+      : st === 'closed'
+        ? T.door_closed
+        : st === 'locked'
+          ? T.door_locked
+          : T.doorway,
+  );
+}
+
+/**
+ * A spot for a level region of stairs or a branch (des.levregion() with `region` and `exclude`
+ * in Level coordinates, corners inclusive; `area` is clamped to the level): 200 random spots,
+ * then each in column order, the first that is floor (or corridor on a maze level) outside
+ * `exclude` with no trap, furniture or liquid; in that last pass a trap that can be destroyed is
+ * removed to make room. Null when there is none (C's impossible()).
+ * ref: src/mkmaze.c place_lregion(), put_lregion_here(), bad_location(); src/mklev.c occupied()
+ */
+export function placeLregion(
+  ctx: Ctx,
+  level: Level,
+  area: LevelRect,
+  exclude: LevelRect | null,
+): Pos | null {
+  const lx = Math.max(area[0], 0);
+  const ly = Math.max(area[1], 0);
+  const hx = Math.min(area[2], level.width - 1);
+  const hy = Math.min(area[3], level.height - 1);
+  const maze = levelFlags(ctx, level).maze === true;
+  const bad = (x: number, y: number): boolean => {
+    const id = terrainIdAt(level, x, y);
+    const occupied =
+      !!trapAt(level, x, y) ||
+      isFurnitureId(ctx.defs, id) ||
+      (id !== undefined && ctx.defs.terrain(id).liquid !== undefined);
+    const excluded =
+      exclude !== null && x >= exclude[0] && x <= exclude[2] && y >= exclude[1] && y <= exclude[3];
+    return occupied || excluded || !(id === T.floor || (id === T.corr && maze));
+  };
+  const here = (x: number, y: number, oneshot: boolean): boolean => {
+    if (!bad(x, y)) return true;
+    if (!oneshot) return false;
+    // "Must make do with the only location possible; avoid failure due to a misplaced trap."
+    const t = trapAt(level, x, y);
+    if (t && !undestroyableTrap(t.def)) ctx.removeTrap(level.id, { x, y });
+    return !bad(x, y);
+  };
+  const oneshot = lx === hx && ly === hy;
+  for (let trycnt = 0; trycnt < 200; trycnt++) {
+    const x = ctx.rng.rn2(hx - lx + 1) + lx; // rn1()
+    const y = ctx.rng.rn2(hy - ly + 1) + ly;
+    if (here(x, y, oneshot)) return { x, y };
+  }
+  for (let x = lx; x <= hx; x++)
+    for (let y = ly; y <= hy; y++) if (here(x, y, true)) return { x, y };
+  return null;
+}
+
+/**
+ * des.levregion({ type = "stair-up" | "stair-down" | "branch", region, exclude }) as
+ * fixup_special() places it once the level is done (placeLregion()): the stairs when the dungeon
+ * gives the level such stairs (the spot is drawn either way, as mkstairs() refuses them after
+ * it), the branch stairs when it has a branch. ref: src/mkmaze.c fixup_special() LR_UPSTAIR,
+ * LR_DOWNSTAIR, LR_BRANCH; put_lregion_here(); src/mklev.c mkstairs(), place_branch()
+ */
+export function desLevregion(
+  ctx: Ctx,
+  level: Level,
+  type: 'stair-up' | 'stair-down' | 'branch',
+  area: LevelRect,
+  exclude: LevelRect | null,
+): void {
+  const p = placeLregion(ctx, level, area, exclude);
+  if (!p) return;
+  if (type === 'branch') {
+    const branch = level.branch;
+    if (!branch) return;
+    setTerrain(level, p.x, p.y, branch.dir === 'up' ? T.stairs_up : T.stairs_down);
+    branch.pos = p;
+    return;
+  }
+  const want = levelStairs(ctx.state, level);
+  if (type === 'stair-up' && want.up) {
+    setTerrain(level, p.x, p.y, T.stairs_up);
+    level.up = p;
+  } else if (type === 'stair-down' && want.down) {
+    setTerrain(level, p.x, p.y, T.stairs_down);
+    level.down = p;
+  }
+}
+
+/**
+ * Lifts the stairs core put on a LevelDef's placeholder spots (terrain back to stone, no stairs
+ * yet), for a fixup that lays out the level itself and places them later (desLevregion(),
+ * des.stair()). The branch keeps its record until its spot is chosen.
+ */
+export function liftStairs(level: Level): void {
+  for (const p of [level.up, level.down, level.branch?.pos])
+    if (p) setTerrain(level, p.x, p.y, T.stone);
+  level.up = null;
+  level.down = null;
+}
+
+/**
+ * des.stair(dir, x, y) at a Level spot, when the dungeon gives the level such stairs.
+ * ref: src/sp_lev.c l_create_stairway(); src/mklev.c mkstairs()
+ */
+export function desStair(ctx: Pick<Ctx, 'state'>, level: Level, dir: 'up' | 'down', p: Pos): void {
+  const want = levelStairs(ctx.state, level);
+  if (dir === 'up' ? !want.up : !want.down) return;
+  setTerrain(level, p.x, p.y, dir === 'up' ? T.stairs_up : T.stairs_down);
+  if (dir === 'up') level.up = { ...p };
+  else level.down = { ...p };
 }

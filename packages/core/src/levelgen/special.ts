@@ -691,7 +691,7 @@ const WALL_JOIN_KEYS: readonly Key[] = [
 ];
 
 /** Walls of the whole level made to join up. ref: src/mkmaze.c wallification() */
-function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
+function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>, opts: WallifyOptions = {}): void {
   const { level } = b;
   const kinds = level.cells.map((_, i) => {
     const k = b.key(i);
@@ -699,7 +699,7 @@ function wallification(b: Pick<Builder, 'level' | 'key' | 'put'>): void {
     if (k !== undefined && WALL_MK[k] !== undefined) return WALL_MK[k];
     return has(WALL_JOIN_KEYS, k) ? MK_DOOR : MK.FG;
   });
-  const fixed = wallifyKinds(level.width, level.height, kinds);
+  const fixed = wallifyKinds(level.width, level.height, kinds, opts);
   for (let i = 0; i < fixed.length; i++) {
     const k = fixed[i] as number;
     if (k === kinds[i]) continue;
@@ -720,9 +720,16 @@ const ROOM_KEYS: readonly Key[] = ['floor', ...FURNITURE_KEYS, 'ice', 'cloud', '
  * when the first open neighbour found (row by row) is on another row, else vertical; then the
  * whole level's walls are cleaned up and joined as buildLevel's last pass does. `terrain` names
  * the level's terrain defs; cells of other terrains count as open non-walls for the joining.
+ * `opts` (m17) limits that wall pass to `opts.area` and keeps the walls of `opts.keep`
+ * (WallifyOptions).
  * ref: src/sp_lev.c wallify_map() (des.wallify()), src/mkmaze.c wallification()
  */
-export function wallifyLevel(level: Level, terrain: LevelTerrain, area?: LevelRect): void {
+export function wallifyLevel(
+  level: Level,
+  terrain: LevelTerrain,
+  area?: LevelRect,
+  opts: WallifyOptions = {},
+): void {
   const b = terrainAccess(level, terrain);
   const W = level.width;
   const H = level.height;
@@ -746,7 +753,18 @@ export function wallifyLevel(level: Level, terrain: LevelTerrain, area?: LevelRe
           }
     }
   }
-  wallification({ level, ...b });
+  wallification({ level, ...b }, opts);
+}
+
+/**
+ * wallifyLevel()'s wall pass options (Level coordinates, corners inclusive): `area` limits the
+ * cleanup and the joining to it (default the whole level); in `keep` walls with only rock around
+ * stay, and join only to walls, not to rock. ref: src/mkmaze.c wallification(x1, y1, x2, y2)
+ * and baalz_fixup()'s `bughack.inarea` (wall_cleanup(), fix_wall_spines())
+ */
+export interface WallifyOptions {
+  area?: LevelRect;
+  keep?: LevelRect;
 }
 
 /** Palette index for each MK cell kind of a cave map, given the bg and fg indices. */

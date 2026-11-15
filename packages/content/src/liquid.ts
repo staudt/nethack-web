@@ -5,9 +5,9 @@
 // A leaf over the registry's terrain defs (`TerrainDef.liquid`), so any game module can import
 // it. A raised drawbridge's span is its own terrain for each thing that can lie under it
 // (terrain.ts): over the moat it is water and a moat, over lava lava, over ice ice.
-// Not ported: the Juiblex swamp, Medusa's "shallow sea", the samurai's "pond", the Plane of
-// Water's "limitless water" (none of those levels exist yet) and hallucinatory liquids
-// (hliquid()).
+// Juiblex's swamp (m17) is a "swamp", not a moat. Not ported: Medusa's "shallow sea", the
+// samurai's "pond", the Plane of Water's "limitless water" (none of those levels exist yet but
+// Medusa's) and hallucinatory liquids (hliquid()).
 import {
   cellIndex,
   inBounds,
@@ -51,8 +51,17 @@ export const isLava = (ctx: Defs, level: Readonly<Level>, x: number, y: number):
 export const isPoolOrLava = (ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean =>
   liquidAt(ctx, level, x, y) !== null;
 
-/** ref: src/dbridge.c is_moat() (no Juiblex level): a moat, or one under a raised drawbridge */
+/**
+ * Juiblex's swamp (juiblex.ts JUIBLEX_SWAMP, its LevelDef's id), whose moat is a swamp.
+ * ref: include/dungeon.h Is_juiblex_level()
+ */
+const JUIBLEX_LEVEL: DefId = 'nh:juiblex-swamp';
+
+/**
+ * ref: src/dbridge.c is_moat(): a moat, or one under a raised drawbridge, but on Juiblex's level
+ */
 export const isMoat = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean => {
+  if (level.def === JUIBLEX_LEVEL) return false;
   const id = inBounds(level, x, y) ? terrainIdAt(level, x, y) : undefined;
   return id === T.moat || id === T.drawbridge_up;
 };
@@ -68,8 +77,9 @@ export const isLiquidId = (ctx: Defs, id: DefId | undefined): boolean =>
   id !== undefined && ctx.defs.terrain(id).liquid !== undefined;
 
 /**
- * What the liquid at (x, y) is called, as a message key ("pool of water", "moat", "wall of
- * water", "molten lava", "wall of lava", "ice"; "water" for anything else). ref: src/pager.c
+ * What the liquid at (x, y) is called, as a message key ("pool of water", "moat" ("swamp" on
+ * Juiblex's level), "wall of water", "molten lava", "wall of lava", "ice"; "water" for anything
+ * else). ref: src/pager.c
  * waterbody_name()
  */
 export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: number): string {
@@ -85,8 +95,9 @@ export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: n
     case T.pool:
       return 'liquid.name.pool';
     case T.drawbridge_up:
-    case T.moat:
       return 'liquid.name.moat';
+    case T.moat:
+      return level.def === JUIBLEX_LEVEL ? 'liquid.name.swamp' : 'liquid.name.moat';
     case T.water:
       return 'liquid.name.waterwall';
     case T.lavawall:

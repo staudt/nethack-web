@@ -371,10 +371,33 @@ const iswallOrStone = (m: CaveMap, x: number, y: number): boolean =>
 const isSolid = (m: CaveMap, x: number, y: number): boolean =>
   !m.isok(x, y) || m.at(x, y) === MK.BG || isWallKind(m.at(x, y));
 
-/** Walls surrounded by rock become rock. ref: src/mkmaze.c wall_cleanup() */
-function wallCleanup(m: CaveMap): void {
-  for (let x = 1; x <= m.colno - 1; x++)
-    for (let y = 0; y <= m.rowno - 1; y++) {
+/**
+ * The wall pass's bounds and its kept area, in CaveMap coordinates (x one more than the output's),
+ * corners inclusive. ref: src/mkmaze.c wallification(x1, y1, x2, y2), `bughack.inarea`
+ */
+interface WallPass {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  keep: ((x: number, y: number) => boolean) | null;
+}
+
+const wholeMap = (m: CaveMap): WallPass => ({
+  x1: 1,
+  y1: 0,
+  x2: m.colno - 1,
+  y2: m.rowno - 1,
+  keep: null,
+});
+
+/**
+ * Walls surrounded by rock become rock, but in the kept area. ref: src/mkmaze.c wall_cleanup()
+ */
+function wallCleanup(m: CaveMap, p: WallPass = wholeMap(m)): void {
+  for (let x = p.x1; x <= p.x2; x++)
+    for (let y = p.y1; y <= p.y2; y++) {
+      if (p.keep?.(x, y) === true) continue;
       if (!isWallKind(m.at(x, y))) continue;
       let solid = true;
       for (let dx = -1; dx <= 1 && solid; dx++)
@@ -416,14 +439,16 @@ const SPINE_ARRAY = [
 
 /**
  * Each wall turns into the piece that joins its neighbouring walls (corners, T-walls, crosses);
- * a free-standing wall keeps its type. ref: src/mkmaze.c fix_wall_spines() over the whole map
+ * a free-standing wall keeps its type. In the kept area only walls count, not rock ("for baalz
+ * insect"). ref: src/mkmaze.c fix_wall_spines()
  */
-function fixWallSpines(m: CaveMap): void {
-  for (let x = 1; x <= m.colno - 1; x++)
-    for (let y = 0; y <= m.rowno - 1; y++) {
+function fixWallSpines(m: CaveMap, p: WallPass = wholeMap(m)): void {
+  for (let x = p.x1; x <= p.x2; x++)
+    for (let y = p.y1; y <= p.y2; y++) {
       if (!isWallKind(m.at(x, y))) continue;
+      const locF = p.keep?.(x, y) === true ? iswall : iswallOrStone;
       const locale: boolean[][] = [0, 1, 2].map((i) =>
-        [0, 1, 2].map((j) => (i === 1 && j === 1) || iswallOrStone(m, x + i - 1, y + j - 1)),
+        [0, 1, 2].map((j) => (i === 1 && j === 1) || locF(m, x + i - 1, y + j - 1)),
       );
       const bits =
         (extendSpine(locale, iswall(m, x, y - 1), 0, -1) << 3) |
@@ -438,14 +463,34 @@ function fixWallSpines(m: CaveMap): void {
  * NetHack's wallification() of a whole map given as row-major `width * height` MK kinds (BG for
  * stone, FG for any other open or solid non-wall cell, MK_DOOR for doors): walls with only rock
  * around become BG, then every wall turns into the piece that joins its neighbours. Returns new
- * kinds; only walls change. ref: src/mkmaze.c wallification(), wall_cleanup(), fix_wall_spines()
+ * kinds; only walls change. `opts.area` (corners inclusive, clipped to the map) limits both
+ * passes to it; in `opts.keep` walls are never removed and join only walls, not rock (Baalzebub's
+ * lair, whose insect legs are walls in solid rock).
+ * ref: src/mkmaze.c wallification(), wall_cleanup(), fix_wall_spines(); baalz_fixup() bughack
  */
-export function wallifyKinds(width: number, height: number, kinds: readonly number[]): number[] {
+export function wallifyKinds(
+  width: number,
+  height: number,
+  kinds: readonly number[],
+  opts: { area?: readonly number[]; keep?: readonly number[] } = {},
+): number[] {
   const m = new CaveMap(width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) m.set(x + 1, y, kinds[y * width + x] as number);
-  wallCleanup(m);
-  fixWallSpines(m);
+  const pass = wholeMap(m);
+  if (opts.area) {
+    const [x1 = 0, y1 = 0, x2 = width - 1, y2 = height - 1] = opts.area;
+    pass.x1 = Math.max(x1 + 1, pass.x1);
+    pass.y1 = Math.max(y1, pass.y1);
+    pass.x2 = Math.min(x2 + 1, pass.x2);
+    pass.y2 = Math.min(y2, pass.y2);
+  }
+  if (opts.keep) {
+    const [kx1 = 0, ky1 = 0, kx2 = -1, ky2 = -1] = opts.keep;
+    pass.keep = (x, y) => x - 1 >= kx1 && x - 1 <= kx2 && y >= ky1 && y <= ky2;
+  }
+  wallCleanup(m, pass);
+  fixWallSpines(m, pass);
   const out = new Array<number>(width * height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) out[y * width + x] = m.at(x + 1, y);

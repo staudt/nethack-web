@@ -44,6 +44,7 @@ export type {
   MapBlock,
   MazeWalkGrid,
   MkmapOptions,
+  WallifyOptions,
 } from './levelgen/index';
 export {
   DEFAULT_DUNGEON,

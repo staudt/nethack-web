@@ -431,12 +431,19 @@ function hellMinesLava(ctx: Ctx, level: Level): void {
   replaceMapfrag(ctx, level, null, 'w', '.', 15, LAVA_LIT);
 }
 
-/** 2: mazes like the original, with some hell_tweaks. */
-function hellMaze(ctx: Ctx, level: Level): void {
-  // des.level_init({ style = "mazegrid", bg = "-" })
+/**
+ * des.level_init({ style = "mazegrid", bg = "-" }) over the level: walls on the grid, stone on
+ * its nodes and elsewhere. ref: src/sp_lev.c lvlfill_maze_grid()
+ */
+export function desMazeGrid(level: Level): void {
   layKinds(level, mazeGrid(level.width, level.height, false), (k) =>
     k === MZ_WALL ? T.hwall : T.stone,
   );
+}
+
+/** 2: mazes like the original, with some hell_tweaks. */
+function hellMaze(ctx: Ctx, level: Level): void {
+  desMazeGrid(level);
   mazewalk(ctx, level, HELLFILL, 1, 10, 'east', false, true);
   // selection.match("-"):bounds(), then selection.fillrect(lx, ly + 1, hx - 2, hy - 1), whose
   // corners get the map origin added (NetHack's x 1): the grid's inside
@@ -571,7 +578,7 @@ export function populatemaze(ctx: Ctx, level: Level, def: LevelDef = HELLFILL): 
  * No boulder, trap (but the vibrating square) or engraving stays on lava or water.
  * ref: src/sp_lev.c map_cleanup()
  */
-function mapCleanup(ctx: Ctx, level: Level): void {
+export function mapCleanup(ctx: Ctx, level: Level): void {
   for (let x = 0; x < level.width; x++)
     for (let y = 0; y < level.height; y++) {
       const id = terrainIdAt(level, x, y);

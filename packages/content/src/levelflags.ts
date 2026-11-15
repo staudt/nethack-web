@@ -160,6 +160,28 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     temperate: true,
     nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }],
   },
+  /** ref: dat/juiblex.lua ("mazelevel", "shortsighted", "noflip", "temperate") */
+  'nh:juiblex-swamp': { maze: true, shortsighted: true, temperate: true },
+  /**
+   * ref: dat/asmodeus.lua: the first part's non-diggable walls (the second part's is the
+   * fixup's, MadeLevelFlags)
+   */
+  'nh:asmodeus-lair': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 20, y2: 11 }] },
+  /**
+   * ref: dat/baalz.lua des.non_diggable(selection.area(00,00,47,12)) less the two cells west of
+   * each eye, which src/mkmaze.c baalz_fixup() makes diggable ("novelty effect; allowing digging
+   * in front of 'eyes'")
+   */
+  'nh:baalz': {
+    maze: true,
+    nondiggable: [
+      { x1: 0, y1: 0, x2: 47, y2: 3 },
+      { x1: 2, y1: 4, x2: 47, y2: 4 },
+      { x1: 0, y1: 5, x2: 47, y2: 7 },
+      { x1: 2, y1: 8, x2: 47, y2: 8 },
+      { x1: 0, y1: 9, x2: 47, y2: 12 },
+    ],
+  },
 };
 
 const NONE: LevelFlags = {};

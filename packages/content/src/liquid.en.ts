@@ -5,6 +5,7 @@ export const liquidMessagesEn: Record<string, string> = {
   // waterbody_name()
   'liquid.name.pool': 'pool of water',
   'liquid.name.moat': 'moat',
+  'liquid.name.swamp': 'swamp',
   'liquid.name.waterwall': 'wall of water',
   'liquid.name.lava': 'molten lava',
   'liquid.name.lavawall': 'wall of lava',

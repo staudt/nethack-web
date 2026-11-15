@@ -92,7 +92,7 @@ export const MAZEFILL_FIXUP: SpLevFixup = {
  * cells, and its doors. Stairs are core's and not counted. ref: src/sp_lev.c lspo_map(),
  * sel_set_door()
  */
-function spLevMap(level: Level, def: LevelDef): Set<number> {
+export function spLevMap(level: Level, def: LevelDef): Set<number> {
   const out = new Set<number>();
   const block = mapBlock(def, level.width, level.height);
   if (block && def.map)
@@ -136,12 +136,18 @@ function maze1xy(ctx: Ctx, level: Level, map: ReadonlySet<number>): Pos {
  * 20 * mapfact / 100 objects (gems half the time), 12 * mapfact / 100 boulders (none on a pit
  * or hole), a minotaur half the time, 12 * mapfact / 100 random monsters, fewer than
  * 15 * mapfact / 100 piles of gold and as many random special-level traps (no pit or hole on a
- * boulder), each on a maze1xy() spot. ref: src/sp_lev.c fill_empty_maze()
+ * boulder), each on a maze1xy() spot. `mapCells` are the cells the script's maps set (cellIndex();
+ * default: the LevelDef's map and doors). ref: src/sp_lev.c fill_empty_maze()
  */
-export function fillEmptyMaze(ctx: Ctx, level: Level, def: LevelDef): void {
+export function fillEmptyMaze(
+  ctx: Ctx,
+  level: Level,
+  def: LevelDef,
+  mapCells?: ReadonlySet<number>,
+): void {
   const rng = ctx.rng;
   const max = mazeMax(level.width, level.height);
-  const map = spLevMap(level, def);
+  const map = mapCells ?? spLevMap(level, def);
   let mapcount = (max.x - 2) * (max.y - 2);
   const mapcountmax = Math.trunc(mapcount / 2);
   for (let x = 2; x < max.x; x++)
