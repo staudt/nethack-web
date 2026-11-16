@@ -1416,6 +1416,24 @@ describe('prices', () => {
       expect(got[0]?.c.item?.unpaid).toBe(true);
     });
 
+    test('an unpaid magic flute: a usage fee per charge (a quarter of its cost above 1)', () => {
+      // ref: src/shk.c cost_per_charge() MAGIC_FLUTE .. DRUM_OF_EARTHQUAKE; src/invent.c
+      // consume_obj_charge(obj, TRUE)
+      const t = bare(15);
+      know(t, 'nh:magic_flute');
+      const flute = t.make('nh:magic_flute');
+      if (flute.c.item) flute.c.item.spe = 5;
+      t.pickup();
+      const fee = Math.trunc(getCost(t.s.state, defs, flute, t.e) / 4);
+      const r = t.step({ type: 'mod', action: 'nh:apply', args: { item: flute.id } });
+      expect(r.prompt?.id).toBe('music-improvise');
+      const a = t.answer(r, true);
+      expect(t.lines(a)).toContainEqual(
+        expect.stringMatching(new RegExp(`Usage fee, ${fee} zorkmids\\."$`)),
+      );
+      expect(flute.c.item?.spe).toBe(4);
+    });
+
     test("selling into the shop's container on his floor", () => {
       const t = bare(15);
       know(t, 'nh:dagger');

@@ -246,6 +246,9 @@ const TWIN: Readonly<Record<string, DefId>> = {
   [SPE.turnUndead]: WAN.undeadTurning,
   [SPE.teleportAway]: WAN.teleportation,
   [SPE.cancellation]: WAN.cancellation,
+  // zapyourself()'s `case FIRE_HORN:` and `case FROST_HORN:` (do_improvisation() at herself)
+  'nh:fire_horn': WAN.fire,
+  'nh:frost_horn': WAN.cold,
 };
 
 /** The `case` an object type takes in zap.c's switches: a spell's twin wand, else itself. */

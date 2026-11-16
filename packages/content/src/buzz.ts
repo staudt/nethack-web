@@ -153,27 +153,29 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
 }
 
 /**
- * The monster's saving throw against a wand (attack level 12), a scroll (9), a potion (6) or the
+ * The monster's saving throw against a wand (attack level 12), an instrument (10), a scroll (9), a potion (6) or the
  * hero's spell (attack level = her experience level); `damage` is halved when it resists and then taken, which
  * may kill it (by the hero, or with `mUsing` by the monster's own wand: gm.m_using).
- * ref: src/zap.c resist() with WAND_CLASS, SCROLL_CLASS, POTION_CLASS or a spell
+ * ref: src/zap.c resist() with WAND_CLASS, TOOL_CLASS (10), SCROLL_CLASS, POTION_CLASS or a spell
  */
 export function resist(
   ctx: Ctx,
   mon: Entity,
   damage: number,
-  oclass: 'wand' | 'scroll' | 'potion' | 'spell' = 'wand',
+  oclass: 'wand' | 'tool' | 'scroll' | 'potion' | 'spell' = 'wand',
   mUsing = false,
 ): boolean {
   const def = ctx.defs.monster(mon.def);
   const alev =
     oclass === 'wand'
       ? 12
-      : oclass === 'scroll'
-        ? 9
-        : oclass === 'potion'
-          ? 6
-          : (getPlayer(ctx.state).c.experience?.level ?? 1);
+      : oclass === 'tool'
+        ? 10
+        : oclass === 'scroll'
+          ? 9
+          : oclass === 'potion'
+            ? 6
+            : (getPlayer(ctx.state).c.experience?.level ?? 1);
   let dlev = mon.c.monster?.level ?? 0;
   if (dlev > 50) dlev = 50;
   else if (dlev < 1) dlev = 1;
@@ -238,7 +240,7 @@ export function wakeGently(ctx: Ctx, mon: Entity): void {
 }
 
 /**
- * ref: src/mhitm.c sleep_monst() with a wand's, a potion's or the hero's spell's resist() roll: a
+ * ref: src/mhitm.c sleep_monst() with a wand's, an instrument's, a potion's or the hero's spell's resist() roll: a
  * sleep-resistant monster or one that resists is unaffected; one that can move is frozen for
  * `amt` turns.
  */
@@ -246,7 +248,7 @@ export function sleepMonst(
   ctx: Ctx,
   mon: Entity,
   amt: number,
-  oclass: 'wand' | 'potion' | 'spell' = 'wand',
+  oclass: 'wand' | 'tool' | 'potion' | 'spell' = 'wand',
 ): boolean {
   if (ctx.defs.monster(mon.def).resists.includes('sleep') || resist(ctx, mon, 0, oclass))
     return false;
@@ -767,7 +769,13 @@ export function burnFloorObjects(
  * on its way, a monster's first shot with an attack wand).
  */
 export type RaySource =
-  | { by: 'hero'; spell?: DefId; breath?: true; wakeup: (ctx: Ctx, id: EntityId) => void }
+  | {
+      by: 'hero';
+      spell?: DefId;
+      breath?: true;
+      horn?: true;
+      wakeup: (ctx: Ctx, id: EntityId) => void;
+    }
   | { by: 'spell' }
   | { by: 'breath'; mon: EntityId }
   | { by: 'monwand'; mon: EntityId; wand: DefId; forceMiss: boolean };
@@ -891,7 +899,14 @@ function buzzSteps(
   const breather = src.by === 'breath' ? ent(ctx, src.mon) : undefined;
   const killer =
     src.by === 'hero'
-      ? uhimKey(ctx.state, src.breath ? `@killer.breath.self.${ray}` : `@killer.zap.ray.${ray}`)
+      ? uhimKey(
+          ctx.state,
+          src.breath
+            ? `@killer.breath.self.${ray}`
+            : src.horn
+              ? `@killer.zap.horn.${ray}` // "played": a fire or frost horn
+              : `@killer.zap.ray.${ray}`,
+        )
       : breather
         ? `@killer.breath.${ray}.${breather.def.replace(/^.*:/, '')}`
         : `@killer.ray.${ray}`;

@@ -1343,6 +1343,19 @@ export function checkShopObj(ctx: Ctx, obj: Entity, x: number, y: number, broken
 // ---------------------------------------------------------------------------------------------
 // usage fees
 
+/** objects.h's MAGIC_FLUTE .. DRUM_OF_EARTHQUAKE (the horn of plenty is caught first; no bells). */
+const MAGIC_FLUTE_TO_DRUM: readonly string[] = [
+  'nh:magic_flute',
+  'nh:tooled_horn',
+  'nh:frost_horn',
+  'nh:fire_horn',
+  'nh:wooden_harp',
+  'nh:magic_harp',
+  'nh:bugle',
+  'nh:leather_drum',
+  'nh:drum_of_earthquake',
+];
+
 /**
  * What one use of an unpaid object costs, making its exhaustive use dearer than buying it.
  * ref: src/shk.c cost_per_charge() (the objects that exist)
@@ -1360,7 +1373,12 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: 
   } else if (obj.def === 'nh:horn_of_plenty') {
     // 1 - 20; altusage: emptying of all the contents at once
     if (!altusage) tmp = Math.trunc(tmp / 5);
-  } else if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
+  } else if (
+    obj.def === 'nh:oil_lamp' ||
+    obj.def === 'nh:brass_lantern' ||
+    MAGIC_FLUTE_TO_DRUM.includes(obj.def) || // 5 - 9
+    def.class === 'wand'
+  ) {
     if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
   } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
   else if (obj.def === 'nh:tinning_kit') tmp = Math.trunc(tmp / 10);

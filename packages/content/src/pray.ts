@@ -453,6 +453,26 @@ function godZapsYou(ctx: Ctx, align: number): void {
   fryByGod(ctx, align, true);
 }
 
+/**
+ * An altar destroyed (by an earthquake): its own believer loses 20 alignment and angers her god
+ * by 5; "You feel the air around you grow charged...", "Suddenly, you realize that Odin has
+ * noticed you...", the god's voice ("So, mortal!  You dare desecrate my altar!") and his bolts.
+ * ref: src/pray.c desecrate_altar()
+ */
+export function desecrateAltar(ctx: Ctx, highaltar: boolean, altaralign: number): void {
+  // if you did this to your own altar, your god will hold a grudge...
+  const u = uState(ctx.state);
+  if (altaralign === u.alignType) {
+    adjalign(ctx, -20);
+    setU(ctx, { ugangr: uState(ctx.state).ugangr + 5 });
+  }
+  say(ctx, 'pray.air_charged');
+  say(ctx, 'pray.noticed_you', { god: alignGname(altaralign) });
+  godvoice(ctx, altaralign, highaltar ? 'pray.dare_desecrate_high' : 'pray.dare_desecrate');
+  // throw everything we have at the player
+  godZapsYou(ctx, altaralign);
+}
+
 /** ref: src/pray.c angrygods() (no level drain, punishment or minions) */
 function angrygods(ctx: Ctx, god: number): void {
   // in Gehennom Moloch answers

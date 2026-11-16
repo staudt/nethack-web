@@ -119,6 +119,16 @@ export const nolimbs = (def: MonsterDef): boolean => has(def, 'nolimbs');
 export const nohands = (def: MonsterDef): boolean => has(def, 'nohands') || nolimbs(def);
 /** ref: include/mondata.h has_head(): no M1_NOHEAD bit (M1_NOLIMBS has it) */
 export const hasHead = (def: MonsterDef): boolean => !has(def, 'nohead') && !nolimbs(def);
+/**
+ * Whether the form can blow into a horn or flute: a silent or buzzing one that is breathless,
+ * very small, headless or an eel cannot (a strangled hero is the caller's). ref: src/mondata.c
+ * can_blow()
+ */
+export const canBlowDef = (def: MonsterDef): boolean =>
+  !(
+    (def.sound === 'silent' || def.sound === 'buzz') &&
+    (def.flags.includes('breathless') || verysmall(def) || !hasHead(def) || def.glyph.ch === ';')
+  );
 /** ref: include/mondata.h notake() */
 export const notake = (def: MonsterDef): boolean => has(def, 'notake');
 /** ref: include/mondata.h cantwield(): nohands or verysmall */

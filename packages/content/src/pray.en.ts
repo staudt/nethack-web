@@ -71,6 +71,11 @@ export const prayMessagesEn: Record<string, string> = {
   'pray.water.some_of': 'Some of the potions on the altar glow {color} for a moment.',
   'pray.then_die': '"Then die, mortal!"',
   'pray.lightning': 'Suddenly, a bolt of lightning strikes you!',
+  // ref: src/pray.c desecrate_altar()
+  'pray.air_charged': 'You feel the air around you grow charged...',
+  'pray.noticed_you': 'Suddenly, you realize that {god} has noticed you...',
+  'pray.dare_desecrate': 'So, mortal!  You dare desecrate my altar!',
+  'pray.dare_desecrate_high': 'So, mortal!  You dare desecrate my High Temple!',
   'pray.not_affected': 'It seems not to affect you.',
   'pray.fry': 'You fry to a crisp!',
   'pray.not_deterred': '{god} is not deterred...',

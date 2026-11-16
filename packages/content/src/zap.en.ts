@@ -249,6 +249,13 @@ export const zapMessagesEn: Record<string, string> = {
   'killer.zap.ray.sleep.m': 'a sleep ray zapped by himself',
   'killer.zap.ray.lightning': 'a bolt of lightning zapped by herself',
   'killer.zap.ray.lightning.m': 'a bolt of lightning zapped by himself',
+  // a fire or frost horn's ray (dobuzz(): a tool is "played"); applying it at herself
+  'killer.zap.horn.fire': 'a bolt of fire played by herself',
+  'killer.zap.horn.fire.m': 'a bolt of fire played by himself',
+  'killer.zap.horn.cold': 'a bolt of cold played by herself',
+  'killer.zap.horn.cold.m': 'a bolt of cold played by himself',
+  'killer.horn.self': 'using a magical horn on herself',
+  'killer.horn.self.m': 'using a magical horn on himself',
   // a monster's spell ray (zhitu() with flash_str(), KILLED_BY_AN)
   'killer.ray.magic_missile': 'a magic missile',
   'killer.ray.fire': 'a bolt of fire',

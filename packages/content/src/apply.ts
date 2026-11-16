@@ -1,4 +1,4 @@
-// Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the tin
+// Applying tools (a): lamps, lock tools, containers, whistles, instruments (music.ts), the tin
 // opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the
 // blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
@@ -31,7 +31,7 @@ import { DIG_ID, isPick, usePickAxe } from './dig';
 import { POLE_ID, poleAction, usePole } from './pole';
 import { isPole } from './skills';
 import { mnextoPos } from './generation';
-import { BUGLE, answerMusic, doPlayInstrument, isMusicData } from './music';
+import { answerMusic, doPlayInstrument, isInstrument, isMusicData } from './music';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
@@ -93,7 +93,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     isLockTool(e.def) ||
     e.def === WHISTLE.tin ||
     e.def === WHISTLE.magic ||
-    e.def === BUGLE ||
+    isInstrument(e.def) ||
     e.def === UNICORN_HORN ||
     e.def === FIGURINE ||
     e.def === TINNING_KIT ||
@@ -298,7 +298,7 @@ const apply: ActionDef = {
     if (isLockTool(obj.def)) return applyLockTool(ctx, obj);
     if (isPick(def)) return usePickAxe(ctx, obj);
     if (isPole(def)) return usePole(ctx, obj, false);
-    if (obj.def === BUGLE) return doPlayInstrument(ctx, obj, APPLY_ID);
+    if (isInstrument(obj.def)) return doPlayInstrument(ctx, obj, APPLY_ID);
     if (obj.def === FIGURINE) return useFigurine(ctx, obj);
     if (obj.def === CREAM_PIE) return useCreamPie(ctx, obj);
     if (obj.def === TIN_OPENER) return useTinOpener(ctx, obj, APPLY_ID);
@@ -320,8 +320,8 @@ const apply: ActionDef = {
     }
     return NORMAL_SPEED;
   },
-  // "Are you really sure you want to break X?", the questions of playing an instrument, the
-  // tinning kit's corpse and the tin opener's tin
+  // "Are you really sure you want to break X?", the questions of playing an instrument (and a
+  // horn's direction), the tinning kit's corpse and the tin opener's tin
   answer: (ctx, value, data) =>
     isMusicData(data)
       ? answerMusic(ctx, value, data, APPLY_ID)

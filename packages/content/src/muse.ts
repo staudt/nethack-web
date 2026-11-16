@@ -90,12 +90,16 @@ import {
   setMinvis,
 } from './invis';
 import { dropx, welded } from './itemactions';
-import { nhData, placeObject, removeFromInventory, setCknown } from './items';
+import { nhData, placeObject, removeFromInventory, setCknown, splitStack } from './items';
 import { growUp } from './mhitm';
 import { canDigDown, isBotlevel, nonDiggable, onWTowerLevel } from './levelflags';
 import { migrateToLevel } from './migrate';
+import { beginBurn } from './burnstate';
+import { POT_OIL } from './dilute';
+import { monGender } from './gender';
 import {
   amorphous,
+  canBlowDef,
   nonliving,
   isFlyer,
   isUnicorn,
@@ -207,14 +211,16 @@ export type MuseDef =
   | 'wan_undead_turning';
 
 /**
- * The offensive choices. ref: src/muse.c MUSE_* (the offensive ones; no horns or camera; the
- * potions and the scroll of earth come with thrown potions)
+ * The offensive choices. ref: src/muse.c MUSE_* (the offensive ones; no camera; the potions and
+ * the scroll of earth come with thrown potions)
  */
 export type MuseOff =
   | 'wan_death'
   | 'wan_sleep'
   | 'wan_fire'
+  | 'fire_horn'
   | 'wan_cold'
+  | 'frost_horn'
   | 'wan_lightning'
   | 'wan_magic_missile'
   | 'wan_striking'
@@ -269,12 +275,17 @@ const WAN_TELEPORTATION: DefId = 'nh:wand_of_teleportation';
 const WAN_CREATE_MONSTER: DefId = 'nh:wand_of_create_monster';
 const WAN_UNDEAD_TURNING: DefId = 'nh:wand_of_undead_turning';
 const WAN_STRIKING: DefId = 'nh:wand_of_striking';
-/** The ray wands, in find_offensive()'s order, and their rays. ref: BZ_OFS_WAN() */
-const RAY_WANDS: readonly (readonly [MuseOff, DefId, Ray, number])[] = [
+/**
+ * The ray wands and the fire and frost horns (`true`: blown, can_blow() first), in
+ * find_offensive()'s order, and their rays. ref: BZ_OFS_WAN(), BZ_OFS_AD()
+ */
+const RAY_WANDS: readonly (readonly [MuseOff, DefId, Ray, number, boolean?])[] = [
   ['wan_death', 'nh:wand_of_death', 'death', M_SEEN.magr],
   ['wan_sleep', 'nh:wand_of_sleep', 'sleep', M_SEEN.sleep],
   ['wan_fire', 'nh:wand_of_fire', 'fire', M_SEEN.fire],
+  ['fire_horn', 'nh:fire_horn', 'fire', M_SEEN.fire, true],
   ['wan_cold', 'nh:wand_of_cold', 'cold', M_SEEN.cold],
+  ['frost_horn', 'nh:frost_horn', 'cold', M_SEEN.cold, true],
   ['wan_lightning', 'nh:wand_of_lightning', 'lightning', M_SEEN.elec],
   ['wan_magic_missile', 'nh:wand_of_magic_missile', 'magic_missile', M_SEEN.magr],
 ];
@@ -302,6 +313,7 @@ const IRON_SHOES: DefId = 'nh:iron_shoes';
 const ACID_BLOB: DefId = 'nh:acid_blob';
 const SCR_FIRE: DefId = 'nh:scroll_of_fire';
 const WAN_FIRE: DefId = 'nh:wand_of_fire';
+const FIRE_HORN: DefId = 'nh:fire_horn';
 /** ref: include/color.h CLR_GREEN, CLR_BRIGHT_GREEN (as monsters.ts draws them) */
 const CLR_GREEN = '#33aa33';
 const CLR_BRIGHT_GREEN = '#55ff55';
@@ -1300,7 +1312,7 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
   for (const obj of minvent(ctx, id)) {
     let skip = false;
     if (!reflectionSkip) {
-      for (const [kind, otyp, , seen] of RAY_WANDS) {
+      for (const [kind, otyp, , seen, horn] of RAY_WANDS) {
         if (is(kind)) {
           skip = true; // nomore(): `continue` the inventory loop
           break;
@@ -1308,6 +1320,7 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
         if (
           obj.def === otyp &&
           spe(obj) > 0 &&
+          (horn !== true || canBlowDef(def)) &&
           !mSeenres(ctx, id, seen) &&
           (kind !== 'wan_sleep' || !isHelpless(ctx))
         )
@@ -1389,9 +1402,17 @@ export function useOffensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseOff>): Mu
   if (ray) {
     const dir = dirOf(sgn(aim.x - p.x), sgn(aim.y - p.y));
     if (!dir) return 0;
-    mzapwand(ctx, mon, otmp, false);
-    if (oseen) discover(ctx, otmp.def);
-    buzzFrom(ctx, ray[2], c.kind === 'wan_magic_missile' ? 2 : 6, { x: p.x, y: p.y }, dir, {
+    let nd: number;
+    if (ray[4] === true) {
+      // MUSE_FIRE_HORN, MUSE_FROST_HORN
+      mplayhorn(ctx, mon, otmp, false);
+      nd = ctx.rng.rn2(6) + 6; // rn1(6, 6)
+    } else {
+      mzapwand(ctx, mon, otmp, false);
+      if (oseen) discover(ctx, otmp.def);
+      nd = c.kind === 'wan_magic_missile' ? 2 : 6;
+    }
+    buzzFrom(ctx, ray[2], nd, { x: p.x, y: p.y }, dir, {
       by: 'monwand',
       mon: id,
       wand: otmp.def,
@@ -1512,6 +1533,35 @@ function mzapwand(ctx: Ctx, mon: Entity, otmp: Entity, self: boolean): void {
     stopOccupation(ctx);
   }
   it.spe -= 1;
+}
+
+/**
+ * A blown fire or frost horn: "The orc plays a fire horn directed at you!" (stopping her
+ * occupation), "The orc plays a fire horn directed at itself!", or unseen "You hear a horn being
+ * played nearby." / "... in the distance." (and she forgets what she knew of the horn); seen, the
+ * horn is learned. A charge is used. ref: src/muse.c mplayhorn()
+ */
+function mplayhorn(ctx: Ctx, mon: Entity, otmp: Entity, self: boolean): void {
+  const it = otmp.c.item;
+  if (!it) return;
+  if (!canseemon(ctx, mon)) {
+    say(ctx, heardNearby(ctx, mon) ? 'muse.hear_horn_near' : 'muse.hear_horn_far');
+    it.known = { buc: false, spe: false }; // unknow_object()
+  } else if (self) {
+    say(ctx, 'muse.plays_horn_self', {
+      mon: monNam(ctx, mon),
+      item: xnameOf(ctx.state, ctx.defs, otmp),
+    });
+    discover(ctx, otmp.def); // (wands handle this slightly differently)
+  } else {
+    say(ctx, 'muse.plays_horn', {
+      mon: monNam(ctx, mon),
+      item: xnameOf(ctx.state, ctx.defs, otmp),
+    });
+    discover(ctx, otmp.def);
+    stopOccupation(ctx);
+  }
+  it.spe -= 1; // use a charge
 }
 
 /**
@@ -1656,13 +1706,16 @@ export function munstone(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
 }
 
 /**
- * Whether `obj` can burn off the monster's slime: a scroll of fire it can see to read, or a
- * charged wand of fire. ref: src/muse.c cures_sliming() (no potions of oil or fire horns)
+ * Whether `obj` can burn off the monster's slime: a scroll of fire it can see to read, a potion
+ * of oil (set burning if it is not already) in hands, or a charged wand of fire or fire horn it
+ * can blow ("hero doesn't need hands or even limbs to zap, so mon doesn't either").
+ * ref: src/muse.c cures_sliming()
  */
 function curesSliming(ctx: Ctx, mon: Entity, obj: Entity): boolean {
-  if (obj.def === SCR_FIRE)
-    return haseyes(ctx, mon) && mcansee(ctx, mon.id) && !nohands(ctx.defs.monster(mon.def));
-  return obj.def === WAN_FIRE && spe(obj) > 0;
+  const def = ctx.defs.monster(mon.def);
+  if (obj.def === SCR_FIRE) return haseyes(ctx, mon) && mcansee(ctx, mon.id) && !nohands(def);
+  if (obj.def === POT_OIL) return !nohands(def);
+  return (obj.def === WAN_FIRE || (obj.def === FIRE_HORN && canBlowDef(def))) && spe(obj) > 0;
 }
 
 /**
@@ -1677,10 +1730,9 @@ function greenMon(ctx: Ctx, mon: Entity): boolean {
 /**
  * A monster about to turn into a green slime burns it off: a fire breather breathes on itself
  * (not cancelled, its breath ready); else, unless it is an animal or mindless, it uses the first
- * scroll of fire or charged wand of fire it carries. Not a slimeproof monster, one eating or
+ * scroll of fire, potion of oil, or charged wand of fire or fire horn it carries. Not a slimeproof monster, one eating or
  * helpless. Returns whether it tried (a confused reader fails, and it may die of the fire).
- * ref: src/muse.c munslime() (no potions of oil or fire horns; no fire traps exist in this
- * port, so the scan of the squares around it only makes its `rn1()` draws; no STRAT_WAITFORU)
+ * ref: src/muse.c munslime() (no fire traps exist in this port, so the scan of the squares around it only makes its `rn1()` draws; no STRAT_WAITFORU)
  */
 export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
   const def = ctx.defs.monster(mon.def);
@@ -1732,14 +1784,15 @@ export function munslime(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
  * The monster burns its slime off (`obj` null: with its own fire breath, `rn2(3)` of using it
  * up for `rn1(10, 5)` turns): "The lichen starts turning green." ("into ooze" for a green-looking
  * monster) and a quiet loss of intrinsic speed; then "The lichen breathes fire on itself.", a
- * wand of fire zapped at itself, or a scroll of fire read (a fireball at its square of
- * `(2 * (rn1(3, 3) + 2 * bcsign) + 1) / 3`; confused: "Oh, what a pretty fire!" and nothing
- * cured). Fire that hurts it: "The lichen is burned!" or, fatal, "The lichen is killed by the
+ * wand of fire zapped or a fire horn played at itself, a scroll of fire read (a fireball at its
+ * square of `(2 * (rn1(3, 3) + 2 * bcsign) + 1) / 3`; confused: "Oh, what a pretty fire!" and
+ * nothing cured), or a potion of oil lit ("The orc ignites a murky potion.") and quaffed burning
+ * (its `d(3, 4)` only says "is burned": C applies none of it). Fire that hurts it: "The lichen is burned!" or, fatal, "The lichen is killed by the
  * fire!" (the hero's kill when `byYou`). "The lichen's slime is burned away!" and the object is
  * learned when seen. With `trap`, a fire trap under it or next to it: "The lichen triggers the
  * fire trap!", or it moves there first ("The lichen crawls onto a fire trap!"), and the trap goes
  * off under it (the kill is never the hero's). The cure takes its next move.
- * ref: src/muse.c muse_unslime() (no potions of oil or fire horns; trycall() is not ported; the
+ * ref: src/muse.c muse_unslime() (trycall() is not ported; the
  * fireball is a monster's (`by` other) even when `byYou`)
  */
 function museUnslime(
@@ -1799,9 +1852,38 @@ function museUnslime(
       if (p) explode(ctx, p.x, p.y, { scroll: true, by: 'other' }, dmg, 'fiery');
       dmg = 0; // damage has been applied by explode()
     }
+  } else if (obj.def === POT_OIL) {
+    // if not already lit, requires two actions; the monster does both
+    const wasLit = obj.c.item?.lit === true;
+    let sawLit = false;
+    const quan = obj.c.item?.quantity ?? 1;
+    const one = quan > 1 ? (ctx.state.entities[String(splitStack(ctx, obj.id, 1))] ?? obj) : obj;
+    const name = (): Msg => xnameOf(ctx.state, ctx.defs, one);
+    if (vis && !wasLit) {
+      say(ctx, 'muse.ignites', { mon: monNam(ctx, mon), item: name() });
+      sawLit = true;
+    }
+    beginBurn(ctx, one, wasLit);
+    vis = vis || canseemon(ctx, mon); // burning potion may improve visibility
+    if (vis) {
+      const g = monGender(ctx, mon);
+      say(
+        ctx,
+        sawLit ? `muse.quaffs_burning_${['he', 'she', 'it'][g] ?? 'it'}` : 'muse.quaffs_burning',
+        {
+          mon: monNam(ctx, mon),
+          item: name(),
+        },
+      );
+      discover(ctx, POT_OIL);
+    }
+    dmg = ctx.rng.d(3, 4); // [**TEMP** (different from hero)]
+    if (one.id !== obj.id) ctx.remove(one.id);
+    else useOne(ctx, mon.id, obj);
   } else {
-    // wand of fire with a positive charge count
-    mzapwand(ctx, mon, obj, true);
+    // wand or horn of fire with a positive charge count
+    if (obj.def === FIRE_HORN) mplayhorn(ctx, mon, obj, true);
+    else mzapwand(ctx, mon, obj, true);
     // -1 => monster's wand of fire; 2 => # of damage dice
     dmg = zhitm(ctx, mon, 'fire', 2, false, byYou);
   }

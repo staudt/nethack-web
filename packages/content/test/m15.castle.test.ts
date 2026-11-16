@@ -424,14 +424,14 @@ describe('the drawbridge', () => {
 
 describe('opening the drawbridge (step 8)', () => {
   /** The Castle of `seed` with no monsters, the tune set, the hero next to the span (west). */
-  function bank(seed: number, tune = 'BADGE') {
+  function bank(seed: number, tune = 'BADGE', instrument: DefId = 'nh:bugle') {
     const { state, level } = castle(seed);
     clearMonsters(state, level);
     putHero(state, level, at(level, 4, 8));
     let bugle = 0;
     run(state, (ctx) => {
       setCastleTune(ctx, tune);
-      bugle = mksobj(ctx, ctx.defs.object('nh:bugle'), {
+      bugle = mksobj(ctx, ctx.defs.object(instrument), {
         init: false,
         carriedBy: ctx.state.playerId,
       });
@@ -473,6 +473,20 @@ describe('opening the drawbridge (step 8)', () => {
     expect(texts(answer(state, true).events)).toContain('You see a drawbridge coming up!');
     expect(terrainIdAt(level, span.x, span.y)).toBe(T.drawbridge_up);
     expect(terrainIdAt(level, wall.x, wall.y)).toBe(T.dbwall_v);
+  });
+
+  test('the passtune works on any instrument that plays notes (m19 step 6)', () => {
+    // ref: src/music.c do_play_instrument(): "Improvise?" for all but the drums
+    for (const [seed, otyp, name] of [
+      [5, 'nh:wooden_flute', 'flute'],
+      [6, 'nh:wooden_harp', 'harp'],
+      [7, 'nh:frost_horn', 'horn'],
+    ] as const) {
+      const { state, level, bugle, span } = bank(seed, 'BADGE', otyp);
+      const msgs = play(state, bugle, 'BADGE');
+      expect(msgs).toContain(`You extract a strange sound from the ${name}!`);
+      expect(terrainIdAt(level, span.x, span.y)).toBe(T.drawbridge_down_h);
+    }
   });
 
   test('a wrong tune gives the tumblers and gears; five right notes and more teach it', () => {

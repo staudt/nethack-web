@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5304 citations.
+188 NetHack files, 5328 citations.
 
 ## dat/asmodeus.lua
 
@@ -580,7 +580,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/music.ts`, `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
@@ -1450,6 +1450,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `assigninvlet()`: `packages/content/src/items.ts`
 - `carry_obj_effects()`: `packages/content/src/figurinestate.ts`
 - `carrying()`: `packages/content/src/gem.ts`, `packages/content/src/shk.ts`
+- `consume_obj_charge()`: `packages/content/src/music.ts`
 - `count_contents()`: `packages/content/src/shk.ts`
 - `count_unpaid()`: `packages/content/src/price.ts`
 - `def_inv_order()`: `packages/content/src/itemactions.ts`
@@ -1888,11 +1889,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wake_nearby()`: `packages/content/src/apply.ts`, `packages/content/src/btrapped.ts`, `packages/content/src/trap.ts`
 - `wake_nearto_core()`: `packages/content/src/apply.ts`, `packages/content/src/noise.ts`
 - `wakeup()`: `packages/content/src/actions.ts`, `packages/content/src/mimic.ts`, `packages/content/src/peaceful.ts`
-- `xkilled()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/corpses.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/hmon.ts`, `packages/content/src/luck.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/muse.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/stoning.ts`
+- `xkilled()`: `packages/content/src/buzz.ts`, `packages/content/src/combat.ts`, `packages/content/src/corpses.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/earthquake.ts`, `packages/content/src/hmon.ts`, `packages/content/src/luck.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/muse.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/stoning.ts`
 
 ## src/mondata.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/zap.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
 - `big_to_little()`: `packages/content/src/eggstate.ts`
 - `breakarm()`: `packages/content/src/mondata.ts`
 - `can_blnd()`: `packages/content/src/adtyping.ts`
@@ -2012,6 +2013,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_has_friends()`: `packages/content/src/muse.ts`
 - `mon_likes_objpile_at()`: `packages/content/src/muse.ts`
 - `mon_reflects()`: `packages/content/src/musestate.ts`
+- `mplayhorn()`: `packages/content/src/muse.en.ts`, `packages/content/src/muse.ts`
 - `mquaffmsg()`: `packages/content/src/muse.ts`
 - `mreadmsg()`: `packages/content/src/muse.ts`
 - `munslime()`: `packages/content/src/muse.ts`, `packages/content/src/slimestate.ts`
@@ -2036,10 +2038,19 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/music.c
 
+- (file): `packages/content/src/music.ts`
+- `awaken_monsters()`: `packages/content/src/music.ts`
 - `awaken_scare()`: `packages/content/src/music.ts`
 - `awaken_soldiers()`: `packages/content/src/apply.en.ts`, `packages/content/src/music.ts`
+- `beats()`: `packages/content/src/music.ts`
+- `calm_nymphs()`: `packages/content/src/apply.en.ts`, `packages/content/src/music.ts`
+- `charm_monsters()`: `packages/content/src/music.ts`
+- `charm_snakes()`: `packages/content/src/apply.en.ts`, `packages/content/src/music.ts`
+- `do_earthquake()`: `packages/content/src/apply.en.ts`, `packages/content/src/earthquake.ts`
 - `do_improvisation()`: `packages/content/src/apply.en.ts`, `packages/content/src/music.ts`
+- `do_pit()`: `packages/content/src/apply.en.ts`, `packages/content/src/earthquake.ts`
 - `do_play_instrument()`: `packages/content/src/apply.en.ts`, `packages/content/src/music.ts`
+- `generic_lvl_desc()`: `packages/content/src/earthquake.ts`
 - `improvised_notes()`: `packages/content/src/music.ts`
 
 ## src/nhlsel.c
@@ -2256,6 +2267,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `angrygods()`: `packages/content/src/pray.ts`
 - `can_pray()`: `packages/content/src/pray.ts`
 - `critically_low_hp()`: `packages/content/src/pray.ts`
+- `desecrate_altar()`: `packages/content/src/pray.en.ts`, `packages/content/src/pray.ts`
 - `dopray()`: `packages/content/src/pray.ts`
 - `fix_curse_trouble()`: `packages/content/src/pray.ts`
 - `fix_worst_trouble()`: `packages/content/src/attrstate.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`

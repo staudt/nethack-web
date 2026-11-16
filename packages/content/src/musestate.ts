@@ -26,7 +26,7 @@ import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { monInvisible, invisBlocked, seeInvisible } from './invis';
 import { hardHelmet } from './material';
-import { amorphous, isUnicorn, noncorporeal, nonliving } from './mondata';
+import { amorphous, canBlowDef, isUnicorn, noncorporeal, nonliving } from './mondata';
 import {
   hasWandExp,
   mcansee,
@@ -243,10 +243,10 @@ const SEARCHED_WANDS: readonly DefId[] = [
 /**
  * Whether the monster wants `obj` for its own use (muse): charged attack and escape wands, the
  * potions and scrolls it can use, amulets of life saving and reflection, a pick-axe for a digger,
- * an uncursed unicorn horn, a container to loot, the corpses that cure stoning (or a cockatrice's
+ * an uncursed unicorn horn, a charged fire or frost horn it can blow, a container to loot, the corpses that cure stoning (or a cockatrice's
  * for a gloved monster) and cockatrice eggs. Not an object on a scary square it stands on, and
  * nothing for animals, the mindless and ghosts.
- * ref: src/muse.c searches_for_item() (no horns, cameras or amulets of guarding here)
+ * ref: src/muse.c searches_for_item() (no cameras or amulets of guarding here)
  */
 export function searchesForItem(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -292,6 +292,8 @@ export function searchesForItem(
     case 'tool':
       if (typ === 'nh:pick_axe') return mdef.flags.includes('needpick');
       if (typ === 'nh:unicorn_horn') return it?.buc !== 'cursed' && !isUnicorn(mdef);
+      if (typ === 'nh:frost_horn' || typ === 'nh:fire_horn')
+        return (it?.spe ?? 0) > 0 && canBlowDef(mdef);
       // Is_container(obj) && !(Is_mbag(obj) && obj->cursed) && !obj->olocked
       return (
         isContainer(ctx.defs, obj) &&
