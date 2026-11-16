@@ -464,10 +464,10 @@ describe('polymorph and recharging', () => {
 });
 
 describe('inert until their steps, but priced and fed to pets as C', () => {
-  test('no Eat on a tin; a dog takes a tin as people food', () => {
+  test('Eat on a tin (m19 step 5); a dog takes a tin as people food', () => {
     const s = levelSetup();
     const tin = ent(s.state, s.carry(TIN));
-    expect(isEdible({ state: s.state, defs }, tin)).toBe(false);
+    expect(isEdible({ state: s.state, defs }, tin)).toBe(true);
     const dog = ent(s.state, addMon(s.state, 'nh:little_dog', 3, 1, { asleep: true }));
     expect(dogfood({ state: s.state, defs }, dog, tin)).toBe(MANFOOD);
   });

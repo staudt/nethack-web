@@ -80,6 +80,7 @@ import { registerShopDamage } from './shkdamage';
 import { shkDamageAction } from './shkpay';
 import { DIP_ACTIONS } from './dip';
 import { RUB_ACTIONS } from './rub';
+import { TIN_ACTIONS } from './tin';
 import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
@@ -128,6 +129,7 @@ export const vanillaMod: Mod = {
     api.defineAction(shkDamageAction);
     for (const a of DIP_ACTIONS) api.defineAction(a);
     for (const a of RUB_ACTIONS) api.defineAction(a);
+    for (const a of TIN_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
     registerSpells(api);

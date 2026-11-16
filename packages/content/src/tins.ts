@@ -5,7 +5,7 @@
 //
 // A tin's monster is `corpseOf` (C's corpsenm; absent is NON_PM: empty, or spinach) and its
 // variety `spe`: 1 spinach, -(variety + 1) a chosen variety, 0 none chosen (drawn when opened).
-import type { DefId, ItemComponent, Registry, Rng } from '@nh/core';
+import type { Ctx, DefId, EntityId, GameState, ItemComponent, Json, Registry, Rng } from '@nh/core';
 import { vegetarian } from './mondata';
 
 export const TIN = 'nh:tin';
@@ -121,4 +121,72 @@ export function tinVarietyTxt(
       return { variety: k, skip: txt.length + 1 };
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// the tin being opened (C's svc.context.tin), kept here so eat.ts, stoning.ts and slime.ts can
+// read it without importing tin.ts
+
+/** The occupation's action: one move of opening the tin. ref: set_occupation(opentin, ...) */
+export const OPENTIN_ID: DefId = 'nh:opentin';
+
+/** `modData.nh.tin`: the tin, the moves it needs and the moves spent. ref: svc.context.tin */
+export interface TinCtx {
+  id: EntityId;
+  reqtime: number;
+  usedtime: number;
+}
+
+const nhTable = (state: Readonly<GameState>): Record<string, unknown> | undefined =>
+  state.modData['nh'] as Record<string, unknown> | undefined;
+
+/** The tin being opened, or null. */
+export function tinCtx(state: Readonly<GameState>): TinCtx | null {
+  const t = nhTable(state)?.['tin'] as TinCtx | undefined;
+  return t ?? null;
+}
+
+/** Sets (or with null forgets) the tin being opened. */
+export function setTinCtx(ctx: Pick<Ctx, 'state'>, rec: TinCtx | null): void {
+  const md = (ctx.state.modData['nh'] ??= {}) as Record<string, unknown>;
+  if (rec) md['tin'] = rec as unknown as Json;
+  else delete md['tin'];
+}
+
+/** Whether her occupation is opening a tin (`go.occupation == opentin`). */
+export function openingTin(state: Readonly<GameState>): boolean {
+  const occ = state.occupation?.action;
+  return occ?.type === 'mod' && occ.action === OPENTIN_ID && tinCtx(state) !== null;
+}
+
+/**
+ * Whether the tin she is opening may save her from `threat`, so the countdown does not stop her:
+ * a tin she cannot tell is assumed helpful; a known one cures stoning when it holds a lizard or
+ * an acidic monster, and sliming when it holds a shapeshifter or a monster that polymorphs
+ * (polyfood()). ref: src/eat.c Popeye() (she has the tin or stands on it)
+ */
+export function popeye(
+  state: Readonly<GameState>,
+  defs: Registry,
+  threat: 'stoned' | 'slimed',
+): boolean {
+  if (!openingTin(state)) return false;
+  const rec = tinCtx(state);
+  const otin = rec ? state.entities[String(rec.id)] : undefined;
+  const it = otin?.c.item;
+  if (!otin || !it) return false;
+  // make sure the hero still has access to the tin
+  if (it.carriedBy !== state.playerId) {
+    const hp = state.entities[String(state.playerId)]?.c.pos;
+    const p = otin.c.pos;
+    if (it.carriedBy !== null || !hp || !p || p.level !== hp.level || p.x !== hp.x || p.y !== hp.y)
+      return false;
+  }
+  if (!it.known.spe) return true; // unknown tin is assumed to be helpful
+  const mndx = it.corpseOf;
+  if (mndx === undefined || !defs.isMonster(mndx)) return false;
+  const mon = defs.monster(mndx);
+  if (threat === 'stoned') return mndx === 'nh:lizard' || mon.flags.includes('acid');
+  // polyfood(): pm_to_cham() or an AD_POLY attack
+  return mon.flags.includes('shapeshifter') || mon.attacks.some((a) => a.ad === 'poly');
 }

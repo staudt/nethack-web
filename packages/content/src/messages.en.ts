@@ -45,6 +45,7 @@ import { digMessagesEn } from './dig.en';
 import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
 import { djinniMessagesEn } from './djinni.en';
+import { tinMessagesEn } from './tin.en';
 import { dipMessagesEn } from './dip.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
@@ -123,6 +124,7 @@ export const messagesEn: Record<string, string> = {
   ...enlightenmentMessagesEn,
   ...jumpMessagesEn,
   ...djinniMessagesEn,
+  ...tinMessagesEn,
   ...dipMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,

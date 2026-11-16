@@ -1191,7 +1191,7 @@ function swapWeapons(ctx: Ctx): number {
  * it is wielded now (the move is used). A form that can't wield can't hold it. Not ported: worn
  * objects (a tool is never worn here), the quiver, `pushweapon`, two-weapon combat. ref: src/wield.c wield_tool()
  */
-export function wieldTool(ctx: Ctx, obj: Entity, verb: 'swing' | 'rub'): boolean {
+export function wieldTool(ctx: Ctx, obj: Entity, verb: 'swing' | 'rub' | 'use'): boolean {
   const cur = wielded(ctx);
   if (cur?.id === obj.id) return true; // nothing to do if already wielding it
   const def = defOf(ctx, obj);

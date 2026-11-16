@@ -163,7 +163,8 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
 }
 
 /**
- * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
+ * The effects of finishing a corpse of `def` (or a tin of it: `tinPoly` uses the tin up before a
+ * shapeshifter's polymorph). ref: src/eat.c cpostfx(). Ported: bats and lights
  * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic; the stalker
  * makes her invisible for a while, or for good with see invisible when she already is; a
  * chameleon, doppelganger or sandestin polymorphs her ("You feel a change coming over you.", or
@@ -172,7 +173,7 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
  * The wraith gives a level (pluslvl(FALSE)), a human-form were
  * creature its lycanthropy (set_ulycn(); the beast forms leave no corpse).
  */
-export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
+export function cpostfxOf(ctx: Ctx, def: MonsterDef, tinPoly?: (ctx: Ctx) => void): void {
   const hero = getPlayer(ctx.state);
   if (def.id === 'nh:quantum_mechanic') {
     // `HFast & INTRINSIC` (from outside or from experience) is taken away, else given; the timed
@@ -194,10 +195,13 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
     return;
   }
   if (def.id === 'nh:chameleon' || def.id === 'nh:doppelganger' || def.id === 'nh:sandestin') {
-    // (the sandestin is moot: it leaves no corpse; no tins here)
+    // (the sandestin is moot: it leaves no corpse)
     if (hasProp(hero, P.UNCHANGING)) {
       ctx.emit({ type: 'msg', key: 'polytrap.momentarily_different' }); // same as poly trap
     } else {
+      // polyself() is potentially fatal; if food is a tin, use it up early to keep it out of
+      // bones (most tin effects end up being skipped)
+      tinPoly?.(ctx);
       ctx.emit({ type: 'msg', key: 'givit.change_coming' });
       polyselfLate(ctx);
     }

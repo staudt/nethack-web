@@ -46,7 +46,7 @@ export function blowDoor(ctx: Ctx, level: Level, x: number, y: number, shopCost?
  * ("killed by an explosion") and as many more turns of stun. The caller has already made the door
  * a doorway (D_NODOOR) and forgotten its trap. No exercise. ref: src/trap.c b_trapped()
  */
-export function bTrapped(ctx: Ctx, item: 'door' | 'secret_door'): void {
+export function bTrapped(ctx: Ctx, item: 'door' | 'secret_door' | 'tin'): void {
   const level = ctx.state.levels[ctx.state.currentLevel];
   const lvl = level?.depth ?? 1; // level_difficulty()
   const dmg = ctx.rng.rnd(5 + (lvl < 5 ? lvl : 2 + Math.trunc(lvl / 2)));

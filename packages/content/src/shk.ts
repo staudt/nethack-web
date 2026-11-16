@@ -671,7 +671,7 @@ export function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
  * The hero has just altered a shop object (bitten into food, cancelled it): she pays for it.
  * `at`: where it lies on the floor, or null when she has it. Uncursing or unblessing tells her
  * its BUC. ref: src/mkobj.c costly_alteration() (COST_BITE, COST_CANCEL, COST_UNCURS,
- * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN, COST_SPLAT, COST_NUTRLZ)
+ * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN, COST_SPLAT, COST_NUTRLZ, COST_OPEN)
  */
 export function costlyAlteration(
   ctx: Ctx,
@@ -685,7 +685,8 @@ export function costlyAlteration(
     | 'destroy'
     | 'drain'
     | 'splat'
-    | 'neutralize',
+    | 'neutralize'
+    | 'open',
   at: Pos | null,
 ): void {
   const it = obj.c.item;
@@ -1356,9 +1357,13 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: 
     // what is charged for an ordinary lamp
     if (!altusage) tmp = ctx.defs.object('nh:oil_lamp').cost;
     else tmp += Math.trunc(tmp / 3); // djinni is being released
+  } else if (obj.def === 'nh:horn_of_plenty') {
+    // 1 - 20; altusage: emptying of all the contents at once
+    if (!altusage) tmp = Math.trunc(tmp / 5);
   } else if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
     if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
   } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
+  else if (obj.def === 'nh:tinning_kit') tmp = Math.trunc(tmp / 10);
   else if (obj.def === 'nh:potion_of_oil') tmp = Math.trunc(tmp / 5);
   return tmp;
 }

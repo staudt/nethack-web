@@ -10,6 +10,7 @@ export const chestTrapMessagesEn: Record<string, string> = {
   'btrap.kaboom': 'KABOOM!!  The {item} was booby-trapped!',
   'btrap.item.door': 'door',
   'btrap.item.secret_door': 'secret door',
+  'btrap.item.tin': 'tin',
   'btrap.see_door_explode': 'KABOOM!!  You see a door explode.',
   'btrap.hear_distant': 'You hear a distant explosion.',
   'btrap.hear_nearby': 'You hear a nearby explosion.',

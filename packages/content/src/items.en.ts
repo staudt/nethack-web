@@ -92,6 +92,7 @@ export const itemMessagesEn: Record<string, string> = {
   'wield.now_wield': 'You now wield {item|an}.',
   'wield.verb.swing': 'swing',
   'wield.verb.rub': 'rub',
+  'wield.verb.use': 'use',
   'kind.tool': 'tool',
   'wield.welded': 'Your {item} is welded to your hand!',
   'wield.welded_pl': 'Your {item} are welded to your hand!',

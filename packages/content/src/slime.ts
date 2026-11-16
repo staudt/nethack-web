@@ -17,6 +17,7 @@ import { P, hasProp, setIntrinsic, setItimeout, timeoutLeft } from './props';
 import { isSlimed, makeSlimed, slimedKiller } from './slimestate';
 import { isStoned, makeStoned } from './stonestate';
 import { heroForm, heroFormId, upolyd } from './upoly';
+import { popeye } from './tins';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -58,8 +59,10 @@ function slimeTimeout(ctx: Ctx): void {
     case 3: // limbs becoming oozy
       setIntrinsic(h, P.FAST, false); // HFast = 0L: lose intrinsic speed
       setItimeout(ctx.state, h, P.FAST, 0);
-      stopOccupation(ctx); // (no tins: no Popeye())
-      ctx.interrupt(); // if (multi > 0) nomul(0)
+      if (!popeye(ctx.state, ctx.defs, 'slimed')) {
+        stopOccupation(ctx);
+        ctx.interrupt(); // if (multi > 0) nomul(0)
+      }
       break;
     case 1: // turning into slime: if also turning to stone, stop doing that (no message)
       if (isStoned(ctx.state)) makeStoned(ctx, 0, null, null);

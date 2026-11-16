@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5271 citations.
+188 NetHack files, 5304 citations.
 
 ## dat/asmodeus.lua
 
@@ -469,6 +469,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `likes_lava()`: `packages/content/src/mondata.ts`, `packages/content/src/uwater.ts`
 - `likes_objs()`: `packages/content/src/mongear.ts`
 - `locomotion()`: `packages/content/src/adtyping.ts`, `packages/content/src/muse.ts`
+- `metallivorous()`: `packages/content/src/tin.ts`
 - `mindless()`: `packages/content/src/muse.ts`, `packages/content/src/musestate.ts`
 - `mon_hates_blessings()`: `packages/content/src/mondata.ts`, `packages/content/src/silver.ts`
 - `needspick()`: `packages/content/src/mdig.ts`
@@ -724,7 +725,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -735,7 +736,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/apply.c
 
-- (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`, `packages/content/src/water.ts`
+- (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`, `packages/content/src/tin.en.ts`, `packages/content/src/water.ts`
 - `broken_wand_explode()`: `packages/content/src/breakwand.ts`
 - `calc_pole_range()`: `packages/content/src/pole.ts`
 - `catch_lit()`: `packages/content/src/light.ts`
@@ -761,6 +762,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `snuff_candle()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
+- `tinnable()`: `packages/content/src/tin.ts`
 - `um_dist()`: `packages/content/src/shkpay.ts`
 - `unfixable_trouble_count()`: `packages/content/src/potion.ts`
 - `use_candle()`: `packages/content/src/light.ts`
@@ -770,6 +772,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
 - `use_royal_jelly()`: `packages/content/src/rub.ts`
+- `use_tinning_kit()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
 - `use_whistle()`: `packages/content/src/apply.ts`
 
@@ -834,7 +837,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `extcmdlist()`: `packages/app/src/keys.ts`
 - `getdir()`: `packages/content/src/dig.ts`, `packages/content/src/dokick.ts`, `packages/content/src/hackmove.ts`, `packages/content/src/zap.ts`
 - `set_move_cmd()`: `packages/content/src/run.ts`
-- `set_occupation()`: `packages/content/src/force.ts`
+- `set_occupation()`: `packages/content/src/force.ts`, `packages/content/src/tins.ts`
 - `xytodir()`: `packages/content/src/trapstate.ts`
 
 ## src/dbridge.c
@@ -1193,11 +1196,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/eat.en.ts`, `packages/content/src/resist.en.ts`, `packages/core/src/types/entity.ts`
 - `Finish_digestion()`: `packages/content/src/hmonas.ts`
+- `Popeye()`: `packages/content/src/tins.ts`
 - `adj_victual_nutrition()`: `packages/content/src/eat.ts`
 - `bite()`: `packages/content/src/eat.ts`
 - `choke()`: `packages/content/src/eat.ts`
 - `consume_oeaten()`: `packages/content/src/eat.ts`
+- `consume_tin()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `corpse_intrinsic()`: `packages/content/src/givit.ts`
+- `costly_tin()`: `packages/content/src/tin.ts`
 - `cpostfx()`: `packages/content/src/eat.ts`, `packages/content/src/givit.ts`
 - `cprefx()`: `packages/content/src/eat.ts`
 - `do_reset_eat()`: `packages/content/src/eat.ts`
@@ -1209,6 +1215,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `eatfood()`: `packages/content/src/eat.ts`
 - `eye_of_newt_buzz()`: `packages/content/src/givit.ts`
 - `fix_petrification()`: `packages/content/src/stonestate.ts`
+- `floorfood()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `food_disappears()`: `packages/content/src/corpses.ts`, `packages/content/src/revive.ts`
 - `food_xname()`: `packages/content/src/eat.ts`
 - `fpostfx()`: `packages/content/src/eat.ts`
@@ -1227,12 +1234,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `newuhs()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/testkit/src/scenario.ts`
 - `nonrotting_corpse()`: `packages/content/src/eat.ts`, `packages/content/src/tins.ts`
 - `obj_nutrition()`: `packages/content/src/eat.ts`, `packages/content/src/items.ts`
+- `opentin()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `reset_eat()`: `packages/content/src/eat.ts`
 - `reset_faint()`: `packages/content/src/drown.ts`
 - `rottenfood()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
 - `set_tin_variety()`: `packages/content/src/tins.ts`
 - `should_givit()`: `packages/content/src/givit.ts`
 - `start_eating()`: `packages/content/src/eat.ts`
+- `start_tin()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `status_enlightenment()`: `packages/content/src/enlightenment.ts`
 - `temp_givit()`: `packages/content/src/givit.ts`
 - `tin_details()`: `packages/content/src/objnam.ts`
@@ -1241,6 +1250,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `tintxts()`: `packages/content/src/objects.en.ts`, `packages/content/src/tins.ts`
 - `touchfood()`: `packages/content/src/eat.ts`
 - `unfaint()`: `packages/content/src/hunger.ts`
+- `use_tin_opener()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
+- `use_up_tin()`: `packages/content/src/tin.ts`
 - `vomit()`: `packages/content/src/hunger.ts`
 
 ## src/end.c
@@ -1433,7 +1444,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/invent.c
 
-- (file): `packages/content/src/magic.ts`, `packages/content/src/read.ts`, `packages/content/src/wish.ts`
+- (file): `packages/content/src/horn.ts`, `packages/content/src/magic.ts`, `packages/content/src/read.ts`, `packages/content/src/wish.ts`
 - `addinv()`: `packages/content/src/items.ts`
 - `addinv_core0()`: `packages/content/src/items.ts`
 - `assigninvlet()`: `packages/content/src/items.ts`
@@ -1736,6 +1747,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fixup_oil()`: `packages/content/src/dilute.ts`
 - `get_obj_location()`: `packages/content/src/light.ts`, `packages/content/src/price.ts`
 - `hellprobs()`: `packages/content/src/mkobj.ts`
+- `hornoplenty()`: `packages/content/src/horn.ts`, `packages/content/src/tin.en.ts`
 - `is_flammable()`: `packages/content/src/material.ts`
 - `is_rottable()`: `packages/content/src/material.ts`
 - `may_generate_eroded()`: `packages/content/src/items.ts`
@@ -1992,6 +2004,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_use_healing()`: `packages/content/src/muse.ts`
 - `mbhit()`: `packages/content/src/muse.ts`
 - `mbhitm()`: `packages/content/src/muse.ts`
+- `mcould_eat_tin()`: `packages/content/src/musestate.ts`
 - `mcureblindness()`: `packages/content/src/musestate.ts`
 - `mloot_container()`: `packages/content/src/muse.en.ts`, `packages/content/src/muse.ts`
 - `mon_consume_unstone()`: `packages/content/src/muse.ts`

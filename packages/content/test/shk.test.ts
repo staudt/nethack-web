@@ -1353,6 +1353,69 @@ describe('prices', () => {
       expect(d.c.item?.unpaid).toBe(true);
     });
 
+    test('opening an unpaid tin: one of the stack is charged ("you pay for it")', () => {
+      // ref: src/eat.c costly_tin(COST_OPEN): the opened tin is split off and billed used up
+      const t = bare(15);
+      const tin = t.make('nh:tin', { quantity: 2 });
+      Object.assign(tin.c.item ?? {}, { corpseOf: 'nh:newt', spe: -7 });
+      t.pickup();
+      expect(tin.c.item?.unpaid).toBe(true);
+      const op = own(t, 'nh:tin_opener');
+      Object.assign(op.c.item ?? {}, { buc: 'blessed', equipped: 'weapon' });
+      const r = t.step({ type: 'mod', action: 'nh:eat', args: { item: tin.id } });
+      expect(r.prompt?.key).toBe('tin.eat_it');
+      const a = t.answer(r, false);
+      expect(t.lines(a)).toContain('You discard the open tin.');
+      expect(t.lines(a)).toContainEqual(
+        expect.stringMatching(/^"You open that .*, you pay for it!"$/),
+      );
+      expect(tin.c.item?.quantity).toBe(1);
+      expect(tin.c.item?.unpaid).toBe(true);
+      expect(t.e.bill.filter((b) => b.useup)).toHaveLength(1);
+    });
+
+    test('tinning an unpaid corpse: "You tin it, you bought it!"; the kit\'s usage fee', () => {
+      // ref: src/apply.c use_tinning_kit(); src/shk.c cost_per_charge() TINNING_KIT
+      const t = bare(15);
+      know(t, 'nh:tinning_kit');
+      const kit = t.make('nh:tinning_kit');
+      if (kit.c.item) kit.c.item.spe = 50;
+      t.pickup();
+      const cid = mksobj(ctxOf(t.s), obj('nh:corpse'), {
+        init: false,
+        corpseOf: 'nh:newt' as DefId,
+        at: { level: 'dlvl1', x: 3, y: 2 },
+      });
+      const corpse = t.s.state.entities[String(cid)] as Entity;
+      t.pickup();
+      const fee = Math.trunc(getCost(t.s.state, defs, kit, t.e) / 10);
+      const r = t.step({ type: 'mod', action: 'nh:apply', args: { item: kit.id } });
+      expect(r.prompt?.key).toBe('tin.what_to_tin');
+      const a = t.answer(r, corpse.id);
+      expect(t.lines(a)).toContainEqual(
+        expect.stringMatching(new RegExp(`Usage fee, ${fee} zorkmids\\."$`)),
+      );
+      expect(t.lines(a)).toContain('"You tin it, you bought it!"');
+      expect(t.s.state.entities[String(corpse.id)]).toBeUndefined();
+      expect(t.e.bill.filter((b) => b.useup)).toHaveLength(1);
+    });
+
+    test("an unpaid horn of plenty: a usage fee, and what spills out is the shopkeeper's", () => {
+      // ref: src/mkobj.c hornoplenty() `if (horn->unpaid) addtobill(obj, ...)`
+      const t = bare(15);
+      know(t, 'nh:horn_of_plenty');
+      const horn = t.make('nh:horn_of_plenty');
+      if (horn.c.item) horn.c.item.spe = 5;
+      t.pickup();
+      const fee = Math.trunc(getCost(t.s.state, defs, horn, t.e) / 5);
+      const before = new Set(t.inv().map((o) => o.id));
+      const r = t.step({ type: 'mod', action: 'nh:apply', args: { item: horn.id } });
+      expect(t.lines(r)[0]).toMatch(new RegExp(`Usage fee, ${fee} zorkmids\\."$`));
+      const got = t.inv().filter((o) => !before.has(o.id));
+      expect(got).toHaveLength(1);
+      expect(got[0]?.c.item?.unpaid).toBe(true);
+    });
+
     test("selling into the shop's container on his floor", () => {
       const t = bare(15);
       know(t, 'nh:dagger');

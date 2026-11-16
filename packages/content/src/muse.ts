@@ -130,6 +130,7 @@ import {
   M_SEEN,
   curesStoning,
   mSeenres,
+  mcouldEatTin,
   mcureblindness,
   monstseesu,
   monstunseesu,
@@ -288,6 +289,7 @@ const POT_CONFUSION: DefId = 'nh:potion_of_confusion';
 const POT_SLEEPING: DefId = 'nh:potion_of_sleeping';
 const POT_ACID: DefId = 'nh:potion_of_acid';
 const LIZARD: DefId = 'nh:lizard';
+const TIN: DefId = 'nh:tin';
 const POT_GAIN_LEVEL: DefId = 'nh:potion_of_gain_level';
 const WAN_MAKE_INVISIBLE: DefId = 'nh:wand_of_make_invisible';
 const POT_INVISIBILITY: DefId = 'nh:potion_of_invisibility';
@@ -559,9 +561,17 @@ export function findDefensive(
     if (horn || isUnicorn(def)) return { kind: 'unicorn_horn', obj: horn?.id ?? null };
   }
   if (conf || stun) {
-    // (no tins: only the corpse)
-    const liz = minvent(ctx, id).find((o) => o.def === CORPSE && o.c.item?.corpseOf === LIZARD);
-    if (liz) return { kind: 'lizard_corpse', obj: liz.id };
+    let liztin: Entity | null = null;
+    for (const o of minvent(ctx, id)) {
+      if (o.def === CORPSE && o.c.item?.corpseOf === LIZARD)
+        return { kind: 'lizard_corpse', obj: o.id };
+      else if (o.def === TIN && o.c.item?.corpseOf === LIZARD) liztin = o;
+    }
+    // confused or stunned monster might not be able to open tin
+    if (liztin && mcouldEatTin(ctx, mon) && ctx.rng.rn2(3)) {
+      // tin and corpse ultimately end up being handled the same
+      return { kind: 'lizard_corpse', obj: liztin.id };
+    }
   }
 
   // "the first case is when the monster is blind (healing cures blindness)"
@@ -1546,7 +1556,8 @@ function mreadmsg(ctx: Ctx, mon: Entity, otmp: Entity): void {
  * "The gnome seems limber!"); else a lizard corpse cures its confusion and stun ("The gnome
  * seems steadier now.", not for bats and stalkers). A pet's hunger is put off by the meal's
  * nutrition, and the meal takes its next move.
- * ref: src/muse.c mon_consume_unstone() (no tins)
+ * A tin: "The gnome opens and eats the contents of a tin of lizard meat." (no acid burn).
+ * ref: src/muse.c mon_consume_unstone()
  */
 function monConsumeUnstone(
   ctx: Ctx,
@@ -1556,9 +1567,10 @@ function monConsumeUnstone(
   stoning: boolean,
 ): void {
   const vis = canseemon(ctx, mon);
-  const of = obj.def === CORPSE ? obj.c.item?.corpseOf : undefined;
+  const tinned = obj.def === TIN;
+  const food = obj.def === CORPSE || tinned;
+  const of = food ? obj.c.item?.corpseOf : undefined;
   const ofDef = of && ctx.defs.isMonster(of) ? ctx.defs.monster(of) : null;
-  const food = obj.def === CORPSE;
   const potion = ctx.defs.object(obj.def).class === 'potion';
   const acid = obj.def === POT_ACID || (food && ofDef !== null && acidic(ofDef));
   const lizard = food && of === LIZARD;
@@ -1568,7 +1580,7 @@ function monConsumeUnstone(
   if (vis) {
     const it = obj.c.item;
     const one: Entity = it ? { ...obj, c: { ...obj.c, item: { ...it, quantity: 1 } } } : obj;
-    say(ctx, potion ? 'muse.quaffs' : 'muse.eats', {
+    say(ctx, potion ? 'muse.quaffs' : tinned ? 'muse.eats_tin' : 'muse.eats', {
       mon: monNam(ctx, mon),
       item: doname(ctx.state, ctx.defs, one),
     });
@@ -1576,7 +1588,7 @@ function monConsumeUnstone(
   useOne(ctx, mon.id, obj);
   const id = mon.id;
   const hp = mon.c.hp;
-  if (acid && hp && !ctx.defs.monster(mon.def).resists.includes('acid')) {
+  if (acid && !tinned && hp && !ctx.defs.monster(mon.def).resists.includes('acid')) {
     hp.cur -= ctx.rng.rnd(15);
     if (vis) say(ctx, 'muse.stomach_acid', { mon: monNam(ctx, mon) });
     if (hp.cur <= 0) {
@@ -1628,13 +1640,14 @@ const acidic = (def: MonsterDef): boolean => def.flags.includes('acid');
  * A monster about to turn to stone eats or drinks the first thing it carries that cures it
  * (mon_consume_unstone()); not a monster that resists stoning, is eating or is helpless.
  * Returns whether it ate something (it may have died of the acid).
- * ref: src/muse.c munstone() (no tins: mcould_eat_tin() always false here; no STRAT_WAITFORU)
+ * ref: src/muse.c munstone() (no STRAT_WAITFORU)
  */
 export function munstone(ctx: Ctx, mon: Entity, byYou: boolean): boolean {
   if (resistsSton(ctx, mon)) return false;
   if (meating(ctx, mon.id) > 0 || helpless(ctx, mon.id)) return false;
+  const tinok = mcouldEatTin(ctx, mon);
   for (const obj of minvent(ctx, mon.id)) {
-    if (curesStoning(ctx, obj)) {
+    if (curesStoning(ctx, obj, tinok)) {
       monConsumeUnstone(ctx, mon, obj, byYou, true);
       return true;
     }

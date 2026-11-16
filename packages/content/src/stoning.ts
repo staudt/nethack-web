@@ -28,6 +28,7 @@ import { P, hasProp, setIntrinsic, setItimeout, timeoutLeft } from './props';
 import { isSlimed, makeSlimed } from './slimestate';
 import { isStoned, makeStoned, resistsSton, stonedKiller } from './stonestate';
 import { uPolyStoneGolem } from './upoly';
+import { openingTin, popeye } from './tins';
 import { polyWhenStoned } from './golem';
 import { isGenocided } from './vanquished';
 
@@ -156,10 +157,12 @@ function stoningTimeout(ctx: Ctx): void {
     case 5: // slowing down
       setIntrinsic(h, P.FAST, false);
       setItimeout(ctx.state, h, P.FAST, 0);
-      ctx.interrupt(); // if (multi > 0) nomul(0)
+      // if (multi > 0) nomul(0): a count, not an occupation (opening a tin goes on)
+      if (!openingTin(ctx.state)) ctx.interrupt();
       break;
-    case 4: // limbs stiffening; just one move left to save oneself (no tins: no Popeye())
-      stopOccupation(ctx);
+    case 4: // limbs stiffening; just one move left to save oneself
+      // don't stop attempt to eat tin--might be lizard or acidic
+      if (!popeye(ctx.state, ctx.defs, 'stoned')) stopOccupation(ctx);
       break;
     case 3: // limbs turned to stone
       stopOccupation(ctx);

@@ -1,4 +1,5 @@
-// Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the
+// Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the tin
+// opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the
 // blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
@@ -50,6 +51,15 @@ import { UNICORN_HORN, useUnicornHorn } from './unicorn';
 import { useFigurine } from './figurine';
 import { FIGURINE } from './figurinestate';
 import { CREAM_PIE, useCreamPie } from './creampie';
+import {
+  TINNING_KIT,
+  TIN_OPENER,
+  answerTinTool,
+  isTinToolData,
+  useTinOpener,
+  useTinningKit,
+} from './tin';
+import { HORN_OF_PLENTY, hornoplenty } from './horn';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -86,6 +96,9 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === BUGLE ||
     e.def === UNICORN_HORN ||
     e.def === FIGURINE ||
+    e.def === TINNING_KIT ||
+    e.def === TIN_OPENER ||
+    e.def === HORN_OF_PLENTY ||
     isEyewear(e.def)
   );
 }
@@ -288,12 +301,16 @@ const apply: ActionDef = {
     if (obj.def === BUGLE) return doPlayInstrument(ctx, obj, APPLY_ID);
     if (obj.def === FIGURINE) return useFigurine(ctx, obj);
     if (obj.def === CREAM_PIE) return useCreamPie(ctx, obj);
+    if (obj.def === TIN_OPENER) return useTinOpener(ctx, obj, APPLY_ID);
+    if (obj.def === TINNING_KIT) return useTinningKit(ctx, obj, APPLY_ID);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (isCandle(obj.def)) useCandle(ctx, obj);
     else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
     else if (obj.def === UNICORN_HORN) useUnicornHorn(ctx, obj);
+    else if (obj.def === HORN_OF_PLENTY)
+      hornoplenty(ctx, obj); // not a musical instrument
     else if (isEyewear(obj.def)) {
       const ublindf = wornIn(ctx.state, ctx.state.playerId, 'blindfold');
       if (ublindf?.id === obj.id) {
@@ -303,9 +320,14 @@ const apply: ActionDef = {
     }
     return NORMAL_SPEED;
   },
-  // "Are you really sure you want to break X?", or the questions of playing an instrument
+  // "Are you really sure you want to break X?", the questions of playing an instrument, the
+  // tinning kit's corpse and the tin opener's tin
   answer: (ctx, value, data) =>
-    isMusicData(data) ? answerMusic(ctx, value, data, APPLY_ID) : answerBreakWand(ctx, value, data),
+    isMusicData(data)
+      ? answerMusic(ctx, value, data, APPLY_ID)
+      : isTinToolData(data)
+        ? answerTinTool(ctx, value, data)
+        : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

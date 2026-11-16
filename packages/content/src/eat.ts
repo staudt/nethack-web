@@ -1,7 +1,7 @@
 // Eating: the eat action, meals that take several turns, choking, rotten food and corpses.
 // ref: src/eat.c doeat(), start_eating(), eatfood(), done_eating(), bite(), choke(),
 // rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx(); shop food: touchfood()'s
-// costly_alteration(COST_BITE), useupf()
+// costly_alteration(COST_BITE), useupf(). Tins are opened by tin.ts (start_tin(), late-bound).
 import { ucreamed } from './creamed';
 import { apAsThing } from './mimicstate';
 import { engulferOf } from './engulfstate';
@@ -66,6 +66,14 @@ import { xnameOf } from './objnam';
 import { HERE } from './priority';
 import { costlySpot, isShopType, uShops } from './eshk';
 import { addtobill, billUsedUp, costlyAlteration, stolenValue } from './shk';
+import { OPENTIN_ID, TIN, openingTin, setTinCtx, tinCtx } from './tins';
+
+/** tin.ts's start_tin(): it sits above this module (it eats through cprefx()/cpostfx()). */
+type StartTin = (ctx: Ctx, tin: Entity) => void;
+let startTinFn: StartTin | null = null;
+export function setStartTin(fn: StartTin): void {
+  startTinFn = fn;
+}
 
 // ---------------------------------------------------------------------------------------------
 // helpers
@@ -133,7 +141,7 @@ function rounddiv(x: number, y: number): number {
  * Uses up one of the item (a stack of one is removed). Unpaid food stays on the bill, used up;
  * shop food eaten off a costly floor square is billed first. ref: useup() / useupf(), obfree()
  */
-function useup(ctx: Ctx, e: Entity): void {
+export function useup(ctx: Ctx, e: Entity): void {
   const it = e.c.item;
   if (it && it.quantity > 1) {
     it.quantity -= 1;
@@ -250,8 +258,7 @@ export function isEdible(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): boolean
       obj.def === EGG
     );
   }
-  // tins are opened, not bitten: m19 step 5 (until then no Eat is offered on a tin)
-  return ctx.defs.object(obj.def).class === 'food' && obj.def !== 'nh:tin';
+  return ctx.defs.object(obj.def).class === 'food';
 }
 
 /** ref: src/eat.c choke() for a satiated hero eating `food` */
@@ -350,8 +357,33 @@ function eatfood(ctx: Ctx): number {
  * eating, says so and leaves the partly eaten food. ref: src/allmain.c stop_occupation()
  */
 export function stopOccupation(ctx: Ctx): void {
+  stopOpeningTin(ctx);
   ctx.interrupt();
   interruptMeal(ctx);
+}
+
+/**
+ * The tin part of stop_occupation(): "You stop opening the tin." (the tin is not opened; eating
+ * it again starts over). ref: src/allmain.c stop_occupation() with occtxt "opening the tin"
+ */
+function stopOpeningTin(ctx: Ctx): void {
+  if (!openingTin(ctx.state)) return;
+  setTinCtx(ctx, null);
+  say(ctx, 'tin.stop');
+}
+
+/**
+ * Whether opening the tin goes on after this move: it is not done and no hostile monster came
+ * next to her ("You stop opening the tin.").
+ * ref: src/allmain.c moveloop_core() `if (go.occupation && monster_nearby()) stop_occupation()`
+ */
+export function continuesOpening(ctx: Ctx): boolean {
+  if (!openingTin(ctx.state) || ctx.state.gameOver || isHelpless(ctx)) return false;
+  if (monsterNearby(ctx)) {
+    stopOccupation(ctx);
+    return false;
+  }
+  return true;
 }
 
 /** The meal part of stop_occupation(): "You stop eating the X." and the food stays partly eaten. */
@@ -378,9 +410,12 @@ function interruptMeal(ctx: Ctx): void {
  * it like stop_occupation() does. A `continue` carries occupation data set by `continues`.
  */
 export function registerEat(api: ModApi): void {
-  api.on('beforeAction', (ctx) => {
+  api.on('beforeAction', (ctx, act) => {
     const v = victualOf(ctx);
     if (v?.eating && v.pending && ctx.state.occupation?.data == null) interruptMeal(ctx);
+    // any other action ends an attempt to open a tin (input cancels the occupation)
+    if (tinCtx(ctx.state) && !(act.type === 'mod' && act.action === OPENTIN_ID))
+      setTinCtx(ctx, null);
     return 'continue';
   });
 }
@@ -589,14 +624,22 @@ function maybeCannibal(ctx: Ctx, mon: MonsterDef, allowmsg: boolean): boolean {
  * The first bite of a corpse: eating her own kind is cannibalism, a cockatrice's (or Medusa's)
  * flesh turns her to stone at once unless she resists, a dog or cat was a bad idea, and a
  * lizard's, or an acidic monster's, cures petrification in progress.
- * ref: src/eat.c cprefx() (no tins, no Riders, no green slime)
+ * ref: src/eat.c cprefx() (no Riders, no green slime)
  */
 function cprefx(ctx: Ctx, corpse: Entity): void {
   const of = corpse.c.item?.corpseOf;
-  if (!of || !ctx.defs.isMonster(of)) return;
-  const mon = ctx.defs.monster(of);
+  if (of && ctx.defs.isMonster(of)) cprefxMon(ctx, ctx.defs.monster(of));
+}
+
+/**
+ * cprefx() for a monster: also eating a tin's contents, when `useUpTin` uses the tin up early
+ * (before turning to stone keeps it out of bones). ref: src/eat.c cprefx()
+ */
+export function cprefxMon(ctx: Ctx, mon: MonsterDef, useUpTin?: () => void): void {
   maybeCannibal(ctx, mon, true);
   if (fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES) && !uPolyStoneGolem(ctx)) {
+    // if food was a tin, use it up early to keep it out of bones
+    useUpTin?.();
     say(ctx, 'stone.you_turn_eat');
     done(ctx, `@killer.ston.tasting.${mon.id}`, 'stoning');
     const v = victualOf(ctx);
@@ -613,6 +656,9 @@ function cprefx(ctx: Ctx, corpse: Entity): void {
     if (isStoned(ctx.state)) fixPetrification(ctx);
   } else if (mon.flags.includes('acid') && isStoned(ctx.state)) fixPetrification(ctx);
 }
+
+/** A meal of `mon` chokes her when it bursts her stomach (no food item: "a quick snack"). */
+export const chokeSnack = (ctx: Ctx): void => choke(ctx, null);
 
 /** ref: src/eat.c nonrotting_corpse(): lizards and lichens never rot */
 export const nonrottingCorpse = (mon: string): boolean => mon === LIZARD || mon === 'nh:lichen';
@@ -831,6 +877,11 @@ function doeat(ctx: Ctx, e: Entity): number {
   }
 
   // nothing in progress - so try to find something.
+  // tins are a special case
+  if (e.def === TIN) {
+    startTinFn?.(ctx, e);
+    return NORMAL_SPEED;
+  }
   const alreadyPartlyEaten = !!it.eaten;
   const piece = touchfood(ctx, e);
   const v: Victual = {
@@ -927,6 +978,8 @@ const eat: ActionDef = {
     return doeat(ctx, e);
   },
   continues(ctx) {
+    // a tin that takes a while to open: the opentin occupation runs from the next move
+    if (openingTin(ctx.state)) return continuesOpening(ctx);
     const v = victualOf(ctx);
     if (!v || !v.eating || ctx.state.gameOver || isHelpless(ctx)) return false;
     // ref: src/allmain.c interrupt_occupation: a hostile monster next to the hero stops her

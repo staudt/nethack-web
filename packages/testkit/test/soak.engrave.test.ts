@@ -9,8 +9,10 @@ import { soak } from '../src/index';
 // adds graffiti, the vault niche's and the locked shop door's dust, and the monsters and her
 // moves wear them.
 describe('soak with engravings', () => {
-  // seeds whose bot writes and stands on an Elbereth within its run (seed 3 dies at turn 78)
-  for (const seed of [1, 2, 3, 4, 5, 6]) {
+  // seeds whose bot writes and stands on an Elbereth within its run (seed 3 dies at turn 78;
+  // seed 2 stopped standing on one when the bot began eating tins in m19 step 5: 7 does both
+  // with and without tins)
+  for (const seed of [1, 7, 3, 4, 5, 6]) {
     test(`seed ${seed}: 300 turns`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod], { seed, turns: 300, checkEvery: 1 });
       console.log(

@@ -45,6 +45,7 @@ export const museMessagesEn: Record<string, string> = {
   'muse.dives_through': '{mon|The} dives through...',
   'muse.hear_crash': 'You hear something crash through the {surface}.',
   'muse.eats': '{mon|The} eats {item|an}.',
+  'muse.eats_tin': '{mon|The} opens and eats the contents of {item|an}.',
   'muse.hear_chewing': 'You hear chewing.',
   'muse.wand_hits_you': 'The wand hits you!',
   'muse.wand_misses_you': 'The wand misses you.',

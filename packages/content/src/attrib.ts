@@ -97,8 +97,11 @@ export function poisoned(
   }
 }
 
-/** ref: src/attrib.c gainstr() with a computed amount (the Str of a giant's corpse). */
-export function gainstr(ctx: Ctx, incr = 0): void {
+/**
+ * ref: src/attrib.c gainstr() with a computed amount (the Str of a giant's corpse, a tin of
+ * spinach): a cursed object takes it away instead; `givemsg` false is silent.
+ */
+export function gainstr(ctx: Ctx, incr = 0, cursed = false, givemsg = true): void {
   const a = getPlayer(ctx.state).c.attributes;
   if (!a) return;
   let num = incr;
@@ -108,5 +111,5 @@ export function gainstr(ctx: Ctx, incr = 0): void {
     else if (str < STR18(85)) num = ctx.rng.rnd(10);
     else num = 1;
   }
-  adjattrib(ctx, 'str', num, true);
+  adjattrib(ctx, 'str', cursed ? -num : num, givemsg);
 }

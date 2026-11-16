@@ -6,6 +6,7 @@
 // (rnd_defensive_item(), rnd_offensive_item(), rnd_misc_item(), called by m_initweap() and
 // m_initinv()).
 // ref: src/muse.c mcureblindness(), mon_reflects(), searches_for_item(), cures_stoning(),
+// mcould_eat_tin(),
 // rnd_defensive_item(), rnd_offensive_item(), rnd_misc_item(); src/mondata.c monstseesu(),
 // monstunseesu(); include/monst.h M_SEEN_*, m_seenres(), mwandexp
 import { isVampshifter } from './chamstate';
@@ -165,17 +166,51 @@ const LIZARD: DefId = 'nh:lizard';
 const CORPSE: DefId = 'nh:corpse';
 const EGG: DefId = 'nh:egg';
 const POT_ACID: DefId = 'nh:potion_of_acid';
+const TIN: DefId = 'nh:tin';
+const TIN_OPENER: DefId = 'nh:tin_opener';
 
 /**
  * Whether `obj` cures the monster's petrification: a potion of acid, or a lizard or acidic
- * corpse. ref: src/muse.c cures_stoning() (no globs or tins: mcould_eat_tin() is never needed)
+ * corpse, or such a tin when `tinok` (the monster can open it). ref: src/muse.c cures_stoning()
+ * (no globs)
  */
-export function curesStoning(ctx: Pick<Ctx, 'defs'>, obj: Entity): boolean {
+export function curesStoning(ctx: Pick<Ctx, 'defs'>, obj: Entity, tinok = false): boolean {
   if (obj.def === POT_ACID) return true;
-  if (obj.def !== CORPSE) return false;
+  if (obj.def !== CORPSE && (obj.def !== TIN || !tinok)) return false;
+  // corpse, or tin that mon can open
   const of = obj.c.item?.corpseOf;
-  if (!of || !ctx.defs.isMonster(of)) return false;
+  if (!of || !ctx.defs.isMonster(of)) return false; // empty/special tin
   return of === LIZARD || ctx.defs.monster(of).flags.includes('acid');
+}
+
+/**
+ * Whether the monster can open a tin: not an animal, and it carries a tin opener or a dagger or
+ * knife (wielded or not), unless a welded weapon is all it can use.
+ * ref: src/muse.c mcould_eat_tin()
+ */
+export function mcouldEatTin(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
+  // monkeys who manage to steal tins can't open and eat them even if they happen to also have
+  // the appropriate tool
+  if (ctx.defs.monster(mon.def).flags.includes('animal')) return false;
+  const inv = inventoryOf(ctx.state, mon.id);
+  const mwep = inv.find((o) => o.c.item?.equipped === 'weapon');
+  // mwelded(): a wielded cursed weapon (or weapon-tool, or tin opener) sticks to its hand
+  const wdef = mwep ? ctx.defs.object(mwep.def) : null;
+  const weldedWep =
+    !!mwep &&
+    mwep.c.item?.buc === 'cursed' &&
+    (wdef?.class === 'weapon' || wdef?.weapon !== undefined || mwep.def === TIN_OPENER);
+  for (const obj of inv) {
+    // if stuck with a cursed weapon, don't check rest of inventory
+    if (weldedWep && obj !== mwep) continue;
+    const def = ctx.defs.object(obj.def);
+    if (
+      obj.def === TIN_OPENER ||
+      (def.class === 'weapon' && (def.weapon?.skill === 'dagger' || def.weapon?.skill === 'knife'))
+    )
+      return true;
+  }
+  return false;
 }
 
 /** The potions a monster looks for whatever it is. ref: searches_for_item() POTION_CLASS */
@@ -211,7 +246,7 @@ const SEARCHED_WANDS: readonly DefId[] = [
  * an uncursed unicorn horn, a container to loot, the corpses that cure stoning (or a cockatrice's
  * for a gloved monster) and cockatrice eggs. Not an object on a scary square it stands on, and
  * nothing for animals, the mindless and ghosts.
- * ref: src/muse.c searches_for_item() (no tins, horns, cameras or amulets of guarding here)
+ * ref: src/muse.c searches_for_item() (no horns, cameras or amulets of guarding here)
  */
 export function searchesForItem(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -271,6 +306,8 @@ export function searchesForItem(
           (worn(ctx, mon, 'gloves') !== undefined && pm !== null && touchPetrifies(pm)) ||
           (!resistsSton(ctx, mon) && curesStoning(ctx, obj))
         );
+      if (typ === TIN)
+        return mcouldEatTin(ctx, mon) && !resistsSton(ctx, mon) && curesStoning(ctx, obj, true);
       if (typ === EGG) return pm !== null && touchPetrifies(pm);
       return false;
     }
