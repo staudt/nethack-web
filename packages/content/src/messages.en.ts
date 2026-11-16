@@ -29,6 +29,7 @@ import { jewelryMessagesEn } from './jewelry.en';
 import { zapMessagesEn } from './zap.en';
 import { applyMessagesEn } from './apply.en';
 import { lockMessagesEn } from './lock.en';
+import { knoxMessagesEn } from './knox.en';
 import { rogueMessagesEn } from './rogue.en';
 import { chestTrapMessagesEn } from './chesttrap.en';
 import { untrapMessagesEn } from './untrap.en';
@@ -113,6 +114,7 @@ export const messagesEn: Record<string, string> = {
   ...wizardMessagesEn,
   ...lockMessagesEn,
   ...rogueMessagesEn,
+  ...knoxMessagesEn,
   ...chestTrapMessagesEn,
   ...untrapMessagesEn,
   ...watchMessagesEn,
@@ -551,6 +553,7 @@ export const messagesEn: Record<string, string> = {
   'nh:yellow_dragon': 'yellow dragon',
   'nh:medusa': 'Medusa',
   'nh:wizard_of_yendor': 'Wizard of Yendor',
+  'nh:croesus': 'Croesus',
   'nh:stalker': 'stalker',
   'nh:ogre': 'ogre',
   'nh:ogre_lord': 'ogre lord',

@@ -63,6 +63,7 @@ import {
   isBotlevel,
   isStronghold,
   onWTowerLevel,
+  singleLevelBranch,
 } from './levelflags';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
@@ -368,8 +369,9 @@ function chooseTrapnote(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: numbe
 /**
  * Makes a trap of type `def` at (x, y) of `levelId`: holes are always seen, squeaky boards get
  * a note, holes and trap doors a destination (in a shop on the hero's level, scheduled for repair:
- * `add_damage(x, y, 0L)`). Returns the trap as stored.
- * ref: src/trap.c maketrap() (the parts for our trap types)
+ * `add_damage(x, y, 0L)`). Returns the trap as stored. Callers keep it off the squares C's
+ * maketrap() refuses (stairs, furniture, liquid, and a level teleporter in a branch of one level:
+ * mklev.ts mktrap(), wish.ts). ref: src/trap.c maketrap() (the parts for our trap types)
  */
 export function maketrap(
   ctx: Ctx,
@@ -2204,8 +2206,10 @@ const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' 
  * The answer to the level prompt: "*" is a random level; a confused hero says "Oops..." and goes
  * to a random level 4 times in 5 (rnl(5)), even when she cancels; cancelling stays put; text that
  * is not a number asks again, up to 10 tries, then a random level; 0 asks "Go to Nowhere.  Are
- * you sure?"; any other number is the depth to go to.
- * ref: src/teleport.c level_tele() (the Teleport_control loop; lev_by_name() is not ported)
+ * you sure?"; on Fort Ludios a positive number says "You shudder for a moment." and stays; any
+ * other number is the depth to go to.
+ * ref: src/teleport.c level_tele() (the Teleport_control loop; lev_by_name() is not ported;
+ * `single_level_branch(&u.uz) && newlev > 0 && !force_dest`)
  */
 function answerLevel(ctx: Ctx, value: Json, data: TeleData): void {
   const trap = data.trap === true;
@@ -2229,6 +2233,12 @@ function answerLevel(ctx: Ctx, value: Json, data: TeleData): void {
       { ...data, stage: 'nowhere' } as unknown as Json,
     );
     return;
+  }
+  // if in Knox and the requested level > 0, stay put (negative requests fall into the "heaven"
+  // handling)
+  if (singleLevelBranch(getLevel(ctx.state, heroPos(ctx).level)) && newlev > 0) {
+    say(ctx, 'tele.shudder');
+    return levelTeleTrapAfter(ctx, trap);
   }
   levelTeleTo(ctx, newlev, trap);
 }

@@ -1,15 +1,28 @@
 // The dungeon's new-game draw and the arrival lines: the Castle's passtune is drawn right after
 // the dungeon layout; arriving on the Valley of the Dead from outside Gehennom gives its three
 // lines; being on any other Gehennom level, or saying yes at the Valley's gate, marks Gehennom
-// entered; the first arrival on the Rogue level has its line; every level change ends with the
-// level temperature's lines (temperature.ts).
+// entered; the first arrival on the Rogue level has its line, Fort Ludios its alarm (and its
+// name on the status line); every level change ends with the level temperature's lines
+// (temperature.ts).
 // ref: src/dungeon.c init_dungeons() init_castle_tune(); src/do.c goto_level(), dodown(),
-// temperature_change_msg()
-import type { Ctx, DefId, ModApi } from '@nh/core';
+// temperature_change_msg(); src/botl.c describe_level()
+import { sortedIds, type Ctx, type DefId, type ModApi } from '@nh/core';
 import { gehennomEntered, setCastleTune, setGehennomEntered } from './dbstate';
-import { inHell, isRogueLevel, isValley, madeLevelFlags, setMadeLevelFlags } from './levelflags';
+import {
+  inHell,
+  isKnox,
+  isRogueLevel,
+  isValley,
+  madeLevelFlags,
+  setMadeLevelFlags,
+  singleLevelBranch,
+} from './levelflags';
 import { temperatureChangeMsg } from './temperature';
 import { heroForm } from './upoly';
+import { deaths } from './vanquished';
+
+/** ref: include/monsters.h PM_CROESUS */
+const CROESUS: DefId = 'nh:croesus';
 
 /**
  * The passtune: five notes `'A' + rn2(7)`, drawn once at new game after the dungeon rolls.
@@ -38,12 +51,35 @@ export function registerGehennom(api: ModApi): void {
     // "in case we've managed to bypass the Valley's stairway down"
     if (!valley) setGehennomEntered(ctx);
   });
-  // ref: src/do.c goto_level(): `if (new && Is_rogue_level(&u.uz))` (`new`: not VISITED yet)
+  // ref: src/do.c goto_level(): the special location arrival events (`new`: not VISITED yet):
+  // Fort Ludios's alarm on the first arrival and on any later one while Croesus lives ("alarm
+  // stops working once Croesus has died"), waking every monster of the level; the Rogue level's
+  // line on the first arrival
   api.on('levelChange', (ctx, change) => {
     const to = ctx.state.levels[change.to];
-    if (!isRogueLevel(to) || madeLevelFlags(ctx.state, change.to).visited) return;
-    setMadeLevelFlags(ctx, change.to, { visited: true });
-    say(ctx, 'rogue.arrive');
+    if (!to || (!isKnox(to) && !isRogueLevel(to))) return;
+    const isNew = madeLevelFlags(ctx.state, change.to).visited !== true;
+    if (isNew) setMadeLevelFlags(ctx, change.to, { visited: true });
+    if (isKnox(to)) {
+      if (isNew || deaths(ctx.state, CROESUS) === 0) {
+        say(ctx, 'knox.high_security');
+        say(ctx, 'knox.alarm');
+        for (const id of sortedIds(ctx.state)) {
+          const e = ctx.state.entities[String(id)];
+          if (e?.c.monster && e.c.pos?.level === to.id) e.c.monster.asleep = false;
+        }
+      }
+    } else if (isNew) say(ctx, 'rogue.arrive');
+  });
+  // ref: src/botl.c describe_level(): on Fort Ludios the status line names its dungeon
+  // ("Fort Ludios") in place of "Dlvl:N"; the ui prints the `place` key instead of the depth
+  api.defineStatus({
+    id: 'nh:place',
+    field: 'place',
+    value(state, defs) {
+      const level = state.levels[state.currentLevel];
+      return level && singleLevelBranch(level) ? defs.dungeon(level.dungeon).nameKey : null;
+    },
   });
   // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last
   api.on('levelChange', (ctx, change) => {

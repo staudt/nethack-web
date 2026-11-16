@@ -21,10 +21,10 @@ import {
 import { golemhp } from './golem';
 import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
-import { givePossessions } from './mongear';
+import { givePossessions, mongets } from './mongear';
 import { uState } from './luck';
 import { isGenocided, isGone, propagate } from './vanquished';
-import { inHell, isRogueLevel } from './levelflags';
+import { inHell, isRogueLevel, madeLevelFlags } from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
@@ -261,6 +261,23 @@ const withSokobanTraps = (level: Level, taken: Set<number>): Set<number> => {
   return taken;
 };
 
+/**
+ * `taken` plus the level's monster-generation exclusion areas (Fort Ludios's treasury and corner
+ * towers): makemon()'s goodpos() checks pass GP_AVOID_MONPOS, so neither a random spot, nor the
+ * spot next to a taken one, nor a random kind's fit for a given spot is ever there. The same set
+ * unchanged when the level has none. ref: src/makemon.c makemon(), makemon_rnd_goodpos()
+ * (GP_AVOID_MONPOS); src/teleport.c goodpos() `avoid_monpos && is_exclusion_zone(LR_MONGEN, x, y)`
+ */
+function withExclusions(ctx: Pick<Ctx, 'state'>, level: Level, taken: Set<number>): Set<number> {
+  const ex = madeLevelFlags(ctx.state, level.id).mongenExclude;
+  if (!ex || ex.length === 0) return taken;
+  const s = new Set(taken);
+  for (const [x1, y1, x2, y2] of ex)
+    for (let x = x1; x <= x2; x++)
+      for (let y = y1; y <= y2; y++) if (inBounds(level, x, y)) s.add(cellIndex(level, x, y));
+  return s;
+}
+
 /** The creature goodpos() places: its type and m_in_air() (a new one: it flies or floats). */
 export interface GpMon {
   def: MonsterDef;
@@ -479,20 +496,22 @@ export function makemon(
 
   // goodpos() for the given type (`fakemon`), or none for a random one: no water or lava
   const gm = def ? gpMon(ctx, def) : null;
+  // goodpos()'s GP_AVOID_MONPOS: the exclusion areas count as taken (not for MON_AT() below)
+  const avoid = withExclusions(ctx, level, taken);
   let at: Pos;
   if (pos === null) {
     const p = randomGoodPos(
       ctx,
       level,
       rules,
-      withSokobanTraps(level, withBoulders(ctx, level, taken)),
+      withSokobanTraps(level, withBoulders(ctx, level, avoid)),
       gm,
     );
     if (!p) return null;
     at = p;
   } else if (taken.has(cellIndex(level, pos.x, pos.y))) {
     if (!opts.adjacentOk) return null;
-    const p = enexto(ctx, level, rules, withBoulders(ctx, level, taken), pos, gm);
+    const p = enexto(ctx, level, rules, withBoulders(ctx, level, avoid), pos, gm);
     if (!p) return null;
     at = p;
   } else at = pos;
@@ -510,7 +529,7 @@ export function makemon(
     do {
       mdef = rndmonst(ctx, level.depth, 0, 0, level);
       if (!mdef) return null;
-    } while (++tryct <= 50 && !goodpos(ctx, level, rules, taken, at.x, at.y, gpMon(ctx, mdef)));
+    } while (++tryct <= 50 && !goodpos(ctx, level, rules, avoid, at.x, at.y, gpMon(ctx, mdef)));
   }
   if (!mdef) return null;
   // ref: makemon(): `(void) propagate(mndx, countbirth, FALSE)`: the birth counts from here on
@@ -582,6 +601,9 @@ export function makemon(
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);
+  // ref: makemon(): `mndx == PM_CROESUS`: `mitem = TWO_HANDED_SWORD`, given (mongets()) when
+  // allow_minvent
+  if (mdef.id === CROESUS && allowMinvent) mongets(ctx, id, 'nh:two_handed_sword');
   // ref: makemon(): `if (gi.in_mklev)`: minor demons, wumpuses, long worms and giant eels made with
   // the level sleep 4 times in 5 (no Amulet of Yendor here)
   if (mon && opts.inMklev && sleepsInMklev(mdef) && ctx.rng.rn2(5)) mon.asleep = true;
@@ -630,6 +652,7 @@ export function makemon(
 }
 
 const GHOST: DefId = 'nh:ghost';
+const CROESUS: DefId = 'nh:croesus';
 const ERINYS: DefId = 'nh:erinys';
 
 /**

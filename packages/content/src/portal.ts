@@ -40,11 +40,14 @@ export const portalData = (dst: LevelRef): Json => ({ dst: { ...dst } }) as unkn
 /**
  * The des.levregion({ type = "portal" }) spots of the levels that have portals, map-relative, by
  * LevelDef id (single-cell regions): their fixups put the portals there, and the hero bound for
- * one of these levels not yet made arrives there. ref: dat/fakewiz1.lua, dat/wizard3.lua
+ * one of these levels not yet made arrives there (Fort Ludios's is its branch levregion, where
+ * a branch portal goes). ref: dat/fakewiz1.lua, dat/wizard3.lua, dat/knox.lua
  */
 export const PORTAL_SPOTS: Readonly<Record<DefId, readonly [number, number]>> = {
   'nh:fakewiz1': [4, 4],
   'nh:wizard3': [25, 11],
+  /** dat/knox.lua's levregion type "branch": the portal back to the vault */
+  'nh:knox': [8, 16],
 };
 
 /** The first magic portal of `level` (in trap order), or null. */

@@ -119,7 +119,8 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
     d.t('end.goodbye', { name, role }),
     how === 'escaped'
       ? d.t(`end.escaped${sfx}`, pts)
-      : d.t(`end.died_in${sfx}`, {
+      : // a single-level branch (Fort Ludios: its `place`) names no dungeon level
+        d.t(`end.died_in${typeof s['place'] === 'string' ? '_place' : ''}${sfx}`, {
           ends,
           dungeon: d.t(String(s['endDungeon'] ?? 'nh:main')),
           depth: num('endDepth', num('dlvl', 1)),

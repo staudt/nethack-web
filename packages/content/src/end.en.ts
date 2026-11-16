@@ -55,6 +55,9 @@ export const endMessagesEn: Record<string, string> = {
   'end.escaped': 'You escaped from the dungeon,',
   'end.died_in_points': 'You {ends} in {dungeon} on dungeon level {depth} with {points} point{ps},',
   'end.escaped_points': 'You escaped from the dungeon with {points} point{ps},',
+  // !single_level_branch(&u.uz): no " on dungeon level N" in Fort Ludios
+  'end.died_in_place': 'You {ends} in {dungeon},',
+  'end.died_in_place_points': 'You {ends} in {dungeon} with {points} point{ps},',
   // ref: src/insight.c list_vanquished(), N_times()
   'end.vanquished': 'Vanquished creatures:',
   'end.vanq.one': '{mon|an}',

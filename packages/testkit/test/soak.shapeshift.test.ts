@@ -124,8 +124,11 @@ describe('shapeshifter soak', () => {
   // hero then killed the former xorn in the stone, its gold staying there as in C; the record is
   // now noted every turn below and keeps those cells for objects, and 47, 69 and 88 reach 2000;
   // m21 step 1's layout draws: 74 died at turn 77, of 157..170 only 157, 158 and 167 reach 2000
-  // with them, and 157 and 156 do with and without them)
-  for (const seed of [156, 157]) {
+  // with them, and 157 and 156 do with and without them; 174 and 177 replaced 156 and 157 in m21
+  // step 4, whose Croesus row shifts the random forms: 156 ended at turn 2011 with 19 shifts and
+  // 157 died at turn 569, both reaching 2000 with the row filtered; of 158..188 only 174, 175,
+  // 177 and 185 reach 2000 with the row, and 174 and 177 do with and without it)
+  for (const seed of [174, 177]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

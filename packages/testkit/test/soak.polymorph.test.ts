@@ -91,8 +91,10 @@ describe('polymorph soak', () => {
   // monster flowed under a door and changed form there between two checks (753: C's newcham()
   // leaves it there; the record is now noted every turn and remembers oozers anywhere); 732's
   // helm on stone is what C does too, dropped where the former wall-walker stands, and the record
-  // keeps such cells for objects; 764 and 768 still last past turn 200 after the fixes)
-  for (const seed of [764, 768]) {
+  // keeps such cells for objects; 764 and 768 still last past turn 200 after the fixes; 765
+  // replaced 764 in m21 step 4, whose Croesus row shifts the random forms: 764 died at turn 131
+  // and lasts past turn 200 with the row filtered, as 765 and 768 do with and without it)
+  for (const seed of [765, 768]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       wallwalk = wallwalkRecord();

@@ -209,6 +209,8 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     nondiggable: WIZ3_WALLS,
     nonpasswall: WIZ3_WALLS,
   },
+  /** ref: dat/knox.lua ("mazelevel", "noteleport"; non_diggable over the whole map) */
+  'nh:knox': { noteleport: true, maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }] },
   /** ref: dat/fakewiz1.lua, dat/fakewiz2.lua ("mazelevel") */
   'nh:fakewiz1': { maze: true },
   'nh:fakewiz2': { maze: true },
@@ -259,12 +261,33 @@ export interface MadeLevelFlags {
    * arrival says something (the Rogue level). ref: src/do.c goto_level() `new`
    */
   visited?: true;
+  /**
+   * des.exclusion({ type = "monster-generation" }) areas (Level coordinates, corners included):
+   * random new monsters are never placed in them (Fort Ludios's treasury and corner towers).
+   * ref: src/sp_lev.c lspo_exclusion(); src/mkmaze.c is_exclusion_zone()
+   */
+  mongenExclude?: [number, number, number, number][];
 }
 
 const levflagsTable = (state: Readonly<GameState>): Record<string, Json> | undefined => {
   const nh = state.modData['nh'] as Record<string, Json> | undefined;
   return nh?.['levflags'] as Record<string, Json> | undefined;
 };
+
+/**
+ * Whether (x, y) of `level` is in one of its monster-generation exclusion areas: goodpos() with
+ * GP_AVOID_MONPOS (makemon()'s) refuses it. ref: src/mkmaze.c is_exclusion_zone(LR_MONGEN);
+ * src/teleport.c goodpos()
+ */
+export function mongenExcluded(
+  state: Readonly<GameState>,
+  level: Readonly<Level>,
+  x: number,
+  y: number,
+): boolean {
+  const ex = madeLevelFlags(state, level.id).mongenExclude;
+  return ex?.some(([x1, y1, x2, y2]) => x >= x1 && x <= x2 && y >= y1 && y <= y2) === true;
+}
 
 /** The flags level `levelId` got as it was made (none for most levels). */
 export function madeLevelFlags(state: Readonly<GameState>, levelId: string): MadeLevelFlags {

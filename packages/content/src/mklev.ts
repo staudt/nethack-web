@@ -18,7 +18,7 @@ import { makeEngrAt } from './engr';
 import { makeGrave } from './grave';
 import { randomEngraving } from './rndengr';
 import { mkcorpstat } from './statue';
-import { canDigDown, inHell, isRogueLevel, levelFlags } from './levelflags';
+import { canDigDown, inHell, isRogueLevel, levelFlags, singleLevelBranch } from './levelflags';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
@@ -63,7 +63,8 @@ const TRAPNUM_KINDS: readonly (DefId | null)[] = [
  * webs level 7 (unless no spider comes with them, `noSpiderOnWeb`), statue and polymorph traps level 8; level teleporters need level 5 and a level
  * that allows teleporting (`noteleport`: the level's flag), as teleportation traps do; fire traps
  * are made only in Gehennom (`inhell`); holes are made only 1 time in 7. The restrictions of the
- * kinds we lack draw no random numbers (and there is no single-level branch, Fort Ludios).
+ * kinds we lack draw no random numbers. `single_level_branch()` needs nothing here: Fort Ludios,
+ * the only one, is a no-teleport level.
  */
 export function traptypeRnd(
   ctx: Pick<Ctx, 'rng'>,
@@ -169,6 +170,9 @@ export function mktrap(
       if (!m) return;
     } while (avoidBoulder && boulderAt(ctx, level.id, m.x, m.y));
   } else m = room;
+  // maketrap() makes no level teleporter in a branch of one level (Fort Ludios); kind = NO_TRAP
+  // then, so no web spider and no victim either
+  if (kind === TRAP.levelTele && singleLevelBranch(level)) return;
   maketrap(ctx, level.id, m.x, m.y, kind, { inMklev: true });
   if (kind === TRAP.web && !noSpiderOnWeb)
     makemon(ctx, ctx.defs.monster(GIANT_SPIDER), m, { level: level.id, inMklev: true });

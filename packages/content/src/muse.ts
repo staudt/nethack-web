@@ -92,7 +92,14 @@ import {
 import { dropx, welded } from './itemactions';
 import { nhData, placeObject, removeFromInventory, setCknown, splitStack } from './items';
 import { growUp } from './mhitm';
-import { canDigDown, isBotlevel, isRogueLevel, nonDiggable, onWTowerLevel } from './levelflags';
+import {
+  canDigDown,
+  isBotlevel,
+  isKnox,
+  isRogueLevel,
+  nonDiggable,
+  onWTowerLevel,
+} from './levelflags';
 import { migrateToLevel } from './migrate';
 import { beginBurn } from './burnstate';
 import { POT_OIL } from './dilute';
@@ -531,9 +538,28 @@ function mUseHealing(ctx: Ctx, id: EntityId): MuseChoice<MuseDef> | null {
 }
 
 /**
+ * Whether another monster is next to `mon` (a worm's tail segment counts as its worm). Used on
+ * Fort Ludios only, "otherwise you could trap two monsters next to each other in a boulder fort,
+ * and they would be happy to stay in there". ref: src/muse.c m_next2m()
+ */
+function mNext2m(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
+  const p = mon.c.pos;
+  if (!p) return false;
+  const level = getLevel(ctx.state, p.level);
+  for (let x = p.x - 1; x <= p.x + 1; x++)
+    for (let y = p.y - 1; y <= p.y + 1; y++) {
+      if (!inBounds(level, x, y)) continue;
+      const m2 = mAt(ctx.state, p.level, x, y);
+      if (m2 && m2.id !== mon.id) return true;
+    }
+  return false;
+}
+
+/**
  * Looks for a defensive item or escape for the monster: null when there is none. `tryescape`
  * (m_move(): it has nowhere to go) skips the distance and wound checks. `mux` is where it thinks
  * the hero is (default: its kept guess, else her square).
+ * On Fort Ludios one trying to escape stays while another monster is next to it (m_next2m()).
  * ref: src/muse.c find_defensive() (the unicorn horn, lizard corpse, bugle, undead turning and the
  * wands and scrolls of the inventory loop come with the next step; Pestilence is not ported)
  */
@@ -557,7 +583,15 @@ export function findDefensive(
 
   if (isAnimal(def) || mindless(ctx, mon)) return null;
   if (!tryescape && dist2(x, y, mu.x, mu.y) > 25) return null;
-  // (Fort Ludios' m_next2m() test: there is no Fort Ludios)
+  // on Fort Ludios a monster with nowhere to go does not try to escape while another monster is
+  // next to it (and she is not): it stays at its post
+  if (
+    tryescape &&
+    isKnox(getLevel(ctx.state)) &&
+    !(hp && hp.level === p.level && dist2(x, y, hp.x, hp.y) < 3) && // m_next2u()
+    mNext2m(ctx, mon)
+  )
+    return null;
   if (uswallow(ctx) && stuck) return null;
 
   // "Since unicorn horns don't get used up, the monster would look silly trying to use the same

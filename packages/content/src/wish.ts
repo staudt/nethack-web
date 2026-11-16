@@ -42,6 +42,7 @@ import { counterWere, isWere } from './werestate';
 import { TRAP, canFallThru, isHole, maketrap } from './trap';
 import { isFurnitureId, terrainIdAt } from './terrain';
 import { P, heroHas } from './props';
+import { singleLevelBranch } from './levelflags';
 
 /** ref: include/hack.h MAXWISHTRY */
 export const MAXWISHTRY = 5;
@@ -354,7 +355,8 @@ export function askWish(ctx: Ctx, action: DefId, data: WishData): void {
 /**
  * Wizard mode: a wish whose words start with a trap's name ("teleportation trap", "level
  * teleporter", "pit"...) makes that trap at the hero's feet, unseen and not set off: "A
- * teleportation trap." ("Creation of a pit failed." on stairs, furniture or a doorway); a hole or
+ * teleportation trap." ("Creation of a pit failed." on stairs, furniture or a doorway, and for a
+ * level teleporter on Fort Ludios); a hole or
  * trap door where one cannot fall through is a falling rock trap. True when a trap name matched.
  * ref: src/objnam.c wizterrainwish() (the trap part; the wizard mod's terrainwish.ts has the
  * terrain), src/trap.c maketrap() (no trap on furniture)
@@ -371,7 +373,9 @@ function wizTrapWish(ctx: Ctx, buf: string): boolean {
     const kind = isHole(t.id) && !canFallThru(ctx.state, level) ? TRAP.rock : t.id;
     if (
       isPlainFloor(ctx.defs, level, p.x, p.y) &&
-      !isFurnitureId(ctx.defs, terrainIdAt(level, p.x, p.y))
+      !isFurnitureId(ctx.defs, terrainIdAt(level, p.x, p.y)) &&
+      // maketrap(): no level teleporter in a branch of one level (Fort Ludios)
+      !(kind === TRAP.levelTele && singleLevelBranch(level))
     ) {
       maketrap(ctx, p.level, p.x, p.y, kind);
       ctx.emit({ type: 'msg', key: 'wish.wiz_trap', params: { trap: `@${kind}` } });

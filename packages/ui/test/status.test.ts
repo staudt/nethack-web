@@ -86,6 +86,12 @@ describe('statusLines line 2', () => {
     expect(l2.at(-1)?.cls).toBe('nh-hp-crit');
   });
 
+  test('a level that names its place shows it in place of Dlvl:N (ref: src/botl.c describe_level())', () => {
+    const t = (k: string): string => (k === 'nh:ludios' ? 'Fort Ludios' : k);
+    const [, l2] = statusLines({ dlvl: 21, place: 'nh:ludios', gold: 5, turn: 9 }, t);
+    expect(l2.map((f) => f.text)).toEqual(['Fort Ludios', '$:5', 'T:9']);
+  });
+
   test('polymorphed: HD:n in place of Xp (ref: src/botl.c)', () => {
     const [, l2] = statusLines({ xl: 3, xp: 40, hd: 2, turn: 5 });
     expect(l2.map((f) => f.text)).toEqual(['HD:2', 'T:5']);
@@ -95,5 +101,30 @@ describe('statusLines line 2', () => {
     const [, l2] = statusLines({ turn: 3, hunger: 'hungry', encumbrance: 'burdened' });
     expect(l2.map((f) => f.text)).toEqual(['T:3', 'Hungry', 'Burdened']);
     expect(l2[2]?.cls).toBeUndefined();
+  });
+});
+
+import { goodbyeLines } from '../src/gameover';
+
+describe('goodbyeLines', () => {
+  const EN: Record<string, string> = {
+    'end.ends.died': 'died',
+    'end.died_in': 'You {ends} in {dungeon} on dungeon level {depth},',
+    'end.died_in_place': 'You {ends} in {dungeon},',
+    'nh:main': 'The Dungeons of Doom',
+    'nh:ludios': 'Fort Ludios',
+  };
+  const t = (k: string, p?: Record<string, unknown>): string =>
+    (EN[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
+  const has = (k: string): boolean => k in EN;
+
+  test('a single-level branch names no dungeon level (ref: src/end.c really_done())', () => {
+    const s = { dead: 'died', endHow: 'died', endDepth: 21 };
+    expect(goodbyeLines({ t, has }, { ...s, endDungeon: 'nh:main' }, 'x')[1]).toBe(
+      'You died in The Dungeons of Doom on dungeon level 21,',
+    );
+    expect(
+      goodbyeLines({ t, has }, { ...s, endDungeon: 'nh:ludios', place: 'nh:ludios' }, 'x')[1],
+    ).toBe('You died in Fort Ludios,');
   });
 });
