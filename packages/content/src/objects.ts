@@ -28,6 +28,21 @@ export const CHARGED_RINGS: ReadonlySet<string> = new Set([
   'nh:ring_of_protection',
 ]);
 
+/**
+ * Charged tools (oc_charged): their charges show as "(recharged:spe)" once known and recharging
+ * adds to them. ref: include/objects.h TOOL() `chg`
+ */
+export const CHARGED_TOOLS: ReadonlySet<string> = new Set([
+  'nh:tinning_kit',
+  'nh:magic_marker',
+  'nh:magic_flute',
+  'nh:frost_horn',
+  'nh:fire_horn',
+  'nh:horn_of_plenty',
+  'nh:magic_harp',
+  'nh:drum_of_earthquake',
+]);
+
 /** A wand def. ref: include/objects.h WAND(): weight 7, oc_charged, oc_dir */
 const wand = (
   slug: string,
@@ -3881,7 +3896,8 @@ export const OBJECTS: readonly ObjectDef[] = [
   wand('lightning', 40, 175, true, 'ray', 'iron', CYAN),
 
   // ---- tools (TOOL_CLASS '('; only candles merge; appearances are not shuffled, so the
-  // described ones carry a fixed descKey: "bag", "key", "candle", "lamp", "whistle") ----
+  // described ones carry a fixed descKey: "bag", "key", "candle", "lamp", "whistle", "flute",
+  // "horn", "harp", "drum") ----
   // ref: objects.h CONTAINER("large box", NoDes, 1, 0, 0, 40, 350, 8, WOOD, HI_WOOD, LARGE_BOX)
   tool('large_box', 40, 350, 8, 'wood', BROWN, false, null, {
     container: { capacity: null, box: true },
@@ -3917,11 +3933,21 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('brass_lantern', 30, 30, 12, 'copper', YELLOW, false, null),
   // ref: objects.h TOOL("oil lamp", "lamp", 0, 0, 0, 0, 45, 20, 10, COPPER, CLR_YELLOW, OIL_LAMP)
   tool('oil_lamp', 45, 20, 10, 'copper', YELLOW, false, 'lamp'),
+  // ref: objects.h TOOL("magic lamp", "lamp", 0, 0, 1, 0, 15, 20, 50, COPPER, CLR_YELLOW, MAGIC_LAMP)
+  tool('magic_lamp', 15, 20, 50, 'copper', YELLOW, true, 'lamp'),
   // ref: objects.h EYEWEAR("blindfold", NoDes, 1, BLINDED, 50, 2, 20, CLOTH, CLR_BLACK, BLINDFOLD)
   tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
+  // ref: objects.h EYEWEAR("towel", NoDes, 1, BLINDED, 50, 5, 50, CLOTH, CLR_MAGENTA, TOWEL)
+  tool('towel', 50, 5, 50, 'cloth', MAGENTA, false, null, { prop: 'blinded' }),
+  // ref: objects.h TOOL("tinning kit", NoDes, 1, 0, 0, 1, 15, 100, 30, IRON, HI_METAL, TINNING_KIT)
+  tool('tinning_kit', 15, 100, 30, 'iron', CYAN, false, null),
+  // ref: objects.h TOOL("tin opener", NoDes, 1, 0, 0, 0, 35, 4, 30, IRON, HI_METAL, TIN_OPENER)
+  tool('tin_opener', 35, 4, 30, 'iron', CYAN, false, null),
   // applying one makes a familiar; a cursed carried one transforms on its own (figurine.ts)
   // ref: objects.h TOOL("figurine", NoDes, 1, 0, 1, 0, 25, 50, 80, MINERAL, HI_MINERAL, FIGURINE)
   tool('figurine', 25, 50, 80, 'mineral', GRAY, true, null),
+  // ref: objects.h TOOL("magic marker", NoDes, 1, 0, 1, 1, 15, 2, 50, PLASTIC, CLR_RED, MAGIC_MARKER)
+  tool('magic_marker', 15, 2, 50, 'plastic', RED, true, null),
   // made only by #untrap (and wishes); setting them (use_trap()) is not ported
   // ref: objects.h TOOL("land mine", NoDes, 1, 0, 0, 0, 0, 200, 180, IRON, CLR_RED, LAND_MINE)
   tool('land_mine', 0, 200, 180, 'iron', RED, false, null),
@@ -3931,8 +3957,29 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('tin_whistle', 100, 3, 10, 'metal', CYAN, false, 'whistle'),
   // ref: objects.h TOOL("magic whistle", "whistle", 0, 0, 1, 0, 30, 3, 10, METAL, HI_METAL, MAGIC_WHISTLE)
   tool('magic_whistle', 30, 3, 10, 'metal', CYAN, true, 'whistle'),
+  // the instruments (music.ts plays the bugle; the others are inert until m19 step 6)
+  // ref: objects.h TOOL("wooden flute", "flute", 0, 0, 0, 0, 4, 5, 12, WOOD, HI_WOOD, WOODEN_FLUTE)
+  tool('wooden_flute', 4, 5, 12, 'wood', BROWN, false, 'flute'),
+  // ref: objects.h TOOL("magic flute", "flute", 0, 0, 1, 1, 2, 5, 36, WOOD, HI_WOOD, MAGIC_FLUTE)
+  tool('magic_flute', 2, 5, 36, 'wood', BROWN, true, 'flute'),
+  // ref: objects.h TOOL("tooled horn", "horn", 0, 0, 0, 0, 5, 18, 15, BONE, CLR_WHITE, TOOLED_HORN)
+  tool('tooled_horn', 5, 18, 15, 'bone', WHITE, false, 'horn'),
+  // ref: objects.h TOOL("frost horn", "horn", 0, 0, 1, 1, 2, 18, 50, BONE, CLR_WHITE, FROST_HORN)
+  tool('frost_horn', 2, 18, 50, 'bone', WHITE, true, 'horn'),
+  // ref: objects.h TOOL("fire horn", "horn", 0, 0, 1, 1, 2, 18, 50, BONE, CLR_WHITE, FIRE_HORN)
+  tool('fire_horn', 2, 18, 50, 'bone', WHITE, true, 'horn'),
+  // ref: objects.h TOOL("horn of plenty", "horn", 0, 0, 1, 1, 2, 18, 50, BONE, CLR_WHITE, HORN_OF_PLENTY)
+  tool('horn_of_plenty', 2, 18, 50, 'bone', WHITE, true, 'horn'),
+  // ref: objects.h TOOL("wooden harp", "harp", 0, 0, 0, 0, 4, 30, 50, WOOD, HI_WOOD, WOODEN_HARP)
+  tool('wooden_harp', 4, 30, 50, 'wood', BROWN, false, 'harp'),
+  // ref: objects.h TOOL("magic harp", "harp", 0, 0, 1, 1, 2, 30, 50, WOOD, HI_WOOD, MAGIC_HARP)
+  tool('magic_harp', 2, 30, 50, 'wood', BROWN, true, 'harp'),
   // ref: objects.h TOOL("bugle", NoDes, 1, 0, 0, 0, 4, 10, 15, COPPER, HI_COPPER, BUGLE)
   tool('bugle', 4, 10, 15, 'copper', YELLOW, false, null),
+  // ref: objects.h TOOL("leather drum", "drum", 0, 0, 0, 0, 4, 25, 25, LEATHER, HI_LEATHER, LEATHER_DRUM)
+  tool('leather_drum', 4, 25, 25, 'leather', BROWN, false, 'drum'),
+  // ref: objects.h TOOL("drum of earthquake", "drum", 0, 0, 1, 1, 2, 25, 25, LEATHER, HI_LEATHER, DRUM_OF_EARTHQUAKE)
+  tool('drum_of_earthquake', 2, 25, 25, 'leather', BROWN, true, 'drum'),
   // tools useful as weapons (is_weptool(): a tool with a weapon skill)
   // ref: objects.h WEPTOOL("pick-axe", NoDes, 1, 0, 0, 20, 100, 50, 6, 3, WHACK, P_PICK_AXE, IRON, HI_METAL, PICK_AXE)
   tool('pick_axe', 20, 100, 50, 'iron', CYAN, false, null, {
@@ -4230,6 +4277,22 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 1,
     food: { nutrition: 5 },
+  },
+  // ref: objects.h FOOD("tin", 75, 0, 10, 1, METAL, 0, HI_METAL, TIN): the last food row; its
+  // contents are `corpseOf` and its variety `spe` (tins.ts)
+  {
+    id: 'nh:tin',
+    nameKey: 'nh:tin',
+    class: 'food',
+    glyph: { ch: '%', fg: CYAN },
+    prob: 75,
+    weight: 10,
+    cost: 5,
+    material: 'metal',
+    merge: true,
+    magic: false,
+    delay: 0,
+    food: { nutrition: 0 },
   },
 
   // ---- coin ----
@@ -4579,6 +4642,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     class: 'potion',
     glyph: { ch: '!', fg: WHITE },
     prob: 10,
+    weight: 20,
+    cost: 250,
+    material: 'glass',
+    merge: true,
+    magic: false,
+    delay: 0,
+  },
+  // ref: objects.h POTION("oil", "murky", 0, 0, 30, 250, CLR_BROWN, POT_OIL): its fuel is `age`
+  // (MAX_OIL_IN_FLASK when made)
+  {
+    id: 'nh:potion_of_oil',
+    nameKey: 'nh:potion_of_oil',
+    class: 'potion',
+    glyph: { ch: '!', fg: BROWN },
+    prob: 30,
     weight: 20,
     cost: 250,
     material: 'glass',

@@ -204,13 +204,12 @@ const AFTER_SLIME_MOLD = new Set([
   'nh:food_ration',
   'nh:k_ration',
   'nh:c_ration',
-  'nh:tin',
 ]);
 
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
- * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, slime, tins,
- * polymorph food, metallivores.
+ * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, slime, polymorph
+ * food, metallivores' other metal.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
   const mdef = ctx.defs.monster(mon.def);
@@ -262,6 +261,8 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
         if (vegan(fptr)) return herbi ? CADAVER : MANFOOD;
         return carni ? CADAVER : MANFOOD;
       }
+      case 'nh:tin':
+        return mdef.flags.includes('metallivore') ? ACCFOOD : MANFOOD;
       case 'nh:apple':
         return herbi ? DOGFOOD : starving ? ACCFOOD : MANFOOD;
       case 'nh:carrot':

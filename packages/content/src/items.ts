@@ -32,6 +32,8 @@ import { CHARGED_RINGS } from './objects';
 import { mergeBills, samePrice, splitbill } from './eshk';
 import { EGG, attachEggHatchTimeout, deadSpecies, eggHatchAt, splitEggTimer } from './eggstate';
 import { FIGURINE, carryObjEffects, stopFigTransform } from './figurinestate';
+import { MAX_OIL_IN_FLASK, POT_OIL } from './dilute';
+import { TIN, setTinVariety } from './tins';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -100,6 +102,15 @@ export function mkobjErosions(rng: Rng, def: InitDef, it: ItemComponent): void {
   rng.rn2(1000); // greased: not ported
 }
 
+/** The magic instruments: rn1(5, 4) charges. ref: src/mkobj.c mksobj_init() TOOL_CLASS */
+const MAGIC_INSTRUMENTS: readonly string[] = [
+  'nh:magic_flute',
+  'nh:magic_harp',
+  'nh:frost_horn',
+  'nh:fire_horn',
+  'nh:drum_of_earthquake',
+];
+
 /** The armor mksobj_init() curses 9 times in 10. ref: src/mkobj.c mksobj_init() ARMOR_CLASS */
 const ALWAYS_CURSED_ARMOR: readonly string[] = [
   'nh:fumble_boots',
@@ -112,9 +123,9 @@ const ALWAYS_CURSED_ARMOR: readonly string[] = [
  * Random initialization of an object's BUC, enchantment, quantity and erosion.
  * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
  * (`erode` false for the hero's starting inventory). Simplified: poisonable weapons roll for
- * poison but are never poisoned, no artifacts; food has no corpse/tin/slime-mold special
- * cases (the corpse is made through mkcorpse(), which supplies the monster; mksobj() rolls the
- * egg's monster first).
+ * poison but are never poisoned, no artifacts; food has no corpse/slime-mold special cases
+ * (the corpse is made through mkcorpse(), which supplies the monster; mksobj() rolls the egg's
+ * monster and the tin's contents first).
  */
 export function mksobjInit(
   ctx: Pick<ItemCtx, 'state' | 'rng'>,
@@ -191,6 +202,15 @@ export function mksobjInit(
         it.spe = 1;
         it.age = rng.rn2(500) + 1000; // rn1(500, 1000)
         blessorcurse(rng, it, 5);
+      } else if (def.id === 'nh:magic_lamp') {
+        it.spe = 1; // the djinni is inside; it burns no fuel (age is never read)
+        blessorcurse(rng, it, 2);
+      } else if (def.id === 'nh:tinning_kit' || def.id === 'nh:magic_marker') {
+        it.spe = rng.rn2(70) + 30; // rn1(70, 30)
+      } else if (def.id === 'nh:horn_of_plenty') {
+        it.spe = rng.rn2(18) + 3; // rn1(18, 3): 3..20
+      } else if (MAGIC_INSTRUMENTS.includes(def.id)) {
+        it.spe = rng.rn2(5) + 4; // rn1(5, 4)
       } else if (def.id === FIGURINE) {
         // the monster (rndmonnum_adj(5, 10), not human) was rolled first, in mksobj()
         blessorcurse(rng, it, 4);
@@ -283,6 +303,16 @@ let eggInit: EggInit | null = null;
  */
 type FigurineInit = (ctx: ItemCtx, level: LevelId, init: boolean) => DefId;
 let figurineInit: FigurineInit | null = null;
+/**
+ * mksobj_init()'s TIN roll: spinach 1 time in 6, else up to 200 tries of
+ * undead_to_corpse(rndmonnum()) for a monster with corpse nutrition and a corpse; null leaves
+ * the tin empty. mkobj.ts registers it (rndmonnum() sits above this module).
+ */
+export type TinInit = (ctx: ItemCtx, level: LevelId) => DefId | 'spinach' | null;
+let tinInit: TinInit | null = null;
+export function setTinInit(fn: TinInit): void {
+  tinInit = fn;
+}
 export function setFigurineInit(fn: FigurineInit): void {
   figurineInit = fn;
 }
@@ -316,6 +346,20 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
     if (mon) it.corpseOf = mon;
     if (opts.corpseOf) it.corpseOf = opts.corpseOf;
   }
+  if (def.id === TIN) {
+    // ref: mksobj_init() TIN (before the food's quantity roll): its contents and variety, then
+    // blessorcurse(10); a given monster (a wish, the tinning kit) is set by the caller
+    if ((opts.init ?? true) && tinInit) {
+      const what = tinInit(ctx, opts.level ?? opts.at?.level ?? state.currentLevel);
+      if (what === 'spinach') setTinVariety(ctx.rng, ctx.defs, it, 'spinach');
+      else if (what !== null) {
+        it.corpseOf = what;
+        setTinVariety(ctx.rng, ctx.defs, it, 'random');
+      }
+      blessorcurse(ctx.rng, it, 10);
+    }
+    if (opts.corpseOf) it.corpseOf = opts.corpseOf;
+  }
   if (def.id === FIGURINE) {
     // ref: mksobj_init() FIGURINE (before its blessorcurse()), or mksobj()'s STATUE/FIGURINE
     // case without init; a given monster overrides it as set_corpsenm() would (and a given one
@@ -331,6 +375,8 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
       ? mksobjInit(ctx, def, it, opts.artif === true, !opts.initialInventory)
       : null;
   if (opts.quantity !== undefined) it.quantity = opts.quantity;
+  // ref: mksobj(): a potion of oil holds MAX_OIL_IN_FLASK of fuel (init or not)
+  if (def.id === POT_OIL) it.age = MAX_OIL_IN_FLASK;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
   // ref: mksobj() -> set_corpsenm(): a viable egg gets its hatch timer (before it can merge)
   if (egg && !deadSpecies(ctx.state, ctx.defs, it.corpseOf)) attachEggHatchTimeout(ctx, id, 0);
@@ -455,7 +501,7 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * Candles merge only when their ages are close. Shop state must match (unpaid, no charge), and
  * unpaid stacks only merge at the same price on the same bill (`state` is needed for that; without
  * it unpaid stacks never merge). Eggs merge only with the same monster and no hatch timer.
- * Not ported: grease, light, names, artifacts, tins, reviving corpses.
+ * Not ported: grease, light, names, artifacts, reviving corpses.
  */
 export function mergable(
   defs: Registry,
@@ -477,7 +523,8 @@ export function mergable(
   if ((a.erosion?.e2 ?? 0) !== (b.erosion?.e2 ?? 0)) return false;
   if (erosionMatters(def) && (a.erodeproof ?? false) !== (b.erodeproof ?? false)) return false;
   if (def.class === 'food' && (a.eaten ?? 0) !== (b.eaten ?? 0)) return false;
-  if ((def.id === 'nh:corpse' || def.id === EGG) && a.corpseOf !== b.corpseOf) return false;
+  if ((def.id === 'nh:corpse' || def.id === EGG || def.id === TIN) && a.corpseOf !== b.corpseOf)
+    return false;
   // hatching eggs don't merge (a typed egg's timer is unknown without the state)
   if (
     def.id === EGG &&

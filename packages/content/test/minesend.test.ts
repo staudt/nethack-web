@@ -24,6 +24,7 @@ import {
 import { engrAt } from '../src/engr';
 import { mappearance } from '../src/mimicstate';
 import { mapToLevel, shuffle } from '../src/sp_lev';
+import { TRAP } from '../src/trap';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -169,9 +170,12 @@ describe("Mines' End contents", () => {
 
   test('the Catacombs: undead and floating eyes, no vampires; a flint on a place', () => {
     const { state, level } = minesEnd(seeds['nh:minend-3'] ?? 0);
-    const mons = onLevel(state, level).filter(
-      (e) => e?.c.monster && e.c.monster.tame === undefined,
-    );
+    const all = onLevel(state, level).filter((e) => e?.c.monster && e.c.monster.tame === undefined);
+    // (a random des.trap() that is a web brings its giant spider: mktrap())
+    const onWeb = (e: (typeof all)[number]): boolean =>
+      e?.def === 'nh:giant_spider' &&
+      level.traps.some((t) => t.def === TRAP.web && t.x === e.c.pos?.x && t.y === e.c.pos.y);
+    const mons = all.filter((e) => !onWeb(e));
     const glyphs = mons.map((e) => defs.monster(e?.def ?? 'nh:none').glyph.ch);
     expect(glyphs.length).toBeGreaterThanOrEqual(15);
     // the two `V`s have no MonsterDefs: each becomes a random monster of any class

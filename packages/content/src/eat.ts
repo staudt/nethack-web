@@ -250,7 +250,8 @@ export function isEdible(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): boolean
       obj.def === EGG
     );
   }
-  return ctx.defs.object(obj.def).class === 'food';
+  // tins are opened, not bitten: m19 step 5 (until then no Eat is offered on a tin)
+  return ctx.defs.object(obj.def).class === 'food' && obj.def !== 'nh:tin';
 }
 
 /** ref: src/eat.c choke() for a satiated hero eating `food` */

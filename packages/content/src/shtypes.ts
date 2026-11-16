@@ -555,12 +555,16 @@ const vegetarianMon = (ctx: Pick<Ctx, 'defs'>, id: DefId): boolean =>
 
 /**
  * The object (or, with `obj` null, the object type `def`) is vegetarian food; for a type, one
- * that might go either way counts. ref: src/shknam.c veggy_item() (no eggs or tins)
+ * that might go either way counts. ref: src/shknam.c veggy_item() (no eggs: DEVIATIONS.md
+ * "Shopkeepers and stock")
  */
 export function veggyItem(ctx: Pick<Ctx, 'defs'>, o: Entity | null, def: ObjectDef): boolean {
   if (def.class !== 'food') return false;
   if (def.material === 'veggy') return true;
-  if (def.id === 'nh:corpse') {
+  // an empty tin or one of spinach (0 = empty, 1 = spinach)
+  if (def.id === 'nh:tin' && o !== null && o.c.item?.corpseOf === undefined)
+    return o.c.item?.spe === 1;
+  if (def.id === 'nh:corpse' || def.id === 'nh:tin') {
     const m = o === null ? null : o.c.item?.corpseOf;
     return o === null || (m !== undefined && m !== null && vegetarianMon(ctx, m));
   }

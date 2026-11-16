@@ -11,6 +11,7 @@ import type { DefId, GameState, ObjectClass, Registry } from '@nh/core';
 import { nameToMonplus, type MonName } from './mondata';
 import { AMOROUS_DEMON } from './gender';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
+import { TIN, TINTXT, tinVarietyTxt } from './tins';
 
 /** What to make. */
 export type WishWhat =
@@ -50,8 +51,16 @@ export interface WishSpec {
   broken: boolean;
   /** "trapped" 1, "untrapped" 2, neither 0 (d.trapped) */
   trapped: 0 | 1 | 2;
-  /** "lit"/"burning": parsed, not applied (see DEVIATIONS.md) */
+  /** "lit"/"burning" ("unlit"/"extinguished" undo it): a lamp, candle or oil burns (d.islit) */
   islit: boolean;
+  /** "moist" or "wet": a towel's wetness, drawn when the object is made (d.wetness) */
+  wetness: 'moist' | 'wet' | null;
+  /** "diluted": a potion other than water is diluted (d.isdiluted) */
+  diluted: boolean;
+  /** "empty" (TIN_EMPTY) or "... of spinach"/"spinach" (TIN_SPINACH): d.contents */
+  contents: 'empty' | 'spinach' | null;
+  /** The tin variety of "tin of smoked newt meat" (d.tvariety), null for RANDOM_TIN */
+  tvariety: number | null;
   /** The monster of a "<mon> corpse" / "corpse of <mon>" (d.mntmp). */
   mon: DefId | null;
   /** "historic" (d.ishistoric): a historic statue */
@@ -76,6 +85,8 @@ export interface ObjName {
 export interface WishNames {
   objects: readonly ObjName[];
   monsters: readonly MonName[];
+  /** The tin varieties' texts in tintxts[] order, lower case ("rotten", "homemade", ...). */
+  tinVarieties: readonly string[];
 }
 
 /** ref: include/obj.h SPE_LIM */
@@ -117,8 +128,30 @@ const CLASS_SYMS: Readonly<Record<string, ObjectClass>> = {
   '`': 'rock',
 };
 
-/** ref: src/objnam.c o_ranges[] "gray stone": LUCKSTONE..FLINT */
-const GRAY_STONES: DefId[] = ['nh:luckstone', 'nh:loadstone', 'nh:touchstone', 'nh:flint_stone'];
+/**
+ * The wishable subranges of objects, picked among by probability (rnd_class()). ref: src/objnam.c
+ * o_ranges[] (those whose objects exist: the lamps OIL_LAMP..MAGIC_LAMP, the candles, the horns
+ * TOOLED_HORN..HORN_OF_PLENTY and the gray stones LUCKSTONE..FLINT)
+ */
+const O_RANGES: readonly (readonly [string, readonly DefId[]])[] = [
+  ['lamp', ['nh:oil_lamp', 'nh:magic_lamp']],
+  ['candle', ['nh:tallow_candle', 'nh:wax_candle']],
+  ['horn', ['nh:tooled_horn', 'nh:frost_horn', 'nh:fire_horn', 'nh:horn_of_plenty']],
+  ['gray stone', ['nh:luckstone', 'nh:loadstone', 'nh:touchstone', 'nh:flint_stone']],
+  ['grey stone', ['nh:luckstone', 'nh:loadstone', 'nh:touchstone', 'nh:flint_stone']],
+];
+
+/**
+ * Alternate spellings (only those not reached by spaces, hyphens or "of" inversions).
+ * ref: src/objnam.c spellings[] (the entries whose objects exist and that the port reads)
+ */
+const SPELLINGS: readonly (readonly [string, DefId])[] = [
+  ['gauntlets of ogre power', 'nh:gauntlets_of_power'],
+  ['gauntlets of giant strength', 'nh:gauntlets_of_power'],
+  ['can', 'nh:tin'],
+  ['can opener', 'nh:tin_opener'],
+  ['marker', 'nh:magic_marker'],
+];
 
 /** Classes whose actual names are "<class> of <name>" in our catalog but just "<name>" in objects[]. */
 const OF_CLASSES: readonly ObjectClass[] = ['potion', 'scroll', 'ring', 'wand', 'spellbook'];
@@ -180,12 +213,13 @@ export function wishNames(
     };
   });
   const monsters = defs.monsters.map((m) => ({ id: m.id, name: lc(cat[m.nameKey] ?? m.id) }));
+  const tinVarieties = TINTXT.map((t) => lc(cat[t.txtKey]));
   // ref: src/mondata.c name_to_monplus(): the amorous demon's other pmnames and its irregular
   // plurals (alt_spl's "incubi", "succubi")
   if (defs.isMonster(AMOROUS_DEMON))
     for (const name of ['succubus', 'amorous demon', 'incubi', 'succubi'])
       monsters.push({ id: AMOROUS_DEMON, name });
-  return { objects, monsters };
+  return { objects, monsters, tinVarieties };
 }
 
 /** Whitespace runs become one space, the ends are trimmed. ref: src/hacklib.c mungspaces() */
@@ -450,8 +484,7 @@ const skipDigits = (s: string): string => s.replace(/^\d+/, '');
 const PROOF = ['rustproof', 'erodeproof', 'corrodeproof', 'fixed', 'fireproof', 'rotproof', 'tempered', 'crackproof']; // prettier-ignore
 /** Words recognized and skipped because the subset has nothing they apply to. */
 const IGNORED = [
-  'unlit', 'extinguished', 'moist', 'wet', 'poisoned', 'open', 'closed',
-  'doorless', 'looted', 'disturbed', 'greased', 'zombifying', 'diluted', 'empty',
+  'poisoned', 'open', 'closed', 'doorless', 'looted', 'disturbed', 'greased', 'zombifying',
   'medium', 'real', 'fake',
 ]; // prettier-ignore
 
@@ -466,9 +499,9 @@ const NOT_MONSTER = ['samurai sword', 'wizard lock', 'death wand', 'master key',
  * explicit "nothing"/"nil"/"none", or null when nothing fitting exists. An empty string is a
  * random object, as in NetHack.
  * ref: src/objnam.c readobjnam(), readobjnam_preparse(), readobjnam_parse_charges(),
- * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, tins, globs,
- * figurines, eggs, o_ranges other than gray stones ("helmet called x"), the alternate spellings table,
- * Japanese names, wizard-mode terrain and traps; see DEVIATIONS.md.
+ * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, globs, o_ranges of objects
+ * that do not exist and "helmet called x", most of the alternate spellings table, Japanese
+ * names, wizard-mode terrain and traps; see DEVIATIONS.md.
  */
 export function readobjnam(
   input: string,
@@ -492,6 +525,10 @@ export function readobjnam(
     broken: false,
     trapped: 0,
     islit: false,
+    wetness: null,
+    diluted: false,
+    contents: null,
+    tvariety: null,
     mon: null,
     historic: false,
   };
@@ -539,6 +576,15 @@ export function readobjnam(
       spec.historic = true;
     } else if (word('lit') || word('burning')) {
       spec.islit = true;
+    } else if (word('unlit') || word('extinguished')) {
+      spec.islit = false;
+    } else if (word('moist') || word('wet')) {
+      // "wet" and "moist" are only applicable for towels
+      spec.wetness = bp.startsWith('wet ') ? 'wet' : 'moist';
+    } else if (word('diluted')) {
+      spec.diluted = true;
+    } else if (word('empty')) {
+      spec.contents = 'empty';
     } else if (word('unlabeled') || word('unlabelled') || word('blank')) {
       unlabeled = true;
     } else if (word('locked')) {
@@ -656,6 +702,11 @@ export function readobjnam(
     dn = bp.slice(il + 10);
     bp = bp.slice(0, il);
   }
+  i = bp.indexOf(' of spinach');
+  if (i >= 0) {
+    bp = bp.slice(0, i);
+    spec.contents = 'spinach';
+  }
   // "Amulet of Yendor": only the imitation exists, so it is what "real" or not gives
   i = bp.indexOf('amulet of yendor');
   if (i >= 0 && (i === 0 || bp[i - 1] === ' ')) return fixed('nh:fake_amulet_of_yendor');
@@ -669,10 +720,21 @@ export function readobjnam(
   } else if (bp.startsWith('set of ')) bp = bp.slice(7);
   else if (bp.startsWith('sets of ')) bp = bp.slice(8);
 
-  // the corpse type after "of" (corpse of a newt), not for wands, spellbooks and the like
+  // the corpse type after "of" (corpse of a newt, tin of newt meat), not for wands, spellbooks
+  // and the like
   if (!['wand ', 'spellbook ', 'gauntlets ', 'gloves ', 'finger '].some((w) => bp.includes(w))) {
     i = bp.indexOf(' of ');
-    if (i >= 0) {
+    const t = bp.indexOf('tin of ');
+    if (t >= 0) {
+      const rest = bp.slice(t + 7);
+      if (rest === 'spinach') spec.contents = 'spinach';
+      else {
+        const v = tinVarietyTxt(rest, names.tinVarieties);
+        if (v) spec.tvariety = v.variety;
+        spec.mon = nameToMonplus(names.monsters, rest.slice(v?.skip ?? 0))?.mon ?? null;
+      }
+      return fixed(TIN);
+    } else if (i >= 0) {
       const m = nameToMonplus(names.monsters, bp.slice(i + 4));
       if (m) {
         spec.mon = m.mon;
@@ -706,12 +768,11 @@ export function readobjnam(
     }
   }
   const origbp = bp;
-  // alternate spellings (only the ones that are not in the spellings[] table)
+  // alternate spellings (pick-ax, silver sabre, &c)
+  for (const [sp, ob] of SPELLINGS) if (wishymatch(bp, sp, true)) return fixed(ob);
+  // (the ones that are not in the spellings[] table)
   if (bp.startsWith('grey spell')) bp = 'gray spell' + bp.slice(10);
   bp = bp.replace('armour', 'armor');
-  // ref: src/objnam.c spellings[] (the gauntlets of power's old names)
-  if (bp === 'gauntlets of ogre power' || bp === 'gauntlets of giant strength')
-    return fixed('nh:gauntlets_of_power');
 
   if (bp.endsWith('holy water')) {
     if (bp.slice(0, -10).endsWith('un')) {
@@ -791,10 +852,13 @@ export function readobjnam(
   // ---- readobjnam_postparse2() and postparse3(), with the "armor" + " mail" retry ----
   for (let retry = 0; ; retry++) {
     if (!srch) {
-      // ref: postparse2(): the o_ranges[] "gray stone" range, LUCKSTONE..FLINT by probability
-      // (rnd_class(), which draws as the 'types' pick does without `xtra`)
-      if (bp === 'gray stone' || bp === 'grey stone')
-        return typfnd({ kind: 'types', types: GRAY_STONES, xtra: 0 });
+      // ref: postparse2(): the o_ranges[] ("lamp", "gray stone"...), by probability (rnd_class(),
+      // which draws as the 'types' pick does without `xtra`)
+      const range = O_RANGES.find(([w]) => w === bp)?.[1];
+      if (range) {
+        const types = range.filter((id) => names.objects.some((o) => o.id === id));
+        if (types.length > 0) return typfnd({ kind: 'types', types, xtra: 0 });
+      }
       // ref: postparse2(): "red glass", "worthless piece of red glass", "glass" (any colour)
       if ((bp.endsWith(' glass') || bp === 'glass') && bp !== 'looking glass') {
         if (spec.broken || bp.includes('broken')) return null; // "broken glass" is nothing
@@ -820,6 +884,9 @@ export function readobjnam(
       const a = actualn;
       const g = names.objects.find((o) => REAL_GEMS.includes(o.id) && o.name === a);
       if (g) return typfnd({ kind: 'type', type: g.id });
+      // "tin of foo" would be caught above, but plain "tin" has a random chance of yielding
+      // "tin wand" unless we do this
+      if (a === 'tin') return fixed(TIN);
     }
     const found =
       namedesc(names, actualn, oclass, 1) ??
@@ -833,6 +900,10 @@ export function readobjnam(
       continue;
     }
     break;
+  }
+  if (bp === 'spinach') {
+    spec.contents = 'spinach';
+    return fixed(TIN);
   }
   if (oclass === null) return null;
   return typfnd({ kind: 'class', cls: oclass }); // goto any

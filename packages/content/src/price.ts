@@ -69,10 +69,11 @@ const ICOST: readonly [string, number][] = [
 /** ref: include/mondata.h telepathic() */
 const TELEPATHIC = new Set(['nh:floating_eye', 'nh:mind_flayer', 'nh:master_mind_flayer']);
 
-/** ref: src/shk.c corpsenm_price_adj() (corpses only: no tins or eggs) */
+/** ref: src/shk.c corpsenm_price_adj(): a corpse's, tin's or egg's monster adds to its price */
 function corpsenmPriceAdj(defs: Registry, obj: Entity): number {
   const mon = obj.c.item?.corpseOf;
-  if (obj.def !== 'nh:corpse' || mon === undefined || !defs.isMonster(mon)) return 0;
+  if (!['nh:corpse', 'nh:tin', 'nh:egg'].includes(obj.def) || mon === undefined) return 0;
+  if (!defs.isMonster(mon)) return 0;
   const ptr = defs.monster(mon);
   let tmp = 1;
   for (const [mr, cost] of ICOST) if (ptr.conveys.includes(mr)) tmp += cost;

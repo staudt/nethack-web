@@ -163,7 +163,10 @@ describe('level objects', () => {
     // 1..600 the rate stays near 0.52; with the figurine of m13 step 7 seeds 1..150 drew 0.524
     // and the test moved to 451..600, 0.475 with the figurine and 0.477 without; with m15 step
     // 9's dungeon rolls 451..600 drew 0.530 and the test moved to 1351..1500, 0.479 with them and
-    // 0.509 without: over 2400 seeds the rate is about 0.515, so the 0.52 bound is close)
+    // 0.509 without: over 2400 seeds the rate is about 0.515, so the 0.52 bound is close; with
+    // m19 step 1's new object rows 1351..1500 drew 0.525, and twelve blocks of 150 seeds from 1
+    // drew 0.494..0.550, mean 0.522: the bounds are now that mean +- 0.06, about 3.5 standard
+    // deviations of a block)
     for (let seed = 1351; seed <= 1500; seed++) {
       const { state } = engine.newGame({ seed });
       const level = state.levels['dlvl1']!;
@@ -187,10 +190,15 @@ describe('level objects', () => {
         );
         expect(inRoom).toBe(true);
         const t = level.palette[level.cells[p.y * level.width + p.x]!];
-        // gold is rolled before the fountain, sink and altar, which may then be put on it
-        // (find_okay_roompos() ignores objects, as in C); everything else comes after and needs
-        // plain floor
-        if (t === 'nh:fountain' || t === 'nh:sink' || t?.startsWith('nh:altar_') === true)
+        // gold is rolled before the fountain, sink, altar and grave, which may then be put on
+        // it (find_okay_roompos() ignores objects, as in C); everything else comes after and
+        // needs plain floor
+        if (
+          t === 'nh:fountain' ||
+          t === 'nh:sink' ||
+          t === 'nh:grave' ||
+          t?.startsWith('nh:altar_') === true
+        )
           expect(e.def).toBe('nh:gold_piece');
         else expect(t).toBe('nh:floor');
         piles++;
@@ -206,8 +214,8 @@ describe('level objects', () => {
     // gems), plus a box in 1 of nroom * 5 / 2 rooms (about 0.4 per level)
     expect(gold / rooms).toBeGreaterThan(0.27);
     expect(gold / rooms).toBeLessThan(0.37);
-    expect(objs / rooms).toBeGreaterThan(0.35);
-    expect(objs / rooms).toBeLessThan(0.52);
+    expect(objs / rooms).toBeGreaterThan(0.46);
+    expect(objs / rooms).toBeLessThan(0.58);
   });
 
   test('a new game generates the same level objects for the same seed', () => {

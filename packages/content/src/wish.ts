@@ -1,7 +1,10 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
-import { EGG, canBeHatched, setEggCorpsenm } from './eggstate';
+import { EGG, canBeHatched, deadSpecies, setEggCorpsenm } from './eggstate';
+import { POT_OIL, setDiluted } from './dilute';
+import { beginBurn } from './light';
+import { TIN, setTinVariety } from './tins';
 import { setBoxTrapped } from './btrapstate';
 import {
   contents,
@@ -16,7 +19,7 @@ import {
 } from '@nh/core';
 import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';
-import { addToInventory, invCount, placeOnFloor, splitStack } from './items';
+import { addToInventory, invCount, isCandle, placeOnFloor, splitStack } from './items';
 import { luckOf, setU, uState } from './luck';
 import {
   erosionMatters,
@@ -67,12 +70,15 @@ export interface WishOpts {
  * (rnd_otyp_by_namedesc()'s pick), mksobj(otyp, TRUE, FALSE) or mkobj(oclass, FALSE), then the
  * count, enchantment, corpse type, BUC, erosion, recharge count and lock state asked for.
  * Without `wizard`, a normal wish's limits apply (count, enchantment, Luck, 5000 gold).
- * Not ported: lit lamps, partly eaten food, poison, grease, names and artifacts.
+ * Not ported: partly eaten food, poison, grease, names and artifacts.
  */
 export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | null {
   const { wizard } = opts;
   const luck = luckOf(ctx.state);
   const what = spec.what;
+  // readobjnam_preparse() draws a towel's wetness as it reads the word: "wet" 3..5, "moist" 1..2
+  const wetness =
+    spec.wetness === 'wet' ? 3 + ctx.rng.rn2(3) : spec.wetness === 'moist' ? ctx.rng.rnd(2) : 0;
   if (what.kind === 'gold') {
     let cnt = spec.cnt;
     if (cnt > 5000 && !wizard) cnt = 5000;
@@ -95,8 +101,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     typ = what.types[k] ?? null;
   } else if (what.kind === 'random') oclass = WRPSYM[ctx.rng.rn2(WRPSYM.length)] ?? 'weapon';
   // handle some objects that are only allowed in wizard mode (of the Amulet, the Candelabrum,
-  // the Bell, the Book and the magic lamp only the Book exists)
+  // the Bell, the Book and the magic lamp the Book and the lamp exist)
   if (typ === 'nh:book_of_the_dead' && !wizard) typ = 'nh:spellbook_of_blank_paper';
+  if (typ === MAGIC_LAMP && !wizard) typ = 'nh:oil_lamp';
 
   // create the object, then fine-tune it
   let id: EntityId | null;
@@ -128,6 +135,17 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
       it.quantity = spec.cnt;
   }
 
+  // a burning lamp, candle or potion of oil
+  if (
+    spec.islit &&
+    (def.id === 'nh:oil_lamp' ||
+      def.id === MAGIC_LAMP ||
+      def.id === 'nh:brass_lantern' ||
+      isCandle(def.id) ||
+      def.id === POT_OIL)
+  )
+    beginBurn(ctx, e);
+
   // the enchantment or charges
   let spe = spec.spe;
   let spesgn = spec.spesgn;
@@ -150,8 +168,17 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
   }
   if (spesgn === -1) spe = -spe;
   // corpses and statues keep spe for their gender (and historic flag); boxes and keys use it
-  // for nothing settable
-  if (
+  // for nothing settable; a tin is not spinach unless asked, a towel as wet as asked
+  if (def.id === TIN) {
+    it.spe = 0; // default: not spinach
+    if (spec.contents === 'empty') delete it.corpseOf;
+    else if (spec.contents === 'spinach') {
+      delete it.corpseOf;
+      it.spe = 1; // spinach after all
+    }
+  } else if (def.id === TOWEL) {
+    if (wetness) it.spe = wetness;
+  } else if (
     !['nh:corpse', STATUE, 'nh:figurine', 'nh:chest', 'nh:large_box', 'nh:skeleton_key'].includes(
       def.id,
     )
@@ -174,7 +201,16 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
       ctx.defs.isMonster(human)
     )
       mon = ctx.defs.monster(human);
-    if (def.id === 'nh:corpse') {
+    if (def.id === TIN) {
+      if (deadSpecies(ctx.state, ctx.defs, mon.id, false))
+        delete it.corpseOf; // it's empty
+      else if (
+        (!mon.genFlags.includes('uniq') || wizard) &&
+        !mon.genFlags.includes('nocorpse') &&
+        mon.nutrition !== 0
+      )
+        it.corpseOf = mon.id;
+    } else if (def.id === 'nh:corpse') {
       if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
         it.corpseOf = mon.id;
     } else if (def.id === EGG) {
@@ -233,8 +269,22 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     // "trapped" / "untrapped" (not tknown)
     if (spec.trapped) setBoxTrapped(ctx, id, spec.trapped === 1);
   }
+  // empty for containers rather than for tins
+  if (spec.contents === 'empty') {
+    if (def.id === HORN_OF_PLENTY) {
+      if (it.spe > 0) it.spe = 0;
+    } else for (const o of contents(ctx.state, id)) ctx.remove(o.id);
+  }
+  if (spec.diluted && def.class === 'potion') setDiluted(it, def.id !== 'nh:potion_of_water');
+  // set tin variety
+  if (def.id === TIN && spec.tvariety !== null && (ctx.rng.rn2(4) || wizard))
+    setTinVariety(ctx.rng, ctx.defs, it, spec.tvariety);
   return id;
 }
+
+const MAGIC_LAMP = 'nh:magic_lamp';
+const TOWEL = 'nh:towel';
+const HORN_OF_PLENTY = 'nh:horn_of_plenty';
 
 /**
  * Puts a new object into the hero's inventory, or drops it at her feet with `dropMsg` when it

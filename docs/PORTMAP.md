@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5157 citations.
+188 NetHack files, 5200 citations.
 
 ## dat/asmodeus.lua
 
@@ -347,6 +347,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `POLY_CONTROLLED()`: `packages/content/src/polyself.ts`
 - `POTHIT_HERO_THROW()`: `packages/content/src/potionhit.ts`
+- `ROTTEN_TIN()`: `packages/content/src/tins.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
 - `SHOP_DOOR_COST()`: `packages/content/src/shopdamage.ts`
 - `SHOP_HOLE_COST()`: `packages/content/src/shopdamage.ts`
@@ -535,12 +536,13 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/obj.h
 
-- (file): `packages/content/src/btrapstate.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/btrapstate.ts`, `packages/content/src/dilute.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
 - `CORPSTAT_HISTORIC()`: `packages/content/src/statuestate.ts`
 - `Is_candle()`: `packages/content/src/items.ts`, `packages/content/src/price.ts`
 - `Is_container()`: `packages/core/src/objects.ts`
 - `Is_mbag()`: `packages/content/src/container.ts`
 - `MAX_ERODE()`: `packages/core/src/types/entity.ts`
+- `MAX_OIL_IN_FLASK()`: `packages/content/src/dilute.ts`
 - `SPE_LIM()`: `packages/content/src/objnam_read.ts`
 - `WrappingAllowed()`: `packages/content/src/mondata.ts`, `packages/content/src/mongear.ts`
 - `ammo_and_launcher()`: `packages/content/src/mthrowu.ts`
@@ -1209,15 +1211,20 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_finished_meal()`: `packages/content/src/eat.ts`
 - `morehungry()`: `packages/content/src/hunger.ts`
 - `newuhs()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/testkit/src/scenario.ts`
-- `nonrotting_corpse()`: `packages/content/src/eat.ts`
+- `nonrotting_corpse()`: `packages/content/src/eat.ts`, `packages/content/src/tins.ts`
 - `obj_nutrition()`: `packages/content/src/eat.ts`, `packages/content/src/items.ts`
 - `reset_eat()`: `packages/content/src/eat.ts`
 - `reset_faint()`: `packages/content/src/drown.ts`
 - `rottenfood()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
+- `set_tin_variety()`: `packages/content/src/tins.ts`
 - `should_givit()`: `packages/content/src/givit.ts`
 - `start_eating()`: `packages/content/src/eat.ts`
 - `status_enlightenment()`: `packages/content/src/enlightenment.ts`
 - `temp_givit()`: `packages/content/src/givit.ts`
+- `tin_details()`: `packages/content/src/objnam.ts`
+- `tin_variety()`: `packages/content/src/tins.ts`
+- `tin_variety_txt()`: `packages/content/src/tins.ts`
+- `tintxts()`: `packages/content/src/objects.en.ts`, `packages/content/src/tins.ts`
 - `touchfood()`: `packages/content/src/eat.ts`
 - `unfaint()`: `packages/content/src/hunger.ts`
 - `vomit()`: `packages/content/src/hunger.ts`
@@ -1707,6 +1714,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `boxiprobs()`: `packages/content/src/mkobj.ts`
 - `costly_alteration()`: `packages/content/src/shk.ts`
 - `curse()`: `packages/content/src/figurinestate.ts`, `packages/content/src/items.ts`
+- `fixup_oil()`: `packages/content/src/dilute.ts`
 - `get_obj_location()`: `packages/content/src/light.ts`, `packages/content/src/price.ts`
 - `hellprobs()`: `packages/content/src/mkobj.ts`
 - `is_flammable()`: `packages/content/src/material.ts`
@@ -1840,6 +1848,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_mon_data()`: `packages/content/src/werestate.ts`
 - `set_ustuck()`: `packages/content/src/engulfstate.ts`, `packages/content/src/hackmove.ts`
 - `setmangry()`: `packages/content/src/kick.en.ts`, `packages/content/src/peaceful.ts`
+- `undead_to_corpse()`: `packages/content/src/corpses.ts`
 - `unstuck()`: `packages/content/src/engulf.ts`
 - `validspecmon()`: `packages/content/src/newcham.ts`
 - `vamp_stone()`: `packages/content/src/shapeshift.ts`
@@ -2038,7 +2047,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/objnam.c
 
-- (file): `packages/content/src/objects.en.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
@@ -2058,7 +2067,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mshot_xname()`: `packages/content/src/hmon.ts`
 - `no_man()`: `packages/content/src/objnam_read.ts`
 - `not_fully_identified()`: `packages/content/src/read.ts`
-- `o_ranges()`: `packages/content/src/objnam_read.ts`
 - `one_off()`: `packages/content/src/objnam_read.ts`
 - `otense()`: `packages/content/src/read.ts`, `packages/content/src/seffect.ts`
 - `paydoname()`: `packages/content/src/objnam.ts`

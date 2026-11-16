@@ -332,7 +332,7 @@ describe('kicked coins and a bag of holding', () => {
 
   test("an exploding bag of holding's contents fly off her square", () => {
     let flew = 0;
-    for (let seed = 1; seed <= 6; seed++) {
+    for (let seed = 1; seed <= 20; seed++) {
       const s = levelSetup(ROOM, seed);
       plainKit(s.state);
       for (const k of Object.keys(s.state.entities))
@@ -359,6 +359,8 @@ describe('kicked coins and a bag of holding', () => {
       }
       if (left.length > 0) flew++;
     }
-    expect(flew).toBeGreaterThan(3);
+    // the dagger stack is one part, gone 1 time in 13 (boh_loss's rn2(13)): about 18.5 of 20
+    // fly (seeds 1..6 lost it three times after m19 step 1's new object rows)
+    expect(flew).toBeGreaterThan(13);
   });
 });

@@ -24,6 +24,8 @@ import { SHOPKEEPER, eshkOf, insideShop, setEshk, shopDoors, type Eshk } from '.
 import { makeEngrAt } from './engr';
 import { makemon, mkclass, rlocPos } from './generation';
 import { mkobj, mksobjFull } from './mkobj';
+import { placeOnFloor } from './items';
+import { TIN, setTinVariety } from './tins';
 import { mkmonmoney, mongets } from './mongear';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { monLearnsTraps } from './trapstate';
@@ -94,8 +96,15 @@ function mkshobjAt(ctx: Ctx, level: Level, shp: ShopType, x: number, y: number):
   const gen = { level: level.id, inMklev: true };
   const item = getShopItem(ctx, shp);
   if (item === 'veggy') {
+    // ref: mkveggy_at(): a tin is made healthy
     const def = shkveg(ctx);
-    if (def) mksobjFull(ctx, def, { at, artif: true }, gen);
+    if (def?.id === TIN) {
+      // made off the floor so that it cannot merge before its contents change
+      const id = mksobjFull(ctx, def, { level: level.id, artif: true }, gen);
+      const it = ctx.state.entities[String(id)]?.c.item;
+      if (it) setTinVariety(ctx.rng, ctx.defs, it, 'healthy');
+      placeOnFloor(ctx, id, level.id, x, y);
+    } else if (def) mksobjFull(ctx, def, { at, artif: true }, gen);
   } else if (typeof item === 'object') {
     mksobjFull(ctx, ctx.defs.object(item.def), { at, artif: true }, gen);
   } else mkobj(ctx, item, { at, ...gen });

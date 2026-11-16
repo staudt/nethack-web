@@ -242,9 +242,12 @@ export const ORCUS_TOWN_FIXUP: SpLevFixup = {
     setTerrain(level, a.x, a.y, T.altar_unaligned);
   },
   after(ctx, level, def) {
-    // An object that's worth most of a wish: `math.random(0, 1)`, then a magic marker or a
-    // magic lamp, neither of which exists yet
-    ctx.rng.rn2(2);
+    // An object that's worth most of a wish (this is part of the compensation for the reduced
+    // wishes at the Castle): `if math.random(0, 1) == 1` a magic marker, else a magic lamp
+    const marker = ctx.rng.rn2(2) === 1;
+    makeContents(ctx, level, def, [
+      { kind: 'object', id: marker ? 'nh:magic_marker' : 'nh:magic_lamp' },
+    ]);
     makeContents(ctx, level, def, MONSTERS);
     // local protected = bounds2:negate() | orcus1; hell_tweaks(protected)
     const b = mapBlock(def, level.width, level.height) as MapBlock;

@@ -52,6 +52,9 @@ const UNDEAD_TO_CORPSE: Readonly<Record<string, DefId>> = {
   'nh:ettin_mummy': 'nh:ettin',
 };
 
+/** The monster type whose corpse an undead one stands for. ref: src/mon.c undead_to_corpse() */
+export const undeadToCorpse = (mon: DefId): DefId => UNDEAD_TO_CORPSE[mon] ?? mon;
+
 /** ref: include/mondata.h bigmonst() */
 const bigmonst = (def: MonsterDef): boolean =>
   def.size === 'large' || def.size === 'huge' || def.size === 'gigantic';

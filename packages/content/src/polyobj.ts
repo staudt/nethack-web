@@ -5,7 +5,7 @@
 // ref: src/zap.c poly_obj(), obj_resists(), obj_shudders(), do_osshock(), obj_unpolyable(),
 // create_polymon(), zapsetup(), zapwrapup()
 //
-// Not ported: eggs, leashes, lamps, markers, potions of oil, poisoned ammo, mail, the Amulet and other
+// Not ported: eggs, leashes, poisoned ammo, mail, the Amulet and other
 // invocation items (none exist), artifacts (every object resists as an ordinary one), polypile
 // conduct.
 import {
@@ -21,6 +21,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { BOULDER } from './boulder';
+import { POT_OIL, fixupOil } from './dilute';
 import { isBoxTrapped, setBoxTrapped } from './btrapstate';
 import { isBypassed } from './bypass';
 import { costlySpot, eshkOf, inhishop, uShops } from './eshk';
@@ -108,7 +109,9 @@ function mkobjOfClass(ctx: Ctx, obj: Entity): Entity | null {
  * trap and the shopkeeper's (lack of) interest; it loses any contents. A wand never becomes a
  * wand of wishing or polymorph and degrades (`recharged`), a potion or spellbook never one of
  * polymorph, a spellbook counts one more reading (more than 3: blank paper), mineral gems
- * turning into non-minerals may backfire into half as many rocks. Worn or wielded, it stays in
+ * turning into non-minerals may backfire into half as many rocks; a magic lamp comes out as an
+ * oil lamp with 1500 turns of oil (no djinni), a magic marker degraded (recharged once), and a
+ * potion turned to or from oil gets its fuel or age fixed up (fixup_oil()). Worn or wielded, it stays in
  * the slot it fits (a worn ring comes off first). A shop's goods changed this way anger the
  * shopkeeper; an unpaid object stays on the bill as used up. A boulder costs Luck in Sokoban.
  * Returns the new object. ref: src/zap.c poly_obj()
@@ -173,6 +176,15 @@ export function polyObj(ctx: Ctx, obj: Entity, id: DefId | null): Entity {
     it.quantity = 1;
 
   switch (nd.class) {
+    case 'tool':
+      if (otmp.def === 'nh:magic_lamp') {
+        otmp.def = 'nh:oil_lamp';
+        it.age = 1500; // "best" oil lamp possible
+      } else if (otmp.def === 'nh:magic_marker') {
+        it.recharged = 1; // degraded quality
+      }
+      // don't care about the recharge count of other tools
+      break;
     case 'wand': {
       const wands = classRange(ctx, 'wand');
       while (otmp.def === WAN_WISHING || otmp.def === WAN_POLYMORPH)
@@ -184,6 +196,9 @@ export function polyObj(ctx: Ctx, obj: Entity, id: DefId | null): Entity {
     case 'potion': {
       const potions = classRange(ctx, 'potion');
       while (otmp.def === POT_POLYMORPH) otmp.def = rndClass(ctx.rng, ctx.defs, potions, 0);
+      // potions of oil use obj->age field differently from other potions
+      if (otmp.def === POT_OIL || obj.def === POT_OIL)
+        fixupOil({ def: otmp.def, it }, { def: obj.def, it: old }, ctx.state.turn);
       break;
     }
     case 'spellbook': {

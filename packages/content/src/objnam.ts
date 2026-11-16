@@ -12,7 +12,7 @@ import type {
   Registry,
 } from '@nh/core';
 import { contents, getPlayer } from '@nh/core';
-import { objKnown, rknown } from './items';
+import { isCandle, objKnown, rknown } from './items';
 import { EGG, knowsEgg } from './eggstate';
 import {
   isCorrodeable,
@@ -25,7 +25,10 @@ import {
 } from './material';
 import { isKnown } from './o_init';
 import { isUnpaid, shopItemCost, unpaidCost } from './price';
-import { CHARGED_RINGS } from './objects';
+import { CHARGED_RINGS, CHARGED_TOOLS } from './objects';
+import { isDiluted } from './dilute';
+import { vegetarian } from './mondata';
+import { HOMEMADE_TIN, ROTTEN_TIN, SPINACH_TIN, TIN, TINTXT, tinVariety } from './tins';
 import { isSwapWep } from './wield';
 
 /**
@@ -37,6 +40,45 @@ import { isSwapWep } from './wield';
  * Boots and gloves read "pair of ..." in the catalog's names. Corpses nest the monster as `mon`.
  */
 function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item: Entity): Msg {
+  const name = xnameBase(state, defs, def, item);
+  const it = item.c.item;
+  // ref: xname() POTION_CLASS "diluted " (dknown is always set here); TOOL_CLASS a wet towel's
+  // "moist "/"wet " (is_wet_towel(): spe > 0)
+  if (it && def.class === 'potion' && isDiluted(it))
+    return { key: 'obj.diluted', params: { name } };
+  if (it && def.id === TOWEL && it.spe > 0)
+    return { key: it.spe < 3 ? 'obj.moist' : 'obj.wet', params: { name } };
+  return name;
+}
+
+/**
+ * A known tin's name: "tin of spinach", "empty tin", "tin of newt meat", "tin of lichen" (a
+ * vegetarian monster), with its variety once its contents are known (cknown): "smoked", or
+ * "homemade"/"rotten" before the word tin. ref: src/eat.c tin_details()
+ */
+function tinName(state: Readonly<GameState>, defs: Registry, item: Entity, plural: string): Msg {
+  const it = item.c.item;
+  if (!it) return { key: `nh:tin${plural}` };
+  const r = tinVariety(null, it, true);
+  if (r === SPINACH_TIN) return { key: `nh:tin.spinach${plural}` };
+  const mon = it.corpseOf;
+  if (mon === undefined || !defs.isMonster(mon)) return { key: `nh:tin.empty${plural}` };
+  const what: Msg | string = vegetarian(defs.monster(mon))
+    ? `@${mon}`
+    : { key: 'nh:tin.meat', params: { mon: `@${mon}` } };
+  if (objKnown(state, 'cknown', item.id) && it.spe < 0) {
+    const variety = { key: TINTXT[r]?.txtKey ?? 'tin.variety.0' };
+    // put these before the word tin
+    const pre = r === ROTTEN_TIN || r === HOMEMADE_TIN;
+    return {
+      key: `nh:tin.${pre ? 'variety_of' : 'of_variety'}${plural}`,
+      params: { variety, what },
+    };
+  }
+  return { key: `nh:tin.of${plural}`, params: { what } };
+}
+
+function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item: Entity): Msg {
   const it = item.c.item;
   const plural = it !== undefined && it.quantity !== 1 ? '.plural' : '';
   if (def.id === 'nh:corpse' && it?.corpseOf) {
@@ -61,6 +103,8 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
   if (def.id === 'nh:figurine' && it?.corpseOf) {
     return { key: `nh:figurine.of${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
+  // ref: xname() FOOD_CLASS: `if (typ == TIN && known) tin_details()` (obj->known)
+  if (def.id === TIN && it?.known.spe) return tinName(state, defs, item, plural);
   // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
   if (def.id === FAKE_AMULET) {
     return { key: `${it?.known.spe ? def.nameKey : (def.descKey ?? def.nameKey)}${plural}` };
@@ -97,6 +141,8 @@ function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item:
 }
 
 const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
+const TOWEL = 'nh:towel';
+const HORN_OF_PLENTY = 'nh:horn_of_plenty';
 
 /** ref: src/objnam.c armor_simple_name(): the `kind.*` word for an armor slot */
 const ARMOR_SIMPLE: Record<ArmorSlot, string> = {
@@ -174,8 +220,9 @@ export function doname(
   // of the Dead is unique and a spellbook is always `known`: "the papyrus spellbook" too.
   const fake = def.id === FAKE_AMULET;
   if ((fake && !it.known.spe) || def.id === 'nh:book_of_the_dead') params.count = 'the ';
-  // A wand is oc_charged: once its charges are known, "uncursed" is implied.
-  const impliedUncursed = def.class === 'wand' && it.known.spe && it.buc === 'uncursed';
+  // A wand or a charged tool is oc_charged: once its charges are known, "uncursed" is implied.
+  const charged = def.class === 'wand' || CHARGED_TOOLS.has(def.id);
+  const impliedUncursed = charged && it.known.spe && it.buc === 'uncursed';
   if (
     it.known.buc &&
     def.class !== 'coin' &&
@@ -212,6 +259,24 @@ export function doname(
     if (n > 0)
       params.charges = { key: n === 1 ? 'obj.containing1' : 'obj.containing', params: { n } };
   }
+  // ref: doname_base() "empty " for a horn of plenty known to be empty whose charges are not
+  // known (cknown && spe == 0 && !known)
+  if (
+    def.id === HORN_OF_PLENTY &&
+    objKnown(state, 'cknown', item.id) &&
+    it.spe === 0 &&
+    !it.known.spe &&
+    it.quantity === 1
+  )
+    params.count = { key: 'obj.empty' };
+  // ref: doname_base() TOOL_CLASS: a candle with less than its full burn time left is "partly
+  // used" (a lit one counts the time its burn timer still holds)
+  if (isCandle(def.id)) {
+    const burn = (state.modData['nh'] as { burn?: Record<string, { due: number }> } | undefined)
+      ?.burn?.[String(item.id)];
+    const left = (it.age ?? 0) + (it.lit && burn ? burn.due - state.turn : 0);
+    if (left < 20 * def.cost) params.eaten = { key: 'obj.partly_used' };
+  }
   if (it.lit) params.charges = { key: 'obj.lit' };
 
   // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS (a weapon-tool counts as a weapon):
@@ -226,8 +291,8 @@ export function doname(
     params.spe = `${it.spe >= 0 ? '+' : '-'}${Math.abs(it.spe)} `; // "%+d "
   }
 
-  // ref: doname_base() WAND_CLASS: " (%d:%d)" recharged:spe when known
-  if (def.class === 'wand' && it.known.spe)
+  // ref: doname_base() WAND_CLASS and oc_charged tools: " (%d:%d)" recharged:spe when known
+  if (charged && it.known.spe)
     params.charges = { key: 'obj.charges', params: { recharged: it.recharged ?? 0, spe: it.spe } };
 
   if (it.equipped === 'weapon') {

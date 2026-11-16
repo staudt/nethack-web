@@ -93,6 +93,7 @@ describe('the Valley of the Dead', () => {
   const games = Array.from({ length: 12 }, (_, i) => arrive(i + 1));
 
   test("valley.lua's map on 80x21: stairs down at its corner, the branch back to the Castle", () => {
+    let intact = 0;
     for (const { state, level } of games) {
       expect(level.def).toBe(G.valley);
       expect([level.width, level.height]).toEqual([80, 21]);
@@ -110,7 +111,9 @@ describe('the Valley of the Dead', () => {
         [6, 6],
       ] as const)
         expect([T.sdoor_locked_v, T.sdoor_locked_h]).toContain(ter(level, x, y));
-      // the fixed traps
+      // the fixed traps (the random ones the script makes after them may land on them and
+      // replace them: create_trap() picks a dry spot and maketrap() takes over a trap there)
+      const later = [TRAP.antiMagic, TRAP.magic];
       for (const [id, x, y] of [
         [TRAP.spikedPit, 5, 2],
         [TRAP.spikedPit, 14, 5],
@@ -120,9 +123,14 @@ describe('the Valley of the Dead', () => {
         [TRAP.dart, 26, 17],
       ] as const) {
         const p = at(level, x, y);
-        expect(trapAt(level, p.x, p.y)?.def).toBe(id);
+        const def = trapAt(level, p.x, p.y)?.def;
+        const replacedBy = id === TRAP.dart ? later : [TRAP.squeaky, ...later];
+        expect([id, ...replacedBy]).toContain(def);
+        if (def === id) intact++;
       }
     }
+    // a random trap rarely lands on one of the six: nearly all 72 are still there
+    expect(intact).toBeGreaterThan(66);
   });
 
   test('the flags: no teleport, a hard floor, a maze level, no magic mapping, temperate', () => {

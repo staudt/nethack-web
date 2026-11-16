@@ -13,7 +13,8 @@ export type ColorName =
   | 'light_blue'
   | 'red'
   | 'green'
-  | 'dark_red';
+  | 'dark_red'
+  | 'white';
 
 /** A color name message (not hallucinating). */
 export const color = (name: ColorName): Msg => ({

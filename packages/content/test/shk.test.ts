@@ -135,10 +135,13 @@ describe('the shop types', () => {
           'nh:potion_of_fruit_juice',
           'nh:potion_of_water',
         ]);
+      // (the magic lamp and the potion of oil exist since m19 step 1)
       if (t.id === 'nh:candle_shop')
         expect([...seen].sort()).toEqual([
           'nh:brass_lantern',
+          'nh:magic_lamp',
           'nh:oil_lamp',
+          'nh:potion_of_oil',
           'nh:scroll_of_light',
           'nh:spellbook_of_light',
           'nh:tallow_candle',
@@ -199,6 +202,26 @@ describe('stock_room()', () => {
       for (let x = 9; x <= 11; x++)
         for (let y = 1; y <= 3; y++) expect(itemsAt(s, x, y)).toEqual([]);
     }
+  });
+
+  test('the lighting shop stocks magic lamps and potions of oil (m19 step 1)', () => {
+    // iprobs 3 and 5 in 100 of 12 squares: about 7 lamps and 12 flasks over 20 shops
+    const seen = { lamp: 0, oil: 0 };
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = shop(seed, 'nh:candle_shop');
+      stockShops(ctxOf(s), s.level);
+      for (let x = 1; x <= 4; x++)
+        for (let y = 1; y <= 3; y++)
+          for (const o of itemsAt(s, x, y)) {
+            if (o?.def === 'nh:magic_lamp') seen.lamp++;
+            if (o?.def === 'nh:potion_of_oil') {
+              seen.oil++;
+              expect(o.c.item?.age).toBe(400);
+            }
+          }
+    }
+    expect(seen.lamp).toBeGreaterThan(0);
+    expect(seen.oil).toBeGreaterThan(0);
   });
 
   test('deep down most squares are mimics posing as the goods of the shop', () => {

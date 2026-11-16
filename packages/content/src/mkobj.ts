@@ -3,9 +3,9 @@
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
 import { putIn } from '@nh/core';
 import { rndmonst, setLevelObjectAt } from './generation';
-import { mksobj, setEggInit, setFigurineInit, type MksobjOpts } from './items';
+import { mksobj, setEggInit, setFigurineInit, setTinInit, type MksobjOpts } from './items';
 import { canBeHatched, deadSpecies } from './eggstate';
-import { setGolemStatue, startCorpseTimeout } from './corpses';
+import { setGolemStatue, startCorpseTimeout, undeadToCorpse } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 import { STATUE } from './statuestate';
 import { inHell } from './levelflags';
@@ -328,6 +328,18 @@ setEggInit((ctx, level) => {
   for (let tryct = 200; tryct > 0; --tryct) {
     const mndx = canBeHatched(ctx, rndmonnum(ctx, depthOf(ctx, level)).id);
     if (mndx !== null && !deadSpecies(ctx.state, ctx.defs, mndx)) return mndx; // typed egg
+  }
+  return null;
+});
+
+// A tin's contents. ref: src/mkobj.c mksobj_init() TIN: spinach 1 time in 6, else up to 200
+// tries of undead_to_corpse(rndmonnum()) with corpse nutrition and a corpse (else empty)
+setTinInit((ctx, level) => {
+  if (!ctx.rng.rn2(6)) return 'spinach';
+  for (let tryct = 200; tryct > 0; --tryct) {
+    const mndx = undeadToCorpse(rndmonnum(ctx, depthOf(ctx, level)).id);
+    const m = ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
+    if (m && m.nutrition && !m.genFlags.includes('nocorpse')) return mndx;
   }
   return null;
 });

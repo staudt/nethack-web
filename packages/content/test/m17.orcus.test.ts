@@ -216,6 +216,24 @@ describe('Orcus Town', () => {
     }
   });
 
+  test('an object worth most of a wish: a magic marker or a magic lamp (m19 step 1)', () => {
+    const kinds = new Set<string>();
+    for (const { state, level } of games) {
+      const onLevel = (e: Entity): boolean => {
+        const holder = e.c.item?.carriedBy;
+        const at = holder ? state.entities[String(holder)]?.c.pos : e.c.pos;
+        return at?.level === level.id;
+      };
+      const found = Object.values(state.entities).filter(
+        (e) => (e.def === 'nh:magic_marker' || e.def === 'nh:magic_lamp') && onLevel(e),
+      );
+      expect(found.length).toBeGreaterThanOrEqual(1);
+      for (const e of found) kinds.add(e.def);
+    }
+    // math.random(0, 1) over eight games: both come up
+    expect([...kinds].sort()).toEqual(['nh:magic_lamp', 'nh:magic_marker']);
+  });
+
   test("the ghost town's goods are free: picked up with no bill", () => {
     const { state, level } = arrive(3, G.orcus);
     for (const k of Object.keys(state.entities)) {

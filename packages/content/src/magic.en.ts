@@ -138,6 +138,7 @@ export const magicMessagesEn: Record<string, string> = {
   'enchant.vibrate': 'Your {item} suddenly vibrates unexpectedly.',
   'enchant.vibrate_pl': 'Your {item} suddenly vibrate unexpectedly.',
   'color.blue': 'blue',
+  'color.white': 'white',
   'color.black': 'black',
   'color.silver': 'silver',
   'color.amber': 'amber',

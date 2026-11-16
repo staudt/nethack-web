@@ -9,7 +9,8 @@
 //
 // Not ported (see DEVIATIONS.md "Scrolls"): attribute exercise, shop charges for altered
 // objects (costly_alteration()), being underwater, the steed, the "Maud" name check, the
-// rechargeable tools (none exist: every tool gives "a feeling of loss"), selftouch() for
+// rechargeable tools that do not exist (bell of opening, camera, crystal ball, can of grease,
+// bag of tricks: "a feeling of loss"), selftouch() for
 // gloves lost while wielding a cockatrice corpse, artifacts.
 import { setDestroyArm } from './mcastu';
 import {
@@ -63,7 +64,10 @@ import {
   isRottable,
   isRustprone,
 } from './material';
-import { CHARGED_RINGS } from './objects';
+import { CHARGED_RINGS, CHARGED_TOOLS } from './objects';
+import { endBurn } from './light';
+import { isWeaponOrWeptool } from './material';
+import { SPE_LIM } from './objnam_read';
 import { isKnown } from './o_init';
 import { xnameOf } from './objnam';
 import { setmangry } from './peaceful';
@@ -232,7 +236,7 @@ export function destroyArm(ctx: Ctx): boolean {
 }
 
 /** "Your <armor> glows purple for a moment." (blind: vibrates briefly). ref: p_glow2() */
-function pGlow2(ctx: Ctx, obj: Entity, clr: 'purple' | 'blue'): void {
+function pGlow2(ctx: Ctx, obj: Entity, clr: 'purple' | 'blue' | 'white'): void {
   const item = xnameOf(ctx.state, ctx.defs, obj);
   if (blind(ctx)) say(ctx, `scroll.vibrate_moment${plSuffix(ctx, obj)}`, { item });
   else say(ctx, `scroll.glow_moment${plSuffix(ctx, obj)}`, { item, color: hcolor(ctx, clr) });
@@ -692,7 +696,21 @@ function chargeOk(ctx: Ctx, obj: Entity): 'suggest' | 'selectable' | 'exclude' {
   if (def.class === 'wand') return 'suggest';
   if (def.class === 'ring' && CHARGED_RINGS.has(def.id) && isKnown(ctx.state, ctx.defs, def))
     return 'suggest';
-  if (def.class === 'tool') return 'exclude'; // no chargeable tool exists (weptools excluded too)
+  if (isWeaponOrWeptool(def) && def.class === 'tool') return 'exclude'; // before general tools
+  if (def.class === 'tool') {
+    // suggest tools that aren't oc_charged but can still be recharged; only list magic lamps if
+    // they are not identified yet
+    if (
+      obj.def === 'nh:brass_lantern' ||
+      obj.def === 'nh:oil_lamp' ||
+      (obj.def === 'nh:magic_lamp' && !isKnown(ctx.state, ctx.defs, def))
+    )
+      return 'suggest';
+    // suggest chargeable tools only if discovered, to prevent leaking info
+    if (CHARGED_TOOLS.has(def.id))
+      return isKnown(ctx.state, ctx.defs, def) ? 'suggest' : 'selectable';
+    return 'exclude';
+  }
   // why are weapons/armor considered charged anyway? selectable for the "feeling of loss"
   return 'selectable';
 }
@@ -746,7 +764,10 @@ export function seffectCharging(
   return { used: true };
 }
 
-/** "Your wand vibrates briefly." and its charges gone, or "Nothing happens.". ref: stripspe() */
+/**
+ * "Your wand vibrates briefly." and its charges gone (a lamp's oil too), or "Nothing happens.".
+ * ref: stripspe()
+ */
 function stripspe(ctx: Ctx, obj: Entity): void {
   const it = obj.c.item;
   if (!it) return;
@@ -756,6 +777,90 @@ function stripspe(ctx: Ctx, obj: Entity): void {
       item: xnameOf(ctx.state, ctx.defs, obj),
     });
     it.spe = 0;
+    if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern') it.age = 0;
+  }
+}
+
+/**
+ * Recharging a tool: a charged one counts the recharge (up to 7); markers and tinning kits get
+ * ink or cans (a marker only once: then "Your marker seems permanently dried out."), lamps and
+ * lanterns oil, the horn of plenty and the magic instruments charges; a cursed scroll strips
+ * them. False when the tool cannot be recharged. ref: src/read.c recharge() TOOL_CLASS
+ */
+function rechargeTool(ctx: Ctx, obj: Entity, isCursed: boolean, isBlessed: boolean): boolean {
+  const it = obj.c.item;
+  if (!it) return false;
+  const rechrg = it.recharged ?? 0;
+  // tools don't have a limit, but the counter used does
+  if (CHARGED_TOOLS.has(obj.def) && rechrg < 7) it.recharged = rechrg + 1;
+  switch (obj.def) {
+    case 'nh:magic_marker':
+    case 'nh:tinning_kit':
+      if (isCursed) stripspe(ctx, obj);
+      else if (rechrg && obj.def === 'nh:magic_marker') {
+        // previously recharged
+        it.recharged = 1; // override increment done above
+        if (it.spe < 3) say(ctx, 'scroll.charging.marker_dry');
+        else say(ctx, 'zap.nothing_happens');
+      } else if (isBlessed) {
+        const n = ctx.rng.rn2(16) + 15; // 15..30
+        if (it.spe + n <= 50) it.spe = 50;
+        else if (it.spe + n <= 75) it.spe = 75;
+        else it.spe = Math.min(it.spe + n, 127);
+        pGlow2(ctx, obj, 'blue');
+      } else {
+        const n = ctx.rng.rn2(11) + 10; // 10..20
+        if (it.spe + n <= 50) it.spe = 50;
+        else it.spe = Math.min(it.spe + n, SPE_LIM);
+        pGlow2(ctx, obj, 'white');
+      }
+      return true;
+    case 'nh:oil_lamp':
+    case 'nh:brass_lantern':
+      if (isCursed) {
+        stripspe(ctx, obj);
+        if (it.lit) {
+          if (!blind(ctx))
+            say(ctx, 'lamp.the_goes_out', { item: xnameOf(ctx.state, ctx.defs, obj) });
+          endBurn(ctx, obj, true);
+        }
+      } else if (isBlessed) {
+        it.spe = 1;
+        it.age = 1500;
+        pGlow2(ctx, obj, 'blue');
+      } else {
+        it.spe = 1;
+        it.age = Math.min((it.age ?? 0) + 750, 1500);
+        pGlow1(ctx, obj);
+      }
+      return true;
+    case 'nh:horn_of_plenty':
+      if (isCursed) stripspe(ctx, obj);
+      else if (isBlessed) {
+        it.spe += it.spe <= 10 ? ctx.rng.rn2(10) + 6 : ctx.rng.rn2(5) + 6;
+        if (it.spe > 50) it.spe = 50;
+        pGlow2(ctx, obj, 'blue');
+      } else {
+        it.spe = Math.min(it.spe + ctx.rng.rn2(5) + 2, 50);
+        pGlow1(ctx, obj);
+      }
+      return true;
+    case 'nh:magic_flute':
+    case 'nh:magic_harp':
+    case 'nh:frost_horn':
+    case 'nh:fire_horn':
+    case 'nh:drum_of_earthquake':
+      if (isCursed) stripspe(ctx, obj);
+      else if (isBlessed) {
+        it.spe = Math.min(it.spe + ctx.rng.d(2, 4), 20);
+        pGlow2(ctx, obj, 'blue');
+      } else {
+        it.spe = Math.min(it.spe + ctx.rng.rnd(4), 20);
+        pGlow1(ctx, obj);
+      }
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -794,7 +899,8 @@ export function wandExplode(ctx: Ctx, obj: Entity, chg: number): void {
 
 /**
  * Recharges a wand (it may explode after earlier rechargings), a charged ring (it may explode
- * if already well charged) or nothing else ("You have a feeling of loss.").
+ * if already well charged), a rechargeable tool (rechargeTool()) or nothing else ("You have a
+ * feeling of loss.").
  * `curseBless`: -1 cursed, 1 blessed, 0 uncursed. ref: src/read.c recharge()
  */
 export function recharge(ctx: Ctx, obj: Entity, curseBless: number): void {
@@ -845,7 +951,7 @@ export function recharge(ctx: Ctx, obj: Entity, curseBless: number): void {
       item: xnameOf(ctx.state, ctx.defs, obj),
     });
     rechargeRing(ctx, obj, s);
-  } else {
+  } else if (def.class !== 'tool' || !rechargeTool(ctx, obj, isCursed, isBlessed)) {
     say(ctx, 'scroll.charging.loss');
   }
   // prevent enchantment from getting out of range

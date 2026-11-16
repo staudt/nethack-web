@@ -114,9 +114,11 @@ describe('engravings made with the level', () => {
       expect(inRooms(level, x, y).length).toBeGreaterThan(0);
       expect(e).toMatchObject({ type: 'dust', time: 0 });
       expect(e.guard).toBeUndefined();
-      // wipe_engr_at(5) wore up to five letters of the dust (leading blanks trimmed)
+      // wipe_engr_at(5) wore up to five letters of the dust (leading blanks trimmed, and
+      // wipeout_text()'s trailing ones)
       expect(e.text.length).toBeGreaterThan(0);
-      expect(e.text.length + (e.off ?? 0)).toBe('ad aerarium'.length);
+      expect(e.text.length + (e.off ?? 0)).toBeLessThanOrEqual('ad aerarium'.length);
+      expect(e.text.length + (e.off ?? 0)).toBeGreaterThanOrEqual('ad aerarium'.length - 5);
     }
     expect(niches).toBeGreaterThan(5);
   });

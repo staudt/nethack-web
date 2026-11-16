@@ -86,6 +86,7 @@ export const scrollMessagesEn: Record<string, string> = {
   'scroll.charging.what': 'What do you want to charge?',
   'scroll.charging.nothing': "You don't have anything to charge.",
   'scroll.charging.loss': 'You have a feeling of loss.',
+  'scroll.charging.marker_dry': 'Your marker seems permanently dried out.',
   'scroll.wand.suddenly': 'Your {item} suddenly explodes!',
   'scroll.wand.violently': 'Your {item} vibrates violently and explodes!',
   'scroll.ring.explodes': 'Your {item} pulsates momentarily, then explodes!',
