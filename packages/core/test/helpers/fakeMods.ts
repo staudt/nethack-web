@@ -1,11 +1,20 @@
 import { VANILLA_TERRAIN } from '../../src/levelgen/index';
 import type { DefId, Json } from '../../src/types/common';
 import type { GameEvent } from '../../src/types/event';
-import type { Mod, ModApi, TerrainDef } from '../../src/types/mod';
+import type { Mod, ModApi, RaceDef, TerrainDef } from '../../src/types/mod';
 import { DIRS } from '../../src/util';
 import { getPlayer } from '../../src/state';
 
 const GLYPH = { ch: '.', fg: '#fff' };
+
+/** The one race terrainMod() defines; its roles allow it, both genders and every alignment. */
+export const TEST_RACE: RaceDef = {
+  id: 'nh:race_human',
+  nameKey: 'race.human',
+  adjKey: 'race.human.adj',
+  genders: ['male', 'female'],
+  aligns: [1, 0, -1],
+};
 const OPEN = new Set<string>(['door_open_v', 'door_open_h']);
 
 /** A mod 'nh' that defines the 15 terrain ids the level generator needs. Core tests must not import @nh/content. */
@@ -45,12 +54,16 @@ export function terrainMod(
         if (name === 'lava' || name === 'lavawall') def.liquid = 'lava';
         api.defineTerrain(def);
       }
+      api.defineRace(TEST_RACE);
       for (const r of roles) {
         api.defineRole({
           id: r.id,
           nameKey: `role.${r.id.split(':')[1] ?? ''}`,
           speed: r.speed,
           glyph: GLYPH,
+          races: [TEST_RACE.id],
+          genders: ['female', 'male'],
+          aligns: [0, 1, -1],
         });
       }
     },

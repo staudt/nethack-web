@@ -190,6 +190,18 @@ describe('genocide', () => {
     expect(s.state.gameOver?.killer).toBe('@killer.genocidal_confusion');
   });
 
+  test('her own role: its monster (valkyries) is hers, confused or chosen (m22 step 8)', () => {
+    const s = room();
+    setItimeout(s.state, hero(s), P.CONFUSION, 50);
+    // (the test renderer has no |plural: "Wiped out all valkyries." in the game)
+    expect(read(s, 'genocide')).toContain('Wiped out all the valkyrie.');
+    expect(isGenocided(s.state, 'nh:valkyrie' as DefId)).toBe(true);
+    const c = room();
+    read(c, 'genocide');
+    expect(answer(c, 'valkyrie')).toContain('Wiped out all the valkyrie.');
+    expect(c.state.gameOver?.killer).toBe('@killer.scroll_of_genocide');
+  });
+
   test('polymorphed, she feels dead inside and dies on returning to her own form', () => {
     const s = room();
     run(s, (ctx) => polymon(ctx, 'nh:gnome' as DefId, false));

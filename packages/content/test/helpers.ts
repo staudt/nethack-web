@@ -8,7 +8,7 @@ import {
   type MonsterDef,
   type Pos,
 } from '@nh/core';
-import { T, vanillaMod } from '../src/index';
+import { T, raceDefId, roleDefId, vanillaMod, type RaceKey, type RoleKey } from '../src/index';
 import { quiet } from './itemHelpers';
 
 const CHARS: Record<string, DefId> = {
@@ -20,6 +20,21 @@ const CHARS: Record<string, DefId> = {
   X: T.door_locked,
   o: T.doorway,
 };
+
+/**
+ * Makes the hero of an existing game another role and race (null: the default Valkyrie, human)
+ * by rewriting her starting character, as if the game had started so. Only the choice changes:
+ * what the new-game hooks made from it (kit, attributes, gender, alignment) stays; start a game
+ * with `newGame({ character })` for that.
+ */
+export function playAs(state: GameState, role: RoleKey | null, race: RaceKey | null = null): void {
+  const hero = getPlayer(state);
+  const p = hero.c.player;
+  if (!p) throw new Error('no player');
+  p.role = roleDefId(role ?? 'valkyrie');
+  p.race = raceDefId(race ?? 'human');
+  hero.def = p.role;
+}
 
 /**
  * Builds a lit level from ASCII rows with the hero at '@'; generated monsters are cleared and

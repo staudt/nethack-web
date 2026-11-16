@@ -143,6 +143,6 @@ describe('alignment', () => {
   test('the hero keeps her alignment type', () => {
     const s = setup(ROOM);
     expect(uState(s.state).alignType).toBe(0);
-    expect(getPlayer(s.state).def).toBe('nh:valkyrie');
+    expect(getPlayer(s.state).def).toBe('nh:role_valkyrie');
   });
 });

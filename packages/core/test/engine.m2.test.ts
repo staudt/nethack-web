@@ -773,7 +773,19 @@ describe('multi-turn actions', () => {
   test('the occupation saves and loads', () => {
     const s = fresh();
     engine.step(s, mod('fk:walk'));
-    const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
+    const replay = {
+      seed: 5,
+      width: 40,
+      height: 15,
+      mods: [],
+      character: {
+        role: 'nh:hero' as const,
+        race: 'nh:race_human' as const,
+        gender: 'female' as const,
+        align: 0 as const,
+      },
+      actions: [],
+    };
     const loaded = engine.load(engine.save(s, replay)).state;
     expect(loaded.occupation).toEqual(s.occupation);
     expect(engine.step(loaded, CONT).continuing).toBe(true);
@@ -825,7 +837,7 @@ describe('newGame', () => {
     const r = engine.newGame({ seed: 3, width: 40, height: 15 });
     const s = r.state;
     expect(ctl.newGame).toEqual([{ hero: s.playerId, hadPos: false, levels: 0 }]);
-    expect(s.version).toBe(8);
+    expect(s.version).toBe(9);
     expect(s.gameOver).toBeNull();
     expect(s.pendingPrompt).toBeNull();
     expect(r.prompt).toBeNull();
@@ -881,28 +893,34 @@ describe('view additions', () => {
 });
 
 describe('save format', () => {
-  const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
+  const replay = {
+    seed: 5,
+    width: 40,
+    height: 15,
+    mods: [],
+    character: {
+      role: 'nh:hero' as const,
+      race: 'nh:race_human' as const,
+      gender: 'female' as const,
+      align: 0 as const,
+    },
+    actions: [],
+  };
 
-  test('round trip is version 8', () => {
+  test('round trip is version 9', () => {
     const s = fresh();
     const text = engine.save(s, replay);
     const raw = JSON.parse(text) as { version: number; state: { version: number } };
-    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([8, 8, 8]);
+    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([9, 9, 9]);
     expect(engine.load(text).state).toEqual(s);
   });
 
-  test('a version-3 save migrates with no occupation', () => {
-    const s = fresh();
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: { version: number; occupation?: unknown };
-    };
-    raw.version = 3;
-    raw.state.version = 3;
-    delete raw.state.occupation;
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(8);
-    expect(loaded.occupation).toBeNull();
+  test.each([3, 4, 5, 6, 7, 8])('an older (v%i) save is refused, not migrated (m22 Q5)', (old) => {
+    const raw = JSON.parse(engine.save(fresh(), replay)) as Record<string, unknown>;
+    raw['version'] = old;
+    expect(() => engine.load(JSON.stringify(raw))).toThrow(
+      `This save was made by an older version of the game (save version ${old}, now 9) and can't be restored`,
+    );
   });
 
   test('a version-1 save is rejected', () => {

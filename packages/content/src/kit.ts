@@ -18,6 +18,7 @@ import {
 } from '@nh/core';
 import { initPantheon, uInitAlign } from './align';
 import { adjattrib } from './attrstate';
+import { setHeroFemale } from './gender';
 import { setBoxTrapped } from './btrapstate';
 import { POT_OIL } from './dilute';
 import { initialAttributes, newhp, newpw } from './hero';
@@ -556,10 +557,12 @@ export function registerKit(api: ModApi): void {
   api.on('newGame', (ctx, heroId) => {
     const hero = ctx.state.entities[String(heroId)];
     if (!hero) return;
+    // flags.female from the chosen gender (stored only when male, gender.ts)
+    if (hero.c.player) setHeroFemale(ctx.state, hero.c.player.gender === 'female');
     initPantheon(ctx); // a Priest draws another role's gods
     const max = newhp(ctx, 0, 0); // no Con adjustment for initial hit points
     hero.c.hp = { cur: max, max };
-    uInitAlign(ctx); // newhp() at moves 0: alignment and initrecord
+    uInitAlign(ctx, hero.c.player?.align); // newhp() at moves 0: alignment and initrecord
     const en = newpw(ctx, 0, 0);
     setPw(ctx, { uen: en, uenmax: en, uenpeak: en });
     hero.c.experience = { level: 1, points: 0 };

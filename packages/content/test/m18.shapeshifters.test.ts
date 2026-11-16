@@ -213,16 +213,16 @@ describe('select_newcham_form()', () => {
   test("a doppelganger becomes a role monster (tt_doppel()'s no-record branch), a nasty or a humanoid", () => {
     const picks = forms(DOPPELGANGER, 600);
     const roles = picks.filter((p) => p !== null && isMplayer(mon(p)));
-    // 6/7 * 2/3 of the picks, less the Valkyrie (no row: a random form)
-    expect(roles.length / picks.length).toBeGreaterThan(0.4);
-    expect(roles.every((p) => p !== ('nh:valkyrie' as DefId))).toBe(true);
+    // 6/7 * 2/3 of the picks
+    expect(roles.length / picks.length).toBeGreaterThan(0.45);
+    expect(roles).toContain('nh:valkyrie');
     expect(new Set(roles).size).toBeGreaterThan(8);
-    // tt_doppel() alone: a player monster or NON_PM for the Valkyrie
+    // tt_doppel() alone: always a player monster
     const { state } = room(3);
     run(state, (ctx) => {
       for (let i = 0; i < 60; i++) {
         const r = ttDoppel(ctx);
-        expect(r === null || MPLAYERS.includes(r.id)).toBe(true);
+        expect(r !== null && MPLAYERS.includes(r.id)).toBe(true);
       }
     });
   });

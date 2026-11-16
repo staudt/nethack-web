@@ -502,6 +502,12 @@ export { ROLE_ORDER };
 export const roleNameKey = (role: RoleKey, female: boolean): string =>
   female && ROLES_TAB[role].nameF ? `role.${role}.f` : `role.${role}`;
 
+/**
+ * The role's monster (urole.mnum; 5.0 has one per role, with male and female names): the
+ * player monster of the same name, the Priest's is the cleric. ref: src/role.c roles[].mnum
+ */
+export const roleMonId = (role: RoleKey): DefId => (role === 'priest' ? 'nh:cleric' : `nh:${role}`);
+
 /** The rank title key of rank `n` (1..9), female when she is and the rank has one. */
 export const rankTitleKey = (role: RoleKey, n: number, female: boolean): string =>
   female && ROLES_TAB[role].ranksF.includes(n) ? `rank.${role}.${n}.f` : `rank.${role}.${n}`;

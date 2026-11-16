@@ -10,6 +10,7 @@ import type {
   RegisteredHook,
   Registry,
   RoleDef,
+  RaceDef,
   TerrainDef,
   TimerDef,
   MonsterDef,
@@ -143,6 +144,8 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const issues: ModLoadIssue[] = [];
   const terrains = new Map<string, TerrainDef>();
   const roles = new Map<string, RoleDef>();
+  const roleMods = new Map<string, string>();
+  const races = new Map<string, RaceDef>();
   const timers = new Map<string, TimerDef>();
   const monsters = new Map<string, MonsterDef & { mod: string }>();
   const brains = new Map<string, BrainDef>();
@@ -208,6 +211,25 @@ export function loadMods(mods: readonly Mod[]): Registry {
       if (typeof v !== 'function') issue(path, 'must be a function', id);
     };
 
+    // ref: src/role.c genders[], aligns[]
+    const choiceList = (
+      v: unknown,
+      path: string,
+      id: string,
+      allowed: readonly unknown[],
+    ): void => {
+      if (!Array.isArray(v) || v.length === 0) return issue(path, 'must be a non-empty array', id);
+      if (v.some((x) => !allowed.includes(x)) || new Set(v).size !== v.length)
+        issue(
+          path,
+          `must hold distinct values of ${allowed.map((a) => JSON.stringify(a)).join(', ')}`,
+          id,
+        );
+    };
+    const genders = (v: unknown, id: string): void =>
+      choiceList(v, 'genders', id, ['male', 'female']);
+    const aligns = (v: unknown, id: string): void => choiceList(v, 'aligns', id, [1, 0, -1]);
+
     const glyph = (g: unknown, id: string): void => {
       if (typeof g !== 'object' || g === null) return issue('glyph', 'must be { ch, fg }', id);
       const { ch, fg } = g as { ch?: unknown; fg?: unknown };
@@ -248,7 +270,28 @@ export function loadMods(mods: readonly Mod[]): Registry {
           issue('speed', 'must be a positive integer', d.id);
         glyph(d.glyph, d.id);
         if (d.movement !== undefined) fn(d.movement, 'movement', d.id);
+        if (d.nameKeyFemale !== undefined) str(d.nameKeyFemale, 'nameKeyFemale', d.id);
+        if (!Array.isArray(d.races) || d.races.length === 0)
+          issue('races', 'must be a non-empty array', d.id);
+        else if (
+          d.races.some((r) => typeof r !== 'string') ||
+          new Set(d.races).size !== d.races.length
+        )
+          issue('races', 'must hold distinct race ids', d.id);
+        genders(d.genders, d.id);
+        aligns(d.aligns, d.id);
+        if (d.order !== undefined && !Number.isInteger(d.order))
+          issue('order', 'must be an integer', d.id);
         roles.set(d.id, d);
+        roleMods.set(d.id, modId);
+      },
+      defineRace(d) {
+        if (!guard('defineRace') || !checkId(d.id, 'race')) return;
+        str(d.nameKey, 'nameKey', d.id);
+        str(d.adjKey, 'adjKey', d.id);
+        genders(d.genders, d.id);
+        aligns(d.aligns, d.id);
+        races.set(d.id, d);
       },
       defineAction(d) {
         if (!guard('defineAction') || !checkId(d.id, 'action')) return;
@@ -614,6 +657,25 @@ export function loadMods(mods: readonly Mod[]): Registry {
           });
       });
     });
+  // A role's races must exist and each must share a gender and an alignment with it.
+  for (const r of roles.values()) {
+    if (!Array.isArray(r.races) || !Array.isArray(r.genders) || !Array.isArray(r.aligns)) continue;
+    r.races.forEach((id, i) => {
+      const race = races.get(id);
+      const at = { modId: roleMods.get(r.id) ?? '?', defId: r.id, path: `races[${i}]` };
+      if (!race) issues.push({ ...at, reason: `unknown race '${String(id)}'` });
+      else if (
+        !Array.isArray(race.genders) ||
+        !Array.isArray(race.aligns) ||
+        !r.genders.some((g) => race.genders.includes(g)) ||
+        !r.aligns.some((a) => race.aligns.includes(a))
+      )
+        issues.push({
+          ...at,
+          reason: `race '${id}' shares no gender or no alignment with the role`,
+        });
+    });
+  }
   for (const l of levels.values()) {
     const ref = (path: string, reason: string): void =>
       void issues.push({ modId: l.mod, defId: l.id, path, reason });
@@ -680,6 +742,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   }
   const terrainList = [...terrains.values()];
   const roleList = [...roles.values()];
+  const raceList = [...races.values()];
 
   const registry: Registry = {
     mods: loaded,
@@ -692,6 +755,11 @@ export function loadMods(mods: readonly Mod[]): Registry {
     role(id) {
       const r = roles.get(id);
       if (!r) throw new Error(`Unknown role '${id}'`);
+      return r;
+    },
+    race(id) {
+      const r = races.get(id);
+      if (!r) throw new Error(`Unknown race '${id}'`);
       return r;
     },
     timer(id) {
@@ -749,6 +817,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
     },
     monsters: [...monsters.values()],
     roles: roleList,
+    races: raceList,
     terrains: terrainList,
     actions,
     hooks: <K extends HookName>(name: K) => byName.get(name) as RegisteredHook<K>[],

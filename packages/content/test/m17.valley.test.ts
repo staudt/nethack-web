@@ -224,7 +224,7 @@ describe('the Valley of the Dead', () => {
         'nh:samurai',
         'nh:tourist',
         'nh:wizard',
-        'nh:human', // the valkyries
+        'nh:valkyrie',
       ])
         expect(count(pm)).toBeGreaterThanOrEqual(2);
       expect(count('nh:caveman')).toBeGreaterThanOrEqual(2); // and the cavewoman
@@ -333,10 +333,6 @@ describe('graveyards', () => {
 describe('the player monsters', () => {
   test('never generated at random, never by class', () => {
     for (const id of MPLAYERS) {
-      if (!engine.registry.isMonster(id)) {
-        expect(id).toBe('nh:valkyrie'); // the hero's role's id
-        continue;
-      }
       const def = engine.registry.monster(id);
       expect(def.genFlags).toContain('nogen');
       expect(def.flags).toContain('nopoly');
@@ -351,7 +347,7 @@ describe('the player monsters', () => {
     });
   });
 
-  test("mk_tt_object(): a morgue's adventurer corpse is a player monster (a valkyrie is human)", () => {
+  test("mk_tt_object(): a morgue's adventurer corpse is a player monster", () => {
     const { state } = engine.newGame({ seed: 7 });
     const kinds = new Set<string>();
     run(state, (ctx) => {
@@ -361,9 +357,7 @@ describe('the player monsters', () => {
         kinds.add(ctx.state.entities[String(id)]!.c.item!.corpseOf!);
       }
     });
-    expect([...kinds].sort()).toEqual(
-      [...MPLAYERS.filter((m) => m !== 'nh:valkyrie'), 'nh:human'].sort(),
-    );
+    expect([...kinds].sort()).toEqual([...MPLAYERS].sort());
   });
 });
 

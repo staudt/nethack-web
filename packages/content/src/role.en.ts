@@ -244,6 +244,10 @@ export const roleMessagesEn: Record<string, string> = {
   'disco.entry.j': '  {name} [{real}] ({desc})',
   'disco.entry.j_bare': '  {name} [{real}]',
 
+  // the new game's gender words (the welcome). ref: src/role.c genders[].adj
+  'gender.male': 'male',
+  'gender.female': 'female',
+
   // greetings and farewells by role. ref: src/role.c Hello(), Goodbye()
   'goodbye.default': 'Goodbye',
   'goodbye.knight': 'Fare thee well',
@@ -293,3 +297,13 @@ export const roleMessagesEn: Record<string, string> = {
   'abil.awake': 'You feel awake!',
   'abil.tired': 'You feel tired!',
 };
+
+// A hallucinating hero's own kind in a confused genocide: her role's name, lower-cased ("Wiped
+// out all cavewomen."). ref: src/read.c do_genocide() `buf[0] = lowc(buf[0])`. And each role
+// def's display name keyed by its id (`nh:role_valkyrie`), as every def has.
+for (const [k, v] of Object.entries(roleMessagesEn)) {
+  const m = /^role\.([a-z]+)(\.f)?$/.exec(k);
+  if (!m) continue;
+  roleMessagesEn[`genocide.role.${k.slice(5)}`] = v.toLowerCase();
+  if (!m[2]) roleMessagesEn[`nh:role_${m[1] ?? ''}`] = v;
+}

@@ -1,6 +1,8 @@
 import {
   createEngine,
+  getPlayer,
   stateHash,
+  type Character,
   type GameEvent,
   type GameState,
   type Mod,
@@ -24,21 +26,31 @@ export function runReplay(mods: readonly Mod[], replay: Replay): ReplayResult {
       `Replay mod mismatch: replay has [${want.join(', ')}], engine has [${have.join(', ')}]`,
     );
   }
-  const first = engine.newGame({ seed: replay.seed, width: replay.width, height: replay.height });
+  const first = engine.newGame({
+    seed: replay.seed,
+    width: replay.width,
+    height: replay.height,
+    character: replay.character,
+  });
   const state = first.state;
   const events: GameEvent[] = [...first.events];
   for (const action of replay.actions) events.push(...engine.step(state, action).events);
   return { state, hash: stateHash(state), events };
 }
 
-/** Play `actions` from a fresh game and return the replay (plus the final hash). */
+/**
+ * Play `actions` from a fresh game and return the replay (plus the final hash). Without a
+ * character the game starts as the default one; the replay records the character resolved.
+ */
 export function recordGame(
   mods: readonly Mod[],
-  opts: { seed: number; width: number; height: number },
+  opts: { seed: number; width: number; height: number; character?: Partial<Character> },
   actions: readonly PlayerAction[],
 ): Replay & { hash: string } {
   const engine = createEngine(mods);
   const { state } = engine.newGame(opts);
+  const player = getPlayer(state).c.player;
+  if (!player) throw new Error('The new game has no player');
   const mine: PlayerAction[] = [];
   for (const a of actions) {
     engine.step(state, a);
@@ -49,6 +61,7 @@ export function recordGame(
     width: opts.width,
     height: opts.height,
     mods: state.mods.map((m) => ({ ...m })),
+    character: { ...player },
     actions: mine,
     hash: stateHash(state),
   };

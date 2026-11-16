@@ -196,7 +196,7 @@ describe('encumbrance', () => {
     setAttrs(s, 18, 18);
     const d = give(s, 'nh:dagger', { quantity: 1 });
     const ctx = { state: s, defs } as unknown as Ctx;
-    const role = defs.role('nh:valkyrie');
+    const role = defs.role('nh:role_valkyrie');
     expect(role.movement).toBeTypeOf('function');
     const want: [number, number][] = [
       [950, 12],

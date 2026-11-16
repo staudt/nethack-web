@@ -215,7 +215,19 @@ describe("goToLevel 'random'", () => {
 });
 
 describe('save v7', () => {
-  const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
+  const replay = {
+    seed: 5,
+    width: 40,
+    height: 15,
+    mods: [],
+    character: {
+      role: 'nh:hero' as const,
+      race: 'nh:race_human' as const,
+      gender: 'female' as const,
+      align: 0 as const,
+    },
+    actions: [],
+  };
 
   test('traps survive a round trip', () => {
     const s = fresh();
@@ -231,21 +243,5 @@ describe('save v7', () => {
       }),
     );
     expect(engine.load(engine.save(s, replay)).state).toEqual(s);
-  });
-
-  test.each([3, 4, 5])('a v%i save migrates to v8 with empty trap lists', (old) => {
-    const s = fresh();
-    run(s, (ctx) => ctx.goToLevel({ dungeon: 'core:dungeon', dlevel: 2 }, 'up'));
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: { version: number; levels: Record<string, { traps?: unknown }> };
-    };
-    raw.version = old;
-    raw.state.version = old;
-    for (const l of Object.values(raw.state.levels)) delete l.traps;
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(8);
-    expect(Object.keys(loaded.levels).sort()).toEqual(['dlvl1', 'dlvl2']);
-    for (const id of ['dlvl1', 'dlvl2']) expect(loaded.levels[id]?.traps).toEqual([]);
   });
 });

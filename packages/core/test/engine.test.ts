@@ -37,7 +37,16 @@ describe('newGame', () => {
     expect(p.c.pos).toMatchObject({ level: 'dlvl1', x: level.up?.x, y: level.up?.y });
     expect(p.c.actor?.energy).toBe(12);
     expect(state.turn).toBe(1);
-    expect(events[0]).toEqual({ type: 'msg', key: 'welcome', params: { role: '@role.hero' } });
+    expect(events[0]).toEqual({
+      type: 'msg',
+      key: 'welcome',
+      params: {
+        role: '@role.hero',
+        race: '@race.human.adj',
+        gender: '@gender.female',
+        align: '@align.neutral',
+      },
+    });
   });
 
   test('visible is non-empty and sorted; memory is updated', () => {
@@ -64,7 +73,7 @@ describe('newGame', () => {
     ]);
     const a = e.newGame({ seed: 1 }).state;
     expect(getPlayer(a).def).toBe('nh:a');
-    const b = e.newGame({ seed: 1, role: 'nh:b' }).state;
+    const b = e.newGame({ seed: 1, character: { role: 'nh:b' } }).state;
     expect(getPlayer(b).def).toBe('nh:b');
     expect(getPlayer(b).c.actor?.speed).toBe(6);
   });

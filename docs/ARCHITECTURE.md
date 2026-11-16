@@ -71,7 +71,7 @@ interface Entity {
 interface Components {
   pos?: { level: LevelId; x: number; y: number };
   actor?: { energy: number; speed: number }; // NORMAL_SPEED = 12
-  player?: { role: DefId };
+  player?: Character; // the starting { role, race, gender, align } (m22 step 8)
   hp?: { cur: number; max: number };
   attributes?: { str; int; wis; dex; con; cha }; // NetHack encoding; Str 18/xx stored as 19..118
   experience?: { level: number; points: number };
@@ -402,7 +402,7 @@ interface Prompt {
 
 ```ts
 interface Engine {
-  newGame(opts: { seed: number; width?: number; height?: number; role?: DefId }): StepResult; // events include 'welcome'
+  newGame(opts: { seed: number; width?: number; height?: number; character?: Partial<Character> }): StepResult; // events include 'welcome'
   step(state: GameState, action: PlayerAction): StepResult; // mutates state in place; ONE move of a multi-turn action
   stepAll(state: GameState, action: PlayerAction): StepResult; // step, then `continue` until done (up to MAX_REPEAT); for tests and tools
   query(state: GameState): CoreQuery;
@@ -434,7 +434,7 @@ The game stops at once (mid-turn, too) when `ctx.endGame` is called or a prompt 
 **Quitting (m8).** `GameOver.kind` gained `'quit'` (view status `dead: 'quit'`) for NetHack's `#quit` (content's self offer `nh:quit`, "Really quit without saving?", ref: src/end.c done2()). Quitting is a way the game ends, not a death or an escape, and the score list and summary word it differently (no tombstone; all the gold counts), so it needed its own kind rather than a content flag on `'died'`. The change is additive: existing kinds keep their meaning, game-over states are never resumed (the app deletes the save at game over), and a renderer that does not know `'quit'` can treat it like `'escaped'`. The app's Menu > New game during a live game goes through the same offer, so a game is never thrown away without the question.
 
 Messages are always keys plus params. English text lives in `content/src/messages.en.ts` and is loaded on the client side.
-A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie' } }` becomes "… You are a Valkyrie.".
+A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie', race: '@race.human.adj', gender: '@gender.female', align: '@align.neutral' } }` becomes "… You are a Valkyrie." (the text may use any of the four params).
 A string param that starts with `=` is a proper name (a shopkeeper's, 6b3): the UI prints the rest as is and the `|the`, `|The` and `|an` modifiers add no article (`{mon|The_s}` with `'=Izchak'` is "Izchak's").
 `{mon|plural}` is the English plural of the param's text (m8, the vanquished list: `{ n: 3, mon: '@nh:jackal' }` in "{n} {mon|plural}" is "3 jackals"; a port of C's makeplural(), in `ui/src/plural.ts`), so monster names need no plural keys.
 
@@ -462,10 +462,23 @@ interface TerrainDef {
 interface RoleDef {
   id: DefId;
   nameKey: string;
+  nameKeyFemale?: string; // Cavewoman, Priestess
   speed: number;
   glyph: { ch: string; fg: string }; // the player entity's def is the role id
   movement?(ctx: Ctx, hero: EntityId): number; // per-turn movement (ref: src/allmain.c u_calc_moveamt)
+  races: DefId[]; // allowed RaceDef ids, the first the default (ref: src/role.c roles[].allow)
+  genders: ('male' | 'female')[]; // allowed, the first the default
+  aligns: (-1 | 0 | 1)[]; // allowed (chaotic, neutral, lawful), the first the default
+  order?: number; // position in the character menus; roles without one follow in registration order
 }
+interface RaceDef {
+  id: DefId;
+  nameKey: string; // "dwarf"
+  adjKey: string; // "dwarven"
+  genders: ('male' | 'female')[]; // a role must allow them too
+  aligns: (-1 | 0 | 1)[];
+}
+interface Character { role: DefId; race: DefId; gender: 'male' | 'female'; align: -1 | 0 | 1 }
 interface ActionDef {
   id: DefId;
   labelKey: string;
@@ -534,6 +547,7 @@ interface PerceptionDef {
 interface ModApi {
   defineTerrain(d: TerrainDef): void;
   defineRole(d: RoleDef): void;
+  defineRace(d: RaceDef): void;
   defineAction(d: ActionDef): void;
   defineTimer(d: TimerDef): void;
   defineMonster(d: MonsterDef): void;
@@ -593,7 +607,7 @@ Inside `offer()` and queries, every mutating `Ctx` member throws, and so do `rng
   - unknown or cyclic `dependsOn`
   - unknown hook names
   - malformed fields
-- **Vanilla gets no special access.** `@nh/content` exports `vanillaMod` (id `nh`), which registers terrain, the stub role, monsters, their brain, actions and its hooks (hero stats, regeneration, generation) through `ModApi`.
+- **Vanilla gets no special access.** `@nh/content` exports `vanillaMod` (id `nh`), which registers terrain, the 13 roles and 5 races, monsters, their brain, actions and its hooks (hero stats, regeneration, generation) through `ModApi`.
 - Game mods are recorded in saves as `ModRef[]`. Loading a save with a different mod list fails with a clear error.
 - **Wizard mode is an ordinary game mod.** `@nh/content` also exports `wizardMod` (id `wiz`, depends on `nh`, def ids `wiz:*`, code in `packages/content/src/wizard/`), NetHack's `-D` debug mode. It is not part of `vanillaMod`: the app loads `[vanillaMod, wizardMod]` for `?wizard=1`, and the save's mod list (`nh@…, wiz@…`) keeps a wizard game a wizard game (see Worker protocol). It registers only through `ModApi`: actions offered on `{ kind: 'self' }` (`wiz:map`, `wiz:where`, `wiz:levelport`, `wiz:teleport`, `wiz:wish`, `wiz:identify`, `wiz:genesis`), the `wiz:die` prompt handler and a `beforeGameOver` hook. Loading it draws no random numbers, so a seed builds the same game with or without it. "Die?": content's `done()` calls `ctx.endGame()`; the hook asks a yn prompt and cancels for deaths (not escapes); `done()` then sees the game still going and runs `savelife()`, as after life saving, and the engine's prompt pause stops time until the answer, which either ends the game with the recorded `GameOver` or says "OK, so you don't die." The hook is the one core interface the mod needed: a death happens deep inside a monster's move, and nothing else lets another mod stop the game from ending. A future score list must skip games whose mod list includes `wiz` (ROADMAP).
 - **Typed names go through the message catalog.** The wish parser (`content/src/objnam_read.ts readobjnam()`) and genesis (`nameToMon()`) match what the player types against names built from the English catalog (`wishNames(state, defs, messagesEn)`): object names stripped to NetHack's `objects[]` form ("potion of healing" -> "healing"), this game's appearances, fixed descriptions, called names and monster names. The parser returns a plain `WishSpec`; making the object (`wish.ts mkWished()`, which draws the RNG) is separate, so a later wand of wishing reuses both. A different-language client would need its own catalog passed in.
@@ -717,7 +731,8 @@ Client mods run in the UI and are never saved. The default keymap is itself a cl
 
 ```ts
 type ToCore =
-  | { t: 'new'; seed: number; width: number; height: number }
+  | { t: 'new'; seed: number; width: number; height: number; character?: Partial<Character> }
+  | { t: 'choices'; id: number } // the character menus' data; answered with or without a game
   | { t: 'load'; save: string }
   | { t: 'act'; action: PlayerAction }
   | { t: 'query'; id: number; q: keyof CoreQuery; args: Json[] }
@@ -728,6 +743,7 @@ type FromCore =
   | { t: 'reply'; id: number; result: Json }
   | { t: 'saved'; save: string }
   | { t: 'hash'; hash: string }
+  | { t: 'choices'; id: number; roles: RoleChoice[]; races: RaceChoice[] } // CharacterChoices
   | { t: 'error'; message: string };
 
 interface Replay {
@@ -735,12 +751,15 @@ interface Replay {
   width: number;
   height: number;
   mods: ModRef[];
+  character: Character; // always concrete: what the new game resolved
   actions: PlayerAction[];
 }
-// Save text = JSON.stringify({ format: 'nh-ts', version: 8, mods, state, replay }) // v3-v6 saves migrate by adding occupation: null, monsterMemory: {} and traps: [] on every level, a root-only layout (no bottom, no branches) and dungeon/dlevel = root/depth and branch: null on every level; v3-v7 layouts get special: [] (an old game has no special levels, so its Mines never gets a Minetown). M7b's layout `entry`, branch `dir` and `Level.sokoban` are optional and need no bump: an old game has no Oracle or Sokoban in its layout
+// Save text = JSON.stringify({ format: 'nh-ts', version: 9, mods, state, replay }); a save of an older version is refused (see below)
 ```
 
-After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, actions }` must reproduce `stateHash`.
+After `new` or `load`, the host sends a full snapshot. After each `act`, it sends a delta. Every action, including each `continue`, is appended to the replay, and replaying `{ seed, width, height, mods, character, actions }` must reproduce `stateHash`.
+
+**The character (m22 step 8).** Roles and races are defs (`defineRole`, `defineRace`; the hero entity's `def` is still the role id, D5), and a new game starts as a `Character`: `NewGameOptions.character` and the worker's `new` take a `Partial<Character>`, and `resolveCharacter(registry, partial)` fills what is left out with the defaults (the first registered role that goes with the rest, then that role's first race, gender and alignment, in its own lists, that make a whole character) and throws for an unknown id or a forbidden combination, before anything is made. The result is stored on the hero as `PlayerComponent` before the `newGame` hooks run, and recorded in the replay. Which choices go together is C's `ok_role()`/`ok_race()`/`ok_gend()`/`ok_align()` over the defs' allow lists (`okRole(set, partial)` and the others, a field left out meaning "any"; gender and alignment do not constrain each other), exported for the app's menus, which get their data from the worker's `choices` request (`characterChoices(registry)`: plain `RoleChoice`/`RaceChoice` records, roles in `order`). Random picks are the app's (plan m22 Q7): core only ever receives concrete values, so a replay is exact. `loadMods` reports a role's empty or repeated `races`, `genders` or `aligns`, values outside male/female and -1/0/1, a non-integer `order`, an unknown race and a race that shares no gender or no alignment with the role; and a race's missing names or bad lists. `welcome` and `welcome.back` carry `{ role, race, gender, align }` (`welcomeParams()`: the role's female name when she is female and it has one, the race's adjective, and the keys `gender.<male|female>` and `align.<lawful|neutral|chaotic>` the game mods' catalogs define). Only the starting choice lives in core (C's `flags.initrole`, `initrace`, `initgend` and `u.ualignbase[A_ORIGINAL]`); her current gender and alignment change in play and stay content state, and every mechanic (kits, skills, attributes, spells, gods) stays in the defining mod's tables keyed by the role and race (vanilla: `roletab.ts`, `racetab.ts`, read through `urole()`/`urace()`). Vanilla's ids are `nh:role_<key>` and `nh:race_<key>`, since `nh:wizard`, `nh:human` and the like are the player and race monsters' (plan m22 Q2; the valkyrie monster row now exists too). Why core changes: the kit and the first level depend on the role, and u_init runs before the first level, so the choice must reach `newGame` with the seed; a mod's roles must reach the menus without app changes. **Save version 9**: the player component and the replay changed shape, and older saves are **not migrated** (the user's choice, plan m22 Q5: saves were only used for tests): `parseSave()` refuses any version below 9 with "This save was made by an older version of the game (save version N, now 9) and can't be restored", and the app treats that like any unreadable save (it says so, drops it and starts a new game). The v3-v8 migrations are gone with it.
 
 The app's worker adds one message of its own in front of the host (`packages/app/src/modhost.ts`): `{ t: 'mods'; ids: string[] }` names the game mods (`nh`, `wiz`) and replaces the host, so the app sends it right before `new` or `load`. A stored save is loaded with the mods its file lists, so a wizard game stays a wizard game; new games load `[nh]`, or `[nh, wiz]` with `?wizard=1`. `wizard=1` over a save made without the wizard mod starts a new wizard game, like `new=1` or an explicit seed. The UI's "Wizard" status word comes from that mod list, not from `GameState`.
 

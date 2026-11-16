@@ -31,8 +31,8 @@ import { addMon, posOf, setup } from './helpers';
 import { ctxFor, defs, levelSetup, render } from './itemHelpers';
 import { MPLAYERS, isNdemon } from '../src/mondata';
 
-/** mk_tt_object()'s kinds: the player monsters, a valkyrie being human (m17). */
-const ADVENTURERS = [...MPLAYERS.filter((m) => m !== 'nh:valkyrie'), 'nh:human'];
+/** mk_tt_object()'s kinds: the player monsters. */
+const ADVENTURERS = MPLAYERS;
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {

@@ -205,7 +205,7 @@ describe('the nurse (AD_HEAL)', () => {
     let mhm = hit(s, nurse.id, HEAL, undefined, 5);
     expect(texts(s.ctx)).toEqual(['The nurse hits!']);
     expect(mhm.damage).toBe(5);
-    hero(s.state).c.player!.role = 'nh:healer' as DefId;
+    hero(s.state).c.player!.role = 'nh:role_healer';
     s.state.turn = 10;
     s.ctx.events.length = 0;
     mhm = hit(s, nurse.id, HEAL, undefined, 5);

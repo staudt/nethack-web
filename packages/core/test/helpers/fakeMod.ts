@@ -26,11 +26,21 @@ export const fakeMod: Mod = {
         glyph: { ch: String.fromCharCode(33 + i), fg: '#ccc' },
       });
     });
+    api.defineRace({
+      id: 'nh:race_human',
+      nameKey: 'race.human',
+      adjKey: 'race.human.adj',
+      genders: ['male', 'female'],
+      aligns: [1, 0, -1],
+    });
     api.defineRole({
       id: 'nh:tester',
       nameKey: 'role.tester',
       speed: 12,
       glyph: { ch: '@', fg: '#fff' },
+      races: ['nh:race_human'],
+      genders: ['female', 'male'],
+      aligns: [0, 1, -1],
     });
     api.defineAction({
       id: 'nh:wait',

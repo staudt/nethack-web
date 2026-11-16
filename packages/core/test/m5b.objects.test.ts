@@ -140,7 +140,7 @@ describe('containers', () => {
     expect(contents(s, other).map((e) => e.id)).toEqual([kept]);
   });
 
-  test('new item fields survive a save round trip at version 8', () => {
+  test('new item fields survive a save round trip at version 9', () => {
     const s = fresh();
     const chest = addItem(s, 'oc:chest', { pos: heroPos(s) });
     const c = s.entities[String(chest)]?.c.item;
@@ -150,8 +150,20 @@ describe('containers', () => {
     c.erodeproof = true;
     const ring = loose(s, 'oc:ring');
     putIn(reg, s, chest, ring);
-    const text = serializeSave(s, { seed: 5, width: 40, height: 15, mods: [], actions: [] });
-    expect(JSON.parse(text).version).toBe(8);
+    const text = serializeSave(s, {
+      seed: 5,
+      width: 40,
+      height: 15,
+      mods: [],
+      character: {
+        role: 'nh:hero' as const,
+        race: 'nh:race_human' as const,
+        gender: 'female' as const,
+        align: 0 as const,
+      },
+      actions: [],
+    });
+    expect(JSON.parse(text).version).toBe(9);
     const back = parseSave(text, reg).state;
     expect(back.entities[String(chest)]?.c.item).toMatchObject({
       locked: true,

@@ -3943,7 +3943,7 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
   // ref: objects.h EYEWEAR("towel", NoDes, 1, BLINDED, 50, 5, 50, CLOTH, CLR_MAGENTA, TOWEL)
   tool('towel', 50, 5, 50, 'cloth', MAGENTA, false, null, { prop: 'blinded' }),
-  // no riding: a saddle cannot be applied (DEVIATIONS "Roles and races (m22a)")
+  // no riding: a saddle cannot be applied (DEVIATIONS "Roles and races (m22a, m22 step 8)")
   // ref: objects.h TOOL("saddle", NoDes, 1, 0, 0, 0, 5, 200, 150, LEATHER, HI_LEATHER, SADDLE)
   tool('saddle', 5, 200, 150, 'leather', BROWN, false, null),
   // applying it leashes an adjacent pet (leash.ts)

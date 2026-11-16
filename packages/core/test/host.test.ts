@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createHost } from '../src/host';
 import type { FromCore, ToCore } from '../src/types/protocol';
+import type { Character } from '../src/types/entity';
 import { applyUpdate } from '../src/view';
 import type { ViewSnapshot } from '../src/types/view';
 import { fakeMod } from './helpers/fakeMod';
@@ -110,7 +111,16 @@ describe('host', () => {
     const loaded = b.send({ t: 'load', save: saved.save });
     expect(loaded.t === 'view' && loaded.view.kind).toBe('full');
     expect(loaded.t === 'view' && loaded.events).toEqual([
-      { type: 'msg', key: 'welcome.back', params: { role: '@role.tester' } },
+      {
+        type: 'msg',
+        key: 'welcome.back',
+        params: {
+          role: '@role.tester',
+          race: '@race.human.adj',
+          gender: '@gender.female',
+          align: '@align.neutral',
+        },
+      },
     ]);
     expect(b.send({ t: 'hash' })).toEqual(h1);
     for (const m of actions) {
@@ -129,15 +139,79 @@ describe('host', () => {
           seed: number;
           width: number;
           height: number;
+          character: Character;
           actions: ToCore extends never ? never : { type: string }[];
         };
       }
     ).replay;
     expect(replay.actions).toHaveLength(actions.length);
     const c = make();
-    c.send({ t: 'new', seed: replay.seed, width: replay.width, height: replay.height });
+    c.send({
+      t: 'new',
+      seed: replay.seed,
+      width: replay.width,
+      height: replay.height,
+      character: replay.character,
+    });
     for (const action of replay.actions) c.send({ t: 'act', action } as ToCore);
     expect(c.send({ t: 'hash' })).toEqual(h1);
+  });
+
+  test('new with a character: on the hero, in the replay, in the welcome', () => {
+    const { send } = make();
+    const v = send({ ...NEW, character: { gender: 'male', align: -1 } } as ToCore);
+    expect(v.t === 'view' && v.events[0]).toEqual({
+      type: 'msg',
+      key: 'welcome',
+      params: {
+        role: '@role.tester',
+        race: '@race.human.adj',
+        gender: '@gender.male',
+        align: '@align.chaotic',
+      },
+    });
+    const saved = send({ t: 'save' });
+    if (saved.t !== 'saved') throw new Error('not saved');
+    const file = JSON.parse(saved.save) as {
+      state: { playerId: number; entities: Record<string, { c: { player: Character } }> };
+      replay: { character: Character };
+    };
+    const want: Character = { role: 'nh:tester', race: 'nh:race_human', gender: 'male', align: -1 };
+    expect(file.replay.character).toEqual(want);
+    expect(file.state.entities[String(file.state.playerId)]?.c.player).toEqual(want);
+  });
+
+  test('a forbidden or unknown character is an error and starts no game', () => {
+    const { send } = make();
+    const bad = send({ ...NEW, character: { role: 'nh:nope' } } as ToCore);
+    expect(bad).toEqual({ t: 'error', message: "Unknown role 'nh:nope'" });
+    expect(send({ t: 'hash' }).t).toBe('error');
+  });
+
+  test('choices answer before any game, with the id', () => {
+    const { send } = make();
+    expect(send({ t: 'choices', id: 7 })).toEqual({
+      t: 'choices',
+      id: 7,
+      roles: [
+        {
+          id: 'nh:tester',
+          nameKey: 'role.tester',
+          races: ['nh:race_human'],
+          genders: ['female', 'male'],
+          aligns: [0, 1, -1],
+        },
+      ],
+      races: [
+        {
+          id: 'nh:race_human',
+          nameKey: 'race.human',
+          adjKey: 'race.human.adj',
+          genders: ['male', 'female'],
+          aligns: [1, 0, -1],
+        },
+      ],
+    });
   });
 });
 

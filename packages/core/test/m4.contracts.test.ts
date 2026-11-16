@@ -259,12 +259,24 @@ describe('monster memory', () => {
 });
 
 describe('save v5', () => {
-  const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
+  const replay = {
+    seed: 5,
+    width: 40,
+    height: 15,
+    mods: [],
+    character: {
+      role: 'nh:hero' as const,
+      race: 'nh:race_human' as const,
+      gender: 'female' as const,
+      align: 0 as const,
+    },
+    actions: [],
+  };
 
-  test('SAVE_VERSION is 8 and state is JSON-plain with monsterMemory', () => {
+  test('SAVE_VERSION is 9 and state is JSON-plain with monsterMemory', () => {
     const s = fresh();
-    expect(SAVE_VERSION).toBe(8);
-    expect(s.version).toBe(8);
+    expect(SAVE_VERSION).toBe(9);
+    expect(s.version).toBe(9);
     expect(s.monsterMemory[s.currentLevel]).toEqual({});
     expect(isJsonPlain(s)).toBe(true);
   });
@@ -276,36 +288,6 @@ describe('save v5', () => {
     engine.step(s, WAIT);
     expect(Object.keys(s.monsterMemory[s.currentLevel] ?? {})).toHaveLength(1);
     expect(engine.load(engine.save(s, replay)).state).toEqual(s);
-  });
-
-  test.each([3, 4])('a v%i save migrates to v8 with occupation and monsterMemory', (old) => {
-    const s = fresh();
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: { version: number; occupation?: unknown; monsterMemory?: unknown };
-    };
-    raw.version = old;
-    raw.state.version = old;
-    delete raw.state.occupation;
-    delete raw.state.monsterMemory;
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(8);
-    expect(loaded.occupation).toBeNull();
-    expect(loaded.monsterMemory).toEqual({});
-  });
-
-  test('a v4 save that already has an occupation keeps it', () => {
-    const s = fresh();
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: { version: number; occupation: unknown; monsterMemory?: unknown };
-    };
-    raw.version = 4;
-    raw.state.version = 4;
-    raw.state.occupation = { action: 'x:y', args: null };
-    delete raw.state.monsterMemory;
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.occupation).toEqual({ action: 'x:y', args: null });
   });
 
   test('props round-trip through a save', () => {

@@ -8,10 +8,10 @@ import { addItem, heroPos, objectsMod } from './helpers/objectMods';
 const engine = createEngine([terrainMod(), actionsMod(), objectsMod()]);
 
 describe('save with items', () => {
-  test('new game is version 8 with empty object state', () => {
+  test('new game is version 9 with empty object state', () => {
     const { state } = engine.newGame({ seed: 3, width: 40, height: 15 });
-    expect(SAVE_VERSION).toBe(8);
-    expect(state.version).toBe(8);
+    expect(SAVE_VERSION).toBe(9);
+    expect(state.version).toBe(9);
     // refreshVision creates the current level's (empty) entry.
     expect(state.objectMemory).toEqual({ dlvl1: {} });
     expect(state.appearances).toEqual({});
@@ -33,7 +33,19 @@ describe('save with items', () => {
     engine.step(state, { type: 'wait' });
     expect(Object.keys(state.objectMemory)).toHaveLength(1);
     expect(isJsonPlain(state)).toBe(true);
-    const replay = { seed: 3, width: 40, height: 15, mods: [], actions: [] };
+    const replay = {
+      seed: 3,
+      width: 40,
+      height: 15,
+      mods: [],
+      character: {
+        role: 'nh:hero' as const,
+        race: 'nh:race_human' as const,
+        gender: 'female' as const,
+        align: 0 as const,
+      },
+      actions: [],
+    };
     const loaded = engine.load(engine.save(state, replay));
     expect(stateHash(loaded.state)).toBe(stateHash(state));
     expect(loaded.state.entities[String(mine)]?.c.item?.equipped).toBe('weapon');
@@ -50,9 +62,23 @@ describe('save with items', () => {
   test('older save versions are rejected', () => {
     const { state } = engine.newGame({ seed: 3, width: 40, height: 15 });
     const o = JSON.parse(
-      engine.save(state, { seed: 3, width: 40, height: 15, mods: [], actions: [] }),
+      engine.save(state, {
+        seed: 3,
+        width: 40,
+        height: 15,
+        mods: [],
+        character: {
+          role: 'nh:hero' as const,
+          race: 'nh:race_human' as const,
+          gender: 'female' as const,
+          align: 0 as const,
+        },
+        actions: [],
+      }),
     ) as { version: number };
     o.version = 2;
-    expect(() => engine.load(JSON.stringify(o))).toThrow(/Unsupported save version 2/);
+    expect(() => engine.load(JSON.stringify(o))).toThrow(
+      /older version of the game \(save version 2, now 9\)/,
+    );
   });
 });

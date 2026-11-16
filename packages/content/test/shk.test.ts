@@ -49,7 +49,6 @@ import {
   moneyCnt,
   saleable,
   shkName,
-  setRoleRaceForTest,
   shopType,
   stockShops,
 } from '../src/index';
@@ -61,7 +60,7 @@ import { wakeup } from '../src/peaceful';
 import { shkArrivals } from '../src/shk';
 import { setGenocided } from '../src/vanquished';
 import { mappearance } from '../src/mimicstate';
-import { addMon, setup } from './helpers';
+import { addMon, playAs, setup } from './helpers';
 import { ctxFor, defs, obj, render } from './itemHelpers';
 
 /** All four Kop kinds genocided: robbery brings no Keystone Kops. */
@@ -893,7 +892,7 @@ describe('prices', () => {
   test('an elf is "hiril", a polymorphed hero in a non-human form a "creature"', () => {
     const quote = (race: 'elf' | 'human', form: string | null): string => {
       const t = bare(10);
-      setRoleRaceForTest(t.s.state, null, race);
+      playAs(t.s.state, null, race);
       if (form)
         setUpoly(t.s.state, {
           form: form as DefId,

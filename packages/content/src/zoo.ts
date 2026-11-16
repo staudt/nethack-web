@@ -314,8 +314,7 @@ function fillSquareExtras(ctx: Ctx, level: Level, type: DefId, p: Pos, inMklev: 
 /**
  * A corpse or statue "named after someone listed in the scoreboard file". There is no record
  * file: get_rnd_toptenentry()'s `rnd(10)` rank roll finds no entry (as with an empty record), so
- * the object is of a random player monster, `rn1(13, PM_ARCHEOLOGIST)`, unnamed; a valkyrie (no
- * row: DEVIATIONS.md "The Valley of the Dead (m17)") is a human. A statue is made uninitialized
+ * the object is of a random player monster, `rn1(13, PM_ARCHEOLOGIST)`, unnamed. A statue is made uninitialized
  * (player statues never contain books). ref: src/mkobj.c mk_tt_object(), src/topten.c
  * tt_oname(), get_rnd_toptenentry()
  */
@@ -333,8 +332,7 @@ export function mkTtObject(
       : mksobjCorpse(ctx, def, { at, artif: false }, gen);
   ctx.rng.rnd(10); // rnd(sysopt.tt_oname_maxrank): the record is empty
   // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, PM_ARCHEOLOGIST)
-  const picked = MPLAYERS[ctx.rng.rn2(MPLAYERS.length)] ?? HUMAN;
-  const pm = ctx.defs.isMonster(picked) ? picked : HUMAN;
+  const pm = MPLAYERS[ctx.rng.rn2(MPLAYERS.length)] ?? 'nh:human';
   if (kind === 'nh:corpse') setCorpsenm(ctx, id, pm, inMklev);
   else {
     const it = ctx.state.entities[String(id)]?.c.item;
@@ -342,9 +340,6 @@ export function mkTtObject(
   }
   return id;
 }
-
-/** The stand-in for a player monster without a row (the valkyrie). */
-const HUMAN: DefId = 'nh:human';
 
 /** A throne already in the room (one a LevelDef or a wish put there). ref: fill_zoo() COURT */
 function findThrone(level: Level, room: Room): Pos | null {

@@ -60,3 +60,66 @@ test('save then load reproduces hash', async () => {
   b.load(save);
   expect(await b.hash()).toBe(await a.hash());
 });
+
+test('choices before any game, then a new game with a character (m22 step 8)', async () => {
+  const r = createRemote(simWorker());
+  const ch = await r.choices();
+  expect(ch.roles.map((x) => x.id)).toEqual([
+    'nh:role_archeologist',
+    'nh:role_barbarian',
+    'nh:role_caveman',
+    'nh:role_healer',
+    'nh:role_knight',
+    'nh:role_monk',
+    'nh:role_priest',
+    'nh:role_rogue',
+    'nh:role_ranger',
+    'nh:role_samurai',
+    'nh:role_tourist',
+    'nh:role_valkyrie',
+    'nh:role_wizard',
+  ]);
+  expect(ch.races.map((x) => x.id)).toEqual([
+    'nh:race_human',
+    'nh:race_elf',
+    'nh:race_dwarf',
+    'nh:race_gnome',
+    'nh:race_orc',
+  ]);
+  const views: ViewMessage[] = [];
+  r.onView((m) => views.push(m));
+  r.newGame(3, 80, 21, { role: 'nh:role_wizard', race: 'nh:race_elf', gender: 'male' });
+  await Promise.resolve();
+  expect(views[0]?.events[0]).toEqual({
+    type: 'msg',
+    key: 'welcome',
+    params: {
+      role: '@role.wizard',
+      race: '@race.elf.adj',
+      gender: '@gender.male',
+      align: '@align.chaotic',
+    },
+  });
+  const file = JSON.parse(await r.save()) as { replay: { character: unknown } };
+  expect(file.replay.character).toEqual({
+    role: 'nh:role_wizard',
+    race: 'nh:race_elf',
+    gender: 'male',
+    align: -1,
+  });
+});
+
+test('an older save is refused with a clear error (m22 Q5: old saves are wiped)', async () => {
+  const a = createRemote(simWorker());
+  a.newGame(5, 40, 15);
+  const save = JSON.parse(await a.save()) as Record<string, unknown>;
+  save['version'] = 8;
+  const b = createRemote(simWorker());
+  const errs: string[] = [];
+  b.onError((e) => errs.push(e));
+  b.load(JSON.stringify(save));
+  await Promise.resolve();
+  expect(errs).toEqual([
+    "This save was made by an older version of the game (save version 8, now 9) and can't be restored",
+  ]);
+});

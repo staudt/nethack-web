@@ -24,6 +24,7 @@ import {
   type Prompt,
   type Registry,
   type Rng,
+  type Character,
 } from '@nh/core';
 import {
   boulderMoveErrors,
@@ -34,6 +35,8 @@ import {
 
 export interface SoakOptions {
   seed: number;
+  /** The hero's role, race, gender and alignment (default: the default character). */
+  character?: Partial<Character>;
   turns: number;
   width?: number;
   height?: number;
@@ -188,6 +191,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
     seed: opts.seed,
     ...(opts.width !== undefined ? { width: opts.width } : {}),
     ...(opts.height !== undefined ? { height: opts.height } : {}),
+    ...(opts.character !== undefined ? { character: opts.character } : {}),
   });
   const rng: Rng = createRng(seedRng(opts.botSeed ?? opts.seed ^ 0x5eed));
   const every = Math.max(1, opts.checkEvery ?? 1);

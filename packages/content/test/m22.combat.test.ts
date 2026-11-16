@@ -1,4 +1,4 @@
-// m22 step 6: role rules in combat. Through the test seam (`setRoleRaceForTest`): martial arts
+// m22 step 6: role rules in combat. Through `playAs()` (helpers.ts): martial arts
 // for Monks and Samurai (skill bonuses, rnd(4) bare hands, the name "martial arts", the kick),
 // the staggering blow and the double punch of skilled bare hands, the Monk's suit penalty and
 // unarmed bonus, the Knight's and Samurai's conduct, the Rogue's backstab, the Healer's knife and
@@ -47,18 +47,18 @@ import {
   weaponHitBonus,
 } from '../src/skills';
 import { ROLE_ORDER } from '../src/roletab';
-import { setRoleRaceForTest, type RoleKey } from '../src/urole';
-import { addMon } from './helpers';
+import { type RoleKey } from '../src/urole';
+import { addMon, playAs } from './helpers';
 import { engine, levelSetup, plainKit, render } from './itemHelpers';
 
 const ROOM = ['.........', '.........', '...@.....', '.........', '.........'];
 type S = ReturnType<typeof levelSetup>;
 
-/** A plain room for a hero of `role` (a Valkyrie's new game, then the seam). */
+/** A plain room for a hero of `role` (a Valkyrie's new game, then playAs()). */
 function setup(role: RoleKey, seed = 1): S {
   const s = levelSetup(ROOM, seed);
   plainKit(s.state);
-  setRoleRaceForTest(s.state, role);
+  playAs(s.state, role);
   const a = getPlayer(s.state).c.attributes;
   if (a) Object.assign(a, { str: 10, dex: 10, con: 10 }); // no Str damage bonus
   return s;
@@ -122,7 +122,7 @@ describe('martial arts: P_MASTER, P_GRAND_MASTER and the skill bonuses', () => {
     expect([P_MASTER, P_GRAND_MASTER]).toEqual([5, 6]);
     const s = setup('valkyrie');
     for (const role of ROLE_ORDER) {
-      setRoleRaceForTest(s.state, role);
+      playAs(s.state, role);
       expect(martialBonus(s.state)).toBe(role === 'samurai' || role === 'monk');
     }
   });
@@ -146,7 +146,7 @@ describe('martial arts: P_MASTER, P_GRAND_MASTER and the skill bonuses', () => {
     const names = items.map((m: Msg) => render(m));
     expect(names.some((t) => t.includes('martial arts'))).toBe(true);
     expect(names.some((t) => t.includes('bare handed combat'))).toBe(false);
-    setRoleRaceForTest(s.state, 'valkyrie');
+    playAs(s.state, 'valkyrie');
     expect(skillNameKey(s.state, BARE_HANDED)).toBe('skill.bare_handed');
   });
 });
@@ -282,7 +282,7 @@ describe("the Monk's to-hit", () => {
     setSkill(s, BARE_HANDED, P_BASIC);
     const id = pin(s, 'nh:jackal');
     const monk = roll(s, id);
-    setRoleRaceForTest(s.state, 'valkyrie');
+    playAs(s.state, 'valkyrie');
     expect(roll(s, id)).toBe(monk);
   });
 
@@ -493,7 +493,7 @@ describe('volleys (multishot_class_bonus())', () => {
     const s = setup('valkyrie');
     const o = (id: string): Entity => ent(s, s.carry(id));
     const bonus = (role: RoleKey, ammo: string, launcher?: string): number => {
-      setRoleRaceForTest(s.state, role);
+      playAs(s.state, role);
       return multishotClassBonus(s.ctx as never, o(ammo), launcher ? o(launcher) : null);
     };
     expect(bonus('caveman', 'nh:flint_stone')).toBe(1);

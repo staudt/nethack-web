@@ -19,6 +19,19 @@ describe('replay', () => {
     expect(out.state.turn).toBeGreaterThan(1);
   });
 
+  test('the replay records the character and replays it (m22 step 8)', () => {
+    const character = { role: 'nh:role_samurai', race: 'nh:race_human' } as const;
+    const rec = recordGame([vanillaMod], { ...opts, character }, actions.slice(0, 60));
+    expect(rec.character).toEqual({ ...character, gender: 'male', align: 1 });
+    const out = runReplay([vanillaMod], rec);
+    expect(out.hash).toBe(rec.hash);
+    expect(out.state.entities[String(out.state.playerId)]?.def).toBe('nh:role_samurai');
+    // the default character replays to another game
+    const def = recordGame([vanillaMod], opts, actions.slice(0, 60));
+    expect(def.character.role).toBe('nh:role_valkyrie');
+    expect(def.hash).not.toBe(rec.hash);
+  });
+
   test('changing an action changes the hash', () => {
     const rec = recordGame([vanillaMod], opts, actions);
     // Random walks can converge on the same corner, so compare a mid-game prefix for a swap

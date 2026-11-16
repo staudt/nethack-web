@@ -1,7 +1,7 @@
 // m22 step 4: alignment and gods. Every role's pantheon (a Priest's drawn from another role's),
 // the starting alignment and record (initrecord), the original alignment a helm of opposite
 // alignment returns to, holy and unholy water for lawful, chaotic and undead heroes, and the god
-// names in prayer, priests and the wrath that kills. Other roles come through the test seam.
+// names in prayer, priests and the wrath that kills. Other roles come through `playAs()` (helpers.ts) or a new game's character.
 // ref: src/role.c role_init() (pantheon); src/pray.c align_gname(), align_gtitle(),
 // fry_by_god(); src/priest.c priestname(); src/attrib.c newhp(); src/u_init.c u_init_misc();
 // src/potion.c peffect_water()
@@ -15,7 +15,6 @@ import {
   type DefId,
   type EntityId,
   type GameState,
-  type Mod,
   type StepResult,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
@@ -26,7 +25,6 @@ import {
   alignGtitle,
   initPantheon,
   pantheon,
-  setRoleRaceForTest,
   setU,
   startAlign,
   uInitAlign,
@@ -35,6 +33,8 @@ import {
   vanillaMod,
   type RaceKey,
   type RoleKey,
+  raceDefId,
+  roleDefId,
 } from '../src/index';
 import { godSuffix } from '../src/gods';
 import { messagesEn } from '../src/messages.en';
@@ -43,6 +43,7 @@ import { mksobj } from '../src/items';
 import { polymon } from '../src/polyself';
 import { setUlycn, ulycn } from '../src/werestate';
 import { engine, itemOf, levelSetup, obj, plainBottles, plainKit, render } from './itemHelpers';
+import { playAs } from './helpers';
 
 const BASE = engine.newGame({ seed: 1 }).state;
 const fresh = (): GameState => structuredClone(BASE);
@@ -82,7 +83,7 @@ describe('pantheons (role.c roles[], pray.c align_gname/align_gtitle)', () => {
     for (const role of ROLE_ORDER) {
       if (role === 'priest') continue;
       const s = fresh();
-      setRoleRaceForTest(s, role);
+      playAs(s, role);
       const want = C_GODS[role];
       const got = [1, 0, -1].map((a) => (title(s, a) === 'goddess' ? '_' : '') + god(s, a));
       expect(got, role).toEqual(want);
@@ -104,7 +105,7 @@ describe('pantheons (role.c roles[], pray.c align_gname/align_gtitle)', () => {
     const seen = new Set<RoleKey>();
     for (let seed = 1; seed <= 60; seed++) {
       const s = fresh();
-      setRoleRaceForTest(s, 'priest');
+      playAs(s, 'priest');
       initPantheon(ctxOf(s, seed));
       const p = pantheon(s);
       expect(p).not.toBe('priest');
@@ -121,16 +122,16 @@ describe('pantheons (role.c roles[], pray.c align_gname/align_gtitle)', () => {
     expect(seen.size).toBeGreaterThanOrEqual(10);
   });
 
-  test("a Priest without a drawn pantheon (the seam set after new game) uses the first role's", () => {
+  test("a Priest without a drawn pantheon (playAs() after new game) uses the first role's", () => {
     const s = fresh();
-    setRoleRaceForTest(s, 'priest');
+    playAs(s, 'priest');
     expect(pantheon(s)).toBe('archeologist');
     expect(god(s, 1)).toBe('Quetzalcoatl');
   });
 
   test('temple priests and the wrath that kills are named for the pantheon', () => {
     const s = fresh();
-    setRoleRaceForTest(s, 'healer');
+    playAs(s, 'healer');
     const priest = (a: number): string =>
       render(
         { key: 'x', params: { m: priestName(s, { shralign: a } as Epri) } },
@@ -147,28 +148,10 @@ describe('pantheons (role.c roles[], pray.c align_gname/align_gtitle)', () => {
   });
 });
 
-/** Plays `seam.role` from the start: the seam is written before vanilla's u_init hook runs. */
-const seam: { role: RoleKey | null; race: RaceKey | null } = { role: null, race: null };
-const seamMod: Mod = {
-  id: 'seam',
-  version: '1',
-  register(api) {
-    api.on('newGame', (ctx) => setRoleRaceForTest(ctx.state, seam.role, seam.race), {
-      priority: 1000,
-    });
-  },
-};
-const seamEngine = createEngine([vanillaMod, seamMod]);
-function newGameAs(role: RoleKey, race: RaceKey, seed: number): GameState {
-  seam.role = role;
-  seam.race = race;
-  try {
-    return seamEngine.newGame({ seed }).state;
-  } finally {
-    seam.role = null;
-    seam.race = null;
-  }
-}
+/** A new game of `role` and `race` (their first alignment and gender that go together). */
+const charEngine = createEngine([vanillaMod]);
+const newGameAs = (role: RoleKey, race: RaceKey, seed: number): GameState =>
+  charEngine.newGame({ seed, character: { role: roleDefId(role), race: raceDefId(race) } }).state;
 
 describe('the starting alignment (attrib.c newhp(), u_init.c u_init_misc())', () => {
   test("a new game's u_init hook sets the alignment and record and draws a Priest's gods", () => {
@@ -203,7 +186,7 @@ describe('the starting alignment (attrib.c newhp(), u_init.c u_init_misc())', ()
     ];
     for (const [role, race, align, record] of cases) {
       const s = fresh();
-      setRoleRaceForTest(s, role, race);
+      playAs(s, role, race);
       uInitAlign(ctxOf(s));
       const u = uState(s);
       expect([role, race, u.alignType, u.alignRecord, ualignBase(s)]).toEqual([
@@ -220,7 +203,7 @@ describe('the starting alignment (attrib.c newhp(), u_init.c u_init_misc())', ()
 
   test('a lawful Archeologist starts with record 10 and stays lawful through a save', () => {
     const s = fresh();
-    setRoleRaceForTest(s, 'archeologist', 'human');
+    playAs(s, 'archeologist', 'human');
     uInitAlign(ctxOf(s));
     const loaded = JSON.parse(JSON.stringify(s)) as GameState;
     expect(uState(loaded)).toMatchObject({ alignType: 1, alignRecord: 10, alignBase: 1 });
@@ -329,7 +312,7 @@ describe('prayer names the pantheon (pray.c)', () => {
       [1, 'Quetzalcoatl'],
     ] as const) {
       const s = room();
-      setRoleRaceForTest(s.state, 'archeologist');
+      playAs(s.state, 'archeologist');
       setU(s.ctx, { alignType: align, alignRecord: 10, ublesscnt: 0 }); // a good prayer
       const t = texts(pray(s));
       expect(t).toContain(`You begin praying to ${want}.`);
@@ -350,7 +333,7 @@ describe('the helm of opposite alignment returns her to her original alignment',
       const it = s.state.entities[id]?.c.item;
       if (it?.carriedBy === s.state.playerId && it.equipped === 'helm') it.equipped = null;
     }
-    setRoleRaceForTest(s.state, 'archeologist', 'human');
+    playAs(s.state, 'archeologist', 'human');
     uInitAlign(s.ctx);
     const helm: EntityId = s.carry('nh:helm_of_opposite_alignment');
     s.text(s.mod('nh:wear', { item: helm }));

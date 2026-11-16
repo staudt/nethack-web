@@ -7,7 +7,19 @@ import { actionsMod, costAction, terrainMod } from './helpers/fakeMods';
 
 const mods = () => [terrainMod(), actionsMod()];
 const engine = createEngine(mods());
-const replay = (seed: number): Replay => ({ seed, width: 40, height: 15, mods: [], actions: [] });
+const replay = (seed: number): Replay => ({
+  seed,
+  width: 40,
+  height: 15,
+  mods: [],
+  character: {
+    role: 'nh:hero' as const,
+    race: 'nh:race_human' as const,
+    gender: 'female' as const,
+    align: 0 as const,
+  },
+  actions: [],
+});
 const fresh = () => engine.newGame({ seed: 11, width: 40, height: 15 }).state;
 const mutate = (f: (o: Record<string, unknown>) => void): string => {
   const o = JSON.parse(engine.save(fresh(), replay(11))) as Record<string, unknown>;

@@ -1,4 +1,4 @@
-// m22 step 7: the other role rules, through the test seam (`setRoleRaceForTest`). The Priest's
+// m22 step 7: the other role rules, through `playAs()` (helpers.ts; the test seam until m22 step 8). The Priest's
 // BUC sight, the Samurai's Japanese names, the Archeologist's statues and fedora, the Knight's
 // gluttony and the Monk's guilt for meat, the Wizard's spell hunger and cornuthaum, the Priest's
 // clerical light, the Healer's immunity, pet healing and hearing, the Tourist's experience for
@@ -28,8 +28,8 @@ import { breakStatue, mkcorpstat } from '../src/statue';
 import { setPw } from '../src/uenergy';
 import { setHeroFemale } from '../src/gender';
 import { KEEN } from '../src/spell';
-import { setRoleRaceForTest, type RoleKey } from '../src/urole';
-import { addMon } from './helpers';
+import { type RoleKey } from '../src/urole';
+import { addMon, playAs } from './helpers';
 import { defs, engine, freshState, invLine, levelSetup, plainKit, render } from './itemHelpers';
 
 type S = ReturnType<typeof levelSetup>;
@@ -37,7 +37,7 @@ type S = ReturnType<typeof levelSetup>;
 function setup(role: RoleKey, rows?: string[], seed = 1): S {
   const s = levelSetup(rows, seed);
   plainKit(s.state);
-  setRoleRaceForTest(s.state, role);
+  playAs(s.state, role);
   return s;
 }
 
@@ -212,7 +212,7 @@ describe('spells', () => {
   test("a Priest's light is a clerical spell", () => {
     const s = setup('priest');
     expect(spellSkill('nh:spellbook_of_light', s.state)).toBe('cleric_spell');
-    setRoleRaceForTest(s.state, 'wizard');
+    playAs(s.state, 'wizard');
     expect(spellSkill('nh:spellbook_of_light', s.state)).toBe('divination_spell');
   });
 
@@ -221,7 +221,7 @@ describe('spells', () => {
     const hat = carried(s, 'nh:cornuthaum', 'uncursed');
     s.state.entities[String(hat)]!.c.item!.equipped = 'helm';
     expect(clairvoyanceBlocked(s.state)).toBe(false);
-    setRoleRaceForTest(s.state, 'valkyrie');
+    playAs(s.state, 'valkyrie');
     expect(clairvoyanceBlocked(s.state)).toBe(true);
   });
 });
@@ -270,7 +270,7 @@ describe('the Tourist', () => {
   test('gains level_difficulty() experience entering a new level, not an old one', () => {
     const gain = (role: RoleKey): number[] => {
       const state = freshState(3);
-      setRoleRaceForTest(state, role);
+      playAs(state, role);
       const out: number[] = [];
       const xp = () => getPlayer(state).c.experience!.points;
       const go = (stairs: 'down' | 'up', action: string): void => {
@@ -310,11 +310,11 @@ describe('ranks, alignment and farewells (botl.c, role.c)', () => {
 
   test('female titles where a role has them; alignment by sign', () => {
     const state = freshState(1);
-    setRoleRaceForTest(state, 'priest');
+    playAs(state, 'priest');
     expect(render({ key: rankOf(state, 1, true) })).toBe('Aspirant');
     expect(render({ key: rankOf(state, 30, true) })).toBe('High Priestess');
     expect(render({ key: rankOf(state, 30, false) })).toBe('High Priest');
-    setRoleRaceForTest(state, 'caveman');
+    playAs(state, 'caveman');
     setHeroFemale(state, false);
     expect(render({ key: String(buildSnapshot(engine.registry, state).status['rank']) })).toBe(
       'Troglodyte',
@@ -333,7 +333,7 @@ describe('ranks, alignment and farewells (botl.c, role.c)', () => {
   test('Goodbye() by role, in the level-loss line too', () => {
     const state = freshState(1);
     const bye = (r: RoleKey): string => {
-      setRoleRaceForTest(state, r);
+      playAs(state, r);
       return render({ key: goodbyeKey(state) });
     };
     expect(bye('valkyrie')).toBe('Farvel');
@@ -348,7 +348,7 @@ describe('ranks, alignment and farewells (botl.c, role.c)', () => {
 
   test('the end screen gets the farewell and the gendered role name', () => {
     const state = freshState(1);
-    setRoleRaceForTest(state, 'priest');
+    playAs(state, 'priest');
     state.gameOver = { how: 'quit' } as never;
     const st = buildSnapshot(engine.registry, state).status;
     expect(st['goodbye']).toBe('goodbye.default');

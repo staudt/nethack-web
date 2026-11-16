@@ -192,10 +192,13 @@ describe('defineStatus / setItemNamer / RoleDef.movement / MonsterDef extras', (
           speed: 12,
           glyph: { ch: '@', fg: '#fff' },
           movement: 12,
+          races: [],
+          genders: ['female'],
+          aligns: [0],
         } as never),
       ),
     ]);
-    expect(issues.map((i) => i.path)).toEqual(['movement']);
+    expect(issues.map((i) => i.path)).toEqual(['movement', 'races']);
   });
 
   test.each([

@@ -1,4 +1,4 @@
-import { createEngine, type FromCore } from '@nh/core';
+import { createEngine, getPlayer, type FromCore } from '@nh/core';
 import { vanillaMod, wizardMod } from '@nh/content';
 import { expect, test } from 'vitest';
 import { createModHost } from '../src/modhost';
@@ -9,7 +9,15 @@ const rnd = (): number => 1;
 const saveWith = (mods: Parameters<typeof createEngine>[0]): string => {
   const e = createEngine(mods);
   const { state } = e.newGame({ seed: 2 });
-  return e.save(state, { seed: 2, width: 80, height: 21, mods: state.mods, actions: [] });
+  const character = getPlayer(state).c.player!;
+  return e.save(state, {
+    seed: 2,
+    width: 80,
+    height: 21,
+    mods: state.mods,
+    character,
+    actions: [],
+  });
 };
 const normalSave = saveWith([vanillaMod]);
 const wizardSave = saveWith([vanillaMod, wizardMod]);

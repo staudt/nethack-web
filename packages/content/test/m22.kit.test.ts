@@ -1,6 +1,6 @@
 // m22 step 3: the starting inventory of every role and race (u_init.c ini_inv() and its
 // helpers, the extras, the race substitutions), the known objects, starting spells and gold, the
-// carry boost, skill_init() and the role's pet. Other roles are reached through the test seam;
+// carry boost, skill_init() and the role's pet. Other roles are reached through `playAs()` (helpers.ts);
 // each check runs over many RNG seeds and asserts outcomes, never one lucky seed.
 // ref: src/u_init.c u_init_role(), u_init_race(), ini_inv(), ini_inv_mkobj_filter(),
 // ini_inv_adjust_obj(), ini_inv_use_obj(), knows_class(), u_init_carry_attr_boost(),
@@ -26,7 +26,6 @@ import {
   ROLE_ORDER,
   SKILL_TAB,
   finalScore,
-  setRoleRaceForTest,
   uInitInventoryAttrs,
   uInitSkillsDiscoveries,
   umoney0,
@@ -47,6 +46,7 @@ import { pwOf } from '../src/uenergy';
 import { attrMax } from '../src/attrstate';
 import { swapWep } from '../src/wield';
 import { ELF_INSTRUMENTS, JAPANESE_ITEMS, RACE_KNOWS } from '../src/kittab';
+import { playAs } from './helpers';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -82,7 +82,7 @@ interface Kit {
 /** The starting inventory of `role` and `race` made with the RNG seeded by `seed`. */
 function kitFor(role: RoleKey, race: RaceKey, seed: number, state?: GameState): Kit {
   const s = state ?? structuredClone(BASE);
-  setRoleRaceForTest(s, role, race);
+  playAs(s, role, race);
   s.discovered = [];
   delete (nhData({ state: s }) as { spells?: unknown }).spells;
   run(s, (c) => {
@@ -550,7 +550,7 @@ describe('the pet', () => {
     const s = structuredClone(BASE);
     for (const e of Object.values(s.entities))
       if (e.c.monster?.tame) delete s.entities[String(e.id)];
-    setRoleRaceForTest(s, role, 'human');
+    playAs(s, role, 'human');
     let id: number | null = null;
     run(s, (ctx) => {
       id = makedog(ctx);

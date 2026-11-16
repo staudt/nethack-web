@@ -59,6 +59,19 @@ export {
 export { createEngine, UnknownActionError, DEFAULT_WIDTH, DEFAULT_HEIGHT } from './engine';
 export type { Engine, EngineOptions, NewGameOptions } from './engine';
 export { createQuery } from './query';
+export {
+  ALIGNMENTS,
+  GENDERS,
+  characterChoices,
+  okAlign,
+  okCharacter,
+  okGend,
+  okRace,
+  okRole,
+  resolveCharacter,
+  welcomeParams,
+} from './character';
+export type { CharacterSet } from './character';
 export { serializeSave, parseSave, SAVE_FORMAT, SAVE_VERSION } from './save';
 export { getPlayer, getLevel, playerPos, isVisible } from './state';
 export { buildSnapshot, diffSnapshot, applyUpdate } from './view';

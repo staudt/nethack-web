@@ -1,4 +1,4 @@
-// m22 step 5: race rules. Through the test seam (`setRoleRaceForTest`), the hero's race decides
+// m22 step 5: race rules. Through `playAs()` (helpers.ts) or a new game's character, the hero's race decides
 // who is always peaceful or hostile (and a dwarf or gnome meets fewer of her kind in the Mines),
 // cannibalism, racial food, infravision, polymorph and genocide of her own kind, racial volleys
 // and bow skill, and a dwarf's digging. Outcomes over seeds, never a lucky seed.
@@ -33,20 +33,16 @@ import { isGenocided } from '../src/vanquished';
 import { polymon, rehumanize } from '../src/polyself';
 import { diggingOf } from '../src/digstate';
 import { sameRace } from '../src/race';
-import { setRoleRaceForTest, vanillaMod, type RaceKey, type RoleKey } from '../src/index';
-import { addMon } from './helpers';
+import { raceDefId, roleDefId, vanillaMod, type RaceKey, type RoleKey } from '../src/index';
+import { addMon, playAs } from './helpers';
 import { ctxFor, defs, levelSetup, plainKit, render } from './itemHelpers';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
-/** The seam written before vanilla's u_init hook, and a probe action. */
-const seam: { role: RoleKey | null; race: RaceKey | null } = { role: null, race: null };
+/** A probe action. */
 const raceMod: Mod = {
   id: 'rt',
   version: '1',
   register(api) {
-    api.on('newGame', (ctx) => setRoleRaceForTest(ctx.state, seam.role, seam.race), {
-      priority: 1000,
-    });
     api.defineAction({
       id: 'rt:run',
       labelKey: 'rt',
@@ -61,16 +57,12 @@ const raceMod: Mod = {
 };
 const eng = createEngine([vanillaMod, raceMod]);
 
-function newGameAs(role: RoleKey | null, race: RaceKey, seed: number): GameState {
-  seam.role = role;
-  seam.race = race;
-  try {
-    return eng.newGame({ seed }).state;
-  } finally {
-    seam.role = null;
-    seam.race = null;
-  }
-}
+/** A new game of `race` and `role` (null: the first role that allows the race). */
+const newGameAs = (role: RoleKey | null, race: RaceKey, seed: number): GameState =>
+  eng.newGame({
+    seed,
+    character: { ...(role ? { role: roleDefId(role) } : {}), race: raceDefId(race) },
+  }).state;
 
 const textsOf = (events: readonly GameEvent[]): string[] =>
   events.flatMap((e) => (e.type === 'msg' ? [render({ key: e.key, params: e.params ?? {} })] : []));
@@ -85,7 +77,7 @@ const ROOM = ['...............', '...............', '.......@.......', '........
 function room(race: RaceKey, role: RoleKey | null = null, seed = 1): S {
   const s = levelSetup(ROOM, seed);
   plainKit(s.state);
-  setRoleRaceForTest(s.state, role, race);
+  playAs(s.state, role, race);
   s.step({ type: 'wait' });
   return s;
 }
@@ -105,7 +97,7 @@ const kinds = (flags: readonly string[]) =>
 describe('always peaceful and always hostile by race (peace_minded())', () => {
   const minded = (race: RaceKey, id: DefId, seed: number): boolean => {
     const state = levelSetup(ROOM, seed).state;
-    setRoleRaceForTest(state, null, race);
+    playAs(state, null, race);
     return peaceMinded(ctxFor(state) as unknown as Ctx, defs.monster(id));
   };
 
@@ -308,7 +300,7 @@ describe('infravision from the race (set_uasmon())', () => {
       s.state.visible = computeVisible(lvl, cellRules(lvl, defs), s.here);
       return buildSnapshot(eng.registry, s.state).entities.some((e) => e.id === jackal);
     };
-    expect(seen()).toBe(false); // the seam came after her new game
+    expect(seen()).toBe(false); // playAs() came after her new game
     setFormProps(hero(s), ownFormProps(s.ctx));
     expect(seen()).toBe(true);
     run(s.state, (ctx) => polymon(ctx, 'nh:newt' as DefId, false)); // a newt has none
@@ -368,7 +360,7 @@ describe('racial volleys and bow skill (throw_obj(), thitmonst())', () => {
     for (const seed of seeds(40)) {
       const s = levelSetup(ROW, seed);
       plainKit(s.state);
-      setRoleRaceForTest(s.state, role, race);
+      playAs(s.state, role, race);
       for (const e of inventoryOf(s.state, s.state.playerId))
         if (e.c.item?.equipped === 'weapon') e.c.item.equipped = null;
       const bow = s.carry(launcher);
@@ -412,7 +404,7 @@ describe('a dwarf digs twice as hard (dig())', () => {
     for (const seed of seeds(5)) {
       const effort = (race: RaceKey): number => {
         const s = levelSetup(['.@ '], seed);
-        setRoleRaceForTest(s.state, null, race);
+        playAs(s.state, null, race);
         const h = hero(s);
         h.c.attributes = { str: 16, int: 10, wis: 10, dex: 10, con: 10, cha: 10 };
         for (const e of inventoryOf(s.state, s.state.playerId))

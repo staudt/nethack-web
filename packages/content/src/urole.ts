@@ -1,11 +1,8 @@
 // The hero's role and race as content keys (C's Role_if()/Race_if()). A leaf module (core only):
-// every role or race rule asks these, never `player.role` directly.
-//
-// Until roles and races are core defs (m22 step 8), the role comes from `player.role`
-// ('nh:valkyrie' -> 'valkyrie') and the race is human. The test seam: a test may write
-// `modData.nh.urole` / `modData.nh.urace` to play another role or race; nothing else writes them.
-// ref: include/you.h Role_if(), Race_if(), Role_switch, Race_switch
-import type { GameState } from '@nh/core';
+// every role or race rule asks these, never `player.role` directly. They read the hero's
+// starting character (core's PlayerComponent): the role def `nh:role_<key>` and the race def
+// `nh:race_<key>` (roles.ts). ref: include/you.h Role_if(), Race_if(), Role_switch, Race_switch
+import type { DefId, GameState } from '@nh/core';
 
 /** C's male role names, lower-cased, in roles[] order (Rogue before Ranger). ref: src/role.c */
 export const ROLE_ORDER = [
@@ -34,49 +31,37 @@ const isRoleKey = (k: unknown): k is RoleKey =>
 const isRaceKey = (k: unknown): k is RaceKey =>
   typeof k === 'string' && (RACE_ORDER as readonly string[]).includes(k);
 
-const nhTable = (state: Readonly<GameState>): Record<string, unknown> | null => {
-  const nh = state.modData['nh'];
-  return nh !== null && typeof nh === 'object' && !Array.isArray(nh)
-    ? (nh as Record<string, unknown>)
-    : null;
-};
+/** A role's def id (ids of the role names are player monsters'). */
+export const roleDefId = (k: RoleKey): DefId => `nh:role_${k}`;
+/** A race's def id (`nh:human` .. are the race monsters'). */
+export const raceDefId = (k: RaceKey): DefId => `nh:race_${k}`;
 
-/**
- * The hero's role: the test seam `modData.nh.urole` when written, else the key of her role def
- * (`nh:<key>`), else the Valkyrie (the stub's role).
- */
-export function urole(state: Readonly<GameState>): RoleKey {
-  const seam = nhTable(state)?.['urole'];
-  if (isRoleKey(seam)) return seam;
-  const id = state.entities[String(state.playerId)]?.c.player?.role;
-  const key = id?.startsWith('nh:') ? id.slice(3) : undefined;
-  return isRoleKey(key) ? key : 'valkyrie';
+/** The vanilla role a def id names, or null (another mod's role). */
+export function roleKeyOf(id: DefId | undefined): RoleKey | null {
+  const k = id?.startsWith('nh:role_') ? id.slice(8) : null;
+  return isRoleKey(k) ? k : null;
 }
 
-/** The hero's race: the test seam `modData.nh.urace` when written, else human. */
+/** The vanilla race a def id names, or null. */
+export function raceKeyOf(id: DefId | undefined): RaceKey | null {
+  const k = id?.startsWith('nh:race_') ? id.slice(8) : null;
+  return isRaceKey(k) ? k : null;
+}
+
+/**
+ * The hero's role. A role another mod defines has no tables here: it plays as the Valkyrie (the
+ * default role) until the tables become defs (ROADMAP).
+ */
+export function urole(state: Readonly<GameState>): RoleKey {
+  return roleKeyOf(state.entities[String(state.playerId)]?.c.player?.role) ?? 'valkyrie';
+}
+
+/** The hero's race (another mod's race plays as a human). */
 export function urace(state: Readonly<GameState>): RaceKey {
-  const seam = nhTable(state)?.['urace'];
-  return isRaceKey(seam) ? seam : 'human';
+  return raceKeyOf(state.entities[String(state.playerId)]?.c.player?.race) ?? 'human';
 }
 
 /** ref: include/you.h Role_if() */
 export const roleIs = (state: Readonly<GameState>, k: RoleKey): boolean => urole(state) === k;
 /** ref: include/you.h Race_if() */
 export const raceIs = (state: Readonly<GameState>, k: RaceKey): boolean => urace(state) === k;
-
-/** Test seam only (m22a): plays another role and race until the character is a core choice. */
-export function setRoleRaceForTest(
-  state: GameState,
-  role: RoleKey | null,
-  race: RaceKey | null = null,
-): void {
-  let nh = nhTable(state);
-  if (!nh) {
-    nh = {};
-    state.modData['nh'] = nh as GameState['modData'][string];
-  }
-  if (role) nh['urole'] = role;
-  else delete nh['urole'];
-  if (race) nh['urace'] = race;
-  else delete nh['urace'];
-}

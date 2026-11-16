@@ -26,6 +26,7 @@ import { advanceTime } from './turn';
 import type { PlayerAction } from './types/action';
 import type { DefId, Json, Pos } from './types/common';
 import { NORMAL_SPEED } from './types/entity';
+import type { Character } from './types/entity';
 import type { GameEvent } from './types/event';
 import type { Level, LevelRef } from './types/level';
 import type { ActionDef, Ctx, LevelRect, Mod, Registry, TeleRegionDef } from './types/mod';
@@ -38,6 +39,7 @@ import { computeVisible, newMemory, updateMemory } from './vision';
 import { heroBlind, heroLights, perceivesMonster, shownAs } from './perception';
 import { isMarker } from './memory';
 import { coversObjects, placeTrapOn, removeTrapOn, trapAt } from './traps';
+import { resolveCharacter, welcomeParams } from './character';
 
 export const DEFAULT_WIDTH = 80;
 export const DEFAULT_HEIGHT = 21;
@@ -48,8 +50,12 @@ export interface NewGameOptions {
   seed: number;
   width?: number;
   height?: number;
-  /** Defaults to the first registered role. */
-  role?: DefId;
+  /**
+   * The hero's role, race, gender and alignment. What is left out takes the defaults: the first
+   * registered role that goes with the rest, then its first race, gender and alignment that make
+   * a whole character (`resolveCharacter()`). An unknown id or a forbidden combination throws.
+   */
+  character?: Partial<Character>;
 }
 
 export interface Engine {
@@ -432,12 +438,13 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
   const engine: Engine = {
     registry,
 
-    newGame({ seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, role }) {
-      const roleDef = role ? registry.role(role) : registry.roles[0];
-      if (!roleDef) throw new Error('No player role registered');
+    newGame({ seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, character }) {
+      // ref: src/role.c role_init(): the choice is checked before anything is made
+      const player = resolveCharacter(registry, character);
+      const roleDef = registry.role(player.role);
       const s = seed >>> 0;
       const state: GameState = {
-        version: 8,
+        version: 9,
         seed: s,
         turn: 1,
         nextEntityId: 1,
@@ -472,7 +479,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         c: {
           // Hero can move on the first turn.
           actor: { energy: NORMAL_SPEED, speed: roleDef.speed },
-          player: { role: roleDef.id },
+          player,
         },
       };
       // ref: src/allmain.c newgame(): init_dungeons() before u_init()
@@ -489,7 +496,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       for (const h of registry.hooks('levelChange'))
         h.fn(ctx, { from: null, fromPos: null, to: level.id });
       refreshVision(state);
-      events.unshift({ type: 'msg', key: 'welcome', params: { role: `@${roleDef.nameKey}` } });
+      events.unshift({ type: 'msg', key: 'welcome', params: welcomeParams(registry, player) });
       return result(state, events);
     },
 

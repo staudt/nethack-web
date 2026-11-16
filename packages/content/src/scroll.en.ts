@@ -132,7 +132,6 @@ export const scrollMessagesEn: Record<string, string> = {
   'genocide.not_permitted': "You aren't permitted to genocide {mon|plural}.",
   'genocide.not_permitted.the': "You aren't permitted to genocide the {mon}.",
   'genocide.not_permitted.bare': "You aren't permitted to genocide {mon}.",
-  'genocide.role.nh:valkyrie': 'valkyrie',
   'killer.scroll_of_genocide': 'a scroll of genocide',
   'killer.genocidal_confusion': 'genocidal confusion',
   'killer.imperious_order': 'an imperious order',

@@ -5,9 +5,8 @@
 // (`kill_genocided_monsters()` on arrival)
 //
 // Not ported (see DEVIATIONS.md "Genocide"): quest monsters' feedback, the vampire-shifted hero's
-// revert, class names ("dogs") in class genocide (a symbol or a monster name only), livelog and conduct, wizard mode's '*'. The hero's role monster (a Valkyrie) does
-// not exist: a confused reader genocides her role by its id (not listed at the end), and a
-// confused cursed reading sends in nothing.
+// revert, class names ("dogs") in class genocide (a symbol or a monster name only), livelog and
+// conduct, wizard mode's '*'.
 import {
   getLevel,
   getPlayer,
@@ -31,7 +30,10 @@ import { nameToMon, nonliving, weirdnonliving } from './mondata';
 import { mungspaces, wishNames } from './objnam_read';
 import { P, hasProp } from './props';
 import { heroForm, heroFormId, rehumanize, upolyOf } from './upoly';
+import { heroFemale } from './gender';
 import { raceMonId } from './race';
+import { roleMonId, roleNameKey } from './roletab';
+import { urole } from './urole';
 import {
   genocidedIds,
   genocidedLines,
@@ -69,15 +71,9 @@ export const isGenoAsk = (raw: Json): boolean => {
   return s === 'genocide' || s === 'class_genocide';
 };
 
-/**
- * Your_Own_Race(): her race's monster (`mndx == urace.mnum`); her role's monster does not exist
- * (Your_Own_Role(): DEVIATIONS "Roles and races (m22a)"). ref: src/read.c
- */
-const yourOwn = (ctx: Pick<Ctx, 'state'>, id: DefId): boolean => id === raceMonId(ctx.state);
-
-/** The hero's role id, standing for her role's monster (u.umonster). */
-const roleId = (ctx: Pick<Ctx, 'state'>): DefId =>
-  getPlayer(ctx.state).c.player?.role ?? 'nh:valkyrie';
+/** Your_Own_Role() || Your_Own_Race(). ref: src/read.c */
+const yourOwn = (ctx: Pick<Ctx, 'state'>, id: DefId): boolean =>
+  id === roleMonId(urole(ctx.state)) || id === raceMonId(ctx.state);
 
 /**
  * How she feels inside after genociding her own kind while polymorphed: "dead" (living forms,
@@ -173,7 +169,8 @@ export function doGenocide(
   extra: Record<string, Json> = {},
 ): void {
   if (how & PLAYER) {
-    genocideType(ctx, null, how, true);
+    // u.umonster: her role's monster
+    genocideType(ctx, ctx.defs.monster(roleMonId(urole(ctx.state))), how, true);
     return;
   }
   const data: GenoData = { ...extra, stage: 'genocide', how, tries: 0 };
@@ -258,21 +255,23 @@ function answerType(ctx: Ctx, value: Json, data: GenoData): boolean {
 }
 
 /**
- * The chosen type (null: the hero's own role) is wiped out, or (without REALLY) sent in around
- * her. ref: src/read.c do_genocide() after the loop
+ * The chosen type is wiped out, or (without REALLY) sent in around her. ref: src/read.c
+ * do_genocide() after the loop
  */
-function genocideType(ctx: Ctx, ptr: MonsterDef | null, how: number, killplayer: boolean): void {
+function genocideType(ctx: Ctx, ptr: MonsterDef, how: number, killplayer: boolean): void {
   const h = getPlayer(ctx.state);
-  const id = ptr ? ptr.id : roleId(ctx);
+  const id = ptr.id;
   // the name: the actual type, or hallucinating, the hero's own (form or role)
   let name: string;
   let which: 'all' | 'the' | 'bare' = 'all';
   if (hasProp(h, P.HALLUC)) {
     const form = heroForm(ctx);
-    name = form ? `@${form.nameKey}` : `@genocide.role.${roleId(ctx)}`;
+    name = form
+      ? `@${form.nameKey}`
+      : `@genocide.role.${roleNameKey(urole(ctx.state), heroFemale(ctx.state)).slice(5)}`;
   } else {
-    name = ptr ? `@${ptr.nameKey}` : `@genocide.role.${roleId(ctx)}`;
-    if (ptr?.genFlags.includes('uniq')) which = ptr.flags.includes('pname') ? 'bare' : 'the';
+    name = `@${ptr.nameKey}`;
+    if (ptr.genFlags.includes('uniq')) which = ptr.flags.includes('pname') ? 'bare' : 'the';
   }
   if (how & REALLY) {
     // setting no-corpse affects wishing and random tin generation
@@ -300,7 +299,7 @@ function genocideType(ctx: Ctx, ptr: MonsterDef | null, how: number, killplayer:
   // a reverse genocide: some of them around her
   const hp = h.c.pos;
   let cnt = 0;
-  if (ptr && hp && !ptr.genFlags.includes('uniq') && !isGone(ctx.state, ptr.id)) {
+  if (hp && !ptr.genFlags.includes('uniq') && !isGone(ctx.state, ptr.id)) {
     const census = monsterCensus(ctx);
     for (let i = ctx.rng.rn2(3) + 4; i > 0; i--) {
       if (makemon(ctx, ptr, { x: hp.x, y: hp.y }, { adjacentOk: true, noInventory: true }) === null)

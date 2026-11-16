@@ -95,7 +95,8 @@ describe('the wizard mod', () => {
 
   test('a wizard save refuses to load without the wizard mod, and loads with it', () => {
     const { state } = wizard.newGame({ seed: 3 });
-    const replay = { seed: 3, width: 80, height: 21, mods: state.mods, actions: [] };
+    const character = getPlayer(state).c.player!;
+    const replay = { seed: 3, width: 80, height: 21, mods: state.mods, character, actions: [] };
     const text = wizard.save(state, replay);
     expect(() => normal.load(text)).toThrow(/wiz@0\.1\.0/);
     expect(stateHash(wizard.load(text).state)).toBe(stateHash(state));

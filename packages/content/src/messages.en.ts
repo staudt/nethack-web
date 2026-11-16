@@ -369,7 +369,6 @@ export const messagesEn: Record<string, string> = {
   'nh:altar_neutral': 'neutral altar',
   'nh:altar_chaotic': 'chaotic altar',
   'nh:altar_unaligned': 'unaligned altar',
-  'nh:valkyrie': 'Valkyrie',
   // Monster names (vanilla). Def ids double as name keys.
   'nh:jellyfish': 'jellyfish',
   'nh:piranha': 'piranha',
@@ -696,6 +695,7 @@ export const messagesEn: Record<string, string> = {
   'nh:rogue': 'rogue',
   'nh:samurai': 'samurai',
   'nh:tourist': 'tourist',
+  'nh:valkyrie': 'valkyrie',
   'nh:wizard': 'wizard',
 };
 

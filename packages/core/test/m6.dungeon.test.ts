@@ -216,39 +216,6 @@ describe('levels in dungeons', () => {
   });
 });
 
-describe('save v7', () => {
-  const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
-
-  test('a v6 save migrates to the root dungeon with no branches', () => {
-    const s = fresh();
-    run(s, (ctx) => ctx.goToLevel({ dungeon: 'dg:main', dlevel: 2 }, 'up'));
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: {
-        version: number;
-        dungeons?: unknown;
-        levels: Record<string, { dungeon?: unknown; dlevel?: unknown; branch?: unknown }>;
-      };
-    };
-    raw.version = 6;
-    raw.state.version = 6;
-    delete raw.state.dungeons;
-    for (const l of Object.values(raw.state.levels)) {
-      delete l.dungeon;
-      delete l.dlevel;
-      delete l.branch;
-    }
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(8);
-    expect(loaded.dungeons).toEqual([
-      { id: 'dg:main', depthStart: 1, levels: null, branches: [], special: [] },
-    ]);
-    expect(loaded.levels['dlvl2']).toMatchObject({ dungeon: 'dg:main', dlevel: 2, depth: 2 });
-    for (const id of ['dlvl1', 'dlvl2'])
-      expect(loaded.levels[id]).toEqual({ ...s.levels[id], branch: null });
-  });
-});
-
 describe('branch stairs', () => {
   const terrainAt = (s: GameState, p: { x: number; y: number }): string => {
     const l = getLevel(s);

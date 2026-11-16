@@ -30,7 +30,7 @@ import { registerEngr } from './engr';
 import { registerRevive } from './revive';
 import { registerHero } from './hero';
 import { registerKit } from './kit';
-import { ROLES } from './roles';
+import { RACES, ROLES } from './roles';
 import { TERRAIN } from './terrain';
 import { TRAVEL_ACTIONS } from './travel';
 import { RUN_ACTIONS } from './run';
@@ -107,6 +107,7 @@ export const vanillaMod: Mod = {
     for (const t of TERRAIN) api.defineTerrain(t);
     for (const l of LEVELS) api.defineLevel(l);
     for (const d of DUNGEONS) api.defineDungeon(d);
+    for (const r of RACES) api.defineRace(r);
     for (const r of ROLES) api.defineRole(r);
     for (const a of ACTIONS) api.defineAction(a);
     for (const a of TRAVEL_ACTIONS) api.defineAction(a);
@@ -251,7 +252,7 @@ export { ACTIONS } from './actions';
 export { TRAVEL_ACTIONS } from './travel';
 export { RUN_ACTIONS, RUN_MODES } from './run';
 export type { RunMode } from './run';
-export { ROLES } from './roles';
+export { RACES, ROLES } from './roles';
 export { MONSTERS } from './monsters';
 export { BRAINS } from './brains';
 export {
@@ -287,7 +288,10 @@ export {
   urace,
   roleIs,
   raceIs,
-  setRoleRaceForTest,
+  roleDefId,
+  raceDefId,
+  roleKeyOf,
+  raceKeyOf,
   ROLE_ORDER,
   RACE_ORDER,
   type RoleKey,

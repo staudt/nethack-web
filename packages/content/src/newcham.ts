@@ -192,7 +192,7 @@ export function pickAnimal(ctx: Ctx, rogue = false): MonsterDef | null {
 /**
  * A doppelganger's role monster. C reads a random top-ten entry 12 times in 13 (`rn2(13)`); the
  * port keeps no record file, so every pick takes C's no-entry branch: a random player monster
- * from PM_ARCHEOLOGIST to PM_WIZARD (the Valkyrie has no row: NON_PM). ref: src/topten.c
+ * from PM_ARCHEOLOGIST to PM_WIZARD. ref: src/topten.c
  * tt_doppel()
  */
 export function ttDoppel(ctx: Ctx): MonsterDef | null {

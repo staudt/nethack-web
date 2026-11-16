@@ -14,9 +14,30 @@ export interface ActorComponent {
   speed: number;
 }
 
-export interface PlayerComponent {
+/** ref: src/role.c genders[] */
+export type Gender = 'male' | 'female';
+/** -1 chaotic, 0 neutral, 1 lawful. ref: include/align.h A_CHAOTIC..A_LAWFUL */
+export type Alignment = -1 | 0 | 1;
+
+/**
+ * A new game's character: a role, a race it allows, and a gender and alignment both allow.
+ * ref: src/role.c flags.initrole, initrace, initgend, initalign
+ */
+export interface Character {
+  /** A RoleDef id. */
   role: DefId;
+  /** A RaceDef id. */
+  race: DefId;
+  gender: Gender;
+  align: Alignment;
 }
+
+/**
+ * The hero's starting character, fixed for the game (C's flags.init* and
+ * u.ualignbase[A_ORIGINAL]). Her current gender and alignment change in play and are the game
+ * mods' business.
+ */
+export type PlayerComponent = Character;
 
 export interface HpComponent {
   cur: number;

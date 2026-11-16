@@ -1,5 +1,7 @@
 import type {
   AsyncCoreQuery,
+  Character,
+  CharacterChoices,
   FromCore,
   GameEvent,
   Json,
@@ -32,7 +34,10 @@ export interface ViewMessage {
 export interface Remote extends GameClient {
   /** Names the game mods for the next `newGame` or `load` (drops any game in progress). */
   setMods(ids: string[]): void;
-  newGame(seed: number, w: number, h: number): void;
+  /** Starts a game; fields of `character` left out take the core's defaults. */
+  newGame(seed: number, w: number, h: number, character?: Partial<Character>): void;
+  /** The roles and races a new game can start as (for the mods last named by `setMods`). */
+  choices(): Promise<CharacterChoices>;
   load(save: string): void;
   save(): Promise<string>;
   hash(): Promise<string>;
@@ -73,6 +78,13 @@ export function createRemote(worker: WorkerLike): Remote {
       case 'hash':
         hashWaiters.shift()?.resolve(m.hash as never);
         return;
+      case 'choices': {
+        const p = pending.get(m.id);
+        pending.delete(m.id);
+        const { t: _t, id: _id, ...choices } = m;
+        p?.resolve(choices as never);
+        return;
+      }
       case 'error': {
         const match = /^query (\d+):/.exec(m.message);
         const id = match ? Number(match[1]) : null;
@@ -115,7 +127,20 @@ export function createRemote(worker: WorkerLike): Remote {
     },
     query,
     setMods: (ids) => worker.postMessage({ t: 'mods', ids: [...ids] }),
-    newGame: (seed, width, height) => worker.postMessage({ t: 'new', seed, width, height }),
+    newGame: (seed, width, height, character) =>
+      worker.postMessage({
+        t: 'new',
+        seed,
+        width,
+        height,
+        ...(character !== undefined ? { character } : {}),
+      }),
+    choices: () =>
+      new Promise<CharacterChoices>((resolve, reject) => {
+        const id = nextId++;
+        pending.set(id, { resolve: resolve as (v: never) => void, reject });
+        worker.postMessage({ t: 'choices', id });
+      }),
     load: (save) => worker.postMessage({ t: 'load', save }),
     save: () => ask<string>(saveWaiters, { t: 'save' }),
     hash: () => ask<string>(hashWaiters, { t: 'hash' }),

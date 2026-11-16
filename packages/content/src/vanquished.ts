@@ -4,7 +4,6 @@
 // ref: src/mon.c mondead() (`mvitals[mndx].died++`); src/insight.c list_vanquished(), list_genocided(),
 // vanqsort_cmp(), num_extinct(), num_gone(); src/makemon.c propagate(), mbirth_limit(), unmakemon()
 import {
-  getPlayer,
   type Ctx,
   type DefId,
   type GameState,
@@ -14,7 +13,8 @@ import {
   type Registry,
 } from '@nh/core';
 import { RACES_TAB } from './racetab';
-import { urace } from './urole';
+import { roleMonId } from './roletab';
+import { urace, urole } from './urole';
 
 interface VanqData {
   /** mvitals[].died by monster def id (absent = none) */
@@ -119,12 +119,11 @@ export function setGenocided(ctx: Pick<Ctx, 'state'>, id: DefId): void {
 }
 
 /**
- * The hero's role or race has been genocided: her race's monster (`urace.mnum`), and her role's
- * monster (none exists) is marked by the role's id. ref: src/polyself.c ugenocided()
+ * The hero's role or race has been genocided: her role's monster (`urole.mnum`) or her race's
+ * (`urace.mnum`). ref: src/polyself.c ugenocided()
  */
 export const ugenocided = (state: Readonly<GameState>): boolean =>
-  isGenocided(state, RACES_TAB[urace(state)].mnum) ||
-  isGenocided(state, getPlayer(state).c.player?.role);
+  isGenocided(state, roleMonId(urole(state))) || isGenocided(state, RACES_TAB[urace(state)].mnum);
 
 /** The killer kept for a polymorphed self-genocide, or null. */
 export const genoKiller = (state: Readonly<GameState>): string | null =>

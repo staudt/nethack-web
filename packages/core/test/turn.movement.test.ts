@@ -15,6 +15,9 @@ const roleMod = (movement?: () => number): Mod => ({
       nameKey: 'role.rl',
       speed: 12,
       glyph: { ch: '@', fg: '#fff' },
+      races: ['nh:race_human'],
+      genders: ['female'],
+      aligns: [0],
       ...(movement
         ? {
             movement: (_ctx, hero) => {

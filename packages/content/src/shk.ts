@@ -87,6 +87,7 @@ import { SHTYPES, saleable, shopType } from './shtypes';
 import { emptyShops, setEmptyShops, setURooms, uRooms } from './urooms';
 import { angryGuards, pacifyGuards } from './watch';
 import { roleIs, urole } from './urole';
+import { roleNameKey } from './roletab';
 
 const MATTOCK = 'nh:dwarvish_mattock';
 const PICK_AXE = 'nh:pick_axe';
@@ -127,12 +128,12 @@ export function hello(ctx: Pick<Ctx, 'state'>, toShk = true): string {
 }
 
 /**
- * The hero's name as a message param: the role's name, since the port has no player name
- * (DEVIATIONS). ref: svp.plname
+ * The hero's name as a message param: the role's name (the female one when she is female, as the
+ * status line's `nh:role`), since the port has no player name (DEVIATIONS). ref: svp.plname
  */
 export function plname(ctx: Pick<Ctx, 'state' | 'defs'>): string {
-  const role = getPlayer(ctx.state).c.player?.role;
-  return role === undefined ? '@shk.customer' : `@${ctx.defs.role(role).nameKey}`;
+  if (!getPlayer(ctx.state).c.player) return '@shk.customer';
+  return `@${roleNameKey(urole(ctx.state), heroFemale(ctx.state))}`;
 }
 
 /** The shop's name as a message param ("lighting store"). ref: shtypes[].name */

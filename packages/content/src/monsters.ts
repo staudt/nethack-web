@@ -9775,8 +9775,8 @@ export const MONSTERS: readonly MonsterDef[] = [
     sound: 'guard',
   },
   // m17: the player monsters (G_NOGEN, M2_NOPOLY: never random, never a polymorph form), for the
-  // Valley's corpses and mk_tt_object(). PM_VALKYRIE is left out: its id is the hero's role's
-  // (DEVIATIONS.md "The Valley of the Dead (m17)"). No mk_mplayer() gear or names (ROADMAP).
+  // Valley's corpses and mk_tt_object(); the valkyrie came in m22 step 8, when the hero's role
+  // ids moved to `nh:role_<key>`. No mk_mplayer() gear or names (ROADMAP).
   // ref: monsters.h MON(NAM("archeologist"), S_HUMAN, ...)
   {
     id: 'nh:archeologist',
@@ -10081,6 +10081,42 @@ export const MONSTERS: readonly MonsterDef[] = [
     weight: 1450,
     nutrition: 400,
     resists: [],
+    conveys: [],
+    brain: 'nh:melee',
+    sound: 'humanoid',
+  },
+  // ref: monsters.h MON(NAM("valkyrie"), S_HUMAN, ...)
+  {
+    id: 'nh:valkyrie',
+    nameKey: 'nh:valkyrie',
+    glyph: { ch: '@', fg: WHITE },
+    level: 10,
+    speed: 12,
+    ac: 10,
+    mr: 1,
+    alignment: 1,
+    attacks: [
+      { at: 'weapon', ad: 'phys', n: 1, d: 8 },
+      { at: 'weapon', ad: 'phys', n: 1, d: 8 },
+    ],
+    size: 'medium',
+    flags: [
+      'humanoid',
+      'omnivore',
+      'nopoly',
+      'human',
+      'strong',
+      'female',
+      'collect',
+      'infravisible',
+    ],
+    frequency: 0,
+    group: null,
+    genFlags: ['nogen'],
+    difficulty: 12,
+    weight: 1450,
+    nutrition: 400,
+    resists: ['cold'],
     conveys: [],
     brain: 'nh:melee',
     sound: 'humanoid',

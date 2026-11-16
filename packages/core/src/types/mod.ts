@@ -1,6 +1,6 @@
 import type { ActionType, Dir, PlayerAction } from './action';
 import type { DefId, EntityId, Glyph, Json, LevelId, Msg, Pos } from './common';
-import type { ArmorSlot, Dice, Entity } from './entity';
+import type { Alignment, ArmorSlot, Dice, Entity, Gender } from './entity';
 import type { GameEvent } from './event';
 import type { Level, LevelRef, Trap } from './level';
 import type { ActionOffer, CoreQuery, Target } from './query';
@@ -28,14 +28,41 @@ export interface TerrainDef {
   liquid?: 'water' | 'lava';
 }
 
+/**
+ * A role the hero can start as. Only what core and the character menus need lives here; the
+ * mechanics (kits, skills, attributes, spells, gods) stay in the defining mod's own tables.
+ * ref: src/role.c roles[]
+ */
 export interface RoleDef {
   id: DefId;
   nameKey: string;
+  /** The name of a female hero when it differs (Cavewoman, Priestess). */
+  nameKeyFemale?: string;
   speed: number;
   /** The player's map glyph; the player entity's `def` is the role id. */
   glyph: Glyph;
   /** Movement gained at the end of each turn (ref: src/allmain.c u_calc_moveamt); defaults to speed. */
   movement?(ctx: Ctx, hero: EntityId): number;
+  /** The RaceDef ids the role allows; the first is the default. ref: roles[].allow */
+  races: readonly DefId[];
+  /** The genders the role allows; the first is the default. */
+  genders: readonly Gender[];
+  /** The alignments the role allows; the first is the default. */
+  aligns: readonly Alignment[];
+  /** Position in the character menus (lowest first); roles without one follow in registration order. */
+  order?: number;
+}
+
+/** A race the hero can start as. ref: src/role.c races[] */
+export interface RaceDef {
+  id: DefId;
+  /** The noun ("dwarf"). */
+  nameKey: string;
+  /** The adjective ("dwarven"). */
+  adjKey: string;
+  /** The genders and alignments the race allows (a role must allow them too). */
+  genders: readonly Gender[];
+  aligns: readonly Alignment[];
 }
 
 /** ref: include/objclass.h enum obj_class_types (the classes implemented so far). */
@@ -880,6 +907,7 @@ export interface HookOptions {
 export interface ModApi {
   defineTerrain(d: TerrainDef): void;
   defineRole(d: RoleDef): void;
+  defineRace(d: RaceDef): void;
   defineAction(d: ActionDef): void;
   defineTimer(d: TimerDef): void;
   defineMonster(d: MonsterDef): void;
@@ -915,6 +943,7 @@ export interface Registry {
   terrain(id: DefId): TerrainDef;
   hasTerrain(id: DefId): boolean;
   role(id: DefId): RoleDef;
+  race(id: DefId): RaceDef;
   timer(id: DefId): TimerDef;
   hasTimer(id: DefId): boolean;
   monster(id: DefId): MonsterDef;
@@ -950,7 +979,10 @@ export interface Registry {
   readonly perceptions: readonly PerceptionDef[];
   /** In registration order. */
   readonly traps: readonly TrapDef[];
+  /** In registration order (the first is the default role). */
   readonly roles: readonly RoleDef[];
+  /** In registration order. */
+  readonly races: readonly RaceDef[];
   readonly terrains: readonly TerrainDef[];
   /** In registration order. */
   readonly actions: readonly (ActionDef & { mod: string })[];

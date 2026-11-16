@@ -135,8 +135,12 @@ describe('shapeshifter soak', () => {
   // does with and without it; 205 and 208 replaced 177 and 201 in m22 step 6, whose staggering
   // blow draws rnd(100) when the bare-handed Valkyrie (no suit, no shield) hits for more than 1:
   // 177 died at turn 229 and 201 at turn 1210, both reaching 2000 with the draw neutralised; of
-  // 202..211 only 205, 206 and 208 reach 2000 with it, and 205 does with and without it)
-  for (const seed of [205, 208]) {
+  // 202..211 only 205, 206 and 208 reach 2000 with it, and 205 does with and without it; 214 and
+  // 216 replaced 205 and 208 in m22 step 8, whose valkyrie row makes tt_doppel()'s valkyrie roll
+  // a valkyrie form instead of no form: 205 died at turn 1032 and 208 at turn 1431, both reaching
+  // 2000 with that roll neutralised; of 209..226 only 214, 216, 218, 220 and 222 reach 2000 with
+  // it, and 214, 216 and 222 do with and without it)
+  for (const seed of [214, 216]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

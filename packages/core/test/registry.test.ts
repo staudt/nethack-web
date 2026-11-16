@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { ModLoadError, loadMods, requireTerrains } from '../src/registry';
 import type { ModLoadIssue } from '../src/registry';
 import type { DefId } from '../src/types/common';
-import type { ActionDef, Mod, ModApi, RoleDef, TerrainDef } from '../src/types/mod';
+import type { ActionDef, Mod, ModApi, RaceDef, RoleDef, TerrainDef } from '../src/types/mod';
 
 const id = (s: string): DefId => s as DefId;
 const bad = <T>(v: unknown): T => v as T;
@@ -23,8 +23,22 @@ const role = (mod: string, name: string, extra: Record<string, unknown> = {}): R
     nameKey: `r.${name}`,
     speed: 12,
     glyph: { ch: '@', fg: '#fff' },
+    races: [id(`${mod}:race`)],
+    genders: ['female'],
+    aligns: [0],
     ...extra,
   }) as RoleDef;
+
+/** The race `<mod>:race` the role() helper's roles allow. */
+const race = (mod: string, extra: Record<string, unknown> = {}): RaceDef =>
+  ({
+    id: id(`${mod}:race`),
+    nameKey: 'race.x',
+    adjKey: 'race.x.adj',
+    genders: ['male', 'female'],
+    aligns: [1, 0, -1],
+    ...extra,
+  }) as RaceDef;
 
 const action = (mod: string, name: string, extra: Record<string, unknown> = {}): ActionDef =>
   ({
@@ -63,6 +77,7 @@ describe('happy path', () => {
     mod('a', (api) => {
       api.defineTerrain(terrain('a', 'floor'));
       api.defineTerrain(terrain('a', 'wall', { passable: false, opaque: true }));
+      api.defineRace(race('a'));
       api.defineRole(role('a', 'valk'));
     }),
     mod(
@@ -384,7 +399,11 @@ describe('terrain field validation', () => {
 });
 
 describe('role field validation', () => {
-  const r = (extra: Record<string, unknown>) => one((api) => api.defineRole(role('m', 'x', extra)));
+  const r = (extra: Record<string, unknown>) =>
+    one((api) => {
+      api.defineRace(race('m'));
+      api.defineRole(role('m', 'x', extra));
+    });
   const issue = (path: string, reason: string): ModLoadIssue => ({
     modId: 'm',
     defId: 'm:x',
@@ -397,7 +416,12 @@ describe('role field validation', () => {
   });
   test('speed 1 ok', () => {
     expect(() =>
-      loadMods([mod('m', (api) => api.defineRole(role('m', 'x', { speed: 1 })))]),
+      loadMods([
+        mod('m', (api) => {
+          api.defineRace(race('m'));
+          api.defineRole(role('m', 'x', { speed: 1 }));
+        }),
+      ]),
     ).not.toThrow();
   });
   test('nameKey', () => {
@@ -408,6 +432,81 @@ describe('role field validation', () => {
     expect(r({ glyph: { ch: 'xx', fg: 'red' } })).toEqual([
       issue('glyph.ch', 'must be exactly one character'),
     ]);
+  });
+
+  test('races, genders, aligns, order and nameKeyFemale', () => {
+    expect(r({ races: [] })).toEqual([issue('races', 'must be a non-empty array')]);
+    expect(r({ races: ['m:race', 'm:race'] })).toEqual([
+      issue('races', 'must hold distinct race ids'),
+    ]);
+    expect(r({ races: ['m:race', 'm:elf'] })).toEqual([
+      { ...issue('races[1]', "unknown race 'm:elf'") },
+    ]);
+    expect(r({ genders: undefined })).toEqual([issue('genders', 'must be a non-empty array')]);
+    expect(r({ genders: ['female', 'neuter'] })).toEqual([
+      issue('genders', 'must hold distinct values of "male", "female"'),
+    ]);
+    expect(r({ aligns: [0, 0] })).toEqual([
+      issue('aligns', 'must hold distinct values of 1, 0, -1'),
+    ]);
+    expect(r({ aligns: [2] })).toEqual([
+      issue('aligns', 'must hold distinct values of 1, 0, -1'),
+      issue('races[0]', "race 'm:race' shares no gender or no alignment with the role"),
+    ]);
+    expect(r({ order: 1.5 })).toEqual([issue('order', 'must be an integer')]);
+    expect(r({ nameKeyFemale: '' })).toEqual([
+      issue('nameKeyFemale', 'must be a non-empty string'),
+    ]);
+    expect(() =>
+      loadMods([
+        mod('m', (api) => {
+          api.defineRace(race('m'));
+          api.defineRole(role('m', 'x', { order: 3, nameKeyFemale: 'r.xf' }));
+        }),
+      ]),
+    ).not.toThrow();
+  });
+  test('a race must share a gender and an alignment with the role (ref: src/role.c ok_race())', () => {
+    const with_ = (raceExtra: Record<string, unknown>) =>
+      one((api) => {
+        api.defineRace(race('m', raceExtra));
+        api.defineRole(role('m', 'x'));
+      });
+    const reason = "race 'm:race' shares no gender or no alignment with the role";
+    expect(with_({ genders: ['male'] })).toEqual([issue('races[0]', reason)]);
+    expect(with_({ aligns: [1, -1] })).toEqual([issue('races[0]', reason)]);
+    expect(() =>
+      loadMods([
+        mod('m', (api) => {
+          api.defineRace(race('m', { aligns: [0] }));
+          api.defineRole(role('m', 'x'));
+        }),
+      ]),
+    ).not.toThrow();
+  });
+});
+
+describe('race validation', () => {
+  const r = (extra: Record<string, unknown>) => one((api) => api.defineRace(race('m', extra)));
+  const issue = (path: string, reason: string): ModLoadIssue => ({
+    modId: 'm',
+    defId: 'm:race',
+    path,
+    reason,
+  });
+  test('fields', () => {
+    expect(r({ nameKey: '' })).toEqual([issue('nameKey', 'must be a non-empty string')]);
+    expect(r({ adjKey: 3 })).toEqual([issue('adjKey', 'must be a non-empty string')]);
+    expect(r({ genders: [] })).toEqual([issue('genders', 'must be a non-empty array')]);
+    expect(r({ aligns: ['lawful'] })).toEqual([
+      issue('aligns', 'must hold distinct values of 1, 0, -1'),
+    ]);
+  });
+  test('lookups', () => {
+    const reg = loadMods([mod('m', (api) => api.defineRace(race('m')))]);
+    expect(reg.race(id('m:race')).adjKey).toBe('race.x.adj');
+    expect(reg.races.map((x) => x.id)).toEqual(['m:race']);
+    expect(() => reg.race(id('m:nope'))).toThrow("Unknown race 'm:nope'");
   });
 });
 
@@ -527,6 +626,7 @@ describe('multiple issues', () => {
       api.defineTerrain(
         terrain('a', 'x', { nameKey: '', passable: 1, glyph: { ch: 'zz', fg: '' } }),
       );
+      api.defineRace(race('a'));
       api.defineRole(role('a', 'r', { speed: 0 }));
       api.on(bad<'endOfTurn'>('bogus'), () => {});
     }),

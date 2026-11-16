@@ -13,6 +13,7 @@ import {
   newMemory,
   updateMemory,
   type AttributesComponent,
+  type Character,
   type CoreQuery,
   type Buc,
   type DefId,
@@ -183,6 +184,8 @@ export interface ScenarioResult {
 export type ScenarioFn = (name: string, build: (s: ScenarioBuilder) => void) => void;
 export interface ScenarioOptions {
   legend?: Partial<AsciiLegend>;
+  /** The hero's role, race, gender and alignment in every game (default: the default character). */
+  character?: Partial<Character>;
 }
 
 const SCENARIO_SEED = 1;
@@ -243,7 +246,8 @@ export function runScenario(
   const legend: AsciiLegend = { ...DEFAULT_LEGEND };
   for (const [k, v] of Object.entries(opts.legend ?? {})) if (v !== undefined) legend[k] = v;
   const engine = createEngine(mods);
-  let state = engine.newGame({ seed: SCENARIO_SEED }).state;
+  const character = opts.character !== undefined ? { character: opts.character } : {};
+  let state = engine.newGame({ seed: SCENARIO_SEED, ...character }).state;
   let events: GameEvent[] = [];
   let step = 0;
 
@@ -399,7 +403,7 @@ export function runScenario(
 
   const s: ScenarioBuilder = {
     seed(n) {
-      state = engine.newGame({ seed: n }).state;
+      state = engine.newGame({ seed: n, ...character }).state;
       events = [];
     },
     monster(def, pos, o) {

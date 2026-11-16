@@ -1,3 +1,4 @@
+import { characterChoices, welcomeParams } from './character';
 import { createEngine, type Engine, type EngineOptions } from './engine';
 import { stateHash } from './hash';
 import type { Json } from './types/common';
@@ -41,7 +42,10 @@ export function createHost(
           seed: msg.seed,
           width: msg.width,
           height: msg.height,
+          ...(msg.character !== undefined ? { character: msg.character } : {}),
         });
+        const player = state.entities[String(state.playerId)]?.c.player;
+        if (!player) throw new Error('New game has no player');
         const level = state.levels[state.currentLevel];
         game = {
           state,
@@ -50,6 +54,7 @@ export function createHost(
             width: level ? level.width : msg.width,
             height: level ? level.height : msg.height,
             mods: state.mods.map((m) => ({ ...m })),
+            character: { ...player },
             actions: [],
           },
         };
@@ -59,15 +64,11 @@ export function createHost(
       case 'load': {
         const loaded = engine.load(msg.save);
         game = loaded;
-        const role = loaded.state.entities[String(loaded.state.playerId)]?.c.player?.role;
-        if (!role) throw new Error('Saved game has no player role');
+        const player = loaded.state.entities[String(loaded.state.playerId)]?.c.player;
+        if (!player) throw new Error('Saved game has no player');
         // ref: src/allmain.c welcome()
         const events: GameEvent[] = [
-          {
-            type: 'msg',
-            key: 'welcome.back',
-            params: { role: '@' + engine.registry.role(role).nameKey },
-          },
+          { type: 'msg', key: 'welcome.back', params: welcomeParams(engine.registry, player) },
         ];
         sendFull(loaded.state, events);
         return;
@@ -100,6 +101,10 @@ export function createHost(
       }
       case 'hash': {
         post({ t: 'hash', hash: stateHash(requireGame().state) });
+        return;
+      }
+      case 'choices': {
+        post({ t: 'choices', id: msg.id, ...characterChoices(engine.registry) });
         return;
       }
       default: {

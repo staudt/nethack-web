@@ -1,5 +1,5 @@
 // m22 step 1: the role and race tables (role.c, attrib.c, u_init.c) and the hero's stats read
-// through urole()/urace(). The other roles are reached through the test seam.
+// through urole()/urace(). The other roles: `playAs()` (helpers.ts) or a new game's character.
 import {
   createRng,
   getPlayer,
@@ -28,7 +28,6 @@ import {
   percentSuccess,
   rankTitleKey,
   roleNameKey,
-  setRoleRaceForTest,
   urace,
   urole,
   type RaceKey,
@@ -38,6 +37,7 @@ import { adjattrib } from '../src/attrib';
 import { skillInit, skillLevel } from '../src/skills';
 import { nhData } from '../src/items';
 import { defs, engine, levelSetup } from './itemHelpers';
+import { playAs } from './helpers';
 
 const fresh = (seed = 1): GameState => engine.newGame({ seed }).state;
 
@@ -337,7 +337,7 @@ describe('intrinsics by level (attrib.c *_abil[])', () => {
   /** The hero's intrinsics among the table's properties after adjabil() from 0 up to `lvl`. */
   function intrinsicsAt(role: RoleKey, race: RaceKey, lvl: number, events: GameEvent[] = []) {
     const s = fresh();
-    setRoleRaceForTest(s, role, race);
+    playAs(s, role, race);
     const hero = getPlayer(s);
     delete hero.c.props;
     const ctx = ctxFor(s, 1, events);
@@ -367,7 +367,7 @@ describe('intrinsics by level (attrib.c *_abil[])', () => {
     intrinsicsAt('wizard', 'elf', 4, ev);
     expect(ev.map((e) => (e.type === 'msg' ? e.key : ''))).toContain('abil.awake');
     const s = fresh();
-    setRoleRaceForTest(s, 'monk', 'human');
+    playAs(s, 'monk', 'human');
     const events: GameEvent[] = [];
     const ctx = ctxFor(s, 1, events);
     adjabil(ctx, s.playerId, 10, 11);
@@ -425,7 +425,7 @@ describe('skill tables (u_init.c Skill_*[])', () => {
 
   test("skillInit() takes the role's maximums", () => {
     const s = levelSetup();
-    setRoleRaceForTest(s.state, 'wizard', 'elf');
+    playAs(s.state, 'wizard', 'elf');
     skillInit({ state: s.state, defs }, s.state.playerId);
     const d = nhData({ state: s.state });
     expect(d.skillMax).toEqual(SKILL_TAB.wizard);
@@ -460,7 +460,7 @@ describe('hero stats by role and race', () => {
     const role = ROLES_TAB[r];
     const rc = RACES_TAB[race];
     const s = fresh();
-    setRoleRaceForTest(s, r, race);
+    playAs(s, r, race);
     const rnd = (n: number) => (n > 0 ? [1, n] : [0, 0]);
     for (let seed = 1; seed <= 10; seed++) {
       const ctx = ctxFor(s, seed);
@@ -506,18 +506,18 @@ describe('hero stats by role and race', () => {
 
   test('a Wizard starts with 4 + 1d3 + 2 (elf) energy, a dwarf Valkyrie with 1 and 18 hp', () => {
     const s = fresh();
-    setRoleRaceForTest(s, 'wizard', 'elf');
+    playAs(s, 'wizard', 'elf');
     const seen = new Set<number>();
     for (let seed = 1; seed <= 40; seed++) seen.add(newpw(ctxFor(s, seed), 0, 10));
     expect([...seen].sort()).toEqual([7, 8, 9]);
-    setRoleRaceForTest(s, 'valkyrie', 'dwarf');
+    playAs(s, 'valkyrie', 'dwarf');
     expect(newpw(ctxFor(s, 1), 0, 10)).toBe(1);
     expect(newhp(ctxFor(s, 1), 0, 10)).toBe(18);
   });
 
   test('race attribute limits: an elf cannot raise Str above 18, a gnome Int to 19', () => {
     const s = levelSetup();
-    setRoleRaceForTest(s.state, 'wizard', 'elf');
+    playAs(s.state, 'wizard', 'elf');
     const a = getPlayer(s.state).c.attributes;
     if (!a) throw new Error('no attributes');
     a.str = 18;
@@ -527,7 +527,7 @@ describe('hero stats by role and race', () => {
     expect(a.str).toBe(18);
     expect(adjattrib(ctx, 'int', 1, false)).toBe(true);
     expect(a.int).toBe(19);
-    setRoleRaceForTest(s.state, 'wizard', 'gnome');
+    playAs(s.state, 'wizard', 'gnome');
     expect(adjattrib(ctx, 'int', 1, false)).toBe(false);
     expect(a.int).toBe(19);
   });
@@ -540,11 +540,11 @@ describe('hero stats by role and race', () => {
     hero.c.attributes.int = 7;
     hero.c.attributes.wis = 18;
     hero.c.experience = { level: 1, points: 0 };
-    setRoleRaceForTest(s.state, 'wizard', 'human');
+    playAs(s.state, 'wizard', 'human');
     // force bolt, unskilled: chance 11 * 7 / 2 + 15 = 53; 53 * (20 - 1) / 15 - 1 = 66
     expect(percentSuccess(s.state, defs, 'nh:spellbook_of_force_bolt')).toBe(66);
     // the Knight: plate mail would add spelarmr 9, but not to a clerical spell
-    setRoleRaceForTest(s.state, 'knight', 'human');
+    playAs(s.state, 'knight', 'human');
     hero.c.attributes.wis = 18;
     hero.c.experience = { level: 14, points: 0 };
     // remove curse (level 3, restricted): 99 - isqrt(4700) = 31; splcaster 8 - 2 (healing bonus)
@@ -566,16 +566,22 @@ describe('hero stats by role and race', () => {
 });
 
 describe('the default hero is the Valkyrie', () => {
-  test('urole/urace without the seam; the seam switches them', () => {
+  test('urole/urace read the starting character (`nh:role_<key>`, `nh:race_<key>`)', () => {
     const s = fresh();
     expect([urole(s), urace(s)]).toEqual(['valkyrie', 'human']);
-    setRoleRaceForTest(s, 'priest', 'elf');
+    expect(getPlayer(s).c.player).toEqual({
+      role: 'nh:role_valkyrie',
+      race: 'nh:race_human',
+      gender: 'female',
+      align: 0,
+    });
+    playAs(s, 'priest', 'elf');
     expect([urole(s), urace(s)]).toEqual(['priest', 'elf']);
-    setRoleRaceForTest(s, null);
+    playAs(s, null);
     expect([urole(s), urace(s)]).toEqual(['valkyrie', 'human']);
-    // a player.role of `nh:<key>` is that role
-    getPlayer(s).c.player = { role: 'nh:healer' as never };
-    expect(urole(s)).toBe('healer');
+    // another mod's role and race play as the Valkyrie and a human
+    getPlayer(s).c.player = { role: 'xx:role', race: 'xx:race', gender: 'male', align: 1 };
+    expect([urole(s), urace(s)]).toEqual(['valkyrie', 'human']);
   });
 
   test('her stats: Skill_V maximums, 16 hp, cold resistance', () => {

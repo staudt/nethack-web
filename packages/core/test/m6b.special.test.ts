@@ -1,5 +1,5 @@
 // Milestone 6b1 step 5: special levels of a dungeon (DungeonDef.special), placed when the layout
-// is rolled, a variant picked when the level is made, the town flag, and the v8 save format.
+// is rolled, a variant picked when the level is made, the town flag (the v8 save format: older saves are refused since v9).
 import { describe, expect, test } from 'vitest';
 import { rollDungeons } from '../src/dungeon';
 import { createEngine } from '../src/engine';
@@ -165,28 +165,5 @@ describe('making a special level', () => {
       expect(getLevel(s).def).toBeUndefined();
     }
     expect(seen.size).toBe(2);
-  });
-});
-
-describe('save v8', () => {
-  const replay = { seed: 5, width: 40, height: 15, mods: [], actions: [] };
-
-  test('a v7 save keeps its layout without special levels', () => {
-    const s = fresh();
-    const raw = JSON.parse(engine.save(s, replay)) as {
-      version: number;
-      state: { version: number; dungeons: { special?: unknown }[] };
-    };
-    raw.version = 7;
-    raw.state.version = 7;
-    for (const d of raw.state.dungeons) delete d.special;
-    const loaded = engine.load(JSON.stringify(raw)).state;
-    expect(loaded.version).toBe(8);
-    expect(loaded.dungeons).toEqual(s.dungeons.map((d) => ({ ...d, special: [] })));
-    // its Mines has no town level
-    const dl = s.dungeons[1]?.special[0]?.dlevel ?? 0;
-    ctl.fn = (ctx) => ctx.goToLevel({ dungeon: 'dg:mines', dlevel: dl }, 'up');
-    engine.step(loaded, { type: 'mod', action: 'gt:run', args: null });
-    expect(getLevel(loaded).town).toBeUndefined();
   });
 });

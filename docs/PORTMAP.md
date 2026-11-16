@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5571 citations.
+192 NetHack files, 5589 citations.
 
 ## dat/asmodeus.lua
 
@@ -234,7 +234,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/aligntyp.ts`, `packages/content/src/luck.ts`
 - `ALGN_SINNED()`: `packages/content/src/aligntyp.ts`
-- `A_CHAOTIC()`: `packages/content/src/roletab.ts`
+- `A_CHAOTIC()`: `packages/content/src/roletab.ts`, `packages/core/src/types/entity.ts`
 - `A_NEUTRAL()`: `packages/content/src/luck.ts`
 - `A_NONE()`: `packages/content/src/aligntyp.ts`
 - `Align2amask()`: `packages/content/src/mimic.ts`
@@ -753,7 +753,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `stop_occupation()`: `packages/content/src/combat.ts`, `packages/content/src/digstate.ts`, `packages/content/src/eat.ts`, `packages/content/src/force.ts`, `packages/content/src/lockstate.ts`
 - `u_calc_moveamt()`: `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`
 - `u_on_upstairs()`: `packages/core/src/engine.ts`
-- `welcome()`: `packages/core/src/host.ts`
+- `welcome()`: `packages/core/src/character.ts`, `packages/core/src/host.ts`
 
 ## src/apply.c
 
@@ -2395,7 +2395,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_particular_parse()`: `packages/content/src/wizard/genesis.ts`
 - `disintegrate_cursed_armor()`: `packages/content/src/seffect.ts`
 - `do_class_genocide()`: `packages/content/src/genocide.ts`
-- `do_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/throne.ts`
+- `do_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/role.en.ts`, `packages/content/src/throne.ts`
 - `doread()`: `packages/content/src/read.ts`, `packages/content/src/shirt.en.ts`, `packages/content/src/shirt.ts`, `packages/content/src/spell.ts`
 - `drop_boulder_on_monster()`: `packages/content/src/magic.en.ts`, `packages/content/src/read.ts`
 - `drop_boulder_on_player()`: `packages/content/src/magic.en.ts`, `packages/content/src/read.ts`
@@ -2469,14 +2469,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/role.c
 
-- (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/content/src/were.en.ts`
+- (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/urole.ts`, `packages/content/src/were.en.ts`, `packages/core/src/types/entity.ts`
 - `Goodbye()`: `packages/content/src/botl.ts`, `packages/content/src/role.en.ts`
 - `Hello()`: `packages/content/src/role.en.ts`, `packages/content/src/shk.ts`
-- `aligns()`: `packages/content/src/disclose.ts`
-- `ok_align()`: `packages/content/src/gods.ts`
-- `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/urole.ts`
-- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`
-- `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`
+- `aligns()`: `packages/content/src/disclose.ts`, `packages/core/src/character.ts`, `packages/core/src/registry.ts`
+- `genders()`: `packages/content/src/role.en.ts`, `packages/core/src/registry.ts`, `packages/core/src/types/entity.ts`
+- `ok_align()`: `packages/content/src/gods.ts`, `packages/core/src/character.ts`
+- `ok_gend()`: `packages/core/src/character.ts`
+- `ok_race()`: `packages/core/src/character.ts`
+- `ok_role()`: `packages/core/src/character.ts`
+- `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/core/src/types/mod.ts`
+- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/engine.ts`
+- `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
 
 ## src/rumors.c
 
