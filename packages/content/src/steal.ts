@@ -2,7 +2,7 @@
 // through afternmv), and monsters picking up what they took.
 // ref: src/steal.c somegold(), findgold(), stealgold(), thiefdead() (nomul.ts), unresponsive(),
 // unstolenarm(), stealarm(), remove_worn_item(), worn_item_removal(), steal(), mpickobj();
-// src/mhitu.c could_seduce()
+// src/mhitu.c could_seduce() (doseduce() is seduce.ts)
 //
 // Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet() (no Amulet or
 // quest artifacts), ball and chain, leashes, boulders in inventory.
@@ -20,7 +20,7 @@ import {
   type Msg,
 } from '@nh/core';
 import { stopOccupation } from './eat';
-import { heroFemale, polyGender } from './gender';
+import { AMOROUS_DEMON, heroFemale, monGender, polyGender } from './gender';
 import { shopKeeper, insideShop, uShops } from './eshk';
 import { encumberMsg } from './itemactions';
 import { addToInventory, nhData, removeFromInventory, splitStack } from './items';
@@ -520,11 +520,11 @@ setAfternmv('unstolenarm', unstolenarm);
 
 /**
  * Whether the attacker could seduce the defender with this attack (or at all, with `atk` null):
- * 0 no, 1 yes, 2 "wrong gender for a nymph" (still steals, "engagingly"). Only nymphs (and
- * incubi/succubi, not in the roster) with a theft or seduction damage type.
- * An invisible seducer cannot seduce a defender that does not see invisible.
- * ref: src/mhitu.c could_seduce() (the hero's gender is poly_gender(); monsters have no gender of
- * their own yet, so one not flagged female counts as male: DEVIATIONS "Theft")
+ * 0 no, 1 yes, 2 "wrong gender for a nymph" (still steals, "engagingly"). Nymphs and the
+ * amorous demon with a theft or seduction damage type; the amorous demon only the opposite
+ * gender. An invisible seducer cannot seduce a defender that does not see invisible.
+ * ref: src/mhitu.c could_seduce() (SYSOPT_SEDUCE on; the hero's gender is poly_gender(), a
+ * monster's gender())
  */
 export function couldSeduce(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -536,15 +536,10 @@ export function couldSeduce(
   // the polymorphed hero seduces with her form's attacks
   const pagr = uagr ? heroForm(ctx) : ctx.defs.monster(magr.def);
   if (!pagr || isAnimal(pagr)) return 0;
-  const female = (e: Entity): number =>
-    e.id === ctx.state.playerId
-      ? polyGender(ctx.state)
-      : ctx.defs.monster(e.def).flags.includes('female')
-        ? 1
-        : 0;
+  const gender = (e: Entity): number =>
+    e.id === ctx.state.playerId ? polyGender(ctx.state) : monGender(ctx, e);
   const has = (ad: string): boolean => pagr.attacks.some((a) => a.ad === ad);
-  let adtyp = atk ? atk.ad : has('ssex') ? 'ssex' : has('sedu') ? 'sedu' : 'phys';
-  if (adtyp === 'ssex') adtyp = 'sedu'; // !SYSOPT_SEDUCE: DECISIONS m9 taken default 7
+  const adtyp = atk ? atk.ad : has('ssex') ? 'ssex' : has('sedu') ? 'sedu' : 'phys';
   // agrinvis && !defperc
   const defperc =
     mdef.id === ctx.state.playerId
@@ -552,6 +547,12 @@ export function couldSeduce(
       : perceives(ctx.defs.monster(mdef.def));
   const agrinvis = uagr ? heroInvisible(ctx.state) : monInvisible(ctx, magr);
   if (agrinvis && !defperc && adtyp === 'sedu') return 0;
-  if (!isNymph(pagr) || (adtyp !== 'sedu' && adtyp !== 'sitm')) return 0;
-  return female(magr) === 1 - female(mdef) ? 1 : 2;
+  // nymphs have two attacks, one for steal-item damage and the other for seduction, both pass
+  // the could_seduce() test; the amorous demon's claw attacks for damage don't pass the test
+  if (
+    (!isNymph(pagr) && pagr.id !== AMOROUS_DEMON) ||
+    (adtyp !== 'sedu' && adtyp !== 'ssex' && adtyp !== 'sitm')
+  )
+    return 0;
+  return gender(magr) === 1 - gender(mdef) ? 1 : isNymph(pagr) ? 2 : 0;
 }

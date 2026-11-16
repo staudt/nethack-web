@@ -19,7 +19,8 @@
 // wand (muse.c), `mseenres: { [monsterId]: bits }` the hero's resistances it has seen (C's
 // `seen_resistance`, M_SEEN_* bits; musestate.ts), `mstrat: { [monsterId]: MStrat }` its
 // strategy (C's `mstrategy`: the wait bits, STRAT_APPEARMSG, the covetous strategy and its goal),
-// `cham: { [monsterId]: defId }` a shapeshifter's true kind (chamstate.ts).
+// `cham: { [monsterId]: defId }` a shapeshifter's true kind (chamstate.ts), `mfemale:
+// { [monsterId]: true }` a female amorous demon (gender.ts).
 import {
   getPlayer,
   sortedIds,
@@ -58,7 +59,8 @@ type Key =
   | 'mflee'
   | 'mstrat'
   | 'iswiz'
-  | 'cham';
+  | 'cham'
+  | 'mfemale';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -396,6 +398,7 @@ const KEYS: readonly Key[] = [
   'mstrat',
   'iswiz', // wizstate.ts
   'cham', // chamstate.ts
+  'mfemale', // gender.ts
 ];
 
 /** `mtmp->mwandexp`: the monster has zapped an attack wand before. ref: include/monst.h */

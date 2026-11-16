@@ -14,6 +14,7 @@ import { skillMessagesEn } from './skills.en';
 import { mhitmMessagesEn } from './mhitm.en';
 import { adtypingMessagesEn } from './adtyping.en';
 import { stealMessagesEn } from './steal.en';
+import { seduceMessagesEn } from './seduce.en';
 import { engulfMessagesEn } from './engulf.en';
 import { stoningMessagesEn } from './stoning.en';
 import { slimeMessagesEn } from './slime.en';
@@ -87,6 +88,7 @@ export const messagesEn: Record<string, string> = {
   ...mhitmMessagesEn,
   ...adtypingMessagesEn,
   ...stealMessagesEn,
+  ...seduceMessagesEn,
   ...engulfMessagesEn,
   ...stoningMessagesEn,
   ...slimeMessagesEn,

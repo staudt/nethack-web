@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5117 citations.
+188 NetHack files, 5133 citations.
 
 ## dat/asmodeus.lua
 
@@ -320,7 +320,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/global.h
 
 - (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
-- `LARGEST_INT()`: `packages/content/src/hero.ts`
+- `LARGEST_INT()`: `packages/content/src/hero.ts`, `packages/content/src/seduce.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
 
@@ -984,11 +984,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhim()`: `packages/content/src/read.ts`
 - `mon_nam()`: `packages/content/src/perception.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
+- `pmname()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
 - `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
 - `some_mon_nam()`: `packages/content/src/perception.ts`
 - `surface()`: `packages/content/src/moverock.ts`
-- `x_monnam()`: `packages/content/src/perception.ts`
+- `x_monnam()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
 
 ## src/do_wear.c
 
@@ -1564,6 +1565,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cloneu()`: `packages/content/src/passiveum.ts`
 - `could_seduce()`: `packages/content/src/steal.ts`
 - `diseasemu()`: `packages/content/src/adtyping.ts`
+- `doseduce()`: `packages/content/src/seduce.en.ts`, `packages/content/src/seduce.ts`
 - `expels()`: `packages/content/src/engulf.en.ts`, `packages/content/src/engulf.ts`
 - `explmu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
 - `gazemu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
@@ -1572,6 +1574,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hitmu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `magic_negation()`: `packages/content/src/adtyping.ts`, `packages/content/src/mhitu.ts`
 - `mattacku()`: `packages/content/src/combat.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/travel.ts`
+- `mayberem()`: `packages/content/src/seduce.en.ts`, `packages/content/src/seduce.ts`
 - `mdamageu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `missmu()`: `packages/content/src/combat.ts`
 - `mpoisons_subj()`: `packages/content/src/adtyping.ts`
@@ -1852,6 +1855,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `can_blnd()`: `packages/content/src/adtyping.ts`
 - `can_blow()`: `packages/content/src/music.ts`
 - `cvt_adtyp_to_mseenres()`: `packages/content/src/mthrowu.ts`
+- `gender()`: `packages/content/src/gender.ts`
 - `grownups()`: `packages/content/src/eggstate.ts`
 - `hates_silver()`: `packages/content/src/mondata.ts`
 - `little_to_big()`: `packages/content/src/eggstate.ts`
@@ -1867,11 +1871,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `msummon_environ()`: `packages/content/src/minion.en.ts`, `packages/content/src/minion.ts`
 - `name_to_mon()`: `packages/content/src/mondata.ts`
 - `name_to_monclass()`: `packages/content/src/genocide.ts`, `packages/content/src/polyself.ts`
-- `name_to_monplus()`: `packages/content/src/mondata.ts`
+- `name_to_monplus()`: `packages/content/src/mondata.ts`, `packages/content/src/objnam_read.ts`
 - `noattacks()`: `packages/content/src/combat.ts`
 - `num_horns()`: `packages/content/src/mondata.ts`
 - `olfaction()`: `packages/content/src/mondata.ts`
 - `on_fire()`: `packages/content/src/adtyping.ts`, `packages/content/src/minliquid.ts`
+- `pronoun_gender()`: `packages/content/src/seduce.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
 - `resists_drli()`: `packages/content/src/adtyping.ts`, `packages/content/src/exper.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`

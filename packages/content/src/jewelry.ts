@@ -179,7 +179,7 @@ function otherWorn(ctx: Ctx, obj: Entity, prop: string): boolean {
 }
 
 /** ref: src/do_wear.c Ring_on(): the ring is already worn as uleft or uright */
-function ringOn(ctx: Ctx, ring: Entity): void {
+export function ringOn(ctx: Ctx, ring: Entity): void {
   const spe = ring.c.item?.spe ?? 0;
   switch (ring.def) {
     case 'nh:ring_of_gain_strength':

@@ -45,6 +45,7 @@ import {
 } from './mondata';
 import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
+import { AMOROUS_DEMON, setMonFemale } from './gender';
 
 /**
  * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
@@ -431,6 +432,8 @@ export interface MakemonOpts {
   /** The birth is not counted (MM_NOCOUNTBIRTH: revival, statue traps); a unique still becomes
    * extinct. */
   noCountBirth?: boolean;
+  /** MM_FEMALE (true) or MM_MALE (false) for a kind that is neither male, female nor neuter. */
+  female?: boolean;
 }
 
 type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
@@ -513,6 +516,12 @@ export function makemon(
   const ulevel = heroLevel(ctx);
   const mlev = adjLev(mdef, level.depth, ulevel);
   const hp = newmonhp(ctx, mlev, mdef.id);
+  // ref: makemon(): `mtmp->female = femaleok ? rn2(2) : 0` for a kind that is neither male,
+  // female nor neuter; drawn for the amorous demon only (DEVIATIONS "Monster generation")
+  const femaleok = !['male', 'female', 'neuter'].some((f) => mdef.flags.includes(f));
+  const female =
+    femaleok &&
+    (opts.female !== undefined ? opts.female : mdef.id === AMOROUS_DEMON && ctx.rng.rn2(2) === 1);
   const peaceful = opts.angry ? false : peaceMinded(ctx, mdef);
   const id = ctx.spawn({
     def: mdef.id,
@@ -529,6 +538,7 @@ export function makemon(
   // eels made with the level hide in their water,
   // the stalker and the black light are invisible for good, leprechauns sleep, jabberwocks and
   // nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
+  if (female) setMonFemale(ctx, id, true);
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
   if (mlet === 'm') setMimicSym(ctx, id, opts.inMklev === true);

@@ -90,7 +90,8 @@ import {
   type Attr,
 } from './attrib';
 import { unaware } from './btrapped';
-import { findgold, isAnimal, isNymph, steal, stealamulet, stealgold } from './steal';
+import { couldSeduce, findgold, isAnimal, isNymph, steal, stealamulet, stealgold } from './steal';
+import { doseduce } from './seduce';
 import { monflee } from './monflee';
 import { addToInventory, invCount, placeOnFloor, removeFromInventory } from './items';
 import { corpseChanceSwallowed } from './corpses';
@@ -1628,11 +1629,21 @@ function adSedu(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
 }
 
 /**
- * AD_SSEX acts as AD_SEDU (C's behaviour with SEDUCE=0) until monsters have genders and
- * doseduce() is ported: DECISIONS-PENDING "m9 taken defaults" 7, DEVIATIONS "Theft".
- * ref: src/uhitm.c mhitm_ad_ssex()
+ * The amorous demon's seduction. On the hero (SYSOPT_SEDUCE on): doseduce() when it could seduce
+ * her (the opposite gender) and is not cancelled, else nothing; the hero or a monster with it
+ * steals as AD_SEDU. ref: src/uhitm.c mhitm_ad_ssex()
  */
-const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => adSedu(ctx, magr, atk, mdef, mhm, env);
+const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (!isU(ctx, magr) && mdef.id === ctx.state.playerId) {
+    if (couldSeduce(ctx, magr, mdef, atk) === 1 && !isCancelled(ctx, magr.id))
+      if (doseduce(ctx, magr)) {
+        mhm.hitflags = M_ATTK.AGR_DONE;
+        mhm.done = true;
+      }
+    return;
+  }
+  adSedu(ctx, magr, atk, mdef, mhm, env);
+};
 
 /**
  * Digestion. Against the hero the engulfing attack does it (gulpmu()); a monster swallowed by

@@ -59,7 +59,7 @@ Design decisions the unattended loop (`docs/RUNBOOK.md`) made or parked without 
   4. Engulfing without a core change: engulfer on the hero's cell, map hidden via the blindness hook, an `engulfed` status the UI draws as the swallow box.
   5. Hero lycanthropy without transforming; the per-turn change roll waits for 7f.
   6. Sliming deferred (m9 step 8 or 7f).
-  7. Incubus/succubus seduction acts as item theft until monsters have genders.
+  7. Incubus/succubus seduction acts as item theft until monsters have genders. **Superseded by m18 step 5** (m18 plan Q7): `doseduce()` is ported whole with SYSOPT_SEDUCE on, and the amorous demon has a gender.
   8. No real-time clock (night, full moon): gremlins never curse; core stays deterministic.
   9. Cockatrice eggs deferred (m9 step 8 or m10).
   10. Level drain records HP/energy gained per level from m9 on, average-gain fallback for older saves.

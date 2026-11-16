@@ -34,6 +34,7 @@ import { isUndetected } from './hidestate';
 import { isWormTail, wormHeadEntity } from './wormstate';
 import { MIMIC_APPEARANCES, mappearance, mimicShownAs } from './mimicstate';
 import { eshkOf, shkName } from './eshk';
+import { AMOROUS_DEMON, SUCCUBUS, genderedDef, monFemale } from './gender';
 
 /** A deterministic 32-bit mix of a few integers (for hallucinated glyphs, which use no RNG). */
 function mix(...ns: number[]): number {
@@ -256,7 +257,26 @@ export function registerPerception(api: ModApi): void {
       return pool[mix(state.seed, state.turn, e.id) % pool.length]?.id ?? null;
     },
   });
+  // a female amorous demon is drawn and described as a succubus (C's pmnames[FEMALE] and her
+  // own glyph); last, so that hallucination, warning and telepathy answer first
+  // ref: src/display.c display_monster() (mon_to_glyph()'s gender), src/do_name.c pmname()
+  api.defineAppearance(SUCCUBUS_APPEARANCE);
+  api.definePerception({
+    id: 'nh:amorous_demon',
+    shownAs: (state, defs, e) =>
+      e.def === AMOROUS_DEMON && defs.isMonster(e.def) && monFemale({ state, defs }, e)
+        ? SUCCUBUS
+        : null,
+  });
 }
+
+/** The succubus: the amorous demon's row drawn and named for a female. */
+const SUCCUBUS_APPEARANCE: AppearanceDef = {
+  id: SUCCUBUS,
+  nameKey: SUCCUBUS,
+  class: 'rock',
+  glyph: { ch: '&', fg: '#aaaaaa' }, // the row's glyph (CLR_GRAY)
+};
 
 /**
  * ref: include/display.h sensemon(): telepathy (and infravision, which C counts in canseemon());
@@ -342,5 +362,5 @@ export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entit
   if (eshk) return shkName(eshk); // "Izchak" (ref: x_monnam() isshk)
   // a personal name takes no article: "Medusa" (ref: x_monnam() type_is_pname())
   if (ctx.defs.monster(mon.def).flags.includes('pname')) return `=@${mon.def}`;
-  return `@${mon.def}`;
+  return `@${genderedDef(ctx, mon)}`; // a female amorous demon is a "succubus"
 }

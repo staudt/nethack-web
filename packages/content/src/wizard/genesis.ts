@@ -10,6 +10,7 @@ import { tamedog } from '../dog';
 import { makemon, mkclass, rndmonst } from '../generation';
 import { messagesEn } from '../messages.en';
 import { nameToMon } from '../mondata';
+import { AMOROUS_DEMON } from '../gender';
 import { mungspaces, wishNames } from '../objnam_read';
 import { canSpotMon, monNam } from '../perception';
 import { setMinvis } from '../invis';
@@ -41,6 +42,8 @@ export interface GenesisSpec {
   hostile: boolean;
   sleeping: boolean;
   invisible: boolean;
+  /** The gender the name gave ("succubus", "incubi"), for a kind whose gender is not fixed. */
+  female?: boolean;
 }
 
 /**
@@ -93,7 +96,17 @@ export function parseGenesis(ctx: Ctx, text: string): GenesisSpec | null {
   if (bufp === '*' || bufp === 'random') return spec;
   const names = wishNames(ctx.state, ctx.defs, messagesEn).monsters;
   const which = nameToMon(names, bufp);
-  if (which !== null) return { ...spec, which: ctx.defs.monster(which) };
+  if (which !== null) {
+    // name_to_mon()'s gender_name_var: the amorous demon's gendered names (no "male"/"female"
+    // prefixes)
+    const nm = bufp.toLowerCase().replace(/^(a|an|the) /, '');
+    const female = nm.startsWith('succub') ? true : nm.startsWith('incub') ? false : null;
+    return {
+      ...spec,
+      which: ctx.defs.monster(which),
+      ...(female !== null && which === AMOROUS_DEMON ? { female } : {}),
+    };
+  }
   if (bufp.length === 1 && ctx.defs.monsters.some((m) => m.glyph.ch === bufp))
     return { ...spec, cls: bufp };
   return null;
@@ -122,7 +135,12 @@ export function createParticular(ctx: Ctx, spec: GenesisSpec): boolean {
     if (spec.cls !== null) whichpm = mkclass(ctx, spec.cls, depth);
     else if (spec.which === null) whichpm = rndmonst(ctx, depth);
     const p = heroPos(ctx);
-    const id = makemon(ctx, whichpm, { x: p.x, y: p.y }, { adjacentOk: true });
+    const id = makemon(
+      ctx,
+      whichpm,
+      { x: p.x, y: p.y },
+      { adjacentOk: true, ...(spec.female !== undefined ? { female: spec.female } : {}) },
+    );
     if (id === null) {
       // quit trying if creation failed and is going to repeat
       if (spec.which !== null) break;

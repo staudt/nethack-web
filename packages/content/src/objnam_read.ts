@@ -9,6 +9,7 @@
 // objects[]: the parser reads English, like the original.
 import type { DefId, GameState, ObjectClass, Registry } from '@nh/core';
 import { nameToMonplus, type MonName } from './mondata';
+import { AMOROUS_DEMON } from './gender';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
 
 /** What to make. */
@@ -179,6 +180,11 @@ export function wishNames(
     };
   });
   const monsters = defs.monsters.map((m) => ({ id: m.id, name: lc(cat[m.nameKey] ?? m.id) }));
+  // ref: src/mondata.c name_to_monplus(): the amorous demon's other pmnames and its irregular
+  // plurals (alt_spl's "incubi", "succubi")
+  if (defs.isMonster(AMOROUS_DEMON))
+    for (const name of ['succubus', 'amorous demon', 'incubi', 'succubi'])
+      monsters.push({ id: AMOROUS_DEMON, name });
   return { objects, monsters };
 }
 

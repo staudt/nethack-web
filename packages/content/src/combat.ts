@@ -937,7 +937,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
               prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
               ac,
             );
-        } else missmu(ctx, mon, name, tmp === j);
+        } else missmu(ctx, mon, name, tmp === j, atk);
         break;
       }
       case 'weapon': {
@@ -965,7 +965,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
             prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
             ac,
           );
-        else missmu(ctx, mon, name, attackTmp === j);
+        else missmu(ctx, mon, name, attackTmp === j, atk);
         break;
       }
       case 'magic':
@@ -995,7 +995,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
         if (found) {
           if (isSwallowed(ctx) || (!mspecUsed(ctx, monId) && tmp > (j = ctx.rng.rnd(20 + i))))
             sum[i] = gulpmu(ctx, mon, atk);
-          else missmu(ctx, mon, name, tmp === j);
+          else missmu(ctx, mon, name, tmp === j, atk);
         } else if (digests(def)) say0(ctx, 'combat.gulps_air', { mon: name });
         else if (canseemon(ctx, mon)) say0(ctx, 'combat.lunges_recoils', { mon: name });
         else say0(ctx, isWhirly(def) ? 'combat.hear_rushing' : 'combat.hear_splat');
@@ -1102,14 +1102,21 @@ function unseenAttacker(ctx: Ctx, mon: Entity): void {
 }
 
 /**
- * ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose); an
- * attacker she can't spot is remembered as `I`
+ * ref: src/mhitu.c missmu(): "just misses" when the roll equals tmp exactly (verbose), "pretends
+ * to be friendly" for a seducer (could_seduce(), not cancelled); an attacker she can't spot is
+ * remembered as `I`
  */
-function missmu(ctx: Ctx, mon: Entity, name: string, nearmiss: boolean): void {
+function missmu(ctx: Ctx, mon: Entity, name: string, nearmiss: boolean, atk: AttackDef): void {
   unseenAttacker(ctx, mon);
+  const friendly =
+    couldSeduce(ctx, mon, getPlayer(ctx.state), atk) !== 0 && !isCancelled(ctx, mon.id);
   ctx.emit({
     type: 'msg',
-    key: nearmiss ? 'combat.mon_just_misses' : 'combat.mon_misses',
+    key: friendly
+      ? 'combat.mon_pretends_friendly'
+      : nearmiss
+        ? 'combat.mon_just_misses'
+        : 'combat.mon_misses',
     params: { mon: name },
   });
 }

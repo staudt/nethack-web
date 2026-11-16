@@ -3,7 +3,8 @@
 // from it, as C picks the word. A leaf module (core only).
 // ref: src/polyself.c change_sex(), poly_gender(); include/you.h uhis()
 // While polymorphed flags.female is the form's sex and her own is upoly.ts's `mfemale`.
-import type { Ctx, GameState, Json } from '@nh/core';
+// Monsters' gender (m18): `modData.nh.mfemale`, below. ref: src/mondata.c gender()
+import type { Ctx, DefId, Entity, EntityId, GameState, Json } from '@nh/core';
 import { upolyOf } from './upoly';
 
 type Table = { [k: string]: Json };
@@ -59,3 +60,61 @@ export function changeSex(ctx: Pick<Ctx, 'state' | 'defs'>): void {
  */
 export const uhimKey = (state: Readonly<GameState>, key: string): string =>
   heroFemale(state) ? key : `${key}.m`;
+
+// ---------------------------------------------------------------------------------------------
+// monster gender (C's mtmp->female): the kind's flag when it has one, else the content table
+// `modData.nh.mfemale` (`{ [monsterId]: true }`, kept with mstate.ts's per-monster tables). Only
+// the amorous demon draws a gender at birth (makemon()), so the table holds female amorous
+// demons; any other kind without a flag counts as male (DEVIATIONS "Monster generation").
+
+/** The amorous demon's one row (C's PM_AMOROUS_DEMON; NAMS("incubus", "succubus", ...)). */
+export const AMOROUS_DEMON: DefId = 'nh:incubus';
+/** The display-only appearance of a female amorous demon (perception.ts). */
+export const SUCCUBUS: DefId = 'nh:succubus';
+
+function mfemaleTable(state: Readonly<GameState>, create: boolean): Table | null {
+  const md = (state as GameState).modData;
+  let nh = md['nh'];
+  if (!isObj(nh)) {
+    if (!create) return null;
+    nh = {};
+    md['nh'] = nh;
+  }
+  let t = nh['mfemale'];
+  if (!isObj(t)) {
+    if (!create) return null;
+    t = {};
+    nh['mfemale'] = t;
+  }
+  return t;
+}
+
+/** `mtmp->female`: the kind's female/male flag first, then the table. */
+export function monFemale(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
+  const def = ctx.defs.monster(mon.def);
+  if (def.flags.includes('female')) return true;
+  if (def.flags.includes('male')) return false;
+  return mfemaleTable(ctx.state, false)?.[String(mon.id)] === true;
+}
+
+/** Sets `mtmp->female` for a monster whose kind does not fix it (male is no entry). */
+export function setMonFemale(ctx: Pick<Ctx, 'state'>, id: EntityId, female: boolean): void {
+  const t = mfemaleTable(ctx.state, female);
+  if (!t) return;
+  if (female) t[String(id)] = true;
+  else delete t[String(id)];
+}
+
+/** 0 male, 1 female, 2 neuter. ref: src/mondata.c gender() */
+export function monGender(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): 0 | 1 | 2 {
+  if (ctx.defs.monster(mon.def).flags.includes('neuter')) return 2;
+  return monFemale(ctx, mon) ? 1 : 0;
+}
+
+/**
+ * The def a monster is named and drawn by: a female amorous demon is a succubus (C's
+ * pmnames[FEMALE]), every other monster its own kind. ref: src/do_name.c x_monnam() pmname()
+ */
+export function genderedDef(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): DefId {
+  return mon.def === AMOROUS_DEMON && monFemale(ctx, mon) ? SUCCUBUS : mon.def;
+}

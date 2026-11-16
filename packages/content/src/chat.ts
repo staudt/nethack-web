@@ -31,7 +31,9 @@ import { edogOf, meating } from './dog';
 import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
-import { heroFemale, polyGender } from './gender';
+import { heroFemale, monFemale, polyGender } from './gender';
+import { couldSeduce, isNymph } from './steal';
+import { doseduce } from './seduce';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
 import { demonTalk } from './demontalk';
@@ -269,8 +271,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       say(ctx, 'chat.djinni.teach');
       return NORMAL_SPEED;
     case 'seduce': {
-      // nymphs never doseduce() (SYSOPT_SEDUCE on)
-      const female = def.flags.includes('female') ? 1 : 0;
+      // SYSOPT_SEDUCE on: the amorous demon of her opposite gender seduces her (nymphs never)
+      if (!isNymph(def) && couldSeduce(ctx, mon, getPlayer(ctx.state), null) === 1) {
+        doseduce(ctx, mon);
+        return NORMAL_SPEED;
+      }
+      const female = monFemale(ctx, mon) ? 1 : 0;
       const swval = polyGender(ctx.state) !== female ? ctx.rng.rn2(3) : 0;
       if (swval === 2) {
         say(ctx, 'chat.hello_sailor');
