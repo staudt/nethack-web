@@ -25,7 +25,12 @@ import {
   type Registry,
   type Rng,
 } from '@nh/core';
-import { boulderMoveErrors, checkInvariants } from './invariants';
+import {
+  boulderMoveErrors,
+  checkInvariants,
+  wallwalkRecord,
+  type WallwalkRecord,
+} from './invariants';
 
 export interface SoakOptions {
   seed: number;
@@ -38,6 +43,12 @@ export interface SoakOptions {
   maxDepth?: number;
   /** Return violations instead of throwing. */
   collect?: boolean;
+  /**
+   * The wall-walker record the checks use (default: a fresh one). A soak whose mods change
+   * monsters' forms often passes one that its mods also update every turn with
+   * `noteWallwalkers()`.
+   */
+  wallwalk?: WallwalkRecord;
 }
 
 export interface SoakViolation {
@@ -293,7 +304,7 @@ export function soak(mods: readonly Mod[], opts: SoakOptions): SoakResult {
   // doors are checked once per level, as made (the bot may dig through walls later)
   const doorsChecked = new Set<string>();
   // a wall-walker polymorphed where it stood in rock stays there (C's newcham())
-  const wallwalk = { ids: new Set<string>(), spots: new Set<string>() };
+  const wallwalk = opts.wallwalk ?? wallwalkRecord();
   const check = (action: PlayerAction | null): void => {
     const errors = [
       ...stepErrors,

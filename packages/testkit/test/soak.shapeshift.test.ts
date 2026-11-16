@@ -7,7 +7,7 @@
 import { chamOf, makemon, vanillaMod } from '@nh/content';
 import { cellRules, getLevel, getPlayer, sortedIds, type Mod, type Pos } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { soak } from '../src/index';
+import { noteWallwalkers, soak, wallwalkRecord } from '../src/index';
 
 const KINDS = ['nh:vampire', 'nh:chameleon', 'nh:vampire_lord', 'nh:chameleon', 'nh:doppelganger'];
 
@@ -15,6 +15,10 @@ let made = 0;
 let shifts = 0;
 let chamErrors: string[] = [];
 let lastForm: Record<string, string> = {};
+// the wall-walker record, observed every turn: a step can span many turns while the hero is
+// helpless (fainting), and a xorn-form chameleon that enters a wall or a fog cloud that flows
+// under a door may change form there before the next check
+let wallwalk = wallwalkRecord();
 const shapeshiftMod: Mod = {
   id: 'testkit-shapeshift',
   version: '1',
@@ -94,6 +98,13 @@ const shapeshiftMod: Mod = {
       },
       { priority: -100 },
     );
+    api.on(
+      'endOfTurn',
+      (ctx) => {
+        noteWallwalkers(ctx.state, ctx.defs, wallwalk);
+      },
+      { priority: -1000 },
+    );
   },
 };
 
@@ -105,7 +116,13 @@ describe('shapeshifter soak', () => {
   // without them; 69 replaced 32 in m19 step 1, whose 17 object rows shift the stream: 32 died at
   // turn 387 and reaches 2000 with the rows filtered, as 47 and 69 do with and without them; the m19 step 3 djinni row moved the random forms
   // again: 47 and 69 then hit the in-wall bug lead (newcham inside a wall), and both pass with the
-  // row filtered; 74 and 156 reach 2000 turns both ways)
+  // row filtered; 74 and 156 reach 2000 turns both ways; that bug lead, and 88's and 90's (a
+  // monster in a wall or a locked door) and 48's two objects on stone at m18 step 6, were the
+  // invariant's: the hero fainted, so one step spanned dozens of turns in which a xorn-form
+  // chameleon entered a wall, or an ochre jelly a door, and changed form there, which C's
+  // newcham() allows (no relocation: maybe_set_terrain_effects() only handles liquids), and the
+  // hero then killed the former xorn in the stone, its gold staying there as in C; the record is
+  // now noted every turn below and keeps those cells for objects, and 47, 69 and 88 reach 2000)
   for (const seed of [74, 156]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
@@ -115,7 +132,13 @@ describe('shapeshifter soak', () => {
         shifts = 0;
         chamErrors = [];
         lastForm = {};
-        const r = soak([vanillaMod, shapeshiftMod], { seed, turns: 2000, checkEvery: 1 });
+        wallwalk = wallwalkRecord();
+        const r = soak([vanillaMod, shapeshiftMod], {
+          seed,
+          turns: 2000,
+          checkEvery: 1,
+          wallwalk,
+        });
         console.log(
           `shapeshift soak seed=${seed}: made=${made} shifts=${shifts} kills=${r.kills} turns=${r.turns} outcome=${r.outcome}`,
         );

@@ -103,14 +103,15 @@ describe('flee table invariants', () => {
 describe('spell state invariants', () => {
   const nh = (s: GameState): Record<string, unknown> => s.modData['nh'] as Record<string, unknown>;
 
-  test('the hero keeps 0 <= Pw <= max <= peak', () => {
+  test('the hero keeps 0 <= Pw <= max; max may pass the peak, as in C', () => {
     const s = fresh();
     expect(nh(s)['pw']).toEqual({ uen: 2, uenmax: 2, uenpeak: 2 });
     expect(errs(s)).toBe('');
     nh(s)['pw'] = { uen: 3, uenmax: 2, uenpeak: 2 };
     expect(errs(s)).toMatch(/pw: not 0 <= uen 3/);
+    // newman() and a confused scroll of charging raise uenmax without uenpeak
     nh(s)['pw'] = { uen: 2, uenmax: 5, uenpeak: 4 };
-    expect(errs(s)).toMatch(/uenmax 5 <= uenpeak 4/);
+    expect(errs(s)).toBe('');
     nh(s)['pw'] = { uen: -1, uenmax: 2, uenpeak: 2 };
     expect(errs(s)).toMatch(/pw: bad fields/);
   });

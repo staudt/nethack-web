@@ -5,9 +5,13 @@
 import { newcham, polyObj, vanillaMod } from '@nh/content';
 import { getPlayer, sortedIds, type Mod } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { soak } from '../src/index';
+import { noteWallwalkers, soak, wallwalkRecord } from '../src/index';
 
 let changed = 0;
+// the wall-walker record, observed every turn: a step can span many turns while the hero is
+// helpless, and a xorn that enters a wall or a fog cloud that flows under a door may change form
+// there before the next check
+let wallwalk = wallwalkRecord();
 const polyEverythingMod: Mod = {
   id: 'testkit-poly-everything',
   version: '1',
@@ -21,6 +25,13 @@ const polyEverythingMod: Mod = {
         if (h.c.hp) h.c.hp = { cur: 3000, max: 3000 };
       },
       { priority: -100 },
+    );
+    api.on(
+      'endOfTurn',
+      (ctx) => {
+        noteWallwalkers(ctx.state, ctx.defs, wallwalk);
+      },
+      { priority: -1000 },
     );
     api.on('endOfTurn', (ctx) => {
       if (ctx.state.turn % 7 !== 0 || ctx.state.gameOver) return;
@@ -78,7 +89,13 @@ describe('polymorph soak', () => {
   for (const seed of [764, 768]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
-      const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });
+      wallwalk = wallwalkRecord();
+      const r = soak([vanillaMod, polyEverythingMod], {
+        seed,
+        turns: 400,
+        checkEvery: 1,
+        wallwalk,
+      });
       console.log(
         `polymorph soak seed=${seed}: changed=${changed} turns=${r.turns} outcome=${r.outcome}`,
       );

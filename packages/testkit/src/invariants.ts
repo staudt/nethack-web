@@ -23,12 +23,87 @@ export interface InvariantOpts {
    */
   doorsChecked?: Set<string>;
   /**
-   * Wall-walkers seen at earlier checks: `ids` (the wall-walkers of the last check) and `spots`
-   * (`id@level:x,y`). A long run passes one record, so a monster polymorphed out of a
-   * wall-walking form inside stone, a wall or a door (C's newcham() leaves it there; it can only
-   * step out) is not reported while it stays put; the same for an amorphous form under a door.
+   * Wall-walkers and oozers seen at earlier observations (see {@link WallwalkRecord}). A long run
+   * passes one record, so a monster polymorphed out of a wall-walking form inside stone, a wall
+   * or a door (C's newcham() leaves it there; it can only step out) is not reported while it
+   * stays put, nor the objects it drops or leaves there when it dies; the same for an amorphous
+   * form under a door.
    */
-  wallwalk?: { ids: Set<string>; spots: Set<string> };
+  wallwalk?: WallwalkRecord;
+}
+
+/**
+ * What {@link noteWallwalkers} remembers between observations: the monsters whose form at the
+ * last one passes walls (`walls`) or oozes under doors (`doors`, amorphous); and every blocked
+ * square where such a monster, or one that just changed out of such a form, was seen: `spots`
+ * (`id@level:x,y`, where that monster may stay) and `cells` (`level:x,y`, where objects may lie).
+ */
+export interface WallwalkRecord {
+  walls: Set<string>;
+  doors: Set<string>;
+  spots: Set<string>;
+  cells: Set<string>;
+}
+
+/** An empty {@link WallwalkRecord}. */
+export function wallwalkRecord(): WallwalkRecord {
+  return { walls: new Set(), doors: new Set(), spots: new Set(), cells: new Set() };
+}
+
+/** Whether the terrain under `p` blocks a creature, and whether it is a door. */
+function blockedAt(
+  state: GameState,
+  registry: Registry,
+  p: Pos & { level: string },
+): { blocked: boolean; door: boolean; pal: string | undefined } {
+  const lv = state.levels[p.level];
+  if (!lv || !inBounds(lv, p.x, p.y)) return { blocked: false, door: false, pal: undefined };
+  const pal = lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? -1];
+  const known = pal !== undefined && registry.hasTerrain(pal);
+  return {
+    blocked: !known || !registry.terrain(pal).passable,
+    door: known && registry.terrain(pal).door !== undefined,
+    pal,
+  };
+}
+
+/** A monster's form passes walls (a xorn, a ghost) or oozes under doors (amorphous). */
+function passes(registry: Registry, def: string): { wall: boolean; door: boolean } {
+  if (!registry.isMonster(def as never)) return { wall: false, door: false };
+  const f = registry.monster(def as never).flags;
+  return { wall: f.includes('wallwalk'), door: f.includes('amorphous') };
+}
+
+/**
+ * One observation of the wall-walkers and oozers for {@link WallwalkRecord}. A monster on a
+ * blocked square that its form passes, or that the form it had at the last observation passed,
+ * marks its spot and cell; then the forms are remembered. The soak observes at every check; a
+ * soak whose mods change forms often also calls this at the end of every turn (one step can span
+ * many turns while the hero is helpless), passing the same record to `soak()`.
+ * ref: src/mon.c newcham() (no relocation: maybe_set_terrain_effects() only handles liquids),
+ * mfndpos() (ALLOW_WALL, amorphous under doors)
+ */
+export function noteWallwalkers(state: GameState, registry: Registry, ww: WallwalkRecord): void {
+  const walls = new Set<string>();
+  const doors = new Set<string>();
+  for (const id of sortedIds(state)) {
+    const e = state.entities[String(id)];
+    const p = e?.c.pos;
+    if (!e?.c.monster || !p) continue;
+    const key = String(id);
+    const now = passes(registry, e.def);
+    if (now.wall) walls.add(key);
+    if (now.door) doors.add(key);
+    const at = blockedAt(state, registry, p);
+    if (!at.blocked) continue;
+    const wall = now.wall || ww.walls.has(key);
+    const door = at.door && (now.door || ww.doors.has(key));
+    if (!wall && !door) continue;
+    ww.spots.add(`${key}@${p.level}:${p.x},${p.y}`);
+    ww.cells.add(`${p.level}:${p.x},${p.y}`);
+  }
+  ww.walls = walls;
+  ww.doors = doors;
 }
 
 /**
@@ -112,7 +187,8 @@ export function checkInvariants(
   const nh = state.modData['nh'] as { uswallow?: { mon?: unknown } | null } | undefined;
   const engulfer = typeof nh?.uswallow?.mon === 'number' ? nh.uswallow.mon : null;
   const seen = new Map<string, number>();
-  const nowWallwalkers: string[] = [];
+  const ww = opts.wallwalk;
+  if (ww) noteWallwalkers(state, registry, ww);
   for (const id of ids) {
     const e = state.entities[String(id)];
     if (!e) continue;
@@ -150,34 +226,20 @@ export function checkInvariants(
       errs.push(`entity ${id}: out of bounds at ${p.x},${p.y} on ${p.level}`);
       continue;
     }
-    const pal = lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? -1];
-    // a monster that passes walls (a ghost) may stand in stone and walls (ref: src/mon.c mfndpos())
-    const wallwalk =
-      e.c.monster !== undefined &&
-      registry.isMonster(e.def) &&
-      registry.monster(e.def).flags.includes('wallwalk');
-    const spot = `${id}@${p.level}:${p.x},${p.y}`;
-    const blocked =
-      pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable;
-    // an amorphous monster (a fog cloud, a vampire shifted into one) flows under a closed or
-    // locked door and may stop there (ref: src/mon.c mfndpos(), src/monmove.c can_ooze());
-    // a shapeshifter that changes form there stays until it steps out, as a former wall-walker
-    const underDoor =
-      blocked &&
-      e.c.monster !== undefined &&
-      registry.isMonster(e.def) &&
-      registry.monster(e.def).flags.includes('amorphous') &&
-      pal !== undefined &&
-      registry.hasTerrain(pal) &&
-      registry.terrain(pal).door !== undefined;
-    const ww = opts.wallwalk;
-    if (wallwalk || underDoor) nowWallwalkers.push(String(id));
-    if (blocked && ww && (wallwalk || underDoor || ww.ids.has(String(id)))) ww.spots.add(spot);
-    // objects may lie on iron bars (a rolling boulder trap's launch spot: isclearpath()'s
-    // ZAP_POS() lets it be there)
-    const onBars = blocked && e.c.item !== undefined && pal === IRON_BARS;
-    if (blocked && !wallwalk && !underDoor && !onBars && !ww?.spots.has(spot)) {
-      errs.push(`entity ${id}: on impassable cell (${pal ?? '?'}) at ${p.x},${p.y}`);
+    const { blocked, door, pal } = blockedAt(state, registry, p);
+    if (blocked) {
+      // a monster that passes walls (a ghost) may stand in stone and walls (ref: src/mon.c
+      // mfndpos()); an amorphous one (a fog cloud, a vampire shifted into one) flows under a
+      // closed or locked door and may stop there (src/monmove.c can_ooze()); one that changed
+      // form there stays until it steps out, as do the objects dropped there (the record)
+      const form = e.c.monster ? passes(registry, e.def) : { wall: false, door: false };
+      const cell = `${p.level}:${p.x},${p.y}`;
+      const ok = e.c.item
+        ? // objects may lie on iron bars (a rolling boulder trap's launch spot: isclearpath()'s
+          // ZAP_POS() lets it be there)
+          pal === IRON_BARS || ww?.cells.has(cell) === true
+        : form.wall || (door && form.door) || ww?.spots.has(`${id}@${cell}`) === true;
+      if (!ok) errs.push(`entity ${id}: on impassable cell (${pal ?? '?'}) at ${p.x},${p.y}`);
     }
     // Objects pile up; only creatures need a cell to themselves.
     if (e.c.item) continue;
@@ -191,7 +253,6 @@ export function checkInvariants(
       errs.push(`entities ${other} and ${id} share cell ${key}`);
     else seen.set(key, id);
   }
-  if (opts.wallwalk) opts.wallwalk.ids = new Set(nowWallwalkers);
 
   // Items: exactly one place (floor, carrier or container), a living carrier, unique inventory
   // letters per carrier.
@@ -582,7 +643,10 @@ const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isI
 
 /**
  * Spell state: the hero's energy (`modData.nh.pw`, written at newGame) keeps
- * `0 <= uen <= uenmax <= uenpeak`; her spell state (`modData.nh.uspell`, absent while all 0) holds
+ * `0 <= uen <= uenmax`; `uenpeak` ("highest value of uenmax so far") is not checked against
+ * `uenmax`, since C itself lets uenmax pass it: newman() sets `u.uenmax = enmax` and a confused
+ * scroll of charging raises `u.uenmax = u.uen`, neither touching uenpeak (ref: src/polyself.c
+ * newman(), src/read.c seffect_charging()); her spell state (`modData.nh.uspell`, absent while all 0) holds
  * non-negative whole numbers; the monsters' spell delays (`mspecUsed`, positive turns),
  * confusion (`mconf`, true) and hiding (`mundetected`, true) name living monsters.
  */
@@ -641,8 +705,7 @@ function checkSpellState(state: GameState, errs: string[]): void {
       const { uen, uenmax, uenpeak } = pw;
       if (!isCount(uen) || !isCount(uenmax) || !isCount(uenpeak))
         errs.push(`pw: bad fields ${JSON.stringify(pw)}`);
-      else if (uen > uenmax || uenmax > uenpeak)
-        errs.push(`pw: not 0 <= uen ${uen} <= uenmax ${uenmax} <= uenpeak ${uenpeak}`);
+      else if (uen > uenmax) errs.push(`pw: not 0 <= uen ${uen} <= uenmax ${uenmax}`);
     }
   }
   const us = nh['uspell'];

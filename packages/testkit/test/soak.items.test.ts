@@ -63,7 +63,8 @@ function play(state: GameState, picks: readonly number[], onStep?: () => void): 
 describe('item soak', () => {
   // 108 throws (m7f-c step 2: 107 no longer did; m7b step 5: 105; m7e step 1: 108); 110 replaced 104
   // in m19 step 3, whose djinni row shifts the random forms (104 then hit the Pw-peak bug lead;
-  // it and 110 pass with the row filtered)
+  // it and 110 pass with the row filtered; the invariant was wrong: newman() raises uenmax past
+  // uenpeak in C too, and it no longer compares them)
   itemSoaks([101, 110, 108]);
 });
 

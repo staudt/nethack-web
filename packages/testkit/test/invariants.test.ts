@@ -1,7 +1,7 @@
 import { vanillaMod } from '@nh/content';
 import { createEngine, getLevel, getPlayer, type GameState } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { checkInvariants } from '../src/index';
+import { checkInvariants, noteWallwalkers, wallwalkRecord } from '../src/index';
 
 const engine = createEngine([vanillaMod]);
 const fresh = (): GameState => {
@@ -72,15 +72,98 @@ describe('invariants', () => {
         monster: { level: 8, peaceful: false, asleep: false, lastHero: null },
       },
     };
-    const wallwalk = { ids: new Set<string>(), spots: new Set<string>() };
+    const wallwalk = wallwalkRecord();
     const check = (): string => checkInvariants(s, engine.registry, { wallwalk }).join('\n');
     expect(check()).not.toMatch(/impassable/);
     s.entities[String(id)]!.def = 'nh:jackal' as never; // newcham() where it stood
     expect(check()).not.toMatch(/impassable/);
     expect(errs(s).join('\n')).toMatch(/impassable/); // no record: reported
     expect(check()).not.toMatch(/impassable/);
-    const fresh2 = { ids: new Set<string>(), spots: new Set<string>() };
+    const fresh2 = wallwalkRecord();
     expect(checkInvariants(s, engine.registry, { wallwalk: fresh2 }).join('\n')).toMatch(
+      /impassable/,
+    );
+  });
+
+  test('a monster that changed form between checks in a wall it entered, and its drops', () => {
+    const s = fresh();
+    const w = wallCell(s);
+    const floor = getPlayer(s).c.pos!;
+    const id = s.nextEntityId++;
+    s.entities[String(id)] = {
+      id,
+      def: 'nh:xorn' as never,
+      c: {
+        pos: { level: s.currentLevel, x: w.x, y: w.y },
+        actor: { energy: 0, speed: 9 },
+        hp: { cur: 5, max: 5 },
+        monster: { level: 8, peaceful: false, asleep: false, lastHero: null },
+      },
+    };
+    const mon = s.entities[String(id)]!;
+    const wallwalk = wallwalkRecord();
+    const check = (): string => checkInvariants(s, engine.registry, { wallwalk }).join('\n');
+    mon.def = 'nh:jackal' as never; // entered the wall and changed form within one check
+    expect(errs(s).join('\n')).toMatch(/impassable/);
+    // a turn's observation in between (the soak's mods call it at the end of every turn)
+    const turnly = wallwalkRecord();
+    mon.def = 'nh:xorn' as never;
+    mon.c.pos = { level: s.currentLevel, x: floor.x, y: floor.y };
+    noteWallwalkers(s, engine.registry, turnly);
+    mon.c.pos = { level: s.currentLevel, x: w.x, y: w.y };
+    mon.def = 'nh:jackal' as never;
+    expect(checkInvariants(s, engine.registry, { wallwalk: turnly }).join('\n')).not.toMatch(
+      /impassable/,
+    );
+    // what it drops there may lie in the wall; not in another wall
+    expect(check()).toMatch(/impassable/); // this record never saw it as a xorn
+    const item = s.nextEntityId++;
+    s.entities[String(item)] = {
+      id: item,
+      def: 'nh:dagger' as never,
+      c: { pos: { level: s.currentLevel, x: w.x, y: w.y }, item: { qty: 1 } as never },
+    };
+    expect(checkInvariants(s, engine.registry, { wallwalk: turnly }).join('\n')).not.toMatch(
+      /impassable/,
+    );
+    s.entities[String(item)]!.c.pos = { level: s.currentLevel, x: w.x, y: w.y + 1 };
+    expect(checkInvariants(s, engine.registry, { wallwalk: turnly }).join('\n')).toMatch(
+      new RegExp(`entity ${item}: on impassable`),
+    );
+  });
+
+  test('a former oozer may stay under a door, not in a wall', () => {
+    const s = fresh();
+    const l = getLevel(s);
+    const w = wallCell(s);
+    // a locked door just below the wall cell
+    if (!l.palette.includes('nh:door_locked')) l.palette.push('nh:door_locked');
+    const d = { x: w.x, y: w.y + 1 };
+    l.cells[d.y * l.width + d.x] = l.palette.indexOf('nh:door_locked');
+    const floor = getPlayer(s).c.pos!;
+    const id = s.nextEntityId++;
+    s.entities[String(id)] = {
+      id,
+      def: 'nh:fog_cloud' as never,
+      c: {
+        pos: { level: s.currentLevel, x: floor.x, y: floor.y },
+        actor: { energy: 0, speed: 1 },
+        hp: { cur: 5, max: 5 },
+        monster: { level: 3, peaceful: false, asleep: false, lastHero: null },
+      },
+    };
+    const mon = s.entities[String(id)]!;
+    const atDoor = wallwalkRecord();
+    noteWallwalkers(s, engine.registry, atDoor); // a fog cloud on the floor
+    const inWall = { ...atDoor, walls: new Set(atDoor.walls), doors: new Set(atDoor.doors) };
+    mon.def = 'nh:jackal' as never; // under the door, then changed form
+    mon.c.pos = { level: s.currentLevel, ...d };
+    expect(errs(s).join('\n')).toMatch(/impassable/);
+    expect(checkInvariants(s, engine.registry, { wallwalk: atDoor }).join('\n')).not.toMatch(
+      /impassable/,
+    );
+    mon.c.pos = { level: s.currentLevel, x: w.x, y: w.y }; // an oozer never enters a wall
+    expect(checkInvariants(s, engine.registry, { wallwalk: inWall }).join('\n')).toMatch(
       /impassable/,
     );
   });

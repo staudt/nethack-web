@@ -1811,7 +1811,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mon.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/corpses.ts`, `packages/content/src/genocide.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/muse.en.ts`, `packages/content/src/peaceful.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/adtyping.ts`, `packages/content/src/corpses.ts`, `packages/content/src/genocide.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/muse.en.ts`, `packages/content/src/peaceful.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/invariants.ts`
 - `BREEDER_EGG()`: `packages/content/src/eggstate.ts`
 - `LEVEL_SPECIFIC_NOCORPSE()`: `packages/content/src/graveyard.ts`
 - `accept_newcham_form()`: `packages/content/src/newcham.ts`
@@ -1871,7 +1871,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `movemon()`: `packages/core/src/turn.ts`
 - `movemon_singlemon()`: `packages/content/src/monmove.ts`
 - `mpickstuff()`: `packages/content/src/mongear.ts`
-- `newcham()`: `packages/content/src/invis.ts`, `packages/content/src/mstate.ts`, `packages/content/src/newcham.ts`
+- `newcham()`: `packages/content/src/invis.ts`, `packages/content/src/mstate.ts`, `packages/content/src/newcham.ts`, `packages/testkit/src/invariants.ts`
 - `normal_shape()`: `packages/content/src/chamstate.ts`, `packages/content/src/shapeshift.ts`
 - `pacify_guards()`: `packages/content/src/watch.ts`
 - `peacefuls_respond()`: `packages/content/src/peaceful.ts`, `packages/content/src/watch.en.ts`, `packages/content/src/watch.ts`
@@ -1940,7 +1940,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `bee_eat_jelly()`: `packages/content/src/beejelly.ts`
 - `can_fog()`: `packages/content/src/chamstate.ts`
 - `can_hide_under_obj()`: `packages/content/src/hide.ts`
-- `can_ooze()`: `packages/testkit/src/invariants.ts`
 - `closed_door()`: `packages/content/src/buzz.ts`, `packages/content/src/rollboulder.ts`, `packages/content/src/zap.ts`
 - `count_webbing_walls()`: `packages/content/src/web.ts`
 - `distfleeck()`: `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
@@ -2180,7 +2179,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/polyself.c
 
-- (file): `packages/content/src/polyarmor.ts`, `packages/content/src/trapstate.ts`
+- (file): `packages/content/src/polyarmor.ts`, `packages/content/src/trapstate.ts`, `packages/testkit/src/invariants.ts`
 - `break_armor()`: `packages/content/src/polyarmor.ts`
 - `change_sex()`: `packages/content/src/gender.ts`
 - `dobreathe()`: `packages/content/src/monability.ts`
