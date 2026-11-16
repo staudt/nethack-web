@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-191 NetHack files, 5420 citations.
+191 NetHack files, 5429 citations.
 
 ## dat/asmodeus.lua
 
@@ -323,7 +323,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/flag.h
 
-- (file): `packages/content/src/generation.ts`, `packages/content/src/magic.ts`
+- (file): `packages/content/src/generation.ts`, `packages/content/src/knoxstate.ts`, `packages/content/src/magic.ts`
 
 ## include/global.h
 
@@ -1171,6 +1171,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/dungeon.c
 
+- (file): `packages/content/src/levelflags.ts`
 - `Can_dig_down()`: `packages/content/src/levelflags.ts`
 - `Can_fall_thru()`: `packages/content/src/trap.ts`
 - `Can_rise_up()`: `packages/content/src/potion.ts`
@@ -1188,6 +1189,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `depth()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/level.ts`
 - `dunlevs_in_dungeon()`: `packages/content/src/levelflags.ts`
 - `find_hell()`: `packages/content/src/levelflags.ts`
+- `fixup_level_locations()`: `packages/content/src/knoxstate.ts`
 - `get_level()`: `packages/content/src/teleport.ts`
 - `induced_align()`: `packages/content/src/mkroom.ts`
 - `init_castle_tune()`: `packages/content/src/gehennom.ts`
@@ -1196,6 +1198,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `init_dungeon_set_entry()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
 - `init_dungeons()`: `packages/content/src/gehennom.ts`, `packages/core/src/types/mod.ts`
 - `init_level()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
+- `insert_branch()`: `packages/content/src/knoxstate.ts`
 - `ledger_no()`: `packages/content/src/gem.ts`
 - `level_range()`: `packages/core/src/dungeon.ts`, `packages/core/src/registry.ts`, `packages/core/src/types/mod.ts`
 - `parent_dlevel()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
@@ -1346,7 +1349,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `makerogueghost()`: `packages/content/src/rogue.ts`
 - `makeroguerooms()`: `packages/content/src/rogue.ts`
 - `miniwalk()`: `packages/content/src/rogue.ts`
-- `roguecorr()`: `packages/content/src/rogue.ts`
+- `roguecorr()`: `packages/content/src/rogue.ts`, `packages/testkit/src/invariants.ts`
 - `roguejoin()`: `packages/content/src/rogue.ts`
 
 ## src/fountain.c
@@ -1695,6 +1698,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `makerooms()`: `packages/core/src/levelgen/rooms.ts`
 - `maketrap()`: `packages/content/src/vault.ts`
 - `maybe_sdoor()`: `packages/core/src/levelgen/corridors.ts`
+- `mk_knox_portal()`: `packages/content/src/knoxstate.ts`, `packages/content/src/vault.ts`, `packages/testkit/src/invariants.ts`
 - `mkaltar()`: `packages/content/src/mklev.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
 - `mkgrave()`: `packages/content/src/mklev.ts`
@@ -1704,7 +1708,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mktrap()`: `packages/content/src/mklev.ts`, `packages/core/src/traps.ts`
 - `occupied()`: `packages/content/src/somexy.ts`, `packages/content/src/sp_lev.ts`
 - `okdoor()`: `packages/core/src/levelgen/corridors.ts`
-- `place_branch()`: `packages/content/src/rogue.ts`, `packages/core/src/levelgen/generate.ts`
+- `place_branch()`: `packages/content/src/knox.ts`, `packages/content/src/rogue.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/generate.ts`, `packages/testkit/src/invariants.ts`
 - `somexy()`: `packages/core/src/levelgen/generate.ts`
 - `sort_rooms()`: `packages/content/src/rogue.ts`, `packages/core/src/levelgen/rooms.ts`
 - `topologize()`: `packages/core/src/rooms.ts`
@@ -1747,7 +1751,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maze_remove_deadends()`: `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `mazexy()`: `packages/content/src/mazefill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `migrate_orc()`: `packages/content/src/orctown.ts`
-- `mkportal()`: `packages/content/src/portal.ts`
+- `mkportal()`: `packages/content/src/knox.ts`, `packages/content/src/portal.ts`
 - `mz_move()`: `packages/core/src/levelgen/maze.ts`
 - `okay()`: `packages/content/src/mazewalk.ts`, `packages/core/src/levelgen/maze.ts`
 - `pick_vibrasquare_location()`: `packages/content/src/invocation.ts`

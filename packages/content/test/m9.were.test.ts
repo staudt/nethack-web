@@ -106,8 +106,10 @@ describe('were creatures changing form', () => {
     }
     expect(changed).toBeGreaterThan(3);
     expect(changed).toBeLessThan(25);
+    // 1 in 30 over 1000 games (about 33; seeds 1..300 alone gave only 3 after m21 step 5's vault
+    // roll shifted the new-game stream)
     let back = 0;
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 1000; i++) {
       const s = room(i + 1);
       const w = mon(s.state, 'nh:wererat');
       wereChange(s.ctx, w);
@@ -116,8 +118,8 @@ describe('were creatures changing form', () => {
         expect(texts(s.ctx)).toEqual(['The wererat changes into a human.']);
       }
     }
-    expect(back).toBeGreaterThan(3);
-    expect(back).toBeLessThan(25);
+    expect(back).toBeGreaterThan(15);
+    expect(back).toBeLessThan(55);
   });
 
   test('the beast drops its weapon, wakes, and regains a quarter of its lost hit points', () => {

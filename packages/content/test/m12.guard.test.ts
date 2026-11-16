@@ -24,7 +24,9 @@ import { T, setTerrain, terrainIdAt } from '../src/terrain';
 import { teleds } from '../src/trap';
 import { egdOf, findgd, uinvault, vaultSummonGd } from '../src/vaultstate';
 import { domonnoise } from '../src/chat';
-import { levelSetup } from './itemHelpers';
+import { defs, levelSetup } from './itemHelpers';
+import { countKill } from '../src/vanquished';
+import { monWep } from '../src/mongear';
 
 const probe: { fn: (ctx: Ctx) => void } = { fn: () => undefined };
 const probeMod: Mod = {
@@ -159,6 +161,28 @@ describe('the answer', () => {
     expect(guardOf(s)).toBeNull();
     expect(terrainIdAt(s.level, 4, 3)).toBe(T.vwall);
     expect(JSON.stringify(s.state.modData)).not.toContain('"egd"');
+  });
+
+  test('"Croesus" once Croesus has died: "Back from the dead, are you?" and he turns on her', () => {
+    // m21 step 5. ref: src/vault.c invault() (svm.mvitals[PM_CROESUS].died)
+    const s = setup();
+    withCtx(s.state, (ctx) => countKill(ctx, 'nh:croesus'));
+    untilGuard(s);
+    const g = guardOf(s)!;
+    const r = answer(s, 'Kroisos');
+    expect(keys(r)).toContain('vault.back_from_dead');
+    expect(keys(r)).not.toContain('vault.sorry_disturbed');
+    expect(keys(r)).not.toContain('vault.dont_know_you');
+    const guard = s.state.entities[String(g)]!;
+    expect(guard.c.monster?.peaceful).toBe(false);
+    // he wielded a weapon at once, if he carries one
+    if (inventoryOf(s.state, g).some((o) => defs.object(o.def).class === 'weapon'))
+      expect(monWep({ state: s.state }, g)).not.toBeNull();
+    // and fights: within a few turns she is hit or missed by him
+    // and attacks her (in melee or with a wand) within a few turns
+    const seen: string[] = [];
+    for (let i = 0; i < 10; i++) seen.push(...keys(wait(s)));
+    expect(seen.some((k) => k.startsWith('combat.mon_') || k === 'muse.zaps')).toBe(true);
   });
 
   test('anyone else is asked to drop the gold, or just to follow with none', () => {

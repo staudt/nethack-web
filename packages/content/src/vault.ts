@@ -7,7 +7,8 @@
 // ref: src/mklev.c makelevel() do_vault block, makevtele(), makeniche(TELEP_TRAP);
 // src/sp_lev.c fill_special_room() VAULT; src/vault.c; src/allmain.c moveloop_core() invault()
 //
-// Not ported (DEVIATIONS.md "Special rooms"): the Fort Ludios portal (mk_knox_portal()).
+// Fort Ludios's portal (mk_knox_portal()) goes into a vault from DL11 down to above Medusa, after
+// its gold and before its teleporter (whose roll core has already drawn: DEVIATIONS.md "Vaults").
 // NetHack's teleporter sits on the secret corridor square itself; here traps live only on plain
 // floor, so it is kept aside (vaultstate.ts) and made on the square once the corridor is found
 // (searching, digging, a wand of secret door detection...), after the hero's action or at the end
@@ -17,8 +18,8 @@
 // <0,0> until his corridor is gone; here the monster is removed and his record (vaultstate.ts
 // `Egd.parked`) closes the corridor at the end of each turn. A guard killed by any means is
 // noticed after the hero's action or at the end of the turn (grddead()). No deaf hero, no hero
-// hiding or mimicking, no gold eating (the guard never witnesses it), no Croesus (so his name
-// always sends the guard away), no Punishment, no graves (paygd()'s grave for Croesus).
+// hiding or mimicking, no gold eating (the guard never witnesses it), no Punishment, no graves
+// (paygd()'s grave for Croesus).
 import { mAt } from './wormstate';
 import {
   cellIndex,
@@ -29,6 +30,8 @@ import {
   inventoryOf,
   isPlainFloor,
   itemsAt,
+  levelDefPos,
+  levelIdFor,
   trapAt,
   type ActionDef,
   type Ctx,
@@ -39,6 +42,7 @@ import {
   type Level,
   type ModApi,
   type Pos,
+  type Room,
 } from '@nh/core';
 import { sticks } from './adtyping';
 import { blockersOf, BOULDER, ROCK, fractureRock } from './boulder';
@@ -47,7 +51,7 @@ import { makemon, mnextoPos } from './generation';
 import { isHelpless } from './hunger';
 import { mapInvisible, monVisible } from './invis';
 import { mkgold, placeOnFloor, stackobj } from './items';
-import { forgetMonster, minvent } from './mongear';
+import { forgetMonster, minvent, monWep, monWieldItem } from './mongear';
 import { moneyCnt } from './money';
 import { forgetMState } from './mstate';
 import { unmulNow } from './nomul';
@@ -81,6 +85,13 @@ import { deaths } from './vanquished';
 import { uswallow } from './engulfstate';
 import { mpickobj } from './steal';
 import { delEngrAt, makeEngrAt, wipeEngrAt } from './engr';
+import { KNOX, LUDIOS, isBranchlev, medusaDepth } from './levelflags';
+import { knoxSource, setKnoxSource, wizardMode } from './knoxstate';
+import { MAGIC_PORTAL, PORTAL_SPOTS, findPortal, portalData } from './portal';
+import { setmangry } from './peaceful';
+
+/** Croesus, whose death makes his name an insult to the vault guard. */
+const CROESUS: DefId = 'nh:croesus';
 
 /**
  * Turns level generation's vault request into the `nh:vault` room (lit, after the other rooms
@@ -104,10 +115,48 @@ export function mkVault(ctx: Ctx, level: Level): void {
       type: VAULT,
     }) - 1;
   fillVault(ctx, level, idx); // fill_special_room() at once
+  const room = level.rooms[idx];
+  if (room) mkKnoxPortal(ctx, level, room);
   if (tele) {
     setPendingVaultTele(ctx, level.id, cellIndex(level, tele.x, tele.y));
     nicheEngraving(ctx, level, tele);
   }
+}
+
+/**
+ * Fort Ludios's portal in the vault just made, on its bottom-right square (C's `vault_x + w,
+ * vault_y + h`), hidden, leading to the fort; the fort's portal back is made with the fort, or
+ * added to it now if a wizard reached it first (plan Q13). Nothing is drawn once the portal is
+ * placed, on a level a branch ends on, or in a game whose layout has no Fort Ludios (saves made
+ * before m21); otherwise `rn2(3)` defers it 2 times in 3 (drawn and ignored in wizard mode, as
+ * C's `rn2(3) && !wizard`), then the level must be in the main dungeon, deeper than 10 and above
+ * Medusa (no Quest, so no Quest-entry test). ref: src/mklev.c mk_knox_portal(), place_branch()
+ * (BR_PORTAL); src/mkmaze.c mkportal()
+ */
+export function mkKnoxPortal(ctx: Ctx, level: Level, vault: Readonly<Room>): void {
+  // disallow Knox branch on a level with one branch already
+  if (!ctx.state.dungeons.some((d) => d.id === LUDIOS) || isBranchlev(ctx.state, level)) return;
+  // Already set or 2/3 chance of deferring until a later level.
+  if (knoxSource(ctx.state) || (ctx.rng.rn2(3) !== 0 && !wizardMode(ctx.state))) return;
+  if (
+    level.dungeon !== ctx.state.dungeons[0]?.id || // in main dungeon
+    level.depth <= 10 || // beneath 10
+    level.depth >= medusaDepth(ctx.state) // and above Medusa
+  )
+    return;
+  // Adjust source to be current level and re-insert branch.
+  setKnoxSource(ctx, level.dlevel);
+  const t = maketrap(ctx, level.id, vault.hx, vault.hy, MAGIC_PORTAL, { inMklev: true });
+  t.data = portalData({ dungeon: LUDIOS, dlevel: 1 });
+  // Fort Ludios already made (wizard mode's #levelport): its portal back, at its branch spot
+  const knoxId = levelIdFor(ctx.state, { dungeon: LUDIOS, dlevel: 1 });
+  const knox = ctx.state.levels[knoxId];
+  const spot = PORTAL_SPOTS[KNOX];
+  if (!knox || !spot || knox.def !== KNOX || findPortal(knox)) return;
+  const def = ctx.defs.level(KNOX);
+  const p = levelDefPos(def, knox.width, knox.height, spot[0], spot[1], undefined, 'knox portal');
+  const back = maketrap(ctx, knoxId, p.x, p.y, MAGIC_PORTAL);
+  back.data = portalData({ dungeon: level.dungeon, dlevel: level.dlevel });
 }
 
 /**
@@ -962,7 +1011,9 @@ function askName(ctx: Ctx, guard: EntityId, tries: number): void {
 
 /**
  * Her answer: an empty one is asked again (five times in all); a lawful hero who does not give
- * her own name lies; "Croesus" (or Kroisos, Creosote) sends him away; anyone else
+ * her own name lies; "Croesus" (or Kroisos, Creosote) sends him away while Croesus lives and
+ * angers him once Croesus has died ("Back from the dead, are you?  I'll remedy that!": he
+ * wields a weapon at once); anyone else
  * must drop her gold and follow him. ref: src/vault.c invault() after getlin()
  */
 function answerName(ctx: Ctx, value: Json, data: Json): number {
@@ -979,9 +1030,15 @@ function answerName(ctx: Ctx, value: Json, data: Json): number {
   // player name (DEVIATIONS.md "Vaults"), and strncmpi() with an empty name always matches
   const lc = buf.toLowerCase();
   if (lc === 'croesus' || lc === 'kroisos' || lc === 'creosote') {
-    // Croesus is never killed here: "Back from the dead, are you?" cannot happen
-    say(ctx, 'vault.sorry_disturbed');
-    guardGone(ctx, d.guard);
+    if (!deaths(ctx.state, CROESUS)) {
+      say(ctx, 'vault.sorry_disturbed');
+      guardGone(ctx, d.guard);
+    } else {
+      setmangry(ctx, d.guard, false);
+      say(ctx, 'vault.back_from_dead');
+      // don't want guard to waste next turn wielding a weapon
+      if (!monWep(ctx, d.guard)) monWieldItem(ctx, d.guard);
+    }
     return 0;
   }
   say(ctx, 'vault.dont_know_you');

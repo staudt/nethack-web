@@ -13,6 +13,7 @@ export const vaultMessagesEn: Record<string, string> = {
   'vault.be_back': '"I\'ll be back when you\'re ready to speak to me!"',
   'vault.who_are_you': '"Hello stranger, who are you?" -',
   'vault.sorry_disturbed': '"Oh, yes, of course.  Sorry to have disturbed you."',
+  'vault.back_from_dead': '"Back from the dead, are you?  I\'ll remedy that!"',
   'vault.dont_know_you': '"I don\'t know you."',
   'vault.please_follow': '"Please follow me."',
   'vault.hidden_gold': '"You have hidden gold."',

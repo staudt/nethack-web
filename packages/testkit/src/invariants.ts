@@ -5,6 +5,7 @@ import {
   inRooms,
   isPlainFloor,
   sortedIds,
+  type DefId,
   type EquipSlot,
   type GameState,
   type ItemComponent,
@@ -297,6 +298,7 @@ export function checkInvariants(
   checkTraps(state, registry, errs);
   checkStairsReachable(state, registry, errs);
   checkBranches(state, registry, errs);
+  checkLudios(state, errs);
   checkSpecialLevels(state, registry, errs);
   checkBoulders(state, registry, errs);
   checkMonsterMemory(state, registry, errs);
@@ -522,6 +524,7 @@ function checkDoors(
     const lv = state.levels[lid];
     if (!lv || checked?.has(lid)) continue;
     checked?.add(lid);
+    if (lv.def === ROGUE_LEVEL) checkRogueDoors(lid, lv.palette, lv.cells, registry, errs);
     const door: boolean[] = lv.palette.map(
       (t) => registry.hasTerrain(t) && !!registry.terrain(t).door,
     );
@@ -543,6 +546,35 @@ function checkDoors(
       }
     }
   }
+}
+
+/** The Rogue level's LevelDef (content levelflags.ts ROGUE). */
+const ROGUE_LEVEL = 'nh:rogue-level';
+
+/**
+ * The Rogue level as made (m21): no door square has a door, every one a doorway or a secret door
+ * with nothing behind it, so never a locked one (makeroguerooms()'s `dodoor()` then D_NODOOR).
+ * Checked once per level with the doors: in play, opening magic on a secret door there makes a
+ * closed door, as C's doorlock() does. ref: src/extralev.c roguecorr()
+ */
+function checkRogueDoors(
+  lid: string,
+  palette: readonly DefId[],
+  cells: readonly number[],
+  registry: Registry,
+  errs: string[],
+): void {
+  const bad = new Set(
+    palette.flatMap((t, i) => {
+      const door = registry.hasTerrain(t) ? registry.terrain(t).door : undefined;
+      return (door !== undefined && door !== 'doorway') || t.startsWith('nh:sdoor_locked')
+        ? [i]
+        : [];
+    }),
+  );
+  const at = cells.findIndex((c) => bad.has(c));
+  if (at >= 0)
+    errs.push(`level ${lid}: Rogue level square ${at} has a door ('${palette[cells[at] ?? 0]}')`);
 }
 
 /**
@@ -1127,10 +1159,70 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
         (!p.childOnly && p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
         (child === lv.dungeon && lv.dlevel === entryOf.get(child)),
     );
-    // Fort Ludios's way back is a magic portal, not stairs (its branch floats: m21)
+    // Fort Ludios's way back is a magic portal, not stairs (its branch floats: m21), which
+    // checkLudios() checks
     if (wanted && !lv.branch && wanted[0] !== LUDIOS)
       errs.push(`level ${lid}: the layout's branch stairs are missing`);
   }
+}
+
+/** The magic portal's TrapDef id (content portal.ts MAGIC_PORTAL). */
+const MAGIC_PORTAL = 'nh:magic_portal';
+/** The vault's room type (content vaultstate.ts VAULT). */
+const VAULT = 'nh:vault';
+
+/**
+ * Fort Ludios's portals (m21): its branch floats until a vault gets the portal
+ * (`modData.nh.knox = { dlevel }`, content knoxstate.ts). Before that no level has a portal to
+ * the fort, and the fort has none back. After it, every portal to the fort is the one on the
+ * main-dungeon level `modData.nh.knox` names, in its vault; that level, once made, has it; the
+ * fort, once made, has exactly one portal, leading back to that level.
+ * ref: src/mklev.c mk_knox_portal(), place_branch()
+ */
+function checkLudios(state: GameState, errs: string[]): void {
+  const nh = state.modData['nh'] as Record<string, unknown> | undefined;
+  const k = nh?.['knox'] as { dlevel?: unknown } | undefined;
+  if (k !== undefined && typeof k.dlevel !== 'number') {
+    errs.push('modData.nh.knox has no dlevel');
+    return;
+  }
+  const main = state.dungeons[0];
+  const source = typeof k?.dlevel === 'number' && main ? `dlvl${k.dlevel}` : null;
+  if (k && main?.id !== 'nh:main')
+    errs.push('modData.nh.knox set in a game without the main dungeon');
+  const dstOf = (data: unknown): { dungeon?: unknown; dlevel?: unknown } =>
+    ((data as { dst?: unknown } | undefined)?.dst ?? {}) as { dungeon?: unknown; dlevel?: unknown };
+  let toFort = 0;
+  for (const lid of Object.keys(state.levels).sort()) {
+    const lv = state.levels[lid];
+    if (!lv) continue;
+    const portals = lv.traps.filter((t) => t.def === MAGIC_PORTAL);
+    if (lv.dungeon === LUDIOS) {
+      const back = portals.filter((t) => {
+        const d = dstOf(t.data);
+        return d.dungeon === main?.id && d.dlevel === k?.dlevel;
+      });
+      if (source && (portals.length !== 1 || back.length !== 1))
+        errs.push(`level ${lid}: Fort Ludios has no single portal back to ${source}`);
+      if (!source && portals.length > 0)
+        errs.push(`level ${lid}: Fort Ludios has a portal before any vault has one`);
+      continue;
+    }
+    for (const t of portals) {
+      if (dstOf(t.data).dungeon !== LUDIOS) continue;
+      toFort++;
+      const inVault = lv.rooms.some(
+        (r) => r.type === VAULT && t.x >= r.lx && t.x <= r.hx && t.y >= r.ly && t.y <= r.hy,
+      );
+      if (lid !== source)
+        errs.push(`level ${lid}: a portal to Fort Ludios, but knox names ${source}`);
+      if (!inVault)
+        errs.push(`level ${lid}: the portal to Fort Ludios at ${t.x},${t.y} is not in a vault`);
+    }
+  }
+  if (toFort > 1) errs.push(`${toFort} portals to Fort Ludios`);
+  if (source && state.levels[source] && toFort === 0)
+    errs.push(`level ${source}: knox names it but it has no portal to Fort Ludios`);
 }
 
 /**

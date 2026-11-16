@@ -217,7 +217,7 @@ describe('wiz:where', () => {
           params: d.levels > 1 ? { dungeon, start, end: start + d.levels - 1 } : { dungeon, start },
         });
       // branch stairs and special levels by level, a branch first on a shared level; Fort
-      // Ludios's floating entrance is not listed (m21)
+      // Ludios's floating entrance is not listed (m21), but its portal's state is
       const lines = [
         ...d.branches.filter((b) => b.to !== 'nh:ludios').map((b) => ({ dl: b.dlevel, n: 0, b })),
         ...d.special.map((sp) => ({ dl: sp.dlevel, n: 1, sp })),
@@ -246,7 +246,12 @@ describe('wiz:where', () => {
                   '?'),
               depth: start + l.dl - 1,
             },
-          });
+          }); // no vault has Fort Ludios's portal yet (m21 step 5)
+      if (d.branches.some((b) => b.to === 'nh:ludios'))
+        expected.push({
+          key: 'wiz.where.portal_unplaced',
+          params: { dungeon: '@' + wizard.registry.dungeon('nh:ludios').nameKey },
+        });
     }
     const got = msgs(events).map((m) => ({ key: m.key, params: m.params }));
     expect(got).toEqual(expected);
@@ -261,16 +266,18 @@ describe('wiz:where', () => {
     const branch = main?.branches.find((b) => b.to === 'nh:mines');
     const oracle = main?.special.find((sp) => sp.id === 'nh:oracle');
     expect([5, 6, 7, 8, 9]).toContain(oracle?.dlevel);
-    // m21: the Rogue level on DL15-18; Fort Ludios last, one level, its branch not listed
+    // m21: the Rogue level on DL15-18; Fort Ludios last, one level, its branch not listed but
+    // its portal "not placed" at the end of the main dungeon's list
     const rogue = main?.special.find((sp) => sp.id === 'nh:rogue');
     expect([15, 16, 17, 18]).toContain(rogue?.dlevel);
     expect(got).toContainEqual({
       key: 'wiz.where.special',
       params: { name: '@level.rogue', depth: rogue?.dlevel ?? -1 },
     });
-    expect(
-      got.some((m) => m.params?.['dungeon'] === '@nh:ludios' && m.key !== 'wiz.where.level'),
-    ).toBe(false);
+    expect(got.filter((m) => m.params?.['dungeon'] === '@nh:ludios').map((m) => m.key)).toEqual([
+      'wiz.where.portal_unplaced',
+      'wiz.where.level',
+    ]);
     const ludios = state.dungeons.find((d) => d.id === 'nh:ludios');
     expect(got.slice(-2)).toEqual([
       {
@@ -301,9 +308,10 @@ describe('wiz:where', () => {
     const g = got.findIndex(
       (m) => m.params?.['dungeon'] === '@nh:gehennom' && m.key !== 'wiz.where.connection',
     );
-    expect(got.slice(g - 2, g + 1)).toEqual([
+    expect(got.slice(g - 3, g + 1)).toEqual([
       { key: 'wiz.where.connection', params: { dungeon: '@nh:gehennom', depth: n } },
       { key: 'wiz.where.special', params: { name: '@nh:castle', depth: n } },
+      { key: 'wiz.where.portal_unplaced', params: { dungeon: '@nh:ludios' } },
       {
         key: 'wiz.where.levels',
         params: { dungeon: '@nh:gehennom', start: n + 1, end: n + (hell?.levels ?? 0) },

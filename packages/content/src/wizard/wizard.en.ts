@@ -62,6 +62,8 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.where.branch': '   Stairs down to {dungeon}: {depth}',
   'wiz.where.branch_up': '   Stairs up to {dungeon}: {depth}',
   'wiz.where.connection': '   Connection to {dungeon}: {depth}',
+  'wiz.where.portal': '   Portal to {dungeon}: {depth}',
+  'wiz.where.portal_unplaced': '   Portal to {dungeon}: not placed',
   'wiz.where.special': '  {name}: {depth}',
   'wiz.where.special_here': '* {name}: {depth}',
   // ref: src/insight.c doborn()

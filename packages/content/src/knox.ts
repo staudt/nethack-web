@@ -17,14 +17,17 @@
 // in C; a Room is a rectangle here, so each is the rectangles its flood fill covers, each a room
 // of its own. As C marks the branch's main-dungeon end bogus until a vault's portal re-inserts
 // it, the branch has stairs at neither end: the fixup lifts the up stairs core makes on this end
-// (the branch spot; the portal back goes there in step 5).
+// (the branch spot), and the portal back to the vault goes there (src/mklev.c place_branch()).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
 import { VANILLA_TERRAIN, levelDefRect, wallifyLevel } from '@nh/core';
 import { mkgold } from './items';
 import { KNOX, setMadeLevelFlags } from './levelflags';
+import { knoxSource } from './knoxstate';
+import { MAGIC_PORTAL, portalData } from './portal';
 import { percent, ter } from './selection';
 import { makeContents, mapToLevel, orientDoors, placeLregion, type SpLevFixup } from './sp_lev';
 import { T, setTerrain } from './terrain';
+import { maketrap } from './trap';
 import { BARRACKS, COURT, ZOO } from './zoo';
 
 const MAP: readonly string[] = [
@@ -217,14 +220,21 @@ function treasury(ctx: Ctx, level: Level, def: LevelDef): void {
 /**
  * The branch levregion (fixup_special()'s place_lregion() of its one cell: two `rn1(1, x)`),
  * then the branch stairs core made there lifted back to floor: Ludios has no stairs back to the
- * main dungeon (the portal back is placed there in step 5).
+ * main dungeon, but a magic portal to the vault that holds the other end (place_branch()'s
+ * BR_PORTAL: mkportal()). ref: src/mklev.c place_branch(); src/mkmaze.c mkportal()
  */
 function placeBranch(ctx: Ctx, level: Level, def: LevelDef): void {
   const b = level.branch;
   if (b) setTerrain(level, b.pos.x, b.pos.y, T.floor);
   const area = levelDefRect(def, level.width, level.height, BRANCH_SPOT, 'map', 'knox branch');
-  placeLregion(ctx, level, area, null);
+  const p = placeLregion(ctx, level, area, null);
   level.branch = null;
+  // place_branch(): the portal back to the vault, once a vault has its end (else mkKnoxPortal()
+  // adds it when one does)
+  const source = knoxSource(ctx.state);
+  if (!p || !source) return;
+  const t = maketrap(ctx, level.id, p.x, p.y, MAGIC_PORTAL, { inMklev: true });
+  t.data = portalData(source);
 }
 
 export const KNOX_FIXUP: SpLevFixup = {

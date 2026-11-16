@@ -1,4 +1,5 @@
 import { type ActionDef, type Ctx, type DungeonLayout, getLevel } from '@nh/core';
+import { knoxSource } from '../knoxstate';
 import { LUDIOS } from '../levelflags';
 
 export const WIZ_WHERE = 'wiz:where';
@@ -9,8 +10,11 @@ export const WIZ_WHERE = 'wiz:where';
  * is on is marked `*`.
  * ref: src/dungeon.c print_dungeon(), print_branch(), chr_u_on_lvl() (bymenu false), as
  * messages instead of a window, with the overview's "Stairs up"/"Stairs down" (br_string2())
- * for C's "Stair" and C's "Connection" for a branch with no stairs on this end (BR_NO_END1);
- * there are no portals to list yet (Fort Ludios's unplaced branch is not listed).
+ * for C's "Stair" and C's "Connection" for a branch with no stairs on this end (BR_NO_END1).
+ * Fort Ludios's branch is listed as C's "Portal" on the level whose vault holds its portal
+ * (mk_knox_portal() re-inserts it there); its rolled level is only C's placeholder, never listed,
+ * and while no vault has the portal the parent's list ends with "Portal to Fort Ludios: not
+ * placed" (C lists nothing).
  */
 export function printDungeon(ctx: Ctx): void {
   const dungeons: readonly DungeonLayout[] = ctx.state.dungeons;
@@ -28,9 +32,11 @@ export function printDungeon(ctx: Ctx): void {
         params: { dungeon, start, end: start + d.levels - 1 },
       });
     else ctx.emit({ type: 'msg', key: 'wiz.where.level', params: { dungeon, start } });
+    // Fort Ludios's floating entrance: its rolled level is only C's placeholder
+    // (fixup_level_locations() makes its end1 bogus, which print_branch() skips); its portal's
+    // level once placed
+    const knox = d.branches.some((b) => b.to === LUDIOS) ? knoxSource(ctx.state) : null;
     const lines = [
-      // Fort Ludios's floating entrance is not listed: its rolled level is only C's placeholder
-      // (fixup_level_locations() makes its end1 bogus, which print_branch() skips)
       ...d.branches
         .filter((b) => b.to !== LUDIOS)
         .map((b) => ({
@@ -39,13 +45,27 @@ export function printDungeon(ctx: Ctx): void {
           id: b.to,
           up: b.dir === 'up',
           connection: b.stairs === 'child',
+          portal: false,
         })),
+      ...(knox
+        ? [
+            {
+              dlevel: knox.dlevel,
+              special: false,
+              id: LUDIOS,
+              up: false,
+              connection: false,
+              portal: true,
+            },
+          ]
+        : []),
       ...d.special.map((s) => ({
         dlevel: s.dlevel,
         special: true,
         id: s.id,
         up: false,
         connection: false,
+        portal: false,
       })),
     ].sort((a, b) => a.dlevel - b.dlevel || Number(a.special) - Number(b.special));
     for (const l of lines) {
@@ -53,11 +73,13 @@ export function printDungeon(ctx: Ctx): void {
       if (!l.special) {
         ctx.emit({
           type: 'msg',
-          key: l.connection
-            ? 'wiz.where.connection'
-            : l.up
-              ? 'wiz.where.branch_up'
-              : 'wiz.where.branch',
+          key: l.portal
+            ? 'wiz.where.portal'
+            : l.connection
+              ? 'wiz.where.connection'
+              : l.up
+                ? 'wiz.where.branch_up'
+                : 'wiz.where.branch',
           params: { dungeon: '@' + ctx.defs.dungeon(l.id).nameKey, depth },
         });
         continue;
@@ -70,6 +92,12 @@ export function printDungeon(ctx: Ctx): void {
         params: { name: '@' + (sp?.nameKey ?? l.id), depth },
       });
     }
+    if (!knox && d.branches.some((b) => b.to === LUDIOS))
+      ctx.emit({
+        type: 'msg',
+        key: 'wiz.where.portal_unplaced',
+        params: { dungeon: '@' + ctx.defs.dungeon(LUDIOS).nameKey },
+      });
   }
 }
 

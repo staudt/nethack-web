@@ -574,6 +574,27 @@ export function cvtSdoorToDoor(level: Readonly<Level>, id: DefId | undefined): D
   return id === T.sdoor_locked_v || id === T.sdoor_locked_h ? T.door_locked : T.door_closed;
 }
 
+/**
+ * Whether a branch of the layout ends on `level`: stairs leaving it for a branch dungeon (Fort
+ * Ludios's rolled level aside: C makes that end bogus until its portal is placed, so
+ * Is_branchlev() never finds it), or a branch dungeon's entry level. ref: src/dungeon.c
+ * Is_branchlev()
+ */
+export function isBranchlev(
+  state: Readonly<GameState>,
+  level: Readonly<Pick<Level, 'dungeon' | 'dlevel'>>,
+): boolean {
+  for (const d of state.dungeons) {
+    for (const b of d.branches) {
+      if (d.id === level.dungeon && b.dlevel === level.dlevel && b.to !== LUDIOS) return true;
+      if (b.to !== level.dungeon) continue;
+      const child = state.dungeons.find((c) => c.id === b.to);
+      if (child && level.dlevel === (child.entry ?? 1)) return true;
+    }
+  }
+  return false;
+}
+
 /** Whether `level` is Fort Ludios. ref: include/dungeon.h Is_knox() */
 export const isKnox = (level: Readonly<Level> | undefined): boolean => level?.def === KNOX;
 
