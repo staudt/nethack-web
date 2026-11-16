@@ -50,6 +50,7 @@ import {
   wizardMod,
 } from '../src/index';
 import { P, setItimeout, timeoutLeft } from '../src/props';
+import { pendingVaultTele } from '../src/vaultstate';
 import { ctxFor, itemOf, render } from './itemHelpers';
 
 const normal = createEngine([vanillaMod]);
@@ -153,7 +154,11 @@ describe('the wizard mod', () => {
 describe('wiz:map', () => {
   test('remembers every cell, finds secret corridors, shows every trap, takes no time', () => {
     // Hide one corridor cell as a secret corridor and add an unseen trap on the floor, out of sight.
-    const { state } = wizard.newGame({ seed: 1 });
+    // The first seed whose DL1 has no vault teleporter waiting in its niche: that trap is only
+    // made, unseen, after the action that finds its corridor (DEVIATIONS "Vaults").
+    const state = Array.from({ length: 20 }, (_, i) => wizard.newGame({ seed: i + 1 }).state).find(
+      (s) => pendingVaultTele(s, s.currentLevel) === null,
+    )!;
     {
       const l = getLevel(state);
       const out = (id: DefId): number =>
@@ -211,9 +216,10 @@ describe('wiz:where', () => {
           key: d.levels > 1 ? 'wiz.where.levels' : 'wiz.where.level',
           params: d.levels > 1 ? { dungeon, start, end: start + d.levels - 1 } : { dungeon, start },
         });
-      // branch stairs and special levels by level, a branch first on a shared level
+      // branch stairs and special levels by level, a branch first on a shared level; Fort
+      // Ludios's floating entrance is not listed (m21)
       const lines = [
-        ...d.branches.map((b) => ({ dl: b.dlevel, n: 0, b })),
+        ...d.branches.filter((b) => b.to !== 'nh:ludios').map((b) => ({ dl: b.dlevel, n: 0, b })),
         ...d.special.map((sp) => ({ dl: sp.dlevel, n: 1, sp })),
       ].sort((a, b) => a.dl - b.dl || a.n - b.n);
       for (const l of lines)
@@ -253,8 +259,29 @@ describe('wiz:where', () => {
     const n = main?.levels ?? 0;
     expect(n).toBeGreaterThanOrEqual(25);
     const branch = main?.branches.find((b) => b.to === 'nh:mines');
-    const oracle = main?.special[0];
+    const oracle = main?.special.find((sp) => sp.id === 'nh:oracle');
     expect([5, 6, 7, 8, 9]).toContain(oracle?.dlevel);
+    // m21: the Rogue level on DL15-18; Fort Ludios last, one level, its branch not listed
+    const rogue = main?.special.find((sp) => sp.id === 'nh:rogue');
+    expect([15, 16, 17, 18]).toContain(rogue?.dlevel);
+    expect(got).toContainEqual({
+      key: 'wiz.where.special',
+      params: { name: '@level.rogue', depth: rogue?.dlevel ?? -1 },
+    });
+    expect(
+      got.some((m) => m.params?.['dungeon'] === '@nh:ludios' && m.key !== 'wiz.where.level'),
+    ).toBe(false);
+    const ludios = state.dungeons.find((d) => d.id === 'nh:ludios');
+    expect(got.slice(-2)).toEqual([
+      {
+        key: 'wiz.where.level',
+        params: { dungeon: '@nh:ludios', start: ludios?.depthStart ?? -1 },
+      },
+      {
+        key: 'wiz.where.special',
+        params: { name: '@level.knox', depth: ludios?.depthStart ?? -1 },
+      },
+    ]);
     expect(got[0]).toEqual({
       key: 'wiz.where.levels',
       params: { dungeon: '@nh:main', start: 1, end: n },

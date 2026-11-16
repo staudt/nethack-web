@@ -175,20 +175,26 @@ describe('sliming', () => {
 
 describe('the nurse (AD_HEAL)', () => {
   test('an unarmed, unarmored hero is healed and her maximum grows, until the nurse leaves', () => {
-    const s = room();
-    hero(s.state).c.hp = { cur: 1, max: 10 };
-    unequipAll(s.state);
-    const nurse = mon(s.state, 'nh:nurse');
-    let mhm = newMhm(0);
-    let n = 0;
-    while (!mhm.done && n++ < 2000) mhm = hit(s, nurse.id, HEAL, undefined, 5);
-    expect(mhm.done).toBe(true);
-    expect(texts(s.ctx)).toContain("The nurse hits!  (I hope you don't mind.)");
-    expect(hero(s.state).c.hp!.cur).toBeGreaterThan(1);
-    expect(hero(s.state).c.hp!.max).toBeGreaterThan(10);
-    // gone for good, or teleported and fleeing
-    const gone = !alive(s.state, nurse.id);
-    expect(gone || isFleeing(s.ctx, nurse.id)).toBe(true);
+    // the maximum grows 1 time in 7 per hit, and she may leave (1 in 33) before: over seeds
+    let grew = 0;
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const s = room(seed);
+      hero(s.state).c.hp = { cur: 1, max: 10 };
+      unequipAll(s.state);
+      const nurse = mon(s.state, 'nh:nurse');
+      let mhm = newMhm(0);
+      let n = 0;
+      while (!mhm.done && n++ < 2000) mhm = hit(s, nurse.id, HEAL, undefined, 5);
+      expect(mhm.done).toBe(true);
+      expect(texts(s.ctx)).toContain("The nurse hits!  (I hope you don't mind.)");
+      expect(hero(s.state).c.hp!.cur).toBeGreaterThan(1);
+      expect(hero(s.state).c.hp!.max).toBeGreaterThanOrEqual(10);
+      if (hero(s.state).c.hp!.max > 10) grew++;
+      // gone for good, or teleported and fleeing
+      const gone = !alive(s.state, nurse.id);
+      expect(gone || isFleeing(s.ctx, nurse.id)).toBe(true);
+    }
+    expect(grew).toBeGreaterThan(0);
   });
 
   test('armor: a plain hit; a Healer is asked to cooperate every fifth turn', () => {

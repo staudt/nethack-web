@@ -415,6 +415,8 @@ describe('Demonic Blackmail!', () => {
 
   test('coming near her on his own move, and #chat, ask for the bribe', () => {
     const { s, a } = prince(300);
+    // without his random gear, which he might use first (a potion drunk ends his move)
+    for (const o of inventoryOf(s.state, a.id)) delete s.state.entities[String(o.id)];
     a.c.actor!.speed = 12;
     a.c.actor!.energy = 12;
     s.step({ type: 'wait' });

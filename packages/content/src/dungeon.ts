@@ -5,9 +5,10 @@ import { BAALZ, BAALZ_FIXUP } from './baalz';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
 import { FAKEWIZ1, FAKEWIZ1_FIXUP, FAKEWIZ2, FAKEWIZ2_FIXUP } from './fakewiz';
-import { GEHENNOM, GEHENNOM_SPECIALS as G } from './levelflags';
+import { GEHENNOM, GEHENNOM_SPECIALS as G, KNOX, LUDIOS } from './levelflags';
 import { HELLFILL, HELLFILL_FIXUP } from './hellfill';
 import { JUIBLEX, JUIBLEX_FIXUP } from './juiblex';
+import { KNOX_FIXUP, KNOX_LEVEL } from './knox';
 import { MAZEFILL, MAZEFILL_FIXUP } from './mazefill';
 import { MEDUSA_FIXUPS, MEDUSA_VARIANTS } from './medusa';
 import { MINEND_FIXUPS, MINEND_VARIANTS } from './minesend';
@@ -15,6 +16,7 @@ import { MINETOWN_VARIANTS } from './minetown';
 import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import { ORACLE_LEVEL } from './oracle';
 import { ORCUS_TOWN, ORCUS_TOWN_FIXUP } from './orcus';
+import { ROGUE_FIXUP, ROGUE_LEVEL } from './rogue';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
 import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
@@ -110,6 +112,8 @@ export const LEVELS: readonly LevelDef[] = [
   WIZARD3,
   FAKEWIZ1,
   FAKEWIZ2,
+  ROGUE_LEVEL,
+  KNOX_LEVEL,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -131,11 +135,13 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [WIZARD3.id]: WIZARD3_FIXUP,
   [FAKEWIZ1.id]: FAKEWIZ1_FIXUP,
   [FAKEWIZ2.id]: FAKEWIZ2_FIXUP,
+  [ROGUE_LEVEL.id]: ROGUE_FIXUP,
+  [KNOX_LEVEL.id]: KNOX_FIXUP,
 };
 
 /**
- * The Dungeons of Doom: `rn1(5, 25)` levels. Its special levels in dungeon.lua's order (the rogue
- * level is left out and draws nothing): the Oracle on DL5-9 (oracle.ts), the big room on DL10-12
+ * The Dungeons of Doom: `rn1(5, 25)` levels. Its special levels in dungeon.lua's order: the Rogue
+ * level on DL15-18 (rogue.ts), the Oracle on DL5-9 (oracle.ts), the big room on DL10-12
  * in 40% of games (one of 13 variants, bigroom.ts), Medusa's island 1-4 levels above the bottom
  * (one of 4, medusa.ts) and the Castle on the last level (castle.ts). Below Medusa its ordinary
  * levels are mazes 4 times in 5 (`nh:mazefill`, mazefill.ts).
@@ -155,12 +161,19 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * Oracle onto its bottom level (`entry = -1`), whose depth is the Oracle's; each level is one of
  * two variants (sokoban.ts), so it has no filler. Its "mazelike" flag and neutral alignment are
  * not modelled.
+ * Fort Ludios: one level (knox.ts), its branch rolled on DL18-21 of the main dungeon, which gives
+ * its depth (19-22) but no stairs at either end: C makes the main dungeon's end a floating one
+ * until a vault's magic portal is placed (the knox kludge of fixup_level_locations()).
+ * It comes after Sokoban, as in dungeon.lua (the Quest between them is left out and draws
+ * nothing).
  * ref: dat/dungeon.lua ("The Dungeons of Doom": base 25, range 5; oracle: base 5, range 5;
  * bigrm: base 10, range 3, chance 40, nlevels 13; medusa: base -5, range 4, nlevels 4; castle:
  * base -1; "Gehennom": base 20, range 5, its branch: chainlevel "castle", base 0, branchtype
  * "no_down"; "The Gnomish Mines": base 8, range 2; branch base 2, range 3; minetn: base 3, range 2,
  * nlevels 7, flags "town"; minend: base -1, nlevels 3; "Sokoban": base 4, entry -1, soko1..soko4
- * at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1, direction "up")
+ * at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1, direction "up"; rogue: base
+ * 15, range 4; "Fort Ludios": base 1, knox base -1; its branch: base 18, range 4, branchtype
+ * "portal"); src/dungeon.c fixup_level_locations()
  */
 export const DUNGEONS: readonly DungeonDef[] = [
   {
@@ -168,6 +181,7 @@ export const DUNGEONS: readonly DungeonDef[] = [
     nameKey: 'nh:main',
     levels: { base: 25, range: 5 },
     special: [
+      { id: 'nh:rogue', nameKey: 'level.rogue', base: 15, range: 4, variants: [ROGUE_LEVEL.id] },
       { id: 'nh:oracle', nameKey: 'nh:oracle', base: 5, range: 5, variants: [ORACLE_LEVEL.id] },
       {
         id: 'nh:bigroom',
@@ -233,5 +247,13 @@ export const DUNGEONS: readonly DungeonDef[] = [
       base: i + 1,
       variants: [a.id, b.id],
     })),
+  },
+  {
+    id: LUDIOS,
+    nameKey: LUDIOS,
+    levels: { base: 1 },
+    // branchtype "portal": stairs at neither end, the child's lifted by the knox fixup (knox.ts)
+    entry: { from: 'nh:main', base: 18, range: 4, stairs: 'child' },
+    special: [{ id: KNOX, nameKey: 'level.knox', base: -1, variants: [KNOX_LEVEL.id] }],
   },
 ];

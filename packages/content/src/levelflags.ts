@@ -521,3 +521,25 @@ export function medusaDepth(state: Readonly<GameState>): number {
 
 /** The special level id of Medusa's island in the dungeon layout. */
 const MEDUSA: DefId = 'nh:medusa';
+
+/**
+ * The Rogue level's LevelDef (rogue.ts). Its special level in the main dungeon is `nh:rogue`, as
+ * dungeon.lua names it; the LevelDef needs another id, the rogue monster's being `nh:rogue`.
+ */
+export const ROGUE: DefId = 'nh:rogue-level';
+/** Fort Ludios's level: its LevelDef and its special level (knox.ts). */
+export const KNOX: DefId = 'nh:knox';
+/** Fort Ludios's dungeon, a branch of one level reached by a magic portal. */
+export const LUDIOS: DefId = 'nh:ludios';
+
+/** Whether `level` is the Rogue level. ref: include/dungeon.h Is_rogue_level() */
+export const isRogueLevel = (level: Readonly<Level> | undefined): boolean => level?.def === ROGUE;
+
+/** Whether `level` is Fort Ludios. ref: include/dungeon.h Is_knox() */
+export const isKnox = (level: Readonly<Level> | undefined): boolean => level?.def === KNOX;
+
+/**
+ * Whether `level` is the only level of its branch: "Fort Ludios is the only single level branch
+ * in the dungeon". ref: src/dungeon.c single_level_branch()
+ */
+export const singleLevelBranch = (level: Readonly<Level> | undefined): boolean => isKnox(level);

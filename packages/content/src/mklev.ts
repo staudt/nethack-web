@@ -388,9 +388,16 @@ export function registerMklev(api: ModApi): void {
     mkVault(ctx, level); // after the corridors, before the special room, as do_vault
     if (level.def === undefined) mkSpecialRoom(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
-      for (const room of level.rooms)
-        // not subrooms, nor special rooms (ROOM_IS_FILLABLE)
-        if (room.parent === undefined && room.type === undefined)
-          fillOrdinaryRoom(ctx, level, room);
+      fillOrdinaryRooms(ctx, level);
   });
+}
+
+/**
+ * Every ordinary room's contents, in room order: not subrooms, nor special rooms
+ * (ROOM_IS_FILLABLE). The Rogue level's fixup (rogue.ts) runs it once its rooms exist.
+ * ref: src/mklev.c makelevel() ("for each room: put things inside")
+ */
+export function fillOrdinaryRooms(ctx: Ctx, level: Level): void {
+  for (const room of level.rooms)
+    if (room.parent === undefined && room.type === undefined) fillOrdinaryRoom(ctx, level, room);
 }

@@ -84,7 +84,8 @@ describe('determinism', () => {
 describe('determinism of a soak with kicks, fires and text answers', () => {
   const MODS = [vanillaMod, soakKitMod];
   // a seed whose run kicks, fires and answers counts (re-picked when the game stream changes)
-  // (20261082 does with and without m19 step 1's 17 object rows; 20261079 stopped firing with
+  // (20261083 does with and without m21 step 1's Rogue level and Fort Ludios layout draws;
+  // 20261082 stopped firing with them; 20261082 does with and without m19 step 1's 17 object rows; 20261079 stopped firing with
   // them); 20261079 before m19 step 1 (it did with and without m18 step 3's ring of protection
   // from shape changers;
   // 20261073 stopped firing with it); 20261073 before m18 step 3 (it did with and without m16
@@ -94,7 +95,7 @@ describe('determinism of a soak with kicks, fires and text answers', () => {
   // stopped firing), 20261047 before m12 step 6 (it stopped firing), 20261044 before m12 step 5 (it stopped
   // firing), 20261043 before m11 step 8 (it stopped kicking or firing), 20261042 before m11 step 7 (it stopped answering counts), 20261041 before m11 step 5 and
   // 20261039 before m11 step 3 (their runs stopped firing)
-  const SOAK_SEED = 20261082;
+  const SOAK_SEED = 20261083;
   const run = soak(MODS, { seed: SOAK_SEED, turns: 400, botSeed: 7, width: W, height: H });
 
   test('the run exercised kicks, fires and count answers', () => {

@@ -303,6 +303,11 @@ describe('polyself()', () => {
     expect(newmen).toBeGreaterThan(0);
   });
 
+  // polyself()'s outcomes: a new form, a new man, or newman()'s death
+  const polyselfDone = (t: string): boolean =>
+    t.startsWith('You turn into') ||
+    t.startsWith('You feel like a new') ||
+    t === "Your new form doesn't seem healthy enough to survive.";
   test('the wand at herself and the polymorph trap reach it', () => {
     let s = room(3);
     setAttr(s, 'con', 25);
@@ -310,9 +315,7 @@ describe('polyself()', () => {
     itemOf(s.state, wand).spe = 5;
     eng.step(s.state, { type: 'mod', action: 'nh:zap' as DefId, args: { item: wand } as never });
     const zapped = answer(s, 'self');
-    expect(
-      zapped.some((t) => t.startsWith('You turn into') || t.startsWith('You feel like a new')),
-    ).toBe(true);
+    expect(zapped.some(polyselfDone)).toBe(true);
     s = room(4);
     setAttr(s, 'con', 25);
     const lvl = s.state.levels['dlvl1']!;
@@ -320,9 +323,7 @@ describe('polyself()', () => {
     lvl.traps.push({ def: 'nh:polymorph_trap' as DefId, x: p.x + 1, y: p.y, seen: false });
     const text = textsOf(eng.step(s.state, { type: 'move', dir: 'e' } as never).events);
     expect(text).toContain('You feel a change coming over you.');
-    expect(
-      text.some((t) => t.startsWith('You turn into') || t.startsWith('You feel like a new')),
-    ).toBe(true);
+    expect(text.some(polyselfDone)).toBe(true);
   });
 });
 

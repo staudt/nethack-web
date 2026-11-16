@@ -1,4 +1,5 @@
 import { type ActionDef, type Ctx, type DungeonLayout, getLevel } from '@nh/core';
+import { LUDIOS } from '../levelflags';
 
 export const WIZ_WHERE = 'wiz:where';
 
@@ -9,7 +10,7 @@ export const WIZ_WHERE = 'wiz:where';
  * ref: src/dungeon.c print_dungeon(), print_branch(), chr_u_on_lvl() (bymenu false), as
  * messages instead of a window, with the overview's "Stairs up"/"Stairs down" (br_string2())
  * for C's "Stair" and C's "Connection" for a branch with no stairs on this end (BR_NO_END1);
- * there are no portals to list yet.
+ * there are no portals to list yet (Fort Ludios's unplaced branch is not listed).
  */
 export function printDungeon(ctx: Ctx): void {
   const dungeons: readonly DungeonLayout[] = ctx.state.dungeons;
@@ -28,13 +29,17 @@ export function printDungeon(ctx: Ctx): void {
       });
     else ctx.emit({ type: 'msg', key: 'wiz.where.level', params: { dungeon, start } });
     const lines = [
-      ...d.branches.map((b) => ({
-        dlevel: b.dlevel,
-        special: false,
-        id: b.to,
-        up: b.dir === 'up',
-        connection: b.stairs === 'child',
-      })),
+      // Fort Ludios's floating entrance is not listed: its rolled level is only C's placeholder
+      // (fixup_level_locations() makes its end1 bogus, which print_branch() skips)
+      ...d.branches
+        .filter((b) => b.to !== LUDIOS)
+        .map((b) => ({
+          dlevel: b.dlevel,
+          special: false,
+          id: b.to,
+          up: b.dir === 'up',
+          connection: b.stairs === 'child',
+        })),
       ...d.special.map((s) => ({
         dlevel: s.dlevel,
         special: true,

@@ -114,18 +114,23 @@ describe('teleportation', () => {
   });
 
   test('an empty wand is not chosen; a scroll read in its place teleports and is used up', () => {
-    const s = make();
-    const id = orc(s.state, 9, 3, 2);
-    give(s.state, id, 'nh:wand_of_teleportation', { spe: 0 });
-    give(s.state, id, 'nh:scroll_of_teleportation');
-    expect(findDefensive(s.ctx as unknown as Ctx, id, false)?.kind).toBe('scr_tele');
-    const t = textOf(s.step({ type: 'wait' }));
-    expect(t.some((m) => /^The hill orc reads a scroll .*!$/.test(m))).toBe(true);
-    const p = ent(s.state, id)!.c.pos!;
-    expect(p.level).toBe('dlvl1');
-    expect(p.x !== 9 || p.y !== 3).toBe(true);
-    expect(carried(s.state, id)).toEqual(['nh:wand_of_teleportation']);
-    expect(isKnown(s.state, defs, 'nh:scroll_of_teleportation' as DefId)).toBe(true);
+    // rloc() may put a monster back on its own square (goodpos()), so over a few seeds
+    let moved = 0;
+    for (const seed of [1, 2, 3]) {
+      const s = make(seed);
+      const id = orc(s.state, 9, 3, 2);
+      give(s.state, id, 'nh:wand_of_teleportation', { spe: 0 });
+      give(s.state, id, 'nh:scroll_of_teleportation');
+      expect(findDefensive(s.ctx as unknown as Ctx, id, false)?.kind).toBe('scr_tele');
+      const t = textOf(s.step({ type: 'wait' }));
+      expect(t.some((m) => /^The hill orc reads a scroll .*!$/.test(m))).toBe(true);
+      const p = ent(s.state, id)!.c.pos!;
+      expect(p.level).toBe('dlvl1');
+      if (p.x !== 9 || p.y !== 3) moved++;
+      expect(carried(s.state, id)).toEqual(['nh:wand_of_teleportation']);
+      expect(isKnown(s.state, defs, 'nh:scroll_of_teleportation' as DefId)).toBe(true);
+    }
+    expect(moved).toBeGreaterThan(0);
   });
 
   test('a blinded monster does not read its scroll', () => {

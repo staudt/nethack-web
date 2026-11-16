@@ -150,8 +150,12 @@ describe('sitting on a throne', () => {
     run(s.state, (ctx) => polymon(ctx, 'nh:gnome_king' as DefId, false));
     for (const o of itemsAt(defs, s.state, s.here.level, s.here.x, s.here.y))
       delete s.state.entities[String(o.id)]; // the dropped gear would be sat on
-    const { text } = search(s, (_st, t) => t.some((l) => l.startsWith('You feel very')));
+    // the sit with no throne effect (gold detection's "You feel very greedy" is an effect)
+    const { text } = search(s, (_st, t) =>
+      t.some((l) => l === 'You feel very comfortable here.' || l.endsWith('out of place...')),
+    );
     expect(text).toContain('You feel very comfortable here.');
+    expect(text).not.toContain('You feel somehow out of place...');
   });
 
   test('1 time in 3 the throne vanishes in a puff of logic, into floor and her memory', () => {

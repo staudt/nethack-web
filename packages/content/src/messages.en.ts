@@ -280,6 +280,10 @@ export const messagesEn: Record<string, string> = {
   'nh:bigroom': 'Big Room',
   'nh:castle': 'Castle',
   'nh:gehennom': 'Gehennom',
+  'nh:ludios': 'Fort Ludios',
+  // m21: dat/dungeon.lua's "rogue" and "knox"
+  'level.rogue': 'Rogue level',
+  'level.knox': 'Fort Ludios',
   'temperature.hot': 'It is hot here.',
   'temperature.cold': 'It is cold here.',
   'temperature.smoke': 'You {verb} smoke...',

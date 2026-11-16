@@ -466,7 +466,7 @@ describe('monsters and horns', () => {
     const out2 = msgs(
       run(s2, (ctx) => expect(munslime(ctx, ent(ctx.state, orc2)!, false)).toBe(true)),
     );
-    expect(out2.some((m) => /^The hill orc ignites a .*potion\.$/.test(m))).toBe(true);
+    expect(out2.some((m) => /^The hill orc ignites an? .*potion\.$/.test(m))).toBe(true);
     expect(out2.some((m) => /^He quaffs a burning .*potion/.test(m))).toBe(true);
     expect(out2).toContain("The hill orc's slime is burned away!");
     expect(ent(s2.state, oil)?.c.item?.quantity).toBe(1); // one of the two is used up

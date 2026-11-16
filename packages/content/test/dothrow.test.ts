@@ -130,7 +130,8 @@ describe('throw: flight', () => {
     // hero L1 Dex 14 (no bonus): newt AC 8, small (-1): at distance 1: -1+8+1+2-1+2 = 11 => hit on rnd(20) <= 11
     const rate = (dist: number) => {
       let hit = 0;
-      const N = 300;
+      // enough throws that the 3-point gap (0.15) is not lost to chance (~0.02 per rate)
+      const N = 1000;
       for (let seed = 1; seed <= N; seed++) {
         const s = levelSetup(['....................', '..@.................'], seed);
         const hero = s.state.entities[String(s.state.playerId)];
@@ -141,10 +142,11 @@ describe('throw: flight', () => {
       }
       return hit / N;
     };
-    expect(rate(1)).toBeGreaterThan(0.42);
-    expect(rate(1)).toBeLessThan(0.68); // 11 / 20 = 0.55
-    expect(rate(4)).toBeLessThan(rate(1) - 0.1); // 3 - 4 = -1 against 2
-  }, 30_000);
+    const near = rate(1);
+    expect(near).toBeGreaterThan(0.42);
+    expect(near).toBeLessThan(0.68); // 11 / 20 = 0.55
+    expect(rate(4)).toBeLessThan(near - 0.1); // 3 - 4 = -1 against 2
+  }, 60_000);
 
   test('a distant monster is hit within range; the dagger flies past a miss only if nothing blocks', () => {
     const s = levelSetup(['..@..........'], 3);

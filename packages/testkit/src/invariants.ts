@@ -135,6 +135,8 @@ function checkLight(state: GameState, ids: readonly number[], errs: string[]): v
 
 /** Iron bars, where objects may lie. ref: src/trap.c isclearpath() (ZAP_POS) */
 const IRON_BARS = 'nh:iron_bars';
+/** Fort Ludios's dungeon (content levelflags.ts LUDIOS). */
+const LUDIOS = 'nh:ludios';
 
 /** Returns a list of violated invariants; empty means the state is healthy. */
 export function checkInvariants(
@@ -1125,7 +1127,9 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
         (!p.childOnly && p.dungeon === lv.dungeon && p.dlevel === lv.dlevel) ||
         (child === lv.dungeon && lv.dlevel === entryOf.get(child)),
     );
-    if (wanted && !lv.branch) errs.push(`level ${lid}: the layout's branch stairs are missing`);
+    // Fort Ludios's way back is a magic portal, not stairs (its branch floats: m21)
+    if (wanted && !lv.branch && wanted[0] !== LUDIOS)
+      errs.push(`level ${lid}: the layout's branch stairs are missing`);
   }
 }
 

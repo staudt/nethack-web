@@ -155,9 +155,9 @@ describe("Medusa's island", () => {
           (t) => t.def === 'nh:statue_trap' && t.x === s.c.pos?.x && t.y === s.c.pos.y,
         );
       const others = statuesOn(state, level).filter((s) => s.id !== perseus.id && !onStatueTrap(s));
-      // (medusa-2: its eight garden statues and the fixup's last one; the fixup's rnd(4) tries
-      // in the first room may all miss)
-      expect(others.length).toBeGreaterThanOrEqual(9);
+      // (the script's seven random statues, medusa-2's eight garden ones, and the fixup's last
+      // one; the fixup's rnd(4) tries in the first room may all miss)
+      expect(others.length).toBeGreaterThanOrEqual(n === 2 ? 9 : 8);
       for (const s of others) {
         const m = defs.monster(s.c.item?.corpseOf as DefId);
         expect(m.resists).not.toContain('stone');
@@ -431,7 +431,11 @@ describe("the black dragon's disintegration blast", () => {
         o.c.item.equipped = null;
     wearOn(s.state, s.state.playerId, 'nh:black_dragon_scale_mail', 'body');
     const dragon = pinned(s.state, 'nh:black_dragon', 31, 2);
-    expect(blast(s.state, dragon, 'w')).toContain('You are not disintegrated.');
+    // the blast may miss her (zap_hit() against her AC): it hits within a few breaths
+    const t: string[] = [];
+    for (let i = 0; i < 20 && !t.includes('You are not disintegrated.'); i++)
+      t.push(...blast(s.state, dragon, 'w'));
+    expect(t).toContain('You are not disintegrated.');
     expect(s.state.gameOver).toBeNull();
   });
 

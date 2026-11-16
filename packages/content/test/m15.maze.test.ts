@@ -14,6 +14,7 @@ import { describe, expect, test } from 'vitest';
 import { vanillaMod } from '../src/index';
 import { fillEmptyMaze, MAZEFILL } from '../src/mazefill';
 import { rndtrap } from '../src/mklev';
+import { ROGUE } from '../src/levelflags';
 import { makemon } from '../src/generation';
 import { minvent } from '../src/mongear';
 
@@ -70,7 +71,8 @@ describe('the maze levels below Medusa', () => {
       const state = withMedusa(seed);
       for (let d = 17; d <= 24; d++) {
         const l = goTo(state, d);
-        if (d < 20) expect(l.def).toBeUndefined();
+        // above Medusa: ordinary levels, or the Rogue level (DL15-18, m21)
+        if (d < 20) expect([undefined, ROGUE]).toContain(l.def);
         else if (d === 20) expect(l.def).toMatch(/^nh:medusa-[1-4]$/);
         else if (l.def === MAZEFILL.id) mazes++;
         else {

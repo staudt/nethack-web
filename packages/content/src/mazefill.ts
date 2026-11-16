@@ -13,7 +13,7 @@ import { dry, type SpLevFixup } from './sp_lev';
 import { TRAP, isHole, isPit, maketrap } from './trap';
 import { pickVibrasquareLocation } from './invocation';
 import { invocationLev } from './levelflags';
-import { T, setTerrain } from './terrain';
+import { T, isFurnitureId, setTerrain, terrainIdAt } from './terrain';
 
 const MINOTAUR = 'nh:minotaur';
 
@@ -137,7 +137,8 @@ function maze1xy(ctx: Ctx, level: Level, map: ReadonlySet<number>): Pos {
  * or hole), a minotaur half the time, 12 * mapfact / 100 random monsters, fewer than
  * 15 * mapfact / 100 piles of gold and as many random special-level traps (no pit or hole on a
  * boulder), each on a maze1xy() spot. `mapCells` are the cells the script's maps set (cellIndex();
- * default: the LevelDef's map and doors). ref: src/sp_lev.c fill_empty_maze()
+ * default: the LevelDef's map and doors). ref: src/sp_lev.c fill_empty_maze(); src/trap.c
+ * maketrap() (none on furniture)
  */
 export function fillEmptyMaze(
   ctx: Ctx,
@@ -177,6 +178,9 @@ export function fillEmptyMaze(
     let trytrap = rndtrap(ctx, level);
     if (boulderAt(ctx, level.id, p.x, p.y))
       while (isPit(trytrap) || isHole(trytrap)) trytrap = rndtrap(ctx, level);
+    // maketrap() makes none on furniture; this port's DRY spots include the stairs, which C's
+    // maze1xy() never picks (m21: found by a stream shift)
+    if (isFurnitureId(ctx.defs, terrainIdAt(level, p.x, p.y))) continue;
     maketrap(ctx, level.id, p.x, p.y, trytrap, { inMklev: true });
   }
 }

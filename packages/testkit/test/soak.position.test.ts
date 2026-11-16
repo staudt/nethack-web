@@ -50,8 +50,9 @@ const positionMod: Mod = {
 
 describe('position prompts in the soak', () => {
   test('the bot answers them with valid cells, else cells she sees', { timeout: 60000 }, () => {
-    // a seed whose bot meets both kinds of prompt (41 before m11 step 8)
-    const r = soak([vanillaMod, positionMod], { seed: 42, turns: 400, checkEvery: 10 });
+    // a seed whose bot meets both kinds of prompt, with and without m21 step 1's layout draws (42
+    // before m21 step 1, 41 before m11 step 8)
+    const r = soak([vanillaMod, positionMod], { seed: 44, turns: 400, checkEvery: 10 });
     expect(r.violations).toBeNull();
     expect(r.positionAnswers).toBeGreaterThan(0);
     const asked = r.log.filter((a) => a.type === 'answer' && a.promptId === ASK);

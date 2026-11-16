@@ -90,6 +90,15 @@ const mimicAt = (s: S, x: number, y: number): Entity | undefined =>
 const shkOn = (s: S): number[] => sortedIds(s.state).filter((id) => eshkOf(s, id) !== null);
 
 /** The test level with room 0 a shop of `type` (and room 1 of `type2`), the hero at 7,2. */
+/**
+ * Takes the shopkeeper's random potions (m_initinv()'s healing or misc item, such as gain level):
+ * he would drink one before moving, whichever the seed gives him.
+ */
+function dropPotions(state: GameState, shk: number): void {
+  for (const o of inventoryOf(state, shk))
+    if (defs.object(o.def).class === 'potion') delete state.entities[String(o.id)];
+}
+
 function shop(seed: number, type: string, o: { town?: boolean; type2?: string } = {}) {
   const s = setup(MAP, seed);
   s.level.rooms = [
@@ -485,6 +494,7 @@ describe('entering a shop', () => {
     const e = id === undefined ? null : eshkOf(s, id);
     if (id === undefined || !shk?.c.actor || !shk.c.pos || !shk.c.monster || !e)
       throw new Error('no shopkeeper');
+    dropPotions(s.state, id);
     shk.c.actor.speed = 0;
     shk.c.actor.energy = 0;
     const move = (dir: 'w' | 'e') => s.engine.step(s.state, { type: 'move', dir });
@@ -713,6 +723,7 @@ describe('prices', () => {
     const e = id === undefined ? null : eshkOf(s, id);
     const shk = id === undefined ? undefined : s.state.entities[String(id)];
     if (id === undefined || !e || !shk?.c.actor) throw new Error('no shopkeeper');
+    dropPotions(s.state, id);
     shk.c.actor.speed = 0;
     shk.c.actor.energy = 0;
     const hero = getPlayer(s.state);
