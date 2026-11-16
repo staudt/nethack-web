@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5589 citations.
+192 NetHack files, 5613 citations.
 
 ## dat/asmodeus.lua
 
@@ -753,7 +753,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `stop_occupation()`: `packages/content/src/combat.ts`, `packages/content/src/digstate.ts`, `packages/content/src/eat.ts`, `packages/content/src/force.ts`, `packages/content/src/lockstate.ts`
 - `u_calc_moveamt()`: `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`
 - `u_on_upstairs()`: `packages/core/src/engine.ts`
-- `welcome()`: `packages/core/src/character.ts`, `packages/core/src/host.ts`
+- `welcome()`: `packages/content/src/messages.en.ts`, `packages/core/src/character.ts`, `packages/core/src/host.ts`
 
 ## src/apply.c
 
@@ -2167,6 +2167,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Japanese_items()`: `packages/content/src/kittab.ts`, `packages/content/src/role.en.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
+- `an()`: `packages/app/src/character.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
 - `as_is()`: `packages/content/src/objnam_read.ts`
 - `badman()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
@@ -2473,14 +2474,34 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Goodbye()`: `packages/content/src/botl.ts`, `packages/content/src/role.en.ts`
 - `Hello()`: `packages/content/src/role.en.ts`, `packages/content/src/shk.ts`
 - `aligns()`: `packages/content/src/disclose.ts`, `packages/core/src/character.ts`, `packages/core/src/registry.ts`
+- `build_plselection_prompt()`: `packages/app/src/character.ts`
 - `genders()`: `packages/content/src/role.en.ts`, `packages/core/src/registry.ts`, `packages/core/src/types/entity.ts`
+- `genl_player_setup()`: `packages/app/src/character.ts`
 - `ok_align()`: `packages/content/src/gods.ts`, `packages/core/src/character.ts`
 - `ok_gend()`: `packages/core/src/character.ts`
 - `ok_race()`: `packages/core/src/character.ts`
 - `ok_role()`: `packages/core/src/character.ts`
+- `pick_align()`: `packages/app/src/character.ts`
+- `pick_gend()`: `packages/app/src/character.ts`
+- `pick_race()`: `packages/app/src/character.ts`
+- `pick_role()`: `packages/app/src/character.ts`
+- `plsel_startmenu()`: `packages/app/src/character.ts`
+- `promptsep()`: `packages/app/src/character.ts`
 - `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/core/src/types/mod.ts`
+- `rigid_role_checks()`: `packages/app/src/character.ts`
 - `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/engine.ts`
+- `role_menu_extra()`: `packages/app/src/character.ts`
 - `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
+- `root_plselection_prompt()`: `packages/app/src/character.ts`
+- `setup_algnmenu()`: `packages/app/src/character.ts`
+- `setup_gendmenu()`: `packages/app/src/character.ts`
+- `setup_racemenu()`: `packages/app/src/character.ts`
+- `setup_rolemenu()`: `packages/app/src/character.ts`
+- `str2race()`: `packages/app/src/character.ts`
+- `str2role()`: `packages/app/src/character.ts`
+- `validalign()`: `packages/app/src/character.ts`
+- `validgend()`: `packages/app/src/character.ts`
+- `validrace()`: `packages/app/src/character.ts`
 
 ## src/rumors.c
 

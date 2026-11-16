@@ -148,15 +148,25 @@ const ALIGN_KEYS: Record<Alignment, string> = {
 /**
  * The `welcome` and `welcome.back` params: the role's name (female when she is and it has one),
  * the race's adjective, and the `gender.<g>` and `align.<lawful|neutral|chaotic>` keys the game
- * mods' catalogs define. ref: src/allmain.c welcome()
+ * mods' catalogs define; and `who`, the character as allmain.c welcome() words it: `welcome.who`
+ * ("{race} {role}"), or `welcome.who.gender` ("{gender} {race} {role}") for a new game whose role
+ * allows both genders and has no female name. A restored game shows no gender (C shows it only
+ * when she has changed sex, which the game mods' state knows, not core). ref: src/allmain.c welcome()
  */
-export function welcomeParams(registry: Registry, c: Character): Params {
+export function welcomeParams(registry: Registry, c: Character, newGame = true): Params {
   const role = registry.role(c.role);
-  const name = c.gender === 'female' ? (role.nameKeyFemale ?? role.nameKey) : role.nameKey;
+  const name = `@${c.gender === 'female' ? (role.nameKeyFemale ?? role.nameKey) : role.nameKey}`;
+  const race = `@${registry.race(c.race).adjKey}`;
+  const gender = `@gender.${c.gender}`;
+  const showGender =
+    newGame && role.nameKeyFemale === undefined && GENDERS.every((g) => role.genders.includes(g));
   return {
-    role: `@${name}`,
-    race: `@${registry.race(c.race).adjKey}`,
-    gender: `@gender.${c.gender}`,
+    role: name,
+    race,
+    gender,
     align: `@${ALIGN_KEYS[c.align]}`,
+    who: showGender
+      ? { key: 'welcome.who.gender', params: { gender, race, role: name } }
+      : { key: 'welcome.who', params: { race, role: name } },
   };
 }

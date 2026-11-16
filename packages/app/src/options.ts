@@ -1,10 +1,13 @@
-// The device's options: the player's name, the run speed and what the end of the game
-// discloses. Client-side only, never in GameState or saves (ref: src/options.c; doc/Guidebook
-// `name`, `runmode`, `disclose`). The movement keys (`nh.keys`, keys.ts) and the zoom (`nh.zoom`,
+// The device's options: the player's name, the run speed, what the end of the game discloses
+// and the new game's character (role, race, gender, alignment). Client-side only, never in
+// GameState or saves (ref: src/options.c; doc/Guidebook `name`, `runmode`, `disclose`, `role`,
+// `race`, `gender`, `align`). The movement keys (`nh.keys`, keys.ts) and the zoom (`nh.zoom`,
 // the UI's) keep their own storage keys.
 //
-// Storage: localStorage `nh.options` = { version: 1, name?, runmode?, disclose? }. Reading never
-// throws: missing, broken or unknown data reads as the defaults, field by field.
+// Storage: localStorage `nh.options` = { version: 1, name?, runmode?, disclose?, role?, race?,
+// gender?, align? }. Reading never throws: missing, broken or unknown data reads as the defaults,
+// field by field.
+import type { Alignment, CharacterChoices, Gender } from '@nh/core';
 import type { Disclose, KeyLayout, MenuEntry } from '@nh/ui';
 
 /** C's runmode values (flags.runmode RUN_TPORT, RUN_LEAP, RUN_STEP, RUN_CRAWL). */
@@ -14,7 +17,16 @@ export interface ClientOptions {
   name?: string;
   runmode?: RunMode;
   disclose?: Disclose;
+  /** The new game's role and race (def ids) or "random"; absent: the menus ask. */
+  role?: string;
+  race?: string;
+  gender?: Gender | 'random';
+  align?: Alignment | 'random';
 }
+
+/** The character options, in the Options sheet's order. */
+export const CHARACTER_OPTIONS = ['role', 'race', 'gender', 'align'] as const;
+export type CharacterOption = (typeof CHARACTER_OPTIONS)[number];
 
 export const OPTIONS_KEY = 'nh.options';
 /** C's PL_NSIZ - 1. */
@@ -26,6 +38,11 @@ export const DEFAULT_RUNMODE: RunMode = 'walk';
 
 const isRunMode = (v: unknown): v is RunMode => RUNMODES.includes(v as RunMode);
 const isDisclose = (v: unknown): v is Disclose => DISCLOSES.includes(v as Disclose);
+const isId = (v: unknown): v is string => typeof v === 'string' && v !== '' && v.length <= 64;
+const isGender = (v: unknown): v is Gender | 'random' =>
+  v === 'male' || v === 'female' || v === 'random';
+const isAlign = (v: unknown): v is Alignment | 'random' =>
+  v === -1 || v === 0 || v === 1 || v === 'random';
 
 /** A name as stored: trimmed, at most {@link NAME_MAX} characters; blank is no name. */
 export function cleanName(text: string): string | undefined {
@@ -50,7 +67,21 @@ export function loadOptions(s: Pick<Storage, 'getItem'> | null): ClientOptions {
     ...(name !== undefined ? { name } : {}),
     ...(isRunMode(o['runmode']) ? { runmode: o['runmode'] } : {}),
     ...(isDisclose(o['disclose']) ? { disclose: o['disclose'] } : {}),
+    ...(isId(o['role']) ? { role: o['role'] } : {}),
+    ...(isId(o['race']) ? { race: o['race'] } : {}),
+    ...(isGender(o['gender']) ? { gender: o['gender'] } : {}),
+    ...(isAlign(o['align']) ? { align: o['align'] } : {}),
   };
+}
+
+/** The character options as words for the menus' parser (`prefsFromWords()`). */
+export function characterWords(o: ClientOptions): Partial<Record<CharacterOption, string>> {
+  const out: Partial<Record<CharacterOption, string>> = {};
+  for (const k of CHARACTER_OPTIONS) {
+    const v = o[k];
+    if (v !== undefined) out[k] = String(v);
+  }
+  return out;
 }
 
 /** False when storage is missing or refuses (the options then last for this page only). */
@@ -107,6 +138,8 @@ export interface OptionsDeps {
   /** Stores the options and applies them. */
   set(o: ClientOptions): void;
   layout: KeyLayout;
+  /** The roles and races and their words; without them the character rows are left out. */
+  character?: { choices: CharacterChoices; t(key: string): string };
   /** Saves the game, remembers the other layout and reloads (keys are bound at start-up). */
   switchLayout(): void;
   resetZoom(): void;
@@ -184,6 +217,7 @@ export function openOptions(d: OptionsDeps, onClose?: () => void): void {
           again,
         ),
     },
+    ...(d.character ? characterRows(d, d.character, again) : []),
     {
       label: `Movement keys: ${LAYOUT_TEXT[d.layout]}`,
       run: () =>
@@ -208,4 +242,58 @@ export function openOptions(d: OptionsDeps, onClose?: () => void): void {
     },
   ];
   d.showText('Options', entries, onClose);
+}
+
+const OPTION_TITLE: Record<CharacterOption, string> = {
+  role: 'Role',
+  race: 'Race',
+  gender: 'Gender',
+  align: 'Alignment',
+};
+const ALIGN_WORD: Record<Alignment, string> = { [-1]: 'chaotic', 0: 'neutral', 1: 'lawful' };
+
+/**
+ * The Role, Race, Gender and Alignment rows: each "ask" (the menus ask every new game),
+ * "random", or a value, which skips its menu. ref: doc/Guidebook `role`, `race`, `gender`, `align`
+ */
+function characterRows(
+  d: OptionsDeps,
+  ch: { choices: CharacterChoices; t(key: string): string },
+  back: () => void,
+): MenuEntry[] {
+  const { choices, t } = ch;
+  const values: Record<CharacterOption, { value: string | number; text: string }[]> = {
+    role: choices.roles.map((r) => ({ value: r.id, text: t(r.nameKey) })),
+    race: choices.races.map((r) => ({ value: r.id, text: t(r.nameKey) })),
+    gender: (['male', 'female'] as const).map((g) => ({ value: g, text: t(`gender.${g}`) })),
+    align: ([1, 0, -1] as const).map((a) => ({ value: a, text: t(`align.${ALIGN_WORD[a]}`) })),
+  };
+  return CHARACTER_OPTIONS.map((k) => {
+    const cur = d.get()[k];
+    const all = [
+      { value: undefined, text: 'ask each game' },
+      { value: 'random', text: 'random' },
+      ...values[k],
+    ];
+    const shown =
+      cur === undefined ? 'ask' : (all.find((v) => v.value === cur)?.text ?? String(cur));
+    return {
+      label: `${OPTION_TITLE[k]}: ${shown}`,
+      run: () =>
+        d.showText(
+          OPTION_TITLE[k],
+          all.map((v) => ({
+            label: `${v.text}${v.value === cur ? '  ✓' : ''}`,
+            run: () => {
+              const next: ClientOptions = { ...d.get() };
+              if (v.value === undefined) delete next[k];
+              else Object.assign(next, { [k]: v.value });
+              d.set(next);
+              back();
+            },
+          })),
+          back,
+        ),
+    };
+  });
 }

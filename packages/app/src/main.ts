@@ -1,7 +1,8 @@
-import type { ClientMod, PlayerAction } from '@nh/core';
+import type { CharacterChoices, ClientMod, PlayerAction } from '@nh/core';
 import { messagesEn } from '@nh/content';
 import { createAsciiRenderer } from '@nh/render-ascii';
-import { DEFAULT_STEP_DELAY_MS, createUi, movementKeys } from '@nh/ui';
+import { DEFAULT_STEP_DELAY_MS, createUi, movementKeys, translate } from '@nh/ui';
+import { chooseCharacter, prefsFromWords, type CharacterPrefs } from './character';
 import {
   extendedCommands,
   keyHelpEn,
@@ -17,6 +18,7 @@ import {
 import { WIZARD, bootPlan, modsForSave, newGameMods, savedSeed } from './mods';
 import {
   DEFAULT_RUNMODE,
+  characterWords,
   loadOptions,
   openOptions,
   runmodeDelay,
@@ -65,15 +67,53 @@ function useMods(ids: string[]): void {
   remote.setMods(ids);
 }
 
-function startNew(wizardMode = params.wizard): void {
+/** The game mods' English text, for the character menus (the UI's catalog is its own). */
+const modText = (key: string): string => translate({ en: messagesEn }, 'en', key);
+
+/** The character the device options fix, with the URL's on top (C: rc file, then command line). */
+const characterPrefs = (cs: CharacterChoices): CharacterPrefs => ({
+  ...prefsFromWords(cs, modText, characterWords(options)),
+  ...prefsFromWords(cs, modText, params.character),
+});
+
+/**
+ * A new game: the character menus ("Shall I pick ...?"), then the game. Quitting the menus
+ * opens the title. `gameSeed` is the URL's seed (boot); otherwise a random one.
+ */
+function startNew(wizardMode = params.wizard, gameSeed?: number): void {
   dead = false;
   loading = false;
   acts = 0;
-  started = true;
+  // no game until the character is chosen: nothing to autosave
+  started = false;
   lastScore = null;
   useMods(newGameMods(wizardMode));
-  seed = randomSeed();
-  remote.newGame(seed, size.w, size.h);
+  void remote
+    .choices()
+    .then((cs) =>
+      chooseCharacter(
+        {
+          showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
+          t: modText,
+          rn2: (n) => Math.floor(Math.random() * n),
+          name: options.name,
+        },
+        cs,
+        characterPrefs(cs),
+      ),
+    )
+    .then(
+      (character) => {
+        if (character === null) {
+          showTitle();
+          return;
+        }
+        started = true;
+        seed = gameSeed ?? randomSeed();
+        remote.newGame(seed, size.w, size.h, character);
+      },
+      (e: unknown) => ui.notify('ui.error', { message: String(e) }),
+    );
 }
 
 /** Loads a save with the mods it was made with. */
@@ -124,8 +164,20 @@ function applyOptions(): void {
 }
 
 function showOptions(back?: () => void): void {
+  // the character rows need the roles and races: one worker round trip
+  void remote.choices().then(
+    (choices) => openOptionsWith(back, { choices, t: modText }),
+    () => openOptionsWith(back),
+  );
+}
+
+function openOptionsWith(
+  back?: () => void,
+  character?: { choices: CharacterChoices; t(key: string): string },
+): void {
   openOptions(
     {
+      ...(character ? { character } : {}),
       showText: (title, entries, onClose) => ui.showText(title, entries, onClose),
       askText: (title, initial, max) => ui.askText(title, initial, max),
       get: () => options,
@@ -312,9 +364,7 @@ async function boot(): Promise<void> {
     return;
   }
   if (params.forceNew) await clearSave();
-  seed = params.seed;
-  useMods(plan.mods);
-  remote.newGame(params.seed, params.width, params.height);
+  startNew(plan.mods.includes(WIZARD), params.seed);
 }
 
 void boot();

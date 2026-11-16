@@ -148,8 +148,12 @@ export const messagesEn: Record<string, string> = {
   ...uhitmMessagesEn,
   ...endMessagesEn,
   ...roleMessagesEn,
-  welcome: 'Hello, welcome to NetHack! You are a {role}.',
-  'welcome.back': 'Hello, welcome back to NetHack! You are a {role}.',
+  // ref: src/allmain.c welcome() ("Hello Brunhilde, welcome to NetHack!  You are a neutral human
+  // Valkyrie."; no name: it is a device option); `who` is core's welcomeParams()
+  welcome: 'Hello, welcome to NetHack! You are a {align} {who}.',
+  'welcome.back': 'Hello, welcome back to NetHack! You are {who|an}.',
+  'welcome.who': '{race} {role}',
+  'welcome.who.gender': '{gender} {race} {role}',
   'door.opens': 'The door opens.',
   'door.locked': 'This door is locked.',
   'door.nohands': "You can't open anything -- you have no hands!",

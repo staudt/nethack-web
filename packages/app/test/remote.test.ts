@@ -98,6 +98,10 @@ test('choices before any game, then a new game with a character (m22 step 8)', a
       race: '@race.elf.adj',
       gender: '@gender.male',
       align: '@align.chaotic',
+      who: {
+        key: 'welcome.who.gender',
+        params: { gender: '@gender.male', race: '@race.elf.adj', role: '@role.wizard' },
+      },
     },
   });
   const file = JSON.parse(await r.save()) as { replay: { character: unknown } };

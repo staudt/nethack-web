@@ -119,6 +119,7 @@ describe('host', () => {
           race: '@race.human.adj',
           gender: '@gender.female',
           align: '@align.neutral',
+          who: { key: 'welcome.who', params: { race: '@race.human.adj', role: '@role.tester' } },
         },
       },
     ]);
@@ -168,6 +169,10 @@ describe('host', () => {
         race: '@race.human.adj',
         gender: '@gender.male',
         align: '@align.chaotic',
+        who: {
+          key: 'welcome.who.gender',
+          params: { gender: '@gender.male', race: '@race.human.adj', role: '@role.tester' },
+        },
       },
     });
     const saved = send({ t: 'save' });

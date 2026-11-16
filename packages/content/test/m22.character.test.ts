@@ -145,6 +145,7 @@ describe('a new game as any role and race', () => {
         race: '@race.human.adj',
         gender: '@gender.female',
         align: '@align.lawful',
+        who: { key: 'welcome.who', params: { race: '@race.human.adj', role: '@role.caveman.f' } },
       },
     });
     const man = engine.newGame({ seed: 5, character: as('caveman', 'dwarf', { gender: 'male' }) });

@@ -1,8 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { MenuEntry } from '@nh/ui';
+import { characterChoices, loadMods } from '@nh/core';
+import { messagesEn, vanillaMod } from '@nh/content';
+import { translate, type MenuEntry } from '@nh/ui';
 import {
   NAME_MAX,
   OPTIONS_KEY,
+  characterWords,
   cleanName,
   loadOptions,
   openOptions,
@@ -53,6 +56,23 @@ describe('options storage', () => {
     expect(loadOptions(s)).toEqual({ disclose: 'all' });
   });
 
+  test('the character options load back; bad values are dropped', () => {
+    const s = mem();
+    const o: ClientOptions = { role: 'nh:role_wizard', race: 'random', gender: 'male', align: -1 };
+    expect(saveOptions(s, o)).toBe(true);
+    expect(loadOptions(s)).toEqual(o);
+    expect(characterWords(o)).toEqual({
+      role: 'nh:role_wizard',
+      race: 'random',
+      gender: 'male',
+      align: '-1',
+    });
+    s.data[OPTIONS_KEY] = JSON.stringify({ version: 1, role: '', race: 7, gender: 'f', align: 2 });
+    expect(loadOptions(s)).toEqual({});
+    s.data[OPTIONS_KEY] = JSON.stringify({ version: 1, gender: 'random', align: 0 });
+    expect(loadOptions(s)).toEqual({ gender: 'random', align: 0 });
+  });
+
   test('names are trimmed, capped at 31 characters, blank is none', () => {
     expect(cleanName('  Brunhilde ')).toBe('Brunhilde');
     expect(cleanName('   ')).toBeUndefined();
@@ -71,7 +91,15 @@ describe('options storage', () => {
 });
 
 describe('options sheet', () => {
-  const setup = (start: ClientOptions = {}, answer: string | null = null) => {
+  const character = {
+    choices: characterChoices(loadMods([vanillaMod])),
+    t: (k: string): string => translate({ en: messagesEn }, 'en', k),
+  };
+  const setup = (
+    start: ClientOptions = {},
+    answer: string | null = null,
+    withCharacter = false,
+  ) => {
     let opts = start;
     const sheets: { title: string; entries: MenuEntry[]; onClose?: (() => void) | undefined }[] =
       [];
@@ -83,6 +111,7 @@ describe('options sheet', () => {
       layout: 'numpad',
       switchLayout: vi.fn(),
       resetZoom: vi.fn(),
+      ...(withCharacter ? { character } : {}),
     };
     const last = () => sheets[sheets.length - 1];
     const tap = (label: string) => {
@@ -156,5 +185,34 @@ describe('options sheet', () => {
     expect(m.d.resetZoom).toHaveBeenCalledOnce();
     m.last()?.onClose?.();
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  test('role, race, gender and alignment: ask, random or a value', () => {
+    const m = setup({ race: 'nh:race_elf', align: 'random' }, null, true);
+    openOptions(m.d);
+    expect(m.last()?.entries.map((e) => e.label)).toEqual([
+      'Name: (not set)',
+      'Run speed: walk',
+      'End of game: ask about each list',
+      'Role: ask',
+      'Race: elf',
+      'Gender: ask',
+      'Alignment: random',
+      'Movement keys: number pad (k kicks)',
+      'Reset zoom',
+    ]);
+    m.tap('Role');
+    expect(m.last()?.title).toBe('Role');
+    const labels = m.last()?.entries.map((e) => e.label) ?? [];
+    expect(labels.slice(0, 4)).toEqual(['ask each game  ✓', 'random', 'Archeologist', 'Barbarian']);
+    expect(labels).toHaveLength(15);
+    m.tap('Wizard');
+    expect(m.opts()).toEqual({ role: 'nh:role_wizard', race: 'nh:race_elf', align: 'random' });
+    expect(m.last()?.entries[3]?.label).toBe('Role: Wizard');
+    m.tap('Gender');
+    m.tap('female');
+    m.tap('Alignment');
+    m.tap('ask each game');
+    expect(m.opts()).toEqual({ role: 'nh:role_wizard', race: 'nh:race_elf', gender: 'female' });
   });
 });

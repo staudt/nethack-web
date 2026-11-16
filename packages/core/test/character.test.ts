@@ -214,8 +214,44 @@ describe('characterChoices() and welcomeParams()', () => {
       race: '@race.orc.adj',
       gender: '@gender.female',
       align: '@align.chaotic',
+      // the female name says it: no gender word
+      who: { key: 'welcome.who', params: { race: '@race.orc.adj', role: '@role.barb.f' } },
     });
     expect(welcomeParams(reg, { ...c, gender: 'male' }).role).toBe('@role.barb');
+  });
+
+  test('the gender word only for a new game whose role allows both and has no female name', () => {
+    const v = { role: 'ch:valk', race: 'ch:human', gender: 'female', align: 0 } as const;
+    expect(welcomeParams(reg, v)['who']).toEqual({
+      key: 'welcome.who',
+      params: { race: '@race.human.adj', role: '@role.valk' },
+    });
+    const both: Mod = {
+      id: 'b',
+      version: '1',
+      register(api) {
+        api.defineRole({
+          id: 'b:arc',
+          nameKey: 'role.arc',
+          speed: 12,
+          glyph: GLYPH,
+          races: ['ch:human'],
+          genders: ['male', 'female'],
+          aligns: [1],
+        });
+      },
+    };
+    const r2 = loadMods([charMod, both]);
+    const a = { role: 'b:arc', race: 'ch:human', gender: 'female', align: 1 } as const;
+    expect(welcomeParams(r2, a)['who']).toEqual({
+      key: 'welcome.who.gender',
+      params: { gender: '@gender.female', race: '@race.human.adj', role: '@role.arc' },
+    });
+    // restored: allmain.c shows the gender only when she has changed sex
+    expect(welcomeParams(r2, a, false)['who']).toEqual({
+      key: 'welcome.who',
+      params: { race: '@race.human.adj', role: '@role.arc' },
+    });
   });
 });
 

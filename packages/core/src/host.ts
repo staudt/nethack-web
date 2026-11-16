@@ -68,7 +68,11 @@ export function createHost(
         if (!player) throw new Error('Saved game has no player');
         // ref: src/allmain.c welcome()
         const events: GameEvent[] = [
-          { type: 'msg', key: 'welcome.back', params: welcomeParams(engine.registry, player) },
+          {
+            type: 'msg',
+            key: 'welcome.back',
+            params: welcomeParams(engine.registry, player, false),
+          },
         ];
         sendFull(loaded.state, events);
         return;

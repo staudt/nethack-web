@@ -45,6 +45,10 @@ describe('newGame', () => {
         race: '@race.human.adj',
         gender: '@gender.female',
         align: '@align.neutral',
+        who: {
+          key: 'welcome.who.gender',
+          params: { gender: '@gender.female', race: '@race.human.adj', role: '@role.hero' },
+        },
       },
     });
   });

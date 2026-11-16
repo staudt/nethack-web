@@ -10,7 +10,19 @@ test('defaults', () => {
     height: 21,
     forceNew: false,
     wizard: false,
+    character: {},
     explicit: false,
+  });
+});
+
+test('role, race, gender and align name the character and ask for a new game', () => {
+  expect(parseParams('?role=val&race=dwa&gender=f&align=l', rnd)).toMatchObject({
+    character: { role: 'val', race: 'dwa', gender: 'f', align: 'l' },
+    explicit: true,
+  });
+  expect(parseParams('?role=%20wiz%20&race=', rnd)).toMatchObject({
+    character: { role: 'wiz' },
+    explicit: true,
   });
 });
 
