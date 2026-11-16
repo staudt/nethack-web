@@ -710,6 +710,20 @@ describe('pits', () => {
     expect(out).toContain('trap.pit.mon_climbs');
   });
 
+  test('a pit fiend falls in ("How pitiful.  Isn\'t that the pits?") and climbs out easily, though large', () => {
+    const s = setup(['.........', '.@.......', '.........']);
+    const m = addMon(s.state, 'nh:pit_fiend', 5, 1, { asleep: true });
+    const mon = s.state.entities[String(m)];
+    if (mon?.c.hp) mon.c.hp = { cur: 100, max: 100 };
+    place(s.state, TRAP.pit, 5, 1);
+    const fall = withCtx(s.state, (ctx) => void mintrap(ctx, m));
+    expect(keys(fall)).toEqual(expect.arrayContaining(['trap.pit.mon_falls', 'trap.pit.pitiful']));
+    expect(isMtrapped({ state: s.state }, m)).toBe(true);
+    const ev = withCtx(s.state, (ctx) => void mintrap(ctx, m));
+    expect(keys(ev)).toContain('trap.pit.mon_climbs_easily');
+    expect(isMtrapped({ state: s.state }, m)).toBe(false);
+  });
+
   test('a huge monster climbs out easily at once; flyers do not fall in', () => {
     const s = setup(['.........', '.@.......', '.........']);
     const m = addMon(s.state, 'nh:ettin_mummy', 5, 1, { asleep: true });

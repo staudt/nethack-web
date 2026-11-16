@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5101 citations.
+188 NetHack files, 5117 citations.
 
 ## dat/asmodeus.lua
 
@@ -1501,6 +1501,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rndmonst_adj()`: `packages/content/src/generation.ts`
 - `set_malign()`: `packages/content/src/luck.ts`
 - `set_mimic_sym()`: `packages/content/src/mimic.ts`
+- `summon_furies()`: `packages/content/src/generation.ts`
 - `syms()`: `packages/content/src/mimic.ts`
 - `temperature_shift()`: `packages/content/src/temperature.ts`
 - `uncommon()`: `packages/content/src/generation.ts`
@@ -1789,7 +1790,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_in_air()`: `packages/content/src/liquid.ts`
 - `m_move_aggress()`: `packages/content/src/monmove.ts`
 - `m_respond()`: `packages/content/src/mrespond.ts`
-- `m_respond_medusa()`: `packages/content/src/mrespond.ts`
 - `m_respond_shrieker()`: `packages/content/src/mrespond.ts`
 - `make_corpse()`: `packages/content/src/corpses.ts`
 - `max_mon_load()`: `packages/content/src/mongear.ts`

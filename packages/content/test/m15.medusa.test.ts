@@ -148,8 +148,13 @@ describe("Medusa's island", () => {
           'nh:scimitar',
           'nh:sack',
         ]).toContain(o.def);
-      // every other statue shows a monster that stoning would turn to stone
-      const others = statuesOn(state, level).filter((s) => s.id !== perseus.id);
+      // every other statue shows a monster that stoning would turn to stone (but a statue
+      // trap's, which mk_trap_statue() makes of any monster)
+      const onStatueTrap = (s: Entity): boolean =>
+        level.traps.some(
+          (t) => t.def === 'nh:statue_trap' && t.x === s.c.pos?.x && t.y === s.c.pos.y,
+        );
+      const others = statuesOn(state, level).filter((s) => s.id !== perseus.id && !onStatueTrap(s));
       // (medusa-2: its eight garden statues and the fixup's last one; the fixup's rnd(4) tries
       // in the first room may all miss)
       expect(others.length).toBeGreaterThanOrEqual(9);

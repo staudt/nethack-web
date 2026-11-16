@@ -199,13 +199,15 @@ describe('select_newcham_form()', () => {
     const picks = forms(SANDESTIN, 350);
     const nasty = picks.filter((p) => p !== null && mon(p).flags.includes('nasty')).length;
     // rn2(7): 6 in 7 from nasties[], some of them absent here (no form: newcham() tries again);
-    // a random form is a nasty far less often
+    // a random form is a nasty far less often (about 1 in 5 since the remaining demons, all
+    // M2_NASTY, came in m18 step 4)
     expect(nasty / picks.length).toBeGreaterThan(0.3);
     expect(picks.filter((p) => p === null).length).toBeGreaterThan(0);
     const random = forms('nh:jackal', 350).filter(
       (p) => p !== null && mon(p).flags.includes('nasty'),
     );
-    expect(random.length / 350).toBeLessThan(0.15);
+    expect(random.length / 350).toBeLessThan(0.24);
+    expect(random.length / 350).toBeLessThan((0.6 * nasty) / picks.length);
   });
 
   test("a doppelganger becomes a role monster (tt_doppel()'s no-record branch), a nasty or a humanoid", () => {

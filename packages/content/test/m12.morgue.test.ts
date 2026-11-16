@@ -29,7 +29,7 @@ import {
 import { T, setTerrain } from '../src/terrain';
 import { addMon, posOf, setup } from './helpers';
 import { ctxFor, defs, levelSetup, render } from './itemHelpers';
-import { MPLAYERS } from '../src/mondata';
+import { MPLAYERS, isNdemon } from '../src/mondata';
 
 /** mk_tt_object()'s kinds: the player monsters, a valkyrie being human (m17). */
 const ADVENTURERS = [...MPLAYERS.filter((m) => m !== 'nh:valkyrie'), 'nh:human'];
@@ -161,38 +161,55 @@ describe('morguemon()', () => {
     expect(Object.keys(s).sort()).toEqual(['Z', 'nh:ghost', 'nh:wraith']);
   });
 
-  test('deeper, the vampire branch (hd > 8, i > 85) makes vampires (m18); the demon branch mostly falls to ghosts', () => {
+  /** The demons of a sample (C's S_DEMON class), by id. */
+  const demonsOf = (s: Record<string, number>): Record<string, number> =>
+    Object.fromEntries(
+      Object.entries(s).filter(([k]) => k !== 'Z' && defs.monster(k as DefId).glyph.ch === '&'),
+    );
+  const total = (s: Record<string, number>): number => Object.values(s).reduce((a, b) => a + b, 0);
+
+  test('deeper, the vampire branch (hd > 8, i > 85) makes vampires (m18); the demon branch a minor demon', () => {
     const n = 4000;
     const s = sample(30, n);
-    const devils = ['nh:barbed_devil', 'nh:horned_devil'];
     const vampires = ['nh:vampire', 'nh:vampire_lord'];
+    const demons = demonsOf(s);
     for (const k of Object.keys(s))
-      expect(['Z', 'nh:ghost', 'nh:wraith', ...vampires, ...devils]).toContain(k);
+      if (!(k in demons)) expect(['Z', 'nh:ghost', 'nh:wraith', ...vampires]).toContain(k);
     // P(hd > 8) = 21/30, P(i > 85) = 14/100: about 1 in 10 is a vampire or a vampire lord
     const v = vampires.reduce((a, k) => a + (s[k] ?? 0), 0);
     expect(s['nh:vampire']).toBeGreaterThan(0);
     expect(s['nh:vampire_lord']).toBeGreaterThan(0);
     expect(v / n).toBeGreaterThan(0.07);
     expect(v / n).toBeLessThan(0.13);
-    // outside Gehennom ndemon() finds a devil only when mkclass() lets a Gehennom-only kind
-    // through (1 in 9 per kind; the water demon is G_NOGEN): i < 10 mostly stays a ghost
-    const d = devils.reduce((a, k) => a + (s[k] ?? 0), 0);
-    expect(d).toBeGreaterThan(0);
-    expect(d / n).toBeLessThan(0.03);
-    expect(s['nh:ghost']! / n).toBeGreaterThan(0.16);
-    expect(s['nh:ghost']! / n).toBeLessThan(0.23);
+    // outside Gehennom ndemon() (m18 step 4: the remaining demons) nearly always finds a minor
+    // demon: P(hd > 10) = 19/30, P(i < 10) = 1/10, about 6 in 100; mostly the amorous demon,
+    // the only one mkclass() does not hold to Gehennom; never a lord or prince
+    for (const k of Object.keys(demons)) expect(isNdemon(defs.monster(k as DefId))).toBe(true);
+    const d = total(demons);
+    expect(d / n).toBeGreaterThan(0.045);
+    expect(d / n).toBeLessThan(0.08);
+    for (const [k, c] of Object.entries(demons))
+      if (k !== 'nh:incubus') expect(demons['nh:incubus']).toBeGreaterThan(c * 3);
+    // the ghosts keep the rest of i < 20: about 0.2 - 0.063
+    expect(s['nh:ghost']! / n).toBeGreaterThan(0.11);
+    expect(s['nh:ghost']! / n).toBeLessThan(0.17);
   });
 
   test('in Gehennom the demon branch (hd > 10, i < 10) is any demon of the class: mkclass(S_DEMON)', () => {
     const n = 4000;
     const s = sample(30, n, true);
-    const devils = ['nh:barbed_devil', 'nh:horned_devil'].reduce((a, k) => a + (s[k] ?? 0), 0);
-    // P(hd > 10) = 19/30, P(i < 10) = 1/10: about 6 in 100, nearly all of them devils
-    expect(devils / n).toBeGreaterThan(0.04);
-    expect(devils / n).toBeLessThan(0.08);
-    // no unique or G_NOGEN demon (the princes, the water demon)
-    for (const k of ['nh:juiblex', 'nh:orcus', 'nh:baalzebub', 'nh:asmodeus', 'nh:water_demon'])
-      expect(s[k]).toBeUndefined();
+    const demons = demonsOf(s);
+    // P(hd > 10) = 19/30, P(i < 10) = 1/10: about 6 in 100, the amorous demon no longer the most
+    const d = total(demons);
+    expect(d / n).toBeGreaterThan(0.045);
+    expect(d / n).toBeLessThan(0.08);
+    expect(demons['nh:sandestin']).toBeGreaterThan(0); // of the class, though no demon
+    expect(demons['nh:incubus']! / d).toBeLessThan(0.15);
+    // no unique or G_NOGEN demon (the princes and lords, the water demon)
+    for (const k of Object.keys(demons)) {
+      const g = defs.monster(k as DefId).genFlags;
+      expect(g.includes('uniq') || g.includes('nogen')).toBe(false);
+    }
   });
 });
 

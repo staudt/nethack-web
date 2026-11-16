@@ -10,11 +10,10 @@
 // Not ported: dragon scales, the Archeologist's fedora luck and the Wizard's cornuthaum (no
 // roles: the cornuthaum always costs Cha and blocks clairvoyance), water (water walking boots do
 // nothing; levitation boots over a sink), steeds and BStealth, flying (float_vs_flight()), the
-// Furies a helm of opposite alignment can summon (no erinyes: DEVIATIONS), artifacts
-// (retouch_equipment()), wielding_corpse() and slippery fingers when gloves come off, and
-// see_monsters() (the view is rebuilt after every action, so the helms of telepathy and caution
-// show their monsters then). Levitation boots float through levitation.ts (late-bound, see
-// setBootsLevitation()), which sits above this module.
+// Astral Plane's Furies, artifacts (retouch_equipment()), wielding_corpse() and slippery fingers
+// when gloves come off, and see_monsters() (the view is rebuilt after every action, so the helms
+// of telepathy and caution show their monsters then). Levitation boots float through
+// levitation.ts (late-bound, see setBootsLevitation()), which sits above this module.
 import {
   getPlayer,
   inventoryOf,
@@ -27,6 +26,7 @@ import {
 } from '@nh/core';
 import { adjustAbon, rawAttr, syncAttrOverrides, type Attr } from './attrstate';
 import { engulferOf } from './engulfstate';
+import { summonFuries } from './generation';
 import { hcolor } from './hcolor';
 import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
@@ -162,8 +162,8 @@ export function loseAbon(ctx: Pick<Ctx, 'state'>, obj: Entity, n: number): void 
 
 /**
  * Putting on or taking off a helm of opposite alignment: her alignment changes, divine protection
- * and the alignment record are lost. ref: src/attrib.c uchangealign() A_CG_HELM_ON, A_CG_HELM_OFF
- * (no Astral Plane; no erinyes for summon_furies(), so the roll is made and nothing comes)
+ * and the alignment record are lost; putting it on calls an erinys 1 time in 50 per point of
+ * alignment abuse. ref: src/attrib.c uchangealign() A_CG_HELM_ON, A_CG_HELM_OFF (no Astral Plane)
  */
 function uchangealign(ctx: WearCtx, newalign: number, on: boolean): void {
   const oldalign = uState(ctx.state).alignType;
@@ -173,7 +173,7 @@ function uchangealign(ctx: WearCtx, newalign: number, on: boolean): void {
     adjalign(ctx, -7); // for abuse -- record will be cleared shortly
     say(ctx, halluc ? 'wear.mind_oscillates_wildly' : 'wear.mind_oscillates');
     makeConfused(ctx, ctx.rng.rn2(2) + 3, false); // rn1(2, 3)
-    ctx.rng.rn2(50); // < u.ualign.abuse: summon_furies(1), which finds no erinys to make
+    if (ctx.rng.rn2(50) < uState(ctx.state).alignAbuse) summonFuries(ctx, 1);
   } else {
     say(ctx, halluc ? 'wear.mind_muchness' : 'wear.mind_in_sync');
   }

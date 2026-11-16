@@ -40,6 +40,7 @@ import {
   isFloater,
   isFlyer,
   isMplayer,
+  isNdemon,
   isUnicorn,
 } from './mondata';
 import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
@@ -204,12 +205,14 @@ export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
 
 /**
  * Alignment toward the hero decides peacefulness.
- * ref: src/makemon.c peace_minded(). Race: human hates gnomes and orcs, loves nothing.
- * Not ported: minions, quest/guardian sounds, Amulet, Erinys.
+ * ref: src/makemon.c peace_minded(). The erinyes are peaceful only to a hero who never abused
+ * her alignment (`!u.ualign.abuse`). Race: human hates gnomes and orcs, loves nothing.
+ * Not ported: minions, quest/guardian sounds, Amulet.
  */
 export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   if (def.flags.includes('peaceful')) return true;
   if (def.flags.includes('hostile')) return false;
+  if (def.id === ERINYS) return uState(ctx.state).alignAbuse === 0;
   if (def.flags.includes('gnome') || def.flags.includes('orc')) return false;
   const mal = def.alignment;
   const u = uState(ctx.state);
@@ -565,6 +568,9 @@ export function makemon(
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);
+  // ref: makemon(): `if (gi.in_mklev)`: minor demons, wumpuses, long worms and giant eels made with
+  // the level sleep 4 times in 5 (no Amulet of Yendor here)
+  if (mon && opts.inMklev && sleepsInMklev(mdef) && ctx.rng.rn2(5)) mon.asleep = true;
   // ref: makemon(): `mndx == PM_LONG_WORM && (mtmp->wormno = get_wormno()) != 0`:
   // initworm(mtmp, allowtail ? rn2(5) : 0), and the tail laid behind it
   if (mdef.id === 'nh:long_worm') {
@@ -610,6 +616,27 @@ export function makemon(
 }
 
 const GHOST: DefId = 'nh:ghost';
+const ERINYS: DefId = 'nh:erinys';
+
+/**
+ * Some or all remaining erinyes around the hero: `limit` of them, or with 0 until the kind is
+ * extinct (mk_gen_ok(PM_ERINYS, G_GONE, 0)). ref: src/makemon.c summon_furies()
+ */
+export function summonFuries(ctx: Ctx, limit: number): void {
+  if (!ctx.defs.isMonster(ERINYS)) return;
+  const at = getPlayer(ctx.state).c.pos;
+  if (!at) return;
+  let i = 0;
+  while (!isGone(ctx.state, ERINYS) && (i < limit || !limit)) {
+    const id = makemon(ctx, ctx.defs.monster(ERINYS), at, { adjacentOk: true, noWait: true });
+    if (id === null && !limit) break; // no room left (C would try forever)
+    i++;
+  }
+}
+
+/** `is_ndemon(ptr) || mndx == PM_WUMPUS || mndx == PM_LONG_WORM || mndx == PM_GIANT_EEL` */
+const sleepsInMklev = (def: MonsterDef): boolean =>
+  isNdemon(def) || def.id === 'nh:wumpus' || def.id === 'nh:long_worm' || def.id === 'nh:giant_eel';
 
 /** ref: src/do_name.c ghostnames[] */
 const GHOSTNAMES: readonly string[] = [

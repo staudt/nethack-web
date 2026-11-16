@@ -32,6 +32,7 @@ import { dlord, dprince, msummon } from '../src/minion';
 import { monRegen, setCancelled } from '../src/mstate';
 import { M_SEEN, monstseesu } from '../src/musestate';
 import { polymon } from '../src/polyself';
+import { isNdemon } from '../src/mondata';
 import { P, hasProp, setIntrinsic } from '../src/props';
 import { hungerData } from '../src/hunger';
 import { ustuck } from '../src/hackmove';
@@ -212,7 +213,7 @@ describe('msummon()', () => {
     expect(own).toBeGreaterThan(80);
   });
 
-  test('Juiblex brings Orcus now and then, never a second Juiblex; with Orcus about, no one', () => {
+  test('Juiblex brings chaotic demons: a prince now and then, Yeenoghu, mostly minor demons; never a second Juiblex', () => {
     const { s, id } = setup('nh:juiblex');
     const got = new Set<string>();
     let orcus = 0;
@@ -224,32 +225,67 @@ describe('msummon()', () => {
       for (const e of monsOn(o.state)) if (e.id !== id) got.add(e.def);
       if (o.text.includes('Orcus appears in a cloud of smoke!')) orcus++;
     }
-    // chaotic: a prince 1 in 50 (Orcus: Demogorgon is absent), the lords are gone (Juiblex is
-    // here, Yeenoghu absent) and no chaotic minor demon can be made (the water demon is G_NOGEN)
-    expect([...got]).toEqual(['nh:orcus']);
+    // chaotic: a prince 1 in 50 (Orcus or Demogorgon), a lord 1 in 20 (Yeenoghu: Juiblex is
+    // here), else a chaotic minor demon (m18 step 4)
+    expect(got.has('nh:juiblex')).toBe(false);
+    for (const k of got) expect(defs.monster(k as DefId).alignment).toBeLessThan(0);
+    expect(got.has('nh:yeenoghu')).toBe(true);
     expect(orcus).toBeGreaterThan(0);
+    const minor = [...got].filter((k) => isNdemon(defs.monster(k as DefId)));
+    expect(minor.length).toBeGreaterThan(5);
+    // with every chaotic prince and lord about, only minor demons come
     addMon(s.state, 'nh:orcus', 12, 5);
+    addMon(s.state, 'nh:demogorgon', 12, 4);
+    addMon(s.state, 'nh:yeenoghu', 12, 3);
+    let some = 0;
     for (const o of outcomes(
       s.state,
       (ctx) => void msummon(ctx, ctx.state.entities[String(id)]!),
       200,
-    ))
-      expect(monsOn(o.state).length).toBe(2);
+    )) {
+      const added = monsOn(o.state).slice(4);
+      if (added.length) some++;
+      for (const e of added) expect(isNdemon(defs.monster(e.def))).toBe(true);
+    }
+    expect(some).toBeGreaterThan(150);
   });
 
-  test('dprince() and dlord(): a gone kind is never picked; with none left, a minor demon of the alignment', () => {
+  test('dprince() and dlord() reach each prince and lord of the alignment; a gone kind is never picked', () => {
     const { s } = setup('nh:newt');
+    run(s.state, (ctx) => {
+      const pick = (f: () => DefId | null): string[] => {
+        const seen = new Set<string>();
+        for (let i = 0; i < 200; i++) seen.add(String(f()));
+        return [...seen].sort();
+      };
+      expect(pick(() => dprince(ctx, 1))).toEqual([
+        'nh:asmodeus',
+        'nh:baalzebub',
+        'nh:dispater',
+        'nh:geryon',
+      ]);
+      expect(pick(() => dprince(ctx, -1))).toEqual(['nh:demogorgon', 'nh:orcus']);
+      expect(pick(() => dprince(ctx, undefined))).toHaveLength(6);
+      expect(pick(() => dlord(ctx, -1))).toEqual(['nh:juiblex', 'nh:yeenoghu']);
+    });
     addMon(s.state, 'nh:orcus', 12, 5);
-    addMon(s.state, 'nh:juiblex', 12, 4);
+    addMon(s.state, 'nh:demogorgon', 12, 4);
+    addMon(s.state, 'nh:juiblex', 12, 3);
+    addMon(s.state, 'nh:yeenoghu', 12, 2);
+    addMon(s.state, 'nh:geryon', 13, 5);
     run(s.state, (ctx) => {
       for (let i = 0; i < 100; i++) {
-        // lawful: Baalzebub or Asmodeus (Geryon and Dispater are absent)
-        const p = dprince(ctx, 1);
-        expect(['nh:baalzebub', 'nh:asmodeus']).toContain(p);
-        // chaotic: Orcus and Juiblex are here, the rest absent; no chaotic minor demon
-        expect(dprince(ctx, -1)).toBeNull();
+        // lawful: the three princes left
+        expect(['nh:baalzebub', 'nh:asmodeus', 'nh:dispater']).toContain(dprince(ctx, 1));
+        // chaotic: every prince and lord is here: a chaotic minor demon (or none found)
+        for (const d of [dprince(ctx, -1), dlord(ctx, -1)]) {
+          if (d === null) continue;
+          expect(isNdemon(defs.monster(d))).toBe(true);
+          expect(defs.monster(d).alignment).toBeLessThan(0);
+        }
+        // no lawful lord: a lawful minor demon (or none found)
         const l = dlord(ctx, 1);
-        expect([null, 'nh:horned_devil', 'nh:barbed_devil']).toContain(l);
+        expect([null, 'nh:horned_devil', 'nh:erinys', 'nh:barbed_devil']).toContain(l);
       }
     });
   });

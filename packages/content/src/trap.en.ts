@@ -186,6 +186,7 @@ export const trapMessagesEn: Record<string, string> = {
   'trap.pit.free_leg': 'You free your leg.',
   'trap.pit.mon_falls': '{mon|The} falls into a pit!',
   'trap.pit.mon_dragged': '{mon|The} is dragged into a pit!',
+  'trap.pit.pitiful': "How pitiful.  Isn't that the pits?",
   'trap.pit.mon_climbs': '{mon|The} climbs out of the pit.',
   'trap.pit.mon_climbs_easily': '{mon|The} climbs easily out of the pit.',
   'trap.pit.cant_reach': "You can't reach over the edge of the pit.",

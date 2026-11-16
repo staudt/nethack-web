@@ -1164,10 +1164,10 @@ export function spotTrap(ctx: Ctx, from?: Pos): void {
   if (t && !ctx.state.gameOver) dotrap(ctx, t, from ? { from } : {});
 }
 
-/** m_easy_escape_pit(): huge monsters (no pit fiend exists); the hero is never huge. */
+/** m_easy_escape_pit(): the pit fiend and huge monsters; the hero is never huge. */
 const mEasyEscapePit = (ctx: Ctx, mon: Entity): boolean => {
   const size = ctx.defs.monster(mon.def).size;
-  return size === 'huge' || size === 'gigantic';
+  return mon.def === 'nh:pit_fiend' || size === 'huge' || size === 'gigantic';
 };
 
 /**
@@ -1512,8 +1512,9 @@ function bearTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
 /**
  * A monster falls into a pit: held (mtrapped) and hurt `rnd(6)` (`rnd(10)` on spikes unless it
  * wears iron shoes). Flyers, floaters and clingers (every level has a ceiling) do not fall in,
- * except in Sokoban, where they are dragged in. ref: src/trap.c trapeffect_pit() for a monster
- * (no worms, passes_walls or mselftouch())
+ * except in Sokoban, where they are dragged in; "How pitiful.  Isn't that the pits?" for a pit
+ * viper or a pit fiend. ref: src/trap.c trapeffect_pit() for a monster (no worms, passes_walls or
+ * mselftouch())
  */
 function pitMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult {
   const def = ctx.defs.monster(mon.def);
@@ -1527,6 +1528,7 @@ function pitMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult 
   setMtrapped(ctx, mon.id, true);
   if (inSight) {
     say(ctx, dragged ? 'trap.pit.mon_dragged' : 'trap.pit.mon_falls', { mon: monNam(ctx, mon) });
+    if (mon.def === 'nh:pit_viper' || mon.def === 'nh:pit_fiend') say(ctx, 'trap.pit.pitiful');
     seetrap(trap);
   }
   const spikes = trap.def === TRAP.spikedPit && !ironShoes(ctx, mon.id);

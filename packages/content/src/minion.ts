@@ -4,12 +4,12 @@
 // msummon_environ()
 //
 // Not ported (no such monster or object here): Demonbane ("looks puzzled for a moment"),
-// minions and Angels (lminion(), llord(), the elementals), the bone devil's skeleton, the
-// endgame (dprince()/dlord() never try there). msummon(NULL) (summon nasties in Gehennom)
-// summons as the Wizard of Yendor would.
-// Princes and lords absent from the monster table count as gone (G_GONE), as do genocided and
-// extinct kinds (a unique is extinct once made). A game saved before birth counts existed (m18)
-// has no extinct list: there a unique also counts as gone while one is alive or after one died.
+// minions and Angels (lminion(), llord(), the elementals), the endgame (dprince()/dlord() never
+// try there). msummon(NULL) (summon nasties in Gehennom) summons as the Wizard of Yendor would.
+// Princes and lords absent from the monster table (a mod that removes them) count as gone
+// (G_GONE), as do genocided and extinct kinds (a unique is extinct once made). A game saved
+// before birth counts existed (m18) has no extinct list: there a unique also counts as gone while
+// one is alive or after one died.
 import {
   getLevel,
   getPlayer,
@@ -76,7 +76,7 @@ function ndemonPm(ctx: SummonCtx, atyp: number | undefined): DefId | null {
   return ndemon(ctx, depthOf(ctx), atyp)?.id ?? null;
 }
 
-/** A demon lord, else (approximate) a minor demon. ref: src/minion.c dlord() */
+/** A demon lord (Juiblex, Yeenoghu), else (approximate) a minor demon. ref: src/minion.c dlord() */
 export function dlord(ctx: SummonCtx, atyp: number | undefined): DefId | null {
   return pickFrom(ctx, DEMON_LORDS, atyp) ?? ndemonPm(ctx, atyp);
 }
@@ -136,11 +136,12 @@ export function monsterCensus(ctx: Pick<Ctx, 'state'>): number {
 /**
  * The demon `mon` summons help next to the hero: a prince or the Wizard picks a prince 1 time in
  * 20, else a lord 1 in 4, else a minor demon (two of those 1 time in 4); a lord a prince 1 in 50,
- * a lord 1 in 20, else a minor demon (also maybe two); a minor demon a lord 1 in 20, another
- * minor demon 1 in 6, else its own kind; all of the summoner's alignment sign. A kind that is gone
- * becomes a minor demon. "A horned devil appears in a cloud of smoke!" when one comes and she
- * sees it. Returns how many monsters more are on the level. With no summoner (summon nasties in
- * Gehennom) it summons as the Wizard of Yendor: as a prince, of any alignment.
+ * a lord 1 in 20, else a minor demon (also maybe two); a bone devil a skeleton; another minor
+ * demon a lord 1 in 20, another minor demon 1 in 6, else its own kind; all of the summoner's
+ * alignment sign. A kind that is gone becomes a minor demon. "A horned devil appears in a cloud
+ * of smoke!" when one comes and she sees it. Returns how many monsters more are on the level.
+ * With no summoner (summon nasties in Gehennom) it summons as the Wizard of Yendor: as a prince,
+ * of any alignment.
  * ref: src/minion.c msummon()
  */
 export function msummon(ctx: Ctx, mon: Entity | null): number {
@@ -165,6 +166,9 @@ export function msummon(ctx: Ctx, mon: Entity | null): number {
         ? dlord(ctx, atyp)
         : ndemonPm(ctx, atyp);
     cnt = twoMaybe();
+  } else if (ptr.id === 'nh:bone_devil') {
+    dtype = 'nh:skeleton';
+    cnt = 1;
   } else if (isNdemon(ptr)) {
     dtype = !ctx.rng.rn2(20) ? dlord(ctx, atyp) : !ctx.rng.rn2(6) ? ndemonPm(ctx, atyp) : ptr.id;
     cnt = 1;

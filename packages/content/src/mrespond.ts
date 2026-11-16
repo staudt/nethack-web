@@ -1,7 +1,8 @@
 // A monster's response to the hero's presence or actions (not a passive attack): the shrieker's
-// shriek, Medusa's gaze. ref: src/mon.c m_respond(), m_respond_shrieker(), m_respond_medusa().
-// The Erinyes' aggravation has no monster here yet.
+// shriek, Medusa's gaze, the erinyes' aggravation. ref: src/mon.c m_respond(),
+// m_respond_shrieker(), m_respond_medusa()
 import { getLevel, getPlayer, type Ctx, type Entity } from '@nh/core';
+import { mCanSeeU } from './apparxy';
 import { stopOccupation } from './eat';
 import { makemon, monmaxDifficulty } from './generation';
 import { couldsee, gazemu } from './mhitu';
@@ -10,7 +11,8 @@ import { monNam } from './perception';
 
 /**
  * ref: src/mon.c m_respond(): a shrieker (MS_SHRIEK) within one square of the hero shrieks;
- * Medusa, in a clear line from her, gazes at her (m_respond_medusa(): her first gaze attack).
+ * Medusa, in a clear line from her, gazes at her (m_respond_medusa(): her first gaze attack); a
+ * hostile erinys that can see her wakes the level (aggravate()).
  * Called from dochug() each action and from bhitm() when a wand wakes it.
  */
 export function mRespond(ctx: Ctx, mon: Entity): void {
@@ -25,6 +27,9 @@ export function mRespond(ctx: Ctx, mon: Entity): void {
     const gaze = def.attacks.find((a) => a.at === 'gaze');
     if (gaze) gazemu(ctx, mon, gaze);
   }
+  // Erinyes will inform surrounding monsters of your crimes
+  if (mon.def === 'nh:erinys' && mon.c.monster && !mon.c.monster.peaceful && mCanSeeU(ctx, mon))
+    aggravate(ctx);
 }
 
 /**

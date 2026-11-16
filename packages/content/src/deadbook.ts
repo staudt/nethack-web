@@ -1,13 +1,13 @@
 // Reading the Book of the Dead: away from the vibrating square, a cursed Book raises the dead
-// (maybe a master lich, the hero's carried corpses, a few undead around her), a blessed one
-// pacifies the undead she sees (tames the co-aligned ones next to her), an uncursed one says one
-// of three lines. On the vibrating square the invocation needs the Bell and the Candelabrum, which
-// this port does not have: a chill and the two hints, or scrambled runes for a cursed Book.
+// (maybe a master lich or a nalfeshnee, the hero's carried corpses, a few undead around her), a
+// blessed one pacifies the undead she sees (tames the co-aligned ones next to her), an uncursed one
+// says one of three lines. On the vibrating square the invocation needs the Bell and the
+// Candelabrum, which this port does not have: a chill and the two hints, or scrambled runes for a
+// cursed Book.
 // ref: src/spell.c deadbook(), deadbook_pacify_undead(); src/mkroom.c mkundead()
 //
 // Not ported (ROADMAP "From m17"): the invocation itself (the Bell and the Candelabrum, the
-// primed relics, mkinvokearea()); "the nalfeshnee" (no row until m18: the second try makes
-// nothing); body_part(SPINE) for a polymorphed hero (always "spine").
+// primed relics, mkinvokearea()); body_part(SPINE) for a polymorphed hero (always "spine").
 import { isVampshifter } from './chamstate';
 import { getLevel, getPlayer, sortedIds, type Ctx, type DefId, type Entity } from '@nh/core';
 import { tamedog } from './dog';

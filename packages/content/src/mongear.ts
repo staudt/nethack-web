@@ -238,9 +238,9 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 /**
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
- * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the demons (Orcus's
- * wand of death, the horned devil's trident or bullwhip, then S_DEMON falls through to the
- * general case). Objects missing from the object table (a mod
+ * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the demons (the
+ * balrog's, Orcus's, the horned devil's, Dispater's and Yeenoghu's own, then S_DEMON falls through
+ * to the general case). Objects missing from the object table (a mod
  * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
  * Uruk-hai are given orcish bows.)
  */
@@ -386,13 +386,18 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     if (!rng.rn2(4)) mongets(ctx, monId, 'nh:leather_armor');
     if (!rng.rn2(4)) mongets(ctx, monId, rng.rn2(3) ? 'nh:knife' : 'nh:short_sword');
   } else if (ch !== '&' || hasFlag(def, 'demon')) {
-    // ref: m_initweap() S_DEMON: Orcus's wand, the horned devil's trident or bullwhip (no
-    // balrog, Dispater or Yeenoghu here), then for real demons (not the djinni or the mail
-    // daemon) the general case
-    if (def.id === 'nh:orcus')
+    // ref: m_initweap() S_DEMON: the balrog's bullwhip and broadsword, Orcus's wand, the horned
+    // devil's trident or bullwhip, Dispater's wand of striking, Yeenoghu's flail, then for real
+    // demons (not the djinni or the mail daemon) the general case
+    if (def.id === 'nh:balrog') {
+      mongets(ctx, monId, 'nh:bullwhip');
+      mongets(ctx, monId, 'nh:broadsword');
+    } else if (def.id === 'nh:orcus')
       mongets(ctx, monId, 'nh:wand_of_death'); // the Wand of Orcus
     else if (def.id === 'nh:horned_devil')
       mongets(ctx, monId, rng.rn2(4) ? 'nh:trident' : 'nh:bullwhip');
+    else if (def.id === 'nh:dispater') mongets(ctx, monId, 'nh:wand_of_striking');
+    else if (def.id === 'nh:yeenoghu') mongets(ctx, monId, 'nh:flail');
     // The general case. ref: m_initweap() `default:` (gnomes and any other armed monster)
     const bias = isLord(def) ? 1 : 0;
     switch (rng.rnd(14 - 2 * bias)) {
@@ -638,8 +643,10 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
     if (!rng.rn2(2)) mongets(ctx, monId, 'nh:potion_of_object_detection');
   }
   if (def.glyph.ch === 'l') mkmonmoney(ctx, monId, rng.d(depth, 30));
-  // ref: m_initinv() S_DEMON: Asmodeus's wands of cold and fire (no ice devil here)
-  if (def.id === 'nh:asmodeus') {
+  // ref: m_initinv() S_DEMON: the ice devil's spear 1 time in 4, Asmodeus's wands of cold and fire
+  if (def.id === 'nh:ice_devil' && !rng.rn2(4)) {
+    mongets(ctx, monId, 'nh:spear');
+  } else if (def.id === 'nh:asmodeus') {
     mongets(ctx, monId, 'nh:wand_of_cold');
     mongets(ctx, monId, 'nh:wand_of_fire');
   }
@@ -919,8 +926,9 @@ const HWEP: readonly string[] = [
 
 /**
  * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): giants
- * prefer clubs; only strong monsters without a shield may use two-handed weapons. Not ported:
- * artifacts, the Balrog's bullwhip (no Balrog), cockatrice corpses. A silver-hater skips silver.
+ * prefer clubs, the balrog its bullwhip while she wields a weapon; only strong monsters without a
+ * shield may use two-handed weapons. Not ported: artifacts, cockatrice corpses. A silver-hater
+ * skips silver.
  */
 export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
   const { e, def } = monOf(ctx, monId);
@@ -931,6 +939,13 @@ export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
   if (hasFlag(def, 'giant')) {
     const club = items.find((x) => x.def === 'nh:club');
     if (club) return club;
+  } else if (
+    def.id === 'nh:balrog' &&
+    inventoryOf(ctx.state, ctx.state.playerId).some((o) => o.c.item?.equipped === 'weapon')
+  ) {
+    // `mtmp->data == &mons[PM_BALROG] && uwep`: Oselect(BULLWHIP)
+    const whip = items.find((x) => x.def === 'nh:bullwhip');
+    if (whip) return whip;
   }
   for (const id of HWEP) {
     const od = objDef(ctx, id);

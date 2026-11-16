@@ -113,8 +113,7 @@ describe('birth limits', () => {
   });
 
   test('propagate(): an erinys kind is extinct at its third birth; uncounted births do not count', () => {
-    // the erinys row comes with the remaining demons (m18 step 4): a stand-in def by its id
-    const erinys: MonsterDef = { ...mon('nh:imp'), id: 'nh:erinys' as DefId };
+    const erinys = mon('nh:erinys');
     const state = room();
     run(state, (ctx) => {
       expect(propagate(ctx, erinys, false)).toBe(true); // MM_NOCOUNTBIRTH
