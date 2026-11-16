@@ -27,6 +27,9 @@ import { fullyIdentify } from './read';
 import { uState } from './luck';
 import { deepestLevel, finalGold, finalScore } from './urexp';
 import { genocidedLines, goneCounts, vanquishedLines } from './vanquished';
+import { RACES_TAB } from './racetab';
+import { ROLES_TAB } from './roletab';
+import { urace, urole } from './urole';
 
 /** Below every other hook, so it runs only once nothing cancels the game over. */
 export const END_PRIORITY = -1000;
@@ -147,9 +150,6 @@ export function finalDisclosure(ctx: Ctx, _over: GameOver): 'continue' {
   return 'continue';
 }
 
-/** C's role file codes. ref: src/role.c roles[].filecode */
-const ROLE_CODES: Readonly<Record<string, string>> = { 'nh:valkyrie': 'Val' };
-
 /** aligns[1 - u.ualign.type].filecode. ref: src/role.c aligns[] */
 const alignCode = (t: number): string => (t > 0 ? 'Law' : t < 0 ? 'Cha' : 'Neu');
 
@@ -195,17 +195,17 @@ export function registerEnd(api: ModApi): void {
     field: 'maxDepth',
     value: (state) => (state.gameOver ? deepestLevel(state) : null),
   });
-  // ref: src/topten.c topten(): "Val-Hum-Fem-Neu" (role, race, gender, alignment file codes);
-  // the hero is human (hero.ts), her gender flags.female (gender.ts); null for a role without a code
+  // ref: src/topten.c topten(): "Val-Hum-Fem-Neu" (role, race, gender, alignment file codes;
+  // roletab.ts, racetab.ts); her gender is flags.female (gender.ts)
   api.defineStatus({
     id: 'nh:plcode',
     field: 'plcode',
     value(state) {
       if (!state.gameOver) return null;
-      const role = getPlayer(state).c.player?.role;
-      const code = role ? ROLE_CODES[role] : undefined;
+      const role = ROLES_TAB[urole(state)].filecode;
+      const race = RACES_TAB[urace(state)].filecode;
       const gend = heroFemale(state) ? 'Fem' : 'Mal';
-      return code ? `${code}-Hum-${gend}-${alignCode(uState(state).alignType)}` : null;
+      return `${role}-${race}-${gend}-${alignCode(uState(state).alignType)}`;
     },
   });
 }

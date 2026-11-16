@@ -47,6 +47,7 @@ import { plname, checkUnpaid } from './shk';
 import { KEEN, knownSpells } from './spell';
 import { heroForm } from './upoly';
 import { holdAnotherObject } from './wish';
+import { roleIs } from './urole';
 
 export const MAGIC_MARKER: DefId = 'nh:magic_marker';
 const SCR_BLANK_PAPER: DefId = 'nh:scroll_of_blank_paper';
@@ -416,7 +417,7 @@ function writeType(ctx: Ctx, pen: Entity, paper: Entity, value: Json): number {
   // the label; a book also by fresh knowledge of the spell; Luck might override after the
   // previous checks have failed.
   const knowledge = cls === 'spellbook' ? knownSpell(ctx, found) : 'unknown';
-  const wizard = getPlayer(ctx.state).c.player?.role === 'nh:wizard';
+  const wizard = roleIs(ctx.state, 'wizard');
   if (
     !isKnown(ctx.state, ctx.defs, found) &&
     !(byDescr && encountered(ctx.state, ctx, found)) &&

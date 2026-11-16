@@ -32,6 +32,7 @@ import { discover, isKnown } from './o_init';
 import { P, hasProp, makeBlinded, makeConfused, timeoutLeft, wornIn } from './props';
 import { P_BASIC, P_EXPERT, P_SKILLED, P_UNSKILLED, skillLevel } from './skills';
 import { percentSuccess, spellSchoolKey, spellSkill } from './spellcalc';
+import { roleIs } from './urole';
 
 export const LEARN_ID: DefId = 'nh:learn';
 export const SPELLS_ID: DefId = 'nh:spells';
@@ -325,7 +326,7 @@ function studyChecks(ctx: Ctx, book: Entity): number {
     const ability = readAbility(ctx, def);
     const confused = hasProp(hero(ctx), P.CONFUSION);
     // only wizards know if a spell is too difficult
-    if (hero(ctx).c.player?.role === 'nh:wizard' && ability < 20 && !confused) {
+    if (roleIs(ctx.state, 'wizard') && ability < 20 && !confused) {
       const data: StudyAsk = { stage: 'spell-difficult', book: book.id };
       ctx.ask(
         {

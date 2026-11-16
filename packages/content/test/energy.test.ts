@@ -22,6 +22,8 @@ const SLEEP = 'nh:spellbook_of_sleep';
 const CURE_BLINDNESS = 'nh:spellbook_of_cure_blindness';
 
 const rngAt = (seed: number) => createRng(seedRng(seed));
+/** newpw() reads the hero's role and race from the state: the default Valkyrie. */
+const valk = engine.newGame({ seed: 1 }).state;
 
 describe('spell energy at creation', () => {
   test('Pw is 2(2) (Valkyrie 1 + human 1, no random part) for every seed', () => {
@@ -43,7 +45,7 @@ describe('newpw', () => {
         const a = rngAt(seed);
         const b = rngAt(seed);
         const want = Math.max(1, Math.trunc((3 * (b.rn2(Math.trunc(wis / 2) + 1) + 2)) / 4));
-        expect(newpw({ rng: a } as never, lvl, wis)).toBe(want);
+        expect(newpw({ rng: a, state: valk } as never, lvl, wis)).toBe(want);
       }
     }
   });
@@ -51,7 +53,7 @@ describe('newpw', () => {
   test('spans 1 .. 3 * (Wis/2 + 2) / 4 over many rolls', () => {
     const seen = new Set<number>();
     const rng = rngAt(5);
-    for (let i = 0; i < 400; i++) seen.add(newpw({ rng } as never, 3, 18));
+    for (let i = 0; i < 400; i++) seen.add(newpw({ rng, state: valk } as never, 3, 18));
     // rn1(10, 2) is 2..11; 3/4 of it is 1..8
     expect([...seen].sort((x, y) => x - y)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
@@ -59,8 +61,8 @@ describe('newpw', () => {
   test('after level 30 the gain is throttled by the maximum', () => {
     const rng = rngAt(9);
     for (let i = 0; i < 50; i++) {
-      expect(newpw({ rng } as never, MAXULEV, 18, 0)).toBeLessThanOrEqual(4);
-      expect(newpw({ rng } as never, MAXULEV, 18, 700)).toBe(1);
+      expect(newpw({ rng, state: valk } as never, MAXULEV, 18, 0)).toBeLessThanOrEqual(4);
+      expect(newpw({ rng, state: valk } as never, MAXULEV, 18, 700)).toBe(1);
     }
   });
 });

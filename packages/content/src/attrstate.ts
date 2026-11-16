@@ -1,8 +1,10 @@
 // The hero's attributes under acurr()'s worn-armor overrides: gauntlets of power hold Str at 25,
-// a dunce cap holds Int and Wis at 6. A leaf (props.ts only), so hp.ts, end.ts and hunger.ts can
-// change attributes through it. ref: src/attrib.c acurr()
+// a dunce cap holds Int and Wis at 6. A leaf (props, racetab and urole only), so hp.ts, end.ts and hunger.ts can
+// change attributes through it. ref: src/attrib.c acurr(); the race's limits (racetab.ts)
 import { getPlayer, type AttributesComponent, type Ctx, type GameState } from '@nh/core';
 import { P, hasProp, wornIn } from './props';
+import { RACES_TAB } from './racetab';
+import { urace } from './urole';
 
 export type Attr = keyof AttributesComponent;
 
@@ -191,18 +193,20 @@ export function restoreAttr(ctx: Pick<Ctx, 'state'>, which: Attr): boolean {
 // ---------------------------------------------------------------------------------------------
 // adjattrib()
 
-/** ref: include/attrib.h STR18 */
-const STR18 = (x: number): number => 18 + x;
-/** ref: src/role.c races[] human attrmin / attrmax */
-const ATTRMIN = 3;
-const ATTRMAX: Record<Attr, number> = {
-  str: STR18(100),
-  int: 18,
-  wis: 18,
-  dex: 18,
-  con: 18,
-  cha: 18,
+const ATTR_INDEX: Readonly<Record<Attr, number>> = {
+  str: 0,
+  int: 1,
+  wis: 2,
+  dex: 3,
+  con: 4,
+  cha: 5,
 };
+/** ref: include/attrib.h ATTRMIN(): her race's attrmin */
+export const attrMin = (state: Readonly<GameState>, which: Attr): number =>
+  RACES_TAB[urace(state)].attrmin[ATTR_INDEX[which]] ?? 3;
+/** ref: include/attrib.h ATTRMAX(): her race's attrmax (not uasmon_maxStr() while polymorphed) */
+export const attrMax = (state: Readonly<GameState>, which: Attr): number =>
+  RACES_TAB[urace(state)].attrmax[ATTR_INDEX[which]] ?? 18;
 
 /**
  * Raises or lowers an attribute. Returns whether it changed. `msg` shows "You feel weak!" etc.
@@ -235,16 +239,18 @@ export function adjattrib(
   if (incr > 0) {
     if (base > peak) {
       peak = base;
-      if (peak > ATTRMAX[which]) base = peak = ATTRMAX[which];
+      const max = attrMax(ctx.state, which);
+      if (peak > max) base = peak = max;
     }
     abonflg = abon(ctx.state, which) < 0;
   } else {
-    if (base < ATTRMIN) {
+    const min = attrMin(ctx.state, which);
+    if (base < min) {
       // dropped below the minimum: take some (average half, possibly zero) of the excess from
       // the peak instead
-      const decr = ctx.rng.rn2(ATTRMIN - base + 1);
-      base = ATTRMIN;
-      peak = Math.max(peak - decr, ATTRMIN);
+      const decr = ctx.rng.rn2(min - base + 1);
+      base = min;
+      peak = Math.max(peak - decr, min);
     }
     abonflg = abon(ctx.state, which) > 0;
   }

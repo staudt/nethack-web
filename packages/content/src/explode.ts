@@ -52,6 +52,7 @@ import { setmangry, wakeup } from './peaceful';
 import { P, hasProp } from './props';
 import { rehumanize, upolyd } from './upoly';
 import { payForDamage } from './shkpay';
+import { urole } from './urole';
 
 /** The explosion's look (C's EXPL_* colours). ref: include/hack.h explosion types */
 export type ExplType = 'dark' | 'noxious' | 'muddy' | 'wet' | 'magical' | 'fiery' | 'frosty';
@@ -210,10 +211,9 @@ export function explode(
   let damu = dam;
   if (wand) {
     // retributive strike: priests, monks and wizards are hurt less, healers and knights half
-    const role = h.c.player?.role;
-    if (role === 'nh:priest' || role === 'nh:monk' || role === 'nh:wizard')
-      damu = Math.trunc(damu / 5);
-    else if (role === 'nh:healer' || role === 'nh:knight') damu = Math.trunc(damu / 2);
+    const role = urole(ctx.state);
+    if (role === 'priest' || role === 'monk' || role === 'wizard') damu = Math.trunc(damu / 5);
+    else if (role === 'healer' || role === 'knight') damu = Math.trunc(damu / 2);
   }
   const adtyp: Adtyp | null | undefined = monExpl ? (src.ad ?? 'phys') : ADTYP[type % 10];
   if (!adtyp) return; // impossible("explosion base type %d?")

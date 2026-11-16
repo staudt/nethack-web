@@ -18,6 +18,7 @@ import { nearCapacity } from './stats';
 import { CHARGED_RINGS } from './objects';
 import { P, hasProp, wornIn } from './props';
 import { adjattrib, rawAttr, setRawAttr } from './attrstate';
+import { roleIs } from './urole';
 
 export type { HungerData, Sick, Victual } from './uhunger';
 export { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE } from './uhunger';
@@ -259,7 +260,7 @@ export function newuhs(ctx: Ctx, incr: boolean, eating = false): void {
         if (incr) ctx.interrupt(); // stop_occupation(), end_running()
         break;
       case 'weak':
-        if (incr && hero.c.player?.role === 'nh:valkyrie')
+        if (incr && roleIs(ctx.state, 'valkyrie'))
           ctx.emit({ type: 'msg', key: 'hunger.needs_food', params: { role: '@role.valkyrie' } });
         else
           ctx.emit({

@@ -41,7 +41,7 @@ import {
   setRawAttr,
   type Attr,
 } from './attrib';
-import { amaxSnapshot, restoreAmaxSnapshot } from './attrstate';
+import { amaxSnapshot, attrMax, attrMin, restoreAmaxSnapshot } from './attrstate';
 import { unaware } from './btrapped';
 import { resist, resistsMagm } from './buzz';
 import { monsterNearby } from './eat';
@@ -821,7 +821,7 @@ function dead(ctx: Ctx): void {
 }
 
 /**
- * Str, Dex, Con and Cha: each peak (AMAX) changes by -2..+2 within the human limits and the
+ * Str, Dex, Con and Cha: each peak (AMAX) changes by -2..+2 within her race's limits and the
  * current value (ABASE) keeps its proportion of it. ref: src/attrib.c redist_attr()
  */
 function redistAttr(ctx: Ctx, h: Entity): void {
@@ -829,10 +829,11 @@ function redistAttr(ctx: Ctx, h: Entity): void {
   if (!a) return;
   for (const k of ATTRS) {
     if (k === 'int' || k === 'wis') continue; // polymorphing doesn't change your mind
-    const max = k === 'str' ? STR18(100) : 18;
+    const max = attrMax(ctx.state, k);
+    const min = attrMin(ctx.state, k);
     const tmp = amax(ctx.state, k);
-    const peak = Math.max(3, Math.min(max, tmp + ctx.rng.rn2(5) - 2));
-    const base = Math.max(3, Math.trunc((abase(ctx.state, k) * peak) / tmp));
+    const peak = Math.max(min, Math.min(max, tmp + ctx.rng.rn2(5) - 2));
+    const base = Math.max(min, Math.trunc((abase(ctx.state, k) * peak) / tmp));
     setAbase(ctx, k, base);
     setAmax(ctx, k, peak);
   }

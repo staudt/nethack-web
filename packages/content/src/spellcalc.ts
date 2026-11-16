@@ -1,13 +1,16 @@
-// Spell numbers: each book's school and direction, the role's spellcasting table and the failure
-// rate. ref: include/objects.h SPELL(); src/role.c roles[] (spelbase .. spelsbon); src/spell.c
+// Spell numbers: each book's school and direction and the failure rate by the role's spellcasting
+// fields (roletab.ts). ref: include/objects.h SPELL(); src/role.c roles[] (spelbase .. spelsbon); src/spell.c
 // percent_success(), spell_skilltype(), spelltypemnemonic()
 //
-// A leaf module (core, skills, items, material, props): the `+` view and casting both read it.
-import type { AttributesComponent, DefId, GameState, Registry, WandDir } from '@nh/core';
+// A leaf module (core, skills, items, material, props, roletab, urole): the `+` view and casting
+// both read it.
+import type { DefId, GameState, Registry, WandDir } from '@nh/core';
 import { weight } from './items';
 import { isMetallic } from './material';
 import { wornIn } from './props';
+import { ROLES_TAB } from './roletab';
 import { P_BASIC, P_RESTRICTED, P_SKILLED, P_UNSKILLED, skillLevel } from './skills';
+import { roleIs, urole } from './urole';
 
 /** A book's spell school (oc_skill) and direction (oc_dir). */
 export interface SpellInfo {
@@ -69,36 +72,7 @@ export const spellSkill = (book: DefId): string => SPELL_INFO[book]?.skill ?? ''
 export const spellSchoolKey = (book: DefId): string =>
   `spell.school.${spellSkill(book).replace(/_spell$/, '')}`;
 
-/** A role's spellcasting fields. ref: include/you.h struct Role spelbase .. spelsbon */
-export interface RoleSpell {
-  /** base spellcasting penalty */
-  spelbase: number;
-  /** penalty (-bonus) for healing spells */
-  spelheal: number;
-  /** penalty for wearing any shield */
-  spelshld: number;
-  /** penalty for wearing metal armour */
-  spelarmr: number;
-  /** the casting stat */
-  spelstat: keyof AttributesComponent;
-  /** the role's special spell (kept even when the book does not exist, for a mod to add it) */
-  spelspec: DefId | null;
-  /** bonus (-penalty) for the special spell */
-  spelsbon: number;
-}
-
-/** ref: src/role.c roles[] Valkyrie `10, -2, 0, 9, A_WIS, SPE_CONE_OF_COLD, -4` */
-export const ROLE_SPELL: Readonly<Record<DefId, RoleSpell>> = {
-  'nh:valkyrie': {
-    spelbase: 10,
-    spelheal: -2,
-    spelshld: 0,
-    spelarmr: 9,
-    spelstat: 'wis',
-    spelspec: 'nh:spellbook_of_cone_of_cold',
-    spelsbon: -4,
-  },
-};
+export type { RoleSpell } from './roletab';
 
 /** The energy a spell of that level costs. ref: include/spell.h SPELL_LEV_PW() */
 export const spellLevPw = (level: number): number => level * 5;
@@ -131,18 +105,18 @@ export function isqrt(val: number): number {
 }
 
 /**
- * The hero's chance (0..100) of casting the spell of `book`. ref: src/spell.c percent_success().
- * There is no Knight, so the paladin bonus never applies; no quarterstaff exists yet (the check
- * is by id); the robe is checked by id.
+ * The hero's chance (0..100) of casting the spell of `book`, by her role's spellcasting fields
+ * (roletab.ts). ref: src/spell.c percent_success(). The quarterstaff and the robe are checked by
+ * id.
  */
 export function percentSuccess(state: Readonly<GameState>, defs: Registry, book: DefId): number {
   const hero = state.entities[String(state.playerId)];
-  const roleId: DefId = hero?.c.player?.role ?? 'nh:valkyrie';
-  const role = ROLE_SPELL[roleId] ?? ROLE_SPELL['nh:valkyrie'];
-  if (!hero || !role) return 0;
+  if (!hero) return 0;
+  const role = ROLES_TAB[urole(state)];
   const id = hero.id;
   const skilltype = spellSkill(book);
-  const paladinBonus = false; // Role_if(PM_KNIGHT) && skilltype == P_CLERIC_SPELL
+  // Knights don't get metal armor penalty for clerical spells
+  const paladinBonus = roleIs(state, 'knight') && skilltype === 'cleric_spell';
 
   let splcaster = role.spelbase;
   const special = role.spelheal;

@@ -123,6 +123,7 @@ import { amphibious, breathless, swimming } from './uwater';
 import { losespells } from './spell';
 import { drainWeaponSkill } from './skills';
 import { isKnown } from './o_init';
+import { roleIs } from './urole';
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -2014,7 +2015,7 @@ const adHeal: Handler = (ctx, magr, atk, mdef, mhm, env) => {
       return;
     }
     mhm.damage = 0;
-  } else if (getPlayer(ctx.state).c.player?.role === 'nh:healer') {
+  } else if (roleIs(ctx.state, 'healer')) {
     // (the hero is never deaf)
     if (ctx.state.turn % 5 === 0) say(ctx, 'nurse.doc');
     mhm.damage = 0;

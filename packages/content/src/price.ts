@@ -34,6 +34,7 @@ import {
 import { GLASS_GEMS, GLASS_PRICED_AS, gemOffset } from './gem';
 import { isKnown } from './o_init';
 import { saleable } from './shtypes';
+import { roleIs } from './urole';
 
 type S = Readonly<GameState>;
 const at = (state: S): { state: S } => ({ state });
@@ -199,7 +200,7 @@ function sucker(state: S): 'dunce' | 'tourist' | null {
     inventoryOf(state, hero.id).find((o) => o.c.item?.equipped === slot);
   if (worn('helm')?.def === 'nh:dunce_cap') return 'dunce';
   if (
-    (hero.c.player?.role === 'nh:tourist' && (hero.c.experience?.level ?? 1) < 15) ||
+    (roleIs(state, 'tourist') && (hero.c.experience?.level ?? 1) < 15) ||
     (worn('shirt') && !worn('body') && !worn('cloak')) // touristy shirt visible
   )
     return 'tourist';

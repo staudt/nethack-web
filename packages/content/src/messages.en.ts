@@ -71,6 +71,7 @@ import { vaultMessagesEn } from './vault.en';
 import { scrollMessagesEn } from './scroll.en';
 import { liquidMessagesEn } from './liquid.en';
 import { dbridgeMessagesEn } from './dbridge.en';
+import { roleMessagesEn } from './role.en';
 
 export const messagesEn: Record<string, string> = {
   ...objectMessagesEn,
@@ -144,6 +145,7 @@ export const messagesEn: Record<string, string> = {
   ...polyselfMessagesEn,
   ...uhitmMessagesEn,
   ...endMessagesEn,
+  ...roleMessagesEn,
   welcome: 'Hello, welcome to NetHack! You are a {role}.',
   'welcome.back': 'Hello, welcome back to NetHack! You are a {role}.',
   'door.opens': 'The door opens.',
@@ -225,7 +227,6 @@ export const messagesEn: Record<string, string> = {
   'terrain.ice': 'ice',
   'terrain.cloud': 'cloud',
   'terrain.altar': 'altar',
-  'role.valkyrie': 'Valkyrie',
   'exp.welcome': 'Welcome to experience level {level}.',
   'exp.more_experienced': 'You feel more experienced.',
   'weapon.spear': 'spear',

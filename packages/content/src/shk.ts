@@ -84,6 +84,7 @@ import { discardDamageOwnedBy } from './shopdamage';
 import { SHTYPES, saleable, shopType } from './shtypes';
 import { emptyShops, setEmptyShops, setURooms, uRooms } from './urooms';
 import { angryGuards, pacifyGuards } from './watch';
+import { roleIs, urole } from './urole';
 
 const MATTOCK = 'nh:dwarvish_mattock';
 const PICK_AXE = 'nh:pick_axe';
@@ -109,14 +110,14 @@ export function shkname(ctx: Pick<Ctx, 'state' | 'cosmetic'>, e: Eshk): string {
  * particular, where a Samurai says "Konnichi wa". ref: src/role.c Hello()
  */
 export function hello(ctx: Pick<Ctx, 'state'>, toShk = true): string {
-  switch (getPlayer(ctx.state).c.player?.role) {
-    case 'nh:knight':
+  switch (urole(ctx.state)) {
+    case 'knight':
       return '@shk.hello.knight';
-    case 'nh:samurai':
+    case 'samurai':
       return toShk ? '@shk.hello.samurai' : '@shk.hello.samurai_other';
-    case 'nh:tourist':
+    case 'tourist':
       return '@shk.hello.tourist';
-    case 'nh:valkyrie':
+    case 'valkyrie':
       return '@shk.hello.valkyrie';
     default:
       return '@shk.hello';
@@ -1444,7 +1445,7 @@ export function addupbill(e: Eshk): number {
 }
 
 /** ref: Role_if(PM_ROGUE): stealing is lawful for a Rogue */
-const isRogue = (ctx: Ctx): boolean => getPlayer(ctx.state).c.player?.role === 'nh:rogue';
+const isRogue = (ctx: Ctx): boolean => roleIs(ctx.state, 'rogue');
 
 /** The sign of the hero's alignment type. ref: sgn(u.ualign.type) */
 const alignSgn = (ctx: Ctx): number => Math.sign(uState(ctx.state).alignType);

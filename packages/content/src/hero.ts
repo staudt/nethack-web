@@ -1,5 +1,9 @@
-// Hero stats for the stub Valkyrie: initial attributes/HP/Pw/kit, HP and Pw regeneration and experience.
+// Hero stats by role and race (roletab.ts, racetab.ts): initial attributes/HP/Pw/kit, HP and Pw
+// regeneration and experience. A new game is still the human female neutral Valkyrie (urole.ts).
 import type { AttributesComponent, Ctx, Entity, EntityId, ModApi, MonsterDef } from '@nh/core';
+import { RACES_TAB, type RaceRow } from './racetab';
+import { ROLES_TAB, enermod, type RoleRow } from './roletab';
+import { type RaceKey, type RoleKey, urace, urole } from './urole';
 import { giveStartingKit } from './kit';
 import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
@@ -8,64 +12,38 @@ import { pwOf, setPw } from './uenergy';
 import { monhpPerLvl, ownHp, upolyd } from './upoly';
 import { moreExperienced } from './urexp';
 
-/**
- * The stub hero is a human, female, neutral Valkyrie. ref: src/role.c roles[] Valkyrie allows
- * MH_HUMAN|MH_DWARF, ROLE_FEMALE, ROLE_LAWFUL|ROLE_NEUTRAL; human allows all alignments.
- * (Neutral humans are the common choice; alignment has no mechanical effect in M2.)
- */
-export const HERO_RACE = 'human';
-
-/** ref: include/attrib.h STR18 */
-const STR18 = (x: number): number => 18 + x;
-
-/** ref: src/role.c roles[] Valkyrie: Str Int Wis Dex Con Cha */
-const VALK_ATTRBASE = [10, 7, 7, 7, 10, 7] as const;
-const VALK_ATTRDIST = [30, 6, 7, 20, 30, 7] as const;
-/** ref: src/role.c races[] human attrmin/attrmax */
-const HUMAN_ATTRMIN = 3;
-const HUMAN_ATTRMAX = [STR18(100), 18, 18, 18, 18, 18] as const;
-
-/** ref: src/role.c struct RoleAdvance: infix, inrnd, lofix, lornd, hifix, hirnd */
-interface HpAdvance {
-  infix: number;
-  inrnd: number;
-  lofix: number;
-  lornd: number;
-  hifix: number;
-  hirnd: number;
-}
-/** ref: src/role.c roles[] Valkyrie hpadv `{ 14, 0, 0, 8, 2, 0 }` */
-const VALK_HPADV: HpAdvance = { infix: 14, inrnd: 0, lofix: 0, lornd: 8, hifix: 2, hirnd: 0 };
-/** ref: src/role.c races[] human hpadv `{ 2, 0, 0, 2, 1, 0 }` */
-const HUMAN_HPADV: HpAdvance = { infix: 2, inrnd: 0, lofix: 0, lornd: 2, hifix: 1, hirnd: 0 };
-/** ref: src/role.c roles[] Valkyrie enadv `{ 1, 0, 0, 1, 0, 1 }` (Energy) */
-const VALK_ENADV: HpAdvance = { infix: 1, inrnd: 0, lofix: 0, lornd: 1, hifix: 0, hirnd: 1 };
-/** ref: src/role.c races[] human enadv `{ 1, 0, 2, 0, 2, 0 }` (Energy) */
-const HUMAN_ENADV: HpAdvance = { infix: 1, inrnd: 0, lofix: 2, lornd: 0, hifix: 2, hirnd: 0 };
-/** ref: src/role.c roles[] Valkyrie xlev (cutoff level between lo and hi hp advance) */
-const VALK_XLEV = 10;
 /** ref: include/global.h MAXULEV */
 export const MAXULEV = 30;
 
-/** ref: src/attrib.c rnd_attr() */
-function rndAttr(ctx: Ctx): number {
+/** ref: src/attrib.c rnd_attr(): A_MAX (6) when the distribution runs out */
+function rndAttr(ctx: Ctx, attrdist: readonly number[]): number {
   let x = ctx.rng.rn2(100);
   let i = 0;
-  for (; i < VALK_ATTRDIST.length; i++) {
-    x -= VALK_ATTRDIST[i] ?? 0;
+  for (; i < attrdist.length; i++) {
+    x -= attrdist[i] ?? 0;
     if (x < 0) break;
   }
   return i;
 }
 
 /** ref: src/attrib.c init_attr_role_redist() */
-function redistribute(ctx: Ctx, a: number[], np: number, addition: boolean): number {
+function redistribute(
+  ctx: Ctx,
+  a: number[],
+  np: number,
+  addition: boolean,
+  role: RoleRow,
+  race: RaceRow,
+): number {
   const adj = addition ? 1 : -1;
   let tryct = 0;
   while ((addition ? np > 0 : np < 0) && tryct < 100) {
-    const i = rndAttr(ctx);
+    const i = rndAttr(ctx, role.attrdist);
     const v = a[i];
-    if (v === undefined || (addition ? v >= (HUMAN_ATTRMAX[i] ?? 18) : v <= HUMAN_ATTRMIN)) {
+    if (
+      v === undefined ||
+      (addition ? v >= (race.attrmax[i] ?? 18) : v <= (race.attrmin[i] ?? 3))
+    ) {
       tryct++;
       continue;
     }
@@ -77,26 +55,48 @@ function redistribute(ctx: Ctx, a: number[], np: number, addition: boolean): num
 }
 
 /**
- * Initial attributes: role base values, then 75 total points distributed by attrdist, then the
- * 1-in-20 per-attribute variation. ref: src/attrib.c init_attr(), vary_init_attr();
- * src/u_init.c u_init_inventory_attrs() (init_attr(75)). Skipped: u_init_carry_attr_boost
- * (no inventory weight in M2); the AMAX peak value (we store only the current value).
+ * The role's base values, then `np` total points distributed by the role's attrdist within the
+ * race's limits (Str Int Wis Dex Con Cha). ref: src/attrib.c init_attr(), init_attr_role_redist()
  */
-export function initialAttributes(ctx: Ctx): AttributesComponent {
-  const a: number[] = [...VALK_ATTRBASE];
-  let np = 75;
-  for (const b of VALK_ATTRBASE) np -= b;
-  np = redistribute(ctx, a, np, true);
-  redistribute(ctx, a, np, false);
-  // ref: src/attrib.c vary_init_attr()
+export function initAttr(ctx: Ctx, np: number, roleKey: RoleKey, raceKey: RaceKey): number[] {
+  const role = ROLES_TAB[roleKey];
+  const race = RACES_TAB[raceKey];
+  const a: number[] = [...role.attrbase];
+  for (const b of role.attrbase) np -= b;
+  // distribute leftover points
+  np = redistribute(ctx, a, np, true, role, race);
+  // if we went over, remove points
+  redistribute(ctx, a, np, false, role, race);
+  return a;
+}
+
+/**
+ * Minor variation: each attribute 1 in 20 changes by -2..+4, within the race's limits.
+ * ref: src/attrib.c vary_init_attr(), adjattrib() (positive: clamp to max; negative: to min)
+ */
+export function varyInitAttr(ctx: Ctx, a: number[], raceKey: RaceKey): void {
+  const race = RACES_TAB[raceKey];
   for (let i = 0; i < a.length; i++) {
     if (ctx.rng.rn2(20) === 0) {
       const xd = ctx.rng.rn2(7) - 2; // biased variation
-      // ref: src/attrib.c adjattrib() (positive: clamp to max; negative: clamp to min)
       const next = (a[i] ?? 0) + xd;
-      a[i] = Math.max(HUMAN_ATTRMIN, Math.min(HUMAN_ATTRMAX[i] ?? 18, next));
+      a[i] = Math.max(race.attrmin[i] ?? 3, Math.min(race.attrmax[i] ?? 18, next));
     }
   }
+}
+
+/**
+ * Initial attributes: init_attr(75), then vary_init_attr(). ref: src/u_init.c
+ * u_init_inventory_attrs(). Skipped: u_init_carry_attr_boost (m22 step 3); the AMAX peak value
+ * (we store only the current value).
+ */
+export function initialAttributes(
+  ctx: Ctx,
+  roleKey: RoleKey = urole(ctx.state),
+  raceKey: RaceKey = urace(ctx.state),
+): AttributesComponent {
+  const a = initAttr(ctx, 75, roleKey, raceKey);
+  varyInitAttr(ctx, a, raceKey);
   const [str = 0, int = 0, wis = 0, dex = 0, con = 0, cha = 0] = a;
   return { str, int, wis, dex, con, cha };
 }
@@ -113,12 +113,14 @@ function conPlus(con: number): number {
 }
 
 /**
- * Hit points gained: at level 0 (hero creation) the initial value, else the per-level gain.
- * ref: src/attrib.c newhp(). `ulevel` is the level before it is incremented.
+ * Hit points gained: at level 0 (hero creation) the initial value, else the per-level gain, by
+ * her role's and race's hpadv. ref: src/attrib.c newhp(). `ulevel` is the level before it is
+ * incremented. (The alignment record set at level 0 is m22 step 4.)
  */
 export function newhp(ctx: Ctx, ulevel: number, con: number, maxHp = 0): number {
-  const role = VALK_HPADV;
-  const race = HUMAN_HPADV;
+  const roleRow = ROLES_TAB[urole(ctx.state)];
+  const role = roleRow.hpadv;
+  const race = RACES_TAB[urace(ctx.state)].hpadv;
   let hp: number;
   if (ulevel === 0) {
     hp = role.infix + race.infix;
@@ -126,7 +128,7 @@ export function newhp(ctx: Ctx, ulevel: number, con: number, maxHp = 0): number 
     if (race.inrnd > 0) hp += ctx.rng.rnd(race.inrnd);
     // no Con adjustment for initial hit points
   } else {
-    if (ulevel < VALK_XLEV) {
+    if (ulevel < roleRow.xlev) {
       hp = role.lofix + race.lofix;
       if (role.lornd > 0) hp += ctx.rng.rnd(role.lornd);
       if (race.lornd > 0) hp += ctx.rng.rnd(race.lornd);
@@ -146,18 +148,18 @@ export function newhp(ctx: Ctx, ulevel: number, con: number, maxHp = 0): number 
   return hp;
 }
 
-/** The role's energy modifier; the Valkyrie's is 3/4. ref: src/exper.c enermod() */
-const enermod = (en: number): number => Math.trunc((3 * en) / 4);
-
 /**
  * Energy gained: at level 0 (hero creation) the initial value, else the per-level gain.
- * ref: src/exper.c newpw(). `ulevel` is the level before it is incremented and `wis` is
+ * ref: src/exper.c newpw(), enermod() (her role's and race's enadv, the role's xlev and
+ * modifier). `ulevel` is the level before it is incremented and `wis` is
  * ACURR(A_WIS). `uenmax` is only used for the post-30 throttle. pluslvl() records the gain
  * (u.ueninc[]).
  */
 export function newpw(ctx: Ctx, ulevel: number, wis: number, uenmax = 0): number {
-  const role = VALK_ENADV;
-  const race = HUMAN_ENADV;
+  const roleKey = urole(ctx.state);
+  const roleRow = ROLES_TAB[roleKey];
+  const role = roleRow.enadv;
+  const race = RACES_TAB[urace(ctx.state)].enadv;
   let en: number;
   if (ulevel === 0) {
     en = role.infix + race.infix;
@@ -166,14 +168,14 @@ export function newpw(ctx: Ctx, ulevel: number, wis: number, uenmax = 0): number
   } else {
     let enrnd = Math.trunc(wis / 2);
     let enfix: number;
-    if (ulevel < VALK_XLEV) {
+    if (ulevel < roleRow.xlev) {
       enrnd += role.lornd + race.lornd;
       enfix = role.lofix + race.lofix;
     } else {
       enrnd += role.hirnd + race.hirnd;
       enfix = role.hifix + race.hifix;
     }
-    en = enermod(ctx.rng.rn2(enrnd) + enfix); // rn1(enrnd, enfix)
+    en = enermod(roleKey, ctx.rng.rn2(enrnd) + enfix); // rn1(enrnd, enfix)
   }
   if (en <= 0) en = 1;
   if (ulevel >= MAXULEV) {
@@ -273,10 +275,6 @@ function recordIncrements(ctx: Pick<Ctx, 'state'>, level: number, hp: number, en
   (d.ueninc ??= {})[String(level)] = en;
 }
 
-/** ref: src/role.c the Valkyrie's and human's hpadv/enadv `infix` (no `inrnd`): u_init()'s values */
-const INITIAL_HP = VALK_HPADV.infix + HUMAN_HPADV.infix;
-const INITIAL_EN = VALK_ENADV.infix + HUMAN_ENADV.infix;
-
 /**
  * u.uhpinc[level] and u.ueninc[level]: what leaving `level` gave. A level gained before m9 step 7
  * (an older save) has no record: the average gain per level above the initial value instead.
@@ -289,11 +287,17 @@ export function levelIncrements(
   ulevel: number,
 ): { hp: number; en: number } {
   const d = levelData(ctx, false);
+  // ref: src/role.c her role's and race's hpadv/enadv `infix`: the initial values (an old save is
+  // a Valkyrie, whose `inrnd`s are 0)
+  const role = ROLES_TAB[urole(ctx.state)];
+  const race = RACES_TAB[urace(ctx.state)];
+  const initialHp = role.hpadv.infix + race.hpadv.infix;
+  const initialEn = role.enadv.infix + race.enadv.infix;
   const avg = (max: number, initial: number): number =>
     ulevel > 1 ? Math.max(Math.floor((max - initial) / (ulevel - 1)), 0) : 0;
   return {
-    hp: d?.uhpinc?.[String(level)] ?? avg(hpmax, INITIAL_HP),
-    en: d?.ueninc?.[String(level)] ?? avg(uenmax, INITIAL_EN),
+    hp: d?.uhpinc?.[String(level)] ?? avg(hpmax, initialHp),
+    en: d?.ueninc?.[String(level)] ?? avg(uenmax, initialEn),
   };
 }
 

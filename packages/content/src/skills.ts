@@ -1,7 +1,9 @@
 // Weapon skills. ref: src/weapon.c skill_init(), use_skill(), enhance_weapon_skill(), weapon_hit_bonus(), weapon_dam_bonus();
-// src/u_init.c Skill_V
+// src/u_init.c Skill_A[]..Skill_W[] (skilltab.ts)
 import { type ActionDef, type Ctx, type Msg, type ObjectDef, inventoryOf } from '@nh/core';
 import { nhData } from './items';
+import { SKILL_TAB } from './skilltab';
+import { type RoleKey, urole } from './urole';
 
 /** ref: include/skills.h P_ISRESTRICTED..P_GRAND_MASTER */
 export const P_RESTRICTED = 0;
@@ -13,32 +15,8 @@ export const P_EXPERT = 4;
 /** The pseudo-skill for fighting without a weapon. ref: include/skills.h P_BARE_HANDED_COMBAT */
 export const BARE_HANDED = 'bare_handed';
 
-/**
- * The Valkyrie's skill maximums. ref: src/u_init.c Skill_V[]. Skills not listed are restricted.
- * The spell, riding and two-weapon entries are kept for completeness; nothing uses them yet.
- */
-export const SKILL_V: Readonly<Record<string, number>> = {
-  dagger: P_EXPERT,
-  axe: P_EXPERT,
-  pick_axe: P_SKILLED,
-  short_sword: P_SKILLED,
-  broad_sword: P_SKILLED,
-  long_sword: P_EXPERT,
-  two_handed_sword: P_EXPERT,
-  saber: P_BASIC,
-  hammer: P_EXPERT,
-  quarterstaff: P_BASIC,
-  polearms: P_SKILLED,
-  spear: P_EXPERT,
-  trident: P_BASIC,
-  lance: P_SKILLED,
-  sling: P_BASIC,
-  attack_spell: P_BASIC,
-  escape_spell: P_BASIC,
-  riding: P_SKILLED,
-  two_weapon: P_SKILLED,
-  [BARE_HANDED]: P_EXPERT,
-};
+/** The Valkyrie's skill maximums (an alias of her SKILL_TAB row). ref: src/u_init.c Skill_V[] */
+export const SKILL_V: Readonly<Record<string, number>> = SKILL_TAB.valkyrie;
 
 /** ref: include/global.h MAXULEV (hero.ts has the same constant; importing it would make a cycle) */
 const MAXULEV = 30;
@@ -116,15 +94,20 @@ const groupOf = (skill: string): string =>
  * Skipped: the ammo exception (ammo is skipped only for launchers we lack), magic skills,
  * riding a steed, unrestrict_weapon_skill() for the role's special spell.
  */
-export function skillInit(ctx: Pick<Ctx, 'state' | 'defs'>, heroId: number): void {
+export function skillInit(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  heroId: number,
+  role: RoleKey = urole(ctx.state),
+): void {
+  const table = SKILL_TAB[role];
   const skills: Record<string, number> = {};
   for (const o of inventoryOf(ctx.state, heroId)) {
     const w = ctx.defs.object(o.def).weapon;
     if (w) skills[w.skill] = P_BASIC;
   }
   const maxima: Record<string, number> = {};
-  for (const name of Object.keys(SKILL_V).sort()) {
-    maxima[name] = SKILL_V[name] ?? P_RESTRICTED;
+  for (const name of Object.keys(table).sort()) {
+    maxima[name] = table[name] ?? P_RESTRICTED;
     if (skills[name] === undefined) skills[name] = P_UNSKILLED;
   }
   // "High potential fighters already know how to use their hands": only when max > Expert.
@@ -166,7 +149,7 @@ export function skillLevel(ctx: SkillCtx, skill: string): number {
 }
 
 const skillMax = (ctx: SkillCtx, skill: string): number =>
-  nhData(ctx).skillMax?.[skill] ?? SKILL_V[skill] ?? P_RESTRICTED;
+  nhData(ctx).skillMax?.[skill] ?? SKILL_TAB[urole(ctx.state)][skill] ?? P_RESTRICTED;
 
 const skillAdvance = (ctx: SkillCtx, skill: string): number =>
   nhData(ctx).skillAdvance?.[skill] ?? 0;

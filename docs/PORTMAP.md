@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-191 NetHack files, 5429 citations.
+191 NetHack files, 5448 citations.
 
 ## dat/asmodeus.lua
 
@@ -234,16 +234,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/aligntyp.ts`, `packages/content/src/luck.ts`
 - `ALGN_SINNED()`: `packages/content/src/aligntyp.ts`
-- `A_CHAOTIC()`: `packages/content/src/luck.ts`
+- `A_CHAOTIC()`: `packages/content/src/luck.ts`, `packages/content/src/roletab.ts`
 - `A_NEUTRAL()`: `packages/content/src/generation.ts`
 - `A_NONE()`: `packages/content/src/aligntyp.ts`
 - `Align2amask()`: `packages/content/src/mimic.ts`
 
 ## include/attrib.h
 
-- (file): `packages/content/src/attrib.ts`, `packages/content/src/attrstate.ts`, `packages/content/src/combat.ts`, `packages/content/src/hero.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/attrib.ts`, `packages/content/src/combat.ts`, `packages/content/src/roletab.ts`, `packages/core/src/types/entity.ts`
 - `ABASE()`: `packages/content/src/attrstate.ts`
 - `AMAX()`: `packages/content/src/attrstate.ts`
+- `ATTRMAX()`: `packages/content/src/attrstate.ts`
+- `ATTRMIN()`: `packages/content/src/attrstate.ts`
 - `A_STR()`: `packages/content/src/fountain.ts`
 - `STR18()`: `packages/content/src/polyself.ts`
 - `STR19()`: `packages/content/src/polyself.ts`
@@ -661,6 +663,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/skills.ts`
 - `P_BARE_HANDED_COMBAT()`: `packages/content/src/skills.ts`
+- `P_BASIC()`: `packages/content/src/skilltab.ts`
 - `P_ISRESTRICTED()`: `packages/content/src/skills.ts`
 - `P_SKILL_LIMIT()`: `packages/content/src/skills.ts`
 - `practice_needed_to_advance()`: `packages/content/src/skills.ts`
@@ -714,8 +717,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
+- `Race_if()`: `packages/content/src/urole.ts`
+- `Role_if()`: `packages/content/src/urole.ts`
 - `SICK_VOMITABLE()`: `packages/content/src/uhunger.ts`
 - `uhim()`: `packages/content/src/gender.ts`
 - `uhis()`: `packages/content/src/gender.ts`
@@ -795,13 +800,15 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/attrib.c
 
-- (file): `packages/content/src/resist.en.ts`
+- (file): `packages/content/src/props.ts`, `packages/content/src/racetab.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`
 - `acurr()`: `packages/content/src/attrstate.ts`
 - `acurrstr()`: `packages/content/src/stats.ts`
-- `adjabil()`: `packages/content/src/props.ts`
+- `adjabil()`: `packages/content/src/props.ts`, `packages/content/src/roletab.ts`
 - `adjalign()`: `packages/content/src/luck.ts`
 - `adjattrib()`: `packages/content/src/attrib.ts`, `packages/content/src/attrstate.ts`, `packages/content/src/hero.ts`
+- `arc_abil()`: `packages/content/src/roletab.ts`
 - `change_luck()`: `packages/content/src/luck.ts`
+- `dwa_abil()`: `packages/content/src/racetab.ts`
 - `extremeattr()`: `packages/content/src/jewelry.ts`
 - `gainstr()`: `packages/content/src/attrib.ts`
 - `init_attr()`: `packages/content/src/hero.ts`
@@ -817,7 +824,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_moreluck()`: `packages/content/src/gem.ts`
 - `stone_luck()`: `packages/content/src/gem.ts`
 - `uchangealign()`: `packages/content/src/dowear.ts`
-- `val_abil()`: `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/stats.ts`
+- `val_abil()`: `packages/content/src/stats.ts`
 - `vary_init_attr()`: `packages/content/src/hero.ts`
 
 ## src/ball.c
@@ -1319,8 +1326,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/exper.c
 
-- (file): `packages/content/src/magic.ts`, `packages/content/src/urexp.ts`
-- `enermod()`: `packages/content/src/hero.ts`
+- (file): `packages/content/src/magic.ts`, `packages/content/src/roletab.ts`, `packages/content/src/urexp.ts`
+- `enermod()`: `packages/content/src/hero.ts`, `packages/content/src/roletab.ts`
 - `experience()`: `packages/content/src/hero.ts`
 - `losexp()`: `packages/content/src/exper.ts`, `packages/content/src/were.en.ts`, `packages/content/src/wizard/levelchange.ts`
 - `more_experienced()`: `packages/content/src/hero.ts`, `packages/content/src/urexp.ts`
@@ -2425,11 +2432,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/role.c
 
-- (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/were.en.ts`
+- (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/content/src/were.en.ts`
 - `Hello()`: `packages/content/src/shk.ts`
 - `aligns()`: `packages/content/src/disclose.ts`
-- `races()`: `packages/content/src/attrstate.ts`, `packages/content/src/hero.ts`, `packages/content/src/polyself.ts`
-- `roles()`: `packages/content/src/disclose.ts`, `packages/content/src/generation.ts`, `packages/content/src/hero.ts`, `packages/content/src/spellcalc.ts`
+- `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/urole.ts`
+- `roles()`: `packages/content/src/generation.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`
 
 ## src/rumors.c
 
@@ -2904,6 +2911,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/u_init.c
 
+- (file): `packages/content/src/hero.ts`
+- `Skill_A()`: `packages/content/src/skilltab.ts`
 - `Skill_V()`: `packages/content/src/skills.ts`
 - `Valkyrie()`: `packages/content/src/kit.ts`
 - `ini_inv()`: `packages/content/src/kit.ts`

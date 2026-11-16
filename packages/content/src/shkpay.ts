@@ -46,6 +46,7 @@ import {
 } from './shk';
 import { damageList, shopRoomsAt, type ShopDamage } from './shopdamage';
 import { utrap } from './trapstate';
+import { roleIs } from './urole';
 
 export const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -85,8 +86,7 @@ export const cansee = (ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: numb
 /** muteshk(): a helpless keeper says nothing (no keeper is an animal or silent by nature). */
 export const muteshk = (ctx: Pick<Ctx, 'state'>, shk: EntityId): boolean => helpless(ctx, shk);
 
-const isKnight = (ctx: Pick<Ctx, 'state'>): boolean =>
-  getPlayer(ctx.state).c.player?.role === 'nh:knight';
+const isKnight = (ctx: Pick<Ctx, 'state'>): boolean => roleIs(ctx.state, 'knight');
 const alignSgn = (ctx: Pick<Ctx, 'state'>): number => Math.sign(uState(ctx.state).alignType);
 
 /** "You feel like a common thief." and the Knight's alignment penalty. ref: shopdig() */

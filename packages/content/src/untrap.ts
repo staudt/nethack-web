@@ -74,6 +74,7 @@ import { TRAP, dataOf, deltrap, dotrap, maketrap } from './trap';
 import { isBlade } from './skills';
 import { isMtrapped, isPit, levitating, setMtrapped, setUtrap, utrap } from './trapstate';
 import { mksobj, weight } from './items';
+import { roleIs } from './urole';
 
 export const UNTRAP_ID: DefId = 'nh:untrap';
 
@@ -97,7 +98,6 @@ function heroPos(ctx: Pick<Ctx, 'state'>): { level: string; x: number; y: number
   return p;
 }
 const ulevel = (ctx: Pick<Ctx, 'state'>): number => hero(ctx).c.experience?.level ?? 1;
-const roleIs = (ctx: Pick<Ctx, 'state'>, role: DefId): boolean => hero(ctx).c.player?.role === role;
 /** ref: Confusion || Hallucination */
 const confusedNow = (ctx: Pick<Ctx, 'state'>): boolean =>
   hasProp(hero(ctx), P.CONFUSION) || hasProp(hero(ctx), P.HALLUC);
@@ -166,10 +166,10 @@ export function untrapProb(ctx: Ctx, t: Trap): number {
   if (hasProp(h, P.FUMBLING)) chance *= 2;
   // Your own traps are better known than others.
   if (dataOf(t).madeby_u) chance--;
-  if (roleIs(ctx, 'nh:ranger') && t.def === TRAP.bear && chance <= 3) return 0;
-  if (roleIs(ctx, 'nh:rogue')) {
+  if (roleIs(ctx.state, 'ranger') && t.def === TRAP.bear && chance <= 3) return 0;
+  if (roleIs(ctx.state, 'rogue')) {
     if (ctx.rng.rn2(2 * MAXULEV) < ulevel(ctx)) chance--;
-  } else if (roleIs(ctx, 'nh:ranger') && chance > 1) chance--;
+  } else if (roleIs(ctx.state, 'ranger') && chance > 1) chance--;
   if (chance < 1) chance = 1;
   return ctx.rng.rn2(chance);
 }
@@ -515,7 +515,7 @@ const invItemWeight = (ctx: Ctx, o: Entity): number => weight(ctx.defs, o, ctx.s
 function disarmBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): void {
   if (isBoxTrapped(ctx.state, box.id)) {
     let ch = (hero(ctx).c.attributes?.dex ?? 10) + ulevel(ctx); // ACURR(A_DEX) + u.ulevel
-    if (roleIs(ctx, 'nh:rogue')) ch *= 2;
+    if (roleIs(ctx.state, 'rogue')) ch *= 2;
     if (
       !force &&
       (confused ||
@@ -620,7 +620,7 @@ function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: b
 function disarmDoor(ctx: Ctx, x: number, y: number): number {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   if (doorTrapped(ctx, level.id, x, y)) {
-    const ch = 15 + (roleIs(ctx, 'nh:rogue') ? ulevel(ctx) * 3 : ulevel(ctx));
+    const ch = 15 + (roleIs(ctx.state, 'rogue') ? ulevel(ctx) * 3 : ulevel(ctx));
     if (
       confusedNow(ctx) ||
       hasProp(hero(ctx), P.FUMBLING) ||

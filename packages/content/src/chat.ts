@@ -50,6 +50,7 @@ import { P, heroHas, isStrangled } from './props';
 import { priceQuote, shkChat, shopObject } from './shk';
 import { T } from './terrain';
 import { isMtrapped } from './trapstate';
+import { roleIs } from './urole';
 
 export const CHAT_ID = 'nh:chat';
 
@@ -309,8 +310,7 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       let line = 'chat.nurse.relax';
       if (od && (od.class === 'weapon' || isWeptool(od))) line = 'chat.nurse.weapon';
       else if ((['cloak', 'body', 'helm', 'shield', 'gloves', 'boots'] as const).some(worn))
-        line =
-          getPlayer(ctx.state).c.player?.role === 'nh:healer' ? 'nurse.doc' : 'chat.nurse.undress';
+        line = roleIs(ctx.state, 'healer') ? 'nurse.doc' : 'chat.nurse.undress';
       else if (worn('shirt')) line = 'chat.nurse.shirt';
       say(ctx, line);
       return NORMAL_SPEED;

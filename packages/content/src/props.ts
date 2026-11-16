@@ -1,6 +1,6 @@
 // Hero properties (intrinsics and timed effects) and the innate abilities of the role.
 // ref: include/prop.h, include/youprop.h, src/timeout.c nh_timeout(), src/potion.c make_stunned(),
-// src/attrib.c adjabil() / val_abil[]
+// src/attrib.c adjabil() / *_abil[] (roletab.ts, racetab.ts)
 //
 // A property lives in `Components.props[name]`: `intrinsic` is the permanent flag (NetHack's
 // FROMOUTSIDE / FROMEXPER bits) and `timeout` the turn a timed effect ends (0 = none). Names are
@@ -23,7 +23,10 @@ import {
   type PropState,
   type Registry,
 } from '@nh/core';
+import { adjabilRace } from './racetab';
+import { ROLES_TAB } from './roletab';
 import { addWeaponSkill, loseWeaponSkill } from './skills';
+import { urace, urole } from './urole';
 
 /** Property names used by the vanilla mod (ref: include/prop.h enum prop_types). */
 export const P = {
@@ -473,32 +476,19 @@ function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
 }
 
 /**
- * Role abilities gained with experience. ref: src/attrib.c val_abil[]: Valkyrie
- * `{1, HCold_resistance}`, `{3, HStealth, "stealthy"}`, `{7, HFast, "quick"}`.
- */
-export const VALKYRIE_ABILITIES: readonly {
-  level: number;
-  prop: string;
-  gain: string | null;
-  lose: string | null;
-}[] = [
-  { level: 1, prop: P.COLD_RES, gain: null, lose: null },
-  { level: 3, prop: P.STEALTH, gain: 'abil.stealthy', lose: 'abil.less_stealthy' },
-  { level: 7, prop: P.FAST, gain: 'abil.quick', lose: 'abil.slow' },
-];
-
-/**
  * Grants the abilities whose level was just reached, or takes away those of the levels just lost
- * (level drain). ref: src/attrib.c adjabil(). The weapon-skill slots are handled in skills.ts. The
- * "You feel ...!" message shows only when no other source already gave the property (`!(*ability
- * & INTRINSIC & ~mask)`). There are no FROMEXPER/FROMOUTSIDE bits here: a lost level takes the
+ * (level drain): the role's table, then the race's (elves and orcs only). ref: src/attrib.c
+ * adjabil(), role_abil(). The weapon-skill slots are handled in skills.ts. The "You feel ...!"
+ * message shows only when no other source already gave the property (`!(*ability & INTRINSIC &
+ * ~mask)`). There are no FROMEXPER/FROMRACE/FROMOUTSIDE bits here: a lost level takes the
  * intrinsic away even when something else gave it too (DEVIATIONS "Level drain and
- * lycanthropy").
+ * lycanthropy"); postadjabil()'s see_monsters() is the display's next refresh.
  */
 export function adjabil(ctx: Ctx, heroId: EntityId, oldLevel: number, newLevel: number): void {
   const hero = ctx.state.entities[String(heroId)];
   if (!hero) return;
-  for (const a of VALKYRIE_ABILITIES) {
+  const abil = [...ROLES_TAB[urole(ctx.state)].abil, ...adjabilRace(urace(ctx.state))];
+  for (const a of abil) {
     if (oldLevel < a.level && newLevel >= a.level) {
       const had = hasIntrinsic(hero, a.prop);
       setIntrinsic(hero, a.prop, true);

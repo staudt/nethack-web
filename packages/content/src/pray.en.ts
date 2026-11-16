@@ -1,9 +1,6 @@
 // English messages for prayer (ref: src/pray.c, src/sit.c)
 export const prayMessagesEn: Record<string, string> = {
   'action.nh:pray': 'Pray',
-  'god.odin': 'Odin',
-  'god.tyr': 'Tyr',
-  'god.loki': 'Loki',
   'killer.wrath_odin': 'the wrath of Odin',
   'killer.wrath_tyr': 'the wrath of Tyr',
   'killer.wrath_loki': 'the wrath of Loki',

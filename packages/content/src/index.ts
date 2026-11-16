@@ -264,6 +264,9 @@ export {
   newuexp,
   newhp,
   newpw,
+  initialAttributes,
+  initAttr,
+  varyInitAttr,
   pluslvl,
   regenPw,
   MAXULEV,
@@ -272,7 +275,30 @@ export { pwOf, setPw, uspellOf, setUspell, type Pw, type USpell } from './uenerg
 export { CAST_ID, CAST_ACTIONS, CAST_BOOKS, spelleffects, castProtection } from './cast';
 export { MONSTER_ID, monAbility, domonability } from './monability';
 export { JUMP_ID, jump, isValidJumpPos, validJumpPositions, walkPath } from './jump';
-export { SPELL_INFO, ROLE_SPELL, percentSuccess, isqrt, spellLevPw } from './spellcalc';
+export { SPELL_INFO, percentSuccess, isqrt, spellLevPw } from './spellcalc';
+export {
+  urole,
+  urace,
+  roleIs,
+  raceIs,
+  setRoleRaceForTest,
+  ROLE_ORDER,
+  RACE_ORDER,
+  type RoleKey,
+  type RaceKey,
+} from './urole';
+export {
+  ROLES_TAB,
+  enermod,
+  roleNameKey,
+  rankTitleKey,
+  type RoleRow,
+  type RoleSpell,
+  type HpAdvance,
+  type Innate,
+} from './roletab';
+export { RACES_TAB, adjabilRace, type RaceRow } from './racetab';
+export { SKILL_TAB } from './skilltab';
 export { messagesEn } from './messages.en';
 export { ITEM_ACTIONS, lookHere, dolook, encumberMsg } from './itemactions';
 export {
