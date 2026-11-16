@@ -28,6 +28,7 @@
 // (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
 // holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
 // cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
+import { setDiluted } from './dilute';
 import { chamOf, isVampshifter, normalShape } from './chamstate';
 import { closeDrawbridge, destroyDrawbridge, openDrawbridge } from './dbridge';
 import { findDrawbridge, isDbWall, isDrawbridgeWall, isLoweredSpan, isRaisedSpan } from './dbstate';
@@ -1659,7 +1660,10 @@ export function cancelItem(ctx: Ctx, obj: Entity): void {
           ctx.defs.isObject('nh:potion_of_fruit_juice')
         )
           obj.def = 'nh:potion_of_fruit_juice';
-        else obj.def = POT_WATER;
+        else {
+          obj.def = POT_WATER;
+          setDiluted(it, false); // same as any other water
+        }
         break;
       default:
         break;

@@ -7,7 +7,7 @@
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
 // Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, hallucinated snake and liquid
 // names, exercise.
-// Dipping (DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
+// Dipping into a fountain (the #dip action is dip.ts's; DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
 // Lady of the Lake always refuses), no Glib, no livelog.
 import {
   NORMAL_SPEED,
@@ -20,7 +20,6 @@ import {
   itemsAt,
   sortedIds,
   trapAt,
-  type ActionDef,
   type Ctx,
   type DefId,
   type Entity,
@@ -29,8 +28,6 @@ import {
   type Level,
   type LevelId,
   type Msg,
-  type Offer,
-  type PlayerAction,
   type Pos,
 } from '@nh/core';
 import { monsterIdAt } from './combat';
@@ -489,10 +486,10 @@ export function answerFountainWish(ctx: Ctx, action: DefId, value: Json, raw: Js
 }
 
 /**
- * Washing the hero's hands: worn gloves get wet (no Glib exists). ref: src/fountain.c
- * wash_hands()
+ * Washing the hero's hands: worn gloves get wet (Glib comes in m19 step 8). ref:
+ * src/fountain.c wash_hands()
  */
-function washHands(ctx: Ctx): WaterResult {
+export function washHands(ctx: Ctx): WaterResult {
   const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
   say(ctx, gloves ? 'fountain.wash_gloved_hands' : 'fountain.wash_hands');
   return gloves ? waterDamage(ctx, gloves, null, true) : 'nothing';
@@ -642,51 +639,3 @@ export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): num
   dryup(ctx, at.x, at.y, true);
   return NORMAL_SPEED;
 }
-
-export const DIP_ID: DefId = 'nh:dip';
-
-const heroItem = (ctx: Pick<Ctx, 'state'>, id: unknown): Entity | null => {
-  if (typeof id !== 'number') return null;
-  const e = ctx.state.entities[String(id)];
-  return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
-};
-
-const dipArgs = (action: PlayerAction): { item?: unknown; hands?: unknown } | undefined =>
-  action.type === 'mod' ? (action.args as { item?: unknown; hands?: unknown }) : undefined;
-
-/**
- * #dip into the fountain the hero stands on: every inventory item, and her hands ("Wash your
- * hands", C's `-`). Dipping into potions, pools and sinks is not ported. ref: src/potion.c
- * dodip()
- */
-const dip: ActionDef = {
-  id: DIP_ID,
-  labelKey: 'action.nh:dip',
-  handles: 'mod',
-  offer(ctx, target): Offer[] {
-    if (!heroOnFountain(ctx)) return [];
-    if (target.kind === 'self')
-      return [
-        {
-          action: { type: 'mod', action: DIP_ID, args: { hands: true } },
-          labelKey: 'action.nh:dip.hands',
-        },
-      ];
-    if (target.kind !== 'item') return [];
-    const e = heroItem(ctx, target.id);
-    if (!e) return [];
-    return [
-      { action: { type: 'mod', action: DIP_ID, args: { item: e.id } }, labelKey: 'action.nh:dip' },
-    ];
-  },
-  perform(ctx, action) {
-    const args = dipArgs(action);
-    if (args?.hands) return dipfountain(ctx, DIP_ID, 'hands');
-    const e = heroItem(ctx, args?.item);
-    return e ? dipfountain(ctx, DIP_ID, e) : 0;
-  },
-  // a water demon's wish (the only prompt a dip asks)
-  answer: (ctx, value, data) => answerFountainWish(ctx, DIP_ID, value, data),
-};
-
-export const FOUNTAIN_ACTIONS: readonly ActionDef[] = [dip];

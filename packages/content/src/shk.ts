@@ -671,12 +671,21 @@ export function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
  * The hero has just altered a shop object (bitten into food, cancelled it): she pays for it.
  * `at`: where it lies on the floor, or null when she has it. Uncursing or unblessing tells her
  * its BUC. ref: src/mkobj.c costly_alteration() (COST_BITE, COST_CANCEL, COST_UNCURS,
- * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN, COST_SPLAT)
+ * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN, COST_SPLAT, COST_NUTRLZ)
  */
 export function costlyAlteration(
   ctx: Ctx,
   obj: Entity,
-  how: 'bite' | 'cancel' | 'uncurse' | 'unbless' | 'disenchant' | 'destroy' | 'drain' | 'splat',
+  how:
+    | 'bite'
+    | 'cancel'
+    | 'uncurse'
+    | 'unbless'
+    | 'disenchant'
+    | 'destroy'
+    | 'drain'
+    | 'splat'
+    | 'neutralize',
   at: Pos | null,
 ): void {
   const it = obj.c.item;
@@ -708,6 +717,20 @@ export function costlyAlteration(
     ctx.emit({ type: 'msg', key: 'shk.alter_floor', params: { verb, those, them } });
     billDummyObject(ctx, obj, true);
   } else stolenValue(ctx, obj, at.x, at.y, false, false);
+}
+
+/**
+ * An unpaid object's price on the bill changes: `amt` 0 uses the regular shop price, else that
+ * amount (negative: its absolute value even when lower). Only a higher price replaces the old
+ * one unless forced. ref: src/shk.c alter_cost()
+ */
+export function alterCost(ctx: Ctx, obj: Entity, amt: number): void {
+  const found = billOf(ctx, obj.id);
+  if (!found) return;
+  const e = eshkOf(ctx, found.shk);
+  if (!e) return;
+  const price = !amt ? getCost(ctx.state, ctx.defs, obj, e) : Math.abs(amt);
+  if (price > found.bp.price || amt < 0) found.bp.price = price;
 }
 
 // ---------------------------------------------------------------------------------------------

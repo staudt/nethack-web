@@ -39,7 +39,7 @@ import { isStoned, fixPetrification } from './stonestate';
 import { burnAwaySlime, isSlimed } from './slimestate';
 import { likesFire } from './mondata';
 import { heroForm } from './upoly';
-import { POT_OIL } from './dilute';
+import { POT_OIL, isDiluted } from './dilute';
 import { pwOf, setPw } from './uenergy';
 import { surfaceKey } from './terrain';
 import { ceilingKey, hardHelmet } from './read';
@@ -182,17 +182,21 @@ function peffectHallucination(ctx: Ctx, p: Entity): Effect {
   return { unknown: false, nothing };
 }
 
-/** ref: src/potion.c peffect_booze() (potions are never diluted; no exercise) */
+/** ref: src/potion.c peffect_booze() (no exercise); watered down, it does not heal */
 function peffectBooze(ctx: Ctx, p: Entity): Effect {
   const hero = heroEntity(ctx);
   const buc = p.c.item?.buc ?? 'uncursed';
-  msg(ctx, hasProp(hero, P.HALLUC) ? 'potion.booze_dandelion' : 'potion.booze_fire');
+  const diluted = p.c.item ? isDiluted(p.c.item) : false;
+  msg(
+    ctx,
+    `${hasProp(hero, P.HALLUC) ? 'potion.booze_dandelion' : 'potion.booze_fire'}${diluted ? '_diluted' : ''}`,
+  );
   if (buc !== 'blessed') {
     // booze hits harder if drinking on an empty stomach
     const uhs = HUNGER_INDEX[hero.c.hunger?.state ?? 'not_hungry'] ?? 1;
     makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + ctx.rng.d(2 + uhs, 8), false);
   }
-  healup(ctx, 1, 0, false, false); // the whiskey makes us feel better
+  if (!diluted) healup(ctx, 1, 0, false, false); // the whiskey makes us feel better
   addNutrition(ctx, 10 * (2 + bcsign(buc)));
   if (buc === 'cursed') {
     msg(ctx, 'potion.pass_out');
@@ -288,8 +292,8 @@ function peffectInvisibility(ctx: Ctx, p: Entity): Effect {
 const hInvisTimed = (ctx: Ctx): boolean => timeoutLeft(ctx.state, heroEntity(ctx), P.INVIS) > 0;
 
 /**
- * ref: src/potion.c peffect_see_invisible(): the taste (no diluted potions, no hallucinated
- * wording; fruit juice only feeds her), sight restored unless cursed, then permanent (blessed,
+ * ref: src/potion.c peffect_see_invisible(): the taste ("reconstituted" when diluted; no
+ * hallucinated wording; fruit juice only feeds her, half as much diluted), sight restored unless cursed, then permanent (blessed,
  * sometimes) or timed see invisible; seeing herself invisible identifies it.
  */
 function peffectSeeInvisible(ctx: Ctx, p: Entity): Effect {
@@ -300,9 +304,17 @@ function peffectSeeInvisible(ctx: Ctx, p: Entity): Effect {
   const hSee = hasIntrinsic(h, P.SEE_INVIS) || timeoutLeft(ctx.state, h, P.SEE_INVIS) > 0;
   const permchance = 10 - (hInvis ? 3 : 0) - (hSee ? 6 : 0);
   let unknown = true;
-  msg(ctx, buc === 'cursed' ? 'potion.tastes_rotten' : 'potion.tastes_juice');
+  const diluted = p.c.item ? isDiluted(p.c.item) : false;
+  msg(
+    ctx,
+    buc === 'cursed'
+      ? 'potion.tastes_rotten'
+      : diluted
+        ? 'potion.tastes_juice_diluted'
+        : 'potion.tastes_juice',
+  );
   if (p.def === POT_FRUIT_JUICE) {
-    addNutrition(ctx, 10 * (2 + bcsign(buc)));
+    addNutrition(ctx, (diluted ? 5 : 10) * (2 + bcsign(buc)));
     return { unknown: true };
   }
   // tell them they can see again immediately, which will help them identify the potion

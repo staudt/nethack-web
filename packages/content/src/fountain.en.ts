@@ -37,8 +37,6 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.tepid': 'This tepid water is tasteless.',
   'fountain.trickle': 'The flow reduces to a trickle.',
   'fountain.dries_up': 'The fountain dries up!',
-  'action.nh:dip': 'Dip into the fountain',
-  'action.nh:dip.hands': 'Wash your hands',
   'fountain.freezing_mist': 'A freezing mist rises from the water and envelopes the sword.',
   'fountain.disappears': 'The fountain disappears!',
   'fountain.wash_hands': 'You wash your hands in the water.',

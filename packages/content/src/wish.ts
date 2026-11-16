@@ -288,7 +288,8 @@ const HORN_OF_PLENTY = 'nh:horn_of_plenty';
 
 /**
  * Puts a new object into the hero's inventory, or drops it at her feet with `dropMsg` when it
- * would take her past her encumbrance limit (her current one or Stressed, whichever is more)
+ * would take her past her encumbrance limit (her current one, Stressed or `minBurden`, whichever
+ * is more: hold_potion() raises the limit to her burden before the potion left her pack)
  * or past 52 letters; `holdMsg` prefixes the inventory line ("You steal: "). Returns the
  * inventory stack, or null when it was dropped.
  * A fumbling hero drops it. ref: src/invent.c hold_another_object() (no artifacts, cockatrice
@@ -299,6 +300,7 @@ export function holdAnotherObject(
   id: EntityId,
   dropMsg: Msg | null,
   holdMsg: Msg | null = null,
+  minBurden = 0,
 ): EntityId | null {
   const obj = ctx.state.entities[String(id)];
   const oquan = obj?.c.item?.quantity ?? 1;
@@ -310,7 +312,7 @@ export function holdAnotherObject(
     if (pos) placeOnFloor(ctx, id, pos.level, pos.x, pos.y);
     return null;
   }
-  const prev = Math.max(nearCapacity(ctx.state, ctx.defs, hero), PICKUP_BURDEN);
+  const prev = Math.max(nearCapacity(ctx.state, ctx.defs, hero), PICKUP_BURDEN, minBurden);
   const stack = addToInventory(ctx, hero, id);
   const st = ctx.state.entities[String(stack)];
   if (!st?.c.item) return null;

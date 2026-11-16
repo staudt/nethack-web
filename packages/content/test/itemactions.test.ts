@@ -517,7 +517,7 @@ describe('wear and take off', () => {
         .query(s.state)
         .actionsFor({ kind: 'item', id: shield })
         .map((o) => o.labelKey),
-    ).toEqual(['action.nh:drop', 'action.nh:takeoff']);
+    ).toEqual(['action.nh:drop', 'action.nh:takeoff', 'action.nh:dip']);
     expect(s.text(s.mod('nh:takeoff', { item: shield }))).toEqual([
       'You were wearing an uncursed +3 small shield.',
     ]);
@@ -528,7 +528,7 @@ describe('wear and take off', () => {
         .query(s.state)
         .actionsFor({ kind: 'item', id: shield })
         .map((o) => o.labelKey),
-    ).toEqual(['action.nh:drop', 'action.nh:wear', 'action.nh:throw']);
+    ).toEqual(['action.nh:drop', 'action.nh:wear', 'action.nh:throw', 'action.nh:dip']);
     expect(s.text(s.mod('nh:wear', { item: shield }))).toEqual([
       'You are now wearing a small shield.',
     ]);

@@ -78,7 +78,7 @@ import { FORCE_ACTIONS } from './force';
 import { UNTRAP_ACTIONS } from './untrap';
 import { registerShopDamage } from './shkdamage';
 import { shkDamageAction } from './shkpay';
-import { FOUNTAIN_ACTIONS } from './fountain';
+import { DIP_ACTIONS } from './dip';
 import { RUB_ACTIONS } from './rub';
 import { registerLock } from './lock';
 import { registerLight } from './light';
@@ -126,7 +126,7 @@ export const vanillaMod: Mod = {
     for (const a of FORCE_ACTIONS) api.defineAction(a);
     for (const a of UNTRAP_ACTIONS) api.defineAction(a);
     api.defineAction(shkDamageAction);
-    for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
+    for (const a of DIP_ACTIONS) api.defineAction(a);
     for (const a of RUB_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
@@ -634,12 +634,11 @@ export {
   heroOnFountain,
   drinkfountain,
   dipfountain,
-  DIP_ID,
-  FOUNTAIN_ACTIONS,
   dryup,
   dogushforth,
 } from './fountain';
 export { waterDamage, type WaterResult } from './water';
+export { DIP_ID, DIP_INTO_ID, DIP_ACTIONS, potionDip, mixtype, h2oPotionDip } from './dip';
 export { somegold } from './steal';
 export { monsterDied } from './mondeath';
 export {

@@ -18,7 +18,7 @@ const PICK_KEYS: [string, string][] = [
   ['R', 'nh:remove'],
   // #loot: floor containers come as self offers, so the picker lists each one
   ['Alt+l', 'nh:loot'],
-  // #dip into a fountain: "Wash your hands" comes as a self offer, then the items
+  // #dip: "Wash your hands" (on a fountain or pool) comes as a self offer, then the items
   ['Alt+d', 'nh:dip'],
   // #rub: lamps, the lantern and royal jelly
   ['Alt+r', 'nh:rub'],

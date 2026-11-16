@@ -142,7 +142,7 @@ function dips(
 }
 
 describe('#dip offers', () => {
-  test('on a fountain: "Wash your hands" and every item; elsewhere nothing', () => {
+  test('on a fountain: "Wash your hands" and every item; elsewhere only the items', () => {
     const s = room();
     const sword = give(s.state, 'nh:long_sword');
     const q = engine.query(s.state);
@@ -153,10 +153,15 @@ describe('#dip offers', () => {
     const item = q
       .actionsFor({ kind: 'item', id: sword })
       .find((o) => o.action.type === 'mod' && o.action.action === DIP_ID);
-    expect(render({ key: item!.labelKey })).toBe('Dip into the fountain');
-    // washing takes a move
+    expect(render({ key: item!.labelKey })).toBe('Dip');
+    // washing asks first (m19 step 4: dodip()'s question) and takes a move
     const before = s.state.turn;
-    const t = texts(engine.stepAll(s.state, self[0]!.action));
+    engine.step(s.state, self[0]!.action);
+    const ask = s.state.pendingPrompt!.prompt;
+    expect(render({ key: ask.key, ...(ask.params ? { params: ask.params } : {}) })).toBe(
+      'Dip your hands into the fountain?',
+    );
+    const t = texts(engine.stepAll(s.state, { type: 'answer', promptId: ask.id, value: true }));
     expect(t[0]).toBe('You wash your hands in the water.');
     expect(s.state.turn).toBeGreaterThan(before);
 
@@ -173,7 +178,7 @@ describe('#dip offers', () => {
       q2
         .actionsFor({ kind: 'item', id })
         .some((o) => o.action.type === 'mod' && o.action.action === DIP_ID),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
@@ -396,7 +401,7 @@ describe('the Lady of the Lake', () => {
 });
 
 describe('water damage', () => {
-  test('scrolls and spellbooks fade to blank, potions are untouched, iron rusts', () => {
+  test('scrolls and spellbooks fade to blank, potions dilute (m19 step 4), iron rusts', () => {
     const s = room();
     const ctx = cx(s.state);
     const scroll = give(s.state, 'nh:scroll_of_identify', 2);
@@ -409,15 +414,17 @@ describe('water damage', () => {
     expect(waterDamage(ctx, ent(s.state, scroll), null, true)).toBe('nothing');
     expect(waterDamage(ctx, ent(s.state, book), null, true)).toBe('damaged');
     expect(ent(s.state, book).def).toBe('nh:spellbook_of_blank_paper');
-    expect(waterDamage(ctx, ent(s.state, potion), null, true)).toBe('nothing');
+    expect(waterDamage(ctx, ent(s.state, potion), null, true)).toBe('damaged');
     expect(ent(s.state, potion).def).toBe('nh:potion_of_healing');
+    expect(ent(s.state, potion).c.item!.erosion?.e1).toBe(1); // diluted
     expect(waterDamage(ctx, ent(s.state, sword), null, true)).toBe('damaged');
     expect(ent(s.state, sword).c.item!.erosion?.e1).toBe(1);
     expect(waterDamage(ctx, ent(s.state, food), null, true)).toBe('nothing');
     const msgs = ctx.events.flatMap((e) => (e.type === 'msg' ? [render(e)] : []));
     expect(msgs[0]).toMatch(/^Your scrolls labeled .* fade\.$/);
     expect(msgs[1]).toMatch(/^Your .* spellbook fades\.$/);
-    expect(msgs[2]).toBe('Your long sword rusts!');
+    expect(msgs[2]).toMatch(/^Your .*potion.* dilutes\.$/);
+    expect(msgs[3]).toBe('Your long sword rusts!');
   });
 
   test('without force, Luck protects: about 1 time in 4 at Luck 0', () => {

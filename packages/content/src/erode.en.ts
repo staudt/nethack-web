@@ -106,4 +106,12 @@ export const erodeMessagesEn: Record<string, string> = {
   'water.cannot_get_into': 'The water cannot get into your {item}.',
   'water.lantern_flickers': 'Your {item} crackles and flickers.',
   'water.lantern_crackles': 'Your {item} crackles.',
+  'water.dilute': 'Your {item} dilutes.',
+  'water.dilute_pl': 'Your {item} dilute.',
+  'water.dilute_further': 'Your {item} dilutes further.',
+  'water.dilute_further_pl': 'Your {item} dilute further.',
+  'water.acid_one': 'A {item} explodes!',
+  'water.acid_some': 'Some {item} explode!',
+  'water.acid_another': 'Another {item} explodes!',
+  'water.acid_more': 'More {item} explode!',
 };
