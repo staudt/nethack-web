@@ -107,6 +107,20 @@ export function monsterLayer(c: ViewCell): DefId | null {
   return c.m ?? null;
 }
 
+/**
+ * The glyph drawn for a legend id: a client mod's `setGlyph()` override while no symbol set is in
+ * force, else the snapshot's legend (core has resolved it through the set). C keeps its
+ * `roguesymset` apart from `symset` (plan m21 Q3).
+ */
+export function legendGlyph(
+  id: DefId | string,
+  legend: Readonly<Record<string, Glyph>>,
+  overrides: ReadonlyMap<string, Glyph>,
+  symset: DefId | undefined,
+): Glyph | undefined {
+  return (symset === undefined ? overrides.get(id) : undefined) ?? legend[id];
+}
+
 export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRenderer {
   const fontFamily = opts.fontFamily ?? DEFAULT_FONT;
   const background = opts.background ?? '#000';
@@ -139,6 +153,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   let entities: ViewEntity[] = [];
   let player: ViewPlayer | null = null;
   let baseLegend: Record<string, Glyph> = {};
+  let symset: DefId | undefined;
   const overrides = new Map<string, Glyph>();
   let flashed: readonly FlashCell[] = [];
   let cursor: Pos | null = null;
@@ -157,7 +172,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
   const map = (): MapSize => ({ width, height });
 
   function glyphFor(id: DefId | string): Glyph {
-    return overrides.get(id) ?? baseLegend[id] ?? MISSING;
+    return legendGlyph(id, baseLegend, overrides, symset) ?? MISSING;
   }
 
   /** Font size (CSS px) whose monospace advance is `cell` px. */
@@ -346,6 +361,7 @@ export function createAsciiRenderer(opts: AsciiRendererOptions = {}): AsciiRende
         entities = u.entities;
         player = u.player;
         baseLegend = u.legend;
+        symset = u.symset;
         if (ctx) {
           if (fitOn && resized) measure();
           retarget(true);

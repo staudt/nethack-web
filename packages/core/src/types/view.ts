@@ -55,8 +55,16 @@ export interface ViewSnapshot {
   levelId: LevelId;
   width: number;
   height: number;
-  /** Default glyphs from defs; client mods may override. */
+  /**
+   * Glyphs from defs, already resolved through the level's symbol set when it has one; client
+   * mods may override (render-ascii applies `setGlyph()` overrides only while `symset` is absent).
+   */
   legend: Record<DefId, Glyph>;
+  /**
+   * m21: the SymsetDef the level is drawn with (`LevelDef.symset`, the Rogue level's), absent for
+   * an ordinary level. Only full snapshots carry it: a level change always sends one.
+   */
+  symset?: DefId;
   cells: ViewCell[];
   entities: ViewEntity[];
   player: ViewPlayer;

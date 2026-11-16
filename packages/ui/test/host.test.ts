@@ -1050,6 +1050,25 @@ describe('inventory, pickers, multi-select, list', () => {
   };
   const rows = (root: Element) => [...root.querySelectorAll('.nh-check')] as HTMLElement[];
 
+  test('a client glyph override waits while the level has a symbol set (m21 Q3)', () => {
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', { ...msgs, 'prompt.pickup': 'Pick up what?' });
+    m.ui.api.setGlyph('nh:dagger', { ch: 'D', fg: '#fff' });
+    const glyph = () => rows(m.root)[0]!.querySelector('.nh-glyph')?.textContent;
+    m.ui.update(invView([]), [], multi);
+    expect(glyph()).toBe('D');
+    const rogue = {
+      ...invView([]),
+      legend: { 'nh:dagger': { ch: ')', fg: '#aaaaaa' } },
+      symset: 'nh:rogue-symset',
+    } as ViewUpdate;
+    m.ui.update(rogue, [], { ...multi, id: 'p2' });
+    expect(glyph()).toBe(')');
+    m.ui.update(invView([]), [], { ...multi, id: 'p3' });
+    expect(glyph()).toBe('D');
+  });
+
   test('multi prompt: toggles, confirm answers array; cancel answers []', () => {
     const m = mk();
     ui = m.ui;

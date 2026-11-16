@@ -1,9 +1,10 @@
 import { inventoryOf, isItem, itemShownId, topObjectEntities } from './objects';
+import { registeredLevelDef } from './leveldefs';
 import { isMarker } from './memory';
 import { perceivesMonster, selfView, shownAs } from './perception';
 import { getLevel, getPlayer } from './state';
 import type { DefId, Glyph } from './types/common';
-import type { Registry } from './types/mod';
+import type { Registry, SymsetDef } from './types/mod';
 import type { GameState } from './types/state';
 import type {
   Status,
@@ -42,6 +43,25 @@ function statusOf(registry: Registry, state: GameState, depth: number): Status {
   return status;
 }
 
+/**
+ * A legend entry drawn through a symbol set: its own character for the id, else its class's for
+ * an object or a (non-marker) appearance, else the def's; the set's colour, else the def's.
+ * ref: src/symbols.c assign_graphics(ROGUESET); src/display.c reset_glyphmap() (GMAP_ROGUELEVEL
+ * without rogue colour: NO_COLOR for every glyph)
+ */
+function symsetGlyph(registry: Registry, set: SymsetDef, id: DefId, g: Glyph): Glyph {
+  let ch = set.glyphs?.[id];
+  if (ch === undefined && set.classes) {
+    const cls = registry.isObject(id)
+      ? registry.object(id).class
+      : registry.isAppearance(id) && registry.appearance(id).marker !== true
+        ? registry.appearance(id).class
+        : undefined;
+    if (cls !== undefined) ch = set.classes[cls];
+  }
+  return { ch: ch ?? g.ch, fg: set.fg ?? g.fg };
+}
+
 /** Builds the full player-facing view of the game. Never exposes unseen state. */
 export function buildSnapshot(registry: Registry, state: GameState): ViewSnapshot {
   const level = getLevel(state);
@@ -58,8 +78,11 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     ...registry.traps.map((t): [DefId, Glyph] => [t.id, t.glyph]),
   ];
   glyphs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const symsetId = registeredLevelDef(registry, level.def)?.symset;
+  const symset = symsetId !== undefined ? registry.symset(symsetId) : undefined;
   const legend: Record<DefId, Glyph> = {};
-  for (const [id, g] of glyphs) legend[id] = { ch: g.ch, fg: g.fg };
+  for (const [id, g] of glyphs)
+    legend[id] = symset ? symsetGlyph(registry, symset, id, g) : { ch: g.ch, fg: g.fg };
 
   // Clients see hidden terrain as what it looks like.
   const shown = level.palette.map((id) => registry.terrain(id).looksLike ?? id);
@@ -122,6 +145,7 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
     width: level.width,
     height: level.height,
     legend,
+    ...(symsetId !== undefined ? { symset: symsetId } : {}),
     cells,
     entities,
     player: { id: player.id, x: pos.x, y: pos.y },
@@ -141,9 +165,14 @@ export function buildSnapshot(registry: Registry, state: GameState): ViewSnapsho
   };
 }
 
-/** A delta when the level shape is unchanged, otherwise the full snapshot. */
+/** A delta when the level shape (and symbol set) is unchanged, otherwise the full snapshot. */
 export function diffSnapshot(prev: ViewSnapshot, next: ViewSnapshot): ViewUpdate {
-  if (prev.levelId !== next.levelId || prev.width !== next.width || prev.height !== next.height)
+  if (
+    prev.levelId !== next.levelId ||
+    prev.width !== next.width ||
+    prev.height !== next.height ||
+    prev.symset !== next.symset
+  )
     return next;
   const cells: [number, ViewCell][] = [];
   for (let i = 0; i < next.cells.length; i++) {

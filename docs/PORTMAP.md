@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5613 citations.
+193 NetHack files, 5624 citations.
 
 ## dat/asmodeus.lua
 
@@ -990,6 +990,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `map_trap()`: `packages/core/src/view.ts`
 - `mon_visible()`: `packages/core/src/perception.ts`
 - `newsym()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/memory.ts`, `packages/core/src/perception.ts`
+- `reset_glyphmap()`: `packages/core/src/view.ts`
 - `swallowed()`: `packages/content/src/perception.ts`, `packages/ui/src/host.ts`
 - `tmp_at()`: `packages/core/src/types/event.ts`
 - `unmap_invisible()`: `packages/core/src/memory.ts`
@@ -1004,6 +1005,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/do.c
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`, `packages/content/src/trap.en.ts`
+- `assign_graphics()`: `packages/content/src/rogue.ts`, `packages/core/src/types/mod.ts`
 - `boulder_hits_pool()`: `packages/content/src/dbstate.ts`, `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`
@@ -1019,7 +1021,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1198,6 +1200,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/drawing.c
 
 - `DEF_INVISIBLE()`: `packages/content/src/invis.ts`
+- `def_r_oc_syms()`: `packages/core/src/types/mod.ts`
 - `def_warnsyms()`: `packages/content/src/messages.en.ts`, `packages/content/src/perception.ts`
 
 ## src/dungeon.c
@@ -1431,6 +1434,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
 - `domove_fight_web()`: `packages/content/src/actions.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
 - `domove_swap_with_pet()`: `packages/content/src/actions.ts`
+- `doorless_door()`: `packages/content/src/rogue.ts`, `packages/core/src/movement.ts`, `packages/core/src/types/mod.ts`
 - `dopush()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `escape_from_sticky_mon()`: `packages/content/src/hackmove.ts`, `packages/content/src/resist.en.ts`
 - `findtravelpath()`: `packages/content/src/travel.ts`
@@ -1914,7 +1918,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `meatcorpse()`: `packages/content/src/dog.en.ts`, `packages/content/src/meat.ts`
 - `meatmetal()`: `packages/content/src/dog.en.ts`, `packages/content/src/meat.ts`
 - `meatobj()`: `packages/content/src/dog.en.ts`, `packages/content/src/meat.ts`
-- `mfndpos()`: `packages/content/src/mdig.ts`, `packages/content/src/monmove.ts`, `packages/testkit/src/invariants.ts`
+- `mfndpos()`: `packages/content/src/mdig.ts`, `packages/content/src/monmove.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/invariants.ts`
 - `minliquid()`: `packages/content/src/minliquid.ts`
 - `minliquid_core()`: `packages/content/src/minliquid.ts`
 - `mlifesaver()`: `packages/content/src/mondeath.ts`
@@ -2804,6 +2808,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/steed.c
 
 - `put_saddle_on_mon()`: `packages/content/src/dog.ts`, `packages/content/src/items.ts`
+
+## src/symbols.c
+
+- `assign_graphics()`: `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
+- `init_rogue_symbols()`: `packages/content/src/symset.ts`, `packages/core/src/types/mod.ts`
 
 ## src/teleport.c
 

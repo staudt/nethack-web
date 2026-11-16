@@ -182,6 +182,8 @@ interface LevelDef {
   flags?: { inaccessibles?: boolean; sokoban?: boolean; premapped?: boolean };
   teleportRegions?: TeleRegionDef[]; // m15: where random arrivals land; see Teleport regions
   contents?: LevelContent[]; // made in order, after the map and stairs
+  symset?: DefId; // m21: the SymsetDef the level is drawn with; see View boundary, Symbol sets
+  doorwaysBlockDiagonal?: true; // m21: every door square blocks diagonal moves; see Terrain rules
 }
 interface LevelContent {
   kind: 'monster' | 'object' | 'trap';
@@ -324,7 +326,7 @@ Core's `buildLevel(rng, opts, def)` lays out the terrain and stairs and sets `Le
 
 **Level fixups (content).** What a lua level does that the `LevelDef` format cannot say (shuffled spots, `buc`, a maze walk, a door that exists only when a `percent` block ran) is a content `SpLevFixup` keyed by LevelDef id, as NetHack's own `fixup_special()` is: `registerSpLev(api, fixups)` runs `before(ctx, level, def)` ahead of `fillSpecialLevel` (terrain that later random spots must see) and `after` once the contents are made. dungeon.ts builds the table (`SPLEV_FIXUPS`) from minesend.ts (Mines' End) and orctown.ts (Orcish Town: iron bars, corpses, the orc horde and `stolenBooty()`, whose gang waits in content's `modData.nh.migrating` table, through migrate.ts, until the hero reaches its level); sp_lev.ts never imports the level modules. Terrain a LevelDef map cannot draw is set by a fixup: Orcish Town draws its iron bars as walls (so wallification joins walls to them, as NetHack's `iswall()` counts bars), calls `wallifyLevel` with the map area plus one cell (`des.wallify()`), and only then sets the content terrain `nh:iron_bars` (impassable, not opaque). A later mod-platform milestone may expose this as a `LevelDef` hook. Core has placed the stairs before any fixup runs, whereas a lua script often changes its terrain first: the big rooms' fixups (bigroom.ts, m15) lift the stairs, change the terrain as the script does (seeing floor under them), then put each back on its spot, or on a new random floor spot of the map when its spot is no longer floor.
 
-**Terrain rules.** `cellRules(level, registry)` flattens the palette into per-cell flag arrays: `passable`, `opaque`, `closedDoor` (closed *or* locked, so travel paths go through doors as `test_move` does for `TEST_TRAV`), `lockedDoor` (locked only) and `intactDoor` (doors that block diagonal moves). `checkStep` returns `ok` or a reason: `bounds`, `blocked`, `closedDoor`, `lockedDoor` or `diagonalDoor`. `lockedDoor` is checked before `closedDoor`; content turns it into "This door is locked." with no time passing. Levelgen draws NetHack's exact `dodoor`/`dosdoor` rolls and so makes locked doors (about 1/3 * 4/5 * 1/6 of doors) and locked secret doors (1 in 5 below depth 2); trapped doors are not made, though their rolls are still drawn.
+**Terrain rules.** `cellRules(level, registry)` flattens the palette into per-cell flag arrays: `passable`, `opaque`, `closedDoor` (closed *or* locked, so travel paths go through doors as `test_move` does for `TEST_TRAV`), `lockedDoor` (locked only) and `intactDoor` (doors that block diagonal moves). On a level whose LevelDef sets `doorwaysBlockDiagonal` (m21 step 6, vanilla's Rogue level) every door terrain, doorways and broken doors included, is an `intactDoor` (ref: src/hack.c doorless_door(): "all rogue level doors are doorless but disallow diagonal access"), so the hero's step, travel's paths, pushed boulders, crawling out of water and monsters' `mfndpos()` agree without a check of their own; why core: `cellRules()` is the one place all of them read, and a doorway made later on such a level (kicking, digging, a found secret door) follows by itself. `checkStep` returns `ok` or a reason: `bounds`, `blocked`, `closedDoor`, `lockedDoor` or `diagonalDoor`. `lockedDoor` is checked before `closedDoor`; content turns it into "This door is locked." with no time passing. Levelgen draws NetHack's exact `dodoor`/`dosdoor` rolls and so makes locked doors (about 1/3 * 4/5 * 1/6 of doors) and locked secret doors (1 in 5 below depth 2); trapped doors are not made, though their rolls are still drawn.
 
 **Vision.** A cell is seen when it is in line of sight and either adjacent to the hero or lit. A lit cell that blocks sight (a wall or closed door) is seen from afar only if its neighbor one step toward the hero is also lit, which hides lit room walls at the end of dark corridors (ref: src/vision.c vision_recalc()).
 
@@ -559,6 +561,7 @@ interface ModApi {
   defineTrap(d: TrapDef): void; // { id, nameKey, glyph, hole? }
   defineDungeon(d: DungeonDef): void; // see Dungeons
   defineLevel(d: LevelDef): void; // see Level definitions
+  defineSymset(d: SymsetDef): void; // m21: see View boundary, Symbol sets
   setItemNamer(fn: ItemNamer): void; // the last mod to set it wins; core has a plain default
   on<K extends keyof Hooks>(hook: K, fn: Hooks[K], opts?: { priority?: number }): void;
 }
@@ -669,7 +672,8 @@ interface ViewSnapshot {
   levelId: LevelId;
   width: number;
   height: number;
-  legend: Record<DefId, { ch: string; fg: string }>; // default glyphs from defs; client mods may override
+  legend: Record<DefId, { ch: string; fg: string }>; // glyphs from defs, through the level's symbol set; client mods may override
+  symset?: DefId; // m21: the level's SymsetDef, when it has one (full snapshots only)
   cells: ViewCell[];
   entities: ViewEntity[];
   player: { id: EntityId; x: number; y: number };
@@ -702,6 +706,20 @@ Renderers draw only the cells inside the camera. The camera follows the player w
 `status` always has `dlvl` and `turn`. When the hero has the matching components it also has `hp`, `hpmax`, `ac`, `xl`, `xp` and `str`/`int`/`wis`/`dex`/`con`/`cha`. After the game ends it adds `dead` (`'died' | 'escaped' | 'quit'`), `killer`, `endTurn`, `endDepth` and `endLevel`. The `killer` string is a message reference the ui words as topten.c's formatkiller() does: `@key` (a monster id takes `a`/`an`, a `killer.*` phrase stands as is) or `=name` after content's `end.killer.<how>` prefix ("killed by"), and with a leading `!` the whole text with no prefix (NO_KILLER_PREFIX: `!@killer.poly.stuck` reads "killed while stuck in creature form"; m7f-d step 4, a ui and content convention, no core change). Mods add fields with `defineStatus` (content adds `ac`, `gold`, `hunger`, `encumbrance`, and `pw`/`pwmax` for spell energy, which the ui prints as `Pw:2(2)` after HP). Fountains (7c) needed none either: each fountain's magic, looted and warned bits live in `modData.nh.fountains` (`{ [levelId]: { [cellIndex]: bits } }`, dropped at 0), and the luckstone's Luck is worked out from the inventory on read. Spellcasting (7a) needed no core change: the hero's energy and spell state live in content's `modData.nh.pw` and `modData.nh.uspell`, monster spell delays and confusion in `modData.nh.mspecUsed` / `mconf`, like luck, hunger and shops before them. The legend covers terrain, roles, monsters, objects, appearances and traps.
 
 **Objects never leak identity.** `entities` lists creatures only; objects appear as `ViewCell.o`, in `inventory` and in `describe().objects`, always by *shown id*: `itemShownId(registry, state, item)`, which is the def's `appearanceOf(state, defs, item)` answer when it gives one, else `state.appearances[def] ?? def`. Object memory stores the same id, so a remembered object keeps its look. Names come from the item namer, which only uses what the hero knows (`discovered`, `known`). Vanilla's statue answers `appearanceOf` with one AppearanceDef per monster (`nh:statue-<monster>`: the monster's letter in the statue's white), so a statue looks like the monster it shows, as in NetHack 3.6+, and a client mod can restyle those ids. Why a core change (m7f-c): core alone builds the view, memory and `describe()` from a per-def shown id, so every statue looked alike; the hook is optional and additive (no state, save or renderer change), and it must read state only, as perception hooks do.
+
+**Symbol sets (m21 step 6).** A game mod registers a `SymsetDef` (`defineSymset`) and a LevelDef names it (`symset`):
+
+```ts
+interface SymsetDef {
+  id: DefId;
+  nameKey: string;
+  glyphs?: Record<DefId, string>; // a character per legend id (terrain, role, monster, object, appearance, trap)
+  classes?: Partial<Record<ObjectClass, string>>; // a character for every object and non-marker appearance of the class; a glyphs entry wins
+  fg?: string; // every glyph in this colour
+}
+```
+
+While the hero is on such a level, `buildSnapshot()` resolves the legend through the set (each entry's character from `glyphs`, else from its class, else its own; the set's `fg`, else its own) and sets `ViewSnapshot.symset` to its id; elsewhere the legend is the defs' and `symset` is absent. A level change always sends a full snapshot, and so does a change of set (`diffSnapshot()`). Vanilla's `nh:rogue-symset` is C's ROGUESET (ref: src/symbols.c init_rogue_symbols(); src/drawing.c def_r_oc_syms[]; src/display.c reset_glyphmap() GMAP_ROGUELEVEL): stairs `%`, every door `+`, armour `]`, amulets `,`, food `:`, gold `*`, every glyph gray (C's NO_COLOR). Renderers and the ui need nothing new to draw it; `symset` lets them react: render-ascii and the ui apply client `setGlyph()` overrides only while no set is in force (C keeps `roguesymset` apart from `symset`). `loadMods` reports a set's empty `nameKey` or `fg`, a `glyphs`/`classes` that is not an object, a value that is not one character, an unknown object class, a `glyphs` key that is no legend id, and a LevelDef whose `symset` is not a string, names no registered set, or whose `doorwaysBlockDiagonal` is not `true`. Why a core change: C switches the whole glyph map per level, the view is built only by core, and only core knows each legend id's kind and object class (a renderer-side table would need every renderer to carry it and would miss third-party objects); the Rogue level is "sort of a mod" (the user, plan m21 Q1), so the set is a def any mod can register. Additive: optional fields and a new def kind; nothing is saved (the snapshot is derived and `Level.def` already names the LevelDef), so no `SAVE_VERSION` change.
 
 ## Client mods
 

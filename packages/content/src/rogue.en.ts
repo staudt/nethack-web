@@ -6,4 +6,6 @@ export const rogueMessagesEn: Record<string, string> = {
   'rogue.swoosh': 'You hear a swoosh.',
   'rogue.cloud_dissipates': 'The cloud quickly dissipates.',
   'rogue.doorway_vanishes': 'The doorway vanishes!',
+  // the Rogue level's symbol set (symset.ts)
+  'symset.rogue': 'Rogue level symbols',
 };

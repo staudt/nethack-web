@@ -1,4 +1,11 @@
-export { createAsciiRenderer, autoFontSize, fitCell, objectLayer, monsterLayer } from './renderer';
+export {
+  createAsciiRenderer,
+  autoFontSize,
+  fitCell,
+  objectLayer,
+  monsterLayer,
+  legendGlyph,
+} from './renderer';
 export type { AsciiRendererOptions, AsciiRenderer, FlashCell } from './renderer';
 export {
   clampToMap,

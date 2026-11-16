@@ -2,6 +2,7 @@ import type { Dir } from './types/action';
 import type { Pos } from './types/common';
 import type { Level } from './types/level';
 import type { Registry } from './types/mod';
+import { registeredLevelDef } from './leveldefs';
 import { DIRS, cellIndex, inBounds } from './util';
 
 /** Per-palette-index terrain rules, so movement/vision/path need no registry at runtime. */
@@ -12,7 +13,10 @@ export interface CellRules {
   closedDoor: readonly boolean[];
   /** Locked: walking into it does not open it. */
   lockedDoor: readonly boolean[];
-  /** Door that blocks diagonal moves: an 'open' or 'closed' door (not a doorway/broken door). */
+  /**
+   * Door that blocks diagonal moves: an 'open', 'closed' or 'locked' door (not a doorway or broken
+   * door), or any door terrain on a level whose LevelDef sets `doorwaysBlockDiagonal`.
+   */
   intactDoor: readonly boolean[];
   /** `TerrainDef.liquid` of each palette entry, null for dry terrain. */
   liquid: readonly ('water' | 'lava' | null)[];
@@ -25,6 +29,9 @@ export function cellRules(level: Level, registry: Registry): CellRules {
   const lockedDoor: boolean[] = [];
   const intactDoor: boolean[] = [];
   const liquid: ('water' | 'lava' | null)[] = [];
+  // ref: src/hack.c doorless_door() "all rogue level doors are doorless but disallow diagonal
+  // access, so we treat them as if their non-existent doors were actually present"
+  const everyDoor = registeredLevelDef(registry, level.def)?.doorwaysBlockDiagonal === true;
   for (const id of level.palette) {
     const t = registry.terrain(id);
     passable.push(t.passable);
@@ -32,7 +39,12 @@ export function cellRules(level: Level, registry: Registry): CellRules {
     closedDoor.push(t.door === 'closed' || t.door === 'locked');
     lockedDoor.push(t.door === 'locked');
     // ref: src/hack.c test_move() -- doorless_door(): D_NODOOR/D_BROKEN doorways don't block diagonals
-    intactDoor.push(t.door === 'closed' || t.door === 'locked' || t.door === 'open');
+    intactDoor.push(
+      t.door === 'closed' ||
+        t.door === 'locked' ||
+        t.door === 'open' ||
+        (everyDoor && t.door === 'doorway'),
+    );
     liquid.push(t.liquid ?? null);
   }
   return { passable, opaque, closedDoor, lockedDoor, intactDoor, liquid };

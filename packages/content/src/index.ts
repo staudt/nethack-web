@@ -94,6 +94,7 @@ import { registerEnd } from './disclose';
 import { registerBotl } from './botl';
 import { QUIT_ACTIONS } from './quit';
 import { DUNGEONS, LEVELS, SPLEV_FIXUPS } from './dungeon';
+import { SYMSETS } from './symset';
 
 /** Potion and scroll effects, attached to the object defs (ObjectDef.use). */
 const USES = { ...POTION_USES, ...SCROLL_USES };
@@ -106,6 +107,7 @@ export const vanillaMod: Mod = {
   register(api) {
     for (const t of TERRAIN) api.defineTerrain(t);
     for (const l of LEVELS) api.defineLevel(l);
+    for (const s of SYMSETS) api.defineSymset(s);
     for (const d of DUNGEONS) api.defineDungeon(d);
     for (const r of RACES) api.defineRace(r);
     for (const r of ROLES) api.defineRole(r);

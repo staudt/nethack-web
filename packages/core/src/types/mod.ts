@@ -176,6 +176,28 @@ export interface AppearanceDef {
   marker?: true;
 }
 
+/**
+ * A symbol set: other characters (and maybe one colour) for the legend while the hero is on a
+ * level whose LevelDef names it (vanilla's is the Rogue level's). Core resolves the legend of
+ * every full snapshot through it, so renderers draw it with no change of their own, and
+ * `ViewSnapshot.symset` names it. Ids or classes it leaves out keep their own glyphs.
+ * ref: src/symbols.c init_rogue_symbols(), assign_graphics(); src/drawing.c def_r_oc_syms[];
+ * src/display.c reset_glyphmap() (GMAP_ROGUELEVEL)
+ */
+export interface SymsetDef {
+  id: DefId;
+  nameKey: string;
+  /** A character per legend id (terrain, role, monster, object, appearance or trap). */
+  glyphs?: Readonly<Record<DefId, string>>;
+  /**
+   * A character for every object and (non-marker) appearance of a class, as C's per-class
+   * object symbols; a `glyphs` entry for the id wins.
+   */
+  classes?: Readonly<Partial<Record<ObjectClass, string>>>;
+  /** Every glyph is drawn in this colour (C's NO_COLOR on the Rogue level). */
+  fg?: string;
+}
+
 /** A bottom-line field computed from state (AC, gold, hunger); null leaves it out. ref: src/botl.c */
 export interface StatusDef {
   id: DefId;
@@ -397,6 +419,17 @@ export interface LevelDef {
    */
   teleportRegions?: TeleRegionDef[];
   contents?: LevelContent[];
+  /**
+   * m21: the SymsetDef the level is drawn with (the view's legend is resolved through it while
+   * the hero is here). ref: src/do.c goto_level() assign_graphics(ROGUESET)
+   */
+  symset?: DefId;
+  /**
+   * m21: every door square, doorways and broken doors included, blocks diagonal moves as an
+   * intact door does (`cellRules().intactDoor`): the hero, travel, pushed boulders and monsters.
+   * ref: src/hack.c doorless_door() (Is_rogue_level); src/mon.c mfndpos()
+   */
+  doorwaysBlockDiagonal?: true;
 }
 
 /**
@@ -919,6 +952,7 @@ export interface ModApi {
   defineTrap(d: TrapDef): void;
   defineDungeon(d: DungeonDef): void;
   defineLevel(d: LevelDef): void;
+  defineSymset(d: SymsetDef): void;
   /** Replaces the item namer; the last mod to set it wins. */
   setItemNamer(fn: ItemNamer): void;
   on<K extends HookName>(hook: K, fn: Hooks[K], opts?: HookOptions): void;
@@ -965,6 +999,9 @@ export interface Registry {
   level(id: DefId): LevelDef;
   /** In registration order. */
   readonly levels: readonly LevelDef[];
+  symset(id: DefId): SymsetDef;
+  /** In registration order. */
+  readonly symsets: readonly SymsetDef[];
   /** Names an item with the active namer (a default one if no mod set it). */
   itemName(state: Readonly<GameState>, item: Entity): Msg;
   /** In registration order. */

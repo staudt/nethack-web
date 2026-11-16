@@ -26,6 +26,7 @@ import type {
   SpecialLevelDef,
   LevelContent,
   LevelDef,
+  SymsetDef,
   ItemNamer,
 } from './types/mod';
 import { contentLists, specialLevelIssues } from './levelgen/spdef';
@@ -156,6 +157,7 @@ export function loadMods(mods: readonly Mod[]): Registry {
   const traps = new Map<string, TrapDef>();
   const dungeons = new Map<string, DungeonDef & { mod: string }>();
   const levels = new Map<string, LevelDef & { mod: string }>();
+  const symsets = new Map<string, SymsetDef & { mod: string }>();
   let itemNamer: ItemNamer = defaultItemNamer;
   const actions: (ActionDef & { mod: string })[] = [];
   const builtinHandlers = new Map<ActionType, string>();
@@ -572,6 +574,37 @@ export function loadMods(mods: readonly Mod[]): Registry {
         for (const [path, reason] of levelDefIssues(d)) issue(path, reason, d.id);
         levels.set(d.id, { ...d, mod: modId });
       },
+      defineSymset(d) {
+        if (!guard('defineSymset') || !checkId(d.id, 'symset')) return;
+        str(d.nameKey, 'nameKey', d.id);
+        const oneChar = (v: unknown): boolean => typeof v === 'string' && [...v].length === 1;
+        const table = (v: unknown, path: string): v is Record<string, unknown> => {
+          if (v === undefined) return false;
+          if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+            issue(path, 'must be an object', d.id);
+            return false;
+          }
+          return true;
+        };
+        const glyphs: unknown = d.glyphs;
+        if (table(glyphs, 'glyphs'))
+          for (const k of Object.keys(glyphs).sort())
+            if (!oneChar(glyphs[k])) issue(`glyphs.${k}`, 'must be exactly one character', d.id);
+        const classes: unknown = d.classes;
+        if (table(classes, 'classes'))
+          for (const k of Object.keys(classes).sort()) {
+            if (!OBJECT_CLASSES.includes(k as ObjectClass))
+              issue(
+                `classes.${k}`,
+                `unknown object class; expected one of ${OBJECT_CLASSES.join(', ')}`,
+                d.id,
+              );
+            else if (!oneChar(classes[k]))
+              issue(`classes.${k}`, 'must be exactly one character', d.id);
+          }
+        if (d.fg !== undefined) str(d.fg, 'fg', d.id);
+        symsets.set(d.id, { ...d, mod: modId });
+      },
       setItemNamer(namer) {
         if (!guard('setItemNamer')) return;
         if (typeof namer !== 'function') return issue('setItemNamer', 'must be a function');
@@ -676,9 +709,31 @@ export function loadMods(mods: readonly Mod[]): Registry {
         });
     });
   }
+  // A symset's ids must be legend keys; a level's symset must exist.
+  const legendKey = (id: string): boolean =>
+    terrains.has(id) ||
+    roles.has(id) ||
+    monsters.has(id) ||
+    objects.has(id) ||
+    appearances.has(id) ||
+    traps.has(id);
+  for (const s of symsets.values()) {
+    const glyphs: unknown = s.glyphs;
+    if (typeof glyphs !== 'object' || glyphs === null) continue;
+    for (const k of Object.keys(glyphs).sort())
+      if (!legendKey(k))
+        issues.push({
+          modId: s.mod,
+          defId: s.id,
+          path: `glyphs.${k}`,
+          reason: `unknown legend id '${k}' (a terrain, role, monster, object, appearance or trap)`,
+        });
+  }
   for (const l of levels.values()) {
     const ref = (path: string, reason: string): void =>
       void issues.push({ modId: l.mod, defId: l.id, path, reason });
+    if (typeof l.symset === 'string' && !symsets.has(l.symset))
+      ref('symset', `unknown symset '${l.symset}'`);
     if (l.init?.style === 'solidfill' || l.init?.style === 'mines' || l.init?.style === 'mazegrid')
       for (const key of ['fg', 'bg'] as const) {
         const id: unknown = (l.init as Record<string, unknown>)[key];
@@ -804,6 +859,12 @@ export function loadMods(mods: readonly Mod[]): Registry {
       return l;
     },
     levels: [...levels.values()],
+    symset(id) {
+      const s = symsets.get(id);
+      if (!s) throw new Error(`Unknown symset '${id}'`);
+      return s;
+    },
+    symsets: [...symsets.values()],
     itemName: (state, item) => itemNamer(state, registry, item),
     objects: [...objects.values()],
     appearances: [...appearances.values()],
@@ -863,6 +924,11 @@ const CONTENT_KINDS = ['monster', 'object', 'trap'];
  */
 function levelDefIssues(d: LevelDef): [string, string][] {
   const out: [string, string][] = [];
+  const symset: unknown = d.symset;
+  if (symset !== undefined && (typeof symset !== 'string' || symset === ''))
+    out.push(['symset', 'must be a symset id']);
+  const dbd: unknown = d.doorwaysBlockDiagonal;
+  if (dbd !== undefined && dbd !== true) out.push(['doorwaysBlockDiagonal', 'must be true']);
   const init: unknown = d.init;
   if (typeof init !== 'object' || init === null) out.push(['init', 'must be an object']);
   else {

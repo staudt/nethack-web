@@ -23,6 +23,7 @@ import { mksobj, placeOnFloor } from './items';
 import { ROGUE } from './levelflags';
 import { fillOrdinaryRooms, mkCorridorBoulders } from './mklev';
 import { somexyspaceTry } from './somexy';
+import { ROGUE_SYMSET } from './symset';
 import { liftStairs, type SpLevFixup } from './sp_lev';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
@@ -34,6 +35,9 @@ import { mkVault } from './vault';
 export const ROGUE_LEVEL: LevelDef = {
   id: ROGUE,
   init: { style: 'solidfill', fg: 'nh:stone', lit: false },
+  // ref: src/do.c goto_level() assign_graphics(ROGUESET); src/hack.c doorless_door()
+  symset: ROGUE_SYMSET.id,
+  doorwaysBlockDiagonal: true,
   stairs: {
     up: { x: 0, y: 0, coords: 'level' },
     down: { x: 0, y: 1, coords: 'level' },

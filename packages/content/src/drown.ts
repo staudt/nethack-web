@@ -15,6 +15,7 @@
 // whatever holds her up), hallucinatory liquids.
 import {
   cellIndex,
+  cellRules,
   getLevel,
   getPlayer,
   inBounds,
@@ -236,7 +237,7 @@ export function pooleffects(ctx: Ctx, newspot: boolean, from?: Pos): boolean {
 
 /**
  * Where she could crawl to at (x, y) from her square: a good position, and diagonally not into
- * a door or squeezing between rock while carrying over 600. ref: src/hack.c
+ * a door (any door on the Rogue level) or squeezing between rock while carrying over 600. ref: src/hack.c
  * crawl_destination() (no grid bugs or Passes_walls; Sokoban's no-squeeze rule as test_move())
  */
 function crawlDestination(
@@ -249,10 +250,10 @@ function crawlDestination(
 ): boolean {
   if (!goodposHero(ctx, level, x, y)) return false;
   if (x === ux || y === uy) return true;
-  const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
-  const door = id === undefined ? undefined : ctx.defs.terrain(id).door;
-  // !doorless_door() || block_door(): only a doorway (no door, broken) lets her in diagonally
-  if (door !== undefined && door !== 'doorway') return false;
+  // !doorless_door() || block_door(): only a doorway (no door, broken) lets her in diagonally,
+  // and on the Rogue level not even that (`intactDoor` holds every door there)
+  if (cellRules(level, ctx.defs).intactDoor[level.cells[cellIndex(level, x, y)] ?? -1] === true)
+    return false;
   if (!(badRock(ctx, level, ux, y) && badRock(ctx, level, x, uy))) return true;
   // cant_squeeze_thru(): too much to carry, or Sokoban
   const h = hero(ctx);

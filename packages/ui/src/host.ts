@@ -183,9 +183,12 @@ export function createUi(opts: UiOptions): Ui {
   const menuItems: MenuItem[] = [];
   const glyphOverrides = new Map<string, Glyph>();
   let legend: Record<string, Glyph> = {};
+  // the level's symbol set (ViewSnapshot.symset): client glyph overrides wait while one is in force
+  let symset: string | undefined;
   let inventory: ViewItem[] = [];
   let invOpen = false;
-  const glyphOf = (id: string): Glyph | undefined => glyphOverrides.get(id) ?? legend[id];
+  const glyphOf = (id: string): Glyph | undefined =>
+    (symset === undefined ? glyphOverrides.get(id) : undefined) ?? legend[id];
   const t = (key: string, params?: Params): string => translate(catalogs, locale, key, params);
 
   const style = injectStyles(doc);
@@ -1178,6 +1181,7 @@ export function createUi(opts: UiOptions): Ui {
       renderer.apply(view);
       if (view.kind === 'full') {
         legend = view.legend;
+        symset = view.symset;
         mapW = view.width;
         mapH = view.height;
         mapCells = view.cells.slice();
