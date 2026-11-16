@@ -31,6 +31,7 @@ import { nameToMon, nonliving, weirdnonliving } from './mondata';
 import { mungspaces, wishNames } from './objnam_read';
 import { P, hasProp } from './props';
 import { heroForm, heroFormId, rehumanize, upolyOf } from './upoly';
+import { raceMonId } from './race';
 import {
   genocidedIds,
   genocidedLines,
@@ -48,8 +49,6 @@ export const PLAYER = 2;
 export const ONTHRONE = 4;
 
 const READ: DefId = 'nh:read';
-
-const HUMAN: DefId = 'nh:human';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -70,8 +69,11 @@ export const isGenoAsk = (raw: Json): boolean => {
   return s === 'genocide' || s === 'class_genocide';
 };
 
-/** Your_Own_Race(): the hero is human (her role's monster does not exist). */
-const yourOwn = (id: DefId): boolean => id === HUMAN;
+/**
+ * Your_Own_Race(): her race's monster (`mndx == urace.mnum`); her role's monster does not exist
+ * (Your_Own_Role(): DEVIATIONS "Roles and races (m22a)"). ref: src/read.c
+ */
+const yourOwn = (ctx: Pick<Ctx, 'state'>, id: DefId): boolean => id === raceMonId(ctx.state);
 
 /** The hero's role id, standing for her role's monster (u.umonster). */
 const roleId = (ctx: Pick<Ctx, 'state'>): DefId =>
@@ -237,7 +239,7 @@ function answerType(ctx: Ctx, value: Json, data: GenoData): boolean {
   const ptr = ctx.defs.monster(mndx);
   // Although "genus" is Latin for race, the hero benefits from both race and role; thus genocide
   // affects either.
-  if (yourOwn(mndx)) {
+  if (yourOwn(ctx, mndx)) {
     genocideType(ctx, ptr, how, true);
     return false;
   }
@@ -363,8 +365,8 @@ function answerClass(ctx: Ctx, value: Json, data: GenoData): boolean {
     else if (isGenocided(ctx.state, m.id)) gonecnt++;
     else goodcnt++;
   }
-  // the hero's role and race are both '@'
-  if (!goodcnt && cls !== '@') {
+  // her role's monster is an '@', her race's may be another class
+  if (!goodcnt && cls !== '@' && cls !== ctx.defs.monster(raceMonId(ctx.state)).glyph.ch) {
     if (gonecnt) say(ctx, 'genocide.class.already_gone');
     else if (immunecnt) say(ctx, 'genocide.class.not_permitted');
     else say(ctx, buf.length === 1 ? 'genocide.class.no_symbol' : 'genocide.class.no_response');
@@ -375,7 +377,7 @@ function answerClass(ctx: Ctx, value: Json, data: GenoData): boolean {
   let gameover = false;
   for (const m of members) {
     const name = `@${m.nameKey}`;
-    if (yourOwn(m.id) || (m.genFlags.includes('geno') && !isGenocided(ctx.state, m.id))) {
+    if (yourOwn(ctx, m.id) || (m.genFlags.includes('geno') && !isGenocided(ctx.state, m.id))) {
       setGenocided(ctx, m.id);
       killGenocidedMonsters(ctx);
       say(ctx, 'genocide.wiped_out.all', { mon: name });
@@ -389,7 +391,7 @@ function answerClass(ctx: Ctx, value: Json, data: GenoData): boolean {
         if (ctx.state.gameOver) return false;
       }
       // self-genocide if it matches either your race or role
-      if (yourOwn(m.id)) {
+      if (yourOwn(ctx, m.id)) {
         // u.uhp = -1: a polymorphed hero dies on returning to her own form (polyman())
         if (upolyOf(ctx.state)) {
           if (!feelDead) say(ctx, 'genocide.feel_inside', { how: { key: udeadinside(ctx) } });

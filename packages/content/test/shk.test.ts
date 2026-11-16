@@ -49,9 +49,11 @@ import {
   moneyCnt,
   saleable,
   shkName,
+  setRoleRaceForTest,
   shopType,
   stockShops,
 } from '../src/index';
+import { setUpoly } from '../src/upoly';
 import { messagesEn } from '../src/messages.en';
 import { P, setIntrinsic, setItimeout } from '../src/props';
 import { tamedog } from '../src/dog';
@@ -886,6 +888,27 @@ describe('prices', () => {
     t.pickup();
     expect(t.inv().map((o) => o.c.item?.quantity)).toEqual([5]);
     expect(t.e.bill).toEqual([{ oid: c.id, bquan: 5, price: 13, useup: false }]);
+  });
+
+  test('an elf is "hiril", a polymorphed hero in a non-human form a "creature"', () => {
+    const quote = (race: 'elf' | 'human', form: string | null): string => {
+      const t = bare(10);
+      setRoleRaceForTest(t.s.state, null, race);
+      if (form)
+        setUpoly(t.s.state, {
+          form: form as DefId,
+          mtimedone: 100,
+          uhp: { cur: 10, max: 10 },
+          mfemale: true,
+          macurr: getPlayer(t.s.state).c.attributes!,
+        });
+      t.make('nh:tallow_candle', { quantity: 1 });
+      return t.lines(t.pickup())[0] ?? '';
+    };
+    expect(quote('elf', null)).toMatch(/^"For you, [a-z ]+ hiril; only/);
+    expect(quote('human', null)).toMatch(/^"For you, [a-z ]+ lady; only/);
+    expect(quote('human', 'nh:jackal')).toMatch(/^"For you, [a-z ]+ creature; only/);
+    expect(quote('human', 'nh:vampire')).toMatch(/^"For you, [a-z ]+ dark lady; only/);
   });
 
   test('her own things she will not sell are no charge and stay hers', () => {

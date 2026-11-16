@@ -59,6 +59,8 @@ import {
   type Eshk,
 } from './eshk';
 import { heroFemale } from './gender';
+import { polydRace } from './race';
+import { heroForm } from './upoly';
 import { mnextoPos } from './generation';
 import { isCandle } from './items';
 import { adjalign, uState } from './luck';
@@ -478,10 +480,29 @@ function billBoxContent(ctx: Ctx, obj: Entity, dummy: boolean, shk: EntityId): v
   }
 }
 
-/** ref: src/shk.c append_honorific() (no udemigod, vampires or elves: a human lady or sir) */
+/**
+ * "esteemed lady": a vampire form is a dark lady or lord, an elf (form or race) a hiril or hir,
+ * another form not human a creature. ref: src/shk.c append_honorific() (no udemigod)
+ */
 function honorific(ctx: Ctx): { hon: string; title: string } {
   const hon = `@shk.hon.${ctx.rng.rn2(4)}`;
-  return { hon, title: heroFemale(ctx.state) ? '@shk.lady' : '@shk.sir' };
+  const female = heroFemale(ctx.state);
+  const form = heroForm(ctx); // her own form is her role's, a human
+  const title =
+    form && form.glyph.ch === 'V' // is_vampire()
+      ? female
+        ? '@shk.dark_lady'
+        : '@shk.dark_lord'
+      : polydRace(ctx, 'elf')
+        ? female
+          ? '@shk.hiril'
+          : '@shk.hir'
+        : form && !form.flags.includes('human')
+          ? '@shk.creature'
+          : female
+            ? '@shk.lady'
+            : '@shk.sir';
+  return { hon, title };
 }
 
 /** The object's name, singular. ("fool xname() into giving singular") */

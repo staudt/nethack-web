@@ -18,7 +18,7 @@ import {
 import { P, setIntrinsic, heroHas } from './props';
 import { A_NONE } from './aligntyp';
 import { luckTimeout, moreluck } from './gem';
-import { isUnicorn } from './mondata';
+import { isMplayer, isUnicorn } from './mondata';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -170,10 +170,14 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
   const u = uState(ctx.state);
   // ref: set_malign(): a priest's alignment is his shrine's, times 5 unless A_NONE
   const mal = priest ? (priest.shralign === A_NONE ? A_NONE : priest.shralign * 5) : def.alignment;
-  // murder: an always-peaceful-ish human, unless the hero is chaotic
+  // murder: an always-peaceful-ish human (not a player monster, not a plain "human": it is rare
+  // and most likely a resurrected corpse or animated statue), unless the hero is chaotic; her
+  // own race does not matter
   if (
     def.flags.includes('human') &&
     !def.flags.includes('hostile') &&
+    !isMplayer(def) &&
+    def.id !== 'nh:human' &&
     malign(def, m.peaceful, u.alignType, mal) <= 0 &&
     u.alignType !== -1
   ) {

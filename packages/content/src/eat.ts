@@ -59,7 +59,9 @@ import { levitating } from './trapstate';
 import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
 import { monflee } from './monflee';
 import { onscary } from './scary';
-import { isWere, ulycn, youUnwere } from './werestate';
+import { isWere, ulycn, wereBeastie, youUnwere } from './werestate';
+import { cannibalAllowed, polydRace, sameRace, yourRace } from './race';
+import { raceIs } from './urole';
 import { heroForm, polymonLate, rehumanize, uPolyStoneGolem, upolyOf } from './upoly';
 import { adjattrib } from './attrstate';
 import { healLegs } from './legs';
@@ -120,7 +122,7 @@ function reachable(ctx: Ctx, e: Entity): boolean {
   );
 }
 
-/** ref: src/eat.c obj_nutrition() (no lembas/cram race adjustments: the hero is human) */
+/** ref: src/eat.c obj_nutrition() (the race's lembas and cram are adj_victual_nutrition()'s) */
 function objNutrition(ctx: Ctx, e: Entity): number {
   const it = e.c.item;
   if (isCorpse(e) && it?.corpseOf && ctx.defs.isMonster(it.corpseOf))
@@ -228,24 +230,21 @@ function touchfood(ctx: Ctx, e: Entity): Entity {
 }
 
 /**
- * The nutrition of the next bite: an elf form gets more out of lembas, an orc form less, a dwarf
- * form more out of cram. ref: src/eat.c adj_victual_nutrition() (the hero's race is human)
+ * The nutrition of the next bite: an elf (form or race) gets more out of lembas, an orc less, a
+ * dwarf more out of cram. ref: src/eat.c adj_victual_nutrition()
  */
 function adjVictualNutrition(ctx: Ctx, v: Victual): number {
   let nut = -v.nmod;
   const piece = ctx.state.entities[String(v.piece)];
-  const form = heroForm(ctx);
   if (piece?.def === 'nh:lembas_wafer') {
-    if (form && hasFlag(form, 'elf'))
+    if (polydRace(ctx, 'elf'))
       nut += Math.trunc((nut + 2) / 4); // 800 -> 1000
-    else if (form && hasFlag(form, 'orc')) nut -= Math.trunc((nut + 2) / 4); // 800 -> 600
+    else if (polydRace(ctx, 'orc')) nut -= Math.trunc((nut + 2) / 4); // 800 -> 600
   } else if (piece?.def === 'nh:cram_ration') {
-    if (form && hasFlag(form, 'dwarf')) nut += Math.trunc((nut + 3) / 6); // 600 -> 700
+    if (polydRace(ctx, 'dwarf')) nut += Math.trunc((nut + 3) / 6); // 600 -> 700
   }
   return Math.max(nut, 1);
 }
-
-const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 
 /**
  * What the hero can eat: food, but a ghoul form only non-vegan corpses and eggs.
@@ -590,12 +589,6 @@ function cpostfx(ctx: Ctx, corpse: Entity): void {
   if (of && ctx.defs.isMonster(of)) cpostfxOf(ctx, ctx.defs.monster(of));
 }
 
-/**
- * ref: include/hack.h CANNIBAL_ALLOWED(): Cave dwellers and orcs may; the hero here is always a
- * human Valkyrie
- */
-const cannibalAllowed = (): boolean => false;
-
 /** Domestic animals the hero should not eat. ref: src/eat.c cprefx() PM_LITTLE_DOG..PM_LARGE_CAT */
 const DOMESTIC = new Set([
   'nh:little_dog',
@@ -607,15 +600,26 @@ const DOMESTIC = new Set([
 ]);
 
 /**
- * Eating a corpse of her own race: "You cannibal!  You will regret this!" (when `allowmsg`),
- * the Aggravate_monster intrinsic and 2..5 points of Luck lost. True if it was cannibalism.
- * ref: src/eat.c maybe_cannibal() (`your_race()`: the hero is human, M2_HUMAN; she is never
- * polymorphed or a lycanthrope; the once-a-turn `ate_brains` guard is for a mind flayer's
+ * Eating a corpse of her own race (or, polymorphed, of her form's; or of her lycanthropy's kind):
+ * "You cannibal!  You will regret this!" (when `allowmsg`; "You have a bad feeling deep
+ * inside." first when polymorphed), the Aggravate_monster intrinsic and 2..5 points of Luck
+ * lost. Cave dwellers and orcs may (CANNIBAL_ALLOWED()). True if it was cannibalism.
+ * ref: src/eat.c maybe_cannibal() (the once-a-turn `ate_brains` guard is for a mind flayer's
  * tentacles and is not needed)
  */
 function maybeCannibal(ctx: Ctx, mon: MonsterDef, allowmsg: boolean): boolean {
-  if (!cannibalAllowed() && mon.flags.includes('human')) {
-    if (allowmsg) say(ctx, 'eat.cannibal');
+  const form = heroForm(ctx);
+  const lycn = ulycn(ctx.state);
+  if (
+    !cannibalAllowed(ctx.state) &&
+    (yourRace(ctx.state, mon) ||
+      (form !== null && sameRace(ctx.defs, form, mon)) ||
+      (lycn !== null && wereBeastie(mon.id) === lycn))
+  ) {
+    if (allowmsg) {
+      if (form && yourRace(ctx.state, mon)) say(ctx, 'eat.bad_feeling_inside');
+      say(ctx, 'eat.cannibal');
+    }
     setIntrinsic(hero(ctx), P.AGGRAVATE_MONSTER, true);
     changeLuck(ctx, -(ctx.rng.rn2(4) + 2)); // -rn1(4, 2)
     return true;
@@ -651,7 +655,7 @@ export function cprefxMon(ctx: Ctx, mon: MonsterDef, useUpTin?: () => void): voi
   }
   if (DOMESTIC.has(mon.id)) {
     // cannibals are allowed to eat domestic animals without penalty
-    if (!cannibalAllowed()) {
+    if (!cannibalAllowed(ctx.state)) {
       say(ctx, 'eat.domestic', { mon: `@${mon.id}` });
       setIntrinsic(hero(ctx), P.AGGRAVATE_MONSTER, true);
     }
@@ -669,11 +673,10 @@ export const nonrottingCorpse = (mon: string): boolean => mon === LIZARD || mon 
 // ---------------------------------------------------------------------------------------------
 // ordinary food
 
-/** An orc or elf form's lembas line, else null. ref: src/eat.c fprefx() LEMBAS_WAFER */
+/** An orc's or elf's (form or race) lembas line, else null. ref: src/eat.c fprefx() LEMBAS_WAFER */
 function lembasLine(ctx: Ctx): string | null {
-  const form = heroForm(ctx);
-  if (form && hasFlag(form, 'orc')) return 'eat.lembas_orc';
-  if (form && hasFlag(form, 'elf')) return 'eat.lembas_elf';
+  if (polydRace(ctx, 'orc')) return 'eat.lembas_orc';
+  if (polydRace(ctx, 'elf')) return 'eat.lembas_elf';
   return null;
 }
 
@@ -700,15 +703,17 @@ function fprefx(ctx: Ctx, e: Entity, v: Victual): boolean {
       else if (nutrition < 700) say(ctx, 'eat.satiates');
       break;
     case 'nh:tripe_ration': {
-      // her race is human; her form may be a carnivorous non-humanoid or an orc
+      // her form may be a carnivorous non-humanoid; an orc (form or race) likes it
       const form = heroForm(ctx);
       if (form && carnivorous(form) && !humanoid(form)) say(ctx, 'eat.tripe_good');
-      else if (form && hasFlag(form, 'orc'))
+      else if (polydRace(ctx, 'orc'))
         say(ctx, hasProp(h, P.HALLUC) ? 'eat.tripe_orc_halluc' : 'eat.tripe_orc');
       else {
         say(ctx, 'eat.tripe_yak');
         gainExperience(ctx, h.id, 1);
-        if (ctx.rng.rn2(2) !== 0) makeVomiting(ctx, 14 + ctx.rng.rn2(v.reqtime), false); // rn1(reqtime, 14)
+        // not cannibalism, but similar criteria for deciding whether to be sickened
+        if (ctx.rng.rn2(2) !== 0 && !cannibalAllowed(ctx.state))
+          makeVomiting(ctx, 14 + ctx.rng.rn2(v.reqtime), false); // rn1(reqtime, 14)
       }
       break;
     }
@@ -777,9 +782,10 @@ function fpostfx(ctx: Ctx, e: Entity): void {
     const form = heroForm(ctx);
     if (ulycn(ctx.state) !== null || (form && isWere(form))) youUnwere(ctx, true);
   }
-  if (e.def === 'nh:apple' && e.c.item?.buc === 'cursed') {
-    // Snow White; no Sleep_resistance
-    say(ctx, 'eat.sinister_laughter');
+  if (e.def === 'nh:apple' && e.c.item?.buc === 'cursed' && !hasProp(hero(ctx), P.SLEEP_RES)) {
+    // Snow White (no deafness here)
+    if (raceIs(ctx.state, 'dwarf') && hasProp(hero(ctx), P.HALLUC)) say(ctx, 'eat.heigh_ho');
+    else say(ctx, 'eat.sinister_laughter');
     nomulNow(ctx, 20 + ctx.rng.rn2(11), 'helpless.asleep', { key: 'eat.wake_up' }); // rn1(11, 20)
   }
   // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (the goop stays)

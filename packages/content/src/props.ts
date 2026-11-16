@@ -23,7 +23,7 @@ import {
   type PropState,
   type Registry,
 } from '@nh/core';
-import { adjabilRace } from './racetab';
+import { RACES_TAB, adjabilRace } from './racetab';
 import { ROLES_TAB } from './roletab';
 import { addWeaponSkill, loseWeaponSkill } from './skills';
 import { urace, urole } from './urole';
@@ -134,6 +134,19 @@ export function setFormProps(e: Entity, names: readonly string[]): void {
     const p = (e.c.props ??= {});
     p[k] ??= { intrinsic: true, timeout: 0 };
   }
+}
+
+/**
+ * The properties her own form gives (set_uasmon() when not polymorphed): infravision when her
+ * race's monster has it (a dwarf's and a gnome's only source; elves and orcs also have it from
+ * adjabil()). Her role's monster gives nothing here. ref: src/polyself.c set_uasmon() `PROPSET(
+ * INFRAVISION, infravision(Upolyd ? mdat : &mons[gu.urace.mnum]))`
+ */
+export function ownFormProps(ctx: Pick<Ctx, 'state' | 'defs'>): string[] {
+  const mnum = RACES_TAB[urace(ctx.state)].mnum;
+  return ctx.defs.isMonster(mnum) && ctx.defs.monster(mnum).flags.includes('infravision')
+    ? [P.INFRAVISION]
+    : [];
 }
 
 /**
@@ -507,8 +520,13 @@ export function adjabil(ctx: Ctx, heroId: EntityId, oldLevel: number, newLevel: 
 
 /** Registers the props hooks and the Stun status. ref: src/timeout.c, src/botl.c */
 export function registerProps(api: ModApi): void {
-  // ref: src/u_init.c u_init(): adjabil(0, 1) gives the level 1 abilities
-  api.on('newGame', (ctx, heroId) => adjabil(ctx, heroId, 0, 1));
+  // ref: src/u_init.c u_init(): adjabil(0, 1) gives the level 1 abilities; set_uasmon() her own
+  // form's (the race's infravision)
+  api.on('newGame', (ctx, heroId) => {
+    adjabil(ctx, heroId, 0, 1);
+    const hero = ctx.state.entities[String(heroId)];
+    if (hero) setFormProps(hero, ownFormProps(ctx));
+  });
   // the worn-item cache follows the hero's accessories (a safety net for code that unequips
   // directly, such as removeFromInventory)
   api.on('afterAction', (ctx) => updateWornProps(ctx.state, ctx.defs, ctx.state.playerId));

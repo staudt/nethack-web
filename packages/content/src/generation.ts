@@ -23,6 +23,8 @@ import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { givePossessions, mongets } from './mongear';
 import { uState } from './luck';
+import { raceHostile, racePeaceful } from './race';
+import { raceIs } from './urole';
 import { isGenocided, isGone, propagate } from './vanquished';
 import { inHell, isRogueLevel, madeLevelFlags } from './levelflags';
 import { temperatureShift } from './temperature';
@@ -206,14 +208,16 @@ export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
 /**
  * Alignment toward the hero decides peacefulness.
  * ref: src/makemon.c peace_minded(). The erinyes are peaceful only to a hero who never abused
- * her alignment (`!u.ualign.abuse`). Race: human hates gnomes and orcs, loves nothing.
+ * her alignment (`!u.ualign.abuse`). Then her race's love and hate (race_peaceful(),
+ * race_hostile(): a dwarf's kin are dwarves and gnomes, a human hates gnomes and orcs).
  * Not ported: minions, quest/guardian sounds, Amulet.
  */
 export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   if (def.flags.includes('peaceful')) return true;
   if (def.flags.includes('hostile')) return false;
   if (def.id === ERINYS) return uState(ctx.state).alignAbuse === 0;
-  if (def.flags.includes('gnome') || def.flags.includes('orc')) return false;
+  if (racePeaceful(ctx.state, def)) return true;
+  if (raceHostile(ctx.state, def)) return false;
   const mal = def.alignment;
   const u = uState(ctx.state);
   if (Math.sign(mal) !== Math.sign(u.alignType)) return false;
@@ -572,6 +576,8 @@ export function makemon(
     if (e) setMinvis(ctx, e);
   } else if (mon && mlet === 'l') mon.asleep = true;
   else if (mon && (mlet === 'n' || mlet === 'J') && ctx.rng.rn2(5)) mon.asleep = true;
+  // ref: makemon() S_ORC: `if (Race_if(PM_ELF)) mtmp->mpeaceful = FALSE`
+  else if (mon && mlet === 'o' && raceIs(ctx.state, 'elf')) mon.peaceful = false;
   // ref: makemon() S_UNICORN: a unicorn of the hero's alignment is peaceful (MM_ANGRY too)
   else if (
     mon &&

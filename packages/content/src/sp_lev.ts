@@ -37,6 +37,8 @@ import { premapDetect } from './detect';
 import { makeEngrAt, type EngrType } from './engr';
 import { isExtinct, isGenocided, isGone, propagate } from './vanquished';
 import { makemon, mkclass } from './generation';
+import { yourRace } from './race';
+import { raceIs } from './urole';
 import { polyWhenStoned } from './golem';
 import { levelFlags } from './levelflags';
 import { isLava, isPool } from './liquid';
@@ -240,13 +242,17 @@ function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['app
   else setMappearance(ctx, id, { type: 'monster', id: ap.id });
 }
 
+/** The Gnomish Mines (C's In_mines()) */
+const MINES = 'nh:mines';
+
 /**
  * ref: src/sp_lev.c create_monster(); a random spot suits the monster's kind (pm_to_humidity():
  * a water-liking one tries without DRY first, then with it); an occupied spot moves to a close
  * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
  * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
  * MM_ASLEEP. A unique that was already made (extinct) is not made again; any other genocided or
- * extinct kind is made at random instead.
+ * extinct kind is made at random instead, and so are 2 in 3 of a dwarf or gnome hero's own kind
+ * in the Mines.
  */
 export function createMonster(
   ctx: Ctx,
@@ -265,6 +271,15 @@ export function createMonster(
     if (def.genFlags.includes('uniq') && isExtinct(ctx.state, def.id)) return;
     if (isGone(ctx.state, def.id)) def = null; // genocided or extinct: make random monster
   }
+  // a dwarf or gnome hero meets fewer of her own kind in the Mines (u.uz is the new level)
+  if (
+    def &&
+    level.dungeon === MINES &&
+    yourRace(ctx.state, def) &&
+    (raceIs(ctx.state, 'dwarf') || raceIs(ctx.state, 'gnome')) &&
+    ctx.rng.rn2(3)
+  )
+    def = null;
   let pos: Pos | null;
   if (def && (c.x === undefined || c.y === undefined)) {
     // "If water-liking monster, first try is without DRY"

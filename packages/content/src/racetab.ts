@@ -2,6 +2,7 @@
 // limits, hit point and energy advancement and the racial intrinsics. A leaf (core types, urole
 // and roletab only). Names are message keys (`race.<key>`, `race.<key>.adj`).
 // ref: src/role.c races[], src/attrib.c dwa_abil[]..hum_abil[]; include/you.h struct Race
+import type { DefId } from '@nh/core';
 import { STR18, type Align, type Gender, type HpAdvance, type Innate } from './roletab';
 import { RACE_ORDER, type RaceKey } from './urole';
 
@@ -14,7 +15,7 @@ export interface RaceRow {
   /** the monster flag of the race (MH_HUMAN ..): 'human', 'elf', 'dwarf', 'gnome', 'orc' */
   monFlag: string;
   /** the race's monster (races[].mnum) */
-  mnum: string;
+  mnum: DefId;
   genders: readonly Gender[];
   aligns: readonly Align[];
   /** monster race flags: her own kind, always peaceful, always hostile */

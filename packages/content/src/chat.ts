@@ -6,7 +6,8 @@
 // clock), "remembered, unseen" markers, monster confusion and blindness, quest and Oracle talk,
 // and every sound no monster here makes. A hallucinating hero gets no funny currency or wall
 // lines beyond the wall table.
-import { heroFormId } from './upoly';
+import { heroForm, heroFormId } from './upoly';
+import { raceMonId, sameRace } from './race';
 import { apAsThing } from './mimicstate';
 import { isUndetected } from './hidestate';
 import {
@@ -115,8 +116,16 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
   if (msound === 'silent') return 0;
   const halluc = heroHas(ctx.state, P.HALLUC);
   const tame = m.tame ?? 0;
-  // some normally non-speaking types can/will speak if hero is similar (no orcish heroes)
-  if (msound === 'orc' && halluc) msound = 'humanoid';
+  // some normally non-speaking types can/will speak if hero is similar: her current form (her own
+  // is her role's, a human) or her unpolymorphed race
+  const youData = heroForm(ctx) ?? ctx.defs.monster('nh:human');
+  if (
+    msound === 'orc' &&
+    (sameRace(ctx.defs, def, youData) ||
+      sameRace(ctx.defs, def, ctx.defs.monster(raceMonId(ctx.state))) ||
+      halluc)
+  )
+    msound = 'humanoid';
   else if (msound === 'moo' && !tame) msound = 'bellow';
   else if (halluc && mon.def === 'nh:gecko') {
     // silliness: MS_SELL for a hallucinated gecko (only a real one here)
@@ -365,7 +374,7 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       if (def.flags.includes('dwarf')) return pline('chat.mining');
       if (def.flags.includes('magic')) return pline('chat.spellcraft');
       if (def.flags.includes('gnome')) {
-        // (only reached hallucinating: gnomes are MS_ORC)
+        // (gnomes are MS_ORC: reached by a gnomish hero or form, or hallucinating)
         const plan = halluc ? ctx.rng.rn2(4) : 0;
         say(
           ctx,

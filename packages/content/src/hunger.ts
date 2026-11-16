@@ -18,7 +18,7 @@ import { nearCapacity } from './stats';
 import { CHARGED_RINGS } from './objects';
 import { P, hasProp, wornIn } from './props';
 import { adjattrib, rawAttr, setRawAttr } from './attrstate';
-import { roleIs } from './urole';
+import { raceIs, roleIs, urole } from './urole';
 
 export type { HungerData, Sick, Victual } from './uhunger';
 export { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE } from './uhunger';
@@ -260,8 +260,15 @@ export function newuhs(ctx: Ctx, incr: boolean, eating = false): void {
         if (incr) ctx.interrupt(); // stop_occupation(), end_running()
         break;
       case 'weak':
-        if (incr && roleIs(ctx.state, 'valkyrie'))
-          ctx.emit({ type: 'msg', key: 'hunger.needs_food', params: { role: '@role.valkyrie' } });
+        // ref: newuhs() WEAK: Wizards, Valkyries (their male role name) and Elves
+        if (incr && (roleIs(ctx.state, 'wizard') || roleIs(ctx.state, 'valkyrie')))
+          ctx.emit({
+            type: 'msg',
+            key: 'hunger.needs_food',
+            params: { role: `@role.${urole(ctx.state)}` },
+          });
+        else if (incr && raceIs(ctx.state, 'elf'))
+          ctx.emit({ type: 'msg', key: 'hunger.needs_food.elf' });
         else
           ctx.emit({
             type: 'msg',

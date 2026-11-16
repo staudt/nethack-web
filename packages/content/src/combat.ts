@@ -96,6 +96,7 @@ import {
 } from './silver';
 import { adjLev } from './generation';
 import { heroForm } from './upoly';
+import { polydRace } from './race';
 import { dmgval, dmgvalSized, shadeGlare } from './dmgval';
 import { isShade, shadeAware, shadeMiss } from './shade';
 import { angryGuards, isWatch } from './watch';
@@ -379,7 +380,7 @@ export function findRollToHit(
     ) +
     (isFleeing(ctx, targetId) ? 2 : 0) + // `if (mtmp->mflee) tmp += 2`
     // `is_orc(mtmp->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
-    (def.flags.includes('orc') && form?.flags.includes('elf') ? 1 : 0) -
+    (def.flags.includes('orc') && polydRace(ctx, 'elf') ? 1 : 0) -
     (utrap(ctx) ? 3 : 0) // `if (u.utrap) tmp -= 3`
   );
 }

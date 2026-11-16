@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5533 citations.
+192 NetHack files, 5543 citations.
 
 ## dat/asmodeus.lua
 
@@ -347,7 +347,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `BZ_OFS_AD()`: `packages/content/src/mthrowu.ts`
 - `BZ_VALID_ADTYP()`: `packages/content/src/mthrowu.ts`
 - `Blindfolded_only()`: `packages/content/src/dip.ts`
-- `CANNIBAL_ALLOWED()`: `packages/content/src/eat.ts`
 - `DIR_180()`: `packages/content/src/trapstate.ts`
 - `EF_()`: `packages/content/src/erode.ts`
 - `ERODE_()`: `packages/content/src/erode.ts`
@@ -414,7 +413,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/mondata.h
 
-- (file): `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`, `packages/content/src/musestate.ts`
+- (file): `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`, `packages/content/src/musestate.ts`, `packages/content/src/race.ts`
 - `MZ_TINY()`: `packages/content/src/mthrowu.ts`
 - `NODIAG()`: `packages/content/src/muse.ts`
 - `S_BAT()`: `packages/content/src/monmove.ts`
@@ -498,6 +497,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `poisonous()`: `packages/content/src/dog.ts`
 - `poly_when_stoned()`: `packages/content/src/golem.ts`, `packages/content/src/stoning.ts`, `packages/content/src/upoly.ts`
 - `polyok()`: `packages/content/src/newcham.ts`
+- `race_hostile()`: `packages/content/src/race.ts`
+- `race_peaceful()`: `packages/content/src/race.ts`
 - `regenerates()`: `packages/content/src/mstate.ts`
 - `resists_disint()`: `packages/content/src/buzz.ts`
 - `resists_ston()`: `packages/content/src/stonestate.ts`
@@ -517,7 +518,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `vtense()`: `packages/content/src/muse.ts`
 - `webmaker()`: `packages/content/src/polyself.ts`, `packages/content/src/trap.ts`
 - `weirdnonliving()`: `packages/content/src/mondata.ts`
-- `your_race()`: `packages/content/src/polyself.ts`
+- `your_race()`: `packages/content/src/race.ts`
 
 ## include/monflag.h
 
@@ -735,6 +736,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Known_wwalking()`: `packages/content/src/uwater.ts`
 - `Lev_at_will()`: `packages/content/src/trapstate.ts`
 - `Very_fast()`: `packages/content/src/dowear.ts`
+- `maybe_polyd()`: `packages/content/src/race.ts`
 
 ## src/allmain.c
 
@@ -1238,6 +1240,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/eat.c
 
 - (file): `packages/content/src/eat.en.ts`, `packages/content/src/resist.en.ts`, `packages/core/src/types/entity.ts`
+- `CANNIBAL_ALLOWED()`: `packages/content/src/race.ts`
 - `Finish_digestion()`: `packages/content/src/hmonas.ts`
 - `Popeye()`: `packages/content/src/tins.ts`
 - `adj_victual_nutrition()`: `packages/content/src/eat.ts`
@@ -1982,6 +1985,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `resist_conflict()`: `packages/content/src/props.ts`
 - `resists_drli()`: `packages/content/src/adtyping.ts`, `packages/content/src/exper.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
+- `same_race()`: `packages/content/src/race.ts`
 - `sliparm()`: `packages/content/src/mondata.ts`
 - `sticks()`: `packages/content/src/newcham.ts`
 
@@ -2250,7 +2254,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `polymon()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`
 - `polyself()`: `packages/content/src/polyself.en.ts`, `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`, `packages/content/src/wizard/polyself.ts`
 - `rehumanize()`: `packages/content/src/polyself.ts`, `packages/content/src/upoly.ts`
-- `set_uasmon()`: `packages/content/src/polyself.ts`
+- `set_uasmon()`: `packages/content/src/polyself.ts`, `packages/content/src/props.ts`
 - `uasmon_maxStr()`: `packages/content/src/polyself.ts`
 - `udeadinside()`: `packages/content/src/genocide.ts`
 - `ugenocided()`: `packages/content/src/vanquished.ts`

@@ -144,6 +144,7 @@ import {
 } from './trapstate';
 import { watchDig } from './watch';
 import { nomulNow } from './hunger';
+import { raceIs } from './urole';
 
 export { surfaceKey, DIG_ID, isAxe, isPick, mayDig };
 
@@ -772,7 +773,7 @@ const wakeNearby = (ctx: Ctx): void => {
  * through stops ("This wall seems too hard to dig into."), but the effort adds up over swings
  * and breaking through is damage to pay for. Down: a pit after effort 50, a hole through which she falls after 250 (dighole()); a bear
  * trap holding her is hit; where the floor cannot be dug through, another trap is destroyed.
- * ref: src/dig.c dig() (no Earth level or steed; the hero is never a dwarf)
+ * A dwarf's effort doubles at each swing. ref: src/dig.c dig() (no Earth level or steed)
  */
 export function dig(ctx: Ctx): boolean {
   const d = diggingOf(ctx);
@@ -840,6 +841,7 @@ export function dig(ctx: Ctx): boolean {
     (pick.c.item?.spe ?? 0) -
     greatestErosion(pick) +
     ringBonus(ctx.state, 'nh:ring_of_increase_damage');
+  if (raceIs(ctx.state, 'dwarf')) d.effort *= 2;
   if (d.down) return digDown(ctx, d, pick, level, dcresult);
 
   if (d.effort > 100) {

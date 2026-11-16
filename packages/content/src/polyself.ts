@@ -65,7 +65,9 @@ import { mungspaces, wishNames } from './objnam_read';
 import { monNam } from './perception';
 import { breakArmor, dropWeapon } from './polyarmor';
 import { polyObj } from './polyobj';
-import { P, adjabil, hasProp, makeBlinded, setFormProps, wornIn } from './props';
+import { P, adjabil, hasProp, makeBlinded, ownFormProps, setFormProps, wornIn } from './props';
+import { yourRace } from './race';
+import { raceIs, urace } from './urole';
 import { isStoned, makeStoned } from './stonestate';
 import { golemhp, isGolem, polyWhenStoned } from './golem';
 import { isSlimed, makeSlimed } from './slimestate';
@@ -127,8 +129,6 @@ export interface PolyFlags {
 const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 const hasAd = (def: MonsterDef, ad: string): boolean =>
   def.attacks.some((a) => a.ad.toLowerCase() === ad);
-/** ref: include/mondata.h your_race() for the human hero: is_human() */
-const yourRace = (def: MonsterDef): boolean => hasFlag(def, 'human');
 const isUniq = (def: MonsterDef): boolean => def.genFlags.includes('uniq');
 /** ref: include/mondata.h is_bat() */
 const isBat = (def: MonsterDef): boolean =>
@@ -397,7 +397,7 @@ function answerForm(ctx: Ctx, value: Json, data: PolyData): void {
   } else {
     const def = ctx.defs.monster(mntmp);
     // placeholder monsters are reasonable polymorph targets: pick a substitute
-    if (isPlaceholder(def) && !yourRace(def) && mntmp !== HUMAN)
+    if (isPlaceholder(def) && !yourRace(ctx.state, def) && mntmp !== HUMAN)
       mntmp = placeholderSubstitute(ctx, mntmp);
   }
   for (;;) {
@@ -416,7 +416,7 @@ function answerForm(ctx: Ctx, value: Json, data: PolyData): void {
       capForm(ctx, data.cap);
       return;
     }
-    if (!polyok(def) && !(mntmp === HUMAN || (yourRace(def) && !isUniq(def)))) {
+    if (!polyok(def) && !(mntmp === HUMAN || (yourRace(ctx.state, def) && !isUniq(def)))) {
       // mkclass_poly() can pick a !polyok() candidate; if so, usually try again
       if (cls !== null) {
         if (ctx.rng.rn2(3) || --tryct > 0) {
@@ -462,7 +462,8 @@ function polyFinish(ctx: Ctx, picked: DefId | null, force: boolean, cap: boolean
     }
   }
   const def = mntmp !== null && ctx.defs.isMonster(mntmp) ? ctx.defs.monster(mntmp) : null;
-  if (!def || !polyok(def) || (!force && !ctx.rng.rn2(5)) || yourRace(def)) newman(ctx, true);
+  if (!def || !polyok(def) || (!force && !ctx.rng.rn2(5)) || yourRace(ctx.state, def))
+    newman(ctx, true);
   else polymon(ctx, def.id, true);
   capForm(ctx, cap);
 }
@@ -483,12 +484,12 @@ function doShift(ctx: Ctx, mntmp: DefId | null): void {
 // polymon(), polyman(), rehumanize(), newman()
 
 /**
- * Updates the form's properties (FROMFORM) from her current form, or clears them.
- * ref: src/polyself.c set_uasmon()
+ * Updates the form's properties (FROMFORM) from her current form, or back to her own form's
+ * (her race's infravision). ref: src/polyself.c set_uasmon()
  */
 function setUasmon(ctx: Ctx): void {
   const form = heroForm(ctx);
-  setFormProps(getPlayer(ctx.state), form ? formProps(form) : []);
+  setFormProps(getPlayer(ctx.state), form ? formProps(form) : ownFormProps(ctx));
 }
 
 /**
@@ -649,7 +650,7 @@ export function polymon(ctx: Ctx, mntmpIn: DefId, sexChangeOk: boolean): boolean
  * dies of it now ("killed by a scroll of genocide", kept by genocide.ts, or "self-genocide").
  * ref: src/polyself.c polyman()
  */
-function polyman(ctx: Ctx, key: string): void {
+function polyman(ctx: Ctx, key: string, params?: Msg['params']): void {
   const h = getPlayer(ctx.state);
   const wasBlind = hasProp(h, P.BLINDED);
   const u = upolyOf(ctx.state);
@@ -662,7 +663,7 @@ function polyman(ctx: Ctx, key: string): void {
   }
   setUasmon(ctx);
   if (utrap(ctx)?.type === 'pit') setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit'); // time to escape resets
-  say(ctx, key);
+  say(ctx, key, params);
   // check whether player foolishly genocided self while poly'd
   if (ugenocided(ctx.state)) {
     // intervening activity might have clobbered genocide info
@@ -695,12 +696,15 @@ export function rehumanize(ctx: Ctx): void {
       discover(ctx, AMULET_OF_UNCHANGING);
     }
   }
-  polyman(ctx, 'polyself.return_human');
+  // "You return to human form!" ("... to elven form!")
+  const race = urace(ctx.state);
+  if (race === 'human') polyman(ctx, 'polyself.return_human');
+  else polyman(ctx, 'polyself.return_form', { adj: `@race.${race}.adj` });
   const hp = h.c.hp;
   if (hp && hp.cur < 1) {
     // can only happen if some bit of code reduces u.uhp instead of u.mh while poly'd
     say(ctx, 'polyself.old_form_unhealthy');
-    done(ctx, '@killer.poly.reverting');
+    done(ctx, race === 'human' ? '@killer.poly.reverting' : `@killer.poly.reverting.${race}`);
     if (ctx.state.gameOver) return;
   }
   ctx.interrupt(); // nomul(0)
@@ -802,7 +806,9 @@ export function newman(ctx: Ctx, sexChangeOk: boolean): void {
   // use saved gender we're about to revert to, not current
   const u = upolyOf(ctx.state);
   const female = u ? u.mfemale : heroFemale(ctx.state);
-  polyman(ctx, female ? 'polyself.new_woman' : 'polyself.new_man');
+  // "You feel like a new woman!": a human's individual name, else the race's noun
+  if (raceIs(ctx.state, 'human')) polyman(ctx, female ? 'polyself.new_woman' : 'polyself.new_man');
+  else polyman(ctx, 'polyself.new_race', { race: `@race.${urace(ctx.state)}` });
   if (isSlimed(ctx.state)) {
     say(ctx, 'slime.still_on_you');
     makeSlimed(ctx, 10, null);

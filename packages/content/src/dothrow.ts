@@ -59,6 +59,8 @@ import { isUnicorn, nohands, notake } from './mondata';
 import { gemAccept, gemForUnicorn } from './unicorn';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
+import { polydRace, yourRace } from './race';
+import { raceIs, roleIs, urace } from './urole';
 import { stuckInWeb } from './web';
 import {
   ammoAndLauncher,
@@ -141,15 +143,17 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot, maybeWakeup = tr
 /**
  * The thrown object tries to hit the monster; returns true when it was used up (a missile that
  * broke). ref: src/dothrow.c thitmonst(): to-hit is -1 + AC + level + Dex bonus + distance
- * (3 - distance, at least -4) + size + sleeping + hitval; ammo shot from its launcher adds the
- * launcher's enchantment and skill bonus, ammo thrown by hand is -4, other weapons get +2 when
+ * (3 - distance, at least -4) + size + sleeping + hitval (+1 for an elf against an orc); ammo shot from its launcher adds the
+ * launcher's enchantment and skill bonus (+1 more for an elf or a Samurai with any bow, +2 with
+ * her own: elven bow, yumi), ammo thrown by hand is -4, other weapons get +2 when
  * meant to be thrown (-2 when not) and the skill bonus; `tmp >= rnd(20)` hits; then
- * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() plus the launcher's skill damage
- * bonus (no Str bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
+ * src/uhitm.c hmon(): ammo shot from its launcher does dmgval() (+1 for an elf's elven arrow from
+ * an elven bow, a Samurai's ya from a yumi) plus the launcher's skill damage bonus (no Str
+ * bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
  * missile (should_mulch_missile). Rings of increase accuracy and damage count; gauntlets of power (-2) and of
  * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). A gem (not a rock or
  * gray stone, not slung) thrown at a unicorn is caught (gem_accept(): unicorn.ts). Not ported:
- * racial bows, the quest leader, boomerangs and balls, cream pies, taming with food, passive
+ * the quest leader, boomerangs and balls, cream pies, taming with food, passive
  * responses, poison, knockback. A potion that hits breaks on the monster (potionhit()). Silver sears
  * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
  * thrown penalty, melee damage, a miss wakes the monster, and the pole is never used up.
@@ -195,6 +199,8 @@ export function thitmonst(
     else if (gloves.def === 'nh:gauntlets_of_fumbling') tmp -= 3;
   }
   tmp += omonAdj(mon, mdef, obj, odef);
+  // `is_orc(mon->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
+  if (mdef.flags.includes('orc') && polydRace(ctx, 'elf')) tmp++;
 
   // the engulfer holding her is a guaranteed hit
   const guaranteedHit = engulfingU(ctx, monId);
@@ -311,6 +317,19 @@ export function thitmonst(
     else {
       tmp += uwep.c.item?.spe ?? 0;
       tmp += weaponHitBonus(skillLevel(ctx, uwdef.weapon?.skill ?? ''), uwdef);
+      // Elves and Samurai are highly trained with bows, especially their own special types of
+      // bow; polymorphing won't make you a bow expert
+      const elf = raceIs(ctx.state, 'elf');
+      const samurai = roleIs(ctx.state, 'samurai');
+      const form = heroForm(ctx);
+      if (
+        (elf || samurai) &&
+        (!form || yourRace(ctx.state, form)) &&
+        uwdef.weapon?.skill === 'bow'
+      ) {
+        tmp++;
+        if ((elf && uwep.def === 'nh:elven_bow') || (samurai && uwep.def === 'nh:yumi')) tmp++;
+      }
     }
   } else {
     // thrown non-ammo or applied polearm: +2 for a weapon meant to be thrown, -2 for another
@@ -339,6 +358,14 @@ export function thitmonst(
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
     dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon));
+    // elves and samurai do extra damage using their own bows with their own arrows
+    if (roleIs(ctx.state, 'samurai') && obj.def === 'nh:ya' && uwep?.def === 'nh:yumi') dmg++;
+    else if (
+      raceIs(ctx.state, 'elf') &&
+      obj.def === 'nh:elven_arrow' &&
+      uwep?.def === 'nh:elven_bow'
+    )
+      dmg++;
     // ref: hmon_hitmon_weapon_ranged(): train_weapon_skill = (dmg > 0), the launcher's skill
     useSkill(ctx, uwdef.weapon?.skill ?? '', 1);
     if (dmg > 0) dmg += udaminc; // hmon_hitmon_dmg_recalc(): increase damage, no Str bonus
@@ -640,9 +667,11 @@ const multishotClassBonus = (): number => 0;
 /**
  * How many to throw or shoot at once. ref: src/dothrow.c throw_obj() "Multishot calculations":
  * only for stacks of weapons (ammo only with its launcher wielded); skilled gives +1 and expert
- * +2 (unless Dex <= 6, which allows none); a crossbow needs Str 18 to fire several; then rnd()
- * of the total (Fumbling or Dex <= 6 allow none). Not ported: confusion/stun, role and race
- * bonuses.
+ * +2, but some roles (Wizards, Priests, Healers but with knives, Tourists but with darts) and a
+ * fumbling or clumsy (Dex <= 6) hero get only expert's +1; the race's bow (an elf's elven arrows
+ * from an elven bow, an orc's orcish from an orcish bow) or a gnome's crossbow adds 1 when not
+ * so weak; a crossbow needs Str 18 (a gnome's 16) to fire several; then rnd() of the total. Not
+ * ported: confusion/stun, the quest artifact.
  */
 function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const it = obj.c.item;
@@ -651,19 +680,36 @@ function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const uwdef = uwep ? ctx.defs.object(uwep.def) : null;
   if (isAmmo(def) ? !matchingLauncher(def, uwdef) : def.class !== 'weapon') return 1;
   const attrs = heroEntity(ctx).c.attributes;
-  // poor dexterity also inhibits multishot
-  const weak = heroHas(ctx.state, P.FUMBLING) || (attrs?.dex ?? 10) <= 6;
+  const oskill = def.weapon.skill;
+  // some roles don't get a volley bonus until becoming expert
+  const weak =
+    roleIs(ctx.state, 'wizard') ||
+    roleIs(ctx.state, 'priest') ||
+    (roleIs(ctx.state, 'healer') && oskill !== 'knife') ||
+    (roleIs(ctx.state, 'tourist') && oskill !== 'dart') ||
+    // poor dexterity also inhibits multishot
+    heroHas(ctx.state, P.FUMBLING) ||
+    (attrs?.dex ?? 10) <= 6;
   let multishot = 1;
-  const skill = skillLevel(ctx, def.weapon.skill);
+  const skill = skillLevel(ctx, oskill);
   if (skill === P_EXPERT) multishot++;
   if ((skill === P_EXPERT || skill === P_SKILLED) && !weak) multishot++;
   multishot += multishotClassBonus();
+  // ...or using their race's special bow; no bonus for spears
+  if (!weak) {
+    const race = urace(ctx.state);
+    if (race === 'elf' && obj.def === 'nh:elven_arrow' && uwep?.def === 'nh:elven_bow') multishot++;
+    else if (race === 'orc' && obj.def === 'nh:orcish_arrow' && uwep?.def === 'nh:orcish_bow')
+      multishot++;
+    // arbitrary; there isn't any gnome-specific gear
+    else if (race === 'gnome' && isAmmo(def) && oskill === 'crossbow') multishot++; // -P_CROSSBOW
+  }
   // crossbows are slow to load: high strength is necessary to shoot quickly
   if (
     multishot > 1 &&
-    def.weapon.skill === 'crossbow' &&
+    oskill === 'crossbow' &&
     ammoAndLauncher(def, uwdef) &&
-    acurrstr(attrs?.str ?? 10) < 18
+    acurrstr(attrs?.str ?? 10) < (raceIs(ctx.state, 'gnome') ? 16 : 18)
   )
     multishot = ctx.rng.rnd(multishot);
   multishot = ctx.rng.rnd(multishot);
