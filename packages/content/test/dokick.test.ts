@@ -158,6 +158,33 @@ describe('kick: objects and monsters', () => {
     expect(damaged).toBeGreaterThan(10);
   });
 
+  test('a monster dodging the kick never lands on a boulder (goodpos())', () => {
+    let dodged = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const s = setup(['...', '.@.', '...'], seed);
+      stats(s);
+      const id = addMon(s.state, 'nh:jackal', 2, 1);
+      s.state.entities[String(id)]!.c.hp = { cur: 100, max: 100 };
+      const c = ctxFor(s.state);
+      // boulders all around her but on the jackal's square and the top-left corner
+      for (const [x, y] of [
+        [1, 0],
+        [2, 0],
+        [0, 1],
+        [0, 2],
+        [1, 2],
+        [2, 2],
+      ] as const)
+        mksobj(c, obj('nh:boulder'), { init: false, at: { level: 'dlvl1', x, y } });
+      kick(s, 'e');
+      const at = posOf(s.state, id);
+      if (at.x < 0) continue; // killed
+      expect(['0,0', '2,1']).toContain(`${at.x},${at.y}`);
+      if (at.x === 0) dodged++;
+    }
+    expect(dodged).toBeGreaterThan(0);
+  });
+
   test('a kick can kill', () => {
     const s = setup(['@.'], 5);
     stats(s);

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-189 NetHack files, 5364 citations.
+189 NetHack files, 5365 citations.
 
 ## dat/asmodeus.lua
 
@@ -1353,7 +1353,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/hack.c
 
-- (file): `packages/content/src/dog.en.ts`, `packages/content/src/drown.ts`, `packages/content/src/eshk.ts`, `packages/content/src/run.ts`, `packages/content/src/shk.en.ts`
+- (file): `packages/content/src/dog.en.ts`, `packages/content/src/drown.ts`, `packages/content/src/eshk.ts`, `packages/content/src/run.ts`, `packages/content/src/shk.en.ts`, `packages/testkit/src/invariants.ts`
 - `accessible()`: `packages/content/src/muse.ts`
 - `avoid_trap_andor_region()`: `packages/content/src/actions.ts`, `packages/content/src/trap.ts`
 - `bad_rock()`: `packages/content/src/actions.ts`, `packages/content/src/boulder.ts`, `packages/content/src/drown.ts`, `packages/content/src/monmove.ts`
@@ -1371,7 +1371,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
 - `domove_fight_web()`: `packages/content/src/actions.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
-- `domove_swap_with_pet()`: `packages/content/src/actions.ts`, `packages/testkit/src/invariants.ts`
+- `domove_swap_with_pet()`: `packages/content/src/actions.ts`
 - `dopush()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `escape_from_sticky_mon()`: `packages/content/src/hackmove.ts`, `packages/content/src/resist.en.ts`
 - `findtravelpath()`: `packages/content/src/travel.ts`
@@ -1845,7 +1845,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_respond_shrieker()`: `packages/content/src/mrespond.ts`
 - `make_corpse()`: `packages/content/src/corpses.ts`
 - `max_mon_load()`: `packages/content/src/mongear.ts`
-- `maybe_mnexto()`: `packages/content/src/dokick.ts`
+- `maybe_mnexto()`: `packages/content/src/dokick.ts`, `packages/testkit/src/invariants.ts`
 - `maybe_unhide_at()`: `packages/content/src/hide.ts`
 - `mcalcmove()`: `packages/content/src/brains.ts`, `packages/content/src/monmove.ts`
 - `meatbox()`: `packages/content/src/meat.ts`
@@ -2705,7 +2705,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dotelecmd()`: `packages/content/src/wizard/teleport.ts`
 - `enexto()`: `packages/content/src/generation.ts`, `packages/core/src/engine.ts`
 - `enexto_core()`: `packages/content/src/generation.ts`
-- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/liquid.ts`, `packages/content/src/teleport.ts`, `packages/content/src/uwater.ts`, `packages/core/src/engine.ts`
+- `goodpos()`: `packages/content/src/dokick.ts`, `packages/content/src/generation.ts`, `packages/content/src/liquid.ts`, `packages/content/src/teleport.ts`, `packages/content/src/uwater.ts`, `packages/core/src/engine.ts`, `packages/testkit/src/invariants.ts`
 - `level_tele()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`, `packages/content/src/wizard/levelport.ts`
 - `level_tele_trap()`: `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `m_blocks_teleporting()`: `packages/content/src/teleport.ts`

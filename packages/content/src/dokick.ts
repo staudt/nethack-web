@@ -538,7 +538,8 @@ const thickSkinned = (def: MonsterDef): boolean => def.flags.includes('thick_hid
 
 /**
  * A monster that dodges the kick moves next to the hero. ref: src/mon.c maybe_mnexto() (enexto():
- * the nearest free squares around the hero, a random one of the first ring that has any; it must
+ * the nearest free squares around the hero, without a boulder unless it throws rocks (goodpos()),
+ * a random one of the first ring that has any; it must
  * be in her line of sight, and a grid bug not diagonal to where it was). May leave it in place.
  */
 function maybeMnexto(ctx: Ctx, monId: EntityId): void {
@@ -549,6 +550,7 @@ function maybeMnexto(ctx: Ctx, monId: EntityId): void {
   const level = getLevel(ctx.state);
   const rules = cellRules(level, ctx.defs);
   const diagok = mon.def !== 'nh:grid_bug';
+  const rockthrow = ctx.defs.monster(mon.def).flags.includes('rockthrow');
   // enexto(): the free squares of the first ring around the hero that has any
   const ring: Pos[] = [];
   for (let r = 1; r < 8 && ring.length === 0; r++) {
@@ -557,6 +559,8 @@ function maybeMnexto(ctx: Ctx, monId: EntityId): void {
         if (Math.max(Math.abs(xx - hp.x), Math.abs(yy - hp.y)) !== r) continue;
         if (!inBounds(level, xx, yy)) continue;
         if (!rules.passable[level.cells[cellIndex(level, xx, yy)] ?? 0]) continue;
+        // goodpos(): `sobj_at(BOULDER, x, y) && !throws_rocks(mdat)` is no place for it
+        if (boulderAt(ctx, level.id, xx, yy) && !rockthrow) continue;
         const there = monsterIdAt(ctx, { x: xx, y: yy }, level.id);
         if (there === null || there === monId) ring.push({ x: xx, y: yy });
       }

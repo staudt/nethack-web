@@ -1188,8 +1188,10 @@ export function boulderCells(state: GameState, registry: Registry): Set<string> 
  * `before` maps monster ids, and the hero's, to their cell keys and `bouldersBefore` is
  * `boulderCells` from before the step. A pet that swapped places with the hero onto the boulder
  * she had squeezed onto is allowed: C lets a very small pet do it, and the port lets any pet (see
- * DEVIATIONS, Swapping with a pet), and so may a monster that passes walls (ALLOW_ROCK).
- * ref: src/mon.c mfndpos() (no giants yet); src/hack.c domove_swap_with_pet()
+ * DEVIATIONS, Swapping with a pet), and so may a monster that passes walls (ALLOW_ROCK) or
+ * throws rocks (a giant: goodpos() lets it onto a boulder, as when it dodges a kick next to her).
+ * ref: src/mon.c mfndpos(), maybe_mnexto(); src/teleport.c goodpos(); src/hack.c
+ * domove_swap_with_pet()
  */
 export function boulderMoveErrors(
   state: GameState,
@@ -1209,7 +1211,8 @@ export function boulderMoveErrors(
     if (
       def !== undefined &&
       registry.isMonster(def) &&
-      registry.monster(def).flags.includes('wallwalk')
+      (registry.monster(def).flags.includes('wallwalk') ||
+        registry.monster(def).flags.includes('rockthrow'))
     )
       continue;
     after ??= boulderCells(state, registry);
