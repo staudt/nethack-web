@@ -20,8 +20,7 @@
 // munslime(), muse_unslime(), cures_sliming(), green_mon(); src/do.c canletgo();
 // include/hack.h WAND_BACKFIRE_CHANCE
 //
-// Not ported: the ghost in a milky potion and the djinni in a smoky one (precheck(); as for the
-// hero's quaff), ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
+// Not ported: ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
 // mon_has_special(): never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
 // Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
 // the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
@@ -117,6 +116,7 @@ import {
   monAdjustSpeed,
   mspecUsed,
   mspeed,
+  paralyzeMonst,
   setMConfused,
   setMspecUsed,
   setMStunned,
@@ -143,7 +143,8 @@ import { P, hasProp } from './props';
 import { findAc, findMac } from './stats';
 import { discover } from './o_init';
 import { doname, xnameOf } from './objnam';
-import { canSpotMon, monNam, someMonNam } from './perception';
+import { canSpotMon, monNam, rndmonnam, someMonNam } from './perception';
+import { DJINNI, GHOST, MILKY, SMOKY, objdescrIs, occupantDraw } from './bottle';
 import { ceilingKey, dropBoulderOnMonster, dropBoulderOnPlayer } from './read';
 import { unturnDead } from './revive';
 import { helpless } from './shk';
@@ -379,18 +380,71 @@ function heardNearby(ctx: Ctx, mon: Entity): boolean {
 }
 
 /**
- * Whatever can go wrong before the monster uses `obj`: a cursed wand blows up one time in 100
- * (`d(spe + 2, 6)` to the monster, "The kobold zaps a wand of striking, which suddenly
- * explodes!", or "You hear a zap and an explosion nearby." unseen). Returns 1 when that killed it,
- * -1 when the wand blew up (the choice is gone: use_defensive() does nothing more), else 0.
- * ref: src/muse.c precheck() (not ported: the milky potion's ghost and the smoky potion's djinni)
+ * Whatever can go wrong before the monster uses `obj`: a milky potion may hold a ghost (it is
+ * frightened to death, paralysed 3 moves) and a smoky one a djinni (peaceful, or it vanishes:
+ * "It is about time."), each 1 in 13 + 2 * born, the potion used up (returns 2: it acted; 0
+ * without room for the occupant); a cursed wand blows up one time in 100 (`d(spe + 2, 6)` to the
+ * monster, "The kobold zaps a wand of striking, which suddenly explodes!", or "You hear a zap and
+ * an explosion nearby." unseen). Returns 1 when that killed it, -1 when the wand blew up (the
+ * choice is gone: use_defensive() does nothing more), else 0. ref: src/muse.c precheck()
  */
-export function precheck(ctx: Ctx, id: EntityId, obj: Entity | null): -1 | 0 | 1 {
+export function precheck(ctx: Ctx, id: EntityId, obj: Entity | null): -1 | 0 | 1 | 2 {
   const mon = ctx.state.entities[String(id)];
   const p = mon?.c.pos;
   const it = obj?.c.item;
   if (!mon || !p || !obj || !it) return 0;
   const vis = cansee(ctx, p.level, p.x, p.y);
+  if (ctx.defs.object(obj.def).class === 'potion') {
+    const level = getLevel(ctx.state, p.level);
+    if (objdescrIs(ctx.state, obj.def, MILKY) && occupantDraw(ctx, GHOST)) {
+      const gdef = ctx.defs.monster(GHOST);
+      const cc = mnextoPos(ctx, level, null, p, gdef);
+      if (!cc) return 0;
+      mquaffmsg(ctx, mon, obj);
+      useOne(ctx, id, obj);
+      const g = makemon(ctx, gdef, cc, { level: p.level });
+      if (g === null) {
+        if (vis) say(ctx, 'muse.potion_empty');
+      } else {
+        if (vis) {
+          const halluc = hasProp(getPlayer(ctx.state), P.HALLUC);
+          say(ctx, 'muse.ghost_emerges', {
+            mon: monNam(ctx, mon),
+            ghost: `@${halluc ? rndmonnam(ctx) : GHOST}`,
+          });
+          say(ctx, 'muse.ghost_frightened', { mon: monNam(ctx, mon) });
+        }
+        paralyzeMonst(ctx, id, 3);
+      }
+      return 2;
+    }
+    if (objdescrIs(ctx.state, obj.def, SMOKY) && occupantDraw(ctx, DJINNI)) {
+      const ddef = ctx.defs.monster(DJINNI);
+      const cc = mnextoPos(ctx, level, null, p, ddef);
+      if (!cc) return 0;
+      mquaffmsg(ctx, mon, obj);
+      useOne(ctx, id, obj);
+      const d = makemon(ctx, ddef, cc, { level: p.level });
+      const dj = d === null ? undefined : ctx.state.entities[String(d)];
+      if (d === null || !dj?.c.monster) {
+        if (vis) say(ctx, 'muse.potion_empty');
+      } else {
+        if (vis) say(ctx, 'djinni.emerges', { mon: monNam(ctx, dj) });
+        if (vis) say(ctx, 'djinni.speaks', { mon: monNam(ctx, dj) });
+        else say(ctx, 'djinni.something_speaks');
+        // "I suspect few players will be upset that monsters can't wish for wands of death here"
+        if (ctx.rng.rn2(2)) {
+          say(ctx, 'djinni.freed');
+          dj.c.monster.peaceful = true; // set_malign(): derived
+        } else {
+          say(ctx, 'djinni.about_time_mon');
+          if (vis) say(ctx, 'djinni.vanishes', { mon: monNam(ctx, dj) });
+          mongone(ctx, d);
+        }
+      }
+      return 2;
+    }
+  }
   if (ctx.defs.object(obj.def).class !== 'wand' || it.buc !== 'cursed') return 0;
   if (ctx.rng.rn2(WAND_BACKFIRE_CHANCE)) return 0;
   const dam = ctx.rng.d(it.spe + 2, 6);
@@ -765,7 +819,7 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
   if (!mon?.c.monster || !p) return 0;
   const otmp = c.obj === null ? null : (ctx.state.entities[String(c.obj)] ?? null);
   const pre = precheck(ctx, id, otmp);
-  if (pre === 1) return 1;
+  if (pre === 1 || pre === 2) return pre;
   if (pre === -1) return 0; // "case 0: i.e. an exploded wand"
   const level = getLevel(ctx.state, p.level);
   const vis = cansee(ctx, p.level, p.x, p.y);
@@ -2214,7 +2268,7 @@ export function useMisc(ctx: Ctx, id: EntityId, c: MuseChoice<MuseMisc>): MuseRe
   if (!mon?.c.monster || !p) return 0;
   const otmp = c.obj === null ? null : (ctx.state.entities[String(c.obj)] ?? null);
   const pre = precheck(ctx, id, otmp);
-  if (pre === 1) return 1;
+  if (pre === 1 || pre === 2) return pre;
   if (pre === -1) return 0; // "case 0: i.e. an exploded wand"
   const level = getLevel(ctx.state, p.level);
   const vis = cansee(ctx, p.level, p.x, p.y);

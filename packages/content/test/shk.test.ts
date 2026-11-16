@@ -1304,6 +1304,28 @@ describe('prices', () => {
       expect(t.lines(z2)).toEqual([]);
     });
 
+    test("rubbing an unpaid magic lamp: the djinni's release costs its price and a third", () => {
+      // ref: src/shk.c cost_per_charge() MAGIC_LAMP altusage, check_unpaid_usage()
+      const t = bare(15);
+      const lamp = t.make('nh:magic_lamp');
+      if (lamp.c.item) lamp.c.item.spe = 1;
+      t.pickup();
+      const cost = getCost(t.s.state, defs, lamp, t.e);
+      const fee = cost + Math.trunc(cost / 3);
+      let feeLines: string[] = [];
+      for (let i = 0; i < 60 && lamp.def === 'nh:magic_lamp'; i++) {
+        const r = t.step({ type: 'mod', action: 'nh:rub', args: { item: lamp.id } });
+        feeLines = t.lines(r).filter((l) => /Usage fee/.test(l));
+        if (r.prompt) t.answer(r, 'nothing');
+        if (lamp.def === 'nh:magic_lamp') expect(feeLines).toEqual([]); // a puff of smoke is free
+      }
+      expect(lamp.def).toBe('nh:oil_lamp');
+      expect(feeLines).toEqual([
+        expect.stringMatching(new RegExp(`Usage fee, ${fee} zorkmids\\."$`)),
+      ]);
+      expect(t.e.debit).toBe(fee);
+    });
+
     test('lighting unpaid fresh candles: "You burn them, you bought them!"', () => {
       // ref: src/apply.c use_lamp(): the candles go on the bill as used up, no longer his
       const t = bare(15);

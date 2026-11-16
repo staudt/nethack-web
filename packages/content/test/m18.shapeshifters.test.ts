@@ -283,7 +283,8 @@ describe('the regular shapeshift', () => {
     let changes = 0;
     let last = ent(state, id)!.def;
     const seen = new Set<number>();
-    waitPinned(state, 300, () => {
+    // 600 turns: m19 step 3's djinni row moved the random forms (300 kept no 3 there)
+    waitPinned(state, 600, () => {
       const e = ent(state, id);
       if (!e) return true;
       if (e.def !== last) {

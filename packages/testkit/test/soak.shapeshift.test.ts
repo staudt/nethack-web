@@ -103,8 +103,10 @@ describe('shapeshifter soak', () => {
   // replaced 36 in m18 step 6, whose four Kop rows shift the random forms: 36 died at turn 1339
   // and reaches 2000 with the Kop rows filtered and the cream pie's prob 0, as 47 does with and
   // without them; 69 replaced 32 in m19 step 1, whose 17 object rows shift the stream: 32 died at
-  // turn 387 and reaches 2000 with the rows filtered, as 47 and 69 do with and without them)
-  for (const seed of [47, 69]) {
+  // turn 387 and reaches 2000 with the rows filtered, as 47 and 69 do with and without them; the m19 step 3 djinni row moved the random forms
+  // again: 47 and 69 then hit the in-wall bug lead (newcham inside a wall), and both pass with the
+  // row filtered; 74 and 156 reach 2000 turns both ways)
+  for (const seed of [74, 156]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

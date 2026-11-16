@@ -79,6 +79,7 @@ import { UNTRAP_ACTIONS } from './untrap';
 import { registerShopDamage } from './shkdamage';
 import { shkDamageAction } from './shkpay';
 import { FOUNTAIN_ACTIONS } from './fountain';
+import { RUB_ACTIONS } from './rub';
 import { registerLock } from './lock';
 import { registerLight } from './light';
 import { registerSpells } from './spell';
@@ -126,6 +127,7 @@ export const vanillaMod: Mod = {
     for (const a of UNTRAP_ACTIONS) api.defineAction(a);
     api.defineAction(shkDamageAction);
     for (const a of FOUNTAIN_ACTIONS) api.defineAction(a);
+    for (const a of RUB_ACTIONS) api.defineAction(a);
     registerLock(api);
     registerLight(api);
     registerSpells(api);

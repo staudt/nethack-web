@@ -1323,15 +1323,16 @@ export function checkShopObj(ctx: Ctx, obj: Entity, x: number, y: number, broken
  * What one use of an unpaid object costs, making its exhaustive use dearer than buying it.
  * ref: src/shk.c cost_per_charge() (the objects that exist)
  */
-function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity): number {
+function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: boolean): number {
   if (!inhishop(ctx, shk)) return 0; // insurance
   let tmp = getCost(ctx.state, ctx.defs, obj, e);
   const def = ctx.defs.object(obj.def);
   if (obj.def === 'nh:magic_lamp') {
     // normal use (ie, as light source) of a magic lamp never degrades its value, but not
     // charging anything would make identification too easy; charge an amount comparable to
-    // what is charged for an ordinary lamp (the djinni's release: m19 step 3)
-    tmp = ctx.defs.object('nh:oil_lamp').cost;
+    // what is charged for an ordinary lamp
+    if (!altusage) tmp = ctx.defs.object('nh:oil_lamp').cost;
+    else tmp += Math.trunc(tmp / 3); // djinni is being released
   } else if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
     if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
   } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
@@ -1341,9 +1342,10 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity): number {
 
 /**
  * Charges for one use of an unpaid object (zapping a wand, lighting a lamp): "Usage fee, N
- * zorkmids." goes on her debt. ref: src/shk.c check_unpaid_usage(), check_unpaid()
+ * zorkmids." goes on her debt; `altusage` is the "alternate" use (a magic lamp's djinni
+ * released). ref: src/shk.c check_unpaid_usage(), check_unpaid()
  */
-export function checkUnpaid(ctx: Ctx, obj: Entity): void {
+export function checkUnpaid(ctx: Ctx, obj: Entity, altusage = false): void {
   const it = obj.c.item;
   const ushop = uShops(ctx)[0];
   if (!it?.unpaid || ushop === undefined) return;
@@ -1351,7 +1353,7 @@ export function checkUnpaid(ctx: Ctx, obj: Entity): void {
   const shk = shopKeeper(ctx, ctx.state.currentLevel, ushop);
   const e = shk === null ? null : eshkOf(ctx, shk);
   if (shk === null || !e || !inhishop(ctx, shk)) return;
-  const tmp = costPerCharge(ctx, shk, e, obj);
+  const tmp = costPerCharge(ctx, shk, e, obj, altusage);
   if (tmp === 0) return;
   const hey = ctx.rng.rn2(3) === 0 ? '@shk.hey' : '';
   const ahem = ctx.rng.rn2(3) === 0 ? '@shk.ahem' : '';

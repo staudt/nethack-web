@@ -44,6 +44,7 @@ import { boulderMessagesEn } from './boulder.en';
 import { digMessagesEn } from './dig.en';
 import { enlightenmentMessagesEn } from './enlightenment.en';
 import { jumpMessagesEn } from './jump.en';
+import { djinniMessagesEn } from './djinni.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
 import { mimicMessagesEn } from './mimic.en';
@@ -120,6 +121,7 @@ export const messagesEn: Record<string, string> = {
   ...digMessagesEn,
   ...enlightenmentMessagesEn,
   ...jumpMessagesEn,
+  ...djinniMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,
   ...hideMessagesEn,
@@ -604,6 +606,7 @@ export const messagesEn: Record<string, string> = {
   'nh:geryon': 'Geryon',
   'nh:dispater': 'Dispater',
   'nh:demogorgon': 'Demogorgon',
+  'nh:djinni': 'djinni',
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',
   'nh:shopkeeper': 'shopkeeper',

@@ -16,6 +16,7 @@ import {
   type PlayerAction,
 } from '@nh/core';
 import { answerFountainWish, drinkfountain, heroOnFountain } from './fountain';
+import { answerDjinniWish, bottleOccupant, isDjinniWish } from './djinni';
 import { uState } from './luck';
 import { newuhs, makeSick } from './hunger';
 import { encumberMsg } from './itemactions';
@@ -868,8 +869,8 @@ export function peffectsSpell(ctx: Ctx, book: DefId, blessed: boolean): void {
 
 /**
  * Drinks one potion of the stack: the effect, then discovery when the type was revealed, then
- * the potion is used up. ref: src/potion.c dopotion(). Not ported: the ghost in a milky potion
- * and the djinni in a smoky one, the score for identifying (more_experienced), and `trycall`
+ * the potion is used up. ref: src/potion.c dopotion(). (The ghost in a milky potion and the
+ * djinni in a smoky one come before it: djinni.ts bottleOccupant().) Not ported: `trycall`
  * (naming an unidentified type).
  */
 function dopotion(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
@@ -971,12 +972,18 @@ const quaff: ActionDef = {
       ctx.emit({ type: 'msg', key: 'magic.silly_thing', params: { verb: { key: 'verb.drink' } } });
       return 0;
     }
+    // the ghost in a milky potion, the djinni in a smoky one (ref: dodrink())
+    const occupant = bottleOccupant(ctx, e, QUAFF_ID);
+    if (occupant !== null) return occupant;
     def.use(ctx, ctx.state.playerId, e.id);
     encumberMsg(ctx);
     return NORMAL_SPEED;
   },
-  // a water demon's wish (the only prompt a drink asks)
-  answer: (ctx, value, data) => answerFountainWish(ctx, QUAFF_ID, value, data),
+  // a water demon's wish from a fountain, or a smoky potion's djinni's
+  answer: (ctx, value, data) =>
+    isDjinniWish(data)
+      ? answerDjinniWish(ctx, QUAFF_ID, value, data)
+      : answerFountainWish(ctx, QUAFF_ID, value, data),
 };
 
 export const POTION_ACTIONS: readonly ActionDef[] = [quaff];

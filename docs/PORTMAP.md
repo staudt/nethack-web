@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5228 citations.
+188 NetHack files, 5248 citations.
 
 ## dat/asmodeus.lua
 
@@ -347,6 +347,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `POLY_CONTROLLED()`: `packages/content/src/polyself.ts`
 - `POTHIT_HERO_THROW()`: `packages/content/src/potionhit.ts`
+- `POTION_OCCUPANT_CHANCE()`: `packages/content/src/bottle.ts`
 - `ROTTEN_TIN()`: `packages/content/src/tins.ts`
 - `ROT_AGE()`: `packages/content/src/corpses.ts`
 - `SHOP_DOOR_COST()`: `packages/content/src/shopdamage.ts`
@@ -744,15 +745,18 @@ whole. A missing function may still be ported under a citation this parser canno
 - `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
 - `dojump()`: `packages/content/src/jump.ts`
+- `dorub()`: `packages/content/src/rub.ts`
 - `fig_transform()`: `packages/content/src/figurine.ts`
 - `figurine_location_checks()`: `packages/content/src/figurine.ts`
 - `find_poleable_mon()`: `packages/content/src/pole.ts`
 - `get_valid_jump_position()`: `packages/content/src/jump.ts`
 - `get_valid_polearm_position()`: `packages/content/src/pole.ts`
 - `is_valid_jump_pos()`: `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
+- `jelly_ok()`: `packages/content/src/rub.ts`
 - `jump()`: `packages/content/src/cast.ts`, `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
 - `light_cocktail()`: `packages/content/src/apply.en.ts`, `packages/content/src/oil.ts`
 - `magic_whistled()`: `packages/content/src/apply.ts`
+- `rub_ok()`: `packages/content/src/rub.ts`
 - `snuff_candle()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
@@ -764,6 +768,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_lamp()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
+- `use_royal_jelly()`: `packages/content/src/rub.ts`
 - `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
 - `use_whistle()`: `packages/content/src/apply.ts`
 
@@ -1998,7 +2003,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `muse_unslime()`: `packages/content/src/muse.ts`
 - `mzapwand()`: `packages/content/src/muse.ts`
 - `place_monster()`: `packages/content/src/muse.ts`
-- `precheck()`: `packages/content/src/muse.ts`
+- `precheck()`: `packages/content/src/bottle.ts`, `packages/content/src/muse.ts`
 - `remove_monster()`: `packages/content/src/muse.ts`
 - `reveal_trap()`: `packages/content/src/muse.ts`
 - `rnd_defensive_item()`: `packages/content/src/musestate.ts`
@@ -2057,7 +2062,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/objnam.c
 
-- (file): `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bottle.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
@@ -2168,8 +2173,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/eat.en.ts`, `packages/content/src/fountain.ts`, `packages/content/src/potion.ts`, `packages/content/src/potionhit.ts`, `packages/content/src/resist.en.ts`
 - `bottlename()`: `packages/content/src/potionhit.ts`
 - `bottlenames()`: `packages/content/src/force.ts`, `packages/content/src/potionhit.ts`
-- `dodrink()`: `packages/content/src/potion.ts`
+- `djinni_from_bottle()`: `packages/content/src/djinni.en.ts`, `packages/content/src/djinni.ts`
+- `dodrink()`: `packages/content/src/bottle.ts`, `packages/content/src/djinni.ts`, `packages/content/src/potion.ts`
 - `dopotion()`: `packages/content/src/potion.ts`
+- `ghost_from_bottle()`: `packages/content/src/djinni.ts`
 - `healup()`: `packages/content/src/potion.ts`
 - `make_blinded()`: `packages/content/src/props.ts`
 - `make_confused()`: `packages/content/src/props.ts`
@@ -2179,6 +2186,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `make_stoned()`: `packages/content/src/stonestate.ts`
 - `make_stunned()`: `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`
 - `make_vomiting()`: `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
+- `mongrantswish()`: `packages/content/src/djinni.ts`
 - `peffect_acid()`: `packages/content/src/potion.ts`
 - `peffect_blindness()`: `packages/content/src/potion.ts`
 - `peffect_booze()`: `packages/content/src/potion.ts`

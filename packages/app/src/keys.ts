@@ -20,6 +20,8 @@ const PICK_KEYS: [string, string][] = [
   ['Alt+l', 'nh:loot'],
   // #dip into a fountain: "Wash your hands" comes as a self offer, then the items
   ['Alt+d', 'nh:dip'],
+  // #rub: lamps, the lantern and royal jelly
+  ['Alt+r', 'nh:rub'],
 ];
 
 /**
