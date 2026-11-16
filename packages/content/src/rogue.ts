@@ -3,11 +3,12 @@
 // secret), corridors with a few secret squares, the stairs in rooms.
 // ref: src/extralev.c makeroguerooms(), miniwalk(), roguecorr(), roguejoin(), corr();
 // src/mklev.c makelevel() (the Is_rogue_level() path), dodoor(), dosdoor(), sort_rooms(),
-// generate_stairs(), generate_stairs_find_room(), find_branch_room(), place_branch()
+// generate_stairs(), generate_stairs_find_room(), find_branch_room(), place_branch();
+// the tribute ghost: src/extralev.c makerogueghost(), src/do_name.c roguename()
 //
 // Translation notes (DEVIATIONS.md "The Rogue level"): the LevelDef is unlit stone with
 // placeholder stairs (the castle's pattern: no draws), and its `before` fixup runs makelevel()'s
-// rogue path in C's order: makeroguerooms(), (makerogueghost(): m21 step 2), sort_rooms(),
+// rogue path in C's order: makeroguerooms(), makerogueghost(), sort_rooms(),
 // generate_stairs(), place_branch(), then every room's fill_ordinary_room(). C's `goto skip0`
 // leaves out the corridors pass, the niches, the vault and the special room. The fill runs here
 // rather than in mklev's newLevel hook, which comes before the fixups. Any map size: a section is
@@ -15,8 +16,10 @@
 // are ours + 1, so its `1 + 26 * x` is our `26 * x`), and the room limits follow from it so that
 // 80x21 draws C's constants exactly. Below MIN_SECTION the level is an ordinary
 // rooms-and-corridors level whose doors are all doorways or secret doors with no door behind.
-import type { Ctx, DefId, Level, LevelDef, Pos, Room } from '@nh/core';
+import type { Ctx, DefId, EntityId, ItemComponent, Level, LevelDef, Pos, Room } from '@nh/core';
 import { VANILLA_TERRAIN, generateLevel, insideRoom, levelStairs } from '@nh/core';
+import { makemon } from './generation';
+import { mksobj, placeOnFloor } from './items';
 import { ROGUE } from './levelflags';
 import { fillOrdinaryRooms, mkCorridorBoulders } from './mklev';
 import { somexyspaceTry } from './somexy';
@@ -287,6 +290,84 @@ function rogueDoor(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: number): v
   setTerrain(level, x, y, T.doorway);
 }
 
+/**
+ * The ghost of a fallen Rogue player, asleep in a random room on its pile: 3 times in 4 rnd(7)
+ * food rations; a +rnd(3) mace or a rnd(5)-2 two-handed sword; a +1 bow; rn1(10, 25) +0
+ * arrows; ring mail +rn2(3) or plate mail rnd(5)-2, erodeproof 1 time in 3; every weapon and
+ * armor cursed 3 times in 4; half the time a known cheap plastic imitation of the Amulet of
+ * Yendor. The ghost's name (Michael Toy, Kenneth Arnold or Glenn Wichman) is drawn but not
+ * given: monsters have no names here (DEVIATIONS.md "The Rogue level"), and makemon()'s
+ * rndghostname() is drawn before it as in C. ref: src/extralev.c makerogueghost();
+ * src/do_name.c roguename() (no ROGUEOPTS)
+ */
+export function makeRogueGhost(ctx: Ctx, level: Level): void {
+  const { rng } = ctx;
+  const rooms = level.rooms;
+  if (rooms.length === 0) return; // Should never happen
+  const croom = rooms[rng.rn2(rooms.length)] as Room;
+  const x = croom.lx + rng.rn2(croom.hx - croom.lx + 1); // somex()
+  const y = croom.ly + rng.rn2(croom.hy - croom.ly + 1); // somey()
+  const ghost = makemon(ctx, ctx.defs.monster(GHOST), { x, y }, { level: level.id, inMklev: true });
+  if (ghost === null) return;
+  const m = ctx.state.entities[String(ghost)]?.c.monster;
+  if (m) m.asleep = true;
+  // christen_monst(ghost, roguename())
+  if (rng.rn2(3)) rng.rn2(2);
+
+  /** mksobj_at(otyp, x, y, init, FALSE), changed by `fix` before it lands on the pile. */
+  const make = (otyp: DefId, init: boolean, fix: (it: ItemComponent) => void): void => {
+    const id: EntityId = mksobj(ctx, ctx.defs.object(otyp), {
+      init,
+      artif: false,
+      level: level.id,
+    });
+    const it = ctx.state.entities[String(id)]?.c.item;
+    if (it) fix(it);
+    placeOnFloor(ctx, id, level.id, x, y);
+  };
+  // curse(): its BUC (the pile is on the floor: nothing worn or wielded)
+  const maybeCurse = (it: ItemComponent): void => {
+    if (rng.rn2(4)) it.buc = 'cursed';
+  };
+
+  if (rng.rn2(4)) make('nh:food_ration', false, (it) => (it.quantity = rng.rnd(7)));
+  if (rng.rn2(2))
+    make('nh:mace', false, (it) => {
+      it.spe = rng.rnd(3);
+      maybeCurse(it);
+    });
+  else
+    make('nh:two_handed_sword', false, (it) => {
+      it.spe = rng.rnd(5) - 2;
+      maybeCurse(it);
+    });
+  make('nh:bow', false, (it) => {
+    it.spe = 1;
+    maybeCurse(it);
+  });
+  make('nh:arrow', false, (it) => {
+    it.spe = 0;
+    it.quantity = rng.rn2(10) + 25; // rn1(10, 25)
+    maybeCurse(it);
+  });
+  if (rng.rn2(2))
+    make('nh:ring_mail', false, (it) => {
+      it.spe = rng.rn2(3);
+      if (!rng.rn2(3)) it.erodeproof = true;
+      maybeCurse(it);
+    });
+  else
+    make('nh:plate_mail', false, (it) => {
+      it.spe = rng.rnd(5) - 2;
+      if (!rng.rn2(3)) it.erodeproof = true;
+      maybeCurse(it);
+    });
+  if (rng.rn2(2)) make(FAKE_AMULET, true, (it) => (it.known = { ...it.known, spe: true }));
+}
+
+const GHOST: DefId = 'nh:ghost';
+const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
+
 /** Rooms left to right, ties kept in order. ref: src/mklev.c sort_rooms() */
 function sortRooms(level: Level): void {
   level.rooms.sort((a, b) => a.lx - b.lx);
@@ -398,10 +479,13 @@ export const ROGUE_FIXUP: SpLevFixup = {
     liftStairs(level);
     if (rogueFits(level.width, level.height)) {
       makeRogueRooms(ctx, level);
-      // makerogueghost(): m21 step 2
+      makeRogueGhost(ctx, level);
       sortRooms(level);
       rogueStairs(ctx, level);
-    } else ordinaryRogueLevel(ctx, level);
+    } else {
+      ordinaryRogueLevel(ctx, level);
+      makeRogueGhost(ctx, level);
+    }
     fillOrdinaryRooms(ctx, level);
   },
 };

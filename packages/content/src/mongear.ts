@@ -5,6 +5,7 @@
 import { monHatesSilver } from './chamstate';
 import { floorEffectsLate } from './floorfx';
 import { egdOf } from './vaultstate';
+import { isRogueLevel } from './levelflags';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { isUnicorn } from './mondata';
 import {
@@ -67,6 +68,14 @@ const monOf = (ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId) => {
   if (!e?.c.monster) throw new Error(`Entity ${id} is not a monster`);
   return { e, def: ctx.defs.monster(e.def) };
 };
+
+/**
+ * Whether the monster is on the Rogue level, where monsters are made without weapons, armor or
+ * other items (C's Is_rogue_level(&u.uz): the level being made, or the hero's, which is where
+ * the monster is). ref: src/makemon.c m_initweap(), m_initinv()
+ */
+const onRogueLevel = (ctx: Pick<GearCtx, 'state'>, e: Entity): boolean =>
+  isRogueLevel(ctx.state.levels[e.c.pos?.level ?? ctx.state.currentLevel]);
 
 // ---------------------------------------------------------------------------------------------
 // per-monster flags kept in modData (JSON), keyed by entity id
@@ -246,10 +255,11 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
  * balrog's, Orcus's, the horned devil's, Dispater's and Yeenoghu's own, then S_DEMON falls through
  * to the general case). Objects missing from the object table (a mod
  * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
- * Uruk-hai are given orcish bows.)
+ * Uruk-hai are given orcish bows.) Nothing on the Rogue level.
  */
 export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
-  const { def } = monOf(ctx, monId);
+  const { e, def } = monOf(ctx, monId);
+  if (onRogueLevel(ctx, e)) return;
   const rng = ctx.rng;
   const ch = def.glyph.ch;
   if (ch === '@' && isMercenary(def)) {
@@ -597,7 +607,7 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
  * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
  * giants gems, minotaurs 1 time in 8 a wand of digging, and gnomes a candle (1 in 20 in the
  * Mines while `inMklev`, else 1 in 60; lit in the dark); then, but for most soldiers
- * (`rn2(13)`), a defensive and a misc item by m_lev.
+ * (`rn2(13)`), a defensive and a misc item by m_lev. Nothing on the Rogue level.
  */
 export function mInitInv(
   ctx: GearCtx,
@@ -605,7 +615,8 @@ export function mInitInv(
   depth: number,
   opts: { inMklev?: boolean } = {},
 ): void {
-  const { def } = monOf(ctx, monId);
+  const { e, def } = monOf(ctx, monId);
+  if (onRogueLevel(ctx, e)) return;
   const rng = ctx.rng;
   if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
   else if (def.id === SHOPKEEPER) {

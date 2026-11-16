@@ -29,6 +29,7 @@ import { jewelryMessagesEn } from './jewelry.en';
 import { zapMessagesEn } from './zap.en';
 import { applyMessagesEn } from './apply.en';
 import { lockMessagesEn } from './lock.en';
+import { rogueMessagesEn } from './rogue.en';
 import { chestTrapMessagesEn } from './chesttrap.en';
 import { untrapMessagesEn } from './untrap.en';
 import { watchMessagesEn } from './watch.en';
@@ -111,6 +112,7 @@ export const messagesEn: Record<string, string> = {
   ...applyMessagesEn,
   ...wizardMessagesEn,
   ...lockMessagesEn,
+  ...rogueMessagesEn,
   ...chestTrapMessagesEn,
   ...untrapMessagesEn,
   ...watchMessagesEn,

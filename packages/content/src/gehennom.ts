@@ -1,12 +1,13 @@
-// The dungeon's new-game draw and Gehennom's arrival: the Castle's passtune is drawn right after
+// The dungeon's new-game draw and the arrival lines: the Castle's passtune is drawn right after
 // the dungeon layout; arriving on the Valley of the Dead from outside Gehennom gives its three
 // lines; being on any other Gehennom level, or saying yes at the Valley's gate, marks Gehennom
-// entered; every level change ends with the level temperature's lines (temperature.ts).
+// entered; the first arrival on the Rogue level has its line; every level change ends with the
+// level temperature's lines (temperature.ts).
 // ref: src/dungeon.c init_dungeons() init_castle_tune(); src/do.c goto_level(), dodown(),
 // temperature_change_msg()
 import type { Ctx, DefId, ModApi } from '@nh/core';
 import { gehennomEntered, setCastleTune, setGehennomEntered } from './dbstate';
-import { inHell, isValley } from './levelflags';
+import { inHell, isRogueLevel, isValley, madeLevelFlags, setMadeLevelFlags } from './levelflags';
 import { temperatureChangeMsg } from './temperature';
 import { heroForm } from './upoly';
 
@@ -36,6 +37,13 @@ export function registerGehennom(api: ModApi): void {
     }
     // "in case we've managed to bypass the Valley's stairway down"
     if (!valley) setGehennomEntered(ctx);
+  });
+  // ref: src/do.c goto_level(): `if (new && Is_rogue_level(&u.uz))` (`new`: not VISITED yet)
+  api.on('levelChange', (ctx, change) => {
+    const to = ctx.state.levels[change.to];
+    if (!isRogueLevel(to) || madeLevelFlags(ctx.state, change.to).visited) return;
+    setMadeLevelFlags(ctx, change.to, { visited: true });
+    say(ctx, 'rogue.arrive');
   });
   // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last
   api.on('levelChange', (ctx, change) => {

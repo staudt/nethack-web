@@ -18,7 +18,7 @@ import { makeEngrAt } from './engr';
 import { makeGrave } from './grave';
 import { randomEngraving } from './rndengr';
 import { mkcorpstat } from './statue';
-import { canDigDown, inHell, levelFlags } from './levelflags';
+import { canDigDown, inHell, isRogueLevel, levelFlags } from './levelflags';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { mkVault } from './vault';
 import { TRAP, canFallThru, isHole, isPit, maketrap } from './trap';
@@ -104,12 +104,28 @@ export function rndtrap(ctx: Ctx, level: Level): DefId {
   }
 }
 
+/** The Rogue level's trap kinds, by `rn2(7)`. ref: src/mklev.c traptype_roguelvl() */
+const ROGUE_TRAPS: readonly DefId[] = [
+  TRAP.bear,
+  TRAP.arrow,
+  TRAP.dart,
+  TRAP.trapdoor,
+  TRAP.pit,
+  TRAP.sleepGas,
+  TRAP.rust,
+];
+
+/** A random trap kind for the Rogue level. ref: src/mklev.c traptype_roguelvl() */
+export function traptypeRogue(ctx: Pick<Ctx, 'rng'>): DefId {
+  return ROGUE_TRAPS[ctx.rng.rn2(ROGUE_TRAPS.length)] as DefId;
+}
+
 /**
  * Makes a trap of `kind` (random when null) on a free floor square of the room, at a given
  * spot (as sp_lev.c create_trap() passes `tm`), or on a maze level at mazexy() spots without a
- * trap (`'maze'`, MKTRAP_MAZEFLAG). ref: src/mklev.c mktrap(); a random kind is a fire trap 1
- * time in 5 in Gehennom, else rerolled until one is allowed; a hole or trap door
- * where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
+ * trap (`'maze'`, MKTRAP_MAZEFLAG). ref: src/mklev.c mktrap(); a random kind is one of
+ * traptype_roguelvl()'s seven on the Rogue level, a fire trap 1 time in 5 in Gehennom, else
+ * rerolled until one is allowed; a hole or trap door where one cannot fall through becomes a falling rock trap; the square comes from somexyspace()
  * (which already avoids occupied squares; the retry loop repeats only for a pit or hole on a
  * boulder). A web gets a giant spider on it (made with the level, so it may get an object under
  * it), unless `noSpiderOnWeb` (MKTRAP_NOSPIDERONWEB). The dead
@@ -125,8 +141,9 @@ export function mktrap(
   const lvl = level.depth; // level_difficulty()
   const noteleport = levelFlags(ctx, level).noteleport === true; // svl.level.flags.noteleport
   const hell = inHell(ctx.state, level);
+  if (kind === null && isRogueLevel(level)) kind = traptypeRogue(ctx);
   // bias the frequency of fire traps in Gehennom
-  if (kind === null && hell && !ctx.rng.rn2(5)) kind = TRAP.fire;
+  else if (kind === null && hell && !ctx.rng.rn2(5)) kind = TRAP.fire;
   while (kind === null) kind = traptypeRnd(ctx, lvl, noteleport, noSpiderOnWeb, hell);
   if (isHole(kind) && !canFallThru(ctx.state, level)) kind = TRAP.rock;
   let m: Pos | null;
@@ -165,8 +182,10 @@ export function mktrap(
  * x = 8 - depth / 6, at least 2), gold (1 in 3), a large box or chest (1 in nroom * 5 / 2),
  * a fountain (1 in 10), a sink (1 in 60), an altar (1 in 60), a grave (1 in 80 - 2 * depth, at
  * least 2), a statue (1 in 20), graffiti (1 in 27 + 3 * depth), then random objects (1 in 3 for
- * the first, then 1 in 5 for each further one). ref: src/mklev.c fill_ordinary_room(). Mimics
- * and the bonus items do not exist, and so do not roll.
+ * the first, then 1 in 5 for each further one). On the Rogue level everything between the gold
+ * and the objects is left out, draws included (C's `goto skip_nonrogue`).
+ * ref: src/mklev.c fill_ordinary_room(). Mimics and the bonus items do not exist, and so do not
+ * roll.
  */
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
@@ -185,10 +204,28 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   while (ctx.rng.rn2(x) === 0 && ++trycnt < 1000) mktrap(ctx, level, room);
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
     mkgold(ctx, 0, { level: level.id, x: pos.x, y: pos.y });
+  if (!isRogueLevel(level)) fillNonRogue(ctx, level, room);
+  // skip_nonrogue:
+  if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room))) {
+    mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
+    for (trycnt = 0; ctx.rng.rn2(5) === 0;) {
+      if (++trycnt > 100) break; // impossible("trycnt overflow4")
+      if ((pos = somexyspace(ctx, level, room)))
+        mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
+    }
+  }
+}
+
+/**
+ * fill_ordinary_room()'s part that the Rogue level leaves out: a fountain, a sink, an altar, a
+ * grave, a statue, a box and graffiti. ref: src/mklev.c fill_ordinary_room()
+ */
+function fillNonRogue(ctx: Ctx, level: Level, room: Room): void {
+  let pos: Pos | null;
   if (ctx.rng.rn2(10) === 0) mkfount(ctx, level, room);
   if (ctx.rng.rn2(60) === 0) mksink(ctx, level, room);
   if (ctx.rng.rn2(60) === 0) mkaltar(ctx, level, room);
-  x = 80 - level.depth * 2;
+  let x = 80 - level.depth * 2;
   if (x < 2) x = 2;
   if (!ctx.rng.rn2(x)) mkgrave(ctx, level, room);
   // put statues inside
@@ -207,14 +244,6 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   }
   // maybe make some graffiti
   if (!ctx.rng.rn2(27 + 3 * Math.abs(level.depth))) graffiti(ctx, level, room);
-  if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room))) {
-    mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
-    for (trycnt = 0; ctx.rng.rn2(5) === 0;) {
-      if (++trycnt > 100) break; // impossible("trycnt overflow4")
-      if ((pos = somexyspace(ctx, level, room)))
-        mkobjAt(ctx, 'random', { level: level.id, x: pos.x, y: pos.y }, true);
-    }
-  }
 }
 
 const GIANT_SPIDER: DefId = 'nh:giant_spider';

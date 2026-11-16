@@ -8,7 +8,7 @@ import { canBeHatched, deadSpecies } from './eggstate';
 import { setGolemStatue, startCorpseTimeout, undeadToCorpse } from './corpses';
 import { BOX_ROCK_GEMS, gemLedger, gemProb, rndClass } from './gem';
 import { STATUE } from './statuestate';
-import { inHell } from './levelflags';
+import { inHell, isRogueLevel } from './levelflags';
 
 /** What mkobj() needs from a Ctx (corpses schedule a rot timer). */
 export type MkobjCtx = Pick<
@@ -49,6 +49,20 @@ export const HELL_PROBS: ClassProbs = [
   { prob: 8, cls: 'wand', name: 'wand' },
   { prob: 8, cls: 'ring', name: 'ring' },
   { prob: 4, cls: 'amulet', name: 'amulet' },
+];
+
+/**
+ * mkobj()'s class probabilities on the Rogue level; they sum to 100. ref: src/mkobj.c
+ * rogueprobs[]
+ */
+export const ROGUE_PROBS: ClassProbs = [
+  { prob: 12, cls: 'weapon', name: 'weapon' },
+  { prob: 12, cls: 'armor', name: 'armor' },
+  { prob: 22, cls: 'food', name: 'food' },
+  { prob: 22, cls: 'potion', name: 'potion' },
+  { prob: 22, cls: 'scroll', name: 'scroll' },
+  { prob: 5, cls: 'wand', name: 'wand' },
+  { prob: 5, cls: 'ring', name: 'ring' },
 ];
 
 /** The class probabilities of a box's contents; they sum to 100. ref: src/mkobj.c boxiprobs[] */
@@ -98,13 +112,27 @@ function depthOf(ctx: Pick<MkobjCtx, 'state'>, level: LevelId | undefined): numb
 
 /**
  * A random monster type for a corpse, like the level's monsters (`minadj`/`maxadj` widen the
- * difficulty window: rndmonnum_adj(); 0, 0 is rndmonnum()).
+ * difficulty window: rndmonnum_adj(); 0, 0 is rndmonnum()). `level` is where the object is made
+ * (C's u.uz while a level is made: its Gehennom, temperature and Rogue rules); the hero's when
+ * omitted.
  * ref: src/mkobj.c rndmonnum_adj(): plan A is rndmonst(); plan B (nothing eligible) is any
  * common monster, picked uniformly from the whole table (our table has no G_NOGEN/UNIQ rows to
  * skip except those flagged so).
  */
-export function rndmonnum(ctx: MkobjCtx, depth: number, minadj = 0, maxadj = 0): MonsterDef {
-  const m = rndmonst(ctx, depth, minadj, maxadj);
+export function rndmonnum(
+  ctx: MkobjCtx,
+  depth: number,
+  minadj = 0,
+  maxadj = 0,
+  level?: LevelId,
+): MonsterDef {
+  const m = rndmonst(
+    ctx,
+    depth,
+    minadj,
+    maxadj,
+    level === undefined ? undefined : ctx.state.levels[level],
+  );
   if (m) return m;
   const all = ctx.defs.monsters.filter(
     (d) => !d.genFlags.includes('nogen') && !d.genFlags.includes('uniq'),
@@ -141,7 +169,7 @@ export function pickObjectOfClass(
 
 /**
  * A random object of the given class, or of a random class (`'random'`) according to
- * mkobjprobs[] (hellprobs[] in Gehennom). Returns the new object's id, or null when the rolled class is not implemented
+ * mkobjprobs[] (hellprobs[] in Gehennom, rogueprobs[] on the Rogue level). Returns the new object's id, or null when the rolled class is not implemented
  * (the class roll is still made). With `opts.at` the object is placed on the floor; a
  * container gets its contents.
  * ref: src/mkobj.c mkobj(), mkobj_at(), and mksobj() for a corpse (random monster).
@@ -153,8 +181,13 @@ export function mkobj(
 ): EntityId | null {
   const where = opts.level ?? opts.at?.level ?? ctx.state.currentLevel;
   // Inhell: the level being made (NetHack's u.uz while it makes one), else the hero's
-  const hell = inHell(ctx.state, ctx.state.levels[where]);
-  const cls = oclass === 'random' ? rollClass(ctx, hell ? HELL_PROBS : MKOBJ_PROBS) : oclass;
+  const made = ctx.state.levels[where];
+  const probs = isRogueLevel(made)
+    ? ROGUE_PROBS
+    : inHell(ctx.state, made)
+      ? HELL_PROBS
+      : MKOBJ_PROBS;
+  const cls = oclass === 'random' ? rollClass(ctx, probs) : oclass;
   if (cls === null) return null;
   const ledger = gemLedger(ctx.state, where);
   const def = pickObjectOfClass(ctx, cls, ledger);
@@ -177,9 +210,10 @@ export function mksobjCorpse(
   opts: Pick<MksobjOpts, 'artif' | 'at'>,
   gen: Pick<MkobjOpts, 'level' | 'inMklev'> = {},
 ): EntityId {
-  let mon = rndmonnum(ctx, depthOf(ctx, gen.level ?? opts.at?.level));
+  const where = gen.level ?? opts.at?.level;
+  let mon = rndmonnum(ctx, depthOf(ctx, where), 0, 0, where);
   for (let tries = 50; mon.genFlags.includes('nocorpse') && --tries > 0;)
-    mon = rndmonnum(ctx, depthOf(ctx, gen.level ?? opts.at?.level));
+    mon = rndmonnum(ctx, depthOf(ctx, where), 0, 0, where);
   const id = mksobj(ctx, def, { corpseOf: mon.id as DefId, ...opts });
   startCorpseTimeout(ctx, id, gen.inMklev === true);
   return id;
@@ -229,7 +263,7 @@ export function mksobjStatue(
   let mon = opts.corpseOf;
   let book: EntityId | null = null;
   if (opts.init ?? true) {
-    const m = rndmonnum(ctx, depth);
+    const m = rndmonnum(ctx, depth, 0, 0, level);
     mon ??= m.id;
     if (m.size !== 'tiny' && ctx.rng.rn2(Math.trunc(depth / 2) + 10) > 10)
       book = mkobj(ctx, 'spellbook', {
@@ -237,7 +271,7 @@ export function mksobjStatue(
         ...(level !== undefined ? { level } : {}),
         inMklev: gen.inMklev === true,
       });
-  } else mon ??= rndmonnum(ctx, depth).id;
+  } else mon ??= rndmonnum(ctx, depth, 0, 0, level).id;
   const id = mksobj(ctx, def, { ...opts, corpseOf: mon });
   if (book !== null) {
     // add_to_container(): a statue holds its contents as C's Has_contents() (no core container)
@@ -326,7 +360,7 @@ export function mkobjAt(
 setEggInit((ctx, level) => {
   if (ctx.rng.rn2(3)) return null; // generic egg
   for (let tryct = 200; tryct > 0; --tryct) {
-    const mndx = canBeHatched(ctx, rndmonnum(ctx, depthOf(ctx, level)).id);
+    const mndx = canBeHatched(ctx, rndmonnum(ctx, depthOf(ctx, level), 0, 0, level).id);
     if (mndx !== null && !deadSpecies(ctx.state, ctx.defs, mndx)) return mndx; // typed egg
   }
   return null;
@@ -337,7 +371,7 @@ setEggInit((ctx, level) => {
 setTinInit((ctx, level) => {
   if (!ctx.rng.rn2(6)) return 'spinach';
   for (let tryct = 200; tryct > 0; --tryct) {
-    const mndx = undeadToCorpse(rndmonnum(ctx, depthOf(ctx, level)).id);
+    const mndx = undeadToCorpse(rndmonnum(ctx, depthOf(ctx, level), 0, 0, level).id);
     const m = ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
     if (m && m.nutrition && !m.genFlags.includes('nocorpse')) return mndx;
   }
@@ -348,10 +382,10 @@ setTinInit((ctx, level) => {
 // monsters": rndmonnum_adj(5, 10), not human, 30 re-rolls), mksobj() STATUE/FIGURINE without init
 setFigurineInit((ctx, level, init) => {
   const depth = depthOf(ctx, level);
-  if (!init) return rndmonnum(ctx, depth).id;
+  if (!init) return rndmonnum(ctx, depth, 0, 0, level).id;
   let tryct = 0;
   let mon: MonsterDef;
-  do mon = rndmonnum(ctx, depth, 5, 10);
+  do mon = rndmonnum(ctx, depth, 5, 10, level);
   while (mon.flags.includes('human') && tryct++ < 30);
   return mon.id;
 });

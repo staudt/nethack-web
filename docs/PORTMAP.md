@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-191 NetHack files, 5386 citations.
+191 NetHack files, 5397 citations.
 
 ## dat/asmodeus.lua
 
@@ -984,7 +984,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/ladder.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1340,6 +1340,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/rogue.ts`
 - `corr()`: `packages/content/src/rogue.ts`
 - `makelevel()`: `packages/content/src/rogue.ts`
+- `makerogueghost()`: `packages/content/src/rogue.ts`
 - `makeroguerooms()`: `packages/content/src/rogue.ts`
 - `miniwalk()`: `packages/content/src/rogue.ts`
 - `roguecorr()`: `packages/content/src/rogue.ts`
@@ -1564,7 +1565,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peace_minded()`: `packages/content/src/generation.ts`
 - `pm_to_cham()`: `packages/content/src/chamstate.ts`
 - `propagate()`: `packages/content/src/vanquished.ts`
-- `rndmonst_adj()`: `packages/content/src/generation.ts`
+- `rndmonst_adj()`: `packages/content/src/generation.ts`, `packages/content/src/mondata.ts`
 - `set_malign()`: `packages/content/src/luck.ts`
 - `set_mimic_sym()`: `packages/content/src/mimic.ts`
 - `summon_furies()`: `packages/content/src/generation.ts`
@@ -1705,6 +1706,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `sort_rooms()`: `packages/content/src/rogue.ts`, `packages/core/src/levelgen/rooms.ts`
 - `topologize()`: `packages/core/src/rooms.ts`
 - `traptype_rnd()`: `packages/content/src/mklev.ts`
+- `traptype_roguelvl()`: `packages/content/src/mklev.ts`
 
 ## src/mkmap.c
 
@@ -1759,7 +1761,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mkobj.c
 
-- (file): `packages/content/src/material.ts`
+- (file): `packages/content/src/material.ts`, `packages/content/src/mkobj.ts`
 - `add_to_container()`: `packages/content/src/container.ts`, `packages/core/src/objects.ts`
 - `add_to_minv()`: `packages/content/src/mongear.ts`
 - `bcsign()`: `packages/content/src/items.ts`, `packages/content/src/muse.ts`

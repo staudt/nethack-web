@@ -8,8 +8,8 @@
 // doppelganger a nasty, a role monster (tt_doppel()) or a humanoid, a sandestin a nasty; a
 // polymorph that makes a vampire makes a vampshifter unless the hero has protection from shape
 // changers. ref: src/mon.c pick_animal(), mon_animal_list(); src/topten.c tt_doppel()
-// Not ported: the Riders' immunity has no monster to apply to but is kept,
-// the Rogue level, wizard-mode form control,
+// On the Rogue level the random picks prefer monsters drawn with an uppercase letter.
+// Not ported: the Riders' immunity has no monster to apply to but is kept, wizard-mode form control,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
@@ -46,7 +46,8 @@ import {
 } from './chamstate';
 import { isPoolOrLava } from './liquid';
 import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
-import { humanoid, isMplayer, MPLAYERS } from './mondata';
+import { humanoid, isMplayer, MPLAYERS, upperSym } from './mondata';
+import { isRogueLevel } from './levelflags';
 import { pickNasty } from './nasty';
 import { protFromShapeChangers } from './props';
 import { isCancelled, setUncancelled } from './mstate';
@@ -125,10 +126,13 @@ function validspecmon(ctx: Ctx, mon: Entity, mdat: MonsterDef): boolean {
  * A vampire's next shape: a vampire lord (or Vlad) becomes a wolf 1 time in 10 (not over water
  * or lava), else any vampire a fog cloud 1 time in 4 or a vampire bat; it returns to its own
  * form instead when that shape is genocided, or 1 time in 4 when it is already shifted.
- * ref: src/mon.c pickvampshape() (no Rogue level; Vlad does not exist)
+ * On the Rogue level it takes neither lowercase shape (wolf, fog cloud): only the bat.
+ * ref: src/mon.c pickvampshape() (Vlad does not exist)
  */
 export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
   const cham = chamOf(ctx, mon.id);
+  // avoid picking monsters with lowercase display symbols ('d' for wolf and 'v' for fog cloud)
+  const uppercaseOnly = onRogueLevel(ctx, mon);
   let mndx = cham;
   let wolfchance = 10;
   const p = mon.c.pos;
@@ -140,16 +144,24 @@ export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
       // vampire lord or Vlad can become wolf (no Candelabrum for Vlad to keep carrying)
       if (cham === VLAD_THE_IMPALER) wolfchance = 3;
       // don't pick a walking form if that would lead to immediate drowning or immolation
-      wolf = !ctx.rng.rn2(wolfchance) && !overLiquid();
+      wolf = !ctx.rng.rn2(wolfchance) && !uppercaseOnly && !overLiquid();
     }
     // any vampire can become fog or bat
-    mndx = wolf ? WOLF : !ctx.rng.rn2(4) ? FOG_CLOUD : VAMPIRE_BAT;
+    mndx = wolf ? WOLF : !ctx.rng.rn2(4) && !uppercaseOnly ? FOG_CLOUD : VAMPIRE_BAT;
   }
   // return to base form if chosen poly target has been genocided or randomly if already in an
   // alternate form (to prevent always switching back and forth between bat and fog)
   if ((mndx !== null && isGenocided(ctx.state, mndx)) || (mon.def !== cham && !ctx.rng.rn2(4)))
     return cham;
   return mndx;
+}
+
+/**
+ * Whether the monster is on the Rogue level: C's Is_rogue_level(&u.uz), the hero's level or the
+ * level being made, which is where the monster is.
+ */
+function onRogueLevel(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
+  return isRogueLevel(ctx.state.levels[mon.c.pos?.level ?? ctx.state.currentLevel]);
 }
 
 /**
@@ -165,12 +177,16 @@ const pmOrNull = (ctx: Pick<Ctx, 'defs'>, id: DefId): MonsterDef | null =>
   ctx.defs.isMonster(id) ? ctx.defs.monster(id) : null;
 
 /**
- * A random animal (M1_ANIMAL) kind, for a chameleon. ref: src/mon.c pick_animal(),
- * mon_animal_list() (no Rogue level)
+ * A random animal (M1_ANIMAL) kind, for a chameleon; on the Rogue level (`rogue`) a lowercase
+ * pick is rolled once more. ref: src/mon.c pick_animal(), mon_animal_list()
  */
-export function pickAnimal(ctx: Ctx): MonsterDef | null {
+export function pickAnimal(ctx: Ctx, rogue = false): MonsterDef | null {
   const list = ordinaryMonsters(ctx).filter((m) => m.flags.includes('animal'));
-  return list[ctx.rng.rn2(list.length)] ?? null;
+  let res = list[ctx.rng.rn2(list.length)] ?? null;
+  // rogue level should use monsters represented by uppercase letters only, but since chameleons
+  // aren't generated there (not uppercase!) we don't perform a lot of retries
+  if (rogue && res && !upperSym(res.glyph.ch)) res = list[ctx.rng.rn2(list.length)] ?? null;
+  return res;
 }
 
 /**
@@ -206,11 +222,12 @@ function dragonArmorToPm(ctx: Pick<Ctx, 'defs'>, armor: Entity | null): MonsterD
  * mail that dragon; otherwise any monster type but the player monsters, uniformly. A pick that
  * names a kind the port lacks is no form (pick_nasty()'s absent kinds count as genocided:
  * accept_newcham_form() rejects them; the others fall back to the random form). The 50-try loop
- * only retries on the Rogue level, so one pick is made.
+ * retries only on the Rogue level, for the first ten picks that are both invalid and lowercase.
  * ref: src/mon.c select_newcham_form() (no wizard-mode form control)
  */
 export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
   const cham = chamOf(ctx, mon.id);
+  const rogueLevel = onRogueLevel(ctx, mon);
   // `mndx`: undefined is NON_PM (pick at random below), null a kind the port lacks
   let mndx: MonsterDef | null | undefined;
   const nasty = (than: DefId): MonsterDef | null => {
@@ -244,7 +261,7 @@ export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
       }
       break;
     case CHAMELEON:
-      if (!ctx.rng.rn2(3)) mndx = pickAnimal(ctx) ?? undefined;
+      if (!ctx.rng.rn2(3)) mndx = pickAnimal(ctx, rogueLevel) ?? undefined;
       break;
     case VLAD_THE_IMPALER:
     case VAMPIRE_LORD:
@@ -264,15 +281,16 @@ export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
   const all = ordinaryMonsters(ctx);
   let mdat: MonsterDef | null;
   let tryct = 50;
-  const rogueLevel = false;
   do {
     mdat = all[ctx.rng.rn2(all.length)] ?? null;
   } while (
     --tryct > 0 &&
     mdat !== null &&
     !validspecmon(ctx, mon, mdat) &&
+    // try harder to select uppercase monster on rogue level
     tryct > 40 &&
-    rogueLevel
+    rogueLevel &&
+    !upperSym(mdat.glyph.ch)
   );
   return mdat;
 }
@@ -335,9 +353,13 @@ export function newcham(
   let mdat = form;
   if (mdat === null) {
     // select_newcham_form() doesn't always loop, so we retry here too
+    const rogueLevel = onRogueLevel(ctx, mon);
     let tryct = 20;
     do {
       mdat = acceptNewchamForm(ctx, mon, selectNewchamForm(ctx, mon));
+      // for the first several tries we require upper-case on the rogue level (after that, we
+      // take whatever we get)
+      if (tryct > 15 && rogueLevel && mdat && !upperSym(mdat.glyph.ch)) mdat = null;
       if (mdat) break;
     } while (--tryct > 0);
     if (!tryct || !mdat) return false;

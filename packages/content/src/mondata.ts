@@ -220,6 +220,12 @@ export const MPLAYERS: readonly DefId[] = [
 /** ref: include/mondata.h is_mplayer(): PM_ARCHEOLOGIST .. PM_WIZARD */
 export const isMplayer = (def: { id: DefId }): boolean => MPLAYERS.includes(def.id);
 
+/**
+ * A monster drawn with an uppercase letter, as the Rogue level prefers them: C's
+ * `isupper((int) monsym(ptr))`. ref: src/makemon.c rndmonst_adj()
+ */
+export const upperSym = (ch: string): boolean => ch >= 'A' && ch <= 'Z';
+
 /** ref: include/obj.h WrappingAllowed() */
 export const wrappingAllowed = (def: MonsterDef): boolean =>
   humanoid(def) &&

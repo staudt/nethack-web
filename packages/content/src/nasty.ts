@@ -18,7 +18,8 @@ import {
 } from '@nh/core';
 import { bigToLittle } from './eggstate';
 import { makemon, mnextoPos } from './generation';
-import { inHell } from './levelflags';
+import { inHell, isRogueLevel } from './levelflags';
+import { upperSym } from './mondata';
 import { monsterCensus, msummon } from './minion';
 import { unmakemon } from './mondeath';
 import { setMspecUsed } from './mstate';
@@ -85,6 +86,18 @@ const NASTIES: readonly DefId[] = [
  */
 const ABSENT_ANGELS: readonly DefId[] = ['nh:aleax', 'nh:couatl'];
 
+/**
+ * The display letters of the nasties[] this port lacks, for the Rogue level's uppercase test.
+ * ref: include/monsters.h
+ */
+const ABSENT_SYMS: Readonly<Record<string, string>> = {
+  'nh:displacer_beast': 'f',
+  'nh:genetic_engineer': 'Q',
+  'nh:disenchanter': 'R',
+  'nh:aleax': 'A',
+  'nh:couatl': 'A',
+};
+
 /** more than this can be created */
 const MAXNASTIES = 10;
 
@@ -102,10 +115,16 @@ const castsSpells = (def: MonsterDef): boolean => def.attacks.some((a) => a.at =
 /**
  * A nasty kind: one of nasties[], or its smaller kind (not a baby, hatchling, pup or cub) when it
  * is gone, at least `difcap` difficult (when non-zero) or out of place (Gehennom-only outside it,
- * never-in-Gehennom inside). ref: src/wizard.c pick_nasty() (no Rogue level)
+ * never-in-Gehennom inside). On the Rogue level a kind not drawn with an uppercase letter is
+ * rolled once more ("we don't try very hard"). ref: src/wizard.c pick_nasty()
  */
 export function pickNasty(ctx: NastyCtx, difcap: number): DefId {
-  const res = NASTIES[ctx.rng.rn2(NASTIES.length)] as DefId;
+  let res = NASTIES[ctx.rng.rn2(NASTIES.length)] as DefId;
+  // We want monsters represented by uppercase on rogue level, but we don't try very hard.
+  if (isRogueLevel(ctx.state.levels[ctx.state.currentLevel])) {
+    const sym = ctx.defs.isMonster(res) ? ctx.defs.monster(res).glyph.ch : ABSENT_SYMS[res];
+    if (sym === undefined || !upperSym(sym)) res = NASTIES[ctx.rng.rn2(NASTIES.length)] as DefId;
+  }
   let alt = res;
   const def = ctx.defs.isMonster(res) ? ctx.defs.monster(res) : null;
   if (

@@ -4,7 +4,7 @@
 // ref: src/makemon.c set_mimic_sym(); src/uhitm.c that_is_a_mimic(), stumble_onto_mimic();
 // src/lock.c stumble_on_door_mimic(); src/mon.c wakeup()
 //
-// Not ported: the rogue level's wall disguise (no rogue level), the slime mold's fruit name, the light blocking of a boulder or door disguise
+// Not ported: the slime mold's fruit name, the light blocking of a boulder or door disguise
 // (DEVIATIONS.md "Mimics").
 import {
   allContents,
@@ -23,7 +23,7 @@ import {
 import { canBeHatched } from './eggstate';
 import { setUstuck, ustuck } from './hackmove';
 import { canseemon, mapInvisible, markedUnseen, monInvisible, seeInvisible } from './invis';
-import { levelFlags } from './levelflags';
+import { isRogueLevel, levelFlags } from './levelflags';
 import { mkobj, rndmonnum } from './mkobj';
 import { isFleeing } from './monflee';
 import { isFrozen } from './mstate';
@@ -123,9 +123,21 @@ function throwawayOtyp(ctx: Ctx, cls: ObjectClass, level: string, inMklev: boole
   return def;
 }
 
+/** The walls set_mimic_sym() takes for "a horizontal door" to their right. */
+const WALLS_RUNNING_RIGHT: readonly DefId[] = [
+  T.hwall,
+  T.tlcorn,
+  T.trwall,
+  T.blcorn,
+  T.tdwall,
+  T.crwall,
+  T.tuwall,
+];
+
 /**
  * Picks the mimic's disguise for where it stands: the top object there; a closed door on a
- * door, wall, secret door or secret corridor square; on maze levels (not the Mines' towns or
+ * door, wall, secret door or secret corridor square (on the Rogue level, which has no closed
+ * doors, a wall: horizontal when the square to its left is a wall that runs on to the right); on maze levels (not the Mines' towns or
  * Sokoban) a statue half the time; outside rooms a boulder (unless on a trap); gold in zoos and
  * vaults; a statue or fountain in Delphi; an altar in temples; in shops, the strange object when
  * `rn2(10) >= depth`, else one of the shop's kinds; elsewhere a roll from syms[]: furniture, a
@@ -163,8 +175,13 @@ function setMimicSymImpl(ctx: Ctx, id: EntityId, inMklev: boolean): void {
     isSdoorId(typ) ||
     typ === T.scorr
   ) {
-    // a horizontal or vertical closed door: both are drawn `+` here
-    ap = { type: 'furniture', id: T.door_closed };
+    // a horizontal or vertical closed door: both are drawn `+` here. "Since rogue has no closed
+    // doors, mimic a wall there (yes, mimics can end up on this level by various means)."
+    if (isRogueLevel(level)) {
+      const left = x > 0 ? terrainIdAt(level, x - 1, y) : undefined;
+      const horiz = left !== undefined && WALLS_RUNNING_RIGHT.includes(left);
+      ap = { type: 'furniture', id: horiz ? T.hwall : T.vwall };
+    } else ap = { type: 'furniture', id: T.door_closed };
   } else if (
     levelFlags(ctx, level).maze === true &&
     !(level.dungeon === MINES && !!hero && inTown(level, hero.x, hero.y)) &&

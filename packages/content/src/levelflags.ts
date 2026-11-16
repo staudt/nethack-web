@@ -253,6 +253,11 @@ export interface MadeLevelFlags {
    * exclusion of their teleport region, C's `dndest.nl*`.
    */
   wtower?: [number, number, number, number];
+  /**
+   * The hero has arrived on it (C's VISITED level_info flag), kept only for levels whose first
+   * arrival says something (the Rogue level). ref: src/do.c goto_level() `new`
+   */
+  visited?: true;
 }
 
 const levflagsTable = (state: Readonly<GameState>): Record<string, Json> | undefined => {

@@ -24,7 +24,7 @@ import { isSokoban } from './sokoban';
 import { givePossessions } from './mongear';
 import { uState } from './luck';
 import { isGenocided, isGone, propagate } from './vanquished';
-import { inHell } from './levelflags';
+import { inHell, isRogueLevel } from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
@@ -42,6 +42,7 @@ import {
   isMplayer,
   isNdemon,
   isUnicorn,
+  upperSym,
 } from './mondata';
 import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
@@ -84,7 +85,8 @@ function alignShift(_def: MonsterDef): number {
  * A random monster type appropriate for a level of difficulty `depth` (and the hero's level),
  * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()). `level`
  * is where it is made (NetHack's u.uz while a level is made; the hero's level when omitted): in
- * Gehennom no G_NOHELL kind, and on a hot or cold level resistant kinds weigh 3 more.
+ * Gehennom no G_NOHELL kind, on the Rogue level only uppercase kinds, and on a hot or cold level
+ * resistant kinds weigh 3 more.
  * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling, temperature_shift(); returns
  * null if none qualify.
  */
@@ -98,10 +100,12 @@ export function rndmonst(
   const minmlev = monminDifficulty(depth) + minadj;
   const maxmlev = monmaxDifficulty(depth, heroLevel(ctx)) + maxadj;
   const hell = inHell(ctx.state, level);
+  const upper = isRogueLevel(level); // prefer uppercase only on rogue level
   let total = 0;
   let selected: MonsterDef | null = null;
   for (const def of ctx.defs.monsters) {
     if (def.difficulty < minmlev || def.difficulty > maxmlev) continue; // montooweak/strong
+    if (upper && !upperSym(def.glyph.ch)) continue;
     if (uncommon(ctx.state, def)) continue;
     if (hell && def.genFlags.includes('nohell')) continue;
     const weight =
