@@ -11,6 +11,7 @@ import {
   type Ctx,
   type Entity,
   type EntityId,
+  type GameState,
   type Json,
   type Level,
   type LevelId,
@@ -18,6 +19,7 @@ import {
 } from '@nh/core';
 import { A_NONE, ALGN_SINNED, altarAlign, type Aligntyp } from './aligntyp';
 import { uState } from './luck';
+import { godSuffix } from './gods';
 import { uRooms } from './urooms';
 
 /** The temple priest's monster. ref: include/monsters.h PM_ALIGNED_CLERIC */
@@ -135,13 +137,12 @@ export function pCoaligned(ctx: Pick<Ctx, 'state'>, epri: Epri): boolean {
 }
 
 /**
- * "priest of Odin" as a message param (for `{mon|the}`). ref: src/priest.c priestname() (no
- * priestesses: monsters have no gender; no invisible, renegade or high priests)
+ * "priest of Odin" as a message param (for `{mon|the}`), the god from the hero's pantheon.
+ * ref: src/priest.c priestname() (no priestesses: monsters have no gender; no invisible,
+ * renegade or high priests)
  */
-export function priestName(epri: Epri): string {
-  const a = monAligntyp(epri);
-  if (a === A_NONE) return '@priest.of.unaligned';
-  return a > 0 ? '@priest.of.lawful' : a < 0 ? '@priest.of.chaotic' : '@priest.of.neutral';
+export function priestName(state: Readonly<GameState>, epri: Epri): string {
+  return `@priest.of.${godSuffix(state, monAligntyp(epri))}`;
 }
 
 /**

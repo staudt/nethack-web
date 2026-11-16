@@ -34,6 +34,8 @@ export const magicMessagesEn: Record<string, string> = {
   'potion.water_holy': 'You feel full of awe.',
   'potion.water_unholy': 'You feel full of dread.',
   'potion.water_burns': 'This burns like acid!',
+  'potion.water_affinity': 'Your affinity to {mon|plural} disappears!',
+  'potion.water_proud': 'You feel quite proud of yourself.',
   // ref: src/potion.c peffect_restore_ability(), peffect_enlightenment(), peffect_paralysis(),
   // peffect_sickness(), peffect_gain_ability(), peffect_speed(), peffect_gain_level(),
   // peffect_gain_energy(), peffect_levitation(), peffect_acid()
@@ -67,6 +69,8 @@ export const magicMessagesEn: Record<string, string> = {
   'potion.burns_lot': 'This burns a lot!',
   'potion.burns_acid': 'This burns like acid!',
   'killer.potion.acid': 'a potion of acid',
+  'killer.potion.holy_water': 'a potion of holy water',
+  'killer.potion.unholy_water': 'a potion of unholy water',
   'potion.refreshing': 'Ahh, a refreshing drink.',
   'potion.burn_face': 'You burn your face.',
   'killer.potion.burning_oil': 'quaffing a burning potion of oil',

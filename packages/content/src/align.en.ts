@@ -1,11 +1,13 @@
 // English messages for gods and altars (ref: src/pray.c altar_wrath(), src/do.c doaltarobj(),
 // src/invent.c dfeature_at(), src/insight.c align_str(), src/dokick.c)
 export const alignMessagesEn: Record<string, string> = {
-  'god.moloch': 'Moloch',
   'align.lawful': 'lawful',
   'align.neutral': 'neutral',
   'align.chaotic': 'chaotic',
   'align.unaligned': 'unaligned',
+  // ref: src/pray.c align_gtitle()
+  'align.god': 'god',
+  'align.goddess': 'goddess',
   'look.altar': 'altar to {god} ({align})',
   'altar.flash': 'There is {color|an} flash as {item|an} hits the altar.',
   'altar.flash_pl': 'There is {color|an} flash as {item|an} hit the altar.',

@@ -357,7 +357,7 @@ export function monNam(ctx: Pick<Ctx, 'state' | 'defs' | 'cosmetic'>, mon: Entit
   if (!canSpotMon(ctx, mon) && engulferOf(ctx.state) !== mon.id) return '@pronoun.it';
   if (hasProp(getPlayer(ctx.state), P.HALLUC)) return `@${rndmonnam(ctx)}`;
   const epri = epriOf(ctx, mon.id);
-  if (epri) return priestName(epri); // "the priest of Odin"
+  if (epri) return priestName(ctx.state, epri); // "the priest of Odin"
   const eshk = eshkOf(ctx, mon.id);
   if (eshk) return shkName(eshk); // "Izchak" (ref: x_monnam() isshk)
   // a personal name takes no article: "Medusa" (ref: x_monnam() type_is_pname())

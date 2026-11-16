@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5523 citations.
+192 NetHack files, 5533 citations.
 
 ## dat/asmodeus.lua
 
@@ -234,8 +234,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/align.ts`, `packages/content/src/aligntyp.ts`, `packages/content/src/luck.ts`
 - `ALGN_SINNED()`: `packages/content/src/aligntyp.ts`
-- `A_CHAOTIC()`: `packages/content/src/luck.ts`, `packages/content/src/roletab.ts`
-- `A_NEUTRAL()`: `packages/content/src/generation.ts`
+- `A_CHAOTIC()`: `packages/content/src/roletab.ts`
+- `A_NEUTRAL()`: `packages/content/src/luck.ts`
 - `A_NONE()`: `packages/content/src/aligntyp.ts`
 - `Align2amask()`: `packages/content/src/mimic.ts`
 
@@ -831,7 +831,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `init_attr_role_redist()`: `packages/content/src/hero.ts`
 - `losestr()`: `packages/content/src/hp.ts`
 - `minusattr()`: `packages/content/src/resist.en.ts`
-- `newhp()`: `packages/content/src/hero.ts`
+- `newhp()`: `packages/content/src/align.ts`, `packages/content/src/hero.ts`
 - `plusattr()`: `packages/content/src/resist.en.ts`
 - `poisoned()`: `packages/content/src/attrib.ts`, `packages/content/src/resist.en.ts`
 - `poisontell()`: `packages/content/src/attrib.ts`, `packages/content/src/resist.en.ts`
@@ -2323,7 +2323,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/pray.en.ts`, `packages/content/src/pray.ts`
 - `TROUBLE_()`: `packages/content/src/pray.ts`
 - `a_align()`: `packages/content/src/align.ts`
-- `align_gname()`: `packages/content/src/align.ts`
+- `align_gname()`: `packages/content/src/gods.ts`
+- `align_gtitle()`: `packages/content/src/align.en.ts`, `packages/content/src/gods.ts`
 - `altar_wrath()`: `packages/content/src/align.en.ts`, `packages/content/src/align.ts`
 - `angrygods()`: `packages/content/src/pray.ts`
 - `can_pray()`: `packages/content/src/pray.ts`
@@ -2332,7 +2333,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dopray()`: `packages/content/src/pray.ts`
 - `fix_curse_trouble()`: `packages/content/src/pray.ts`
 - `fix_worst_trouble()`: `packages/content/src/attrstate.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`
-- `fry_by_god()`: `packages/content/src/pray.ts`
+- `fry_by_god()`: `packages/content/src/pray.ts`, `packages/content/src/role.en.ts`
 - `god_zaps_you()`: `packages/content/src/pray.ts`
 - `gods_upset()`: `packages/content/src/pray.ts`
 - `godvoice()`: `packages/content/src/align.ts`
@@ -2341,6 +2342,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `on_shrine()`: `packages/content/src/align.ts`
 - `pleased()`: `packages/content/src/pray.ts`
 - `prayer_done()`: `packages/content/src/pray.ts`
+- `u_gname()`: `packages/content/src/align.ts`
 - `water_prayer()`: `packages/content/src/pray.ts`
 - `worst_cursed_item()`: `packages/content/src/pray.ts`
 
@@ -2453,8 +2455,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/content/src/were.en.ts`
 - `Hello()`: `packages/content/src/shk.ts`
 - `aligns()`: `packages/content/src/disclose.ts`
+- `ok_align()`: `packages/content/src/gods.ts`
 - `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/urole.ts`
-- `roles()`: `packages/content/src/generation.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`
+- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`
+- `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`
 
 ## src/rumors.c
 
@@ -2955,7 +2959,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `u_init()`: `packages/content/src/hunger.ts`, `packages/content/src/props.ts`, `packages/content/src/uenergy.ts`
 - `u_init_carry_attr_boost()`: `packages/content/src/kit.ts`
 - `u_init_inventory_attrs()`: `packages/content/src/kit.ts`
-- `u_init_misc()`: `packages/content/src/kit.ts`
+- `u_init_misc()`: `packages/content/src/align.ts`, `packages/content/src/kit.ts`
 - `u_init_race()`: `packages/content/src/kit.ts`, `packages/content/src/kittab.ts`
 - `u_init_role()`: `packages/content/src/kit.ts`, `packages/content/src/kittab.ts`
 

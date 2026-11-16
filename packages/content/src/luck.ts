@@ -3,8 +3,9 @@
 //
 // The hero's `u.uluck`, `u.ualign` and the prayer counters live in `modData.nh.u`. `u.moreluck`
 // (the luckstone bonus) is worked out from the inventory on every read (gem.ts moreluck()); the
-// stored field stays 0. The hero is a neutral Valkyrie (u.ualign.type 0); Luck times out toward
-// 0 unless a luckstone holds it (no full moon or Friday 13th: no clock).
+// stored field stays 0. The alignment comes from the role and race at new game (align.ts
+// uInitAlign()); Luck times out toward 0 unless a luckstone holds it (no full moon or Friday
+// 13th: no clock).
 import {
   getPlayer,
   type Ctx,
@@ -23,7 +24,10 @@ import { isUnicorn } from './mondata';
 export const LUCKMIN = -10;
 export const LUCKMAX = 10;
 
-/** ref: include/align.h A_CHAOTIC .. A_LAWFUL; the Valkyrie here is neutral */
+/**
+ * The alignment the stored state defaults to: A_NEUTRAL, the default Valkyrie's (and the only
+ * one games saved before m22 had). ref: include/align.h A_NEUTRAL
+ */
 export const HERO_ALIGN_TYPE = 0;
 
 /** The parts of NetHack's `struct you` that Luck, alignment and prayer use. */
@@ -36,6 +40,11 @@ export interface UState {
   alignType: number;
   /** u.ualign.record */
   alignRecord: number;
+  /**
+   * u.ualignbase[A_ORIGINAL] (and A_CURRENT: no altar conversion), written only when not
+   * neutral: absent = HERO_ALIGN_TYPE (every game saved before m22 was a neutral Valkyrie)
+   */
+  alignBase?: number;
   /** u.ualign.abuse */
   alignAbuse: number;
   /** u.ugangr: god anger */
@@ -81,6 +90,13 @@ export function setU(ctx: Pick<Ctx, 'state'>, patch: Partial<UState>): void {
   }
   nh['u'] = { ...uState(ctx.state), ...patch } as unknown as Json;
 }
+
+/**
+ * The hero's original alignment, u.ualignbase[A_ORIGINAL] (also A_CURRENT: no altar conversion
+ * exists, so a helm of opposite alignment taken off returns her to it).
+ */
+export const ualignBase = (state: Readonly<GameState>): number =>
+  uState(state).alignBase ?? HERO_ALIGN_TYPE;
 
 /** ref: include/you.h `#define Luck (u.uluck + u.moreluck)`, with u.moreluck from set_moreluck() */
 export const luckOf = (state: Readonly<GameState>): number => uState(state).luck + moreluck(state);

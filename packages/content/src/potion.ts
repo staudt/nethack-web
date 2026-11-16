@@ -26,7 +26,8 @@ import { moreExperienced } from './urexp';
 import { pluslvl, setUlevelmax, ulevelmax } from './hero';
 import { polyself, youWere } from './polyself';
 import { upolyd } from './upoly';
-import { ulycn, youUnwere } from './werestate';
+import { setUlycn, ulycn, youUnwere } from './werestate';
+import { A_CHAOTIC, A_LAWFUL } from './aligntyp';
 import { heroEntity, strangeFeeling, useup } from './magic';
 import { abase, adjattrib, amax, poisontell, restoreAttr, type Attr } from './attrib';
 import { doEnlightenmentEffect } from './enlightenment';
@@ -37,7 +38,7 @@ import { rndexp } from './hero';
 import { hungerData } from './uhunger';
 import { isStoned, fixPetrification } from './stonestate';
 import { burnAwaySlime, isSlimed } from './slimestate';
-import { likesFire } from './mondata';
+import { hatesBlessings, likesFire } from './mondata';
 import { heroForm } from './upoly';
 import { POT_OIL, isDiluted } from './dilute';
 import { pwOf, setPw } from './uenergy';
@@ -330,9 +331,11 @@ function peffectSeeInvisible(ctx: Ctx, p: Entity): Effect {
 }
 
 /**
- * ref: src/potion.c peffect_water(). The hero is neutral and alive, so the chaotic and undead
- * branches do not apply: holy water is "full of awe" (and cures lycanthropy: "You feel
- * purified."), unholy "full of dread", plain water feeds a little (and identifies the type).
+ * Plain water feeds a little (and identifies the type). Holy water burns an undead or demon form
+ * or a chaotic hero ("This burns like acid!", curing lycanthropy) and gives anyone else awe (curing
+ * sickness and lycanthropy: "You feel purified."); unholy water heals the former ("You feel quite
+ * proud of yourself."), burns a lawful hero and fills a neutral one with dread, and turns a
+ * lycanthrope in her own form into the beast. ref: src/potion.c peffect_water() (no exercise)
  */
 function peffectWater(ctx: Ctx, p: Entity): Effect {
   const buc = p.c.item?.buc ?? 'uncursed';
@@ -341,18 +344,35 @@ function peffectWater(ctx: Ctx, p: Entity): Effect {
     addNutrition(ctx, ctx.rng.rnd(10));
     return { unknown: false };
   }
-  if (buc === 'blessed') {
+  const form = heroForm(ctx);
+  const ualign = uState(ctx.state).alignType;
+  // mon_hates_blessings(&youmonst): undead or demon
+  if ((form !== null && hatesBlessings(form)) || ualign === A_CHAOTIC) {
+    if (buc === 'blessed') {
+      msg(ctx, 'potion.water_burns');
+      const lycn = ulycn(ctx.state);
+      if (lycn !== null) {
+        ctx.emit({ type: 'msg', key: 'potion.water_affinity', params: { mon: `@${lycn}` } });
+        if (form?.id === lycn) youUnwere(ctx, false);
+        setUlycn(ctx, null); // cure lycanthropy
+      }
+      losehp(ctx, ctx.rng.d(2, 6), '@killer.potion.holy_water');
+    } else {
+      msg(ctx, 'potion.water_proud');
+      healup(ctx, ctx.rng.d(2, 6), 0, false, false);
+      if (ulycn(ctx.state) !== null && !upolyd(ctx.state)) youWere(ctx);
+    }
+  } else if (buc === 'blessed') {
     msg(ctx, 'potion.water_holy');
     cureSick(ctx);
     if (ulycn(ctx.state) !== null) youUnwere(ctx, true); // "Purified"
-  } else if (uState(ctx.state).alignType === 1) {
-    // lawful heroes are burned; unreachable while the hero is neutral
-    msg(ctx, 'potion.water_burns');
-    const hp = heroEntity(ctx).c.hp;
-    if (hp) hp.cur -= ctx.rng.d(2, 6);
-  } else msg(ctx, 'potion.water_unholy');
-  // unholy water and a lycanthrope in her own form: she turns into the beast
-  if (buc === 'cursed' && ulycn(ctx.state) !== null && !upolyd(ctx.state)) youWere(ctx);
+  } else {
+    if (ualign === A_LAWFUL) {
+      msg(ctx, 'potion.water_burns');
+      losehp(ctx, ctx.rng.d(2, 6), '@killer.potion.unholy_water');
+    } else msg(ctx, 'potion.water_unholy');
+    if (ulycn(ctx.state) !== null && !upolyd(ctx.state)) youWere(ctx);
+  }
   return { unknown: true };
 }
 

@@ -30,7 +30,7 @@ import { summonFuries } from './generation';
 import { hcolor } from './hcolor';
 import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
-import { HERO_ALIGN_TYPE, adjalign, setU, uState } from './luck';
+import { adjalign, setU, uState, ualignBase } from './luck';
 import { discover } from './o_init';
 import { isGlib, makeGlib } from './glib';
 import { xnameOf } from './objnam';
@@ -346,7 +346,7 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
         for (const a of abonAttrs(obj.def, slot)) adjustAbon(ctx, a, -spe);
         if (spe) discover(ctx, obj.def);
       } else if (obj.def === 'nh:helm_of_opposite_alignment')
-        uchangealign(ctx, HERO_ALIGN_TYPE, false); // u.ualignbase[A_CURRENT]
+        uchangealign(ctx, ualignBase(ctx.state), false); // u.ualignbase[A_CURRENT]
       break;
     case 'gloves':
       // ref: Gloves_off()

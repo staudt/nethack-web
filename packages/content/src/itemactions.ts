@@ -203,7 +203,10 @@ export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null 
   if (id === undefined) return null;
   const align = altarAlign(id);
   if (align !== null)
-    return { key: 'look.altar', params: { god: alignGname(align), align: alignStr(align) } };
+    return {
+      key: 'look.altar',
+      params: { god: alignGname(ctx.state, align), align: alignStr(align) },
+    };
   const t = ctx.defs.terrain(id);
   return t.door !== undefined || t.stairs !== undefined || FEATURES.has(id) ? `@${id}` : null;
 }

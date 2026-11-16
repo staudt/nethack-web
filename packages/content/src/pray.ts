@@ -3,8 +3,8 @@
 // god_zaps_you(), fry_by_god(), prayer_done(), water_prayer(); src/sit.c attrcurse() (rndcurse()
 // is in sit.ts)
 //
-// The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
-// prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
+// The hero prays to her own god (her pantheon's, align.ts) unless she stands on an altar: then
+// she prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
 import { setUcreamed } from './creamed';
 import { isStoned, makeStoned } from './stonestate';
 import { isSlimed, makeSlimed } from './slimestate';
@@ -33,7 +33,16 @@ import {
 } from '@nh/core';
 import { figBucChanged } from './figurinestate';
 import { isWeaponOrWeptool } from './material';
-import { A_NONE, ALGN_DEVOUT, aAlign, alignGname, godvoice, onAltar, onShrine } from './align';
+import {
+  A_NONE,
+  ALGN_DEVOUT,
+  aAlign,
+  alignGname,
+  godSuffix,
+  godvoice,
+  onAltar,
+  onShrine,
+} from './align';
 import { rnz } from './corpses';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
@@ -413,10 +422,7 @@ function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
   say(ctx, disint ? 'pray.disintegrate' : 'pray.fry');
   const h = hero(ctx);
   if (h.c.hp) h.c.hp.cur = 0;
-  done(
-    ctx,
-    align < 0 ? '@killer.wrath_loki' : align > 0 ? '@killer.wrath_tyr' : '@killer.wrath_odin',
-  );
+  done(ctx, `@killer.wrath_${godSuffix(ctx.state, align)}`); // "the wrath of Odin"
 }
 
 /** ref: src/pray.c god_zaps_you() (no reflection exists) */
@@ -452,7 +458,7 @@ function godZapsYou(ctx: Ctx, align: number): void {
       return;
     }
   }
-  say(ctx, 'pray.not_deterred', { god: alignGname(align) });
+  say(ctx, 'pray.not_deterred', { god: alignGname(ctx.state, align) });
   const e2 = engulfer();
   if (e2) {
     zapped(e2, 'pray.disint_hits_mon', ctx.defs.monster(e2.def).resists.includes('disint'), true);
@@ -476,7 +482,7 @@ export function desecrateAltar(ctx: Ctx, highaltar: boolean, altaralign: number)
     setU(ctx, { ugangr: uState(ctx.state).ugangr + 5 });
   }
   say(ctx, 'pray.air_charged');
-  say(ctx, 'pray.noticed_you', { god: alignGname(altaralign) });
+  say(ctx, 'pray.noticed_you', { god: alignGname(ctx.state, altaralign) });
   godvoice(ctx, altaralign, highaltar ? 'pray.dare_desecrate_high' : 'pray.dare_desecrate');
   // throw everything we have at the player
   godZapsYou(ctx, altaralign);
@@ -498,7 +504,7 @@ function angrygods(ctx: Ctx, god: number): void {
     case 0:
     case 1:
       say(ctx, 'pray.feel_god', {
-        god: alignGname(respGod),
+        god: alignGname(ctx.state, respGod),
         mood: halluc(ctx) ? '@pray.mood.bummed' : '@pray.mood.displeased',
       });
       break;
@@ -559,7 +565,7 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
         : h
           ? 'full'
           : 'satisfied';
-  say(ctx, 'pray.feel_god', { god: alignGname(gAlign), mood: `@pray.mood.${mood}` });
+  say(ctx, 'pray.feel_god', { god: alignGname(ctx.state, gAlign), mood: `@pray.mood.${mood}` });
   // not your deity: a point of alignment and nothing else, not even a new prayer timeout
   if (onAltar(ctx) && gAlign !== uState(ctx.state).alignType) {
     adjalign(ctx, -1);
@@ -692,7 +698,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
     }
     case 4: {
       say(ctx, blind ? 'pray.feel_power' : 'pray.blue_aura', {
-        god: alignGname(gAlign),
+        god: alignGname(ctx.state, gAlign),
         color: hcolor(ctx, 'light_blue'),
       });
       for (const o of inventoryOf(ctx.state, ctx.state.playerId))
@@ -828,7 +834,7 @@ function prayerDone(ctx: Ctx, data: PrayerData): void {
     } // else use regular Inhell result below
   }
   if (inHell(ctx.state)) {
-    say(ctx, 'pray.in_gehennom', { god: alignGname(alignment) });
+    say(ctx, 'pray.in_gehennom', { god: alignGname(ctx.state, alignment) });
     // haltingly aligned is least likely to anger
     const record = uState(ctx.state).alignRecord;
     if (record <= 0 || rnl(ctx.rng, record, luckOf(ctx.state)))
@@ -881,7 +887,7 @@ const pray: ActionDef = {
   answer(ctx, value) {
     if (value !== true) return 0; // declined: no time passes
     const data = canPray(ctx);
-    say(ctx, 'pray.begin', { god: alignGname(data.pAlign) });
+    say(ctx, 'pray.begin', { god: alignGname(ctx.state, data.pAlign) });
     // nomul(-3), "praying", "You finish your prayer.", then prayer_done()
     const extra = nomul(ctx, 3, 'helpless.praying', { key: 'pray.finish' });
     ctx.schedule(4, PRAYER_DONE, data as unknown as Json);

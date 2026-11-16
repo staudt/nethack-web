@@ -1,9 +1,9 @@
 // Alignments, gods and altars. ref: include/align.h; src/pray.c a_align(), on_altar(),
-// on_shrine(), align_gname(), godvoice(), altar_wrath(); src/insight.c align_str(); src/do.c
-// doaltarobj(), flooreffects()
+// on_shrine(), align_gname(), align_gtitle(), godvoice(), altar_wrath(); src/insight.c
+// align_str(); src/do.c doaltarobj(), flooreffects(); src/role.c role_init() (the pantheon)
 //
-// The gods are the Valkyrie's pantheon (Tyr, Odin, Loki) and Moloch for unaligned altars: the
-// hero is always a Valkyrie, so `urole.lgod/ngod/cgod` are fixed.
+// The gods are the hero's pantheon: her own role's (`urole.lgod/ngod/cgod`), or for a Priest
+// another role's drawn at new game (`modData.nh.pantheon`), and Moloch for unaligned altars.
 import {
   cellIndex,
   getLevel,
@@ -12,13 +12,18 @@ import {
   isVisible,
   type Ctx,
   type Entity,
+  type GameState,
   type Msg,
   type PosComponent,
 } from '@nh/core';
 import { adjattrib } from './attrib';
-import { changeLuck, luckOf, setU, uState } from './luck';
+import { changeLuck, luckOf, setU, uState, ualignBase } from './luck';
 import { hcolor } from './hcolor';
 import { P, hasProp } from './props';
+import { ROLES_TAB } from './roletab';
+import { urace, urole } from './urole';
+import { alignGname, startAlign } from './gods';
+export { alignGname, alignGtitle, godSuffix, initPantheon, pantheon, startAlign } from './gods';
 
 export {
   A_NONE,
@@ -58,10 +63,25 @@ export function onShrine(ctx: Pick<Ctx, 'state'>): boolean {
   return getLevel(ctx.state).shrines?.some((p) => p.x === pos.x && p.y === pos.y) === true;
 }
 
-/** The god of an alignment as a message param. ref: src/pray.c align_gname() */
-export function alignGname(a: number): string {
-  if (a === A_NONE) return '@god.moloch';
-  return a > 0 ? '@god.tyr' : a < 0 ? '@god.loki' : '@god.odin';
+/** The hero's own god. ref: src/pray.c u_gname() */
+export const uGname = (state: Readonly<GameState>): string =>
+  alignGname(state, uState(state).alignType);
+
+/**
+ * At new game, the alignment and its record: `u.ualign.type` from the starting alignment (also
+ * the original one, `u.ualignbase`), `u.ualign.record = urole.initrecord`. Only the values that
+ * differ from the defaults are written (the neutral Valkyrie's record 0 needs none).
+ * ref: src/attrib.c newhp() `if (svm.moves == 0)`; src/u_init.c u_init_misc() u.ualignbase
+ */
+export function uInitAlign(ctx: Pick<Ctx, 'state'>, align?: number): void {
+  const type = align ?? startAlign(urole(ctx.state), urace(ctx.state));
+  const record = ROLES_TAB[urole(ctx.state)].initrecord;
+  const u = uState(ctx.state);
+  const patch: { alignType?: number; alignRecord?: number; alignBase?: number } = {};
+  if (u.alignType !== type) patch.alignType = type;
+  if (u.alignRecord !== record) patch.alignRecord = record;
+  if (ualignBase(ctx.state) !== type) patch.alignBase = type;
+  if (Object.keys(patch).length) setU(ctx, patch);
 }
 
 /** "lawful", "neutral", "chaotic" or "unaligned" as a message param. ref: insight.c align_str() */
@@ -77,7 +97,7 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 export function godvoice(ctx: Ctx, align: number, words: string | null): void {
   const how = ['booms_out', 'thunders', 'rings_out', 'booms'][ctx.rng.rn2(4)] ?? 'booms';
   say(ctx, words ? 'pray.voice_says' : 'pray.voice', {
-    god: alignGname(align),
+    god: alignGname(ctx.state, align),
     how: `@pray.how.${how}`,
     ...(words ? { words: `@${words}` } : {}),
   });
@@ -97,7 +117,7 @@ export function altarWrath(ctx: Ctx, x: number, y: number): void {
     adjattrib(ctx, 'wis', -1, false);
     setU(ctx, { alignRecord: uState(ctx.state).alignRecord - 1 });
   } else {
-    say(ctx, 'altar.whisper', { god: alignGname(altaralign) });
+    say(ctx, 'altar.whisper', { god: alignGname(ctx.state, altaralign) });
     say(ctx, 'altar.infidel');
     const luck = luckOf(ctx.state);
     if (luck > -5 && ctx.rng.rn2(luck + 6) !== 0) changeLuck(ctx, ctx.rng.rn2(20) !== 0 ? -1 : -2);

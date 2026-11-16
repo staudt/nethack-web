@@ -161,10 +161,7 @@ describe('priestini', () => {
         { key: 'x', params: { m: monNam(ctxFor(s.state), p) } },
         {
           ...Object.fromEntries(
-            ['lawful', 'neutral', 'chaotic'].map((k) => [
-              `priest.of.${k}`,
-              `priest of ${{ lawful: 'Tyr', neutral: 'Odin', chaotic: 'Loki' }[k]}`,
-            ]),
+            ['Tyr', 'Odin', 'Loki'].map((g) => [`priest.of.${g.toLowerCase()}`, `priest of ${g}`]),
           ),
           x: 'You kill {m|the}!',
         },

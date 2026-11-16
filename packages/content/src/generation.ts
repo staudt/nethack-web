@@ -48,11 +48,6 @@ import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
 import { AMOROUS_DEMON, setMonFemale } from './gender';
 
-/**
- * The stub hero is a neutral human Valkyrie; neutral is alignment type 0 and the Valkyrie's
- * initial alignment record is 0 (it never changes in this port).
- * ref: src/role.c roles[] Valkyrie initrecord 0; include/align.h A_NEUTRAL
- */
 /** ref: src/allmain.c maybe_generate_rnd_mon(): 1 in 70 per turn above the Castle's depth */
 export const SPAWN_ODDS = 70;
 

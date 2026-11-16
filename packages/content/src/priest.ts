@@ -244,7 +244,7 @@ export function ghodHitsu(ctx: Ctx, epri: Epri): void {
     if (!linedupHero(ctx, level, hp, x, y)) return;
   }
   // a_gname_at(ax, ay): the god of the altar
-  const god = alignGname(epri.shralign);
+  const god = alignGname(ctx.state, epri.shralign);
   ctx.emit({
     type: 'msg',
     key: GHOD_LINES[ctx.rng.rn2(3)] ?? 'priest.ghod.roars',
@@ -295,7 +295,7 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
       if (canseeNow(ctx, priest.c.pos)) {
         const mon = hasProp(getPlayer(ctx.state), P.HALLUC)
           ? monNam(ctx, priest)
-          : priestName(epri);
+          : priestName(ctx.state, epri);
         ctx.emit({ type: 'msg', key: 'priest.intones', params: { mon } });
       } else ctx.emit({ type: 'msg', key: 'priest.voice_intones' });
       epri.intoneTime = now + ctx.rng.d(10, 500); // ~2505

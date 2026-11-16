@@ -300,7 +300,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   }
   if (u.ugangr) {
     line('enl.god_angry', {
-      god: alignGname(u.alignType),
+      god: alignGname(ctx.state, u.alignType),
       deg: `@enl.deg.${u.ugangr > 6 ? 'extremely' : u.ugangr > 3 ? 'very' : 'plain'}`,
     });
   } else line(canSafelyPray(ctx) ? 'enl.can_pray' : 'enl.cant_pray');

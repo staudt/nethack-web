@@ -76,7 +76,7 @@ describe('alignment helpers', () => {
     expect(
       [1, 0, -1, A_NONE].map((a) =>
         render(
-          { key: 'x', params: { g: alignGname(a) } },
+          { key: 'x', params: { g: alignGname(s.state, a) } },
           {
             x: '{g}',
             'god.tyr': 'Tyr',

@@ -16,6 +16,7 @@ import {
   type ObjectClass,
   type ObjectDef,
 } from '@nh/core';
+import { initPantheon, uInitAlign } from './align';
 import { adjattrib } from './attrstate';
 import { setBoxTrapped } from './btrapstate';
 import { POT_OIL } from './dilute';
@@ -548,14 +549,17 @@ export function uInitSkillsDiscoveries(
 
 /** Registers the u_init hook through the public ModApi. */
 export function registerKit(api: ModApi): void {
-  // ref: src/u_init.c u_init_misc() (HP and Pw at level 0), u_init_inventory_attrs() (kit,
-  // attributes, carry boost), u_init_skills_discoveries(). The port makes them before the first
-  // level, as 3.7's u_init() (plan m22 Q9); the pet comes after placement (dog.ts).
+  // ref: src/role.c role_init() (the pantheon); src/u_init.c u_init_misc() (HP and Pw at level
+  // 0, the alignment), u_init_inventory_attrs() (kit, attributes, carry boost),
+  // u_init_skills_discoveries(). The port makes them before the first level, as 3.7's u_init()
+  // (plan m22 Q9); the pet comes after placement (dog.ts).
   api.on('newGame', (ctx, heroId) => {
     const hero = ctx.state.entities[String(heroId)];
     if (!hero) return;
+    initPantheon(ctx); // a Priest draws another role's gods
     const max = newhp(ctx, 0, 0); // no Con adjustment for initial hit points
     hero.c.hp = { cur: max, max };
+    uInitAlign(ctx); // newhp() at moves 0: alignment and initrecord
     const en = newpw(ctx, 0, 0);
     setPw(ctx, { uen: en, uenmax: en, uenpeak: en });
     hero.c.experience = { level: 1, points: 0 };
