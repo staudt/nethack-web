@@ -73,14 +73,20 @@ describe('kick: door', () => {
 
 describe('kick: walls and legs', () => {
   test('a wall says Ouch and costs hit points', () => {
-    const s = setup(['|.@.|', '-----'], 2); // a seed where no hit point regenerates that turn (1 before m12 step 5)
-    stats(s);
-    const hp0 = s.state.entities[String(s.state.playerId)]!.c.hp!.cur;
-    const r = kick(s, 's');
-    expect(keys(r)).toContain('kick.ouch');
-    const hp1 = s.state.entities[String(s.state.playerId)]!.c.hp!.cur;
-    expect(hp0 - hp1).toBeGreaterThanOrEqual(1);
-    expect(hp0 - hp1).toBeLessThanOrEqual(3);
+    // over seeds: a hit point may regenerate the same turn, so the loss is 0..3, mostly 1..3
+    let hurt = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+      const s = setup(['|.@.|', '-----'], seed);
+      stats(s);
+      const hp0 = s.state.entities[String(s.state.playerId)]!.c.hp!.cur;
+      const r = kick(s, 's');
+      expect(keys(r)).toContain('kick.ouch');
+      const hp1 = s.state.entities[String(s.state.playerId)]!.c.hp!.cur;
+      expect(hp0 - hp1).toBeGreaterThanOrEqual(0);
+      expect(hp0 - hp1).toBeLessThanOrEqual(3);
+      if (hp0 - hp1 >= 1) hurt++;
+    }
+    expect(hurt).toBeGreaterThan(4);
   });
 
   test('wounded legs block kicking until they heal', () => {

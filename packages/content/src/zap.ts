@@ -63,6 +63,7 @@ import {
   type Trap,
 } from '@nh/core';
 import { figBucChanged } from './figurinestate';
+import { mleashed } from './leashstate';
 import { burnAwaySlime } from './slimestate';
 import { uhimKey } from './gender';
 import { breaktest } from './material';
@@ -495,6 +496,7 @@ function monStatus(ctx: Ctx, mon: Entity): Msg {
   if (isCancelled(ctx, mon.id)) flags.push('cancelled');
   if (isFrozen(ctx, mon.id)) flags.push('cant_move');
   else if (m?.asleep) flags.push('asleep');
+  if (mleashed(ctx, mon.id)) flags.push('leashed');
   return {
     key: 'zap.probe.status',
     params: {
@@ -532,8 +534,14 @@ function probeMonster(ctx: Ctx, mon: Entity): void {
   });
 }
 
+/** The monster's status line (probing, the stethoscope). ref: src/insight.c mstatusline() */
+export function mstatusline(ctx: Ctx, mon: Entity): void {
+  const st = monStatus(ctx, mon);
+  say(ctx, st.key, st.params);
+}
+
 /** ref: src/insight.c ustatusline() (short form) */
-function ustatusline(ctx: Ctx): void {
+export function ustatusline(ctx: Ctx): void {
   const h = hero(ctx);
   const flags: string[] = [];
   if (utrap(ctx)) flags.push('trapped');
@@ -704,13 +712,13 @@ function rogueDoorlock(ctx: Ctx, level: Level, x: number, y: number): boolean {
 const speOf = (src: ZapSource): number => (src.kind === 'wand' ? (src.item.c.item?.spe ?? 0) : 0);
 
 /**
- * A broken wand of light flashes at the monster: a sleeper with eyes wakes ("The flash awakens
+ * A broken wand of light or a camera flashes at the monster: a sleeper with eyes wakes ("The flash awakens
  * X."), one that can see is blinded (only the message: monster blindness is not modelled),
  * angered, and may flee when within dist2 9; true when the hero noticed something.
  * ref: src/uhitm.c flash_hits_mon() (no mimics, gremlins or Sunsword), src/mondata.c
  * resists_blnd()
  */
-function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
+export function flashHitsMon(ctx: Ctx, mon: Entity): boolean {
   const m = mon.c.monster;
   const p = mon.c.pos;
   if (!m || !p) return false;

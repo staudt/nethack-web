@@ -60,8 +60,9 @@ describe('the rows', () => {
   test('objects.h neighbours, the rations and the bugle', () => {
     const ids = defs.objects.map((d) => d.id as string);
     expect(ids.indexOf('nh:banded_mail')).toBe(ids.indexOf('nh:elven_mithril_coat') - 1);
-    // the harps before the bugle, the drums after it (m19 step 1)
-    expect(ids.indexOf('nh:bugle')).toBe(ids.indexOf('nh:magic_harp') + 1);
+    // the harps and the bell before the bugle, the drums after it (m19 step 1, m22 step 2)
+    expect(ids.indexOf('nh:bell')).toBe(ids.indexOf('nh:magic_harp') + 1);
+    expect(ids.indexOf('nh:bugle')).toBe(ids.indexOf('nh:bell') + 1);
     expect(ids.indexOf('nh:leather_drum')).toBe(ids.indexOf('nh:bugle') + 1);
     expect(ids.indexOf('nh:c_ration')).toBe(ids.indexOf('nh:k_ration') + 1);
     expect(defs.object('nh:plate_mail' as DefId)).toMatchObject({

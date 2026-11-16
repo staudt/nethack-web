@@ -9,7 +9,7 @@
 //
 // Not ported (see DEVIATIONS.md "Scrolls"): attribute exercise, shop charges for altered
 // objects (costly_alteration()), being underwater, the steed, the "Maud" name check, the
-// rechargeable tools that do not exist (bell of opening, camera, crystal ball, can of grease,
+// rechargeable tools that do not exist (bell of opening, crystal ball, can of grease,
 // bag of tricks: "a feeling of loss"), selftouch() for
 // gloves lost while wielding a cockatrice corpse, artifacts.
 import { setDestroyArm } from './mcastu';
@@ -782,7 +782,7 @@ function stripspe(ctx: Ctx, obj: Entity): void {
 }
 
 /**
- * Recharging a tool: a charged one counts the recharge (up to 7); markers and tinning kits get
+ * Recharging a tool: a charged one counts the recharge (up to 7); markers, tinning kits and cameras get
  * ink or cans (a marker only once: then "Your marker seems permanently dried out."), lamps and
  * lanterns oil, the horn of plenty and the magic instruments charges; a cursed scroll strips
  * them. False when the tool cannot be recharged. ref: src/read.c recharge() TOOL_CLASS
@@ -796,6 +796,7 @@ function rechargeTool(ctx: Ctx, obj: Entity, isCursed: boolean, isBlessed: boole
   switch (obj.def) {
     case 'nh:magic_marker':
     case 'nh:tinning_kit':
+    case 'nh:expensive_camera':
       if (isCursed) stripspe(ctx, obj);
       else if (rechrg && obj.def === 'nh:magic_marker') {
         // previously recharged

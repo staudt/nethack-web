@@ -110,6 +110,7 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.probe.flag.cancelled': ', cancelled{rest}',
   'zap.probe.flag.cant_move': ", can't move{rest}",
   'zap.probe.flag.asleep': ', asleep{rest}',
+  'zap.probe.flag.leashed': ', leashed{rest}',
   'zap.probe.not_carrying': '{mon|The} is not carrying anything.',
   'zap.probe.carrying': '{mon|The} is carrying:',
   'zap.probe.inventory': 'Inventory',

@@ -35,6 +35,7 @@ import {
   ensureEdog,
   meating,
   setMeating,
+  whimper,
   type Edog,
 } from './dog';
 import { addToInventory, splitStack } from './items';
@@ -59,6 +60,7 @@ import { isRogueLevel } from './levelflags';
 import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
+import { getMleash, hisOf, mleashed, oUnleash } from './leashstate';
 import { P, conflictOn, heroHas, resistConflict } from './props';
 import { onscary } from './scary';
 import { isFrozen, isMConfused, isMStunned, mcansee, setMConfused } from './mstate';
@@ -152,7 +154,8 @@ export function dogEat(
 function dogStarve(ctx: Ctx, mon: Entity): void {
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
-  if (p && level && isVisible(ctx.state, cellIndex(level, p.x, p.y)))
+  if (mleashed(ctx, mon.id)) say(ctx, 'leash.goes_slack');
+  else if (p && level && isVisible(ctx.state, cellIndex(level, p.x, p.y)))
     say(ctx, 'dog.starves', { mon: monNam(ctx, mon) });
   else say(ctx, heroHas(ctx.state, P.HALLUC) ? 'dog.feel_bummed' : 'dog.feel_sad');
   mondied(ctx, mon.id);
@@ -295,7 +298,7 @@ function heroInRoom(ctx: Ctx, level: Level, hp: Pos): boolean {
  * Where the pet wants to go, and whether to approach (1), keep away (-1) or wander (0) toward
  * it; -2 means stay. ref: src/dogmove.c dog_goal(). Not ported: the hero's trail (gettrack)
  * and the "want a door" search when the hero is out of sight (the pet heads for her, or its
- * previous goal), leashes, magic portals.
+ * previous goal), magic portals.
  */
 function dogGoal(
   ctx: Ctx,
@@ -327,7 +330,14 @@ function dogGoal(
   const floor = Object.values(ctx.state.entities)
     .filter((o) => o.c.item && o.c.pos?.level === pos.level)
     .sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || b.id - a.id);
-  for (const obj of floor) {
+  // he's not going anywhere...
+  const leashed = mleashed(ctx, mon.id);
+  if (leashed) {
+    gtyp = APPORT;
+    gx = hp.x;
+    gy = hp.y;
+  }
+  for (const obj of leashed ? [] : floor) {
     const op = obj.c.pos as Pos;
     const nx = op.x;
     const ny = op.y;
@@ -530,10 +540,13 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     let nidist = gdist(nix, niy);
     const track = getTrack(ctx, id);
     const mhp = mon.c.hp ?? { cur: 1, max: 1 };
+    const leashed = mleashed(ctx, id);
     for (let i = 0; i < cnt; i++) {
       const c = cands[i] as Candidate;
       const nx = c.x;
       const ny = c.y;
+      // if leashed, we drag him along (no square more than distance squared 4 from her)
+      if (leashed && dist2(nx, ny, hp.x, hp.y) > 4) continue;
       if (c.mon !== undefined) {
         const mtmp2 = ctx.state.entities[String(c.mon)];
         const m2 = mtmp2?.c.monster;
@@ -577,9 +590,11 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
       if (avoidSokoPushLoc(ctx, level, mon, hp, nx, ny)) continue;
       // ref: dog_move(): "Dog avoids harmful traps, but perhaps it has to pass one in order to
       // follow player." It avoids only traps the hero has seen, and 1 time in 40 steps on anyway.
+      // A leashed pet is pulled onto it, whimpering.
       if (c.trap) {
         const trap = trapAt(level, nx, ny);
-        if (trap?.seen && ctx.rng.rn2(40) !== 0) continue;
+        if (leashed) whimper(ctx, mon);
+        else if (trap?.seen && ctx.rng.rn2(40) !== 0) continue;
       }
       // the dog eschews cursed objects, but likes dog food
       let food: Entity | null = null;
@@ -603,9 +618,10 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         break;
       }
       // didn't find something to eat; usually keep looking rather than step on a cursed item
-      if (cursemsg.has(i) && uncursedcnt > 0 && ctx.rng.rn2(13 * uncursedcnt) !== 0) continue;
-      // lessen the chance of backtracking when far from the hero
-      if (Math.max(Math.abs(omx - hp.x), Math.abs(omy - hp.y)) > 5) {
+      if (cursemsg.has(i) && !leashed && uncursedcnt > 0 && ctx.rng.rn2(13 * uncursedcnt) !== 0)
+        continue;
+      // lessen the chance of backtracking when far from the hero (not when leashed)
+      if (!leashed && Math.max(Math.abs(omx - hp.x), Math.abs(omy - hp.y)) > 5) {
         const k = uncursedcnt;
         let skip = false;
         for (let j = 0; j < MTSZ && j < k - 1 && !skip; j++)
@@ -635,6 +651,12 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
   if ((nix !== omx || niy !== omy) && chi >= 0) {
     // ALLOW_U (Conflict): the pet attacks her instead of moving
     if (nix === hp.x && niy === hp.y) {
+      // play it safe
+      const l = getMleash(ctx, id);
+      if (l !== null) {
+        say(ctx, 'leash.breaks_loose', { mon: monNam(ctx, mon), his: hisOf(ctx, mon) });
+        oUnleash(ctx, l);
+      }
       monsterAttack(ctx, id); // mattacku()
       return 'done';
     }

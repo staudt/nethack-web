@@ -1,5 +1,6 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { leashMon } from './leashstate';
 import { isIce, isLava, isPool } from './liquid';
 import { breathless, likesLavaId, uinwater, wwalking } from './uwater';
 import { floorEffectsLate } from './floorfx';
@@ -812,7 +813,8 @@ export function setEngulferDigestsFood(fn: DigestsFood): void {
 }
 
 /**
- * Drops one carried stack. ref: src/do.c drop(), canletgo(), dropx(), doaltarobj(), dropz().
+ * Drops one carried stack (not an attached leash). ref: src/do.c drop(), canletgo(), dropx(),
+ * doaltarobj(), dropz().
  * Returns whether it was dropped, or the shopkeeper's offer to ask about (the object then lies
  * unmerged until the answer: stackobj() comes after sellobj()).
  */
@@ -833,6 +835,10 @@ function dropItem(ctx: Ctx, e: Entity, sell: SellState | null): boolean | SellOf
   if (e.def === 'nh:loadstone' && it.buc === 'cursed') {
     ctx.emit({ type: 'msg', key: it.quantity !== 1 ? 'drop.loadstone.plural' : 'drop.loadstone' });
     it.known.buc = true; // set_bknown()
+    return false;
+  }
+  if (leashMon(ctx, e.id) !== null) {
+    ctx.emit({ type: 'msg', key: 'leash.tied' });
     return false;
   }
   if (it.equipped === 'weapon') it.equipped = null; // setuwep(NULL)

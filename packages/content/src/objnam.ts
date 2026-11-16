@@ -31,6 +31,7 @@ import { isDiluted } from './dilute';
 import { vegetarian } from './mondata';
 import { HOMEMADE_TIN, ROTTEN_TIN, SPINACH_TIN, TIN, TINTXT, tinVariety } from './tins';
 import { isSwapWep } from './wield';
+import { LEASH, leashMon } from './leashstate';
 
 /**
  * The message for the item's name without quantity, BUC or suffixes (xname()): the real name
@@ -278,6 +279,10 @@ export function doname(
     if (left < 20 * def.cost) params.eaten = { key: 'obj.partly_used' };
   }
   if (it.lit) params.charges = { key: 'obj.lit' };
+  // ref: doname_base() TOOL_CLASS: a leash in use is " (attached to the kitten)"
+  const lmon = def.id === LEASH ? leashMon({ state }, item.id) : null;
+  const lent = lmon === null ? undefined : state.entities[String(lmon)];
+  if (lent?.c.monster) params.worn = { key: 'obj.attached', params: { mon: `@${lent.def}` } };
 
   // ref: doname_base() ARMOR_CLASS / WEAPON_CLASS (a weapon-tool counts as a weapon):
   // add_erosion_words() before the enchantment

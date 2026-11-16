@@ -169,24 +169,27 @@ describe('make_corpse(): what golems leave', () => {
     expect(ids(piles).has('nh:quarterstaff')).toBe(true);
   });
 
-  test('rope golem: up to two bullwhips (no leashes or grappling hooks)', () => {
+  test('rope golem: up to two leashes and bullwhips (no grappling hooks)', () => {
     const piles = drops('nh:rope_golem', 30);
     for (const p of piles) {
       expect(p.length).toBeLessThanOrEqual(2);
-      for (const e of p) expect(e.def).toBe('nh:bullwhip');
+      for (const e of p) expect(['nh:leash', 'nh:bullwhip']).toContain(e.def);
     }
     expect(piles.some((p) => p.length === 0)).toBe(true);
-    expect(piles.some((p) => p.length > 0)).toBe(true);
+    expect(ids(piles).has('nh:leash')).toBe(true);
+    expect(ids(piles).has('nh:bullwhip')).toBe(true);
   });
 
-  test('leather golem: leather armor and cloaks (no saddles)', () => {
-    const piles = drops('nh:leather_golem', 20);
+  test('leather golem: leather armor, cloaks and saddles', () => {
+    const piles = drops('nh:leather_golem', 40);
     for (const p of piles) {
       expect(p.length).toBeGreaterThanOrEqual(1);
       expect(p.length).toBeLessThanOrEqual(8);
-      for (const e of p) expect(['nh:leather_armor', 'nh:leather_cloak']).toContain(e.def);
+      for (const e of p)
+        expect(['nh:leather_armor', 'nh:leather_cloak', 'nh:saddle']).toContain(e.def);
     }
     expect(ids(piles).has('nh:leather_armor')).toBe(true);
+    expect(ids(piles).has('nh:saddle')).toBe(true);
   });
 
   test('gold golem: 100..200 gold pieces; paper golem: 1..4 blank scrolls', () => {

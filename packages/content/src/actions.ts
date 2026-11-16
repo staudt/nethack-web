@@ -1,4 +1,5 @@
 import { slipperyIceFumbling } from './fumble';
+import { checkLeashFrom } from './leashstate';
 import {
   DIRS,
   DIR_LIST,
@@ -329,6 +330,7 @@ function swapWithPet(ctx: Ctx, mon: Entity, from: Pos, to: Pos, dir: Dir): numbe
     key: tame ? 'dog.swap' : 'dog.swap_peaceful',
     params: { mon: `@${mon.def}` },
   });
+  checkLeashFrom(ctx, from.x, from.y); // ref: domove_core(): check_leash(u.ux0, u.uy0)
   invocationMessage(ctx); // ref: domove_core(): invocation_message() before spoteffects()
   // ref: src/hack.c spoteffects(): pooleffects() first, then the room, the things, the trap
   if (pooleffects(ctx, true, from) || ctx.state.gameOver) return NORMAL_SPEED;
@@ -744,6 +746,7 @@ function stepTo(ctx: Ctx, level: Level, from: Pos, to: Pos): number {
   pos.x = to.x;
   pos.y = to.y;
   ctx.emit({ type: 'moved', id: player.id, from, to });
+  checkLeashFrom(ctx, from.x, from.y); // ref: domove_core(): check_leash(u.ux0, u.uy0)
   invocationMessage(ctx); // ref: domove_core(): invocation_message() before spoteffects()
   // ref: src/hack.c spoteffects(): pooleffects() first; when she moved (crawled out, saved)
   // the rest is skipped

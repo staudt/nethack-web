@@ -12,6 +12,7 @@
 // while confused, bags of tricks, ice boxes, Schroedinger's cat, billing a shop's
 // bag of holding that explodes on its floor, the weight check when taking things out of a carried container, the
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
+import { leashMon } from './leashstate';
 import { fatalCorpseMistake } from './stonetouch';
 import {
   NORMAL_SPEED,
@@ -220,6 +221,10 @@ function inContainer(ctx: Ctx, box: Entity, obj: Entity, data: LootData): -1 | 0
     // "Prohibit Amulets in containers; if you allow it, monsters can't steal them. ... Ditto for
     // the Candelabrum, the Bell and the Book."
     say(ctx, 'loot.trappings', { item: xnameOf(ctx.state, ctx.defs, obj) });
+    return 0;
+  }
+  if (leashMon(ctx, obj.id) !== null) {
+    say(ctx, 'leash.attached_to_pet', { item: xnameOf(ctx.state, ctx.defs, obj) });
     return 0;
   }
   if (it.equipped === 'weapon') {

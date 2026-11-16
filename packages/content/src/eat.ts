@@ -52,7 +52,8 @@ import {
   timeoutLeft,
 } from './props';
 import { changeLuck } from './luck';
-import { addToInventory, nhData, placeOnFloor, splitStack } from './items';
+import { addToInventory, bcsign, nhData, placeOnFloor, splitStack } from './items';
+import { outrumorCookie } from './rumors';
 import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
 import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
@@ -126,6 +127,8 @@ function objNutrition(ctx: Ctx, e: Entity): number {
     return ctx.defs.monster(it.corpseOf).nutrition;
   return ctx.defs.object(e.def).food?.nutrition ?? 0;
 }
+
+const FORTUNE_COOKIE = 'nh:fortune_cookie';
 
 /** ref: include/hack.h nonrotting_food() */
 const nonrottingFood = (def: ObjectDef): boolean =>
@@ -781,6 +784,9 @@ function fpostfx(ctx: Ctx, e: Entity): void {
   }
   // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (the goop stays)
   if (e.def === 'nh:carrot') makeBlinded(ctx, ucreamed(ctx.state), true);
+  // ref: fpostfx() FORTUNE_COOKIE: outrumor(bcsign(otmp), BY_COOKIE) (no literacy conduct)
+  if (e.def === FORTUNE_COOKIE)
+    outrumorCookie(ctx, bcsign(e.c.item?.buc ?? 'uncursed') as -1 | 0 | 1);
   if (e.def === 'nh:lump_of_royal_jelly') royalJelly(ctx, e.c.item?.buc === 'cursed');
 }
 
@@ -908,7 +914,11 @@ function doeat(ctx: Ctx, e: Entity): number {
     const pit = piece.c.item;
     v.reqtime = def.delay;
     const old = ctx.state.turn - (pit?.age ?? 0) > (pit?.buc === 'blessed' ? 50 : 30);
-    if (pit?.buc === 'cursed' || (!nonrottingFood(def) && old && ctx.rng.rn2(7) === 0)) {
+    // a fortune cookie is never rotten (start_eating(): `otmp->otyp != FORTUNE_COOKIE`)
+    if (
+      piece.def !== FORTUNE_COOKIE &&
+      (pit?.buc === 'cursed' || (!nonrottingFood(def) && old && ctx.rng.rn2(7) === 0))
+    ) {
       if (rottenfood(ctx, piece)) dontStart = true;
       consumeOeaten(ctx, piece, 1); // oeaten >>= 1
     } else if (!alreadyPartlyEaten) {

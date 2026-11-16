@@ -202,8 +202,8 @@ export function setGolemStatue(fn: GolemStatue): void {
  * rn2(NUM_GLASS_GEMS)), 50..69 rocks, a statue of a stone golem, d(2,4) quarterstaffs, small
  * shields, clubs, elven spears or boomerangs, rn2(3) leashes, bullwhips or grappling hooks, d(2,4)
  * leather armors, leather cloaks or saddles, 200 - rnl(101) gold, rnd(4) blank scrolls. The
- * port has no iron chain, boomerang, leash, grappling hook or saddle: their rolls are drawn and
- * nothing is made (DEVIATIONS.md "Golems"). False for anything else (straw and flesh golems
+ * port has no iron chain, boomerang or grappling hook: their rolls are drawn and nothing is made
+ * (DEVIATIONS.md "Golems"). False for anything else (straw and flesh golems
  * included: the default corpse rules). ref: src/mon.c make_corpse() PM_*_GOLEM
  */
 function golemDrop(
@@ -250,12 +250,14 @@ function golemDrop(
       return true;
     case 'nh:rope_golem':
       num = ctx.rng.rn2(3);
-      while (num-- > 0) make(ctx.rng.rn2(2) ? null : ctx.rng.rn2(3) ? 'nh:bullwhip' : null); // LEASH, GRAPPLING_HOOK
+      while (num-- > 0) make(ctx.rng.rn2(2) ? 'nh:leash' : ctx.rng.rn2(3) ? 'nh:bullwhip' : null); // GRAPPLING_HOOK
       return true;
     case 'nh:leather_golem':
       num = ctx.rng.d(2, 4);
       while (num--)
-        make(ctx.rng.rn2(4) ? 'nh:leather_armor' : ctx.rng.rn2(3) ? 'nh:leather_cloak' : null); // SADDLE
+        make(
+          ctx.rng.rn2(4) ? 'nh:leather_armor' : ctx.rng.rn2(3) ? 'nh:leather_cloak' : 'nh:saddle',
+        );
       return true;
     case 'nh:gold_golem':
       // Good luck gives more coins

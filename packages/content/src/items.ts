@@ -206,7 +206,11 @@ export function mksobjInit(
       } else if (def.id === 'nh:magic_lamp') {
         it.spe = 1; // the djinni is inside; it burns no fuel (age is never read)
         blessorcurse(rng, it, 2);
-      } else if (def.id === 'nh:tinning_kit' || def.id === 'nh:magic_marker') {
+      } else if (
+        def.id === 'nh:expensive_camera' ||
+        def.id === 'nh:tinning_kit' ||
+        def.id === 'nh:magic_marker'
+      ) {
         it.spe = rng.rn2(70) + 30; // rn1(70, 30)
       } else if (def.id === 'nh:horn_of_plenty') {
         it.spe = rng.rn2(18) + 3; // rn1(18, 3): 3..20

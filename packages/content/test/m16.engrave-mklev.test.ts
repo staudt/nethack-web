@@ -126,7 +126,7 @@ describe('engravings made with the level', () => {
   test('"Closed for inventory" in the dust outside a locked shop door, on floor or corridor', () => {
     let closed = 0;
     let shops = 0;
-    for (const { state, level } of made) {
+    const check = (state: GameState, level: Level): void => {
       for (let i = 0; i < level.rooms.length; i++) {
         if (!isShopType(level.rooms[i]?.type)) continue;
         shops++;
@@ -169,6 +169,16 @@ describe('engravings made with the level', () => {
             );
             expect(near).toHaveLength(1);
           }
+      }
+    };
+    for (const { state, level } of made) check(state, level);
+    // a locked shop is rare: when the sample has none, search more games for one
+    for (let seed = 17; closed === 0 && seed <= 200; seed++) {
+      const { state } = engine.newGame({ seed });
+      for (let dlevel = 1; dlevel <= 8 && closed === 0; dlevel++) {
+        if (dlevel > 1)
+          withCtx(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:main', dlevel }, 'up'));
+        check(state, getLevel(state));
       }
     }
     expect(shops).toBeGreaterThan(0);

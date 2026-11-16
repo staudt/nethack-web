@@ -33,6 +33,7 @@ export const CHARGED_RINGS: ReadonlySet<string> = new Set([
  * adds to them. ref: include/objects.h TOOL() `chg`
  */
 export const CHARGED_TOOLS: ReadonlySet<string> = new Set([
+  'nh:expensive_camera',
   'nh:tinning_kit',
   'nh:magic_marker',
   'nh:magic_flute',
@@ -3935,10 +3936,22 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('oil_lamp', 45, 20, 10, 'copper', YELLOW, false, 'lamp'),
   // ref: objects.h TOOL("magic lamp", "lamp", 0, 0, 1, 0, 15, 20, 50, COPPER, CLR_YELLOW, MAGIC_LAMP)
   tool('magic_lamp', 15, 20, 50, 'copper', YELLOW, true, 'lamp'),
+  // applying it flashes a monster in a direction (camera.ts); charged
+  // ref: objects.h TOOL("expensive camera", NoDes, 1, 0, 0, 1, 15, 12, 200, PLASTIC, CLR_BLACK, EXPENSIVE_CAMERA)
+  tool('expensive_camera', 15, 12, 200, 'plastic', BLACK, false, null),
   // ref: objects.h EYEWEAR("blindfold", NoDes, 1, BLINDED, 50, 2, 20, CLOTH, CLR_BLACK, BLINDFOLD)
   tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
   // ref: objects.h EYEWEAR("towel", NoDes, 1, BLINDED, 50, 5, 50, CLOTH, CLR_MAGENTA, TOWEL)
   tool('towel', 50, 5, 50, 'cloth', MAGENTA, false, null, { prop: 'blinded' }),
+  // no riding: a saddle cannot be applied (DEVIATIONS "Roles and races (m22a)")
+  // ref: objects.h TOOL("saddle", NoDes, 1, 0, 0, 0, 5, 200, 150, LEATHER, HI_LEATHER, SADDLE)
+  tool('saddle', 5, 200, 150, 'leather', BROWN, false, null),
+  // applying it leashes an adjacent pet (leash.ts)
+  // ref: objects.h TOOL("leash", NoDes, 1, 0, 0, 0, 65, 12, 20, LEATHER, HI_LEATHER, LEASH)
+  tool('leash', 65, 12, 20, 'leather', BROWN, false, null),
+  // applying it listens to a monster, yourself, a wall or the floor (stethoscope.ts)
+  // ref: objects.h TOOL("stethoscope", NoDes, 1, 0, 0, 0, 25, 4, 75, IRON, HI_METAL, STETHOSCOPE)
+  tool('stethoscope', 25, 4, 75, 'iron', CYAN, false, null),
   // ref: objects.h TOOL("tinning kit", NoDes, 1, 0, 0, 1, 15, 100, 30, IRON, HI_METAL, TINNING_KIT)
   tool('tinning_kit', 15, 100, 30, 'iron', CYAN, false, null),
   // ref: objects.h TOOL("tin opener", NoDes, 1, 0, 0, 0, 35, 4, 30, IRON, HI_METAL, TIN_OPENER)
@@ -3974,6 +3987,9 @@ export const OBJECTS: readonly ObjectDef[] = [
   tool('wooden_harp', 4, 30, 50, 'wood', BROWN, false, 'harp'),
   // ref: objects.h TOOL("magic harp", "harp", 0, 0, 1, 1, 2, 30, 50, WOOD, HI_WOOD, MAGIC_HARP)
   tool('magic_harp', 2, 30, 50, 'wood', BROWN, true, 'harp'),
+  // ringing it wakes the monsters nearby (apply.ts useBell())
+  // ref: objects.h TOOL("bell", NoDes, 1, 0, 0, 0, 2, 30, 50, COPPER, HI_COPPER, BELL)
+  tool('bell', 2, 30, 50, 'copper', YELLOW, false, null),
   // ref: objects.h TOOL("bugle", NoDes, 1, 0, 0, 0, 4, 10, 15, COPPER, HI_COPPER, BUGLE)
   tool('bugle', 4, 10, 15, 'copper', YELLOW, false, null),
   // ref: objects.h TOOL("leather drum", "drum", 0, 0, 0, 0, 4, 25, 25, LEATHER, HI_LEATHER, LEATHER_DRUM)
@@ -4111,6 +4127,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 1,
     food: { nutrition: 50 },
   },
+  // ref: objects.h FOOD("orange", 10, 1, 2, 0, VEGGY, 80, CLR_ORANGE, ORANGE)
+  {
+    id: 'nh:orange',
+    nameKey: 'nh:orange',
+    class: 'food',
+    glyph: { ch: '%', fg: ORANGE },
+    prob: 10,
+    weight: 2,
+    cost: 9,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 80 },
+  },
   // ref: objects.h FOOD("carrot", 15, 1, 2, 0, VEGGY, 50, CLR_ORANGE, CARROT)
   {
     id: 'nh:carrot',
@@ -4185,6 +4216,37 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 1,
     food: { nutrition: 100 },
+  },
+  // eating one reads its fortune (eat.ts fpostfx(): outrumor())
+  // ref: objects.h FOOD("fortune cookie", 55, 1, 1, 0, VEGGY, 40, CLR_YELLOW, FORTUNE_COOKIE)
+  {
+    id: 'nh:fortune_cookie',
+    nameKey: 'nh:fortune_cookie',
+    class: 'food',
+    glyph: { ch: '%', fg: YELLOW },
+    prob: 55,
+    weight: 1,
+    cost: 7,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 1,
+    food: { nutrition: 40 },
+  },
+  // ref: objects.h FOOD("pancake", 25, 2, 2, 0, VEGGY, 200, CLR_YELLOW, PANCAKE)
+  {
+    id: 'nh:pancake',
+    nameKey: 'nh:pancake',
+    class: 'food',
+    glyph: { ch: '%', fg: YELLOW },
+    prob: 25,
+    weight: 2,
+    cost: 15,
+    material: 'veggy',
+    merge: true,
+    magic: false,
+    delay: 2,
+    food: { nutrition: 200 },
   },
   // ref: objects.h FOOD("corpse", 0, 1, 0, 0, FLESH, 0, CLR_BROWN, CORPSE); weight and nutrition are per monster at runtime
   {

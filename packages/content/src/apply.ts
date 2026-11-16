@@ -2,8 +2,9 @@
 // opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the magic marker (write.ts), the
 // towel (towel.ts), the blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
-// applying a wand breaks it (breakwand.ts).
-// ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
+// applying a wand breaks it (breakwand.ts); the stethoscope (stethoscope.ts), the expensive
+// camera (camera.ts), the leash (leash.ts) and the bell.
+// ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled(), use_bell();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet();
 // src/vault.c vault_summon_gd() (a cursed tin whistle)
 //
@@ -13,6 +14,7 @@
 import { vaultSummonGd } from './vaultstate';
 import {
   NORMAL_SPEED,
+  getLevel,
   getPlayer,
   inBounds,
   sortedIds,
@@ -61,12 +63,25 @@ import {
 } from './tin';
 import { HORN_OF_PLENTY, hornoplenty } from './horn';
 import { MAGIC_MARKER, answerWrite, dowrite, isWriteData } from './write';
+import { STETHOSCOPE, answerStethoscope, isStethData, useStethoscope } from './stethoscope';
+import { EXPENSIVE_CAMERA, answerCamera, isCameraData, useCamera } from './camera';
+import { LEASH, answerLeash, isLeashData, useLeash } from './leash';
+import { uswallow } from './engulfstate';
+import { makemon, mkclass } from './generation';
+import { isGone } from './vanquished';
+import { objResists } from './material';
+import { setMspeed } from './mstate';
+import { useup } from './magic';
+import { nomulNow } from './hunger';
+import { xnameOf } from './objnam';
 import { TOWEL } from './glib';
 import { useTowel } from './towel';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
 export const WHISTLE = { tin: 'nh:tin_whistle', magic: 'nh:magic_whistle' } as const;
+
+export const BELL: DefId = 'nh:bell';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -103,6 +118,10 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === TIN_OPENER ||
     e.def === HORN_OF_PLENTY ||
     e.def === MAGIC_MARKER ||
+    e.def === STETHOSCOPE ||
+    e.def === EXPENSIVE_CAMERA ||
+    e.def === LEASH ||
+    e.def === BELL ||
     isEyewear(e.def)
   );
 }
@@ -256,6 +275,54 @@ function useMagicWhistle(ctx: Ctx, obj: Entity): void {
 }
 
 // ---------------------------------------------------------------------------------------------
+// the bell
+
+const NYMPHS: readonly DefId[] = ['nh:wood_nymph', 'nh:water_nymph', 'nh:mountain_nymph'];
+
+/**
+ * Ringing the bell: "You ring the bell."; inside an engulfer "But the sound is muffled.";
+ * otherwise a cursed one 1 time in 4 summons a nymph next to her ("You summon a water nymph!",
+ * while none of the three kinds is gone), and then shatters ("The bell has shattered!") unless
+ * it resists (93%), else the nymph may be fast (1 in 3) or she is stunned for a move or two (1
+ * in 3); the monsters nearby wake up (wake_nearby(TRUE): pets come). ref: src/apply.c use_bell()
+ * (the ordinary bell: the Bell of Opening does not exist; no underwater)
+ */
+function useBell(ctx: Ctx, obj: Entity): void {
+  say(ctx, 'bell.ring', { item: xnameOf(ctx.state, ctx.defs, obj) });
+  if (uswallow(ctx)) {
+    say(ctx, 'bell.muffled');
+    return;
+  }
+  const hp = hero(ctx).c.pos;
+  if (obj.c.item?.buc === 'cursed' && !ctx.rng.rn2(4) && hp) {
+    // note: once any of them are gone, we stop all of them
+    if (!NYMPHS.some((n) => isGone(ctx.state, n))) {
+      const def = mkclass(ctx, 'n', getLevel(ctx.state).depth);
+      const mid = makemon(ctx, def, { x: hp.x, y: hp.y }, { noInventory: true, adjacentOk: true });
+      const mtmp = mid === null ? undefined : ctx.state.entities[String(mid)];
+      if (mtmp) {
+        say(ctx, 'bell.summon', { mon: `@${mtmp.def}` });
+        if (!objResists(ctx, obj, 93)) {
+          say(ctx, 'bell.shattered', { item: xnameOf(ctx.state, ctx.defs, obj) });
+          useup(ctx, obj.id);
+        } else
+          switch (ctx.rng.rn2(3)) {
+            case 1:
+              setMspeed(ctx, mtmp.id, 'fast'); // mon_adjust_speed(mtmp, 2, NULL)
+              break;
+            case 2: // no explanation; it just happens...
+              nomulNow(ctx, ctx.rng.rnd(2), 'helpless.helpless', null);
+              break;
+            default:
+              break;
+          }
+      }
+    }
+  }
+  wakeNearby(ctx);
+}
+
+// ---------------------------------------------------------------------------------------------
 // the action
 
 /** The polymorphed form has no hands. ref: include/mondata.h nohands() */
@@ -313,6 +380,9 @@ const apply: ActionDef = {
     if (obj.def === TINNING_KIT) return useTinningKit(ctx, obj, APPLY_ID);
     if (obj.def === MAGIC_MARKER) return dowrite(ctx, obj, APPLY_ID);
     if (obj.def === TOWEL) return useTowel(ctx, obj);
+    if (obj.def === STETHOSCOPE) return useStethoscope(ctx, obj, APPLY_ID);
+    if (obj.def === EXPENSIVE_CAMERA) return useCamera(ctx, obj, APPLY_ID);
+    if (obj.def === LEASH) return useLeash(ctx, obj, APPLY_ID);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (isCandle(obj.def)) useCandle(ctx, obj);
     else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
@@ -321,6 +391,7 @@ const apply: ActionDef = {
     else if (obj.def === UNICORN_HORN) useUnicornHorn(ctx, obj);
     else if (obj.def === HORN_OF_PLENTY)
       hornoplenty(ctx, obj); // not a musical instrument
+    else if (obj.def === BELL) useBell(ctx, obj);
     else if (isEyewear(obj.def)) {
       const ublindf = wornIn(ctx.state, ctx.state.playerId, 'blindfold');
       if (ublindf?.id === obj.id) {
@@ -334,13 +405,19 @@ const apply: ActionDef = {
   // horn's direction), the tinning kit's corpse and the tin opener's tin, the marker's paper and
   // what to write on it
   answer: (ctx, value, data) =>
-    isMusicData(data)
-      ? answerMusic(ctx, value, data, APPLY_ID)
-      : isTinToolData(data)
-        ? answerTinTool(ctx, value, data)
-        : isWriteData(data)
-          ? answerWrite(ctx, value, data, APPLY_ID)
-          : answerBreakWand(ctx, value, data),
+    isStethData(data)
+      ? answerStethoscope(ctx, value, data)
+      : isCameraData(data)
+        ? answerCamera(ctx, value, data)
+        : isLeashData(data)
+          ? answerLeash(ctx, value, data)
+          : isMusicData(data)
+            ? answerMusic(ctx, value, data, APPLY_ID)
+            : isTinToolData(data)
+              ? answerTinTool(ctx, value, data)
+              : isWriteData(data)
+                ? answerWrite(ctx, value, data, APPLY_ID)
+                : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

@@ -1352,6 +1352,7 @@ const MAGIC_FLUTE_TO_DRUM: readonly string[] = [
   'nh:fire_horn',
   'nh:wooden_harp',
   'nh:magic_harp',
+  'nh:bell',
   'nh:bugle',
   'nh:leather_drum',
   'nh:drum_of_earthquake',
@@ -1386,7 +1387,8 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: 
   ) {
     if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
   } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
-  else if (obj.def === 'nh:tinning_kit') tmp = Math.trunc(tmp / 10);
+  else if (obj.def === 'nh:tinning_kit' || obj.def === 'nh:expensive_camera')
+    tmp = Math.trunc(tmp / 10);
   else if (obj.def === 'nh:potion_of_oil') tmp = Math.trunc(tmp / 5);
   return tmp;
 }

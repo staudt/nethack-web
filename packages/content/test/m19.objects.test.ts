@@ -93,7 +93,11 @@ describe('the rows', () => {
     const after = (a: string, b: string): void => expect(ids.indexOf(b)).toBe(ids.indexOf(a) + 1);
     after('nh:oil_lamp', 'nh:magic_lamp');
     after('nh:blindfold', 'nh:towel');
-    after('nh:towel', 'nh:tinning_kit');
+    // the saddle, leash and stethoscope (m22 step 2)
+    after('nh:towel', 'nh:saddle');
+    after('nh:saddle', 'nh:leash');
+    after('nh:leash', 'nh:stethoscope');
+    after('nh:stethoscope', 'nh:tinning_kit');
     after('nh:tinning_kit', 'nh:tin_opener');
     after('nh:tin_opener', 'nh:figurine');
     after('nh:figurine', 'nh:magic_marker');
@@ -107,6 +111,7 @@ describe('the rows', () => {
       'nh:horn_of_plenty',
       'nh:wooden_harp',
       'nh:magic_harp',
+      'nh:bell',
       'nh:bugle',
       'nh:leather_drum',
       'nh:drum_of_earthquake',

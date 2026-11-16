@@ -127,8 +127,10 @@ describe('shapeshifter soak', () => {
   // with them, and 157 and 156 do with and without them; 174 and 177 replaced 156 and 157 in m21
   // step 4, whose Croesus row shifts the random forms: 156 ended at turn 2011 with 19 shifts and
   // 157 died at turn 569, both reaching 2000 with the row filtered; of 158..188 only 174, 175,
-  // 177 and 185 reach 2000 with the row, and 174 and 177 do with and without it)
-  for (const seed of [174, 177]) {
+  // 177 and 185 reach 2000 with the row, and 174 and 177 do with and without it; 190 replaced
+  // 174 in m22 step 2, whose eight kit object rows shift the stream: 174 died at turn 786; of
+  // 174..190 only 177, 183, 188 and 190 reach 2000 with the rows, and 190 does with and without)
+  for (const seed of [177, 190]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-191 NetHack files, 5448 citations.
+192 NetHack files, 5496 citations.
 
 ## dat/asmodeus.lua
 
@@ -323,6 +323,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/engr.ts`
 
+## include/extern.h
+
+- `mhis()`: `packages/content/src/leashstate.ts`
+
 ## include/flag.h
 
 - (file): `packages/content/src/generation.ts`, `packages/content/src/knoxstate.ts`, `packages/content/src/magic.ts`
@@ -506,7 +510,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `throws_rocks()`: `packages/content/src/muse.ts`
 - `touch_petrifies()`: `packages/content/src/stonestate.ts`
 - `tunnels()`: `packages/content/src/mdig.ts`
-- `unsolid()`: `packages/content/src/mhitm.ts`, `packages/content/src/polyself.ts`
+- `unsolid()`: `packages/content/src/leash.ts`, `packages/content/src/mhitm.ts`, `packages/content/src/polyself.ts`
 - `vegan()`: `packages/content/src/dog.ts`, `packages/content/src/meat.ts`, `packages/content/src/mondata.ts`
 - `vegetarian()`: `packages/content/src/mondata.ts`, `packages/content/src/shtypes.ts`
 - `verysmall()`: `packages/content/src/mondata.ts`, `packages/content/src/monmove.ts`, `packages/content/src/muse.ts`
@@ -525,7 +529,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monst.h
 
-- (file): `packages/content/src/chamstate.ts`, `packages/content/src/hidestate.ts`, `packages/content/src/mstate.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
+- (file): `packages/content/src/chamstate.ts`, `packages/content/src/hidestate.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/mstate.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
 - `MON_WEP()`: `packages/content/src/mongear.ts`
 - `M_SEEN_()`: `packages/content/src/musestate.ts`
 - `engulfing_u()`: `packages/content/src/engulfstate.ts`
@@ -551,7 +555,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/obj.h
 
-- (file): `packages/content/src/btrapstate.ts`, `packages/content/src/dilute.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/btrapstate.ts`, `packages/content/src/dilute.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
 - `CORPSTAT_HISTORIC()`: `packages/content/src/statuestate.ts`
 - `Is_candle()`: `packages/content/src/burnstate.ts`, `packages/content/src/price.ts`
 - `Is_container()`: `packages/core/src/objects.ts`
@@ -752,14 +756,16 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/apply.c
 
-- (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`, `packages/content/src/tin.en.ts`, `packages/content/src/water.ts`
+- (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/tin.en.ts`, `packages/content/src/water.ts`
 - `broken_wand_explode()`: `packages/content/src/breakwand.ts`
 - `calc_pole_range()`: `packages/content/src/pole.ts`
 - `catch_lit()`: `packages/content/src/light.ts`
 - `check_jump()`: `packages/content/src/jump.ts`
+- `check_leash()`: `packages/content/src/leash.ts`
 - `discard_broken_wand()`: `packages/content/src/breakwand.ts`
 - `display_jump_positions()`: `packages/content/src/jump.ts`
 - `display_polearm_positions()`: `packages/content/src/pole.ts`
+- `do_blinding_ray()`: `packages/content/src/camera.ts`
 - `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
 - `dojump()`: `packages/content/src/jump.ts`
@@ -767,27 +773,39 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fig_transform()`: `packages/content/src/figurine.ts`
 - `figurine_location_checks()`: `packages/content/src/figurine.ts`
 - `find_poleable_mon()`: `packages/content/src/pole.ts`
+- `get_mleash()`: `packages/content/src/leashstate.ts`
 - `get_valid_jump_position()`: `packages/content/src/jump.ts`
 - `get_valid_polearm_position()`: `packages/content/src/pole.ts`
 - `is_valid_jump_pos()`: `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
+- `its_dead()`: `packages/content/src/kittools.en.ts`, `packages/content/src/stethoscope.ts`
 - `jelly_ok()`: `packages/content/src/rub.ts`
 - `jump()`: `packages/content/src/cast.ts`, `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
+- `leashable()`: `packages/content/src/leash.ts`
 - `light_cocktail()`: `packages/content/src/apply.en.ts`, `packages/content/src/oil.ts`
+- `m_unleash()`: `packages/content/src/leashstate.ts`
 - `magic_whistled()`: `packages/content/src/apply.ts`
+- `number_leashed()`: `packages/content/src/leashstate.ts`
+- `o_unleash()`: `packages/content/src/leashstate.ts`
 - `rub_ok()`: `packages/content/src/rub.ts`
 - `snuff_candle()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
 - `tinnable()`: `packages/content/src/tin.ts`
-- `um_dist()`: `packages/content/src/shkpay.ts`
+- `um_dist()`: `packages/content/src/leash.ts`, `packages/content/src/shkpay.ts`
 - `unfixable_trouble_count()`: `packages/content/src/potion.ts`
+- `unleash_all()`: `packages/content/src/leashstate.ts`
+- `use_bell()`: `packages/content/src/apply.ts`
+- `use_camera()`: `packages/content/src/camera.ts`, `packages/content/src/kittools.en.ts`
 - `use_candle()`: `packages/content/src/light.ts`
 - `use_cream_pie()`: `packages/content/src/creampie.en.ts`, `packages/content/src/creampie.ts`
 - `use_figurine()`: `packages/content/src/figurine.en.ts`, `packages/content/src/figurine.ts`
 - `use_lamp()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
+- `use_leash()`: `packages/content/src/kittools.en.ts`, `packages/content/src/leash.ts`
+- `use_leash_core()`: `packages/content/src/kittools.en.ts`, `packages/content/src/leash.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
 - `use_royal_jelly()`: `packages/content/src/rub.ts`
+- `use_stethoscope()`: `packages/content/src/kittools.en.ts`, `packages/content/src/stethoscope.ts`
 - `use_tinning_kit()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `use_towel()`: `packages/content/src/towel.en.ts`, `packages/content/src/towel.ts`
 - `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
@@ -982,7 +1000,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/align.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`, `packages/content/src/trap.en.ts`
 - `boulder_hits_pool()`: `packages/content/src/dbstate.ts`, `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
-- `doaltarobj()`: `packages/content/src/align.en.ts`, `packages/content/src/itemactions.ts`
+- `doaltarobj()`: `packages/content/src/align.en.ts`
 - `doddrop()`: `packages/content/src/itemactions.ts`
 - `dodown()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/levitation.ts`, `packages/content/src/trap.ts`
 - `dodrop()`: `packages/content/src/itemactions.ts`
@@ -1393,12 +1411,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cannot_push()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `cannot_push_msg()`: `packages/content/src/boulder.en.ts`, `packages/content/src/moverock.ts`
 - `check_capacity()`: `packages/content/src/magic.ts`
+- `check_leash()`: `packages/content/src/leashstate.ts`
 - `check_special_room()`: `packages/content/src/mkroom.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/zoo.ts`
 - `closed_door()`: `packages/content/src/actions.ts`, `packages/core/src/movement.ts`
 - `could_move_onto_boulder()`: `packages/content/src/moverock.ts`
 - `crawl_destination()`: `packages/content/src/drown.ts`
 - `distmin()`: `packages/content/src/zoo.ts`
-- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/engr.ts`, `packages/content/src/travel.ts`
+- `domove()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`, `packages/content/src/engr.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/travel.ts`
 - `domove_attackmon_at()`: `packages/content/src/actions.ts`
 - `domove_core()`: `packages/content/src/actions.ts`, `packages/content/src/run.ts`, `packages/content/src/travel.ts`
 - `domove_fight_empty()`: `packages/content/src/actions.ts`
@@ -2443,6 +2462,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doconsult()`: `packages/content/src/chat.ts`
 - `get_rnd_text()`: `packages/content/src/rumors.ts`
 - `getrumor()`: `packages/content/src/rumors.ts`
+- `outrumor()`: `packages/content/src/rumors.ts`
 
 ## src/selvar.c
 
@@ -2601,6 +2621,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dotalk()`: `packages/content/src/chat.ts`
 - `growl()`: `packages/content/src/dog.ts`
 - `growl_sound()`: `packages/content/src/dog.ts`, `packages/content/src/were.ts`
+- `whimper()`: `packages/content/src/dog.ts`
 - `yelp()`: `packages/content/src/dog.ts`
 
 ## src/sp_lev.c
@@ -3154,11 +3175,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/zap.c
 
-- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
+- (file): `packages/content/src/camera.ts`, `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
-- `bhit()`: `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
+- `bhit()`: `packages/content/src/camera.ts`, `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
 - `bhitm()`: `packages/content/src/potionhit.ts`, `packages/content/src/zap.ts`
 - `bhito()`: `packages/content/src/zap.ts`
 - `bhitpile()`: `packages/content/src/zap.ts`
@@ -3221,7 +3242,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `zappable()`: `packages/content/src/zap.ts`
 - `zapsetup()`: `packages/content/src/polyobj.ts`
 - `zapwrapup()`: `packages/content/src/polyobj.ts`
-- `zapyourself()`: `packages/content/src/zap.ts`
+- `zapyourself()`: `packages/content/src/camera.ts`, `packages/content/src/zap.ts`
 - `zhitm()`: `packages/content/src/buzz.ts`
 - `zhitu()`: `packages/content/src/buzz.ts`
 

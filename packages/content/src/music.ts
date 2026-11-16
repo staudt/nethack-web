@@ -332,10 +332,10 @@ function charmMonsters(ctx: Ctx, distanceIn: number): void {
 }
 
 /**
- * One charge of a magic instrument is used (a usage fee when it is unpaid).
+ * One charge of a magic instrument or a camera is used (a usage fee when it is unpaid).
  * ref: src/invent.c consume_obj_charge(obj, TRUE)
  */
-function consumeObjCharge(ctx: Ctx, obj: Entity): void {
+export function consumeObjCharge(ctx: Ctx, obj: Entity): void {
   checkUnpaid(ctx, obj);
   const it = obj.c.item;
   if (it) it.spe -= 1;

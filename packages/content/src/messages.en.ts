@@ -50,6 +50,7 @@ import { djinniMessagesEn } from './djinni.en';
 import { tinMessagesEn } from './tin.en';
 import { dipMessagesEn } from './dip.en';
 import { towelMessagesEn } from './towel.en';
+import { kitToolsMessagesEn } from './kittools.en';
 import { writeMessagesEn } from './write.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
@@ -134,6 +135,7 @@ export const messagesEn: Record<string, string> = {
   ...tinMessagesEn,
   ...dipMessagesEn,
   ...towelMessagesEn,
+  ...kitToolsMessagesEn,
   ...writeMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,

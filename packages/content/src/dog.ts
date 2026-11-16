@@ -42,6 +42,10 @@ import {
   paralyzeMonst,
 } from './mstate';
 import { canSpotMon, monNam } from './perception';
+import { getMleash, mUnleash, mleashed, oUnleash } from './leashstate';
+import { monFemale } from './gender';
+import { canseemon } from './invis';
+import { wakeNearto } from './noise';
 import { P, heroHas } from './props';
 import { ustuck, setUstuck } from './hackmove';
 import { mintrap } from './trap';
@@ -435,7 +439,7 @@ export function makeFamiliar(
 }
 
 /** "The kitten yowls!" ref: src/sounds.c yelp() (cats yowl, dogs yelp) */
-function yelp(ctx: Ctx, mon: Entity): void {
+export function yelp(ctx: Ctx, mon: Entity): void {
   if (isFrozen(ctx, mon.id) || mon.c.monster?.asleep || !canSpotMon(ctx, mon)) return;
   const ch = ctx.defs.monster(mon.def).glyph.ch;
   if (ch !== 'f' && ch !== 'd') return;
@@ -461,8 +465,31 @@ export function growl(ctx: Ctx, mon: Entity): void {
 }
 
 /**
+ * "The kitten whimpers." (a dog whines, a rodent squeals), waking the monsters within its level
+ * times 6 (distance squared). ref: src/sounds.c whimper() (no hallucinatory sounds)
+ */
+export function whimper(ctx: Ctx, mon: Entity): void {
+  if (isFrozen(ctx, mon.id) || mon.c.monster?.asleep) return;
+  const def = ctx.defs.monster(mon.def);
+  const verb =
+    def.sound === 'mew' || def.sound === 'growl'
+      ? 'dog.whimpers'
+      : def.sound === 'bark'
+        ? 'dog.whines'
+        : def.sound === 'squeak'
+          ? 'dog.squeals'
+          : null;
+  if (!verb) return;
+  ctx.emit({ type: 'msg', key: verb, params: { mon: monNam(ctx, mon) } });
+  ctx.interrupt(); // if (context.run) nomul(0)
+  const p = mon.c.pos;
+  if (p) wakeNearto(ctx, p.x, p.y, (mon.c.monster?.level ?? 0) * 6);
+}
+
+/**
  * The hero mistreats a pet: tameness drops by one (and the abuse is remembered), it yelps or
- * growls (halved with Aggravate monster or Conflict). ref: src/dog.c abuse_dog() (no leashes)
+ * growls (halved with Aggravate monster or Conflict); one no longer tame pulls free of its leash.
+ * ref: src/dog.c abuse_dog()
  */
 export function abuseDog(ctx: Ctx, id: EntityId): void {
   const mon = ctx.state.entities[String(id)];
@@ -475,6 +502,8 @@ export function abuseDog(ctx: Ctx, id: EntityId): void {
     const e = edogOf(ctx, id);
     if (e) e.abuse++;
   } else delete m.tame;
+  if (!m.tame && mleashed(ctx, id))
+    mUnleash(ctx, mon, { seen: canseemon(ctx, mon), name: monNam(ctx, mon) });
   if (m.tame && ctx.rng.rn2(m.tame)) yelp(ctx, mon);
   else growl(ctx, mon);
 }
@@ -608,7 +637,8 @@ function catchUpTameness(ctx: Ctx, mon: Entity, imv: number): void {
 
 /**
  * Adjacent followers come along to the new level and arrive next to the hero; a pet still eating
- * stays behind. Pets found on an arrival level go wilder for the time she was away.
+ * stays behind. A leashed pet that stays behind is let go ("Its leash suddenly comes loose.",
+ * "The kitten's leash goes slack."). Pets found on an arrival level go wilder for the time she was away.
  * ref: src/dog.c keepdogs(), losedogs(), mon_arrive(), mon_catchup_elapsed_time()
  */
 function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, to: string): void {
@@ -634,9 +664,28 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
           key: meating(ctx, id) ? 'dog.still_eating' : 'dog.still_trapped',
           params: { mon: `@${mon.def}` },
         });
+      // ref: keepdogs(): stay_behind with a leash: "Its leash suddenly comes loose."
+      const l = getMleash(ctx, id);
+      if (l !== null) {
+        ctx.emit({ type: 'msg', key: 'leash.comes_loose', params: { his: hisCap(ctx, mon) } });
+        oUnleash(ctx, l);
+      }
       continue;
     }
     followers.push(mon);
+  }
+  // ref: keepdogs(): a leashed pet that does not come along: "The kitten's leash goes slack."
+  for (const id of sortedIds(ctx.state)) {
+    const mon = ctx.state.entities[String(id)];
+    if (!mon?.c.monster || mon.c.pos?.level !== from || followers.includes(mon)) continue;
+    const l = getMleash(ctx, id);
+    if (l === null) continue;
+    ctx.emit({
+      type: 'msg',
+      key: 'leash.mon_goes_slack',
+      params: { mon: canSeeOnLevel(ctx, mon, from) ? `@${mon.def}` : '@pronoun.it' },
+    });
+    oUnleash(ctx, l);
   }
   // monsters left here earlier have been alone a while: pets go wilder, wounds heal, hiders hide
   const since = left[to];
@@ -670,6 +719,16 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     mon.c.pos = { level: to, x: spot.x, y: spot.y };
     if (segs !== null) wormArrive(ctx, mon.id, segs);
   }
+}
+
+/** "His", "Her" or "Its" for the leash coming loose. */
+function hisCap(ctx: Ctx, mon: Entity): string {
+  const f = ctx.defs.monster(mon.def).flags;
+  return f.includes('humanoid')
+    ? monFemale(ctx, mon)
+      ? '@leash.her'
+      : '@leash.his'
+    : '@leash.its';
 }
 
 /** The hero saw the monster's square when she left (state.visible is still the old level's). */

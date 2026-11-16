@@ -160,27 +160,34 @@ describe('the minotaur', () => {
 
 describe('fill_empty_maze() and rndtrap()', () => {
   test('a stocked maze puts its objects, boulders and traps on maze nodes', () => {
-    const state = withMedusa(2);
-    let l = goTo(state, 21);
-    for (let d = 22; l.def !== MAZEFILL.id || l.corrmaze; d++) l = goTo(state, d);
-    const before = new Set(on(state, l).map((e) => e.id));
-    const key = (t: { x: number; y: number; def: string }): string => `${t.x},${t.y},${t.def}`;
-    const trapsBefore = new Set(l.traps.map(key));
-    run(state, (ctx) => fillEmptyMaze(ctx, l, MAZEFILL));
-    const fresh = on(state, l).filter((e) => !before.has(e.id) && e.c.item);
-    expect(fresh.length).toBeGreaterThan(0);
-    // maze1xy(): odd NetHack coordinates, the Level's even x and odd y
-    for (const e of fresh) {
-      const p = e.c.pos as { x: number; y: number };
-      expect(p.x % 2).toBe(0);
-      expect(p.y % 2).toBe(1);
+    // over games until both objects and traps were made (the counts are random)
+    let objects = 0;
+    let traps = 0;
+    for (let seed = 2; seed <= 12 && (objects === 0 || traps === 0); seed++) {
+      const state = withMedusa(seed);
+      let l = goTo(state, 21);
+      for (let d = 22; l.def !== MAZEFILL.id || l.corrmaze; d++) l = goTo(state, d);
+      const before = new Set(on(state, l).map((e) => e.id));
+      const key = (t: { x: number; y: number; def: string }): string => `${t.x},${t.y},${t.def}`;
+      const trapsBefore = new Set(l.traps.map(key));
+      run(state, (ctx) => fillEmptyMaze(ctx, l, MAZEFILL));
+      const fresh = on(state, l).filter((e) => !before.has(e.id) && e.c.item);
+      objects += fresh.length;
+      // maze1xy(): odd NetHack coordinates, the Level's even x and odd y
+      for (const e of fresh) {
+        const p = e.c.pos as { x: number; y: number };
+        expect(p.x % 2).toBe(0);
+        expect(p.y % 2).toBe(1);
+      }
+      const freshTraps = l.traps.filter((t) => !trapsBefore.has(key(t)));
+      traps += freshTraps.length;
+      for (const t of freshTraps) {
+        expect(t.x % 2).toBe(0);
+        expect(t.y % 2).toBe(1);
+      }
     }
-    const freshTraps = l.traps.filter((t) => !trapsBefore.has(key(t)));
-    expect(freshTraps.length).toBeGreaterThan(0);
-    for (const t of freshTraps) {
-      expect(t.x % 2).toBe(0);
-      expect(t.y % 2).toBe(1);
-    }
+    expect(objects).toBeGreaterThan(0);
+    expect(traps).toBeGreaterThan(0);
   });
 
   test('rndtrap() never makes a hole', () => {
