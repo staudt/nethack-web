@@ -256,3 +256,18 @@ Planner's recommendations, all marked cheap to change later (plan `~/.claude/pla
 - **m19 markers follow 5.0's `dowrite()`**: writing by label only for seen labels, the Luck roll for unknown types (non-Wizard 15), names matched against object and called names, not the wish parser.
 - **m19 bottle occupants**: 5.0's 1 in (13 + 2 x births), rolled only for milky or smoky potions.
 - **m19 wished-for magic lamp** becomes an oil lamp outside wizard mode; wizard mode keeps the djinni.
+
+## Parked (m20 artifacts, 2026-11-16)
+
+m20 is not started: its planner (plan `~/.claude/plans/m20.md`, kickoff text `~/.claude/plans/m20-kickoff.md`, 8 steps) marked two questions costly to undo. Answer them and m20 can run as planned (its 9 cheap recommendations would be taken).
+
+- **m20 Q1, object names and artifact identity in core**: two optional `ItemComponent` fields (`name?: string`, `artifact?: DefId`), plain data, no save version bump. Alternative: content side tables `modData.nh.oname[id]`/`oartifact[id]` (lazy pruning, copying at every copy site, a lookup on every hit). Planner recommends the core fields (public core interface and save format).
+- **m20 Q3, artifact existence and discovery state**: `modData.nh.arti` (`exist: Record<artifactId, {origin; found?}>`, `disco: artifactId[]`), stored rather than derived because C's `artiexist` outlives a destroyed artifact. Alternative: a core `GameState.artifacts`. Planner recommends modData (the vanilla mod's save shape).
+- Also worth a look: the hero is always a neutral Valkyrie until m22, so her first gift is always Mjollnir; `#offer` (sacrifice) does not exist yet and becomes m20 step 7; Angels stay out (Q10).
+
+## Parked (m21 step 6, Rogue level look and doorways, 2026-11-16)
+
+m21 (Fort Ludios and the Rogue level; plan `~/.claude/plans/m21.md`) runs steps 1-5, which are content only. Step 6 is the only core change and is parked on two costly questions. Until it runs, the Rogue level draws like any other level and its doorways allow diagonal moves (DEVIATIONS).
+
+- **m21 Q1, the Rogue look across the view boundary**: a core `SymsetDef` registered by mods, `LevelDef.symset`, core resolving the snapshot legend through it, and `ViewSnapshot.symset` naming it, so renderers need no change. Alternatives: each renderer owns a Rogue table keyed by `ViewSnapshot.symset` plus object classes in the legend, or no display change. Planner recommends the core symset (view boundary and mod def kinds).
+- **m21 Q2, no diagonal moves through Rogue doorways**: `LevelDef.doorwaysBlockDiagonal` read by core `cellRules()`, so the hero, travel and monsters agree. Alternative: content-only checks for the hero and monsters, with travel left as it is. Planner recommends the core flag (core movement and mod contract).
