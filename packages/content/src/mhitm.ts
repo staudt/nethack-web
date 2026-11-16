@@ -7,6 +7,9 @@
 // (explmm()) are ported; not yet: engulfing, breath and spit (mattackm's switch has their cases,
 // which do nothing until their m9 step), shades, cloning puddings. Touching a cockatrice
 // turns the attacker to stone (mdamagem()).
+import { chamOf, isVampshifter } from './chamstate';
+import { newcham } from './newcham';
+import { monHatesSilver } from './chamstate';
 import { mInAir, monLiquidOk } from './liquid';
 import { minliquid } from './minliquid';
 import { golemeffects } from './golemfx';
@@ -69,7 +72,7 @@ import { resistConflict } from './props';
 import { monPolyWhenStoned, monToStone, monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 import { canseemon, monInvisible, perceives } from './invis';
-import { hatesSilver, nonliving } from './mondata';
+import { nonliving } from './mondata';
 import { littleToBig } from './eggstate';
 import { isGenocided } from './vanquished';
 import { isSilver, silverSearsMm } from './silver';
@@ -278,7 +281,7 @@ function hitmm(
                   : 'hits';
     say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
     // ref: src/mhitm.c hitmm(): a silver weapon sears a silver-hater
-    if (mwep && isSilver(ctx, mwep) && hatesSilver(ctx.defs.monster(mdef.def)))
+    if (mwep && isSilver(ctx, mwep) && monHatesSilver(ctx, mdef))
       silverSearsMm(ctx, magr, mdef, mwep);
   } else noises(ctx, magr);
   return mdamagem(ctx, magr, mdef, atk, mwep, vis, dieroll);
@@ -375,7 +378,8 @@ function explmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
  * defender's square for the damage (a digester eats it whole), then, if both live, lets it out
  * ("The newt is regurgitated!") and goes back. A dead defender leaves the aggressor on its
  * square, unless that square is no good for it; a trap there may catch it.
- * ref: src/mhitm.c gulpmm() (no vampire shapeshifters, no pools)
+ * A vampire shapeshifter swallowed in another form reverts and is expelled: "The purple worm
+ * expels it.  It turns into a vampire." ref: src/mhitm.c gulpmm() (no pools)
  */
 function gulpmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boolean): number {
   if (!engulfTarget(ctx, magr, mdef)) return M_ATTK.MISS;
@@ -393,6 +397,19 @@ function gulpmm(ctx: Ctx, magr: Entity, mdef: Entity, atk: AttackDef, vis: boole
       mdef: monNam(ctx, mdef),
     });
   if (!flaming(pa)) for (const o of minvent(ctx, mdef.id)) snuffLit(ctx, o);
+  const cham = chamOf(ctx, mdef.id);
+  if (isVampshifter(ctx, mdef) && cham && newcham(ctx, mdef, ctx.defs.monster(cham))) {
+    if (vis) {
+      // 'it' -- previous form is no longer available and using that would be excessively verbose
+      const spotted = canSpotMon(ctx, mdef);
+      say(ctx, 'mhitm.expels_it', {
+        magr: monNam(ctx, magr),
+        mdef: spotted ? '@pronoun.it' : '@pronoun.something',
+      });
+      if (spotted) say(ctx, 'uhitm.gulp_shifter.turns_into', { into: `@${mdef.def}` });
+    }
+    return M_ATTK.HIT; // bypass mdamagem()
+  }
   const ap = magr.c.pos;
   const dp = mdef.c.pos;
   if (!ap || !dp) return M_ATTK.MISS;

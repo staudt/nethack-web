@@ -75,12 +75,20 @@ export interface DmgvalTarget {
  * enchantment, never below 0, nothing against a shade unless silver (shade_glare()), a blessed
  * weapon's `rnd(4)` against undead and demons (mon_hates_blessings()), an axe's `rnd(4)`
  * against a wood golem (is_wooden()), a silver weapon's `rnd(20)` against a silver-hater, less
- * the greatest erosion (at least 1). Not ported: thick skins, artifacts.
+ * the greatest erosion (at least 1). `vampshifter`: the target is a vampire shapeshifter, which
+ * hates silver and blessings in any form. Not ported: thick skins, artifacts.
  */
-export function dmgval(rng: Rng, item: Entity, def: ObjectDef, mon: MonsterDef): number {
-  return dmgvalSized(rng, item, def, isBig(mon), hatesSilver(mon), mon.id === 'nh:wood_golem', {
+export function dmgval(
+  rng: Rng,
+  item: Entity,
+  def: ObjectDef,
+  mon: MonsterDef,
+  vampshifter = false,
+): number {
+  const silver = vampshifter || hatesSilver(mon);
+  return dmgvalSized(rng, item, def, isBig(mon), silver, mon.id === 'nh:wood_golem', {
     shade: mon.id === 'nh:shade',
-    blessHater: hatesBlessings(mon),
+    blessHater: vampshifter || hatesBlessings(mon),
   });
 }
 

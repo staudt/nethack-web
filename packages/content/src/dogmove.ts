@@ -47,6 +47,7 @@ import {
   clearPath,
   dist2,
   getTrack,
+  fogUnderDoor,
   mfndpos,
   monAllowU,
   trackAdd,
@@ -638,6 +639,9 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     pos.x = nix;
     pos.y = niy;
     ctx.emit({ type: 'moved', id, from, to: { x: nix, y: niy } });
+    // ref: postmov() (m_move() goes there after dog_move()): a vampshifter onto a closed door
+    // becomes a fog cloud and flows under it
+    fogUnderDoor(ctx, mon, wasseen);
     if (cursemsg.has(chi) && (wasseen || canSpotMon(ctx, mon))) {
       const top = itemsAt(ctx.defs, ctx.state, pos.level, nix, niy)[0];
       say(ctx, 'dog.reluctantly', {

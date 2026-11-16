@@ -4,8 +4,16 @@
 //
 // A dying monster is removed from the game; one its amulet saved is not, so every caller checks
 // the entity afterwards where C checks DEADMONSTER().
-import { restoreWereForm } from './werestate';
-import { getPlayer, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
+import { restoreWereForm, setMonData } from './werestate';
+import { chamOf, isVampshifter, setCham } from './chamstate';
+import {
+  getPlayer,
+  type Ctx,
+  type Entity,
+  type EntityId,
+  type MonsterDef,
+  type Msg,
+} from '@nh/core';
 import { nonliving } from './mondata';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { canSpotMon, monNam } from './perception';
@@ -28,9 +36,43 @@ const AMULET_OF_LIFE_SAVING = 'nh:amulet_of_life_saving';
 
 /** The worn amulet of life saving that will save the monster. ref: src/mon.c mlifesaver() */
 export function mlifesaver(ctx: Ctx, mon: Entity): Entity | null {
-  if (nonliving(ctx.defs.monster(mon.def))) return null; // (no vampire shapeshifters)
+  if (nonliving(ctx.defs.monster(mon.def)) && !isVampshifter(ctx, mon)) return null;
   const amu = minvent(ctx, mon.id).find((o) => o.c.item?.equipped === 'amulet');
   return amu?.def === AMULET_OF_LIFE_SAVING ? amu : null;
+}
+
+/** vamprises(): null when it did not rise, else whether its rising was told (gv.vamp_rise_msg) */
+type VampRises = (ctx: Ctx, mon: Entity) => { msg: boolean } | null;
+let vampRisesFn: VampRises | null = null;
+
+/** shapeshift.ts hands down vamprises() (it sits above this module). */
+export function setVampRises(fn: VampRises): void {
+  vampRisesFn = fn;
+}
+
+/**
+ * mondead(): "vampire in bat/fog/wolf form reverts to vampire instead of dying" (true: it rose;
+ * the caller stops, as for life saving).
+ */
+const vampRises = (ctx: Ctx, mon: Entity): { msg: boolean } | null =>
+  isVampshifter(ctx, mon) && vampRisesFn !== null ? vampRisesFn(ctx, mon) : null;
+
+/**
+ * mondead(): "restore chameleon, lycanthropes to true form at death": a shapeshifter becomes its
+ * own kind (and is no longer one), a lycanthrope in beast form its human form.
+ */
+function restoreTrueForm(ctx: Ctx, mon: Entity): void {
+  const cham = chamOf(ctx, mon.id);
+  if (cham !== null) {
+    if (ctx.defs.isMonster(cham)) setMonData(mon, ctx.defs.monster(cham));
+    setCham(ctx, mon.id, null);
+  } else restoreWereForm(ctx, mon);
+}
+
+/** The kind a monster dies as (its true form, see restoreTrueForm()), for its corpse. */
+function trueFormDef(ctx: Ctx, mon: Entity): MonsterDef {
+  const cham = chamOf(ctx, mon.id);
+  return ctx.defs.monster(cham !== null && ctx.defs.isMonster(cham) ? cham : mon.def);
 }
 
 type WaryDog = (ctx: Ctx, mon: Entity, wasDead: boolean) => void;
@@ -124,7 +166,16 @@ export function monsterDied(
     if (!e.c.pos || !heroSees(ctx, e.c.pos)) say(ctx, 'lifesave.mon.maybe_not');
     return null;
   }
-  restoreWereForm(ctx, e); // ref: mondead(): lycanthropes die in their true form
+  // a vampire in another form rises instead ("Maybe not..." unless its rising was seen)
+  if (!stoned) {
+    const p = e.c.pos ? { ...e.c.pos } : undefined;
+    const rose = vampRises(ctx, e);
+    if (rose) {
+      if ((!p || !heroSees(ctx, p)) && !rose.msg) say(ctx, 'lifesave.mon.maybe_not');
+      return null;
+    }
+  }
+  restoreTrueForm(ctx, e); // ref: mondead(): shapeshifters and lycanthropes die in their true form
   const def = ctx.defs.monster(e.def);
   const at = e.c.pos ? { ...e.c.pos } : undefined;
   const wasinside = engulfingU(ctx, monId);
@@ -277,7 +328,7 @@ export function mondied(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
   restoreWereForm(ctx, mon); // the corpse is the human form's
-  const def = ctx.defs.monster(mon.def);
+  const def = trueFormDef(ctx, mon); // (a risen vampshifter leaves none: it lives on)
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   const dead = deadMon(ctx, mon);
   mondead(ctx, id);
@@ -293,8 +344,10 @@ export function mondead(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
   if (lifesavedMonster(ctx, mon)) return;
-  // restore lycanthropes to true form at death (no chameleons)
-  restoreWereForm(ctx, mon);
+  // vampire in bat/fog/wolf form reverts to vampire instead of dying
+  if (vampRises(ctx, mon)) return;
+  // restore chameleon, lycanthropes to true form at death
+  restoreTrueForm(ctx, mon);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   relobj(ctx, id, at, true); // called only while monsters move
   forgetUnseenAt(ctx, at);

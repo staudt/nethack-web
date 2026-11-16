@@ -61,6 +61,34 @@ export const polyselfMessagesEn: Record<string, string> = {
   'newcham.break_out_stomach': 'You break out of {mon|the_s} stomach!',
   'newcham.emerge': 'You emerge from {mon|the}!',
   'newcham.emerge_stomach': 'You emerge from {mon|the_s} stomach!',
+  'newcham.break_out_shifted': 'You break out of {mon|the} which was a shapeshifted {into}!',
+  'newcham.emerge_shifted': 'You emerge from {mon|the} which was a shapeshifted {into}!',
+  // shapeshift.ts: vamprises(), vamp_stone()
+  'shapeshift.rises.dead_transf':
+    'The seemingly dead {mon} suddenly transforms and rises as {into|an}!',
+  'shapeshift.rises.dead_reconst':
+    'The seemingly dead {mon} suddenly reconstitutes and rises as {into|an}!',
+  'shapeshift.rises.plain_transf': '{mon|The} suddenly transforms and rises as {into|an}!',
+  'shapeshift.rises.plain_reconst': '{mon|The} suddenly reconstitutes and rises as {into|an}!',
+  'shapeshift.rises.dead_transf_dream':
+    'You dream that the seemingly dead {mon} transforms and rises as {into|an}!',
+  'shapeshift.rises.dead_reconst_dream':
+    'You dream that the seemingly dead {mon} reconstitutes and rises as {into|an}!',
+  'shapeshift.rises.plain_transf_dream':
+    'You dream that {mon|the} transforms and rises as {into|an}!',
+  'shapeshift.rises.plain_reconst_dream':
+    'You dream that {mon|the} reconstitutes and rises as {into|an}!',
+  'shapeshift.hear_explosion': 'You hear an explosion.',
+  'shapeshift.hear_door_smashed': 'You hear a door being smashed.',
+  'shapeshift.see_door_explode': 'You see a door exploding.',
+  'shapeshift.see_door_smashed': 'You see a door being smashed.',
+  'shapeshift.door_smashed': 'The door is smashed.',
+  'shapeshift.door_smashed_explodes': 'The door is smashed and it explodes!',
+  'shapeshift.destroyed': '{mon|The} is destroyed!',
+  'shapeshift.lapidifying.coalesces': 'The lapidifying {mon} coalesces on the {surface}!',
+  'shapeshift.lapidifying.drops': 'The lapidifying {mon} drops to the {surface}!',
+  'shapeshift.lapidifying.writhes': 'The lapidifying {mon} writhes on the {surface}!',
+  'shapeshift.renewed_agility': '{mon|An} rises from the {surface} with renewed agility!',
   // bhitm() system shock; zapwrapup()
   'zap.shudders': '{mon|The} shudders!',
   'polyobj.shuddering': 'You feel shuddering vibrations.',

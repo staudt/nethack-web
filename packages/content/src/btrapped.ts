@@ -64,11 +64,14 @@ export function bTrapped(ctx: Ctx, item: 'door' | 'secret_door'): void {
  * and loses rnd(15) hit points. Returns true if it died. mon_learns_traps() is not modelled.
  * ref: src/monmove.c mb_trapped()
  */
-export function mbTrapped(ctx: Ctx, mon: Entity, canseeit: boolean): boolean {
+export function mbTrapped(ctx: Ctx, mon: Entity, canseeit: boolean, verbose = true): boolean {
   const p = mon.c.pos;
   if (!p) return false;
   const hp0 = getPlayer(ctx.state).c.pos;
-  if (canseeit && !unaware(ctx)) say(ctx, 'btrap.see_door_explode');
+  // `if (flags.verbose)`: vamprises() turns it off to give its own message
+  if (!verbose) {
+    // (no message)
+  } else if (canseeit && !unaware(ctx)) say(ctx, 'btrap.see_door_explode');
   else {
     const d2 = hp0 && hp0.level === p.level ? (hp0.x - p.x) ** 2 + (hp0.y - p.y) ** 2 : Infinity;
     say(ctx, d2 > 7 * 7 ? 'btrap.hear_distant' : 'btrap.hear_nearby');

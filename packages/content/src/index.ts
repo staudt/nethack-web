@@ -707,6 +707,8 @@ export { objKnown, setObjKnown, setLknown, setCknown } from './items';
 export { BOULDER, boulderAt, blockersOf } from './boulder';
 export { moverock, couldMoveOntoBoulder } from './moverock';
 export { newcham, polyok } from './newcham';
+export { decideToShapeshift, vamprises, vampStone } from './shapeshift';
+export { chamOf, isVampshifter } from './chamstate';
 export { polyObj } from './polyobj';
 export { polyself, polymon, newman, rehumanize, youWere, POLYSELF_ID } from './polyself';
 export { heroForm, heroFormId, upolyOf, upolyd, type UPoly } from './upoly';

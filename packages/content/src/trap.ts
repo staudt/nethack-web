@@ -9,6 +9,7 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
+import { isVampshifter } from './chamstate';
 import { maybeUnhideAt } from './hide';
 import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
 import { uRooms } from './urooms';
@@ -1403,7 +1404,16 @@ export function thitm(
     let dam = 1;
     if (dOverride) dam = dOverride;
     else if (obj)
-      dam = Math.max(dmgval(ctx.rng, obj, ctx.defs.object(obj.def), ctx.defs.monster(mon.def)), 1);
+      dam = Math.max(
+        dmgval(
+          ctx.rng,
+          obj,
+          ctx.defs.object(obj.def),
+          ctx.defs.monster(mon.def),
+          isVampshifter(ctx, mon),
+        ),
+        1,
+      );
     const hp = mon.c.hp;
     if (hp) {
       hp.cur -= dam;

@@ -1,4 +1,5 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
+import { isVampshifter, monHatesSilver } from './chamstate';
 import { isPool } from './liquid';
 import { isEel } from './mondata';
 import { uinwater } from './uwater';
@@ -80,7 +81,7 @@ import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
 import { P, conflictOn, hasProp, ringBonus, wornIn } from './props';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
-import { hatesSilver, isBig, isDemon, nonliving } from './mondata';
+import { isBig, isDemon, nonliving } from './mondata';
 import { msummon } from './minion';
 import { inHell } from './levelflags';
 import {
@@ -498,7 +499,7 @@ export function knownHitum(
     silverMsg = ring > 0;
   } else if (weapon.def.weapon) {
     const role = weapon.def.weapon.role;
-    const silverHit = weapon.def.material === 'silver' && hatesSilver(def);
+    const silverHit = weapon.def.material === 'silver' && monHatesSilver(ctx, target);
     // ref: src/uhitm.c hmon_hitmon_weapon(): striking with a launcher, a missile or ammo in
     // hand, or a polearm or lance at short range (no steeds) is not a melee weapon blow
     if (role === 'launcher' || role === 'missile' || role === 'ammo' || isPole(weapon.def)) {
@@ -507,7 +508,7 @@ export function knownHitum(
       dmg = shade && !shadeGlare(weapon.def) ? 0 : ctx.rng.rnd(2);
       if (silverHit) dmg += ctx.rng.rnd(dmg ? 20 : 10);
     } else {
-      dmg = dmgval(ctx.rng, weapon.item, weapon.def, def); // silver's rnd(20) included
+      dmg = dmgval(ctx.rng, weapon.item, weapon.def, def, isVampshifter(ctx, target)); // silver's rnd(20) included
       useSkill = true;
       train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
     }
@@ -552,7 +553,7 @@ export function knownHitum(
     dmg = dmg <= 1 ? 1 : ctx.rng.rnd(dmg);
     if (dmg > 6) dmg = 6;
     // "things like silver wands can arrive here so we need another silver check"
-    if (weapon.def.material === 'silver' && hatesSilver(def)) {
+    if (weapon.def.material === 'silver' && monHatesSilver(ctx, target)) {
       dmg += ctx.rng.rnd(20);
       silverMsg = true;
     }

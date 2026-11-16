@@ -9,6 +9,7 @@
 // exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
 // A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
 // explosion here is hers (C's type >= 0).
+import { isVampshifter } from './chamstate';
 import { mAt } from './wormstate';
 import {
   getPlayer,
@@ -118,8 +119,10 @@ function monResists(ctx: Ctx, mon: Entity, adtyp: Adtyp, wand: boolean): boolean
     case 'magm':
       return resistsMagm(ctx, mon);
     case 'disn':
-      // a wand's "death field": only the nonliving and demons (no vampshifters)
-      return wand ? nonliving(def) || def.flags.includes('demon') : def.resists.includes('disint');
+      // a wand's "death field": only the nonliving, demons and vampshifters
+      return wand
+        ? nonliving(def) || def.flags.includes('demon') || isVampshifter(ctx, mon)
+        : def.resists.includes('disint');
     default:
       return def.resists.includes(adtyp);
   }

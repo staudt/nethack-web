@@ -2,6 +2,7 @@
 // throwing (ammo, launchers, breaking).
 // ref: src/mthrowu.c thitu(), drop_throw(), monmulti(), monshoot(), ohitmon(), m_throw(), thrwmu(),
 // linedup(); src/weapon.c select_rwep(); src/dothrow.c should_mulch_missile(), omon_adj()
+import { monHatesSilver } from './chamstate';
 import { isSwallowed } from './engulfstate';
 import {
   DIRS,
@@ -42,7 +43,7 @@ import { buzzFrom, type Ray } from './buzz';
 import { canBlnd } from './adtyping';
 import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
 import { P, hasProp, makeBlinded, timeoutLeft } from './props';
-import { hatesSilver, nonliving as nonlivingDef } from './mondata';
+import { nonliving as nonlivingDef } from './mondata';
 import {
   formHatesBlessings,
   formHatesSilver,
@@ -293,7 +294,7 @@ export function ohitmon(
     flush();
     say(ctx, damage <= 4 ? 'throw.hit' : 'throw.hit_hard', { missile, mon: monNam(ctx, mon) });
     // the extra silver damage is dmgval()'s
-    if (odef.material === 'silver' && hatesSilver(mdef)) silverSearsByMissile(ctx, mon);
+    if (odef.material === 'silver' && monHatesSilver(ctx, mon)) silverSearsByMissile(ctx, mon);
     if (acid)
       say(ctx, mdef.resists.includes('acid') ? 'mthrow.mon_unaffected' : 'mthrow.acid_burns_mon', {
         mon: monNam(ctx, mon),
@@ -606,7 +607,7 @@ export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): Ranged
       if (!ctx.defs.isObject(id as DefId)) continue;
       const od = ctx.defs.object(id as DefId);
       if (!(strong || !od.weapon?.bimanual)) continue;
-      if (od.material === 'silver' && hatesSilver(mdef)) continue;
+      if (od.material === 'silver' && monHatesSilver(ctx, mon)) continue;
       const o = find(id);
       if (o && (o === mwep || !mweponly)) return { obj: o, propellor: o }; // force it to wield
     }

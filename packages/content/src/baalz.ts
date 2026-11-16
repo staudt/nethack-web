@@ -100,8 +100,8 @@ export const BAALZ: LevelDef = {
     mon('nh:horned_devil', 32, 5),
     mon('nh:barbed_devil', 38, 7),
     cls('L'),
-    // Some Vampires for good measure ("V": a random monster until vampires exist)
-    { kind: 'monster', count: 3 },
+    // Some Vampires for good measure
+    { kind: 'monster', class: 'V', count: 3 },
   ],
 };
 

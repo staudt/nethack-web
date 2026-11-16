@@ -17,7 +17,8 @@
 // once it came back from a corpse, `mwandexp: { [monsterId]: true }` once it has zapped an attack
 // wand (muse.c), `mseenres: { [monsterId]: bits }` the hero's resistances it has seen (C's
 // `seen_resistance`, M_SEEN_* bits; musestate.ts), `mstrat: { [monsterId]: MStrat }` its
-// strategy (C's `mstrategy`: the wait bits, STRAT_APPEARMSG, the covetous strategy and its goal).
+// strategy (C's `mstrategy`: the wait bits, STRAT_APPEARMSG, the covetous strategy and its goal),
+// `cham: { [monsterId]: defId }` a shapeshifter's true kind (chamstate.ts).
 import {
   getPlayer,
   sortedIds,
@@ -32,6 +33,7 @@ import { monNam } from './perception';
 import { thiefdead } from './nomul';
 import { strayWorms, wormgone } from './wormstate';
 import { inWTower } from './levelflags';
+import { chamOf } from './chamstate';
 
 type Table = { [k: string]: Json };
 
@@ -54,7 +56,8 @@ type Key =
   | 'mseenres'
   | 'mflee'
   | 'mstrat'
-  | 'iswiz';
+  | 'iswiz'
+  | 'cham';
 
 function table(ctx: Pick<Ctx, 'state'>, key: Key, create: boolean): Table | null {
   const md = ctx.state.modData;
@@ -385,6 +388,7 @@ const KEYS: readonly Key[] = [
   'mflee', // monflee.ts (its end-of-turn pruning misses a death in the turn the game ends)
   'mstrat',
   'iswiz', // wizstate.ts
+  'cham', // chamstate.ts
 ];
 
 /** `mtmp->mwandexp`: the monster has zapped an attack wand before. ref: include/monst.h */
@@ -489,6 +493,12 @@ export function setWereChange(fn: (ctx: Ctx, mon: Entity) => void): void {
   wereChangeHook = fn;
 }
 
+/** decide_to_shapeshift(): shapeshift.ts registers it at load (it sits far above this leaf) */
+let shapeshiftHook: ((ctx: Ctx, mon: Entity) => void) | null = null;
+export function setDecideToShapeshift(fn: (ctx: Ctx, mon: Entity) => void): void {
+  shapeshiftHook = fn;
+}
+
 /**
  * The spellcasting delays and the paralysis timers count down once a turn (ref: m_calcdistress():
  * mon_regen()'s `if (mon->mspec_used) mon->mspec_used--;`, then `if (mtmp->mblinded &&
@@ -504,7 +514,9 @@ export function registerMState(api: ModApi): void {
       // to end up in water or lava"
       if (ctx.defs.monster(e.def).speed === 0 && minliquidHook?.(ctx, e)) continue;
       monRegen(ctx, id);
-      // possibly polymorph lycanthropes (no shapechangers: decide_to_shapeshift() is 7f)
+      // possibly polymorph shapechangers and lycanthropes
+      if (chamOf(ctx, id) !== null) shapeshiftHook?.(ctx, e);
+      if (!ctx.state.entities[String(id)]?.c.monster) continue;
       wereChangeHook?.(ctx, e);
     }
     const su = table(ctx, 'mspecUsed', false);

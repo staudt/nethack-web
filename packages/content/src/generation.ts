@@ -28,6 +28,7 @@ import { inHell } from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
+import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
 import {
@@ -442,6 +443,13 @@ export function setGiveWormTail(fn: GiveWormTail): void {
   giveWormTail = fn;
 }
 
+type BirthNewcham = (ctx: Ctx, mon: Entity) => boolean;
+/** newcham(mtmp, NULL, NO_NC_FLAGS) for a newborn shapeshifter (newcham.ts sits above this) */
+let birthNewcham: BirthNewcham | null = null;
+export function setMakemonNewcham(fn: BirthNewcham): void {
+  birthNewcham = fn;
+}
+
 /**
  * Creates a monster; null def means a random type, null pos a random out-of-sight spot.
  * ref: src/makemon.c makemon(). New monsters have 0 movement (zeroed struct). Gender, items,
@@ -542,6 +550,17 @@ export function makemon(
   // ref: makemon() S_BAT: `if (Inhell && is_bat(ptr)) mon_adjust_speed(mtmp, 2, NULL)`, made
   // fast for good (no message)
   if (mon && isBat(mdef) && inHell(ctx.state, level)) setMspeed(ctx, id, 'fast');
+  // ref: makemon(): `mtmp->cham = NON_PM`, unless it is a shapechanger (pm_to_cham(); no
+  // protection from shape changers exists): it keeps its kind in `cham` and newcham() picks its
+  // first shape (Vlad stays himself); one born shifted gets no inventory (`allow_minvent`)
+  let allowMinvent = opts.noInventory !== true;
+  const mcham = pmToCham(mdef);
+  if (mcham !== null) {
+    setCham(ctx, id, mcham);
+    const e = ctx.state.entities[String(id)];
+    if (!birthNewcham) throw new Error('makemon: newcham.ts has not registered newcham()');
+    if (mdef.id !== VLAD_THE_IMPALER && e && birthNewcham(ctx, e)) allowMinvent = false;
+  }
   // ref: makemon(): `mndx == PM_GHOST && !(mmflags & MM_NONAME)`: christen_monst(rndghostname());
   // monsters have no names here, so only the rolls are drawn (DEVIATIONS.md "Special rooms")
   if (mdef.id === GHOST) rndghostname(ctx);
@@ -570,7 +589,7 @@ export function makemon(
   }
   // ref: makemon(): after any group, "equip with weapons / armor" (m_initweap, m_initinv,
   // m_dowear(creation))
-  if (!opts.noInventory) givePossessions(ctx, id, level.depth);
+  if (allowMinvent) givePossessions(ctx, id, level.depth);
   // ref: makemon(): `if (ptr->mflags3 && !(mmflags & MM_NOWAIT))`: M3_WAITFORU, M3_CLOSE, and
   // STRAT_APPEARMSG for those and the covetous kinds
   if (!opts.noWait) {

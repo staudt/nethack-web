@@ -3,7 +3,7 @@
 // that mcastu.ts can call it; the Wizard's clone too. ref: src/wizard.c nasty(), pick_nasty(),
 // nasties[], clonewiz()
 //
-// Kinds absent from the monster table (the vampire lord, the master mind flayer, the dragons...)
+// Kinds absent from the monster table (the master mind flayer, the dragons...)
 // count as genocided: pick_nasty() tries their smaller kind, then makemon() fails and a random
 // monster stands in, as for a genocided kind in C. No Rogue level, no endgame, no post-Wizard
 // harassment (a summoner is always given).
@@ -212,8 +212,8 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
 const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
 
 /**
- * The kinds the Wizard's clone may pose as. ref: src/wizard.c wizapp[] (no vampires until m18:
- * that roll leaves the clone undisguised)
+ * The kinds the Wizard's clone may pose as. ref: src/wizard.c wizapp[] (an absent kind, the red
+ * dragon, leaves the clone undisguised)
  */
 const WIZAPP: readonly DefId[] = [
   'nh:human',

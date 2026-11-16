@@ -39,6 +39,7 @@ export const engulfMessagesEn: Record<string, string> = {
   'engulf.get_expelled': 'You get expelled!',
   'engulf.doesnt_like_taste': "Obviously {mon|the} doesn't like your taste.",
   'mhitm.engulfs': '{magr|The} {verb} {mdef|the}.',
+  'mhitm.expels_it': '{magr|The} expels {mdef}.',
   'mhitm.verb.swallows': 'swallows',
   'mhitm.verb.encloses': 'encloses',
   'mhitm.verb.engulfs': 'engulfs',

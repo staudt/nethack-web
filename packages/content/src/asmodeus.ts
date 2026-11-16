@@ -10,8 +10,7 @@
 // grid's inside and the two maps, joins the walls and puts the up stairs (and a branch) in their
 // level region, as fixup_special() does. The second part goes where it shares its first column
 // with the first part's last, as on NetHack's 80 columns (this port's wider x_maze_max would
-// overlap them by three and wall up two of the first part's doors). "V" is a random monster
-// until vampires exist.
+// overlap them by three and wall up two of the first part's doors).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, MapBlock } from '@nh/core';
 import { mapBlock, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { desMazeGrid, mapCleanup } from './hellfill';
@@ -117,8 +116,8 @@ export const ASMODEUS: LevelDef = {
     mon('nh:ghost', 11, 7),
     mon('nh:horned_devil', 10, 5),
     cls('L'),
-    // Some Vampires for good measure ("V": a random monster until vampires exist)
-    { kind: 'monster', count: 3 },
+    // Some Vampires for good measure
+    { kind: 'monster', class: 'V', count: 3 },
   ],
 };
 

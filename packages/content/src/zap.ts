@@ -28,6 +28,7 @@
 // (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
 // holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
 // cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
+import { chamOf, isVampshifter } from './chamstate';
 import { closeDrawbridge, destroyDrawbridge, openDrawbridge } from './dbridge';
 import { findDrawbridge, isDbWall, isDrawbridgeWall, isLoweredSpan, isRaisedSpan } from './dbstate';
 import { loseAbon } from './dowear';
@@ -892,15 +893,23 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         // dropped inventory (due to death by system shock, or loss of wielded weapon and/or worn
         // armor due to limitations of new shape) won't be hit by this zap
         for (const o of minvent(ctx, mon.id)) bypassObj(o.id);
-        // natural shapechangers aren't affected by system shock (none exist)
-        if (!ctx.rng.rn2(25)) {
+        // natural shapechangers aren't affected by system shock
+        const cham = chamOf(ctx, mon.id);
+        if (cham === null && !ctx.rng.rn2(25)) {
           if (canseemon(ctx, mon)) {
             say(ctx, 'zap.shudders', { mon: monNam(ctx, mon) });
             learnIt = true;
           }
           // no corpse after system shock
           killedByHero(ctx, mon, true);
-        } else if (newcham(ctx, mon, null, { polyspot: true, msg: giveMsg })) {
+        } else if (
+          newcham(ctx, mon, null, { polyspot: true, msg: giveMsg }) ||
+          // if shapechange failed because there aren't enough eligible candidates (most likely
+          // for vampshifter), try reverting to original form
+          (cham !== null &&
+            ctx.defs.isMonster(cham) &&
+            newcham(ctx, mon, ctx.defs.monster(cham), { polyspot: true, msg: giveMsg }))
+        ) {
           if (giveMsg && (canSpotMon(ctx, mon) || engulfingU(ctx, mon.id))) learnIt = true;
         }
         // "flag to indicate that mtmp became a long worm on current zap" (MCORPSENM)
@@ -911,8 +920,8 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       wake = false;
       if (unturnDead(ctx, mon)) wake = true;
       const mdat = ctx.defs.monster(mon.def);
-      if (mdat.flags.includes('undead')) {
-        // (no vampshifters; no Knight's quest artifact doubling)
+      if (mdat.flags.includes('undead') || isVampshifter(ctx, mon)) {
+        // (no Knight's quest artifact doubling)
         revealInvis = true;
         wake = true;
         let dmg = ctx.rng.rnd(8);

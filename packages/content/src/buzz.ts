@@ -5,6 +5,7 @@
 //
 // Split out of zap.ts so that code below the hero's actions (a god's lightning for an angered
 // priest) can cast a ray without an import cycle; the hero's angering wakeup() is passed in.
+import { isVampshifter } from './chamstate';
 import { mAt } from './wormstate';
 import { engrAt, wipeEngrAt } from './engr';
 import {
@@ -366,8 +367,14 @@ export function zhitm(
         }
         break;
       }
-      // similar to player (no vampire shapeshifters exist)
-      if (nonliving(def) || def.flags.includes('demon') || resistsMagm(ctx, mon)) break;
+      // similar to player
+      if (
+        nonliving(def) ||
+        def.flags.includes('demon') ||
+        isVampshifter(ctx, mon) ||
+        resistsMagm(ctx, mon)
+      )
+        break;
       save = false; // so they don't get saving throws
       tmp = (mon.c.hp?.cur ?? 0) + 1;
       break;

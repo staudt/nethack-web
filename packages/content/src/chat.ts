@@ -6,6 +6,7 @@
 // clock), "remembered, unseen" markers, monster confusion and blindness, quest and Oracle talk,
 // and every sound no monster here makes. A hallucinating hero gets no funny currency or wall
 // lines beyond the wall table.
+import { heroFormId } from './upoly';
 import { apAsThing } from './mimicstate';
 import { isUndetected } from './hidestate';
 import {
@@ -30,7 +31,7 @@ import { edogOf, meating } from './dog';
 import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
-import { polyGender } from './gender';
+import { heroFemale, polyGender } from './gender';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
 import { demonTalk } from './demontalk';
@@ -209,6 +210,31 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       return pline('chat.shrieks');
     case 'imitate':
       return pline('chat.imitates');
+    case 'vampire': {
+      // vampire messages are varied by tameness, peacefulness, and time of night (no clock: it is
+      // always day, see DEVIATIONS.md "No clock"); a vampire in its own form
+      const form = heroFormId(ctx.state);
+      const kindred = form === 'nh:vampire' || form === 'nh:vampire_lord';
+      const nightchild =
+        form === 'nh:wolf' || form === 'nh:winter_wolf' || form === 'nh:winter_wolf_cub';
+      if (tame) {
+        if (kindred) say(ctx, 'chat.vampire.master_day');
+        else say(ctx, nightchild ? 'chat.vampire.weary_child' : 'chat.vampire.weary');
+      } else if (m.peaceful) say(ctx, 'chat.vampire.potions');
+      else if (kindred) say(ctx, 'chat.vampire.hunting_ground');
+      else if (form === 'nh:silver_dragon' || form === 'nh:baby_silver_dragon')
+        // Silver dragons are silver in color, not made of silver
+        say(ctx, form === 'nh:silver_dragon' ? 'chat.vampire.sheen' : 'chat.vampire.sheen_young');
+      else if (ctx.rng.rn2(2) === 0)
+        say(ctx, 'chat.vampire.suck'); // (her blood: no body parts)
+      else if (form) say(ctx, 'chat.vampire.come_after', { who: `@${form}` });
+      else
+        say(
+          ctx,
+          heroFemale(ctx.state) ? 'chat.vampire.come_after_woman' : 'chat.vampire.come_after_man',
+        );
+      return NORMAL_SPEED;
+    }
     case 'were':
       // never a full moon (no clock): only the whisper
       return pline('chat.were_moon');

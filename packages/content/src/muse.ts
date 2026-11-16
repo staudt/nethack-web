@@ -26,6 +26,7 @@
 // Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
 // the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
 // frost horns and the expensive camera (no such objects), Half_spell_damage (no source), steeds.
+import { monHatesSilver } from './chamstate';
 import {
   DIRS,
   cellIndex,
@@ -96,7 +97,6 @@ import { canDigDown, isBotlevel, nonDiggable, onWTowerLevel } from './levelflags
 import { migrateToLevel } from './migrate';
 import {
   amorphous,
-  hatesSilver,
   nonliving,
   isFlyer,
   isUnicorn,
@@ -2366,11 +2366,7 @@ function useBullwhip(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
   if (!whereTo) {
     say(ctx, 'muse.whip_slips');
     return 1;
-  } else if (
-    whereTo === 3 &&
-    hatesSilver(ctx.defs.monster(mon.def)) &&
-    odef.material === 'silver'
-  ) {
+  } else if (whereTo === 3 && monHatesSilver(ctx, mon) && odef.material === 'silver') {
     // "this monster won't want to catch a silver weapon; drop it at hero's feet instead"
     whereTo = 2;
   }

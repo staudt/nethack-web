@@ -9,6 +9,7 @@
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
 // Protection_from_shape_changers (no such ring), body parts of polymorphed forms (always "head"
 // and "eyes") and a hit on a long worm's tail (gn.notonhead: always the head).
+import { monHatesBlessings } from './chamstate';
 import { setPotionVapors } from './floorfx';
 import { getPlayer, isVisible, type Ctx, type Entity, type Msg } from '@nh/core';
 import { abase, amax, setAbase, type Attr } from './attrib';
@@ -94,11 +95,11 @@ const uBreathless = (ctx: Ctx): boolean => heroForm(ctx)?.flags.includes('breath
 /** `haseyes(youmonst.data)` */
 const uHasEyes = (ctx: Ctx): boolean => heroForm(ctx)?.flags.includes('noeyes') !== true;
 
-/** ref: include/mondata.h mon_hates_blessings(): undead or demons (no vampshifters) */
-const hatesBlessings = (ctx: Ctx, mon: Entity): boolean => {
-  const f = ctx.defs.monster(mon.def).flags;
-  return f.includes('undead') || f.includes('demon');
-};
+/**
+ * ref: src/mondata.c mon_hates_blessings(): undead or demons, and vampshifters (potion.c's
+ * holy water test adds is_vampshifter() too)
+ */
+const hatesBlessings = (ctx: Ctx, mon: Entity): boolean => monHatesBlessings(ctx, mon);
 
 /** ref: include/mondata.h is_silent() */
 const isSilent = (ctx: Ctx, mon: Entity): boolean =>

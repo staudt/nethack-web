@@ -10,6 +10,7 @@ import {
   inRooms,
   isVisible,
   NORMAL_SPEED,
+  sortedIds,
   type CellRules,
   type Ctx,
   type EntityId,
@@ -29,7 +30,8 @@ import { clearPath } from './clearpath';
 
 export { clearPath };
 import { monsterAttack } from './combat';
-import { uswallow } from './engulfstate';
+import { engulfingU, uswallow } from './engulfstate';
+import { canFog, isVampshifter } from './chamstate';
 import { releaseHero } from './engulf';
 import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
@@ -66,7 +68,7 @@ import { M_ATTK } from './adtyping';
 import { couldseeAt, invisTo, mCanSeeU, setApparxy } from './apparxy';
 import { isFleeing, monflee, regainCourage } from './monflee';
 import { acurrstr } from './stats';
-import { monNam } from './perception';
+import { canSpotMon, monNam } from './perception';
 import {
   clearStrat,
   isCancelled,
@@ -103,7 +105,7 @@ import { findgold } from './steal';
 import { gdMoveLate, isGuard } from './vaultstate';
 import { TEMPLE, epriOf, histempleAt, inYourSanctuary, templeOccupied } from './epri';
 import { eshkOf, inAnyShop, inhishop, uShops } from './eshk';
-import { SCR_SCARE_MONSTER, anyScare, onscary, scareCells } from './scary';
+import { SCR_SCARE_MONSTER, altarScares, anyScare, onscary, scareCells } from './scary';
 import { afterShkMove } from './rooms';
 import {
   carriedPicks,
@@ -130,7 +132,7 @@ import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { canseemon, heroInvisible, monInvisible } from './invis';
 import { minliquid } from './minliquid';
-import { isCovetous, isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
+import { amorphous, isCovetous, isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
 import { isLava, isPool, mInAir } from './liquid';
 import { isWormTail, mAt, wormRec } from './wormstate';
 import { wormCross, wormMove, wormNomove } from './worm';
@@ -344,6 +346,12 @@ export function mfndpos(
   // ref: mfndpos() `checkobj && sobj_at(BOULDER, nx, ny)` without ALLOW_ROCK: no monster here
   // throws rocks or passes walls, so none steps onto a boulder
   const boulders = boulderCells(ctx, level);
+  // ref: mon_allowflags() NOGARLIC: undead (not ghosts) and vampshifters avoid a clove of garlic
+  // on the floor (mfndpos(): `sobj_at(CLOVE_OF_GARLIC, nx, ny)` with NOGARLIC)
+  const garlic =
+    (def.flags.includes('undead') && def.glyph.ch !== ' ') || isVampshifter(ctx, e)
+      ? garlicCells(ctx, level)
+      : null;
   const soko = isSokoban(level);
   // ref: src/hack.c bad_rock(): rock and walls, and boulders in Sokoban
   const rock = (x: number, y: number): boolean => {
@@ -375,7 +383,8 @@ export function mfndpos(
   // ref: mon_allowflags() ALLOW_SSM: pets, peacefuls, shopkeepers, priests, humans and minotaurs
   // (and a confused monster's ALLOW_ALL) may step onto a scroll of scare monster
   const scare = scareCells(ctx, level);
-  const scary = anyScare(ctx, level, scare);
+  // (an altar scares a vampire: onscary() is asked for one even with no scroll or Elbereth)
+  const scary = anyScare(ctx, level, scare) || altarScares(ctx, e);
   const displaced = onHerLevel && heroHas(ctx.state, P.DISPLACED);
   const allowSSM =
     conf ||
@@ -411,10 +420,14 @@ export function mfndpos(
           }
           if (avoidSpecialWalls && shopOrTemple(nx, ny)) continue;
         }
-        if (closed && !canOpen && !thrudoor) continue;
+        // ref: mfndpos(): "an amorphous creature can only move under/through a closed door if
+        // it doesn't currently have hero engulfed"; a vampshifter can_fog() under it
+        const underDoor = (amorphous(def) || canFog(ctx, e)) && !engulfingU(ctx, id);
+        if (closed && !underDoor && !canOpen && !thrudoor) continue;
         // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
         // digger goes through (thrudoor)
-        if (rules.lockedDoor[to] && !thrudoor) continue;
+        if (rules.lockedDoor[to] && !underDoor && !thrudoor) continue;
+        if (garlic?.has(cellIndex(level, nx, ny))) continue; // NOGARLIC
         if (!wallwalk && boulders.has(cellIndex(level, nx, ny))) continue; // ALLOW_ROCK
         const diagonal = nx !== pos.x && ny !== pos.y;
         // ref: mfndpos() "first diagonal checks": no diagonal moves for a grid bug, and none into
@@ -602,7 +615,7 @@ function mSearchItems(
   }
   for (const list of piles.values())
     list.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
-  const scary = anyScare(ctx, level, scare);
+  const scary = anyScare(ctx, level, scare) || altarScares(ctx, mon);
   const hmx = Math.min(level.width - 1, pos.x + minr);
   const hmy = Math.min(level.height - 1, pos.y + minr);
   const lmx = Math.max(1, pos.x - minr);
@@ -1059,6 +1072,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   }
 
   const from = { x: pos.x, y: pos.y };
+  const seenBefore = e !== undefined && canSpotMon(ctx, e); // m_move()'s `seenflgs & 1`
   trackAdd(ctx, id, from.x, from.y);
   pos.x = chosen.x;
   pos.y = chosen.y;
@@ -1066,7 +1080,36 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   // ref: m_move(): "for a long worm, insert a new segment to reconnect the head with the tail"
   if (wormRec(ctx.state, id)) wormMove(ctx, id, from);
   maybeUnhideAt(ctx, level.id, chosen.x, chosen.y); // ref: m_move() after place_monster()
+  // ref: postmov(): a vampshifter moving onto a closed door turns into a fog cloud first
+  if (e) fogUnderDoor(ctx, e, seenBefore);
   return postmovMoved(ctx, id, level, rules, canTunnel);
+}
+
+/** The cells of `level` with a clove of garlic on the floor. */
+function garlicCells(ctx: Pick<Ctx, 'state'>, level: Level): Set<number> {
+  const out = new Set<number>();
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    const p = e?.c.pos;
+    if (e?.def === 'nh:clove_of_garlic' && e.c.item && p?.level === level.id)
+      out.add(cellIndex(level, p.x, p.y));
+  }
+  return out;
+}
+
+type FogUnderDoor = (ctx: Ctx, mon: Entity, seenBefore: boolean) => void;
+let fogUnderDoorFn: FogUnderDoor | null = null;
+/** shapeshift.ts hands down its vamp_shift() into a fog cloud (it sits above this module). */
+export function setFogUnderDoor(fn: FogUnderDoor): void {
+  fogUnderDoorFn = fn;
+}
+
+/**
+ * A vampshifter that moved onto a closed door turns into a fog cloud (m_move() and dog_move()
+ * both reach postmov()). ref: src/monmove.c postmov() l.1485
+ */
+export function fogUnderDoor(ctx: Ctx, mon: Entity, seenBefore: boolean): void {
+  fogUnderDoorFn?.(ctx, mon, seenBefore);
 }
 
 /**
@@ -1125,10 +1168,23 @@ function postmovMoved(
   if (trapRemovedMon(mintrap(ctx, id))) return 'died';
 
   // ref: postmov(): open a closed door the monster just stepped onto, `!passes_walls(ptr)`
-  // ("doesn't need to open doors") and `!can_tunnel` ("taken care of below")
+  // ("doesn't need to open doors") and `!can_tunnel` ("taken care of below"); an amorphous one
+  // (a vampshifter's fog cloud too) "flows under the door" ("oozes" for the others) instead
   const here = level.cells[cellIndex(level, pos.x, pos.y)] ?? 0;
-  const opens = rules.closedDoor[here] === true && !def.flags.includes('wallwalk') && !canTunnel;
-  if (opens && doorTrapped(ctx, level.id, pos.x, pos.y)) {
+  const atDoor = rules.closedDoor[here] === true && !def.flags.includes('wallwalk') && !canTunnel;
+  const oozes = atDoor && amorphous(def);
+  const opens = atDoor && !oozes;
+  if (oozes) {
+    if (canseemon(ctx, e))
+      ctx.emit({
+        type: 'msg',
+        key:
+          def.id === 'nh:fog_cloud' || def.glyph.ch === 'y'
+            ? 'door.flows_under'
+            : 'door.oozes_under',
+        params: { mon: monNam(ctx, e) },
+      });
+  } else if (opens && doorTrapped(ctx, level.id, pos.x, pos.y)) {
     const didsee = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     blowDoor(ctx, level, pos.x, pos.y); // D_NODOOR
     if (mbTrapped(ctx, e, didsee || isVisible(ctx.state, cellIndex(level, pos.x, pos.y))))

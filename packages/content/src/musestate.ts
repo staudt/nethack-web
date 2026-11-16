@@ -8,6 +8,7 @@
 // ref: src/muse.c mcureblindness(), mon_reflects(), searches_for_item(), cures_stoning(),
 // rnd_defensive_item(), rnd_offensive_item(), rnd_misc_item(); src/mondata.c monstseesu(),
 // monstunseesu(); include/monst.h M_SEEN_*, m_seenres(), mwandexp
+import { isVampshifter } from './chamstate';
 import {
   inventoryOf,
   isContainer,
@@ -210,8 +211,7 @@ const SEARCHED_WANDS: readonly DefId[] = [
  * an uncursed unicorn horn, a container to loot, the corpses that cure stoning (or a cockatrice's
  * for a gloved monster) and cockatrice eggs. Not an object on a scary square it stands on, and
  * nothing for animals, the mindless and ghosts.
- * ref: src/muse.c searches_for_item() (no tins, horns, cameras or amulets of guarding here; no
- * vampire shapeshifters)
+ * ref: src/muse.c searches_for_item() (no tins, horns, cameras or amulets of guarding here)
  */
 export function searchesForItem(
   ctx: Pick<Ctx, 'state' | 'defs'>,
@@ -252,7 +252,7 @@ export function searchesForItem(
     case 'scroll':
       return SEARCHED_SCROLLS.includes(typ);
     case 'amulet':
-      if (typ === 'nh:amulet_of_life_saving') return !nonliving(mdef);
+      if (typ === 'nh:amulet_of_life_saving') return !(nonliving(mdef) || isVampshifter(ctx, mon));
       return typ === 'nh:amulet_of_reflection';
     case 'tool':
       if (typ === 'nh:pick_axe') return mdef.flags.includes('needpick');
@@ -399,7 +399,7 @@ export function rndOffensiveItem(
 
 /**
  * A misc item for a (weak) monster being made (null: none): polymorph, an amulet of life saving,
- * speed, invisibility, gain level. ref: src/muse.c rnd_misc_item() (no vampire shapeshifters)
+ * speed, invisibility, gain level. ref: src/muse.c rnd_misc_item()
  */
 export function rndMiscItem(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, id: EntityId): DefId | null {
   const mon = ctx.state.entities[String(id)];
@@ -410,7 +410,8 @@ export function rndMiscItem(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, id: Entity
   // all..."
   if (pm.difficulty < 6 && !ctx.rng.rn2(30))
     return ctx.rng.rn2(6) ? 'nh:potion_of_polymorph' : 'nh:wand_of_polymorph';
-  if (!ctx.rng.rn2(40) && !nonliving(pm)) return 'nh:amulet_of_life_saving';
+  if (!ctx.rng.rn2(40) && !nonliving(pm) && !isVampshifter(ctx, mon))
+    return 'nh:amulet_of_life_saving';
   switch (ctx.rng.rn2(3)) {
     case 0:
       if (isGuard(ctx.state, id)) return null;

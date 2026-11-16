@@ -8,7 +8,6 @@
 // `before` fixup lays the maze grid, the map again and walks the maze; the `after` fixup runs
 // hell_tweaks(), joins the walls and puts the stairs, the branch and (fakewiz1) the portal in
 // their level regions. fakewiz1's irregular arrival room makes no Room (an unlit area here).
-// "vampire lord" is a random monster until vampires exist.
 import type { DefId, LevelContent, LevelDef } from '@nh/core';
 import { desMazeGrid } from './hellfill';
 import { GEHENNOM_SPECIALS as G } from './levelflags';
@@ -40,7 +39,7 @@ const board = (x: number, y: number): LevelContent => ({
 /** The monsters and boards of both fake towers. */
 const RESIDENTS: readonly LevelContent[] = [
   { kind: 'monster', class: 'L', ...at(4, 4) },
-  { kind: 'monster', ...at(3, 4) }, // "vampire lord": a random monster until vampires exist
+  { kind: 'monster', id: 'nh:vampire_lord' as DefId, ...at(3, 4) },
   { kind: 'monster', id: 'nh:kraken' as DefId, ...at(6, 6) },
   // And to make things a little harder.
   board(4, 3),

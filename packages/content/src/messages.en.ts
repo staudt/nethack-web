@@ -136,6 +136,8 @@ export const messagesEn: Record<string, string> = {
   'door.no_door': 'This doorway has no door.',
   'action.open': 'Open the door',
   'door.mon_opens': '{mon|The} opens a door.',
+  'door.flows_under': '{mon|The} flows under the door.',
+  'door.oozes_under': '{mon|The} oozes under the door.',
   'door.hear_open': 'You hear a door open.',
   // a monster the hero can't see or sense (Monnam's "it"); see monNam() and {mon|The}
   'pronoun.it': 'it',
@@ -540,6 +542,8 @@ export const messagesEn: Record<string, string> = {
   'nh:water_troll': 'water troll',
   'nh:olog_hai': 'Olog-hai',
   'nh:umber_hulk': 'umber hulk',
+  'nh:vampire': 'vampire',
+  'nh:vampire_lord': 'vampire lord',
   'nh:barrow_wight': 'barrow wight',
   'nh:wraith': 'wraith',
   'nh:nazgul': 'Nazgul',

@@ -4,6 +4,7 @@
 // ref: include/youprop.h Hate_silver; src/mondata.c mon_hates_silver(); src/weapon.c
 // special_dmgval(); src/uhitm.c hmon_hitmon_msg_silver(), mhitm_ad_phys(); src/mhitm.c
 // hitmm(); src/mthrowu.c ohitmon(), thitu()
+import { monHatesSilver } from './chamstate';
 import type { Ctx, Entity, Msg } from '@nh/core';
 import { amorphous, hatesBlessings, hatesSilver, noncorporeal } from './mondata';
 import { xnameOf } from './objnam';
@@ -60,7 +61,7 @@ function whom(ctx: SCtx, mon: Entity): Msg | string {
 export function silverRingBonus(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, mon: Entity): number {
   const pid = ctx.state.playerId;
   if (wornIn(ctx.state, pid, 'gloves') !== null) return 0; // no silver gloves exist
-  if (!hatesSilver(ctx.defs.monster(mon.def))) return 0;
+  if (!monHatesSilver(ctx, mon)) return 0;
   const silver = (slot: string): boolean => {
     const r = wornIn(ctx.state, pid, slot);
     return r !== null && isSilver(ctx, r);

@@ -8,6 +8,7 @@
 // Not ported (ROADMAP "From m17"): the invocation itself (the Bell and the Candelabrum, the
 // primed relics, mkinvokearea()); "the nalfeshnee" (no row until m18: the second try makes
 // nothing); body_part(SPINE) for a polymorphed hero (always "spine").
+import { isVampshifter } from './chamstate';
 import { getLevel, getPlayer, sortedIds, type Ctx, type DefId, type Entity } from '@nh/core';
 import { tamedog } from './dog';
 import { makemon, mnextoPos } from './generation';
@@ -58,13 +59,14 @@ function mkundead(ctx: Ctx, x: number, y: number): void {
 /**
  * Pacify or tame an undead monster she sees: it becomes peaceful; one of her alignment's sign
  * within distance 2 is tamed (a pet gets tamer, up to 20), any other flees.
- * ref: src/spell.c deadbook_pacify_undead() (no vampire shapeshifters)
+ * ref: src/spell.c deadbook_pacify_undead()
  */
 function pacifyUndead(ctx: Ctx, mon: Entity): void {
   const m = mon.c.monster;
   const p = mon.c.pos;
   const def = ctx.defs.monster(mon.def);
-  if (!m || !p || !def.flags.includes('undead') || !cansee(ctx, p.level, p.x, p.y)) return;
+  const undead = def.flags.includes('undead') || isVampshifter(ctx, mon);
+  if (!m || !p || !undead || !cansee(ctx, p.level, p.x, p.y)) return;
   m.peaceful = true;
   const hp = getPlayer(ctx.state).c.pos;
   const near = hp !== undefined && (p.x - hp.x) ** 2 + (p.y - hp.y) ** 2 < 4;

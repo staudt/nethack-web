@@ -161,15 +161,19 @@ describe('morguemon()', () => {
     expect(Object.keys(s).sort()).toEqual(['Z', 'nh:ghost', 'nh:wraith']);
   });
 
-  test('deeper, the vampire branch (hd > 8, i > 85) finds no vampire; the demon branch mostly falls to ghosts', () => {
+  test('deeper, the vampire branch (hd > 8, i > 85) makes vampires (m18); the demon branch mostly falls to ghosts', () => {
     const n = 4000;
     const s = sample(30, n);
     const devils = ['nh:barbed_devil', 'nh:horned_devil'];
+    const vampires = ['nh:vampire', 'nh:vampire_lord'];
     for (const k of Object.keys(s))
-      expect(['Z', 'nh:ghost', 'nh:wraith', 'null', ...devils]).toContain(k);
-    // P(hd > 8) = 21/30, P(i > 85) = 14/100: about 1 in 10 makes a random monster instead
-    expect(s['null']! / n).toBeGreaterThan(0.07);
-    expect(s['null']! / n).toBeLessThan(0.13);
+      expect(['Z', 'nh:ghost', 'nh:wraith', ...vampires, ...devils]).toContain(k);
+    // P(hd > 8) = 21/30, P(i > 85) = 14/100: about 1 in 10 is a vampire or a vampire lord
+    const v = vampires.reduce((a, k) => a + (s[k] ?? 0), 0);
+    expect(s['nh:vampire']).toBeGreaterThan(0);
+    expect(s['nh:vampire_lord']).toBeGreaterThan(0);
+    expect(v / n).toBeGreaterThan(0.07);
+    expect(v / n).toBeLessThan(0.13);
     // outside Gehennom ndemon() finds a devil only when mkclass() lets a Gehennom-only kind
     // through (1 in 9 per kind; the water demon is G_NOGEN): i < 10 mostly stays a ghost
     const d = devils.reduce((a, k) => a + (s[k] ?? 0), 0);

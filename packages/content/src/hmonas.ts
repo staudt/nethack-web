@@ -3,6 +3,9 @@
 // damage-type functions of adtyping.ts, and the target's passive answers each one.
 // ref: src/uhitm.c hmonas(), damageum(), demonpet(), explum(), gulpum(), start_engulf(), steal_it();
 // src/dokick.c kick_monster()'s polymorphed branch
+import { newcham } from './newcham';
+import { mapInvisible } from './invis';
+import { chamOf, isVampshifter } from './chamstate';
 import { golemeffects } from './golemfx';
 import {
   getLevel,
@@ -240,6 +243,17 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
   const uhunger = hero.c.hunger?.nutrition ?? 0;
   if ((uDigest && uhunger >= 1500) || isSwallowed(ctx)) return M_ATTK.MISS;
   if (!flaming(form)) for (const o of minvent(ctx, mdef.id)) snuffLit(ctx, o);
+  // force vampire in bat, cloud, or wolf form to revert back to vampire form now instead of
+  // dealing with that when it dies: "You swallow it, then regurgitate it.  It turns into a
+  // vampire."
+  const cham = chamOf(ctx, mdef.id);
+  if (isVampshifter(ctx, mdef) && cham && newcham(ctx, mdef, ctx.defs.monster(cham))) {
+    say(ctx, `uhitm.gulp_shifter.${expelVerb}`);
+    const p = mdef.c.pos;
+    if (canSpotMon(ctx, mdef)) say(ctx, 'uhitm.gulp_shifter.turns_into', { into: `@${mdef.def}` });
+    else if (p) mapInvisible(ctx, p.x, p.y);
+    return M_ATTK.HIT;
+  }
   const stoneRes = hasProp(hero, P.STONE_RES);
   // engulfing a cockatrice or digesting Medusa
   const fatalGulp =

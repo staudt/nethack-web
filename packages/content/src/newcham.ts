@@ -3,8 +3,11 @@
 // ref: src/mon.c newcham(), select_newcham_form(), accept_newcham_form(), validspecmon(),
 // isspecmon(); src/makemon.c newmonhp()
 //
-// Not ported (none exist here): shapeshifters (chameleons, doppelgangers, sandestins, vampires),
-// the Riders' and the erinyes' immunity has no monster to apply to but is kept,
+// Shapeshifters keep their true kind in `cham` (chamstate.ts): a vampire picks a bat, fog cloud or
+// (a lord) wolf shape (pickvampshape()); a polymorph that makes a vampire makes a vampshifter.
+// Not ported (none exist here): chameleons, doppelgangers and sandestins (m18 step 3), the
+// cancelled shapechanger's uncancelling (no protection from shape changers yet),
+// the Riders' immunity has no monster to apply to but is kept,
 // the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
@@ -12,7 +15,30 @@
 // after a change during the monsters' move (newcham() is not told it is the monsters' move).
 import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
-import { getPlayer, type Ctx, type Entity, type MonsterDef, type Msg } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type MonsterDef,
+  type Msg,
+} from '@nh/core';
+import {
+  chamOf,
+  FOG_CLOUD,
+  isShapeshifter,
+  isVampire,
+  isVampshifter,
+  pmToCham,
+  setCham,
+  VAMPIRE,
+  VAMPIRE_BAT,
+  VAMPIRE_LORD,
+  VLAD_THE_IMPALER,
+  WOLF,
+} from './chamstate';
+import { isPoolOrLava } from './liquid';
 import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
 import { monBreakArmor } from './breakarm';
 import { bypassObj } from './bypass';
@@ -21,7 +47,7 @@ import { eshkOf } from './eshk';
 import { expels, unstuck } from './engulf';
 import { digests, isWhirly, uswallow } from './engulfstate';
 import { flooreffects } from './flooreffects';
-import { adjLev, newmonhp } from './generation';
+import { adjLev, newmonhp, setMakemonNewcham } from './generation';
 import { ustuck } from './hackmove';
 import { setAdNewcham } from './adtyping';
 import { canseemon, newchamInvis } from './invis';
@@ -54,13 +80,16 @@ const isspecmon = (ctx: Ctx, mon: Entity): boolean =>
   eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null || isGuard(ctx.state, mon.id);
 
 /**
- * The form `mndx` if the monster may take it: not genocided, not a placeholder, and polyok() (no
- * player monsters or shapeshifters exist). ref: src/mon.c accept_newcham_form()
+ * The form `mndx` if the monster may take it: not genocided, not a placeholder, its own natural
+ * form for a shapeshifter, else polyok() (no player monsters exist).
+ * ref: src/mon.c accept_newcham_form()
  */
-function acceptNewchamForm(ctx: Ctx, mdat: MonsterDef | null): MonsterDef | null {
+function acceptNewchamForm(ctx: Ctx, mon: Entity, mdat: MonsterDef | null): MonsterDef | null {
   if (!mdat) return null;
   if (isGenocided(ctx.state, mdat.id)) return null;
   if (PLACEHOLDERS.includes(mdat.id)) return null;
+  // shapeshifters are rejected by polyok() but allow a shapeshifter to take on its 'natural' form
+  if (isShapeshifter(mdat) && chamOf(ctx, mon.id) === mdat.id) return mdat;
   // polyok() rules out M2_PNAME, M2_WERE, and all humans except Kops
   return polyok(mdat) ? mdat : null;
 }
@@ -70,7 +99,7 @@ function acceptNewchamForm(ctx: Ctx, mdat: MonsterDef | null): MonsterDef | null
  * ref: src/mon.c validspecmon()
  */
 function validspecmon(ctx: Ctx, mon: Entity, mdat: MonsterDef): boolean {
-  if (!acceptNewchamForm(ctx, mdat)) return false; // geno'd or !polyok
+  if (!acceptNewchamForm(ctx, mon, mdat)) return false; // geno'd or !polyok
   if (isspecmon(ctx, mon)) {
     // reject notake because object manipulation is expected
     // and nohead because speech capability is expected
@@ -80,11 +109,48 @@ function validspecmon(ctx: Ctx, mon: Entity, mdat: MonsterDef): boolean {
 }
 
 /**
- * A random form for an ordinary monster: any monster type, uniformly (C picks among every
- * monster before the special ones; the roster is that table's subset). The 50-try loop only
- * retries on the Rogue level, so one pick is made. ref: src/mon.c select_newcham_form() NON_PM
+ * A vampire's next shape: a vampire lord (or Vlad) becomes a wolf 1 time in 10 (not over water
+ * or lava), else any vampire a fog cloud 1 time in 4 or a vampire bat; it returns to its own
+ * form instead when that shape is genocided, or 1 time in 4 when it is already shifted.
+ * ref: src/mon.c pickvampshape() (no Rogue level; Vlad does not exist)
+ */
+export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
+  const cham = chamOf(ctx, mon.id);
+  let mndx = cham;
+  let wolfchance = 10;
+  const p = mon.c.pos;
+  const overLiquid = (): boolean =>
+    p !== undefined && isPoolOrLava(ctx, getLevel(ctx.state, p.level), p.x, p.y);
+  if (cham === VLAD_THE_IMPALER || cham === VAMPIRE_LORD || cham === VAMPIRE) {
+    let wolf = false;
+    if (cham !== VAMPIRE) {
+      // vampire lord or Vlad can become wolf (no Candelabrum for Vlad to keep carrying)
+      if (cham === VLAD_THE_IMPALER) wolfchance = 3;
+      // don't pick a walking form if that would lead to immediate drowning or immolation
+      wolf = !ctx.rng.rn2(wolfchance) && !overLiquid();
+    }
+    // any vampire can become fog or bat
+    mndx = wolf ? WOLF : !ctx.rng.rn2(4) ? FOG_CLOUD : VAMPIRE_BAT;
+  }
+  // return to base form if chosen poly target has been genocided or randomly if already in an
+  // alternate form (to prevent always switching back and forth between bat and fog)
+  if ((mndx !== null && isGenocided(ctx.state, mndx)) || (mon.def !== cham && !ctx.rng.rn2(4)))
+    return cham;
+  return mndx;
+}
+
+/**
+ * The form a monster changing shape takes: a vampire's own pick (pickvampshape()), else any
+ * monster type, uniformly (C picks among every monster before the special ones; the roster is
+ * that table's subset). The 50-try loop only retries on the Rogue level, so one pick is made.
+ * ref: src/mon.c select_newcham_form() (the vampires' cases and NON_PM; no dragon armor)
  */
 export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
+  const cham = chamOf(ctx, mon.id);
+  if (cham === VAMPIRE || cham === VAMPIRE_LORD || cham === VLAD_THE_IMPALER) {
+    const mndx = pickvampshape(ctx, mon);
+    if (mndx !== null) return ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
+  }
   const all = ctx.defs.monsters;
   let mdat: MonsterDef | null;
   let tryct = 50;
@@ -139,9 +205,14 @@ export function newcham(
   let msg = flags.msg === true;
   const seenorsensed = canSpotMon(ctx, mon);
   const olddata = ctx.defs.monster(mon.def);
-  // Riders are immune to polymorph and green slime; so are kinds with a birth limit (the Nazgul
-  // and erinyes): mbirth_limit() < MAXMONNO
-  if (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO) return false;
+  // Riders are immune to polymorph and green slime (but apparent Rider might actually be a
+  // doppelganger); so are kinds with a birth limit (the Nazgul and erinyes): mbirth_limit() <
+  // MAXMONNO
+  if (
+    chamOf(ctx, mon.id) === null &&
+    (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO)
+  )
+    return false;
   const tame = (m.tame ?? 0) > 0;
   // "The oldmon" (like YMonnam(), "your" for a pet); we need l_oldname whether msg is true or not
   const oldname = monNam(ctx, mon);
@@ -151,14 +222,15 @@ export function newcham(
     // select_newcham_form() doesn't always loop, so we retry here too
     let tryct = 20;
     do {
-      mdat = acceptNewchamForm(ctx, selectNewchamForm(ctx, mon));
+      mdat = acceptNewchamForm(ctx, mon, selectNewchamForm(ctx, mon));
       if (mdat) break;
     } while (--tryct > 0);
     if (!tryct || !mdat) return false;
   }
   if (mdat.id === olddata.id) return false; // still the same monster
 
-  // (no gender kept for monsters: mgender_from_permonst() is not ported)
+  // (no gender kept for monsters: mgender_from_permonst() is not ported, nor its draw; a vampire
+  // would keep its gender anyway)
 
   // ref: newcham(): "throw tail away" (wormgone(); the head stays and morphs)
   wormgone(ctx, mon.id);
@@ -195,18 +267,12 @@ export function newcham(
         const amorphous = (d: MonsterDef): boolean => d.flags.includes('amorphous');
         if (!noncorporeal && !isWhirly(mdat) && !(amorphous(mdat) || mdat.glyph.ch === 'y')) {
           const emerge = amorphous(olddata) || isWhirly(olddata);
-          // do this even if msg is false
-          say(
-            ctx,
-            emerge
-              ? digests(mdat)
-                ? 'newcham.emerge_stomach'
-                : 'newcham.emerge'
-              : digests(mdat)
-                ? 'newcham.break_out_stomach'
-                : 'newcham.break_out',
-            { mon: oldname },
-          );
+          // do this even if msg is false; " which was a shapeshifted vampire" for a vampshifter
+          const trail = isVampshifter(ctx, mon) ? '_shifted' : digests(mdat) ? '_stomach' : '';
+          say(ctx, `newcham.${emerge ? 'emerge' : 'break_out'}${trail}`, {
+            mon: oldname,
+            ...(trail === '_shifted' ? { into: `@${mdat.id}` } : {}),
+          });
           msg = false; // message has been given
           if (hp) hp.cur = 1; // almost dead
         }
@@ -239,6 +305,10 @@ export function newcham(
     }
   }
 
+  // when polymorph trap/wand/potion produces a vampire, turn it into a full-fledged vampshifter
+  // (no protection from shape changers exists)
+  if (chamOf(ctx, mon.id) === null && isVampire(mdat)) setCham(ctx, mon.id, pmToCham(mdat));
+
   possiblyUnwield(ctx, mon, polyspot); // might lose use of weapon
   monBreakArmor(ctx, mon, polyspot);
   setMonFlag(ctx, 'gearchk', mon.id, true); // check_gear_next_turn()
@@ -265,6 +335,8 @@ export function newcham(
 }
 
 setAdNewcham(newcham); // adtyping.ts (AD_SLIM) sits below this module
+// makemon()'s shapeshifter birth: `newcham(mtmp, (struct permonst *) 0, NO_NC_FLAGS)`
+setMakemonNewcham((ctx, mon) => newcham(ctx, mon, null));
 
 /**
  * A golem (not a stone golem) turned to stone becomes a stone golem: "The flesh golem

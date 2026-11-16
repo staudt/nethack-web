@@ -10,8 +10,7 @@
 // altar of Moloch gets its priest as any temple's shrine does (create_altar(): priestini()). The
 // morgues are stocked by zoo.ts and make the level a graveyard (graveyard.ts). The flags
 // ("mazelevel", "noteleport", "hardfloor", "nommap", "temperate") and the non-diggable map are
-// levelflags.ts entries. "V" is an empty class until vampires exist, so those three are random
-// monsters (as des.monster() makes for a class with nothing to pick), and the valkyries' corpses
+// levelflags.ts entries. The valkyries' corpses
 // are human (no valkyrie row: its id is the hero's role's).
 import type { DefId, LevelContent, LevelDef } from '@nh/core';
 import { TEMPLE } from './epri';
@@ -183,8 +182,9 @@ export const VALLEY: LevelDef = {
     // And a lich for good measure.
     cls('L'),
     // Some undead nasties for good measure
-    // "V" x 3: a random monster until vampires exist (core refuses a class with no monster)
-    { kind: 'monster', count: 3 },
+    cls('V'),
+    cls('V'),
+    cls('V'),
     cls('Z'),
     cls('Z'),
     cls('Z'),

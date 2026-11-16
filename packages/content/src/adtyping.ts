@@ -8,6 +8,7 @@
 // branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
+import { isVampshifter } from './chamstate';
 import { loseAbon } from './dowear';
 import {
   getPlayer,
@@ -1739,12 +1740,17 @@ const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
 
 /**
  * Whether a monster resists level drain: undead, demons and were creatures.
- * ref: src/mondata.c resists_drli() (no Death, vampire shapeshifters or drain-resisting
- * artifacts; the hero's side is exper.ts resistsDrliHero())
+ * ref: src/mondata.c resists_drli() (no Death or drain-resisting artifacts; the hero's side is
+ * exper.ts resistsDrliHero())
  */
 export function resistsDrli(ctx: Ctx, mon: Entity): boolean {
   const flags = ctx.defs.monster(mon.def).flags;
-  return flags.includes('undead') || flags.includes('demon') || flags.includes('were');
+  return (
+    flags.includes('undead') ||
+    flags.includes('demon') ||
+    flags.includes('were') ||
+    isVampshifter(ctx, mon)
+  );
 }
 
 /**

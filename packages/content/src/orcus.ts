@@ -15,7 +15,7 @@
 // keeper removed once it is stocked: src/shknam.c stock_room()'s ghost-town hack). The altar is
 // an ordinary unaligned one: create_altar() makes a high altar (AM_SANCTUM) only in a temple
 // room, and this one stands in none. The map lands two columns right of NetHack's (this port's
-// x_maze_max is two more). "vampire" and "vampire lord" are random monsters until vampires exist.
+// x_maze_max is two more).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, MapBlock } from '@nh/core';
 import { mapBlock, VANILLA_TERRAIN, wallifyLevel } from '@nh/core';
 import { shopKeeper } from './eshk';
@@ -99,22 +99,22 @@ const DOORS: readonly (readonly [number, number, 'closed' | 'open' | 'nodoor'])[
 const MONSTERS: readonly LevelContent[] = [
   // The resident nasty
   mon('nh:orcus', 33, 15),
-  // And its preferred companions ("vampire", "vampire lord": random monsters until they exist)
+  // And its preferred companions
   mon('nh:human_zombie', 32, 15),
   mon('nh:shade', 32, 14),
   mon('nh:shade', 32, 16),
-  mon(undefined, 35, 16),
-  mon(undefined, 35, 14),
-  mon(undefined, 36, 14),
-  mon(undefined, 36, 15),
+  mon('nh:vampire', 35, 16),
+  mon('nh:vampire', 35, 14),
+  mon('nh:vampire_lord', 36, 14),
+  mon('nh:vampire_lord', 36, 15),
   // Randomly placed companions
   { kind: 'monster', id: 'nh:skeleton', count: 5 },
   { kind: 'monster', id: 'nh:shade', count: 4 },
   { kind: 'monster', id: 'nh:giant_zombie', count: 3 },
   { kind: 'monster', id: 'nh:ettin_zombie', count: 3 },
   { kind: 'monster', id: 'nh:human_zombie', count: 3 },
-  { kind: 'monster', count: 3 }, // vampires
-  { kind: 'monster', count: 2 }, // vampire lords
+  { kind: 'monster', id: 'nh:vampire', count: 3 },
+  { kind: 'monster', id: 'nh:vampire_lord', count: 2 },
   // A few more for the party
   { kind: 'monster', count: 5 },
 ];

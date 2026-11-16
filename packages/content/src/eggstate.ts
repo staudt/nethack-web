@@ -23,10 +23,12 @@ export const HATCH_EGG: DefId = 'nh:hatch_egg';
 export const MAX_EGG_HATCH_TIME = 200;
 
 /**
- * The growing-up pairs (little, big). ref: src/mondata.c grownups[] (the whole table: a pair whose
- * monsters are not registered is skipped by the lookups below)
+ * The growing-up pairs (little, big), by the port's row ids (`nh:` + the name; C's enum names
+ * differ for the NAMS rows: PM_GNOME_LEADER is `gnome_lord`...). ref: src/mondata.c grownups[]
+ * (the whole table: a pair whose monsters are not registered is skipped by the lookups below,
+ * and every such name is listed in GROWNUP_ABSENT)
  */
-const GROWNUPS: readonly (readonly [string, string])[] = [
+export const GROWNUPS: readonly (readonly [string, string])[] = [
   ['chickatrice', 'cockatrice'],
   ['little_dog', 'dog'],
   ['dog', 'large_dog'],
@@ -37,11 +39,11 @@ const GROWNUPS: readonly (readonly [string, string])[] = [
   ['pony', 'horse'],
   ['horse', 'warhorse'],
   ['kobold', 'large_kobold'],
-  ['large_kobold', 'kobold_leader'],
-  ['gnome', 'gnome_leader'],
-  ['gnome_leader', 'gnome_ruler'],
-  ['dwarf', 'dwarf_leader'],
-  ['dwarf_leader', 'dwarf_ruler'],
+  ['large_kobold', 'kobold_lord'],
+  ['gnome', 'gnome_lord'],
+  ['gnome_lord', 'gnome_king'],
+  ['dwarf', 'dwarf_lord'],
+  ['dwarf_lord', 'dwarf_king'],
   ['mind_flayer', 'master_mind_flayer'],
   ['orc', 'orc_captain'],
   ['hill_orc', 'orc_captain'],
@@ -49,17 +51,17 @@ const GROWNUPS: readonly (readonly [string, string])[] = [
   ['uruk_hai', 'orc_captain'],
   ['sewer_rat', 'giant_rat'],
   ['cave_spider', 'giant_spider'],
-  ['ogre', 'ogre_leader'],
-  ['ogre_leader', 'ogre_tyrant'],
-  ['elf', 'elf_noble'],
-  ['woodland_elf', 'elf_noble'],
-  ['green_elf', 'elf_noble'],
-  ['grey_elf', 'elf_noble'],
-  ['elf_noble', 'elven_monarch'],
+  ['ogre', 'ogre_lord'],
+  ['ogre_lord', 'ogre_king'],
+  ['elf', 'elf_lord'],
+  ['woodland_elf', 'elf_lord'],
+  ['green_elf', 'elf_lord'],
+  ['grey_elf', 'elf_lord'],
+  ['elf_lord', 'elvenking'],
   ['lich', 'demilich'],
   ['demilich', 'master_lich'],
   ['master_lich', 'arch_lich'],
-  ['vampire', 'vampire_leader'],
+  ['vampire', 'vampire_lord'],
   ['bat', 'giant_bat'],
   ['baby_gray_dragon', 'gray_dragon'],
   ['baby_gold_dragon', 'gold_dragon'],
@@ -94,6 +96,20 @@ const GROWNUPS: readonly (readonly [string, string])[] = [
   ['keystone_kop', 'kop_sergeant'],
   ['kop_sergeant', 'kop_lieutenant'],
   ['kop_lieutenant', 'kop_kaptain'],
+];
+
+/** The grownups[] names that have no monster row yet (quest monsters, the Kops). */
+export const GROWNUP_ABSENT: readonly string[] = [
+  'acolyte',
+  'apprentice',
+  'attendant',
+  'high_cleric',
+  'keystone_kop',
+  'kop_kaptain',
+  'kop_lieutenant',
+  'kop_sergeant',
+  'page',
+  'student',
 ];
 
 /** ref: src/mondata.c little_to_big(): one step up the table (the first pair that matches) */

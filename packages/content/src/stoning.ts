@@ -8,8 +8,8 @@
 //
 // Golems turn into stone golems instead (poly_when_stoned(), mon_to_stone(): newcham.ts registers
 // it). Monsters cure themselves with lizard or acidic corpses or acid (munstone(), muse.ts:
-// minstapetrify()'s callers try it first, as C's do). Not ported: vampires reverting
-// (vamp_stone(): 7f), selftouch() (falling while wielding a cockatrice corpse), the hero's
+// minstapetrify()'s callers try it first, as C's do). A shifted vampire reverts instead
+// (vamp_stone(): shapeshift.ts registers it). Not ported: selftouch() (falling while wielding a cockatrice corpse), the hero's
 // statue (no bones).
 import { getPlayer, type Ctx, type Entity, type EntityId, type ModApi, type Msg } from '@nh/core';
 import { done } from './end';
@@ -40,6 +40,16 @@ export function setMonToStone(fn: (ctx: Ctx, mon: Entity) => void): void {
   monToStoneFn = fn;
 }
 
+let vampStoneFn: ((ctx: Ctx, mon: Entity) => boolean) | null = null;
+
+/** shapeshift.ts hands down vamp_stone() (it sits above this module). */
+export function setVampStone(fn: (ctx: Ctx, mon: Entity) => boolean): void {
+  vampStoneFn = fn;
+}
+
+/** vamp_stone(): false when a shapeshifter reverted instead of petrifying. */
+const vampStone = (ctx: Ctx, mon: Entity): boolean => vampStoneFn?.(ctx, mon) ?? true;
+
 /**
  * The golem turns into a stone golem ("The flesh golem solidifies..."). Call it only when
  * monPolyWhenStoned(). ref: src/mon.c mon_to_stone()
@@ -61,7 +71,7 @@ const hero = (ctx: Ctx): Entity => getPlayer(ctx.state);
  * The monster, when it does not resist, is "slowing down" and turns to stone: killed by the hero
  * (experience, alignment and luck as xkilled(), no corpse) when `byHero`, else monstone().
  * A golem becomes a stone golem instead (mon_to_stone()).
- * ref: src/trap.c minstapetrify() (no vampires: 7f)
+ * ref: src/trap.c minstapetrify()
  */
 export function minstapetrify(ctx: Ctx, mon: Entity, byHero: boolean): void {
   if (resistsSton(ctx, mon)) return;
@@ -69,6 +79,7 @@ export function minstapetrify(ctx: Ctx, mon: Entity, byHero: boolean): void {
     monToStone(ctx, mon);
     return;
   }
+  if (!vampStone(ctx, mon)) return;
   // give a "<mon> is slowing down" message and also remove intrinsic speed
   monAdjustSpeed(ctx, mon, -3);
   if (mon.c.pos && heroSees(ctx, mon.c.pos)) say(ctx, 'stone.mon_turns', { mon: monNam(ctx, mon) });
@@ -81,6 +92,7 @@ export function minstapetrify(ctx: Ctx, mon: Entity, byHero: boolean): void {
  * ref: src/mon.c xkilled(mon, XKILL_NOMSG) with gs.stoned set
  */
 export function xkilledStoned(ctx: Ctx, mon: Entity): void {
+  if (!vampStone(ctx, mon)) return; // (monstone(): a vampshifter reverts)
   const def = ctx.defs.monster(mon.def);
   const level = mon.c.monster?.level ?? 0;
   const wasinside = engulfingU(ctx, mon.id);
@@ -107,6 +119,8 @@ function jumpOut(ctx: Ctx, wasinside: boolean, def: string, obj: EntityId | null
 export function monstone(ctx: Ctx, mon: Entity): void {
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
   if (!at) return;
+  // vampshifter reverts to vampire; also used to unshift shape-changed sandestin
+  if (!vampStone(ctx, mon)) return;
   // check for lifesaving before making the statue
   if (lifesavedMonster(ctx, mon)) return;
   const wasinside = engulfingU(ctx, mon.id);

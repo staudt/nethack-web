@@ -361,7 +361,9 @@ describe('the ten prefabs', () => {
 describe('hell_tweaks()', () => {
   test('leaves the protected area alone; makes lava, floor with boulders and iron bars', () => {
     const seen = { lava: 0, boulder: 0, bars: 0 };
-    for (let seed = 1; seed <= 30; seed++) {
+    // each change is a 20 per cent (or rarer) roll: search seeds until all three were seen
+    let seed = 0;
+    while (++seed <= 30 || (seed <= 200 && !(seen.lava && seen.boulder && seen.bars))) {
       const { state } = engine.newGame({ seed });
       run(state, (ctx) =>
         ctx.goToLevel({ dungeon: GEHENNOM, dlevel: ordinary(state)[0]! }, 'random'),

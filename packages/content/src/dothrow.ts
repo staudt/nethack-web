@@ -1,6 +1,7 @@
 // Throwing objects. ref: src/dothrow.c dothrow(), throw_obj(), throwit(), thitmonst(), tmiss(),
 // hitfloor(), hero_breaks(), breakobj(); src/zap.c bhit() (thrown objects only); src/uhitm.c
 // hmon_hitmon(); shop goods thrown (check_shop_obj(), in shk.ts)
+import { isVampshifter, monHatesSilver } from './chamstate';
 import { flooreffects } from './flooreffects';
 import { isPool } from './liquid';
 import { uinwater } from './uwater';
@@ -54,7 +55,7 @@ import { uShops } from './eshk';
 import { isUnpaid } from './price';
 import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
-import { hatesSilver, isUnicorn, nohands, notake } from './mondata';
+import { isUnicorn, nohands, notake } from './mondata';
 import { gemAccept, gemForUnicorn } from './unicorn';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
@@ -318,7 +319,7 @@ export function thitmonst(
   const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
   let dmg: number;
   // ref: hmon_hitmon_weapon_*(): silvermsg, silverobj (dmgval() adds the melee rnd(20))
-  const silverHit = odef.material === 'silver' && hatesSilver(mdef);
+  const silverHit = odef.material === 'silver' && monHatesSilver(ctx, mon);
   if (isAmmo(odef) && !launched) {
     // ref: hmon_hitmon_weapon_ranged(): "then do only 1-2 points of damage"; no skill bonus;
     // silver makes it worse, `rnd(dmg ? 20 : 10)`
@@ -327,7 +328,7 @@ export function thitmonst(
     dmg += udaminc + dbonU(ctx);
   } else if (launched && uwdef) {
     // a propellor gives the launcher's skill bonus but not a strength one
-    dmg = dmgval(ctx.rng, obj, odef, mdef);
+    dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon));
     // ref: hmon_hitmon_weapon_ranged(): train_weapon_skill = (dmg > 0), the launcher's skill
     useSkill(ctx, uwdef.weapon?.skill ?? '', 1);
     if (dmg > 0) dmg += udaminc; // hmon_hitmon_dmg_recalc(): increase damage, no Str bonus
@@ -335,7 +336,7 @@ export function thitmonst(
   } else {
     // ref: src/uhitm.c hmon_hitmon_weapon_melee(): dmgval, then the Str bonus and the
     // weapon-skill bonus; at least 1.
-    dmg = dmgval(ctx.rng, obj, odef, mdef);
+    dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon));
     if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
     if (dmg > 0) dmg += udaminc;
     dmg += dbonU(ctx);

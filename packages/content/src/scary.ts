@@ -4,7 +4,7 @@
 // teleport.
 // ref: src/monmove.c onscary()
 //
-// Not ported: the Wizard of Yendor, minions and the Riders (none exist), vampire shapeshifters,
+// Not ported: minions and the Riders (none exist),
 // the endgame (none), goodpos_onscary() for new monsters and enexto() (GP_CHECKSCARY: only
 // rloc_pos_ok() checks).
 import {
@@ -18,6 +18,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { altarAlign } from './aligntyp';
+import { isVampshifter } from './chamstate';
 import { engravingsOn, sengrAt } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
@@ -59,6 +60,13 @@ export function anyScare(ctx: Pick<Ctx, 'state'>, level: Level, cells: Set<numbe
   );
 }
 
+/**
+ * An altar may scare this monster (a vampire, or a vampire shapeshifter in any form), so callers
+ * that skip onscary() when anyScare() is false must ask it anyway.
+ */
+export const altarScares = (ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean =>
+  ctx.defs.monster(mon.def).glyph.ch === 'V' || isVampshifter(ctx, mon);
+
 /** vobj_at(x, y): some object lies on the floor there. */
 function objAt(ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number): boolean {
   for (const id of sortedIds(ctx.state)) {
@@ -74,7 +82,7 @@ const isAltarAt = (ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number):
 
 /**
  * Whether (x, y) of the monster's level scares it: a scroll of scare monster lying there, or an
- * altar for a vampire; humans (S_HUMAN) and uniques ignore both, a shopkeeper in her shop and a
+ * altar for a vampire (or a vampire shapeshifter); humans (S_HUMAN) and uniques ignore both, a shopkeeper in her shop and a
  * priest in his temple are never scared. Then a finished "Elbereth" (any case, not a headstone)
  * when the hero stands on it, or she is Displaced and the monster thinks she is there (`mux`,
  * C's mtmp->mux/muy: by default the kept guess, else her square), or it guards objects lying
@@ -103,7 +111,8 @@ export function onscary(
     return false;
   const level = opts.level ?? getLevel(ctx.state, mon.c.pos?.level);
   if (x < 0 || y < 0 || x >= level.width || y >= level.height) return false;
-  if (isAltarAt(ctx, level, x, y) && def.glyph.ch === 'V') return true;
+  // should this still be true for defiled/molochian altars?
+  if (isAltarAt(ctx, level, x, y) && altarScares(ctx, mon)) return true;
   // the scare monster scroll doesn't have any of the below restrictions
   if ((opts.cells ?? scareCells(ctx, level)).has(cellIndex(level, x, y))) return true;
   // Creatures who don't (or can't) fear a written Elbereth: shopkeepers (even if poly'd into

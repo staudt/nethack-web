@@ -28,10 +28,12 @@ export const ROT_AGE = 250;
 export const TAINT_AGE = 100;
 
 /**
- * The corpse a zombie or mummy leaves: its living race. ref: src/mon.c undead_to_corpse()
- * (no vampires yet)
+ * The corpse a zombie, mummy or vampire leaves: its living race. ref: src/mon.c
+ * undead_to_corpse() (make_corpse()'s vampire case: an old human corpse too)
  */
 const UNDEAD_TO_CORPSE: Readonly<Record<string, DefId>> = {
+  'nh:vampire': 'nh:human',
+  'nh:vampire_lord': 'nh:human',
   'nh:kobold_zombie': 'nh:kobold',
   'nh:kobold_mummy': 'nh:kobold',
   'nh:dwarf_zombie': 'nh:dwarf',
@@ -291,7 +293,7 @@ export function xkilledCorpse(
   if (!corpseChance(ctx, def)) return;
   if (golemDrop(ctx, def, at)) return;
   if (undead !== undefined) {
-    // ref: make_corpse() zombies and mummies: their race's corpse, and an *OLD* one. The
+    // ref: make_corpse() zombies, mummies and vampires: their race's corpse, and an *OLD* one. The
     // ettin mummy leaves none (no ettin here).
     if (!ctx.defs.isMonster(undead)) return;
     const id = mkcorpse(ctx, ctx.defs.monster(undead), { at });

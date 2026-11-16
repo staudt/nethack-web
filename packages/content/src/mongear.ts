@@ -2,10 +2,11 @@
 // dropping everything on death.
 // ref: src/makemon.c m_initweap(), m_initinv(), mongets(); src/worn.c m_dowear();
 // src/weapon.c select_hwep(), mon_wield_item(); src/mon.c mpickstuff(); src/steal.c relobj()
+import { monHatesSilver } from './chamstate';
 import { floorEffectsLate } from './floorfx';
 import { egdOf } from './vaultstate';
 import { resistsSton, touchPetrifies } from './stonestate';
-import { hatesSilver, isUnicorn } from './mondata';
+import { isUnicorn } from './mondata';
 import {
   cellIndex,
   inventoryOf,
@@ -922,7 +923,7 @@ const HWEP: readonly string[] = [
  * artifacts, the Balrog's bullwhip (no Balrog), cockatrice corpses. A silver-hater skips silver.
  */
 export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
-  const { def } = monOf(ctx, monId);
+  const { e, def } = monOf(ctx, monId);
   const strong = isStrong(def);
   const wearingShield = whichArmor(ctx, monId, 'shield') !== null;
   const items = minvent(ctx, monId);
@@ -935,7 +936,7 @@ export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
     const od = objDef(ctx, id);
     if (!od?.weapon) continue;
     if (!((strong && !wearingShield) || !od.weapon.bimanual)) continue;
-    if (od.material === 'silver' && hatesSilver(def)) continue;
+    if (od.material === 'silver' && monHatesSilver(ctx, e)) continue;
     const o = items.find((x) => x.def === id);
     if (o) return o;
   }
@@ -1119,7 +1120,7 @@ export function mpickstuffSkips(
   if (pm && touchPetrifies(pm) && !whichArmor(ctx, monId, 'gloves') && !resistsSton(ctx, e))
     return true;
   // can_touch_safely(): silver burns a silver-hater
-  return objDef(ctx, o.def)?.material === 'silver' && hatesSilver(def);
+  return objDef(ctx, o.def)?.material === 'silver' && monHatesSilver(ctx, e);
 }
 
 /**
