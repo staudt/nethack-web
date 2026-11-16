@@ -31,6 +31,8 @@ export const engraveMessagesEn: Record<string, string> = {
   'engr.too_dull.plural': 'Your {item} are too dull for engraving.',
   'engr.blindfold': "That is a bit difficult to engrave with, don't you think?",
   'engr.poison_pen': 'Writing a poison pen letter?',
+  'engr.marker_dried': 'Your marker has dried out.',
+  'engr.marker_dries': 'Your marker dries out.',
 
   // doengrave(), doengrave_sfx_item(), doengrave_sfx_item_WAN(): wands
   'engr.gesture': 'You gesture, with your wand, towards the {surface} below you.',

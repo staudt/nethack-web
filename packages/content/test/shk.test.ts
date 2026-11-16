@@ -1434,6 +1434,27 @@ describe('prices', () => {
       expect(flute.c.item?.spe).toBe(4);
     });
 
+    test('writing with an unpaid magic marker: a flat usage fee of half its cost', () => {
+      // ref: src/write.c dowrite() check_unpaid(pen); src/shk.c cost_per_charge() MAGIC_MARKER
+      const t = bare(15);
+      know(t, 'nh:magic_marker');
+      know(t, 'nh:scroll_of_identify');
+      const pen = t.make('nh:magic_marker');
+      if (pen.c.item) pen.c.item.spe = 50;
+      t.pickup();
+      const paper = own(t, 'nh:scroll_of_blank_paper');
+      const fee = Math.trunc(getCost(t.s.state, defs, pen, t.e) / 2);
+      const r = t.step({ type: 'mod', action: 'nh:apply', args: { item: pen.id } });
+      expect(r.prompt?.id).toBe('write-on');
+      const r2 = t.answer(r, paper.id);
+      expect(r2.prompt?.id).toBe('write-what');
+      const a = t.answer(r2, 'identify');
+      expect(t.lines(a)).toContainEqual(
+        expect.stringMatching(new RegExp(`Usage fee, ${fee} zorkmids\\."$`)),
+      );
+      expect(t.inv().some((o) => o.def === 'nh:scroll_of_identify')).toBe(true);
+    });
+
     test("selling into the shop's container on his floor", () => {
       const t = bare(15);
       know(t, 'nh:dagger');

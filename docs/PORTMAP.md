@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5328 citations.
+189 NetHack files, 5339 citations.
 
 ## dat/asmodeus.lua
 
@@ -319,7 +319,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`, `packages/content/src/seduce.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
@@ -2636,7 +2636,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/spell.c
 
-- (file): `packages/content/src/spell.ts`, `packages/content/src/spellcalc.ts`
+- (file): `packages/content/src/spell.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/write.ts`
 - `age_spells()`: `packages/content/src/spell.ts`
 - `book_disappears()`: `packages/content/src/spell.ts`
 - `can_center_spell_location()`: `packages/content/src/cast.ts`
@@ -2651,6 +2651,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dowizcast()`: `packages/content/src/wizard/cast.ts`
 - `getdir()`: `packages/content/src/cast.ts`
 - `getspell()`: `packages/content/src/cast.ts`
+- `known_spell()`: `packages/content/src/write.ts`
 - `learn()`: `packages/content/src/spell.en.ts`, `packages/content/src/spell.ts`
 - `losespells()`: `packages/content/src/spell.ts`
 - `percent_success()`: `packages/content/src/spellcalc.ts`
@@ -3095,6 +3096,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `update_mon_extrinsics()`: `packages/content/src/invis.ts`
 - `w_blocks()`: `packages/content/src/props.ts`
 - `which_armor()`: `packages/content/src/buzz.ts`, `packages/content/src/mongear.ts`
+
+## src/write.c
+
+- `cost()`: `packages/content/src/write.ts`
+- `dowrite()`: `packages/content/src/write.en.ts`, `packages/content/src/write.ts`
+- `new_book_description()`: `packages/content/src/write.ts`
+- `write_ok()`: `packages/content/src/write.ts`
 
 ## src/zap.c
 

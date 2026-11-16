@@ -1,5 +1,5 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, instruments (music.ts), the tin
-// opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the
+// opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the magic marker (write.ts), the
 // blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
@@ -60,6 +60,7 @@ import {
   useTinningKit,
 } from './tin';
 import { HORN_OF_PLENTY, hornoplenty } from './horn';
+import { MAGIC_MARKER, answerWrite, dowrite, isWriteData } from './write';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -99,6 +100,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === TINNING_KIT ||
     e.def === TIN_OPENER ||
     e.def === HORN_OF_PLENTY ||
+    e.def === MAGIC_MARKER ||
     isEyewear(e.def)
   );
 }
@@ -303,6 +305,7 @@ const apply: ActionDef = {
     if (obj.def === CREAM_PIE) return useCreamPie(ctx, obj);
     if (obj.def === TIN_OPENER) return useTinOpener(ctx, obj, APPLY_ID);
     if (obj.def === TINNING_KIT) return useTinningKit(ctx, obj, APPLY_ID);
+    if (obj.def === MAGIC_MARKER) return dowrite(ctx, obj, APPLY_ID);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (isCandle(obj.def)) useCandle(ctx, obj);
     else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
@@ -321,13 +324,16 @@ const apply: ActionDef = {
     return NORMAL_SPEED;
   },
   // "Are you really sure you want to break X?", the questions of playing an instrument (and a
-  // horn's direction), the tinning kit's corpse and the tin opener's tin
+  // horn's direction), the tinning kit's corpse and the tin opener's tin, the marker's paper and
+  // what to write on it
   answer: (ctx, value, data) =>
     isMusicData(data)
       ? answerMusic(ctx, value, data, APPLY_ID)
       : isTinToolData(data)
         ? answerTinTool(ctx, value, data)
-        : answerBreakWand(ctx, value, data),
+        : isWriteData(data)
+          ? answerWrite(ctx, value, data, APPLY_ID)
+          : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

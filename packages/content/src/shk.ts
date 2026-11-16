@@ -1370,6 +1370,10 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: 
     // what is charged for an ordinary lamp
     if (!altusage) tmp = ctx.defs.object('nh:oil_lamp').cost;
     else tmp += Math.trunc(tmp / 3); // djinni is being released
+  } else if (obj.def === 'nh:magic_marker') {
+    // 70 - 100: no way to determine in advance how many charges will be wasted, so,
+    // arbitrarily, one half of the price per use
+    tmp = Math.trunc(tmp / 2);
   } else if (obj.def === 'nh:horn_of_plenty') {
     // 1 - 20; altusage: emptying of all the contents at once
     if (!altusage) tmp = Math.trunc(tmp / 5);
@@ -1395,7 +1399,9 @@ export function checkUnpaid(ctx: Ctx, obj: Entity, altusage = false): void {
   const it = obj.c.item;
   const ushop = uShops(ctx)[0];
   if (!it?.unpaid || ushop === undefined) return;
-  if (it.spe <= 0 && ctx.defs.object(obj.def).class === 'wand') return; // oc_charged
+  // oc_charged (wands; the marker is billed before its ink is checked)
+  if (it.spe <= 0 && (ctx.defs.object(obj.def).class === 'wand' || obj.def === 'nh:magic_marker'))
+    return;
   const shk = shopKeeper(ctx, ctx.state.currentLevel, ushop);
   const e = shk === null ? null : eshkOf(ctx, shk);
   if (shk === null || !e || !inhishop(ctx, shk)) return;

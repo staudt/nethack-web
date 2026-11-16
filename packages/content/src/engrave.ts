@@ -13,7 +13,9 @@
 // carries doengrave()'s state, then the engraving goes on as in C).
 // Graves (grave.ts): fingers only smudge the headstone, the first stylus disturbs the undead,
 // then engraving adds to the epitaph and anything else writes in the dust.
-// Not ported: magic markers and towels (no such objects), Fire Brand (no artifacts), the literate
+// A magic marker writes graffiti (MARK), at most two letters a charge, spending half the
+// action's rate in ink each action (5.0's engrave()), and dries out mid-text.
+// Not ported: towels (m19 step 8), Fire Brand (no artifacts), the literate
 // conduct (no conducts), body_part() (always "fingertip" and "hand"), Deaf (never deaf: "You
 // hear drilling!").
 import {
@@ -202,13 +204,22 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
   return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
 }
 
+const MAGIC_MARKER: DefId = 'nh:magic_marker';
+
 /**
- * The classes suggested as a stylus; markers and towels would be too (no such objects).
- * ref: src/engrave.c stylus_ok()
+ * The classes suggested as a stylus, and the magic marker (the towel comes with its wiping, m19
+ * step 8). ref: src/engrave.c stylus_ok()
  */
 const stylusSuggested = (ctx: Ctx, e: Entity): boolean => {
   const c = ctx.defs.object(e.def).class;
-  return c === 'weapon' || c === 'wand' || c === 'gem' || c === 'ring';
+  return (
+    c === 'weapon' ||
+    c === 'wand' ||
+    c === 'gem' ||
+    c === 'ring' ||
+    // Only markers and towels are recommended tools.
+    (c === 'tool' && e.def === MAGIC_MARKER)
+  );
 };
 
 /** "your fingertip" or "your dagger": what she writes with (C's `writer`). */
@@ -532,7 +543,11 @@ function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boole
         say(ctx, 'engr.blindfold');
         return { go: false, cost: 0 };
       }
-      // magic markers and towels do not exist
+      if (stylus.def === MAGIC_MARKER) {
+        if ((stylus.c.item?.spe ?? 0) <= 0) say(ctx, 'engr.marker_dried');
+        else s.type = 'mark';
+      }
+      // the towel's wipe: m19 step 8
       break;
     case 'venom':
       say(ctx, 'engr.poison_pen');
@@ -948,11 +963,14 @@ function engrave(ctx: Ctx, occ: EngraveOcc): void {
     !!stylus &&
     sdef?.class === 'weapon' &&
     (stylus.def !== 'nh:athame' || stylus.c.item?.buc === 'cursed');
+  const marker = !!stylus && stylus.def === MAGIC_MARKER && occ.type === 'mark';
   occ.actionct++;
 
-  // Step 1: Compute rate (markers do not exist).
-  const rate =
+  // Step 1: Compute rate.
+  let rate =
     carving && stylus && (dullingWep || sdef?.class === 'ring' || sdef?.class === 'gem') ? 1 : 10;
+  // one charge / 2 letters
+  if (rate !== 1 && marker && stylus?.c.item) rate = Math.min(rate, stylus.c.item.spe * 2);
 
   // Step 2: Compute last character that can be engraved this action.
   let endc = occ.next;
@@ -992,6 +1010,20 @@ function engrave(ctx: Ctx, occ: EngraveOcc): void {
     } else if (dulled && stylus && it?.known.spe) {
       // reflect change in stylus->spe
       prinv(ctx, stylus, 1);
+    }
+  } else if (marker && stylus?.c.item) {
+    const it = stylus.c.item;
+    let inkCost = Math.max(Math.trunc(rate / 2), 1); // Prevent infinite graffiti
+    if (it.spe < inkCost) {
+      // "overly dry marker valid for graffiti?"
+      inkCost = it.spe;
+      truncate = true;
+    }
+    it.spe -= inkCost;
+    if (it.spe === 0) {
+      // can't engrave any further; truncate the string
+      say(ctx, 'engr.marker_dries');
+      truncate = true;
     }
   }
 

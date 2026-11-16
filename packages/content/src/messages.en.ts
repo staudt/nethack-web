@@ -47,6 +47,7 @@ import { jumpMessagesEn } from './jump.en';
 import { djinniMessagesEn } from './djinni.en';
 import { tinMessagesEn } from './tin.en';
 import { dipMessagesEn } from './dip.en';
+import { writeMessagesEn } from './write.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
 import { mimicMessagesEn } from './mimic.en';
@@ -126,6 +127,7 @@ export const messagesEn: Record<string, string> = {
   ...djinniMessagesEn,
   ...tinMessagesEn,
   ...dipMessagesEn,
+  ...writeMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,
   ...hideMessagesEn,
