@@ -1,6 +1,7 @@
 import {
   cellIndex,
   inBounds,
+  okCharacter,
   canonicalJson,
   inRooms,
   isPlainFloor,
@@ -304,6 +305,7 @@ export function checkInvariants(
   checkMonsterMemory(state, registry, errs);
   checkFleeing(state, errs);
   checkSpellState(state, errs);
+  checkCharacter(state, registry, errs);
   checkWorms(state, ids, errs);
   checkPriests(state, errs);
   checkFountains(state, errs);
@@ -764,6 +766,31 @@ function checkSpellState(state: GameState, errs: string[]): void {
       if (key !== 'mspecUsed' ? v !== true : !isCount(v) || v === 0)
         errs.push(`${key}: monster ${k} has ${String(v)}`);
     }
+  }
+}
+
+/**
+ * The hero's character (m22): her starting role, race, gender and alignment (the player
+ * component) go together as the roles and races registered allow (core's okRole()..okAlign(),
+ * C's ok_role()..ok_align()); and no skill is above its maximum (content's `modData.nh.skills`
+ * against `skillMax`, the role's limits as skill_init() set them: absent = restricted).
+ */
+function checkCharacter(state: GameState, registry: Registry, errs: string[]): void {
+  const pc = state.entities[String(state.playerId)]?.c.player;
+  if (pc && !okCharacter(registry, pc))
+    errs.push(
+      `hero: character ${pc.role} ${pc.race} ${pc.gender} ${pc.align} is not allowed by her role`,
+    );
+  const nh = state.modData['nh'];
+  if (!isTable(nh) || !isTable(nh['skills'])) return;
+  const skills = nh['skills'];
+  const max = isTable(nh['skillMax']) ? nh['skillMax'] : {};
+  for (const k of Object.keys(skills).sort()) {
+    const lvl = skills[k];
+    const top = max[k] ?? 0;
+    if (!isCount(lvl) || !isCount(top))
+      errs.push(`skill ${k}: bad level ${String(lvl)}/${String(top)}`);
+    else if (lvl > top) errs.push(`skill ${k}: level ${lvl} above its maximum ${top}`);
   }
 }
 
