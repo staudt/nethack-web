@@ -257,20 +257,20 @@ Planner's recommendations, all marked cheap to change later (plan `~/.claude/pla
 - **m19 bottle occupants**: 5.0's 1 in (13 + 2 x births), rolled only for milky or smoky potions.
 - **m19 wished-for magic lamp** becomes an oil lamp outside wizard mode; wizard mode keeps the djinni.
 
-## Parked (m20 artifacts, 2026-11-16)
+## Approved by the user (m20 artifacts, 2026-11-16)
 
-m20 is not started: its planner (plan `~/.claude/plans/m20.md`, kickoff text `~/.claude/plans/m20-kickoff.md`, 8 steps) marked two questions costly to undo. Answer them and m20 can run as planned (its 9 cheap recommendations would be taken).
+m20 is not started yet (plan `~/.claude/plans/m20.md`, kickoff text `~/.claude/plans/m20-kickoff.md`, 8 steps). The user took both recommendations below on 2026-11-16, so m20 can run as planned with its 9 cheap recommendations taken.
 
-- **m20 Q1, object names and artifact identity in core**: two optional `ItemComponent` fields (`name?: string`, `artifact?: DefId`), plain data, no save version bump. Alternative: content side tables `modData.nh.oname[id]`/`oartifact[id]` (lazy pruning, copying at every copy site, a lookup on every hit). Planner recommends the core fields (public core interface and save format).
-- **m20 Q3, artifact existence and discovery state**: `modData.nh.arti` (`exist: Record<artifactId, {origin; found?}>`, `disco: artifactId[]`), stored rather than derived because C's `artiexist` outlives a destroyed artifact. Alternative: a core `GameState.artifacts`. Planner recommends modData (the vanilla mod's save shape).
+- **m20 Q1, object names and artifact identity in core**: two optional `ItemComponent` fields (`name?: string`, `artifact?: DefId`), plain data, no save version bump. Alternative: content side tables `modData.nh.oname[id]`/`oartifact[id]` (lazy pruning, copying at every copy site, a lookup on every hit). **Approved: the core fields.**
+- **m20 Q3, artifact existence and discovery state**: `modData.nh.arti` (`exist: Record<artifactId, {origin; found?}>`, `disco: artifactId[]`), stored rather than derived because C's `artiexist` outlives a destroyed artifact. Alternative: a core `GameState.artifacts`. **Approved: `modData.nh.arti`.**
 - Also worth a look: the hero is always a neutral Valkyrie until m22, so her first gift is always Mjollnir; `#offer` (sacrifice) does not exist yet and becomes m20 step 7; Angels stay out (Q10).
 
-## Parked (m21 step 6, Rogue level look and doorways, 2026-11-16)
+## Approved by the user (m21 step 6, Rogue level look and doorways, 2026-11-16)
 
-m21 (Fort Ludios and the Rogue level; plan `~/.claude/plans/m21.md`) runs steps 1-5, which are content only. Step 6 is the only core change and is parked on two costly questions. Until it runs, the Rogue level draws like any other level and its doorways allow diagonal moves (DEVIATIONS).
+m21 steps 1-5 are done (branch `m21`). Step 6, the only core change, was parked; the user took both recommendations on 2026-11-16, so it can run. Until it does, the Rogue level draws like any other level and its doorways allow diagonal moves (DEVIATIONS).
 
-- **m21 Q1, the Rogue look across the view boundary**: a core `SymsetDef` registered by mods, `LevelDef.symset`, core resolving the snapshot legend through it, and `ViewSnapshot.symset` naming it, so renderers need no change. Alternatives: each renderer owns a Rogue table keyed by `ViewSnapshot.symset` plus object classes in the legend, or no display change. Planner recommends the core symset (view boundary and mod def kinds).
-- **m21 Q2, no diagonal moves through Rogue doorways**: `LevelDef.doorwaysBlockDiagonal` read by core `cellRules()`, so the hero, travel and monsters agree. Alternative: content-only checks for the hero and monsters, with travel left as it is. Planner recommends the core flag (core movement and mod contract).
+- **m21 Q1, the Rogue look across the view boundary**: a core `SymsetDef` registered by mods, `LevelDef.symset`, core resolving the snapshot legend through it, and `ViewSnapshot.symset` naming it, so renderers need no change. Alternatives: each renderer owns a Rogue table keyed by `ViewSnapshot.symset` plus object classes in the legend, or no display change. **Approved: the core symset registered by mods** (user: "the rogue level is sort of a mod", so the Rogue look is a symset a mod registers, the vanilla mod for now).
+- **m21 Q2, no diagonal moves through Rogue doorways**: `LevelDef.doorwaysBlockDiagonal` read by core `cellRules()`, so the hero, travel and monsters agree. Alternative: content-only checks for the hero and monsters, with travel left as it is. **Approved: the core flag.**
 
 ## Taken (m21 Fort Ludios and the Rogue level, 2026-11-16)
 
@@ -288,14 +288,14 @@ Planner's cheap recommendations (plan `~/.claude/plans/m21.md`, kickoff `docs/ki
 - **m21 Q12 "Fort Ludios" on the status line** through a content status field `place` the ui prints instead of `Dlvl:N`.
 - **m21 Q13 Ludios made before its portal** (wizard levelport): no return portal until a vault gets the main-side portal, then added to the made level.
 
-## Parked (m22b roles and races: core defs and character creation, 2026-11-16)
+## Approved by the user (m22b roles and races: core defs and character creation, 2026-11-16)
 
-m22 (plan `~/.claude/plans/m22.md`, kickoff `docs/kickoff-m22.md`) is split: m22a (steps 1-7) is content only and runs with a test-only role override (`modData.nh.urole`/`urace`, Q12); m22b (steps 8-10: core role and race defs, the character on the hero, new-game options, save version 9, the character menus, a soak over every role) waits on four costly questions. Planner's recommendations:
+m22 (plan `~/.claude/plans/m22.md`, kickoff `docs/kickoff-m22.md`) is split: m22a (steps 1-7) is content only with a test-only role override (`modData.nh.urole`/`urace`, Q12); steps 1-4 are done, 5-7 not run. m22b (steps 8-10: core role and race defs, the character on the hero, new-game options, the save version bump, the character menus, a soak over every role) was parked on four costly questions; the user answered them on 2026-11-16:
 
-- **m22 Q1, character creation flow**: the app asks before the game exists; the worker's `new` message carries a concrete character; core stores it on the hero before the new-game hooks; the replay records it; the menus get their data from a new worker `choices` request answered from the registry.
-- **m22 Q2, role ids and the hero's def**: def ids are global and 11 of the 13 role names are already player-monster ids (`nh:wizard`, `nh:healer`, ...). Rename every role to `nh:role_<key>` (the Valkyrie too), keep the hero's def as the role id, migrate old saves through `RoleDef.formerIds`, add the missing valkyrie monster row. Alternatives in the plan: keep `nh:valkyrie`, per-kind id spaces, a single `nh:hero` role.
-- **m22 Q3, core defs vs content tables**: `RoleDef` gains only allowed races/genders/alignments, a menu order, the female name and former ids; a new minimal `RaceDef`; the hero stores starting role, race, gender and alignment; every mechanic (kits, skills, attributes, spells, gods) stays in content tables.
-- **m22 Q5, existing Valkyrie-only saves**: keep loading: save version 9, old files get the default character, a replay without a character means the default.
+- **m22 Q1, character creation flow** (**approved as recommended**): the app asks before the game exists; the worker's `new` message carries a concrete character; core stores it on the hero before the new-game hooks; the replay records it; the menus get their data from a new worker `choices` request answered from the registry.
+- **m22 Q2, role ids and the hero's def** (**approved as recommended**, but no old-save migration: see Q5): def ids are global and 11 of the 13 role names are already player-monster ids (`nh:wizard`, `nh:healer`, ...). Rename every role to `nh:role_<key>` (the Valkyrie too), keep the hero's def as the role id, migrate old saves through `RoleDef.formerIds`, add the missing valkyrie monster row. Alternatives in the plan: keep `nh:valkyrie`, per-kind id spaces, a single `nh:hero` role.
+- **m22 Q3, core defs vs content tables** (**approved as recommended**): `RoleDef` gains only allowed races/genders/alignments, a menu order, the female name and former ids; a new minimal `RaceDef`; the hero stores starting role, race, gender and alignment; every mechanic (kits, skills, attributes, spells, gods) stays in content tables.
+- **m22 Q5, existing Valkyrie-only saves** (**user: wipe them**, saves are only used for tests): bump the save version and drop older saves instead of migrating them; no `RoleDef.formerIds` migration is needed for saves. Old replays and test fixtures are regenerated rather than read with a default character.
 
 ## Taken (m22a roles and races, content only, 2026-11-16)
 
