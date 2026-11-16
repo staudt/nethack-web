@@ -34,7 +34,9 @@ import { BUGLE, answerMusic, doPlayInstrument, isMusicData } from './music';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
-import { isLamp, useLamp } from './light';
+import { isCandle, isLamp, useCandle, useLamp } from './light';
+import { lightCocktail } from './oil';
+import { POT_OIL } from './dilute';
 import { checkCapacity } from './magic';
 import { edogOf } from './dog';
 import { wakeNearto } from './noise';
@@ -65,17 +67,19 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
   return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
 }
 
-/** Whether `a` can apply this object (the tools of the subset, cream pies, and wands: breaking them). */
+/** Whether `a` can apply this object (the tools of the subset, cream pies, potions of oil, and wands: breaking them). */
 export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
   if (isPick(def)) return true; // PICK_AXE, DWARVISH_MATTOCK
   if (isPole(def)) return true; // polearms and lances: use_pole()
   if (def.class === 'wand') return true; // do_break_wand()
   if (e.def === CREAM_PIE) return true; // use_cream_pie()
+  if (e.def === POT_OIL) return true; // light_cocktail()
   if (def.class !== 'tool') return false;
   return (
     def.container !== undefined ||
     isLamp(e.def) ||
+    isCandle(e.def) ||
     isLockTool(e.def) ||
     e.def === WHISTLE.tin ||
     e.def === WHISTLE.magic ||
@@ -285,6 +289,8 @@ const apply: ActionDef = {
     if (obj.def === FIGURINE) return useFigurine(ctx, obj);
     if (obj.def === CREAM_PIE) return useCreamPie(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
+    else if (isCandle(obj.def)) useCandle(ctx, obj);
+    else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
     else if (obj.def === UNICORN_HORN) useUnicornHorn(ctx, obj);

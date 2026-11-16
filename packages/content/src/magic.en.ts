@@ -64,6 +64,11 @@ export const magicMessagesEn: Record<string, string> = {
   'potion.burns_lot': 'This burns a lot!',
   'potion.burns_acid': 'This burns like acid!',
   'killer.potion.acid': 'a potion of acid',
+  'potion.refreshing': 'Ahh, a refreshing drink.',
+  'potion.burn_face': 'You burn your face.',
+  'killer.potion.burning_oil': 'quaffing a burning potion of oil',
+  'potion.castor_oil': 'This tastes like castor oil.',
+  'potion.smooth': 'That was smooth!',
   // ref: src/detect.c monster_detect() (a cursed source)
   'detect.sense_you': 'Monsters sense the presence of you.',
   'detect.something': 'something',

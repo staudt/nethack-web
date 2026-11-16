@@ -85,6 +85,7 @@ import { EGG } from './eggstate';
 import { breakEggs, hitWithEgg } from './egghit';
 import { breakmsg, breaktest } from './material';
 import { breakPotionVapors, potionhit } from './potionhit';
+import { snuffCandle } from './light';
 import { uWipeEngr } from './engr';
 import { shadeMiss } from './shade';
 
@@ -568,6 +569,8 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   // ref: src/dothrow.c throwit() tmp_at(DISP_FLASH, obj_to_glyph(obj)); the UI animates it first
   if (path.length > 0) ctx.emit({ type: 'projectile', g: shownId(ctx.state, obj.def), path });
 
+  // ref: throwit_mon_hit(), throwit(): thrown candles go out (before the hit, or landing)
+  snuffCandle(ctx, obj);
   if (hitMon !== null) {
     if (thitmonst(ctx, hitMon, objId, shot, false, { x, y })) return; // used up
   }

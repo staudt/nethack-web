@@ -606,7 +606,7 @@ export function makemon(
   }
   // ref: makemon(): after any group, "equip with weapons / armor" (m_initweap, m_initinv,
   // m_dowear(creation))
-  if (allowMinvent) givePossessions(ctx, id, level.depth);
+  if (allowMinvent) givePossessions(ctx, id, level.depth, { inMklev: opts.inMklev === true });
   // ref: makemon(): `if (ptr->mflags3 && !(mmflags & MM_NOWAIT))`: M3_WAITFORU, M3_CLOSE, and
   // STRAT_APPEARMSG for those and the covetous kinds
   if (!opts.noWait) {

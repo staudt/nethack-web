@@ -35,7 +35,10 @@ import { losehp } from './hp';
 import { rndexp } from './hero';
 import { hungerData } from './uhunger';
 import { isStoned, fixPetrification } from './stonestate';
-import { isSlimed } from './slimestate';
+import { burnAwaySlime, isSlimed } from './slimestate';
+import { likesFire } from './mondata';
+import { heroForm } from './upoly';
+import { POT_OIL } from './dilute';
 import { pwOf, setPw } from './uenergy';
 import { surfaceKey } from './terrain';
 import { ceilingKey, hardHelmet } from './read';
@@ -740,6 +743,31 @@ function peffectAcid(ctx: Ctx, p: Entity): Effect {
   return { unknown: true }; // holy/unholy water can burn like acid too
 }
 
+/**
+ * A burning potion of oil burns her face ("Ahh, a refreshing drink." for a form that likes
+ * fire) and the slime on her; an unlit one tastes of castor oil when cursed, else "That was
+ * smooth!". ref: src/potion.c peffect_oil() (no exercise)
+ */
+function peffectOil(ctx: Ctx, p: Entity): Effect {
+  const h = heroEntity(ctx);
+  const it = p.c.item;
+  if (it?.lit) {
+    const form = heroForm(ctx);
+    if (form && likesFire(form)) msg(ctx, 'potion.refreshing');
+    else {
+      msg(ctx, 'potion.burn_face');
+      // fire damage
+      const vulnerable = !hasProp(h, P.FIRE_RES) || hasProp(h, P.COLD_RES);
+      losehp(ctx, ctx.rng.d(vulnerable ? 4 : 2, 4), '@killer.potion.burning_oil');
+      if (ctx.state.gameOver) return { unknown: false };
+    }
+    // the slime that covers you burns away
+    burnAwaySlime(ctx);
+  } else if (it?.buc === 'cursed') msg(ctx, 'potion.castor_oil');
+  else msg(ctx, 'potion.smooth');
+  return { unknown: false };
+}
+
 /** ref: src/potion.c peffects() for the potions in our subset. */
 function peffects(ctx: Ctx, p: Entity): Effect {
   switch (p.def) {
@@ -796,6 +824,8 @@ function peffects(ctx: Ctx, p: Entity): Effect {
       return peffectGainEnergy(ctx, p);
     case 'nh:potion_of_acid':
       return peffectAcid(ctx, p);
+    case POT_OIL:
+      return peffectOil(ctx, p);
     default:
       return { unknown: true };
   }
@@ -890,6 +920,7 @@ export const POTION_USES: Readonly<
   'nh:potion_of_sickness': dopotion,
   'nh:potion_of_fruit_juice': dopotion,
   'nh:potion_of_acid': dopotion,
+  [POT_OIL]: dopotion,
 };
 
 const heroItem = (ctx: Ctx, id: unknown): Entity | null => {

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5200 citations.
+188 NetHack files, 5228 citations.
 
 ## dat/asmodeus.lua
 
@@ -461,6 +461,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_were()`: `packages/content/src/werestate.ts`
 - `is_whirly()`: `packages/content/src/engulfstate.ts`, `packages/content/src/mondata.ts`
 - `lays_eggs()`: `packages/content/src/eggstate.ts`
+- `likes_fire()`: `packages/content/src/mondata.ts`
 - `likes_gems()`: `packages/content/src/mongear.ts`
 - `likes_gold()`: `packages/content/src/mongear.ts`
 - `likes_lava()`: `packages/content/src/mondata.ts`, `packages/content/src/uwater.ts`
@@ -538,7 +539,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/btrapstate.ts`, `packages/content/src/dilute.ts`, `packages/content/src/material.ts`, `packages/core/src/types/entity.ts`
 - `CORPSTAT_HISTORIC()`: `packages/content/src/statuestate.ts`
-- `Is_candle()`: `packages/content/src/items.ts`, `packages/content/src/price.ts`
+- `Is_candle()`: `packages/content/src/burnstate.ts`, `packages/content/src/price.ts`
 - `Is_container()`: `packages/core/src/objects.ts`
 - `Is_mbag()`: `packages/content/src/container.ts`
 - `MAX_ERODE()`: `packages/core/src/types/entity.ts`
@@ -547,6 +548,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `WrappingAllowed()`: `packages/content/src/mondata.ts`, `packages/content/src/mongear.ts`
 - `ammo_and_launcher()`: `packages/content/src/mthrowu.ts`
 - `greatest_erosion()`: `packages/content/src/material.ts`
+- `ignitable()`: `packages/content/src/light.ts`
 - `is_ammo()`: `packages/content/src/mthrowu.ts`
 - `is_axe()`: `packages/content/src/mdig.ts`
 - `is_blade()`: `packages/content/src/combat.ts`, `packages/content/src/force.ts`, `packages/content/src/skills.ts`
@@ -683,7 +685,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/vision.h
 
-- `MAX_RADIUS()`: `packages/core/src/vision.ts`
+- `MAX_RADIUS()`: `packages/content/src/burnstate.ts`, `packages/core/src/vision.ts`
 - `m_canseeu()`: `packages/content/src/apparxy.ts`
 
 ## include/weight.h
@@ -749,14 +751,17 @@ whole. A missing function may still be ported under a citation this parser canno
 - `get_valid_polearm_position()`: `packages/content/src/pole.ts`
 - `is_valid_jump_pos()`: `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
 - `jump()`: `packages/content/src/cast.ts`, `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
+- `light_cocktail()`: `packages/content/src/apply.en.ts`, `packages/content/src/oil.ts`
 - `magic_whistled()`: `packages/content/src/apply.ts`
+- `snuff_candle()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `snuff_lit()`: `packages/content/src/light.ts`
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
 - `um_dist()`: `packages/content/src/shkpay.ts`
 - `unfixable_trouble_count()`: `packages/content/src/potion.ts`
+- `use_candle()`: `packages/content/src/light.ts`
 - `use_cream_pie()`: `packages/content/src/creampie.en.ts`, `packages/content/src/creampie.ts`
 - `use_figurine()`: `packages/content/src/figurine.en.ts`, `packages/content/src/figurine.ts`
-- `use_lamp()`: `packages/content/src/light.ts`
+- `use_lamp()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
 - `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
@@ -1127,6 +1132,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `throw_obj()`: `packages/content/src/dothrow.ts`, `packages/content/src/fire.ts`, `packages/content/src/mthrowu.en.ts`, `packages/content/src/stonetouch.ts`
 - `throwing_weapon()`: `packages/content/src/dothrow.ts`
 - `throwit()`: `packages/content/src/dothrow.ts`, `packages/content/src/mthrowu.en.ts`
+- `throwit_mon_hit()`: `packages/content/src/dothrow.ts`
 - `tmiss()`: `packages/content/src/dothrow.ts`
 - `tmp_at()`: `packages/content/src/dothrow.ts`
 - `walk_path()`: `packages/content/src/jump.ts`
@@ -1289,10 +1295,12 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - `adtyp_to_expltype()`: `packages/content/src/explode.ts`
 - `explode()`: `packages/content/src/explode.ts`, `packages/core/src/types/event.ts`
+- `explode_oil()`: `packages/content/src/oil.ts`
 - `explosion()`: `packages/ui/src/host.ts`
 - `explosionmask()`: `packages/content/src/explode.ts`
 - `mon_explodes()`: `packages/content/src/explode.ts`
 - `scatter()`: `packages/content/src/boulder.en.ts`, `packages/content/src/scatter.ts`
+- `splatter_burning_oil()`: `packages/content/src/oil.ts`
 
 ## src/fountain.c
 
@@ -1456,9 +1464,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/light.c
 
-- (file): `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/burnstate.ts`, `packages/core/src/types/mod.ts`
+- `candle_light_range()`: `packages/content/src/burnstate.ts`
 - `do_light_sources()`: `packages/content/src/light.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
 - `new_light_source()`: `packages/content/src/light.ts`
+- `obj_split_light_source()`: `packages/content/src/burnstate.ts`
 
 ## src/lock.c
 
@@ -2116,7 +2126,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doloot_core()`: `packages/content/src/container.ts`, `packages/content/src/pickup.en.ts`
 - `encumber_msg()`: `packages/content/src/itemactions.ts`
 - `fatal_corpse_mistake()`: `packages/content/src/stonetouch.ts`
-- `in_container()`: `packages/content/src/container.ts`
+- `in_container()`: `packages/content/src/container.ts`, `packages/testkit/src/invariants.ts`
 - `is_boh_item_gone()`: `packages/content/src/container.ts`
 - `lift_object()`: `packages/content/src/container.ts`, `packages/content/src/itemactions.ts`
 - `mbag_explodes()`: `packages/content/src/container.ts`
@@ -2185,6 +2195,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_levitation()`: `packages/content/src/potion.ts`
 - `peffect_monster_detection()`: `packages/content/src/potion.ts`
 - `peffect_object_detection()`: `packages/content/src/potion.ts`
+- `peffect_oil()`: `packages/content/src/potion.ts`
 - `peffect_paralysis()`: `packages/content/src/magic.en.ts`, `packages/content/src/potion.ts`
 - `peffect_polymorph()`: `packages/content/src/polyself.ts`, `packages/content/src/potion.ts`
 - `peffect_restore_ability()`: `packages/content/src/attrstate.ts`, `packages/content/src/magic.en.ts`, `packages/content/src/potion.ts`
@@ -2359,6 +2370,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/shk.c
 
 - (file): `packages/content/src/gem.ts`, `packages/content/src/rooms.ts`
+- `Shk_Your()`: `packages/content/src/light.ts`
 - `add_damage()`: `packages/content/src/shopdamage.ts`
 - `add_one_tobill()`: `packages/content/src/shk.ts`
 - `addtobill()`: `packages/content/src/shk.ts`
@@ -2444,7 +2456,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shk_impaired()`: `packages/content/src/shkdamage.ts`
 - `shk_move()`: `packages/content/src/monmove.ts`
 - `shk_names_obj()`: `packages/content/src/shk.ts`
-- `shk_your()`: `packages/content/src/revive.ts`
+- `shk_your()`: `packages/content/src/light.ts`, `packages/content/src/revive.ts`
 - `shkgone()`: `packages/content/src/shk.ts`
 - `shkname()`: `packages/content/src/shk.ts`
 - `shop_keeper()`: `packages/content/src/eshk.ts`, `packages/content/src/revive.ts`, `packages/content/src/steal.ts`
@@ -2666,11 +2678,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/eat.en.ts`, `packages/content/src/luck.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.en.ts`, `packages/content/src/slimestate.ts`
 - `attach_egg_hatch_timeout()`: `packages/content/src/eggstate.ts`
 - `attach_fig_transform_timeout()`: `packages/content/src/figurinestate.ts`
-- `begin_burn()`: `packages/content/src/light.ts`
+- `begin_burn()`: `packages/content/src/burnstate.ts`, `packages/content/src/light.ts`, `packages/testkit/src/invariants.ts`
 - `burn_away_slime()`: `packages/content/src/slimestate.ts`
-- `burn_object()`: `packages/content/src/light.ts`
+- `burn_object()`: `packages/content/src/apply.en.ts`, `packages/content/src/light.ts`
 - `choke_dialogue()`: `packages/content/src/jewelry.ts`
-- `end_burn()`: `packages/content/src/light.ts`
+- `end_burn()`: `packages/content/src/burnstate.ts`
 - `fall_asleep()`: `packages/content/src/adtyping.ts`, `packages/content/src/trap.ts`
 - `hatch_egg()`: `packages/content/src/egg.en.ts`, `packages/content/src/egg.ts`
 - `incr_itimeout()`: `packages/content/src/props.ts`
@@ -2678,6 +2690,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `learn_egg_type()`: `packages/content/src/eggstate.ts`
 - `levitation_dialogue()`: `packages/content/src/levitation.ts`
 - `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/creamed.ts`, `packages/content/src/fumble.en.ts`, `packages/content/src/fumble.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/levitation.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.ts`, `packages/content/src/stoning.ts`
+- `obj_split_timers()`: `packages/content/src/burnstate.ts`
 - `set_itimeout()`: `packages/content/src/props.ts`
 - `slime_dialogue()`: `packages/content/src/slime.ts`
 - `slimed_to_death()`: `packages/content/src/slime.ts`

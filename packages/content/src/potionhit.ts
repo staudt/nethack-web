@@ -3,7 +3,7 @@
 // ref: src/potion.c potionhit(), potionbreathe(), bottlename(); src/dothrow.c breakobj()
 // (POT_WATER, "really, all potions")
 //
-// Not ported: the potion of oil (no such object), saddles (no steeds), wet towels
+// A burning potion of oil explodes (oil.ts). Not ported: saddles (no steeds), wet towels
 // (Half_gas_damage: no towels), the polymorphed gremlin hero splitting in water vapor (split_mon()
 // is for monsters only), deafness (make_deaf()), exercise(), Half_physical_damage, trycall()
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
@@ -12,6 +12,8 @@
 import { ucreamed } from './creamed';
 import { monHatesBlessings } from './chamstate';
 import { setPotionVapors } from './floorfx';
+import { POT_OIL } from './dilute';
+import { explodeOil } from './oil';
 import { getPlayer, isVisible, type Ctx, type Entity, type Msg } from '@nh/core';
 import { abase, amax, setAbase, type Attr } from './attrib';
 import { unaware } from './btrapped';
@@ -165,12 +167,15 @@ export function potionhit(ctx: Ctx, target: Entity | 'hero', obj: Entity, how: P
   }
   if (ctx.state.gameOver) return;
 
-  // (oil doesn't instantly evaporate: no oil)
-  if (canseeAt(ctx, tx, ty))
+  // oil doesn't instantly evaporate
+  if (obj.def !== POT_OIL && canseeAt(ctx, tx, ty))
     say(ctx, 'potionhit.evaporates', { item: xnameOf(ctx.state, ctx.defs, obj) });
 
   if (isyou) {
     switch (obj.def) {
+      case POT_OIL:
+        if (it?.lit) explodeOil(ctx, obj, tx, ty, yourFault ? 'hero' : 'other');
+        break;
       case POT.polymorph:
         say(ctx, hasProp(hero, P.HALLUC) ? 'poly.potion.halluc' : 'poly.potion');
         if (!hasProp(hero, P.UNCHANGING) && !hasProp(hero, P.ANTIMAGIC)) polyself(ctx);
@@ -347,6 +352,9 @@ function monPotionEffect(
         if (hp) hp.cur -= ctx.rng.d(1, 6);
         if (!hp || hp.cur < 1) killedByHero(ctx, mon); // "should only be by you"
       }
+      break;
+    case POT_OIL:
+      if (obj.c.item?.lit) explodeOil(ctx, obj, tx, ty, yourFault ? 'hero' : 'other');
       break;
     case POT.acid:
       if (!def.resists.includes('acid') && !resist(ctx, mon, 0, 'potion')) {
@@ -543,10 +551,22 @@ setPotionbreathe(breatheVapors);
 /**
  * A potion breaking on the floor next to the hero (or on her square): "You smell a peculiar
  * odor..." ("Your eyes water." for a breathless form) and its vapors; water has no smell.
+ * A burning potion of oil explodes instead (explode_oil(), `by` whom).
  * The caller says it shatters, handles the shop and uses it up. ref: src/dothrow.c breakobj()
- * POT_WATER ("really, all potions"; no oil, no wet towel)
+ * POT_WATER ("really, all potions"; no wet towel)
  */
-export function breakPotionVapors(ctx: Ctx, obj: Entity, x: number, y: number): void {
+export function breakPotionVapors(
+  ctx: Ctx,
+  obj: Entity,
+  x: number,
+  y: number,
+  by: 'hero' | 'other' = 'hero',
+): void {
+  // a burning potion of oil explodes instead
+  if (obj.def === POT_OIL && obj.c.item?.lit) {
+    explodeOil(ctx, obj, x, y, by);
+    return;
+  }
   const hp = getPlayer(ctx.state).c.pos;
   if (!hp || dist2(x, y, hp.x, hp.y) > 2) return; // next2u()
   if (uBreathless(ctx) && !uHasEyes(ctx)) return;

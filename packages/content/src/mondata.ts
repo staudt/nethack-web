@@ -260,6 +260,9 @@ export const cantDrown = (def: MonsterDef): boolean =>
 /** ref: include/mondata.h likes_lava(): fire elementals and salamanders */
 export const likesLava = (def: MonsterDef): boolean =>
   def.id === 'nh:fire_elemental' || def.id === 'nh:salamander';
+/** ref: include/mondata.h likes_fire(): the fire vortex, the flaming sphere, likes_lava() */
+export const likesFire = (def: MonsterDef): boolean =>
+  def.id === 'nh:fire_vortex' || def.id === 'nh:flaming_sphere' || likesLava(def);
 /** The S_EEL class (';'): the sea monsters. ref: include/defsym.h S_EEL */
 export const isEel = (def: MonsterDef): boolean => def.glyph.ch === ';';
 

@@ -31,6 +31,33 @@ export interface InvariantOpts {
   wallwalk?: { ids: Set<string>; spots: Set<string> };
 }
 
+/**
+ * Lit objects (m19): every one but a magic lamp has a live burn record (`modData.nh.burn[id]`)
+ * whose timer is pending, and none is inside a container (snuff_lit() when put away).
+ * ref: src/timeout.c begin_burn(), src/pickup.c in_container()
+ */
+function checkLight(state: GameState, ids: readonly number[], errs: string[]): void {
+  const burn = (state.modData['nh'] as { burn?: Record<string, { due: number; tok: number }> })
+    ?.burn;
+  for (const id of ids) {
+    const e = state.entities[String(id)];
+    const it = e?.c.item;
+    if (!e || !it?.lit) continue;
+    if (it.containedIn !== undefined) errs.push(`item ${id}: lit inside a container`);
+    if (e.def === 'nh:magic_lamp') continue;
+    const rec = burn?.[String(id)];
+    if (!rec) {
+      errs.push(`item ${id} (${e.def}): lit without a burn record`);
+      continue;
+    }
+    const live = state.timers.some((t) => {
+      const d = t.data as { item?: unknown; tok?: unknown } | null;
+      return t.kind === 'nh:burn_object' && d?.item === id && d.tok === rec.tok;
+    });
+    if (!live) errs.push(`item ${id} (${e.def}): its burn timer is not pending`);
+  }
+}
+
 /** Iron bars, where objects may lie. ref: src/trap.c isclearpath() (ZAP_POS) */
 const IRON_BARS = 'nh:iron_bars';
 
@@ -220,6 +247,7 @@ export function checkInvariants(
   checkVaults(state, errs);
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
+  checkLight(state, ids, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);

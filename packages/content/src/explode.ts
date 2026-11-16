@@ -1,12 +1,13 @@
 // Explosions: the 3x3 blast of a broken wand, of a magical trap set off by cancellation or
 // digging, or of an exploding monster (a gas spore dying, a sphere's AT_EXPL).
 // ref: src/explode.c explode(), explosionmask(), mon_explodes(), adtyp_to_expltype()
+// (burning oil: oil.ts's explode_oil())
 //
 // Below zap.ts and dig.ts (both call it); it must not import them.
 // Not ported (see DEVIATIONS.md): engulfing (the hero inside an engulfer), steeds, polymorphed
 // heroes (grabbing, ugolemeffects()), golems (golemeffects(), completelyburns()), shields shown
 // on resisting targets, hallucinated names, Deafness, Invulnerable, Half_physical_damage,
-// exercise(), the scroll/oil kinds (fire scrolls), hallucinated monster explosion names.
+// exercise(), hallucinated monster explosion names.
 // A shop door the blast destroys is the hero's damage to pay for (pay_for_damage()): every
 // explosion here is hers (C's type >= 0).
 import { isVampshifter } from './chamstate';
@@ -77,6 +78,8 @@ export interface ExplSource {
   wand?: DefId;
   /** A scroll of fire (C's SCROLL_CLASS with ZT_SPELL(ZT_FIRE)): a "tower of flame". */
   scroll?: true;
+  /** Burning oil (C's BURNING_OIL with ZT_SPELL(ZT_FIRE)): resisted at her level, as a spell. */
+  oil?: true;
   /** The hero's fireball or cone of cold (ZT_SPELL(ZT_FIRE) or ZT_SPELL(ZT_COLD), no class). */
   spell?: 'fire' | 'cold';
   /** With `spell`: C's WAND_CLASS (the fireball cast at herself): resisted as a wand's. */
@@ -194,13 +197,14 @@ export function explode(
   const monExpl = src.mon !== undefined;
   // the zap type: ray wands keep theirs, the others (and traps) make a generic magical blast
   const scroll = src.scroll === true;
+  const oil = src.oil === true;
   const type = src.spell
     ? src.spell === 'fire'
       ? 11
       : 12
     : wand
       ? (WAND_ZAPTYPE[src.wand ?? ''] ?? 0)
-      : scroll
+      : scroll || oil
         ? 11
         : 0;
   let damu = dam;
@@ -215,7 +219,7 @@ export function explode(
   if (!adtyp) return; // impossible("explosion base type %d?")
   const strKey: Record<Adtyp, string> = {
     magm: 'explode.magical_blast',
-    fire: scroll ? 'explode.tower_of_flame' : 'explode.fireball',
+    fire: oil ? 'explode.burning_oil' : scroll ? 'explode.tower_of_flame' : 'explode.fireball',
     cold: 'explode.ball_of_cold',
     disn: wand ? 'explode.death_field' : 'explode.disintegration_field',
     elec: 'explode.ball_of_lightning',
@@ -293,7 +297,7 @@ export function explode(
             AD_RAY[adtyp],
             xx,
             yy,
-            src.wand ?? (scroll ? 'nh:scroll_of_fire' : ''),
+            src.wand ?? (scroll ? 'nh:scroll_of_fire' : oil ? 'nh:potion_of_oil' : ''),
             monMoving || monExpl ? undefined : shopdamage,
           );
         const mtmp = monAt(ctx, level, xx, yy);
@@ -380,11 +384,13 @@ export function explode(
           : `@killer.explode.mon.${(src.mon ?? '').replace(/^.*:/, '')}`
         : scroll
           ? '@killer.explode.tower_of_flame'
-          : wand || src.spell
-            ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
-            : generic
-              ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')
-              : uhimKey(ctx.state, '!@killer.explode.trap');
+          : oil
+            ? uhimKey(ctx.state, '!@killer.explode.own.oil')
+            : wand || src.spell
+              ? uhimKey(ctx.state, `!@killer.explode.own.${adtyp === 'disn' ? 'death' : adtyp}`)
+              : generic
+                ? uhimKey(ctx.state, '!@killer.explode.trap_unseen')
+                : uhimKey(ctx.state, '!@killer.explode.trap');
       done(ctx, killer);
       if (ctx.state.gameOver) return;
     }

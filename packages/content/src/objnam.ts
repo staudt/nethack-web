@@ -13,6 +13,7 @@ import type {
 } from '@nh/core';
 import { contents, getPlayer } from '@nh/core';
 import { isCandle, objKnown, rknown } from './items';
+import { burnRec } from './burnstate';
 import { EGG, knowsEgg } from './eggstate';
 import {
   isCorrodeable,
@@ -272,8 +273,7 @@ export function doname(
   // ref: doname_base() TOOL_CLASS: a candle with less than its full burn time left is "partly
   // used" (a lit one counts the time its burn timer still holds)
   if (isCandle(def.id)) {
-    const burn = (state.modData['nh'] as { burn?: Record<string, { due: number }> } | undefined)
-      ?.burn?.[String(item.id)];
+    const burn = burnRec(state, item.id);
     const left = (it.age ?? 0) + (it.lit && burn ? burn.due - state.turn : 0);
     if (left < 20 * def.cost) params.eaten = { key: 'obj.partly_used' };
   }

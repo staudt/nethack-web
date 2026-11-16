@@ -706,7 +706,18 @@ export { POLE_ID, polearmRange, usePole, validPolePositions } from './pole';
 export { formHatesSilver, heroHatesSilver, isSilver } from './silver';
 export { LOOT_ID, LOOT_ACTIONS, BOX, useContainer, floorContainers } from './container';
 export { LOCK_ID, PICKLOCK_ID, KEY, autokey } from './lock';
-export { LAMP, beginBurn, endBurn, igniteItems, lampLights, snuffLit } from './light';
+export {
+  LAMP,
+  beginBurn,
+  endBurn,
+  igniteItems,
+  objLights,
+  snuffLit,
+  snuffCandle,
+  catchLit,
+} from './light';
+export { burnRec, candleLightRange } from './burnstate';
+export { explodeOil, lightCocktail } from './oil';
 export { objKnown, setObjKnown, setLknown, setCknown } from './items';
 export { BOULDER, boulderAt, blockersOf } from './boulder';
 export { moverock, couldMoveOntoBoulder } from './moverock';

@@ -34,6 +34,7 @@ import { EGG, attachEggHatchTimeout, deadSpecies, eggHatchAt, splitEggTimer } fr
 import { FIGURINE, carryObjEffects, stopFigTransform } from './figurinestate';
 import { MAX_OIL_IN_FLASK, POT_OIL } from './dilute';
 import { TIN, setTinVariety } from './tins';
+import { isCandle, mergeBurn, splitBurn } from './burnstate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -501,7 +502,8 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * Candles merge only when their ages are close. Shop state must match (unpaid, no charge), and
  * unpaid stacks only merge at the same price on the same bill (`state` is needed for that; without
  * it unpaid stacks never merge). Eggs merge only with the same monster and no hatch timer.
- * Not ported: grease, light, names, artifacts, reviving corpses.
+ * Lit and unlit stacks never merge, nor do burning potions of oil.
+ * Not ported: grease, names, artifacts, reviving corpses.
  */
 export function mergable(
   defs: Registry,
@@ -533,17 +535,19 @@ export function mergable(
       : a.corpseOf !== undefined)
   )
     return false;
+  // ref: mergable(): `obj->lamplit != otmp->lamplit`
+  if ((a.lit ?? false) !== (b.lit ?? false)) return false;
   // allow candle merging only if their ages are close
   if (isCandle(def.id) && Math.trunc((a.age ?? 0) / 25) !== Math.trunc((b.age ?? 0) / 25))
     return false;
+  // burning potions of oil never merge
+  if (def.id === POT_OIL && b.lit) return false;
   // don't merge surcharged item with base-cost item
   if (b.unpaid && (!state || !samePrice({ state }, obj.id, into.id))) return false;
   return true;
 }
 
-/** ref: include/obj.h Is_candle() */
-export const isCandle = (id: string): boolean =>
-  id === 'nh:tallow_candle' || id === 'nh:wax_candle';
+export { isCandle } from './burnstate';
 
 /**
  * Merges `obj` into `into` if they are mergable, removing `obj`; returns whether it did.
@@ -557,10 +561,14 @@ export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
   const b = obj.c.item;
   if (!a || !b) return false;
   if (b.unpaid) mergeBills(ctx, into.id, obj.id); // obfree(obj, otmp): bill->otmp
-  a.age = Math.trunc(
-    ((a.age ?? 0) * a.quantity + (b.age ?? 0) * b.quantity) / (a.quantity + b.quantity),
-  );
+  // don't do the age manipulation if lit (the burn would have to stop on both items first)
+  if (!b.lit)
+    a.age = Math.trunc(
+      ((a.age ?? 0) * a.quantity + (b.age ?? 0) * b.quantity) / (a.quantity + b.quantity),
+    );
   a.quantity += b.quantity;
+  // obj_merge_light_sources(): the absorbed part's light and timer go; the target keeps its own
+  if (b.lit) mergeBurn(ctx, obj.id);
   const isCoin = ctx.defs.object(into.def).class === 'coin';
   let learned = false;
   if (isCoin) {
@@ -936,6 +944,8 @@ export function splitStack(ctx: ItemCtx, itemId: EntityId, n: number): EntityId 
   if (rknown(ctx.state, itemId)) setRknown(ctx, id, true);
   // obj_split_timers(): a hatching egg's split-off part keeps the timer
   if (def === EGG) splitEggTimer(ctx, itemId, id);
+  // obj_split_light_source(): a lit part burns on with its own timer
+  if (it.lit) splitBurn(ctx, itemId, id);
   if (it.unpaid) splitbill(ctx, itemId, id, n);
   return id;
 }

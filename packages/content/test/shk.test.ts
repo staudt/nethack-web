@@ -1304,6 +1304,33 @@ describe('prices', () => {
       expect(t.lines(z2)).toEqual([]);
     });
 
+    test('lighting unpaid fresh candles: "You burn them, you bought them!"', () => {
+      // ref: src/apply.c use_lamp(): the candles go on the bill as used up, no longer his
+      const t = bare(15);
+      t.s.state.discovered.push('nh:wax_candle');
+      const c = t.make('nh:wax_candle', { quantity: 2 });
+      if (c.c.item) c.c.item.age = 400;
+      t.pickup();
+      expect(c.c.item?.unpaid).toBe(true);
+      const a = t.step({ type: 'mod', action: 'nh:apply', args: { item: c.id } });
+      expect(t.lines(a)).toEqual([
+        `${shkn(t)}'s wax candles' flames burn brightly!`,
+        '"You burn them, you bought them!"',
+      ]);
+      expect(c.c.item?.unpaid).toBeUndefined();
+      expect(c.c.item?.lit).toBe(true);
+      expect(t.e.bill.filter((b) => b.useup)).toHaveLength(1);
+      // partly used, they would only be lit
+      const d = t.make('nh:wax_candle', { at: { x: 2, y: 2 } });
+      if (d.c.item) d.c.item.age = 300;
+      const hp = getPlayer(t.s.state).c.pos;
+      if (hp) hp.x = 2;
+      t.pickup();
+      const b = t.step({ type: 'mod', action: 'nh:apply', args: { item: d.id } });
+      expect(t.lines(b)).toEqual([`${shkn(t)}'s wax candle's flame burns brightly!`]);
+      expect(d.c.item?.unpaid).toBe(true);
+    });
+
     test("selling into the shop's container on his floor", () => {
       const t = bare(15);
       know(t, 'nh:dagger');

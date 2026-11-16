@@ -85,6 +85,7 @@ import { isCancelled, isFrozen } from './mstate';
 import { P, hasProp, heroHas, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
+import { snuffCandle } from './light';
 import { thitmonst } from './dothrow';
 import { scatter } from './scatter';
 import { stuckInWeb } from './web';
@@ -496,6 +497,7 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
   const obj = ctx.state.entities[String(id)];
   if (!obj) return false;
   delete obj.c.pos; // obj_extract_self()
+  snuffCandle(ctx, obj);
 
   const { pos: land, mon } = bhitKicked(ctx, id, { x, y }, dir, range);
   if (mon !== null) {

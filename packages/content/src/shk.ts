@@ -642,7 +642,7 @@ export function billUsedUp(ctx: Ctx, obj: Entity): void {
  * A copy of the object goes on the bill as used up and the object itself is no longer the
  * shop's (no-charge where it lies on the floor). ref: src/mkobj.c bill_dummy_object()
  */
-function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
+export function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
   const it = obj.c.item;
   if (!it) return;
   let cost = 0;
@@ -1327,9 +1327,15 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity): number {
   if (!inhishop(ctx, shk)) return 0; // insurance
   let tmp = getCost(ctx.state, ctx.defs, obj, e);
   const def = ctx.defs.object(obj.def);
-  if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
+  if (obj.def === 'nh:magic_lamp') {
+    // normal use (ie, as light source) of a magic lamp never degrades its value, but not
+    // charging anything would make identification too easy; charge an amount comparable to
+    // what is charged for an ordinary lamp (the djinni's release: m19 step 3)
+    tmp = ctx.defs.object('nh:oil_lamp').cost;
+  } else if (obj.def === 'nh:oil_lamp' || obj.def === 'nh:brass_lantern' || def.class === 'wand') {
     if ((obj.c.item?.spe ?? 0) > 1) tmp = Math.trunc(tmp / 4);
   } else if (def.class === 'spellbook') tmp -= Math.trunc(tmp / 5);
+  else if (obj.def === 'nh:potion_of_oil') tmp = Math.trunc(tmp / 5);
   return tmp;
 }
 

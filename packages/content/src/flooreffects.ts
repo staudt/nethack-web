@@ -488,7 +488,7 @@ export function flooreffects(
 /**
  * A potion landing on the hot ground of a hot level: "The potion heats up as it hits the hot
  * ground." when seen; it survives 50 times in 100 (70 blessed; adjusted by 2 per point of Luck
- * when it is or was hers; there is no oil), else "It shatters from the heat!" ("You hear a
+ * when it is or was hers; oil always), else "It shatters from the heat!" ("You hear a
  * shattering noise." unseen) and it breaks (its vapors next to her). True when it is gone.
  * ref: src/do.c flooreffects() (the potion part); src/dothrow.c breakobj() (not hero-caused)
  */
@@ -501,6 +501,7 @@ function hotGround(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
     });
   let survival = obj.c.item?.buc === 'blessed' ? 70 : 50;
   if (obj.c.item?.letter) survival += luckOf(ctx.state) * 2;
+  if (obj.def === 'nh:potion_of_oil') survival = 100;
   if (objResists(ctx, obj, survival)) return false;
   if (seen) say(ctx, many ? 'flooreffects.shatter_heat_pl' : 'flooreffects.shatters_heat');
   else say(ctx, 'flooreffects.hear_shatter');

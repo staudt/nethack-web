@@ -34,6 +34,7 @@ import {
 import { doname, xnameOf } from './objnam';
 import { canseemon, monInvisible, seeInvisible, updateMonInvis } from './invis';
 import { discover } from './o_init';
+import { beginBurn } from './burnstate';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { monFloorEffects } from './align';
 import { ALIGNED_CLERIC, epriOf } from './epri';
@@ -44,6 +45,9 @@ import { rndDefensiveItem, rndMiscItem, rndOffensiveItem, searchesForItem } from
 
 /** What these functions need: a Ctx without the hero-facing parts. */
 export type GearCtx = ItemCtx;
+
+/** The Gnomish Mines (C's In_mines()) */
+const MINES = 'nh:mines';
 
 const hasFlag = (def: MonsterDef, f: string): boolean => def.flags.includes(f);
 const isArmed = (def: MonsterDef): boolean => def.attacks.some((a) => a.at === 'weapon');
@@ -591,14 +595,18 @@ function mercArmor(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
  * ref: src/makemon.c m_initinv(); `depth` is level_difficulty(). Asmodeus gets wands of cold
  * and fire; mummies get their wrapping, nymphs roll for a mirror and a potion of object
  * detection (neither is in the table yet: only the rolls), leprechauns get d(depth, 30) gold,
- * giants gems, minotaurs 1 time in 8 a wand of digging, and gnomes roll for a candle (not in
- * the table); then, but for most soldiers (`rn2(13)`), a defensive and a misc item by m_lev.
+ * giants gems, minotaurs 1 time in 8 a wand of digging, and gnomes a candle (1 in 20 in the
+ * Mines while `inMklev`, else 1 in 60; lit in the dark); then, but for most soldiers
+ * (`rn2(13)`), a defensive and a misc item by m_lev.
  */
-export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
+export function mInitInv(
+  ctx: GearCtx,
+  monId: EntityId,
+  depth: number,
+  opts: { inMklev?: boolean } = {},
+): void {
   const { def } = monOf(ctx, monId);
   const rng = ctx.rng;
-  // candle for gnomes (not in the table; not in the Mines: only the roll), then the defensive and
-  // misc items (rnd_defensive_item(), rnd_misc_item())
   if (def.glyph.ch === '@' && isMercenary(def)) mercArmor(ctx, monId, def);
   else if (def.id === SHOPKEEPER) {
     // ref: m_initinv() S_HUMAN PM_SHOPKEEPER: a skeleton key, then from rn2(4) on (falling
@@ -663,7 +671,24 @@ export function mInitInv(ctx: GearCtx, monId: EntityId, depth: number): void {
       if (it) it.buc = 'cursed'; // curse(otmp)
     }
   }
-  if (def.glyph.ch === 'G') rng.rn2(60);
+  // ref: m_initinv() S_GNOME: a candle, more often in the Mines while the level is made; lit
+  // when the gnome stands in the dark (mpickobj() may merge it away: then it stays unlit)
+  if (def.glyph.ch === 'G') {
+    const e = ctx.state.entities[String(monId)];
+    const pos = e?.c.pos;
+    const level = pos ? ctx.state.levels[pos.level] : undefined;
+    const inMines = level?.dungeon === MINES && opts.inMklev === true;
+    if (!rng.rn2(inMines ? 20 : 60)) {
+      const odef = objDef(ctx, rng.rn2(4) ? 'nh:tallow_candle' : 'nh:wax_candle');
+      if (odef) {
+        const cid = mksobj(ctx, odef, { quantity: 1 });
+        const stack = addToInventory(ctx, monId, cid);
+        const candle = ctx.state.entities[String(cid)];
+        if (stack === cid && candle && pos && level && level.lit[pos.y * level.width + pos.x] !== 1)
+          beginBurn(ctx, candle, false);
+      }
+    }
+  }
   // ref: m_initinv() S_GIANT: a minotaur gets a wand of digging 1 time in 8 (no Earth level
   // here); is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass
   if (def.id === 'nh:minotaur') {
@@ -1226,9 +1251,14 @@ export function relobj(
 }
 
 /** Gear step for a freshly made monster. ref: src/makemon.c makemon() "allow_minvent" */
-export function givePossessions(ctx: GearCtx, monId: EntityId, depth: number): void {
+export function givePossessions(
+  ctx: GearCtx,
+  monId: EntityId,
+  depth: number,
+  opts: { inMklev?: boolean } = {},
+): void {
   const { def } = monOf(ctx, monId);
   if (isArmed(def)) mInitWeap(ctx, monId);
-  mInitInv(ctx, monId, depth);
+  mInitInv(ctx, monId, depth, opts);
   mDoWear(ctx, monId, true);
 }

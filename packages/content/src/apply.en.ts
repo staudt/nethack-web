@@ -1,4 +1,4 @@
-// English text for applying tools: lamps, whistles, the blindfold. ref: src/apply.c
+// English text for applying tools: lamps, candles, potions of oil, whistles, the blindfold. ref: src/apply.c
 // use_lamp(), snuff_lit(), catch_lit(), use_whistle(), use_magic_whistle(), magic_whistled();
 // src/timeout.c burn_object(), see_lamp_flicker(), lantern_message(); src/teleport.c rloc_to_core();
 // src/do_wear.c on_msg(), Blindf_on(), Blindf_off(); src/potion.c make_blinded()
@@ -38,12 +38,57 @@ export const applyMessagesEn: Record<string, string> = {
   'lamp.batteries': 'Batteries have not been invented yet.',
   'lamp.see_lantern_dim': 'You see a lantern getting dim.',
   'lamp.mon_lantern_dim': '{mon|The_s} lantern is getting dim.',
-  'lamp.your_goes_out': 'Your {item} goes out!',
   'lamp.the_goes_out': '{item|The} goes out!',
-  'lamp.your_catches': 'Your {item} catches light!',
-  'lamp.your_feels_warm': 'Your {item} feels warm.',
-  'lamp.the_catches': '{item|The} catches light!',
-  'lamp.the_feels_warm': '{item|The} feels warm.',
+  'lamp.goes_out': '{whose} {item} goes out!',
+  'lamp.go_out_pl': '{whose} {item} go out!',
+  'lamp.catch': '{whose} {item} catches light!',
+  'lamp.catch_pl': '{whose} {item} catch light!',
+  'lamp.feel_warm': '{whose} {item} feels warm.',
+  'lamp.feel_warm_pl': '{whose} {item} feel warm.',
+  'lamp.catch_cost': '"That\'s in addition to the cost of {whose} {item} itself, of course."',
+  'lamp.catch_cost_pl':
+    '"That\'s in addition to the cost of {whose} {item} themselves, of course."',
+  'lamp.flicker_die_pl': '{item|The} flicker for a moment, then die.',
+  'lamp.not_diving': 'This is not a diving lamp.',
+  'apply.no_elbow_room': "You don't have enough elbow room to maneuver.",
+
+  // candles (ref: src/apply.c use_lamp(), snuff_candle(); src/timeout.c burn_object())
+  'candle.burn_brightly': "{whose} {item}'s flame burns brightly!",
+  'candle.burn_brightly_pl': "{whose} {item}' flames burn brightly!",
+  'candle.burn': "{whose} {item}'s flame burns.",
+  'candle.burn_pl': "{whose} {item}' flames burn.",
+  'candle.burn_bought': '"You burn it, you bought it!"',
+  'candle.burn_bought_pl': '"You burn them, you bought them!"',
+  'candle.snuff_out': 'You snuff out {whose} {item}.',
+  'candle.fire_water': "Sorry, fire and water don't mix.",
+  'candle.extinguished': "{whose} candle's flame is extinguished.",
+  'candle.extinguished_pl': "{whose} candles' flames are extinguished.",
+  'candle.short': '{whose} candle is getting short.',
+  'candle.short_pl': '{whose} candles are getting short.',
+  'candle.see_short': 'You see a candle getting short.',
+  'candle.see_short_pl': 'You see some candles getting short.',
+  'candle.flicker_low': "{whose} candle's flame flickers low!",
+  'candle.flicker_low_pl': "{whose} candles' flames flicker low!",
+  'candle.see_flicker_low': "You see a candle's flame flicker low!",
+  'candle.see_flicker_low_pl': "You see some candles' flames flicker low!",
+  'candle.consumed': '{whose} {item} is consumed!',
+  'candle.consumed_pl': '{whose} {item} are consumed!',
+  'candle.see_consumed': 'You see {item|an} consumed!',
+  'candle.see_consumed_pl': 'You see some {item} consumed!',
+  'candle.flame_dies': 'Its flame dies.',
+  'candle.flame_dies_pl': 'Their flames die.',
+  'candle.shriek': 'It shrieks!',
+  'candle.shriek_pl': 'They shriek!',
+
+  // potions of oil (ref: src/apply.c light_cocktail(); src/timeout.c burn_object())
+  'oil.burnt_away': '{whose} potion of oil has burnt away.',
+  'oil.see_go_out': 'You see a burning potion of oil go out.',
+  'oil.snuff': 'You snuff the lit potion.',
+  'oil.no_oxygen': 'There is not enough oxygen to sustain a fire.',
+  'oil.light': 'You light {whose} potion.  It gives off a dim light.',
+  'oil.light_blind': 'You light {whose} potion.',
+  'oil.in_addition': '"That\'s in addition to the cost of the potion, of course."',
+  'oil.drop': 'You drop {item|an}!',
 
   // whistles
   'whistle.sound': 'You produce a {how} whistling sound.',

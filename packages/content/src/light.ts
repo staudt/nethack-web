@@ -1,22 +1,25 @@
-// Lamps and lanterns: lighting them (apply), the fuel timer with its warnings, snuffing them out,
-// catching fire (ignite_items), and the light they give (a PerceptionDef light source).
-// ref: src/apply.c use_lamp(), snuff_lit(), catch_lit(); src/timeout.c begin_burn(),
-// end_burn(), burn_object(), cleanup_burn(), see_lamp_flicker(), lantern_message();
-// src/trap.c ignite_items(); src/light.c new_light_source()
+// Light: lamps, lanterns, candles, the magic lamp and burning potions of oil. Lighting them
+// (apply), the fuel timer with its warnings, snuffing them out, catching fire (ignite_items),
+// and the light they give (a PerceptionDef light source).
+// ref: src/apply.c use_candle(), use_lamp(), snuff_candle(), snuff_lit(), catch_lit();
+// src/timeout.c burn_object(), see_lamp_flicker(), lantern_message(); src/trap.c
+// ignite_items(); src/light.c new_light_source(), candle_light_range()
 //
-// The fuel is `ItemComponent.age` (obj->age) and the lit state `ItemComponent.lit`
-// (obj->lamplit). A burning lamp has one `nh:burn_object` timer; NetHack stops that timer when
-// the lamp is snuffed (stop_timer), which core timers cannot do, so the live timer is recorded in
-// `modData.nh.burn[id] = { due, tok }` and a timer whose token does not match is ignored.
+// The burn state (fuel in `age`, `lit`, the timer records, beginBurn/endBurn and the stack
+// split/merge hooks) lives in the leaf burnstate.ts; this module has the messages and the
+// light. A potion of oil lit by applying it (light_cocktail()) and its explosion are oil.ts's.
 //
-// Not ported: candles, the magic lamp, potions of oil, artifact lights, Glib (a cursed lamp that
-// spills oil only says so), shop billing, light sources carried while the hero is away from the
-// level (their timers simply run on).
+// Not ported: the Candelabrum of Invocation (candles are never attached), artifact lights, Glib
+// (a cursed lamp that spills oil only says so), light sources carried while the hero is away
+// from the level (their timers simply run on; burn_object()'s "timeout while away" catch-up is
+// not needed).
 import {
+  getLevel,
   itemsAt,
   inventoryOf,
   sortedIds,
   type Ctx,
+  type DefId,
   type Entity,
   type EntityId,
   type GameState,
@@ -25,41 +28,50 @@ import {
   type Msg,
   type Pos,
 } from '@nh/core';
+import {
+  BRASS_LANTERN,
+  BURN_TIMER,
+  MAGIC_LAMP,
+  OIL_LAMP,
+  beginBurn,
+  burnRec,
+  candleLightRange,
+  endBurn,
+  isCandle,
+  setBurnRec,
+} from './burnstate';
+import { POT_OIL } from './dilute';
+import { uswallow } from './engulfstate';
+import { costlySpot, insideShop, shopKeeper } from './eshk';
+import { removeFromInventory } from './items';
 import { heroSees } from './mongear';
+import { discover } from './o_init';
 import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { monNam } from './perception';
-import { checkUnpaid } from './shk';
+import { billDummyObject, billUsedUp, checkUnpaid } from './shk';
+import { uinwater } from './uwater';
+
+export { beginBurn, endBurn, isCandle } from './burnstate';
 
 export const LAMP = {
-  oil: 'nh:oil_lamp',
-  lantern: 'nh:brass_lantern',
+  oil: OIL_LAMP,
+  lantern: BRASS_LANTERN,
+  magic: MAGIC_LAMP,
 } as const;
 
-const BURN_TIMER = 'nh:burn_object';
-
-/** Light radius of a burning lamp or lantern. ref: src/timeout.c begin_burn() `radius = 3` */
+/** Light radius of a burning lamp, lantern or magic lamp. ref: src/timeout.c begin_burn() */
 const LAMP_RADIUS = 3;
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
-export const isLamp = (def: string): boolean => def === LAMP.oil || def === LAMP.lantern;
+/** The lamps lit by applying them (use_lamp()'s `lamp`): oil lamp, magic lamp, brass lantern. */
+export const isLamp = (def: string): boolean =>
+  def === OIL_LAMP || def === BRASS_LANTERN || def === MAGIC_LAMP;
 
-interface BurnData {
-  burn?: Record<string, { due: number; tok: number }>;
-  burnTok?: number;
-}
-
-function burnData(ctx: Pick<Ctx, 'state'>): BurnData {
-  const md = ctx.state.modData;
-  let d = md['nh'] as unknown as BurnData | undefined;
-  if (typeof d !== 'object' || d === null) {
-    d = {};
-    md['nh'] = d as unknown as (typeof md)[string];
-  }
-  return d;
-}
+/** ref: include/obj.h ignitable(): lamps, the lantern, candles and potions of oil */
+export const ignitable = (def: string): boolean => isLamp(def) || isCandle(def) || def === POT_OIL;
 
 /**
  * Where an object is, for light and messages (ref: src/mkobj.c get_obj_location() without
@@ -78,46 +90,32 @@ export function objLocation(
 }
 
 /**
- * Starts a lit object burning: a timer to the next warning (150, 100, 50, 25 turns of fuel left,
- * then 0) and the light. ref: src/timeout.c begin_burn()
+ * Whose the object is, as a sentence's start (`cap`) or inside one: "Your", "The", "Izchak's"
+ * (unpaid, or shop goods on his floor) or "the gnome's". ref: src/shk.c shk_your(), Shk_Your(),
+ * shk_owns(), mon_owns()
  */
-export function beginBurn(ctx: Ctx, obj: Entity, _alreadyLit = false): void {
+export function shkYour(ctx: Ctx, obj: Entity, cap: boolean): Msg {
   const it = obj.c.item;
-  if (!it || !isLamp(obj.def)) return;
-  const age = it.age ?? 0;
-  if (age === 0) return;
-  // magic times are 150, 100, 50, 25, and 0
-  let turns: number;
-  if (age > 150) turns = age - 150;
-  else if (age > 100) turns = age - 100;
-  else if (age > 50) turns = age - 50;
-  else if (age > 25) turns = age - 25;
-  else turns = age;
-  const d = burnData(ctx);
-  const tok = (d.burnTok ?? 0) + 1;
-  d.burnTok = tok;
-  (d.burn ??= {})[String(obj.id)] = { due: ctx.state.turn + turns, tok };
-  ctx.schedule(turns, BURN_TIMER, { item: obj.id, tok });
-  it.lit = true;
-  it.age = age - turns;
-}
-
-/**
- * Puts the light out. With `timerAttached`, the unused fuel of the current stretch is given
- * back (cleanup_burn()). ref: src/timeout.c end_burn()
- */
-export function endBurn(ctx: Ctx, obj: Entity, timerAttached: boolean): void {
-  const it = obj.c.item;
-  if (!it?.lit) return;
-  const d = burnData(ctx);
-  const rec = d.burn?.[String(obj.id)];
-  if (rec && d.burn) {
-    // restore unused time
-    if (timerAttached) it.age = (it.age ?? 0) + Math.max(rec.due - ctx.state.turn, 0);
-    delete d.burn[String(obj.id)];
-    if (Object.keys(d.burn).length === 0) delete d.burn;
+  const loc = objLocation(ctx.state, obj);
+  if (
+    it &&
+    loc &&
+    loc.level === ctx.state.currentLevel &&
+    (it.unpaid || (obj.c.pos && !it.noCharge && costlySpot(ctx, loc.x, loc.y)))
+  ) {
+    const room = insideShop(getLevel(ctx.state), loc.x, loc.y);
+    const shk = room === null ? null : shopKeeper(ctx, loc.level, room);
+    const e = shk === null ? undefined : ctx.state.entities[String(shk)];
+    if (e) return { key: cap ? 'zap.owner.Mon' : 'zap.owner.mon', params: { mon: monNam(ctx, e) } };
+    return { key: cap ? 'zap.owner.The' : 'zap.owner.the' };
   }
-  delete it.lit;
+  const carrier = it?.carriedBy ?? null;
+  if (carrier !== null && carrier !== ctx.state.playerId) {
+    const m = ctx.state.entities[String(carrier)];
+    if (m) return { key: cap ? 'zap.owner.Mon' : 'zap.owner.mon', params: { mon: monNam(ctx, m) } };
+  }
+  if (carrier === ctx.state.playerId) return { key: cap ? 'zap.owner.Your' : 'zap.owner.your' };
+  return { key: cap ? 'zap.owner.The' : 'zap.owner.the' };
 }
 
 /** The whose-prefixed name pieces for burn messages: by holder (hero, monster) or floor. */
@@ -129,27 +127,56 @@ function where(ctx: Ctx, obj: Entity): 'invent' | 'minvent' | 'floor' | null {
   return obj.c.pos ? 'floor' : null;
 }
 
-/** Timer callback for a burning lamp. ref: src/timeout.c burn_object() BRASS_LANTERN/OIL_LAMP */
+/** A burnt-out candle or potion of oil is gone (useupall() when hers; billed when unpaid). */
+function burnUp(ctx: Ctx, obj: Entity): void {
+  if (obj.c.item?.carriedBy !== null) removeFromInventory(ctx, obj.id);
+  billUsedUp(ctx, obj); // obfree(): an unpaid object stays on the bill, used up
+  ctx.remove(obj.id);
+}
+
+/**
+ * Timer callback for a burning object. ref: src/timeout.c burn_object() POT_OIL,
+ * BRASS_LANTERN/OIL_LAMP, TALLOW_CANDLE/WAX_CANDLE
+ */
 function burnObject(ctx: Ctx, data: unknown): void {
   const { item, tok } = (data ?? {}) as { item?: number; tok?: number };
-  const obj = typeof item === 'number' ? ctx.state.entities[String(item)] : undefined;
+  if (typeof item !== 'number') return;
+  const obj = ctx.state.entities[String(item)];
   const it = obj?.c.item;
-  const d = burnData(ctx);
-  const rec = typeof item === 'number' ? d.burn?.[String(item)] : undefined;
-  if (!obj || !it || !it.lit || !rec || rec.tok !== tok) return; // stopped timer
-  delete d.burn?.[String(obj.id)];
-  if (d.burn && Object.keys(d.burn).length === 0) delete d.burn;
+  const rec = burnRec(ctx.state, item);
+  if (!rec || rec.tok !== tok) return; // stopped timer
+  setBurnRec(ctx, item, null);
+  if (!obj || !it || !it.lit) return; // used up meanwhile (obfree() stops its timer)
   const loc = objLocation(ctx.state, obj);
   const canseeit = loc !== null && !heroHas(ctx.state, P.BLINDED) && heroSees(ctx, loc);
   const w = where(ctx, obj);
-  const lantern = obj.def === LAMP.lantern;
-  const bytouch = w === 'invent' && !lantern;
+  // when carrying the light source, you can feel the heat from lit lamp or candle so you'll be
+  // notified when it burns out even if blind at the time; brass lantern doesn't radiate
+  // sufficient heat for that
+  const bytouch = w === 'invent' && obj.def !== BRASS_LANTERN;
   const name = xnameOf(ctx.state, ctx.defs, obj);
   const holder = (): Msg | string => {
     const mon = it.carriedBy === null ? undefined : ctx.state.entities[String(it.carriedBy)];
     return mon ? monNam(ctx, mon) : '';
   };
   const age = it.age ?? 0;
+  // obj->age is the age remaining at this point
+  if (obj.def === POT_OIL) {
+    // this should only be called when we run out
+    if (canseeit) {
+      if (w === 'invent' || w === 'minvent')
+        say(ctx, 'oil.burnt_away', { whose: shkYour(ctx, obj, true) });
+      else if (w === 'floor') say(ctx, 'oil.see_go_out');
+    }
+    endBurn(ctx, obj, false); // turn off light source
+    burnUp(ctx, obj);
+    return;
+  }
+  if (isCandle(obj.def)) {
+    burnCandle(ctx, obj, age, canseeit, bytouch, w);
+    return;
+  }
+  const lantern = obj.def === BRASS_LANTERN;
   switch (age) {
     case 150:
     case 100:
@@ -190,6 +217,58 @@ function burnObject(ctx: Ctx, data: unknown): void {
       endBurn(ctx, obj, false);
       break;
     default:
+      // someone added fuel to the lamp while it was lit: begin_burn() handles the new age
+      break;
+  }
+  if (it.age) {
+    delete it.lit; // begin_burn(obj, TRUE) relights it for the next stretch
+    beginBurn(ctx, obj, true);
+  }
+}
+
+/** The candle phases: 75 "getting short", 15 "flicker low", 0 consumed. ref: burn_object() */
+function burnCandle(
+  ctx: Ctx,
+  obj: Entity,
+  age: number,
+  canseeit: boolean,
+  bytouch: boolean,
+  w: ReturnType<typeof where>,
+): void {
+  const it = obj.c.item;
+  if (!it) return;
+  const many = it.quantity > 1;
+  const pl = many ? '_pl' : '';
+  const carried = w === 'invent' || w === 'minvent';
+  switch (age) {
+    case 75:
+      if (canseeit) {
+        if (carried) say(ctx, `candle.short${pl}`, { whose: shkYour(ctx, obj, true) });
+        else if (w === 'floor') say(ctx, `candle.see_short${pl}`);
+      }
+      break;
+    case 15:
+      if (canseeit) {
+        if (carried) say(ctx, `candle.flicker_low${pl}`, { whose: shkYour(ctx, obj, true) });
+        else if (w === 'floor') say(ctx, `candle.see_flicker_low${pl}`);
+      }
+      break;
+    case 0:
+      // we know even if blind and in our inventory
+      if (canseeit || bytouch) {
+        const name = xnameOf(ctx.state, ctx.defs, obj);
+        if (carried)
+          say(ctx, `candle.consumed${pl}`, { whose: shkYour(ctx, obj, true), item: name });
+        else if (w === 'floor') say(ctx, `candle.see_consumed${pl}`, { item: name });
+        // post message
+        if (heroHas(ctx.state, P.HALLUC)) say(ctx, `candle.shriek${pl}`);
+        else if (!heroHas(ctx.state, P.BLINDED)) say(ctx, `candle.flame_dies${pl}`);
+      }
+      endBurn(ctx, obj, false);
+      burnUp(ctx, obj);
+      return;
+    default:
+      // someone added fuel: begin_burn() handles the new age
       break;
   }
   if (it.age) {
@@ -207,51 +286,96 @@ function lanternMessage(ctx: Ctx, w: ReturnType<typeof where>, holder: () => Msg
   else if (w === 'minvent') say(ctx, 'lamp.mon_lantern_dim', { mon: holder() });
 }
 
-/**
- * A lit lamp goes out when it is put into a container or the like; true if it was lit.
- * ref: src/apply.c snuff_lit()
- */
-export function snuffLit(ctx: Ctx, obj: Entity): boolean {
-  if (!obj.c.item?.lit || !isLamp(obj.def)) return false;
+/** Seen: by the hero when a monster has it, else unless she is blind. */
+function snuffSeen(ctx: Ctx, obj: Entity): boolean {
   const it = obj.c.item;
-  const loc = objLocation(ctx.state, obj);
-  const seen =
-    it.carriedBy !== null && it.carriedBy !== ctx.state.playerId
-      ? loc !== null && heroSees(ctx, loc)
-      : !heroHas(ctx.state, P.BLINDED);
-  if (seen)
-    say(ctx, it.carriedBy === ctx.state.playerId ? 'lamp.your_goes_out' : 'lamp.the_goes_out', {
-      item: xnameOf(ctx.state, ctx.defs, obj),
-    });
+  if (it && it.carriedBy !== null && it.carriedBy !== ctx.state.playerId) {
+    const loc = objLocation(ctx.state, obj);
+    return loc !== null && heroSees(ctx, loc);
+  }
+  return !heroHas(ctx.state, P.BLINDED);
+}
+
+/**
+ * Lit candles go out when thrown, kicked or put away: "Your candle's flame is extinguished."
+ * True if they were lit. ref: src/apply.c snuff_candle()
+ */
+export function snuffCandle(ctx: Ctx, obj: Entity): boolean {
+  if (!isCandle(obj.def) || !obj.c.item?.lit) return false;
+  const many = obj.c.item.quantity > 1;
+  if (snuffSeen(ctx, obj))
+    say(ctx, `candle.extinguished${many ? '_pl' : ''}`, { whose: shkYour(ctx, obj, true) });
   endBurn(ctx, obj, true);
   return true;
 }
 
-/** Fire lights an oil lamp (not a lantern). ref: src/apply.c catch_lit() */
+/**
+ * A lit light goes out when it is hit by water or put into a container or the like; true if
+ * it was lit. ref: src/apply.c snuff_lit()
+ */
+export function snuffLit(ctx: Ctx, obj: Entity): boolean {
+  const it = obj.c.item;
+  if (!it?.lit) return false;
+  if (isLamp(obj.def) || obj.def === POT_OIL) {
+    if (snuffSeen(ctx, obj))
+      say(ctx, it.quantity > 1 ? 'lamp.go_out_pl' : 'lamp.goes_out', {
+        whose: shkYour(ctx, obj, true),
+        item: xnameOf(ctx.state, ctx.defs, obj),
+      });
+    endBurn(ctx, obj, true);
+    return true;
+  }
+  return snuffCandle(ctx, obj);
+}
+
+/**
+ * Fire lights an ignitable object (not a lantern, nor a magic lamp without its djinni, nor
+ * anything out of fuel); a cursed lamp fails half the time. Carried unpaid goods cost extra.
+ * ref: src/apply.c catch_lit()
+ */
 export function catchLit(ctx: Ctx, obj: Entity): boolean {
   const it = obj.c.item;
-  if (!it || it.lit || obj.def !== LAMP.oil) return false;
+  if (!it || it.lit || !ignitable(obj.def)) return false;
   const loc = objLocation(ctx.state, obj);
   if (!loc) return false;
-  // age_is_relative && age == 0: out of fuel
-  if ((it.age ?? 0) === 0) return false;
+  // spe==0 => no djinni inside; age_is_relative && age==0 && still-exists means out of fuel;
+  // lantern is classified as ignitable() but not by fire
+  if (
+    (obj.def === MAGIC_LAMP && it.spe === 0) ||
+    (obj.def !== MAGIC_LAMP && (it.age ?? 0) === 0) ||
+    obj.def === BRASS_LANTERN
+  )
+    return false;
   // once lit, cursed lamp is as good as non-cursed one, so failure to light is a minor
   // inconvenience to make cursed be worse
-  if (it.buc === 'cursed' && !ctx.rng.rn2(2)) return false;
+  if ((obj.def === OIL_LAMP || obj.def === MAGIC_LAMP) && it.buc === 'cursed' && !ctx.rng.rn2(2))
+    return false;
   const carried = it.carriedBy === ctx.state.playerId;
   if (carried || heroSees(ctx, loc)) {
     const blind = heroHas(ctx.state, P.BLINDED);
-    say(ctx, `lamp.${carried ? 'your' : 'the'}_${blind ? 'feels_warm' : 'catches'}`, {
+    say(ctx, `lamp.${blind ? 'feel_warm' : 'catch'}${it.quantity > 1 ? '_pl' : ''}`, {
+      whose: shkYour(ctx, obj, true),
       item: xnameOf(ctx.state, ctx.defs, obj),
     });
+  }
+  if (obj.def === POT_OIL) discover(ctx, POT_OIL);
+  const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
+  if (carried && it.unpaid && hp && costlySpot(ctx, hp.x, hp.y)) {
+    // if it catches while you have it, then it's your tough luck
+    checkUnpaid(ctx, obj);
+    say(ctx, `lamp.catch_cost${it.quantity === 1 ? '' : '_pl'}`, {
+      whose: shkYour(ctx, obj, false),
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+    billDummyObject(ctx, obj, false);
   }
   beginBurn(ctx, obj, false);
   return true;
 }
 
 /**
- * Fire lights the lamps carried by `carrier` (an entity id) or lying on a floor cell.
- * ref: src/trap.c ignite_items()
+ * Fire lights the ignitable objects carried by `carrier` (an entity id) or lying on a floor
+ * cell. ref: src/trap.c ignite_items()
  */
 export function igniteItems(
   ctx: Ctx,
@@ -264,55 +388,109 @@ export function igniteItems(
   for (const o of objs) if (!o.c.item?.lit) catchLit(ctx, o);
 }
 
-/** ref: src/apply.c use_lamp() for an oil lamp or brass lantern. */
+/** Applying candles: no candelabrum to attach them to. ref: src/apply.c use_candle() */
+export function useCandle(ctx: Ctx, obj: Entity): void {
+  if (uswallow(ctx)) {
+    say(ctx, 'apply.no_elbow_room');
+    return;
+  }
+  useLamp(ctx, obj);
+}
+
+/** Light (or put out) a lamp, lantern, magic lamp or candles. ref: src/apply.c use_lamp() */
 export function useLamp(ctx: Ctx, obj: Entity): void {
   const it = obj.c.item;
   if (!it) return;
-  const lamp = obj.def === LAMP.lantern ? 'lantern' : 'lamp';
+  const candle = isCandle(obj.def);
+  const lamp = obj.def === BRASS_LANTERN ? 'lantern' : candle ? null : 'lamp';
+  const many = it.quantity > 1;
   if (it.lit) {
-    say(ctx, `lamp.now_off.${lamp}`);
+    if (lamp) say(ctx, `lamp.now_off.${lamp}`);
+    else
+      say(ctx, 'candle.snuff_out', {
+        whose: shkYour(ctx, obj, false),
+        item: xnameOf(ctx.state, ctx.defs, obj),
+      });
     endBurn(ctx, obj, true);
     return;
   }
+  if (uinwater(ctx)) {
+    say(ctx, candle ? 'candle.fire_water' : 'lamp.not_diving');
+    return;
+  }
   const blind = heroHas(ctx.state, P.BLINDED);
-  if ((it.age ?? 0) === 0) {
-    if (obj.def === LAMP.lantern) say(ctx, blind ? 'apply.nothing_seems' : 'lamp.out_of_power');
+  // magic lamps with an spe == 0 (wished for) cannot be lit; the magic lamp's age is unused
+  if (
+    (!candle && obj.def !== MAGIC_LAMP && (it.age ?? 0) === 0) ||
+    (obj.def === MAGIC_LAMP && it.spe === 0)
+  ) {
+    if (obj.def === BRASS_LANTERN) say(ctx, blind ? 'apply.nothing_seems' : 'lamp.out_of_power');
     else say(ctx, 'lamp.no_oil', { item: xnameOf(ctx.state, ctx.defs, obj) });
     return;
   }
   if (it.buc === 'cursed' && !ctx.rng.rn2(2)) {
-    if (obj.def === LAMP.oil && !ctx.rng.rn2(3)) {
+    if ((obj.def === OIL_LAMP || obj.def === MAGIC_LAMP) && !ctx.rng.rn2(3)) {
       const gloves = inventoryOf(ctx.state, ctx.state.playerId).some(
         (o) => o.c.item?.equipped === 'gloves',
       );
       say(ctx, gloves ? 'lamp.spills_gloves' : 'lamp.spills_fingers');
       ctx.rng.d(2, 10); // make_glib((Glib & TIMEOUT) + d(2, 10)): no Glib yet
     } else if (!blind) {
-      say(ctx, 'lamp.flicker_die', { item: xnameOf(ctx.state, ctx.defs, obj) });
+      say(ctx, many ? 'lamp.flicker_die_pl' : 'lamp.flicker_die', {
+        item: xnameOf(ctx.state, ctx.defs, obj),
+      });
     } else say(ctx, 'apply.nothing_seems');
     return;
   }
-  checkUnpaid(ctx, obj); // ref: use_lamp(): check_unpaid(obj), a usage fee in a shop
-  say(ctx, `lamp.now_on.${lamp}`);
+  if (lamp) {
+    checkUnpaid(ctx, obj); // a usage fee in a shop
+    say(ctx, `lamp.now_on.${lamp}`);
+  } else {
+    // candle(s)
+    say(ctx, `candle.burn${blind ? '' : '_brightly'}${many ? '_pl' : ''}`, {
+      whose: shkYour(ctx, obj, true),
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+    const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
+    if (
+      it.unpaid &&
+      hp &&
+      costlySpot(ctx, hp.x, hp.y) &&
+      it.age === 20 * ctx.defs.object(obj.def).cost
+    ) {
+      say(ctx, many ? 'candle.burn_bought_pl' : 'candle.burn_bought');
+      billDummyObject(ctx, obj, false);
+    }
+  }
   beginBurn(ctx, obj, false);
 }
 
+/** The light radius of a lit object. ref: src/timeout.c begin_burn() `radius` */
+export function lightRadius(def: DefId, quantity: number): number {
+  if (isCandle(def)) return candleLightRange(quantity);
+  if (def === POT_OIL) return 1; // very dim light
+  return LAMP_RADIUS;
+}
+
 /**
- * Light sources: every lit lamp, at its own cell on the floor or at its carrier's.
+ * Light sources: every lit object, at its own cell on the floor or at its carrier's (none
+ * inside a container), with its radius: candles by their number, oil 1, lamps 3.
  * ref: src/light.c do_light_sources(), new_light_source() via begin_burn()
  */
-export function lampLights(state: Readonly<GameState>): LightSource[] {
+export function objLights(state: Readonly<GameState>): LightSource[] {
   const out: LightSource[] = [];
   for (const id of sortedIds(state)) {
     const e = state.entities[String(id)];
-    if (!e?.c.item?.lit) continue;
+    const it = e?.c.item;
+    if (!e || !it?.lit) continue;
     const loc = objLocation(state, e);
-    if (loc) out.push({ level: loc.level, x: loc.x, y: loc.y, radius: LAMP_RADIUS });
+    if (loc)
+      out.push({ level: loc.level, x: loc.x, y: loc.y, radius: lightRadius(e.def, it.quantity) });
   }
   return out;
 }
 
 export function registerLight(api: ModApi): void {
   api.defineTimer({ id: BURN_TIMER, fire: burnObject });
-  api.definePerception({ id: 'nh:lamps', lights: (state) => lampLights(state) });
+  api.definePerception({ id: 'nh:lamps', lights: (state) => objLights(state) });
 }
