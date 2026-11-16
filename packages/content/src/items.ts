@@ -595,7 +595,7 @@ export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
     }
     if (b.known.buc !== a.known.buc) {
       a.known.buc = true;
-      learned = true;
+      if (!roleIs(ctx.state, 'priest')) learned = true; // a Priest knew it already
     }
     if (rknown(ctx.state, obj.id) !== rknown(ctx.state, into.id) && a.erodeproof) {
       setRknown(ctx, into.id, true);
@@ -697,6 +697,17 @@ export function wornSaddle(state: Readonly<GameState>, monId: EntityId): Entity 
 /** Marks the saddle, carried by `monId`, as worn. ref: src/steed.c put_saddle_on_mon() */
 export function setWornSaddle(ctx: Pick<Ctx, 'state'>, itemId: EntityId, monId: EntityId): void {
   (nhData(ctx).saddled ??= {})[String(itemId)] = monId;
+}
+
+/**
+ * obj->bknown as the hero has it: a Priest knows the blessed/cursed state of every object she
+ * names or counts (xname() and count_buc() set bknown; coins excepted), so for her it is always
+ * known. ref: src/objnam.c xname() `if (Role_if(PM_CLERIC)) obj->bknown = 1`; src/invent.c
+ * count_buc()
+ */
+export function bknownOf(state: Readonly<GameState>, defs: Registry, item: Entity): boolean {
+  if (item.c.item?.known.buc) return true;
+  return roleIs(state, 'priest') && defs.object(item.def).class !== 'coin';
 }
 
 // ---------------------------------------------------------------------------------------------

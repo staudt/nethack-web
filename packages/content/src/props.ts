@@ -26,7 +26,7 @@ import {
 import { RACES_TAB, adjabilRace } from './racetab';
 import { ROLES_TAB } from './roletab';
 import { addWeaponSkill, loseWeaponSkill } from './skills';
-import { urace, urole } from './urole';
+import { roleIs, urace, urole } from './urole';
 
 /** Property names used by the vanilla mod (ref: include/prop.h enum prop_types). */
 export const P = {
@@ -86,12 +86,9 @@ export const P = {
   GLIB: 'glib',
 } as const;
 
-/**
- * BClairvoyant: a worn cornuthaum blocks clairvoyance for anyone but a Wizard (there are no
- * Wizards here). ref: src/worn.c w_blocks()
- */
+/** BClairvoyant: a worn cornuthaum blocks clairvoyance for anyone but a Wizard. ref: src/worn.c w_blocks() */
 export const clairvoyanceBlocked = (state: Readonly<GameState>): boolean =>
-  wornIn(state, state.playerId, 'helm')?.def === 'nh:cornuthaum';
+  wornIn(state, state.playerId, 'helm')?.def === 'nh:cornuthaum' && !roleIs(state, 'wizard');
 
 /** Clairvoyant: `(HClairvoyant || EClairvoyant) && !BClairvoyant`. ref: include/youprop.h */
 export const heroClairvoyant = (state: Readonly<GameState>): boolean =>

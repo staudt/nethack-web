@@ -60,6 +60,7 @@ import { stolenValue, subfrombill } from './shk';
 import { heroForm, heroFormId, ownHp, upolyd } from './upoly';
 import { newWere } from './were';
 import { isWere, ulycn, youUnwere } from './werestate';
+import { roleIs } from './urole';
 
 /** Who threw the potion. ref: include/hack.h POTHIT_HERO_THROW, _MONST_THROW, _OTHER_THROW */
 export type PotionHow = 'hero_thrown' | 'mon_thrown' | 'other';
@@ -480,7 +481,7 @@ export function potionbreathe(ctx: Ctx, obj: Entity): void {
       if (cureblind) makeBlinded(ctx, 0, !ucreamed(ctx.state)); // (never deaf)
       break;
     case POT.sickness: {
-      // (the hero is never a Healer)
+      if (roleIs(ctx.state, 'healer')) break;
       const hp = hero.c.hp; // Upolyd ? u.mh : u.uhp
       if (hp) hp.cur = hp.cur <= 5 ? 1 : hp.cur - 5;
       break;

@@ -43,6 +43,7 @@ import { backstabbable, checkCaitiff, cutwormAt, dbonU, dmgval, monsterIdAt } fr
 import { isAxe } from './mdig';
 import { encumberMsg } from './itemactions';
 import {
+  bknownOf,
   mksobj,
   placeObject,
   placeOnFloor,
@@ -874,7 +875,8 @@ const throwAction: ActionDef = {
     if (!e || !it || ctx.defs.object(e.def).class === 'coin' || !okToThrow(ctx, false)) return [];
     // worn armor cannot be thrown, nor a weapon known to be welded to the hand
     if (it.equipped !== null && it.equipped !== 'weapon') return [];
-    if (it.equipped === 'weapon' && it.buc === 'cursed' && it.known.buc) return [];
+    if (it.equipped === 'weapon' && it.buc === 'cursed' && bknownOf(ctx.state, ctx.defs, e))
+      return [];
     return [
       {
         action: { type: 'mod', action: THROW_ID, args: { item: e.id } },

@@ -50,7 +50,7 @@ export const endMessagesEn: Record<string, string> = {
   // ref: src/end.c done2()
   'action.nh:quit': 'Quit',
   'end.quit_confirm': 'Really quit without saving?',
-  'end.goodbye': 'Goodbye {name} the {role}...',
+  'end.goodbye': '{bye} {name} the {role}...',
   'end.died_in': 'You {ends} in {dungeon} on dungeon level {depth},',
   'end.escaped': 'You escaped from the dungeon,',
   'end.died_in_points': 'You {ends} in {dungeon} on dungeon level {depth} with {points} point{ps},',

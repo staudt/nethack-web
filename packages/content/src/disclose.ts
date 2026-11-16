@@ -9,7 +9,6 @@
 import {
   contents,
   getLevel,
-  getPlayer,
   inventoryOf,
   type Ctx,
   type Entity,
@@ -167,16 +166,7 @@ export function registerEnd(api: ModApi): void {
     field: 'endDungeon',
     value: (state, defs) => (state.gameOver ? defs.dungeon(getLevel(state).dungeon).nameKey : null),
   });
-  // "Goodbye <name> the <role>...": the role's name (the stone's name until the UI has one)
-  api.defineStatus({
-    id: 'nh:role',
-    field: 'role',
-    value(state, defs) {
-      if (!state.gameOver) return null;
-      const role = getPlayer(state).c.player?.role;
-      return role ? defs.role(role).nameKey : null;
-    },
-  });
+  // "Goodbye <name> the <role>...": botl.ts's `role` and `goodbye` statuses
   // ref: really_done(): the final `u.urexp` ("with N points")
   api.defineStatus({
     id: 'nh:score',

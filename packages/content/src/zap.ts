@@ -175,6 +175,8 @@ import {
   unmapInvisible,
 } from './invis';
 import { undestroyableTrap } from './invocation';
+import { roleIs } from './urole';
+import { gainExperience } from './hero';
 
 export const ZAP_ID: DefId = 'nh:zap';
 
@@ -826,6 +828,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       wake = false; // wakeup() makes the target angry
       // healmon(mtmp, healamt, 0)
       const hp = mon.c.hp;
+      const delta = hp ? hp.max - hp.cur : 0;
       if (hp) hp.cur = hp.cur + healamt > hp.max ? hp.max : hp.cur + healamt;
       // plain healing must be blessed to cure blindness, extra healing always cures it: no
       // monster blindness yet
@@ -834,7 +837,12 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
           mon: monNam(ctx, mon),
         });
       const m = mon.c.monster;
-      if ((m?.tame ?? 0) > 0 || m?.peaceful) adjalign(ctx, Math.sign(uState(ctx.state).alignType));
+      const healer = roleIs(ctx.state, 'healer');
+      // a Healer learns from healing her pet: experience for the hit points restored
+      if ((m?.tame ?? 0) > 0 && healer && delta > 0)
+        gainExperience(ctx, ctx.state.playerId, Math.min(delta, healamt));
+      if ((m?.tame ?? 0) > 0 || m?.peaceful)
+        adjalign(ctx, healer ? 1 : Math.sign(uState(ctx.state).alignType));
       break;
     }
     case WAN.makeInvisible: {
@@ -1159,6 +1167,7 @@ export function bhito(
       }
       if (obj.def !== CORPSE) break;
       const corpsname = cxnameSingular(ctx, obj);
+      const corpsenm = obj.c.item?.corpseOf;
       // get corpse's location before revive() uses it up
       const r = revive(ctx, obj, byHero);
       if (!r) break; // no monster implies corpse was left intact
@@ -1175,7 +1184,17 @@ export function bhito(
           say(ctx, 'zap.corpse_disappears', { corpse: corpsname });
         }
       } else {
-        // couldn't see corpse's location (no Healer to hear it revive)
+        // couldn't see corpse's location: a Healer hears it (no deafness)
+        if (
+          roleIs(ctx.state, 'healer') &&
+          corpsenm !== undefined &&
+          ctx.defs.isMonster(corpsenm) &&
+          !nonliving(ctx.defs.monster(corpsenm))
+        ) {
+          if (!hasProp(hero(ctx), P.HALLUC)) say(ctx, 'zap.hear_reviving', { corpse: corpsname });
+          else say(ctx, 'zap.hear_defibrillator');
+          learnIt = true;
+        }
         if (canSpotMon(ctx, r.mon)) say(ctx, 'zap.mon_appears', { mon: monNam(ctx, r.mon) });
       }
       break;

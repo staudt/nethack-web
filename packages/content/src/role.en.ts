@@ -41,6 +41,27 @@ const GODS: readonly (readonly [string, string])[] = [
   ['moloch', 'Moloch'],
 ];
 
+/**
+ * A Samurai's names for things: [object id, name, plural, the English name shown in brackets in
+ * the discoveries list]. ref: src/objnam.c Japanese_items[] (plurals by makeplural(): "shito"
+ * and "gunyoki" are as_is[]); src/o_init.c disco_typename()
+ */
+const JAPANESE: readonly (readonly [string, string, string, string])[] = [
+  ['nh:short_sword', 'wakizashi', 'wakizashis', 'short sword'],
+  ['nh:broadsword', 'ninja-to', 'ninja-tos', 'broadsword'],
+  ['nh:flail', 'nunchaku', 'nunchakus', 'flail'],
+  ['nh:glaive', 'naginata', 'naginatas', 'glaive'],
+  ['nh:lock_pick', 'osaku', 'osakus', 'lock pick'],
+  ['nh:wooden_harp', 'koto', 'kotos', 'wooden harp'],
+  ['nh:magic_harp', 'magic koto', 'magic kotos', 'magic harp'],
+  ['nh:knife', 'shito', 'shito', 'knife'],
+  ['nh:plate_mail', 'tanko', 'tankos', 'plate mail'],
+  ['nh:helmet', 'kabuto', 'kabutos', 'helmet'],
+  ['nh:leather_gloves', 'pair of yugake', 'pairs of yugake', 'leather gloves'],
+  ['nh:food_ration', 'gunyoki', 'gunyoki', 'food ration'],
+  ['nh:potion_of_booze', 'potion of sake', 'potions of sake', 'booze'],
+];
+
 export const roleMessagesEn: Record<string, string> = {
   // role names (`.f`: the female name). ref: src/role.c roles[].name
   'role.archeologist': 'Archeologist',
@@ -209,6 +230,31 @@ export const roleMessagesEn: Record<string, string> = {
       [`priest.of.${k}`, `priest of ${name}`],
     ]),
   ),
+
+  // a Samurai's Japanese names, and a harp's description ("koto")
+  ...Object.fromEntries(
+    JAPANESE.flatMap(([id, j, pl, real]) => [
+      [`${id}.j`, j],
+      [`${id}.j.plural`, pl],
+      [`${id}.j.real`, real],
+    ]),
+  ),
+  'nh:harp.desc.j': 'koto',
+  'nh:harp.desc.j.plural': 'kotos',
+  'disco.entry.j': '  {name} [{real}] ({desc})',
+  'disco.entry.j_bare': '  {name} [{real}]',
+
+  // greetings and farewells by role. ref: src/role.c Hello(), Goodbye()
+  'goodbye.default': 'Goodbye',
+  'goodbye.knight': 'Fare thee well',
+  'goodbye.samurai': 'Sayonara',
+  'goodbye.tourist': 'Aloha',
+  'goodbye.valkyrie': 'Farvel',
+
+  // the alignment word on the status line. ref: src/botl.c do_statusline1()
+  'status.align.lawful': 'Lawful',
+  'status.align.neutral': 'Neutral',
+  'status.align.chaotic': 'Chaotic',
 
   // races: noun and adjective. ref: src/role.c races[].noun, .adj
   'race.human': 'human',

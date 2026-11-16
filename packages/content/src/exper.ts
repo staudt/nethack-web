@@ -8,6 +8,7 @@ import { adjabil } from './props';
 import { pwOf, setPw } from './uenergy';
 import { heroForm, monhpPerLvl, ownHp, rehumanize, upolyd } from './upoly';
 import { ulycn } from './werestate';
+import { goodbyeKey } from './botl';
 
 /** The `drainer` of wizard mode's #levelchange: never fatal, not resisted. */
 export const LEVELCHANGE = '#levelchange';
@@ -50,7 +51,11 @@ export function losexp(ctx: Ctx, drainer: string | null): void {
   if (!xp || !hp) return;
   // "Goodbye level 1." is fatal; divine anger (no drainer) at level 1 says nothing
   if (xp.level > 1 || drainer)
-    ctx.emit({ type: 'msg', key: 'exp.goodbye', params: { level: xp.level } });
+    ctx.emit({
+      type: 'msg',
+      key: 'exp.goodbye',
+      params: { bye: `@${goodbyeKey(ctx.state)}`, level: xp.level },
+    });
   const levelBefore = xp.level;
   if (xp.level > 1) {
     // a lost level is remembered so it can be welcomed back (u.ulevelmax)

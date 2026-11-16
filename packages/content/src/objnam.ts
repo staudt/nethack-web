@@ -11,8 +11,10 @@ import type {
   Params,
   Registry,
 } from '@nh/core';
-import { contents, getPlayer } from '@nh/core';
-import { isCandle, objKnown, rknown } from './items';
+import { contents } from '@nh/core';
+import { bknownOf, isCandle, objKnown, rknown } from './items';
+import { roleIs } from './urole';
+import { JAPANESE_ITEMS } from './kittab';
 import { burnRec } from './burnstate';
 import { EGG, knowsEgg } from './eggstate';
 import {
@@ -80,9 +82,28 @@ function tinName(state: Readonly<GameState>, defs: Registry, item: Entity, plura
   return { key: `nh:tin.of${plural}`, params: { what } };
 }
 
+/**
+ * The type's real name key: a Samurai calls some things by their Japanese names ("wakizashi",
+ * "gunyoki"; `<nameKey>.j`). ref: src/objnam.c xname(), obj_typename() Japanese_item_name()
+ */
+export function actualNameKey(state: Readonly<GameState>, def: ObjectDef): string {
+  return roleIs(state, 'samurai') && JAPANESE_ITEMS.includes(def.id)
+    ? `${def.nameKey}.j`
+    : def.nameKey;
+}
+
+/** The type's description key; a Samurai sees a harp as a "koto". ref: xname() `dn = "koto"` */
+export function descNameKey(state: Readonly<GameState>, def: ObjectDef): string | undefined {
+  return roleIs(state, 'samurai') && (def.id === 'nh:wooden_harp' || def.id === 'nh:magic_harp')
+    ? 'nh:harp.desc.j'
+    : def.descKey;
+}
+
 function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item: Entity): Msg {
   const it = item.c.item;
   const plural = it !== undefined && it.quantity !== 1 ? '.plural' : '';
+  const actualn = actualNameKey(state, def);
+  const dn = descNameKey(state, def) ?? actualn;
   if (def.id === 'nh:corpse' && it?.corpseOf) {
     return { key: `${def.nameKey}${plural}`, params: { mon: `@${it.corpseOf}` } };
   }
@@ -92,7 +113,7 @@ function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, i
     const m = defs.isMonster(it.corpseOf) ? defs.monster(it.corpseOf) : null;
     const pname = m?.flags.includes('pname') === true;
     const uniq = !pname && m?.genFlags.includes('uniq') === true;
-    const hist = getPlayer(state).def === 'nh:archeologist' && isHistoric(state, item.id);
+    const hist = roleIs(state, 'archeologist') && isHistoric(state, item.id);
     return {
       key: `nh:statue.of${uniq ? '.the' : ''}${plural}`,
       params: {
@@ -113,10 +134,10 @@ function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, i
   }
   if (isKnown(state, defs, def)) {
     // ref: objnam.c xname() POTION_CLASS: holy/unholy water when the BUC is known
-    if (def.id === 'nh:potion_of_water' && it?.known.buc && it.buc !== 'uncursed') {
-      return { key: `obj.${it.buc === 'blessed' ? 'holy' : 'unholy'}_water${plural}` };
+    if (def.id === 'nh:potion_of_water' && bknownOf(state, defs, item) && it?.buc !== 'uncursed') {
+      return { key: `obj.${it?.buc === 'blessed' ? 'holy' : 'unholy'}_water${plural}` };
     }
-    return { key: `${def.nameKey}${plural}` };
+    return { key: `${actualn}${plural}` };
   }
   const un = calledName(state, def);
   if (un !== null) {
@@ -134,12 +155,12 @@ function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, i
           ? { key: `obj.generic.${def.material === 'mineral' ? 'stone' : 'gem'}${plural}` }
           : def.class === 'armor' && def.armor
             ? { key: `kind.${ARMOR_SIMPLE[def.armor.slot]}` }
-            : { key: `${def.descKey ?? def.nameKey}${plural}` };
+            : { key: `${dn}${plural}` };
     return { key: 'obj.called', params: { pre, name: un } };
   }
   const app = state.appearances[def.id];
   const base = app !== undefined && defs.isAppearance(app) ? defs.appearance(app).nameKey : null;
-  return { key: `${base ?? def.descKey ?? def.nameKey}${plural}` };
+  return { key: `${base ?? dn}${plural}` };
 }
 
 const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
@@ -183,8 +204,8 @@ export function xnameOf(state: Readonly<GameState>, defs: Registry, item: Entity
  * `{count}{buc}{eaten}{erosion}{spe}{name}{charges}{worn}`. Each piece is '' or carries its own spacing
  * (count and prefixes end with a space, suffixes start with one). The name has no article; the
  * UI adds it with the `{item|an}` modifier, which must not add one when the text starts with a
- * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, the hero
- * not a Cleric, no poison/grease/prices, and `dknown` always true.
+ * digit (a counted stack). ref: src/objnam.c doname_base(), with implicit_uncursed on, no
+ * poison/grease/prices, and `dknown` always true.
  */
 export function doname(
   state: Readonly<GameState>,
@@ -210,12 +231,11 @@ export function doname(
   params.name = xname(state, defs, def, item);
   if (it.quantity !== 1) params.count = { key: 'obj.count', params: { n: it.quantity } };
 
+  // A Priest sees the BUC of everything (bknownOf()).
+  const bknown = bknownOf(state, defs, item);
   // Known holy/unholy water says so in its name instead of a BUC prefix.
   const holyWater =
-    def.id === 'nh:potion_of_water' &&
-    isKnown(state, defs, def) &&
-    it.known.buc &&
-    it.buc !== 'uncursed';
+    def.id === 'nh:potion_of_water' && isKnown(state, defs, def) && bknown && it.buc !== 'uncursed';
   // With implicit_uncursed, "uncursed" is printed unless the item is charged and fully known;
   // only rings are oc_charged here, and rings always print it. The imitation Amulet never says
   // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()). The Book
@@ -223,10 +243,12 @@ export function doname(
   const fake = def.id === FAKE_AMULET;
   if ((fake && !it.known.spe) || def.id === 'nh:book_of_the_dead') params.count = 'the ';
   // A wand or a charged tool is oc_charged: once its charges are known, "uncursed" is implied.
+  // For a Priest "uncursed" is always implied (`&& !Role_if(PM_CLERIC)`).
   const charged = def.class === 'wand' || CHARGED_TOOLS.has(def.id);
-  const impliedUncursed = charged && it.known.spe && it.buc === 'uncursed';
+  const impliedUncursed =
+    ((charged && it.known.spe) || roleIs(state, 'priest')) && it.buc === 'uncursed';
   if (
-    it.known.buc &&
+    bknown &&
     def.class !== 'coin' &&
     !holyWater &&
     !(fake && it.buc === 'uncursed') &&

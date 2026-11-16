@@ -1,9 +1,17 @@
 // Hero stats by role and race (roletab.ts, racetab.ts): initial attributes/HP/Pw/kit, HP and Pw
 // regeneration and experience. A new game is still the human female neutral Valkyrie (urole.ts).
-import type { AttributesComponent, Ctx, Entity, EntityId, ModApi, MonsterDef } from '@nh/core';
+import type {
+  AttributesComponent,
+  Ctx,
+  Entity,
+  EntityId,
+  GameState,
+  ModApi,
+  MonsterDef,
+} from '@nh/core';
 import { RACES_TAB, type RaceRow } from './racetab';
 import { ROLES_TAB, enermod, type RoleRow } from './roletab';
-import { type RaceKey, type RoleKey, urace, urole } from './urole';
+import { type RaceKey, type RoleKey, roleIs, urace, urole } from './urole';
 import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
 import { nearCapacity } from './stats';
@@ -483,4 +491,28 @@ export function registerHero(api: ModApi): void {
   // the bottom line's `Pw:2(2)`; ref: src/botl.c bot2() (BL_ENE, BL_ENEMAX)
   api.defineStatus({ id: 'nh:pw', field: 'pw', value: (state) => pwOf(state).uen });
   api.defineStatus({ id: 'nh:pwmax', field: 'pwmax', value: (state) => pwOf(state).uenmax });
+  // A Tourist gains experience for each new level she enters (level_difficulty() points); the
+  // level is made in `newLevel` right before she arrives (`tourNewLevel` marks it).
+  // ref: src/do.c goto_level() `if (new) ... Role_if(PM_TOURIST)`
+  api.on('newLevel', (ctx, level) => {
+    if (roleIs(ctx.state, 'tourist')) nhRecord(ctx.state)['tourNewLevel'] = level.id;
+  });
+  api.on('levelChange', (ctx, change) => {
+    const nh = nhRecord(ctx.state);
+    if (nh['tourNewLevel'] === undefined) return;
+    const fresh = nh['tourNewLevel'] === change.to && change.from !== null;
+    delete nh['tourNewLevel'];
+    if (fresh && roleIs(ctx.state, 'tourist'))
+      gainExperience(ctx, ctx.state.playerId, ctx.state.levels[change.to]?.depth ?? 1);
+  });
+}
+
+/** `modData.nh` as a record (made when missing). */
+function nhRecord(state: GameState): Record<string, unknown> {
+  let nh = state.modData['nh'];
+  if (nh === null || typeof nh !== 'object' || Array.isArray(nh)) {
+    nh = {};
+    state.modData['nh'] = nh;
+  }
+  return nh as Record<string, unknown>;
 }

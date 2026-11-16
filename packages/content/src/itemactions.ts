@@ -35,6 +35,7 @@ import {
 } from '@nh/core';
 import { SCR_SCARE_MONSTER } from './scary';
 import {
+  bknownOf,
   NOINVSYM,
   addToInventory,
   invCount,
@@ -70,7 +71,9 @@ import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
 import { fingersOrGloves, glovesSimpleName, isGlib } from './glib';
-import { xnameOf } from './objnam';
+import { actualNameKey, descNameKey, xnameOf } from './objnam';
+import { JAPANESE_ITEMS } from './kittab';
+import { roleIs } from './urole';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 import { HERE } from './priority';
 import { BOULDER } from './boulder';
@@ -1285,7 +1288,7 @@ const unwieldAction: ActionDef = {
     const e = heroItem(ctx, target.id);
     const it = e?.c.item;
     if (!e || !it || it.equipped !== 'weapon' || formCantWield(ctx)) return [];
-    return it.known.buc && it.buc === 'cursed'
+    return bknownOf(ctx.state, ctx.defs, e) && it.buc === 'cursed'
       ? []
       : [itemOffer('nh:unwield', e.id, 'action.nh:wield_nothing', null)];
   },
@@ -1562,21 +1565,33 @@ const discoveries: ActionDef = {
   // Listed in object-list order, not discovery order.
   perform(ctx) {
     const items: Msg[] = [];
+    const samurai = roleIs(ctx.state, 'samurai');
     for (const cls of DISCO_ORDER) {
       let head = false;
       for (const def of ctx.defs.objects) {
-        if (def.class !== cls || !ctx.state.discovered.includes(def.id)) continue;
+        if (def.class !== cls) continue;
+        // a Samurai always has her Japanese-named types listed, with the English name in
+        // brackets (u_init's knows_object() put them in disco[], all but the magic koto);
+        // ref: src/o_init.c interesting_to_discover(), disco_typename()
+        const japanese = samurai && JAPANESE_ITEMS.includes(def.id);
         const app = ctx.state.appearances[def.id];
-        const desc = app !== undefined ? ctx.defs.appearance(app).nameKey : def.descKey;
-        if (desc === undefined) continue; // interesting_to_discover(): needs a description
+        const desc =
+          app !== undefined ? ctx.defs.appearance(app).nameKey : descNameKey(ctx.state, def);
+        const listed = ctx.state.discovered.includes(def.id) && desc !== undefined;
+        if (!listed && !(japanese && !def.magic)) continue;
         if (!head) {
           items.push({ key: `disco.class.${cls}` });
           head = true;
         }
-        items.push({
-          key: 'disco.entry',
-          params: { name: { key: def.nameKey }, desc: { key: desc } },
-        });
+        const name = { key: actualNameKey(ctx.state, def) };
+        items.push(
+          !japanese
+            ? { key: 'disco.entry', params: { name, desc: { key: desc ?? def.nameKey } } }
+            : {
+                key: desc === undefined ? 'disco.entry.j_bare' : 'disco.entry.j',
+                params: { name, real: { key: `${def.nameKey}.j.real` }, desc: { key: desc ?? '' } },
+              },
+        );
       }
     }
     if (items.length === 0) ctx.emit({ type: 'msg', key: 'disco.none' });

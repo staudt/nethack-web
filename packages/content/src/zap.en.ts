@@ -26,6 +26,8 @@ export const zapMessagesEn: Record<string, string> = {
   'zap.resurrected': '{mon|The} is resurrected!',
   'zap.resurrected_tame': 'Your {mon} is resurrected!',
   'zap.corpse_disappears': '{corpse|The} disappears.',
+  'zap.hear_reviving': 'You hear {corpse|an} reviving.',
+  'zap.hear_defibrillator': 'You hear a defibrillator.',
   'zap.mon_appears': '{mon|The} appears.',
   'zap.unturn.comes_alive': '{owner} {corpse} suddenly comes alive!',
   'zap.unturn.reanimates': '{owner} {corpse} suddenly reanimates!',

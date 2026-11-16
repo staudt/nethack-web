@@ -59,6 +59,7 @@ import { findAc } from './stats';
 import { T } from './terrain';
 import { pwOf, setPw, setUspell, uspellOf } from './uenergy';
 import { ZAP_DIRECTIONS, weffectsFrom, zapDirOf, zapyourself, type ZapDir } from './zap';
+import { roleIs } from './urole';
 
 export const CAST_ID: DefId = 'nh:cast';
 
@@ -114,7 +115,8 @@ export const CAST_BOOKS: readonly DefId[] = Object.freeze([
 const isCastBook = (book: DefId): boolean => CAST_BOOKS.includes(book);
 
 /** Skilled or better in the book's school: the pseudo object is blessed. */
-const skilled = (ctx: Ctx, book: DefId): boolean => skillLevel(ctx, spellSkill(book)) >= P_SKILLED;
+const skilled = (ctx: Ctx, book: DefId): boolean =>
+  skillLevel(ctx, spellSkill(book, ctx.state)) >= P_SKILLED;
 
 /**
  * The effect of each spell (the switch of spelleffects()): a function, 'direction' for the
@@ -263,8 +265,7 @@ const spellLevel = (ctx: Pick<Ctx, 'defs'>, book: DefId): number =>
 /**
  * The checks before a cast, with their costs. Returns the energy used when the cast stops here
  * (0: no time passes), or null when the spell goes off. ref: src/spell.c spelleffects_check().
- * No Amulet of Yendor exists, so its drain never happens; only a Wizard's Intelligence lowers
- * the hunger cost, and the hero is a Valkyrie.
+ * No Amulet of Yendor exists, so its drain never happens.
  */
 function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
   if (rejectcasting(ctx)) return 0;
@@ -312,8 +313,13 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
     return 0;
   }
   if (book !== 'nh:spellbook_of_detect_food') {
-    // don't put her (quite) into fainting from casting a spell
     let hungr = energy * 2;
+    // a Wizard's Intelligence lowers the hunger: none at 17 and up, 1/4 at 16, 1/2 at 15
+    const intell = roleIs(ctx.state, 'wizard') ? (h.c.attributes?.int ?? 10) : 10;
+    if (intell >= 17) hungr = 0;
+    else if (intell === 16) hungr = Math.trunc(hungr / 4);
+    else if (intell === 15) hungr = Math.trunc(hungr / 2);
+    // don't put her (quite) into fainting from casting a spell
     if (hungr > uhunger - 3) hungr = uhunger - 3;
     morehungry(ctx, hungr);
   }
@@ -361,17 +367,17 @@ export function spelleffects(ctx: Ctx, book: DefId, force: boolean): number {
   if (effect === 'jump') {
     // ref: spelleffects() SPE_JUMPING: jump(max(role_skill, 1)), "Nothing happens." when she
     // did not jump; the position prompt's answer (jump.ts) finishes the cast
-    const used = jump(ctx, Math.max(skillLevel(ctx, spellSkill(book)), 1), { force });
+    const used = jump(ctx, Math.max(skillLevel(ctx, spellSkill(book, ctx.state)), 1), { force });
     return used === null ? 0 : jumpSpellDone(ctx, used, force);
   }
   if (effect === 'throw') {
     if (throwspell(ctx, book, force)) return 0; // the position prompt finishes the cast
-    if (!force) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+    if (!force) useSkill(ctx, spellSkill(book, ctx.state), spellLevel(ctx, book));
     return NORMAL_SPEED;
   }
   effect(ctx);
   // gain skill for successful cast
-  if (!force) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+  if (!force) useSkill(ctx, spellSkill(book, ctx.state), spellLevel(ctx, book));
   // an identify menu is waiting: the move is spent when it is answered (nh:read)
   return ctx.state.pendingPrompt ? 0 : NORMAL_SPEED;
 }
@@ -505,7 +511,8 @@ function castThrown(ctx: Ctx, value: Json, ct: CastThrow): number {
     }
   }
   // gain skill for successful cast
-  if (!ct.force && !ctx.state.gameOver) useSkill(ctx, spellSkill(book), spellLevel(ctx, book));
+  if (!ct.force && !ctx.state.gameOver)
+    useSkill(ctx, spellSkill(book, ctx.state), spellLevel(ctx, book));
   return NORMAL_SPEED;
 }
 
@@ -537,7 +544,7 @@ function castAtDirection(ctx: Ctx, value: Json, cd: CastDirection): number {
   weffectsFrom(ctx, { kind: 'spell', otyp: cd.book, blessed: cd.blessed }, dir);
   // gain skill for successful cast
   if (!cd.force && !ctx.state.gameOver)
-    useSkill(ctx, spellSkill(cd.book), spellLevel(ctx, cd.book));
+    useSkill(ctx, spellSkill(cd.book, ctx.state), spellLevel(ctx, cd.book));
   return NORMAL_SPEED;
 }
 
@@ -620,7 +627,8 @@ export function castProtection(ctx: Ctx): void {
     if (us.uspellprot) say(ctx, 'cast.haze_denser', { color });
     else say(ctx, 'cast.haze_begin', { atmosphere: { key: atmosphere(ctx) }, color });
   }
-  const uspmtime = skillLevel(ctx, spellSkill('nh:spellbook_of_protection')) === P_EXPERT ? 20 : 10;
+  const uspmtime =
+    skillLevel(ctx, spellSkill('nh:spellbook_of_protection', ctx.state)) === P_EXPERT ? 20 : 10;
   setUspell(ctx, {
     uspellprot: us.uspellprot + gain,
     uspmtime,

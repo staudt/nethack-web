@@ -116,7 +116,11 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
   const pts = points === null ? {} : { points, ps: plur(points) };
   const sfx = points === null ? '' : '_points';
   return [
-    d.t('end.goodbye', { name, role }),
+    d.t('end.goodbye', {
+      bye: d.t(typeof s['goodbye'] === 'string' ? s['goodbye'] : 'goodbye.default'),
+      name,
+      role,
+    }),
     how === 'escaped'
       ? d.t(`end.escaped${sfx}`, pts)
       : // a single-level branch (Fort Ludios: its `place`) names no dungeon level

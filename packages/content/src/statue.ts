@@ -46,10 +46,8 @@ import { mpickobj } from './steal';
 import { STATUE, isHistoric, pruneHistoric, setHistoric } from './statuestate';
 import { TRAP, cansee, setTrapEffect } from './trap';
 import { stopOccupation } from './eat';
+import { roleIs } from './urole';
 import type { Entity, ModApi } from '@nh/core';
-
-/** ref: include/monsters.h PM_ARCHEOLOGIST (no such role yet) */
-const ARCHEOLOGIST: DefId = 'nh:archeologist';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -96,7 +94,7 @@ export function breakStatue(ctx: Ctx, obj: Entity, byYou = true): boolean {
     delete it.containedIn;
     placeObject(ctx, item.id, p.level, p.x, p.y);
   }
-  if (byYou && getPlayer(ctx.state).def === ARCHEOLOGIST && isHistoric(ctx.state, obj.id)) {
+  if (byYou && roleIs(ctx.state, 'archeologist') && isHistoric(ctx.state, obj.id)) {
     ctx.emit({ type: 'msg', key: 'statue.historic_guilt' });
     adjalign(ctx, -1);
   }
@@ -189,7 +187,7 @@ export function animateStatue(
   const montype = sit?.corpseOf;
   if (!sit || !montype || !ctx.defs.isMonster(montype)) return { mon: null, fail: 'nomon' };
   const hero = getPlayer(ctx.state);
-  const historic = hero.def === ARCHEOLOGIST && isHistoric(ctx.state, statue.id);
+  const historic = roleIs(ctx.state, 'archeologist') && isHistoric(ctx.state, statue.id);
   let mptr = ctx.defs.monster(montype);
   // cant_revive(): some monsters become human zombies, unique ones doppelgangers (none here)
   if (ZOMBIFIED.includes(montype) && ctx.defs.isMonster('nh:human_zombie'))

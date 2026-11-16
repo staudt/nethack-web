@@ -39,7 +39,8 @@ import { hungerData, lesshungry, makeVomiting } from './hunger';
 import { dropx, invOption, wieldTool } from './itemactions';
 import { mksobj, placeObject, splitStack, stackobj } from './items';
 import { fingersOrGloves, glibTimeout, isGlib, makeGlib } from './glib';
-import { cantwield } from './mondata';
+import { cantwield, vegetarian } from './mondata';
+import { violatedVegetarian } from './luck';
 import { doname, xnameOf } from './objnam';
 import { rndmonnam } from './perception';
 import { P, hasProp, wornIn } from './props';
@@ -274,6 +275,7 @@ function eatTin(ctx: Ctx, tin0: Entity, r: number, alwaysEat: boolean): void {
       variety: { key: variety?.txtKey ?? 'tin.variety.0' },
       mon: `@${mnum}`,
     });
+    if (!vegetarian(mon)) violatedVegetarian(ctx); // eating_conducts()
     it.known.spe = true;
     // charge for one at pre-eating cost
     tin = costlyTin(ctx, tin, 'open');

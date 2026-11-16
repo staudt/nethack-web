@@ -105,7 +105,8 @@ import { wereChange } from './were';
 import { heroForm, heroFormId, rehumanize } from './upoly';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { golemeffects } from './golemfx';
-import { hasHead, noncorporeal, nonliving, sticks } from './mondata';
+import { hasHead, noncorporeal, nonliving, sticks, vegetarian } from './mondata';
+import { violatedVegetarian } from './luck';
 import { engulfingU, flaming, uswallow } from './engulfstate';
 import { isSlimed, makeSlimed, munslime, slimeproof } from './slimestate';
 import {
@@ -2080,6 +2081,7 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
 
   let giveNutrit = false;
   if (isU(ctx, magr)) {
+    if (pd && !vegetarian(pd)) violatedVegetarian(ctx); // eating_conducts()
     if (pd?.flags.includes('mindless')) {
       say(ctx, 'drin.doesnt_notice', { mon: monNam(ctx, mdef) });
       return M_ATTK.MISS; // all done; no extra harm inflicted upon target

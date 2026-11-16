@@ -522,7 +522,7 @@ export function spellRetention(ctx: Pick<Ctx, 'state'>, s: KnownSpell): Msg {
   const turnsleft = s.retention;
   if (turnsleft < 1) return { key: 'spell.gone' };
   if (turnsleft >= KEEN) return { key: 'spell.percent', params: { n: 100 } };
-  const skill = Math.max(skillLevel(ctx, spellSkill(s.id)), P_UNSKILLED);
+  const skill = Math.max(skillLevel(ctx, spellSkill(s.id, ctx.state)), P_UNSKILLED);
   let percent = Math.trunc((turnsleft - 1) / (KEEN / 100)) + 1;
   const accuracy = skill === P_EXPERT ? 2 : skill === P_SKILLED ? 5 : skill === P_BASIC ? 10 : 25;
   percent = accuracy * (Math.trunc((percent - 1) / accuracy) + 1);
@@ -540,7 +540,7 @@ export function spellEntry(ctx: Ctx, s: KnownSpell, i: number): Msg {
       letter: spellet(i),
       spell: spellName(s.id),
       level: levelOf(ctx.defs.object(s.id)),
-      school: { key: spellSchoolKey(s.id) },
+      school: { key: spellSchoolKey(s.id, ctx.state) },
       fail: 100 - percentSuccess(ctx.state, ctx.defs, s.id),
       retention: spellRetention(ctx, s),
     },

@@ -68,6 +68,8 @@ export const eatMessagesEn: Record<string, string> = {
   'eat.hard_time': "You're having a hard time getting all of it down.",
   'eat.finally_finished': "You're finally finished.",
   'eat.stuff': 'You stuff yourself and then vomit voluminously.',
+  'eat.glutton': 'You feel like a glutton!',
+  'eat.guilty': 'You feel guilty.',
   'eat.choke_over': 'You choke over your {item}.',
   'eat.choke_over_it': 'You choke over it.',
   'eat.can_move_again': 'You can move again.',

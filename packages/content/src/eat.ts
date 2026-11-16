@@ -51,7 +51,7 @@ import {
   setIntrinsic,
   timeoutLeft,
 } from './props';
-import { changeLuck } from './luck';
+import { adjalign, changeLuck, uState, violatedVegetarian } from './luck';
 import { addToInventory, bcsign, nhData, placeOnFloor, splitStack } from './items';
 import { outrumorCookie } from './rumors';
 import { encumberMsg } from './itemactions';
@@ -61,7 +61,8 @@ import { monflee } from './monflee';
 import { onscary } from './scary';
 import { isWere, ulycn, wereBeastie, youUnwere } from './werestate';
 import { cannibalAllowed, polydRace, sameRace, yourRace } from './race';
-import { raceIs } from './urole';
+import { raceIs, roleIs } from './urole';
+import { A_LAWFUL } from './aligntyp';
 import { heroForm, polymonLate, rehumanize, uPolyStoneGolem, upolyOf } from './upoly';
 import { adjattrib } from './attrstate';
 import { healLegs } from './legs';
@@ -267,6 +268,10 @@ export function isEdible(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): boolean
 function choke(ctx: Ctx, food: Entity | null): void {
   const h = hero(ctx);
   if (h.c.hunger?.state !== 'satiated') return;
+  if (roleIs(ctx.state, 'knight') && uState(ctx.state).alignType === A_LAWFUL) {
+    adjalign(ctx, -1); // gluttony is unchivalrous
+    say(ctx, 'eat.glutton');
+  }
   // Breathless: the amulet of magical breathing (no breathless forms)
   const hunger = hasProp(h, P.HUNGER);
   if (hasProp(h, P.MAGICAL_BREATHING) || hunger || (!isStrangled(h) && ctx.rng.rn2(20) === 0)) {
@@ -493,6 +498,7 @@ function eatcorpse(ctx: Ctx, e: Entity, v: Victual): number {
   let retcode = 0;
   let tp = 0;
   const stoneable = fleshPetrifies(mon) && !hasProp(hero(ctx), P.STONE_RES);
+  if (!vegetarian(mon)) violatedVegetarian(ctx);
   let rotted = 0;
   if (!nonrottingCorpse(mon.id)) {
     const age = it.age ?? 0;
@@ -917,6 +923,8 @@ function doeat(ctx: Ctx, e: Entity): number {
     } else if (tmp) dontStart = true;
     // if not used up, eatcorpse sets up reqtime and may modify oeaten
   } else {
+    // meat (not an egg) breaks vegetarian conduct
+    if (def.material === 'flesh' && piece.def !== EGG) violatedVegetarian(ctx);
     const pit = piece.c.item;
     v.reqtime = def.delay;
     const old = ctx.state.turn - (pit?.age ?? 0) > (pit?.buc === 'blessed' ? 50 : 30);

@@ -52,6 +52,7 @@ import { boulderDmgval, flooreffects } from './flooreffects';
 import { losehp } from './hp';
 import { encumberMsg, prinv } from './itemactions';
 import {
+  bknownOf,
   NOINVSYM,
   mksobj,
   objKnown,
@@ -98,6 +99,7 @@ import { levelTele, tele } from './trap';
 import { luckOf } from './luck';
 import { answerStudy, continuesStudy, isStudyAsk, studyBook } from './spell';
 import { isReadableWear, readWear } from './shirt';
+import { roleIs } from './urole';
 
 export const READ_ID: DefId = 'nh:read';
 
@@ -123,7 +125,7 @@ function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
   if (!it) return false;
   const def = ctx.defs.object(e.def);
   if (def.class === 'coin') return false;
-  if (!it.known.buc) return true;
+  if (!bknownOf(ctx.state, ctx.defs, e)) return true;
   if (usesKnown(def) && !it.known.spe) return true;
   if (!isKnown(ctx.state, ctx.defs, def)) return true;
   // ref: (!cknown && Is_container) || (!lknown && Is_box)
@@ -335,7 +337,7 @@ function chwepon(ctx: Ctx, scroll: Entity, amount: number): boolean {
     if (multiple) it.quantity = 1;
     if (sharper && it.buc === 'cursed') it.buc = 'uncursed';
     // (an unpaid tooth's bill is not re-priced: see DEVIATIONS.md "Long worms")
-    if (sharper || scroll.c.item?.known.buc) discover(ctx, sdef);
+    if (sharper || bknownOf(ctx.state, ctx.defs, scroll)) discover(ctx, sdef);
     if (multiple) encumberMsg(ctx);
     return true;
   }
@@ -468,7 +470,9 @@ function seffectEnchantArmor(ctx: Ctx, scroll: Entity, wasKnown: boolean): boole
   const def = ctx.defs.object(otmp.def);
   const item = xnameOf(ctx.state, ctx.defs, otmp);
   const pl = isPlural(def, otmp) ? '_pl' : '';
-  const specialArmor = otmp.def.includes('elven'); // ref: is_elven_armor()
+  // elven armor (is_elven_armor()) and a Wizard's cornuthaum vibrate warningly
+  const specialArmor =
+    otmp.def.includes('elven') || (roleIs(ctx.state, 'wizard') && otmp.def === 'nh:cornuthaum');
   const clr = color(scursed ? 'black' : 'silver');
   // KMH -- catch underflow
   let s = scursed ? -it.spe : it.spe;
@@ -567,7 +571,7 @@ export function removeCurse(ctx: Ctx, buc: Buc, confused: boolean, scroll: Entit
         it.buc = 'uncursed';
         figBucChanged(ctx, obj.id); // uncurse()
         // if the object was known to be cursed and is now known not to be, learn the scroll
-        if (it.known.buc) learned = true;
+        if (bknownOf(ctx.state, ctx.defs, obj)) learned = true;
       }
     }
   }

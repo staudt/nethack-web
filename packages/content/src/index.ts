@@ -91,6 +91,7 @@ import { registerCast } from './cast';
 import { jumpAction } from './jump';
 import { monsterAction } from './monability';
 import { registerEnd } from './disclose';
+import { registerBotl } from './botl';
 import { QUIT_ACTIONS } from './quit';
 import { DUNGEONS, LEVELS, SPLEV_FIXUPS } from './dungeon';
 
@@ -204,6 +205,7 @@ export const vanillaMod: Mod = {
     registerStats(api);
     registerShuffle(api);
     registerHero(api);
+    registerBotl(api); // the rank, alignment and farewell statuses
     registerKit(api); // the u_init newGame hook
     registerTeleportitis(api); // after regen_pw(), as moveloop_core()
     registerPolymorphitis(api); // after teleportitis, as moveloop_core()

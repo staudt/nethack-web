@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5552 citations.
+192 NetHack files, 5571 citations.
 
 ## dat/asmodeus.lua
 
@@ -545,7 +545,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/content/src/nasty.ts`, `packages/content/src/newcham.ts`, `packages/testkit/src/convert/emit.ts`
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
-- `PM_ARCHEOLOGIST()`: `packages/content/src/statue.ts`
 - `PM_CROESUS()`: `packages/content/src/gehennom.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_GUARD()`: `packages/content/src/vault.ts`
@@ -853,7 +852,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/botl.c
 
-- (file): `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
+- (file): `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`
 - `BL_MASK_LEV()`: `packages/content/src/levitation.ts`
 - `bl_slime()`: `packages/content/src/slime.ts`
 - `bl_slippery()`: `packages/content/src/towel.ts`
@@ -861,7 +860,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `bl_strngl()`: `packages/content/src/jewelry.ts`
 - `bot2()`: `packages/content/src/hero.ts`, `packages/ui/src/status.ts`
 - `describe_level()`: `packages/content/src/gehennom.ts`, `packages/ui/src/status.ts`
+- `do_statusline1()`: `packages/content/src/botl.ts`, `packages/content/src/role.en.ts`, `packages/ui/src/status.ts`
+- `do_statusline2()`: `packages/ui/src/status.ts`
 - `get_strength_str()`: `packages/ui/src/status.ts`
+- `rank()`: `packages/content/src/botl.ts`
+- `rank_of()`: `packages/content/src/botl.ts`
+- `xlev_to_rank()`: `packages/content/src/botl.ts`
 
 ## src/cmd.c
 
@@ -1015,7 +1019,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1300,6 +1304,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `unfaint()`: `packages/content/src/hunger.ts`
 - `use_tin_opener()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
 - `use_up_tin()`: `packages/content/src/tin.ts`
+- `violated_vegetarian()`: `packages/content/src/luck.ts`
 - `vomit()`: `packages/content/src/hunger.ts`
 
 ## src/end.c
@@ -1314,7 +1319,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ends()`: `packages/content/src/end.en.ts`
 - `get_valuables()`: `packages/content/src/urexp.ts`
 - `paygd()`: `packages/content/src/vault.ts`
-- `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/content/src/vault.ts`, `packages/ui/src/gameover.ts`
+- `really_done()`: `packages/app/src/main.ts`, `packages/app/src/scores.ts`, `packages/content/src/botl.ts`, `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/endstate.ts`, `packages/content/src/urexp.ts`, `packages/content/src/vault.ts`, `packages/ui/src/gameover.ts`
 - `savelife()`: `packages/content/src/end.ts`, `packages/content/src/engulf.ts`
 - `should_query_disclose_option()`: `packages/ui/src/gameover.ts`
 
@@ -1504,7 +1509,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/invent.c
 
-- (file): `packages/content/src/horn.ts`, `packages/content/src/magic.ts`, `packages/content/src/read.ts`, `packages/content/src/wish.ts`
+- (file): `packages/content/src/horn.ts`, `packages/content/src/items.ts`, `packages/content/src/magic.ts`, `packages/content/src/read.ts`, `packages/content/src/wish.ts`
 - `addinv()`: `packages/content/src/items.ts`
 - `addinv_core0()`: `packages/content/src/items.ts`
 - `assigninvlet()`: `packages/content/src/items.ts`
@@ -2138,9 +2143,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/o_init.c
 
 - (file): `packages/content/src/itemactions.ts`, `packages/content/src/o_init.ts`
+- `disco_typename()`: `packages/content/src/itemactions.ts`
 - `discover_object()`: `packages/content/src/o_init.ts`, `packages/core/src/types/state.ts`
 - `dodiscovered()`: `packages/content/src/itemactions.ts`
 - `init_objects()`: `packages/content/src/o_init.ts`
+- `interesting_to_discover()`: `packages/content/src/itemactions.ts`
 - `obj_shuffle_range()`: `packages/testkit/src/convert/cdata.ts`
 - `objdescr_is()`: `packages/content/src/breakwand.ts`
 - `setgemprobs()`: `packages/content/src/gem.ts`
@@ -2156,7 +2163,8 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/objnam.c
 
 - (file): `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
-- `Japanese_items()`: `packages/content/src/kittab.ts`
+- `Japanese_item_name()`: `packages/content/src/objnam.ts`
+- `Japanese_items()`: `packages/content/src/kittab.ts`, `packages/content/src/role.en.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
@@ -2177,6 +2185,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mshot_xname()`: `packages/content/src/hmon.ts`
 - `no_man()`: `packages/content/src/objnam_read.ts`
 - `not_fully_identified()`: `packages/content/src/read.ts`
+- `obj_typename()`: `packages/content/src/objnam.ts`
 - `one_off()`: `packages/content/src/objnam_read.ts`
 - `otense()`: `packages/content/src/read.ts`, `packages/content/src/seffect.ts`
 - `paydoname()`: `packages/content/src/objnam.ts`
@@ -2197,7 +2206,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wizterrainwish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/terrainwish.ts`
 - `wrp()`: `packages/content/src/objnam_read.ts`
 - `wrpsym()`: `packages/content/src/objnam_read.ts`
-- `xname()`: `packages/content/src/figurine.en.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam.ts`, `packages/testkit/src/convert/defs.ts`
+- `xname()`: `packages/content/src/figurine.en.ts`, `packages/content/src/items.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam.ts`, `packages/testkit/src/convert/defs.ts`
 
 ## src/options.c
 
@@ -2265,7 +2274,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/potion.c
 
-- (file): `packages/content/src/dip.ts`, `packages/content/src/eat.en.ts`, `packages/content/src/potion.ts`, `packages/content/src/potionhit.ts`, `packages/content/src/resist.en.ts`
+- (file): `packages/content/src/dip.ts`, `packages/content/src/eat.en.ts`, `packages/content/src/potionhit.ts`, `packages/content/src/resist.en.ts`
 - `H2Opotion_dip()`: `packages/content/src/dip.en.ts`, `packages/content/src/dip.ts`
 - `bottlename()`: `packages/content/src/potionhit.ts`
 - `bottlenames()`: `packages/content/src/force.ts`, `packages/content/src/potionhit.ts`
@@ -2312,6 +2321,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peffect_polymorph()`: `packages/content/src/polyself.ts`, `packages/content/src/potion.ts`
 - `peffect_restore_ability()`: `packages/content/src/attrstate.ts`, `packages/content/src/magic.en.ts`, `packages/content/src/potion.ts`
 - `peffect_see_invisible()`: `packages/content/src/potion.ts`
+- `peffect_sickness()`: `packages/content/src/potion.ts`
 - `peffect_sleeping()`: `packages/content/src/potion.ts`
 - `peffect_speed()`: `packages/content/src/potion.ts`
 - `peffect_water()`: `packages/content/src/potion.ts`
@@ -2460,11 +2470,12 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/role.c
 
 - (file): `packages/app/src/options.ts`, `packages/app/src/title.ts`, `packages/content/src/hero.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/content/src/were.en.ts`
-- `Hello()`: `packages/content/src/shk.ts`
+- `Goodbye()`: `packages/content/src/botl.ts`, `packages/content/src/role.en.ts`
+- `Hello()`: `packages/content/src/role.en.ts`, `packages/content/src/shk.ts`
 - `aligns()`: `packages/content/src/disclose.ts`
 - `ok_align()`: `packages/content/src/gods.ts`
 - `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/urole.ts`
-- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`
+- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`
 - `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`
 
 ## src/rumors.c

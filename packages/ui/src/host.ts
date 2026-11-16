@@ -417,7 +417,12 @@ export function createUi(opts: UiOptions): Ui {
     offers.map((o) => ({ label: t(o.labelKey, o.params), run: () => game.act(o.action) }));
 
   const renderStatus = (s: ViewUpdate['status']): void => {
-    const lines = statusLines(s, t, (k) => hasMessage(catalogs, locale, k)).map((fields) => {
+    const lines = statusLines(
+      s,
+      t,
+      (k) => hasMessage(catalogs, locale, k),
+      opts.playerName?.(),
+    ).map((fields) => {
       const div = doc.createElement('div');
       div.className = 'nh-status-line';
       for (const f of fields) {

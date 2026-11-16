@@ -4,7 +4,7 @@
 // ref: src/lock.c pick_lock(), picklock(), lock_action(), reset_pick(), maybe_reset_pick(),
 // autokey(); src/allmain.c interrupt_occupation / stop_occupation()
 //
-// Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, the Rogue bonus (the hero is a Valkyrie), shop doors,
+// Not ported (see DEVIATIONS.md): the Master Key of Thievery's trap finding, shop doors,
 // levitation, pits, polymorphed forms without hands, Dex exercise (no exercise system yet).
 import { mAt } from './wormstate';
 import { apAsThing } from './mimicstate';
@@ -45,6 +45,7 @@ import { doorTrapped, isBoxTrapped, pruneBoxTraps, pruneDoorTraps } from './btra
 import { bTrapped, blowDoor } from './btrapped';
 import { SHOP_DOOR_COST } from './shopdamage';
 import { chestTrap } from './chesttrap';
+import { roleIs } from './urole';
 
 export { KEY, PICKLOCK_ID };
 
@@ -190,16 +191,19 @@ function occupationTurn(ctx: Ctx): number {
   return NORMAL_SPEED;
 }
 
+/** Role_if(PM_ROGUE) as 0 or 1 */
+const rogue = (ctx: Ctx): number => (roleIs(ctx.state, 'rogue') ? 1 : 0);
+
 /** The chance per turn for a box. ref: pick_lock() container branch */
 function boxChance(ctx: Ctx, picktyp: string, box: Entity): number {
   const dex = hero(ctx).c.attributes?.dex ?? 10; // ACURR(A_DEX)
   let ch: number;
   switch (picktyp) {
     case KEY.card:
-      ch = dex; // + 20 * Role_if(PM_ROGUE)
+      ch = dex + 20 * rogue(ctx);
       break;
     case KEY.pick:
-      ch = 4 * dex; // + 25 * Role_if(PM_ROGUE)
+      ch = 4 * dex + 25 * rogue(ctx);
       break;
     case KEY.skeleton:
       ch = 75 + dex;
@@ -216,9 +220,9 @@ function doorChance(ctx: Ctx, picktyp: string): number {
   const dex = hero(ctx).c.attributes?.dex ?? 10; // ACURR(A_DEX)
   switch (picktyp) {
     case KEY.card:
-      return 2 * dex; // + 20 * Role_if(PM_ROGUE)
+      return 2 * dex + 20 * rogue(ctx);
     case KEY.pick:
-      return 3 * dex; // + 30 * Role_if(PM_ROGUE)
+      return 3 * dex + 30 * rogue(ctx);
     case KEY.skeleton:
       return 70 + dex;
     default:

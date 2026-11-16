@@ -35,7 +35,7 @@ import { answerFountainWish, dipfountain, heroOnFountain, washHands } from './fo
 import { hcolor, type ColorName } from './hcolor';
 import { losehp } from './hp';
 import { invOption, prinv } from './itemactions';
-import { removeFromInventory, splitStack } from './items';
+import { bknownOf, removeFromInventory, splitStack } from './items';
 import { shkYour } from './light';
 import { floatingAbove } from './levitation';
 import { isPool, waterbodyName } from './liquid';
@@ -432,7 +432,7 @@ export function h2oPotionDip(ctx: Ctx, potion: Entity, targ: Entity, useeit: boo
       color: shown,
     });
     it.known.buc = !halluc(ctx);
-  } else if (!pit.known.buc) {
+  } else if (!bknownOf(ctx.state, ctx.defs, potion)) {
     // didn't see what happened: forget the BUC state unless the water's is known
     it.known.buc = false;
   }

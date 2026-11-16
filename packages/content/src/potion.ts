@@ -69,6 +69,7 @@ import {
 } from './props';
 import { cantSeeSelf, heroInvisBlocked, heroInvisible, selfInvisMessage } from './invis';
 import { aggravate } from './mstate';
+import { roleIs } from './urole';
 
 /**
  * ref: src/potion.c healup(): heals `nhp` and, if that goes past the maximum, raises the maximum
@@ -527,8 +528,8 @@ function peffectMonsterDetection(ctx: Ctx, p: Entity): Effect {
 /**
  * "Yecch!  This stuff tastes like poison.": blessed, only stale fruit juice (1 HP); else an
  * attribute is poisoned (unless sustained) and she loses hit points (less with poison
- * resistance); it shocks her out of hallucination. She is no Healer. ref: src/potion.c
- * peffect_sickness()
+ * resistance); it shocks her out of hallucination. A Healer has been immunized: no loss at all.
+ * ref: src/potion.c peffect_sickness()
  */
 function peffectSickness(ctx: Ctx, p: Entity): Effect {
   const h = heroEntity(ctx);
@@ -536,7 +537,10 @@ function peffectSickness(ctx: Ctx, p: Entity): Effect {
   msg(ctx, 'potion.tastes_poison');
   if (buc === 'blessed') {
     msg(ctx, 'potion.mildly_stale');
-    losehp(ctx, 1, '@killer.potion.mildly_contaminated');
+    if (!roleIs(ctx.state, 'healer')) losehp(ctx, 1, '@killer.potion.mildly_contaminated');
+  } else if (roleIs(ctx.state, 'healer')) {
+    if (hasProp(h, P.POISON_RES)) msg(ctx, 'potion.biologically_contaminated');
+    msg(ctx, 'potion.immunized');
   } else {
     const resists = hasProp(h, P.POISON_RES);
     if (resists) msg(ctx, 'potion.biologically_contaminated');

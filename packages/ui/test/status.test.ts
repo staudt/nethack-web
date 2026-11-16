@@ -97,6 +97,23 @@ describe('statusLines line 2', () => {
     expect(l2.map((f) => f.text)).toEqual(['HD:2', 'T:5']);
   });
 
+  test('line 1: "Name the Rank", the attributes, the alignment (ref: src/botl.c do_statusline1())', () => {
+    const t = (k: string): string =>
+      ({
+        'rank.valkyrie.1': 'Stripling',
+        'status.align.neutral': 'Neutral',
+        'nh:hill_orc': 'hill orc',
+      })[k] ?? k;
+    const s = { rank: 'rank.valkyrie.1', align: 'status.align.neutral', str: 17, dex: 14 };
+    const [l1] = statusLines(s, t, () => true, 'brunhilde');
+    expect(l1.map((f) => f.text)).toEqual(['Brunhilde the Stripling', 'St:17', 'Dx:14', 'Neutral']);
+    // no name: the rank alone; polymorphed: the form's name in capitalised words
+    expect(statusLines(s, t)[0][0]?.text).toBe('Stripling');
+    expect(statusLines({ ...s, rank: 'nh:hill_orc', hd: 1 }, t, () => true, 'b')[0][0]?.text).toBe(
+      'B the Hill Orc',
+    );
+  });
+
   test('mild states have no critical class; absent fields are omitted', () => {
     const [, l2] = statusLines({ turn: 3, hunger: 'hungry', encumbrance: 'burdened' });
     expect(l2.map((f) => f.text)).toEqual(['T:3', 'Hungry', 'Burdened']);
@@ -117,6 +134,25 @@ describe('goodbyeLines', () => {
   const t = (k: string, p?: Record<string, unknown>): string =>
     (EN[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
   const has = (k: string): boolean => k in EN;
+
+  test("the role's farewell opens it (ref: src/role.c Goodbye())", () => {
+    const T: Record<string, string> = {
+      ...EN,
+      'end.goodbye': '{bye} {name} the {role}...',
+      'goodbye.valkyrie': 'Farvel',
+      'goodbye.default': 'Goodbye',
+      'role.valkyrie': 'Valkyrie',
+    };
+    const tt = (k: string, p?: Record<string, unknown>): string =>
+      (T[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
+    const s = { dead: 'died', endHow: 'died', role: 'role.valkyrie' };
+    expect(
+      goodbyeLines({ t: tt, has }, { ...s, goodbye: 'goodbye.valkyrie' }, 'Brunhilde')[0],
+    ).toBe('Farvel Brunhilde the Valkyrie...');
+    expect(goodbyeLines({ t: tt, has }, s, 'Brunhilde')[0]).toBe(
+      'Goodbye Brunhilde the Valkyrie...',
+    );
+  });
 
   test('a single-level branch names no dungeon level (ref: src/end.c really_done())', () => {
     const s = { dead: 'died', endHow: 'died', endDepth: 21 };

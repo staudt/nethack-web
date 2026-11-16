@@ -70,16 +70,35 @@ const HANDLED: ReadonlySet<string> = new Set([
   'endTurn',
   'endDepth',
   'endLevel',
+  'rank',
+  'align',
+  'role',
+  'goodbye',
 ]);
 
-/** The two NetHack bottom lines; missing fields are omitted. ref: src/botl.c */
+/** do_statusline1()'s capitalisation of a polymorphed hero's form: every word's first letter. */
+const capWords = (s: string): string =>
+  s.replace(/(^|\s)([a-z])/g, (_m, sp: string, c: string) => sp + c.toUpperCase());
+
+/**
+ * The two NetHack bottom lines; missing fields are omitted. The first starts with "Name the
+ * Rank" (just the rank without a name; a polymorphed hero's form, `hd` set, in capitalised
+ * words) and ends with the alignment word. ref: src/botl.c do_statusline1(), do_statusline2()
+ */
 export function statusLines(
   s: Status,
   t: (key: string) => string = (k) => uiMessagesEn[k] ?? k,
   has: (key: string) => boolean = (k) => k in uiMessagesEn,
+  name?: string,
 ): [StatusField[], StatusField[]] {
   const l1: StatusField[] = [];
   const l2: StatusField[] = [];
+  const rank = s['rank'];
+  if (typeof rank === 'string') {
+    const title = num(s, 'hd') !== undefined ? capWords(t(rank)) : t(rank);
+    const who = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
+    l1.push({ text: who ? `${who} the ${title}` : title, cls: 'nh-status-title' });
+  }
   const str = num(s, 'str');
   if (str !== undefined) l1.push({ text: `St:${formatStr(str)}` });
   for (const [k, label] of [
@@ -92,6 +111,8 @@ export function statusLines(
     const v = num(s, k);
     if (v !== undefined) l1.push({ text: `${label}:${v}` });
   }
+  const align = s['align'];
+  if (typeof align === 'string') l1.push({ text: t(align) });
   // a level that names its place (content's `place` message key: "Fort Ludios") shows it in
   // place of its depth (ref: src/botl.c describe_level())
   const place = s['place'];

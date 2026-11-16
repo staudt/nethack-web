@@ -45,6 +45,7 @@ import { TRAP, cansee, isPit, maketrap } from './trap';
 import { isMtrapped, setMtrapped, setUtrap, uInAir, utrap } from './trapstate';
 import { heroForm } from './upoly';
 import { mAt } from './wormstate';
+import { roleIs } from './urole';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -168,10 +169,10 @@ export function doPit(ctx: Ctx, x: number, y: number, tuPit: boolean): void {
   } else {
     const h = getPlayer(ctx.state);
     const fumbling = hasProp(h, P.FUMBLING) && ctx.rng.rn2(5) !== 0;
-    // !(Fumbling && rn2(5)) && (!rnl(9) || (Dex > 7 && rn2(5))) (no Archeologists)
+    // !(Fumbling && rn2(5)) && (!rnl(Archeologist ? 3 : 9) || (Dex > 7 && rn2(5)))
     const keepfooting =
       !fumbling &&
-      (!rnl(ctx.rng, 9, luckOf(ctx.state)) ||
+      (!rnl(ctx.rng, roleIs(ctx.state, 'archeologist') ? 3 : 9, luckOf(ctx.state)) ||
         ((h.c.attributes?.dex ?? 10) > 7 && ctx.rng.rn2(5) !== 0));
     say(ctx, 'music.jostled');
     setUtrap(ctx, ctx.rng.rn2(6) + 2, 'pit');

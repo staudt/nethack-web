@@ -40,7 +40,7 @@ import { relobj } from '../src/mongear';
 import { isKnown } from '../src/o_init';
 import { P, hasProp } from '../src/props';
 import { knownSpells } from '../src/spell';
-import { spellSkill } from '../src/spellcalc';
+import { roleSpellSkill } from '../src/spellcalc';
 import { skillLevel } from '../src/skills';
 import { invWeight } from '../src/stats';
 import { pwOf } from '../src/uenergy';
@@ -262,7 +262,7 @@ describe('each role, human', () => {
     const levels = books.map((o) => defs.object(o.def).spellbook?.level ?? 0);
     expect(levels).toContain(1);
     for (const b of books) {
-      expect(SKILL_TAB.priest[spellSkill(b.def)]).toBeDefined();
+      expect(SKILL_TAB.priest[roleSpellSkill(b.def, 'priest')]).toBeDefined();
       expect(defs.object(b.def).spellbook?.level).toBeLessThanOrEqual(3);
     }
     expect(knownSpells({ state: k.s })).toHaveLength(2);
@@ -430,7 +430,7 @@ describe('the random items', () => {
       const books = k.inv.filter((o) => defs.object(o.def).class === 'spellbook');
       for (const b of books) {
         expect(defs.object(b.def).spellbook?.level).toBeLessThanOrEqual(3);
-        expect(SKILL_TAB.wizard[spellSkill(b.def)]).toBeDefined();
+        expect(SKILL_TAB.wizard[roleSpellSkill(b.def, 'wizard')]).toBeDefined();
       }
     }
     expect(ringPairs.size).toBeGreaterThan(50); // the rings do vary
@@ -495,7 +495,7 @@ describe('every allowed role and race', () => {
       const d = nhData({ state: k.s });
       for (const [sk, lvl] of Object.entries(d.skills ?? {}))
         expect(lvl, sk).toBeLessThanOrEqual(d.skillMax?.[sk] ?? 0);
-      const school = spellSkill(ROLES_TAB[r].spelspec);
+      const school = roleSpellSkill(ROLES_TAB[r].spelspec, r);
       expect(d.skillMax?.[school], school).toBeGreaterThanOrEqual(2);
       expect(d.weaponSlots).toBe(2);
       // the carry boost: she can carry it all, or Str and Con are at their maximums

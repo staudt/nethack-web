@@ -38,7 +38,7 @@ import { done } from './end';
 import { changeSex, heroFemale, polyGender } from './gender';
 import { nomulNow } from './hunger';
 import { prinv } from './itemactions';
-import { removeFromInventory } from './items';
+import { bknownOf, removeFromInventory } from './items';
 import { uState } from './luck';
 import { hcolor } from './magic';
 import { discover, isKnown } from './o_init';
@@ -495,14 +495,14 @@ function ringPutOn(ctx: Ctx, ring: Entity, mask: 'ringL' | 'ringR'): number {
     return NORMAL_SPEED; // always uses move
   }
   if (gloves?.c.item?.buc === 'cursed') {
-    const res = !gloves.c.item.known.buc;
+    const res = !bknownOf(ctx.state, ctx.defs, gloves);
     gloves.c.item.known.buc = true;
     say(ctx, 'puton.gloves_cursed');
     return res ? NORMAL_SPEED : 0; // uses move iff we learned gloves are cursed
   }
   const uwep = worn(ctx, 'weapon');
   if (uwep?.c.item && ring.id !== uwep.id) {
-    const res = !uwep.c.item.known.buc;
+    const res = !bknownOf(ctx.state, ctx.defs, uwep);
     const bimanual = ctx.defs.object(uwep.def).weapon?.bimanual === true;
     // the hero is right-handed (URIGHTY): her weapon hand is the right one
     if ((mask === 'ringR' || bimanual) && weldedUwep(ctx)) {

@@ -17,7 +17,7 @@ import { heroFemale, polyGender, setHeroFemale } from '../src/gender';
 import { mksobj } from '../src/items';
 import { traptypeRnd } from '../src/mklev';
 import { P, hasProp, setIntrinsic } from '../src/props';
-import { spellSkill } from '../src/spellcalc';
+import { roleSpellSkill } from '../src/spellcalc';
 import { couldSeduce } from '../src/steal';
 import { TRAP, floorTrigger, isMagicalTrap } from '../src/trap';
 import { addMon } from './helpers';
@@ -60,7 +60,7 @@ describe('the objects', () => {
     expect(defs.object('nh:amulet_of_unchanging').prop).toBe(P.UNCHANGING);
     expect(defs.object('nh:amulet_of_change').prop).toBeUndefined();
     expect(defs.object('nh:spellbook_of_polymorph').spellbook?.level).toBe(6);
-    expect(spellSkill('nh:spellbook_of_polymorph')).toBe('matter_spell');
+    expect(roleSpellSkill('nh:spellbook_of_polymorph', 'wizard')).toBe('matter_spell');
     expect(CAST_BOOKS).toContain('nh:spellbook_of_polymorph');
   });
 

@@ -7,8 +7,7 @@
 // Armor_on(), Armor_off(), toggle_stealth(), toggle_displacement(), adj_abon();
 // src/attrib.c uchangealign()
 //
-// Not ported: dragon scales, the Archeologist's fedora luck and the Wizard's cornuthaum (no
-// roles: the cornuthaum always costs Cha and blocks clairvoyance), water (water walking boots do
+// Not ported: dragon scales, water (water walking boots do
 // nothing; levitation boots over a sink), steeds and BStealth, flying (float_vs_flight()), the
 // Astral Plane's Furies, artifacts (retouch_equipment()), wielding_corpse() when gloves come off,
 // and see_monsters() (the view is rebuilt after every action, so the helms
@@ -30,7 +29,8 @@ import { summonFuries } from './generation';
 import { hcolor } from './hcolor';
 import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
-import { adjalign, setU, uState, ualignBase } from './luck';
+import { adjalign, changeLuck, setU, uState, ualignBase } from './luck';
+import { roleIs } from './urole';
 import { discover } from './o_init';
 import { isGlib, makeGlib } from './glib';
 import { xnameOf } from './objnam';
@@ -263,10 +263,13 @@ export function armorOn(ctx: WearCtx, obj: Entity): void {
       break;
     case 'helm':
       // ref: Helmet_on()
-      if (obj.def === 'nh:helm_of_brilliance') adjAbon(ctx, obj, spe);
+      if (obj.def === 'nh:fedora') {
+        if (roleIs(ctx.state, 'archeologist')) changeLuck(ctx, 1);
+      } else if (obj.def === 'nh:helm_of_brilliance') adjAbon(ctx, obj, spe);
       else if (obj.def === 'nh:cornuthaum') {
-        // it takes trained arrogance to pull it off (no Wizards here)
-        adjustAbon(ctx, 'cha', -1);
+        // people think marked wizards know what they're talking about, but it takes trained
+        // arrogance to pull it off
+        adjustAbon(ctx, 'cha', roleIs(ctx.state, 'wizard') ? 1 : -1);
         discover(ctx, obj.def);
       } else if (obj.def === 'nh:helm_of_opposite_alignment') {
         const ualign = uState(ctx.state).alignType;
@@ -341,7 +344,10 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
       break;
     case 'helm':
       // ref: Helmet_off()
-      if (obj.def === 'nh:cornuthaum') adjustAbon(ctx, 'cha', 1);
+      if (obj.def === 'nh:fedora') {
+        if (roleIs(ctx.state, 'archeologist')) changeLuck(ctx, -1);
+      } else if (obj.def === 'nh:cornuthaum')
+        adjustAbon(ctx, 'cha', roleIs(ctx.state, 'wizard') ? -1 : 1);
       else if (obj.def === 'nh:helm_of_brilliance') {
         for (const a of abonAttrs(obj.def, slot)) adjustAbon(ctx, a, -spe);
         if (spe) discover(ctx, obj.def);

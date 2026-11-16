@@ -499,7 +499,11 @@ function jumpAnswer(ctx: Ctx, value: Json, magic: number): number {
 export function jumpSpellDone(ctx: Ctx, used: number, force: boolean): number {
   if (used === 0) say(ctx, 'zap.nothing_happens');
   if (!force && !ctx.state.gameOver)
-    useSkill(ctx, spellSkill(JUMPING_BOOK), ctx.defs.object(JUMPING_BOOK).spellbook?.level ?? 1);
+    useSkill(
+      ctx,
+      spellSkill(JUMPING_BOOK, ctx.state),
+      ctx.defs.object(JUMPING_BOOK).spellbook?.level ?? 1,
+    );
   return Math.max(used, NORMAL_SPEED);
 }
 

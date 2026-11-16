@@ -3,7 +3,7 @@
 // new_were(), were_change(), you_unwere(); src/mhitu.c summonmu(); src/weapon.c
 // possibly_unwield(); src/sounds.c growl_sound(); src/insight.c (enlightenment)
 export const wereMessagesEn: Record<string, string> = {
-  'exp.goodbye': 'Farvel level {level}.',
+  'exp.goodbye': '{bye} level {level}.',
   'exp.welcome_back': 'Welcome back to experience level {level}.',
   'killer.life_drainage': 'life drainage',
   'killer.throne_drain': 'a bad experience sitting on a throne',

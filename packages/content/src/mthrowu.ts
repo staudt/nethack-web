@@ -58,6 +58,7 @@ import { isPole } from './skills';
 import { canseemon } from './invis';
 import { isShade, shadeMiss } from './shade';
 import { potionhit } from './potionhit';
+import { roleIs } from './urole';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
 const CREAM_PIE: DefId = 'nh:cream_pie';
@@ -436,10 +437,16 @@ function mThrow(
       }
     } else if (hpos && hpos.level === level && hpos.x === x && hpos.y === y) {
       stopOccupation(ctx);
-      // ref: src/mthrowu.c u_catch_thrown_obj(): 1 in (100 - Dex) when able to move; not venom
+      // ref: src/mthrowu.c u_catch_thrown_obj(): 1 in (100 - Dex, 20 less for a Monk or a
+      // Rogue) when able to move; not venom
       const dex = hero.c.attributes?.dex ?? 10;
+      const deft = roleIs(ctx.state, 'monk') || roleIs(ctx.state, 'rogue');
       const venom = odef.class === 'venom';
-      if (!venom && hero.c.helpless === undefined && ctx.rng.rn2(100 - dex) === 0) {
+      if (
+        !venom &&
+        hero.c.helpless === undefined &&
+        ctx.rng.rn2(100 - dex - (deft ? 20 : 0)) === 0
+      ) {
         flush();
         say(ctx, 'mthrow.catch', { obj: name });
         addToInventory(ctx, hero.id, objId);

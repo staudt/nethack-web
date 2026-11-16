@@ -15,10 +15,11 @@ import {
   type ModApi,
   type MonsterDef,
 } from '@nh/core';
-import { P, setIntrinsic, heroHas } from './props';
+import { P, setIntrinsic, heroHas, wornIn } from './props';
 import { A_NONE } from './aligntyp';
 import { luckTimeout, moreluck } from './gem';
 import { isMplayer, isUnicorn } from './mondata';
+import { roleIs } from './urole';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -111,6 +112,17 @@ export function changeLuck(ctx: Pick<Ctx, 'state'>, n: number): void {
 
 /** ref: include/align.h `ALIGNLIM (10L + (moves / 200L))` */
 export const alignLim = (state: Readonly<GameState>): number => 10 + Math.trunc(state.turn / 200);
+
+/**
+ * Eating meat: a Monk feels guilty (-1 alignment). The vegetarian conduct itself is not counted
+ * (no conducts). ref: src/eat.c violated_vegetarian()
+ */
+export function violatedVegetarian(ctx: Pick<Ctx, 'state' | 'emit'>): void {
+  if (roleIs(ctx.state, 'monk')) {
+    ctx.emit({ type: 'msg', key: 'eat.guilty' });
+    adjalign(ctx, -1);
+  }
+}
 
 /** ref: src/attrib.c adjalign() */
 export function adjalign(ctx: Pick<Ctx, 'state'>, n: number): void {
@@ -207,12 +219,17 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
 /**
  * Luck times out toward 0 every 600 turns (300 while the god is angry). Cursed luckstones stop
  * bad Luck from timing out, blessed ones good Luck, uncursed ones both.
+ * An Archeologist wearing a fedora times out toward 1.
  * ref: src/timeout.c nh_timeout() (no Amulet, full moon or Friday 13th)
  */
 export function registerLuck(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
     const u = uState(ctx.state);
-    const baseluck = 0;
+    // an Archeologist's fedora (no full moon, Friday 13th or quest leader)
+    const fedora =
+      roleIs(ctx.state, 'archeologist') &&
+      wornIn(ctx.state, ctx.state.playerId, 'helm')?.def === 'nh:fedora';
+    const baseluck = fedora ? 1 : 0;
     if (u.luck !== baseluck && ctx.state.turn % (u.ugangr ? 300 : 600) === 0) {
       const { nostone, timeLuck } = luckTimeout(ctx.state);
       if (u.luck > baseluck && (nostone || timeLuck < 0)) setU(ctx, { luck: u.luck - 1 });

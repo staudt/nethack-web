@@ -10,7 +10,7 @@ import { isMetallic } from './material';
 import { wornIn } from './props';
 import { ROLES_TAB } from './roletab';
 import { P_BASIC, P_RESTRICTED, P_SKILLED, P_UNSKILLED, skillLevel } from './skills';
-import { roleIs, urole } from './urole';
+import { roleIs, urole, type RoleKey } from './urole';
 
 /** A book's spell school (oc_skill) and direction (oc_dir). */
 export interface SpellInfo {
@@ -65,12 +65,22 @@ export const SPELL_INFO: Readonly<Record<DefId, SpellInfo>> = {
   'nh:spellbook_of_stone_to_flesh': { skill: 'healing_spell', dir: 'immediate' },
 };
 
-/** The spell school of a book, '' when unknown. ref: src/spell.c spell_skilltype() */
-export const spellSkill = (book: DefId): string => SPELL_INFO[book]?.skill ?? '';
+/**
+ * The spell school of a book for a role, '' when unknown: a Priest's light is a clerical spell.
+ * ref: src/spell.c spell_skilltype(); src/role.c role_init() `objects[SPE_LIGHT].oc_skill`
+ */
+export const roleSpellSkill = (book: DefId, role: RoleKey): string =>
+  role === 'priest' && book === 'nh:spellbook_of_light'
+    ? 'cleric_spell'
+    : (SPELL_INFO[book]?.skill ?? '');
+
+/** The spell school of a book for the hero. ref: src/spell.c spell_skilltype() */
+export const spellSkill = (book: DefId, state: Readonly<GameState>): string =>
+  roleSpellSkill(book, urole(state));
 
 /** The school's name in the spell menus. ref: src/spell.c spelltypemnemonic() */
-export const spellSchoolKey = (book: DefId): string =>
-  `spell.school.${spellSkill(book).replace(/_spell$/, '')}`;
+export const spellSchoolKey = (book: DefId, state: Readonly<GameState>): string =>
+  `spell.school.${spellSkill(book, state).replace(/_spell$/, '')}`;
 
 export type { RoleSpell } from './roletab';
 
@@ -114,7 +124,7 @@ export function percentSuccess(state: Readonly<GameState>, defs: Registry, book:
   if (!hero) return 0;
   const role = ROLES_TAB[urole(state)];
   const id = hero.id;
-  const skilltype = spellSkill(book);
+  const skilltype = spellSkill(book, state);
   // Knights don't get metal armor penalty for clerical spells
   const paladinBonus = roleIs(state, 'knight') && skilltype === 'cleric_spell';
 
@@ -204,7 +214,7 @@ export function spellHitBonus(state: Readonly<GameState>, book: DefId): number {
   const hero = state.entities[String(state.playerId)];
   const dex = hero?.c.attributes?.dex ?? 10; // ACURR(A_DEX)
   let hitBon: number;
-  switch (skillLevel({ state: state as GameState }, spellSkill(book))) {
+  switch (skillLevel({ state: state as GameState }, spellSkill(book, state))) {
     case P_RESTRICTED:
     case P_UNSKILLED:
       hitBon = -4;

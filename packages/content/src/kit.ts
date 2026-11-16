@@ -43,7 +43,7 @@ import { ROLES_TAB } from './roletab';
 import { isPole, skillInit, skillLevel, P_BASIC, P_EXPERT, P_SKILLED } from './skills';
 import { SKILL_TAB } from './skilltab';
 import { BLANK_PAPER, initialspell, knownSpells } from './spell';
-import { spellLevPw, spellSkill } from './spellcalc';
+import { roleSpellSkill, spellLevPw } from './spellcalc';
 import { invWeight } from './stats';
 import { pwOf, setPw } from './uenergy';
 import { type RaceKey, type RoleKey, urace, urole } from './urole';
@@ -143,7 +143,7 @@ export function knowsClass(ctx: Ctx, cls: ObjectClass, role: RoleKey): void {
 
 /** Whether her role's skill list leaves the book's school restricted. ref: restricted_spell_discipline() */
 const restrictedSpellDiscipline = (role: RoleKey, book: DefId): boolean =>
-  SKILL_TAB[role][spellSkill(book)] === undefined;
+  SKILL_TAB[role][roleSpellSkill(book, role)] === undefined;
 
 /**
  * A random object of the class, without the too powerful or useless ones; a spellbook must be
@@ -515,7 +515,7 @@ function skillBasedSpellbookId(ctx: Ctx, role: RoleKey): void {
   if (role !== 'wizard') return;
   for (const def of ctx.defs.objects) {
     if (def.class !== 'spellbook') continue;
-    const skill = spellSkill(def.id);
+    const skill = roleSpellSkill(def.id, role);
     if (!skill) continue;
     const lvl = skillLevel(ctx, skill);
     const knownUpTo = lvl >= P_EXPERT ? 7 : lvl === P_SKILLED ? 5 : lvl === P_BASIC ? 3 : 1;
@@ -538,7 +538,7 @@ export function uInitSkillsDiscoveries(
   const invent = [...inventoryOf(ctx.state, heroId)].sort((a, b) => invRank(a) - invRank(b));
   for (const o of invent) iniInvUseObj(ctx, heroId, o);
   updateWornProps(ctx.state, ctx.defs, heroId); // setworn()'s extrinsics
-  skillInit(ctx, heroId, role, spellSkill(ROLES_TAB[role].spelspec));
+  skillInit(ctx, heroId, role, roleSpellSkill(ROLES_TAB[role].spelspec, role));
   skillBasedSpellbookId(ctx, role);
   // If we have at least one spell, force starting Pw to be enough, so hero can cast the level 1
   // spell they should have

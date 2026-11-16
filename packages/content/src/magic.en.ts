@@ -51,6 +51,7 @@ export const magicMessagesEn: Record<string, string> = {
   'potion.tastes_poison': 'Yecch!  This stuff tastes like poison.',
   'potion.mildly_stale': '(But in fact it was mildly stale fruit juice.)',
   'potion.biologically_contaminated': '(But in fact it was biologically contaminated fruit juice.)',
+  'potion.immunized': 'Fortunately, you have been immunized.',
   'potion.shocked_senses': 'You are shocked back to your senses!',
   'killer.potion.contaminated': 'a contaminated potion',
   'killer.potion.mildly_contaminated': 'a mildly contaminated potion',
