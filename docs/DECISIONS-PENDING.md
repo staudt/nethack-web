@@ -241,3 +241,18 @@ The m18 planner (`~/.claude/plans/m18.md`, kickoff `docs/kickoff-m18.md`; 7 step
 12. Mines' End variant 3's two vampires are restored, and the scripts' vampire and Angel spots are filled by class or id.
 13. `#wipe` is a new action (the creamed face).
 14. Core `MonsterSound` gains `'vampire'` and `'arrest'` (additive).
+
+## Taken (m19 tools and potions, 2026-11-15)
+
+Planner's recommendations, all marked cheap to change later (plan `~/.claude/plans/m19.md`, kickoff `docs/kickoff-m19.md`):
+
+- **m19 port subset**: the bell, invocation items, camera, mirror, crystal ball, lenses, saddle, leash, stethoscope, grease, grappling hook, ice box, bag of tricks and sinks stay in ROADMAP.
+- **m19 diluted potions in `erosion.e1`** (C's `#define odiluted oeroded`), no new core `diluted` field.
+- **m19 all new object rows in step 1** (15 tools, tin, potion of oil): one golden move instead of five.
+- **m19 Glib in step 8**, first to drop if the budget runs short.
+- **m19 drum of earthquake in** (`do_earthquake()`/`do_pit()`); the leather drum's Deafness out.
+- **m19 `#dip` UI**: C's yes/no for a fountain or pool first, then a potion menu; "Dip into" offered on potions too.
+- **m19 `#rub` as its own action** (M-r), wielding the lamp first as C does; royal jelly on eggs included; gray stones out.
+- **m19 markers follow 5.0's `dowrite()`**: writing by label only for seen labels, the Luck roll for unknown types (non-Wizard 15), names matched against object and called names, not the wish parser.
+- **m19 bottle occupants**: 5.0's 1 in (13 + 2 x births), rolled only for milky or smoky potions.
+- **m19 wished-for magic lamp** becomes an oil lamp outside wizard mode; wizard mode keeps the djinni.
