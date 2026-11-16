@@ -4,6 +4,7 @@ import { done } from './end';
 import { losehp } from './hp';
 import { ownHp, upolyd } from './upoly';
 import { P, hasProp } from './props';
+import { halfGasDamage } from './glib';
 import { adjattrib, rawAttr } from './attrstate';
 
 export {
@@ -40,8 +41,9 @@ export function poisontell(ctx: Ctx, typ: Attr, exclaim = true): void {
  * Poison hits the hero. `reason` is the "was poisoned!" announcement (null when the caller has
  * given it); `killer` is the death reason key; `fatal` is the 1-in-N instadeath (0 = never, only
  * minor attribute loss).
- * ref: src/attrib.c poisoned(). Not ported: Half_gas_damage (blast, cloud), the "innately weaker"
- * wording for gauntlets of power.
+ * `gas`: a blast or cloud of poison gas (C's "blast" and "gas cloud" reasons), whose HP damage a
+ * worn wet towel halves (Half_gas_damage).
+ * ref: src/attrib.c poisoned(). Not ported: the "innately weaker" wording for gauntlets of power.
  */
 export function poisoned(
   ctx: Ctx,
@@ -50,6 +52,7 @@ export function poisoned(
   killer: string,
   fatal: number,
   thrown = false,
+  gas = false,
 ): void {
   if (reason)
     ctx.emit({ type: 'msg', key: reason.key, ...(reason.params ? { params: reason.params } : {}) });
@@ -88,7 +91,8 @@ export function poisoned(
     }
   } else if (i > 5) {
     // HP damage; more likely--but less severe--with missiles
-    const loss = thrown ? ctx.rng.rnd(6) : 6 + ctx.rng.rn2(10); // rn1(10, 6)
+    let loss = thrown ? ctx.rng.rnd(6) : 6 + ctx.rng.rn2(10); // rn1(10, 6)
+    if (gas && halfGasDamage(ctx.state)) loss = Math.trunc((loss + 1) / 2); // worn towel
     losehp(ctx, loss, killer);
   } else {
     // attribute loss (a check that a stat change was made)

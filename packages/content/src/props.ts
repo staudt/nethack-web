@@ -79,6 +79,8 @@ export const P = {
   FUMBLING: 'fumbling',
   DISPLACED: 'displaced',
   PROT_FROM_SHAPE_CHANGERS: 'prot_from_shape_changers',
+  /** Slippery fingers (timed only: glib.ts) */
+  GLIB: 'glib',
 } as const;
 
 /**

@@ -11,9 +11,9 @@
 // The port has no oc_encountered: a label counts as seen when the type is discovered or called,
 // one is carried (or in a carried container), or one is remembered on a level's map
 // (DEVIATIONS "Magic markers").
-// Not ported: Glib (step 8: the marker slips from her fingers), the novel (no such object), mail,
-// the literate conduct, exercise(), dknown (objects are always seen up close: a blind hero's
-// paper is never "unknown", see DEVIATIONS "Blindness").
+// Not ported: the novel (no such object), mail, the literate conduct, exercise(), dknown
+// (objects are always seen up close: a blind hero's paper is never "unknown", see DEVIATIONS
+// "Blindness").
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -32,7 +32,8 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { wipeoutText } from './engr';
-import { invOption } from './itemactions';
+import { dropx, invOption } from './itemactions';
+import { fingersOrGloves, isGlib } from './glib';
 import { mksobj } from './items';
 import { luckOf } from './luck';
 import { useup } from './magic';
@@ -137,7 +138,14 @@ export function dowrite(ctx: Ctx, pen: Entity, handler: DefId): number {
     say(ctx, 'write.need_hands');
     return 0;
   }
-  // Glib: "The marker slips from your fingers." and it is dropped (step 8)
+  if (isGlib(ctx.state)) {
+    say(ctx, 'glib.marker_slips', {
+      item: xnameOf(ctx.state, ctx.defs, pen),
+      fingers: fingersOrGloves(ctx, false),
+    });
+    dropx(ctx, pen);
+    return NORMAL_SPEED;
+  }
   const inv = inventoryOf(ctx.state, ctx.state.playerId).filter((e) => writable(ctx, e));
   if (inv.length === 0) {
     say(ctx, 'write.nothing');

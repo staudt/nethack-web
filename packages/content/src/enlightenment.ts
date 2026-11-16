@@ -41,6 +41,7 @@ import {
 } from './props';
 import { ENCUMBRANCE_NAMES, UNENCUMBERED, nearCapacity } from './stats';
 import { flying, levAtWill, levitating, utrap } from './trapstate';
+import { fingersOrGloves, halfGasDamage, isGlib } from './glib';
 import { heroHatesSilver } from './silver';
 
 const ARMOR_SLOTS = ['body', 'cloak', 'shirt', 'helm', 'gloves', 'boots', 'shield'] as const;
@@ -150,6 +151,10 @@ export function enlightenment(ctx: Ctx): Msg[] {
     const sides = (ctx.state.modData['nh'] as { legSides?: number } | undefined)?.legSides ?? 2;
     have(sides === 3 ? 'wounded_legs' : sides === 1 ? 'wounded_left_leg' : 'wounded_right_leg');
   }
+  if (isGlib(ctx.state))
+    line('enl.you_have', {
+      what: { key: 'enl.slippery', params: { fingers: fingersOrGloves(ctx, true) } },
+    });
   if (has(P.FUMBLING)) line('enl.fumble');
   if (has(P.SLEEPY)) line('enl.sleepy');
   if (has(P.HUNGER)) line('enl.hunger_rapidly');
@@ -241,6 +246,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   // magic cancellation factor, conferred by worn armor
   const armpro = Math.min(magicNegation(ctx), 3);
   if (armpro > 0) are(`mc.${armpro}`);
+  if (halfGasDamage(ctx.state)) line('enl.half_gas');
   // movement and non-armor-based protection
   if (has(P.FAST))
     are(hasExtrinsic(h, P.FAST) || timeoutLeft(ctx.state, h, P.FAST) > 0 ? 'very_fast' : 'fast');

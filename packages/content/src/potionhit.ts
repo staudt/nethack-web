@@ -3,13 +3,14 @@
 // ref: src/potion.c potionhit(), potionbreathe(), bottlename(); src/dothrow.c breakobj()
 // (POT_WATER, "really, all potions")
 //
-// A burning potion of oil explodes (oil.ts). Not ported: saddles (no steeds), wet towels
-// (Half_gas_damage: no towels), the polymorphed gremlin hero splitting in water vapor (split_mon()
+// A burning potion of oil explodes (oil.ts); a worn wet towel keeps the vapors off
+// (Half_gas_damage). Not ported: saddles (no steeds), the polymorphed gremlin hero splitting in water vapor (split_mon()
 // is for monsters only), deafness (make_deaf()), exercise(), Half_physical_damage, trycall()
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
 // body parts of polymorphed forms (always "head"
 // and "eyes") and a hit on a long worm's tail (gn.notonhead: always the head).
 import { ucreamed } from './creamed';
+import { halfGasDamage } from './glib';
 import { monHatesBlessings } from './chamstate';
 import { setPotionVapors } from './floorfx';
 import { POT_OIL } from './dilute';
@@ -438,6 +439,12 @@ export function potionbreathe(ctx: Ctx, obj: Entity): void {
     if (h && h.until - ctx.state.turn - 1 >= turns) return;
     nomulNow(ctx, turns, reasonKey, { key: 'eat.can_move_again' });
   };
+  // wearing a wet towel protects both eyes and breathing, even when the breath effect might be
+  // beneficial
+  if (halfGasDamage(ctx.state)) {
+    say(ctx, 'towel.vapor');
+    return;
+  }
   switch (obj.def) {
     case POT.restoreAbility:
     case POT.gainAbility:
@@ -553,7 +560,7 @@ setPotionbreathe(breatheVapors);
  * odor..." ("Your eyes water." for a breathless form) and its vapors; water has no smell.
  * A burning potion of oil explodes instead (explode_oil(), `by` whom).
  * The caller says it shatters, handles the shop and uses it up. ref: src/dothrow.c breakobj()
- * POT_WATER ("really, all potions"; no wet towel)
+ * POT_WATER ("really, all potions")
  */
 export function breakPotionVapors(
   ctx: Ctx,
@@ -570,7 +577,9 @@ export function breakPotionVapors(
   const hp = getPlayer(ctx.state).c.pos;
   if (!hp || dist2(x, y, hp.x, hp.y) > 2) return; // next2u()
   if (uBreathless(ctx) && !uHasEyes(ctx)) return;
-  if (obj.def !== POT.water) say(ctx, uBreathless(ctx) ? 'vapor.eyes_water' : 'vapor.smell');
+  // wet towel protects both eyes and breathing
+  if (obj.def !== POT.water && !halfGasDamage(ctx.state))
+    say(ctx, uBreathless(ctx) ? 'vapor.eyes_water' : 'vapor.smell');
   potionbreathe(ctx, obj);
 }
 setPotionVapors(breakPotionVapors);

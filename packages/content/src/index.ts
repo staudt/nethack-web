@@ -62,6 +62,7 @@ import { registerHmonas } from './hmonas';
 import { registerRollingBoulders } from './rollboulder';
 import { registerLandmines } from './landmine';
 import { JEWELRY_ACTIONS, registerJewelry } from './jewelry';
+import { registerTowel } from './towel';
 import { registerStoning } from './stoning';
 import { registerSliming } from './slime';
 import { registerDigestFood } from './digestfood';
@@ -160,6 +161,7 @@ export const vanillaMod: Mod = {
     registerStoning(api); // ahead of the strangling timer, as nh_timeout()
     registerSliming(api); // slime_dialogue() after stoned_dialogue()
     registerJewelry(api);
+    registerTowel(api); // glibr() ahead of the timeouts (its own priority)
     registerLevitation(api);
     registerDrown(api);
     registerIce(api);

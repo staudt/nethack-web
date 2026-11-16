@@ -16,8 +16,6 @@ export const applyMessagesEn: Record<string, string> = {
   'lamp.now_off.lantern': 'Your lantern is now off.',
   'lamp.out_of_power': 'Your lantern is out of power.',
   'lamp.no_oil': 'This {item} has no oil.',
-  'lamp.spills_fingers': 'The lamp spills and covers your fingers with oil.',
-  'lamp.spills_gloves': 'The lamp spills and covers your gloves with oil.',
   'lamp.flicker_die': '{item|The} flickers for a moment, then dies.',
   'lamp.your_flickers': 'Your {item} flickers.',
   'lamp.your_flickers_much': 'Your {item} flickers considerably.',

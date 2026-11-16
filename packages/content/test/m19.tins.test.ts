@@ -27,6 +27,7 @@ import { findDefensive, munstone } from '../src/muse';
 import { mcouldEatTin, searchesForItem } from '../src/musestate';
 import { setMConfused } from '../src/mstate';
 import { P, setIntrinsic } from '../src/props';
+import { glibTimeout, isGlib } from '../src/glib';
 import { isStoned, makeStoned } from '../src/stonestate';
 import { OPENTIN_ID, TINTXT, popeye, tinCtx } from '../src/tins';
 import { messagesEn } from '../src/messages.en';
@@ -384,8 +385,12 @@ describe('what is inside', () => {
       // the jackal's corpse is worth 250: a homemade tin's 50 stays
       expect(gained(s, before)).toBe(TINTXT[r]!.nut);
       expect(ent(s.state, t)).toBeUndefined();
-      if (TINTXT[r]!.greasy)
+      if (TINTXT[r]!.greasy) {
         expect(out).toContain(`Eating ${variety} food made your fingers very slippery.`);
+        // 5..15 turns of slippery fingers
+        expect(glibTimeout(s.state)).toBeGreaterThanOrEqual(4);
+        expect(glibTimeout(s.state)).toBeLessThanOrEqual(15);
+      } else expect(isGlib(s.state)).toBe(false);
     }
     // a newt's corpse is worth 20: a homemade tin of newt gives 20
     const s = make();

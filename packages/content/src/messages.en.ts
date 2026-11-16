@@ -47,6 +47,7 @@ import { jumpMessagesEn } from './jump.en';
 import { djinniMessagesEn } from './djinni.en';
 import { tinMessagesEn } from './tin.en';
 import { dipMessagesEn } from './dip.en';
+import { towelMessagesEn } from './towel.en';
 import { writeMessagesEn } from './write.en';
 import { monabilityMessagesEn } from './monability.en';
 import { hideMessagesEn } from './hide.en';
@@ -127,6 +128,7 @@ export const messagesEn: Record<string, string> = {
   ...djinniMessagesEn,
   ...tinMessagesEn,
   ...dipMessagesEn,
+  ...towelMessagesEn,
   ...writeMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,
@@ -225,6 +227,7 @@ export const messagesEn: Record<string, string> = {
   'weapon.spear': 'spear',
   // ref: src/uhitm.c, src/mon.c, src/mhitu.c
   'combat.you_hit': 'You hit {mon|the}.',
+  'combat.you_lash': 'You lash {mon|the}.',
   'combat.divides': '{mon|The} divides as you hit it!',
   'clone.multiplies': '{mon|The} multiplies!',
   'combat.appears_confused': '{mon|The} appears confused.',
@@ -233,6 +236,7 @@ export const messagesEn: Record<string, string> = {
   'combat.glow_less_bright': 'Your hands no longer glow so brightly {color}.',
   'combat.tingling_lessens': 'The tingling in your hands lessens.',
   'combat.you_hit_hard': 'You hit {mon|the}!',
+  'combat.you_lash_hard': 'You lash {mon|the}!',
   'combat.you_miss': 'You miss {mon|the}.',
   'combat.you_kill': 'You kill {mon|the}!',
   'combat.you_destroy': 'You destroy {mon|the}!',

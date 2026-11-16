@@ -81,6 +81,8 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.could_be_clairvoyant': 'You could be clairvoyant if not for your cornuthaum.',
   'enl.displaced': 'displaced',
   'enl.fumble': 'You fumble.',
+  'enl.slippery': 'slippery {fingers}',
+  'enl.half_gas': 'You take reduced poison gas damage.',
   'enl.charismatic': 'charismatic',
   'enl.charismatic_more': 'more charismatic',
   'enl.charismatic_less': 'less charismatic',

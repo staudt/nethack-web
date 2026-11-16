@@ -528,7 +528,7 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string, disint = false): 
     }
     case 'poison_gas':
       // "blast": no "was poisoned" line (the blast of poison gas was named)
-      poisoned(ctx, null, 'dex', '@killer.poisoned_blast', 15);
+      poisoned(ctx, null, 'dex', '@killer.poisoned_blast', 15, false, true);
       break;
     case 'acid':
       if (hasProp(h, P.ACID_RES)) {

@@ -9,10 +9,9 @@
 // split/merge hooks) lives in the leaf burnstate.ts; this module has the messages and the
 // light. A potion of oil lit by applying it (light_cocktail()) and its explosion are oil.ts's.
 //
-// Not ported: the Candelabrum of Invocation (candles are never attached), artifact lights, Glib
-// (a cursed lamp that spills oil only says so), light sources carried while the hero is away
-// from the level (their timers simply run on; burn_object()'s "timeout while away" catch-up is
-// not needed).
+// Not ported: the Candelabrum of Invocation (candles are never attached), artifact lights, light
+// sources carried while the hero is away from the level (their timers simply run on;
+// burn_object()'s "timeout while away" catch-up is not needed).
 import {
   getLevel,
   itemsAt,
@@ -46,6 +45,7 @@ import { costlySpot, insideShop, shopKeeper } from './eshk';
 import { removeFromInventory } from './items';
 import { heroSees } from './mongear';
 import { discover } from './o_init';
+import { fingersOrGloves, glibTimeout, makeGlib } from './glib';
 import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { monNam } from './perception';
@@ -430,11 +430,8 @@ export function useLamp(ctx: Ctx, obj: Entity): void {
   }
   if (it.buc === 'cursed' && !ctx.rng.rn2(2)) {
     if ((obj.def === OIL_LAMP || obj.def === MAGIC_LAMP) && !ctx.rng.rn2(3)) {
-      const gloves = inventoryOf(ctx.state, ctx.state.playerId).some(
-        (o) => o.c.item?.equipped === 'gloves',
-      );
-      say(ctx, gloves ? 'lamp.spills_gloves' : 'lamp.spills_fingers');
-      ctx.rng.d(2, 10); // make_glib((Glib & TIMEOUT) + d(2, 10)): no Glib yet
+      say(ctx, 'glib.lamp_spills', { fingers: fingersOrGloves(ctx, true) });
+      makeGlib(ctx, glibTimeout(ctx.state) + ctx.rng.d(2, 10));
     } else if (!blind) {
       say(ctx, many ? 'lamp.flicker_die_pl' : 'lamp.flicker_die', {
         item: xnameOf(ctx.state, ctx.defs, obj),

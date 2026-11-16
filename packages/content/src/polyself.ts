@@ -12,7 +12,7 @@
 // shapeshifters, genocide ("You feel rather gnome-ish."), golems (stone golem when stoned), light
 // sources of shining forms, mimicking and hiding, a hero who sticks to a monster (no such forms
 // fight yet), pools and lava under the new form, Passes_walls and buried balls, the amulet of
-// strangulation's can_be_strangled(), slippery fingers, the `#monster` hints and
+// strangulation's can_be_strangled(), the `#monster` hints and
 // conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
 import { eggTypeFromParent, laysEggs, learnEggType } from './eggstate';
@@ -56,7 +56,8 @@ import { makeSick, newuhs } from './hunger';
 import { encumberMsg, prinv } from './itemactions';
 import { uState } from './luck';
 import { messagesEn } from './messages.en';
-import { isFlyer, nameToMon } from './mondata';
+import { isFlyer, nameToMon, nohands } from './mondata';
+import { makeGlib } from './glib';
 import { isPlaceholder, newcham, polyok } from './newcham';
 import { discover, isKnown } from './o_init';
 import { xnameOf } from './objnam';
@@ -574,6 +575,7 @@ export function polymon(ctx: Ctx, mntmpIn: DefId, sexChangeOk: boolean): boolean
     if (flaming(def)) makeSlimed(ctx, 0, 'slime.burns_away');
     else if (mntmp === 'nh:green_slime') makeSlimed(ctx, 0, null); // do it silently
   }
+  if (nohands(def)) makeGlib(ctx, 0);
 
   // there is no experience level of the hero as a monster: the form's own level
   const mlvl = def.level;

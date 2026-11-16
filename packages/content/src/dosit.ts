@@ -8,7 +8,7 @@
 // thrones (throne.ts) and laying eggs.
 // Not ported: no steeds, hiding heroes, ladders or drawbridges exist; the gremlin
 // splitting in a fountain or pool; burning away slime on lava; lava traps (TT_LAVA, m15 step 3);
-// towels do not exist; Half_physical_damage (no source); a squelched shop pie is not billed.
+// Half_physical_damage (no source); a squelched shop pie is not billed.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -112,6 +112,10 @@ function sitOnObject(ctx: Ctx, obj: Entity, form: MonsterDef | null): void {
   if (form?.glyph.ch === 'D' && od.class === 'coin') {
     const meager = (it?.quantity ?? 0) + moneyCnt(ctx) < ulevel * 1000;
     say(ctx, meager ? 'sit.coil_hoard_meager' : 'sit.coil_hoard');
+    return;
+  }
+  if (obj.def === 'nh:towel') {
+    say(ctx, 'towel.picnic');
     return;
   }
   const item = ctx.defs.itemName(ctx.state, obj);

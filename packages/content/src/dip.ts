@@ -7,8 +7,7 @@
 //
 // Not ported (DEVIATIONS "Dipping"): sinks, steeds, poisoning weapons in sickness (no
 // `opoisoned`), naming the old potion type after a unicorn horn or amethyst changed it (docall())
-// and trycall(), exercise, livelog and the polypile conduct; Glib from cursed oil comes in m19
-// step 8 (the spill is only described).
+// and trycall(), exercise, livelog and the polypile conduct.
 import {
   NORMAL_SPEED,
   getLevel,
@@ -49,6 +48,7 @@ import { doname, xnameOf } from './objnam';
 import { objUnpolyable, polyObj } from './polyobj';
 import { potionbreathe } from './potionhit';
 import { P, hasExtrinsic, hasIntrinsic, hasProp, timeoutLeft, wornIn } from './props';
+import { fingersOrGloves, glibTimeout, makeGlib } from './glib';
 import { canReachFloor } from './reach';
 import { alterCost, checkUnpaid, costlyAlteration } from './shk';
 import { nearCapacity } from './stats';
@@ -573,9 +573,8 @@ function oilDip(ctx: Ctx, obj: Entity, potion: Entity): number | null {
     const p = getPlayer(ctx.state).c.pos;
     if (p) fireDamage(ctx, obj, true, p.x, p.y);
   } else if (pit.buc === 'cursed') {
-    // (make_glib(): slippery fingers come in m19 step 8)
-    const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
-    say(ctx, gloves ? 'dip.oil_spills_gloves' : 'dip.oil_spills');
+    say(ctx, 'glib.potion_spills', { fingers: fingersOrGloves(ctx, true) });
+    makeGlib(ctx, glibTimeout(ctx.state) + ctx.rng.d(2, 10));
   } else if (def.class !== 'weapon' && !isWeptool(def)) {
     return null; // the following cases apply only to weapons: more_dips
   } else {
@@ -722,7 +721,7 @@ export function potionDip(ctx: Ctx, obj: Entity | 'hands', potion: Entity): numb
   }
 
   if (potion.def === POT.water && obj.def === TOWEL) {
-    // (wetting the towel is water_damage()'s, m19 step 8)
+    // wetting towel already done via water_damage() in H2Opotion_dip
     say(ctx, 'dip.towel_soaks');
     poof(ctx, potion);
     return NORMAL_SPEED;

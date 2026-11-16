@@ -32,6 +32,7 @@ import { removeFromInventory, rknown, setRknown } from './items';
 import { luckOf } from './luck';
 import { minvent, whichArmor } from './mongear';
 import { xnameOf } from './objnam';
+import { TOWEL, dryATowel, isWetTowel } from './glib';
 import { hcolor } from './hcolor';
 import { canSpotMon, monNam } from './perception';
 import { P, hasProp } from './props';
@@ -206,6 +207,15 @@ export function erodeObj(
  * ref: src/uhitm.c erode_armor(), src/trap.c burnarmor()
  */
 export function erodeArmor(ctx: Ctx, victimId: EntityId, hurt: ErodeType): boolean {
+  // burnarmor(): burning damage may dry a wet towel (stop once one towel has been affected)
+  if (hurt === 'burn') {
+    for (const item of inventoryOf(ctx.state, victimId)) {
+      if (item.def !== TOWEL || !isWetTowel(item)) continue;
+      const oldspe = item.c.item?.spe ?? 0;
+      dryATowel(ctx, item, ctx.rng.rn2(oldspe + 1), true);
+      if (item.c.item?.spe !== oldspe) break;
+    }
+  }
   const worn = (slot: 'helm' | 'cloak' | 'body' | 'shirt' | 'shield' | 'gloves' | 'boots') =>
     whichArmor(ctx, victimId, slot);
   const tryOne = (target: Entity | null): boolean =>

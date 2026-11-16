@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-189 NetHack files, 5339 citations.
+189 NetHack files, 5362 citations.
 
 ## dat/asmodeus.lua
 
@@ -561,6 +561,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_pick()`: `packages/content/src/mdig.ts`
 - `is_pole()`: `packages/content/src/skills.ts`
 - `is_weptool()`: `packages/content/src/material.ts`
+- `is_wet_towel()`: `packages/content/src/glib.ts`
 - `matching_launcher()`: `packages/content/src/mthrowu.ts`
 - `mwelded()`: `packages/content/src/mdig.ts`, `packages/content/src/mongear.ts`
 - `stale_egg()`: `packages/content/src/eggstate.ts`
@@ -712,7 +713,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/youprop.h
 
-- (file): `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/content/src/uwater.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/glib.ts`, `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/content/src/uwater.ts`, `packages/core/src/types/entity.ts`
+- `Half_gas_damage()`: `packages/content/src/glib.ts`
 - `Hate_silver()`: `packages/content/src/silver.ts`
 - `Known_wwalking()`: `packages/content/src/uwater.ts`
 - `Lev_at_will()`: `packages/content/src/trapstate.ts`
@@ -725,7 +727,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/towel.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -773,6 +775,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
 - `use_royal_jelly()`: `packages/content/src/rub.ts`
 - `use_tinning_kit()`: `packages/content/src/tin.en.ts`, `packages/content/src/tin.ts`
+- `use_towel()`: `packages/content/src/towel.en.ts`, `packages/content/src/towel.ts`
 - `use_unicorn_horn()`: `packages/content/src/unicorn.en.ts`, `packages/content/src/unicorn.ts`
 - `use_whistle()`: `packages/content/src/apply.ts`
 
@@ -817,6 +820,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/stats.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/view.ts`, `packages/ui/src/status.ts`
 - `BL_MASK_LEV()`: `packages/content/src/levitation.ts`
 - `bl_slime()`: `packages/content/src/slime.ts`
+- `bl_slippery()`: `packages/content/src/towel.ts`
 - `bl_stone()`: `packages/content/src/stoning.ts`
 - `bl_strngl()`: `packages/content/src/jewelry.ts`
 - `bot2()`: `packages/content/src/hero.ts`, `packages/ui/src/status.ts`
@@ -1020,7 +1024,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Armor_off()`: `packages/content/src/dowear.ts`
 - `Armor_on()`: `packages/content/src/dowear.ts`
 - `Blindf_off()`: `packages/content/src/jewelry.ts`
-- `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/testkit/src/invariants.ts`
+- `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/content/src/towel.en.ts`, `packages/testkit/src/invariants.ts`
 - `Boots_off()`: `packages/content/src/dowear.ts`
 - `Boots_on()`: `packages/content/src/dowear.ts`
 - `Cloak_off()`: `packages/content/src/dowear.ts`, `packages/content/src/invis.ts`
@@ -1052,7 +1056,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dragon_armor_handling()`: `packages/content/src/props.ts`
 - `equip_ok()`: `packages/content/src/itemactions.ts`
 - `find_ac()`: `packages/content/src/props.ts`, `packages/content/src/stats.ts`
+- `fingers_or_gloves()`: `packages/content/src/glib.ts`
 - `freehand()`: `packages/content/src/pray.ts`
+- `glibr()`: `packages/content/src/towel.en.ts`, `packages/content/src/towel.ts`
 - `hard_helmet()`: `packages/content/src/material.ts`, `packages/content/src/read.ts`, `packages/content/src/trap.ts`
 - `inaccessible_equipment()`: `packages/content/src/dip.ts`
 - `learnring()`: `packages/content/src/jewelry.ts`
@@ -2090,7 +2096,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/objnam.c
 
-- (file): `packages/content/src/bottle.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
@@ -2103,6 +2109,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doname()`: `packages/content/src/objnam.ts`
 - `doname_base()`: `packages/content/src/objnam.ts`
 - `erosion_matters()`: `packages/content/src/material.ts`
+- `gloves_simple_name()`: `packages/content/src/glib.ts`
 - `helm_simple_name()`: `packages/content/src/adtyping.ts`, `packages/content/src/polyarmor.ts`, `packages/content/src/seffect.ts`
 - `just_an()`: `packages/ui/src/i18n.ts`
 - `makeplural()`: `packages/ui/src/plural.ts`
@@ -2215,6 +2222,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hold_potion()`: `packages/content/src/dip.ts`
 - `make_blinded()`: `packages/content/src/props.ts`
 - `make_confused()`: `packages/content/src/props.ts`
+- `make_glib()`: `packages/content/src/glib.ts`
 - `make_hallucinated()`: `packages/content/src/props.ts`
 - `make_sick()`: `packages/content/src/eat.en.ts`, `packages/content/src/hunger.ts`, `packages/content/src/potion.ts`
 - `make_slimed()`: `packages/content/src/slimestate.ts`
@@ -2971,7 +2979,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/weapon.c
 
-- (file): `packages/content/src/mdig.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/silver.ts`, `packages/content/src/skills.en.ts`, `packages/content/src/skills.ts`
+- (file): `packages/content/src/glib.ts`, `packages/content/src/mdig.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/silver.ts`, `packages/content/src/skills.en.ts`, `packages/content/src/skills.ts`
 - `abon()`: `packages/content/src/combat.ts`
 - `add_skills_to_menu()`: `packages/content/src/skills.ts`
 - `add_weapon_skill()`: `packages/content/src/skills.ts`
@@ -2981,6 +2989,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dmgval()`: `packages/content/src/dmgval.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/read.ts`
 - `drain_weapon_skill()`: `packages/content/src/skills.ts`
 - `enhance_weapon_skill()`: `packages/content/src/skills.ts`
+- `finish_towel_change()`: `packages/content/src/glib.ts`
 - `give_may_advance_msg()`: `packages/content/src/skills.ts`
 - `hitval()`: `packages/content/src/combat.ts`
 - `hwep()`: `packages/content/src/mongear.ts`
@@ -3001,6 +3010,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `weapon_dam_bonus()`: `packages/content/src/skills.ts`
 - `weapon_descr()`: `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
 - `weapon_hit_bonus()`: `packages/content/src/skills.ts`
+- `wet_a_towel()`: `packages/content/src/glib.ts`, `packages/content/src/towel.en.ts`
 
 ## src/were.c
 

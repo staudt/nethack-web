@@ -21,6 +21,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { DIP_ID, DIP_INTO_ID, mixtype, potionDip, vanillaMod } from '../src/index';
 import { isDiluted, setDiluted } from '../src/dilute';
+import { glibTimeout, isGlib } from '../src/glib';
 import { beginBurn } from '../src/burnstate';
 import { addToInventory } from '../src/items';
 import { T, setTerrain } from '../src/terrain';
@@ -556,7 +557,13 @@ describe('potion_dip(): polymorph, acid, oil, unicorn horn, amethyst', () => {
     expect(s.state.discovered).toContain(P('oil'));
     expect(itemOf(s.state, oil).quantity).toBe(2);
     const cursed = carryPot(s, 'oil', 1, 'cursed');
-    expect(dip(s, axe, cursed)).toEqual(['The potion spills and covers your fingers with oil.']);
+    // slippery fingers: her wielded spear slips at the end of the turn (glibr())
+    expect(dip(s, axe, cursed)).toEqual([
+      'The potion spills and covers your fingers with oil.',
+      'Your spear slips from your hand.',
+    ]);
+    expect(isGlib(s.state)).toBe(true);
+    expect(glibTimeout(s.state)).toBeGreaterThanOrEqual(1);
     // a non-weapon: "Interesting..."
     const scroll = s.carry('nh:scroll_of_light');
     expect(dip(s, scroll, oil)).toEqual(['Interesting...']);

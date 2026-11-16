@@ -51,6 +51,7 @@ import { wakeNearto } from './noise';
 import { nomul, unmulNow } from './nomul';
 import { rndcurse } from './sit';
 import { xnameOf } from './objnam';
+import { glovesSimpleName, isGlib, makeGlib } from './glib';
 import {
   P,
   hasIntrinsic,
@@ -228,8 +229,8 @@ function cursedObj(ctx: Ctx, slot: string, typ: string): Entity | null {
 
 /**
  * What keeps a worn ring of type `otyp` on: a welded weapon in the ring's hand (or two-handed),
- * cursed gloves, or its own curse. ref: src/do_wear.c stuck_ring() (no limbless forms, no
- * slippery fingers)
+ * cursed gloves, its own curse, or slippery gloves. ref: src/do_wear.c stuck_ring() (no
+ * limbless forms)
  */
 function stuckRing(ctx: Ctx, slot: 'ringL' | 'ringR', otyp: string): Entity | null {
   const ring = worn(ctx, slot);
@@ -238,7 +239,10 @@ function stuckRing(ctx: Ctx, slot: 'ringL' | 'ringR', otyp: string): Entity | nu
   if (w && (slot === 'ringR' || ctx.defs.object(w.def).weapon?.bimanual)) return w;
   const gloves = worn(ctx, 'gloves');
   if (gloves?.c.item?.buc === 'cursed') return gloves;
-  return ring.c.item?.buc === 'cursed' ? ring : null;
+  if (ring.c.item?.buc === 'cursed') return ring;
+  // normally outermost layer is processed first, but slippery gloves wears off quickly so
+  // uncurse ring itself before handling those
+  return gloves && isGlib(ctx.state) ? gloves : null;
 }
 
 /** TROUBLE_CURSED_LEVITATION: cursed levitation boots or a stuck ring of levitation. */
@@ -256,6 +260,11 @@ const cursedFumbling = (ctx: Ctx): Entity | null =>
 function fixCurseTrouble(ctx: Ctx, otmp: Entity): void {
   const it = otmp.c.item;
   if (!it) return;
+  if (it.equipped === 'gloves' && isGlib(ctx.state)) {
+    makeGlib(ctx, 0);
+    say(ctx, 'glib.no_longer', { fingers: glovesSimpleName(ctx, otmp) });
+    if (it.buc !== 'cursed') return;
+  }
   if (!hasProp(hero(ctx), P.BLINDED)) {
     say(ctx, (it.quantity ?? 1) > 1 ? 'pray.glows_pl' : 'pray.glows', {
       item: xnameOf(ctx.state, ctx.defs, otmp),

@@ -8,8 +8,8 @@
 // use_tin_opener(), tinopen_ok(), floorfood() (tinnable corpses), tin_ok(); src/apply.c
 // use_tinning_kit(), tinnable()
 //
-// Not ported: slippery fingers (Glib: the tin slipping from them, greasy food making them
-// slippery only says so until m19 step 8), conducts, the Riders' corpses (no Riders), feeling a
+// Slippery fingers (Glib) make a tin slip from them; greasy tins make them slippery.
+// Not ported: conducts, the Riders' corpses (no Riders), feeling a
 // cockatrice corpse while blind (floorfood()), the "Really wield?" question for a known cursed
 // tin opener.
 import {
@@ -36,8 +36,9 @@ import { heroFemale } from './gender';
 import { cpostfxOf } from './givit';
 import { hcolor } from './hcolor';
 import { hungerData, lesshungry, makeVomiting } from './hunger';
-import { invOption, wieldTool } from './itemactions';
-import { mksobj, placeObject, splitStack } from './items';
+import { dropx, invOption, wieldTool } from './itemactions';
+import { mksobj, placeObject, splitStack, stackobj } from './items';
+import { fingersOrGloves, glibTimeout, isGlib, makeGlib } from './glib';
 import { cantwield } from './mondata';
 import { doname, xnameOf } from './objnam';
 import { rndmonnam } from './perception';
@@ -299,17 +300,13 @@ function eatTin(ctx: Ctx, tin0: Entity, r: number, alwaysEat: boolean): void {
       lesshungry(ctx, nutamt, false, chokeSnack);
     }
     if (variety?.greasy && !ctx.state.gameOver) {
-      // (Glib is m19 step 8: until then the fingers only feel it)
-      const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
-      say(ctx, 'tin.greasy', {
+      // normal hero is !Glib, because you can't open tins when Glib, but one poly'd into
+      // metallivorous form might already be Glib
+      const alreadyglib = glibTimeout(ctx.state);
+      makeGlib(ctx, alreadyglib + 5 + ctx.rng.rn2(11)); // 5..15: rn1(11, 5)
+      say(ctx, alreadyglib ? 'glib.greasy_more' : 'glib.greasy', {
         variety: { key: variety.txtKey },
-        fingers: {
-          key: gloves
-            ? gloves.def === 'nh:gauntlets_of_power' || gloves.def === 'nh:gauntlets_of_fumbling'
-              ? 'tin.gauntlets'
-              : 'tin.gloves'
-            : 'tin.fingers',
-        },
+        fingers: fingersOrGloves(ctx, true),
       });
     }
   } else {
@@ -384,8 +381,15 @@ export function startTin(ctx: Ctx, otmp: Entity): void {
     } else tmp = BLADES.includes(uwep.def) ? 3 : 6;
     say(ctx, 'tin.using', { item: xnameOf(ctx.state, ctx.defs, uwep) });
   } else {
-    // no_opener (slippery fingers would drop it here: Glib is m19 step 8)
+    // no_opener
     say(ctx, 'tin.not_easy');
+    if (isGlib(ctx.state)) {
+      say(ctx, 'glib.tin_slips', { fingers: fingersOrGloves(ctx, false) });
+      const one = it.quantity > 1 ? ctx.state.entities[String(splitStack(ctx, otmp.id, 1))] : otmp;
+      if (one?.c.item?.carriedBy === ctx.state.playerId) dropx(ctx, one);
+      else if (one) stackobj(ctx, one.id);
+      return;
+    }
     const a = hero(ctx).c.attributes;
     const sum = (a?.dex ?? 10) + acurrstr(a?.str ?? 10);
     tmp = 10 + ctx.rng.rn2(1 + Math.trunc(500 / sum)); // rn1(1 + 500 / (Dex + Str), 10)

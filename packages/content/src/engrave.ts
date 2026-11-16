@@ -14,8 +14,9 @@
 // Graves (grave.ts): fingers only smudge the headstone, the first stylus disturbs the undead,
 // then engraving adds to the epitaph and anything else writes in the dust.
 // A magic marker writes graffiti (MARK), at most two letters a charge, spending half the
-// action's rate in ink each action (5.0's engrave()), and dries out mid-text.
-// Not ported: towels (m19 step 8), Fire Brand (no artifacts), the literate
+// action's rate in ink each action (5.0's engrave()), and dries out mid-text. A towel writes
+// nothing: it wipes out a dust, blood or graffiti engraving (and dries a little doing so).
+// Not ported: Fire Brand (no artifacts), the literate
 // conduct (no conducts), body_part() (always "fingertip" and "hand"), Deaf (never deaf: "You
 // hear drilling!").
 import {
@@ -48,6 +49,7 @@ import { isIce, isLava, isPool } from './liquid';
 import { checkCapacity, useup } from './magic';
 import { cantwield } from './mondata';
 import { doname, xnameOf } from './objnam';
+import { dryATowel, isWetTowel } from './glib';
 import { mungspaces } from './objnam_read';
 import { isKnown } from './o_init';
 import { monNam } from './perception';
@@ -205,11 +207,9 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
 }
 
 const MAGIC_MARKER: DefId = 'nh:magic_marker';
+const TOWEL: DefId = 'nh:towel';
 
-/**
- * The classes suggested as a stylus, and the magic marker (the towel comes with its wiping, m19
- * step 8). ref: src/engrave.c stylus_ok()
- */
+/** The classes suggested as a stylus, and the magic marker and the towel. ref: src/engrave.c stylus_ok() */
 const stylusSuggested = (ctx: Ctx, e: Entity): boolean => {
   const c = ctx.defs.object(e.def).class;
   return (
@@ -218,7 +218,7 @@ const stylusSuggested = (ctx: Ctx, e: Entity): boolean => {
     c === 'gem' ||
     c === 'ring' ||
     // Only markers and towels are recommended tools.
-    (c === 'tool' && e.def === MAGIC_MARKER)
+    (c === 'tool' && (e.def === TOWEL || e.def === MAGIC_MARKER))
   );
 };
 
@@ -546,8 +546,23 @@ function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boole
       if (stylus.def === MAGIC_MARKER) {
         if ((stylus.c.item?.spe ?? 0) <= 0) say(ctx, 'engr.marker_dried');
         else s.type = 'mark';
+      } else if (stylus.def === TOWEL) {
+        // Can't really engrave with a towel
+        s.ptext = false;
+        const whose = stylus.c.item?.unpaid ? '@towel.the' : '@towel.your';
+        const item = xnameOf(ctx.state, ctx.defs, stylus);
+        const oep = engrAt(ctx, h.level, h.x, h.y);
+        if (oep && isWipeable(oep.type)) {
+          if (isWetTowel(stylus)) dryATowel(ctx, stylus, -1, true);
+          if (!blind(ctx)) say(ctx, 'towel.wipe_engr');
+          else say(ctx, frosted ? 'towel.gets_frosty' : 'towel.gets_dusty', { whose, item });
+          s.dengr = true;
+        } else if (oep) {
+          say(ctx, 'towel.cant_wipe', { whose, item });
+        } else {
+          say(ctx, frosted ? 'towel.gets_frosty' : 'towel.gets_dusty', { whose, item });
+        }
       }
-      // the towel's wipe: m19 step 8
       break;
     case 'venom':
       say(ctx, 'engr.poison_pen');
@@ -1162,7 +1177,7 @@ const engraveWith: ActionDef = {
     return [
       {
         action: { type: 'mod', action: ENGRAVE_WITH_ID, args: { item: e.id } },
-        labelKey: 'action.nh:engrave_with',
+        labelKey: e.def === TOWEL ? 'action.nh:engrave_with.towel' : 'action.nh:engrave_with',
       },
     ];
   },

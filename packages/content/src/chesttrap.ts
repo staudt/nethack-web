@@ -73,7 +73,15 @@ export function chestTrap(ctx: Ctx, box: Entity, part: BodyPart, disarm: boolean
       say(ctx, 'ctrap.noxious_gas', { box: name });
       // create_gas_cloud() 1 time in 3: no gas regions, so she breathes the gas at once
       ctx.rng.rn2(3);
-      poisoned(ctx, { key: 'ctrap.gas_poisoned' }, 'str', '@killer.poison_gas_cloud', 15);
+      poisoned(
+        ctx,
+        { key: 'ctrap.gas_poisoned' },
+        'str',
+        '@killer.poison_gas_cloud',
+        15,
+        false,
+        true,
+      );
     } else if (n >= 13) {
       say(ctx, 'ctrap.needle', { part: { key: `ctrap.part.${part}` } });
       poisoned(ctx, { key: 'ctrap.needle_poisoned' }, 'con', '@killer.poisoned_needle', 10);

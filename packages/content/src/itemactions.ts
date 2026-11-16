@@ -68,6 +68,7 @@ import { heroForm } from './upoly';
 import { aAlign, alignGname, alignStr, altarAlign, doaltarobj } from './align';
 import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
+import { fingersOrGloves, glovesSimpleName, isGlib } from './glib';
 import { xnameOf } from './objnam';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
 import { HERE } from './priority';
@@ -1306,7 +1307,7 @@ const isArmorSlot = (slot: EquipSlot): slot is ArmorSlot => Object.hasOwn(SLOT_N
  * or very small can't wear any; one that can't wear body armor (cantweararm()) can't put on a
  * suit, shirt or cloak (a small form still a cloak, a form WrappingAllowed() a mummy wrapping);
  * horns keep a hard helmet off, a slithy form or a centaur boots. ref: src/do_wear.c canwearobj()
- * (no traps or slippery fingers).
+ * (no traps); slippery fingers keep gloves off.
  */
 function canWear(ctx: Ctx, obj: Entity, noisy: boolean): boolean {
   const it = obj.c.item;
@@ -1371,6 +1372,12 @@ function canWear(ctx: Ctx, obj: Entity, noisy: boolean): boolean {
         if (noisy && uwep) welded(ctx, uwep);
         return say('wear.gloves_weapon', { kind: wk() });
       }
+      // prevent slippery bare fingers from transferring to gloved fingers
+      if (isGlib(ctx.state))
+        return say('glib.cant_wear_gloves', {
+          fingers: fingersOrGloves(ctx, false),
+          gloves: glovesSimpleName(ctx, obj),
+        });
       return true;
     case 'shirt':
       if (suit || cloak || shirt) {
@@ -1475,6 +1482,17 @@ const takeoff: ActionDef = {
     if (slot === 'gloves' && weldedUwep && uwep) {
       welded(ctx, uwep);
       ctx.emit({ type: 'msg', key: 'takeoff.gloves_weapon', params: { kind } });
+      return 0;
+    }
+    if (slot === 'gloves' && isGlib(ctx.state)) {
+      ctx.emit({
+        type: 'msg',
+        key: 'glib.cant_take_off',
+        params: {
+          whose: it.unpaid ? '@towel.the' : '@towel.your', // simplified Shk_Your()
+          gloves: glovesSimpleName(ctx, obj),
+        },
+      });
       return 0;
     }
     if (slot === 'body' || slot === 'shirt') {

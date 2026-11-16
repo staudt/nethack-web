@@ -41,8 +41,6 @@ export const dipMessagesEn: Record<string, string> = {
   'dip.lichen_pl': '{item|The} turn {color} around the edges.',
   'dip.wrinkled': 'wrinkled',
   'dip.towel_soaks': 'The towel soaks it up!',
-  'dip.oil_spills': 'The potion spills and covers your fingers with oil.',
-  'dip.oil_spills_gloves': 'The potion spills and covers your gloves with oil.',
   'dip.oily_sheen': '{whose} {item} gleams with an oily sheen.',
   'dip.oily_sheen_pl': '{whose} {item} gleam with an oily sheen.',
   'dip.oily_feel': '{whose} {item} feels oily.',

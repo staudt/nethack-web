@@ -10,8 +10,8 @@
 // Not ported: dragon scales, the Archeologist's fedora luck and the Wizard's cornuthaum (no
 // roles: the cornuthaum always costs Cha and blocks clairvoyance), water (water walking boots do
 // nothing; levitation boots over a sink), steeds and BStealth, flying (float_vs_flight()), the
-// Astral Plane's Furies, artifacts (retouch_equipment()), wielding_corpse() and slippery fingers
-// when gloves come off, and see_monsters() (the view is rebuilt after every action, so the helms
+// Astral Plane's Furies, artifacts (retouch_equipment()), wielding_corpse() when gloves come off,
+// and see_monsters() (the view is rebuilt after every action, so the helms
 // of telepathy and caution show their monsters then). Levitation boots float through
 // levitation.ts (late-bound, see setBootsLevitation()), which sits above this module.
 import {
@@ -32,6 +32,7 @@ import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
 import { HERO_ALIGN_TYPE, adjalign, setU, uState } from './luck';
 import { discover } from './o_init';
+import { isGlib, makeGlib } from './glib';
 import { xnameOf } from './objnam';
 import {
   P,
@@ -355,6 +356,9 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
         for (const a of abonAttrs(obj.def, slot)) adjustAbon(ctx, a, -spe);
         if (spe) discover(ctx, obj.def);
       }
+      // gloves that come off anyway (polymorph, theft, destruction) take the slipperiness with
+      // them, so it doesn't transfer to bare hands
+      if (isGlib(ctx.state)) makeGlib(ctx, 0);
       break;
     case 'body':
       // ref: Armor_off(), Armor_gone() -> dragon_armor_handling(): "You slow down."

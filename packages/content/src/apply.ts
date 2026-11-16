@@ -1,6 +1,6 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, instruments (music.ts), the tin
 // opener and the tinning kit (tin.ts), the horn of plenty (horn.ts), the magic marker (write.ts), the
-// blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
+// towel (towel.ts), the blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
@@ -61,6 +61,8 @@ import {
 } from './tin';
 import { HORN_OF_PLENTY, hornoplenty } from './horn';
 import { MAGIC_MARKER, answerWrite, dowrite, isWriteData } from './write';
+import { TOWEL } from './glib';
+import { useTowel } from './towel';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -275,7 +277,11 @@ const apply: ActionDef = {
       ? [
           {
             action: { type: 'mod', action: APPLY_ID, args: { item: e.id } },
-            labelKey: wand ? 'action.nh:break' : 'action.nh:apply',
+            labelKey: wand
+              ? 'action.nh:break'
+              : e.def === TOWEL
+                ? 'action.nh:apply.towel'
+                : 'action.nh:apply',
           },
         ]
       : [];
@@ -306,6 +312,7 @@ const apply: ActionDef = {
     if (obj.def === TIN_OPENER) return useTinOpener(ctx, obj, APPLY_ID);
     if (obj.def === TINNING_KIT) return useTinningKit(ctx, obj, APPLY_ID);
     if (obj.def === MAGIC_MARKER) return dowrite(ctx, obj, APPLY_ID);
+    if (obj.def === TOWEL) return useTowel(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (isCandle(obj.def)) useCandle(ctx, obj);
     else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
@@ -319,7 +326,7 @@ const apply: ActionDef = {
       if (ublindf?.id === obj.id) {
         if (!cursedWorn(ctx, obj)) blindfOff(ctx, obj);
       } else if (!ublindf) blindfOn(ctx, obj);
-      else say(ctx, 'puton.already_blindfold');
+      else say(ctx, ublindf.def === TOWEL ? 'towel.already_covered' : 'puton.already_blindfold');
     }
     return NORMAL_SPEED;
   },

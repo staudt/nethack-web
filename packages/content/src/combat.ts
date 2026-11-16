@@ -45,6 +45,7 @@ import { isFleeing, monflee } from './monflee';
 import { wakeup } from './peaceful';
 import { passive, type PassiveTarget } from './uhitm_passive';
 import { doname, xnameOf } from './objnam';
+import { dryATowel, isWetTowel } from './glib';
 import { hidesUnder, isUndetected, setUndetected } from './hidestate';
 import { stopOccupation } from './eat';
 import { experienceFor, gainExperience } from './hero';
@@ -483,6 +484,9 @@ export function knownHitum(
   let hittxt = false;
   // hmon_hitmon_msg_silver(): a silver ring (barehand_silver_rings) or object (silverobj)
   let silverMsg = false;
+  // a wet towel: "You lash", and it dries a little after the hit message
+  let lash = false;
+  let dryit = false;
   // ref: src/uhitm.c hmon_hitmon_*(): attacking a shade is normally useless
   const shade = isShade(def);
   if (!weapon) {
@@ -552,6 +556,15 @@ export function knownHitum(
     dmg = Math.trunc((owt + 99) / 100);
     dmg = dmg <= 1 ? 1 : ctx.rng.rnd(dmg);
     if (dmg > 6) dmg = 6;
+    // wet towel has modest damage bonus beyond its weight, based on its wetness
+    if (isWetTowel(weapon.item)) {
+      const spe = weapon.item.c.item?.spe ?? 0;
+      dmg += spe * (def.id === 'nh:iron_golem' ? 2 : 1);
+      dmg = ctx.rng.rnd(dmg); // wet towel damage not capped at 6
+      // usually lose some wetness but defer doing so until after hit message
+      dryit = ctx.rng.rn2(spe + 1) > 0;
+      lash = true;
+    }
     // "things like silver wands can arrive here so we need another silver check"
     if (weapon.def.material === 'silver' && monHatesSilver(ctx, target)) {
       dmg += ctx.rng.rnd(20);
@@ -629,9 +642,11 @@ export function knownHitum(
   if (!hittxt)
     ctx.emit({
       type: 'msg',
-      key: exclam(dmg) === '!' ? 'combat.you_hit_hard' : 'combat.you_hit',
+      key: `combat.you_${lash ? 'lash' : 'hit'}${exclam(dmg) === '!' ? '_hard' : ''}`,
       params: { mon: name },
     });
+  // dryit implies wet towel, so the weapon is still intact
+  if (dryit && weapon) dryATowel(ctx, weapon.item, -1, true);
   if (silverMsg) silverSearsMon(ctx, target, weapon?.item ?? null);
   // ref: src/uhitm.c hmon_hitmon(): `else if (u.umconf && hmd.hand_to_hand)` (every blow here
   // is hand-to-hand: thrown and fired objects hit through dothrow.ts)

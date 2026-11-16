@@ -7,8 +7,9 @@
 // Amulet_off(), Blindf_on(), Blindf_off(), learnring(), adjust_attrib(); src/timeout.c
 // nh_timeout(), choke_dialogue(), sleep_dialogue()
 //
-// Not ported: slippery fingers (Glib), handedness (the hero is right-handed), polymorphed forms
-// without hands or limbs, retouch_object() (silver), the rings and amulets outside our subset.
+// Slippery fingers (Glib): slippery gloves keep rings from going on or coming off.
+// Not ported: handedness (the hero is right-handed), polymorphed forms without hands or limbs,
+// retouch_object() (silver), the rings and amulets outside our subset.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -62,6 +63,7 @@ import {
 } from './props';
 import { rescham, restartcham } from './chamstate';
 import { setSwapWep, swapWep } from './wield';
+import { TOWEL, glovesSimpleName, isGlib } from './glib';
 
 export const PUTON_ID: DefId = 'nh:puton';
 export const REMOVE_ID: DefId = 'nh:remove';
@@ -88,8 +90,8 @@ function itemArg(action: PlayerAction): unknown {
 
 const isRingSlot = (slot: EquipSlot | null | undefined): slot is 'ringL' | 'ringR' =>
   slot === 'ringL' || slot === 'ringR';
-/** Eyewear worn in the 'blindfold' slot (ublindf): the blindfold of the subset. */
-export const isEyewear = (def: string): boolean => def === 'nh:blindfold';
+/** Eyewear worn in the 'blindfold' slot (ublindf): the blindfold and the towel of the subset. */
+export const isEyewear = (def: string): boolean => def === 'nh:blindfold' || def === TOWEL;
 const isAccessory = (ctx: Pick<Ctx, 'defs'>, e: Entity): boolean => {
   const cls = ctx.defs.object(e.def).class;
   return cls === 'ring' || cls === 'amulet' || isEyewear(e.def);
@@ -293,6 +295,11 @@ function ringOffOrGone(ctx: Ctx, ring: Entity): void {
   }
 }
 
+/** A ring slips off (glibr()): Ring_off() without off_msg(). ref: src/do_wear.c Ring_off() */
+export function ringOffQuiet(ctx: Ctx, ring: Entity): void {
+  ringOffOrGone(ctx, ring);
+}
+
 /** A worn ring is being destroyed (shocked to dust): its effects end silently. ref: Ring_gone() */
 export function ringGone(ctx: Ctx, ring: Entity): void {
   ringOffOrGone(ctx, ring);
@@ -443,8 +450,11 @@ export function blindfOn(ctx: Ctx, obj: Entity): void {
   const alreadyBlind = hasProp(hero(ctx), P.BLINDED);
   // blindfold might be wielded; release it for wearing
   setworn(ctx, obj, 'blindfold');
-  // on_msg() with flags.verbose: "You are now wearing a blindfold."
-  say(ctx, 'puton.now_wearing', { item: xnameOf(ctx.state, ctx.defs, obj) });
+  // on_msg() with flags.verbose: "You are now wearing a blindfold." ("... a towel around your
+  // head.")
+  say(ctx, obj.def === TOWEL ? 'towel.now_wearing' : 'puton.now_wearing', {
+    item: xnameOf(ctx.state, ctx.defs, obj),
+  });
   if (hasProp(hero(ctx), P.BLINDED) && !alreadyBlind) say(ctx, 'blindf.cant_see');
   // (vision follows the blindness after the action: toggle_blindness())
 }
@@ -480,6 +490,10 @@ function canPutOn(ctx: Ctx, obj: Entity): boolean {
 /** The ring part of accessory_or_armor_on() once the hand is chosen. */
 function ringPutOn(ctx: Ctx, ring: Entity, mask: 'ringL' | 'ringR'): number {
   const gloves = worn(ctx, 'gloves');
+  if (gloves && isGlib(ctx.state)) {
+    say(ctx, 'glib.cant_puton_ring', { gloves: glovesSimpleName(ctx, gloves) });
+    return NORMAL_SPEED; // always uses move
+  }
   if (gloves?.c.item?.buc === 'cursed') {
     const res = !gloves.c.item.known.buc;
     gloves.c.item.known.buc = true;
@@ -544,8 +558,9 @@ const puton: ActionDef = {
         say(ctx, 'puton.no_head', { item: `@${ctx.defs.object(obj.def).nameKey}` }); // ansimpleoname()
         return 0;
       }
-      if (worn(ctx, 'blindfold')) {
-        say(ctx, 'puton.already_blindfold');
+      const ublindf = worn(ctx, 'blindfold');
+      if (ublindf) {
+        say(ctx, ublindf.def === TOWEL ? 'towel.face_covered' : 'puton.already_blindfold');
         return 0;
       }
       blindfOn(ctx, obj);
@@ -634,6 +649,10 @@ const remove: ActionDef = {
       const gloves = worn(ctx, 'gloves');
       if ((slot === 'ringR' || bimanual) && weldedUwep(ctx)) {
         say(ctx, 'remove.free_weapon_hand');
+        return 0;
+      }
+      if (gloves && isGlib(ctx.state)) {
+        say(ctx, 'glib.cant_remove_ring', { gloves: glovesSimpleName(ctx, gloves) });
         return 0;
       }
       if (gloves?.c.item?.buc === 'cursed') {

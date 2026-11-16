@@ -85,6 +85,7 @@ import { EGG } from './eggstate';
 import { breakEggs, hitWithEgg } from './egghit';
 import { breakmsg, breaktest } from './material';
 import { breakPotionVapors, potionhit } from './potionhit';
+import { dryATowel, isWetTowel } from './glib';
 import { snuffCandle } from './light';
 import { uWipeEngr } from './engr';
 import { shadeMiss } from './shade';
@@ -701,6 +702,8 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
     it.known.buc = true; // set_bknown()
     return 0;
   }
+
+  if (isWetTowel(obj)) dryATowel(ctx, obj, -1, false);
 
   uWipeEngr(ctx, 2); // ref: throw_obj()
   // throwing a cockatrice corpse bare-handed (a life-saved hero throws it anyway)

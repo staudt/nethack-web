@@ -8,7 +8,7 @@
 // Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, hallucinated snake and liquid
 // names, exercise.
 // Dipping into a fountain (the #dip action is dip.ts's; DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
-// Lady of the Lake always refuses), no Glib, no livelog.
+// Lady of the Lake always refuses), no livelog.
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -55,6 +55,7 @@ import { T, nexttodoor, setTerrain } from './terrain';
 import { clearConjoinedPits, levitating, setMtrapped } from './trapstate';
 import { dungeonBottom, mintrap } from './trap';
 import { angryGuards, watchmanWarnFountain } from './watch';
+import { fingersOrGloves, isGlib, makeGlib } from './glib';
 import { waterDamage, waterDamageChain, type WaterResult } from './water';
 import { answerWish, askWish, type WishData } from './wish';
 import { delEngrAt } from './engr';
@@ -486,13 +487,21 @@ export function answerFountainWish(ctx: Ctx, action: DefId, value: Json, raw: Js
 }
 
 /**
- * Washing the hero's hands: worn gloves get wet (Glib comes in m19 step 8). ref:
- * src/fountain.c wash_hands()
+ * Washing the hero's hands: slippery fingers are cured and worn gloves get wet; a cure alone is
+ * 'greased' (not "nothing" to the fountain). ref: src/fountain.c wash_hands()
  */
 export function washHands(ctx: Ctx): WaterResult {
   const gloves = wornIn(ctx.state, ctx.state.playerId, 'gloves');
+  const wasGlib = isGlib(ctx.state);
   say(ctx, gloves ? 'fountain.wash_gloved_hands' : 'fountain.wash_hands');
-  return gloves ? waterDamage(ctx, gloves, null, true) : 'nothing';
+  if (wasGlib) {
+    makeGlib(ctx, 0);
+    say(ctx, 'glib.no_longer', { fingers: fingersOrGloves(ctx, true) });
+  }
+  const res = gloves ? waterDamage(ctx, gloves, null, true) : 'nothing';
+  // not what ER_GREASED is for, but the checks in dipfountain just compare the result to
+  // ER_DESTROYED and ER_NOTHING, so it works
+  return wasGlib && res === 'nothing' ? 'greased' : res;
 }
 
 /** The bath: a tenth of somegold() is lost from the coin stacks. ref: dipfountain() case 28 */

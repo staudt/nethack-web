@@ -4,8 +4,9 @@
 // ref: src/trap.c water_damage(), water_damage_chain(), pot_acid_damage(); src/apply.c
 // splash_lit()
 //
+// A towel gets wetter (glib.ts's wet_a_towel()).
 // Not ported (DEVIATIONS "Dipping"): grease, cans of grease, mail and novels (none of them
-// exist); towels get wet in m19 step 8.
+// exist).
 import {
   cellIndex,
   contents,
@@ -18,6 +19,7 @@ import {
 } from '@nh/core';
 import { isDiluted, setDiluted } from './dilute';
 import { erodeObj } from './erode';
+import { TOWEL, wetATowel } from './glib';
 import { removeFromInventory } from './items';
 import { LAMP, snuffLit } from './light';
 import { luckOf } from './luck';
@@ -27,8 +29,11 @@ import { P, hasProp } from './props';
 import { billUsedUp } from './shk';
 import { BLANK_PAPER, blankStudied } from './spell';
 
-/** ref: include/hack.h ER_NOTHING, ER_DAMAGED, ER_DESTROYED (no ER_GREASED: no grease) */
-export type WaterResult = 'nothing' | 'damaged' | 'destroyed';
+/**
+ * ref: include/hack.h ER_NOTHING, ER_DAMAGED, ER_DESTROYED, ER_GREASED (no grease: only
+ * wash_hands() returns it, for a cure of slippery fingers)
+ */
+export type WaterResult = 'nothing' | 'damaged' | 'destroyed' | 'greased';
 
 const SCR_BLANK_PAPER = 'nh:scroll_of_blank_paper';
 const OILSKIN_SACK = 'nh:oilskin_sack';
@@ -88,7 +93,13 @@ export function waterDamage(
   const waterproof = def.container?.box === true || obj.def === OILSKIN_SACK;
   const halluc = hasProp(getPlayer(ctx.state), P.HALLUC);
 
-  // (a towel gets wetter here: m19 step 8's wet_a_towel())
+  if (obj.def === TOWEL && it.spe < 7) {
+    // a negative change induces a reverse increment, adding abs(change); spe starts 0..6, arg
+    // passed to rnd() is 1..7, change is -7..-1, final spe is 1..7 and always greater than its
+    // starting value
+    wetATowel(ctx, obj, -ctx.rng.rnd(7 - it.spe), true);
+    return 'nothing';
+  }
   if (def.container && (!waterproof || (it.buc === 'cursed' && !ctx.rng.rn2(3)))) {
     if (inInvent) {
       say(ctx, 'water.gets_into', { item: name });
