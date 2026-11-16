@@ -3,6 +3,7 @@
 // ref: src/mthrowu.c thitu(), drop_throw(), monmulti(), monshoot(), ohitmon(), m_throw(), thrwmu(),
 // linedup(); src/weapon.c select_rwep(); src/dothrow.c should_mulch_missile(), omon_adj()
 import { addUcreamed } from './creamed';
+import { isRogueLevel } from './levelflags';
 import { monHatesSilver } from './chamstate';
 import { isSwallowed } from './engulfstate';
 import {
@@ -1075,10 +1076,12 @@ export function buzzmu(
 
 /**
  * A monster that is in range but not next to the hero makes the ranged part of its attacks, in
- * order: its (first) weapon attack becomes thrwmu(), a gaze gazemu(), a breath breamu(), a spit
+ * order: its (first) weapon attack becomes thrwmu() (not on the Rogue level: nothing is thrown or
+ * fired there), a gaze gazemu(), a breath breamu(), a spit
  * spitmu(), a spell buzzmu(). Nothing while she is in the midst of a successful prayer (silently
  * at range). `aim` is where the monster thinks she is (mux/muy), by default her square.
- * ref: src/mhitu.c mattacku() with range2: `case AT_WEAP: thrwmu(mtmp)`, `case AT_GAZE:
+ * ref: src/mhitu.c mattacku() with range2: `case AT_WEAP: if (!Is_rogue_level(&u.uz))
+ * thrwmu(mtmp)`, `case AT_GAZE:
  * gazemu(mtmp, mattk)`, `case AT_BREA: breamu(mtmp, mattk)`, `case AT_SPIT: spitmu(mtmp, mattk)`,
  * `case AT_MAGC: buzzmu(mtmp, mattk)`
  */
@@ -1100,7 +1103,8 @@ export function mattackRanged(
     // counterattack against attack [i-1] might have been fatal
     if (!ctx.state.entities[String(monId)]?.c.monster) return;
     if (a.at === 'weapon' && !threw) {
-      thrwmu(ctx, monId, clear, prevHero, aim);
+      const here = mon.c.pos ? ctx.state.levels[mon.c.pos.level] : undefined;
+      if (!isRogueLevel(here)) thrwmu(ctx, monId, clear, prevHero, aim);
       threw = true;
     } else if (a.at === 'gaze' && mon.def !== 'nh:medusa') {
       // (Medusa's gaze works through m_respond(): step 6)

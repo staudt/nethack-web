@@ -138,7 +138,9 @@ import { ceilingKey, clearArea, litroom } from './read';
 import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
-import { T, isFurnitureId } from './terrain';
+import { T, isFurnitureId, isWallId } from './terrain';
+import { cvtSdoorToDoor, isRogueLevel } from './levelflags';
+import { draftMessage } from './mdig';
 import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
 import { TRAP, dotrap, isMagicalTrap, mintrap, tele, teleControlled, uTeleportMon } from './trap';
@@ -600,7 +602,8 @@ function obstructed(ctx: Ctx, x: number, y: number): boolean {
  * A door or secret door hit by opening, locking or striking; true if something happened.
  * ref: src/lock.c doorlock(). A doorway stands for both D_NODOOR and D_BROKEN; a trapped door
  * struck blows up (mb_trapped() on a monster in it); a shop door destroyed is damage to repair
- * (`add_damage(x, y, 0L)`). 'broken': struck open (D_BROKEN), which bhit() charges for.
+ * (`add_damage(x, y, 0L)`). 'broken': struck open (D_BROKEN), which bhit() charges for. On the
+ * Rogue level locking magic hides the doorway instead: a secret door with no door behind it.
  */
 export function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean | 'broken' {
   const otyp = caseOf(zotyp); // the spells of wizard lock and knock lock and open
@@ -618,6 +621,7 @@ export function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean 
   const t = terrainAt(ctx, level, x, y);
   let msg: string | null = null;
   let res: boolean | 'broken' = true;
+  if (otyp === WAN.locking && isRogueLevel(level)) return rogueDoorlock(ctx, level, x, y);
   if (otyp === WAN.locking) {
     if (obstructed(ctx, x, y)) return false;
     // traps are never in doorways here
@@ -671,6 +675,26 @@ export function doorlock(ctx: Ctx, zotyp: DefId, x: number, y: number): boolean 
   }
   if (msg && cansee(ctx, x, y)) say(ctx, msg);
   return res;
+}
+
+/**
+ * Locking magic on the Rogue level ("Can't have real locking in Rogue, so just hide doorway"): "A
+ * cloud of dust springs up in the older, more primitive doorway." (unseen: "You hear a swoosh."),
+ * and unless something is in the way ("The cloud quickly dissipates.") the doorway becomes a
+ * secret door with no door behind it, in the wall's direction: "The doorway vanishes!"
+ * ref: src/lock.c doorlock() WAN_LOCKING, SPE_WIZARD_LOCK
+ */
+function rogueDoorlock(ctx: Ctx, level: Level, x: number, y: number): boolean {
+  const vis = cansee(ctx, x, y);
+  say(ctx, vis ? 'rogue.dust_doorway' : 'rogue.swoosh');
+  if (obstructed(ctx, x, y)) {
+    if (vis) say(ctx, 'rogue.cloud_dissipates');
+    return false;
+  }
+  const horizontal = isWallId(cellId(level, x - 1, y)) || isWallId(cellId(level, x + 1, y));
+  setTerrain(level, x, y, horizontal ? T.sdoor_h : T.sdoor_v);
+  if (vis) say(ctx, 'rogue.doorway_vanishes');
+  return true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1220,15 +1244,14 @@ function bhit(ctx: Ctx, src: ZapSource, dir: Dir): void {
     if (ctx.state.gameOver) return;
     zapMapDrawbridge(ctx, src, level, x, y);
     if (ctx.state.gameOver) return;
-    // zap_map(): probing maps the square and reveals a secret door
+    // zap_map(): probing maps the square and reveals a secret door; unseen on the Rogue level,
+    // the doorway it opens is felt ("You feel a draft.": ref: src/zap.c zap_map())
     if (otyp === WAN.probing && isSdoor(cellId(level, x, y))) {
-      const locked =
-        cellId(level, x, y) === T.sdoor_locked_v || cellId(level, x, y) === T.sdoor_locked_h;
-      setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
+      setTerrain(level, x, y, cvtSdoorToDoor(level, cellId(level, x, y)));
       if (cansee(ctx, x, y)) {
         say(ctx, 'zap.probe.sdoor');
         learn(ctx, src);
-      }
+      } else if (isRogueLevel(level)) draftMessage(ctx, false);
     }
     const typIsSdoor = isSdoor(cellId(level, x, y));
     const before = terrainAt(ctx, level, x, y);
@@ -1487,9 +1510,8 @@ function findit(ctx: Ctx): number {
     const y = (i - x) / level.width;
     const id = cellId(level, x, y);
     if (isSdoor(id)) {
-      // cvt_sdoor_to_door(): the door keeps its doormask (closed or locked)
-      const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
-      setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
+      // cvt_sdoor_to_door(): the door keeps its doormask (closed or locked); a Rogue doorway
+      setTerrain(level, x, y, cvtSdoorToDoor(level, id));
       sdoors++;
     } else if (id === T.scorr) {
       setTerrain(level, x, y, T.corr);

@@ -54,6 +54,8 @@ import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { spellDamageBonus, spellHitBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
+import { cvtSdoorToDoor, isRogueLevel } from './levelflags';
+import { draftMessage } from './mdig';
 import { setMtrapped, setUtrap, utrap } from './trapstate';
 import { canseemon } from './invis';
 import { M_SEEN, monReflects, monstseesu, monstunseesu } from './musestate';
@@ -641,10 +643,12 @@ export function zapOverFloor(
     rangemod += liquidRay?.(ctx, level, x, y, 'fire') ?? 0;
   } else if (ray === 'cold') rangemod += liquidRay?.(ctx, level, x, y, 'cold') ?? 0; // freezes
   const id = cellId(level, x, y);
+  // secret door gets revealed, converted into regular door (on the Rogue level a doorway, felt
+  // unseen: "You feel a draft.")
   if (isSdoor(id)) {
-    const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
-    setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
+    setTerrain(level, x, y, cvtSdoorToDoor(level, id));
     if (seeIt) say(ctx, blast ? 'zap.door.sdoor_blast' : 'zap.door.sdoor');
+    else if (isRogueLevel(level)) draftMessage(ctx, false);
   }
   if (closedDoor(terrainAt(ctx, level, x, y))) {
     rangemod += -1000;

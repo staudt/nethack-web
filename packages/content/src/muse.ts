@@ -92,7 +92,7 @@ import {
 import { dropx, welded } from './itemactions';
 import { nhData, placeObject, removeFromInventory, setCknown, splitStack } from './items';
 import { growUp } from './mhitm';
-import { canDigDown, isBotlevel, nonDiggable, onWTowerLevel } from './levelflags';
+import { canDigDown, isBotlevel, isRogueLevel, nonDiggable, onWTowerLevel } from './levelflags';
 import { migrateToLevel } from './migrate';
 import { beginBurn } from './burnstate';
 import { POT_OIL } from './dilute';
@@ -1354,7 +1354,8 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
       choice = { kind: 'pot_acid', obj: obj.id, aim };
     // "we can safely put this scroll here since the locations that are in a 1 square radius are
     // a subset of the locations that are in wand or throwing range (in other words, always
-    // lined_up())"; a hard hat (or not minding boulders), else 1 in 10; no Rogue level or endgame
+    // lined_up())"; a hard hat (or not minding boulders), else 1 in 10; not on the Rogue level
+    // (no endgame here)
     if (is('scr_earth')) continue;
     if (
       obj.def === SCR_EARTH &&
@@ -1367,7 +1368,8 @@ export function findOffensive(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<Mus
         !ctx.rng.rn2(10)) &&
       dist2(p.x, p.y, mu.x, mu.y) <= 2 &&
       mcansee(ctx, id) &&
-      haseyes(ctx, mon)
+      haseyes(ctx, mon) &&
+      !isRogueLevel(ctx.state.levels[p.level])
     )
       choice = { kind: 'scr_earth', obj: obj.id, aim };
   }

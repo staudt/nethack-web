@@ -21,6 +21,7 @@ import {
   computeVisible,
   cellRules,
   getLevel,
+  inBounds,
   inRooms,
   inventoryOf,
   shownId,
@@ -74,7 +75,8 @@ import { moreExperienced } from './urexp';
 import { doname, xnameOf } from './objnam';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
-import { levelFlags } from './levelflags';
+import { isRogueLevel, levelFlags } from './levelflags';
+import { T, terrainIdAt } from './terrain';
 import { snuffLit } from './light';
 import {
   answerSeffect,
@@ -613,18 +615,35 @@ export function clearArea(ctx: Ctx, radius: 5 | 7 | 8 | 9): number[] {
  * ref: src/read.c litroom(): lights (or darkens) the cells around the hero that she could see
  * from where she stands, within a circle of radius 5 (9 for a blessed scroll). That includes
  * walls and doorways but nothing behind them, so in a room it is the room and its walls (within
- * range), in a corridor a stretch of it. Darkening douses the hero's lit lamps first. Not
- * ported: artifact lights, gremlins, the Rogue level, being swallowed or underwater,
- * light-sensitive monsters (lightdamage).
+ * range), in a corridor a stretch of it. Darkening douses the hero's lit lamps first. On the
+ * Rogue level the whole room she is in (walls included) is lit or darkened, and nothing in a
+ * corridor ("hallways remain dark on the rogue level"), where lighting says nothing. Not ported:
+ * artifact lights, gremlins, being swallowed or underwater, light-sensitive monsters
+ * (lightdamage).
  */
 export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
   if (!on) {
     for (const obj of inventoryOf(ctx.state, ctx.state.playerId)) snuffLit(ctx, obj);
   }
-  msg(ctx, on ? 'light.lit_field' : 'light.darkness');
   const pos = heroEntity(ctx).c.pos;
   const level: Level | undefined = pos ? ctx.state.levels[pos.level] : undefined;
-  if (!level) return;
+  const rogue = isRogueLevel(level);
+  if (!on) msg(ctx, 'light.darkness');
+  else if (!rogue || !pos || !level || terrainIdAt(level, pos.x, pos.y) !== T.corr)
+    msg(ctx, 'light.lit_field');
+  if (!level || !pos) return;
+  if (rogue) {
+    // ref: litroom(): "rogue lighting must light the entire room" (`roomno - ROOMOFFSET`: none
+    // on a shared wall)
+    const rooms = inRooms(level, pos.x, pos.y);
+    const room = rooms.length === 1 ? level.rooms[rooms[0] ?? -1] : undefined;
+    if (!room) return;
+    for (let x = room.lx - 1; x <= room.hx + 1; x++)
+      for (let y = room.ly - 1; y <= room.hy + 1; y++)
+        if (inBounds(level, x, y)) level.lit[cellIndex(level, x, y)] = on ? 1 : 0;
+    room.lit = on;
+    return;
+  }
   for (const i of clearArea(ctx, blessed ? 9 : 5)) level.lit[i] = on ? 1 : 0;
 }
 
@@ -783,15 +802,15 @@ export function dropBoulderOnMonster(
  * The scroll of earth: "The ceiling rumbles above you!" (around, blessed); a boulder falls on
  * each open square around the hero unless the scroll is cursed, and on the hero unless it is
  * blessed (her helmet does not help against a cursed one); confused, rocks fall instead. It is
- * always identified, and it is cheating in Sokoban. Every level has a ceiling here (no
- * endgame, Rogue level or quest; no steeds, no engulfing).
- * ref: src/read.c seffect_earth()
+ * identified (the return), and it is cheating in Sokoban. On the Rogue level nothing happens and
+ * the scroll stays unknown. Every other level has a ceiling here (no endgame or quest; no
+ * steeds, no engulfing). ref: src/read.c seffect_earth()
  */
-function seffectEarth(ctx: Ctx, scroll: Entity, confused: boolean): void {
+function seffectEarth(ctx: Ctx, scroll: Entity, confused: boolean): boolean {
   const buc = scroll.c.item?.buc;
   const p = heroEntity(ctx).c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
-  if (!p || !level) return;
+  if (!p || !level || isRogueLevel(level)) return false;
   msg(ctx, 'earth.rumbles', {
     ceiling: { key: ceilingKey(ctx, level, p.x, p.y) },
     where: { key: buc === 'blessed' ? 'earth.around' : 'earth.above' },
@@ -814,6 +833,7 @@ function seffectEarth(ctx: Ctx, scroll: Entity, confused: boolean): void {
   }
   if (buc !== 'blessed') dropBoulderOnPlayer(ctx, confused, buc !== 'cursed');
   else if (nboulders === 0) msg(ctx, 'earth.nothing_else');
+  return true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -885,8 +905,7 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       known = true;
       break;
     case 'nh:scroll_of_earth':
-      seffectEarth(ctx, scroll, confused);
-      known = true;
+      known = seffectEarth(ctx, scroll, confused);
       break;
     case 'nh:scroll_of_blank_paper':
       // ref: seffect_blank_paper(); the scroll is not used up

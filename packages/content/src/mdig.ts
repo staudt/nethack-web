@@ -23,7 +23,14 @@ import { BOULDER, ROCK } from './boulder';
 import { doorTrapped } from './btrapstate';
 import { blowDoor, mbTrapped } from './btrapped';
 import { mksobj } from './items';
-import { cavernous, levelFlags, nonDiggable, nonPasswall } from './levelflags';
+import {
+  cavernous,
+  cvtSdoorToDoor,
+  isRogueLevel,
+  levelFlags,
+  nonDiggable,
+  nonPasswall,
+} from './levelflags';
 import { uState } from './luck';
 import { heroSees, minvent, monFlag, monWep, monWield, whichArmor } from './mongear';
 import { P, hasProp } from './props';
@@ -123,14 +130,14 @@ const closedDoorId = (ctx: Pick<Ctx, 'defs'>, id: DefId | undefined): boolean =>
  * whichever of the mattock, battle-axe, pick-axe or axe it has (C's test there is always true).
  * True if that took its move. ref: src/monmove.c m_digweapon_check(); src/weapon.c
  * mon_wield_item() NEED_PICK_AXE, NEED_AXE, NEED_PICK_OR_AXE ("wields" with a '.': it only
- * plans to dig)
+ * plans to dig). Nothing on the Rogue level, where nothing tunnels.
  */
 export function mDigweaponCheck(ctx: Ctx, mon: Entity, nx: number, ny: number): boolean {
   const def = ctx.defs.monster(mon.def);
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   const mw = monWep(ctx, mon.id);
-  if (!level || !tunnels(def) || !needsPick(def) || welded(mw)) return false;
+  if (!level || isRogueLevel(level) || !tunnels(def) || !needsPick(def) || welded(mw)) return false;
   const id = terrainIdAt(level, nx, ny);
   const door = closedDoorId(ctx, id);
   // may_dig() is also true on open ground, where nothing is wanted
@@ -166,7 +173,7 @@ const DRAFT_REACTION = ['enlisting', 'marching', 'protesting', 'fleeing'] as con
  * opened); hallucinating, "You feel like you are 4-F." / "...1-A." or "You feel like marching."
  * and the like. ref: src/dig.c draft_message()
  */
-function draftMessage(ctx: Ctx, unexpected: boolean): void {
+export function draftMessage(ctx: Ctx, unexpected: boolean): void {
   const hero = getPlayer(ctx.state);
   const halluc = hasProp(hero, P.HALLUC);
   if (unexpected) {
@@ -198,8 +205,11 @@ export function mdigTunnel(ctx: Ctx, mon: Entity): boolean {
   if (!p || !level) return false;
   const pile = ctx.rng.rnd(12);
   let id = terrainIdAt(level, p.x, p.y);
-  // cvt_sdoor_to_door(): a closed (or locked) door
-  if (isSdoorId(id)) id = T.door_closed;
+  // cvt_sdoor_to_door(): a closed (or locked) door, a doorway on the Rogue level
+  if (isSdoorId(id)) {
+    id = cvtSdoorToDoor(level, id);
+    if (id === T.doorway) setTerrain(level, p.x, p.y, id); // (a door is replaced below)
+  }
   // eats away door if present & closed or locked
   if (closedDoorId(ctx, id)) {
     if (p.level === ctx.state.currentLevel) addShopDamage(ctx, p.x, p.y, 0);

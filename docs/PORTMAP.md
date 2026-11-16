@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-191 NetHack files, 5397 citations.
+191 NetHack files, 5404 citations.
 
 ## dat/asmodeus.lua
 
@@ -891,7 +891,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/zap.en.ts`
 - `check_map_spot()`: `packages/content/src/detectobj.ts`
 - `clear_stale_map()`: `packages/content/src/detectobj.ts`
-- `cvt_sdoor_to_door()`: `packages/content/src/actions.ts`, `packages/content/src/detectobj.ts`
+- `cvt_sdoor_to_door()`: `packages/content/src/actions.ts`, `packages/content/src/levelflags.ts`
 - `detect_obj_traps()`: `packages/content/src/detectobj.ts`
 - `display_trap_map()`: `packages/content/src/detectobj.ts`
 - `do_mapping()`: `packages/content/src/detectobj.ts`, `packages/content/src/wizard/map.ts`
@@ -1526,7 +1526,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doforce()`: `packages/content/src/force.ts`
 - `doopen()`: `packages/content/src/actions.ts`
 - `doopen_indir()`: `packages/content/src/actions.ts`
-- `doorlock()`: `packages/content/src/zap.en.ts`, `packages/content/src/zap.ts`
+- `doorlock()`: `packages/content/src/rogue.en.ts`, `packages/content/src/zap.en.ts`, `packages/content/src/zap.ts`
 - `forcelock()`: `packages/content/src/force.ts`
 - `lock_action()`: `packages/content/src/lock.en.ts`, `packages/content/src/lock.ts`, `packages/content/src/lockstate.ts`
 - `maybe_reset_pick()`: `packages/content/src/lock.ts`
@@ -2332,7 +2332,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/read.c
 
-- (file): `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
+- (file): `packages/content/src/detectobj.ts`, `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
 - `apron_text()`: `packages/content/src/shirt.en.ts`
 - `can_center_cloud()`: `packages/content/src/seffect.ts`
 - `cant_revive()`: `packages/content/src/revive.ts`, `packages/content/src/statue.ts`

@@ -49,6 +49,7 @@ import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { P, hasProp, wornIn } from './props';
 import { T, setTerrain, surfaceKey, terrainIdAt } from './terrain';
+import { cvtSdoorToDoor } from './levelflags';
 import { isLadder, ladderArrival } from './ladder';
 import { luckOf } from './luck';
 import {
@@ -1003,8 +1004,9 @@ function dosearch0(ctx: Ctx, aflag: boolean): void {
       const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
       if (id === T.sdoor_v || id === T.sdoor_h || locked) {
         if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
-        // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked)
-        setTerrain(level, x, y, locked ? T.door_locked : T.door_closed);
+        // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked); on the Rogue
+        // level a doorway
+        setTerrain(level, x, y, cvtSdoorToDoor(level, id));
         ctx.emit({ type: 'msg', key: 'search.found_door' });
       } else if (id === T.scorr) {
         if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;

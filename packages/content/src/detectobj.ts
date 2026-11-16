@@ -40,7 +40,8 @@ import { minvent } from './mongear';
 import { canSpotMon } from './perception';
 import { P, heroClairvoyant, hasProp } from './props';
 import { STATUE, statueAppearanceId } from './statuestate';
-import { T, setTerrain } from './terrain';
+import { isSdoorId, setTerrain } from './terrain';
+import { cvtSdoorToDoor } from './levelflags';
 import { heroFormId } from './upoly';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -530,7 +531,11 @@ export function doMapping(ctx: Ctx, confused: boolean): void {
     for (let y = 0; y < level.height; y++) showMapSpot(ctx, level, x, y, confused);
 }
 
-/** Every secret door of the level becomes a door. ref: cvt_sdoor_to_door() over the level */
+/**
+ * Every secret door of the level becomes a door (on the Rogue level a doorway, which no longer
+ * blocks sight: `unblock_point()`). ref: cvt_sdoor_to_door() over the level; src/read.c
+ * seffect_magic_mapping()
+ */
 export function revealSecretDoors(ctx: Ctx): void {
   const level = getLevel(ctx.state);
   for (let i = 0; i < level.cells.length; i++) {
@@ -538,8 +543,7 @@ export function revealSecretDoors(ctx: Ctx): void {
     const x = i % level.width;
     const y = (i - x) / level.width;
     if (x < 1) continue;
-    if (id === T.sdoor_locked_v || id === T.sdoor_locked_h) setTerrain(level, x, y, T.door_locked);
-    else if (id === T.sdoor_v || id === T.sdoor_h) setTerrain(level, x, y, T.door_closed);
+    if (isSdoorId(id)) setTerrain(level, x, y, cvtSdoorToDoor(level, id));
   }
 }
 

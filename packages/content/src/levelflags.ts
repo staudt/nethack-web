@@ -18,6 +18,7 @@ import {
   type LevelRef,
 } from '@nh/core';
 import { CASTLE, isDbWall } from './dbstate';
+import { T } from './terrain';
 
 /** A rectangle of map-relative cells, corners included (des.non_diggable(selection.area())). */
 export interface FlagRect {
@@ -539,6 +540,16 @@ export const LUDIOS: DefId = 'nh:ludios';
 
 /** Whether `level` is the Rogue level. ref: include/dungeon.h Is_rogue_level() */
 export const isRogueLevel = (level: Readonly<Level> | undefined): boolean => level?.def === ROGUE;
+
+/**
+ * What a found secret door (`id`) becomes: on the Rogue level a doorway ("rogue didn't have doors,
+ * only doorways"), elsewhere a door that keeps its lock (a newly exposed door is closed); a
+ * doorway has no trap. ref: src/detect.c cvt_sdoor_to_door()
+ */
+export function cvtSdoorToDoor(level: Readonly<Level>, id: DefId | undefined): DefId {
+  if (isRogueLevel(level)) return T.doorway;
+  return id === T.sdoor_locked_v || id === T.sdoor_locked_h ? T.door_locked : T.door_closed;
+}
 
 /** Whether `level` is Fort Ludios. ref: include/dungeon.h Is_knox() */
 export const isKnox = (level: Readonly<Level> | undefined): boolean => level?.def === KNOX;

@@ -55,6 +55,7 @@ import {
   type Candidate,
 } from './monmove';
 import { tunnels } from './mdig';
+import { isRogueLevel } from './levelflags';
 import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
@@ -208,7 +209,8 @@ function couldReachItem(ctx: Ctx, mon: Entity, level: Level, nx: number, ny: num
 
 /**
  * Whether the square can be walked to, square by square, always getting closer, over squares
- * where it could reach an item. ref: src/dogmove.c can_reach_location() (no digging here)
+ * where it could reach an item. ref: src/dogmove.c can_reach_location() (no digging here, so
+ * the Rogue level's "tunnelling monsters can't do that" needs nothing)
  */
 function canReachLocation(
   level: Level,
@@ -637,7 +639,8 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
       return 'done';
     }
     const wasseen = canSpotMon(ctx, mon);
-    const canTunnel = tunnels(ctx.defs.monster(mon.def)); // m_move()'s, before dog_move()
+    // m_move()'s, before dog_move(); nothing tunnels on the Rogue level
+    const canTunnel = tunnels(ctx.defs.monster(mon.def)) && !isRogueLevel(level);
     const from = { x: omx, y: omy };
     pos.x = nix;
     pos.y = niy;

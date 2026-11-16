@@ -85,6 +85,7 @@ import { isCancelled, isFrozen } from './mstate';
 import { P, hasProp, heroHas, ringBonus } from './props';
 import { acurrstr, invWeight, nearCapacity, weightCap } from './stats';
 import { T, isObstructedId, terrainIdAt } from './terrain';
+import { cvtSdoorToDoor, isRogueLevel } from './levelflags';
 import { snuffCandle } from './light';
 import { thitmonst } from './dothrow';
 import { scatter } from './scatter';
@@ -288,13 +289,15 @@ function kickNondoor(ctx: Ctx, x: number, y: number, avrg: number): void {
     id === T.sdoor_v || id === T.sdoor_h || id === T.sdoor_locked_v || id === T.sdoor_locked_h;
   if (secretDoor) {
     if (!levitating(ctx) && ctx.rng.rn2(30) < avrg) {
-      const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
-      const vertical = id === T.sdoor_v || id === T.sdoor_locked_v;
-      const trapped = doorTrapped(ctx, level.id, x, y);
       // cvt_sdoor_to_door(): a locked one is uncovered (still locked), a closed one kicked open,
-      // a trapped one blows up
+      // a trapped one blows up; on the Rogue level it is a doorway (no lock, no trap)
+      const rogue = isRogueLevel(level);
+      const locked = !rogue && (id === T.sdoor_locked_v || id === T.sdoor_locked_h);
+      const vertical = id === T.sdoor_v || id === T.sdoor_locked_v;
+      const trapped = !rogue && doorTrapped(ctx, level.id, x, y);
       say(ctx, locked && !trapped ? 'kick.uncovers_door' : 'kick.kicks_open_door');
-      if (trapped) {
+      if (rogue) setTerrain(level, x, y, cvtSdoorToDoor(level, id));
+      else if (trapped) {
         blowDoor(ctx, level, x, y);
         bTrapped(ctx, 'door');
       } else

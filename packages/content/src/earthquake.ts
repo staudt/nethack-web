@@ -37,7 +37,7 @@ import { monNam } from './perception';
 import { P, hasProp } from './props';
 import { desecrateAltar } from './pray';
 import { addDamage } from './shopdamage';
-import { isSanctum } from './levelflags';
+import { cvtSdoorToDoor, isSanctum } from './levelflags';
 import { isSokoban } from './sokoban';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { setThroneLooted } from './thronestate';
@@ -255,7 +255,7 @@ export function doEarthquake(ctx: Ctx, forceIn: number): void {
         doPit(ctx, x, y, tuPit);
       } else if (isSdoorId(id) || (id !== undefined && ctx.defs.terrain(id).door !== undefined)) {
         if (isSdoorId(id)) {
-          setTerrain(level, x, y, T.door_closed); // cvt_sdoor_to_door()
+          setTerrain(level, x, y, cvtSdoorToDoor(level, id)); // a Rogue doorway is left as it is
           if (seen()) say(ctx, 'music.secret_door');
         }
         // make the door collapse; if already doorless, treat like room or corridor (a pit

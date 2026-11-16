@@ -36,7 +36,7 @@ import { releaseHero } from './engulf';
 import { ustuck } from './hackmove';
 import { castmu } from './mcastu';
 import { mRespond } from './mrespond';
-import { levelFlags } from './levelflags';
+import { isRogueLevel, levelFlags } from './levelflags';
 import { couldsee } from './mhitu';
 import { cuss } from './cuss';
 import { noteleportLevel, teleRestrict } from './teleport';
@@ -962,8 +962,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
   if (isMStunned(ctx, id)) appr = 0;
 
   // ref: m_move(): hostile monsters (and peaceful ones 1 time in 10) look for items unless they
-  // are closing in on a hero they are lined up with ("monsters in combat won't pick stuff up")
-  if (!m.peaceful || ctx.rng.rn2(10) === 0) {
+  // are closing in on a hero they are lined up with ("monsters in combat won't pick stuff up");
+  // none do on the Rogue level
+  if ((!m.peaceful || ctx.rng.rn2(10) === 0) && !isRogueLevel(level)) {
     const str = acurrstr(getPlayer(ctx.state).c.attributes?.str ?? 10);
     const blocked = blockersOf(ctx, level.id);
     const inLine =
@@ -1140,13 +1141,13 @@ function mMoveAggress(ctx: Ctx, id: EntityId, target: EntityId | null): MoveStat
  * m_move()'s can_tunnel: a tunneller, unless it needs a pick and is a hostile (or, under
  * Conflict, any) monster within reach of where it thinks the hero is ("don't tunnel if hostile
  * and close enough to prefer a weapon"; mon_allowflags() uses the same test for ALLOW_DIG). It
- * need not carry a pick: one without digs nothing but doors it steps onto. ref:
- * src/monmove.c m_move(); src/mon.c mon_allowflags() (no Rogue level)
+ * need not carry a pick: one without digs nothing but doors it steps onto. Nothing tunnels on the
+ * Rogue level. ref: src/monmove.c m_move(); src/mon.c mon_allowflags()
  */
 function canTunnelNow(ctx: Ctx, mon: Entity, heroPos: Pos): boolean {
   const def = ctx.defs.monster(mon.def);
   const p = mon.c.pos;
-  if (!tunnels(def) || !p) return false;
+  if (!tunnels(def) || !p || isRogueLevel(ctx.state.levels[p.level])) return false;
   const hostile = !(mon.c.monster?.peaceful ?? false) || conflictOn(ctx.state);
   return !(needsPick(def) && hostile && dist2(p.x, p.y, heroPos.x, heroPos.y) <= 8);
 }
