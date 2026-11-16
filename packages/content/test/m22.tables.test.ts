@@ -429,7 +429,8 @@ describe('skill tables (u_init.c Skill_*[])', () => {
     skillInit({ state: s.state, defs }, s.state.playerId);
     const d = nhData({ state: s.state });
     expect(d.skillMax).toEqual(SKILL_TAB.wizard);
-    expect(skillLevel({ state: s.state }, 'attack_spell')).toBe(1); // unskilled
+    expect(skillLevel({ state: s.state }, 'attack_spell')).toBe(2); // skill_init()'s magic: Basic
+    expect(skillLevel({ state: s.state }, 'divination_spell')).toBe(1); // unskilled
     expect(skillLevel({ state: s.state }, 'axe')).toBe(1);
     expect(skillLevel({ state: s.state }, 'long_sword')).toBe(0); // restricted
   });

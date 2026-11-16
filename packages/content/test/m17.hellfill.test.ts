@@ -223,6 +223,8 @@ describe('the ten prefabs', () => {
         if (e.c.monster && e.c.pos?.level === level.id) ctx.remove(id);
       }
       level.traps = [];
+      level.rooms = []; // the level's own prefabs (a temple of Moloch) go too
+      delete level.shrines;
       for (let y = 0; y < level.height; y++)
         for (let x = 0; x < level.width; x++) {
           setTerrain(level, x, y, T.floor);

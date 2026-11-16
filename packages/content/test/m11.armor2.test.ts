@@ -301,7 +301,8 @@ describe('cloaks', () => {
   test('an oilskin cloak fits very tightly, and a python slips off it', () => {
     const s = room();
     const cloak = s.carry('nh:oilskin_cloak');
-    expect(wear(s, cloak)).toContain('The slippery cloak fits very tightly.');
+    // the Valkyrie knows the oilskin cloak (knows_class(ARMOR_CLASS))
+    expect(wear(s, cloak)).toContain('The oilskin cloak fits very tightly.');
     const id = addMon(s.state, 'nh:python', s.here.x + 1, s.here.y, {});
     const mon = s.state.entities[String(id)]!;
     const wrap = defs.monster('nh:python' as DefId).attacks.find((a) => a.ad === 'wrap')!;
@@ -311,7 +312,8 @@ describe('cloaks', () => {
       emit: (e: { key?: string }) => lines.push(render(e as never)),
     } as Ctx;
     expect(uSlipFree(ctx, mon, wrap)).toBe(true);
-    expect(lines).toEqual(['The python slips off of your slippery cloak!']);
+    // "slippery oilskin cloak" once the type is known (the Valkyrie's knows_class())
+    expect(lines).toEqual(['The python slips off of your slippery oilskin cloak!']);
   });
 });
 

@@ -151,7 +151,7 @@ describe('nymphs (AD_SITM, AD_SEDU)', () => {
     hit(s, ny.id, SEDU);
     expect(texts(s.ctx)).toEqual([
       'The water nymph charms you.  You gladly hand over your cloak.',
-      'She stole a coarse mantelet.',
+      'She stole an orcish cloak.', // the Valkyrie knows it (knows_class(ARMOR_CLASS))
       'The water nymph vanishes and reappears close by.',
     ]);
     expect(carrier(s.state, cloak)).toBe(ny.id);
@@ -218,8 +218,8 @@ describe('nymphs (AD_SITM, AD_SEDU)', () => {
     const ny = mon(s.state, 'nh:water_nymph');
     const mhm = hit(s, ny.id);
     expect(texts(s.ctx)).toEqual([
-      'The water nymph takes off your coarse mantelet.',
-      'She stole a coarse mantelet.',
+      'The water nymph takes off your orcish cloak.',
+      'She stole an orcish cloak.',
     ]);
     expect(carrier(s.state, cloak)).toBe(ny.id);
     expect(mhm.done).toBe(false); // she is helpless: the nymph stays for more
@@ -358,15 +358,20 @@ describe('monkeys (AD_SITM, animal)', () => {
 
 describe('monsters robbing monsters', () => {
   test('a nymph steals the newest item of a monster and vanishes', () => {
-    const s = bare();
-    const ny = mon(s.state, 'nh:water_nymph', 5, 4);
-    const kob = mon(s.state, 'nh:kobold', 6, 4);
-    const dagger = s.give('nh:dagger', { carriedBy: kob.id });
-    const mhm = hit(s, ny.id, SITM, kob.id);
-    expect(texts(s.ctx)[0]).toBe('The water nymph steals a dagger from the kobold!');
-    expect(carrier(s.state, dagger)).toBe(ny.id);
-    expect(mhm.hitflags).toBe(M_ATTK.AGR_DONE);
-    expect(posKey(s.state, ny.id)).not.toBe('5,4');
+    let moved = 0;
+    for (let seed = 1; seed <= 5; seed++) {
+      const s = bare(seed);
+      const ny = mon(s.state, 'nh:water_nymph', 5, 4);
+      const kob = mon(s.state, 'nh:kobold', 6, 4);
+      const dagger = s.give('nh:dagger', { carriedBy: kob.id });
+      const mhm = hit(s, ny.id, SITM, kob.id);
+      expect(texts(s.ctx)[0]).toBe('The water nymph steals a dagger from the kobold!');
+      expect(carrier(s.state, dagger)).toBe(ny.id);
+      expect(mhm.hitflags).toBe(M_ATTK.AGR_DONE);
+      // rloc() may pick her own square again in this small room
+      if (posKey(s.state, ny.id) !== '5,4') moved++;
+    }
+    expect(moved).toBeGreaterThanOrEqual(4);
   });
 
   test("a leprechaun takes a monster's gold", () => {

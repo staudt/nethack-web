@@ -4,7 +4,6 @@ import type { AttributesComponent, Ctx, Entity, EntityId, ModApi, MonsterDef } f
 import { RACES_TAB, type RaceRow } from './racetab';
 import { ROLES_TAB, enermod, type RoleRow } from './roletab';
 import { type RaceKey, type RoleKey, urace, urole } from './urole';
-import { giveStartingKit } from './kit';
 import { P, adjabil, hasProp } from './props';
 import { uState } from './luck';
 import { nearCapacity } from './stats';
@@ -87,8 +86,8 @@ export function varyInitAttr(ctx: Ctx, a: number[], raceKey: RaceKey): void {
 
 /**
  * Initial attributes: init_attr(75), then vary_init_attr(). ref: src/u_init.c
- * u_init_inventory_attrs(). Skipped: u_init_carry_attr_boost (m22 step 3); the AMAX peak value
- * (we store only the current value).
+ * u_init_inventory_attrs() (kit.ts runs it, then the carry boost). The AMAX peak value is not
+ * stored (we store only the current value).
  */
 export function initialAttributes(
   ctx: Ctx,
@@ -477,22 +476,7 @@ export function regenPw(ctx: Ctx): void {
 
 /** Registers the hero hooks through the public ModApi. */
 export function registerHero(api: ModApi): void {
-  // ref: src/u_init.c u_init() -- attributes first (init_attr), then HP (newhp at ulevel 0), then
-  // Pw (`u.uen = u.uenmax = u.uenpeak = newpw()`)
-  api.on('newGame', (ctx, heroId) => {
-    const hero = ctx.state.entities[String(heroId)];
-    if (!hero) return;
-    const attributes = initialAttributes(ctx);
-    const max = newhp(ctx, 0, attributes.con);
-    const en = newpw(ctx, 0, attributes.wis);
-    hero.c.attributes = attributes;
-    hero.c.hp = { cur: max, max };
-    hero.c.experience = { level: 1, points: 0 };
-    // ref: src/u_init.c u_init(): ini_inv(Valkyrie) and skill_init(Skill_V) after attributes and HP
-    giveStartingKit(ctx, heroId);
-    // written after the kit, which creates modData.nh with its inventory-letter counter
-    setPw(ctx, { uen: en, uenmax: en, uenpeak: en });
-  });
+  // the newGame hook (u_init) is kit.ts's registerKit()
   // ref: src/allmain.c moveloop_core(): regen_hp() then regen_pw()
   api.on('endOfTurn', regenHp);
   api.on('endOfTurn', regenPw);

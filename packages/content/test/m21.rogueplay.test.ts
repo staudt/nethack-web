@@ -328,11 +328,12 @@ describe('secret doors found on the Rogue level are doorways', () => {
   });
 
   test('probing reveals an unseen one: "You feel a draft."', () => {
-    const m = mapSetup(DARK, { memory: 'none' });
+    // the door within the beam's least range (rn1(7, 7))
+    const m = mapSetup(['      |', '@#####|', '      |'], { memory: 'none' });
     rogue(m.level);
-    setTerrain(m.level, 8, 1, T.sdoor_v);
+    setTerrain(m.level, 6, 1, T.sdoor_v);
     const out = zap(m.state, 'nh:wand_of_probing', 'e');
-    expect(terrainIdAt(m.level, 8, 1)).toBe(T.doorway);
+    expect(terrainIdAt(m.level, 6, 1)).toBe(T.doorway);
     expect(out).toContain('You feel a draft.');
   });
 

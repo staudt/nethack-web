@@ -54,13 +54,16 @@ function addPet(state: GameState, def: string, x: number, y: number): number {
 const ROOM = ['---------', '|.......|', '|.@.....|', '|.......|', '---------'];
 
 describe('the starting kitten', () => {
-  test('the Valkyrie starts with a tame kitten next to her (makedog)', () => {
+  test('the Valkyrie starts with a tame kitten or little dog next to her (makedog)', () => {
+    const kinds = new Set<string>();
     for (const seed of [1, 2, 3, 4, 5]) {
       const { state } = engine.newGame({ seed });
       const ps = pets(state);
       expect(ps).toHaveLength(1);
       const k = ps[0]!;
-      expect(k.def).toBe('nh:kitten');
+      // ref: src/dog.c pet_type(): the Valkyrie has no petnum, so rn2(2) picks
+      expect(['nh:kitten', 'nh:little_dog']).toContain(k.def);
+      kinds.add(k.def);
       expect(k.c.monster).toMatchObject({ tame: 10, peaceful: true, asleep: false });
       const h = getPlayer(state).c.pos!;
       expect(Math.max(Math.abs(k.c.pos!.x - h.x), Math.abs(k.c.pos!.y - h.y))).toBe(1);
@@ -70,6 +73,7 @@ describe('the starting kitten', () => {
       // the renderer highlights it
       expect(buildSnapshot(defs, state).entities.find((v) => v.id === k.id)?.tame).toBe(true);
     }
+    expect(kinds.size).toBe(2);
   });
 
   test('carries nothing (NO_MINVENT)', () => {

@@ -619,7 +619,8 @@ describe('entering a shop', () => {
     addToInventory(ctxOf(s), s.state.playerId, m);
     // he is off his spot; the extra move takes him back onto it at once
     Object.assign(shk.c.pos, { x: 4, y: 1 });
-    expect(s.state.discovered).not.toContain('nh:dwarvish_mattock');
+    // as for a hero who does not know mattocks (a Valkyrie does: knows_class(WEAPON_CLASS))
+    s.state.discovered = s.state.discovered.filter((d) => d !== 'nh:dwarvish_mattock');
     expect(said(move('w'))).toEqual([
       '"Velkommen, Valkyrie!  Welcome to Izchak\'s lighting store!"',
       '"Will you please leave your mattock outside?"',
@@ -662,6 +663,7 @@ describe('entering a shop', () => {
     ]);
     expect(shk.c.pos).toMatchObject(SHK_SPOT);
     const t = izchak();
+    t.s.state.discovered = t.s.state.discovered.filter((d) => d !== 'nh:dwarvish_mattock');
     for (const id of ['nh:pick_axe', 'nh:dwarvish_mattock'])
       addToInventory(ctxOf(t.s), t.s.state.playerId, mksobj(ctxOf(t.s), obj(id), { init: false }));
     t.e.customer = true;
@@ -717,7 +719,8 @@ describe('prices', () => {
     stockShops(ctxOf(s), s.level);
     for (const id of sortedIds(s.state)) {
       const o = s.state.entities[String(id)];
-      if (o?.c.item && o.c.pos) delete s.state.entities[String(id)];
+      // the stock goes, and the mimics that stocking may have made
+      if ((o?.c.item && o.c.pos) || o?.def.endsWith('_mimic')) delete s.state.entities[String(id)];
     }
     const [id] = shkOn(s);
     const e = id === undefined ? null : eshkOf(s, id);

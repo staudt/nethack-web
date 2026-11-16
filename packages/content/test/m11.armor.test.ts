@@ -91,7 +91,9 @@ describe('the rows', () => {
           .map((id) => state.appearances[id] as string);
         for (const a of got) expect(r.looks).toContain(a);
         expect(new Set(got).size).toBe(got.length);
-        expect(isKnown(state, defs, 'nh:helmet' as DefId)).toBe(false);
+        // the Valkyrie knows ordinary armor (knows_class(ARMOR_CLASS)), not the magic kinds
+        expect(isKnown(state, defs, 'nh:helmet' as DefId)).toBe(true);
+        expect(isKnown(state, defs, 'nh:helm_of_brilliance' as DefId)).toBe(false);
       }
       seen.add(state.appearances['nh:jumping_boots'] as string);
       gloves.add(state.appearances['nh:leather_gloves'] as string);

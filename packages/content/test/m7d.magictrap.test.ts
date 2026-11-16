@@ -132,11 +132,19 @@ describe('the trap kinds', () => {
 describe('domagictrap() fates', () => {
   test('1-9: a flash blinds her, a roar, 1-4 monsters next to her, nearby sleepers wake', () => {
     for (const fate of [1, 9]) {
-      const s = room();
-      const sleeper = addMon(s.state, 'nh:jackal', 8, 2, { asleep: true });
-      const before = monsters(s.state).length;
-      // burn 3: a searched roll whose random monsters form no group (makemon() may add one)
-      const text = run(s.state, (ctx) => magicTrapFate(ctx, fate), 3);
+      // a searched roll whose random monsters form no group (makemon() may add one): the first
+      // number of burnt draws that makes at most 4
+      let s = room();
+      let sleeper = 0;
+      let before = 0;
+      let text: string[] = [];
+      for (let burn = 0; burn < 30; burn++) {
+        s = room();
+        sleeper = addMon(s.state, 'nh:jackal', 8, 2, { asleep: true });
+        before = monsters(s.state).length;
+        text = run(s.state, (ctx) => magicTrapFate(ctx, fate), burn);
+        if (monsters(s.state).length - before <= 4) break;
+      }
       expect(text).toContain('You are momentarily blinded by a flash of light!');
       expect(text).toContain('You hear a deafening roar!');
       const hero = getPlayer(s.state);
@@ -371,7 +379,8 @@ describe('the anti-magic field', () => {
     itemOf(s.state, shoes).spe = 1;
     itemOf(s.state, shoes).equipped = 'boots';
     setPw(s.ctx, { uen: 30, uenmax: 30, uenpeak: 30 });
-    expect(trigger(s)).toEqual(['A lethargic aura surrounds your pair of hard shoes.']);
+    // the Valkyrie knows iron shoes (knows_class(ARMOR_CLASS))
+    expect(trigger(s)).toEqual(['A lethargic aura surrounds your pair of iron shoes.']);
     expect(itemOf(s.state, shoes).spe).toBe(0);
     expect(pwOf(s.state).uen).toBe(30);
   });

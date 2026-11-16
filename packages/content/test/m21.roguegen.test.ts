@@ -214,8 +214,10 @@ describe("the Rogue level's fill", () => {
           amulets++;
           expect(a.c.item?.known.spe).toBe(true);
         }
+        // (the fill's own gold may land on the pile too)
         for (const o of pile)
           expect([
+            'nh:gold_piece',
             'nh:food_ration',
             'nh:fake_amulet_of_yendor',
             weapon.def,

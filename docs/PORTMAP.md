@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5496 citations.
+192 NetHack files, 5523 citations.
 
 ## dat/asmodeus.lua
 
@@ -567,10 +567,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ammo_and_launcher()`: `packages/content/src/mthrowu.ts`
 - `greatest_erosion()`: `packages/content/src/material.ts`
 - `ignitable()`: `packages/content/src/light.ts`
+- `inv_rank()`: `packages/content/src/kit.ts`
 - `is_ammo()`: `packages/content/src/mthrowu.ts`
 - `is_axe()`: `packages/content/src/mdig.ts`
 - `is_blade()`: `packages/content/src/combat.ts`, `packages/content/src/force.ts`, `packages/content/src/skills.ts`
 - `is_flimsy()`: `packages/content/src/material.ts`
+- `is_graystone()`: `packages/content/src/kit.ts`
 - `is_launcher()`: `packages/content/src/mthrowu.ts`
 - `is_missile()`: `packages/content/src/mthrowu.ts`
 - `is_pick()`: `packages/content/src/mdig.ts`
@@ -698,10 +700,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_pit()`: `packages/content/src/trapstate.ts`
 - `madeby_u()`: `packages/content/src/sokoban.ts`
 - `undestroyable_trap()`: `packages/content/src/invocation.ts`
-
-## include/u_init.h
-
-- (file): `packages/content/src/kit.ts`
 
 ## include/vision.h
 
@@ -2151,6 +2149,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/objnam.c
 
 - (file): `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
+- `Japanese_items()`: `packages/content/src/kittab.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
@@ -2721,6 +2720,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `losespells()`: `packages/content/src/spell.ts`
 - `percent_success()`: `packages/content/src/spellcalc.ts`
 - `rejectcasting()`: `packages/content/src/cast.ts`, `packages/content/src/spell.en.ts`
+- `skill_based_spellbook_id()`: `packages/content/src/kit.ts`
 - `spell_aim_step()`: `packages/content/src/cast.ts`
 - `spell_backfire()`: `packages/content/src/cast.ts`
 - `spell_skilltype()`: `packages/content/src/spellcalc.ts`
@@ -2753,6 +2753,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `unresponsive()`: `packages/content/src/steal.ts`
 - `unstolenarm()`: `packages/content/src/steal.en.ts`, `packages/content/src/steal.ts`
 - `worn_item_removal()`: `packages/content/src/steal.ts`
+
+## src/steed.c
+
+- `put_saddle_on_mon()`: `packages/content/src/dog.ts`, `packages/content/src/items.ts`
 
 ## src/teleport.c
 
@@ -2932,13 +2936,28 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/u_init.c
 
-- (file): `packages/content/src/hero.ts`
+- (file): `packages/content/src/hero.ts`, `packages/content/src/kit.ts`, `packages/content/src/kittab.ts`, `packages/content/src/skills.ts`
+- `Archeologist()`: `packages/content/src/kittab.ts`
+- `Healing_book()`: `packages/content/src/kittab.ts`
 - `Skill_A()`: `packages/content/src/skilltab.ts`
 - `Skill_V()`: `packages/content/src/skills.ts`
-- `Valkyrie()`: `packages/content/src/kit.ts`
+- `UNDEF_SPE()`: `packages/content/src/kittab.ts`
 - `ini_inv()`: `packages/content/src/kit.ts`
 - `ini_inv_adjust_obj()`: `packages/content/src/kit.ts`
-- `u_init()`: `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/kit.ts`, `packages/content/src/props.ts`, `packages/content/src/skills.ts`, `packages/content/src/uenergy.ts`
+- `ini_inv_mkobj_filter()`: `packages/content/src/kit.ts`
+- `ini_inv_obj_substitution()`: `packages/content/src/kit.ts`
+- `ini_inv_use_obj()`: `packages/content/src/kit.ts`
+- `inv_subs()`: `packages/content/src/kittab.ts`
+- `knows_class()`: `packages/content/src/kit.ts`
+- `knows_object()`: `packages/content/src/kittab.ts`
+- `restricted_spell_discipline()`: `packages/content/src/kit.ts`
+- `trquan()`: `packages/content/src/kit.ts`
+- `u_init()`: `packages/content/src/hunger.ts`, `packages/content/src/props.ts`, `packages/content/src/uenergy.ts`
+- `u_init_carry_attr_boost()`: `packages/content/src/kit.ts`
+- `u_init_inventory_attrs()`: `packages/content/src/kit.ts`
+- `u_init_misc()`: `packages/content/src/kit.ts`
+- `u_init_race()`: `packages/content/src/kit.ts`, `packages/content/src/kittab.ts`
+- `u_init_role()`: `packages/content/src/kit.ts`, `packages/content/src/kittab.ts`
 
 ## src/uhitm.c
 
@@ -3065,10 +3084,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `skill_init()`: `packages/content/src/skills.ts`
 - `slots_required()`: `packages/content/src/skills.ts`
 - `special_dmgval()`: `packages/content/src/combat.ts`, `packages/content/src/silver.ts`
+- `unrestrict_weapon_skill()`: `packages/content/src/skills.ts`
 - `use_skill()`: `packages/content/src/skills.ts`
 - `weapon_dam_bonus()`: `packages/content/src/skills.ts`
 - `weapon_descr()`: `packages/content/src/trap.en.ts`, `packages/content/src/web.ts`
 - `weapon_hit_bonus()`: `packages/content/src/skills.ts`
+- `weapon_type()`: `packages/content/src/skills.ts`
 - `wet_a_towel()`: `packages/content/src/glib.ts`, `packages/content/src/towel.en.ts`
 
 ## src/were.c
@@ -3164,7 +3185,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `setworn()`: `packages/content/src/jewelry.ts`, `packages/content/src/props.ts`
 - `update_mon_extrinsics()`: `packages/content/src/invis.ts`
 - `w_blocks()`: `packages/content/src/props.ts`
-- `which_armor()`: `packages/content/src/buzz.ts`, `packages/content/src/mongear.ts`
+- `which_armor()`: `packages/content/src/buzz.ts`, `packages/content/src/items.ts`, `packages/content/src/mongear.ts`
 
 ## src/write.c
 

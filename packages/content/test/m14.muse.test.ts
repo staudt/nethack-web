@@ -28,7 +28,16 @@ import { TRAP } from '../src/trap';
 import { monKnowsTraps, trapTable } from '../src/trapstate';
 import { setTerrain, T } from '../src/terrain';
 import { addMon } from './helpers';
-import { ctxFor, defs, engine, levelSetup, obj, plainKit, render } from './itemHelpers';
+import {
+  ctxFor,
+  defs,
+  engine,
+  levelSetup,
+  obj,
+  plainBottles,
+  plainKit,
+  render,
+} from './itemHelpers';
 
 type S = ReturnType<typeof levelSetup>;
 
@@ -75,6 +84,7 @@ function give(
   otyp: string,
   o: { buc?: 'blessed' | 'cursed' } = {},
 ) {
+  if (otyp.startsWith('nh:potion_of_')) plainBottles(state, otyp); // no djinni or ghost
   const id = mksobj(ctxFor(state), obj(otyp), { init: false, carriedBy: mon });
   const it = state.entities[String(id)]!.c.item!;
   it.buc = o.buc ?? 'uncursed';

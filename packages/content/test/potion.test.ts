@@ -1,7 +1,7 @@
 import { getPlayer, inventoryOf, type Buc } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { isKnown } from '../src/index';
-import { defs, engine, levelSetup, plainKit } from './itemHelpers';
+import { defs, engine, levelSetup, plainBottles, plainKit } from './itemHelpers';
 
 type Setup = ReturnType<typeof levelSetup>;
 
@@ -13,6 +13,7 @@ const hp = (s: Setup) => {
 const quaff = (s: Setup, id: number) => s.mod('nh:quaff', { item: id });
 /** A potion of `def` with the given BUC in the inventory. */
 function make(s: Setup, def: string, buc: Buc, quantity = 1): number {
+  plainBottles(s.state, def); // no djinni or ghost instead of the drink
   const id = s.carry(def, { quantity });
   const it = s.state.entities[String(id)]?.c.item;
   if (!it) throw new Error('no item');

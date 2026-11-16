@@ -29,6 +29,7 @@ import { ENGRAVE_ACTIONS } from './engrave';
 import { registerEngr } from './engr';
 import { registerRevive } from './revive';
 import { registerHero } from './hero';
+import { registerKit } from './kit';
 import { ROLES } from './roles';
 import { TERRAIN } from './terrain';
 import { TRAVEL_ACTIONS } from './travel';
@@ -203,6 +204,7 @@ export const vanillaMod: Mod = {
     registerStats(api);
     registerShuffle(api);
     registerHero(api);
+    registerKit(api); // the u_init newGame hook
     registerTeleportitis(api); // after regen_pw(), as moveloop_core()
     registerPolymorphitis(api); // after teleportitis, as moveloop_core()
     registerGeneration(api);
@@ -419,7 +421,15 @@ export {
 export type { UState } from './luck';
 export { PRAY_ACTIONS, PRAY_ID, inTrouble, invulnerable } from './pray';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
-export { giveStartingKit, VALKYRIE_KIT } from './kit';
+export {
+  knowsClass,
+  knowsObject,
+  registerKit,
+  uInitInventoryAttrs,
+  uInitSkillsDiscoveries,
+  umoney0,
+} from './kit';
+export { KITS, EXTRAS, INV_SUBS, type TrObj } from './kittab';
 export {
   skillInit,
   skillLevel,

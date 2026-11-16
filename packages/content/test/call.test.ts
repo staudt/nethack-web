@@ -134,6 +134,7 @@ describe('#name / call an object type', () => {
 
   test('unidentified described weapons and armor read "<description> called X"', () => {
     const s = setup();
+    s.state.discovered = []; // not the Valkyrie's knows_class() weapons and armor
     const d = s.carry('nh:elven_dagger');
     toTextPrompt(s, d);
     answer(s, 'nice');

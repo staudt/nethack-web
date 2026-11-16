@@ -91,14 +91,16 @@ function valuables(state: Readonly<GameState>, defs: Registry, list: readonly En
 /**
  * The final score: `u.urexp` plus the net gold gain (less a tenth unless she escaped or quit),
  * 50 per level below the first and 1000 per level past 20 (at most 10); an escape adds the
- * valuables. The starting gold (`u.umoney0`) is 0: the Valkyrie starts with none.
+ * valuables. The net gain is over the starting gold (`u.umoney0`, `modData.nh.umoney0`, absent
+ * = 0: a Healer's or Tourist's purse).
  * ref: src/end.c really_done() "calculate score" (`how < PANICKED`), the ESCAPED branch.
  * Not ported: the ascension bonus, artifact_score(), the escaping pets' hit points.
  */
 export function finalScore(state: Readonly<GameState>, defs: Registry): number {
   const how = endHow(state);
   const deepest = deepestLevel(state);
-  let tmp = Math.max(0, finalGold(state, defs)); // net gain over u.umoney0 = 0
+  const md = state.modData['nh'] as unknown as { umoney0?: number } | undefined;
+  let tmp = Math.max(0, finalGold(state, defs) - (md?.umoney0 ?? 0)); // net gain over u.umoney0
   if (how !== 'escaped' && how !== 'quit') tmp -= Math.trunc(tmp / 10);
   tmp += 50 * (deepest - 1);
   if (deepest > 20) tmp += 1000 * (deepest > 30 ? 10 : deepest - 20);

@@ -37,27 +37,49 @@ const offered = (
     .flatMap((o) => (o.action.type === 'mod' ? [o.action.action as string] : []));
 
 describe('the Valkyrie kit', () => {
-  test('letters a-d, equipment, identification and starting AC 6', () => {
+  test('letters a-d (e: the oil lamp 1 time in 6), equipment, identification and AC 6', () => {
+    let lamps = 0;
+    let pairs = 0;
     for (let seed = 1; seed <= 25; seed++) {
       const s = freshState(seed);
       const inv = inventoryOf(s, s.playerId);
-      expect(inv.map((e) => [e.c.item?.letter, e.def])).toEqual([
+      expect(inv.slice(0, 4).map((e) => [e.c.item?.letter, e.def])).toEqual([
         ['a', 'nh:spear'],
         ['b', 'nh:dagger'],
         ['c', 'nh:small_shield'],
         ['d', 'nh:food_ration'],
       ]);
-      expect(inv.map((e) => e.c.item?.spe)).toEqual([1, 0, 3, 0]);
-      expect(inv.map((e) => e.c.item?.equipped)).toEqual(['weapon', null, 'shield', null]);
+      // ref: src/u_init.c u_init_role(): `if (!rn2(6)) ini_inv(Lamp)`
+      if (inv.length > 4) {
+        expect(inv.slice(4).map((e) => [e.c.item?.letter, e.def])).toEqual([['e', 'nh:oil_lamp']]);
+        lamps++;
+      }
+      expect(inv.slice(0, 4).map((e) => e.c.item?.spe)).toEqual([1, 0, 3, 0]);
+      expect(inv.slice(0, 4).map((e) => e.c.item?.equipped)).toEqual([
+        'weapon',
+        null,
+        'shield',
+        null,
+      ]);
       for (const e of inv) {
         expect(e.c.item?.known).toEqual({ buc: true, spe: true });
-        expect(e.c.item?.quantity).toBe(1);
         expect(e.c.item?.buc).not.toBe('cursed');
       }
+      expect(inv.slice(0, 3).map((e) => e.c.item?.quantity)).toEqual([1, 1, 1]);
+      // the food ration keeps mksobj()'s pair, 1 time in 6
+      const rations = inv[3]?.c.item?.quantity ?? 0;
+      expect([1, 2]).toContain(rations);
+      if (rations === 2) pairs++;
       expect(inv[3]?.c.item?.buc).toBe('uncursed');
-      expect(s.discovered).toEqual(['nh:small_shield']);
+      // knows_class(WEAPON_CLASS) and (ARMOR_CLASS): ordinary weapons and armor, no polearms
+      expect(s.discovered).toEqual(
+        expect.arrayContaining(['nh:small_shield', 'nh:elven_dagger', 'nh:dwarvish_iron_helm']),
+      );
+      expect(s.discovered).not.toContain('nh:glaive');
       expect(findAc(s, defs, s.playerId)).toBe(6);
     }
+    expect(lamps).toBeGreaterThan(0);
+    expect(pairs).toBeGreaterThan(0);
   });
 
   test('inventory lines read as NetHack prints them', () => {
@@ -810,7 +832,17 @@ describe('discoveries', () => {
     const r = s.mod('nh:discoveries');
     const ev = r.events.find((e): e is Extract<GameEvent, { type: 'list' }> => e.type === 'list');
     expect(ev?.titleKey).toBe('disco.title');
-    expect(ev?.items.map((m) => render(m))).toEqual(['Armor', '  small shield (wooden shield)']);
+    // the Valkyrie's known weapons and armor (knows_class()) and her small shield
+    const text = ev?.items.map((m) => render(m)) ?? [];
+    expect(text[0]).toBe('Weapons');
+    expect(text).toEqual(
+      expect.arrayContaining([
+        '  elven dagger (runed dagger)',
+        'Armor',
+        '  small shield (wooden shield)',
+      ]),
+    );
+    expect(text.indexOf('Weapons')).toBeLessThan(text.indexOf('Armor'));
   });
 
   test('costs no time; scrolls and potions show their appearance; none says so', () => {
@@ -822,7 +854,7 @@ describe('discoveries', () => {
     expect(s.state.turn).toBe(t0);
     const ev = r.events.find((e): e is Extract<GameEvent, { type: 'list' }> => e.type === 'list');
     const text = ev?.items.map((m) => render(m)) ?? [];
-    expect(text.slice(0, 2)).toEqual(['Armor', '  small shield (wooden shield)']);
+    expect(text).toEqual(expect.arrayContaining(['Armor', '  small shield (wooden shield)']));
     expect(text).toContain('Scrolls');
     expect(text).toContain('Potions');
     expect(text.some((l) => /^ {2}scroll of identify \(scroll labeled [A-Z _]+\)$/.test(l))).toBe(

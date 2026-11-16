@@ -255,14 +255,15 @@ describe('the polymorph trap and monsters', () => {
     expect(boots?.def).toBe('nh:kicking_boots');
   });
 
-  test('her iron shoes warp: "Your pair of hard shoes warps strangely.", the trap is gone', () => {
+  test('her iron shoes warp: "Your pair of iron shoes warps strangely.", the trap is gone', () => {
     const s = room();
     const level = getLevel(s.state);
     const shoes = s.carry('nh:iron_shoes');
     itemOf(s.state, shoes).equipped = 'boots';
     level.traps.push({ def: TRAP.poly as DefId, x: 4, y: 2, seen: false });
     const out = s.text(s.step({ type: 'move', dir: 'e' }));
-    expect(out).toContain('Your pair of hard shoes warps strangely.');
+    // the Valkyrie knows iron shoes (knows_class(ARMOR_CLASS))
+    expect(out).toContain('Your pair of iron shoes warps strangely.');
     // kicking boots show the description the game gave their range (m11 step 3 shuffles boots)
     const look = (s.state.appearances['nh:kicking_boots'] ?? '').slice(3).replace('_', ' ');
     expect(out.some((t) => t.includes(`pair of ${look} (being worn)`))).toBe(true);

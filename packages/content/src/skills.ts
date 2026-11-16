@@ -2,6 +2,7 @@
 // src/u_init.c Skill_A[]..Skill_W[] (skilltab.ts)
 import { type ActionDef, type Ctx, type Msg, type ObjectDef, inventoryOf } from '@nh/core';
 import { nhData } from './items';
+import { ROLES_TAB } from './roletab';
 import { SKILL_TAB } from './skilltab';
 import { type RoleKey, urole } from './urole';
 
@@ -87,33 +88,67 @@ const groupOf = (skill: string): string =>
   SKILL_GROUPS.find((g) => g.skills.includes(skill))?.id ?? 'weapon';
 
 /**
- * Sets the hero's starting skills: every skill is restricted, weapons in the inventory are
- * Basic, then the role's skills not already set become Unskilled; each skill's maximum and
- * practice counter are set, and the hero starts with 2 unused slots.
- * ref: src/weapon.c skill_init(), src/u_init.c u_init() (u.weapon_slots = 2).
- * Skipped: the ammo exception (ammo is skipped only for launchers we lack), magic skills,
- * riding a steed, unrestrict_weapon_skill() for the role's special spell.
+ * Sets the hero's starting skills: every skill is restricted; the weapons, weapon-tools and
+ * launchers she carries are Basic (carried ammo is not: it waits for its launcher); the role's
+ * magic skills are Basic (Healers and Monks healing, Priests clerical, Wizards attack and
+ * enchantment); the role's other skills become Unskilled with the role's maximums; a role whose
+ * maximum in bare hands is above Expert starts Basic there, and a role whose pet is a pony knows
+ * how to ride it (Basic). Each skill's practice is what its level needs. `specialSkill` is the
+ * school of the role's special spell (spell_skilltype(urole.spelspec)): at least Basic is allowed
+ * there (unrestrict_weapon_skill()). The hero starts with 2 unused slots.
+ * ref: src/weapon.c skill_init(), weapon_type(), unrestrict_weapon_skill(); src/u_init.c
+ * u_init_misc() (u.weapon_slots = 2). skill_based_spellbook_id() is kit.ts's
+ * (uInitSkillsDiscoveries()).
  */
 export function skillInit(
   ctx: Pick<Ctx, 'state' | 'defs'>,
   heroId: number,
   role: RoleKey = urole(ctx.state),
+  specialSkill?: string,
 ): void {
   const table = SKILL_TAB[role];
+  // initialize skill array; by default, everything is restricted (absent)
   const skills: Record<string, number> = {};
-  for (const o of inventoryOf(ctx.state, heroId)) {
-    const w = ctx.defs.object(o.def).weapon;
-    if (w) skills[w.skill] = P_BASIC;
-  }
   const maxima: Record<string, number> = {};
+  // Set skill for all weapons in inventory to be basic
+  for (const o of inventoryOf(ctx.state, heroId)) {
+    const def = ctx.defs.object(o.def);
+    // weapon_type(): only weapons, weapon-tools and ammo (gems) have a skill
+    if (def.class !== 'weapon' && def.class !== 'tool' && def.class !== 'gem') continue;
+    // don't give skill just because of carried ammo, wait until we see the relevant launcher
+    // (prevents an archeologist's touchstone from inadvertently providing skill in sling)
+    if (def.weapon?.role === 'ammo') continue;
+    if (def.weapon) skills[def.weapon.skill] = P_BASIC;
+  }
+  // set skills for magic
+  if (role === 'healer' || role === 'monk') skills['healing_spell'] = P_BASIC;
+  else if (role === 'priest') skills['cleric_spell'] = P_BASIC;
+  else if (role === 'wizard') {
+    skills['attack_spell'] = P_BASIC;
+    skills['enchantment_spell'] = P_BASIC;
+  }
+  // walk through array to set skill maximums
   for (const name of Object.keys(table).sort()) {
     maxima[name] = table[name] ?? P_RESTRICTED;
     if (skills[name] === undefined) skills[name] = P_UNSKILLED;
   }
-  // "High potential fighters already know how to use their hands": only when max > Expert.
+  // High potential fighters already know how to use their hands.
+  if ((maxima[BARE_HANDED] ?? P_RESTRICTED) > P_EXPERT) skills[BARE_HANDED] = P_BASIC;
+  // Roles that start with a horse know how to ride it
+  if (ROLES_TAB[role].petnum === 'nh:pony') skills['riding'] = P_BASIC;
+  // Make sure we haven't missed setting the max on a skill & set advance
   const advance: Record<string, number> = {};
   for (const name of Object.keys(skills).sort()) {
-    advance[name] = practiceNeededToAdvance((skills[name] ?? P_UNSKILLED) - 1);
+    const lvl = skills[name] ?? P_UNSKILLED;
+    if ((maxima[name] ?? P_RESTRICTED) < lvl) maxima[name] = lvl; // impossible() in C
+    advance[name] = practiceNeededToAdvance(lvl - 1);
+  }
+  // each role has a special spell; allow at least basic for its type (despite the function
+  // name, this works for spell skills too)
+  if (specialSkill && skills[specialSkill] === undefined) {
+    skills[specialSkill] = P_UNSKILLED;
+    maxima[specialSkill] = P_BASIC;
+    advance[specialSkill] = 0;
   }
   const data = nhData(ctx);
   data.skills = skills;

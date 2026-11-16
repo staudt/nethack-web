@@ -35,6 +35,7 @@ import { FIGURINE, carryObjEffects, stopFigTransform } from './figurinestate';
 import { MAX_OIL_IN_FLASK, POT_OIL } from './dilute';
 import { TIN, setTinVariety } from './tins';
 import { isCandle, mergeBurn, splitBurn } from './burnstate';
+import { roleIs } from './urole';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -121,6 +122,13 @@ const ALWAYS_CURSED_ARMOR: readonly string[] = [
 ];
 
 /**
+ * A Samurai's splint mail made at the start of the game is lacquered: erodeproof, and she knows
+ * it. ref: src/mkobj.c mksobj_init() ARMOR_CLASS (`moves <= 1 || In_quest()`; no quest)
+ */
+const lacqueredForSamurai = (state: Readonly<GameState>, id: string): boolean =>
+  id === 'nh:splint_mail' && state.turn <= 1 && roleIs(state, 'samurai');
+
+/**
  * Random initialization of an object's BUC, enchantment, quantity and erosion.
  * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
  * (`erode` false for the hero's starting inventory). Simplified: poisonable weapons roll for
@@ -183,6 +191,8 @@ export function mksobjInit(
         it.spe = rne(rng, 3, lvl);
       } else blessorcurse(rng, it, 10);
       if (artif) rng.rn2(40); // ref: `artif && !rn2(40 + 10 * nartifact_exist())`
+      // simulate lacquered armor for samurai (mksobj() marks it rknown); no quest
+      if (lacqueredForSamurai(ctx.state, def.id)) it.erodeproof = true;
       break;
     case 'wand':
       // ref: mksobj_init() WAND_CLASS: wishing 1, stasis rn1(4, 3), else
@@ -383,6 +393,7 @@ export function mksobj(ctx: ItemCtx, def: ObjectDef, opts: MksobjOpts = {}): Ent
   // ref: mksobj(): a potion of oil holds MAX_OIL_IN_FLASK of fuel (init or not)
   if (def.id === POT_OIL) it.age = MAX_OIL_IN_FLASK;
   const id = ctx.spawn({ def: def.id, c: { item: it } });
+  if ((opts.init ?? true) && lacqueredForSamurai(state, def.id)) setRknown(ctx, id, true);
   // ref: mksobj() -> set_corpsenm(): a viable egg gets its hatch timer (before it can merge)
   if (egg && !deadSpecies(ctx.state, ctx.defs, it.corpseOf)) attachEggHatchTimeout(ctx, id, 0);
   if (trap?.otrapped) setBoxTrapped(ctx, id, true);
@@ -617,6 +628,11 @@ interface NhData {
   skillRecord?: string[];
   /** The alternate weapon's item id (uswapwep); it must still be carried to count. */
   uswapwep?: number | null;
+  /**
+   * Saddles worn by monsters: item id -> monster id (obj->leashmon with W_SADDLE in owornmask;
+   * core's EquipSlot has no saddle slot). Leaving the monster's inventory takes it off.
+   */
+  saddled?: Record<string, number>;
   /** Names the hero gave object types ("called"), by object def id (oc_uname). */
   called?: Record<string, string>;
   /** The hero's last encumbrance level, for encumber_msg(). */
@@ -660,6 +676,27 @@ export function nhData(ctx: Pick<ItemCtx, 'state'>): NhData {
   // another module may have made the table first (the passtune is drawn before the kit)
   if (typeof d.lastinvnr !== 'number') d.lastinvnr = 51;
   return d;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The worn saddle (W_SADDLE): put on by put_saddle_on_mon() (dog.ts), taken off when it leaves the
+// monster's inventory (removeFromInventory()). There is no riding.
+
+/** Whether the item is a saddle its carrier wears. ref: obj->owornmask & W_SADDLE */
+export function isWornSaddle(state: Readonly<GameState>, item: Entity): boolean {
+  const md = state.modData['nh'] as unknown as { saddled?: Record<string, number> } | undefined;
+  const mon = md?.saddled?.[String(item.id)];
+  return mon !== undefined && item.c.item?.carriedBy === mon;
+}
+
+/** The saddle the monster wears, or null. ref: src/worn.c which_armor(mon, W_SADDLE) */
+export function wornSaddle(state: Readonly<GameState>, monId: EntityId): Entity | null {
+  return inventoryOf(state, monId).find((o) => isWornSaddle(state, o)) ?? null;
+}
+
+/** Marks the saddle, carried by `monId`, as worn. ref: src/steed.c put_saddle_on_mon() */
+export function setWornSaddle(ctx: Pick<Ctx, 'state'>, itemId: EntityId, monId: EntityId): void {
+  (nhData(ctx).saddled ??= {})[String(itemId)] = monId;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -840,6 +877,11 @@ export function removeFromInventory(ctx: ItemCtx, itemId: EntityId): void {
   // ref: src/do.c dropx()/dropz(): leaving the inventory clears the alternate-weapon slot
   const data = ctx.state.modData['nh'] as unknown as NhData | undefined;
   if (data && data.uswapwep === itemId) data.uswapwep = null;
+  // a saddle taken from its monster is no longer worn (setnotworn())
+  if (data?.saddled?.[String(itemId)] !== undefined) {
+    delete data.saddled[String(itemId)];
+    if (Object.keys(data.saddled).length === 0) delete data.saddled;
+  }
 }
 
 /**

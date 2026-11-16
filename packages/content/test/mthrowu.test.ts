@@ -217,14 +217,15 @@ describe('thrwmu: wielding the launcher first', () => {
     const o = armed(t, ctx, 'nh:hill_orc', 7, 1, [['nh:orcish_bow'], ['nh:orcish_arrow', 6]]);
     const events = evs(ctx);
     expect(thrwmu(ctx, o, clear, null)).toBe(true); // wielded: that was its move
-    expect(text(events)).toEqual(['The hill orc wields a crude bow!']);
+    // the Valkyrie knows orcish bows and arrows (knows_class(WEAPON_CLASS))
+    expect(text(events)).toEqual(['The hill orc wields an orcish bow!']);
     expect(inventoryOf(t.state, o).find((e) => e.def === 'nh:orcish_bow')?.c.item?.equipped).toBe(
       'weapon',
     );
     events.length = 0;
     expect(thrwmu(ctx, o, clear, null)).toBe(false);
     expect(keys(events)[0]).toMatch(/^mthrow\.shoots/);
-    expect(text(events)[0]).toMatch(/^The hill orc shoots (a crude arrow|\d+ crude arrows)!$/);
+    expect(text(events)[0]).toMatch(/^The hill orc shoots (an orcish arrow|\d+ orcish arrows)!$/);
   });
 
   test('a volley by a gnome lord numbers its missiles', () => {

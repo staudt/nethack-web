@@ -62,10 +62,11 @@ describe('discover', () => {
     discover(ctx, obj('nh:scroll_of_light'));
     discover(ctx, 'nh:potion_of_healing');
     discover(ctx, obj('nh:potion_of_healing'));
-    // the starting small shield is discovered by the kit; the list stays sorted
+    // the kit discovered the small shield and her known classes; the list stays sorted, once each
     expect(s.discovered).toEqual(
-      ['nh:potion_of_healing', 'nh:scroll_of_light', 'nh:small_shield'].sort(),
+      expect.arrayContaining(['nh:potion_of_healing', 'nh:scroll_of_light', 'nh:small_shield']),
     );
+    expect(s.discovered).toEqual([...new Set(s.discovered)].sort());
     expect(isKnown(s, defs, obj('nh:potion_of_healing'))).toBe(true);
     expect(isKnown(s, defs, 'nh:scroll_of_light')).toBe(true);
   });

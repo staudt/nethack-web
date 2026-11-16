@@ -26,7 +26,9 @@ import { isExtinct, MAXMONNO, mbirthLimit } from './vanquished';
 import { wormArrive, wormLeave } from './worm';
 import { wormRec } from './wormstate';
 import { skillLevel } from './skills';
-import { nhData } from './items';
+import { mksobj, nhData, setWornSaddle, wornSaddle, addToInventory } from './items';
+import { ROLES_TAB } from './roletab';
+import { urole } from './urole';
 import { isFleeing, monflee, stopFleeing } from './monflee';
 import { forgetMonster, heroSees } from './mongear';
 import { setWaryDog } from './mondeath';
@@ -331,18 +333,20 @@ export function initedog(ctx: Ctx, id: EntityId, everything: boolean): void {
 }
 
 /**
- * The role's starting pet next to the hero. ref: src/dog.c makedog() with pet_type(): the
- * Valkyrie's is a kitten (src/role.c). Not ported: pet names, the `pettype` option, horses.
+ * The role's starting pet next to the hero: her role's pet type; a pony comes wearing a saddle.
+ * ref: src/dog.c makedog() (MM_EDOG | NO_MINVENT; the saddle by put_saddle_on_mon(NULL, mtmp)).
+ * Not ported: pet names, the `pettype` option, the starting pet's close-up look.
  */
 export function makedog(ctx: Ctx): EntityId | null {
   const hero = getPlayer(ctx.state);
   const p = hero.c.pos;
-  if (!p || !ctx.defs.isMonster('nh:kitten')) return null;
+  const pm = petType(ctx);
+  if (!p || !pm) return null;
   // makemon(&mons[pettype], u.ux, u.uy, MM_EDOG | NO_MINVENT): the hero's square is taken, so
   // it goes next to her
   const id = makemon(
     ctx,
-    ctx.defs.monster('nh:kitten'),
+    pm,
     { x: p.x, y: p.y },
     {
       adjacentOk: true,
@@ -350,17 +354,38 @@ export function makedog(ctx: Ctx): EntityId | null {
       nogroup: true,
     },
   );
-  if (id === null) return null;
+  if (id === null) return null; // pets were genocided [how?]
+  // initial horses start wearing a saddle
+  if (pm.id === PONY) putSaddleOnMon(ctx, id);
   initedog(ctx, id, true);
   return id;
 }
 
+const PONY = 'nh:pony';
+const SADDLE = 'nh:saddle';
+
 /**
- * The pet type of the role: the Valkyrie has none, so a kitten or a little dog at random (no
- * `pettype` option). ref: src/dog.c pet_type()
+ * A new, fully identified saddle put on the monster (no riding: see DEVIATIONS "Pets"). Only
+ * the starting pony gets one here, so can_saddle() and the already-saddled check always pass.
+ * ref: src/steed.c put_saddle_on_mon() with a NULL saddle: mksobj(SADDLE, TRUE, FALSE),
+ * fully_identify_obj(), mpickobj(), W_SADDLE
+ */
+export function putSaddleOnMon(ctx: Ctx, monId: EntityId): void {
+  if (!ctx.defs.isObject(SADDLE) || wornSaddle(ctx.state, monId)) return;
+  const saddle = mksobj(ctx, ctx.defs.object(SADDLE), { init: true });
+  const it = ctx.state.entities[String(saddle)]?.c.item;
+  if (it) it.known = { buc: true, spe: true };
+  const id = addToInventory(ctx, monId, saddle);
+  setWornSaddle(ctx, id, monId);
+}
+
+/**
+ * The pet type of her role (a Knight's pony, a Wizard's kitten, a Caveman's, Ranger's or
+ * Samurai's little dog), else a kitten or a little dog at random (no `pettype` option).
+ * ref: src/dog.c pet_type()
  */
 function petType(ctx: Ctx): MonsterDef | null {
-  const id = ctx.rng.rn2(2) ? 'nh:kitten' : 'nh:little_dog';
+  const id = ROLES_TAB[urole(ctx.state)].petnum ?? (ctx.rng.rn2(2) ? 'nh:kitten' : 'nh:little_dog');
   return ctx.defs.isMonster(id) ? ctx.defs.monster(id) : null;
 }
 

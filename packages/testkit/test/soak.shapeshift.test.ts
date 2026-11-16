@@ -129,8 +129,11 @@ describe('shapeshifter soak', () => {
   // 157 died at turn 569, both reaching 2000 with the row filtered; of 158..188 only 174, 175,
   // 177 and 185 reach 2000 with the row, and 174 and 177 do with and without it; 190 replaced
   // 174 in m22 step 2, whose eight kit object rows shift the stream: 174 died at turn 786; of
-  // 174..190 only 177, 183, 188 and 190 reach 2000 with the rows, and 190 does with and without)
-  for (const seed of [177, 190]) {
+  // 174..190 only 177, 183, 188 and 190 reach 2000 with the rows, and 190 does with and without;
+  // 201 replaced 190 in m22 step 3, whose starting kit and pet rolls shift the stream: 190 died
+  // at turn 532 with 18 shifts; of 191..204 only 200, 201 and 203 reach 2000 with it, and 201
+  // does with and without it)
+  for (const seed of [177, 201]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

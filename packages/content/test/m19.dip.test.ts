@@ -24,6 +24,7 @@ import { isDiluted, setDiluted } from '../src/dilute';
 import { glibTimeout, isGlib } from '../src/glib';
 import { beginBurn } from '../src/burnstate';
 import { addToInventory } from '../src/items';
+import { setU } from '../src/luck';
 import { T, setTerrain } from '../src/terrain';
 import { waterDamageChain } from '../src/water';
 import { cancelItem } from '../src/zap';
@@ -322,6 +323,7 @@ describe('potion_dip(): water', () => {
 
   test('acid in water explodes: "A ...", then "Another ..." in the same soaking', () => {
     const s = make();
+    setU(s.ctx, { luck: -5 }); // Luck < -4: every item is damaged (none escapes by luck)
     const a1 = carryPot(s, 'acid');
     const a2 = carryPot(s, 'acid', 2, 'cursed');
     const t = run(s.state, (ctx) =>

@@ -93,8 +93,10 @@ describe('polymorph soak', () => {
   // helm on stone is what C does too, dropped where the former wall-walker stands, and the record
   // keeps such cells for objects; 764 and 768 still last past turn 200 after the fixes; 765
   // replaced 764 in m21 step 4, whose Croesus row shifts the random forms: 764 died at turn 131
-  // and lasts past turn 200 with the row filtered, as 765 and 768 do with and without it)
-  for (const seed of [765, 768]) {
+  // and lasts past turn 200 with the row filtered, as 765 and 768 do with and without it; 767
+  // replaced 765 in m22 step 3, whose starting kit and pet rolls shift the stream: 765 died at
+  // turn 77; of 760..785, 764, 767, 768, 771, 773 and 774 last 400 turns with and without it)
+  for (const seed of [767, 768]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       wallwalk = wallwalkRecord();

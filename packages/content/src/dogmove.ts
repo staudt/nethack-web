@@ -38,7 +38,7 @@ import {
   whimper,
   type Edog,
 } from './dog';
-import { addToInventory, splitStack } from './items';
+import { addToInventory, isWornSaddle, splitStack } from './items';
 import { M_ATTK, mattackm, mondied } from './mhitm';
 import { fleeTime, halveFleeTime, isFleeing } from './monflee';
 import { canCarry, minvent, relobj } from './mongear';
@@ -80,9 +80,9 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string>): void =>
 const helpless = (ctx: Ctx, mon: Entity): boolean =>
   mon.c.monster?.asleep === true || isFrozen(ctx, mon.id);
 
-/** The pet's carried things that it may drop (not worn or wielded). ref: droppables() */
+/** The pet's carried things that it may drop (not worn, wielded or a worn saddle). ref: droppables() */
 const droppables = (ctx: Ctx, id: EntityId): Entity[] =>
-  minvent(ctx, id).filter((o) => o.c.item?.equipped === null);
+  minvent(ctx, id).filter((o) => o.c.item?.equipped === null && !isWornSaddle(ctx.state, o));
 
 /**
  * The pet eats `obj` (on its square): hunger, tameness and the message. Returns 'died' if it
@@ -252,7 +252,7 @@ function dogInvent(ctx: Ctx, mon: Entity, e: Edog, udist: number): 0 | 1 | 2 {
   if (droppables(ctx, mon.id).length > 0) {
     if (ctx.rng.rn2(udist + 1) === 0 || ctx.rng.rn2(e.apport) === 0)
       if (ctx.rng.rn2(10) < e.apport) {
-        relobj(ctx, mon.id, undefined, true);
+        relobj(ctx, mon.id, undefined, true, true);
         if (e.apport > 1) e.apport--;
         e.dropdist = udist;
         e.droptime = ctx.state.turn;

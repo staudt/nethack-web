@@ -26,8 +26,9 @@ const CHANGED_MESSAGE =
 // after m11 step 8 (the new potion, scroll and spellbook rows shift the stream); bot seed 2 died
 // at turn 379 after m12 step 6 (the vault roll reshapes every level); bot seed 1 died at turn 206
 // after m16 step 6 (the graffiti roll per room); bot seed 3 died at turn 99 after m16 step 7 (the
-// grave roll per room). Bot seed 1 plays all 400 turns again. Re-pick it the same way if a
-// stream shift ends the run early again.
+// grave roll per room). Bot seed 1 played all 400 turns again until m22 step 3, where it choked
+// at turn 48 on the second of two starting food rations (mksobj()'s pair, now kept); bot seed 4
+// plays all 400 turns. Re-pick it the same way if a stream shift ends the run early again.
 const MODS = [vanillaMod, soakKitMod];
 
 describe('golden replay', () => {

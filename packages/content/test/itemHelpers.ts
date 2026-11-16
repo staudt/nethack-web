@@ -61,13 +61,14 @@ export const itemOf = (s: GameState, id: EntityId) => {
   return it;
 };
 
-/** Plain items: no hero kit, so tests control the inventory completely. */
+/** Plain items: no hero kit (nor its discoveries), so tests control the inventory completely. */
 export function bareState(seed = 1): GameState {
   const s = freshState(seed);
   for (const k of Object.keys(s.entities)) {
     if (s.entities[k]?.c.item) delete s.entities[k];
   }
   s.modData = {};
+  s.discovered = [];
   return s;
 }
 
@@ -235,4 +236,27 @@ export function invLine(state: GameState, e: Entity): string {
     key: 'inv.menu_item',
     params: { letter: e.c.item?.letter ?? '?', item: defs.itemName(state, e) },
   });
+}
+
+/**
+ * Keeps bottle occupants out of a test: a potion type of `ids` that looks smoky or milky (a
+ * djinni or ghost 1 time in 13 when opened) swaps its appearance with another potion's.
+ */
+export function plainBottles(state: GameState, ...ids: string[]): void {
+  const bottles = new Set(['nh:smoky_potion', 'nh:milky_potion']);
+  for (const id of ids) {
+    const app = state.appearances[id as never];
+    if (app === undefined || !bottles.has(app)) continue;
+    const other = Object.keys(state.appearances)
+      .sort()
+      .find((k) => {
+        const a = state.appearances[k as never];
+        return (
+          k.startsWith('nh:potion_of_') && !ids.includes(k) && a !== undefined && !bottles.has(a)
+        );
+      });
+    if (!other) continue;
+    state.appearances[id as never] = state.appearances[other as never] as never;
+    state.appearances[other as never] = app;
+  }
 }

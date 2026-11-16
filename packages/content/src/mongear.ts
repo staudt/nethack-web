@@ -24,6 +24,7 @@ import {
 } from '@nh/core';
 import {
   addToInventory,
+  isWornSaddle,
   mksobj,
   mksobjInit,
   placeOnFloor,
@@ -1225,7 +1226,8 @@ export function mpickstuff(ctx: GearCtx, monId: EntityId): boolean {
 /**
  * Drops everything the monster carries onto the floor where it is (or `at`), newest item
  * first, so the oldest ends on top. `monMoving` (svc.context.mon_moving: a drop during the
- * monsters' turn) shows the drops on an altar the hero sees. ref: src/steal.c relobj() /
+ * monsters' turn) shows the drops on an altar the hero sees. `isPet` (relobj()'s is_pet, from
+ * dog_invent()) keeps what the pet wields or wears, its saddle too. ref: src/steal.c relobj() /
  * mdrop_obj() -> src/do.c flooreffects()
  */
 export function relobj(
@@ -1233,6 +1235,7 @@ export function relobj(
   monId: EntityId,
   at?: { level: string; x: number; y: number },
   monMoving = false,
+  isPet = false,
 ): void {
   const pos = at ?? ctx.state.entities[String(monId)]?.c.pos;
   // vault guard's gold goes away rather than be dropped...
@@ -1246,7 +1249,11 @@ export function relobj(
       ctx.remove(o.id);
     }
   }
-  for (const o of minvent(ctx, monId)) {
+  // a pet keeps its wielded and worn things (droppables())
+  const drops = minvent(ctx, monId).filter(
+    (o) => !isPet || (o.c.item?.equipped === null && !isWornSaddle(ctx.state, o)),
+  );
+  for (const o of drops) {
     if (pos && monMoving) monFloorEffects(ctx, o, pos);
     if (pos && pos.level === ctx.state.currentLevel) {
       // mdrop_obj(): flooreffects() (water or lava under it)

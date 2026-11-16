@@ -114,6 +114,17 @@ const spellName = (id: DefId): Msg => ({ key: `spell.name.${id}` });
 export const spellet = (i: number): string =>
   i < 26 ? String.fromCharCode(97 + i) : String.fromCharCode(65 + i - 26);
 
+/**
+ * The spell of a starting spellbook, known from the start (sp_know = KEEN). Initial inventory
+ * shouldn't contain duplicate spellbooks: a known one is left alone. ref: src/spell.c
+ * initialspell() (incrnknow(i, 0); no MAXSPELL limit is reached by a kit)
+ */
+export function initialspell(ctx: Pick<Ctx, 'state'>, book: DefId): void {
+  const spells = (spellData(ctx).spells ??= []);
+  if (spells.some((s) => s.id === book)) return;
+  spells.push({ id: book, retention: KEEN });
+}
+
 /** obj->spestudied: how many times the book has been studied. */
 export const studied = (ctx: Pick<Ctx, 'state'>, id: EntityId): number =>
   readData(ctx)?.spestudied?.[String(id)] ?? 0;
