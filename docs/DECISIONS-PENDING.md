@@ -287,3 +287,24 @@ Planner's cheap recommendations (plan `~/.claude/plans/m21.md`, kickoff `docs/ki
 - **m21 Q11 monster-generation exclusions** for Ludios as `MadeLevelFlags.mongenExclude`; Sokoban keeps its stand-in.
 - **m21 Q12 "Fort Ludios" on the status line** through a content status field `place` the ui prints instead of `Dlvl:N`.
 - **m21 Q13 Ludios made before its portal** (wizard levelport): no return portal until a vault gets the main-side portal, then added to the made level.
+
+## Parked (m22b roles and races: core defs and character creation, 2026-11-16)
+
+m22 (plan `~/.claude/plans/m22.md`, kickoff `docs/kickoff-m22.md`) is split: m22a (steps 1-7) is content only and runs with a test-only role override (`modData.nh.urole`/`urace`, Q12); m22b (steps 8-10: core role and race defs, the character on the hero, new-game options, save version 9, the character menus, a soak over every role) waits on four costly questions. Planner's recommendations:
+
+- **m22 Q1, character creation flow**: the app asks before the game exists; the worker's `new` message carries a concrete character; core stores it on the hero before the new-game hooks; the replay records it; the menus get their data from a new worker `choices` request answered from the registry.
+- **m22 Q2, role ids and the hero's def**: def ids are global and 11 of the 13 role names are already player-monster ids (`nh:wizard`, `nh:healer`, ...). Rename every role to `nh:role_<key>` (the Valkyrie too), keep the hero's def as the role id, migrate old saves through `RoleDef.formerIds`, add the missing valkyrie monster row. Alternatives in the plan: keep `nh:valkyrie`, per-kind id spaces, a single `nh:hero` role.
+- **m22 Q3, core defs vs content tables**: `RoleDef` gains only allowed races/genders/alignments, a menu order, the female name and former ids; a new minimal `RaceDef`; the hero stores starting role, race, gender and alignment; every mechanic (kits, skills, attributes, spells, gods) stays in content tables.
+- **m22 Q5, existing Valkyrie-only saves**: keep loading: save version 9, old files get the default character, a replay without a character means the default.
+
+## Taken (m22a roles and races, content only, 2026-11-16)
+
+- **m22 Q4 skills state** unchanged; Master and Grand Master levels added.
+- **m22 Q6 default character** (tests, golden, old replays): the first registered role and its first race, gender and alignment, with the Valkyrie (human, female, neutral) first, so today's hero stays the default.
+- **m22 Q7 random picks** resolved by the app; core only receives concrete choices (DEVIATIONS: C draws them on the game RNG). Only matters once m22b runs.
+- **m22 Q8 welcome and status**: the welcome event gains race, gender and alignment params; rank title and alignment are content status fields.
+- **m22 Q9 starting-inventory order**: the port's place (before the first level), 5.0's order inside it.
+- **m22 Q10 the eight missing kit objects** (stethoscope, expensive camera, leash, saddle, bell, fortune cookie, orange, pancake) added with their uses; the leash without dragging, the saddle without riding.
+- **m22 Q11 out of scope**: riding, two-weapon combat, pauper/nudist/reroll, pet names, the quest fix-ups, the player's name in state.
+- **m22 Q12 the m22a test override** `modData.nh.urole`/`urace` (no app save can contain it before m22b).
+- **m22 Q13 persisting choices** as device options `role`/`race`/`gender`/`align` and URL params with NetHack's file codes (m22b).
