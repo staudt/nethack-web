@@ -50,9 +50,11 @@ import {
   fogUnderDoor,
   mfndpos,
   monAllowU,
+  postmovDoorDig,
   trackAdd,
   type Candidate,
 } from './monmove';
+import { tunnels } from './mdig';
 import { mintrap, trapRemovedMon } from './trap';
 import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
@@ -635,6 +637,7 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
       return 'done';
     }
     const wasseen = canSpotMon(ctx, mon);
+    const canTunnel = tunnels(ctx.defs.monster(mon.def)); // m_move()'s, before dog_move()
     const from = { x: omx, y: omy };
     pos.x = nix;
     pos.y = niy;
@@ -653,6 +656,10 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
     if (doEat && dogEat(ctx, id, doEat, from, false) === 'died') return 'died';
     // ref: m_move() postmov: mintrap() for the pet's new square
     if (trapRemovedMon(mintrap(ctx, id))) return 'died';
+    // ref: m_move(): `postmov(mtmp, ..., dog_move(mtmp, after), ..., can_tunnel, ...)` with
+    // `can_tunnel = tunnels(ptr)`: a pet that stepped onto a closed door opens it (or oozes
+    // under it, or a tunneller breaks it) as any monster does
+    if (postmovDoorDig(ctx, id, level, cellRules(level, ctx.defs), canTunnel)) return 'died';
   }
   return 'moved';
 }

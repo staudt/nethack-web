@@ -1163,10 +1163,34 @@ function postmovMoved(
   rules: CellRules,
   canTunnel = false,
 ): MoveStatus {
-  const { e, pos, def } = monCount(ctx, id);
   // ref: postmov(): `trapret = mintrap(mtmp)`; killed or moved off the level is MMOVE_DIED
   if (trapRemovedMon(mintrap(ctx, id))) return 'died';
+  if (postmovDoorDig(ctx, id, level, rules, canTunnel)) return 'died';
+  // ref: postmov(): rock moles and rust monsters eat metal, gelatinous cubes eat and engulf
+  // objects, purple worms and ghouls eat corpses (meat.ts)
+  if (monEatsHere(ctx, id)) return 'died';
+  // ref: postmov(): a monster that moved picks up something it likes on the new square
+  if (mpickstuff(ctx, id)) return 'done';
+  // ref: postmov(): `if (mtmp->isshk) after_shk_move(mtmp)`
+  if (eshkOf(ctx, id)) afterShkMove(ctx, id);
+  return 'moved';
+}
 
+/**
+ * postmov()'s door and dig part, after mintrap(): a monster that stepped onto a closed door opens
+ * it (unlocking is for key holders: none here), oozes under it or springs its trap; a tunneller
+ * breaks or digs instead. A pet's dog_move() reaches it too, with `can_tunnel = tunnels(ptr)`.
+ * True when the monster died.
+ * ref: src/monmove.c postmov(), m_move()
+ */
+export function postmovDoorDig(
+  ctx: Ctx,
+  id: EntityId,
+  level: Level,
+  rules: CellRules,
+  canTunnel: boolean,
+): boolean {
+  const { e, pos, def } = monCount(ctx, id);
   // ref: postmov(): open a closed door the monster just stepped onto, `!passes_walls(ptr)`
   // ("doesn't need to open doors") and `!can_tunnel` ("taken care of below"); an amorphous one
   // (a vampshifter's fog cloud too) "flows under the door" ("oozes" for the others) instead
@@ -1188,7 +1212,7 @@ function postmovMoved(
     const didsee = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     blowDoor(ctx, level, pos.x, pos.y); // D_NODOOR
     if (mbTrapped(ctx, e, didsee || isVisible(ctx.state, cellIndex(level, pos.x, pos.y))))
-      return 'died';
+      return true;
   } else if (opens) {
     openDoorAt(ctx, level, pos);
     const seen = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
@@ -1200,15 +1224,7 @@ function postmovMoved(
     );
   }
   // ref: postmov(): "possibly dig"
-  if (canTunnel && mayDig(ctx, level, pos.x, pos.y) && mdigTunnel(ctx, e)) return 'died';
-  // ref: postmov(): rock moles and rust monsters eat metal, gelatinous cubes eat and engulf
-  // objects, purple worms and ghouls eat corpses (meat.ts)
-  if (monEatsHere(ctx, id)) return 'died';
-  // ref: postmov(): a monster that moved picks up something it likes on the new square
-  if (mpickstuff(ctx, id)) return 'done';
-  // ref: postmov(): `if (mtmp->isshk) after_shk_move(mtmp)`
-  if (eshkOf(ctx, id)) afterShkMove(ctx, id);
-  return 'moved';
+  return canTunnel && mayDig(ctx, level, pos.x, pos.y) && mdigTunnel(ctx, e);
 }
 
 /**

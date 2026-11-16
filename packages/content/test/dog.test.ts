@@ -168,6 +168,46 @@ describe('following the hero to a new level', () => {
   });
 });
 
+describe('pets and doors', () => {
+  // a closet whose only way out is a closed door; the hero waits in the room above
+  const CLOSET = [
+    '-----------',
+    '|.........|',
+    '|.@.......|',
+    '|.........|',
+    '-----+-----',
+    '    |.|',
+    '    ---',
+  ];
+
+  test('a pet with hands that steps onto a closed door opens it (postmov())', () => {
+    let opened = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const s = setup(CLOSET, seed);
+      const p = addPet(s.state, 'nh:gnome_lord', 5, 5);
+      for (let t = 0; t < 40; t++) {
+        s.wait();
+        const at = s.state.entities[String(p)]?.c.pos;
+        if (!at) break;
+        const here = s.level.palette[s.level.cells[at.y * s.level.width + at.x]!];
+        // it never stands in a door that is still closed
+        expect(here).not.toBe('nh:door_closed');
+      }
+      const door = s.level.palette[s.level.cells[4 * s.level.width + 5]!];
+      if (door !== 'nh:door_closed') opened++;
+    }
+    expect(opened).toBeGreaterThan(5);
+  });
+
+  test('a pet without hands stays behind the closed door', () => {
+    const s = setup(CLOSET, 1);
+    const p = addPet(s.state, 'nh:kitten', 5, 5);
+    for (let t = 0; t < 30; t++) s.wait();
+    expect(s.state.entities[String(p)]?.c.pos).toMatchObject({ x: 5, y: 5 });
+    expect(s.level.palette[s.level.cells[4 * s.level.width + 5]!]).toBe('nh:door_closed');
+  });
+});
+
 describe('the hero and her pet', () => {
   test('walking into the pet swaps places, or 1 time in 7 it is in the way', () => {
     let swaps = 0;

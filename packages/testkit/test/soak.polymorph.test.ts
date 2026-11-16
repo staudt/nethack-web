@@ -85,7 +85,13 @@ describe('polymorph soak', () => {
   // and lasts 400 turns with the Kop rows filtered and the cream pie's prob 0, as 764 does with
   // and without them; 768 replaced 759 in m19 step 1, whose 17 object rows shift the stream: 759
   // had a monster on a closed door at step 42 (731's old violation) and passes with the rows
-  // filtered; 764 and 768 last past turn 200 with and without the rows)
+  // filtered; 764 and 768 last past turn 200 with and without the rows; the bug-lead fixes after
+  // m19 found "731's old violation" had two causes: a pet with hands stepped onto a closed door
+  // without opening it (dog_move() now reaches postmov()'s door part: 759), and an amorphous
+  // monster flowed under a door and changed form there between two checks (753: C's newcham()
+  // leaves it there; the record is now noted every turn and remembers oozers anywhere); 732's
+  // helm on stone is what C does too, dropped where the former wall-walker stands, and the record
+  // keeps such cells for objects; 764 and 768 still last past turn 200 after the fixes)
   for (const seed of [764, 768]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
