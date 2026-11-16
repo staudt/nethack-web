@@ -271,3 +271,19 @@ m21 (Fort Ludios and the Rogue level; plan `~/.claude/plans/m21.md`) runs steps 
 
 - **m21 Q1, the Rogue look across the view boundary**: a core `SymsetDef` registered by mods, `LevelDef.symset`, core resolving the snapshot legend through it, and `ViewSnapshot.symset` naming it, so renderers need no change. Alternatives: each renderer owns a Rogue table keyed by `ViewSnapshot.symset` plus object classes in the legend, or no display change. Planner recommends the core symset (view boundary and mod def kinds).
 - **m21 Q2, no diagonal moves through Rogue doorways**: `LevelDef.doorwaysBlockDiagonal` read by core `cellRules()`, so the hero, travel and monsters agree. Alternative: content-only checks for the hero and monsters, with travel left as it is. Planner recommends the core flag (core movement and mod contract).
+
+## Taken (m21 Fort Ludios and the Rogue level, 2026-11-16)
+
+Planner's cheap recommendations (plan `~/.claude/plans/m21.md`, kickoff `docs/kickoff-m21.md`); step 6 and its Q1/Q2 are parked above.
+
+- **m21 Q3 client glyph overrides**: render-ascii applies `setGlyph()` overrides only when the snapshot has no symset (moot until step 6).
+- **m21 Q4 Ludios's portal branch**: no core change: a `stairs: 'child'` branch whose rolled level gives the draws and depth, the real portal level in `modData.nh.knox`, knox's fixup turning its branch stairs into the return portal.
+- **m21 Q5 Rogue level builder**: content: a stone LevelDef plus a fixup running makeroguerooms()/makerogueghost()/sort_rooms()/generate_stairs() in C's order.
+- **m21 Q6 other map sizes**: the 3x3 sections scaled to the map (exact at 80x21), ordinary rooms below a minimum size.
+- **m21 Q7 `rogue_vision()`** not ported (ordinary vision).
+- **m21 Q8 remembered dark floor** on the Rogue level not blanked.
+- **m21 Q9 the tribute ghost** unnamed (the name rolls drawn) until monsters have names.
+- **m21 Q10 wizard mode and the Ludios portal**: the 1-in-3 roll drawn anyway; its result ignored in wizard mode.
+- **m21 Q11 monster-generation exclusions** for Ludios as `MadeLevelFlags.mongenExclude`; Sokoban keeps its stand-in.
+- **m21 Q12 "Fort Ludios" on the status line** through a content status field `place` the ui prints instead of `Dlvl:N`.
+- **m21 Q13 Ludios made before its portal** (wizard levelport): no return portal until a vault gets the main-side portal, then added to the made level.
