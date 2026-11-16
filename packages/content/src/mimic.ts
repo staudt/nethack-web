@@ -4,8 +4,7 @@
 // ref: src/makemon.c set_mimic_sym(); src/uhitm.c that_is_a_mimic(), stumble_onto_mimic();
 // src/lock.c stumble_on_door_mimic(); src/mon.c wakeup()
 //
-// Not ported: the rogue level's wall disguise (no rogue level), Protection_from_shape_changers
-// (no such ring), the slime mold's fruit name, the light blocking of a boulder or door disguise
+// Not ported: the rogue level's wall disguise (no rogue level), the slime mold's fruit name, the light blocking of a boulder or door disguise
 // (DEVIATIONS.md "Mimics").
 import {
   allContents,
@@ -29,7 +28,7 @@ import { mkobj, rndmonnum } from './mkobj';
 import { isFleeing } from './monflee';
 import { isFrozen } from './mstate';
 import { canSpotMon, monNam, telepathSenses } from './perception';
-import { P, heroHas } from './props';
+import { P, heroHas, protFromShapeChangers } from './props';
 import { getShopItem, shopType } from './shknam';
 import { isSokoban } from './sokoban';
 import { STATUE } from './statuestate';
@@ -137,7 +136,7 @@ function throwawayOtyp(ctx: Ctx, cls: ObjectClass, level: string, inMklev: boole
 function setMimicSymImpl(ctx: Ctx, id: EntityId, inMklev: boolean): void {
   const mon = ctx.state.entities[String(id)];
   const p = mon?.c.pos;
-  if (!mon?.c.monster || !p) return;
+  if (!mon?.c.monster || !p || protFromShapeChangers(ctx.state)) return;
   const level = ctx.state.levels[p.level];
   if (!level) return;
   const { x, y } = p;
@@ -354,7 +353,7 @@ function wakeupMimic(ctx: Ctx, mon: Entity): void {
  * was one. ref: src/lock.c stumble_on_door_mimic()
  */
 export function stumbleOnDoorMimic(ctx: Ctx, mon: Entity | null | undefined): boolean {
-  if (!mon || !isDoorMappear(ctx, mon.id)) return false;
+  if (!mon || !isDoorMappear(ctx, mon.id) || protFromShapeChangers(ctx.state)) return false;
   stumbleOntoMimic(ctx, mon);
   return true;
 }

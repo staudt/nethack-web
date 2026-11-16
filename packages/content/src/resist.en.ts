@@ -145,6 +145,7 @@ export const resistMessagesEn: Record<string, string> = {
   'givit.great_stuff': 'Oh wow!  Great stuff!',
   'givit.mild_buzz': 'You feel a mild buzz.',
   'givit.qm_velocity': 'Your velocity suddenly seems very uncertain!',
+  'givit.change_coming': 'You feel a change coming over you.',
   'givit.qm_slower': 'You seem slower.',
   'givit.qm_faster': 'You seem faster.',
   'givit.feel_hidden': 'You feel hidden!',

@@ -26,10 +26,13 @@ export interface InvariantOpts {
    * Wall-walkers seen at earlier checks: `ids` (the wall-walkers of the last check) and `spots`
    * (`id@level:x,y`). A long run passes one record, so a monster polymorphed out of a
    * wall-walking form inside stone, a wall or a door (C's newcham() leaves it there; it can only
-   * step out) is not reported while it stays put.
+   * step out) is not reported while it stays put; the same for an amorphous form under a door.
    */
   wallwalk?: { ids: Set<string>; spots: Set<string> };
 }
+
+/** Iron bars, where objects may lie. ref: src/trap.c isclearpath() (ZAP_POS) */
+const IRON_BARS = 'nh:iron_bars';
 
 /** Returns a list of violated invariants; empty means the state is healthy. */
 export function checkInvariants(
@@ -129,10 +132,24 @@ export function checkInvariants(
     const spot = `${id}@${p.level}:${p.x},${p.y}`;
     const blocked =
       pal === undefined || !registry.hasTerrain(pal) || !registry.terrain(pal).passable;
+    // an amorphous monster (a fog cloud, a vampire shifted into one) flows under a closed or
+    // locked door and may stop there (ref: src/mon.c mfndpos(), src/monmove.c can_ooze());
+    // a shapeshifter that changes form there stays until it steps out, as a former wall-walker
+    const underDoor =
+      blocked &&
+      e.c.monster !== undefined &&
+      registry.isMonster(e.def) &&
+      registry.monster(e.def).flags.includes('amorphous') &&
+      pal !== undefined &&
+      registry.hasTerrain(pal) &&
+      registry.terrain(pal).door !== undefined;
     const ww = opts.wallwalk;
-    if (wallwalk) nowWallwalkers.push(String(id));
-    if (blocked && ww && (wallwalk || ww.ids.has(String(id)))) ww.spots.add(spot);
-    if (blocked && !wallwalk && !ww?.spots.has(spot)) {
+    if (wallwalk || underDoor) nowWallwalkers.push(String(id));
+    if (blocked && ww && (wallwalk || underDoor || ww.ids.has(String(id)))) ww.spots.add(spot);
+    // objects may lie on iron bars (a rolling boulder trap's launch spot: isclearpath()'s
+    // ZAP_POS() lets it be there)
+    const onBars = blocked && e.c.item !== undefined && pal === IRON_BARS;
+    if (blocked && !wallwalk && !underDoor && !onBars && !ww?.spots.has(spot)) {
       errs.push(`entity ${id}: on impassable cell (${pal ?? '?'}) at ${p.x},${p.y}`);
     }
     // Objects pile up; only creatures need a cell to themselves.
@@ -1029,7 +1046,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
  */
 /**
  * Boulders (`ObjectDef.boulder`) lie on floor the hero could walk on (never in walls, stone or a
- * closed door), and `Level.sokoban` is set only on a level built from a LevelDef with
+ * closed door) or on iron bars (a rolling boulder trap's launch spot, as C's mkroll_launch()), and `Level.sokoban` is set only on a level built from a LevelDef with
  * `flags.sokoban` (the rules may be lifted in play, so a level from such a def may lack it).
  * Monsters on boulder squares are not a state invariant: in C an explicitly placed monster (as
  * Orcish Town's orcs at `rndcoord()` spots) or one that survives a scroll of earth's boulder
@@ -1044,7 +1061,11 @@ function checkBoulders(state: GameState, registry: Registry, errs: string[]): vo
     const lv = state.levels[p.level];
     if (!lv || !inBounds(lv, p.x, p.y)) continue; // reported with the entity
     const t = lv.palette[lv.cells[cellIndex(lv, p.x, p.y)] ?? -1];
-    if (t === undefined || !registry.hasTerrain(t) || !registry.terrain(t).passable)
+    if (
+      t === undefined ||
+      !registry.hasTerrain(t) ||
+      (!registry.terrain(t).passable && t !== IRON_BARS)
+    )
       errs.push(`boulder ${id}: on non-passable '${t ?? '?'}' at ${p.x},${p.y} on ${p.level}`);
   }
   for (const lid of Object.keys(state.levels).sort()) {

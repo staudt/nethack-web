@@ -248,8 +248,8 @@ export function enlightenment(ctx: Ctx): Msg[] {
   if (has(P.FREE_ACTION)) have('free_action');
   if (has(P.FIXED_ABIL)) have('fixed_abil');
   if (has(P.LIFESAVED)) line('enl.lifesaved');
-  // polymorph and other shape change (no protection from shape changers, no egg-laying forms,
-  // no vampires; no wizard-mode timer)
+  // polymorph and other shape change (no egg-laying forms, no vampires; no wizard-mode timer)
+  if (has(P.PROT_FROM_SHAPE_CHANGERS)) are('prot_from_shape_changers');
   const lycn = ulycn(ctx.state);
   const form = heroFormId(ctx.state);
   if (has(P.UNCHANGING)) {

@@ -3660,6 +3660,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     delay: 0,
     prop: 'see_invis',
   },
+  // ref: objects.h RING("protection from shape changers", "shiny", PROT_FROM_SHAPE_CHANGERS, 100, 1, 0, 5, IRON, CLR_BRIGHT_CYAN, RIN_PROTECTION_FROM_SHAPE_CHAN)
+  {
+    id: 'nh:ring_of_protection_from_shape_changers',
+    nameKey: 'nh:ring_of_protection_from_shape_changers',
+    class: 'ring',
+    glyph: { ch: '=', fg: BRIGHT_CYAN },
+    prob: 1,
+    weight: 3,
+    cost: 100,
+    material: 'iron',
+    merge: false,
+    magic: true,
+    delay: 0,
+    prop: 'prot_from_shape_changers',
+  },
 
   // ---- amulets (iron, weight 20, cost 150, magic; appearances are shuffled) ----
   // ref: objects.h AMULET("amulet of ESP", "circular", TELEPAT, 120)

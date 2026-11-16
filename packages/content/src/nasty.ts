@@ -25,6 +25,7 @@ import { setMspecUsed } from './mstate';
 import { isGenocided } from './vanquished';
 import { mksobj } from './items';
 import { setMappearance } from './mimicstate';
+import { protFromShapeChangers } from './props';
 import { WIZARD_OF_YENDOR } from './wizstate';
 
 /** ref: src/wizard.c nasties[] (neutral, chaotic, lawful) */
@@ -233,7 +234,7 @@ const WIZAPP: readonly DefId[] = [
 /**
  * "Double Trouble": a second Wizard of Yendor next to the hero, awake and hostile, half the time
  * carrying a cheap plastic imitation of the Amulet (she never has the real one), posing as one
- * of wizapp[] (no protection from shape changers here). The caller casts it only while there is
+ * of wizapp[] unless she has protection from shape changers. The caller casts it only while there is
  * one Wizard. ref: src/wizard.c clonewiz()
  */
 export function clonewiz(ctx: Ctx): void {
@@ -252,7 +253,9 @@ export function clonewiz(ctx: Ctx): void {
     // give clone a fake
     mksobj(ctx, ctx.defs.object(FAKE_AMULET), { carriedBy: id });
   }
-  const app = WIZAPP[ctx.rng.rn2(WIZAPP.length)];
-  if (app !== undefined && ctx.defs.isMonster(app))
-    setMappearance(ctx, id, { type: 'monster', id: app });
+  if (!protFromShapeChangers(ctx.state)) {
+    const app = WIZAPP[ctx.rng.rn2(WIZAPP.length)];
+    if (app !== undefined && ctx.defs.isMonster(app))
+      setMappearance(ctx, id, { type: 'monster', id: app });
+  }
 }

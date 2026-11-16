@@ -78,6 +78,7 @@ export const P = {
   WWALKING: 'wwalking',
   FUMBLING: 'fumbling',
   DISPLACED: 'displaced',
+  PROT_FROM_SHAPE_CHANGERS: 'prot_from_shape_changers',
 } as const;
 
 /**
@@ -140,6 +141,13 @@ export const isStrangled = (e: Entity | undefined): boolean =>
 /** The hero has the property. */
 export const heroHas = (state: Readonly<GameState>, name: string): boolean =>
   hasProp(state.entities[String(state.playerId)], name);
+
+/**
+ * Protection_from_shape_changers: the ring (no intrinsic source here: #wizintrinsic is not
+ * ported). ref: include/youprop.h
+ */
+export const protFromShapeChangers = (state: Readonly<GameState>): boolean =>
+  heroHas(state, P.PROT_FROM_SHAPE_CHANGERS);
 
 /** ref: include/youprop.h Conflict (the ring; no artifact or intrinsic source here) */
 export const conflictOn = (state: Readonly<GameState>): boolean => heroHas(state, P.CONFLICT);

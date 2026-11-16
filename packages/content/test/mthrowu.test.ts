@@ -492,12 +492,14 @@ describe('the hero fires from a launcher', () => {
 
   test(
     'to-hit: the launcher adds its enchantment and skill; thrown by hand is -4',
-    { timeout: 30000 },
+    { timeout: 60000 },
     () => {
       // newt: AC 8, tiny (-2); hero L1, Dex 14, adjacent (+2): base -1 + 8 + 1 + 2 - 2 = 8
       const rate = (mode: 'hand' | 'bow', spe = 0, skill?: number) => {
         let hit = 0;
-        const N = 400;
+        // 800 samples: the 0.06 tolerance is 3.5 standard deviations at 65% (400 samples missed it
+        // by 0.0025 after the m18 step 3 ring shifted the stream)
+        const N = 800;
         for (let seed = 1; seed <= N; seed++) {
           const { s, bow, arrows } = bowSetup(seed);
           if (mode === 'bow') {

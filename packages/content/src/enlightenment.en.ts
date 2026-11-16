@@ -104,6 +104,7 @@ export const enlightenmentMessagesEn: Record<string, string> = {
   'enl.would_change_shape':
     'You would change shape periodically if not locked into your current form.',
   'enl.polymorphing': 'polymorphing periodically',
+  'enl.prot_from_shape_changers': 'protected from shape changers',
   'enl.polymorph_control': 'polymorph control',
   'enl.regenerate': 'You regenerate.',
   'enl.slow_digestion': 'slower digestion',

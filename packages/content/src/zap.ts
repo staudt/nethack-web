@@ -28,7 +28,7 @@
 // (statue.ts breakStatue()) or set off a statue trap under them; probing lists what a statue
 // holds. Stone to flesh (stoneflesh.ts) turns stone objects to meat and statues to monsters,
 // cures her stoning and hits her pack when cast at herself (no golems or mimics to affect).
-import { chamOf, isVampshifter } from './chamstate';
+import { chamOf, isVampshifter, normalShape } from './chamstate';
 import { closeDrawbridge, destroyDrawbridge, openDrawbridge } from './dbridge';
 import { findDrawbridge, isDbWall, isDrawbridgeWall, isLoweredSpan, isRaisedSpan } from './dbstate';
 import { loseAbon } from './dowear';
@@ -1670,11 +1670,12 @@ const POT_WATER: DefId = 'nh:potion_of_water';
 /**
  * Cancels a monster, or the hero: it resists (resist() against the wand's class; the hero only
  * with magic resistance when someone else cancels her), else the inventory is cancelled first
- * when it zapped itself (`selfCancel`), a monster is marked `mcan` and a polymorphed hero returns
- * to her own form ("Your amulet grows hot for a moment, then cools." with Unchanging). A clay
- * golem dies ("Some writing vanishes from the clay golem's head!"), as does a hero in clay golem
- * form, even with Unchanging. True when it did not resist. ref: src/zap.c cancel_monst() (no
- * shapeshifters, no Magicbane: allow_cancel_kill is always TRUE)
+ * when it zapped itself (`selfCancel`), a monster is marked `mcan` and returns to its own form
+ * (normal_shape(): a shapeshifter for good, a beast lycanthrope, a mimic unhiding) and a
+ * polymorphed hero returns to her own form ("Your amulet grows hot for a moment, then cools."
+ * with Unchanging). A clay golem dies ("Some writing vanishes from the clay golem's head!"), as
+ * does a hero in clay golem form, even with Unchanging. True when it did not resist.
+ * ref: src/zap.c cancel_monst() (no Magicbane: allow_cancel_kill is always TRUE)
  */
 export function cancelMonst(
   ctx: Ctx,
@@ -1707,6 +1708,8 @@ export function cancelMonst(
     }
   } else {
     setCancelled(ctx, mdef.id);
+    // force shapeshifter into its base form or mimic to unhide
+    normalShape(ctx, mdef);
     if (mdef.def === 'nh:clay_golem') {
       if (canseemon(ctx, mdef)) say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
       if (youattack) killedByHero(ctx, mdef);

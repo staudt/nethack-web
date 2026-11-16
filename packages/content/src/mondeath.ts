@@ -7,6 +7,7 @@
 import { restoreWereForm, setMonData } from './werestate';
 import { chamOf, isVampshifter, setCham } from './chamstate';
 import {
+  getLevel,
   getPlayer,
   type Ctx,
   type Entity,
@@ -14,6 +15,8 @@ import {
   type MonsterDef,
   type Msg,
 } from '@nh/core';
+import { isPool } from './liquid';
+import { terrainIdAt } from './terrain';
 import { nonliving } from './mondata';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { canSpotMon, monNam } from './perception';
@@ -147,6 +150,7 @@ function deadMon(ctx: Ctx, mon: Entity): DeadMon {
  * The monster dies and is removed. Its possessions fall where it stood (mondead() ->
  * m_detach() -> relobj(), before anything else is made), then, for a kill by the hero, the
  * 1 in 6 "treasure drop" and the corpse are made on top of them.
+ * Neither is made where it cannot lie (not ACCESSIBLE() and not a pool: rock, a wall, lava).
  * ref: src/mon.c xkilled(): `!rn2(6) && !(G_NOCORPSE) && not on the hero && not a Kop` makes
  * mkobj(RANDOM_CLASS, TRUE). Food is deleted unless the monster collects things (M2_COLLECT);
  * small monsters (smaller than MZ_HUMAN) do not leave heavy (owt > 30) or bulky (oc_big =
@@ -202,6 +206,14 @@ export function monsterDied(
   if (!byHero || !at || stoned || nocorpse) return statue;
   // LEVEL_SPECIFIC_NOCORPSE: no treasure and no corpse (corpse_chance() asks again)
   if (levelSpecificNocorpse(ctx, def, at.level)) return null;
+  // `if (accessible(x, y) || is_pool(x, y))`: nothing is left inside rock, a wall or lava (a
+  // wall-walker killed in the wall)
+  const lvl = getLevel(ctx.state, at.level);
+  const tid = terrainIdAt(lvl, at.x, at.y);
+  const td = tid === undefined ? undefined : ctx.defs.terrain(tid);
+  const accessible =
+    td !== undefined && (td.door !== undefined || (td.passable && td.liquid === undefined));
+  if (!accessible && !isPool(ctx, lvl, at.x, at.y)) return null;
 
   const hero = getPlayer(ctx.state).c.pos;
   const onHero = hero?.level === at.level && hero.x === at.x && hero.y === at.y;

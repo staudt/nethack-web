@@ -1,18 +1,22 @@
-// Vampire shapeshifters: when a shapeshifter changes form on its own (decide_to_shapeshift(), once
-// a turn from m_calcdistress()), a killed vampire bat, fog cloud or wolf rising as the vampire it
-// was (vamprises()), a stoned one reverting instead (vamp_stone()), and the shift into a fog cloud
-// to pass under a closed door (vamp_shift()). The true kind is chamstate.ts's `cham`; the shape
-// pick is newcham.ts's pickvampshape(). Registered into mstate.ts, mondeath.ts, stoning.ts and
-// monmove.ts/dogmove.ts at load (they sit below newcham.ts).
-// ref: src/mon.c decide_to_shapeshift(), vamprises(), vamp_stone(); src/monmove.c vamp_shift()
+// Shapeshifters: when a shapeshifter changes form on its own (decide_to_shapeshift(), once a turn
+// from m_calcdistress()), a killed vampire bat, fog cloud or wolf rising as the vampire it was
+// (vamprises()), a stoned one reverting instead (vamp_stone()), the shift into a fog cloud to pass
+// under a closed door (vamp_shift()), and protection from shape changers turning every
+// shapeshifter and mimic back (rescham(), normal_shape()), letting them change again
+// (restartcham()) and catching up a level's monsters on arrival (restore_cham()). The true kind is
+// chamstate.ts's `cham`; the shape picks are newcham.ts's selectNewchamForm(). Registered into
+// mstate.ts, mondeath.ts, stoning.ts, monmove.ts/dogmove.ts and chamstate.ts at load (they sit
+// below newcham.ts).
+// ref: src/mon.c decide_to_shapeshift(), vamprises(), vamp_stone(), rescham(), normal_shape(),
+// restartcham(), m_restartcham(), restore_cham(); src/monmove.c vamp_shift()
 //
-// Not ported: chameleons, doppelgangers and sandestins (m18 step 3: no rows yet; their
-// decide_to_shapeshift() branch is here), monster genders (a vampire keeps none), Vlad, the
-// hero's own vampire shapeshifting, `gd.disintegested` (a digested or disintegrated vampshifter
-// "transforms" unless its form is amorphous).
+// Not ported: monster genders (a vampire keeps none), Vlad, the hero's own vampire shapeshifting,
+// `gd.disintegested` (a digested or disintegrated vampshifter "transforms" unless its form is
+// amorphous), the steed.
 import {
   getLevel,
   getPlayer,
+  sortedIds,
   type Ctx,
   type Entity,
   type Level,
@@ -21,7 +25,21 @@ import {
 } from '@nh/core';
 import { blowDoor, mbTrapped } from './btrapped';
 import { doorTrapped } from './btrapstate';
-import { canFog, chamOf, FOG_CLOUD, isVampire, isVampshifter, setCham } from './chamstate';
+import {
+  canFog,
+  chamOf,
+  FOG_CLOUD,
+  isVampire,
+  isVampshifter,
+  pmToCham,
+  setCham,
+  setChamHooks,
+} from './chamstate';
+import { meating, setMeating } from './dog';
+import { mApType, seemimic, setMimicSym } from './mimicstate';
+import { protFromShapeChangers } from './props';
+import { newWere } from './were';
+import { isWere } from './werestate';
 import { expels, unstuck } from './engulf';
 import { engulfingU, uswallow, ustuck } from './engulfstate';
 import { mnextoPos } from './generation';
@@ -30,7 +48,15 @@ import { canseemon } from './invis';
 import { amorphous, isFlyer, noncorporeal, nonliving } from './mondata';
 import { heroSees } from './mongear';
 import { setVampRises } from './mondeath';
-import { mspecUsed, mstratOf, setDecideToShapeshift, setMspecUsed, unfreezeMonst } from './mstate';
+import {
+  isCancelled,
+  mspecUsed,
+  mstratOf,
+  setCancelled,
+  setDecideToShapeshift,
+  setMspecUsed,
+  unfreezeMonst,
+} from './mstate';
 import { newcham, pickvampshape } from './newcham';
 import { canSpotMon, monNam } from './perception';
 import { setVampStone } from './stoning';
@@ -86,8 +112,9 @@ function minMhpmax(mon: Entity): void {
  * (stepping off a closed door it was flowing under), and a fog cloud at full health picks
  * another shape 1 time in 4 when the hero does not see it close by; a vampire in its own form
  * at nine tenths of its health or more shifts 1 time in 6, unobserved. Nothing while it waits
- * for the hero. Other shapeshifters change 1 time in 6 when their special ability is ready (none
- * exist yet). ref: src/mon.c decide_to_shapeshift()
+ * for the hero. Other shapeshifters (chameleons, doppelgangers, sandestins) change 1 time in 6
+ * when their special ability is ready, which then waits 3..12 turns.
+ * ref: src/mon.c decide_to_shapeshift()
  */
 export function decideToShapeshift(ctx: Ctx, mon: Entity): void {
   let ptr: MonsterDef | null = null;
@@ -150,7 +177,8 @@ export function decideToShapeshift(ctx: Ctx, mon: Entity): void {
  */
 export function vamprises(ctx: Ctx, mon: Entity): boolean {
   const mndx = chamOf(ctx, mon.id);
-  // (protection from shape changers would keep it in its normal form: nothing to check)
+  // Protection from shape changers protects against this because the vampire will always be in
+  // normal form instead of shifted. So there's no need to check for that attribute being active.
   if (mndx === null || mndx === mon.def || isGenocided(ctx.state, mndx)) return false;
   const def = ctx.defs.monster(mon.def);
   // alternate message phrasing for some monster types
@@ -271,6 +299,93 @@ export function vampFogAtDoor(ctx: Ctx, mon: Entity, seenBefore: boolean): void 
   vampShift(ctx, mon, seenBefore);
 }
 
+/**
+ * The monster returns to its own form: a shapeshifter to its true kind ("The vampire bat turns
+ * into a vampire lord!") and is no longer one (staying cancelled if it was), a lycanthrope in
+ * beast form to its human form, a mimic stops pretending (falling asleep unless it posed as a
+ * monster; a pet that was eating a mimic corpse just finishes its meal).
+ * ref: src/mon.c normal_shape()
+ */
+export function normalShape(ctx: Ctx, mon: Entity): void {
+  const mcham = chamOf(ctx, mon.id);
+  if (mcham !== null && ctx.defs.isMonster(mcham)) {
+    const mcan = isCancelled(ctx, mon.id);
+    newcham(ctx, mon, ctx.defs.monster(mcham), { msg: true });
+    setCham(ctx, mon.id, null);
+    // newcham() may uncancel a polymorphing monster; override that
+    if (mcan) setCancelled(ctx, mon.id);
+  }
+  if (!alive(ctx, mon)) return;
+  const def = ctx.defs.monster(mon.def);
+  if (isWere(def) && def.glyph.ch !== '@') newWere(ctx, mon);
+  const ap = mApType(ctx, mon.id);
+  if (ap !== null) {
+    // this used to include a cansee() check but Protection_from_shape_changers shouldn't be
+    // trumped by being unseen
+    if (!meating(ctx, mon.id)) {
+      // make revealed mimic fall asleep in lieu of shape change
+      const m = mon.c.monster;
+      if (ap !== 'monster' && m) m.asleep = true;
+      seemimic(ctx, mon.id);
+    } else {
+      // quickmimic: pet is midst of eating a mimic corpse; this terminates the meal early
+      setMeating(ctx, mon.id, 0); // finish_meating()
+      seemimic(ctx, mon.id);
+    }
+  }
+}
+
+/** The monsters on the hero's level, in id order. */
+function levelMonsters(ctx: Ctx): Entity[] {
+  const out: Entity[] = [];
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    if (e?.c.monster && id !== ctx.state.playerId && e.c.pos?.level === ctx.state.currentLevel)
+      out.push(e);
+  }
+  return out;
+}
+
+/**
+ * Force all chameleons and mimics to become themselves and werecreatures to revert to human
+ * form; called when Protection_from_shape_changers gets activated by putting on the ring.
+ * ref: src/mon.c rescham()
+ */
+export function rescham(ctx: Ctx): void {
+  for (const mon of levelMonsters(ctx)) if (alive(ctx, mon)) normalShape(ctx, mon);
+}
+
+/**
+ * Let chameleons change and mimics hide again; called when taking off the ring of protection
+ * from shape changers. A cancelled one stays as it is. ref: src/mon.c restartcham(),
+ * m_restartcham()
+ */
+export function restartcham(ctx: Ctx): void {
+  for (const mon of levelMonsters(ctx)) {
+    if (!alive(ctx, mon)) continue;
+    const def = ctx.defs.monster(mon.def);
+    if (!isCancelled(ctx, mon.id)) setCham(ctx, mon.id, pmToCham(def));
+    if (def.glyph.ch === 'm' && mon.c.monster?.asleep) setMimicSym(ctx, mon.id);
+  }
+}
+
+/**
+ * A monster coming back into play on the hero's level (a level she returns to, one arriving
+ * with her or from elsewhere): with protection from shape changers on, or cancelled, it is forced
+ * back to its natural shape; otherwise a shapeshifter is allowed to change again (it does not
+ * change here). ref: src/mon.c restore_cham()
+ */
+export function restoreCham(ctx: Ctx, mon: Entity): void {
+  if (protFromShapeChangers(ctx.state) || isCancelled(ctx, mon.id)) {
+    // force chameleon or mimic to revert to its natural shape
+    normalShape(ctx, mon);
+  } else if (chamOf(ctx, mon.id) === null) {
+    // chameleon doesn't change shape here, just gets allowed to do so
+    setCham(ctx, mon.id, pmToCham(ctx.defs.monster(mon.def)));
+  }
+}
+
+setChamHooks(rescham, restartcham, restoreCham, normalShape);
 setDecideToShapeshift(decideToShapeshift);
 setVampRises((ctx, mon) => {
   riseMsg = false;

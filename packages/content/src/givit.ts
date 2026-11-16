@@ -19,6 +19,7 @@ import { heroInvisBlocked, heroInvisible, selfInvisMessage } from './invis';
 import { pluslvl } from './hero';
 import { counterWere, setUlycn } from './werestate';
 import { pwOf, setPw } from './uenergy';
+import { polyselfLate } from './upoly';
 
 /** ref: include/mondata.h telepathic(): the floating eye and the mind flayers */
 const telepathic = (def: MonsterDef): boolean =>
@@ -164,8 +165,10 @@ export function givit(ctx: Ctx, prop: string, def: MonsterDef): void {
 /**
  * The effects of finishing a corpse of `def`. ref: src/eat.c cpostfx(). Ported: bats and lights
  * stun, the quantum mechanic toggles intrinsic speed, then a chance at an intrinsic; the stalker
- * makes her invisible for a while, or for good with see invisible when she already is. Not ported
- * (no systems for them): mimicking, shapeshifters, displacer beast, disenchanter and the nurse.
+ * makes her invisible for a while, or for good with see invisible when she already is; a
+ * chameleon, doppelganger or sandestin polymorphs her ("You feel a change coming over you.", or
+ * "You feel momentarily different." when Unchanging). Not ported (no systems for them):
+ * mimicking, displacer beast, disenchanter and the nurse.
  * The wraith gives a level (pluslvl(FALSE)), a human-form were
  * creature its lycanthropy (set_ulycn(); the beast forms leave no corpse).
  */
@@ -188,6 +191,16 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef): void {
   // `break` without checking for an intrinsic
   if (def.id === 'nh:wraith') {
     pluslvl(ctx, hero.id, false);
+    return;
+  }
+  if (def.id === 'nh:chameleon' || def.id === 'nh:doppelganger' || def.id === 'nh:sandestin') {
+    // (the sandestin is moot: it leaves no corpse; no tins here)
+    if (hasProp(hero, P.UNCHANGING)) {
+      ctx.emit({ type: 'msg', key: 'polytrap.momentarily_different' }); // same as poly trap
+    } else {
+      ctx.emit({ type: 'msg', key: 'givit.change_coming' });
+      polyselfLate(ctx);
+    }
     return;
   }
   const catchLycanthropy = counterWere(def.id);

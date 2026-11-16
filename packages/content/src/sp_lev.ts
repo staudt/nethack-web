@@ -41,6 +41,7 @@ import { polyWhenStoned } from './golem';
 import { levelFlags } from './levelflags';
 import { isLava, isPool } from './liquid';
 import { setMappearance } from './mimicstate';
+import { protFromShapeChangers } from './props';
 import { mkobjAt, mksobjFull, rndmonnum } from './mkobj';
 import {
   amphibiousMon,
@@ -223,13 +224,15 @@ function contentSpot(
 /**
  * des.monster's `appear_as` on a mimic made with its own disguise (set_mimic_sym() in makemon()):
  * a piece of furniture, an object (with no shape for a corpse or statue), or a monster (its own
- * kind: no disguise). Other monsters refuse it (no shapeshifters exist). 5.0's screening of a
+ * kind: no disguise). Other monsters refuse it (the scripts give no shapeshifter one), and
+ * nothing happens while the hero has protection from shape changers. 5.0's screening of a
  * boulder disguise on a trap, boulder or closed door never runs (`m->x` is the monster's square
  * by then), so none is made. ref: src/sp_lev.c create_monster() (the m_ap_type branch)
  */
 function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['appearAs']>): void {
   const mon = ctx.state.entities[String(id)];
   if (!mon || ctx.defs.monster(mon.def).glyph.ch !== 'm') return; // mlet == S_MIMIC
+  if (protFromShapeChangers(ctx.state)) return;
   if (ap.kind === 'furniture') setMappearance(ctx, id, { type: 'furniture', id: ap.id });
   else if (ap.kind === 'object') setMappearance(ctx, id, { type: 'object', id: ap.id });
   else if (ap.id === mon.def)

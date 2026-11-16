@@ -85,6 +85,7 @@ import {
   ownHp,
   rehumanize as rehumanizeLate,
   setPolymon,
+  setPolyself,
   setRehumanize,
   setUnwere,
   setUpoly,
@@ -986,6 +987,7 @@ export function registerPolyTrap(): void {
   setRehumanize(rehumanize);
   setUnwere(unwereForm);
   setPolymon((ctx, mntmp) => polymon(ctx, mntmp, true));
+  setPolyself((ctx) => polyself(ctx));
 }
 
 // ---------------------------------------------------------------------------------------------

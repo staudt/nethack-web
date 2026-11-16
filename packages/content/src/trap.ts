@@ -9,7 +9,7 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
-import { isVampshifter } from './chamstate';
+import { isVampshifter, restoreCham } from './chamstate';
 import { maybeUnhideAt } from './hide';
 import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
 import { uRooms } from './urooms';
@@ -1733,6 +1733,9 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
       delete t[key];
       continue;
     }
+    // ref: mon_arrive(): in case Protection_from_shape_changers is different now from when it
+    // went onto the migrating monsters list (before it is placed: no message)
+    restoreCham(ctx, mon);
     const viaT = takeMigrVia(ctx, mon.id, true);
     const stairs = viaT ? arrivalStairs(level, viaT) : null;
     // rloc_pos_ok(): on the Wizard's Tower's levels, one that left from inside the tower arrives

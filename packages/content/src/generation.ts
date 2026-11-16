@@ -29,6 +29,7 @@ import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
+import { protFromShapeChangers } from './props';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
 import {
@@ -550,11 +551,11 @@ export function makemon(
   // ref: makemon() S_BAT: `if (Inhell && is_bat(ptr)) mon_adjust_speed(mtmp, 2, NULL)`, made
   // fast for good (no message)
   if (mon && isBat(mdef) && inHell(ctx.state, level)) setMspeed(ctx, id, 'fast');
-  // ref: makemon(): `mtmp->cham = NON_PM`, unless it is a shapechanger (pm_to_cham(); no
-  // protection from shape changers exists): it keeps its kind in `cham` and newcham() picks its
-  // first shape (Vlad stays himself); one born shifted gets no inventory (`allow_minvent`)
+  // ref: makemon(): `mtmp->cham = NON_PM`, unless it is a shapechanger (pm_to_cham()) and the
+  // hero has no protection from shape changers: it keeps its kind in `cham` and newcham() picks
+  // its first shape (Vlad stays himself); one born shifted gets no inventory (`allow_minvent`)
   let allowMinvent = opts.noInventory !== true;
-  const mcham = pmToCham(mdef);
+  const mcham = protFromShapeChangers(ctx.state) ? null : pmToCham(mdef);
   if (mcham !== null) {
     setCham(ctx, id, mcham);
     const e = ctx.state.entities[String(id)];

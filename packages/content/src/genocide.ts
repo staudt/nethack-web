@@ -4,9 +4,8 @@
 // kill_genocided_monsters(), kill_eggs(); src/polyself.c udeadinside(); src/do.c goto_level()
 // (`kill_genocided_monsters()` on arrival)
 //
-// Not ported (see DEVIATIONS.md "Genocide"): chameleons, quest monsters' feedback,
-// the vampire shapeshifter's revert, class names ("dogs") in class genocide (a symbol or a monster
-// name only), livelog and conduct, wizard mode's '*'. The hero's role monster (a Valkyrie) does
+// Not ported (see DEVIATIONS.md "Genocide"): quest monsters' feedback, the vampire-shifted hero's
+// revert, class names ("dogs") in class genocide (a symbol or a monster name only), livelog and conduct, wizard mode's '*'. The hero's role monster (a Valkyrie) does
 // not exist: a confused reader genocides her role by its id (not listed at the end), and a
 // confused cursed reading sends in nothing.
 import {
@@ -26,6 +25,8 @@ import { makemon, rndmonst } from './generation';
 import { adjalign, uState } from './luck';
 import { messagesEn } from './messages.en';
 import { mondead } from './mondeath';
+import { chamOf } from './chamstate';
+import { newcham } from './newcham';
 import { nameToMon, nonliving, weirdnonliving } from './mondata';
 import { mungspaces, wishNames } from './objnam_read';
 import { P, hasProp } from './props';
@@ -104,14 +105,21 @@ function killEggs(ctx: Ctx): void {
 
 /**
  * Every monster of a genocided species on the hero's level dies (mondead(): no corpse), and the
- * eggs of genocided species stop hatching. ref: src/mon.c kill_genocided_monsters()
+ * eggs of genocided species stop hatching. A shapeshifter whose own kind is genocided dies in
+ * any form; one only wearing a genocided form takes another ("The ettin turns into a
+ * chameleon!"). ref: src/mon.c kill_genocided_monsters()
  */
 export function killGenocidedMonsters(ctx: Ctx): void {
   const lvl = ctx.state.currentLevel;
   for (const id of sortedIds(ctx.state)) {
     const e = ctx.state.entities[String(id)];
     if (!e?.c.monster || id === ctx.state.playerId || e.c.pos?.level !== lvl) continue;
-    if (isGenocided(ctx.state, e.def)) mondead(ctx, id);
+    const cham = chamOf(ctx, id);
+    const killCham = cham !== null && isGenocided(ctx.state, cham);
+    if (isGenocided(ctx.state, e.def) || killCham) {
+      if (cham !== null && !killCham) newcham(ctx, e, null, { msg: true });
+      else mondead(ctx, id);
+    }
   }
   killEggs(ctx);
 }

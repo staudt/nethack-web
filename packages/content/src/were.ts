@@ -24,7 +24,7 @@ import { setWereChange, unfreezeMonst } from './mstate';
 import { wakeNearto } from './noise';
 import { doname } from './objnam';
 import { monNam } from './perception';
-import { P, heroHas } from './props';
+import { P, heroHas, protFromShapeChangers } from './props';
 import { cansee, canseemon } from './trap';
 import { counterWere, isHumanForm, isWere, setMonData } from './werestate';
 
@@ -65,10 +65,14 @@ export function possiblyUnwield(ctx: Ctx, mon: Entity, polyspot = false): void {
  * seen; a helpless one wakes and can move again, it regains a quarter of its lost hit points and a
  * beast drops its weapon. During the monster's own move (`mux`: C's mon_moving, where it thinks
  * the hero is) a hostile one next to that square flees 2..10 turns when it scares the new form
- * (an Elbereth, a scroll of scare monster). ref: src/were.c new_were() (no
- * Protection_from_shape_changers: no such ring)
+ * (an Elbereth, a scroll of scare monster). With protection from shape changers a human one
+ * stays human (a beast still turns human). ref: src/were.c new_were()
  */
 export function newWere(ctx: Ctx, mon: Entity, mux?: Pos): void {
+  // neither hero nor werecreature can change from human form to critter form if hero has
+  // Protection_from_shape_changers extrinsic; if already in critter form, always change to
+  // human form for that
+  if (protFromShapeChangers(ctx.state) && isHumanForm(ctx.defs.monster(mon.def))) return;
   const pm = counterWere(mon.def);
   if (pm === null || !ctx.defs.isMonster(pm)) return; // impossible("unknown lycanthrope")
   const def = ctx.defs.monster(pm);
@@ -112,15 +116,19 @@ function monnear(def: MonsterDef, mx: number, my: number, x: number, y: number):
 }
 
 /**
- * Once a turn a were creature may change form: a human one 1 time in 50 (no moon, no night), and
- * "You hear a jackal howling at the moon." if the hero does not see it; a beast changes back 1
- * time in 30. ref: src/were.c were_change(), called from src/mon.c m_calcdistress()
+ * Once a turn a were creature may change form: a human one 1 time in 50 (no moon, no night) unless
+ * the hero has protection from shape changers, and "You hear a jackal howling at the moon." if
+ * the hero does not see it; a beast changes back 1 time in 30, or at once with that protection.
+ * ref: src/were.c were_change(), called from src/mon.c m_calcdistress()
  */
 export function wereChange(ctx: Ctx, mon: Entity): void {
   const def = ctx.defs.monster(mon.def);
   if (!isWere(def)) return;
   if (isHumanForm(def)) {
-    if (!ctx.rng.rn2(night() ? (fullMoon() ? 3 : 30) : fullMoon() ? 10 : 50)) {
+    if (
+      !protFromShapeChangers(ctx.state) &&
+      !ctx.rng.rn2(night() ? (fullMoon() ? 3 : 30) : fullMoon() ? 10 : 50)
+    ) {
       newWere(ctx, mon); // change into animal form
       const howler =
         mon.def === 'nh:werewolf' ? 'wolf' : mon.def === 'nh:werejackal' ? 'jackal' : null;
@@ -131,7 +139,7 @@ export function wereChange(ctx: Ctx, mon: Entity): void {
         if (p) wakeNearto(ctx, p.x, p.y, 4 * 4);
       }
     }
-  } else if (!ctx.rng.rn2(30)) {
+  } else if (!ctx.rng.rn2(30) || protFromShapeChangers(ctx.state)) {
     newWere(ctx, mon); // change back into human form
   }
 }
@@ -163,7 +171,8 @@ const helperWord = (pm: string): string =>
  * A were creature summons 1 to 5 of its animals next to the hero; returns how many came and how
  * many the hero sees. A type missing from the monster table does not come, but its roll is
  * made. `yours` (the polymorphed hero's #monster) is called with each one made, which
- * tames it (monability.ts). ref: src/were.c were_summon()
+ * tames it (monability.ts). None come for a monster while the hero has protection from shape
+ * changers. ref: src/were.c were_summon()
  */
 export function wereSummon(
   ctx: Ctx,
@@ -172,6 +181,7 @@ export function wereSummon(
 ): { total: number; visible: number } {
   let total = 0;
   let visible = 0;
+  if (protFromShapeChangers(ctx.state) && !yours) return { total, visible };
   const at = getPlayer(ctx.state).c.pos;
   for (let i = ctx.rng.rnd(5); i > 0; i--) {
     const typ = summonType(ctx, pm);
@@ -235,9 +245,12 @@ export function summonWereMu(ctx: Ctx, mon: Entity, youseeit: boolean, mux?: Pos
   const alreadyFleeing = isFleeing(ctx, mon.id);
   const def = ctx.defs.monster(mon.def);
   if (isHumanForm(def)) {
-    // maybe switch to animal form
-    if (!ctx.rng.rn2(5 - (night() ? 1 : 0) * 2)) newWere(ctx, mon, mux);
-  } else if (!ctx.rng.rn2(30)) newWere(ctx, mon, mux); // maybe switch back to human form
+    // maybe switch to animal form (if hero has Protection_from_shape_changers, new_were() will
+    // work in the critter-to-human direction but be a no-op the other way; we repeat the
+    // criteria here for clarity)
+    if (!protFromShapeChangers(ctx.state) && !ctx.rng.rn2(5 - (night() ? 1 : 0) * 2))
+      newWere(ctx, mon, mux);
+  } else if (protFromShapeChangers(ctx.state) || !ctx.rng.rn2(30)) newWere(ctx, mon, mux); // maybe switch back to human form
   // maybe summon compatible critters
   if (!ctx.rng.rn2(10)) {
     const generic = helperWord(mon.def);

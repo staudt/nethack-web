@@ -35,6 +35,7 @@ import {
   makeBlinded,
   makeConfused,
   makeStunned,
+  protFromShapeChangers,
   ringBonus,
   timeoutLeft,
   uSlowDown,
@@ -1818,8 +1819,9 @@ const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
 /**
  * A lycanthrope's bite. Against the hero, 1 time in 4 unless magic cancellation stops it, she
  * catches lycanthropy: "You feel feverish." (u.ulycn is the biter's form). Against a monster it
- * is a plain hit. ref: src/uhitm.c mhitm_ad_were() (no Protection_from_shape_changers, no
- * defending artifacts, no exercise(); retouch_equipment() is moot without silver items)
+ * is a plain hit. Protection from shape changers keeps her from catching it.
+ * ref: src/uhitm.c mhitm_ad_were() (no defending artifacts, no exercise(); retouch_equipment()
+ * is moot without silver items)
  */
 const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   if (isU(ctx, magr)) {
@@ -1827,7 +1829,12 @@ const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
     return;
   }
   if (mdef.id === ctx.state.playerId) {
-    if (!ctx.rng.rn2(4) && ulycn(ctx.state) === null && !mgcAtkNegated(ctx, magr, true)) {
+    if (
+      !ctx.rng.rn2(4) &&
+      ulycn(ctx.state) === null &&
+      !protFromShapeChangers(ctx.state) &&
+      !mgcAtkNegated(ctx, magr, true)
+    ) {
       say(ctx, 'were.feverish');
       setUlycn(ctx, magr.def as DefId);
     }

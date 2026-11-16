@@ -7,7 +7,7 @@
 // (Half_gas_damage: no towels), the polymorphed gremlin hero splitting in water vapor (split_mon()
 // is for monsters only), deafness (make_deaf()), exercise(), Half_physical_damage, trycall()
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
-// Protection_from_shape_changers (no such ring), body parts of polymorphed forms (always "head"
+// body parts of polymorphed forms (always "head"
 // and "eyes") and a hit on a long worm's tail (gn.notonhead: always the head).
 import { monHatesBlessings } from './chamstate';
 import { setPotionVapors } from './floorfx';
@@ -43,7 +43,15 @@ import { wakeup } from './peaceful';
 import { canSpotMon, monNam } from './perception';
 import { polyself, youWere } from './polyself';
 import { isUnpaid } from './price';
-import { P, hasProp, incrItimeout, makeBlinded, makeConfused, timeoutLeft } from './props';
+import {
+  P,
+  hasProp,
+  incrItimeout,
+  makeBlinded,
+  makeConfused,
+  protFromShapeChangers,
+  timeoutLeft,
+} from './props';
 import { stolenValue, subfrombill } from './shk';
 import { heroForm, heroFormId, ownHp, upolyd } from './upoly';
 import { newWere } from './were';
@@ -327,7 +335,8 @@ function monPotionEffect(
           angermon = false;
           if (canseemon(ctx, mon)) say(ctx, 'potionhit.healthier', { mon: monNam(ctx, mon) });
           healmon(mon, ctx.rng.d(2, 6), 0);
-          if (isWere(def) && def.flags.includes('human')) newWere(ctx, mon); // into beast
+          if (isWere(def) && def.flags.includes('human') && !protFromShapeChangers(ctx.state))
+            newWere(ctx, mon); // transform into beast
         }
       } else if (mon.def === 'nh:gremlin') {
         angermon = false;

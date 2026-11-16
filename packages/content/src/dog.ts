@@ -4,7 +4,7 @@
 //
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
-import { isVampshifter, monHatesSilver } from './chamstate';
+import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
 import { isWiz } from './wizstate';
 import { isCovetous, isDemon, wants } from './mondata';
@@ -646,6 +646,10 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
         const elapsed = ctx.state.turn - since;
         if (isTame(mon)) catchUpTameness(ctx, mon, elapsed);
         catchUpRegen(ctx, mon, elapsed);
+        // ref: src/restore.c getlev(): "update shape-changers in case protection against them is
+        // different now than when the level was saved"
+        restoreCham(ctx, mon);
+        if (!ctx.state.entities[String(id)]?.c.monster) continue;
         // ref: src/restore.c getlev(): "give hiders a chance to hide before their next move"
         if (elapsed > 0 && elapsed > ctx.rng.rnd(10)) hideMonst(ctx, mon);
       }
@@ -659,6 +663,9 @@ function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, 
     if (!spot) continue; // no room: it stays behind (mon_arrive would migrate it)
     // ref: keepdogs() -> mon_leave() drops a worm's tail; mon_arrive() grows it back
     const segs = wormRec(ctx.state, mon.id) ? wormLeave(ctx, mon.id) : null;
+    // ref: mon_arrive(): "in case Protection_from_shape_changers is different now" (before it
+    // is placed)
+    restoreCham(ctx, mon);
     mon.c.pos = { level: to, x: spot.x, y: spot.y };
     if (segs !== null) wormArrive(ctx, mon.id, segs);
   }

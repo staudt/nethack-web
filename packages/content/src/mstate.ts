@@ -10,7 +10,8 @@
 // confused, `mspeed: { [monsterId]: 'slow' | 'fast' }`
 // while its speed is adjusted (permspeed MSLOW/MFAST; no speed boots, so mspeed = permspeed),
 // `mspecUsed: { [monsterId]: turns }` while it cannot cast (or use another special ability),
-// `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); never undone),
+// `mcan: { [monsterId]: true }` once it is cancelled (ref: zap.c cancel_monst(); undone only for a
+// shapeshifter changing form, newcham()),
 // `mblinded: { [monsterId]: turns }` while it cannot see (mcansee = 0; 0 turns is permanent,
 // C's `!mcansee && !mblinded`), `minvis` (invis.ts), `mux: { [monsterId]: [x, y] }` (mux/muy, kept
 // by apparxy.ts setApparxy() while the monster cannot see the hero), `mrevived: { [monsterId]: true }`
@@ -322,6 +323,12 @@ export function setCancelled(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
   if (t) t[String(id)] = true;
 }
 
+/** `mtmp->mcan = 0`: a cancelled shapeshifter about to change form. ref: src/mon.c newcham() */
+export function setUncancelled(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, 'mcan', false);
+  if (t) delete t[String(id)];
+}
+
 /** `mtmp->mcansee`: the monster can see (it is not blinded). */
 export function mcansee(ctx: Pick<Ctx, 'state'>, id: EntityId): boolean {
   return typeof table(ctx, 'mblinded', false)?.[String(id)] !== 'number';
@@ -507,6 +514,15 @@ export function setDecideToShapeshift(fn: (ctx: Ctx, mon: Entity) => void): void
  */
 export function registerMState(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
+    // mon_regen()'s countdown, before decide_to_shapeshift() reads it and sets it again
+    const countDown = (key: string): void => {
+      const su = table(ctx, 'mspecUsed', false);
+      const v = su?.[key];
+      if (!su || v === undefined) return;
+      if (typeof v !== 'number' || v - 1 <= 0) delete su[key];
+      else su[key] = v - 1;
+    };
+    const counted = new Set<string>();
     for (const id of sortedIds(ctx.state)) {
       const e = ctx.state.entities[String(id)];
       if (!e?.c.monster || e.c.pos?.level !== ctx.state.currentLevel) continue;
@@ -514,19 +530,16 @@ export function registerMState(api: ModApi): void {
       // to end up in water or lava"
       if (ctx.defs.monster(e.def).speed === 0 && minliquidHook?.(ctx, e)) continue;
       monRegen(ctx, id);
+      countDown(String(id));
+      counted.add(String(id));
       // possibly polymorph shapechangers and lycanthropes
       if (chamOf(ctx, id) !== null) shapeshiftHook?.(ctx, e);
       if (!ctx.state.entities[String(id)]?.c.monster) continue;
       wereChangeHook?.(ctx, e);
     }
+    // the others (on other levels, or dead) count down here as before
     const su = table(ctx, 'mspecUsed', false);
-    if (su) {
-      for (const key of Object.keys(su).sort()) {
-        const v = su[key];
-        if (typeof v !== 'number' || v - 1 <= 0) delete su[key];
-        else su[key] = v - 1;
-      }
-    }
+    if (su) for (const key of Object.keys(su).sort()) if (!counted.has(key)) countDown(key);
     const bl = table(ctx, 'mblinded', false);
     if (bl) {
       for (const id of sortedIds(ctx.state)) {

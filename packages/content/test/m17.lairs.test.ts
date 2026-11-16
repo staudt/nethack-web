@@ -264,8 +264,8 @@ describe("Asmodeus's lair", () => {
         true,
       );
       expect(ter(level, level.up!)).toBe(T.stairs_up);
-      // the maze walked east of the corridor
-      expect(ter(level, { x: x2 + 33, y: y2 + 2 })).toBe(T.floor);
+      // the maze walked east of the corridor (hell_tweaks()' lava rivers may cross it there)
+      expect([T.floor, T.lava]).toContain(ter(level, { x: x2 + 33, y: y2 + 2 }));
     }
   });
 

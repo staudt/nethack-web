@@ -4,11 +4,12 @@
 // isspecmon(); src/makemon.c newmonhp()
 //
 // Shapeshifters keep their true kind in `cham` (chamstate.ts): a vampire picks a bat, fog cloud or
-// (a lord) wolf shape (pickvampshape()); a polymorph that makes a vampire makes a vampshifter.
-// Not ported (none exist here): chameleons, doppelgangers and sandestins (m18 step 3), the
-// cancelled shapechanger's uncancelling (no protection from shape changers yet),
-// the Riders' immunity has no monster to apply to but is kept,
-// the Rogue level, wizard-mode form control, dragon scales and mail choosing the form,
+// (a lord) wolf shape (pickvampshape()), a chameleon often an animal (pick_animal()), a
+// doppelganger a nasty, a role monster (tt_doppel()) or a humanoid, a sandestin a nasty; a
+// polymorph that makes a vampire makes a vampshifter unless the hero has protection from shape
+// changers. ref: src/mon.c pick_animal(), mon_animal_list(); src/topten.c tt_doppel()
+// Not ported: the Riders' immunity has no monster to apply to but is kept,
+// the Rogue level, wizard-mode form control,
 // long worms, mimics, hiding monsters, steeds and leashes, monster genders (no gender is kept for
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
@@ -25,8 +26,13 @@ import {
   type Msg,
 } from '@nh/core';
 import {
+  ARCHON,
+  CHAMELEON,
   chamOf,
+  DOPPELGANGER,
   FOG_CLOUD,
+  JABBERWOCK,
+  SANDESTIN,
   isShapeshifter,
   isVampire,
   isVampshifter,
@@ -40,6 +46,10 @@ import {
 } from './chamstate';
 import { isPoolOrLava } from './liquid';
 import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
+import { humanoid, isMplayer, MPLAYERS } from './mondata';
+import { pickNasty } from './nasty';
+import { protFromShapeChangers } from './props';
+import { isCancelled, setUncancelled } from './mstate';
 import { monBreakArmor } from './breakarm';
 import { bypassObj } from './bypass';
 import { epriOf } from './epri';
@@ -54,7 +64,7 @@ import { canseemon, newchamInvis } from './invis';
 import { isGolem } from './golem';
 import { setMonToStone } from './stoning';
 import { placeOnFloor } from './items';
-import { minvent, setMonFlag } from './mongear';
+import { minvent, setMonFlag, whichArmor } from './mongear';
 import { canSpotMon, monNam } from './perception';
 import { possiblyUnwield } from './were';
 import { setMonData } from './werestate';
@@ -80,14 +90,17 @@ const isspecmon = (ctx: Ctx, mon: Entity): boolean =>
   eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null || isGuard(ctx.state, mon.id);
 
 /**
- * The form `mndx` if the monster may take it: not genocided, not a placeholder, its own natural
- * form for a shapeshifter, else polyok() (no player monsters exist).
- * ref: src/mon.c accept_newcham_form()
+ * The form `mndx` if the monster may take it: not genocided, not a placeholder, a player monster
+ * (only a doppelganger's tt_doppel() picks one), its own natural form for a shapeshifter, else
+ * polyok(). ref: src/mon.c accept_newcham_form()
  */
 function acceptNewchamForm(ctx: Ctx, mon: Entity, mdat: MonsterDef | null): MonsterDef | null {
   if (!mdat) return null;
   if (isGenocided(ctx.state, mdat.id)) return null;
   if (PLACEHOLDERS.includes(mdat.id)) return null;
+  // select_newcham_form() might deliberately pick a player character type (random selection
+  // never does) which polyok() rejects, so we need a special case here
+  if (isMplayer(mdat)) return mdat;
   // shapeshifters are rejected by polyok() but allow a shapeshifter to take on its 'natural' form
   if (isShapeshifter(mdat) && chamOf(ctx, mon.id) === mdat.id) return mdat;
   // polyok() rules out M2_PNAME, M2_WERE, and all humans except Kops
@@ -140,18 +153,115 @@ export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
 }
 
 /**
- * The form a monster changing shape takes: a vampire's own pick (pickvampshape()), else any
- * monster type, uniformly (C picks among every monster before the special ones; the roster is
- * that table's subset). The 50-try loop only retries on the Rogue level, so one pick is made.
- * ref: src/mon.c select_newcham_form() (the vampires' cases and NON_PM; no dragon armor)
+ * C's LOW_PM..SPECIAL_PM - 1: every monster type but the player monsters (and the quest
+ * monsters, none here), in the port's table order.
+ */
+function ordinaryMonsters(ctx: Pick<Ctx, 'defs'>): readonly MonsterDef[] {
+  return ctx.defs.monsters.filter((m) => !isMplayer(m));
+}
+
+/** The kind `id`, or null (NON_PM) when the port has no such row. */
+const pmOrNull = (ctx: Pick<Ctx, 'defs'>, id: DefId): MonsterDef | null =>
+  ctx.defs.isMonster(id) ? ctx.defs.monster(id) : null;
+
+/**
+ * A random animal (M1_ANIMAL) kind, for a chameleon. ref: src/mon.c pick_animal(),
+ * mon_animal_list() (no Rogue level)
+ */
+export function pickAnimal(ctx: Ctx): MonsterDef | null {
+  const list = ordinaryMonsters(ctx).filter((m) => m.flags.includes('animal'));
+  return list[ctx.rng.rn2(list.length)] ?? null;
+}
+
+/**
+ * A doppelganger's role monster. C reads a random top-ten entry 12 times in 13 (`rn2(13)`); the
+ * port keeps no record file, so every pick takes C's no-entry branch: a random player monster
+ * from PM_ARCHEOLOGIST to PM_WIZARD (the Valkyrie has no row: NON_PM). ref: src/topten.c
+ * tt_doppel()
+ */
+export function ttDoppel(ctx: Ctx): MonsterDef | null {
+  ctx.rng.rn2(13); // rn2(13) ? get_rnd_toptenentry() : NULL: no record file, always NULL
+  const id = MPLAYERS[ctx.rng.rn2(MPLAYERS.length)]; // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, ...)
+  return id === undefined ? null : pmOrNull(ctx, id);
+}
+
+/** ref: include/monsters.h the Archon's difficulty, while its row is absent */
+const ARCHON_DIFFICULTY = 26;
+
+/** ref: include/monsters.h the quest guardians PM_STUDENT..PM_APPRENTICE (no rows here) */
+const QUEST_GUARDIANS = 14;
+
+/** Dragon scales and scale mail by the dragon they come from: `nh:<color>_dragon`. */
+function dragonArmorToPm(ctx: Pick<Ctx, 'defs'>, armor: Entity | null): MonsterDef | null {
+  const m = armor ? /^nh:(\w+)_dragon_scale(?:s|_mail)$/.exec(armor.def) : null;
+  return m ? pmOrNull(ctx, `nh:${m[1] ?? ''}_dragon` as DefId) : null;
+}
+
+/**
+ * The form a monster changing shape takes: a sandestin a nasty 6 times in 7 (pick_nasty() below
+ * the Archon's difficulty); a doppelganger a nasty 1 time in 7 (below the jabberwock's), else a
+ * role monster 2 times in 3 (tt_doppel()), else a quest guardian 1 time in 3 (none exist: a
+ * random form), else five tries at a humanoid polyok() kind; a chameleon an animal 1 time in 3;
+ * a vampire its own pick (pickvampshape()); an ordinary monster wearing dragon scales or scale
+ * mail that dragon; otherwise any monster type but the player monsters, uniformly. A pick that
+ * names a kind the port lacks is no form (pick_nasty()'s absent kinds count as genocided:
+ * accept_newcham_form() rejects them; the others fall back to the random form). The 50-try loop
+ * only retries on the Rogue level, so one pick is made.
+ * ref: src/mon.c select_newcham_form() (no wizard-mode form control)
  */
 export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
   const cham = chamOf(ctx, mon.id);
-  if (cham === VAMPIRE || cham === VAMPIRE_LORD || cham === VLAD_THE_IMPALER) {
-    const mndx = pickvampshape(ctx, mon);
-    if (mndx !== null) return ctx.defs.isMonster(mndx) ? ctx.defs.monster(mndx) : null;
+  // `mndx`: undefined is NON_PM (pick at random below), null a kind the port lacks
+  let mndx: MonsterDef | null | undefined;
+  const nasty = (than: DefId): MonsterDef | null => {
+    // mons[PM_ARCHON].difficulty is 26 (include/monsters.h; its row lands in m18 step 7)
+    const cap = pmOrNull(ctx, than)?.difficulty ?? (than === ARCHON ? ARCHON_DIFFICULTY : 0);
+    return pmOrNull(ctx, pickNasty(ctx, cap - 1));
+  };
+  switch (cham) {
+    case SANDESTIN:
+      if (ctx.rng.rn2(7)) mndx = nasty(ARCHON);
+      break;
+    case DOPPELGANGER:
+      if (!ctx.rng.rn2(7)) {
+        mndx = nasty(JABBERWOCK);
+      } else if (ctx.rng.rn2(3)) {
+        // role monsters
+        mndx = ttDoppel(ctx) ?? undefined;
+      } else if (!ctx.rng.rn2(3)) {
+        // quest guardians: rn1(PM_APPRENTICE - PM_STUDENT + 1, PM_STUDENT); none have rows
+        ctx.rng.rn2(QUEST_GUARDIANS);
+      } else {
+        // general humanoids
+        const all = ordinaryMonsters(ctx);
+        let tryct = 5;
+        let pick: MonsterDef | undefined;
+        do {
+          pick = all[ctx.rng.rn2(all.length)];
+          if (pick && humanoid(pick) && polyok(pick)) break;
+        } while (--tryct > 0);
+        if (tryct) mndx = pick;
+      }
+      break;
+    case CHAMELEON:
+      if (!ctx.rng.rn2(3)) mndx = pickAnimal(ctx) ?? undefined;
+      break;
+    case VLAD_THE_IMPALER:
+    case VAMPIRE_LORD:
+    case VAMPIRE: {
+      const v = pickvampshape(ctx, mon);
+      if (v !== null) mndx = pmOrNull(ctx, v) ?? undefined;
+      break;
+    }
+    case null: // ordinary
+      mndx = dragonArmorToPm(ctx, whichArmor(ctx, mon.id, 'body')) ?? undefined;
+      break;
+    default:
+      break;
   }
-  const all = ctx.defs.monsters;
+  if (mndx !== undefined) return mndx;
+  // if no form was specified above, pick one at random now
+  const all = ordinaryMonsters(ctx);
   let mdat: MonsterDef | null;
   let tryct = 50;
   const rogueLevel = false;
@@ -208,11 +318,16 @@ export function newcham(
   // Riders are immune to polymorph and green slime (but apparent Rider might actually be a
   // doppelganger); so are kinds with a birth limit (the Nazgul and erinyes): mbirth_limit() <
   // MAXMONNO
-  if (
-    chamOf(ctx, mon.id) === null &&
-    (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO)
-  )
-    return false;
+  if (chamOf(ctx, mon.id) === null) {
+    // not a shapechanger
+    if (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO) return false;
+    // cancelled shapechangers become uncancelled prior to being given a new shape
+    if (isCancelled(ctx, mon.id) && !protFromShapeChangers(ctx.state)) {
+      const c = pmToCham(olddata);
+      setCham(ctx, mon.id, c);
+      if (c !== null) setUncancelled(ctx, mon.id);
+    }
+  }
   const tame = (m.tame ?? 0) > 0;
   // "The oldmon" (like YMonnam(), "your" for a pet); we need l_oldname whether msg is true or not
   const oldname = monNam(ctx, mon);
@@ -306,8 +421,9 @@ export function newcham(
   }
 
   // when polymorph trap/wand/potion produces a vampire, turn it into a full-fledged vampshifter
-  // (no protection from shape changers exists)
-  if (chamOf(ctx, mon.id) === null && isVampire(mdat)) setCham(ctx, mon.id, pmToCham(mdat));
+  // unless shape-changing is blocked
+  if (chamOf(ctx, mon.id) === null && isVampire(mdat) && !protFromShapeChangers(ctx.state))
+    setCham(ctx, mon.id, pmToCham(mdat));
 
   possiblyUnwield(ctx, mon, polyspot); // might lose use of weapon
   monBreakArmor(ctx, mon, polyspot);

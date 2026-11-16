@@ -54,11 +54,13 @@ import {
   hasProp,
   incrItimeout,
   isStrangled,
+  protFromShapeChangers,
   setItimeout,
   timeoutLeft,
   updateWornProps,
   wornIn,
 } from './props';
+import { rescham, restartcham } from './chamstate';
 import { setSwapWep, swapWep } from './wield';
 
 export const PUTON_ID: DefId = 'nh:puton';
@@ -226,6 +228,9 @@ function ringOn(ctx: Ctx, ring: Entity): void {
         selfInvisMessage(ctx);
       }
       break;
+    case 'nh:ring_of_protection_from_shape_changers':
+      rescham(ctx);
+      break;
     case 'nh:ring_of_protection':
       // usually learn enchantment and discover type; won't happen if it's +0 and the type hasn't
       // been discovered yet (AC follows from find_ac)
@@ -257,6 +262,11 @@ function ringOffOrGone(ctx: Ctx, ring: Entity): void {
       break;
     case 'nh:ring_of_protection':
       learnring(ctx, ring, spe !== 0);
+      break;
+    case 'nh:ring_of_protection_from_shape_changers':
+      // if you're no longer protected, let the chameleons change shape again; however, might
+      // still be protected if wearing 2nd ring of this type
+      if (!protFromShapeChangers(ctx.state)) restartcham(ctx);
       break;
     case 'nh:ring_of_levitation':
       floatDown(ctx);

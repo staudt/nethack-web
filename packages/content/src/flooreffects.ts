@@ -414,7 +414,7 @@ export function lavaDamage(ctx: Ctx, obj: Entity, x: number, y: number, thrown =
 /** delobj(): the object is gone, from wherever it is. */
 function destroyObj(ctx: Ctx, obj: Entity): void {
   const it = obj.c.item;
-  if (it && (it.carriedBy !== null || it.containedIn !== undefined)) takeOut(ctx.state, obj.id);
+  if (it?.containedIn !== undefined) takeOut(ctx.state, obj.id);
   ctx.remove(obj.id);
 }
 

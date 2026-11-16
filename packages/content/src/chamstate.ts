@@ -17,6 +17,7 @@ import {
   type MonsterDef,
 } from '@nh/core';
 import { hatesBlessings, hatesSilver } from './mondata';
+import { protFromShapeChangers } from './props';
 import { isGenocided } from './vanquished';
 
 export const VAMPIRE: DefId = 'nh:vampire';
@@ -26,6 +27,12 @@ export const VLAD_THE_IMPALER: DefId = 'nh:vlad_the_impaler';
 export const FOG_CLOUD: DefId = 'nh:fog_cloud';
 export const VAMPIRE_BAT: DefId = 'nh:vampire_bat';
 export const WOLF: DefId = 'nh:wolf';
+export const CHAMELEON: DefId = 'nh:chameleon';
+export const DOPPELGANGER: DefId = 'nh:doppelganger';
+export const SANDESTIN: DefId = 'nh:sandestin';
+/** select_newcham_form()'s difficulty caps (the Archon has no row until m18 step 7). */
+export const ARCHON: DefId = 'nh:archon';
+export const JABBERWOCK: DefId = 'nh:jabberwock';
 
 type Table = { [k: string]: Json };
 const isObj = (v: unknown): v is Table => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -178,11 +185,60 @@ export function stuffPreventsPassage(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Enti
 
 /**
  * The monster can turn into a fog cloud to pass under a door: a vampire shapeshifter carrying
- * nothing bulky, while fog clouds are not genocided (no protection from shape changers exists).
- * ref: src/monmove.c can_fog()
+ * nothing bulky, while fog clouds are not genocided and the hero has no protection from shape
+ * changers. ref: src/monmove.c can_fog()
  */
 export function canFog(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
   return (
-    !isGenocided(ctx.state, FOG_CLOUD) && isVampshifter(ctx, mon) && !stuffPreventsPassage(ctx, mon)
+    !isGenocided(ctx.state, FOG_CLOUD) &&
+    isVampshifter(ctx, mon) &&
+    !protFromShapeChangers(ctx.state) &&
+    !stuffPreventsPassage(ctx, mon)
   );
+}
+
+// rescham(), restartcham() and restore_cham() live in shapeshift.ts (above newcham.ts); the ring
+// (jewelry.ts) and the level arrivals (dog.ts, trap.ts) sit below it and call them through here.
+let reschamFn: ((ctx: Ctx) => void) | null = null;
+let restartchamFn: ((ctx: Ctx) => void) | null = null;
+let restoreChamFn: ((ctx: Ctx, mon: Entity) => void) | null = null;
+let normalShapeFn: ((ctx: Ctx, mon: Entity) => void) | null = null;
+
+/** shapeshift.ts hands down rescham(), restartcham(), restore_cham() and normal_shape(). */
+export function setChamHooks(
+  rescham: (ctx: Ctx) => void,
+  restartcham: (ctx: Ctx) => void,
+  restoreCham: (ctx: Ctx, mon: Entity) => void,
+  normalShape: (ctx: Ctx, mon: Entity) => void,
+): void {
+  reschamFn = rescham;
+  restartchamFn = restartcham;
+  restoreChamFn = restoreCham;
+  normalShapeFn = normalShape;
+}
+
+/**
+ * Every shapeshifter and mimic on the level returns to its own form and lycanthropes to human
+ * form (Protection_from_shape_changers came on). ref: src/mon.c rescham()
+ */
+export function rescham(ctx: Ctx): void {
+  reschamFn?.(ctx);
+}
+
+/** Shapeshifters may change and mimics hide again (the protection ended). ref: src/mon.c restartcham() */
+export function restartcham(ctx: Ctx): void {
+  restartchamFn?.(ctx);
+}
+
+/** A monster arriving on the level follows the hero's protection now. ref: src/mon.c restore_cham() */
+export function restoreCham(ctx: Ctx, mon: Entity): void {
+  restoreChamFn?.(ctx, mon);
+}
+
+/**
+ * The monster returns to its own form (a cancelled one: zap.c cancel_monst()).
+ * ref: src/mon.c normal_shape()
+ */
+export function normalShape(ctx: Ctx, mon: Entity): void {
+  normalShapeFn?.(ctx, mon);
 }

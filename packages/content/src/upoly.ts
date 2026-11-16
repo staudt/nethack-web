@@ -87,6 +87,17 @@ export function ownHp(state: GameState): HpComponent | null {
 let rehumanizeFn: ((ctx: Ctx) => void) | null = null;
 let unwereFn: ((ctx: Ctx) => void) | null = null;
 let polymonFn: ((ctx: Ctx, mntmp: DefId) => boolean) | null = null;
+let polyselfFn: ((ctx: Ctx) => void) | null = null;
+
+/** polyself.ts hands down its polyself() (eat.ts's corpse effects stay below it). */
+export function setPolyself(fn: (ctx: Ctx) => void): void {
+  polyselfFn = fn;
+}
+
+/** polyself(POLY_NOFLAGS), late bound. ref: src/polyself.c polyself() */
+export function polyselfLate(ctx: Ctx): void {
+  polyselfFn?.(ctx);
+}
 
 /** polyself.ts hands down its rehumanize() (hp.ts and friends stay below it). */
 export function setRehumanize(fn: (ctx: Ctx) => void): void {

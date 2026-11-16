@@ -914,6 +914,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:ring_of_invisibility.plural': 'rings of invisibility',
   'nh:ring_of_see_invisible': 'ring of see invisible',
   'nh:ring_of_see_invisible.plural': 'rings of see invisible',
+  'nh:ring_of_protection_from_shape_changers': 'ring of protection from shape changers',
+  'nh:ring_of_protection_from_shape_changers.plural': 'rings of protection from shape changers',
   'nh:amulet_of_esp': 'amulet of ESP',
   'nh:amulet_of_esp.plural': 'amulets of ESP',
   'nh:amulet_of_life_saving': 'amulet of life saving',

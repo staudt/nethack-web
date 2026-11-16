@@ -36,7 +36,8 @@ const itemMod: Mod = {
   register(api) {
     api.defineObject(objDef('rock', 'food'));
     api.defineObject(objDef('sack', 'tool', { container: { capacity: null, box: false } }));
-    api.defineObject(objDef('ring', 'ring'));
+    // a fixed description: vanilla's 28 rings use all 28 shuffled ring appearances
+    api.defineObject(objDef('ring', 'ring', { descKey: 'obj.ring' }));
     api.defineObject(objDef('amulet', 'amulet'));
   },
 };
