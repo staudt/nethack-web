@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-192 NetHack files, 5543 citations.
+192 NetHack files, 5552 citations.
 
 ## dat/asmodeus.lua
 
@@ -525,6 +525,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `M3_COVETOUS()`: `packages/content/src/mondata.ts`
 - `MZ_HUGE()`: `packages/content/src/engulf.ts`, `packages/content/src/mhurtle.ts`, `packages/content/src/mondata.ts`
 - `MZ_HUMAN()`: `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
+- `MZ_SMALL()`: `packages/content/src/mondata.ts`
 - `MZ_TINY()`: `packages/content/src/items.ts`, `packages/content/src/mondata.ts`
 - `ms_sounds()`: `packages/core/src/types/mod.ts`
 
@@ -673,6 +674,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `P_BASIC()`: `packages/content/src/skilltab.ts`
 - `P_ISRESTRICTED()`: `packages/content/src/skills.ts`
 - `P_SKILL_LIMIT()`: `packages/content/src/skills.ts`
+- `martial_bonus()`: `packages/content/src/skills.ts`
 - `practice_needed_to_advance()`: `packages/content/src/skills.ts`
 
 ## include/sp_lev.h
@@ -1987,6 +1989,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `resists_magm()`: `packages/content/src/buzz.ts`
 - `same_race()`: `packages/content/src/race.ts`
 - `sliparm()`: `packages/content/src/mondata.ts`
+- `stagger()`: `packages/content/src/combat.ts`
 - `sticks()`: `packages/content/src/newcham.ts`
 
 ## src/monmove.c
@@ -2971,11 +2974,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/dog.en.ts`, `packages/content/src/egg.en.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/mimic.ts`, `packages/content/src/minion.en.ts`, `packages/content/src/resist.en.ts`
 - `attack_checks()`: `packages/content/src/actions.ts`, `packages/content/src/hide.en.ts`, `packages/content/src/kick.en.ts`, `packages/content/src/mimic.ts`, `packages/content/src/peaceful.ts`
+- `backstabbable()`: `packages/content/src/combat.ts`
+- `check_caitiff()`: `packages/content/src/combat.ts`
 - `damageum()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `demonpet()`: `packages/content/src/hmonas.ts`
 - `do_attack()`: `packages/content/src/actions.ts`, `packages/content/src/combat.ts`
 - `do_stone_mon()`: `packages/content/src/adtyping.ts`
 - `do_stone_u()`: `packages/content/src/stoning.ts`
+- `double_punch()`: `packages/content/src/combat.ts`
 - `erode_armor()`: `packages/content/src/erode.ts`
 - `explum()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `find_roll_to_hit()`: `packages/content/src/combat.ts`
@@ -2992,6 +2998,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `hmon_hitmon_msg_silver()`: `packages/content/src/hmon.ts`, `packages/content/src/silver.ts`, `packages/content/src/uhitm.en.ts`
 - `hmon_hitmon_pet()`: `packages/content/src/combat.ts`, `packages/content/src/dog.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_splitmon()`: `packages/content/src/combat.ts`
+- `hmon_hitmon_stagger()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_weapon()`: `packages/content/src/combat.ts`
 - `hmon_hitmon_weapon_melee()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
 - `hmon_hitmon_weapon_ranged()`: `packages/content/src/combat.ts`, `packages/content/src/dothrow.ts`
@@ -3014,6 +3021,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhitm_ad_were()`: `packages/content/src/adtyping.ts`
 - `mhitm_adtyping()`: `packages/content/src/adtyping.ts`, `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
 - `mhitm_mgc_atk_negated()`: `packages/content/src/adtyping.ts`
+- `mhurtle_to_doom()`: `packages/content/src/combat.ts`
 - `missum()`: `packages/content/src/combat.ts`
 - `nohandglow()`: `packages/content/src/combat.ts`
 - `paranoid_query()`: `packages/content/src/peaceful.ts`
@@ -3066,9 +3074,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/weapon.c
 
 - (file): `packages/content/src/glib.ts`, `packages/content/src/mdig.ts`, `packages/content/src/mongear.en.ts`, `packages/content/src/silver.ts`, `packages/content/src/skills.en.ts`, `packages/content/src/skills.ts`
+- `P_NAME()`: `packages/content/src/skills.ts`
 - `abon()`: `packages/content/src/combat.ts`
 - `add_skills_to_menu()`: `packages/content/src/skills.ts`
 - `add_weapon_skill()`: `packages/content/src/skills.ts`
+- `barehands_or_martial()`: `packages/content/src/skills.ts`
 - `can_advance()`: `packages/content/src/skills.ts`
 - `could_advance()`: `packages/content/src/skills.ts`
 - `dbon()`: `packages/content/src/combat.ts`

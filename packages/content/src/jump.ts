@@ -3,7 +3,8 @@
 // get_valid_jump_position(), display_jump_positions(); src/dothrow.c walk_path(), hurtle_jump(),
 // hurtle_step() (the jumping path); src/spell.c spelleffects() SPE_JUMPING
 //
-// Not ported: Knights (no such role), steeds, polymorphed forms without legs, water, lava, the
+// A Knight's intrinsic Jumping (kit.ts) allows only a knight's move (is_valid_jump_pos()).
+// Not ported: steeds, polymorphed forms without legs, water, lava, the
 // Planes, ball and chain, Passes_walls, regions and a hero whose touch petrifies (DEVIATIONS.md
 // "Jumping").
 import {

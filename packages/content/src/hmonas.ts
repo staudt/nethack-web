@@ -32,6 +32,7 @@ import {
 import { makeSlimed } from './slimestate';
 import {
   findRollToHit,
+  type RollState,
   heroWeapon,
   knownHitum,
   missum,
@@ -465,6 +466,8 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
   const snap: PassiveTarget | null = passiveSnap(ctx, targetId);
   const sum: number[] = [];
   let weaponUsed = false;
+  // C's attknum (check_caitiff() only with the first attack) and armorpenalty (0 when polymorphed)
+  const roll: RollState = { attknum: 0, armorpenalty: 0 };
   resetSkipdrin(); // [see mattackm(mhitm.c)]
   for (let i = 0; i < form.attacks.length; i++) {
     sum[i] = M_ATTK.MISS;
@@ -491,7 +494,7 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         return false;
       weaponUsed = true;
       const w = heroWeapon(ctx, uwep);
-      const tmp = findRollToHit(ctx, targetId, 'weapon', w);
+      const tmp = findRollToHit(ctx, targetId, 'weapon', w, roll);
       const dieroll = ctx.rng.rnd(20);
       const mhit = tmp > dieroll || isSwallowed(ctx);
       dhit = mhit ? 1 : 0;
@@ -509,7 +512,7 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
       return true;
     };
     const weaponless = (): void => {
-      const tmp = findRollToHit(ctx, targetId, mattk.at, null);
+      const tmp = findRollToHit(ctx, targetId, mattk.at, null, roll);
       const dieroll = ctx.rng.rnd(20);
       dhit = tmp > dieroll || isSwallowed(ctx) ? 1 : 0;
       const target = ent(ctx, targetId);
@@ -609,7 +612,7 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
         break;
       }
       case 'engulf': {
-        const tmp = findRollToHit(ctx, targetId, mattk.at, null);
+        const tmp = findRollToHit(ctx, targetId, mattk.at, null, roll);
         const target = ent(ctx, targetId);
         if (!target) continue;
         dhit = tmp > ctx.rng.rnd(20 + i) ? 1 : 0;

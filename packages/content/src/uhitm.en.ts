@@ -1,9 +1,22 @@
-// English text for fighting as a polymorphed form and for the form's passive response.
+// English text for fighting as a polymorphed form and for the form's passive response, and the
+// role rules of the hero's blows (m22 step 6).
 // ref: src/uhitm.c hmonas(), damageum(), explum(), gulpum(), start_engulf(), steal_it(),
 // missum(), mhitm_ad_*() (uhitm branches); src/mhitm.c failed_grab(); src/mhitu.c passiveum(),
 // assess_dmg(); src/potion.c split_mon(); src/dokick.c dokick(); src/insight.c
 export const uhitmMessagesEn: Record<string, string> = {
   'uhitm.no_way_to_attack': 'You have no way to attack monsters physically.',
+  // check_caitiff(), missum()'s monk line, the Rogue's backstab, hmon_hitmon_stagger()
+  'uhitm.caitiff': 'You caitiff!',
+  'uhitm.dishonorably_attack': 'You dishonorably attack the innocent!',
+  'uhitm.armor_cumbersome': 'Your armor is rather cumbersome...',
+  'uhitm.backstab': 'You strike {mon|the} from behind!',
+  'uhitm.strike_stagger': '{mon|The} {verb} from your powerful strike!',
+  'uhitm.verb.staggers': 'staggers',
+  'uhitm.verb.wobbles': 'wobbles',
+  'uhitm.verb.flutters': 'flutters',
+  'uhitm.verb.falters': 'falters',
+  'uhitm.verb.trembles': 'trembles',
+  'uhitm.verb.pulsates': 'pulsates',
   'uhitm.pretend_friendly': 'You pretend to be friendly to {mon|the}.',
   'uhitm.smile_at': 'You {verb} {mon|the} {how}.',
   'uhitm.verb.smile_at': 'smile at',

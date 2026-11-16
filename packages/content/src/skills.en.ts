@@ -29,6 +29,7 @@ export const skillMessagesEn: Record<string, string> = {
   'skill.level.master': 'Master',
   'skill.level.grand_master': 'Grand Master',
   'skill.bare_handed': 'bare handed combat',
+  'skill.martial_arts': 'martial arts',
   'skill.two_weapon': 'two weapon combat',
   'skill.riding': 'riding',
   'skill.dagger': 'dagger',

@@ -55,10 +55,17 @@ function whom(ctx: SCtx, mon: Entity): Msg | string {
 
 /**
  * The hero's bare-handed blow: with no gloves, a worn silver ring (the left one first) adds
- * `rnd(20)` once against a silver-hater, however many rings are silver. Returns the bonus.
- * ref: src/weapon.c special_dmgval() (W_ARMG | W_RINGL | W_RINGR; no blessed gloves bonus)
+ * `rnd(20)` once against a silver-hater, however many rings are silver. `twohits` is C's: 0 a
+ * single blow (either hand's ring), 1 the first of two punches (the right ring), 2 the second
+ * (the left ring). Returns the bonus.
+ * ref: src/weapon.c special_dmgval() (W_ARMG | W_RINGL | W_RINGR; no blessed gloves bonus);
+ * src/uhitm.c hmon_hitmon_barehands() (spcdmgflg)
  */
-export function silverRingBonus(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, mon: Entity): number {
+export function silverRingBonus(
+  ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
+  mon: Entity,
+  twohits = 0,
+): number {
   const pid = ctx.state.playerId;
   if (wornIn(ctx.state, pid, 'gloves') !== null) return 0; // no silver gloves exist
   if (!monHatesSilver(ctx, mon)) return 0;
@@ -66,7 +73,9 @@ export function silverRingBonus(ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>, mon: E
     const r = wornIn(ctx.state, pid, slot);
     return r !== null && isSilver(ctx, r);
   };
-  return silver('ringL') || silver('ringR') ? ctx.rng.rnd(20) : 0;
+  const left = twohits === 0 || twohits === 2;
+  const right = twohits === 0 || twohits === 1;
+  return (left && silver('ringL')) || (right && silver('ringR')) ? ctx.rng.rnd(20) : 0;
 }
 
 /**

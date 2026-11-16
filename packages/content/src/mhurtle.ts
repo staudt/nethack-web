@@ -5,7 +5,7 @@
 // on the way (minstapetrify()), grid bugs' diagonal rule (no grid bugs).
 import { cellRules, getLevel, getPlayer, trapAt, type Ctx, type Entity, type Msg } from '@nh/core';
 import { boulderCells } from './boulder';
-import { monsterIdAt } from './combat';
+import { monsterIdAt, setMhurtle } from './combat';
 import { isFlyer, msize } from './mondata';
 import { isWaterwall } from './liquid';
 import { minliquid } from './minliquid';
@@ -107,3 +107,6 @@ export function mhurtle(ctx: Ctx, mon: Entity, dx: number, dy: number, range: nu
   if (ctx.state.entities[String(mon.id)]?.c.monster && q && !trapAt(level, q.x, q.y))
     minliquid(ctx, mon);
 }
+
+// combat.ts's staggering blow (hmon_hitmon_stagger()) hurtles through here
+setMhurtle(mhurtle);

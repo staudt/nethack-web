@@ -54,8 +54,10 @@ import { MSIZE, weight } from './items';
 import { heroSees, monWep, monWieldItem } from './mongear';
 import { findAc, findMac, nearCapacity } from './stats';
 import {
+  P_BASIC,
   P_UNSKILLED,
   BARE_HANDED,
+  martialBonus,
   skillLevel,
   useSkill as useSkillPoints,
   isBlade,
@@ -65,7 +67,7 @@ import {
 } from './skills';
 import { monNam } from './perception';
 import { hurtPet } from './dog';
-import { luckOf, uState } from './luck';
+import { adjalign, luckOf, uState } from './luck';
 import { ustuck } from './hackmove';
 import { canSpotMon, telepathSenses } from './perception';
 import {
@@ -81,8 +83,23 @@ import { resist } from './buzz';
 import { hcolor } from './hcolor';
 import { setUspell, uspellOf } from './uenergy';
 import { P, conflictOn, hasProp, ringBonus, wornIn } from './props';
+import { roleIs } from './urole';
+import { A_LAWFUL } from './aligntyp';
+import { ROLES_TAB } from './roletab';
 import { isMtrapped, mtrappedInPit, utrap } from './trapstate';
-import { isBig, isDemon, nonliving } from './mondata';
+import {
+  MZ_SMALL,
+  amorphous,
+  isBig,
+  isDemon,
+  isFlyer,
+  isFloater,
+  msize,
+  noncorporeal,
+  nonliving,
+  nolimbs,
+  slithy,
+} from './mondata';
 import { msummon } from './minion';
 import { inHell } from './levelflags';
 import {
@@ -111,6 +128,8 @@ import { invisTo } from './apparxy';
 import { couldSeduce } from './steal';
 import { digests, isWhirly } from './engulfstate';
 import { uWipeEngr } from './engr';
+import { swapWep } from './wield';
+import { deaths } from './vanquished';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -193,6 +212,8 @@ export interface HeroCombatStats {
   abon?: number;
   /** false: not a weapon or claw attack, so no hitval() and no weapon skill bonus (default true) */
   weaponBonus?: boolean;
+  /** martial_bonus(): a Samurai's or Monk's bare-handed skill bonus is doubled (default false) */
+  martial?: boolean;
 }
 
 /**
@@ -226,7 +247,7 @@ export function heroToHit(
   if (weapon) {
     tmp += hitval(weapon.item, weapon.def, def);
     tmp += weaponHitBonus(weapon.skill, weapon.def);
-  } else tmp += weaponHitBonus(hero.bareSkill ?? P_UNSKILLED, null);
+  } else tmp += weaponHitBonus(hero.bareSkill ?? P_UNSKILLED, null, hero.martial ?? false);
   return tmp;
 }
 
@@ -338,26 +359,73 @@ export function dbonU(ctx: Ctx): number {
 }
 
 /**
+ * It is unchivalrous for a Knight to attack the defenseless or from behind: a lawful Knight
+ * hitting at a helpless (asleep or unable to move) or fleeing monster that is not undead says
+ * "You caitiff!" and loses a point of alignment; a Samurai attacking a peaceful one "dishonorably
+ * attack[s] the innocent!" (-1). Nothing once her alignment record is down to -10. A fleeing
+ * monster's `mavenge` (it attacked her first) is not kept, so it never excuses her.
+ * ref: src/uhitm.c check_caitiff()
+ */
+export function checkCaitiff(ctx: Ctx, mon: Entity): void {
+  const u = uState(ctx.state);
+  if (u.alignRecord <= -10) return;
+  const m = mon.c.monster;
+  if (!m) return;
+  if (
+    roleIs(ctx.state, 'knight') &&
+    u.alignType === A_LAWFUL &&
+    !ctx.defs.monster(mon.def).flags.includes('undead') &&
+    (m.asleep || isFrozen(ctx, mon.id) || isFleeing(ctx, mon.id)) // helpless() || mflee
+  ) {
+    ctx.emit({ type: 'msg', key: 'uhitm.caitiff' });
+    adjalign(ctx, -1);
+  } else if (roleIs(ctx.state, 'samurai') && m.peaceful) {
+    // attacking peaceful creatures is bad for the samurai's giri
+    ctx.emit({ type: 'msg', key: 'uhitm.dishonorably_attack' });
+    adjalign(ctx, -1);
+  }
+}
+
+/**
+ * C's `attk_count` and `role_roll_penalty` of find_roll_to_hit(): the attacks made so far in this
+ * round (check_caitiff() comes only with the first) and the Monk's suit penalty of the last roll
+ * (missum()'s "Your armor is rather cumbersome..." when the hit was lost to it).
+ */
+export interface RollState {
+  attknum: number;
+  armorpenalty: number;
+}
+
+/**
  * The hero's to-hit number against the monster for one attack of type `aatyp` (a hit needs
  * `tmp > rnd(20)`). A polymorphed hero uses her form's level for her own and abonU(); an elf
  * form gets +1 against orcs. hitval() and the weapon skill's to-hit bonus count only for a
- * weapon or claw attack (and the bare-handed skill for a weaponless one).
- * ref: src/uhitm.c find_roll_to_hit() (no monk penalties, no caitiff check, no martial-arts kicks:
- * no such roles)
+ * weapon or claw attack (and the bare-handed skill for a weaponless one); a martial artist's kick
+ * takes the bare-handed (martial arts) bonus too. The first attack of a round may be a Knight's or
+ * Samurai's breach of conduct (checkCaitiff()). A Monk in her own form loses her role's
+ * `spelarmr` while wearing body armor (kept in `roll.armorpenalty`), and gains `ulevel / 3 + 2`
+ * fighting with neither weapon nor shield.
+ * ref: src/uhitm.c find_roll_to_hit()
  */
 export function findRollToHit(
   ctx: Ctx,
   targetId: EntityId,
   aatyp: AttackType,
   weapon: HeroWeapon | null,
+  roll: RollState = { attknum: 0, armorpenalty: 0 },
 ): number {
+  roll.armorpenalty = 0; // default is `none'
   const hero = getPlayer(ctx.state);
   const target = ctx.state.entities[String(targetId)];
   const mon = target?.c.monster;
   if (!target || !mon) return 0;
+  // some actions should occur only once during multiple attacks: knight's chivalry or samurai's
+  // giri
+  if (!roll.attknum++) checkCaitiff(ctx, target);
   const def = ctx.defs.monster(target.def);
   const form = heroForm(ctx);
   const attrs = hero.c.attributes;
+  const martial = martialBonus(ctx.state);
   const stats: HeroCombatStats = {
     str: attrs?.str ?? 10,
     dex: attrs?.dex ?? 10,
@@ -369,7 +437,15 @@ export function findRollToHit(
     hitinc: ringBonus(ctx.state, 'nh:ring_of_increase_accuracy'),
     abon: abonU(ctx),
     weaponBonus: aatyp === 'weapon' || aatyp === 'claw',
+    martial,
   };
+  // role/race adjustments
+  let roleAdj = 0;
+  if (roleIs(ctx.state, 'monk') && !form) {
+    if (wornIn(ctx.state, hero.id, 'body')) roleAdj -= roll.armorpenalty = ROLES_TAB.monk.spelarmr;
+    else if (!uwepOf(ctx) && !wornIn(ctx.state, hero.id, 'shield'))
+      roleAdj += Math.trunc((hero.c.experience?.level ?? 1) / 3) + 2;
+  }
   return (
     heroToHit(
       stats,
@@ -379,19 +455,30 @@ export function findRollToHit(
       findMac(ctx.state, ctx.defs, targetId),
     ) +
     (isFleeing(ctx, targetId) ? 2 : 0) + // `if (mtmp->mflee) tmp += 2`
+    roleAdj +
     // `is_orc(mtmp->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
     (def.flags.includes('orc') && polydRace(ctx, 'elf') ? 1 : 0) -
-    (utrap(ctx) ? 3 : 0) // `if (u.utrap) tmp -= 3`
+    (utrap(ctx) ? 3 : 0) + // `if (u.utrap) tmp -= 3`
+    // `else if (aatyp == AT_KICK && martial_bonus()) tmp += weapon_hit_bonus((struct obj *) 0)`
+    (aatyp === 'kick' && martial ? weaponHitBonus(stats.bareSkill ?? P_UNSKILLED, null, true) : 0)
   );
 }
 
 /**
  * The hero missed: "You miss the jackal." (a nymph form "pretends to be friendly"), and the
- * monster wakes. ref: src/uhitm.c missum() (no monk armor penalty)
+ * monster wakes. `wouldHaveHit`: a Monk missed because of her suit's penalty ("Your armor is
+ * rather cumbersome..." first). ref: src/uhitm.c missum()
  */
-export function missum(ctx: Ctx, targetId: EntityId, atk: AttackDef | null): void {
+export function missum(
+  ctx: Ctx,
+  targetId: EntityId,
+  atk: AttackDef | null,
+  wouldHaveHit = false,
+): void {
   const target = ctx.state.entities[String(targetId)];
   if (!target) return;
+  // monk is missing due to penalty for wearing suit
+  if (wouldHaveHit) ctx.emit({ type: 'msg', key: 'uhitm.armor_cumbersome' });
   const hero = getPlayer(ctx.state);
   const name = monNam(ctx, target);
   if (couldSeduce(ctx, hero, target, atk))
@@ -429,27 +516,161 @@ export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos): number {
   return NORMAL_SPEED;
 }
 
+type Mhurtle = (ctx: Ctx, mon: Entity, dx: number, dy: number, range: number) => void;
+let mhurtleFn: Mhurtle | null = null;
+/** mhurtle.ts hands down mhurtle() (it sits above this module). */
+export function setMhurtle(fn: Mhurtle): void {
+  mhurtleFn = fn;
+}
+
 /**
- * The hero's one weapon (or bare-handed) attack, then the monster's passive response.
+ * The verb of a monster staggering from a blow: "wobbles" for a floater, "flutters" for a small
+ * flyer, "falters" for a slithy or limbless one, "trembles" for an amorphous one, "pulsates" for
+ * one that cannot move, else "staggers". ref: src/mondata.c stagger()
+ */
+function staggerVerb(def: MonsterDef): string {
+  if (isFloater(def)) return 'wobbles';
+  if (isFlyer(def)) return msize(def) <= MZ_SMALL ? 'flutters' : 'staggers';
+  if (slithy(def)) return 'falters';
+  if (amorphous(def)) return 'trembles';
+  if (!def.speed) return 'pulsates';
+  if (nolimbs(def)) return 'falters';
+  return 'staggers';
+}
+
+/**
+ * The very small chance of an unarmed blow (no weapon, suit or shield) stunning the monster: when
+ * `rnd(100)` is below her bare-handed skill, and it is neither big nor thick-skinned, "The jackal
+ * staggers from your powerful strike!" and, if the blow of `dmg` will not kill it, it is hurtled
+ * a square along `dir` (mhurtle(): stunned, and maybe into a trap). Returns 'killed' when that
+ * killed it. ref: src/uhitm.c hmon_hitmon_stagger(), mhurtle_to_doom()
+ */
+function staggerBlow(
+  ctx: Ctx,
+  mon: Entity,
+  dmg: number,
+  dir: { x: number; y: number },
+): 'none' | 'staggered' | 'killed' {
+  const def = ctx.defs.monster(mon.def);
+  if (!(
+    ctx.rng.rnd(100) < skillLevel(ctx, BARE_HANDED) &&
+    !isBig(def) &&
+    !def.flags.includes('thick_hide')
+  ))
+    return 'none';
+  if (canSpotMon(ctx, mon))
+    ctx.emit({
+      type: 'msg',
+      key: 'uhitm.strike_stagger',
+      params: { mon: monNam(ctx, mon), verb: { key: `uhitm.verb.${staggerVerb(def)}` } },
+    });
+  // only hurtle if pending physical damage isn't going to kill mon
+  if (dmg < (mon.c.hp?.cur ?? 0)) {
+    if (!mhurtleFn) throw new Error('mhurtle: mhurtle.ts is not loaded');
+    mhurtleFn(ctx, mon, dir.x, dir.y, 1);
+    if (!ctx.state.entities[String(mon.id)]?.c.monster) return 'killed';
+  }
+  return 'staggered';
+}
+
+/**
+ * Whether a Rogue can stab the monster in the back: it is solid (not amorphous, whirly or
+ * noncorporeal, no blob, eye or fungus), she sees it, and it flees or is helpless.
+ * ref: src/uhitm.c backstabbable()
+ */
+export function backstabbable(ctx: Ctx, mon: Entity): boolean {
+  const def = ctx.defs.monster(mon.def);
+  return (
+    !amorphous(def) &&
+    !isWhirly(def) &&
+    !noncorporeal(def) &&
+    !'beF'.includes(def.glyph.ch) && // S_BLOB, S_EYE, S_FUNGUS
+    canseemon(ctx, mon) &&
+    (isFleeing(ctx, mon.id) || !!mon.c.monster?.asleep || isFrozen(ctx, mon.id))
+  );
+}
+
+/**
+ * A second bare-handed blow: fighting with neither weapon nor shield, Skilled in bare hands (or
+ * martial arts) gives a 20% chance, Expert 40%, Master 60% and Grand Master 80%.
+ * ref: src/uhitm.c double_punch()
+ */
+function doublePunch(ctx: Ctx): boolean {
+  // note: P_BARE_HANDED_COMBAT and P_MARTIAL_ARTS are equivalent
+  const sklLvl = skillLevel(ctx, BARE_HANDED);
+  if (!uwepOf(ctx) && !wornIn(ctx.state, ctx.state.playerId, 'shield') && sklLvl > P_BASIC)
+    return sklLvl - P_BASIC > ctx.rng.rn2(5);
+  return false;
+}
+
+/**
+ * The hero's weapon (or bare-handed) attack, then the monster's passive response; skilled
+ * unarmed fighting may punch a second time (doublePunch()), unless the first blow killed the
+ * monster or moved it, or left her helpless. The second blow's to-hit takes the alternate
+ * weapon's hitval() and skill bonus, as C passes uswapwep (no two-weapon combat: the blow itself
+ * is bare-handed), and only a hit gets a second passive response.
  * ref: src/uhitm.c hitum() -> known_hitum() -> hmon(), then passive()
  */
 function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
   const snap = passiveSnap(ctx, targetId);
-  const weapon = heroWeapon(ctx, uwepOf(ctx));
-  const tmp = findRollToHit(ctx, targetId, 'weapon', weapon);
-  const dieroll = ctx.rng.rnd(20);
+  const pos = at ?? ctx.state.entities[String(targetId)]?.c.pos;
+  const uwep = uwepOf(ctx);
+  // 0: single hit, 1: first of two hits; affects strength bonus and silver rings
+  const twohits = uwep ? 0 : doublePunch(ctx) ? 1 : 0;
+  const weapon = heroWeapon(ctx, uwep);
+  const roll: RollState = { attknum: 0, armorpenalty: 0 };
+  let tmp = findRollToHit(ctx, targetId, 'weapon', weapon, roll);
+  let dieroll = ctx.rng.rnd(20);
   // `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
-  const mhit = tmp > dieroll || isSwallowed(ctx);
-  const malive = knownHitum(ctx, targetId, weapon, mhit, null, at);
+  let mhit = tmp > dieroll || isSwallowed(ctx);
+  const lifesaved = hasProp(getPlayer(ctx.state), P.LIFESAVED);
+  let malive = knownHitum(ctx, targetId, weapon, mhit, null, at, {
+    wouldHaveHit: tmp + roll.armorpenalty > dieroll,
+    twohits,
+  });
   // ref: hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...)
   if (snap) passive(ctx, snap, mhit, malive, uwepOf(ctx), 'weapon');
+  // second attack for skilled unarmed combat; won't occur if hero became paralyzed by passive
+  // counter-attack, or if hero was killed by passive counter-attack and got life-saved, or if
+  // monster was killed or knocked to different location
+  const target = ctx.state.entities[String(targetId)];
+  const hero = getPlayer(ctx.state);
+  if (
+    twohits &&
+    !hero.c.helpless &&
+    !ctx.state.gameOver &&
+    !(lifesaved && !hasProp(hero, P.LIFESAVED)) && // u.umortality > oldumort
+    malive &&
+    target?.c.monster &&
+    pos &&
+    hero.c.pos &&
+    mAt(ctx.state, hero.c.pos.level, pos.x, pos.y)?.id === targetId // m_at(x, y) == mon
+  ) {
+    const snap2 = passiveSnap(ctx, targetId);
+    tmp = findRollToHit(ctx, targetId, 'weapon', heroWeapon(ctx, swapWep(ctx)), roll);
+    dieroll = ctx.rng.rnd(20);
+    mhit = tmp > dieroll || isSwallowed(ctx);
+    malive = knownHitum(ctx, targetId, null, mhit, null, at, {
+      wouldHaveHit: tmp + roll.armorpenalty > dieroll,
+      twohits: 2, // second of 2 hits
+    });
+    // second passive counter-attack only occurs if second attack hits
+    if (mhit && snap2) passive(ctx, snap2, mhit, malive, null, 'weapon');
+  }
 }
 
 /**
  * The hero's weapon (or bare-handed) blow at the monster: a miss (missum()) or hmon(), then a
  * chance that the hurt monster flees. Returns whether the monster is still alive.
  * A blow that did damage to a long worm, landing on its tail (`at`, C's bhitpos), may cut it.
- * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon() (no Vorpal Blade)
+ * A martial artist's bare hands do rnd(4) (else rnd(2)) with her tripled skill damage bonus; a
+ * Rogue's weapon stabs a fleeing or helpless monster in the back ("You strike the jackal from
+ * behind!", +rnd(level)); an unarmed blow may stagger it (staggerBlow()). `opts.wouldHaveHit`:
+ * a miss the Monk's suit caused; `opts.twohits`: C's gt.twohits (doublePunch()), for the silver
+ * rings and the 3/4 Str bonus.
+ * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon(), hmon_hitmon_barehands(),
+ * hmon_hitmon_weapon_melee() (no Vorpal Blade, no weapon shattering); a Healer's knife adds
+ * `min(3, died / 6)` for the monster's kind
  */
 export function knownHitum(
   ctx: Ctx,
@@ -458,14 +679,18 @@ export function knownHitum(
   mhit: boolean,
   uattk: AttackDef | null,
   at?: Pos,
+  opts: { wouldHaveHit?: boolean; twohits?: number } = {},
 ): boolean {
   const target = ctx.state.entities[String(targetId)];
   const mon = target?.c.monster;
   if (!target || !mon) return false;
   if (!mhit) {
-    missum(ctx, targetId, uattk);
+    missum(ctx, targetId, uattk, opts.wouldHaveHit ?? false);
     return true;
   }
+  const twohits = opts.twohits ?? 0;
+  const martial = martialBonus(ctx.state);
+  const form = heroForm(ctx);
   const def = ctx.defs.monster(target.def);
   const name = monNam(ctx, target);
   const hero = getPlayer(ctx.state);
@@ -491,15 +716,18 @@ export function knownHitum(
   // ref: src/uhitm.c hmon_hitmon_*(): attacking a shade is normally useless
   const shade = isShade(def);
   if (!weapon) {
-    // hmon_hitmon_barehands: rnd(2) (rnd(4) for martial arts, which we lack); nothing to a shade
+    // hmon_hitmon_barehands: rnd(2), rnd(4) for martial arts; nothing to a shade
     if (shade) dmg = 0;
     else {
-      dmg = ctx.rng.rnd(2);
+      // note: 1..2 or 1..4 can be substantially increased by strength bonus or skill bonus,
+      // usually both...
+      dmg = ctx.rng.rnd(martial ? 4 : 2);
       useSkill = true;
       train = dmg > 1; // ref: hmon_hitmon_barehands(): train_weapon_skill = (dmg > 1)
     }
-    // ref: special_dmgval(): no gloves, a silver ring against a silver-hater
-    const ring = silverRingBonus(ctx, target);
+    // ref: special_dmgval(): no gloves, a silver ring against a silver-hater (one hand's ring
+    // for each of two punches)
+    const ring = silverRingBonus(ctx, target, twohits);
     dmg += ring;
     silverMsg = ring > 0;
   } else if (weapon.def.weapon) {
@@ -516,6 +744,22 @@ export function knownHitum(
       dmg = dmgval(ctx.rng, weapon.item, weapon.def, def, isVampshifter(ctx, target)); // silver's rnd(20) included
       useSkill = true;
       train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
+      // Healer with anatomy knowledge
+      if (
+        roleIs(ctx.state, 'healer') &&
+        weapon.def.class === 'weapon' &&
+        weapon.def.weapon.skill === 'knife'
+      )
+        dmg += Math.min(3, Math.trunc(deaths(ctx.state, target.def) / 6));
+      // special attack actions: a Rogue stabs a fleeing or helpless monster in the back (no
+      // two-weapon combat, no Cleaver)
+      if (!train || targetId === ustuck(ctx)) {
+        // no special bonuses
+      } else if (roleIs(ctx.state, 'rogue') && backstabbable(ctx, target) && !form) {
+        ctx.emit({ type: 'msg', key: 'uhitm.backstab', params: { mon: name } });
+        dmg += ctx.rng.rnd(hero.c.experience?.level ?? 1);
+        hittxt = true;
+      }
     }
     silverMsg = silverHit;
   } else if (shade && !shadeAware(ctx, weapon.item)) {
@@ -576,8 +820,10 @@ export function knownHitum(
     if (strBonus) {
       // ref: hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` (rings of increase damage)
       dmg += ringBonus(ctx.state, 'nh:ring_of_increase_damage');
+      // for dual attacks, 3/4 of the strength bonus is used; a two-handed weapon uses 3/2
       let sb = dbonU(ctx);
-      if (weapon?.def.weapon?.bimanual) {
+      if (twohits) sb = Math.trunc((3 * Math.abs(sb) + 2) / 4) * Math.sign(sb);
+      else if (weapon?.def.weapon?.bimanual) {
         sb = Math.trunc((3 * Math.abs(sb) + 1) / 2) * Math.sign(sb);
       }
       dmg += sb;
@@ -585,7 +831,7 @@ export function knownHitum(
     if (useSkill) {
       // ref: hmon_hitmon_dmg_recalc(): a real hit trains the skill (use_skill(wtype, 1))
       if (train) useSkillPoints(ctx, weapon?.def.weapon?.skill ?? BARE_HANDED, 1);
-      dmg += weaponDamBonus(weapon ? weapon.skill : bareSkill, weapon?.def ?? null);
+      dmg += weaponDamBonus(weapon ? weapon.skill : bareSkill, weapon?.def ?? null, martial);
     }
     if (dmg < 1) dmg = 1;
   }
@@ -595,6 +841,21 @@ export function knownHitum(
     // to hand)
     dmg = strBonus && !shade ? 1 : 0;
     if (shade && !hittxt) hittxt = shadeMiss(ctx, hero, target, weapon?.item ?? null, false, true);
+  }
+  // ref: hmon_hitmon(): `hmd.unarmed && hmd.dmg > 1 && !thrown && !obj && !Upolyd`
+  if (
+    !weapon &&
+    !form &&
+    dmg > 1 &&
+    !wornIn(ctx.state, hero.id, 'body') &&
+    !wornIn(ctx.state, hero.id, 'shield')
+  ) {
+    const hp0 = hero.c.pos;
+    const tp = at ?? target.c.pos;
+    const dir = hp0 && tp ? { x: tp.x - hp0.x, y: tp.y - hp0.y } : { x: 0, y: 0 };
+    const st = staggerBlow(ctx, target, dmg, dir);
+    if (st !== 'none') hittxt = true;
+    if (st === 'killed') return false; // already_killed
   }
 
   const hp = target.c.hp;

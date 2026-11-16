@@ -2,9 +2,9 @@
 // really_kick_object(), kick_door(), kick_nondoor(), kick_dumb(), kick_ouch(); src/zap.c bhit()
 // (KICKED_WEAPON); src/do.c set_wounded_legs()
 //
-// The hero is a human Valkyrie: no martial arts but kicking boots or a sasquatch form, not riding,
-// not swimming; other polymorphed forms kick as she does (step 4/5 of 7f-d).
-// Those branches are not ported (kicking boots are: martial()); levitating she needs something to brace against,
+// Martial arts (martial()): Samurai and Monks (m22 step 6), kicking boots or a sasquatch form; not
+// riding, not swimming; other polymorphed forms kick as she does (step 4/5 of 7f-d).
+// Those branches are not ported; levitating she needs something to brace against,
 // misses small monsters wildly, cannot break doors or reach the floor's objects, but is never
 // pushed back (no hurtle(), DEVIATIONS.md "Levitation"). Shop goods kicked out of
 // a shop are owed (stolen_value()), and a shop door broken by a kick is damage he wants paid for
@@ -61,7 +61,8 @@ import { setTerrain } from './actions';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { aAlign, altarWrath } from './align';
-import { findRollToHit, missum, monsterIdAt } from './combat';
+import { checkCaitiff, findRollToHit, missum, monsterIdAt } from './combat';
+import { BARE_HANDED, martialBonus, useSkill } from './skills';
 import { damageum } from './hmonas';
 import { M_ATTK } from './adtyping';
 import { nolimbs, nonliving as nonlivingDef, slithy, verysmall } from './mondata';
@@ -116,11 +117,13 @@ const uarmf = (ctx: Ctx): Entity | null => whichArmor(ctx, ctx.state.playerId, '
 export const KICKING_BOOTS: DefId = 'nh:kicking_boots';
 
 /**
- * Kicks like a martial artist: wearing kicking boots or polymorphed into a sasquatch (is_bigfoot();
- * no Monks or Samurai). ref: src/dokick.c martial()
+ * Kicks like a martial artist: a Samurai or Monk (martial_bonus()), wearing kicking boots or
+ * polymorphed into a sasquatch (is_bigfoot()). ref: src/dokick.c martial()
  */
 const martial = (ctx: Ctx): boolean =>
-  uarmf(ctx)?.def === KICKING_BOOTS || heroFormId(ctx.state) === 'nh:sasquatch';
+  martialBonus(ctx.state) ||
+  heroFormId(ctx.state) === 'nh:sasquatch' ||
+  uarmf(ctx)?.def === KICKING_BOOTS;
 
 const say = (ctx: Ctx, key: string, params?: Record<string, Msg | string | number>): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -590,8 +593,9 @@ function maybeMnexto(ctx: Ctx, monId: EntityId): void {
 
 /**
  * ref: src/dokick.c kickdmg() for a hero who is not polymorphed: kicking boots add 5 and, as
- * martial arts, `rn2(Dex / 2 + 1)`, and 1 time in 3 send a small monster reeling a square back
- * ("The jackal reels from the blow."), onto any trap there
+ * martial arts, `rn2(Dex / 2 + 1)` (a kick of more than 1 trains martial arts), and 1 time in 3
+ * send a small monster reeling a square back ("The jackal reels from the blow."), onto any trap
+ * there; a Knight's or Samurai's conduct is checked (checkCaitiff())
  */
 function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y: number }): void {
   const target = ctx.state.entities[String(monId)];
@@ -611,16 +615,21 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
     return;
   }
   if (mApType(ctx, monId) !== null) seemimic(ctx, monId); // ref: kickdmg()
+  checkCaitiff(ctx, target);
   // "squeeze some guilt feelings...": a kicked pet is abused and runs off
   if (mon.tame) {
     abuseDog(ctx, monId);
     if (mon.tame) monflee(ctx, monId, dmg ? ctx.rng.rnd(dmg) : 1, false, false);
     else stopFleeing(ctx, monId);
   }
+  let kickSkill = false;
   if (dmg > 0) {
     // convert potential damage to actual damage
     dmg = ctx.rng.rnd(dmg);
-    if (martial(ctx)) dmg += ctx.rng.rn2(Math.trunc(a.dex / 2) + 1);
+    if (martial(ctx)) {
+      if (dmg > 1) kickSkill = true; // P_MARTIAL_ARTS
+      dmg += ctx.rng.rn2(Math.trunc(a.dex / 2) + 1);
+    }
   }
   // boots: `dmg += uarmf->spe`
   const boots = inventoryOf(ctx.state, ctx.state.playerId).find(
@@ -672,6 +681,8 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
     if (!ctx.state.entities[String(monId)]?.c.monster)
       gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
   }
+  // may bring up a dialog, so put this after all messages: exercise proficiency
+  if (kickSkill) useSkill(ctx, BARE_HANDED, 1);
 }
 
 /**

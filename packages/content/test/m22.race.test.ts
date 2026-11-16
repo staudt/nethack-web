@@ -389,19 +389,20 @@ describe('racial volleys and bow skill (throw_obj(), thitmonst())', () => {
     return seen;
   }
 
+  // (role null: the Valkyrie, who has no volley bonus of her own; a Ranger's comes on top)
   test("an elf's elven arrows from an elven bow, an orc's orcish ones, a gnome's bolts: +1", () => {
-    expect([...volleys('elf', 'ranger', 'nh:elven_bow', 'nh:elven_arrow')].sort()).toEqual([1, 2]);
-    expect([...volleys('orc', 'ranger', 'nh:orcish_bow', 'nh:orcish_arrow')].sort()).toEqual([
-      1, 2,
-    ]);
-    expect([...volleys('gnome', 'ranger', 'nh:crossbow', 'nh:crossbow_bolt')].sort()).toEqual([
-      1, 2,
+    expect([...volleys('elf', null, 'nh:elven_bow', 'nh:elven_arrow')].sort()).toEqual([1, 2]);
+    expect([...volleys('orc', null, 'nh:orcish_bow', 'nh:orcish_arrow')].sort()).toEqual([1, 2]);
+    expect([...volleys('gnome', null, 'nh:crossbow', 'nh:crossbow_bolt')].sort()).toEqual([1, 2]);
+    // multishot_class_bonus(): a Ranger's arrows add 1 more (m22 step 6)
+    expect([...volleys('elf', 'ranger', 'nh:elven_bow', 'nh:elven_arrow')].sort()).toEqual([
+      1, 2, 3,
     ]);
   });
 
   test('no bonus with the wrong pair, for a human, or for a Wizard', () => {
-    expect([...volleys('orc', 'ranger', 'nh:elven_bow', 'nh:elven_arrow')]).toEqual([1]);
-    expect([...volleys('human', 'ranger', 'nh:elven_bow', 'nh:elven_arrow')]).toEqual([1]);
+    expect([...volleys('orc', null, 'nh:elven_bow', 'nh:elven_arrow')]).toEqual([1]);
+    expect([...volleys('human', null, 'nh:elven_bow', 'nh:elven_arrow')]).toEqual([1]);
     expect([...volleys('elf', 'wizard', 'nh:elven_bow', 'nh:elven_arrow')]).toEqual([1]);
   });
 });

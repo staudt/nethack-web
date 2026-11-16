@@ -97,6 +97,8 @@ const MSIZE: Readonly<Record<MonsterDef['size'], number>> = {
 };
 /** ref: include/mondata.h ptr->msize */
 export const msize = (def: MonsterDef): number => MSIZE[def.size];
+/** ref: include/monflag.h MZ_SMALL */
+export const MZ_SMALL = 1;
 /** ref: include/monflag.h MZ_HUMAN */
 export const MZ_HUMAN = 2;
 /** ref: include/monflag.h MZ_HUGE */

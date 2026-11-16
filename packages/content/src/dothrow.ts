@@ -31,7 +31,7 @@ import {
   type Pos,
   type PromptOption,
 } from '@nh/core';
-import { getdirImpaired } from './hackmove';
+import { getdirImpaired, ustuck } from './hackmove';
 import { aAlign, doaltarobj } from './align';
 import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { setmangry, wakeup } from './peaceful';
@@ -39,7 +39,7 @@ import { canBlnd, haseyes } from './adtyping';
 import { killedByHero } from './buzz';
 import { isFrozen, mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
-import { cutwormAt, dbonU, dmgval, monsterIdAt } from './combat';
+import { backstabbable, checkCaitiff, cutwormAt, dbonU, dmgval, monsterIdAt } from './combat';
 import { isAxe } from './mdig';
 import { encumberMsg } from './itemactions';
 import {
@@ -60,7 +60,7 @@ import { gemAccept, gemForUnicorn } from './unicorn';
 import { xnameOf } from './objnam';
 import { heroForm } from './upoly';
 import { polydRace, yourRace } from './race';
-import { raceIs, roleIs, urace } from './urole';
+import { raceIs, roleIs, urace, urole } from './urole';
 import { stuckInWeb } from './web';
 import {
   ammoAndLauncher,
@@ -154,7 +154,10 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot, maybeWakeup = tr
  * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). A gem (not a rock or
  * gray stone, not slung) thrown at a unicorn is caught (gem_accept(): unicorn.ts). Not ported:
  * the quest leader, boomerangs and balls, cream pies, taming with food, passive
- * responses, poison, knockback. A potion that hits breaks on the monster (potionhit()). Silver sears
+ * responses, poison (so no Samurai's "You dishonorably use a poisoned weapon!"), knockback. A
+ * Knight's or Samurai's conduct is checked once the die is rolled (checkCaitiff()), and a Rogue's
+ * applied polearm stabs a fleeing or helpless monster in the back (+rnd(level)). A potion that
+ * hits breaks on the monster (potionhit()). Silver sears
  * a silver-hater. `applied`: a polearm or lance applied at range (HMON_APPLIED, pole.ts): no
  * thrown penalty, melee damage, a miss wakes the monster, and the pole is never used up.
  */
@@ -232,6 +235,8 @@ export function thitmonst(
   }
 
   const dieroll = ctx.rng.rnd(20);
+
+  checkCaitiff(ctx, mon);
 
   // venom spat by a polymorphed hero (#monster): `guaranteed_hit || ACURR(A_DEX) > rnd(25)` hits
   // and is used up; else it misses and splashes where it lands (throwit())
@@ -344,6 +349,7 @@ export function thitmonst(
     return false;
   }
 
+  let hittxt = false;
   // ref: src/uhitm.c hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` for every thrown weapon
   const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
   let dmg: number;
@@ -374,6 +380,20 @@ export function thitmonst(
     // ref: src/uhitm.c hmon_hitmon_weapon_melee(): dmgval, then the Str bonus and the
     // weapon-skill bonus; at least 1.
     dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon));
+    // special attack actions: a Rogue's polearm applied at a fleeing or helpless monster stabs
+    // it in the back (hand_to_hand is true for an applied pole; not thrown weapons)
+    if (
+      applied &&
+      dmg > 1 &&
+      ustuck(ctx) !== monId &&
+      roleIs(ctx.state, 'rogue') &&
+      backstabbable(ctx, mon) &&
+      !heroForm(ctx)
+    ) {
+      msg(ctx, 'uhitm.backstab', { mon: monNam(ctx, mon) });
+      dmg += ctx.rng.rnd(ulevel);
+      hittxt = true;
+    }
     if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
     if (dmg > 0) dmg += udaminc;
     dmg += dbonU(ctx);
@@ -382,7 +402,7 @@ export function thitmonst(
   if (dmg < 1) dmg = 1;
   // (remember the weapon's kind: hmon() might destroy it)
   const chopper = isAxe(odef);
-  hmonThrownHit(ctx, mon, dmg, missile, shot, silverHit ? obj : null);
+  hmonThrownHit(ctx, mon, dmg, missile, shot, silverHit ? obj : null, hittxt);
   // ref: thitmonst(): `if (hmon(...)) { if (mon->wormno) cutworm(mon, bhitpos, chopper); }`
   if (ctx.state.entities[String(monId)]?.c.monster) cutwormAt(ctx, monId, at, chopper);
   if (applied) return false; // the polearm stays in her hands
@@ -661,8 +681,36 @@ function heroBreaks(ctx: Ctx, obj: Entity, x: number, y: number, inView: boolean
 // ---------------------------------------------------------------------------------------------
 // the command
 
-/** ref: src/dothrow.c multishot_class_bonus(): the roles' bonuses (only the Valkyrie exists: none) */
-const multishotClassBonus = (): number => 0;
+/**
+ * The role's volley bonus for its own missiles: a Caveman's sling ammo and spears, a Monk's
+ * shuriken, a Ranger's anything but daggers, a Rogue's daggers, a Samurai's ya shot from a yumi.
+ * ref: src/dothrow.c multishot_class_bonus() (no Ninja: not a role)
+ */
+export function multishotClassBonus(ctx: Ctx, ammo: Entity, launcher: Entity | null): number {
+  const def = ctx.defs.object(ammo.def);
+  const skill = def.weapon?.skill;
+  // C's negative skills: ammo and missiles
+  const projectile = def.weapon?.role === 'ammo' || def.weapon?.role === 'missile';
+  switch (urole(ctx.state)) {
+    case 'caveman':
+      // give bonus for low-tech gear
+      return (skill === 'sling' && projectile) || (skill === 'spear' && !projectile) ? 1 : 0;
+    case 'monk':
+      // allow higher volley count despite skill limitation
+      return skill === 'shuriken' && projectile ? 1 : 0;
+    case 'ranger':
+      // arbitrary; encourage use of other missiles beside daggers
+      return skill !== 'dagger' || projectile ? 1 : 0;
+    case 'rogue':
+      // possibly should add knives...
+      return skill === 'dagger' && !projectile ? 1 : 0;
+    case 'samurai':
+      // role-specific launcher and its ammo
+      return ammo.def === 'nh:ya' && launcher?.def === 'nh:yumi' ? 1 : 0;
+    default:
+      return 0; // No bonus
+  }
+}
 
 /**
  * How many to throw or shoot at once. ref: src/dothrow.c throw_obj() "Multishot calculations":
@@ -670,7 +718,8 @@ const multishotClassBonus = (): number => 0;
  * +2, but some roles (Wizards, Priests, Healers but with knives, Tourists but with darts) and a
  * fumbling or clumsy (Dex <= 6) hero get only expert's +1; the race's bow (an elf's elven arrows
  * from an elven bow, an orc's orcish from an orcish bow) or a gnome's crossbow adds 1 when not
- * so weak; a crossbow needs Str 18 (a gnome's 16) to fire several; then rnd() of the total. Not
+ * so weak, and the role's own missiles add 1 (multishotClassBonus()); a crossbow needs Str 18 (a
+ * gnome's 16) to fire several; then rnd() of the total. Not
  * ported: confusion/stun, the quest artifact.
  */
 function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
@@ -694,7 +743,8 @@ function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const skill = skillLevel(ctx, oskill);
   if (skill === P_EXPERT) multishot++;
   if ((skill === P_EXPERT || skill === P_SKILLED) && !weak) multishot++;
-  multishot += multishotClassBonus();
+  // ...or is using a special weapon for their role...
+  multishot += multishotClassBonus(ctx, obj, uwep);
   // ...or using their race's special bow; no bonus for spears
   if (!weak) {
     const race = urace(ctx.state);

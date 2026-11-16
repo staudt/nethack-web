@@ -1,6 +1,13 @@
 // Weapon skills. ref: src/weapon.c skill_init(), use_skill(), enhance_weapon_skill(), weapon_hit_bonus(), weapon_dam_bonus();
 // src/u_init.c Skill_A[]..Skill_W[] (skilltab.ts)
-import { type ActionDef, type Ctx, type Msg, type ObjectDef, inventoryOf } from '@nh/core';
+import {
+  type ActionDef,
+  type Ctx,
+  type GameState,
+  type Msg,
+  type ObjectDef,
+  inventoryOf,
+} from '@nh/core';
 import { nhData } from './items';
 import { ROLES_TAB } from './roletab';
 import { SKILL_TAB } from './skilltab';
@@ -12,9 +19,27 @@ export const P_UNSKILLED = 1;
 export const P_BASIC = 2;
 export const P_SKILLED = 3;
 export const P_EXPERT = 4;
+export const P_MASTER = 5;
+export const P_GRAND_MASTER = 6;
 
 /** The pseudo-skill for fighting without a weapon. ref: include/skills.h P_BARE_HANDED_COMBAT */
 export const BARE_HANDED = 'bare_handed';
+
+/**
+ * The hero fights as a martial artist: she is a Samurai or a Monk (whatever her form).
+ * ref: include/skills.h martial_bonus()
+ */
+export const martialBonus = (state: Readonly<GameState>): boolean => {
+  const role = urole(state);
+  return role === 'samurai' || role === 'monk';
+};
+
+/**
+ * The message key of a skill's name: bare-handed combat is "martial arts" for a martial artist.
+ * ref: src/weapon.c P_NAME(), barehands_or_martial[]
+ */
+export const skillNameKey = (state: Readonly<GameState>, skill: string): string =>
+  skill === BARE_HANDED && martialBonus(state) ? 'skill.martial_arts' : `skill.${skill}`;
 
 /** The Valkyrie's skill maximums (an alias of her SKILL_TAB row). ref: src/u_init.c Skill_V[] */
 export const SKILL_V: Readonly<Record<string, number>> = SKILL_TAB.valkyrie;
@@ -333,7 +358,7 @@ export function drainWeaponSkill(ctx: Pick<Ctx, 'state' | 'emit' | 'rng'>, n: nu
       ctx.emit({
         type: 'msg',
         key: (data.skills?.[skill] ?? 0) >= P_BASIC ? 'skill.forget.some' : 'skill.forget',
-        params: { skill: { key: `skill.${skill}` } },
+        params: { skill: { key: skillNameKey(ctx.state, skill) } },
       });
 }
 
@@ -348,7 +373,7 @@ function skillAdvanceNow(ctx: Pick<Ctx, 'state' | 'emit'>, skill: string): void 
   ctx.emit({
     type: 'msg',
     key: (skills[skill] ?? 0) >= skillMax(ctx, skill) ? 'skill.advanced.most' : 'skill.advanced',
-    params: { skill: { key: `skill.${skill}` } },
+    params: { skill: { key: skillNameKey(ctx.state, skill) } },
   });
 }
 
@@ -364,7 +389,7 @@ function skillLine(ctx: SkillCtx, skill: string, flags: boolean): Msg {
     key: 'enhance.entry',
     params: {
       mark,
-      skill: { key: `skill.${skill}` },
+      skill: { key: skillNameKey(ctx.state, skill) },
       level: { key: `skill.level.${LEVEL_NAMES[skillLevel(ctx, skill)] ?? 'unskilled'}` },
     },
   };
@@ -449,13 +474,14 @@ export const enhanceAction: ActionDef = {
 
 /**
  * To-hit modifier for fighting with `weapon` (null = bare hands). ref: src/weapon.c
- * weapon_hit_bonus(). Restricted counts as Unskilled. Not a weapon: 0. Two-weapon combat and
- * riding are not implemented.
+ * weapon_hit_bonus(). Restricted counts as Unskilled. Not a weapon: 0. Bare-handed, a martial
+ * artist (`martial`: martial_bonus()) gets twice the bonus: +3 at Basic up to +7 at Grand Master
+ * (+1 to +3 for the others). Two-weapon combat and riding are not implemented.
  */
-export function weaponHitBonus(level: number, weapon: ObjectDef | null): number {
+export function weaponHitBonus(level: number, weapon: ObjectDef | null, martial = false): number {
   if (weapon === null) {
-    // bare-handed: ((max(skill, unskilled) - 1) + 2) / 2 (no martial arts)
-    return Math.trunc((Math.max(level, P_UNSKILLED) - 1 + 2) / 2);
+    // bare-handed: ((max(skill, unskilled) - 1) + 2) * (martial ? 2 : 1) / 2
+    return Math.trunc(((Math.max(level, P_UNSKILLED) - 1 + 2) * (martial ? 2 : 1)) / 2);
   }
   if (!weapon.weapon) return 0; // weapon_type() == P_NONE
   switch (level) {
@@ -470,9 +496,14 @@ export function weaponHitBonus(level: number, weapon: ObjectDef | null): number 
   }
 }
 
-/** Damage modifier for fighting with `weapon` (null = bare hands). ref: src/weapon.c weapon_dam_bonus() */
-export function weaponDamBonus(level: number, weapon: ObjectDef | null): number {
-  if (weapon === null) return Math.trunc((Math.max(level, P_UNSKILLED) - 1 + 1) / 2);
+/**
+ * Damage modifier for fighting with `weapon` (null = bare hands); bare-handed, a martial artist
+ * (`martial`) gets three times the bonus: +3 at Basic up to +9 at Grand Master (0 to +3 for the
+ * others). ref: src/weapon.c weapon_dam_bonus()
+ */
+export function weaponDamBonus(level: number, weapon: ObjectDef | null, martial = false): number {
+  if (weapon === null)
+    return Math.trunc(((Math.max(level, P_UNSKILLED) - 1 + 1) * (martial ? 3 : 1)) / 2);
   if (!weapon.weapon) return 0;
   switch (level) {
     case P_BASIC:
