@@ -8,7 +8,7 @@
 // thrones (throne.ts) and laying eggs.
 // Not ported: no steeds, hiding heroes, ladders or drawbridges exist; the gremlin
 // splitting in a fountain or pool; burning away slime on lava; lava traps (TT_LAVA, m15 step 3);
-// cream pies and towels do not exist; Half_physical_damage (no source).
+// towels do not exist; Half_physical_damage (no source); a squelched shop pie is not billed.
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -119,7 +119,10 @@ function sitOnObject(ctx: Ctx, obj: Entity, form: MonsterDef | null): void {
   const of = it?.corpseOf;
   if (obj.def === 'nh:corpse' && of && ctx.defs.isMonster(of) && amorphous(ctx.defs.monster(of)))
     say(ctx, 'sit.squishy');
-  else if (!(od.container?.box || od.material === 'cloth')) say(ctx, 'sit.uncomfortable');
+  else if (obj.def === 'nh:cream_pie') {
+    say(ctx, 'sit.squelch');
+    ctx.remove(obj.id); // useupf(obj, obj->quan)
+  } else if (!(od.container?.box || od.material === 'cloth')) say(ctx, 'sit.uncomfortable');
 }
 
 /**

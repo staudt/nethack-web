@@ -20,7 +20,7 @@
 // gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
 // donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
 // (no Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
-// yet), Keystone Kops (call_kops() only sounds the alarm; DEVIATIONS), remote_burglary().
+// yet), remote_burglary(). The Keystone Kops are kops.ts's (call_kops(), kops_gone()).
 import { apAsThing } from './mimicstate';
 import {
   NORMAL_SPEED,
@@ -331,7 +331,9 @@ export function uLeftShop(
     });
     return;
   }
-  if (robShop(ctx, shk, e)) callKops(ctx);
+  // nearshop: she merely stepped out (from the shop's edge, not leaving the level)
+  if (robShop(ctx, shk, e))
+    callKops(ctx, shk, !newlev && from !== undefined && isEdge(level, from.x, from.y));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -669,12 +671,12 @@ function billDummyObject(ctx: Ctx, obj: Entity, onFloor: boolean): void {
  * The hero has just altered a shop object (bitten into food, cancelled it): she pays for it.
  * `at`: where it lies on the floor, or null when she has it. Uncursing or unblessing tells her
  * its BUC. ref: src/mkobj.c costly_alteration() (COST_BITE, COST_CANCEL, COST_UNCURS,
- * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN)
+ * COST_UNBLSS, COST_DECHNT, COST_DSTROY, COST_DRAIN, COST_SPLAT)
  */
 export function costlyAlteration(
   ctx: Ctx,
   obj: Entity,
-  how: 'bite' | 'cancel' | 'uncurse' | 'unbless' | 'disenchant' | 'destroy' | 'drain',
+  how: 'bite' | 'cancel' | 'uncurse' | 'unbless' | 'disenchant' | 'destroy' | 'drain' | 'splat',
   at: Pos | null,
 ): void {
   const it = obj.c.item;
@@ -1505,11 +1507,28 @@ function robShop(ctx: Ctx, shk: EntityId, e: Eshk): boolean {
   return true;
 }
 
+type CallKops = (ctx: Ctx, shk: Entity, nearshop: boolean) => void;
+type KopsGone = (ctx: Ctx, silent: boolean) => void;
+/** kops.ts's call_kops() and kops_gone() (kops.ts sits above this module) */
+let callKopsFn: CallKops | null = null;
+let kopsGoneFn: KopsGone | null = null;
+
+export function setKopsHooks(call: CallKops, gone: KopsGone): void {
+  callKopsFn = call;
+  kopsGoneFn = gone;
+}
+
 /**
- * "An alarm sounds!": the Watch turns on her, or "But no one seems to respond to it." No Keystone
- * Kops (DEVIATIONS). ref: src/shk.c call_kops()
+ * "An alarm sounds!" and the Keystone Kops (kops.ts); without them only the Watch turns on her.
+ * ref: src/shk.c call_kops()
  */
-function callKops(ctx: Ctx): void {
+function callKops(ctx: Ctx, shk: EntityId, nearshop: boolean): void {
+  const mon = ctx.state.entities[String(shk)];
+  if (!mon) return;
+  if (callKopsFn) {
+    callKopsFn(ctx, mon, nearshop);
+    return;
+  }
   ctx.emit({ type: 'msg', key: 'shk.alarm' });
   if (!angryGuards(ctx, false)) ctx.emit({ type: 'msg', key: 'shk.no_one_responds' });
 }
@@ -1524,9 +1543,16 @@ function angryShkExists(ctx: Ctx): boolean {
   return false;
 }
 
-/** With no angry shopkeeper left, the Watch calms down. ref: src/shk.c make_happy_shoppers() */
-export function makeHappyShoppers(ctx: Ctx): void {
-  if (!angryShkExists(ctx)) pacifyGuards(ctx); // (no Kops to send away)
+/**
+ * With no angry shopkeeper left, the Kops leave (kops_gone(): "The Kops (disappointed) vanish
+ * into thin air." unless `silentkops`) and the Watch calms down.
+ * ref: src/shk.c make_happy_shoppers()
+ */
+export function makeHappyShoppers(ctx: Ctx, silentkops: boolean): void {
+  if (!angryShkExists(ctx)) {
+    kopsGoneFn?.(ctx, silentkops);
+    pacifyGuards(ctx);
+  }
 }
 
 /** No monster (nor the hero) stands on x,y of the level. */
@@ -1633,7 +1659,7 @@ export function makeHappyShk(ctx: Ctx, shk: EntityId): void {
     if (vanished) ctx.emit({ type: 'msg', key: 'shk.disappears', params: { shk: name } });
   } else if (wasmad)
     ctx.emit({ type: 'msg', key: 'shk.calms_down', params: { shk: shkname(ctx, e) } });
-  makeHappyShoppers(ctx);
+  makeHappyShoppers(ctx, false);
 }
 
 /**
@@ -1690,7 +1716,7 @@ export function shkgone(ctx: Ctx, shk: EntityId): void {
 
 /**
  * On arrival on a level: a shopkeeper paid off elsewhere and sent home here takes his Kops away
- * (none exist), so the Watch calms down if no shopkeeper is angry. ref: src/dog.c losedogs()
+ * (silently) and the Watch calms down, if no shopkeeper is angry. ref: src/dog.c losedogs()
  * (dismiss_kops)
  */
 export function shkArrivals(ctx: Ctx, levelId: string): void {
@@ -1704,7 +1730,7 @@ export function shkArrivals(ctx: Ctx, levelId: string): void {
       dismiss = true;
     }
   }
-  if (dismiss) makeHappyShoppers(ctx);
+  if (dismiss) makeHappyShoppers(ctx, true);
 }
 
 /** The turn of the last "Didn't you forget to pay?". ref: gf.followmsg */

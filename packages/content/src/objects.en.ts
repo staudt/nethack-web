@@ -417,6 +417,8 @@ export const objectMessagesEn: Record<string, string> = {
   'nh:clove_of_garlic.plural': 'cloves of garlic',
   'nh:lump_of_royal_jelly': 'lump of royal jelly',
   'nh:lump_of_royal_jelly.plural': 'lumps of royal jelly',
+  'nh:cream_pie': 'cream pie',
+  'nh:cream_pie.plural': 'cream pies',
   'nh:corpse': '{mon} corpse',
   'nh:corpse.plural': '{mon} corpses',
   'nh:egg': 'egg',

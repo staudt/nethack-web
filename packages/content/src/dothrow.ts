@@ -35,7 +35,7 @@ import { getdirImpaired } from './hackmove';
 import { aAlign, doaltarobj } from './align';
 import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { setmangry, wakeup } from './peaceful';
-import { canBlnd } from './adtyping';
+import { canBlnd, haseyes } from './adtyping';
 import { killedByHero } from './buzz';
 import { isFrozen, mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
@@ -91,6 +91,7 @@ import { shadeMiss } from './shade';
 export const THROW_ID: DefId = 'nh:throw';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
+const CREAM_PIE: DefId = 'nh:cream_pie';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
@@ -228,7 +229,7 @@ export function thitmonst(
   // and is used up; else it misses and splashes where it lands (throwit())
   if (odef.class === 'venom') {
     if (guaranteedHit || dex > ctx.rng.rnd(25)) {
-      venomHit(ctx, mon, obj);
+      blindingHit(ctx, mon, obj);
       ctx.remove(objId);
       return true;
     }
@@ -238,6 +239,13 @@ export function thitmonst(
   }
 
   if ((odef.class !== 'weapon' && odef.class !== 'gem') || !odef.weapon) {
+    // ref: thitmonst(): a cream pie hits if `guaranteed_hit || ACURR(A_DEX) > rnd(25)` and
+    // hmon() uses it up
+    if (obj.def === CREAM_PIE && (guaranteedHit || dex > ctx.rng.rnd(25))) {
+      blindingHit(ctx, mon, obj);
+      ctx.remove(objId);
+      return true;
+    }
     // ref: thitmonst(): an egg hits if `guaranteed_hit || ACURR(A_DEX) > rnd(25)`; hmon() uses
     // it up (or leaves the rock it became)
     if (obj.def === EGG && (guaranteedHit || dex > ctx.rng.rnd(25))) {
@@ -360,19 +368,30 @@ export function thitmonst(
 }
 
 /**
- * The hero's venom hits a monster: blinding venom wakes it, angers it and blinds it for
- * rn1(25, 21) more turns ("The venom blinds the jackal!", "Splash!" when she is blind or it
- * cannot be blinded); acid venom burns it for dmgval() unless it resists acid.
- * ref: src/uhitm.c hmon_hitmon_misc_obj() BLINDING_VENOM, ACID_VENOM
+ * The hero's venom or cream pie hits a monster: blinding venom or a pie wakes it, angers it and
+ * blinds it for rn1(25, 21) more turns ("The venom blinds the jackal!", "The cream pie splashes
+ * over the jackal's face!"; "Splash!" or "Splat!" when she is blind or it cannot be blinded);
+ * acid venom burns it for dmgval() unless it resists acid.
+ * ref: src/uhitm.c hmon_hitmon_misc_obj() CREAM_PIE, BLINDING_VENOM, ACID_VENOM
  */
-function venomHit(ctx: Ctx, mon: Entity, obj: Entity): void {
+function blindingHit(ctx: Ctx, mon: Entity, obj: Entity): void {
   const m = mon.c.monster;
   if (!m) return;
   const hero = heroEntity(ctx);
-  if (obj.def === BLINDING_VENOM) {
+  if (obj.def === BLINDING_VENOM || obj.def === CREAM_PIE) {
+    const pie = obj.def === CREAM_PIE;
+    const splat = pie ? 'throw.pie_splat' : 'throw.venom_splash';
     m.asleep = false;
-    if (canBlnd(ctx, hero, mon, 'spit', obj)) {
-      if (hasProp(hero, P.BLINDED)) msg(ctx, 'throw.venom_splash');
+    if (canBlnd(ctx, hero, mon, pie ? 'weapon' : 'spit', obj)) {
+      if (hasProp(hero, P.BLINDED)) msg(ctx, splat);
+      else if (pie)
+        msg(
+          ctx,
+          haseyes(ctx, mon) && mon.def !== 'nh:floating_eye'
+            ? 'throw.pie_splashes_face'
+            : 'throw.pie_splashes',
+          { mon: monNam(ctx, mon) },
+        );
       else
         msg(ctx, mcansee(ctx, mon.id) ? 'throw.venom_blinds' : 'throw.venom_blinds_further', {
           mon: monNam(ctx, mon),
@@ -381,7 +400,7 @@ function venomHit(ctx: Ctx, mon: Entity, obj: Entity): void {
       const dmg = ctx.rng.rn2(25) + 21; // rn1(25, 21)
       setMblinded(ctx, mon.id, Math.min(127, mblinded(ctx, mon.id) + dmg));
     } else {
-      msg(ctx, 'throw.venom_splash');
+      msg(ctx, splat);
       setmangry(ctx, mon.id, true);
     }
     return;
@@ -479,7 +498,10 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
         item: ctx.defs.itemName(ctx.state, obj),
       });
     // hero_breaks(obj, u.ux, u.uy, BRK_FROM_INV): an egg or a potion breaks on the floor
-    if ((obj.def === EGG || odef.class === 'potion') && breaktest(ctx, obj)) {
+    if (
+      (obj.def === EGG || obj.def === CREAM_PIE || odef.class === 'potion') &&
+      breaktest(ctx, obj)
+    ) {
       heroBreaks(ctx, obj, pos.x, pos.y, !hasProp(hero, P.BLINDED));
       return;
     }
@@ -560,7 +582,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   // a potion's vapors next to her). Glass still lands whole here (DEVIATIONS.md).
   if (
     !isPool(ctx, level, x, y) &&
-    (obj.def === EGG || odef.class === 'potion') &&
+    (obj.def === EGG || obj.def === CREAM_PIE || odef.class === 'potion') &&
     breaktest(ctx, obj)
   ) {
     heroBreaks(ctx, obj, x, y, isVisible(ctx.state, y * level.width + x));
@@ -592,6 +614,11 @@ function heroBreaks(ctx: Ctx, obj: Entity, x: number, y: number, inView: boolean
   if (obj.def === EGG) {
     shop();
     breakEggs(ctx, obj, true);
+    return;
+  }
+  if (obj.def === CREAM_PIE) {
+    shop();
+    ctx.remove(obj.id); // delobj()
     return;
   }
   breakPotionVapors(ctx, obj, x, y);

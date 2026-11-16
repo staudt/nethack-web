@@ -69,8 +69,11 @@ describe('polymorph soak', () => {
   // the ring, and 744 and 753 last 400 turns with and without it); 759 and 760 replaced 744 and
   // 753 in m18 step 4, whose 14 demon rows shift the random forms: 744 died at turn 121 and 753
   // had a monster on a locked door at step 21 (731's old violation), both lasting 400 turns with
-  // the rows filtered and the in_mklev sleep off, as 759 and 760 do with and without them)
-  for (const seed of [759, 760]) {
+  // the rows filtered and the in_mklev sleep off, as 759 and 760 do with and without them; 764
+  // replaced 760 in m18 step 6, whose four Kop rows shift the random forms: 760 died at turn 59
+  // and lasts 400 turns with the Kop rows filtered and the cream pie's prob 0, as 764 does with
+  // and without them)
+  for (const seed of [759, 764]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       const r = soak([vanillaMod, polyEverythingMod], { seed, turns: 400, checkEvery: 1 });

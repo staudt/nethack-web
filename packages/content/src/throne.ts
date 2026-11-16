@@ -7,8 +7,9 @@
 // actions, so the vanishing roll comes before them; the move is spent with their answer.
 // Not ported (DEVIATIONS "Thrones"): Vlad's tower's special throne (special_throne_effect()),
 // wizard mode's "Throne sit effect (1..13)" and "Analyze throne?" questions (content has no
-// wizard flag: the random path always), exercise(), cream on the face (u.ucreamed), the
+// wizard flag: the random path always), exercise(), the
 // voice's SetVoice(), and the Hand of Elbereth (no crowning).
+import { setUcreamed } from './creamed';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -95,6 +96,7 @@ function muchBetter(ctx: Ctx): void {
   if (upolyOf(ctx.state) && h.c.hp) raise(h.c.hp); // u.mh, u.mhmax
   const own = ownHp(ctx.state);
   if (own) raise(own); // u.uhp, u.uhpmax (no u.uhppeak is kept)
+  setUcreamed(ctx.state, 0);
   makeBlinded(ctx, 0, true);
   makeSick(ctx, 0, '', false);
   // heal_legs(0)

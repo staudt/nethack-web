@@ -118,20 +118,23 @@ export function objResists(ctx: Pick<Ctx, 'rng'>, obj: Entity, ochance: number):
 }
 
 /**
- * Whether the object breaks when it hits something hard: potions, eggs and glass (not gems);
- * 1% resist. Cream pies, melons and cameras do not exist (venom is handled by its callers).
+ * Whether the object breaks when it hits something hard: potions, eggs, glass (not gems) and
+ * cream pies; 1% resist. Melons and cameras do not exist (venom is handled by its callers).
  * ref: src/dothrow.c breaktest()
  */
 export function breaktest(ctx: Pick<Ctx, 'rng' | 'defs'>, e: Entity): boolean {
   const od = ctx.defs.object(e.def);
   if (objResists(ctx, e, 1)) return false; // obj_resists(obj, 1, 99)
   return (
-    od.class === 'potion' || od.id === 'nh:egg' || (od.material === 'glass' && od.class !== 'gem')
+    od.class === 'potion' ||
+    od.id === 'nh:egg' ||
+    od.id === 'nh:cream_pie' ||
+    (od.material === 'glass' && od.class !== 'gem')
   );
 }
 
 /**
- * The breakage line: "Splat!" for an egg, else "The potion shatters!" (or "You hear something
+ * The breakage line: "Splat!" for an egg, "What a mess!" for a cream pie in view, else "The potion shatters!" (or "You hear something
  * shatter!" out of view). ref: src/dothrow.c breakmsg()
  */
 export function breakmsg(
@@ -141,6 +144,10 @@ export function breakmsg(
 ): void {
   if (e.def === 'nh:egg') {
     ctx.emit({ type: 'msg', key: 'egg.splat' });
+    return;
+  }
+  if (e.def === 'nh:cream_pie') {
+    if (inView) ctx.emit({ type: 'msg', key: 'throw.what_a_mess' });
     return;
   }
   if (inView)

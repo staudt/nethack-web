@@ -18,6 +18,7 @@ import {
   type Ctx,
   type DefId,
   type Entity,
+  type GameState,
   type Level,
   type StepResult,
 } from '@nh/core';
@@ -56,9 +57,16 @@ import { P, setIntrinsic, setItimeout } from '../src/props';
 import { tamedog } from '../src/dog';
 import { wakeup } from '../src/peaceful';
 import { shkArrivals } from '../src/shk';
+import { setGenocided } from '../src/vanquished';
 import { mappearance } from '../src/mimicstate';
 import { addMon, setup } from './helpers';
 import { ctxFor, defs, obj, render } from './itemHelpers';
+
+/** All four Kop kinds genocided: robbery brings no Keystone Kops. */
+const noKops = (t: { s: { state: GameState } }): void => {
+  for (const id of ['nh:keystone_kop', 'nh:kop_sergeant', 'nh:kop_lieutenant', 'nh:kop_kaptain'])
+    setGenocided(t.s, id as DefId);
+};
 
 // A shop (interior 1..5 x 1..3) with a doorway in its east wall at 6,2 onto a floor corridor,
 // and a second room (interior 9..11 x 1..3) with a doorway in its west wall at 8,2.
@@ -1340,8 +1348,9 @@ describe('prices', () => {
       expect(t.e).toMatchObject({ robbed: price, following: true, surcharge: true, bill: [] });
       expect(apple.c.item?.unpaid).toBeUndefined();
       expect(uShops(t.s)).toEqual([]);
-      // no Watch: nobody answers the alarm
+      // no Watch and every Kop kind gone: nobody answers the alarm
       const u = bare(15);
+      noKops(u);
       owing(u);
       expect(u.lines(u.step({ type: 'move', dir: 'e' }))).toContain(
         'But no one seems to respond to it.',
@@ -1375,6 +1384,7 @@ describe('prices', () => {
 
     test('paying off a robbed keeper: he calms down, goes home, and so does the Watch', () => {
       const t = bare(15);
+      noKops(t); // (the Kops' part is m18.kops.test.ts's)
       const w = watchman(t);
       owing(t);
       t.step({ type: 'move', dir: 'e' }); // robbed

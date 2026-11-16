@@ -98,16 +98,12 @@ export const GROWNUPS: readonly (readonly [string, string])[] = [
   ['kop_lieutenant', 'kop_kaptain'],
 ];
 
-/** The grownups[] names that have no monster row yet (quest monsters, the Kops). */
+/** The grownups[] names that have no monster row yet (quest monsters). */
 export const GROWNUP_ABSENT: readonly string[] = [
   'acolyte',
   'apprentice',
   'attendant',
   'high_cleric',
-  'keystone_kop',
-  'kop_kaptain',
-  'kop_lieutenant',
-  'kop_sergeant',
   'page',
   'student',
 ];

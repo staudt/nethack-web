@@ -18,7 +18,9 @@ import { uswallow } from './engulfstate';
 import { inhistemple, epriOf } from './epri';
 import { eshkOf, inhishop } from './eshk';
 import { mnextoPos } from './generation';
-import { findTerrain } from './ladder';
+import { chooseStairs } from './ladder';
+
+export { chooseStairs };
 import { inWTower } from './levelflags';
 import { isCovetous, wants } from './mondata';
 import { heroSees, minvent } from './mongear';
@@ -27,7 +29,6 @@ import { healmon, mstratOf, setMstrat, type MStrat } from './mstate';
 import { doname } from './objnam';
 import { mpickobj } from './steal';
 import { goodposMon, noteleportLevel } from './teleport';
-import { T } from './terrain';
 import { rlocMon, rlocTo } from './trap';
 import { isWiz } from './wizstate';
 
@@ -132,43 +133,6 @@ function strategy(ctx: Ctx, mon: Entity): MStrat | 'none' {
     if (strat) return strat;
   }
   return dstrat;
-}
-
-/**
- * The stairs a monster heals on: down ones (`forward`) or up ones (up and down swap in a dungeon
- * built upward, Sokoban), else the branch stairs, else the other stairs; null when the level has
- * none (no ladders yet). Branch stairs going the wanted way are found first, as C's stairway list
- * holds them in front of the level's own stairs. ref: src/wizard.c choose_stairs();
- * src/stairs.c stairway_find_type_dir(); src/dungeon.c builds_up()
- */
-export function chooseStairs(
-  ctx: Pick<Ctx, 'state' | 'defs'>,
-  levelId: string,
-  forward: boolean,
-): { x: number; y: number } | null {
-  const level = ctx.state.levels[levelId];
-  if (!level) return null;
-  const up = buildsUp(ctx, levelId) ? forward : !forward;
-  const find = (dirUp: boolean): { x: number; y: number } | null => {
-    const b = level.branch;
-    if (b && (b.dir === 'up') === dirUp) return b.pos;
-    return dirUp ? level.up : level.down;
-  };
-  // no stairs: a ladder that way; then branch stairs, then the other way
-  const ladder = (dirUp: boolean): { x: number; y: number } | null =>
-    findTerrain(level, dirUp ? T.ladder_up : T.ladder_down);
-  return find(up) ?? ladder(up) ?? level.branch?.pos ?? find(!up) ?? ladder(!up);
-}
-
-/**
- * The dungeon is entered at its last level (Sokoban): its levels build upward.
- * ref: src/dungeon.c builds_up() (no single-level branches)
- */
-function buildsUp(ctx: Pick<Ctx, 'state'>, levelId: string): boolean {
-  const level = ctx.state.levels[levelId];
-  const d = level ? ctx.state.dungeons.find((x) => x.id === level.dungeon) : undefined;
-  if (!d || d.levels === null || d.levels <= 1) return false;
-  return (d.entry ?? 1) === d.levels;
 }
 
 /**

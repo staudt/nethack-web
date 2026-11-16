@@ -56,6 +56,7 @@ import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
 import { fumbleMessagesEn } from './fumble.en';
 import { eggMessagesEn } from './egg.en';
+import { creamPieMessagesEn } from './creampie.en';
 import { engraveMessagesEn } from './engrave.en';
 import { figurineMessagesEn } from './figurine.en';
 import { mkroomMessagesEn } from './mkroom.en';
@@ -69,6 +70,7 @@ export const messagesEn: Record<string, string> = {
   ...shirtMessagesEn,
   ...fumbleMessagesEn,
   ...eggMessagesEn,
+  ...creamPieMessagesEn,
   ...engraveMessagesEn,
   ...figurineMessagesEn,
   ...mkroomMessagesEn,
@@ -569,6 +571,10 @@ export const messagesEn: Record<string, string> = {
   'nh:titan': 'titan',
   'nh:minotaur': 'minotaur',
   'nh:jabberwock': 'jabberwock',
+  'nh:keystone_kop': 'Keystone Kop',
+  'nh:kop_sergeant': 'Kop Sergeant',
+  'nh:kop_lieutenant': 'Kop Lieutenant',
+  'nh:kop_kaptain': 'Kop Kaptain',
   'nh:lich': 'lich',
   'nh:demilich': 'demilich',
   'nh:master_lich': 'master lich',

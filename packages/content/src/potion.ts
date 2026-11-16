@@ -1,5 +1,6 @@
 // Potions: quaffing and the effects of the potions in our subset.
 // ref: src/potion.c dodrink(), dopotion(), peffects(), healup()
+import { setUcreamed } from './creamed';
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -84,7 +85,12 @@ export function healup(
       hp.cur = hp.max;
     }
   }
-  if (cureblind) makeBlinded(ctx, 0, true); // ref: healup(): make_blinded(0L, TRUE)
+  if (cureblind) {
+    // ref: healup(): "it's debatable whether healing magic should clean off mundane 'dirt', but
+    // if it doesn't, blindness isn't cured"
+    setUcreamed(ctx.state, 0);
+    makeBlinded(ctx, 0, true);
+  }
   if (curesick) cureSick(ctx);
 }
 

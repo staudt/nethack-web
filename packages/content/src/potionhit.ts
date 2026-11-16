@@ -9,6 +9,7 @@
 // (naming unknown types), hallucinatory bottle names, Pestilence, vampire shapeshifters,
 // body parts of polymorphed forms (always "head"
 // and "eyes") and a hit on a long worm's tail (gn.notonhead: always the head).
+import { ucreamed } from './creamed';
 import { monHatesBlessings } from './chamstate';
 import { setPotionVapors } from './floorfx';
 import { getPlayer, isVisible, type Ctx, type Entity, type Msg } from '@nh/core';
@@ -461,7 +462,7 @@ export function potionbreathe(ctx: Ctx, obj: Entity): void {
       }
       heal1();
       if (buc === 'blessed') cureblind = true;
-      if (cureblind) makeBlinded(ctx, 0, true); // (no cream; never deaf)
+      if (cureblind) makeBlinded(ctx, 0, !ucreamed(ctx.state)); // (never deaf)
       break;
     case POT.sickness: {
       // (the hero is never a Healer)

@@ -1,5 +1,5 @@
 // Applying tools (a): lamps, lock tools, containers, whistles, the bugle (music.ts), the
-// blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts) and digging tools
+// blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled();
@@ -47,6 +47,7 @@ import { setMtrapped } from './trapstate';
 import { UNICORN_HORN, useUnicornHorn } from './unicorn';
 import { useFigurine } from './figurine';
 import { FIGURINE } from './figurinestate';
+import { CREAM_PIE, useCreamPie } from './creampie';
 
 export const APPLY_ID: DefId = 'nh:apply';
 
@@ -64,12 +65,13 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
   return e?.c.item?.carriedBy === ctx.state.playerId ? e : null;
 }
 
-/** Whether `a` can apply this object (the tools of the subset, and wands: breaking them). */
+/** Whether `a` can apply this object (the tools of the subset, cream pies, and wands: breaking them). */
 export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
   const def = ctx.defs.object(e.def);
   if (isPick(def)) return true; // PICK_AXE, DWARVISH_MATTOCK
   if (isPole(def)) return true; // polearms and lances: use_pole()
   if (def.class === 'wand') return true; // do_break_wand()
+  if (e.def === CREAM_PIE) return true; // use_cream_pie()
   if (def.class !== 'tool') return false;
   return (
     def.container !== undefined ||
@@ -281,6 +283,7 @@ const apply: ActionDef = {
     if (isPole(def)) return usePole(ctx, obj, false);
     if (obj.def === BUGLE) return doPlayInstrument(ctx, obj, APPLY_ID);
     if (obj.def === FIGURINE) return useFigurine(ctx, obj);
+    if (obj.def === CREAM_PIE) return useCreamPie(ctx, obj);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);

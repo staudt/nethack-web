@@ -91,6 +91,8 @@ const WALLTALK = [
 ];
 
 const SOLDIER_FOE = ['chat.soldier.useless', 'chat.soldier.dog_meat', 'chat.soldier.surrender'];
+/** ref: domonnoise() MS_ARREST arrest_msg[] */
+const ARREST_MSG = ['chat.arrest.anything', 'chat.arrest.under_arrest', 'chat.arrest.stop'];
 const SOLDIER_PAX = ['chat.soldier.pay', 'chat.soldier.food', 'chat.soldier.feet'];
 
 /** What chatting gives: energy spent, or the donation a priest asks for. */
@@ -315,6 +317,11 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
     }
     case 'guard': // vault guard
       say(ctx, moneyCnt(ctx, ctx.state.playerId) ? 'vault.please_drop' : 'vault.please_follow');
+      return NORMAL_SPEED;
+    case 'arrest': // Kops
+      if (m.peaceful)
+        say(ctx, heroFemale(ctx.state) ? 'chat.arrest.facts_maam' : 'chat.arrest.facts_sir');
+      else say(ctx, ARREST_MSG[ctx.rng.rn2(3)] ?? 'chat.arrest.anything');
       return NORMAL_SPEED;
     case 'soldier': {
       const lines = m.peaceful ? SOLDIER_PAX : SOLDIER_FOE;

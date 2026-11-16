@@ -73,6 +73,7 @@ export const eggMessagesEn: Record<string, string> = {
   'sit.coil_obj': 'You coil up around {item|the}.',
   'sit.on_obj': 'You sit on {item|the}.',
   'sit.squishy': "It's squishy...",
+  'sit.squelch': 'Squelch!',
   'sit.uncomfortable': "It's not very comfortable...",
   'sit.bear_trap': "You can't sit down with your foot in the bear trap.",
   'sit.spike': 'You sit down on a spike.  Ouch!',

@@ -91,3 +91,46 @@ export function ladderArrival(
     spots[id] = LADDER_SPOTS[id]?.[up ? 'down' : 'up'];
   return plannedSpot(ctx, to, spots);
 }
+
+/**
+ * The first stairs (not a ladder) leading up (`up`) or down, branch stairs first as in C's
+ * stairway list; null when there are none. ref: src/stairs.c stairway_find_type_dir(FALSE, up)
+ */
+export function stairwayDir(level: Readonly<Level>, up: boolean): { x: number; y: number } | null {
+  const b = level.branch;
+  if (b && (b.dir === 'up') === up) return b.pos;
+  return up ? level.up : level.down;
+}
+
+/**
+ * The stairs a monster heals on: down ones (`forward`) or up ones (up and down swap in a dungeon
+ * built upward, Sokoban), else the branch stairs, else the other stairs; null when the level has
+ * none (no ladders yet). Branch stairs going the wanted way are found first, as C's stairway list
+ * holds them in front of the level's own stairs. (Here, a leaf, for covetous.ts and kops.ts.) ref: src/wizard.c choose_stairs();
+ * src/stairs.c stairway_find_type_dir(); src/dungeon.c builds_up()
+ */
+export function chooseStairs(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  levelId: string,
+  forward: boolean,
+): { x: number; y: number } | null {
+  const level = ctx.state.levels[levelId];
+  if (!level) return null;
+  const up = buildsUp(ctx, levelId) ? forward : !forward;
+  const find = (dirUp: boolean): { x: number; y: number } | null => stairwayDir(level, dirUp);
+  // no stairs: a ladder that way; then branch stairs, then the other way
+  const ladder = (dirUp: boolean): { x: number; y: number } | null =>
+    findTerrain(level, dirUp ? T.ladder_up : T.ladder_down);
+  return find(up) ?? ladder(up) ?? level.branch?.pos ?? find(!up) ?? ladder(!up);
+}
+
+/**
+ * The dungeon is entered at its last level (Sokoban): its levels build upward.
+ * ref: src/dungeon.c builds_up() (no single-level branches)
+ */
+function buildsUp(ctx: Pick<Ctx, 'state'>, levelId: string): boolean {
+  const level = ctx.state.levels[levelId];
+  const d = level ? ctx.state.dungeons.find((x) => x.id === level.dungeon) : undefined;
+  if (!d || d.levels === null || d.levels <= 1) return false;
+  return (d.entry ?? 1) === d.levels;
+}

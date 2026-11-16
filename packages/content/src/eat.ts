@@ -2,6 +2,7 @@
 // ref: src/eat.c doeat(), start_eating(), eatfood(), done_eating(), bite(), choke(),
 // rottenfood(), eatcorpse(), cprefx()/cpostfx(), fprefx()/fpostfx(); shop food: touchfood()'s
 // costly_alteration(COST_BITE), useupf()
+import { ucreamed } from './creamed';
 import { apAsThing } from './mimicstate';
 import { engulferOf } from './engulfstate';
 import {
@@ -731,8 +732,8 @@ function fpostfx(ctx: Ctx, e: Entity): void {
     say(ctx, 'eat.sinister_laughter');
     nomulNow(ctx, 20 + ctx.rng.rn2(11), 'helpless.asleep', { key: 'eat.wake_up' }); // rn1(11, 20)
   }
-  // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (never creamed: cures it)
-  if (e.def === 'nh:carrot') makeBlinded(ctx, 0, true);
+  // ref: fpostfx() CARROT: make_blinded((long) u.ucreamed, TRUE) (the goop stays)
+  if (e.def === 'nh:carrot') makeBlinded(ctx, ucreamed(ctx.state), true);
   if (e.def === 'nh:lump_of_royal_jelly') royalJelly(ctx, e.c.item?.buc === 'cursed');
 }
 

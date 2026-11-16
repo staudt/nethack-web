@@ -2,6 +2,7 @@
 // throwing (ammo, launchers, breaking).
 // ref: src/mthrowu.c thitu(), drop_throw(), monmulti(), monshoot(), ohitmon(), m_throw(), thrwmu(),
 // linedup(); src/weapon.c select_rwep(); src/dothrow.c should_mulch_missile(), omon_adj()
+import { addUcreamed } from './creamed';
 import { monHatesSilver } from './chamstate';
 import { isSwallowed } from './engulfstate';
 import {
@@ -58,6 +59,7 @@ import { isShade, shadeMiss } from './shade';
 import { potionhit } from './potionhit';
 
 const BLINDING_VENOM: DefId = 'nh:splash_of_blinding_venom';
+const CREAM_PIE: DefId = 'nh:cream_pie';
 const ACID_VENOM: DefId = 'nh:splash_of_acid_venom';
 
 /** ref: include/hack.h BOLT_LIM */
@@ -206,7 +208,7 @@ const ordKey = (i: number): { key: string } => ({ key: `throw.ord.${i}` });
 
 /**
  * The missile stops and lands (or breaks). ref: src/mthrowu.c drop_throw(): after a hit it
- * breaks per should_mulch_missile(); venom always breaks (eggs and pies do not exist here); a
+ * breaks per should_mulch_missile(); venom and cream pies always break (no eggs are thrown); a
  * boulder fills a pit or hole there (flooreffects(); `monMoving` is C's context.mon_moving, false
  * only for a rolling boulder the hero set off); into water or lava (flooreffects()). Not ported:
  * shipping down stairs and holes, passive_obj().
@@ -222,8 +224,12 @@ function dropThrow(
 ) {
   const obj = ctx.state.entities[String(objId)];
   if (!obj?.c.item) return;
-  // venom always breaks
-  if (ctx.defs.object(obj.def).class === 'venom' || (ohit && shouldMulchMissile(ctx, obj, true)))
+  // venom and cream pies always break
+  if (
+    ctx.defs.object(obj.def).class === 'venom' ||
+    obj.def === CREAM_PIE ||
+    (ohit && shouldMulchMissile(ctx, obj, true))
+  )
     ctx.remove(objId);
   else if (level === ctx.state.currentLevel && flooreffects(ctx, obj, x, y, 'fall', { monMoving }))
     return;
@@ -308,7 +314,10 @@ export function ohitmon(
     hp.cur >= 1 &&
     canBlnd(ctx, null, mon, obj.def === BLINDING_VENOM ? 'spit' : 'weapon', obj)
   ) {
-    if (vis && mcansee(ctx, monId)) say(ctx, 'mthrow.mon_blinded_venom', { mon: monNam(ctx, mon) });
+    if (vis && mcansee(ctx, monId))
+      say(ctx, obj.def === CREAM_PIE ? 'mthrow.mon_blinded_pie' : 'mthrow.mon_blinded_venom', {
+        mon: monNam(ctx, mon),
+      });
     setMblinded(ctx, monId, mblinded(ctx, monId) + ctx.rng.rnd(25) + 20);
   }
   if (!hp || hp.cur < 1) {
@@ -441,7 +450,7 @@ function mThrow(
         return;
       }
       let hit: boolean;
-      if (obj.def === BLINDING_VENOM) {
+      if (obj.def === BLINDING_VENOM || obj.def === CREAM_PIE) {
         hit = thitu(ctx, 8, 0, obj, nth);
       } else {
         // ref: m_throw(): to-hit is 8 + spe + 3 - distance (at least -4) (+1 for big heroes:
@@ -460,13 +469,16 @@ function mThrow(
       let blindinc = 0;
       if (hit && canBlnd(ctx, null, hero, obj.def === BLINDING_VENOM ? 'spit' : 'weapon', obj)) {
         blindinc = ctx.rng.rnd(25);
+        if (obj.def === CREAM_PIE)
+          say(ctx, hasProp(hero, P.BLINDED) ? 'mthrow.sticky_face' : 'mthrow.creamed');
         // venom in the eyes
-        say(ctx, hasProp(hero, P.BLINDED) ? 'mthrow.eyes_sting' : 'mthrow.venom_blinds');
+        else say(ctx, hasProp(hero, P.BLINDED) ? 'mthrow.eyes_sting' : 'mthrow.venom_blinds');
       }
       if (hit) {
         dropThrow(ctx, objId, true, level, hpos.x, hpos.y);
         if (blindinc) {
-          // (at the end of m_throw(); u.ucreamed is not kept)
+          // (at the end of m_throw())
+          addUcreamed(ctx.state, blindinc);
           makeBlinded(ctx, timeoutLeft(ctx.state, hero, P.BLINDED) + blindinc, false);
           if (!hasProp(hero, P.BLINDED)) say(ctx, 'mthrow.vision_clears');
         }
@@ -583,8 +595,8 @@ export const MON_POLE_DIST = 5;
  * could see: the caller's test), which it must wield (it is its own propellor; strong monsters
  * without a shield only for the two-handed ones, not a welded other weapon); then the first of
  * rwep[] it carries whose launcher (if any) it also has; sling stones before darts. A
- * silver-hater picks no silver polearm. Not ported: throw-and-return aklys (monsters never
- * throw them), boulders, cockatrice eggs and cream pies, artifacts.
+ * silver-hater picks no silver polearm. A Kop's cream pies come first. Not ported:
+ * throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs, artifacts.
  */
 export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): RangedChoice {
   const mon = ctx.state.entities[String(monId)];
@@ -596,6 +608,12 @@ export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): Ranged
   const mwep = monWep(ctx, monId);
   const weldedWep = mwep?.c.item?.buc === 'cursed';
   const noWeaponWanted = monFlag(ctx, 'nowep', monId);
+
+  // pies are first choice for Kops
+  if (mdef.glyph.ch === 'K') {
+    const pie = find(CREAM_PIE);
+    if (pie) return { obj: pie, propellor: null };
+  }
 
   // "Select polearms first; they do more damage and aren't expendable. But don't pick one if
   // monster's weapon is welded, because then we'd never have a chance to throw non-wielding

@@ -543,13 +543,35 @@ describe('robbing a real Minetown shop', () => {
     const keys = msgKeys(r.events);
     expect(keys.slice(0, 3)).toEqual(['shk.escaped', 'shk.stole', 'shk.alarm']);
     expect(keys).not.toContain('shk.no_one_responds');
+    // she stepped out of the door: the Keystone Kops appear around her
+    expect(keys).toContain('kops.appear');
+    const isKop = (id: number): boolean =>
+      state.entities[String(id)]?.c.monster !== undefined &&
+      defs.isMonster(state.entities[String(id)]?.def ?? ('' as never)) &&
+      defs.monster(state.entities[String(id)]!.def).glyph.ch === 'K';
+    const kops = (): number[] =>
+      sortedIds(state).filter(
+        (id) => isKop(id) && state.entities[String(id)]?.c.pos?.level === level.id,
+      );
+    expect(kops().length).toBeGreaterThan(2);
     expect(e).toMatchObject({ robbed: price, following: true, bill: [] });
     expect(candle.c.item?.unpaid).toBeUndefined();
     expect(shkMon.c.monster?.peaceful).toBe(false);
     const guards = watch(state, level.id);
     expect(guards.length).toBeGreaterThan(0);
     for (const g of guards) expect(g?.c.monster?.peaceful).toBe(false);
-    // he catches up with her outside: next to her, not in his shop
+    // he catches up with her outside: next to her, not in his shop (a Kop there makes room)
+    const kopAt = (p: Pos): number | undefined =>
+      kops().find((id) => {
+        const q = state.entities[String(id)]?.c.pos;
+        return q?.x === p.x && q.y === p.y;
+      });
+    for (const p of [-1, 0, 1].flatMap((dx) =>
+      [-1, 0, 1].map((dy) => ({ x: out.x + dx, y: out.y + dy })),
+    )) {
+      const k = kopAt(p);
+      if (k !== undefined) removeMon(state, k);
+    }
     const near = [-1, 0, 1]
       .flatMap((dx) => [-1, 0, 1].map((dy) => ({ x: out.x + dx, y: out.y + dy })))
       .find((p) => {
@@ -562,6 +584,10 @@ describe('robbing a real Minetown shop', () => {
     Object.assign(shkMon.c.pos, near);
     const paid = payOff(state, price);
     expect(paid.slice(0, 3)).toEqual(['pay.after_blood', 'pay.robbed_recently', 'pay.compensate']);
+    // paid off: the Kops vanish ("The Kops (disappointed) vanish into thin air." for those she sees)
+    expect(kops()).toEqual([]);
+    for (const k of paid.filter((x) => x.startsWith('kops.')))
+      expect(['kops.vanish', 'kops.vanish_one']).toContain(k);
     expect(shkMon.c.monster?.peaceful).toBe(true);
     expect(shkMon.c.pos).toMatchObject({ level: level.id, ...shk });
     expect(e).toMatchObject({ robbed: 0, following: false });

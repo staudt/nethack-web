@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-188 NetHack files, 5133 citations.
+188 NetHack files, 5157 citations.
 
 ## dat/asmodeus.lua
 
@@ -752,6 +752,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `splash_lit()`: `packages/content/src/erode.en.ts`, `packages/content/src/water.ts`
 - `um_dist()`: `packages/content/src/shkpay.ts`
 - `unfixable_trouble_count()`: `packages/content/src/potion.ts`
+- `use_cream_pie()`: `packages/content/src/creampie.en.ts`, `packages/content/src/creampie.ts`
 - `use_figurine()`: `packages/content/src/figurine.en.ts`, `packages/content/src/figurine.ts`
 - `use_lamp()`: `packages/content/src/light.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
@@ -950,6 +951,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dodrop()`: `packages/content/src/itemactions.ts`
 - `dotrap()`: `packages/content/src/trap.ts`
 - `doup()`: `packages/content/src/actions.ts`
+- `dowipe()`: `packages/content/src/creampie.ts`
 - `drop()`: `packages/content/src/itemactions.ts`
 - `dropx()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `dropy()`: `packages/content/src/itemactions.ts`
@@ -973,6 +975,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `u_stuck_cannot_go()`: `packages/content/src/actions.ts`
 - `uescaped_shaft()`: `packages/content/src/trap.ts`
 - `uteetering_at_seen_pit()`: `packages/content/src/trap.ts`
+- `wipeoff()`: `packages/content/src/creampie.ts`
 
 ## src/do_name.c
 
@@ -1143,7 +1146,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Is_special()`: `packages/content/src/levelflags.ts`
 - `Is_stronghold()`: `packages/content/src/levelflags.ts`
 - `On_W_tower_level()`: `packages/content/src/levelflags.ts`
-- `builds_up()`: `packages/content/src/covetous.ts`
+- `builds_up()`: `packages/content/src/ladder.ts`
 - `chr_u_on_lvl()`: `packages/content/src/wizard/where.ts`
 - `correct_branch_type()`: `packages/core/src/dungeon.ts`
 - `deepest_lev_reached()`: `packages/content/src/urexp.ts`
@@ -1812,7 +1815,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_allowflags()`: `packages/content/src/monmove.ts`
 - `mon_animal_list()`: `packages/content/src/newcham.ts`
 - `mon_to_stone()`: `packages/content/src/golem.en.ts`, `packages/content/src/newcham.ts`, `packages/content/src/stoning.ts`
-- `mondead()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
+- `mondead()`: `packages/content/src/kops.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/werestate.ts`
 - `mondied()`: `packages/content/src/mondeath.ts`
 - `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
 - `monkilled()`: `packages/content/src/golem.en.ts`, `packages/content/src/mondeath.ts`
@@ -2359,7 +2362,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `billable()`: `packages/content/src/shk.ts`
 - `bp_to_obj()`: `packages/content/src/shk.ts`
 - `cad()`: `packages/content/src/shkpay.ts`
-- `call_kops()`: `packages/content/src/shk.ts`
+- `call_kops()`: `packages/content/src/kops.ts`, `packages/content/src/shk.ts`
 - `check_credit()`: `packages/content/src/shk.ts`
 - `check_unpaid()`: `packages/content/src/shk.ts`
 - `check_unpaid_usage()`: `packages/content/src/shk.ts`
@@ -2395,12 +2398,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `inside_shop()`: `packages/content/src/eshk.ts`
 - `insufficient_funds()`: `packages/content/src/pay.ts`
 - `is_unpaid()`: `packages/content/src/price.ts`
+- `kops_gone()`: `packages/content/src/kops.ts`
 - `litter_getpos()`: `packages/content/src/shkdamage.ts`
 - `litter_scatter()`: `packages/content/src/shkdamage.ts`
 - `make_angry_shk()`: `packages/content/src/shk.ts`
 - `make_happy_shk()`: `packages/content/src/shk.ts`
 - `make_happy_shoppers()`: `packages/content/src/shk.ts`
 - `make_itemized_bill()`: `packages/content/src/pay.ts`
+- `makekops()`: `packages/content/src/kops.ts`
 - `mnearto()`: `packages/content/src/shk.ts`
 - `money2mon()`: `packages/content/src/money.ts`
 - `money2u()`: `packages/content/src/money.ts`
@@ -2596,6 +2601,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/stairs.c
 
 - `stairway_at()`: `packages/content/src/actions.ts`
+- `stairway_find_type_dir()`: `packages/content/src/ladder.ts`
 - `u_on_sstairs()`: `packages/content/src/actions.ts`
 
 ## src/steal.c
@@ -2663,7 +2669,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lantern_message()`: `packages/content/src/light.ts`
 - `learn_egg_type()`: `packages/content/src/eggstate.ts`
 - `levitation_dialogue()`: `packages/content/src/levitation.ts`
-- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/fumble.en.ts`, `packages/content/src/fumble.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/levitation.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.ts`, `packages/content/src/stoning.ts`
+- `nh_timeout()`: `packages/content/src/cast.ts`, `packages/content/src/creamed.ts`, `packages/content/src/fumble.en.ts`, `packages/content/src/fumble.ts`, `packages/content/src/gem.ts`, `packages/content/src/hunger.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/levitation.ts`, `packages/content/src/luck.ts`, `packages/content/src/polyself.ts`, `packages/content/src/props.ts`, `packages/content/src/resist.en.ts`, `packages/content/src/slime.ts`, `packages/content/src/stoning.ts`
 - `set_itimeout()`: `packages/content/src/props.ts`
 - `slime_dialogue()`: `packages/content/src/slime.ts`
 - `slimed_to_death()`: `packages/content/src/slime.ts`
@@ -2955,7 +2961,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/wizard.c
 
 - `aggravate()`: `packages/content/src/mstate.ts`
-- `choose_stairs()`: `packages/content/src/covetous.ts`
+- `choose_stairs()`: `packages/content/src/covetous.ts`, `packages/content/src/ladder.ts`
 - `clonewiz()`: `packages/content/src/nasty.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`

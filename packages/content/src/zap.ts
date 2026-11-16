@@ -1079,6 +1079,12 @@ export function bhito(
         learnIt = true;
         break;
       }
+      if (obj.def === 'nh:cream_pie') {
+        if (cansee(ctx, x, y)) say(ctx, 'throw.what_a_mess'); // breakmsg()
+        ctx.remove(obj.id);
+        learnIt = true;
+        break;
+      }
       if (cansee(ctx, x, y))
         say(ctx, it && it.quantity !== 1 ? 'kick.shatter' : 'kick.shatters', {
           item: xnameOf(ctx.state, ctx.defs, obj),

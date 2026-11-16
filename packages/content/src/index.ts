@@ -71,6 +71,7 @@ import { registerDowear } from './dowear';
 import { registerAutosearch } from './actions';
 import { WAND_ZAPS, ZAP_ACTIONS } from './zap';
 import { APPLY_ACTIONS } from './apply';
+import { WIPE_ACTIONS } from './creampie';
 import { DIG_ACTIONS } from './dig';
 import { LOOT_ACTIONS } from './container';
 import { FORCE_ACTIONS } from './force';
@@ -118,6 +119,7 @@ export const vanillaMod: Mod = {
     for (const a of ZAP_ACTIONS) api.defineAction(a);
     api.defineAction(teleAction); // the controlled teleport prompts' answers
     for (const a of APPLY_ACTIONS) api.defineAction(a);
+    for (const a of WIPE_ACTIONS) api.defineAction(a);
     for (const a of DIG_ACTIONS) api.defineAction(a);
     for (const a of LOOT_ACTIONS) api.defineAction(a);
     for (const a of FORCE_ACTIONS) api.defineAction(a);
@@ -710,6 +712,9 @@ export { BOULDER, boulderAt, blockersOf } from './boulder';
 export { moverock, couldMoveOntoBoulder } from './moverock';
 export { newcham, polyok } from './newcham';
 export { decideToShapeshift, vamprises, vampStone } from './shapeshift';
+export { callKops, kopsGone, makekops } from './kops';
+export { WIPE_ID, useCreamPie } from './creampie';
+export { ucreamed } from './creamed';
 export { chamOf, isVampshifter } from './chamstate';
 export { polyObj } from './polyobj';
 export { polyself, polymon, newman, rehumanize, youWere, POLYSELF_ID } from './polyself';

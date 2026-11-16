@@ -30,6 +30,9 @@ export const mthrowuMessagesEn: Record<string, string> = {
   'mthrow.acid_burns_mon': 'The acid burns {mon|the}!',
   'mthrow.mon_blinded_venom': '{mon|The} is blinded by the venom.',
   'mthrow.venom_blinds': 'The venom blinds you.',
+  'mthrow.mon_blinded_pie': '{mon|The} is blinded by the pie.',
+  'mthrow.creamed': "Yecch!  You've been creamed.",
+  'mthrow.sticky_face': "There's something sticky all over your face.",
   'mthrow.eyes_sting': 'Your eyes sting.',
   'mthrow.vision_clears': 'Your vision quickly clears.',
   // breamm(), spitmm()

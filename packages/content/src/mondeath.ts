@@ -44,6 +44,14 @@ export function mlifesaver(ctx: Ctx, mon: Entity): Entity | null {
   return amu?.def === AMULET_OF_LIFE_SAVING ? amu : null;
 }
 
+type KopReturns = (ctx: Ctx, mon: Entity) => void;
+let kopReturnsFn: KopReturns | null = null;
+
+/** kops.ts hands down mondead()'s "Dead Kops may come back." (it sits above this module). */
+export function setKopReturns(fn: KopReturns): void {
+  kopReturnsFn = fn;
+}
+
 /** vamprises(): null when it did not rise, else whether its rising was told (gv.vamp_rise_msg) */
 type VampRises = (ctx: Ctx, mon: Entity) => { msg: boolean } | null;
 let vampRisesFn: VampRises | null = null;
@@ -199,6 +207,7 @@ export function monsterDied(
   forgetUnseenAt(ctx, at);
   shkgone(ctx, monId); // ref: m_detach()
   countKill(ctx, e.def); // ref: mondead(): mvitals[].died++
+  kopReturnsFn?.(ctx, e); // ref: mondead(): S_KOP
   forgetMonster(ctx, monId);
   forgetMState(ctx, monId);
   ctx.remove(monId);
@@ -365,6 +374,7 @@ export function mondead(ctx: Ctx, id: EntityId): void {
   forgetUnseenAt(ctx, at);
   shkgone(ctx, id); // ref: m_detach()
   countKill(ctx, mon.def); // ref: mondead(): mvitals[].died++
+  kopReturnsFn?.(ctx, mon); // ref: mondead(): S_KOP
   forgetMonster(ctx, id);
   forgetMState(ctx, id);
   ctx.remove(id);

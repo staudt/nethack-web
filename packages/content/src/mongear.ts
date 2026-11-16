@@ -238,7 +238,7 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
 /**
  * The starting weapons and armor of an armed monster.
  * ref: src/makemon.c m_initweap(), for the roster's kobolds, gnomes, hobbit, orcs, dwarf,
- * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch and the demons (the
+ * giants and ettins, elves, centaurs, ogres, trolls, soldiers, the Watch, the Kops and the demons (the
  * balrog's, Orcus's, the horned devil's, Dispater's and Yeenoghu's own, then S_DEMON falls through
  * to the general case). Objects missing from the object table (a mod
  * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
@@ -377,6 +377,10 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     }
   } else if (ch === 'k') {
     if (rng.rn2(4) === 0) mInitThrow(ctx, monId, 'nh:dart', 12);
+  } else if (ch === 'K') {
+    // ref: m_initweap() S_KOP: "create Keystone Kops with cream pies to throw"
+    if (!rng.rn2(4)) mInitThrow(ctx, monId, 'nh:cream_pie', 2);
+    if (!rng.rn2(3)) mongets(ctx, monId, rng.rn2(2) ? 'nh:club' : 'nh:rubber_hose');
   } else if (ch === 'W') {
     // ref: m_initweap() S_WRAITH (the armed barrow wight and the Nazgul)
     mongets(ctx, monId, 'nh:knife');

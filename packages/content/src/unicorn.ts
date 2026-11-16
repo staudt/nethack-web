@@ -5,8 +5,8 @@
 // ref: src/apply.c use_unicorn_horn(); src/dothrow.c thitmonst() GEM_CLASS branch, gem_accept()
 //
 // Not ported (see DEVIATIONS.md "Unicorns"): deafness (a cursed horn's seventh effect says
-// "Nothing seems to happen."; deafness is never a trouble to fix), cream on the face
-// (u.ucreamed), pets and monsters using horns, a polymorphed hero's own horn.
+// "Nothing seems to happen."; deafness is never a trouble to fix), pets and monsters using horns, a polymorphed hero's own horn.
+import { ucreamed } from './creamed';
 import { getPlayer, type Ctx, type Entity, type Msg } from '@nh/core';
 import { uShops } from './eshk';
 import { uswallow } from './engulfstate';
@@ -115,13 +115,18 @@ export function useUnicornHorn(ctx: Ctx, obj: Entity): void {
   // collect property troubles
   const troubles: Trouble[] = [];
   if (hungerData(ctx).sick) troubles.push('sick');
-  // blindness from an engulfer's blinding engulf stays (no cream: u.ucreamed is 0)
+  // blindness from the cream on her face or an engulfer's blinding engulf stays
   const sw = uswallow(ctx);
   const engulfer = sw ? ctx.state.entities[String(sw.mon)] : undefined;
   const blindEngulf =
     engulfer !== undefined &&
     ctx.defs.monster(engulfer.def).attacks.some((a) => a.at === 'engulf' && a.ad === 'blnd');
-  if (timedOnly(ctx, P.BLINDED) && !blindEngulf) troubles.push('blinded');
+  if (
+    timedOnly(ctx, P.BLINDED) &&
+    timeoutLeft(ctx.state, getPlayer(ctx.state), P.BLINDED) > ucreamed(ctx.state) &&
+    !blindEngulf
+  )
+    troubles.push('blinded');
   if (timedOnly(ctx, P.HALLUC)) troubles.push('halluc');
   if (hungerData(ctx).vomiting > 0) troubles.push('vomiting');
   if (timedOnly(ctx, P.CONFUSION)) troubles.push('confusion');
@@ -143,7 +148,7 @@ export function useUnicornHorn(ctx: Ctx, obj: Entity): void {
         makeSick(ctx, 0, '', true, SICK_ALL);
         break;
       case 'blinded':
-        makeBlinded(ctx, 0, true); // make_blinded((long) u.ucreamed, TRUE)
+        makeBlinded(ctx, ucreamed(ctx.state), true);
         break;
       case 'halluc':
         makeHallucinated(ctx, 0, true);

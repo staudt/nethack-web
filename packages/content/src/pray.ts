@@ -5,6 +5,7 @@
 //
 // The Valkyrie prays to her own god (Odin, neutral) unless she stands on an altar: then she
 // prays to the altar's god (p_aligntyp), with the cross-aligned, water and Moloch branches.
+import { setUcreamed } from './creamed';
 import { isStoned, makeStoned } from './stonestate';
 import { isSlimed, makeSlimed } from './slimestate';
 import { uswallow } from './engulfstate';
@@ -342,6 +343,7 @@ function fixWorstTrouble(ctx: Ctx, trouble: number): void {
     }
     case TROUBLE_BLIND:
       say(ctx, 'pray.eyes_better');
+      setUcreamed(ctx.state, 0);
       makeBlinded(ctx, 0, false);
       break;
     case TROUBLE_POISONED:
@@ -655,6 +657,7 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
       if (restoreAttr(ctx, 'str')) encumberMsg(ctx);
       if ((her.c.hunger?.nutrition ?? 900) < 900) initUhunger(ctx);
       if (uState(ctx.state).luck < 0) setU(ctx, { luck: 0 });
+      setUcreamed(ctx.state, 0);
       makeBlinded(ctx, 0, true);
       break;
     }

@@ -9,6 +9,7 @@
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
 import { isVampshifter } from './chamstate';
+import { ucreamed } from './creamed';
 import { loseAbon } from './dowear';
 import {
   getPlayer,
@@ -105,7 +106,7 @@ import { heroForm, heroFormId, rehumanize } from './upoly';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { golemeffects } from './golemfx';
 import { hasHead, noncorporeal, nonliving, sticks } from './mondata';
-import { engulfingU, flaming } from './engulfstate';
+import { engulfingU, flaming, uswallow } from './engulfstate';
 import { isSlimed, makeSlimed, munslime, slimeproof } from './slimestate';
 import {
   fleshPetrifies,
@@ -347,7 +348,7 @@ function sleepMonst(ctx: Ctx, mdef: Entity, amt: number): boolean {
 }
 
 /** ref: include/mondata.h haseyes() */
-const haseyes = (ctx: Ctx, mon: Entity): boolean =>
+export const haseyes = (ctx: Ctx, mon: Entity): boolean =>
   mon.id === ctx.state.playerId
     ? !heroForm(ctx)?.flags.includes('noeyes')
     : !ctx.defs.monster(mon.def).flags.includes('noeyes');
@@ -373,8 +374,8 @@ export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
 
 /**
  * Whether the attack of `magr` (null: no specific aggressor) of type `aatyp` can blind `mdef`.
- * `obj`: the object thrown or spat (blinding venom). ref: src/mondata.c can_blnd(). Not ported:
- * cream pies (no `u.ucreamed`), potions of blindness, visored helmets (helmet appearances are not shuffled here, so no helmet
+ * `obj`: the object thrown or spat (blinding venom, a cream pie). ref: src/mondata.c can_blnd().
+ * Not ported: potions of blindness, visored helmets (helmet appearances are not shuffled here, so no helmet
  * is a "visored helmet").
  */
 export function canBlnd(
@@ -407,12 +408,18 @@ export function canBlnd(
     case 'spit':
     case 'passive':
       // an object is used (thrown/spit/other)
-      if (obj?.def !== 'nh:splash_of_blinding_venom') return false; // other objects cannot cause blindness yet
-      // all ublindf, including lenses, protect (no u.ucreamed; no visored helmet: see above)
-      if (isYou && ublindf) return false;
+      if (obj?.def === 'nh:cream_pie') {
+        if (isYou && ublindf && whichArmor(ctx, mdef.id, 'blindfold')?.def !== 'nh:lenses')
+          return false; // Blindfolded
+      } else if (obj?.def === 'nh:splash_of_blinding_venom') {
+        // all ublindf, including lenses, protect, cream-pies too (no visored helmet: see above)
+        if (isYou && (ublindf || ucreamed(ctx.state))) return false;
+      } else return false; // other objects cannot cause blindness yet
+      // can't affect eyes while inside monster
+      if (magr?.id === ctx.state.playerId && uswallow(ctx)) return false;
       break;
     case 'engulf':
-      if (isYou && (ublindf || unaware(ctx))) return false;
+      if (isYou && (ublindf || unaware(ctx) || ucreamed(ctx.state))) return false;
       if (!isYou && mdef.c.monster?.asleep) return false;
       break;
     case 'claw':

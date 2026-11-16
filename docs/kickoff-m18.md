@@ -38,4 +38,11 @@ The beholder and the vampire mage (not in 5.0), Vlad the Impaler and his Tower, 
 
 ## Status
 
-(Filled in by the last step.)
+Six of the seven steps built on branch `m18` (off `m17`), one commit each. The budget cut step 7 (Angels and minions) whole and the second half of step 5 (the salamander, steam and fire vortices and the disenchanter): both are in ROADMAP "From m18" ("m18 leftovers"), with what each step left out; the deviations from the plan are in its "Changes during work".
+
+- **Step 1 (20b4cd4), birth counts and extinction:** `mvitals[].born`, `propagate()`, `mbirth_limit()`, G_EXTINCT at every site C reads it, `unmakemon()`, the MM_NOCOUNTBIRTH callers, the "(extinct)" lines, `wiz:born`. Golden 079b7c82b915ef1a0a1d207c44c0 -> 08ef4d89dfeda20181b38a23f2c0, 667 actions (the counts are state; the old hash with them not written).
+- **Step 2 (24e258a), vampires and the shapeshifter core:** the vampire and vampire lord, the `cham` table, the birth shift, `decide_to_shapeshift()`, bat, fog and wolf forms, rising again, fog under doors, MS_VAMPIRE, the scripts' vampires, the grown-up table fixed to the row ids. Golden unchanged.
+- **Step 3 (45c416e), chameleons, doppelgangers, sandestins:** `select_newcham_form()` whole, the ring of protection from shape changers, eating shapeshifters, `soak.shapeshift`. Golden 08ef4d89dfeda20181b38a23f2c0 -> 01763c195a345513c28d6e4f4f98 (the ring in the shuffle; the old hash with its row filtered).
+- **Step 4 (e7a702f), the remaining demons:** fourteen rows with their gear, the erinyes' rules and `summon_furies()`, Geryon's and Dispater's bribes, the in_mklev sleep. Golden unchanged.
+- **Step 5 (24c7217), seduction:** the amorous demon's gender (succubus or incubus), `doseduce()` whole with its yes/no questions (they can be pending in the middle of the monsters' turn, as the vault guard's), its outcomes and fee. Golden unchanged.
+- **Step 6, Keystone Kops and cream pies; the docs:** the four Kop rows, core `MonsterSound` 'arrest', `call_kops()`, `makekops()`, `kops_gone()`, the dead Kop's return, their gear and arrest lines; the cream pie (C's prob 25) thrown, applied, sat on and eaten, `u.ucreamed`, #wipe. Golden unchanged: 01763c195a345513c28d6e4f4f98/667 (its 400 turns never roll the pie's slot; also with the pie's probability 0).
