@@ -13,6 +13,7 @@ export type {
 export { runReplay, recordGame } from './replay';
 export type { ReplayResult } from './replay';
 export {
+  ARTIFACT_BASES,
   boulderCells,
   boulderMoveErrors,
   checkInvariants,

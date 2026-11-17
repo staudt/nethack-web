@@ -1473,6 +1473,9 @@ export const objectMessagesEn: Record<string, string> = {
   'obj.alternate': ' (alternate weapon; not wielded)',
   'obj.alternate.plural': ' (alternate weapons; not wielded)',
   'obj.called': '{pre} called {name}',
+  // a personal name (xname() " named "); an artifact known by its name alone (obj_is_pname())
+  'obj.named': '{name} named {oname}',
+  'obj.pname': '{name}',
   'obj.generic.potion': 'potion',
   'obj.generic.potion.plural': 'potions',
   'obj.generic.scroll': 'scroll',

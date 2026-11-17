@@ -191,6 +191,9 @@ export const itemMessagesEn: Record<string, string> = {
   // discoveries
   'disco.title': 'Discoveries, by object order',
   'disco.none': "You haven't discovered anything yet...",
+  'disco.class.artifacts': 'Artifacts',
+  'disco.arti.entry': '  {name} [{align} {type}]',
+  'disco.arti.nonaligned': 'non-aligned',
   'disco.class.weapon': 'Weapons',
   'disco.class.armor': 'Armor',
   'disco.class.food': 'Comestibles',

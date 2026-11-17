@@ -36,6 +36,7 @@ import { MAX_OIL_IN_FLASK, POT_OIL } from './dilute';
 import { TIN, setTinVariety } from './tins';
 import { isCandle, mergeBurn, splitBurn } from './burnstate';
 import { roleIs } from './urole';
+import { mkArtifactConvert, nartifactExist, onameItem } from './artistate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -78,14 +79,16 @@ export type InitDef = Pick<
  * A small fraction of new weapons and armor are made eroded or erodeproof.
  * ref: src/mkobj.c mkobj_erosions(), may_generate_eroded(). The objects that may not be eroded
  * are those that cannot erode (erosion_matters(), is_damageable()) and the hero's starting
- * inventory (`moves <= 1 && !in_mklev`, passed in by the caller), worm teeth and unicorn horns;
- * artifacts do not exist. Grease is not ported: its 1 in 1000 roll is made.
+ * inventory (`moves <= 1 && !in_mklev`, passed in by the caller), worm teeth and unicorn horns,
+ * and artifacts. Grease is not ported: its 1 in 1000 roll is made.
  */
 export function mkobjErosions(rng: Rng, def: InitDef, it: ItemComponent): void {
   const d = def as ObjectDef;
   if (it.erodeproof || !erosionMatters(d) || !isDamageable(d)) return;
   // part of a monster's body and produced when it dies
   if (d.id === 'nh:unicorn_horn' || d.id === 'nh:worm_tooth') return;
+  // artifacts cannot be generated eroded
+  if (it.artifact !== undefined) return;
   if (!rng.rn2(100)) {
     it.erodeproof = true;
   } else {
@@ -132,7 +135,7 @@ const lacqueredForSamurai = (state: Readonly<GameState>, id: string): boolean =>
  * Random initialization of an object's BUC, enchantment, quantity and erosion.
  * ref: src/mkobj.c mksobj_init() for every class of the subset, ending with mkobj_erosions()
  * (`erode` false for the hero's starting inventory). Simplified: poisonable weapons roll for
- * poison but are never poisoned, no artifacts; food has no corpse/slime-mold special cases
+ * poison but are never poisoned; food has no corpse/slime-mold special cases
  * (the corpse is made through mkcorpse(), which supplies the monster; mksobj() rolls the egg's
  * monster and the tin's contents first).
  */
@@ -160,8 +163,9 @@ export function mksobjInit(
       } else blessorcurse(rng, it, 10);
       // is_poisonable(): the roll is made, but poison is not ported (see DEVIATIONS.md)
       if (multigen) rng.rn2(100);
-      // ref: mksobj_init(): `artif && !rn2(20 + 10 * nartifact_exist())`; no artifacts exist
-      if (artif) rng.rn2(20);
+      // ref: mksobj_init(): mk_artifact() with otmp and A_NONE
+      if (artif && !rng.rn2(20 + 10 * nartifactExist(ctx.state)))
+        mkArtifactConvert(ctx, def.id, it, true);
       break;
     }
     case 'gem':
@@ -190,7 +194,9 @@ export function mksobjInit(
         it.buc = rng.rn2(2) === 0 ? 'uncursed' : 'blessed';
         it.spe = rne(rng, 3, lvl);
       } else blessorcurse(rng, it, 10);
-      if (artif) rng.rn2(40); // ref: `artif && !rn2(40 + 10 * nartifact_exist())`
+      // ref: mksobj_init(): mk_artifact() with otmp and A_NONE
+      if (artif && !rng.rn2(40 + 10 * nartifactExist(ctx.state)))
+        mkArtifactConvert(ctx, def.id, it, true);
       // simulate lacquered armor for samurai (mksobj() marks it rknown); no quest
       if (lacqueredForSamurai(ctx.state, def.id)) it.erodeproof = true;
       break;
@@ -294,7 +300,7 @@ export interface MksobjOpts {
   corpseOf?: DefId;
   /** The level whose difficulty a random monster (an egg's) follows; default `at`'s, else the hero's. */
   level?: LevelId;
-  /** mksobj's `artif`: rolls the artifact chance (the roll is made; no artifact results). */
+  /** mksobj's `artif`: weapons and armor may become a random artifact of their type. */
   artif?: boolean;
   /** The hero's starting inventory (`moves <= 1 && !in_mklev`): never made eroded. */
   initialInventory?: boolean;
@@ -517,8 +523,9 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
  * Candles merge only when their ages are close. Shop state must match (unpaid, no charge), and
  * unpaid stacks only merge at the same price on the same bill (`state` is needed for that; without
  * it unpaid stacks never merge). Eggs merge only with the same monster and no hatch timer.
- * Lit and unlit stacks never merge, nor do burning potions of oil.
- * Not ported: grease, names, artifacts, reviving corpses.
+ * Lit and unlit stacks never merge, nor do burning potions of oil. Two named objects merge
+ * only with the same name (a corpse also never with an unnamed one), and artifacts never.
+ * Not ported: grease, reviving corpses.
  */
 export function mergable(
   defs: Registry,
@@ -559,6 +566,16 @@ export function mergable(
   if (def.id === POT_OIL && b.lit) return false;
   // don't merge surcharged item with base-cost item
   if (b.unpaid && (!state || !samePrice({ state }, obj.id, into.id))) return false;
+  // if they have names, make sure they're the same
+  const an = a.name ?? '';
+  const bn = b.name ?? '';
+  if (
+    (an.length !== bn.length && ((an && bn) || def.id === 'nh:corpse')) ||
+    (an && bn && an !== bn)
+  )
+    return false;
+  // should be moot since matching artifacts wouldn't be unique
+  if (a.artifact !== b.artifact) return false;
   return true;
 }
 
@@ -568,7 +585,8 @@ export { isCandle } from './burnstate';
  * Merges `obj` into `into` if they are mergable, removing `obj`; returns whether it did.
  * ref: src/invent.c merged(). The age becomes the quantity-weighted average (so corpses
  * merge), known flags are ORed (with the "learn more by comparing" message when the hero
- * carries the stack and something was learned), and a worn `obj` passes its slot on.
+ * carries the stack and something was learned), a worn `obj` passes its slot on, and its name
+ * goes to an unnamed `into`.
  */
 export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
   if (!mergable(ctx.defs, into, obj, ctx.state)) return false;
@@ -582,6 +600,8 @@ export function merged(ctx: ItemCtx, into: Entity, obj: Entity): boolean {
       ((a.age ?? 0) * a.quantity + (b.age ?? 0) * b.quantity) / (a.quantity + b.quantity),
     );
   a.quantity += b.quantity;
+  // the merged stack takes the absorbed part's name when it has none
+  if (!a.name && b.name) onameItem(ctx, into.def, a, b.name);
   // obj_merge_light_sources(): the absorbed part's light and timer go; the target keeps its own
   if (b.lit) mergeBurn(ctx, obj.id);
   const isCoin = ctx.defs.object(into.def).class === 'coin';

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-193 NetHack files, 5624 citations.
+195 NetHack files, 5660 citations.
 
 ## dat/asmodeus.lua
 
@@ -239,6 +239,16 @@ whole. A missing function may still be ported under a citation this parser canno
 - `A_NONE()`: `packages/content/src/aligntyp.ts`
 - `Align2amask()`: `packages/content/src/mimic.ts`
 
+## include/artifact.h
+
+- (file): `packages/content/src/artilist.ts`
+- `SPFX_()`: `packages/content/src/artilist.ts`
+- `u_wield_art()`: `packages/content/src/artistate.ts`
+
+## include/artilist.h
+
+- (file): `packages/content/src/artilist.ts`
+
 ## include/attrib.h
 
 - (file): `packages/content/src/attrib.ts`, `packages/content/src/combat.ts`, `packages/content/src/roletab.ts`, `packages/core/src/types/entity.ts`
@@ -333,7 +343,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/artistate.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`, `packages/content/src/seduce.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 - `PL_PSIZ()`: `packages/content/src/call.ts`
@@ -408,6 +418,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/monattk.h
 
 - (file): `packages/core/src/types/mod.ts`
+- `AD_()`: `packages/content/src/artilist.ts`
 - `AD_MAGM()`: `packages/content/src/hero.ts`
 - `AT_()`: `packages/content/src/hero.ts`, `packages/core/src/types/mod.ts`
 
@@ -814,8 +825,23 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/artifact.c
 
+- `arti_cost()`: `packages/content/src/artistate.ts`
+- `artifact_exists()`: `packages/content/src/artistate.ts`
+- `artifact_name()`: `packages/content/src/artistate.ts`
+- `artifact_origin()`: `packages/content/src/artistate.ts`
 - `confers_luck()`: `packages/content/src/gem.ts`
+- `discover_artifact()`: `packages/content/src/artistate.ts`
+- `disp_artifact_discoveries()`: `packages/content/src/itemactions.ts`
+- `exist_artifact()`: `packages/content/src/artistate.ts`
+- `find_artifact()`: `packages/content/src/artistate.ts`
+- `found_artifact()`: `packages/content/src/artistate.ts`
+- `get_artifact()`: `packages/content/src/artistate.ts`
+- `hack_artifacts()`: `packages/content/src/artistate.ts`
+- `is_art()`: `packages/content/src/artistate.ts`
+- `mk_artifact()`: `packages/content/src/artistate.ts`
+- `nartifact_exist()`: `packages/content/src/artistate.ts`
 - `shade_glare()`: `packages/content/src/dmgval.ts`
+- `undiscovered_artifact()`: `packages/content/src/artistate.ts`
 
 ## src/attrib.c
 
@@ -1051,6 +1077,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mhim()`: `packages/content/src/read.ts`
 - `mon_nam()`: `packages/content/src/perception.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
+- `oname()`: `packages/content/src/artistate.ts`
 - `pmname()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
 - `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
@@ -1482,6 +1509,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/hacklib.c
 
+- (file): `packages/content/src/artistate.ts`
 - `dist2()`: `packages/content/src/mthrowu.ts`
 - `fuzzymatch()`: `packages/content/src/objnam_read.ts`
 - `isqrt()`: `packages/content/src/spellcalc.ts`
@@ -2166,7 +2194,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/objnam.c
 
-- (file): `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/artilist.ts`, `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Japanese_item_name()`: `packages/content/src/objnam.ts`
 - `Japanese_items()`: `packages/content/src/kittab.ts`, `packages/content/src/role.en.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
@@ -2175,6 +2203,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `armor_simple_name()`: `packages/content/src/objnam.ts`
 - `as_is()`: `packages/content/src/objnam_read.ts`
 - `badman()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
+- `bare_artifactname()`: `packages/content/src/artistate.ts`
 - `cloak_simple_name()`: `packages/content/src/breakarm.ts`, `packages/content/src/seffect.ts`
 - `compounds()`: `packages/content/src/objnam_read.ts`
 - `cxname_singular()`: `packages/content/src/revive.ts`
@@ -2189,7 +2218,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `makesingular()`: `packages/content/src/objnam_read.ts`
 - `mshot_xname()`: `packages/content/src/hmon.ts`
 - `no_man()`: `packages/content/src/objnam_read.ts`
-- `not_fully_identified()`: `packages/content/src/read.ts`
+- `not_fully_identified()`: `packages/content/src/objnam.ts`
+- `obj_is_pname()`: `packages/content/src/objnam.ts`
 - `obj_typename()`: `packages/content/src/objnam.ts`
 - `one_off()`: `packages/content/src/objnam_read.ts`
 - `otense()`: `packages/content/src/read.ts`, `packages/content/src/seffect.ts`
@@ -2202,6 +2232,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rnd_otyp_by_namedesc()`: `packages/content/src/objnam_read.ts`, `packages/content/src/wish.ts`
 - `shield_simple_name()`: `packages/content/src/seffect.ts`
 - `shiny_obj()`: `packages/content/src/orctown.ts`
+- `simple_typename()`: `packages/content/src/itemactions.ts`
 - `singplur_compound()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
 - `singplur_lookup()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
 - `special_subjs()`: `packages/content/src/objnam_read.ts`
@@ -2495,7 +2526,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `rigid_role_checks()`: `packages/app/src/character.ts`
 - `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/engine.ts`
 - `role_menu_extra()`: `packages/app/src/character.ts`
-- `roles()`: `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
+- `roles()`: `packages/content/src/artilist.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
 - `root_plselection_prompt()`: `packages/app/src/character.ts`
 - `setup_algnmenu()`: `packages/app/src/character.ts`
 - `setup_gendmenu()`: `packages/app/src/character.ts`

@@ -200,6 +200,7 @@ export const shkMessagesEn: Readonly<Record<string, string>> = {
   'shk.emb.finest': ', finest quality.',
   'shk.emb.excellent': ', an excellent choice.',
   'shk.emb.bargain': ', a real bargain.',
+  'shk.emb.one_of_a_kind': ', one of a kind!',
   'shk.emb.plain': '.',
   'action.nh:pay': 'Pay',
   'action.nh:pay_shk': 'Pay {shk|the}',

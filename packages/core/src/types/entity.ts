@@ -133,6 +133,13 @@ export interface ItemComponent {
   unpaid?: true;
   /** Lies in a shop but is not for sale: the hero's own, or bitten into (obj->no_charge). */
   noCharge?: true;
+  /**
+   * A personal name given to this object (C's ONAME); an artifact's name. Plain data that every
+   * copy of the item carries; the naming rules are content's.
+   */
+  name?: string;
+  /** The artifact this object is (C's oartifact): a content artifact id such as 'nh:excalibur'. */
+  artifact?: DefId;
 }
 
 /** ref: src/eat.c hunger states (u.uhs) */

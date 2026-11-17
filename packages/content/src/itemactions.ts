@@ -72,6 +72,10 @@ import { nomul } from './nomul';
 import { setSwapWep, swapWep } from './wield';
 import { fingersOrGloves, glovesSimpleName, isGlib } from './glib';
 import { actualNameKey, descNameKey, xnameOf } from './objnam';
+import { artiAlign, discoveredArtifacts } from './artistate';
+import { artifactRowOrNull } from './artilist';
+import { A_NONE } from './aligntyp';
+import { isKnown } from './o_init';
 import { JAPANESE_ITEMS } from './kittab';
 import { roleIs } from './urole';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
@@ -1555,16 +1559,51 @@ const takeoff: ActionDef = {
 /** The order classes are listed in. ref: src/invent.c def_inv_order */
 const DISCO_ORDER = ['amulet', 'weapon', 'armor', 'food', 'scroll', 'potion', 'ring'] as const;
 
+/**
+ * The type's plain name: its real name when known, else its description ("runed dagger"), an
+ * unknown amulet just "amulet"; no name she called it. ref: src/objnam.c simple_typename()
+ */
+function simpleTypename(ctx: Ctx, def: ObjectDef): Msg {
+  if (isKnown(ctx.state, ctx.defs, def)) return { key: actualNameKey(ctx.state, def) };
+  if (def.class === 'amulet') return { key: 'obj.generic.amulet' };
+  const app = ctx.state.appearances[def.id];
+  const desc = app !== undefined ? ctx.defs.appearance(app).nameKey : descNameKey(ctx.state, def);
+  return { key: desc ?? actualNameKey(ctx.state, def) };
+}
+
+/**
+ * The "Artifacts" part of the discoveries, in discovery order: "  Excalibur [lawful long
+ * sword]", "non-aligned" for an unaligned one. ref: src/artifact.c disp_artifact_discoveries()
+ */
+function artifactDiscoveries(ctx: Ctx): Msg[] {
+  const out: Msg[] = [];
+  for (const id of discoveredArtifacts(ctx.state)) {
+    const a = artifactRowOrNull(id);
+    if (!a) continue;
+    if (out.length === 0) out.push({ key: 'disco.class.artifacts' });
+    const al = artiAlign(ctx.state, a);
+    out.push({
+      key: 'disco.arti.entry',
+      params: {
+        name: `=${a.name}`,
+        align: al === A_NONE ? '@disco.arti.nonaligned' : alignStr(al),
+        type: simpleTypename(ctx, ctx.defs.object(a.base)),
+      },
+    });
+  }
+  return out;
+}
+
 const discoveries: ActionDef = {
   id: 'nh:discoveries',
   labelKey: 'action.nh:discoveries',
   handles: 'mod',
   offer: (_ctx, target) =>
     target.kind === 'self' ? selfOffer('nh:discoveries', 'action.nh:discoveries') : [],
-  // ref: src/o_init.c dodiscovered(): identified types that have a description ("name (description)").
-  // Listed in object-list order, not discovery order.
+  // ref: src/o_init.c dodiscovered(): the discovered artifacts first, then identified types that
+  // have a description ("name (description)"), listed in object-list order, not discovery order.
   perform(ctx) {
-    const items: Msg[] = [];
+    const items: Msg[] = artifactDiscoveries(ctx);
     const samurai = roleIs(ctx.state, 'samurai');
     for (const cls of DISCO_ORDER) {
       let head = false;

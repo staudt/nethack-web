@@ -1936,6 +1936,8 @@ function shkEmbellish(ctx: Ctx, itm: Entity, cost: number): string {
       default:
         break;
     }
+  } else if (itm.c.item?.artifact !== undefined) {
+    return '@shk.emb.one_of_a_kind';
   }
   return '@shk.emb.plain';
 }

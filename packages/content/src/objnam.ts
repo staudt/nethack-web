@@ -1,4 +1,5 @@
-// Naming objects for the player. ref: src/objnam.c xname(), doname()
+// Naming objects for the player. ref: src/objnam.c xname(), doname(), obj_is_pname(),
+// not_fully_identified()
 import { boxTknown, isBoxTrapped } from './btrapstate';
 import { isHistoric } from './statuestate';
 import type {
@@ -34,6 +35,7 @@ import { vegetarian } from './mondata';
 import { HOMEMADE_TIN, ROTTEN_TIN, SPINACH_TIN, TIN, TINTXT, tinVariety } from './tins';
 import { isSwapWep } from './wield';
 import { LEASH, leashMon } from './leashstate';
+import { undiscoveredArtifact } from './artistate';
 
 /**
  * The message for the item's name without quantity, BUC or suffixes (xname()): the real name
@@ -44,15 +46,70 @@ import { LEASH, leashMon } from './leashstate';
  * Boots and gloves read "pair of ..." in the catalog's names. Corpses nest the monster as `mon`.
  */
 function xname(state: Readonly<GameState>, defs: Registry, def: ObjectDef, item: Entity): Msg {
-  const name = xnameBase(state, defs, def, item);
   const it = item.c.item;
+  // ref: xname() `if (obj_is_pname(obj)) goto nameit;`: a fully identified artifact is its name
+  // alone, without a leading "The" (doname() puts "the " before it)
+  if (it?.name && objIsPname(state, defs, item))
+    return { key: 'obj.pname', params: { name: `=${it.name.replace(/^the /i, '')}` } };
+  let name = xnameBase(state, defs, def, item);
   // ref: xname() POTION_CLASS "diluted " (dknown is always set here); TOOL_CLASS a wet towel's
   // "moist "/"wet " (is_wet_towel(): spe > 0)
   if (it && def.class === 'potion' && isDiluted(it))
-    return { key: 'obj.diluted', params: { name } };
-  if (it && def.id === TOWEL && it.spe > 0)
-    return { key: it.spe < 3 ? 'obj.moist' : 'obj.wet', params: { name } };
+    name = { key: 'obj.diluted', params: { name } };
+  else if (it && def.id === TOWEL && it.spe > 0)
+    name = { key: it.spe < 3 ? 'obj.moist' : 'obj.wet', params: { name } };
+  // ref: xname() `if (has_oname(obj) && dknown)` " named X" (dknown is always set here); an
+  // artifact's "The ..." is downcased ("luckstone named the Heart of Ahriman")
+  if (it?.name) {
+    const oname = it.artifact !== undefined ? it.name.replace(/^The /, 'the ') : it.name;
+    name = { key: 'obj.named', params: { name, oname: `=${oname}` } };
+  }
   return name;
+}
+
+/**
+ * Whether obj->known matters for the type (oc_uses_known; for the others NetHack sets it at
+ * creation): weapons, armor, wands, charged rings and eggs.
+ */
+const usesKnown = (def: ObjectDef): boolean =>
+  def.id === EGG ||
+  isWeaponOrWeptool(def) ||
+  def.class === 'armor' ||
+  def.class === 'wand' ||
+  CHARGED_RINGS.has(def.id);
+
+/**
+ * Not everything about the object is known: its BUC, enchantment, type, a container's contents
+ * or lock, or which artifact it is. ref: src/objnam.c not_fully_identified(), without its rknown
+ * test (see items.ts rknown(): the flag is only recorded for erodeproof items)
+ */
+export function notFullyIdentified(state: Readonly<GameState>, defs: Registry, e: Entity): boolean {
+  const it = e.c.item;
+  if (!it) return false;
+  const def = defs.object(e.def);
+  // gold doesn't have any interesting attributes [yet?]
+  if (def.class === 'coin') return false;
+  // check fundamental ID hallmarks first
+  if (!bknownOf(state, defs, e)) return true;
+  if (usesKnown(def) && !it.known.spe) return true;
+  if (!isKnown(state, defs, def)) return true;
+  // ref: (!cknown && Is_container) || (!lknown && Is_box)
+  if (
+    (!!def.container && !objKnown(state, 'cknown', e.id)) ||
+    (!!def.container?.box && !objKnown(state, 'lknown', e.id))
+  )
+    return true;
+  return it.artifact !== undefined && undiscoveredArtifact(state, it.artifact);
+}
+
+/**
+ * The object is called by its artifact name alone: an artifact once fully identified (or when
+ * the game is over). ref: src/objnam.c obj_is_pname()
+ */
+export function objIsPname(state: Readonly<GameState>, defs: Registry, item: Entity): boolean {
+  const it = item.c.item;
+  if (it?.artifact === undefined || !it.name) return false;
+  return state.gameOver !== null || !notFullyIdentified(state, defs, item);
 }
 
 /**
@@ -230,6 +287,8 @@ export function doname(
 
   params.name = xname(state, defs, def, item);
   if (it.quantity !== 1) params.count = { key: 'obj.count', params: { n: it.quantity } };
+  // ref: doname_base(): `obj_is_pname(obj)` takes "the " ("the +0 Excalibur")
+  else if (objIsPname(state, defs, item)) params.count = 'the ';
 
   // A Priest sees the BUC of everything (bknownOf()).
   const bknown = bknownOf(state, defs, item);

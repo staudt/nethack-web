@@ -55,7 +55,6 @@ import {
   bknownOf,
   NOINVSYM,
   mksobj,
-  objKnown,
   placeObject,
   setCknown,
   setLknown,
@@ -69,11 +68,11 @@ import { wakeup } from './peaceful';
 import { canSpotMon, monNam } from './perception';
 import { mapInvisible, monInvisible } from './invis';
 import { sokobanGuilt } from './sokoban';
-import { CHARGED_RINGS } from './objects';
 import { erosionMatters, hardHelmet, isWeaponOrWeptool } from './material';
 import { discover, isKnown } from './o_init';
 import { moreExperienced } from './urexp';
-import { doname, xnameOf } from './objnam';
+import { doname, notFullyIdentified, xnameOf } from './objnam';
+import { discoverArtifact } from './artistate';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
 import { isRogueLevel, levelFlags } from './levelflags';
@@ -116,36 +115,6 @@ const isPlural = (def: ObjectDef, e: Entity): boolean =>
 // ---------------------------------------------------------------------------------------------
 // identify
 
-/**
- * ref: src/objnam.c not_fully_identified(), without its rknown test (see items.ts rknown(): the
- * flag is only recorded for erodeproof items)
- */
-function notFullyIdentified(ctx: Ctx, e: Entity): boolean {
-  const it = e.c.item;
-  if (!it) return false;
-  const def = ctx.defs.object(e.def);
-  if (def.class === 'coin') return false;
-  if (!bknownOf(ctx.state, ctx.defs, e)) return true;
-  if (usesKnown(def) && !it.known.spe) return true;
-  if (!isKnown(ctx.state, ctx.defs, def)) return true;
-  // ref: (!cknown && Is_container) || (!lknown && Is_box)
-  return (
-    (!!def.container && !objKnown(ctx.state, 'cknown', e.id)) ||
-    (!!def.container?.box && !objKnown(ctx.state, 'lknown', e.id))
-  );
-}
-
-/**
- * Whether obj->known matters for the type (oc_uses_known; for the others NetHack sets it at
- * creation): weapons, armor, wands, charged rings and eggs.
- */
-const usesKnown = (def: ObjectDef): boolean =>
-  def.id === EGG ||
-  isWeaponOrWeptool(def) ||
-  def.class === 'armor' ||
-  def.class === 'wand' ||
-  CHARGED_RINGS.has(def.id);
-
 /** ref: src/invent.c identify(): fully_identify_obj(), then "d - ..." */
 function identify(ctx: Ctx, e: Entity): void {
   if (!e.c.item) return;
@@ -171,6 +140,7 @@ export function fullyIdentify(ctx: Ctx, e: Entity): void {
   const it = e.c.item;
   if (!it) return;
   discover(ctx, e.def);
+  if (it.artifact !== undefined) discoverArtifact(ctx, it.artifact);
   it.known.buc = true;
   it.known.spe = true;
   if (it.erodeproof) setRknown(ctx, e.id, true);
@@ -182,7 +152,9 @@ export function fullyIdentify(ctx: Ctx, e: Entity): void {
 }
 
 const unidentified = (ctx: Ctx): Entity[] =>
-  inventoryOf(ctx.state, ctx.state.playerId).filter((e) => notFullyIdentified(ctx, e));
+  inventoryOf(ctx.state, ctx.state.playerId).filter((e) =>
+    notFullyIdentified(ctx.state, ctx.defs, e),
+  );
 
 interface IdentifyData {
   stage: 'identify';

@@ -796,3 +796,43 @@ export { isIce, isLava, isPool, isPoolOrLava, mInAir, waterbodyName } from './li
 export { amphibious, breathless, likesLavaId, swimming, uinwater, wwalking } from './uwater';
 export { flying } from './trapstate';
 export { cantDrown, isSwimmer, likesLava } from './mondata';
+export {
+  ARTIFACTS,
+  QUEST_ARTIFACT,
+  artifactRow,
+  artifactRowOrNull,
+  isQuestRow,
+  type ArtifactDef,
+  type ArtiAd,
+  type Bane,
+  type InvokePower,
+  type Spfx,
+} from './artilist';
+export {
+  artiAlign,
+  artiCost,
+  artiExists,
+  artiInfo,
+  artiOf,
+  artiRole,
+  artifactName,
+  artifactOrigin,
+  bareArtifactName,
+  discoverArtifact,
+  discoveredArtifacts,
+  existArtifact,
+  findArtifact,
+  isArt,
+  mkArtifactConvert,
+  nartifactExist,
+  oname,
+  onameItem,
+  questArtifactId,
+  uWieldArt,
+  uncreateArtifact,
+  undiscoveredArtifact,
+  type ArtiInfo,
+  type ArtiOrigin,
+  type ArtiState,
+} from './artistate';
+export { notFullyIdentified, objIsPname } from './objnam';

@@ -5,7 +5,7 @@
 // contained_cost(), contained_gold(), unpaid_cost(), get_cost_of_shop_item(), is_unpaid(),
 // set_cost()
 //
-// Not ported: artifacts, globs (get_pricing_units() is the quantity), the dunce cap and Hawaiian
+// Artifacts cost their table price (arti_cost()). Not ported: globs (get_pricing_units() is the quantity), the dunce cap and Hawaiian
 // shirt (neither exists; the checks are made). get_cost()'s "random from game to game" choice for
 // glass reads the game's seed as `ubirthday` and the type's registry position as `otyp`.
 import {
@@ -34,6 +34,7 @@ import {
 import { GLASS_GEMS, GLASS_PRICED_AS, gemOffset } from './gem';
 import { isKnown } from './o_init';
 import { saleable } from './shtypes';
+import { artiCost } from './artistate';
 import { roleIs } from './urole';
 
 type S = Readonly<GameState>;
@@ -90,6 +91,10 @@ export function getprice(state: S, defs: Registry, obj: Entity, shkBuying: boole
   const def = defs.object(obj.def);
   const it = obj.c.item;
   let tmp = def.cost;
+  if (it?.artifact !== undefined) {
+    tmp = artiCost(defs, obj);
+    if (shkBuying) tmp = Math.trunc(tmp / 4);
+  }
   switch (def.class) {
     case 'food': {
       tmp += corpsenmPriceAdj(defs, obj);
@@ -188,6 +193,9 @@ export function getCost(state: S, defs: Registry, obj: Entity, shk: Eshk | null)
     tmp = Math.trunc((tmp + 5) / 10);
   }
   if (tmp <= 0) tmp = 1;
+  // the artifact prices in artilist[] are also used as a score bonus; inflate their shop price
+  // here without affecting score calculation
+  if (obj.c.item?.artifact !== undefined) tmp *= 4;
   // anger surcharge should match rile_shk's
   if (shk?.surcharge) tmp += Math.trunc((tmp + 2) / 3);
   return tmp;

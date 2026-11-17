@@ -135,6 +135,95 @@ function checkLight(state: GameState, ids: readonly number[], errs: string[]): v
   }
 }
 
+/**
+ * The vanilla artifact table's rows and their base objects (content's artilist.ts ARTIFACTS, in
+ * table order; testkit's src may not import content, a test keeps the two equal).
+ */
+export const ARTIFACT_BASES: Readonly<Record<string, string>> = {
+  'nh:excalibur': 'nh:long_sword',
+  'nh:stormbringer': 'nh:runesword',
+  'nh:mjollnir': 'nh:war_hammer',
+  'nh:cleaver': 'nh:battle_axe',
+  'nh:grimtooth': 'nh:orcish_dagger',
+  'nh:orcrist': 'nh:elven_broadsword',
+  'nh:sting': 'nh:elven_dagger',
+  'nh:magicbane': 'nh:athame',
+  'nh:frost_brand': 'nh:long_sword',
+  'nh:fire_brand': 'nh:long_sword',
+  'nh:dragonbane': 'nh:broadsword',
+  'nh:demonbane': 'nh:silver_mace',
+  'nh:werebane': 'nh:silver_saber',
+  'nh:grayswandir': 'nh:silver_saber',
+  'nh:giantslayer': 'nh:long_sword',
+  'nh:ogresmasher': 'nh:war_hammer',
+  'nh:trollsbane': 'nh:morning_star',
+  'nh:vorpal_blade': 'nh:long_sword',
+  'nh:snickersnee': 'nh:katana',
+  'nh:sunsword': 'nh:long_sword',
+  'nh:heart_of_ahriman': 'nh:luckstone',
+  'nh:sceptre_of_might': 'nh:mace',
+  'nh:staff_of_aesculapius': 'nh:quarterstaff',
+  'nh:mitre_of_holiness': 'nh:helm_of_brilliance',
+  'nh:longbow_of_diana': 'nh:bow',
+  'nh:master_key_of_thievery': 'nh:skeleton_key',
+  'nh:tsurugi_of_muramasa': 'nh:tsurugi',
+  'nh:platinum_yendorian_express_card': 'nh:credit_card',
+  'nh:eye_of_the_aethiopica': 'nh:amulet_of_esp',
+};
+
+const ARTI_ORIGINS = ['wish', 'gift', 'viadip', 'named', 'lvldef', 'bones', 'random'];
+
+/**
+ * Artifacts (m20): every object that is an artifact is a row of the table on that row's base
+ * object, alone (quantity 1), named, and marked existing in `modData.nh.arti.exist`; no two live
+ * objects are the same artifact (C keeps a destroyed one existing, so an entry needs no object).
+ * Every `exist` entry is a row with one known origin; `disco` lists existing rows, once each.
+ */
+function checkArtifacts(state: GameState, ids: readonly number[], errs: string[]): void {
+  const nh = state.modData['nh'] as { arti?: unknown } | undefined;
+  const raw = nh?.arti;
+  let exist: Record<string, unknown> = {};
+  if (raw !== undefined) {
+    const a = raw as { exist?: unknown; disco?: unknown };
+    if (!isTable(a) || !isTable(a.exist) || !Array.isArray(a.disco)) {
+      errs.push('modData.nh.arti is not { exist: {}, disco: [] }');
+      return;
+    }
+    exist = a.exist;
+    for (const id of Object.keys(exist).sort()) {
+      if (ARTIFACT_BASES[id] === undefined) errs.push(`artifact ${id}: exists but has no row`);
+      const info = exist[id] as { origin?: unknown; found?: unknown } | null;
+      if (!isTable(info) || !ARTI_ORIGINS.includes(String(info.origin)))
+        errs.push(`artifact ${id}: bad existence record ${JSON.stringify(info)}`);
+      else if (info.found !== undefined && info.found !== true)
+        errs.push(`artifact ${id}: found is ${JSON.stringify(info.found)}`);
+    }
+    const seen = new Set<string>();
+    for (const d of a.disco) {
+      if (typeof d !== 'string' || exist[d] === undefined)
+        errs.push(`artifact ${String(d)}: discovered but not existing`);
+      else if (seen.has(d)) errs.push(`artifact ${d}: discovered twice`);
+      else seen.add(d);
+    }
+  }
+  const holder = new Map<string, number>();
+  for (const id of ids) {
+    const e = state.entities[String(id)];
+    const art = e?.c.item?.artifact;
+    if (!e?.c.item || art === undefined) continue;
+    const base = ARTIFACT_BASES[art];
+    if (base === undefined) errs.push(`item ${id}: artifact ${art} has no row`);
+    else if (e.def !== base) errs.push(`item ${id}: artifact ${art} is a ${e.def}, not a ${base}`);
+    if (e.c.item.quantity !== 1)
+      errs.push(`item ${id}: artifact ${art} has quantity ${e.c.item.quantity}`);
+    if (!e.c.item.name) errs.push(`item ${id}: artifact ${art} has no name`);
+    if (exist[art] === undefined) errs.push(`item ${id}: artifact ${art} is not marked existing`);
+    const other = holder.get(art);
+    if (other !== undefined) errs.push(`items ${other} and ${id} are both ${art}`);
+    else holder.set(art, id);
+  }
+}
+
 /** Iron bars, where objects may lie. ref: src/trap.c isclearpath() (ZAP_POS) */
 const IRON_BARS = 'nh:iron_bars';
 /** Fort Ludios's dungeon (content levelflags.ts LUDIOS). */
@@ -315,6 +404,7 @@ export function checkInvariants(
   checkShopkeepers(state, errs);
   checkShopItems(state, ids, errs);
   checkLight(state, ids, errs);
+  checkArtifacts(state, ids, errs);
 
   const player = state.entities[String(state.playerId)];
   if (!player) errs.push(`player entity ${state.playerId} missing`);
