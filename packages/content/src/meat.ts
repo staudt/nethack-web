@@ -5,8 +5,9 @@
 //
 // Not ported (DEVIATIONS.md "Armed humanoids, trolls and eaters (m10)"): mon_givit() (monsters'
 // intrinsics are not modelled), growing up, polymorph food and healing corpses (none of those
-// objects or corpses exist), poisoned objects, artifacts, the hero's ball and chain, the
-// "YUM YUM" scroll's "Yum!", Rider corpses.
+// objects or corpses exist), poisoned objects, the hero's ball and chain, the "YUM YUM"
+// scroll's "Yum!", Rider corpses; an artifact resists being eaten only through obj_resists()
+// (95 in 100), without C's touch_artifact() check for the eater.
 import { vegan as veganDef } from './mondata';
 import {
   contents,

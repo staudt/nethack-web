@@ -341,7 +341,10 @@ export function inventoryResistanceCheck(ctx: Ctx, ad: DestroyType | 'acid'): bo
   return ctx.rng.rn2(100) < prob;
 }
 
-/** ref: src/zap.c destroyable() (no artifacts, nothing is in use) */
+/**
+ * ref: src/zap.c destroyable() (no artifact is a potion, scroll, spellbook, ring or wand, so C's
+ * artifact check never applies; nothing is in use)
+ */
 function destroyable(def: ObjectDef, ad: DestroyType): boolean {
   switch (ad) {
     case 'fire':

@@ -75,7 +75,8 @@ export function deepestLevel(state: Readonly<GameState>): number {
 
 /**
  * Amulets and gems (real ones and glass, not gray stones or rocks) she carries, containers
- * included, at their base cost. No artifacts exist. ref: src/end.c get_valuables()
+ * included, at their base cost. Artifacts count as their base objects (C skips them; only a
+ * wished-for Eye of the Aethiopica differs). ref: src/end.c get_valuables()
  */
 function valuables(state: Readonly<GameState>, defs: Registry, list: readonly Entity[]): number {
   let n = 0;

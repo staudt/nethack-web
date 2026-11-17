@@ -7,10 +7,12 @@
 // disarm_squeaky_board(), disarm_shooting_trap(), try_lift(), help_monster_out(), disarm_box(),
 // untrap_box(), untrap()
 //
-// Not ported (see DEVIATIONS.md): Sting and fire artifacts on webs (no artifacts), oil and grease for squeaky boards (neither
-// object exists), the Master Key of Thievery, mimics, cockatrices, steeds, polymorphed forms,
-// Fumbling, selling or burying the object of a trap she set (she sets none), exercise. A shop
-// door she blows up is scheduled for repair, free (C: "probably ought to charge for this").
+// Not ported (see DEVIATIONS.md): Sting and fire artifacts on webs (left out of m20), oil and
+// grease for squeaky boards (no can of grease; the potion of oil, m19, is not offered), mimics
+// (they exist since m13, the untrap checks for them are not ported), cockatrices, steeds,
+// polymorphed forms, Fumbling, selling or burying the object of a trap she set (she sets none),
+// exercise. A shop door she blows up is scheduled for repair, free (C: "probably ought to charge
+// for this").
 import { hasMagicKey } from './artifact';
 import {
   DIRS,
@@ -151,14 +153,15 @@ export function couldUntrap(ctx: Ctx, verbosely: boolean): boolean {
  * Whether disarming fails: 0 is success. The chance is 1 in 3 (a web: 1 in 7 unless she wields a
  * blade and nothing is caught in it), worse while confused, hallucinating, blind or stunned,
  * better for a trap she set, twice as bad while fumbling. ref: src/trap.c untrap_prob() (no Sting
- * or fire artifacts or quest artifact; she is never a webmaker; the Ranger and Rogue cases are kept for those roles)
+ * or fire artifact bonus, left out of m20; no quest artifact; she is never a webmaker; the Ranger
+ * and Rogue cases are kept for those roles)
  */
 export function untrapProb(ctx: Ctx, t: Trap): number {
   let chance = 3;
   const h = hero(ctx);
   // non-spiders are less adept at dealing with webs
   if (t.def === TRAP.web) {
-    // a blade keeps 3 (Sting or a fire artifact would make it 1: none exist)
+    // a blade keeps 3 (Sting or a fire artifact would make it 1 in C: left out of m20)
     if (!bladeWielded(ctx) || monAt(ctx, heroPos(ctx).level, t.x, t.y)) chance = 7;
   }
   if (confusedNow(ctx)) chance++;
@@ -368,7 +371,8 @@ export function rewardUntrap(ctx: Ctx, t: Trap, mon: Entity): void {
 /**
  * A bear trap or web: a monster caught in it is extracted, else the bear trap becomes a beartrap
  * object and the web is gone ("You cut through the web." with a blade wielded, else "You succeed
- * in removing the web."). ref: src/trap.c disarm_holdingtrap() (no Sting or fire artifacts)
+ * in removing the web."). ref: src/trap.c disarm_holdingtrap() (no "Sting cuts through the web!":
+ * left out of m20)
  */
 function disarmHoldingtrap(ctx: Ctx, level: Level, t: Trap, here: boolean): number {
   const fails = tryDisarm(ctx, level, t, false, here);
@@ -403,8 +407,8 @@ function disarmLandmine(ctx: Ctx, level: Level, t: Trap, here: boolean): number 
 }
 
 /**
- * A squeaky board needs a can of grease or a potion of oil, and neither object exists: the
- * object prompt has nothing to offer. ref: src/trap.c disarm_squeaky_board(), unsqueak_ok()
+ * A squeaky board needs a can of grease or a potion of oil: there is no can of grease, and the
+ * potion of oil (since m19 step 1) is not offered yet, so the object prompt has nothing to offer. ref: src/trap.c disarm_squeaky_board(), unsqueak_ok()
  */
 function disarmSqueakyBoard(ctx: Ctx): number {
   say(ctx, 'untrap.nothing_to_untrap_with');
@@ -698,7 +702,7 @@ function floorTrap(ctx: Ctx, level: Level, t: Trap, here: boolean): number {
     say(ctx, here ? 'untrap.trapped_in_it' : 'untrap.trapped', { trap: trapName(t) });
     return NORMAL_SPEED;
   }
-  // (mimics posing as furniture or objects do not exist)
+  // (C's mimic posing as furniture or an object here is not ported)
   let r: number;
   switch (t.def) {
     case TRAP.bear:

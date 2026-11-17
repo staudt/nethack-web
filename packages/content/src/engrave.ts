@@ -16,7 +16,7 @@
 // A magic marker writes graffiti (MARK), at most two letters a charge, spending half the
 // action's rate in ink each action (5.0's engrave()), and dries out mid-text. A towel writes
 // nothing: it wipes out a dust, blood or graffiti engraving (and dries a little doing so).
-// Not ported: Fire Brand (no artifacts), the literate
+// Not ported: Fire Brand's burning (left out of m20: it engraves as any blade), the literate
 // conduct (no conducts), body_part() (always "fingertip" and "hand"), Deaf (never deaf: "You
 // hear drilling!").
 import {
@@ -525,7 +525,7 @@ function sfxItem(ctx: Ctx, stylus: Entity | null, type: EngrType, frosted: boole
       }
       break;
     case 'weapon':
-      // Fire Brand would BURN (no artifacts)
+      // Fire Brand would BURN (left out of m20: it engraves as any blade)
       if (isBlade(def)) {
         // non-blade, welded or too dull: the type stays DUST; only blades say so
         if (welded(ctx, stylus))

@@ -2,10 +2,9 @@
 // ref: src/apply.c calc_pole_range(), find_poleable_mon(), get_valid_polearm_position(),
 // display_polearm_positions(), use_pole(); src/dothrow.c dofire() (the wielded polearm)
 //
-// The hit itself is dothrow.ts thitmonst()'s HMON_APPLIED path. Not ported: steeds and
-// jousting (lances apply like polearms), Snickersnee, mimics and hiders (attack_checks()),
-// the confusing touch (u.umconf) on an applied hit, conduct; the queued re-apply after wielding
-// is the next move's occupation, as for the pick-axe.
+// The hit itself is dothrow.ts thitmonst()'s HMON_APPLIED path. Not ported: steeds and jousting
+// (lances apply like polearms), Snickersnee, the confusing touch (u.umconf) on an applied hit,
+// conduct; the queued re-apply after wielding is the next move's occupation, as for the pick-axe.
 import {
   NORMAL_SPEED,
   cellIndex,

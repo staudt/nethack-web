@@ -5,9 +5,10 @@
 // ref: src/zap.c poly_obj(), obj_resists(), obj_shudders(), do_osshock(), obj_unpolyable(),
 // create_polymon(), zapsetup(), zapwrapup()
 //
+// Artifacts resist 95 times in 100 (objResists()'s artifact chance).
+//
 // Not ported: eggs, leashes, poisoned ammo, mail, the Amulet and other
-// invocation items (none exist), artifacts (every object resists as an ordinary one), polypile
-// conduct.
+// invocation items (none exist), polypile conduct.
 import {
   cellIndex,
   contents,

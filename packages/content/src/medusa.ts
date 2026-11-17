@@ -7,7 +7,8 @@
 // levelflags.ts entries. The "ordinary" room regions (the arrival rooms and the irregular rooms
 // the scripts define only so that fixup_special() finds a first room) make no Room here: they are
 // lit or unlit areas, and the fixup takes its statue room from {@link FIRST_ROOM}. The fixups make
-// Perseus's statue (a statue of a human: no knight row, no object names) with its contents by
+// Perseus's statue (a statue of a human, unnamed: the knight row (m17) and object names (m20)
+// came later and the fixup was not switched) with its contents by
 // percent, and medusa-3/4's random choice of Medusa's room (place:rndcoord(), drawn after core
 // has built the level), which moves the down stairs there. Every statue without a monster is a
 // petrified monster (sp_lev.ts createObject()). medusa-4's crystal ball does not exist.
@@ -354,7 +355,10 @@ export const FIRST_ROOM: Readonly<Record<DefId, LevelRect>> = {
 // ---------------------------------------------------------------------------------------------
 // The fixups.
 
-/** ref: include/monsters.h PM_KNIGHT: no player monsters here, a human stands in (zoo.ts too) */
+/**
+ * ref: include/monsters.h PM_KNIGHT: a human stands in (zoo.ts too); written before the knight
+ * row existed (m17 step 2), and not switched since
+ */
 const HUMAN: DefId = 'nh:human';
 
 /** ref: nhlib.lua percent() */

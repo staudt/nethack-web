@@ -5,9 +5,10 @@
 // contained_cost(), contained_gold(), unpaid_cost(), get_cost_of_shop_item(), is_unpaid(),
 // set_cost()
 //
-// Artifacts cost their table price (arti_cost()). Not ported: globs (get_pricing_units() is the quantity), the dunce cap and Hawaiian
-// shirt (neither exists; the checks are made). get_cost()'s "random from game to game" choice for
-// glass reads the game's seed as `ubirthday` and the type's registry position as `otyp`.
+// Artifacts cost their table price (arti_cost()); a dunce cap, a Tourist below XL 15 and a visible
+// shirt mark prices up. Not ported: globs (get_pricing_units() is the quantity). get_cost()'s
+// "random from game to game" choice for glass reads the game's seed as `ubirthday` and the type's
+// registry position as `otyp`.
 import {
   contents,
   getPlayer,
