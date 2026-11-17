@@ -4,6 +4,7 @@ export const zapMessagesEn: Record<string, string> = {
   // makewish(), hold_another_object() (wish.ts)
   'wish.prompt': 'For what do you wish?',
   'wish.nothing_fitting': 'Nothing fitting that description exists in the game.',
+  'wish.artifact_disappears': 'For a moment, you feel something in your hands, but it disappears!',
   'wish.enough_tries': "That's enough tries!",
   'wish.aobjnam': '{count}{name}',
   'wish.oops': 'Oops!  {item|The} drops to the floor!',

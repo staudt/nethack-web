@@ -139,8 +139,11 @@ describe('shapeshifter soak', () => {
   // 216 replaced 205 and 208 in m22 step 8, whose valkyrie row makes tt_doppel()'s valkyrie roll
   // a valkyrie form instead of no form: 205 died at turn 1032 and 208 at turn 1431, both reaching
   // 2000 with that roll neutralised; of 209..226 only 214, 216, 218, 220 and 222 reach 2000 with
-  // it, and 214, 216 and 222 do with and without it)
-  for (const seed of [214, 216]) {
+  // it, and 214, 216 and 222 do with and without it; 227 and 238 replaced 214 and 216 in m20
+  // step 2, whose "What do you want to name?" menu shifts the bot's picks: 214 died at turn 102 and
+  // 216 at turn 39; of 214..256 only 227, 238, 239, 241, 244, 246, 250, 251, 253 and 254 reach
+  // 2000 with the menu, and 227, 238, 239, 246, 251 and 254 do with and without it)
+  for (const seed of [227, 238]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

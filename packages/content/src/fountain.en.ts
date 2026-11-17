@@ -39,6 +39,8 @@ export const fountainMessagesEn: Record<string, string> = {
   'fountain.dries_up': 'The fountain dries up!',
   'fountain.freezing_mist': 'A freezing mist rises from the water and envelopes the sword.',
   'fountain.disappears': 'The fountain disappears!',
+  'fountain.lady_blesses': 'From the murky depths, a hand reaches up to bless the sword.',
+  'fountain.lady_retreats': 'As the hand retreats, the fountain disappears!',
   'fountain.wash_hands': 'You wash your hands in the water.',
   'fountain.wash_gloved_hands': 'You wash your gloved hands in the water.',
   'fountain.water_glows': 'The water glows for a moment.',

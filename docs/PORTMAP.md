@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-195 NetHack files, 5660 citations.
+195 NetHack files, 5672 citations.
 
 ## dat/asmodeus.lua
 
@@ -346,7 +346,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/artistate.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`, `packages/content/src/seduce.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
-- `PL_PSIZ()`: `packages/content/src/call.ts`
 
 ## include/hack.h
 
@@ -840,6 +839,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_art()`: `packages/content/src/artistate.ts`
 - `mk_artifact()`: `packages/content/src/artistate.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
+- `restrict_name()`: `packages/content/src/artifact.ts`
 - `shade_glare()`: `packages/content/src/dmgval.ts`
 - `undiscovered_artifact()`: `packages/content/src/artistate.ts`
 
@@ -1069,18 +1069,21 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/do_name.c
 
 - (file): `packages/content/src/dig.en.ts`
-- `docall()`: `packages/content/src/call.ts`
+- `do_oname()`: `packages/content/src/call.ts`
 - `docall_xname()`: `packages/content/src/call.ts`
 - `docallcmd()`: `packages/content/src/call.ts`
 - `ghostnames()`: `packages/content/src/generation.ts`
 - `hcolor()`: `packages/content/src/dip.ts`
 - `mhim()`: `packages/content/src/read.ts`
 - `mon_nam()`: `packages/content/src/perception.ts`
+- `name_from_player()`: `packages/content/src/call.ts`
+- `name_ok()`: `packages/content/src/call.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
-- `oname()`: `packages/content/src/artistate.ts`
+- `oname()`: `packages/content/src/artifact.ts`, `packages/content/src/artistate.ts`
 - `pmname()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
 - `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
+- `safe_oname()`: `packages/content/src/call.ts`
 - `some_mon_nam()`: `packages/content/src/perception.ts`
 - `surface()`: `packages/content/src/moverock.ts`
 - `x_monnam()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
@@ -2180,7 +2183,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dodiscovered()`: `packages/content/src/itemactions.ts`
 - `init_objects()`: `packages/content/src/o_init.ts`
 - `interesting_to_discover()`: `packages/content/src/itemactions.ts`
-- `obj_shuffle_range()`: `packages/testkit/src/convert/cdata.ts`
+- `obj_shuffle_range()`: `packages/content/src/artifact.ts`, `packages/testkit/src/convert/cdata.ts`
 - `objdescr_is()`: `packages/content/src/breakwand.ts`
 - `setgemprobs()`: `packages/content/src/gem.ts`
 - `shuffle()`: `packages/content/src/o_init.ts`

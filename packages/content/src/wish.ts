@@ -17,6 +17,8 @@ import {
   type Json,
   type Msg,
 } from '@nh/core';
+import { onameObj } from './artifact';
+import { artifactName, nartifactExist, questArtifactId, uncreateArtifact } from './artistate';
 import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';
 import { addToInventory, invCount, isCandle, placeOnFloor, splitStack } from './items';
@@ -71,7 +73,12 @@ export interface WishOpts {
  * (rnd_otyp_by_namedesc()'s pick), mksobj(otyp, TRUE, FALSE) or mkobj(oclass, FALSE), then the
  * count, enchantment, corpse type, BUC, erosion, recharge count and lock state asked for.
  * Without `wizard`, a normal wish's limits apply (count, enchantment, Luck, 5000 gold).
- * Not ported: partly eaten food, poison, grease, names and artifacts.
+ * A name is given with oname() (an artifact's canonical capitalisation on its own type; an
+ * artifact or an artifact name is one object); her quest artifact, or an artifact with chance
+ * (n - 2)/n when n artifacts exist with it, is refused outside wizard mode: it stops existing,
+ * "For a moment, you feel something in your hands, but it disappears!", and null is returned
+ * (the wish is spent). Not ported: partly eaten food, poison (Grimtooth's permanent
+ * poison included), grease, novels.
  */
 export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | null {
   const { wizard } = opts;
@@ -280,6 +287,29 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
   // set tin variety
   if (def.id === TIN && spec.tvariety !== null && (ctx.rng.rn2(4) || wizard))
     setTinVariety(ctx.rng, ctx.defs, it, spec.tvariety);
+
+  if (spec.name !== null) {
+    // an artifact name might need capitalization fixing
+    const a = artifactName(spec.name, true);
+    const aname = a !== null && a.base === def.id ? a.name : null;
+    // makewish()'s artifact_origin(otmp, ONAME_WISH | ONAME_KNOW_ARTI) folded in
+    onameObj(ctx, e, aname ?? spec.name, 'wish', true);
+    // name==aname => wished for artifact (otmp->oartifact => got it)
+    if (it.artifact !== undefined || aname !== null) it.quantity = 1;
+  }
+
+  // more wishing abuse: don't allow wishing for certain artifacts, and make them pay; charge
+  // them for the wish anyway!
+  if (
+    (it.artifact === questArtifactId(ctx.state) ||
+      (it.artifact !== undefined && ctx.rng.rn2(nartifactExist(ctx.state)) > 1)) &&
+    !wizard
+  ) {
+    uncreateArtifact(ctx, e);
+    ctx.remove(id);
+    ctx.emit({ type: 'msg', key: 'wish.artifact_disappears' });
+    return null; // readobjnam()'s &hands_obj
+  }
   return id;
 }
 

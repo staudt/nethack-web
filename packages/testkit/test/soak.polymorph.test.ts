@@ -95,8 +95,11 @@ describe('polymorph soak', () => {
   // replaced 764 in m21 step 4, whose Croesus row shifts the random forms: 764 died at turn 131
   // and lasts past turn 200 with the row filtered, as 765 and 768 do with and without it; 767
   // replaced 765 in m22 step 3, whose starting kit and pet rolls shift the stream: 765 died at
-  // turn 77; of 760..785, 764, 767, 768, 771, 773 and 774 last 400 turns with and without it)
-  for (const seed of [767, 768]) {
+  // turn 77; of 760..785, 764, 767, 768, 771, 773 and 774 last 400 turns with and without it;
+  // 771 replaced 768 in m20 step 2, whose "What do you want to name?" menu shifts the bot's picks:
+  // 768 died at turn 147; 767 still lasts past turn 200, and 771 and 774 last 400 turns with and
+  // without the menu)
+  for (const seed of [767, 771]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       wallwalk = wallwalkRecord();

@@ -166,7 +166,9 @@ describe('M4 carry-over: #enhance and #name, end to end', () => {
       s.item('nh:potion_of_healing' as DefId, 'inventory');
       s.act({ type: 'mod', action: 'nh:call' as DefId });
     });
-    // the builder records its steps up front, so the item answer is given afterwards
+    // the builder records its steps up front, so the answers are given afterwards
+    expect(r.state.pendingPrompt?.prompt.id).toBe('call-what');
+    r.engine.step(r.state, { type: 'answer', promptId: 'call-what', value: 'o' });
     const pick = r.state.pendingPrompt?.prompt.options?.[0]?.value;
     expect(r.state.pendingPrompt?.prompt.id).toBe('call-pick');
     r.engine.step(r.state, { type: 'answer', promptId: 'call-pick', value: pick ?? null });

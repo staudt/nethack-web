@@ -8,6 +8,7 @@
 // The English names come from the message catalog (see wishNames()), as NetHack's come from
 // objects[]: the parser reads English, like the original.
 import type { DefId, GameState, ObjectClass, Registry } from '@nh/core';
+import { artifactName } from './artistate';
 import { nameToMonplus, type MonName } from './mondata';
 import { AMOROUS_DEMON } from './gender';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
@@ -65,6 +66,11 @@ export interface WishSpec {
   mon: DefId | null;
   /** "historic" (d.ishistoric): a historic statue */
   historic: boolean;
+  /**
+   * The name after " named " as typed (its case kept), or an artifact's canonical name when the
+   * wish is a bare artifact name ("Excalibur", "the vorpal blade"): d.name.
+   */
+  name: string | null;
 }
 
 /** An object type as the parser sees it: NetHack's oc_name, oc_descr and oc_uname. */
@@ -499,7 +505,7 @@ const NOT_MONSTER = ['samurai sword', 'wizard lock', 'death wand', 'master key',
  * explicit "nothing"/"nil"/"none", or null when nothing fitting exists. An empty string is a
  * random object, as in NetHack.
  * ref: src/objnam.c readobjnam(), readobjnam_preparse(), readobjnam_parse_charges(),
- * readobjnam_postparse1/2/3(). Not ported: artifacts, fruit, globs, o_ranges of objects
+ * readobjnam_postparse1/2/3(). Not ported: fruit, globs, o_ranges of objects
  * that do not exist and "helmet called x", most of the alternate spellings table, Japanese
  * names, wizard-mode terrain and traps; see DEVIATIONS.md.
  */
@@ -531,8 +537,10 @@ export function readobjnam(
     tvariety: null,
     mon: null,
     historic: false,
+    name: null,
   };
-  let bp = mungspaces(input).toLowerCase();
+  const typed = mungspaces(input);
+  let bp = typed.toLowerCase();
   if (bp === 'nothing' || bp === 'nil' || bp === 'none') return 'nothing';
   if (bp === '') return spec; // readobjnam_preparse() returns 1: goto any
 
@@ -687,7 +695,13 @@ export function readobjnam(
   let dn: string | null = null;
   let un: string | null = null;
   let i = bp.indexOf(' named ');
-  if (i >= 0) bp = bp.slice(0, i); // object names are not ported
+  if (i >= 0) {
+    // the name as typed: bp is the lowercased input less its prefixes (and a "(N)" suffix), so
+    // its first " named " is the input's; a leading '@' would read as a message key
+    const at = typed.toLowerCase().indexOf(' named ') + 7;
+    spec.name = typed.slice(at, at + bp.length - i - 7).replace(/^@+/, '');
+    bp = bp.slice(0, i);
+  }
   i = bp.indexOf(' called ');
   if (i >= 0) {
     un = bp.slice(i + 8);
@@ -904,6 +918,14 @@ export function readobjnam(
   if (bp === 'spinach') {
     spec.contents = 'spinach';
     return fixed(TIN);
+  }
+  // perhaps it's an artifact specified by name, not type (no fruit names here)
+  if (oclass === null && actualn !== null) {
+    const a = artifactName(actualn, true);
+    if (a) {
+      spec.name = a.name;
+      return fixed(a.base);
+    }
   }
   if (oclass === null) return null;
   return typfnd({ kind: 'class', cls: oclass }); // goto any

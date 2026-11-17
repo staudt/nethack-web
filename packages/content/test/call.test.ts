@@ -19,9 +19,16 @@ const answer = (s: Setup, value: unknown) =>
     value: value as never,
   });
 
+/** Starts #name and picks "the type of an object in inventory": the type menu's step. */
+function callType(s: Setup) {
+  const what = s.mod('nh:call');
+  expect(what.prompt?.id).toBe('call-what');
+  return answer(s, 'o');
+}
+
 /** Starts #name, picks the item, and returns the text prompt. */
 function toTextPrompt(s: Setup, id: number) {
-  const pick = s.mod('nh:call');
+  const pick = callType(s);
   expect(pick.prompt?.kind).toBe('menu');
   expect(pick.prompt?.multi).toBeFalsy();
   return answer(s, id).prompt;
@@ -39,7 +46,7 @@ describe('#name / call an object type', () => {
 
   test('nothing to call: the kit is all identified or plain', () => {
     const s = setup();
-    const r = s.mod('nh:call');
+    const r = callType(s);
     expect(r.prompt).toBeNull();
     expect(s.text(r)).toEqual(["You don't have anything to call."]);
   });
@@ -48,7 +55,7 @@ describe('#name / call an object type', () => {
     const s = setup();
     const potions = s.carry('nh:potion_of_healing', { quantity: 2 });
     s.carry('nh:scroll_of_identify');
-    const pick = s.mod('nh:call');
+    const pick = callType(s);
     expect(pick.prompt?.options?.map((o) => o.value)).toHaveLength(2);
     expect(pick.prompt?.options?.every((o) => o.letter !== undefined)).toBe(true);
     const text = answer(s, potions).prompt;
@@ -116,12 +123,12 @@ describe('#name / call an object type', () => {
     answer(s, 'heal');
     s.state.discovered.push('nh:potion_of_healing' as never);
     expect(name(s, p)).toBe('potion of healing');
-    const pick = s.mod('nh:call'); // still listed, so the name can be cleared
+    const pick = callType(s); // still listed, so the name can be cleared
     expect(pick.prompt?.options).toHaveLength(1);
     answer(s, p);
     answer(s, ' ');
     expect(nhData(s.ctx).called).toEqual({});
-    expect(s.mod('nh:call').prompt).toBeNull();
+    expect(callType(s).prompt).toBeNull();
   });
 
   test('a leading @ cannot masquerade as a message key', () => {

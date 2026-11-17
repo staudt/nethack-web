@@ -7,8 +7,8 @@
 // location: `blessedftn` and the `looted` flags). An entry is dropped when its bits are 0.
 // Not ported (DEVIATIONS "Quaffing"): the enlightenment screen, hallucinated snake and liquid
 // names, exercise.
-// Dipping into a fountain (the #dip action is dip.ts's; DEVIATIONS "Dipping"): no Excalibur (no artifacts; the only role is neutral, so the
-// Lady of the Lake always refuses), no livelog.
+// Dipping into a fountain (the #dip action is dip.ts's; DEVIATIONS "Dipping"): the Lady of the
+// Lake makes Excalibur for a lawful hero (m20 step 2); no exercise, no livelog.
 import {
   NORMAL_SPEED,
   cellIndex,
@@ -30,6 +30,10 @@ import {
   type Msg,
   type Pos,
 } from '@nh/core';
+import { A_LAWFUL } from './aligntyp';
+import { onameObj } from './artifact';
+import { artifactRow } from './artilist';
+import { discoverArtifact, existArtifact } from './artistate';
 import { monsterIdAt } from './combat';
 import { figBucChanged } from './figurinestate';
 import { adjattrib, restoreAttr, type Attr } from './attrib';
@@ -50,6 +54,7 @@ import { forgetMState } from './mstate';
 import { monNam } from './perception';
 import { P, hasProp, setIntrinsic, wornIn } from './props';
 import { cantSeeSelf } from './invis';
+import { roleIs } from './urole';
 import { clearArea } from './read';
 import { T, nexttodoor, setTerrain } from './terrain';
 import { clearConjoinedPits, levitating, setMtrapped } from './trapstate';
@@ -536,6 +541,7 @@ function takeBath(ctx: Ctx, at: Pos): void {
 }
 
 const LONG_SWORD: DefId = 'nh:long_sword';
+const EXCALIBUR: DefId = 'nh:excalibur';
 
 /**
  * Dips an item (or the hero's hands) into the fountain she stands on: the Lady of the Lake for
@@ -555,22 +561,35 @@ export function dipfountain(ctx: Ctx, action: DefId, obj: Entity | 'hands'): num
   const isHands = obj === 'hands';
   const it = isHands ? undefined : obj.c.item;
 
+  // ref: dipfountain(): the Lady of the Lake (C draws the rn2() before the other tests)
   if (
     !isHands &&
     it &&
     obj.def === LONG_SWORD &&
     (hero.c.experience?.level ?? 1) >= 5 &&
-    !ctx.rng.rn2(30) && // no Knights: rn2(6) is theirs
+    !ctx.rng.rn2(roleIs(ctx.state, 'knight') ? 6 : 30) &&
+    // once upon a time it was possible to poly N daggers into N swords
     it.quantity === 1 &&
-    // no artifacts: the sword is never one and Excalibur never exists
-    uState(ctx.state).alignType !== 1 // a lawful hero would get Excalibur (no artifacts)
+    it.artifact === undefined &&
+    !existArtifact(ctx.state, LONG_SWORD, artifactRow(EXCALIBUR).name)
   ) {
-    // Ha!  Trying to cheat her.
-    say(ctx, 'fountain.freezing_mist');
-    say(ctx, 'fountain.disappears');
-    it.buc = 'cursed';
-    if (it.spe > -6 && !ctx.rng.rn2(3)) it.spe--;
-    delete it.erodeproof;
+    if (uState(ctx.state).alignType !== A_LAWFUL) {
+      // Ha!  Trying to cheat her.
+      say(ctx, 'fountain.freezing_mist');
+      say(ctx, 'fountain.disappears');
+      it.buc = 'cursed';
+      if (it.spe > -6 && !ctx.rng.rn2(3)) it.spe--;
+      delete it.erodeproof;
+    } else {
+      // The lady of the lake acts! - Eric Backus; be *REAL* nice
+      say(ctx, 'fountain.lady_blesses');
+      say(ctx, 'fountain.lady_retreats');
+      onameObj(ctx, obj, artifactRow(EXCALIBUR).name, 'viadip', true);
+      discoverArtifact(ctx, EXCALIBUR);
+      it.buc = 'blessed';
+      delete it.erosion;
+      it.erodeproof = true;
+    }
     setTerrain(level, at.x, at.y, T.floor);
     setFountainBits(ctx, level.id, at.x, at.y, 0);
     if (inTown(level, at.x, at.y)) angryGuards(ctx, false);
