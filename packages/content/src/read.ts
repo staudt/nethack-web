@@ -593,11 +593,11 @@ export function clearArea(ctx: Ctx, radius: 5 | 7 | 8 | 9): number[] {
  * walls and doorways but nothing behind them, so in a room it is the room and its walls (within
  * range), in a corridor a stretch of it. Darkening douses the hero's lit lamps first. On the
  * Rogue level the whole room she is in (walls included) is lit or darkened, and nothing in a
- * corridor ("hallways remain dark on the rogue level"), where lighting says nothing. Not ported:
- * artifact lights, gremlins, being swallowed or underwater, light-sensitive monsters
+ * corridor ("hallways remain dark on the rogue level"), where lighting says nothing. `sunsword`
+ * (Sunsword's #invoke up or down) lights only her spot. Not ported: artifact lights, gremlins, being swallowed or underwater, light-sensitive monsters
  * (lightdamage).
  */
-export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
+export function litroom(ctx: Ctx, on: boolean, blessed: boolean, sunsword = false): void {
   if (!on) {
     for (const obj of inventoryOf(ctx.state, ctx.state.playerId)) snuffLit(ctx, obj);
   }
@@ -618,6 +618,12 @@ export function litroom(ctx: Ctx, on: boolean, blessed: boolean): void {
       for (let y = room.ly - 1; y <= room.hy + 1; y++)
         if (inBounds(level, x, y)) level.lit[cellIndex(level, x, y)] = on ? 1 : 0;
     room.lit = on;
+    return;
+  }
+  if (sunsword) {
+    // Sunsword's #invoke power directed up or down lights the hero's spot (do_clear_area()
+    // rejects radius 0 so C calls set_lit() directly)
+    level.lit[cellIndex(level, pos.x, pos.y)] = 1;
     return;
   }
   for (const i of clearArea(ctx, blessed ? 9 : 5)) level.lit[i] = on ? 1 : 0;

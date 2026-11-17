@@ -11,7 +11,9 @@
 // `props['<name>:worn']` (present while some worn item gives it), rebuilt by `updateWornProps()`
 // whenever the hero's accessories change and as a safety net after every action and turn.
 // The polymorphed hero's form confers its properties the same way (C's FROMFORM bits):
-// `props['<name>:form']`, written by `setFormProps()` (set_uasmon()).
+// `props['<name>:form']`, written by `setFormProps()` (set_uasmon()). A property an artifact's
+// #invoke toggled on (C's W_ARTI bit: conflict, levitation) is the entry `props['<name>:invoked']`,
+// written by `setInvoked()` (invoke.ts) and left alone by the cache's rebuild.
 import {
   getPlayer,
   inventoryOf,
@@ -108,6 +110,8 @@ export const heroClairvoyant = (state: Readonly<GameState>): boolean =>
 const wornKey = (name: string): string => `${name}:worn`;
 /** The entry of a property the polymorphed hero's form gives (FROMFORM; see setFormProps()). */
 const formKey = (name: string): string => `${name}:form`;
+/** The entry of a property an invoked artifact gives (W_ARTI; see setInvoked()). */
+const invokedKey = (name: string): string => `${name}:invoked`;
 
 /** True when a worn item gives the property (EFoo). */
 export const hasExtrinsic = (e: Entity | undefined, name: string): boolean =>
@@ -117,6 +121,29 @@ export const hasExtrinsic = (e: Entity | undefined, name: string): boolean =>
 export const hasFromForm = (e: Entity | undefined, name: string): boolean =>
   e?.c.props?.[formKey(name)] !== undefined;
 
+/** True when an invoked artifact gives the property (EFoo & W_ARTI). */
+export const hasInvoked = (e: Entity | undefined, name: string): boolean =>
+  e?.c.props?.[invokedKey(name)] !== undefined;
+
+/** Sets or clears the property an invoked artifact gives (EFoo ^= W_ARTI). ref: src/artifact.c arti_invoke() */
+export function setInvoked(e: Entity, name: string, on: boolean): void {
+  if (on) (e.c.props ??= {})[invokedKey(name)] = { intrinsic: true, timeout: 0 };
+  else if (e.c.props) delete e.c.props[invokedKey(name)];
+}
+
+/**
+ * The property from anything but an invoked artifact: `HFoo || (EFoo & ~W_ARTI)` (Conflict's
+ * hunger: an invoked Sceptre of Might costs no food). ref: src/eat.c gethungry()
+ */
+export function hasPropBesidesInvoked(e: Entity | undefined, name: string): boolean {
+  const p = e?.c.props?.[name];
+  return (
+    (p !== undefined && (p.intrinsic || p.timeout > 0)) ||
+    hasExtrinsic(e, name) ||
+    hasFromForm(e, name)
+  );
+}
+
 /**
  * True while the entity has the property, permanently or on a timer. Hallucination does not
  * show while something gives hallucination resistance (`Hallucination` is `HHallucination &&
@@ -124,12 +151,7 @@ export const hasFromForm = (e: Entity | undefined, name: string): boolean =>
  */
 export function hasProp(e: Entity | undefined, name: string): boolean {
   if (name === P.HALLUC && hasExtrinsic(e, P.HALLUC_RES)) return false;
-  const p = e?.c.props?.[name];
-  return (
-    (p !== undefined && (p.intrinsic || p.timeout > 0)) ||
-    hasExtrinsic(e, name) ||
-    hasFromForm(e, name)
-  );
+  return hasPropBesidesInvoked(e, name) || hasInvoked(e, name);
 }
 
 /**

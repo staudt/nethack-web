@@ -5,7 +5,8 @@
 //
 // The sources are a worn ring of levitation, levitation boots and the potion (timed HLevitation,
 // at will when blessed: Lev_at_will, `>`; ref: src/timeout.c nh_timeout() LEVITATION,
-// levitation_dialogue(); src/do.c dodown()); no spell or artifact yet. A bear trap
+// levitation_dialogue(); src/do.c dodown()) and the Heart of Ahriman's #invoke (the
+// `levitation:invoked` entry, C's W_ARTI: at will too; invoke.ts). A bear trap
 // holds her to the floor (BLevitation): `levitating()` (trapstate.ts) is C's `Levitation`.
 // Coming down over water drops her in (drown(), late-bound through uwater.ts); in the water,
 // floating up takes her out (spoteffects()). Not ported: the air and water levels, lava (m15
@@ -33,10 +34,21 @@ import { losehp } from './hp';
 import { encumberMsg, lookHere } from './itemactions';
 import { canReachFloor } from './reach';
 import { monNam } from './perception';
-import { P, hasExtrinsic, hasProp, setItimeout, setTimeoutExpiry, timeoutLeft } from './props';
+import { artiOf } from './artistate';
+import { rnz } from './corpses';
+import {
+  P,
+  hasExtrinsic,
+  hasInvoked,
+  hasProp,
+  setInvoked,
+  setItimeout,
+  setTimeoutExpiry,
+  timeoutLeft,
+} from './props';
 import { isSokoban } from './sokoban';
 import { surfaceKey } from './terrain';
-import { flying, levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
+import { flying, levAtWillFlag, levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
 import { isPool } from './liquid';
 import { drownLate, poolEffects, swimming, uinwater, wwalking } from './uwater';
 
@@ -60,12 +72,13 @@ export { canReachFloor };
 
 /**
  * Whether another source than `ring` gives levitation: Ring_on()'s `oldprop` (a second ring of
- * levitation, boots) and HLevitation (the potion's timeout).
+ * levitation, boots, an invoked artifact) and HLevitation (the potion's timeout).
  */
 export function otherLevitation(ctx: Pick<Ctx, 'state' | 'defs'>, ring: Entity): boolean {
   const h = hero(ctx);
   const p = h.c.props?.[P.LEVITATION];
   if (p && (p.intrinsic || p.timeout > 0)) return true;
+  if (hasInvoked(h, P.LEVITATION)) return true;
   return inventoryOf(ctx.state, h.id).some((o) => {
     const eq = o.c.item?.equipped;
     return (
@@ -118,14 +131,16 @@ export function floatUp(ctx: Ctx): void {
  * air currents knock her over), the trap here goes off unless she is already in it (a hole or
  * trap door only where there is a level below), then she sees what is on the floor. False
  * when she was not floating after all. `timed` is C's hmask `I_SPECIAL | TIMEOUT`: the potion's
- * levitation and its at-will bit end first.
+ * levitation and its at-will bit end first; `arti` is C's emask W_ARTI: an invoked artifact's
+ * levitation ends too.
  * ref: src/trap.c float_down()
  */
-export function floatDown(ctx: Ctx, timed = false): boolean {
+export function floatDown(ctx: Ctx, timed = false, arti = false): boolean {
   if (timed) {
     setItimeout(ctx.state, hero(ctx), P.LEVITATION, 0);
     setLevAtWill(ctx, false);
   }
+  if (arti) setInvoked(hero(ctx), P.LEVITATION, false);
   if (levitating(ctx)) return false; // maybe another ring/potion/boots
   const h = hero(ctx);
   const held = utrap(ctx);
@@ -198,12 +213,28 @@ export function resumeLevitation(ctx: Ctx, wasLevitating: boolean): void {
 }
 
 /**
- * `>` while the potion's levitation may end at will: she comes down (true: time passes), or
- * "Your latent levitation ceases." when it was blocked and nothing else holds her up (true);
- * false when something else keeps her floating. ref: src/do.c dodown()
+ * Whether `>` ends her levitation at will: the blessed potion's (HLevitation & I_SPECIAL) or an
+ * invoked artifact's (ELevitation & W_ARTI). ref: src/do.c dodown()
+ */
+export const levitationEndsAtWill = (ctx: Pick<Ctx, 'state'>): boolean =>
+  levAtWillFlag(ctx) || hasInvoked(hero(ctx), P.LEVITATION);
+
+/**
+ * `>` while the potion's or an invoked artifact's levitation may end at will: she comes down
+ * (true: time passes), or "Your latent levitation ceases." when it was blocked and nothing else
+ * holds her up (true); false when something else keeps her floating. An invoked artifact that
+ * levitates her rests `rnz(100)` turns more from now. ref: src/do.c dodown()
  */
 export function endLevitationAtWill(ctx: Ctx): boolean {
-  if (floatDown(ctx, true)) return true;
+  const h = hero(ctx);
+  if (hasInvoked(h, P.LEVITATION)) {
+    for (const o of inventoryOf(ctx.state, h.id)) {
+      const it = o.c.item;
+      if (!it || artiOf(o)?.invoke !== 'levitation') continue;
+      it.age = Math.max(it.age ?? 0, ctx.state.turn) + rnz(ctx, 100);
+    }
+  }
+  if (floatDown(ctx, true, true)) return true;
   if (!hasProp(hero(ctx), P.LEVITATION)) {
     say(ctx, 'lev.latent_ceases');
     return true;
@@ -219,7 +250,8 @@ export function endLevitationAtWill(ctx: Ctx): boolean {
 function levitationDialogue(ctx: Ctx): void {
   const h = hero(ctx);
   const nh = ctx.state.modData['nh'] as { u?: { uinvulnerable?: boolean } } | undefined;
-  if (nh?.u?.uinvulnerable || hasExtrinsic(h, P.LEVITATION)) return;
+  // (ELevitation: an invoked artifact's too)
+  if (nh?.u?.uinvulnerable || hasExtrinsic(h, P.LEVITATION) || hasInvoked(h, P.LEVITATION)) return;
   const t = timeoutLeft(ctx.state, h, P.LEVITATION) + 1; // HLevitation & TIMEOUT before this turn's tick
   if (t <= 1) return;
   // -1 because the last message comes via float_down()

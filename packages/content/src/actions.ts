@@ -66,16 +66,13 @@ import {
   trapToConfirm,
   trapmove,
 } from './trap';
+import { isMtrapped, isPit, levitating, setMtrapped, uInPit, uLocomotion } from './trapstate';
 import {
-  isMtrapped,
-  isPit,
-  levAtWillFlag,
-  levitating,
-  setMtrapped,
-  uInPit,
-  uLocomotion,
-} from './trapstate';
-import { endLevitationAtWill, floatingAbove, resumeLevitation } from './levitation';
+  endLevitationAtWill,
+  floatingAbove,
+  levitationEndsAtWill,
+  resumeLevitation,
+} from './levitation';
 import { HERE } from './priority';
 import { checkSpecialRoom } from './rooms';
 import { BOULDER, boulderAt, feelObjects, rememberedBoulder, sokobanBoulder } from './boulder';
@@ -1060,8 +1057,9 @@ const down: ActionDef = {
   offer: (ctx, target) =>
     target.kind !== 'self'
       ? []
-      : levAtWillFlag(ctx)
-        ? // `>` ends a blessed potion's levitation (offered anywhere: no feature needs a key)
+      : levitationEndsAtWill(ctx)
+        ? // `>` ends a blessed potion's or an invoked artifact's levitation (offered anywhere:
+          // no feature needs a key)
           [
             {
               action: { type: 'mod', action: 'nh:down' },
@@ -1082,7 +1080,7 @@ const down: ActionDef = {
     // ref: dodown(): `HLevitation || ELevitation` (even when a bear trap blocks it): controlled
     // levitation ends, else "You are floating high above the stairs.", no time
     if (hasProp(getPlayer(ctx.state), P.LEVITATION)) {
-      if (levAtWillFlag(ctx) && endLevitationAtWill(ctx)) return NORMAL_SPEED;
+      if (levitationEndsAtWill(ctx) && endLevitationAtWill(ctx)) return NORMAL_SPEED;
       // (surfaceKey() is "stairs" or "ladder" on them)
       const p = playerAt(ctx);
       floatingAbove(ctx, surfaceKey(ctx, getLevel(ctx.state), p.x, p.y));

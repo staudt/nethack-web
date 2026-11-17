@@ -285,11 +285,17 @@ export function sleptMonst(ctx: Ctx, mon: Entity): void {
   }
 }
 
-/** ref: src/zap.c flashburn(): lightning blinds a hero who can see */
-export function flashburn(ctx: Ctx, duration: number): void {
-  if (blind(ctx) || hero(ctx).c.helpless) return; // resists_blnd(): already blind or unaware
+/**
+ * A flash blinds a hero who can see (true), unless a wielded Sunsword resists it.
+ * ref: src/zap.c flashburn() (no sparkle), src/mondata.c resists_blnd() (no forms with blinding
+ * attacks)
+ */
+export function flashburn(ctx: Ctx, duration: number): boolean {
+  // resists_blnd(): already blind or unaware, or Sunsword (resists_blnd_by_arti(), Blnd_resist)
+  if (blind(ctx) || hero(ctx).c.helpless || hasProp(hero(ctx), P.BLND_RES)) return false;
   say(ctx, 'zap.blinded_flash');
   makeBlinded(ctx, duration, false);
+  return true;
 }
 
 // ---------------------------------------------------------------------------------------------

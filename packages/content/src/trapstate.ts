@@ -20,7 +20,7 @@ import {
   type Level,
   type Trap,
 } from '@nh/core';
-import { P, hasExtrinsic, hasProp } from './props';
+import { P, hasExtrinsic, hasInvoked, hasProp } from './props';
 
 type Table = { [k: string]: Json };
 
@@ -105,13 +105,17 @@ export function setLevAtWill(ctx: Pick<Ctx, 'state'>, on: boolean): void {
 }
 
 /**
- * Lev_at_will: the timed levitation is the only source and may be ended at will (no ring or
- * boots, nothing permanent). ref: include/youprop.h Lev_at_will
+ * Lev_at_will: the blessed potion's levitation or an invoked artifact's is the only source and
+ * may be ended at will (no ring or boots, nothing permanent). ref: include/youprop.h Lev_at_will
  */
 export function levAtWill(ctx: Pick<Ctx, 'state'>): boolean {
   const h = getPlayer(ctx.state);
   const p = h.c.props?.[P.LEVITATION];
-  return levAtWillFlag(ctx) && !p?.intrinsic && !hasExtrinsic(h, P.LEVITATION);
+  return (
+    (levAtWillFlag(ctx) || hasInvoked(h, P.LEVITATION)) &&
+    !p?.intrinsic &&
+    !hasExtrinsic(h, P.LEVITATION)
+  );
 }
 
 /**

@@ -1,5 +1,6 @@
-// English text for the artifacts' special attacks and Mjollnir's throw. ref: src/artifact.c
-// artifact_hit(), Mb_hit(); src/dothrow.c throw_obj(), throwit()
+// English text for the artifacts' special attacks, Mjollnir's throw, touching artifacts and
+// #invoke. ref: src/artifact.c artifact_hit(), Mb_hit(), arti_invoke() and the invoke_*()
+// functions; src/dothrow.c throw_obj(), throwit()
 export const artifactMessagesEn: Record<string, string> = {
   'obj.the_item': '{item|The}',
   'arti.life': 'life',
@@ -106,4 +107,30 @@ export const artifactMessagesEn: Record<string, string> = {
   'arti.light.3': 'brilliantly',
   // Stormbringer
   'arti.bloodthirsty': 'Your bloodthirsty blade attacks!',
+  // #invoke (m20 step 6)
+  'action.nh:invoke': 'Invoke',
+  'invoke.nothing_happens': 'Nothing happens.',
+  'invoke.nothing_seems': 'Nothing seems to happen.',
+  'invoke.nothing_special': 'You feel a surge of power, but nothing seems to happen.',
+  'invoke.ignoring': 'You feel that {item|the} is ignoring you.',
+  'invoke.drained': 'You feel drained...',
+  'invoke.never_mind': 'Never mind.',
+  'invoke.better': 'You feel better.',
+  'invoke.slightly_better': 'You feel slightly better.',
+  'invoke.reenergized': 'You feel re-energized.',
+  'invoke.portal_q': 'Open a portal to which dungeon?',
+  'invoke.disoriented': 'You feel very disoriented for a moment.',
+  'invoke.sphere': 'You are surrounded by a shimmering sphere!',
+  'invoke.weightless': 'You feel weightless for a moment.',
+  'invoke.ammo_fall': 'Suddenly {item} falls out.',
+  'invoke.ammo_fall.plural': 'Suddenly {item} fall out.',
+  'invoke.banish.the': 'The demon disappears in a cloud of brimstone!',
+  'invoke.banish.the.plural': 'The demons disappear in a cloud of brimstone!',
+  'invoke.banish.some': 'Some of the demon disappears in a cloud of brimstone!',
+  'invoke.banish.some.plural': 'Some of the demons disappear in a cloud of brimstone!',
+  'invoke.banish.most': 'Most of the demon disappears in a cloud of brimstone!',
+  'invoke.banish.most.plural': 'Most of the demons disappear in a cloud of brimstone!',
+  'invoke.lit_here': 'It is lit here now.',
+  'invoke.rabble_rouser': 'You feel like a rabble-rouser.',
+  'invoke.tension_decrease': 'You feel the tension decrease around you.',
 };

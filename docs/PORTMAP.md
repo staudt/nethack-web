@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5739 citations.
+196 NetHack files, 5765 citations.
 
 ## dat/asmodeus.lua
 
@@ -779,7 +779,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `discard_broken_wand()`: `packages/content/src/breakwand.ts`
 - `display_jump_positions()`: `packages/content/src/jump.ts`
 - `display_polearm_positions()`: `packages/content/src/pole.ts`
-- `do_blinding_ray()`: `packages/content/src/camera.ts`
+- `do_blinding_ray()`: `packages/content/src/camera.ts`, `packages/content/src/invoke.ts`
 - `do_break_wand()`: `packages/content/src/breakwand.ts`
 - `doapply()`: `packages/content/src/apply.ts`
 - `dojump()`: `packages/content/src/jump.ts`
@@ -827,15 +827,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/artifact.c
 
-- (file): `packages/content/src/artifact.en.ts`
+- (file): `packages/content/src/untrap.ts`
 - `MB_MAX_DIEROLL()`: `packages/content/src/artihit.ts`
-- `Mb_hit()`: `packages/content/src/artihit.ts`
+- `Mb_hit()`: `packages/content/src/artifact.en.ts`, `packages/content/src/artihit.ts`
 - `Sting_effects()`: `packages/content/src/artiglow.ts`
 - `any_quest_artifact()`: `packages/content/src/artistate.ts`
 - `arti_cost()`: `packages/content/src/artistate.ts`
+- `arti_invoke()`: `packages/content/src/artifact.en.ts`, `packages/content/src/invoke.ts`, `packages/content/src/props.ts`
+- `arti_invoke_cost()`: `packages/content/src/invoke.ts`
+- `arti_invoke_cost_pw()`: `packages/content/src/invoke.ts`
 - `arti_reflects()`: `packages/content/src/artidef.ts`
 - `artifact_exists()`: `packages/content/src/artistate.ts`
-- `artifact_hit()`: `packages/content/src/artihit.ts`
+- `artifact_hit()`: `packages/content/src/artifact.en.ts`, `packages/content/src/artihit.ts`
 - `artifact_light()`: `packages/content/src/light.ts`
 - `artifact_name()`: `packages/content/src/artistate.ts`
 - `artifact_origin()`: `packages/content/src/artistate.ts`
@@ -846,6 +849,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `defends_when_carried()`: `packages/content/src/artidef.ts`
 - `discover_artifact()`: `packages/content/src/artistate.ts`
 - `disp_artifact_discoveries()`: `packages/content/src/itemactions.ts`
+- `doinvoke()`: `packages/content/src/invoke.ts`
 - `exist_artifact()`: `packages/content/src/artistate.ts`
 - `find_artifact()`: `packages/content/src/artistate.ts`
 - `found_artifact()`: `packages/content/src/artistate.ts`
@@ -855,11 +859,22 @@ whole. A missing function may still be ported under a citation this parser canno
 - `glow_verb()`: `packages/content/src/artiglow.ts`
 - `hack_artifacts()`: `packages/content/src/artistate.ts`
 - `has_magic_key()`: `packages/content/src/artifact.ts`
+- `invoke_banish()`: `packages/content/src/invoke.ts`
+- `invoke_blinding_ray()`: `packages/content/src/invoke.ts`
+- `invoke_charge_obj()`: `packages/content/src/invoke.ts`
+- `invoke_create_ammo()`: `packages/content/src/invoke.ts`
+- `invoke_create_portal()`: `packages/content/src/invoke.ts`
+- `invoke_energy_boost()`: `packages/content/src/invoke.ts`
+- `invoke_fling_poison()`: `packages/content/src/invoke.ts`
+- `invoke_healing()`: `packages/content/src/invoke.ts`
+- `invoke_ok()`: `packages/content/src/invoke.ts`
+- `invoke_storm_spell()`: `packages/content/src/cast.ts`
 - `is_art()`: `packages/content/src/artistate.ts`
 - `is_magic_key()`: `packages/content/src/artifact.ts`
 - `mb_verb()`: `packages/content/src/artihit.ts`
 - `mk_artifact()`: `packages/content/src/artistate.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
+- `nothing_special()`: `packages/content/src/invoke.ts`
 - `protects()`: `packages/content/src/artidef.ts`
 - `restrict_name()`: `packages/content/src/artiname.ts`
 - `retouch_equipment()`: `packages/content/src/artitouch.ts`
@@ -1339,7 +1354,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fpostfx()`: `packages/content/src/eat.ts`
 - `fprefx()`: `packages/content/src/eat.ts`, `packages/content/src/egg.en.ts`
 - `garlic_breath()`: `packages/content/src/eat.ts`
-- `gethungry()`: `packages/content/src/hunger.ts`
+- `gethungry()`: `packages/content/src/hunger.ts`, `packages/content/src/props.ts`
 - `givit()`: `packages/content/src/givit.ts`, `packages/content/src/resist.en.ts`
 - `hu_stat()`: `packages/content/src/enlightenment.ts`
 - `init_uhunger()`: `packages/content/src/uhunger.ts`
@@ -1593,7 +1608,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dolook()`: `packages/content/src/engrave.ts`, `packages/content/src/itemactions.ts`
 - `findgold()`: `packages/content/src/mongear.ts`
 - `freeinv()`: `packages/content/src/items.ts`
-- `freeinv_core()`: `packages/content/src/items.ts`
+- `freeinv_core()`: `packages/content/src/invoke.ts`, `packages/content/src/items.ts`
 - `getobj()`: `packages/content/src/dip.ts`
 - `hold_another_object()`: `packages/content/src/wish.ts`
 - `identify()`: `packages/content/src/read.ts`
@@ -2063,7 +2078,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `on_fire()`: `packages/content/src/adtyping.ts`, `packages/content/src/minliquid.ts`
 - `pronoun_gender()`: `packages/content/src/seduce.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
-- `resists_blnd()`: `packages/content/src/adtyping.ts`
+- `resists_blnd()`: `packages/content/src/adtyping.ts`, `packages/content/src/buzz.ts`
 - `resists_blnd_by_arti()`: `packages/content/src/adtyping.ts`
 - `resists_drli()`: `packages/content/src/exper.ts`, `packages/content/src/mresist.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
@@ -3342,7 +3357,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/zap.c
 
-- (file): `packages/content/src/camera.ts`, `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
+- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`

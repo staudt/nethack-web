@@ -715,6 +715,13 @@ function chargeOk(ctx: Ctx, obj: Entity): 'suggest' | 'selectable' | 'exclude' {
   return 'selectable';
 }
 
+/** getobj("charge", charge_ok): the carried objects that can be picked to charge. */
+export function chargeOptions(ctx: Ctx): PromptOption[] {
+  return inventoryOf(ctx.state, ctx.state.playerId)
+    .filter((o) => chargeOk(ctx, o) !== 'exclude')
+    .map((o) => invOption(ctx, o));
+}
+
 /**
  * The scroll of charging: confused, it restores (or, cursed, drains) her energy ("You feel
  * charged up!": d(4, 4), d(6, 4) blessed, raising the maximum when that is passed; "You feel
@@ -750,9 +757,7 @@ export function seffectCharging(
   }
   // use it up now to prevent it from showing in the getobj picklist
   useup(ctx, scroll.id);
-  const options = inventoryOf(ctx.state, ctx.state.playerId)
-    .filter((o) => chargeOk(ctx, o) !== 'exclude')
-    .map((o) => invOption(ctx, o));
+  const options = chargeOptions(ctx);
   if (options.length === 0) {
     say(ctx, 'scroll.charging.nothing');
     return { used: true };

@@ -22,6 +22,8 @@ const PICK_KEYS: [string, string][] = [
   ['Alt+d', 'nh:dip'],
   // #rub: lamps, the lantern and royal jelly
   ['Alt+r', 'nh:rub'],
+  // #invoke: artifacts (and unique objects, an unknown imitation Amulet)
+  ['Alt+i', 'nh:invoke'],
 ];
 
 /**

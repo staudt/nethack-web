@@ -541,7 +541,8 @@ function disarmBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): vo
  * then "Disarm it?". Returns the time taken now (0 while the question is open: its answer
  * takes the turn). ref: src/trap.c untrap_box()
  */
-function untrapBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): number {
+function untrapBox(ctx: Ctx, box: Entity, o: UntrapOpts, confused: boolean): number {
+  const force = forceOf(ctx, o);
   const otrapped = isBoxTrapped(ctx.state, box.id);
   const tknown = boxTknown(ctx.state, box.id);
   if (tknown && !otrapped) {
@@ -564,6 +565,7 @@ function untrapBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): nu
       {
         stage: 'boxdisarm',
         box: box.id,
+        ...o,
       },
     );
     return 0;
@@ -577,7 +579,14 @@ function untrapBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): nu
  * `rn2(MAXULEV - level + 11) < 10`; confused, 1 in 3 she imagines one), then "Disarm it?".
  * ref: src/trap.c untrap() door part
  */
-function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: boolean): number {
+function untrapDoor(
+  ctx: Ctx,
+  level: Level,
+  x: number,
+  y: number,
+  trapSkipped: boolean,
+  o: UntrapOpts,
+): number {
   const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
   const door = id !== undefined && ctx.defs.hasTerrain(id) ? ctx.defs.terrain(id).door : undefined;
   // a secret door is not a door (IS_DOOR is false for SDOOR)
@@ -595,8 +604,7 @@ function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: b
     return 0;
   }
   const confused = confusedNow(ctx);
-  // carrying the Master Key of Thievery works as #invoke's force
-  const force = hasMagicKey(ctx, ctx.state.playerId) !== null;
+  const force = forceOf(ctx, o);
   if (
     (doorTrapped(ctx, level.id, x, y) &&
       (force || (!confused && ctx.rng.rn2(MAXULEV - ulevel(ctx) + 11) < 10))) ||
@@ -610,6 +618,7 @@ function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: b
         stage: 'door',
         x,
         y,
+        ...o,
       },
     );
     return 0;
@@ -619,14 +628,15 @@ function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: b
 }
 
 /** "Disarm it?" answered for a door. ref: src/trap.c untrap() after `ynq("Disarm it?")` */
-function disarmDoor(ctx: Ctx, x: number, y: number): number {
+function disarmDoor(ctx: Ctx, x: number, y: number, force: boolean): number {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   if (doorTrapped(ctx, level.id, x, y)) {
     const ch = 15 + (roleIs(ctx.state, 'rogue') ? ulevel(ctx) * 3 : ulevel(ctx));
     if (
-      confusedNow(ctx) ||
-      hasProp(hero(ctx), P.FUMBLING) ||
-      ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch
+      !force &&
+      (confusedNow(ctx) ||
+        hasProp(hero(ctx), P.FUMBLING) ||
+        ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch)
     ) {
       say(ctx, 'untrap.set_it_off');
       blowDoor(ctx, level, x, y, 0); // D_NODOOR (probably ought to charge for this damage...)
@@ -643,7 +653,20 @@ function disarmDoor(ctx: Ctx, x: number, y: number): number {
 // ---------------------------------------------------------------------------------------------
 // untrap()
 
-interface AskData {
+/**
+ * How this untrap goes: `force` is #invoke's (the Master Key of Thievery: every trap found and
+ * disarmed); `invoked` the artifact whose rest is undone when she changes her mind.
+ */
+interface UntrapOpts {
+  force?: true;
+  invoked?: EntityId;
+}
+
+/** `force`, or carrying the Master Key of Thievery makes it so. ref: src/trap.c untrap() */
+const forceOf = (ctx: Ctx, o: UntrapOpts): boolean =>
+  o.force === true || hasMagicKey(ctx, ctx.state.playerId) !== null;
+
+interface AskData extends UntrapOpts {
   stage: 'dir' | 'floor' | 'box' | 'boxdisarm' | 'door';
   /** 'box': the boxes still to ask about, the current one first; 'boxdisarm': the box. */
   boxes?: EntityId[];
@@ -716,13 +739,13 @@ function floorTrap(ctx: Ctx, level: Level, t: Trap, here: boolean): number {
 }
 
 /** The boxes at her feet, one question each; then the door part. */
-function askBoxes(ctx: Ctx, boxes: EntityId[], trapSkipped: boolean): number {
+function askBoxes(ctx: Ctx, boxes: EntityId[], trapSkipped: boolean, o: UntrapOpts): number {
   const id = boxes[0];
   const box = id === undefined ? undefined : ctx.state.entities[String(id)];
   if (!box) {
     say(ctx, 'untrap.no_other_boxes');
     const p = heroPos(ctx);
-    return untrapDoor(ctx, getLevel(ctx.state, p.level), p.x, p.y, trapSkipped);
+    return untrapDoor(ctx, getLevel(ctx.state, p.level), p.x, p.y, trapSkipped, o);
   }
   const known = boxTknown(ctx.state, box.id) && isBoxTrapped(ctx.state, box.id);
   ask(
@@ -742,16 +765,16 @@ function askBoxes(ctx: Ctx, boxes: EntityId[], trapSkipped: boolean): number {
           params: { box: doname(ctx.state, ctx.defs, box) },
           cancellable: true,
         },
-    { stage: 'box', boxes, trapSkipped },
+    { stage: 'box', boxes, trapSkipped, ...o },
   );
   return 0;
 }
 
 /**
  * Untrapping in direction `dir` ('self': her own square). Returns the time taken now; a
- * question's answer takes it later. ref: src/trap.c untrap() (no magic key, autounlock, steed)
+ * question's answer takes it later. ref: src/trap.c untrap() (no autounlock, steed)
  */
-export function untrap(ctx: Ctx, dir: Dir | 'self'): number {
+export function untrap(ctx: Ctx, dir: Dir | 'self', o: UntrapOpts = {}): number {
   const p = heroPos(ctx);
   const d = dir === 'self' ? { x: 0, y: 0 } : DIRS[dir];
   const x = p.x + d.x;
@@ -785,7 +808,7 @@ export function untrap(ctx: Ctx, dir: Dir | 'self'): number {
         where: { key: here ? 'untrap.here' : 'untrap.there' },
       });
     }
-    return untrapDoor(ctx, level, x, y, t !== undefined);
+    return untrapDoor(ctx, level, x, y, t !== undefined, o);
   }
   if (t) {
     if (boxcnt) {
@@ -793,7 +816,7 @@ export function untrap(ctx: Ctx, dir: Dir | 'self'): number {
         say(ctx, utrap(ctx) ? 'untrap.cant_do_much_stuck' : 'untrap.cant_do_much_edge', {
           trap: trapName(t),
         });
-        return askBoxes(ctx, boxes, true);
+        return askBoxes(ctx, boxes, true, o);
       }
       ask(
         ctx,
@@ -804,26 +827,30 @@ export function untrap(ctx: Ctx, dir: Dir | 'self'): number {
           params: { trap: trapName(t) },
           cancellable: true,
         },
-        { stage: 'floor', boxes },
+        { stage: 'floor', boxes, ...o },
       );
       return 0;
     }
     return floorTrap(ctx, level, t, here);
   }
-  if (boxcnt) return askBoxes(ctx, boxes, false);
-  return untrapDoor(ctx, level, x, y, false);
+  if (boxcnt) return askBoxes(ctx, boxes, false, o);
+  return untrapDoor(ctx, level, x, y, false, o);
 }
 
 /** The answers to the untrap questions. */
 function answerUntrap(ctx: Ctx, value: Json, raw: Json): number {
   const data = raw as unknown as AskData;
+  const o: UntrapOpts = {
+    ...(data.force ? { force: true as const } : {}),
+    ...(data.invoked !== undefined ? { invoked: data.invoked } : {}),
+  };
   const p = heroPos(ctx);
   const level = getLevel(ctx.state, p.level);
   switch (data.stage) {
     case 'dir': {
-      if (value === 'self') return untrap(ctx, 'self');
+      if (value === 'self') return untrap(ctx, 'self', o);
       const dir = DIR_LIST.find((d) => d === value);
-      return dir ? untrap(ctx, dir) : 0;
+      return dir ? untrap(ctx, dir, o) : 0;
     }
     case 'floor': {
       if (value === null) return 0; // 'q'
@@ -831,7 +858,7 @@ function answerUntrap(ctx: Ctx, value: Json, raw: Json): number {
         const t = trapAt(level, p.x, p.y);
         return t?.seen ? floorTrap(ctx, level, t, true) : 0;
       }
-      return askBoxes(ctx, data.boxes ?? [], true); // 'n'
+      return askBoxes(ctx, data.boxes ?? [], true, o); // 'n'
     }
     case 'box': {
       if (value === null) return 0; // 'q'
@@ -841,25 +868,56 @@ function answerUntrap(ctx: Ctx, value: Json, raw: Json): number {
       if (value === true && box) {
         const confused = confusedNow(ctx);
         if (boxTknown(ctx.state, box.id) && isBoxTrapped(ctx.state, box.id)) {
-          disarmBox(ctx, box, hasMagicKey(ctx, ctx.state.playerId) !== null, confused);
+          disarmBox(ctx, box, forceOf(ctx, o), confused);
           return NORMAL_SPEED;
         }
-        const r = untrapBox(ctx, box, hasMagicKey(ctx, ctx.state.playerId) !== null, confused);
+        const r = untrapBox(ctx, box, o, confused);
         return r; // even for 'no' at the "Disarm it?" prompt (its answer takes the turn)
       }
       // 'n': next box
-      return askBoxes(ctx, boxes.slice(1), data.trapSkipped === true);
+      return askBoxes(ctx, boxes.slice(1), data.trapSkipped === true, o);
     }
     case 'boxdisarm': {
       const box = data.box === undefined ? undefined : ctx.state.entities[String(data.box)];
-      if (value === true && box) disarmBox(ctx, box, false, confusedNow(ctx));
+      if (value === true && box) disarmBox(ctx, box, forceOf(ctx, o), confusedNow(ctx));
       return NORMAL_SPEED;
     }
     case 'door':
       if (value !== true || data.x === undefined || data.y === undefined) return NORMAL_SPEED;
-      return disarmDoor(ctx, data.x, data.y);
+      return disarmDoor(ctx, data.x, data.y, forceOf(ctx, o));
   }
   return 0;
+}
+
+/**
+ * #invoke of the Master Key of Thievery: untrap(TRUE): the direction question, then every trap
+ * there is found and disarmed (no could_untrap() check); when she changes her mind (nothing
+ * done, no time taken) the key's rest is undone (`age = 0`). ref: src/artifact.c
+ * invoke_untrap()
+ */
+export function invokeUntrap(ctx: Ctx, invoked: EntityId): number {
+  ask(
+    ctx,
+    {
+      id: 'untrap-direction',
+      kind: 'direction',
+      key: 'untrap.direction',
+      options: UNTRAP_DIRECTIONS,
+    },
+    { stage: 'dir', force: true, invoked },
+  );
+  return 0;
+}
+
+/** The untrap answers, and #invoke's "don't charge for changing their mind". */
+function answer(ctx: Ctx, value: Json, raw: Json): number {
+  const r = answerUntrap(ctx, value, raw);
+  const invoked = (raw as unknown as AskData).invoked;
+  if (r === 0 && invoked !== undefined && ctx.state.pendingPrompt === null) {
+    const it = ctx.state.entities[String(invoked)]?.c.item;
+    if (it) it.age = 0;
+  }
+  return r;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -935,7 +993,7 @@ const untrapAct: ActionDef = {
     );
     return 0;
   },
-  answer: answerUntrap,
+  answer,
 };
 
 export const UNTRAP_ACTIONS: readonly ActionDef[] = [untrapAct];

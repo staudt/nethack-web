@@ -3,7 +3,8 @@
 // wears or carries again after her alignment or form changed (retouch_equipment()), with the
 // silver her form may hate. Above artifact.ts (the verdict) and hp.ts; below itemactions.ts and
 // dowear.ts, so taking an item off and dropping it are late-bound (setRetouchHooks(), registered
-// by steal.ts, which sits above both).
+// by steal.ts, which sits above both), and so is reversing an #invoke (setInvokeReverse(),
+// registered by invoke.ts).
 // ref: src/artifact.c touch_artifact(), retouch_object(), untouchable(), retouch_equipment()
 import { getPlayer, inventoryOf, type Ctx, type Entity, type EntityId, type Msg } from '@nh/core';
 import { aAlign } from './align';
@@ -11,7 +12,7 @@ import { baneApplies, monTouchArtifact, touchVerdict } from './artifact';
 import { artiOf, bareArtifactName } from './artistate';
 import { losehp } from './hp';
 import { objIsPname, theXname, xnameOf } from './objnam';
-import { P, hasProp, maybeHalfPhys } from './props';
+import { P, hasInvoked, hasProp, maybeHalfPhys } from './props';
 import { formHatesSilver } from './silver';
 import { surfaceKey } from './terrain';
 import { levitating } from './trapstate';
@@ -35,6 +36,14 @@ export function setRetouchHooks(h: RetouchHooks): void {
   hooks = h;
 }
 
+/** arti_invoke() turning an invoked power off again (invoke.ts, at load). */
+let invokeReverse: ((ctx: Ctx, obj: Entity) => void) | null = null;
+
+/** Registers the reversal of a toggled #invoke power (invoke.ts). */
+export function setInvokeReverse(fn: (ctx: Ctx, obj: Entity) => void): void {
+  invokeReverse = fn;
+}
+
 /**
  * The hero hates silver: her form does, or she is a lycanthrope. ref: include/youprop.h
  * Hate_silver
@@ -45,8 +54,11 @@ const hateSilver = (ctx: Pick<Ctx, 'state' | 'defs'>): boolean =>
 const isSilver = (ctx: Pick<Ctx, 'defs'>, obj: Entity): boolean =>
   ctx.defs.object(obj.def).material === 'silver';
 
-/** the(xname(obj)) as a param for `{item|the_s}`: the artifact's bare name once it is known. */
-function theParam(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): Msg | string {
+/**
+ * the(xname(obj)) as a param for `{item|the}` or `{item|the_s}`: the artifact's bare name once
+ * it is known.
+ */
+export function theParam(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity): Msg | string {
   const a = artiOf(obj);
   return a && objIsPname(ctx.state, ctx.defs, obj)
     ? `=${bareArtifactName(a)}`
@@ -156,17 +168,36 @@ export function retouchObject(ctx: Ctx, obj: Entity, loseit: boolean): boolean {
 }
 
 /**
- * The hero's form or alignment changed: a worn or wielded item, or an artifact that gives
- * something while carried, undergoes the touch test; one that fails comes off and maybe is
- * dropped. ref: src/artifact.c untouchable() (no lit tools, leashes or containers: none is
- * silver or an artifact here; no #invoke powers yet)
+ * The #invoke powers that toggle a property (C's `inv_prop <= LAST_PROP`; INVIS belongs to a row
+ * that does not exist).
+ */
+export const TOGGLED_POWERS: Readonly<Record<string, string>> = {
+  conflict: P.CONFLICT,
+  levitation: P.LEVITATION,
+};
+
+/**
+ * The hero's form or alignment changed: a worn or wielded item, an artifact that gives
+ * something while carried, or one whose #invoke power is on, undergoes the touch test; one that
+ * fails comes off and maybe is dropped, and its invoked power is turned off.
+ * ref: src/artifact.c untouchable() (no lit tools, leashes or containers: none is silver or an
+ * artifact here)
  */
 function untouchable(ctx: Ctx, obj: Entity, dropUntouchable: boolean): boolean {
   const slot = obj.c.item?.equipped ?? null;
   const beingworn = slot !== null; // (there is no quiver slot)
   const a = artiOf(obj);
   const carryeffect = a !== null && (a.cary !== null || a.cspfx.length > 0);
-  if (beingworn || carryeffect) return !retouchObject(ctx, obj, dropUntouchable);
+  const prop = a?.invoke ? TOGGLED_POWERS[a.invoke] : undefined;
+  const invoked = prop !== undefined && hasInvoked(getPlayer(ctx.state), prop);
+  if (beingworn || carryeffect || invoked) {
+    if (!retouchObject(ctx, obj, dropUntouchable)) {
+      // reverse #invoke (dropped too: C turns it off as it leaves her pack, freeinv_core())
+      if (invoked && prop !== undefined && hasInvoked(getPlayer(ctx.state), prop))
+        invokeReverse?.(ctx, obj);
+      return true;
+    }
+  }
   return false;
 }
 

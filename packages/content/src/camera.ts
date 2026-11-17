@@ -112,10 +112,11 @@ function flashSelf(ctx: Ctx): void {
 
 /**
  * The flash travels until it meets a monster, which flash_hits_mon() handles; an invisible one
- * is flashed on the way and the light goes on. ref: src/apply.c do_blinding_ray(); src/zap.c
- * bhit() FLASHED_LIGHT (range COLNO: the level's width)
+ * is flashed on the way and the light goes on. The camera's, and Sunsword's #invoke.
+ * ref: src/apply.c do_blinding_ray(); src/zap.c bhit() FLASHED_LIGHT (range COLNO: the level's
+ * width)
  */
-function doBlindingRay(ctx: Ctx, dir: Dir): void {
+export function doBlindingRay(ctx: Ctx, dir: Dir): void {
   const level = getLevel(ctx.state);
   const hp = getPlayer(ctx.state).c.pos;
   if (!hp) return;

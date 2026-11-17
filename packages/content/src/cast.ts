@@ -435,6 +435,17 @@ function throwspell(ctx: Ctx, book: DefId, force: boolean): boolean {
 }
 
 /**
+ * #invoke of Frost Brand or Fire Brand: the cone of cold or fireball cast as at Expert (her
+ * skill in the school forced for the cast, which only picks the thrown form), with no energy,
+ * checks or practice (`spelleffects(storm, FALSE, TRUE)`): the position prompt, answered
+ * through {@link CAST_ID}. ref: src/artifact.c invoke_storm_spell()
+ */
+export function castStorm(ctx: Ctx, book: DefId): number {
+  if (throwspell(ctx, book, true)) return 0;
+  return NORMAL_SPEED;
+}
+
+/**
  * The spot is answered: too far, "The spell dissipates over the distance!"; swallowed, "The
  * spell is cut short!" and it goes off at herself; not seen (and no monster spotted there) or a
  * wall, "Your mind fails to lock onto that location!"; else the path stops before anything a

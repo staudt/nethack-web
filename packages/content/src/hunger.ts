@@ -16,7 +16,7 @@ import { uState } from './luck';
 import { nomul } from './nomul';
 import { nearCapacity } from './stats';
 import { CHARGED_RINGS } from './objects';
-import { P, hasProp, wornIn } from './props';
+import { P, hasProp, hasPropBesidesInvoked, wornIn } from './props';
 import { adjattrib, rawAttr, setRawAttr } from './attrstate';
 import { raceIs, roleIs, urole } from './urole';
 
@@ -85,8 +85,8 @@ export function gethungry(ctx: Ctx): void {
     if (nearCapacity(ctx.state, ctx.defs, hero.id) > 1) h.nutrition--;
   } else {
     if (hasProp(hero, P.HUNGER)) h.nutrition--;
-    // Conflict uses up food too (no artifacts here)
-    if (hasProp(hero, P.CONFLICT)) h.nutrition--;
+    // Conflict uses up food too (not an invoked artifact's: `HConflict || (EConflict & ~W_ARTI)`)
+    if (hasPropBesidesInvoked(hero, P.CONFLICT)) h.nutrition--;
     // (no meat rings, no Amulet of Yendor)
     const uleft = wornIn(ctx.state, hero.id, 'ringL');
     const uright = wornIn(ctx.state, hero.id, 'ringR');

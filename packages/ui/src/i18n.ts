@@ -138,6 +138,8 @@ export const uiMessagesEn: Record<string, string> = {
   'ui.pick.none.nh:loot': "You don't find anything here to loot.",
   'ui.pick.nh:dip': 'What do you want to dip?',
   'ui.pick.none.nh:dip': "You don't have anything to dip.",
+  'ui.pick.nh:invoke': 'What do you want to invoke?',
+  'ui.pick.none.nh:invoke': "You don't have anything to invoke.",
   'describe.unexplored': 'You have not explored that spot.',
 };
 
