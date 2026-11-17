@@ -85,6 +85,7 @@ import { shkDamageAction } from './shkpay';
 import { DIP_ACTIONS } from './dip';
 import { RUB_ACTIONS } from './rub';
 import { registerInvoke } from './invoke';
+import { OFFER_ACTIONS } from './offer';
 import { TIN_ACTIONS } from './tin';
 import { registerLock } from './lock';
 import { registerLight } from './light';
@@ -126,6 +127,7 @@ export const vanillaMod: Mod = {
     for (const a of FIRE_ACTIONS) api.defineAction(a);
     for (const a of CALL_ACTIONS) api.defineAction(a);
     for (const a of PRAY_ACTIONS) api.defineAction(a);
+    for (const a of OFFER_ACTIONS) api.defineAction(a); // #offer, on an altar
     for (const a of JEWELRY_ACTIONS) api.defineAction(a);
     for (const a of ZAP_ACTIONS) api.defineAction(a);
     api.defineAction(teleAction); // the controlled teleport prompts' answers
@@ -434,11 +436,13 @@ export {
   xkilledPenalties,
   HERO_ALIGN_TYPE,
   ualignBase,
+  ualignCur,
   LUCKMIN,
   LUCKMAX,
 } from './luck';
 export type { UState } from './luck';
 export { PRAY_ACTIONS, PRAY_ID, inTrouble, invulnerable } from './pray';
+export { OFFER_ACTIONS, OFFER_ID, evalOffering, mkArtifactByAlign, sacrificeValue } from './offer';
 export { givit, shouldGivit, corpseIntrinsic, cpostfxOf } from './givit';
 export {
   knowsClass,

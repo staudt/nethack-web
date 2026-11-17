@@ -487,7 +487,7 @@ export function desecrateAltar(ctx: Ctx, highaltar: boolean, altaralign: number)
 }
 
 /** ref: src/pray.c angrygods() (no level drain, punishment or minions) */
-function angrygods(ctx: Ctx, god: number): void {
+export function angrygods(ctx: Ctx, god: number): void {
   // in Gehennom Moloch answers
   const respGod = inHell(ctx.state) ? A_NONE : god;
   const u = uState(ctx.state);
@@ -539,7 +539,7 @@ function angrygods(ctx: Ctx, god: number): void {
 }
 
 /** ref: src/pray.c gods_upset() */
-function godsUpset(ctx: Ctx, align: number): void {
+export function godsUpset(ctx: Ctx, align: number): void {
   const u = uState(ctx.state);
   if (align === u.alignType) setU(ctx, { ugangr: u.ugangr + 1 });
   else if (u.ugangr) setU(ctx, { ugangr: u.ugangr - 1 });

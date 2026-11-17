@@ -144,6 +144,8 @@ export const itemMessagesEn: Record<string, string> = {
   'wear.mind_oscillates_wildly': 'Your mind oscillates wildly.',
   'wear.mind_in_sync': 'Your mind is back in sync with your body.',
   'wear.mind_muchness': 'Your mind is much of a muchness.',
+  'wear.new_direction': 'You have a sense of a new direction.',
+  'wear.new_direction_sudden': 'You have a sudden sense of a new direction.',
   'wear.already_that': 'You are already wearing that!',
   // canwearobj() for a polymorphed form
   'wear.cant_form': "You can't wear any armor in your current form.",

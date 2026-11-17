@@ -15,6 +15,7 @@ export type ColorName =
   | 'green'
   | 'dark_red'
   | 'white'
+  | 'gray'
   | 'brown'
   | 'orange';
 

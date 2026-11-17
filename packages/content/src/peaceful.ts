@@ -33,7 +33,8 @@ import { delEngrAt, sengrAt } from './engr';
 import { onscary } from './scary';
 import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
-import { epriOf, pCoaligned, templeOccupied } from './epri';
+import { epriOf, findpriest, pCoaligned, templeOccupied } from './epri';
+import { uRooms } from './urooms';
 import { ghodHitsu } from './priest';
 import { eshkOf, uShops } from './eshk';
 import { hotPursuit } from './shk';
@@ -286,6 +287,28 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
   }
   // a peaceful shopkeeper attacked while she is in no shop goes after her
   if (wasPeaceful && eshkOf(ctx, id) && uShops(ctx).length === 0) hotPursuit(ctx, id);
+}
+
+/**
+ * The priest of the temple she stands in wakes up and turns hostile (her offense on his altar),
+ * without the god's bolt an attack brings. ref: src/priest.c angry_priest() (wakeup(priest,
+ * FALSE), setmangry(priest, FALSE)); a priest whose altar is gone or converted stays a temple
+ * priest (no roaming minions)
+ */
+export function angryPriest(ctx: Ctx): void {
+  const level = ctx.state.levels[ctx.state.currentLevel];
+  if (!level) return;
+  const room = templeOccupied(level, uRooms(ctx));
+  const id = room === null ? null : findpriest(ctx, room);
+  const mon = id === null ? undefined : ctx.state.entities[String(id)];
+  const m = mon?.c.monster;
+  if (id === null || !mon || !m) return;
+  // wake_msg(priest, FALSE)
+  if (m.asleep && canseemon(ctx, mon)) say(ctx, 'mon.wakes_up_calm', { mon: monNam(ctx, mon) });
+  m.asleep = false;
+  const ap = mApType(ctx, id);
+  if (ap !== null && ap !== 'monster') seemimic(ctx, id);
+  setmangry(ctx, id, false);
 }
 
 /** The monster is on a water square (is_pool(mtmp->mx, mtmp->my)). */

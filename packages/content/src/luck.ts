@@ -42,10 +42,17 @@ export interface UState {
   /** u.ualign.record */
   alignRecord: number;
   /**
-   * u.ualignbase[A_ORIGINAL] (and A_CURRENT: no altar conversion), written only when not
-   * neutral: absent = HERO_ALIGN_TYPE (every game saved before m22 was a neutral Valkyrie)
+   * u.ualignbase[A_ORIGINAL], written only when not neutral: absent = HERO_ALIGN_TYPE (every
+   * game saved before m22 was a neutral Valkyrie)
    */
   alignBase?: number;
+  /**
+   * u.ualignbase[A_CURRENT]: the alignment she was converted to on an altar (uchangealign()
+   * A_CG_CONVERT), written only then: absent = the original one (`alignBase`)
+   */
+  alignCur?: number;
+  /** u.ugifts: the artifacts the gods gave her for her sacrifices (absent = 0) */
+  ugifts?: number;
   /** u.ualign.abuse */
   alignAbuse: number;
   /** u.ugangr: god anger */
@@ -104,12 +111,16 @@ export function setU(ctx: Pick<Ctx, 'state'>, patch: Partial<UState>): void {
   nh['u'] = { ...uState(ctx.state), ...patch } as unknown as Json;
 }
 
-/**
- * The hero's original alignment, u.ualignbase[A_ORIGINAL] (also A_CURRENT: no altar conversion
- * exists, so a helm of opposite alignment taken off returns her to it).
- */
+/** The hero's original alignment, u.ualignbase[A_ORIGINAL]. */
 export const ualignBase = (state: Readonly<GameState>): number =>
   uState(state).alignBase ?? HERO_ALIGN_TYPE;
+
+/**
+ * The alignment she now belongs to, u.ualignbase[A_CURRENT]: the original one until an altar
+ * converts her (a helm of opposite alignment taken off returns her to it).
+ */
+export const ualignCur = (state: Readonly<GameState>): number =>
+  uState(state).alignCur ?? ualignBase(state);
 
 /** ref: include/you.h `#define Luck (u.uluck + u.moreluck)`, with u.moreluck from set_moreluck() */
 export const luckOf = (state: Readonly<GameState>): number => uState(state).luck + moreluck(state);

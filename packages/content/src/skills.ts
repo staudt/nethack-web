@@ -208,8 +208,21 @@ export function skillLevel(ctx: SkillCtx, skill: string): number {
   return nhData(ctx).skills?.[skill] ?? P_RESTRICTED;
 }
 
-const skillMax = (ctx: SkillCtx, skill: string): number =>
+/** The highest level she may reach in the skill. ref: P_MAX_SKILL() */
+export const skillMax = (ctx: SkillCtx, skill: string): number =>
   nhData(ctx).skillMax?.[skill] ?? SKILL_TAB[urole(ctx.state)][skill] ?? P_RESTRICTED;
+
+/**
+ * A restricted skill becomes Unskilled with Basic as its maximum (a god's gift she must be able
+ * to use). ref: src/weapon.c unrestrict_weapon_skill()
+ */
+export function unrestrictWeaponSkill(ctx: SkillCtx, skill: string): void {
+  if (skillLevel(ctx, skill) !== P_RESTRICTED) return;
+  const data = nhData(ctx);
+  (data.skills ??= {})[skill] = P_UNSKILLED;
+  (data.skillMax ??= {})[skill] = P_BASIC;
+  (data.skillAdvance ??= {})[skill] = 0;
+}
 
 const skillAdvance = (ctx: SkillCtx, skill: string): number =>
   nhData(ctx).skillAdvance?.[skill] ?? 0;

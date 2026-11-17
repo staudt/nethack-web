@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5765 citations.
+196 NetHack files, 5787 citations.
 
 ## dat/asmodeus.lua
 
@@ -232,7 +232,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/align.h
 
-- (file): `packages/content/src/align.ts`, `packages/content/src/aligntyp.ts`, `packages/content/src/luck.ts`
+- (file): `packages/content/src/align.ts`, `packages/content/src/aligntyp.ts`, `packages/content/src/luck.ts`, `packages/content/src/offer.ts`
 - `ALGN_SINNED()`: `packages/content/src/aligntyp.ts`
 - `A_CHAOTIC()`: `packages/content/src/roletab.ts`, `packages/core/src/types/entity.ts`
 - `A_NEUTRAL()`: `packages/content/src/luck.ts`
@@ -352,6 +352,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/endstate.ts`, `packages/content/src/explode.ts`, `packages/content/src/items.ts`, `packages/content/src/price.ts`, `packages/content/src/stats.ts`, `packages/content/src/wish.ts`
 - `AC_VALUE()`: `packages/content/src/combat.ts`
 - `ARM_BONUS()`: `packages/content/src/material.ts`
+- `A_CG_CONVERT()`: `packages/content/src/dowear.ts`
 - `BOLT_LIM()`: `packages/content/src/covetous.ts`, `packages/content/src/dip.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/invis.ts`, `packages/content/src/mhitu.ts`, `packages/content/src/monmove.ts`, `packages/content/src/mthrowu.ts`, `packages/content/src/muse.ts`, `packages/content/src/perception.ts`, `packages/content/src/priest.ts`, `packages/content/src/shapeshift.ts`, `packages/content/src/shkpay.ts`, `packages/content/src/trap.ts`
 - `BZ_OFS_AD()`: `packages/content/src/mthrowu.ts`
 - `BZ_VALID_ADTYP()`: `packages/content/src/mthrowu.ts`
@@ -872,7 +873,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_art()`: `packages/content/src/artistate.ts`
 - `is_magic_key()`: `packages/content/src/artifact.ts`
 - `mb_verb()`: `packages/content/src/artihit.ts`
-- `mk_artifact()`: `packages/content/src/artistate.ts`
+- `mk_artifact()`: `packages/content/src/artistate.ts`, `packages/content/src/offer.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
 - `nothing_special()`: `packages/content/src/invoke.ts`
 - `protects()`: `packages/content/src/artidef.ts`
@@ -1344,7 +1345,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `done_eating()`: `packages/content/src/eat.ts`
 - `eat_brains()`: `packages/content/src/adtyping.ts`
 - `eatcorpse()`: `packages/content/src/eat.en.ts`, `packages/content/src/eat.ts`
-- `eaten_stat()`: `packages/content/src/dog.ts`, `packages/content/src/items.ts`
+- `eaten_stat()`: `packages/content/src/dog.ts`, `packages/content/src/items.ts`, `packages/content/src/offer.ts`
 - `eatfood()`: `packages/content/src/eat.ts`
 - `eye_of_newt_buzz()`: `packages/content/src/givit.ts`
 - `fix_petrification()`: `packages/content/src/stonestate.ts`
@@ -2433,17 +2434,21 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/pray.c
 
-- (file): `packages/content/src/pray.en.ts`, `packages/content/src/pray.ts`
+- (file): `packages/content/src/offer.ts`, `packages/content/src/pray.en.ts`, `packages/content/src/pray.ts`
 - `TROUBLE_()`: `packages/content/src/pray.ts`
 - `a_align()`: `packages/content/src/align.ts`
 - `align_gname()`: `packages/content/src/gods.ts`
 - `align_gtitle()`: `packages/content/src/align.en.ts`, `packages/content/src/gods.ts`
 - `altar_wrath()`: `packages/content/src/align.en.ts`, `packages/content/src/align.ts`
 - `angrygods()`: `packages/content/src/pray.ts`
+- `bestow_artifact()`: `packages/content/src/offer.ts`
 - `can_pray()`: `packages/content/src/pray.ts`
+- `consume_offering()`: `packages/content/src/offer.ts`
 - `critically_low_hp()`: `packages/content/src/pray.ts`
 - `desecrate_altar()`: `packages/content/src/pray.en.ts`, `packages/content/src/pray.ts`
 - `dopray()`: `packages/content/src/pray.ts`
+- `dosacrifice()`: `packages/content/src/offer.en.ts`, `packages/content/src/offer.ts`
+- `eval_offering()`: `packages/content/src/offer.ts`
 - `fix_curse_trouble()`: `packages/content/src/pray.ts`
 - `fix_worst_trouble()`: `packages/content/src/attrstate.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`
 - `fry_by_god()`: `packages/content/src/pray.ts`, `packages/content/src/role.en.ts`
@@ -2451,16 +2456,24 @@ whole. A missing function may still be ported under a citation this parser canno
 - `gods_upset()`: `packages/content/src/pray.ts`
 - `godvoice()`: `packages/content/src/align.ts`
 - `in_trouble()`: `packages/content/src/pray.ts`
+- `offer_corpse()`: `packages/content/src/offer.en.ts`, `packages/content/src/offer.ts`
+- `offer_different_alignment_altar()`: `packages/content/src/offer.ts`
+- `offer_fake_amulet()`: `packages/content/src/offer.ts`
+- `offer_negative_valued()`: `packages/content/src/offer.ts`
+- `offer_too_soon()`: `packages/content/src/offer.ts`
 - `on_altar()`: `packages/content/src/align.ts`
 - `on_shrine()`: `packages/content/src/align.ts`
 - `pleased()`: `packages/content/src/pray.ts`
 - `prayer_done()`: `packages/content/src/pray.ts`
+- `sacrifice_value()`: `packages/content/src/offer.ts`
+- `sacrifice_your_race()`: `packages/content/src/offer.ts`
 - `u_gname()`: `packages/content/src/align.ts`
 - `water_prayer()`: `packages/content/src/pray.ts`
 - `worst_cursed_item()`: `packages/content/src/pray.ts`
 
 ## src/priest.c
 
+- `angry_priest()`: `packages/content/src/peaceful.ts`
 - `findpriest()`: `packages/content/src/epri.ts`
 - `forget_temple_entry()`: `packages/content/src/epri.ts`
 - `ghod_hitsu()`: `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`

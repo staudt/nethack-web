@@ -43,6 +43,7 @@ const SELF_KEYS: [string, string][] = [
   ['C', 'nh:call'],
   ['Alt+n', 'nh:call'],
   ['Alt+p', 'nh:pray'],
+  ['Alt+o', 'nh:offer'],
   ['Alt+c', 'nh:chat'],
   ['p', 'nh:pay'],
   ['Alt+e', 'nh:enhance'],

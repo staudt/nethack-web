@@ -30,7 +30,7 @@ import { summonFuries } from './generation';
 import { hcolor } from './hcolor';
 import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
-import { adjalign, changeLuck, setU, uState, ualignBase } from './luck';
+import { adjalign, changeLuck, setU, uState, ualignCur } from './luck';
 import { roleIs } from './urole';
 import { discover } from './o_init';
 import { isGlib, makeGlib } from './glib';
@@ -45,6 +45,7 @@ import {
   setItimeout,
   timeoutLeft,
   updateWornProps,
+  wornIn,
 } from './props';
 import { flying, levitating } from './trapstate';
 import { isLava, isPool } from './liquid';
@@ -162,24 +163,44 @@ export function loseAbon(ctx: Pick<Ctx, 'state'>, obj: Entity, n: number): void 
   for (const a of abonAttrs(obj.def, it.equipped)) adjustAbon(ctx, a, -n);
 }
 
+/** Why her alignment changes. ref: include/hack.h A_CG_CONVERT, A_CG_HELM_ON, A_CG_HELM_OFF */
+export type AlignChange = 'convert' | 'helm_on' | 'helm_off';
+
 /**
- * Putting on or taking off a helm of opposite alignment: her alignment changes, divine protection
- * and the alignment record are lost; putting it on calls an erinys 1 time in 50 per point of
- * alignment abuse. ref: src/attrib.c uchangealign() A_CG_HELM_ON, A_CG_HELM_OFF (no Astral Plane)
+ * Her alignment changes and divine protection is lost: converted on an altar (her current
+ * alignment changes; a worn helm of opposite alignment keeps the one it gave her: "You have a
+ * [sudden ]sense of a new direction."), or putting on or taking off a helm of opposite alignment
+ * (putting it on calls an erinys 1 time in 50 per point of alignment abuse). When it changed,
+ * the alignment record is wiped and she must be able to touch her artifacts again.
+ * ref: src/attrib.c uchangealign() (no Astral Plane, no livelog)
  */
-function uchangealign(ctx: WearCtx, newalign: number, on: boolean): void {
+export function uchangealign(ctx: WearCtx, newalign: number, reason: AlignChange): void {
   const oldalign = uState(ctx.state).alignType;
-  setU(ctx, { ublessed: 0, alignType: newalign });
+  setU(ctx, { ublessed: 0 }); // lose divine protection
   const halluc = hasProp(getPlayer(ctx.state), P.HALLUC);
-  if (on) {
-    adjalign(ctx, -7); // for abuse -- record will be cleared shortly
-    say(ctx, halluc ? 'wear.mind_oscillates_wildly' : 'wear.mind_oscillates');
-    makeConfused(ctx, ctx.rng.rn2(2) + 3, false); // rn1(2, 3)
-    if (ctx.rng.rn2(50) < uState(ctx.state).alignAbuse) summonFuries(ctx, 1);
+  if (reason === 'convert') {
+    // conversion via altar
+    setU(ctx, { alignCur: newalign });
+    // worn helm of opposite alignment might block change
+    if (wornIn(ctx.state, ctx.state.playerId, 'helm')?.def !== 'nh:helm_of_opposite_alignment')
+      setU(ctx, { alignType: newalign });
+    say(
+      ctx,
+      uState(ctx.state).alignType !== oldalign ? 'wear.new_direction_sudden' : 'wear.new_direction',
+    );
   } else {
-    say(ctx, halluc ? 'wear.mind_muchness' : 'wear.mind_in_sync');
+    // putting on or taking off a helm of opposite alignment
+    setU(ctx, { alignType: newalign });
+    if (reason === 'helm_on') {
+      adjalign(ctx, -7); // for abuse -- record will be cleared shortly
+      say(ctx, halluc ? 'wear.mind_oscillates_wildly' : 'wear.mind_oscillates');
+      makeConfused(ctx, ctx.rng.rn2(2) + 3, false); // rn1(2, 3)
+      if (ctx.rng.rn2(50) < uState(ctx.state).alignAbuse) summonFuries(ctx, 1);
+    } else {
+      say(ctx, halluc ? 'wear.mind_muchness' : 'wear.mind_in_sync');
+    }
   }
-  if (newalign !== oldalign) {
+  if (uState(ctx.state).alignType !== oldalign) {
     setU(ctx, { alignRecord: 0 }); // slate is wiped clean
     retouchEquipment(ctx, 0);
   }
@@ -277,7 +298,11 @@ export function armorOn(ctx: WearCtx, obj: Entity): void {
         discover(ctx, obj.def);
       } else if (obj.def === 'nh:helm_of_opposite_alignment') {
         const ualign = uState(ctx.state).alignType;
-        uchangealign(ctx, ualign !== A_NEUTRAL ? -ualign : obj.id % 2 ? A_CHAOTIC : A_LAWFUL, true);
+        uchangealign(
+          ctx,
+          ualign !== A_NEUTRAL ? -ualign : obj.id % 2 ? A_CHAOTIC : A_LAWFUL,
+          'helm_on',
+        );
         helmAutocurse(ctx, obj);
       } else if (obj.def === 'nh:dunce_cap') helmAutocurse(ctx, obj);
       break;
@@ -356,7 +381,7 @@ export function armorOff(ctx: WearCtx, obj: Entity, slot: ArmorSlot): void {
         for (const a of abonAttrs(obj.def, slot)) adjustAbon(ctx, a, -spe);
         if (spe) discover(ctx, obj.def);
       } else if (obj.def === 'nh:helm_of_opposite_alignment')
-        uchangealign(ctx, ualignBase(ctx.state), false); // u.ualignbase[A_CURRENT]
+        uchangealign(ctx, ualignCur(ctx.state), 'helm_off'); // u.ualignbase[A_CURRENT]
       break;
     case 'gloves':
       // ref: Gloves_off()
