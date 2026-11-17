@@ -125,6 +125,37 @@ export function initialspell(ctx: Pick<Ctx, 'state'>, book: DefId): void {
   spells.push({ id: book, retention: KEEN });
 }
 
+/** How well a spell is known. ref: include/spell.h enum spe_knowledge */
+export const SPE_FORGOTTEN = -1;
+export const SPE_UNKNOWN = 0;
+export const SPE_FRESH = 1;
+export const SPE_GOING_STALE = 2;
+
+/**
+ * How well she knows the spell of the book: unknown, forgotten (retention 0), going stale (a
+ * tenth of KEEN or less) or fresh. ref: src/spell.c known_spell()
+ */
+export function knownSpell(ctx: Pick<Ctx, 'state'>, book: DefId): number {
+  const s = knownSpells(ctx).find((k) => k.id === book);
+  if (!s) return SPE_UNKNOWN;
+  return s.retention > KEEN / 10 ? SPE_FRESH : s.retention > 0 ? SPE_GOING_STALE : SPE_FORGOTTEN;
+}
+
+/**
+ * Learns or refreshes the spell of the book (retention KEEN) unless it is blank paper, the Book
+ * of the Dead or already fresh; returns its casting letter, or '' when nothing was learned.
+ * ref: src/spell.c force_learn_spell()
+ */
+export function forceLearnSpell(ctx: Pick<Ctx, 'state'>, book: DefId): string {
+  if (book === BLANK_PAPER || book === BOOK_OF_THE_DEAD || knownSpell(ctx, book) === SPE_FRESH)
+    return '';
+  const spells = (spellData(ctx).spells ??= []);
+  let i = spells.findIndex((s) => s.id === book);
+  if (i < 0) i = spells.push({ id: book, retention: KEEN }) - 1;
+  else (spells[i] as KnownSpell).retention = KEEN; // incrnknow(i, 0)
+  return spellet(i);
+}
+
 /** obj->spestudied: how many times the book has been studied. */
 export const studied = (ctx: Pick<Ctx, 'state'>, id: EntityId): number =>
   readData(ctx)?.spestudied?.[String(id)] ?? 0;

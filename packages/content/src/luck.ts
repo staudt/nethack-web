@@ -51,8 +51,13 @@ export interface UState {
    * A_CG_CONVERT), written only then: absent = the original one (`alignBase`)
    */
   alignCur?: number;
-  /** u.ugifts: the artifacts the gods gave her for her sacrifices (absent = 0) */
+  /** u.ugifts: the artifacts (and crowning's spellbooks) the gods gave her (absent = 0) */
   ugifts?: number;
+  /**
+   * u.uevent.uhand_of_elbereth: crowned as the Hand of Elbereth (1, lawful), the Envoy of
+   * Balance (2, neutral) or the Glory of Arioch (3, chaotic); absent = never crowned
+   */
+  uhandOfElbereth?: 1 | 2 | 3;
   /** u.ualign.abuse */
   alignAbuse: number;
   /** u.ugangr: god anger */

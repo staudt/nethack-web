@@ -158,6 +158,16 @@ describe('sitting on a throne', () => {
     expect(text).not.toContain('You feel somehow out of place...');
   });
 
+  test('so does a crowned hero (m20 step 8)', () => {
+    const s = throneRoom();
+    setU(s.ctx, { uhandOfElbereth: 2 });
+    const { text } = search(s, (_st, t) =>
+      t.some((l) => l === 'You feel very comfortable here.' || l.endsWith('out of place...')),
+    );
+    expect(text).toContain('You feel very comfortable here.');
+    expect(text).not.toContain('You feel somehow out of place...');
+  });
+
   test('1 time in 3 the throne vanishes in a puff of logic, into floor and her memory', () => {
     const s = throneRoom();
     const hits = { vanish: 0, stay: 0 };

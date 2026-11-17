@@ -59,6 +59,7 @@ import { hcolor } from './magic';
 import { wakeNearto } from './noise';
 import { nomul, unmulNow } from './nomul';
 import { rndcurse } from './sit';
+import { gcrownu, giveSpell } from './crown';
 import { xnameOf } from './objnam';
 import { glovesSimpleName, isGlib, makeGlib } from './glib';
 import {
@@ -99,7 +100,8 @@ const TROUBLE_STUNNED = -9;
 const TROUBLE_CONFUSED = -10;
 const TROUBLE_HALLUCINATION = -11;
 
-/** ref: src/pray.c piety thresholds (PIOUS only matters for crowning, which does not exist) */
+/** ref: src/pray.c piety thresholds */
+const PIOUS = 20;
 const STRIDENT = 4;
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
@@ -546,7 +548,7 @@ export function godsUpset(ctx: Ctx, align: number): void {
   angrygods(ctx, align);
 }
 
-/** The god's favors on a good prayer. ref: src/pray.c pleased() (no spells or crowning) */
+/** The god's favors on a good prayer. ref: src/pray.c pleased() */
 function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   let trouble = inTrouble(ctx); // the worst trouble may have changed while praying
   const record0 = uState(ctx.state).alignRecord;
@@ -613,6 +615,9 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   if (patOnHead) patOnTheHead(ctx, gAlign);
 
   setU(ctx, { ublesscnt: rnz(ctx, 350) });
+  // kick_on_butt: once crowned (there is no demigod), a longer wait (u.uevent.udemigod)
+  if (uState(ctx.state).uhandOfElbereth)
+    setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 1000) });
   // the DoS guard for very long games
   if (ctx.state.turn > 100000) {
     const u = uState(ctx.state);
@@ -625,7 +630,6 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
   const her = hero(ctx);
   const blind = hasProp(her, P.BLINDED);
   let n = ctx.rng.rn2((luckOf(ctx.state) + 6) >> 1);
-  if (n >= 6) n = 5; // no spells or crowning: as the gift of an intrinsic
   // takes 2 hints to get the music to enter the stronghold; skip if you've solved it via
   // mastermind or destroyed the drawbridge (both set uopened_dbridge) or if you've already
   // travelled past the Valley of the Dead (gehennom_entered: any Gehennom level here), or if no
@@ -733,6 +737,19 @@ function patOnTheHead(ctx: Ctx, gAlign: number): void {
       say(ctx, 'pray.use_wisely');
       break;
     }
+    case 7:
+    case 8: {
+      const u = uState(ctx.state);
+      if (u.alignRecord >= PIOUS && !u.uhandOfElbereth) {
+        gcrownu(ctx);
+        break;
+      }
+      giveSpell(ctx); // FALLTHRU
+      break;
+    }
+    case 6:
+      giveSpell(ctx);
+      break;
     default:
       break;
   }

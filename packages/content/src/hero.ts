@@ -459,8 +459,8 @@ function regenFormHp(ctx: Ctx, hero: Entity, hp: { cur: number; max: number }): 
 }
 
 /**
- * Energy regeneration: on the turns where `moves % ((MAXULEV + 8 - ulevel) * 4 / 6)` is 0 (the
- * Wizard's `* 3` never applies), unless Stressed or worse, she gains `rn1((Wis + Int) / 15 + 1, 1)`.
+ * Energy regeneration: on the turns where `moves % ((MAXULEV + 8 - ulevel) * 4 / 6)` is 0 (`* 3`
+ * for a Wizard), unless Stressed or worse, she gains `rn1((Wis + Int) / 15 + 1, 1)`.
  * ref: src/allmain.c regen_pw(): also every turn with Energy_regeneration (the Mitre of Holiness
  * and the Eye of the Aethiopica carried). No magical breathing source exists.
  * "You feel full of energy." comes from interrupt_multi(), which only speaks while a repeat count
@@ -477,7 +477,11 @@ export function regenPw(ctx: Ctx): void {
   // mvl_wtcap is UNENCUMBERED while invulnerable (praying)
   const wtcap = uState(state).uinvulnerable ? 0 : nearCapacity(state, ctx.defs, hero.id);
   if (
-    !(wtcap < MOD_ENCUMBER && state.turn % Math.trunc(((MAXULEV + 8 - ulevel) * 4) / 6) === 0) &&
+    !(
+      wtcap < MOD_ENCUMBER &&
+      state.turn % Math.trunc(((MAXULEV + 8 - ulevel) * (roleIs(state, 'wizard') ? 3 : 4)) / 6) ===
+        0
+    ) &&
     !hasProp(hero, P.ENERGY_REGENERATION)
   )
     return;

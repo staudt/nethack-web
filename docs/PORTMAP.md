@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5787 citations.
+196 NetHack files, 5797 citations.
 
 ## dat/asmodeus.lua
 
@@ -696,6 +696,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/spell.h
 
+- (file): `packages/content/src/spell.ts`
 - `MAX_SPELL_STUDY()`: `packages/content/src/spell.ts`
 - `SPELL_LEV_PW()`: `packages/content/src/spellcalc.ts`
 
@@ -2441,6 +2442,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `align_gtitle()`: `packages/content/src/align.en.ts`, `packages/content/src/gods.ts`
 - `altar_wrath()`: `packages/content/src/align.en.ts`, `packages/content/src/align.ts`
 - `angrygods()`: `packages/content/src/pray.ts`
+- `at_your_feet()`: `packages/content/src/crown.ts`
 - `bestow_artifact()`: `packages/content/src/offer.ts`
 - `can_pray()`: `packages/content/src/pray.ts`
 - `consume_offering()`: `packages/content/src/offer.ts`
@@ -2452,6 +2454,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `fix_curse_trouble()`: `packages/content/src/pray.ts`
 - `fix_worst_trouble()`: `packages/content/src/attrstate.ts`, `packages/content/src/jewelry.ts`, `packages/content/src/pray.ts`
 - `fry_by_god()`: `packages/content/src/pray.ts`, `packages/content/src/role.en.ts`
+- `gcrownu()`: `packages/content/src/crown.ts`
+- `give_spell()`: `packages/content/src/crown.ts`
 - `god_zaps_you()`: `packages/content/src/pray.ts`
 - `gods_upset()`: `packages/content/src/pray.ts`
 - `godvoice()`: `packages/content/src/align.ts`
@@ -2872,9 +2876,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dospellmenu()`: `packages/content/src/cast.ts`, `packages/content/src/spell.ts`
 - `dovspell()`: `packages/content/src/spell.ts`
 - `dowizcast()`: `packages/content/src/wizard/cast.ts`
+- `force_learn_spell()`: `packages/content/src/spell.ts`
 - `getdir()`: `packages/content/src/cast.ts`
 - `getspell()`: `packages/content/src/cast.ts`
-- `known_spell()`: `packages/content/src/write.ts`
+- `known_spell()`: `packages/content/src/crown.ts`, `packages/content/src/spell.ts`, `packages/content/src/write.ts`
 - `learn()`: `packages/content/src/spell.en.ts`, `packages/content/src/spell.ts`
 - `losespells()`: `packages/content/src/spell.ts`
 - `percent_success()`: `packages/content/src/spellcalc.ts`

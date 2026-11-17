@@ -80,8 +80,17 @@ export function gethungry(ctx: Ctx): void {
   // 5.0: the trigger is randomized instead of (moves % 20).
   const accessorytime = ctx.rng.rn2(20);
   if (accessorytime % 2) {
-    // Regeneration uses up food (no artifacts); so does being Stressed or worse.
-    if (hasProp(hero, P.REGENERATION)) h.nutrition--;
+    // Regeneration uses up food, unless due to an artifact (or her form): `(HRegeneration &
+    // ~FROMFORM) || (ERegeneration & ~(W_ARTI | W_WEP))`, the only other extrinsic being the
+    // ring; so does being Stressed or worse.
+    const own = hero.c.props?.[P.REGENERATION];
+    if (
+      (own !== undefined && (own.intrinsic || own.timeout > 0)) ||
+      ['ringL', 'ringR'].some(
+        (slot) => wornIn(ctx.state, hero.id, slot)?.def === 'nh:ring_of_regeneration',
+      )
+    )
+      h.nutrition--;
     if (nearCapacity(ctx.state, ctx.defs, hero.id) > 1) h.nutrition--;
   } else {
     if (hasProp(hero, P.HUNGER)) h.nutrition--;

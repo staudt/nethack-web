@@ -8,7 +8,7 @@
 // Not ported (DEVIATIONS "Thrones"): Vlad's tower's special throne (special_throne_effect()),
 // wizard mode's "Throne sit effect (1..13)" and "Analyze throne?" questions (content has no
 // wizard flag: the random path always), exercise(), the
-// voice's SetVoice(), and the Hand of Elbereth (no crowning).
+// voice's SetVoice().
 import { setUcreamed } from './creamed';
 import {
   NORMAL_SPEED,
@@ -249,7 +249,7 @@ const spent = (ctx: Ctx): number => (ctx.state.pendingPrompt ? 0 : NORMAL_SPEED)
 
 /**
  * The hero sits on the throne under her: 1 time in 3 one of the thirteen effects (`rnd(13)`),
- * else "You feel very comfortable here." (a prince's form) or "You feel somehow out of
+ * else "You feel very comfortable here." (a prince's form, or crowned) or "You feel somehow out of
  * place..."; then 1 time in 3 the throne vanishes, even when she was teleported off it. A wish or
  * genocide prompt is answered through `action` ({@link answerThrone}). Returns the time taken.
  * ref: src/sit.c throne_sit_effect()
@@ -267,7 +267,12 @@ export function throneSitEffect(ctx: Ctx, action: DefId): number {
     if (ctx.state.pendingPrompt?.handler === action) return 0;
   } else {
     const form = heroForm(ctx);
-    say(ctx, form?.flags.includes('prince') ? 'throne.comfortable' : 'throne.out_of_place');
+    say(
+      ctx,
+      form?.flags.includes('prince') || uState(ctx.state).uhandOfElbereth
+        ? 'throne.comfortable'
+        : 'throne.out_of_place',
+    );
   }
   throneMaybeVanishes(ctx, at);
   return spent(ctx);

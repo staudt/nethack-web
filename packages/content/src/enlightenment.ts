@@ -180,6 +180,8 @@ export function enlightenment(ctx: Ctx): Msg[] {
   line('enl.blank');
   line('enl.attributes');
   const u = uState(ctx.state);
+  // crowned: "You are the Envoy of Balance."
+  if (u.uhandOfElbereth) are(`hofe.${u.uhandOfElbereth}`);
   line(u.alignRecord >= 0 ? 'enl.you_are' : 'enl.you_have', {
     what: piousness(u.alignRecord),
   });
