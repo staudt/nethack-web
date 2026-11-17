@@ -75,6 +75,8 @@ export interface DmgvalTarget {
    * the damage (25 or more) they are halved, so they come after the doubling in effect.
    */
   artiDbon?: (tmp: number) => number;
+  /** hates_light(): a gremlin takes `rnd(8)` more from a shining artifact (Sunsword) */
+  hatesLight?: boolean;
 }
 
 /**
@@ -84,7 +86,8 @@ export interface DmgvalTarget {
  * against a wood golem (is_wooden()), a silver weapon's `rnd(20)` against a silver-hater, less
  * the greatest erosion (at least 1). `vampshifter`: the target is a vampire shapeshifter, which
  * hates silver and blessings in any form; an artifact that will double the damage halves these
- * bonuses (`artiDbon`, see DmgvalTarget). Not ported: thick skins, Sunsword's light.
+ * bonuses (`artiDbon`, see DmgvalTarget); a shining Sunsword adds `rnd(8)` against a gremlin.
+ * Not ported: thick skins.
  */
 export function dmgval(
   rng: Rng,
@@ -98,6 +101,7 @@ export function dmgval(
   return dmgvalSized(rng, item, def, isBig(mon), silver, mon.id === 'nh:wood_golem', {
     shade: mon.id === 'nh:shade',
     blessHater: vampshifter || hatesBlessings(mon),
+    hatesLight: mon.id === 'nh:gremlin',
     ...(artiDbon ? { artiDbon } : {}),
   });
 }
@@ -140,6 +144,13 @@ export function dmgvalSized(
     if (item.c.item?.buc === 'blessed' && target.blessHater === true) bonus += rng.rnd(4);
     if (w && w.skill === 'axe' && wooden) bonus += rng.rnd(4); // is_axe(otmp) && is_wooden(ptr)
     if (def.material === 'silver' && silverHater) bonus += rng.rnd(20);
+    // artifact_light(otmp) && otmp->lamplit: Sunsword shines while it is wielded
+    if (
+      target.hatesLight === true &&
+      item.c.item?.artifact === 'nh:sunsword' &&
+      item.c.item.equipped === 'weapon'
+    )
+      bonus += rng.rnd(8);
     // if the weapon is going to get a double damage bonus, adjust this bonus so that
     // effectively it's added after the doubling
     if (bonus > 1 && item.c.item?.artifact !== undefined && (target.artiDbon?.(25) ?? 0) >= 25)

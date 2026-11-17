@@ -16,7 +16,7 @@ import {
 } from '@nh/core';
 import { blockersOf } from './boulder';
 import { clearPath } from './clearpath';
-import { P, hasExtrinsic, hasProp, heroHas } from './props';
+import { P, hasExtrinsic, hasProp, heroHas, warnOfMonFlags } from './props';
 import { STATUE } from './statuestate';
 import { heroFormId } from './upoly';
 import {
@@ -66,6 +66,19 @@ export function telepathSenses(state: Readonly<GameState>, defs: Registry, mon: 
   const dx = mp.x - hp.x;
   const dy = mp.y - hp.y;
   return dx * dx + dy * dy <= BOLT_LIM * BOLT_LIM; // one telepathy item
+}
+
+/**
+ * Warning of a monster's kind: while the hero wields an artifact that warns of what it is made
+ * to slay (Sting, Orcrist: orcs; Grimtooth: elves), every such monster on her level is sensed.
+ * ref: include/hack.h MATCH_WARN_OF_MON() (warntype.obj; no polymorph or species warning)
+ */
+export function warnOfMonSenses(state: Readonly<GameState>, defs: Registry, mon: Entity): boolean {
+  if (!defs.isMonster(mon.def) || !heroHas(state, P.WARN_OF_MON)) return false;
+  const hp = getPlayer(state).c.pos;
+  if (!hp || mon.c.pos?.level !== hp.level) return false;
+  const flags = defs.monster(mon.def).flags;
+  return warnOfMonFlags(state).some((f) => flags.includes(f));
 }
 
 /** ref: include/hack.h BOLT_LIM */
@@ -248,7 +261,10 @@ export function registerPerception(api: ModApi): void {
     blind: (state) => heroHas(state, P.BLINDED) || engulferOf(state) !== null,
     // a worm's tail is only ever seen, never sensed (newsym(): `!worm_tail && tp_sensemon()`)
     senses: (state, defs, mon) =>
-      !isWormTail(mon) && (telepathSenses(state, defs, mon) || infraSees(state, defs, mon)),
+      !isWormTail(mon) &&
+      (telepathSenses(state, defs, mon) ||
+        infraSees(state, defs, mon) ||
+        warnOfMonSenses(state, defs, mon)),
     shownAs(state, defs, e) {
       if (!heroHas(state, P.HALLUC)) return null;
       // ref: random_monster() / random_object(): any monster or object glyph; a statue is seen
@@ -279,8 +295,8 @@ const SUCCUBUS_APPEARANCE: AppearanceDef = {
 };
 
 /**
- * ref: include/display.h sensemon(): telepathy (and infravision, which C counts in canseemon());
- * the warning digit is not a sense of the monster (no warning of a monster's kind).
+ * ref: include/display.h sensemon(): telepathy and warning of a monster's kind (and infravision,
+ * which C counts in canseemon()); the warning digit is not a sense of the monster.
  */
 export function sensemon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
   return ctx.defs.perceptions.some(
@@ -290,8 +306,7 @@ export function sensemon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean
 
 /**
  * ref: src/display.h canspotmon(): seen (canseemon(): its cell is visible and mon_visible()) or
- * sensed. A warning digit is neither (sensemon() counts only warning of a monster's kind, which
- * does not exist here).
+ * sensed. A warning digit is neither (sensemon() counts only warning of a monster's kind).
  */
 export function canSpotMon(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean {
   const p = mon.c.pos;

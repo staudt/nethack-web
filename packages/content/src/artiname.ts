@@ -6,6 +6,7 @@ import { ARTIFACTS } from './artilist';
 import { oname, type ArtiOrigin } from './artistate';
 import { messagesEn } from './messages.en';
 import { ARMOR_RANGES, isKnown } from './o_init';
+import { refreshWornProps } from './props';
 import { alterCost } from './shk';
 
 /** The type's description as text (C's OBJ_DESCR: fixed, or this game's appearance), or null. */
@@ -64,9 +65,9 @@ export function restrictName(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity, name
 
 /**
  * oname() with what C's oname() does once the object became an artifact: an unpaid one's price
- * on the shop bill goes up (alter_cost()). The wielded weapon's intrinsics
- * (set_artifact_intrinsic(obj, TRUE, W_WEP): Sting's warning) come with the artifact
- * extrinsics in m20 step 5; there is no two-weapon combat to stop (untwoweapon()).
+ * on the shop bill goes up (alter_cost()), and the wielded weapon's intrinsics are refreshed
+ * (set_artifact_intrinsic(obj, TRUE, W_WEP): Sting's warning); there is no two-weapon combat
+ * to stop (untwoweapon()).
  * ref: src/do_name.c oname()
  */
 export function onameObj(
@@ -78,7 +79,10 @@ export function onameObj(
 ): void {
   oname(ctx, obj, name, origin, knowArti);
   if (obj.c.item?.artifact === undefined) return;
-  // TODO(m20 step 5): if obj is uwep, set_artifact_intrinsic(obj, TRUE, W_WEP)
+  // if obj is uwep, set_artifact_intrinsic(obj, TRUE, W_WEP): the worn-property cache (Sting's
+  // glow follows after the action, as see_monsters())
+  if (obj.c.item.equipped === 'weapon' && obj.c.item.carriedBy === ctx.state.playerId)
+    refreshWornProps(ctx);
   // if obj is owned by a shop, increase your bill
   if (obj.c.item.unpaid) alterCost(ctx, obj, 0);
 }

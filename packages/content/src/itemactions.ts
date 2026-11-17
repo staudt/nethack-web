@@ -1,5 +1,6 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { retouchObject, touchArtifact } from './artitouch';
 import { leashMon } from './leashstate';
 import { isIce, isLava, isPool } from './liquid';
 import { breathless, likesLavaId, uinwater, wwalking } from './uwater';
@@ -387,6 +388,8 @@ interface PickData {
   ok?: boolean;
   /** Counts chosen in the menu, by object id (absent = the whole stack). */
   counts?: Record<string, number>;
+  /** An artifact refused to be touched: the try still takes the move (pickup()'s n_tried). */
+  tried?: true;
 }
 
 /**
@@ -513,6 +516,11 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
 
   let qq = data.qq;
   if (qq === undefined) {
+    // ref: pickup_object(): an artifact that will not be touched stays (maybe blasting her)
+    if (it.artifact !== undefined && !touchArtifact(ctx, obj, id)) {
+      data.tried = true;
+      return ctx.state.gameOver ? 'abort' : 'none';
+    }
     // ref: pickup_object(): touching a cockatrice corpse bare-handed
     if (fatalCorpseMistake(ctx, obj)) return 'abort';
     // ref: pickup.c pickup_object(obj, count): a count from the menu caps what is lifted
@@ -629,7 +637,7 @@ function pickupLoop(ctx: Ctx, data: PickData): number {
     if (r === 'picked') data.picked++;
   }
   encumberMsg(ctx);
-  return data.picked > 0 ? NORMAL_SPEED : 0;
+  return data.picked > 0 || data.tried ? NORMAL_SPEED : 0;
 }
 
 function floorHere(ctx: Ctx): Entity[] {
@@ -1160,6 +1168,8 @@ function readyWeapon(ctx: Ctx, wep: Entity | null): number {
     ctx.emit({ type: 'msg', key: 'wield.two_handed_shield', params: { kind: weaponKind(def) } });
     return 0;
   }
+  // takes a turn even though it doesn't get wielded
+  if (!retouchObject(ctx, wep, false)) return NORMAL_SPEED;
   // a weapon is wielded from here on
   if (cur?.c.item) cur.c.item.equipped = null;
   wit.equipped = 'weapon';
@@ -1433,6 +1443,8 @@ const wear: ActionDef = {
       return 0;
     }
     if (!canWear(ctx, obj, true)) return 0;
+    // costs a turn even though it didn't get worn
+    if (!retouchObject(ctx, obj, false)) return NORMAL_SPEED;
     it.equipped = def.armor.slot;
     it.known.spe = true; // Armor_on() etc.: "+/- evident because of status line AC"
     armorOn(ctx, obj);

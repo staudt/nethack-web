@@ -9,10 +9,11 @@
 //
 // Not ported: dragon scales, water (water walking boots do
 // nothing; levitation boots over a sink), steeds and BStealth, flying (float_vs_flight()), the
-// Astral Plane's Furies, artifacts (retouch_equipment()), wielding_corpse() when gloves come off,
+// Astral Plane's Furies, wielding_corpse() when gloves come off,
 // and see_monsters() (the view is rebuilt after every action, so the helms
 // of telepathy and caution show their monsters then). Levitation boots float through
 // levitation.ts (late-bound, see setBootsLevitation()), which sits above this module.
+import { retouchEquipment } from './artitouch';
 import {
   getPlayer,
   inventoryOf,
@@ -178,7 +179,10 @@ function uchangealign(ctx: WearCtx, newalign: number, on: boolean): void {
   } else {
     say(ctx, halluc ? 'wear.mind_muchness' : 'wear.mind_in_sync');
   }
-  if (newalign !== oldalign) setU(ctx, { alignRecord: 0 }); // slate is wiped clean
+  if (newalign !== oldalign) {
+    setU(ctx, { alignRecord: 0 }); // slate is wiped clean
+    retouchEquipment(ctx, 0);
+  }
 }
 
 /** The helm of opposite alignment and the dunce cap curse themselves. ref: Helmet_on() */

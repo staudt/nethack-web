@@ -45,7 +45,7 @@ import { greatestErosion } from './material';
 import { buzzFrom, type Ray } from './buzz';
 import { canBlnd } from './adtyping';
 import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
-import { P, hasProp, makeBlinded, timeoutLeft } from './props';
+import { P, hasProp, makeBlinded, maybeHalfPhys, timeoutLeft } from './props';
 import { nonliving as nonlivingDef } from './mondata';
 import {
   formHatesBlessings,
@@ -472,6 +472,7 @@ function mThrow(
           blessHater: formHatesBlessings(ctx),
         });
         if (dam < 1) dam = 1;
+        if (obj.def !== ACID_VENOM) dam = maybeHalfPhys(ctx.state, dam);
         hit = thitu(ctx, hitv, dam, obj, nth);
       }
       mesgGiven = true;
@@ -850,7 +851,7 @@ export function thrwmu(
     // (the hero is never a big monster here)
     hitv += 8 + (obj.c.item?.spe ?? 0);
     if (dam < 1) dam = 1;
-    thitu(ctx, hitv, dam, obj, null); // (no Half_physical_damage)
+    thitu(ctx, hitv, maybeHalfPhys(ctx.state, dam), obj, null);
     stopOccupation(ctx);
     return false;
   }

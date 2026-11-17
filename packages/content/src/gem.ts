@@ -3,6 +3,7 @@
 // src/artifact.c confers_luck(); src/objnam.c rnd_class()
 //
 // A leaf module (core only): mkobj.ts, luck.ts, price.ts and others import it, never the reverse.
+import { artiOf } from './artistate';
 import {
   type DefId,
   type Entity,
@@ -115,8 +116,12 @@ export const TOUGH_RINGS: ReadonlySet<DefId> = new Set([
   'nh:ring_of_polymorph_control', // emerald
 ]);
 
-/** Items that confer Luck when carried. ref: src/artifact.c confers_luck() (no artifacts) */
-export const LUCK_ITEMS: ReadonlySet<DefId> = new Set(['nh:luckstone']);
+/**
+ * Items that confer Luck when carried: the luckstone and an artifact with SPFX_LUCK (the Tsurugi
+ * of Muramasa). ref: src/artifact.c confers_luck()
+ */
+export const confersLuck = (e: Entity): boolean =>
+  e.def === 'nh:luckstone' || (artiOf(e)?.spfx.includes('luck') ?? false);
 
 /** ref: include/you.h LUCKADD: the bonus of a carried luck item */
 export const LUCKADD = 3;
@@ -174,7 +179,7 @@ export function rndClass(
 function luckItems(state: Readonly<GameState>): Entity[] {
   const out: Entity[] = [];
   for (const e of Object.values(state.entities))
-    if (e.c.item?.carriedBy === state.playerId && LUCK_ITEMS.has(e.def)) out.push(e);
+    if (e.c.item?.carriedBy === state.playerId && confersLuck(e)) out.push(e);
   return out;
 }
 

@@ -11,6 +11,7 @@
 // object exists), the Master Key of Thievery, mimics, cockatrices, steeds, polymorphed forms,
 // Fumbling, selling or burying the object of a trap she set (she sets none), exercise. A shop
 // door she blows up is scheduled for repair, free (C: "probably ought to charge for this").
+import { hasMagicKey } from './artifact';
 import {
   DIRS,
   DIR_LIST,
@@ -594,7 +595,8 @@ function untrapDoor(ctx: Ctx, level: Level, x: number, y: number, trapSkipped: b
     return 0;
   }
   const confused = confusedNow(ctx);
-  const force = false; // no Master Key of Thievery
+  // carrying the Master Key of Thievery works as #invoke's force
+  const force = hasMagicKey(ctx, ctx.state.playerId) !== null;
   if (
     (doorTrapped(ctx, level.id, x, y) &&
       (force || (!confused && ctx.rng.rn2(MAXULEV - ulevel(ctx) + 11) < 10))) ||
@@ -839,10 +841,10 @@ function answerUntrap(ctx: Ctx, value: Json, raw: Json): number {
       if (value === true && box) {
         const confused = confusedNow(ctx);
         if (boxTknown(ctx.state, box.id) && isBoxTrapped(ctx.state, box.id)) {
-          disarmBox(ctx, box, false, confused);
+          disarmBox(ctx, box, hasMagicKey(ctx, ctx.state.playerId) !== null, confused);
           return NORMAL_SPEED;
         }
-        const r = untrapBox(ctx, box, false, confused);
+        const r = untrapBox(ctx, box, hasMagicKey(ctx, ctx.state.playerId) !== null, confused);
         return r; // even for 'no' at the "Disarm it?" prompt (its answer takes the turn)
       }
       // 'n': next box

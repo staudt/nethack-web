@@ -23,7 +23,8 @@ import {
 import { stopOccupation } from './eat';
 import { AMOROUS_DEMON, heroFemale, monGender, polyGender } from './gender';
 import { shopKeeper, insideShop, uShops } from './eshk';
-import { encumberMsg } from './itemactions';
+import { dropx, encumberMsg } from './itemactions';
+import { setRetouchHooks } from './artitouch';
 import { addToInventory, nhData, removeFromInventory, splitStack } from './items';
 import { amuletOff, blindfOff, ringGone } from './jewelry';
 import { moneyCnt } from './money';
@@ -36,7 +37,7 @@ import { canSpotMon, monNam, someMonNam } from './perception';
 import { armorOff, isArmorSlot } from './dowear';
 import { heroInvisible, monInvisible, perceives, seeInvisible } from './invis';
 import { heroForm } from './upoly';
-import { P, hasProp, updateWornProps } from './props';
+import { P, hasProp, refreshWornProps } from './props';
 import { subfrombill } from './shk';
 import { teleRestrict } from './teleport';
 import { rlocMon } from './trap';
@@ -225,10 +226,13 @@ export function removeWornItem(ctx: Ctx, obj: Entity): void {
   else if (slot) {
     it.equipped = null; // Armor_off() .. Shirt_off(), uwepgone()
     if (isArmorSlot(slot)) armorOff(ctx, obj, slot);
-    else updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
+    else refreshWornProps(ctx);
   }
   if (swapWep(ctx)?.id === obj.id) setSwapWep(ctx, null); // uswapwepgone()
 }
+
+// retouch_object() takes off what she can no longer handle and may drop it
+setRetouchHooks({ removeWornItem: (ctx, obj) => removeWornItem(ctx, obj), dropx });
 
 /** The item's doname with its worn suffix changed as worn_item_removal() does. */
 function removalName(ctx: Ctx, obj: Entity): Msg {

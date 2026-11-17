@@ -33,7 +33,8 @@ import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
 import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
 import { maybeSmudgeEngr } from './engr';
-import { askReallyAttack, attackChecksUnseen, needsAttackConfirm } from './peaceful';
+import { askReallyAttack, attackChecksUnseen, bloodthirsty, needsAttackConfirm } from './peaceful';
+import { uWieldArt } from './artistate';
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
 import { clearWaitMask, isFrozen } from './mstate';
@@ -168,7 +169,8 @@ export function isSafemon(ctx: Ctx, mon: Entity): boolean {
  * ref: src/uhitm.c do_attack(), attack_checks()
  */
 export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId, hit?: Pos): number | null {
-  if (isSafemon(ctx, vmon)) {
+  // Intelligent chaotic weapons (Stormbringer) want blood
+  if (isSafemon(ctx, vmon) && !uWieldArt(ctx.state, 'nh:stormbringer')) {
     // ref: src/uhitm.c do_attack(): walking into a pet or peaceful monster you can see does
     // not attack it; 1 time in 7 it is in the way, and one that can't move doesn't
     const tame = (vmon.c.monster?.tame ?? 0) > 0;
@@ -212,7 +214,7 @@ export function doAttack(ctx: Ctx, vmon: Entity, handler: DefId, hit?: Pos): num
     });
     return 0;
   }
-  return heroAttack(ctx, vmon.id, at);
+  return heroAttack(ctx, vmon.id, at, bloodthirsty(ctx, vmon.id));
 }
 
 /**
@@ -482,7 +484,7 @@ const fight: ActionDef = {
     }
     // ref: src/mon.c wakeup(): a forced fight brings a hiding monster out
     setUndetected(ctx, victim, false);
-    const cost = heroAttack(ctx, victim, to);
+    const cost = heroAttack(ctx, victim, to, bloodthirsty(ctx, victim));
     // ref: src/uhitm.c do_attack() atk_done: a forced fight at a monster she can't spot that
     // lives on leaves the `I` where she struck
     const vmon = ctx.state.entities[String(victim)];
@@ -516,7 +518,10 @@ const move: ActionDef = {
       return [
         {
           action: { type: 'move', dir },
-          labelKey: mon && isSafemon(ctx, mon) ? 'action.swap' : 'action.attack',
+          labelKey:
+            mon && isSafemon(ctx, mon) && !uWieldArt(ctx.state, 'nh:stormbringer')
+              ? 'action.swap'
+              : 'action.attack',
           params: { target: `@${seen.def}` },
         },
       ];

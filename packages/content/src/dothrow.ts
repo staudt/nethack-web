@@ -85,7 +85,7 @@ import {
 import { acurrstr, findMac } from './stats';
 import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
-import { P, hasProp, heroHas, ringBonus, wornIn } from './props';
+import { P, hasProp, heroHas, maybeHalfPhys, ringBonus, wornIn } from './props';
 import { hmonNoDamage, hmonThrownHit, missileMsg, type Shot } from './hmon';
 import { specAbon, specDbon } from './artifact';
 import { artifactHitHook } from './artihook';
@@ -738,8 +738,7 @@ function returnToHero(ctx: Ctx, obj: Entity, impaired: boolean, path: Pos[]): 'd
     msg(ctx, blind ? 'throw.hits_arm_blind' : 'throw.flies_back', { item });
     const d = { n: dmg };
     artifactHitHook(ctx, null, hero.id, o, d, 0);
-    // (no Half_physical_damage yet: Maybe_Half_Phys())
-    losehp(ctx, d.n, `@${o.def}`); // killer_xname(obj)
+    losehp(ctx, maybeHalfPhys(ctx.state, d.n), `@${o.def}`); // killer_xname(obj)
     if (ctx.state.gameOver) return 'done';
   }
   const sw = uswallow(ctx);

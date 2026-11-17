@@ -73,14 +73,23 @@ const howOf = (s: Status): string => String(s['endHow'] ?? 'died');
 /**
  * The death as the stone words it: killed_by_prefix[how] and the killer. Monsters take an
  * article (KILLED_BY_AN), `killer.*` phrases are complete (KILLED_BY), '=' names are bare; a
- * killer marked with a leading '!' is the whole text, with no prefix ("killed while stuck in
- * creature form": NO_KILLER_PREFIX). ref: src/topten.c formatkiller()
+ * `killer.*` phrase may carry one message param after a '|' (its `{what}`: "touching
+ * Stormbringer" is `@killer.touching_artifact|=Stormbringer`); a killer marked with a leading '!'
+ * is the whole text, with no prefix ("killed while stuck in creature form": NO_KILLER_PREFIX).
+ * ref: src/topten.c formatkiller()
  */
 export function deathText(d: Pick<EndDeps, 't' | 'has'>, s: Status): string {
   const raw = String(s['killer'] ?? '');
   const noPrefix = raw.startsWith('!');
   const k = noPrefix ? raw.slice(1) : raw;
   const def = k.startsWith('@') ? k.slice(1) : k;
+  const bar = def.indexOf('|');
+  if (def.startsWith('killer.') && bar > 0) {
+    const phrase = d.t(def.slice(0, bar), { what: def.slice(bar + 1) });
+    if (noPrefix) return phrase;
+    const pkey = `end.killer.${howOf(s)}`;
+    return d.t(d.has(pkey) ? pkey : 'ui.rip.killed_by', { killer: phrase });
+  }
   // '=@key': a proper name whose text is the key's ("killed by Medusa")
   const bare = (name: string): string =>
     name.startsWith('=@') ? d.t(name.slice(2)) : name.slice(1);

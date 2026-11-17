@@ -12,6 +12,7 @@
 // steeds, doors and drawbridges under the mine (traps lie only on plain floor), the water and
 // air levels, pools filling the pit (fillholetyp()), the sleeping hero's "The explosion awakens
 // you!", Dex exercise, deafness, digging down on a land mine.
+import { maybeHalfPhys } from './props';
 import { fillholetyp, liquidFlow } from './liquidflow';
 import { getPlayer, trapAt, type Ctx, type Entity, type Msg, type Trap } from '@nh/core';
 import { fillPit } from './flooreffects';
@@ -96,7 +97,7 @@ function landmineYou(ctx: Ctx, trap: Trap): void {
   setWoundedLegs(ctx, ctx.rng.rn2(35) + 41);
   setWoundedLegs(ctx, ctx.rng.rn2(35) + 41);
   toPit(trap); // before losehp(), so bones would not keep the land mine
-  losehp(ctx, damage, '@killer.trap.landmine');
+  losehp(ctx, maybeHalfPhys(ctx.state, damage), '@killer.trap.landmine');
   blowUpLandmine(ctx, trap);
   if (ctx.state.gameOver) return;
   // fall recursively into the pit...

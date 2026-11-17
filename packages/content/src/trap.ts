@@ -117,7 +117,15 @@ import { clearStrat, isFrozen, mstratOf, paralyzeMonst, setMConfused } from './m
 import { flaming, isWhirly } from './engulfstate';
 import { doname, xnameOf } from './objnam';
 import { canSpotMon, monNam, telepathSenses } from './perception';
-import { P, hasProp, heroHas, makeConfused, makeStunned, timeoutLeft } from './props';
+import {
+  P,
+  hasProp,
+  heroHas,
+  makeConfused,
+  makeStunned,
+  maybeHalfPhys,
+  timeoutLeft,
+} from './props';
 import { MAGIC_PORTAL, portalArrival, portalDest } from './portal';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
@@ -602,7 +610,8 @@ function arrowTrapYou(ctx: Ctx, levelId: string, trap: Trap): void {
   say(ctx, 'trap.arrow.shoots');
   const otmp = tMissile(ctx, 'nh:arrow');
   const dam = dmgvalSized(ctx.rng, otmp, ctx.defs.object(otmp.def), false);
-  if (thituNamed(ctx, 8, dam, 'arrow', '@killer.trap.arrow')) ctx.remove(otmp.id);
+  if (thituNamed(ctx, 8, maybeHalfPhys(ctx.state, dam), 'arrow', '@killer.trap.arrow'))
+    ctx.remove(otmp.id);
   else dropAt(ctx, otmp, levelId, trap.x, trap.y);
 }
 
@@ -619,7 +628,9 @@ function dartTrapYou(ctx: Ctx, levelId: string, trap: Trap): void {
   // the dart object cannot carry poison (no opoisoned yet); the roll decides the hit's poison
   const poisonedDart = ctx.rng.rn2(6) === 0;
   const dam = dmgvalSized(ctx.rng, otmp, ctx.defs.object(otmp.def), false);
-  if (thituNamed(ctx, 7, dam, 'little_dart', '@killer.trap.little_dart')) {
+  if (
+    thituNamed(ctx, 7, maybeHalfPhys(ctx.state, dam), 'little_dart', '@killer.trap.little_dart')
+  ) {
     if (poisonedDart && !ctx.state.gameOver)
       poisoned(ctx, { key: 'trap.dart.poisoned' }, 'con', '@killer.trap.little_dart', 10, true);
     ctx.remove(otmp.id);
@@ -647,7 +658,7 @@ function rockTrapYou(ctx: Ctx, levelId: string, trap: Trap): void {
     } else say(ctx, 'trap.rock.no_protect', { obj: xnameOf(ctx.state, ctx.defs, uarmh) });
   }
   dropAt(ctx, otmp, levelId, trap.x, trap.y);
-  losehp(ctx, dmg, '@killer.trap.falling_rock');
+  losehp(ctx, maybeHalfPhys(ctx.state, dmg), '@killer.trap.falling_rock');
 }
 
 const noteOf = (ctx: Ctx, level: Level, trap: Trap): Msg => {
@@ -685,7 +696,7 @@ function bearTrapYou(ctx: Ctx, trap: Trap): void {
   else {
     ctx.rng.rn2(2); // RIGHT_SIDE : LEFT_SIDE (only the right leg is tracked)
     setWoundedLegs(ctx, ctx.rng.rn2(10) + 10); // rn1(10, 10)
-    losehp(ctx, dmg, '@killer.trap.bear_trap');
+    losehp(ctx, maybeHalfPhys(ctx.state, dmg), '@killer.trap.bear_trap');
   }
 }
 
@@ -921,7 +932,7 @@ function rustTrapYou(ctx: Ctx, trap: Trap): void {
   if (heroFormId(ctx.state) === 'nh:iron_golem') {
     const dam = getPlayer(ctx.state).c.hp?.max ?? 0;
     say(ctx, 'golem.covered_with_rust');
-    losehp(ctx, dam, '@killer.rusting_away'); // (no Half_physical_damage source)
+    losehp(ctx, maybeHalfPhys(ctx.state, dam), '@killer.rusting_away');
   }
 }
 

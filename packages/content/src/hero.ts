@@ -461,7 +461,8 @@ function regenFormHp(ctx: Ctx, hero: Entity, hp: { cur: number; max: number }): 
 /**
  * Energy regeneration: on the turns where `moves % ((MAXULEV + 8 - ulevel) * 4 / 6)` is 0 (the
  * Wizard's `* 3` never applies), unless Stressed or worse, she gains `rn1((Wis + Int) / 15 + 1, 1)`.
- * ref: src/allmain.c regen_pw(). No Energy_regeneration or magical breathing sources exist.
+ * ref: src/allmain.c regen_pw(): also every turn with Energy_regeneration (the Mitre of Holiness
+ * and the Eye of the Aethiopica carried). No magical breathing source exists.
  * "You feel full of energy." comes from interrupt_multi(), which only speaks while a repeat count
  * runs (`multi > 0`, not running or travelling); the port has no repeat counts, so it is silent.
  */
@@ -475,8 +476,11 @@ export function regenPw(ctx: Ctx): void {
   const ulevel = hero.c.experience?.level ?? 1;
   // mvl_wtcap is UNENCUMBERED while invulnerable (praying)
   const wtcap = uState(state).uinvulnerable ? 0 : nearCapacity(state, ctx.defs, hero.id);
-  if (wtcap >= MOD_ENCUMBER) return;
-  if (state.turn % Math.trunc(((MAXULEV + 8 - ulevel) * 4) / 6) !== 0) return;
+  if (
+    !(wtcap < MOD_ENCUMBER && state.turn % Math.trunc(((MAXULEV + 8 - ulevel) * 4) / 6) === 0) &&
+    !hasProp(hero, P.ENERGY_REGENERATION)
+  )
+    return;
   const a = hero.c.attributes;
   const upper = Math.trunc(((a?.wis ?? 10) + (a?.int ?? 10)) / 15) + 1;
   setPw(ctx, { uen: Math.min(pw.uen + ctx.rng.rn2(upper) + 1, pw.uenmax) }); // rn1(upper, 1)

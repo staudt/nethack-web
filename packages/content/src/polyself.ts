@@ -13,8 +13,9 @@
 // sources of shining forms, mimicking and hiding, a hero who sticks to a monster (no such forms
 // fight yet), pools and lava under the new form, Passes_walls and buried balls, the amulet of
 // strangulation's can_be_strangled(), the `#monster` hints and
-// conduct, retouch_equipment()/selftouch(), attribute exercise, livelog, gendered monster names.
+// conduct, selftouch(), attribute exercise, livelog, gendered monster names.
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
+import { retouchEquipment } from './artitouch';
 import { eggTypeFromParent, laysEggs, learnEggType } from './eggstate';
 import { inHell } from './levelflags';
 import {
@@ -640,6 +641,7 @@ export function polymon(ctx: Ctx, mntmpIn: DefId, sexChangeOk: boolean): boolean
     setUtrap(ctx, 0, 'web');
   }
   encumberMsg(ctx);
+  retouchEquipment(ctx, 2);
   return true;
 }
 
@@ -709,6 +711,7 @@ export function rehumanize(ctx: Ctx): void {
   }
   ctx.interrupt(); // nomul(0)
   encumberMsg(ctx);
+  retouchEquipment(ctx, 2);
 }
 
 /** ref: src/hacklib.c rounddiv() */
@@ -814,6 +817,7 @@ export function newman(ctx: Ctx, sexChangeOk: boolean): void {
     makeSlimed(ctx, 10, null);
   }
   encumberMsg(ctx);
+  retouchEquipment(ctx, 2);
 }
 
 /** newman()'s `dead:` label. */

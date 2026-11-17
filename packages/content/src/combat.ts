@@ -97,6 +97,7 @@ import {
   msize,
   noncorporeal,
   nonliving,
+  hatesBlessings,
   nolimbs,
   slithy,
 } from './mondata';
@@ -132,7 +133,7 @@ import { swapWep } from './wield';
 import { deaths } from './vanquished';
 import { specAbon, specDbon } from './artifact';
 import { artifactHitHook as artifactHit } from './artihook';
-import { isArt, uWieldArt } from './artistate';
+import { isArt, isQuestArtifact, uWieldArt } from './artistate';
 import { XDIR, YDIR, xytodir } from './trapstate';
 import { unmapInvisible } from './invis';
 import { setU } from './luck';
@@ -540,9 +541,9 @@ export function missum(
  * ref: src/hack.c domove() -> src/uhitm.c do_attack() -> hitum() (or, polymorphed, hmonas()).
  * A form with passive attacks only cannot attack ("You have no way to attack monsters
  * physically."). Not ported: knockback, two-weapon. (The peaceful confirmation is asked by the
- * callers, see peaceful.ts.)
+ * callers, see peaceful.ts; `bloodthirst`: Stormbringer attacks a peaceful one unasked.)
  */
-export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos): number {
+export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos, bloodthirst = false): number {
   const hero = getPlayer(ctx.state);
   const target = ctx.state.entities[String(targetId)];
   if (!target?.c.monster) throw new Error(`Entity ${targetId} is not a monster`);
@@ -559,6 +560,8 @@ export function heroAttack(ctx: Ctx, targetId: EntityId, at?: Pos): number {
   if (hero.c.helpless || ctx.state.gameOver) return NORMAL_SPEED;
   // ref: do_attack(): "andrew@orca: prevent unlimited pick-axe attacks"
   uWipeEngr(ctx, 3);
+  // Stormbringer overrode the peaceful confirmation (attack_checks()); known_hitum() says so
+  if (bloodthirst) ctx.emit({ type: 'msg', key: 'arti.bloodthirsty' });
   if (form && hmonasFn) hmonasFn(ctx, targetId);
   else hitum(ctx, targetId, at);
   return NORMAL_SPEED;
@@ -1232,6 +1235,7 @@ export function hitmu(
       false,
       {
         blessHater: formHatesBlessings(ctx),
+        hatesLight: heroForm(ctx)?.id === 'nh:gremlin',
         artiDbon: (t) => specDbon(ctx, mwep, heroId, t).bonus,
       },
     );
@@ -1276,6 +1280,16 @@ export function hitmu(
     dmg -= ctx.rng.rnd(-ac);
     if (dmg < 1) dmg = 1;
   }
+  // Half_physical_damage, or the Mitre of Holiness (even if not currently blessed) against a
+  // monster that hates blessings
+  if (
+    dmg > 0 &&
+    (hasProp(getPlayer(ctx.state), P.HALF_PHDAM) ||
+      (roleIs(ctx.state, 'priest') &&
+        isQuestArtifact(ctx.state, wornIn(ctx.state, ctx.state.playerId, 'helm')) &&
+        hatesBlessings(ctx.defs.monster(mon.def))))
+  )
+    dmg = Math.trunc((dmg + 1) / 2);
   if (dmg > 0) mdamageu(ctx, dmg, `@${mon.def}`); // ref: src/mhitu.c mdamageu() -> done_in_by()
   // ref: hitmu(): `if (mhm.damage) res = passiveum(olduasmon, mtmp, mattk)`: only a form she had
   // when the blow landed has a passive response

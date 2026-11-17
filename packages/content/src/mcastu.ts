@@ -15,12 +15,12 @@
 // A cancelled caster (`mcan`) only curses. An invisible hero is where the caster thinks she is
 // (`ap`, C's mux/muy: apparxy.ts), so a directed spell may go "at thin air". Not ported (see
 // DEVIATIONS.md "Monster spellcasting"): reading the M_SEEN resistance memory (`m_seenres()`;
-// the AD_FIRE/AD_COLD casts record it), Half_spell_damage, the hero's displacement, Deaf, Norep,
+// the AD_FIRE/AD_COLD casts record it), the hero's displacement, Deaf, Norep,
 // shieldeff(). The AD_FIRE and AD_COLD AT_MAGC attacks (Asmodeus's) envelop her in flames or
 // cover her in frost; the AD_MAGM one (a shower of missiles) scuffs the engraving under her
 // (mon_spell_hits_spot()).
 // Clone wizard is the Wizard's alone, while he is the only one ("Double Trouble..."). Insects are
-// always "insects" (no hallucinated names); no Half_physical_damage or melting ice. The touch of
+// always "insects" (no hallucinated names); no melting ice. The touch of
 // death's "he"/"she" follows the kind's gender flag, else "it" (monsters have no gender here).
 import {
   NORMAL_SPEED,
@@ -67,6 +67,8 @@ import {
 } from './mstate';
 import { canSpotMon, monNam, telepathSenses } from './perception';
 import {
+  maybeHalfPhys,
+  maybeHalfSpell,
   P,
   hasIntrinsic,
   hasProp,
@@ -396,6 +398,7 @@ export function castmu(
     if (!isSpellAttack(atk)) return false; // impossible(): a hand-to-hand version of the spell
   } else if (atk.d) dmg = ctx.rng.d(Math.trunc(ml / 2) + atk.n, atk.d);
   else dmg = ctx.rng.d(Math.trunc(ml / 2) + 1, 6);
+  dmg = maybeHalfSpell(ctx.state, dmg);
 
   // the switch on the attack's damage type
   if (atk.ad === 'fire') {
@@ -465,7 +468,10 @@ function mcastStunYou(ctx: Ctx): void {
     makeStunned(ctx, 1, false);
   } else {
     say(ctx, stunned ? 'mcastu.struggle' : 'mcastu.reel');
-    const dmg = ctx.rng.d((hero.c.attributes?.dex ?? 10) < 12 ? 6 : 4, 4);
+    const dmg = maybeHalfSpell(
+      ctx.state,
+      ctx.rng.d((hero.c.attributes?.dex ?? 10) < 12 ? 6 : 4, 4),
+    );
     makeStunned(ctx, timeoutLeft(ctx.state, hero, P.STUNNED) + dmg, false);
   }
 }
@@ -479,16 +485,17 @@ function mcastWeakenYou(ctx: Ctx, mon: Entity): void {
   say(ctx, 'mcastu.weaker');
   let dmg = (mon.c.monster?.level ?? 0) - 6;
   if (dmg < 1) dmg = 1; // paranoia since only chosen when m_lev is high
+  dmg = maybeHalfSpell(ctx.state, dmg);
   losestr(ctx, ctx.rng.rnd(dmg), '@killer.strength_loss');
 }
 
 /**
- * Physical damage (force, not heat): d(8,6), whatever the hero resists. ref: src/mcastu.c
- * mcast_geyser() (no Half_physical_damage source exists)
+ * Physical damage (force, not heat): d(8,6), whatever the hero resists, halved by
+ * Half_physical_damage. ref: src/mcastu.c mcast_geyser()
  */
 function mcastGeyser(ctx: Ctx): number {
   say(ctx, 'mcastu.geyser');
-  return ctx.rng.d(8, 6);
+  return maybeHalfPhys(ctx.state, ctx.rng.d(8, 6));
 }
 
 /**
@@ -500,7 +507,7 @@ function mcastFirePillar(ctx: Ctx): number {
   const hero = getPlayer(ctx.state);
   say(ctx, 'mcastu.fire_pillar');
   const origDmg = ctx.rng.d(8, 6);
-  const dmg = hasProp(hero, P.FIRE_RES) ? 0 : origDmg;
+  const dmg = maybeHalfSpell(ctx.state, hasProp(hero, P.FIRE_RES) ? 0 : origDmg);
   burnAwaySlime(ctx);
   erodeArmor(ctx, hero.id, 'burn'); // burnarmor()
   // item destruction dmg
@@ -523,7 +530,7 @@ function mcastLightning(ctx: Ctx): number {
   const reflects = ureflects(ctx, 'mcastu.bounces');
   const origDmg = ctx.rng.d(8, 6);
   if (reflects) return 0;
-  const dmg = hasProp(hero, P.SHOCK_RES) ? 0 : origDmg;
+  const dmg = maybeHalfSpell(ctx.state, hasProp(hero, P.SHOCK_RES) ? 0 : origDmg);
   destroyItems(ctx, hero.id, 'elec', origDmg);
   if (ctx.state.gameOver) return 0;
   const p = hero.c.pos;
@@ -629,7 +636,7 @@ function mcastParalyze(ctx: Ctx, mon: Entity): number {
     dmg = 1; // to produce nomul(-1), not actual damage
   } else {
     if (!helpless) say(ctx, 'mcastu.frozen');
-    dmg = 4 + (mon.c.monster?.level ?? 0);
+    dmg = maybeHalfSpell(ctx.state, 4 + (mon.c.monster?.level ?? 0));
   }
   const finish = { key: 'eat.can_move_again' };
   if (!helpless) nomulNow(ctx, dmg, 'helpless.paralyzed_monster', finish);
@@ -657,7 +664,7 @@ function mcastConfuseYou(ctx: Ctx, mon: Entity): void {
     return;
   }
   const oldprop = hasProp(hero, P.CONFUSION);
-  const dmg = mon.c.monster?.level ?? 0;
+  const dmg = maybeHalfSpell(ctx.state, mon.c.monster?.level ?? 0);
   makeConfused(ctx, timeoutLeft(ctx.state, hero, P.CONFUSION) + dmg, true);
   if (hasProp(hero, P.HALLUC)) say(ctx, oldprop ? 'mcastu.trippier' : 'mcastu.trippy');
   else say(ctx, oldprop ? 'mcastu.more_confused' : 'mcastu.confused');

@@ -15,7 +15,10 @@ export interface Timer {
 export interface GameOver {
   /** 'quit' (m8): the player gave up (content's `#quit`); like 'escaped', no killer. */
   kind: 'died' | 'escaped' | 'quit';
-  /** Message param for the cause: a key, or '@' + a def id (e.g. '@nh:newt'). */
+  /**
+   * Message param for the cause: a key, or '@' + a def id (e.g. '@nh:newt'), or '=' + a proper
+   * name; a key may carry one param after a '|' ('@killer.touching_artifact|=Stormbringer').
+   */
   killer: string;
   turn: number;
   depth: number;

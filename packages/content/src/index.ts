@@ -9,6 +9,7 @@ import { registerStatues } from './statue';
 import { registerShuffle } from './o_init';
 import { nameItem } from './objnam';
 import { registerProps } from './props';
+import { registerArtiGlow } from './artiglow';
 import { registerPerception } from './perception';
 import { registerMState } from './mstate';
 import { registerDog } from './dog';
@@ -146,6 +147,7 @@ export const vanillaMod: Mod = {
     api.defineAction(enhanceAction);
     registerNomul(api);
     registerProps(api);
+    registerArtiGlow(api); // after the worn-property cache's refresh
     registerPerception(api);
     registerMState(api);
     registerLeaveShops(api); // before the pets follow, as goto_level()'s check_special_room(TRUE)
@@ -844,3 +846,9 @@ export { baneApplies, monTouchArtifact, touchVerdict, type TouchVerdict } from '
 export { artiReflects, defended, defends, defendsWhenCarried, protects } from './artidef';
 export { FATAL_DAMAGE_MODIFIER, artifactHit } from './artihit';
 export { notFullyIdentified, objIsPname } from './objnam';
+// m20 step 5: touching and intrinsics
+export { retouchEquipment, retouchObject, touchArtifact } from './artitouch';
+export { glowStrength, seeMonstersWarn } from './artiglow';
+export { artiLightRadius } from './light';
+export { maybeHalfPhys, maybeHalfSpell, refreshWornProps, warnOfMonFlags } from './props';
+export { warnOfMonSenses } from './perception';

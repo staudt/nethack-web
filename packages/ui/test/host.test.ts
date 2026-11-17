@@ -498,6 +498,9 @@ describe('status bar, tombstone, tap to act', () => {
     'nh:jackal': 'jackal',
     'killer.starvation': 'starvation',
     'killer.poly.stuck': 'killed while stuck in creature form',
+    'killer.touching_artifact': 'touching {what}',
+    'killer.handling': 'handling {what|an}',
+    'nh:silver_saber': 'silver saber',
     'inv.a': 'a - a long sword',
     'enl.x': 'You are stunned.',
   };
@@ -648,6 +651,17 @@ describe('status bar, tombstone, tap to act', () => {
     expect(rip).toContain('killed while stuck in creature form');
     expect(rip).not.toContain('killed by');
     m.ui.destroy();
+  });
+
+  test('end: a killer phrase with a param ("touching Stormbringer", "handling a silver saber")', () => {
+    const m = mkEnd();
+    m.ui.update(over({ killer: '@killer.touching_artifact|=Stormbringer' }), [], null);
+    expect((m.rip() ?? '').replace(/[\s|]+/g, ' ')).toContain('killed by touching Stormbringer');
+    m.ui.destroy();
+    const m2 = mkEnd();
+    m2.ui.update(over({ killer: '@killer.handling|@nh:silver_saber' }), [], null);
+    expect((m2.rip() ?? '').replace(/[\s|]+/g, ' ')).toContain('killed by handling a silver saber');
+    m2.ui.destroy();
   });
 
   test('end: the points clause once content scores the game; gold in containers counts', () => {

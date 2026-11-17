@@ -18,6 +18,8 @@ import {
   type Msg,
 } from '@nh/core';
 import { onameObj } from './artiname';
+import { touchArtifact } from './artitouch';
+import { upolyd } from './upoly';
 import { artifactName, nartifactExist, questArtifactId, uncreateArtifact } from './artistate';
 import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';
@@ -336,6 +338,20 @@ export function holdAnotherObject(
   const obj = ctx.state.entities[String(id)];
   const oquan = obj?.c.item?.quantity ?? 1;
   const hero = ctx.state.playerId;
+  if (obj?.c.item?.artifact !== undefined) {
+    // in case touching this object turns out to be fatal
+    const pos = getPlayer(ctx.state).c.pos;
+    if (pos) placeOnFloor(ctx, id, pos.level, pos.x, pos.y);
+    const wasUpolyd = upolyd(ctx.state);
+    // it refuses to be held (and stays on the floor)
+    if (!touchArtifact(ctx, obj, hero) || ctx.state.gameOver) return null;
+    if (wasUpolyd && !upolyd(ctx.state)) {
+      // lose your grip if you revert your form
+      if (dropMsg) ctx.emit({ type: 'msg', ...dropMsg });
+      return null;
+    }
+    // (addToInventory() below takes it up from the floor again)
+  }
   if (heroHas(ctx.state, P.FUMBLING)) {
     // a fumbling hero drops it at once (goto drop_it)
     if (dropMsg) ctx.emit({ type: 'msg', ...dropMsg });

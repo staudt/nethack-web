@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5713 citations.
+196 NetHack files, 5739 citations.
 
 ## dat/asmodeus.lua
 
@@ -365,9 +365,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `FATAL_DAMAGE_MODIFIER()`: `packages/content/src/artihit.ts`
 - `HVY_ENCUMBER()`: `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
 - `MAGIC_COOKIE()`: `packages/content/src/buzz.ts`
+- `MATCH_WARN_OF_MON()`: `packages/content/src/perception.ts`
 - `MAX_EGG_HATCH_TIME()`: `packages/content/src/eggstate.ts`
 - `MOD_ENCUMBER()`: `packages/content/src/hero.ts`, `packages/content/src/wish.ts`
 - `MON_POLE_DIST()`: `packages/content/src/mthrowu.ts`
+- `Maybe_Half_Phys()`: `packages/content/src/props.ts`
 - `NODIAG()`: `packages/content/src/monmove.ts`
 - `POLY_CONTROLLED()`: `packages/content/src/polyself.ts`
 - `POTHIT_HERO_THROW()`: `packages/content/src/potionhit.ts`
@@ -742,7 +744,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/youprop.h
 
-- (file): `packages/content/src/glib.ts`, `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/content/src/uwater.ts`, `packages/core/src/types/entity.ts`
+- (file): `packages/content/src/artitouch.ts`, `packages/content/src/glib.ts`, `packages/content/src/invis.ts`, `packages/content/src/jump.ts`, `packages/content/src/props.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/upoly.ts`, `packages/content/src/uwater.ts`, `packages/core/src/types/entity.ts`
 - `Half_gas_damage()`: `packages/content/src/glib.ts`
 - `Hate_silver()`: `packages/content/src/silver.ts`
 - `Known_wwalking()`: `packages/content/src/uwater.ts`
@@ -828,11 +830,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/artifact.en.ts`
 - `MB_MAX_DIEROLL()`: `packages/content/src/artihit.ts`
 - `Mb_hit()`: `packages/content/src/artihit.ts`
+- `Sting_effects()`: `packages/content/src/artiglow.ts`
 - `any_quest_artifact()`: `packages/content/src/artistate.ts`
 - `arti_cost()`: `packages/content/src/artistate.ts`
 - `arti_reflects()`: `packages/content/src/artidef.ts`
 - `artifact_exists()`: `packages/content/src/artistate.ts`
 - `artifact_hit()`: `packages/content/src/artihit.ts`
+- `artifact_light()`: `packages/content/src/light.ts`
 - `artifact_name()`: `packages/content/src/artistate.ts`
 - `artifact_origin()`: `packages/content/src/artistate.ts`
 - `attacks()`: `packages/content/src/artifact.ts`
@@ -846,20 +850,30 @@ whole. A missing function may still be ported under a citation this parser canno
 - `find_artifact()`: `packages/content/src/artistate.ts`
 - `found_artifact()`: `packages/content/src/artistate.ts`
 - `get_artifact()`: `packages/content/src/artistate.ts`
+- `glow_color()`: `packages/content/src/artiglow.ts`
+- `glow_strength()`: `packages/content/src/artiglow.ts`
+- `glow_verb()`: `packages/content/src/artiglow.ts`
 - `hack_artifacts()`: `packages/content/src/artistate.ts`
+- `has_magic_key()`: `packages/content/src/artifact.ts`
 - `is_art()`: `packages/content/src/artistate.ts`
+- `is_magic_key()`: `packages/content/src/artifact.ts`
 - `mb_verb()`: `packages/content/src/artihit.ts`
 - `mk_artifact()`: `packages/content/src/artistate.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
 - `protects()`: `packages/content/src/artidef.ts`
 - `restrict_name()`: `packages/content/src/artiname.ts`
+- `retouch_equipment()`: `packages/content/src/artitouch.ts`
+- `retouch_object()`: `packages/content/src/artitouch.ts`
+- `set_artifact_intrinsic()`: `packages/content/src/props.ts`
 - `shade_glare()`: `packages/content/src/dmgval.ts`
 - `spec_ability()`: `packages/content/src/artifact.ts`
 - `spec_abon()`: `packages/content/src/artifact.ts`
 - `spec_applies()`: `packages/content/src/artifact.ts`
 - `spec_dbon()`: `packages/content/src/artifact.ts`
-- `touch_artifact()`: `packages/content/src/artifact.ts`
+- `spec_m2()`: `packages/content/src/props.ts`
+- `touch_artifact()`: `packages/content/src/artifact.ts`, `packages/content/src/artitouch.ts`
 - `undiscovered_artifact()`: `packages/content/src/artistate.ts`
+- `untouchable()`: `packages/content/src/artitouch.ts`
 
 ## src/attrib.c
 
@@ -1035,6 +1049,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_visible()`: `packages/core/src/perception.ts`
 - `newsym()`: `packages/content/src/perception.ts`, `packages/core/src/engine.ts`, `packages/core/src/memory.ts`, `packages/core/src/perception.ts`
 - `reset_glyphmap()`: `packages/core/src/view.ts`
+- `see_monsters()`: `packages/content/src/artiglow.ts`
 - `swallowed()`: `packages/content/src/perception.ts`, `packages/ui/src/host.ts`
 - `tmp_at()`: `packages/core/src/types/event.ts`
 - `unmap_invisible()`: `packages/core/src/memory.ts`
@@ -1604,6 +1619,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/light.c
 
 - (file): `packages/content/src/burnstate.ts`, `packages/core/src/types/mod.ts`
+- `arti_light_radius()`: `packages/content/src/light.ts`
 - `candle_light_range()`: `packages/content/src/burnstate.ts`
 - `do_light_sources()`: `packages/content/src/light.ts`, `packages/core/src/perception.ts`, `packages/core/src/types/mod.ts`, `packages/core/src/vision.ts`
 - `new_light_source()`: `packages/content/src/light.ts`
@@ -1681,6 +1697,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mcast_death_touch()`: `packages/content/src/mcastu.ts`
 - `mcast_destroy_armor()`: `packages/content/src/mcastu.ts`
 - `mcast_disappear()`: `packages/content/src/mcastu.ts`
+- `mcast_geyser()`: `packages/content/src/mcastu.ts`
 - `mcast_insects()`: `packages/content/src/mcastu.ts`
 - `mcast_lightning()`: `packages/content/src/mcastu.ts`
 - `mcast_open_wounds()`: `packages/content/src/mcastu.ts`
@@ -3232,7 +3249,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/wield.c
 
-- (file): `packages/content/src/itemactions.ts`, `packages/content/src/stonetouch.ts`
+- (file): `packages/content/src/artiglow.ts`, `packages/content/src/itemactions.ts`, `packages/content/src/stonetouch.ts`
 - `cant_wield_corpse()`: `packages/content/src/stonetouch.ts`
 - `chwepon()`: `packages/content/src/read.ts`
 - `doswapweapon()`: `packages/content/src/itemactions.ts`, `packages/content/src/wield.ts`

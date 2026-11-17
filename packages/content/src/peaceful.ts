@@ -1,5 +1,6 @@
 // Attacking peaceful monsters: the confirmation, waking monsters and making them angry.
 // ref: src/uhitm.c attack_checks(), src/mon.c wakeup(), setmangry(), peacefuls_respond()
+import { uWieldArt } from './artistate';
 import { isPool } from './liquid';
 import { isEel } from './mondata';
 import { uinwater } from './uwater';
@@ -40,20 +41,36 @@ import { hotPursuit } from './shk';
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
-/**
- * Whether the hero must confirm before attacking monster `id` ("Really attack the dwarf?"): it is
- * peaceful, she can see it, and she is not confused, hallucinating or stunned.
- * ref: src/uhitm.c attack_checks() `flags.confirm && mtmp->mpeaceful && !Confusion &&
- * !Hallucination && !Stunned` and `canspotmon(mtmp)`. Not ported: Stormbringer, hidden and
- * invisible monsters, mimics.
- */
-export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
+/** The confirmation's condition: `flags.confirm && mtmp->mpeaceful && !Confusion && ...`. */
+function peacefulToConfirm(ctx: Ctx, id: EntityId): Entity | null {
   const mon = ctx.state.entities[String(id)];
-  if (!mon?.c.monster?.peaceful || !mon.c.pos) return false;
-  if (engulfingU(ctx, id)) return false; // attack_checks(): `if (engulfing_u(mtmp)) return FALSE`
+  if (!mon?.c.monster?.peaceful || !mon.c.pos) return null;
+  if (engulfingU(ctx, id)) return null; // attack_checks(): `if (engulfing_u(mtmp)) return FALSE`
   const hero = getPlayer(ctx.state);
   if (hasProp(hero, P.STUNNED) || hasProp(hero, P.CONFUSION) || hasProp(hero, P.HALLUC))
-    return false;
+    return null;
+  return mon;
+}
+
+/**
+ * Intelligent chaotic weapons (Stormbringer) want blood: wielding it, the hero attacks a
+ * peaceful monster without being asked ("Your bloodthirsty blade attacks!").
+ * ref: src/uhitm.c attack_checks() override_confirmation
+ */
+export function bloodthirsty(ctx: Ctx, id: EntityId): boolean {
+  return peacefulToConfirm(ctx, id) !== null && uWieldArt(ctx.state, 'nh:stormbringer');
+}
+
+/**
+ * Whether the hero must confirm before attacking monster `id` ("Really attack the dwarf?"): it is
+ * peaceful, she can see it, she is not confused, hallucinating or stunned, and she does not
+ * wield Stormbringer (bloodthirsty()). ref: src/uhitm.c attack_checks() `flags.confirm &&
+ * mtmp->mpeaceful && !Confusion && !Hallucination && !Stunned` and `canspotmon(mtmp)`. Not
+ * ported: hidden and invisible monsters, mimics.
+ */
+export function needsAttackConfirm(ctx: Ctx, id: EntityId): boolean {
+  const mon = peacefulToConfirm(ctx, id);
+  if (!mon || uWieldArt(ctx.state, 'nh:stormbringer')) return false;
   return canSpotMon(ctx, mon);
 }
 

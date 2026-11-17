@@ -11,6 +11,7 @@
 // Not ported (see DEVIATIONS.md): the tools outside the subset, Deafness, being underwater,
 // stasis, and the combined one-sentence report of a known magic whistle (each kind of move is
 // its own sentence here).
+import { retouchObject } from './artitouch';
 import { vaultSummonGd } from './vaultstate';
 import {
   NORMAL_SPEED,
@@ -367,6 +368,8 @@ const apply: ActionDef = {
       return 0;
     }
     if (checkCapacity(ctx)) return 0;
+    // evading your grasp costs a turn; just be grateful that you don't drop it as well
+    if (!retouchObject(ctx, obj, false)) return NORMAL_SPEED;
     const def = ctx.defs.object(obj.def);
     if (def.class === 'wand') return doBreakWand(ctx, obj, APPLY_ID);
     if (def.container) return useContainer(ctx, obj);

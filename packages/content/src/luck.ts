@@ -63,6 +63,13 @@ export interface UState {
    * the swings alternate.
    */
   cleaveCw?: boolean;
+  /**
+   * gw.warn_obj_cnt: how many monsters on her level the wielded artifact warned her of when last
+   * counted (see_monsters(); absent = 0), for Sting's glow.
+   */
+  warnObjCnt?: number;
+  /** The Sunsword shining in her hand (C's lamplit on uwep), or null/absent. */
+  sunLit?: number | null;
 }
 
 const DEFAULTS: UState = {

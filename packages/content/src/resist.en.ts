@@ -106,6 +106,8 @@ export const resistMessagesEn: Record<string, string> = {
   'halluc.cosmic_feels': 'Oh wow!  Everything feels so cosmic!',
   'halluc.boring_looks': 'Everything looks SO boring now.',
   'halluc.boring_feels': 'Everything feels SO boring now.',
+  'halluc.vision_flattens': 'Your vision seems to flatten for a moment but is normal now.',
+  'halluc.eyes_itch': 'Your eyes momentarily itch.',
   'timeout.slow_down': 'You feel yourself slow down.',
   'timeout.slow_down_bit': 'You feel yourself slow down a bit.',
   'timeout.acid_unsafe': 'You no longer feel safe from acid.',

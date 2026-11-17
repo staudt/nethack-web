@@ -451,8 +451,11 @@ describe('wishing for artifacts', () => {
     expect(wish(st, 'the Mitre of Holiness', { wizard: true }).got[0]?.c.item?.artifact).toBe(
       'nh:mitre_of_holiness',
     );
-    // another role's quest artifact is an ordinary wish
+    // another role's quest artifact is an ordinary wish (it then blasts the neutral Valkyrie and
+    // evades her grasp: it stays at her feet, m20 step 5)
     getPlayer(st).c.player!.role = roleDefId('valkyrie');
-    expect(wish(st, 'the Mitre of Holiness').got[0]?.c.item?.artifact).toBe('nh:mitre_of_holiness');
+    const v = wish(st, 'the Mitre of Holiness');
+    expect(artiExists(v.st, 'nh:mitre_of_holiness')).toBe(true);
+    expect(v.msgs.some((m) => m.endsWith('evades your grasp!'))).toBe(true);
   });
 });

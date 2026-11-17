@@ -1,6 +1,7 @@
 // Losing experience levels (level drain): a wraith's touch, a barrow wight's blade, an angry god,
 // a fire trap that leaves too few hit points, wizard mode's #levelchange.
 // ref: src/exper.c losexp(); src/mondata.c resists_drli() for the hero
+import { defended } from './artidef';
 import { getPlayer, type Ctx } from '@nh/core';
 import { done } from './end';
 import { levelIncrements, newuexp, setUlevelmax, ulevelmax } from './hero';
@@ -16,11 +17,13 @@ export const LEVELCHANGE = '#levelchange';
 /**
  * Whether the hero resists level drain: a lycanthrope does (is_were() for the hero in human
  * form), and so does a hero polymorphed into an undead, demon or were form (set_uasmon()'s
- * Drain_resistance FROMFORM). ref: src/mondata.c resists_drli() with `mon == &youmonst` (no
- * Drain_resistance from artifacts)
+ * Drain_resistance FROMFORM), or one wielding an artifact that defends against it (Excalibur,
+ * Stormbringer, the Staff of Aesculapius) or wearing black dragon scales (defended()).
+ * ref: src/mondata.c resists_drli() with `mon == &youmonst`
  */
 export function resistsDrliHero(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
   if (ulycn(ctx.state) !== null) return true;
+  if (defended(ctx, ctx.state.playerId, 'drli')) return true;
   const form = heroForm(ctx);
   return (
     form !== null &&

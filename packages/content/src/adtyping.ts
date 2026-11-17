@@ -8,6 +8,7 @@
 // branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
+import { retouchEquipment } from './artitouch';
 import { ucreamed } from './creamed';
 import { loseAbon } from './dowear';
 import {
@@ -1869,9 +1870,9 @@ const adDrli: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
 /**
  * A lycanthrope's bite. Against the hero, 1 time in 4 unless magic cancellation stops it, she
  * catches lycanthropy: "You feel feverish." (u.ulycn is the biter's form). Against a monster it
- * is a plain hit. Protection from shape changers keeps her from catching it.
- * ref: src/uhitm.c mhitm_ad_were() (no defending artifacts, no exercise(); retouch_equipment()
- * is moot without silver items)
+ * is a plain hit. Protection from shape changers and a wielded Werebane keep her from catching
+ * it; then she checks what she holds again (retouch_equipment(): silver, Werebane).
+ * ref: src/uhitm.c mhitm_ad_were() (no exercise())
  */
 const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   if (isU(ctx, magr)) {
@@ -1883,10 +1884,15 @@ const adWere: Handler = (ctx, magr, atk, mdef, mhm, env) => {
       !ctx.rng.rn2(4) &&
       ulycn(ctx.state) === null &&
       !protFromShapeChangers(ctx.state) &&
+      !defends(
+        'were',
+        inventoryOf(ctx.state, mdef.id).find((x) => x.c.item?.equipped === 'weapon'),
+      ) &&
       !mgcAtkNegated(ctx, magr, true)
     ) {
       say(ctx, 'were.feverish');
       setUlycn(ctx, magr.def as DefId);
+      retouchEquipment(ctx, 2);
     }
     return;
   }

@@ -23,6 +23,8 @@ import {
   type PropState,
   type Registry,
 } from '@nh/core';
+import type { Spfx } from './artilist';
+import { artiOf } from './artistate';
 import { RACES_TAB, adjabilRace } from './racetab';
 import { ROLES_TAB } from './roletab';
 import { addWeaponSkill, loseWeaponSkill } from './skills';
@@ -84,6 +86,14 @@ export const P = {
   PROT_FROM_SHAPE_CHANGERS: 'prot_from_shape_changers',
   /** Slippery fingers (timed only: glib.ts) */
   GLIB: 'glib',
+  /** Warning of the monsters a wielded artifact is made to slay (Sting: orcs) */
+  WARN_OF_MON: 'warn_of_mon',
+  HALF_SPDAM: 'half_spell_damage',
+  HALF_PHDAM: 'half_phys_damage',
+  ENERGY_REGENERATION: 'energy_regeneration',
+  HALLUC_RES: 'halluc_res',
+  /** Resistance to blinding light (a wielded Sunsword) */
+  BLND_RES: 'blnd_res',
 } as const;
 
 /** BClairvoyant: a worn cornuthaum blocks clairvoyance for anyone but a Wizard. ref: src/worn.c w_blocks() */
@@ -107,8 +117,13 @@ export const hasExtrinsic = (e: Entity | undefined, name: string): boolean =>
 export const hasFromForm = (e: Entity | undefined, name: string): boolean =>
   e?.c.props?.[formKey(name)] !== undefined;
 
-/** True while the entity has the property, permanently or on a timer. ref: youprop.h (e.g. Stunned) */
+/**
+ * True while the entity has the property, permanently or on a timer. Hallucination does not
+ * show while something gives hallucination resistance (`Hallucination` is `HHallucination &&
+ * !EHalluc_resistance`). ref: youprop.h (e.g. Stunned, Hallucination)
+ */
 export function hasProp(e: Entity | undefined, name: string): boolean {
+  if (name === P.HALLUC && hasExtrinsic(e, P.HALLUC_RES)) return false;
   const p = e?.c.props?.[name];
   return (
     (p !== undefined && (p.intrinsic || p.timeout > 0)) ||
@@ -286,23 +301,105 @@ export function dragonArmorExtra(def: string): string | undefined {
 }
 
 /**
+ * The property an artifact's `defn` (worn or wielded) or `cary` (carried) damage type gives.
+ * ref: src/artifact.c set_artifact_intrinsic() (the dtyp table)
+ */
+const ARTI_DTYP_PROP: Readonly<Record<string, string>> = {
+  fire: P.FIRE_RES,
+  cold: P.COLD_RES,
+  elec: P.SHOCK_RES,
+  magm: P.ANTIMAGIC,
+  disn: P.DISINT_RES,
+  drst: P.POISON_RES,
+  drli: P.DRAIN_RES,
+};
+
+/**
+ * The properties an artifact's special abilities give (spfx when worn or wielded, cspfx when
+ * carried); 'warn' is Warn_of_mon for an artifact with a monster flag to slay, else Warning;
+ * 'reflect' only from the wielded weapon's spfx. ref: src/artifact.c set_artifact_intrinsic()
+ */
+const ARTI_SPFX_PROP: Readonly<Partial<Record<Spfx, string>>> = {
+  search: P.SEARCHING,
+  halres: P.HALLUC_RES,
+  esp: P.TELEPAT,
+  stlth: P.STEALTH,
+  regen: P.REGENERATION,
+  tctrl: P.TELEPORT_CONTROL,
+  eregen: P.ENERGY_REGENERATION,
+  hspdam: P.HALF_SPDAM,
+  hphdam: P.HALF_PHDAM,
+  reflect: P.REFLECTING,
+  protect: P.PROTECTION,
+};
+
+/**
+ * The properties the hero's artifact `o` gives her: worn or wielded its `defn`
+ * resistance and spfx abilities (Sunsword wielded: resistance to blinding light), carried its
+ * `cary` resistance and cspfx abilities. SPFX_XRAY has no row here (the Eyes of the Overworld).
+ * ref: src/artifact.c set_artifact_intrinsic() (C's W_ART/W_WEP bits are folded together)
+ */
+function artifactProps(o: Entity, slot: string | null): string[] {
+  const a = artiOf(o);
+  if (!a) return [];
+  const out: string[] = [];
+  const add = (dtyp: string | null, spfx: readonly Spfx[], wielded: boolean): void => {
+    const r = dtyp === null ? undefined : ARTI_DTYP_PROP[dtyp];
+    if (r) out.push(r);
+    for (const f of spfx) {
+      if (f === 'warn') out.push(a.bane?.kind === 'flag' ? P.WARN_OF_MON : P.WARNING);
+      else if (f === 'reflect' && !wielded) continue;
+      else {
+        const prop = ARTI_SPFX_PROP[f];
+        if (prop) out.push(prop);
+      }
+    }
+  };
+  if (slot !== null) {
+    add(a.defn, a.spfx, slot === 'weapon');
+    if (slot === 'weapon' && a.id === 'nh:sunsword') out.push(P.BLND_RES);
+  }
+  add(a.cary, a.cspfx, false);
+  return out;
+}
+
+/**
+ * The monster flags the hero is warned of by the artifacts she wields or wears (C's
+ * context.warntype.obj: the M2 flag of an SPFX_WARN artifact's bane), sorted.
+ * ref: src/artifact.c set_artifact_intrinsic() spec_m2()
+ */
+export function warnOfMonFlags(state: Readonly<GameState>): string[] {
+  const out = new Set<string>();
+  for (const o of inventoryOf(state, state.playerId)) {
+    const a = artiOf(o);
+    const slot = o.c.item?.equipped ?? null;
+    if (a?.bane?.kind === 'flag' && a.spfx.includes('warn') && slot !== null) out.add(a.bane.flag);
+  }
+  return [...out].sort();
+}
+
+/**
  * Rebuilds the entity's extrinsic entries from its worn accessories (ref: src/worn.c setworn(),
- * setnotworn()). Writes only when something changed, so an entity without worn accessories
+ * setnotworn()) and, for the hero, her artifacts worn, wielded or carried (see
+ * artifactProps()). Writes only when something changed, so an entity without worn accessories
  * keeps its props untouched.
  */
 export function updateWornProps(state: GameState, defs: Registry, id: EntityId): void {
   const e = state.entities[String(id)];
   if (!e) return;
   const want = new Set<string>();
+  const hero = id === state.playerId;
   for (const o of inventoryOf(state, id)) {
-    const slot = o.c.item?.equipped;
+    const slot = o.c.item?.equipped ?? null;
+    if (hero && o.c.item?.artifact !== undefined)
+      for (const p of artifactProps(o, slot)) want.add(wornKey(p));
     if (!slot || !ACCESSORY_SLOTS.has(slot)) continue;
     const prop = defs.object(o.def).prop;
     if (prop) want.add(wornKey(prop));
     // the alchemy smock gives poison _and_ acid resistance (ref: src/do_wear.c Cloak_on())
     if (o.def === 'nh:alchemy_smock' && slot === 'cloak') want.add(wornKey(P.ACID_RES));
     // the hero's dragon scales and scale mail (dragon_armor_handling() sets the hero's only)
-    const extra = id === state.playerId && slot === 'body' ? dragonArmorExtra(o.def) : undefined;
+    const extra = hero && slot === 'body' ? dragonArmorExtra(o.def) : undefined;
     if (extra) want.add(wornKey(extra));
   }
   const props = e.c.props;
@@ -314,6 +411,26 @@ export function updateWornProps(state: GameState, defs: Registry, id: EntityId):
     p[k] ??= { intrinsic: true, timeout: 0 };
   }
 }
+
+/**
+ * updateWornProps() for the hero with what C's set_artifact_intrinsic() says when it changes a
+ * property: hallucination resistance coming or going while she hallucinates.
+ */
+export function refreshWornProps(ctx: Pick<Ctx, 'state' | 'defs' | 'emit'>): void {
+  const hero = getPlayer(ctx.state);
+  const hadRes = hasExtrinsic(hero, P.HALLUC_RES);
+  updateWornProps(ctx.state, ctx.defs, hero.id);
+  const hasRes = hasExtrinsic(hero, P.HALLUC_RES);
+  if (hadRes !== hasRes) hallucResToggled(ctx, hasRes);
+}
+
+/** Damage halved (rounded up) by Half_physical_damage. ref: include/hack.h Maybe_Half_Phys() */
+export const maybeHalfPhys = (state: Readonly<GameState>, dmg: number): number =>
+  heroHas(state, P.HALF_PHDAM) ? Math.trunc((dmg + 1) / 2) : dmg;
+
+/** Spell damage halved (rounded up) by Half_spell_damage. ref: Half_spell_damage callers */
+export const maybeHalfSpell = (state: Readonly<GameState>, dmg: number): number =>
+  heroHas(state, P.HALF_SPDAM) ? Math.trunc((dmg + 1) / 2) : dmg;
 
 /**
  * The summed enchantment of the worn rings of type `ring` (u.uhitinc for increase accuracy,
@@ -395,7 +512,10 @@ export function makeBlinded(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, tal
 
 /**
  * Sets the hero's hallucination timer to `xtime` turns (0 ends it). Returns true when the state
- * changed. ref: src/potion.c make_hallucinated() (no resistance mask: no Grayswandir).
+ * changed. While something gives hallucination resistance (Grayswandir) nothing shows: clearing
+ * the timer then only says "Your vision seems to flatten for a moment but is normal now." (blind:
+ * "Your eyes momentarily itch."). The resistance mask's own toggling is hallucResToggled().
+ * ref: src/potion.c make_hallucinated() (mask 0; no eyeless forms)
  */
 export function makeHallucinated(
   ctx: Pick<Ctx, 'state' | 'emit'>,
@@ -403,13 +523,32 @@ export function makeHallucinated(
   talk: boolean,
 ): boolean {
   const hero = getPlayer(ctx.state);
-  const changed = hasProp(hero, P.HALLUC) !== xtime > 0;
+  const old = timeoutLeft(ctx.state, hero, P.HALLUC) > 0;
+  const changed = !hasExtrinsic(hero, P.HALLUC_RES) && hasProp(hero, P.HALLUC) !== xtime > 0;
   setItimeout(ctx.state, hero, P.HALLUC, xtime);
+  // clearing temporary hallucination without toggling vision
+  if (!changed && !xtime && old && talk)
+    ctx.emit({
+      type: 'msg',
+      key: hasProp(hero, P.BLINDED) ? 'halluc.eyes_itch' : 'halluc.vision_flattens',
+    });
   if (changed && talk) {
     const verb = hasProp(hero, P.BLINDED) ? 'feels' : 'looks';
     ctx.emit({ type: 'msg', key: xtime ? `halluc.cosmic_${verb}` : `halluc.boring_${verb}` });
   }
   return changed;
+}
+
+/**
+ * Hallucination resistance just came (`on`) or went: while she hallucinates (the timer runs)
+ * everything looks SO boring now, or cosmic again. ref: src/potion.c make_hallucinated() with a
+ * mask (set_artifact_intrinsic()'s SPFX_HALRES)
+ */
+export function hallucResToggled(ctx: Pick<Ctx, 'state' | 'emit'>, on: boolean): void {
+  const hero = getPlayer(ctx.state);
+  if (timeoutLeft(ctx.state, hero, P.HALLUC) <= 0) return;
+  const verb = hasProp(hero, P.BLINDED) ? 'feels' : 'looks';
+  ctx.emit({ type: 'msg', key: on ? `halluc.boring_${verb}` : `halluc.cosmic_${verb}` });
 }
 
 /**
@@ -457,9 +596,16 @@ function timeoutExpired(ctx: Ctx, hero: Entity, name: string): void {
       }
       break;
     case P.HALLUC:
+      // ref: nh_timeout(): set_itimeout(&HHallucination, 1L); make_hallucinated(0L, TRUE, 0L)
       ctx.emit({
         type: 'msg',
-        key: hasProp(hero, P.BLINDED) ? 'halluc.boring_feels' : 'halluc.boring_looks',
+        key: hasExtrinsic(hero, P.HALLUC_RES)
+          ? hasProp(hero, P.BLINDED)
+            ? 'halluc.eyes_itch'
+            : 'halluc.vision_flattens'
+          : hasProp(hero, P.BLINDED)
+            ? 'halluc.boring_feels'
+            : 'halluc.boring_looks',
       });
       ctx.interrupt();
       break;
@@ -526,10 +672,10 @@ export function registerProps(api: ModApi): void {
   });
   // the worn-item cache follows the hero's accessories (a safety net for code that unequips
   // directly, such as removeFromInventory)
-  api.on('afterAction', (ctx) => updateWornProps(ctx.state, ctx.defs, ctx.state.playerId));
+  api.on('afterAction', (ctx) => refreshWornProps(ctx));
   // ref: src/timeout.c nh_timeout(): every turn each timed property counts down; at 0 it ends
   api.on('endOfTurn', (ctx) => {
-    updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
+    refreshWornProps(ctx);
     const hero = getPlayer(ctx.state);
     const props = hero.c.props;
     if (!props) return;

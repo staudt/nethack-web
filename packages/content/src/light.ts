@@ -9,7 +9,7 @@
 // split/merge hooks) lives in the leaf burnstate.ts; this module has the messages and the
 // light. A potion of oil lit by applying it (light_cocktail()) and its explosion are oil.ts's.
 //
-// Not ported: the Candelabrum of Invocation (candles are never attached), artifact lights, light
+// Not ported: the Candelabrum of Invocation (candles are never attached), light
 // sources carried while the hero is away from the level (their timers simply run on;
 // burn_object()'s "timeout while away" catch-up is not needed).
 import {
@@ -469,9 +469,23 @@ export function lightRadius(def: DefId, quantity: number): number {
   return LAMP_RADIUS;
 }
 
+/** Sunsword shines while it is wielded, by the hero or a monster. ref: artifact_light() */
+export const artiShining = (e: Entity): boolean =>
+  e.c.item?.artifact === 'nh:sunsword' &&
+  e.c.item.equipped === 'weapon' &&
+  e.c.item.carriedBy !== null;
+
+/**
+ * The radius of Sunsword's light: 3 blessed, 2 uncursed, 1 cursed.
+ * ref: src/light.c arti_light_radius()
+ */
+export const artiLightRadius = (e: Entity): number =>
+  e.c.item?.buc === 'blessed' ? 3 : e.c.item?.buc === 'cursed' ? 1 : 2;
+
 /**
  * Light sources: every lit object, at its own cell on the floor or at its carrier's (none
- * inside a container), with its radius: candles by their number, oil 1, lamps 3.
+ * inside a container), with its radius: candles by their number, oil 1, lamps 3; and a
+ * shining artifact at its wielder (artiLightRadius()).
  * ref: src/light.c do_light_sources(), new_light_source() via begin_burn()
  */
 export function objLights(state: Readonly<GameState>): LightSource[] {
@@ -479,6 +493,11 @@ export function objLights(state: Readonly<GameState>): LightSource[] {
   for (const id of sortedIds(state)) {
     const e = state.entities[String(id)];
     const it = e?.c.item;
+    if (e && it && artiShining(e)) {
+      const loc = objLocation(state, e);
+      if (loc) out.push({ level: loc.level, x: loc.x, y: loc.y, radius: artiLightRadius(e) });
+      continue;
+    }
     if (!e || !it?.lit) continue;
     const loc = objLocation(state, e);
     if (loc)

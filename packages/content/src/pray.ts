@@ -53,7 +53,7 @@ import { encumberMsg } from './itemactions';
 const ATTRS: readonly Attr[] = ['str', 'int', 'wis', 'dex', 'con', 'cha'];
 import { hungerData, initUhunger, makeSick } from './hunger';
 import { changeLuck, adjalign, luckOf, setU, uState } from './luck';
-import { LUCK_ITEMS } from './gem';
+import { confersLuck } from './gem';
 import { nearCapacity } from './stats';
 import { hcolor } from './magic';
 import { wakeNearto } from './noise';
@@ -178,9 +178,7 @@ function worstCursedItem(ctx: Ctx): Entity | null {
     cursed('ringR') ??
     w ??
     // all worn items ought to be handled by now
-    inv.find(
-      (o) => o.c.item?.buc === 'cursed' && (o.def === 'nh:loadstone' || LUCK_ITEMS.has(o.def)),
-    ) ??
+    inv.find((o) => o.c.item?.buc === 'cursed' && (o.def === 'nh:loadstone' || confersLuck(o))) ??
     null
   );
 }

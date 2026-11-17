@@ -14,6 +14,7 @@
 // "Continue?" confirmation for heavy items, water (an oilskin sack only matters there).
 import { leashMon } from './leashstate';
 import { fatalCorpseMistake } from './stonetouch';
+import { touchArtifact } from './artitouch';
 import {
   NORMAL_SPEED,
   contents,
@@ -317,6 +318,8 @@ function outContainer(
 ): -1 | 0 | 1 {
   const it = obj.c.item;
   if (!it) return 0;
+  if (it.artifact !== undefined && !touchArtifact(ctx, obj, ctx.state.playerId))
+    return ctx.state.gameOver ? -1 : 0;
   if (fatalCorpseMistake(ctx, obj)) return -1;
   let qq = Math.min(count, it.quantity);
   // lift_object(): a loadstone is lifted regardless of its weight

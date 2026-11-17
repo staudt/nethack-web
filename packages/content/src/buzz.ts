@@ -47,7 +47,7 @@ import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
 import { xnameOf } from './objnam';
 import { igniteItems } from './light';
 import { monNam, revealUnseenAt } from './perception';
-import { P, hasProp, makeBlinded } from './props';
+import { P, hasProp, makeBlinded, maybeHalfSpell } from './props';
 import { ureflects } from './reflect';
 import { payForDamage, type DmgStr } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
@@ -440,7 +440,14 @@ export function ubreatheu(ctx: Ctx, ray: Ray, nd: number): void {
  * crumbling first) kills her. Not ported: carried items that guard against it
  * (inventory_resistance_check()), the corpseless grave (no bones).
  */
-function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string, disint = false): void {
+function zhitu(
+  ctx: Ctx,
+  ray: Ray,
+  nd: number,
+  killer: string,
+  disint = false,
+  breathed = disint,
+): void {
   const h = hero(ctx);
   let dam = 0;
   switch (ray) {
@@ -565,6 +572,9 @@ function zhitu(ctx: Ctx, ray: Ray, nd: number, killer: string, disint = false): 
       break;
   }
   if (ctx.state.gameOver) return;
+  // Half_spell_damage protection yields half-damage for wands & spells, including hero's own
+  // ricochets; breath attacks do full damage
+  if (dam && !breathed) dam = maybeHalfSpell(ctx.state, dam);
   // "<flash> zapped by herself" (the hero's own ricochet) or "a bolt of lightning"
   if (dam) losehp(ctx, dam, killer);
 }
@@ -1033,7 +1043,14 @@ function buzzSteps(
             d.y = -d.y;
             gasHit = false;
           } else {
-            zhitu(ctx, ray, nd, killer, disint);
+            zhitu(
+              ctx,
+              ray,
+              nd,
+              killer,
+              disint,
+              src.by === 'breath' || (src.by === 'hero' && src.breath === true),
+            );
             monstunseesu(ctx, M_SEEN.refl);
           }
         } else if (!blind(ctx)) {

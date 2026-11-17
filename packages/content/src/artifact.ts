@@ -6,6 +6,7 @@
 // bane_applies(), touch_artifact()
 import {
   getPlayer,
+  inventoryOf,
   type Ctx,
   type DefId,
   type Entity,
@@ -25,7 +26,7 @@ import { P, hasProp } from './props';
 import { RACES_TAB } from './racetab';
 import { roleMonId } from './roletab';
 import { heroForm } from './upoly';
-import { raceIs, urace, urole } from './urole';
+import { raceIs, roleIs, urace, urole } from './urole';
 import { ulycn } from './werestate';
 
 // ---------------------------------------------------------------------------------------------
@@ -253,4 +254,26 @@ export function monTouchArtifact(
   if (a === null) return true;
   const { badclass, badalign, selfWilled } = touchVerdict(ctx, a, mon);
   return !(((badclass || badalign) && selfWilled) || badalign);
+}
+
+// ---------------------------------------------------------------------------------------------
+// the Master Key of Thievery
+
+/**
+ * The object works as a magic key for `who` (the hero or a monster): the Master Key of Thievery,
+ * not cursed for a Rogue, blessed for anyone else. ref: src/artifact.c is_magic_key()
+ */
+export function isMagicKey(ctx: Pick<Ctx, 'state'>, who: EntityId, obj: Entity): boolean {
+  if (!isArt(obj, 'nh:master_key_of_thievery')) return false;
+  const rogue =
+    who === ctx.state.playerId
+      ? roleIs(ctx.state, 'rogue')
+      : ctx.state.entities[String(who)]?.def === 'nh:rogue';
+  // a rogue: non-cursed suffices for magic; not a rogue: key must be blessed
+  return rogue ? obj.c.item?.buc !== 'cursed' : obj.c.item?.buc === 'blessed';
+}
+
+/** What `who` carries that works as a magic key, or null. ref: src/artifact.c has_magic_key() */
+export function hasMagicKey(ctx: Pick<Ctx, 'state'>, who: EntityId): Entity | null {
+  return inventoryOf(ctx.state, who).find((o) => isMagicKey(ctx, who, o)) ?? null;
 }

@@ -1,5 +1,6 @@
 // Intrinsics from eating corpses. ref: src/eat.c cpostfx(), corpse_intrinsic(), should_givit(),
 // temp_givit(), givit(), intrinsic_possible()
+import { retouchEquipment } from './artitouch';
 import { getPlayer, type Ctx, type MonsterDef } from '@nh/core';
 import { gainstr } from './attrib';
 import {
@@ -210,7 +211,8 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef, tinPoly?: (ctx: Ctx) => voi
   const catchLycanthropy = counterWere(def.id);
   if (catchLycanthropy !== null && def.flags.includes('were') && def.flags.includes('human')) {
     setUlycn(ctx, catchLycanthropy);
-    return; // retouch_equipment(2): no silver items
+    retouchEquipment(ctx, 2);
+    return;
   }
   let stuns = 0;
   switch (def.id) {

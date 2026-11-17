@@ -9,7 +9,8 @@
 //
 // Slippery fingers (Glib): slippery gloves keep rings from going on or coming off.
 // Not ported: handedness (the hero is right-handed), polymorphed forms without hands or limbs,
-// retouch_object() (silver), the rings and amulets outside our subset.
+// the rings and amulets outside our subset.
+import { retouchObject } from './artitouch';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -510,6 +511,8 @@ function ringPutOn(ctx: Ctx, ring: Entity, mask: 'ringL' | 'ringR'): number {
       return res ? NORMAL_SPEED : 0; // uses move iff we learned weapon is cursed
     }
   }
+  // costs a turn even though it didn't get worn
+  if (!retouchObject(ctx, ring, false)) return NORMAL_SPEED;
   setworn(ctx, ring, mask);
   ringOn(ctx, ring);
   prinv(ctx, ring); // on_msg(): "q - a wooden ring (on left hand)."
@@ -549,6 +552,7 @@ const puton: ActionDef = {
         say(ctx, 'puton.already_amulet');
         return 0;
       }
+      if (!retouchObject(ctx, obj, false)) return NORMAL_SPEED;
       amuletOn(ctx, obj);
       return NORMAL_SPEED;
     }
@@ -563,6 +567,7 @@ const puton: ActionDef = {
         say(ctx, ublindf.def === TOWEL ? 'towel.face_covered' : 'puton.already_blindfold');
         return 0;
       }
+      if (!retouchObject(ctx, obj, false)) return NORMAL_SPEED;
       blindfOn(ctx, obj);
       return NORMAL_SPEED;
     }
