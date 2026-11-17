@@ -43,6 +43,7 @@ import { backstabbable, checkCaitiff, cutwormAt, dbonU, dmgval, monsterIdAt } fr
 import { isAxe } from './mdig';
 import { encumberMsg } from './itemactions';
 import {
+  addToInventory,
   bknownOf,
   mksobj,
   placeObject,
@@ -58,7 +59,9 @@ import { checkShopObj, sellobj, sellobjState } from './shk';
 import { checkCapacity, heroEntity } from './magic';
 import { isUnicorn, nohands, notake } from './mondata';
 import { gemAccept, gemForUnicorn } from './unicorn';
-import { xnameOf } from './objnam';
+import { theXname, xnameOf } from './objnam';
+import { isArt } from './artistate';
+import { losehp } from './hp';
 import { heroForm } from './upoly';
 import { polydRace, yourRace } from './race';
 import { raceIs, roleIs, urace, urole } from './urole';
@@ -83,7 +86,9 @@ import { acurrstr, findMac } from './stats';
 import { monNam, revealUnseenAt } from './perception';
 import { luckOf } from './luck';
 import { P, hasProp, heroHas, ringBonus, wornIn } from './props';
-import { hmonThrownHit, missileMsg, type Shot } from './hmon';
+import { hmonNoDamage, hmonThrownHit, missileMsg, type Shot } from './hmon';
+import { specAbon, specDbon } from './artifact';
+import { artifactHitHook } from './artihook';
 import { EGG } from './eggstate';
 import { breakEggs, hitWithEgg } from './egghit';
 import { breakmsg, breaktest } from './material';
@@ -203,6 +208,9 @@ export function thitmonst(
     else if (gloves.def === 'nh:gauntlets_of_fumbling') tmp -= 3;
   }
   tmp += omonAdj(mon, mdef, obj, odef);
+  // omon_adj() -> hitval(): `if (otmp->oartifact) tmp += spec_abon(otmp, mon)`
+  if ((odef.class === 'weapon' || odef.class === 'gem' || !!odef.weapon) && obj.c.item.artifact)
+    tmp += specAbon(ctx, obj, monId);
   // `is_orc(mon->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
   if (mdef.flags.includes('orc') && polydRace(ctx, 'elf')) tmp++;
 
@@ -323,6 +331,7 @@ export function thitmonst(
     else {
       tmp += uwep.c.item?.spe ?? 0;
       tmp += weaponHitBonus(skillLevel(ctx, uwdef.weapon?.skill ?? ''), uwdef);
+      if (uwep.c.item?.artifact !== undefined) tmp += specAbon(ctx, uwep, monId);
       // Elves and Samurai are highly trained with bows, especially their own special types of
       // bow; polymorphing won't make you a bow expert
       const elf = raceIs(ctx.state, 'elf');
@@ -351,6 +360,11 @@ export function thitmonst(
   }
 
   let hittxt = false;
+  // an artifact's damage bonus as dmgval() asks it (to halve the type bonuses it doubles)
+  const artiDbon =
+    obj.c.item.artifact !== undefined
+      ? (t: number): number => specDbon(ctx, obj, monId, t).bonus
+      : undefined;
   // ref: src/uhitm.c hmon_hitmon_dmg_recalc(): `dmgbonus = u.udaminc` for every thrown weapon
   const udaminc = ringBonus(ctx.state, 'nh:ring_of_increase_damage');
   let dmg: number;
@@ -380,7 +394,9 @@ export function thitmonst(
   } else {
     // ref: src/uhitm.c hmon_hitmon_weapon_melee(): dmgval, then the Str bonus and the
     // weapon-skill bonus; at least 1.
-    dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon));
+    dmg = dmgval(ctx.rng, obj, odef, mdef, isVampshifter(ctx, mon), artiDbon);
+    // a minimal hit doesn't exercise proficiency
+    const train = dmg > 1;
     // special attack actions: a Rogue's polearm applied at a fleeing or helpless monster stabs
     // it in the back (hand_to_hand is true for an applied pole; not thrown weapons)
     if (
@@ -395,7 +411,25 @@ export function thitmonst(
       dmg += ctx.rng.rnd(ulevel);
       hittxt = true;
     }
-    if (dmg > 1) useSkill(ctx, odef.weapon.skill, 1); // a minimal hit doesn't exercise proficiency
+    // an artifact's special hit (hmon_hitmon_weapon_melee())
+    if (obj.c.item.artifact !== undefined) {
+      const dd = { n: dmg };
+      const notonhead = !!at && !!mon.c.pos && (at.x !== mon.c.pos.x || at.y !== mon.c.pos.y);
+      if (artifactHitHook(ctx, hero.id, monId, obj, dd, dieroll, { notonhead })) {
+        // artifact_hit updates the damage but doesn't inflict any; it might destroy carried
+        // items, and they might
+        const t = ctx.state.entities[String(monId)];
+        if (!t?.c.monster || (t.c.hp?.cur ?? 0) < 1) return false; // artifact killed monster
+        // perhaps artifact tried to behead a headless monster: hmon() returns at once
+        if (dd.n === 0) {
+          hmonNoDamage(ctx, mon);
+          return false;
+        }
+        hittxt = true;
+      }
+      dmg = dd.n;
+    }
+    if (train) useSkill(ctx, odef.weapon.skill, 1);
     if (dmg > 0) dmg += udaminc;
     dmg += dbonU(ctx);
     dmg += weaponDamBonus(skillLevel(ctx, odef.weapon.skill), odef);
@@ -488,7 +522,7 @@ export function spitVenom(ctx: Ctx, otyp: DefId, dir: Dir): void {
  * Flies the (detached) object from the hero in direction `dir`, hits what is in the way and
  * leaves it on the floor. ref: src/dothrow.c throwit(), src/zap.c bhit(), src/dothrow.c hitfloor()
  */
-function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
+function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot, wasWielded = false): void {
   const hero = heroEntity(ctx);
   const pos = hero.c.pos;
   const obj = ctx.state.entities[String(objId)];
@@ -502,6 +536,14 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   const uwep = heroWielded(ctx);
   const uwdef = uwep ? ctx.defs.object(uwep.def) : null;
   const launched = uwdef !== null && ammoAndLauncher(odef, uwdef);
+  let impaired =
+    hasProp(hero, P.CONFUSION) ||
+    hasProp(hero, P.STUNNED) ||
+    hasProp(hero, P.BLINDED) ||
+    hasProp(hero, P.HALLUC) ||
+    hasProp(hero, P.FUMBLING);
+  // AutoReturn(): a Valkyrie's wielded Mjollnir comes back (no aklys or boomerang return here)
+  const returning = wasWielded && isArt(obj, 'nh:mjollnir') && roleIs(ctx.state, 'valkyrie');
 
   // a cursed object may slip (or ammo misfire): it goes off in a random direction (or just drops)
   if (it.buc === 'cursed' && ctx.rng.rn2(7) === 0) {
@@ -514,6 +556,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       dx = ctx.rng.rn2(3) - 1;
       dy = ctx.rng.rn2(3) - 1;
       if (!dx && !dy) dz = 1;
+      impaired = true;
     }
   }
 
@@ -524,6 +567,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   if (sw) {
     const engulfer = ctx.state.entities[String(sw.mon)];
     if (engulfer && thitmonst(ctx, sw.mon, objId, shot)) return; // used up
+    if (returning && returnToHero(ctx, obj, impaired, []) === 'done') return;
     if (ctx.state.entities[String(sw.mon)]?.c.monster && isSwallowed(ctx)) {
       const o = ctx.state.entities[String(objId)];
       if (o) mpickobj(ctx, sw.mon, o);
@@ -578,6 +622,7 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
       msg(ctx, `throw.by_hand.${odef.weapon?.skill ?? 'bow'}`);
     }
   }
+  if (isArt(obj, 'nh:mjollnir')) range = Math.trunc((range + 1) / 2); // it's heavy
 
   // ref: src/zap.c bhit() for THROWN_WEAPON: a monster stops it; so does anything that is not
   // open floor (a wall, stone, a closed door), in which case it drops in the cell before.
@@ -623,6 +668,8 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
   if (hitMon !== null) {
     if (thitmonst(ctx, hitMon, objId, shot, false, { x, y })) return; // used up
   }
+  // Mjollnir must be wielded to be thrown--throwObj() verifies this
+  if (returning && returnToHero(ctx, obj, impaired, path) === 'done') return;
   // venom always breaks where it lands, even on a soft floor: breakmsg() "Splash!", breakobj()
   if (odef.class === 'venom') {
     msg(ctx, 'throw.venom_splash');
@@ -650,6 +697,61 @@ function throwit(ctx: Ctx, objId: EntityId, dir: Dir, shot: Shot): void {
     return;
   }
   placeOnFloor(ctx, objId, pos.level, x, y);
+}
+
+/**
+ * A Valkyrie's thrown Mjollnir comes back 99 times in 100 ("Mjollnir fails to return!" else, and
+ * it lands where it is): unless she is confused, stunned, blind, hallucinating or fumbling it is
+ * caught 99 times in 100 and wielded again ("Mjollnir returns to your hand!"); else it lands at
+ * her feet, or 1 time in 2 hits her arm for 1d3 + 1 and its lightning (artifactHit() with no
+ * attacker). `path`: the cells of its flight she saw, for the way back.
+ * ref: src/dothrow.c throwit() (iflags.returning_missile), sho_obj_return_to_u()
+ */
+function returnToHero(ctx: Ctx, obj: Entity, impaired: boolean, path: Pos[]): 'done' | 'failed' {
+  const o = ctx.state.entities[String(obj.id)];
+  const hero = heroEntity(ctx);
+  const pos = hero.c.pos;
+  if (!o?.c.item || o.c.item.carriedBy !== null || !pos) return 'failed';
+  const item = theXname(ctx.state, ctx.defs, o);
+  if (!ctx.rng.rn2(100)) {
+    msg(ctx, 'throw.fails_return', { item });
+    return 'failed';
+  }
+  // display its flight
+  if (path.length > 0)
+    ctx.emit({ type: 'projectile', g: shownId(ctx.state, o.def), path: [...path].reverse() });
+  if (!impaired && ctx.rng.rn2(100)) {
+    msg(ctx, 'throw.returns_hand', { item });
+    const id = addToInventory(ctx, hero.id, o.id); // addinv_before(obj, oldslot)
+    const back = ctx.state.entities[String(id)]?.c.item;
+    if (back) back.equipped = 'weapon'; // setuwep(obj)
+    return 'done';
+  }
+  let dmg = ctx.rng.rn2(2);
+  const blind = hasProp(hero, P.BLINDED);
+  const lev = hasProp(hero, P.LEVITATION);
+  if (!dmg) {
+    if (blind) msg(ctx, lev ? 'throw.lands_feet_blind_lev' : 'throw.lands_feet_blind');
+    else msg(ctx, lev ? 'throw.returns_feet_lev' : 'throw.returns_feet', { item });
+  } else {
+    dmg += ctx.rng.rnd(3);
+    msg(ctx, blind ? 'throw.hits_arm_blind' : 'throw.flies_back', { item });
+    const d = { n: dmg };
+    artifactHitHook(ctx, null, hero.id, o, d, 0);
+    // (no Half_physical_damage yet: Maybe_Half_Phys())
+    losehp(ctx, d.n, `@${o.def}`); // killer_xname(obj)
+    if (ctx.state.gameOver) return 'done';
+  }
+  const sw = uswallow(ctx);
+  if (sw && ctx.state.entities[String(sw.mon)]?.c.monster) {
+    mpickobj(ctx, sw.mon, o); // swallowit()
+    return 'done';
+  }
+  // ship_object() (no holes or trap doors here) else dropy()
+  if (flooreffects(ctx, o, pos.x, pos.y, 'drop')) return 'done';
+  sellobj(ctx, o, pos.x, pos.y, sellobjState('normal'));
+  placeOnFloor(ctx, o.id, pos.level, pos.x, pos.y);
+  return 'done';
 }
 
 /**
@@ -800,6 +902,18 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
     return 0;
   }
 
+  if (isArt(obj, 'nh:mjollnir') && it.equipped !== 'weapon') {
+    msg(ctx, 'throw.must_wield', { item: theXname(ctx.state, ctx.defs, obj) });
+    return 0;
+  }
+  if (isArt(obj, 'nh:mjollnir') && (heroEntity(ctx).c.attributes?.str ?? 10) < 125) {
+    // ACURR(A_STR) < STR19(25)
+    msg(ctx, 'throw.too_heavy');
+    return NORMAL_SPEED;
+  }
+  // the wielded weapon thrown (wep_mask): a returning Mjollnir is wielded again
+  const wasWielded = it.equipped === 'weapon';
+
   if (isWetTowel(obj)) dryATowel(ctx, obj, -1, false);
 
   uWipeEngr(ctx, 2); // ref: throw_obj()
@@ -829,7 +943,7 @@ export function throwObj(ctx: Ctx, obj: Entity, dir: Dir): number {
       current = null;
     }
     removeFromInventory(ctx, id);
-    throwit(ctx, id, dir, { i, n });
+    throwit(ctx, id, dir, { i, n }, wasWielded);
     encumberMsg(ctx);
     if (ctx.state.gameOver) break;
   }

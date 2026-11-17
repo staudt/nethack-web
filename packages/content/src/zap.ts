@@ -520,7 +520,7 @@ const flagChain = (flags: readonly string[]): Msg | '' => {
 };
 
 /** ref: src/zap.c probe_monster(): the status line and what it carries */
-function probeMonster(ctx: Ctx, mon: Entity): void {
+export function probeMonster(ctx: Ctx, mon: Entity): void {
   const st = monStatus(ctx, mon);
   say(ctx, st.key, st.params);
   const inv = minvent(ctx, mon.id);
@@ -1737,14 +1737,16 @@ const POT_WATER: DefId = 'nh:potion_of_water';
  * polymorphed hero returns to her own form ("Your amulet grows hot for a moment, then cools."
  * with Unchanging). A clay golem dies ("Some writing vanishes from the clay golem's head!"), as
  * does a hero in clay golem form, even with Unchanging. True when it did not resist.
- * ref: src/zap.c cancel_monst() (no Magicbane: allow_cancel_kill is always TRUE)
+ * `allowCancelKill` false (Magicbane, a `weapon` source: resist() at the weapon's level 10) leaves
+ * the clay golem alive for the hit to kill. ref: src/zap.c cancel_monst()
  */
 export function cancelMonst(
   ctx: Ctx,
   mdef: Entity | 'hero',
-  src: ZapSource,
+  src: ZapSource | { kind: 'weapon' },
   youattack: boolean,
   selfCancel: boolean,
+  allowCancelKill = true,
 ): boolean {
   const youdefend = mdef === 'hero';
   if (youdefend ? !youattack && antimagic(ctx) : resist(ctx, mdef, 0, src.kind)) return false;
@@ -1774,7 +1776,11 @@ export function cancelMonst(
     normalShape(ctx, mdef);
     if (mdef.def === 'nh:clay_golem') {
       if (canseemon(ctx, mdef)) say(ctx, 'adtyp.writing_vanishes', { mon: monNam(ctx, mdef) });
-      if (youattack) killedByHero(ctx, mdef);
+      // !allow_cancel_kill is for Magicbane, where clay golem will be killed somewhere back up
+      // the call/return chain...
+      if (!allowCancelKill) {
+        // (it lives on)
+      } else if (youattack) killedByHero(ctx, mdef);
       else monkilled(ctx, mdef.id, true); // monkilled(mdef, "", AD_SPEL)
     }
   }

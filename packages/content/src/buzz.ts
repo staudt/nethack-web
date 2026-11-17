@@ -155,7 +155,8 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
 }
 
 /**
- * The monster's saving throw against a wand (attack level 12), an instrument (10), a scroll (9), a potion (6) or the
+ * The monster's saving throw against a wand (attack level 12), an instrument or an artifact
+ * weapon (10), a scroll (9), a potion (6) or the
  * hero's spell (attack level = her experience level); `damage` is halved when it resists and then taken, which
  * may kill it (by the hero, or with `mUsing` by the monster's own wand: gm.m_using).
  * ref: src/zap.c resist() with WAND_CLASS, TOOL_CLASS (10), SCROLL_CLASS, POTION_CLASS or a spell
@@ -164,14 +165,14 @@ export function resist(
   ctx: Ctx,
   mon: Entity,
   damage: number,
-  oclass: 'wand' | 'tool' | 'scroll' | 'potion' | 'spell' = 'wand',
+  oclass: 'wand' | 'tool' | 'weapon' | 'scroll' | 'potion' | 'spell' = 'wand',
   mUsing = false,
 ): boolean {
   const def = ctx.defs.monster(mon.def);
   const alev =
     oclass === 'wand'
       ? 12
-      : oclass === 'tool'
+      : oclass === 'tool' || oclass === 'weapon' // instrument; artifact
         ? 10
         : oclass === 'scroll'
           ? 9

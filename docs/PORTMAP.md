@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-195 NetHack files, 5672 citations.
+195 NetHack files, 5697 citations.
 
 ## dat/asmodeus.lua
 
@@ -362,6 +362,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `ER_()`: `packages/content/src/erode.ts`
 - `ER_NOTHING()`: `packages/content/src/water.ts`
 - `EXT_ENCUMBER()`: `packages/content/src/magic.ts`, `packages/content/src/pray.ts`
+- `FATAL_DAMAGE_MODIFIER()`: `packages/content/src/artihit.ts`
 - `HVY_ENCUMBER()`: `packages/content/src/pray.ts`, `packages/content/src/untrap.ts`
 - `MAGIC_COOKIE()`: `packages/content/src/buzz.ts`
 - `MAX_EGG_HATCH_TIME()`: `packages/content/src/eggstate.ts`
@@ -542,7 +543,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## include/monst.h
 
 - (file): `packages/content/src/chamstate.ts`, `packages/content/src/hidestate.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/mstate.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
-- `MON_WEP()`: `packages/content/src/mongear.ts`
+- `MON_WEP()`: `packages/content/src/artidef.ts`, `packages/content/src/mongear.ts`
 - `M_SEEN_()`: `packages/content/src/musestate.ts`
 - `engulfing_u()`: `packages/content/src/engulfstate.ts`
 - `m_ap_type()`: `packages/content/src/mimicstate.ts`
@@ -824,11 +825,18 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/artifact.c
 
+- (file): `packages/content/src/artifact.en.ts`
+- `MB_MAX_DIEROLL()`: `packages/content/src/artihit.ts`
+- `Mb_hit()`: `packages/content/src/artihit.ts`
 - `arti_cost()`: `packages/content/src/artistate.ts`
 - `artifact_exists()`: `packages/content/src/artistate.ts`
+- `artifact_hit()`: `packages/content/src/artihit.ts`
 - `artifact_name()`: `packages/content/src/artistate.ts`
 - `artifact_origin()`: `packages/content/src/artistate.ts`
+- `attacks()`: `packages/content/src/artifact.ts`
 - `confers_luck()`: `packages/content/src/gem.ts`
+- `defends()`: `packages/content/src/artidef.ts`
+- `defends_when_carried()`: `packages/content/src/artidef.ts`
 - `discover_artifact()`: `packages/content/src/artistate.ts`
 - `disp_artifact_discoveries()`: `packages/content/src/itemactions.ts`
 - `exist_artifact()`: `packages/content/src/artistate.ts`
@@ -837,10 +845,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `get_artifact()`: `packages/content/src/artistate.ts`
 - `hack_artifacts()`: `packages/content/src/artistate.ts`
 - `is_art()`: `packages/content/src/artistate.ts`
+- `mb_verb()`: `packages/content/src/artihit.ts`
 - `mk_artifact()`: `packages/content/src/artistate.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
 - `restrict_name()`: `packages/content/src/artifact.ts`
 - `shade_glare()`: `packages/content/src/dmgval.ts`
+- `spec_ability()`: `packages/content/src/artifact.ts`
+- `spec_abon()`: `packages/content/src/artifact.ts`
+- `spec_applies()`: `packages/content/src/artifact.ts`
+- `spec_dbon()`: `packages/content/src/artifact.ts`
 - `undiscovered_artifact()`: `packages/content/src/artistate.ts`
 
 ## src/attrib.c
@@ -1635,7 +1648,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mkclass_poly()`: `packages/content/src/polyself.ts`
 - `mkmonmoney()`: `packages/content/src/mongear.ts`
 - `mongets()`: `packages/content/src/mongear.ts`
-- `monhp_per_lvl()`: `packages/content/src/upoly.ts`
+- `monhp_per_lvl()`: `packages/content/src/mondata.ts`, `packages/content/src/upoly.ts`
 - `newmonhp()`: `packages/content/src/generation.ts`
 - `peace_minded()`: `packages/content/src/generation.ts`
 - `pm_to_cham()`: `packages/content/src/chamstate.ts`
@@ -1997,11 +2010,13 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/mondata.c
 
 - (file): `packages/content/src/adtyping.ts`, `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
+- `Resists_Elem()`: `packages/content/src/mresist.ts`
 - `big_to_little()`: `packages/content/src/eggstate.ts`
 - `breakarm()`: `packages/content/src/mondata.ts`
 - `can_blnd()`: `packages/content/src/adtyping.ts`
 - `can_blow()`: `packages/content/src/music.ts`
 - `cvt_adtyp_to_mseenres()`: `packages/content/src/mthrowu.ts`
+- `defended()`: `packages/content/src/artidef.ts`
 - `gender()`: `packages/content/src/gender.ts`
 - `grownups()`: `packages/content/src/eggstate.ts`
 - `hates_silver()`: `packages/content/src/mondata.ts`
@@ -2025,7 +2040,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `on_fire()`: `packages/content/src/adtyping.ts`, `packages/content/src/minliquid.ts`
 - `pronoun_gender()`: `packages/content/src/seduce.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
-- `resists_drli()`: `packages/content/src/adtyping.ts`, `packages/content/src/exper.ts`
+- `resists_drli()`: `packages/content/src/exper.ts`, `packages/content/src/mresist.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
 - `same_race()`: `packages/content/src/race.ts`
 - `sliparm()`: `packages/content/src/mondata.ts`
@@ -2200,6 +2215,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/artilist.ts`, `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Japanese_item_name()`: `packages/content/src/objnam.ts`
 - `Japanese_items()`: `packages/content/src/kittab.ts`, `packages/content/src/role.en.ts`
+- `The()`: `packages/content/src/objnam.ts`
 - `Yobjnam2()`: `packages/content/src/adtyping.ts`
 - `add_erosion_words()`: `packages/content/src/objnam.ts`
 - `an()`: `packages/app/src/character.ts`
@@ -2241,6 +2257,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `special_subjs()`: `packages/content/src/objnam_read.ts`
 - `spellings()`: `packages/content/src/objnam_read.ts`
 - `suit_simple_name()`: `packages/content/src/seffect.ts`, `packages/content/src/shirt.ts`
+- `the()`: `packages/content/src/objnam.ts`
 - `wishymatch()`: `packages/content/src/objnam_read.ts`
 - `wizterrainwish()`: `packages/content/src/wish.ts`, `packages/content/src/wizard/terrainwish.ts`
 - `wrp()`: `packages/content/src/objnam_read.ts`
@@ -3067,6 +3084,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `flash_hits_mon()`: `packages/content/src/zap.ts`
 - `gulpum()`: `packages/content/src/hmonas.ts`, `packages/content/src/uhitm.en.ts`
 - `hitum()`: `packages/content/src/combat.ts`
+- `hitum_cleave()`: `packages/content/src/combat.ts`
 - `hmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon()`: `packages/content/src/combat.ts`, `packages/content/src/hmon.ts`
 - `hmon_hitmon_()`: `packages/content/src/combat.ts`

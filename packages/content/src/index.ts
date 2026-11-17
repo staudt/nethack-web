@@ -835,4 +835,7 @@ export {
   type ArtiOrigin,
   type ArtiState,
 } from './artistate';
+// m20 step 3: the artifacts' special attacks (artihit.ts registers itself with the attack code)
+export { attacks, specAbility, specAbon, specApplies, specDbon } from './artifact';
+export { FATAL_DAMAGE_MODIFIER, artifactHit } from './artihit';
 export { notFullyIdentified, objIsPname } from './objnam';

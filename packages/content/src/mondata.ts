@@ -1,5 +1,6 @@
 // Monster data predicates. ref: include/mondata.h
-import type { DefId, MonsterDef } from '@nh/core';
+import type { Ctx, DefId, Entity, MonsterDef } from '@nh/core';
+import { golemhp, isGolem } from './golem';
 
 /** ref: include/mondata.h bigmonst(): MZ_LARGE and bigger. */
 export function isBig(def: MonsterDef): boolean {
@@ -327,3 +328,29 @@ export const wants = (def: MonsterDef, flag: string): boolean =>
 /** ref: include/mondata.h is_ndemon(): a demon that is neither a lord nor a prince */
 export const isNdemon = (def: MonsterDef): boolean =>
   isDemon(def) && !isLord(def) && !isPrince(def);
+
+/**
+ * The hit points a monster loses to level drain (or a drainer gains): d8, but a golem's
+ * golemhp() / its level, 4 + rnd(4) above level 49, 4 + rn2(5) for an adult dragon, and rnd(4)
+ * for a level 0 monster (the d8 is drawn first in every case). The hero's form: upoly.ts
+ * monhpPerLvl(). ref: src/makemon.c monhp_per_lvl()
+ */
+export function monhpPerLvlMon(ctx: Pick<Ctx, 'rng' | 'defs'>, mon: Entity): number {
+  const ptr = ctx.defs.monster(mon.def);
+  let hp = ctx.rng.rnd(8); // default is d8
+  // like newmonhp, but home elementals are ignored, riders use normal d8
+  if (isGolem(ptr)) {
+    // draining usually won't be applicable for these critters
+    hp = Math.trunc(golemhp(ptr.id) / ptr.level);
+  } else if (ptr.level > 49) {
+    // arbitrary; such monsters won't be involved in draining anyway
+    hp = 4 + ctx.rng.rnd(4); // 5..8
+  } else if (ptr.glyph.ch === 'D' && !ptr.id.startsWith('nh:baby_')) {
+    // adult dragons; newmonhp() uses In_endgame(&u.uz) ? 8 : 4 + rnd(4)
+    hp = 4 + ctx.rng.rn2(5); // 4..8
+  } else if (!mon.c.monster?.level) {
+    // level 0 monsters use 1d4 instead of Nd8
+    hp = ctx.rng.rnd(4);
+  }
+  return hp;
+}

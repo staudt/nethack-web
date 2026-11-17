@@ -75,7 +75,12 @@ export function hmonThrownHit(
     const destroyed = !hp || hp.cur - dmg < 1;
     hurtPet(ctx, monId, destroyed ? 0 : 10 * ctx.rng.rnd(dmg), destroyed);
   }
-  if (hp) hp.cur -= dmg;
+  if (hp) {
+    hp.cur -= dmg;
+    // adjustments might have made tmp become less than what a level-draining artifact has
+    // already done to max HP
+    if (hp.cur > hp.max) hp.cur = hp.max;
+  }
   if (!hp || hp.cur < 1) {
     // ref: hmon_hitmon_msg_silver(): before killed()'s line
     if (silverObj) silverSearsMon(ctx, mon, silverObj);
@@ -94,6 +99,17 @@ export function hmonThrownHit(
     if (silverObj) silverSearsMon(ctx, mon, silverObj);
     wakeup(ctx, monId); // angers a peaceful (not a pet)
   }
+  if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
+  if (angerGuards) angryGuards(ctx, false);
+}
+
+/**
+ * hmon() for a blow that ended without damage (an artifact missing a headless monster wildly):
+ * only a temple priest's god (1 time in 2) and the Watch react. ref: src/uhitm.c hmon()
+ */
+export function hmonNoDamage(ctx: Ctx, mon: Entity): void {
+  const epri = epriOf(ctx, mon.id);
+  const angerGuards = mon.c.monster?.peaceful === true && (isWatch(mon.def) || epri !== null);
   if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
   if (angerGuards) angryGuards(ctx, false);
 }

@@ -35,7 +35,7 @@ import { vegetarian } from './mondata';
 import { HOMEMADE_TIN, ROTTEN_TIN, SPINACH_TIN, TIN, TINTXT, tinVariety } from './tins';
 import { isSwapWep } from './wield';
 import { LEASH, leashMon } from './leashstate';
-import { undiscoveredArtifact } from './artistate';
+import { artiOf, bareArtifactName, undiscoveredArtifact } from './artistate';
 
 /**
  * The message for the item's name without quantity, BUC or suffixes (xname()): the real name
@@ -478,3 +478,18 @@ function erosionWords(state: Readonly<GameState>, defs: Registry, item: Entity):
 
 /** The item namer registered with the registry (`api.setItemNamer`). */
 export const nameItem: ItemNamer = doname;
+
+/**
+ * `The(xname(obj))` as a message parameter: "The war hammer named Mjollnir", or for an artifact
+ * known by its name alone C's the() of that name ("Mjollnir", "The Staff of Aesculapius"),
+ * which the `{item|The}` modifier cannot see inside the name message.
+ * ref: src/objnam.c The(), the(), xname()
+ */
+export function theXname(state: Readonly<GameState>, defs: Registry, obj: Entity): Msg | string {
+  const a = artiOf(obj);
+  if (a && objIsPname(state, defs, obj)) {
+    const n = bareArtifactName(a);
+    return `=${n.charAt(0).toUpperCase()}${n.slice(1)}`;
+  }
+  return { key: 'obj.the_item', params: { item: xnameOf(state, defs, obj) } };
+}

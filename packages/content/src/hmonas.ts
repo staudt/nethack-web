@@ -496,9 +496,13 @@ export function hmonas(ctx: Ctx, targetId: EntityId): void {
       const w = heroWeapon(ctx, uwep);
       const tmp = findRollToHit(ctx, targetId, 'weapon', w, roll);
       const dieroll = ctx.rng.rnd(20);
-      const mhit = tmp > dieroll || isSwallowed(ctx);
+      const hit = { mhit: tmp > dieroll || isSwallowed(ctx) };
+      const monsterSurvived = knownHitum(ctx, targetId, w, hit.mhit, mattk, undefined, {
+        dieroll,
+        hit,
+      });
+      const mhit = hit.mhit; // a Vorpal Blade hit converted to a miss is one
       dhit = mhit ? 1 : 0;
-      const monsterSurvived = knownHitum(ctx, targetId, w, mhit, mattk);
       // might receive passive erosion: the weapon, or the gloves of a bare hand
       weapon = uwepOf(ctx) ?? whichArmor(ctx, ctx.state.playerId, 'gloves');
       if (!monsterSurvived) {

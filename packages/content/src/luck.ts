@@ -58,6 +58,11 @@ export interface UState {
   ucleansed?: number;
   /** u.uinvulnerable: in the midst of a successful prayer */
   uinvulnerable?: boolean;
+  /**
+   * The direction of Cleaver's next swing (hitum_cleave()'s static `clockwise`; absent = false):
+   * the swings alternate.
+   */
+  cleaveCw?: boolean;
 }
 
 const DEFAULTS: UState = {

@@ -8,7 +8,6 @@
 // branches, gv.vis's "X hits Y." in hitmm()) is given by the callers (combat.ts, mhitm.ts);
 // `NO_HITMSG` lists the types whose mhitu branch gives none. Types not handled here yet (later
 // m9 steps) do physical damage, as before.
-import { isVampshifter } from './chamstate';
 import { ucreamed } from './creamed';
 import { loseAbon } from './dowear';
 import {
@@ -125,6 +124,8 @@ import { losespells } from './spell';
 import { drainWeaponSkill } from './skills';
 import { isKnown } from './o_init';
 import { roleIs } from './urole';
+import { resists, resistsDrli } from './mresist';
+export { resistsDrli };
 
 /** ref: include/mhitm.h M_ATTK_* */
 export const M_ATTK = { MISS: 0, HIT: 1, DEF_DIED: 2, AGR_DIED: 4, AGR_DONE: 8 } as const;
@@ -184,9 +185,6 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[String(id)];
-
-const resists = (ctx: Ctx, mon: Entity, mr: string): boolean =>
-  ctx.defs.monster(mon.def).resists.includes(mr);
 
 // ---------------------------------------------------------------------------------------------
 // magic cancellation
@@ -1758,21 +1756,6 @@ const adSton: Handler = (ctx, magr, atk, mdef, mhm, env) => {
   if (isCancelled(ctx, magr.id)) return;
   doStoneMon(ctx, magr, atk, mdef, mhm, env);
 };
-
-/**
- * Whether a monster resists level drain: undead, demons and were creatures.
- * ref: src/mondata.c resists_drli() (no Death or drain-resisting artifacts; the hero's side is
- * exper.ts resistsDrliHero())
- */
-export function resistsDrli(ctx: Ctx, mon: Entity): boolean {
-  const flags = ctx.defs.monster(mon.def).flags;
-  return (
-    flags.includes('undead') ||
-    flags.includes('demon') ||
-    flags.includes('were') ||
-    isVampshifter(ctx, mon)
-  );
-}
 
 /**
  * Level drain. Against the hero, 1 time in 3 unless magic cancellation stops it ("You avoid

@@ -59,6 +59,7 @@ import { unicornMessagesEn } from './unicorn.en';
 import { wormMessagesEn } from './worm.en';
 import { golemMessagesEn } from './golem.en';
 import { invisMessagesEn } from './invis.en';
+import { artifactMessagesEn } from './artifact.en';
 import { polyselfMessagesEn } from './polyself.en';
 import { uhitmMessagesEn } from './uhitm.en';
 import { shirtMessagesEn } from './shirt.en';
@@ -139,6 +140,7 @@ export const messagesEn: Record<string, string> = {
   ...writeMessagesEn,
   ...monabilityMessagesEn,
   ...invisMessagesEn,
+  ...artifactMessagesEn,
   ...hideMessagesEn,
   ...mimicMessagesEn,
   ...unicornMessagesEn,

@@ -28,12 +28,10 @@ import { isExtinct } from './vanquished';
 import { initedog } from './dog';
 import { heroInvisible, perceives } from './invis';
 import { monReflects } from './musestate';
+import { resists } from './mresist';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
-
-const resists = (ctx: Ctx, mon: Entity, mr: string): boolean =>
-  ctx.defs.monster(mon.def).resists.includes(mr);
 
 const alive = (ctx: Ctx, mon: Entity): boolean =>
   ctx.state.entities[String(mon.id)]?.c.monster !== undefined;

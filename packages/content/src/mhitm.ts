@@ -77,6 +77,7 @@ import { littleToBig } from './eggstate';
 import { isGenocided } from './vanquished';
 import { isSilver, silverSearsMm } from './silver';
 import { shadeMiss } from './shade';
+import { resists } from './mresist';
 
 export { M_ATTK };
 
@@ -96,9 +97,6 @@ const distmin = (a: Entity, b: Entity): number => {
 /** ref: include/mondata.h helpless(): asleep or paralyzed */
 const helpless = (ctx: Ctx, id: EntityId): boolean =>
   ent(ctx, id)?.c.monster?.asleep === true || isFrozen(ctx, id);
-
-const resists = (ctx: Ctx, mon: Entity, mr: string): boolean =>
-  ctx.defs.monster(mon.def).resists.includes(mr);
 
 /**
  * "You hear some noises." for fights the hero cannot see, at most every 10 turns unless the

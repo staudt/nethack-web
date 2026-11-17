@@ -130,6 +130,12 @@ import { digests, isWhirly } from './engulfstate';
 import { uWipeEngr } from './engr';
 import { swapWep } from './wield';
 import { deaths } from './vanquished';
+import { specAbon, specDbon } from './artifact';
+import { artifactHitHook as artifactHit } from './artihook';
+import { isArt, uWieldArt } from './artistate';
+import { XDIR, YDIR, xytodir } from './trapstate';
+import { unmapInvisible } from './invis';
+import { setU } from './luck';
 
 export { isBig, nonliving, dmgval, dmgvalSized };
 
@@ -404,8 +410,9 @@ export interface RollState {
  * takes the bare-handed (martial arts) bonus too. The first attack of a round may be a Knight's or
  * Samurai's breach of conduct (checkCaitiff()). A Monk in her own form loses her role's
  * `spelarmr` while wearing body armor (kept in `roll.armorpenalty`), and gains `ulevel / 3 + 2`
- * fighting with neither weapon nor shield.
- * ref: src/uhitm.c find_roll_to_hit()
+ * fighting with neither weapon nor shield. An artifact adds its to-hit die against what it
+ * applies to (specAbon(), hitval()'s spec_abon()).
+ * ref: src/uhitm.c find_roll_to_hit(), src/weapon.c hitval()
  */
 export function findRollToHit(
   ctx: Ctx,
@@ -446,6 +453,11 @@ export function findRollToHit(
     else if (!uwepOf(ctx) && !wornIn(ctx.state, hero.id, 'shield'))
       roleAdj += Math.trunc((hero.c.experience?.level ?? 1) / 3) + 2;
   }
+  // hitval(): `if (otmp->oartifact) tmp += spec_abon(otmp, mon)` (the only draw here)
+  const artiAbon =
+    stats.weaponBonus && weapon?.item.c.item?.artifact !== undefined
+      ? specAbon(ctx, weapon.item, targetId)
+      : 0;
   return (
     heroToHit(
       stats,
@@ -454,6 +466,7 @@ export function findRollToHit(
       weapon,
       findMac(ctx.state, ctx.defs, targetId),
     ) +
+    artiAbon +
     (isFleeing(ctx, targetId) ? 2 : 0) + // `if (mtmp->mflee) tmp += 2`
     roleAdj +
     // `is_orc(mtmp->data) && maybe_polyd(is_elf(youmonst.data), Race_if(PM_ELF))`
@@ -615,6 +628,17 @@ function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
   const snap = passiveSnap(ctx, targetId);
   const pos = at ?? ctx.state.entities[String(targetId)]?.c.pos;
   const uwep = uwepOf(ctx);
+  // Cleaver attacks three spots, 'mon' and one on either side of 'mon' (no two-weapon combat)
+  const form0 = heroForm(ctx);
+  if (
+    uWieldArt(ctx.state, 'nh:cleaver') &&
+    !isSwallowed(ctx) &&
+    ustuck(ctx) === null &&
+    form0?.id !== 'nh:grid_bug' // !NODIAG(u.umonnum)
+  ) {
+    hitumCleave(ctx, targetId, at);
+    return;
+  }
   // 0: single hit, 1: first of two hits; affects strength bonus and silver rings
   const twohits = uwep ? 0 : doublePunch(ctx) ? 1 : 0;
   const weapon = heroWeapon(ctx, uwep);
@@ -624,12 +648,16 @@ function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
   // `mhit = (tmp > dieroll || u.uswallow)`: from inside, she always hits
   let mhit = tmp > dieroll || isSwallowed(ctx);
   const lifesaved = hasProp(getPlayer(ctx.state), P.LIFESAVED);
+  const hit = { mhit };
   let malive = knownHitum(ctx, targetId, weapon, mhit, null, at, {
     wouldHaveHit: tmp + roll.armorpenalty > dieroll,
     twohits,
+    dieroll,
+    hit,
   });
-  // ref: hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...)
-  if (snap) passive(ctx, snap, mhit, malive, uwepOf(ctx), 'weapon');
+  // ref: hitum(): passive(mon, uwep, mhit, malive, AT_WEAP, ...) (a Vorpal Blade hit known_hitum()
+  // converted to a miss is one)
+  if (snap) passive(ctx, snap, hit.mhit, malive, uwepOf(ctx), 'weapon');
   // second attack for skilled unarmed combat; won't occur if hero became paralyzed by passive
   // counter-attack, or if hero was killed by passive counter-attack and got life-saved, or if
   // monster was killed or knocked to different location
@@ -653,10 +681,98 @@ function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
     malive = knownHitum(ctx, targetId, null, mhit, null, at, {
       wouldHaveHit: tmp + roll.armorpenalty > dieroll,
       twohits: 2, // second of 2 hits
+      dieroll,
     });
     // second passive counter-attack only occurs if second attack hits
     if (mhit && snap2) passive(ctx, snap2, mhit, malive, null, 'weapon');
   }
+}
+
+/**
+ * The end of a blow an artifact left at no damage: hmon() returns at once (only the priest's god
+ * and the Watch react), and known_hitum() may still scare the monster and counts the blow as a
+ * miss. ref: src/uhitm.c hmon(), known_hitum()
+ */
+function artiNoHit(
+  ctx: Ctx,
+  target: Entity,
+  epri: ReturnType<typeof epriOf>,
+  angerGuards: boolean,
+  hit: { mhit: boolean } | undefined,
+): boolean {
+  if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
+  if (angerGuards) angryGuards(ctx, false);
+  const hp = target.c.hp;
+  if (hp && ctx.rng.rn2(25) === 0 && hp.cur < Math.trunc(hp.max / 2))
+    monflee(ctx, target.id, ctx.rng.rn2(3) === 0 ? ctx.rng.rnd(100) : 0, false, true);
+  // Vorpal Blade hit converted to miss
+  if (hit) hit.mhit = false;
+  return true;
+}
+
+/**
+ * Cleaver hits the monster next to her and the monsters to the left and right of it: three
+ * blows (each with its own to-hit roll and passive response), adjacent to the target, the target,
+ * then adjacent on the other side, swung alternately clockwise and counter-clockwise from one
+ * attack to the next (C's static `clockwise`, kept in `modData.nh.u.cleaveCw`). An empty spot
+ * forgets a remembered unseen monster. It stops when the weapon is gone or she is helpless or
+ * was killed and life-saved. ref: src/uhitm.c hitum_cleave()
+ */
+function hitumCleave(ctx: Ctx, targetId: EntityId, at?: Pos): void {
+  const hero = getPlayer(ctx.state);
+  const hp = hero.c.pos;
+  const tp = at ?? ctx.state.entities[String(targetId)]?.c.pos;
+  if (!hp || !tp) return;
+  const level = ctx.state.levels[hp.level];
+  // find the direction toward primary target
+  let i = xytodir(tp.x - hp.x, tp.y - hp.y);
+  if (i < 0 || !level) return; // "hitum_cleave: unknown target direction"
+  const clockwise = uState(ctx.state).cleaveCw === true;
+  // adjust direction by two so that loop's increment (for clockwise) or decrement (for
+  // counter-clockwise) will point at the spot next to primary target
+  i = clockwise ? (i + 6) % 8 : (i + 2) % 8; // DIR_LEFT2 : DIR_RIGHT2
+  const lifesaved = hasProp(hero, P.LIFESAVED); // umort = u.umortality
+  // Three attacks: adjacent to primary, primary, adjacent on other side. The first attack might
+  // kill the primary target, so it isn't assumed to still be present on the second.
+  for (let count = 3; count > 0; --count) {
+    i = clockwise ? (i + 1) % 8 : (i + 7) % 8; // DIR_RIGHT : DIR_LEFT
+    const tx = hp.x + (XDIR[i] ?? 0);
+    const ty = hp.y + (YDIR[i] ?? 0);
+    if (tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) continue; // !isok()
+    const mtmp = mAt(ctx.state, hp.level, tx, ty);
+    if (!mtmp) {
+      unmapInvisible(ctx, tx, ty); // only when an `I` is remembered there
+      continue;
+    }
+    const snap = passiveSnap(ctx, mtmp.id);
+    const roll: RollState = { attknum: 0, armorpenalty: 0 };
+    const tmp = findRollToHit(ctx, mtmp.id, 'weapon', heroWeapon(ctx, uwepOf(ctx)), roll);
+    const dieroll = ctx.rng.rnd(20);
+    const hit = { mhit: tmp > dieroll };
+    // (bhitpos is the spot hit: notonhead for a long worm's tail there)
+    const malive = knownHitum(
+      ctx,
+      mtmp.id,
+      heroWeapon(ctx, uwepOf(ctx)),
+      hit.mhit,
+      null,
+      { x: tx, y: ty },
+      { wouldHaveHit: tmp + roll.armorpenalty > dieroll, dieroll, hit },
+    );
+    if (snap) passive(ctx, snap, hit.mhit, malive, uwepOf(ctx), 'weapon', !uwepOf(ctx));
+    // stop attacking if weapon is gone or hero got paralyzed or killed (and then life-saved) by
+    // passive counter-attack
+    const h = getPlayer(ctx.state);
+    if (
+      !uwepOf(ctx) ||
+      h.c.helpless ||
+      ctx.state.gameOver ||
+      (lifesaved && !hasProp(h, P.LIFESAVED))
+    )
+      break;
+  }
+  // set up for next time
+  setU(ctx, { cleaveCw: !clockwise }); // alternate
 }
 
 /**
@@ -668,9 +784,14 @@ function hitum(ctx: Ctx, targetId: EntityId, at?: Pos): void {
  * behind!", +rnd(level)); an unarmed blow may stagger it (staggerBlow()). `opts.wouldHaveHit`:
  * a miss the Monk's suit caused; `opts.twohits`: C's gt.twohits (doublePunch()), for the silver
  * rings and the 3/4 Str bonus.
+ * An artifact weapon's special hit (artifactHit()) comes after the base damage, the Healer's and
+ * the Rogue's bonuses (Cleaver never stabs from behind) and before the Str and skill bonuses: it
+ * may give the hit message, and a blow it leaves at no damage (Vorpal Blade missing a headless
+ * monster wildly) does nothing more and counts as a miss (`opts.hit.mhit` false). `opts.dieroll`
+ * is the d20 that hit (Magicbane, the beheading blades).
  * ref: src/uhitm.c known_hitum(), hmon(), hmon_hitmon(), hmon_hitmon_barehands(),
- * hmon_hitmon_weapon_melee() (no Vorpal Blade, no weapon shattering); a Healer's knife adds
- * `min(3, died / 6)` for the monster's kind
+ * hmon_hitmon_weapon_melee() (no weapon shattering); a Healer's knife adds `min(3, died / 6)`
+ * for the monster's kind
  */
 export function knownHitum(
   ctx: Ctx,
@@ -679,7 +800,12 @@ export function knownHitum(
   mhit: boolean,
   uattk: AttackDef | null,
   at?: Pos,
-  opts: { wouldHaveHit?: boolean; twohits?: number } = {},
+  opts: {
+    wouldHaveHit?: boolean;
+    twohits?: number;
+    dieroll?: number;
+    hit?: { mhit: boolean };
+  } = {},
 ): boolean {
   const target = ctx.state.entities[String(targetId)];
   const mon = target?.c.monster;
@@ -738,10 +864,18 @@ export function knownHitum(
     if (role === 'launcher' || role === 'missile' || role === 'ammo' || isPole(weapon.def)) {
       // ref: hmon_hitmon_weapon_ranged(): 1-2 points, no skill used or trained; silver adds
       // `rnd(dmg ? 20 : 10)`; nothing to a shade unless silver (shade_glare())
-      dmg = shade && !shadeGlare(weapon.def) ? 0 : ctx.rng.rnd(2);
+      dmg = shade && !shadeGlare(weapon.def, weapon.item) ? 0 : ctx.rng.rnd(2);
       if (silverHit) dmg += ctx.rng.rnd(dmg ? 20 : 10);
     } else {
-      dmg = dmgval(ctx.rng, weapon.item, weapon.def, def, isVampshifter(ctx, target)); // silver's rnd(20) included
+      const arti = weapon.item.c.item?.artifact !== undefined;
+      dmg = dmgval(
+        ctx.rng,
+        weapon.item,
+        weapon.def,
+        def,
+        isVampshifter(ctx, target),
+        arti ? (t) => specDbon(ctx, weapon.item, targetId, t).bonus : undefined,
+      ); // silver's rnd(20) included
       useSkill = true;
       train = dmg > 1; // ref: hmon_hitmon_weapon_melee(): a minimal hit doesn't exercise proficiency
       // Healer with anatomy knowledge
@@ -752,13 +886,30 @@ export function knownHitum(
       )
         dmg += Math.min(3, Math.trunc(deaths(ctx.state, target.def) / 6));
       // special attack actions: a Rogue stabs a fleeing or helpless monster in the back (no
-      // two-weapon combat, no Cleaver)
-      if (!train || targetId === ustuck(ctx)) {
+      // two-weapon combat); Cleaver can hit up to three targets at once so don't let it also
+      // hit from behind
+      if (!train || targetId === ustuck(ctx) || isArt(weapon.item, 'nh:cleaver')) {
         // no special bonuses
       } else if (roleIs(ctx.state, 'rogue') && backstabbable(ctx, target) && !form) {
         ctx.emit({ type: 'msg', key: 'uhitm.backstab', params: { mon: name } });
         dmg += ctx.rng.rnd(hero.c.experience?.level ?? 1);
         hittxt = true;
+      }
+      if (arti) {
+        const d = { n: dmg };
+        // (bhitpos: a blow at a long worm's tail is not on its head)
+        const tpos = target.c.pos;
+        const notonhead = !!at && !!tpos && (at.x !== tpos.x || at.y !== tpos.y);
+        if (artifactHit(ctx, hero.id, targetId, weapon.item, d, opts.dieroll ?? 0, { notonhead })) {
+          dmg = d.n;
+          // artifact_hit updates 'tmp' but doesn't inflict any damage; however, it might cause
+          // carried items to be destroyed and they might do so
+          const t = ctx.state.entities[String(targetId)];
+          if (!t?.c.monster || (t.c.hp?.cur ?? 0) < 1) return false; // artifact killed monster
+          // perhaps artifact tried to behead a headless monster
+          if (dmg === 0) return artiNoHit(ctx, target, epri, angerGuards, opts.hit);
+          hittxt = true;
+        } else dmg = d.n;
       }
     }
     silverMsg = silverHit;
@@ -864,7 +1015,12 @@ export function knownHitum(
     const destroyed = !hp || hp.cur - dmg < 1;
     hurtPet(ctx, targetId, destroyed ? 0 : 10 * ctx.rng.rnd(dmg), destroyed);
   }
-  if (hp) hp.cur -= dmg;
+  if (hp) {
+    hp.cur -= dmg;
+    // adjustments might have made tmp become less than what a level-draining artifact has
+    // already done to max HP
+    if (hp.cur > hp.max) hp.cur = hp.max;
+  }
   if (!hp || hp.cur < 1) {
     // ref: src/uhitm.c hmon_hitmon(): the silver line comes before killed()'s
     if (silverMsg) silverSearsMon(ctx, target, weapon?.item ?? null);
