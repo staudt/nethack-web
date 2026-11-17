@@ -37,6 +37,11 @@ const polyEverythingMod: Mod = {
       if (ctx.state.turn % 7 !== 0 || ctx.state.gameOver) return;
       const hp = getPlayer(ctx.state).c.pos;
       if (!hp) return;
+      // note the forms before changing them: a vampire bat that turned into a fog cloud this
+      // turn to flow under a door (postmov()'s vamp_shift()) and is changed back below stays on
+      // the door, as C's newcham() leaves it; the end-of-turn note runs after this hook, so
+      // without this one the record never saw the fog cloud (769 at m22 step 3, 749 at m20)
+      noteWallwalkers(ctx.state, ctx.defs, wallwalk);
       for (const id of sortedIds(ctx.state)) {
         const e = ctx.state.entities[String(id)];
         if (!e || id === ctx.state.playerId) continue;
@@ -98,7 +103,10 @@ describe('polymorph soak', () => {
   // turn 77; of 760..785, 764, 767, 768, 771, 773 and 774 last 400 turns with and without it;
   // 771 replaced 768 in m20 step 2, whose "What do you want to name?" menu shifts the bot's picks:
   // 768 died at turn 147; 767 still lasts past turn 200, and 771 and 774 last 400 turns with and
-  // without the menu)
+  // without the menu; the "vampire bat on a locked door" lead of 769 at m22 step 3 (step 603)
+  // and of 749 after m20 (turn 126) was the record's: the bat became a fog cloud under the door
+  // and this mod changed it back the same turn, before the end-of-turn note, so the forms are
+  // now noted before every change too; 769 then lasts 400 turns at m22 step 3)
   for (const seed of [767, 771]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
