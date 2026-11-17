@@ -1,10 +1,19 @@
 // What protects a creature against a damage type: the artifact it wields (defends()), the
 // artifacts it carries (defends_when_carried()) and dragon scales or scale mail, worn or, for an
-// adult dragon, its own hide. A leaf (core, artistate): the attack code and the monster
-// resistance check ask it. ref: src/artifact.c defends(), defends_when_carried();
+// adult dragon, its own hide; and the artifacts that reflect or give Protection. A leaf (core,
+// artistate, props' names): the attack code and the monster resistance checks ask it.
+// ref: src/artifact.c defends(), defends_when_carried(), arti_reflects(), protects();
 // src/mondata.c defended()
-import { inventoryOf, type Ctx, type DefId, type Entity, type EntityId } from '@nh/core';
+import {
+  inventoryOf,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type EntityId,
+  type Registry,
+} from '@nh/core';
 import { artiOf } from './artistate';
+import { P } from './props';
 import { heroFormId } from './upoly';
 
 /** The damage types each colour of dragon scales protects against. ref: defends() */
@@ -70,4 +79,28 @@ export function defended(ctx: Pick<Ctx, 'state' | 'defs'>, who: EntityId, ad: st
   if (adult !== undefined && ADULT_DRAGONS.has(adult)) return dragonDefends(ad, adult);
   const arm = inventoryOf(ctx.state, who).find((x) => x.c.item?.equipped === 'body');
   return arm !== undefined && dragonDefends(ad, dragonColour(arm.def));
+}
+
+/**
+ * The artifact reflects for a monster: wielded or worn with SPFX_REFLECT (Dragonbane), or just
+ * carried with it among its carried properties. ref: src/artifact.c arti_reflects()
+ */
+export function artiReflects(obj: Entity | null | undefined): boolean {
+  const a = artiOf(obj);
+  if (!a || !obj) return false;
+  // while being worn
+  if ((obj.c.item?.equipped ?? null) !== null && a.spfx.includes('reflect')) return true;
+  // just being carried
+  return a.cspfx.includes('reflect');
+}
+
+/**
+ * The object confers Protection: worn armor or accessory of Protection, or an artifact that
+ * protects when carried (cspfx), or when worn or wielded (spfx). ref: src/artifact.c protects()
+ */
+export function protects(defs: Registry, obj: Entity, beingWorn: boolean): boolean {
+  if (beingWorn && defs.object(obj.def).prop === P.PROTECTION) return true;
+  const a = artiOf(obj);
+  if (!a) return false;
+  return a.cspfx.includes('protect') || (beingWorn && a.spfx.includes('protect'));
 }

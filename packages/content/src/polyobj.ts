@@ -293,7 +293,7 @@ export function objUnpolyable(ctx: Ctx, obj: Entity): boolean {
     obj.def === SPE_POLYMORPH ||
     obj.def === POT_POLYMORPH ||
     obj.def === AMULET_OF_UNCHANGING ||
-    objResists(ctx, obj, 5)
+    objResists(ctx, obj, 5, 95)
   );
 }
 
@@ -421,7 +421,7 @@ function polyuse(ctx: Ctx, pile: readonly Entity[], mat: string, minwtIn: number
     const p = otmp.c.pos;
     if (!it || !p || !ctx.state.entities[String(otmp.id)]) continue;
     if (isBypassed(otmp.id)) continue;
-    if (objResists(ctx, otmp, 0)) continue; // preserve unique objects (the Book of the Dead)
+    if (objResists(ctx, otmp, 0, 0)) continue; // preserve unique objects (the Book of the Dead)
     if ((ctx.defs.object(otmp.def).material === mat) === (ctx.rng.rn2(minwt + 1) !== 0)) {
       // appropriately add damage to bill
       if (costlySpot(ctx, p.x, p.y)) {

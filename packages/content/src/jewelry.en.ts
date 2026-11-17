@@ -48,6 +48,7 @@ export const jewelryMessagesEn: Record<string, string> = {
   'free_action.stiffen_gaze': 'You momentarily stiffen under {mon|the_s} gaze!',
   'reflect.gaze': '{mon|The_s} gaze is reflected by your {what}.',
   'reflect.what.shield': 'shield',
+  'reflect.what.weapon': 'weapon',
   'reflect.what.medallion': 'medallion',
   'reflect.what.armor': 'armor',
   'reflect.what.scales': 'scales',

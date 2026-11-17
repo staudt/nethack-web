@@ -8,6 +8,7 @@ import { egdOf } from './vaultstate';
 import { isRogueLevel } from './levelflags';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { isUnicorn } from './mondata';
+import { monTouchArtifact } from './artifact';
 import {
   cellIndex,
   inventoryOf,
@@ -966,16 +967,27 @@ const HWEP: readonly string[] = [
 ];
 
 /**
- * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): giants
- * prefer clubs, the balrog its bullwhip while she wields a weapon; only strong monsters without a
- * shield may use two-handed weapons. Not ported: artifacts, cockatrice corpses. A silver-hater
- * skips silver.
+ * The best hand-to-hand weapon the monster carries. ref: src/weapon.c select_hwep(): an artifact
+ * weapon it can touch comes first; giants prefer clubs, the balrog its bullwhip while she wields
+ * a weapon; only strong monsters without a shield may use two-handed weapons. Not ported:
+ * cockatrice corpses. A silver-hater skips silver.
  */
 export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
   const { e, def } = monOf(ctx, monId);
   const strong = isStrong(def);
   const wearingShield = whichArmor(ctx, monId, 'shield') !== null;
   const items = minvent(ctx, monId);
+  // prefer artifacts to everything else
+  for (const o of items) {
+    const od = objDef(ctx, o.def);
+    if (
+      od?.class === 'weapon' &&
+      o.c.item?.artifact !== undefined &&
+      monTouchArtifact(ctx, o, monId) &&
+      ((strong && !wearingShield) || !od.weapon?.bimanual)
+    )
+      return o;
+  }
   // "giants just love to use clubs"
   if (hasFlag(def, 'giant')) {
     const club = items.find((x) => x.def === 'nh:club');
@@ -993,7 +1005,8 @@ export function selectHwep(ctx: GearCtx, monId: EntityId): Entity | null {
     if (!od?.weapon) continue;
     if (!((strong && !wearingShield) || !od.weapon.bimanual)) continue;
     if (od.material === 'silver' && monHatesSilver(ctx, e)) continue;
-    const o = items.find((x) => x.def === id);
+    // oselect(): an artifact that would not let it touch it is passed over
+    const o = items.find((x) => x.def === id && monTouchArtifact(ctx, x, monId));
     if (o) return o;
   }
   return null;
@@ -1024,7 +1037,10 @@ export function monWieldItem(ctx: GearCtx, monId: EntityId): boolean {
 export function monWield(ctx: GearCtx, monId: EntityId, obj: Entity, exclaim = true): boolean {
   const { e, def } = monOf(ctx, monId);
   const cur = monWep(ctx, monId);
-  if (cur && cur.def === obj.def) return false; // already wielding it
+  // already wielding it (`obj == mw_tmp`; an ordinary stack of the same type counts as the same
+  // weapon, an artifact only as itself)
+  const arti = (o: Entity): boolean => o.c.item?.artifact !== undefined;
+  if (cur && (cur.id === obj.id || (cur.def === obj.def && !arti(cur) && !arti(obj)))) return false;
   const pos = e.c.pos;
   const seen = pos !== undefined && sees(ctx, pos);
   if (cur && welded(cur)) {
@@ -1132,9 +1148,9 @@ export function monWouldTakeItem(
 }
 
 /**
- * How many of the stack the monster could carry (0 = none). ref: src/mon.c can_carry():
- * handless monsters take one, peacefuls (not pets) take nothing, and the load must stay under
- * the maximum.
+ * How many of the stack the monster could carry (0 = none). ref: src/mon.c can_carry(): nothing
+ * it cannot touch (an artifact that would blast it), handless monsters take one, peacefuls (not
+ * pets) take nothing, and the load must stay under the maximum.
  */
 export function canCarry(
   ctx: Pick<GearCtx, 'state' | 'defs'>,
@@ -1142,6 +1158,8 @@ export function canCarry(
   item: Entity,
 ): number {
   const { e, def } = monOf(ctx, monId);
+  // can_touch_safely(): the artifact part (the corpse and silver checks are mpickstuffSkips())
+  if (!monTouchArtifact(ctx, item, monId)) return 0;
   const iquan = item.c.item?.quantity ?? 1;
   if (iquan > 1 && hasFlag(def, 'nohands')) return 1;
   if (e.c.monster?.peaceful && !e.c.monster.tame) return 0; // mpeaceful && !mtame
@@ -1154,7 +1172,8 @@ export function canCarry(
 /**
  * Whether mpickstuff() passes over an item the monster would take: nymphs take everything, most
  * monsters no corpse but a cockatrice's, a lizard's or an acidic one's (the ones muse uses), and
- * nothing it cannot touch safely (a cockatrice corpse without gloves, silver for a silver-hater).
+ * nothing it cannot touch safely (a cockatrice corpse without gloves, silver for a silver-hater,
+ * an artifact that would blast it).
  * ref: src/mon.c mpickstuff(), can_touch_safely()
  */
 export function mpickstuffSkips(
@@ -1175,8 +1194,9 @@ export function mpickstuffSkips(
   // can_touch_safely(): a cockatrice corpse without gloves
   if (pm && touchPetrifies(pm) && !whichArmor(ctx, monId, 'gloves') && !resistsSton(ctx, e))
     return true;
-  // can_touch_safely(): silver burns a silver-hater
-  return objDef(ctx, o.def)?.material === 'silver' && monHatesSilver(ctx, e);
+  // can_touch_safely(): silver burns a silver-hater; an artifact that would blast it
+  if (objDef(ctx, o.def)?.material === 'silver' && monHatesSilver(ctx, e)) return true;
+  return !monTouchArtifact(ctx, o, monId);
 }
 
 /**

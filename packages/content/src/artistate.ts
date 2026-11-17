@@ -25,7 +25,13 @@ import {
   type Registry,
 } from '@nh/core';
 import { A_NONE } from './aligntyp';
-import { ARTIFACTS, QUEST_ARTIFACT, artifactRowOrNull, type ArtifactDef } from './artilist';
+import {
+  ARTIFACTS,
+  QUEST_ARTIFACT,
+  artifactRowOrNull,
+  isQuestRow,
+  type ArtifactDef,
+} from './artilist';
 import { roleIs, urole, type RoleKey } from './urole';
 
 /** How an artifact came to exist (C's arti_info origin bits; exactly one). */
@@ -235,6 +241,18 @@ const initAlign = (state: Readonly<GameState>): number =>
 
 /** The hero's quest artifact (urole.questarti). */
 export const questArtifactId = (state: Readonly<GameState>): DefId => QUEST_ARTIFACT[urole(state)];
+
+/** The object is her own role's quest artifact. ref: src/questpgr.c is_quest_artifact() */
+export const isQuestArtifact = (
+  state: Readonly<GameState>,
+  obj: Entity | null | undefined,
+): boolean => obj?.c.item?.artifact !== undefined && obj.c.item.artifact === questArtifactId(state);
+
+/** The object is any role's quest artifact. ref: src/artifact.c any_quest_artifact() */
+export function anyQuestArtifact(obj: Entity | null | undefined): boolean {
+  const a = artiOf(obj);
+  return a !== null && isQuestRow(a);
+}
 
 /**
  * The row's alignment after hack_artifacts(): her role's aligned gift artifact and her quest

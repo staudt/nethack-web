@@ -181,17 +181,52 @@ export function acValue(rng: Rng, ac: number): number {
 const KEBABABLE = 'XDJNH';
 
 /**
- * ref: src/weapon.c hitval(): enchantment (weapons only), the object's own to-hit bonus and the
- * spear bonus against kebabable monsters. Not ported: blessed vs undead/demons, trident vs
- * swimmers, picks vs xorns, artifacts.
+ * ref: src/weapon.c hitval(): enchantment (weapons only), the object's own to-hit bonus, the
+ * spear bonus against kebabable monsters and, given `arti` (who is hit), an artifact's
+ * spec_abon() (drawn). Not ported: blessed vs undead/demons, trident vs swimmers, picks vs xorns.
+ * The hero's melee adds spec_abon() itself (find_roll_to_hit()).
  */
-export function hitval(item: Entity, def: ObjectDef, mon: MonsterDef | null): number {
+export function hitval(
+  item: Entity,
+  def: ObjectDef,
+  mon: MonsterDef | null,
+  arti?: { ctx: Ctx; target: EntityId },
+): number {
   let tmp = 0;
   const w = def.weapon;
   if (w) tmp += item.c.item?.spe ?? 0;
   tmp += w?.hitBonus ?? 0;
   if (w?.skill === 'spear' && mon && KEBABABLE.includes(mon.glyph.ch)) tmp += 2;
+  // Check specially named weapon "to hit" bonuses
+  if (arti && item.c.item?.artifact !== undefined) tmp += specAbon(arti.ctx, item, arti.target);
   return tmp;
+}
+
+/**
+ * A monster's attack `indx`, possibly substituted (getmattk()): the barrow wight's, Nazgul's and
+ * erinys's weapon attack for non-physical damage does physical damage when the monster is
+ * cancelled or its weapon is interesting enough (a cockatrice corpse, Stormbringer, Vorpal
+ * Blade), unless its second attack is a physical weapon attack. The other substitutions are made
+ * where their attacks are handled. ref: src/mhitu.c getmattk()
+ */
+export function getmattk(ctx: Ctx, magr: Entity, indx: number): AttackDef | undefined {
+  const attks = ctx.defs.monster(magr.def).attacks;
+  const attk = attks[indx];
+  if (!attk || indx !== 0 || attk.at !== 'weapon' || attk.ad === 'phys') return attk;
+  const second = attks[1];
+  if (second?.at === 'weapon' && second.ad === 'phys') return attk;
+  const weap = monWep(ctx, magr.id);
+  const corpse = weap?.def === 'nh:corpse' ? weap.c.item?.corpseOf : undefined;
+  if (
+    isCancelled(ctx, magr.id) ||
+    (corpse !== undefined &&
+      ctx.defs.isMonster(corpse) &&
+      touchPetrifies(ctx.defs.monster(corpse))) ||
+    isArt(weap, 'nh:stormbringer') ||
+    isArt(weap, 'nh:vorpal_blade')
+  )
+    return { ...attk, ad: 'phys' };
+  return attk;
 }
 
 /** The hero's wielded object, its def and her level in its skill; null = bare hands. */
@@ -1162,8 +1197,11 @@ const say0 = (ctx: Ctx, key: string, params?: Record<string, string>): void =>
  * dmgval() for a weapon attack), the hit message, the damage type's effect, then the damage after
  * her negative AC. Returns M_ATTK flags. `again`: the previous attack was of the same type and
  * hit (hitmsg's "again" wording).
+ * An artifact weapon's special hit (artifactHit(), with `dieroll` the d20 that hit: C's
+ * mhitu_dieroll) may replace the hit message; a hit it took all damage from (Vorpal Blade
+ * missing a headless hero wildly) does nothing more.
  * ref: src/mhitu.c hitmu(), hitmsg(), mdamageu(); src/uhitm.c mhitm_ad_phys() "hand to hand
- * weapon" (silver included; no artifacts, poisoned weapons or puddings)
+ * weapon" (silver included; no poisoned weapons or puddings)
  */
 export function hitmu(
   ctx: Ctx,
@@ -1172,6 +1210,7 @@ export function hitmu(
   mwep: Entity | null,
   again: boolean,
   ac: number,
+  dieroll = 0,
 ): number {
   unseenAttacker(ctx, mon); // ref: hitmu(): `if (!canspotmon(mtmp)) map_invisible(...)`
   revealHiddenAttacker(ctx, mon);
@@ -1179,8 +1218,11 @@ export function hitmu(
   const name = monNam(ctx, mon);
   let dmg = ctx.rng.d(atk.n, atk.d);
   // (no midnight(): undead get no extra damage)
-  if (atk.at === 'weapon' && mwep && atk.ad === 'phys') {
+  const weaponHit = atk.at === 'weapon' && mwep !== null && atk.ad === 'phys';
+  let artiMsg = false;
+  if (weaponHit) {
     // ref: src/uhitm.c mhitm_ad_phys() "hand to hand weapon": damage += dmgval(otmp, hero)
+    const heroId = ctx.state.playerId;
     dmg += dmgvalSized(
       ctx.rng,
       mwep,
@@ -1190,29 +1232,29 @@ export function hitmu(
       false,
       {
         blessHater: formHatesBlessings(ctx),
+        artiDbon: (t) => specDbon(ctx, mwep, heroId, t).bonus,
       },
     );
     if (wornIn(ctx.state, mon.id, 'gloves')?.def === 'nh:gauntlets_of_power')
       dmg += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6
     if (dmg <= 0) dmg = 1;
+    if (mwep.c.item?.artifact !== undefined) {
+      const d = { n: dmg };
+      artiMsg = artifactHit(ctx, mon.id, heroId, mwep, d, dieroll);
+      dmg = d.n;
+    }
   }
   // hitmsg(): given at the top of the damage type's mhitu branch, except for those that print
-  // their own line (and a physical hug)
-  if (hitmsgFor(atk, ctx.defs.monster(mon.def).flags.includes('animal')))
+  // their own line (and a physical hug), and an artifact's hit that gave its own
+  if (!artiMsg && hitmsgFor(atk, ctx.defs.monster(mon.def).flags.includes('animal')))
     ctx.emit({
       type: 'msg',
       key: `combat.mon_${hitVerb(atk.at)}${again ? '_again' : ''}`,
       params: { mon: name },
     });
-  // ref: src/uhitm.c mhitm_ad_phys(): "The silver sears your flesh!" after the hit message
-  if (
-    atk.at === 'weapon' &&
-    mwep &&
-    atk.ad === 'phys' &&
-    isSilver(ctx, mwep) &&
-    heroHatesSilver(ctx)
-  )
-    silverSearsYou(ctx);
+  // ref: src/uhitm.c mhitm_ad_phys(): `if (!mhm->damage) return;`, then "The silver sears your
+  // flesh!" after the hit message
+  if (weaponHit && dmg && isSilver(ctx, mwep) && heroHatesSilver(ctx)) silverSearsYou(ctx);
   // ref: src/uhitm.c mhitm_adtyping(): the damage type's effect (resistances, sleep, poison, ...)
   const mhm = newMhm(dmg);
   mhitmAdtyping(ctx, mon.id, atk, ctx.state.playerId, mhm);
@@ -1326,7 +1368,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
       const now = getPlayer(ctx.state).c.pos;
       if (!startPos || !now || now.x !== startPos.x || now.y !== startPos.y) continue;
     }
-    const atk = def.attacks[i];
+    const atk = getmattk(ctx, mon, i);
     if (!atk) continue;
     if (isSwallowed(ctx) && atk.at !== 'engulf') continue;
     if (skipnonmagc && atk.at !== 'magic') continue;
@@ -1385,10 +1427,13 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
         const mwep = monWep(ctx, monId);
         let attackTmp = tmp;
         if (mwep) {
-          attackTmp += hitval(mwep, ctx.defs.object(mwep.def), null);
+          attackTmp += hitval(mwep, ctx.defs.object(mwep.def), null, {
+            ctx,
+            target: hero.id,
+          });
           if (mon.c.pos && heroSees(ctx, mon.c.pos)) mswings(ctx, mon, mwep);
         }
-        const j = ctx.rng.rnd(20 + i);
+        const j = ctx.rng.rnd(20 + i); // gm.mhitu_dieroll
         if (attackTmp > j)
           sum[i] = hitmu(
             ctx,
@@ -1397,6 +1442,7 @@ export function monsterAttack(ctx: Ctx, monId: EntityId, ap?: Pos): void {
             mwep,
             prevHit === i - 1 && def.attacks[i - 1]?.at === atk.at,
             ac,
+            j,
           );
         else missmu(ctx, mon, name, attackTmp === j, atk);
         break;

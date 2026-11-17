@@ -502,7 +502,7 @@ function hotGround(ctx: Ctx, obj: Entity, x: number, y: number): boolean {
   let survival = obj.c.item?.buc === 'blessed' ? 70 : 50;
   if (obj.c.item?.letter) survival += luckOf(ctx.state) * 2;
   if (obj.def === 'nh:potion_of_oil') survival = 100;
-  if (objResists(ctx, obj, survival)) return false;
+  if (objResists(ctx, obj, survival, 100)) return false;
   if (seen) say(ctx, many ? 'flooreffects.shatter_heat_pl' : 'flooreffects.shatters_heat');
   else say(ctx, 'flooreffects.hear_shatter');
   potionVaporsLate(ctx, obj, x, y);

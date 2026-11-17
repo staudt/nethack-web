@@ -11,7 +11,7 @@ import {
   type Json,
   type ObjectDef,
 } from '@nh/core';
-import { onameObj, restrictName } from './artifact';
+import { onameObj, restrictName } from './artiname';
 import { PL_PSIZ, artifactName, existArtifact } from './artistate';
 import { wipeoutText } from './engr';
 import { invOption } from './itemactions';

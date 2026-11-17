@@ -2,17 +2,26 @@
 // arch-lich): each move, before anything else, they decide what to go for and teleport about the
 // level for it. Badly hurt, one holes up on the stairs (its id's parity picks up or down) and
 // heals out of the hero's sight; otherwise it harasses her, now and then teleporting next to her;
-// one that wants an item (the Book of the Dead, the Bell, the Candelabrum) she, the floor or
-// another monster has goes for it. ref: src/wizard.c strategy(), tactics(), choose_stairs(),
+// one that wants an item (the Book of the Dead, the Bell, the Candelabrum, a quest artifact) she,
+// the floor or another monster has goes for it. ref: src/wizard.c strategy(), tactics(), choose_stairs(),
 // target_on(), which_arti(), mon_has_arti(), other_mon_has_arti(), on_ground(), you_have();
 // src/mon.c mnexto(), mnearto(); src/monmove.c m_move() (the covetous attack on an intruder)
 //
 // Not ported (see DEVIATIONS.md "Monster AI"): the Amulet (`made_amulet` is always false: it is
-// never made), the invocation (`u.uevent.invoked`), the quest artifacts, mavenge, and
+// never made), the invocation (`u.uevent.invoked`), mavenge, and
 // deal_with_overcrowding()'s limbo: a monster
 // with no room next to her stays where it is, and a monster pushed off the goal with no room
 // around it is teleported at random.
-import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type EntityId } from '@nh/core';
+import {
+  getPlayer,
+  inventoryOf,
+  sortedIds,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type EntityId,
+} from '@nh/core';
+import { anyQuestArtifact, isQuestArtifact } from './artistate';
 import { expels } from './engulf';
 import { uswallow } from './engulfstate';
 import { inhistemple, epriOf } from './epri';
@@ -37,7 +46,7 @@ const BOLT_LIM = 8;
 
 /**
  * The item of each M3_WANTS* flag (which_arti()); one this port lacks is never anywhere. No
- * quest artifacts (M3_WANTSARTI) and no Amulet target (`made_amulet` is false).
+ * Amulet target (`made_amulet` is false). M3_WANTSARTI wants any role's quest artifact.
  */
 const WANTED: Readonly<Record<string, DefId>> = {
   wantsbook: 'nh:book_of_the_dead',
@@ -51,30 +60,47 @@ const TARGETS = ['wantsbook', 'wantsbell', 'wantscand', 'wantsarti'] as const;
 const ent = (ctx: Pick<Ctx, 'state'>, id: EntityId): Entity | undefined =>
   ctx.state.entities[String(id)];
 
-/** ref: src/wizard.c which_arti() (null: not in this port) */
-function whichArti(ctx: Pick<Ctx, 'defs'>, flag: string): DefId | null {
+/** Which objects are the target (C's otyp, 0 for any quest artifact). */
+type Wanted = (o: Entity) => boolean;
+
+/**
+ * The target of a flag: an object type (null when not in this port), or for M3_WANTSARTI any
+ * quest artifact ("0 signifies quest artifact"). ref: src/wizard.c which_arti()
+ */
+function whichArti(ctx: Pick<Ctx, 'defs'>, flag: string): Wanted | null {
+  if (flag === 'wantsarti') return anyQuestArtifact;
   const otyp = WANTED[flag];
-  return otyp !== undefined && ctx.defs.isObject(otyp) ? otyp : null;
+  return otyp !== undefined && ctx.defs.isObject(otyp) ? (o) => o.def === otyp : null;
 }
 
-const carries = (ctx: Pick<Ctx, 'state'>, id: EntityId, otyp: DefId): boolean =>
-  minvent(ctx, id).some((o) => o.def === otyp);
+/** ref: src/wizard.c mon_has_arti() */
+const carries = (ctx: Pick<Ctx, 'state'>, id: EntityId, want: Wanted): boolean =>
+  minvent(ctx, id).some(want);
+
+/**
+ * The hero has the flag's item (u.uhave): for M3_WANTSARTI only her own quest artifact counts.
+ * ref: src/wizard.c you_have()
+ */
+function youHave(ctx: Pick<Ctx, 'state'>, flag: string, want: Wanted): boolean {
+  const inv = inventoryOf(ctx.state, ctx.state.playerId);
+  return flag === 'wantsarti' ? inv.some((o) => isQuestArtifact(ctx.state, o)) : inv.some(want);
+}
 
 /** The first one lying on the floor of the level. ref: src/wizard.c on_ground() */
-function onGround(ctx: Pick<Ctx, 'state'>, levelId: string, otyp: DefId): Entity | null {
+function onGround(ctx: Pick<Ctx, 'state'>, levelId: string, want: Wanted): Entity | null {
   for (const id of sortedIds(ctx.state)) {
     const o = ent(ctx, id);
-    if (o?.def === otyp && o.c.item && o.c.pos?.level === levelId) return o;
+    if (o?.c.item && o.c.pos?.level === levelId && want(o)) return o;
   }
   return null;
 }
 
 /** Another monster of the level carrying one. ref: src/wizard.c other_mon_has_arti() */
-function otherMonHasArti(ctx: Pick<Ctx, 'state'>, mon: Entity, otyp: DefId): Entity | null {
+function otherMonHasArti(ctx: Pick<Ctx, 'state'>, mon: Entity, want: Wanted): Entity | null {
   for (const id of sortedIds(ctx.state)) {
     const m = ent(ctx, id);
     if (id === mon.id || !m?.c.monster || m.c.pos?.level !== mon.c.pos?.level) continue;
-    if (carries(ctx, id, otyp)) return m;
+    if (carries(ctx, id, want)) return m;
   }
   return null;
 }
@@ -86,18 +112,19 @@ function otherMonHasArti(ctx: Pick<Ctx, 'state'>, mon: Entity, otyp: DefId): Ent
  */
 function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
   if (!wants(ctx.defs.monster(mon.def), flag)) return null;
-  const otyp = whichArti(ctx, flag);
+  const want = whichArti(ctx, flag);
   const s = { ...mstratOf(ctx, mon.id) };
   delete s.goal;
   const level = mon.c.pos?.level;
-  if (otyp !== null && level !== undefined && !carries(ctx, mon.id, otyp)) {
+  if (want !== null && level !== undefined && !carries(ctx, mon.id, want)) {
     const hero = getPlayer(ctx.state);
-    const o = onGround(ctx, level, otyp);
-    const other = o ? null : otherMonHasArti(ctx, mon, otyp);
+    const has = youHave(ctx, flag, want);
+    const o = has ? null : onGround(ctx, level, want);
+    const other = has || o ? null : otherMonHasArti(ctx, mon, want);
     // (when seeking the Amulet the Wizard and temple priests are not targeted: no Amulet here)
-    const goal = carries(ctx, hero.id, otyp) ? hero.c.pos : (o?.c.pos ?? other?.c.pos);
+    const goal = has ? hero.c.pos : (o?.c.pos ?? other?.c.pos);
     if (goal) {
-      const strat = carries(ctx, hero.id, otyp) ? 'player' : o ? 'ground' : 'monstr';
+      const strat = has ? 'player' : o ? 'ground' : 'monstr';
       setMstrat(ctx, mon.id, { ...s, goal: { x: goal.x, y: goal.y } });
       return { strat, want: flag };
     }
@@ -245,8 +272,8 @@ export function tactics(ctx: Ctx, id: EntityId): boolean {
   }
   // kill, maim, pillage!
   const goal = mstratOf(ctx, id).goal;
-  const otyp = st.want ? whichArti(ctx, st.want) : null;
-  if (!goal || !otyp || goal.x < 1 || goal.x >= level.width || goal.y < 0 || goal.y >= level.height)
+  const want = st.want ? whichArti(ctx, st.want) : null;
+  if (!goal || !want || goal.x < 1 || goal.x >= level.width || goal.y < 0 || goal.y >= level.height)
     return false; // simply wants you to close
   if (noTele() && Math.max(Math.abs(p.x - goal.x), Math.abs(p.y - goal.y)) > 1) return false;
   const hp = getPlayer(ctx.state).c.pos;
@@ -269,7 +296,7 @@ export function tactics(ctx: Ctx, id: EntityId): boolean {
     if (!there) {
       // teleport to it and pick it up
       rlocTo(ctx, mon, goal.x, goal.y, false);
-      const o = onGround(ctx, p.level, otyp);
+      const o = onGround(ctx, p.level, want);
       if (!o) return false;
       const at = mon.c.pos;
       if (at && heroSees(ctx, at))

@@ -1,111 +1,32 @@
-// Artifact rules that need more than the table and the state: which names the hero may not give
-// an object, naming an object with what C's oname() does after it became an artifact, and the
-// special attacks' to-hit and damage bonuses against what an artifact is made to slay.
-// Above artistate.ts (the leaf); items.ts and mkobj.ts must not import it.
-// ref: src/artifact.c restrict_name(), spec_applies(), spec_abon(), spec_dbon(), attacks(),
-// spec_ability(); src/do_name.c oname(); src/o_init.c obj_shuffle_range()
+// Artifact rules that need more than the table and the state: the special attacks' to-hit and
+// damage bonuses against what an artifact is made to slay, and who an artifact refuses to be
+// touched by. Above artistate.ts (the leaf); items.ts and mkobj.ts must not import it, and it
+// must stay below mongear.ts (monsters choosing weapons ask it), so naming lives in artiname.ts.
+// ref: src/artifact.c spec_applies(), spec_abon(), spec_dbon(), attacks(), spec_ability(),
+// bane_applies(), touch_artifact()
 import {
   getPlayer,
   type Ctx,
   type DefId,
   type Entity,
   type EntityId,
-  type GameState,
   type MonsterDef,
-  type ObjectDef,
-  type Registry,
 } from '@nh/core';
 import { A_NONE } from './aligntyp';
 import { defended } from './artidef';
-import { ARTIFACTS, type ArtiAd, type ArtifactDef, type Spfx } from './artilist';
-import { artiAlign, artiOf, isArt, oname, type ArtiOrigin } from './artistate';
+import type { ArtiAd, ArtifactDef, Spfx } from './artilist';
+import { artiAlign, artiOf, artiRole, artiRoleIs, isArt } from './artistate';
+import { monAligntypOf } from './epri';
 import { resistsDrliHero } from './exper';
 import { uState } from './luck';
+import { isCovetous, isMplayer } from './mondata';
 import { resists, resistsDrli } from './mresist';
 import { P, hasProp } from './props';
 import { RACES_TAB } from './racetab';
 import { roleMonId } from './roletab';
 import { heroForm } from './upoly';
-import { urace, urole } from './urole';
+import { raceIs, urace, urole } from './urole';
 import { ulycn } from './werestate';
-import { messagesEn } from './messages.en';
-import { ARMOR_RANGES, isKnown } from './o_init';
-import { alterCost } from './shk';
-
-/** The type's description as text (C's OBJ_DESCR: fixed, or this game's appearance), or null. */
-function descrOf(state: Readonly<GameState>, defs: Registry, def: ObjectDef): string | null {
-  const app = state.appearances[def.id];
-  const key =
-    def.descKey ??
-    (app !== undefined && defs.isAppearance(app) ? defs.appearance(app).nameKey : null);
-  return key === null ? null : (messagesEn[key] ?? key);
-}
-
-/**
- * Both types share a pool of shuffled descriptions: an armor sub-range, or the shuffled types of
- * a whole class (C's ranges are the magic, non-unique types of the class: here exactly the ones
- * that took an appearance). ref: src/o_init.c obj_shuffle_range()
- */
-function sameShuffleRange(state: Readonly<GameState>, a: ObjectDef, b: ObjectDef): boolean {
-  if (a.class === 'armor')
-    return ARMOR_RANGES.some((r) => r.objs.includes(a.id) && r.objs.includes(b.id));
-  return state.appearances[a.id] !== undefined && state.appearances[b.id] !== undefined;
-}
-
-/**
- * Whether the hero may not give the object this artifact name: a NOGEN or restricted artifact of
- * its type, or of any undiscovered type it could be (same class and description, or the same
- * pool of shuffled descriptions), and any artifact name for a stack ("Bug fix: don't name
- * multiple elven daggers Sting"). A leading "the " is ignored on both sides; the rest must match
- * exactly. ref: src/artifact.c restrict_name()
- */
-export function restrictName(ctx: Pick<Ctx, 'state' | 'defs'>, obj: Entity, name: string): boolean {
-  if (!name) return false;
-  const nm = name.replace(/^the /i, '');
-  const { state, defs } = ctx;
-  const def = defs.object(obj.def);
-  // decide what types of objects are the same as otyp; if it's been discovered, then only
-  // itself matches; otherwise, include all other undiscovered objects of the same class which
-  // have the same description or share the same pool of shuffled descriptions
-  const odesc = isKnown(state, defs, def) ? null : descrOf(state, defs, def);
-  const sametype = (id: DefId): boolean => {
-    if (id === def.id) return true;
-    if (odesc === null || !defs.isObject(id)) return false;
-    const o = defs.object(id);
-    if (o.class !== def.class || isKnown(state, defs, o)) return false;
-    const other = descrOf(state, defs, o);
-    return other !== null && (other === odesc || sameShuffleRange(state, def, o));
-  };
-  for (const a of ARTIFACTS) {
-    if (!sametype(a.base)) continue;
-    if (a.name.replace(/^the /i, '') === nm)
-      return (
-        a.spfx.includes('nogen') || a.spfx.includes('restr') || (obj.c.item?.quantity ?? 1) > 1
-      );
-  }
-  return false;
-}
-
-/**
- * oname() with what C's oname() does once the object became an artifact: an unpaid one's price
- * on the shop bill goes up (alter_cost()). The wielded weapon's intrinsics
- * (set_artifact_intrinsic(obj, TRUE, W_WEP): Sting's warning) come with the artifact
- * extrinsics in m20 step 5; there is no two-weapon combat to stop (untwoweapon()).
- * ref: src/do_name.c oname()
- */
-export function onameObj(
-  ctx: Ctx,
-  obj: Entity,
-  name: string,
-  origin: ArtiOrigin,
-  knowArti: boolean,
-): void {
-  oname(ctx, obj, name, origin, knowArti);
-  if (obj.c.item?.artifact === undefined) return;
-  // TODO(m20 step 5): if obj is uwep, set_artifact_intrinsic(obj, TRUE, W_WEP)
-  // if obj is owned by a shop, increase your bill
-  if (obj.c.item.unpaid) alterCost(ctx, obj, 0);
-}
 
 // ---------------------------------------------------------------------------------------------
 // the special attacks: what they apply to, to-hit and damage
@@ -139,6 +60,36 @@ export function heroData(ctx: Pick<Ctx, 'state' | 'defs'>): MonsterDef | null {
 }
 
 /**
+ * The artifact's bane (SPFX_DMONS, DCLAS, DFLAG1/2 or DALIGN) is `target`'s: its monster, class,
+ * flag (for the hero also her own race's flags while in her own form, and the were flag while she
+ * is a lycanthrope) or another alignment (a monster's kind: unaligned or of another sign). False
+ * for an artifact without a bane. ref: src/artifact.c spec_applies() (the SPFX_DBONUS part)
+ */
+function baneMatches(ctx: Pick<Ctx, 'state' | 'defs'>, a: ArtifactDef, target: EntityId): boolean {
+  const yours = target === ctx.state.playerId;
+  const mon = ctx.state.entities[String(target)];
+  const b = a.bane;
+  if (!mon || !b) return false;
+  const ptr = yours ? heroData(ctx) : ctx.defs.monster(mon.def);
+  if (b.kind === 'mons') return ptr?.id === b.mon;
+  if (b.kind === 'class') return ptr?.glyph.ch === b.ch;
+  if (b.kind === 'flag') {
+    if (ptr?.flags.includes(b.flag)) return true;
+    // (SPFX_DFLAG1 and SPFX_DFLAG2 are one kind here: the hero's race only has M2 flags)
+    return (
+      yours &&
+      ((!heroForm(ctx) && RACES_TAB[urace(ctx.state)].selfmask.includes(b.flag)) ||
+        (b.flag === 'were' && ulycn(ctx.state) !== null))
+    );
+  }
+  // SPFX_DALIGN
+  const al = artiAlign(ctx.state, a);
+  if (yours) return uState(ctx.state).alignType !== al;
+  const malign = ptr?.alignment ?? 0;
+  return malign === A_NONE || Math.sign(malign) !== al;
+}
+
+/**
  * Whether the artifact's special attacks apply against `target` (the hero or a monster): an
  * artifact with neither a bane nor SPFX_ATTK applies against everything when its attack is
  * physical; a bane applies to its monster, class, flag (for the hero also her own race's flags
@@ -155,24 +106,7 @@ export function specApplies(ctx: Ctx, a: ArtifactDef, target: EntityId): boolean
   const mon = ctx.state.entities[String(target)];
   if (!mon) return false;
   const ptr = yours ? heroData(ctx) : ctx.defs.monster(mon.def);
-  const b = a.bane;
-  if (b?.kind === 'mons') return ptr?.id === b.mon;
-  if (b?.kind === 'class') return ptr?.glyph.ch === b.ch;
-  if (b?.kind === 'flag') {
-    if (ptr?.flags.includes(b.flag)) return true;
-    // (SPFX_DFLAG1 and SPFX_DFLAG2 are one kind here: the hero's race only has M2 flags)
-    return (
-      yours &&
-      ((!heroForm(ctx) && RACES_TAB[urace(ctx.state)].selfmask.includes(b.flag)) ||
-        (b.flag === 'were' && ulycn(ctx.state) !== null))
-    );
-  }
-  if (b?.kind === 'align') {
-    const al = artiAlign(ctx.state, a);
-    if (yours) return uState(ctx.state).alignType !== al;
-    const malign = ptr?.alignment ?? 0;
-    return malign === A_NONE || Math.sign(malign) !== al;
-  }
+  if (a.bane !== null) return baneMatches(ctx, a, target);
   // SPFX_ATTK
   if (defended(ctx, target, atk.ad)) return false;
   const hero = getPlayer(ctx.state);
@@ -230,4 +164,93 @@ export function specDbon(
   else applies = specApplies(ctx, a, target);
   if (!applies) return { bonus: 0, applies };
   return { bonus: atk.damd ? ctx.rng.rnd(atk.damd) : Math.max(tmp, 1), applies };
+}
+
+// ---------------------------------------------------------------------------------------------
+// touching
+
+/**
+ * The artifact's bane (its SPFX_DBONUS part alone) applies to `target`: no SPFX_ATTK element,
+ * so nothing is drawn. ref: src/artifact.c bane_applies()
+ */
+export function baneApplies(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  a: ArtifactDef,
+  target: EntityId,
+): boolean {
+  return baneMatches(ctx, a, target);
+}
+
+/** What makes an artifact refuse someone: a wrong role or race, a wrong alignment or a bane. */
+export interface TouchVerdict {
+  badclass: boolean;
+  badalign: boolean;
+  /** SPFX_INTEL: every quest artifact is self-willed */
+  selfWilled: boolean;
+}
+
+/**
+ * Why the artifact would refuse to be touched by `who` (the hero or a monster): for the hero a
+ * self-willed artifact of another role or race, a restricted artifact of another alignment (or
+ * while her alignment record is negative); for a monster a self-willed artifact with a role
+ * (Excalibur's own excepted), a restricted artifact of another alignment than the monster's;
+ * covetous monsters and player monsters mind neither. A bane that applies to `who` is a bad
+ * alignment for anyone. Uses the table as hack_artifacts() left it (artiAlign(), artiRole()).
+ * ref: src/artifact.c touch_artifact()
+ */
+export function touchVerdict(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  a: ArtifactDef,
+  who: EntityId,
+): TouchVerdict {
+  const { state } = ctx;
+  const yours = who === state.playerId;
+  // all quest artifacts are self-willed; if this ever changes, `badclass' will have to be
+  // extended to explicitly include quest artifacts
+  const selfWilled = a.spfx.includes('intel');
+  const restr = a.spfx.includes('restr');
+  const align = artiAlign(state, a);
+  const role = artiRole(state, a);
+  let badclass: boolean;
+  let badalign: boolean;
+  if (yours) {
+    badclass =
+      selfWilled &&
+      ((role !== null && !artiRoleIs(state, a)) || (a.race !== null && !raceIs(state, a.race)));
+    const u = uState(state);
+    badalign = restr && align !== A_NONE && (align !== u.alignType || u.alignRecord < 0);
+  } else {
+    const mon = state.entities[String(who)];
+    const def = mon ? ctx.defs.monster(mon.def) : null;
+    if (def && !isCovetous(def) && !isMplayer(def)) {
+      badclass = selfWilled && role !== null && a.id !== 'nh:excalibur';
+      badalign = restr && align !== A_NONE && align !== monAligntypOf(ctx, who);
+    } else {
+      // an M3_WANTSxxx monster or a fake player: special monsters trying to take the Amulet,
+      // invocation tools or quest item can touch anything except `spec_applies' artifacts
+      badclass = badalign = false;
+    }
+  }
+  // weapons which attack specific categories of monsters are bad for them even if their
+  // alignments happen to match
+  if (!badalign) badalign = baneApplies(ctx, a, who);
+  return { badclass, badalign, selfWilled };
+}
+
+/**
+ * A monster tries to touch (pick up or wield) the object: false when it is an artifact that
+ * would blast it (self-willed and of the wrong class or alignment, or of the wrong alignment at
+ * all: a monster is never blasted, it just refuses). No draw. The hero's side (the blast, "evades
+ * your grasp") comes with her touching the artifacts. ref: src/artifact.c touch_artifact() for a
+ * monster
+ */
+export function monTouchArtifact(
+  ctx: Pick<Ctx, 'state' | 'defs'>,
+  obj: Entity,
+  mon: EntityId,
+): boolean {
+  const a = artiOf(obj);
+  if (a === null) return true;
+  const { badclass, badalign, selfWilled } = touchVerdict(ctx, a, mon);
+  return !(((badclass || badalign) && selfWilled) || badalign);
 }

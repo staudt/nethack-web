@@ -66,7 +66,7 @@ import {
 } from './material';
 import { CHARGED_RINGS, CHARGED_TOOLS } from './objects';
 import { endBurn } from './light';
-import { isWeaponOrWeptool } from './material';
+import { isWeaponOrWeptool, objResists } from './material';
 import { SPE_LIM } from './objnam_read';
 import { isKnown } from './o_init';
 import { xnameOf } from './objnam';
@@ -160,10 +160,10 @@ function simpleName(ctx: Ctx, obj: Entity, slot: string): string {
  * ref: src/do_wear.c disintegrate_arm(), maybe_destroy_armor(), wornarm_destroyed()
  */
 export function disintegrateArm(ctx: Ctx, atmp: Entity | null): boolean {
-  const resists = (): boolean => ctx.rng.rn2(100) < 0; // obj_resists(armor, 0, 90)
+  const resists = (armor: Entity): boolean => objResists(ctx, armor, 0, 90);
   const maybe = (slot: string): Entity | null => {
     const armor = wornIn(ctx, slot);
-    if (armor && (!atmp || atmp.id === armor.id) && !resists()) return armor;
+    if (armor && (!atmp || atmp.id === armor.id) && !resists(armor)) return armor;
     return null;
   };
   let otmp: Entity | null = null;

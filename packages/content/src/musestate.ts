@@ -22,6 +22,7 @@ import {
 } from '@nh/core';
 import { mCanSeeU } from './apparxy';
 import { uswallow } from './engulfstate';
+import { artiReflects } from './artidef';
 import { epriOf } from './epri';
 import { eshkOf } from './eshk';
 import { monInvisible, invisBlocked, seeInvisible } from './invis';
@@ -109,11 +110,12 @@ const SHIELD_OF_REFLECTION: DefId = 'nh:shield_of_reflection';
 const AMULET_OF_REFLECTION: DefId = 'nh:amulet_of_reflection';
 
 /**
- * Whether the monster reflects: a worn shield of reflection, a worn amulet of reflection, worn
- * silver dragon scales or scale mail, or a (grown-up) silver dragon's own scales. When it does
- * and `key` is given, says it with `mon` (the monster) and `what` ("shield", "amulet", "armor",
- * "scales") added to `params`, and learns the shield or amulet ("But it reflects from the hill
- * orc's shield!"). ref: src/muse.c mon_reflects() (no artifact weapons or chromatic dragon)
+ * Whether the monster reflects: a worn shield of reflection, a wielded artifact that reflects
+ * (Dragonbane), a worn amulet of reflection, worn silver dragon scales or scale mail, or a
+ * (grown-up) silver dragon's own scales. When it does and `key` is given, says it with `mon` (the
+ * monster) and `what` ("shield", "weapon", "amulet", "armor", "scales") added to `params`, and
+ * learns the shield or amulet ("But it reflects from the hill orc's shield!").
+ * ref: src/muse.c mon_reflects() (no chromatic dragon)
  */
 export function monReflects(
   ctx: Ctx,
@@ -123,12 +125,14 @@ export function monReflects(
 ): boolean {
   const worn = (slot: string): Entity | undefined =>
     inventoryOf(ctx.state, mon.id).find((o) => o.c.item?.equipped === slot);
-  let what: 'shield' | 'amulet' | 'armor' | 'scales';
+  let what: 'shield' | 'weapon' | 'amulet' | 'armor' | 'scales';
   let learn: DefId | null = null;
   const suit = worn('body')?.def;
   if (worn('shield')?.def === SHIELD_OF_REFLECTION) {
     what = 'shield';
     learn = SHIELD_OF_REFLECTION;
+  } else if (artiReflects(worn('weapon'))) {
+    what = 'weapon'; // due to wielded artifact weapon
   } else if (worn('amulet')?.def === AMULET_OF_REFLECTION) {
     what = 'amulet';
     learn = AMULET_OF_REFLECTION;

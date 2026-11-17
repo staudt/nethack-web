@@ -9,12 +9,13 @@
 // too. `dofiretrap()` serves the fire trap (m17), the magic trap's fate 12, a monster's 1-in-21
 // magic trap and a trapped box's fire (chesttrap.ts).
 //
-// Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, Magicbane and other artifacts, wall
+// Not modelled: deafness (the roar is only its message), Half_physical_damage, Half_spell_damage, wall
 // passers, golems, polymorph, steeds and the hero under water.
 import { mAt } from './wormstate';
 import {
   getLevel,
   getPlayer,
+  inventoryOf,
   trapAt,
   type Ctx,
   type Entity,
@@ -23,6 +24,8 @@ import {
   type Trap,
 } from '@nh/core';
 import { burnAwaySlime } from './slimestate';
+import { defendsWhenCarried } from './artidef';
+import { isArt, isQuestArtifact, uWieldArt } from './artistate';
 import { adjattrib } from './attrib';
 import { burnFloorObjects, resistsMagm } from './buzz';
 import { tamedog } from './dog';
@@ -386,8 +389,22 @@ function antiMagicYou(ctx: Ctx, trap: Trap): void {
   }
   seetrap(trap);
   if (hasProp(hero, P.ANTIMAGIC)) {
-    // no Half_physical_damage/Half_spell_damage, Magicbane, artifacts or Passes_walls here
-    const dmgval2 = ctx.rng.rnd(4);
+    // no Half_physical_damage/Half_spell_damage here
+    let dmgval2 = ctx.rng.rnd(4);
+    // give Magicbane wielder dose of own medicine
+    if (uWieldArt(ctx.state, 'nh:magicbane')) dmgval2 += ctx.rng.rnd(4);
+    // having an artifact--other than own quest one--which confers magic resistance simply by
+    // being carried also increases the effect
+    if (
+      inventoryOf(ctx.state, hero.id).some(
+        (o) =>
+          o.c.item?.artifact !== undefined &&
+          !isQuestArtifact(ctx.state, o) &&
+          defendsWhenCarried('magm', o),
+      )
+    )
+      dmgval2 += ctx.rng.rnd(4);
+    if (heroForm(ctx)?.flags.includes('wallwalk')) dmgval2 = Math.trunc((dmgval2 + 3) / 4);
     const hp = hero.c.hp?.cur ?? 0;
     say(
       ctx,
@@ -444,8 +461,19 @@ function antiMagicMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
       }
     }
   } else {
-    // take some damage (no Magicbane, artifacts or wall passers)
-    const dmgval2 = ctx.rng.rnd(4);
+    // take some damage
+    let dmgval2 = ctx.rng.rnd(4);
+    const inv = inventoryOf(ctx.state, mon.id);
+    if (
+      isArt(
+        inv.find((o) => o.c.item?.equipped === 'weapon'),
+        'nh:magicbane',
+      )
+    )
+      dmgval2 += ctx.rng.rnd(4);
+    if (inv.some((o) => o.c.item?.artifact !== undefined && defendsWhenCarried('magm', o)))
+      dmgval2 += ctx.rng.rnd(4);
+    if (def.flags.includes('wallwalk')) dmgval2 = Math.trunc((dmgval2 + 3) / 4);
     if (inSight) seetrap(trap);
     const hp = mon.c.hp;
     if (hp) {

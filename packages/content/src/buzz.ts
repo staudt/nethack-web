@@ -60,6 +60,7 @@ import { setMtrapped, setUtrap, utrap } from './trapstate';
 import { canseemon } from './invis';
 import { M_SEEN, monReflects, monstseesu, monstunseesu } from './musestate';
 import { objResists } from './material';
+import { defends, defendsWhenCarried } from './artidef';
 
 /**
  * Ray damage types, in flash_types[] order. ref: src/zap.c ZT_MAGIC_MISSILE .. ZT_ACID (poison
@@ -198,15 +199,31 @@ export function resist(
 
 /**
  * ref: src/mondata.c resists_magm(): gray dragons, Angels, Oracle, Yeenoghu, chromatic dragon
- * (AD_MAGM or AD_RBRE attacks), and a monster wearing an item that gives magic resistance (a
- * cloak of magic resistance; no artifacts or baby gray dragons here).
+ * (AD_MAGM or AD_RBRE attacks), a monster wielding an artifact that defends against magic
+ * (Magicbane), wearing an item that gives magic resistance (a cloak of magic resistance) or
+ * carrying an artifact that does; baby gray dragons too.
  */
-export const resistsMagm = (ctx: Ctx, mon: Entity): boolean =>
-  ctx.defs.monster(mon.def).attacks.some((a) => a.ad === 'magm' || a.ad === 'rbre') ||
-  inventoryOf(ctx.state, mon.id).some((o) => {
+export const resistsMagm = (ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean => {
+  // as of 3.2.0:  gray dragons, Angels, Oracle, Yeenoghu
+  const ptr = ctx.defs.monster(mon.def);
+  if (
+    ptr.id === 'nh:baby_gray_dragon' ||
+    ptr.attacks.some((a) => a.ad === 'magm' || a.ad === 'rbre')
+  )
+    return true;
+  const inv = inventoryOf(ctx.state, mon.id);
+  // check for magic resistance granted by wielded weapon
+  const wep = inv.find((o) => o.c.item?.equipped === 'weapon');
+  if (wep?.c.item?.artifact !== undefined && defends('magm', wep)) return true;
+  // check for magic resistance granted by worn or carried items
+  return inv.some((o) => {
     const eq = o.c.item?.equipped;
-    return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.ANTIMAGIC;
+    return (
+      (!!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.ANTIMAGIC) ||
+      (o.c.item?.artifact !== undefined && defendsWhenCarried('magm', o))
+    );
   });
+};
 
 /**
  * ref: include/mondata.h resists_disint(): its own resistance or worn black dragon scales or scale
@@ -741,7 +758,7 @@ export function burnFloorObjects(
     const it = o.c.item;
     if (!it || (od.class !== 'scroll' && od.class !== 'spellbook')) continue;
     if (o.def === 'nh:scroll_of_fire' || o.def === 'nh:spellbook_of_fireball') continue;
-    if (objResists(ctx, o, 2)) continue; // obj_resists(obj, 2, 100)
+    if (objResists(ctx, o, 2, 100)) continue; // obj_resists(obj, 2, 100)
     const scrquan = it.quantity;
     let del = 0;
     for (let i = scrquan; i > 0; i--) if (!ctx.rng.rn2(3)) del++;
@@ -834,7 +851,7 @@ function disintegrateMon(ctx: Ctx, mon: Entity, byHero: boolean, fltxt: Msg): vo
   for (const o of inventoryOf(ctx.state, mon.id)) {
     // oresist_disintegration(): DISINT_RES armor, obj_resists(obj, 5, 50), the amulet
     const keep =
-      ctx.defs.object(o.def).prop === P.DISINT_RES || objResists(ctx, o, 5) || o === mAmulet;
+      ctx.defs.object(o.def).prop === P.DISINT_RES || objResists(ctx, o, 5, 50) || o === mAmulet;
     if (!keep) ctx.remove(o.id); // extract_from_minvent(), obfree()
   }
   if (!byHero) monkilled(ctx, mon.id, false, undefined, 'rbre');

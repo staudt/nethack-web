@@ -131,6 +131,19 @@ export function monAligntyp(epri: Epri): Aligntyp {
   return a > 0 ? 1 : a < 0 ? -1 : 0;
 }
 
+/**
+ * Any monster's alignment as an aligntyp: a priest's shrine's, else its kind's sign (A_NONE kept).
+ * No minions here (EMIN). ref: src/priest.c mon_aligntyp()
+ */
+export function monAligntypOf(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): Aligntyp {
+  const epri = epriOf(ctx, id);
+  if (epri) return monAligntyp(epri);
+  const mon = ctx.state.entities[String(id)];
+  const a = mon ? ctx.defs.monster(mon.def).alignment : 0;
+  if (a === A_NONE) return A_NONE; // negative but differs from chaotic
+  return a > 0 ? 1 : a < 0 ? -1 : 0;
+}
+
 /** The hero shares the priest's alignment. ref: src/priest.c p_coaligned() */
 export function pCoaligned(ctx: Pick<Ctx, 'state'>, epri: Epri): boolean {
   return uState(ctx.state).alignType === monAligntyp(epri);

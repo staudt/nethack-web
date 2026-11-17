@@ -302,7 +302,7 @@ function useBell(ctx: Ctx, obj: Entity): void {
       const mtmp = mid === null ? undefined : ctx.state.entities[String(mid)];
       if (mtmp) {
         say(ctx, 'bell.summon', { mon: `@${mtmp.def}` });
-        if (!objResists(ctx, obj, 93)) {
+        if (!objResists(ctx, obj, 93, 100)) {
           say(ctx, 'bell.shattered', { item: xnameOf(ctx.state, ctx.defs, obj) });
           useup(ctx, obj.id);
         } else

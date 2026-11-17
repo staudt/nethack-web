@@ -26,6 +26,7 @@ import {
   rnl,
 } from '@nh/core';
 import { dmgval, dmgvalSized, hitval, monsterIdAt } from './combat';
+import { monTouchArtifact } from './artifact';
 import { monFloorEffects } from './align';
 import { flooreffects } from './flooreffects';
 import { stopOccupation } from './eat';
@@ -604,7 +605,8 @@ export const MON_POLE_DIST = 5;
  * without a shield only for the two-handed ones, not a welded other weapon); then the first of
  * rwep[] it carries whose launcher (if any) it also has; sling stones before darts. A
  * silver-hater picks no silver polearm. A Kop's cream pies come first. Not ported:
- * throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs, artifacts.
+ * throw-and-return aklys (monsters never throw them), boulders, cockatrice eggs. It never throws
+ * an artifact, and passes over one that would not let it touch it.
  */
 export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): RangedChoice {
   const mon = ctx.state.entities[String(monId)];
@@ -612,7 +614,9 @@ export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): Ranged
   if (!mon) return none;
   const mdef = ctx.defs.monster(mon.def);
   const items = minvent(ctx, monId);
-  const find = (id: string): Entity | null => items.find((o) => o.def === id) ?? null;
+  // oselect(): the first of the type it can touch safely (an artifact may refuse it)
+  const find = (id: string): Entity | null =>
+    items.find((o) => o.def === id && monTouchArtifact(ctx, o, monId)) ?? null;
   const mwep = monWep(ctx, monId);
   const weldedWep = mwep?.c.item?.buc === 'cursed';
   const noWeaponWanted = monFlag(ctx, 'nowep', monId);
@@ -673,8 +677,8 @@ export function selectRwep(ctx: Ctx, monId: EntityId, poleRange = false): Ranged
         ? (items.find((e) => e.def === id && e.c.item?.buc !== 'cursed') ?? null)
         : find(id);
     if (!o) continue;
-    // Don't throw a cursed weapon-in-hand
-    if (o === mwep && weldedWep) continue;
+    // Don't throw a cursed weapon-in-hand or an artifact
+    if (o.c.item?.artifact !== undefined || (o === mwep && weldedWep)) continue;
     return { obj: o, propellor: launcher };
   }
   return none;

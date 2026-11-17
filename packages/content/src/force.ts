@@ -28,7 +28,7 @@ import { placeOnFloor, setLknown } from './items';
 import { floorBoxes } from './lock';
 import { lockData, xlockOf } from './lockstate';
 import { useup } from './magic';
-import { greatestErosion, isWeptool } from './material';
+import { greatestErosion, isWeptool, objResists } from './material';
 import { xnameOf, zorkmids } from './objnam';
 import { P, hasProp } from './props';
 import { stolenValue } from './shk';
@@ -109,7 +109,7 @@ function forcelock(ctx: Ctx): boolean {
     if (
       ctx.rng.rn2(1000 - it.spe) > 992 - greatestErosion(w) * 10 &&
       it.buc !== 'cursed' &&
-      !(ctx.rng.rn2(100) < 0) // obj_resists(uwep, 0, 99): no artifacts
+      !objResists(ctx, w, 0, 99)
     ) {
       say(ctx, it.quantity > 1 ? 'force.one_broke' : 'force.broke', {
         weapon: xnameOf(ctx.state, ctx.defs, w),

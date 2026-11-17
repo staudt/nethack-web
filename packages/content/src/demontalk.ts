@@ -6,7 +6,8 @@
 // from #chat. ref: src/minion.c demon_talk(), bribe(); src/monmove.c dochug() "Demonic
 // Blackmail!"; src/sounds.c domonnoise() MS_BRIBE
 //
-// Not ported (see DEVIATIONS.md "Monster AI"): Excalibur and Demonbane (no artifacts), Deafness,
+// A wielded Excalibur or Demonbane makes him angry instead ("Asmodeus looks very angry.").
+// Not ported (see DEVIATIONS.md "Monster AI"): Deafness,
 // a demon that carries the Amulet, the livelog. A demon angered by the answer attacks on its next
 // move: the prompt ends the move it was asked in (C goes on with that move).
 import {
@@ -18,6 +19,7 @@ import {
   type Json,
   type ModApi,
 } from '@nh/core';
+import { uWieldArt } from './artistate';
 import { heroFemale } from './gender';
 import { isHelpless } from './hunger';
 import { clearMinvis, monInvisible } from './invis';
@@ -44,7 +46,9 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
   ctx.emit(params ? { type: 'msg', key, params } : { type: 'msg', key });
 
 /**
- * The demon (peaceful, not tame) talks to the hero: an invisible prince "appears before you";
+ * The demon (peaceful, not tame) talks to the hero: against a wielded Excalibur or Demonbane he
+ * "looks very angry." (unseen: "You feel tension building.") and is hostile; an invisible prince
+ * "appears before you";
  * a hero in a demon form is wished "Good hunting" and he teleports away; with gold, and able to
  * move, she is asked to pay `demand` (her gold times 1..80% plus 20% in Gehennom, halved when
  * they share an alignment's sign) through the `demon-bribe` prompt; else he gets angry. True when
@@ -54,7 +58,13 @@ export function demonTalk(ctx: Ctx, id: EntityId): boolean {
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   if (!mon || !m) return false;
-  // (no Excalibur or Demonbane)
+  if (uWieldArt(ctx.state, 'nh:excalibur') || uWieldArt(ctx.state, 'nh:demonbane')) {
+    if (canSpotMon(ctx, mon)) say(ctx, 'demon.looks_very_angry', { mon: monNam(ctx, mon) });
+    else say(ctx, 'demon.tension_building');
+    m.peaceful = false;
+    delete m.tame;
+    return false;
+  }
   if (getPlayer(ctx.state).c.helpless?.reasonKey === 'helpless.fainted') {
     unmulNow(ctx); // if fainted - wake up
   } else ctx.interrupt(); // stop_occupation(); nomul(0)

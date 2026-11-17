@@ -827,6 +827,8 @@ export {
   nartifactExist,
   oname,
   onameItem,
+  anyQuestArtifact,
+  isQuestArtifact,
   questArtifactId,
   uWieldArt,
   uncreateArtifact,
@@ -837,5 +839,8 @@ export {
 } from './artistate';
 // m20 step 3: the artifacts' special attacks (artihit.ts registers itself with the attack code)
 export { attacks, specAbility, specAbon, specApplies, specDbon } from './artifact';
+// m20 step 4: monsters and artifacts
+export { baneApplies, monTouchArtifact, touchVerdict, type TouchVerdict } from './artifact';
+export { artiReflects, defended, defends, defendsWhenCarried, protects } from './artidef';
 export { FATAL_DAMAGE_MODIFIER, artifactHit } from './artihit';
 export { notFullyIdentified, objIsPname } from './objnam';

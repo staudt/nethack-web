@@ -85,6 +85,8 @@ import { askPosition, positionAnswer } from './getpos';
 import { unaware } from './btrapped';
 import { poisoned } from './attrib';
 import { resistsMagm } from './buzz';
+import { defended } from './artidef';
+import { resists } from './mresist';
 import { dmgval, dmgvalSized } from './dmgval';
 import { setWoundedLegs } from './legs';
 import { wakeNearto } from './noise';
@@ -1342,11 +1344,11 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
     case TRAP.rolling:
       return soko; // the Sokoban rolling boulder traps are not dangerous
     case TRAP.sleepGas:
-      return def.resists.includes('sleep');
+      return resists(ctx, mon, 'sleep') || defended(ctx, mon.id, 'slee');
     case TRAP.rust:
       return def.id !== 'nh:iron_golem';
     case TRAP.fire:
-      return def.resists.includes('fire'); // (no artifacts: never defended())
+      return resists(ctx, mon, 'fire') || defended(ctx, mon.id, 'fire');
     case TRAP.pit:
     case TRAP.spikedPit:
     case TRAP.trapdoor:
@@ -1365,7 +1367,7 @@ export function mHarmlessTrap(ctx: Ctx, mon: Entity, trap: Trap): boolean {
     case TRAP.magic:
       return true; // usually
     case TRAP.antiMagic:
-      return resistsMagm(ctx, mon); // (nothing grants AD_MAGM defense to a monster here)
+      return resistsMagm(ctx, mon) || defended(ctx, mon.id, 'magm');
     default:
       return false;
   }

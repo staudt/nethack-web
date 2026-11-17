@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-195 NetHack files, 5697 citations.
+196 NetHack files, 5713 citations.
 
 ## dat/asmodeus.lua
 
@@ -828,12 +828,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/artifact.en.ts`
 - `MB_MAX_DIEROLL()`: `packages/content/src/artihit.ts`
 - `Mb_hit()`: `packages/content/src/artihit.ts`
+- `any_quest_artifact()`: `packages/content/src/artistate.ts`
 - `arti_cost()`: `packages/content/src/artistate.ts`
+- `arti_reflects()`: `packages/content/src/artidef.ts`
 - `artifact_exists()`: `packages/content/src/artistate.ts`
 - `artifact_hit()`: `packages/content/src/artihit.ts`
 - `artifact_name()`: `packages/content/src/artistate.ts`
 - `artifact_origin()`: `packages/content/src/artistate.ts`
 - `attacks()`: `packages/content/src/artifact.ts`
+- `bane_applies()`: `packages/content/src/artifact.ts`
 - `confers_luck()`: `packages/content/src/gem.ts`
 - `defends()`: `packages/content/src/artidef.ts`
 - `defends_when_carried()`: `packages/content/src/artidef.ts`
@@ -848,12 +851,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mb_verb()`: `packages/content/src/artihit.ts`
 - `mk_artifact()`: `packages/content/src/artistate.ts`
 - `nartifact_exist()`: `packages/content/src/artistate.ts`
-- `restrict_name()`: `packages/content/src/artifact.ts`
+- `protects()`: `packages/content/src/artidef.ts`
+- `restrict_name()`: `packages/content/src/artiname.ts`
 - `shade_glare()`: `packages/content/src/dmgval.ts`
 - `spec_ability()`: `packages/content/src/artifact.ts`
 - `spec_abon()`: `packages/content/src/artifact.ts`
 - `spec_applies()`: `packages/content/src/artifact.ts`
 - `spec_dbon()`: `packages/content/src/artifact.ts`
+- `touch_artifact()`: `packages/content/src/artifact.ts`
 - `undiscovered_artifact()`: `packages/content/src/artistate.ts`
 
 ## src/attrib.c
@@ -1092,7 +1097,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `name_from_player()`: `packages/content/src/call.ts`
 - `name_ok()`: `packages/content/src/call.ts`
 - `objtyp_is_callable()`: `packages/content/src/call.ts`
-- `oname()`: `packages/content/src/artifact.ts`, `packages/content/src/artistate.ts`
+- `oname()`: `packages/content/src/artiname.ts`, `packages/content/src/artistate.ts`
 - `pmname()`: `packages/content/src/gender.ts`, `packages/content/src/perception.ts`
 - `rndghostname()`: `packages/content/src/generation.ts`
 - `rndmonnam()`: `packages/content/src/perception.ts`
@@ -1723,6 +1728,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `expels()`: `packages/content/src/engulf.en.ts`, `packages/content/src/engulf.ts`
 - `explmu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
 - `gazemu()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitu.ts`
+- `getmattk()`: `packages/content/src/combat.ts`
 - `gulpmu()`: `packages/content/src/engulf.en.ts`, `packages/content/src/mhitu.ts`
 - `hitmsg()`: `packages/content/src/combat.ts`
 - `hitmu()`: `packages/content/src/combat.ts`, `packages/content/src/mhitu.ts`
@@ -2009,7 +2015,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mondata.c
 
-- (file): `packages/content/src/adtyping.ts`, `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
+- (file): `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
 - `Resists_Elem()`: `packages/content/src/mresist.ts`
 - `big_to_little()`: `packages/content/src/eggstate.ts`
 - `breakarm()`: `packages/content/src/mondata.ts`
@@ -2040,6 +2046,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `on_fire()`: `packages/content/src/adtyping.ts`, `packages/content/src/minliquid.ts`
 - `pronoun_gender()`: `packages/content/src/seduce.ts`
 - `resist_conflict()`: `packages/content/src/props.ts`
+- `resists_blnd()`: `packages/content/src/adtyping.ts`
+- `resists_blnd_by_arti()`: `packages/content/src/adtyping.ts`
 - `resists_drli()`: `packages/content/src/exper.ts`, `packages/content/src/mresist.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
 - `same_race()`: `packages/content/src/race.ts`
@@ -2198,7 +2206,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dodiscovered()`: `packages/content/src/itemactions.ts`
 - `init_objects()`: `packages/content/src/o_init.ts`
 - `interesting_to_discover()`: `packages/content/src/itemactions.ts`
-- `obj_shuffle_range()`: `packages/content/src/artifact.ts`, `packages/testkit/src/convert/cdata.ts`
+- `obj_shuffle_range()`: `packages/content/src/artiname.ts`, `packages/testkit/src/convert/cdata.ts`
 - `objdescr_is()`: `packages/content/src/breakwand.ts`
 - `setgemprobs()`: `packages/content/src/gem.ts`
 - `shuffle()`: `packages/content/src/o_init.ts`
@@ -2438,6 +2446,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `priestini()`: `packages/content/src/priest.ts`
 - `priestname()`: `packages/content/src/epri.ts`, `packages/content/src/priest.en.ts`
 - `temple_occupied()`: `packages/content/src/epri.ts`
+
+## src/questpgr.c
+
+- `is_quest_artifact()`: `packages/content/src/artistate.ts`
 
 ## src/read.c
 
@@ -3241,6 +3253,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `clonewiz()`: `packages/content/src/nasty.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`
+- `mon_has_arti()`: `packages/content/src/covetous.ts`
 - `nasties()`: `packages/content/src/nasty.ts`
 - `nasty()`: `packages/content/src/nasty.ts`
 - `on_ground()`: `packages/content/src/covetous.ts`
@@ -3253,6 +3266,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `target_on()`: `packages/content/src/covetous.ts`
 - `which_arti()`: `packages/content/src/covetous.ts`
 - `wizapp()`: `packages/content/src/nasty.ts`
+- `you_have()`: `packages/content/src/covetous.ts`
 
 ## src/wizcmds.c
 

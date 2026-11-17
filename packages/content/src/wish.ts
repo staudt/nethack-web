@@ -17,7 +17,7 @@ import {
   type Json,
   type Msg,
 } from '@nh/core';
-import { onameObj } from './artifact';
+import { onameObj } from './artiname';
 import { artifactName, nartifactExist, questArtifactId, uncreateArtifact } from './artistate';
 import { gemLedger, gemProb } from './gem';
 import { encumberMsg, prinv } from './itemactions';

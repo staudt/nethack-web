@@ -61,6 +61,9 @@ import {
 import { acidDamage, destroyItems, erodeArmor, rustm, type ErodeType } from './erode';
 import { igniteItems } from './light';
 import { dmgval } from './dmgval';
+import { specDbon } from './artifact';
+import { artifactHitHook } from './artihook';
+import { defended, defends, defendsWhenCarried, protects } from './artidef';
 import { isShade, shadeMiss } from './shade';
 import { forgetMonster, minvent, monWep, setMonFlag, whichArmor } from './mongear';
 import { mlifesaver, mondied, monkilled, monsterDied } from './mondeath';
@@ -75,7 +78,7 @@ export { teleRestrict };
 import { attrcurse } from './pray';
 import { costlyAlteration } from './shk';
 import { CHARGED_RINGS } from './objects';
-import { hardHelmet, isWeptool } from './material';
+import { hardHelmet, isWeptool, objResists } from './material';
 import { doname, xnameOf } from './objnam';
 import {
   abase,
@@ -203,13 +206,16 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
     mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);
   }
   // a monster's worn item that gives Protection counts as the hero's extrinsic (protects():
-  // the cloak of protection; no artifacts or high priests here)
+  // the cloak of protection, an artifact worn, wielded or carried; no high priests here)
   const gotprot =
     who === ctx.state.playerId
       ? hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION)
       : inventoryOf(ctx.state, who).some((o) => {
-          const eq = o.c.item?.equipped;
-          return !!eq && eq !== 'weapon' && ctx.defs.object(o.def).prop === P.PROTECTION;
+          // omit W_SWAPWEP+W_QUIVER; a weapon counts while wielded
+          const eq = o.c.item?.equipped ?? null;
+          const def = ctx.defs.object(o.def);
+          const worn = eq !== null && (eq !== 'weapon' || def.class === 'weapon' || isWeptool(def));
+          return protects(ctx.defs, o, worn);
         });
   if (gotprot) mc = Math.min(mc + 1, 3);
   return mc;
@@ -355,8 +361,8 @@ export const haseyes = (ctx: Ctx, mon: Entity): boolean =>
 
 /**
  * The defender (the hero or a monster) cannot be blinded: already blind, unconscious, eyeless,
- * asleep, or a monster with a blinding explosion or gaze of its own. ref: src/mondata.c
- * resists_blnd() (no Sunsword)
+ * asleep, a monster with a blinding explosion or gaze of its own, or one protected by an
+ * artifact (Sunsword wielded). ref: src/mondata.c resists_blnd()
  */
 export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
   if (mon.id === ctx.state.playerId) {
@@ -369,7 +375,21 @@ export function resistsBlnd(ctx: Ctx, mon: Entity): boolean {
     return true;
   // a form (or monster) with a blinding explosion or gaze of its own
   const def = mon.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mon.def);
-  return !!def?.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze'));
+  if (def?.attacks.some((a) => a.ad === 'blnd' && (a.at === 'explode' || a.at === 'gaze')))
+    return true;
+  // Sunsword
+  return resistsBlndByArti(ctx, mon);
+}
+
+/**
+ * The defender is protected against light-induced blindness by the artifact it wields (Sunsword)
+ * or by one it carries. ref: src/mondata.c resists_blnd_by_arti()
+ */
+export function resistsBlndByArti(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
+  const inv = inventoryOf(ctx.state, mon.id);
+  const o = inv.find((x) => x.c.item?.equipped === 'weapon');
+  if (o?.c.item?.artifact !== undefined && defends('blnd', o)) return true;
+  return inv.some((x) => defendsWhenCarried('blnd', x));
 }
 
 /**
@@ -440,8 +460,9 @@ export function canBlnd(
 /**
  * Takes one point of enchantment or charge off an object (a worn ring's attribute bonus with it);
  * false if it has none to lose, or resists (1 time in 10). `byYou`: the hero did it (a shop bills
- * her for its own goods). ref: src/zap.c drain_item() (no artifacts: defends(AD_DRLI) is never
- * true; no gauntlets of dexterity or helms of brilliance in the subset, their cases kept)
+ * her for its own goods); an artifact that protects against level drain never does.
+ * ref: src/zap.c drain_item() (no gauntlets of dexterity or helms of brilliance in the subset,
+ * their cases kept)
  */
 export function drainItem(ctx: Ctx, obj: Entity | null, byYou: boolean): boolean {
   const it = obj?.c.item;
@@ -453,7 +474,8 @@ export function drainItem(ctx: Ctx, obj: Entity | null, byYou: boolean): boolean
     it.spe <= 0
   )
     return false;
-  if (ctx.rng.rn2(100) < 10) return false; // obj_resists(obj, 10, 90)
+  if (defends('drli', obj) || defendsWhenCarried('drli', obj) || objResists(ctx, obj, 10, 90))
+    return false;
   // charge for the cost of the object
   if (byYou && it.carriedBy === ctx.state.playerId) costlyAlteration(ctx, obj, 'drain', null);
   it.spe--;
@@ -651,11 +673,36 @@ function adPhys(ctx: Ctx, magr: Entity, atk: AttackDef, mdef: Entity, mhm: Mhm, 
     return;
   }
   if (mwep) {
-    mhm.damage += dmgval(ctx.rng, mwep, ctx.defs.object(mwep.def), pd);
+    mhm.damage += dmgval(
+      ctx.rng,
+      mwep,
+      ctx.defs.object(mwep.def),
+      pd,
+      false,
+      (t) => specDbon(ctx, mwep, mdef.id, t).bonus,
+    );
     if (whichArmor(ctx, magr.id, 'gloves')?.def === 'nh:gauntlets_of_power')
       mhm.damage += ctx.rng.rn2(4) + 3; // rn1(4, 3): 3..6
-    if (mhm.damage < 1) mhm.damage = 1;
-    rustm(ctx, mdef, mwep); // `if (mhm->damage) rustm(mdef, mwep)`: damage is at least 1
+    if (mhm.damage < 1) mhm.damage = 1; // is this necessary?  mhitu.c has it...
+    if (mwep.c.item?.artifact !== undefined) {
+      // when magr's weapon is an artifact, hitmm() suppressed its usual 'hit' message in case
+      // artifact_hit() delivers one; now we'll know and might need to deliver the skipped one
+      const dmg = { n: mhm.damage };
+      if (!artifactHitHook(ctx, magr.id, mdef.id, mwep, dmg, mhm.dieroll)) {
+        if (env.vis) say(ctx, 'mhitm.hits', { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
+        mhm.hitflags |= M_ATTK.HIT;
+      }
+      mhm.damage = dmg.n;
+      // artifact_hit updates the damage but doesn't inflict any; however, it might cause carried
+      // items to be destroyed and they might do so
+      if (!alive(ctx, mdef.id)) {
+        const grew = env.growUp ? env.growUp(ctx, magr.id, mdef.c.monster?.level ?? 0) : true;
+        mhm.hitflags = M_ATTK.DEF_DIED | (grew ? 0 : M_ATTK.AGR_DIED);
+        mhm.done = true;
+        return;
+      }
+    }
+    if (mhm.damage) rustm(ctx, mdef, mwep);
   } else if (magr.def === 'nh:purple_worm' && mdef.def === 'nh:shrieker') {
     // "we don't want purple worm's bite attack to kill a shrieker because then it won't swallow
     // the corpse; but if the target survives, the subsequent engulf attack should accomplish that"
@@ -1353,6 +1400,7 @@ function adSlow(
     : isYou
       ? mgcAtkNegated(ctx, magr, false)
       : mgcAtkNegatedMon(ctx, magr, mdef, false, env.vis);
+  if (defended(ctx, mdef.id, 'slow')) return;
   if (isU(ctx, magr)) {
     if (!negated && mspeed(ctx, mdef.id) !== 'slow') {
       const oldspeed = mspeed(ctx, mdef.id);
@@ -1362,7 +1410,6 @@ function adSlow(
     }
     return;
   }
-  // defended(mdef, AD_SLOW): no artifacts
   if (isYou) {
     // HFast: the intrinsic or a timed speed, not speed boots
     const hfast = hasIntrinsic(mdef, P.FAST) || timeoutLeft(ctx.state, mdef, P.FAST) > 0;

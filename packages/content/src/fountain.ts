@@ -31,7 +31,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { A_LAWFUL } from './aligntyp';
-import { onameObj } from './artifact';
+import { onameObj } from './artiname';
 import { artifactRow } from './artilist';
 import { discoverArtifact, existArtifact } from './artistate';
 import { monsterIdAt } from './combat';

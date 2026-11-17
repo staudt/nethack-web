@@ -44,7 +44,7 @@ const corpseEater = (id: string): boolean =>
   id === 'nh:purple_worm' || id === 'nh:baby_purple_worm' || id === 'nh:ghoul';
 
 /** ref: src/zap.c obj_resists(otmp, 5, 95) */
-const resists5 = (ctx: Ctx, otmp: Entity): boolean => objResists(ctx, otmp, 5);
+const resists5 = (ctx: Ctx, otmp: Entity): boolean => objResists(ctx, otmp, 5, 95);
 
 const name = (ctx: Ctx, o: Entity): string => doname(ctx.state, ctx.defs, o) as never;
 

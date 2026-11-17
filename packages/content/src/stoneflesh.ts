@@ -3,8 +3,7 @@
 // wand into a meat stick, rocks and gems into meatballs. Sits under zap.ts.
 // ref: src/zap.c stone_to_flesh_obj()
 //
-// Not ported: the Heart of Ahriman (no artifacts: every object
-// resists 2 times in 100), saved monster traits, vegetarian conduct (the smell is always "the odor
+// Not ported: saved monster traits, vegetarian conduct (the smell is always "the odor
 // of meat": DEVIATIONS.md "Stone to flesh").
 import {
   cellIndex,
@@ -24,6 +23,7 @@ import { costlySpot } from './eshk';
 import { FIGURINE, stopFigTransform } from './figurinestate';
 import { makemon } from './generation';
 import { useup } from './magic';
+import { objResists } from './material';
 import { shopAt } from './revive';
 import { stolenValue } from './shk';
 import { vegetarian } from './mondata';
@@ -107,7 +107,7 @@ export function stoneToFleshObj(ctx: Ctx, obj: Entity): number {
   const od = ctx.defs.object(obj.def);
   if (od.material !== 'mineral' && od.material !== 'gemstone') return 0;
   // Heart of Ahriman usually resists; ordinary items rarely do: obj_resists(obj, 2, 98)
-  if (ctx.rng.rn2(100) < 2) return 0;
+  if (objResists(ctx, obj, 2, 98)) return 0;
   const at = objLocation(ctx, obj);
   if (!at) return 0;
   let res = 1;

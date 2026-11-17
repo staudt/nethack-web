@@ -15,7 +15,7 @@ import {
   type StepResult,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
-import { restrictName } from '../src/artifact';
+import { restrictName } from '../src/artiname';
 import {
   ARTIFACTS,
   DIP_ID,

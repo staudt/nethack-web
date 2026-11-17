@@ -3,8 +3,8 @@
 // ref: src/minion.c msummon(), dprince(), dlord(), ndemon(), monster_census(); src/mondata.c
 // msummon_environ()
 //
-// Not ported (no such monster or object here): Demonbane ("looks puzzled for a moment"),
-// minions and Angels (lminion(), llord(), the elementals), the endgame (dprince()/dlord() never
+// A demon cannot summon while the hero wields Demonbane ("looks puzzled for a moment").
+// Not ported (no such monster or object here): minions and Angels (lminion(), llord(), the elementals), the endgame (dprince()/dlord() never
 // try there). msummon(NULL) (summon nasties in Gehennom) summons as the Wizard of Yendor would.
 // Princes and lords absent from the monster table (a mod that removes them) count as gone
 // (G_GONE), as do genocided and extinct kinds (a unique is extinct once made). A game saved
@@ -21,7 +21,8 @@ import {
 } from '@nh/core';
 import { makemon } from './generation';
 import { canseemon } from './invis';
-import { isDlord, isDprince, isNdemon } from './mondata';
+import { uWieldArt } from './artistate';
+import { isDemon, isDlord, isDprince, isNdemon } from './mondata';
 import { monNam } from './perception';
 import { ndemon } from './roommon';
 import { deaths, isGone } from './vanquished';
@@ -146,6 +147,11 @@ export function monsterCensus(ctx: Pick<Ctx, 'state'>): number {
  */
 export function msummon(ctx: Ctx, mon: Entity | null): number {
   const ptr = mon ? ctx.defs.monster(mon.def) : null;
+  if (mon && ptr && uWieldArt(ctx.state, 'nh:demonbane') && isDemon(ptr)) {
+    if (canseemon(ctx, mon))
+      ctx.emit({ type: 'msg', key: 'minion.looks_puzzled', params: { mon: monNam(ctx, mon) } });
+    return 0;
+  }
   // (no priests or minions summon: the summoner is a demon); the Wizard is A_NONE
   const atyp = ptr ? Math.sign(ptr.alignment) : undefined;
   let dtype: DefId | null = null;

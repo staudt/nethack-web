@@ -148,6 +148,7 @@ export const museMessagesEn: Record<string, string> = {
   'muse.is_burned': '{mon|The} is burned{ex}',
   'muse.slime_burned_away': '{mon|The_s} slime is burned away!',
   'muse.reflect.what.shield': 'shield',
+  'muse.reflect.what.weapon': 'weapon',
   'muse.reflect.what.amulet': 'amulet',
   'muse.reflect.what.armor': 'armor',
   'muse.reflect.what.scales': 'scales',

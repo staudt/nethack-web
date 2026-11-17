@@ -18,6 +18,7 @@ import {
   type MonsterDef,
   type Pos,
 } from '@nh/core';
+import { uWieldArt } from './artistate';
 import { golemhp } from './golem';
 import { boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
@@ -615,11 +616,16 @@ export function makemon(
     giveWormTail(ctx, id, opts.noTail ? 0 : 'random');
   }
   // ref: makemon(): `is_dprince(ptr) && ptr->msound == MS_BRIBE`: Asmodeus and Baalzebub are born
-  // peaceful and invisible for good (no Excalibur or Demonbane here; no mavenge)
+  // peaceful and invisible for good, but not peaceful (nor tame) against a wielded Excalibur or
+  // Demonbane (no mavenge)
   if (mon && isDprince(mdef) && mdef.sound === 'bribe') {
     mon.peaceful = true;
     const e = ctx.state.entities[String(id)];
     if (e) setMinvis(ctx, e);
+    if (uWieldArt(ctx.state, 'nh:excalibur') || uWieldArt(ctx.state, 'nh:demonbane')) {
+      mon.peaceful = false;
+      delete mon.tame;
+    }
   }
   // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++` (no
   // Earth level: never his spellbook of dig)

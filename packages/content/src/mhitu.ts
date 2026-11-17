@@ -1,6 +1,7 @@
 // Monster attacks on the hero: damage and the special damage types, gazes and explosions.
 // ref: src/mhitu.c hitmu(), mdamageu(), magic_negation(), gazemu(), explmu(); src/uhitm.c
 // mhitm_adtyping() (the `mdef == &gy.youmonst` branches live in adtyping.ts)
+import { defended } from './artidef';
 import { ugolemeffects } from './golemfx';
 import {
   cellRules,
@@ -277,15 +278,16 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
  * blindness unless she cannot be blinded), a black light's hallucination. "The X explodes!"
  * first; "You seem unaffected by it." when she was not. Wakes monsters within 7 squares.
  * Aimed at a wrong guess (`ufound` false: she is invisible to it), "The X explodes at a spot in
- * thin air!" and she is not affected. ref: src/mhitu.c explmu() (no displacement, artifact
- * defense or polymorph forms)
+ * thin air!" and she is not affected. ref: src/mhitu.c explmu() (no displacement or polymorph
+ * forms)
  */
 export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): number {
   if (isCancelled(ctx, mon.id)) return M_ATTK.MISS;
   const hero = getPlayer(ctx.state);
   const at = mon.c.pos ? { ...mon.c.pos } : null;
   let killAgr = true;
-  let notAffected = false; // defended(mtmp, adtyp): no artifacts
+  // (C asks whether the exploding monster itself is defended against its own damage type)
+  let notAffected = defended(ctx, mon.id, atk.ad);
   const tmp = ctx.rng.d(atk.n, atk.d);
   const name = monNam(ctx, mon);
   if (!ufound)

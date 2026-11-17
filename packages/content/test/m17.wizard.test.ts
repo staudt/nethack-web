@@ -190,7 +190,7 @@ describe('the rows', () => {
     knowBook(s.state);
     const before = structuredClone(s.state.rng);
     run(s.state, (ctx) => {
-      expect(objResists(ctx, book, 0)).toBe(true);
+      expect(objResists(ctx, book, 0, 0)).toBe(true);
     });
     expect(s.state.rng).toEqual(before);
     const t1 = run(s.state, (ctx) => {

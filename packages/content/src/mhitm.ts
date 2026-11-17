@@ -28,7 +28,7 @@ import {
   type EntityId,
   type Msg,
 } from '@nh/core';
-import { hitval } from './combat';
+import { getmattk, hitval } from './combat';
 import { mondead, monkilled, mondied } from './mondeath';
 import { monExplodes } from './explode';
 
@@ -277,7 +277,10 @@ function hitmm(
                 : atk.at === 'hug' && ustuck(ctx) !== magr.id
                   ? 'squeezes'
                   : 'hits';
-    say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
+    // an artifact weapon's hit message waits for artifact_hit() (adtyping.ts adPhys)
+    const weaponhit = atk.at === 'weapon' || (atk.at === 'claw' && mwep !== null);
+    if (verb !== 'hits' || !weaponhit || mwep?.c.item?.artifact === undefined)
+      say(ctx, `mhitm.${verb}`, { magr: monNam(ctx, magr), mdef: monNam(ctx, mdef) });
     // ref: src/mhitm.c hitmm(): a silver weapon sears a silver-hater
     if (mwep && isSilver(ctx, mwep) && monHatesSilver(ctx, mdef))
       silverSearsMm(ctx, magr, mdef, mwep);
@@ -667,7 +670,7 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
   resetSkipdrin();
   for (let i = 0; i < pa.attacks.length; i++) {
     res[i] = M_ATTK.MISS;
-    const atk = pa.attacks[i];
+    const atk = getmattk(ctx, magr, i);
     if (!atk || skipsDrin(atk)) continue;
     // the target might no longer be there
     const at = mdef.c.pos;
@@ -707,7 +710,10 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
                 weapon: xnameOf(ctx.state, ctx.defs, mwep),
               });
             }
-            tmp += hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
+            tmp += hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def), {
+              ctx,
+              target: mdefId,
+            });
           }
         }
         if (atk.at === 'kick' && mtrappedInPit(ctx, magrId)) continue;
@@ -718,7 +724,12 @@ export function mattackm(ctx: Ctx, magrId: EntityId, mdefId: EntityId): number {
         const dieroll = ctx.rng.rnd(20 + i);
         strike = tmp > dieroll;
         // KMH -- don't accumulate to-hit bonuses
-        if (mwep) tmp -= hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def));
+        // (C's second hitval() draws the artifact's spec_abon() again)
+        if (mwep)
+          tmp -= hitval(mwep, ctx.defs.object(mwep.def), ctx.defs.monster(mdef.def), {
+            ctx,
+            target: mdefId,
+          });
         if (strike) {
           // for eel AT_TUCH+AD_WRAP attack: can't grab an unsolid target
           if (unsolid(ctx, mdef) && failedGrab(ctx, magr, mdef, atk, vis)) {

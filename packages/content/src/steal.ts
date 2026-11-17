@@ -4,8 +4,9 @@
 // unstolenarm(), stealarm(), remove_worn_item(), worn_item_removal(), steal(), mpickobj();
 // src/mhitu.c could_seduce() (doseduce() is seduce.ts)
 //
-// Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet() (no Amulet or
-// quest artifacts), ball and chain, leashes, boulders in inventory.
+// Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet()'s Amulet, Bell
+// and Candelabrum (not in the port), ball and chain, leashes, boulders in inventory.
+import { anyQuestArtifact } from './artistate';
 import { minstapetrify } from './stoning';
 import { petrifyingCorpse } from './stonetouch';
 import {
@@ -143,19 +144,31 @@ export function stealgold(ctx: Ctx, mon: Entity): void {
 const BOOK_OF_THE_DEAD = 'nh:book_of_the_dead';
 
 /**
- * The Wizard (or a quest nemesis) snatches the most valuable thing she has: of the Amulet, the
- * Bell, the Book of the Dead and the Candelabrum only the Book exists here (no quest artifacts),
- * so he takes the Book if she carries it, "The Wizard of Yendor steals the Book of the Dead!",
- * and teleports away (to the stairs: rloc()). ref: src/steal.c stealamulet() (the Book is never
- * worn or in a shop's bill: it cannot be bought)
+ * The Wizard (or a quest nemesis) snatches the most valuable thing she has: any role's quest
+ * artifact first (one at random of several), else of the Amulet, the Bell, the Book of the Dead
+ * and the Candelabrum only the Book exists here, so the Book if she carries it. Worn or wielded,
+ * it comes off first ("The Wizard of Yendor removes your amulet."); unpaid, it leaves the bill;
+ * "The Wizard of Yendor steals the Book of the Dead!", and he teleports away (rloc()).
+ * ref: src/steal.c stealamulet() (no quest artifact suits, shirts, gloves or rings: no outer gear
+ * comes off first)
  */
 export function stealamulet(ctx: Ctx, mon: Entity): void {
   const h = hero(ctx);
-  // (several Books: one at random, as C's `rnd(n)`)
-  const books = inventoryOf(ctx.state, h.id).filter((o) => o.def === BOOK_OF_THE_DEAD);
-  if (books.length === 0) return; // you have nothing of special interest
-  const otmp = books.length > 1 ? books[ctx.rng.rnd(books.length) - 1] : books[0];
+  const inv = inventoryOf(ctx.state, h.id);
+  // target every quest artifact, not just current role's; if hero has more than one, choose
+  // randomly so that player can't use inventory ordering to influence the theft
+  let picks = inv.filter((o) => anyQuestArtifact(o));
+  // if we didn't find any quest artifact, find another valuable item
+  if (picks.length === 0) picks = inv.filter((o) => o.def === BOOK_OF_THE_DEAD);
+  if (picks.length === 0) return; // you have nothing of special interest
+  const otmp = picks.length > 1 ? picks[ctx.rng.rnd(picks.length) - 1] : picks[picks.length - 1];
   if (!otmp) return;
+  // finally, steal the target item
+  if (otmp.c.item?.equipped) wornItemRemoval(ctx, mon, otmp);
+  if (otmp.c.item?.unpaid) {
+    const shk = heroShk(ctx);
+    if (shk !== null) subfrombill(ctx, otmp, shk);
+  }
   removeFromInventory(ctx, otmp.id); // freeinv()
   const item = doname(ctx.state, ctx.defs, otmp);
   mpickobj(ctx, mon.id, otmp);
