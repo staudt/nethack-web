@@ -9,7 +9,11 @@
 // and act as on land (DEVIATIONS "Water"). Lava burns her up, or (fire resistant) she sinks into
 // it and must pull herself out. ref: src/trap.c lava_effects(), sink_into_lava()
 //
-// Not ported: steeds, leashes, the ball and chain, the Plane of Water, a ceiling-hiding form, the
+// On the Plane of Water there is no surface: she stays in the water whatever holds her up, pops
+// into an air bubble when she leaves it, never touches bottom and crawls out without dropping
+// anything (m23 step 10).
+//
+// Not ported: steeds, leashes, the ball and chain, a ceiling-hiding form, the
 // teleport-away spell route and check_capacity() of dotele(), a polymorphed gremlin multiplying,
 // switch_terrain() (walls of water and lava do not block levitation and flight: they are entered
 // whatever holds her up), hallucinatory liquids.
@@ -49,7 +53,8 @@ import { P, hasProp, setItimeout, timeoutLeft, wornIn } from './props';
 import { invWeight, nearCapacity, weightCap } from './stats';
 import { removeWornItem } from './steal';
 import { noteleportLevel, goodposHero, SOKOBAN_DUNGEON } from './teleport';
-import { surfaceKey } from './terrain';
+import { isWaterLevel } from './levelflags';
+import { T, surfaceKey, terrainIdAt } from './terrain';
 import { safeTeleds, teleds } from './trap';
 import { XDIR, YDIR, flying, levitating, setUtrap, takeUmoved, utrap } from './trapstate';
 import { pwOf, setPw } from './uenergy';
@@ -176,13 +181,23 @@ export function backOnGround(ctx: Ctx, rescued: boolean): void {
 
 /**
  * Life saving got her out of the water: "You find yourself on top of water." when she is still
- * on a pool (in the midst of a wall of water), else back on the ground.
+ * on a pool (in the midst of a wall of water or the Plane of Water's water), "You find yourself
+ * in an air bubble." (in mid air) in the air, else back on the ground.
  * ref: src/trap.c rescued_from_terrain(DROWNING)
  */
 function rescuedFromDrowning(ctx: Ctx): void {
   const { level, x, y } = heroAt(ctx);
+  const t = terrainIdAt(level, x, y);
   if (isPool(ctx, level, x, y))
-    say(ctx, isWaterwall(ctx, level, x, y) ? 'liquid.find_midst' : 'liquid.find_on_top');
+    say(
+      ctx,
+      isWaterLevel(ctx.state, level) || isWaterwall(ctx, level, x, y)
+        ? 'liquid.find_midst'
+        : 'liquid.find_on_top',
+    );
+  else if (t === T.air || t === T.cloud)
+    // IS_AIR()
+    say(ctx, isWaterLevel(ctx.state, level) ? 'bubbles.find_in_bubble' : 'bubbles.find_in_mid_air');
   else backOnGround(ctx, true);
 }
 
@@ -197,17 +212,21 @@ function rescuedFromDrowning(ctx: Ctx): void {
  * `newspot`: she just arrived (spoteffects()); else the check of a turn spent in place; `from`:
  * the square she stepped from. True when she moved while surviving, so the rest of
  * spoteffects() is skipped.
- * ref: src/hack.c pooleffects() (no steed, ceiling hiders or Plane of Water)
+ * On the Plane of Water she stays in the water ("You pop into an air bubble." out of it).
+ * ref: src/hack.c pooleffects() (no steed or ceiling hiders)
  */
 export function pooleffects(ctx: Ctx, newspot: boolean, from?: Pos): boolean {
   const { level, x, y } = heroAt(ctx);
+  const waterLevel = isWaterLevel(ctx.state, level);
   // check for leaving water
   if (uinwater(ctx)) {
     let stillInwater = false;
     if (!isPool(ctx, level, x, y)) {
-      if (isLava(ctx, level, x, y)) say(ctx, 'liquid.leave_water');
+      if (waterLevel) say(ctx, 'bubbles.pop_into_bubble');
+      else if (isLava(ctx, level, x, y)) say(ctx, 'liquid.leave_water');
       else backOnGround(ctx, false);
-    } else if (levitating(ctx)) say(ctx, 'liquid.pop_out');
+    } else if (waterLevel) stillInwater = true;
+    else if (levitating(ctx)) say(ctx, 'liquid.pop_out');
     else if (flying(ctx)) say(ctx, 'liquid.fly_out');
     else if (wwalking(ctx)) say(ctx, 'liquid.rise_above');
     else stillInwater = true;
@@ -450,7 +469,8 @@ export function drown(ctx: Ctx, from?: Pos): boolean {
   if (safe) {
     if (amphibious(ctx) || breathless(ctx)) {
       say(ctx, 'liquid.not_drowning');
-      say(ctx, hasProp(h, P.HALLUC) ? 'liquid.keel' : 'liquid.touch_bottom');
+      if (!isWaterLevel(ctx.state, level))
+        say(ctx, hasProp(h, P.HALLUC) ? 'liquid.keel' : 'liquid.touch_bottom');
     }
     setUinwater(ctx, true);
     return false;
@@ -464,7 +484,9 @@ export function drown(ctx: Ctx, from?: Pos): boolean {
   const to = canCrawl(ctx) ? rndNexttoGoodpos(ctx, here.level, here.x, here.y) : null;
   if (to) {
     // time to do some strip-tease...
-    const { ok, lost } = emergencyDisrobe(ctx);
+    const { ok, lost } = isWaterLevel(ctx.state, here.level)
+      ? { ok: true, lost: false }
+      : emergencyDisrobe(ctx);
     say(ctx, 'liquid.crawl');
     if (lost) say(ctx, 'liquid.dump_gear');
     if (ok) {

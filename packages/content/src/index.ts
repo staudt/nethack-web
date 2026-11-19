@@ -46,6 +46,8 @@ import { registerShops } from './shknam';
 import { registerZoo } from './zoo';
 import { registerVault } from './vault';
 import { registerHarass } from './harass';
+import { registerBubbles } from './bubbles';
+import { registerStorms } from './storms';
 import { registerSeduce } from './seduce';
 import { registerDemonTalk } from './demontalk';
 import { registerAmuletWish } from './wish';
@@ -191,6 +193,7 @@ export const vanillaMod: Mod = {
     registerRevive(api);
     setReviveRloc(rlocMon); // a Rider bumps a monster off its corpse (revive_mon())
     setReviveCorpse(reviveCorpse); // a Rider's corpse handled (rider_corpse_revival())
+    registerStorms(api); // do_storms() before gethungry(), as moveloop_core()
     registerHunger(api);
     registerEat(api);
     registerEnd(api);
@@ -231,6 +234,7 @@ export const vanillaMod: Mod = {
     registerZoo(api); // likewise
     registerVault(api); // likewise; the vault is the last room
     registerHarass(api); // amulet(), after invault() by priority
+    registerBubbles(api); // movebubbles() after the harassment by priority; after the pets arrive
     registerRooms(api); // after the pets arrive, as goto_level()
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
     registerGehennom(api); // the passtune right after the layout; Gehennom's arrival message

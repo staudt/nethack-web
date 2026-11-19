@@ -90,7 +90,15 @@ import { mksobj, placeOnFloor } from './items';
 import { luckOf } from './luck';
 import { greatestErosion } from './material';
 import { xnameOf } from './objnam';
-import { canDigDown, cavernous, isEarthLevel, levelFlags, nonDiggable } from './levelflags';
+import {
+  canDigDown,
+  cavernous,
+  isAirLevel,
+  isEarthLevel,
+  isWaterLevel,
+  levelFlags,
+  nonDiggable,
+} from './levelflags';
 import { undestroyableTrap } from './invocation';
 import { isAxe, isPick, mayDig, wallDugTo } from './mdig';
 import { migrateToLevel } from './migrate';
@@ -697,9 +705,11 @@ export function digTyp(ctx: Ctx, pick: Entity, level: Level, x: number, y: numbe
   return isObstructedId(id) ? 'rock' : 'undiggable';
 }
 
-/** ref: src/dig.c enum digcheck_result (no ladders, air or water levels) */
+/** ref: src/dig.c enum digcheck_result */
 export type DigCheck =
   | 'passed'
+  | 'airlevel'
+  | 'waterlevel'
   | 'pitonly'
   | 'destroytrap'
   | 'ladder'
@@ -722,6 +732,8 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
   if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
   if (id === T.throne && !byObject) return 'throne';
   if (isAltarId(id) && (!byObject || isHighAltar(ctx, level, x, y))) return 'altar';
+  if (isAirLevel(ctx.state, level)) return 'airlevel';
+  if (isWaterLevel(ctx.state, level)) return 'waterlevel';
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
   // a grave is not dug up (dig_up_grave() is not ported: DEVIATIONS.md "Graves")
   if (id === T.grave) return 'toohard';
@@ -739,6 +751,8 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
 /** ref: src/dig.c digcheck_fail_message() (a pick: "dig in") */
 function digcheckFailMessage(ctx: Ctx, r: DigCheck, level: Level, x: number, y: number): void {
   if (r === 'throne') say(ctx, 'dig.throne_too_hard');
+  else if (r === 'airlevel') say(ctx, 'dig.cannot_dig_air');
+  else if (r === 'waterlevel') say(ctx, 'dig.water_splashes');
   else if (r === 'altar') say(ctx, 'dig.altar_too_hard');
   else if (r === 'boulder') say(ctx, 'dig.no_room');
   else if (r === 'ladder') say(ctx, 'dig.ladder_resists');
@@ -1137,6 +1151,11 @@ export function usePickAxe2(ctx: Ctx, pick: Entity, dir: DigDir): number {
   }
   // down
   const surface = surfaceKey(ctx, level, hp.x, hp.y);
+  if (isAirLevel(ctx.state, level) || isWaterLevel(ctx.state, level)) {
+    // it must be air -- water checked above
+    say(ctx, 'dig.thin_air', { pick: xnameOf(ctx.state, ctx.defs, pick) });
+    return NORMAL_SPEED;
+  }
   if (levitating(ctx)) {
     say(ctx, 'lev.cant_reach_floor', { surface });
     return NORMAL_SPEED;

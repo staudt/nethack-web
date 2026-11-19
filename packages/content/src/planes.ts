@@ -1,19 +1,21 @@
 // The Elemental Planes: the endgame dungeon above DL1, entered only with the Amulet of Yendor by
-// DL1's up stairs (endgame.ts). Earth, Fire and Air are their scripts; Water is plain lit air
-// until m23 step 10 builds its bubbles (DEVIATIONS "The Planes"), the Astral Plane is astral.ts's
-// and the dummy level below Earth is a stand-in (lit open floor). Each level's portal
+// DL1's up stairs (endgame.ts). Earth, Fire, Air and Water are their scripts (Water's bubbles and
+// Air's clouds are bubbles.ts's, made by the fixup before the portal as fixup_special() does), the
+// Astral Plane is astral.ts's and the dummy level below Earth is a stand-in (lit open floor). Each level's portal
 // leads to the next plane up (Earth -> Air -> Fire -> Water -> Astral), placed at a random spot of
 // its des.levregion() by the fixup, after the script, as fixup_special() does; travellers
 // arrive at a random spot of the next level's teleport region (endgame.ts). The planes have no
 // stairs: the stairs core makes (at fixed spots here, so that they cost no draws) are lifted.
 // The level flags ("mazelevel", "noteleport", "hardfloor", "shortsighted") are levelflags.ts
-// entries; Fire's "hot" and "fumaroles" and Air's "stormy" are not modelled (no gas clouds).
+// entries; Fire's "hot" and "fumaroles" are not modelled (no gas clouds); Air's "stormy" is
+// storms.ts's.
 // ref: dat/dungeon.lua "The Elemental Planes"; dat/earth.lua, fire.lua, air.lua, water.lua;
 // src/mkmaze.c fixup_special() (LR_PORTAL), place_lregion(), mkportal()
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
 import { ASTRAL, astralBefore, astralContents } from './astral';
 import { PLANES, PLANE_LEVELS } from './levelflags';
 import { MAGIC_PORTAL, portalData } from './portal';
+import { setupWaterlevel } from './bubbles';
 import { mapToLevel, placeLregion, type SpLevFixup } from './sp_lev';
 import { T, setTerrain } from './terrain';
 import { maketrap } from './trap';
@@ -33,6 +35,7 @@ const hostile = (id: string, x?: number, y?: number): LevelContent => ({
   peaceful: false,
 });
 const cls = (c: string): LevelContent => ({ kind: 'monster', class: c });
+const times = (n: number, c: LevelContent): LevelContent[] => Array.from({ length: n }, () => c);
 const FIRE_TRAP: LevelContent = { kind: 'trap', id: 'nh:fire_trap' };
 const BOULDER: LevelContent = { kind: 'object', id: 'nh:boulder' };
 
@@ -94,8 +97,10 @@ const FIRE_MAP: readonly string[] = [
   'L.....LLL......................LLLLL.........L.........LLLLLLLL..............LL',
 ];
 
-/** The 76 x 20 map block of Air and Water: all air (C's 'A' and, for Water, 'W'). */
+/** ref: dat/air.lua des.map(): 76 x 20 of air */
 const AIR_MAP: readonly string[] = Array.from({ length: 20 }, () => 'A'.repeat(76));
+/** ref: dat/water.lua des.map(): 76 x 20 of water */
+const WATER_MAP: readonly string[] = Array.from({ length: 20 }, () => 'W'.repeat(76));
 
 /** The Plane of Earth. ref: dat/earth.lua */
 export const EARTH: LevelDef = {
@@ -293,11 +298,11 @@ export const FIRE: LevelDef = {
   ],
 };
 
-/** The Plane of Air, without its clouds until m23 step 10. ref: dat/air.lua */
+/** The Plane of Air (its clouds are bubbles.ts's). ref: dat/air.lua */
 export const AIR: LevelDef = {
   id: PLANE_LEVELS.air,
-  // setup_waterlevel(): the stone around the map becomes air too
-  init: { style: 'solidfill', fg: 'nh:air', lit: true },
+  // setup_waterlevel() turns the stone around the map into air
+  init: { style: 'solidfill', fg: 'nh:stone', lit: true },
   map: { rows: [...AIR_MAP], lit: true },
   stairs: STAIR_SPOTS(0, 0),
   teleportRegions: [
@@ -371,15 +376,28 @@ export const AIR: LevelDef = {
 };
 
 /**
- * The Plane of Water as plain lit air until m23 step 10 makes its water and bubbles (and its
- * monsters, swimmers made in the water, and its arrival line). ref: dat/water.lua
+ * The Plane of Water: water everywhere but in its air bubbles (bubbles.ts, made by the fixup),
+ * "A fisherman's dream...". ref: dat/water.lua
  */
 export const WATER: LevelDef = {
   id: PLANE_LEVELS.water,
-  init: { style: 'solidfill', fg: 'nh:air', lit: true },
-  map: { rows: [...AIR_MAP], lit: true },
+  // setup_waterlevel() turns the stone around the map into water
+  init: { style: 'solidfill', fg: 'nh:stone' },
+  map: { rows: [...WATER_MAP] },
   stairs: STAIR_SPOTS(0, 0),
   teleportRegions: [{ area: [0, 0, 25, 19] }],
+  contents: [
+    // A fisherman's dream...
+    ...times(8, mon('nh:giant_eel')),
+    ...times(8, mon('nh:electric_eel')),
+    ...times(9, mon('nh:kraken')),
+    ...times(4, mon('nh:shark')),
+    ...times(4, mon('nh:piranha')),
+    ...times(4, mon('nh:jellyfish')),
+    ...times(4, cls(';')),
+    // These guys feel like home here
+    ...times(19, hostile('nh:water_elemental')),
+  ],
 };
 
 /** The Planes' levels made from their scripts (dungeon.ts). */
@@ -440,12 +458,17 @@ function placePlanePortal(ctx: Ctx, level: Level, def: LevelDef): void {
   t.data = portalData({ dungeon: PLANES, dlevel: sp.dlevel });
 }
 
-/** A plane's fixup: no stairs; the portal after the script. */
+/**
+ * A plane's fixup: no stairs; after the script, Water's and Air's element and bubbles
+ * ("water level is an odd beast - it has to be set up before calling place_lregions etc."),
+ * then the portal. ref: src/mkmaze.c fixup_special()
+ */
 const planeFixup = (restore: DefId): SpLevFixup => ({
   before(_ctx, level) {
     liftPlaneStairs(level, restore);
   },
   after(ctx, level, def) {
+    setupWaterlevel(ctx, level);
     placePlanePortal(ctx, level, def);
   },
 });
@@ -455,8 +478,8 @@ export const PLANE_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [PLANE_STANDIN.id]: planeFixup(T.floor),
   [EARTH.id]: planeFixup(T.stone),
   [FIRE.id]: planeFixup(T.floor),
-  [AIR.id]: planeFixup(T.air),
-  [WATER.id]: planeFixup(T.air),
+  [AIR.id]: planeFixup(T.stone),
+  [WATER.id]: planeFixup(T.stone),
   // no portal: the Astral Plane is the top
   [ASTRAL.id]: {
     before(ctx, level, def) {

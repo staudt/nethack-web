@@ -74,8 +74,8 @@ export interface PlaneMessage {
 }
 
 /**
- * The des.message() lines each plane says on the hero's first arrival, by LevelDef id (Water's
- * waits for its bubbles: m23 step 10). ref: dat/earth.lua, air.lua, astral.lua; src/do.c
+ * The des.message() lines each plane says on the hero's first arrival, by LevelDef id.
+ * ref: dat/earth.lua, air.lua, water.lua, astral.lua; src/do.c
  * goto_level() deliver_splev_message()
  */
 export const PLANE_MESSAGES: Readonly<Record<DefId, readonly PlaneMessage[]>> = {
@@ -85,6 +85,7 @@ export const PLANE_MESSAGES: Readonly<Record<DefId, readonly PlaneMessage[]>> = 
     { key: 'planes.earth_3' },
   ],
   [PLANE_LEVELS.air]: [{ key: 'planes.air_1' }, { key: 'planes.air_2' }],
+  [PLANE_LEVELS.water]: [{ key: 'planes.water_1' }],
   [PLANE_LEVELS.astral]: [
     { key: 'planes.astral_1' },
     { key: 'planes.astral_2', god: true },

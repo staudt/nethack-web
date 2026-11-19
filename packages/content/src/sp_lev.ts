@@ -44,7 +44,7 @@ import { newcham } from './newcham';
 import { yourRace } from './race';
 import { raceIs } from './urole';
 import { polyWhenStoned } from './golem';
-import { levelFlags } from './levelflags';
+import { isWaterLevel, levelFlags } from './levelflags';
 import { isLava, isPool } from './liquid';
 import { setMappearance } from './mimicstate';
 import { protFromShapeChangers } from './props';
@@ -168,9 +168,10 @@ function pmToHumidity(def: MonsterDef | null): number {
 /**
  * Rock (stone, walls, trees, secret doors and corridors: below POOL in C's terrain order) for
  * SOLID, DRY ground (a boulder only with SOLID), water for WET, lava for HOT.
- * ref: src/sp_lev.c is_ok_location()
+ * ref: src/sp_lev.c is_ok_location() (any spot on the Plane of Water)
  */
 function isOkLocation(ctx: Ctx, level: Level, p: Pos, humidity: number): boolean {
+  if (isWaterLevel(ctx.state, level)) return true; // accept any spot
   const id = level.palette[level.cells[cellIndex(level, p.x, p.y)] ?? -1];
   if (id === undefined) return false;
   const t = ctx.defs.terrain(id);

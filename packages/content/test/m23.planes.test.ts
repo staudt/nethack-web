@@ -1,11 +1,11 @@
 // m23 step 7: the endgame, Earth and Fire. Climbing out of DL1 (the up stairs, a cursed potion of
 // gain level) with the Amulet of Yendor onto the Plane of Earth ("Well done, mortal!", the
-// Wizard back), the Planes' builds (earth.lua, fire.lua, air.lua; Water as plain air until step
-// 10), their portals (Earth -> Air -> Fire -> Water -> Astral, arriving in the next level's
-// teleport region; nothing happens without the Amulet), monsters and portals on the Planes, the
-// endgame's rules (no level teleport, no rising up, no Elbereth, the status line's place),
-// makemon()'s elemental planes, the salamander and the fire and steam vortices. Outcomes over
-// seeds.
+// Wizard back), the Planes' builds (earth.lua, fire.lua, air.lua, water.lua; the bubbles are
+// m23.bubbles.test.ts's), their portals (Earth -> Air -> Fire -> Water -> Astral, arriving in
+// the next level's teleport region; nothing happens without the Amulet), monsters and portals on
+// the Planes, the endgame's rules (no level teleport, no rising up, no Elbereth, the status
+// line's place), makemon()'s elemental planes, the salamander and the fire and steam vortices.
+// Outcomes over seeds.
 // ref: src/do.c doup(), goto_level(); src/dungeon.c prev_level(), Can_rise_up();
 // src/teleport.c domagicportal(), mlevel_tele_trap(), level_tele_trap(); src/dog.c mon_arrive();
 // src/makemon.c makemon(), rndmonst_adj(), wrong_elem_type(), is_home_elemental(), newmonhp();
@@ -265,7 +265,7 @@ describe('the planes', () => {
     expect(buildSnapshot(engine.registry, state).status['place']).toBe('status.plane_fire');
   });
 
-  test('Air and Water: open air everywhere (Water until step 10), their portals', () => {
+  test('Air and Water: air with clouds, water with air bubbles (step 10), their portals', () => {
     const state = game(10);
     giveAmulet(state);
     const t = goPlane(state, 'air');
@@ -276,14 +276,27 @@ describe('the planes', () => {
     ]);
     const air = getLevel(state);
     expect(air.def).toBe(AIR.id);
-    expect(air.cells.every((c) => air.palette[c] === T.air)).toBe(true);
+    // column 0 is stone (not on C's map); the rest air and clouds
+    expect(
+      air.cells.every((c, i) =>
+        i % air.width === 0
+          ? air.palette[c] === T.stone
+          : air.palette[c] === T.air || air.palette[c] === T.cloud,
+      ),
+    ).toBe(true);
     expect(portalDest(findPortal(air)!)).toEqual(planeRef(state, 'fire'));
     expect(monsOn(state, air).filter((m) => m.def === 'nh:air_elemental').length).toBeGreaterThan(
       0,
     );
     goPlane(state, 'water');
     const water = getLevel(state);
-    expect(water.cells.every((c) => water.palette[c] === T.air)).toBe(true);
+    expect(
+      water.cells.every((c, i) =>
+        i % water.width === 0
+          ? water.palette[c] === T.stone
+          : water.palette[c] === T.air || water.palette[c] === T.water,
+      ),
+    ).toBe(true);
     expect(portalDest(findPortal(water)!)).toEqual(planeRef(state, 'astral'));
   });
 });

@@ -37,6 +37,7 @@ import { eshkOf, inhishop } from './eshk';
 import {
   dngBottom,
   dungeonBottom,
+  inEndgame,
   inHell,
   inWTower,
   levelFlags,
@@ -526,8 +527,8 @@ export function rlocEngr(
  * (no teleport), else `rn2(cur + 3 - min) + min` skipping the current depth, kept within the
  * dungeon (from depth 1 to its bottom; DUNGEON_BOTTOM for an old game's endless main dungeon, as
  * for holes; in Gehennom the invocation level, the Sanctum being out of reach).
- * On Fort Ludios it stays (after the draw). ref: src/teleport.c random_teleport_level() (no quest or
- * endgame)
+ * On Fort Ludios and the Planes it stays (after the draw). ref: src/teleport.c
+ * random_teleport_level() (no quest)
  */
 export function randomTeleportLevel(
   ctx: Pick<Ctx, 'state' | 'rng'>,
@@ -535,8 +536,9 @@ export function randomTeleportLevel(
 ): number {
   const layout = dungeonLayout(ctx.state, level.dungeon);
   const curDepth = layout.depthStart + level.dlevel - 1;
-  // (and none from Fort Ludios, the only single-level branch)
-  if (!ctx.rng.rn2(5) || singleLevelBranch(level)) return curDepth;
+  // (and none from Fort Ludios, the only single-level branch, or on the Planes, whose depths are
+  // 0 and below: the caller says "disoriented" there)
+  if (!ctx.rng.rn2(5) || singleLevelBranch(level) || inEndgame(ctx.state, level)) return curDepth;
   const minDepth = 1;
   // "can't reach Sanctum if the invocation hasn't been performed"
   const bottom = dngBottom(ctx.state, level);

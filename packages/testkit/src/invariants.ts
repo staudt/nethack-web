@@ -228,6 +228,8 @@ function checkArtifacts(state: GameState, ids: readonly number[], errs: string[]
 const IRON_BARS = 'nh:iron_bars';
 /** Fort Ludios's dungeon (content levelflags.ts LUDIOS). */
 const LUDIOS = 'nh:ludios';
+/** The Elemental Planes: entered from DL1's up stairs with the Amulet, no stairs back (m23). */
+const PLANES = 'nh:planes';
 
 /** Returns a list of violated invariants; empty means the state is healthy. */
 export function checkInvariants(
@@ -1277,8 +1279,9 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
         (child === lv.dungeon && lv.dlevel === entryOf.get(child)),
     );
     // Fort Ludios's way back is a magic portal, not stairs (its branch floats: m21), which
-    // checkLudios() checks
-    if (wanted && !lv.branch && wanted[0] !== LUDIOS)
+    // checkLudios() checks; the Planes have no way back at all (dungeon.lua's "no_down":
+    // C's BR_NO_END2, the plane's stairs lifted by its fixup)
+    if (wanted && !lv.branch && wanted[0] !== LUDIOS && wanted[0] !== PLANES)
       errs.push(`level ${lid}: the layout's branch stairs are missing`);
   }
 }

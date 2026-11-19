@@ -5,9 +5,10 @@
 //
 // `modData.nh.uinwater` is written only while she is in the water, so dry games keep their
 // state. Her form is the polymorphed form, else her own (a human: no swimming).
-// Not ported: steeds, the Plane of Water (Wwalking is never cancelled there), the swimming
-// intrinsic from anything but a form (HSwimming has no other source here).
+// Not ported: steeds, the swimming intrinsic from anything but a form (HSwimming has no other
+// source here).
 import { getPlayer, type Ctx, type Json } from '@nh/core';
+import { isWaterLevel } from './levelflags';
 import { isKnown } from './o_init';
 import { P, hasProp, wornIn } from './props';
 import { flying, levitating } from './trapstate';
@@ -44,8 +45,9 @@ export const breathless = (ctx: SD): boolean =>
 /** ref: youprop.h Amphibious: magical breathing or an amphibious (or breathless) form */
 export const amphibious = (ctx: SD): boolean => breathless(ctx) || formHas(ctx, 'amphibious');
 
-/** ref: youprop.h Wwalking (worn water walking boots; no Plane of Water) */
-export const wwalking = (ctx: S): boolean => hasProp(getPlayer(ctx.state), P.WWALKING);
+/** ref: youprop.h Wwalking (worn water walking boots; never on the Plane of Water) */
+export const wwalking = (ctx: S): boolean =>
+  hasProp(getPlayer(ctx.state), P.WWALKING) && !isWaterLevel(ctx.state);
 
 /** ref: youprop.h Known_wwalking: worn water walking boots she knows by name (no steed) */
 export const knownWwalking = (ctx: SD): boolean =>

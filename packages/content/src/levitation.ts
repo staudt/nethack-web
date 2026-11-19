@@ -46,6 +46,7 @@ import {
   setTimeoutExpiry,
   timeoutLeft,
 } from './props';
+import { isAirLevel, isWaterLevel } from './levelflags';
 import { isSokoban } from './sokoban';
 import { surfaceKey } from './terrain';
 import { flying, levAtWillFlag, levitating, setLevAtWill, setUtrap, utrap } from './trapstate';
@@ -98,7 +99,8 @@ export function floatingAbove(ctx: Ctx, what: string): void {
 /**
  * The hero starts to float: out of a pit, or held by a bear trap's jaws or a web (which block the
  * levitation until she is free), else "You start to float in the air!". Levitation gives the
- * maximum carrying capacity. ref: src/trap.c float_up()
+ * maximum carrying capacity; on the Plane of Air "You gain control over your movements.".
+ * ref: src/trap.c float_up()
  */
 export function floatUp(ctx: Ctx): void {
   const u = utrap(ctx);
@@ -119,6 +121,8 @@ export function floatUp(ctx: Ctx): void {
     poolEffects(ctx, true); // spoteffects(TRUE): "You pop out of the water like a cork!"
   } else if (hasProp(hero(ctx), P.HALLUC)) {
     say(ctx, 'lev.up_up_away');
+  } else if (isAirLevel(ctx.state)) {
+    say(ctx, 'bubbles.gain_control');
   } else {
     say(ctx, 'lev.start_to_float');
   }
@@ -128,9 +132,10 @@ export function floatUp(ctx: Ctx): void {
 /**
  * The hero stops floating (the ring is off): unless something still holds her up she comes down
  * (a sticky monster lets go; over water she cannot walk on she falls in: drown(); in Sokoban the
- * air currents knock her over), the trap here goes off unless she is already in it (a hole or
- * trap door only where there is a level below), then she sees what is on the floor. False
- * when she was not floating after all. `timed` is C's hmask `I_SPECIAL | TIMEOUT`: the potion's
+ * air currents knock her over; on the Plane of Air "You begin to tumble in place.", on Water
+ * "You feel heavier."), the trap here goes off unless she is already in it (a hole or trap door
+ * only where there is a level below), then she sees what is on the floor (not on Air or Water).
+ * False when she was not floating after all. `timed` is C's hmask `I_SPECIAL | TIMEOUT`: the potion's
  * levitation and its at-will bit end first; `arti` is C's emask W_ARTI: an invoked artifact's
  * levitation ends too.
  * ref: src/trap.c float_down()
@@ -184,7 +189,11 @@ export function floatDown(ctx: Ctx, timed = false, arti = false): boolean {
   if (!p) return true;
   const level = getLevel(ctx.state, p.level);
   const trap = trapAt(level, p.x, p.y);
-  if (uinwater(ctx) || noMsg) {
+  if (isAirLevel(ctx.state, level)) {
+    say(ctx, 'bubbles.begin_to_tumble');
+  } else if (isWaterLevel(ctx.state, level) && !noMsg) {
+    say(ctx, 'bubbles.feel_heavier');
+  } else if (uinwater(ctx) || noMsg) {
     // u.uinwater messages already in drown()
   } else if (isSokoban(level) && trap) {
     // the additional force of the air currents knocks her off her feet (no selftouch())
@@ -199,8 +208,14 @@ export function floatDown(ctx: Ctx, timed = false, arti = false): boolean {
   if (ctx.state.gameOver) return true;
   const levelId = p.level;
   if (trap && floatDownTrap) floatDownTrap(ctx, trap);
-  // falling through a trap door does its own pickup(1)
-  if (!ctx.state.gameOver && hero(ctx).c.pos?.level === levelId) lookHere(ctx);
+  // falling through a trap door does its own pickup(1); nothing to pick up in the air or water
+  if (
+    !ctx.state.gameOver &&
+    hero(ctx).c.pos?.level === levelId &&
+    !isAirLevel(ctx.state, level) &&
+    !isWaterLevel(ctx.state, level)
+  )
+    lookHere(ctx);
   return true;
 }
 

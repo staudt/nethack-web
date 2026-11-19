@@ -7,6 +7,7 @@
 // landing). Not ported: steeds, the Plane of Water (no "above the surface" there), vampire
 // shapeshifters reverting in the air, deal_with_overcrowding() (a monster with nowhere to go
 // stays where it is), the "You have a sad feeling" for an unseen pet (iflags.sad_feeling).
+import { isWaterLevel } from './levelflags';
 import { type Ctx, type Entity, type Msg } from '@nh/core';
 import { fireDamageChain } from './flooreffects';
 import { dryup, setGushMinliquid } from './fountain';
@@ -166,9 +167,9 @@ export function minliquid(ctx: Ctx, mon: Entity, monMoving = true): 0 | 1 {
       }
       return 1;
     }
-  } else if (isEel(def) && !breathlessMon(def)) {
-    // but eels have a difficult time outside; as mhp gets lower, the rate of further loss
-    // slows down
+  } else if (isEel(def) && !(level && isWaterLevel(ctx.state, level)) && !breathlessMon(def)) {
+    // but eels have a difficult time outside (not in the Plane of Water's bubbles); as mhp gets
+    // lower, the rate of further loss slows down
     const hp = mon.c.hp;
     if (hp && hp.cur > 1 && ctx.rng.rn2(hp.cur) > ctx.rng.rn2(8)) hp.cur--;
     monflee(ctx, mon.id, 2, false, false);

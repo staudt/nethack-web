@@ -30,6 +30,7 @@ import { mApType, seemimic } from './mimicstate';
 import { stumbleOnDoorMimic } from './mimic';
 import { heroAttack, monsterIdAt } from './combat';
 import { escapeFromStickyMon, impairedDir, ustuck } from './hackmove';
+import { airTurbulence, maybeAdjustHeroBubble, waterTurbulence } from './bubbles';
 import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
 import { maybeSmudgeEngr } from './engr';
@@ -462,8 +463,12 @@ const fight: ActionDef = {
     if (!want) return 0;
     const swallowed = attackEngulfer(ctx);
     if (swallowed !== null) return swallowed;
+    if (airTurbulence(ctx)) return NORMAL_SPEED;
     slipperyIceFumbling(ctx); // check slippery ice
-    const dir = impairedDir(ctx, want);
+    const want2 = impairedDir(ctx, want);
+    if (want2 === null) return NORMAL_SPEED;
+    // turbulence might alter your actual destination
+    const dir = waterTurbulence(ctx, want2, DIRS[want2]);
     if (dir === null) return NORMAL_SPEED;
     const from = playerAt(ctx);
     const to = { x: from.x + DIRS[dir].x, y: from.y + DIRS[dir].y };
@@ -547,11 +552,14 @@ const move: ActionDef = {
     const from = { x: pos.x, y: pos.y };
     const swallowed = attackEngulfer(ctx);
     if (swallowed !== null) return swallowed;
-    // ref: src/hack.c domove_core(): slippery_ice_fumbling(), impaired_movement() picks a
-    // random direction when stunned (and the move is lost if none is found), then
-    // escape_from_sticky_mon()
+    // ref: src/hack.c domove_core(): air_turbulence() on the Plane of Air,
+    // slippery_ice_fumbling(), impaired_movement() picks a random direction when stunned (and the
+    // move is lost if none is found), water_turbulence() in water, then escape_from_sticky_mon()
+    if (airTurbulence(ctx)) return NORMAL_SPEED;
     slipperyIceFumbling(ctx);
-    const dir = impairedDir(ctx, action.dir);
+    const want = impairedDir(ctx, action.dir);
+    if (want === null) return NORMAL_SPEED;
+    const dir = waterTurbulence(ctx, want, DIRS[want]);
     if (dir === null) return NORMAL_SPEED;
     const d = DIRS[dir];
     const to = { x: from.x + d.x, y: from.y + d.y };
@@ -772,9 +780,10 @@ function stepTo(ctx: Ctx, level: Level, from: Pos, to: Pos): number {
 
 /**
  * After a walk (or a run's step) that moved her: the square she left and the one she is on now
- * get smudged. A level change on the way (C defers it) smudges the square she stepped onto.
+ * get smudged, and on the Plane of Water her bubble may follow her. A level change on the way (C
+ * defers it) smudges the square she stepped onto.
  * ref: src/hack.c domove(): `domove_succeeded & (DOMOVE_RUSH | DOMOVE_WALK)` ->
- * maybe_smudge_engr()
+ * maybe_smudge_engr(), maybe_adjust_hero_bubble()
  */
 function smudged(ctx: Ctx, level: Level, from: Pos, to: Pos, cost: number): number {
   const p = getPlayer(ctx.state).c.pos;
@@ -782,6 +791,7 @@ function smudged(ctx: Ctx, level: Level, from: Pos, to: Pos, cost: number): numb
   const here = p.level === level.id ? p : to;
   if (here.x === from.x && here.y === from.y) return cost; // she did not move
   maybeSmudgeEngr(ctx, level, from.x, from.y, here.x, here.y);
+  maybeAdjustHeroBubble(ctx, to.x - from.x, to.y - from.y);
   return cost;
 }
 
