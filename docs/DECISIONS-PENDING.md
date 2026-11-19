@@ -308,3 +308,19 @@ m22 (plan `~/.claude/plans/m22.md`, kickoff `docs/kickoff-m22.md`) is split: m22
 - **m22 Q11 out of scope**: riding, two-weapon combat, pauper/nudist/reroll, pet names, the quest fix-ups, the player's name in state.
 - **m22 Q12 the m22a test override** `modData.nh.urole`/`urace` (no app save can contain it before m22b).
 - **m22 Q13 persisting choices** as device options `role`/`race`/`gender`/`align` and URL params with NetHack's file codes (m22b).
+
+## Taken (m23 the Amulet and the endgame, 2026-11-18)
+
+Plan `~/.claude/plans/m23.md` (m23a steps 1-6 the Amulet, m23b steps 7-10 the Planes). The planner marked every question cheap; all taken as recommended. Q3 is a small core type addition, taken by the orchestrator (user away, 2026-11-18: "I leave it up to you").
+
+- **Q1 the Bell before the quest:** only a wizard-mode wish makes the Bell of Opening until m24 (a normal wish gives an ordinary bell, as NetHack); no stand-in placement. In normal play the invocation, Sanctum, Amulet and Planes are reachable only once m24 exists.
+- **Q2 the Planes' branch, no core change:** `stairs: 'child'`, DL1's up stairs lead to the endgame with the Amulet, each Plane's setup removes the stairs core makes (Fort Ludios's workaround).
+- **Q3 core `LevelContent.align?` and `waiting?`** (optional fields content interprets, like `asleep`/`appearAs`); `SAVE_VERSION` 9 -> 10 in step 2 with the new dungeons (old saves wiped, the user's rule). Fallback: make those monsters in the levels' setup code.
+- **Q4 ascension as a content end** (`endHow` 'ascended' under core's existing 'escaped' kind), no new core `GameOver.kind`.
+- **Q5 high altars** as a content table keyed by LevelDef id, not a core field.
+- **Q6 both new dungeons (`nh:vlad`, `nh:planes`) in step 2:** one golden move, one save bump.
+- **Q7 the Amulet, Bell, Candelabrum and Book counted from inventory**, not stored flags.
+- **Q8 Water/Air bubbles as content state** (`modData.nh.bubbles`) moved by the `endOfTurn` hook; no core support.
+- **Q9 interim if m23b never runs:** climbing out of DL1 with the Amulet ends the game as an escape "with the Amulet".
+- **Q10 tower1's vampire lady and named vampires** become plain vampire lords (no monster genders or names).
+- **Q11 left out:** the Plane of Fire's fumaroles and the steam vortex's cloud (no gas-cloud regions), the tutorial, bones, achievements; `do_storms()` only if cheap.
