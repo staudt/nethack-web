@@ -4,9 +4,11 @@
 // unstolenarm(), stealarm(), remove_worn_item(), worn_item_removal(), steal(), mpickobj();
 // src/mhitu.c could_seduce() (doseduce() is seduce.ts)
 //
-// Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), stealamulet()'s Amulet, Bell
-// and Candelabrum (not in the port), ball and chain, leashes, boulders in inventory.
+// Not here: the hero as a thief (steal_it(), uhitm: polymorph, 7f), ball and chain, leashes,
+// boulders in inventory.
 import { anyQuestArtifact } from './artistate';
+import { AMULET_OF_YENDOR, BELL_OF_OPENING, BOOK_OF_THE_DEAD, CANDELABRUM, uHave } from './uhave';
+import { isWiz } from './wizstate';
 import { minstapetrify } from './stoning';
 import { petrifyingCorpse } from './stonetouch';
 import {
@@ -141,15 +143,31 @@ export function stealgold(ctx: Ctx, mon: Entity): void {
   }
 }
 
-/** ref: include/objects.h SPE_BOOK_OF_THE_DEAD */
-const BOOK_OF_THE_DEAD = 'nh:book_of_the_dead';
+/** ref: include/objects.h FAKE_AMULET_OF_YENDOR, BELL */
+const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
+const BELL = 'nh:bell';
+
+/**
+ * The relic stealamulet() goes for when she has no quest artifact, with the imitation that
+ * fools all but the Wizard: the Amulet (or a fake one), else the Bell (or an ordinary bell), else
+ * the Book, else the Candelabrum; null when she carries none of them. ref: src/steal.c
+ * stealamulet()
+ */
+function stealTarget(ctx: Ctx): { real: string; fake: string | null } | null {
+  if (uHave(ctx.state, 'amulet')) return { real: AMULET_OF_YENDOR, fake: FAKE_AMULET };
+  if (uHave(ctx.state, 'bell')) return { real: BELL_OF_OPENING, fake: BELL };
+  if (uHave(ctx.state, 'book')) return { real: BOOK_OF_THE_DEAD, fake: null };
+  if (uHave(ctx.state, 'menorah')) return { real: CANDELABRUM, fake: null };
+  return null;
+}
 
 /**
  * The Wizard (or a quest nemesis) snatches the most valuable thing she has: any role's quest
- * artifact first (one at random of several), else of the Amulet, the Bell, the Book of the Dead
- * and the Candelabrum only the Book exists here, so the Book if she carries it. Worn or wielded,
- * it comes off first ("The Wizard of Yendor removes your amulet."); unpaid, it leaves the bill;
- * "The Wizard of Yendor steals the Book of the Dead!", and he teleports away (rloc()).
+ * artifact first (one at random of several), else the Amulet of Yendor, the Bell of Opening, the
+ * Book of the Dead or the Candelabrum, in that order (one at random among the real one and, for
+ * any thief but the Wizard, its imitations: a cheap plastic Amulet, an ordinary bell). Worn or
+ * wielded, it comes off first ("The Wizard of Yendor removes your amulet."); unpaid, it leaves
+ * the bill; "The Wizard of Yendor steals the Amulet of Yendor!", and he teleports away (rloc()).
  * ref: src/steal.c stealamulet() (no quest artifact suits, shirts, gloves or rings: no outer gear
  * comes off first)
  */
@@ -159,9 +177,14 @@ export function stealamulet(ctx: Ctx, mon: Entity): void {
   // target every quest artifact, not just current role's; if hero has more than one, choose
   // randomly so that player can't use inventory ordering to influence the theft
   let picks = inv.filter((o) => anyQuestArtifact(o));
-  // if we didn't find any quest artifact, find another valuable item
-  if (picks.length === 0) picks = inv.filter((o) => o.def === BOOK_OF_THE_DEAD);
-  if (picks.length === 0) return; // you have nothing of special interest
+  if (picks.length === 0) {
+    // if we didn't find any quest artifact, find another valuable item
+    const t = stealTarget(ctx);
+    if (!t) return; // you have nothing of special interest
+    const wiz = isWiz(ctx, mon.id);
+    picks = inv.filter((o) => o.def === t.real || (o.def === t.fake && !wiz));
+  }
+  if (picks.length === 0) return;
   const otmp = picks.length > 1 ? picks[ctx.rng.rnd(picks.length) - 1] : picks[picks.length - 1];
   if (!otmp) return;
   // finally, steal the target item

@@ -28,7 +28,7 @@ import { uState } from './luck';
 import { raceHostile, racePeaceful } from './race';
 import { raceIs } from './urole';
 import { isGenocided, isGone, propagate } from './vanquished';
-import { inHell, isRogueLevel, madeLevelFlags } from './levelflags';
+import { inHell, isRogueLevel, madeLevelFlags, strongholdDepth } from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
@@ -55,8 +55,16 @@ import { AMOROUS_DEMON, setMonFemale } from './gender';
 import { setEmin } from './emin';
 import type { Aligntyp } from './aligntyp';
 
-/** ref: src/allmain.c maybe_generate_rnd_mon(): 1 in 70 per turn above the Castle's depth */
-export const SPAWN_ODDS = 70;
+/**
+ * The odds of a random monster each turn: 1 in 25 once she is a demigod (the Wizard dead or gone,
+ * or the invocation done), else 1 in 50 below the Castle's depth, else 1 in 70.
+ * ref: src/allmain.c maybe_generate_rnd_mon()
+ */
+export function spawnOdds(state: Readonly<GameState>): number {
+  if (uState(state).udemigod) return 25;
+  const depth = state.levels[state.currentLevel]?.depth ?? 1;
+  return depth > strongholdDepth(state) ? 50 : 70;
+}
 
 const heroLevel = (ctx: Pick<Ctx, 'state'>): number =>
   getPlayer(ctx.state).c.experience?.level ?? 1;
@@ -806,7 +814,7 @@ function initgrp(
 
 /**
  * True when `modData.nh.debugMongen` is set: a debug switch (for tests) that stops random
- * monster generation; the 1 in 70 roll is still drawn. NetHack's flag stops every makemon();
+ * monster generation; the spawn roll is still drawn. NetHack's flag stops every makemon();
  * here only the random spawns stop. ref: include/flag.h iflags.debug_mongen, src/makemon.c makemon()
  */
 export function noMongen(state: Readonly<GameState>): boolean {
@@ -820,7 +828,11 @@ export function noMongen(state: Readonly<GameState>): boolean {
 export function registerGeneration(api: ModApi): void {
   // ref: src/allmain.c maybe_generate_rnd_mon()
   api.on('endOfTurn', (ctx) => {
-    if (ctx.state.gameOver === null && ctx.rng.rn2(SPAWN_ODDS) === 0 && !noMongen(ctx.state))
+    if (
+      ctx.state.gameOver === null &&
+      ctx.rng.rn2(spawnOdds(ctx.state)) === 0 &&
+      !noMongen(ctx.state)
+    )
       makemon(ctx, null, null);
   });
 }

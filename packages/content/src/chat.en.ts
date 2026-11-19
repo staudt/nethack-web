@@ -105,6 +105,7 @@ export const chatMessagesEn: Record<string, string> = {
   'cuss.angel.14': '"With {god} as my witness, I shall strike thee down."',
   // ref: src/wizard.c cuss() (the Wizard's lines), random_insult[], random_malediction[]
   'cuss.wiz.laughs': '{mon|The} laughs fiendishly.',
+  'cuss.wiz.relinquish': '"Relinquish the amulet, {insult}!"',
   'cuss.wiz.ebbs': '"Even now thy life force ebbs, {insult}!"',
   'cuss.wiz.savor': '"Savor thy breath, {insult}, it be thy last!"',
   'cuss.wiz.return': '"I shall return."',

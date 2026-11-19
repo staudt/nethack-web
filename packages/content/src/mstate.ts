@@ -425,7 +425,6 @@ export function setSeenRes(ctx: Pick<Ctx, 'state'>, id: EntityId, bits: number):
   else t[String(id)] = bits;
 }
 
-/** Forgets the states of a monster that died or left. */
 /** clone_mon()'s `*m2 = *mon`: the clone starts with the original's conditions. */
 export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId): void {
   for (const k of KEYS) {
@@ -437,7 +436,21 @@ export function copyMState(ctx: Pick<Ctx, 'state'>, from: EntityId, to: EntityId
   }
 }
 
-export function forgetMState(ctx: Pick<Ctx, 'state' | 'remove'>, id: EntityId): void {
+type Wizdeadorgone = (ctx: Pick<Ctx, 'state' | 'rng'>) => void;
+/** wizdeadorgone(): harass.ts registers it at load (it sits far above this leaf) */
+let wizdeadorgoneHook: Wizdeadorgone | null = null;
+export function setWizdeadorgone(fn: Wizdeadorgone): void {
+  wizdeadorgoneHook = fn;
+}
+
+/**
+ * Forgets the states of a monster that died or left the game; for the Wizard of Yendor (or his
+ * clone) wizdeadorgone() first. ref: src/mon.c m_detach()
+ */
+export function forgetMState(ctx: Pick<Ctx, 'state' | 'remove' | 'rng'>, id: EntityId): void {
+  // death handling for the Wizard needs to take place even if he is leaving the dungeon alive
+  // rather than dying
+  if (table(ctx, 'iswiz', false)?.[String(id)] === true) wizdeadorgoneHook?.(ctx);
   thiefdead(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->m_id == gs.stealmid) thiefdead()`
   wormgone(ctx, id); // ref: src/mon.c m_detach(): `if (mtmp->wormno) wormgone(mtmp)`
   for (const k of KEYS) {

@@ -5,8 +5,8 @@
 //
 // Kinds absent from the monster table (the master mind flayer, the dragons...)
 // count as genocided: pick_nasty() tries their smaller kind, then makemon() fails and a random
-// monster stands in, as for a genocided kind in C. No Rogue level, no endgame, no post-Wizard
-// harassment (a summoner is always given).
+// monster stands in, as for a genocided kind in C. With no summoner (the post-Wizard harassment,
+// harass.ts intervene()) they appear around the hero.
 import {
   getLevel,
   getPlayer,
@@ -18,7 +18,7 @@ import {
 } from '@nh/core';
 import { bigToLittle } from './eggstate';
 import { makemon, mnextoPos } from './generation';
-import { inHell, isRogueLevel } from './levelflags';
+import { inEndgame, inHell, isRogueLevel } from './levelflags';
 import { upperSym } from './mondata';
 import { monsterCensus, msummon } from './minion';
 import { unmakemon } from './mondeath';
@@ -27,6 +27,7 @@ import { isGenocided } from './vanquished';
 import { mksobj } from './items';
 import { setMappearance } from './mimicstate';
 import { protFromShapeChangers } from './props';
+import { uHave } from './uhave';
 import { WIZARD_OF_YENDOR } from './wizstate';
 
 /** ref: src/wizard.c nasties[] (neutral, chaotic, lawful) */
@@ -143,25 +144,30 @@ export function pickNasty(ctx: NastyCtx, difcap: number): DefId {
 }
 
 /**
- * Nasty monsters around the spot `summoner` thinks the hero is at (`ap`): rnd(ulevel / 3) rounds
+ * Nasty monsters around the spot `summoner` thinks the hero is at (`ap`), or with no summoner
+ * (random post-Wizard harassment) around the hero: rnd(ulevel / 3) rounds
  * of up to 20 picks each, never a spellcaster as difficult as the summoner nor an Angel for a
  * demon (or the reverse), each hostile and awake with its spells delayed by rnd(4); a round ends
  * with a kind of no alignment or of the summoner's alignment's sign. In Gehennom 1 time in 10 it
  * summons demons as the Wizard of Yendor does. Returns how many monsters more are on the level.
  * ref: src/wizard.c nasty()
  */
-export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
+export function nasty(ctx: Ctx, summoner: Entity | null, ap?: Pos): number {
   const census = monsterCensus(ctx);
   const level = getLevel(ctx.state);
+  // if we don't have a casting monster, nasties appear around hero, otherwise they'll appear
+  // around spot summoner thinks she's at
+  const at = (summoner ? ap : undefined) ?? getPlayer(ctx.state).c.pos;
+  if (!at) return 0;
   let count = 0;
   if (!ctx.rng.rn2(10) && inHell(ctx.state)) {
     // this might summon a demon prince or lord
     count = msummon(ctx, null); // summons like WoY
   } else {
-    const sdef = ctx.defs.monster(summoner.def);
-    const sCls = sdef.glyph.ch;
-    let difcap = sdef.difficulty; // spellcasters
-    const castalign = Math.sign(sdef.alignment);
+    const sdef = summoner ? ctx.defs.monster(summoner.def) : null;
+    const sCls = sdef ? sdef.glyph.ch : '';
+    let difcap = sdef ? sdef.difficulty : 0; // spellcasters
+    const castalign = sdef ? Math.sign(sdef.alignment) : 0;
     const ulevel = ctx.state.entities[String(ctx.state.playerId)]?.c.experience?.level ?? 1;
     let tmp = ulevel > 3 ? Math.trunc(ulevel / 3) : 1;
     const clash = (cls: string): boolean =>
@@ -183,7 +189,7 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
         if (!trylimit || makeindex === null) continue; // nextj
         // do this after picking the monster to place
         const mdef = ctx.defs.isMonster(makeindex) ? ctx.defs.monster(makeindex) : null;
-        const bypos = mnextoPos(ctx, level, null, ap, mdef);
+        const bypos = mnextoPos(ctx, level, null, at, mdef);
         if (!bypos) continue;
         // this honors genocide but overrides extinction; it ignores inside-hell-only (G_HELL) &
         // outside-hell-only (G_NOHELL)
@@ -201,7 +207,12 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
           if (mtmp && id !== null) {
             const d = ctx.defs.monster(mtmp.def);
             if (
-              (difcap > 0 && d.difficulty >= difcap && ctx.rng.rn2(7) && castsSpells(d)) ||
+              // always capping for substitutes made wanton genocide become too strong in the
+              // endgame
+              (difcap > 0 &&
+                d.difficulty >= difcap &&
+                ctx.rng.rn2(inEndgame(ctx.state, level) ? 3 : 7) &&
+                castsSpells(d)) ||
               clash(d.glyph.ch)
             ) {
               unmakemon(ctx, id);
@@ -252,7 +263,7 @@ const WIZAPP: readonly DefId[] = [
 
 /**
  * "Double Trouble": a second Wizard of Yendor next to the hero, awake and hostile, half the time
- * carrying a cheap plastic imitation of the Amulet (she never has the real one), posing as one
+ * carrying a cheap plastic imitation of the Amulet (not while she has the real one), posing as one
  * of wizapp[] unless she has protection from shape changers. The caller casts it only while there is
  * one Wizard. ref: src/wizard.c clonewiz()
  */
@@ -268,7 +279,7 @@ export function clonewiz(ctx: Ctx): void {
   m.asleep = false;
   m.peaceful = false;
   delete m.tame;
-  if (ctx.rng.rn2(2)) {
+  if (!uHave(ctx.state, 'amulet') && ctx.rng.rn2(2)) {
     // give clone a fake
     mksobj(ctx, ctx.defs.object(FAKE_AMULET), { carriedBy: id });
   }

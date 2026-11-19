@@ -9,7 +9,7 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
-import { uHave } from './uhave';
+import { monHasAmulet, uHave } from './uhave';
 import { isVampshifter, restoreCham } from './chamstate';
 import { maybeUnhideAt } from './hide';
 import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
@@ -1921,13 +1921,18 @@ function mteleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): void {
  * A monster on a level teleporter goes to a random level (C's random_teleport_level() from the
  * hero's level, which is its own), confused, and waits there for the hero: "Suddenly, the jackal
  * disappears out of sight." when seen, "The jackal shudders for a moment." when the level comes
- * up the same. ref: src/teleport.c mlevel_tele_trap() (LEVEL_TELEP; no Amulet, endgame or leashes)
+ * up the same; one carrying the Amulet (or on the Planes) only "seems very disoriented for a
+ * moment.". ref: src/teleport.c mlevel_tele_trap() (LEVEL_TELEP; no leashes)
  */
 function mlevelTeleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): TrapResult {
   if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
   const p = mon.c.pos;
   const level = p ? ctx.state.levels[p.level] : undefined;
   if (!level) return 'finished';
+  if (monHasAmulet(ctx.state, mon.id) || inEndgame(ctx.state, level)) {
+    if (inSight) say(ctx, 'mon.very_disoriented', { mon: monNam(ctx, mon) });
+    return 'finished';
+  }
   const nlev = randomTeleportLevel(ctx, level);
   if (nlev === dungeonLayout(ctx.state, level.dungeon).depthStart + level.dlevel - 1) {
     if (inSight) say(ctx, 'tele.mon_shudders', { mon: monNam(ctx, mon) });

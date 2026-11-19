@@ -7,8 +7,7 @@
 // Blackmail!"; src/sounds.c domonnoise() MS_BRIBE
 //
 // A wielded Excalibur or Demonbane makes him angry instead ("Asmodeus looks very angry.").
-// Not ported (see DEVIATIONS.md "Monster AI"): Deafness,
-// a demon that carries the Amulet, the livelog. A demon angered by the answer attacks on its next
+// Not ported (see DEVIATIONS.md "Monster AI"): Deafness, the livelog. A demon angered by the answer attacks on its next
 // move: the prompt ends the move it was asked in (C goes on with that move).
 import {
   getLevel,
@@ -34,6 +33,7 @@ import { canSpotMon, monNam } from './perception';
 import { teleRestrict } from './teleport';
 import { rlocMon } from './trap';
 import { heroForm } from './upoly';
+import { monHasAmulet } from './uhave';
 
 export const DEMON_BRIBE_ID = 'nh:demon-bribe';
 
@@ -51,7 +51,8 @@ const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): v
  * "appears before you";
  * a hero in a demon form is wished "Good hunting" and he teleports away; with gold, and able to
  * move, she is asked to pay `demand` (her gold times 1..80% plus 20% in Gehennom, halved when
- * they share an alignment's sign) through the `demon-bribe` prompt; else he gets angry. True when
+ * they share an alignment's sign; more than she has, by 125-1124, when he carries the Amulet)
+ * through the `demon-bribe` prompt; else he gets angry. True when
  * he will not attack (gone, or waiting for her answer). ref: src/minion.c demon_talk()
  */
 export function demonTalk(ctx: Ctx, id: EntityId): boolean {
@@ -91,12 +92,16 @@ export function demonTalk(ctx: Ctx, id: EntityId): boolean {
   const level = mon.c.pos ? getLevel(ctx.state, mon.c.pos.level) : getLevel(ctx.state);
   const athome = inHell(ctx.state, level) ? 1 : 0; // (no shapechangers)
   const same = Math.sign(uState(ctx.state).alignType) === Math.sign(def.alignment) ? 1 : 0;
-  const demand = Math.trunc((cash * (ctx.rng.rnd(80) + 20 * athome)) / (100 * (1 + same)));
+  let demand = Math.trunc((cash * (ctx.rng.rnd(80) + 20 * athome)) / (100 * (1 + same)));
   if (!demand || isHelpless(ctx)) {
     // you have no gold or can't move
     m.peaceful = false;
     return false;
   }
+  // make sure that the demand is unmeetable if the monster has the Amulet, preventing monster
+  // from being satisfied and removed from the game (along with said Amulet...); 125: 5*25 in
+  // case hero has maximum possible charisma
+  if (monHasAmulet(ctx.state, id)) demand = cash + ctx.rng.rn2(1000) + 125; // rn1(1000, 125)
   say(ctx, demand === 1 ? 'demon.demands_one' : 'demon.demands', {
     mon: monNam(ctx, mon),
     n: demand,

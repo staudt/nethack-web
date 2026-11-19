@@ -43,7 +43,7 @@ function buildsUp(state: Readonly<GameState>, level: LevelRef): boolean {
  * Until the real Amulet exists she cannot carry it, so level_difficulty() (asked for every
  * monster and object made) skips the inventory scan.
  */
-function amuletMade(state: Readonly<GameState>): boolean {
+export function amuletMade(state: Readonly<GameState>): boolean {
   const nh = state.modData['nh'];
   const u = nh !== null && typeof nh === 'object' && !Array.isArray(nh) ? nh['u'] : undefined;
   return u !== null && typeof u === 'object' && !Array.isArray(u) && u['madeAmulet'] === true;

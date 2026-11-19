@@ -93,3 +93,19 @@ export function arrivalStairs(level: Readonly<Level>, via: MigrVia): Pos | null 
   }
   return level.branch?.pos ?? null;
 }
+
+/**
+ * The migrating monster is taken off the migrating list (the caller puts it on the map): C's
+ * `*mmtmp = mtmp->nmon` in resurrect(). Its arrival details go with it.
+ */
+export function endMigration(ctx: Pick<Ctx, 'state'>, id: number): void {
+  const t = trapTable(ctx, 'migrating', false);
+  if (t) delete t[String(id)];
+  takeMigrVia(ctx, id);
+  takeMigrWTower(ctx, id);
+}
+
+/** Whether the monster is on the migrating list (off the map, waiting for the hero). */
+export function isMigrating(ctx: Pick<Ctx, 'state'>, id: number): boolean {
+  return trapTable(ctx, 'migrating', false)?.[String(id)] !== undefined;
+}

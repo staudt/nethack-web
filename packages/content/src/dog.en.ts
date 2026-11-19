@@ -17,6 +17,7 @@ export const dogMessagesEn: Record<string, string> = {
   'dog.approachable': '{mon|The} seems quite approachable.',
   'dog.catches': '{mon|The} catches it.',
   'dog.still_eating': 'The {mon} is still eating.',
+  'mon.very_disoriented': '{mon|The} seems very disoriented for a moment.',
   'dog.eats': '{mon|The} eats {item|an}.',
   'dog.devours': '{mon|The} devours {item|an}.',
   // ref: src/mon.c meatmetal(), meatobj(), meatcorpse()

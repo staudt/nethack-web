@@ -11,6 +11,7 @@ import { A_LAWFUL } from './aligntyp';
 import { emin, isLminion } from './emin';
 import { alignGname } from './gods';
 import { plname } from './shk';
+import { uHave } from './uhave';
 
 /** ref: src/wizard.c random_insult[]: how many there are (`cuss.insult.1`...) */
 export const INSULTS = 28;
@@ -29,16 +30,18 @@ const insult = (ctx: Pick<Ctx, 'rng'>): Msg => ({
 });
 
 /**
- * The Wizard laughs fiendishly one time in five; else, when she is nearly dead, he gloats half
- * the time ("Even now thy life force ebbs, ..."), when he is, he promises to return half the
- * time, and otherwise curses her. ref: src/wizard.c cuss() (the iswiz branch; she never has the
- * Amulet, so never "Relinquish the amulet, ...!")
+ * The Wizard laughs fiendishly one time in five; else, while she carries the Amulet, 1 time in
+ * 28 he demands it ("Relinquish the amulet, ...!"); when she is nearly dead, he gloats half the
+ * time ("Even now thy life force ebbs, ..."), when he is, he promises to return half the time,
+ * and otherwise curses her. ref: src/wizard.c cuss() (the iswiz branch)
  */
 function wizardCuss(ctx: Ctx, mon: Entity): void {
   const params = { mon: monNam(ctx, mon) };
   if (!ctx.rng.rn2(5)) {
     // typical bad guy action
     ctx.emit({ type: 'msg', key: 'cuss.wiz.laughs', params });
+  } else if (uHave(ctx.state, 'amulet') && !ctx.rng.rn2(INSULTS)) {
+    ctx.emit({ type: 'msg', key: 'cuss.wiz.relinquish', params: { insult: insult(ctx) } });
   } else if ((getPlayer(ctx.state).c.hp?.cur ?? 0) < 5 && !ctx.rng.rn2(2)) {
     // Panic
     const key = ctx.rng.rn2(2) ? 'cuss.wiz.ebbs' : 'cuss.wiz.savor';

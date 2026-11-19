@@ -10,6 +10,8 @@ export const museMessagesEn: Record<string, string> = {
   'muse.hear_zap_explode_near': 'You hear a zap and an explosion nearby.',
   'muse.hear_zap_explode_far': 'You hear a zap and an explosion in the distance.',
   'muse.escapes_upstairs': '{mon|The} escapes upstairs!',
+  'muse.mysterious_force':
+    'As {mon|the} climbs the stairs, a mysterious force momentarily surrounds {him}...',
   'muse.disoriented_moment': '{mon|The} seems disoriented for a moment.',
   'muse.escapes_downstairs': '{mon|The} escapes downstairs!',
   'muse.escapes_up_ladder': '{mon|The} escapes up the ladder!',

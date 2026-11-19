@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-200 NetHack files, 5909 citations.
+200 NetHack files, 5917 citations.
 
 ## dat/asmodeus.lua
 
@@ -646,7 +646,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `CONTAINER()`: `packages/content/src/container.ts`, `packages/content/src/objects.ts`
 - `DRGN_ARMR()`: `packages/content/src/objects.ts`
 - `EYEWEAR()`: `packages/content/src/objects.ts`
-- `FAKE_AMULET_OF_YENDOR()`: `packages/content/src/disclose.ts`, `packages/content/src/nasty.ts`
+- `FAKE_AMULET_OF_YENDOR()`: `packages/content/src/disclose.ts`, `packages/content/src/nasty.ts`, `packages/content/src/steal.ts`
 - `FOOD()`: `packages/content/src/objects.ts`
 - `GEM()`: `packages/content/src/objects.ts`
 - `GLOVES()`: `packages/content/src/objects.ts`
@@ -662,7 +662,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `SHIELD()`: `packages/content/src/objects.ts`
 - `SKELETON_KEY()`: `packages/content/src/lockstate.ts`
 - `SPELL()`: `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/zap.ts`
-- `SPE_BOOK_OF_THE_DEAD()`: `packages/content/src/deadbook.ts`, `packages/content/src/steal.ts`, `packages/content/src/uhave.ts`
+- `SPE_BOOK_OF_THE_DEAD()`: `packages/content/src/deadbook.ts`, `packages/content/src/uhave.ts`
 - `STRANGE_OBJECT()`: `packages/content/src/mimicstate.ts`
 - `TOOL()`: `packages/content/src/objects.ts`
 - `WAND()`: `packages/content/src/objects.ts`, `packages/content/src/zap.ts`
@@ -780,7 +780,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/allmain.c
 
-- (file): `packages/content/src/fumble.ts`, `packages/content/src/perception.ts`
+- (file): `packages/content/src/fumble.ts`, `packages/content/src/harass.ts`, `packages/content/src/perception.ts`
 - `age_spells()`: `packages/content/src/spell.ts`
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
@@ -1228,12 +1228,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `abuse_dog()`: `packages/content/src/dog.ts`
 - `dogfood()`: `packages/content/src/dog.ts`
 - `initedog()`: `packages/content/src/dog.ts`
+- `keep_mon_accessible()`: `packages/content/src/dog.ts`
 - `keepdogs()`: `packages/content/src/dog.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/soak.ts`
 - `losedogs()`: `packages/content/src/dog.ts`, `packages/content/src/shk.ts`, `packages/core/src/types/mod.ts`
 - `make_familiar()`: `packages/content/src/dog.ts`
 - `makedog()`: `packages/content/src/dog.ts`
 - `migrate_to_level()`: `packages/content/src/migrate.ts`, `packages/content/src/wormstate.ts`
-- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/migrate.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
+- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/harass.ts`, `packages/content/src/migrate.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
 - `mon_catchup_elapsed_time()`: `packages/content/src/dog.ts`, `packages/content/src/mstate.ts`
 - `mon_leave()`: `packages/content/src/worm.ts`
 - `newedog()`: `packages/content/src/dog.ts`
@@ -1354,6 +1355,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `print_branch()`: `packages/content/src/wizard/where.ts`
 - `print_dungeon()`: `packages/content/src/wizard/where.ts`, `packages/content/src/wizard/wizard.en.ts`
 - `single_level_branch()`: `packages/content/src/levelflags.ts`
+- `stronghold_level()`: `packages/content/src/levelflags.ts`
 - `surface()`: `packages/content/src/terrain.ts`
 - `u_on_newpos()`: `packages/content/src/actions.ts`
 - `u_on_rndspot()`: `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
@@ -2024,7 +2026,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `kill_eggs()`: `packages/content/src/genocide.ts`
 - `kill_genocided_monsters()`: `packages/content/src/genocide.ts`
 - `killed()`: `packages/content/src/buzz.ts`, `packages/content/src/dokick.ts`
-- `levl_follower()`: `packages/content/src/dog.ts`
 - `lifesaved_monster()`: `packages/content/src/mondeath.ts`
 - `m_at()`: `packages/content/src/wormstate.ts`, `packages/core/src/engine.ts`
 - `m_calcdistress()`: `packages/content/src/monflee.ts`, `packages/content/src/mstate.ts`, `packages/content/src/were.ts`
@@ -2101,6 +2102,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `gender()`: `packages/content/src/gender.ts`
 - `grownups()`: `packages/content/src/eggstate.ts`
 - `hates_silver()`: `packages/content/src/mondata.ts`
+- `levl_follower()`: `packages/content/src/dog.ts`
 - `little_to_big()`: `packages/content/src/eggstate.ts`
 - `locomotion()`: `packages/content/src/egg.ts`
 - `m_is_steadfast()`: `packages/content/src/mhurtle.ts`
@@ -2948,6 +2950,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/steal.c
 
+- (file): `packages/content/src/steal.ts`
 - `findgold()`: `packages/content/src/detectobj.ts`, `packages/content/src/steal.ts`
 - `mpickobj()`: `packages/content/src/steal.ts`
 - `relobj()`: `packages/content/src/mongear.ts`
@@ -3348,6 +3351,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `clonewiz()`: `packages/content/src/nasty.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`
+- `intervene()`: `packages/content/src/harass.ts`
 - `mon_has_amulet()`: `packages/content/src/uhave.ts`
 - `mon_has_arti()`: `packages/content/src/covetous.ts`
 - `mon_has_special()`: `packages/content/src/uhave.ts`
@@ -3358,11 +3362,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pick_nasty()`: `packages/content/src/nasty.ts`
 - `random_insult()`: `packages/content/src/cuss.ts`
 - `random_malediction()`: `packages/content/src/cuss.ts`
+- `resurrect()`: `packages/content/src/harass.ts`
 - `strategy()`: `packages/content/src/covetous.ts`
 - `tactics()`: `packages/content/src/covetous.ts`
 - `target_on()`: `packages/content/src/covetous.ts`
 - `which_arti()`: `packages/content/src/covetous.ts`
 - `wizapp()`: `packages/content/src/nasty.ts`
+- `wizdeadorgone()`: `packages/content/src/harass.ts`
 - `you_have()`: `packages/content/src/covetous.ts`
 
 ## src/wizcmds.c

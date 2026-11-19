@@ -638,9 +638,12 @@ function pleased(ctx: Ctx, gAlign: number, pTrouble: number): void {
   if (patOnHead) patOnTheHead(ctx, gAlign);
 
   setU(ctx, { ublesscnt: rnz(ctx, 350) });
-  // kick_on_butt: once crowned (there is no demigod), a longer wait (u.uevent.udemigod)
-  if (uState(ctx.state).uhandOfElbereth)
-    setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + rnz(ctx, 1000) });
+  // kick_on_butt: a demigod (the Wizard dead or the invocation done) and a crowned hero wait
+  // longer, rnz(1000) for each
+  const kickOnButt =
+    (uState(ctx.state).udemigod ? 1 : 0) + (uState(ctx.state).uhandOfElbereth ? 1 : 0);
+  if (kickOnButt)
+    setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + kickOnButt * rnz(ctx, 1000) });
   // the DoS guard for very long games
   if (ctx.state.turn > 100000) {
     const u = uState(ctx.state);

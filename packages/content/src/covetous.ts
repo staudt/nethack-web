@@ -7,11 +7,12 @@
 // target_on(), which_arti(), mon_has_arti(), other_mon_has_arti(), on_ground(), you_have();
 // src/mon.c mnexto(), mnearto(); src/monmove.c m_move() (the covetous attack on an intruder)
 //
-// Not ported (see DEVIATIONS.md "Monster AI"): the Amulet (`made_amulet` is always false: it is
-// never made), the invocation (`u.uevent.invoked`), mavenge, and
-// deal_with_overcrowding()'s limbo: a monster
-// with no room next to her stays where it is, and a monster pushed off the goal with no room
-// around it is teleported at random.
+// The Amulet is a target once it has been made (`made_amulet`, m23 step 6), first of all, and the
+// invocation (`u.uevent.invoked`) puts the quest artifact before the relics.
+//
+// Not ported (see DEVIATIONS.md "Monster AI"): mavenge, and deal_with_overcrowding()'s limbo: a
+// monster with no room next to her stays where it is, and a monster pushed off the goal with no
+// room around it is teleported at random.
 import {
   getPlayer,
   inventoryOf,
@@ -30,7 +31,8 @@ import { mnextoPos } from './generation';
 import { chooseStairs } from './ladder';
 
 export { chooseStairs };
-import { inWTower } from './levelflags';
+import { amuletMade } from './levdiff';
+import { inWTower, uInvoked } from './levelflags';
 import { isCovetous, wants } from './mondata';
 import { heroSees, minvent } from './mongear';
 import { isFleeing } from './monflee';
@@ -39,23 +41,33 @@ import { doname } from './objnam';
 import { mpickobj } from './steal';
 import { goodposMon, noteleportLevel } from './teleport';
 import { rlocMon, rlocTo } from './trap';
+import {
+  AMULET_OF_YENDOR,
+  BELL_OF_OPENING,
+  BOOK_OF_THE_DEAD,
+  CANDELABRUM,
+  monHasAmulet,
+} from './uhave';
 import { isWiz } from './wizstate';
 
 /** ref: include/hack.h BOLT_LIM */
 const BOLT_LIM = 8;
 
 /**
- * The item of each M3_WANTS* flag (which_arti()); one this port lacks is never anywhere. No
- * Amulet target (`made_amulet` is false). M3_WANTSARTI wants any role's quest artifact.
+ * The item of each M3_WANTS* flag (which_arti()); one this port lacks is never anywhere.
+ * M3_WANTSARTI wants any role's quest artifact.
  */
 const WANTED: Readonly<Record<string, DefId>> = {
-  wantsbook: 'nh:book_of_the_dead',
-  wantsbell: 'nh:bell_of_opening',
-  wantscand: 'nh:candelabrum_of_invocation',
+  wantsamul: AMULET_OF_YENDOR,
+  wantsbook: BOOK_OF_THE_DEAD,
+  wantsbell: BELL_OF_OPENING,
+  wantscand: CANDELABRUM,
 };
 
-/** strategy()'s order of the targets before the invocation (no Amulet: it is never made) */
+/** strategy()'s order of the targets before the invocation */
 const TARGETS = ['wantsbook', 'wantsbell', 'wantscand', 'wantsarti'] as const;
+/** and once the gate is open: "priorities change once gate opened" */
+const TARGETS_INVOKED = ['wantsarti', 'wantsbook', 'wantsbell', 'wantscand'] as const;
 
 const ent = (ctx: Pick<Ctx, 'state'>, id: EntityId): Entity | undefined =>
   ctx.state.entities[String(id)];
@@ -120,8 +132,11 @@ function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
     const hero = getPlayer(ctx.state);
     const has = youHave(ctx, flag, want);
     const o = has ? null : onGround(ctx, level, want);
-    const other = has || o ? null : otherMonHasArti(ctx, mon, want);
-    // (when seeking the Amulet the Wizard and temple priests are not targeted: no Amulet here)
+    let other = has || o ? null : otherMonHasArti(ctx, mon, want);
+    // when seeking the Amulet, avoid targeting the Wizard or temple priests (to protect Moloch's
+    // high priest)
+    if (other && flag === 'wantsamul' && (isWiz(ctx, other.id) || inhistemple(ctx, other.id)))
+      other = null;
     const goal = has ? hero.c.pos : (o?.c.pos ?? other?.c.pos);
     if (goal) {
       const strat = has ? 'player' : o ? 'ground' : 'monstr';
@@ -137,7 +152,9 @@ function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
  * What a covetous monster goes for now: nothing (STRAT_NONE) for any other kind or for a
  * shopkeeper in his shop or a priest in his temple; to heal when under a third of its hit
  * points (the Wizard, under two thirds), else, by default, when under full; an item it wants
- * before that. ref: src/wizard.c strategy() (no Amulet, no invocation)
+ * before that: the Amulet first once it has been made, then the Book, the Bell, the Candelabrum
+ * and the quest artifact (after the invocation the quest artifact first).
+ * ref: src/wizard.c strategy()
  */
 function strategy(ctx: Ctx, mon: Entity): MStrat | 'none' {
   const def = ctx.defs.monster(mon.def);
@@ -155,7 +172,11 @@ function strategy(ctx: Ctx, mon: Entity): MStrat | 'none' {
   else if (third <= 2)
     dstrat = { strat: 'heal' }; // (the Wizard is less cautious)
   else dstrat = 'none';
-  for (const flag of TARGETS) {
+  if (amuletMade(ctx.state)) {
+    const strat = targetOn(ctx, mon, 'wantsamul');
+    if (strat) return strat;
+  }
+  for (const flag of uInvoked(ctx.state) ? TARGETS_INVOKED : TARGETS) {
     const strat = targetOn(ctx, mon, flag);
     if (strat) return strat;
   }
@@ -247,9 +268,11 @@ export function tactics(ctx: Ctx, id: EntityId): boolean {
     if (sw && sw.mon === id) expels(ctx, mon, true);
     // if wounded, hole up on or near the stairs (to block them)
     const s = chooseStairs(ctx, level.id, id % 2 === 1);
-    // (mavenge: not kept); the Wizard with no stairs to block teleports at random too (he never
-    // has the Amulet)
-    const inTower = inWTower(ctx.state, level, p.x, p.y) || (isWiz(ctx, id) && !s);
+    // (mavenge: not kept); the Wizard with no stairs to block teleports at random too, unless he
+    // has the Amulet
+    const inTower =
+      inWTower(ctx.state, level, p.x, p.y) ||
+      (isWiz(ctx, id) && !s && !monHasAmulet(ctx.state, id));
     if (inTower) {
       if (!noTele() && !ctx.rng.rn2(3 + Math.trunc((mon.c.hp?.cur ?? 0) / 10)))
         rlocMon(ctx, mon, true);

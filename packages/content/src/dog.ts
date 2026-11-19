@@ -8,6 +8,7 @@ import { levelDifficulty } from './levdiff';
 import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
 import { isWiz } from './wizstate';
+import { monHasAmulet, uHave } from './uhave';
 import { isCovetous, isDemon, wants } from './mondata';
 import {
   getLevel,
@@ -637,13 +638,17 @@ export function tamedog(
 
 /**
  * Whether the monster follows the hero to another level when next to her.
- * ref: src/mon.c levl_follower(): pets, the Wizard and a shopkeeper following her always;
- * stalkers unless fleeing (no Amulet: the Wizard never has it)
+ * ref: src/mondata.c levl_follower(): pets, the Wizard (unless he has the Amulet) and a
+ * shopkeeper following her always; stalkers unless fleeing, or even then while she has the Amulet
  */
 function levlFollower(ctx: Ctx, mon: Entity): boolean {
+  // Wizard with Amulet won't bother trying to follow across levels
+  if (isWiz(ctx, mon.id) && monHasAmulet(ctx.state, mon.id)) return false;
+  // some monsters will follow even while intending to flee from you
   if (isTame(mon) || isWiz(ctx, mon.id) || eshkOf(ctx, mon.id)?.following) return true; // is_fshk()
+  // stalking types follow, but won't when fleeing unless you hold the Amulet
   const def = ctx.defs.monster(mon.def);
-  return def.flags.includes('stalk') && !isFleeing(ctx, mon.id);
+  return def.flags.includes('stalk') && (!isFleeing(ctx, mon.id) || uHave(ctx.state, 'amulet'));
 }
 
 /**
@@ -664,34 +669,47 @@ function catchUpTameness(ctx: Ctx, mon: Entity, imv: number): void {
 }
 
 /**
- * Adjacent followers come along to the new level and arrive next to the hero; a pet still eating
- * stays behind. A leashed pet that stays behind is let go ("Its leash suddenly comes loose.",
- * "The kitten's leash goes slack."). Pets found on an arrival level go wilder for the time she was away.
- * ref: src/dog.c keepdogs(), losedogs(), mon_arrive(), mon_catchup_elapsed_time()
+ * Adjacent followers come along to the new level and arrive next to the hero, and while she
+ * carries the Amulet the Wizard comes from anywhere on the level; a pet still eating stays
+ * behind, and so does a monster carrying the Amulet ("The Wizard of Yendor seems very
+ * disoriented for a moment."). A leashed pet that stays behind is let go ("Its leash suddenly
+ * comes loose.", "The kitten's leash goes slack."). Pets found on an arrival level go wilder for
+ * the time she was away. Every monster left behind stays on its level in the state, so the
+ * Wizard is always within reach of resurrect() (keep_mon_accessible() needs nothing here).
+ * ref: src/dog.c keepdogs(), keep_mon_accessible(), losedogs(), mon_arrive(),
+ * mon_catchup_elapsed_time(); src/mondata.c levl_follower()
  */
 function changeLevel(ctx: Ctx, from: string, fromPos: { x: number; y: number }, to: string): void {
   const nh = nhData(ctx) as unknown as { levelLeft?: Record<string, number> };
   const left = (nh.levelLeft ??= {});
   left[from] = ctx.state.turn;
   const followers: Entity[] = [];
+  const amulet = uHave(ctx.state, 'amulet');
   for (const id of sortedIds(ctx.state)) {
     const mon = ctx.state.entities[String(id)];
     const p = mon?.c.pos;
     if (!mon?.c.monster || !p || p.level !== from) continue;
-    if (Math.max(Math.abs(p.x - fromPos.x), Math.abs(p.y - fromPos.y)) > 1) continue;
-    if (!levlFollower(ctx, mon)) continue;
+    // the wiz will level t-port from anywhere to chase the amulet; if you don't have it, will
+    // chase you only if in range
+    const near = Math.max(Math.abs(p.x - fromPos.x), Math.abs(p.y - fromPos.y)) <= 1;
+    if (!(near && levlFollower(ctx, mon)) && !(amulet && isWiz(ctx, id))) continue;
     if (mon.c.monster.asleep || isFrozen(ctx, id)) continue;
     // monster won't follow if it hasn't noticed you yet
     if (mstratOf(ctx, id).waitForU) continue;
     // ref: keepdogs(): a trapped follower tries to escape; still eating or trapped, it stays
     if (isMtrapped(ctx, id)) mintrap(ctx, id);
-    if (meating(ctx, id) || isMtrapped(ctx, id)) {
+    const hasAmulet = monHasAmulet(ctx.state, id) !== null;
+    if (meating(ctx, id) || isMtrapped(ctx, id) || hasAmulet) {
       if (canSeeOnLevel(ctx, mon, from))
-        ctx.emit({
-          type: 'msg',
-          key: meating(ctx, id) ? 'dog.still_eating' : 'dog.still_trapped',
-          params: { mon: `@${mon.def}` },
-        });
+        ctx.emit(
+          meating(ctx, id) || isMtrapped(ctx, id)
+            ? {
+                type: 'msg',
+                key: meating(ctx, id) ? 'dog.still_eating' : 'dog.still_trapped',
+                params: { mon: `@${mon.def}` },
+              }
+            : { type: 'msg', key: 'mon.very_disoriented', params: { mon: `@${mon.def}` } },
+        );
       // ref: keepdogs(): stay_behind with a leash: "Its leash suddenly comes loose."
       const l = getMleash(ctx, id);
       if (l !== null) {

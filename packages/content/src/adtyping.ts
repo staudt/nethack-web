@@ -2285,8 +2285,8 @@ const adDrin: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
 };
 
 /**
- * AD_SAMU (the Wizard's claws): a plain hit on the hero that 1 time in 20 steals the Book of the
- * Dead (stealamulet()); nothing against a monster. ref: src/uhitm.c mhitm_ad_samu() (hitmsg()
+ * AD_SAMU (the Wizard's claws): a plain hit on the hero that 1 time in 20 steals a quest
+ * artifact, the Amulet or one of the invocation tools (stealamulet()); nothing against a monster. ref: src/uhitm.c mhitm_ad_samu() (hitmsg()
  * is the caller's)
  */
 function adSamu(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm): void {

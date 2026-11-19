@@ -20,13 +20,15 @@
 // munslime(), muse_unslime(), cures_sliming(), green_mon(); src/do.c canletgo();
 // include/hack.h WAND_BACKFIRE_CHANCE
 //
-// Not ported: ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet():
-// never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
-// Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
+// A monster carrying the Amulet (m23 step 6) zaps its wand of teleportation at her instead of
+// itself, may seem disoriented instead of teleporting, cannot level teleport and may be held back
+// by the mysterious force climbing out of Gehennom.
+//
+// Not ported: Pestilence, Fort Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
 // the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
 // frost horns and the expensive camera (no such objects), Half_spell_damage (no source), steeds.
 import { levelDifficulty } from './levdiff';
-import { monHasSpecial } from './uhave';
+import { monHasAmulet, monHasSpecial } from './uhave';
 import { isVlad, monHatesSilver } from './chamstate';
 import {
   DIRS,
@@ -34,6 +36,7 @@ import {
   cellRules,
   getLevel,
   getPlayer,
+  dungeonLayout,
   inBounds,
   inRooms,
   contents,
@@ -96,6 +99,8 @@ import { nhData, placeObject, removeFromInventory, setCknown, splitStack } from 
 import { growUp } from './mhitm';
 import {
   canDigDown,
+  inEndgame,
+  inHell,
   isBotlevel,
   isKnox,
   inVladsTower,
@@ -758,9 +763,11 @@ export function findDefensive(
     if (obj.def === WAN_DIGGING && spe(obj) > 0 && canZapDig)
       choice = { kind: 'wan_digging', obj: obj.id };
     if (is('wan_tele_self') || is('wan_tele')) continue;
-    // (mon_has_amulet(): never, so never MUSE_WAN_TELEPORTATION)
+    // with the Amulet it zaps her away instead (MUSE_WAN_TELEPORTATION, toward `mux`)
     if (obj.def === WAN_TELEPORTATION && spe(obj) > 0 && teleOk)
-      choice = { kind: 'wan_tele_self', obj: obj.id };
+      choice = monHasAmulet(ctx.state, id)
+        ? { kind: 'wan_tele', obj: obj.id, aim: { x: mu.x, y: mu.y } }
+        : { kind: 'wan_tele_self', obj: obj.id };
     if (is('scr_tele')) continue;
     if (
       obj.def === SCR_TELEPORTATION &&
@@ -848,8 +855,8 @@ function stepOnto(ctx: Ctx, mon: Entity, to: Pos): void {
  * its message, the object known when `oseen`), or (`how` null) by the trap it chose to step on,
  * which goes off under it. Unless the level forbids it ("A mysterious force prevents the gnome
  * from teleporting!"; the object known when the monster is seen), and then it learns that
- * teleport traps do not work here. On the Wizard's Tower's levels it may only seem disoriented
- * for a moment (1 time in 3). ref: src/muse.c m_tele() (no Amulet)
+ * teleport traps do not work here. Carrying the Amulet, or on the Wizard's Tower's levels, it may
+ * only seem disoriented for a moment (1 time in 3). ref: src/muse.c m_tele()
  */
 function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefId | null): void {
   const p = mon.c.pos;
@@ -858,8 +865,10 @@ function mTele(ctx: Ctx, mon: Entity, vismon: boolean, oseen: boolean, how: DefI
     if (vismon && how) discover(ctx, how);
     if (noteleportLevel(ctx, getLevel(ctx.state, p.level), mon.id))
       monLearnsTraps(ctx, mon.id, TRAP.tele);
-  } else if (onWTowerLevel(ctx.state, getLevel(ctx.state, p.level)) && !ctx.rng.rn2(3)) {
-    // (mon_has_amulet(): never)
+  } else if (
+    (monHasAmulet(ctx.state, mon.id) || onWTowerLevel(ctx.state, getLevel(ctx.state, p.level))) &&
+    !ctx.rng.rn2(3)
+  ) {
     if (vismon) say(ctx, 'muse.disoriented_moment', { mon: monNam(ctx, mon) });
   } else if (how) {
     // "teleporation has been triggered by an object"
@@ -919,6 +928,27 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       if (stairsAt(ctx, level, p.x, p.y) !== 'up') return 0;
       // "impossible; level 1 upstairs are SSTAIRS"
       if (firstLevel(ctx, level)) return monEscape(ctx, mon, vismon);
+      if (
+        inHell(ctx.state, level) &&
+        monHasAmulet(ctx.state, id) &&
+        !ctx.rng.rn2(4) &&
+        level.dlevel < (dungeonLayout(ctx.state, level.dungeon).levels ?? Infinity) - 3
+      ) {
+        if (vismon)
+          say(ctx, 'muse.mysterious_force', {
+            mon: name(),
+            him: ['@pronoun.him', '@pronoun.her', '@pronoun.it'][monGender(ctx, mon)] ?? '',
+          });
+        // "simpler than for the player; this will usually be the Wizard and he'll immediately go
+        // right to the upstairs, so there's not much point in having any chance for a random
+        // position on the current level"
+        migrateToLevel(
+          ctx,
+          mon,
+          levelIdFor(ctx.state, { dungeon: level.dungeon, dlevel: level.dlevel + 1 }),
+        );
+        return 2;
+      }
       if (vismon) say(ctx, 'muse.escapes_upstairs', { mon: name() });
       migrateToLevel(
         ctx,
@@ -1037,6 +1067,17 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       awakenSoldiers(ctx, mon);
       return 2;
     }
+    case 'wan_tele': {
+      // it carries the Amulet: zap her away (MUSE_WAN_TELEPORTATION)
+      if (!otmp) return 0;
+      mzapwand(ctx, mon, otmp, false);
+      const hp0 = getPlayer(ctx.state).c.pos;
+      const aim = c.aim ?? (hp0 ? { x: hp0.x, y: hp0.y } : { x: p.x, y: p.y });
+      mbhit(ctx, mon, ctx.rng.rn2(8) + 6, otmp, oseen, aim); // rn1(8, 6)
+      // monster learns that teleportation isn't useful here
+      if (noteleportLevel(ctx, level, id)) monLearnsTraps(ctx, id, TRAP.tele);
+      return 2;
+    }
     case 'wan_tele_self': {
       if (!otmp) return 0;
       if (
@@ -1061,7 +1102,9 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       useOne(ctx, id, otmp);
       if (cursed || isMConfused(ctx, id)) {
         const nlev = randomTeleportLevel(ctx, level);
-        if (nlev === level.depth) {
+        if (monHasAmulet(ctx.state, id) || inEndgame(ctx.state, level)) {
+          if (vismon) say(ctx, 'mon.very_disoriented', { mon: name() });
+        } else if (nlev === level.depth) {
           if (vismon) say(ctx, 'muse.shudders', { mon: name() });
         } else migrateToLevel(ctx, mon, levelIdFor(ctx.state, levelAtDepth(ctx, level, nlev)));
       } else mTele(ctx, mon, vismon, oseen, SCR_TELEPORTATION);
@@ -1165,7 +1208,7 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
       return 2;
     }
     default:
-      return 0; // MUSE_WAN_TELEPORTATION: never chosen (no Amulet)
+      return 0;
   }
 }
 

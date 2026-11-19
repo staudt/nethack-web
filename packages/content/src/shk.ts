@@ -483,10 +483,13 @@ function billBoxContent(ctx: Ctx, obj: Entity, dummy: boolean, shk: EntityId): v
 
 /**
  * "esteemed lady": a vampire form is a dark lady or lord, an elf (form or race) a hiril or hir,
- * another form not human a creature. ref: src/shk.c append_honorific() (no udemigod)
+ * another form not human a creature; "most renowned and sacred" may come once the Wizard has
+ * been killed or the invocation performed (udemigod). ref: src/shk.c append_honorific()
  */
 function honorific(ctx: Ctx): { hon: string; title: string } {
-  const hon = `@shk.hon.${ctx.rng.rn2(4)}`;
+  // (chooses among [0]..[3] normally; [1]..[4] after the Wizard has been killed or invocation
+  // ritual performed)
+  const hon = `@shk.hon.${ctx.rng.rn2(4) + (uState(ctx.state).udemigod ? 1 : 0)}`;
   const female = heroFemale(ctx.state);
   const form = heroForm(ctx); // her own form is her role's, a human
   const title =

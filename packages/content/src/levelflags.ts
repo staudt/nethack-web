@@ -610,6 +610,19 @@ export function medusaDepth(state: Readonly<GameState>): number {
   return Infinity;
 }
 
+/**
+ * The depth of the stronghold (the Castle Gehennom branches from) in this game, or Infinity when
+ * it has none (a test dungeon, an old save). ref: src/dungeon.c stronghold_level
+ */
+export function strongholdDepth(state: Readonly<GameState>): number {
+  for (const d of state.dungeons) {
+    const sp = d.special.find((s) => s.id === CASTLE);
+    if (sp && d.branches.some((b) => b.dlevel === sp.dlevel && HELLISH.includes(b.to)))
+      return d.depthStart + sp.dlevel - 1;
+  }
+  return Infinity;
+}
+
 /** The special level id of Medusa's island in the dungeon layout. */
 const MEDUSA: DefId = 'nh:medusa';
 
