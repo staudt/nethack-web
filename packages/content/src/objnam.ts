@@ -186,8 +186,9 @@ function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, i
   }
   // ref: xname() FOOD_CLASS: `if (typ == TIN && known) tin_details()` (obj->known)
   if (def.id === TIN && it?.known.spe) return tinName(state, defs, item, plural);
-  // ref: xname() AMULET_CLASS: the imitation Amulet is identified one by one (obj->known)
-  if (def.id === FAKE_AMULET) {
+  // ref: xname() AMULET_CLASS: the Amulet and the imitation are identified one by one
+  // (obj->known)
+  if (def.id === FAKE_AMULET || def.id === AMULET_OF_YENDOR) {
     return { key: `${it?.known.spe ? def.nameKey : (def.descKey ?? def.nameKey)}${plural}` };
   }
   if (isKnown(state, defs, def)) {
@@ -222,6 +223,7 @@ function xnameBase(state: Readonly<GameState>, defs: Registry, def: ObjectDef, i
 }
 
 const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
+const AMULET_OF_YENDOR = 'nh:amulet_of_yendor';
 const TOWEL = 'nh:towel';
 const HORN_OF_PLENTY = 'nh:horn_of_plenty';
 
@@ -297,12 +299,15 @@ export function doname(
   const holyWater =
     def.id === 'nh:potion_of_water' && isKnown(state, defs, def) && bknown && it.buc !== 'uncursed';
   // With implicit_uncursed, "uncursed" is printed unless the item is charged and fully known;
-  // only rings are oc_charged here, and rings always print it. The imitation Amulet never says
-  // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()). The Book
-  // of the Dead is unique and a spellbook is always `known`: "the papyrus spellbook" too.
+  // only rings are oc_charged here, and rings always print it. Neither Amulet says "uncursed";
+  // the real one is always "the Amulet of Yendor", the imitation while unidentified
+  // (the_unique_obj()). The Book of the Dead is unique and a spellbook is always `known`: "the
+  // papyrus spellbook" too.
+  const real = def.id === AMULET_OF_YENDOR;
   const fake = def.id === FAKE_AMULET;
   // The Candelabrum (oc_unique, oc_uses_known) is "the" once its charge is known.
   if (
+    real ||
     (fake && !it.known.spe) ||
     def.id === 'nh:book_of_the_dead' ||
     (def.id === CANDELABRUM && it.known.spe)
@@ -317,7 +322,7 @@ export function doname(
     bknown &&
     def.class !== 'coin' &&
     !holyWater &&
-    !(fake && it.buc === 'uncursed') &&
+    !((fake || real) && it.buc === 'uncursed') &&
     !impliedUncursed
   )
     params.buc = { key: `obj.buc.${it.buc}` };

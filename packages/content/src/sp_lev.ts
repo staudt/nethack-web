@@ -58,6 +58,8 @@ import {
   noncorporeal,
 } from './mondata';
 import { mongone } from './mondeath';
+import { mkRoamer } from './priest';
+import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL, A_NONE, type Aligntyp } from './aligntyp';
 import { minvent } from './mongear';
 import { mkgold, removeFromInventory } from './items';
 import { resistsSton } from './stonestate';
@@ -245,6 +247,14 @@ function applyAppearAs(ctx: Ctx, id: EntityId, ap: NonNullable<LevelContent['app
   else setMappearance(ctx, id, { type: 'monster', id: ap.id });
 }
 
+/** des.monster's `align`. ref: src/sp_lev.c sp_amask_to_amask(), Amask2align() */
+const ALIGN_OF: Readonly<Record<NonNullable<LevelContent['align']>, Aligntyp>> = {
+  lawful: A_LAWFUL,
+  neutral: A_NEUTRAL,
+  chaotic: A_CHAOTIC,
+  noalign: A_NONE,
+};
+
 /** The Gnomish Mines (C's In_mines()) */
 const MINES = 'nh:mines';
 
@@ -253,8 +263,8 @@ const MINES = 'nh:mines';
  * a water-liking one tries without DRY first, then with it); an occupied spot moves to a close
  * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
  * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
- * MM_ASLEEP; `waiting` is STRAT_WAITFORU (a vampire born shifted turns back). `align` (mk_roamer())
- * comes with m23 step 3 and throws until then. A unique that was already made (extinct) is not made again; any other genocided or
+ * MM_ASLEEP; `waiting` is STRAT_WAITFORU (a vampire born shifted turns back); `align` makes a
+ * roaming priest or minion of that god (priest.ts mkRoamer()). A unique that was already made (extinct) is not made again; any other genocided or
  * extinct kind is made at random instead, and so are 2 in 3 of a dwarf or gnome hero's own kind
  * in the Mines.
  */
@@ -265,8 +275,6 @@ export function createMonster(
   ldef: LevelDef,
   room?: number,
 ): void {
-  if (c.align !== undefined)
-    throw new Error(`${ldef.id}: des.monster align needs mk_roamer() (m23 step 3)`);
   let def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
@@ -300,12 +308,21 @@ export function createMonster(
   } else pos = contentSpot(ctx, level, c, ldef, room);
   // someone already there: a close place instead (makemon's enexto)
   if (!pos) return;
-  const id = makemon(ctx, def, pos, {
-    level: level.id,
-    adjacentOk: true,
-    inMklev: true,
-    ...(c.asleep ? { asleep: true } : {}),
-  });
+  // an `align`ed monster is a roaming priest or minion of that god (mk_roamer(): `peaceful`
+  // unset is BOOL_RANDOM, true as a boolean); `asleep` is applied after it
+  const id =
+    c.align !== undefined
+      ? mkRoamer(ctx, level, def, ALIGN_OF[c.align], pos, c.peaceful ?? true)
+      : makemon(ctx, def, pos, {
+          level: level.id,
+          adjacentOk: true,
+          inMklev: true,
+          ...(c.asleep ? { asleep: true } : {}),
+        });
+  if (id !== null && c.align !== undefined && c.asleep) {
+    const m = ctx.state.entities[String(id)]?.c.monster;
+    if (m) m.asleep = true;
+  }
   if (id !== null && c.appearAs) applyAppearAs(ctx, id, c.appearAs);
   const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)

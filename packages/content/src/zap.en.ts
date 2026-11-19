@@ -3,6 +3,8 @@
 export const zapMessagesEn: Record<string, string> = {
   // makewish(), hold_another_object() (wish.ts)
   'wish.prompt': 'For what do you wish?',
+  // ref: src/allmain.c moveloop_core() amulet_wish
+  'wish.amulet_bestows': 'The Amulet is bestowing a wish upon you!',
   'wish.nothing_fitting': 'Nothing fitting that description exists in the game.',
   'wish.artifact_disappears': 'For a moment, you feel something in your hands, but it disappears!',
   'wish.enough_tries': "That's enough tries!",

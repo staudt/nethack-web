@@ -35,9 +35,13 @@ const CALLABLE: readonly ObjectDef['class'][] = [
 /**
  * Whether the type can be given a name. ref: src/do_name.c objtyp_is_callable(): it has a
  * description (an appearance or `descKey`) and is not identified yet, or it already has a name
- * (so it can be renamed or cleared even after it is identified, as call_ok() allows).
+ * (so it can be renamed or cleared even after it is identified, as call_ok() allows); never
+ * either Amulet of Yendor.
  */
 function callable(ctx: Pick<Ctx, 'state' | 'defs'>, def: ObjectDef): boolean {
+  // "the Amulet doesn't like being called names": calling a real and a fake one distinct names
+  // would tell which is which
+  if (def.id === 'nh:amulet_of_yendor' || def.id === 'nh:fake_amulet_of_yendor') return false;
   if (nhData(ctx).called?.[def.id] !== undefined) return true;
   if (!CALLABLE.includes(def.class)) return false;
   const described = def.descKey !== undefined || ctx.state.appearances[def.id] !== undefined;

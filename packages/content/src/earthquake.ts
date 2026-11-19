@@ -6,6 +6,7 @@
 // the doorless doorway stays pitless), the buried ball's chain, selftouch() and mselftouch() (no
 // cockatrice corpse is touched by falling), exercise, Half_physical_damage, sinks and the high
 // altars (none exist), the Astral and endgame planes and Vlad's Tower in the level's description.
+import { isHighAltar } from './highaltar';
 import {
   getLevel,
   getPlayer,
@@ -237,7 +238,8 @@ export function doEarthquake(ctx: Ctx, forceIn: number): void {
         if (seen()) say(ctx, 'music.falls_chasm', { what: '@music.what.sink' });
         doPit(ctx, x, y, tuPit);
       } else if (id !== undefined && altarAlign(id) !== null) {
-        // (no high altars exist: AM_SANCTUM is never set)
+        // always preserve the high altars
+        if (isHighAltar(ctx, level, x, y)) continue;
         const algn = altarAlign(id) ?? 0;
         if (seen()) say(ctx, 'music.altar_falls', { align: alignStr(algn) });
         desecrateAltar(ctx, false, algn);

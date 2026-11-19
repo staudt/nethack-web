@@ -659,6 +659,7 @@ export const messagesEn: Record<string, string> = {
   'nh:shopkeeper': 'shopkeeper',
   'nh:guard': 'guard',
   'nh:aligned_cleric': 'priest',
+  'nh:high_priest': 'high priest',
   // m10 batch 1
   'nh:hobgoblin': 'hobgoblin',
   'nh:garter_snake': 'garter snake',

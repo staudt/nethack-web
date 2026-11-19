@@ -16,7 +16,8 @@ import { losexp } from './exper';
 import { isHumanForm, ulycn, youUnwere } from './werestate';
 import { heroForm, ownHp, upolyd } from './upoly';
 import { castleTune, gehennomEntered, setUheardTune, uheardTune, uopenedDbridge } from './dbstate';
-import { inHell } from './levelflags';
+import { inHell, isAstral, isSanctum } from './levelflags';
+import { uhimKey } from './gender';
 import {
   NORMAL_SPEED,
   getPlayer,
@@ -420,14 +421,19 @@ export function attrcurse(ctx: Ctx): boolean {
 }
 
 /** ref: src/pray.c fry_by_god() */
-function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
+export function fryByGod(ctx: Ctx, align: number, disint: boolean): void {
   say(ctx, disint ? 'pray.disintegrate' : 'pray.fry');
   const h = hero(ctx);
   if (h.c.hp) h.c.hp.cur = 0;
   done(ctx, `@killer.wrath_${godSuffix(ctx.state, align)}`); // "the wrath of Odin"
 }
 
-/** ref: src/pray.c god_zaps_you() (no reflection exists) */
+/**
+ * The god's lightning, then the disintegration beam; a hero who lives through both (life saving,
+ * shock and disintegration resistance) on a high altar's level (the Sanctum, the Astral Plane)
+ * is sent three minions: "Thou cannot escape my wrath, mortal!". ref: src/pray.c god_zaps_you()
+ * (no reflection; worn armor is not disintegrated)
+ */
 function godZapsYou(ctx: Ctx, align: number): void {
   // swallowed, the engulfer takes the bolt (and she gets the experience: "It takes guts to
   // successfully pull off this trick on your god, anyway.")
@@ -457,7 +463,7 @@ function godZapsYou(ctx: Ctx, align: number): void {
     if (hasProp(hero(ctx), P.SHOCK_RES)) say(ctx, 'pray.not_affected');
     else {
       fryByGod(ctx, align, false);
-      return;
+      if (ctx.state.gameOver) return; // life-saved: the god goes on
     }
   }
   say(ctx, 'pray.not_deterred', { god: alignGname(ctx.state, align) });
@@ -467,7 +473,21 @@ function godZapsYou(ctx: Ctx, align: number): void {
     return;
   }
   say(ctx, 'pray.disint_beam');
-  fryByGod(ctx, align, true);
+  if (!hasProp(hero(ctx), P.DISINT_RES)) {
+    fryByGod(ctx, align, true);
+    if (ctx.state.gameOver) return;
+  } else {
+    say(ctx, 'pray.bask', { color: hcolor(ctx, 'black') });
+    godvoice(ctx, align, 'pray.believe_it_not');
+  }
+  if (isAstral(ctx.state) || isSanctum(ctx.state)) {
+    // one more try for high altars
+    say(ctx, 'pray.cannot_escape');
+    summonMinion(ctx, align as Aligntyp, false);
+    summonMinion(ctx, align as Aligntyp, false);
+    summonMinion(ctx, align as Aligntyp, false);
+    say(ctx, uhimKey(ctx.state, 'pray.destroy_servants'));
+  }
 }
 
 /**

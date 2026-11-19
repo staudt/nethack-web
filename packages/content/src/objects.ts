@@ -3842,6 +3842,24 @@ export const OBJECTS: readonly ObjectDef[] = [
     magic: false,
     delay: 0,
   },
+  // The real Amulet (m23 step 3): carried by Moloch's high priest in the Sanctum (priest.ts);
+  // a wish outside wizard mode gives the imitation (wish.ts). It cannot go in a container
+  // (uhave.ts isUniqueRelic()) and does nothing worn.
+  // ref: objects.h OBJECT(OBJ("Amulet of Yendor", "Amulet of Yendor"), BITS(0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, MITHRIL), 0, AMULET_CLASS, 0, 0, 20, 30000, 0, 0, 0, 0, 20, HI_METAL, AMULET_OF_YENDOR)
+  {
+    id: 'nh:amulet_of_yendor',
+    nameKey: 'nh:amulet_of_yendor',
+    descKey: 'nh:amulet_of_yendor.desc',
+    class: 'amulet',
+    glyph: { ch: '"', fg: CYAN },
+    prob: 0,
+    weight: 20,
+    cost: 30000,
+    material: 'mithril',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
 
   // ---- wands (weight 7, charged; appearances are shuffled, so no descKey; the material is
   // that of the wand's own description, see DEVIATIONS) ----

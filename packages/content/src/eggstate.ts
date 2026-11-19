@@ -86,7 +86,7 @@ export const GROWNUPS: readonly (readonly [string, string])[] = [
   ['sergeant', 'lieutenant'],
   ['lieutenant', 'captain'],
   ['watchman', 'watch_captain'],
-  ['aligned_cleric', 'high_cleric'],
+  ['aligned_cleric', 'high_priest'],
   ['student', 'archeologist'],
   ['attendant', 'healer'],
   ['page', 'knight'],
@@ -103,7 +103,6 @@ export const GROWNUP_ABSENT: readonly string[] = [
   'acolyte',
   'apprentice',
   'attendant',
-  'high_cleric',
   'page',
   'student',
 ];

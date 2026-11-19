@@ -162,7 +162,7 @@ export interface Animated {
  * Monster types cant_revive() turns into a human zombie. ref: src/read.c cant_revive() (PM_GUARD,
  * PM_HIGH_CLERIC, PM_ALIGNED_CLERIC, PM_ANGEL; shopkeepers may be revived)
  */
-const ZOMBIFIED: readonly DefId[] = ['nh:guard', 'nh:high_cleric', 'nh:aligned_cleric', 'nh:angel'];
+const ZOMBIFIED: readonly DefId[] = ['nh:guard', 'nh:high_priest', 'nh:aligned_cleric', 'nh:angel'];
 
 /**
  * The statue comes to life as its monster, at (x, y) or next to it when that square is taken

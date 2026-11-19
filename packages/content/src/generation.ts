@@ -692,7 +692,7 @@ export function makemon(
 const GHOST: DefId = 'nh:ghost';
 /** ref: include/monsters.h PM_ALIGNED_CLERIC, PM_HIGH_CLERIC, PM_ANGEL */
 const ALIGNED_CLERIC: DefId = 'nh:aligned_cleric';
-const HIGH_CLERIC: DefId = 'nh:high_cleric';
+const HIGH_CLERIC: DefId = 'nh:high_priest';
 const ANGEL: DefId = 'nh:angel';
 const CROESUS: DefId = 'nh:croesus';
 const ERINYS: DefId = 'nh:erinys';

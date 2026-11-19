@@ -158,7 +158,7 @@ export function summonMinion(ctx: Ctx, alignment: Aligntyp, talk: boolean): void
   const def = ctx.defs.monster(mnum);
   const at = getPlayer(ctx.state).c.pos;
   if (!at) return;
-  const plain = ['nh:shopkeeper', 'nh:guard', 'nh:aligned_cleric', 'nh:high_cleric'].includes(mnum);
+  const plain = ['nh:shopkeeper', 'nh:guard', 'nh:aligned_cleric', 'nh:high_priest'].includes(mnum);
   const id = makemon(
     ctx,
     def,

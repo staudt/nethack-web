@@ -125,7 +125,7 @@ describe("Gehennom's layout", () => {
     expect(wiz1.size).toBe(6);
   });
 
-  test('the special levels are built, the Sanctum as the filler; the predicates know each by its id', () => {
+  test('the special levels are built, the Sanctum too; the predicates know each by its id', () => {
     const { state, level } = inGehennom(3, 1);
     expect(level.def).toBe(G.valley); // m17 step 2
     expect(isValley(state)).toBe(true);
@@ -138,11 +138,11 @@ describe("Gehennom's layout", () => {
     expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: wiz.dlevel })).toBe(G.fakewiz1);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: wiz.dlevel }, 'random'));
     expect(getLevel(state).def).toBe('nh:fakewiz1'); // m17 step 8
-    // the Sanctum (out of reach but for wizard mode) is the filler
+    // the Sanctum (out of reach but for wizard mode) is its own level (m23 step 3)
     const sanctum = hell(state).special.find((s) => s.id === G.sanctum)!;
     expect(gehennomSpecial(state, { dungeon: GEHENNOM, dlevel: sanctum.dlevel })).toBe(G.sanctum);
     run(state, (ctx) => ctx.goToLevel({ dungeon: GEHENNOM, dlevel: sanctum.dlevel }, 'random'));
-    expect(getLevel(state).def).toBe('nh:hellfill'); // m17 step 3
+    expect(getLevel(state).def).toBe('nh:sanctum');
     // an ordinary level has none, and the main dungeon's specials are not Gehennom's
     const taken = new Set(hell(state).special.map((s) => s.dlevel));
     const plain = [...Array(hell(state).levels!).keys()]

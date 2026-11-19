@@ -20,6 +20,7 @@
 // the air/water and Earth levels, engulfing, leashed pets, Flying (no source yet), and pits
 // or holes in doorways (core keeps traps on plain floor: "The doorway here is too hard to dig
 // in.").
+import { isHighAltar } from './highaltar';
 import { destroyDrawbridge } from './dbridge';
 import {
   findDrawbridge,
@@ -709,9 +710,8 @@ export type DigCheck =
   | 'objtrap';
 
 /**
- * Whether she (BY_YOU) or a broken wand (`byObject`, BY_OBJECT: thrones and altars allowed, no
- * sanctum yet;
- * an existing trap refused) can dig down at (x, y). ref: src/dig.c dig_check()
+ * Whether she (BY_YOU) or a broken wand (`byObject`, BY_OBJECT: thrones and altars allowed, but
+ * not a high altar; an existing trap refused) can dig down at (x, y). ref: src/dig.c dig_check()
  */
 export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject = false): DigCheck {
   const ttmp = trapAt(level, x, y);
@@ -719,7 +719,7 @@ export function digCheck(ctx: Ctx, level: Level, x: number, y: number, byObject 
   if (id === T.ladder_up || id === T.ladder_down) return 'ladder';
   if (id !== undefined && ctx.defs.terrain(id).stairs !== undefined) return 'stairs';
   if (id === T.throne && !byObject) return 'throne';
-  if (isAltarId(id) && !byObject) return 'altar';
+  if (isAltarId(id) && (!byObject || isHighAltar(ctx, level, x, y))) return 'altar';
   if (isObstructedId(id) && !isSdoorId(id) && nonDiggable(ctx, level, x, y)) return 'toohard';
   // a grave is not dug up (dig_up_grave() is not ported: DEVIATIONS.md "Graves")
   if (id === T.grave) return 'toohard';

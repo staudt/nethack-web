@@ -1,10 +1,11 @@
-// Temple priests: made with their temple, and the god's anger when the hero attacks one.
-// ref: src/priest.c priestini(), ghod_hitsu(), intemple(); src/sp_lev.c create_altar()
-// (`croom_is_temple`)
+// Temple priests: made with their temple (a high altar's is a high priest, the Sanctum's with the
+// Amulet), roaming priests and minions of a level script, and the god's anger when the hero
+// attacks one. ref: src/priest.c priestini(), mk_roamer(), ghod_hitsu(), intemple();
+// src/sp_lev.c create_altar() (`croom_is_temple`)
 //
 // The priest's table and the questions about it are in epri.ts; his movement (pri_move(),
-// move_special()) is in monmove.ts. Not ported: high priests and the Sanctum, roaming priests
-// (angry_priest()'s conversion to a minion), the Amulet, conflict, the exercise of Wisdom.
+// move_special()) is in monmove.ts. Not ported: conflict, the exercise of Wisdom, mapseen's
+// temple annotation.
 import {
   DIRS,
   DIR_LIST,
@@ -21,6 +22,7 @@ import {
   type Json,
   type Level,
   type ModApi,
+  type MonsterDef,
   type Pos,
 } from '@nh/core';
 import { blockersOf } from './boulder';
@@ -39,14 +41,18 @@ import {
   templeOccupied,
   type Epri,
 } from './epri';
-import { ALGN_DEVOUT, ALGN_SINNED } from './aligntyp';
+import { A_NONE, ALGN_DEVOUT, ALGN_SINNED, type Aligntyp } from './aligntyp';
+import { setEmin } from './emin';
+import { isHighAltar } from './highaltar';
+import { inEndgame, isSanctum } from './levelflags';
+import { AMULET_OF_YENDOR } from './uhave';
 import { makemon, rlocPos } from './generation';
 import { born } from './vanquished';
 import { addToInventory } from './items';
 import { bribe, money2u, moneyCnt } from './money';
 import { adjalign, setU, uState } from './luck';
 import { mkobj } from './mkobj';
-import { whichArmor } from './mongear';
+import { mongets, whichArmor } from './mongear';
 import { P, hasIntrinsic, hasProp, heroHas, incrItimeout, setIntrinsic } from './props';
 import { isFrozen, unfreezeMonst } from './mstate';
 import { monVisible } from './invis';
@@ -71,13 +77,37 @@ function goodLocation(ctx: Ctx, level: Level, x: number, y: number): boolean {
   return t.passable && t.door === undefined;
 }
 
+/** ref: include/monsters.h PM_HIGH_CLERIC */
+export const HIGH_PRIEST = 'nh:high_priest';
+
+/** Moves any monster at (x, y) of `level` out of the way ("insurance": rloc(RLOC_NOMSG)). */
+function clearSpot(ctx: Ctx, level: Level, x: number, y: number): void {
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    const p = e?.c.pos;
+    if (!e?.c.monster || !p || p.level !== level.id || p.x !== x || p.y !== y) continue;
+    const to = rlocPos(ctx, level, e);
+    if (to) {
+      p.x = to.x;
+      p.y = to.y;
+    }
+  }
+}
+
 /**
  * Makes the priest of the temple `room` next to its shrine at `altar` (on the altar itself when
  * no neighbour is good), moving any monster already there away: peaceful, awake, knowing every
- * trap, with 2 to 4 spellbooks, and his robe uncursed (coaligned) or cursed half the time.
- * ref: src/priest.c priestini() (not the Sanctum's high priest)
+ * trap, with 2 to 4 spellbooks, and his robe uncursed (coaligned) or cursed half the time. The
+ * seat of a high altar (`sanctum`) gets a high priest, who on the Sanctum, serving Moloch, holds
+ * the Amulet of Yendor. ref: src/priest.c priestini()
  */
-export function priestini(ctx: Ctx, level: Level, room: number, altar: Pos): EntityId | null {
+export function priestini(
+  ctx: Ctx,
+  level: Level,
+  room: number,
+  altar: Pos,
+  sanctum = false,
+): EntityId | null {
   const si = ctx.rng.rn2(8);
   let px = altar.x;
   let py = altar.y;
@@ -92,20 +122,10 @@ export function priestini(ctx: Ctx, level: Level, room: number, altar: Pos): Ent
     px = altar.x;
     py = altar.y;
   }
-  // "insurance": move a monster out of the way (rloc(RLOC_NOMSG))
-  for (const id of sortedIds(ctx.state)) {
-    const p = ctx.state.entities[String(id)]?.c.pos;
-    const isMon = ctx.state.entities[String(id)]?.c.monster !== undefined;
-    if (!isMon || !p || p.level !== level.id || p.x !== px || p.y !== py) continue;
-    const to = rlocPos(ctx, level, ctx.state.entities[String(id)]);
-    if (to) {
-      p.x = to.x;
-      p.y = to.y;
-    }
-  }
+  clearSpot(ctx, level, px, py);
   const id = makemon(
     ctx,
-    ctx.defs.monster(ALIGNED_CLERIC),
+    ctx.defs.monster(sanctum ? HIGH_PRIEST : ALIGNED_CLERIC),
     { x: px, y: py },
     { level: level.id, extra: 'epri' },
   );
@@ -130,6 +150,9 @@ export function priestini(ctx: Ctx, level: Level, room: number, altar: Pos): Ent
   priest.c.monster.asleep = false;
   // (set_malign(): the malign is computed when it is needed, from the shrine's alignment)
 
+  // now his/her goodies...
+  if (sanctum && epri.shralign === A_NONE && isSanctum(ctx.state, level))
+    mongets(ctx, id, AMULET_OF_YENDOR);
   // 2 to 4 spellbooks
   for (let cnt = ctx.rng.rn2(3) + 2; cnt > 0; --cnt) {
     const book = mkobj(ctx, 'spellbook', { artif: false, level: level.id, inMklev: true });
@@ -164,10 +187,43 @@ export function templePriests(ctx: Ctx, level: Level): void {
     const room = templeOccupied(level, inRooms(level, s.x, s.y));
     if (room === null) continue; // !croom_is_temple: a plain altar
     kept.push(s);
-    if (!tended.some((p) => p.x === s.x && p.y === s.y)) priestini(ctx, level, room, s);
+    if (!tended.some((p) => p.x === s.x && p.y === s.y))
+      priestini(ctx, level, room, s, isHighAltar(ctx, level, s.x, s.y));
   }
   if (kept.length > 0) level.shrines = kept;
   else delete level.shrines;
+}
+
+/**
+ * A roaming priest or minion of god `alignment` (a level script's `align`): made at (x, y) (or
+ * close by), any monster already there moved away, a minion of that god (renegade when the hero
+ * shares it and it is hostile), knowing every trap, awake and `peaceful` as given. `def` null is
+ * a random monster (its kind was genocided). ref: src/priest.c mk_roamer()
+ */
+export function mkRoamer(
+  ctx: Ctx,
+  level: Level,
+  def: MonsterDef | null,
+  alignment: Aligntyp,
+  at: Pos,
+  peaceful: boolean,
+): EntityId | null {
+  const coaligned = uState(ctx.state).alignType === alignment;
+  clearSpot(ctx, level, at.x, at.y); // insurance
+  const id = makemon(ctx, def, at, {
+    level: level.id,
+    adjacentOk: true,
+    inMklev: true,
+    extra: 'emin',
+  });
+  const roamer = id === null ? undefined : ctx.state.entities[String(id)];
+  if (id === null || !roamer?.c.monster) return null;
+  setEmin(ctx, id, { minAlign: alignment, renegade: coaligned && !peaceful });
+  for (const t of ctx.defs.traps) monLearnsTraps(ctx, id, t.id); // traps are known
+  roamer.c.monster.peaceful = peaceful;
+  roamer.c.monster.asleep = false;
+  // (set_malign(): computed from the minion's god and peacefulness when needed)
+  return id;
 }
 
 /** The direction of (dx, dy), each -1, 0 or 1 and not both 0. */
@@ -281,8 +337,10 @@ function canseeNow(ctx: Ctx, at: Pos): boolean {
  * (~505), and a forbidding feeling or a sense of peace (~55, or at once when it switches). Untended:
  * an eerie feeling, one time in four nothing, and one time in five a hostile ghost appears next to
  * her ("An enormous ghost" while fewer than five ghosts were born) and frightens her helpless for
- * 3 turns. ref: src/priest.c intemple() (no Sanctum, deafness
- * or achievements)
+ * 3 turns. Moloch's high priest greets her first entry into the Sanctum with "Infidel, you have
+ * entered Moloch's Sanctum!" and becomes hostile; in the endgame's high temples (and the
+ * Sanctum) no feeling is given. ref: src/priest.c intemple() (no deafness, achievements or
+ * mapseen)
  */
 export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): void {
   const level = getLevel(ctx.state);
@@ -295,12 +353,19 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
   if (pid !== null && priest?.c.monster && priest.c.pos && epri) {
     // tended
     const shrined = hasShrine(ctx, epri);
+    const sanctum =
+      priest.def === HIGH_PRIEST && (isSanctum(ctx.state, level) || inEndgame(ctx.state, level));
     const canSpeak = !priest.c.monster.asleep && !isFrozen(ctx, pid); // !helpless()
+    const halluc = hasProp(getPlayer(ctx.state), P.HALLUC);
     if (canSpeak && now >= epri.intoneTime) {
       if (canseeNow(ctx, priest.c.pos)) {
-        const mon = hasProp(getPlayer(ctx.state), P.HALLUC)
+        // don't reveal the altar's owner upon temple entry in the endgame; for the Sanctum, the
+        // next message names Moloch so suppress the "of Moloch" for him here too
+        const mon = halluc
           ? monNam(ctx, priest)
-          : priestName(ctx.state, epri);
+          : sanctum
+            ? `@${HIGH_PRIEST}`
+            : priestName(ctx.state, epri);
         ctx.emit({ type: 'msg', key: 'priest.intones', params: { mon } });
       } else ctx.emit({ type: 'msg', key: 'priest.voice_intones' });
       epri.intoneTime = now + ctx.rng.d(10, 500); // ~2505
@@ -308,13 +373,29 @@ export function intemple(ctx: Ctx, roomno: number, rooms0: readonly number[]): v
       // intones" introduction
       epri.enterTime = 0;
     }
-    if (now >= epri.enterTime && canSpeak) {
-      ctx.emit({
-        type: 'msg',
-        key: shrined ? 'priest.pilgrim_sacred' : 'priest.pilgrim_desecrated',
-      });
+    let msg1: string | null = null;
+    let msg2: string | null = null;
+    if (sanctum && isSanctum(ctx.state, level)) {
+      if (priest.c.monster.peaceful) {
+        // first time inside
+        msg1 = 'priest.sanctum_infidel';
+        msg2 = 'priest.sanctum_be_gone';
+        // became angry voluntarily; no penalty for attacking him (set_malign(): computed from
+        // the peacefulness when needed)
+        priest.c.monster.peaceful = false;
+      } else {
+        // repeat visit, or attacked priest before entering
+        msg1 = 'priest.sanctum_desecrate';
+      }
+    } else if (now >= epri.enterTime) {
+      msg1 = shrined ? 'priest.pilgrim_sacred' : 'priest.pilgrim_desecrated';
+    }
+    if (msg1 && canSpeak) {
+      ctx.emit({ type: 'msg', key: msg1 });
+      if (msg2) ctx.emit({ type: 'msg', key: msg2 });
       epri.enterTime = now + ctx.rng.d(10, 100); // ~505
     }
+    if (sanctum) return;
     const record = uState(ctx.state).alignRecord;
     const forbidding = !shrined || !pCoaligned(ctx, epri) || record <= ALGN_SINNED;
     const key = forbidding

@@ -10,6 +10,7 @@ import {
   type Entity,
   type EntityId,
   type GameState,
+  type Json,
   type ItemComponent,
   type LevelId,
   type MonsterDef,
@@ -244,7 +245,8 @@ export function mksobjInit(
       // the contents (mkbox_cnts() in mkobj.ts) are made once the box exists
       break;
     case 'amulet':
-      // ref: mksobj_init() AMULET_CLASS
+      // ref: mksobj_init() AMULET_CLASS (`context.made_amulet`)
+      if (def.id === 'nh:amulet_of_yendor') setMadeAmulet(ctx.state);
       if (
         rng.rn2(10) &&
         (def.id === 'nh:amulet_of_strangulation' ||
@@ -324,6 +326,17 @@ let eggInit: EggInit | null = null;
  */
 type FigurineInit = (ctx: ItemCtx, level: LevelId, init: boolean) => DefId;
 let figurineInit: FigurineInit | null = null;
+/**
+ * Records `context.made_amulet` in the hero's state (luck.ts UState `madeAmulet`, written here
+ * directly: luck.ts sits above items.ts).
+ */
+function setMadeAmulet(state: GameState): void {
+  const md = state.modData as Record<string, Json>;
+  const nh = (md['nh'] ??= {}) as Record<string, Json>;
+  const u = (nh['u'] ??= {}) as Record<string, Json>;
+  u['madeAmulet'] = true;
+}
+
 /**
  * mksobj_init()'s TIN roll: spinach 1 time in 6, else up to 200 tries of
  * undead_to_corpse(rndmonnum()) for a monster with corpse nutrition and a corpse; null leaves

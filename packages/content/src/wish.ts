@@ -1,6 +1,7 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
+import { AMULET_OF_YENDOR, uHave } from './uhave';
 import { EGG, canBeHatched, deadSpecies, setEggCorpsenm } from './eggstate';
 import { POT_OIL, setDiluted } from './dilute';
 import { beginBurn } from './light';
@@ -11,10 +12,12 @@ import {
   getLevel,
   getPlayer,
   isPlainFloor,
+  type ActionDef,
   type Ctx,
   type DefId,
   type EntityId,
   type Json,
+  type ModApi,
   type Msg,
 } from '@nh/core';
 import { onameObj } from './artiname';
@@ -111,7 +114,8 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     typ = what.types[k] ?? null;
   } else if (what.kind === 'random') oclass = WRPSYM[ctx.rng.rn2(WRPSYM.length)] ?? 'weapon';
   // handle some objects that are only allowed in wizard mode (of the Amulet, the Candelabrum,
-  // the Bell, the Book and the magic lamp the Candelabrum, the Book and the lamp exist)
+  // the Bell, the Book and the magic lamp the Bell does not exist yet)
+  if (typ === AMULET_OF_YENDOR && !wizard) typ = 'nh:fake_amulet_of_yendor';
   if (typ === 'nh:candelabrum_of_invocation' && !wizard)
     typ = rndClass(ctx.rng, ctx.defs, ['nh:tallow_candle', 'nh:wax_candle'], 0);
   if (typ === 'nh:book_of_the_dead' && !wizard) typ = 'nh:spellbook_of_blank_paper';
@@ -480,4 +484,39 @@ export function answerWish(
   holdAnotherObject(ctx, id, oopsMsg(ctx, id));
   // the gods take notice
   setU(ctx, { ublesscnt: uState(ctx.state).ublesscnt + ctx.rng.rn2(100) + 50 });
+}
+
+/** The handler of the Amulet's wish prompt. */
+export const AMULET_WISH_ID: DefId = 'nh:amulet_wish';
+
+/**
+ * "The Amulet is bestowing a wish upon you!": the first time she has the real Amulet, after the
+ * action that gave it to her (C's once-per-input block; here the afterAction point, so an
+ * Amulet picked from a menu grants it after her next action). The wish is an ordinary one.
+ * ref: src/allmain.c moveloop_core() `u.uevent.amulet_wish`
+ */
+function amuletWish(ctx: Ctx): void {
+  if (ctx.state.gameOver || ctx.state.pendingPrompt) return;
+  if (uState(ctx.state).amuletWish || !uHave(ctx.state, 'amulet')) return;
+  setU(ctx, { amuletWish: true });
+  ctx.emit({ type: 'msg', key: 'wish.amulet_bestows' });
+  askWish(ctx, AMULET_WISH_ID, { tries: 0, wizard: false });
+}
+
+const amuletWishAction: ActionDef = {
+  id: AMULET_WISH_ID,
+  labelKey: 'wish.prompt',
+  handles: 'mod',
+  offer: () => [],
+  perform: () => 0,
+  answer(ctx, value, data) {
+    answerWish(ctx, AMULET_WISH_ID, value, data as unknown as WishData);
+    return 0; // the wish takes no time of its own
+  },
+};
+
+/** The Amulet's wish. */
+export function registerAmuletWish(api: ModApi): void {
+  api.defineAction(amuletWishAction);
+  api.on('afterAction', (ctx) => amuletWish(ctx));
 }

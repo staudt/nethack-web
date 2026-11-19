@@ -208,11 +208,13 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
     mc = Math.max(mc, ctx.defs.object(o.def).armor?.mc ?? 0);
   }
   // a monster's worn item that gives Protection counts as the hero's extrinsic (protects():
-  // the cloak of protection, an artifact worn, wielded or carried; no high priests here)
+  // the cloak of protection, an artifact worn, wielded or carried); high priests have innate
+  // protection
   const gotprot =
     who === ctx.state.playerId
       ? hasExtrinsic(ctx.state.entities[String(who)], P.PROTECTION)
-      : inventoryOf(ctx.state, who).some((o) => {
+      : ctx.state.entities[String(who)]?.def === 'nh:high_priest' ||
+        inventoryOf(ctx.state, who).some((o) => {
           // omit W_SWAPWEP+W_QUIVER; a weapon counts while wielded
           const eq = o.c.item?.equipped ?? null;
           const def = ctx.defs.object(o.def);

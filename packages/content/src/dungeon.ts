@@ -30,6 +30,7 @@ import { ROGUE_FIXUP, ROGUE_LEVEL } from './rogue';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
 import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
+import { SANCTUM, SANCTUM_FIXUP } from './sanctum';
 import { TOWER_FIXUPS, VLAD_TOWER } from './tower';
 import { VALLEY } from './valley';
 import { WIZARD1, WIZARD1_FIXUP, WIZARD2, WIZARD2_FIXUP, WIZARD3, WIZARD3_FIXUP } from './wiztower';
@@ -60,25 +61,22 @@ export const MINEFILL: LevelDef = {
   ],
 };
 
-/**
- * Gehennom's filler, and the stand-in of each of its special levels until that level's own
- * LevelDef lands: hellfill.lua's level (hellfill.ts). ref: dat/dungeon.lua lvlfill = "hellfill"
- */
+/** Gehennom's filler: hellfill.lua's level (hellfill.ts). ref: dat/dungeon.lua lvlfill = "hellfill" */
 export const GEHENNOM_FILLER: DefId = HELLFILL.id;
 
 /**
  * Gehennom's special levels in dungeon.lua's order, each built from its own LevelDef (the Valley's
  * is valley.ts, Juiblex's swamp juiblex.ts, Baalzebub's and Asmodeus's lairs baalz.ts and
- * asmodeus.ts, Orcus Town orcus.ts, the Wizard's Tower wiztower.ts, the fake towers fakewiz.ts;
- * one variant: no `rnd()` draw) but the Sanctum, which is placed but never reached (no
- * invocation: see levelflags.ts dngBottom()) and built as GEHENNOM_FILLER. ref: dat/dungeon.lua "Gehennom" levels (valley base 1; sanctum
+ * asmodeus.ts, Orcus Town orcus.ts, the Wizard's Tower wiztower.ts, the fake towers fakewiz.ts,
+ * the Sanctum sanctum.ts, reached only in wizard mode until the invocation: see levelflags.ts
+ * dngBottom(); one variant: no `rnd()` draw). ref: dat/dungeon.lua "Gehennom" levels (valley base 1; sanctum
  * base -1; juiblex base 4, range 4; baalz base 6, range 4; asmodeus base 2, range 6; wizard1 base
  * 11, range 6; wizard2 chainlevel "wizard1", base 1; wizard3 chainlevel "wizard1", base 2; orcus
  * base 10, range 6; fakewiz1 and fakewiz2 base -6, range 4)
  */
 const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
   { id: G.valley, nameKey: 'level.valley', base: 1, variants: [VALLEY.id] },
-  { id: G.sanctum, nameKey: 'level.sanctum', base: -1 },
+  { id: G.sanctum, nameKey: 'level.sanctum', base: -1, variants: [SANCTUM.id] },
   { id: G.juiblex, nameKey: 'level.juiblex', base: 4, range: 4, variants: [JUIBLEX.id] },
   { id: G.baalz, nameKey: 'level.baalz', base: 6, range: 4, variants: [BAALZ.id] },
   { id: G.asmodeus, nameKey: 'level.asmodeus', base: 2, range: 6, variants: [ASMODEUS.id] },
@@ -100,7 +98,7 @@ const GEHENNOM_SPECIAL: SpecialLevelDef[] = [
   { id: G.orcus, nameKey: 'level.orcus', base: 10, range: 6, variants: [ORCUS_TOWN.id] },
   { id: G.fakewiz1, nameKey: 'level.fakewiz1', base: -6, range: 4, variants: [FAKEWIZ1.id] },
   { id: G.fakewiz2, nameKey: 'level.fakewiz2', base: -6, range: 4, variants: [FAKEWIZ2.id] },
-].map((sp) => ({ variants: [GEHENNOM_FILLER], ...sp }));
+];
 
 export const LEVELS: readonly LevelDef[] = [
   MINEFILL,
@@ -127,6 +125,7 @@ export const LEVELS: readonly LevelDef[] = [
   KNOX_LEVEL,
   ...VLAD_TOWER,
   PLANE_STANDIN,
+  SANCTUM,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -151,6 +150,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [ROGUE_LEVEL.id]: ROGUE_FIXUP,
   [KNOX_LEVEL.id]: KNOX_FIXUP,
   ...TOWER_FIXUPS,
+  [SANCTUM.id]: SANCTUM_FIXUP,
   ...PLANE_FIXUPS,
 };
 
@@ -165,7 +165,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * stairs lead back to the Castle's `up` teleport region. Its eleven special levels are placed
  * (GEHENNOM_SPECIAL); the Valley of the Dead, the three demon lairs, Orcus Town, the Wizard's
  * Tower and the fake towers are built (valley.ts, juiblex.ts, baalz.ts, asmodeus.ts, orcus.ts,
- * wiztower.ts, fakewiz.ts), the Sanctum as the filler; every other level is hellfill.lua's
+ * wiztower.ts, fakewiz.ts, sanctum.ts); every other level is hellfill.lua's
  * (hellfill.ts). Vlad's Tower's branch leaves from one of its levels 9-13.
  * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its

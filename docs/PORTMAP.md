@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-199 NetHack files, 5860 citations.
+200 NetHack files, 5884 citations.
 
 ## dat/asmodeus.lua
 
@@ -182,6 +182,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - `angel_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `demon_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
+
+## dat/sanctum.lua
+
+- (file): `packages/content/src/highaltar.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/sanctum.ts`
 
 ## dat/soko1-1.lua
 
@@ -577,6 +581,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `PM_CROESUS()`: `packages/content/src/gehennom.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_GUARD()`: `packages/content/src/vault.ts`
+- `PM_HIGH_CLERIC()`: `packages/content/src/priest.ts`
 - `PM_KNIGHT()`: `packages/content/src/medusa.ts`
 - `PM_MEDUSA()`: `packages/content/src/mhitm.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
@@ -680,6 +685,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/dbstate.ts`, `packages/content/src/eshk.ts`, `packages/content/src/grave.ts`, `packages/content/src/liquid.ts`, `packages/content/src/shopdamage.ts`, `packages/content/src/sokoban.ts`, `packages/content/src/terrain.ts`, `packages/content/src/vault.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/terrain.ts`
 - `ACCESSIBLE()`: `packages/content/src/jump.ts`, `packages/content/src/vault.ts`
+- `AM_SANCTUM()`: `packages/content/src/highaltar.ts`
 - `AM_SHRINE()`: `packages/core/src/types/level.ts`
 - `DB_MOAT()`: `packages/content/src/dbstate.ts`
 - `DB_NORTH()`: `packages/content/src/dbstate.ts`
@@ -754,7 +760,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/uhave.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `Race_if()`: `packages/content/src/urole.ts`
 - `Role_if()`: `packages/content/src/urole.ts`
@@ -779,7 +785,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/towel.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/towel.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/content/src/wish.ts`, `packages/content/src/zap.en.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -1310,6 +1316,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Can_rise_up()`: `packages/content/src/potion.ts`
 - `In_V_tower()`: `packages/content/src/levelflags.ts`
 - `In_W_tower()`: `packages/content/src/levelflags.ts`
+- `In_endgame()`: `packages/content/src/levelflags.ts`
 - `In_hell()`: `packages/content/src/levelflags.ts`
 - `Invocation_lev()`: `packages/content/src/levelflags.ts`
 - `Is_botlevel()`: `packages/content/src/levelflags.ts`, `packages/core/src/levelgen/generate.ts`
@@ -1617,6 +1624,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/horn.ts`, `packages/content/src/items.ts`, `packages/content/src/magic.ts`, `packages/content/src/read.ts`, `packages/content/src/wish.ts`
 - `addinv()`: `packages/content/src/items.ts`
 - `addinv_core0()`: `packages/content/src/items.ts`
+- `addinv_core1()`: `packages/content/src/uhave.ts`
 - `assigninvlet()`: `packages/content/src/items.ts`
 - `carry_obj_effects()`: `packages/content/src/figurinestate.ts`
 - `carrying()`: `packages/content/src/gem.ts`, `packages/content/src/shk.ts`
@@ -2511,6 +2519,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `in_your_sanctuary()`: `packages/content/src/epri.ts`
 - `inhistemple()`: `packages/content/src/epri.ts`
 - `intemple()`: `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`
+- `mk_roamer()`: `packages/content/src/priest.ts`
 - `mon_aligntyp()`: `packages/content/src/epri.ts`
 - `move_special()`: `packages/content/src/monmove.ts`
 - `newepri()`: `packages/content/src/epri.ts`
@@ -2814,10 +2823,11 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/sp_lev.c
 
 - (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/orcus.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
+- `Amask2align()`: `packages/content/src/sp_lev.ts`
 - `build_room()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `check_room()`: `packages/core/src/levelgen/rooms.ts`
-- `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
-- `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/sprooms.ts`
+- `create_altar()`: `packages/content/src/highaltar.ts`, `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
+- `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/content/src/sanctum.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/sprooms.ts`
 - `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/sp_lev.ts`
 - `create_object()`: `packages/content/src/castle.ts`, `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/tower.ts`
 - `create_room()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
@@ -2881,6 +2891,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_wall_property()`: `packages/content/src/baalz.ts`
 - `set_wallprop_in_selection()`: `packages/content/src/levelflags.ts`
 - `solidify_map()`: `packages/content/src/levelflags.ts`
+- `sp_amask_to_amask()`: `packages/content/src/sp_lev.ts`
 - `splev_initlev()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `spo_endroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `wallification()`: `packages/core/src/levelgen/mkmap.ts`
@@ -3328,6 +3339,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `clonewiz()`: `packages/content/src/nasty.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`
+- `mon_has_amulet()`: `packages/content/src/uhave.ts`
 - `mon_has_arti()`: `packages/content/src/covetous.ts`
 - `mon_has_special()`: `packages/content/src/uhave.ts`
 - `nasties()`: `packages/content/src/nasty.ts`
@@ -3401,7 +3413,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/zap.c
 
-- (file): `packages/content/src/dig.ts`, `packages/content/src/zap.en.ts`
+- (file): `packages/content/src/dig.ts`, `packages/content/src/uhave.ts`, `packages/content/src/zap.en.ts`
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`

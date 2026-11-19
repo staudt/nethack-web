@@ -237,8 +237,8 @@ export function unmakeBirth(ctx: Pick<Ctx, 'state'>, def: MonsterDef, countbirth
   if (def.genFlags.includes('uniq')) setExtinct(ctx, def.id, false);
 }
 
-/** C's PM_HIGH_CLERIC (no such row here) */
-const HIGH_CLERIC: DefId = 'nh:high_cleric';
+/** C's PM_HIGH_CLERIC */
+const HIGH_CLERIC: DefId = 'nh:high_priest';
 
 /** A unique kind, never listed as extinct. ref: src/insight.c UniqCritterIndx() */
 const uniqCritter = (def: MonsterDef): boolean =>

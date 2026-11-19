@@ -82,6 +82,10 @@ export interface UState {
   warnObjCnt?: number;
   /** The Sunsword shining in her hand (C's lamplit on uwep), or null/absent. */
   sunLit?: number | null;
+  /** context.made_amulet: the real Amulet of Yendor has been made (absent = false) */
+  madeAmulet?: true;
+  /** u.uevent.amulet_wish: the Amulet has given her its wish (absent = false) */
+  amuletWish?: true;
 }
 
 const DEFAULTS: UState = {

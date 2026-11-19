@@ -148,11 +148,16 @@ describe('shapeshifter soak', () => {
   // 2000 with the rows, and both do without them; 258 and 272 replaced 246 and 238 in m23 step 2,
   // whose two new dungeons' draws at new game shift the whole stream: 246 died at turn 1341 and
   // 238 at turn 551; of 238..280 only 258, 260, 271, 272, 275, 278 and 280 reach 2000 with the
-  // dungeons, and 258 and 272 do without them)
-  for (const seed of [258, 272]) {
+  // dungeons, and 258 and 272 do without them; 271 and 275 replaced 258 and 272 in m23 step 3,
+  // whose high priest row shifts the random forms: 258 died at turn 284 and 272 at turn 597, both
+  // reaching 2000 with the row withheld; of 260, 271, 275, 278 and 280..287 only 271 and 275
+  // reach 2000 with the row, and both do without it)
+  // (480 s: the full parallel `pnpm check` can slow a 2000-turn run several-fold; m23 step 2's
+  // seed 258 took about 70 s alone with coverage and over 240 s there)
+  for (const seed of [271, 275]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
-      { timeout: 240000 },
+      { timeout: 480000 },
       () => {
         made = 0;
         shifts = 0;

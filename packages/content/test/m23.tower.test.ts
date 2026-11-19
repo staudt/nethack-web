@@ -35,6 +35,8 @@ import { describe, expect, test } from 'vitest';
 import { vanillaMod } from '../src/index';
 import { CANDELABRUM, isUniqueRelic, monHasSpecial } from '../src/uhave';
 import { chamOf } from '../src/chamstate';
+import { emin } from '../src/emin';
+import { A_NONE } from '../src/aligntyp';
 import { makemon } from '../src/generation';
 import { LADDER_SPOTS } from '../src/ladder';
 import {
@@ -362,7 +364,7 @@ describe('the Tower levels', () => {
 });
 
 describe("des.monster's waiting and align", () => {
-  test('a waiting monster waits; a vampire born shifted turns back; align is not yet made', () => {
+  test('a waiting monster waits; a vampire born shifted turns back; align makes a minion', () => {
     const s = levelSetup(['........', '...@....', '........'], 3);
     const shifted = new Set<string>();
     for (let i = 0; i < 12; i++) {
@@ -387,19 +389,20 @@ describe("des.monster's waiting and align", () => {
       });
     }
     expect([...shifted]).toEqual(['nh:vampire']);
-    expect(() =>
-      run(s.state, (ctx) =>
-        createMonster(
-          ctx,
-          getLevel(ctx.state),
-          { kind: 'monster', align: 'noalign' },
-          {
-            id: 'vt:x',
-            init: { style: 'rooms' },
-          },
-        ),
-      ),
-    ).toThrow(/mk_roamer/);
+    // align (m23 step 3): a roaming minion of that god, peaceful unless the entry says not
+    run(s.state, (ctx) => {
+      const level = getLevel(ctx.state);
+      const before = new Set(monsOn(ctx.state, level).map((m) => m.id));
+      createMonster(
+        ctx,
+        level,
+        { kind: 'monster', align: 'noalign' },
+        { id: 'vt:x', init: { style: 'rooms' } },
+      );
+      const m = monsOn(ctx.state, level).find((e) => !before.has(e.id))!;
+      expect(emin(ctx.state, m.id)).toMatchObject({ minAlign: A_NONE, renegade: false });
+      expect(m.c.monster!.peaceful).toBe(true);
+    });
   });
 
   test('Vlad with the Candelabrum keeps his own shape; Vlad without it may shift', () => {

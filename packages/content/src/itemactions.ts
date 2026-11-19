@@ -1,5 +1,6 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { isHighAltar } from './highaltar';
 import { retouchObject, touchArtifact } from './artitouch';
 import { leashMon } from './leashstate';
 import { isIce, isLava, isPool } from './liquid';
@@ -203,7 +204,7 @@ const FEATURES: ReadonlySet<DefId> = new Set([T.fountain, T.throne, T.sink, T.gr
 /**
  * The dungeon feature worth mentioning at x,y as a message param, or null: doors and doorways,
  * stairs, fountains, thrones ("opulent throne"), sinks and trees by their terrain name, and an altar as "altar to Odin
- * (neutral)". ref: src/invent.c dfeature_at() (no high altars)
+ * (neutral)", a high altar as "high altar to Moloch (unaligned)". ref: src/invent.c dfeature_at()
  */
 export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null {
   const level = getLevel(ctx.state);
@@ -212,7 +213,7 @@ export function dfeatureAt(ctx: Ctx, x: number, y: number): string | Msg | null 
   const align = altarAlign(id);
   if (align !== null)
     return {
-      key: 'look.altar',
+      key: isHighAltar(ctx, level, x, y) ? 'look.high_altar' : 'look.altar',
       params: { god: alignGname(ctx.state, align), align: alignStr(align) },
     };
   const t = ctx.defs.terrain(id);

@@ -10,12 +10,15 @@
 // at_your_feet(); src/artifact.c mk_artifact() (by alignment); src/eat.c floorfood(),
 // offer_ok(), sacrifice_value()'s eaten_stat() and peek_at_iced_corpse_age()
 //
-// Not ported (DEVIATIONS.md "Sacrifice"): the real Amulet and high altars (offer_real_amulet(),
-// desecrating a high altar), the Riders' revival, former pets' corpses (a corpse does not
-// remember its monster), summon_minion() (its draws are made; nothing comes), the conducts and
-// livelog, Wisdom exercise, Deafness ("Oh, no."), body parts (always feet), the atheism conduct.
-// The choice is one menu of the corpses here and then the carried corpses and imitation Amulets
-// (C asks about each floor corpse, then getobj()).
+// On a high altar (highaltar.ts) another god's altar is desecrated, never converted, and the real
+// Amulet may be offered: to Moloch, it ends her (offer_real_amulet()'s Moloch branch; the other
+// gods' high altars come with the Astral Plane, m23b).
+//
+// Not ported (DEVIATIONS.md "Sacrifice"): the Riders' revival, former pets' corpses (a corpse
+// does not remember its monster), the conducts and livelog, Wisdom exercise, Deafness ("Oh,
+// no."), body parts (always feet), the atheism conduct. The choice is one menu of the corpses
+// here and then the carried corpses and Amulets (C asks about each floor corpse, then
+// getobj()).
 import {
   NORMAL_SPEED,
   getLevel,
@@ -84,7 +87,12 @@ import { nomul } from './nomul';
 import { discover } from './o_init';
 import { doname, xnameOf } from './objnam';
 import { angryPriest } from './peaceful';
-import { angrygods, godsUpset } from './pray';
+import { angrygods, desecrateAltar, fryByGod, godsUpset } from './pray';
+import { isHighAltar } from './highaltar';
+import { AMULET_OF_YENDOR } from './uhave';
+import { amuletOff } from './jewelry';
+import { done } from './end';
+import { setEndHow } from './endstate';
 import { monNam } from './perception';
 import { P, hasProp } from './props';
 import { raceHostile, yourRace } from './race';
@@ -103,6 +111,8 @@ export const OFFER_ID: DefId = 'nh:offer';
 
 const CORPSE: DefId = 'nh:corpse';
 const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
+/** "Moloch" (the god of unaligned altars) as a message param. */
+const MOLOCH = '@god.moloch';
 /** ref: src/pray.c MAXVALUE: the highest corpse value (besides the Wizard's) */
 const MAXVALUE = 24;
 
@@ -222,24 +232,78 @@ function offerTooSoon(ctx: Ctx, altaralign: number): void {
   });
 }
 
-/** ref: src/pray.c offer_negative_valued() (no high altars) */
-const offerNegativeValued = (ctx: Ctx, altaralign: number): void => godsUpset(ctx, altaralign);
+/** Another god's high altar is desecrated; else the gods are upset. ref: offer_negative_valued() */
+function offerNegativeValued(ctx: Ctx, highaltar: boolean, altaralign: number): void {
+  if (altaralign !== uState(ctx.state).alignType && highaltar)
+    desecrateAltar(ctx, highaltar, altaralign);
+  else godsUpset(ctx, altaralign);
+}
 
 /**
- * The imitation Amulet: not known to be fake, it is the Amulet offered too soon; known, the
- * thunderclap and the gods' anger. ref: src/pray.c offer_fake_amulet() (no high altars)
+ * The imitation Amulet: on a low altar, not known to be fake, it is the Amulet offered too soon;
+ * else the thunderclap, and "You realize you have made a mistake." (now known, Luck -1) or, known
+ * all along, the gods' anger. ref: src/pray.c offer_fake_amulet()
  */
-function offerFakeAmulet(ctx: Ctx, obj: Entity, altaralign: number): void {
-  if (!obj.c.item?.known.spe) {
+function offerFakeAmulet(ctx: Ctx, obj: Entity, highaltar: boolean, altaralign: number): void {
+  const it = obj.c.item;
+  if (!highaltar && !it?.known.spe) {
     offerTooSoon(ctx, altaralign);
     return;
   }
   say(ctx, 'offer.thunderclap');
+  if (it && !it.known.spe) {
+    say(ctx, halluc(ctx) ? 'offer.mistake_halluc' : 'offer.mistake');
+    it.known = { ...it.known, spe: true };
+    changeLuck(ctx, -1);
+    return;
+  }
   // don't you dare try to fool the gods
   changeLuck(ctx, -3);
   adjalign(ctx, -1);
   setU(ctx, { ugangr: uState(ctx.state).ugangr + 3 });
-  offerNegativeValued(ctx, altaralign);
+  offerNegativeValued(ctx, highaltar, altaralign);
+}
+
+/**
+ * The real Amulet offered on a high altar ends the game. To Moloch, in the Sanctum: the record
+ * falls to -99, "An invisible choir chants, and you are bathed in darkness...", "Moloch shrugs
+ * and retains dominion over Odin, then mercilessly snuffs out your life." (killed by Moloch's
+ * indifference); life-saved, Moloch snarls and tries again (his disintegration), and one who
+ * still lives escapes in a cloud of black smoke. Only Moloch's high altar exists until the
+ * Astral Plane (m23b): another god's is treated as a low altar. ref: src/pray.c
+ * offer_real_amulet()
+ */
+function offerRealAmulet(ctx: Ctx, obj: Entity, altaralign: number): void {
+  if (altaralign !== A_NONE) {
+    offerTooSoon(ctx, altaralign); // (unreachable until the Astral Plane's high altars)
+    return;
+  }
+  // the final Test.  Did you win?
+  if (obj.c.item?.equipped === 'amulet') amuletOff(ctx, obj);
+  useup(ctx, obj); // well, it's gone now
+  say(ctx, 'offer.real_amulet', { god: aGname(ctx) });
+  // Moloch's high altar at the bottom of Gehennom
+  if (uState(ctx.state).alignRecord > -99) setU(ctx, { alignRecord: -99 });
+  say(ctx, 'offer.choir_darkness');
+  say(ctx, 'offer.moloch_shrugs', { moloch: MOLOCH, god: uGname(ctx.state) });
+  say(ctx, 'offer.moloch_snuffs');
+  const h = hero(ctx);
+  if (h.c.hp) h.c.hp.cur = 0;
+  done(ctx, '@killer.moloch_indifference');
+  if (ctx.state.gameOver) return;
+  // life-saved
+  say(ctx, 'offer.moloch_snarls', { moloch: MOLOCH });
+  fryByGod(ctx, A_NONE, true); // wrath of Moloch
+  if (ctx.state.gameOver) return;
+  say(ctx, 'offer.cloud_of_smoke', { color: hcolor(ctx, 'black') });
+  setEndHow(ctx, 'escaped');
+  ctx.endGame({
+    kind: 'escaped',
+    killer: 'escaped',
+    turn: ctx.state.turn,
+    depth: getLevel(ctx.state).depth,
+    level: ulevel(ctx),
+  });
 }
 
 /**
@@ -331,16 +395,20 @@ function dropShrine(ctx: Ctx, levelId: string, x: number, y: number): void {
  * a black cloud for a non-chaotic, else (or Moloch's) the blood covers it; on those a demon
  * lord may answer ("You have summoned Juiblex!", terrified for 3 turns). Then a non-chaotic
  * angers her god; a chaotic gains 5 alignment. Returns the extra time (terrified).
- * ref: src/pray.c sacrifice_your_race() (no high altars)
+ * On a high altar, unless both it and she are chaotic, the altar is desecrated instead (the
+ * corpse stays). ref: src/pray.c sacrifice_your_race()
  */
-function sacrificeYourRace(ctx: Ctx, obj: Entity, altaralign: number): number {
+function sacrificeYourRace(ctx: Ctx, obj: Entity, highaltar: boolean, altaralign: number): number {
   const ualign = uState(ctx.state).alignType;
   let extra = 0;
   const form = heroData(ctx);
   if (form && isDemon(form)) say(ctx, 'offer.satisfying');
   else if (ualign !== A_CHAOTIC) say(ctx, 'offer.infamous');
   const p = hero(ctx).c.pos;
-  if (altaralign !== A_CHAOTIC && altaralign !== A_NONE) {
+  if (highaltar && (altaralign !== A_CHAOTIC || ualign !== A_CHAOTIC)) {
+    desecrateAltar(ctx, highaltar, altaralign);
+    return 0;
+  } else if (altaralign !== A_CHAOTIC && altaralign !== A_NONE) {
     // curse the lawful/neutral altar
     say(ctx, 'offer.stained', { race: `@race.${urace(ctx.state)}.adj` });
     if (p) {
@@ -544,16 +612,17 @@ const isGiftData = (d: Json): boolean =>
  * ("Nothing happens."), a negative one (gods upset), another god's altar, then on her own: god's
  * anger lessened, absolution, a shorter prayer timeout, else a gift or Luck. Returns the extra
  * time taken (terrified by a demon), or null when the wizard-mode question was asked.
- * ref: src/pray.c offer_corpse() (no high altars, Riders or former pets)
+ * Another god's high altar is desecrated. ref: src/pray.c offer_corpse() (no Riders or former
+ * pets)
  */
-function offerCorpse(ctx: Ctx, obj: Entity, altaralign: number): number | null {
+function offerCorpse(ctx: Ctx, obj: Entity, highaltar: boolean, altaralign: number): number | null {
   // you're handling this corpse, even if it was killed upon the altar
   if (fatalCorpseMistake(ctx, obj) && ctx.state.gameOver) return 0;
   const mnum = obj.c.item?.corpseOf;
   if (!mnum || !ctx.defs.isMonster(mnum)) return 0;
   const ptr = ctx.defs.monster(mnum);
   // same race results apply even if the corpse is too old (value == 0)
-  if (yourRace(ctx.state, ptr)) return sacrificeYourRace(ctx, obj, altaralign);
+  if (yourRace(ctx.state, ptr)) return sacrificeYourRace(ctx, obj, highaltar, altaralign);
   let value = evalOffering(ctx, obj, altaralign);
   if (value === 0) {
     // too old; don't give undead or unicorn bonus or penalty
@@ -561,10 +630,14 @@ function offerCorpse(ctx: Ctx, obj: Entity, altaralign: number): number | null {
     return 0;
   }
   if (value < 0) {
-    offerNegativeValued(ctx, altaralign);
+    offerNegativeValued(ctx, highaltar, altaralign);
     return 0;
   }
   const u = uState(ctx.state);
+  if (altaralign !== u.alignType && highaltar) {
+    desecrateAltar(ctx, highaltar, altaralign);
+    return 0;
+  }
   if (u.alignType !== altaralign) {
     // sacrificing at an altar of a different alignment
     offerDifferentAlignmentAltar(ctx, obj, altaralign);
@@ -635,7 +708,7 @@ function offerCorpse(ctx: Ctx, obj: Entity, altaralign: number): number | null {
   return 0;
 }
 
-/** The corpses here (when she reaches the floor), then her corpses and imitation Amulets. */
+/** The corpses here (when she reaches the floor), then her corpses and Amulets, real or not. */
 function offerables(ctx: Ctx): { floor: Entity[]; carried: Entity[] } {
   const p = hero(ctx).c.pos;
   const floor =
@@ -646,7 +719,7 @@ function offerables(ctx: Ctx): { floor: Entity[]; carried: Entity[] } {
   // offer_ok(): corpses suggested, amulets downplayed off the Astral Plane (listed last)
   const carried = [
     ...inv.filter((e) => e.def === CORPSE),
-    ...inv.filter((e) => e.def === FAKE_AMULET),
+    ...inv.filter((e) => e.def === FAKE_AMULET || e.def === AMULET_OF_YENDOR),
   ];
   return { floor, carried };
 }
@@ -661,12 +734,19 @@ const isPickData = (d: Json): boolean =>
 /** Offers the chosen object. ref: src/pray.c dosacrifice() after floorfood() */
 function sacrifice(ctx: Ctx, obj: Entity): number {
   const altaralign = heroAltar(ctx);
+  const p = hero(ctx).c.pos;
+  const highaltar = p !== undefined && isHighAltar(ctx, getLevel(ctx.state), p.x, p.y);
+  if (obj.def === AMULET_OF_YENDOR) {
+    if (!highaltar) offerTooSoon(ctx, altaralign);
+    else offerRealAmulet(ctx, obj, altaralign);
+    return NORMAL_SPEED;
+  }
   if (obj.def === FAKE_AMULET) {
-    offerFakeAmulet(ctx, obj, altaralign);
+    offerFakeAmulet(ctx, obj, highaltar, altaralign);
     return NORMAL_SPEED;
   }
   if (obj.def === CORPSE) {
-    const extra = offerCorpse(ctx, obj, altaralign);
+    const extra = offerCorpse(ctx, obj, highaltar, altaralign);
     return extra === null ? 0 : NORMAL_SPEED + extra;
   }
   say(ctx, 'offer.nothing_happens');

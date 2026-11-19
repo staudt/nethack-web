@@ -46,6 +46,7 @@ import { registerZoo } from './zoo';
 import { registerVault } from './vault';
 import { registerSeduce } from './seduce';
 import { registerDemonTalk } from './demontalk';
+import { registerAmuletWish } from './wish';
 import { POTION_ACTIONS, POTION_USES } from './potion';
 import { READ_ACTIONS, SCROLL_USES } from './read';
 import { THROW_ACTIONS } from './dothrow';
@@ -229,6 +230,7 @@ export const vanillaMod: Mod = {
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
     registerGehennom(api); // the passtune right after the layout; Gehennom's arrival message
     registerDemonTalk(api);
+    registerAmuletWish(api);
     registerSeduce(api);
   },
 };

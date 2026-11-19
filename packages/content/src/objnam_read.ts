@@ -491,7 +491,7 @@ const PROOF = ['rustproof', 'erodeproof', 'corrodeproof', 'fixed', 'fireproof', 
 /** Words recognized and skipped because the subset has nothing they apply to. */
 const IGNORED = [
   'poisoned', 'open', 'closed', 'doorless', 'looted', 'disturbed', 'greased', 'zombifying',
-  'medium', 'real', 'fake',
+  'medium',
 ]; // prettier-ignore
 
 /** Class-word false hits. ref: readobjnam_postparse1() */
@@ -546,6 +546,7 @@ export function readobjnam(
 
   // ---- readobjnam_preparse(): count, BUC, enchantment and the other prefixes ----
   let unlabeled = false;
+  let fake = false;
   let saveBp: string | null = null; // "corpse of [a ]": parse the prefixes after it, then back up
   let very = 0;
   for (;;) {
@@ -632,6 +633,10 @@ export function readobjnam(
         bp = bp.slice(l);
         l = 0;
       }
+    } else if (word('real')) {
+      /* real vs fake: "when 'fake' is True, it overrides 'real'" */
+    } else if (word('fake')) {
+      fake = true;
     } else if (IGNORED.some(word)) {
       /* recognized; nothing in the subset uses it */
     } else if (/^(corpse|statue|figurine) of /.test(bp)) {
@@ -721,9 +726,16 @@ export function readobjnam(
     bp = bp.slice(0, i);
     spec.contents = 'spinach';
   }
-  // "Amulet of Yendor": only the imitation exists, so it is what "real" or not gives
+  // "Amulet of Yendor" matches two items, name of real Amulet and description of fake one;
+  // "real" or nothing gives the real one, "fake" or "cheap plastic imitation of the ..." the
+  // imitation (makewish() turns the real one into it outside wizard mode)
   i = bp.indexOf('amulet of yendor');
-  if (i >= 0 && (i === 0 || bp[i - 1] === ' ')) return fixed('nh:fake_amulet_of_yendor');
+  if (i >= 0 && (i === 0 || bp[i - 1] === ' ')) {
+    // the prefixes must come in that order, each optional
+    const m = /^(cheap )?(plastic )?(imitation )?/.exec(bp);
+    if (m?.[0]) fake = true;
+    return fixed(fake ? 'nh:fake_amulet_of_yendor' : 'nh:amulet_of_yendor');
+  }
 
   if (bp.startsWith('pair of ')) {
     bp = bp.slice(8);

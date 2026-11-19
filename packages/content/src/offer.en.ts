@@ -26,6 +26,16 @@ export const offerMessagesEn: Record<string, string> = {
   'offer.too_soon.surface': 'an urge to return to the surface',
   'offer.too_soon.ashamed': 'ashamed',
   'offer.thunderclap': 'You hear a nearby thunderclap.',
+  'offer.mistake': 'You realize you have made a mistake.',
+  'offer.mistake_halluc': 'You realize you have made a boo-boo.',
+  // offer_real_amulet() (Moloch's branch)
+  'offer.real_amulet': 'You offer the Amulet of Yendor to {god}...',
+  'offer.choir_darkness': 'An invisible choir chants, and you are bathed in darkness...',
+  'offer.moloch_shrugs': '{moloch} shrugs and retains dominion over {god},',
+  'offer.moloch_snuffs': 'then mercilessly snuffs out your life.',
+  'offer.moloch_snarls': '{moloch} snarls and tries again...',
+  'offer.cloud_of_smoke': 'A cloud of {color} smoke surrounds you...',
+  'killer.moloch_indifference': "Moloch's indifference",
   // eval_offering()
   'offer.insult': 'Such an action is an insult to {what}!',
   'offer.insult.chaos': 'chaos',

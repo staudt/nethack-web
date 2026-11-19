@@ -203,6 +203,19 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     temperate: true,
     nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }],
   },
+  /**
+   * ref: dat/sanctum.lua ("mazelevel", "noteleport", "hardfloor", "nommap"; non-diggable walls
+   * over the whole map; the invisible barrier between its halves, columns 37-39, which the
+   * script extends one row up above the map)
+   */
+  'nh:sanctum': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nommap: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }],
+    nonpasswall: [{ x1: 37, y1: -1, x2: 39, y2: 19 }],
+  },
   /** ref: dat/juiblex.lua ("mazelevel", "shortsighted", "noflip", "temperate") */
   'nh:juiblex-swamp': { maze: true, shortsighted: true, temperate: true },
   /**
@@ -659,6 +672,21 @@ export const PLANE_LEVELS = {
   earth: 'nh:plane-earth',
   dummy: 'nh:plane-dummy',
 } as const;
+
+/** Whether `level` (the hero's by default) is on the Planes. ref: src/dungeon.c In_endgame() */
+export function inEndgame(state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  return ref?.dungeon === PLANES;
+}
+
+/** Whether `level` (the hero's by default) is the Astral Plane. ref: Is_astralevel() */
+export function isAstral(state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  if (ref?.dungeon !== PLANES) return false;
+  return (
+    specialLevelAt(state, { dungeon: ref.dungeon, dlevel: ref.dlevel })?.id === PLANE_LEVELS.astral
+  );
+}
 
 /** Whether `level` (the hero's by default) is in Vlad's Tower. ref: src/dungeon.c In_V_tower() */
 export function inVladsTower(

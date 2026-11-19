@@ -9,6 +9,7 @@ export const alignMessagesEn: Record<string, string> = {
   'align.god': 'god',
   'align.goddess': 'goddess',
   'look.altar': 'altar to {god} ({align})',
+  'look.high_altar': 'high altar to {god} ({align})',
   'altar.flash': 'There is {color|an} flash as {item|an} hits the altar.',
   'altar.flash_pl': 'There is {color|an} flash as {item|an} hit the altar.',
   'altar.lands': '{item|An} lands on the altar.',
