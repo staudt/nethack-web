@@ -72,7 +72,7 @@ import { resistConflict } from './props';
 import { monPolyWhenStoned, monToStone, monstone } from './stoning';
 import { attkProtection, resistsSton, touchPetrifies } from './stonestate';
 import { canseemon, monInvisible, perceives } from './invis';
-import { nonliving } from './mondata';
+import { isMplayer, nonliving } from './mondata';
 import { littleToBig } from './eggstate';
 import { isGenocided } from './vanquished';
 import { isSilver, silverSearsMm } from './silver';
@@ -157,7 +157,9 @@ export function growUp(ctx: Ctx, id: EntityId, victimLevel: number | null): bool
   hp.max += maxIncrease;
   hp.cur += curIncrease;
   if (hp.max <= hpThreshold) return true;
-  if (levLimit < 5) levLimit = 5;
+  if (isMplayer(oldDef))
+    levLimit = 30; // same as player
+  else if (levLimit < 5) levLimit = 5;
   else if (levLimit > 49) levLimit = oldDef.level > 49 ? 50 : 49;
   m.level++;
   if (m.level >= newDef.level && newDef !== oldDef) {

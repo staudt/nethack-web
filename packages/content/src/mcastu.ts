@@ -43,15 +43,15 @@ import { ureflects } from './reflect';
 import { clearPath } from './clearpath';
 import { destroyItems, erodeArmor } from './erode';
 import { makemon, mkclass, mnextoPos } from './generation';
-import { losehp, losestr } from './hp';
-import { done } from './end';
+import { losestr } from './hp';
 import { clonewiz, nasty } from './nasty';
 import { isWiz, noOfWizards } from './wizstate';
 import { isDemon, nonliving } from './mondata';
 import { inWTower } from './levelflags';
-import { heroForm, rehumanize, upolyd } from './upoly';
+import { heroForm } from './upoly';
 import { nomulNow } from './hunger';
 import { nhData } from './items';
+import { touchOfDeath } from './rider';
 import { igniteItems } from './light';
 import { mdamageu } from './mhitu';
 import { M_SEEN, monstseesu, monstunseesu } from './musestate';
@@ -703,38 +703,6 @@ function mcastDisappear(ctx: Ctx, mon: Entity): void {
     !canSpotMon(ctx, mon)
   )
     mapInvisible(ctx, p.x, p.y);
-}
-
-/**
- * The touch of death: 50 + d(8,6) damage and half that off her maximum HP; a polymorphed hero
- * returns to her own form, one whose maximum is no more than the drain dies.
- * ref: src/mcastu.c touch_of_death(), death_inflicted_by()
- */
-function touchOfDeath(ctx: Ctx, mon: Entity): void {
-  let dmg = 50 + ctx.rng.d(8, 6);
-  const drain = Math.trunc(dmg / 2);
-  // if we get here, we know that hero isn't magic resistant and isn't poly'd into an undead or
-  // demon
-  say(ctx, 'mcastu.drained');
-  const killer = `@killer.touch_of_death.${mon.def}`;
-  const hero = getPlayer(ctx.state);
-  const hp = hero.c.hp;
-  if (!hp) return;
-  if (upolyd(ctx.state)) {
-    hp.cur = 0; // u.mh = 0
-    rehumanize(ctx); // fatal iff Unchanging
-  } else if (drain >= hp.max) {
-    done(ctx, killer);
-  } else {
-    // HP manipulation similar to poisoned(attrib.c)
-    const olduhp = hp.cur;
-    const uhpmin = Math.max(hero.c.experience?.level ?? 1, 3); // minuhpmax(3)
-    hp.max = Math.max(hp.max - drain, uhpmin); // setuhpmax()
-    if (hp.cur > hp.max) hp.cur = hp.max;
-    // adjuhploss(): reduce pending damage if uhp has already been reduced due to drop in uhpmax
-    if (hp.cur < olduhp) dmg -= olduhp - hp.cur;
-    losehp(ctx, Math.max(dmg, 1), killer);
-  }
 }
 
 /** ref: src/mcastu.c mcast_death_touch() */

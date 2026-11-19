@@ -20,6 +20,7 @@ import { stoningMessagesEn } from './stoning.en';
 import { slimeMessagesEn } from './slime.en';
 import { wereMessagesEn } from './were.en';
 import { minionMessagesEn } from './minion.en';
+import { riderMessagesEn } from './rider.en';
 import { dogMessagesEn } from './dog.en';
 import { prayMessagesEn } from './pray.en';
 import { alignMessagesEn } from './align.en';
@@ -107,6 +108,7 @@ export const messagesEn: Record<string, string> = {
   ...slimeMessagesEn,
   ...wereMessagesEn,
   ...minionMessagesEn,
+  ...riderMessagesEn,
   ...dogMessagesEn,
   ...prayMessagesEn,
   ...alignMessagesEn,
@@ -166,6 +168,9 @@ export const messagesEn: Record<string, string> = {
   'door.no_door': 'This doorway has no door.',
   'action.open': 'Open the door',
   'door.mon_opens': '{mon|The} opens a door.',
+  'door.mon_unlocks': '{mon|The} unlocks and opens a door.',
+  'door.see_unlock': 'You see a door unlock and open.',
+  'door.hear_unlock': 'You hear a door unlock and open.',
   'door.flows_under': '{mon|The} flows under the door.',
   'door.oozes_under': '{mon|The} oozes under the door.',
   'door.hear_open': 'You hear a door open.',
@@ -684,6 +689,9 @@ export const messagesEn: Record<string, string> = {
   'nh:geryon': 'Geryon',
   'nh:dispater': 'Dispater',
   'nh:demogorgon': 'Demogorgon',
+  'nh:death': 'Death',
+  'nh:pestilence': 'Pestilence',
+  'nh:famine': 'Famine',
   'nh:djinni': 'djinni',
   'nh:watchman': 'watchman',
   'nh:watch_captain': 'watch captain',

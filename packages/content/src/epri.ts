@@ -19,6 +19,7 @@ import {
 } from '@nh/core';
 import { A_NONE, ALGN_SINNED, altarAlign, type Aligntyp } from './aligntyp';
 import { emin } from './emin';
+import { isRider } from './mondata';
 import { uState } from './luck';
 import { godSuffix } from './gods';
 import { uRooms } from './urooms';
@@ -203,7 +204,7 @@ export function inYourSanctuary(
 ): boolean {
   if (mon) {
     const def = ctx.defs.monster(mon.def);
-    if (def.flags.includes('minion')) return false; // (no Riders yet)
+    if (def.flags.includes('minion') || isRider(def)) return false;
     const p = mon.c.pos;
     if (!p) return false;
     x = p.x;

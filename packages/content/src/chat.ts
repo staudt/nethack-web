@@ -31,6 +31,9 @@ import { monsterIdAt } from './combat';
 import { edogOf, meating } from './dog';
 import { DIRECTION_OPTIONS } from './dothrow';
 import { epriOf } from './epri';
+import { isMplayer } from './mondata';
+import { inEndgame } from './levelflags';
+import { mplayerTalk } from './mplayer';
 import { eshkOf } from './eshk';
 import { heroFemale, monFemale, polyGender } from './gender';
 import { couldSeduce, isNymph } from './steal';
@@ -327,6 +330,14 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
     case 'guard': // vault guard
       say(ctx, moneyCnt(ctx, ctx.state.playerId) ? 'vault.please_drop' : 'vault.please_follow');
       return NORMAL_SPEED;
+    case 'rider': {
+      // Death talks in capital letters (no novels, no Death_quote() file: DEVIATIONS)
+      const death = def.id === 'nh:death';
+      if (death) ctx.rng.rn2(3); // `rn2(3) && Death_quote()`: no quotes here
+      if (death && !ctx.rng.rn2(10)) return pline('chat.rider.sandman');
+      say(ctx, death ? 'chat.rider.war_death' : 'chat.rider.war');
+      return NORMAL_SPEED;
+    }
     case 'arrest': // Kops
       if (m.peaceful)
         say(ctx, heroFemale(ctx.state) ? 'chat.arrest.facts_maam' : 'chat.arrest.facts_sir');
@@ -347,7 +358,10 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
         if (p) wakeNearto(ctx, p.x, p.y, 7 * 7);
         return pline('chat.boast.fee_fie');
       }
-      if (!m.peaceful) return pline('chat.threatens');
+      if (!m.peaceful) {
+        if (inEndgame(ctx.state) && isMplayer(def) && mplayerTalk(ctx, mon)) return NORMAL_SPEED;
+        return pline('chat.threatens');
+      }
       // generic peaceful humanoid behaviour
       const cur = hp?.cur ?? 1;
       const max = hp?.max ?? 1;

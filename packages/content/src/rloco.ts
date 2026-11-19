@@ -5,6 +5,7 @@ import { getPlayer, inRooms, type Ctx, type Entity } from '@nh/core';
 import { costlySpot, isShopType } from './eshk';
 import { flooreffects } from './flooreffects';
 import { placeObject } from './items';
+import { isRiderCorpse, reviveCorpseLate } from './rider';
 import { addtobill, costlyAdjacent, findObjowner, stolenValue, subfrombill } from './shk';
 import { rlocoPos } from './teleport';
 
@@ -13,7 +14,7 @@ import { rlocoPos } from './teleport';
  * on a pit or hole fills it (flooreffects()); shop goods leaving the shop floor are stolen unless
  * she is in the shop and they land in it (unpaid ones come off her bill) or on its boundary (they
  * go on her bill). False when the object was used up on landing.
- * ref: src/teleport.c rloco() (no riders' corpses or trap-door falls)
+ * A Rider's corpse revives instead. ref: src/teleport.c rloco() (no trap-door falls)
  */
 export function rloco(ctx: Ctx, obj: Entity): boolean {
   const p = obj.c.pos;
@@ -21,6 +22,8 @@ export function rloco(ctx: Ctx, obj: Entity): boolean {
   const level = p ? ctx.state.levels[p.level] : undefined;
   const hp = getPlayer(ctx.state).c.pos;
   if (!p || !it || !level || !hp) return false;
+  // a Rider's corpse revives instead
+  if (isRiderCorpse(obj) && reviveCorpseLate(ctx, obj)) return false;
   const otx = p.x;
   const oty = p.y;
   delete obj.c.pos; // obj_extract_self()

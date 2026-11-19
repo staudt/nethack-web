@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-205 NetHack files, 5976 citations.
+206 NetHack files, 6003 citations.
 
 ## dat/air.lua
 
@@ -517,7 +517,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_ndemon()`: `packages/content/src/mondata.ts`
 - `is_placeholder()`: `packages/content/src/newcham.ts`
 - `is_prince()`: `packages/content/src/mondata.ts`
-- `is_rider()`: `packages/content/src/newcham.ts`
+- `is_rider()`: `packages/content/src/mondata.ts`
 - `is_shapeshifter()`: `packages/content/src/chamstate.ts`
 - `is_silent()`: `packages/content/src/potionhit.ts`
 - `is_swimmer()`: `packages/content/src/mondata.ts`
@@ -1605,6 +1605,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `overexertion()`: `packages/content/src/combat.ts`
 - `pickup_checks()`: `packages/content/src/itemactions.ts`
 - `pooleffects()`: `packages/content/src/drown.ts`, `packages/content/src/liquid.en.ts`
+- `revive_nasty()`: `packages/content/src/moverock.ts`
 - `rounddiv()`: `packages/content/src/eat.ts`
 - `runmode_delay_output()`: `packages/app/src/options.ts`
 - `slippery_ice_fumbling()`: `packages/content/src/fumble.ts`
@@ -1771,7 +1772,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `castmu()`: `packages/content/src/mcastu.en.ts`, `packages/content/src/mcastu.ts`
 - `choose_monster_spell()`: `packages/content/src/mcastu.ts`
 - `cursetxt()`: `packages/content/src/mcastu.en.ts`, `packages/content/src/mcastu.ts`
-- `death_inflicted_by()`: `packages/content/src/mcastu.ts`, `packages/content/src/messages.en.ts`
+- `death_inflicted_by()`: `packages/content/src/messages.en.ts`, `packages/content/src/rider.ts`
 - `is_undirected_spell()`: `packages/content/src/mcastu.ts`
 - `m_cure_self()`: `packages/content/src/mcastu.ts`
 - `mcast_blind_you()`: `packages/content/src/mcastu.ts`
@@ -1791,7 +1792,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mon_cleric_spells()`: `packages/content/src/mcastu.ts`
 - `mon_wizard_spells()`: `packages/content/src/mcastu.ts`
 - `spell_would_be_useless()`: `packages/content/src/mcastu.ts`
-- `touch_of_death()`: `packages/content/src/mcastu.ts`
+- `touch_of_death()`: `packages/content/src/rider.ts`
 
 ## src/mhitm.c
 
@@ -1998,6 +1999,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `obfree()`: `packages/content/src/lock.ts`
 - `obj_extract_self()`: `packages/core/src/objects.ts`
 - `place_object()`: `packages/content/src/items.ts`, `packages/core/src/objects.ts`, `packages/core/src/types/mod.ts`
+- `rider_revival_time()`: `packages/content/src/corpses.ts`
 - `rndmonnum()`: `packages/content/src/mkobj.ts`
 - `rndmonnum_adj()`: `packages/content/src/mkobj.ts`
 - `set_corpsenm()`: `packages/content/src/corpses.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/orctown.ts`
@@ -2202,6 +2204,17 @@ whole. A missing function may still be ported under a citation this parser canno
 - `vamp_shift()`: `packages/content/src/shapeshift.ts`
 - `watch_on_duty()`: `packages/content/src/watch.ts`
 
+## src/mplayer.c
+
+- (file): `packages/content/src/mplayer.ts`
+- `create_mplayers()`: `packages/content/src/mplayer.ts`
+- `dev_name()`: `packages/content/src/mplayer.ts`
+- `developers()`: `packages/content/src/mplayer.ts`
+- `get_mplname()`: `packages/content/src/mplayer.ts`
+- `mk_mplayer()`: `packages/content/src/mplayer.ts`
+- `mk_mplayer_armor()`: `packages/content/src/mplayer.ts`
+- `mplayer_talk()`: `packages/content/src/mplayer.ts`
+
 ## src/mthrowu.c
 
 - `blocking_terrain()`: `packages/content/src/muse.ts`
@@ -2329,7 +2342,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/objnam.c
 
-- (file): `packages/content/src/artilist.ts`, `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/artilist.ts`, `packages/content/src/bottle.ts`, `packages/content/src/glib.ts`, `packages/content/src/mplayer.ts`, `packages/content/src/objects.en.ts`, `packages/content/src/objnam_read.ts`, `packages/core/src/types/mod.ts`
 - `Japanese_item_name()`: `packages/content/src/objnam.ts`
 - `Japanese_items()`: `packages/content/src/kittab.ts`, `packages/content/src/role.en.ts`
 - `The()`: `packages/content/src/objnam.ts`
@@ -2418,6 +2431,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pick_obj()`: `packages/content/src/itemactions.ts`
 - `pickup()`: `packages/content/src/itemactions.ts`
 - `pickup_object()`: `packages/content/src/itemactions.ts`
+- `rider_corpse_revival()`: `packages/content/src/rider.ts`
 - `use_container()`: `packages/content/src/container.ts`
 
 ## src/polyself.c
@@ -3248,12 +3262,15 @@ whole. A missing function may still be ported under a citation this parser canno
 - `m_slips_free()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/mhitm.en.ts`, `packages/content/src/resist.en.ts`
 - `mhitm_ad_blnd()`: `packages/content/src/adtyping.ts`, `packages/content/src/mstate.ts`
-- `mhitm_ad_dgst()`: `packages/content/src/adtyping.ts`, `packages/content/src/dog.ts`
+- `mhitm_ad_deth()`: `packages/content/src/adtyping.ts`, `packages/content/src/rider.en.ts`
+- `mhitm_ad_dgst()`: `packages/content/src/adtyping.ts`, `packages/content/src/dog.ts`, `packages/content/src/rider.en.ts`
 - `mhitm_ad_drin()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_drli()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_famn()`: `packages/content/src/adtyping.ts`, `packages/content/src/rider.en.ts`
 - `mhitm_ad_halu()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_heal()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_legs()`: `packages/content/src/adtyping.ts`
+- `mhitm_ad_pest()`: `packages/content/src/adtyping.ts`, `packages/content/src/rider.en.ts`
 - `mhitm_ad_phys()`: `packages/content/src/adtyping.en.ts`, `packages/content/src/combat.ts`, `packages/content/src/silver.ts`
 - `mhitm_ad_samu()`: `packages/content/src/adtyping.ts`
 - `mhitm_ad_slim()`: `packages/content/src/adtyping.ts`
@@ -3336,7 +3353,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peaked_skill()`: `packages/content/src/skills.ts`
 - `possibly_unwield()`: `packages/content/src/were.ts`
 - `pwep()`: `packages/content/src/mthrowu.ts`
-- `rwep()`: `packages/content/src/mthrowu.ts`
+- `rwep()`: `packages/content/src/mplayer.ts`, `packages/content/src/mthrowu.ts`
 - `select_hwep()`: `packages/content/src/mongear.ts`
 - `select_rwep()`: `packages/content/src/mthrowu.ts`
 - `skill_advance()`: `packages/content/src/skills.ts`

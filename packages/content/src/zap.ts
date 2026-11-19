@@ -825,6 +825,11 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
     case SPE.extraHealing: {
       const healamt = ctx.rng.d(6, otyp === SPE.extraHealing ? 8 : 4);
       revealInvis = true;
+      if (mon.def === 'nh:pestilence') {
+        // Pestilence will always resist; damage is half of (healamt/2)
+        resist(ctx, mon, Math.trunc(healamt / 2), oclass);
+        break;
+      }
       wake = false; // wakeup() makes the target angry
       // healmon(mtmp, healamt, 0)
       const hp = mon.c.hp;

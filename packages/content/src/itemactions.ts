@@ -1,5 +1,6 @@
 // Item actions: pick up, drop, wield, wear, take off, discoveries, and looking at the floor.
 // ref: src/pickup.c, src/do.c, src/wield.c, src/do_wear.c, src/o_init.c, src/invent.c look_here()
+import { riderCorpseRevival } from './rider';
 import { isHighAltar } from './highaltar';
 import { retouchObject, touchArtifact } from './artitouch';
 import { leashMon } from './leashstate';
@@ -522,8 +523,8 @@ function pickupObject(ctx: Ctx, obj: Entity, data: PickData): PickResult {
       data.tried = true;
       return ctx.state.gameOver ? 'abort' : 'none';
     }
-    // ref: pickup_object(): touching a cockatrice corpse bare-handed
-    if (fatalCorpseMistake(ctx, obj)) return 'abort';
+    // ref: pickup_object(): touching a cockatrice corpse bare-handed, or a Rider's
+    if (fatalCorpseMistake(ctx, obj) || riderCorpseRevival(ctx, obj, false)) return 'abort';
     // ref: pickup.c pickup_object(obj, count): a count from the menu caps what is lifted
     const want = Math.min(data.counts?.[String(obj.id)] ?? it.quantity, it.quantity);
     const lift = liftLoadstone(ctx, obj);

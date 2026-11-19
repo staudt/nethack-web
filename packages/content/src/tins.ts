@@ -6,7 +6,7 @@
 // A tin's monster is `corpseOf` (C's corpsenm; absent is NON_PM: empty, or spinach) and its
 // variety `spe`: 1 spinach, -(variety + 1) a chosen variety, 0 none chosen (drawn when opened).
 import type { Ctx, DefId, EntityId, GameState, ItemComponent, Json, Registry, Rng } from '@nh/core';
-import { vegetarian } from './mondata';
+import { isRider, vegetarian } from './mondata';
 
 export const TIN = 'nh:tin';
 
@@ -52,8 +52,9 @@ export const TINTXT: readonly TinVariety[] = (
   greasy: greasy === 1,
 }));
 
-/** ref: src/eat.c nonrotting_corpse(): lizards and lichens never rot (eat.ts has the same) */
-const nonrotting = (mon: DefId | undefined): boolean => mon === 'nh:lizard' || mon === 'nh:lichen';
+/** ref: src/eat.c nonrotting_corpse(): lizards, lichens and the Riders never rot (as eat.ts) */
+const nonrotting = (mon: DefId | undefined): boolean =>
+  mon === 'nh:lizard' || mon === 'nh:lichen' || isRider(mon);
 
 /**
  * The variety a tin holds; `displ` true only looks (no draws): a cursed tin is always rotten, an

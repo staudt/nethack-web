@@ -175,7 +175,10 @@ describe('the rows', () => {
       'nh:baalzebub',
       'nh:asmodeus',
       'nh:demogorgon',
-      'nh:djinni', // m19 step 3 (the Riders and the mail daemon are not ported)
+      'nh:death', // m23 step 9
+      'nh:pestilence',
+      'nh:famine',
+      'nh:djinni', // m19 step 3 (the mail daemon is not ported)
     ]);
     for (const id of NEW_ROWS.slice(0, 10)) expect(isNdemon(defs.monster(id as DefId))).toBe(true);
     expect(isDlord(defs.monster('nh:yeenoghu' as DefId))).toBe(true);

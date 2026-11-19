@@ -14,7 +14,7 @@ import { mswallowerOf } from './engulfstate';
 import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { mkcorpse, mkgold, mksobj, rne } from './items';
-import { isMplayer, isUnicorn } from './mondata';
+import { isMplayer, isRider, isUnicorn } from './mondata';
 import { levelSpecificNocorpse } from './graveyard';
 import { GLASS_GEMS } from './gem';
 import { isGolem } from './golem';
@@ -96,12 +96,12 @@ export function setDeathExplosion(fn: DeathExplosion): void {
 
 /**
  * Whether a killed monster leaves a corpse. ref: src/mon.c corpse_chance(): big monsters always
- * do, as do golems and player monsters; others with chance 1/(2 + (rare) + (tiny)). Not ported:
- * liches, riders, shopkeepers, cloned monsters. (The gas spore's explosion and
+ * do, as do golems, player monsters and the Riders; others with chance 1/(2 + (rare) + (tiny)).
+ * Not ported: liches, shopkeepers, cloned monsters. (The gas spore's explosion and
  * LEVEL_SPECIFIC_NOCORPSE are checked first by the callers: graveyardNocorpse().)
  */
 export function corpseChance(ctx: Ctx, def: MonsterDef): boolean {
-  if (bigmonst(def) || isGolem(def) || isMplayer(def)) return true;
+  if (bigmonst(def) || isGolem(def) || isMplayer(def) || isRider(def)) return true;
   const tmp = 2 + (def.frequency < 2 ? 1 : 0) + (def.size === 'tiny' ? 1 : 0);
   return ctx.rng.rn2(tmp) === 0;
 }
@@ -316,7 +316,7 @@ export function xkilledCorpse(
 /**
  * Starts the timer that rots a corpse away. ref: src/mkobj.c start_corpse_timeout(): the
  * corpse's age counts toward ROT_AGE and the time varies by rnz(10) - 10 (rnz(25) - 25 for
- * level creation). Lizards and lichens never rot; trolls may revive instead. No Riders.
+ * level creation). Lizards and lichens never rot; Riders always revive, trolls may.
  */
 export function startCorpseTimeout(
   ctx: Pick<Ctx, 'state' | 'rng' | 'schedule' | 'defs'>,
@@ -331,8 +331,13 @@ export function startCorpseTimeout(
   const age = Math.max(ctx.state.turn, 1) - (it.age ?? 0);
   let when = age > ROT_AGE ? rotAdjust : ROT_AGE - age;
   when += rnz(ctx, rotAdjust) - rotAdjust;
-  // ref: start_corpse_timeout(): a troll revives 1 time in TROLL_REVIVE_CHANCE for each age
-  // 2..TAINT_AGE (revive.ts 'nh:revive_mon'); no Riders, no zombify
+  // ref: start_corpse_timeout(): a Rider always revives (rider_revival_time()); a troll revives
+  // 1 time in TROLL_REVIVE_CHANCE for each age 2..TAINT_AGE (revive.ts 'nh:revive_mon'); no
+  // zombify
+  if (isRider(it.corpseOf)) {
+    ctx.schedule(riderRevivalTime(ctx, it.corpseOf ?? '', false), 'nh:revive_mon', { id });
+    return;
+  }
   if (it.corpseOf && trollCorpse(ctx, it.corpseOf)) {
     for (let a = 2; a <= TAINT_AGE; a++)
       if (!ctx.rng.rn2(TROLL_REVIVE_CHANCE)) {
@@ -341,6 +346,18 @@ export function startCorpseTimeout(
       }
   }
   ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
+}
+
+/**
+ * The turns after which a Rider's corpse revives: "Riders have a 1/3 chance per turn of
+ * reviving after 12, 6, or 3 turns. Always revive by 67." (Death after 6, a retry after 3).
+ * ref: src/mkobj.c rider_revival_time()
+ */
+export function riderRevivalTime(ctx: Pick<Ctx, 'rng'>, corpseOf: string, retry: boolean): number {
+  const minturn = retry ? 3 : corpseOf === 'nh:death' ? 6 : 12;
+  let when = minturn;
+  for (; when < 67; when++) if (!ctx.rng.rn2(3)) break;
+  return when;
 }
 
 /** ref: include/hack.h TROLL_REVIVE_CHANCE: 1/37 for 50 turns, about 75% */

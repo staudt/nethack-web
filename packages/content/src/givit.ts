@@ -195,6 +195,9 @@ export function cpostfxOf(ctx: Ctx, def: MonsterDef, tinPoly?: (ctx: Ctx) => voi
     pluslvl(ctx, hero.id, false);
     return;
   }
+  // ref: cpostfx() PM_DEATH, PM_PESTILENCE, PM_FAMINE: "life-saved; don't attempt to confer any
+  // intrinsics"
+  if (def.id === 'nh:death' || def.id === 'nh:pestilence' || def.id === 'nh:famine') return;
   if (def.id === 'nh:chameleon' || def.id === 'nh:doppelganger' || def.id === 'nh:sandestin') {
     // (the sandestin is moot: it leaves no corpse)
     if (hasProp(hero, P.UNCHANGING)) {

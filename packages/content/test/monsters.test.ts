@@ -76,6 +76,10 @@ describe('vanilla monsters', () => {
       'disn',
       // m17 step 8b (the Wizard's claws: stealamulet())
       'samu',
+      // m23 step 9 (the Riders' touches)
+      'deth',
+      'pest',
+      'famn',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts), or
     // fire, frost and missiles (castmu()'s switch; m17 step 4: Asmodeus's cold)

@@ -28,7 +28,8 @@ import { registerFigurines } from './figurine';
 import { SIT_ACTIONS } from './dosit';
 import { ENGRAVE_ACTIONS } from './engrave';
 import { registerEngr } from './engr';
-import { registerRevive } from './revive';
+import { registerRevive, reviveCorpse, setReviveRloc } from './revive';
+import { setReviveCorpse } from './rider';
 import { registerHero } from './hero';
 import { registerKit } from './kit';
 import { RACES, ROLES } from './roles';
@@ -60,7 +61,7 @@ import { registerMonflee } from './monflee';
 import { FIRE_ACTIONS } from './fire';
 import { CALL_ACTIONS } from './call';
 import { enhanceAction } from './skills';
-import { registerTeleportitis, registerTraps, teleAction } from './trap';
+import { registerTeleportitis, registerTraps, rlocMon, teleAction } from './trap';
 import { registerMagicTraps } from './magictrap';
 import { registerPolyTimeout, registerPolyTrap, registerPolymorphitis } from './polyself';
 import { registerHmonas } from './hmonas';
@@ -188,6 +189,8 @@ export const vanillaMod: Mod = {
     registerEggs(api);
     registerFigurines(api);
     registerRevive(api);
+    setReviveRloc(rlocMon); // a Rider bumps a monster off its corpse (revive_mon())
+    setReviveCorpse(reviveCorpse); // a Rider's corpse handled (rider_corpse_revival())
     registerHunger(api);
     registerEat(api);
     registerEnd(api);

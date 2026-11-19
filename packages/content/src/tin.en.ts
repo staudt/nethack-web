@@ -61,6 +61,8 @@ export const tinMessagesEn: Record<string, string> = {
   'tin.tin_without_gloves': 'You tin {mon|an} corpse without wearing gloves.',
   'tin.fatal_mistake': 'Tinning {mon|an} corpse without wearing gloves is a fatal mistake...',
   'tin.insubstantial': "That's too insubstantial to tin.",
+  'tin.war_preserve': '"Yes...  But War does not preserve its enemies..."',
+  'tin.evades_grasp': 'The corpse evades your grasp.',
   'tin.bought': '"You tin it, you bought it!"',
   'tin.cannot_pick_up': 'You make, but cannot pick up, {item}.',
 

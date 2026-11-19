@@ -2,6 +2,7 @@
 // ref: include/objclass.h, include/obj.h, include/hack.h ARM_BONUS(), src/mkobj.c
 // is_flammable(), is_rottable(), src/objnam.c erosion_matters()
 import { isUniqueRelic } from './uhave';
+import { isRider } from './mondata';
 import type { Ctx, Entity, ObjectDef } from '@nh/core';
 
 // ---------------------------------------------------------------------------------------------
@@ -110,8 +111,8 @@ export function armBonus(def: ObjectDef, item: Entity): number {
 
 /**
  * Whether the object resists: the Amulet, the Bell, the Candelabrum and the Book of the Dead
- * always (no draw), an artifact `achance` percent of the time, anything else `ochance` (no
- * Riders' corpses yet). ref: src/zap.c obj_resists()
+ * and the Riders' corpses always (no draw), an artifact `achance` percent of the time, anything
+ * else `ochance`. ref: src/zap.c obj_resists()
  */
 export function objResists(
   ctx: Pick<Ctx, 'rng'>,
@@ -119,7 +120,8 @@ export function objResists(
   ochance: number,
   achance: number,
 ): boolean {
-  if (isUniqueRelic(obj.def)) return true;
+  if (isUniqueRelic(obj.def) || (obj.def === 'nh:corpse' && isRider(obj.c.item?.corpseOf)))
+    return true;
   const chance = ctx.rng.rn2(100);
   return chance < (obj.c.item?.artifact !== undefined ? achance : ochance);
 }

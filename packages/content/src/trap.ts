@@ -158,7 +158,7 @@ import {
   utrap,
 } from './trapstate';
 import { poolEffects } from './uwater';
-import { MZ_HUGE, isClinger, msize } from './mondata';
+import { MZ_HUGE, isClinger, isRider, msize } from './mondata';
 import { heroForm, heroFormId } from './upoly';
 import { somexyspace } from './somexy';
 import { vaultRoom } from './vaultstate';
@@ -2678,8 +2678,8 @@ export function rlocMon(ctx: Ctx, mon: Entity, domsg: boolean): boolean {
  * The hero teleports a monster (the wand's beam): a priest in a temple resists ("The priest of
  * Odin resists your magic!"), anything else lands on a random spot. False when it stays.
  * A wand of stasis in effect stops it: "A mysterious force prevents you teleporting the jackal!".
- * ref: src/teleport.c u_teleport_mon() (no engulfers, riders or monsters with teleport control
- * exist)
+ * A Rider, or a monster with teleport control, comes back next to her 12 times in 13.
+ * ref: src/teleport.c u_teleport_mon() (no engulfers here)
  */
 export function uTeleportMon(ctx: Ctx, mon: Entity, feedback: boolean): boolean {
   const p = mon.c.pos;
@@ -2695,6 +2695,18 @@ export function uTeleportMon(ctx: Ctx, mon: Entity, feedback: boolean): boolean 
   ) {
     if (feedback) say(ctx, 'tele.resists', { mon: monNam(ctx, mon) });
     return false;
+  }
+  // a Rider or a monster with teleport control usually comes back next to her (12 in 13)
+  const mdef = ctx.defs.monster(mon.def);
+  const hp = getPlayer(ctx.state).c.pos;
+  if ((isRider(mdef) || mdef.flags.includes('tport_cntrl')) && hp?.level === level.id) {
+    if (ctx.rng.rn2(13)) {
+      const cc = mnextoPos(ctx, level, null, { x: hp.x, y: hp.y }, mdef);
+      if (cc) {
+        rlocTo(ctx, mon, cc.x, cc.y, false);
+        return true;
+      }
+    }
   }
   return rlocMon(ctx, mon, true);
 }

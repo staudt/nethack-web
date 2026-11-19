@@ -108,7 +108,17 @@ import { wereChange } from './were';
 import { heroForm, heroFormId, rehumanize } from './upoly';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { golemeffects } from './golemfx';
-import { hasHead, noncorporeal, nonliving, sticks, vegetarian } from './mondata';
+import {
+  carnivorous,
+  hasHead,
+  herbivorous,
+  isRider,
+  noncorporeal,
+  nonliving,
+  sticks,
+  vegetarian,
+} from './mondata';
+import { touchOfDeath } from './rider';
 import { violatedVegetarian } from './luck';
 import { engulfingU, flaming, uswallow } from './engulfstate';
 import { isSlimed, makeSlimed, munslime, slimeproof } from './slimestate';
@@ -170,7 +180,16 @@ export const newMhm = (damage: number, dieroll = 0): Mhm => ({
  * The damage types whose mhitu branch gives no hitmsg() (they print their own line, or nothing).
  * ref: src/uhitm.c mhitm_ad_blnd(), mhitm_ad_legs(), mhitm_ad_halu(), mhitm_ad_heal()
  */
-export const NO_HITMSG: ReadonlySet<string> = new Set(['blnd', 'legs', 'halu', 'wrap', 'heal']);
+export const NO_HITMSG: ReadonlySet<string> = new Set([
+  'blnd',
+  'legs',
+  'halu',
+  'wrap',
+  'heal',
+  'famn',
+  'pest',
+  'deth',
+]);
 
 /** The theft and seduction types: their mhitu branch gives hitmsg() only for animals (monkeys). */
 const SEDU_TYPES: ReadonlySet<string> = new Set(['sitm', 'sedu', 'ssex']);
@@ -1550,6 +1569,81 @@ function adDise(
 }
 
 // ---------------------------------------------------------------------------------------------
+// the Riders' touches (rider.ts)
+
+/**
+ * Famine's touch: "Famine reaches out, and your body shrivels." and 40..79 more hunger unless
+ * she has fainted, plus the normal damage; a monster that does not eat is not harmed.
+ * ref: src/uhitm.c mhitm_ad_famn() (no exercise())
+ */
+const adFamn: Handler = (ctx, magr, _atk, mdef, mhm) => {
+  if (!isU(ctx, magr) && mdef.id === ctx.state.playerId) {
+    say(ctx, 'rider.body_shrivels', { mon: monNam(ctx, magr) });
+    if (getPlayer(ctx.state).c.hunger?.state !== 'fainted') morehungry(ctx, ctx.rng.rn2(40) + 40); // rn1(40, 40)
+    return; // plus the normal damage
+  }
+  // mhitm (and the hero's, which no form has): only an eater is harmed
+  const pd = ctx.defs.monster(mdef.def);
+  if (!(carnivorous(pd) || herbivorous(pd) || pd.flags.includes('metallivore'))) mhm.damage = 0;
+};
+
+/**
+ * Pestilence's touch: "Pestilence reaches out, and you feel fever and chills." and a terminal
+ * illness (diseasemu()), plus the normal damage; against a monster it is AD_DISE's.
+ * ref: src/uhitm.c mhitm_ad_pest()
+ */
+const adPest: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (!isU(ctx, magr) && mdef.id === ctx.state.playerId) {
+    say(ctx, 'rider.fever_chills', { mon: monNam(ctx, magr) });
+    diseasemu(ctx, magr);
+    return; // plus the normal damage
+  }
+  adDise(ctx, magr, { ...atk, ad: 'dise' }, mdef, mhm, env);
+};
+
+/**
+ * Death's touch: "Death reaches out with its deadly touch." An undead form takes half the damage
+ * ("Was that the touch of death?"); else 3 times in 20 the touch of death unless she resists
+ * magic, 12 more in 20 (and a resisted touch) drain her life force (`permdmg`: hitmu() takes
+ * some of the damage off her maximum), 5 in 20 "Lucky for you, it didn't work!". Against a
+ * monster: an undead one takes rnd(half), then it is a drain life attack.
+ * ref: src/uhitm.c mhitm_ad_deth()
+ */
+const adDeth: Handler = (ctx, magr, atk, mdef, mhm, env) => {
+  if (!isU(ctx, magr) && mdef.id === ctx.state.playerId) {
+    say(ctx, 'rider.deadly_touch', { mon: monNam(ctx, magr) });
+    if (heroForm(ctx)?.flags.includes('undead')) {
+      // still does some damage
+      mhm.damage = Math.trunc((mhm.damage + 1) / 2);
+      say(ctx, 'rider.touch_of_death_q');
+      return;
+    }
+    const r = ctx.rng.rn2(20);
+    const antimagic = hasProp(getPlayer(ctx.state), P.ANTIMAGIC);
+    if (r >= 17 && !antimagic) {
+      touchOfDeath(ctx, magr);
+      mhm.damage = 0;
+      return;
+    }
+    if (r >= 5) {
+      say(ctx, 'rider.life_force');
+      mhm.permdmg = 1; // actual damage done by caller
+      return;
+    }
+    // (shieldeff() when she resists is display only)
+    say(ctx, 'rider.lucky');
+    mhm.damage = 0;
+    return;
+  }
+  // mhitm: an undead target takes some damage but less than an undead hero would; then "simulate
+  // Death's touch with drain life attack"
+  const pd = ctx.defs.monster(mdef.def);
+  if (pd.flags.includes('undead') && mhm.damage > 1)
+    mhm.damage = ctx.rng.rnd(Math.trunc(mhm.damage / 2));
+  adDrli(ctx, magr, atk, mdef, mhm, env);
+};
+
+// ---------------------------------------------------------------------------------------------
 // theft (steal.ts)
 
 function adSgld(ctx: Ctx, magr: Entity, _atk: AttackDef, mdef: Entity, mhm: Mhm, env: AdEnv): void {
@@ -1716,10 +1810,33 @@ const adSsex: Handler = (ctx, magr, atk, mdef, mhm, env) => {
  * An amulet of life saving the victim wears is used up (it does not save it).
  * ref: src/uhitm.c mhitm_ad_dgst() (no Riders)
  */
-const adDgst: Handler = (ctx, magr, _atk, mdef, mhm) => {
+const adDgst: Handler = (ctx, magr, _atk, mdef, mhm, env) => {
   if (isU(ctx, magr) || mdef.id === ctx.state.playerId) {
     // uhitm: gulpum() digests it
     mhm.damage = 0;
+    return;
+  }
+  // eating a Rider or its corpse is fatal
+  const rpd = ctx.defs.monster(mdef.def);
+  if (isRider(rpd)) {
+    if (env.vis && canseemon(ctx, magr))
+      say(
+        ctx,
+        rpd.id === 'nh:famine'
+          ? 'rider.eater_shrivels'
+          : rpd.id === 'nh:pestilence'
+            ? 'rider.eater_collapses'
+            : 'rider.eater_vomits',
+        { mon: monNam(ctx, magr) },
+      );
+    mondied(ctx, magr.id);
+    mhm.done = true;
+    if (ctx.state.entities[String(magr.id)]?.c.monster) {
+      mhm.hitflags = M_ATTK.MISS; // lifesaved
+      return;
+    }
+    if ((magr.c.monster?.tame ?? 0) > 0 && !env.vis) say(ctx, 'rider.queasy');
+    mhm.hitflags = M_ATTK.AGR_DIED;
     return;
   }
   const ap = magr.c.pos;
@@ -2089,7 +2206,8 @@ export function setAdMdamageu(fn: (ctx: Ctx, n: number, killer: string) => void)
  * is eaten!" / "You eat the jackal's brain!", a noncorporeal one is unharmed, a mindless one
  * doesn't notice, Medusa's brain petrifies its eater; the hero eater is fed, a monster eater adds
  * d10 damage. A hero at minimum Intelligence dies of brainlessness (after life saving too).
- * Returns M_ATTK flags. ref: src/eat.c eat_brains() (no Riders, no cannibalism or conduct)
+ * A Rider's brain is fatal to its eater. Returns M_ATTK flags. ref: src/eat.c eat_brains() (no
+ * cannibalism or conduct)
  */
 function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: Mhm | null) {
   const pd = mdef.id === ctx.state.playerId ? heroForm(ctx) : ctx.defs.monster(mdef.def);
@@ -2131,6 +2249,13 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
       say(ctx, 'drin.doesnt_notice', { mon: monNam(ctx, mdef) });
       return M_ATTK.MISS; // all done; no extra harm inflicted upon target
     }
+    if (pd && isRider(pd)) {
+      say(ctx, 'rider.ingesting_fatal');
+      done(ctx, `!@killer.rider.ate_brain|=@${pd.id}`);
+      // life-saving needed to reach here; Rider takes extra damage
+      if (mhm) mhm.damage += xtraDmg;
+      return M_ATTK.HIT;
+    }
     morehungry(ctx, -ctx.rng.rnd(30)); // cannot choke
     if (abase(ctx.state, 'int') < amax(ctx.state, 'int')) {
       // recover lost Int; won't increase current max
@@ -2165,6 +2290,12 @@ function eatBrains(ctx: Ctx, magr: Entity, mdef: Entity, visflag: boolean, mhm: 
       if (visflag && canSpotMon(ctx, mdef))
         say(ctx, 'drin.doesnt_notice', { mon: monNam(ctx, mdef) });
       return M_ATTK.MISS;
+    }
+    if (pd && isRider(pd)) {
+      mondied(ctx, magr.id);
+      // Rider takes extra damage regardless of whether attacker dies
+      if (mhm) mhm.damage += xtraDmg;
+      return alive(ctx, magr.id) ? M_ATTK.HIT : M_ATTK.AGR_DIED;
     }
     if (mhm) {
       mhm.damage += xtraDmg;
@@ -2338,6 +2469,9 @@ const HANDLERS: Readonly<Record<string, Handler>> = {
   slim: adSlim,
   heal: adHeal,
   drin: adDrin,
+  famn: adFamn,
+  pest: adPest,
+  deth: adDeth,
 };
 
 /**

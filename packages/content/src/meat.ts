@@ -8,7 +8,8 @@
 // objects or corpses exist), poisoned objects, the hero's ball and chain, the "YUM YUM"
 // scroll's "Yum!", Rider corpses; an artifact resists being eaten only through obj_resists()
 // (95 in 100), without C's touch_artifact() check for the eater.
-import { vegan as veganDef } from './mondata';
+import { reviveCorpseLate } from './rider';
+import { isRider, vegan as veganDef } from './mondata';
 import {
   contents,
   itemsAt,
@@ -119,7 +120,8 @@ export function meatmetal(ctx: Ctx, mon: Entity): 0 | 1 {
 /**
  * A gelatinous cube eats the organic objects on its square and engulfs the others into its
  * inventory (not boulders, statues or a scroll of scare monster; not a petrifying corpse unless
- * it resists). 0 nothing happened, 1 something did. ref: src/mon.c meatobj()
+ * it resists); a Rider's corpse revives instead. 0 nothing happened, 1 something did.
+ * ref: src/mon.c meatobj()
  */
 export function meatobj(ctx: Ctx, mon: Entity): 0 | 1 {
   if (mon.c.monster?.tame) return 0;
@@ -133,6 +135,11 @@ export function meatobj(ctx: Ctx, mon: Entity): 0 | 1 {
     const od = ctx.defs.object(otmp.def);
     const corpsenm = otmp.c.item?.corpseOf;
     const cm = corpsenm && ctx.defs.isMonster(corpsenm) ? ctx.defs.monster(corpsenm) : null;
+    // touch sensitive items: a Rider's corpse isn't just inedible; can't engulf it either
+    if (otmp.def === 'nh:corpse' && isRider(cm)) {
+      if (!reviveCorpseLate(ctx, otmp)) continue;
+      break;
+    }
     // untouchable (or inaccessible) items
     if (
       (otmp.def === 'nh:corpse' && cm && touchPetrifies(cm) && !resistsSton(ctx, mon)) ||
@@ -173,7 +180,7 @@ export function meatobj(ctx: Ctx, mon: Entity): 0 | 1 {
 
 /**
  * A corpse eater eats one corpse (not a vegan or, unless it resists, a petrifying one) off its
- * square: 0 nothing eaten, 1 ate a corpse. ref: src/mon.c meatcorpse()
+ * square (a Rider's revives): 0 nothing eaten, 1 ate a corpse. ref: src/mon.c meatcorpse()
  */
 export function meatcorpse(ctx: Ctx, mon: Entity): 0 | 1 {
   if (mon.c.monster?.tame) return 0;
@@ -183,6 +190,11 @@ export function meatcorpse(ctx: Ctx, mon: Entity): 0 | 1 {
     const m = o.def === 'nh:corpse' ? o.c.item?.corpseOf : undefined;
     if (!m || !ctx.defs.isMonster(m)) continue;
     if (vegan(ctx, m) || (fleshPetrifies(ctx.defs.monster(m)) && !resistsSton(ctx, mon))) continue;
+    if (isRider(m)) {
+      // a successful Rider revival; unlike skipped corpses, don't just move on to the next one
+      if (!reviveCorpseLate(ctx, o)) continue;
+      return 0;
+    }
     let otmp = o;
     if ((o.c.item?.quantity ?? 1) > 1) {
       const one = ctx.state.entities[String(splitStack(ctx, o.id, 1))];

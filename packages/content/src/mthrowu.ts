@@ -46,7 +46,7 @@ import { buzzFrom, type Ray } from './buzz';
 import { canBlnd } from './adtyping';
 import { isCancelled, mblinded, mcansee, mspecUsed, setMblinded, setMspecUsed } from './mstate';
 import { P, hasProp, makeBlinded, maybeHalfPhys, timeoutLeft } from './props';
-import { nonliving as nonlivingDef } from './mondata';
+import { isMplayer, nonliving as nonlivingDef } from './mondata';
 import {
   formHatesBlessings,
   formHatesSilver,
@@ -698,6 +698,8 @@ function monmulti(ctx: Ctx, monId: EntityId, otmp: Entity, mwep: Entity | null):
     // Assumes lords are skilled, princes are expert
     if (mdef.flags.includes('prince')) multishot += 2;
     else if (mdef.flags.includes('lord')) multishot++;
+    // fake players treated as skilled (regardless of role limits)
+    else if (isMplayer(mdef)) multishot++;
     // Elven craftsmanship makes for light, quick bows
     if (otmp.def === 'nh:elven_arrow' && it.buc !== 'cursed') multishot++;
     if (

@@ -15,6 +15,7 @@ import {
   heroBlind,
   inBounds,
   inventoryOf,
+  itemsAt,
   sortedIds,
   trapAt,
   type Ctx,
@@ -35,7 +36,10 @@ import { canSpotMon, monNam } from './perception';
 import { mapInvisible, unmapInvisible } from './invis';
 import { invWeight } from './stats';
 import { T } from './terrain';
-import { TRAP } from './trap';
+import { TRAP, rlocTo } from './trap';
+import { mnextoPos } from './generation';
+import { isRiderCorpse, reviveCorpseLate } from './rider';
+import { goodposMon } from './teleport';
 import { isMtrapped, isPit, levitating } from './trapstate';
 
 /**
@@ -168,6 +172,42 @@ function dopush(
 }
 
 /**
+ * A Rider's corpse where a boulder is about to land revives first: a monster standing there is
+ * moved to the nearest free spot, "You sense movement on the other side." (`msg`) is said, and the
+ * revived Rider is moved off the spot when it cannot stay there. True when one revived.
+ * ref: src/hack.c revive_nasty() (the Wizard's corpse does not revive here: revive.ts)
+ */
+export function reviveNasty(
+  ctx: Ctx,
+  level: Level,
+  x: number,
+  y: number,
+  msg: string | null,
+): boolean {
+  let revived = false;
+  for (const otmp of itemsAt(ctx.defs, ctx.state, level.id, x, y)) {
+    if (!isRiderCorpse(otmp)) continue;
+    // move any living monster already at that location
+    const mtmp = monsterAt(ctx, level, x, y);
+    if (mtmp) {
+      const cc = mnextoPos(ctx, level, null, { x, y }, ctx.defs.monster(mtmp.def));
+      if (cc) rlocTo(ctx, mtmp, cc.x, cc.y, false);
+    }
+    if (msg) ctx.emit({ type: 'msg', key: msg });
+    revived = reviveCorpseLate(ctx, otmp);
+  }
+  // this location might not be safe, if not, move revived monster
+  if (revived) {
+    const mtmp = monsterAt(ctx, level, x, y);
+    if (mtmp && !goodposMon(ctx, level, x, y, mtmp.id)) {
+      const cc = mnextoPos(ctx, level, mtmp.id, { x, y });
+      if (cc) rlocTo(ctx, mtmp, cc.x, cc.y, false);
+    }
+  }
+  return revived;
+}
+
+/**
  * The hero walks into a square holding boulders, direction `dir`: each boulder there is pushed
  * one square on (the second one is "the next boulder"). 'moved' means the hero then steps onto
  * the vacated square (one move); 'blocked' means she stays and no time passes, as test_move()
@@ -226,6 +266,7 @@ export function moverock(ctx: Ctx, dir: Dir): 'moved' | 'blocked' {
       });
       return cannotPush(ctx);
     }
+    if (reviveNasty(ctx, level, rx, ry, 'boulder.sense_movement')) return 'blocked';
     const ttmp = trapAt(level, rx, ry);
     const mtmp = monsterAt(ctx, level, rx, ry);
     // a monster there blocks the boulder, unless it is trapped in a pit there (the boulder falls

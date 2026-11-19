@@ -59,10 +59,12 @@ import {
   isFlyer,
   isMplayer,
   isNdemon,
+  isRider,
   isSwimmer,
   isUnicorn,
   isWhirlyDef,
   noncorporeal,
+  PESTILENCE,
   upperSym,
 } from './mondata';
 import { noOfWizards, setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
@@ -247,7 +249,7 @@ export function adjLev(def: MonsterDef, depth: number, ulevel: number): number {
 /**
  * ref: src/makemon.c newmonhp(): golems have a fixed amount of hit points by kind (golemhp());
  * an elemental on its home plane (`level`, where it is made: the hero's by default) three times
- * as many; no dragons or riders.
+ * as many; the Riders d(10, 8); no dragons.
  */
 export function newmonhp(
   ctx: Ctx,
@@ -258,7 +260,11 @@ export function newmonhp(
   if (id !== undefined && golemhp(id) > 0) return golemhp(id);
   let basehp: number;
   let hp: number;
-  if (!mlev) {
+  if (id !== undefined && isRider(id)) {
+    // we want low HP, but a high mlevel so they can attack well
+    basehp = 10; // minimum is 1 per false (weaker) level
+    hp = ctx.rng.d(basehp, 8);
+  } else if (!mlev) {
     basehp = 1;
     hp = ctx.rng.rnd(4);
   } else {
@@ -381,6 +387,16 @@ function goodpos(
     if (!monLiquidOk(ctx, level, x, y, mon.def, mon.inAir)) return false;
   } else if ((rules.liquid[t] ?? null) !== null) return false;
   return rules.passable[t] === true && !rules.closedDoor[t];
+}
+
+/**
+ * goodpos() for a new monster of type `def` at x,y of `level` (C's `fakemon`): nobody there, no
+ * boulder, a passable spot its kind can stand on. ref: src/teleport.c goodpos()
+ */
+export function goodposDef(ctx: Ctx, level: Level, x: number, y: number, def: MonsterDef): boolean {
+  const rules = cellRules(level, ctx.defs);
+  const taken = withBoulders(ctx, level, occupiedSet(ctx, level));
+  return goodpos(ctx, level, rules, taken, x, y, gpMon(ctx, def));
 }
 
 /**
@@ -685,6 +701,8 @@ export function makemon(
   // ref: makemon(): `mndx == PM_VLAD_THE_IMPALER`: `mitem = CANDELABRUM_OF_INVOCATION` (he stays
   // in his own shape so he can carry it)
   if (mdef.id === VLAD_THE_IMPALER && allowMinvent) mongets(ctx, id, CANDELABRUM);
+  // ref: makemon(): `mndx == PM_PESTILENCE`: `mitem = POT_SICKNESS`
+  if (mdef.id === PESTILENCE && allowMinvent) mongets(ctx, id, 'nh:potion_of_sickness');
   // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++`, and
   // the first one made on the Plane of Earth gets a spellbook of dig (`mitem = SPE_DIG`)
   if (mdef.id === WIZARD_OF_YENDOR) {

@@ -11,6 +11,7 @@ export const boulderMessagesEn: Record<string, string> = {
   'boulder.hear_monster': 'You hear a monster behind {what|the}.',
   'boulder.no_leverage': "You don't have enough leverage to push {what|the}.",
   'boulder.perhaps': "Perhaps that's why you cannot move it.",
+  'boulder.sense_movement': 'You sense movement on the other side.',
   'boulder.squeeze': 'However, you can squeeze yourself into a small opening.',
   'boulder.wont_roll_diagonally': "{what|The} won't roll diagonally on this {surface}.",
   'boulder.plugs_hole': '{what|The} falls into and plugs a hole in the {surface}!',

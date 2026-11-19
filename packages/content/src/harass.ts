@@ -28,6 +28,7 @@ import { nhData } from './items';
 import { inEndgame, isAstral, madeLevelFlags, setMadeLevelFlags } from './levelflags';
 import { setU, uState, ualignBase } from './luck';
 import { gainGuardianAngel } from './minion';
+import { createMplayers } from './mplayer';
 import { resetHostility } from './priest';
 import { alignGname } from './gods';
 import { endMigration, isMigrating } from './migrate';
@@ -227,8 +228,8 @@ function harassment(ctx: Ctx): void {
 
 /**
  * The first arrival on the Astral Plane: the roaming priests and Angels of other gods turn on
- * her, then her guardian angel comes if she is worthy. ref: src/do.c final_level() (its
- * create_mplayers(rn1(4, 3), TRUE) is m23 step 9's, between the two)
+ * her, 3..6 player monsters are made (create_mplayers()), then her guardian angel comes if she is
+ * worthy. ref: src/do.c final_level()
  */
 export function finalLevel(ctx: Ctx): void {
   const lev = ctx.state.currentLevel;
@@ -237,6 +238,8 @@ export function finalLevel(ctx: Ctx): void {
     const e = ctx.state.entities[String(id)];
     if (e?.c.monster && e.c.pos?.level === lev) resetHostility(ctx, id);
   }
+  // create some player-monsters
+  createMplayers(ctx, ctx.rng.rn2(4) + 3, true); // rn1(4, 3)
   // create a guardian angel next to player, if worthy
   gainGuardianAngel(ctx);
 }

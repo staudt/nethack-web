@@ -42,7 +42,8 @@ import {
 } from './combat';
 import { passive, type PassiveTarget } from './uhitm_passive';
 import { heroForm, rehumanize, upolyd } from './upoly';
-import { cantwield, isDemon } from './mondata';
+import { cantwield, isDemon, isRider } from './mondata';
+import { done } from './end';
 import { tamedog } from './dog';
 import { makemon } from './generation';
 import { ndemon } from './roommon';
@@ -254,7 +255,7 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
     return M_ATTK.HIT;
   }
   const stoneRes = hasProp(hero, P.STONE_RES);
-  // engulfing a cockatrice or digesting Medusa
+  // engulfing a cockatrice or digesting Medusa (digesting a Rider is fatal below)
   const fatalGulp =
     (touchPetrifies(pd) && !stoneRes) ||
     (mattk.ad === 'dgst' && pd.id === 'nh:medusa' && !stoneRes);
@@ -270,6 +271,12 @@ function gulpum(ctx: Ctx, mdef: Entity, mattk: AttackDef): number {
   const name = monNam(ctx, mdef);
   switch (mattk.ad) {
     case 'dgst': {
+      // eating a Rider or its corpse is fatal
+      if (isRider(pd)) {
+        say(ctx, 'rider.digest_fatal');
+        done(ctx, `!@killer.rider.tried_eat|=@${pd.id}`);
+        return M_ATTK.MISS; // lifesaved
+      }
       if (hasProp(hero, P.SLOW_DIGESTION)) {
         dam = 0;
         break;

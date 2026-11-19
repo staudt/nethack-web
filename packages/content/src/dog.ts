@@ -9,7 +9,7 @@ import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
 import { isWiz } from './wizstate';
 import { monHasAmulet, uHave } from './uhave';
-import { isCovetous, isDemon, wants } from './mondata';
+import { isCovetous, isDemon, isRider, wants } from './mondata';
 import {
   getLevel,
   getPlayer,
@@ -217,7 +217,7 @@ const AFTER_SLIME_MOLD = new Set([
 
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
- * Not ported: poisoned weapons, artifacts, riders, ghouls, royal jelly, slime, polymorph
+ * Not ported: poisoned weapons, artifacts, ghouls, royal jelly, slime, polymorph
  * food, metallivores' other metal.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
@@ -226,6 +226,7 @@ export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Enti
   const cursed = obj.c.item?.buc === 'cursed';
   if (odef.class === 'food') {
     const fx = obj.c.item?.corpseOf;
+    if (obj.def === 'nh:corpse' && isRider(fx)) return TABU;
     // c*ckatrice or Medusa
     if (
       (obj.def === 'nh:corpse' || obj.def === 'nh:egg') &&

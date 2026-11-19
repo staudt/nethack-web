@@ -220,6 +220,18 @@ export const MPLAYERS: readonly DefId[] = [
   'nh:wizard',
 ];
 
+/** The Riders: Death, Pestilence and Famine (C's PM_DEATH, PM_PESTILENCE, PM_FAMINE). */
+export const DEATH: DefId = 'nh:death';
+export const PESTILENCE: DefId = 'nh:pestilence';
+export const FAMINE: DefId = 'nh:famine';
+export const RIDERS: readonly DefId[] = [DEATH, PESTILENCE, FAMINE];
+
+/** ref: include/mondata.h is_rider() */
+export const isRider = (def: { id: DefId } | string | undefined | null): boolean =>
+  def !== undefined &&
+  def !== null &&
+  RIDERS.includes((typeof def === 'string' ? def : def.id) as DefId);
+
 /** ref: include/mondata.h is_mplayer(): PM_ARCHEOLOGIST .. PM_WIZARD */
 export const isMplayer = (def: { id: DefId }): boolean => MPLAYERS.includes(def.id);
 

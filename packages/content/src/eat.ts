@@ -56,7 +56,16 @@ import { addToInventory, bcsign, nhData, placeOnFloor, splitStack } from './item
 import { outrumorCookie } from './rumors';
 import { encumberMsg } from './itemactions';
 import { levitating } from './trapstate';
-import { carnivorous, herbivorous, humanoid, olfaction, vegan, vegetarian } from './mondata';
+import {
+  carnivorous,
+  herbivorous,
+  humanoid,
+  isRider,
+  olfaction,
+  vegan,
+  vegetarian,
+} from './mondata';
+import { reviveCorpseLate } from './rider';
 import { monflee } from './monflee';
 import { onscary } from './scary';
 import { isWere, ulycn, wereBeastie, youUnwere } from './werestate';
@@ -637,7 +646,8 @@ function maybeCannibal(ctx: Ctx, mon: MonsterDef, allowmsg: boolean): boolean {
  * The first bite of a corpse: eating her own kind is cannibalism, a cockatrice's (or Medusa's)
  * flesh turns her to stone at once unless she resists, a dog or cat was a bad idea, and a
  * lizard's, or an acidic monster's, cures petrification in progress.
- * ref: src/eat.c cprefx() (no Riders, no green slime)
+ * A Rider's is instantly fatal; with life saving the corpse rises.
+ * ref: src/eat.c cprefx() (no green slime)
  */
 function cprefx(ctx: Ctx, corpse: Entity): void {
   const of = corpse.c.item?.corpseOf;
@@ -667,14 +677,23 @@ export function cprefxMon(ctx: Ctx, mon: MonsterDef, useUpTin?: () => void): voi
     }
   } else if (mon.id === LIZARD) {
     if (isStoned(ctx.state)) fixPetrification(ctx);
+  } else if (isRider(mon)) {
+    say(ctx, 'eat.rider_fatal');
+    done(ctx, `!@killer.rider.ate_body|=@${mon.id}`);
+    // life-saving needed to reach here (no exercise()); revive an actual corpse (a tin's
+    // contents cannot rise)
+    const v = victualOf(ctx);
+    const piece = v ? ctx.state.entities[String(v.piece)] : undefined;
+    if (piece?.def === 'nh:corpse' && reviveCorpseLate(ctx, piece)) hungerData(ctx).victual = null;
   } else if (mon.flags.includes('acid') && isStoned(ctx.state)) fixPetrification(ctx);
 }
 
 /** A meal of `mon` chokes her when it bursts her stomach (no food item: "a quick snack"). */
 export const chokeSnack = (ctx: Ctx): void => choke(ctx, null);
 
-/** ref: src/eat.c nonrotting_corpse(): lizards and lichens never rot */
-export const nonrottingCorpse = (mon: string): boolean => mon === LIZARD || mon === 'nh:lichen';
+/** ref: src/eat.c nonrotting_corpse(): lizards, lichens and the Riders never rot */
+export const nonrottingCorpse = (mon: string): boolean =>
+  mon === LIZARD || mon === 'nh:lichen' || isRider(mon);
 
 // ---------------------------------------------------------------------------------------------
 // ordinary food

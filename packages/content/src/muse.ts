@@ -121,6 +121,7 @@ import {
   noncorporeal,
   nohands,
   nolimbs,
+  PESTILENCE,
   slithy,
 } from './mondata';
 import { mondead, mongone, monkilled, monsterDied } from './mondeath';
@@ -285,6 +286,7 @@ const BOLT_LIM = 8;
 const POT_HEALING: DefId = 'nh:potion_of_healing';
 const POT_EXTRA_HEALING: DefId = 'nh:potion_of_extra_healing';
 const POT_FULL_HEALING: DefId = 'nh:potion_of_full_healing';
+const POT_SICKNESS: DefId = 'nh:potion_of_sickness';
 const WAN_DIGGING: DefId = 'nh:wand_of_digging';
 const WAN_TELEPORTATION: DefId = 'nh:wand_of_teleportation';
 const WAN_CREATE_MONSTER: DefId = 'nh:wand_of_create_monster';
@@ -629,7 +631,8 @@ export function findDefensive(
   }
 
   // "the first case is when the monster is blind (healing cures blindness)"
-  if (!mcansee(ctx, id) && !nohands(def)) {
+  // "Pestilence won't use healing even when blind"
+  if (!mcansee(ctx, id) && !nohands(def) && mon.def !== PESTILENCE) {
     const c = mUseHealing(ctx, id);
     if (c) return c;
   }
@@ -776,16 +779,24 @@ export function findDefensive(
       teleOk
     )
       choice = { kind: 'scr_tele', obj: obj.id };
-    // (not Pestilence)
-    if (is('pot_full_healing')) continue;
-    if (obj.def === POT_FULL_HEALING) choice = { kind: 'pot_full_healing', obj: obj.id };
-    if (is('pot_extra_healing')) continue;
-    if (obj.def === POT_EXTRA_HEALING) choice = { kind: 'pot_extra_healing', obj: obj.id };
-    if (is('wan_create_monster')) continue;
-    if (obj.def === WAN_CREATE_MONSTER && spe(obj) > 0)
-      choice = { kind: 'wan_create_monster', obj: obj.id };
-    if (is('pot_healing')) continue;
-    if (obj.def === POT_HEALING) choice = { kind: 'pot_healing', obj: obj.id };
+    if (mon.def !== PESTILENCE) {
+      if (is('pot_full_healing')) continue;
+      if (obj.def === POT_FULL_HEALING) choice = { kind: 'pot_full_healing', obj: obj.id };
+      if (is('pot_extra_healing')) continue;
+      if (obj.def === POT_EXTRA_HEALING) choice = { kind: 'pot_extra_healing', obj: obj.id };
+      if (is('wan_create_monster')) continue;
+      if (obj.def === WAN_CREATE_MONSTER && spe(obj) > 0)
+        choice = { kind: 'wan_create_monster', obj: obj.id };
+      if (is('pot_healing')) continue;
+      if (obj.def === POT_HEALING) choice = { kind: 'pot_healing', obj: obj.id };
+    } else {
+      // Pestilence: sickness is its full healing
+      if (is('pot_full_healing')) continue;
+      if (obj.def === POT_SICKNESS) choice = { kind: 'pot_full_healing', obj: obj.id };
+      if (is('wan_create_monster')) continue;
+      if (obj.def === WAN_CREATE_MONSTER && spe(obj) > 0)
+        choice = { kind: 'wan_create_monster', obj: obj.id };
+    }
     if (is('scr_create_monster')) continue;
     if (obj.def === SCR_CREATE_MONSTER) choice = { kind: 'scr_create_monster', obj: obj.id };
   }
@@ -1039,8 +1050,10 @@ export function useDefensive(ctx: Ctx, id: EntityId, c: MuseChoice<MuseDef>): Mu
     case 'pot_full_healing': {
       if (!otmp) return 0;
       mquaffmsg(ctx, mon, otmp);
-      healmon(mon, hp.max, otmp.c.item?.buc === 'blessed' ? 8 : 4);
-      if (!mcansee(ctx, id)) mcureblindness(ctx, mon, vismon);
+      const pit = otmp.c.item;
+      if (otmp.def === POT_SICKNESS && pit?.buc === 'blessed') pit.buc = 'uncursed'; // Pestilence
+      healmon(mon, hp.max, pit?.buc === 'blessed' ? 8 : 4);
+      if (!mcansee(ctx, id) && otmp.def !== POT_SICKNESS) mcureblindness(ctx, mon, vismon);
       if (vismon) say(ctx, 'muse.looks_completely_healed', { mon: name() });
       if (oseen) discover(ctx, otmp.def);
       useOne(ctx, id, otmp);

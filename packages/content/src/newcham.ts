@@ -48,7 +48,7 @@ import {
 } from './chamstate';
 import { isPoolOrLava } from './liquid';
 import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
-import { humanoid, isMplayer, MPLAYERS, upperSym } from './mondata';
+import { humanoid, isMplayer, isRider, MPLAYERS, upperSym } from './mondata';
 import { isRogueLevel } from './levelflags';
 import { pickNasty } from './nasty';
 import { protFromShapeChangers } from './props';
@@ -79,8 +79,6 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 
 const BOULDER = 'nh:boulder';
 
-/** ref: include/mondata.h is_rider() */
-const RIDERS: readonly string[] = ['nh:death', 'nh:famine', 'nh:pestilence'];
 /** ref: include/mondata.h is_placeholder() */
 const PLACEHOLDERS: readonly string[] = ['nh:orc', 'nh:giant', 'nh:elf', 'nh:human'];
 export const isPlaceholder = (def: MonsterDef): boolean => PLACEHOLDERS.includes(def.id);
@@ -340,7 +338,7 @@ export function newcham(
   // MAXMONNO
   if (chamOf(ctx, mon.id) === null) {
     // not a shapechanger
-    if (RIDERS.includes(olddata.id) || mbirthLimit(olddata.id) < MAXMONNO) return false;
+    if (isRider(olddata) || mbirthLimit(olddata.id) < MAXMONNO) return false;
     // cancelled shapechangers become uncancelled prior to being given a new shape
     if (isCancelled(ctx, mon.id) && !protFromShapeChangers(ctx.state)) {
       const c = pmToCham(olddata);

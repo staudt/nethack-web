@@ -10,8 +10,9 @@
 // its Angels and random monsters), then the three high altars with their high priests (C's
 // create_altar() makes each priest with its altar, so they come after the wings and before the
 // hordes, as the script orders them). The lit courts' irregular regions are their rectangles,
-// lit only (no rooms). The Riders' three spots (`place:rndcoord(1)` for Pestilence, Death and
-// Famine) are m23 step 9's, marked where the script makes them. The aligned horde's
+// lit only (no rooms). The Riders are made where the script makes them, each on one of the three
+// `place` spots (`place:rndcoord(1)`, drawn just before it is made): the fixup's `contents`
+// makes the list itself and puts each Rider after its marked entry. The aligned horde's
 // peacefulness is a placeholder the script itself explains: final_level() re-aligns it on her
 // first arrival (priest.ts resetHostility()). The flags ("mazelevel", "noteleport", "hardfloor",
 // "nommap", "shortsighted", "solidify", the non-diggable and non-passwall map) are levelflags.ts
@@ -26,13 +27,14 @@ import {
   type Level,
   type LevelContent,
   type LevelDef,
+  type Pos,
   type RegionDef,
 } from '@nh/core';
 import { TEMPLE } from './epri';
 import { PLANE_LEVELS } from './levelflags';
 import { templePriests } from './priest';
 import { percent, selArea, selFloodfill, selRndcoord, setSel, type Sel } from './selection';
-import { makeContents, mapToLevel, shuffle } from './sp_lev';
+import { makeContents, mapToLevel, rndcoord, shuffle } from './sp_lev';
 import { T, setTerrain } from './terrain';
 
 /** ref: dat/astral.lua des.map() */
@@ -80,6 +82,24 @@ const cleric = (x: number, y: number, align: Align, peaceful = false) =>
 const angel = (x: number, y: number, align: Align, peaceful = false) =>
   monAt('nh:angel', x, y, align, peaceful);
 const cls = (c: string): LevelContent => ({ kind: 'monster', class: c, peaceful: false });
+
+// The entries after which the script makes each Rider (des.monster({ id = "Pestilence", coord =
+// place:rndcoord(1), peaceful = 0 }) and the others).
+const PESTILENCE_AFTER = angel(20, 10, 'noalign');
+const DEATH_AFTER = angel(37, 13, 'noalign');
+const FAMINE_AFTER = angel(54, 10, 'noalign');
+const RIDER_AFTER: ReadonlyMap<LevelContent, DefId> = new Map([
+  [PESTILENCE_AFTER, 'nh:pestilence' as DefId],
+  [DEATH_AFTER, 'nh:death' as DefId],
+  [FAMINE_AFTER, 'nh:famine' as DefId],
+]);
+
+/** The Riders' spots (`place`: selection.new(), place:set()), map-relative. */
+const RIDER_SPOTS: readonly Pos[] = [
+  { x: 23, y: 9 },
+  { x: 37, y: 14 },
+  { x: 51, y: 9 },
+];
 
 /** The three temples' insides (des.region type "temple", filled = 2), map-relative. */
 const TEMPLES: readonly [number, number, number, number][] = [
@@ -142,24 +162,24 @@ export const ASTRAL: LevelDef = {
     cleric(19, 9, 'noalign'),
     cleric(19, 10, 'noalign'),
     angel(20, 9, 'noalign'),
-    angel(20, 10, 'noalign'),
-    // (Pestilence at place:rndcoord(1): m23 step 9)
+    PESTILENCE_AFTER,
+    // (Pestilence at place:rndcoord(1): astralContents())
     // South-central round room
     cleric(36, 12, 'noalign'),
     cleric(37, 12, 'noalign'),
     cleric(38, 12, 'noalign'),
     cleric(36, 13, 'noalign'),
     angel(38, 13, 'noalign'),
-    angel(37, 13, 'noalign'),
-    // (Death at place:rndcoord(1): m23 step 9)
+    DEATH_AFTER,
+    // (Death at place:rndcoord(1): astralContents())
     // East round room
     cleric(56, 9, 'noalign'),
     cleric(55, 8, 'noalign'),
     cleric(55, 9, 'noalign'),
     cleric(55, 10, 'noalign'),
     angel(54, 9, 'noalign'),
-    angel(54, 10, 'noalign'),
-    // (Famine at place:rndcoord(1): m23 step 9)
+    FAMINE_AFTER,
+    // (Famine at place:rndcoord(1): astralContents())
     //
     // The aligned horde: "We do not know in advance the alignment of the player. The mpeaceful
     // bit will need resetting when the level is created. The setting here is but a place
@@ -300,4 +320,22 @@ export function astralBefore(ctx: Ctx, level: Level, def: LevelDef): void {
       (level.shrines ??= []).push({ x: p.x, y: p.y });
   }
   templePriests(ctx, level); // priestini() for each, a high priest at a high altar
+}
+
+/**
+ * The Astral Plane's contents in the script's order, with each Rider made right after its round
+ * room's horde on one of the `place` spots still free (`place:rndcoord(1)`, drawn first).
+ * ref: dat/astral.lua
+ */
+export function astralContents(ctx: Ctx, level: Level, def: LevelDef): void {
+  const place = RIDER_SPOTS.map((p) => ({ ...p }));
+  for (const c of def.contents ?? []) {
+    makeContents(ctx, level, def, [c]);
+    const rider = RIDER_AFTER.get(c);
+    if (rider === undefined) continue;
+    const p = rndcoord(ctx, place);
+    makeContents(ctx, level, def, [
+      { kind: 'monster', id: rider, x: p.x, y: p.y, peaceful: false },
+    ]);
+  }
 }

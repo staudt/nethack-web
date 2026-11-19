@@ -7,7 +7,7 @@
 import type { Ctx, DefId, GameState, MonsterDef, Registry } from '@nh/core';
 import { bigToLittle, littleToBig } from './eggstate';
 import { isGolem } from './golem';
-import { isDemon, isUnicorn } from './mondata';
+import { isDemon, isRider, isUnicorn } from './mondata';
 import { RACES_TAB } from './racetab';
 import { heroForm } from './upoly';
 import { type RaceKey, raceIs, roleIs, urace } from './urole';
@@ -45,7 +45,6 @@ export const cannibalAllowed = (state: Readonly<GameState>): boolean =>
 export const raceMonId = (state: Readonly<GameState>): DefId => RACES_TAB[urace(state)].mnum;
 
 const MIND_FLAYERS: readonly DefId[] = ['nh:mind_flayer', 'nh:master_mind_flayer'];
-const RIDERS: readonly DefId[] = ['nh:death', 'nh:pestilence', 'nh:famine'];
 const KOBOLDISH: readonly DefId[] = ['nh:kobold_zombie', 'nh:kobold_mummy'];
 const GARGOYLES: readonly DefId[] = ['nh:gargoyle', 'nh:winged_gargoyle'];
 const BEES: readonly DefId[] = ['nh:killer_bee', 'nh:queen_bee'];
@@ -76,7 +75,7 @@ export function sameRace(
   if (let1 === 'D') return let2 === 'D';
   if (let1 === 'N') return let2 === 'N';
   // other critters get steadily messier
-  if (RIDERS.includes(pm1.id)) return RIDERS.includes(pm2.id); // debatable
+  if (isRider(pm1)) return isRider(pm2); // debatable
   if (has(pm1, 'minion')) return has(pm2, 'minion'); // [needs work?]
   // tengu don't match imps (first test handled case of both being tengu)
   if (pm1.id === 'nh:tengu' || pm2.id === 'nh:tengu') return false;

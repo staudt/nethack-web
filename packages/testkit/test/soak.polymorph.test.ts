@@ -114,8 +114,11 @@ describe('polymorph soak', () => {
   // 774, 781, 782, 785 and 787..791 last 400 turns with the dungeons, and 762 and 774 without;
   // 781 replaced 762 in m23 step 3, whose high priest row shifts the random forms: 762 died at
   // turn 193 and lasts 400 turns with the row withheld; of 781, 782, 785 and 787..791, 781, 782,
-  // 787, 790 and 791 last 400 turns with the row, and 781 does without it, as 774 does both ways)
-  for (const seed of [781, 774]) {
+  // 787, 790 and 791 last 400 turns with the row, and 781 does without it, as 774 does both ways;
+  // 779 and 783 replaced them in m23 step 9, whose three Rider rows shift the random forms: 781
+  // died at turn 162 and 774 at turn 40, and both pass with the rows withheld; of 775..795, 779,
+  // 783, 791 and 792 last 400 turns with and without the rows)
+  for (const seed of [779, 783]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       wallwalk = wallwalkRecord();

@@ -46,6 +46,7 @@ import {
   onAltar,
   uGname,
 } from './align';
+import { riderCorpseRevival } from './rider';
 import { altarOf, type Aligntyp } from './aligntyp';
 import { T, setTerrain } from './terrain';
 import { ARTIFACTS, type ArtifactDef } from './artilist';
@@ -625,12 +626,13 @@ const isGiftData = (d: Json): boolean =>
  * ("Nothing happens."), a negative one (gods upset), another god's altar, then on her own: god's
  * anger lessened, absolution, a shorter prayer timeout, else a gift or Luck. Returns the extra
  * time taken (terrified by a demon), or null when the wizard-mode question was asked.
- * Another god's high altar is desecrated. ref: src/pray.c offer_corpse() (no Riders or former
- * pets)
+ * Another god's high altar is desecrated; a Rider's corpse revives. ref: src/pray.c offer_corpse()
+ * (no former pets)
  */
 function offerCorpse(ctx: Ctx, obj: Entity, highaltar: boolean, altaralign: number): number | null {
   // you're handling this corpse, even if it was killed upon the altar
   if (fatalCorpseMistake(ctx, obj) && ctx.state.gameOver) return 0;
+  if (riderCorpseRevival(ctx, obj, false)) return 0;
   const mnum = obj.c.item?.corpseOf;
   if (!mnum || !ctx.defs.isMonster(mnum)) return 0;
   const ptr = ctx.defs.monster(mnum);

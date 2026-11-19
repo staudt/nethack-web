@@ -338,7 +338,8 @@ const levelOfMon = (ctx: Pick<Ctx, 'state'>, mon: Entity) =>
 /**
  * A defensive item for a monster being made (null: none): scrolls and wands of teleportation and
  * create monster, the healing potions, a wand of digging.
- * ref: src/muse.c rnd_defensive_item() (no Pestilence; `Sokoban` is the monster's level)
+ * ref: src/muse.c rnd_defensive_item() (Pestilence's "full healing" is sickness; `Sokoban` is
+ * the monster's level)
  */
 export function rndDefensiveItem(
   ctx: Pick<Ctx, 'state' | 'defs' | 'rng'>,
@@ -372,7 +373,7 @@ export function rndDefensiveItem(
       case 4:
         return 'nh:potion_of_extra_healing';
       case 5:
-        return 'nh:potion_of_full_healing';
+        return mon.def !== 'nh:pestilence' ? 'nh:potion_of_full_healing' : 'nh:potion_of_sickness';
       case 7:
         // usually avoid digging in Sokoban
         if (level && isSokoban(level) && ctx.rng.rn2(4)) continue; // try_again

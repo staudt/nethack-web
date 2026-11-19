@@ -39,11 +39,11 @@ import { experienceFor, gainExperience } from './hero';
 import { losehp } from './hp';
 import { nomulNow } from './hunger';
 import { monkilled, monsterDied } from './mondeath';
-import { nonliving } from './mondata';
+import { isMplayer, isRider, nonliving } from './mondata';
 import { completelyburns } from './golem';
 import { ugolemeffects } from './golemfx';
 import { heroSees, monWep } from './mongear';
-import { frozenTime, isFrozen, paralyzeMonst } from './mstate';
+import { frozenTime, healmon, isFrozen, paralyzeMonst } from './mstate';
 import { xnameOf } from './objnam';
 import { igniteItems } from './light';
 import { monNam, revealUnseenAt } from './perception';
@@ -182,7 +182,7 @@ export function resist(
             : (getPlayer(ctx.state).c.experience?.level ?? 1);
   let dlev = mon.c.monster?.level ?? 0;
   if (dlev > 50) dlev = 50;
-  else if (dlev < 1) dlev = 1;
+  else if (dlev < 1) dlev = isMplayer(def) ? (getPlayer(ctx.state).c.experience?.level ?? 1) : 1;
   const resisted = ctx.rng.rn2(100 + alev - dlev) < def.mr;
   if (resisted) damage = Math.trunc((damage + 1) / 2);
   if (damage) {
@@ -393,6 +393,15 @@ export function zhitm(
             if (o) useOne(ctx, mon.id, o);
           }
         }
+        break;
+      }
+      // Death drinks the death ray: healed by half again its maximum (which grows by up to half)
+      if (mon.def === 'nh:death') {
+        const max = mon.c.hp?.max ?? 0;
+        healmon(mon, Math.trunc((max * 3) / 2), Math.trunc(max / 2));
+        const hp = mon.c.hp;
+        if (hp && hp.max >= MAGIC_COOKIE) hp.max = MAGIC_COOKIE - 1;
+        tmp = 0;
         break;
       }
       // similar to player
@@ -953,7 +962,7 @@ function buzzSteps(
   let { x: sx, y: sy } = from;
   let range = ctx.rng.rn2(7) + 7;
   if (vertical) range = 1;
-  while (range-- > 0) {
+  travel: while (range-- > 0) {
     const lsx = sx;
     const lsy = sy;
     sx += d.x;
@@ -1000,6 +1009,33 @@ function buzzSteps(
               disint,
               out,
             );
+            // a Rider disintegrated reintegrates at once; Death absorbs a death ray (the ray
+            // stops either way)
+            if (isRider(ctx.defs.monster(mon.def)) && disint) {
+              if (canseemon(ctx, mon)) {
+                say(ctx, 'zap.ray.hit', { ray: rayName(ray, src), mon: monNam(ctx, mon), ex: '.' });
+                say(ctx, 'zap.rider.disintegrates', { mon: monNam(ctx, mon) });
+                say(ctx, 'zap.rider.reintegrates', { mon: monNam(ctx, mon) });
+                say(ctx, 'zap.rider.resurrects', { mon: monNam(ctx, mon) });
+              }
+              const mhp = mon.c.hp;
+              if (mhp) mhp.cur = mhp.max;
+              break travel;
+            }
+            if (mon.def === 'nh:death' && ray === 'death') {
+              if (canseemon(ctx, mon)) {
+                say(ctx, 'zap.ray.hit', { ray: rayName(ray, src), mon: monNam(ctx, mon), ex: '.' });
+                say(
+                  ctx,
+                  src.by === 'breath' || (src.by === 'hero' && src.breath === true)
+                    ? 'zap.rider.absorbs_blast'
+                    : 'zap.rider.absorbs_ray',
+                  { mon: monNam(ctx, mon) },
+                );
+                say(ctx, 'zap.rider.stronger');
+              }
+              break travel;
+            }
             if (tmp === MAGIC_COOKIE) {
               disintegrateMon(ctx, mon, src.by === 'hero', rayName(ray, src));
             } else if ((mon.c.hp?.cur ?? 0) < 1) {

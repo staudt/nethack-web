@@ -7,7 +7,7 @@ import { floorEffectsLate } from './floorfx';
 import { egdOf } from './vaultstate';
 import { isEarthLevel, isRogueLevel } from './levelflags';
 import { resistsSton, touchPetrifies } from './stonestate';
-import { isUnicorn } from './mondata';
+import { isRider, isUnicorn } from './mondata';
 import { monTouchArtifact } from './artifact';
 import {
   cellIndex,
@@ -136,7 +136,7 @@ export function setMonFlag(
 
 /** Forgets everything stored about a dead monster. */
 export function forgetMonster(ctx: Pick<GearCtx, 'state'>, id: EntityId): void {
-  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri', 'eshk', 'emin']) {
+  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri', 'eshk', 'emin', 'mplname']) {
     const t = flagTable(ctx, k, false);
     if (t) delete t[String(id)];
   }
@@ -1243,8 +1243,8 @@ export function canCarry(
 /**
  * Whether mpickstuff() passes over an item the monster would take: nymphs take everything, most
  * monsters no corpse but a cockatrice's, a lizard's or an acidic one's (the ones muse uses), and
- * nothing it cannot touch safely (a cockatrice corpse without gloves, silver for a silver-hater,
- * an artifact that would blast it).
+ * nothing it cannot touch safely (a cockatrice corpse without gloves, a Rider's corpse, silver for
+ * a silver-hater, an artifact that would blast it).
  * ref: src/mon.c mpickstuff(), can_touch_safely()
  */
 export function mpickstuffSkips(
@@ -1265,6 +1265,8 @@ export function mpickstuffSkips(
   // can_touch_safely(): a cockatrice corpse without gloves
   if (pm && touchPetrifies(pm) && !whichArmor(ctx, monId, 'gloves') && !resistsSton(ctx, e))
     return true;
+  // can_touch_safely(): a Rider's corpse
+  if (isRider(pm)) return true;
   // can_touch_safely(): silver burns a silver-hater; an artifact that would blast it
   if (objDef(ctx, o.def)?.material === 'silver' && monHatesSilver(ctx, e)) return true;
   return !monTouchArtifact(ctx, o, monId);

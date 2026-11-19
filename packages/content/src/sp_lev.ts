@@ -54,12 +54,14 @@ import {
   isEel,
   isFloater,
   isFlyer,
+  isMplayer,
   isSwimmer,
   likesLava,
   noncorporeal,
 } from './mondata';
 import { mongone } from './mondeath';
 import { mkRoamer } from './priest';
+import { mkMplayer } from './mplayer';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL, A_NONE, type Aligntyp } from './aligntyp';
 import { minvent } from './mongear';
 import { mkgold, removeFromInventory } from './items';
@@ -265,7 +267,8 @@ const MINES = 'nh:mines';
  * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
  * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
  * MM_ASLEEP; `waiting` is STRAT_WAITFORU (a vampire born shifted turns back); `align` makes a
- * roaming priest or minion of that god (priest.ts mkRoamer()). A unique that was already made (extinct) is not made again; any other genocided or
+ * roaming priest or minion of that god (priest.ts mkRoamer()); a player monster's kind is made by
+ * mk_mplayer() (mplayer.ts). A unique that was already made (extinct) is not made again; any other genocided or
  * extinct kind is made at random instead, and so are 2 in 3 of a dwarf or gnome hero's own kind
  * in the Mines.
  */
@@ -314,13 +317,15 @@ export function createMonster(
   const id =
     c.align !== undefined
       ? mkRoamer(ctx, level, def, ALIGN_OF[c.align], pos, c.peaceful ?? true)
-      : makemon(ctx, def, pos, {
-          level: level.id,
-          adjacentOk: true,
-          inMklev: true,
-          ...(c.asleep ? { asleep: true } : {}),
-        });
-  if (id !== null && c.align !== undefined && c.asleep) {
+      : def && isMplayer(def)
+        ? mkMplayer(ctx, def, pos, false, level.id)
+        : makemon(ctx, def, pos, {
+            level: level.id,
+            adjacentOk: true,
+            inMklev: true,
+            ...(c.asleep ? { asleep: true } : {}),
+          });
+  if (id !== null && (c.align !== undefined || (def && isMplayer(def))) && c.asleep) {
     const m = ctx.state.entities[String(id)]?.c.monster;
     if (m) m.asleep = true;
   }
@@ -493,6 +498,11 @@ export function fillSpecialLevel(ctx: Ctx, level: Level, def: LevelDef): void {
  */
 export interface SpLevFixup {
   before?(ctx: Ctx, level: Level, def: LevelDef): void;
+  /**
+   * Makes `def.contents` instead of fillSpecialLevel(), for a script that draws between its
+   * entries (the Astral Plane's Riders on `place:rndcoord(1)`); rooms' contents are not made.
+   */
+  contents?(ctx: Ctx, level: Level, def: LevelDef): void;
   after?(ctx: Ctx, level: Level, def: LevelDef): void;
 }
 
@@ -653,7 +663,8 @@ export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevF
     const def = ctx.defs.level(level.def);
     const fixup = Object.hasOwn(fixups, def.id) ? fixups[def.id] : undefined;
     fixup?.before?.(ctx, level, def);
-    fillSpecialLevel(ctx, level, def);
+    if (fixup?.contents) fixup.contents(ctx, level, def);
+    else fillSpecialLevel(ctx, level, def);
     fixup?.after?.(ctx, level, def);
     if (def.flags?.premapped === true) premapDetect(ctx, level);
   });

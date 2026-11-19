@@ -27,7 +27,10 @@ import { hungerData } from './hunger';
 import { encumberMsg } from './itemactions';
 import { eatenStat, placeObject, removeFromInventory, splitStack } from './items';
 import { heroSees } from './mongear';
-import { nonliving } from './mondata';
+import { isRider, nonliving } from './mondata';
+import { riderRevivalTime } from './corpses';
+import { canseemon } from './invis';
+import { inStasis } from './teleport';
 import { xnameOf } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { setMrevived } from './mstate';
@@ -108,7 +111,10 @@ export function revive(ctx: Ctx, corpse: Entity, byHero: boolean): Revived | nul
   const mptr = ctx.defs.monster(montype);
   // cant_revive(): aligned priests would rise as human zombies and unique monsters as
   // doppelgangers; neither exists here
-  if (montype === 'nh:aligned_cleric' || mptr.genFlags.includes('uniq')) return null;
+  // doppelgangers; neither exists here. A Rider's corpse keeps its traits (omonst), so it rises
+  // as itself.
+  if (montype === 'nh:aligned_cleric' || (mptr.genFlags.includes('uniq') && !isRider(mptr)))
+    return null;
 
   // prepare for the monster: someone (C's MON_AT, or makemon()'s byyou for her own square) is
   // in the way: the nearest free spot
@@ -227,35 +233,34 @@ export function unturnDead(ctx: Ctx, who: Entity | 'hero', byHero = true): numbe
   return res;
 }
 
+/** "<The troll> rises from the dead in a whirl of spectral skulls!": a Rider's own effect. */
+const RISE_EFFECT: Readonly<Record<string, string>> = {
+  'nh:death': 'revive.effect.death',
+  'nh:pestilence': 'revive.effect.pestilence',
+  'nh:famine': 'revive.effect.famine',
+};
+
 /**
- * A troll corpse's revival timer: the troll rises where the corpse is ("<The troll> rises from
- * the dead!", "The troll corpse disappears!" when only the spot is seen; "The troll corpse
- * writhes out of your grasp!" / "You feel squirming in your backpack!" from her pack; "<A
- * troll> suddenly appears!" from a monster's). A corpse that cannot rise (someone else's level,
- * inside a container) rots away instead: "You feel less hassled." ref: src/do.c revive_mon(),
- * revive_corpse() (no Riders, no displacers, no buried corpses)
+ * Brings a corpse back to life where it is, with the messages of its place: "<The troll> rises
+ * from the dead!" ("in a whirl of spectral skulls" and the other Riders' effects), "The troll
+ * corpse disappears!" when only the spot is seen; "The troll corpse writhes out of your grasp!" /
+ * "You feel squirming in your backpack!" from her pack; "Startled, the gnome drops a troll corpse
+ * as it revives!" / "<A troll> suddenly appears!" from a monster's. True when a monster rose (the
+ * corpse is gone). ref: src/do.c revive_corpse() (no containers, no buried corpses)
  */
-function reviveMon(ctx: Ctx, data: Json): void {
-  const id = (data as { id?: unknown } | null)?.id;
-  if (typeof id !== 'number') return;
-  const body = ctx.state.entities[String(id)];
-  const it = body?.c.item;
-  if (!body || body.def !== CORPSE || !it) return; // eaten or gone
+export function reviveCorpse(ctx: Ctx, body: Entity): boolean {
+  const it = body.c.item;
+  if (body.def !== CORPSE || !it) return false;
   const carrier = it.carriedBy ?? null;
   const inInvent = carrier === ctx.state.playerId;
   const isUwep = inInvent && it.equipped === 'weapon';
   const chewed = (it.eaten ?? 0) !== 0;
   const cname = cxnameSingular(ctx, body);
   const at = objLocation(ctx, body);
+  const id = body.id;
   const v = hungerData(ctx).victual;
   const r = revive(ctx, body, false);
-  if (!r) {
-    // ref: revive_mon(): rot this corpse away
-    say(ctx, 'revive.less_hassled');
-    const when = ctx.rng.d(5, 50) - (ctx.state.turn - (it.age ?? 0));
-    ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
-    return;
-  }
+  if (!r) return false;
   // ref: src/eat.c food_disappears(): a meal on this corpse is over
   if (v && v.piece === id && !ctx.state.entities[String(id)]) {
     hungerData(ctx).victual = null;
@@ -282,9 +287,66 @@ function reviveMon(ctx: Ctx, data: Json): void {
     }
   } else if (at && (heroSees(ctx, at) || seen)) {
     // ref: revive_corpse() OBJ_FLOOR
-    if (seen) say(ctx, chewed ? 'revive.rises_chewed' : 'revive.rises', { mon: mname });
-    else say(ctx, 'revive.disappears', { corpse: cname });
+    const effect = { key: RISE_EFFECT[mon.def] ?? 'revive.effect.none' };
+    if (seen) say(ctx, chewed ? 'revive.rises_chewed' : 'revive.rises', { mon: mname, effect });
+    else say(ctx, 'revive.disappears', { corpse: cname, effect });
   }
+  return true;
+}
+
+/** The late-bound rloc() for a Rider bumping a monster off its corpse (trap.ts registers it). */
+type RlocFn = (ctx: Ctx, mon: Entity, domsg: boolean) => boolean;
+let rlocFn: RlocFn | null = null;
+export function setReviveRloc(fn: RlocFn): void {
+  rlocFn = fn;
+}
+
+/**
+ * A reviving corpse's timer: it rises where it is (reviveCorpse()); a displacer (a Rider) first
+ * bumps a monster standing on its corpse to a random spot ("The gnome vanishes.", "...appears.",
+ * "...teleports."), unless a wand of stasis holds the level. A corpse that cannot rise (someone
+ * else's level, inside a container) rots away instead: "You feel less hassled."; a Rider's
+ * usually tries again (98 in 99) after rider_revival_time(), else "You feel much less hassled.".
+ * ref: src/do.c revive_mon()
+ */
+function reviveMon(ctx: Ctx, data: Json): void {
+  const id = (data as { id?: unknown } | null)?.id;
+  if (typeof id !== 'number') return;
+  const body = ctx.state.entities[String(id)];
+  const it = body?.c.item;
+  if (!body || body.def !== CORPSE || !it) return; // eaten or gone
+  const mptr =
+    it.corpseOf && ctx.defs.isMonster(it.corpseOf) ? ctx.defs.monster(it.corpseOf) : null;
+  // corpse will revive somewhere else if there is a monster in the way; Riders get a chance to
+  // try to bump the obstacle out of their way
+  const p = body.c.pos;
+  if (mptr?.flags.includes('displaces') && p && !inStasis(ctx.state, p.level)) {
+    const mtmp = mAt(ctx.state, p.level, p.x, p.y);
+    const m = mtmp === null ? undefined : ctx.state.entities[String(mtmp)];
+    if (m && rlocFn) {
+      const noticeIt = canseemon(ctx, m); // before rloc()
+      const monname = monNam(ctx, m);
+      if (rlocFn(ctx, m, false)) {
+        const q = m.c.pos;
+        if (noticeIt && !canseemon(ctx, m)) say(ctx, 'revive.mon_vanishes', { mon: monname });
+        else if (!noticeIt && canseemon(ctx, m))
+          say(ctx, 'revive.mon_appears', { mon: monNam(ctx, m) });
+        else if (noticeIt && q && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 > 2)
+          say(ctx, 'revive.mon_teleports', { mon: monname }); // saw it and still see it
+      }
+    }
+  }
+  // if we succeed, the corpse is gone
+  if (reviveCorpse(ctx, body)) return;
+  if (isRider(mptr) && ctx.rng.rn2(99)) {
+    // Rider usually tries again
+    ctx.schedule(riderRevivalTime(ctx, mptr?.id ?? '', true), 'nh:revive_mon', { id });
+    return;
+  }
+  // rot this corpse away
+  say(ctx, isRider(mptr) ? 'revive.much_less_hassled' : 'revive.less_hassled');
+  const when = ctx.rng.d(5, 50) - (ctx.state.turn - (it.age ?? 0));
+  ctx.schedule(Math.max(when, 1), 'nh:rot_corpse', { id });
 }
 
 export function registerRevive(api: ModApi): void {

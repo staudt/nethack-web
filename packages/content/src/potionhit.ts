@@ -73,6 +73,8 @@ const BOTTLES = 7;
 
 const ATTRS: readonly Attr[] = ['str', 'int', 'wis', 'dex', 'con', 'cha'];
 
+const PESTILENCE = 'nh:pestilence';
+
 const POT = {
   restoreAbility: 'nh:potion_of_restore_ability',
   gainAbility: 'nh:potion_of_gain_ability',
@@ -250,6 +252,12 @@ function monPotionEffect(
     }
     if (cureblind) mcureblindness(ctx, mon, canseemon(ctx, mon));
   };
+  const doIllness = (): void => {
+    if (hp && hp.cur > 2) {
+      hp.cur = Math.trunc(hp.cur / 2);
+      if (canseemon(ctx, mon)) say(ctx, 'potionhit.rather_ill', { mon: monNam(ctx, mon) });
+    }
+  };
   const killedBy = (fault: boolean): void => {
     if (fault) killedByHero(ctx, mon);
     else monkilled(ctx, mon.id, true);
@@ -261,14 +269,19 @@ function monPotionEffect(
       if (obj.def === POT.fullHealing) cureblind = true;
       if (obj.def !== POT.healing && buc !== 'cursed') cureblind = true;
       if (buc === 'blessed') cureblind = true;
-      doHealing();
+      if (mon.def === PESTILENCE) doIllness();
+      else doHealing();
       break;
     case POT.restoreAbility:
     case POT.gainAbility:
       doHealing();
       break;
     case POT.sickness:
-      // (no Pestilence; AD_DISE and AD_PEST monsters are unharmed as the poison resistant)
+      if (mon.def === PESTILENCE) {
+        doHealing();
+        break;
+      }
+      // AD_DISE and AD_PEST monsters are unharmed as the poison resistant
       if (
         def.attacks.some((a) => a.ad === 'dise' || a.ad === 'pest') ||
         def.resists.includes('poison')
@@ -276,10 +289,7 @@ function monPotionEffect(
         if (canseemon(ctx, mon)) say(ctx, 'potionhit.unharmed', { mon: monNam(ctx, mon) });
         break;
       }
-      if (hp && hp.cur > 2) {
-        hp.cur = Math.trunc(hp.cur / 2);
-        if (canseemon(ctx, mon)) say(ctx, 'potionhit.rather_ill', { mon: monNam(ctx, mon) });
-      }
+      doIllness();
       break;
     case POT.confusion:
     case POT.booze:

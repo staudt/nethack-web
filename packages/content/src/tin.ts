@@ -39,7 +39,8 @@ import { hungerData, lesshungry, makeVomiting } from './hunger';
 import { dropx, invOption, wieldTool } from './itemactions';
 import { mksobj, placeObject, splitStack, stackobj } from './items';
 import { fingersOrGloves, glibTimeout, isGlib, makeGlib } from './glib';
-import { cantwield, vegetarian } from './mondata';
+import { cantwield, isRider, vegetarian } from './mondata';
+import { reviveCorpseLate } from './rider';
 import { violatedVegetarian } from './luck';
 import { doname, xnameOf } from './objnam';
 import { rndmonnam } from './perception';
@@ -566,6 +567,7 @@ export function useTinningKit(ctx: Ctx, obj: Entity, handler: DefId): number {
  * Tins the corpse: bare-handed, a cockatrice's is fatal; one without nutrition is "too
  * insubstantial to tin"; else a charge is used and a homemade tin of it made (known, the kit's
  * BUC), the corpse used up ("You tin it, you bought it!" for a shop's), and she holds the tin
+ * (a Rider's corpse revives: "Yes...  But War does not preserve its enemies...")
  * ("You make, but cannot pick up, X." when she can't). ref: src/apply.c use_tinning_kit()
  */
 function tinCorpse(ctx: Ctx, kit: Entity, corpse: Entity): void {
@@ -589,6 +591,11 @@ function tinCorpse(ctx: Ctx, kit: Entity, corpse: Entity): void {
     else say(ctx, 'tin.fatal_mistake', { mon: `@${mnum}` });
     instapetrify(ctx, `@killer.ston.tinning.${mnum}`);
     if (ctx.state.gameOver) return;
+  }
+  if (isRider(mptr)) {
+    if (reviveCorpseLate(ctx, corpse)) say(ctx, 'tin.war_preserve');
+    else say(ctx, 'tin.evades_grasp');
+    return;
   }
   if (mptr.nutrition === 0) {
     say(ctx, 'tin.insubstantial');

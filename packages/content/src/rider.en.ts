@@ -1,0 +1,31 @@
+// English text for the Riders' touches, eating them and their corpses, and the player monsters'
+// taunts. ref: src/uhitm.c mhitm_ad_deth(), mhitm_ad_pest(), mhitm_ad_famn(), mhitm_ad_dgst(),
+// gulpum(); src/eat.c eat_brains(), cprefx(); src/sounds.c domonnoise() MS_RIDER;
+// src/mplayer.c mplayer_talk()
+export const riderMessagesEn: Record<string, string> = {
+  'rider.deadly_touch': '{mon|The} reaches out with its deadly touch.',
+  'rider.touch_of_death_q': 'Was that the touch of death?',
+  'rider.life_force': 'You feel your life force draining away...',
+  'rider.lucky': "Lucky for you, it didn't work!",
+  'rider.fever_chills': '{mon|The} reaches out, and you feel fever and chills.',
+  'rider.body_shrivels': '{mon|The} reaches out, and your body shrivels.',
+  'rider.eater_shrivels': '{mon|The} belches feebly, shrivels up and dies!',
+  'rider.eater_collapses': '{mon|The} coughs spasmodically and collapses!',
+  'rider.eater_vomits': '{mon|The} vomits violently and drops dead!',
+  'rider.queasy': 'You have a queasy feeling for a moment, then it passes.',
+  'rider.digest_fatal': 'Unfortunately, digesting any of it is fatal.',
+  'rider.ingesting_fatal': 'Ingesting that is fatal.',
+  'eat.rider_fatal': 'Eating that is instantly fatal.',
+  'killer.rider.ate_body': 'unwisely ate the body of {what}',
+  'killer.rider.ate_brain': 'unwisely ate the brain of {what}',
+  'killer.rider.tried_eat': 'unwisely tried to eat {what}',
+  'chat.rider.war': '"Who do you think you are, War?"',
+  'chat.rider.war_death': 'WHO DO YOU THINK YOU ARE, WAR?',
+  'chat.rider.sandman': '{mon|The} is busy reading a copy of Sandman #8.',
+  'mplayer.talk.cant_win': '"Talk? -- I can\'t win, and neither will you!"',
+  'mplayer.talk.dont_deserve': '"Talk? -- You don\'t deserve to win!"',
+  'mplayer.talk.honor': '"Talk? -- Mine should be the honor, not yours!"',
+  'mplayer.talk.low_life': '"Talk? -- The low-life wants to talk, eh?"',
+  'mplayer.talk.fight': '"Talk? -- Fight, scum!"',
+  'mplayer.talk.say': '"Talk? -- Here is what I have to say!"',
+};

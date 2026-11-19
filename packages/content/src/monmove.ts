@@ -132,7 +132,7 @@ import { blockersOf, boulderCells } from './boulder';
 import { isSokoban } from './sokoban';
 import { canseemon, heroInvisible, monInvisible } from './invis';
 import { minliquid } from './minliquid';
-import { amorphous, isCovetous, isEel, isSwimmer, isUnicorn, likesLava } from './mondata';
+import { amorphous, isCovetous, isEel, isRider, isSwimmer, isUnicorn, likesLava } from './mondata';
 import { isLava, isPool, mInAir } from './liquid';
 import { isWormTail, mAt, wormRec } from './wormstate';
 import { wormCross, wormMove, wormNomove } from './worm';
@@ -378,7 +378,9 @@ export function mfndpos(
     !m.peaceful &&
     level.id === ctx.state.currentLevel &&
     epriOf(ctx, id) === null &&
-    !def.flags.includes('minion') && // mon_allowflags(): `is_minion(mtmp->data)` ALLOW_SANCT
+    // mon_allowflags(): `is_minion(mtmp->data) || is_rider(mtmp->data)` ALLOW_SANCT
+    !def.flags.includes('minion') &&
+    !isRider(def) &&
     level.rooms.some((r) => r.type === TEMPLE) &&
     templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
   // ref: mon_allowflags() ALLOW_SSM: pets, peacefuls, shopkeepers, priests, humans and minotaurs
@@ -425,9 +427,9 @@ export function mfndpos(
         // it doesn't currently have hero engulfed"; a vampshifter can_fog() under it
         const underDoor = (amorphous(def) || canFog(ctx, e)) && !engulfingU(ctx, id);
         if (closed && !underDoor && !canOpen && !thrudoor) continue;
-        // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors; a
-        // digger goes through (thrudoor)
-        if (rules.lockedDoor[to] && !underDoor && !thrudoor) continue;
+        // ref: mfndpos() UNLOCKDOOR/BUSTDOOR: none of our monsters carry keys or bust doors, but
+        // the Riders unlock (mon_allowflags() `can_unlock`); a digger goes through (thrudoor)
+        if (rules.lockedDoor[to] && !underDoor && !thrudoor && !isRider(def)) continue;
         if (garlic?.has(cellIndex(level, nx, ny))) continue; // NOGARLIC
         if (!wallwalk && boulders.has(cellIndex(level, nx, ny))) continue; // ALLOW_ROCK
         const diagonal = nx !== pos.x && ny !== pos.y;
@@ -1180,9 +1182,9 @@ function postmovMoved(
 
 /**
  * postmov()'s door and dig part, after mintrap(): a monster that stepped onto a closed door opens
- * it (unlocking is for key holders: none here), oozes under it or springs its trap; a tunneller
- * breaks or digs instead. A pet's dog_move() reaches it too, with `can_tunnel = tunnels(ptr)`.
- * True when the monster died.
+ * it (a Rider unlocks a locked one: no key holders here), oozes under it or springs its trap; a
+ * tunneller breaks or digs instead. A pet's dog_move() reaches it too, with `can_tunnel =
+ * tunnels(ptr)`. True when the monster died.
  * ref: src/monmove.c postmov(), m_move()
  */
 export function postmovDoorDig(
@@ -1216,13 +1218,19 @@ export function postmovDoorDig(
     if (mbTrapped(ctx, e, didsee || isVisible(ctx.state, cellIndex(level, pos.x, pos.y))))
       return true;
   } else if (opens) {
+    // a Rider unlocks a locked door (can_unlock): "Death unlocks and opens a door."
+    const unlocks = rules.lockedDoor[here] === true;
     openDoorAt(ctx, level, pos);
     const seen = isVisible(ctx.state, cellIndex(level, pos.x, pos.y));
     ctx.emit({ type: 'doorOpened', pos: { x: pos.x, y: pos.y } });
     ctx.emit(
-      seen
-        ? { type: 'msg', key: 'door.mon_opens', params: { mon: `@${def.id}` } }
-        : { type: 'msg', key: 'door.hear_open' },
+      seen && unlocks && canSpotMon(ctx, e)
+        ? { type: 'msg', key: 'door.mon_unlocks', params: { mon: monNam(ctx, e) } }
+        : seen && unlocks
+          ? { type: 'msg', key: 'door.see_unlock' }
+          : seen
+            ? { type: 'msg', key: 'door.mon_opens', params: { mon: `@${def.id}` } }
+            : { type: 'msg', key: unlocks ? 'door.hear_unlock' : 'door.hear_open' },
     );
   }
   // ref: postmov(): "possibly dig"

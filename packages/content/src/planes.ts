@@ -11,7 +11,7 @@
 // ref: dat/dungeon.lua "The Elemental Planes"; dat/earth.lua, fire.lua, air.lua, water.lua;
 // src/mkmaze.c fixup_special() (LR_PORTAL), place_lregion(), mkportal()
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
-import { ASTRAL, astralBefore } from './astral';
+import { ASTRAL, astralBefore, astralContents } from './astral';
 import { PLANES, PLANE_LEVELS } from './levelflags';
 import { MAGIC_PORTAL, portalData } from './portal';
 import { mapToLevel, placeLregion, type SpLevFixup } from './sp_lev';
@@ -463,5 +463,6 @@ export const PLANE_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
       liftPlaneStairs(level, T.stone);
       astralBefore(ctx, level, def);
     },
+    contents: astralContents,
   },
 };

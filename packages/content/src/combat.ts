@@ -114,7 +114,7 @@ import {
   silverSearsYou,
 } from './silver';
 import { adjLev } from './generation';
-import { heroForm } from './upoly';
+import { heroForm, upolyd } from './upoly';
 import { polydRace } from './race';
 import { dmgval, dmgvalSized, shadeGlare } from './dmgval';
 import { isShade, shadeAware, shadeMiss } from './shade';
@@ -1310,6 +1310,9 @@ export function hitmu(
         hatesBlessings(ctx.defs.monster(mon.def))))
   )
     dmg = Math.trunc((dmg + 1) / 2);
+  // Death's life force drain: some of the damage comes off her maximum hit points (polymorphed:
+  // all of it, off the form's). [Half_physical_damage isn't applied to mhm.permdmg]
+  if (dmg > 0 && mhm.permdmg) permdmgU(ctx, dmg);
   if (dmg > 0) mdamageu(ctx, dmg, `@${mon.def}`); // ref: src/mhitu.c mdamageu() -> done_in_by()
   // ref: hitmu(): `if (mhm.damage) res = passiveum(olduasmon, mtmp, mattk)`: only a form she had
   // when the blow landed has a passive response
@@ -1317,6 +1320,29 @@ export function hitmu(
   if (dmg && olduasmon && !ctx.state.gameOver) res = passiveum(ctx, olduasmon, mon, atk);
   stopOccupation(ctx); // ref: stop_occupation() / nomul(0)
   return res;
+}
+
+/**
+ * Takes Death's life force drain off her maximum hit points: polymorphed, or above 25 per level,
+ * all of the damage; above 10 per level rn2(dmg/2 + 1) + dmg/2, above 5 + dmg/4, else
+ * rn2(dmg/2 + 1); never below one per level (the form's level or hers, if lower, polymorphed).
+ * ref: src/mhitu.c hitmu() `if (mhm.permdmg)`
+ */
+function permdmgU(ctx: Ctx, dmg: number): void {
+  const hero = getPlayer(ctx.state);
+  const hp = hero.c.hp;
+  if (!hp) return;
+  const ulevel = hero.c.experience?.level ?? 1;
+  const poly = upolyd(ctx.state);
+  let permdmg = ctx.rng.rn2(Math.trunc(dmg / 2) + 1);
+  if (poly || hp.max > 25 * ulevel) permdmg = dmg;
+  else if (hp.max > 10 * ulevel) permdmg += Math.trunc(dmg / 2);
+  else if (hp.max > 5 * ulevel) permdmg += Math.trunc(dmg / 4);
+  // [can't use youmonst.m_lev]; minuhpmax(1) is her level
+  const lowerlimit = poly ? Math.min(heroForm(ctx)?.level ?? ulevel, ulevel) : Math.max(ulevel, 1);
+  if (hp.max - permdmg > lowerlimit) hp.max -= permdmg;
+  else if (hp.max > lowerlimit) hp.max = lowerlimit;
+  if (hp.cur > hp.max) hp.cur = hp.max;
 }
 
 /** C's foundyou: `u_at(mtmp->mux, mtmp->muy)`, the guess `ap` is her square. */
