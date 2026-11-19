@@ -32,6 +32,7 @@ export const trapMessagesEn: Record<string, string> = {
   // ref: src/teleport.c domagicportal()
   'portal.activated': 'You activated a magic portal!',
   'portal.dizzy': 'You feel slightly dizzy.',
+  'portal.dizzy_nothing': 'You feel dizzy for a moment, but nothing happens...',
   'portal.dizzier': 'You feel dizzier.',
   // ref: src/hack.c invocation_message(); src/trap.c trapeffect_vibrating_square(); src/do.c
   // dodown()
@@ -331,6 +332,7 @@ export const trapMessagesEn: Record<string, string> = {
   'tele.mon_disappears': '{mon|The} suddenly disappears!',
   'tele.mon_shudders': '{mon|The} shudders for a moment.',
   'tele.mon_out_of_sight': 'Suddenly, {mon|the} disappears out of sight.',
+  'tele.mon_shimmers': '{mon|The} seems to shimmer for a moment.',
 
   // the magic trap, the anti-magic field and fire. ref: src/trap.c trapeffect_magic_trap(),
   // domagictrap(), trapeffect_anti_magic(), drain_en(), dofiretrap(), trapeffect_fire_trap()

@@ -28,7 +28,19 @@ import { uState } from './luck';
 import { raceHostile, racePeaceful } from './race';
 import { raceIs } from './urole';
 import { isGenocided, isGone, propagate } from './vanquished';
-import { inHell, isRogueLevel, madeLevelFlags, strongholdDepth } from './levelflags';
+import {
+  inEndgame,
+  inHell,
+  isAirLevel,
+  isAstral,
+  isEarthLevel,
+  isFireLevel,
+  isHomeElemental,
+  isRogueLevel,
+  isWaterLevel,
+  madeLevelFlags,
+  strongholdDepth,
+} from './levelflags';
 import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
@@ -38,6 +50,7 @@ import { protFromShapeChangers } from './props';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
 import {
+  amorphous,
   isBat,
   isCovetous,
   isDprince,
@@ -46,10 +59,13 @@ import {
   isFlyer,
   isMplayer,
   isNdemon,
+  isSwimmer,
   isUnicorn,
+  isWhirlyDef,
+  noncorporeal,
   upperSym,
 } from './mondata';
-import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
+import { noOfWizards, setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
 import { AMOROUS_DEMON, setMonFemale } from './gender';
 import { setEmin } from './emin';
@@ -86,6 +102,32 @@ function uncommon(state: Readonly<GameState>, def: MonsterDef): boolean {
   return def.genFlags.includes('hell');
 }
 
+/**
+ * Whether kind `def` cannot exist on elemental plane `level`: an elemental away from its home,
+ * on Water a non-swimmer, on Fire a kind without fire resistance, on Air one that neither flies
+ * (a trapper or lurker above does not count), floats, is amorphous, noncorporeal nor whirly.
+ * ref: src/makemon.c wrong_elem_type()
+ */
+function wrongElemType(
+  state: Readonly<GameState>,
+  def: MonsterDef,
+  level: Readonly<Level> | undefined,
+): boolean {
+  if (def.glyph.ch === 'E') return !isHomeElemental(state, def.id, level);
+  if (isEarthLevel(state, level)) return false; // no restrictions?
+  if (isWaterLevel(state, level)) return !isSwimmer(def); // just monsters that can swim
+  if (isFireLevel(state, level)) return !def.resists.includes('fire');
+  if (isAirLevel(state, level))
+    return (
+      !(isFlyer(def) && def.glyph.ch !== 't') &&
+      !isFloater(def) &&
+      !amorphous(def) &&
+      !noncorporeal(def) &&
+      !isWhirlyDef(def)
+    );
+  return false;
+}
+
 /** ref: src/makemon.c align_shift(): the Dungeons of Doom are unaligned (AM_NONE), so 0. */
 function alignShift(_def: MonsterDef): number {
   return 0;
@@ -95,8 +137,8 @@ function alignShift(_def: MonsterDef): number {
  * A random monster type appropriate for a level of difficulty `depth` (and the hero's level),
  * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()). `level`
  * is where it is made (NetHack's u.uz while a level is made; the hero's level when omitted): in
- * Gehennom no G_NOHELL kind, on the Rogue level only uppercase kinds, and on a hot or cold level
- * resistant kinds weigh 3 more.
+ * Gehennom no G_NOHELL kind, on the Rogue level only uppercase kinds, on an elemental plane only
+ * the kinds that can live there, and on a hot or cold level resistant kinds weigh 3 more.
  * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling, temperature_shift(); returns
  * null if none qualify.
  */
@@ -111,11 +153,14 @@ export function rndmonst(
   const maxmlev = monmaxDifficulty(depth, heroLevel(ctx)) + maxadj;
   const hell = inHell(ctx.state, level);
   const upper = isRogueLevel(level); // prefer uppercase only on rogue level
+  // elmntl plane
+  const elemlevel = inEndgame(ctx.state, level) && !isAstral(ctx.state, level);
   let total = 0;
   let selected: MonsterDef | null = null;
   for (const def of ctx.defs.monsters) {
     if (def.difficulty < minmlev || def.difficulty > maxmlev) continue; // montooweak/strong
     if (upper && !upperSym(def.glyph.ch)) continue;
+    if (elemlevel && wrongElemType(ctx.state, def, level)) continue;
     if (uncommon(ctx.state, def)) continue;
     if (hell && def.genFlags.includes('nohell')) continue;
     const weight =
@@ -201,9 +246,15 @@ export function adjLev(def: MonsterDef, depth: number, ulevel: number): number {
 
 /**
  * ref: src/makemon.c newmonhp(): golems have a fixed amount of hit points by kind (golemhp());
- * no dragons or riders.
+ * an elemental on its home plane (`level`, where it is made: the hero's by default) three times
+ * as many; no dragons or riders.
  */
-export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
+export function newmonhp(
+  ctx: Ctx,
+  mlev: number,
+  id?: DefId,
+  level: Readonly<Level> | undefined = ctx.state.levels[ctx.state.currentLevel],
+): number {
   if (id !== undefined && golemhp(id) > 0) return golemhp(id);
   let basehp: number;
   let hp: number;
@@ -213,6 +264,7 @@ export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
   } else {
     basehp = mlev;
     hp = ctx.rng.d(basehp, 8);
+    if (id !== undefined && isHomeElemental(ctx.state, id, level)) hp *= 3; // leave 'basehp' as-is
   }
   if (hp === basehp) hp += 1;
   return hp;
@@ -561,7 +613,7 @@ export function makemon(
 
   const ulevel = heroLevel(ctx);
   const mlev = adjLev(mdef, difficulty, ulevel);
-  const hp = newmonhp(ctx, mlev, mdef.id);
+  const hp = newmonhp(ctx, mlev, mdef.id, level);
   // ref: makemon(): `mtmp->female = femaleok ? rn2(2) : 0` for a kind that is neither male,
   // female nor neuter; drawn for the amorous demon only (DEVIATIONS "Monster generation")
   const femaleok = !['male', 'female', 'neuter'].some((f) => mdef.flags.includes(f));
@@ -633,6 +685,13 @@ export function makemon(
   // ref: makemon(): `mndx == PM_VLAD_THE_IMPALER`: `mitem = CANDELABRUM_OF_INVOCATION` (he stays
   // in his own shape so he can carry it)
   if (mdef.id === VLAD_THE_IMPALER && allowMinvent) mongets(ctx, id, CANDELABRUM);
+  // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++`, and
+  // the first one made on the Plane of Earth gets a spellbook of dig (`mitem = SPE_DIG`)
+  if (mdef.id === WIZARD_OF_YENDOR) {
+    setIsWiz(ctx, id);
+    if (allowMinvent && noOfWizards(ctx) === 1 && isEarthLevel(ctx.state, level))
+      mongets(ctx, id, 'nh:spellbook_of_dig');
+  }
   // ref: makemon(): `if (gi.in_mklev)`: minor demons, wumpuses, long worms and giant eels made with
   // the level sleep 4 times in 5, unless she carries the Amulet
   if (mon && opts.inMklev && sleepsInMklev(mdef) && !uHave(ctx.state, 'amulet') && ctx.rng.rn2(5))
@@ -655,9 +714,6 @@ export function makemon(
       delete mon.tame;
     }
   }
-  // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++` (no
-  // Earth level: never his spellbook of dig)
-  if (mdef.id === WIZARD_OF_YENDOR) setIsWiz(ctx, id);
   // ref: makemon(): "it's possible to create an ordinary monster of some special types; make
   // sure their extended data is initialized to something sensible if caller hasn't specified
   // MM_EPRI|MM_EMIN": an aligned or high cleric becomes a roaming priest, an Angel 1 time in 3 a

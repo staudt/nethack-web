@@ -90,7 +90,7 @@ import { mksobj, placeOnFloor } from './items';
 import { luckOf } from './luck';
 import { greatestErosion } from './material';
 import { xnameOf } from './objnam';
-import { canDigDown, cavernous, levelFlags, nonDiggable } from './levelflags';
+import { canDigDown, cavernous, isEarthLevel, levelFlags, nonDiggable } from './levelflags';
 import { undestroyableTrap } from './invocation';
 import { isAxe, isPick, mayDig, wallDugTo } from './mdig';
 import { migrateToLevel } from './migrate';
@@ -130,8 +130,10 @@ import {
   isPit,
   maketrap,
   mintrap,
+  rlocMon,
   setTrapData,
 } from './trap';
+import { makemon } from './generation';
 import {
   clearConjoinedPits,
   conjoinedPits,
@@ -864,6 +866,14 @@ export function dig(ctx: Ctx): boolean {
       if (other?.c.item) other.c.item.placed = ctx.state.seq++;
       digtxt = 'dig.boulder_falls_apart';
     } else if (id === T.stone || id === T.scorr) {
+      // the Plane of Earth: a blessed pick 1 time in 3 opens a cave around her, a cursed one 1
+      // time in 4 (an uncursed one 1 time in 6) brings the ceiling down around her
+      if (isEarthLevel(ctx.state, level)) {
+        const buc = pick.c.item?.buc;
+        if (buc === 'blessed' && !ctx.rng.rn2(3)) return digCleanup(ctx, d, level, false);
+        if ((buc === 'cursed' && !ctx.rng.rn2(4)) || (buc !== 'blessed' && !ctx.rng.rn2(6)))
+          return digCleanup(ctx, d, level, true);
+      }
       // (a tree needs an axe, which is not applied here)
       setTerrain(level, d.x, d.y, T.corr);
       digtxt = 'dig.cut_rock';
@@ -889,6 +899,16 @@ export function dig(ctx: Ctx): boolean {
     } else return false; // statue or boulder got taken
     if (digtxt && !d.quiet) say(ctx, digtxt, params);
     if (dmgtxt) payForDamage(ctx, dmgtxt, false);
+    // the Plane of Earth: 1 time in 3 "The debris from your digging comes to life!" (an earth
+    // elemental or a xorn)
+    if (isEarthLevel(ctx.state, level) && !ctx.rng.rn2(3)) {
+      const kind = ctx.rng.rn2(2) ? 'nh:earth_elemental' : 'nh:xorn';
+      if (
+        ctx.defs.isMonster(kind) &&
+        makemon(ctx, ctx.defs.monster(kind), { x: d.x, y: d.y }) !== null
+      )
+        say(ctx, 'dig.debris_alive');
+    }
     // a trapped door (kept closed by C until now) goes off. ref: dig() `IS_DOOR && D_TRAPPED`
     if (trapped) {
       blowDoor(ctx, level, d.x, d.y);
@@ -1268,3 +1288,59 @@ function continuesDigging(ctx: Ctx): boolean {
 }
 
 export const DIG_ACTIONS: readonly ActionDef[] = [digAction];
+
+/**
+ * mkcavearea() and dig()'s `goto cleanup`: "Crash!  The ceiling collapses around you!" (`rockit`:
+ * the squares around her become rock, monsters there that cannot pass walls moved away; not over
+ * a trap or obstructed squares) or "A mysterious force creates a cave around you!" ("extends the
+ * cave" off a corridor: room floor around her, lit, and under her). Two rings, the first five
+ * squares wide and three high, the second seven wide. ref: src/dig.c mkcavearea(), mkcavepos()
+ * (no `waslit`)
+ */
+function digCleanup(ctx: Ctx, d: Digging, level: Level, rockit: boolean): false {
+  const hp = heroPos(ctx);
+  say(
+    ctx,
+    rockit
+      ? 'dig.ceiling_collapses'
+      : terrainIdAt(level, hp.x, hp.y) === T.corr
+        ? 'dig.force_creates_cave'
+        : 'dig.force_extends_cave',
+  );
+  const cavepos = (x: number, y: number, dist: number): void => {
+    if (!inBounds(level, x, y)) return;
+    const id = terrainIdAt(level, x, y);
+    if (rockit) {
+      if (isObstructedId(id)) return;
+      if (trapAt(level, x, y)) return; // don't cover the portal
+      const mon = monAt(ctx, level, x, y); // make sure crucial monsters survive
+      if (mon && !ctx.defs.monster(mon.def).flags.includes('wallwalk')) rlocMon(ctx, mon, false);
+    } else if (id === T.floor) return;
+    if (dist < 3) level.lit[y * level.width + x] = rockit ? 0 : 1;
+    setTerrain(level, x, y, rockit ? T.stone : T.floor);
+  };
+  let [xmin, xmax, ymin, ymax] = [hp.x, hp.x, hp.y, hp.y];
+  for (let dist = 1; dist <= 2; dist++) {
+    xmin--;
+    xmax++;
+    // top and bottom: the area is wider than it is high
+    if (dist < 2) {
+      ymin--;
+      ymax++;
+      for (let i = xmin + 1; i < xmax; i++) {
+        cavepos(i, ymin, dist);
+        cavepos(i, ymax, dist);
+      }
+    }
+    // left and right
+    for (let i = ymin; i <= ymax; i++) {
+      cavepos(xmin, i, dist);
+      cavepos(xmax, i, dist);
+    }
+  }
+  if (!rockit && terrainIdAt(level, hp.x, hp.y) === T.corr) setTerrain(level, hp.x, hp.y, T.floor);
+  d.lastdigtime = ctx.state.turn;
+  d.quiet = false;
+  d.level = '';
+  return false;
+}

@@ -25,7 +25,7 @@ import { MINETOWN_VARIANTS } from './minetown';
 import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import { ORACLE_LEVEL } from './oracle';
 import { ORCUS_TOWN, ORCUS_TOWN_FIXUP } from './orcus';
-import { PLANE_FIXUPS, PLANE_STANDIN } from './planes';
+import { PLANE_FIXUPS, PLANE_LEVEL_DEFS, PLANE_STANDIN } from './planes';
 import { ROGUE_FIXUP, ROGUE_LEVEL } from './rogue';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
@@ -125,6 +125,7 @@ export const LEVELS: readonly LevelDef[] = [
   KNOX_LEVEL,
   ...VLAD_TOWER,
   PLANE_STANDIN,
+  ...PLANE_LEVEL_DEFS,
   SANCTUM,
 ];
 
@@ -185,8 +186,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * The Elemental Planes: six levels above DL1 (Astral -4 .. Earth 0, the dummy level 1), entered
  * on Earth (`entryLevel` -2). C's branch is "no_down" upwards (BR_NO_END2: stairs on DL1, none on
  * Earth): DL1's up stairs, which leave the dungeon, are that staircase, so here the branch adds
- * no stairs on DL1 (`stairs: 'child'`) and the Planes' stand-in lifts every stair core makes
- * (planes.ts). Unreachable until the endgame (m23b).
+ * no stairs on DL1 (`stairs: 'child'`) and each plane's fixup lifts every stair core makes
+ * (planes.ts). DL1's up stairs lead to Earth with the Amulet (endgame.ts).
  * Both come after Fort Ludios in dungeon.lua's order (the Tutorial after them is left out); core
  * rolls each dungeon after its parent's children (registry orderDungeons()), so the Planes' rolls
  * (a child of the main dungeon) come before Vlad's (a child of Gehennom), the other way round in
@@ -307,7 +308,9 @@ export const DUNGEONS: readonly DungeonDef[] = [
       id: PLANE_LEVELS[k],
       nameKey: `level.plane_${k}`,
       base: i + 1,
-      variants: [PLANE_STANDIN.id],
+      // Earth, Air, Fire and Water are built (planes.ts); Astral and the dummy level are the
+      // stand-in until m23 step 8
+      variants: [PLANE_LEVEL_DEFS.find((d) => d.id === PLANE_LEVELS[k])?.id ?? PLANE_STANDIN.id],
     })),
   },
 ];

@@ -48,6 +48,9 @@ export interface LevelFlags {
   nonpasswall?: 'all' | readonly FlagRect[];
 }
 
+/** The elemental planes' flags. */
+const PLANE: LevelFlags = { noteleport: true, hardfloor: true, maze: true, shortsighted: true };
+
 /**
  * The Sokoban levels: their non_diggable and non_passwall areas cover the whole map, and
  * `solidify` the rest (solidify_map() sets both bits).
@@ -263,6 +266,15 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
     nondiggable: 'all',
     nonpasswall: outsideMap(19, 13),
   },
+  /**
+   * ref: dat/earth.lua, fire.lua, air.lua, water.lua ("mazelevel", "noteleport", "hardfloor",
+   * "shortsighted"; Fire's "hot" and "fumaroles" and Air's "stormy" are not modelled). Nothing is
+   * non-diggable: bound_digging() leaves Earth alone and the others have no walls.
+   */
+  'nh:plane-earth': PLANE,
+  'nh:plane-fire': PLANE,
+  'nh:plane-air': PLANE,
+  'nh:plane-water': PLANE,
   /** ref: dat/fakewiz1.lua, dat/fakewiz2.lua ("mazelevel") */
   'nh:fakewiz1': { maze: true },
   'nh:fakewiz2': { maze: true },
@@ -704,12 +716,50 @@ export function inEndgame(state: Readonly<GameState>, level?: Readonly<Level> | 
 
 /** Whether `level` (the hero's by default) is the Astral Plane. ref: Is_astralevel() */
 export function isAstral(state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean {
-  const ref = level ?? state.levels[state.currentLevel];
-  if (ref?.dungeon !== PLANES) return false;
-  return (
-    specialLevelAt(state, { dungeon: ref.dungeon, dlevel: ref.dlevel })?.id === PLANE_LEVELS.astral
-  );
+  return planeLevel(state, level) === PLANE_LEVELS.astral;
 }
+
+/** The Planes' special level of `level` (the hero's by default), or null off the Planes. */
+function planeLevel(state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): DefId | null {
+  const ref = level ?? state.levels[state.currentLevel];
+  if (ref?.dungeon !== PLANES) return null;
+  return specialLevelAt(state, { dungeon: ref.dungeon, dlevel: ref.dlevel })?.id ?? null;
+}
+
+/** Whether `level` (the hero's by default) is the Plane of Earth. ref: Is_earthlevel() */
+export const isEarthLevel = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef) =>
+  planeLevel(state, level) === PLANE_LEVELS.earth;
+/** Whether `level` (the hero's by default) is the Plane of Fire. ref: Is_firelevel() */
+export const isFireLevel = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef) =>
+  planeLevel(state, level) === PLANE_LEVELS.fire;
+/** Whether `level` (the hero's by default) is the Plane of Air. ref: Is_airlevel() */
+export const isAirLevel = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef) =>
+  planeLevel(state, level) === PLANE_LEVELS.air;
+/** Whether `level` (the hero's by default) is the Plane of Water. ref: Is_waterlevel() */
+export const isWaterLevel = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef) =>
+  planeLevel(state, level) === PLANE_LEVELS.water;
+
+/**
+ * Whether monster kind `id` is an elemental on its own plane (`level`, the hero's by default):
+ * an air elemental on Air, fire on Fire, earth on Earth, water on Water.
+ * ref: src/makemon.c is_home_elemental()
+ */
+export function isHomeElemental(
+  state: Readonly<GameState>,
+  id: DefId,
+  level?: Readonly<Level> | LevelRef,
+): boolean {
+  const home = HOME_PLANE[id];
+  return home !== undefined && planeLevel(state, level) === home;
+}
+
+/** The elementals' home planes. */
+const HOME_PLANE: Readonly<Record<DefId, DefId>> = {
+  'nh:air_elemental': PLANE_LEVELS.air,
+  'nh:fire_elemental': PLANE_LEVELS.fire,
+  'nh:earth_elemental': PLANE_LEVELS.earth,
+  'nh:water_elemental': PLANE_LEVELS.water,
+};
 
 /** Whether `level` (the hero's by default) is in Vlad's Tower. ref: src/dungeon.c In_V_tower() */
 export function inVladsTower(

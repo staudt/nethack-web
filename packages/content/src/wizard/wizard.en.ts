@@ -56,6 +56,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.levelport.level': 'Level {dlevel} (Dlvl {depth})',
   'wiz.levelport.here': 'Level {dlevel} (Dlvl {depth}) <- you are here',
   'wiz.levelport.arrive': 'You materialize on a different level!',
+  'wiz.levelport.prerequisite': 'Endgame prerequisite:',
   'wiz.where.levels': '{dungeon}: levels {start} to {end}',
   'wiz.where.level': '{dungeon}: level {start}',
   'wiz.where.open': '{dungeon}: levels {start} and below',

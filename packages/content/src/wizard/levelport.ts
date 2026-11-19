@@ -1,4 +1,8 @@
-import { getLevel, type ActionDef, type Ctx, type DefId, type Json } from '@nh/core';
+import { getLevel, type ActionDef, type Ctx, type DefId, type Json, type LevelRef } from '@nh/core';
+import { prinv } from '../itemactions';
+import { addToInventory, mksobj } from '../items';
+import { inEndgame } from '../levelflags';
+import { AMULET_OF_YENDOR, uHave } from '../uhave';
 
 export const WIZ_LEVELPORT = 'wiz:levelport';
 
@@ -53,6 +57,20 @@ function askLevel(ctx: Ctx, dungeon: DefId): void {
 }
 
 /**
+ * Bound for the Planes from outside without the Amulet of Yendor, she is given one first:
+ * "Endgame prerequisite: q - the Amulet of Yendor." (straight into her pack, past fumbling or a
+ * full pack). ref: src/teleport.c level_tele() (wizard, `In_endgame(&newlevel)`)
+ */
+function endgamePrerequisite(ctx: Ctx, to: LevelRef): void {
+  if (!inEndgame(ctx.state, to) || inEndgame(ctx.state) || uHave(ctx.state, 'amulet')) return;
+  if (!ctx.defs.isObject(AMULET_OF_YENDOR)) return;
+  const id = mksobj(ctx, ctx.defs.object(AMULET_OF_YENDOR));
+  const stack = addToInventory(ctx, ctx.state.playerId, id);
+  const st = ctx.state.entities[String(stack)];
+  if (st) prinv(ctx, st, 0, { key: 'wiz.levelport.prerequisite' });
+}
+
+/**
  * #wizlevelport: choose a dungeon (skipped when there is only one), then a level in it, and
  * arrive on a random spot there. Takes no time (ECMD_OK). Choosing the current level does
  * nothing, as deferred_goto() skips a goto onto the same level.
@@ -98,7 +116,9 @@ export const wizLevelport: ActionDef = {
     if (value < 1 || value > levelportLevels(ctx, data.dungeon)) return 0;
     const here = getLevel(ctx.state);
     if (here.dungeon === data.dungeon && here.dlevel === value) return 0;
-    ctx.goToLevel({ dungeon: data.dungeon, dlevel: value }, 'random');
+    const to = { dungeon: data.dungeon, dlevel: value };
+    endgamePrerequisite(ctx, to);
+    ctx.goToLevel(to, 'random');
     // flags.verbose: schedule_goto()'s post message
     ctx.emit({ type: 'msg', key: 'wiz.levelport.arrive' });
     return 0;

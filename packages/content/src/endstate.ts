@@ -37,9 +37,9 @@ export function endHow(state: Readonly<GameState>): EndHow {
 }
 
 /**
- * She climbs out of the dungeon from its first level: the game ends as an escape. With the
- * Amulet of Yendor NetHack takes her to the Planes instead; until the Planes exist (m23b step 7)
- * that is an escape too, "escaped (with the Amulet)" (DEVIATIONS "Escaping with the Amulet").
+ * She climbs out of the dungeon from its first level without the Amulet of Yendor (with it she
+ * goes to the Planes: endgame.ts): the game ends as an escape. A dungeon without the Planes (a
+ * test layout) lets her escape with it too, "escaped (with the Amulet)".
  * ref: src/dungeon.c prev_level() `done(ESCAPED)`; src/do.c goto_level() `new_ledger <= 0`
  */
 export function escapeDungeon(ctx: Ctx): void {

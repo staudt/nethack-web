@@ -16,6 +16,7 @@ export const liquidMessagesEn: Record<string, string> = {
   'surface.ice': 'ice',
   'surface.lava': 'lava',
   'surface.cloud': 'cloud',
+  'surface.air': 'air',
   // the paranoid swim question (C refuses: "You avoid stepping into the water.")
   'liquid.confirm': 'Really step into the {water}?',
   'liquid.confirm_float': 'Really float into the {water}?',

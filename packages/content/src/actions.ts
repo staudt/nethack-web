@@ -80,6 +80,7 @@ import { STATUE, rememberedStatue, statueAt } from './statuestate';
 import { isSokoban } from './sokoban';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
+import { enterEndgame } from './endgame';
 import { escapeDungeon } from './endstate';
 import { mysteriousForce } from './mysteryforce';
 import { doorTrapped } from './btrapstate';
@@ -1193,8 +1194,9 @@ const up: ActionDef = {
   answer(ctx, value) {
     // Anything but 'y' returns ECMD_OK: no message, no time.
     if (value !== true) return 0;
-    // ref: src/do.c doup() -> prev_level() -> done(ESCAPED); with the Amulet NetHack goes on to
-    // the Planes: an escape too until they exist (escapeDungeon())
+    // ref: src/do.c doup() -> prev_level(): with the Amulet, goto_level(&earth_level) (DL1's up
+    // stairs are the Planes' branch stairs); else done(ESCAPED)
+    if (enterEndgame(ctx)) return NORMAL_SPEED;
     escapeDungeon(ctx);
     return 0;
   },

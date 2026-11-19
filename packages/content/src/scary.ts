@@ -22,7 +22,7 @@ import { isVampshifter } from './chamstate';
 import { engravingsOn, sengrAt } from './engr';
 import { epriOf, inhistemple } from './epri';
 import { eshkOf, inhishop } from './eshk';
-import { inHell } from './levelflags';
+import { inEndgame, inHell } from './levelflags';
 import { mcansee, storedMux } from './mstate';
 import { P, heroHas } from './props';
 import { egdOf } from './vaultstate';
@@ -88,7 +88,7 @@ const isAltarAt = (ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number):
  * when the hero stands on it, or she is Displaced and the monster thinks she is there (`mux`,
  * C's mtmp->mux/muy: by default the kept guess, else her square), or it guards objects lying
  * there; shopkeepers (anywhere), vault guards, blind and peaceful monsters and minotaurs ignore
- * it, and it has no power in Gehennom. `level` is the monster's own by default, and `cells` may
+ * it, and it has no power in Gehennom or on the Planes. `level` is the monster's own by default, and `cells` may
  * pass scareCells() of it for repeated calls.
  * ref: src/monmove.c onscary() (magical scares only)
  */
@@ -120,7 +120,7 @@ export function onscary(
   // Creatures who don't (or can't) fear a written Elbereth: shopkeepers (even if poly'd into
   // non-human), vault guards (also even if poly'd), blind or peaceful monsters, minotaurs; it
   // only protects the hero on it (or her displaced image) or objects a level-made one guards;
-  // "the influence of the Valar only reaches so far" (not in Gehennom)
+  // "the influence of the Valar only reaches so far" (not in Gehennom or the endgame)
   const ep = sengrAt(ctx, ELBERETH, level, x, y, true);
   if (!ep) return false;
   const hp = ctx.state.entities[String(ctx.state.playerId)]?.c.pos;
@@ -138,6 +138,7 @@ export function onscary(
     !mcansee(ctx, mon.id) ||
     mon.c.monster?.peaceful === true ||
     def.id === MINOTAUR ||
-    inHell(ctx.state, level)
+    inHell(ctx.state, level) ||
+    inEndgame(ctx.state, level)
   );
 }

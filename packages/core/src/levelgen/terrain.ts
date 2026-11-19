@@ -63,6 +63,11 @@ export interface LevelTerrain {
   cloud: DefId;
   throne: DefId;
   iron_bars: DefId;
+  /**
+   * m23: open air (rm.h AIR), the Plane of Air's and the Water level's bubbles: a hero
+   * arriving at random may land on it as on room floor (ref: src/mkmaze.c bad_location()).
+   */
+  air: DefId;
 }
 
 export const VANILLA_TERRAIN: LevelTerrain = {
@@ -108,6 +113,7 @@ export const VANILLA_TERRAIN: LevelTerrain = {
   cloud: 'nh:cloud',
   throne: 'nh:throne',
   iron_bars: 'nh:iron_bars',
+  air: 'nh:air',
 };
 
 /**

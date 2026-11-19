@@ -2,7 +2,7 @@
 // ref: src/mkroom.c courtmon(), squadmon(), morguemon(), antholemon(); src/minion.c ndemon()
 import type { Ctx, DefId, GameState, Level, MonsterDef, Registry } from '@nh/core';
 import { mkclass } from './generation';
-import { inHell } from './levelflags';
+import { inEndgame, inHell } from './levelflags';
 import { isNdemon } from './mondata';
 import { isGone } from './vanquished';
 
@@ -61,9 +61,9 @@ export function squadmon(
 
 /**
  * A morgue's undead for a level of difficulty `depth` (on `level`, the hero's when omitted): by
- * `i = rn2(100)` and `hd = rn2(depth)`, a demon (`hd > 10 && i < 10`: in Gehennom any of the
+ * `i = rn2(100)` and `hd = rn2(depth)`, a demon (`hd > 10 && i < 10`: in Gehennom or on the Planes any of the
  * class, `mkclass(S_DEMON)`; elsewhere a minor one when ndemon() finds one), a vampire (`hd > 8
- * && i > 85`), a ghost (`i < 20`), a wraith (`i < 40`) or a zombie. No endgame. null: no monster
+ * && i > 85`), a ghost (`i < 20`), a wraith (`i < 40`) or a zombie. null: no monster
  * of that class could be made (makemon() then makes a random one). ref: src/mkroom.c morguemon()
  */
 export function morguemon(
@@ -75,7 +75,8 @@ export function morguemon(
   const i = ctx.rng.rn2(100);
   const hd = ctx.rng.rn2(depth);
   if (hd > 10 && i < 10) {
-    if (inHell(ctx.state, level)) return mkclass(ctx, '&', depth, [], at);
+    if (inHell(ctx.state, level) || inEndgame(ctx.state, level))
+      return mkclass(ctx, '&', depth, [], at);
     const d = ndemon(ctx, depth);
     if (d) return d;
     // else do what? As is, it will drop to ghost/wraith/zombie

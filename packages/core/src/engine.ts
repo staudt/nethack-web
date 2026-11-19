@@ -293,7 +293,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
    * she went down, or none) outside its exclusion, else anywhere on the level: room floor (or a
    * corridor of a corridor maze) with no trap, 200 random tries that also skip a monster, then
    * the first such cell in column order (a monster there is moved off by placeHero()); null for
-   * none. ref: src/dungeon.c u_on_rndspot(); src/mkmaze.c place_lregion(), put_lregion_here(),
+   * none. Open air counts as floor (m23: the Planes of Air and Water).
+   * ref: src/dungeon.c u_on_rndspot(); src/mkmaze.c place_lregion(), put_lregion_here(),
    * bad_location() (`CORR && is_maze_lev` is approximated by `Level.corrmaze`)
    */
   const randomSpot = (state: GameState, rng: Rng, level: Level, up: boolean): Pos | null => {
@@ -319,7 +320,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     const ok = (x: number, y: number): boolean => {
       const id = level.palette[level.cells[cellIndex(level, x, y)] ?? -1];
       return (
-        (id === terrain.floor || (corr && id === terrain.corr)) &&
+        (id === terrain.floor || id === terrain.air || (corr && id === terrain.corr)) &&
         trapAt(level, x, y) === undefined &&
         !(ex && x >= ex[0] && x <= ex[2] && y >= ex[1] && y <= ex[3])
       );

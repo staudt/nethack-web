@@ -7,7 +7,11 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-200 NetHack files, 5917 citations.
+204 NetHack files, 5952 citations.
+
+## dat/air.lua
+
+- (file): `packages/content/src/endgame.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/planes.ts`
 
 ## dat/asmodeus.lua
 
@@ -77,6 +81,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`, `packages/content/src/planes.ts`, `packages/core/src/types/mod.ts`
 
+## dat/earth.lua
+
+- (file): `packages/content/src/endgame.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/planes.ts`
+
 ## dat/fakewiz1.lua
 
 - (file): `packages/content/src/fakewiz.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/portal.ts`
@@ -84,6 +92,10 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/fakewiz2.lua
 
 - (file): `packages/content/src/fakewiz.ts`, `packages/content/src/levelflags.ts`
+
+## dat/fire.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/planes.ts`
 
 ## dat/hellfill.lua
 
@@ -235,6 +247,10 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/valley.ts`
 
+## dat/water.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/planes.ts`
+
 ## dat/wizard1.lua
 
 - (file): `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/wiztower.ts`
@@ -296,6 +312,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/terrain.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
 - `S_EEL()`: `packages/content/src/mondata.ts`
+- `S_air()`: `packages/content/src/terrain.ts`
 - `S_arrow_trap()`: `packages/content/src/trap.ts`
 - `S_bars()`: `packages/content/src/terrain.ts`
 - `S_corr()`: `packages/content/src/terrain.ts`
@@ -579,6 +596,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`, `packages/content/src/generation.ts`
 - `PM_CROESUS()`: `packages/content/src/gehennom.ts`
+- `PM_ELVEN_MONARCH()`: `packages/content/src/mongear.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_GUARD()`: `packages/content/src/vault.ts`
 - `PM_HIGH_CLERIC()`: `packages/content/src/priest.ts`
@@ -1068,6 +1086,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `is_digging()`: `packages/content/src/digstate.ts`
 - `liquid_flow()`: `packages/content/src/liquidflow.ts`
 - `mdig_tunnel()`: `packages/content/src/mdig.ts`
+- `mkcavearea()`: `packages/content/src/dig.ts`
+- `mkcavepos()`: `packages/content/src/dig.ts`
 - `pick_can_reach()`: `packages/content/src/dig.ts`
 - `rot_corpse()`: `packages/content/src/corpses.ts`
 - `use_pick_axe()`: `packages/content/src/dig.ts`
@@ -1111,6 +1131,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `assign_graphics()`: `packages/content/src/rogue.ts`, `packages/core/src/types/mod.ts`
 - `boulder_hits_pool()`: `packages/content/src/dbstate.ts`, `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
+- `deliver_splev_message()`: `packages/content/src/harass.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`
 - `doddrop()`: `packages/content/src/itemactions.ts`
 - `dodown()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/levitation.ts`, `packages/content/src/trap.ts`
@@ -1124,7 +1145,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1234,7 +1255,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `make_familiar()`: `packages/content/src/dog.ts`
 - `makedog()`: `packages/content/src/dog.ts`
 - `migrate_to_level()`: `packages/content/src/migrate.ts`, `packages/content/src/wormstate.ts`
-- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/harass.ts`, `packages/content/src/migrate.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
+- `mon_arrive()`: `packages/content/src/dog.ts`, `packages/content/src/endgame.ts`, `packages/content/src/harass.ts`, `packages/content/src/migrate.ts`, `packages/content/src/trap.ts`, `packages/content/src/worm.ts`
 - `mon_catchup_elapsed_time()`: `packages/content/src/dog.ts`, `packages/content/src/mstate.ts`
 - `mon_leave()`: `packages/content/src/worm.ts`
 - `newedog()`: `packages/content/src/dog.ts`
@@ -1351,7 +1372,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `pick_level()`: `packages/core/src/dungeon.ts`
 - `place_level()`: `packages/core/src/dungeon.ts`
 - `possible_places()`: `packages/core/src/dungeon.ts`
-- `prev_level()`: `packages/content/src/endstate.ts`
+- `prev_level()`: `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`
 - `print_branch()`: `packages/content/src/wizard/where.ts`
 - `print_dungeon()`: `packages/content/src/wizard/where.ts`, `packages/content/src/wizard/wizard.en.ts`
 - `single_level_branch()`: `packages/content/src/levelflags.ts`
@@ -1709,6 +1730,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `golemhp()`: `packages/content/src/golem.ts`
 - `grow_up()`: `packages/content/src/mhitm.ts`
 - `init_mongen_order()`: `packages/content/src/generation.ts`
+- `is_home_elemental()`: `packages/content/src/levelflags.ts`
 - `m_initgrp()`: `packages/content/src/generation.ts`
 - `m_initinv()`: `packages/content/src/mongear.ts`
 - `m_initthrow()`: `packages/content/src/mongear.ts`
@@ -1734,6 +1756,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `temperature_shift()`: `packages/content/src/temperature.ts`
 - `uncommon()`: `packages/content/src/generation.ts`
 - `unmakemon()`: `packages/content/src/mondeath.ts`, `packages/content/src/vanquished.ts`
+- `wrong_elem_type()`: `packages/content/src/generation.ts`
 
 ## src/mcastu.c
 
@@ -1901,11 +1924,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/baalz.ts`, `packages/content/src/knox.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `baalz_fixup()`: `packages/content/src/baalz.ts`
-- `bad_location()`: `packages/content/src/castle.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/special.ts`
+- `bad_location()`: `packages/content/src/castle.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/terrain.ts`
 - `create_maze()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `extend_spine()`: `packages/core/src/levelgen/mkmap.ts`
 - `fix_wall_spines()`: `packages/content/src/terrain.ts`, `packages/core/src/levelgen/mkmap.ts`
-- `fixup_special()`: `packages/content/src/castle.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/content/src/portal.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/wiztower.ts`, `packages/core/src/types/mod.ts`
+- `fixup_special()`: `packages/content/src/castle.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/medusa.ts`, `packages/content/src/orctown.ts`, `packages/content/src/planes.ts`, `packages/content/src/portal.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/wiztower.ts`, `packages/core/src/types/mod.ts`
 - `is_exclusion_zone()`: `packages/content/src/levelflags.ts`
 - `is_solid()`: `packages/core/src/levelgen/mkmap.ts`
 - `iswall()`: `packages/content/src/orctown.ts`, `packages/core/src/levelgen/mkmap.ts`, `packages/core/src/levelgen/special.ts`

@@ -157,12 +157,16 @@ describe('the layout', () => {
     expect(l.branch === null || l.branch.to.dungeon !== PLANES).toBe(true);
   });
 
-  test('the Planes are stand-ins: lit floor, no stairs at all', () => {
+  test('the Planes have no stairs at all; the Astral Plane is a stand-in (lit floor) until step 8', () => {
     const { state } = engine.newGame({ seed: 4 });
     run(state, (ctx) => ctx.goToLevel({ dungeon: PLANES, dlevel: 5 }, 'random'));
+    const earth = getLevel(state);
+    expect(earth.def).toBe(PLANE_LEVELS.earth);
+    expect(earth.depth).toBe(0);
+    expect([earth.up, earth.down, earth.branch]).toEqual([null, null, null]);
+    run(state, (ctx) => ctx.goToLevel({ dungeon: PLANES, dlevel: 1 }, 'random'));
     const l = getLevel(state);
-    expect(l.dungeon).toBe(PLANES);
-    expect(l.depth).toBe(0);
+    expect(l.depth).toBe(-4);
     expect([l.up, l.down, l.branch]).toEqual([null, null, null]);
     expect(l.cells.every((c) => l.palette[c] === T.floor)).toBe(true);
   });

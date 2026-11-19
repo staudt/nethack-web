@@ -862,7 +862,7 @@ export function placeLregion(
       (id !== undefined && ctx.defs.terrain(id).liquid !== undefined);
     const excluded =
       exclude !== null && x >= exclude[0] && x <= exclude[2] && y >= exclude[1] && y <= exclude[3];
-    return occupied || excluded || !(id === T.floor || (id === T.corr && maze));
+    return occupied || excluded || !(id === T.floor || id === T.air || (id === T.corr && maze));
   };
   const here = (x: number, y: number, oneshot: boolean): boolean => {
     if (!bad(x, y)) return true;

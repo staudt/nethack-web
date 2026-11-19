@@ -17,7 +17,7 @@
 // What a form sheds is polyarmor.ts's break_armor() and drop_weapon().
 import { retouchEquipment } from './artitouch';
 import { eggTypeFromParent, laysEggs, learnEggType } from './eggstate';
-import { inHell } from './levelflags';
+import { inHell, isHomeElemental } from './levelflags';
 import {
   getPlayer,
   type ActionDef,
@@ -581,7 +581,10 @@ export function polymon(ctx: Ctx, mntmpIn: DefId, sexChangeOk: boolean): boolean
 
   // there is no experience level of the hero as a monster: the form's own level
   const mlvl = def.level;
-  const mhmax = isGolem(def) ? golemhp(mntmp) : mlvl ? ctx.rng.d(mlvl, 8) : ctx.rng.rnd(4);
+  // an elemental form on its home plane: thrice the hit points
+  const mhmax = isGolem(def)
+    ? golemhp(mntmp)
+    : (mlvl ? ctx.rng.d(mlvl, 8) : ctx.rng.rnd(4)) * (isHomeElemental(ctx.state, mntmp) ? 3 : 1);
   h.c.hp = { cur: mhmax, max: mhmax };
   const ulevel = h.c.experience?.level ?? 1;
   // low level characters can't become high level monsters for long

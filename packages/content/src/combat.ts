@@ -103,7 +103,7 @@ import {
   slithy,
 } from './mondata';
 import { msummon } from './minion';
-import { inHell } from './levelflags';
+import { inHell, isHomeElemental } from './levelflags';
 import {
   formHatesBlessings,
   formHatesSilver,
@@ -208,10 +208,28 @@ export function hitval(
  * A monster's attack `indx`, possibly substituted (getmattk()): the barrow wight's, Nazgul's and
  * erinys's weapon attack for non-physical damage does physical damage when the monster is
  * cancelled or its weapon is interesting enough (a cockatrice corpse, Stormbringer, Vorpal
- * Blade), unless its second attack is a physical weapon attack. The other substitutions are made
- * where their attacks are handled. ref: src/mhitu.c getmattk()
+ * Blade), unless its second attack is a physical weapon attack; an elemental on its home plane
+ * doubles its dice. The other substitutions are made where their attacks are handled.
+ * ref: src/mhitu.c getmattk()
  */
 export function getmattk(ctx: Ctx, magr: Entity, indx: number): AttackDef | undefined {
+  const attk = substitutedAttack(ctx, magr, indx);
+  // elementals on their home plane do double damage (unless the attack was substituted)
+  if (
+    attk &&
+    attk === ctx.defs.monster(magr.def).attacks[indx] &&
+    isHomeElemental(
+      ctx.state,
+      magr.def,
+      magr.c.pos ? ctx.state.levels[magr.c.pos.level] : undefined,
+    )
+  )
+    return { ...attk, n: attk.n * 2 };
+  return attk;
+}
+
+/** getmattk()'s weapon-attack substitution. */
+function substitutedAttack(ctx: Ctx, magr: Entity, indx: number): AttackDef | undefined {
   const attks = ctx.defs.monster(magr.def).attacks;
   const attk = attks[indx];
   if (!attk || indx !== 0 || attk.at !== 'weapon' || attk.ad === 'phys') return attk;

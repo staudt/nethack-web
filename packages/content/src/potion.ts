@@ -1,6 +1,7 @@
 // Potions: quaffing and the effects of the potions in our subset.
 // ref: src/potion.c dodrink(), dopotion(), peffects(), healup()
 import { mysteriousForce } from './mysteryforce';
+import { enterEndgame } from './endgame';
 import { escapeDungeon } from './endstate';
 import { uHave } from './uhave';
 import { setUcreamed } from './creamed';
@@ -50,7 +51,7 @@ import { surfaceKey } from './terrain';
 import { ceilingKey, hardHelmet } from './read';
 import { levelAtDepth } from './teleport';
 import { isSokoban } from './sokoban';
-import { GEHENNOM_SPECIALS, gehennomSpecial, inWTower } from './levelflags';
+import { GEHENNOM_SPECIALS, gehennomSpecial, inEndgame, inWTower } from './levelflags';
 import { floatUp } from './levitation';
 import { levitating, setLevAtWill } from './trapstate';
 import { lookHere } from './itemactions';
@@ -642,13 +643,15 @@ export function canRiseUp(
     inWTower(ctx.state, level, x, y)
   )
     return false;
-  return !isSokoban(level) && (level.dlevel > 1 || layout.depthStart > 1);
+  return (
+    !inEndgame(ctx.state, level) && !isSokoban(level) && (level.dlevel > 1 || layout.depthStart > 1)
+  );
 }
 
 /**
  * Cursed: she rises through the ceiling to the level above (from the first level only with the
- * Amulet, which takes her out of the dungeon: an escape until the Planes exist; not in Sokoban:
- * "You have an uneasy feeling."; the mysterious force may act in Gehennom). Else one experience
+ * Amulet, which takes her to the Plane of Earth; not in Sokoban or on the Planes: "You have an
+ * uneasy feeling."; the mysterious force may act in Gehennom). Else one experience
  * level; blessed puts her at a random point of the new level's range.
  * ref: src/potion.c peffect_gain_level(), src/dungeon.c Can_rise_up()
  */
@@ -679,9 +682,11 @@ function peffectGainLevel(ctx: Ctx, p: Entity): Effect {
         ceiling: { key: pos ? ceilingKey(ctx, level, pos.x, pos.y) : 'earth.ceiling.ceiling' },
       },
     });
-    // goto_level(&earth_level): the Planes are not reachable yet (m23b step 7)
+    // goto_level(&earth_level): u_on_rndspot() there, pickup(1)
     if (!to) {
-      escapeDungeon(ctx);
+      if (enterEndgame(ctx)) {
+        if (!ctx.state.gameOver) lookHere(ctx);
+      } else escapeDungeon(ctx);
       return { unknown: true };
     }
     const force = mysteriousForce(ctx, to);

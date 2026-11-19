@@ -5,7 +5,7 @@
 import { monHatesSilver } from './chamstate';
 import { floorEffectsLate } from './floorfx';
 import { egdOf } from './vaultstate';
-import { isRogueLevel } from './levelflags';
+import { isEarthLevel, isRogueLevel } from './levelflags';
 import { resistsSton, touchPetrifies } from './stonestate';
 import { isUnicorn } from './mondata';
 import { monTouchArtifact } from './artifact';
@@ -20,6 +20,7 @@ import {
   type EntityId,
   type ItemComponent,
   type Json,
+  type Level,
   type MonsterDef,
   type ObjectDef,
 } from '@nh/core';
@@ -79,7 +80,14 @@ const monOf = (ctx: Pick<GearCtx, 'state' | 'defs'>, id: EntityId) => {
  * the monster is). ref: src/makemon.c m_initweap(), m_initinv()
  */
 const onRogueLevel = (ctx: Pick<GearCtx, 'state'>, e: Entity): boolean =>
-  isRogueLevel(ctx.state.levels[e.c.pos?.level ?? ctx.state.currentLevel]);
+  isRogueLevel(levelOf(ctx, e));
+
+/** The level a monster is made on (C's u.uz: the level being made, or the hero's). */
+const levelOf = (ctx: Pick<GearCtx, 'state'>, e: Entity): Level | undefined =>
+  ctx.state.levels[e.c.pos?.level ?? ctx.state.currentLevel];
+
+/** ref: include/monsters.h PM_ELVEN_MONARCH */
+const ELVEN_MONARCH = 'nh:elvenking';
 
 // ---------------------------------------------------------------------------------------------
 // per-monster flags kept in modData (JSON), keyed by entity id
@@ -268,7 +276,7 @@ export function mkmonmoney(ctx: GearCtx, monId: EntityId, amount: number): void 
  * that removes them) are not given, but the rolls C makes for them are. (In 5.0 only
  * Uruk-hai are given orcish bows.) Nothing on the Rogue level.
  */
-export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
+export function mInitWeap(ctx: GearCtx, monId: EntityId, opts: { inMklev?: boolean } = {}): void {
   const { e, def } = monOf(ctx, monId);
   if (onRogueLevel(ctx, e)) return;
   const rng = ctx.rng;
@@ -276,7 +284,7 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   if (ch === '@' && isMercenary(def)) {
     mercWeapons(ctx, monId, def);
   } else if (ch === '@' && hasFlag(def, 'elf')) {
-    // ref: m_initweap() S_HUMAN is_elf() (no elven monarch in the roster)
+    // ref: m_initweap() S_HUMAN is_elf()
     if (rng.rn2(2)) elvenGets(ctx, monId, rng.rn2(2) ? 'nh:elven_mithril_coat' : 'nh:elven_cloak');
     if (rng.rn2(2)) elvenGets(ctx, monId, 'nh:elven_leather_helm');
     else if (!rng.rn2(4)) elvenGets(ctx, monId, 'nh:elven_boots');
@@ -298,6 +306,13 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
           elvenGets(ctx, monId, 'nh:elven_shield');
         }
         break;
+    }
+    // the Elvenking: a pick-axe 2 times in 3 (always when made with the Plane of Earth), and a
+    // crystal ball 1 time in 50
+    if (def.id === ELVEN_MONARCH) {
+      if (rng.rn2(3) || (opts.inMklev === true && isEarthLevel(ctx.state, levelOf(ctx, e))))
+        mongets(ctx, monId, 'nh:pick_axe');
+      if (!rng.rn2(50)) mongets(ctx, monId, 'nh:crystal_ball'); // (no crystal ball yet)
     }
   } else if (ch === '@') {
     // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST`: a mace, +1..+3, cursed half the time
@@ -755,10 +770,12 @@ export function mInitInv(
       }
     }
   }
-  // ref: m_initinv() S_GIANT: a minotaur gets a wand of digging 1 time in 8 (no Earth level
-  // here); is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass
+  // ref: m_initinv() S_GIANT: a minotaur gets a wand of digging 1 time in 8 (always when made
+  // with the Plane of Earth); is_giant(): rn2(m_lev / 2) stacks of 3..4 gems or glass
   if (def.id === 'nh:minotaur') {
-    if (!rng.rn2(8)) mongets(ctx, monId, 'nh:wand_of_digging');
+    const e = ctx.state.entities[String(monId)];
+    if (!rng.rn2(8) || (opts.inMklev === true && e && isEarthLevel(ctx.state, levelOf(ctx, e))))
+      mongets(ctx, monId, 'nh:wand_of_digging');
   } else if (def.glyph.ch === 'H' && def.flags.includes('giant')) {
     const e = ctx.state.entities[String(monId)];
     const lev = Math.trunc((e?.c.monster?.level ?? def.level) / 2);
@@ -1350,7 +1367,7 @@ export function givePossessions(
   opts: { inMklev?: boolean } = {},
 ): void {
   const { def } = monOf(ctx, monId);
-  if (isArmed(def)) mInitWeap(ctx, monId);
+  if (isArmed(def)) mInitWeap(ctx, monId, opts);
   mInitInv(ctx, monId, depth, opts);
   mDoWear(ctx, monId, true);
 }

@@ -59,6 +59,7 @@ import {
   dungeonBottom,
   findHell,
   inEndgame,
+  isHomeElemental,
   inHell,
   inWTower,
   invocationLev,
@@ -129,6 +130,7 @@ import {
   maybeHalfPhys,
   timeoutLeft,
 } from './props';
+import { endgameUpdest } from './endgame';
 import { MAGIC_PORTAL, portalArrival, portalDest } from './portal';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
@@ -1281,8 +1283,8 @@ export function trapmove(ctx: Ctx, dir: Dir, desttrap?: Trap | null): boolean {
 
 /**
  * The seen trap at `to` the hero must confirm stepping onto, or null. Rust traps are harmless
- * when she wears nothing rustprone, and the ground traps while she floats (not Sokoban's pits
- * and holes). ref: src/hack.c avoid_trap_andor_region() with
+ * when she wears nothing rustprone, the ground traps while she floats (not Sokoban's pits and
+ * holes), and the teleportation traps on the Planes or with the Amulet. ref: src/hack.c avoid_trap_andor_region() with
  * paranoid_confirm:trap (on by default) and immune_to_trap(); never when stunned or confused.
  */
 export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
@@ -1305,6 +1307,12 @@ export function trapToConfirm(ctx: Ctx, to: Pos): Trap | null {
     return null;
   // "not dangerous in Sokoban"
   if (t.def === TRAP.rolling && isSokoban(level)) return null;
+  // "if in the endgame or carrying the Amulet, the teleport trap won't work anyway"
+  if (
+    (t.def === TRAP.tele || t.def === TRAP.levelTele) &&
+    (inEndgame(ctx.state, level) || uHave(ctx.state, 'amulet'))
+  )
+    return null;
   if (t.def === TRAP.rust) {
     const worn = sortedIds(ctx.state).some((id) => {
       const o = ctx.state.entities[String(id)];
@@ -1732,7 +1740,8 @@ function holeMon(ctx: Ctx, levelId: string, mon: Entity, trap: Trap): TrapResult
  * Monsters that fell to the level the hero just arrived on come out at random spots; one that
  * took the stairs comes out on the stairs leading back (next to them when they are taken: the
  * hero usually stands there), or at a random spot when the level has no such stairs.
- * ref: src/dog.c mon_arrive() (MIGR_RANDOM: rloc(); MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS:
+ * One that came through a portal onto a plane arrives near a random spot of its teleport region.
+ * ref: src/dog.c mon_arrive() (MIGR_RANDOM: rloc(); MIGR_STAIRS_UP/DOWN, MIGR_SSTAIRS, MIGR_PORTAL:
  * mnearto(); no `wander` for the time it spent away: see DEVIATIONS "Monster item use")
  */
 function monArrivals(ctx: Ctx, change: LevelChange): void {
@@ -1757,7 +1766,13 @@ function monArrivals(ctx: Ctx, change: LevelChange): void {
     // went onto the migrating monsters list (before it is placed: no message)
     restoreCham(ctx, mon);
     const viaT = takeMigrVia(ctx, mon.id, true);
-    const stairs = viaT ? arrivalStairs(level, viaT) : null;
+    // "there is no arrival portal for endgame levels": a random spot of the teleport region for
+    // arrivals from below (rn1() over updest)
+    let stairs: Pos | null;
+    if (viaT === 'portal' && inEndgame(ctx.state, level)) {
+      const [lx, ly, hx, hy] = endgameUpdest(ctx, level);
+      stairs = { x: lx + ctx.rng.rn2(hx - lx + 1), y: ly + ctx.rng.rn2(hy - ly + 1) };
+    } else stairs = viaT ? arrivalStairs(level, viaT) : null;
     // rloc_pos_ok(): on the Wizard's Tower's levels, one that left from inside the tower arrives
     // inside it, any other outside
     const fromTower = takeMigrWTower(ctx, mon.id, true);
@@ -1951,13 +1966,30 @@ function mlevelTeleTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): Tr
 /**
  * A monster on a magic portal goes through it, confused, and waits on the level it leads to (it
  * comes out on that level's portal): "Suddenly, the lich disappears out of sight." when seen.
+ * On the Planes it stays put unless it passes 1 in 7, and never goes with the Amulet or when it is
+ * an elemental on its own plane ("The salamander seems to shimmer for a moment.").
  * ref: src/trap.c trapeffect_magic_portal(); src/teleport.c mlevel_tele_trap() (MAGIC_PORTAL,
- * MIGR_PORTAL; no endgame, leashes or steeds)
+ * MIGR_PORTAL; no leashes or steeds)
  */
 function mportalTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): TrapResult {
   if (ustuck(ctx) === mon.id) return 'finished'; // probably a vortex
   const dst = portalDest(trap);
-  if (!dst || !mon.c.pos) return 'finished';
+  const p = mon.c.pos;
+  if (!dst || !p) return 'finished';
+  // on the Planes only 1 time in 7, never with the Amulet nor for an elemental at home: "The
+  // salamander seems to shimmer for a moment." (not said of an elemental)
+  if (
+    inEndgame(ctx.state, getLevel(ctx.state, p.level)) &&
+    (monHasAmulet(ctx.state, mon.id) ||
+      isHomeElemental(ctx.state, mon.def, getLevel(ctx.state, p.level)) ||
+      ctx.rng.rn2(7))
+  ) {
+    if (inSight && ctx.defs.monster(mon.def).glyph.ch !== 'E') {
+      say(ctx, 'tele.mon_shimmers', { mon: monNam(ctx, mon) });
+      seetrap(trap);
+    }
+    return 'finished';
+  }
   if (inSight) {
     say(ctx, 'tele.mon_out_of_sight', { mon: monNam(ctx, mon) });
     seetrap(trap);
@@ -1970,20 +2002,30 @@ function mportalTrap(ctx: Ctx, mon: Entity, trap: Trap, inSight: boolean): TrapR
 /**
  * The hero on a magic portal: "You activated a magic portal!", stunned 3 turns more, and off to
  * the level it leads to, onto that level's portal ("You feel slightly dizzy." or "You feel
- * dizzier." once there). ref: src/teleport.c domagicportal(); src/do.c goto_level() (the arrival
- * portal), deferred_goto() (no endgame, tutorial, buried ball or leashes, so next_to_u() never
- * holds her back; "if landed from another portal, do nothing": arriving sets no trap off here)
+ * dizzier." once there); on the Planes without the Amulet only "You feel dizzy for a moment, but
+ * nothing happens...", and an endgame level is arrived on at a random spot of its teleport
+ * region. ref: src/teleport.c domagicportal(); src/do.c goto_level() (the arrival portal),
+ * deferred_goto() (no tutorial, buried ball or leashes, so next_to_u() never holds her back; "if
+ * landed from another portal, do nothing": arriving sets no trap off here)
  */
 function domagicportal(ctx: Ctx, trap: Trap): void {
   const dst = portalDest(trap);
   if (!dst) return;
   say(ctx, 'portal.activated');
+  // "prevent the poor shnook, whose amulet was stolen while in the endgame, from accidently
+  // triggering the portal to the next level, and thus losing the game"
+  if (inEndgame(ctx.state) && !uHave(ctx.state, 'amulet')) {
+    say(ctx, 'portal.dizzy_nothing');
+    return;
+  }
   const stunned = hasProp(heroEnt(ctx), P.STUNNED);
   makeStunned(ctx, timeoutLeft(ctx.state, heroEnt(ctx), P.STUNNED) + 3, false);
-  ctx.goToLevel(dst, portalArrival(ctx, dst) ?? 'random');
+  // the endgame's levels have no arrival portal: a random spot of the teleport region
+  const endgame = inEndgame(ctx.state, dst);
+  ctx.goToLevel(dst, endgame ? 'random' : (portalArrival(ctx, dst) ?? 'random'));
   if (ctx.state.gameOver) return;
   const t = trapAt(getLevel(ctx.state), heroPos(ctx).x, heroPos(ctx).y);
-  if (t?.def === TRAP.portal) seetrap(t); // seetrap(ttrap) at the arrival portal
+  if (t?.def === TRAP.portal && !endgame) seetrap(t); // seetrap(ttrap) at the arrival portal
   lookHere(ctx);
   say(ctx, stunned ? 'portal.dizzier' : 'portal.dizzy'); // the deferred goto's message
 }
@@ -2407,7 +2449,7 @@ let inTeleTrap = false;
  * The hero on a teleportation trap: "You feel a wrenching sensation." with magic resistance or on
  * a level that forbids teleporting; a once-only trap (the vault teleporter) is used up and takes
  * her into the vault; else a random teleport within the level.
- * ref: src/teleport.c tele_trap() (no endgame, leashes or fixed destinations)
+ * ref: src/teleport.c tele_trap() (no leashes or fixed destinations)
  */
 export function teleTrap(ctx: Ctx, levelId: string, trap: Trap): void {
   // a teleport could place the hero onto a second teleport trap; the recursive call from
@@ -2417,7 +2459,11 @@ export function teleTrap(ctx: Ctx, levelId: string, trap: Trap): void {
   try {
     const level = getLevel(ctx.state, heroPos(ctx).level);
     // shieldeff() with Antimagic is display only
-    if (hasProp(heroEnt(ctx), P.ANTIMAGIC) || noteleportLevel(ctx, level, ctx.state.playerId))
+    if (
+      inEndgame(ctx.state, level) ||
+      hasProp(heroEnt(ctx), P.ANTIMAGIC) ||
+      noteleportLevel(ctx, level, ctx.state.playerId)
+    )
       say(ctx, 'tele.wrenching');
     else if (trap.once === true) {
       deltrap(ctx, levelId, trap);
@@ -2462,10 +2508,10 @@ function mvaultTele(ctx: Ctx, mon: Entity, level: Level): void {
 
 /**
  * The hero on a level teleporter: "You step onto a level teleport trap!" ("You trigger..." when
- * forced), "You feel a wrenching sensation." with magic resistance (unless forced), else the trap
- * is used up and she level-teleports (asked where with teleport control); then
- * {@link levelTeleTrapAfter}.
- * ref: src/teleport.c level_tele_trap() (no endgame)
+ * forced), "You feel a wrenching sensation." with magic resistance (unless forced) or on the
+ * Planes, else the trap is used up and she level-teleports (asked where with teleport control);
+ * then {@link levelTeleTrapAfter}.
+ * ref: src/teleport.c level_tele_trap()
  */
 function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boolean): void {
   // "float onto" while levitating (u_locomotion())
@@ -2473,7 +2519,7 @@ function levelTeleTrap(ctx: Ctx, levelId: string, trap: Trap, intentional: boole
     ctx,
     intentional ? 'tele.trap_level_trigger' : `tele.trap_level_${uLocomotion(ctx) ?? 'step'}`,
   );
-  if (hasProp(heroEnt(ctx), P.ANTIMAGIC) && !intentional) {
+  if ((hasProp(heroEnt(ctx), P.ANTIMAGIC) && !intentional) || inEndgame(ctx.state)) {
     say(ctx, 'tele.wrenching');
     return;
   }

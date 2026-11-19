@@ -2,8 +2,8 @@
 // aggravate monster, the Amulet's deepest level, the Planes), the mysterious force climbing out of
 // Gehennom (its odds by alignment, its bounds, its decay), teleports and level teleports refused,
 // the faster Luck timeout, the spell energy drain, the extra hunger, clairvoyance, the portal
-// hints of the worn Amulet, peace_minded() and sleeping monsters, the escape from the first level
-// (until the Planes exist) and its "(with the Amulet)". Outcomes over seeds.
+// hints of the worn Amulet, peace_minded() and sleeping monsters, the first level's stairs (to the
+// Planes with the Amulet since m23 step 7) and "(with a fake Amulet)". Outcomes over seeds.
 // ref: src/dungeon.c level_difficulty(), deepest_lev_reached(); src/do.c goto_level();
 // src/teleport.c scrolltele(), level_tele(); src/timeout.c nh_timeout(); src/spell.c
 // spelleffects(); src/eat.c gethungry(); src/allmain.c moveloop_core(); src/wizard.c amulet();
@@ -457,10 +457,10 @@ describe('monsters and the Amulet', () => {
   });
 });
 
-describe('leaving the dungeon with the Amulet (until the Planes exist)', () => {
+describe('leaving the dungeon from the first level', () => {
   const status = (state: GameState) => buildSnapshot(engine.registry, state).status;
 
-  test('the first level\'s up stairs: an escape "(with the Amulet)"', () => {
+  test("the first level's up stairs with the Amulet lead to the Planes, not out (m23 step 7)", () => {
     const state = game(10);
     giveAmulet(state);
     const up = getLevel(state).up!;
@@ -468,9 +468,9 @@ describe('leaving the dungeon with the Amulet (until the Planes exist)', () => {
     engine.step(state, { type: 'mod', action: 'nh:up' as DefId });
     expect(state.pendingPrompt?.prompt.key).toBe('stairs.leave_confirm');
     engine.step(state, { type: 'answer', promptId: 'leave-dungeon', value: true });
-    expect(state.gameOver?.kind).toBe('escaped');
-    expect(status(state)['endHow']).toBe('escaped');
-    expect(status(state)['deathSuffix']).toBe('end.with_amulet');
+    expect(state.gameOver).toBeNull();
+    expect(getLevel(state).dungeon).toBe(PLANES);
+    expect(status(state)['endHow'] ?? null).toBeNull();
   });
 
   test('a fake Amulet escapes "(with a fake Amulet)"; no suffix without either', () => {
@@ -491,21 +491,14 @@ describe('leaving the dungeon with the Amulet (until the Planes exist)', () => {
     }
   });
 
-  test('a cursed potion of gain level on the first level rises out of the dungeon', () => {
-    for (const amu of [true, false]) {
-      const s = levelSetup();
-      if (amu) s.carry(AMULET_OF_YENDOR);
-      setU({ state: s.state }, { amuletWish: true });
-      const pot = s.carry('nh:potion_of_gain_level');
-      s.state.entities[String(pot)]!.c.item!.buc = 'cursed';
-      const t = s.text(s.mod('nh:quaff', { item: pot }));
-      if (amu) {
-        expect(t).toContain('You rise up, through the ceiling!');
-        expect(s.state.gameOver?.kind).toBe('escaped');
-      } else {
-        expect(t).toEqual(['You have an uneasy feeling.']);
-        expect(s.state.gameOver).toBeNull();
-      }
-    }
+  test('a cursed potion of gain level on the first level: an uneasy feeling without the Amulet', () => {
+    // (with it she rises to the Plane of Earth: m23.planes.test.ts)
+    const s = levelSetup();
+    setU({ state: s.state }, { amuletWish: true });
+    const pot = s.carry('nh:potion_of_gain_level');
+    s.state.entities[String(pot)]!.c.item!.buc = 'cursed';
+    const t = s.text(s.mod('nh:quaff', { item: pot }));
+    expect(t).toEqual(['You have an uneasy feeling.']);
+    expect(s.state.gameOver).toBeNull();
   });
 });

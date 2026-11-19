@@ -31,10 +31,11 @@ export const MAP_LEGEND: Readonly<Record<string, keyof LevelTerrain | null>> = {
   C: 'cloud',
   '\\': 'throne',
   F: 'iron_bars',
+  A: 'air',
   x: null,
 };
 
-const LEGEND_TEXT = "' ' . # - | + S H { K T P } W L Z I C \\ F x";
+const LEGEND_TEXT = "' ' . # - | + S H { K T P } W L Z I C \\ F A x";
 
 /** A placed map block, in Level coordinates. */
 export interface MapBlock {

@@ -14,6 +14,7 @@
 // one is alive or after one died.
 import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type MonsterDef } from '@nh/core';
 import { levelDifficulty } from './levdiff';
+import { inEndgame } from './levelflags';
 import { makemon, mkclass } from './generation';
 import { A_LAWFUL, A_NEUTRAL, A_NONE, type Aligntyp } from './aligntyp';
 import { emin, isLminion, setEmin } from './emin';
@@ -63,9 +64,12 @@ type SummonCtx = Pick<Ctx, 'state' | 'rng' | 'defs'>;
 const aligned = (ctx: SummonCtx, pm: DefId, atyp: number | undefined): boolean =>
   atyp === undefined || Math.sign(ctx.defs.monster(pm).alignment) === Math.sign(atyp);
 
-/** One of `range` by C's `rn1(len, first)`, tried 20 times; null when none suited. */
+/**
+ * One of `range` by C's `rn1(len, first)`, tried 20 times (none on the Planes); null when none
+ * suited.
+ */
 function pickFrom(ctx: SummonCtx, range: readonly DefId[], atyp: number | undefined): DefId | null {
-  for (let tryct = 20; tryct > 0; --tryct) {
+  for (let tryct = !inEndgame(ctx.state) ? 20 : 0; tryct > 0; --tryct) {
     const pm = range[ctx.rng.rn2(range.length)] as DefId;
     if (!demonGone(ctx, pm) && aligned(ctx, pm, atyp)) return pm;
   }

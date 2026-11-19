@@ -6,9 +6,11 @@
 // (temperature.ts).
 // ref: src/dungeon.c init_dungeons() init_castle_tune(); src/do.c goto_level(), dodown(),
 // temperature_change_msg(); src/botl.c describe_level()
-import { sortedIds, type Ctx, type DefId, type ModApi } from '@nh/core';
+import { sortedIds, specialLevelAt, type Ctx, type DefId, type ModApi } from '@nh/core';
 import { gehennomEntered, setCastleTune, setGehennomEntered } from './dbstate';
 import {
+  PLANE_LEVELS,
+  inEndgame,
   inHell,
   isKnox,
   isRogueLevel,
@@ -72,13 +74,20 @@ export function registerGehennom(api: ModApi): void {
     } else if (isNew) say(ctx, 'rogue.arrive');
   });
   // ref: src/botl.c describe_level(): on Fort Ludios the status line names its dungeon
-  // ("Fort Ludios") in place of "Dlvl:N"; the ui prints the `place` key instead of the depth
+  // ("Fort Ludios") in place of "Dlvl:N", on the Planes the plane ("Earth", "Astral Plane":
+  // endgamelevelname() without "Plane of "); the ui prints the `place` key instead of the depth
   api.defineStatus({
     id: 'nh:place',
     field: 'place',
     value(state, defs) {
       const level = state.levels[state.currentLevel];
-      return level && singleLevelBranch(level) ? defs.dungeon(level.dungeon).nameKey : null;
+      if (!level) return null;
+      if (inEndgame(state, level)) {
+        const sp = specialLevelAt(state, { dungeon: level.dungeon, dlevel: level.dlevel });
+        const plane = Object.entries(PLANE_LEVELS).find(([, id]) => id === sp?.id)?.[0];
+        return plane ? `status.plane_${plane}` : null;
+      }
+      return singleLevelBranch(level) ? defs.dungeon(level.dungeon).nameKey : null;
     },
   });
   // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last

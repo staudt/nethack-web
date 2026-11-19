@@ -311,6 +311,15 @@ export const TERRAIN: readonly TerrainDef[] = [
     opaque: true,
     glyph: { ch: '#', fg: GRAY },
   },
+  // ref: defsym.h S_air ' ' (CLR_CYAN): the Planes of Air's and Water's open air (rm.h AIR),
+  // walkable and see-through
+  {
+    id: 'nh:air',
+    nameKey: 'terrain.air',
+    passable: true,
+    opaque: false,
+    glyph: { ch: ' ', fg: CYAN },
+  },
   // Drawbridges (ref: include/rm.h DRAWBRIDGE_UP, DRAWBRIDGE_DOWN, DBWALL; src/display.c
   // back_to_glyph()). The raised bridge's span shows what lies under it and is that (C's
   // is_pool(), is_lava() and is_ice() read DB_UNDER of `drawbridgemask`), one terrain per kind
@@ -431,6 +440,7 @@ export const T = {
   lavawall: 'nh:lavawall',
   ice: 'nh:ice',
   cloud: 'nh:cloud',
+  air: 'nh:air',
   drawbridge_up: 'nh:drawbridge_up',
   drawbridge_up_lava: 'nh:drawbridge_up_lava',
   drawbridge_up_ice: 'nh:drawbridge_up_ice',
@@ -517,6 +527,7 @@ export function surfaceKey(
   const id = terrainIdAt(level, x, y);
   // IS_AIR(): a cloud; is_pool() (no Underwater "bottom"), is_ice(), is_lava()
   if (id === T.cloud) return '@surface.cloud';
+  if (id === T.air) return '@surface.air';
   if (id === T.pool || id === T.moat || id === T.water || id === T.drawbridge_up)
     return '@surface.water';
   if (id === T.ice || id === T.drawbridge_up_ice) return '@surface.ice';

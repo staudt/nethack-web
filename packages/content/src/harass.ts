@@ -12,11 +12,20 @@
 // reachable as C's keep_mon_accessible() keeps him on the migrating list; one that left by the
 // stairs, a trap or a level teleport (migrating) has no last-move time here (DEVIATIONS "The
 // Wizard's harassment").
-import { getLevel, getPlayer, sortedIds, type Ctx, type Entity, type ModApi } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  sortedIds,
+  type Ctx,
+  type Entity,
+  type LevelChange,
+  type ModApi,
+} from '@nh/core';
+import { PLANE_MESSAGES } from './endgame';
 import { makemon, mnextoPos } from './generation';
 import { hcolor } from './hcolor';
 import { nhData } from './items';
-import { isAstral } from './levelflags';
+import { inEndgame, isAstral, madeLevelFlags, setMadeLevelFlags } from './levelflags';
 import { setU, uState } from './luck';
 import { endMigration, isMigrating } from './migrate';
 import {
@@ -214,10 +223,31 @@ function harassment(ctx: Ctx): void {
 }
 
 /**
+ * Arriving on a plane: its des.message() lines on the first arrival, then on entering the
+ * endgame with the Amulet the Wizard comes back to force a confrontation (on the Astral Plane's
+ * first arrival final_level() comes instead: m23 step 8).
+ * ref: src/do.c goto_level() deliver_splev_message(), "special location arrival messages/events"
+ */
+export function endgameArrival(ctx: Ctx, change: LevelChange): void {
+  const to = ctx.state.levels[change.to];
+  if (!to || !inEndgame(ctx.state, to)) return;
+  const isNew = madeLevelFlags(ctx.state, change.to).visited !== true;
+  if (isNew) setMadeLevelFlags(ctx, change.to, { visited: true });
+  const lines = to.def === undefined ? undefined : PLANE_MESSAGES[to.def];
+  if (isNew && lines) for (const key of lines) ctx.emit({ type: 'msg', key });
+  const from = change.from === null ? undefined : ctx.state.levels[change.from];
+  const newdungeon = from !== undefined && from.dungeon !== to.dungeon;
+  if (isNew && isAstral(ctx.state, to)) return; // final_level(): m23 step 8
+  if (newdungeon && uHave(ctx.state, 'amulet')) resurrect(ctx); // force confrontation with Wizard
+}
+
+/**
  * amulet() once a turn while she carries the Amulet, after invault() (priority -10); the
- * harassment after the engraving scuff (-11), as moveloop_core() orders them.
+ * harassment after the engraving scuff (-11), as moveloop_core() orders them; the endgame's
+ * arrival events.
  */
 export function registerHarass(api: ModApi): void {
+  api.on('levelChange', endgameArrival);
   api.on(
     'endOfTurn',
     (ctx) => {

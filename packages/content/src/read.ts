@@ -75,7 +75,7 @@ import { doname, notFullyIdentified, xnameOf } from './objnam';
 import { discoverArtifact } from './artistate';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
-import { isRogueLevel, levelFlags } from './levelflags';
+import { isEarthLevel, isFireLevel, isRogueLevel, isWaterLevel, levelFlags } from './levelflags';
 import { T, terrainIdAt } from './terrain';
 import { snuffLit } from './light';
 import {
@@ -637,15 +637,23 @@ export { hardHelmet };
 
 /**
  * What is above (x, y) of the hero's level, as a message key. ref: src/dig.c ceiling(), for the
- * places that exist here: temples, shops, room floors, doors and walls ("ceiling") and
- * corridors ("rock cavern"); no vaults, water, air, fire or quest levels.
+ * places that exist here: temples, shops, the Planes of Water, Air and Fire, room floors, doors
+ * and walls ("ceiling") and corridors and the Plane of Earth ("rock cavern"); no vaults,
+ * Underwater or quest levels.
  */
 export function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string {
   const rooms = inRooms(level, x, y);
   if (templeOccupied(level, rooms) !== null) return 'earth.ceiling.temple';
   if (rooms.some((r) => isShopType(level.rooms[r]?.type))) return 'earth.ceiling.shop';
   const t = ctx.defs.terrain(level.palette[level.cells[cellIndex(level, x, y)] ?? 0] ?? 'nh:stone');
-  return t.id === 'nh:corr' ? 'earth.ceiling.rock_cavern' : 'earth.ceiling.ceiling';
+  // the water plane has no surface; its air bubbles aren't below sky
+  if (isWaterLevel(ctx.state, level)) return 'earth.ceiling.water_above';
+  if (t.id === T.air || t.id === T.cloud) return 'earth.ceiling.sky'; // IS_AIR()
+  if (isFireLevel(ctx.state, level)) return 'earth.ceiling.flames_above';
+  // (IS_ROOM() && !Is_earthlevel()) || walls || doors: "ceiling", else "rock cavern"
+  return t.id === 'nh:corr' || isEarthLevel(ctx.state, level)
+    ? 'earth.ceiling.rock_cavern'
+    : 'earth.ceiling.ceiling';
 }
 
 /**

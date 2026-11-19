@@ -295,8 +295,8 @@ describe('replace edits', () => {
         ] as unknown as TerrainEdit[]),
       ]),
     ).toEqual([
-      "edits[0].replace.from: must be one map character (' ' . # - | + S H { K T P } W L Z I C \\ F)",
-      "edits[0].replace.to: must be one map character (' ' . # - | + S H { K T P } W L Z I C \\ F)",
+      "edits[0].replace.from: must be one map character (' ' . # - | + S H { K T P } W L Z I C \\ F A)",
+      "edits[0].replace.to: must be one map character (' ' . # - | + S H { K T P } W L Z I C \\ F A)",
       "edits[1].replace.area: 10,3 is outside the 10x4 map (map coordinates run from 0,0; use coords: 'level' for Level coordinates)",
       'edits[1].replace.chance: must be an integer 0..100',
       'edits[2].replace.coords: needs an area',
