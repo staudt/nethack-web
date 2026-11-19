@@ -326,3 +326,22 @@ Plan `~/.claude/plans/m23.md` (m23a steps 1-6 the Amulet, m23b steps 7-10 the Pl
 - **Q11 left out:** the Plane of Fire's fumaroles and the steam vortex's cloud (no gas-cloud regions), the tutorial, bones, achievements; `do_storms()` only if cheap.
 - **Step 7 core `LevelTerrain.air`** (`nh:air`, map character `A`) and core `randomSpot()` accepting air as C's `bad_location()` does, so a level of open air (the Plane of Air, Water's stand-in) has cells to arrive on; additive, no save bump (ARCHITECTURE "Open air"). Not foreseen by the plan: taken by step 7's agent, accepted by the orchestrator while the user was away (2026-11-19).
 - **Step 9 core `MonsterSound` gains `'rider'`** (MS_RIDER: the Riders' "Who do you think you are, War?" and Death's lines), one more member of the sound union as every earlier sound came (additive, ARCHITECTURE's sound list; no save bump). Not foreseen by the plan: taken by step 9's agent, accepted by the orchestrator while the user was away (2026-11-19).
+
+## Taken (m24 the quest, 2026-11-19)
+
+Plan `~/.claude/plans/m24.md` (m24a steps 1-6: framework and the Valkyrie's quest; m24b steps 7-10: the other twelve roles, three per step). The planner marked every question cheap; all taken as recommended by the orchestrator while the user was away (2026-11-18: "I leave it up to you"). Q1-Q4 are small additive core changes (mod contract): review them first.
+
+- **Q1 core `SpecialLevelDef.roleVariants` and `DungeonDef.roleFiller`** for role-dependent levels. Fallback: a content stand-in level rebuilding itself with core's `buildLevel()`.
+- **Q2 core `stairs: 'portal'` branch type** (no stairs at either end, depth kept, as NetHack's portals); Fort Ludios switches to it, so its depth becomes NetHack's 18-21. Fallback: the Ludios pattern (quest one level too deep).
+- **Q3 core `goToLevel(to, { trap })`** to arrive on the made level's portal (Samurai and Ranger home portals). Fallback: random arrival, then a move onto the portal.
+- **Q4 `MonsterSound` gains 'leader', 'nemesis', 'guardian'.**
+- **Q5 quest texts generated** from dat/quest.lua (`pnpm convert:quest`, `quest.<code>.<msgid>` keys, `%` codes as params, four generic ui modifiers `|C`, `|s`, `|S`, `|t`).
+- **Q6 delivery:** short texts as messages; long texts as a list event plus the synopsis in the message log.
+- **Q7 the Bell is on the nemesis**, as NetHack; the leader does not give it on return (only the "no Bell" line).
+- **Q8 quest state** as optional content fields in `modData.nh.quest`; `questart` derived from inventory.
+- **Q9 role_init()'s row changes** as content checks at each site, not mutated monster defs.
+- **Q10 during the milestone**, roles without their levels get no quest portal (the branch is still rolled for everyone).
+- **Q11 keep NetHack's new-game gender draws** for the three nemeses with no gender (Arc/Cav/Wiz games only).
+- **Q12 left out:** the legacy intro, livelog/achievements, #overview, bones, the dying nemesis's gas cloud, talking artifacts, the Eyes' x-ray vision, monster genders and names, Deafness branches.
+- **Q13 two golden moves** (steps 2 and 3) and one save bump (`SAVE_VERSION` 11 in step 3; old saves wiped).
+- **Q14 the m24a/m24b split** with three roles per step; drop order 10, 9, 8, 7, then the crystal ball's failure effects.
