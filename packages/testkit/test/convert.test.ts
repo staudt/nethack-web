@@ -15,6 +15,13 @@ import {
 import { monsterData, monsterIds, objectData, objectId } from '../src/convert/defs.ts';
 import { emitMonsters, emitObjects } from '../src/convert/emit.ts';
 import { Preprocessor, evalExpr, tokenize } from '../src/convert/cpp.ts';
+import {
+  convertLine,
+  convertQuestLua,
+  emitQuestEn,
+  emitQuestTxt,
+  parseLua,
+} from '../src/convert/questlua.ts';
 
 const VENDOR_INCLUDE = new URL('../../../vendor/nethack/include/', import.meta.url);
 if (!existsSync(new URL('monsters.h', VENDOR_INCLUDE))) {
@@ -280,5 +287,65 @@ describe('vanilla defs match the C tables', () => {
 
   test('objects (objects.h)', () => {
     expectOnly(objectDiffs(OBJECTS), OBJECT_DIFFERENCES);
+  });
+});
+
+describe('quest texts (dat/quest.lua, `pnpm convert:quest`)', () => {
+  const lua = readFileSync(new URL('../dat/quest.lua', VENDOR_INCLUDE), 'utf8');
+  const c = convertQuestLua(lua);
+  const contentSrc = new URL('../../content/src/', import.meta.url);
+
+  test('the generated questtxt.ts and quest.en.ts are the converter output', () => {
+    expect(readFileSync(new URL('questtxt.ts', contentSrc), 'utf8')).toBe(emitQuestTxt(c));
+    expect(readFileSync(new URL('quest.en.ts', contentSrc), 'utf8')).toBe(emitQuestEn(c));
+  });
+
+  test('the sections, the fallbacks, a known message and its placeholders', () => {
+    expect(Object.keys(c.texts)).toHaveLength(14);
+    expect(c.fallbacks).toEqual({ goal_alt: 'goal_next' });
+    // the test pattern and the cuss lists (chat.en.ts) are not generated
+    expect(Object.keys(c.texts['common']!).sort()).toEqual([
+      'banished',
+      'legacy',
+      'pauper_legacy',
+      'quest_complete_no_bell',
+      'quest_portal',
+      'quest_portal_again',
+      'quest_portal_demand',
+    ]);
+    const en = new Map(c.messages);
+    expect(en.get('quest.val.badlevel.synopsis')).toBe('[Come back when you are {qR|an}.]');
+    expect(en.get('quest.val.goal_next')).toBe('Once again, you stand in sight of {qn|s} lair.');
+    expect(en.get('quest.common.legacy.synopsis')).toBe(
+      '[{qd|C} has chosen you to recover the Amulet of Yendor for {qd_him|C}.]',
+    );
+    // a default-output text with newlines becomes a window with the bracketed text as synopsis
+    expect(c.texts['val']!['leader_next']).toEqual({ output: 'text', synopsis: true });
+    expect(en.get('quest.val.leader_next.synopsis')).toMatch(/^\["Let me read .* enough\.\.\."\]$/);
+    expect(c.texts['val']!['discourage']).toEqual({
+      output: 'pline',
+      synopsis: false,
+      choices: 10,
+    });
+    expect(c.messages.length).toBeGreaterThan(900);
+  });
+
+  test("convert_line()'s suffix rules", () => {
+    expect(convertLine('%nC and %ns and %Ra and %oh and %lI')).toBe(
+      '{qn|C} and {qn|s} and {qR|an} and {qo_he} and {ql_him|C}',
+    );
+    // h..J only after d l n o: a literal letter otherwise ("brotherhood")
+    expect(convertLine('your %shood')).toBe('your {qs}hood');
+    // %D, %L, %N, %O pronouns are neuter; constants are written in
+    expect(convertLine('%Dh %L %Z %% %Ct')).toBe('it lawful The Dungeons of Doom % chaotic');
+    expect(convertLine('100%')).toBe('100%');
+    expect(convertLine('%gP %cp %lt %rA %oS')).toBe(
+      '{qg|Plural} {qc|plural} {ql|t} {qr|An} {qo|S}',
+    );
+  });
+
+  test('the Lua reader: strings, escapes, long strings, comments', () => {
+    const t = parseLua('-- c\nx = { a = "q\\"x", b = [[\nline1\nline2]], "p", -- c\n 3 }');
+    expect(t['x']).toEqual({ fields: { a: 'q"x', b: 'line1\nline2' }, list: ['p', 3] });
   });
 });

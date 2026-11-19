@@ -454,6 +454,7 @@ Messages are always keys plus params. English text lives in `content/src/message
 A string param that starts with `@` is itself a message key, which the UI translates before interpolating. For example, `{ key: 'welcome', params: { role: '@role.valkyrie', race: '@race.human.adj', gender: '@gender.female', align: '@align.neutral', who: { key: 'welcome.who', params: { race: '@race.human.adj', role: '@role.valkyrie' } } } }` becomes "Hello, welcome to NetHack! You are a neutral human Valkyrie." (the text may use any of the params; `who` is a nested message, see The character under Worker protocol).
 A string param that starts with `=` is a proper name (a shopkeeper's, 6b3): the UI prints the rest as is and the `|the`, `|The` and `|an` modifiers add no article (`{mon|The_s}` with `'=Izchak'` is "Izchak's").
 `{mon|plural}` is the English plural of the param's text (m8, the vanquished list: `{ n: 3, mon: '@nh:jackal' }` in "{n} {mon|plural}" is "3 jackals"; a port of C's makeplural(), in `ui/src/plural.ts`), so monster names need no plural keys.
+`{x|C}`, `{x|s}`, `{x|S}` and `{x|t}` (m24, for the generated quest texts) apply to any param, proper names included: the text capitalized, its possessive (s_suffix(): "the Norn's", "its", "the Eyes'"), the possessive capitalized, and the text without a leading "the ".
 
 Due timers fire at the end of each turn, before the `endOfTurn` hooks, in `(at, seq)` order.
 

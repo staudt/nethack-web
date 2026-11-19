@@ -32,6 +32,8 @@ import { applyMessagesEn } from './apply.en';
 import { glassMessagesEn } from './glass.en';
 import { lockMessagesEn } from './lock.en';
 import { knoxMessagesEn } from './knox.en';
+import { questMessagesEn } from './quest.en';
+import { questPgrMessagesEn } from './questpgr.en';
 import { rogueMessagesEn } from './rogue.en';
 import { chestTrapMessagesEn } from './chesttrap.en';
 import { untrapMessagesEn } from './untrap.en';
@@ -123,6 +125,8 @@ export const messagesEn: Record<string, string> = {
   ...lockMessagesEn,
   ...rogueMessagesEn,
   ...knoxMessagesEn,
+  ...questMessagesEn,
+  ...questPgrMessagesEn,
   ...chestTrapMessagesEn,
   ...untrapMessagesEn,
   ...watchMessagesEn,

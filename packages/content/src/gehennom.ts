@@ -101,6 +101,10 @@ export function registerGehennom(api: ModApi): void {
       return level && inQuest(state, level) ? level.dlevel : null;
     },
   });
+}
+
+/** Registered after the quest's arrival lines (quest.ts), as goto_level() orders them. */
+export function registerTemperatureMsg(api: ModApi): void {
   // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last
   api.on('levelChange', (ctx, change) => {
     const from = change.from === null ? undefined : ctx.state.levels[change.from];

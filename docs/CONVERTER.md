@@ -21,6 +21,15 @@
 4. Fill in what the C table lacks: `brain` (the emitter always writes `nh:melee`), container `capacity`/`box`, `use`/`zap` behaviour, sounds or attack types core's unions do not have yet (flagged `TODO`), and any shared description key that content already uses (gems, bags).
 5. Run `pnpm exec vitest run packages/testkit/test/convert.test.ts`. It checks every `nh:` monster and object def against its C row (stats, attacks, flags, generation, resistances, corpse weight and nutrition, sound, symbol, colour consistency; class, probability, weight, cost, material, merge, magic, delay, weapon, armor, food, property, wand direction, spellbook level, description key). A def that differs on purpose goes in the test's `MONSTER_DIFFERENCES` or `OBJECT_DIFFERENCES` with a one-line reason or a DEVIATIONS.md pointer; an id that differs from the rule above goes in `OBJECT_ALIASES`.
 
+## Quest texts
+
+`questlua.ts` (m24) converts `vendor/nethack/dat/quest.lua`: `pnpm convert:quest` writes two generated content files, never edited by hand (both are in `.prettierignore`):
+
+- `packages/content/src/questtxt.ts`: `QUEST_TEXT[section][msgid]` (section `common` or the lowercased role file code, `val`) with the message's delivery (`output` 'pline', 'text' or 'menu', after com_pager_core()'s switch of a default-output text with a newline or 255+ characters to a window), whether it has a synopsis, its `lines` (an explicit pline text of several lines, one pline each) or its `choices` (a list of lines, one drawn); and `QUEST_FALLBACKS` (`msg_fallbacks`).
+- `packages/content/src/quest.en.ts`: `questMessagesEn`, one key per text: `quest.<section>.<msgid>`, `.1` .. `.n` for lines and choices, `.synopsis` (a window without one gets the bracketed text, as com_pager_core() makes it).
+
+convert_line()'s `%` codes become params named `q` plus the code (`{ql}` the leader, `{qn}` the nemesis, `{qo}` the artifact; content's questpgr.ts `questParams()` fills them) and their suffixes ui modifiers (`a`/`A` `|an`/`|An`, `C` `|C`, `p`/`P` `|plural`/`|Plural`, `s`/`S` `|s`/`|S`, `t` `|t`); `h`/`i`/`j` after `d l n o` are the pronoun params `{qX_he}`, `{qX_him}`, `{qX_his}` (`|C` for `H I J`), and stay literal letters after any other code. `%C`, `%N`, `%L`, `%Z` and `%%` are written into the text. The test pattern and the two cuss lists (chat.en.ts's `cuss.*`) are not generated. The reader handles only quest.lua's Lua subset (tables, `"..."` strings with backslash escapes, `[[...]]`, `--` comments); `convert.test.ts` regenerates both files and compares them with the checked-in ones.
+
 ## Not covered
 
 The converter does not write behaviour, corpse effects, monster starting gear or generation code; it does not parse artifacts (`artilist.h`), roles or other tables, and it is not a general C parser: a new construct in those headers may need a small change in `cpp.ts`.

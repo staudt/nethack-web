@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-212 NetHack files, 6166 citations.
+214 NetHack files, 6199 citations.
 
 ## dat/Val-fila.lua
 
@@ -216,6 +216,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/quest.lua
 
+- (file): `packages/content/src/quest.en.ts`, `packages/content/src/questtxt.ts`, `packages/testkit/src/convert/questlua.ts`
 - `angel_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `demon_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 
@@ -405,7 +406,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/global.h
 
-- (file): `packages/content/src/artistate.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`
+- (file): `packages/content/src/artistate.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/engrread.ts`, `packages/content/src/hero.ts`, `packages/content/src/skills.ts`, `packages/content/src/untrap.ts`, `packages/content/src/vanquished.ts`, `packages/content/src/wish.ts`, `packages/content/src/wizard/genesis.ts`, `packages/content/src/write.ts`, `packages/core/src/levelgen/grid.ts`, `packages/core/src/levelgen/rooms.ts`, `packages/testkit/src/convert/questlua.ts`
 - `LARGEST_INT()`: `packages/content/src/hero.ts`, `packages/content/src/seduce.ts`
 - `PL_NSIZ()`: `packages/content/src/vault.ts`
 
@@ -1192,7 +1193,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `final_level()`: `packages/content/src/harass.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/quest.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1590,6 +1591,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `wash_hands()`: `packages/content/src/fountain.ts`
 - `watchman_warn_fountain()`: `packages/content/src/watch.ts`
 
+## src/gender.c
+
+- (file): `packages/testkit/src/convert/questlua.ts`
+- `genders()`: `packages/content/src/questpgr.ts`
+
 ## src/getpos.c
 
 - `gather_locs()`: `packages/ui/src/getpos.ts`
@@ -1680,7 +1686,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `online2()`: `packages/content/src/monmove.ts`
 - `ordin()`: `packages/app/src/scores.ts`
 - `rounddiv()`: `packages/content/src/polyself.ts`
+- `s_suffix()`: `packages/ui/src/i18n.ts`
 - `sgn()`: `packages/content/src/shk.ts`
+- `upstart()`: `packages/ui/src/i18n.ts`
 
 ## src/insight.c
 
@@ -2647,11 +2655,31 @@ whole. A missing function may still be ported under a citation this parser canno
 - `reset_hostility()`: `packages/content/src/priest.ts`
 - `temple_occupied()`: `packages/content/src/epri.ts`
 
+## src/quest.c
+
+- `on_goal()`: `packages/content/src/quest.ts`
+- `on_locate()`: `packages/content/src/quest.ts`
+- `on_start()`: `packages/content/src/quest.ts`
+- `onquest()`: `packages/content/src/quest.ts`
+
 ## src/questpgr.c
 
 - (file): `packages/content/src/endgame.ts`
+- `com_pager()`: `packages/content/src/questpgr.ts`
+- `com_pager_core()`: `packages/content/src/questpgr.ts`, `packages/content/src/questtxt.ts`, `packages/testkit/src/convert/questlua.ts`
+- `convert_arg()`: `packages/content/src/questpgr.en.ts`, `packages/content/src/questpgr.ts`, `packages/testkit/src/convert/questlua.ts`
+- `convert_line()`: `packages/testkit/src/convert/questlua.ts`, `packages/ui/src/i18n.ts`
+- `deliver_by_pline()`: `packages/content/src/questpgr.ts`
+- `deliver_by_window()`: `packages/content/src/questpgr.ts`
+- `find_qarti()`: `packages/content/src/questpgr.ts`
+- `find_quest_artifact()`: `packages/content/src/questpgr.ts`
+- `guardname()`: `packages/content/src/questpgr.ts`
 - `is_quest_artifact()`: `packages/content/src/artistate.ts`
+- `ldrname()`: `packages/content/src/questpgr.en.ts`, `packages/content/src/questpgr.ts`
+- `neminame()`: `packages/content/src/questpgr.en.ts`, `packages/content/src/questpgr.ts`
 - `qt_montype()`: `packages/content/src/generation.ts`
+- `qt_pager()`: `packages/content/src/questpgr.ts`
+- `qtext_pronoun()`: `packages/content/src/questpgr.en.ts`, `packages/content/src/questpgr.ts`, `packages/testkit/src/convert/questlua.ts`
 
 ## src/read.c
 

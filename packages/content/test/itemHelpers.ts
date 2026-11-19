@@ -88,6 +88,14 @@ export function render(msg: Msg | string, cat: Record<string, string> = messages
   return tpl.replace(/\{(\w+)(?:\|(\w+))?\}/g, (_m, name: string, mod?: string) => {
     const v = params[name];
     const text = v === undefined ? '' : typeof v === 'number' ? String(v) : render(v, cat);
+    // the generic modifiers (ui i18n.ts): capitalized, possessive, without "the"
+    const up = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+    const poss = (s: string): string =>
+      /^it$/i.test(s) ? `${s}s` : s.endsWith('s') ? `${s}'` : `${s}'s`;
+    if (mod === 'C') return up(text);
+    if (mod === 's') return poss(text);
+    if (mod === 'S') return poss(up(text));
+    if (mod === 't') return text.replace(/^the /i, '');
     if (mod !== undefined && typeof v === 'string' && v.startsWith('=')) {
       // a proper name: no article ("Orcus appears ...")
       return mod.endsWith('_s') ? `${text}'s` : text;

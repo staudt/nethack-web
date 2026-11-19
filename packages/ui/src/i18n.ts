@@ -167,6 +167,10 @@ function lookup(catalogs: Catalogs, locale: string, key: string): string | undef
  * is a proper name whose text is the key's ("Medusa").
  * `{name|plural}` is the English plural ("jackals", "homunculi"; src/objnam.c makeplural()),
  * `{name|Plural}` the same capitalized (upstart()).
+ * Four generic modifiers apply to any param, proper names included (m24, the quest texts'
+ * suffixes; ref: src/questpgr.c convert_line()): `{name|C}` capitalizes the first letter,
+ * `{name|s}` is the possessive (s_suffix(): "Surtur's", "its", an "'" after a final s),
+ * `{name|S}` the same capitalized, and `{name|t}` strips a leading "the ".
  * Missing keys render as `[key]` (warned once).
  */
 export function translate(
@@ -186,7 +190,7 @@ export function translate(
   }
   if (!params) return template;
   return template.replace(
-    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The|\|plural|\|Plural)?\}/g,
+    /\{(\w+)(\|an|\|An|\|the_s|\|The_s|\|the|\|The|\|plural|\|Plural|\|C|\|s|\|S|\|t)?\}/g,
     (whole, name: string, mod?: string) => {
       const v = params[name];
       if (v === undefined) return whole;
@@ -206,6 +210,10 @@ export function translate(
       } else {
         text = String(v);
       }
+      if (mod === '|C') return upstart(text);
+      if (mod === '|s') return sSuffix(text);
+      if (mod === '|S') return sSuffix(upstart(text));
+      if (mod === '|t') return text.toLowerCase().startsWith('the ') ? text.slice(4) : text;
       if (proper && mod !== undefined) {
         const out = mod.endsWith('_s') ? `${text}'s` : text;
         return mod.startsWith('|T') || mod === '|An'
@@ -237,6 +245,20 @@ export function translate(
       return text;
     },
   );
+}
+
+/** The first letter capitalized. ref: src/hacklib.c upstart() */
+const upstart = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * The English possessive: "it" -> "its", "you" -> "your", "Xs" -> "Xs'", else "X's".
+ * ref: src/hacklib.c s_suffix()
+ */
+export function sSuffix(s: string): string {
+  const l = s.toLowerCase();
+  if (l === 'it') return `${s}s`;
+  if (l === 'you') return `${s}r`;
+  return s.endsWith('s') ? `${s}'` : `${s}'s`;
 }
 
 /**

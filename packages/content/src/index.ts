@@ -41,7 +41,8 @@ import { registerMklev } from './mklev';
 import { registerSpLev } from './sp_lev';
 import { registerPriest } from './priest';
 import { registerLeaveShops, registerRooms } from './rooms';
-import { registerGehennom } from './gehennom';
+import { registerGehennom, registerTemperatureMsg } from './gehennom';
+import { registerQuest } from './quest';
 import { registerShops } from './shknam';
 import { registerZoo } from './zoo';
 import { registerVault } from './vault';
@@ -238,6 +239,8 @@ export const vanillaMod: Mod = {
     registerRooms(api); // after the pets arrive, as goto_level()
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
     registerGehennom(api); // the passtune right after the layout; Gehennom's arrival message
+    registerQuest(api); // the quest's arrival lines and the leader's call, as goto_level()
+    registerTemperatureMsg(api); // last of goto_level()'s arrival messages
     registerDemonTalk(api);
     registerAmuletWish(api);
     registerSeduce(api);

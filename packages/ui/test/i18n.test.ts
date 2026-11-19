@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { makeplural } from '../src/plural';
 import type { Params } from '@nh/core';
-import { justAn, mergeMessages, translate, type Catalogs } from '../src/i18n';
+import { justAn, mergeMessages, sSuffix, translate, type Catalogs } from '../src/i18n';
 
 const cats: Catalogs = {
   en: { hi: 'Hello {name}', 'nh:newt': 'newt', see: 'See {what} x{n}', only: 'en only' },
@@ -25,6 +25,34 @@ describe('translate', () => {
     expect(translate(c, 'en', 'b', { m: '=Izchak' })).toBe('You see Izchak.');
     expect(translate(c, 'en', 'c', { m: '=Izchak' })).toBe("Izchak's shop");
     expect(translate(c, 'en', 'd', { m: '=Izchak' })).toBe('Izchak Izchak');
+  });
+  test('|C, |s, |S and |t: capitalized, possessive, without "the" (m24 quest texts)', () => {
+    const c: Catalogs = {
+      en: {
+        the: 'the {name}',
+        'nh:norn': 'Norn',
+        cap: '{x|C} rises.',
+        pos: '{x|s} lair',
+        Pos: '{x|S} lair',
+        strip: 'A {x|t} may be vulnerable.',
+      },
+    };
+    const norn = { key: 'the', params: { name: '@nh:norn' } };
+    expect(translate(c, 'en', 'cap', { x: norn })).toBe('The Norn rises.');
+    expect(translate(c, 'en', 'pos', { x: norn })).toBe("the Norn's lair");
+    expect(translate(c, 'en', 'Pos', { x: norn })).toBe("The Norn's lair");
+    expect(translate(c, 'en', 'strip', { x: norn })).toBe('A Norn may be vulnerable.');
+    // proper names take them too; s_suffix()'s endings
+    expect(translate(c, 'en', 'pos', { x: '=Lord Surtur' })).toBe("Lord Surtur's lair");
+    expect(translate(c, 'en', 'pos', { x: '=Ixoth' })).toBe("Ixoth's lair");
+    expect(translate(c, 'en', 'pos', { x: '=Thoth Amon' })).toBe("Thoth Amon's lair");
+    expect(translate(c, 'en', 'pos', { x: '=the Eyes' })).toBe("the Eyes' lair");
+    expect(translate(c, 'en', 'pos', { x: 'it' })).toBe('its lair');
+    expect(translate(c, 'en', 'cap', { x: '=the Orb of Fate' })).toBe('The Orb of Fate rises.');
+    expect(translate(c, 'en', 'strip', { x: '=Lord Surtur' })).toBe(
+      'A Lord Surtur may be vulnerable.',
+    );
+    expect(sSuffix('you')).toBe('your');
   });
   test('missing keys, incl. nested, show [key] and warn once', () => {
     const w = vi.spyOn(console, 'warn').mockImplementation(() => {});
