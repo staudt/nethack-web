@@ -96,7 +96,12 @@ export const P = {
   HALLUC_RES: 'halluc_res',
   /** Resistance to blinding light (a wielded Sunsword) */
   BLND_RES: 'blnd_res',
+  /** BBlinded: worn Eyes of the Overworld override blindness. ref: src/do_wear.c Blindf_on() */
+  BLIND_BLOCKED: 'blind_blocked',
 } as const;
+
+/** The Eyes of the Overworld. ref: include/artilist.h */
+const EYES_OF_THE_OVERWORLD = 'nh:eyes_of_the_overworld';
 
 /** BClairvoyant: a worn cornuthaum blocks clairvoyance for anyone but a Wizard. ref: src/worn.c w_blocks() */
 export const clairvoyanceBlocked = (state: Readonly<GameState>): boolean =>
@@ -151,6 +156,8 @@ export function hasPropBesidesInvoked(e: Entity | undefined, name: string): bool
  */
 export function hasProp(e: Entity | undefined, name: string): boolean {
   if (name === P.HALLUC && hasExtrinsic(e, P.HALLUC_RES)) return false;
+  // Blind: `(HBlinded || EBlinded) && !BBlinded`
+  if (name === P.BLINDED && hasExtrinsic(e, P.BLIND_BLOCKED)) return false;
   return hasPropBesidesInvoked(e, name) || hasInvoked(e, name);
 }
 
@@ -358,7 +365,8 @@ const ARTI_SPFX_PROP: Readonly<Partial<Record<Spfx, string>>> = {
 /**
  * The properties the hero's artifact `o` gives her: worn or wielded its `defn`
  * resistance and spfx abilities (Sunsword wielded: resistance to blinding light), carried its
- * `cary` resistance and cspfx abilities. SPFX_XRAY has no row here (the Eyes of the Overworld).
+ * `cary` resistance and cspfx abilities; worn Eyes of the Overworld block blindness. SPFX_XRAY
+ * gives nothing (core vision has no x-ray range: DEVIATIONS).
  * ref: src/artifact.c set_artifact_intrinsic() (C's W_ART/W_WEP bits are folded together)
  */
 function artifactProps(o: Entity, slot: string | null): string[] {
@@ -380,6 +388,8 @@ function artifactProps(o: Entity, slot: string | null): string[] {
   if (slot !== null) {
     add(a.defn, a.spfx, slot === 'weapon');
     if (slot === 'weapon' && a.id === 'nh:sunsword') out.push(P.BLND_RES);
+    // worn Eyes of the Overworld block blindness (BBlinded; set by Blindf_on())
+    if (slot === 'blindfold' && a.id === EYES_OF_THE_OVERWORLD) out.push(P.BLIND_BLOCKED);
   }
   add(a.cary, a.cspfx, false);
   return out;
@@ -504,23 +514,32 @@ export function makeConfused(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, ta
 
 /**
  * Sets the hero's blindness timer to `xtime` turns (0 ends it), with the messages for losing and
- * regaining sight; a worn blindfold keeps her blind and only her eyes twitch or itch. Vision is
- * recomputed by the engine after the action. ref: src/potion.c make_blinded(). Not ported: the
- * Eyes of the Overworld, eyeless forms, Unaware.
+ * regaining sight; a worn blindfold keeps her blind and only her eyes twitch or itch; with the
+ * Eyes of the Overworld she keeps seeing ("Your vision seems to dim for a moment but is normal
+ * now."). Vision is recomputed by the engine after the action. ref: src/potion.c make_blinded().
+ * Not ported: eyeless forms, Unaware.
  */
 export function makeBlinded(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, talk: boolean): void {
   const hero = getPlayer(ctx.state);
   const old = timeoutLeft(ctx.state, hero, P.BLINDED) > 0;
   const blindfolded = hasExtrinsic(hero, P.BLINDED);
+  const blocked = hasExtrinsic(hero, P.BLIND_BLOCKED);
+  // we probe ahead in case the Eyes of the Overworld are or will be overriding blindness
   const couldSee = !hasProp(hero, P.BLINDED);
-  const canSeeNow = !xtime && !blindfolded && !hasIntrinsic(hero, P.BLINDED);
+  const canSeeNow = blocked || (!xtime && !blindfolded && !hasIntrinsic(hero, P.BLINDED));
   const halluc = hasProp(hero, P.HALLUC);
+  const eyesMsg = (verb: 'brighten' | 'dim'): void => {
+    // Eyes of the Overworld
+    const how = halluc ? (verb === 'brighten' ? 'sadder' : 'happier') : 'normal';
+    ctx.emit({ type: 'msg', key: `blind.vision_${verb}`, params: { how: `@blind.vision.${how}` } });
+  };
   if (canSeeNow && !couldSee) {
     // regaining sight
     if (talk) ctx.emit({ type: 'msg', key: halluc ? 'blind.far_out' : 'blind.see_again' });
   } else if (old && !xtime) {
     // clearing temporary blindness without toggling blindness
     if (talk && blindfolded) ctx.emit({ type: 'msg', key: 'blind.eyes_itch' });
+    else if (talk && blocked) eyesMsg('brighten');
   }
   if (couldSee && !canSeeNow) {
     // losing sight
@@ -528,6 +547,7 @@ export function makeBlinded(ctx: Pick<Ctx, 'state' | 'emit'>, xtime: number, tal
   } else if (!old && xtime) {
     // setting temporary blindness without toggling blindness
     if (talk && blindfolded) ctx.emit({ type: 'msg', key: 'blind.eyes_twitch' });
+    else if (talk && blocked) eyesMsg('dim');
   }
   setItimeout(ctx.state, hero, P.BLINDED, xtime);
 }

@@ -10,10 +10,10 @@
 // invoke_banish(), invoke_fling_poison(), invoke_storm_spell(), invoke_blinding_ray(),
 // finesse_ahriman(); src/apply.c do_blinding_ray(); src/invent.c freeinv_core()
 //
-// Not ported (DEVIATIONS.md "Artifact #invoke"): the powers of the rows that do not exist
-// (TAMING, LEV_TELE, ENLIGHTENING, INVIS: the Orbs, the Magic Mirror, the Eyes), crystal balls,
-// a gremlin hero's light damage from Sunsword at herself, leashed pets holding back the portal
-// (next_to_u()), flinging poison up, down or at herself (the spit's directions).
+// Not ported (DEVIATIONS.md "Artifact #invoke"): TAMING (only the Palantir of Westernesse, which
+// artilist.h leaves out, has it), a gremlin hero's light damage from Sunsword at herself, leashed
+// pets holding back the portal (next_to_u()), flinging poison up, down or at herself (the spit's
+// directions).
 import { isUniqueRelic, uHave } from './uhave';
 import {
   DIR_LIST,
@@ -35,6 +35,9 @@ import {
   type PromptOption,
 } from '@nh/core';
 import { couldseeAt } from './apparxy';
+import { CRYSTAL_BALL, answerCrystalBall, isCrystalBallData, useCrystalBall } from './crystalball';
+import { enlightenment } from './enlightenment';
+import { heroInvisBlocked } from './invis';
 import type { ArtifactDef } from './artilist';
 import { artiOf, artiRole, artiRoleIs } from './artistate';
 import { TOGGLED_POWERS, retouchObject, setInvokeReverse, theParam } from './artitouch';
@@ -67,7 +70,7 @@ import { litroom } from './read';
 import { chargeOptions, recharge } from './seffect';
 import { isSlimed, makeSlimed } from './slimestate';
 import { spellLevPw } from './spellcalc';
-import { uTeleportMon } from './trap';
+import { levelTele, uTeleportMon } from './trap';
 import { ucreamed } from './creamed';
 import { pwOf, setPw } from './uenergy';
 import { invokeUntrap } from './untrap';
@@ -85,14 +88,17 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 const hero = (ctx: Pick<Ctx, 'state'>): Entity => getPlayer(ctx.state);
 
 /**
- * What #invoke suggests: artifacts, unique objects and an imitation Amulet not known to be one
- * (crystal balls do not exist). ref: src/artifact.c invoke_ok()
+ * What #invoke suggests: artifacts, unique objects, an imitation Amulet not known to be one and
+ * crystal balls (a synonym for apply). ref: src/artifact.c invoke_ok()
  */
 function invokeOk(e: Entity): boolean {
   const it = e.c.item;
   if (!it) return false;
   return (
-    it.artifact !== undefined || isUniqueRelic(e.def) || (e.def === FAKE_AMULET && !it.known.spe)
+    it.artifact !== undefined ||
+    isUniqueRelic(e.def) ||
+    (e.def === FAKE_AMULET && !it.known.spe) ||
+    e.def === CRYSTAL_BALL
   );
 }
 
@@ -141,8 +147,9 @@ function invokeCost(ctx: Ctx, obj: Entity, a: ArtifactDef): boolean {
  * Toggles the property `prop` of the artifact's power (`obj` null: it is gone). On while the
  * artifact rests: "is ignoring you" and `d(3,10)` more rest; off: it rests `rnz(100)` turns.
  * With the property from another source too, nothing seems to happen; else "You feel like a
- * rabble-rouser." / "You feel the tension decrease around you." or she floats up or down.
- * ref: src/artifact.c arti_invoke() `inv_prop <= LAST_PROP` (no INVIS: no row has it)
+ * rabble-rouser." / "You feel the tension decrease around you.", she floats up or down, or
+ * (not blind, no mummy wrapping) "Your body takes on a strange transparency..." / "Your body
+ * seems to unfade...". ref: src/artifact.c arti_invoke() `inv_prop <= LAST_PROP`
  */
 function toggleInvoked(ctx: Ctx, obj: Entity | null, prop: string): number {
   const h = hero(ctx);
@@ -169,6 +176,16 @@ function toggleInvoked(ctx: Ctx, obj: Entity | null, prop: string): number {
     // (spoteffects() after float_up() is for sinks: none exist)
     if (on) floatUp(ctx);
     else floatDown(ctx, true, true);
+  } else if (prop === P.INVIS) {
+    // (newsym(): the engine redraws her after the action)
+    if (heroInvisBlocked(ctx.state) || hasProp(h, P.BLINDED)) {
+      nothingSpecial(ctx, obj);
+      return NORMAL_SPEED;
+    }
+    if (on) {
+      const how = hasProp(h, P.HALLUC) ? 'normal' : 'strange';
+      say(ctx, 'invoke.transparency', { how: `@invoke.transparency.${how}` });
+    } else say(ctx, 'invoke.unfade');
   }
   return NORMAL_SPEED;
 }
@@ -489,7 +506,7 @@ function answerRay(ctx: Ctx, obj: Entity, value: Json): number {
 function artiInvoke(ctx: Ctx, obj: Entity): number {
   const a = artiOf(obj);
   if (!a?.invoke) {
-    // (no crystal balls)
+    if (obj.def === CRYSTAL_BALL) return useCrystalBall(ctx, obj, INVOKE_ID);
     say(ctx, 'invoke.nothing_happens');
     return NORMAL_SPEED;
   }
@@ -506,8 +523,16 @@ function artiInvoke(ctx: Ctx, obj: Entity): number {
       return invokeUntrap(ctx, obj.id);
     case 'charge_obj':
       return invokeChargeObj(ctx, obj);
+    case 'lev_tele':
+      // level_tele(): with teleport control the level prompt's answer spends the move
+      levelTele(ctx, { cost: NORMAL_SPEED });
+      return ctx.state.pendingPrompt ? 0 : NORMAL_SPEED;
     case 'create_portal':
       return invokeCreatePortal(ctx, obj);
+    case 'enlightening':
+      // enlightenment(MAGICENLIGHTENMENT, ENL_GAMEINPROGRESS)
+      ctx.emit({ type: 'list', titleKey: 'enl.title', items: enlightenment(ctx) });
+      return NORMAL_SPEED;
     case 'create_ammo':
       return invokeCreateAmmo(ctx, obj);
     case 'banish':
@@ -521,7 +546,7 @@ function artiInvoke(ctx: Ctx, obj: Entity): number {
     case 'blinding_ray':
       return askDirection(ctx, obj, 'ray');
     default:
-      // TAMING, LEV_TELE, ENLIGHTENING and INVIS belong to the rows that do not exist (ROADMAP)
+      // TAMING: no row has it (the Palantir of Westernesse is left out of artilist.h)
       say(ctx, 'invoke.nothing_happens');
       return NORMAL_SPEED;
   }
@@ -597,6 +622,7 @@ const invoke: ActionDef = {
     return artiInvoke(ctx, obj);
   },
   answer(ctx, value, raw) {
+    if (isCrystalBallData(raw)) return answerCrystalBall(ctx, value, raw);
     if (!isInvokeData(raw)) return 0;
     const data = raw as unknown as InvokeData;
     const obj = ctx.state.entities[String(data.invoke)];

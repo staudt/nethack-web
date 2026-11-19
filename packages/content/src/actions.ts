@@ -35,7 +35,7 @@ import { digests, engulfingU, isSwallowed, uswallow } from './engulfstate';
 import { lookHere } from './itemactions';
 import { maybeSmudgeEngr } from './engr';
 import { askReallyAttack, attackChecksUnseen, bloodthirsty, needsAttackConfirm } from './peaceful';
-import { uWieldArt } from './artistate';
+import { artiOf, uWieldArt } from './artistate';
 import { mapInvisible, markedUnseen, unmapInvisible } from './invis';
 import { monflee } from './monflee';
 import { clearWaitMask, isFrozen } from './mstate';
@@ -1006,27 +1006,43 @@ function mfind0(ctx: Ctx, mon: Entity, x: number, y: number): number {
   return 1;
 }
 
+const LENSES: DefId = 'nh:lenses';
+
+/**
+ * The search bonus: a wielded artifact that searches adds its enchantment, worn lenses 2 while
+ * she can see; at most 5. ref: src/detect.c dosearch0() `fund`
+ */
+export function searchFund(ctx: Ctx): number {
+  const h = getPlayer(ctx.state);
+  const uwep = wornIn(ctx.state, h.id, 'weapon');
+  let fund = uwep && artiOf(uwep)?.spfx.includes('search') ? (uwep.c.item?.spe ?? 0) : 0;
+  // JDS: lenses help searching
+  if (wornIn(ctx.state, h.id, 'blindfold')?.def === LENSES && !hasProp(h, P.BLINDED)) fund += 2;
+  return Math.min(fund, 5);
+}
+
 /**
  * Searches the 3x3 around the hero (explicitly, or automatically each turn with Searching:
- * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner. There is no lenses/artifact bonus
- * (fund = 0). Luck counts.
+ * `aflag`). ref: src/detect.c dosearch0(): x outer, y inner; hidden doors and passages are found
+ * unless `rnl(7 - fund)` (see searchFund()). Luck counts.
  */
 function dosearch0(ctx: Ctx, aflag: boolean): void {
   const here = playerAt(ctx);
   const level = getLevel(ctx.state);
+  const fund = searchFund(ctx);
   for (let x = here.x - 1; x <= here.x + 1; x++) {
     for (let y = here.y - 1; y <= here.y + 1; y++) {
       if (!inBounds(level, x, y) || (x === here.x && y === here.y)) continue;
       const id = level.palette[level.cells[cellIndex(level, x, y)] ?? 0];
       const locked = id === T.sdoor_locked_v || id === T.sdoor_locked_h;
       if (id === T.sdoor_v || id === T.sdoor_h || locked) {
-        if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
+        if (rnl(ctx.rng, 7 - fund, luckOf(ctx.state)) !== 0) continue;
         // ref: cvt_sdoor_to_door(): the door keeps its doormask (closed or locked); on the Rogue
         // level a doorway
         setTerrain(level, x, y, cvtSdoorToDoor(level, id));
         ctx.emit({ type: 'msg', key: 'search.found_door' });
       } else if (id === T.scorr) {
-        if (rnl(ctx.rng, 7, luckOf(ctx.state)) !== 0) continue;
+        if (rnl(ctx.rng, 7 - fund, luckOf(ctx.state)) !== 0) continue;
         setTerrain(level, x, y, T.corr);
         ctx.emit({ type: 'msg', key: 'search.found_passage' });
       } else {

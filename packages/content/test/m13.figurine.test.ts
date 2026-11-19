@@ -293,8 +293,9 @@ describe('the cursed figurine transforms on its own (fig_transform())', () => {
   });
 
   test('when it fires: "You see a kitten drop out of your pack!" and a hostile kitten next to her', () => {
+    // C: 1 in 10 tame, 1 in 10 peaceful, else hostile (80%)
     let hostile = 0;
-    for (let seed = 1; seed <= 10; seed++) {
+    for (let seed = 1; seed <= 30; seed++) {
       const s = make(seed);
       const f = figurine(s, 'nh:kitten', 'cursed', { carry: true });
       // bring the timer due now
@@ -310,7 +311,7 @@ describe('the cursed figurine transforms on its own (fig_transform())', () => {
       expect(kitten?.def).toBe('nh:kitten');
       if (!kitten!.c.monster!.tame && !kitten!.c.monster!.peaceful) hostile++;
     }
-    expect(hostile).toBeGreaterThan(5);
+    expect(hostile).toBeGreaterThan(15);
   });
 
   test('on the floor: "You see a figurine transform into a kitten!"', () => {

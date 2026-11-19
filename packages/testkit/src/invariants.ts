@@ -160,14 +160,18 @@ export const ARTIFACT_BASES: Readonly<Record<string, string>> = {
   'nh:vorpal_blade': 'nh:long_sword',
   'nh:snickersnee': 'nh:katana',
   'nh:sunsword': 'nh:long_sword',
+  'nh:orb_of_detection': 'nh:crystal_ball',
   'nh:heart_of_ahriman': 'nh:luckstone',
   'nh:sceptre_of_might': 'nh:mace',
   'nh:staff_of_aesculapius': 'nh:quarterstaff',
+  'nh:magic_mirror_of_merlin': 'nh:mirror',
+  'nh:eyes_of_the_overworld': 'nh:lenses',
   'nh:mitre_of_holiness': 'nh:helm_of_brilliance',
   'nh:longbow_of_diana': 'nh:bow',
   'nh:master_key_of_thievery': 'nh:skeleton_key',
   'nh:tsurugi_of_muramasa': 'nh:tsurugi',
   'nh:platinum_yendorian_express_card': 'nh:credit_card',
+  'nh:orb_of_fate': 'nh:crystal_ball',
   'nh:eye_of_the_aethiopica': 'nh:amulet_of_esp',
 };
 

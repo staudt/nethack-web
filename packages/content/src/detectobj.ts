@@ -18,6 +18,7 @@ import {
   getPlayer,
   isItem,
   itemShownId,
+  itemsAt,
   newMemory,
   sortedIds,
   topObjectEntities,
@@ -363,28 +364,48 @@ export function foodDetect(ctx: Ctx, sobj: Detector): { nothing: boolean; known:
  * a gold piece for a monster with gold): "You detect the presence of objects." ("absence" when
  * only stale memories were forgotten; "something" when hallucinating). Only under her: "You
  * sense objects nearby."; nothing: the strange feeling "You feel a lack of something." (true:
- * the detector was used up). ref: src/detect.c object_detect() with class 0
+ * the detector was used up). With a class (a crystal ball's), only objects of that class, also
+ * inside containers, are counted and the first one of each pile or inventory is shown ("You
+ * detect the presence of weapons."). ref: src/detect.c object_detect() (no buried objects, no
+ * boulder symbol overlap)
  */
-export function objectDetect(ctx: Ctx, detector: Detector | null): boolean {
+export function objectDetect(
+  ctx: Ctx,
+  detector: Detector | null,
+  cls: ObjectClass | null = null,
+): boolean {
   const level = getLevel(ctx.state);
   const stuff = {
-    key: hasProp(getPlayer(ctx.state), P.HALLUC) ? 'detect.something' : 'detect.objects',
+    key: hasProp(getPlayer(ctx.state), P.HALLUC)
+      ? 'detect.something'
+      : cls
+        ? `detect.class.${cls}`
+        : 'detect.objects',
   };
+  // the object of the class in it (or it), or any object for no class
+  const match = (o: Entity): Entity | null => (cls ? oIn(ctx, o, cls) : o);
   let ct = 0;
   let ctu = 0;
   for (const o of floorObjects(ctx, level)) {
+    if (!match(o)) continue;
     if (heroAt(ctx, o.c.pos?.x ?? -1, o.c.pos?.y ?? -1)) ctu++;
     else ct++;
   }
   const cursed = detector?.buc === 'cursed';
+  const mimicOk = (mon: Entity): boolean => {
+    if (!cursed || mApType(ctx, mon.id) !== 'object') return false;
+    if (!cls) return true;
+    const shown = mimicObjectShown(ctx, mon);
+    return ctx.defs.isObject(shown) && ctx.defs.object(shown).class === cls;
+  };
   for (const mon of levelMonsters(ctx, level)) {
-    ct += minvent(ctx, mon.id).length;
-    if ((cursed && mApType(ctx, mon.id) === 'object') || findgold(ctx, mon)) {
+    for (const o of minvent(ctx, mon.id)) if (match(o)) ct++;
+    if (mimicOk(mon) || (findgold(ctx, mon) && (!cls || cls === 'coin'))) {
       ct++;
       break;
     }
   }
-  if (!clearStaleMap(ctx, level, 'all', false) && !ct) {
+  if (!clearStaleMap(ctx, level, cls ?? 'all', false) && !ct) {
     if (!ctu) {
       if (detector) strangeFeeling(ctx, detector.item, 'detect.objects.lack');
       return true;
@@ -392,19 +413,38 @@ export function objectDetect(ctx: Ctx, detector: Detector | null): boolean {
     say(ctx, 'detect.objects.nearby', { stuff });
     return false;
   }
-  // the top object of each pile (floor objects, then monsters' override them)
-  const top = topObjectEntities(ctx.defs, ctx.state, level);
-  for (const [i, o] of [...top].sort((a, b) => a[0] - b[0]))
-    mapObject(ctx, level, o, i % level.width, Math.trunc(i / level.width));
+  if (!cls) {
+    // the top object of each pile (floor objects, then monsters' override them)
+    const top = topObjectEntities(ctx.defs, ctx.state, level);
+    for (const [i, o] of [...top].sort((a, b) => a[0] - b[0]))
+      mapObject(ctx, level, o, i % level.width, Math.trunc(i / level.width));
+  } else {
+    // the first object of the class at each spot, in pile order (the top first)
+    const spots = new Set<number>();
+    for (const o of floorObjects(ctx, level))
+      if (o.c.pos) spots.add(o.c.pos.y * level.width + o.c.pos.x);
+    for (const i of [...spots].sort((a, b) => a - b)) {
+      const x = i % level.width;
+      const y = Math.trunc(i / level.width);
+      for (const o of itemsAt(ctx.defs, ctx.state, level.id, x, y)) {
+        const found = oIn(ctx, o, cls);
+        if (found) {
+          mapObject(ctx, level, found, x, y);
+          break;
+        }
+      }
+    }
+  }
   for (const mon of levelMonsters(ctx, level)) {
     const p = mon.c.pos;
     if (!p) continue;
-    const first = minvent(ctx, mon.id)[0];
+    const first = minvent(ctx, mon.id)
+      .map(match)
+      .find((o) => o !== null);
     if (first) mapObject(ctx, level, first, p.x, p.y);
     // a cursed detector shows a mimic posing as an object as that object
-    if (cursed && mApType(ctx, mon.id) === 'object')
-      mapObject(ctx, level, mimicObjectShown(ctx, mon), p.x, p.y);
-    else if (findgold(ctx, mon)) mapGold(ctx, level, p.x, p.y);
+    if (mimicOk(mon)) mapObject(ctx, level, mimicObjectShown(ctx, mon), p.x, p.y);
+    else if (findgold(ctx, mon) && (!cls || cls === 'coin')) mapGold(ctx, level, p.x, p.y);
   }
   say(ctx, ct ? 'detect.objects.presence' : 'detect.objects.absence', { stuff });
   return false;

@@ -314,7 +314,7 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId, opts: { inMklev?: boole
     if (def.id === ELVEN_MONARCH) {
       if (rng.rn2(3) || (opts.inMklev === true && isEarthLevel(ctx.state, levelOf(ctx, e))))
         mongets(ctx, monId, 'nh:pick_axe');
-      if (!rng.rn2(50)) mongets(ctx, monId, 'nh:crystal_ball'); // (no crystal ball yet)
+      if (!rng.rn2(50)) mongets(ctx, monId, 'nh:crystal_ball');
     }
   } else if (ch === '@') {
     // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST ||

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-207 NetHack files, 6098 citations.
+207 NetHack files, 6123 citations.
 
 ## dat/air.lua
 
@@ -284,7 +284,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/artilist.h
 
-- (file): `packages/content/src/artilist.ts`
+- (file): `packages/content/src/artilist.ts`, `packages/content/src/props.ts`
 
 ## include/attrib.h
 
@@ -314,7 +314,8 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/defsym.h
 
-- (file): `packages/content/src/terrain.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- (file): `packages/content/src/crystalball.ts`, `packages/content/src/terrain.ts`, `packages/content/src/trap.en.ts`, `packages/content/src/trap.ts`
+- `OBJCLASS()`: `packages/content/src/crystalball.ts`
 - `S_EEL()`: `packages/content/src/mondata.ts`
 - `S_air()`: `packages/content/src/terrain.ts`
 - `S_arrow_trap()`: `packages/content/src/trap.ts`
@@ -670,7 +671,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `COIN()`: `packages/content/src/objects.ts`
 - `CONTAINER()`: `packages/content/src/container.ts`, `packages/content/src/objects.ts`
 - `DRGN_ARMR()`: `packages/content/src/objects.ts`
-- `EYEWEAR()`: `packages/content/src/objects.ts`
+- `EYEWEAR()`: `packages/content/src/jewelry.ts`, `packages/content/src/objects.ts`
 - `FAKE_AMULET_OF_YENDOR()`: `packages/content/src/disclose.ts`, `packages/content/src/nasty.ts`, `packages/content/src/steal.ts`
 - `FOOD()`: `packages/content/src/objects.ts`
 - `GEM()`: `packages/content/src/objects.ts`
@@ -830,6 +831,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/apply.c
 
 - (file): `packages/content/src/apply.en.ts`, `packages/content/src/jump.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/tin.en.ts`, `packages/content/src/water.ts`
+- `beautiful()`: `packages/content/src/glass.en.ts`, `packages/content/src/mirror.ts`
 - `broken_wand_explode()`: `packages/content/src/breakwand.ts`
 - `calc_pole_range()`: `packages/content/src/pole.ts`
 - `catch_lit()`: `packages/content/src/light.ts`
@@ -849,6 +851,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `get_mleash()`: `packages/content/src/leashstate.ts`
 - `get_valid_jump_position()`: `packages/content/src/jump.ts`
 - `get_valid_polearm_position()`: `packages/content/src/pole.ts`
+- `getdir()`: `packages/content/src/mirror.ts`
 - `is_valid_jump_pos()`: `packages/content/src/jump.en.ts`, `packages/content/src/jump.ts`
 - `its_dead()`: `packages/content/src/kittools.en.ts`, `packages/content/src/stethoscope.ts`
 - `jelly_ok()`: `packages/content/src/rub.ts`
@@ -877,6 +880,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `use_leash()`: `packages/content/src/kittools.en.ts`, `packages/content/src/leash.ts`
 - `use_leash_core()`: `packages/content/src/kittools.en.ts`, `packages/content/src/leash.ts`
 - `use_magic_whistle()`: `packages/content/src/apply.ts`
+- `use_mirror()`: `packages/content/src/glass.en.ts`, `packages/content/src/mirror.ts`
 - `use_pole()`: `packages/content/src/apply.en.ts`, `packages/content/src/pole.ts`
 - `use_royal_jelly()`: `packages/content/src/rub.ts`
 - `use_stethoscope()`: `packages/content/src/kittools.en.ts`, `packages/content/src/stethoscope.ts`
@@ -1056,7 +1060,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/detect.c
 
-- (file): `packages/content/src/zap.en.ts`
+- (file): `packages/content/src/crystalball.ts`, `packages/content/src/zap.en.ts`
 - `check_map_spot()`: `packages/content/src/detectobj.ts`
 - `clear_stale_map()`: `packages/content/src/detectobj.ts`
 - `cvt_sdoor_to_door()`: `packages/content/src/actions.ts`, `packages/content/src/levelflags.ts`
@@ -1068,7 +1072,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `findit()`: `packages/content/src/zap.ts`
 - `findone()`: `packages/content/src/zap.ts`
 - `food_detect()`: `packages/content/src/detectobj.ts`
+- `furniture_detect()`: `packages/content/src/crystalball.ts`
 - `gold_detect()`: `packages/content/src/detectobj.ts`
+- `level_detects()`: `packages/content/src/crystalball.ts`
+- `level_distance()`: `packages/content/src/crystalball.ts`
 - `mfind0()`: `packages/content/src/actions.ts`
 - `monster_detect()`: `packages/content/src/cast.ts`, `packages/content/src/detect.ts`, `packages/content/src/magic.en.ts`
 - `o_in()`: `packages/content/src/detectobj.ts`
@@ -1081,6 +1088,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `show_map_spot()`: `packages/content/src/detect.ts`, `packages/content/src/wizard/map.ts`
 - `skip_premap_detect()`: `packages/content/src/detect.ts`
 - `trap_detect()`: `packages/content/src/detectobj.ts`
+- `use_crystal_ball()`: `packages/content/src/crystalball.ts`
 
 ## src/dig.c
 
@@ -1211,7 +1219,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Armor_off()`: `packages/content/src/dowear.ts`
 - `Armor_on()`: `packages/content/src/dowear.ts`
 - `Blindf_off()`: `packages/content/src/jewelry.ts`
-- `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/content/src/towel.en.ts`, `packages/testkit/src/invariants.ts`
+- `Blindf_on()`: `packages/content/src/jewelry.ts`, `packages/content/src/props.ts`, `packages/content/src/towel.en.ts`, `packages/testkit/src/invariants.ts`
 - `Boots_off()`: `packages/content/src/dowear.ts`
 - `Boots_on()`: `packages/content/src/dowear.ts`
 - `Cloak_off()`: `packages/content/src/dowear.ts`, `packages/content/src/invis.ts`
@@ -2404,6 +2412,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `shield_simple_name()`: `packages/content/src/seffect.ts`
 - `shiny_obj()`: `packages/content/src/orctown.ts`
 - `simple_typename()`: `packages/content/src/itemactions.ts`
+- `simpleonames()`: `packages/content/src/mirror.ts`
 - `singplur_compound()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
 - `singplur_lookup()`: `packages/content/src/objnam_read.ts`, `packages/ui/src/plural.ts`
 - `special_subjs()`: `packages/content/src/objnam_read.ts`
@@ -3506,7 +3515,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `DMG_DESTROY_SCALE()`: `packages/content/src/erode.ts`
 - `ZT_MAGIC_MISSILE()`: `packages/content/src/buzz.ts`
 - `backfire()`: `packages/content/src/zap.ts`
-- `bhit()`: `packages/content/src/camera.ts`, `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
+- `bhit()`: `packages/content/src/camera.ts`, `packages/content/src/dokick.ts`, `packages/content/src/dothrow.ts`, `packages/content/src/mirror.ts`, `packages/content/src/perception.ts`, `packages/content/src/web.ts`, `packages/content/src/zap.ts`
 - `bhitm()`: `packages/content/src/potionhit.ts`, `packages/content/src/zap.ts`
 - `bhito()`: `packages/content/src/zap.ts`
 - `bhitpile()`: `packages/content/src/zap.ts`

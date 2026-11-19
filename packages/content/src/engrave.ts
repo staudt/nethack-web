@@ -919,7 +919,8 @@ function answerText(ctx: Ctx, value: Json, d: EngraveAsk): number {
   if (d.doblind && !resistsBlnd(ctx, getPlayer(ctx.state))) {
     say(ctx, 'zap.blinded_flash');
     makeBlinded(ctx, ctx.rng.rnd(50), false);
-    // `if (!Blind) Your1(vision_clears)`: the Eyes of the Overworld do not exist
+    // still seeing: the Eyes of the Overworld
+    if (!heroHas(ctx.state, P.BLINDED)) say(ctx, 'blind.vision_clears');
   }
   // Engraving always takes at least one action, run as the occupation: its first one is now
   engrave(ctx, ctx.state.occupation.data as Json & EngraveOcc);

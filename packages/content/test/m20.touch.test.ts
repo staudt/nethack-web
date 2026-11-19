@@ -373,6 +373,9 @@ describe("Stormbringer's bloodthirst", () => {
     const s = setup(4);
     arti(s, 'nh:runesword', 'Stormbringer', 'wielded');
     const gnome = pin(s, 'nh:gnome_lord', 4, 2, { peaceful: true });
+    // a level-0 one would die of the drain (its level is rolled at creation)
+    const m = ent(s, gnome).c.monster;
+    if (m) m.level = 5;
     const r = s.step({ type: 'move', dir: 'e' });
     expect(s.state.pendingPrompt).toBeNull();
     expect(s.text(r)).toContain('Your bloodthirsty blade attacks!');

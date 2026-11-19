@@ -1,8 +1,7 @@
-// The artifact table: the 20 gift and wish artifacts and the 9 quest artifacts whose base object
-// exists, in artilist.h order (C's ART_ index order, used for every iteration). A leaf (core
-// types, aligntyp and urole only). Names are proper nouns shown as they are in every language,
-// as C's: data, not message text. The two Orbs, the Magic Mirror of Merlin and the Eyes of the
-// Overworld wait for crystal balls, mirrors and lenses (ROADMAP). ref: include/artilist.h,
+// The artifact table: the 20 gift and wish artifacts and the 13 quest artifacts, in artilist.h
+// order (C's ART_ index order, used for every iteration). A leaf (core types, aligntyp and urole
+// only). Names are proper nouns shown as they are in every language, as C's: data, not message
+// text. ref: include/artilist.h,
 // include/artifact.h SPFX_*, include/role.h struct Role questarti (src/role.c roles[])
 import type { DefId } from '@nh/core';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL, A_NONE } from './aligntyp';
@@ -485,8 +484,25 @@ const ROWS: readonly Row[] = [
     cost: 1500,
     color: null,
   },
-  // The artifacts for the quest dungeon, all self-willed; gen_spe 0, gift_value 12. The Orb of
-  // Detection (crystal ball) is absent.
+  // The artifacts for the quest dungeon, all self-willed; gen_spe 0, gift_value 12.
+  {
+    name: 'The Orb of Detection',
+    base: 'nh:crystal_ball',
+    spfx: ['nogen', 'restr', 'intel'],
+    cspfx: ['esp', 'hspdam'],
+    bane: null,
+    attk: null,
+    defn: null,
+    cary: 'magm',
+    invoke: 'invis',
+    align: A_LAWFUL,
+    role: 'archeologist',
+    race: null,
+    genSpe: 0,
+    giftValue: 12,
+    cost: 2500,
+    color: null,
+  },
   {
     name: 'The Heart of Ahriman',
     base: 'nh:luckstone',
@@ -542,7 +558,42 @@ const ROWS: readonly Row[] = [
     cost: 5000,
     color: null,
   },
-  // The Magic Mirror of Merlin (mirror) and the Eyes of the Overworld (lenses) are absent.
+  {
+    name: 'The Magic Mirror of Merlin',
+    base: 'nh:mirror',
+    spfx: ['nogen', 'restr', 'intel', 'speak'],
+    cspfx: ['esp'],
+    bane: null,
+    attk: null,
+    defn: null,
+    cary: 'magm',
+    invoke: null,
+    align: A_LAWFUL,
+    role: 'knight',
+    race: null,
+    genSpe: 0,
+    giftValue: 12,
+    cost: 1500,
+    color: null,
+  },
+  {
+    name: 'The Eyes of the Overworld',
+    base: 'nh:lenses',
+    spfx: ['nogen', 'restr', 'intel', 'xray'],
+    cspfx: NONE,
+    bane: null,
+    attk: null,
+    defn: 'magm',
+    cary: null,
+    invoke: 'enlightening',
+    align: A_NEUTRAL,
+    role: 'monk',
+    race: null,
+    genSpe: 0,
+    giftValue: 12,
+    cost: 2500,
+    color: null,
+  },
   {
     name: 'The Mitre of Holiness',
     base: 'nh:helm_of_brilliance',
@@ -636,7 +687,24 @@ const ROWS: readonly Row[] = [
     cost: 7000,
     color: null,
   },
-  // The Orb of Fate (crystal ball) is absent.
+  {
+    name: 'The Orb of Fate',
+    base: 'nh:crystal_ball',
+    spfx: ['nogen', 'restr', 'intel', 'luck'],
+    cspfx: ['warn', 'hspdam', 'hphdam'],
+    bane: null,
+    attk: null,
+    defn: null,
+    cary: null,
+    invoke: 'lev_tele',
+    align: A_NEUTRAL,
+    role: 'valkyrie',
+    race: null,
+    genSpe: 0,
+    giftValue: 12,
+    cost: 3500,
+    color: null,
+  },
   {
     name: 'The Eye of the Aethiopica',
     base: 'nh:amulet_of_esp',
@@ -657,7 +725,7 @@ const ROWS: readonly Row[] = [
   },
 ];
 
-/** The table in artilist.h order (C's ART_ index - 1, with the absent rows left out). */
+/** The table in artilist.h order (C's ART_ index - 1). */
 export const ARTIFACTS: readonly ArtifactDef[] = ROWS.map((r) => ({ id: idOf(r.name), ...r }));
 
 const BY_ID: Readonly<Record<string, ArtifactDef>> = Object.fromEntries(
@@ -677,15 +745,12 @@ export function artifactRow(id: DefId): ArtifactDef {
 }
 
 /** The first quest row: rows from here on are the quest artifacts (ART_ORB_OF_DETECTION on). */
-const FIRST_QUEST = ARTIFACTS.findIndex((a) => a.id === 'nh:heart_of_ahriman');
+const FIRST_QUEST = ARTIFACTS.findIndex((a) => a.id === 'nh:orb_of_detection');
 
 /** A quest artifact's row (`oartifact >= ART_ORB_OF_DETECTION`). ref: src/objnam.c */
 export const isQuestRow = (a: ArtifactDef): boolean => ARTIFACTS.indexOf(a) >= FIRST_QUEST;
 
-/**
- * Each role's quest artifact (urole.questarti), named also where its row is absent (the Orbs,
- * the Mirror and the Eyes wait for their base objects). ref: src/role.c roles[]
- */
+/** Each role's quest artifact (urole.questarti). ref: src/role.c roles[] */
 export const QUEST_ARTIFACT: Readonly<Record<RoleKey, DefId>> = {
   archeologist: 'nh:orb_of_detection',
   barbarian: 'nh:heart_of_ahriman',

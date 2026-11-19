@@ -91,8 +91,11 @@ function itemArg(action: PlayerAction): unknown {
 
 const isRingSlot = (slot: EquipSlot | null | undefined): slot is 'ringL' | 'ringR' =>
   slot === 'ringL' || slot === 'ringR';
-/** Eyewear worn in the 'blindfold' slot (ublindf): the blindfold and the towel of the subset. */
-export const isEyewear = (def: string): boolean => def === 'nh:blindfold' || def === TOWEL;
+/** Eyewear worn in the 'blindfold' slot (ublindf): the blindfold, the towel and lenses. */
+export const isEyewear = (def: string): boolean =>
+  def === 'nh:blindfold' || def === TOWEL || def === LENSES;
+/** ref: include/objects.h EYEWEAR("lenses") */
+export const LENSES = 'nh:lenses';
 const isAccessory = (ctx: Pick<Ctx, 'defs'>, e: Entity): boolean => {
   const cls = ctx.defs.object(e.def).class;
   return cls === 'ring' || cls === 'amulet' || isEyewear(e.def);
@@ -446,7 +449,7 @@ export function fixStrangled(ctx: Ctx): void {
 // ---------------------------------------------------------------------------------------------
 // eyewear
 
-/** ref: src/do_wear.c Blindf_on() (no Eyes of the Overworld, no ball and chain) */
+/** ref: src/do_wear.c Blindf_on() (no ball and chain) */
 export function blindfOn(ctx: Ctx, obj: Entity): void {
   const alreadyBlind = hasProp(hero(ctx), P.BLINDED);
   // blindfold might be wielded; release it for wearing
@@ -456,7 +459,10 @@ export function blindfOn(ctx: Ctx, obj: Entity): void {
   say(ctx, obj.def === TOWEL ? 'towel.now_wearing' : 'puton.now_wearing', {
     item: xnameOf(ctx.state, ctx.defs, obj),
   });
-  if (hasProp(hero(ctx), P.BLINDED) && !alreadyBlind) say(ctx, 'blindf.cant_see');
+  const blindNow = hasProp(hero(ctx), P.BLINDED);
+  if (blindNow && !alreadyBlind) say(ctx, 'blindf.cant_see');
+  // "You are now wearing the Eyes of the Overworld."
+  else if (alreadyBlind && !blindNow) say(ctx, 'blind.can_see');
   // (vision follows the blindness after the action: toggle_blindness())
 }
 
@@ -469,7 +475,11 @@ export function blindfOff(ctx: Ctx, obj: Entity, offMsg = true): void {
   updateWornProps(ctx.state, ctx.defs, ctx.state.playerId);
   if (offMsg) say(ctx, 'takeoff.were_wearing', { item: ctx.defs.itemName(ctx.state, obj) }); // off_msg()
   if (hasProp(hero(ctx), P.BLINDED)) {
-    if (wasBlind) say(ctx, 'blindf.still_cant_see');
+    // "still cannot see" makes no sense when removing lenses since they can't have been the
+    // cause of your blindness; "You were wearing the Eyes of the Overworld."
+    if (wasBlind) {
+      if (obj.def !== LENSES) say(ctx, 'blindf.still_cant_see');
+    } else say(ctx, 'blind.cant_see_now');
   } else if (wasBlind) say(ctx, 'blind.see_again');
 }
 

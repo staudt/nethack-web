@@ -11,7 +11,7 @@
 // came later and the fixup was not switched) with its contents by
 // percent, and medusa-3/4's random choice of Medusa's room (place:rndcoord(), drawn after core
 // has built the level), which moves the down stairs there. Every statue without a monster is a
-// petrified monster (sp_lev.ts createObject()). medusa-4's crystal ball does not exist.
+// petrified monster (sp_lev.ts createObject()).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
 import { levelDifficulty } from './levdiff';
 import { polyWhenStoned } from './golem';
@@ -509,7 +509,7 @@ const MEDUSA_3_FIXUP: SpLevFixup = {
 
 /**
  * medusa-4: two of the four rooms' spots give Medusa's (with the down stairs and Perseus) and a
- * statue's; then the script's objects, traps and monsters in its order (no crystal ball).
+ * statue's; then the script's crystal ball, objects, traps and monsters in its order.
  */
 const MEDUSA_4_FIXUP: SpLevFixup = {
   before(ctx, level, def) {
@@ -522,7 +522,7 @@ const MEDUSA_4_FIXUP: SpLevFixup = {
     const medloc = rndcoord(ctx, place);
     const altloc = rndcoord(ctx, place);
     moveDownStairs(level, mapToLevel(def, level, medloc.x, medloc.y));
-    // (des.object("crystal ball", 07, 08): no crystal balls yet)
+    makeContents(ctx, level, def, [{ kind: 'object', id: 'nh:crystal_ball', x: 7, y: 8 }]);
     perseus(ctx, level, def, medloc, [75, 25, 50, 50]);
     const egg: LevelContent = {
       kind: 'object',

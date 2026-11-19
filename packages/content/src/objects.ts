@@ -34,6 +34,7 @@ export const CHARGED_RINGS: ReadonlySet<string> = new Set([
  */
 export const CHARGED_TOOLS: ReadonlySet<string> = new Set([
   'nh:expensive_camera',
+  'nh:crystal_ball',
   'nh:tinning_kit',
   'nh:magic_marker',
   'nh:magic_flute',
@@ -3958,6 +3959,15 @@ export const OBJECTS: readonly ObjectDef[] = [
   // applying it flashes a monster in a direction (camera.ts); charged
   // ref: objects.h TOOL("expensive camera", NoDes, 1, 0, 0, 1, 15, 12, 200, PLASTIC, CLR_BLACK, EXPENSIVE_CAMERA)
   tool('expensive_camera', 15, 12, 200, 'plastic', BLACK, false, null),
+  // applying it looks at herself or at a monster in a direction (mirror.ts)
+  // ref: objects.h TOOL("mirror", "looking glass", 0, 0, 0, 0, 45, 13, 10, GLASS, HI_SILVER, MIRROR)
+  tool('mirror', 45, 13, 10, 'glass', GRAY, false, 'mirror'),
+  // applying or invoking it looks for a symbol on the level (crystalball.ts); charged
+  // ref: objects.h TOOL("crystal ball", "glass orb", 0, 0, 1, 1, 15, 150, 60, GLASS, HI_GLASS, CRYSTAL_BALL)
+  tool('crystal_ball', 15, 150, 60, 'glass', BRIGHT_CYAN, true, 'crystal_ball'),
+  // worn in the blindfold slot: better searching and reading (actions.ts, spell.ts)
+  // ref: objects.h EYEWEAR("lenses", NoDes, 1, 0, 5, 3, 80, GLASS, HI_GLASS, LENSES)
+  tool('lenses', 5, 3, 80, 'glass', BRIGHT_CYAN, false, null),
   // ref: objects.h EYEWEAR("blindfold", NoDes, 1, BLINDED, 50, 2, 20, CLOTH, CLR_BLACK, BLINDFOLD)
   tool('blindfold', 50, 2, 20, 'cloth', BLACK, false, null, { prop: 'blinded' }),
   // ref: objects.h EYEWEAR("towel", NoDes, 1, BLINDED, 50, 5, 50, CLOTH, CLR_MAGENTA, TOWEL)

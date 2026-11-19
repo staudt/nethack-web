@@ -71,7 +71,7 @@ const newGameAs = (role: RoleKey, race: RaceKey, align?: -1 | 0 | 1): GameState 
   }).state;
 
 describe('the artifact table (include/artilist.h)', () => {
-  test('29 rows in artilist.h order, unique ids, every base object exists', () => {
+  test('33 rows in artilist.h order, unique ids, every base object exists', () => {
     expect(ARTIFACTS.map((a) => a.name)).toEqual([
       'Excalibur',
       'Stormbringer',
@@ -93,17 +93,21 @@ describe('the artifact table (include/artilist.h)', () => {
       'Vorpal Blade',
       'Snickersnee',
       'Sunsword',
+      'The Orb of Detection',
       'The Heart of Ahriman',
       'The Sceptre of Might',
       'The Staff of Aesculapius',
+      'The Magic Mirror of Merlin',
+      'The Eyes of the Overworld',
       'The Mitre of Holiness',
       'The Longbow of Diana',
       'The Master Key of Thievery',
       'The Tsurugi of Muramasa',
       'The Platinum Yendorian Express Card',
+      'The Orb of Fate',
       'The Eye of the Aethiopica',
     ]);
-    expect(new Set(ARTIFACTS.map((a) => a.id)).size).toBe(29);
+    expect(new Set(ARTIFACTS.map((a) => a.id)).size).toBe(33);
     for (const a of ARTIFACTS) expect(defs.isObject(a.base), a.id).toBe(true);
     expect(artifactRow('nh:heart_of_ahriman').base).toBe('nh:luckstone');
     expect(artifactRow('nh:demonbane').base).toBe('nh:silver_mace');
@@ -139,8 +143,8 @@ describe('the artifact table (include/artilist.h)', () => {
 
   test('the quest rows: self-willed, never random, gift value 12; each role names its own', () => {
     const quest = ARTIFACTS.filter(isQuestRow);
-    expect(quest).toHaveLength(9);
-    expect(quest[0]?.id).toBe('nh:heart_of_ahriman');
+    expect(quest).toHaveLength(13);
+    expect(quest[0]?.id).toBe('nh:orb_of_detection');
     for (const a of quest) {
       expect(a.spfx).toEqual(expect.arrayContaining(['nogen', 'restr', 'intel']));
       expect([a.giftValue, a.genSpe]).toEqual([12, 0]);
@@ -148,6 +152,8 @@ describe('the artifact table (include/artilist.h)', () => {
     }
     expect(isQuestRow(artifactRow('nh:sunsword'))).toBe(false);
     expect(Object.keys(QUEST_ARTIFACT)).toHaveLength(13);
+    // every role's quest artifact has its row now
+    expect(new Set(quest.map((a) => a.id))).toEqual(new Set(Object.values(QUEST_ARTIFACT)));
   });
 
   test('artifact_name(): "the" optional, case-blind, fuzzy spaces and dashes', () => {

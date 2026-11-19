@@ -103,7 +103,7 @@ import { abuseDog } from './dog';
 import { watchmanDoorDamage, watchmanThiefArrest } from './watch';
 
 import { monflee, stopFleeing } from './monflee';
-import { luckOf } from './luck';
+import { changeLuck, luckOf } from './luck';
 import { heroForm, heroFormId } from './upoly';
 import { uWipeEngr } from './engr';
 import { isShade, shadeMiss } from './shade';
@@ -475,6 +475,8 @@ function reallyKickObject(ctx: Ctx, pile: Entity, x: number, y: number, dir: Dir
     say(ctx, it.quantity === 1 ? 'kick.shatters' : 'kick.shatter', {
       item: ctx.defs.itemName(ctx.state, pile),
     });
+    // breakobj(): a mirror she breaks costs 2 Luck
+    if (pile.def === 'nh:mirror') changeLuck(ctx, -2);
     ctx.remove(pile.id);
     return true;
   }

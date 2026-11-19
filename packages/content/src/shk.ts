@@ -1405,6 +1405,7 @@ function costPerCharge(ctx: Ctx, shk: EntityId, e: Eshk, obj: Entity, altusage: 
     // 1 - 20; altusage: emptying of all the contents at once
     if (!altusage) tmp = Math.trunc(tmp / 5);
   } else if (
+    obj.def === 'nh:crystal_ball' || // 1 - 5
     obj.def === 'nh:oil_lamp' ||
     obj.def === 'nh:brass_lantern' ||
     MAGIC_FLUTE_TO_DRUM.includes(obj.def) || // 5 - 9

@@ -167,13 +167,11 @@ export function retouchObject(ctx: Ctx, obj: Entity, loseit: boolean): boolean {
   return false;
 }
 
-/**
- * The #invoke powers that toggle a property (C's `inv_prop <= LAST_PROP`; INVIS belongs to a row
- * that does not exist).
- */
+/** The #invoke powers that toggle a property (C's `inv_prop <= LAST_PROP`). */
 export const TOGGLED_POWERS: Readonly<Record<string, string>> = {
   conflict: P.CONFLICT,
   levitation: P.LEVITATION,
+  invis: P.INVIS,
 };
 
 /**

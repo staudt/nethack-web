@@ -101,10 +101,11 @@ export function registerClairvoyance(api: ModApi): void {
  * memory at its cell (it stays shown until the cell is seen again, where NetHack redraws the
  * map after browse_map()) and "You sense the presence of monsters." Returns true, saying
  * nothing, when the level has no monster (the caller gives its own feeling). A cursed source
- * wakes the sleeping and paralyzed ones: "Monsters sense the presence of you."
- * ref: src/detect.c monster_detect() with no class
+ * wakes the sleeping and paralyzed ones: "Monsters sense the presence of you." With a monster
+ * class symbol (a crystal ball's) only that class is mapped (`~`: long worms and their tails).
+ * ref: src/detect.c monster_detect()
  */
-export function monsterDetect(ctx: Ctx, cursed = false): boolean {
+export function monsterDetect(ctx: Ctx, cursed = false, mclass: string | null = null): boolean {
   const level = getLevel(ctx.state);
   const mons: Entity[] = [];
   for (const id of sortedIds(ctx.state)) {
@@ -117,11 +118,14 @@ export function monsterDetect(ctx: Ctx, cursed = false): boolean {
   let woken = false;
   for (const e of mons) {
     const p = e.c.pos;
-    if (p) memory[String(p.y * level.width + p.x)] = e.def;
-    // ref: display_monster() -> detect_wsegs(): a worm's tail is shown with it
-    for (const s of wormRec(ctx.state, e.id)?.segs ?? []) {
-      const sp = ctx.state.entities[String(s)]?.c.pos;
-      if (sp) memory[String(sp.y * level.width + sp.x)] = WORM_TAIL;
+    const ch = ctx.defs.monster(e.def).glyph.ch;
+    if (!mclass || ch === mclass || (e.def === 'nh:long_worm' && mclass === '~')) {
+      if (p) memory[String(p.y * level.width + p.x)] = e.def;
+      // ref: display_monster() -> detect_wsegs(): a worm's tail is shown with it
+      for (const s of wormRec(ctx.state, e.id)?.segs ?? []) {
+        const sp = ctx.state.entities[String(s)]?.c.pos;
+        if (sp) memory[String(sp.y * level.width + sp.x)] = WORM_TAIL;
+      }
     }
     const m = e.c.monster;
     if (cursed && m && (m.asleep || isFrozen(ctx, e.id))) {

@@ -178,7 +178,8 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     if (spe > ctx.rng.rnd(5) && spe > it.spe) spe = 0;
     if (spe > 2 && luck < 0) spesgn = -1;
   } else {
-    if (def.class === 'wand') {
+    // crystal ball cancels like a wand, to (n:-1)
+    if (def.class === 'wand' || def.id === 'nh:crystal_ball') {
       if (spe > 1 && spesgn === -1) spe = 1;
     } else if (spe > 0 && spesgn === -1) spe = 0;
     if (spe > it.spe) spe = it.spe;

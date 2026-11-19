@@ -9,8 +9,7 @@
 //
 // Not ported (see DEVIATIONS.md "Scrolls"): attribute exercise, shop charges for altered
 // objects (costly_alteration()), being underwater, the steed, the "Maud" name check, the
-// rechargeable tools that do not exist (bell of opening, crystal ball, can of grease,
-// bag of tricks: "a feeling of loss"), selftouch() for
+// rechargeable tools that do not exist (can of grease, bag of tricks: "a feeling of loss"), selftouch() for
 // gloves lost while wielding a cockatrice corpse, artifacts.
 import { setDestroyArm } from './mcastu';
 import {
@@ -44,7 +43,7 @@ import { explode } from './explode';
 import { eshkOf } from './eshk';
 import { isSwallowed } from './engulfstate';
 import { makemon } from './generation';
-import { hcolor } from './hcolor';
+import { hcolor, type ColorName } from './hcolor';
 import { losehp } from './hp';
 import { ustuck } from './hackmove';
 import { cantSeeSelf } from './invis';
@@ -236,7 +235,7 @@ export function destroyArm(ctx: Ctx): boolean {
 }
 
 /** "Your <armor> glows purple for a moment." (blind: vibrates briefly). ref: p_glow2() */
-function pGlow2(ctx: Ctx, obj: Entity, clr: 'purple' | 'blue' | 'white'): void {
+function pGlow2(ctx: Ctx, obj: Entity, clr: ColorName): void {
   const item = xnameOf(ctx.state, ctx.defs, obj);
   if (blind(ctx)) say(ctx, `scroll.vibrate_moment${plSuffix(ctx, obj)}`, { item });
   else say(ctx, `scroll.glow_moment${plSuffix(ctx, obj)}`, { item, color: hcolor(ctx, clr) });
@@ -829,6 +828,38 @@ function rechargeTool(ctx: Ctx, obj: Entity, isCursed: boolean, isBlessed: boole
         pGlow2(ctx, obj, 'white');
       }
       return true;
+    case 'nh:crystal_ball': {
+      // like wands, first uncancel
+      if (it.spe === -1) it.spe = 0;
+      if (isCursed) {
+        // cursed scroll removes charges and curses ball
+        if (it.buc !== 'cursed') {
+          pGlow2(ctx, obj, 'black');
+          it.buc = 'cursed';
+        } else
+          say(ctx, `scroll.vibrate_briefly${plSuffix(ctx, obj)}`, {
+            item: xnameOf(ctx.state, ctx.defs, obj),
+          });
+        it.spe = 0;
+      } else if (isBlessed) {
+        // blessed scroll sets charges to max and blesses ball
+        it.spe = 7;
+        pGlow2(ctx, obj, it.buc !== 'blessed' ? 'light_blue' : 'blue');
+        it.buc = 'blessed';
+      } else if (it.spe < 7 || it.buc === 'cursed') {
+        // uncursed scroll increments charges and uncurses ball
+        it.spe = Math.min(it.spe + ctx.rng.rnd(2), 7);
+        if (it.buc !== 'cursed') pGlow1(ctx, obj);
+        else {
+          pGlow2(ctx, obj, 'amber');
+          it.buc = 'uncursed';
+        }
+      } else {
+        // charges at max and ball not being uncursed
+        say(ctx, 'zap.nothing_happens');
+      }
+      return true;
+    }
     case 'nh:oil_lamp':
     case 'nh:brass_lantern':
       if (isCursed) {

@@ -458,4 +458,20 @@ describe('wishing for artifacts', () => {
     expect(artiExists(v.st, 'nh:mitre_of_holiness')).toBe(true);
     expect(v.msgs.some((m) => m.endsWith('evades your grasp!'))).toBe(true);
   });
+
+  test('the four rows on the glass tools are refused to their own roles too (m24)', () => {
+    const st = bare();
+    const own: [string, string, string][] = [
+      ['archeologist', 'the Orb of Detection', 'nh:orb_of_detection'],
+      ['knight', 'the Magic Mirror of Merlin', 'nh:magic_mirror_of_merlin'],
+      ['monk', 'the Eyes of the Overworld', 'nh:eyes_of_the_overworld'],
+      ['valkyrie', 'the Orb of Fate', 'nh:orb_of_fate'],
+    ];
+    for (const [role, name, id] of own) {
+      getPlayer(st).c.player!.role = roleDefId(role as never);
+      const w = wish(st, name);
+      expect(w.got, name).toHaveLength(0);
+      expect(artiExists(w.st, id as never)).toBe(false);
+    }
+  });
 });

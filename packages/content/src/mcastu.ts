@@ -612,14 +612,16 @@ function unconscious(ctx: Ctx): boolean {
 }
 
 /**
- * Blinds the hero for 200 turns (blindness resistance does not apply). Her vision never clears
- * at once: there are no Eyes of the Overworld. ref: src/mcastu.c mcast_blind_you()
+ * Blinds the hero for 200 turns (blindness resistance does not apply); with the Eyes of the
+ * Overworld "Your vision quickly clears.". ref: src/mcastu.c mcast_blind_you()
  */
 function mcastBlindYou(ctx: Ctx): void {
   // never chosen while Blinded (spellWouldBeUseless)
   if (timeoutLeft(ctx.state, getPlayer(ctx.state), P.BLINDED) > 0) return;
   say(ctx, 'mcastu.scales');
   makeBlinded(ctx, 200, false);
+  // still seeing: the Eyes of the Overworld
+  if (!hasProp(getPlayer(ctx.state), P.BLINDED)) say(ctx, 'blind.vision_clears');
 }
 
 /**

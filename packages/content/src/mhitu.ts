@@ -218,8 +218,10 @@ export function gazemu(ctx: Ctx, mon: Entity, atk: AttackDef): number {
           say(ctx, 'mhitu.blinded_by_radiance', { mon: name });
           makeBlinded(ctx, blnd, false);
           stopOccupation(ctx);
-          // still seeing means the Eyes of the Overworld, which do not exist
-          if (hasProp(hero, P.BLINDED)) {
+          // not blind at this point implies you're wearing the Eyes of the Overworld; make
+          // them block this particular stun attack too
+          if (!hasProp(hero, P.BLINDED)) say(ctx, 'blind.vision_clears');
+          else {
             const oldstun = timeoutLeft(ctx.state, hero, P.STUNNED);
             const newstun = ctx.rng.rnd(3);
             makeStunned(ctx, Math.max(oldstun, newstun), true);
@@ -311,7 +313,7 @@ export function explmu(ctx: Ctx, mon: Entity, atk: AttackDef, ufound: boolean): 
         if (monVisible(ctx, mon) || ctx.rng.rnd(half) > (hero.c.experience?.level ?? 1)) {
           say(ctx, 'mhitu.blast_of_light');
           makeBlinded(ctx, monVisible(ctx, mon) ? tmp : half, false);
-          // `if (!Blind) Your1(vision_clears)`: no Eyes of the Overworld
+          if (!hasProp(hero, P.BLINDED)) say(ctx, 'blind.vision_clears');
         } else say(ctx, 'mhitu.not_terribly_bright');
       }
       break;

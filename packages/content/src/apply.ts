@@ -3,7 +3,8 @@
 // towel (towel.ts), the blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts); the stethoscope (stethoscope.ts), the expensive
-// camera (camera.ts), the leash (leash.ts), the bell and the Bell of Opening (openit() in zap.ts).
+// camera (camera.ts), the mirror (mirror.ts), the crystal ball (crystalball.ts), the leash
+// (leash.ts), the bell and the Bell of Opening (openit() in zap.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled(), use_bell();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet();
 // src/vault.c vault_summon_gd() (a cursed tin whistle)
@@ -86,6 +87,8 @@ import { HORN_OF_PLENTY, hornoplenty } from './horn';
 import { MAGIC_MARKER, answerWrite, dowrite, isWriteData } from './write';
 import { STETHOSCOPE, answerStethoscope, isStethData, useStethoscope } from './stethoscope';
 import { EXPENSIVE_CAMERA, answerCamera, isCameraData, useCamera } from './camera';
+import { CRYSTAL_BALL, answerCrystalBall, isCrystalBallData, useCrystalBall } from './crystalball';
+import { MIRROR, answerMirror, isMirrorData, useMirror } from './mirror';
 import { LEASH, answerLeash, isLeashData, useLeash } from './leash';
 import { uswallow } from './engulfstate';
 import { makemon, mkclass } from './generation';
@@ -142,6 +145,8 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === MAGIC_MARKER ||
     e.def === STETHOSCOPE ||
     e.def === EXPENSIVE_CAMERA ||
+    e.def === MIRROR ||
+    e.def === CRYSTAL_BALL ||
     e.def === LEASH ||
     e.def === BELL ||
     e.def === BELL_OF_OPENING ||
@@ -464,6 +469,8 @@ const apply: ActionDef = {
     if (obj.def === TOWEL) return useTowel(ctx, obj);
     if (obj.def === STETHOSCOPE) return useStethoscope(ctx, obj, APPLY_ID);
     if (obj.def === EXPENSIVE_CAMERA) return useCamera(ctx, obj, APPLY_ID);
+    if (obj.def === MIRROR) return useMirror(ctx, obj, APPLY_ID);
+    if (obj.def === CRYSTAL_BALL) return useCrystalBall(ctx, obj, APPLY_ID);
     if (obj.def === LEASH) return useLeash(ctx, obj, APPLY_ID);
     if (isLamp(obj.def)) useLamp(ctx, obj);
     else if (isCandle(obj.def)) {
@@ -495,15 +502,19 @@ const apply: ActionDef = {
         ? answerStethoscope(ctx, value, data)
         : isCameraData(data)
           ? answerCamera(ctx, value, data)
-          : isLeashData(data)
-            ? answerLeash(ctx, value, data)
-            : isMusicData(data)
-              ? answerMusic(ctx, value, data, APPLY_ID)
-              : isTinToolData(data)
-                ? answerTinTool(ctx, value, data)
-                : isWriteData(data)
-                  ? answerWrite(ctx, value, data, APPLY_ID)
-                  : answerBreakWand(ctx, value, data),
+          : isMirrorData(data)
+            ? answerMirror(ctx, value, data)
+            : isCrystalBallData(data)
+              ? answerCrystalBall(ctx, value, data)
+              : isLeashData(data)
+                ? answerLeash(ctx, value, data)
+                : isMusicData(data)
+                  ? answerMusic(ctx, value, data, APPLY_ID)
+                  : isTinToolData(data)
+                    ? answerTinTool(ctx, value, data)
+                    : isWriteData(data)
+                      ? answerWrite(ctx, value, data, APPLY_ID)
+                      : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

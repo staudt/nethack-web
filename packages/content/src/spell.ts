@@ -351,12 +351,16 @@ export function studyBook(ctx: Ctx, book: Entity): number {
   return studyChecks(ctx, book);
 }
 
-/** The read ability for an uncursed book. ref: study_book() (no lenses in this port) */
+/** Lenses are worn (ublindf). */
+const wearingLenses = (ctx: Ctx): boolean =>
+  wornIn(ctx.state, ctx.state.playerId, 'blindfold')?.def === 'nh:lenses';
+
+/** The read ability for an uncursed book: lenses add 2. ref: study_book() */
 function readAbility(ctx: Ctx, def: ObjectDef): number {
   const h = hero(ctx);
   const int = h.c.attributes?.int ?? 10;
   const ulevel = h.c.experience?.level ?? 1;
-  return int + 4 + Math.trunc(ulevel / 2) - 2 * levelOf(def);
+  return int + 4 + Math.trunc(ulevel / 2) - 2 * levelOf(def) + (wearingLenses(ctx) ? 2 : 0);
 }
 
 /** "Books are often wiser than their readers": the difficulty check. ref: study_book() */
@@ -448,6 +452,8 @@ function learn(ctx: Ctx): { busy: boolean; extra: number } {
     sp.book = null;
     return { busy: false, extra: 0 };
   }
+  // JDS: lenses give 50% faster reading; 33% smaller read time
+  if (sp.delay && wearingLenses(ctx) && ctx.rng.rn2(2)) sp.delay++;
   if (hasProp(hero(ctx), P.CONFUSION)) {
     // became confused while learning
     confusedBook(ctx, book);

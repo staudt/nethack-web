@@ -260,7 +260,8 @@ export function magicTrapFate(ctx: Ctx, fate: number): void {
     if (!blind && !hero.c.helpless) {
       say(ctx, 'magictrap.flash_blinded');
       makeBlinded(ctx, ctx.rng.rn2(5) + 10, false); // rn1(5, 10)
-      // "Your vision quickly clears." only for the Eyes of the Overworld (not ported)
+      // still seeing: the Eyes of the Overworld
+      if (!hasProp(hero, P.BLINDED)) say(ctx, 'blind.vision_clears');
     } else if (!blind) say(ctx, 'magictrap.flash');
     // deafness effects: deafness is not modelled, so she always hears it
     say(ctx, 'magictrap.roar');

@@ -157,10 +157,13 @@ describe('shapeshifter soak', () => {
   // the rows, and 315 does without them; 316 replaced 315 in m24 step 1, whose 40 quest rows
   // shift the random forms and give the doppelganger's quest-guardian pick real rows: 315 made
   // only 11 shifts and passes with the rows withheld; of 316..331 only 316, 319, 325 and 329 reach
-  // 2000 with the rows, and 316 and 319 do without them)
+  // 2000 with the rows, and 316 and 319 do without them; 319 replaced 271 in m24 step 2, whose
+  // mirror, crystal ball and lenses rows shift the random objects: 271 died at turn 671 and
+  // reaches 2000 with the three objects withheld; 301, 313, 316, 319, 325 and 329 reach 2000 both
+  // with and without them (307 dies at turn 432 without))
   // (480 s: the full parallel `pnpm check` can slow a 2000-turn run several-fold; m23 step 2's
   // seed 258 took about 70 s alone with coverage and over 240 s there)
-  for (const seed of [271, 316]) {
+  for (const seed of [316, 319]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 480000 },

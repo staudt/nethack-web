@@ -133,4 +133,8 @@ export const artifactMessagesEn: Record<string, string> = {
   'invoke.lit_here': 'It is lit here now.',
   'invoke.rabble_rouser': 'You feel like a rabble-rouser.',
   'invoke.tension_decrease': 'You feel the tension decrease around you.',
+  'invoke.transparency': 'Your body takes on a {how} transparency...',
+  'invoke.transparency.strange': 'strange',
+  'invoke.transparency.normal': 'normal',
+  'invoke.unfade': 'Your body seems to unfade...',
 };
