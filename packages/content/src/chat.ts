@@ -57,6 +57,7 @@ import { T } from './terrain';
 import { isMtrapped } from './trapstate';
 import { roleIs } from './urole';
 import { monSound } from './questmon';
+import { questChat } from './quest';
 
 export const CHAT_ID = 'nh:chat';
 
@@ -334,8 +335,8 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
     case 'nemesis':
     case 'guardian':
       // quest_chat(): the leader's, the nemesis's and the guardians' talk is the quest's own
-      // (quest.c, m24 step 5); until then they say nothing
-      return 0;
+      questChat(ctx, id);
+      return NORMAL_SPEED;
     case 'guard': // vault guard
       say(ctx, moneyCnt(ctx, ctx.state.playerId) ? 'vault.please_drop' : 'vault.please_follow');
       return NORMAL_SPEED;

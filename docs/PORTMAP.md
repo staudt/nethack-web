@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-214 NetHack files, 6199 citations.
+214 NetHack files, 6224 citations.
 
 ## dat/Val-fila.lua
 
@@ -1178,6 +1178,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `assign_graphics()`: `packages/content/src/rogue.ts`, `packages/core/src/types/mod.ts`
 - `boulder_hits_pool()`: `packages/content/src/dbstate.ts`, `packages/content/src/flooreffects.ts`
 - `canletgo()`: `packages/content/src/itemactions.ts`, `packages/content/src/muse.ts`
+- `deferred_goto()`: `packages/content/src/quest.ts`
 - `deliver_splev_message()`: `packages/content/src/harass.ts`
 - `doaltarobj()`: `packages/content/src/align.en.ts`
 - `doddrop()`: `packages/content/src/itemactions.ts`
@@ -1193,7 +1194,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `final_level()`: `packages/content/src/harass.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/quest.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endgame.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/quest.ts`, `packages/content/src/questgate.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -2154,7 +2155,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mondied()`: `packages/content/src/mondeath.ts`
 - `mongone()`: `packages/content/src/fountain.ts`, `packages/content/src/mondeath.ts`, `packages/content/src/statue.ts`, `packages/content/src/vault.ts`
 - `monkilled()`: `packages/content/src/golem.en.ts`, `packages/content/src/mondeath.ts`
-- `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`, `packages/content/src/were.ts`
+- `monnear()`: `packages/content/src/mhitm.ts`, `packages/content/src/monmove.ts`, `packages/content/src/quest.ts`, `packages/content/src/were.ts`
 - `monster_census()`: `packages/content/src/genocide.ts`, `packages/content/src/wizard/genesis.ts`
 - `monstone()`: `packages/content/src/mondeath.ts`, `packages/content/src/stoning.ts`
 - `movemon()`: `packages/core/src/turn.ts`
@@ -2243,7 +2244,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `count_webbing_walls()`: `packages/content/src/web.ts`
 - `distfleeck()`: `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
 - `disturb()`: `packages/content/src/monmove.ts`
-- `dochug()`: `packages/content/src/beejelly.ts`, `packages/content/src/brains.ts`, `packages/content/src/demontalk.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`
+- `dochug()`: `packages/content/src/beejelly.ts`, `packages/content/src/brains.ts`, `packages/content/src/demontalk.ts`, `packages/content/src/monflee.ts`, `packages/content/src/monmove.ts`, `packages/content/src/quest.ts`
 - `dochugw()`: `packages/content/src/travel.ts`
 - `holds_up_web()`: `packages/content/src/web.ts`
 - `leppie_avoidance()`: `packages/content/src/monmove.ts`
@@ -2657,10 +2658,23 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/quest.c
 
+- (file): `packages/content/src/quest.ts`
+- `chat_with_leader()`: `packages/content/src/quest.ts`
+- `chat_with_nemesis()`: `packages/content/src/quest.ts`
+- `expulsion()`: `packages/content/src/quest.ts`
+- `finish_quest()`: `packages/content/src/quest.ts`
+- `is_pure()`: `packages/content/src/quest.ts`, `packages/content/src/questgate.ts`
+- `leader_speaks()`: `packages/content/src/quest.ts`
+- `not_capable()`: `packages/content/src/questgate.ts`
+- `ok_to_quest()`: `packages/content/src/questgate.ts`
 - `on_goal()`: `packages/content/src/quest.ts`
 - `on_locate()`: `packages/content/src/quest.ts`
 - `on_start()`: `packages/content/src/quest.ts`
 - `onquest()`: `packages/content/src/quest.ts`
+- `prisoner_speaks()`: `packages/content/src/quest.ts`
+- `quest_chat()`: `packages/content/src/quest.ts`
+- `quest_stat_check()`: `packages/content/src/quest.ts`
+- `quest_talk()`: `packages/content/src/quest.ts`
 
 ## src/questpgr.c
 
@@ -2960,7 +2974,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/dog.en.ts`
 - `cry_sound()`: `packages/content/src/egg.ts`
 - `dochat()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`
-- `domonnoise()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`, `packages/content/src/questmon.ts`
+- `domonnoise()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`, `packages/content/src/quest.ts`, `packages/content/src/questmon.ts`
 - `dotalk()`: `packages/content/src/chat.ts`
 - `growl()`: `packages/content/src/dog.ts`
 - `growl_sound()`: `packages/content/src/dog.ts`, `packages/content/src/were.ts`

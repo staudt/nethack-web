@@ -53,6 +53,7 @@ import { eshkOf } from './eshk';
 import { P, hasProp, wornIn } from './props';
 import { T, setTerrain, surfaceKey, terrainIdAt } from './terrain';
 import { cvtSdoorToDoor } from './levelflags';
+import { questDescentBlocked } from './questgate';
 import { isLadder, ladderArrival } from './ladder';
 import { luckOf } from './luck';
 import {
@@ -1152,6 +1153,8 @@ function goDownStairs(ctx: Ctx): number {
   // from a ladder on its ladder up (stairway_find_from(&u.uz0, at_ladder))
   const level = getLevel(ctx.state);
   const to = { dungeon: level.dungeon, dlevel: level.dlevel + 1 };
+  // goto_level(): Home 1's stairs down wait for the leader's word
+  if (questDescentBlocked(ctx, to)) return NORMAL_SPEED;
   const p = playerAt(ctx);
   const ladder = isLadder(terrainIdAt(level, p.x, p.y)) ? ladderArrival(ctx, to, false) : null;
   ctx.goToLevel(to, ladder ?? 'up');

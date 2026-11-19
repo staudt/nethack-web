@@ -70,6 +70,7 @@ import {
   inQuest,
   uInvoked,
 } from './levelflags';
+import { questDescentBlocked } from './questgate';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
@@ -1053,6 +1054,7 @@ export function fallThroughFloor(ctx: Ctx): void {
  */
 export function fallToLevel(ctx: Ctx, level: Readonly<Level>, dst: LevelRef, falling = true): void {
   const dist = depthOf(ctx.state, dst) - level.depth;
+  if (questDescentBlocked(ctx, dst)) return; // goto_level()'s quest gate (Home 1 is hardfloor)
   ctx.goToLevel(dst, 'random');
   if (falling) losehp(ctx, ctx.rng.d(Math.max(dist, 1), 6), '@killer.trap.mine_shaft');
   if (!ctx.state.gameOver) lookHere(ctx);
@@ -2451,6 +2453,8 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
   }
   levelTeleTrapAfter(ctx, trap);
   if (ctx.state.gameOver) return;
+  // goto_level()'s quest gate: no "You materialize" when she stays (deferred_goto())
+  if (questDescentBlocked(ctx, to)) return;
   ctx.goToLevel(to, 'random'); // schedule_goto() -> goto_level(): u_on_rndspot(), pickup(1)
   if (ctx.state.gameOver) return;
   lookHere(ctx);

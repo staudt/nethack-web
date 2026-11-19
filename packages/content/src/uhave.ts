@@ -5,7 +5,7 @@
 // ref: include/objects.h; include/you.h struct u_have; src/pickup.c in_container(); src/zap.c
 // obj_resists(); src/wizard.c mon_has_special(), mon_has_amulet()
 import { inventoryOf, type DefId, type Entity, type EntityId, type GameState } from '@nh/core';
-import { anyQuestArtifact } from './artistate';
+import { anyQuestArtifact, isQuestArtifact } from './artistate';
 
 /** ref: include/objects.h AMULET_OF_YENDOR */
 export const AMULET_OF_YENDOR: DefId = 'nh:amulet_of_yendor';
@@ -37,10 +37,13 @@ export function monHasSpecial(state: Readonly<GameState>, id: EntityId): boolean
   return inventoryOf(state, id).some((o) => isUniqueRelic(o.def) || anyQuestArtifact(o));
 }
 
-/** The relics u.uhave counts. ref: include/you.h struct u_have (amulet, bell, book, menorah) */
-export type Uhave = 'amulet' | 'bell' | 'menorah' | 'book';
+/**
+ * The relics u.uhave counts, and (m24) her own quest artifact. ref: include/you.h struct u_have
+ * (amulet, bell, book, menorah, questart)
+ */
+export type Uhave = 'amulet' | 'bell' | 'menorah' | 'book' | 'questart';
 
-const UHAVE: Readonly<Record<Uhave, DefId>> = {
+const UHAVE: Readonly<Record<Exclude<Uhave, 'questart'>, DefId>> = {
   amulet: AMULET_OF_YENDOR,
   bell: BELL_OF_OPENING,
   menorah: CANDELABRUM,
@@ -48,15 +51,20 @@ const UHAVE: Readonly<Record<Uhave, DefId>> = {
 };
 
 /**
- * The hero carries the real Amulet (the imitation never counts), the Bell, the Candelabrum or the
- * Book. ref: include/you.h u.uhave (set by src/invent.c addinv_core1(), cleared by
+ * The hero carries the real Amulet (the imitation never counts), the Bell, the Candelabrum, the
+ * Book, or her own quest artifact (top-level only: one put in a container no longer counts,
+ * in_container()). ref: include/you.h u.uhave (set by src/invent.c addinv_core1(), cleared by
  * freeinv_core())
  */
 export function uHave(state: Readonly<GameState>, what: Uhave): boolean {
-  const def = UHAVE[what];
   // a plain scan: level_difficulty() asks this for every monster and object made, and the answer
   // does not depend on the order (inventoryOf() sorts every entity id)
   const owner = state.playerId;
+  if (what === 'questart')
+    return Object.values(state.entities).some(
+      (o) => o.c.item?.carriedBy === owner && isQuestArtifact(state, o),
+    );
+  const def = UHAVE[what];
   return Object.values(state.entities).some((o) => o.def === def && o.c.item?.carriedBy === owner);
 }
 

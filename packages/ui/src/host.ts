@@ -303,6 +303,11 @@ export function createUi(opts: UiOptions): Ui {
   const lookSkip: ReadonlySet<string> = new Set(opts.lookSkipObjects ?? []);
   let modal: OpenMenu | null = null;
   let promptId: string | null = null;
+  /** List sheets (`list` events) waiting to be shown, and the one on screen. */
+  const listQueue: ListEvent[] = [];
+  let listShown: OpenMenu | null = null;
+  /** A prompt that came with list sheets: shown once the last of them is closed. */
+  let promptAfterLists: Prompt | null = null;
 
   // Multi-turn actions (travel, run, meals) advance by `continue` messages, one per step delay.
   let stepDelayMs = opts.stepDelayMs ?? DEFAULT_STEP_DELAY_MS;
@@ -415,6 +420,28 @@ export function createUi(opts: UiOptions): Ui {
         onClose,
       }),
     );
+
+  /**
+   * The next waiting list sheet; closing it opens the one after, and after the last the prompt
+   * that came with them (if any).
+   */
+  const showNextList = (): void => {
+    const ev = listQueue.shift();
+    if (!ev) {
+      listShown = null;
+      const p = promptAfterLists;
+      promptAfterLists = null;
+      if (p) showPrompt(p);
+      return;
+    }
+    listShown = showModal(
+      t(ev.titleKey),
+      ev.items.map((m) => ({ label: t(m.key, m.params), run: () => {}, text: true })),
+      t('ui.close'),
+      undefined,
+      showNextList,
+    );
+  };
 
   const offerEntries = (offers: ActionOffer[]): MenuEntry[] =>
     offers.map((o) => ({ label: t(o.labelKey, o.params), run: () => game.act(o.action) }));
@@ -1191,21 +1218,19 @@ export function createUi(opts: UiOptions): Ui {
       renderStatus(view.status);
       playerPos = { x: view.player.x, y: view.player.y };
       showSwallowBox(view.status['engulfed']);
-      let listEv: ListEvent | null = null;
       const lists: ListEvent[] = [];
       for (const ev of events) {
         if (ev.type === 'msg') log.push(t(ev.key, ev.params));
-        else if (ev.type === 'list') {
-          listEv = ev;
-          lists.push(ev);
-        }
+        else if (ev.type === 'list') lists.push(ev);
         for (const fn of eventHandlers) fn(ev);
       }
       if (view.status['dead'] !== undefined) {
+        listQueue.length = 0;
+        promptAfterLists = null;
         if (!tombstone) showTombstone(view.status, lists);
         return;
       }
-      if (keepGoing && !prompt && !listEv) {
+      if (keepGoing && !prompt && lists.length === 0) {
         stepTimer = setTimeout(() => {
           stepTimer = null;
           continueInFlight = true;
@@ -1216,24 +1241,18 @@ export function createUi(opts: UiOptions): Ui {
         tombstone = false;
         closeModal();
       }
+      // Each list sheet is shown in turn (the next when the previous is closed); a prompt that
+      // came with them waits until the last one is closed (C shows its windows before asking).
+      listQueue.push(...lists);
+      promptAfterLists = null;
       if (prompt) {
-        if (promptId !== prompt.id) showPrompt(prompt);
+        if (listQueue.length > 0 && promptId !== prompt.id) promptAfterLists = prompt;
+        else if (promptId !== prompt.id) showPrompt(prompt);
       } else if (promptId !== null) {
         closeModal();
       }
-      if (listEv && !prompt) {
-        const ev = listEv;
-        showModal(
-          t(ev.titleKey),
-          [
-            ...ev.items.map((m) => ({
-              label: t(m.key, m.params),
-              run: () => {},
-              text: true,
-            })),
-          ],
-          t('ui.close'),
-        );
+      if (listQueue.length > 0) {
+        if (!listShown || modal !== listShown) showNextList();
       } else if (invOpen && modal) {
         showInventory(modal.getSel());
       }

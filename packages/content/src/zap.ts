@@ -140,7 +140,9 @@ import { rockOnHead, surfaceKey, zapDig } from './dig';
 import { SPELL_INFO, spellDamageBonus } from './spellcalc';
 import { findAc, findMac } from './stats';
 import { T, isFurnitureId, isWallId } from './terrain';
-import { cvtSdoorToDoor, isRogueLevel } from './levelflags';
+import { cvtSdoorToDoor, isQstart, isRogueLevel } from './levelflags';
+import { isLadder } from './ladder';
+import { okToQuest } from './questgate';
 import { draftMessage } from './mdig';
 import { rloco } from './rloco';
 import { rewardUntrap } from './untrap';
@@ -1370,7 +1372,9 @@ const isFurniture = (ctx: Ctx, level: Level, x: number, y: number): boolean =>
  * under her (teleportation sends them away); stone to flesh bleeds from the ceiling or pools at
  * her feet when nothing lies there. Opening at a raised portcullis lowers its drawbridge;
  * locking (striking) down on a lowered bridge or at its open portcullis raises (destroys) it.
- * ref: src/zap.c zap_updown() (no quest stairs or hiding under objects)
+ * On Home 1 the stairs down ripple under an opening zap until the leader allows the descent, no
+ * rock falls from its ceiling and stone to flesh up does nothing.
+ * ref: src/zap.c zap_updown() (no hiding under objects)
  */
 function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
   const otyp = otypOf(src);
@@ -1401,6 +1405,17 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
           disclose = true;
           if (ctx.state.gameOver) return disclose;
         }
+      } else if (
+        dir === 'down' &&
+        terrainAt(ctx, level, x, y).stairs === 'down' &&
+        !isLadder(terrainAt(ctx, level, x, y).id) &&
+        isQstart(ctx.state, level) &&
+        !okToQuest(ctx.state)
+      ) {
+        // can't use the stairs down to quest level 2 until leader "unlocks" them; give feedback
+        // if you try
+        say(ctx, 'quest.stairs_ripple');
+        disclose = true;
       }
       // down releases her from a bear trap or pit, or sets off a trap door, hole or pit
       if (dir === 'down') {
@@ -1410,7 +1425,8 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
       break;
     case SPE.stoneToFlesh:
       // (no air or water levels)
-      if (dir === 'up') say(ctx, 'zap.stf.blood_drips');
+      if (dir === 'up' && isQstart(ctx.state, level)) say(ctx, 'zap.nothing_happens');
+      else if (dir === 'up') say(ctx, 'zap.stf.blood_drips');
       else if (itemsHere(ctx, x, y).length === 0) {
         // Print this message only if there wasn't an engraving affected here.
         if (engrAt(ctx, level, x, y)?.type !== 'engrave')
@@ -1434,7 +1450,7 @@ function zapUpdown(ctx: Ctx, src: ZapSource, dir: 'up' | 'down'): boolean {
         else destroyDrawbridge(ctx, db.x, db.y);
         disclose = true;
         if (ctx.state.gameOver) return disclose;
-      } else if (striking && dir === 'up' && ctx.rng.rn2(3)) {
+      } else if (striking && dir === 'up' && ctx.rng.rn2(3) && !isQstart(ctx.state, level)) {
         // similar to zap_dig()
         say(ctx, 'zap.rock_dislodged', { ceiling: ceiling() });
         rockOnHead(ctx, level, x, y);

@@ -1144,6 +1144,40 @@ describe('inventory, pickers, multi-select, list', () => {
     expect(btns(m.root)).toHaveLength(0);
   });
 
+  test('several list events show one sheet after another; a prompt with them comes last', () => {
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', {
+      t1: 'First',
+      t2: 'Second',
+      a: 'A',
+      b: 'B',
+      q: 'Really?',
+      ...msgs,
+    });
+    const title = () => m.root.querySelector('.nh-sheet-title')?.textContent;
+    const lists: GameEvent[] = [
+      { type: 'list', titleKey: 't1', items: [{ key: 'a' }] },
+      { type: 'list', titleKey: 't2', items: [{ key: 'b' }] },
+    ];
+    m.ui.update(invView([]), lists, null);
+    expect(title()).toBe('First');
+    expect(m.root.querySelectorAll('.nh-sheet')).toHaveLength(1);
+    btns(m.root)[0]!.click();
+    expect(title()).toBe('Second');
+    key('Escape');
+    expect(btns(m.root)).toHaveLength(0);
+
+    // a list and a prompt in one update (the leader's text, then wizard mode's "adjust?")
+    const prompt: Prompt = { id: 'p1', kind: 'yn', key: 'q' };
+    m.ui.update(invView([]), [lists[0]!], prompt);
+    expect(title()).toBe('First');
+    btns(m.root)[0]!.click();
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Yes', 'No']);
+    btns(m.root)[0]!.click();
+    expect(m.acts).toEqual([{ type: 'answer', promptId: 'p1', value: true }]);
+  });
+
   test('look text includes the top object and a count of the rest', async () => {
     const m = mk();
     ui = m.ui;

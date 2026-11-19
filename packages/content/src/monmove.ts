@@ -1,5 +1,6 @@
 // Monster movement and turn logic: mcalcmove, disturb, mfndpos, m_move and dochug.
 import { questMonDef } from './questmon';
+import { questStatCheck, questTalk, questTalkWaiting } from './quest';
 import { apAsThing } from './mimicstate';
 import { isWiz } from './wizstate';
 import {
@@ -1325,7 +1326,12 @@ export function dochug(
     (mCanSeeU(ctx, meW) || (meW.c.hp !== undefined && meW.c.hp.cur < meW.c.hp.max))
   )
     clearStrat(ctx, id, 'waitForU');
-  if (isFrozen(ctx, id) || stratWaiting(ctx, id)) return;
+  // ref: dochug(): "update quest status flags"
+  questStatCheck(ctx, id);
+  if (isFrozen(ctx, id) || stratWaiting(ctx, id)) {
+    questTalkWaiting(ctx, id); // "give the leaders a chance to speak"
+    return;
+  }
   if (m.asleep && !disturb(ctx, id)) return;
   // ref: dochug(): "not frozen or sleeping: wipe out texts written in the dust"
   wipeEngrAt(ctx, getLevel(ctx.state, pos.level), pos.x, pos.y, 1, false);
@@ -1566,6 +1572,13 @@ export function dochug(
   }
   // ref: dochug(): `if (mtmp->wormno) wormhitu(mtmp)`
   if (hostile && wormRec(ctx.state, id)) wormhitu(ctx, id, ap);
+  // ref: dochug(): "special speeches for quest monsters" (`!helpless(mtmp) && nearby`)
+  const meQ = ctx.state.entities[String(id)];
+  const onHerLevel = (): boolean => meQ?.c.pos?.level === getPlayer(ctx.state).c.pos?.level;
+  if (nearby && meQ?.c.monster && !meQ.c.monster.asleep && !isFrozen(ctx, id) && onHerLevel()) {
+    questTalk(ctx, id);
+    if (!onHerLevel()) return; // she was sent home
+  }
   maybeCuss(ctx, id, inrange, heroPos);
 }
 

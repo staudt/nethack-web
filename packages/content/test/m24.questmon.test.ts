@@ -347,7 +347,7 @@ describe('pets and the quest', () => {
 });
 
 describe('chatting', () => {
-  test("her leader says nothing yet (the quest's talk); another role's guardian is a human", () => {
+  test("her leader talks the quest's talk (m24 step 5); another role's guardian is a human", () => {
     const s = game('valkyrie');
     const norn = make(s, 'nh:norn');
     const student = make(s, 'nh:student');
@@ -355,7 +355,8 @@ describe('chatting', () => {
     const said = run(s, (ctx) => {
       r = domonnoise(ctx, norn.id);
     });
-    expect([r, said]).toEqual([0, []]);
+    // leader_first (its window and the synopsis in the log); off Home 1 no verdict follows
+    expect([r, said]).toEqual([12, ['[We need your aid.  Are you ready?]']]);
     const lines = run(s, (ctx) => {
       domonnoise(ctx, student.id);
     });

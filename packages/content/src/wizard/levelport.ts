@@ -2,6 +2,7 @@ import { getLevel, type ActionDef, type Ctx, type DefId, type Json, type LevelRe
 import { prinv } from '../itemactions';
 import { addToInventory, mksobj } from '../items';
 import { inEndgame } from '../levelflags';
+import { questDescentBlocked } from '../questgate';
 import { AMULET_OF_YENDOR, uHave } from '../uhave';
 
 export const WIZ_LEVELPORT = 'wiz:levelport';
@@ -118,6 +119,8 @@ export const wizLevelport: ActionDef = {
     if (here.dungeon === data.dungeon && here.dlevel === value) return 0;
     const to = { dungeon: data.dungeon, dlevel: value };
     endgamePrerequisite(ctx, to);
+    // goto_level()'s quest gate holds in wizard mode too
+    if (questDescentBlocked(ctx, to)) return 0;
     ctx.goToLevel(to, 'random');
     // flags.verbose: schedule_goto()'s post message
     ctx.emit({ type: 'msg', key: 'wiz.levelport.arrive' });

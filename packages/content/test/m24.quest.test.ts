@@ -308,9 +308,10 @@ describe("the Quest's rules", () => {
     const state = fresh(8);
     heal(state);
     goTo(state, QUEST, 2);
+    // (from Home 1 the leader's gate would hold her: m24 step 5)
     for (const [want, dlevel] of [
-      ['1', 1],
       ['3', 3],
+      ['1', 1],
     ] as const) {
       setIntrinsic(getPlayer(state), P.TELEPORT_CONTROL, true);
       run(state, (ctx) => levelTele(ctx));
