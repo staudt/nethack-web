@@ -7,6 +7,7 @@
 // Not ported (see DEVIATIONS.md "Genocide"): quest monsters' feedback, the vampire-shifted hero's
 // revert, class names ("dogs") in class genocide (a symbol or a monster name only), livelog and
 // conduct, wizard mode's '*'.
+import { otherRolesQuestMon } from './questmon';
 import {
   getPlayer,
   sortedIds,
@@ -33,7 +34,7 @@ import { heroForm, heroFormId, rehumanize, upolyOf } from './upoly';
 import { heroFemale } from './gender';
 import { raceMonId } from './race';
 import { roleMonId, roleNameKey } from './roletab';
-import { urole } from './urole';
+import { roleIs, urole } from './urole';
 import {
   genocidedIds,
   genocidedLines,
@@ -402,7 +403,13 @@ function answerClass(ctx: Ctx, value: Json, data: GenoData): boolean {
       }
     } else if (isGenocided(ctx.state, m.id)) {
       if (!gameover) say(ctx, 'genocide.class.are_gone', { mon: name });
-    } else if (!gameover) {
+    } else if (
+      !gameover &&
+      // suppress feedback about quest beings except for those applicable to her own role (and the
+      // ninja, a nuisance, unless she is a Samurai)
+      !otherRolesQuestMon(ctx.state, m) &&
+      (m.id !== 'nh:ninja' || roleIs(ctx.state, 'samurai'))
+    ) {
       const uniq = m.genFlags.includes('uniq');
       const named = m.flags.includes('pname');
       say(

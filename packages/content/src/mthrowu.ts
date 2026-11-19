@@ -888,6 +888,23 @@ export const BREATH_RAY: Readonly<Partial<Record<AttackDef['ad'], Ray>>> = {
   disn: 'death', // a disintegration blast (ZT_BREATH(ZT_DEATH))
 };
 
+/** ref: src/mondata.c get_atkdam_type() rnd_breath_typ[] */
+const RND_BREATH_TYP: readonly AttackDef['ad'][] = [
+  'magm',
+  'fire',
+  'cold',
+  'slee',
+  'disn',
+  'elec',
+  'drst',
+  'acid',
+];
+
+/** AD_RBRE's random breath type, else the attack's own. ref: src/mondata.c get_atkdam_type() */
+export function getAtkdamType(ctx: Pick<Ctx, 'rng'>, ad: AttackDef['ad']): AttackDef['ad'] {
+  return ad === 'rbre' ? (RND_BREATH_TYP[ctx.rng.rn2(RND_BREATH_TYP.length)] ?? ad) : ad;
+}
+
 const sgn = (n: number): -1 | 0 | 1 => (n > 0 ? 1 : n < 0 ? -1 : 0);
 
 /** The direction from (0, 0) toward (tbx, tby), which linedUp() has made a straight line. */
@@ -924,9 +941,9 @@ function linedTarget(
  * attack's dice (dobuzz() with BZ_M_BREATH). Afterwards the breath is used up for 8..25 turns
  * (always against a monster, 1 time in 3 against the hero), and a sleep breath that will put
  * the hero to sleep waits rnd(20) more. Returns true when the attack counts as a hit.
- * ref: src/mthrowu.c breamm(), breamu(). Not ported: AD_RBRE's random type (no chromatic dragon
- * yet), the monster's memory of her resistances and reflection (m_seenres()),
- * a pet's hunger.
+ * AD_RBRE (the Chromatic Dragon) picks its type first (get_atkdam_type()).
+ * ref: src/mthrowu.c breamm(), breamu(). Not ported: the monster's memory of her resistances and
+ * reflection (m_seenres()), a pet's hunger.
  */
 export function breamm(
   ctx: Ctx,
@@ -939,6 +956,7 @@ export function breamm(
   const mon = ctx.state.entities[String(monId)];
   const mpos = mon?.c.pos;
   if (!mon || !mpos) return false;
+  const typ = getAtkdamType(ctx, atk.ad);
   const utarget = targetId === ctx.state.playerId;
   const tpos = linedTarget(ctx, mon, targetId, clear, aim);
   if (!tpos) return true;
@@ -949,7 +967,7 @@ export function breamm(
     return false;
   }
   if (mspecUsed(ctx, monId) || !ctx.rng.rn2(3)) return false;
-  const ray = BREATH_RAY[atk.ad];
+  const ray = BREATH_RAY[typ];
   if (!ray) return true; // impossible("Breath weapon %d used")
   if (heroSees(ctx, mpos))
     say(ctx, 'mthrow.breathes', { mon: monNam(ctx, mon), breath: { key: `mthrow.breath.${ray}` } });

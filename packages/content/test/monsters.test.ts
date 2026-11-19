@@ -80,6 +80,8 @@ describe('vanilla monsters', () => {
       'deth',
       'pest',
       'famn',
+      // m24 step 1 (the Chromatic Dragon's random breath: get_atkdam_type())
+      'rbre',
     ];
     // spell attacks (AT_MAGC) cast mage (AD_SPEL) or clerical (AD_CLRC) spells (mcastu.ts), or
     // fire, frost and missiles (castmu()'s switch; m17 step 4: Asmodeus's cold)

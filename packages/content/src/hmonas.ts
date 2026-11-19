@@ -160,7 +160,7 @@ function killedByHeroQuietly(ctx: Ctx, mdef: Entity): void {
   monsterDied(ctx, mdef.id, true);
   // life-saved: no experience
   if (!ctx.state.entities[String(mdef.id)]?.c.monster)
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /**

@@ -9,6 +9,7 @@
 // Not ported (see DEVIATIONS.md "Teleportation"): the teleport regions of special levels
 // (`dndest`/`updest`, tele_jump_ok()) but the Wizard's Tower's boundary, the Wizard's stairs,
 // Passes_walls.
+import { questMonDef } from './questmon';
 import {
   cellIndex,
   cellRules,
@@ -127,7 +128,11 @@ export function noteleportLevel(
   // (the hero's form for the hero: `noteleport_level(&youmonst)`)
   const e = ctx.state.entities[String(who)];
   const form =
-    who === ctx.state.playerId ? heroForm(ctx) : e?.c.monster ? ctx.defs.monster(e.def) : null;
+    who === ctx.state.playerId
+      ? heroForm(ctx)
+      : e?.c.monster
+        ? questMonDef(ctx.state, ctx.defs.monster(e.def))
+        : null;
   const covetous = form !== null && isCovetous(form);
   if (levelFlags(ctx, level).noteleport === true && !covetous) return true;
   // wand of stasis prevents teleportation while the effect is active (even for covetous monsters)

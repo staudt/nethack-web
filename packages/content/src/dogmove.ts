@@ -2,6 +2,7 @@
 // ref: src/dogmove.c dog_move(), dog_goal(), dog_invent(), dog_eat(), dog_nutrition(),
 // dog_hunger(), dog_starve(), can_reach_location(), could_reach_item(); src/mhitm.c
 // max_passive_dmg()
+import { monSound } from './questmon';
 import { isLava, isPool } from './liquid';
 import { isSwimmer, likesLava } from './mondata';
 import { resistsSton, touchPetrifies } from './stonestate';
@@ -15,6 +16,7 @@ import {
   itemsAt,
   trapAt,
   type Ctx,
+  type DefId,
   type Entity,
   type EntityId,
   type Level,
@@ -73,6 +75,12 @@ import { stopOccupation } from './eat';
 const DOG_WEAK = 500;
 const DOG_STARVE = 750;
 const SQSRCHRADIUS = 5;
+
+/** A quest leader or guardian (C's `msound == MS_LEADER || MS_GUARDIAN` after role_init()). */
+const questFriend = (ctx: Ctx, def: DefId): boolean => {
+  const s = monSound(ctx, ctx.defs.monster(def));
+  return s === 'leader' || s === 'guardian';
+};
 
 export type DogMoveStatus = 'moved' | 'nothing' | 'done' | 'died';
 
@@ -566,14 +574,15 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         const mtmp2 = ctx.state.entities[String(c.mon)];
         const m2 = mtmp2?.c.monster;
         if (!mtmp2 || !m2) continue;
-        // the pet's audacity: it balks at foes its level or more above its health allows
+        // the pet's audacity: it balks at foes its level or more above its health allows; a
+        // peaceful quest leader or guardian is never attacked
         const balk = (mon.c.monster.level ?? 0) + Math.trunc((5 * mhp.cur) / mhp.max) - 2;
         const conflict = conflictOn(ctx.state);
         if (
           m2.level >= balk ||
           ((m2.tame ?? 0) > 0 && !conflict) ||
           maxPassiveDmg(ctx, mtmp2, mon) >= mhp.cur ||
-          (mhp.cur * 4 < mhp.max && m2.peaceful && !conflict)
+          ((mhp.cur * 4 < mhp.max || questFriend(ctx, mtmp2.def)) && m2.peaceful && !conflict)
         )
           continue;
         // a floating eye the pet would see (and that sees it) is avoided unless it reflects

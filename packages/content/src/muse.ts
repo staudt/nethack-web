@@ -1777,7 +1777,7 @@ function xkilledNoMsg(ctx: Ctx, mon: Entity): void {
   const level = mon.c.monster?.level ?? 0;
   monsterDied(ctx, mon.id, true);
   if (ctx.state.entities[String(mon.id)]?.c.monster) return; // life-saved
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /** ref: include/mondata.h acidic(): M1_ACID */

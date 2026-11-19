@@ -152,7 +152,7 @@ export function killedByHero(ctx: Ctx, mon: Entity, nocorpse = false): void {
   monsterDied(ctx, mon.id, true, false, nocorpse);
   // life-saved: no experience
   if (!ctx.state.entities[String(mon.id)]?.c.monster)
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /**
@@ -886,7 +886,7 @@ function disintegrateMon(ctx: Ctx, mon: Entity, byHero: boolean, fltxt: Msg): vo
     const def = ctx.defs.monster(mon.def);
     monsterDied(ctx, mon.id, true, false, true);
     if (!ctx.state.entities[String(mon.id)]?.c.monster)
-      gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+      gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
   }
 }
 

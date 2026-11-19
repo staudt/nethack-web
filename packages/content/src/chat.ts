@@ -56,6 +56,7 @@ import { priceQuote, shkChat, shopObject } from './shk';
 import { T } from './terrain';
 import { isMtrapped } from './trapstate';
 import { roleIs } from './urole';
+import { monSound } from './questmon';
 
 export const CHAT_ID = 'nh:chat';
 
@@ -116,7 +117,9 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
   const m = mon?.c.monster;
   if (!mon || !m) return 0;
   const def = ctx.defs.monster(mon.def);
-  let msound = def.sound ?? 'silent';
+  // the row as role_init() left it; her leader, even polymorphed, speaks as the leader while he
+  // can talk, and another role's guardian as the player monster it stands for (questmon.ts)
+  let msound = monSound(ctx, def, id);
   if (msound === 'silent') return 0;
   const halluc = heroHas(ctx.state, P.HALLUC);
   const tame = m.tame ?? 0;
@@ -327,6 +330,12 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
       say(ctx, line);
       return NORMAL_SPEED;
     }
+    case 'leader':
+    case 'nemesis':
+    case 'guardian':
+      // quest_chat(): the leader's, the nemesis's and the guardians' talk is the quest's own
+      // (quest.c, m24 step 5); until then they say nothing
+      return 0;
     case 'guard': // vault guard
       say(ctx, moneyCnt(ctx, ctx.state.playerId) ? 'vault.please_drop' : 'vault.please_follow');
       return NORMAL_SPEED;

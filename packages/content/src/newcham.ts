@@ -14,6 +14,8 @@
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
 // after a change during the monsters' move (newcham() is not told it is the monsters' move).
+import { questRole } from './questmon';
+import { questStatus } from './queststate';
 import { levelDifficulty } from './levdiff';
 import { monHasSpecial } from './uhave';
 import { mApType, seemimic } from './mimicstate';
@@ -48,7 +50,7 @@ import {
 } from './chamstate';
 import { isPoolOrLava } from './liquid';
 import { isGenocided, MAXMONNO, mbirthLimit } from './vanquished';
-import { humanoid, isMplayer, isRider, MPLAYERS, upperSym } from './mondata';
+import { humanoid, isMplayer, isRider, isSpecialPm, MPLAYERS, upperSym } from './mondata';
 import { isRogueLevel } from './levelflags';
 import { pickNasty } from './nasty';
 import { protFromShapeChangers } from './props';
@@ -86,9 +88,12 @@ export const isPlaceholder = (def: MonsterDef): boolean => PLACEHOLDERS.includes
 /** ref: include/mondata.h polyok(): not M2_NOPOLY */
 export const polyok = (def: MonsterDef): boolean => !def.flags.includes('nopoly');
 
-/** ref: src/mon.c isspecmon(): shopkeepers, temple priests, vault guards (no quest leaders) */
+/** ref: src/mon.c isspecmon(): shopkeepers, temple priests, vault guards, her quest leader */
 const isspecmon = (ctx: Ctx, mon: Entity): boolean =>
-  eshkOf(ctx, mon.id) !== null || epriOf(ctx, mon.id) !== null || isGuard(ctx.state, mon.id);
+  eshkOf(ctx, mon.id) !== null ||
+  epriOf(ctx, mon.id) !== null ||
+  isGuard(ctx.state, mon.id) ||
+  mon.id === questStatus(ctx.state).leaderId;
 
 /**
  * The form `mndx` if the monster may take it: not genocided, not a placeholder, a player monster
@@ -173,7 +178,7 @@ function onRogueLevel(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
  * monsters, none here), in the port's table order.
  */
 function ordinaryMonsters(ctx: Pick<Ctx, 'defs'>): readonly MonsterDef[] {
-  return ctx.defs.monsters.filter((m) => !isMplayer(m));
+  return ctx.defs.monsters.filter((m) => !isSpecialPm(m));
 }
 
 /** The kind `id`, or null (NON_PM) when the port has no such row. */
@@ -205,8 +210,23 @@ export function ttDoppel(ctx: Ctx): MonsterDef | null {
   return id === undefined ? null : pmOrNull(ctx, id);
 }
 
-/** ref: include/monsters.h the quest guardians PM_STUDENT..PM_APPRENTICE (no rows here) */
-const QUEST_GUARDIANS = 14;
+/** ref: include/monsters.h PM_STUDENT..PM_APPRENTICE, the quest guardians with the ninja */
+const QUEST_GUARDIANS: readonly DefId[] = [
+  'nh:student',
+  'nh:chieftain',
+  'nh:neanderthal',
+  'nh:attendant',
+  'nh:page',
+  'nh:abbot',
+  'nh:acolyte',
+  'nh:hunter',
+  'nh:thug',
+  'nh:ninja',
+  'nh:roshi',
+  'nh:guide',
+  'nh:warrior',
+  'nh:apprentice',
+];
 
 /** Dragon scales and scale mail by the dragon they come from: `nh:<color>_dragon`. */
 function dragonArmorToPm(ctx: Pick<Ctx, 'defs'>, armor: Entity | null): MonsterDef | null {
@@ -246,8 +266,14 @@ export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
         // role monsters
         mndx = ttDoppel(ctx) ?? undefined;
       } else if (!ctx.rng.rn2(3)) {
-        // quest guardians: rn1(PM_APPRENTICE - PM_STUDENT + 1, PM_STUDENT); none have rows
-        ctx.rng.rn2(QUEST_GUARDIANS);
+        // quest guardians: rn1(PM_APPRENTICE - PM_STUDENT + 1, PM_STUDENT), avoiding her own
+        // role's guardian (then a random form); the M2_NOPOLY rows are refused by
+        // accept_newcham_form() and newcham() tries again, as in C
+        const g = QUEST_GUARDIANS[ctx.rng.rn2(QUEST_GUARDIANS.length)];
+        mndx =
+          g === undefined || g === questRole(ctx.state).guardian
+            ? undefined
+            : (pmOrNull(ctx, g) ?? undefined);
       } else {
         // general humanoids
         const all = ordinaryMonsters(ctx);

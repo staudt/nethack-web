@@ -273,7 +273,7 @@ function killMon(ctx: Ctx, run: Run, m: Entity, nocorpse: boolean, givemsg: bool
     say(ctx, nonliving(def) ? 'combat.you_destroy' : 'combat.you_kill', { mon: monNam(ctx, m) });
   monsterDied(ctx, m.id, true, false, nocorpse);
   if (!ctx.state.entities[String(m.id)]?.c.monster)
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl, ctx.state));
 }
 
 const alive = (ctx: Ctx, m: Entity): boolean =>

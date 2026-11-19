@@ -11,8 +11,12 @@
 // Not ported: genders, shop billing for a fractured statue (fracture_rock()'s breakobj()), saved
 // monster traits (`omonst`: a stoned monster's statue comes to life as a new monster of its kind),
 // named statues, mimics and hiders,
-// doppelgangers (a unique monster's statue does not come to life: cant_revive() would make a
-// doppelganger, which the roster lacks), quest guardians, the hero hiding under objects.
+// doppelgangers for unique monsters (a unique monster's statue does not come to life: cant_revive()
+// would make a doppelganger), the hero hiding under objects. Another role's quest guardian comes
+// to life as a doppelganger in its shape.
+import { isQuestGuardian } from './questmon';
+import { newcham } from './newcham';
+import { chamOf, DOPPELGANGER } from './chamstate';
 import {
   contents,
   getPlayer,
@@ -205,15 +209,25 @@ export function animateStatue(
   const levelId = statue.c.pos?.level ?? hero.c.pos?.level ?? ctx.state.currentLevel;
   const hp = hero.c.pos;
   const uAt = !!hp && hp.level === levelId && hp.x === x && hp.y === y;
-  // NO_MINVENT | MM_NOMSG (| MM_ADJACENTOK for the spell; makemon() moves it off her square)
+  // NO_MINVENT | MM_NOMSG (| MM_ADJACENTOK for the spell; makemon() moves it off her square);
+  // block quest guards from other roles: a doppelganger (MM_NOCOUNTBIRTH | MM_ADJACENTOK) that
+  // takes the statue's form unless she is protected from shape changers
+  const blocked = mptr.sound === 'guardian' && !isQuestGuardian(ctx.state, mptr.id);
   const id = makemon(
     ctx,
-    mptr,
+    blocked ? ctx.defs.monster(DOPPELGANGER) : mptr,
     { x, y },
-    { level: levelId, noInventory: true, nogroup: true, adjacentOk: cause === 'spell' || uAt },
+    {
+      level: levelId,
+      noInventory: true,
+      nogroup: true,
+      adjacentOk: blocked || cause === 'spell' || uAt,
+      ...(blocked ? { noCountBirth: true } : {}),
+    },
   );
   const mon = id === null ? undefined : ctx.state.entities[String(id)];
   if (!mon?.c.monster) return { mon: null, fail: 'nomon' };
+  if (blocked && chamOf(ctx, mon.id) !== null) newcham(ctx, mon, mptr);
 
   mon.c.monster.asleep = false; // msleeping = 0
   if (cause === 'normal' || cause === 'shatter') {

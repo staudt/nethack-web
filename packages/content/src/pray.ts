@@ -451,7 +451,7 @@ function godZapsYou(ctx: Ctx, align: number): void {
       monsterDied(ctx, mon.id, true); // (inside it: no corpse either way)
       // life-saved: no experience
       if (!ctx.state.entities[String(mon.id)]?.c.monster)
-        gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
+        gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl, ctx.state));
     } else say(ctx, 'pray.mon_unaffected', { mon: monNam(ctx, mon) });
   };
   const e1 = engulfer();

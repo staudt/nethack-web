@@ -1,6 +1,7 @@
 // Wishing: making the wished-for object and handing it to the hero.
 // ref: src/zap.c makewish(), src/objnam.c readobjnam() (the creation half), src/invent.c
 // hold_another_object(). The parse is objnam_read.ts readobjnam().
+import { GUARDIAN_GENUS } from './questtab';
 import { AMULET_OF_YENDOR, BELL_OF_OPENING, uHave } from './uhave';
 import { EGG, canBeHatched, deadSpecies, setEggCorpsenm } from './eggstate';
 import { POT_OIL, setDiluted } from './dilute';
@@ -227,8 +228,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
       )
         it.corpseOf = mon.id;
     } else if (def.id === 'nh:corpse') {
+      // a quest guardian's corpse is its role's player monster's (genus(mntmp, 1))
       if ((!mon.genFlags.includes('uniq') || wizard) && !mon.genFlags.includes('nocorpse'))
-        it.corpseOf = mon.id;
+        it.corpseOf = (mon.sound === 'guardian' ? GUARDIAN_GENUS[mon.id] : undefined) ?? mon.id;
     } else if (def.id === EGG) {
       // ref: readobjnam() EGG: can_be_hatched(); set_corpsenm() also sets the hatch timer
       setEggCorpsenm(ctx, id, canBeHatched(ctx, mon.id));

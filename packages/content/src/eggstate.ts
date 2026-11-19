@@ -98,14 +98,8 @@ export const GROWNUPS: readonly (readonly [string, string])[] = [
   ['kop_lieutenant', 'kop_kaptain'],
 ];
 
-/** The grownups[] names that have no monster row yet (quest monsters). */
-export const GROWNUP_ABSENT: readonly string[] = [
-  'acolyte',
-  'apprentice',
-  'attendant',
-  'page',
-  'student',
-];
+/** The grownups[] names that have no monster row (none since the quest guardians, m24). */
+export const GROWNUP_ABSENT: readonly string[] = [];
 
 /** ref: src/mondata.c little_to_big(): one step up the table (the first pair that matches) */
 export function littleToBig(defs: Pick<Registry, 'isMonster'>, mon: DefId): DefId {

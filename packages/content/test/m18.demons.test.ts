@@ -179,6 +179,8 @@ describe('the rows', () => {
       'nh:pestilence',
       'nh:famine',
       'nh:djinni', // m19 step 3 (the mail daemon is not ported)
+      'nh:minion_of_huhetotl', // m24 step 1: the quest nemeses, past SPECIAL_PM
+      'nh:nalzok',
     ]);
     for (const id of NEW_ROWS.slice(0, 10)) expect(isNdemon(defs.monster(id as DefId))).toBe(true);
     expect(isDlord(defs.monster('nh:yeenoghu' as DefId))).toBe(true);

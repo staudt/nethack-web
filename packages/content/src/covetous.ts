@@ -13,6 +13,7 @@
 // Not ported (see DEVIATIONS.md "Monster AI"): mavenge, and deal_with_overcrowding()'s limbo: a
 // monster with no room next to her stays where it is, and a monster pushed off the goal with no
 // room around it is teleported at random.
+import { questMonDef } from './questmon';
 import {
   getPlayer,
   inventoryOf,
@@ -123,7 +124,7 @@ function otherMonHasArti(ctx: Pick<Ctx, 'state'>, mon: Entity, want: Wanted): En
  * to its spot (to 0,0 for STRAT_NONE). ref: src/wizard.c target_on()
  */
 function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
-  if (!wants(ctx.defs.monster(mon.def), flag)) return null;
+  if (!wants(questMonDef(ctx.state, ctx.defs.monster(mon.def)), flag)) return null;
   const want = whichArti(ctx, flag);
   const s = { ...mstratOf(ctx, mon.id) };
   delete s.goal;
@@ -157,7 +158,7 @@ function targetOn(ctx: Ctx, mon: Entity, flag: string): MStrat | null {
  * ref: src/wizard.c strategy()
  */
 function strategy(ctx: Ctx, mon: Entity): MStrat | 'none' {
-  const def = ctx.defs.monster(mon.def);
+  const def = questMonDef(ctx.state, ctx.defs.monster(mon.def)); // as role_init() left it
   if (!isCovetous(def)) return 'none';
   // perhaps a shopkeeper has been polymorphed into a master lich; we don't want it teleporting
   // to the stairs to heal because that will leave its shop untended; likewise for temple priests

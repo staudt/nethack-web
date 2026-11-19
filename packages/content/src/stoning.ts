@@ -100,7 +100,7 @@ export function xkilledStoned(ctx: Ctx, mon: Entity): void {
   const statue = monsterDied(ctx, mon.id, true, true);
   if (ctx.state.entities[String(mon.id)]?.c.monster) return; // life-saved
   jumpOut(ctx, wasinside, def.id, statue);
-  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /**

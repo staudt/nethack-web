@@ -61,7 +61,8 @@ function heroKilled(ctx: Ctx, mon: Entity, nocorpse: boolean): void {
   const def = ctx.defs.monster(mon.def);
   const level = mon.c.monster?.level ?? 0;
   monsterDied(ctx, mon.id, true, false, nocorpse);
-  if (!alive(ctx, mon)) gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+  if (!alive(ctx, mon))
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /** Can teleport at will and is not stopped by the level: `can_teleport() && !tele_restrict()` */

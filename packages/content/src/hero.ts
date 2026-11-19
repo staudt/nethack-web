@@ -1,5 +1,6 @@
 // Hero stats by role and race (roletab.ts, racetab.ts): initial attributes/HP/Pw/kit, HP and Pw
 // regeneration and experience. A new game is still the human female neutral Valkyrie (urole.ts).
+import { questMonDef } from './questmon';
 import type {
   AttributesComponent,
   Ctx,
@@ -228,7 +229,13 @@ const DEADLY_AD = new Set(['drli', 'ston', 'slim']);
  * daemon override, and the revived/cloned kill-count reduction. find_mac() uses the base AC
  * (monsters wear no armor in M2); "extra nasty" is the `nasty` flag (M2_NASTY).
  */
-export function experienceFor(def: MonsterDef, monLevel: number): number {
+export function experienceFor(
+  mdef: MonsterDef,
+  monLevel: number,
+  state?: Readonly<GameState>,
+): number {
+  // the row as role_init() left it (her nemesis is nasty)
+  const def = state ? questMonDef(state, mdef) : mdef;
   let tmp = 1 + monLevel * monLevel;
   const ac = def.ac;
   if (ac < 3) tmp += (7 - ac) * (ac < 0 ? 2 : 1);

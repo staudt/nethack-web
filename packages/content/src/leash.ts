@@ -240,7 +240,7 @@ export function checkLeash(ctx: Ctx, x: number, y: number): void {
         const lvl = mtmp.c.monster.level ?? 0;
         monsterDied(ctx, mtmp.id, true);
         if (!ctx.state.entities[String(mtmp.id)]?.c.monster)
-          gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl));
+          gainExperience(ctx, ctx.state.playerId, experienceFor(def, lvl, ctx.state));
         if (ctx.state.gameOver) return;
       } else {
         say(ctx, 'leash.choked', { mon: monNam(ctx, mtmp) });

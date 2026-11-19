@@ -1,4 +1,5 @@
 // Monster movement and turn logic: mcalcmove, disturb, mfndpos, m_move and dochug.
+import { questMonDef } from './questmon';
 import { apAsThing } from './mimicstate';
 import { isWiz } from './wizstate';
 import {
@@ -897,7 +898,7 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
 
   // ref: m_move(): "and the acquisitive monsters get special treatment": a covetous monster
   // attacks a monster standing on (or holding) what it is after, when next to it
-  if (isCovetous(def)) {
+  if (isCovetous(questMonDef(ctx.state, def))) {
     const g = mstratOf(ctx, id).goal;
     const intruder = g ? (mAt(ctx.state, level.id, g.x, g.y)?.id ?? null) : null;
     if (g && intruder !== null && intruder !== id && dist2(pos.x, pos.y, g.x, g.y) <= 2) {
@@ -1365,7 +1366,7 @@ export function dochug(
   let ap = self ? setApparxy(ctx, self) : { x: heroPos.x, y: heroPos.y };
   // ref: dochug(): "Monsters that want to acquire things may teleport, so do it before inrange
   // is set." (tactics(); its move goes on unless it left the level)
-  if (self && isCovetous(def)) {
+  if (self && isCovetous(questMonDef(ctx.state, def))) {
     tactics(ctx, id);
     const me = ctx.state.entities[String(id)];
     if (!me?.c.monster || !me.c.pos || me.c.pos.level !== pos.level) return;

@@ -47,6 +47,8 @@ import { onameItem } from './artistate';
 import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
 import { color } from './hcolor';
 import { mspeed } from './mstate';
+import { questMonDef } from './questmon';
+import { roleIs, type RoleKey } from './urole';
 import { rndDefensiveItem, rndMiscItem, rndOffensiveItem, searchesForItem } from './musestate';
 
 /** What these functions need: a Ctx without the hero-facing parts. */
@@ -315,8 +317,9 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId, opts: { inMklev?: boole
       if (!rng.rn2(50)) mongets(ctx, monId, 'nh:crystal_ball'); // (no crystal ball yet)
     }
   } else if (ch === '@') {
-    // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST`: a mace, +1..+3, cursed half the time
-    if (def.id === ALIGNED_CLERIC) {
+    // ref: m_initweap() S_HUMAN `ptr->msound == MS_PRIEST ||
+    // quest_mon_represents_role(ptr, PM_CLERIC)`: a mace, +1..+3, cursed half the time
+    if (def.id === ALIGNED_CLERIC || questMonRepresentsRole(ctx, def, 'priest')) {
       const mace = objDef(ctx, 'nh:mace');
       if (mace) {
         const id = mksobj(ctx, mace, { init: false, carriedBy: monId });
@@ -327,7 +330,11 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId, opts: { inMklev?: boole
         }
       }
     }
-    // (no other S_HUMAN monster in the roster is armed: they get nothing here)
+    // ref: m_initweap() S_HUMAN PM_NINJA ("extra quest villains") and MS_GUARDIAN
+    else if (def.id === NINJA) {
+      mongets(ctx, monId, rng.rn2(4) ? 'nh:shuriken' : 'nh:dart');
+      mongets(ctx, monId, rng.rn2(4) ? 'nh:short_sword' : 'nh:axe');
+    } else if (def.sound === 'guardian') guardianWeapons(ctx, monId, def.id);
   } else if (ch === 'H') {
     // ref: m_initweap() S_GIANT: "giants get a boulder to throw sometimes, ettins get clubs"
     // (giants do not throw boulders yet: ROADMAP "Giants and boulders")
@@ -570,6 +577,73 @@ function randomPolearm(ctx: GearCtx): string {
 const orElse = (ctx: GearCtx, otyp: string, fallback: string): string =>
   objDef(ctx, otyp) ? otyp : fallback;
 
+/** ref: include/monsters.h PM_NINJA */
+const NINJA = 'nh:ninja';
+
+/**
+ * A human quest leader or nemesis (after role_init()) while the hero is of `role`: C takes it for
+ * an archetype of that role (the Arch Priest, a monk's Grand Master; any other role's human
+ * leader or nemesis too, as C's macro reads). ref: src/makemon.c quest_mon_represents_role()
+ */
+function questMonRepresentsRole(ctx: GearCtx, def: MonsterDef, role: RoleKey): boolean {
+  if (def.glyph.ch !== '@' || !roleIs(ctx.state, role)) return false;
+  const s = questMonDef(ctx.state, def).sound;
+  return s === 'leader' || s === 'nemesis';
+}
+
+/**
+ * A quest guardian's gear by kind: the scholars a knife or dagger, a jacket or cloak, boots and a
+ * potion of healing, each by chance; the fighters a sword and armor, maybe boots, a cloak and a
+ * bow with arrows; the hunter a short sword or dagger, maybe leather armor, a bow and arrows; the
+ * thug a club, a dagger or knife, maybe gloves, a jacket or armor; the neanderthal a club and
+ * leather armor. ref: src/makemon.c m_initweap() S_HUMAN `ptr->msound == MS_GUARDIAN`
+ */
+function guardianWeapons(ctx: GearCtx, monId: EntityId, mm: DefId): void {
+  const rng = ctx.rng;
+  switch (mm) {
+    case 'nh:student':
+    case 'nh:attendant':
+    case 'nh:abbot':
+    case 'nh:acolyte':
+    case 'nh:guide':
+    case 'nh:apprentice':
+      if (rng.rn2(2)) mongets(ctx, monId, rng.rn2(3) ? 'nh:dagger' : 'nh:knife');
+      if (rng.rn2(5)) mongets(ctx, monId, rng.rn2(3) ? 'nh:leather_jacket' : 'nh:leather_cloak');
+      if (rng.rn2(3)) mongets(ctx, monId, rng.rn2(3) ? 'nh:low_boots' : 'nh:high_boots');
+      if (rng.rn2(3)) mongets(ctx, monId, 'nh:potion_of_healing');
+      break;
+    case 'nh:chieftain':
+    case 'nh:page':
+    case 'nh:roshi':
+    case 'nh:warrior':
+      mongets(ctx, monId, rng.rn2(3) ? 'nh:long_sword' : 'nh:short_sword');
+      mongets(ctx, monId, rng.rn2(3) ? 'nh:chain_mail' : 'nh:leather_armor');
+      if (rng.rn2(2)) mongets(ctx, monId, rng.rn2(2) ? 'nh:low_boots' : 'nh:high_boots');
+      if (!rng.rn2(3)) mongets(ctx, monId, 'nh:leather_cloak');
+      if (!rng.rn2(3)) {
+        mongets(ctx, monId, 'nh:bow');
+        mInitThrow(ctx, monId, 'nh:arrow', 12);
+      }
+      break;
+    case 'nh:hunter':
+      mongets(ctx, monId, rng.rn2(3) ? 'nh:short_sword' : 'nh:dagger');
+      if (rng.rn2(2)) mongets(ctx, monId, rng.rn2(2) ? 'nh:leather_jacket' : 'nh:leather_armor');
+      mongets(ctx, monId, 'nh:bow');
+      mInitThrow(ctx, monId, 'nh:arrow', 12);
+      break;
+    case 'nh:thug':
+      mongets(ctx, monId, 'nh:club');
+      mongets(ctx, monId, rng.rn2(3) ? 'nh:dagger' : 'nh:knife');
+      if (rng.rn2(2)) mongets(ctx, monId, 'nh:leather_gloves');
+      mongets(ctx, monId, rng.rn2(2) ? 'nh:leather_jacket' : 'nh:leather_armor');
+      break;
+    case 'nh:neanderthal':
+      mongets(ctx, monId, 'nh:club');
+      mongets(ctx, monId, 'nh:leather_armor');
+      break;
+  }
+}
+
 /**
  * A mercenary's weapons. ref: src/makemon.c m_initweap() S_HUMAN `is_mercenary(ptr)`, for the
  * Watch and the soldiers and their officers. A table without the polearms, the flail, the
@@ -698,8 +772,8 @@ export function mInitInv(
     if (r <= 1) mongets(ctx, monId, 'nh:potion_of_extra_healing');
     if (r <= 2) mongets(ctx, monId, 'nh:potion_of_healing');
     mongets(ctx, monId, 'nh:wand_of_striking');
-  } else if (def.id === ALIGNED_CLERIC) {
-    // ref: m_initinv() S_HUMAN MS_PRIEST: a robe, or 1 time in 7 a cloak of protection (2 in 3)
+  } else if (def.id === ALIGNED_CLERIC || questMonRepresentsRole(ctx, def, 'priest')) {
+    // ref: m_initinv() S_HUMAN `MS_PRIEST || quest_mon_represents_role(ptr, PM_CLERIC)`: a robe, or 1 time in 7 a cloak of protection (2 in 3)
     // or of magic resistance (a table without them gives the robe), a small shield and
     // rn1(10, 20) gold
     const cloak = rng.rn2(7)
@@ -710,6 +784,10 @@ export function mInitInv(
     mongets(ctx, monId, orElse(ctx, cloak, 'nh:robe'));
     mongets(ctx, monId, 'nh:small_shield');
     mkmonmoney(ctx, monId, rng.rn2(10) + 20);
+  } else if (questMonRepresentsRole(ctx, def, 'monk')) {
+    // ref: m_initinv() S_HUMAN quest_mon_represents_role(ptr, PM_MONK): a robe, 1 time in 11 a
+    // cloak of magic resistance
+    mongets(ctx, monId, rng.rn2(11) ? 'nh:robe' : 'nh:cloak_of_magic_resistance');
   }
   // ref: m_initinv() S_LICH: a master lich 1 time in 13 an athame (or 1 time in 7 a wand of
   // nothing, which this port lacks: only its init rolls); an arch-lich 1 time in 3 an athame (2

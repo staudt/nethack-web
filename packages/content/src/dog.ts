@@ -4,6 +4,8 @@
 //
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
+import { questMonDef } from './questmon';
+import { questStatus } from './queststate';
 import { levelDifficulty } from './levdiff';
 import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
@@ -568,7 +570,7 @@ export function tamedog(
   const mon = ctx.state.entities[String(id)];
   const m = mon?.c.monster;
   if (!mon || !m) return false;
-  const def = ctx.defs.monster(mon.def);
+  const def = questMonDef(ctx.state, ctx.defs.monster(mon.def)); // as role_init() left it
   // reduce timed sleep or paralysis; end indefinite sleep
   if (isFrozen(ctx, id)) paralyzeMonst(ctx, id, Math.trunc((frozenTime(ctx, id) + 1) / 2));
   m.asleep = false;
@@ -630,6 +632,8 @@ export function tamedog(
     (food && dogfood(ctx, mon, food) >= MANFOOD)
   )
     return false;
+  // her quest leader is never tamed
+  if (id === questStatus(ctx.state).leaderId) return false;
   initedog(ctx, id, !edogOf(ctx, id));
   if (food) eat(ctx, id, food, true); // thrown food is devoured
   if (givemsg && canSpotMon(ctx, mon))
@@ -652,7 +656,7 @@ function levlFollower(ctx: Ctx, mon: Entity): boolean {
   // some monsters will follow even while intending to flee from you
   if (isTame(mon) || isWiz(ctx, mon.id) || eshkOf(ctx, mon.id)?.following) return true; // is_fshk()
   // stalking types follow, but won't when fleeing unless you hold the Amulet
-  const def = ctx.defs.monster(mon.def);
+  const def = questMonDef(ctx.state, ctx.defs.monster(mon.def));
   return def.flags.includes('stalk') && (!isFleeing(ctx, mon.id) || uHave(ctx.state, 'amulet'));
 }
 

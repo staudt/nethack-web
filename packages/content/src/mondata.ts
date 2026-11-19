@@ -236,6 +236,21 @@ export const isRider = (def: { id: DefId } | string | undefined | null): boolean
 export const isMplayer = (def: { id: DefId }): boolean => MPLAYERS.includes(def.id);
 
 /**
+ * A row C keeps past SPECIAL_PM, which random picks (`rn1(SPECIAL_PM - LOW_PM, LOW_PM)`) never
+ * reach: the player monsters and the quest's leaders, nemeses and guardians (with the ninja).
+ * The rows' own sounds name the quest's (role_init() changes no guardian's and only gives
+ * another row's sound to a row that has one of them). ref: include/permonst.h SPECIAL_PM
+ */
+export const isSpecialPm = (def: MonsterDef): boolean => isMplayer(def) || isQuestPm(def);
+
+/** The quest's own rows (leaders, nemeses, guardians, the ninja): see isSpecialPm(). */
+export const isQuestPm = (def: MonsterDef): boolean =>
+  def.sound === 'leader' ||
+  def.sound === 'nemesis' ||
+  def.sound === 'guardian' ||
+  def.id === 'nh:ninja';
+
+/**
  * A monster drawn with an uppercase letter, as the Rogue level prefers them: C's
  * `isupper((int) monsym(ptr))`. ref: src/makemon.c rndmonst_adj()
  */

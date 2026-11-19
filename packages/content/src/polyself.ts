@@ -57,7 +57,7 @@ import { makeSick, newuhs } from './hunger';
 import { encumberMsg, prinv } from './itemactions';
 import { uState } from './luck';
 import { messagesEn } from './messages.en';
-import { isFlyer, nameToMon, nohands } from './mondata';
+import { isFlyer, isQuestPm, nameToMon, nohands } from './mondata';
 import { makeGlib } from './glib';
 import { isPlaceholder, newcham, polyok } from './newcham';
 import { discover, isKnown } from './o_init';
@@ -454,7 +454,9 @@ function answerForm(ctx: Ctx, value: Json, data: PolyData): void {
 function polyFinish(ctx: Ctx, picked: DefId | null, force: boolean, cap: boolean): void {
   let mntmp = picked;
   if (mntmp === null) {
-    const all = ctx.defs.monsters;
+    // rn1(SPECIAL_PM - LOW_PM, LOW_PM): the quest's rows lie past SPECIAL_PM (the player
+    // monsters stay in this pool here: polyok() refuses them)
+    const all = ctx.defs.monsters.filter((m) => !isQuestPm(m));
     for (let tryct = 200; tryct > 0; tryct--) {
       const m = all[ctx.rng.rn2(all.length)];
       if (!m) continue;

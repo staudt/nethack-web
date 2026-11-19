@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-206 NetHack files, 6026 citations.
+207 NetHack files, 6098 citations.
 
 ## dat/air.lua
 
@@ -574,6 +574,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monflag.h
 
+- (file): `packages/content/src/questmon.ts`
 - `M3_COVETOUS()`: `packages/content/src/mondata.ts`
 - `MZ_HUGE()`: `packages/content/src/engulf.ts`, `packages/content/src/mhurtle.ts`, `packages/content/src/mondata.ts`
 - `MZ_HUMAN()`: `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
@@ -596,7 +597,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monsters.h
 
-- (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/content/src/nasty.ts`, `packages/content/src/newcham.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/content/src/nasty.ts`, `packages/testkit/src/convert/emit.ts`
 - `MON()`: `packages/content/src/monsters.ts`
 - `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`, `packages/content/src/generation.ts`
 - `PM_CROESUS()`: `packages/content/src/gehennom.ts`
@@ -606,8 +607,10 @@ whole. A missing function may still be ported under a citation this parser canno
 - `PM_HIGH_CLERIC()`: `packages/content/src/priest.ts`
 - `PM_KNIGHT()`: `packages/content/src/medusa.ts`
 - `PM_MEDUSA()`: `packages/content/src/mhitm.ts`
+- `PM_NINJA()`: `packages/content/src/mongear.ts`
 - `PM_ORACLE()`: `packages/content/src/oracle.ts`
 - `PM_SHOPKEEPER()`: `packages/content/src/eshk.ts`
+- `PM_STUDENT()`: `packages/content/src/newcham.ts`
 - `PM_WIZARD_OF_YENDOR()`: `packages/content/src/wizstate.ts`
 
 ## include/obj.h
@@ -696,6 +699,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/core/src/types/mod.ts`
 - `NORMAL_SPEED()`: `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`
+- `SPECIAL_PM()`: `packages/content/src/mondata.ts`
 
 ## include/prop.h
 
@@ -703,6 +707,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - `LEFT_SIDE()`: `packages/content/src/legs.ts`
 - `W_ACCESSORY()`: `packages/content/src/props.ts`
 - `W_RINGL()`: `packages/core/src/types/entity.ts`
+
+## include/quest.h
+
+- (file): `packages/content/src/questmon.ts`, `packages/content/src/queststate.ts`
+- `MIN_QUEST_ALIGN()`: `packages/content/src/questtab.ts`
+- `MIN_QUEST_LEVEL()`: `packages/content/src/questtab.ts`
 
 ## include/rm.h
 
@@ -783,7 +793,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/uhave.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/luck.ts`, `packages/content/src/queststate.ts`, `packages/content/src/questtab.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/uhave.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `Race_if()`: `packages/content/src/urole.ts`
 - `Role_if()`: `packages/content/src/urole.ts`
@@ -1757,6 +1767,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peace_minded()`: `packages/content/src/generation.ts`
 - `pm_to_cham()`: `packages/content/src/chamstate.ts`
 - `propagate()`: `packages/content/src/vanquished.ts`
+- `quest_mon_represents_role()`: `packages/content/src/mongear.ts`
 - `rndmonst_adj()`: `packages/content/src/generation.ts`, `packages/content/src/mondata.ts`
 - `set_malign()`: `packages/content/src/luck.ts`
 - `set_mimic_sym()`: `packages/content/src/mimic.ts`
@@ -2059,6 +2070,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `decide_to_shapeshift()`: `packages/content/src/shapeshift.ts`
 - `egg_type_from_parent()`: `packages/content/src/eggstate.ts`
 - `find_pmmonst()`: `packages/content/src/beejelly.ts`
+- `genus()`: `packages/content/src/questtab.ts`
 - `golemeffects()`: `packages/content/src/golem.en.ts`, `packages/content/src/golemfx.ts`
 - `healmon()`: `packages/content/src/golemfx.ts`, `packages/content/src/mstate.ts`, `packages/content/src/uhitm_passive.ts`
 - `hide_monst()`: `packages/content/src/hide.ts`
@@ -2110,6 +2122,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `peacefuls_respond()`: `packages/content/src/peaceful.ts`, `packages/content/src/watch.en.ts`, `packages/content/src/watch.ts`
 - `pick_animal()`: `packages/content/src/newcham.ts`
 - `pickvampshape()`: `packages/content/src/newcham.ts`
+- `qst_guardians_respond()`: `packages/content/src/peaceful.ts`, `packages/content/src/role.en.ts`
 - `rescham()`: `packages/content/src/chamstate.ts`, `packages/content/src/shapeshift.ts`
 - `restartcham()`: `packages/content/src/chamstate.ts`, `packages/content/src/shapeshift.ts`
 - `restore_cham()`: `packages/content/src/chamstate.ts`, `packages/content/src/shapeshift.ts`
@@ -2141,6 +2154,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cvt_adtyp_to_mseenres()`: `packages/content/src/mthrowu.ts`
 - `defended()`: `packages/content/src/artidef.ts`
 - `gender()`: `packages/content/src/gender.ts`
+- `get_atkdam_type()`: `packages/content/src/mthrowu.ts`
 - `grownups()`: `packages/content/src/eggstate.ts`
 - `hates_silver()`: `packages/content/src/mondata.ts`
 - `levl_follower()`: `packages/content/src/dog.ts`
@@ -2168,6 +2182,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `resists_blnd_by_arti()`: `packages/content/src/adtyping.ts`
 - `resists_drli()`: `packages/content/src/exper.ts`, `packages/content/src/mresist.ts`
 - `resists_magm()`: `packages/content/src/buzz.ts`
+- `rnd_breath_typ()`: `packages/content/src/mthrowu.ts`
 - `same_race()`: `packages/content/src/race.ts`
 - `sliparm()`: `packages/content/src/mondata.ts`
 - `stagger()`: `packages/content/src/combat.ts`
@@ -2611,7 +2626,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_particular_creation()`: `packages/content/src/wizard/genesis.ts`
 - `create_particular_parse()`: `packages/content/src/wizard/genesis.ts`
 - `disintegrate_cursed_armor()`: `packages/content/src/seffect.ts`
-- `do_class_genocide()`: `packages/content/src/genocide.ts`
+- `do_class_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/questmon.ts`
 - `do_genocide()`: `packages/content/src/genocide.ts`, `packages/content/src/role.en.ts`, `packages/content/src/throne.ts`
 - `doread()`: `packages/content/src/read.ts`, `packages/content/src/shirt.en.ts`, `packages/content/src/shirt.ts`, `packages/content/src/spell.ts`
 - `drop_boulder_on_monster()`: `packages/content/src/magic.en.ts`, `packages/content/src/read.ts`
@@ -2705,9 +2720,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `promptsep()`: `packages/app/src/character.ts`
 - `races()`: `packages/content/src/polyself.ts`, `packages/content/src/racetab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/urole.ts`, `packages/core/src/types/mod.ts`
 - `rigid_role_checks()`: `packages/app/src/character.ts`
-- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/engine.ts`
+- `role_init()`: `packages/content/src/gods.ts`, `packages/content/src/kit.ts`, `packages/content/src/questmon.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/engine.ts`
 - `role_menu_extra()`: `packages/app/src/character.ts`
-- `roles()`: `packages/content/src/artilist.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
+- `roles()`: `packages/content/src/artilist.ts`, `packages/content/src/questtab.ts`, `packages/content/src/role.en.ts`, `packages/content/src/roles.ts`, `packages/content/src/roletab.ts`, `packages/content/src/spellcalc.ts`, `packages/core/src/types/mod.ts`
 - `root_plselection_prompt()`: `packages/app/src/character.ts`
 - `setup_algnmenu()`: `packages/app/src/character.ts`
 - `setup_gendmenu()`: `packages/app/src/character.ts`
@@ -2879,7 +2894,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/dog.en.ts`
 - `cry_sound()`: `packages/content/src/egg.ts`
 - `dochat()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`
-- `domonnoise()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`
+- `domonnoise()`: `packages/content/src/chat.en.ts`, `packages/content/src/chat.ts`, `packages/content/src/questmon.ts`
 - `dotalk()`: `packages/content/src/chat.ts`
 - `growl()`: `packages/content/src/dog.ts`
 - `growl_sound()`: `packages/content/src/dog.ts`, `packages/content/src/were.ts`

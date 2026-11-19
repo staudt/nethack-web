@@ -89,7 +89,7 @@ export function hmonThrownHit(
     monsterDied(ctx, monId, true);
     // life-saved: no experience
     if (!ctx.state.entities[String(monId)]?.c.monster)
-      gainExperience(ctx, heroEntity(ctx).id, experienceFor(mdef, m.level));
+      gainExperience(ctx, heroEntity(ctx).id, experienceFor(mdef, m.level, ctx.state));
   } else {
     // ref: src/uhitm.c hmon_hitmon_msg_hit(): "The dagger hits the newt" + exclam(dmg)
     if (!hittxt)

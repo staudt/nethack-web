@@ -43,7 +43,7 @@ function xkilledNoMsg(ctx: Ctx, mon: Entity): void {
   monsterDied(ctx, mon.id, true);
   // life-saved: no experience
   if (!ctx.state.entities[String(mon.id)]?.c.monster)
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 /** "The jackal dies!" when the counterattack kills it. ref: src/mhitu.c assess_dmg() */

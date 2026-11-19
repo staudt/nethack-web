@@ -45,7 +45,10 @@ import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
-import { CANDELABRUM, uHave } from './uhave';
+import { BELL_OF_OPENING, CANDELABRUM, uHave } from './uhave';
+import { isQuestLeader, isQuestNemesis, questGender, questMonDef } from './questmon';
+import { setQuest } from './queststate';
+import { monLearnsTraps } from './trapstate';
 import { protFromShapeChangers } from './props';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
@@ -282,11 +285,15 @@ export function newmonhp(
  * her alignment (`!u.ualign.abuse`). Then her race's love and hate (race_peaceful(),
  * race_hostile(): a dwarf's kin are dwarves and gnomes, a human hates gnomes and orcs). A
  * co-aligned minion is peaceful unless she has strayed at all; a chaotic (or unaligned) monster
- * is hostile to her while she carries the Amulet. Not ported: quest/guardian sounds.
+ * is hostile to her while she carries the Amulet. Quest leaders and guardians are peaceful,
+ * nemeses hostile; the row is read as role_init() left it (questmon.ts).
  */
-export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
+export function peaceMinded(ctx: Ctx, mdef: MonsterDef): boolean {
+  const def = questMonDef(ctx.state, mdef);
   if (def.flags.includes('peaceful')) return true;
   if (def.flags.includes('hostile')) return false;
+  if (def.sound === 'leader' || def.sound === 'guardian') return true;
+  if (def.sound === 'nemesis') return false;
   if (def.id === ERINYS) return uState(ctx.state).alignAbuse === 0;
   if (racePeaceful(ctx.state, def)) return true;
   if (raceHostile(ctx.state, def)) return false;
@@ -631,11 +638,21 @@ export function makemon(
   const mlev = adjLev(mdef, difficulty, ulevel);
   const hp = newmonhp(ctx, mlev, mdef.id, level);
   // ref: makemon(): `mtmp->female = femaleok ? rn2(2) : 0` for a kind that is neither male,
-  // female nor neuter; drawn for the amorous demon only (DEVIATIONS "Monster generation")
+  // female nor neuter; drawn for the amorous demon only (DEVIATIONS "Monster generation"); her
+  // own leader and nemesis take the gender role_init() drew (`ldrgend`, `nemgend`)
   const femaleok = !['male', 'female', 'neuter'].some((f) => mdef.flags.includes(f));
+  const qgend = isQuestLeader(ctx.state, mdef.id)
+    ? questGender(ctx, 'leader')
+    : isQuestNemesis(ctx.state, mdef.id)
+      ? questGender(ctx, 'nemesis')
+      : null;
   const female =
     femaleok &&
-    (opts.female !== undefined ? opts.female : mdef.id === AMOROUS_DEMON && ctx.rng.rn2(2) === 1);
+    (opts.female !== undefined
+      ? opts.female
+      : qgend !== null
+        ? qgend === 1
+        : mdef.id === AMOROUS_DEMON && ctx.rng.rn2(2) === 1);
   const peaceful = opts.angry ? false : peaceMinded(ctx, mdef);
   const id = ctx.spawn({
     def: mdef.id,
@@ -646,6 +663,12 @@ export function makemon(
       monster: { level: mlev, peaceful, asleep: opts.asleep === true, lastHero: null },
     },
   });
+  // ref: makemon(): `ptr->msound == MS_LEADER && quest_info(MS_LEADER) == mndx`: her leader's id
+  // (leader_m_id); quest leaders and nemeses know about all trap types
+  const qdef = questMonDef(ctx.state, mdef);
+  if (isQuestLeader(ctx.state, mdef.id)) setQuest(ctx, { leaderId: id });
+  if (qdef.sound === 'leader' || qdef.sound === 'nemesis')
+    for (const t of ctx.defs.traps) monLearnsTraps(ctx, id, t.id);
 
   // ref: makemon() switch (ptr->mlet): a mimic takes a disguise (set_mimic_sym()); snakes and
   // spiders made with the level get an object on their square and hide under it (hideunder()),
@@ -703,6 +726,8 @@ export function makemon(
   if (mdef.id === VLAD_THE_IMPALER && allowMinvent) mongets(ctx, id, CANDELABRUM);
   // ref: makemon(): `mndx == PM_PESTILENCE`: `mitem = POT_SICKNESS`
   if (mdef.id === PESTILENCE && allowMinvent) mongets(ctx, id, 'nh:potion_of_sickness');
+  // ref: makemon(): `ptr->msound == MS_NEMESIS`: `mitem = BELL_OF_OPENING` (any nemesis)
+  else if (qdef.sound === 'nemesis' && allowMinvent) mongets(ctx, id, BELL_OF_OPENING);
   // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++`, and
   // the first one made on the Plane of Earth gets a spellbook of dig (`mitem = SPE_DIG`)
   if (mdef.id === WIZARD_OF_YENDOR) {
@@ -762,8 +787,8 @@ export function makemon(
   // ref: makemon(): `if (ptr->mflags3 && !(mmflags & MM_NOWAIT))`: M3_WAITFORU, M3_CLOSE, and
   // STRAT_APPEARMSG for those and the covetous kinds
   if (!opts.noWait) {
-    const f = mdef.flags;
-    const covetous = isCovetous(mdef);
+    const f = qdef.flags;
+    const covetous = isCovetous(qdef);
     setStrat(
       ctx,
       id,

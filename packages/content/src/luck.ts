@@ -21,6 +21,7 @@ import { A_NONE } from './aligntyp';
 import { luckTimeout, moreluck } from './gem';
 import { isMplayer, isUnicorn } from './mondata';
 import { roleIs } from './urole';
+import { questMonDef } from './questmon';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -191,8 +192,9 @@ export function adjalign(ctx: Pick<Ctx, 'state'>, n: number): void {
  * How good (negative) or bad (positive) killing this monster is for the hero's alignment.
  * ref: src/makemon.c set_malign(), computed from the monster's present peacefulness (NetHack
  * recomputes it whenever that changes). `mal` is the monster's own alignment: its def's, or for
- * a temple priest his shrine's and for a minion its god's, times 5 (A_NONE stays A_NONE). No
- * quest leaders exist.
+ * a temple priest his shrine's and for a minion its god's, times 5 (A_NONE stays A_NONE). `def`
+ * is the row as role_init() left it (questmon.ts questMonDef()): a quest leader (MS_LEADER) is
+ * always -20.
  */
 export function malign(
   def: MonsterDef,
@@ -202,6 +204,7 @@ export function malign(
 ): number {
   const coaligned = Math.sign(mal) === Math.sign(heroType);
   const absmal = Math.abs(mal);
+  if (def.sound === 'leader') return -20;
   if (mal === A_NONE) return peaceful ? 0 : 20; // really hostile
   if (def.flags.includes('peaceful'))
     return peaceful ? -3 * Math.max(5, absmal) : 3 * Math.max(5, absmal);
@@ -239,7 +242,7 @@ export function xkilledPenalties(
 ): void {
   const m = mon.c.monster;
   if (!m) return;
-  const def = ctx.defs.monster(mon.def);
+  const def = questMonDef(ctx.state, ctx.defs.monster(mon.def));
   const u = uState(ctx.state);
   // ref: set_malign(): a priest's alignment is his shrine's, a minion's its god's, times 5
   // unless A_NONE

@@ -341,7 +341,7 @@ function uXkilled(ctx: Ctx, mdef: Entity, nocorpse = false): void {
   monsterDied(ctx, mdef.id, true, false, nocorpse);
   // life-saved: no experience
   if (!ctx.state.entities[String(mdef.id)]?.c.monster)
-    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level));
+    gainExperience(ctx, ctx.state.playerId, experienceFor(def, level, ctx.state));
 }
 
 // sticks() moved to the leaf mondata.ts (reach.ts reads it); re-exported for its callers

@@ -54,6 +54,12 @@ const KNOWN_SOUNDS = [
   'bribe',
   'bones',
   'wail',
+  'vampire',
+  'arrest',
+  'rider',
+  'leader',
+  'nemesis',
+  'guardian',
 ];
 
 const q = (s: string): string => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;

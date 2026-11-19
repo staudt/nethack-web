@@ -189,14 +189,22 @@ describe('the polymorph trap', () => {
 
 describe('the potion, the wand and the spell (the polymorph itself: m7f.polyself.test.ts)', () => {
   test('the potion: "You feel a little strange." and it is identified', () => {
-    const s = room(2); // seed 1's polymorph kills her (since m12 step 6's vault roll)
-    const p = s.carry('nh:potion_of_polymorph');
-    const text = s.text(s.mod('nh:quaff', { item: p }));
-    expect(text).toContain('You feel a little strange.');
-    expect(isKnown(s.state, defs, 'nh:potion_of_polymorph')).toBe(true);
-    setIntrinsic(getPlayer(s.state), P.HALLUC, true);
-    const text2 = s.text(s.mod('nh:quaff', { item: s.carry('nh:potion_of_polymorph') }));
-    expect(text2).toContain('You feel a little normal.');
+    // a smoky potion may hold a djinni instead (then no polymorph): count the other quaffs
+    let normal = 0;
+    for (let seed = 2; seed <= 6; seed++) {
+      const s = room(seed); // seed 1's polymorph kills her (since m12 step 6's vault roll)
+      const p = s.carry('nh:potion_of_polymorph');
+      const text = s.text(s.mod('nh:quaff', { item: p }));
+      if (text.some((t) => t.includes('cloud of smoke'))) continue;
+      expect(text).toContain('You feel a little strange.');
+      expect(isKnown(s.state, defs, 'nh:potion_of_polymorph')).toBe(true);
+      setIntrinsic(getPlayer(s.state), P.HALLUC, true);
+      const text2 = s.text(s.mod('nh:quaff', { item: s.carry('nh:potion_of_polymorph') }));
+      if (text2.some((t) => t.includes('cloud of smoke'))) continue;
+      expect(text2).toContain('You feel a little normal.');
+      normal++;
+    }
+    expect(normal).toBeGreaterThan(0);
   });
 
   test('the wand zapped at herself is learned, unless Unchanging', () => {

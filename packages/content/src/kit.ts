@@ -6,6 +6,7 @@
 // ini_inv_use_obj(), knows_object(), knows_class(), u_init_carry_attr_boost(),
 // u_init_skills_discoveries(); src/weapon.c skill_init(); src/spell.c initialspell(),
 // skill_based_spellbook_id()
+import { roleInitQuest } from './questmon';
 import {
   inventoryOf,
   type Ctx,
@@ -550,7 +551,7 @@ export function uInitSkillsDiscoveries(
 
 /** Registers the u_init hook through the public ModApi. */
 export function registerKit(api: ModApi): void {
-  // ref: src/role.c role_init() (the pantheon); src/u_init.c u_init_misc() (HP and Pw at level
+  // ref: src/role.c role_init() (the quest genders, the pantheon); src/u_init.c u_init_misc() (HP and Pw at level
   // 0, the alignment), u_init_inventory_attrs() (kit, attributes, carry boost),
   // u_init_skills_discoveries(). The port makes them before the first level, as 3.7's u_init()
   // (plan m22 Q9); the pet comes after placement (dog.ts).
@@ -559,6 +560,7 @@ export function registerKit(api: ModApi): void {
     if (!hero) return;
     // flags.female from the chosen gender (stored only when male, gender.ts)
     if (hero.c.player) setHeroFemale(ctx.state, hero.c.player.gender === 'female');
+    roleInitQuest(ctx); // her leader's and nemesis's genders, drawn when their rows have none
     initPantheon(ctx); // a Priest draws another role's gods
     const max = newhp(ctx, 0, 0); // no Con adjustment for initial hit points
     hero.c.hp = { cur: max, max };

@@ -1,5 +1,6 @@
 // Attacking peaceful monsters: the confirmation, waking monsters and making them angry.
 // ref: src/uhitm.c attack_checks(), src/mon.c wakeup(), setmangry(), peacefuls_respond()
+import { isQuestGuardian, isQuestLeader, questRole } from './questmon';
 import { uWieldArt } from './artistate';
 import { isPool } from './liquid';
 import { isEel } from './mondata';
@@ -22,7 +23,7 @@ import {
 } from '@nh/core';
 import { monflee } from './monflee';
 import { heroSees } from './mongear';
-import { P, hasProp } from './props';
+import { P, hasProp, heroHas } from './props';
 import { canSpotMon, monNam, sensemon, telepathSenses, warningShown } from './perception';
 import { hidesUnder, isUndetected, setUndetected } from './hidestate';
 import { doname } from './objnam';
@@ -181,10 +182,12 @@ const humanoid = (ctx: Ctx, id: EntityId): boolean => {
  * Other peaceful monsters that see the attack react: humanoids may turn to flee, and always turn
  * hostile; a watchman arrests the hero, which angers the whole Watch. ref: src/mon.c
  * peacefuls_respond(); temple priests never turn hostile here. Not ported: the gasp / exclaim lines
- * (and their random draw), shopkeepers, the quest, and the same-letter big-little match for
- * non-humanoids (growling and fleeing).
+ * (and their random draw), shopkeepers, and the same-letter big-little match for non-humanoids
+ * (growling and fleeing). Her quest leader only gets angry when she attacks his guardians, and
+ * the guardians do not turn to flee.
  */
 function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
+  const vdef = ctx.state.entities[String(victim)]?.def;
   for (const id of sortedIds(ctx.state)) {
     const mon = ctx.state.entities[String(id)];
     const m = mon?.c.monster;
@@ -210,10 +213,17 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
       angryGuards(ctx, false);
       continue;
     }
-    // temple priests might gasp in surprise, but they won't become angry here
-    if (priest) continue;
-    // the monster is scared when its level is below a d10 roll
-    if (def.level < ctx.rng.rn2(10)) monflee(ctx, id, ctx.rng.rn2(50) + 25, true, true);
+    // temple priests might gasp in surprise, but they won't become angry here; quest leader will
+    // only get angry if hero attacks own quest guardians
+    if (
+      priest ||
+      (isQuestLeader(ctx.state, mon.def) &&
+        (vdef === undefined || !isQuestGuardian(ctx.state, vdef)))
+    )
+      continue;
+    // the monster is scared when its level is below a d10 roll (not her quest guardians)
+    if (def.level < ctx.rng.rn2(10) && !isQuestGuardian(ctx.state, mon.def))
+      monflee(ctx, id, ctx.rng.rn2(50) + 25, true, true);
     m.peaceful = false;
     say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
   }
@@ -225,7 +235,8 @@ function peacefulsRespond(ctx: Ctx, victim: EntityId): void {
  * own, and earns 2 otherwise. Before that, an attack (`viaAttack`) from her own Elbereth on a
  * monster it scares, or on a peaceful one, is hypocritical: "You feel like a hypocrite.", 5
  * points of alignment (1d5 when her record is 5 or less) and the engraving is gone, whatever its
- * type. ref: src/mon.c setmangry(). Not ported: shopkeepers, guards, the quest leader.
+ * type. Attacking her own quest leader angers his guardians. ref: src/mon.c setmangry(). Not
+ * ported: shopkeepers, guards.
  */
 export function setmangry(ctx: Ctx, id: EntityId, viaAttack: boolean): void {
   const mon = ctx.state.entities[String(id)];
@@ -260,7 +271,30 @@ export function setmangry(ctx: Ctx, id: EntityId, viaAttack: boolean): void {
     if (humanoid(ctx, id)) say(ctx, 'mon.gets_angry', { mon: monNam(ctx, mon) });
     else growl(ctx, mon);
   }
+  // attacking your own quest leader will anger his or her guardians
+  if (isQuestLeader(ctx.state, mon.def)) qstGuardiansRespond(ctx);
   peacefulsRespond(ctx, id);
+}
+
+/**
+ * Her quest guardians sense an attack on her leader even when they cannot see it: the peaceful
+ * ones turn hostile, "The warriors appear to be angry too..." when she sees any (none while
+ * hallucinating). ref: src/mon.c qst_guardians_respond()
+ */
+function qstGuardiansRespond(ctx: Ctx): void {
+  const guardian = questRole(ctx.state).guardian;
+  let gotMad = 0;
+  for (const id of sortedIds(ctx.state)) {
+    const mon = ctx.state.entities[String(id)];
+    const m = mon?.c.monster;
+    if (!mon || !m || mon.def !== guardian || !m.peaceful) continue;
+    m.peaceful = false;
+    if (canseemon(ctx, mon)) ++gotMad;
+  }
+  if (gotMad && !heroHas(ctx.state, P.HALLUC))
+    say(ctx, gotMad > 1 ? 'quest.guardians_angry' : 'quest.guardian_angry', {
+      mon: `@${guardian}`,
+    });
 }
 
 /**

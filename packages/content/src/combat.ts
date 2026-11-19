@@ -1090,7 +1090,7 @@ export function knownHitum(
     });
     monsterDied(ctx, targetId, true);
     if (ctx.state.entities[String(targetId)]?.c.monster) return true; // life-saved
-    gainExperience(ctx, hero.id, experienceFor(def, mon.level));
+    gainExperience(ctx, hero.id, experienceFor(def, mon.level, ctx.state));
     if (epri && ctx.rng.rn2(2) === 0) ghodHitsu(ctx, epri);
     if (angerGuards) angryGuards(ctx, false);
     return false;

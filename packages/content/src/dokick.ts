@@ -679,7 +679,7 @@ function kickdmg(ctx: Ctx, monId: EntityId, clumsy: boolean, dir: { x: number; y
     monsterDied(ctx, monId, true);
     // life-saved: no experience
     if (!ctx.state.entities[String(monId)]?.c.monster)
-      gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level));
+      gainExperience(ctx, ctx.state.playerId, experienceFor(def, mon.level, ctx.state));
   }
   // may bring up a dialog, so put this after all messages: exercise proficiency
   if (kickSkill) useSkill(ctx, BARE_HANDED, 1);
