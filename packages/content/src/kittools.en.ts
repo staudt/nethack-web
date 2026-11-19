@@ -92,6 +92,11 @@ export const kitToolsMessagesEn: Record<string, string> = {
   'bell.muffled': 'But the sound is muffled.',
   'bell.summon': 'You summon {mon|an}!',
   'bell.shattered': '{item|The} has shattered!',
+  // the Bell of Opening
+  'bell.no_sound': 'But it makes no sound.',
+  'bell.shrill': '{item|The} issues an unsettling shrill sound...',
+  'bell.something_opens': 'Something opens...',
+  'bell.things_open': 'Things open around you...',
   'helpless.helpless': 'helpless',
 
   // the fortune cookie

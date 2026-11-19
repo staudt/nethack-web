@@ -149,6 +149,10 @@ export const zapMessagesEn: Record<string, string> = {
   // findit()
   'zap.reveal': 'You reveal {what}!',
   'zap.find_nothing': "You don't find anything.",
+  // openit(), openone() (the Bell of Opening)
+  'open.see_explosion': 'You see an explosion!',
+  'open.hear_explosion': 'You hear an explosion!',
+  'open.its_mouth': 'Its mouth opens!',
   'zap.found.sdoor': 'a secret door',
   'zap.found.sdoors': '{n} secret doors',
   'zap.found.scorr': 'a secret corridor',

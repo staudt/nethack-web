@@ -42,6 +42,7 @@ export const CHARGED_TOOLS: ReadonlySet<string> = new Set([
   'nh:horn_of_plenty',
   'nh:magic_harp',
   'nh:drum_of_earthquake',
+  'nh:bell_of_opening',
 ]);
 
 /** A wand def. ref: include/objects.h WAND(): weight 7, oc_charged, oc_dir */
@@ -4040,7 +4041,7 @@ export const OBJECTS: readonly ObjectDef[] = [
     },
   }),
   // two unique tools: the Candelabrum (Vlad's; seven candles attached and lit for the
-  // invocation: light.ts) and the Bell of Opening (m23 step 4)
+  // invocation: light.ts) and the Bell of Opening (rung on the vibrating square: apply.ts)
   // ref: objects.h OBJECT(OBJ("Candelabrum of Invocation", "candelabrum"), BITS(0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, P_NONE, GOLD), 0, TOOL_CLASS, 0, 0, 10, 5000, 0, 0, 0, 0, 200, HI_GOLD, CANDELABRUM_OF_INVOCATION)
   {
     id: 'nh:candelabrum_of_invocation',
@@ -4052,6 +4053,21 @@ export const OBJECTS: readonly ObjectDef[] = [
     weight: 10,
     cost: 5000,
     material: 'gold',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
+  // ref: objects.h OBJECT(OBJ("Bell of Opening", "silver bell"), BITS(0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, P_NONE, SILVER), 0, TOOL_CLASS, 0, 0, 10, 5000, 0, 0, 0, 0, 50, HI_SILVER, BELL_OF_OPENING)
+  {
+    id: 'nh:bell_of_opening',
+    nameKey: 'nh:bell_of_opening',
+    descKey: 'nh:bell_of_opening.desc',
+    class: 'tool',
+    glyph: { ch: '(', fg: GRAY },
+    prob: 0,
+    weight: 10,
+    cost: 5000,
+    material: 'silver',
     merge: false,
     magic: true,
     delay: 0,

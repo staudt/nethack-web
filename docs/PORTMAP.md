@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-200 NetHack files, 5884 citations.
+200 NetHack files, 5892 citations.
 
 ## dat/asmodeus.lua
 
@@ -760,7 +760,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/you.h
 
-- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/uhave.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
+- (file): `packages/content/src/engulfstate.ts`, `packages/content/src/gem.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/luck.ts`, `packages/content/src/racetab.ts`, `packages/content/src/roletab.ts`, `packages/content/src/trapstate.ts`, `packages/content/src/uenergy.ts`, `packages/content/src/uhave.ts`, `packages/content/src/upoly.ts`, `packages/content/src/urooms.ts`, `packages/content/src/werestate.ts`
 - `AC_MAX()`: `packages/content/src/stats.ts`
 - `Race_if()`: `packages/content/src/urole.ts`
 - `Role_if()`: `packages/content/src/urole.ts`
@@ -1041,6 +1041,8 @@ whole. A missing function may still be ported under a citation this parser canno
 - `o_in()`: `packages/content/src/detectobj.ts`
 - `o_material()`: `packages/content/src/detectobj.ts`
 - `object_detect()`: `packages/content/src/detectobj.ts`
+- `openit()`: `packages/content/src/zap.ts`
+- `openone()`: `packages/content/src/zap.ts`
 - `premap_detect()`: `packages/content/src/detect.ts`
 - `sense_trap()`: `packages/content/src/detectobj.ts`
 - `show_map_spot()`: `packages/content/src/detect.ts`, `packages/content/src/wizard/map.ts`
@@ -1857,6 +1859,9 @@ whole. A missing function may still be ported under a citation this parser canno
 - `mkaltar()`: `packages/content/src/mklev.ts`
 - `mkfount()`: `packages/content/src/mklev.ts`
 - `mkgrave()`: `packages/content/src/mklev.ts`
+- `mkinvk_check_wall()`: `packages/content/src/invokearea.ts`
+- `mkinvokearea()`: `packages/content/src/invokearea.ts`
+- `mkinvpos()`: `packages/content/src/invokearea.ts`
 - `mklev()`: `packages/content/src/graveyard.ts`, `packages/content/src/zoo.ts`
 - `mksink()`: `packages/content/src/mklev.ts`
 - `mkstairs()`: `packages/content/src/rogue.ts`, `packages/content/src/sp_lev.ts`

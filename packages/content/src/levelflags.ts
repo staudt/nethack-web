@@ -449,15 +449,25 @@ export function dungeonBottom(state: Readonly<GameState>, level: Readonly<Level>
 }
 
 /**
+ * u.uevent.invoked: the invocation has opened the way to the Sanctum (luck.ts UState `invoked`,
+ * read here directly: luck.ts sits above this module). ref: include/you.h struct u_event
+ */
+export function uInvoked(state: Readonly<GameState>): boolean {
+  const nh = state.modData['nh'];
+  const u = nh !== null && typeof nh === 'object' && !Array.isArray(nh) ? nh['u'] : undefined;
+  return u !== null && typeof u === 'object' && !Array.isArray(u) && u['invoked'] === true;
+}
+
+/**
  * The last level holes, trap doors and random level teleports reach in `level`'s dungeon: its
- * last level ({@link dungeonBottom}), but in Gehennom the invocation level above it, since the
- * invocation that opens the way to the Sanctum never happens in this port.
- * ref: src/trap.c dng_bottom() (no quest locate level; `u.uevent.invoked` is never set)
+ * last level ({@link dungeonBottom}), but in Gehennom before the invocation the invocation level
+ * above it (the Sanctum is out of reach until then).
+ * ref: src/trap.c dng_bottom() (no quest locate level)
  */
 export function dngBottom(state: Readonly<GameState>, level: Readonly<Level> | LevelRef): number {
   const n = dungeonLayout(state, level.dungeon).levels;
   const bottom = n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
-  return HELLISH.includes(level.dungeon) && n !== null ? bottom - 1 : bottom;
+  return HELLISH.includes(level.dungeon) && n !== null && !uInvoked(state) ? bottom - 1 : bottom;
 }
 
 /**

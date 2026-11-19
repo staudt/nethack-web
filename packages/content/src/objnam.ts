@@ -1,6 +1,6 @@
 // Naming objects for the player. ref: src/objnam.c xname(), doname(), obj_is_pname(),
 // not_fully_identified()
-import { CANDELABRUM } from './uhave';
+import { BELL_OF_OPENING, CANDELABRUM } from './uhave';
 import { boxTknown, isBoxTrapped } from './btrapstate';
 import { isHistoric } from './statuestate';
 import type {
@@ -305,12 +305,13 @@ export function doname(
   // papyrus spellbook" too.
   const real = def.id === AMULET_OF_YENDOR;
   const fake = def.id === FAKE_AMULET;
-  // The Candelabrum (oc_unique, oc_uses_known) is "the" once its charge is known.
+  // The Candelabrum and the Bell of Opening (oc_unique, oc_uses_known) are "the" once their
+  // charge is known.
   if (
     real ||
     (fake && !it.known.spe) ||
     def.id === 'nh:book_of_the_dead' ||
-    (def.id === CANDELABRUM && it.known.spe)
+    ((def.id === CANDELABRUM || def.id === BELL_OF_OPENING) && it.known.spe)
   )
     params.count = 'the ';
   // A wand or a charged tool is oc_charged: once its charges are known, "uncursed" is implied.

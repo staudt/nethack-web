@@ -5,7 +5,7 @@
 // bhito(), bhitpile(), zapyourself(), learnwand(), probe_monster(), cancel_monst(), cancel_item(),
 // resist(), dobuzz(), zhitm(), zhitu(), zap_hit(), bounce_dir(), zap_over_floor(), burn_floor_objects(),
 // flashburn(); src/lock.c doorlock(), boxlock(), obstructed(); src/trap.c openholdingtrap(),
-// closeholdingtrap(), openfallingtrap(); src/detect.c findit(), findone(); src/makemon.c
+// closeholdingtrap(), openfallingtrap(); src/detect.c findit(), findone(), openit(), openone(); src/makemon.c
 // create_critters(); src/mhitm.c sleep_monst(), slept_monst();
 // src/potion.c speed_up(); src/mhitu.c u_slow_down() (mon_adjust_speed() is in mstate.ts)
 //
@@ -71,9 +71,9 @@ import { EGG, attachEggHatchTimeout, deadSpecies } from './eggstate';
 import { breakEggs } from './egghit';
 import { bypassObj, clearBypasses, isBypassed } from './bypass';
 import { LONG_WORM, mAt } from './wormstate';
-import { setTerrain } from './actions';
-import { doorTrapped } from './btrapstate';
-import { blowDoor, mbTrapped, unaware } from './btrapped';
+import { openDoorAt, setTerrain } from './actions';
+import { doorTrapped, setDoorTrapped } from './btrapstate';
+import { bTrapped, blowDoor, mbTrapped, unaware } from './btrapped';
 import { BOULDER, blockersOf, fractureRock } from './boulder';
 import { activateStatueTrap, breakStatue } from './statue';
 import { stoneToFleshObj } from './stoneflesh';
@@ -1527,7 +1527,7 @@ function zapMapEngraving(ctx: Ctx, src: ZapSource, level: Level, x: number, y: n
  * Reveals secret doors, secret corridors and unseen traps the hero could see within BOLT_LIM.
  * ref: src/detect.c findit(), findone() (no hidden monsters, trapped doors or boxes)
  */
-function findit(ctx: Ctx): number {
+export function findit(ctx: Ctx): number {
   const level = levelOf(ctx);
   let sdoors = 0;
   let scorrs = 0;
@@ -1567,6 +1567,101 @@ function findit(ctx: Ctx): number {
   else if (a) say(ctx, 'zap.reveal', { what: a });
   else say(ctx, 'zap.find_nothing');
   return sdoors + scorrs + traps;
+}
+
+/**
+ * The Bell of Opening's opening of one square: locked boxes there are unlocked; a secret door
+ * becomes a door and a closed or locked one opens (a booby-trapped one explodes: "KABOOM!!" next
+ * to her, else "You see/hear an explosion!", and is left an empty doorway); a secret corridor
+ * becomes a corridor; an unseen trap is seen, and whoever is held in it is freed or sent down a
+ * trap door; a raised drawbridge comes down. Returns how many things opened.
+ * ref: src/detect.c openone() (Norep(): the explosion is told once per ringing)
+ */
+function openone(ctx: Ctx, level: Level, x: number, y: number, said: { boom: boolean }): number {
+  let num = 0;
+  for (const o of itemsHere(ctx, x, y)) {
+    if (isBox(ctx, o) && o.c.item?.locked) {
+      delete o.c.item.locked;
+      num++;
+    }
+  }
+  // let it fall to the next cases. could be on trap.
+  const id = cellId(level, x, y);
+  const t = id === undefined ? undefined : ctx.defs.terrain(id);
+  if (isSdoor(id) || (t !== undefined && closedDoor(t))) {
+    if (isSdoor(id)) setTerrain(level, x, y, cvtSdoorToDoor(level, id)); // .typ = DOOR
+    const now = cellId(level, x, y);
+    if (now === T.doorway) return num + 1; // the Rogue level's doorway: nothing more to open
+    if (doorTrapped(ctx, level.id, x, y)) {
+      setTerrain(level, x, y, T.doorway); // D_NODOOR
+      setDoorTrapped(ctx, level.id, x, y, false);
+      const hp = heroPos(ctx);
+      if ((hp.x - x) ** 2 + (hp.y - y) ** 2 < 3) bTrapped(ctx, 'door');
+      else if (!said.boom) {
+        said.boom = true;
+        say(ctx, cansee(ctx, x, y) ? 'open.see_explosion' : 'open.hear_explosion');
+      }
+      wakeNearto(ctx, x, y, 11 * 11);
+    } else openDoorAt(ctx, level, { x, y }); // D_ISOPEN
+    ctx.emit({ type: 'doorOpened', pos: { x, y } });
+    return num + 1;
+  }
+  if (id === T.scorr) {
+    setTerrain(level, x, y, T.corr);
+    return num + 1;
+  }
+  const trap = trapHere(level, x, y);
+  if (trap) {
+    if (!trap.seen && trap.def !== TRAP.statue) {
+      trap.seen = true;
+      num++;
+    }
+    const hp = heroPos(ctx);
+    const here = hp.level === level.id && hp.x === x && hp.y === y;
+    const mon = here ? null : monAt(ctx, x, y);
+    if (here || mon) {
+      if (openholdingtrap(ctx, mon).done || openfallingtrap(ctx, mon).done) num++;
+    }
+    return num;
+  }
+  const db = findDrawbridge(ctx, level, x, y);
+  // make sure it isn't an open drawbridge
+  if (db && isRaisedSpan(level, db.x, db.y)) {
+    openDrawbridge(ctx, db.x, db.y);
+    num++;
+  }
+  return num;
+}
+
+/**
+ * The Bell of Opening's ringing: an engulfer lets her out ("The purple worm opens its mouth!" for
+ * a digester; "Its mouth opens!" blind) and -1 is returned; else every square she could see within
+ * BOLT_LIM is opened (openone()) and the count returned. ref: src/detect.c openit()
+ */
+export function openit(ctx: Ctx): number {
+  if (isSwallowed(ctx)) {
+    const id = ustuck(ctx);
+    const mon = id === null ? undefined : ent(ctx, id);
+    if (mon) {
+      if (digests(ctx.defs.monster(mon.def))) {
+        // purple worm
+        if (hasProp(hero(ctx), P.BLINDED)) say(ctx, 'open.its_mouth');
+        else say(ctx, 'zap.opens_mouth', { mon: monNam(ctx, mon) });
+      }
+      expels(ctx, mon, true);
+    }
+    return -1;
+  }
+  const level = levelOf(ctx);
+  const said = { boom: false };
+  let num = 0;
+  for (const i of clearArea(ctx, 8)) {
+    // (a trap door sent her down: the rest stays shut)
+    if (ctx.state.gameOver || heroPos(ctx).level !== level.id) break;
+    const x = i % level.width;
+    num += openone(ctx, level, x, (i - x) / level.width, said);
+  }
+  return num;
 }
 
 /**

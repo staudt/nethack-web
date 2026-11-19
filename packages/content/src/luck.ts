@@ -86,6 +86,15 @@ export interface UState {
   madeAmulet?: true;
   /** u.uevent.amulet_wish: the Amulet has given her its wish (absent = false) */
   amuletWish?: true;
+  /**
+   * u.uevent.invoked: the invocation opened the way to the Sanctum (absent = false; written by
+   * invokearea.ts, read raw by levelflags.ts uInvoked(), which sits below this module)
+   */
+  invoked?: true;
+  /** u.uevent.udemigod: the Wizard is dead or gone, or the invocation was done (absent = false) */
+  udemigod?: true;
+  /** u.udg_cnt: turns until the next intervene() (absent = 0) */
+  udgCnt?: number;
 }
 
 const DEFAULTS: UState = {

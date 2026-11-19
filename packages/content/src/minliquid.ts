@@ -11,6 +11,7 @@ import { type Ctx, type Entity, type Msg } from '@nh/core';
 import { fireDamageChain } from './flooreffects';
 import { dryup, setGushMinliquid } from './fountain';
 import { experienceFor, gainExperience } from './hero';
+import { setInvokeMinliquid } from './invokearea';
 import { isLava, isPool, isWaterwall, mInAir } from './liquid';
 import { mondead, mondied, monsterDied } from './mondeath';
 import { minvent } from './mongear';
@@ -177,3 +178,4 @@ export function minliquid(ctx: Ctx, mon: Entity, monMoving = true): 0 | 1 {
 
 setMinliquidHook((ctx, mon) => minliquid(ctx, mon) === 1);
 setGushMinliquid((ctx, mon) => void minliquid(ctx, mon, false));
+setInvokeMinliquid((ctx, mon) => void minliquid(ctx, mon, false));

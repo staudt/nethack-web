@@ -3,7 +3,7 @@
 // towel (towel.ts), the blindfold, the unicorn horn (unicorn.ts), figurines (figurine.ts), cream pies (creampie.ts) and digging tools
 // (the pick-axe and the dwarvish mattock, a weapon; dig.ts); polearms and lances (pole.ts);
 // applying a wand breaks it (breakwand.ts); the stethoscope (stethoscope.ts), the expensive
-// camera (camera.ts), the leash (leash.ts) and the bell.
+// camera (camera.ts), the leash (leash.ts), the bell and the Bell of Opening (openit() in zap.ts).
 // ref: src/apply.c doapply(), use_whistle(), use_magic_whistle(), magic_whistled(), use_bell();
 // src/mon.c wake_nearby(), wake_nearto_core() (petcall); src/teleport.c tele_to_rnd_pet();
 // src/vault.c vault_summon_gd() (a cursed tin whistle)
@@ -34,7 +34,17 @@ import { DIG_ID, isPick, usePickAxe } from './dig';
 import { POLE_ID, poleAction, usePole } from './pole';
 import { isPole } from './skills';
 import { mnextoPos } from './generation';
-import { answerMusic, doPlayInstrument, isInstrument, isMusicData } from './music';
+import {
+  answerMusic,
+  consumeObjCharge,
+  doPlayInstrument,
+  isInstrument,
+  isMusicData,
+} from './music';
+import { mkundead } from './deadbook';
+import { invocationPos } from './invocation';
+import { T, terrainIdAt } from './terrain';
+import { findit, openit } from './zap';
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
@@ -47,7 +57,7 @@ import {
   useCandle,
   useLamp,
 } from './light';
-import { CANDELABRUM } from './uhave';
+import { BELL_OF_OPENING, CANDELABRUM } from './uhave';
 import { lightCocktail } from './oil';
 import { POT_OIL } from './dilute';
 import { checkCapacity } from './magic';
@@ -133,6 +143,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     e.def === EXPENSIVE_CAMERA ||
     e.def === LEASH ||
     e.def === BELL ||
+    e.def === BELL_OF_OPENING ||
     isEyewear(e.def)
   );
 }
@@ -291,46 +302,103 @@ function useMagicWhistle(ctx: Ctx, obj: Entity): void {
 const NYMPHS: readonly DefId[] = ['nh:wood_nymph', 'nh:water_nymph', 'nh:mountain_nymph'];
 
 /**
- * Ringing the bell: "You ring the bell."; inside an engulfer "But the sound is muffled.";
- * otherwise a cursed one 1 time in 4 summons a nymph next to her ("You summon a water nymph!",
- * while none of the three kinds is gone), and then shatters ("The bell has shattered!") unless
- * it resists (93%), else the nymph may be fast (1 in 3) or she is stunned for a move or two (1
- * in 3); the monsters nearby wake up (wake_nearby(TRUE): pets come). ref: src/apply.c use_bell()
- * (the ordinary bell: the Bell of Opening does not exist; no underwater)
+ * Ringing a bell: "You ring the bell."; inside an engulfer an ordinary bell's "But the sound is
+ * muffled."; an uncharged Bell of Opening on the vibrating square "But it makes no sound."; an
+ * ordinary bell (or an uncharged Bell) when cursed 1 time in 4 summons a nymph next to her ("You
+ * summon a water nymph!", while none of the three kinds is gone), and then shatters ("The bell
+ * has shattered!") unless it resists (93%), else the nymph may be fast (1 in 3) or she is stunned
+ * for a move or two (1 in 3). A charged Bell of Opening uses a charge: engulfed, it opens the
+ * engulfer (cursed: "Nothing happens."); cursed, undead rise around her; on the vibrating square
+ * it "issues an unsettling shrill sound..." and is primed for the invocation (`age`); blessed, it
+ * opens what she could see within 8 squares ("Something opens...", "Things open around you...");
+ * uncursed, it finds hidden things (findit()). The monsters nearby wake up (wake_nearby(TRUE):
+ * pets come), but not after a blessed or uncursed Bell. ref: src/apply.c use_bell() (no
+ * underwater, no ball and chain, no sound)
  */
 function useBell(ctx: Ctx, obj: Entity): void {
-  say(ctx, 'bell.ring', { item: xnameOf(ctx.state, ctx.defs, obj) });
-  if (uswallow(ctx)) {
-    say(ctx, 'bell.muffled');
-    return;
-  }
+  const it = obj.c.item;
+  if (!it) return;
   const hp = hero(ctx).c.pos;
-  if (obj.c.item?.buc === 'cursed' && !ctx.rng.rn2(4) && hp) {
-    // note: once any of them are gone, we stop all of them
-    if (!NYMPHS.some((n) => isGone(ctx.state, n))) {
-      const def = mkclass(ctx, 'n', getLevel(ctx.state).depth);
-      const mid = makemon(ctx, def, { x: hp.x, y: hp.y }, { noInventory: true, adjacentOk: true });
-      const mtmp = mid === null ? undefined : ctx.state.entities[String(mid)];
-      if (mtmp) {
-        say(ctx, 'bell.summon', { mon: `@${mtmp.def}` });
-        if (!objResists(ctx, obj, 93, 100)) {
-          say(ctx, 'bell.shattered', { item: xnameOf(ctx.state, ctx.defs, obj) });
-          useup(ctx, obj.id);
-        } else
-          switch (ctx.rng.rn2(3)) {
-            case 1:
-              setMspeed(ctx, mtmp.id, 'fast'); // mon_adjust_speed(mtmp, 2, NULL)
-              break;
-            case 2: // no explanation; it just happens...
-              nomulNow(ctx, ctx.rng.rnd(2), 'helpless.helpless', null);
-              break;
-            default:
-              break;
-          }
+  const level = hp ? getLevel(ctx.state, hp.level) : undefined;
+  const ordinary = obj.def !== BELL_OF_OPENING || !it.spe;
+  const invoking =
+    obj.def === BELL_OF_OPENING &&
+    hp !== undefined &&
+    level !== undefined &&
+    invocationPos(ctx, level, hp.x, hp.y) &&
+    ctx.defs.terrain(terrainIdAt(level, hp.x, hp.y) ?? T.stone).stairs === undefined;
+  let wakem = false;
+  let learno = false;
+  say(ctx, 'bell.ring', { item: xnameOf(ctx.state, ctx.defs, obj) });
+  if (uswallow(ctx) && ordinary) say(ctx, 'bell.muffled');
+  else if (invoking && ordinary) {
+    // needs to be recharged...
+    say(ctx, 'bell.no_sound');
+    learno = true; // help player figure out why
+  } else if (ordinary) {
+    if (it.buc === 'cursed' && !ctx.rng.rn2(4) && hp) {
+      // note: once any of them are gone, we stop all of them
+      if (!NYMPHS.some((n) => isGone(ctx.state, n))) {
+        const def = mkclass(ctx, 'n', getLevel(ctx.state).depth);
+        const mid = makemon(
+          ctx,
+          def,
+          { x: hp.x, y: hp.y },
+          { noInventory: true, adjacentOk: true },
+        );
+        const mtmp = mid === null ? undefined : ctx.state.entities[String(mid)];
+        if (mtmp) {
+          say(ctx, 'bell.summon', { mon: `@${mtmp.def}` });
+          if (!objResists(ctx, obj, 93, 100)) {
+            say(ctx, 'bell.shattered', { item: xnameOf(ctx.state, ctx.defs, obj) });
+            useup(ctx, obj.id);
+          } else
+            switch (ctx.rng.rn2(3)) {
+              case 1:
+                setMspeed(ctx, mtmp.id, 'fast'); // mon_adjust_speed(mtmp, 2, NULL)
+                break;
+              case 2: // no explanation; it just happens...
+                nomulNow(ctx, ctx.rng.rnd(2), 'helpless.helpless', null);
+                break;
+              default:
+                break;
+            }
+        }
       }
     }
+    wakem = true;
+  } else {
+    // charged Bell of Opening
+    consumeObjCharge(ctx, obj);
+    if (uswallow(ctx)) {
+      if (it.buc !== 'cursed') openit(ctx);
+      else say(ctx, 'zap.nothing_happens');
+    } else if (it.buc === 'cursed') {
+      if (hp) mkundead(ctx, hp.x, hp.y, false);
+      wakem = true;
+    } else if (invoking) {
+      say(ctx, 'bell.shrill', { item: xnameOf(ctx.state, ctx.defs, obj) });
+      it.age = ctx.state.turn;
+      learno = true;
+      wakem = true;
+    } else if (it.buc === 'blessed') {
+      const res = openit(ctx);
+      if (res === 0) say(ctx, 'zap.nothing_happens');
+      else {
+        say(ctx, res === 1 ? 'bell.something_opens' : 'bell.things_open');
+        learno = true;
+      }
+    } else {
+      // uncursed
+      if (findit(ctx) !== 0) learno = true;
+      else say(ctx, 'zap.nothing_happens');
+    }
   }
-  wakeNearby(ctx);
+  if (learno) {
+    discover(ctx, ctx.defs.object(BELL_OF_OPENING)); // makeknown()
+    it.known = { ...it.known, spe: true };
+  }
+  if (wakem) wakeNearby(ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -406,7 +474,7 @@ const apply: ActionDef = {
     else if (obj.def === UNICORN_HORN) useUnicornHorn(ctx, obj);
     else if (obj.def === HORN_OF_PLENTY)
       hornoplenty(ctx, obj); // not a musical instrument
-    else if (obj.def === BELL) useBell(ctx, obj);
+    else if (obj.def === BELL || obj.def === BELL_OF_OPENING) useBell(ctx, obj);
     else if (isEyewear(obj.def)) {
       const ublindf = wornIn(ctx.state, ctx.state.playerId, 'blindfold');
       if (ublindf?.id === obj.id) {

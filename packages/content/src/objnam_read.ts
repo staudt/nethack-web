@@ -13,6 +13,7 @@ import { nameToMonplus, type MonName } from './mondata';
 import { AMOROUS_DEMON } from './gender';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
 import { TIN, TINTXT, tinVarietyTxt } from './tins';
+import { BELL_OF_OPENING } from './uhave';
 
 /** What to make. */
 export type WishWhat =
@@ -266,7 +267,7 @@ function wishymatch(u: string, o: string, retryInverted: boolean): boolean {
 
 /**
  * The types whose name, description (or the part after " of " of either) or called name match.
- * ref: src/objnam.c rnd_otyp_by_namedesc() (no bell of opening or globs); the random pick
+ * ref: src/objnam.c rnd_otyp_by_namedesc() (no globs); the random pick
  * among them, by oc_prob + xtra, is made when the object is created.
  */
 function namedesc(
@@ -285,7 +286,8 @@ function namedesc(
   let maxprob = 0;
   for (const o of names.objects) {
     if (oclass !== null && o.cls !== oclass) continue;
-    const zof = checkOf ? ofPart(o.name) : null;
+    // for "opening", don't match "bell of opening"
+    const zof = checkOf && o.id !== BELL_OF_OPENING ? ofPart(o.name) : null;
     const dof = checkOf && o.descr !== null ? ofPart(o.descr) : null;
     if (
       wishymatch(name, o.name, true) ||

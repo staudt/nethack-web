@@ -229,6 +229,8 @@ export function mksobjInit(
         def.id === 'nh:magic_marker'
       ) {
         it.spe = rng.rn2(70) + 30; // rn1(70, 30)
+      } else if (def.id === 'nh:bell_of_opening') {
+        it.spe = 3;
       } else if (def.id === 'nh:horn_of_plenty') {
         it.spe = rng.rn2(18) + 3; // rn1(18, 3): 3..20
       } else if (MAGIC_INSTRUMENTS.includes(def.id)) {

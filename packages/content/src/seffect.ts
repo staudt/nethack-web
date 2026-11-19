@@ -787,7 +787,8 @@ function stripspe(ctx: Ctx, obj: Entity): void {
 }
 
 /**
- * Recharging a tool: a charged one counts the recharge (up to 7); markers, tinning kits and cameras get
+ * Recharging a tool: a charged one counts the recharge (up to 7); the Bell of Opening gets 1 charge
+ * (blessed: 1d3, up to 5) with no message; markers, tinning kits and cameras get
  * ink or cans (a marker only once: then "Your marker seems permanently dried out."), lamps and
  * lanterns oil, the horn of plenty and the magic instruments charges; a cursed scroll strips
  * them. False when the tool cannot be recharged. ref: src/read.c recharge() TOOL_CLASS
@@ -799,6 +800,13 @@ function rechargeTool(ctx: Ctx, obj: Entity, isCursed: boolean, isBlessed: boole
   // tools don't have a limit, but the counter used does
   if (CHARGED_TOOLS.has(obj.def) && rechrg < 7) it.recharged = rechrg + 1;
   switch (obj.def) {
+    case 'nh:bell_of_opening':
+      // (no message)
+      if (isCursed) stripspe(ctx, obj);
+      else if (isBlessed) it.spe += ctx.rng.rnd(3);
+      else it.spe += 1;
+      if (it.spe > 5) it.spe = 5;
+      return true;
     case 'nh:magic_marker':
     case 'nh:tinning_kit':
     case 'nh:expensive_camera':

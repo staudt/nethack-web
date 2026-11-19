@@ -23,6 +23,13 @@ export const spellMessagesEn: Record<string, string> = {
   'deadbook.chill': 'A chill runs down your spine.',
   'deadbook.chime': 'You hear a faint chime...',
   'deadbook.amused': "Vlad's doppelganger is amused.",
+  'deadbook.invocation_fails': 'The invocation fails!',
+  'deadbook.relic_cursed': 'At least one of your relics is cursed...',
+  'deadbook.amiss': 'You have a feeling that something is amiss...',
+  // mkinvokearea()
+  'invoke.floor_shakes': 'The floor shakes violently under you!',
+  'invoke.walls_crumble': 'The walls around you begin to bend and crumble!',
+  'invoke.stairwell': 'You are standing at the top of a stairwell leading down!',
   'deadbook.raised': 'You raised the dead!',
   'deadbook.ancestors': 'Your ancestors are annoyed with you!',
   'deadbook.headstones': 'The headstones in the cemetery begin to move!',

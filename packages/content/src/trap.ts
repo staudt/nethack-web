@@ -64,6 +64,7 @@ import {
   isStronghold,
   onWTowerLevel,
   singleLevelBranch,
+  uInvoked,
 } from './levelflags';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
@@ -2346,7 +2347,7 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
   // ref: level_tele(): "if invocation did not yet occur, teleporting into the last level of
   // Gehennom is forbidden" (C lets wizard mode through; here wizard mode's #levelport does not
   // come this way)
-  if (inHell(ctx.state, level) && layout.levels !== null) {
+  if (inHell(ctx.state, level) && !uInvoked(ctx.state) && layout.levels !== null) {
     const deepest = layout.depthStart + layout.levels - 1;
     if (newlev >= deepest) {
       newlev = deepest - 1;
