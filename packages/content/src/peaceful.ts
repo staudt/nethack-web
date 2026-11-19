@@ -8,6 +8,7 @@ import { mApType, seemimic } from './mimicstate';
 import { stickIfSticky, stumbleOntoMimic } from './mimic';
 import { engulfingU } from './engulfstate';
 import {
+  cellIndex,
   getPlayer,
   inRooms,
   itemsAt,
@@ -33,7 +34,9 @@ import { delEngrAt, sengrAt } from './engr';
 import { onscary } from './scary';
 import { growl } from './dog';
 import { angryGuards, isWatch } from './watch';
-import { epriOf, findpriest, pCoaligned, templeOccupied } from './epri';
+import { dropEpri, epriOf, findpriest, pCoaligned, templeOccupied } from './epri';
+import { setEmin } from './emin';
+import { altarAlign } from './aligntyp';
 import { uRooms } from './urooms';
 import { ghodHitsu } from './priest';
 import { eshkOf, uShops } from './eshk';
@@ -292,8 +295,8 @@ export function wakeup(ctx: Ctx, id: EntityId): void {
 /**
  * The priest of the temple she stands in wakes up and turns hostile (her offense on his altar),
  * without the god's bolt an attack brings. ref: src/priest.c angry_priest() (wakeup(priest,
- * FALSE), setmangry(priest, FALSE)); a priest whose altar is gone or converted stays a temple
- * priest (no roaming minions)
+ * FALSE), setmangry(priest, FALSE)); a priest whose altar is gone or converted runs loose: a
+ * roaming minion of his shrine's god, his shrine forgotten.
  */
 export function angryPriest(ctx: Ctx): void {
   const level = ctx.state.levels[ctx.state.currentLevel];
@@ -309,6 +312,19 @@ export function angryPriest(ctx: Ctx): void {
   const ap = mApType(ctx, id);
   if (ap !== null && ap !== 'monster') seemimic(ctx, id);
   setmangry(ctx, id, false);
+  // If the altar has been destroyed or converted, let the priest run loose. (When it's just a
+  // conversion and there happens to be a fresh corpse nearby, the priest ought to have an
+  // opportunity to try converting it back; maybe someday...)
+  const epri = epriOf(ctx, id);
+  const shrLevel = epri ? ctx.state.levels[epri.shrlevel] : undefined;
+  if (!epri || !shrLevel) return;
+  const { x, y } = epri.shrpos;
+  const terrain = shrLevel.palette[shrLevel.cells[cellIndex(shrLevel, x, y)] ?? -1];
+  if (terrain === undefined || altarAlign(terrain) !== epri.shralign) {
+    // now a roaming minion; discard priest's memory of his former shrine
+    setEmin(ctx, id, { minAlign: epri.shralign, renegade: false });
+    dropEpri(ctx, id);
+  }
 }
 
 /** The monster is on a water square (is_pool(mtmp->mx, mtmp->my)). */

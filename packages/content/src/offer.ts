@@ -77,7 +77,7 @@ import {
   ualignCur,
 } from './luck';
 import { hcolor } from './hcolor';
-import { dlord } from './minion';
+import { dlord, summonMinion } from './minion';
 import { mksobjFull } from './mkobj';
 import { isDemon, isUnicorn } from './mondata';
 import { nomul } from './nomul';
@@ -246,7 +246,8 @@ function offerFakeAmulet(ctx: Ctx, obj: Entity, altaralign: number): void {
  * Converts the altar to her god ("The altar glows gray.", "You feel the power of Odin
  * increase.") or fails ("Unluckily, you feel the power of Odin decrease."); while her own god is
  * angry she converts instead the first time ("Thor accepts your allegiance."), or is rejected.
- * ref: src/pray.c offer_different_alignment_altar() (summon_minion(): its rolls, no minion)
+ * The altar's god may send a minion to punish her either way. ref: src/pray.c
+ * offer_different_alignment_altar()
  */
 function offerDifferentAlignmentAltar(ctx: Ctx, obj: Entity, altaralign: number): void {
   const u = uState(ctx.state);
@@ -274,9 +275,14 @@ function offerDifferentAlignmentAltar(ctx: Ctx, obj: Entity, altaralign: number)
   consumeOffering(ctx, obj);
   say(ctx, 'offer.conflict', { god: uGname(ctx.state), other: aGname(ctx) });
   const record = (): number => uState(ctx.state).alignRecord;
-  // summon_minion(altaralign, TRUE): the rolls are made, no minion exists to come
-  const minionRolls = (): void => {
-    if (rnl(ctx.rng, ulevel(ctx), luckOf(ctx.state)) > 6 && record() > 0) ctx.rng.rnd(record()); // > (3 or 7) * ALIGNLIM / (4 or 8): summon_minion(), none exists
+  // the altar's god may send a minion to punish her (summon_minion(altaralign, TRUE))
+  const minionRolls = (n: number, d: number): void => {
+    if (
+      rnl(ctx.rng, ulevel(ctx), luckOf(ctx.state)) > 6 &&
+      record() > 0 &&
+      ctx.rng.rnd(record()) > Math.trunc((n * alignLim(ctx.state)) / d)
+    )
+      summonMinion(ctx, altaralign as Aligntyp, true);
   };
   if (ctx.rng.rn2(8 + ulevel(ctx)) > 5) {
     say(ctx, 'offer.power_increase', { god: uGname(ctx.state) });
@@ -290,7 +296,7 @@ function offerDifferentAlignmentAltar(ctx: Ctx, obj: Entity, altaralign: number)
         color: hcolor(ctx, ua === A_LAWFUL ? 'white' : ua ? 'black' : 'gray'),
       });
     }
-    minionRolls(); // rnd(record) > (3 * ALIGNLIM) / 4
+    minionRolls(3, 4); // rnd(record) > (3 * ALIGNLIM) / 4
     // anger priest; test handles bones files
     const level = getLevel(ctx.state);
     const room = templeOccupied(level, uRooms(ctx));
@@ -300,7 +306,7 @@ function offerDifferentAlignmentAltar(ctx: Ctx, obj: Entity, altaralign: number)
   } else {
     say(ctx, 'offer.power_decrease', { god: uGname(ctx.state) });
     changeLuck(ctx, -1);
-    minionRolls(); // rnd(record) > (7 * ALIGNLIM) / 8
+    minionRolls(7, 8); // rnd(record) > (7 * ALIGNLIM) / 8
   }
 }
 

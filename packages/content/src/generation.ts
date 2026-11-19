@@ -50,6 +50,8 @@ import {
 import { setIsWiz, WIZARD_OF_YENDOR } from './wizstate';
 import { setMspeed, setStrat } from './mstate';
 import { AMOROUS_DEMON, setMonFemale } from './gender';
+import { setEmin } from './emin';
+import type { Aligntyp } from './aligntyp';
 
 /** ref: src/allmain.c maybe_generate_rnd_mon(): 1 in 70 per turn above the Castle's depth */
 export const SPAWN_ODDS = 70;
@@ -210,8 +212,9 @@ export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
  * Alignment toward the hero decides peacefulness.
  * ref: src/makemon.c peace_minded(). The erinyes are peaceful only to a hero who never abused
  * her alignment (`!u.ualign.abuse`). Then her race's love and hate (race_peaceful(),
- * race_hostile(): a dwarf's kin are dwarves and gnomes, a human hates gnomes and orcs).
- * Not ported: minions, quest/guardian sounds, Amulet.
+ * race_hostile(): a dwarf's kin are dwarves and gnomes, a human hates gnomes and orcs). A
+ * co-aligned minion is peaceful unless she has strayed at all. Not ported: quest/guardian
+ * sounds, Amulet.
  */
 export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   if (def.flags.includes('peaceful')) return true;
@@ -222,6 +225,8 @@ export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   const mal = def.alignment;
   const u = uState(ctx.state);
   if (Math.sign(mal) !== Math.sign(u.alignType)) return false;
+  // minions are hostile to players that have strayed at all
+  if (def.flags.includes('minion')) return u.alignRecord >= 0;
   // a co-aligned monster may still be hostile, more so when the hero has strayed
   return (
     ctx.rng.rn2(16 + (u.alignRecord < -15 ? -15 : u.alignRecord)) !== 0 &&
@@ -455,6 +460,11 @@ export interface MakemonOpts {
   noCountBirth?: boolean;
   /** MM_FEMALE (true) or MM_MALE (false) for a kind that is neither male, female nor neuter. */
   female?: boolean;
+  /**
+   * The caller makes the monster a temple priest or a minion itself (MM_EPRI, MM_EMIN): an
+   * aligned cleric or Angel gets no god of its own here.
+   */
+  extra?: 'epri' | 'emin';
 }
 
 type LevelObjectAt = (ctx: Ctx, at: { level: LevelId; x: number; y: number }) => void;
@@ -630,6 +640,23 @@ export function makemon(
   // ref: makemon(): `mndx == PM_WIZARD_OF_YENDOR`: `mtmp->iswiz = TRUE; no_of_wizards++` (no
   // Earth level: never his spellbook of dig)
   if (mdef.id === WIZARD_OF_YENDOR) setIsWiz(ctx, id);
+  // ref: makemon(): "it's possible to create an ordinary monster of some special types; make
+  // sure their extended data is initialized to something sensible if caller hasn't specified
+  // MM_EPRI|MM_EMIN": an aligned or high cleric becomes a roaming priest, an Angel 1 time in 3 a
+  // minion, of a random god (no A_NONE), renegade 1 time in 3 (always with MM_ANGRY), peaceful
+  // to a hero of its god unless renegade (and to another's only when renegade)
+  const cleric = mdef.id === ALIGNED_CLERIC || mdef.id === HIGH_CLERIC;
+  if (
+    mon &&
+    (cleric
+      ? opts.extra === undefined
+      : mdef.id === ANGEL && opts.extra !== 'emin' && !ctx.rng.rn2(3))
+  ) {
+    const minAlign = (ctx.rng.rn2(3) - 1) as Aligntyp;
+    const renegade = opts.angry ? true : !ctx.rng.rn2(3);
+    setEmin(ctx, id, { minAlign, renegade });
+    mon.peaceful = minAlign === uState(ctx.state).alignType ? !renegade : renegade;
+  }
   if ((anymon || opts.group === true) && !opts.nogroup) {
     if (mdef.group === 'small' && ctx.rng.rn2(2) === 0) initgrp(ctx, mdef, at, 3, opts, level.id);
     else if (mdef.group === 'large') {
@@ -659,6 +686,10 @@ export function makemon(
 }
 
 const GHOST: DefId = 'nh:ghost';
+/** ref: include/monsters.h PM_ALIGNED_CLERIC, PM_HIGH_CLERIC, PM_ANGEL */
+const ALIGNED_CLERIC: DefId = 'nh:aligned_cleric';
+const HIGH_CLERIC: DefId = 'nh:high_cleric';
+const ANGEL: DefId = 'nh:angel';
 const CROESUS: DefId = 'nh:croesus';
 const ERINYS: DefId = 'nh:erinys';
 

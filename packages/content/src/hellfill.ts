@@ -220,7 +220,7 @@ const STRIP: readonly string[] = Array.from({ length: 17 }, () => '...');
 
 /**
  * des.monster(spec, x, y) at a spot of a placed map: a class letter, or a monster's name; a kind
- * this port does not have (the Angel) is a random monster.
+ * the monster table lacks (a mod removed it) is a random monster.
  */
 function monsterAt(ctx: Ctx, level: Level, b: MapBlock, spec: string, x: number, y: number): void {
   const lx = b.x + x;

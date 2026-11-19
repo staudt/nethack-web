@@ -27,6 +27,7 @@ import { mcansee, storedMux } from './mstate';
 import { P, heroHas } from './props';
 import { egdOf } from './vaultstate';
 import { isWiz } from './wizstate';
+import { isLminion } from './emin';
 
 export const SCR_SCARE_MONSTER: DefId = 'nh:scroll_of_scare_monster';
 
@@ -100,7 +101,8 @@ export function onscary(
 ): boolean {
   const def = ctx.defs.monster(mon.def);
   // creatures who are directly resistant to any type of scaring
-  if (isWiz(ctx, mon.id) || RESISTS_ALL.includes(def.id)) return false;
+  if (isWiz(ctx, mon.id) || isLminion(ctx.state, mon.id, def) || RESISTS_ALL.includes(def.id))
+    return false;
   // creatures who are directly resistant to magical scaring: humans etc., uniques
   if (def.glyph.ch === '@' || def.genFlags.includes('uniq')) return false;
   // shopkeepers inside their own shop, priests inside their own temple

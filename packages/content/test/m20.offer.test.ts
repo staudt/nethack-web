@@ -40,6 +40,7 @@ import {
   undiscoveredArtifact,
 } from '../src/index';
 import { TEMPLE } from '../src/epri';
+import { emin } from '../src/emin';
 import { checkSpecialRoom } from '../src/rooms';
 import { nhData } from '../src/items';
 import { RACES_TAB } from '../src/racetab';
@@ -437,7 +438,7 @@ describe('another god’s altar', () => {
     expect(failed).toBeGreaterThan(converted);
   });
 
-  test("a converted temple altar keeps its shrine and angers the temple's priest", () => {
+  test("a converted temple altar keeps its shrine and turns the temple's priest into a hostile minion", () => {
     for (let seed = 1; seed <= 40; seed++) {
       const s = setup(null, seed);
       const level = getLevel(s.state);
@@ -453,7 +454,9 @@ describe('another god’s altar', () => {
       expect(terrain(s)).toBe(T.altar_neutral);
       expect(level.shrines).toEqual([{ x: s.here.x, y: s.here.y }]);
       expect(ent(s, pid!)!.c.monster!.peaceful).toBe(false);
-      expect(epriOf(s.ctx, pid!)).not.toBeNull();
+      // his altar converted, he runs loose: a roaming minion of his god (m23)
+      expect(epriOf(s.ctx, pid!)).toBeNull();
+      expect(emin(s.state, pid!)).toEqual({ minAlign: 1, renegade: false });
       return;
     }
     throw new Error('no conversion in 40 seeds');

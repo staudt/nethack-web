@@ -106,8 +106,11 @@ describe('polymorph soak', () => {
   // without the menu; the "vampire bat on a locked door" lead of 769 at m22 step 3 (step 603)
   // and of 749 after m20 (turn 126) was the record's: the bat became a fog cloud under the door
   // and this mod changed it back the same turn, before the end-of-turn note, so the forms are
-  // now noted before every change too; 769 then lasts 400 turns at m22 step 3)
-  for (const seed of [767, 771]) {
+  // now noted before every change too; 769 then lasts 400 turns at m22 step 3; 762 replaced 767
+  // in m23 step 1, whose five Angel rows shift the random forms: 767 died at turn 120 and lasts
+  // past turn 200 with the rows withheld; of 760..800, 762, 763, 771, 774, 781, 782, 785 and 787
+  // last 400 turns with and without them)
+  for (const seed of [762, 771]) {
     test(`seed ${seed}: 400 turns of polymorphing monsters and objects`, { timeout: 60000 }, () => {
       changed = 0;
       wallwalk = wallwalkRecord();

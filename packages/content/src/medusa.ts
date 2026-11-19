@@ -255,8 +255,8 @@ export const MEDUSA_2: LevelDef = {
     monAt('nh:stone_golem', 65, 9, true),
     monAt('nh:cobra', 64, 10, true),
     monAt('nh:cobra', 65, 10, true),
-    // des.monster("A", 72, 08): no A here, so mkclass() finds none: a random monster, as C
-    { kind: 'monster', x: 72, y: 8 },
+    // des.monster("A", 72, 08)
+    { kind: 'monster', class: 'A', x: 72, y: 8 },
     monAt('nh:yellow_light', 72, 11, true),
     ...(
       [

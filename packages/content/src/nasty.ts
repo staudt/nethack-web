@@ -81,12 +81,6 @@ const NASTIES: readonly DefId[] = [
 ];
 
 /**
- * The class of the nasties[] Angels this port lacks (no other absent one is a spellcaster or
- * an Angel or demon, the only things nasty()'s picking loop looks at). ref: include/monsters.h
- */
-const ABSENT_ANGELS: readonly DefId[] = ['nh:aleax', 'nh:couatl'];
-
-/**
  * The display letters of the nasties[] this port lacks, for the Rogue level's uppercase test.
  * ref: include/monsters.h
  */
@@ -94,15 +88,21 @@ const ABSENT_SYMS: Readonly<Record<string, string>> = {
   'nh:displacer_beast': 'f',
   'nh:genetic_engineer': 'Q',
   'nh:disenchanter': 'R',
-  'nh:aleax': 'A',
-  'nh:couatl': 'A',
 };
 
 /** more than this can be created */
 const MAXNASTIES = 10;
 
-/** min(mons[PM_ARCHON].difficulty, mons[PM_ARCH_LICH].difficulty): the Archon's 26 (C's table) */
-const ARCH_DIFCAP = 26;
+/**
+ * min(mons[PM_ARCHON].difficulty, mons[PM_ARCH_LICH].difficulty), of the rows there are (C's
+ * table gives the Archon's 26).
+ */
+const archDifcap = (ctx: Pick<Ctx, 'defs'>): number =>
+  Math.min(
+    ...(['nh:archon', 'nh:arch_lich'] as const).map((pm) =>
+      ctx.defs.isMonster(pm) ? ctx.defs.monster(pm).difficulty : 26,
+    ),
+  );
 
 type NastyCtx = Pick<Ctx, 'state' | 'defs' | 'rng'>;
 
@@ -176,7 +176,7 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
           if (!--trylimit) break;
           makeindex = pickNasty(ctx, difcap);
           const md = ctx.defs.isMonster(makeindex) ? ctx.defs.monster(makeindex) : null;
-          const mCls = md ? md.glyph.ch : ABSENT_ANGELS.includes(makeindex) ? 'A' : '';
+          const mCls = md ? md.glyph.ch : '';
           const caster = md !== null && difcap > 0 && md.difficulty >= difcap && castsSpells(md);
           if (!caster && !clash(mCls)) break;
         }
@@ -213,7 +213,7 @@ export function nasty(ctx: Ctx, summoner: Entity, ap: Pos): number {
           // if creating an arch-lich or Archon, further directly selected nasties will have to
           // be less difficult, and substitutes for geno victims will usually be less
           if (mtmp.def === 'nh:arch_lich' || mtmp.def === 'nh:archon') {
-            tmp = ARCH_DIFCAP;
+            tmp = archDifcap(ctx);
             if (!difcap || difcap > tmp) difcap = tmp; // rest must be lower difficulty
           }
           // delay first use of spell or breath attack

@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5797 citations.
+196 NetHack files, 5818 citations.
 
 ## dat/asmodeus.lua
 
@@ -180,6 +180,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/quest.lua
 
+- `angel_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `demon_cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 
 ## dat/soko1-1.lua
@@ -405,7 +406,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/mextra.h
 
-- (file): `packages/content/src/dog.ts`, `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`, `packages/content/src/vaultstate.ts`
+- (file): `packages/content/src/dog.ts`, `packages/content/src/emin.ts`, `packages/content/src/epri.ts`, `packages/content/src/eshk.ts`, `packages/content/src/vaultstate.ts`
 - `REPAIR_DELAY()`: `packages/content/src/shopdamage.ts`
 
 ## include/mhitm.h
@@ -545,10 +546,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/monst.h
 
-- (file): `packages/content/src/chamstate.ts`, `packages/content/src/hidestate.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/mstate.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
+- (file): `packages/content/src/chamstate.ts`, `packages/content/src/emin.ts`, `packages/content/src/hidestate.ts`, `packages/content/src/leashstate.ts`, `packages/content/src/mstate.ts`, `packages/content/src/wizstate.ts`, `packages/content/src/worm.ts`, `packages/core/src/types/entity.ts`, `packages/testkit/src/invariants.ts`
 - `MON_WEP()`: `packages/content/src/artidef.ts`, `packages/content/src/mongear.ts`
 - `M_SEEN_()`: `packages/content/src/musestate.ts`
 - `engulfing_u()`: `packages/content/src/engulfstate.ts`
+- `is_lminion()`: `packages/content/src/emin.ts`
 - `m_ap_type()`: `packages/content/src/mimicstate.ts`
 - `monmax_difficulty()`: `packages/content/src/generation.ts`
 - `monmin_difficulty()`: `packages/content/src/generation.ts`
@@ -558,7 +560,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/monsters.ts`, `packages/content/src/nasty.ts`, `packages/content/src/newcham.ts`, `packages/testkit/src/convert/emit.ts`
 - `MON()`: `packages/content/src/monsters.ts`
-- `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`
+- `PM_ALIGNED_CLERIC()`: `packages/content/src/epri.ts`, `packages/content/src/generation.ts`
 - `PM_CROESUS()`: `packages/content/src/gehennom.ts`
 - `PM_GHOST()`: `packages/content/src/priest.ts`
 - `PM_GUARD()`: `packages/content/src/vault.ts`
@@ -1788,9 +1790,14 @@ whole. A missing function may still be ported under a citation this parser canno
 - `demon_talk()`: `packages/content/src/demontalk.ts`, `packages/content/src/minion.en.ts`
 - `dlord()`: `packages/content/src/minion.ts`
 - `dprince()`: `packages/content/src/minion.ts`
+- `elementals()`: `packages/content/src/minion.ts`
+- `llord()`: `packages/content/src/minion.ts`
+- `lminion()`: `packages/content/src/minion.ts`
 - `monster_census()`: `packages/content/src/mcastu.ts`, `packages/content/src/minion.ts`
 - `msummon()`: `packages/content/src/minion.en.ts`, `packages/content/src/minion.ts`
 - `ndemon()`: `packages/content/src/minion.ts`, `packages/content/src/roommon.ts`
+- `newemin()`: `packages/content/src/emin.ts`
+- `summon_minion()`: `packages/content/src/minion.en.ts`, `packages/content/src/minion.ts`
 
 ## src/mklev.c
 
@@ -2049,7 +2056,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mondata.c
 
-- (file): `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/minion.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
+- (file): `packages/content/src/breakarm.ts`, `packages/content/src/eggstate.ts`, `packages/content/src/mondata.ts`, `packages/content/src/zap.ts`
 - `Resists_Elem()`: `packages/content/src/mresist.ts`
 - `big_to_little()`: `packages/content/src/eggstate.ts`
 - `breakarm()`: `packages/content/src/mondata.ts`
@@ -2461,7 +2468,6 @@ whole. A missing function may still be ported under a citation this parser canno
 - `godvoice()`: `packages/content/src/align.ts`
 - `in_trouble()`: `packages/content/src/pray.ts`
 - `offer_corpse()`: `packages/content/src/offer.en.ts`, `packages/content/src/offer.ts`
-- `offer_different_alignment_altar()`: `packages/content/src/offer.ts`
 - `offer_fake_amulet()`: `packages/content/src/offer.ts`
 - `offer_negative_valued()`: `packages/content/src/offer.ts`
 - `offer_too_soon()`: `packages/content/src/offer.ts`
@@ -2480,6 +2486,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `angry_priest()`: `packages/content/src/peaceful.ts`
 - `findpriest()`: `packages/content/src/epri.ts`
 - `forget_temple_entry()`: `packages/content/src/epri.ts`
+- `free_epri()`: `packages/content/src/epri.ts`
 - `ghod_hitsu()`: `packages/content/src/priest.en.ts`, `packages/content/src/priest.ts`
 - `has_shrine()`: `packages/content/src/epri.ts`
 - `histemple_at()`: `packages/content/src/epri.ts`

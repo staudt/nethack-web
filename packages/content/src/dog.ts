@@ -53,6 +53,7 @@ import { ustuck, setUstuck } from './hackmove';
 import { mintrap } from './trap';
 import { isMtrapped } from './trapstate';
 import { eshkOf } from './eshk';
+import { isMinion } from './emin';
 import { makeHappyShk } from './shk';
 
 /** ref: include/dog.h dogfood() results, best first */
@@ -610,11 +611,12 @@ export function tamedog(
     makeHappyShk(ctx, id);
     return false;
   }
-  // (no priests, guards or minions are tamed either; covetous monsters and, for a hero not in a
-  // demon form, demons never)
+  // monsters with conflicting structures cannot be tamed (minions; the priests and guards are
+  // human); covetous monsters and, for a hero not in a demon form, demons never
   const form = heroForm(ctx);
   if (
     isFrozen(ctx, id) ||
+    isMinion(ctx.state, id) ||
     isCovetous(def) ||
     def.flags.includes('human') ||
     (isDemon(def) && !(form !== null && isDemon(form))) ||

@@ -15,6 +15,9 @@ export const minionMessagesEn: Record<string, string> = {
   'minion.flame': 'flame',
   'minion.light': 'light',
   'minion.hell_p': 'Some hell-p has arrived!',
+  // ref: src/minion.c summon_minion()
+  'minion.voice_booms': 'The voice of {god} booms:',
+  'minion.indiscretion': '"Thou shalt pay for thine indiscretion!"',
   'minion.looks_puzzled': '{mon|The} looks puzzled for a moment.',
   'adtyp.barbs_stick': 'The barbs stick to you!',
   'demon.looks_very_angry': '{mon|An} looks very angry.',

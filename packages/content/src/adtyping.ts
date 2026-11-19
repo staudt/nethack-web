@@ -196,8 +196,9 @@ const ent = (ctx: Ctx, id: EntityId): Entity | undefined => ctx.state.entities[S
 /**
  * The magic cancellation of the hero (or of monster `who`): the best worn armor's MC.
  * ref: src/mhitu.c magic_negation(): extrinsic Protection (the hero's ring, a worn cloak of
- * protection) adds 1, at most 3. Not ported: intrinsic Protection's minimum of 1, the amulet of
- * guarding, high priests' innate protection.
+ * protection) adds 1, at most 3; without it aligned priests and minion kinds have a minimum of
+ * 1 (innate Protection). Not ported: the hero's intrinsic Protection's minimum of 1, the amulet
+ * of guarding.
  */
 export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): number {
   let mc = 0;
@@ -219,6 +220,12 @@ export function magicNegation(ctx: Ctx, who: EntityId = ctx.state.playerId): num
           return protects(ctx.defs, o, worn);
         });
   if (gotprot) mc = Math.min(mc + 1, 3);
+  else if (mc < 1 && who !== ctx.state.playerId) {
+    // aligned priests and angels have innate intrinsic Protection
+    const mon = ctx.state.entities[String(who)];
+    const def = mon?.c.monster ? ctx.defs.monster(mon.def) : null;
+    if (def && (def.id === 'nh:aligned_cleric' || def.flags.includes('minion'))) mc = 1;
+  }
   return mc;
 }
 

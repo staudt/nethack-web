@@ -378,6 +378,7 @@ export function mfndpos(
     !m.peaceful &&
     level.id === ctx.state.currentLevel &&
     epriOf(ctx, id) === null &&
+    !def.flags.includes('minion') && // mon_allowflags(): `is_minion(mtmp->data)` ALLOW_SANCT
     level.rooms.some((r) => r.type === TEMPLE) &&
     templeOccupied(level, inRooms(level, pos.x, pos.y)) === null;
   // ref: mon_allowflags() ALLOW_SSM: pets, peacefuls, shopkeepers, priests, humans and minotaurs

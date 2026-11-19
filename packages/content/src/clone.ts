@@ -7,7 +7,8 @@ import { isExtinct } from './vanquished';
 import { edogOf, tamedog } from './dog';
 import { fleeTime, isFleeing, monflee } from './monflee';
 import { copyMState } from './mstate';
-import { luckOf } from './luck';
+import { luckOf, uState } from './luck';
+import { emin, setEmin } from './emin';
 import { canSpotMon, monNam } from './perception';
 import { setSplitMon } from './trap';
 
@@ -22,8 +23,9 @@ const heroAt = (ctx: Ctx, level: string, p: Pos): boolean => {
  * trapped. A clone of a peaceful or tame monster made by the hero stays so only
  * `rn2(max(2 + Luck, 2))` of the time; a tame one is tamed afresh with the original's pet record.
  * Returns null when the monster has 1 HP or less, its kind is extinct (population control), or
- * there is no room. ref: src/makemon.c clone_mon() (x == 0: next to the monster; no names,
- * minions, light sources or mon_track: none apply here)
+ * there is no room. A minion's clone serves its god, renegade by its own peacefulness.
+ * ref: src/makemon.c clone_mon() (x == 0: next to the monster; no names, light sources or
+ * mon_track: none apply here)
  */
 export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean, where?: Pos): EntityId | null {
   const mon = ctx.state.entities[String(id)];
@@ -71,7 +73,14 @@ export function cloneMon(ctx: Ctx, id: EntityId, monMoving: boolean, where?: Pos
       if (!ctx.rng.rn2(n)) delete c2.tame;
     } else c2.peaceful = ctx.rng.rn2(n) !== 0;
   }
-  if (c2.tame) {
+  // if guardian angel could be cloned (maybe after polymorph?), m2 could be both isminion and
+  // mtame; isminion takes precedence: renegade when same alignment as hero but not peaceful or
+  // when peaceful while being different alignment from hero
+  const e1 = emin(ctx.state, id);
+  if (e1) {
+    const renegade = (e1.minAlign !== uState(ctx.state).alignType) !== !c2.peaceful;
+    setEmin(ctx, m2, { minAlign: e1.minAlign, renegade }); // (set_malign() follows)
+  } else if (c2.tame) {
     // "m2 must be made non-tame to get initialized properly"
     delete c2.tame;
     if (tamedog(ctx, m2, null, false, () => {})) {

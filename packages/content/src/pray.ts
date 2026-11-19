@@ -44,6 +44,8 @@ import {
   onShrine,
 } from './align';
 import { rnz } from './corpses';
+import { summonMinion } from './minion';
+import type { Aligntyp } from './aligntyp';
 import { done } from './end';
 import { fixStrangled } from './jewelry';
 import { abase, adjattrib, amax, rawAttr, restoreAttr, setRawAttr, type Attr } from './attrib';
@@ -488,7 +490,7 @@ export function desecrateAltar(ctx: Ctx, highaltar: boolean, altaralign: number)
   godZapsYou(ctx, altaralign);
 }
 
-/** ref: src/pray.c angrygods() (no level drain, punishment or minions) */
+/** ref: src/pray.c angrygods() (no punishment: no ball and chain) */
 export function angrygods(ctx: Ctx, god: number): void {
   // in Gehennom Moloch answers
   const respGod = inHell(ctx.state) ? A_NONE : god;
@@ -529,7 +531,8 @@ export function angrygods(ctx: Ctx, god: number): void {
       godvoice(ctx, respGod, null);
       say(ctx, onAltar(ctx) && heroAltar(ctx) !== respGod ? 'pray.durst_scorn' : 'pray.durst');
       say(ctx, 'pray.then_die');
-      break; // summon_minion(): no minions exist
+      summonMinion(ctx, respGod as Aligntyp, false);
+      break;
     default:
       godvoice(ctx, respGod, 'pray.angered');
       godZapsYou(ctx, respGod);

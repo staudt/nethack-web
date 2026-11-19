@@ -103,7 +103,12 @@ export function priestini(ctx: Ctx, level: Level, room: number, altar: Pos): Ent
       p.y = to.y;
     }
   }
-  const id = makemon(ctx, ctx.defs.monster(ALIGNED_CLERIC), { x: px, y: py }, { level: level.id });
+  const id = makemon(
+    ctx,
+    ctx.defs.monster(ALIGNED_CLERIC),
+    { x: px, y: py },
+    { level: level.id, extra: 'epri' },
+  );
   const priest = id === null ? undefined : ctx.state.entities[String(id)];
   if (id === null || !priest?.c.monster) return null;
   const altarId = level.palette[level.cells[cellIndex(level, altar.x, altar.y)] ?? -1];

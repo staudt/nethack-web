@@ -201,9 +201,6 @@ export function ttDoppel(ctx: Ctx): MonsterDef | null {
   return id === undefined ? null : pmOrNull(ctx, id);
 }
 
-/** ref: include/monsters.h the Archon's difficulty, while its row is absent */
-const ARCHON_DIFFICULTY = 26;
-
 /** ref: include/monsters.h the quest guardians PM_STUDENT..PM_APPRENTICE (no rows here) */
 const QUEST_GUARDIANS = 14;
 
@@ -231,8 +228,7 @@ export function selectNewchamForm(ctx: Ctx, mon: Entity): MonsterDef | null {
   // `mndx`: undefined is NON_PM (pick at random below), null a kind the port lacks
   let mndx: MonsterDef | null | undefined;
   const nasty = (than: DefId): MonsterDef | null => {
-    // mons[PM_ARCHON].difficulty is 26 (include/monsters.h; its row lands in m18 step 7)
-    const cap = pmOrNull(ctx, than)?.difficulty ?? (than === ARCHON ? ARCHON_DIFFICULTY : 0);
+    const cap = pmOrNull(ctx, than)?.difficulty ?? 0;
     return pmOrNull(ctx, pickNasty(ctx, cap - 1));
   };
   switch (cham) {

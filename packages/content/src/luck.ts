@@ -170,7 +170,8 @@ export function adjalign(ctx: Pick<Ctx, 'state'>, n: number): void {
  * How good (negative) or bad (positive) killing this monster is for the hero's alignment.
  * ref: src/makemon.c set_malign(), computed from the monster's present peacefulness (NetHack
  * recomputes it whenever that changes). `mal` is the monster's own alignment: its def's, or for
- * a temple priest his shrine's times 5 (A_NONE stays A_NONE). No minions or quest leaders exist.
+ * a temple priest his shrine's and for a minion its god's, times 5 (A_NONE stays A_NONE). No
+ * quest leaders exist.
  */
 export function malign(
   def: MonsterDef,
@@ -196,6 +197,12 @@ export interface KilledPriest {
   coaligned: boolean;
 }
 
+/** A minion's part in xkilled(): its god, and its malign when fixed at birth. */
+export interface KilledMinion {
+  minAlign: number;
+  malign?: number;
+}
+
 /**
  * The hero killed `mon` (called before it is removed): murder, killing peacefuls and pets cost
  * Luck, and the alignment record moves by the monster's malign; killing a temple priest
@@ -203,13 +210,22 @@ export interface KilledPriest {
  * earns 2 otherwise. ref: src/mon.c xkilled() "Punish bad behavior" and "adjust alignment
  * points"; a co-aligned unicorn costs 5 Luck (no quest monsters)
  */
-export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | null = null): void {
+export function xkilledPenalties(
+  ctx: Ctx,
+  mon: Entity,
+  priest: KilledPriest | null = null,
+  minion: KilledMinion | null = null,
+): void {
   const m = mon.c.monster;
   if (!m) return;
   const def = ctx.defs.monster(mon.def);
   const u = uState(ctx.state);
-  // ref: set_malign(): a priest's alignment is his shrine's, times 5 unless A_NONE
-  const mal = priest ? (priest.shralign === A_NONE ? A_NONE : priest.shralign * 5) : def.alignment;
+  // ref: set_malign(): a priest's alignment is his shrine's, a minion's its god's, times 5
+  // unless A_NONE
+  const own = priest ? priest.shralign : minion ? minion.minAlign : null;
+  const mal = own === null ? def.alignment : own === A_NONE ? A_NONE : own * 5;
+  // a minion summoned by an angry god keeps the malign of its birth
+  const mlgn = minion?.malign ?? malign(def, m.peaceful, u.alignType, mal);
   // murder: an always-peaceful-ish human (not a player monster, not a plain "human": it is rare
   // and most likely a resurrected corpse or animated statue), unless the hero is chaotic; her
   // own race does not matter
@@ -218,7 +234,7 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
     !def.flags.includes('hostile') &&
     !isMplayer(def) &&
     def.id !== 'nh:human' &&
-    malign(def, m.peaceful, u.alignType, mal) <= 0 &&
+    mlgn <= 0 &&
     u.alignType !== -1
   ) {
     setIntrinsic(getPlayer(ctx.state), P.TELEPAT, false);
@@ -241,7 +257,7 @@ export function xkilledPenalties(ctx: Ctx, mon: Entity, priest: KilledPriest | n
     adjalign(ctx, -15); // bad!!
     say(ctx, heroHas(ctx.state, P.HALLUC) ? 'luck.applause' : 'luck.thunder');
   } else if (m.peaceful) adjalign(ctx, -5);
-  adjalign(ctx, malign(def, m.peaceful, u.alignType, mal));
+  adjalign(ctx, mlgn);
 }
 
 /**

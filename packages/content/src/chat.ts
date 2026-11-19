@@ -37,6 +37,7 @@ import { couldSeduce, isNymph } from './steal';
 import { doseduce } from './seduce';
 import { confdir, uMaybeImpaired } from './hackmove';
 import { cuss } from './cuss';
+import { isLminion } from './emin';
 import { demonTalk } from './demontalk';
 import { isFleeing } from './monflee';
 import { moneyCnt } from './money';
@@ -262,12 +263,11 @@ export function domonnoise(ctx: Ctx, id: EntityId): ChatResult {
         demonTalk(ctx, id);
         return NORMAL_SPEED;
       }
-      // (no minions: `is_lminion()` never holds, so a peaceful one is never "not too late")
       if (!m.peaceful) {
         cuss(ctx, mon);
         return NORMAL_SPEED;
       }
-      say(ctx, 'chat.doomed');
+      say(ctx, isLminion(ctx.state, id, def) ? 'chat.not_too_late' : 'chat.doomed');
       return NORMAL_SPEED;
     case 'djinni':
       // (no prisoner here; a tame djinni has no wishes left)

@@ -41,6 +41,8 @@ import { beginBurn } from './burnstate';
 import { GLASS_GEMS, REAL_GEMS, gemLedger, rndClass } from './gem';
 import { monFloorEffects } from './align';
 import { ALIGNED_CLERIC, epriOf } from './epri';
+import { emin } from './emin';
+import { onameItem } from './artistate';
 import { SHOPKEEPER, eshkOf, inAnyShop, inhishop } from './eshk';
 import { color } from './hcolor';
 import { mspeed } from './mstate';
@@ -126,7 +128,7 @@ export function setMonFlag(
 
 /** Forgets everything stored about a dead monster. */
 export function forgetMonster(ctx: Pick<GearCtx, 'state'>, id: EntityId): void {
-  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri', 'eshk']) {
+  for (const k of ['gearchk', 'nowep', 'mtrack', 'epri', 'eshk', 'emin']) {
     const t = flagTable(ctx, k, false);
     if (t) delete t[String(id)];
   }
@@ -405,6 +407,8 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
     // ref: m_initweap() S_ZOMBIE (the only armed one is the skeleton)
     if (!rng.rn2(4)) mongets(ctx, monId, 'nh:leather_armor');
     if (!rng.rn2(4)) mongets(ctx, monId, rng.rn2(3) ? 'nh:knife' : 'nh:short_sword');
+  } else if (ch === 'A') {
+    if (hasFlag(def, 'humanoid')) angelGear(ctx, monId, def);
   } else if (ch !== '&' || hasFlag(def, 'demon')) {
     // ref: m_initweap() S_DEMON: the balrog's bullwhip and broadsword, Orcus's wand, the horned
     // devil's trident or bullwhip, Dispater's wand of striking, Yeenoghu's flail, then for real
@@ -450,6 +454,48 @@ export function mInitWeap(ctx: GearCtx, monId: EntityId): void {
   }
   // ref: m_initweap() `if ((int) mtmp->m_lev > rn2(75)) mongets(rnd_offensive_item(mtmp))`
   if (monLevel(ctx, monId) > rng.rn2(75)) mongetsMuse(ctx, monId, rndOffensiveItem(ctx, monId));
+}
+
+/**
+ * A humanoid Angel's minion stuff (bypassing mongets()): a long sword 2 times in 3, else a silver
+ * mace, which a lawful one (its god's, or its kind's when it has none yet) makes Sunsword or
+ * Demonbane when it is a lord or 1 time in 20 (the artifact made at random, unless it exists);
+ * blessed, erodeproof, +0..+3 (the mace +3..+6, weaker against large foes); then a shield of
+ * reflection when it is a lord or 1 time in 4, else a large shield, erodeproof and +0.
+ * ref: src/makemon.c m_initweap() S_ANGEL
+ */
+function angelGear(ctx: GearCtx, monId: EntityId, def: MonsterDef): void {
+  const rng = ctx.rng;
+  const longSword = rng.rn2(3) !== 0;
+  const typ: DefId = longSword ? 'nh:long_sword' : 'nh:silver_mace';
+  const nam = longSword ? 'Sunsword' : 'Demonbane';
+  // maybe promote weapon to an artifact
+  const lawful = Math.sign(emin(ctx.state, monId)?.minAlign ?? def.alignment) === 1;
+  const promote = (!rng.rn2(20) || isLord(def)) && lawful;
+  const wdef = objDef(ctx, typ);
+  if (wdef) {
+    const id = mksobj(ctx, wdef, { init: false, carriedBy: monId });
+    const it = ctx.state.entities[String(id)]?.c.item;
+    if (it) {
+      if (promote) onameItem(ctx, typ, it, nam, 'random'); // randomly created
+      // enhance the weapon
+      it.buc = 'blessed';
+      it.erodeproof = true;
+      // make long sword be +0 to +3, mace be +3 to +6 to compensate for being significantly
+      // weaker against large opponents
+      it.spe = rng.rn2(4) + (longSword ? 0 : 3);
+    }
+  } else rng.rn2(4); // (the object is absent: its roll is still made)
+  const shield: DefId = !rng.rn2(4) || isLord(def) ? 'nh:shield_of_reflection' : 'nh:large_shield';
+  const sdef = objDef(ctx, shield);
+  if (sdef) {
+    const id = mksobj(ctx, sdef, { init: false, carriedBy: monId });
+    const it = ctx.state.entities[String(id)]?.c.item;
+    if (it) {
+      it.erodeproof = true;
+      it.spe = 0;
+    }
+  }
 }
 
 /** mtmp->m_lev */
@@ -811,9 +857,10 @@ function mDoWearType(
     // ref: m_dowear_type() W_ARM with the racial exception: hobbits wear elven armor
     if (slot === 'body' && racialException && !(def.id === 'nh:hobbit' && /elven/.test(o.def)))
       continue;
-    // changing alignment is not implemented for monsters; priests (no minions here) reject
-    // helms of opposite alignment
-    if (o.def === 'nh:helm_of_opposite_alignment' && epriOf(ctx, monId)) continue;
+    // changing alignment is not implemented for monsters; priests and minions could change
+    // alignment but wouldn't want to, so they reject helms of opposite alignment
+    if (o.def === 'nh:helm_of_opposite_alignment' && (epriOf(ctx, monId) || emin(ctx.state, monId)))
+      continue;
     if (o.c.item?.equipped) continue;
     if (
       best &&

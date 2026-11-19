@@ -29,6 +29,7 @@ import { forgetMonster, heroSees, minvent, relobj, setMonFlag } from './mongear'
 import { forgetMState, isMrevived, unfreezeMonst } from './mstate';
 import { xkilledPenalties } from './luck';
 import { epriOf, pCoaligned } from './epri';
+import { emin } from './emin';
 import { shkgone } from './shk';
 import { setHistoric } from './statuestate';
 import { canseemon, unmapInvisible } from './invis';
@@ -199,6 +200,7 @@ export function monsterDied(
       ctx,
       e,
       epri ? { shralign: epri.shralign, coaligned: pCoaligned(ctx, epri) } : null,
+      emin(ctx.state, monId),
     );
   }
   // ref: xkilled(): `if (gs.stoned) monstone(mtmp)`: a statue holding its things, no corpse

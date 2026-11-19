@@ -18,6 +18,7 @@ import {
   type Pos,
 } from '@nh/core';
 import { A_NONE, ALGN_SINNED, altarAlign, type Aligntyp } from './aligntyp';
+import { emin } from './emin';
 import { uState } from './luck';
 import { godSuffix } from './gods';
 import { uRooms } from './urooms';
@@ -73,6 +74,12 @@ export function epriOf(ctx: Pick<Ctx, 'state'>, id: EntityId): Epri | null {
 export function setEpri(ctx: Pick<Ctx, 'state'>, id: EntityId, epri: Epri): void {
   const t = table(ctx, true);
   if (t) t[String(id)] = epri as unknown as Json;
+}
+
+/** He is a temple priest no more: his shrine's memory is gone. ref: src/priest.c free_epri() */
+export function dropEpri(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx, false);
+  if (t) delete t[String(id)];
 }
 
 /** The first temple among `rooms` (an inRooms() list), or null. ref: priest.c temple_occupied() */
@@ -132,14 +139,14 @@ export function monAligntyp(epri: Epri): Aligntyp {
 }
 
 /**
- * Any monster's alignment as an aligntyp: a priest's shrine's, else its kind's sign (A_NONE kept).
- * No minions here (EMIN). ref: src/priest.c mon_aligntyp()
+ * Any monster's alignment as an aligntyp: a priest's shrine's, a minion's god's, else its kind's
+ * sign (A_NONE kept). ref: src/priest.c mon_aligntyp()
  */
 export function monAligntypOf(ctx: Pick<Ctx, 'state' | 'defs'>, id: EntityId): Aligntyp {
   const epri = epriOf(ctx, id);
   if (epri) return monAligntyp(epri);
   const mon = ctx.state.entities[String(id)];
-  const a = mon ? ctx.defs.monster(mon.def).alignment : 0;
+  const a = emin(ctx.state, id)?.minAlign ?? (mon ? ctx.defs.monster(mon.def).alignment : 0);
   if (a === A_NONE) return A_NONE; // negative but differs from chaotic
   return a > 0 ? 1 : a < 0 ? -1 : 0;
 }
@@ -172,15 +179,18 @@ export function forgetTempleEntry(epri: Epri): void {
 /**
  * The hero is in the temple holding x,y (or `mon`'s square), and it is a sanctuary to her: its
  * peaceful priest is there, coaligned, with his shrine intact, and she has not sinned.
- * ref: src/priest.c in_your_sanctuary() (no minions or Riders)
+ * A minion kind has no sanctuary to respect.
+ * ref: src/priest.c in_your_sanctuary()
  */
 export function inYourSanctuary(
-  ctx: Pick<Ctx, 'state'>,
+  ctx: Pick<Ctx, 'state' | 'defs'>,
   mon: Entity | null,
   x: number,
   y: number,
 ): boolean {
   if (mon) {
+    const def = ctx.defs.monster(mon.def);
+    if (def.flags.includes('minion')) return false; // (no Riders yet)
     const p = mon.c.pos;
     if (!p) return false;
     x = p.x;
