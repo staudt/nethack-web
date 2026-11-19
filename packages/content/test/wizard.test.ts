@@ -227,13 +227,15 @@ describe('wiz:where', () => {
         if ('b' in l)
           expected.push({
             key:
-              l.b.stairs === 'child'
-                ? l.b.dir === 'up'
-                  ? 'wiz.where.one_way'
-                  : 'wiz.where.connection'
-                : l.b.dir === 'up'
-                  ? 'wiz.where.branch_up'
-                  : 'wiz.where.branch',
+              l.b.stairs === 'portal'
+                ? 'wiz.where.portal'
+                : l.b.stairs === 'child'
+                  ? l.b.dir === 'up'
+                    ? 'wiz.where.one_way'
+                    : 'wiz.where.connection'
+                  : l.b.dir === 'up'
+                    ? 'wiz.where.branch_up'
+                    : 'wiz.where.branch',
             params: {
               dungeon: '@' + wizard.registry.dungeon(l.b.to).nameKey,
               depth: start + l.dl - 1,

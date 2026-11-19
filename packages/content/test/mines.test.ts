@@ -70,24 +70,26 @@ describe('the Mines layout', () => {
     const entries = new Set<number>();
     const sizes = new Set<number>();
     for (let seed = 1; seed <= 300; seed++) {
-      // dungeon.lua's order: Gehennom comes second, then Fort Ludios (m21), then the Planes and
-      // Vlad's Tower (m23: the Planes, a child of the main dungeon, are rolled before Vlad's
-      // Tower, a child of Gehennom)
-      const [main, hell, mines, soko, ludios, ...rest] = rollDungeons(
+      // dungeon.lua's order: Gehennom comes second, the Quest (m24) after the Mines, then Fort
+      // Ludios (m21), then the Planes and Vlad's Tower (m23: the Planes, a child of the main
+      // dungeon, are rolled before Vlad's Tower, a child of Gehennom)
+      const [main, hell, mines, quest, soko, ludios, ...rest] = rollDungeons(
         createRng(seedRng(seed)),
         defs.dungeons,
       );
+      expect(quest?.id).toBe('nh:quest');
       expect(rest.map((d) => d.id)).toEqual(['nh:planes', 'nh:vlad']);
       expect(ludios?.id).toBe('nh:ludios');
       expect(hell?.id).toBe('nh:gehennom');
       expect(soko?.id).toBe('nh:sokoban');
       expect(main).toMatchObject({ id: 'nh:main', depthStart: 1 });
-      // Gehennom's connection (the Castle), the Mines' branch stairs, then Sokoban's (below the
-      // Oracle, DL6-10), then Fort Ludios's floating one (no stairs), then the Planes' (none on
-      // DL1: its up stairs leave the dungeon)
+      // Gehennom's connection (the Castle), the Mines' branch stairs, the Quest's portal, then
+      // Sokoban's (below the Oracle, DL6-10), then Fort Ludios's floating one (no stairs), then
+      // the Planes' (none on DL1: its up stairs leave the dungeon)
       expect(main?.branches.map((x) => x.to)).toEqual([
         'nh:gehennom',
         'nh:mines',
+        'nh:quest',
         'nh:sokoban',
         'nh:ludios',
         'nh:planes',

@@ -78,7 +78,9 @@ import { actualNameKey, descNameKey, xnameOf } from './objnam';
 import { artiAlign, discoveredArtifacts } from './artistate';
 import { artifactRowOrNull } from './artilist';
 import { A_NONE } from './aligntyp';
-import { isKnown } from './o_init';
+import { discover, isKnown } from './o_init';
+import { setU, ualignBase, ualignCur } from './luck';
+import { inQuest } from './levelflags';
 import { JAPANESE_ITEMS } from './kittab';
 import { roleIs } from './urole';
 import { calcCapacity, invWeight, moneyCount, nearCapacity, weightCap } from './stats';
@@ -1445,6 +1447,19 @@ const wear: ActionDef = {
       return 0;
     }
     if (!canWear(ctx, obj, true)) return 0;
+    // m24: the helm of opposite alignment in the Quest (ref: accessory_or_armor_on())
+    if (obj.def === 'nh:helm_of_opposite_alignment' && inQuest(ctx.state)) {
+      ctx.emit({
+        type: 'msg',
+        key:
+          ualignCur(ctx.state) === ualignBase(ctx.state)
+            ? 'wear.helm_quest_avoid'
+            : 'wear.helm_quest_shame', // converted
+      });
+      setU(ctx, { ublessed: 0 }); // lose your god's protection
+      discover(ctx, obj.def);
+      return NORMAL_SPEED;
+    }
     // costs a turn even though it didn't get worn
     if (!retouchObject(ctx, obj, false)) return NORMAL_SPEED;
     it.equipped = def.armor.slot;

@@ -22,6 +22,7 @@ import {
   type Room,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
+import { MAGIC_PORTAL } from '../src/portal';
 import { engravingsOn } from '../src/engr';
 import { makemon, rndmonst } from '../src/generation';
 import { vanillaMod } from '../src/index';
@@ -135,7 +136,8 @@ describe("the Rogue level's fill", () => {
           expect(cls === 'coin' || ROGUE_CLASSES.includes(cls), `${seed} ${o.def}`).toBe(true);
           if (cls !== 'coin') objects++;
         }
-        for (const t of level.traps) expect(ROGUE_TRAPS).toContain(t.def);
+        // (and the Quest's portal when its branch is on the Rogue level: m24)
+        for (const t of level.traps) expect([...ROGUE_TRAPS, MAGIC_PORTAL]).toContain(t.def);
         traps += level.traps.length;
       });
     // the fill did make things (so the checks above saw something)
@@ -214,17 +216,20 @@ describe("the Rogue level's fill", () => {
           amulets++;
           expect(a.c.item?.known.spe).toBe(true);
         }
-        // (the fill's own gold may land on the pile too)
+        // (the fill's own gold and objects of its seven classes may land on the pile too)
         for (const o of pile)
-          expect([
-            'nh:gold_piece',
-            'nh:food_ration',
-            'nh:fake_amulet_of_yendor',
-            weapon.def,
-            'nh:bow',
-            'nh:arrow',
-            mail.def,
-          ]).toContain(o.def);
+          if (
+            ![
+              'nh:gold_piece',
+              'nh:food_ration',
+              'nh:fake_amulet_of_yendor',
+              weapon.def,
+              'nh:bow',
+              'nh:arrow',
+              mail.def,
+            ].includes(o.def)
+          )
+            expect(ROGUE_CLASSES).toContain(engine.registry.object(o.def).class);
       });
     expect(monsters).toBeGreaterThan(5);
     // both sides of each coin over 24 levels

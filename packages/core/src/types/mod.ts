@@ -303,6 +303,14 @@ export interface DungeonDef {
   mazeFiller?: { below: DefId; def: DefId; roomsOneIn: number };
   /** Its fixed special levels, placed in this order when the layout is rolled. */
   special?: SpecialLevelDef[];
+  /**
+   * m24: its ordinary levels by the hero's role (her entity's `def`, a RoleDef id): built from
+   * `byRole[role][0]` above special level `split` and from `byRole[role][1]` below it; a role
+   * without an entry (or a game where `split` was not placed) uses `filler` and the rest as
+   * usual. ref: src/mklev.c makelevel() In_quest(): "%s-fila" / "%s-filb" by `dunlev <
+   * qlocate_level.dlevel`
+   */
+  roleFiller?: { split: DefId; byRole: Readonly<Record<DefId, readonly [DefId, DefId]>> };
 }
 
 /**
@@ -329,6 +337,13 @@ export interface SpecialLevelDef {
   /** 0..100, default 100; `rn2(100)` is drawn either way. */
   chance?: number;
   variants: DefId[];
+  /**
+   * m24: LevelDef ids by the hero's role (her entity's `def`, a RoleDef id) that replace
+   * `variants` for that role, picked by the same rule (`rnd(n)` for two or more). A role without
+   * an entry uses `variants`. ref: dat/dungeon.lua "x-strt" names; src/dungeon.c init_level()
+   * (the role's file code for "x")
+   */
+  roleVariants?: Readonly<Record<DefId, readonly DefId[]>>;
   /** A town level: `Level.town` is set (ref: dungeon.lua flags "town"). */
   town?: boolean;
 }
@@ -360,8 +375,13 @@ export interface DungeonEntryDef {
    * teleport, and arriving on `from`'s level by the child's stairs lands in its teleport region
    * for that direction. ref: dat/dungeon.lua branchtype "no_down" (BR_NO_END1); src/mklev.c
    * place_branch()
+   * m24: `portal` for branch stairs at neither end (dat/dungeon.lua branchtype "portal",
+   * BR_PORTAL): the child dungeon starts at the depth of `from`'s level ("portals stay on the
+   * same depth"); content places a magic portal at each end. Arriving by `'branch'` on either end
+   * lands in the level's teleport region. ref: src/dungeon.c init_dungeon_set_depth();
+   * src/mklev.c place_branch() (mkportal())
    */
-  stairs?: 'both' | 'child';
+  stairs?: 'both' | 'child' | 'portal';
 }
 
 /**
@@ -895,9 +915,12 @@ export interface Ctx {
    * branch staircase, on a random room floor cell without a trap ('random', for falling
    * through a trap door; ref: src/dungeon.c u_on_rndspot()), or on a fixed spot of it (a `Pos`:
    * a ladder or a magic portal the caller knows; a monster there is moved off as on stairs;
-   * ref: src/do.c goto_level() u_on_newpos()). Throws for a level outside the layout.
+   * ref: src/do.c goto_level() u_on_newpos()), or (m24) on its first trap of kind `trap` (in
+   * `Level.traps` order) once the level is made and its `newLevel` hooks have run, else as
+   * 'random' (a magic portal: ref: src/do.c goto_level() "no corresponding portal!"). Throws for a
+   * level outside the layout.
    */
-  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random' | Pos): void;
+  goToLevel(to: LevelRef, at: 'up' | 'down' | 'branch' | 'random' | Pos | { trap: DefId }): void;
   /**
    * Puts a trap on `level`, replacing any trap already on that cell (ref: src/trap.c
    * maketrap()). Throws unless the cell is plain floor (see `isPlainFloor`) or the def is unknown.

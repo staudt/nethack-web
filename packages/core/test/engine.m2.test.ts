@@ -837,7 +837,7 @@ describe('newGame', () => {
     const r = engine.newGame({ seed: 3, width: 40, height: 15 });
     const s = r.state;
     expect(ctl.newGame).toEqual([{ hero: s.playerId, hadPos: false, levels: 0 }]);
-    expect(s.version).toBe(10);
+    expect(s.version).toBe(11);
     expect(s.gameOver).toBeNull();
     expect(s.pendingPrompt).toBeNull();
     expect(r.prompt).toBeNull();
@@ -907,21 +907,21 @@ describe('save format', () => {
     actions: [],
   };
 
-  test('round trip is version 10', () => {
+  test('round trip is version 11', () => {
     const s = fresh();
     const text = engine.save(s, replay);
     const raw = JSON.parse(text) as { version: number; state: { version: number } };
-    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([10, 10, 10]);
+    expect([raw.version, raw.state.version, SAVE_VERSION]).toEqual([11, 11, 11]);
     expect(engine.load(text).state).toEqual(s);
   });
 
-  test.each([3, 4, 5, 6, 7, 8, 9])(
+  test.each([3, 4, 5, 6, 7, 8, 9, 10])(
     'an older (v%i) save is refused, not migrated (m22 Q5)',
     (old) => {
       const raw = JSON.parse(engine.save(fresh(), replay)) as Record<string, unknown>;
       raw['version'] = old;
       expect(() => engine.load(JSON.stringify(raw))).toThrow(
-        `This save was made by an older version of the game (save version ${old}, now 10) and can't be restored`,
+        `This save was made by an older version of the game (save version ${old}, now 11) and can't be restored`,
       );
     },
   );

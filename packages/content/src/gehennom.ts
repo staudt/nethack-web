@@ -12,6 +12,7 @@ import {
   PLANE_LEVELS,
   inEndgame,
   inHell,
+  inQuest,
   isKnox,
   isRogueLevel,
   isValley,
@@ -88,6 +89,16 @@ export function registerGehennom(api: ModApi): void {
         return plane ? `status.plane_${plane}` : null;
       }
       return singleLevelBranch(level) ? defs.dungeon(level.dungeon).nameKey : null;
+    },
+  });
+  // m24: in the Quest the status line shows "Home N", its level there, and the end its level
+  // (ref: src/botl.c describe_level(); src/end.c done() `In_quest() ? dunlev() : depth()`)
+  api.defineStatus({
+    id: 'nh:home',
+    field: 'home',
+    value(state) {
+      const level = state.levels[state.currentLevel];
+      return level && inQuest(state, level) ? level.dlevel : null;
     },
   });
   // ref: src/do.c goto_level(): temperature_change_msg(prev_temperature) last

@@ -108,7 +108,8 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
   requireTerrains(registry, Object.values(terrain), 'levelgen');
 
   /**
-   * New level `ref`: its special level, else its dungeon's filler LevelDef, else (below the
+   * New level `ref`: its special level (the hero's role's `roleVariants` when it has some), else
+   * its dungeon's `roleFiller` for the hero's role, else its filler LevelDef, else (below the
    * dungeon's `mazeFiller.below`, most of the time) the maze filler, else the rooms-and-corridors
    * generator.
    */
@@ -129,17 +130,31 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       terrain,
     };
     const dungeon = registry.dungeon(ref.dungeon);
+    // the hero's role: her entity's def (ref: dungeon.c "x-" names with urole.filecode)
+    const role = state.entities[String(state.playerId)]?.def;
     const at = specialLevelAt(state, ref);
     const special = at && dungeon.special?.find((s) => s.id === at.id);
     if (special) {
       // ref: src/mkmaze.c makemaz(): "%s-%d" with rnd(sp->rndlevs), before anything else; a
       // level without dungeon.lua's `nlevels` (rndlevs 0) draws nothing
-      const n = special.variants.length;
-      const variant = special.variants[n > 1 ? rng.rnd(n) - 1 : 0] as DefId;
+      const byRole =
+        role !== undefined && special.roleVariants && Object.hasOwn(special.roleVariants, role)
+          ? special.roleVariants[role]
+          : undefined;
+      const variants = byRole ?? special.variants;
+      const n = variants.length;
+      const variant = variants[n > 1 ? rng.rnd(n) - 1 : 0] as DefId;
       const level = buildLevel(rng, opts, registry.level(variant));
       if (special.town === true) level.town = true;
       return level;
     }
+    // ref: src/mklev.c makelevel(): In_quest(): "%s-fila" above the locate level, else "-filb"
+    const rf = dungeon.roleFiller;
+    const pair =
+      rf && role !== undefined && Object.hasOwn(rf.byRole, role) ? rf.byRole[role] : undefined;
+    const split = pair && dungeonLayout(state, ref.dungeon).special.find((s) => s.id === rf?.split);
+    if (pair && split)
+      return buildLevel(rng, opts, registry.level(ref.dlevel < split.dlevel ? pair[0] : pair[1]));
     if (dungeon.filler !== undefined) return buildLevel(rng, opts, registry.level(dungeon.filler));
     const mazes = dungeon.mazeFiller;
     const below =
@@ -225,7 +240,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         for (const inner of allContents(state, id)) delete state.entities[String(inner)];
         delete state.entities[String(id)];
       },
-      goToLevel(to, at) {
+      goToLevel(to, where) {
         const layout = dungeonLayout(state, to.dungeon);
         if (
           !Number.isInteger(to.dlevel) ||
@@ -246,6 +261,13 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
         // ref: src/do.c goto_level(): `up = depth(newlevel) < depth(&u.uz)`; without stairs
         // (falling, level teleport) or a branch's stairs, u_on_rndspot(up) (u_on_sstairs())
         const up = level.depth < current.depth;
+        // ref: src/do.c goto_level(): at_trapdoor/portal, `u_on_newpos(ttrap)` on the made
+        // level's portal, else "goto_level: no corresponding portal!" and u_on_rndspot()
+        let at: Exclude<typeof where, { trap: DefId }>;
+        if (typeof where === 'object' && 'trap' in where) {
+          const t = level.traps.find((x) => x.def === where.trap);
+          at = t ? { x: t.x, y: t.y } : 'random';
+        } else at = where;
         if (typeof at === 'object' && !inBounds(level, at.x, at.y))
           throw new RangeError(`(${at.x},${at.y}) is outside level '${level.id}'`);
         placeHero(
@@ -445,7 +467,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       const roleDef = registry.role(player.role);
       const s = seed >>> 0;
       const state: GameState = {
-        version: 10,
+        version: 11,
         seed: s,
         turn: 1,
         nextEntityId: 1,

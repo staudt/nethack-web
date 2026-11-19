@@ -75,7 +75,14 @@ import { doname, notFullyIdentified, xnameOf } from './objnam';
 import { discoverArtifact } from './artistate';
 import { checkCapacity, color, hcolor, heroEntity, strangeFeeling, useup, useupall } from './magic';
 import { P, hasProp, makeConfused, timeoutLeft } from './props';
-import { isEarthLevel, isFireLevel, isRogueLevel, isWaterLevel, levelFlags } from './levelflags';
+import {
+  inQuest,
+  isEarthLevel,
+  isFireLevel,
+  isRogueLevel,
+  isWaterLevel,
+  levelFlags,
+} from './levelflags';
 import { T, terrainIdAt } from './terrain';
 import { snuffLit } from './light';
 import {
@@ -638,8 +645,8 @@ export { hardHelmet };
 /**
  * What is above (x, y) of the hero's level, as a message key. ref: src/dig.c ceiling(), for the
  * places that exist here: temples, shops, the Planes of Water, Air and Fire, room floors, doors
- * and walls ("ceiling") and corridors and the Plane of Earth ("rock cavern"); no vaults,
- * Underwater or quest levels.
+ * and walls ("ceiling") and corridors and the Plane of Earth ("rock cavern"), the Quest ("expanse
+ * above"); no vaults or Underwater.
  */
 export function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string {
   const rooms = inRooms(level, x, y);
@@ -650,6 +657,8 @@ export function ceilingKey(ctx: Ctx, level: Level, x: number, y: number): string
   if (isWaterLevel(ctx.state, level)) return 'earth.ceiling.water_above';
   if (t.id === T.air || t.id === T.cloud) return 'earth.ceiling.sky'; // IS_AIR()
   if (isFireLevel(ctx.state, level)) return 'earth.ceiling.flames_above';
+  // m24: "just in case; try to avoid in caller if you can"
+  if (inQuest(ctx.state, level)) return 'earth.ceiling.expanse_above';
   // (IS_ROOM() && !Is_earthlevel()) || walls || doors: "ceiling", else "rock cavern"
   return t.id === 'nh:corr' || isEarthLevel(ctx.state, level)
     ? 'earth.ceiling.rock_cavern'

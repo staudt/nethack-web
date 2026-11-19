@@ -315,6 +315,11 @@ export const messagesEn: Record<string, string> = {
   'nh:castle': 'Castle',
   'nh:gehennom': 'Gehennom',
   'nh:ludios': 'Fort Ludios',
+  // m24: dat/dungeon.lua's "The Quest" and its "x-strt", "x-loca", "x-goal"
+  'nh:quest': 'The Quest',
+  'level.qstart': 'Quest home',
+  'level.qlocate': 'Quest locate',
+  'level.qgoal': 'Quest goal',
   // m21: dat/dungeon.lua's "rogue" and "knox"
   'level.rogue': 'Rogue level',
   'level.knox': 'Fort Ludios',

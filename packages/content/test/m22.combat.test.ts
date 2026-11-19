@@ -405,6 +405,8 @@ describe("the Rogue's backstab and the Healer's knife", () => {
     let most = 0;
     for (let i = 0; i < n; i++) {
       reset(s, id);
+      // asleep at each swing (a miss wakes it)
+      if (o.asleep) ent(s, id).c.monster!.asleep = true;
       if (o.flee) monflee(s.ctx as never, id, 0, true, false);
       const lines = said(s, () =>
         knownHitum(s.ctx as never, id, heroWeapon(s.ctx as never, ent(s, dagger)), true, null),

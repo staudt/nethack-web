@@ -22,6 +22,7 @@ import { levelDifficulty } from './levdiff';
 import { makemon } from './generation';
 import { mksobj, placeOnFloor } from './items';
 import { ROGUE } from './levelflags';
+import { placeBranchPortal } from './branchportal';
 import { fillOrdinaryRooms, mkCorridorBoulders } from './mklev';
 import { somexyspaceTry } from './somexy';
 import { ROGUE_SYMSET } from './symset';
@@ -490,6 +491,8 @@ export const ROGUE_FIXUP: SpLevFixup = {
       ordinaryRogueLevel(ctx, level);
       makeRogueGhost(ctx, level);
     }
+    // makelevel()'s skip0: place_branch() (a portal branch's portal; stairs are rogueStairs()'s)
+    placeBranchPortal(ctx, level);
     fillOrdinaryRooms(ctx, level);
   },
 };

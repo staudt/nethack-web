@@ -92,6 +92,11 @@ describe('statusLines line 2', () => {
     expect(l2.map((f) => f.text)).toEqual(['Fort Ludios', '$:5', 'T:9']);
   });
 
+  test('in the Quest: "Home N" in place of Dlvl:N (ref: src/botl.c describe_level())', () => {
+    const [, l2] = statusLines({ dlvl: 14, home: 2, gold: 5, turn: 9 });
+    expect(l2.map((f) => f.text)).toEqual(['Home 2', '$:5', 'T:9']);
+  });
+
   test('polymorphed: HD:n in place of Xp (ref: src/botl.c)', () => {
     const [, l2] = statusLines({ xl: 3, xp: 40, hd: 2, turn: 5 });
     expect(l2.map((f) => f.text)).toEqual(['HD:2', 'T:5']);
@@ -162,6 +167,10 @@ describe('goodbyeLines', () => {
     expect(
       goodbyeLines({ t, has }, { ...s, endDungeon: 'nh:ludios', place: 'nh:ludios' }, 'x')[1],
     ).toBe('You died in Fort Ludios,');
+    // in the Quest, its level there (ref: src/end.c `In_quest() ? dunlev() : depth()`)
+    expect(goodbyeLines({ t, has }, { ...s, endDungeon: 'nh:main', home: 3 }, 'x')[1]).toBe(
+      'You died in The Dungeons of Doom on dungeon level 3,',
+    );
   });
 
   test('an ascension: the Demigoddess went to her reward (ref: src/end.c really_done())', () => {

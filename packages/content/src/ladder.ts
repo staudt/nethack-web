@@ -51,12 +51,18 @@ export function findTerrain(level: Readonly<Level>, id: DefId): Pos | null {
 
 /**
  * The LevelDef level `to` will be built from when it is a special level with one variant (the
- * Wizard's Tower and the fake towers are), else null.
+ * Wizard's Tower and the fake towers are; the hero's role's `roleVariants` when it has some, as
+ * core picks them), else null.
  */
 export function plannedLevelDef(ctx: Pick<Ctx, 'state' | 'defs'>, to: LevelRef): LevelDef | null {
   const sp = specialLevelAt(ctx.state, to);
   if (!sp) return null;
-  const v = ctx.defs.dungeon(to.dungeon).special?.find((s) => s.id === sp.id)?.variants;
+  const def = ctx.defs.dungeon(to.dungeon).special?.find((s) => s.id === sp.id);
+  const role = ctx.state.entities[String(ctx.state.playerId)]?.def;
+  const v =
+    role !== undefined && def?.roleVariants && Object.hasOwn(def.roleVariants, role)
+      ? def.roleVariants[role]
+      : def?.variants;
   const id = v?.length === 1 ? v[0] : undefined;
   return id === undefined ? null : ctx.defs.level(id);
 }

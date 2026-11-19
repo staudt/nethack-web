@@ -319,8 +319,9 @@ describe('doseduce()', () => {
     const { s, m } = setup({ succubus: true, heroFemale: false, cha: 25 });
     const ring = s.carry('nh:ring_of_adornment');
     const r = seduceAfter(s.state, m.id, 0, true);
+    // (the ring's random appearance may be two words: "black onyx")
     expect(
-      r.text.some((t) => /^"That [a-z]+ ring looks pretty. {2}May I have it\?"$/.test(t)),
+      r.text.some((t) => /^"That [a-z ]+ ring looks pretty. {2}May I have it\?"$/.test(t)),
     ).toBe(true);
     expect(r.st.entities[String(ring)]!.c.item!.carriedBy).toBe(m.id);
   });

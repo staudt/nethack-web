@@ -160,6 +160,9 @@ export const itemMessagesEn: Record<string, string> = {
   'wear.already.gloves': 'You are already wearing gloves.',
   'wear.already.shirt': 'You are already wearing a shirt.',
   'wear.already.cloak': 'You are already wearing a cloak.',
+  // m24: a helm of opposite alignment in the Quest (do_wear.c accessory_or_armor_on())
+  'wear.helm_quest_avoid': 'You narrowly avoid losing all chance at your goal.',
+  'wear.helm_quest_shame': 'You are suddenly overcome with shame and change your mind.',
   'wear.already.suit': 'You are already wearing some armor.',
   'wear.armor_over_cloak': 'You cannot wear armor over a cloak.',
   'wear.over': "You can't wear that over your {what}.",

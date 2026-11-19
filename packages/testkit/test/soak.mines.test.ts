@@ -7,7 +7,9 @@ import { branchStartMod, soak } from '../src/index';
 // invariants checked as it goes.
 describe('soak in the Mines', () => {
   const deepest: number[] = [];
-  // seeds re-picked when the game stream changes; 120 replaced 105 in m22 step 2 (the eight kit
+  // seeds re-picked when the game stream changes; 136 joined them in m24 step 3 (the quest
+  // dungeon's draws at new game: of 1, 77 and 120..190 only 136, 141, 142, 146, 157, 178 and 187
+  // go below the top level with them, none of those without them, where 120 still does); 120 replaced 105 in m22 step 2 (the eight kit
   // object rows: of 1, 77, 105, 116, 120, 128 and 130..138 only 120 (Mines level 3) and 133 and
   // 135 go below the top level with them, and 120 and 135 do without them); 105 replaced 97 in m21 step 5 (the Fort
   // Ludios portal's `rn2(3)` in every vault: of 98..129 only 105, 116, 120 and 128 go below the
@@ -29,7 +31,7 @@ describe('soak in the Mines', () => {
   // picks; 5 did before, since m7f-d step 2's kicking
   // boots; 7 did before, since m7f-c step 2's new objects; 2 did before, since m7f-c step 1's room statue roll; 6 before, 11 before m7f-b step 2, 2 before
   // m7f-a step 3, 16 before m7f-a step 2, 5 before m7e step 6)
-  for (const seed of [1, 77, 120]) {
+  for (const seed of [1, 77, 120, 136]) {
     test(`seed ${seed}: 2000 turns from the Mines staircase`, { timeout: 120000 }, () => {
       const r = soak([vanillaMod, branchStartMod], { seed, turns: 2000, checkEvery: 5 });
       console.log(

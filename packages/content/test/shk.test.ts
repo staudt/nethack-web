@@ -498,6 +498,11 @@ describe('entering a shop', () => {
     dropPotions(s.state, id);
     shk.c.actor.speed = 0;
     shk.c.actor.energy = 0;
+    // nobody else in the shop (its stock may hide a mimic): "deserted" means no one is there
+    for (const k of Object.keys(s.state.entities)) {
+      const o = s.state.entities[k];
+      if (o?.c.monster && o.id !== s.state.playerId && o.id !== id) delete s.state.entities[k];
+    }
     const move = (dir: 'w' | 'e') => s.engine.step(s.state, { type: 'move', dir });
     const at = (x: number, y: number) => {
       const hp = getPlayer(s.state).c.pos;

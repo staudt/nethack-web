@@ -191,11 +191,16 @@ describe('the potion, the wand and the spell (the polymorph itself: m7f.polyself
   test('the potion: "You feel a little strange." and it is identified', () => {
     // a smoky potion may hold a djinni instead (then no polymorph): count the other quaffs
     let normal = 0;
-    for (let seed = 2; seed <= 6; seed++) {
-      const s = room(seed); // seed 1's polymorph kills her (since m12 step 6's vault roll)
+    for (let seed = 1; seed <= 8; seed++) {
+      const s = room(seed);
       const p = s.carry('nh:potion_of_polymorph');
       const text = s.text(s.mod('nh:quaff', { item: p }));
       if (text.some((t) => t.includes('cloud of smoke'))) continue;
+      // (a polymorph may kill her: newman()'s system shock; the second quaff needs her alive)
+      if (s.state.gameOver) {
+        expect(text).toContain('You feel a little strange.');
+        continue;
+      }
       expect(text).toContain('You feel a little strange.');
       expect(isKnown(s.state, defs, 'nh:potion_of_polymorph')).toBe(true);
       setIntrinsic(getPlayer(s.state), P.HALLUC, true);

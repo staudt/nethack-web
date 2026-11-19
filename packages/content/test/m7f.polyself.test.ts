@@ -580,18 +580,21 @@ describe('lycanthropy', () => {
 
 describe('polymorphitis', () => {
   test('with Polymorph she changes on her own about 1 turn in 100', () => {
-    // a seed where her first change is not newman()'s fatal system shock
-    const s = room(3);
-    setAttr(s, 'con', 25);
-    setIntrinsic(hero(s), P.POLYMORPH, true);
-    let turns = 0;
+    // a seed (searched as the test runs) where her first change is not newman()'s fatal
+    // system shock
     let changed = false;
-    while (turns < 2000 && !changed) {
-      const text = textsOf(wait(s).events);
-      turns++;
-      changed = text.some(
-        (t) => t.startsWith('You turn into') || t.startsWith('You feel like a new'),
-      );
+    for (let seed = 3; seed < 20 && !changed; seed++) {
+      const s = room(seed);
+      setAttr(s, 'con', 25);
+      setIntrinsic(hero(s), P.POLYMORPH, true);
+      let turns = 0;
+      while (turns < 2000 && !changed && !s.state.gameOver) {
+        const text = textsOf(wait(s).events);
+        turns++;
+        changed = text.some(
+          (t) => t.startsWith('You turn into') || t.startsWith('You feel like a new'),
+        );
+      }
     }
     expect(changed).toBe(true);
     // Unchanging stops it

@@ -269,7 +269,9 @@ describe("the Riders' touches", () => {
   });
 
   test("Famine's touch does not harm a monster that does not eat; Death's drains a monster", () => {
-    const state = game(2);
+    // a seed (searched) whose hero starts with three free floor squares around her (2 before
+    // m24 step 3)
+    const state = game(3);
     const famine = pinned(state, FAMINE);
     const golem = pinned(state, 'nh:iron_golem');
     const jackal = pinned(state, 'nh:jackal');

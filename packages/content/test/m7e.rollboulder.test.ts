@@ -264,19 +264,23 @@ describe('the boulder rolls', () => {
   });
 
   test('onto a teleportation trap: it vanishes to another spot of the level', () => {
-    // (seed 3: the random spot is not the one it was rolling to, 1 in 10 on this row; seed 2
-    // drew that spot after m19 step 1's new object rows)
-    const m = mapSetup(ROW, { seed: 3 });
-    rollingTrap(m, 5, 1, [2, 1], [8, 1]);
-    m.level.traps.push({ def: TRAP.tele, x: 7, y: 1, seen: false });
-    const msgs = run(m.state, (ctx) => {
-      expect(launchObj(ctx, 2, 1, 8, 1, {})).toBe(2);
-    });
-    expect(msgs).toContain('Suddenly the rolling boulder disappears!');
-    expect(trapAt(m.level, 7, 1)?.seen).toBe(true);
-    const at = boulders(m.state);
-    expect(at).toHaveLength(1);
-    expect(at[0]).not.toBe('8,1');
+    // a seed (searched as the test runs) whose random spot is not the one it was rolling to
+    // (1 in 10 on this row; the stream moved the hand-picked seed twice)
+    let moved = false;
+    for (let seed = 3; seed < 30 && !moved; seed++) {
+      const m = mapSetup(ROW, { seed });
+      rollingTrap(m, 5, 1, [2, 1], [8, 1]);
+      m.level.traps.push({ def: TRAP.tele, x: 7, y: 1, seen: false });
+      const msgs = run(m.state, (ctx) => {
+        expect(launchObj(ctx, 2, 1, 8, 1, {})).toBe(2);
+      });
+      expect(msgs).toContain('Suddenly the rolling boulder disappears!');
+      expect(trapAt(m.level, 7, 1)?.seen).toBe(true);
+      const at = boulders(m.state);
+      expect(at).toHaveLength(1);
+      moved = at[0] !== '8,1';
+    }
+    expect(moved).toBe(true);
   });
 
   test('into another boulder, which rolls on', () => {

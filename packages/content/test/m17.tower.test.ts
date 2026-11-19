@@ -178,12 +178,13 @@ describe("the Wizard's Tower levels", () => {
         checkMap(l, def, ladderAt);
         if (spots.up) expect(ter(l, at(def, l, ...spots.up))).toBe(T.ladder_up);
         if (spots.down) expect(ter(l, at(def, l, ...spots.down))).toBe(T.ladder_down);
-        // up and down stairs outside the map's {0,0,28,12}, no branch
-        for (const s of [l.up!, l.down!]) {
+        // up and down stairs outside the map's {0,0,28,12}, and the branch stairs up to Vlad's
+        // Tower when the branch is on this level (m23)
+        for (const s of [l.up!, l.down!, ...(l.branch ? [l.branch.pos] : [])]) {
           expect([T.stairs_up, T.stairs_down]).toContain(ter(l, s));
           expect(inBox(def, l, s, 28, 12)).toBe(false);
         }
-        expect(l.branch).toBeNull();
+        if (l.branch) expect(l.branch.to.dungeon).toBe('nh:vlad');
         // the boundary is the teleport region's exclusion {0,0,27,12}
         const o = at(def, l, 0, 0);
         expect(inWTower(state, l, o.x, o.y)).toBe(true);

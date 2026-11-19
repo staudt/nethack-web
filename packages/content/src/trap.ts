@@ -67,6 +67,7 @@ import {
   isStronghold,
   onWTowerLevel,
   singleLevelBranch,
+  inQuest,
   uInvoked,
 } from './levelflags';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
@@ -131,7 +132,7 @@ import {
   timeoutLeft,
 } from './props';
 import { endgameUpdest } from './endgame';
-import { MAGIC_PORTAL, portalArrival, portalDest } from './portal';
+import { MAGIC_PORTAL, portalDest } from './portal';
 import { findAc, findMac } from './stats';
 import { isSokoban, maybeFinishSokoban } from './sokoban';
 import { canseemon as canseemonInvis } from './invis';
@@ -2020,9 +2021,10 @@ function domagicportal(ctx: Ctx, trap: Trap): void {
   }
   const stunned = hasProp(heroEnt(ctx), P.STUNNED);
   makeStunned(ctx, timeoutLeft(ctx.state, heroEnt(ctx), P.STUNNED) + 3, false);
-  // the endgame's levels have no arrival portal: a random spot of the teleport region
+  // the endgame's levels have no arrival portal: a random spot of the teleport region; else the
+  // made level's portal (a random spot when it has none)
   const endgame = inEndgame(ctx.state, dst);
-  ctx.goToLevel(dst, endgame ? 'random' : (portalArrival(ctx, dst) ?? 'random'));
+  ctx.goToLevel(dst, endgame ? 'random' : { trap: MAGIC_PORTAL });
   if (ctx.state.gameOver) return;
   const t = trapAt(getLevel(ctx.state), heroPos(ctx).x, heroPos(ctx).y);
   if (t?.def === TRAP.portal && !endgame) seetrap(t); // seetrap(ttrap) at the arrival portal
@@ -2232,7 +2234,7 @@ function heroDepth(ctx: Ctx, level: Readonly<Level>): number {
  * shop this way is leaving it by the stairs. A level teleporter's own messages (`trap`) come
  * once level_tele() is over, before the deferred goto_level() at the end of the turn (C's
  * schedule_goto()), on every outcome.
- * ref: src/teleport.c level_tele() (no quest, leashed pets or level names),
+ * ref: src/teleport.c level_tele() (no leashed pets or level names),
  * random_teleport_level(); src/dungeon.c get_level()
  */
 export function levelTele(ctx: Ctx, opts: { cost?: number; trap?: boolean } = {}): void {
@@ -2283,7 +2285,7 @@ const isDigit = (c: string | undefined): boolean => c !== undefined && c >= '0' 
  * to a random level 4 times in 5 (rnl(5)), even when she cancels; cancelling stays put; text that
  * is not a number asks again, up to 10 tries, then a random level; 0 asks "Go to Nowhere.  Are
  * you sure?"; on Fort Ludios a positive number says "You shudder for a moment." and stays; any
- * other number is the depth to go to.
+ * other number is the depth to go to (in the Quest, counted from its first level, "Home 1").
  * ref: src/teleport.c level_tele() (the Teleport_control loop; lev_by_name() is not ported;
  * `single_level_branch(&u.uz) && newlev > 0 && !force_dest`)
  */
@@ -2312,11 +2314,22 @@ function answerLevel(ctx: Ctx, value: Json, data: TeleData): void {
   }
   // if in Knox and the requested level > 0, stay put (negative requests fall into the "heaven"
   // handling)
-  if (singleLevelBranch(getLevel(ctx.state, heroPos(ctx).level)) && newlev > 0) {
+  const here = getLevel(ctx.state, heroPos(ctx).level);
+  if (singleLevelBranch(here) && newlev > 0) {
     say(ctx, 'tele.shudder');
     return levelTeleTrapAfter(ctx, trap);
   }
-  levelTeleTo(ctx, newlev, trap);
+  // "if in Quest, the player sees "Home 1", etc., on the status line, instead of the logical
+  // depth of the level. controlled level teleport request is likely to be relativized to the
+  // status line, and consequently it should be incremented to the value of the logical depth of
+  // the target level." (negative requests fall into the "heaven" handling)
+  levelTeleTo(
+    ctx,
+    inQuest(ctx.state, here) && newlev > 0
+      ? newlev + dungeonLayout(ctx.state, here.dungeon).depthStart - 1
+      : newlev,
+    trap,
+  );
 }
 
 /**
@@ -2416,6 +2429,8 @@ function levelTeleTo(ctx: Ctx, newlev: number, trap: boolean): void {
       say(ctx, 'tele.sorry');
     }
   }
+  // no teleporting out of quest dungeon
+  if (inQuest(ctx.state, level) && newlev < layout.depthStart) newlev = layout.depthStart;
   // ref: level_tele(): from the Dungeons of Doom (the dungeon Gehennom branches from) to a depth
   // past its bottom, find_hell(): Gehennom's first level
   const hell = findHell(ctx.state);

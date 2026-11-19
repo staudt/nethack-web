@@ -174,7 +174,7 @@ function checkRogueMap(l: Level, state: GameState): void {
 }
 
 describe('the layout', () => {
-  test('the Rogue level on DL15-18, Fort Ludios one level deep at 19-22, over seeds', () => {
+  test('the Rogue level on DL15-18, Fort Ludios one level deep at 18-21, over seeds', () => {
     const rogue = new Set<number>();
     const ludios = new Set<number>();
     for (let seed = 1; seed <= 300; seed++) {
@@ -190,25 +190,26 @@ describe('the layout', () => {
       rogue.add(r);
       // never on another special level
       expect(main?.special.filter((s) => s.dlevel === r)).toHaveLength(1);
-      // Fort Ludios: after Sokoban, one level, its branch on DL18-21 with no stairs on the main
-      // dungeon's end
-      expect(layout.map((d) => d.id).slice(0, 5)).toEqual([
+      // Fort Ludios: after Sokoban, one level, its portal branch on DL18-21 (no stairs at
+      // either end, at the same depth: m24)
+      expect(layout.map((d) => d.id).slice(0, 6)).toEqual([
         'nh:main',
         'nh:gehennom',
         'nh:mines',
+        'nh:quest',
         'nh:sokoban',
         LUDIOS,
       ]);
-      const knox = layout[4];
+      const knox = layout[5];
       const b = main?.branches.find((x) => x.to === LUDIOS);
-      expect(b?.stairs).toBe('child');
+      expect(b?.stairs).toBe('portal');
       expect([18, 19, 20, 21]).toContain(b?.dlevel);
-      expect(knox).toMatchObject({ levels: 1, depthStart: (b?.dlevel ?? 0) + 1 });
+      expect(knox).toMatchObject({ levels: 1, depthStart: b?.dlevel ?? 0 });
       expect(knox?.special).toEqual([{ id: KNOX, dlevel: 1 }]);
       ludios.add(knox?.depthStart ?? 0);
     }
     expect([...rogue].sort()).toEqual([15, 16, 17, 18]);
-    expect([...ludios].sort()).toEqual([19, 20, 21, 22]);
+    expect([...ludios].sort()).toEqual([18, 19, 20, 21]);
   });
 
   test('no level of the main dungeon has stairs to Fort Ludios', () => {

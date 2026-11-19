@@ -240,10 +240,13 @@ describe("Asmodeus's lair", () => {
       expect(asmo?.c.monster?.peaceful).toBe(true);
       expect(monAt(state, level, at(level, 11, 7))?.def).toBe('nh:ghost');
       expect(monAt(state, level, at(level, 10, 5))?.def).toBe('nh:horned_devil');
+      // the fixed traps, unless one of the later random ones (sleeping gas, anti-magic, fire,
+      // magic) landed on the same square and replaced it (maketrap(), as in C)
+      const later = [TRAP.sleepGas, TRAP.antiMagic, TRAP.fire, TRAP.magic];
       const pit = at(level, 5, 2);
-      expect(trapAt(level, pit.x, pit.y)?.def).toBe(TRAP.spikedPit);
+      expect([TRAP.spikedPit, ...later]).toContain(trapAt(level, pit.x, pit.y)?.def);
       const fire = at(level, 8, 6);
-      expect(trapAt(level, fire.x, fire.y)?.def).toBe(TRAP.fire);
+      expect([TRAP.fire, ...later]).toContain(trapAt(level, fire.x, fire.y)?.def);
     }
   });
 

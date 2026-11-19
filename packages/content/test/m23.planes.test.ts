@@ -253,7 +253,10 @@ describe('the planes', () => {
     const l = getLevel(state);
     expect(l.def).toBe(FIRE.id);
     expect(countTerrain(l, T.lava)).toBeGreaterThan(300);
-    expect(l.traps.filter((t) => t.def === 'nh:fire_trap').length).toBe(40);
+    // 40 des.trap("fire") at random spots (a later one may land on an earlier one, as in C)
+    const fire = l.traps.filter((t) => t.def === 'nh:fire_trap').length;
+    expect(fire).toBeGreaterThanOrEqual(36);
+    expect(fire).toBeLessThanOrEqual(40);
     expect(
       Object.values(state.entities).filter((e) => e.def === 'nh:boulder' && e.c.pos?.level === l.id)
         .length,

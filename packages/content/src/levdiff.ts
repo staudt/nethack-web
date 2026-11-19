@@ -10,18 +10,18 @@ import {
   type Level,
   type LevelRef,
 } from '@nh/core';
-import { GEHENNOM, GEHENNOM_SPECIALS, inEndgame } from './levelflags';
+import { GEHENNOM, GEHENNOM_SPECIALS, QUEST, inEndgame } from './levelflags';
 import { uHave } from './uhave';
 
 /**
  * The depth of the deepest level she has reached (levels exist once visited). `noquest` leaves
- * out the Quest (the score list's "max level"; there is no Quest yet, so it changes nothing).
- * 0 before any level exists. ref: src/dungeon.c deepest_lev_reached()
+ * out the Quest (the score list's "max level": its levels are as deep as the levels below its
+ * portal). 0 before any level exists. ref: src/dungeon.c deepest_lev_reached()
  */
 export function deepestLevReached(state: Readonly<GameState>, noquest: boolean): number {
-  void noquest; // no Quest dungeon (m24)
   let ret = 0;
-  for (const lv of Object.values(state.levels)) if (lv.depth > ret) ret = lv.depth;
+  for (const lv of Object.values(state.levels))
+    if (lv.depth > ret && !(noquest && lv.dungeon === QUEST)) ret = lv.depth;
   return ret;
 }
 

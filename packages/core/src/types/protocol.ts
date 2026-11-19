@@ -44,7 +44,7 @@ export interface CharacterChoices {
 
 export interface SaveFile {
   format: 'nh-ts';
-  version: 10;
+  version: 11;
   mods: ModRef[];
   state: GameState;
   replay: Replay;

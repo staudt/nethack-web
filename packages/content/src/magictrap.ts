@@ -59,6 +59,8 @@ import {
 } from './trap';
 import { drainEn, pwOf, setPw } from './uenergy';
 import { heroForm, upolyd } from './upoly';
+import { atQuestEntrance, inQuest, isQstart } from './levelflags';
+import { polyGender } from './gender';
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -246,8 +248,7 @@ function fireTrapMon(ctx: Ctx, mon: Entity, trap: Trap): TrapResult {
  * turns) and a deafening roar wakes the monsters within 7 squares after `rnd(4)` monsters
  * appear next to her; 10: nothing; 11: a low hum toggles her invisibility; 12: a tower of flame; 13-18: odd feelings;
  * 19: +1 Charisma and the adjacent monsters are tamed; 20: worn and wielded items are uncursed.
- * ref: src/trap.c domagictrap() (no deafness; no Quest, so she always yearns
- * for her distant homeland)
+ * ref: src/trap.c domagictrap() (no deafness)
  */
 export function magicTrapFate(ctx: Ctx, fate: number): void {
   const hero = getPlayer(ctx.state);
@@ -307,7 +308,17 @@ export function magicTrapFate(ctx: Ctx, fate: number): void {
       say(ctx, halluc(ctx) ? 'magictrap.moon_howling' : 'magictrap.distant_howling');
       return;
     case 15:
-      say(ctx, halluc(ctx) ? 'magictrap.yearn_cleveland' : 'magictrap.yearn_homeland');
+      if (isQstart(ctx.state))
+        say(ctx, polyGender(ctx.state) === 0 ? 'magictrap.prodigal' : 'magictrap.prodigal_oddly');
+      else
+        say(
+          ctx,
+          halluc(ctx)
+            ? 'magictrap.yearn_cleveland'
+            : inQuest(ctx.state) || atQuestEntrance(ctx.state)
+              ? 'magictrap.yearn_nearby_homeland'
+              : 'magictrap.yearn_homeland',
+        );
       return;
     case 16:
       say(ctx, 'magictrap.pack_shakes');

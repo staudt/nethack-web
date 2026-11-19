@@ -1236,7 +1236,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
   const lids = Object.keys(state.levels).sort();
   const parentOf = new Map<
     string,
-    { dungeon: string; dlevel: number; dir: 'up' | 'down'; childOnly: boolean }
+    { dungeon: string; dlevel: number; dir: 'up' | 'down'; childOnly: boolean; portal: boolean }
   >();
   const entryOf = new Map<string, number>();
   for (const d of state.dungeons) {
@@ -1247,6 +1247,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
         dlevel: b.dlevel,
         dir: b.dir ?? 'down',
         childOnly: b.stairs === 'child',
+        portal: b.stairs === 'portal',
       });
   }
   for (const lid of lids) {
@@ -1260,7 +1261,7 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     const child = parentOf.get(b.to.dungeon);
     const parent = parentOf.get(lv.dungeon);
     if (child?.dungeon === lv.dungeon && child.dlevel === lv.dlevel) {
-      if (child.childOnly)
+      if (child.childOnly || child.portal)
         errs.push(`level ${lid}: branch to '${b.to.dungeon}' has no stairs here`);
       else if (b.dir !== child.dir || b.to.dlevel !== entryOf.get(b.to.dungeon))
         errs.push(`level ${lid}: branch to '${b.to.dungeon}' is not in the layout`);
@@ -1285,8 +1286,25 @@ function checkBranches(state: GameState, registry: Registry, errs: string[]): vo
     // Fort Ludios's way back is a magic portal, not stairs (its branch floats: m21), which
     // checkLudios() checks; the Planes have no way back at all (dungeon.lua's "no_down":
     // C's BR_NO_END2, the plane's stairs lifted by its fixup)
-    if (wanted && !lv.branch && wanted[0] !== LUDIOS && wanted[0] !== PLANES)
+    if (wanted && !lv.branch && wanted[0] !== LUDIOS && wanted[0] !== PLANES && !wanted[1].portal)
       errs.push(`level ${lid}: the layout's branch stairs are missing`);
+    // m24: a portal branch (the Quest) has no stairs; a portal on either end leads to the other
+    // (the main dungeon's end may have none: a role whose quest is not ported, plan Q10)
+    if (wanted?.[1].portal && wanted[0] !== LUDIOS) {
+      const [child, p] = wanted;
+      const atParent = p.dungeon === lv.dungeon && p.dlevel === lv.dlevel;
+      const dst = atParent
+        ? { dungeon: child, dlevel: entryOf.get(child) ?? 1 }
+        : { dungeon: p.dungeon, dlevel: p.dlevel };
+      for (const t of lv.traps) {
+        if (t.def !== MAGIC_PORTAL) continue;
+        const d = (t.data as { dst?: { dungeon?: string; dlevel?: number } } | undefined)?.dst;
+        if (d?.dungeon !== dst.dungeon || d.dlevel !== dst.dlevel)
+          errs.push(
+            `level ${lid}: its branch portal does not lead to ${dst.dungeon}/${dst.dlevel}`,
+          );
+      }
+    }
   }
 }
 

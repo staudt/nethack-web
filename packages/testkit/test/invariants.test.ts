@@ -126,7 +126,15 @@ describe('invariants', () => {
     expect(checkInvariants(s, engine.registry, { wallwalk: turnly }).join('\n')).not.toMatch(
       /impassable/,
     );
-    s.entities[String(item)]!.c.pos = { level: s.currentLevel, x: w.x, y: w.y + 1 };
+    // another wall cell (the next vertical wall cell in row order)
+    const l = getLevel(s);
+    const vw = l.palette.indexOf('nh:vwall');
+    const i2 = l.cells.indexOf(vw, l.cells.indexOf(vw) + 1);
+    s.entities[String(item)]!.c.pos = {
+      level: s.currentLevel,
+      x: i2 % l.width,
+      y: Math.floor(i2 / l.width),
+    };
     expect(checkInvariants(s, engine.registry, { wallwalk: turnly }).join('\n')).toMatch(
       new RegExp(`entity ${item}: on impassable`),
     );

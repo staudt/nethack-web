@@ -31,6 +31,7 @@ import { isGenocided, isGone, propagate } from './vanquished';
 import {
   inEndgame,
   inHell,
+  inQuest,
   isAirLevel,
   isAstral,
   isEarthLevel,
@@ -46,7 +47,7 @@ import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
 import { BELL_OF_OPENING, CANDELABRUM, uHave } from './uhave';
-import { isQuestLeader, isQuestNemesis, questGender, questMonDef } from './questmon';
+import { isQuestLeader, isQuestNemesis, questGender, questMonDef, questRole } from './questmon';
 import { setQuest } from './queststate';
 import { monLearnsTraps } from './trapstate';
 import { protFromShapeChangers } from './props';
@@ -143,7 +144,8 @@ function alignShift(_def: MonsterDef): number {
  * its difficulty window moved by `minadj`/`maxadj` (rndmonst_adj(); 0, 0 is rndmonst()). `level`
  * is where it is made (NetHack's u.uz while a level is made; the hero's level when omitted): in
  * Gehennom no G_NOHELL kind, on the Rogue level only uppercase kinds, on an elemental plane only
- * the kinds that can live there, and on a hot or cold level resistant kinds weigh 3 more.
+ * the kinds that can live there, and on a hot or cold level resistant kinds weigh 3 more; in the
+ * Quest 6 times in 7 a quest enemy (qtMontype()).
  * ref: src/makemon.c rndmonst_adj() weighted reservoir sampling, temperature_shift(); returns
  * null if none qualify.
  */
@@ -154,6 +156,11 @@ export function rndmonst(
   maxadj = 0,
   level: Readonly<Level> | undefined = ctx.state.levels[ctx.state.currentLevel],
 ): MonsterDef | null {
+  // m24: in the Quest, 6 times in 7 one of the role's quest enemies
+  if (level && inQuest(ctx.state, level) && ctx.rng.rn2(7)) {
+    const q = qtMontype(ctx, depth, level);
+    if (q) return q;
+  }
   const minmlev = monminDifficulty(depth) + minadj;
   const maxmlev = monmaxDifficulty(depth, heroLevel(ctx)) + maxadj;
   const hell = inHell(ctx.state, level);
@@ -176,6 +183,22 @@ export function rndmonst(
     }
   }
   return selected;
+}
+
+/**
+ * A quest enemy: 4 times in 5 the role's first kind (itself 4 times in 5 unless genocided, else
+ * a random monster of its class), else the second likewise; null when the class has none.
+ * ref: src/questpgr.c qt_montype()
+ */
+export function qtMontype(
+  ctx: Pick<Ctx, 'state' | 'rng' | 'defs'>,
+  depth: number,
+  level?: Readonly<Level>,
+): MonsterDef | null {
+  const q = questRole(ctx.state);
+  const [pm, sym] = ctx.rng.rn2(5) ? [q.enemy1, q.enemy1sym] : [q.enemy2, q.enemy2sym];
+  if (pm !== null && ctx.rng.rn2(5) && !isGenocided(ctx.state, pm)) return ctx.defs.monster(pm);
+  return mkclass(ctx, sym, depth, [], level ? { level } : {});
 }
 
 /**

@@ -488,9 +488,10 @@ export function loadMods(mods: readonly Mod[]): Registry {
           if (
             d.entry.stairs !== undefined &&
             d.entry.stairs !== 'both' &&
-            d.entry.stairs !== 'child'
+            d.entry.stairs !== 'child' &&
+            d.entry.stairs !== 'portal'
           )
-            issue('entry.stairs', "must be 'both' or 'child'", d.id);
+            issue('entry.stairs', "must be 'both', 'child' or 'portal'", d.id);
         }
         if (d.entryLevel !== undefined) {
           if (!Number.isInteger(d.entryLevel)) issue('entryLevel', 'must be an integer', d.id);
@@ -532,6 +533,19 @@ export function loadMods(mods: readonly Mod[]): Registry {
                 issue(`${at}.chance`, 'must be an integer 0..100', d.id);
               if (!Array.isArray(sp.variants) || sp.variants.length === 0)
                 issue(`${at}.variants`, 'must be a non-empty array of LevelDef ids', d.id);
+              if (sp.roleVariants !== undefined) {
+                const rv: unknown = sp.roleVariants;
+                if (typeof rv !== 'object' || rv === null || Array.isArray(rv))
+                  issue(`${at}.roleVariants`, 'must be an object of LevelDef id lists', d.id);
+                else
+                  for (const [role, list] of Object.entries(sp.roleVariants))
+                    if (!Array.isArray(list) || list.length === 0)
+                      issue(
+                        `${at}.roleVariants.${role}`,
+                        'must be a non-empty array of LevelDef ids',
+                        d.id,
+                      );
+              }
               if (sp.town !== undefined && typeof sp.town !== 'boolean')
                 issue(`${at}.town`, 'must be a boolean', d.id);
               // the base must be inside the dungeon however few levels it rolls
@@ -566,6 +580,22 @@ export function loadMods(mods: readonly Mod[]): Registry {
                   issue(`${at}.base`, `is outside the dungeon (as few as ${fewest} levels)`, d.id);
               }
             });
+        }
+        if (d.roleFiller !== undefined) {
+          const rf: unknown = d.roleFiller;
+          if (typeof rf !== 'object' || rf === null) issue('roleFiller', 'must be an object', d.id);
+          else {
+            str(d.roleFiller.split, 'roleFiller.split', d.id);
+            if (!d.special?.some((sp) => sp.id === d.roleFiller?.split))
+              issue('roleFiller.split', `'${d.roleFiller.split}' is not a special level`, d.id);
+            const by: unknown = d.roleFiller.byRole;
+            if (typeof by !== 'object' || by === null || Array.isArray(by))
+              issue('roleFiller.byRole', 'must be an object of [above, below] pairs', d.id);
+            else
+              for (const [role, pair] of Object.entries(d.roleFiller.byRole))
+                if (!Array.isArray(pair) || pair.length !== 2)
+                  issue(`roleFiller.byRole.${role}`, 'must be [above, below] LevelDef ids', d.id);
+          }
         }
         dungeons.set(d.id, { ...d, mod: modId });
       },
@@ -690,6 +720,41 @@ export function loadMods(mods: readonly Mod[]): Registry {
           });
       });
     });
+  // m24: the role-dependent levels name known roles and levels
+  const levelIds = (ids: unknown, d: { mod: string; id: DefId }, path: string): void => {
+    if (!Array.isArray(ids)) return;
+    ids.forEach((v, j) => {
+      if (typeof v !== 'string' || !levels.has(v))
+        issues.push({
+          modId: d.mod,
+          defId: d.id,
+          path: `${path}[${j}]`,
+          reason: `unknown level '${String(v)}'`,
+        });
+    });
+  };
+  const knownRole = (role: string, d: { mod: string; id: DefId }, path: string): void => {
+    if (!roles.has(role as DefId))
+      issues.push({ modId: d.mod, defId: d.id, path, reason: `unknown role '${role}'` });
+  };
+  for (const d of dungeons.values()) {
+    (Array.isArray(d.special) ? d.special : []).forEach((sp, i) => {
+      const rv: unknown = sp.roleVariants;
+      if (typeof rv !== 'object' || rv === null || Array.isArray(rv)) return;
+      for (const role of Object.keys(rv).sort()) {
+        const path = `special[${i}].roleVariants.${role}`;
+        knownRole(role, d, path);
+        levelIds((rv as Record<string, unknown>)[role], d, path);
+      }
+    });
+    const by: unknown = d.roleFiller?.byRole;
+    if (typeof by !== 'object' || by === null || Array.isArray(by)) continue;
+    for (const role of Object.keys(by).sort()) {
+      const path = `roleFiller.byRole.${role}`;
+      knownRole(role, d, path);
+      levelIds((by as Record<string, unknown>)[role], d, path);
+    }
+  }
   // A role's races must exist and each must share a gender and an alignment with it.
   for (const r of roles.values()) {
     if (!Array.isArray(r.races) || !Array.isArray(r.genders) || !Array.isArray(r.aligns)) continue;

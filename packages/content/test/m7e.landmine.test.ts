@@ -159,20 +159,28 @@ describe('monsters on a land mine', () => {
 describe('boulders and land mines', () => {
   test('a pushed boulder sets one off 9 times in 10; it breaks apart or fills the pit', () => {
     let blown = 0;
-    // searched seeds: in none does the blast throw the boulder back onto its old square (then
-    // moverock() is 'blocked', C's `sobj_at(BOULDER, sx, sy) ? -1 : 0`) or anywhere else
-    // (seeds 28 to 47 since m22 step 3's starting kit moved the stream, seed 27 throwing it;
-    // 20 to 39 since m16 step 6's graffiti roll moved it, seed 19 throwing it; 15 to 34 since
-    // m12 step 5's sinks and altars moved it; 1 to 20 before)
-    for (let seed = 28; seed <= 47; seed++) {
+    // 20 seeds where the blast does not throw the boulder back onto its old square (then
+    // moverock() is 'blocked', C's `sobj_at(BOULDER, sx, sy) ? -1 : 0`); such a seed is
+    // skipped (a stream shift moved the searched range four times before m24, so the seeds
+    // are now found as the test runs)
+    let tried = 0;
+    let thrownBack = 0;
+    for (let seed = 28; tried < 20 && seed < 100; seed++) {
       const m = mapSetup(ROW, { seed });
       run(m.state, (ctx) => {
         mksobj(ctx, obj(BOULDER), { init: false, at: { level: 'dlvl1', x: 2, y: 1 } });
       });
       m.level.traps.push({ def: TRAP.landmine, x: 3, y: 1, seen: false });
+      let result = '';
       const msgs = run(m.state, (ctx) => {
-        expect(moverock(ctx, 'e')).toBe('moved');
+        result = moverock(ctx, 'e');
       });
+      if (result === 'blocked') {
+        thrownBack++;
+        continue;
+      }
+      tried++;
+      expect(result).toBe('moved');
       if (msgs.includes('KAABLAMM!!  The boulder triggers a land mine.')) {
         blown++;
         expect(floorItems(m.state, BOULDER)).toEqual([]);
@@ -187,6 +195,8 @@ describe('boulders and land mines', () => {
         expect(trapAt(m.level, 3, 1)?.def).toBe(TRAP.landmine);
       }
     }
+    expect(tried).toBe(20);
+    expect(thrownBack).toBeLessThan(5);
     expect(blown).toBeGreaterThan(12);
   });
 

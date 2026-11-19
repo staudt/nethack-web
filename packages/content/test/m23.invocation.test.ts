@@ -295,6 +295,7 @@ describe('the Book of the Dead on the vibrating square', () => {
   });
 
   test('all primed: the invocation opens the area and makes the stairs down', () => {
+    let walls = 0;
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       const { state, level, sq } = onSquare(seed);
       // a boulder in ring 2 is left as rocks; a monster in the moat ring meets the water
@@ -303,7 +304,8 @@ describe('the Book of the Dead on the vibrating square', () => {
       const t = run(state, (ctx) => deadbook(ctx, book));
       expect(t[0]).toBe('You turn the pages of the Book of the Dead...');
       expect(t[1]).toBe('The floor shakes violently under you!');
-      expect(t).toContain('The walls around you begin to bend and crumble!');
+      // (only when stone, walls or bars stand within the area: mkinvokearea()'s `wallct`)
+      if (t.includes('The walls around you begin to bend and crumble!')) walls++;
       expect(t[t.length - 1]).toBe('You are standing at the top of a stairwell leading down!');
       // the stairs down where the vibrating square was
       expect(terrainIdAt(level, sq.x, sq.y)).toBe(T.stairs_down);
@@ -335,6 +337,7 @@ describe('the Book of the Dead on the vibrating square', () => {
       expect(u.udgCnt).toBeGreaterThanOrEqual(2);
       expect(u.udgCnt).toBeLessThanOrEqual(12);
     }
+    expect(walls).toBeGreaterThan(0);
   });
 
   test('a monster standing in the area meets the moat or the fire', () => {

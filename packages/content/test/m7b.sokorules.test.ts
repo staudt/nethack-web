@@ -491,7 +491,18 @@ describe('the treasure zoo and the prize', () => {
       act(loud, { type: 'wait' });
       const r3 = act(loud, move('e'));
       expect(texts(r3.events)[0]).toBe("Welcome to David's treasure zoo!");
-      expect(keys(r3.events)).toContain('mon.wakes_up_calm');
+      // some woke (those she sees say "The <monster> wakes up.")
+      const woke = entitiesOn(loud, lv).filter(
+        (e) =>
+          e.c.monster &&
+          !e.c.player &&
+          e.c.pos!.x >= zoo.lx &&
+          e.c.pos!.x <= zoo.hx &&
+          e.c.pos!.y >= zoo.ly &&
+          e.c.pos!.y <= zoo.hy &&
+          !e.c.monster.asleep,
+      );
+      expect(woke.length).toBeGreaterThan(0);
     });
   }
 });

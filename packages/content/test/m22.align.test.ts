@@ -269,7 +269,9 @@ describe('holy and unholy water (potion.c peffect_water())', () => {
     expect(hp).toBeLessThanOrEqual(98);
     expect(hp).toBeGreaterThanOrEqual(88);
     expect(quaff(s, 'blessed')).toContain('You feel full of awe.');
-    expect(hero(s).c.hp!.cur).toBe(hp);
+    // no damage (her turn may regenerate a point)
+    expect(hero(s).c.hp!.cur).toBeGreaterThanOrEqual(hp);
+    expect(hero(s).c.hp!.cur).toBeLessThanOrEqual(hp + 1);
   });
 
   test('unholy water can kill a lawful hero: "killed by a potion of unholy water"', () => {

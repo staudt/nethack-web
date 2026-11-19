@@ -15,6 +15,7 @@ import { isGone } from './vanquished';
 import { mkgold } from './items';
 import { mkobj, mkobjAt, mksobjFull } from './mkobj';
 import { mkSpecialRoom } from './mkroom';
+import { placeBranchPortal } from './branchportal';
 import { somexyspace, somexyspaceTry } from './somexy';
 import { makeEngrAt } from './engr';
 import { makeGrave } from './grave';
@@ -425,6 +426,8 @@ export function registerMklev(api: ModApi): void {
     keepTrappedDoors(ctx, level);
     mkVault(ctx, level); // after the corridors, before the special room, as do_vault
     if (level.def === undefined) mkSpecialRoom(ctx, level);
+    // skip0: "Place multi-dungeon branch." (a portal here; core made any branch stairs)
+    if (level.def === undefined) placeBranchPortal(ctx, level);
     if (level.def === undefined || ctx.defs.level(level.def).init.style === 'rooms')
       fillOrdinaryRooms(ctx, level);
   });

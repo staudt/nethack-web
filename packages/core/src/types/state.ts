@@ -43,9 +43,10 @@ export interface DungeonLayout {
   /**
    * Where the dungeons entered from it leave it, in `registry.dungeons` order. `dir` is the way
    * the stairs here lead (ref: struct branch end1_up); absent = down. `stairs: 'child'` (m15):
-   * no branch stairs on this end (ref: BR_NO_END1); absent = stairs at both ends.
+   * no branch stairs on this end (ref: BR_NO_END1); `stairs: 'portal'` (m24): stairs at neither
+   * end (ref: BR_PORTAL); absent = stairs at both ends.
    */
-  branches: { to: DefId; dlevel: number; dir?: 'up'; stairs?: 'child' }[];
+  branches: { to: DefId; dlevel: number; dir?: 'up'; stairs?: 'child' | 'portal' }[];
   /** Where its special levels went, in `DungeonDef.special` order; absent ones are left out. */
   special: { id: DefId; dlevel: number }[];
 }
@@ -59,7 +60,7 @@ export interface PendingPrompt {
 
 /** The whole game. JSON-plain: no classes, Map, Set, functions or typed arrays. */
 export interface GameState {
-  version: 10;
+  version: 11;
   seed: number;
   turn: number;
   nextEntityId: number;

@@ -294,17 +294,25 @@ describe('the invocation level', () => {
   });
 
   test('walking onto it gives the clue too', () => {
-    const { state, level } = inGehennom(3, -2);
-    const sq = square(level);
     const dirs = [
       ['n', 0, -1],
       ['s', 0, 1],
       ['e', 1, 0],
       ['w', -1, 0],
     ] as const;
-    const open = (x: number, y: number): boolean =>
-      ['nh:floor', 'nh:corr'].includes(level.palette[level.cells[y * level.width + x]!] ?? '');
-    const from = dirs.find(([, dx, dy]) => open(sq.x - dx, sq.y - dy))!;
+    // a game (searched) whose square has open floor or corridor next to it
+    const game = (seed: number) => {
+      const g = inGehennom(seed, -2);
+      const l = g.level;
+      const sq = square(l);
+      const open = (x: number, y: number): boolean =>
+        ['nh:floor', 'nh:corr'].includes(l.palette[l.cells[y * l.width + x]!] ?? '');
+      const from = dirs.find(([, dx, dy]) => open(sq.x - dx, sq.y - dy));
+      return from ? { ...g, sq, from } : null;
+    };
+    let found: NonNullable<ReturnType<typeof game>> | null = null;
+    for (let seed = 3; seed < 40 && !found; seed++) found = game(seed);
+    const { state, level, sq, from } = found!;
     for (const id of sortedIds(state)) {
       const m = state.entities[String(id)];
       if (m?.c.monster && id !== state.playerId && m.c.pos?.level === level.id)

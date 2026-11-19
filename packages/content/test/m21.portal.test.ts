@@ -117,7 +117,9 @@ describe('mk_knox_portal()', () => {
     const n = 300;
     for (let seed = 1; seed <= n; seed++) {
       const { state } = engine.newGame({ seed });
-      const dlevel = 11 + (seed % (medusaDepth(state) - 11));
+      let dlevel = 11 + (seed % (medusaDepth(state) - 11));
+      // the Quest's portal level (m24) is a branch level, which draws nothing: the one above
+      if (isBranchlev(state, { dungeon: 'nh:main', dlevel })) dlevel += dlevel > 11 ? -1 : 1;
       expect(tryPortal(state, dlevel)).toBe(true); // rn2(3) drawn
       const src = knoxSource(state);
       const level = state.levels[`dlvl${dlevel}`]!;
@@ -180,8 +182,10 @@ describe('mk_knox_portal()', () => {
       const { state } = wizard.newGame({ seed });
       expect(tryPortal(state, 5, wizard)).toBe(true); // too shallow: drawn, not placed
       expect(knoxSource(state)).toBeNull();
-      expect(tryPortal(state, 12, wizard)).toBe(true);
-      expect(knoxSource(state)).toEqual({ dungeon: 'nh:main', dlevel: 12 });
+      // DL12, or DL13 when the Quest's portal (a branch: nothing drawn) is on DL12 (m24)
+      const dlevel = isBranchlev(state, { dungeon: 'nh:main', dlevel: 12 }) ? 13 : 12;
+      expect(tryPortal(state, dlevel, wizard)).toBe(true);
+      expect(knoxSource(state)).toEqual({ dungeon: 'nh:main', dlevel });
     }
   });
 });
@@ -194,7 +198,8 @@ describe('the portal in play', () => {
       for (let dlevel = 11; dlevel < medusaDepth(state); dlevel++) {
         run(state, (ctx) => ctx.goToLevel({ dungeon: 'nh:main', dlevel }, 'random'), wizard);
         const level = getLevel(state);
-        if (vaultRoom(level) === null) continue;
+        // (the Quest's portal level is a branch level: no Ludios portal there, m24)
+        if (vaultRoom(level) === null || isBranchlev(state, level)) continue;
         expect(knoxSource(state)).toEqual({ dungeon: 'nh:main', dlevel });
         return { state, level };
       }

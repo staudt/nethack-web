@@ -85,7 +85,7 @@ import { deaths } from './vanquished';
 import { uswallow } from './engulfstate';
 import { mpickobj } from './steal';
 import { delEngrAt, makeEngrAt, wipeEngrAt } from './engr';
-import { KNOX, LUDIOS, isBranchlev, medusaDepth } from './levelflags';
+import { KNOX, LUDIOS, atQuestEntrance, isBranchlev, medusaDepth } from './levelflags';
 import { knoxSource, setKnoxSource, wizardMode } from './knoxstate';
 import { MAGIC_PORTAL, PORTAL_SPOTS, findPortal, portalData } from './portal';
 import { setmangry } from './peaceful';
@@ -130,7 +130,7 @@ export function mkVault(ctx: Ctx, level: Level): void {
  * placed, on a level a branch ends on, or in a game whose layout has no Fort Ludios (saves made
  * before m21); otherwise `rn2(3)` defers it 2 times in 3 (drawn and ignored in wizard mode, as
  * C's `rn2(3) && !wizard`), then the level must be in the main dungeon, deeper than 10 and above
- * Medusa (no Quest, so no Quest-entry test). ref: src/mklev.c mk_knox_portal(), place_branch()
+ * Medusa, and not the Quest's entry level. ref: src/mklev.c mk_knox_portal(), place_branch()
  * (BR_PORTAL); src/mkmaze.c mkportal()
  */
 export function mkKnoxPortal(ctx: Ctx, level: Level, vault: Readonly<Room>): void {
@@ -140,6 +140,7 @@ export function mkKnoxPortal(ctx: Ctx, level: Level, vault: Readonly<Room>): voi
   if (knoxSource(ctx.state) || (ctx.rng.rn2(3) !== 0 && !wizardMode(ctx.state))) return;
   if (
     level.dungeon !== ctx.state.dungeons[0]?.id || // in main dungeon
+    atQuestEntrance(ctx.state, level) || // but not Quest's entry
     level.depth <= 10 || // beneath 10
     level.depth >= medusaDepth(ctx.state) // and above Medusa
   )

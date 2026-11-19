@@ -292,7 +292,8 @@ describe('thitmonst() and gem_accept(): gems thrown to unicorns', () => {
   }
 
   test('a known real gem to a co-aligned unicorn: +5 Luck, it keeps the gem and teleports', () => {
-    const s = make(1, 1);
+    // a seed (searched) whose unicorn's rloc() lands off its square (1 before m24 step 3)
+    const s = make(2, 1);
     const id = unicorn(s, 8, 3, 'nh:white_unicorn', 0);
     const gem = s.carry('nh:ruby');
     discover(s.ctx, 'nh:ruby');

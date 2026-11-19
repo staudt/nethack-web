@@ -53,6 +53,7 @@ const HANDLED: ReadonlySet<string> = new Set([
   'cha',
   'dlvl',
   'place',
+  'home',
   'gold',
   'hp',
   'hpmax',
@@ -114,10 +115,13 @@ export function statusLines(
   const align = s['align'];
   if (typeof align === 'string') l1.push({ text: t(align) });
   // a level that names its place (content's `place` message key: "Fort Ludios") shows it in
-  // place of its depth (ref: src/botl.c describe_level())
+  // place of its depth, a level of the Quest its level there (content's `home`: "Home 2")
+  // (ref: src/botl.c describe_level())
   const place = s['place'];
+  const home = num(s, 'home');
   const dlvl = num(s, 'dlvl');
   if (typeof place === 'string') l2.push({ text: t(place) });
+  else if (home !== undefined) l2.push({ text: `Home ${home}` });
   else if (dlvl !== undefined) l2.push({ text: `Dlvl:${dlvl}` });
   const gold = num(s, 'gold');
   if (gold !== undefined) l2.push({ text: `$:${gold}` });

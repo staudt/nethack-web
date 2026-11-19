@@ -282,12 +282,16 @@ describe('arriving: final_level()', () => {
       );
       expect(weapon?.c.item!.buc).toBe('blessed');
       expect(weapon!.c.item!.spe).toBeGreaterThanOrEqual(1);
-      const reflects = inv.some(
-        (e) =>
-          (e.def === 'nh:shield_of_reflection' || e.def === 'nh:amulet_of_reflection') &&
-          e.c.item!.equipped !== null,
+      // its reflection, worn unless its own inventory's amulet already is (m_dowear() keeps an
+      // amulet of life saving on)
+      const refl = inv.find(
+        (e) => e.def === 'nh:shield_of_reflection' || e.def === 'nh:amulet_of_reflection',
       );
-      expect(reflects).toBe(true);
+      expect(refl).toBeDefined();
+      expect(
+        refl!.c.item!.equipped !== null ||
+          inv.some((e) => e.def === 'nh:amulet_of_life_saving' && e.c.item!.equipped === 'amulet'),
+      ).toBe(true);
       // a minion: no pet record
       expect(edogOf({ state }, a.id)).toBeNull();
     }

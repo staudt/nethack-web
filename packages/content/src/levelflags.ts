@@ -44,6 +44,12 @@ export interface LevelFlags {
   nommap?: true;
   temperate?: true;
   medusa?: true;
+  /**
+   * m24: "icedpools": the ice its mines map made melts into a pool, not a moat (C's ICED_POOL
+   * set by finish_map(); the flag comes before the map in the script). Val-strt's flag comes
+   * after its ice (a solid fill), which melts into a moat, so it is not set there.
+   */
+  icedpools?: true;
   nondiggable?: 'all' | readonly FlagRect[];
   nonpasswall?: 'all' | readonly FlagRect[];
 }
@@ -303,6 +309,27 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
       { x1: 0, y1: 9, x2: 47, y2: 12 },
     ],
   },
+  // m24: the Valkyrie's quest ("noflip" needs nothing: levels are never flipped here)
+  /** ref: dat/Val-strt.lua ("mazelevel", "noteleport", "hardfloor", "icedpools") */
+  'nh:val-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 26, y1: 7, x2: 43, y2: 13 }],
+  },
+  /** ref: dat/Val-loca.lua ("mazelevel", "hardfloor", "icedpools") */
+  'nh:val-loca': {
+    hardfloor: true,
+    maze: true,
+    icedpools: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 39, y2: 12 }],
+  },
+  /** ref: dat/Val-goal.lua ("mazelevel", "icedpools") */
+  'nh:val-goal': { maze: true, icedpools: true, nondiggable: [{ x1: 0, y1: 0, x2: 34, y2: 16 }] },
+  /** ref: dat/Val-fila.lua ("mazelevel", "icedpools", "noflip") */
+  'nh:val-fila': { maze: true, icedpools: true },
+  /** ref: dat/Val-filb.lua ("mazelevel", "icedpools", "noflip") */
+  'nh:val-filb': { maze: true, icedpools: true },
 };
 
 const NONE: LevelFlags = {};
@@ -484,12 +511,101 @@ export function uInvoked(state: Readonly<GameState>): boolean {
  * The last level holes, trap doors and random level teleports reach in `level`'s dungeon: its
  * last level ({@link dungeonBottom}), but in Gehennom before the invocation the invocation level
  * above it (the Sanctum is out of reach until then).
- * ref: src/trap.c dng_bottom() (no quest locate level)
+ * In the Quest, the locate level until she has reached it.
+ * ref: src/trap.c dng_bottom()
  */
 export function dngBottom(state: Readonly<GameState>, level: Readonly<Level> | LevelRef): number {
   const n = dungeonLayout(state, level.dungeon).levels;
   const bottom = n ?? Math.max(DUNGEON_BOTTOM, level.dlevel + 1);
+  // when in the upper half of the quest, don't fall past the middle "quest locate" level if the
+  // hero hasn't been there yet
+  if (level.dungeon === QUEST) {
+    const qlocate = qlocateDlevel(state);
+    return qlocate !== null && questDunlevReached(state) < qlocate ? qlocate : bottom;
+  }
   return HELLISH.includes(level.dungeon) && n !== null && !uInvoked(state) ? bottom - 1 : bottom;
+}
+
+// ---------------------------------------------------------------------------------------------
+// the Quest (m24)
+
+/** The Quest's dungeon, behind a magic portal six or seven levels below the Oracle. */
+export const QUEST: DefId = 'nh:quest';
+/** The Quest's special levels (dungeon.lua's "x-strt", "x-loca", "x-goal"). */
+export const QSTART: DefId = 'nh:qstart';
+export const QLOCATE: DefId = 'nh:qlocate';
+export const QGOAL: DefId = 'nh:qgoal';
+
+/** Whether `level` (the hero's by default) is in the Quest. ref: src/dungeon.c In_quest() */
+export function inQuest(state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  return ref?.dungeon === QUEST;
+}
+
+/** The Quest's special level on `level` (the hero's by default), or null. */
+function questSpecial(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): DefId | null {
+  const ref = level ?? state.levels[state.currentLevel];
+  if (ref?.dungeon !== QUEST) return null;
+  return specialLevelAt(state, { dungeon: ref.dungeon, dlevel: ref.dlevel })?.id ?? null;
+}
+
+/** The Quest's home level, its first. ref: include/dungeon.h Is_qstart() (qstart_level) */
+export const isQstart = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean =>
+  questSpecial(state, level) === QSTART;
+/** The Quest's locate level. ref: include/dungeon.h Is_qlocate() */
+export const isQlocate = (
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean => questSpecial(state, level) === QLOCATE;
+/** The Quest's goal level, its last. ref: include/dungeon.h Is_nemesis() */
+export const isQgoal = (state: Readonly<GameState>, level?: Readonly<Level> | LevelRef): boolean =>
+  questSpecial(state, level) === QGOAL;
+
+/** The locate level's dlevel in this game's layout, or null in a game without the Quest. */
+export function qlocateDlevel(state: Readonly<GameState>): number | null {
+  const d = state.dungeons.find((x) => x.id === QUEST);
+  return d?.special.find((s) => s.id === QLOCATE)?.dlevel ?? null;
+}
+
+/**
+ * The main dungeon's end of the Quest's branch (its portal level), or null in a game without
+ * the Quest. ref: src/dungeon.c dungeon_branch("The Quest") end1
+ */
+export function questEntry(state: Readonly<GameState>): LevelRef | null {
+  for (const d of state.dungeons) {
+    const b = d.branches.find((x) => x.to === QUEST);
+    if (b) return { dungeon: d.id, dlevel: b.dlevel };
+  }
+  return null;
+}
+
+/**
+ * Whether `level` (the hero's by default) is the main dungeon's end of the Quest's branch.
+ * ref: src/dungeon.c at_dgn_entrance("The Quest")
+ */
+export function atQuestEntrance(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  const e = questEntry(state);
+  return !!ref && !!e && ref.dungeon === e.dungeon && ref.dlevel === e.dlevel;
+}
+
+/**
+ * The deepest Quest level the hero has reached (levels exist once visited); 0 before any.
+ * ref: src/dungeon.c dunlev_reached() (dunlev_ureached of the Quest)
+ */
+export function questDunlevReached(state: Readonly<GameState>): number {
+  let n = 0;
+  for (const id of Object.keys(state.levels).sort()) {
+    const lv = state.levels[id];
+    if (lv?.dungeon === QUEST && lv.dlevel > n) n = lv.dlevel;
+  }
+  return n;
 }
 
 /**

@@ -745,6 +745,12 @@ export function findDefensive(
     // monster in one does not try
     !(hereId !== undefined && ctx.defs.terrain(hereId).door !== undefined) &&
     !isBotlevel(ctx.state, level) &&
+    // m24 (found by the soak): not on the Planes, nor on ice, water or lava
+    !inEndgame(ctx.state, level) &&
+    !(
+      hereId !== undefined &&
+      (hereId === T.ice || ctx.defs.terrain(hereId).liquid !== undefined)
+    ) &&
     // m23: Vlad does not dig out of his Tower
     !(isVlad(ctx, mon) && inVladsTower(ctx.state, level));
   // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"

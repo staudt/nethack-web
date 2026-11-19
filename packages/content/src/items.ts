@@ -38,6 +38,7 @@ import { MAX_OIL_IN_FLASK, POT_OIL } from './dilute';
 import { TIN, setTinVariety } from './tins';
 import { isCandle, mergeBurn, splitBurn } from './burnstate';
 import { roleIs } from './urole';
+import { inQuest } from './levelflags';
 import { mkArtifactConvert, nartifactExist, onameItem } from './artistate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
@@ -127,11 +128,12 @@ const ALWAYS_CURSED_ARMOR: readonly string[] = [
 ];
 
 /**
- * A Samurai's splint mail made at the start of the game is lacquered: erodeproof, and she knows
- * it. ref: src/mkobj.c mksobj_init() ARMOR_CLASS (`moves <= 1 || In_quest()`; no quest)
+ * A Samurai's splint mail made at the start of the game or in the Quest is lacquered:
+ * erodeproof, and she knows it. ref: src/mkobj.c mksobj_init() ARMOR_CLASS (`moves <= 1 ||
+ * In_quest(&u.uz)`: the hero's level)
  */
 const lacqueredForSamurai = (state: Readonly<GameState>, id: string): boolean =>
-  id === 'nh:splint_mail' && state.turn <= 1 && roleIs(state, 'samurai');
+  id === 'nh:splint_mail' && (state.turn <= 1 || inQuest(state)) && roleIs(state, 'samurai');
 
 /**
  * Random initialization of an object's BUC, enchantment, quantity and erosion.

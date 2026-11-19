@@ -10,6 +10,7 @@
 // level temperature. Under a raised drawbridge only what lies under it changes (C's
 // `drawbridgemask`: dbstate.ts setDrawbridgeUnder()), so the bridge stays.
 import { levelTemperature } from './temperature';
+import { levelFlags } from './levelflags';
 import {
   cellIndex,
   getPlayer,
@@ -101,7 +102,9 @@ export function meltIce(
     if (drawbridgeData(ctx, level, x, y)?.under === 'ice')
       setDrawbridgeUnder(ctx, level, x, y, 'moat');
   } else {
-    setTerrain(level, x, y, icedpool(ctx, level, x, y) === 'pool' ? T.pool : T.moat);
+    // m24: ice a mines map made on an "icedpools" level was a pool (finish_map())
+    const was = icedpool(ctx, level, x, y) ?? (levelFlags(ctx, level).icedpools ? 'pool' : 'moat');
+    setTerrain(level, x, y, was === 'pool' ? T.pool : T.moat);
     setIcedpool(ctx, level, x, y, null);
   }
   stopMeltTimer(ctx, level.id, x, y); // no more ice to melt away

@@ -148,7 +148,8 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
         d.t(`end.died_in${typeof s['place'] === 'string' ? '_place' : ''}${sfx}`, {
           ends,
           dungeon: d.t(String(s['endDungeon'] ?? 'nh:main')),
-          depth: num('endDepth', num('dlvl', 1)),
+          // in the Quest its level there (ref: src/end.c `In_quest() ? dunlev() : depth()`)
+          depth: num('home', num('endDepth', num('dlvl', 1))),
           ...pts,
         }),
     d.t('end.gold_moves', { gold, gs: plur(gold), moves, ms: plur(moves) }),

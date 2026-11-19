@@ -138,9 +138,11 @@ describe('the Gnomish Mines for a dwarf (create_monster(), peace_minded())', () 
       (e): e is Entity => !!e?.c.monster && e.c.pos?.level === lv.id && !(e.c.monster.tame ?? 0),
     );
   }
+  // living kin: a gnome or dwarf zombie or mummy is always hostile (always_hostile() before
+  // race_peaceful() in peace_minded())
   const kin = (e: Entity): boolean => {
     const f = defs.monster(e.def).flags;
-    return f.includes('dwarf') || f.includes('gnome');
+    return (f.includes('dwarf') || f.includes('gnome')) && !f.includes('hostile');
   };
 
   test('her gnomes and dwarves are peaceful; a human meets them hostile', () => {

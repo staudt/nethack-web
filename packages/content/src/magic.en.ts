@@ -210,6 +210,7 @@ export const magicMessagesEn: Record<string, string> = {
   'earth.ceiling.water_above': 'water above',
   'earth.ceiling.sky': 'sky',
   'earth.ceiling.flames_above': 'flames above',
+  'earth.ceiling.expanse_above': 'expanse above',
   'earth.nothing_else': 'But nothing else happens.',
   'earth.you_hit': 'You are hit by {obj|an}!',
   'earth.mon_hit': '{mon|The} is hit by {obj|an}!',

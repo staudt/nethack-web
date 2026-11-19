@@ -253,7 +253,12 @@ describe('Orcus Town', () => {
     run(state, (ctx) => expect(costlySpot(ctx, spot.x, spot.y)).toBe(false));
     const r = engine.step(state, { type: 'mod', action: 'nh:pickup' as DefId });
     expect(keys(r).some((k) => k.startsWith('shk.') || k.startsWith('pay.'))).toBe(false);
-    const got = state.entities[String(item.id)]!;
+    // (it may merge into a stack she carries)
+    const got =
+      state.entities[String(item.id)] ??
+      Object.values(state.entities).find(
+        (e) => e.def === item.def && e.c.item?.carriedBy === state.playerId,
+      )!;
     expect(got.c.item?.carriedBy).toBe(state.playerId);
     expect(got.c.item?.unpaid).toBeFalsy();
   });

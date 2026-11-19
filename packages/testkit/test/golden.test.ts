@@ -29,8 +29,9 @@ const CHANGED_MESSAGE =
 // grave roll per room). Bot seed 1 played all 400 turns again until m22 step 3, where it choked
 // at turn 48 on the second of two starting food rations (mksobj()'s pair, now kept); bot seed 4
 // died at turn 150 after m23 step 2 (the two new dungeons' draws at new game) and bot seed 1 at
-// turn 86; bot seed 2 plays all 400 turns. Re-pick it the same way if a stream shift ends the
-// run early again.
+// turn 86; bot seed 2 plays all 400 turns. Bot seed 2 died at turn 86 after m24 step 3 (the
+// quest dungeon's draws at new game) and 1 at turn 41; bot seed 3 plays all 400 turns. Re-pick it
+// the same way if a stream shift ends the run early again.
 const MODS = [vanillaMod, soakKitMod];
 
 describe('golden replay', () => {

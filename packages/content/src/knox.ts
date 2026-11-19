@@ -16,8 +16,8 @@
 // arrival chamber makes none here (as Medusa's). The irregular zoo and barracks are flood fills
 // in C; a Room is a rectangle here, so each is the rectangles its flood fill covers, each a room
 // of its own. As C marks the branch's main-dungeon end bogus until a vault's portal re-inserts
-// it, the branch has stairs at neither end: the fixup lifts the up stairs core makes on this end
-// (the branch spot), and the portal back to the vault goes there (src/mklev.c place_branch()).
+// it, the branch (a portal branch) has stairs at neither end: the portal back to the vault goes
+// on the branch spot (src/mklev.c place_branch()).
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
 import { VANILLA_TERRAIN, levelDefRect, wallifyLevel } from '@nh/core';
 import { mkgold } from './items';
@@ -26,7 +26,7 @@ import { knoxSource } from './knoxstate';
 import { MAGIC_PORTAL, portalData } from './portal';
 import { percent, ter } from './selection';
 import { makeContents, mapToLevel, orientDoors, placeLregion, type SpLevFixup } from './sp_lev';
-import { T, setTerrain } from './terrain';
+import { setTerrain } from './terrain';
 import { maketrap } from './trap';
 import { BARRACKS, COURT, ZOO } from './zoo';
 
@@ -70,8 +70,6 @@ export const KNOX_LEVEL: LevelDef = {
     { area: [6, 15, 9, 16], dir: 'up' },
     { area: [6, 15, 9, 16], dir: 'down' },
   ],
-  // the branch stairs core makes go on the branch spot (the fixup lifts them)
-  stairs: { branch: { x: 8, y: 16 } },
   regions: [
     // Throne room, with Croesus on the throne (filled after him)
     { area: [37, 8, 46, 11], lit: true, type: COURT, filled: true },
@@ -218,17 +216,14 @@ function treasury(ctx: Ctx, level: Level, def: LevelDef): void {
 }
 
 /**
- * The branch levregion (fixup_special()'s place_lregion() of its one cell: two `rn1(1, x)`),
- * then the branch stairs core made there lifted back to floor: Ludios has no stairs back to the
- * main dungeon, but a magic portal to the vault that holds the other end (place_branch()'s
- * BR_PORTAL: mkportal()). ref: src/mklev.c place_branch(); src/mkmaze.c mkportal()
+ * The branch levregion (fixup_special()'s place_lregion() of its one cell: two `rn1(1, x)`):
+ * Ludios has no stairs back to the main dungeon (a portal branch), but a magic portal to the
+ * vault that holds the other end (place_branch()'s BR_PORTAL: mkportal()).
+ * ref: src/mklev.c place_branch(); src/mkmaze.c mkportal()
  */
 function placeBranch(ctx: Ctx, level: Level, def: LevelDef): void {
-  const b = level.branch;
-  if (b) setTerrain(level, b.pos.x, b.pos.y, T.floor);
   const area = levelDefRect(def, level.width, level.height, BRANCH_SPOT, 'map', 'knox branch');
   const p = placeLregion(ctx, level, area, null);
-  level.branch = null;
   // place_branch(): the portal back to the vault, once a vault has its end (else mkKnoxPortal()
   // adds it when one does)
   const source = knoxSource(ctx.state);

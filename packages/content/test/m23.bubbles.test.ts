@@ -430,7 +430,9 @@ describe('the hero on Air and Water', () => {
         setTerrain(getLevel(ctx.state), p.x, p.y, T.cloud);
         doStorms(ctx);
       }).filter((l) => l.startsWith('Kaboom'));
-    expect(kaboom).toEqual(['Kaboom!!!  Boom!!  Boom!!']);
+    // (a turn's storms may strike her more than once)
+    expect(kaboom.length).toBeGreaterThan(0);
+    for (const k of kaboom) expect(k).toBe('Kaboom!!!  Boom!!  Boom!!');
     expect(getPlayer(state).c.helpless?.reasonKey).toBe('helpless.thunderstorm');
   });
 

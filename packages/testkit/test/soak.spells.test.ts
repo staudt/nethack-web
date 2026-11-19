@@ -26,7 +26,9 @@ const spellKitMod: Mod = {
 describe('spells soak', () => {
   let cast = 0;
   let aimed = 0;
-  // seeds re-picked when the game stream changes: 320 and 329 replaced 306 and 327 in m22 step 3
+  // seeds re-picked when the game stream changes: 329 and 335 replaced 320 and 329 in m24 step 3
+  // (the quest dungeon's draws at new game: of 320 and 329..338, 335, 337 and 338 aim with them
+  // and 329 without; the pair aims both ways, each once); 320 and 329 replaced 306 and 327 in m22 step 3
   // (the starting kit and pet rolls: of 300..345, 305, 309, 311, 320, 329, 331, 335, 337, 338 and
   // 343 aim with it; 320, 329 and 331 aim with and without it); 327 replaced 319 in m21 step 5 (the Fort
   // Ludios portal's `rn2(3)` in every vault: of 306 and 319..343 only 325, 327, 329, 331, 332,
@@ -38,7 +40,7 @@ describe('spells soak', () => {
   // step 1's Gehennom layout draws (311 aims with and without them, 301 without); 305 aimed no directional spell after m15
   // step 9's dungeon rolls (309 aims with and without them); 302 aimed none after m12 step 6's
   // vault roll (nor did 303, 304 or 306)
-  for (const seed of [320, 329]) {
+  for (const seed of [329, 335]) {
     test(`seed ${seed}: 600 turns knowing every spell`, { timeout: 60000 }, () => {
       const r = soak([vanillaMod, spellKitMod], { seed, turns: 600, checkEvery: 5 });
       console.log(

@@ -44,7 +44,9 @@ import { newcham } from './newcham';
 import { yourRace } from './race';
 import { raceIs } from './urole';
 import { polyWhenStoned } from './golem';
-import { isWaterLevel, levelFlags } from './levelflags';
+import { isRogueLevel, isWaterLevel, levelFlags } from './levelflags';
+import { placeBranchPortal, portalBranchDest } from './branchportal';
+import { findPortal } from './portal';
 import { isLava, isPool } from './liquid';
 import { setMappearance } from './mimicstate';
 import { protFromShapeChangers } from './props';
@@ -123,11 +125,14 @@ const NOT_DRY: ReadonlySet<DefId> = new Set([
   VANILLA_TERRAIN.altar_neutral,
   VANILLA_TERRAIN.altar_chaotic,
   VANILLA_TERRAIN.altar_unaligned,
+  // m24: a throne and a grave are furniture too
+  VANILLA_TERRAIN.throne,
+  T.grave,
 ]);
 
 /**
  * DRY: walkable ground that is not a door, a liquid (m15: pools, moats, lava sort before DOOR,
- * so SPACE_POS() refuses them) or a fountain, sink or altar, so floor, corridor, ice, clouds and
+ * so SPACE_POS() refuses them) or a fountain, sink, altar, throne or grave, so floor, corridor, ice, clouds and
  * stairs, with no boulder on it. ref: src/sp_lev.c is_ok_location() DRY (`!bould`),
  * include/rm.h SPACE_POS()
  */
@@ -279,7 +284,7 @@ export function createMonster(
   c: LevelContent,
   ldef: LevelDef,
   room?: number,
-): void {
+): EntityId | null {
   let def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
@@ -287,7 +292,7 @@ export function createMonster(
         ? mkclass(ctx, c.class, levelDifficulty(ctx, level), ['nogen'], { level }) // mkclass(class, G_NOGEN)
         : null;
   if (def && c.id !== undefined) {
-    if (def.genFlags.includes('uniq') && isExtinct(ctx.state, def.id)) return;
+    if (def.genFlags.includes('uniq') && isExtinct(ctx.state, def.id)) return null;
     if (isGone(ctx.state, def.id)) def = null; // genocided or extinct: make random monster
   }
   // a dwarf or gnome hero meets fewer of her own kind in the Mines (u.uz is the new level)
@@ -312,7 +317,7 @@ export function createMonster(
     }
   } else pos = contentSpot(ctx, level, c, ldef, room);
   // someone already there: a close place instead (makemon's enexto)
-  if (!pos) return;
+  if (!pos) return null;
   // an `align`ed monster is a roaming priest or minion of that god (mk_roamer(): `peaceful`
   // unset is BOOL_RANDOM, true as a boolean); `asleep` is applied after it
   const id =
@@ -343,16 +348,20 @@ export function createMonster(
     if (e && cham !== null && vampshifted(ctx, e) && c.appearAs?.kind !== 'monster')
       newcham(ctx, e, ctx.defs.monster(cham));
   }
+  return id;
 }
 
-/** ref: src/sp_lev.c create_object() */
-function createObject(
+/**
+ * des.object() of one entry, returning the object made (null for none). ref: src/sp_lev.c
+ * create_object()
+ */
+export function createObject(
   ctx: Ctx,
   level: Level,
   c: LevelContent,
   ldef: LevelDef,
   room?: number,
-): void {
+): EntityId | null {
   // lspo_object(): `montype` is read (a class letter rolled with mkclass(class, G_NOGEN |
   // G_IGNORE)) before create_object() picks the spot and makes the object
   const mon =
@@ -365,7 +374,7 @@ function createObject(
           })?.id
         : (c.montype as DefId);
   const pos = contentSpot(ctx, level, c, ldef, room);
-  if (!pos) return;
+  if (!pos) return null;
   const at = { level: level.id, x: pos.x, y: pos.y };
   if (c.id !== undefined) {
     // create_object(): mksobj_at(id, x, y, TRUE, ...), then set_corpsenm(montype) and the
@@ -379,7 +388,9 @@ function createObject(
     if (c.historic && c.id === STATUE) setHistoric(ctx, id, true);
     if (c.id === STATUE && mon === undefined && levelFlags(ctx, level).medusa === true)
       petrifiedStatue(ctx, level, id);
-  } else mkobjAt(ctx, (c.class as ObjectClass | undefined) ?? 'random', at, true);
+    return id;
+  }
+  return mkobjAt(ctx, (c.class as ObjectClass | undefined) ?? 'random', at, true);
 }
 
 /** Puts the detached or carried item `item` into the statue (add_to_container()). */
@@ -667,6 +678,17 @@ export function registerSpLev(api: ModApi, fixups: Readonly<Record<DefId, SpLevF
     if (fixup?.contents) fixup.contents(ctx, level, def);
     else fillSpecialLevel(ctx, level, def);
     fixup?.after?.(ctx, level, def);
+    // m24: "place dungeon branch if not placed above": a portal branch's portal, in a room as
+    // makelevel() places one, else anywhere on the level (the Rogue level is makelevel()'s own:
+    // its fixup places it)
+    if (!isRogueLevel(level) && portalBranchDest(ctx.state, level) && !findPortal(level))
+      placeBranchPortal(
+        ctx,
+        level,
+        level.rooms.some((r) => r.parent === undefined)
+          ? undefined
+          : placeLregion(ctx, level, [0, 0, level.width - 1, level.height - 1], null),
+      );
     if (def.flags?.premapped === true) premapDetect(ctx, level);
   });
 }
@@ -899,7 +921,8 @@ export function placeLregion(
  * des.levregion({ type = "stair-up" | "stair-down" | "branch", region, exclude }) as
  * fixup_special() places it once the level is done (placeLregion()): the stairs when the dungeon
  * gives the level such stairs (the spot is drawn either way, as mkstairs() refuses them after
- * it), the branch stairs when it has a branch. ref: src/mkmaze.c fixup_special() LR_UPSTAIR,
+ * it), the branch stairs when it has a branch, or the magic portal of a portal branch ending
+ * here (m24: the Quest's home level). ref: src/mkmaze.c fixup_special() LR_UPSTAIR,
  * LR_DOWNSTAIR, LR_BRANCH; put_lregion_here(); src/mklev.c mkstairs(), place_branch()
  */
 export function desLevregion(
@@ -913,7 +936,8 @@ export function desLevregion(
   if (!p) return;
   if (type === 'branch') {
     const branch = level.branch;
-    if (!branch) return;
+    // m24: a portal branch's end gets its magic portal there (place_branch()'s mkportal())
+    if (!branch) return placeBranchPortal(ctx, level, p);
     setTerrain(level, p.x, p.y, branch.dir === 'up' ? T.stairs_up : T.stairs_down);
     branch.pos = p;
     return;

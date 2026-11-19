@@ -12,9 +12,20 @@ import {
   LUDIOS,
   PLANES,
   PLANE_LEVELS,
+  QGOAL,
+  QLOCATE,
+  QSTART,
+  QUEST,
   TOWER_LEVELS,
   VLAD,
 } from './levelflags';
+import {
+  QUEST_FIXUPS,
+  QUEST_LEVEL_DEFS,
+  QUEST_ROLE_FILLER,
+  QUEST_ROLE_VARIANTS,
+  QUEST_STANDIN,
+} from './quest/index';
 import { HELLFILL, HELLFILL_FIXUP } from './hellfill';
 import { JUIBLEX, JUIBLEX_FIXUP } from './juiblex';
 import { KNOX_FIXUP, KNOX_LEVEL } from './knox';
@@ -127,6 +138,7 @@ export const LEVELS: readonly LevelDef[] = [
   PLANE_STANDIN,
   ...PLANE_LEVEL_DEFS,
   SANCTUM,
+  ...QUEST_LEVEL_DEFS,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -153,6 +165,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   ...TOWER_FIXUPS,
   [SANCTUM.id]: SANCTUM_FIXUP,
   ...PLANE_FIXUPS,
+  ...QUEST_FIXUPS,
 };
 
 /**
@@ -176,11 +189,16 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * Oracle onto its bottom level (`entry = -1`), whose depth is the Oracle's; each level is one of
  * two variants (sokoban.ts), so it has no filler. Its "mazelike" flag and neutral alignment are
  * not modelled.
+ * The Quest (m24): 5-6 levels behind a magic portal 6-7 levels below the Oracle, at the depth of
+ * the portal's level ("portals stay on the same depth"), with the home level first, the locate
+ * level third and the goal level last; the hero's role picks their LevelDefs and the fillers
+ * above and below the locate level (quest/index.ts; a role not ported yet gets the stand-in and
+ * no portal). Its portals are branchportal.ts's. It comes after the Mines and before Sokoban, as
+ * in dungeon.lua.
  * Fort Ludios: one level (knox.ts), its branch rolled on DL18-21 of the main dungeon, which gives
- * its depth (19-22) but no stairs at either end: C makes the main dungeon's end a floating one
- * until a vault's magic portal is placed (the knox kludge of fixup_level_locations()).
- * It comes after Sokoban, as in dungeon.lua (the Quest between them is left out and draws
- * nothing).
+ * its depth (18-21: a portal branch) but no stairs at either end: C makes the main dungeon's end
+ * a floating one until a vault's magic portal is placed (the knox kludge of
+ * fixup_level_locations()). It comes after Sokoban, as in dungeon.lua.
  * Vlad's Tower: three levels (tower.ts) entered at the bottom by branch stairs up from Gehennom's
  * level 9-13 and climbed by ladders.
  * The Elemental Planes: six levels above DL1 (Astral -4 .. Earth 0, the dummy level 1), entered
@@ -196,7 +214,9 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * bigrm: base 10, range 3, chance 40, nlevels 13; medusa: base -5, range 4, nlevels 4; castle:
  * base -1; "Gehennom": base 20, range 5, its branch: chainlevel "castle", base 0, branchtype
  * "no_down"; "The Gnomish Mines": base 8, range 2; branch base 2, range 3; minetn: base 3, range 2,
- * nlevels 7, flags "town"; minend: base -1, nlevels 3; "Sokoban": base 4, entry -1, soko1..soko4
+ * nlevels 7, flags "town"; minend: base -1, nlevels 3; "The Quest": base 5, range 2, x-strt base 1,
+ * x-loca base 3, x-goal base -1; its branch: chainlevel "oracle", base 6, range 2, branchtype
+ * "portal"; "Sokoban": base 4, entry -1, soko1..soko4
  * at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1, direction "up"; rogue: base
  * 15, range 4; "Fort Ludios": base 1, knox base -1; its branch: base 18, range 4, branchtype
  * "portal"; "Vlad's Tower": base 3, entry -1, tower1..tower3 at base 1..3; its branch in
@@ -265,6 +285,38 @@ export const DUNGEONS: readonly DungeonDef[] = [
     ],
   },
   {
+    id: QUEST,
+    nameKey: QUEST,
+    levels: { base: 5, range: 2 },
+    entry: { from: 'nh:main', chain: 'nh:oracle', base: 6, range: 2, stairs: 'portal' },
+    // a role whose levels are not ported yet: the stand-in everywhere (plan Q10)
+    filler: QUEST_STANDIN.id,
+    special: [
+      {
+        id: QSTART,
+        nameKey: 'level.qstart',
+        base: 1,
+        variants: [QUEST_STANDIN.id],
+        roleVariants: QUEST_ROLE_VARIANTS.strt,
+      },
+      {
+        id: QLOCATE,
+        nameKey: 'level.qlocate',
+        base: 3,
+        variants: [QUEST_STANDIN.id],
+        roleVariants: QUEST_ROLE_VARIANTS.loca,
+      },
+      {
+        id: QGOAL,
+        nameKey: 'level.qgoal',
+        base: -1,
+        variants: [QUEST_STANDIN.id],
+        roleVariants: QUEST_ROLE_VARIANTS.goal,
+      },
+    ],
+    roleFiller: { split: QLOCATE, byRole: QUEST_ROLE_FILLER },
+  },
+  {
     id: 'nh:sokoban',
     nameKey: 'nh:sokoban',
     levels: { base: 4 },
@@ -281,8 +333,8 @@ export const DUNGEONS: readonly DungeonDef[] = [
     id: LUDIOS,
     nameKey: LUDIOS,
     levels: { base: 1 },
-    // branchtype "portal": stairs at neither end, the child's lifted by the knox fixup (knox.ts)
-    entry: { from: 'nh:main', base: 18, range: 4, stairs: 'child' },
+    // branchtype "portal": stairs at neither end, a vault's portal and the fort's (knox.ts)
+    entry: { from: 'nh:main', base: 18, range: 4, stairs: 'portal' },
     special: [{ id: KNOX, nameKey: 'level.knox', base: -1, variants: [KNOX_LEVEL.id] }],
   },
   {

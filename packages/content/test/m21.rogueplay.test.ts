@@ -315,7 +315,8 @@ describe('secret doors found on the Rogue level are doorways', () => {
     expect(found).toBe(5);
   });
 
-  const DARK = ['        |', '@#######|', '        |'];
+  // the door within the ray's least range (rn1(7, 7))
+  const DARK = ['       |', '@######|', '       |'];
 
   test('a blessed magic mapping turns every secret door into a doorway', () => {
     const m = mapSetup(['-----', '|.@.|', '-----']);
@@ -341,15 +342,15 @@ describe('secret doors found on the Rogue level are doorways', () => {
     const m = mapSetup(DARK, { memory: 'none' });
     rogue(m.level);
     getPlayer(m.state).c.hp = { cur: 999, max: 999 };
-    setTerrain(m.level, 8, 1, T.sdoor_v);
+    setTerrain(m.level, 7, 1, T.sdoor_v);
     const out = zap(m.state, 'nh:wand_of_cold', 'e');
-    expect(terrainIdAt(m.level, 8, 1)).toBe(T.doorway);
+    expect(terrainIdAt(m.level, 7, 1)).toBe(T.doorway);
     expect(out).toContain('You feel a draft.');
     const o = mapSetup(DARK, { memory: 'none' });
     getPlayer(o.state).c.hp = { cur: 999, max: 999 };
-    setTerrain(o.level, 8, 1, T.sdoor_v);
+    setTerrain(o.level, 7, 1, T.sdoor_v);
     expect(zap(o.state, 'nh:wand_of_cold', 'e')).not.toContain('You feel a draft.');
-    expect(terrainIdAt(o.level, 8, 1)).not.toBe(T.sdoor_v);
+    expect(terrainIdAt(o.level, 7, 1)).not.toBe(T.sdoor_v);
   });
 });
 
