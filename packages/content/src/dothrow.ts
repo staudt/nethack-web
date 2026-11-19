@@ -37,7 +37,7 @@ import { ACCFOOD, dogfood, isDomestic, isTame, tamedog } from './dog';
 import { setmangry, wakeup } from './peaceful';
 import { canBlnd, haseyes } from './adtyping';
 import { killedByHero } from './buzz';
-import { isFrozen, mblinded, mcansee, setMblinded } from './mstate';
+import { clearWaitMask, isFrozen, mblinded, mcansee, setMblinded } from './mstate';
 import { dogEat } from './dogmove';
 import { backstabbable, checkCaitiff, cutwormAt, dbonU, dmgval, monsterIdAt } from './combat';
 import { isAxe } from './mdig';
@@ -60,7 +60,13 @@ import { checkCapacity, heroEntity } from './magic';
 import { isUnicorn, nohands, notake } from './mondata';
 import { gemAccept, gemForUnicorn } from './unicorn';
 import { theXname, xnameOf } from './objnam';
-import { isArt } from './artistate';
+import { isArt, isQuestArtifact } from './artistate';
+import { alignGname } from './gods';
+import { uInvoked } from './levelflags';
+import { finishQuest } from './quest';
+import { questStatus } from './queststate';
+import { fullyIdentify } from './read';
+import { AMULET_OF_YENDOR, isUniqueRelic } from './uhave';
 import { losehp } from './hp';
 import { heroForm } from './upoly';
 import { polydRace, yourRace } from './race';
@@ -83,8 +89,8 @@ import {
   weaponHitBonus,
 } from './skills';
 import { acurrstr, findMac } from './stats';
-import { monNam, revealUnseenAt } from './perception';
-import { luckOf } from './luck';
+import { monNam, revealUnseenAt, someMonNam } from './perception';
+import { luckOf, ualignBase } from './luck';
 import { P, hasProp, heroHas, maybeHalfPhys, ringBonus, wornIn } from './props';
 import { hmonNoDamage, hmonThrownHit, missileMsg, type Shot } from './hmon';
 import { specAbon, specDbon } from './artifact';
@@ -146,6 +152,78 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot, maybeWakeup = tr
   if (maybeWakeup && mon.c.monster && ctx.rng.rn2(3) === 0) wakeup(ctx, mon.id); // wakeup(mon, TRUE)
 }
 
+/** ref: include/objects.h FAKE_AMULET_OF_YENDOR */
+const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
+
+/**
+ * Her quest artifact, the Amulet, an invocation tool or a fake Amulet she does not know for one,
+ * thrown or kicked at her own leader: null for any other throw. He wakes and stops waiting; one
+ * that cannot move lets it fall (false). Else "The Norn catches the Orb of Fate." and he keeps it
+ * when he is angry, or when it is an invocation tool after the invocation (a peaceful one first
+ * names it: "The Bell of Opening's part in this is finished.", "We will guard it in case it is
+ * ever needed again, Tyr forbid."), else he acknowledges it (finishQuest()) and hands it back
+ * next to her, or tosses it back from farther: true, it is placed. ref: src/dothrow.c
+ * thitmonst() special_obj_hits_leader(), sho_obj_return_to_u()
+ */
+function leaderCatches(ctx: Ctx, mon: Entity, obj: Entity): boolean | null {
+  const it = obj.c.item;
+  const m = mon.c.monster;
+  const p = mon.c.pos;
+  if (!it || !m || !p) return null;
+  const special =
+    isQuestArtifact(ctx.state, obj) ||
+    isUniqueRelic(obj.def) ||
+    (obj.def === FAKE_AMULET && !it.known.spe);
+  if (!special || mon.id !== questStatus(ctx.state).leaderId) return null;
+  // AIS: changes to wakeup() means that it's now less inappropriate here than it used to be,
+  // but manual version works just as well
+  m.asleep = false;
+  clearWaitMask(ctx, mon.id);
+  if (isFrozen(ctx, mon.id)) return false;
+  msg(ctx, 'quest.catches', { mon: someMonNam(ctx, mon), obj: theXname(ctx.state, ctx.defs, obj) });
+  // leader will keep tossed invocation item after you've done the invocation and it's become
+  // unnecessary for completion... or any special item, if you've made him angry
+  if (
+    (uInvoked(ctx.state) && isUniqueRelic(obj.def) && obj.def !== AMULET_OF_YENDOR) ||
+    !m.peaceful
+  ) {
+    // give an explanation for keeping the item only if leader is not doing it out of anger
+    if (m.peaceful) {
+      // just in case, identify the object so its name will appear in the message
+      fullyIdentify(ctx, obj);
+      msg(ctx, 'quest.part_finished', { obj: theXname(ctx.state, ctx.defs, obj) });
+      msg(ctx, 'quest.guard_it', { god: alignGname(ctx.state, ualignBase(ctx.state)) });
+    }
+    if (uShops(ctx).length > 0 || isUnpaid(ctx.state, obj)) checkShopObj(ctx, obj, p.x, p.y, false);
+    mpickobj(ctx, mon.id, obj);
+    return true;
+  }
+  // under normal circumstances, leader will say something and then return the item to the hero
+  const h = heroEntity(ctx).c.pos;
+  const next2u = !!h && distmin(p.x, p.y, h.x, h.y) <= 1;
+  finishQuest(ctx, obj); // acknowledge quest completion
+  msg(ctx, next2u ? 'quest.hands_back' : 'quest.tosses_back', {
+    mon: someMonNam(ctx, mon),
+    obj: theXname(ctx.state, ctx.defs, obj),
+  });
+  if (!next2u && h) {
+    // sho_obj_return_to_u(): its flight back over the squares she can see
+    const level = ctx.state.levels[p.level];
+    const path: Pos[] = [];
+    const sx = Math.sign(h.x - p.x);
+    const sy = Math.sign(h.y - p.y);
+    for (let x = p.x + sx, y = p.y + sy, n = 0; (x !== h.x || y !== h.y) && n < 80; n++) {
+      if (level && isVisible(ctx.state, y * level.width + x)) path.push({ x, y });
+      x += x !== h.x ? sx : 0;
+      y += y !== h.y ? sy : 0;
+    }
+    if (path.length > 0) ctx.emit({ type: 'projectile', g: shownId(ctx.state, obj.def), path });
+  }
+  addToInventory(ctx, ctx.state.playerId, obj.id); // back into your inventory
+  encumberMsg(ctx);
+  return true;
+}
+
 /**
  * The thrown object tries to hit the monster; returns true when it was used up (a missile that
  * broke). ref: src/dothrow.c thitmonst(): to-hit is -1 + AC + level + Dex bonus + distance
@@ -158,8 +236,8 @@ function tmiss(ctx: Ctx, mon: Entity, missile: Msg, shot: Shot, maybeWakeup = tr
  * bonus), ammo thrown by hand only rnd(2) plus the Str bonus. Hits may break the
  * missile (should_mulch_missile). Rings of increase accuracy and damage count; gauntlets of power (-2) and of
  * fumbling (-3) hinder a bow. An egg hits if Dex > rnd(25) (egghit.ts). A gem (not a rock or
- * gray stone, not slung) thrown at a unicorn is caught (gem_accept(): unicorn.ts). Not ported:
- * the quest leader, boomerangs and balls, cream pies, taming with food, passive
+ * gray stone, not slung) thrown at a unicorn is caught (gem_accept(): unicorn.ts), her quest
+ * artifact or a relic thrown at her leader by him (leaderCatches()). Not ported: boomerangs and balls, cream pies, taming with food, passive
  * responses, poison (so no Samurai's "You dishonorably use a poisoned weapon!"), knockback. A
  * Knight's or Samurai's conduct is checked once the die is rolled (checkCaitiff()), and a Rogue's
  * applied polearm stabs a fleeing or helpless monster in the back (+rnd(level)). A potion that
@@ -241,6 +319,13 @@ export function thitmonst(
     }
     msg(ctx, 'unicorn.catches', { mon: monNam(ctx, mon), obj: missile });
     return gemAccept(ctx, mon, obj);
+  }
+
+  // don't make game unwinnable if naive player throws artifact at leader... (kicked artifact
+  // is ok too)
+  if (!applied) {
+    const caught = leaderCatches(ctx, mon, obj);
+    if (caught !== null) return caught;
   }
 
   const dieroll = ctx.rng.rnd(20);
@@ -821,8 +906,8 @@ export function multishotClassBonus(ctx: Ctx, ammo: Entity, launcher: Entity | n
  * fumbling or clumsy (Dex <= 6) hero get only expert's +1; the race's bow (an elf's elven arrows
  * from an elven bow, an orc's orcish from an orcish bow) or a gnome's crossbow adds 1 when not
  * so weak, and the role's own missiles add 1 (multishotClassBonus()); a crossbow needs Str 18 (a
- * gnome's 16) to fire several; then rnd() of the total. Not
- * ported: confusion/stun, the quest artifact.
+ * gnome's 16) to fire several; her quest artifact as the launcher adds 1 when not so weak; then
+ * rnd() of the total. Not ported: confusion/stun.
  */
 function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
   const it = obj.c.item;
@@ -855,6 +940,10 @@ function multishotOf(ctx: Ctx, obj: Entity, def: ObjectDef): number {
       multishot++;
     // arbitrary; there isn't any gnome-specific gear
     else if (race === 'gnome' && isAmmo(def) && oskill === 'crossbow') multishot++; // -P_CROSSBOW
+    // when launcher is own quest artifact, give extra +1 with any type of ammo appropriate for
+    // that launcher (the Longbow of Diana)
+    if (uwep && uwdef && isQuestArtifact(ctx.state, uwep) && ammoAndLauncher(def, uwdef))
+      multishot++;
   }
   // crossbows are slow to load: high strength is necessary to shoot quickly
   if (

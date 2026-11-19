@@ -10,7 +10,8 @@ import { levelDifficulty } from './levdiff';
 import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
 import { isWiz } from './wizstate';
-import { monHasAmulet, uHave } from './uhave';
+import { isUniqueRelic, monHasAmulet, uHave } from './uhave';
+import { isQuestArtifact } from './artistate';
 import { isCovetous, isDemon, isRider, wants } from './mondata';
 import {
   getLevel,
@@ -219,13 +220,21 @@ const AFTER_SLIME_MOLD = new Set([
 
 /**
  * How much the monster wants the object, DOGFOOD (best) to TABU. ref: src/dog.c dogfood().
- * Not ported: poisoned weapons, artifacts, ghouls, royal jelly, slime, polymorph
- * food, metallivores' other metal.
+ * Not ported: poisoned weapons, artifacts other than her quest artifact, ghouls, royal jelly,
+ * slime, polymorph food, metallivores' other metal.
  */
 export function dogfood(ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity, obj: Entity): number {
   const mdef = ctx.defs.monster(mon.def);
   const odef = ctx.defs.object(obj.def);
   const cursed = obj.c.item?.buc === 'cursed';
+  // `is_quest_artifact(obj) || obj_resists(obj, 0, 95)`: only its sure part (the relics, a
+  // Rider's corpse) and her quest artifact; the 5% of other artifacts is not drawn
+  if (
+    isQuestArtifact(ctx.state, obj) ||
+    isUniqueRelic(obj.def) ||
+    (obj.def === 'nh:corpse' && isRider(obj.c.item?.corpseOf))
+  )
+    return cursed ? TABU : APPORT;
   if (odef.class === 'food') {
     const fx = obj.c.item?.corpseOf;
     if (obj.def === 'nh:corpse' && isRider(fx)) return TABU;

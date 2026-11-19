@@ -178,6 +178,7 @@ import {
 } from './invis';
 import { undestroyableTrap } from './invocation';
 import { roleIs } from './urole';
+import { uHave } from './uhave';
 import { gainExperience } from './hero';
 
 export const ZAP_ID: DefId = 'nh:zap';
@@ -791,6 +792,12 @@ function maybeExplodeTrap(ctx: Ctx, src: ZapSource, x: number, y: number): void 
 // immediate wands: bhit(), bhitm(), bhito(), bhitpile()
 
 /**
+ * A Knight carrying her quest artifact (the Magic Mirror of Merlin) does double damage with
+ * force bolt, striking, turn undead and drain life. ref: src/zap.c bhitm() `dbldam`
+ */
+const dbldam = (ctx: Ctx): boolean => roleIs(ctx.state, 'knight') && uHave(ctx.state, 'questart');
+
+/**
  * ref: src/zap.c bhitm(): the monster is hit by the wand's or spell's effect. No Pestilence or
  * monster blindness exist (healing never hurts and cures no blindness).
  */
@@ -810,6 +817,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         say(ctx, 'zap.boing');
       } else if (isSwallowed(ctx) || ctx.rng.rnd(20) < 10 + findMac(ctx.state, ctx.defs, mon.id)) {
         let dmg = ctx.rng.d(2, 12);
+        if (dbldam(ctx)) dmg *= 2;
         if (otyp === SPE.forceBolt) dmg = spellDamageBonus(ctx.state, dmg);
         say(ctx, oclass === 'wand' ? 'zap.wand_hit' : 'zap.spell_hit', {
           mon: monNam(ctx, mon),
@@ -972,10 +980,10 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
       if (unturnDead(ctx, mon)) wake = true;
       const mdat = ctx.defs.monster(mon.def);
       if (mdat.flags.includes('undead') || isVampshifter(ctx, mon)) {
-        // (no Knight's quest artifact doubling)
         revealInvis = true;
         wake = true;
         let dmg = ctx.rng.rnd(8);
+        if (dbldam(ctx)) dmg *= 2;
         if (otyp === SPE.turnUndead) dmg = spellDamageBonus(ctx.state, dmg);
         // context.bypasses: a corpse it leaves is not revived by this same zap
         const before = new Set(itemsHere(ctx, at.x, at.y).map((o) => o.id));
@@ -1015,6 +1023,7 @@ export function bhitm(ctx: Ctx, mon: Entity, src: ZapSource, at: Pos): void {
         : lvl
           ? d8
           : ctx.rng.rnd(4);
+      if (dbldam(ctx)) dmg *= 2;
       dmg = spellDamageBonus(ctx.state, dmg);
       if (resistsDrli(ctx, mon)) {
         // shieldeff_mon()

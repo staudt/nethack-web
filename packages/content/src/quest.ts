@@ -1,8 +1,10 @@
 // The quest's rules: the arrival lines on the home, locate and goal levels, the leader's call on
 // the main dungeon's portal level (m24 step 4), and (step 5) the leader's judgement when she talks
-// to him (or he to her), the expulsion, the nemesis's, the guardians' and the prisoner's speech.
+// to him (or he to her), the expulsion, the nemesis's, the guardians' and the prisoner's speech;
+// (step 6) the nemesis's and the leader's deaths, the first touch of her artifact and its return.
 // The gate on Home 1's descent is questgate.ts (a leaf the stairs and teleports can import).
-// ref: src/quest.c; src/do.c goto_level(); src/sounds.c domonnoise(); src/monmove.c dochug()
+// ref: src/quest.c; src/do.c goto_level(); src/sounds.c domonnoise(); src/monmove.c dochug();
+// src/mon.c mondead(), m_detach(); src/invent.c addinv_core1()
 import {
   getLevel,
   getPlayer,
@@ -28,15 +30,22 @@ import { monNam } from './perception';
 import { MAGIC_PORTAL } from './portal';
 import { notCapable, purity } from './questgate';
 import { questMonDef } from './questmon';
-import { comPager, findQuestArtifact, qtPager } from './questpgr';
+import { comPager, findQuestArtifact, qtPager, type PagerCtx } from './questpgr';
 import { questStatus, setQuest } from './queststate';
 import { MIN_QUEST_ALIGN } from './questtab';
 import { isQuestArtifact } from './artistate';
-import { uHave } from './uhave';
+import { AMULET_OF_YENDOR, uHave } from './uhave';
+import { setArtitouch } from './items';
+import { setQuestDeath } from './mondeath';
+import { theXname } from './objnam';
+import { fullyIdentify } from './read';
 import { roleIs } from './urole';
 import { angryGuards } from './watch';
 
 export { notCapable, okToQuest, purity, questDescentBlocked } from './questgate';
+
+/** ref: include/objects.h FAKE_AMULET_OF_YENDOR */
+const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
 
 const say = (ctx: Ctx, key: string, params?: Record<string, string | number>): void =>
   ctx.emit(params ? { type: 'msg', key, params } : { type: 'msg', key });
@@ -176,23 +185,91 @@ export function doExpel(ctx: Ctx, e: Expel | null): void {
 }
 
 /**
- * Her artifact back to the leader (or the Amulet shown to him): "offeredit" the first time, then
- * "offeredit2", with "quest_complete_no_bell" when she lacks the Bell; "hasamulet" while she
- * carries the real Amulet. `gotThanks`, and `qcompleted` when an artifact was offered. Step 6 of
- * m24 adds the rest (an invocation item or an Amulet thrown at him, the leader identifying the
- * Amulet and the artifact). ref: src/quest.c finish_quest()
+ * Her artifact back to the leader, by hand (#chat) or thrown at him (`obj`), or the Amulet shown
+ * to him: "offeredit" the first time, then "offeredit2", with "quest_complete_no_bell" when she
+ * lacks the Bell; "hasamulet" while she carries the real Amulet (he identifies it, never a fake).
+ * `gotThanks`, and with an artifact `qcompleted` and the artifact fully identified (he imparts
+ * what it is). An invocation item or an Amulet thrown at him (not her artifact) is only
+ * identified and named: "hasamulet", "Sorry to say, this is a mere imitation of the true Amulet
+ * of Yendor.", or "Ah, I see you've found the Bell of Opening.". ref: src/quest.c finish_quest()
+ * (no Deaf)
  */
 export function finishQuest(ctx: Ctx, obj: Entity | null): void {
-  if (uHave(ctx.state, 'amulet')) qtPager(ctx, 'hasamulet');
-  else {
+  if (obj && !isQuestArtifact(ctx.state, obj)) {
+    // tossed an invocation item (or [fake] AoY) at the quest leader; do ID first so that the
+    // message identifying the item will refer to it by name
+    fullyIdentify(ctx, obj);
+    if (obj.def === AMULET_OF_YENDOR) qtPager(ctx, 'hasamulet');
+    else if (obj.def === FAKE_AMULET) say(ctx, 'quest.mere_imitation');
+    else
+      ctx.emit({
+        type: 'msg',
+        key: 'quest.found_it',
+        params: { obj: theXname(ctx.state, ctx.defs, obj) },
+      });
+    return;
+  }
+  if (uHave(ctx.state, 'amulet')) {
+    // has the amulet in inventory -- most likely she has already completed the quest and
+    // stopped in on her way back up
+    qtPager(ctx, 'hasamulet');
+    // leader IDs the real amulet but ignores any fakes
+    const amulet = inventoryOf(ctx.state, ctx.state.playerId).find(
+      (o) => o.def === AMULET_OF_YENDOR,
+    );
+    if (amulet) fullyIdentify(ctx, amulet);
+  } else {
     // normal quest completion; threw artifact or walked up carrying it
     qtPager(ctx, questStatus(ctx.state).gotThanks ? 'offeredit2' : 'offeredit');
     // should have obtained bell during quest; if not, suggest returning for it now
     if (!uHave(ctx.state, 'bell')) comPager(ctx, 'quest_complete_no_bell');
   }
   setQuest(ctx, { gotThanks: true });
-  if (obj) setQuest(ctx, { qcompleted: true }); // you did it!
+  if (obj) {
+    setQuest(ctx, { qcompleted: true }); // you did it!
+    // behave as if leader imparts sufficient info about the quest artifact
+    fullyIdentify(ctx, obj);
+  }
 }
+
+/** The nemesis is dead: "killed_nemesis" once. ref: src/quest.c nemdead() */
+export function nemdead(ctx: Ctx): void {
+  if (questStatus(ctx.state).killedNemesis) return;
+  setQuest(ctx, { killedNemesis: true });
+  qtPager(ctx, 'killed_nemesis');
+}
+
+/** A quest leader is dead (silently: C's TODO). ref: src/quest.c leaddead() */
+export function leaddead(ctx: Ctx): void {
+  if (!questStatus(ctx.state).killedLeader) setQuest(ctx, { killedLeader: true });
+}
+
+/**
+ * A monster's death, for the quest: her own leader (by entity, even polymorphed) is marked dead;
+ * any nemesis row's death (by its sound, as mons[] after role_init()) is nemdead(), any leader
+ * row's leaddead(). The Archeologist's, Cave Dweller's and Priest's nemeses leave no cloud of
+ * gas (no gas-cloud regions). ref: src/mon.c mondead() "if it's a (possibly polymorphed) quest
+ * leader", m_detach() (stinky_nemesis() not ported)
+ */
+function questMonDied(ctx: Ctx, mon: Entity): void {
+  if (mon.id === questStatus(ctx.state).leaderId) setQuest(ctx, { leaderIsDead: true });
+  const sound = questMonDef(ctx.state, ctx.defs.monster(mon.def)).sound;
+  if (sound === 'nemesis') nemdead(ctx);
+  if (sound === 'leader') leaddead(ctx);
+}
+setQuestDeath(questMonDied);
+
+/**
+ * Her quest artifact comes into her pack for the first time: "gotit" (`touchedArtifact`).
+ * ref: src/quest.c artitouch() (no observe_object(): no dknown; no exercise(A_WIS))
+ */
+export function artitouch(ctx: PagerCtx, _obj: Entity): void {
+  if (questStatus(ctx.state).touchedArtifact) return;
+  // only give this message once
+  setQuest(ctx, { touchedArtifact: true });
+  qtPager(ctx, 'gotit');
+}
+setArtitouch(artitouch);
 
 /** How the wizard-mode "adjust?" prompt came: her #chat or the leader's own speech. */
 interface AdjustData {

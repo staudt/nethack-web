@@ -22,6 +22,7 @@ import { luckTimeout, moreluck } from './gem';
 import { isMplayer, isUnicorn } from './mondata';
 import { roleIs } from './urole';
 import { questMonDef } from './questmon';
+import { questStatus } from './queststate';
 
 /** ref: include/you.h LUCKMIN, LUCKMAX */
 export const LUCKMIN = -10;
@@ -227,12 +228,23 @@ export interface KilledMinion {
   malign?: number;
 }
 
+type AngerQuestGuardians = (ctx: Ctx) => void;
+let angerQuestGuardiansFn: AngerQuestGuardians | null = null;
+/** peaceful.ts hands down iter_mons(anger_quest_guardians) (it sits above this module). */
+export function setAngerQuestGuardians(fn: AngerQuestGuardians): void {
+  angerQuestGuardiansFn = fn;
+}
+
 /**
  * The hero killed `mon` (called before it is removed): murder, killing peacefuls and pets cost
  * Luck, and the alignment record moves by the monster's malign; killing a temple priest
  * (`priest`) costs 2 points of alignment and divine protection when he was the hero's own, and
- * earns 2 otherwise. ref: src/mon.c xkilled() "Punish bad behavior" and "adjust alignment
- * points"; a co-aligned unicorn costs 5 Luck (no quest monsters)
+ * earns 2 otherwise; a co-aligned unicorn costs 5 Luck. The quest (m24): her own leader costs
+ * her record plus ALIGNLIM / 2, 7 points of god anger and 20 of Luck ("That was a bad idea...",
+ * "probably" once the quest is done) and angers his guardians; a nemesis earns ALIGNLIM / 4
+ * (none once she killed her leader); a guardian costs ALIGNLIM / 8, 1 point of god anger and 4
+ * of Luck ("That was probably a bad idea..."). ref: src/mon.c xkilled() "Punish bad behavior"
+ * and "adjust alignment points"
  */
 export function xkilledPenalties(
   ctx: Ctx,
@@ -272,7 +284,25 @@ export function xkilledPenalties(
     changeLuck(ctx, -5);
     say(ctx, 'unicorn.guilty');
   }
-  if (priest) {
+  const q = questStatus(ctx.state);
+  if (q.leaderId !== undefined && mon.id === q.leaderId) {
+    // REAL BAD!
+    adjalign(ctx, -(u.alignRecord + Math.trunc(alignLim(ctx.state) / 2)));
+    setU(ctx, { ugangr: uState(ctx.state).ugangr + 7 }); // instantly become "extremely" angry
+    changeLuck(ctx, -20);
+    say(ctx, q.qcompleted ? 'quest.probably_bad_idea' : 'quest.bad_idea');
+    // (the hero's own kill: never while monsters move)
+    angerQuestGuardiansFn?.(ctx);
+  } else if (def.sound === 'nemesis') {
+    // Real good!
+    if (!q.killedLeader) adjalign(ctx, Math.trunc(alignLim(ctx.state) / 4));
+  } else if (def.sound === 'guardian') {
+    // Bad
+    adjalign(ctx, -Math.trunc(alignLim(ctx.state) / 8));
+    setU(ctx, { ugangr: uState(ctx.state).ugangr + 1 });
+    changeLuck(ctx, -4);
+    say(ctx, heroHas(ctx.state, P.HALLUC) ? 'quest.whoopsie' : 'quest.probably_bad_idea');
+  } else if (priest) {
     adjalign(ctx, priest.coaligned ? -2 : 2);
     // cancel divine protection for killing your priest
     if (priest.coaligned) setU(ctx, { ublessed: 0 });
@@ -294,11 +324,12 @@ export function xkilledPenalties(
 export function registerLuck(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
     const u = uState(ctx.state);
-    // an Archeologist's fedora (no full moon, Friday 13th or quest leader)
+    // an Archeologist's fedora (no full moon or Friday 13th: no clock)
     const fedora =
       roleIs(ctx.state, 'archeologist') &&
       wornIn(ctx.state, ctx.state.playerId, 'helm')?.def === 'nh:fedora';
-    const baseluck = fedora ? 1 : 0;
+    // ref: nh_timeout(): `if (svq.quest_status.killed_leader) baseluck -= 4`
+    const baseluck = (questStatus(ctx.state).killedLeader ? -4 : 0) + (fedora ? 1 : 0);
     const period = uHave(ctx.state, 'amulet') || u.ugangr ? 300 : 600;
     if (u.luck !== baseluck && ctx.state.turn % period === 0) {
       const { nostone, timeLuck } = luckTimeout(ctx.state);

@@ -103,6 +103,9 @@ export function questParams(ctx: Pick<Ctx, 'state' | 'defs'>): Params {
   return p;
 }
 
+/** What the pager needs of the context (artitouch() speaks from addinv()). */
+export type PagerCtx = Pick<Ctx, 'state' | 'defs' | 'emit' | 'rng'>;
+
 /** The section's message, else its fallback msgid's. ref: com_pager_core() msg_fallbacks */
 function lookup(section: string, msgid: string): { msgid: string; text: QuestText } | null {
   const sec = QUEST_TEXT[section];
@@ -119,7 +122,7 @@ function lookup(section: string, msgid: string): { msgid: string; text: QuestTex
  * synopsis in the message log. False when the section has no such message.
  * ref: src/questpgr.c com_pager_core(), deliver_by_pline(), deliver_by_window()
  */
-function comPagerCore(ctx: Ctx, section: string, msgid: string): boolean {
+function comPagerCore(ctx: PagerCtx, section: string, msgid: string): boolean {
   const found = lookup(section, msgid);
   if (!found) return false;
   const { text } = found;
@@ -137,12 +140,12 @@ function comPagerCore(ctx: Ctx, section: string, msgid: string): boolean {
 }
 
 /** A common quest message. ref: src/questpgr.c com_pager() */
-export function comPager(ctx: Ctx, msgid: string): void {
+export function comPager(ctx: PagerCtx, msgid: string): void {
   comPagerCore(ctx, 'common', msgid);
 }
 
 /** Her role's quest message, else the common one. ref: src/questpgr.c qt_pager() */
-export function qtPager(ctx: Ctx, msgid: string): void {
+export function qtPager(ctx: PagerCtx, msgid: string): void {
   if (!comPagerCore(ctx, questRole(ctx.state).filecode.toLowerCase(), msgid))
     comPagerCore(ctx, 'common', msgid);
 }

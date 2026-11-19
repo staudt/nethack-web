@@ -48,7 +48,9 @@ import { rnz } from './corpses';
 import { DIRECTION_OPTIONS, heroItem, itemArg, spitVenom } from './dothrow';
 import { isSick } from './hunger';
 import { lookHere } from './itemactions';
-import { findHell, inEndgame, inHell } from './levelflags';
+import { findHell, inEndgame, inHell, inQuest } from './levelflags';
+import { questMonDef } from './questmon';
+import { questStatus } from './queststate';
 import { floatDown, floatUp } from './levitation';
 import { migrateToLevel } from './migrate';
 import { mksobjFull } from './mkobj';
@@ -395,8 +397,9 @@ function banishDest(ctx: Ctx): string | null {
  * Demonbane: every demon and imp she could see (a clear line) wakes, turns hostile and, a demon
  * lord 1 time in 2 and a prince 1 in 3, vanishes to a random level of Gehennom (in Gehennom it
  * is teleported away instead): "The demon disappears in a cloud of brimstone!" ("Some of the
- * demons", "Most of the demons" when some stayed). ref: src/artifact.c invoke_banish() (no quest
- * nemeses)
+ * demons", "Most of the demons" when some stayed). A quest nemesis is never banished, and in the
+ * quest while the nemesis lives each demon's 1-in-`chance` gains 10. ref: src/artifact.c
+ * invoke_banish()
  */
 function invokeBanish(ctx: Ctx): number {
   let nvanished = 0;
@@ -411,7 +414,9 @@ function invokeBanish(ctx: Ctx): number {
     const def = ctx.defs.monster(mon.def);
     if (!isDemon(def) && def.glyph.ch !== 'i') continue; // S_IMP
     if (!couldseeAt(ctx, p.x, p.y)) continue;
+    if (questMonDef(ctx.state, def).sound === 'nemesis') continue;
     let chance = 1;
+    if (inQuest(ctx.state) && !questStatus(ctx.state).killedNemesis) chance += 10;
     if (isDprince(def)) chance += 2;
     if (isDlord(def)) chance++;
     m.asleep = false;

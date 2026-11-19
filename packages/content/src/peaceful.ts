@@ -30,7 +30,7 @@ import { doname } from './objnam';
 import { canseemon, mapInvisible, markedUnseen } from './invis';
 import { invisTo } from './apparxy';
 import { clearWaitMask, mcansee } from './mstate';
-import { adjalign, uState } from './luck';
+import { adjalign, setAngerQuestGuardians, uState } from './luck';
 import { delEngrAt, sengrAt } from './engr';
 import { onscary } from './scary';
 import { growl } from './dog';
@@ -367,3 +367,15 @@ function inWater(ctx: Ctx, mon: Entity): boolean {
   const lv = p ? ctx.state.levels[p.level] : undefined;
   return !!p && !!lv && isPool(ctx, lv, p.x, p.y);
 }
+
+// ref: src/mon.c xkilled() `iter_mons(anger_quest_guardians)`: once she killed her leader, his
+// guardians on the level turn on her (setmangry(mtmp, TRUE) each)
+setAngerQuestGuardians((ctx) => {
+  const guardian = questRole(ctx.state).guardian;
+  for (const id of sortedIds(ctx.state)) {
+    const mon = ctx.state.entities[String(id)];
+    if (!mon?.c.monster || mon.def !== guardian) continue;
+    if (mon.c.pos?.level !== ctx.state.currentLevel) continue;
+    setmangry(ctx, id, true);
+  }
+});

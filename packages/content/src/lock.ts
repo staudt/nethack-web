@@ -33,6 +33,7 @@ import {
   type TerrainDef,
 } from '@nh/core';
 import { setTerrain } from './actions';
+import { anyQuestArtifact, isQuestArtifact } from './artistate';
 import { monsterNearby } from './eat';
 import { pruneObjKnown, setLknown } from './items';
 import { xnameOf } from './objnam';
@@ -94,18 +95,32 @@ function heroItem(ctx: Ctx, id: unknown): Entity | null {
 
 /**
  * The tool used to unlock without asking which (a key, else a lock pick, else a credit card when
- * `opening`). ref: src/lock.c autokey() (no quest artifacts)
+ * `opening`); another role's quest artifact (the Master Key of Thievery, the Platinum Yendorian
+ * Express Card) only when nothing else of that rank or better is there.
+ * ref: src/lock.c autokey() (no magic key: a skeleton key is never preferred to another)
  */
 export function autokey(ctx: Ctx, opening: boolean): Entity | null {
   let key: Entity | null = null;
   let pick: Entity | null = null;
   let card: Entity | null = null;
+  // other role's quest artifact (Rogue's Key or Tourist's Credit Card)
+  let akey: Entity | null = null;
+  let apick: Entity | null = null;
+  let acard: Entity | null = null;
   for (const o of inventoryOf(ctx.state, ctx.state.playerId)) {
-    if (o.def === KEY.skeleton) key ??= o;
+    if (anyQuestArtifact(o) && !isQuestArtifact(ctx.state, o)) {
+      if (o.def === KEY.skeleton) akey ??= o;
+      else if (o.def === KEY.pick) apick ??= o;
+      else if (o.def === KEY.card) acard ??= o;
+    } else if (o.def === KEY.skeleton) key ??= o;
     else if (o.def === KEY.pick) pick ??= o;
     else if (o.def === KEY.card) card ??= o;
   }
-  if (!opening) card = null;
+  if (!opening) card = acard = null;
+  // only resort to other role's quest artifact if no other choice
+  if (!key && !pick && !card) key = akey;
+  if (!pick && !card) pick = apick;
+  if (!card) card = acard;
   return key ?? pick ?? card;
 }
 

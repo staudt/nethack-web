@@ -52,6 +52,9 @@ import { ureflects } from './reflect';
 import { payForDamage, type DmgStr } from './shkpay';
 import { SHOP_DOOR_COST, addDamage } from './shopdamage';
 import { spellDamageBonus, spellHitBonus } from './spellcalc';
+import { roleIs } from './urole';
+import { uHave } from './uhave';
+import { isQuestArtifact } from './artistate';
 import { findAc, findMac } from './stats';
 import { T, setTerrain } from './terrain';
 import { cvtSdoorToDoor, isRogueLevel } from './levelflags';
@@ -317,8 +320,8 @@ function zapHit(ctx: Ctx, ac: number, spell: DefId | null): boolean {
 /**
  * ref: src/zap.c zhitm(): the ray's damage to a monster, halved when it resists; the hit points
  * are taken here. Fire burns armor (and may destroy items), cold and lightning may destroy items.
- * A hero's spell (`spellcaster`) gets the Intelligence damage bonus and resists at her level.
- * `save`: the hero's ray (`type >= 0`) gets a saving throw; a monster's spell does not. The death
+ * A hero's spell (`spellcaster`) gets the Intelligence damage bonus and resists at her level
+ * (and does double damage for a Knight carrying her quest artifact). `save`: the hero's ray (`type >= 0`) gets a saving throw; a monster's spell does not. The death
  * ray kills (damage = HP + 1, no saving throw) unless the monster is nonliving, a demon or
  * resists magic; Death is not in the roster. A disintegration blast (`disint`, the death ray
  * breathed: ZT_BREATH(ZT_DEATH)) does nothing to a monster that resists disintegration, else
@@ -433,6 +436,8 @@ export function zhitm(
       if (!ctx.rng.rn2(6)) erodeArmor(ctx, mon.id, 'corrode');
       break;
   }
+  // ref: zhitm(): `is_hero_spell(type) && (Role_if(PM_KNIGHT) && u.uhave.questart)`
+  if (spellcaster && roleIs(ctx.state, 'knight') && uHave(ctx.state, 'questart')) tmp *= 2;
   if (tmp > 0 && save && resist(ctx, mon, 0, oclass)) tmp = Math.trunc(tmp / 2);
   if (tmp < 0) tmp = 0;
   const hp = mon.c.hp;
@@ -874,9 +879,13 @@ function disintegrateMon(ctx: Ctx, mon: Entity, byHero: boolean, fltxt: Msg): vo
     else say(ctx, 'zap.ray.hit', { ray: fltxt, mon: monNam(ctx, mon), ex: '!' });
   }
   for (const o of inventoryOf(ctx.state, mon.id)) {
-    // oresist_disintegration(): DISINT_RES armor, obj_resists(obj, 5, 50), the amulet
+    // oresist_disintegration(): DISINT_RES armor, obj_resists(obj, 5, 50), her quest
+    // artifact, the amulet
     const keep =
-      ctx.defs.object(o.def).prop === P.DISINT_RES || objResists(ctx, o, 5, 50) || o === mAmulet;
+      ctx.defs.object(o.def).prop === P.DISINT_RES ||
+      objResists(ctx, o, 5, 50) ||
+      isQuestArtifact(ctx.state, o) ||
+      o === mAmulet;
     if (!keep) ctx.remove(o.id); // extract_from_minvent(), obfree()
   }
   if (!byHero) monkilled(ctx, mon.id, false, undefined, 'rbre');

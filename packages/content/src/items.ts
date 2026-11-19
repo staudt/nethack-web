@@ -39,7 +39,7 @@ import { TIN, setTinVariety } from './tins';
 import { isCandle, mergeBurn, splitBurn } from './burnstate';
 import { roleIs } from './urole';
 import { inQuest } from './levelflags';
-import { mkArtifactConvert, nartifactExist, onameItem } from './artistate';
+import { isQuestArtifact, mkArtifactConvert, nartifactExist, onameItem } from './artistate';
 
 /** What the item functions need from a `Ctx` (tests can supply a minimal one). */
 export type ItemCtx = Pick<
@@ -915,7 +915,18 @@ export function addToInventory(ctx: ItemCtx, owner: EntityId, itemId: EntityId):
   else it.letter = null;
   // carrying affects the obj: a cursed figurine's transform timer
   if (item.def === FIGURINE) carryObjEffects(ctx, itemId);
+  // ref: src/invent.c addinv_core1(): `if (is_quest_artifact(obj)) { u.uhave.questart = 1;
+  // artitouch(obj); }` (u.uhave is derived: uhave.ts)
+  if (owner === ctx.state.playerId && it.artifact !== undefined && isQuestArtifact(ctx.state, item))
+    artitouchFn?.(ctx, item);
   return itemId;
+}
+
+type Artitouch = (ctx: ItemCtx, obj: Entity) => void;
+let artitouchFn: Artitouch | null = null;
+/** quest.ts hands down artitouch() (it sits above this module). */
+export function setArtitouch(fn: Artitouch): void {
+  artitouchFn = fn;
 }
 
 /**

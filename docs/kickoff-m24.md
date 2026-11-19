@@ -48,4 +48,6 @@ The `legacy` introduction at new game, livelog and achievements, `#overview`/map
 
 ## Status
 
-Planned. Branch `m24` off the m23 tip; one commit per step.
+**m24a done** (branch `m24` off the m23 tip; one commit per step): step 1 the quest monsters and the roles' quest table (`f0f1a6e`); step 2 mirrors, crystal balls, lenses and the four quest artifacts (`722fffd`); step 3 the quest dungeon, its portals and the Valkyrie's five levels, SAVE_VERSION 11 (`4a822f8`); step 4 the quest texts, their pager, the arrival lines and the leader's call (`4b38471`); step 5 the leader's rules, the expulsion and Home 1's descent gate (`2378282`); step 6 the nemesis's death, the artifact's first touch and its return by hand or thrown, the kill penalties, the quest artifact's sites and the m24a docs (the commit after `2378282`). Golden `10b14a6a1a498601ccfdd84b27d9` (790 actions, bot seed 3) since step 3. A Valkyrie's quest works end to end in a normal game (TESTPLAN "24a the quest (Valkyrie)"); the other twelve roles have no quest portal and no leader's call yet.
+
+**m24b next** (steps 7-10, a later run): the other twelve roles' five levels each, three roles a step (Arc/Bar/Cav, Hea/Kni/Mon, Pri/Ran/Rog, Sam/Tou/Wiz), then every role's portal (`questPorted()` goes) and the m24b docs. ROADMAP "From m24" lists them and the leftovers.

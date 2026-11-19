@@ -17,7 +17,9 @@ import {
 } from '@nh/core';
 import { isPool } from './liquid';
 import { terrainIdAt } from './terrain';
-import { nonliving } from './mondata';
+import { isRider, nonliving } from './mondata';
+import { isQuestArtifact } from './artistate';
+import { isUniqueRelic } from './uhave';
 import { completelyburns, completelyrots, completelyrusts } from './golem';
 import { canSpotMon, monNam } from './perception';
 import { xkilledCorpse, type DeadMon } from './corpses';
@@ -60,6 +62,17 @@ let vampRisesFn: VampRises | null = null;
 /** shapeshift.ts hands down vamprises() (it sits above this module). */
 export function setVampRises(fn: VampRises): void {
   vampRisesFn = fn;
+}
+
+type QuestDeath = (ctx: Ctx, mon: Entity) => void;
+let questDeathFn: QuestDeath | null = null;
+
+/**
+ * quest.ts hands down mondead()'s quest part (the leader's death by entity, m_detach()'s
+ * nemdead() and leaddead()); it sits above this module.
+ */
+export function setQuestDeath(fn: QuestDeath): void {
+  questDeathFn = fn;
 }
 
 /**
@@ -205,6 +218,7 @@ export function monsterDied(
   }
   // ref: xkilled(): `if (gs.stoned) monstone(mtmp)`: a statue holding its things, no corpse
   const statue = stoned && at ? makeStatue(ctx, e, at) : null;
+  questDeathFn?.(ctx, e); // ref: mondead(), m_detach() (due_to_death)
   relobj(ctx, monId, at);
   forgetUnseenAt(ctx, at);
   shkgone(ctx, monId); // ref: m_detach()
@@ -372,6 +386,7 @@ export function mondead(ctx: Ctx, id: EntityId): void {
   // restore chameleon, lycanthropes to true form at death
   restoreTrueForm(ctx, mon);
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
+  questDeathFn?.(ctx, mon); // ref: mondead(), m_detach() (due_to_death)
   relobj(ctx, id, at, true); // called only while monsters move
   forgetUnseenAt(ctx, at);
   shkgone(ctx, id); // ref: m_detach()
@@ -383,14 +398,27 @@ export function mondead(ctx: Ctx, id: EntityId): void {
 }
 
 /**
- * The monster leaves the game for good with everything it carries (nothing drops, no kill is
- * counted): one that escaped the dungeon. ref: src/mon.c mongone() (discard_minvent(), m_detach())
+ * The monster leaves the game for good with everything it carries (no kill is counted): one that
+ * escaped the dungeon. Only the Amulet, the invocation tools, a Rider's corpse and her own quest
+ * artifact stay behind, dropped where it stood (mdrop_special_objs(); C's rloco() for a monster
+ * off the map is not ported: they leave with it). ref: src/mon.c mongone() (discard_minvent(), m_detach()); src/steal.c
+ * mdrop_special_objs() (no flooreffects() for them)
  */
 export function mongone(ctx: Ctx, id: EntityId): void {
   const mon = ent(ctx, id);
   if (!mon?.c.monster) return;
   const at = mon.c.pos ? { ...mon.c.pos } : undefined;
-  for (const o of minvent(ctx, id)) ctx.remove(o.id);
+  for (const o of minvent(ctx, id)) {
+    // obj_resists(obj, 0, 0) || is_quest_artifact(obj)
+    const special =
+      isUniqueRelic(o.def) ||
+      (o.def === 'nh:corpse' && isRider(o.c.item?.corpseOf)) ||
+      isQuestArtifact(ctx.state, o);
+    if (special && at) {
+      removeFromInventory(ctx, o.id);
+      placeOnFloor(ctx, o.id, at.level, at.x, at.y);
+    } else ctx.remove(o.id);
+  }
   forgetUnseenAt(ctx, at);
   shkgone(ctx, id);
   forgetMonster(ctx, id);

@@ -79,6 +79,7 @@ import { isBlade } from './skills';
 import { isMtrapped, isPit, levitating, setMtrapped, setUtrap, utrap } from './trapstate';
 import { mksobj, weight } from './items';
 import { roleIs } from './urole';
+import { uHave } from './uhave';
 
 export const UNTRAP_ID: DefId = 'nh:untrap';
 
@@ -151,8 +152,8 @@ export function couldUntrap(ctx: Ctx, verbosely: boolean): boolean {
  * Whether disarming fails: 0 is success. The chance is 1 in 3 (a web: 1 in 7 unless she wields a
  * blade and nothing is caught in it), worse while confused, hallucinating, blind or stunned,
  * better for a trap she set, twice as bad while fumbling. ref: src/trap.c untrap_prob() (no Sting
- * or fire artifact bonus, left out of m20; no quest artifact; she is never a webmaker; the Ranger
- * and Rogue cases are kept for those roles)
+ * or fire artifact bonus, left out of m20; she is never a webmaker; the Ranger and Rogue cases,
+ * the Rogue's with her quest artifact, are kept for those roles)
  */
 export function untrapProb(ctx: Ctx, t: Trap): number {
   let chance = 3;
@@ -171,6 +172,7 @@ export function untrapProb(ctx: Ctx, t: Trap): number {
   if (roleIs(ctx.state, 'ranger') && t.def === TRAP.bear && chance <= 3) return 0;
   if (roleIs(ctx.state, 'rogue')) {
     if (ctx.rng.rn2(2 * MAXULEV) < ulevel(ctx)) chance--;
+    if (uHave(ctx.state, 'questart') && chance > 1) chance--;
   } else if (roleIs(ctx.state, 'ranger') && chance > 1) chance--;
   if (chance < 1) chance = 1;
   return ctx.rng.rn2(chance);
