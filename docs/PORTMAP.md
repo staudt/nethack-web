@@ -7,7 +7,67 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-214 NetHack files, 6241 citations.
+229 NetHack files, 6294 citations.
+
+## dat/Arc-fila.lua
+
+- (file): `packages/content/src/quest/arc.ts`
+
+## dat/Arc-filb.lua
+
+- (file): `packages/content/src/quest/arc.ts`
+
+## dat/Arc-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/arc.ts`
+
+## dat/Arc-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/arc.ts`
+
+## dat/Arc-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/arc.ts`
+
+## dat/Bar-fila.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+
+## dat/Bar-filb.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+
+## dat/Bar-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+
+## dat/Bar-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+
+## dat/Bar-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+
+## dat/Cav-fila.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+
+## dat/Cav-filb.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+
+## dat/Cav-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+
+## dat/Cav-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+
+## dat/Cav-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
 
 ## dat/Val-fila.lua
 
@@ -1973,7 +2033,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mkmap.c
 
-- (file): `packages/core/src/levelgen/mkmap.ts`
+- (file): `packages/content/src/quest/common.ts`, `packages/core/src/levelgen/mkmap.ts`
 - `N_P1_ITER()`: `packages/core/src/levelgen/mkmap.ts`
 - `dirs()`: `packages/core/src/levelgen/mkmap.ts`
 - `finish_map()`: `packages/core/src/levelgen/mkmap.ts`
@@ -2986,14 +3046,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/sp_lev.c
 
-- (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/orcus.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/hellfill.ts`, `packages/content/src/mazewalk.ts`, `packages/content/src/orcus.ts`, `packages/content/src/quest/common.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/temperature.ts`, `packages/core/src/levelgen/builder.ts`, `packages/core/src/types/level.ts`, `packages/core/src/types/mod.ts`
 - `Amask2align()`: `packages/content/src/sp_lev.ts`
 - `build_room()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `check_room()`: `packages/core/src/levelgen/rooms.ts`
-- `create_altar()`: `packages/content/src/astral.ts`, `packages/content/src/highaltar.ts`, `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
+- `create_altar()`: `packages/content/src/astral.ts`, `packages/content/src/highaltar.ts`, `packages/content/src/priest.ts`, `packages/content/src/quest/common.ts`, `packages/core/src/types/mod.ts`
 - `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/content/src/sanctum.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/sprooms.ts`
-- `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/quest/val.ts`, `packages/content/src/sp_lev.ts`
-- `create_object()`: `packages/content/src/castle.ts`, `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/tower.ts`
+- `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/quest/common.ts`, `packages/content/src/sp_lev.ts`
+- `create_object()`: `packages/content/src/castle.ts`, `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/quest/common.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/tower.ts`
 - `create_room()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_subroom()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_trap()`: `packages/content/src/sp_lev.ts`
@@ -3023,17 +3083,17 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_levregion()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_map()`: `packages/content/src/mazefill.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_mazewalk()`: `packages/content/src/mazewalk.ts`
-- `lspo_monster()`: `packages/content/src/quest/val.ts`, `packages/core/src/types/mod.ts`
+- `lspo_monster()`: `packages/content/src/quest/common.ts`, `packages/core/src/types/mod.ts`
 - `lspo_object()`: `packages/core/src/types/mod.ts`
 - `lspo_random_corridors()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
-- `lspo_region()`: `packages/content/src/graveyard.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_region()`: `packages/content/src/graveyard.ts`, `packages/content/src/quest/common.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_replace_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_room()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_stair()`: `packages/core/src/types/mod.ts`
 - `lspo_teleport_region()`: `packages/core/src/types/mod.ts`
 - `lspo_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_trap()`: `packages/core/src/types/mod.ts`
-- `lspo_wallify()`: `packages/content/src/orctown.ts`
+- `lspo_wallify()`: `packages/content/src/orctown.ts`, `packages/content/src/quest/common.ts`
 - `lvlfill_maze_grid()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lvlfill_solid()`: `packages/content/src/juiblex.ts`, `packages/core/src/levelgen/special.ts`
 - `lvlfill_swamp()`: `packages/content/src/juiblex.ts`
@@ -3043,6 +3103,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `maybe_add_door()`: `packages/content/src/zoo.ts`
 - `maze1xy()`: `packages/content/src/mazefill.ts`
 - `mksobj_at()`: `packages/content/src/mklev.ts`
+- `noncoalignment()`: `packages/content/src/quest/common.ts`
 - `pm_good_location()`: `packages/content/src/priest.ts`
 - `pm_to_humidity()`: `packages/content/src/sp_lev.ts`
 - `random_wdir()`: `packages/content/src/selection.ts`
@@ -3055,7 +3116,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `set_wall_property()`: `packages/content/src/baalz.ts`
 - `set_wallprop_in_selection()`: `packages/content/src/levelflags.ts`
 - `solidify_map()`: `packages/content/src/levelflags.ts`
-- `sp_amask_to_amask()`: `packages/content/src/sp_lev.ts`
+- `sp_amask_to_amask()`: `packages/content/src/quest/common.ts`, `packages/content/src/sp_lev.ts`
 - `splev_initlev()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `spo_endroom()`: `packages/core/src/levelgen/sprooms.ts`
 - `wallification()`: `packages/core/src/levelgen/mkmap.ts`

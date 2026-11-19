@@ -76,6 +76,9 @@ const BIGROOM_FLAGS: Readonly<Record<DefId, LevelFlags>> = Object.fromEntries(
   ]),
 );
 
+/** des.non_diggable(selection.area(00,00,75,19)): the whole 76x20 map of a quest level. */
+const QUEST_MAP_76: readonly FlagRect[] = [{ x1: 0, y1: 0, x2: 75, y2: 19 }];
+
 /** wizard1.lua's des.non_diggable() and des.non_passwall() areas (the same four). */
 const WIZ1_WALLS: readonly FlagRect[] = [
   { x1: 0, y1: 0, x2: 11, y2: 12 },
@@ -330,6 +333,34 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:val-fila': { maze: true, icedpools: true },
   /** ref: dat/Val-filb.lua ("mazelevel", "icedpools", "noflip") */
   'nh:val-filb': { maze: true, icedpools: true },
+  // m24b: the Archeologist's, Barbarian's and Cave Dweller's quests (their fillers' "noflip"
+  // needs nothing; Arc-fila/filb set no flags)
+  /** ref: dat/Arc-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:arc-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Arc-loca.lua ("mazelevel", "hardfloor") */
+  'nh:arc-loca': { hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Arc-goal.lua ("mazelevel") */
+  'nh:arc-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Bar-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:bar-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Bar-loca.lua ("mazelevel", "hardfloor"; no non-diggable walls) */
+  'nh:bar-loca': { hardfloor: true, maze: true },
+  /** ref: dat/Bar-goal.lua ("mazelevel") */
+  'nh:bar-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Bar-fila.lua ("mazelevel", "noflip") */
+  'nh:bar-fila': { maze: true },
+  /** ref: dat/Bar-filb.lua ("mazelevel", "noflip") */
+  'nh:bar-filb': { maze: true },
+  /** ref: dat/Cav-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:cav-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Cav-loca.lua ("mazelevel", "hardfloor") */
+  'nh:cav-loca': { hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Cav-goal.lua ("mazelevel") */
+  'nh:cav-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Cav-fila.lua ("mazelevel", "noflip") */
+  'nh:cav-fila': { maze: true },
+  /** ref: dat/Cav-filb.lua ("mazelevel", "noflip") */
+  'nh:cav-filb': { maze: true },
 };
 
 const NONE: LevelFlags = {};

@@ -244,11 +244,16 @@ describe('the arrival lines', () => {
     expect(goTo(state, QUEST, goal)).toEqual([]);
   });
 
-  test("goal_alt when the artifact is gone from the level (an Archeologist's stand-in goal)", () => {
+  test('goal_alt when the artifact is gone from the level (the Orb of Detection taken away)', () => {
     const state = fresh(5, 'archeologist');
     const goal = questLevels(state);
     goTo(state, QUEST, goal);
     expect(questKeys(run(state, () => undefined))).toEqual([]);
+    // step 7: the Archeologist's goal now has the Orb; take it off the level
+    run(state, (ctx) => {
+      for (const e of Object.values(ctx.state.entities))
+        if (e.c.item?.artifact === 'nh:orb_of_detection') ctx.remove(e.id);
+    });
     goTo(state, QUEST, goal - 1);
     expect(goTo(state, QUEST, goal)).toEqual(['quest.arc.goal_alt']);
   });

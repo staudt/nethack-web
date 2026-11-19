@@ -12,10 +12,8 @@
 // Orb of Fate (blessed, +5, named through onameItem()) and the goal level's drawbridges and lava
 // replacement are fixups, in the script's order; the branch levregion is placed last, as
 // fixup_special() does, and makes the portal back to the main dungeon.
-import type { DefId, EntityId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
-import { onameItem } from '../artistate';
+import type { DefId, Level, LevelDef, LevelRect } from '@nh/core';
 import { createDrawbridge } from '../dbridge';
-import { minvent, mDoWear } from '../mongear';
 import {
   percent,
   replaceTerrain,
@@ -26,36 +24,20 @@ import {
   selSetRandom,
   setSel,
 } from '../selection';
-import {
-  createMonster,
-  createObject,
-  desLevregion,
-  desStair,
-  makeContents,
-  mapToLevel,
-  type SpLevFixup,
-} from '../sp_lev';
-import { mpickobj } from '../steal';
-import { T, setTerrain } from '../terrain';
+import { desStair, makeContents, mapToLevel, type SpLevFixup } from '../sp_lev';
 import { TRAP } from '../trap';
-
-const mon = (id: string, x?: number, y?: number): LevelContent =>
-  x === undefined || y === undefined
-    ? { kind: 'monster', id: id as DefId }
-    : { kind: 'monster', id: id as DefId, x, y };
-const hostile = (id: string, x?: number, y?: number): LevelContent => ({
-  ...mon(id, x, y),
-  peaceful: false,
-});
-const cls = (c: string, peaceful?: boolean): LevelContent =>
-  peaceful === undefined ? { kind: 'monster', class: c } : { kind: 'monster', class: c, peaceful };
-const obj = (): LevelContent => ({ kind: 'object' });
-const trap = (id?: DefId, x?: number, y?: number): LevelContent => ({
-  kind: 'trap',
-  ...(id !== undefined ? { id } : {}),
-  ...(x !== undefined && y !== undefined ? { x, y } : {}),
-});
-const times = (n: number, c: LevelContent): LevelContent[] => Array.from({ length: n }, () => c);
+import {
+  branchAt,
+  cls,
+  hostile,
+  liftUpPlaceholder,
+  mon,
+  monWithInventory,
+  obj,
+  questArtifact,
+  times,
+  trap,
+} from './common';
 
 const NORN = 'nh:norn';
 const FIRE_ANT = 'nh:fire_ant';
@@ -178,57 +160,20 @@ function strtPools(
   setSel(level, keep(pools), 'L', { litLava: true });
 }
 
-/**
- * des.monster({ id = "Norn", coord = {35, 10}, inventory = ... }): made with her species'
- * inventory, which a custom inventory discards (no special objects to drop: she carries none),
- * then each des.object() is made (at a random spot, as create_object() does) and given to her,
- * and she puts on what she can wear. ref: src/sp_lev.c lspo_monster(), create_monster()
- * (discard_minvent()), create_object() (invent_carrying_monster), spo_end_moninvent()
- */
-function nornWithInventory(
-  ctx: Parameters<NonNullable<SpLevFixup['contents']>>[0],
-  level: Level,
-  def: LevelDef,
-): void {
-  const norn = createMonster(ctx, level, mon(NORN, 35, 10), def);
-  if (norn === null) return;
-  for (const o of minvent(ctx, norn)) ctx.remove(o.id);
-  for (const [id, spe] of [
-    ['nh:banded_mail', 5],
-    ['nh:long_sword', 4],
-  ] as const)
-    giveObject(ctx, level, def, norn, id, spe);
-  mDoWear(ctx, norn, true);
-}
-
-/** One des.object({ id, spe }) of a custom inventory. */
-function giveObject(
-  ctx: Parameters<NonNullable<SpLevFixup['contents']>>[0],
-  level: Level,
-  def: LevelDef,
-  monId: EntityId,
-  id: DefId,
-  spe: number,
-): void {
-  const o = createObject(ctx, level, { kind: 'object', id }, def);
-  const e = o === null ? undefined : ctx.state.entities[String(o)];
-  if (!e?.c.item) return;
-  e.c.item.spe = spe;
-  mpickobj(ctx, monId, e);
-}
-
 const STRT_FIXUP: SpLevFixup = {
   before(ctx, level, def) {
     strtPools(ctx, level, def);
   },
   contents(ctx, level, def) {
-    nornWithInventory(ctx, level, def);
+    monWithInventory(ctx, level, def, NORN, 35, 10, [
+      ['nh:banded_mail', 5],
+      ['nh:long_sword', 4],
+    ]);
     makeContents(ctx, level, def, def.contents ?? []);
   },
   after(ctx, level, def) {
     // fixup_special(): the branch levregion, a portal back to the main dungeon
-    const a = mapToLevel(def, level, STRT_BRANCH[0], STRT_BRANCH[1]);
-    desLevregion(ctx, level, 'branch', [a.x, a.y, a.x, a.y], null);
+    branchAt(ctx, level, def, STRT_BRANCH[0], STRT_BRANCH[1]);
   },
 };
 
@@ -254,20 +199,6 @@ const LOCA_MAP: readonly string[] = [
 /** des.stair("up", 48,14), off the map; a placeholder on the map's floor until the fixup. */
 const LOCA_UP = { x: 48, y: 14 } as const;
 const LOCA_UP_PLACEHOLDER = { x: 7, y: 2 } as const;
-
-/**
- * Up stairs the script puts off its map: core put them on `placeholder` (map floor), which goes
- * back to floor until the fixup makes them where the script has them (desStair()).
- */
-function liftUpPlaceholder(
-  level: Level,
-  def: LevelDef,
-  placeholder: { x: number; y: number },
-): void {
-  const ph = mapToLevel(def, level, placeholder.x, placeholder.y);
-  setTerrain(level, ph.x, ph.y, T.floor);
-  level.up = null;
-}
 
 const LOCA_FIXUP: SpLevFixup = {
   before(ctx, level, def) {
@@ -388,13 +319,7 @@ const GOAL_FIXUP: SpLevFixup = {
   contents(ctx, level, def) {
     // des.object({ id = "crystal ball", x=17, y=08, buc="blessed", spe=5,
     // name="The Orb of Fate" })
-    const o = createObject(ctx, level, { kind: 'object', id: 'nh:crystal_ball', x: 17, y: 8 }, def);
-    const it = o === null ? undefined : ctx.state.entities[String(o)]?.c.item;
-    if (it) {
-      it.spe = 5;
-      it.buc = 'blessed';
-      onameItem(ctx, 'nh:crystal_ball', it, 'The Orb of Fate', 'lvldef');
-    }
+    questArtifact(ctx, level, def, 'nh:crystal_ball', 17, 8, 5, 'The Orb of Fate');
     makeContents(ctx, level, def, def.contents ?? []);
   },
 };
