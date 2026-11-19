@@ -37,6 +37,9 @@ import { premapDetect } from './detect';
 import { makeEngrAt, type EngrType } from './engr';
 import { isExtinct, isGenocided, isGone, propagate } from './vanquished';
 import { makemon, mkclass } from './generation';
+import { chamOf, vampshifted } from './chamstate';
+import { setStrat } from './mstate';
+import { newcham } from './newcham';
 import { yourRace } from './race';
 import { raceIs } from './urole';
 import { polyWhenStoned } from './golem';
@@ -250,7 +253,8 @@ const MINES = 'nh:mines';
  * a water-liking one tries without DRY first, then with it); an occupied spot moves to a close
  * one (`if (MON_AT(x, y) && enexto(...))`); `appearAs` disguises a mimic; `peaceful` overrides
  * peace_minded() (`if (m->peaceful > BOOL_RANDOM) mtmp->mpeaceful = m->peaceful`); `asleep` is
- * MM_ASLEEP. A unique that was already made (extinct) is not made again; any other genocided or
+ * MM_ASLEEP; `waiting` is STRAT_WAITFORU (a vampire born shifted turns back). `align` (mk_roamer())
+ * comes with m23 step 3 and throws until then. A unique that was already made (extinct) is not made again; any other genocided or
  * extinct kind is made at random instead, and so are 2 in 3 of a dwarf or gnome hero's own kind
  * in the Mines.
  */
@@ -261,6 +265,8 @@ export function createMonster(
   ldef: LevelDef,
   room?: number,
 ): void {
+  if (c.align !== undefined)
+    throw new Error(`${ldef.id}: des.monster align needs mk_roamer() (m23 step 3)`);
   let def =
     c.id !== undefined
       ? ctx.defs.monster(c.id)
@@ -303,6 +309,16 @@ export function createMonster(
   if (id !== null && c.appearAs) applyAppearAs(ctx, id, c.appearAs);
   const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
   if (m && c.peaceful !== undefined) m.peaceful = c.peaceful; // malign follows (luck.ts)
+  if (id !== null && c.waiting) {
+    // m23: `if (m->waiting)`: STRAT_WAITFORU; "if this is a vampire that got created already
+    // shifted into bat/fog/wolf form and the special level or theme room didn't explicitly
+    // request that, shift back to vampire"
+    setStrat(ctx, id, 'waitForU');
+    const e = ctx.state.entities[String(id)];
+    const cham = chamOf(ctx, id);
+    if (e && cham !== null && vampshifted(ctx, e) && c.appearAs?.kind !== 'monster')
+      newcham(ctx, e, ctx.defs.monster(cham));
+  }
 }
 
 /** ref: src/sp_lev.c create_object() */

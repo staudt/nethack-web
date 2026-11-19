@@ -5,7 +5,16 @@ import { BAALZ, BAALZ_FIXUP } from './baalz';
 import { BIGROOM_FIXUPS, BIGROOM_VARIANTS } from './bigroom';
 import { CASTLE_FIXUP, CASTLE_LEVEL } from './castle';
 import { FAKEWIZ1, FAKEWIZ1_FIXUP, FAKEWIZ2, FAKEWIZ2_FIXUP } from './fakewiz';
-import { GEHENNOM, GEHENNOM_SPECIALS as G, KNOX, LUDIOS } from './levelflags';
+import {
+  GEHENNOM,
+  GEHENNOM_SPECIALS as G,
+  KNOX,
+  LUDIOS,
+  PLANES,
+  PLANE_LEVELS,
+  TOWER_LEVELS,
+  VLAD,
+} from './levelflags';
 import { HELLFILL, HELLFILL_FIXUP } from './hellfill';
 import { JUIBLEX, JUIBLEX_FIXUP } from './juiblex';
 import { KNOX_FIXUP, KNOX_LEVEL } from './knox';
@@ -16,10 +25,12 @@ import { MINETOWN_VARIANTS } from './minetown';
 import { MINETN_1, ORCTOWN_FIXUP } from './orctown';
 import { ORACLE_LEVEL } from './oracle';
 import { ORCUS_TOWN, ORCUS_TOWN_FIXUP } from './orcus';
+import { PLANE_FIXUPS, PLANE_STANDIN } from './planes';
 import { ROGUE_FIXUP, ROGUE_LEVEL } from './rogue';
 import { SOKOBAN_VARIANTS } from './sokoban';
 import type { SpLevFixup } from './sp_lev';
 import { SOKOBAN_PRIZE_FIXUPS } from './sokoprize';
+import { TOWER_FIXUPS, VLAD_TOWER } from './tower';
 import { VALLEY } from './valley';
 import { WIZARD1, WIZARD1_FIXUP, WIZARD2, WIZARD2_FIXUP, WIZARD3, WIZARD3_FIXUP } from './wiztower';
 
@@ -114,6 +125,8 @@ export const LEVELS: readonly LevelDef[] = [
   FAKEWIZ2,
   ROGUE_LEVEL,
   KNOX_LEVEL,
+  ...VLAD_TOWER,
+  PLANE_STANDIN,
 ];
 
 /** The special levels' fixups, by LevelDef id (registerSpLev). ref: src/mkmaze.c fixup_special() */
@@ -137,6 +150,8 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [FAKEWIZ2.id]: FAKEWIZ2_FIXUP,
   [ROGUE_LEVEL.id]: ROGUE_FIXUP,
   [KNOX_LEVEL.id]: KNOX_FIXUP,
+  ...TOWER_FIXUPS,
+  ...PLANE_FIXUPS,
 };
 
 /**
@@ -151,8 +166,7 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * (GEHENNOM_SPECIAL); the Valley of the Dead, the three demon lairs, Orcus Town, the Wizard's
  * Tower and the fake towers are built (valley.ts, juiblex.ts, baalz.ts, asmodeus.ts, orcus.ts,
  * wiztower.ts, fakewiz.ts), the Sanctum as the filler; every other level is hellfill.lua's
- * (hellfill.ts). Vlad's Tower is left out
- * and draws nothing (ROADMAP).
+ * (hellfill.ts). Vlad's Tower's branch leaves from one of its levels 9-13.
  * It comes second, as in dungeon.lua, so its rolls come before the Mines'.
  * The Gnomish Mines: 8-9 levels entered by branch stairs down from DL2-4, with Minetown on its
  * level 3 or 4 (one of seven variants, see minetown.ts) and Mines' End (one of three, see
@@ -166,6 +180,17 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * until a vault's magic portal is placed (the knox kludge of fixup_level_locations()).
  * It comes after Sokoban, as in dungeon.lua (the Quest between them is left out and draws
  * nothing).
+ * Vlad's Tower: three levels (tower.ts) entered at the bottom by branch stairs up from Gehennom's
+ * level 9-13 and climbed by ladders.
+ * The Elemental Planes: six levels above DL1 (Astral -4 .. Earth 0, the dummy level 1), entered
+ * on Earth (`entryLevel` -2). C's branch is "no_down" upwards (BR_NO_END2: stairs on DL1, none on
+ * Earth): DL1's up stairs, which leave the dungeon, are that staircase, so here the branch adds
+ * no stairs on DL1 (`stairs: 'child'`) and the Planes' stand-in lifts every stair core makes
+ * (planes.ts). Unreachable until the endgame (m23b).
+ * Both come after Fort Ludios in dungeon.lua's order (the Tutorial after them is left out); core
+ * rolls each dungeon after its parent's children (registry orderDungeons()), so the Planes' rolls
+ * (a child of the main dungeon) come before Vlad's (a child of Gehennom), the other way round in
+ * C.
  * ref: dat/dungeon.lua ("The Dungeons of Doom": base 25, range 5; oracle: base 5, range 5;
  * bigrm: base 10, range 3, chance 40, nlevels 13; medusa: base -5, range 4, nlevels 4; castle:
  * base -1; "Gehennom": base 20, range 5, its branch: chainlevel "castle", base 0, branchtype
@@ -173,7 +198,10 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * nlevels 7, flags "town"; minend: base -1, nlevels 3; "Sokoban": base 4, entry -1, soko1..soko4
  * at base 1..4, nlevels 2 each; its branch: chainlevel "oracle", base 1, direction "up"; rogue: base
  * 15, range 4; "Fort Ludios": base 1, knox base -1; its branch: base 18, range 4, branchtype
- * "portal"); src/dungeon.c fixup_level_locations()
+ * "portal"; "Vlad's Tower": base 3, entry -1, tower1..tower3 at base 1..3; its branch in
+ * Gehennom: base 9, range 5, direction "up"; "The Elemental Planes": base 6, entry -2, astral,
+ * water, fire, air, earth, dummy at base 1..6; its branch: base 1, branchtype "no_down", direction
+ * "up"); src/dungeon.c fixup_level_locations(), correct_branch_type()
  */
 export const DUNGEONS: readonly DungeonDef[] = [
   {
@@ -255,5 +283,31 @@ export const DUNGEONS: readonly DungeonDef[] = [
     // branchtype "portal": stairs at neither end, the child's lifted by the knox fixup (knox.ts)
     entry: { from: 'nh:main', base: 18, range: 4, stairs: 'child' },
     special: [{ id: KNOX, nameKey: 'level.knox', base: -1, variants: [KNOX_LEVEL.id] }],
+  },
+  {
+    id: VLAD,
+    nameKey: VLAD,
+    levels: { base: 3 },
+    entryLevel: -1,
+    entry: { from: GEHENNOM, base: 9, range: 5, dir: 'up' },
+    special: (['tower1', 'tower2', 'tower3'] as const).map((k, i) => ({
+      id: TOWER_LEVELS[k],
+      nameKey: `level.${k}`,
+      base: i + 1,
+      variants: [TOWER_LEVELS[k]],
+    })),
+  },
+  {
+    id: PLANES,
+    nameKey: PLANES,
+    levels: { base: 6 },
+    entryLevel: -2,
+    entry: { from: 'nh:main', base: 1, dir: 'up', stairs: 'child' },
+    special: (['astral', 'water', 'fire', 'air', 'earth', 'dummy'] as const).map((k, i) => ({
+      id: PLANE_LEVELS[k],
+      nameKey: `level.plane_${k}`,
+      base: i + 1,
+      variants: [PLANE_STANDIN.id],
+    })),
   },
 ];

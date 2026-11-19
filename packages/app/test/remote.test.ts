@@ -117,13 +117,13 @@ test('an older save is refused with a clear error (m22 Q5: old saves are wiped)'
   const a = createRemote(simWorker());
   a.newGame(5, 40, 15);
   const save = JSON.parse(await a.save()) as Record<string, unknown>;
-  save['version'] = 8;
+  save['version'] = 9;
   const b = createRemote(simWorker());
   const errs: string[] = [];
   b.onError((e) => errs.push(e));
   b.load(JSON.stringify(save));
   await Promise.resolve();
   expect(errs).toEqual([
-    "This save was made by an older version of the game (save version 8, now 9) and can't be restored",
+    "This save was made by an older version of the game (save version 9, now 10) and can't be restored",
   ]);
 });

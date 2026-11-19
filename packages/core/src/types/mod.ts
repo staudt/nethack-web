@@ -697,6 +697,16 @@ export interface LevelContent {
   /** Monsters: made asleep (des.monster `asleep`; m15). Content interprets it. */
   asleep?: true;
   /**
+   * Monsters: des.monster `align` (m23): an aligned priest or minion serving that god (content's
+   * mk_roamer()). Content interprets it.
+   */
+  align?: 'lawful' | 'neutral' | 'chaotic' | 'noalign';
+  /**
+   * Monsters: des.monster `waiting` (m23): it waits for the hero to come near (STRAT_WAITFORU).
+   * Content interprets it.
+   */
+  waiting?: true;
+  /**
    * Objects that show a monster (corpses, statues): a monster def id, or a one-character monster
    * class for a random monster of that class (des.object `montype`).
    */

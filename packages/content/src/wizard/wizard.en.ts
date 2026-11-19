@@ -62,6 +62,7 @@ export const wizardMessagesEn: Record<string, string> = {
   'wiz.where.branch': '   Stairs down to {dungeon}: {depth}',
   'wiz.where.branch_up': '   Stairs up to {dungeon}: {depth}',
   'wiz.where.connection': '   Connection to {dungeon}: {depth}',
+  'wiz.where.one_way': '   One way stair to {dungeon}: {depth}',
   'wiz.where.portal': '   Portal to {dungeon}: {depth}',
   'wiz.where.portal_unplaced': '   Portal to {dungeon}: not placed',
   'wiz.where.special': '  {name}: {depth}',

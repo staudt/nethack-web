@@ -390,8 +390,18 @@ describe('m_next2m(): monsters at their posts', () => {
   test('on Fort Ludios a monster with another beside it does not try to escape', () => {
     expect(choice(knox(8).state, true)).toBeNull();
     expect(choice(knox(8).state, false)).toBe('wan_create_monster');
-    // elsewhere the neighbour does not matter
-    expect(choice(engine.newGame({ seed: 8 }).state, true)).toBe('wan_create_monster');
+    // elsewhere the neighbour does not matter (a DL1 with a free 5x5 block of floor)
+    const dl1 = Array.from({ length: 20 }, (_, i) => engine.newGame({ seed: 8 + i }).state).find(
+      (st) => {
+        try {
+          freeBlock(st, getLevel(st));
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    )!;
+    expect(choice(dl1, true)).toBe('wan_create_monster');
   });
 });
 

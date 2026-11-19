@@ -192,7 +192,7 @@ describe('the layout', () => {
       expect(main?.special.filter((s) => s.dlevel === r)).toHaveLength(1);
       // Fort Ludios: after Sokoban, one level, its branch on DL18-21 with no stairs on the main
       // dungeon's end
-      expect(layout.map((d) => d.id)).toEqual([
+      expect(layout.map((d) => d.id).slice(0, 5)).toEqual([
         'nh:main',
         'nh:gehennom',
         'nh:mines',

@@ -25,7 +25,8 @@ export const isLadder = (id: DefId | undefined): boolean =>
 /**
  * The des.ladder() spots of the levels that have ladders, map-relative, by LevelDef id: their
  * fixups put the ladders there, and the hero bound for one of these levels not yet made arrives
- * there. ref: dat/wizard1.lua, wizard2.lua, wizard3.lua des.ladder()
+ * there. ref: dat/wizard1.lua, wizard2.lua, wizard3.lua, tower1.lua, tower2.lua, tower3.lua
+ * des.ladder()
  */
 export const LADDER_SPOTS: Readonly<
   Record<DefId, { up?: readonly [number, number]; down?: readonly [number, number] }>
@@ -33,6 +34,9 @@ export const LADDER_SPOTS: Readonly<
   'nh:wizard1': { down: [6, 5] },
   'nh:wizard2': { up: [12, 1], down: [14, 11] },
   'nh:wizard3': { up: [11, 7] },
+  'nh:tower1': { down: [11, 5] },
+  'nh:tower2': { up: [11, 5], down: [3, 7] },
+  'nh:tower3': { up: [5, 7] },
 };
 
 /** The first cell of `level` (in column order) with terrain `id`, or null. */

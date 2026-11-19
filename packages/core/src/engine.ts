@@ -444,7 +444,7 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
       const roleDef = registry.role(player.role);
       const s = seed >>> 0;
       const state: GameState = {
-        version: 9,
+        version: 10,
         seed: s,
         turn: 1,
         nextEntityId: 1,

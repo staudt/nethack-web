@@ -273,10 +273,10 @@ describe('save v5', () => {
     actions: [],
   };
 
-  test('SAVE_VERSION is 9 and state is JSON-plain with monsterMemory', () => {
+  test('SAVE_VERSION is 10 and state is JSON-plain with monsterMemory', () => {
     const s = fresh();
-    expect(SAVE_VERSION).toBe(9);
-    expect(s.version).toBe(9);
+    expect(SAVE_VERSION).toBe(10);
+    expect(s.version).toBe(10);
     expect(s.monsterMemory[s.currentLevel]).toEqual({});
     expect(isJsonPlain(s)).toBe(true);
   });

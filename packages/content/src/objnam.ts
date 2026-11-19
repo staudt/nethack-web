@@ -1,5 +1,6 @@
 // Naming objects for the player. ref: src/objnam.c xname(), doname(), obj_is_pname(),
 // not_fully_identified()
+import { CANDELABRUM } from './uhave';
 import { boxTknown, isBoxTrapped } from './btrapstate';
 import { isHistoric } from './statuestate';
 import type {
@@ -300,7 +301,13 @@ export function doname(
   // "uncursed", and while unidentified it is "the Amulet of Yendor" (the_unique_obj()). The Book
   // of the Dead is unique and a spellbook is always `known`: "the papyrus spellbook" too.
   const fake = def.id === FAKE_AMULET;
-  if ((fake && !it.known.spe) || def.id === 'nh:book_of_the_dead') params.count = 'the ';
+  // The Candelabrum (oc_unique, oc_uses_known) is "the" once its charge is known.
+  if (
+    (fake && !it.known.spe) ||
+    def.id === 'nh:book_of_the_dead' ||
+    (def.id === CANDELABRUM && it.known.spe)
+  )
+    params.count = 'the ';
   // A wand or a charged tool is oc_charged: once its charges are known, "uncursed" is implied.
   // For a Priest "uncursed" is always implied (`&& !Role_if(PM_CLERIC)`).
   const charged = def.class === 'wand' || CHARGED_TOOLS.has(def.id);
@@ -359,7 +366,13 @@ export function doname(
     const left = (it.age ?? 0) + (it.lit && burn ? burn.due - state.turn : 0);
     if (left < 20 * def.cost) params.eaten = { key: 'obj.partly_used' };
   }
-  if (it.lit) params.charges = { key: 'obj.lit' };
+  // ref: doname_base() TOOL_CLASS: " (3 of 7 candles attached)", " (7 of 7 candles, lit)"
+  if (def.id === CANDELABRUM)
+    params.charges = {
+      key: `obj.menorah${it.lit ? '_lit' : ''}${it.spe !== 1 ? '_pl' : ''}`,
+      params: { n: it.spe },
+    };
+  else if (it.lit) params.charges = { key: 'obj.lit' };
   // ref: doname_base() TOOL_CLASS: a leash in use is " (attached to the kitten)"
   const lmon = def.id === LEASH ? leashMon({ state }, item.id) : null;
   const lent = lmon === null ? undefined : state.entities[String(lmon)];

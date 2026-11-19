@@ -140,7 +140,7 @@ describe('containers', () => {
     expect(contents(s, other).map((e) => e.id)).toEqual([kept]);
   });
 
-  test('new item fields survive a save round trip at version 9', () => {
+  test('new item fields survive a save round trip at version 10', () => {
     const s = fresh();
     const chest = addItem(s, 'oc:chest', { pos: heroPos(s) });
     const c = s.entities[String(chest)]?.c.item;
@@ -163,7 +163,7 @@ describe('containers', () => {
       },
       actions: [],
     });
-    expect(JSON.parse(text).version).toBe(9);
+    expect(JSON.parse(text).version).toBe(10);
     const back = parseSave(text, reg).state;
     expect(back.entities[String(chest)]?.c.item).toMatchObject({
       locked: true,

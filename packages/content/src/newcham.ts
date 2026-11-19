@@ -14,6 +14,7 @@
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
 // after a change during the monsters' move (newcham() is not told it is the monsters' move).
+import { monHasSpecial } from './uhave';
 import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
 import {
@@ -127,7 +128,8 @@ function validspecmon(ctx: Ctx, mon: Entity, mdat: MonsterDef): boolean {
  * or lava), else any vampire a fog cloud 1 time in 4 or a vampire bat; it returns to its own
  * form instead when that shape is genocided, or 1 time in 4 when it is already shifted.
  * On the Rogue level it takes neither lowercase shape (wolf, fog cloud): only the bat.
- * ref: src/mon.c pickvampshape() (Vlad does not exist)
+ * Vlad carrying the Candelabrum (or another special object) keeps his own shape.
+ * ref: src/mon.c pickvampshape()
  */
 export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
   const cham = chamOf(ctx, mon.id);
@@ -138,10 +140,13 @@ export function pickvampshape(ctx: Ctx, mon: Entity): DefId | null {
   const p = mon.c.pos;
   const overLiquid = (): boolean =>
     p !== undefined && isPoolOrLava(ctx, getLevel(ctx.state, p.level), p.x, p.y);
-  if (cham === VLAD_THE_IMPALER || cham === VAMPIRE_LORD || cham === VAMPIRE) {
+  // ensure Vlad can keep carrying the Candelabrum: he keeps his own shape (no draws)
+  if (cham === VLAD_THE_IMPALER && monHasSpecial(ctx.state, mon.id)) {
+    // leave mndx as is
+  } else if (cham === VLAD_THE_IMPALER || cham === VAMPIRE_LORD || cham === VAMPIRE) {
     let wolf = false;
     if (cham !== VAMPIRE) {
-      // vampire lord or Vlad can become wolf (no Candelabrum for Vlad to keep carrying)
+      // vampire lord or Vlad can become wolf
       if (cham === VLAD_THE_IMPALER) wolfchance = 3;
       // don't pick a walking form if that would lead to immediate drowning or immolation
       wolf = !ctx.rng.rn2(wolfchance) && !uppercaseOnly && !overLiquid();

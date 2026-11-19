@@ -83,8 +83,19 @@ describe('the Valkyrie kit', () => {
   });
 
   test('inventory lines read as NetHack prints them', () => {
-    const s = freshState(3);
-    plainKit(s);
+    // a seed whose kit has one food ration (mksobj() makes a pair now and then)
+    let s = freshState(3);
+    for (let seed = 3; seed < 40; seed++) {
+      s = freshState(seed);
+      plainKit(s);
+      const inv = inventoryOf(s, s.playerId);
+      // and nothing else (u_init's extra lamp or blindfold now and then)
+      if (
+        inv.length === 4 &&
+        inv.some((e) => e.def === 'nh:food_ration' && e.c.item?.quantity === 1)
+      )
+        break;
+    }
     expect(inventoryOf(s, s.playerId).map((e) => invLine(s, e))).toEqual([
       'a - an uncursed +1 spear (weapon in hand)',
       'b - an uncursed +0 dagger (alternate weapon; not wielded)',

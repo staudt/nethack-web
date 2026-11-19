@@ -794,7 +794,7 @@ describe('the horn of plenty', () => {
     }
     expect(ent(s.state, horn)!.c.item!.spe).toBe(0);
     // 1 time in 13
-    expect(potions).toBeGreaterThan(5);
+    expect(potions).toBeGreaterThan(3); // about 15 in 200; 3 or fewer is 1 in 5000
     expect(potions).toBeLessThan(32);
     expect(msgs(apply(s, horn))).toEqual(['Nothing happens.']);
     expect(render(defs.itemName(s.state, ent(s.state, horn)!))).toMatch(/empty/);

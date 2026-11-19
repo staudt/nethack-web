@@ -22,7 +22,7 @@ import { isGenocided } from './vanquished';
 
 export const VAMPIRE: DefId = 'nh:vampire';
 export const VAMPIRE_LORD: DefId = 'nh:vampire_lord';
-/** Vlad is not ported (his Tower is out); the id is kept for the C tests that name him. */
+/** Vlad the Impaler (m23: his row and his Tower). */
 export const VLAD_THE_IMPALER: DefId = 'nh:vlad_the_impaler';
 export const FOG_CLOUD: DefId = 'nh:fog_cloud';
 export const VAMPIRE_BAT: DefId = 'nh:vampire_bat';
@@ -85,6 +85,10 @@ export function isVampshifter(ctx: Pick<Ctx, 'state'>, mon: Entity): boolean {
   const c = chamOf(ctx, mon.id);
   return c === VAMPIRE || c === VAMPIRE_LORD || c === VLAD_THE_IMPALER;
 }
+
+/** Vlad the Impaler, in his own shape or another. ref: include/monst.h is_Vlad() */
+export const isVlad = (ctx: Pick<Ctx, 'state'>, mon: Entity): boolean =>
+  mon.def === VLAD_THE_IMPALER || chamOf(ctx, mon.id) === VLAD_THE_IMPALER;
 
 /** ref: include/monst.h vampshifted(): a vampshifter not in vampire form */
 export const vampshifted = (ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): boolean =>

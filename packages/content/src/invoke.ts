@@ -14,6 +14,7 @@
 // (TAMING, LEV_TELE, ENLIGHTENING, INVIS: the Orbs, the Magic Mirror, the Eyes), crystal balls,
 // a gremlin hero's light damage from Sunsword at herself, leashed pets holding back the portal
 // (next_to_u()), flinging poison up, down or at herself (the spit's directions).
+import { isUniqueRelic } from './uhave';
 import {
   DIR_LIST,
   NORMAL_SPEED,
@@ -77,8 +78,6 @@ import { ZAP_DIRECTIONS, zapDirOf } from './zap';
 export const INVOKE_ID: DefId = 'nh:invoke';
 
 const FAKE_AMULET: DefId = 'nh:fake_amulet_of_yendor';
-/** The unique objects (oc_unique) that exist: invoking one does nothing. */
-const UNIQUE_OBJECTS: readonly DefId[] = ['nh:book_of_the_dead'];
 
 const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
@@ -93,9 +92,7 @@ function invokeOk(e: Entity): boolean {
   const it = e.c.item;
   if (!it) return false;
   return (
-    it.artifact !== undefined ||
-    UNIQUE_OBJECTS.includes(e.def) ||
-    (e.def === FAKE_AMULET && !it.known.spe)
+    it.artifact !== undefined || isUniqueRelic(e.def) || (e.def === FAKE_AMULET && !it.known.spe)
   );
 }
 

@@ -145,8 +145,11 @@ describe('shapeshifter soak', () => {
   // 2000 with the menu, and 227, 238, 239, 246, 251 and 254 do with and without it; 246 replaced
   // 227 in m23 step 1, whose five Angel rows shift the random forms: 227 died at turn 1768 and
   // reaches 2000 with the rows withheld; of 238, 239, 246, 251 and 254 only 238 and 246 reach
-  // 2000 with the rows, and both do without them)
-  for (const seed of [246, 238]) {
+  // 2000 with the rows, and both do without them; 258 and 272 replaced 246 and 238 in m23 step 2,
+  // whose two new dungeons' draws at new game shift the whole stream: 246 died at turn 1341 and
+  // 238 at turn 551; of 238..280 only 258, 260, 271, 272, 275, 278 and 280 reach 2000 with the
+  // dungeons, and 258 and 272 do without them)
+  for (const seed of [258, 272]) {
     test(
       `seed ${seed}: 2000 turns among vampires, chameleons and doppelgangers`,
       { timeout: 240000 },

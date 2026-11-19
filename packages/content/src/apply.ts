@@ -38,7 +38,16 @@ import { answerMusic, doPlayInstrument, isInstrument, isMusicData } from './musi
 import { blindfOff, blindfOn, cursedWorn, isEyewear } from './jewelry';
 import { applyLockTool, isLockTool } from './lock';
 import { changeLuck } from './luck';
-import { isCandle, isLamp, useCandle, useLamp } from './light';
+import {
+  answerAttachCandles,
+  isAttachData,
+  isCandle,
+  isLamp,
+  useCandelabrum,
+  useCandle,
+  useLamp,
+} from './light';
+import { CANDELABRUM } from './uhave';
 import { lightCocktail } from './oil';
 import { POT_OIL } from './dilute';
 import { checkCapacity } from './magic';
@@ -109,6 +118,7 @@ export function applicable(ctx: Pick<Ctx, 'defs'>, e: Entity): boolean {
     def.container !== undefined ||
     isLamp(e.def) ||
     isCandle(e.def) ||
+    e.def === CANDELABRUM ||
     isLockTool(e.def) ||
     e.def === WHISTLE.tin ||
     e.def === WHISTLE.magic ||
@@ -387,7 +397,9 @@ const apply: ActionDef = {
     if (obj.def === EXPENSIVE_CAMERA) return useCamera(ctx, obj, APPLY_ID);
     if (obj.def === LEASH) return useLeash(ctx, obj, APPLY_ID);
     if (isLamp(obj.def)) useLamp(ctx, obj);
-    else if (isCandle(obj.def)) useCandle(ctx, obj);
+    else if (isCandle(obj.def)) {
+      if (useCandle(ctx, obj, APPLY_ID)) return 0; // "Attach your candles to ...?"
+    } else if (obj.def === CANDELABRUM) useCandelabrum(ctx, obj);
     else if (obj.def === POT_OIL) lightCocktail(ctx, obj);
     else if (obj.def === WHISTLE.magic) useMagicWhistle(ctx, obj);
     else if (obj.def === WHISTLE.tin) useWhistle(ctx, obj);
@@ -408,19 +420,21 @@ const apply: ActionDef = {
   // horn's direction), the tinning kit's corpse and the tin opener's tin, the marker's paper and
   // what to write on it
   answer: (ctx, value, data) =>
-    isStethData(data)
-      ? answerStethoscope(ctx, value, data)
-      : isCameraData(data)
-        ? answerCamera(ctx, value, data)
-        : isLeashData(data)
-          ? answerLeash(ctx, value, data)
-          : isMusicData(data)
-            ? answerMusic(ctx, value, data, APPLY_ID)
-            : isTinToolData(data)
-              ? answerTinTool(ctx, value, data)
-              : isWriteData(data)
-                ? answerWrite(ctx, value, data, APPLY_ID)
-                : answerBreakWand(ctx, value, data),
+    isAttachData(data)
+      ? answerAttachCandles(ctx, value, data)
+      : isStethData(data)
+        ? answerStethoscope(ctx, value, data)
+        : isCameraData(data)
+          ? answerCamera(ctx, value, data)
+          : isLeashData(data)
+            ? answerLeash(ctx, value, data)
+            : isMusicData(data)
+              ? answerMusic(ctx, value, data, APPLY_ID)
+              : isTinToolData(data)
+                ? answerTinTool(ctx, value, data)
+                : isWriteData(data)
+                  ? answerWrite(ctx, value, data, APPLY_ID)
+                  : answerBreakWand(ctx, value, data),
   // a lock tool may start the lock-picking occupation (lock.ts); a pick being wielded is swung
   // on the next move (dig.ts), a polearm being wielded is applied on the next move (pole.ts)
   continues: (ctx) =>

@@ -9,11 +9,16 @@
 // split/merge hooks) lives in the leaf burnstate.ts; this module has the messages and the
 // light. A potion of oil lit by applying it (light_cocktail()) and its explosion are oil.ts's.
 //
-// Not ported: the Candelabrum of Invocation (candles are never attached), light
-// sources carried while the hero is away from the level (their timers simply run on;
-// burn_object()'s "timeout while away" catch-up is not needed).
+// The Candelabrum of Invocation (m23): candles applied are attached to it (up to seven), it is
+// lit by applying it and burns as its candles do (use_candelabrum(), use_candle(), its burn
+// phases and light range).
+//
+// Not ported: light sources carried while the hero is away from the level (their timers simply
+// run on; burn_object()'s "timeout while away" catch-up is not needed).
 import {
+  NORMAL_SPEED,
   getLevel,
+  getPlayer,
   itemsAt,
   inventoryOf,
   sortedIds,
@@ -22,6 +27,7 @@ import {
   type Entity,
   type EntityId,
   type GameState,
+  type Json,
   type LightSource,
   type ModApi,
   type Msg,
@@ -34,6 +40,7 @@ import {
   OIL_LAMP,
   beginBurn,
   burnRec,
+  candelabrumLightRange,
   candleLightRange,
   endBurn,
   isCandle,
@@ -42,7 +49,7 @@ import {
 import { POT_OIL } from './dilute';
 import { uswallow } from './engulfstate';
 import { costlySpot, insideShop, shopKeeper } from './eshk';
-import { removeFromInventory } from './items';
+import { removeFromInventory, splitStack } from './items';
 import { heroSees } from './mongear';
 import { discover } from './o_init';
 import { fingersOrGloves, glibTimeout, makeGlib } from './glib';
@@ -50,7 +57,10 @@ import { xnameOf } from './objnam';
 import { P, heroHas } from './props';
 import { monNam } from './perception';
 import { billDummyObject, billUsedUp, checkUnpaid } from './shk';
+import { terrainIdAt } from './terrain';
 import { uinwater } from './uwater';
+import { invocationPos } from './invocation';
+import { CANDELABRUM } from './uhave';
 
 export { beginBurn, endBurn, isCandle } from './burnstate';
 
@@ -70,8 +80,9 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
 export const isLamp = (def: string): boolean =>
   def === OIL_LAMP || def === BRASS_LANTERN || def === MAGIC_LAMP;
 
-/** ref: include/obj.h ignitable(): lamps, the lantern, candles and potions of oil */
-export const ignitable = (def: string): boolean => isLamp(def) || isCandle(def) || def === POT_OIL;
+/** ref: include/obj.h ignitable(): lamps, the lantern, the Candelabrum, candles and potions of oil */
+export const ignitable = (def: string): boolean =>
+  isLamp(def) || isCandle(def) || def === CANDELABRUM || def === POT_OIL;
 
 /**
  * Where an object is, for light and messages (ref: src/mkobj.c get_obj_location() without
@@ -172,7 +183,7 @@ function burnObject(ctx: Ctx, data: unknown): void {
     burnUp(ctx, obj);
     return;
   }
-  if (isCandle(obj.def)) {
+  if (isCandle(obj.def) || obj.def === CANDELABRUM) {
     burnCandle(ctx, obj, age, canseeit, bytouch, w);
     return;
   }
@@ -226,7 +237,11 @@ function burnObject(ctx: Ctx, data: unknown): void {
   }
 }
 
-/** The candle phases: 75 "getting short", 15 "flicker low", 0 consumed. ref: burn_object() */
+/**
+ * The candle phases: 75 "getting short", 15 "flicker low", 0 consumed; the Candelabrum's say
+ * "candelabrum's" and at 0 its flames die and it is left with no candles.
+ * ref: burn_object() (`menorah`)
+ */
 function burnCandle(
   ctx: Ctx,
   obj: Entity,
@@ -237,9 +252,14 @@ function burnCandle(
 ): void {
   const it = obj.c.item;
   if (!it) return;
-  const many = it.quantity > 1;
+  const menorah = obj.def === CANDELABRUM;
+  const many = menorah ? it.spe > 1 : it.quantity > 1;
   const pl = many ? '_pl' : '';
   const carried = w === 'invent' || w === 'minvent';
+  if (menorah) {
+    burnMenorah(ctx, obj, age, canseeit || bytouch, canseeit, pl, w);
+    return;
+  }
   switch (age) {
     case 75:
       if (canseeit) {
@@ -277,6 +297,48 @@ function burnCandle(
   }
 }
 
+/** The Candelabrum's burn phases. ref: src/timeout.c burn_object() CANDELABRUM_OF_INVOCATION */
+function burnMenorah(
+  ctx: Ctx,
+  obj: Entity,
+  age: number,
+  knows: boolean,
+  canseeit: boolean,
+  pl: '' | '_pl',
+  w: ReturnType<typeof where>,
+): void {
+  const it = obj.c.item;
+  if (!it) return;
+  const carried = w === 'invent' || w === 'minvent';
+  switch (age) {
+    case 75:
+    case 15: {
+      const k = age === 75 ? 'short' : 'flicker_low';
+      if (canseeit) {
+        if (carried) say(ctx, `menorah.${k}${pl}`, { whose: shkYour(ctx, obj, true) });
+        else if (w === 'floor') say(ctx, `menorah.see_${k}${pl}`);
+      }
+      break;
+    }
+    case 0:
+      // we know even if blind and in our inventory
+      if (knows) {
+        if (carried) say(ctx, `menorah.flames_die${pl}`, { whose: shkYour(ctx, obj, true) });
+        else if (w === 'floor') say(ctx, `menorah.see_flames_die${pl}`);
+      }
+      endBurn(ctx, obj, false);
+      it.spe = 0; // no candles
+      return;
+    default:
+      // someone added fuel (candles) while it was lit: begin_burn() handles the new age
+      break;
+  }
+  if (it.age) {
+    delete it.lit;
+    beginBurn(ctx, obj, true);
+  }
+}
+
 /** ref: src/timeout.c lantern_message() */
 function lanternMessage(ctx: Ctx, w: ReturnType<typeof where>, holder: () => Msg | string): void {
   if (w === 'invent') {
@@ -297,14 +359,17 @@ function snuffSeen(ctx: Ctx, obj: Entity): boolean {
 }
 
 /**
- * Lit candles go out when thrown, kicked or put away: "Your candle's flame is extinguished."
- * True if they were lit. ref: src/apply.c snuff_candle()
+ * Lit candles (or the Candelabrum's) go out when thrown, kicked or put away: "Your candle's flame
+ * is extinguished." True if they were lit. ref: src/apply.c snuff_candle()
  */
 export function snuffCandle(ctx: Ctx, obj: Entity): boolean {
-  if (!isCandle(obj.def) || !obj.c.item?.lit) return false;
-  const many = obj.c.item.quantity > 1;
+  const candle = isCandle(obj.def);
+  if ((!candle && obj.def !== CANDELABRUM) || !obj.c.item?.lit) return false;
+  const many = candle ? obj.c.item.quantity > 1 : obj.c.item.spe > 1;
   if (snuffSeen(ctx, obj))
-    say(ctx, `candle.extinguished${many ? '_pl' : ''}`, { whose: shkYour(ctx, obj, true) });
+    say(ctx, `${candle ? 'candle' : 'menorah'}.extinguished${many ? '_pl' : ''}`, {
+      whose: shkYour(ctx, obj, true),
+    });
   endBurn(ctx, obj, true);
   return true;
 }
@@ -340,12 +405,14 @@ export function catchLit(ctx: Ctx, obj: Entity): boolean {
   if (!loc) return false;
   // spe==0 => no djinni inside; age_is_relative && age==0 && still-exists means out of fuel;
   // lantern is classified as ignitable() but not by fire
+  // spe==0 => no candles attached
   if (
-    (obj.def === MAGIC_LAMP && it.spe === 0) ||
+    ((obj.def === MAGIC_LAMP || obj.def === CANDELABRUM) && it.spe === 0) ||
     (obj.def !== MAGIC_LAMP && (it.age ?? 0) === 0) ||
     obj.def === BRASS_LANTERN
   )
     return false;
+  if (obj.def === CANDELABRUM && it.buc === 'cursed') return false;
   // once lit, cursed lamp is as good as non-cursed one, so failure to light is a minor
   // inconvenience to make cursed be worse
   if ((obj.def === OIL_LAMP || obj.def === MAGIC_LAMP) && it.buc === 'cursed' && !ctx.rng.rn2(2))
@@ -388,13 +455,167 @@ export function igniteItems(
   for (const o of objs) if (!o.c.item?.lit) catchLit(ctx, o);
 }
 
-/** Applying candles: no candelabrum to attach them to. ref: src/apply.c use_candle() */
-export function useCandle(ctx: Ctx, obj: Entity): void {
+/**
+ * Applying candles: with the Candelabrum in her pack and fewer than seven candles on it, "Attach
+ * your candles to your candelabrum?" ({@link answerAttachCandles}); else they are lit or put out
+ * (use_lamp()). The question is asked for `handler` (#apply). Returns whether it was asked.
+ * ref: src/apply.c use_candle()
+ */
+export function useCandle(ctx: Ctx, obj: Entity, handler: DefId): boolean {
   if (uswallow(ctx)) {
     say(ctx, 'apply.no_elbow_room');
+    return false;
+  }
+  // obj is the candle; menorah is the candelabrum
+  const menorah = inventoryOf(ctx.state, ctx.state.playerId).find((o) => o.def === CANDELABRUM);
+  if (!menorah?.c.item || menorah.c.item.spe === 7) {
+    useLamp(ctx, obj);
+    return false;
+  }
+  ctx.ask(
+    {
+      id: 'attach-candles',
+      kind: 'yn',
+      key: 'menorah.attach_q',
+      params: {
+        whose: shkYour(ctx, obj, false),
+        item: xnameOf(ctx.state, ctx.defs, obj),
+        owner: shkYour(ctx, menorah, false),
+        menorah: xnameOf(ctx.state, ctx.defs, menorah),
+      },
+      cancellable: true,
+    },
+    handler,
+    { attachCandles: obj.id, menorah: menorah.id } as Json,
+  );
+  return true;
+}
+
+/** Whether a question's data is the attach-candles question's. */
+export const isAttachData = (data: Json): boolean =>
+  typeof data === 'object' && data !== null && !Array.isArray(data) && 'attachCandles' in data;
+
+/**
+ * The answer to "Attach your candles to your candelabrum?": no lights (or puts out) the candles
+ * as use_lamp(); yes attaches as many as fit (seven at most: the rest stay in the pack), putting
+ * out lit ones while they are counted: "You attach 3 candles to the candelabrum." ("3 more" once
+ * some are on it), its fuel the least of theirs and its own; "The new candles magically ignite!"
+ * on a lit candelabrum, "They go out." when the candles were lit and it is not; unpaid candles
+ * are used up on the bill ("You use them, you bought them!"); "The candelabrum now has seven
+ * candles attached." when the last ones fill it. ref: src/apply.c use_candle()
+ */
+export function answerAttachCandles(ctx: Ctx, value: Json, data: Json): number {
+  const d = data as { attachCandles?: unknown; menorah?: unknown };
+  const get = (id: unknown): Entity | undefined =>
+    typeof id === 'number' ? ctx.state.entities[String(id)] : undefined;
+  let obj = get(d.attachCandles);
+  const menorah = get(d.menorah);
+  const mit = menorah?.c.item;
+  if (!obj?.c.item || !menorah || !mit) return 0;
+  if (value !== true) {
+    useLamp(ctx, obj);
+    return NORMAL_SPEED;
+  }
+  if (mit.spe + obj.c.item.quantity > 7) {
+    const id = splitStack(ctx, obj.id, 7 - mit.spe);
+    // the candles to attach are the split-off part; the rest stay in her pack
+    obj = ctx.state.entities[String(id)];
+    if (!obj?.c.item) return NORMAL_SPEED;
+  } else removeFromInventory(ctx, obj.id);
+  const it = obj.c.item;
+  if (!it) return NORMAL_SPEED;
+  const n = it.quantity;
+  const pl = n !== 1 ? '_pl' : '';
+  // "The candle's age field doesn't correctly reflect the amount of fuel in it while it's lit,
+  // because the fuel is measured by the timer": end the burn while attaching
+  const wasLit = it.lit === true;
+  if (wasLit) endBurn(ctx, obj, true);
+  say(ctx, `menorah.attach${mit.spe ? '_more' : ''}${pl}`, {
+    n,
+    menorah: xnameOf(ctx.state, ctx.defs, menorah),
+  });
+  if (!mit.spe || (mit.age ?? 0) > (it.age ?? 0)) mit.age = it.age ?? 0;
+  mit.spe += n;
+  if (mit.lit && !wasLit) say(ctx, `menorah.ignite${pl}`);
+  else if (!mit.lit && wasLit) say(ctx, `menorah.goes_out${pl}`);
+  if (it.unpaid) say(ctx, `menorah.${mit.lit ? 'burn' : 'use'}_bought${pl}`);
+  if (n < 7 && mit.spe === 7)
+    say(ctx, mit.lit ? 'menorah.seven_lit' : 'menorah.seven', {
+      menorah: xnameOf(ctx.state, ctx.defs, menorah),
+    });
+  // candles are no longer a separate light source; candles are now gone (useupall())
+  billUsedUp(ctx, obj);
+  ctx.remove(obj.id);
+  return NORMAL_SPEED;
+}
+
+/**
+ * Applying the Candelabrum: lit, "You snuff the candles."; without candles "This candelabrum has
+ * no candles." (and how to attach them, when she carries candles); under water no fire; cursed or
+ * engulfed they flicker and die; fewer than seven: "There are only 3 candles in the
+ * candelabrum." and they shine dimly; seven: "The candelabrum's candles burn brightly!". Lit
+ * anywhere but on the vibrating square (off its stairs) "The candles are being rapidly
+ * consumed!" (its fuel halved, rounding up); there with seven, "The candelabrum glows with a
+ * strange light!" (radiates a strange warmth when blind) and its charge is known.
+ * ref: src/apply.c use_candelabrum()
+ */
+export function useCandelabrum(ctx: Ctx, obj: Entity): void {
+  const it = obj.c.item;
+  if (!it) return;
+  const pl = it.spe !== 1 ? '_pl' : '';
+  const blind = heroHas(ctx.state, P.BLINDED);
+  const name = xnameOf(ctx.state, ctx.defs, obj);
+  if (it.lit) {
+    say(ctx, `menorah.snuff${pl}`);
+    endBurn(ctx, obj, true);
     return;
   }
-  useLamp(ctx, obj);
+  if (it.spe <= 0) {
+    say(ctx, 'menorah.no_candles', { item: name });
+    // only output tip if candles are in inventory
+    if (inventoryOf(ctx.state, ctx.state.playerId).some((o) => isCandle(o.def)))
+      say(ctx, 'menorah.attach_tip', { item: name });
+    return;
+  }
+  if (uinwater(ctx)) {
+    say(ctx, 'menorah.under_water');
+    return;
+  }
+  if (uswallow(ctx) || it.buc === 'cursed') {
+    if (!blind) say(ctx, `menorah.flicker_die${pl}`);
+    return;
+  }
+  if (it.spe < 7) {
+    say(ctx, it.spe === 1 ? 'menorah.only_one' : 'menorah.only', {
+      n: it.spe,
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+    if (!blind) say(ctx, `menorah.lit_dimly${pl}`, { item: xnameOf(ctx.state, ctx.defs, obj) });
+  } else
+    say(ctx, blind ? 'menorah.burn' : 'menorah.burn_brightly', {
+      item: xnameOf(ctx.state, ctx.defs, obj),
+    });
+  const h = getPlayer(ctx.state);
+  const hp = h.c.pos;
+  const level = getLevel(ctx.state);
+  const here = hp ? terrainIdAt(level, hp.x, hp.y) : undefined;
+  const onStairs = here !== undefined && ctx.defs.terrain(here).stairs !== undefined;
+  if (!hp || !invocationPos(ctx, level, hp.x, hp.y) || onStairs) {
+    say(ctx, `menorah.consumed${pl}`);
+    // this used to be obj->age /= 2, rounding down; an age of 1 would yield 0, confusing
+    // begin_burn() and producing an unlightable, unrefillable candelabrum; round up instead
+    it.age = Math.trunc(((it.age ?? 0) + 1) / 2);
+    // to make absolutely sure the game doesn't become unwinnable as a consequence of a broken
+    // candelabrum
+    if (it.age === 0) it.age = 1;
+  } else {
+    if (it.spe === 7)
+      say(ctx, blind ? 'menorah.strange_warmth' : 'menorah.strange_light', {
+        item: xnameOf(ctx.state, ctx.defs, obj),
+      });
+    it.known.spe = true;
+  }
+  beginBurn(ctx, obj, false);
 }
 
 /** Light (or put out) a lamp, lantern, magic lamp or candles. ref: src/apply.c use_lamp() */
@@ -463,7 +684,8 @@ export function useLamp(ctx: Ctx, obj: Entity): void {
 }
 
 /** The light radius of a lit object. ref: src/timeout.c begin_burn() `radius` */
-export function lightRadius(def: DefId, quantity: number): number {
+export function lightRadius(def: DefId, quantity: number, spe = 0): number {
+  if (def === CANDELABRUM) return candelabrumLightRange(spe);
   if (isCandle(def)) return candleLightRange(quantity);
   if (def === POT_OIL) return 1; // very dim light
   return LAMP_RADIUS;
@@ -484,7 +706,8 @@ export const artiLightRadius = (e: Entity): number =>
 
 /**
  * Light sources: every lit object, at its own cell on the floor or at its carrier's (none
- * inside a container), with its radius: candles by their number, oil 1, lamps 3; and a
+ * inside a container), with its radius: candles by their number, the Candelabrum by its candles,
+ * oil 1, lamps 3; and a
  * shining artifact at its wielder (artiLightRadius()).
  * ref: src/light.c do_light_sources(), new_light_source() via begin_burn()
  */
@@ -501,7 +724,12 @@ export function objLights(state: Readonly<GameState>): LightSource[] {
     if (!e || !it?.lit) continue;
     const loc = objLocation(state, e);
     if (loc)
-      out.push({ level: loc.level, x: loc.x, y: loc.y, radius: lightRadius(e.def, it.quantity) });
+      out.push({
+        level: loc.level,
+        x: loc.x,
+        y: loc.y,
+        radius: lightRadius(e.def, it.quantity, it.spe),
+      });
   }
   return out;
 }

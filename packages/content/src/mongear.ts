@@ -172,8 +172,8 @@ const objDef = (ctx: Pick<GearCtx, 'defs'>, id: string): ObjectDef | null =>
 /**
  * Gives the monster a new object of type `otyp`; returns its stack, or null when the object
  * does not exist in this port (the caller has already made any rolls C makes before it).
- * ref: src/makemon.c mongets(): a demon's blessed object is cursed. No minion, player-monster or
- * prince special cases (none are in the roster).
+ * ref: src/makemon.c mongets(): a demon's blessed object is cursed; the Candelabrum (Vlad's) has
+ * no candles and is uncursed. No minion or player-monster special cases here.
  */
 export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId | null {
   const def = objDef(ctx, otyp);
@@ -182,6 +182,13 @@ export function mongets(ctx: GearCtx, monId: EntityId, otyp: string): EntityId |
   // demons never get blessed objects
   const it = ctx.state.entities[String(id)]?.c.item;
   if (it?.buc === 'blessed' && monOf(ctx, monId).def.glyph.ch === '&') it.buc = 'cursed';
+  // the Candelabrum comes with no candles, unlit, neither blessed nor cursed
+  if (it && def.id === 'nh:candelabrum_of_invocation') {
+    it.spe = 0;
+    it.age = 0;
+    delete it.lit;
+    it.buc = 'uncursed';
+  }
   return id;
 }
 

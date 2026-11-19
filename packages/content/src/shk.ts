@@ -19,7 +19,7 @@
 // shop achievement, globs,
 // gold picked up in a shop (no loan: costly_gold()), gold dropped in a shop (no credit for gold:
 // donate_gold(); DEVIATIONS), remembered price quotes (record_price_quote()), special_stock()
-// (no Candelabrum), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
+// (Izchak refusing the Candelabrum: m23 leaves it out), balls and chains, the spellbook, oil, horn and bag usage fees (no callers
 // yet), remote_burglary(). The Keystone Kops are kops.ts's (call_kops(), kops_gone()).
 import { apAsThing } from './mimicstate';
 import {

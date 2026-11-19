@@ -13,6 +13,7 @@
 // each turn (light.ts objLights()), so a split or merged stack's radius follows its quantity.
 import type { Ctx, DefId, Entity, EntityId, GameState } from '@nh/core';
 import { POT_OIL, isDiluted } from './dilute';
+import { CANDELABRUM } from './uhave';
 
 export const BURN_TIMER: DefId = 'nh:burn_object';
 export const MAGIC_LAMP: DefId = 'nh:magic_lamp';
@@ -88,10 +89,18 @@ export function candleLightRange(quan: number): number {
 }
 
 /**
+ * "The special candelabrum emits more light than the corresponding number of candles would":
+ * 1..3 candles range 2 (minimum range), 4..6 range 3 (normal lamp range), 7 range 4 (bright).
+ * ref: src/light.c candle_light_range()
+ */
+export const candelabrumLightRange = (spe: number): number => (spe < 4 ? 2 : spe < 7 ? 3 : 4);
+
+/**
  * Starts a lit object burning: a timer to the next warning (lamps and lanterns 150, 100, 50,
  * 25 turns of fuel left, then 0; candles 75, 15, then 0; a potion of oil all its fuel, three
  * quarters of it when diluted) and the light; the magic lamp burns without a timer. Silent.
- * ref: src/timeout.c begin_burn() (no artifact lights, no candelabrum)
+ * The Candelabrum of Invocation burns as its candles do. ref: src/timeout.c begin_burn() (no
+ * artifact lights: Sunsword's light is light.ts's)
  */
 export function beginBurn(
   ctx: Pick<Ctx, 'state' | 'schedule'>,
@@ -116,7 +125,7 @@ export function beginBurn(
     else if (age > 50) turns = age - 50;
     else if (age > 25) turns = age - 25;
     else turns = age;
-  } else if (isCandle(obj.def)) {
+  } else if (isCandle(obj.def) || obj.def === CANDELABRUM) {
     // magic times are 75, 15, and 0
     if (age > 75) turns = age - 75;
     else if (age > 15) turns = age - 15;

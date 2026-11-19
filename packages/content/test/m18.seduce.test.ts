@@ -225,7 +225,7 @@ describe('doseduce()', () => {
     expect(r.text).toContain('"You\'re such a nice guy; I wish..."');
     expect(r.keys).not.toContain('seduce.time_stands_still');
     const p = r.st.entities[String(m.id)]!.c.pos!;
-    expect(Math.max(Math.abs(p.x - 2), Math.abs(p.y - 2))).toBeGreaterThan(1); // rloc()
+    expect(p.x !== 3 || p.y !== 2).toBe(true); // rloc(): somewhere else (maybe still beside her)
   });
 
   test('a low charisma: "Take off your ..." and it comes off without a question', () => {

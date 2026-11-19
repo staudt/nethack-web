@@ -391,7 +391,12 @@ describe('potion_dip(): mixing', () => {
       const juice = carryPot(s, 'fruit_juice', 12);
       const booze = carryPot(s, 'booze');
       dip(s, juice, booze);
-      counts.mundane.add(12 - qtyOf(s.state, P('fruit_juice')));
+      // the stack dipped from keeps the juice left, or became the mixture when all 12 mixed (a
+      // random mixture may be fruit juice again, so the juice in the pack is not counted)
+      const je = s.state.entities[String(juice)];
+      counts.mundane.add(
+        je?.def === P('fruit_juice') && je.c.item!.quantity < 12 ? 12 - je.c.item!.quantity : 12,
+      );
       // diluted healing into speed: two of them
       for (const e of inventoryOf(s.state, s.state.playerId))
         if (defs.object(e.def).class === 'potion') delete s.state.entities[String(e.id)];

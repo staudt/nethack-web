@@ -83,6 +83,33 @@ const WIZ3_WALLS: readonly FlagRect[] = [
 ];
 
 /**
+ * The stone around a map block of `w` x `h` cells, map-relative (solidify_map(): every stone or
+ * wall cell outside the map gets W_NONDIGGABLE and W_NONPASSWALL).
+ */
+function outsideMap(w: number, h: number): readonly FlagRect[] {
+  const far = 1000;
+  return [
+    { x1: -far, y1: -far, x2: -1, y2: far },
+    { x1: w, y1: -far, x2: far, y2: far },
+    { x1: 0, y1: -far, x2: w - 1, y2: -1 },
+    { x1: 0, y1: h, x2: w - 1, y2: far },
+  ];
+}
+
+/**
+ * Vlad's Tower's upper levels: des.non_diggable() over the whole 15x11 map, and `solidify` the
+ * stone around it (non-diggable and non-passwall); the walls inside the map stay passable to
+ * phasing monsters. ref: dat/tower1.lua, dat/tower2.lua; src/sp_lev.c solidify_map()
+ */
+const TOWER12: LevelFlags = {
+  noteleport: true,
+  hardfloor: true,
+  maze: true,
+  nondiggable: 'all',
+  nonpasswall: outsideMap(15, 11),
+};
+
+/**
  * The flags of each special level that has any. Minetown's minetn-1 (Orcish Town) and minetn-6
  * say "mazelevel" too, but their mines-style map makes them cavernous instead (mkmap() clears
  * is_maze_lev), as are the Mines' filler levels; see {@link cavernous}.
@@ -211,6 +238,18 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   },
   /** ref: dat/knox.lua ("mazelevel", "noteleport"; non_diggable over the whole map) */
   'nh:knox': { noteleport: true, maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 19 }] },
+  /** ref: dat/tower1.lua ("mazelevel", "noteleport", "hardfloor", "solidify") */
+  'nh:tower1': TOWER12,
+  /** ref: dat/tower2.lua */
+  'nh:tower2': TOWER12,
+  /** ref: dat/tower3.lua */
+  'nh:tower3': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: 'all',
+    nonpasswall: outsideMap(19, 13),
+  },
   /** ref: dat/fakewiz1.lua, dat/fakewiz2.lua ("mazelevel") */
   'nh:fakewiz1': { maze: true },
   'nh:fakewiz2': { maze: true },
@@ -593,6 +632,41 @@ export function isBranchlev(
     }
   }
   return false;
+}
+
+/** Vlad's Tower: three levels above a Gehennom level, climbed by ladders. ref: dat/dungeon.lua */
+export const VLAD: DefId = 'nh:vlad';
+/** The Elemental Planes: the endgame dungeon above DL1 (m23b builds its levels). */
+export const PLANES: DefId = 'nh:planes';
+
+/** Vlad's Tower's levels, top first: their special levels' and LevelDefs' ids (tower.ts). */
+export const TOWER_LEVELS = {
+  tower1: 'nh:tower1',
+  tower2: 'nh:tower2',
+  tower3: 'nh:tower3',
+} as const;
+
+/**
+ * The Elemental Planes' special levels in dungeon.lua's order (Astral at the top, the dummy
+ * level below Earth). Their ids are not the levels' names, which are terrains or objects
+ * (`nh:water`). ref: dat/dungeon.lua "The Elemental Planes" levels
+ */
+export const PLANE_LEVELS = {
+  astral: 'nh:plane-astral',
+  water: 'nh:plane-water',
+  fire: 'nh:plane-fire',
+  air: 'nh:plane-air',
+  earth: 'nh:plane-earth',
+  dummy: 'nh:plane-dummy',
+} as const;
+
+/** Whether `level` (the hero's by default) is in Vlad's Tower. ref: src/dungeon.c In_V_tower() */
+export function inVladsTower(
+  state: Readonly<GameState>,
+  level?: Readonly<Level> | LevelRef,
+): boolean {
+  const ref = level ?? state.levels[state.currentLevel];
+  return ref?.dungeon === VLAD;
 }
 
 /** Whether `level` is Fort Ludios. ref: include/dungeon.h Is_knox() */

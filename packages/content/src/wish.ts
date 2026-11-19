@@ -21,7 +21,7 @@ import { onameObj } from './artiname';
 import { touchArtifact } from './artitouch';
 import { upolyd } from './upoly';
 import { artifactName, nartifactExist, questArtifactId, uncreateArtifact } from './artistate';
-import { gemLedger, gemProb } from './gem';
+import { gemLedger, gemProb, rndClass } from './gem';
 import { encumberMsg, prinv } from './itemactions';
 import { addToInventory, invCount, isCandle, placeOnFloor, splitStack } from './items';
 import { luckOf, setU, uState } from './luck';
@@ -111,7 +111,9 @@ export function mkWished(ctx: Ctx, spec: WishSpec, opts: WishOpts): EntityId | n
     typ = what.types[k] ?? null;
   } else if (what.kind === 'random') oclass = WRPSYM[ctx.rng.rn2(WRPSYM.length)] ?? 'weapon';
   // handle some objects that are only allowed in wizard mode (of the Amulet, the Candelabrum,
-  // the Bell, the Book and the magic lamp the Book and the lamp exist)
+  // the Bell, the Book and the magic lamp the Candelabrum, the Book and the lamp exist)
+  if (typ === 'nh:candelabrum_of_invocation' && !wizard)
+    typ = rndClass(ctx.rng, ctx.defs, ['nh:tallow_candle', 'nh:wax_candle'], 0);
   if (typ === 'nh:book_of_the_dead' && !wizard) typ = 'nh:spellbook_of_blank_paper';
   if (typ === MAGIC_LAMP && !wizard) typ = 'nh:oil_lamp';
 

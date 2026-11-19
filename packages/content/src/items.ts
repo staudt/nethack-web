@@ -508,6 +508,9 @@ export function weight(defs: Registry, item: Entity, state?: Readonly<GameState>
     return eatenStat(it.quantity * def.weight, def.food?.nutrition ?? 0, it.eaten);
   }
   if (def.class === 'coin') return Math.max(Math.trunc((it.quantity + 50) / 100), 1);
+  // ref: weight(): the Candelabrum weighs its candles too (each a tallow candle's weight)
+  if (def.id === 'nh:candelabrum_of_invocation' && it.spe)
+    return def.weight + it.spe * defs.object('nh:tallow_candle').weight;
   return def.weight ? def.weight * it.quantity : (it.quantity + 1) >> 1;
 }
 

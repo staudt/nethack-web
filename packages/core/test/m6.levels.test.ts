@@ -146,6 +146,25 @@ describe('defineLevel validation', () => {
       'lv:ap contents[4].appearAs: bad appearAs {"kind":"monster","id":"lv:gnome"}',
     ]);
   });
+
+  test('waiting and align (m23) are for monsters, with their own values', () => {
+    const lv = {
+      id: 'lv:wa',
+      init: { style: 'solidfill', fg: 'nh:floor' },
+      contents: [
+        { kind: 'monster', id: 'lv:gnome', waiting: true, align: 'noalign' },
+        { kind: 'monster', id: 'lv:gnome', align: 'chaotic' },
+        { kind: 'monster', id: 'lv:gnome', waiting: 1, align: 'evil' },
+        { kind: 'object', class: 'gem', waiting: true, align: 'lawful' },
+      ],
+    } as unknown as LevelDef;
+    expect(issues([lv])).toEqual([
+      'lv:wa contents[2].waiting: must be true',
+      'lv:wa contents[2].align: must be one of lawful, neutral, chaotic, noalign',
+      'lv:wa contents[3].waiting: only monsters can wait',
+      'lv:wa contents[3].align: only monsters have an align',
+    ]);
+  });
 });
 
 describe('buildLevel', () => {

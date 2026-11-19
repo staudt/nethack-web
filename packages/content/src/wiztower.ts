@@ -284,7 +284,7 @@ export function relayMap(level: Level, def: LevelDef, rows: readonly string[]): 
 }
 
 /** des.ladder(dir, x, y) at a map spot of the LevelDef (its LADDER_SPOTS entry). */
-function desLadders(level: Level, def: LevelDef): void {
+export function desLadders(level: Level, def: LevelDef): void {
   const spots = LADDER_SPOTS[def.id] ?? {};
   for (const dir of ['up', 'down'] as const) {
     const s = spots[dir];

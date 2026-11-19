@@ -10,7 +10,8 @@ export const WIZ_WHERE = 'wiz:where';
  * is on is marked `*`.
  * ref: src/dungeon.c print_dungeon(), print_branch(), chr_u_on_lvl() (bymenu false), as
  * messages instead of a window, with the overview's "Stairs up"/"Stairs down" (br_string2())
- * for C's "Stair" and C's "Connection" for a branch with no stairs on this end (BR_NO_END1).
+ * for C's "Stair", C's "Connection" for a branch with no stairs on this end (BR_NO_END1) and its
+ * "One way stair" for one going up (BR_NO_END2: the Elemental Planes from DL1).
  * Fort Ludios's branch is listed as C's "Portal" on the level whose vault holds its portal
  * (mk_knox_portal() re-inserts it there); its rolled level is only C's placeholder, never listed,
  * and while no vault has the portal the parent's list ends with "Portal to Fort Ludios: not
@@ -76,7 +77,9 @@ export function printDungeon(ctx: Ctx): void {
           key: l.portal
             ? 'wiz.where.portal'
             : l.connection
-              ? 'wiz.where.connection'
+              ? l.up
+                ? 'wiz.where.one_way'
+                : 'wiz.where.connection'
               : l.up
                 ? 'wiz.where.branch_up'
                 : 'wiz.where.branch',

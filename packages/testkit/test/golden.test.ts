@@ -28,7 +28,9 @@ const CHANGED_MESSAGE =
 // after m16 step 6 (the graffiti roll per room); bot seed 3 died at turn 99 after m16 step 7 (the
 // grave roll per room). Bot seed 1 played all 400 turns again until m22 step 3, where it choked
 // at turn 48 on the second of two starting food rations (mksobj()'s pair, now kept); bot seed 4
-// plays all 400 turns. Re-pick it the same way if a stream shift ends the run early again.
+// died at turn 150 after m23 step 2 (the two new dungeons' draws at new game) and bot seed 1 at
+// turn 86; bot seed 2 plays all 400 turns. Re-pick it the same way if a stream shift ends the
+// run early again.
 const MODS = [vanillaMod, soakKitMod];
 
 describe('golden replay', () => {

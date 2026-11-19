@@ -165,7 +165,7 @@ describe('M4 scenarios', () => {
 
   test('a kobold throws darts at the hero from a distance', () => {
     runScenario([vanillaMod], (s) => {
-      s.seed(3); // a seed (searched) whose kobold throws within the four turns (2 before m12 step 5)
+      s.seed(3); // its kobold throws within six turns (any of seeds 1-6 does; four were enough before m23)
       s.level(BIG);
       s.setHero({ hp: 500 });
       s.monster(
@@ -173,7 +173,7 @@ describe('M4 scenarios', () => {
         { x: HERO.x + 6, y: HERO.y },
         { carries: [{ def: 'nh:dart', quantity: 12 }] },
       );
-      s.act(Array.from({ length: 4 }, () => ({ type: 'wait' as const })));
+      s.act(Array.from({ length: 6 }, () => ({ type: 'wait' as const })));
       s.expectEvent({ type: 'msg', key: 'mthrow.throws' });
     });
   });

@@ -32,6 +32,7 @@ import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
+import { CANDELABRUM } from './uhave';
 import { protFromShapeChangers } from './props';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
@@ -616,6 +617,9 @@ export function makemon(
   // ref: makemon(): `mndx == PM_CROESUS`: `mitem = TWO_HANDED_SWORD`, given (mongets()) when
   // allow_minvent
   if (mdef.id === CROESUS && allowMinvent) mongets(ctx, id, 'nh:two_handed_sword');
+  // ref: makemon(): `mndx == PM_VLAD_THE_IMPALER`: `mitem = CANDELABRUM_OF_INVOCATION` (he stays
+  // in his own shape so he can carry it)
+  if (mdef.id === VLAD_THE_IMPALER && allowMinvent) mongets(ctx, id, CANDELABRUM);
   // ref: makemon(): `if (gi.in_mklev)`: minor demons, wumpuses, long worms and giant eels made with
   // the level sleep 4 times in 5 (no Amulet of Yendor here)
   if (mon && opts.inMklev && sleepsInMklev(mdef) && ctx.rng.rn2(5)) mon.asleep = true;

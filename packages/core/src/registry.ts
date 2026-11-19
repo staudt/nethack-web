@@ -917,6 +917,8 @@ function chainSpan(
 }
 
 const CONTENT_KINDS = ['monster', 'object', 'trap'];
+/** des.monster `align` values (m23). */
+const CONTENT_ALIGNS = ['lawful', 'neutral', 'chaotic', 'noalign'];
 
 /**
  * Shape problems of a LevelDef as [path, reason]; references to other defs are checked once
@@ -995,6 +997,8 @@ function contentIssues(prefix: string, contents: unknown, out: [string, string][
       y,
       peaceful,
       asleep,
+      waiting,
+      align,
     } = c as Record<string, unknown>;
     if (typeof kind !== 'string' || !CONTENT_KINDS.includes(kind))
       out.push([`${at}.kind`, `must be one of ${CONTENT_KINDS.join(', ')}`]);
@@ -1033,6 +1037,15 @@ function contentIssues(prefix: string, contents: unknown, out: [string, string][
     if (asleep !== undefined) {
       if (asleep !== true) out.push([`${at}.asleep`, 'must be true']);
       else if (kind !== 'monster') out.push([`${at}.asleep`, 'only monsters can be asleep']);
+    }
+    if (waiting !== undefined) {
+      if (waiting !== true) out.push([`${at}.waiting`, 'must be true']);
+      else if (kind !== 'monster') out.push([`${at}.waiting`, 'only monsters can wait']);
+    }
+    if (align !== undefined) {
+      if (typeof align !== 'string' || !CONTENT_ALIGNS.includes(align))
+        out.push([`${at}.align`, `must be one of ${CONTENT_ALIGNS.join(', ')}`]);
+      else if (kind !== 'monster') out.push([`${at}.align`, 'only monsters have an align']);
     }
   });
 }

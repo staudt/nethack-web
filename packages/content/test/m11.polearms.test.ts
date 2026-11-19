@@ -169,6 +169,9 @@ describe('applying a polearm (use_pole())', () => {
   test('a monster two squares away is hit through thitmonst(), training the skill', () => {
     const s = room();
     const h = wield(s, 'nh:halberd');
+    const it = ent(s, h)!.c.item!;
+    // +3: an Unskilled hit (-2 damage) still takes more than the 1 hit point a jackal regains
+    Object.assign(it, { spe: 3, buc: 'uncursed' });
     const j = foe(s, 'nh:jackal', s.here.x + 2, s.here.y);
     const before = practice(s, 'polearms');
     const lines: string[] = [];

@@ -177,10 +177,15 @@ describe('Orcus Town', () => {
         ).length;
       expect(onLevel('nh:skeleton')).toBeGreaterThanOrEqual(5);
       expect(onLevel('nh:shade')).toBeGreaterThanOrEqual(6);
-      // the up stairs in the west region; no branch
+      // the up stairs in the west region, and the branch there when Vlad's Tower leaves from
+      // this level (m23: its stairs up)
       expect(level.up!.x).toBeLessThanOrEqual(11);
       expect(ter(level, level.up!)).toBe(T.stairs_up);
-      expect(level.branch).toBeNull();
+      if (level.branch) {
+        expect(level.branch.to.dungeon).toBe('nh:vlad');
+        expect(level.branch.pos.x).toBeLessThanOrEqual(11);
+        expect(ter(level, level.branch.pos)).toBe(T.stairs_up);
+      }
     }
   });
 

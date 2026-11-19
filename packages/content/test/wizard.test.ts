@@ -228,7 +228,9 @@ describe('wiz:where', () => {
           expected.push({
             key:
               l.b.stairs === 'child'
-                ? 'wiz.where.connection'
+                ? l.b.dir === 'up'
+                  ? 'wiz.where.one_way'
+                  : 'wiz.where.connection'
                 : l.b.dir === 'up'
                   ? 'wiz.where.branch_up'
                   : 'wiz.where.branch',
@@ -280,7 +282,8 @@ describe('wiz:where', () => {
       'wiz.where.level',
     ]);
     const ludios = state.dungeons.find((d) => d.id === 'nh:ludios');
-    expect(got.slice(-2)).toEqual([
+    const lu = got.findIndex((m) => m.key === 'wiz.where.level');
+    expect(got.slice(lu, lu + 2)).toEqual([
       {
         key: 'wiz.where.level',
         params: { dungeon: '@nh:ludios', start: ludios?.depthStart ?? -1 },
@@ -294,15 +297,20 @@ describe('wiz:where', () => {
       key: 'wiz.where.levels',
       params: { dungeon: '@nh:main', start: 1, end: n },
     });
+    // m23: C's "One way stair" up to the Elemental Planes on DL1 (BR_NO_END2)
     expect(got[1]).toEqual({
+      key: 'wiz.where.one_way',
+      params: { dungeon: '@nh:planes', depth: 1 },
+    });
+    expect(got[2]).toEqual({
       key: 'wiz.where.branch',
       params: { dungeon: '@nh:mines', depth: branch?.dlevel ?? -1 },
     });
-    expect(got[2]).toEqual({
+    expect(got[3]).toEqual({
       key: 'wiz.where.special',
       params: { name: '@nh:oracle', depth: oracle?.dlevel ?? -1 },
     });
-    expect(got[3]).toEqual({
+    expect(got[4]).toEqual({
       key: 'wiz.where.branch_up',
       params: { dungeon: '@nh:sokoban', depth: (oracle?.dlevel ?? -1) + 1 },
     });
@@ -324,7 +332,15 @@ describe('wiz:where', () => {
     expect(hellSpecials).toHaveLength(11);
     expect(hellSpecials[0]).toEqual({ id: 'nh:valley', dlevel: 1 });
     expect(hellSpecials[10]).toEqual({ id: 'nh:sanctum', dlevel: hell?.levels ?? -1 });
-    expect(got.slice(g + 1, g + 12)).toEqual(
+    // Gehennom's lines: its special levels and (m23) the stairs up to Vlad's Tower on 9-13
+    const hellLines = got.slice(g + 1, g + 13);
+    const vlad = hell?.branches.find((b) => b.to === 'nh:vlad');
+    expect([9, 10, 11, 12, 13]).toContain(vlad?.dlevel);
+    expect(hellLines).toContainEqual({
+      key: 'wiz.where.branch_up',
+      params: { dungeon: '@nh:vlad', depth: n + (vlad?.dlevel ?? 0) },
+    });
+    expect(hellLines.filter((m) => m.key === 'wiz.where.special')).toEqual(
       hellSpecials.map((sp) => ({
         key: 'wiz.where.special',
         params: {
@@ -337,7 +353,7 @@ describe('wiz:where', () => {
       key: 'wiz.where.special',
       params: { name: '@level.valley', depth: n + 1 },
     });
-    const rest = got.slice(g + 12); // the Mines' lines
+    const rest = got.slice(g + 13); // the Mines' lines
     expect(rest[0]).toEqual({
       key: 'wiz.where.levels',
       params: {

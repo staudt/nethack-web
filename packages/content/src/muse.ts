@@ -20,12 +20,13 @@
 // munslime(), muse_unslime(), cures_sliming(), green_mon(); src/do.c canletgo();
 // include/hack.h WAND_BACKFIRE_CHANCE
 //
-// Not ported: ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet(),
-// mon_has_special(): never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
+// Not ported: ladders, Pestilence, the Wizard, monsters carrying the Amulet (mon_has_amulet():
+// never, so MUSE_WAN_TELEPORTATION, zapping her, is never chosen), Fort
 // Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
 // the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
 // frost horns and the expensive camera (no such objects), Half_spell_damage (no source), steeds.
-import { monHatesSilver } from './chamstate';
+import { monHasSpecial } from './uhave';
+import { isVlad, monHatesSilver } from './chamstate';
 import {
   DIRS,
   cellIndex,
@@ -96,6 +97,7 @@ import {
   canDigDown,
   isBotlevel,
   isKnox,
+  inVladsTower,
   isRogueLevel,
   nonDiggable,
   onWTowerLevel,
@@ -733,7 +735,9 @@ export function findDefensive(
     // no holes in doorways here (core keeps traps on plain floor: DEVIATIONS "Digging"), so a
     // monster in one does not try
     !(hereId !== undefined && ctx.defs.terrain(hereId).door !== undefined) &&
-    !isBotlevel(ctx.state, level);
+    !isBotlevel(ctx.state, level) &&
+    // m23: Vlad does not dig out of his Tower
+    !(isVlad(ctx, mon) && inVladsTower(ctx.state, level));
   // "use the TELEP_TRAP bit to determine if they know about noteleport on this level or not"
   const teleOk = !noteleportLevel(ctx, level, id) || !monKnowsTraps(ctx, id, TRAP.tele);
   const reads = mcansee(ctx, id) && haseyes(ctx, mon);
@@ -792,11 +796,11 @@ function revealTrap(ctx: Ctx, level: Level, t: Trap, seeit: boolean): void {
 
 /**
  * The monster leaves the dungeon by the first level's up stairs, for good (with all it carries):
- * "The hill orc escapes the dungeon!" when seen; the Wizard does not while he is the only one.
- * ref: src/muse.c mon_escape() (no Amulet or invocation items: mon_has_special() is never true)
+ * "The hill orc escapes the dungeon!" when seen; the Wizard does not while he is the only one,
+ * nor a monster carrying a relic or a quest artifact. ref: src/muse.c mon_escape()
  */
 function monEscape(ctx: Ctx, mon: Entity, vismon: boolean): MuseResult {
-  if (isWiz(ctx, mon.id) && noOfWizards(ctx) < 2) return 0;
+  if (monHasSpecial(ctx.state, mon.id) || (isWiz(ctx, mon.id) && noOfWizards(ctx) < 2)) return 0;
   if (vismon) say(ctx, 'muse.escapes_dungeon', { mon: monNam(ctx, mon) });
   mongone(ctx, mon.id);
   return 2;

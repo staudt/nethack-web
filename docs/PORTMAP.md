@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-196 NetHack files, 5818 citations.
+199 NetHack files, 5860 citations.
 
 ## dat/asmodeus.lua
 
@@ -75,7 +75,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/dungeon.lua
 
-- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/bigroom.ts`, `packages/content/src/dungeon.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/medusa.ts`, `packages/content/src/planes.ts`, `packages/core/src/types/mod.ts`
 
 ## dat/fakewiz1.lua
 
@@ -214,6 +214,18 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/soko4-2.lua
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/sokoban.ts`
+
+## dat/tower1.lua
+
+- (file): `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/tower.ts`
+
+## dat/tower2.lua
+
+- (file): `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/tower.ts`
+
+## dat/tower3.lua
+
+- (file): `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/tower.ts`
 
 ## dat/valley.lua
 
@@ -550,6 +562,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `MON_WEP()`: `packages/content/src/artidef.ts`, `packages/content/src/mongear.ts`
 - `M_SEEN_()`: `packages/content/src/musestate.ts`
 - `engulfing_u()`: `packages/content/src/engulfstate.ts`
+- `is_Vlad()`: `packages/content/src/chamstate.ts`
 - `is_lminion()`: `packages/content/src/emin.ts`
 - `m_ap_type()`: `packages/content/src/mimicstate.ts`
 - `monmax_difficulty()`: `packages/content/src/generation.ts`
@@ -615,11 +628,14 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## include/objects.h
 
-- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/music.ts`, `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
+- (file): `packages/content/src/boulder.ts`, `packages/content/src/force.ts`, `packages/content/src/gem.ts`, `packages/content/src/music.ts`, `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/statuestate.ts`, `packages/content/src/stoneflesh.ts`, `packages/content/src/uhave.ts`, `packages/content/src/untrap.ts`, `packages/core/src/types/mod.ts`, `packages/testkit/src/convert/emit.ts`
 - `AMULET()`: `packages/content/src/objects.ts`
+- `AMULET_OF_YENDOR()`: `packages/content/src/uhave.ts`
 - `ARMOR()`: `packages/content/src/objects.ts`
+- `BELL_OF_OPENING()`: `packages/content/src/uhave.ts`
 - `BOOTS()`: `packages/content/src/objects.ts`
 - `BOW()`: `packages/content/src/objects.ts`
+- `CANDELABRUM_OF_INVOCATION()`: `packages/content/src/uhave.ts`
 - `CLOAK()`: `packages/content/src/objects.ts`
 - `COIN()`: `packages/content/src/objects.ts`
 - `CONTAINER()`: `packages/content/src/container.ts`, `packages/content/src/objects.ts`
@@ -641,7 +657,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `SHIELD()`: `packages/content/src/objects.ts`
 - `SKELETON_KEY()`: `packages/content/src/lockstate.ts`
 - `SPELL()`: `packages/content/src/objects.ts`, `packages/content/src/spellcalc.ts`, `packages/content/src/zap.ts`
-- `SPE_BOOK_OF_THE_DEAD()`: `packages/content/src/deadbook.ts`, `packages/content/src/steal.ts`
+- `SPE_BOOK_OF_THE_DEAD()`: `packages/content/src/deadbook.ts`, `packages/content/src/steal.ts`, `packages/content/src/uhave.ts`
 - `STRANGE_OBJECT()`: `packages/content/src/mimicstate.ts`
 - `TOOL()`: `packages/content/src/objects.ts`
 - `WAND()`: `packages/content/src/objects.ts`, `packages/content/src/zap.ts`
@@ -814,6 +830,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `unleash_all()`: `packages/content/src/leashstate.ts`
 - `use_bell()`: `packages/content/src/apply.ts`
 - `use_camera()`: `packages/content/src/camera.ts`, `packages/content/src/kittools.en.ts`
+- `use_candelabrum()`: `packages/content/src/light.ts`
 - `use_candle()`: `packages/content/src/light.ts`
 - `use_cream_pie()`: `packages/content/src/creampie.en.ts`, `packages/content/src/creampie.ts`
 - `use_figurine()`: `packages/content/src/figurine.en.ts`, `packages/content/src/figurine.ts`
@@ -1291,6 +1308,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Can_dig_down()`: `packages/content/src/levelflags.ts`
 - `Can_fall_thru()`: `packages/content/src/trap.ts`
 - `Can_rise_up()`: `packages/content/src/potion.ts`
+- `In_V_tower()`: `packages/content/src/levelflags.ts`
 - `In_W_tower()`: `packages/content/src/levelflags.ts`
 - `In_hell()`: `packages/content/src/levelflags.ts`
 - `Invocation_lev()`: `packages/content/src/levelflags.ts`
@@ -2340,7 +2358,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `doloot_core()`: `packages/content/src/container.ts`, `packages/content/src/pickup.en.ts`
 - `encumber_msg()`: `packages/content/src/itemactions.ts`
 - `fatal_corpse_mistake()`: `packages/content/src/stonetouch.ts`
-- `in_container()`: `packages/content/src/container.ts`, `packages/testkit/src/invariants.ts`
+- `in_container()`: `packages/content/src/container.ts`, `packages/content/src/uhave.ts`, `packages/testkit/src/invariants.ts`
 - `is_boh_item_gone()`: `packages/content/src/container.ts`
 - `lift_object()`: `packages/content/src/container.ts`, `packages/content/src/itemactions.ts`
 - `mbag_explodes()`: `packages/content/src/container.ts`
@@ -2801,7 +2819,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `create_altar()`: `packages/content/src/priest.ts`, `packages/core/src/types/mod.ts`
 - `create_door()`: `packages/content/src/mklev.ts`, `packages/content/src/oracle.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/sprooms.ts`
 - `create_monster()`: `packages/content/src/orctown.ts`, `packages/content/src/sp_lev.ts`
-- `create_object()`: `packages/content/src/castle.ts`, `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`
+- `create_object()`: `packages/content/src/castle.ts`, `packages/content/src/medusa.ts`, `packages/content/src/minesend.ts`, `packages/content/src/orctown.ts`, `packages/content/src/sokoprize.ts`, `packages/content/src/sp_lev.ts`, `packages/content/src/tower.ts`
 - `create_room()`: `packages/core/src/levelgen/rooms.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_subroom()`: `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `create_trap()`: `packages/content/src/sp_lev.ts`
@@ -3311,6 +3329,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`
 - `has_aggravatables()`: `packages/content/src/mcastu.ts`
 - `mon_has_arti()`: `packages/content/src/covetous.ts`
+- `mon_has_special()`: `packages/content/src/uhave.ts`
 - `nasties()`: `packages/content/src/nasty.ts`
 - `nasty()`: `packages/content/src/nasty.ts`
 - `on_ground()`: `packages/content/src/covetous.ts`
@@ -3420,7 +3439,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `melt_ice()`: `packages/content/src/ice.ts`
 - `melt_ice_away()`: `packages/content/src/ice.ts`
 - `mon_spell_hits_spot()`: `packages/content/src/buzz.ts`
-- `obj_resists()`: `packages/content/src/material.ts`, `packages/content/src/meat.ts`, `packages/content/src/polyobj.ts`
+- `obj_resists()`: `packages/content/src/material.ts`, `packages/content/src/meat.ts`, `packages/content/src/polyobj.ts`, `packages/content/src/uhave.ts`
 - `obj_shudders()`: `packages/content/src/polyobj.ts`
 - `obj_unpolyable()`: `packages/content/src/polyobj.ts`
 - `poly_obj()`: `packages/content/src/polyobj.ts`

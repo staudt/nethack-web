@@ -1,6 +1,7 @@
 // Object materials and erosion levels: the material tests, greatest_erosion and ARM_BONUS.
 // ref: include/objclass.h, include/obj.h, include/hack.h ARM_BONUS(), src/mkobj.c
 // is_flammable(), is_rottable(), src/objnam.c erosion_matters()
+import { isUniqueRelic } from './uhave';
 import type { Ctx, Entity, ObjectDef } from '@nh/core';
 
 // ---------------------------------------------------------------------------------------------
@@ -108,9 +109,9 @@ export function armBonus(def: ObjectDef, item: Entity): number {
 }
 
 /**
- * Whether the object resists: the Book of the Dead always (no draw), an artifact `achance`
- * percent of the time, anything else `ochance` (of the Amulet, the invocation items and the
- * Riders' corpses only the Book exists). ref: src/zap.c obj_resists()
+ * Whether the object resists: the Amulet, the Bell, the Candelabrum and the Book of the Dead
+ * always (no draw), an artifact `achance` percent of the time, anything else `ochance` (no
+ * Riders' corpses yet). ref: src/zap.c obj_resists()
  */
 export function objResists(
   ctx: Pick<Ctx, 'rng'>,
@@ -118,7 +119,7 @@ export function objResists(
   ochance: number,
   achance: number,
 ): boolean {
-  if (obj.def === 'nh:book_of_the_dead') return true;
+  if (isUniqueRelic(obj.def)) return true;
   const chance = ctx.rng.rn2(100);
   return chance < (obj.c.item?.artifact !== undefined ? achance : ochance);
 }

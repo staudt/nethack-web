@@ -59,7 +59,7 @@ export interface PendingPrompt {
 
 /** The whole game. JSON-plain: no classes, Map, Set, functions or typed arrays. */
 export interface GameState {
-  version: 9;
+  version: 10;
   seed: number;
   turn: number;
   nextEntityId: number;

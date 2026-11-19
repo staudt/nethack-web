@@ -4021,6 +4021,23 @@ export const OBJECTS: readonly ObjectDef[] = [
       kind: 'pierce',
     },
   }),
+  // two unique tools: the Candelabrum (Vlad's; seven candles attached and lit for the
+  // invocation: light.ts) and the Bell of Opening (m23 step 4)
+  // ref: objects.h OBJECT(OBJ("Candelabrum of Invocation", "candelabrum"), BITS(0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, P_NONE, GOLD), 0, TOOL_CLASS, 0, 0, 10, 5000, 0, 0, 0, 0, 200, HI_GOLD, CANDELABRUM_OF_INVOCATION)
+  {
+    id: 'nh:candelabrum_of_invocation',
+    nameKey: 'nh:candelabrum_of_invocation',
+    descKey: 'nh:candelabrum_of_invocation.desc',
+    class: 'tool',
+    glyph: { ch: '(', fg: YELLOW },
+    prob: 0,
+    weight: 10,
+    cost: 5000,
+    material: 'gold',
+    merge: false,
+    magic: true,
+    delay: 0,
+  },
   // ---- food (all food merges; cost = nutrition / 20 + 5 as in the FOOD() macro) ----
   // ref: objects.h FOOD("food ration", 380, 5, 20, 0, VEGGY, 800, HI_ORGANIC, FOOD_RATION)
   {

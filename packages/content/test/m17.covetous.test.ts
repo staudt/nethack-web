@@ -345,9 +345,9 @@ describe('Demonic Blackmail!', () => {
     const m = /^Asmodeus demands (\d+) zorkmids? for safe passage\.$/.exec(t[1] ?? '');
     expect(m).not.toBeNull();
     const demand = Number(m![1]);
-    // her gold times 21..100%, not halved (she is not lawful)
-    expect(demand).toBeGreaterThanOrEqual(105);
-    expect(demand).toBeLessThanOrEqual(500);
+    // her gold times 1..80% (not in Gehennom: no +20%), not halved (she is not lawful)
+    expect(demand).toBeGreaterThanOrEqual(5);
+    expect(demand).toBeLessThanOrEqual(400);
     expect(s.state.pendingPrompt?.prompt.id).toBe('demon-bribe');
     const r = s.step({ type: 'answer', promptId: 'demon-bribe', value: String(demand) });
     expect(s.text(r).slice(0, 2)).toEqual([
