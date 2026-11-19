@@ -277,6 +277,7 @@ export const trapMessagesEn: Record<string, string> = {
   'killer.tele.plummet.m': 'teleporting out of the dungeon and falling to his death',
   'action.nh:tele': 'Teleport',
   'tele.very_disoriented': 'You feel very disoriented for a moment.',
+  'tele.disoriented_moment': 'You feel disoriented for a moment.',
   'tele.shudder': 'You shudder for a moment.',
   'tele.cant_get_there_here': "You can't get there from here.",
   'tele.cant_get_there_anywhere': "You can't get there from anywhere.",

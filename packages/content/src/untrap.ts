@@ -13,6 +13,7 @@
 // polymorphed forms, Fumbling, selling or burying the object of a trap she set (she sets none),
 // exercise. A shop door she blows up is scheduled for repair, free (C: "probably ought to charge
 // for this").
+import { levelDifficulty } from './levdiff';
 import { hasMagicKey } from './artifact';
 import {
   DIRS,
@@ -104,9 +105,6 @@ const ulevel = (ctx: Pick<Ctx, 'state'>): number => hero(ctx).c.experience?.leve
 /** ref: Confusion || Hallucination */
 const confusedNow = (ctx: Pick<Ctx, 'state'>): boolean =>
   hasProp(hero(ctx), P.CONFUSION) || hasProp(hero(ctx), P.HALLUC);
-/** level_difficulty() */
-const levelDifficulty = (ctx: Pick<Ctx, 'state'>): number =>
-  ctx.state.levels[heroPos(ctx).level]?.depth ?? 1;
 
 /** the_your[ttmp->madeby_u] */
 const whichOf = (t: Trap): Msg => ({ key: dataOf(t).madeby_u ? 'untrap.your' : 'untrap.the' });
@@ -525,7 +523,9 @@ function disarmBox(ctx: Ctx, box: Entity, force: boolean, confused: boolean): vo
       !force &&
       (confused ||
         hasProp(hero(ctx), P.FUMBLING) ||
-        ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch)
+        ctx.rng.rnd(
+          75 + Math.trunc(levelDifficulty(ctx, ctx.state.levels[heroPos(ctx).level]) / 2),
+        ) > ch)
     ) {
       chestTrap(ctx, box, 'finger', true); // 'box' might be gone now
     } else {
@@ -640,7 +640,9 @@ function disarmDoor(ctx: Ctx, x: number, y: number, force: boolean): number {
       !force &&
       (confusedNow(ctx) ||
         hasProp(hero(ctx), P.FUMBLING) ||
-        ctx.rng.rnd(75 + Math.trunc(levelDifficulty(ctx) / 2)) > ch)
+        ctx.rng.rnd(
+          75 + Math.trunc(levelDifficulty(ctx, ctx.state.levels[heroPos(ctx).level]) / 2),
+        ) > ch)
     ) {
       say(ctx, 'untrap.set_it_off');
       blowDoor(ctx, level, x, y, 0); // D_NODOOR (probably ought to charge for this damage...)

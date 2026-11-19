@@ -21,6 +21,7 @@ import {
   type ModApi,
   type Msg,
 } from '@nh/core';
+import { uHave } from './uhave';
 import { monsterIdAt } from './combat';
 import { monsterDetect } from './detect';
 import { doVicinityMapSpell } from './detectobj';
@@ -264,8 +265,8 @@ const spellLevel = (ctx: Pick<Ctx, 'defs'>, book: DefId): number =>
 
 /**
  * The checks before a cast, with their costs. Returns the energy used when the cast stops here
- * (0: no time passes), or null when the spell goes off. ref: src/spell.c spelleffects_check().
- * No Amulet of Yendor exists, so its drain never happens.
+ * (0: no time passes), or null when the spell goes off. ref: src/spell.c spelleffects_check()
+ * (with the Amulet's drain).
  */
 function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
   if (rejectcasting(ctx)) return 0;
@@ -299,6 +300,14 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
   }
   if (checkCapacity(ctx, 'cast.concentration')) return NORMAL_SPEED;
 
+  // The Amulet drains some energy at once when she has enough for the spell; the attempt then
+  // takes time even if it fails for lack of energy (with too little it does not kick in).
+  let drained = false;
+  if (uHave(ctx.state, 'amulet') && pwOf(ctx.state).uen >= energy) {
+    say(ctx, 'cast.amulet_drain');
+    setPw(ctx, { uen: Math.max(pwOf(ctx.state).uen - ctx.rng.rnd(2 * energy), 0) });
+    drained = true;
+  }
   const pw = pwOf(ctx.state);
   if (energy > pw.uen) {
     // "yet": she never had enough; "anymore": she once had enough but lost some
@@ -310,7 +319,7 @@ function spelleffectsCheck(ctx: Ctx, book: DefId): number | null {
           ? 'cast.no_energy_yet'
           : 'cast.no_energy_anymore',
     );
-    return 0;
+    return drained ? NORMAL_SPEED : 0;
   }
   if (book !== 'nh:spellbook_of_detect_food') {
     let hungr = energy * 2;

@@ -9,6 +9,7 @@
 // wizard mode's "Throne sit effect (1..13)" and "Analyze throne?" questions (content has no
 // wizard flag: the random path always), exercise(), the
 // voice's SetVoice().
+import { levelDifficulty } from './levdiff';
 import { setUcreamed } from './creamed';
 import {
   NORMAL_SPEED,
@@ -154,7 +155,7 @@ export function throneEffect(ctx: Ctx, action: DefId, effect: number, at: Throne
       // Magical voice not affected by deafness
       say(ctx, 'throne.voice');
       say(ctx, `throne.audience.${sire(ctx)}`);
-      const depth = level?.depth ?? 1;
+      const depth = level ? levelDifficulty(ctx, level) : 1;
       while (cnt--) makemon(ctx, courtmon(ctx, depth), { x: at.x, y: at.y }, { adjacentOk: true });
       break;
     }

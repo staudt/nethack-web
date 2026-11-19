@@ -26,6 +26,7 @@ import {
   type Msg,
   type Trap,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { fractureRock } from './boulder';
 import { costlySpot } from './eshk';
 import { makemon } from './generation';
@@ -129,7 +130,8 @@ export function mkTrapStatue(
   y: number,
   inMklev: boolean,
 ): void {
-  const depth = ctx.state.levels[levelId]?.depth ?? 1;
+  const lv = ctx.state.levels[levelId];
+  const depth = lv ? levelDifficulty(ctx, lv) : 1;
   const ualign = Math.sign(uState(ctx.state).alignType);
   let trycount = 10;
   let mptr: MonsterDef;

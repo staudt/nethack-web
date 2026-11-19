@@ -9,6 +9,7 @@ import {
   type ModApi,
   type Msg,
 } from '@nh/core';
+import { uHave } from './uhave';
 import { nhData } from './items';
 import { SICK_ALL, SICK_NONVOMITABLE, SICK_VOMITABLE, hungerData, type Sick } from './uhunger';
 import { done } from './end';
@@ -96,7 +97,7 @@ export function gethungry(ctx: Ctx): void {
     if (hasProp(hero, P.HUNGER)) h.nutrition--;
     // Conflict uses up food too (not an invoked artifact's: `HConflict || (EConflict & ~W_ARTI)`)
     if (hasPropBesidesInvoked(hero, P.CONFLICT)) h.nutrition--;
-    // (no meat rings, no Amulet of Yendor)
+    // (no meat rings)
     const uleft = wornIn(ctx.state, hero.id, 'ringL');
     const uright = wornIn(ctx.state, hero.id, 'ringR');
     const uamul = wornIn(ctx.state, hero.id, 'amulet');
@@ -142,6 +143,9 @@ export function gethungry(ctx: Ctx): void {
         break;
       case 12:
         if (uright && burns(uright, false)) h.nutrition--;
+        break;
+      case 16:
+        if (uHave(ctx.state, 'amulet')) h.nutrition--;
         break;
       default:
         break;

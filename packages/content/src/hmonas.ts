@@ -3,12 +3,12 @@
 // damage-type functions of adtyping.ts, and the target's passive answers each one.
 // ref: src/uhitm.c hmonas(), damageum(), demonpet(), explum(), gulpum(), start_engulf(), steal_it();
 // src/dokick.c kick_monster()'s polymorphed branch
+import { levelDifficulty } from './levdiff';
 import { newcham } from './newcham';
 import { mapInvisible } from './invis';
 import { chamOf, isVampshifter } from './chamstate';
 import { golemeffects } from './golemfx';
 import {
-  getLevel,
   getPlayer,
   type AttackDef,
   type Ctx,
@@ -102,9 +102,7 @@ const VERB: Partial<Record<AttackDef['at'], string>> = {
  */
 function demonpet(ctx: Ctx, form: MonsterDef): void {
   say(ctx, 'minion.hell_p');
-  const i = !ctx.rng.rn2(6)
-    ? ndemon(ctx, getLevel(ctx.state).depth, uState(ctx.state).alignType)
-    : null;
+  const i = !ctx.rng.rn2(6) ? ndemon(ctx, levelDifficulty(ctx), uState(ctx.state).alignType) : null;
   const at = getPlayer(ctx.state).c.pos;
   const id = at ? makemon(ctx, i ?? form, at, { adjacentOk: true }) : null;
   if (id !== null) tamedog(ctx, id, null, false, () => undefined);

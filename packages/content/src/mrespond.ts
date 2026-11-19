@@ -2,6 +2,7 @@
 // shriek, Medusa's gaze, the erinyes' aggravation. ref: src/mon.c m_respond(),
 // m_respond_shrieker(), m_respond_medusa()
 import { getLevel, getPlayer, type Ctx, type Entity } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { mCanSeeU } from './apparxy';
 import { stopOccupation } from './eat';
 import { makemon, monmaxDifficulty } from './generation';
@@ -46,7 +47,7 @@ function mRespondShrieker(ctx: Ctx, mon: Entity): void {
     if (!ctx.rng.rn2(13)) {
       // montoostrong(PM_PURPLE_WORM, monmax_difficulty_lev())
       const worm = ctx.defs.monster('nh:purple_worm');
-      const depth = getLevel(ctx.state, mon.c.pos?.level).depth; // level_difficulty()
+      const depth = levelDifficulty(ctx, getLevel(ctx.state, mon.c.pos?.level));
       const ulevel = getPlayer(ctx.state).c.experience?.level ?? 1;
       const tooStrong = worm.difficulty > monmaxDifficulty(depth, ulevel);
       def = tooStrong ? ctx.defs.monster('nh:baby_purple_worm') : worm;

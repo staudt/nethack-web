@@ -80,7 +80,8 @@ import { STATUE, rememberedStatue, statueAt } from './statuestate';
 import { isSokoban } from './sokoban';
 import { moverock } from './moverock';
 import { invWeight, weightCap } from './stats';
-import { setEndHow } from './endstate';
+import { escapeDungeon } from './endstate';
+import { mysteriousForce } from './mysteryforce';
 import { doorTrapped } from './btrapstate';
 import { bTrapped, blowDoor } from './btrapped';
 import { SHOP_DOOR_COST } from './shopdamage';
@@ -1169,6 +1170,13 @@ const up: ActionDef = {
     if (level.dlevel > 1) {
       // from a ladder, onto the ladder down there
       const to = { dungeon: level.dungeon, dlevel: level.dlevel - 1 };
+      // the Amulet in Gehennom: the mysterious force (then no stairs or ladder to arrive on)
+      const force = mysteriousForce(ctx, to);
+      if (force.kind === 'stay') return NORMAL_SPEED;
+      if (force.kind === 'down') {
+        ctx.goToLevel(force.to, 'random');
+        return NORMAL_SPEED;
+      }
       const p = playerAt(ctx);
       const ladder = isLadder(terrainIdAt(level, p.x, p.y)) ? ladderArrival(ctx, to, true) : null;
       ctx.goToLevel(to, ladder ?? 'down');
@@ -1185,15 +1193,9 @@ const up: ActionDef = {
   answer(ctx, value) {
     // Anything but 'y' returns ECMD_OK: no message, no time.
     if (value !== true) return 0;
-    // ref: src/do.c doup() -> prev_level() -> done(ESCAPED)
-    setEndHow(ctx, 'escaped');
-    ctx.endGame({
-      kind: 'escaped',
-      killer: 'escaped',
-      turn: ctx.state.turn,
-      depth: 1,
-      level: getPlayer(ctx.state).c.experience?.level ?? 1,
-    });
+    // ref: src/do.c doup() -> prev_level() -> done(ESCAPED); with the Amulet NetHack goes on to
+    // the Planes: an escape too until they exist (escapeDungeon())
+    escapeDungeon(ctx);
     return 0;
   },
 };

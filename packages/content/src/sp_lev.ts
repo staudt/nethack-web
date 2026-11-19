@@ -32,6 +32,7 @@ import {
   trapAt,
   VANILLA_TERRAIN,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { boulderAt } from './boulder';
 import { premapDetect } from './detect';
 import { makeEngrAt, type EngrType } from './engr';
@@ -279,7 +280,7 @@ export function createMonster(
     c.id !== undefined
       ? ctx.defs.monster(c.id)
       : c.class !== undefined
-        ? mkclass(ctx, c.class, level.depth, ['nogen'], { level }) // mkclass(class, G_NOGEN)
+        ? mkclass(ctx, c.class, levelDifficulty(ctx, level), ['nogen'], { level }) // mkclass(class, G_NOGEN)
         : null;
   if (def && c.id !== undefined) {
     if (def.genFlags.includes('uniq') && isExtinct(ctx.state, def.id)) return;
@@ -352,7 +353,10 @@ function createObject(
     c.montype === undefined
       ? undefined
       : [...c.montype].length === 1
-        ? mkclass(ctx, c.montype, level.depth, ['nogen'], { level, ignoreGone: true })?.id
+        ? mkclass(ctx, c.montype, levelDifficulty(ctx, level), ['nogen'], {
+            level,
+            ignoreGone: true,
+          })?.id
         : (c.montype as DefId);
   const pos = contentSpot(ctx, level, c, ldef, room);
   if (!pos) return;
@@ -400,10 +404,10 @@ function petrifiedStatue(ctx: Ctx, level: Level, statue: EntityId): void {
   deleteContents(ctx, statue);
   const it = ctx.state.entities[String(statue)]?.c.item;
   if (!it) return;
-  let wastyp: DefId = it.corpseOf ?? rndmonnum(ctx, level.depth).id;
+  let wastyp: DefId = it.corpseOf ?? rndmonnum(ctx, levelDifficulty(ctx, level)).id;
   let was: EntityId | null = null;
   // prevent endless loop in case makemon always fails
-  for (let i = 0; i < 1000; i++, wastyp = rndmonnum(ctx, level.depth).id) {
+  for (let i = 0; i < 1000; i++, wastyp = rndmonnum(ctx, levelDifficulty(ctx, level)).id) {
     // makemon without rndmonst() might create a group
     was = makemon(ctx, ctx.defs.monster(wastyp), null, {
       level: level.id,

@@ -25,6 +25,7 @@ import {
   type Pos,
   type Room,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { makemon } from './generation';
 import { makeGrave } from './grave';
 import { setGraveyard } from './graveyard';
@@ -160,15 +161,14 @@ function mkZooThronemon(
  * the throne under the ruler and the royal coffers: a chest holding `rn1(50 *
  * level_difficulty(), 10)` gold. A regular room (one level generation made) leaves out the
  * squares on the side of its door; a LevelDef region is irregular: the squares within one of that
- * door are left out. level_difficulty() is the level's depth (no builds-up adjustment, see
- * DEVIATIONS.md "Sokoban"). `inMklev`: made with the level (false for the wizard's mkroom).
+ * door are left out. `inMklev`: made with the level (false for the wizard's mkroom).
  * ref: src/mkroom.c fill_zoo()
  */
 export function fillZoo(ctx: Ctx, level: Level, roomIndex: number, inMklev = true): void {
   const room = level.rooms[roomIndex];
   const type = room?.type;
   if (!room || type === undefined) return;
-  const difficulty = level.depth; // level_difficulty()
+  const difficulty = levelDifficulty(ctx, level);
   // a LevelDef region (Sokoban's zoo) is irregular; rooms made by level generation or a RoomDef are not
   const irregular = level.def !== undefined && room.defPath === undefined;
   const doors = roomDoors(ctx, level, roomIndex, !irregular);

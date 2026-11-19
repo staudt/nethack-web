@@ -4,6 +4,7 @@
 //
 // Tameness is core's `MonsterComponent.tame` (mtame); the rest of NetHack's `struct edog` lives
 // in `modData.nh.edog[id]`, and a meal in progress (`mtmp->meating`) in `modData.nh.meating[id]`.
+import { levelDifficulty } from './levdiff';
 import { isVampshifter, monHatesSilver, restoreCham } from './chamstate';
 import { fleshPetrifies, resistsSton } from './stonestate';
 import { isWiz } from './wizstate';
@@ -426,7 +427,7 @@ export function makeFamiliar(
     } else if (!ctx.rng.rn2(3)) pm = petType(ctx);
     else {
       const max = 3 * skillLevel(ctx, 'cleric_spell');
-      pm = rndmonst(ctx, getLevel(ctx.state).depth, 0, max);
+      pm = rndmonst(ctx, levelDifficulty(ctx), 0, max);
       if (!pm) ctx.emit({ type: 'msg', key: 'dog.no_familiar' });
     }
     if (!pm) break;

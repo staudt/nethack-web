@@ -9,6 +9,7 @@ import type {
   ModApi,
   MonsterDef,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { RACES_TAB, type RaceRow } from './racetab';
 import { ROLES_TAB, enermod, type RoleRow } from './roletab';
 import { type RaceKey, type RoleKey, roleIs, urace, urole } from './urole';
@@ -510,8 +511,11 @@ export function registerHero(api: ModApi): void {
     if (nh['tourNewLevel'] === undefined) return;
     const fresh = nh['tourNewLevel'] === change.to && change.from !== null;
     delete nh['tourNewLevel'];
-    if (fresh && roleIs(ctx.state, 'tourist'))
-      gainExperience(ctx, ctx.state.playerId, ctx.state.levels[change.to]?.depth ?? 1);
+    if (fresh && roleIs(ctx.state, 'tourist')) {
+      const to = ctx.state.levels[change.to];
+      // more_experienced(level_difficulty(), 0) on the new level
+      gainExperience(ctx, ctx.state.playerId, to ? levelDifficulty(ctx, to) : 1);
+    }
   });
 }
 

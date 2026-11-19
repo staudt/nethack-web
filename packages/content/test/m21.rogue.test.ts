@@ -359,7 +359,7 @@ describe('makeroguerooms() against a hand-traced run', () => {
     ];
     const rng = scripted(script);
     const level = stoneLevel();
-    makeRogueRooms({ rng }, level);
+    makeRogueRooms({ rng, state: engine.newGame({ seed: 1 }).state }, level); // level_difficulty() 15
     // prettier-ignore
     expect(rng.bounds.slice(0, script.length)).toEqual([
       5, 22, 3, 12, 2,
@@ -416,7 +416,7 @@ describe('makeroguerooms() against a hand-traced run', () => {
     // rn2(5) = 0 everywhere: a crossing wherever allowed (a room exists, or x < 2 and y < 2)
     const rng = scripted([]);
     const level = stoneLevel();
-    makeRogueRooms({ rng }, level);
+    makeRogueRooms({ rng, state: engine.newGame({ seed: 1 }).state }, level); // level_difficulty() 15
     // (2,0) cannot be a crossing while no room exists: dx 2, dy 2, rlx 1, rly 1
     expect(level.rooms).toEqual([{ lx: 53, ly: 1, hx: 54, hy: 2, lit: true }]);
   });

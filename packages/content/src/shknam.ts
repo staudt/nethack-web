@@ -7,6 +7,7 @@
 //
 // Not ported: the tribute novel, irregular shops (no Minetown shop is one), Orcus's ghost town,
 // the scroll of charging shopkeepers carry (not in the object table: the roll is made).
+import { levelDifficulty } from './levdiff';
 import { mAt } from './wormstate';
 import { doorTrapped, setDoorTrapped } from './btrapstate';
 import {
@@ -89,7 +90,7 @@ function monAt(ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number): boo
  */
 function mkshobjAt(ctx: Ctx, level: Level, shp: ShopType, x: number, y: number): void {
   if (ctx.rng.rn2(100) < level.depth && !monAt(ctx, level, x, y)) {
-    const ptr = mkclass(ctx, 'm', level.depth); // mkclass(S_MIMIC, 0)
+    const ptr = mkclass(ctx, 'm', levelDifficulty(ctx, level)); // mkclass(S_MIMIC, 0)
     if (ptr && makemon(ctx, ptr, { x, y }, { level: level.id, inMklev: true }) !== null) return;
   }
   const at = { level: level.id, x, y };

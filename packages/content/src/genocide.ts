@@ -8,7 +8,6 @@
 // revert, class names ("dogs") in class genocide (a symbol or a monster name only), livelog and
 // conduct, wizard mode's '*'.
 import {
-  getLevel,
   getPlayer,
   sortedIds,
   type Ctx,
@@ -18,6 +17,7 @@ import {
   type MonsterDef,
   type Msg,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { done } from './end';
 import { EGG, deadSpecies, killEgg } from './eggstate';
 import { makemon, rndmonst } from './generation';
@@ -193,7 +193,7 @@ function answerType(ctx: Ctx, value: Json, data: GenoData): boolean {
     if (data.tries >= 5) {
       // cursed effect => no free pass (unless rndmonst() fails)
       if (!(how & REALLY)) {
-        const ptr = rndmonst(ctx, getLevel(ctx.state).depth);
+        const ptr = rndmonst(ctx, levelDifficulty(ctx));
         if (ptr) {
           genocideType(ctx, ptr, how, false);
           return false;
@@ -215,7 +215,7 @@ function answerType(ctx: Ctx, value: Json, data: GenoData): boolean {
   if (buf === null || declines(buf)) {
     // ... but no free pass if cursed
     if (!(how & REALLY)) {
-      const ptr = rndmonst(ctx, getLevel(ctx.state).depth);
+      const ptr = rndmonst(ctx, levelDifficulty(ctx));
       if (ptr) {
         genocideType(ctx, ptr, how, false);
         return false;

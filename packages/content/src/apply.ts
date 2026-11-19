@@ -11,6 +11,7 @@
 // Not ported (see DEVIATIONS.md): the tools outside the subset, Deafness, being underwater,
 // stasis, and the combined one-sentence report of a known magic whistle (each kind of move is
 // its own sentence here).
+import { levelDifficulty } from './levdiff';
 import { retouchObject } from './artitouch';
 import { vaultSummonGd } from './vaultstate';
 import {
@@ -339,7 +340,7 @@ function useBell(ctx: Ctx, obj: Entity): void {
     if (it.buc === 'cursed' && !ctx.rng.rn2(4) && hp) {
       // note: once any of them are gone, we stop all of them
       if (!NYMPHS.some((n) => isGone(ctx.state, n))) {
-        const def = mkclass(ctx, 'n', getLevel(ctx.state).depth);
+        const def = mkclass(ctx, 'n', levelDifficulty(ctx));
         const mid = makemon(
           ctx,
           def,

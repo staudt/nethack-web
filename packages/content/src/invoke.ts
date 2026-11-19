@@ -14,7 +14,7 @@
 // (TAMING, LEV_TELE, ENLIGHTENING, INVIS: the Orbs, the Magic Mirror, the Eyes), crystal balls,
 // a gremlin hero's light damage from Sunsword at herself, leashed pets holding back the portal
 // (next_to_u()), flinging poison up, down or at herself (the spit's directions).
-import { isUniqueRelic } from './uhave';
+import { isUniqueRelic, uHave } from './uhave';
 import {
   DIR_LIST,
   NORMAL_SPEED,
@@ -45,7 +45,7 @@ import { rnz } from './corpses';
 import { DIRECTION_OPTIONS, heroItem, itemArg, spitVenom } from './dothrow';
 import { isSick } from './hunger';
 import { lookHere } from './itemactions';
-import { findHell, inHell } from './levelflags';
+import { findHell, inEndgame, inHell } from './levelflags';
 import { floatDown, floatUp } from './levitation';
 import { migrateToLevel } from './migrate';
 import { mksobjFull } from './mkobj';
@@ -290,16 +290,22 @@ function invokeCreatePortal(ctx: Ctx, obj: Entity): number {
 
 /**
  * The portal to dungeon `i`: to its entry when it starts no shallower than here, else to the
- * deepest level she reached in it; within this dungeon "You feel very disoriented for a
- * moment.", else "You are surrounded by a shimmering sphere!" ("You feel weightless for a
- * moment." blind) and she arrives at a random spot. (no Amulet, endgame or leashes)
+ * deepest level she reached in it; within this dungeon, while she carries the Amulet of Yendor,
+ * or to or from the Planes "You feel very disoriented for a moment.", else "You are surrounded
+ * by a shimmering sphere!" ("You feel weightless for a moment." blind) and she arrives at a
+ * random spot. (no leashes)
  */
 function portalTo(ctx: Ctx, i: number): number {
   const d = ctx.state.dungeons[i];
   const here = getLevel(ctx.state);
   if (!d) return NORMAL_SPEED;
   const dlevel = d.depthStart >= here.depth ? (d.entry ?? 1) : ureached(ctx, d.id);
-  if (d.id === here.dungeon) {
+  if (
+    uHave(ctx.state, 'amulet') ||
+    inEndgame(ctx.state, here) ||
+    inEndgame(ctx.state, { dungeon: d.id, dlevel }) ||
+    d.id === here.dungeon
+  ) {
     say(ctx, 'invoke.disoriented');
     return NORMAL_SPEED;
   }

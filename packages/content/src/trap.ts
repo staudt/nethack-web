@@ -9,6 +9,7 @@
 // src/pager.c doidtrap(). Also the teleport moves, which the trap code and teleds() share:
 // src/teleport.c teleds(), safe_teleds(), tele(), scrolltele(), level_tele(), rloc(),
 // rloc_to_core(), u_teleport_mon() (the spots come from teleport.ts)
+import { uHave } from './uhave';
 import { isVampshifter, restoreCham } from './chamstate';
 import { maybeUnhideAt } from './hide';
 import { findgd, uleftvaultLate, vaultOccupied } from './vaultstate';
@@ -57,6 +58,7 @@ import {
   dngBottom,
   dungeonBottom,
   findHell,
+  inEndgame,
   inHell,
   inWTower,
   invocationLev,
@@ -2103,15 +2105,22 @@ const teleData = (stage: TeleData['stage'], cost: number, trap: boolean): TeleDa
  * The hero teleports within the level: "A mysterious force prevents you from teleporting!" on a
  * no-teleport level; with teleport control or a blessed scroll, and not stunned, "Where do you
  * want to be teleported?" and the position prompt (answered through {@link TELE_ID}); else to a
- * random safe spot. Reading the scroll always makes it known, so the reader learns it whatever
- * happens. While another prompt is pending (two in one turn) the teleport is random.
- * ref: src/teleport.c tele(), scrolltele() (no Amulet, Wizard's Tower or wizard mode)
+ * random safe spot. While she carries the Amulet of Yendor, or on a level of the Wizard's
+ * Tower, 1 time in 3 nothing happens but "You feel disoriented for a moment.". While another
+ * prompt is pending (two in one turn) the teleport is random. Returns whether a scroll read for
+ * it becomes known (always, but for the disorientation).
+ * ref: src/teleport.c tele(), scrolltele() (no wizard mode)
  */
-export function tele(ctx: Ctx, opts: TeleOptions = {}): void {
+export function tele(ctx: Ctx, opts: TeleOptions = {}): boolean {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   if (noteleportLevel(ctx, level, ctx.state.playerId)) {
     say(ctx, 'tele.mysterious_force');
-    return;
+    return true;
+  }
+  if ((uHave(ctx.state, 'amulet') || onWTowerLevel(ctx.state, level)) && !ctx.rng.rn2(3)) {
+    // disorientation doesn't reveal that this is a teleport attempt
+    say(ctx, 'tele.disoriented_moment');
+    return false;
   }
   const h = heroEnt(ctx);
   if (
@@ -2121,9 +2130,10 @@ export function tele(ctx: Ctx, opts: TeleOptions = {}): void {
   ) {
     const data = teleData('tele', opts.cost ?? 0, opts.trap === true);
     askTeleport(ctx, TELE_ID, data as unknown as Json); // unconscious: random already
-    return;
+    return true;
   }
   safeTeleds(ctx);
+  return true;
 }
 
 /**
@@ -2167,20 +2177,25 @@ function heroDepth(ctx: Ctx, level: Readonly<Level>): number {
 }
 
 /**
- * A level teleport: "You feel very disoriented for a moment." in Sokoban; with teleport control
+ * A level teleport: "You feel very disoriented for a moment." while she carries the Amulet of
+ * Yendor, on the Planes and in Sokoban; with teleport control
  * (and not stunned) the prompt "To what level do you want to teleport?" (answered through
  * {@link TELE_ID}); else a random level: "You shudder for a moment." when it is this one, else
  * a random spot of the level at that depth ("You materialize on a different level!"). Leaving a
  * shop this way is leaving it by the stairs. A level teleporter's own messages (`trap`) come
  * once level_tele() is over, before the deferred goto_level() at the end of the turn (C's
  * schedule_goto()), on every outcome.
- * ref: src/teleport.c level_tele() (no Amulet, endgame, quest, Knox, Gehennom, leashed pets or
- * level names), random_teleport_level(); src/dungeon.c get_level()
+ * ref: src/teleport.c level_tele() (no quest, leashed pets or level names),
+ * random_teleport_level(); src/dungeon.c get_level()
  */
 export function levelTele(ctx: Ctx, opts: { cost?: number; trap?: boolean } = {}): void {
   const level = getLevel(ctx.state, heroPos(ctx).level);
   const trap = opts.trap === true;
-  if (level.dungeon === SOKOBAN_DUNGEON) {
+  if (
+    uHave(ctx.state, 'amulet') ||
+    inEndgame(ctx.state, level) ||
+    level.dungeon === SOKOBAN_DUNGEON
+  ) {
     say(ctx, 'tele.very_disoriented');
     levelTeleTrapAfter(ctx, trap);
     return;

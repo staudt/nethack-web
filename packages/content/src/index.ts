@@ -44,6 +44,7 @@ import { registerGehennom } from './gehennom';
 import { registerShops } from './shknam';
 import { registerZoo } from './zoo';
 import { registerVault } from './vault';
+import { registerHarass } from './harass';
 import { registerSeduce } from './seduce';
 import { registerDemonTalk } from './demontalk';
 import { registerAmuletWish } from './wish';
@@ -226,6 +227,7 @@ export const vanillaMod: Mod = {
     registerShops(api); // after the LevelDef contents, as fill_special_room()
     registerZoo(api); // likewise
     registerVault(api); // likewise; the vault is the last room
+    registerHarass(api); // amulet(), after invault() by priority
     registerRooms(api); // after the pets arrive, as goto_level()
     registerShopDamage(api); // after check_special_room(FALSE), as goto_level()
     registerGehennom(api); // the passtune right after the layout; Gehennom's arrival message

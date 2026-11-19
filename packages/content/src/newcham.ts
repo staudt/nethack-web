@@ -14,6 +14,7 @@
 // a monster), monsters wielding cockatrice corpses (mselftouch()), liquid under a form that can
 // no longer swim or fly (no pools), set_apparxy() and fleeing from a scary square (an Elbereth)
 // after a change during the monsters' move (newcham() is not told it is the monsters' move).
+import { levelDifficulty } from './levdiff';
 import { monHasSpecial } from './uhave';
 import { mApType, seemimic } from './mimicstate';
 import { isGuard } from './vaultstate';
@@ -380,7 +381,8 @@ export function newcham(
   const hpn = hp?.cur ?? 1;
   const hpd = hp?.max ?? 1;
   // set level and hit points
-  const depth = ctx.state.levels[p.level]?.depth ?? 1;
+  const lv = ctx.state.levels[p.level];
+  const depth = lv ? levelDifficulty(ctx, lv) : 1;
   m.level = adjLev(mdat, depth, getPlayer(ctx.state).c.experience?.level ?? 1);
   const newhp = newmonhp(ctx, m.level, mdat.id);
   if (hp) {

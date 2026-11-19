@@ -18,6 +18,7 @@ import {
   type MonsterDef,
   type Pos,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { uWieldArt } from './artistate';
 import { golemhp } from './golem';
 import { boulderCells } from './boulder';
@@ -32,7 +33,7 @@ import { temperatureShift } from './temperature';
 import { hideunder } from './hide';
 import { setMimicSym } from './mimicstate';
 import { pmToCham, setCham, VLAD_THE_IMPALER } from './chamstate';
-import { CANDELABRUM } from './uhave';
+import { CANDELABRUM, uHave } from './uhave';
 import { protFromShapeChangers } from './props';
 import { setMinvis } from './invis';
 import { mInAir, monLiquidOk } from './liquid';
@@ -214,8 +215,8 @@ export function newmonhp(ctx: Ctx, mlev: number, id?: DefId): number {
  * ref: src/makemon.c peace_minded(). The erinyes are peaceful only to a hero who never abused
  * her alignment (`!u.ualign.abuse`). Then her race's love and hate (race_peaceful(),
  * race_hostile(): a dwarf's kin are dwarves and gnomes, a human hates gnomes and orcs). A
- * co-aligned minion is peaceful unless she has strayed at all. Not ported: quest/guardian
- * sounds, Amulet.
+ * co-aligned minion is peaceful unless she has strayed at all; a chaotic (or unaligned) monster
+ * is hostile to her while she carries the Amulet. Not ported: quest/guardian sounds.
  */
 export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   if (def.flags.includes('peaceful')) return true;
@@ -226,6 +227,8 @@ export function peaceMinded(ctx: Ctx, def: MonsterDef): boolean {
   const mal = def.alignment;
   const u = uState(ctx.state);
   if (Math.sign(mal) !== Math.sign(u.alignType)) return false;
+  // Negative monster hostile to player with Amulet.
+  if (mal < 0 && uHave(ctx.state, 'amulet')) return false;
   // minions are hostile to players that have strayed at all
   if (def.flags.includes('minion')) return u.alignRecord >= 0;
   // a co-aligned monster may still be hostile, more so when the hero has strayed
@@ -531,6 +534,7 @@ export function makemon(
   // ref: makemon(): "if you are to make a specific monster and it has already been genocided,
   // return" (an extinct one is still made when asked for by name)
   if (def && isGenocided(ctx.state, def.id)) return null;
+  const difficulty = levelDifficulty(ctx, level); // level_difficulty()
   let mdef = def;
   if (!mdef) {
     // ref: makemon(): "make a random (common) monster that can survive here" (special levels
@@ -538,7 +542,7 @@ export function makemon(
     // is free, and an explicit spot's boulder does not matter here (see withBoulders())
     let tryct = 0;
     do {
-      mdef = rndmonst(ctx, level.depth, 0, 0, level);
+      mdef = rndmonst(ctx, difficulty, 0, 0, level);
       if (!mdef) return null;
     } while (++tryct <= 50 && !goodpos(ctx, level, rules, avoid, at.x, at.y, gpMon(ctx, mdef)));
   }
@@ -548,7 +552,7 @@ export function makemon(
   propagate(ctx, mdef, opts.noCountBirth !== true);
 
   const ulevel = heroLevel(ctx);
-  const mlev = adjLev(mdef, level.depth, ulevel);
+  const mlev = adjLev(mdef, difficulty, ulevel);
   const hp = newmonhp(ctx, mlev, mdef.id);
   // ref: makemon(): `mtmp->female = femaleok ? rn2(2) : 0` for a kind that is neither male,
   // female nor neuter; drawn for the amorous demon only (DEVIATIONS "Monster generation")
@@ -571,7 +575,7 @@ export function makemon(
   // spiders made with the level get an object on their square and hide under it (hideunder()),
   // eels made with the level hide in their water,
   // the stalker and the black light are invisible for good, leprechauns sleep, jabberwocks and
-  // nymphs 4 times in 5 (no Amulet), co-aligned unicorns are peaceful
+  // nymphs 4 times in 5 (not while she carries the Amulet), co-aligned unicorns are peaceful
   if (female) setMonFemale(ctx, id, true);
   const mon = ctx.state.entities[String(id)]?.c.monster;
   const mlet = mdef.glyph.ch;
@@ -587,7 +591,8 @@ export function makemon(
     const e = ctx.state.entities[String(id)];
     if (e) setMinvis(ctx, e);
   } else if (mon && mlet === 'l') mon.asleep = true;
-  else if (mon && (mlet === 'n' || mlet === 'J') && ctx.rng.rn2(5)) mon.asleep = true;
+  else if (mon && (mlet === 'n' || mlet === 'J') && ctx.rng.rn2(5) && !uHave(ctx.state, 'amulet'))
+    mon.asleep = true;
   // ref: makemon() S_ORC: `if (Race_if(PM_ELF)) mtmp->mpeaceful = FALSE`
   else if (mon && mlet === 'o' && raceIs(ctx.state, 'elf')) mon.peaceful = false;
   // ref: makemon() S_UNICORN: a unicorn of the hero's alignment is peaceful (MM_ANGRY too)
@@ -621,8 +626,9 @@ export function makemon(
   // in his own shape so he can carry it)
   if (mdef.id === VLAD_THE_IMPALER && allowMinvent) mongets(ctx, id, CANDELABRUM);
   // ref: makemon(): `if (gi.in_mklev)`: minor demons, wumpuses, long worms and giant eels made with
-  // the level sleep 4 times in 5 (no Amulet of Yendor here)
-  if (mon && opts.inMklev && sleepsInMklev(mdef) && ctx.rng.rn2(5)) mon.asleep = true;
+  // the level sleep 4 times in 5, unless she carries the Amulet
+  if (mon && opts.inMklev && sleepsInMklev(mdef) && !uHave(ctx.state, 'amulet') && ctx.rng.rn2(5))
+    mon.asleep = true;
   // ref: makemon(): `mndx == PM_LONG_WORM && (mtmp->wormno = get_wormno()) != 0`:
   // initworm(mtmp, allowtail ? rn2(5) : 0), and the tail laid behind it
   if (mdef.id === 'nh:long_worm') {
@@ -670,7 +676,7 @@ export function makemon(
   }
   // ref: makemon(): after any group, "equip with weapons / armor" (m_initweap, m_initinv,
   // m_dowear(creation))
-  if (allowMinvent) givePossessions(ctx, id, level.depth, { inMklev: opts.inMklev === true });
+  if (allowMinvent) givePossessions(ctx, id, difficulty, { inMklev: opts.inMklev === true });
   // ref: makemon(): `if (ptr->mflags3 && !(mmflags & MM_NOWAIT))`: M3_WAITFORU, M3_CLOSE, and
   // STRAT_APPEARMSG for those and the covetous kinds
   if (!opts.noWait) {

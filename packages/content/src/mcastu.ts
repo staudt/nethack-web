@@ -35,6 +35,7 @@ import {
   type Msg,
   type Pos,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { burnAwaySlime } from './slimestate';
 import { blockersOf } from './boulder';
 import { flashburn, monSpellHitsSpot } from './buzz';
@@ -560,7 +561,7 @@ function mcastInsects(ctx: Ctx, mon: Entity, ap: Pos): void {
   const level = p ? ctx.state.levels[p.level] : undefined;
   if (!p || !level) return;
   // Try for insects, and if there are none left, go for (sticks to) snakes.
-  const pm = mkclass(ctx, 'a', level.depth);
+  const pm = mkclass(ctx, 'a', levelDifficulty(ctx, level));
   const cls = pm ? 'a' : 'S';
   let success = false;
   const oldseen = monsterCensus(ctx);
@@ -571,7 +572,7 @@ function mcastInsects(ctx: Ctx, mon: Entity, ap: Pos): void {
     // enexto(&bypos, mtmp->mux, mtmp->muy, mtmp->data)
     const bypos = mnextoPos(ctx, level, null, { x: ap.x, y: ap.y }, ctx.defs.monster(mon.def));
     if (!bypos) return;
-    const def = mkclass(ctx, cls, level.depth);
+    const def = mkclass(ctx, cls, levelDifficulty(ctx, level));
     const id = def ? makemon(ctx, def, bypos, { angry: true }) : null; // MM_ANGRY | MM_NOMSG
     const m = id === null ? undefined : ctx.state.entities[String(id)]?.c.monster;
     if (m) {

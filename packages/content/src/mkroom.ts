@@ -8,6 +8,7 @@
 // Swamps (mkswamp()) are made at once: pools in a checkerboard with eels and piranhas, and fungi.
 // Not ported (DEVIATIONS.md "Special rooms"): the wizard-mode SHOPTYPE and pick_room()'s
 // `|| wizard`, the swamp's level sounds (has_swamp).
+import { levelDifficulty } from './levdiff';
 import { medusaDepth } from './levelflags';
 import type { Ctx, DefId, Level, Pos, Room } from '@nh/core';
 import { cellIndex, isPlainFloor, itemsAt, trapAt } from '@nh/core';
@@ -198,7 +199,7 @@ export function mkswamp(ctx: Ctx, level: Level): void {
           }
         } else if (!ctx.rng.rn2(4)) {
           // swamps tend to be moldy
-          const def = mkclass(ctx, 'F', level.depth);
+          const def = mkclass(ctx, 'F', levelDifficulty(ctx, level));
           makemon(ctx, def, { x: sx, y: sy }, { level: level.id, inMklev: true });
         }
       }
@@ -241,7 +242,7 @@ export function mkSpecialRoom(ctx: Ctx, level: Level): void {
   else if (uDepth > 8 && !rn2(5)) doMkroom(ctx, level, TEMPLE);
   else if (uDepth > 9 && !rn2(5) && !gone('nh:killer_bee')) doMkroom(ctx, level, BEEHIVE);
   else if (uDepth > 11 && !rn2(6)) doMkroom(ctx, level, MORGUE);
-  else if (uDepth > 12 && !rn2(8) && antholemon(ctx.state, ctx.defs, uDepth))
+  else if (uDepth > 12 && !rn2(8) && antholemon(ctx.state, ctx.defs, levelDifficulty(ctx, level)))
     doMkroom(ctx, level, ANTHOLE);
   else if (uDepth > 14 && !rn2(4) && !gone('nh:soldier')) doMkroom(ctx, level, BARRACKS);
   else if (uDepth > 15 && !rn2(6)) doMkroom(ctx, level, SWAMP);

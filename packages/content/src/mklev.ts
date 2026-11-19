@@ -1,6 +1,8 @@
 // Filling the rooms of a new level with a monster, traps, gold, a box and objects.
 // ref: src/mklev.c fill_ordinary_room(), makelevel(), mktrap()
 // makelevel()'s special room (mkroom.ts) is picked before the rooms are filled.
+import { uHave } from './uhave';
+import { levelDifficulty } from './levdiff';
 import { pruneDoorTraps, setDoorTrapped } from './btrapstate';
 import type { Ctx, DefId, Level, ModApi, Pos, Room } from '@nh/core';
 import { cellIndex, mazexy, trapAt, VANILLA_TERRAIN } from '@nh/core';
@@ -139,7 +141,7 @@ export function mktrap(
   kind: DefId | null = null,
   noSpiderOnWeb = false,
 ): void {
-  const lvl = level.depth; // level_difficulty()
+  const lvl = levelDifficulty(ctx, level);
   const noteleport = levelFlags(ctx, level).noteleport === true; // svl.level.flags.noteleport
   const hell = inHell(ctx.state, level);
   if (kind === null && isRogueLevel(level)) kind = traptypeRogue(ctx);
@@ -194,8 +196,11 @@ export function mktrap(
 export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
   let pos: Pos | null;
   let trycnt = 0;
-  // put a sleeping monster inside
-  if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room))) {
+  // put a sleeping monster inside (always while she carries the Amulet)
+  if (
+    (uHave(ctx.state, 'amulet') || ctx.rng.rn2(3) === 0) &&
+    (pos = somexyspace(ctx, level, room))
+  ) {
     const tmonst = makemon(ctx, null, pos, { level: level.id, nogroup: true, inMklev: true });
     // !occupied(): somexyspace() found no trap or furniture there
     const tdef = tmonst === null ? undefined : ctx.state.entities[String(tmonst)]?.def;
@@ -203,7 +208,7 @@ export function fillOrdinaryRoom(ctx: Ctx, level: Level, room: Room): void {
       maketrap(ctx, level.id, pos.x, pos.y, TRAP.web);
   }
   // put traps inside
-  let x = 8 - Math.trunc(level.depth / 6);
+  let x = 8 - Math.trunc(levelDifficulty(ctx, level) / 6);
   if (x <= 1) x = 2;
   while (ctx.rng.rn2(x) === 0 && ++trycnt < 1000) mktrap(ctx, level, room);
   if (ctx.rng.rn2(3) === 0 && (pos = somexyspace(ctx, level, room)))
@@ -395,13 +400,13 @@ export function keepTrappedDoors(ctx: Ctx, level: Level): void {
     const typ = terrainIdAt(level, p.x, p.y);
     if (
       (typ === T.door_closed || typ === T.door_locked) &&
-      level.depth >= 9 && // level_difficulty()
+      levelDifficulty(ctx, level) >= 9 &&
       !ctx.rng.rn2(5) &&
       !MIMICS.every((id) => isGone(ctx.state, id))
     ) {
       // make a mimic instead
       setTerrain(level, p.x, p.y, T.doorway);
-      const id = makemon(ctx, mkclass(ctx, 'm', level.depth), p, {
+      const id = makemon(ctx, mkclass(ctx, 'm', levelDifficulty(ctx, level)), p, {
         level: level.id,
         inMklev: true,
       });

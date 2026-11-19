@@ -1,10 +1,14 @@
 // Potions: quaffing and the effects of the potions in our subset.
 // ref: src/potion.c dodrink(), dopotion(), peffects(), healup()
+import { mysteriousForce } from './mysteryforce';
+import { escapeDungeon } from './endstate';
+import { uHave } from './uhave';
 import { setUcreamed } from './creamed';
 import {
   NORMAL_SPEED,
   cellIndex,
   dungeonLayout,
+  rootDungeon,
   getLevel,
   type ActionDef,
   type Ctx,
@@ -642,8 +646,9 @@ export function canRiseUp(
 }
 
 /**
- * Cursed: she rises through the ceiling to the level above (not from the first level, which
- * would need the Amulet, nor in Sokoban: "You have an uneasy feeling."). Else one experience
+ * Cursed: she rises through the ceiling to the level above (from the first level only with the
+ * Amulet, which takes her out of the dungeon: an escape until the Planes exist; not in Sokoban:
+ * "You have an uneasy feeling."; the mysterious force may act in Gehennom). Else one experience
  * level; blessed puts her at a random point of the new level's range.
  * ref: src/potion.c peffect_gain_level(), src/dungeon.c Can_rise_up()
  */
@@ -654,13 +659,15 @@ function peffectGainLevel(ctx: Ctx, p: Entity): Effect {
     const level = getLevel(ctx.state);
     const layout = dungeonLayout(ctx.state, level.dungeon);
     const hp = h.c.pos;
-    if (!hp || !canRiseUp(ctx, level, hp.x, hp.y)) {
+    // ledger_no(&u.uz) == 1: the first level of the Dungeons of Doom
+    const onLvl1 = level.dungeon === rootDungeon(ctx.state).id && level.dlevel === 1;
+    if (!hp || !(onLvl1 ? uHave(ctx.state, 'amulet') : canRiseUp(ctx, level, hp.x, hp.y))) {
       msg(ctx, 'potion.uneasy');
       return { unknown: true };
     }
     const depth = layout.depthStart + level.dlevel - 1;
-    const to = levelAtDepth(ctx, level, depth - 1);
-    if (to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
+    const to = onLvl1 ? null : levelAtDepth(ctx, level, depth - 1);
+    if (to && to.dungeon === level.dungeon && to.dlevel === level.dlevel) {
       msg(ctx, 'potion.tasted_bad');
       return { unknown: true };
     }
@@ -672,7 +679,15 @@ function peffectGainLevel(ctx: Ctx, p: Entity): Effect {
         ceiling: { key: pos ? ceilingKey(ctx, level, pos.x, pos.y) : 'earth.ceiling.ceiling' },
       },
     });
-    ctx.goToLevel(to, 'random'); // goto_level(): u_on_rndspot(), pickup(1)
+    // goto_level(&earth_level): the Planes are not reachable yet (m23b step 7)
+    if (!to) {
+      escapeDungeon(ctx);
+      return { unknown: true };
+    }
+    const force = mysteriousForce(ctx, to);
+    if (force.kind === 'stay') return { unknown: true };
+    // goto_level(): u_on_rndspot(), pickup(1)
+    ctx.goToLevel(force.kind === 'down' ? force.to : to, 'random');
     if (!ctx.state.gameOver) lookHere(ctx);
     return { unknown: true };
   }

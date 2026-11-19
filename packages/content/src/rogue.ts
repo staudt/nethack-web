@@ -18,6 +18,7 @@
 // rooms-and-corridors level whose doors are all doorways or secret doors with no door behind.
 import type { Ctx, DefId, EntityId, ItemComponent, Level, LevelDef, Pos, Room } from '@nh/core';
 import { VANILLA_TERRAIN, generateLevel, insideRoom, levelStairs } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { makemon } from './generation';
 import { mksobj, placeOnFloor } from './items';
 import { ROGUE } from './levelflags';
@@ -85,7 +86,7 @@ export function rogueFits(width: number, height: number): boolean {
  * `rnd(sw - 3 - dx + 1)`, the last row one deeper), miniwalk(); src/mklev.c add_room()
  * (do_room_or_subroom())
  */
-export function makeRogueRooms(ctx: Pick<Ctx, 'rng'>, level: Level): void {
+export function makeRogueRooms(ctx: Pick<Ctx, 'rng' | 'state'>, level: Level): void {
   const { rng } = ctx;
   const { sw, sh } = rogueSection(level.width, level.height);
   const r: Section[][] = [[], [], []];
@@ -272,13 +273,12 @@ function addRoom(
  * A door in a room's wall, with every draw of dodoor() and dosdoor(), which on the Rogue level
  * always leave no door: a doorway, or a secret door with nothing behind it (roguecorr() sets
  * D_NODOOR after dosdoor(); dosdoor() itself already does for a door, so no trap and no mimic).
- * ref: src/mklev.c dodoor() (maybe_sdoor(8)), dosdoor() (no shop door here; level_difficulty()
- * is the depth)
+ * ref: src/mklev.c dodoor() (maybe_sdoor(8)), dosdoor() (no shop door here)
  */
-function rogueDoor(ctx: Pick<Ctx, 'rng'>, level: Level, x: number, y: number): void {
+function rogueDoor(ctx: Pick<Ctx, 'rng' | 'state'>, level: Level, x: number, y: number): void {
   const { rng } = ctx;
   const horiz = terrainIdAt(level, x, y) === T.hwall;
-  const difficulty = level.depth;
+  const difficulty = levelDifficulty(ctx, level);
   if (level.depth > 2 && rng.rn2(8) === 0) {
     rng.rn2(5); // D_LOCKED or D_CLOSED
     if (difficulty >= 4) rng.rn2(20); // D_TRAPPED

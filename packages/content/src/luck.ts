@@ -15,6 +15,7 @@ import {
   type ModApi,
   type MonsterDef,
 } from '@nh/core';
+import { uHave } from './uhave';
 import { P, setIntrinsic, heroHas, wornIn } from './props';
 import { A_NONE } from './aligntyp';
 import { luckTimeout, moreluck } from './gem';
@@ -95,6 +96,11 @@ export interface UState {
   udemigod?: true;
   /** u.udg_cnt: turns until the next intervene() (absent = 0) */
   udgCnt?: number;
+  /**
+   * context.mysteryforce: how much rarer the mysterious force has become (absent = 0); it grows
+   * each time the force kicks in. ref: src/do.c goto_level()
+   */
+  mysteryForce?: number;
 }
 
 const DEFAULTS: UState = {
@@ -274,10 +280,11 @@ export function xkilledPenalties(
 }
 
 /**
- * Luck times out toward 0 every 600 turns (300 while the god is angry). Cursed luckstones stop
+ * Luck times out toward 0 every 600 turns (300 while the god is angry or she carries the Amulet of
+ * Yendor). Cursed luckstones stop
  * bad Luck from timing out, blessed ones good Luck, uncursed ones both.
  * An Archeologist wearing a fedora times out toward 1.
- * ref: src/timeout.c nh_timeout() (no Amulet, full moon or Friday 13th)
+ * ref: src/timeout.c nh_timeout() (no full moon or Friday 13th)
  */
 export function registerLuck(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
@@ -287,7 +294,8 @@ export function registerLuck(api: ModApi): void {
       roleIs(ctx.state, 'archeologist') &&
       wornIn(ctx.state, ctx.state.playerId, 'helm')?.def === 'nh:fedora';
     const baseluck = fedora ? 1 : 0;
-    if (u.luck !== baseluck && ctx.state.turn % (u.ugangr ? 300 : 600) === 0) {
+    const period = uHave(ctx.state, 'amulet') || u.ugangr ? 300 : 600;
+    if (u.luck !== baseluck && ctx.state.turn % period === 0) {
       const { nostone, timeLuck } = luckTimeout(ctx.state);
       if (u.luck > baseluck && (nostone || timeLuck < 0)) setU(ctx, { luck: u.luck - 1 });
       else if (u.luck < baseluck && (nostone || timeLuck > 0)) setU(ctx, { luck: u.luck + 1 });

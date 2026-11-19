@@ -25,6 +25,7 @@
 // Ludios (m_next2m(): never reached), deafness (never deaf), tins (no lizard tin), pools (but
 // the wand of create monster's spot), lava, ice and drawbridges, `trycall()` (naming unknown types), the fire and
 // frost horns and the expensive camera (no such objects), Half_spell_damage (no source), steeds.
+import { levelDifficulty } from './levdiff';
 import { monHasSpecial } from './uhave';
 import { isVlad, monHatesSilver } from './chamstate';
 import {
@@ -2307,7 +2308,7 @@ export function findMisc(ctx: Ctx, id: EntityId, mux?: Pos): MuseChoice<MuseMisc
  */
 function museNewchamMon(ctx: Ctx, mon: Entity): MonsterDef | null {
   const p = mon.c.pos;
-  return rndmonst(ctx, p ? getLevel(ctx.state, p.level).depth : 1);
+  return rndmonst(ctx, p ? levelDifficulty(ctx, getLevel(ctx.state, p.level)) : 1);
 }
 
 /**

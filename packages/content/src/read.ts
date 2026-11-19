@@ -880,11 +880,12 @@ function readScroll(ctx: Ctx, _user: EntityId, itemId: EntityId): void {
       break;
     case 'nh:scroll_of_teleportation':
       // ref: seffect_teleportation(): confused or cursed, a level teleport (its message makes
-      // the scroll known); else scrolltele(), which always learns it
+      // the scroll known); else scrolltele(), which learns it unless she only feels disoriented
       // (controlled, the prompt's answer spends the move)
-      if (confused || it.buc === 'cursed') levelTele(ctx, { cost: NORMAL_SPEED });
-      else tele(ctx, { blessed: it.buc === 'blessed', cost: NORMAL_SPEED });
-      known = true;
+      if (confused || it.buc === 'cursed') {
+        levelTele(ctx, { cost: NORMAL_SPEED });
+        known = true;
+      } else known = tele(ctx, { blessed: it.buc === 'blessed', cost: NORMAL_SPEED });
       break;
     case 'nh:scroll_of_earth':
       known = seffectEarth(ctx, scroll, confused);

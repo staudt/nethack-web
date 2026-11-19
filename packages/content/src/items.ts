@@ -28,6 +28,7 @@ import {
   isRottable,
   isRustprone,
 } from './material';
+import { levelDifficulty } from './levdiff';
 import { setBoxTknown, setBoxTrapped } from './btrapstate';
 import { CHARGED_RINGS } from './objects';
 import { mergeBills, samePrice, splitbill } from './eshk';
@@ -450,9 +451,11 @@ export function mkgold(
   at: { level: LevelId; x: number; y: number },
 ): EntityId {
   if (amount <= 0) {
-    const depth = ctx.state.levels[at.level]?.depth ?? 1;
+    // the multiplier from the depth, the amount from level_difficulty()
+    const lv = ctx.state.levels[at.level];
+    const depth = lv?.depth ?? 1;
     const mul = ctx.rng.rnd(Math.trunc(30 / Math.max(12 - depth, 2)));
-    amount = 1 + ctx.rng.rnd(depth + 2) * mul;
+    amount = 1 + ctx.rng.rnd((lv ? levelDifficulty(ctx, lv) : 1) + 2) * mul;
   }
   return mksobj(ctx, ctx.defs.object('nh:gold_piece'), { init: false, quantity: amount, at });
 }

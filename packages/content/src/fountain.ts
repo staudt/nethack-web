@@ -30,6 +30,7 @@ import {
   type Msg,
   type Pos,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { A_LAWFUL } from './aligntyp';
 import { onameObj } from './artiname';
 import { artifactRow } from './artilist';
@@ -236,7 +237,7 @@ function dowaterdemon(ctx: Ctx, action: DefId, at: Pos): boolean {
   if (!blind(ctx)) say(ctx, 'fountain.unleash', { mon: monNam(ctx, mon) });
   else say(ctx, 'fountain.presence_of_evil');
   // give those on low levels a (slightly) better chance of survival
-  if (ctx.rng.rnd(100) > 80 + getLevel(ctx.state).depth) {
+  if (ctx.rng.rnd(100) > 80 + levelDifficulty(ctx)) {
     say(ctx, 'fountain.grateful');
     mongone(ctx, id);
     const data: FountainWishData = { tries: 0, wizard: false, fountain: { x: at.x, y: at.y } };

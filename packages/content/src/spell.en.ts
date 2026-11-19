@@ -134,6 +134,7 @@ export const spellMessagesEn: Record<string, string> = {
   'cast.too_hungry': 'You are too hungry to cast that spell.',
   'cast.lack_strength': 'You lack the strength to cast spells.',
   'cast.concentration': 'Your concentration falters while carrying so much stuff.',
+  'cast.amulet_drain': 'You feel the amulet draining your energy away.',
   'cast.no_energy': "You don't have enough energy to cast that spell.",
   'cast.no_energy_yet': "You don't have enough energy to cast that spell yet.",
   'cast.no_energy_anymore': "You don't have enough energy to cast that spell anymore.",

@@ -9,6 +9,7 @@
 //
 // Not ported: record_achievement(ACH_INVK); body_part(SPINE) for a polymorphed hero (always
 // "spine").
+import { levelDifficulty } from './levdiff';
 import { isVampshifter } from './chamstate';
 import {
   getLevel,
@@ -46,9 +47,10 @@ const say = (ctx: Ctx, key: string): void => ctx.emit({ type: 'msg', key });
  */
 export function mkundead(ctx: Ctx, x: number, y: number, reviveCorpses: boolean): void {
   const level = getLevel(ctx.state);
-  let cnt = Math.trunc((level.depth + 1) / 10) + ctx.rng.rnd(5);
+  const difficulty = levelDifficulty(ctx, level);
+  let cnt = Math.trunc((difficulty + 1) / 10) + ctx.rng.rnd(5);
   while (cnt--) {
-    const mdat = morguemon(ctx, level.depth, level);
+    const mdat = morguemon(ctx, difficulty, level);
     const cc = mdat ? mnextoPos(ctx, level, null, { x, y }, mdat) : null;
     if (!mdat || !cc) continue;
     const corpse = !reviveCorpses

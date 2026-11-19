@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-200 NetHack files, 5892 citations.
+200 NetHack files, 5909 citations.
 
 ## dat/asmodeus.lua
 
@@ -646,7 +646,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `CONTAINER()`: `packages/content/src/container.ts`, `packages/content/src/objects.ts`
 - `DRGN_ARMR()`: `packages/content/src/objects.ts`
 - `EYEWEAR()`: `packages/content/src/objects.ts`
-- `FAKE_AMULET_OF_YENDOR()`: `packages/content/src/nasty.ts`
+- `FAKE_AMULET_OF_YENDOR()`: `packages/content/src/disclose.ts`, `packages/content/src/nasty.ts`
 - `FOOD()`: `packages/content/src/objects.ts`
 - `GEM()`: `packages/content/src/objects.ts`
 - `GLOVES()`: `packages/content/src/objects.ts`
@@ -785,7 +785,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `interrupt_occupation()`: `packages/content/src/eat.ts`
 - `makedog()`: `packages/core/src/types/mod.ts`
 - `maybe_generate_rnd_mon()`: `packages/content/src/generation.ts`
-- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/towel.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/content/src/wish.ts`, `packages/content/src/zap.en.ts`, `packages/core/src/turn.ts`
+- `moveloop_core()`: `packages/content/src/actions.ts`, `packages/content/src/detect.ts`, `packages/content/src/dig.ts`, `packages/content/src/drown.ts`, `packages/content/src/eat.ts`, `packages/content/src/engr.ts`, `packages/content/src/engrave.ts`, `packages/content/src/harass.ts`, `packages/content/src/hero.ts`, `packages/content/src/hunger.ts`, `packages/content/src/lock.ts`, `packages/content/src/polyself.ts`, `packages/content/src/pray.ts`, `packages/content/src/spell.ts`, `packages/content/src/towel.ts`, `packages/content/src/trap.ts`, `packages/content/src/vault.ts`, `packages/content/src/wish.ts`, `packages/content/src/zap.en.ts`, `packages/core/src/turn.ts`
 - `newgame()`: `packages/app/src/title.ts`, `packages/content/src/gehennom.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `regen_hp()`: `packages/content/src/hero.ts`
 - `regen_pw()`: `packages/content/src/hero.ts`
@@ -1124,7 +1124,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `dropz()`: `packages/content/src/itemactions.ts`, `packages/content/src/items.ts`
 - `engulfer_digests_food()`: `packages/content/src/digestfood.ts`
 - `flooreffects()`: `packages/content/src/align.ts`, `packages/content/src/flooreffects.ts`, `packages/content/src/floorfx.ts`
-- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
+- `goto_level()`: `packages/content/src/actions.ts`, `packages/content/src/endstate.ts`, `packages/content/src/gehennom.ts`, `packages/content/src/genocide.ts`, `packages/content/src/hero.ts`, `packages/content/src/knox.en.ts`, `packages/content/src/ladder.ts`, `packages/content/src/levelflags.ts`, `packages/content/src/lock.ts`, `packages/content/src/luck.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/mysteryforce.ts`, `packages/content/src/portal.ts`, `packages/content/src/rogue.en.ts`, `packages/content/src/rogue.ts`, `packages/content/src/rooms.ts`, `packages/content/src/shkdamage.ts`, `packages/content/src/trap.ts`, `packages/core/src/engine.ts`, `packages/core/src/types/mod.ts`
 - `heal_legs()`: `packages/content/src/legs.ts`, `packages/content/src/props.ts`
 - `hellish_smoke_mesg()`: `packages/content/src/temperature.ts`
 - `legs_in_no_shape()`: `packages/content/src/legs.ts`
@@ -1325,10 +1325,11 @@ whole. A missing function may still be ported under a citation this parser canno
 - `Is_special()`: `packages/content/src/levelflags.ts`
 - `Is_stronghold()`: `packages/content/src/levelflags.ts`
 - `On_W_tower_level()`: `packages/content/src/levelflags.ts`
-- `builds_up()`: `packages/content/src/ladder.ts`
+- `assign_rnd_level()`: `packages/content/src/mysteryforce.ts`
+- `builds_up()`: `packages/content/src/ladder.ts`, `packages/content/src/levdiff.ts`
 - `chr_u_on_lvl()`: `packages/content/src/wizard/where.ts`
 - `correct_branch_type()`: `packages/core/src/dungeon.ts`
-- `deepest_lev_reached()`: `packages/content/src/urexp.ts`
+- `deepest_lev_reached()`: `packages/content/src/levdiff.ts`, `packages/content/src/urexp.ts`
 - `depth()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/level.ts`
 - `dunlevs_in_dungeon()`: `packages/content/src/levelflags.ts`
 - `find_hell()`: `packages/content/src/levelflags.ts`
@@ -1343,11 +1344,13 @@ whole. A missing function may still be ported under a citation this parser canno
 - `init_level()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
 - `insert_branch()`: `packages/content/src/knoxstate.ts`
 - `ledger_no()`: `packages/content/src/gem.ts`
+- `level_difficulty()`: `packages/content/src/levdiff.ts`
 - `level_range()`: `packages/core/src/dungeon.ts`, `packages/core/src/registry.ts`, `packages/core/src/types/mod.ts`
 - `parent_dlevel()`: `packages/core/src/dungeon.ts`, `packages/core/src/types/mod.ts`
 - `pick_level()`: `packages/core/src/dungeon.ts`
 - `place_level()`: `packages/core/src/dungeon.ts`
 - `possible_places()`: `packages/core/src/dungeon.ts`
+- `prev_level()`: `packages/content/src/endstate.ts`
 - `print_branch()`: `packages/content/src/wizard/where.ts`
 - `print_dungeon()`: `packages/content/src/wizard/where.ts`, `packages/content/src/wizard/wizard.en.ts`
 - `single_level_branch()`: `packages/content/src/levelflags.ts`
@@ -1425,7 +1428,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `container_contents()`: `packages/content/src/disclose.ts`
 - `delayed_killer()`: `packages/content/src/slimestate.ts`, `packages/content/src/stonestate.ts`
 - `disclose()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/core/src/types/event.ts`, `packages/ui/src/gameover.ts`
-- `done()`: `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
+- `done()`: `packages/content/src/disclose.ts`, `packages/content/src/end.en.ts`, `packages/content/src/end.ts`, `packages/content/src/endstate.ts`, `packages/content/src/quit.ts`, `packages/content/src/wizard/die.ts`
 - `done2()`: `packages/content/src/end.en.ts`, `packages/content/src/quit.ts`
 - `done_in_by()`: `packages/content/src/end.ts`, `packages/content/src/mhitu.ts`
 - `ends()`: `packages/content/src/end.en.ts`
@@ -3340,6 +3343,7 @@ whole. A missing function may still be ported under a citation this parser canno
 ## src/wizard.c
 
 - `aggravate()`: `packages/content/src/mstate.ts`
+- `amulet()`: `packages/content/src/harass.ts`, `packages/content/src/messages.en.ts`
 - `choose_stairs()`: `packages/content/src/covetous.ts`, `packages/content/src/ladder.ts`
 - `clonewiz()`: `packages/content/src/nasty.ts`
 - `cuss()`: `packages/content/src/chat.en.ts`, `packages/content/src/cuss.ts`

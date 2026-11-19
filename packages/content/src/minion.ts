@@ -12,15 +12,8 @@
 // (G_GONE), as do genocided and extinct kinds (a unique is extinct once made). A game saved
 // before birth counts existed (m18) has no extinct list: there a unique also counts as gone while
 // one is alive or after one died.
-import {
-  getLevel,
-  getPlayer,
-  sortedIds,
-  type Ctx,
-  type DefId,
-  type Entity,
-  type MonsterDef,
-} from '@nh/core';
+import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type MonsterDef } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { makemon, mkclass } from './generation';
 import { A_LAWFUL, A_NEUTRAL, A_NONE, type Aligntyp } from './aligntyp';
 import { emin, isLminion, setEmin } from './emin';
@@ -79,7 +72,7 @@ function pickFrom(ctx: SummonCtx, range: readonly DefId[], atyp: number | undefi
   return null;
 }
 
-const depthOf = (ctx: SummonCtx): number => getLevel(ctx.state).depth; // level_difficulty()
+const depthOf = (ctx: SummonCtx): number => levelDifficulty(ctx);
 
 /** A minor demon of alignment sign `atyp`, or null (NON_PM). ref: src/minion.c ndemon() */
 function ndemonPm(ctx: SummonCtx, atyp: number | undefined): DefId | null {

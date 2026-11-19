@@ -29,6 +29,10 @@ import { genocidedLines, goneCounts, vanquishedLines } from './vanquished';
 import { RACES_TAB } from './racetab';
 import { ROLES_TAB } from './roletab';
 import { urace, urole } from './urole';
+import { uHave } from './uhave';
+
+/** ref: include/objects.h FAKE_AMULET_OF_YENDOR */
+const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
 
 /** Below every other hook, so it runs only once nothing cancels the game over. */
 export const END_PRIORITY = -1000;
@@ -178,6 +182,19 @@ export function registerEnd(api: ModApi): void {
     id: 'nh:end_gold',
     field: 'endGold',
     value: (state, defs) => (state.gameOver ? finalGold(state, defs) : null),
+  });
+  // ref: src/end.c done(): " (with the Amulet)", else for an escape " (with a fake Amulet)"
+  // (carried, not in a container), after the killer of the score list's entry (the tombstone is
+  // drawn before it is added)
+  api.defineStatus({
+    id: 'nh:death_suffix',
+    field: 'deathSuffix',
+    value(state) {
+      if (!state.gameOver) return null;
+      if (uHave(state, 'amulet')) return 'end.with_amulet';
+      const fake = inventoryOf(state, state.playerId).some((o) => o.def === FAKE_AMULET);
+      return endHow(state) === 'escaped' && fake ? 'end.with_fake_amulet' : null;
+    },
   });
   // ref: src/topten.c topten(): `maxlvl = deepest_lev_reached(TRUE)`
   api.defineStatus({

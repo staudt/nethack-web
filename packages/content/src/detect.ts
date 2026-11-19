@@ -5,6 +5,8 @@
 // Only terrain is mapped: the hero's memory holds no objects or monsters apart from what the
 // view already shows, so clairvoyance reveals no objects and no "remembered, unseen" monsters,
 // and never says "You sense your surroundings." (DEVIATIONS).
+import { inEndgame } from './levelflags';
+import { uHave } from './uhave';
 import { WORM_TAIL, wormRec } from './wormstate';
 import {
   getLevel,
@@ -19,7 +21,7 @@ import {
 import { BOULDER, boulderCells } from './boulder';
 import { nhData } from './items';
 import { isFrozen, unfreezeMonst } from './mstate';
-import { P, heroClairvoyant, heroHas } from './props';
+import { P, clairvoyanceBlocked, heroClairvoyant, heroHas } from './props';
 import { T, setTerrain } from './terrain';
 
 /**
@@ -75,15 +77,18 @@ export function doVicinityMap(ctx: Ctx): void {
 }
 
 /**
- * While the hero is clairvoyant, the area around her is mapped every 15 to 45 turns.
- * ref: src/allmain.c moveloop_core(): `if (moves >= seer_turn) { if (Clairvoyant)
- * do_vicinity_map(); seer_turn = moves + rn1(31, 15); }`. The counter only runs while she is
- * clairvoyant (C rolls it in every game; here that would move every replay), so the first
- * vision comes at once (DEVIATIONS).
+ * While the hero is clairvoyant or carries the Amulet of Yendor (off the Planes; a cornuthaum
+ * blocks both for anyone but a Wizard), the area around her is mapped every 15 to 45 turns.
+ * ref: src/allmain.c moveloop_core(): `if (moves >= seer_turn) { if ((u.uhave.amulet ||
+ * Clairvoyant) && !In_endgame(&u.uz) && !BClairvoyant) do_vicinity_map(); seer_turn = moves +
+ * rn1(31, 15); }`. The counter only runs while she has a vision coming (C rolls it in every
+ * game; here that would move every replay), so the first vision comes at once (DEVIATIONS).
  */
 export function registerClairvoyance(api: ModApi): void {
   api.on('endOfTurn', (ctx) => {
-    if (!heroClairvoyant(ctx.state)) return;
+    const seer =
+      heroClairvoyant(ctx.state) || (uHave(ctx.state, 'amulet') && !clairvoyanceBlocked(ctx.state));
+    if (!seer || inEndgame(ctx.state)) return;
     const d = nhData(ctx);
     if (ctx.state.turn < (d.seerTurn ?? 0)) return;
     doVicinityMap(ctx);

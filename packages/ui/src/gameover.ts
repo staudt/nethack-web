@@ -52,7 +52,10 @@ export interface EndSummary {
   name: string;
   /** 'Val-Hum-Fem-Neu'; null for a role without file codes. */
   plcode: string | null;
-  /** formatkiller()'s text: "killed by a jackal"; "escaped" / "quit" for those ends. */
+  /**
+   * formatkiller()'s text: "killed by a jackal"; "escaped" / "quit" for those ends; then
+   * content's `deathSuffix` text: "escaped (with the Amulet)".
+   */
   death: string;
   /** The dungeon's name: "The Dungeons of Doom". */
   dungeon: string;
@@ -148,8 +151,11 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
 export function endSummary(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: string): EndSummary {
   const how = howOf(s);
   const num = (k: string, dflt: number): number => Number(s[k] ?? dflt);
-  // done(): escaping and quitting name no killer; deaths[how] is the whole record text
-  const death = how === 'escaped' || how === 'quit' ? d.t(`end.ends.${how}`) : deathText(d, s);
+  // done(): escaping and quitting name no killer; deaths[how] is the whole record text; then
+  // content's `deathSuffix` (a message key: " (with the Amulet)")
+  const base = how === 'escaped' || how === 'quit' ? d.t(`end.ends.${how}`) : deathText(d, s);
+  const suffix = typeof s['deathSuffix'] === 'string' ? s['deathSuffix'] : null;
+  const death = suffix === null ? base : `${base} ${d.t(suffix)}`;
   return {
     how,
     points: typeof s['score'] === 'number' ? s['score'] : null,

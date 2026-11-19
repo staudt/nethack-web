@@ -13,6 +13,7 @@
 // has built the level), which moves the down stairs there. Every statue without a monster is a
 // petrified monster (sp_lev.ts createObject()). medusa-4's crystal ball does not exist.
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect, Pos } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { polyWhenStoned } from './golem';
 import { mksobjFull, rndmonnum } from './mkobj';
 import {
@@ -423,7 +424,7 @@ function rerollStoneproof(ctx: Ctx, level: Level, statue: number): void {
   if (!it) return;
   let tryct = 0;
   while (++tryct < 100 && it.corpseOf !== undefined && stoneproof(ctx, it.corpseOf))
-    it.corpseOf = rndmonnum(ctx, level.depth).id;
+    it.corpseOf = rndmonnum(ctx, levelDifficulty(ctx, level)).id;
 }
 
 /**

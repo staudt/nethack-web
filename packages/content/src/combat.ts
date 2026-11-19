@@ -1,4 +1,5 @@
 // Melee combat: the hero attacking monsters and monsters attacking the hero.
+import { levelDifficulty } from './levdiff';
 import { isVampshifter, monHatesSilver } from './chamstate';
 import { isPool } from './liquid';
 import { isEel } from './mondata';
@@ -388,7 +389,8 @@ export function abonU(ctx: Ctx): number {
   const level = h.c.experience?.level ?? 1;
   const form = heroForm(ctx);
   if (form) {
-    const depth = h.c.pos ? (ctx.state.levels[h.c.pos.level]?.depth ?? 1) : 1;
+    const lv = h.c.pos ? ctx.state.levels[h.c.pos.level] : undefined;
+    const depth = lv ? levelDifficulty(ctx, lv) : 1;
     return adjLev(form, depth, level) - 3;
   }
   return abon(h.c.attributes?.str ?? 10, h.c.attributes?.dex ?? 10, level);

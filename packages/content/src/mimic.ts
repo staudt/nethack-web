@@ -20,6 +20,7 @@ import {
   type Msg,
   type ObjectClass,
 } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { canBeHatched } from './eggstate';
 import { setUstuck, ustuck } from './hackmove';
 import { canseemon, mapInvisible, markedUnseen, monInvisible, seeInvisible } from './invis';
@@ -236,7 +237,7 @@ function setMimicSymImpl(ctx: Ctx, id: EntityId, inMklev: boolean): void {
       ap.id === 'nh:egg' ||
       ap.id === 'nh:tin')
   ) {
-    let mndx: DefId | null = rndmonnum(ctx, depth).id;
+    let mndx: DefId | null = rndmonnum(ctx, levelDifficulty(ctx, level)).id;
     const nocorpse = ctx.defs.monster(mndx).genFlags.includes('nocorpse');
     if (ap.id === 'nh:corpse' && nocorpse) {
       ctx.rng.rn2(13); // rn1(PM_WIZARD - PM_ARCHEOLOGIST + 1, PM_ARCHEOLOGIST): no player monsters

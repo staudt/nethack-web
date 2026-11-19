@@ -204,6 +204,11 @@ export const messagesEn: Record<string, string> = {
   'stairs.cant_down': "You can't go down here.",
   'stairs.cant_up': "You can't go up here.",
   'stairs.leave_confirm': 'Beware, there will be no return!  Still climb?',
+  'goto.mysterious_force': 'A mysterious force momentarily surrounds you...',
+  // ref: src/wizard.c amulet()
+  'amulet.hot': '{item} feels hot!',
+  'amulet.very_warm': '{item} feels very warm.',
+  'amulet.warm': '{item} feels warm.',
   'dir.n': 'north',
   'dir.ne': 'northeast',
   'dir.e': 'east',

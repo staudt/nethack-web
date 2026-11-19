@@ -47,6 +47,9 @@ export const endMessagesEn: Record<string, string> = {
   'end.ends.genocided': 'were genocided',
   'end.ends.escaped': 'escaped',
   'end.ends.quit': 'quit',
+  // ref: src/end.c done(): after the killer in the score list
+  'end.with_amulet': '(with the Amulet)',
+  'end.with_fake_amulet': '(with a fake Amulet)',
   // ref: src/end.c done2()
   'action.nh:quit': 'Quit',
   'end.quit_confirm': 'Really quit without saving?',

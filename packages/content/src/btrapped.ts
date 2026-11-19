@@ -2,6 +2,7 @@
 // (b_trapped()), a monster opening one or being at a door struck by a wand (mb_trapped()).
 // ref: src/trap.c b_trapped(); src/monmove.c mb_trapped()
 import { getPlayer, type Ctx, type Entity, type Level, type Msg } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { setDoorTrapped } from './btrapstate';
 import { losehp } from './hp';
 import { heroSees } from './mongear';
@@ -47,8 +48,7 @@ export function blowDoor(ctx: Ctx, level: Level, x: number, y: number, shopCost?
  * a doorway (D_NODOOR) and forgotten its trap. No exercise. ref: src/trap.c b_trapped()
  */
 export function bTrapped(ctx: Ctx, item: 'door' | 'secret_door' | 'tin'): void {
-  const level = ctx.state.levels[ctx.state.currentLevel];
-  const lvl = level?.depth ?? 1; // level_difficulty()
+  const lvl = levelDifficulty(ctx);
   const dmg = ctx.rng.rnd(5 + (lvl < 5 ? lvl : 2 + Math.trunc(lvl / 2)));
   say(ctx, 'btrap.kaboom', { item: { key: `btrap.item.${item}` } });
   wakeNearby(ctx);

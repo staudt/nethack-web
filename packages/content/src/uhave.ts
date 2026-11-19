@@ -54,7 +54,10 @@ const UHAVE: Readonly<Record<Uhave, DefId>> = {
  */
 export function uHave(state: Readonly<GameState>, what: Uhave): boolean {
   const def = UHAVE[what];
-  return inventoryOf(state, state.playerId).some((o) => o.def === def);
+  // a plain scan: level_difficulty() asks this for every monster and object made, and the answer
+  // does not depend on the order (inventoryOf() sorts every entity id)
+  const owner = state.playerId;
+  return Object.values(state.entities).some((o) => o.def === def && o.c.item?.carriedBy === owner);
 }
 
 /** The real Amulet the monster carries, or null. ref: src/wizard.c mon_has_amulet() */

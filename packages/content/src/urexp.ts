@@ -12,6 +12,7 @@ import {
   type Json,
   type Registry,
 } from '@nh/core';
+import { deepestLevReached } from './levdiff';
 import { endHow } from './endstate';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
 
@@ -66,11 +67,9 @@ export function finalGold(state: Readonly<GameState>, defs: Registry): number {
   return goldIn(state, defs, inventoryOf(state, state.playerId));
 }
 
-/** The deepest level reached: levels exist once visited. ref: deepest_lev_reached(FALSE) */
+/** The deepest level reached (at least 1). ref: deepest_lev_reached(FALSE) */
 export function deepestLevel(state: Readonly<GameState>): number {
-  let deepest = 1;
-  for (const lv of Object.values(state.levels)) deepest = Math.max(deepest, lv.depth);
-  return deepest;
+  return Math.max(1, deepestLevReached(state, false));
 }
 
 /**

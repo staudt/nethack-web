@@ -164,3 +164,27 @@ describe('goodbyeLines', () => {
     ).toBe('You died in Fort Ludios,');
   });
 });
+
+import { endSummary } from '../src/gameover';
+
+describe('endSummary', () => {
+  const EN: Record<string, string> = {
+    'end.ends.escaped': 'escaped',
+    'end.with_amulet': '(with the Amulet)',
+    'ui.rip.killed_by': 'killed by {killer}',
+    'nh:jackal': 'jackal',
+  };
+  const t = (k: string, p?: Record<string, unknown>): string =>
+    (EN[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
+  const has = (k: string): boolean => k in EN;
+
+  test("content's death suffix follows the killer (ref: src/end.c done())", () => {
+    const esc = { endHow: 'escaped', deathSuffix: 'end.with_amulet' };
+    expect(endSummary({ t, has }, esc, 'x').death).toBe('escaped (with the Amulet)');
+    const died = { endHow: 'died', killer: '@nh:jackal' };
+    expect(endSummary({ t, has }, died, 'x').death).toBe('killed by a jackal');
+    expect(endSummary({ t, has }, { ...died, deathSuffix: 'end.with_amulet' }, 'x').death).toBe(
+      'killed by a jackal (with the Amulet)',
+    );
+  });
+});

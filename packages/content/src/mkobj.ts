@@ -2,6 +2,7 @@
 // ref: src/mkobj.c mkobj(), mkobj_at(), rndmonnum()
 import type { Ctx, DefId, EntityId, LevelId, MonsterDef, ObjectClass, ObjectDef } from '@nh/core';
 import { putIn } from '@nh/core';
+import { levelDifficulty } from './levdiff';
 import { rndmonst, setLevelObjectAt } from './generation';
 import { mksobj, setEggInit, setFigurineInit, setTinInit, type MksobjOpts } from './items';
 import { canBeHatched, deadSpecies } from './eggstate';
@@ -104,10 +105,10 @@ export interface MkobjOpts {
   artif?: boolean;
 }
 
-/** The depth used as level_difficulty() for things made on `level`. */
+/** level_difficulty() for things made on `level` (the hero's when omitted). */
 function depthOf(ctx: Pick<MkobjCtx, 'state'>, level: LevelId | undefined): number {
-  const id = level ?? ctx.state.currentLevel;
-  return ctx.state.levels[id]?.depth ?? 1;
+  const lv = ctx.state.levels[level ?? ctx.state.currentLevel];
+  return lv ? levelDifficulty(ctx, lv) : 1;
 }
 
 /**
