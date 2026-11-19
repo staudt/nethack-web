@@ -324,3 +324,4 @@ Plan `~/.claude/plans/m23.md` (m23a steps 1-6 the Amulet, m23b steps 7-10 the Pl
 - **Q9 interim if m23b never runs:** climbing out of DL1 with the Amulet ends the game as an escape "with the Amulet".
 - **Q10 tower1's vampire lady and named vampires** become plain vampire lords (no monster genders or names).
 - **Q11 left out:** the Plane of Fire's fumaroles and the steam vortex's cloud (no gas-cloud regions), the tutorial, bones, achievements; `do_storms()` only if cheap.
+- **Step 7 core `LevelTerrain.air`** (`nh:air`, map character `A`) and core `randomSpot()` accepting air as C's `bad_location()` does, so a level of open air (the Plane of Air, Water's stand-in) has cells to arrive on; additive, no save bump (ARCHITECTURE "Open air"). Not foreseen by the plan: taken by step 7's agent, accepted by the orchestrator while the user was away (2026-11-19).

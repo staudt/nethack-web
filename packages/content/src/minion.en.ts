@@ -1,6 +1,7 @@
-// English text for demons summoning demons, the barbed devil and the princes' bribes.
-// ref: src/minion.c msummon(), demon_talk(); src/mondata.c msummon_environ(); src/uhitm.c
-// demonpet(), mhitm_ad_stck(); src/monmove.c dochug() "Demonic Blackmail!"
+// English text for demons summoning demons, the barbed devil, the princes' bribes and the
+// guardian angel. ref: src/minion.c msummon(), demon_talk(), gain_guardian_angel(),
+// lose_guardian_angel(); src/mondata.c msummon_environ(); src/uhitm.c demonpet(),
+// mhitm_ad_stck(); src/monmove.c dochug() "Demonic Blackmail!"
 export const minionMessagesEn: Record<string, string> = {
   'minion.appears': '{mon|An} appears in a {cloud} of {what}!',
   'minion.cloud': 'cloud',
@@ -19,6 +20,15 @@ export const minionMessagesEn: Record<string, string> = {
   'minion.voice_booms': 'The voice of {god} booms:',
   'minion.indiscretion': '"Thou shalt pay for thine indiscretion!"',
   'minion.looks_puzzled': '{mon|The} looks puzzled for a moment.',
+  // ref: src/minion.c gain_guardian_angel(), lose_guardian_angel()
+  'minion.voice_booms_plain': 'A voice booms:',
+  'minion.conflict_fulfilled': '"Thy desire for conflict shall be fulfilled!"',
+  'minion.voice_whispers': 'A voice whispers:',
+  'minion.worthy': '"Thou hast been worthy of me!"',
+  'minion.angel_appears': 'An angel appears near you.',
+  'minion.friendly_presence': 'You feel the presence of a friendly angel near you.',
+  'minion.rebukes': '{mon|The} rebukes you, saying:',
+  'minion.have_some_more': '"Since you desire conflict, have some more!"',
   'adtyp.barbs_stick': 'The barbs stick to you!',
   'demon.looks_very_angry': '{mon|An} looks very angry.',
   'demon.tension_building': 'You feel tension building.',

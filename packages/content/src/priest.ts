@@ -42,7 +42,7 @@ import {
   type Epri,
 } from './epri';
 import { A_NONE, ALGN_DEVOUT, ALGN_SINNED, type Aligntyp } from './aligntyp';
-import { setEmin } from './emin';
+import { emin, setEmin } from './emin';
 import { isHighAltar } from './highaltar';
 import { inEndgame, isSanctum } from './levelflags';
 import { AMULET_OF_YENDOR } from './uhave';
@@ -224,6 +224,25 @@ export function mkRoamer(
   roamer.c.monster.asleep = false;
   // (set_malign(): computed from the minion's god and peacefulness when needed)
   return id;
+}
+
+/**
+ * On the hero's first arrival on the Astral Plane: a roaming aligned cleric or Angel serving
+ * another god than hers turns hostile (and wild), its malign recomputed (set_malign()).
+ * ref: src/priest.c reset_hostility()
+ */
+export function resetHostility(ctx: Ctx, id: EntityId): void {
+  const e = emin(ctx.state, id);
+  const mon = ctx.state.entities[String(id)];
+  const m = mon?.c.monster;
+  if (!e || !mon || !m) return; // !roamer->isminion
+  if (mon.def !== ALIGNED_CLERIC && mon.def !== 'nh:angel') return;
+  if (e.minAlign !== uState(ctx.state).alignType) {
+    m.peaceful = false;
+    delete m.tame;
+    // set_malign(): computed from the god and the peacefulness from now on
+    if (e.malign !== undefined) setEmin(ctx, id, { minAlign: e.minAlign, renegade: e.renegade });
+  }
 }
 
 /** The direction of (dx, dy), each -1, 0 or 1 and not both 0. */

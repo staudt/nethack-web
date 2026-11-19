@@ -157,12 +157,25 @@ export function pCoaligned(ctx: Pick<Ctx, 'state'>, epri: Epri): boolean {
 }
 
 /**
- * "priest of Odin" as a message param (for `{mon|the}`), the god from the hero's pantheon.
- * ref: src/priest.c priestname() (no priestesses: monsters have no gender; no invisible,
- * renegade or high priests)
+ * "priest of Odin" as a message param (for `{mon|the}`), the god from the hero's pantheon; a
+ * high priest (`mon`) is "high priest of Odin", and on the Astral Plane only "high priest" unless
+ * she is next to him (or the game is over): the endgame altars' owners are hidden from afar.
+ * ref: src/priest.c priestname() (no priestesses: monsters have no gender; no invisible or
+ * renegade priests)
  */
-export function priestName(state: Readonly<GameState>, epri: Epri): string {
-  return `@priest.of.${godSuffix(state, monAligntyp(epri))}`;
+export function priestName(state: Readonly<GameState>, epri: Epri, mon?: Readonly<Entity>): string {
+  const god = godSuffix(state, monAligntyp(epri));
+  if (mon?.def !== 'nh:high_priest') return `@priest.of.${god}`;
+  const mp = mon.c.pos;
+  const hp = state.entities[String(state.playerId)]?.c.pos;
+  const next2u =
+    mp !== undefined &&
+    hp !== undefined &&
+    mp.level === hp.level &&
+    Math.max(Math.abs(mp.x - hp.x), Math.abs(mp.y - hp.y)) <= 1;
+  const astral = state.levels[mp?.level ?? state.currentLevel]?.def === 'nh:plane-astral';
+  if (astral && !next2u && state.gameOver === null) return '@nh:high_priest';
+  return `@priest.high_of.${god}`;
 }
 
 /**

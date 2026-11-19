@@ -330,7 +330,10 @@ export const messagesEn: Record<string, string> = {
   'status.plane_air': 'Air',
   'status.plane_earth': 'Earth',
   'status.plane_dummy': 'unknown plane',
-  // the Planes' arrival lines (dat/earth.lua, air.lua des.message())
+  // the Planes' arrival lines (dat/earth.lua, air.lua, astral.lua des.message())
+  'planes.astral_1': 'You arrive on the Astral Plane!',
+  'planes.astral_2': 'Here the High Temple of {god} is located.',
+  'planes.astral_3': 'You sense alarm, hostility, and excitement in the air!',
   'planes.earth_1': 'Well done, mortal!',
   'planes.earth_2': 'But now thou must face the final Test...',
   'planes.earth_3': 'Prove thyself worthy or perish!',

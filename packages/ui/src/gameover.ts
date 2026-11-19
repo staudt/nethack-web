@@ -45,7 +45,10 @@ export interface EndEntry {
  * ref: src/topten.c topten() (the new `toptenentry`)
  */
 export interface EndSummary {
-  /** content's `endHow`: 'died', 'choking', 'poisoning', 'starving', 'escaped', 'quit' or a mod's. */
+  /**
+   * content's `endHow`: 'died', 'choking', 'poisoning', 'starving', 'escaped', 'ascended',
+   * 'quit' or a mod's.
+   */
   how: string;
   /** The final score (`u.urexp`); null when content does not score the game. */
   points: number | null;
@@ -59,6 +62,12 @@ export interface EndSummary {
   death: string;
   /** The dungeon's name: "The Dungeons of Doom". */
   dungeon: string;
+  /**
+   * An end on the Planes: where, as the score list words it ("on the Plane of Earth", "on the
+   * Astral Plane"; content's `endPlane`), in place of the dungeon and level. ref: src/topten.c
+   * outentry()
+   */
+  plane?: string;
   deathLev: number;
   /** deepest_lev_reached(); null when content does not say. */
   maxLvl: number | null;
@@ -133,8 +142,8 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
       name,
       role,
     }),
-    how === 'escaped'
-      ? d.t(`end.escaped${sfx}`, pts)
+    how === 'escaped' || how === 'ascended'
+      ? d.t(`end.${how}${sfx}`, pts)
       : // a single-level branch (Fort Ludios: its `place`) names no dungeon level
         d.t(`end.died_in${typeof s['place'] === 'string' ? '_place' : ''}${sfx}`, {
           ends,
@@ -151,11 +160,15 @@ export function goodbyeLines(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: str
 export function endSummary(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: string): EndSummary {
   const how = howOf(s);
   const num = (k: string, dflt: number): number => Number(s[k] ?? dflt);
-  // done(): escaping and quitting name no killer; deaths[how] is the whole record text; then
-  // content's `deathSuffix` (a message key: " (with the Amulet)")
-  const base = how === 'escaped' || how === 'quit' ? d.t(`end.ends.${how}`) : deathText(d, s);
+  // done(): escaping, ascending and quitting name no killer; deaths[how] is the whole record
+  // text; then content's `deathSuffix` (a message key: " (with the Amulet)")
+  const base =
+    how === 'escaped' || how === 'ascended' || how === 'quit'
+      ? d.t(`end.ends.${how}`)
+      : deathText(d, s);
   const suffix = typeof s['deathSuffix'] === 'string' ? s['deathSuffix'] : null;
   const death = suffix === null ? base : `${base} ${d.t(suffix)}`;
+  const plane = typeof s['endPlane'] === 'string' ? { plane: d.t(s['endPlane']) } : {};
   return {
     how,
     points: typeof s['score'] === 'number' ? s['score'] : null,
@@ -169,13 +182,14 @@ export function endSummary(d: Pick<EndDeps, 't' | 'has'>, s: Status, name: strin
     maxHp: num('hpmax', 0),
     turns: num('endTurn', num('turn', 0)),
     gold: num('endGold', num('gold', 0)),
+    ...plane,
   };
 }
 
 /** Whether the end gets a stone. ref: really_done(): `if (how < GENOCIDED)` outrip() */
 const hasStone = (s: Status): boolean => {
   const how = howOf(s);
-  return how !== 'escaped' && how !== 'quit';
+  return how !== 'escaped' && how !== 'ascended' && how !== 'quit';
 };
 
 /**
@@ -231,7 +245,15 @@ export function playEnd(d: EndDeps, lists: readonly ListEvent[], s: Status): voi
     }
     const stone = hasStone(s);
     const m = d.open({
-      title: d.t(stone ? 'ui.rip.title' : howOf(s) === 'quit' ? 'ui.quit.title' : 'ui.escaped'),
+      title: d.t(
+        stone
+          ? 'ui.rip.title'
+          : howOf(s) === 'quit'
+            ? 'ui.quit.title'
+            : howOf(s) === 'ascended'
+              ? 'ui.ascended'
+              : 'ui.escaped',
+      ),
       entries: [
         ...goodbyeLines(d, s, name).map((label) => ({ label, run: () => {}, text: true })),
         ...(d.endEntries?.() ?? []).map((e) => ({

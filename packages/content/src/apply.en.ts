@@ -210,6 +210,8 @@ export const applyMessagesEn: Record<string, string> = {
   'music.thunderous': 'You produce a heavy, thunderous rolling!',
   'music.shaking': 'The entire {where} is shaking around you!',
   'music.lvl.dungeon': 'dungeon',
+  'music.lvl.astral': 'astral plane',
+  'music.lvl.plane': 'plane',
   'music.lvl.puzzle': 'puzzle',
   'music.lvl.sanctum': 'sanctum',
   'music.lvl.tower': 'tower',

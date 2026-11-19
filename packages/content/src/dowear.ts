@@ -27,6 +27,7 @@ import {
 import { adjustAbon, rawAttr, syncAttrOverrides, type Attr } from './attrstate';
 import { engulferOf } from './engulfstate';
 import { summonFuries } from './generation';
+import { isAstral } from './levelflags';
 import { hcolor } from './hcolor';
 import { cantSeeSelf, cloakOff, cloakOn } from './invis';
 import { A_CHAOTIC, A_LAWFUL, A_NEUTRAL } from './aligntyp';
@@ -195,7 +196,10 @@ export function uchangealign(ctx: WearCtx, newalign: number, reason: AlignChange
       adjalign(ctx, -7); // for abuse -- record will be cleared shortly
       say(ctx, halluc ? 'wear.mind_oscillates_wildly' : 'wear.mind_oscillates');
       makeConfused(ctx, ctx.rng.rn2(2) + 3, false); // rn1(2, 3)
-      if (ctx.rng.rn2(50) < uState(ctx.state).alignAbuse) summonFuries(ctx, 1);
+      // on the Astral Plane every remaining erinys comes
+      const astral = isAstral(ctx.state);
+      if (astral || ctx.rng.rn2(50) < uState(ctx.state).alignAbuse)
+        summonFuries(ctx, astral ? 0 : 1);
     } else {
       say(ctx, halluc ? 'wear.mind_muchness' : 'wear.mind_in_sync');
     }

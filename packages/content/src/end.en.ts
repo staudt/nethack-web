@@ -50,6 +50,21 @@ export const endMessagesEn: Record<string, string> = {
   // ref: src/end.c done(): after the killer in the score list
   'end.with_amulet': '(with the Amulet)',
   'end.with_fake_amulet': '(with a fake Amulet)',
+  'end.celestial_disgrace': '(in celestial disgrace)',
+  // ref: src/end.c really_done(): an ascension, and a death on the Astral Plane
+  'end.ends.ascended': 'ascended',
+  'end.demigod': 'Demigod',
+  'end.demigoddess': 'Demigoddess',
+  'end.ascended': 'You went to your reward,',
+  'end.ascended_points': 'You went to your reward with {points} point{ps},',
+  'end.astral_plane': 'The Astral Plane',
+  // ref: src/topten.c outentry(): where on the Planes an end came
+  'end.on_plane.astral': 'on the Astral Plane',
+  'end.on_plane.water': 'on the Plane of Water',
+  'end.on_plane.fire': 'on the Plane of Fire',
+  'end.on_plane.air': 'on the Plane of Air',
+  'end.on_plane.earth': 'on the Plane of Earth',
+  'end.on_plane.dummy': 'on the Plane of Void',
   // ref: src/end.c done2()
   'action.nh:quit': 'Quit',
   'end.quit_confirm': 'Really quit without saving?',

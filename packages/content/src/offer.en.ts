@@ -28,13 +28,22 @@ export const offerMessagesEn: Record<string, string> = {
   'offer.thunderclap': 'You hear a nearby thunderclap.',
   'offer.mistake': 'You realize you have made a mistake.',
   'offer.mistake_halluc': 'You realize you have made a boo-boo.',
-  // offer_real_amulet() (Moloch's branch)
+  // offer_real_amulet() to Moloch
   'offer.real_amulet': 'You offer the Amulet of Yendor to {god}...',
   'offer.choir_darkness': 'An invisible choir chants, and you are bathed in darkness...',
   'offer.moloch_shrugs': '{moloch} shrugs and retains dominion over {god},',
   'offer.moloch_snuffs': 'then mercilessly snuffs out your life.',
   'offer.moloch_snarls': '{moloch} snarls and tries again...',
   'offer.cloud_of_smoke': 'A cloud of {color} smoke surrounds you...',
+  // offer_real_amulet() to another god or her own
+  'offer.gains_dominion': '{god} accepts your gift, and gains dominion over {ugod}...',
+  'offer.enraged': '{god} is enraged...',
+  'offer.permits_live': 'Fortunately, {god} permits you to live...',
+  'offer.choir_radiance': 'An invisible choir sings, and you are bathed in radiance...',
+  'offer.done_well': 'Mortal, thou hast done well!',
+  'offer.immortality': '"In return for thy service, I grant thee the gift of Immortality!"',
+  'offer.ascend_demigod': 'You ascend to the status of Demigod...',
+  'offer.ascend_demigoddess': 'You ascend to the status of Demigoddess...',
   'killer.moloch_indifference': "Moloch's indifference",
   // eval_offering()
   'offer.insult': 'Such an action is an insult to {what}!',

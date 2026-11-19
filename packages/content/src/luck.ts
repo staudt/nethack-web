@@ -101,6 +101,8 @@ export interface UState {
    * each time the force kicks in. ref: src/do.c goto_level()
    */
   mysteryForce?: number;
+  /** u.uevent.ascended: she offered the Amulet to her own god (absent = false) */
+  ascended?: true;
 }
 
 const DEFAULTS: UState = {

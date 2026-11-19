@@ -38,7 +38,7 @@ import { monNam } from './perception';
 import { P, hasProp } from './props';
 import { desecrateAltar } from './pray';
 import { addDamage } from './shopdamage';
-import { cvtSdoorToDoor, inVladsTower, isSanctum } from './levelflags';
+import { cvtSdoorToDoor, inEndgame, inVladsTower, isAstral, isSanctum } from './levelflags';
 import { isSokoban } from './sokoban';
 import { T, setTerrain, terrainIdAt } from './terrain';
 import { setThroneLooted } from './thronestate';
@@ -52,11 +52,13 @@ const say = (ctx: Ctx, key: string, params?: Msg['params']): void =>
   ctx.emit({ type: 'msg', key, ...(params ? { params } : {}) });
 
 /**
- * What the shaking level is called: "sanctum", "puzzle" (Sokoban), "tower" (Vlad's), else
- * "dungeon". ref: src/music.c generic_lvl_desc() (no Astral or endgame here)
+ * What the shaking level is called: "astral plane", "plane" (the endgame), "sanctum", "puzzle"
+ * (Sokoban), "tower" (Vlad's), else "dungeon". ref: src/music.c generic_lvl_desc()
  */
 export function genericLvlDesc(ctx: Ctx): string {
   const level = getLevel(ctx.state);
+  if (isAstral(ctx.state, level)) return '@music.lvl.astral';
+  if (inEndgame(ctx.state, level)) return '@music.lvl.plane';
   if (isSanctum(ctx.state, level)) return '@music.lvl.sanctum';
   if (isSokoban(level)) return '@music.lvl.puzzle';
   if (inVladsTower(ctx.state, level)) return '@music.lvl.tower';

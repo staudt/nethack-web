@@ -304,6 +304,36 @@ export function selRndcoord(rng: Rng, level: Readonly<Level>, sel: Sel): Pos | n
 }
 
 /**
+ * selection.floodfill(x, y): the cells joined to x,y (no diagonals) of the same terrain.
+ * ref: src/selvar.c selection_floodfill(); src/sp_lev.c floodfillchk_match_under()
+ */
+export function selFloodfill(level: Readonly<Level>, x: number, y: number): Sel {
+  const sel = selNew(level);
+  if (!onLevel(level, x, y)) return sel;
+  const typ = terrainIdAt(level, x, y);
+  const stack: Pos[] = [{ x, y }];
+  sel[cellIndex(level, x, y)] = true;
+  while (stack.length > 0) {
+    const p = stack.pop() as Pos;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = p.x + dx;
+      const ny = p.y + dy;
+      if (!onLevel(level, nx, ny)) continue;
+      const i = cellIndex(level, nx, ny);
+      if (sel[i] === true || terrainIdAt(level, nx, ny) !== typ) continue;
+      sel[i] = true;
+      stack.push({ x: nx, y: ny });
+    }
+  }
+  return sel;
+}
+
+/**
  * sel:set() with no spot: a random cell of the level (get_location() with ANY_LOC: `rn2` of the
  * width, then of the height) is added. ref: src/nhlsel.c l_selection_setpoint()
  */

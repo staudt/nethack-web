@@ -1,7 +1,7 @@
 // The Elemental Planes: the endgame dungeon above DL1, entered only with the Amulet of Yendor by
 // DL1's up stairs (endgame.ts). Earth, Fire and Air are their scripts; Water is plain lit air
-// until m23 step 10 builds its bubbles (DEVIATIONS "The Planes"), and the Astral Plane and the
-// dummy level below Earth are a stand-in (lit open floor) until step 8. Each level's portal
+// until m23 step 10 builds its bubbles (DEVIATIONS "The Planes"), the Astral Plane is astral.ts's
+// and the dummy level below Earth is a stand-in (lit open floor). Each level's portal
 // leads to the next plane up (Earth -> Air -> Fire -> Water -> Astral), placed at a random spot of
 // its des.levregion() by the fixup, after the script, as fixup_special() does; travellers
 // arrive at a random spot of the next level's teleport region (endgame.ts). The planes have no
@@ -11,13 +11,14 @@
 // ref: dat/dungeon.lua "The Elemental Planes"; dat/earth.lua, fire.lua, air.lua, water.lua;
 // src/mkmaze.c fixup_special() (LR_PORTAL), place_lregion(), mkportal()
 import type { Ctx, DefId, Level, LevelContent, LevelDef, LevelRect } from '@nh/core';
+import { ASTRAL, astralBefore } from './astral';
 import { PLANES, PLANE_LEVELS } from './levelflags';
 import { MAGIC_PORTAL, portalData } from './portal';
 import { mapToLevel, placeLregion, type SpLevFixup } from './sp_lev';
 import { T, setTerrain } from './terrain';
 import { maketrap } from './trap';
 
-/** The Planes' stand-in level (m23 step 2): the Astral Plane until step 8, and the dummy level. */
+/** The Planes' stand-in level (m23 step 2): the dummy level below Earth. */
 export const PLANE_STANDIN: LevelDef = {
   id: 'nh:plane-standin',
   init: { style: 'solidfill', fg: 'nh:floor', lit: true },
@@ -382,7 +383,7 @@ export const WATER: LevelDef = {
 };
 
 /** The Planes' levels made from their scripts (dungeon.ts). */
-export const PLANE_LEVEL_DEFS: readonly LevelDef[] = [EARTH, FIRE, AIR, WATER];
+export const PLANE_LEVEL_DEFS: readonly LevelDef[] = [EARTH, FIRE, AIR, WATER, ASTRAL];
 
 /**
  * Each plane's des.levregion({ type = "portal" }): the area (and exclusion) its portal goes in
@@ -456,4 +457,11 @@ export const PLANE_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   [FIRE.id]: planeFixup(T.floor),
   [AIR.id]: planeFixup(T.air),
   [WATER.id]: planeFixup(T.air),
+  // no portal: the Astral Plane is the top
+  [ASTRAL.id]: {
+    before(ctx, level, def) {
+      liftPlaneStairs(level, T.stone);
+      astralBefore(ctx, level, def);
+    },
+  },
 };

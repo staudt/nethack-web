@@ -308,8 +308,8 @@ export const DUNGEONS: readonly DungeonDef[] = [
       id: PLANE_LEVELS[k],
       nameKey: `level.plane_${k}`,
       base: i + 1,
-      // Earth, Air, Fire and Water are built (planes.ts); Astral and the dummy level are the
-      // stand-in until m23 step 8
+      // Earth, Air, Fire, Water (planes.ts) and Astral (astral.ts) are built; the dummy level
+      // is the stand-in
       variants: [PLANE_LEVEL_DEFS.find((d) => d.id === PLANE_LEVELS[k])?.id ?? PLANE_STANDIN.id],
     })),
   },

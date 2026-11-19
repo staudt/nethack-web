@@ -16,8 +16,11 @@ export type How =
   | 'turned_slime'
   | 'genocided';
 
-/** C's `how` for the ends the port has. ref: include/hack.h DIED ... ESCAPED */
-export type EndHow = How | 'escaped' | 'quit';
+/**
+ * C's `how` for the ends the port has; 'ascended' ends under core's 'escaped' kind (no killer).
+ * ref: include/hack.h DIED ... ESCAPED, ASCENDED
+ */
+export type EndHow = How | 'escaped' | 'quit' | 'ascended';
 
 interface EndData {
   endHow?: EndHow;
@@ -50,5 +53,21 @@ export function escapeDungeon(ctx: Ctx): void {
     turn: ctx.state.turn,
     depth: 1,
     level: getPlayer(ctx.state).c.experience?.level ?? 1,
+  });
+}
+
+/**
+ * An end that is no death, where she stands: an escape (offering the Amulet to another god, or
+ * surviving Moloch) or her ascension. ref: src/end.c done(ESCAPED), done(ASCENDED)
+ */
+export function endAlive(ctx: Ctx, how: 'escaped' | 'ascended'): void {
+  setEndHow(ctx, how);
+  const hero = getPlayer(ctx.state);
+  ctx.endGame({
+    kind: 'escaped',
+    killer: how,
+    turn: ctx.state.turn,
+    depth: ctx.state.levels[ctx.state.currentLevel]?.depth ?? 1,
+    level: hero.c.experience?.level ?? 1,
   });
 }

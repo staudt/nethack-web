@@ -26,7 +26,10 @@ import { makemon, mnextoPos } from './generation';
 import { hcolor } from './hcolor';
 import { nhData } from './items';
 import { inEndgame, isAstral, madeLevelFlags, setMadeLevelFlags } from './levelflags';
-import { setU, uState } from './luck';
+import { setU, uState, ualignBase } from './luck';
+import { gainGuardianAngel } from './minion';
+import { resetHostility } from './priest';
+import { alignGname } from './gods';
 import { endMigration, isMigrating } from './migrate';
 import {
   aggravate,
@@ -223,9 +226,25 @@ function harassment(ctx: Ctx): void {
 }
 
 /**
- * Arriving on a plane: its des.message() lines on the first arrival, then on entering the
- * endgame with the Amulet the Wizard comes back to force a confrontation (on the Astral Plane's
- * first arrival final_level() comes instead: m23 step 8).
+ * The first arrival on the Astral Plane: the roaming priests and Angels of other gods turn on
+ * her, then her guardian angel comes if she is worthy. ref: src/do.c final_level() (its
+ * create_mplayers(rn1(4, 3), TRUE) is m23 step 9's, between the two)
+ */
+export function finalLevel(ctx: Ctx): void {
+  const lev = ctx.state.currentLevel;
+  // reset monster hostility relative to player
+  for (const id of sortedIds(ctx.state)) {
+    const e = ctx.state.entities[String(id)];
+    if (e?.c.monster && e.c.pos?.level === lev) resetHostility(ctx, id);
+  }
+  // create a guardian angel next to player, if worthy
+  gainGuardianAngel(ctx);
+}
+
+/**
+ * Arriving on a plane: its des.message() lines on the first arrival, then on the Astral Plane's
+ * first arrival final_level(), else on entering the endgame with the Amulet the Wizard comes back
+ * to force a confrontation.
  * ref: src/do.c goto_level() deliver_splev_message(), "special location arrival messages/events"
  */
 export function endgameArrival(ctx: Ctx, change: LevelChange): void {
@@ -234,11 +253,22 @@ export function endgameArrival(ctx: Ctx, change: LevelChange): void {
   const isNew = madeLevelFlags(ctx.state, change.to).visited !== true;
   if (isNew) setMadeLevelFlags(ctx, change.to, { visited: true });
   const lines = to.def === undefined ? undefined : PLANE_MESSAGES[to.def];
-  if (isNew && lines) for (const key of lines) ctx.emit({ type: 'msg', key });
+  if (isNew && lines)
+    for (const m of lines)
+      ctx.emit(
+        m.god
+          ? {
+              type: 'msg',
+              key: m.key,
+              params: { god: alignGname(ctx.state, ualignBase(ctx.state)) },
+            }
+          : { type: 'msg', key: m.key },
+      );
   const from = change.from === null ? undefined : ctx.state.levels[change.from];
   const newdungeon = from !== undefined && from.dungeon !== to.dungeon;
-  if (isNew && isAstral(ctx.state, to)) return; // final_level(): m23 step 8
-  if (newdungeon && uHave(ctx.state, 'amulet')) resurrect(ctx); // force confrontation with Wizard
+  if (isNew && isAstral(ctx.state, to))
+    finalLevel(ctx); // guardian angel, &c
+  else if (newdungeon && uHave(ctx.state, 'amulet')) resurrect(ctx); // force confrontation
 }
 
 /**

@@ -4,6 +4,7 @@
 import type { GameState, ModApi, Registry } from '@nh/core';
 import { getPlayer } from '@nh/core';
 import { AMOROUS_DEMON, SUCCUBUS, heroFemale } from './gender';
+import { endHow } from './endstate';
 import { uState } from './luck';
 import { rankTitleKey, roleNameKey } from './roletab';
 import { heroFormId } from './upoly';
@@ -69,10 +70,18 @@ export function registerBotl(api: ModApi): void {
     field: 'goodbye',
     value: (state) => (state.gameOver ? goodbyeKey(state) : null),
   });
-  // the role's name there and on the stone, female when she is (Cavewoman, Priestess)
+  // the role's name there and on the stone, female when she is (Cavewoman, Priestess); after an
+  // ascension "Demigod" or "Demigoddess"
   api.defineStatus({
     id: 'nh:role',
     field: 'role',
-    value: (state) => (state.gameOver ? roleNameKey(urole(state), heroFemale(state)) : null),
+    value: (state) =>
+      !state.gameOver
+        ? null
+        : endHow(state) === 'ascended'
+          ? heroFemale(state)
+            ? 'end.demigoddess'
+            : 'end.demigod'
+          : roleNameKey(urole(state), heroFemale(state)),
   });
 }

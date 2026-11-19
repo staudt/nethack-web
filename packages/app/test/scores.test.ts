@@ -64,6 +64,33 @@ test('entry text for each kind of end, as outentry() words it', () => {
   expect(entryText(entry({ how: 'quit', death: 'quit', deathLev: 1, maxLvl: 1 }))).toBe(
     'Valkyrie-Val-Hum-Fem-Neu quit in The Dungeons of Doom on level 1.',
   );
+  // m23 step 8: the endgame, the Amulet's suffixes and ascension
+  expect(
+    entryText(entry({ how: 'escaped', death: 'escaped (with the Amulet)', deathLev: 1 })),
+  ).toBe('Valkyrie-Val-Hum-Fem-Neu escaped the dungeon with the Amulet [max level 4].');
+  expect(
+    entryText(
+      entry({
+        how: 'escaped',
+        death: 'escaped (in celestial disgrace)',
+        dungeon: 'The Elemental Planes',
+        deathLev: -4,
+        maxLvl: 50,
+        plane: 'on the Astral Plane',
+      }),
+    ),
+  ).toBe('Valkyrie-Val-Hum-Fem-Neu escaped the dungeon in celestial disgrace.');
+  expect(entryText(entry({ how: 'ascended', death: 'ascended', deathLev: -4, maxLvl: 50 }))).toBe(
+    'Valkyrie-Val-Hum-Fem-Neu ascended to demigoddess-hood.',
+  );
+  expect(entryText(entry({ how: 'ascended', death: 'ascended', plcode: 'Val-Hum-Mal-Law' }))).toBe(
+    'Valkyrie-Val-Hum-Mal-Law ascended to demigod-hood.',
+  );
+  expect(
+    entryText(
+      entry({ death: 'killed by a fire elemental', deathLev: -2, plane: 'on the Plane of Fire' }),
+    ),
+  ).toBe('Valkyrie-Val-Hum-Fem-Neu died on the Plane of Fire.  Killed by a fire elemental.');
   // a mod's end reads as "died"; no file codes, a long name cut at 10 (%.10s)
   expect(entryText(entry({ how: 'mod:melted', name: 'Brunhilde the Bold', plcode: null }))).toBe(
     'Brunhilde  died in The Dungeons of Doom on level 3 [max 4].  Killed by a jackal.',

@@ -228,6 +228,7 @@ export const roleMessagesEn: Record<string, string> = {
       [`god.${k}`, name],
       [`killer.wrath_${k}`, `the wrath of ${name}`],
       [`priest.of.${k}`, `priest of ${name}`],
+      [`priest.high_of.${k}`, `high priest of ${name}`],
     ]),
   ),
 

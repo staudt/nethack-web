@@ -275,6 +275,16 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:plane-fire': PLANE,
   'nh:plane-air': PLANE,
   'nh:plane-water': PLANE,
+  /**
+   * ref: dat/astral.lua ("mazelevel", "noteleport", "hardfloor", "nommap", "shortsighted",
+   * "solidify"; non_diggable and non_passwall over the whole map)
+   */
+  'nh:plane-astral': {
+    ...PLANE,
+    nommap: true,
+    nondiggable: 'all',
+    nonpasswall: 'all',
+  },
   /** ref: dat/fakewiz1.lua, dat/fakewiz2.lua ("mazelevel") */
   'nh:fakewiz1': { maze: true },
   'nh:fakewiz2': { maze: true },

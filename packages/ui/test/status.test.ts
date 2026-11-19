@@ -163,6 +163,23 @@ describe('goodbyeLines', () => {
       goodbyeLines({ t, has }, { ...s, endDungeon: 'nh:ludios', place: 'nh:ludios' }, 'x')[1],
     ).toBe('You died in Fort Ludios,');
   });
+
+  test('an ascension: the Demigoddess went to her reward (ref: src/end.c really_done())', () => {
+    const T: Record<string, string> = {
+      ...EN,
+      'end.goodbye': '{bye} {name} the {role}...',
+      'goodbye.default': 'Goodbye',
+      'end.demigoddess': 'Demigoddess',
+      'end.ascended_points': 'You went to your reward with {points} point{ps},',
+    };
+    const tt = (k: string, p?: Record<string, unknown>): string =>
+      (T[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
+    const s = { endHow: 'ascended', role: 'end.demigoddess', score: 123456 };
+    expect(goodbyeLines({ t: tt, has }, s, 'Brunhilde').slice(0, 2)).toEqual([
+      'Goodbye Brunhilde the Demigoddess...',
+      'You went to your reward with 123456 points,',
+    ]);
+  });
 });
 
 import { endSummary } from '../src/gameover';
@@ -186,5 +203,20 @@ describe('endSummary', () => {
     expect(endSummary({ t, has }, { ...died, deathSuffix: 'end.with_amulet' }, 'x').death).toBe(
       'killed by a jackal (with the Amulet)',
     );
+  });
+
+  test('an ascension names no killer; an end on the Planes says where (m23 step 8)', () => {
+    const T: Record<string, string> = {
+      ...EN,
+      'end.ends.ascended': 'ascended',
+      'end.on_plane.fire': 'on the Plane of Fire',
+    };
+    const tt = (k: string, p?: Record<string, unknown>): string =>
+      (T[k] ?? k).replace(/\{(\w+)\}/g, (_, n: string) => String(p?.[n] ?? ''));
+    const asc = endSummary({ t: tt, has }, { endHow: 'ascended', killer: 'ascended' }, 'x');
+    expect(asc.death).toBe('ascended');
+    expect(asc.plane).toBeUndefined();
+    const fire = { endHow: 'died', killer: '@nh:jackal', endPlane: 'end.on_plane.fire' };
+    expect(endSummary({ t: tt, has }, fire, 'x').plane).toBe('on the Plane of Fire');
   });
 });

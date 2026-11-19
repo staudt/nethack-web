@@ -152,6 +152,20 @@ describe('final score', () => {
     expect(d.score()).toBe(0);
   });
 
+  test('an ascension: no tenth off, doubled for her original god (1.5 after a conversion)', () => {
+    // u.urexp 100, 50 gold, deepest 5 (+200): 350, doubled, then the valuables (an amulet: 150)
+    const a = ended('ascended', [5], 100);
+    a.make('nh:gold_piece', 50);
+    a.make('nh:amulet_of_esp', 1);
+    expect(a.score()).toBe(2 * 350 + 150);
+    // converted on an altar, then a helm of opposite alignment took her back: half again
+    nh(a.s.state)['u'] = { ...(nh(a.s.state)['u'] as object), alignCur: 1 };
+    expect(a.score()).toBe(350 + 175 + 150);
+    // ascended to the helm's god (not her original one): no bonus
+    nh(a.s.state)['u'] = { ...(nh(a.s.state)['u'] as object), alignType: 1, alignCur: 1 };
+    expect(a.score()).toBe(350 + 150);
+  });
+
   test('statuses after game over: score, maxDepth, plcode, endGold', () => {
     const d = ended('died', [4], 40);
     d.make('nh:gold_piece', 10);

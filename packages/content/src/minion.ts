@@ -6,16 +6,29 @@
 // ndemon(), monster_census(); src/mondata.c msummon_environ()
 //
 // A demon cannot summon while the hero wields Demonbane ("looks puzzled for a moment").
-// Not here: the endgame (dprince()/dlord() never try there), the guardian angel (m23 step 8).
+// The guardian angel on the Astral Plane: gain_guardian_angel(), lose_guardian_angel().
 // msummon(NULL) (summon nasties in Gehennom) summons as the Wizard of Yendor would.
 // Princes and lords absent from the monster table (a mod that removes them) count as gone
 // (G_GONE), as do genocided and extinct kinds (a unique is extinct once made). A game saved
 // before birth counts existed (m18) has no extinct list: there a unique also counts as gone while
 // one is alive or after one died.
-import { getPlayer, sortedIds, type Ctx, type DefId, type Entity, type MonsterDef } from '@nh/core';
+import {
+  getLevel,
+  getPlayer,
+  sortedIds,
+  type Ctx,
+  type DefId,
+  type Entity,
+  type MonsterDef,
+} from '@nh/core';
 import { levelDifficulty } from './levdiff';
 import { inEndgame } from './levelflags';
-import { makemon, mkclass } from './generation';
+import { makemon, mkclass, mnextoPos } from './generation';
+import { mksobj } from './items';
+import { mongone } from './mondeath';
+import { mDoWear, mongets, selectHwep, whichArmor } from './mongear';
+import { mkRoamer } from './priest';
+import { P, conflictOn, hasProp } from './props';
 import { A_LAWFUL, A_NEUTRAL, A_NONE, type Aligntyp } from './aligntyp';
 import { emin, isLminion, setEmin } from './emin';
 import { epriOf } from './epri';
@@ -348,3 +361,94 @@ export function msummon(ctx: Ctx, mon: Entity | null): number {
   if (result) result = monsterCensus(ctx) - census;
   return result;
 }
+
+/**
+ * The guardian angel has been affected by Conflict (`mon`), or Conflict kept it from coming
+ * (null): "The Angel rebukes you, saying: "Since you desire conflict, have some more!"", it
+ * is gone, and 2 to 4 hostile Angels of her god come in its place next to her.
+ * ref: src/minion.c lose_guardian_angel() (no Deafness)
+ */
+export function loseGuardianAngel(ctx: Ctx, mon: Entity | null): void {
+  if (mon) {
+    if (canSpotMon(ctx, mon)) {
+      ctx.emit({ type: 'msg', key: 'minion.rebukes', params: { mon: monNam(ctx, mon) } });
+      ctx.emit({ type: 'msg', key: 'minion.have_some_more' });
+    }
+    mongone(ctx, mon.id);
+  }
+  // create 2 to 4 hostile angels to replace the lost guardian
+  const hero = getPlayer(ctx.state);
+  const hp = hero.c.pos;
+  if (!hp) return;
+  const level = getLevel(ctx.state, hp.level);
+  const angel = ctx.defs.monster(ANGEL);
+  for (let i = ctx.rng.rn2(3) + 2; i > 0; --i) {
+    const mm = mnextoPos(ctx, level, null, hp, angel);
+    if (mm) mkRoamer(ctx, level, angel, uState(ctx.state).alignType as Aligntyp, mm, false);
+  }
+}
+
+/**
+ * Arriving on the Astral Plane: under Conflict "A voice booms: "Thy desire for conflict shall
+ * be fulfilled!"" and hostile Angels come instead; with an alignment record above 8 (fervent),
+ * "A voice whispers: "Thou hast been worthy of me!"" and a tame Angel of her god appears next to
+ * her, made strong enough for the endgame (level 15-22, d(level, 10) + 30 + rnd(30) hit points),
+ * its weapon (a silver saber when it has none) blessed and raised to at least +1 more, and an
+ * amulet of reflection unless it has a shield of reflection. Being a minion it has no pet record
+ * (it eats nothing and fetches nothing). ref: src/minion.c gain_guardian_angel() (no Deafness;
+ * no conducts: it is always tame, C leaves it peaceful for a hero who never had a pet)
+ */
+export function gainGuardianAngel(ctx: Ctx): void {
+  const hero = getPlayer(ctx.state);
+  if (conflictOn(ctx.state)) {
+    ctx.emit({ type: 'msg', key: 'minion.voice_booms_plain' });
+    ctx.emit({ type: 'msg', key: 'minion.conflict_fulfilled' });
+    // send in some hostile angels instead
+    loseGuardianAngel(ctx, null);
+    return;
+  }
+  if (uState(ctx.state).alignRecord <= 8) return; // not fervent
+  ctx.emit({ type: 'msg', key: 'minion.voice_whispers' });
+  ctx.emit({ type: 'msg', key: 'minion.worthy' });
+  const hp = hero.c.pos;
+  if (!hp) return;
+  const level = getLevel(ctx.state, hp.level);
+  const angel = ctx.defs.monster(ANGEL);
+  const mm = mnextoPos(ctx, level, null, hp, angel);
+  const id = mm
+    ? mkRoamer(ctx, level, angel, uState(ctx.state).alignType as Aligntyp, mm, true)
+    : null;
+  const mtmp = id === null ? undefined : ctx.state.entities[String(id)];
+  if (id === null || !mtmp?.c.monster) return;
+  // guardian angel -- the one case mtame doesn't imply an edog structure
+  mtmp.c.monster.tame = 10;
+  mtmp.c.monster.peaceful = true;
+  ctx.emit({
+    type: 'msg',
+    key: hasProp(hero, P.BLINDED) ? 'minion.friendly_presence' : 'minion.angel_appears',
+  });
+  // make him strong enough vs. endgame foes
+  const mlev = ctx.rng.rn2(8) + 15; // rn1(8, 15)
+  mtmp.c.monster.level = mlev;
+  const mhp = ctx.rng.d(mlev, 10) + 30 + ctx.rng.rnd(30);
+  mtmp.c.hp = { cur: mhp, max: mhp };
+  let otmp = selectHwep(ctx, id);
+  if (!otmp) {
+    const sid = mksobj(ctx, ctx.defs.object(SILVER_SABER), { init: false, carriedBy: id });
+    otmp = ctx.state.entities[String(sid)] ?? null;
+  }
+  const it = otmp?.c.item;
+  if (it) {
+    it.buc = 'blessed'; // bless()
+    if (it.spe < 4) it.spe += ctx.rng.rnd(4);
+  }
+  if (whichArmor(ctx, id, 'shield')?.def !== SHIELD_OF_REFLECTION) {
+    mongets(ctx, id, AMULET_OF_REFLECTION);
+    mDoWear(ctx, id, true);
+  }
+}
+
+/** ref: include/objects.h SILVER_SABER, SHIELD_OF_REFLECTION, AMULET_OF_REFLECTION */
+const SILVER_SABER: DefId = 'nh:silver_saber';
+const SHIELD_OF_REFLECTION: DefId = 'nh:shield_of_reflection';
+const AMULET_OF_REFLECTION: DefId = 'nh:amulet_of_reflection';

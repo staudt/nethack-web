@@ -10,6 +10,7 @@ import {
   contents,
   getLevel,
   inventoryOf,
+  specialLevelAt,
   type Ctx,
   type Entity,
   type GameOver,
@@ -30,6 +31,7 @@ import { RACES_TAB } from './racetab';
 import { ROLES_TAB } from './roletab';
 import { urace, urole } from './urole';
 import { uHave } from './uhave';
+import { PLANE_LEVELS, inEndgame, isAstral } from './levelflags';
 
 /** ref: include/objects.h FAKE_AMULET_OF_YENDOR */
 const FAKE_AMULET = 'nh:fake_amulet_of_yendor';
@@ -164,11 +166,29 @@ export function registerEnd(api: ModApi): void {
     field: 'endHow',
     value: (state) => (state.gameOver ? endHow(state) : null),
   });
-  // ref: really_done(): "You died in <dungeons[u.uz.dnum].dname>"
+  // ref: really_done(): "You died in <dungeons[u.uz.dnum].dname>", "The Astral Plane" there
   api.defineStatus({
     id: 'nh:end_dungeon',
     field: 'endDungeon',
-    value: (state, defs) => (state.gameOver ? defs.dungeon(getLevel(state).dungeon).nameKey : null),
+    value: (state, defs) =>
+      !state.gameOver
+        ? null
+        : isAstral(state)
+          ? 'end.astral_plane'
+          : defs.dungeon(getLevel(state).dungeon).nameKey,
+  });
+  // ref: src/topten.c outentry(): an end on the Planes is "on the Plane of Earth", "on the
+  // Astral Plane" in the score list, not "in <dungeon> on level <n>"
+  api.defineStatus({
+    id: 'nh:end_plane',
+    field: 'endPlane',
+    value(state) {
+      if (!state.gameOver || !inEndgame(state)) return null;
+      const level = getLevel(state);
+      const sp = specialLevelAt(state, { dungeon: level.dungeon, dlevel: level.dlevel });
+      const plane = Object.entries(PLANE_LEVELS).find(([, id]) => id === sp?.id)?.[0];
+      return `end.on_plane.${plane ?? 'dummy'}`;
+    },
   });
   // "Goodbye <name> the <role>...": botl.ts's `role` and `goodbye` statuses
   // ref: really_done(): the final `u.urexp` ("with N points")
@@ -183,7 +203,8 @@ export function registerEnd(api: ModApi): void {
     field: 'endGold',
     value: (state, defs) => (state.gameOver ? finalGold(state, defs) : null),
   });
-  // ref: src/end.c done(): " (with the Amulet)", else for an escape " (with a fake Amulet)"
+  // ref: src/end.c done(): " (with the Amulet)", else for an escape " (in celestial disgrace)"
+  // on the Astral Plane (she offered the Amulet to another god) or " (with a fake Amulet)"
   // (carried, not in a container), after the killer of the score list's entry (the tombstone is
   // drawn before it is added)
   api.defineStatus({
@@ -192,8 +213,10 @@ export function registerEnd(api: ModApi): void {
     value(state) {
       if (!state.gameOver) return null;
       if (uHave(state, 'amulet')) return 'end.with_amulet';
+      if (endHow(state) !== 'escaped') return null;
+      if (isAstral(state)) return 'end.celestial_disgrace';
       const fake = inventoryOf(state, state.playerId).some((o) => o.def === FAKE_AMULET);
-      return endHow(state) === 'escaped' && fake ? 'end.with_fake_amulet' : null;
+      return fake ? 'end.with_fake_amulet' : null;
     },
   });
   // ref: src/topten.c topten(): `maxlvl = deepest_lev_reached(TRUE)`

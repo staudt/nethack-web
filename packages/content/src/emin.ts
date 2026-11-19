@@ -50,6 +50,12 @@ export function setEmin(ctx: Pick<Ctx, 'state'>, id: EntityId, e: Emin): void {
   if (t) t[String(id)] = { ...e } as unknown as Json;
 }
 
+/** It is no minion any more. ref: src/minion.c free_emin(), `isminion = 0` */
+export function clearEmin(ctx: Pick<Ctx, 'state'>, id: EntityId): void {
+  const t = table(ctx.state, false);
+  if (t) delete t[String(id)];
+}
+
 /** ref: include/monst.h `mtmp->isminion` */
 export const isMinion = (state: Readonly<GameState>, id: EntityId): boolean =>
   emin(state, id) !== null;

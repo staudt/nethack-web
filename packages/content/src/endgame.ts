@@ -64,11 +64,30 @@ export function endgameUpdest(ctx: Pick<Ctx, 'defs'>, level: Readonly<Level>): L
 }
 
 /**
- * The des.message() lines each plane says on the hero's first arrival, by LevelDef id (Water's
- * waits for its bubbles: m23 step 10). ref: dat/earth.lua, air.lua; src/do.c goto_level()
- * deliver_splev_message()
+ * A plane's arrival line: a message key, with `god` set when it names her original god (`{god}`,
+ * the level message's "%d": align_gname(u.ualignbase[A_ORIGINAL])). ref: src/questpgr.c
+ * convert_arg()
  */
-export const PLANE_MESSAGES: Readonly<Record<DefId, readonly string[]>> = {
-  [PLANE_LEVELS.earth]: ['planes.earth_1', 'planes.earth_2', 'planes.earth_3'],
-  [PLANE_LEVELS.air]: ['planes.air_1', 'planes.air_2'],
+export interface PlaneMessage {
+  key: string;
+  god?: true;
+}
+
+/**
+ * The des.message() lines each plane says on the hero's first arrival, by LevelDef id (Water's
+ * waits for its bubbles: m23 step 10). ref: dat/earth.lua, air.lua, astral.lua; src/do.c
+ * goto_level() deliver_splev_message()
+ */
+export const PLANE_MESSAGES: Readonly<Record<DefId, readonly PlaneMessage[]>> = {
+  [PLANE_LEVELS.earth]: [
+    { key: 'planes.earth_1' },
+    { key: 'planes.earth_2' },
+    { key: 'planes.earth_3' },
+  ],
+  [PLANE_LEVELS.air]: [{ key: 'planes.air_1' }, { key: 'planes.air_2' }],
+  [PLANE_LEVELS.astral]: [
+    { key: 'planes.astral_1' },
+    { key: 'planes.astral_2', god: true },
+    { key: 'planes.astral_3' },
+  ],
 };

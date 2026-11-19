@@ -55,7 +55,7 @@ import { ustuck, setUstuck } from './hackmove';
 import { mintrap } from './trap';
 import { isMtrapped } from './trapstate';
 import { eshkOf } from './eshk';
-import { isMinion } from './emin';
+import { clearEmin, isMinion } from './emin';
 import { makeHappyShk } from './shk';
 
 /** ref: include/dog.h dogfood() results, best first */
@@ -445,6 +445,10 @@ export function makeFamiliar(
     }
   } while (id === null && --trycnt > 0);
   if (id === null) return null;
+  // Fixup for figurine of an Angel: makemon() is willing to create a random Angel as either an
+  // ordinary monster or as a minion of random allegiance; not the latter here, in case it
+  // successfully becomes a pet
+  if (figurine && isMinion(ctx.state, id)) clearEmin(ctx, id);
   const m = ctx.state.entities[String(id)]?.c.monster;
   let reallytame = true;
   if (figurine && m) {

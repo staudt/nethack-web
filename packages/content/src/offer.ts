@@ -11,8 +11,8 @@
 // offer_ok(), sacrifice_value()'s eaten_stat() and peek_at_iced_corpse_age()
 //
 // On a high altar (highaltar.ts) another god's altar is desecrated, never converted, and the real
-// Amulet may be offered: to Moloch, it ends her (offer_real_amulet()'s Moloch branch; the other
-// gods' high altars come with the Astral Plane, m23b).
+// Amulet may be offered (offer_real_amulet()): to Moloch it ends her, to another god on the
+// Astral Plane it is an escape in celestial disgrace, to her own god her ascension.
 //
 // Not ported (DEVIATIONS.md "Sacrifice"): the Riders' revival, former pets' corpses (a corpse
 // does not remember its monster), the conducts and livelog, Wisdom exercise, Deafness ("Oh,
@@ -67,7 +67,7 @@ import { uswallow } from './engulfstate';
 import { makemon } from './generation';
 import { invOption } from './itemactions';
 import { placeOnFloor } from './items';
-import { inHell } from './levelflags';
+import { inHell, isAstral } from './levelflags';
 import {
   LUCKMAX,
   adjalign,
@@ -92,7 +92,8 @@ import { isHighAltar } from './highaltar';
 import { AMULET_OF_YENDOR } from './uhave';
 import { amuletOff } from './jewelry';
 import { done } from './end';
-import { setEndHow } from './endstate';
+import { endAlive } from './endstate';
+import { heroFemale } from './gender';
 import { monNam } from './perception';
 import { P, hasProp } from './props';
 import { raceHostile, yourRace } from './race';
@@ -265,45 +266,57 @@ function offerFakeAmulet(ctx: Ctx, obj: Entity, highaltar: boolean, altaralign: 
 }
 
 /**
- * The real Amulet offered on a high altar ends the game. To Moloch, in the Sanctum: the record
- * falls to -99, "An invisible choir chants, and you are bathed in darkness...", "Moloch shrugs
- * and retains dominion over Odin, then mercilessly snuffs out your life." (killed by Moloch's
- * indifference); life-saved, Moloch snarls and tries again (his disintegration), and one who
- * still lives escapes in a cloud of black smoke. Only Moloch's high altar exists until the
- * Astral Plane (m23b): another god's is treated as a low altar. ref: src/pray.c
- * offer_real_amulet()
+ * The real Amulet offered on a high altar ends the game ("You offer the Amulet of Yendor to
+ * Mitra..."). To Moloch, in the Sanctum: the record falls to -99, "An invisible choir chants,
+ * and you are bathed in darkness...", "Moloch shrugs and retains dominion over Odin, then
+ * mercilessly snuffs out your life." (killed by Moloch's indifference); life-saved, Moloch snarls
+ * and tries again (his disintegration), and one who still lives escapes in a cloud of black
+ * smoke. To another god on the Astral Plane: the record falls by 99, "Set accepts your gift, and
+ * gains dominion over Odin...", "Odin is enraged...", "Fortunately, Set permits you to live...",
+ * and she escapes in a cloud of orange smoke (in celestial disgrace). To her own god: she has
+ * won, "An invisible choir sings, and you are bathed in radiance...", "Mortal, thou hast done
+ * well!", the gift of Immortality, "You ascend to the status of Demigoddess...".
+ * ref: src/pray.c offer_real_amulet()
  */
 function offerRealAmulet(ctx: Ctx, obj: Entity, altaralign: number): void {
-  if (altaralign !== A_NONE) {
-    offerTooSoon(ctx, altaralign); // (unreachable until the Astral Plane's high altars)
-    return;
-  }
   // the final Test.  Did you win?
   if (obj.c.item?.equipped === 'amulet') amuletOff(ctx, obj);
   useup(ctx, obj); // well, it's gone now
   say(ctx, 'offer.real_amulet', { god: aGname(ctx) });
-  // Moloch's high altar at the bottom of Gehennom
-  if (uState(ctx.state).alignRecord > -99) setU(ctx, { alignRecord: -99 });
-  say(ctx, 'offer.choir_darkness');
-  say(ctx, 'offer.moloch_shrugs', { moloch: MOLOCH, god: uGname(ctx.state) });
-  say(ctx, 'offer.moloch_snuffs');
-  const h = hero(ctx);
-  if (h.c.hp) h.c.hp.cur = 0;
-  done(ctx, '@killer.moloch_indifference');
-  if (ctx.state.gameOver) return;
-  // life-saved
-  say(ctx, 'offer.moloch_snarls', { moloch: MOLOCH });
-  fryByGod(ctx, A_NONE, true); // wrath of Moloch
-  if (ctx.state.gameOver) return;
-  say(ctx, 'offer.cloud_of_smoke', { color: hcolor(ctx, 'black') });
-  setEndHow(ctx, 'escaped');
-  ctx.endGame({
-    kind: 'escaped',
-    killer: 'escaped',
-    turn: ctx.state.turn,
-    depth: getLevel(ctx.state).depth,
-    level: ulevel(ctx),
-  });
+  if (altaralign === A_NONE) {
+    // Moloch's high altar at the bottom of Gehennom
+    if (uState(ctx.state).alignRecord > -99) setU(ctx, { alignRecord: -99 });
+    say(ctx, 'offer.choir_darkness');
+    say(ctx, 'offer.moloch_shrugs', { moloch: MOLOCH, god: uGname(ctx.state) });
+    say(ctx, 'offer.moloch_snuffs');
+    const h = hero(ctx);
+    if (h.c.hp) h.c.hp.cur = 0;
+    done(ctx, '@killer.moloch_indifference');
+    if (ctx.state.gameOver) return;
+    // life-saved
+    say(ctx, 'offer.moloch_snarls', { moloch: MOLOCH });
+    fryByGod(ctx, A_NONE, true); // wrath of Moloch
+    if (ctx.state.gameOver) return;
+    say(ctx, 'offer.cloud_of_smoke', { color: hcolor(ctx, 'black') });
+    endAlive(ctx, 'escaped');
+  } else if (uState(ctx.state).alignType !== altaralign) {
+    // And the opposing team picks you up and carries you off on their shoulders.
+    adjalign(ctx, -99);
+    say(ctx, 'offer.gains_dominion', { god: aGname(ctx), ugod: uGname(ctx.state) });
+    say(ctx, 'offer.enraged', { god: uGname(ctx.state) });
+    say(ctx, 'offer.permits_live', { god: aGname(ctx) });
+    say(ctx, 'offer.cloud_of_smoke', { color: hcolor(ctx, 'orange') });
+    endAlive(ctx, 'escaped');
+  } else {
+    // You've won the game!  Feedback-wise, it's a bit of a let down.
+    setU(ctx, { ascended: true });
+    adjalign(ctx, 10);
+    say(ctx, 'offer.choir_radiance');
+    godvoice(ctx, altaralign, 'offer.done_well');
+    say(ctx, 'offer.immortality');
+    say(ctx, heroFemale(ctx.state) ? 'offer.ascend_demigoddess' : 'offer.ascend_demigod');
+    endAlive(ctx, 'ascended');
+  }
 }
 
 /**
@@ -716,11 +729,11 @@ function offerables(ctx: Ctx): { floor: Entity[]; carried: Entity[] } {
       ? itemsAt(ctx.defs, ctx.state, p.level, p.x, p.y).filter((e) => e.def === CORPSE)
       : [];
   const inv = inventoryOf(ctx.state, ctx.state.playerId);
-  // offer_ok(): corpses suggested, amulets downplayed off the Astral Plane (listed last)
-  const carried = [
-    ...inv.filter((e) => e.def === CORPSE),
-    ...inv.filter((e) => e.def === FAKE_AMULET || e.def === AMULET_OF_YENDOR),
-  ];
+  // offer_ok(): corpses suggested and amulets downplayed (listed last), the other way round on
+  // the Astral Plane
+  const corpses = inv.filter((e) => e.def === CORPSE);
+  const amulets = inv.filter((e) => e.def === FAKE_AMULET || e.def === AMULET_OF_YENDOR);
+  const carried = isAstral(ctx.state) ? [...amulets, ...corpses] : [...corpses, ...amulets];
   return { floor, carried };
 }
 

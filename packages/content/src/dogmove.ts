@@ -62,6 +62,8 @@ import { doname } from './objnam';
 import { canSpotMon, monNam } from './perception';
 import { getMleash, hisOf, mleashed, oUnleash } from './leashstate';
 import { P, conflictOn, heroHas, resistConflict } from './props';
+import { isMinion } from './emin';
+import { loseGuardianAngel } from './minion';
 import { onscary } from './scary';
 import { isFrozen, isMConfused, isMStunned, mcansee, setMConfused } from './mstate';
 import { monInvisible, perceives } from './invis';
@@ -303,7 +305,7 @@ function heroInRoom(ctx: Ctx, level: Level, hp: Pos): boolean {
 function dogGoal(
   ctx: Ctx,
   mon: Entity,
-  e: Edog,
+  e: Edog | null,
   udist: number,
   whappr: boolean,
   goal: Pos,
@@ -330,14 +332,14 @@ function dogGoal(
   const floor = Object.values(ctx.state.entities)
     .filter((o) => o.c.item && o.c.pos?.level === pos.level)
     .sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || b.id - a.id);
-  // he's not going anywhere...
+  // he's not going anywhere... (nor is a guardian angel, with no pet record)
   const leashed = mleashed(ctx, mon.id);
-  if (leashed) {
+  if (!e || leashed) {
     gtyp = APPORT;
     gx = hp.x;
     gy = hp.y;
   }
-  for (const obj of leashed ? [] : floor) {
+  for (const obj of !e || leashed ? [] : floor) {
     const op = obj.c.pos as Pos;
     const nx = op.x;
     const ny = op.y;
@@ -348,7 +350,7 @@ function dogGoal(
     const cursedHere = itemsAt(ctx.defs, ctx.state, pos.level, nx, ny).some(
       (o) => o.c.item?.buc === 'cursed',
     );
-    if (cursedHere && !(e.mhpmaxPenalty && otyp < MANFOOD)) continue;
+    if (cursedHere && !(e?.mhpmaxPenalty && otyp < MANFOOD)) continue;
     // skip completely unreachable goals
     if (
       !couldReachItem(ctx, mon, level, nx, ny) ||
@@ -367,7 +369,7 @@ function dogGoal(
       !hasMinvent &&
       (!level.lit[cellIndex(level, omx, omy)] || level.lit[cellIndex(level, hp.x, hp.y)]) &&
       (otyp === MANFOOD || clearPath(level, rules.opaque, omx, omy, nx, ny, blocked)) &&
-      e.apport > ctx.rng.rn2(8) &&
+      (e?.apport ?? 0) > ctx.rng.rn2(8) &&
       canCarry(ctx, mon.id, obj) > 0
     ) {
       gx = nx;
@@ -378,7 +380,10 @@ function dogGoal(
 
   let appr: number;
   // follow the hero if appropriate
-  if (gtyp === UNDEF || (gtyp !== DOGFOOD && gtyp !== APPORT && ctx.state.turn < e.hungrytime)) {
+  if (
+    gtyp === UNDEF ||
+    (gtyp !== DOGFOOD && gtyp !== APPORT && ctx.state.turn < (e?.hungrytime ?? 0))
+  ) {
     gx = hp.x;
     gy = hp.y;
     appr = udist >= 9 ? 1 : isFleeing(ctx, mon.id) ? -1 : 0;
@@ -387,7 +392,7 @@ function dogGoal(
         !heroInRoom(ctx, level, hp) ||
         ctx.rng.rn2(4) === 0 ||
         whappr ||
-        (hasMinvent && ctx.rng.rn2(e.apport) !== 0)
+        (hasMinvent && e && ctx.rng.rn2(e.apport) !== 0)
       )
         appr = 1;
     }
@@ -407,7 +412,9 @@ function dogGoal(
   // ref: dog_goal(): `if (mtmp->mconf) appr = 0;`
   if (isMConfused(ctx, mon.id) || isMStunned(ctx, mon.id)) appr = 0;
 
-  if (gx === hp.x && gy === hp.y && !inMastersSight) {
+  if (!e) {
+    // a guardian angel has no previous goal to keep
+  } else if (gx === hp.x && gy === hp.y && !inMastersSight) {
     // no trail to follow: reuse the previous goal once, else head for the hero
     if (e.ogoal[0] > 0 && (e.ogoal[0] !== omx || e.ogoal[1] !== omy)) {
       gx = e.ogoal[0];
@@ -488,10 +495,11 @@ function avoidSokoPushLoc(
 
 /**
  * The pet's move. Under Conflict it may pick her square and attack her (mattacku), and it fights
- * other pets and peacefuls. ref: src/dogmove.c dog_move(). Not ported: leashes, whistles,
- * displacing other monsters, kicked-square avoidance, traps, ranged attacks,
- * long worms, minions; a target's "has it already moved this turn" check (mlstmv) is skipped
- * for the return attack.
+ * other pets and peacefuls. A guardian angel (a tame minion, no pet record) eats and fetches
+ * nothing, stays close by choice, and under Conflict leaves her, sending hostile Angels.
+ * ref: src/dogmove.c dog_move(). Not ported: leashes, whistles, displacing other monsters,
+ * kicked-square avoidance, traps, ranged attacks, long worms; a target's "has it already moved
+ * this turn" check (mlstmv) is skipped for the return attack.
  */
 export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
   const mon = ctx.state.entities[String(id)];
@@ -499,10 +507,12 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
   const hero = getPlayer(ctx.state);
   const hp = hero.c.pos;
   if (!mon?.c.monster || !pos || !hp) return 'nothing';
-  const e = ensureEdog(ctx, id);
+  // a tame Angel (the guardian angel) is a minion with no pet record: it needs no food and
+  // fetches nothing, and spends all its energy defending her
+  const e = edogOf(ctx, id) ?? (isMinion(ctx.state, id) ? null : ensureEdog(ctx, id));
   const omx = pos.x;
   const omy = pos.y;
-  if (dogHunger(ctx, mon, e)) return 'died';
+  if (e && dogHunger(ctx, mon, e)) return 'died';
   const udist = dist2(omx, omy, hp.x, hp.y);
   if (!udist) return 'nothing';
 
@@ -513,17 +523,20 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
   const level = getLevel(ctx.state, pos.level);
   const cursemsg = new Set<number>();
 
-  const j0 = dogInvent(ctx, mon, e, udist);
+  const j0 = e ? dogInvent(ctx, mon, e, udist) : 0;
   if (j0 === 2) return 'died';
   const eating = j0 === 1;
   const goal: Pos = { x: 0, y: 0 };
   if (!eating) {
-    const whappr = ctx.state.turn - e.whistletime < 5;
+    const whappr = e ? ctx.state.turn - e.whistletime < 5 : false;
     const appr = dogGoal(ctx, mon, e, udist, whappr, goal);
     if (appr === -2) return 'nothing';
-    // `Conflict && !resist_conflict(mtmp)` only matters for a guardian angel (none here: every
-    // pet has an edog), but the roll is made
-    if (conflictOn(ctx.state)) resistConflict(ctx, mon);
+    if (conflictOn(ctx.state) && !resistConflict(ctx, mon) && !e) {
+      // Guardian angel refuses to be conflicted; rather, it disappears, angrily, and sends in
+      // some nasties
+      loseGuardianAngel(ctx, mon);
+      return 'died'; // current monster is gone
+    }
     const rules = cellRules(level, ctx.defs);
     const cands = mfndpos(ctx, level, rules, id, hp, {
       allowM: true,
@@ -547,6 +560,8 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
       const ny = c.y;
       // if leashed, we drag him along (no square more than distance squared 4 from her)
       if (leashed && dist2(nx, ny, hp.x, hp.y) > 4) continue;
+      // if a guardian, try to stay close by choice
+      if (!e && dist2(nx, ny, hp.x, hp.y) > 16 && dist2(nx, ny, hp.x, hp.y) >= udist) continue;
       if (c.mon !== undefined) {
         const mtmp2 = ctx.state.entities[String(c.mon)];
         const m2 = mtmp2?.c.monster;
@@ -596,14 +611,14 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         if (leashed) whimper(ctx, mon);
         else if (trap?.seen && ctx.rng.rn2(40) !== 0) continue;
       }
-      // the dog eschews cursed objects, but likes dog food
+      // the dog eschews cursed objects, but likes dog food (a minion isn't interested)
       let food: Entity | null = null;
       const canReachFood = couldReachItem(ctx, mon, level, nx, ny);
-      for (const obj of itemsAt(ctx.defs, ctx.state, pos.level, nx, ny)) {
+      for (const obj of e ? itemsAt(ctx.defs, ctx.state, pos.level, nx, ny) : []) {
         if (obj.c.item?.buc === 'cursed') cursemsg.add(i);
         else if (canReachFood) {
           const otyp = dogfood(ctx, mon, obj);
-          if (otyp < MANFOOD && (otyp < ACCFOOD || e.hungrytime <= ctx.state.turn)) {
+          if (otyp < MANFOOD && (otyp < ACCFOOD || (e?.hungrytime ?? 0) <= ctx.state.turn)) {
             food = obj;
             break;
           }
@@ -622,7 +637,7 @@ export function dogMove(ctx: Ctx, id: EntityId): DogMoveStatus {
         continue;
       // lessen the chance of backtracking when far from the hero (not when leashed)
       if (!leashed && Math.max(Math.abs(omx - hp.x), Math.abs(omy - hp.y)) > 5) {
-        const k = uncursedcnt;
+        const k = e ? uncursedcnt : cnt;
         let skip = false;
         for (let j = 0; j < MTSZ && j < k - 1 && !skip; j++)
           if (nx === track[2 * j] && ny === track[2 * j + 1] && ctx.rng.rn2(MTSZ * (k - j)) !== 0)

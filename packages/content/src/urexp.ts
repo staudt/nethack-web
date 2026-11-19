@@ -14,6 +14,7 @@ import {
 } from '@nh/core';
 import { deepestLevReached } from './levdiff';
 import { endHow } from './endstate';
+import { uState, ualignBase, ualignCur } from './luck';
 import { GLASS_GEMS, REAL_GEMS } from './gem';
 
 interface ScoreData {
@@ -89,22 +90,30 @@ function valuables(state: Readonly<GameState>, defs: Registry, list: readonly En
 }
 
 /**
- * The final score: `u.urexp` plus the net gold gain (less a tenth unless she escaped or quit),
- * 50 per level below the first and 1000 per level past 20 (at most 10); an escape adds the
- * valuables. The net gain is over the starting gold (`u.umoney0`, `modData.nh.umoney0`, absent
- * = 0: a Healer's or Tourist's purse).
- * ref: src/end.c really_done() "calculate score" (`how < PANICKED`), the ESCAPED branch.
- * Not ported: the ascension bonus, artifact_score(), the escaping pets' hit points.
+ * The final score: `u.urexp` plus the net gold gain (less a tenth unless she escaped, ascended
+ * or quit), 50 per level below the first and 1000 per level past 20 (at most 10); an ascension
+ * offered to her original god doubles that (half again if she converted and a helm of opposite
+ * alignment took her back); an escape or an ascension adds the valuables. The net gain is over
+ * the starting gold (`u.umoney0`, `modData.nh.umoney0`, absent = 0: a Healer's or Tourist's
+ * purse). ref: src/end.c really_done() "calculate score" (`how < PANICKED`, the ascension
+ * bonus), the ESCAPED/ASCENDED branch.
+ * Not ported: artifact_score(), the escaping pets' hit points.
  */
 export function finalScore(state: Readonly<GameState>, defs: Registry): number {
   const how = endHow(state);
   const deepest = deepestLevel(state);
   const md = state.modData['nh'] as unknown as { umoney0?: number } | undefined;
   let tmp = Math.max(0, finalGold(state, defs) - (md?.umoney0 ?? 0)); // net gain over u.umoney0
-  if (how !== 'escaped' && how !== 'quit') tmp -= Math.trunc(tmp / 10);
+  if (how !== 'escaped' && how !== 'quit' && how !== 'ascended') tmp -= Math.trunc(tmp / 10);
   tmp += 50 * (deepest - 1);
   if (deepest > 20) tmp += 1000 * (deepest > 30 ? 10 : deepest - 20);
   let score = urexp(state) + tmp;
-  if (how === 'escaped') score += valuables(state, defs, inventoryOf(state, state.playerId));
+  // ascension gives a score bonus iff offering to original deity
+  if (how === 'ascended' && uState(state).alignType === ualignBase(state))
+    // retaining original alignment: score *= 2; converting, then using helm-of-OA to switch
+    // back: *= 1.5
+    score += ualignCur(state) === ualignBase(state) ? score : Math.trunc(score / 2);
+  if (how === 'escaped' || how === 'ascended')
+    score += valuables(state, defs, inventoryOf(state, state.playerId));
   return score;
 }

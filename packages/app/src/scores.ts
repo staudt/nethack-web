@@ -46,6 +46,7 @@ function isEntry(v: unknown): v is ScoreEntry {
     (e['plcode'] === null || isStr(e['plcode'])) &&
     isStr(e['death']) &&
     isStr(e['dungeon']) &&
+    (e['plane'] === undefined || isStr(e['plane'])) &&
     isNum(e['deathLev']) &&
     (e['maxLvl'] === null || isNum(e['maxLvl'])) &&
     isNum(e['hp']) &&
@@ -123,8 +124,9 @@ export function ordin(n: number): string {
 
 /**
  * outentry()'s sentence after the rank and points: "Valkyrie-Val-Hum-Fem-Neu died in The
- * Dungeons of Doom on level 3 [max 4].  Killed by a jackal." Escapes, quits and starvation have
- * no second sentence. ref: src/topten.c outentry()
+ * Dungeons of Doom on level 3 [max 4].  Killed by a jackal.", "... died on the Plane of Fire.",
+ * "... ascended to demigoddess-hood." Escapes, ascensions, quits and starvation have no second
+ * sentence. ref: src/topten.c outentry()
  */
 export function entryText(e: EndSummary): string {
   let s = e.name.slice(0, 10); // "%.10s"
@@ -133,7 +135,15 @@ export function entryText(e: EndSummary): string {
   const maxLvl = e.maxLvl ?? e.deathLev;
   let second = true;
   if (e.how === 'escaped') {
-    s += `escaped the dungeon [max level ${maxLvl}]`;
+    // "escaped (with the Amulet)": "escaped the dungeon with the Amulet [max level N]"; on the
+    // Planes the closing parenthesis ends the line: "escaped the dungeon in celestial disgrace"
+    const sfx = /^[^(]*\((.*)\)$/.exec(e.death)?.[1];
+    if (sfx === undefined) s += `escaped the dungeon [max level ${maxLvl}]`;
+    else if (e.plane !== undefined) s += `escaped the dungeon ${sfx}`;
+    else s += `escaped the dungeon ${sfx} [max level ${maxLvl}]`;
+    second = false;
+  } else if (e.how === 'ascended') {
+    s += `ascended to demigod${e.plcode?.split('-')[2]?.startsWith('F') ? 'dess' : ''}-hood`;
     second = false;
   } else {
     if (e.how === 'quit') {
@@ -147,8 +157,11 @@ export function entryText(e: EndSummary): string {
     } else if (e.how === 'poisoning') s += 'was poisoned';
     else if (e.how === 'stoning') s += 'turned to stone';
     else s += 'died';
-    s += ` in ${e.dungeon} on level ${e.deathLev}`;
-    if (e.deathLev !== maxLvl) s += ` [max ${maxLvl}]`;
+    if (e.plane !== undefined) s += ` ${e.plane}`;
+    else {
+      s += ` in ${e.dungeon} on level ${e.deathLev}`;
+      if (e.deathLev !== maxLvl) s += ` [max ${maxLvl}]`;
+    }
   }
   s += '.';
   if (second && e.death) s += `  ${e.death.charAt(0).toUpperCase()}${e.death.slice(1)}.`;
