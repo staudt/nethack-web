@@ -4,6 +4,7 @@ import { stateHash } from './hash';
 import type { Json } from './types/common';
 import type { GameEvent } from './types/event';
 import type { Mod } from './types/mod';
+import type { Prompt } from './types/prompt';
 import type { FromCore, Replay, ToCore } from './types/protocol';
 import type { GameState } from './types/state';
 import type { ViewSnapshot } from './types/view';
@@ -30,9 +31,31 @@ export function createHost(
     return game;
   };
 
+  /** The prompt the next action must answer, if any (a loaded game may be waiting on one). */
+  const promptOf = (state: GameState): Prompt | null => state.pendingPrompt?.prompt ?? null;
+
   const sendFull = (state: GameState, events: GameEvent[]): void => {
     mirror = buildSnapshot(engine.registry, state);
-    post({ t: 'view', view: mirror, events, prompt: null, continuing: state.occupation !== null });
+    post({
+      t: 'view',
+      view: mirror,
+      events,
+      prompt: promptOf(state),
+      continuing: state.occupation !== null,
+    });
+  };
+
+  /** A delta from the mirror to `state` (and the mirror moved on). */
+  const sendDelta = (
+    state: GameState,
+    events: GameEvent[],
+    prompt: Prompt | null,
+    continuing: boolean,
+  ): void => {
+    const next = buildSnapshot(engine.registry, state);
+    const view = mirror ? diffSnapshot(mirror, next) : next;
+    mirror = applyUpdate(mirror, view);
+    post({ t: 'view', view, events, prompt, continuing });
   };
 
   const dispatch = (msg: ToCore): void => {
@@ -79,12 +102,22 @@ export function createHost(
       }
       case 'act': {
         const g = requireGame();
+        // Insist: an action that is not the pending prompt's answer (the UI lost the question,
+        // or a key arrived while it was off screen) is not an error; it is dropped (not stepped,
+        // not recorded) and the prompt is sent again, like NetHack's yn_function() asking until
+        // it gets an answer. engine.step() itself still throws for it.
+        const pending = promptOf(g.state);
+        if (
+          pending &&
+          !g.state.gameOver &&
+          (msg.action.type !== 'answer' || msg.action.promptId !== pending.id)
+        ) {
+          sendDelta(g.state, [], pending, g.state.occupation !== null);
+          return;
+        }
         const { events, prompt, continuing } = engine.step(g.state, msg.action);
         g.replay.actions.push(JSON.parse(JSON.stringify(msg.action)) as typeof msg.action);
-        const next = buildSnapshot(engine.registry, g.state);
-        const view = mirror ? diffSnapshot(mirror, next) : next;
-        mirror = applyUpdate(mirror, view);
-        post({ t: 'view', view, events, prompt, continuing });
+        sendDelta(g.state, events, prompt, continuing);
         return;
       }
       case 'query': {

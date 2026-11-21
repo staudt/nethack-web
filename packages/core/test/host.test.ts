@@ -289,3 +289,75 @@ describe('host with multi-turn actions', () => {
     expect(h).toEqual({ t: 'hash', hash: stateHash(state) });
   });
 });
+
+describe('host: a pending prompt', () => {
+  /** An action that asks a yn prompt; answering it takes a move. */
+  const askMod: Mod = {
+    id: 'ak',
+    version: '1.0.0',
+    register(api) {
+      api.defineAction({
+        id: 'ak:ask',
+        labelKey: 'a.ask',
+        handles: 'mod',
+        offer: () => [],
+        perform(ctx) {
+          ctx.ask({ id: 'q', kind: 'yn', key: 'q.yn' }, 'ak:ask', null);
+          return 0;
+        },
+        answer: () => 12,
+      });
+    },
+  };
+  const ASK: ToCore = { t: 'act', action: { type: 'mod', action: 'ak:ask' } };
+  const mk = () => {
+    const out: FromCore[] = [];
+    const host = createHost([fakeMod, askMod], (m) => void out.push(structuredClone(m)));
+    return (m: ToCore): FromCore => {
+      host.handle(structuredClone(m));
+      return out[out.length - 1]!;
+    };
+  };
+  const promptOf = (m: FromCore) => (m.t === 'view' ? m.prompt : m);
+
+  test('a stray action is not stepped or recorded: the prompt comes back, never an error', () => {
+    const send = mk();
+    send(NEW);
+    expect(promptOf(send(ASK))).toMatchObject({ id: 'q' });
+    const hash = send({ t: 'hash' });
+    for (const action of [
+      { type: 'wait' },
+      { type: 'continue' },
+      { type: 'move', dir: 'e' },
+      { type: 'answer', promptId: 'other', value: true },
+    ] as const) {
+      const r = send({ t: 'act', action });
+      expect(r).toMatchObject({ t: 'view', events: [], prompt: { id: 'q' }, continuing: false });
+      expect(r.t === 'view' && r.view.kind).toBe('delta');
+    }
+    expect(send({ t: 'hash' })).toEqual(hash);
+    // the real answer still goes through, then play goes on
+    const answered = send({ t: 'act', action: { type: 'answer', promptId: 'q', value: true } });
+    expect(promptOf(answered)).toBeNull();
+    expect(send({ t: 'act', action: { type: 'wait' } }).t).toBe('view');
+    const saved = send({ t: 'save' });
+    if (saved.t !== 'saved') throw new Error('not saved');
+    const file = JSON.parse(saved.save) as { replay: { actions: { type: string }[] } };
+    expect(file.replay.actions.map((a) => a.type)).toEqual(['mod', 'answer', 'wait']);
+  });
+
+  test('a game saved while a prompt is pending loads with the prompt in its full view', () => {
+    const a = mk();
+    a(NEW);
+    a(ASK);
+    const saved = a({ t: 'save' });
+    if (saved.t !== 'saved') throw new Error('not saved');
+    const b = mk();
+    const loaded = b({ t: 'load', save: saved.save });
+    expect(loaded.t === 'view' && loaded.view.kind).toBe('full');
+    expect(promptOf(loaded)).toMatchObject({ id: 'q', kind: 'yn' });
+    expect(promptOf(b({ t: 'act', action: { type: 'wait' } }))).toMatchObject({ id: 'q' });
+    const answered = b({ t: 'act', action: { type: 'answer', promptId: 'q', value: false } });
+    expect(promptOf(answered)).toBeNull();
+  });
+});

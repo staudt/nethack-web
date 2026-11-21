@@ -396,6 +396,9 @@ export function createUi(opts: UiOptions): Ui {
       if (modal === m) {
         modal = null;
         invOpen = false;
+        // A prompt's sheet closes before its answer is sent: the question is off screen now, so
+        // the next one is shown even if it has the same id (a second "Die?" after "no").
+        promptId = null;
       }
     });
     modal = m;
@@ -495,6 +498,7 @@ export function createUi(opts: UiOptions): Ui {
   function endPosition(): void {
     if (!posPrompt) return;
     posPrompt = null;
+    promptId = null; // off screen: the next prompt is shown, whatever its id
     tapArmed = null;
     getpos = null;
     cursorRenderer?.setCursor(null);
@@ -520,12 +524,12 @@ export function createUi(opts: UiOptions): Ui {
     prefix = null;
     if (lookMode) setLook(false);
     log.push(t(p.key, p.params));
-    promptId = p.id;
     const here = playerPos;
     if (!here || mapW === 0) {
       game.act({ type: 'answer', promptId: p.id, value: null }); // no map to point at
       return;
     }
+    promptId = p.id;
     const valid = p.valid ?? [];
     getpos = createGetpos(
       () => ({

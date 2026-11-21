@@ -359,6 +359,37 @@ describe('host', () => {
     expect(btns(m.root)).toHaveLength(0);
   });
 
+  test('a prompt asked again with the same id after its answer is shown again', () => {
+    // wizard mode: "no" to "Die?", and the monsters kill her again in the same step
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', { q: 'Die?' });
+    const die: Prompt = { id: 'die', kind: 'yn', key: 'q' };
+    m.ui.update(view(), [], die);
+    btns(m.root)[1]!.click();
+    expect(m.acts).toEqual([{ type: 'answer', promptId: 'die', value: false }]);
+    expect(btns(m.root)).toHaveLength(0);
+    m.ui.update(view(), [], die);
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Yes', 'No']);
+    key('n', 'KeyN');
+    expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'die', value: false });
+    m.ui.update(view(), [], null);
+    expect(btns(m.root)).toHaveLength(0);
+  });
+
+  test('a prompt whose sheet was closed for another comes back when the core sends it again', () => {
+    const m = mk();
+    ui = m.ui;
+    m.ui.api.addMessages('en', { q: 'Die?' });
+    const die: Prompt = { id: 'die', kind: 'yn', key: 'q' };
+    m.ui.update(view(), [], die);
+    m.ui.showText('Help', [{ label: 'text', run: () => {} }]);
+    expect(btns(m.root).map((b) => b.textContent)).not.toContain('Yes');
+    // the core's answer to a stray action: the same prompt, nothing else
+    m.ui.update(view(), [], die);
+    expect(btns(m.root).map((b) => b.textContent)).toEqual(['Yes', 'No']);
+  });
+
   test('a cancellable prompt has Cancel and Escape, which answer null', () => {
     const m = mk();
     ui = m.ui;
@@ -1708,6 +1739,17 @@ describe('look cursor (keyboard getpos)', () => {
       m = mkPos();
       key('Escape', 'Escape');
       expect(m.acts).toEqual([{ type: 'answer', promptId: 'tele-where', value: null }]);
+    });
+
+    test('asked again with the same id after an answer (C\'s "Sorry..."), it is shown again', () => {
+      const m = mkPos();
+      (m.root.querySelector('.nh-pos-pick') as HTMLElement).click();
+      expect(bars(m.root).pos.hidden).toBe(true);
+      m.ui.update(view(), [], posPrompt);
+      expect(bars(m.root).pos.hidden).toBe(false);
+      expect(m.renderer.cursors.at(-1)).toEqual({ x: 2, y: 3 });
+      key('Escape', 'Escape');
+      expect(m.acts.at(-1)).toEqual({ type: 'answer', promptId: 'tele-where', value: null });
     });
 
     test('without a start the cursor is on the hero; the Look button is ignored', () => {

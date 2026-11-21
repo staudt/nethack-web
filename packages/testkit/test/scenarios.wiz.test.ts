@@ -4,15 +4,18 @@
 import { WIZ_GENESIS, WIZ_LEVELPORT, WIZ_WISH, vanillaMod, wizardMod } from '@nh/content';
 import {
   createEngine,
+  createHost,
   getLevel,
   getPlayer,
   inventoryOf,
   isPlainFloor,
   stateHash,
   type DefId,
+  type FromCore,
   type GameState,
   type Json,
   type PlayerAction,
+  type ToCore,
 } from '@nh/core';
 import { describe, expect, test } from 'vitest';
 import { checkInvariants } from '../src/index';
@@ -182,5 +185,105 @@ describe('wizard wish, genesis and "Die?"', () => {
     const wiz = engine.newGame({ seed: 44 }).state;
     for (const st of [state, wiz]) normal.step(st, { type: 'wait' });
     expect(stateHash({ ...wiz, mods: state.mods })).toBe(stateHash(state));
+  });
+});
+
+describe('"Die?" through the worker host', () => {
+  /**
+   * A wizard game whose hero, at 1 HP among three hostile soldier ants (nothing else on the
+   * level), has just been asked "Die?", saved as the app autosaves it; the first seed from `from`
+   * where that happens within 200 turns.
+   */
+  const dyingSave = (from: number, pin: boolean): string => {
+    for (let seed = from; seed < from + 20; seed++) {
+      const { state, log } = warm(seed);
+      for (let i = 0; i < 3; i++) command(state, log, WIZ_GENESIS, 'hostile soldier ant');
+      for (const m of monstersHere(state))
+        if (m.def !== 'nh:soldier_ant') {
+          for (const e of Object.values(state.entities))
+            if (e.c.item?.carriedBy === m.id) delete state.entities[String(e.id)];
+          delete state.entities[String(m.id)];
+        }
+      getPlayer(state).c.hp!.cur = 1;
+      for (let i = 0; i < 200 && !state.pendingPrompt; i++) engine.step(state, { type: 'wait' });
+      if (state.pendingPrompt?.prompt.id !== 'die') continue;
+      if (pin)
+        for (const m of monstersHere(state)) {
+          m.c.actor!.speed = 0;
+          m.c.actor!.energy = 0;
+          m.c.monster!.asleep = true;
+        }
+      const level = getLevel(state);
+      return engine.save(state, {
+        seed: state.seed,
+        width: level.width,
+        height: level.height,
+        mods: state.mods.map((m) => ({ ...m })),
+        character: { ...getPlayer(state).c.player! },
+        actions: log,
+      });
+    }
+    throw new Error('no seed where the ants kill her');
+  };
+  const loadHost = (save: string) => {
+    const out: FromCore[] = [];
+    const host = createHost([vanillaMod, wizardMod], (m) => void out.push(m));
+    const send = (m: ToCore): FromCore => {
+      host.handle(m);
+      const r = out[out.length - 1]!;
+      if (r.t === 'error') throw new Error(r.message);
+      return r;
+    };
+    return { send, loaded: send({ t: 'load', save }) };
+  };
+  const view = (m: FromCore) => {
+    if (m.t !== 'view') throw new Error(`not a view: ${m.t}`);
+    return m;
+  };
+  const keys = (m: FromCore): string[] =>
+    view(m).events.flatMap((e) => (e.type === 'msg' ? [e.key] : []));
+  const dead = (m: FromCore): boolean => view(m).view.status['dead'] !== undefined;
+  const NO: ToCore = { t: 'act', action: { type: 'answer', promptId: 'die', value: false } };
+
+  test('no while the ants are pinned: she lives on and the next action works', () => {
+    const { send, loaded } = loadHost(dyingSave(51, true));
+    // a game saved while "Die?" is pending asks it again when loaded
+    expect(view(loaded).prompt).toMatchObject({ id: 'die', kind: 'yn' });
+    const r = send(NO);
+    expect(keys(r)).toContain('wiz.die.ok');
+    expect(view(r).prompt).toBeNull();
+    expect(dead(r)).toBe(false);
+    const turn = view(r).view.turn;
+    const next = send({ t: 'act', action: { type: 'wait' } });
+    expect(view(next).prompt).toBeNull();
+    expect(dead(next)).toBe(false);
+    expect(view(next).view.turn).toBeGreaterThan(turn);
+  });
+
+  test('no among free ants asks again in the same step; a stray action gets it back; yes ends', () => {
+    // she is helpless for the rest of the turn (savelife()'s nomul) and the ants kill her again:
+    // the answer's own view carries "OK, so you don't die." and a new "Die?" with the same id
+    // (the first seed where the very first "no" does that)
+    let found: { send: (m: ToCore) => FromCore } | null = null;
+    for (let seed = 61; seed < 81 && !found; seed++) {
+      const { send, loaded } = loadHost(dyingSave(seed, false));
+      expect(view(loaded).prompt?.id).toBe('die');
+      const r = send(NO);
+      expect(keys(r)).toContain('wiz.die.ok');
+      expect(dead(r)).toBe(false);
+      if (view(r).prompt?.id === 'die') found = { send };
+    }
+    if (!found) throw new Error('no seed where "no" is asked again at once');
+    const { send } = found;
+    // a stray action while "Die?" is pending: the question again, not an error, nothing happens
+    const hash = send({ t: 'hash' });
+    const stray = send({ t: 'act', action: { type: 'search' } });
+    expect(view(stray).prompt?.id).toBe('die');
+    expect(view(stray).events).toEqual([]);
+    expect(send({ t: 'hash' })).toEqual(hash);
+    // yes: the game ends with that death
+    const end = send({ t: 'act', action: { type: 'answer', promptId: 'die', value: true } });
+    expect(view(end).prompt).toBeNull();
+    expect(dead(end)).toBe(true);
   });
 });
