@@ -19,7 +19,6 @@ import {
   type ModApi,
 } from '@nh/core';
 import { alignStr } from './align';
-import { questPorted } from './branchportal';
 import { canseemon } from './invis';
 import { wizardMode } from './knoxstate';
 import { atQuestEntrance, inQuest, isQgoal, isQlocate, isQstart, questEntry } from './levelflags';
@@ -118,15 +117,14 @@ export function onquest(ctx: Ctx, change: LevelChange): void {
 /**
  * Arriving on the main dungeon's portal level from outside the quest: her leader's call, the
  * first time "quest_portal" (`qcalled`), then the reminder ("quest_portal_demand" for a Rogue),
- * not once the quest is done, she was expelled or her leader is dead. Only for a role whose quest
- * levels exist (`questPorted()`: the others get no portal until m24b).
+ * not once the quest is done, she was expelled or her leader is dead.
  * ref: src/do.c goto_level() "main dungeon message from your quest leader"
  */
 function questCall(ctx: Ctx, change: LevelChange): void {
   const from = change.from === null ? undefined : ctx.state.levels[change.from];
   if (!from || inQuest(ctx.state, from) || !atQuestEntrance(ctx.state)) return;
   const q = questStatus(ctx.state);
-  if (q.qcompleted || q.qexpelled || q.leaderIsDead || !questPorted(ctx)) return;
+  if (q.qcompleted || q.qexpelled || q.leaderIsDead) return;
   if (!q.qcalled) {
     setQuest(ctx, { qcalled: true });
     comPager(ctx, 'quest_portal');

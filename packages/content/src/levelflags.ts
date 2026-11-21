@@ -334,7 +334,8 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   /** ref: dat/Val-filb.lua ("mazelevel", "icedpools", "noflip") */
   'nh:val-filb': { maze: true, icedpools: true },
   // m24b: the Archeologist's, Barbarian's and Cave Dweller's quests (their fillers' "noflip"
-  // needs nothing; Arc-fila/filb set no flags)
+  // needs nothing; Arc-fila/filb set no flags; Bar-filb's, Cav-fila's and Cav-filb's "mazelevel"
+  // is cleared by their walled, joined mines-style map, which makes them cavernous: mkmap())
   /** ref: dat/Arc-strt.lua ("mazelevel", "noteleport", "hardfloor") */
   'nh:arc-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
   /** ref: dat/Arc-loca.lua ("mazelevel", "hardfloor") */
@@ -349,18 +350,12 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:bar-goal': { maze: true, nondiggable: QUEST_MAP_76 },
   /** ref: dat/Bar-fila.lua ("mazelevel", "noflip") */
   'nh:bar-fila': { maze: true },
-  /** ref: dat/Bar-filb.lua ("mazelevel", "noflip") */
-  'nh:bar-filb': { maze: true },
   /** ref: dat/Cav-strt.lua ("mazelevel", "noteleport", "hardfloor") */
   'nh:cav-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
   /** ref: dat/Cav-loca.lua ("mazelevel", "hardfloor") */
   'nh:cav-loca': { hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
   /** ref: dat/Cav-goal.lua ("mazelevel") */
   'nh:cav-goal': { maze: true, nondiggable: QUEST_MAP_76 },
-  /** ref: dat/Cav-fila.lua ("mazelevel", "noflip") */
-  'nh:cav-fila': { maze: true },
-  /** ref: dat/Cav-filb.lua ("mazelevel", "noflip") */
-  'nh:cav-filb': { maze: true },
   // m24b step 8: the Healer's, Knight's and Monk's quests (Mon-fila/filb set no flags)
   /** ref: dat/Hea-strt.lua ("mazelevel", "noteleport", "hardfloor") */
   'nh:hea-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
@@ -450,6 +445,37 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:ran-loca': { hardfloor: true, maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 54, y2: 19 }] },
   /** ref: dat/Ran-goal.lua ("mazelevel") */
   'nh:ran-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  // m24b step 10: the Samurai's, Tourist's and Wizard's quests (Sam-fila's, Tou-fila's and
+  // Tou-filb's "mazelevel" is cleared by their walled, joined mines-style map; Wiz-fila/filb set
+  // no flags)
+  /** ref: dat/Sam-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:sam-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Sam-loca.lua ("mazelevel", "hardfloor") */
+  'nh:sam-loca': { hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Sam-goal.lua ("mazelevel", "noteleport") */
+  'nh:sam-goal': {
+    noteleport: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 44, y2: 19 }],
+  },
+  /** ref: dat/Sam-filb.lua ("mazelevel") */
+  'nh:sam-filb': { maze: true },
+  /** ref: dat/Tou-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:tou-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Tou-loca.lua ("mazelevel", "hardfloor") */
+  'nh:tou-loca': { hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Tou-goal.lua ("mazelevel") */
+  'nh:tou-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Wiz-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:wiz-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Wiz-loca.lua ("mazelevel", "hardfloor") */
+  'nh:wiz-loca': {
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }],
+  },
+  /** ref: dat/Wiz-goal.lua ("mazelevel") */
+  'nh:wiz-goal': { maze: true, nondiggable: QUEST_MAP_76 },
 };
 
 const NONE: LevelFlags = {};

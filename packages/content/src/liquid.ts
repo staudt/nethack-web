@@ -5,9 +5,9 @@
 // A leaf over the registry's terrain defs (`TerrainDef.liquid`), so any game module can import
 // it. A raised drawbridge's span is its own terrain for each thing that can lie under it
 // (terrain.ts): over the moat it is water and a moat, over lava lava, over ice ice.
-// Juiblex's swamp (m17) is a "swamp", not a moat. Not ported: Medusa's "shallow sea", the
-// samurai's "pond", the Plane of Water's "limitless water" (none of those levels exist yet but
-// Medusa's) and hallucinatory liquids (hliquid()).
+// Juiblex's swamp (m17) is a "swamp", not a moat; the Samurai's quest home's two moat squares are
+// "ponds" (m24b). Not ported: Medusa's "shallow sea", the Plane of Water's "limitless water" and
+// hallucinatory liquids (hliquid()).
 import {
   cellIndex,
   inBounds,
@@ -58,6 +58,12 @@ export const isPoolOrLava = (ctx: Defs, level: Readonly<Level>, x: number, y: nu
 const JUIBLEX_LEVEL: DefId = 'nh:juiblex-swamp';
 
 /**
+ * The Samurai's quest home level (quest/sam.ts SAM_STRT): only a Samurai gets it, so C's
+ * `Role_if(PM_SAMURAI) && Is_qstart(&u.uz)` is this LevelDef.
+ */
+const SAMURAI_HOME: DefId = 'nh:sam-strt';
+
+/**
  * ref: src/dbridge.c is_moat(): a moat, or one under a raised drawbridge, but on Juiblex's level
  */
 export const isMoat = (_ctx: Defs, level: Readonly<Level>, x: number, y: number): boolean => {
@@ -78,9 +84,9 @@ export const isLiquidId = (ctx: Defs, id: DefId | undefined): boolean =>
 
 /**
  * What the liquid at (x, y) is called, as a message key ("pool of water", "moat" ("swamp" on
- * Juiblex's level), "wall of water", "molten lava", "wall of lava", "ice"; "water" for anything
- * else). ref: src/pager.c
- * waterbody_name()
+ * Juiblex's level, "pond" on the Samurai's quest home: "samurai quest home level has two isolated
+ * moat spots; they sound silly if farlook describes them as such"), "wall of water", "molten
+ * lava", "wall of lava", "ice"; "water" for anything else). ref: src/pager.c waterbody_name()
  */
 export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: number): string {
   const id = inBounds(level, x, y) ? terrainIdAt(level, x, y) : undefined;
@@ -97,7 +103,11 @@ export function waterbodyName(ctx: Defs, level: Readonly<Level>, x: number, y: n
     case T.drawbridge_up:
       return 'liquid.name.moat';
     case T.moat:
-      return level.def === JUIBLEX_LEVEL ? 'liquid.name.swamp' : 'liquid.name.moat';
+      return level.def === JUIBLEX_LEVEL
+        ? 'liquid.name.swamp'
+        : level.def === SAMURAI_HOME
+          ? 'liquid.name.pond'
+          : 'liquid.name.moat';
     case T.water:
       return 'liquid.name.waterwall';
     case T.lavawall:

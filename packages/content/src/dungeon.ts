@@ -192,9 +192,9 @@ export const SPLEV_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
  * The Quest (m24): 5-6 levels behind a magic portal 6-7 levels below the Oracle, at the depth of
  * the portal's level ("portals stay on the same depth"), with the home level first, the locate
  * level third and the goal level last; the hero's role picks their LevelDefs and the fillers
- * above and below the locate level (quest/index.ts; a role not ported yet gets the stand-in and
- * no portal). Its portals are branchportal.ts's. It comes after the Mines and before Sokoban, as
- * in dungeon.lua.
+ * above and below the locate level (quest/index.ts; every role has its own five, a role a mod
+ * adds without its own gets the stand-in). Its portals are branchportal.ts's. It comes after the
+ * Mines and before Sokoban, as in dungeon.lua.
  * Fort Ludios: one level (knox.ts), its branch rolled on DL18-21 of the main dungeon, which gives
  * its depth (18-21: a portal branch) but no stairs at either end: C makes the main dungeon's end
  * a floating one until a vault's magic portal is placed (the knox kludge of
@@ -289,7 +289,7 @@ export const DUNGEONS: readonly DungeonDef[] = [
     nameKey: QUEST,
     levels: { base: 5, range: 2 },
     entry: { from: 'nh:main', chain: 'nh:oracle', base: 6, range: 2, stairs: 'portal' },
-    // a role whose levels are not ported yet: the stand-in everywhere (plan Q10)
+    // a role with no quest levels of its own (one a mod adds): the stand-in everywhere
     filler: QUEST_STANDIN.id,
     special: [
       {

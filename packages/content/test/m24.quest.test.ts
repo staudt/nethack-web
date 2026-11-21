@@ -156,15 +156,14 @@ describe('the portals', () => {
     }
   });
 
-  test('a role whose levels are not ported gets no portal (plan Q10)', () => {
-    for (const role of ['samurai', 'wizard']) {
+  test('every role gets the main dungeon portal to its own home level (m24b)', () => {
+    for (const role of ['samurai', 'tourist', 'wizard']) {
       const state = fresh(7, role);
       heal(state);
       const e = questEntry(state)!;
       const l = goTo(state, e.dungeon, e.dlevel);
-      expect(findPortal(l)).toBeNull();
-      // a wizard's levelport finds the stand-in
-      expect(goTo(state, QUEST, 1).def).toBe('nh:quest-standin');
+      expect(portalDest(findPortal(l)!)).toEqual({ dungeon: QUEST, dlevel: 1 });
+      expect(goTo(state, QUEST, 1).def).toBe(`nh:${role.slice(0, 3)}-strt`);
     }
   });
 

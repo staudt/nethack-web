@@ -17,22 +17,10 @@ import {
   type Pos,
   type Room,
 } from '@nh/core';
-import { LUDIOS, QSTART, QUEST } from './levelflags';
+import { LUDIOS } from './levelflags';
 import { MAGIC_PORTAL, findPortal, portalData } from './portal';
 import { somexyspaceTry } from './somexy';
 import { maketrap } from './trap';
-
-/**
- * Whether the hero's role has its quest levels (the Quest's home level has a `roleVariants` entry
- * for her role): only those roles get the main dungeon's portal to the Quest (plan Q10: until
- * m24b; the branch is rolled for every role, and the spot is drawn either way). Step 10 removes
- * it.
- */
-export function questPorted(ctx: Pick<Ctx, 'state' | 'defs'>): boolean {
-  const role = ctx.state.entities[String(ctx.state.playerId)]?.def;
-  const qstart = ctx.defs.dungeon(QUEST).special?.find((s) => s.id === QSTART);
-  return role !== undefined && !!qstart?.roleVariants && Object.hasOwn(qstart.roleVariants, role);
-}
 
 /**
  * Where the portal on `level` leads when a portal branch ends there (C's Is_branchlev() of a
@@ -78,8 +66,7 @@ function branchRoom(ctx: Pick<Ctx, 'rng'>, level: Readonly<Level>): Room | null 
  * place_branch() for a portal branch ending on `level`: at `at`, or (omitted) in a room found as
  * for stairs on a free spot (somexyspace(), its last try even when it failed: "Can't place
  * branch!"), a magic portal to the other end. Nothing when no portal branch ends here, when the
- * level already has its portal (C's `made_branch`), or with no spot; the Quest's main dungeon
- * end draws its spot but makes no portal for a role whose quest is not ported yet (plan Q10).
+ * level already has its portal (C's `made_branch`), or with no spot.
  * With no rooms and no `at`, the caller finds the spot (place_lregion() over the whole level).
  * ref: src/mklev.c place_branch(), find_branch_room(); src/mkmaze.c mkportal()
  */
@@ -93,7 +80,6 @@ export function placeBranchPortal(ctx: Ctx, level: Level, at?: Pos | null): void
     p = somexyspaceTry(ctx, level, room).pos;
   }
   if (!p) return;
-  if (dst.dungeon === QUEST && !questPorted(ctx)) return;
   const t = maketrap(ctx, level.id, p.x, p.y, MAGIC_PORTAL, { inMklev: true });
   t.data = portalData(dst);
 }

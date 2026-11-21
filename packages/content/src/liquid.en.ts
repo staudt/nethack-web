@@ -6,6 +6,7 @@ export const liquidMessagesEn: Record<string, string> = {
   'liquid.name.pool': 'pool of water',
   'liquid.name.moat': 'moat',
   'liquid.name.swamp': 'swamp',
+  'liquid.name.pond': 'pond',
   'liquid.name.waterwall': 'wall of water',
   'liquid.name.lava': 'molten lava',
   'liquid.name.lavawall': 'wall of lava',
@@ -68,6 +69,8 @@ export const liquidMessagesEn: Record<string, string> = {
   // the death: "drowned in a pool of water" (KILLED_BY_AN), "drowned in deep water" (KILLED_BY)
   'killer.drown.pool': 'a pool of water',
   'killer.drown.moat': 'a moat',
+  'killer.drown.swamp': 'a swamp',
+  'killer.drown.pond': 'a pond',
   'killer.drown.waterwall': 'a wall of water',
   'killer.drown.deep': 'deep water',
   // dosit()

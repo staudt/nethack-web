@@ -296,10 +296,10 @@ describe("the leader's call on the portal level", () => {
     }
   });
 
-  test('no call for a role whose quest levels are not ported (no portal until m24b)', () => {
+  test("every role's leader calls (m24b: a Samurai's Lord Sato)", () => {
     const state = fresh(3, 'samurai');
     const e = questEntry(state)!;
-    expect(goTo(state, e.dungeon, e.dlevel)).toEqual([]);
-    expect(questStatus(state).qcalled).toBeUndefined();
+    expect(goTo(state, e.dungeon, e.dlevel)).toContain('quest.common.quest_portal.1');
+    expect(questStatus(state).qcalled).toBe(true);
   });
 });

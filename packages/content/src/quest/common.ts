@@ -77,6 +77,8 @@ export interface InvOpts {
    * object is made (the lua table is built before des.object() runs).
    */
   quantity?: number | { dice: readonly [n: number, s: number] };
+  /** `eroded = -1`: erodeproof (create_object()'s `o->eroded < 0`). */
+  erodeproof?: true;
 }
 
 /**
@@ -104,6 +106,22 @@ export function monWithInventory(
   return m;
 }
 
+/**
+ * des.monster({ id, x, y, peaceful, keep_default_invent = false }): made with its species'
+ * inventory (the draws happen), which is then discarded (NO_INVENT: create_monster()'s
+ * discard_minvent()). ref: src/sp_lev.c lspo_monster(), create_monster()
+ */
+export function monNoInventory(
+  ctx: Ctx,
+  level: Level,
+  def: LevelDef,
+  c: LevelContent,
+): EntityId | null {
+  const m = createMonster(ctx, level, c, def);
+  if (m !== null) for (const o of minvent(ctx, m)) ctx.remove(o.id);
+  return m;
+}
+
 /** One des.object({ id, spe, buc, name, quantity }) of a custom inventory. */
 function giveObject(
   ctx: Ctx,
@@ -123,6 +141,7 @@ function giveObject(
   if (opts.buc === 'not-cursed') {
     if (e.c.item.buc === 'cursed') e.c.item.buc = 'uncursed'; // uncurse()
   } else if (opts.buc !== undefined) e.c.item.buc = opts.buc;
+  if (opts.erodeproof) e.c.item.erodeproof = true;
   if (opts.name !== undefined) onameItem(ctx, id, e.c.item, opts.name, 'lvldef');
   if (quantity !== undefined && quantity > 0 && ctx.defs.object(id).merge)
     e.c.item.quantity = quantity;

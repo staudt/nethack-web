@@ -40,8 +40,11 @@ export function playAs(state: GameState, role: RoleKey | null, race: RaceKey | n
  * Builds a lit level from ASCII rows with the hero at '@'; generated monsters are cleared and
  * random monster generation is off.
  */
+/** One engine for every setup() (its registry is immutable; games are plain state). */
+let sharedEngine: ReturnType<typeof createEngine> | null = null;
+
 export function setup(rows: string[], seed = 1) {
-  const engine = createEngine([vanillaMod]);
+  const engine = (sharedEngine ??= createEngine([vanillaMod]));
   const { state } = engine.newGame({ seed });
   quiet(state);
   for (const id of Object.keys(state.entities))

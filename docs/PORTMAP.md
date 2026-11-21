@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-259 NetHack files, 6386 citations.
+274 NetHack files, 6422 citations.
 
 ## dat/Arc-fila.lua
 
@@ -35,7 +35,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/Bar-filb.lua
 
-- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/bar.ts`
+- (file): `packages/content/src/quest/bar.ts`
 
 ## dat/Bar-goal.lua
 
@@ -51,11 +51,11 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## dat/Cav-fila.lua
 
-- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+- (file): `packages/content/src/quest/cav.ts`
 
 ## dat/Cav-filb.lua
 
-- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+- (file): `packages/content/src/quest/cav.ts`
 
 ## dat/Cav-goal.lua
 
@@ -189,6 +189,46 @@ whole. A missing function may still be ported under a citation this parser canno
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/rog.ts`
 
+## dat/Sam-fila.lua
+
+- (file): `packages/content/src/quest/sam.ts`
+
+## dat/Sam-filb.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/sam.ts`
+
+## dat/Sam-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/sam.ts`
+
+## dat/Sam-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/sam.ts`
+
+## dat/Sam-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/sam.ts`
+
+## dat/Tou-fila.lua
+
+- (file): `packages/content/src/quest/tou.ts`
+
+## dat/Tou-filb.lua
+
+- (file): `packages/content/src/quest/tou.ts`
+
+## dat/Tou-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/tou.ts`
+
+## dat/Tou-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/tou.ts`
+
+## dat/Tou-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/tou.ts`
+
 ## dat/Val-fila.lua
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/val.ts`
@@ -208,6 +248,26 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/Val-strt.lua
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/val.ts`
+
+## dat/Wiz-fila.lua
+
+- (file): `packages/content/src/quest/wiz.ts`
+
+## dat/Wiz-filb.lua
+
+- (file): `packages/content/src/quest/wiz.ts`
+
+## dat/Wiz-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/wiz.ts`
+
+## dat/Wiz-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/wiz.ts`
+
+## dat/Wiz-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/wiz.ts`
 
 ## dat/air.lua
 
@@ -2555,10 +2615,12 @@ whole. A missing function may still be ported under a citation this parser canno
 - (file): `packages/content/src/selection.ts`
 - `l_selection_area()`: `packages/core/src/levelgen/special.ts`
 - `l_selection_fillrect()`: `packages/content/src/selection.ts`
+- `l_selection_filter_mapchar()`: `packages/content/src/quest/tou.ts`
 - `l_selection_line()`: `packages/core/src/levelgen/special.ts`
 - `l_selection_match()`: `packages/content/src/selection.ts`
 - `l_selection_randline()`: `packages/content/src/selection.ts`
 - `l_selection_rect()`: `packages/content/src/selection.ts`
+- `l_selection_rndcoord()`: `packages/content/src/quest/tou.ts`
 - `l_selection_setpoint()`: `packages/content/src/quest/val.ts`, `packages/content/src/selection.ts`
 
 ## src/nhlua.c
@@ -2649,13 +2711,12 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/pager.c
 
-- (file): `packages/content/src/liquid.ts`
 - `do_look()`: `packages/ui/src/host.ts`
 - `dohelp()`: `packages/ui/src/help.ts`
 - `doidtrap()`: `packages/content/src/trap.ts`
 - `help_menu_items()`: `packages/ui/src/help.ts`
 - `lookat()`: `packages/content/src/messages.en.ts`
-- `waterbody_name()`: `packages/content/src/liquid.en.ts`, `packages/content/src/terrain.ts`
+- `waterbody_name()`: `packages/content/src/liquid.en.ts`, `packages/content/src/liquid.ts`, `packages/content/src/terrain.ts`
 
 ## src/pickup.c
 

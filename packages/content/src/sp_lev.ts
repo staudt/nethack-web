@@ -276,7 +276,8 @@ const MINES = 'nh:mines';
  * roaming priest or minion of that god (priest.ts mkRoamer()); a player monster's kind is made by
  * mk_mplayer() (mplayer.ts). A unique that was already made (extinct) is not made again; any other genocided or
  * extinct kind is made at random instead, and so are 2 in 3 of a dwarf or gnome hero's own kind
- * in the Mines.
+ * in the Mines. `female` is the gender a gendered name gives ("succubus", "incubus": no draw;
+ * find_montype()'s `mgend`).
  */
 export function createMonster(
   ctx: Ctx,
@@ -284,6 +285,7 @@ export function createMonster(
   c: LevelContent,
   ldef: LevelDef,
   room?: number,
+  female?: boolean,
 ): EntityId | null {
   let def =
     c.id !== undefined
@@ -330,6 +332,7 @@ export function createMonster(
             adjacentOk: true,
             inMklev: true,
             ...(c.asleep ? { asleep: true } : {}),
+            ...(female !== undefined ? { female } : {}),
           });
   if (id !== null && (c.align !== undefined || (def && isMplayer(def))) && c.asleep) {
     const m = ctx.state.entities[String(id)]?.c.monster;
