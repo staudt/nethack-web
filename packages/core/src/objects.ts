@@ -3,7 +3,7 @@ import type { Entity } from './types/entity';
 import type { Level } from './types/level';
 import type { Registry } from './types/mod';
 import type { GameState } from './types/state';
-import { sortedIds } from './util';
+import { sortedEntities } from './util';
 
 /** The id a player sees for an object def: its per-game appearance, or the def itself. */
 export function shownId(state: Readonly<GameState>, def: DefId): DefId {
@@ -41,10 +41,9 @@ export function itemsAt(
   y: number,
 ): Entity[] {
   const out: Entity[] = [];
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e && p && p.level === level && p.x === x && p.y === y && isItem(registry, e)) out.push(e);
+  for (const e of sortedEntities(state)) {
+    const p = e.c.pos;
+    if (p && p.level === level && p.x === x && p.y === y && isItem(registry, e)) out.push(e);
   }
   return out.sort(
     (a, b) =>
@@ -61,10 +60,9 @@ export function topObjectEntities(
   level: Level,
 ): Map<number, Entity> {
   const best = new Map<number, Entity>();
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    const p = e?.c.pos;
-    if (!e || !p || p.level !== level.id || !isItem(registry, e)) continue;
+  for (const e of sortedEntities(state)) {
+    const p = e.c.pos;
+    if (!p || p.level !== level.id || !isItem(registry, e)) continue;
     const i = p.y * level.width + p.x;
     const cur = best.get(i);
     // Ties go to the lower id (ids are visited in order), matching itemsAt.
@@ -88,10 +86,9 @@ export function sightBlockers(
   const out = new Set<number>();
   const width = state.levels[level]?.width;
   if (width === undefined) return out;
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e && p && p.level === level && isItem(registry, e) && registry.object(e.def).boulder)
+  for (const e of sortedEntities(state)) {
+    const p = e.c.pos;
+    if (p && p.level === level && isItem(registry, e) && registry.object(e.def).boulder)
       out.add(p.y * width + p.x);
   }
   return out;
@@ -121,9 +118,8 @@ const letterRank = (l: string | null): number => {
 /** Items carried by `owner`, in inventory-letter order ('$', a-z, A-Z), then by id. */
 export function inventoryOf(state: Readonly<GameState>, owner: EntityId): Entity[] {
   const out: Entity[] = [];
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    if (e?.c.item?.carriedBy === owner) out.push(e);
+  for (const e of sortedEntities(state)) {
+    if (e.c.item?.carriedBy === owner) out.push(e);
   }
   return out.sort(
     (a, b) =>
@@ -142,9 +138,8 @@ export function isContainer(registry: Registry, e: Entity): boolean {
  */
 export function contents(state: Readonly<GameState>, box: EntityId): Entity[] {
   const out: Entity[] = [];
-  for (const id of sortedIds(state)) {
-    const e = state.entities[String(id)];
-    if (e?.c.item?.containedIn === box) out.push(e);
+  for (const e of sortedEntities(state)) {
+    if (e.c.item?.containedIn === box) out.push(e);
   }
   return out.sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || a.id - b.id);
 }
@@ -196,8 +191,9 @@ export function allContents(state: Readonly<GameState>, box: EntityId): EntityId
   // Ids only grow, but a container may be newer than what it holds: repeat until stable.
   for (let grew = true; grew;) {
     grew = false;
-    for (const id of sortedIds(state)) {
-      const c = state.entities[String(id)]?.c.item?.containedIn;
+    for (const e of sortedEntities(state)) {
+      const id = e.id;
+      const c = e.c.item?.containedIn;
       if (c !== undefined && inside.has(c) && !inside.has(id)) {
         inside.add(id);
         out.push(id);

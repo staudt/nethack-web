@@ -12,7 +12,6 @@ import {
   inRooms,
   isVisible,
   NORMAL_SPEED,
-  sortedIds,
   type CellRules,
   type Ctx,
   type EntityId,
@@ -23,6 +22,7 @@ import {
   type Pos,
   type Rng,
   trapAt,
+  sortedEntities,
 } from '@nh/core';
 import { openDoorAt } from './actions';
 import { beeEatJelly } from './beejelly';
@@ -339,11 +339,11 @@ export function mfndpos(
     (m.peaceful || (m.tame ?? 0) > 0) &&
     !shopOrTemple(pos.x, pos.y);
   const taken = new Map<number, EntityId>();
-  for (const [key, ent] of Object.entries(ctx.state.entities)) {
+  for (const ent of sortedEntities(ctx.state)) {
     const p = ent.c.pos;
     // objects do not block (only creatures: monsters and the hero)
-    if (p && p.level === level.id && Number(key) !== id && ent.c.item === undefined)
-      taken.set(cellIndex(level, p.x, p.y), Number(key));
+    if (p && p.level === level.id && ent.id !== id && ent.c.item === undefined)
+      taken.set(cellIndex(level, p.x, p.y), ent.id);
   }
   // ref: mfndpos() `checkobj && sobj_at(BOULDER, nx, ny)` without ALLOW_ROCK: no monster here
   // throws rocks or passes walls, so none steps onto a boulder
@@ -609,7 +609,7 @@ function mSearchItems(
   // the objects of the level by cell, top of each pile first
   const piles = new Map<number, Entity[]>();
   const scare = new Set<number>(); // scareCells(), from the same pass
-  for (const e of Object.values(ctx.state.entities)) {
+  for (const e of sortedEntities(ctx.state)) {
     const p = e.c.pos;
     if (!p || p.level !== level.id || !e.c.item) continue;
     const k = cellIndex(level, p.x, p.y);
@@ -1094,10 +1094,9 @@ function mMove(ctx: Ctx, id: EntityId, heroPos: Pos, ap: Pos): MoveStatus {
 /** The cells of `level` with a clove of garlic on the floor. */
 function garlicCells(ctx: Pick<Ctx, 'state'>, level: Level): Set<number> {
   const out = new Set<number>();
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.def === 'nh:clove_of_garlic' && e.c.item && p?.level === level.id)
+  for (const e of sortedEntities(ctx.state)) {
+    const p = e.c.pos;
+    if (e.def === 'nh:clove_of_garlic' && e.c.item && p?.level === level.id)
       out.add(cellIndex(level, p.x, p.y));
   }
   return out;

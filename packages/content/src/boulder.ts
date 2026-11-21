@@ -4,13 +4,13 @@ import {
   cellIndex,
   itemsAt,
   sightBlockers,
-  sortedIds,
   topObjects,
   type Ctx,
   type DefId,
   type Entity,
   type Level,
   type LevelId,
+  sortedEntities,
 } from '@nh/core';
 import { isSokoban, sokobanGuilt } from './sokoban';
 
@@ -33,11 +33,9 @@ export function boulderAt(
 /** Cell indices of the floor boulders on `level`. */
 export function boulderCells(ctx: Pick<Ctx, 'state'>, level: Level): Set<number> {
   const out = new Set<number>();
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.def === BOULDER && e.c.item && p?.level === level.id)
-      out.add(cellIndex(level, p.x, p.y));
+  for (const e of sortedEntities(ctx.state)) {
+    const p = e.c.pos;
+    if (e.def === BOULDER && e.c.item && p?.level === level.id) out.add(cellIndex(level, p.x, p.y));
   }
   return out;
 }

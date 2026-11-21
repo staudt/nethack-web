@@ -10,12 +10,12 @@
 import {
   cellIndex,
   getLevel,
-  sortedIds,
   type Ctx,
   type DefId,
   type Entity,
   type Level,
   type Pos,
+  sortedEntities,
 } from '@nh/core';
 import { altarAlign } from './aligntyp';
 import { isVampshifter } from './chamstate';
@@ -39,10 +39,9 @@ const RESISTS_ALL: readonly DefId[] = ['nh:angel', 'nh:death', 'nh:pestilence', 
 /** Cell indices of `level` holding a scroll of scare monster on the floor. */
 export function scareCells(ctx: Pick<Ctx, 'state'>, level: Level): Set<number> {
   const out = new Set<number>();
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.def === SCR_SCARE_MONSTER && e.c.item && p?.level === level.id)
+  for (const e of sortedEntities(ctx.state)) {
+    const p = e.c.pos;
+    if (e.def === SCR_SCARE_MONSTER && e.c.item && p?.level === level.id)
       out.add(cellIndex(level, p.x, p.y));
   }
   return out;
@@ -70,10 +69,9 @@ export const altarScares = (ctx: Pick<Ctx, 'state' | 'defs'>, mon: Entity): bool
 
 /** vobj_at(x, y): some object lies on the floor there. */
 function objAt(ctx: Pick<Ctx, 'state'>, level: Level, x: number, y: number): boolean {
-  for (const id of sortedIds(ctx.state)) {
-    const e = ctx.state.entities[String(id)];
-    const p = e?.c.pos;
-    if (e?.c.item && p?.level === level.id && p.x === x && p.y === y) return true;
+  for (const e of sortedEntities(ctx.state)) {
+    const p = e.c.pos;
+    if (e.c.item && p?.level === level.id && p.x === x && p.y === y) return true;
   }
   return false;
 }

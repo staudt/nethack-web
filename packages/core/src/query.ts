@@ -9,7 +9,7 @@ import type { Pos } from './types/common';
 import type { Ctx, Registry } from './types/mod';
 import type { CoreQuery, Description, Target } from './types/query';
 import type { GameState } from './types/state';
-import { cellIndex, inBounds, sortedIds } from './util';
+import { cellIndex, inBounds, sortedIds, withIdCache } from './util';
 import type { Rng } from './types/rng';
 
 const NO_RNG: Rng = new Proxy({} as Rng, {
@@ -108,10 +108,13 @@ export function createQuery(registry: Registry, state: GameState): CoreQuery {
         return [];
       // ref: src/display.h canspotmon(): no offers about a creature the hero neither sees nor senses
       if (t.kind === 'entity' && !entityShown(t.id)) return [];
-      // a stable sort: equal priorities keep registration order
-      return registry.actions
-        .flatMap((def) => def.offer(ctx, t).map((o) => ({ ...o, source: def.mod })))
-        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+      // a stable sort: equal priorities keep registration order; offers change nothing, so
+      // sortedIds() is cached across them (util.ts IdCache)
+      return withIdCache(() =>
+        registry.actions
+          .flatMap((def) => def.offer(ctx, t).map((o) => ({ ...o, source: def.mod })))
+          .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)),
+      );
     },
 
     pathTo(pos: Pos) {

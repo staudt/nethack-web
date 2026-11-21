@@ -15,7 +15,7 @@ import { isSlimed } from './slimestate';
 import { resistsDrliHero } from './exper';
 import { ulycn } from './werestate';
 import { heroFormId } from './upoly';
-import { getPlayer, type Ctx, type Msg } from '@nh/core';
+import { getPlayer, type Ctx, type Msg, sortedEntities } from '@nh/core';
 import { alignGname } from './align';
 import {
   cantSeeSelf,
@@ -171,7 +171,7 @@ export function enlightenment(ctx: Ctx): Msg[] {
   else are('unencumbered');
   // report 'nudity'
   const worn = (slot: string): boolean =>
-    Object.values(ctx.state.entities).some(
+    sortedEntities(ctx.state).some(
       (o) => o.c.item?.carriedBy === h.id && o.c.item.equipped === slot,
     );
   if (!ARMOR_SLOTS.some(worn)) are('no_armor');

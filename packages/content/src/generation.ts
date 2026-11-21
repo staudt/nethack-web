@@ -17,6 +17,7 @@ import {
   type ModApi,
   type MonsterDef,
   type Pos,
+  sortedEntities,
 } from '@nh/core';
 import { levelDifficulty } from './levdiff';
 import { uWieldArt } from './artistate';
@@ -336,7 +337,7 @@ export function peaceMinded(ctx: Ctx, mdef: MonsterDef): boolean {
 
 const occupiedSet = (ctx: Ctx, level: Level): Set<number> => {
   const s = new Set<number>();
-  for (const e of Object.values(ctx.state.entities)) {
+  for (const e of sortedEntities(ctx.state)) {
     const p = e.c.pos;
     if (p && p.level === level.id && e.c.item === undefined) s.add(cellIndex(level, p.x, p.y));
   }

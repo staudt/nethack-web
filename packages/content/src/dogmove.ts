@@ -21,6 +21,7 @@ import {
   type EntityId,
   type Level,
   type Pos,
+  sortedEntities,
 } from '@nh/core';
 import { blockersOf, boulderAt } from './boulder';
 import { isSokoban } from './sokoban';
@@ -337,7 +338,7 @@ function dogGoal(
   const minY = Math.max(0, omy - SQSRCHRADIUS);
   const maxY = Math.min(level.height - 1, omy + SQSRCHRADIUS);
   // nearby food is the first choice, then other objects (fobj order: newest first)
-  const floor = Object.values(ctx.state.entities)
+  const floor = sortedEntities(ctx.state)
     .filter((o) => o.c.item && o.c.pos?.level === pos.level)
     .sort((a, b) => (b.c.item?.placed ?? 0) - (a.c.item?.placed ?? 0) || b.id - a.id);
   // he's not going anywhere... (nor is a guardian angel, with no pet record)
@@ -409,7 +410,7 @@ function dogGoal(
       const here = level.palette[level.cells[cellIndex(level, hp.x, hp.y)] ?? 0];
       if (here && ctx.defs.terrain(here).stairs !== undefined) appr = 1;
       else {
-        for (const o of Object.values(ctx.state.entities))
+        for (const o of sortedEntities(ctx.state))
           if (o.c.item?.carriedBy === hero.id && dogfood(ctx, mon, o) === DOGFOOD) {
             appr = 1;
             break;

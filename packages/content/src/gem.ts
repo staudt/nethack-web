@@ -12,6 +12,7 @@ import {
   type ObjectDef,
   type Registry,
   type Rng,
+  sortedEntities,
 } from '@nh/core';
 
 /**
@@ -178,7 +179,7 @@ export function rndClass(
  */
 function luckItems(state: Readonly<GameState>): Entity[] {
   const out: Entity[] = [];
-  for (const e of Object.values(state.entities))
+  for (const e of sortedEntities(state))
     if (e.c.item?.carriedBy === state.playerId && confersLuck(e)) out.push(e);
   return out;
 }

@@ -10,7 +10,7 @@
 // the hidden segment under the head), and `modData.nh.wormTail[segId] = headId`.
 // ref: src/worm.c (struct wseg, wheads[], wtails[], wgrowtime[]), include/mondata.h is_longworm()
 import type { Ctx, DefId, Entity, EntityId, GameState, Json, LevelId } from '@nh/core';
-import { sortedIds } from '@nh/core';
+import { sortedEntities } from '@nh/core';
 
 export const LONG_WORM: DefId = 'nh:long_worm';
 export const WORM_TAIL: DefId = 'nh:long_worm_tail';
@@ -109,10 +109,9 @@ export function mAt(
   x: number,
   y: number,
 ): Entity | null {
-  for (const id of sortedIds(state as GameState)) {
-    const e = state.entities[String(id)];
-    const p = e?.c.pos;
-    if (!e || !p || p.level !== level || p.x !== x || p.y !== y) continue;
+  for (const e of sortedEntities(state)) {
+    const p = e.c.pos;
+    if (!p || p.level !== level || p.x !== x || p.y !== y) continue;
     if (e.c.monster) return e;
     if (isWormTail(e)) {
       const h = tailOwner(state, e.id);

@@ -4,7 +4,14 @@
 // freeinv(); the relics cannot be put in containers). Below everything but core and artistate.ts.
 // ref: include/objects.h; include/you.h struct u_have; src/pickup.c in_container(); src/zap.c
 // obj_resists(); src/wizard.c mon_has_special(), mon_has_amulet()
-import { inventoryOf, type DefId, type Entity, type EntityId, type GameState } from '@nh/core';
+import {
+  inventoryOf,
+  type DefId,
+  type Entity,
+  type EntityId,
+  type GameState,
+  sortedEntities,
+} from '@nh/core';
 import { anyQuestArtifact, isQuestArtifact } from './artistate';
 
 /** ref: include/objects.h AMULET_OF_YENDOR */
@@ -61,11 +68,11 @@ export function uHave(state: Readonly<GameState>, what: Uhave): boolean {
   // does not depend on the order (inventoryOf() sorts every entity id)
   const owner = state.playerId;
   if (what === 'questart')
-    return Object.values(state.entities).some(
+    return sortedEntities(state).some(
       (o) => o.c.item?.carriedBy === owner && isQuestArtifact(state, o),
     );
   const def = UHAVE[what];
-  return Object.values(state.entities).some((o) => o.def === def && o.c.item?.carriedBy === owner);
+  return sortedEntities(state).some((o) => o.def === def && o.c.item?.carriedBy === owner);
 }
 
 /** The real Amulet the monster carries, or null. ref: src/wizard.c mon_has_amulet() */

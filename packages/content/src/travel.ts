@@ -19,6 +19,7 @@ import {
   type PlayerAction,
   type Pos,
   trapAt,
+  sortedEntities,
 } from '@nh/core';
 import { blockersOf, boulderCells } from './boulder';
 import { boulderStops, couldMoveOntoBoulder } from './moverock';
@@ -436,7 +437,7 @@ const travel: ActionDef = {
     if (!dir) return 0;
     // ref: src/hack.c domove_core(): while running/traveling the hero never attacks a monster
     // she can see (pets and peacefuls she swaps with); the move is cancelled with no time passing.
-    const there = Object.values(ctx.state.entities).find(
+    const there = sortedEntities(ctx.state).find(
       (e) =>
         e.c.monster &&
         e.c.pos?.level === ctx.state.currentLevel &&

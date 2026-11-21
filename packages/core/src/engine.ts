@@ -34,7 +34,7 @@ import type { Replay } from './types/protocol';
 import type { Rng } from './types/rng';
 import type { CoreQuery } from './types/query';
 import type { GameState, StepResult } from './types/state';
-import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds } from './util';
+import { DIR_LIST, DIRS, cellIndex, inBounds, sortedIds, withIdCache } from './util';
 import { computeVisible, newMemory, updateMemory } from './vision';
 import { heroBlind, heroLights, perceivesMonster, shownAs } from './perception';
 import { isMarker } from './memory';
@@ -458,128 +458,136 @@ export function createEngine(mods: readonly Mod[], opts: EngineOptions = {}): En
     continuing: state.occupation !== null,
   });
 
-  const engine: Engine = {
-    registry,
+  function newGame({
+    seed,
+    width = DEFAULT_WIDTH,
+    height = DEFAULT_HEIGHT,
+    character,
+  }: NewGameOptions): StepResult {
+    // ref: src/role.c role_init(): the choice is checked before anything is made
+    const player = resolveCharacter(registry, character);
+    const roleDef = registry.role(player.role);
+    const s = seed >>> 0;
+    const state: GameState = {
+      version: 11,
+      seed: s,
+      turn: 1,
+      nextEntityId: 1,
+      seq: 0,
+      rng: newRngStates(s),
+      mods: registry.mods.map((m) => ({ id: m.id, version: m.version })),
+      entities: {},
+      dungeons: [],
+      levels: {},
+      currentLevel: '',
+      playerId: 0,
+      memory: {},
+      objectMemory: {},
+      monsterMemory: {},
+      appearances: {},
+      discovered: [],
+      visible: [],
+      timers: [],
+      modData: {},
+      gameOver: null,
+      pendingPrompt: null,
+      occupation: null,
+    };
+    const events: GameEvent[] = [];
+    const ctx = makeCtx(state, events);
+    // ref: src/allmain.c newgame(): u_init() before mklev() so generation can use the hero's level
+    const id = state.nextEntityId++;
+    state.playerId = id;
+    state.entities[String(id)] = {
+      id,
+      def: roleDef.id,
+      c: {
+        // Hero can move on the first turn.
+        actor: { energy: NORMAL_SPEED, speed: roleDef.speed },
+        player,
+      },
+    };
+    // ref: src/allmain.c newgame(): init_dungeons() before u_init()
+    state.dungeons = rollDungeons(ctx.rng, registry.dungeons);
+    for (const h of registry.hooks('newGame')) h.fn(ctx, id);
+    const top = { dungeon: rootDungeon(state).id, dlevel: 1 };
+    const level = makeLevel(state, ctx.rng, top, width, height);
+    state.currentLevel = level.id;
+    state.levels[level.id] = level;
+    state.memory[level.id] = newMemory(level);
+    for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
+    // ref: src/allmain.c newgame() u_on_upstairs(), then makedog() and the like
+    placeHero(state, level, level.up ?? level.branch?.pos ?? null);
+    for (const h of registry.hooks('levelChange'))
+      h.fn(ctx, { from: null, fromPos: null, to: level.id });
+    refreshVision(state);
+    events.unshift({ type: 'msg', key: 'welcome', params: welcomeParams(registry, player) });
+    return result(state, events);
+  }
 
-    newGame({ seed, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, character }) {
-      // ref: src/role.c role_init(): the choice is checked before anything is made
-      const player = resolveCharacter(registry, character);
-      const roleDef = registry.role(player.role);
-      const s = seed >>> 0;
-      const state: GameState = {
-        version: 11,
-        seed: s,
-        turn: 1,
-        nextEntityId: 1,
-        seq: 0,
-        rng: newRngStates(s),
-        mods: registry.mods.map((m) => ({ id: m.id, version: m.version })),
-        entities: {},
-        dungeons: [],
-        levels: {},
-        currentLevel: '',
-        playerId: 0,
-        memory: {},
-        objectMemory: {},
-        monsterMemory: {},
-        appearances: {},
-        discovered: [],
-        visible: [],
-        timers: [],
-        modData: {},
-        gameOver: null,
-        pendingPrompt: null,
-        occupation: null,
-      };
-      const events: GameEvent[] = [];
-      const ctx = makeCtx(state, events);
-      // ref: src/allmain.c newgame(): u_init() before mklev() so generation can use the hero's level
-      const id = state.nextEntityId++;
-      state.playerId = id;
-      state.entities[String(id)] = {
-        id,
-        def: roleDef.id,
-        c: {
-          // Hero can move on the first turn.
-          actor: { energy: NORMAL_SPEED, speed: roleDef.speed },
-          player,
-        },
-      };
-      // ref: src/allmain.c newgame(): init_dungeons() before u_init()
-      state.dungeons = rollDungeons(ctx.rng, registry.dungeons);
-      for (const h of registry.hooks('newGame')) h.fn(ctx, id);
-      const top = { dungeon: rootDungeon(state).id, dlevel: 1 };
-      const level = makeLevel(state, ctx.rng, top, width, height);
-      state.currentLevel = level.id;
-      state.levels[level.id] = level;
-      state.memory[level.id] = newMemory(level);
-      for (const h of registry.hooks('newLevel')) h.fn(ctx, level);
-      // ref: src/allmain.c newgame() u_on_upstairs(), then makedog() and the like
-      placeHero(state, level, level.up ?? level.branch?.pos ?? null);
-      for (const h of registry.hooks('levelChange'))
-        h.fn(ctx, { from: null, fromPos: null, to: level.id });
-      refreshVision(state);
-      events.unshift({ type: 'msg', key: 'welcome', params: welcomeParams(registry, player) });
-      return result(state, events);
-    },
+  function step(state: GameState, action: PlayerAction): StepResult {
+    if (state.gameOver) throw new Error('The game is over');
+    const events: GameEvent[] = [];
+    const ctx = makeCtx(state, events);
 
-    step(state, action) {
-      if (state.gameOver) throw new Error('The game is over');
-      const events: GameEvent[] = [];
-      const ctx = makeCtx(state, events);
-
-      const pending = state.pendingPrompt;
-      if (pending || action.type === 'answer') {
-        if (!pending) throw new Error('There is no prompt to answer');
-        if (action.type !== 'answer' || action.promptId !== pending.prompt.id)
-          throw new Error(`Prompt '${pending.prompt.id}' must be answered first`);
-        const def = registry.actions.find((a) => a.id === pending.handler);
-        if (!def?.answer) throw new Error(`Prompt handler '${pending.handler}' has no answer()`);
-        if (pending.prompt.kind === 'position') checkPosition(getLevel(state), action.value);
-        state.pendingPrompt = null;
-        state.occupation = null;
-        // An answer may start a multi-turn action by setting `state.occupation` (e.g. a run).
-        const cost = def.answer(ctx, action.value, pending.data);
-        spend(state, def, cost);
-        advanceTime(ctx);
-        refreshVision(state);
-        if (cost === 0 || ctx.interrupted || state.gameOver || state.pendingPrompt)
-          state.occupation = null;
-        return result(state, events);
-      }
-
-      // A multi-turn action runs one move per step: `continue` performs its next move, any
-      // other action cancels it first (ref: NetHack interrupting an occupation).
-      let act: PlayerAction = action;
-      if (action.type === 'continue') {
-        if (!state.occupation) return result(state, events);
-        act = state.occupation.action;
-      } else {
-        state.occupation = null;
-      }
-      const def = findHandler(act);
-      if (action.type !== 'continue' && def.continues)
-        state.occupation = { action: JSON.parse(JSON.stringify(act)) as PlayerAction, data: null };
-      if (registry.hooks('beforeAction').some((h) => h.fn(ctx, act) === 'cancel')) {
-        state.occupation = null;
-        return result(state, events);
-      }
-      const cost = def.perform(ctx, act);
+    const pending = state.pendingPrompt;
+    if (pending || action.type === 'answer') {
+      if (!pending) throw new Error('There is no prompt to answer');
+      if (action.type !== 'answer' || action.promptId !== pending.prompt.id)
+        throw new Error(`Prompt '${pending.prompt.id}' must be answered first`);
+      const def = registry.actions.find((a) => a.id === pending.handler);
+      if (!def?.answer) throw new Error(`Prompt handler '${pending.handler}' has no answer()`);
+      if (pending.prompt.kind === 'position') checkPosition(getLevel(state), action.value);
+      state.pendingPrompt = null;
+      state.occupation = null;
+      // An answer may start a multi-turn action by setting `state.occupation` (e.g. a run).
+      const cost = def.answer(ctx, action.value, pending.data);
       spend(state, def, cost);
-      refreshVision(state);
-      for (const h of registry.hooks('afterAction')) h.fn(ctx, act);
       advanceTime(ctx);
       refreshVision(state);
-      const keep =
-        state.occupation !== null &&
-        cost > 0 &&
-        !ctx.interrupted &&
-        !state.gameOver &&
-        !state.pendingPrompt &&
-        (def.continues?.(ctx, act) ?? false);
-      if (!keep) state.occupation = null;
+      if (cost === 0 || ctx.interrupted || state.gameOver || state.pendingPrompt)
+        state.occupation = null;
       return result(state, events);
-    },
+    }
+
+    // A multi-turn action runs one move per step: `continue` performs its next move, any
+    // other action cancels it first (ref: NetHack interrupting an occupation).
+    let act: PlayerAction = action;
+    if (action.type === 'continue') {
+      if (!state.occupation) return result(state, events);
+      act = state.occupation.action;
+    } else {
+      state.occupation = null;
+    }
+    const def = findHandler(act);
+    if (action.type !== 'continue' && def.continues)
+      state.occupation = { action: JSON.parse(JSON.stringify(act)) as PlayerAction, data: null };
+    if (registry.hooks('beforeAction').some((h) => h.fn(ctx, act) === 'cancel')) {
+      state.occupation = null;
+      return result(state, events);
+    }
+    const cost = def.perform(ctx, act);
+    spend(state, def, cost);
+    refreshVision(state);
+    for (const h of registry.hooks('afterAction')) h.fn(ctx, act);
+    advanceTime(ctx);
+    refreshVision(state);
+    const keep =
+      state.occupation !== null &&
+      cost > 0 &&
+      !ctx.interrupted &&
+      !state.gameOver &&
+      !state.pendingPrompt &&
+      (def.continues?.(ctx, act) ?? false);
+    if (!keep) state.occupation = null;
+    return result(state, events);
+  }
+
+  const engine: Engine = {
+    registry,
+    // sortedIds() is cached for the length of a new game or a step (util.ts IdCache)
+    newGame: (opts) => withIdCache(() => newGame(opts)),
+    step: (state, action) => withIdCache(() => step(state, action)),
 
     stepAll(state, action) {
       let r = engine.step(state, action);
