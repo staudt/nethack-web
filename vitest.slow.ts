@@ -3,6 +3,7 @@
 // (`vitest run --mode fast`) leaves them out for quick iteration; `pnpm test` and `pnpm check` run
 // everything. Globs are relative to each package. The one list for the whole repo: the package
 // configs read it through `slowTests()`.
+import path from 'node:path';
 import { configDefaults } from 'vitest/config';
 
 const SLOW: Readonly<Record<string, readonly string[]>> = {
@@ -31,6 +32,14 @@ const SLOW: Readonly<Record<string, readonly string[]>> = {
     'test/soak.*.test.ts',
   ],
 };
+
+/** Whether the test file at `file` (absolute, under `packages/<pkg>/`) is on the slow list. */
+export function isSlowTest(file: string): boolean {
+  const m = /[\\/]packages[\\/]([^\\/]+)[\\/](.+)$/.exec(file);
+  if (!m) return false;
+  const rel = (m[2] ?? '').replaceAll('\\', '/');
+  return (SLOW[m[1] ?? ''] ?? []).some((glob) => path.matchesGlob(rel, glob));
+}
 
 /** The `exclude` for a package's test config: the default, plus its slow files in fast mode. */
 export function slowTests(pkg: string, mode: string): string[] {
