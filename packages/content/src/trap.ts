@@ -68,9 +68,11 @@ import {
   onWTowerLevel,
   singleLevelBranch,
   inQuest,
+  isQlocate,
   uInvoked,
 } from './levelflags';
 import { questDescentBlocked } from './questgate';
+import { roleIs } from './urole';
 import { VIBRATING_SQUARE, invocationMessage, undestroyableTrap } from './invocation';
 import { checkSpecialRoom } from './rooms';
 import { findObjowner, makeAngryShk, stolenValue } from './shk';
@@ -755,6 +757,19 @@ function pitYou(
     if (conj) say(ctx, 'trap.pit.move_adjacent');
     else if (adj) say(ctx, ctx.rng.rn2(5) === 0 ? 'trap.pit.stumble_between' : 'trap.pit.stumble');
     else say(ctx, plunged ? 'trap.pit.plunge' : 'trap.pit.fall');
+  }
+  // wumpus reference: a Ranger's first fall into each pit of her quest's locate level
+  const level = ctx.state.levels[levelId];
+  if (
+    roleIs(ctx.state, 'ranger') &&
+    !dataOf(trap).madeby_u &&
+    !trap.once &&
+    level &&
+    inQuest(ctx.state, level) &&
+    isQlocate(ctx.state, level)
+  ) {
+    say(ctx, 'trap.pit.bottom');
+    trap.once = true;
   }
   let spikes = trap.def === TRAP.spikedPit;
   const boots = spikes ? ironShoes(ctx, ctx.state.playerId) : null;

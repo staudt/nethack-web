@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-244 NetHack files, 6341 citations.
+259 NetHack files, 6386 citations.
 
 ## dat/Arc-fila.lua
 
@@ -128,6 +128,66 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/Mon-strt.lua
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/mon.ts`
+
+## dat/Pri-fila.lua
+
+- (file): `packages/content/src/quest/pri.ts`
+
+## dat/Pri-filb.lua
+
+- (file): `packages/content/src/quest/pri.ts`
+
+## dat/Pri-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/pri.ts`
+
+## dat/Pri-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/pri.ts`
+
+## dat/Pri-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/pri.ts`
+
+## dat/Ran-fila.lua
+
+- (file): `packages/content/src/quest/ran.ts`
+
+## dat/Ran-filb.lua
+
+- (file): `packages/content/src/quest/ran.ts`
+
+## dat/Ran-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/ran.ts`
+
+## dat/Ran-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/ran.ts`
+
+## dat/Ran-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/ran.ts`
+
+## dat/Rog-fila.lua
+
+- (file): `packages/content/src/quest/rog.ts`
+
+## dat/Rog-filb.lua
+
+- (file): `packages/content/src/quest/rog.ts`
+
+## dat/Rog-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/rog.ts`
+
+## dat/Rog-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/rog.ts`
+
+## dat/Rog-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/rog.ts`
 
 ## dat/Val-fila.lua
 
@@ -2110,7 +2170,7 @@ whole. A missing function may still be ported under a citation this parser canno
 
 ## src/mkmaze.c
 
-- (file): `packages/content/src/baalz.ts`, `packages/content/src/bubbles.ts`, `packages/content/src/knox.ts`, `packages/content/src/messages.en.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
+- (file): `packages/content/src/baalz.ts`, `packages/content/src/bubbles.ts`, `packages/content/src/knox.ts`, `packages/content/src/messages.en.ts`, `packages/content/src/quest/pri.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/types/mod.ts`
 - `baalz_fixup()`: `packages/content/src/baalz.ts`
 - `bad_location()`: `packages/content/src/castle.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/terrain.ts`
 - `create_maze()`: `packages/content/src/hellfill.ts`, `packages/core/src/levelgen/maze.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
@@ -3147,7 +3207,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_object()`: `packages/content/src/quest/common.ts`, `packages/core/src/types/mod.ts`
 - `lspo_random_corridors()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_region()`: `packages/content/src/graveyard.ts`, `packages/content/src/quest/common.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
-- `lspo_replace_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
+- `lspo_replace_terrain()`: `packages/content/src/quest/ran.ts`, `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_room()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_stair()`: `packages/core/src/types/mod.ts`
 - `lspo_teleport_region()`: `packages/core/src/types/mod.ts`

@@ -12,6 +12,9 @@ import { CAV_FILA, CAV_FILB, CAV_FIXUPS, CAV_GOAL, CAV_LOCA, CAV_STRT } from './
 import { HEA_FILA, HEA_FILB, HEA_FIXUPS, HEA_GOAL, HEA_LOCA, HEA_STRT } from './hea';
 import { KNI_FILA, KNI_FILB, KNI_FIXUPS, KNI_GOAL, KNI_LOCA, KNI_STRT } from './kni';
 import { MON_FILA, MON_FILB, MON_FIXUPS, MON_GOAL, MON_LOCA, MON_STRT } from './mon';
+import { PRI_FILA, PRI_FILB, PRI_FIXUPS, PRI_GOAL, PRI_LOCA, PRI_STRT } from './pri';
+import { RAN_FILA, RAN_FILB, RAN_FIXUPS, RAN_GOAL, RAN_LOCA, RAN_STRT } from './ran';
+import { ROG_FILA, ROG_FILB, ROG_FIXUPS, ROG_GOAL, ROG_LOCA, ROG_STRT } from './rog';
 import { VAL_FILA, VAL_FILB, VAL_FIXUPS, VAL_GOAL, VAL_LOCA, VAL_STRT } from './val';
 
 /** The stand-in for a quest level of a role whose levels are not ported yet: a lit open level. */
@@ -37,6 +40,9 @@ const BY_ROLE: readonly (readonly [RoleKey, RoleLevels])[] = [
   ['healer', [HEA_STRT, HEA_LOCA, HEA_GOAL, HEA_FILA, HEA_FILB]],
   ['knight', [KNI_STRT, KNI_LOCA, KNI_GOAL, KNI_FILA, KNI_FILB]],
   ['monk', [MON_STRT, MON_LOCA, MON_GOAL, MON_FILA, MON_FILB]],
+  ['priest', [PRI_STRT, PRI_LOCA, PRI_GOAL, PRI_FILA, PRI_FILB]],
+  ['rogue', [ROG_STRT, ROG_LOCA, ROG_GOAL, ROG_FILA, ROG_FILB]],
+  ['ranger', [RAN_STRT, RAN_LOCA, RAN_GOAL, RAN_FILA, RAN_FILB]],
   ['valkyrie', [VAL_STRT, VAL_LOCA, VAL_GOAL, VAL_FILA, VAL_FILB]],
 ];
 
@@ -54,6 +60,9 @@ export const QUEST_FIXUPS: Readonly<Record<DefId, SpLevFixup>> = {
   ...HEA_FIXUPS,
   ...KNI_FIXUPS,
   ...MON_FIXUPS,
+  ...PRI_FIXUPS,
+  ...ROG_FIXUPS,
+  ...RAN_FIXUPS,
   ...VAL_FIXUPS,
 };
 

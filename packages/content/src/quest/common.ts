@@ -68,9 +68,15 @@ export const times = (n: number, c: LevelContent): LevelContent[] =>
 
 /** What a des.object() of a custom inventory may say besides its id and `spe`. */
 export interface InvOpts {
-  buc?: Buc;
+  /** `'not-cursed'`: a cursed one is uncursed (create_object()'s case 4). */
+  buc?: Buc | 'not-cursed';
   /** oname() (ONAME_LEVEL_DEF): an artifact's name makes it that artifact. */
   name?: string;
+  /**
+   * `quantity` of an object that stacks (oc_merge): a number, or `d(n, s)` drawn before the
+   * object is made (the lua table is built before des.object() runs).
+   */
+  quantity?: number | { dice: readonly [n: number, s: number] };
 }
 
 /**
@@ -98,7 +104,7 @@ export function monWithInventory(
   return m;
 }
 
-/** One des.object({ id, spe, buc, name }) of a custom inventory. */
+/** One des.object({ id, spe, buc, name, quantity }) of a custom inventory. */
 function giveObject(
   ctx: Ctx,
   level: Level,
@@ -108,12 +114,18 @@ function giveObject(
   spe: number,
   opts: InvOpts,
 ): void {
+  const q = opts.quantity;
+  const quantity = typeof q === 'object' ? ctx.rng.d(q.dice[0], q.dice[1]) : q;
   const o = createObject(ctx, level, { kind: 'object', id }, def);
   const e = o === null ? undefined : ctx.state.entities[String(o)];
   if (!e?.c.item) return;
   e.c.item.spe = spe;
-  if (opts.buc !== undefined) e.c.item.buc = opts.buc;
+  if (opts.buc === 'not-cursed') {
+    if (e.c.item.buc === 'cursed') e.c.item.buc = 'uncursed'; // uncurse()
+  } else if (opts.buc !== undefined) e.c.item.buc = opts.buc;
   if (opts.name !== undefined) onameItem(ctx, id, e.c.item, opts.name, 'lvldef');
+  if (quantity !== undefined && quantity > 0 && ctx.defs.object(id).merge)
+    e.c.item.quantity = quantity;
   mpickobj(ctx, monId, e);
 }
 
@@ -155,13 +167,14 @@ export function questArtifact(
   y: number,
   spe: number,
   name: string,
-): void {
+): EntityId | null {
   const o = createObject(ctx, level, { kind: 'object', id: base, x, y }, def);
   const it = o === null ? undefined : ctx.state.entities[String(o)]?.c.item;
-  if (!it) return;
+  if (!it) return o;
   it.spe = spe;
   it.buc = 'blessed';
   onameItem(ctx, base, it, name, 'lvldef');
+  return o;
 }
 
 /**

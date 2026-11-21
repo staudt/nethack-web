@@ -402,6 +402,54 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:mon-loca': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }] },
   /** ref: dat/Mon-goal.lua ("mazelevel") */
   'nh:mon-goal': { maze: true },
+  // m24b step 9: the Priest's, Rogue's and Ranger's quests (Pri-fila/filb and Rog-fila/filb set
+  // no flags; Ran-fila/filb's "mazelevel" is cleared by their walled, joined mines-style map,
+  // which makes them cavernous: mkmap())
+  /** ref: dat/Pri-strt.lua ("mazelevel", "noteleport", "hardfloor"; the temple's walls) */
+  'nh:pri-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 18, y1: 3, x2: 55, y2: 16 }],
+  },
+  /** ref: dat/Pri-loca.lua ("mazelevel", "hardfloor", "noflip"; the temple's walls) */
+  'nh:pri-loca': {
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 10, y1: 2, x2: 30, y2: 13 }],
+  },
+  /** ref: dat/Pri-goal.lua ("mazelevel") */
+  'nh:pri-goal': { maze: true },
+  /** ref: dat/Rog-strt.lua ("mazelevel", "noteleport", "hardfloor", "nommap") */
+  'nh:rog-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nommap: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }],
+  },
+  /** ref: dat/Rog-loca.lua ("mazelevel") */
+  'nh:rog-loca': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }] },
+  /** ref: dat/Rog-goal.lua ("mazelevel", "noteleport") */
+  'nh:rog-goal': {
+    noteleport: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }],
+  },
+  /**
+   * ref: dat/Ran-strt.lua ("mazelevel", "noteleport", "hardfloor", "arboreal": stone drawn as
+   * trees is not ported)
+   */
+  'nh:ran-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 40, y2: 20 }],
+  },
+  /** ref: dat/Ran-loca.lua ("mazelevel", "hardfloor") */
+  'nh:ran-loca': { hardfloor: true, maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 54, y2: 19 }] },
+  /** ref: dat/Ran-goal.lua ("mazelevel") */
+  'nh:ran-goal': { maze: true, nondiggable: QUEST_MAP_76 },
 };
 
 const NONE: LevelFlags = {};

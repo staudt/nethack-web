@@ -173,6 +173,7 @@ export const trapMessagesEn: Record<string, string> = {
   // pits. ref: trapeffect_pit(), climb_pit(), mintrap()
   'trap.pit.fall': 'You fall into a pit!',
   'trap.pit.plunge': 'You plunge into a pit!',
+  'trap.pit.bottom': 'Fortunately it has a bottom after all...',
   'trap.pit.spikes': 'You land on a set of sharp iron spikes!',
   'trap.pit.spikes_step': 'You step on a set of sharp iron spikes!',
   'trap.pit.move_adjacent': 'You move into an adjacent pit.',
