@@ -361,6 +361,47 @@ export const LEVEL_FLAGS: Readonly<Record<DefId, LevelFlags>> = {
   'nh:cav-fila': { maze: true },
   /** ref: dat/Cav-filb.lua ("mazelevel", "noflip") */
   'nh:cav-filb': { maze: true },
+  // m24b step 8: the Healer's, Knight's and Monk's quests (Mon-fila/filb set no flags)
+  /** ref: dat/Hea-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:hea-strt': { noteleport: true, hardfloor: true, maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Hea-loca.lua ("mazelevel", "hardfloor"; the temple's walls) */
+  'nh:hea-loca': {
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 11, y1: 2, x2: 21, y2: 7 }],
+  },
+  /** ref: dat/Hea-goal.lua ("mazelevel") */
+  'nh:hea-goal': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 40, y2: 11 }] },
+  /** ref: dat/Hea-fila.lua ("mazelevel", "noflip") */
+  'nh:hea-fila': { maze: true },
+  /** ref: dat/Hea-filb.lua ("mazelevel", "noflip") */
+  'nh:hea-filb': { maze: true },
+  /** ref: dat/Kni-strt.lua ("mazelevel", "noteleport", "hardfloor") */
+  'nh:kni-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 0, y1: 0, x2: 49, y2: 15 }],
+  },
+  /** ref: dat/Kni-loca.lua ("mazelevel", "hardfloor"; no non-diggable walls) */
+  'nh:kni-loca': { hardfloor: true, maze: true },
+  /** ref: dat/Kni-goal.lua ("mazelevel") */
+  'nh:kni-goal': { maze: true, nondiggable: QUEST_MAP_76 },
+  /** ref: dat/Kni-fila.lua ("mazelevel", "noflip") */
+  'nh:kni-fila': { maze: true },
+  /** ref: dat/Kni-filb.lua ("mazelevel", "noflip") */
+  'nh:kni-filb': { maze: true },
+  /** ref: dat/Mon-strt.lua ("mazelevel", "noteleport", "hardfloor"; the monastery's walls) */
+  'nh:mon-strt': {
+    noteleport: true,
+    hardfloor: true,
+    maze: true,
+    nondiggable: [{ x1: 18, y1: 3, x2: 55, y2: 16 }],
+  },
+  /** ref: dat/Mon-loca.lua ("mazelevel", "noflip"; no map block: Level coordinates) */
+  'nh:mon-loca': { maze: true, nondiggable: [{ x1: 0, y1: 0, x2: 75, y2: 20 }] },
+  /** ref: dat/Mon-goal.lua ("mazelevel") */
+  'nh:mon-goal': { maze: true },
 };
 
 const NONE: LevelFlags = {};

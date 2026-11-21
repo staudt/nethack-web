@@ -7,7 +7,7 @@ tables and data macros such as `WEAPON()`); a citation that names no file is pla
 the function definitions in `vendor/nethack/src`. `(file)` lists citations of the file as a
 whole. A missing function may still be ported under a citation this parser cannot read.
 
-229 NetHack files, 6294 citations.
+244 NetHack files, 6341 citations.
 
 ## dat/Arc-fila.lua
 
@@ -68,6 +68,66 @@ whole. A missing function may still be ported under a citation this parser canno
 ## dat/Cav-strt.lua
 
 - (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/cav.ts`
+
+## dat/Hea-fila.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/hea.ts`
+
+## dat/Hea-filb.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/hea.ts`
+
+## dat/Hea-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/hea.ts`
+
+## dat/Hea-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/hea.ts`
+
+## dat/Hea-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/hea.ts`
+
+## dat/Kni-fila.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/kni.ts`
+
+## dat/Kni-filb.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/kni.ts`
+
+## dat/Kni-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/kni.ts`
+
+## dat/Kni-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/kni.ts`
+
+## dat/Kni-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/kni.ts`
+
+## dat/Mon-fila.lua
+
+- (file): `packages/content/src/quest/mon.ts`
+
+## dat/Mon-filb.lua
+
+- (file): `packages/content/src/quest/mon.ts`
+
+## dat/Mon-goal.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/mon.ts`
+
+## dat/Mon-loca.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/mon.ts`
+
+## dat/Mon-strt.lua
+
+- (file): `packages/content/src/levelflags.ts`, `packages/content/src/quest/mon.ts`
 
 ## dat/Val-fila.lua
 
@@ -3084,7 +3144,7 @@ whole. A missing function may still be ported under a citation this parser canno
 - `lspo_map()`: `packages/content/src/mazefill.ts`, `packages/content/src/sp_lev.ts`, `packages/core/src/levelgen/spdef.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_mazewalk()`: `packages/content/src/mazewalk.ts`
 - `lspo_monster()`: `packages/content/src/quest/common.ts`, `packages/core/src/types/mod.ts`
-- `lspo_object()`: `packages/core/src/types/mod.ts`
+- `lspo_object()`: `packages/content/src/quest/common.ts`, `packages/core/src/types/mod.ts`
 - `lspo_random_corridors()`: `packages/core/src/levelgen/special.ts`, `packages/core/src/levelgen/sprooms.ts`, `packages/core/src/types/mod.ts`
 - `lspo_region()`: `packages/content/src/graveyard.ts`, `packages/content/src/quest/common.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`
 - `lspo_replace_terrain()`: `packages/content/src/selection.ts`, `packages/core/src/levelgen/special.ts`, `packages/core/src/types/mod.ts`

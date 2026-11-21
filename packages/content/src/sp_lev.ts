@@ -88,7 +88,7 @@ import {
  * first in column order; null when there is none (C calls impossible()).
  * ref: src/sp_lev.c get_location() (with croom: somexy(); without: xstart, xsize of the map)
  */
-function getLocation(
+export function getLocation(
   ctx: Ctx,
   level: Level,
   def: LevelDef,

@@ -1,19 +1,25 @@
 // What the quest level files (quest/<code>.ts) share: shorthands for their contents lists, the
-// leader's custom inventory, the quest artifact on the goal level, up stairs a script puts off its
-// map, the home level's branch levregion, altars of the hero's alignment or against it, irregular
-// regions' lighting, des.wallify() and random engravings. Imported by the quest level files only.
+// leader's custom inventory, the quest artifact on the goal level, objects with a quantity, BUC or
+// spinach, up stairs a script puts off its map and stairs it puts at random after its own
+// terrain, the home level's branch levregion, altars of the hero's alignment or against it,
+// irregular regions' lighting, des.wallify() and random engravings. Imported by the quest level
+// files only.
 // ref: src/sp_lev.c create_monster(), create_object(), create_altar(), lspo_region(),
-// lspo_wallify(), lspo_engraving(); src/mkmap.c flood_fill_rm(); src/mkmaze.c fixup_special()
+// l_create_stairway(), lspo_wallify(), lspo_engraving(); src/mkmap.c flood_fill_rm();
+// src/mkmaze.c fixup_special()
 import {
   levelDefArea,
+  trapAt,
   VANILLA_TERRAIN,
   wallifyLevel,
+  type Buc,
   type Ctx,
   type DefId,
   type EntityId,
   type Level,
   type LevelContent,
   type LevelDef,
+  type Pos,
 } from '@nh/core';
 import { altarOf, type Aligntyp } from '../aligntyp';
 import { onameItem } from '../artistate';
@@ -25,11 +31,14 @@ import {
   createObject,
   desEngraving,
   desLevregion,
+  desStair,
+  dry,
+  getLocation,
   mapToLevel,
   randomDrySpot,
 } from '../sp_lev';
 import { mpickobj } from '../steal';
-import { T, setTerrain } from '../terrain';
+import { T, setTerrain, terrainIdAt } from '../terrain';
 
 /** des.monster(id) or des.monster(id, x, y). */
 export const mon = (id: string, x?: number, y?: number): LevelContent =>
@@ -57,13 +66,20 @@ export const trap = (id?: DefId, x?: number, y?: number): LevelContent => ({
 export const times = (n: number, c: LevelContent): LevelContent[] =>
   Array.from({ length: n }, () => c);
 
+/** What a des.object() of a custom inventory may say besides its id and `spe`. */
+export interface InvOpts {
+  buc?: Buc;
+  /** oname() (ONAME_LEVEL_DEF): an artifact's name makes it that artifact. */
+  name?: string;
+}
+
 /**
- * des.monster({ id, coord, inventory = function() des.object({ id, spe })... end }): made with
- * its species' inventory, which a custom inventory discards (no special objects to drop: a
- * leader carries none), then each des.object() is made (at a random spot, as create_object()
- * does) and given to it, and it puts on what it can wear. ref: src/sp_lev.c lspo_monster(),
- * create_monster() (discard_minvent()), create_object() (invent_carrying_monster),
- * spo_end_moninvent()
+ * des.monster({ id, coord, inventory = function() des.object({ id, spe, buc, name })... end }):
+ * made with its species' inventory, which a custom inventory discards (no special objects to
+ * drop: a leader carries none), then each des.object() is made (at a random spot, as
+ * create_object() does), given its spe, BUC and name, and given to it, and it puts on what it can
+ * wear. ref: src/sp_lev.c lspo_monster(), create_monster() (discard_minvent()), create_object()
+ * (invent_carrying_monster), spo_end_moninvent()
  */
 export function monWithInventory(
   ctx: Ctx,
@@ -72,17 +88,17 @@ export function monWithInventory(
   id: DefId,
   x: number,
   y: number,
-  items: readonly (readonly [DefId, number])[],
+  items: readonly (readonly [DefId, number] | readonly [DefId, number, InvOpts])[],
 ): EntityId | null {
   const m = createMonster(ctx, level, mon(id, x, y), def);
   if (m === null) return null;
   for (const o of minvent(ctx, m)) ctx.remove(o.id);
-  for (const [oid, spe] of items) giveObject(ctx, level, def, m, oid, spe);
+  for (const [oid, spe, opts] of items) giveObject(ctx, level, def, m, oid, spe, opts ?? {});
   mDoWear(ctx, m, true);
   return m;
 }
 
-/** One des.object({ id, spe }) of a custom inventory. */
+/** One des.object({ id, spe, buc, name }) of a custom inventory. */
 function giveObject(
   ctx: Ctx,
   level: Level,
@@ -90,12 +106,40 @@ function giveObject(
   monId: EntityId,
   id: DefId,
   spe: number,
+  opts: InvOpts,
 ): void {
   const o = createObject(ctx, level, { kind: 'object', id }, def);
   const e = o === null ? undefined : ctx.state.entities[String(o)];
   if (!e?.c.item) return;
   e.c.item.spe = spe;
+  if (opts.buc !== undefined) e.c.item.buc = opts.buc;
+  if (opts.name !== undefined) onameItem(ctx, id, e.c.item, opts.name, 'lvldef');
   mpickobj(ctx, monId, e);
+}
+
+/**
+ * des.object({ id, coord, quantity, buc, montype = "spinach" }) at a Level spot: `quantity` for
+ * an object that stacks, `buc`, and a tin of spinach (spe 1, no monster: the port's way of
+ * saying TIN_SPINACH). ref: src/sp_lev.c lspo_object(), create_object()
+ */
+export function objectAt(
+  ctx: Ctx,
+  level: Level,
+  def: LevelDef,
+  id: DefId,
+  p: Pos,
+  opts: { quantity?: number; buc?: Buc; spinach?: true } = {},
+): EntityId | null {
+  const o = createObject(ctx, level, { kind: 'object', id, x: p.x, y: p.y, coords: 'level' }, def);
+  const it = o === null ? undefined : ctx.state.entities[String(o)]?.c.item;
+  if (!it) return o;
+  if (opts.spinach) {
+    it.spe = 1;
+    delete it.corpseOf;
+  }
+  if (opts.buc !== undefined) it.buc = opts.buc;
+  if (opts.quantity !== undefined) it.quantity = opts.quantity;
+  return o;
 }
 
 /**
@@ -132,6 +176,23 @@ export function liftUpPlaceholder(
   const ph = mapToLevel(def, level, placeholder.x, placeholder.y);
   setTerrain(level, ph.x, ph.y, T.floor);
   level.up = null;
+}
+
+/**
+ * des.stair(dir) with no spot, for a script that lays out its own terrain after core put the
+ * stairs (they went on placeholders the fixup lifted): a random DRY spot of floor, corridor or
+ * ice (good_stair_loc()) inside `def`'s map block, any trap there removed, then the stairs if the
+ * dungeon gives the level such stairs (the spot is drawn either way). ref: src/sp_lev.c
+ * l_create_stairway(), good_stair_loc(), get_location()
+ */
+export function stairAtRandom(ctx: Ctx, level: Level, def: LevelDef, dir: 'up' | 'down'): void {
+  const p = getLocation(ctx, level, def, (q) => {
+    const id = terrainIdAt(level, q.x, q.y);
+    return (id === T.floor || id === T.corr || id === T.ice) && dry(ctx, level, q);
+  });
+  if (!p) return;
+  if (trapAt(level, p.x, p.y)) ctx.removeTrap(level.id, p);
+  desStair(ctx, level, dir, p);
 }
 
 /**
