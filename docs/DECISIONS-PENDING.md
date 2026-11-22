@@ -345,3 +345,20 @@ Plan `~/.claude/plans/m24.md` (m24a steps 1-6: framework and the Valkyrie's ques
 - **Q12 left out:** the legacy intro, livelog/achievements, #overview, bones, the dying nemesis's gas cloud, talking artifacts, the Eyes' x-ray vision, monster genders and names, Deafness branches.
 - **Q13 two golden moves** (steps 2 and 3) and one save bump (`SAVE_VERSION` 11 in step 3; old saves wiped).
 - **Q14 the m24a/m24b split** with three roles per step; drop order 10, 9, 8, 7, then the crystal ball's failure effects.
+
+## Parked for the user (m25, 2026-11-21)
+
+Plan `~/.claude/plans/m25.md`. The orchestrator skips what is costly to undo and runs the rest.
+
+- **Q3 / step 8, the hero's name in core:** `Character.name?: string` (C's `plname`) passed at new game from a device option, in the protocol, the replay header and the save (`SAVE_VERSION` 12, old saves wiped). It would show in the welcome ("Hello Brunhilde, welcome to NetHack!"), the status line, shopkeepers' greetings, the vault guard and the quest texts' `%p`; the branch staircase description rides along. Small and additive, but a core interface and save-format change, so it waits for you. Planner recommends yes.
+
+## Taken (m25 the ROADMAP leftovers a player meets first, 2026-11-21)
+
+- **Q1 exercise counters** in content `modData.nh` (no save-version bump).
+- **Q2 `dosounds()` room flags** from the level's room types; fountain and sink counts kept per level and updated where that terrain changes, rather than a per-turn map scan.
+- **Q4 minefill's either/or monster** ("h" or "G") as a **content fix-up draw**, the planner's cheap fallback, instead of a core LevelDef either/or entry (the level format is the mod contract: that stays for the user / the mod-platform milestone).
+- **Q5 the ring a sink keeps** 1 time in 5 is simply gone (no buried objects); DEVIATIONS.
+- **Q6 the Oracle's texts** copied by hand into `oracletxt.ts` like the rumors, no converter target.
+- **Q7 shopkeepers' gem offers** ported whole, including identifying a gem by a low offer.
+- **Q8 the slime mold keeps its default name** (no fruit option).
+- **Q9 exercise call sites** step 1 does not reach go to ROADMAP, listed by file.
